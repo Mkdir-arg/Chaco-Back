@@ -26,6 +26,7 @@ el día de hoy— se borró: el URLconf real ya es ese.
 """
 
 import ast
+import tempfile
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
@@ -141,35 +142,58 @@ class IndependenciaTests(TestCase):
     """
 
     @staticmethod
-    def _imports_de_conversaciones_a_nivel_de_modulo():
+    def _imports_de_conversaciones_a_nivel_de_modulo(raiz=None):
+        """Devuelve `(hallazgos, archivos_recorridos)`.
+
+        El contador es parte del contrato: un walker que no visita ningún archivo
+        —raíz mal armada, `rglob` que no matchea— devuelve `[]` y se ve igual que un
+        `legajos` limpio. Quien lo use tiene que exigir que haya recorrido algo.
+        """
+        raiz = raiz if raiz is not None else RAIZ / "legajos"
         encontrados = []
-        for archivo in (RAIZ / "legajos").rglob("*.py"):
+        archivos = 0
+        for archivo in raiz.rglob("*.py"):
             if "migrations" in archivo.parts:
                 continue
+            archivos += 1
+            etiqueta = archivo.relative_to(raiz.parent).as_posix()
             arbol = ast.parse(archivo.read_text(encoding="utf-8"), str(archivo))
             for nodo in arbol.body:  # solo el nivel de módulo: los diferidos no rompen el arranque
                 if isinstance(nodo, ast.ImportFrom) and (nodo.module or "").startswith("conversaciones"):
-                    encontrados.append(f"{archivo.relative_to(RAIZ).as_posix()}:{nodo.lineno}")
+                    encontrados.append(f"{etiqueta}:{nodo.lineno}")
                 elif isinstance(nodo, ast.Import):
                     encontrados += [
-                        f"{archivo.relative_to(RAIZ).as_posix()}:{nodo.lineno}"
-                        for alias in nodo.names
-                        if alias.name.startswith("conversaciones")
+                        f"{etiqueta}:{nodo.lineno}" for alias in nodo.names if alias.name.startswith("conversaciones")
                     ]
-        return sorted(encontrados)
+        return sorted(encontrados), archivos
 
     def test_el_detector_sigue_viendo_un_import_plantado(self):
-        """Control del andamio: sin esto, el test de abajo pasaría con un detector roto."""
-        import ast as _ast
+        """Control del andamio: sin esto, el test de abajo pasaría con un detector roto.
 
-        arbol = _ast.parse("from conversaciones.models import Mensaje\n")
-        self.assertTrue(
-            any(isinstance(nodo, _ast.ImportFrom) and nodo.module.startswith("conversaciones") for nodo in arbol.body)
-        )
+        Se le da al **mismo** walker una raíz temporal con las dos formas de import que
+        rompían el arranque (`from conversaciones… import` y `import conversaciones…`),
+        en vez de reimplementar la búsqueda al lado y afirmar sobre la copia.
+        """
+        with tempfile.TemporaryDirectory() as carpeta:
+            raiz = Path(carpeta) / "legajos"
+            raiz.mkdir()
+            (raiz / "desde.py").write_text("from conversaciones.models import Mensaje\n", encoding="utf-8")
+            (raiz / "plano.py").write_text("import conversaciones.models\n", encoding="utf-8")
+            (raiz / "diferido.py").write_text(
+                "def f():\n    from conversaciones.models import Mensaje\n", encoding="utf-8"
+            )
+
+            encontrados, archivos = self._imports_de_conversaciones_a_nivel_de_modulo(raiz)
+
+        self.assertEqual(archivos, 3)
+        self.assertEqual(encontrados, ["legajos/desde.py:1", "legajos/plano.py:1"])
 
     def test_legajos_no_importa_conversaciones(self):
         """RED-13 — invertido en G1-01 fase 2 (`alerta_mensaje_ciudadano` se mudó)."""
-        self.assertEqual(self._imports_de_conversaciones_a_nivel_de_modulo(), [])
+        encontrados, archivos = self._imports_de_conversaciones_a_nivel_de_modulo()
+
+        self.assertGreater(archivos, 0, "el walker no recorrió ningún archivo de legajos")
+        self.assertEqual(encontrados, [])
 
     def test_el_receiver_vive_en_conversaciones_y_sigue_conectado(self):
         """No desapareció: cambió de dueño, junto con el modelo que lo dispara.

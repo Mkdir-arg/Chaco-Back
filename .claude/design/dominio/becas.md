@@ -319,10 +319,9 @@ necesita OK. No se clona para una pantalla nueva. Lo que vale como contrato:
 `{% bajada %}` y «Ver ciudadanos» como acción): **no hay hero**, el canon no los usa en
 backoffice operativo. Alpine `dashboardInicio()`: buscador de ciudadanos con typeahead
 (`AbortController` + número de secuencia para descartar respuestas tardías), stat cards, «Mi
-trabajo de hoy» con dos feeds, accesos rápidos y la grilla «Cobertura por programa» (barras de
-progreso + tarjeta de tendencias con Chart.js vendorizado y carga diferida por
-`IntersectionObserver`). «Mi trabajo de hoy» tenía **dos** feeds hasta G1-01 fase 2: el de
-conversaciones sin asignar se fue con el apagado de la app y la grilla quedó de una columna.
+trabajo de hoy» —un solo feed, el de derivaciones pendientes, en una grilla de una columna—,
+accesos rápidos y la grilla «Cobertura por programa» (barras de progreso + tarjeta de tendencias
+con Chart.js vendorizado y carga diferida por `IntersectionObserver`).
 
 **Cada pieza que pide datos a una API con capacidad se esconde con el mismo `puede` que exige esa
 API:** tarjeta de búsqueda rápida y feed de derivaciones con `ciudadano.ver` (la tarjeta sobrevive

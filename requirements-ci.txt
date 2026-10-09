@@ -1,0 +1,47 @@
+# Herramientas del CI, con versión fija (RED-85, Cambio 196).
+#
+# Hasta acá los workflows hacían `pip install ruff`, `pip install coverage`,
+# `pip install pip-audit` y `pip install mkdocs-material` **sin versión**: cada corrida
+# instalaba lo último publicado. Un release de cualquiera de ellas vuelve rojo un PR que
+# no cambió una línea —una regla nueva de Ruff, un `fail_under` que se mide distinto, una
+# advisory nueva de `pip-audit`— y el autor del PR no tiene cómo saber que el rojo no es
+# suyo. El caso más caro es `pip-audit`, que desde el Cambio 121 es un check obligatorio
+# del ruleset y su base de advisories cambia sola: un release suyo frena **todos** los
+# merges abiertos a la vez.
+#
+# Pinear no es destildar el check: cuando una advisory nueva aparezca, la salida sigue
+# siendo `security/excepciones.toml` con motivo, ticket y `vence_el` corto (RED-63). Lo
+# que se gana es que la advisory llegue **cuando se sube el pin**, en un PR que la mira,
+# y no en el medio de otro trabajo.
+#
+# Se instala entero (`pip install -r requirements-ci.txt`) en todos los jobs que usan
+# alguna de estas herramientas, aunque cada uno use una sola: tener las versiones en un
+# archivo y no repartidas por los YAML es el punto de la ficha, y el costo son ~20 s de
+# descarga en jobs que duran minutos. Las versiones son las que el CI ya venía
+# instalando al 09-oct-2026, así que pinearlas no cambia ningún resultado.
+#
+# Lo sube dependabot (`.github/dependabot.yml`, semanal, contra `development`).
+#
+# NO va acá nada que la aplicación importe: eso es `requirements.txt` (producción) o
+# `requirements-dev.txt` (local). Los jobs que corren la suite instalan `requirements.txt`
+# además de este archivo.
+
+# `Ruff errores` (bloqueante, `--select F`) y `Ruff estilo` (no bloqueante, E/W/I +
+# `ruff format --check`). El pin es lo que faltaba para poder hacer bloqueante el
+# segundo: hoy da 0 y una regla E/W nueva lo pondría en rojo sin que nadie toque nada.
+ruff==0.16.10
+
+# `Tests & Coverage`: `coverage run manage.py test` + `coverage report` con
+# `fail_under = 79` y el piso por módulo crítico (TST-03). Un cambio en cómo mide ramas
+# mueve el número sin que cambie el código.
+coverage==7.16.2
+
+# `Pip Audit`, obligatorio desde el Cambio 121.
+pip-audit==2.10.1
+
+# `Bandit Security Scan` (no bloqueante). Ya estaba pineada en el YAML desde el
+# Cambio 121; se muda acá con el resto.
+bandit[toml]==1.9.4
+
+# `Docs Auto Deploy`, que publica `docs/client/` en GitHub Pages con `contents: write`.
+mkdocs-material==9.7.7

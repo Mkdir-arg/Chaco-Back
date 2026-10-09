@@ -92,14 +92,16 @@ def claves_conocidas(loader) -> set:
     """Las claves que el código sí tiene: las de disco **más** las que un `replaces` cubre.
 
     Una migración *reemplazada* —por un squash— figura aplicada y no tiene archivo
-    propio: es correcto y permanente. `django-health-check` es el caso vivo de este
-    repo: su `db.0001_initial` declara `replaces = [("health_check_db", "0001_initial")]`,
-    así que `django_migrations` guarda **dos** filas y en disco hay **un** archivo, bajo
-    un tercer label (`db`, el del AppConfig).
+    propio: es correcto y permanente. El caso que lo descubrió fue `django-health-check`:
+    su `db.0001_initial` declaraba `replaces = [("health_check_db", "0001_initial")]`, así
+    que `django_migrations` guardaba **dos** filas y en disco había **un** archivo, bajo un
+    tercer label (`db`, el del AppConfig). Sin esta unión, la guarda abortaba el arranque
+    en icore, en testing y en PRD —lo midió el CI del PR R-15—.
 
-    Sin esta unión, la guarda abortaría el arranque en icore, en testing y en PRD el día
-    que se despliegue —lo midió el CI de este mismo PR—, y lo haría además con cualquier
-    squash que el proyecto haga en el futuro.
+    Ese paquete salió del proyecto en el Cambio 196 (OPS-13) y `core.0003` borró sus dos
+    filas, así que hoy el repo no tiene ningún `replaces` vivo. La unión se queda: la
+    próxima vez que alguien haga un squash, o instale una dependencia que traiga uno, el
+    modo de falla es el mismo y el ambiente que lo sufre es producción.
     """
     reemplazadas = {
         clave for migracion in (getattr(loader, "replacements", None) or {}).values() for clave in migracion.replaces

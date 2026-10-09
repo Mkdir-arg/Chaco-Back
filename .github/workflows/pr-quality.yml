@@ -34,6 +34,8 @@ jobs:
             python:
               - '**/*.py'
               - 'pyproject.toml'
+              # RED-85: subir el pin de una herramienta tiene que correr su propio job.
+              - 'requirements-ci.txt'
               - '.github/workflows/pr-quality.yml'
 
       - uses: actions/setup-python@v5
@@ -41,18 +43,20 @@ jobs:
         with:
           python-version: "3.12"
 
+      # RED-85: la version sale de `requirements-ci.txt`, no de lo ultimo publicado.
       - name: Install Ruff
         if: steps.filtro.outputs.python == 'true'
-        run: pip install ruff
+        run: pip install -r requirements-ci.txt
 
       - name: Run Ruff error checks
         if: steps.filtro.outputs.python == 'true'
         run: ruff check . --select F --output-format=github
 
-  # El estilo sigue sin bloquear, como pide RED-63. Hoy da 0, así que el candidato está:
-  # para encenderlo hace falta antes fijar la versión de Ruff (`requirements-ci.txt`,
-  # RED-85 / Ola 7), o un release con una regla E/W nueva vuelve rojo un PR que no cambió
-  # nada. Recién ahí se le saca el `continue-on-error` y se suma al ruleset.
+  # El estilo sigue sin bloquear, como pide RED-63. Hoy da 0 y desde el Cambio 196 la
+  # versión de Ruff está fija en `requirements-ci.txt` (RED-85), que era la condición que
+  # faltaba: un release con una regla E/W nueva ya no puede volver rojo un PR que no
+  # cambió nada. Encenderlo —sacarle el `continue-on-error` y sumarlo al ruleset— es una
+  # decisión del PM, no un cambio técnico, y no se toma acá.
   ruff-estilo:
     name: Ruff estilo
     runs-on: ubuntu-latest
@@ -69,6 +73,8 @@ jobs:
             python:
               - '**/*.py'
               - 'pyproject.toml'
+              # RED-85: subir el pin de una herramienta tiene que correr su propio job.
+              - 'requirements-ci.txt'
               - '.github/workflows/pr-quality.yml'
 
       - uses: actions/setup-python@v5
@@ -76,9 +82,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      # RED-85: la version sale de `requirements-ci.txt`, no de lo ultimo publicado.
       - name: Install Ruff
         if: steps.filtro.outputs.python == 'true'
-        run: pip install ruff
+        run: pip install -r requirements-ci.txt
 
       # `--ignore E501` va explícito: un `--select` por línea de comandos pisa también el
       # `ignore` de `pyproject.toml`, así que sin esto el job reportaría las 43 líneas
@@ -217,6 +224,8 @@ jobs:
             python:
               - '**/*.py'
               - 'pyproject.toml'
+              # RED-85: subir el pin de una herramienta tiene que correr su propio job.
+              - 'requirements-ci.txt'
               - '.github/workflows/pr-quality.yml'
 
       - uses: actions/setup-python@v5
@@ -225,10 +234,11 @@ jobs:
           python-version: "3.12"
 
       # Versión fija (RED-85): un release de Bandit no puede volver rojo un PR que no
-      # cambió nada. Se sube a mano, en su propio PR.
+      # cambió nada. El pin estaba acá en el YAML desde el Cambio 121 y se mudó a
+      # `requirements-ci.txt` con el resto de las herramientas; lo sube dependabot.
       - name: Install Bandit
         if: steps.filtro.outputs.python == 'true'
-        run: pip install "bandit[toml]==1.9.4"
+        run: pip install -r requirements-ci.txt
 
       - name: Run Bandit
         if: steps.filtro.outputs.python == 'true'

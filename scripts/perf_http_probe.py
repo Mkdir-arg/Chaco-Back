@@ -25,8 +25,8 @@ LECTURAS = (
     ("dashboard_metricas", "dashboard:api_metricas", "/api/metricas/", "backoffice", 200),
     ("legajos_lista", "legajos:ciudadanos", "/legajos/ciudadanos/", "backoffice", 200),
     ("legajo_detalle", "legajos:ciudadano_detalle", "/legajos/ciudadanos/{ciudadano_pk}/", "backoffice", 200),
-    ("conversaciones_lista", "conversaciones:lista", "/conversaciones/", "backoffice", 200),
-    ("conversacion_detalle", "conversaciones:detalle", "/conversaciones/{conversacion_pk}/", "backoffice", 200),
+    # G1-01 fase 2: `conversaciones` está apagada y no tiene rutas; salieron de acá
+    # `conversaciones_lista` y `conversacion_detalle`, como el portal con SEC-29.
     # SEC-29: el portal ciudadano está apagado; de /portal/ sólo queda la home pública.
     ("portal_home", "portal:home", "/portal/", "anonymous", 200),
     ("becas_segmentos", "becas:segmentos", "/becas/config/segmentos/", "backoffice", 200),
@@ -66,25 +66,15 @@ class Session:
         self.jar = http.cookiejar.CookieJar()
         self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar), NoRedirect())
 
-    def request(self, path, data=None, referer=None, json_body=None, csrf_token=None):
+    def request(self, path, data=None, referer=None):
         url = path if path.startswith(("http://", "https://")) else self.base_url + path
-        if json_body is not None:
-            body = json.dumps(json_body).encode("utf-8")
-        elif data is not None:
-            body = urllib.parse.urlencode(data, doseq=True).encode("utf-8")
-        else:
-            body = None
+        body = urllib.parse.urlencode(data, doseq=True).encode("utf-8") if data is not None else None
 
         request = urllib.request.Request(url, data=body, method="POST" if body is not None else "GET")
         request.add_header("User-Agent", "perf262-http-probe")
         if referer:
             request.add_header("Referer", referer)
-        if json_body is not None:
-            request.add_header("Content-Type", "application/json")
-            request.add_header("X-Requested-With", "XMLHttpRequest")
-            if csrf_token:
-                request.add_header("X-CSRFToken", csrf_token)
-        elif data is not None:
+        if data is not None:
             request.add_header("Content-Type", "application/x-www-form-urlencoded")
 
         started = time.perf_counter_ns()
@@ -165,16 +155,7 @@ def percentile(values, percent):
     return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
 
 
-def json_success(sample):
-    """Valida el indicador funcional sin conservar el cuerpo de la respuesta."""
-    try:
-        payload = json.loads(sample.get("text", ""))
-    except (TypeError, ValueError):
-        return False
-    return isinstance(payload, dict) and payload.get("success") is True
-
-
-def summarize(samples, require_json_success=False, expected_statuses=None):
+def summarize(samples, expected_statuses=None):
     """Resume solo respuestas medibles y marca cualquier fallo de sesión."""
     expected_statuses = set(expected_statuses or ())
 
@@ -183,20 +164,11 @@ def summarize(samples, require_json_success=False, expected_statuses=None):
             return sample.get("status") in expected_statuses
         return sample.get("status", 500) < 400
 
-    valid = [
-        sample
-        for sample in samples
-        if sample.get("status") is not None
-        and status_is_valid(sample)
-        and (not require_json_success or json_success(sample))
-    ]
+    valid = [sample for sample in samples if sample.get("status") is not None and status_is_valid(sample)]
     failures = [
         sample
         for sample in samples
-        if sample.get("status") is None
-        or not status_is_valid(sample)
-        or is_login_redirect(sample)
-        or (require_json_success and not json_success(sample))
+        if sample.get("status") is None or not status_is_valid(sample) or is_login_redirect(sample)
     ]
     ttfb = [sample["ttfb_ms"] for sample in valid if not is_login_redirect(sample)]
     total = [sample["total_ms"] for sample in valid if not is_login_redirect(sample)]
@@ -222,7 +194,7 @@ def rounded(value):
     return round(value, 2) if value is not None else None
 
 
-def measure_flow(session, key, path, reps, request_factory=None, require_json_success=False, expected_statuses=None):
+def measure_flow(session, key, path, reps, request_factory=None, expected_statuses=None):
     samples = []
     for index in range(reps):
         if request_factory is None:
@@ -230,10 +202,7 @@ def measure_flow(session, key, path, reps, request_factory=None, require_json_su
         else:
             sample = request_factory(session, index)
         samples.append(sample)
-    return {
-        "flujo": key,
-        **summarize(samples, require_json_success=require_json_success, expected_statuses=expected_statuses),
-    }
+    return {"flujo": key, **summarize(samples, expected_statuses=expected_statuses)}
 
 
 def fase_lecturas(sessions, reps, fixtures):
@@ -325,21 +294,8 @@ def fase_escrituras(session, reps, fixtures):
         **measure_flow(session, "edicion_convocatoria", "", reps, editar_convocatoria),
     }
 
-    conversation_path = f"/conversaciones/{fixtures['conversacion_pk']}"
-
-    def responder(current, index):
-        csrf_token, _ = current.csrf(conversation_path + "/")
-        return current.request(
-            conversation_path + "/responder/",
-            json_body={"mensaje": f"Mensaje sintetico {stamp}-{index}"},
-            csrf_token=csrf_token,
-            referer=current.base_url + conversation_path + "/",
-        )
-
-    results["envio_conversacion"] = {
-        "ruta": "envío de mensaje",
-        **measure_flow(session, "envio_conversacion", "", reps, responder, require_json_success=True),
-    }
+    # G1-01 fase 2: acá iba `envio_conversacion` contra `/conversaciones/{pk}/responder/`.
+    # La ruta no existe y su presupuesto salió de `scripts/perf_budgets.json`.
     return results
 
 
@@ -457,7 +413,6 @@ def parse_args():
     parser.add_argument("--municipio-pk", type=int, default=758)
     parser.add_argument("--localidad-pk", type=int, default=8047)
     parser.add_argument("--segmento-pk", type=int, default=1)
-    parser.add_argument("--conversacion-pk", type=int, default=1)
     parser.add_argument("--ciudadano-pk", type=int, default=1)
     parser.add_argument("--relevamiento-pk", type=int, default=1)
     return parser.parse_args()
@@ -488,7 +443,6 @@ def run(args):
         "municipio_pk": args.municipio_pk,
         "localidad_pk": args.localidad_pk,
         "segmento_pk": args.segmento_pk,
-        "conversacion_pk": args.conversacion_pk,
         "ciudadano_pk": args.ciudadano_pk,
         "relevamiento_pk": args.relevamiento_pk,
     }

@@ -30,11 +30,9 @@ Se hereda; no se recrean el sidebar ni sus offsets.
 - Los grupos del usuario llegan al JS como
   `{{ user_groups_list|json_script:"user-groups-data" }}` + `window.userGroups = JSON.parse(...)`:
   los nombres de rol son texto libre y **nunca** se interpolan con `|safe` dentro de un `<script>`.
-- El shell carga **un solo** cliente de tiempo real. Los cuatro scripts de chat
-  (`conversaciones_lista_ws.js`, `conversaciones_tiempo_real_global.js`,
-  `alertas_conversaciones_rt.js`, `alertas_conversaciones_fallback.js`) y
-  `notification_sound.js` —que no tenía otro consumidor— se borraron con el apagado de
-  `conversaciones` (G1-01 fase 2), junto con el bloque `window.conversacionesConfig`.
+- El shell carga **un solo** cliente de tiempo real, `static/custom/js/alertas_websocket.js`.
+  No hay scripts de chat ni bloque `window.conversacionesConfig`: un segundo cliente abre un
+  socket por página contra el mismo proceso ASGI.
 - `static/custom/js/alertas_websocket.js` viaja **solo** con `puede_alertas_sensibles`, la variable que
   publica el context processor `core.context_processors.identidad_usuario` a partir de
   `ciudadano.sensible`. Es un guard **único**: la campana del navbar —su única superficie, con el

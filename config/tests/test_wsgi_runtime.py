@@ -1,36 +1,34 @@
-"""El parche de gevent no está aplicado, y el entrypoint rechaza pedirlo (RED-45).
+"""El parche de gevent ya no existe, y el entrypoint sigue rechazando pedirlo (RED-45).
 
-`config/wsgi.py:13` mira dos variables de entorno —`GUNICORN_CMD_ARGS` que **contenga**
-la palabra `gevent`, o `GUNICORN_WORKER_CLASS=gevent`— y, si alguna aparece, aplica
-`config/gevent_patch.py`. Ese parche pisa `BaseDatabaseWrapper.validate_thread_sharing`
-con una función que **no hace nada**.
+Hasta el Cambio 196, `config/wsgi.py:13` miraba dos variables de entorno
+—`GUNICORN_CMD_ARGS` que **contuviera** la palabra `gevent`, o
+`GUNICORN_WORKER_CLASS=gevent`— y, si alguna aparecía, aplicaba `config/gevent_patch.py`.
+Ese parche pisaba `BaseDatabaseWrapper.validate_thread_sharing` con una función que **no
+hacía nada**.
 
-Lo que queda entonces es: gevent de verdad, sin `monkey.patch_all()` (mysqlclient y
-requests siguen bloqueando, así que ni siquiera se gana concurrencia) y sin el único
+Lo que quedaba entonces era: gevent de verdad, sin `monkey.patch_all()` (mysqlclient y
+requests siguen bloqueando, así que ni siquiera se ganaba concurrencia) y sin el único
 chequeo de Django que impide que dos greenlets compartan una conexión a la base. El
 síntoma sería una respuesta con los datos de otra persona, intermitente, sin error ni
 log. En una aplicación que muestra legajos de ciudadanos, eso es lo peor que puede
 pasar.
 
-Hoy nadie lo activa —por eso la severidad bajó a MEDIA—, pero la perilla está y es lo
-primero que se prueba cuando aparecen 504: `GUNICORN_CMD_ARGS="--worker-class gevent"`.
-`docker-entrypoint.sh` aborta antes de arrancar.
+**D-RED-08 aplicada (OPS-13, Ola 7):** la opción de workers gevent no se conserva. Se
+fueron `config/gevent_patch.py`, el bloque de `wsgi.py` y `gevent`/`greenlet` de
+`requirements.txt`. Los workers de la imagen son gthread (`--threads`), que es lo único
+que `docker-entrypoint.sh` arranca.
 
-**La guarda frena solo `gevent` y `eventlet`, no cualquier `--worker-class`.** Este
-script es el `ENTRYPOINT` único de la imagen —daphne, gunicorn, el Job de bootstrap y
-los cuatro CronJobs pasan por acá—, así que abortar ante un `sync` o un `gthread`
-explícito dejaría un ambiente sin arrancar por un valor inocuo. Esos avisan y siguen.
+**La guarda del entrypoint se queda igual**, y es la que ahora sostiene la ficha sola.
+Sin el paquete, pedir gevent haría morir a gunicorn con un «class uri 'gevent' invalid or
+not found» en el log del pod; la guarda corre antes y dice el motivo y qué hacer. Frena
+solo `gevent` y `eventlet`, no cualquier `--worker-class`: este script es el `ENTRYPOINT`
+único de la imagen —daphne, gunicorn, el Job de bootstrap y los cuatro CronJobs pasan por
+acá—, así que abortar ante un `sync` o un `gthread` explícito dejaría un ambiente sin
+arrancar por un valor inocuo. Esos avisan y siguen.
 
 Y cubre las **cuatro** formas de pedirlo, porque mira la palabra y no la bandera:
 `--worker-class gevent`, `--worker-class=gevent`, `-k gevent` y `-k=gevent`. Las tres
-últimas pasaban en la primera versión de la guarda (ronda 2 de la revisión), y `-k
-gevent` / `-k=gevent` **sí** encienden el parche, porque `wsgi.py` busca la palabra en
-toda la variable.
-
-**D-RED-08:** la opción de workers gevent no se conserva. El borrado de
-`config/gevent_patch.py`, de las líneas de `wsgi.py` y de `gevent`/`greenlet` de
-`requirements.txt` es OPS-13 (Ola 7); cuando pase, `test_el_parche_ya_no_existe` deja
-de saltearse.
+últimas pasaban en la primera versión de la guarda (ronda 2 de la revisión de #607).
 """
 
 import os
@@ -70,9 +68,10 @@ class GeventTests(SimpleTestCase):
     def test_nadie_piso_validate_thread_sharing(self):
         """La aserción que importa: el chequeo de hilos sigue siendo el de Django.
 
-        Pasa hoy. Se pone rojo el día que alguien aplique el parche —por la variable de
-        entorno o importando `apply_gevent_patches` desde otro lado—, que es
-        exactamente el cambio que nadie revisaría dos veces.
+        Pasa hoy. Se pone rojo el día que alguien vuelva a pisarla —reescribiendo el
+        parche o trayendo una librería que lo haga—, que es exactamente el cambio que
+        nadie revisaría dos veces. Es la aserción sobre el **efecto**, y por eso sobrevive
+        al borrado del archivo: no mira el código, mira qué función quedó atada.
         """
         self.assertTrue(
             BaseDatabaseWrapper.validate_thread_sharing.__module__.startswith("django."),
@@ -81,29 +80,34 @@ class GeventTests(SimpleTestCase):
             "pueden compartir conexión y devolver datos de otra request.",
         )
 
-    def test_el_parche_sigue_siendo_la_unica_forma_de_pisarlo(self):
-        """Control del andamio: el test de arriba solo vale si el parche existe y hace
-        lo que dice. Si `gevent_patch.py` dejara de tocar `validate_thread_sharing`, el
-        riesgo se habría ido por otro lado y la ficha tendría que decirlo."""
-        fuente = (RAIZ / "config" / "gevent_patch.py").read_text(encoding="utf-8")
+    def test_el_parche_ya_no_existe(self):
+        """OPS-13 / D-RED-08. Estaba escrito y salteado desde #607 esperando este borrado."""
+        self.assertFalse((RAIZ / "config" / "gevent_patch.py").exists())
 
-        self.assertIn("BaseDatabaseWrapper.validate_thread_sharing = patched_validate", fuente)
-
-    def test_wsgi_sigue_teniendo_las_dos_perillas(self):
-        """Lo que la guarda del entrypoint tiene que cubrir. Si `wsgi.py` suma una
-        tercera forma de encender el parche, este test queda desactualizado y hay que
-        agregarla también allá."""
+    def test_wsgi_ya_no_lee_las_perillas_de_gevent(self):
+        """La contracara: sin el parche, `wsgi.py` no tiene por qué mirar el entorno. Si
+        alguien vuelve a poner el `if`, este test lo dice antes de que el módulo exista de
+        nuevo. Las menciones que quedan son del comentario que explica el borrado."""
         fuente = (RAIZ / "config" / "wsgi.py").read_text(encoding="utf-8")
 
-        self.assertIn('os.environ.get("GUNICORN_CMD_ARGS", "")', fuente)
-        self.assertIn('os.environ.get("GUNICORN_WORKER_CLASS")', fuente)
+        self.assertNotIn('os.environ.get("GUNICORN_CMD_ARGS", "")', fuente)
+        self.assertNotIn('os.environ.get("GUNICORN_WORKER_CLASS")', fuente)
+        self.assertNotIn("gevent_patch import", fuente)
 
-    @unittest.skipIf(
-        (RAIZ / "config" / "gevent_patch.py").exists(),
-        "OPS-13 (Ola 7) todavía no borró el parche",
-    )
-    def test_el_parche_ya_no_existe(self):
-        self.assertFalse((RAIZ / "config" / "gevent_patch.py").exists())
+    def test_gevent_y_greenlet_no_viajan_en_la_imagen(self):
+        """La otra mitad de OPS-13: el paquete sale de `requirements.txt`. Con el pin
+        puesto, alguien podía volver a escribir el `if` y tener gevent a mano."""
+        requisitos = (RAIZ / "requirements.txt").read_text(encoding="utf-8")
+        activos = [
+            linea.strip() for linea in requisitos.splitlines() if linea.strip() and not linea.lstrip().startswith("#")
+        ]
+
+        for paquete in ("gevent", "greenlet"):
+            with self.subTest(paquete=paquete):
+                self.assertFalse(
+                    [linea for linea in activos if linea.lower().startswith(paquete)],
+                    f"{paquete} volvió a `requirements.txt`: el parche de RED-45 vuelve a ser posible.",
+                )
 
 
 @unittest.skipUnless(shutil.which("sh"), "sin shell POSIX (el CI corre en Linux)")
