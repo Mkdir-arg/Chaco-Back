@@ -12,7 +12,7 @@ from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 
-from conversaciones.routing import websocket_urlpatterns
+from legajos.routing import websocket_urlpatterns
 
 application = ProtocolTypeRouter(
     {
@@ -22,7 +22,8 @@ application = ProtocolTypeRouter(
         # protección CSRF del HTTP: cualquier página podía abrir `/ws/alertas/`
         # con la cookie de sesión del visitante (`SameSite=Lax` no frena un
         # handshake de WebSocket) y leer en vivo las alertas del backoffice.
-        # Vale para los cuatro consumers, no solo para el de alertas (G1c-04).
+        # Desde el apagado de `conversaciones` (G1-01 fase 2) el único canal es
+        # `ws/alertas/`; el validador se queda igual, en la raíz del router.
         "websocket": AllowedHostsOriginValidator(AuthMiddlewareStack(URLRouter(websocket_urlpatterns))),
     }
 )

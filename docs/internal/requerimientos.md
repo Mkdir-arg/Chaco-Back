@@ -368,6 +368,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 194 | La red de seguridad de la Ola 4: presupuestos que no se suben solos, los dos destinos que faltaban, el cache de la home por modelo y los índices que no servían | Transversal (CI de performance, cache del inicio, índices de base) · Becas (link público y alta por la app de campo: presupuestos) · Legajos (admin de contactos) | `#performance` `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-62, RED-10 (2.ª parte), RED-51 (parte Ola 4) y RED-83 (migración) (Ola 4, PR 9) | 08/10/2026 | 🟢 **Hecho** (cierra la Ola 4) | `legajos.0011` y `programas.0084` (solo `DROP INDEX`, online) |
 | 195 | Sacar del repo lo que no corre: los módulos de «optimización», 29 JS huérfanos y el código muerto de Legajos | Transversal (dashboard de performance, comandos, guard del release, estáticos) · Legajos (vistas y templates sin ruta, «Derivar a Programa») | `#infra` `#performance` `#ui` `#rbac` | Auditoría integral oct-2026 — fichas OPS-10, OPS-14 (con RED-65), FE-14 y LEG-06 (Ola 7, PR 1) | 09/10/2026 | 🟢 **Hecho** (D-L06 aplicada por default; D-F16 no: `programa_detalle` sigue siendo destino de redirect de las derivaciones) | `users.0033` (sin DDL) |
 | 196 | La imagen deja de llevar once paquetes que nadie importa, y el CI deja de instalar «lo último que haya» | Transversal — dependencias de la imagen (`requirements*.txt`), `INSTALLED_APPS`, workflows del CI, dependabot | `#infra` `#performance` | Auditoría integral oct-2026 — fichas OPS-13 (con RED-45) y RED-85 (Ola 7, PR 2) | 09/10/2026 | 🟢 **Hecho** (D-RED-08 aplicada: el parche de gevent se borra y la guarda del entrypoint se queda; `django-zeal` y `psutil` no se tocan, code-first) | `core.0003` (borra la tabla de `django-health-check` y sus dos filas de `django_migrations`) |
+| 198 | Apagar conversaciones: sin rutas, sin WebSockets de chat y sin superficie en el shell | Transversal (shell del backoffice, context processor de identidad, routing de Channels) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») | `#infra` `#ui` `#rbac` `#performance` | Auditoría integral oct-2026 — fichas G1-01 fase 2 y RED-13 (2.ª parte) (Ola 7, PR 4) | 09/10/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
 
@@ -29566,6 +29567,7 @@ fuera de `static/custom/css/tailwind.css`, que se regenera con `npm run build:ta
 ## Historial
 
 No aplica.
+
 ---
 
 # Cambio 196 — La imagen deja de llevar once paquetes que nadie importa, y el CI deja de instalar «lo último que haya»
@@ -29834,3 +29836,225 @@ nuevos corridos contra `9676927e`: `test_arranca_con_debug_y_run_main_sin_el_paq
 `{'debugpy': ['manage.py']}` y
 `test_el_modulo_endurecido_apaga_la_bandera_al_sacar_la_app` falla con «True is not
 false».
+
+---
+
+# Cambio 198 — Apagar conversaciones: sin rutas, sin WebSockets de chat y sin superficie en el shell
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (shell del backoffice, context processor de identidad, routing de Channels, presupuestos de performance) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle del ciudadano, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») |
+| **Etiquetas** | `#infra` `#ui` `#rbac` `#performance` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 7 «Deuda», PR 4 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — fichas G1-01 fase 2 y la segunda parte de RED-13 |
+| **Partes afectadas** | Backoffice · WebSockets (Channels/daphne) · CI de performance |
+| **Migración** | No |
+
+## Pedido original
+
+La app `conversaciones` **no está en uso** (decisión del PM, 29-sep-2026). Su chat público
+creaba el legajo de cualquier DNI con el nombre que mandara el cliente y devolvía los datos
+de RENAPER de cualquiera sin login (G1-01 y G1-02). La Ola 0 desmontó esas rutas (Cambio
+101) y el Cambio 111 cerró la última escritura anónima; faltaba la **fase 2**: apagar la app
+entera.
+
+La ficha de G1-01 estimaba la fase 2 en 2 h y **no nombraba** las tres dependencias que el
+resto del sistema tenía con esa app. Eso es RED-13, y es la mitad que va primero.
+
+## Alcance acordado
+
+**Entra, en este orden:**
+
+1. **Desacople (RED-13).** El context processor prestado, el consumer de `ws/alertas/`, la
+   señal que `legajos` tenía sobre un modelo de conversaciones y el bloque del shell.
+2. **Apagado (G1-01 fase 2).** Los dos `include()` de `config/urls.py`, los dos WebSockets
+   del chat, el menú, la card del inicio, la solapa del legajo y la tabla de alertas de
+   conversaciones del dashboard de alertas.
+
+**Queda afuera, y por qué:**
+
+- **Los modelos, las migraciones y las tablas.** Apagar no es borrar: no hay migración en
+  este cambio y ningún dato se toca. Las vistas, los forms, los servicios, los selectores y
+  los templates siguen en el repo sin ruta, igual que el portal ciudadano con SEC-29 (Cambio
+  102). Si el chat vuelve, vuelve con su `include` y su `ready()`.
+- **`ws/alertas/`.** Es el canal de las alertas sensibles del legajo —campana del navbar,
+  `ciudadano.sensible`, ruteo precalculado y ventana de 60 s—, asegurado en G1c-04 y
+  reforzado en el Cambio 179. **Se mudó**, no se apagó.
+- **Las capacidades `conversacion.operar`, `conversacion.configurar` y `conversacion.metricas`.**
+  Siguen en el `CATALOGO` de `core/rbac.py` y tildadas donde lo estén: sacarlas es borrar
+  filas de `auth_permission` y `auth_group_permissions`, que es una decisión de datos y no
+  entra en un apagado. Hoy no habilitan ninguna pantalla.
+- **El CronJob `limpiar_alertas_conversaciones`.** Limpia filas viejas de tablas que siguen
+  existiendo; apagarlo es tocar el manifiesto de despliegue sin ganancia.
+- **`seed_perf` sigue sembrando conversaciones.** Es el banco sintético del CI; sacarlo del
+  seed no cambia ninguna medición ahora que las tres rutas salieron del manifiesto.
+- **La tabla de rutas de `CLAUDE.md` y `docs/client/architecture.md`,** que nombran
+  `/conversaciones/`: son archivos del PR 3 de esta misma ola, abierto en paralelo.
+
+## Decisiones tomadas
+
+- **El desacople va antes que el apagado, y en el mismo PR.** Las tres dependencias tenían
+  tres modos de falla distintos, y dos de ellos no dan error donde se los busca:
+  - `templates/includes/base.html` resolvía **cinco** `{% url %}` de la app en el shell que
+    extiende todo el backoffice. Desmontar las rutas sin tocarlo es `NoReverseMatch`: **500
+    en todas las pantallas a la vez**, no en la de chat.
+  - `conversaciones.context_processors.user_groups` publicaba `user_groups_list`,
+    `user_primary_group`, `user_is_superuser` y `websockets_enabled`, que **no son de esa
+    app**. Borrar esa línea de `settings.py` creyendo que se limpia la app no rompe nada
+    visible: deja `window.isSuperuser` en `false` y los websockets apagados, en silencio.
+  - `legajos/signals/alertas.py` importaba `conversaciones.models.Mensaje` **a nivel de
+    módulo**, y `legajos/apps.py::ready()` importa ese paquete. Sacar `"conversaciones"` de
+    `INSTALLED_APPS` es un `ImportError` en el **arranque**: la app no levanta en el deploy.
+- **El context processor se llama `core.context_processors.identidad_usuario`.** Es lo que
+  pedía RED-13. Publica las cuatro variables del shell más `puede_alertas_sensibles` (la
+  campana). `puede_conversaciones` se fue con la app.
+- **`AlertasConsumer` se muda a `legajos`, con su `routing.py` y su test.** `config/asgi.py`
+  importa `legajos.routing`, que es ahora el único `websocket_urlpatterns` del proyecto.
+  `conversaciones/routing.py` se borró entero: de sus cuatro rutas, tres eran del chat y la
+  otra es esta.
+- **`alerta_mensaje_ciudadano` se muda a `conversaciones/signals/alertas.py`,** donde vive
+  el modelo que lo dispara. No desaparece: queda registrado y sin disparar, porque nada
+  crea `Mensaje`.
+- **De `ConversacionesConfig.ready()` sale `signals.presencia`.** Enganchaba `user_logged_in`
+  y `user_logged_out` —señales de `django.contrib.auth`, que disparan en **todo** login del
+  backoffice— para mantener en cache un registro que solo consumía la asignación automática
+  de conversaciones: un round-trip a Redis por login, para nadie. `signals.alertas` se queda
+  registrado: su `sender` son los dos modelos de la app.
+- **`notification_sound.js` también se borra.** Lo cargaba el shell para **todo** usuario
+  autenticado y sus dos únicos consumidores eran los scripts de chat.
+- **Los tres presupuestos de performance de la app salen de `scripts/perf_budgets.json`,**
+  junto con su `Conversacion` sembrada por worker en `scripts/perf_audit.py`. Con ellos cae
+  la excepción `conversaciones_consulta_duplicada`, que toleraba una duplicada entre dos
+  consultas que ya no existen.
+- **El grupo «Dashboard» del sidebar queda con un solo subítem** («Dashboard Contactos»), y
+  «Mi trabajo de hoy» con un solo feed, por lo que su grilla pasa de dos columnas a una. No
+  se rediseñó nada más: es el resultado de sacar la pieza.
+
+## Implementación
+
+Nadie ve «Conversaciones» en ningún lado. En el sidebar desaparecen «Dashboard
+Conversaciones» y «Cola Conversaciones»; el inicio deja de mostrar la card «Conversaciones
+sin asignar» y su bajada ya no cuenta conversaciones; el detalle del ciudadano pierde la
+solapa «Conversaciones»; el dashboard de alertas pierde la tabla «Historial de Alertas de
+Conversaciones». Las direcciones `/conversaciones/…` y `/api/conversaciones/…` devuelven
+404.
+
+La campana del navbar, su contador, su preview y el WebSocket de alertas del legajo
+funcionan exactamente igual: lo único que cambió de ellos es el módulo donde vive el
+consumer.
+
+## Archivos
+
+Borrados: `conversaciones/routing.py`, `conversaciones/context_processors.py`,
+`core/tests/urls_sin_conversaciones.py` y cinco `static/custom/js/*.js`
+(`alertas_conversaciones_fallback.js`, `alertas_conversaciones_rt.js`,
+`conversaciones_tiempo_real_global.js`, `conversaciones_lista_ws.js`,
+`notification_sound.js`).
+Nuevos: `legajos/consumers.py`, `legajos/routing.py`, `conversaciones/tests/test_apagado.py`.
+Movido: `conversaciones/tests/test_ws_alertas_rbac.py` → `legajos/tests/`.
+Editados: `config/urls.py`, `config/asgi.py`, `config/settings.py`,
+`core/context_processors.py`, `core/middleware.py`, `core/views/public.py`,
+`conversaciones/apps.py`, `conversaciones/consumers.py`, `conversaciones/signals/alertas.py`,
+`legajos/signals/__init__.py`, `legajos/signals/alertas.py`, `legajos/selectors/ciudadanos.py`,
+`legajos/views/alertas.py`, `programas/services/solapas.py`,
+`templates/includes/base.html`, `templates/includes/sidebar/opciones.html`,
+`templates/inicio.html`, `templates/legajos/alertas_dashboard.html`,
+`legajos/templates/legajos/ciudadano_detail.html`, `scripts/perf_audit.py`,
+`scripts/perf_budgets.json`, `static/custom/css/tailwind.css`, tres fichas de `.claude/design/`
+y once módulos de tests.
+
+## Base de datos
+
+Ninguna migración. Las tablas de `conversaciones` quedan como están y la app sigue en
+`INSTALLED_APPS` justamente para no tocarlas.
+
+## Validación
+
+`manage.py check` y `check --deploy`: 0 issues (los 4 avisos de `--deploy` son los de
+siempre, por el entorno local). `makemigrations --check --dry-run`: sin cambios. Suite de
+`core`, `legajos`, `users`, `portal`, `dashboard`, `configuracion`, `conversaciones` y
+`programas`: 0 fallos. Los dos `@unittest.expectedFailure` que la Ola R dejó rojos
+(`core.tests.test_shell_backoffice`) se invirtieron y pasan.
+`compile_templates.py --bloques`: 0 errores, 0 bloques sin destino. `design_audit.py
+--ratchet`: 0 hallazgos nuevos. `--goldens`: 0. `check_design_agent.py --changed` y
+`--limites`: OK. `npm run build:tailwind` con su diff commiteado. `collectstatic` con
+`ENVIRONMENT=prd` (`CompressedManifestStaticFilesStorage`): 327 archivos, 1.423
+post-procesados, manifest escrito, sin 404. ruff `check` y `format --check` limpios.
+
+## Puesta en marcha en el servidor
+
+Nada especial, y nada que hacer en orden. No hay migración, así que el rolling es seguro en
+las dos direcciones: durante el despliegue conviven la release vieja —que sirve
+`/conversaciones/…` y abre `ws/conversaciones/`— y la nueva, que devuelve 404; ninguna
+depende de la otra.
+
+Lo único a mirar es el proceso **daphne**: `config/asgi.py` ahora importa
+`legajos.routing`. Si el ASGI no se reinicia junto con el resto, sigue sirviendo el routing
+viejo —`ws/alertas/` incluido— hasta que se recicle. No hay pérdida de servicio.
+
+## Pendientes / a definir
+
+- **Para el juez:** la tabla de rutas de `CLAUDE.md` y `docs/client/architecture.md` siguen
+  nombrando `/conversaciones/` como superficie viva. Los dos archivos son del PR 3 de esta
+  ola; conviene corregir esa fila al mergear los dos.
+- Las tres capacidades `conversacion.*` quedan en el catálogo sin habilitar nada:
+  retirarlas (con su migración de datos, patrón `users.0017`) es decisión del PM.
+- El CronJob `datanach-limpiar-alertas-conversaciones` sigue corriendo a las 03:30.
+- `core/management/commands/seed_perf.py` sigue sembrando conversaciones y mensajes para el
+  banco del CI, que ya no los mide.
+
+## Reversión
+
+Revertir el merge alcanza: no hay migración, no hay estado nuevo en la base y lo único
+generado es `static/custom/css/tailwind.css`, que se rehace con `npm run build:tailwind`.
+Reactivar solo el chat, sin revertir, pide cuatro cosas: los dos `include()` en
+`config/urls.py`, las tres rutas de chat en un `routing.py` de la app, la línea de
+`signals.presencia` en `ConversacionesConfig.ready()` y volver a enlazar sus pantallas desde
+el shell.
+
+## Historial
+
+Entrada nueva.
+
+**Ronda 2 de revisión (09-10-2026).** Un MAJOR y tres MINOR, más el merge de
+`development`:
+
+- **La sonda HTTP seguía pidiendo las rutas apagadas** (MAJOR). `scripts/perf_http_probe.py`
+  declaraba `conversaciones_lista` y `conversacion_detalle` en `LECTURAS` y armaba
+  `envio_conversacion` contra `/conversaciones/{pk}/responder/`. No es un comentario viejo que
+  quedó: en la fase de lecturas `verify_manifest_metrics` exige que `/performance-api/` haya
+  agregado **cada** `route` del manifiesto, así que una ruta desmontada **aborta la corrida
+  entera** de la sonda, no solo su propio flujo. Salieron las tres, el `--conversacion-pk` que
+  alimentaba el envío y su `fixture`; con ellos cae el único consumidor del cuerpo JSON, así que
+  también salen `json_success`, el parámetro `require_json_success` de `summarize`/`measure_flow`
+  y la rama `json_body`/`csrf_token` de `Session.request`. El precedente es SEC-29, que dio de
+  baja las rutas del portal en los mismos tres archivos. Barridos `scripts/perf_*` y
+  `scripts/perf_mysql/`: lo que queda son las notas de `perf_budgets.json` y `perf_audit.py` que
+  **explican** la baja. **Test nuevo:** `core.tests.test_perf_http_probe`, que carga la sonda e
+  inspecciona su AST —los comentarios que explican el apagado no cuentan como ruta— y exige que
+  los dos manifiestos no estén vacíos, porque con `LECTURAS` vacía el control pasa solo.
+- **El control del detector de imports no usaba el detector** (MINOR).
+  `test_el_detector_sigue_viendo_un_import_plantado` parseaba un `ast` al lado y afirmaba sobre
+  esa copia: un walker roto lo dejaba verde igual. Ahora
+  `_imports_de_conversaciones_a_nivel_de_modulo` recibe la raíz, el control le pasa una carpeta
+  temporal con las dos formas que rompían el arranque (`from conversaciones… import` e
+  `import conversaciones…`) más una tercera diferida que **no** tiene que encontrar, y el helper
+  devuelve también cuántos archivos recorrió: los dos tests fallan si recorre cero, que es el
+  modo en que un barrido sin archivos se ve igual que un `legajos` limpio.
+- **El canon de diseño narraba el cambio en vez de describir el estado** (MINOR, dos lugares).
+  `.claude/design/dominio/becas.md` decía «con dos feeds» y dos renglones después que tenía dos
+  «hasta G1-01 fase 2»; ahora dice que «Mi trabajo de hoy» tiene un solo feed en una grilla de
+  una columna. `.claude/design/shells.md` listaba los cinco JS borrados; ahora nombra el único
+  cliente de tiempo real que el shell carga. La historia vive acá, no en el canon.
+- **Cláusula duplicada en futuro** (MINOR). `.claude/design/componentes/filtros.md` cerraba la
+  línea de `conversaciones/lista.html` con «(fuera de alcance; se apaga con G1-01 fase 2)»
+  además de la marca de pantalla sin ruta que agregó este PR.
+
+**Merge de `development`** (hasta `cbd8e5b6`, Cambio 196): conflicto en
+`docs/internal/requerimientos.md` y en el README de la auditoría, resueltos conservando las dos
+entradas con sus filas de índice y las dos tablas de estado, sin tocar las cuentas de horas.
+`CLAUDE.md` y `docs/client/architecture.md` siguen nombrando `/conversaciones/` y **no** se
+tocaron: son del PR 3 de esta ola (#651) y `development` todavía no los tiene.

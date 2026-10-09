@@ -1875,7 +1875,9 @@ class ContextoDetalleTests(_BaseRevisionTest):
             "messages",
             "perms",
             "puede_alertas_sensibles",
-            "puede_conversaciones",
+            # `puede_conversaciones` salió con el apagado de la app (G1-01 fase 2):
+            # lo publicaba el mismo context processor, que además se mudó a `core`
+            # (RED-13). El resto de este bloque es lo que presta el shell.
             "request",
             "session_idle_timeout_minutes",
             "session_idle_warning_seconds",

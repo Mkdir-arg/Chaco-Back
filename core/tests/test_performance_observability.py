@@ -16,8 +16,8 @@ from django.urls import NoReverseMatch, reverse
 
 from config import settings as project_settings
 from config.middlewares.query_counter import QueryCollector, QueryCountMiddleware
-from conversaciones.context_processors import user_groups
 from core import rbac
+from core.context_processors import identidad_usuario
 from core.performance.ci_external_stubs import simulate_external_call
 from core.performance.query_observability import (
     QueryObservabilityStore,
@@ -412,7 +412,7 @@ class GroupLookupReuseTests(TestCase):
 
         with CaptureQueriesContext(connection) as queries:
             self.assertFalse(rbac.es_ciudadano_portal(user))
-            context = user_groups(request)
+            context = identidad_usuario(request)
 
         self.assertEqual(context["user_groups_list"], ["Operadores"])
         self.assertEqual(len(queries), 1)

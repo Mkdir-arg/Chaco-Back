@@ -742,43 +742,7 @@
     {% endif %}
     {% endfor %}
 
-    <!-- Tab: Conversaciones -->
-    <div id="tab-conversaciones" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-conversaciones">
-        <div class="overflow-hidden rounded-xl border" style="border-color: var(--border-base); background: var(--bg-primary); box-shadow: var(--shadow-sm);">
-            <div class="border-b px-6 py-4" style="border-color: var(--border-base);">
-                <h3 class="flex items-center text-base font-bold" style="color: var(--text-heading);">
-                    <i class="fas fa-comments mr-2" aria-hidden="true" style="color: var(--text-fg-brand);"></i>Conversaciones
-                </h3>
-            </div>
-            {% if conversaciones_ciudadano %}
-            <div class="divide-y" style="border-color: var(--border-light);">
-                {% for conv in conversaciones_ciudadano %}
-                <div class="px-6 py-4 transition-colors hover:bg-[var(--bg-tertiary)]">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <span class="text-sm font-semibold" style="color: var(--text-heading);">#{{ conv.pk }} — {{ conv.get_tipo_display }}</span>
-                            {% if conv.operador_asignado %}
-                            <span class="ml-2 text-xs" style="color: var(--text-body-subtle);">· {{ conv.operador_asignado.get_full_name|default:conv.operador_asignado.username }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs" style="color: var(--text-body-subtle);">{{ conv.fecha_inicio|date:"d/m/Y H:i" }}</span>
-                            <span class="badge {% if conv.estado == 'activa' %}badge-success{% elif conv.estado == 'pendiente' %}badge-warning{% else %}badge-gray{% endif %}">
-                                {{ conv.get_estado_display|default:conv.estado }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="py-16 text-center">
-                <i class="fas fa-comment-slash mb-3 text-4xl" aria-hidden="true" style="color: var(--border-base-strong);"></i>
-                <p class="text-sm" style="color: var(--text-body-subtle);">No hay conversaciones registradas para este ciudadano.</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
+    {# G1-01 fase 2: acá estaba la solapa «Conversaciones» (`#tab-conversaciones`, contexto `conversaciones_ciudadano`). Se fue con el apagado de la app; la solapa la declaraba `programas/services/solapas.py`. #}
 
     <!-- Tab: Derivaciones -->
     <div id="tab-derivaciones" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-btn-derivaciones">

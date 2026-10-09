@@ -86,7 +86,8 @@
 
         {# ── Dashboard (grupo colapsable) ─────────────────────── #}
         {% if request.user|puede:"dashboard.ver" %}
-        <div x-data="{ open: {% if 'dashboard-contactos' in pagina_actual or 'conversaciones/metricas' in pagina_actual %}true{% else %}false{% endif %} }"
+        {# G1-01 fase 2: el grupo tenía un segundo subítem, «Dashboard Conversaciones» (`conversaciones:metricas`), que se fue con el apagado de la app. #}
+        <div x-data="{ open: {% if 'dashboard-contactos' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
 
             {# Expandido: botón grupo + subítems #}
@@ -134,24 +135,6 @@
                             </svg>
                             Dashboard Contactos
                         </a>
-                        <a href="{% url 'conversaciones:metricas' %}"
-                           class="flex items-center gap-2 transition-colors duration-150"
-                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
-                                  {% if 'conversaciones/metricas' in pagina_actual %}
-                                      background: var(--bg-brand); color: #fff; font-weight: 700;
-                                  {% else %}
-                                      background: transparent; color: var(--text-body-subtle); font-weight: 500;
-                                  {% endif %}"
-                           {% if 'conversaciones/metricas' in pagina_actual %}aria-current="page"{% endif %}>
-                            {# chat-bubble / megaphone icon #}
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
-                                 style="color: {% if 'conversaciones/metricas' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                      d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/>
-                            </svg>
-                            Dashboard Conversaciones
-                        </a>
                     </div>
                 </div>
             </template>
@@ -161,17 +144,17 @@
                 <a href="{% url 'legajos:dashboard_contactos' %}"
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
-                          {% if 'dashboard-contactos' in pagina_actual or 'conversaciones/metricas' in pagina_actual %}
+                          {% if 'dashboard-contactos' in pagina_actual %}
                               background: var(--bg-brand);
                           {% else %}
                               background: transparent;
                           {% endif %}"
                    title="Dashboard"
                    aria-label="Dashboard"
-                   {% if 'dashboard-contactos' in pagina_actual or 'conversaciones/metricas' in pagina_actual %}aria-current="page"{% endif %}>
+                   {% if 'dashboard-contactos' in pagina_actual %}aria-current="page"{% endif %}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                          width="20" height="20" aria-hidden="true"
-                         style="color: {% if 'dashboard-contactos' in pagina_actual or 'conversaciones/metricas' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                         style="color: {% if 'dashboard-contactos' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
                         <path stroke-linecap="round" stroke-linejoin="round"
                               d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"/>
                     </svg>
@@ -233,43 +216,7 @@
 
         {# Relevamientos (core) — feature legacy removida en development; ítem de sidebar eliminado #}
 
-        {# Ocultado a pedido — "Conversaciones" del menú lateral #}
-        {% comment %}
-        {% if request.user|puede:"conversacion.operar" %}
-        <div class="relative" style="margin-bottom: 2px;">
-            <a href="{% url 'conversaciones:lista' %}"
-               class="group flex items-center transition-colors duration-150"
-               :class="sidebarCollapsed ? 'justify-center' : 'gap-x-3'"
-               style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
-                      {% if 'conversaciones' in pagina_actual %}
-                          background: var(--bg-brand); color: #fff; font-weight: 700;
-                      {% else %}
-                          background: transparent; color: var(--text-body); font-weight: 500;
-                      {% endif %}
-                      font-size: 13.5px; font-family: var(--font-sans);"
-               {% if 'conversaciones' in pagina_actual %}aria-current="page"{% endif %}>
-                {# chat-bubble icon (Conversaciones) #}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                     width="20" height="20" aria-hidden="true" class="flex-shrink-0"
-                     style="color: {% if 'conversaciones' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                          d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/>
-                </svg>
-                <template x-if="!sidebarCollapsed">
-                    <span style="flex: 1;">Conversaciones</span>
-                </template>
-                {% if badge_conversaciones %}
-                    <template x-if="!sidebarCollapsed">
-                        <span class="nav-count">{{ badge_conversaciones }}</span>
-                    </template>
-                    <template x-if="sidebarCollapsed">
-                        <span class="nav-dot" style="position: absolute; top: 7px; right: 16px;"></span>
-                    </template>
-                {% endif %}
-            </a>
-        </div>
-        {% endif %}
-        {% endcomment %}
+        {# G1-01 fase 2: acá estaba el ítem «Conversaciones» del menú lateral —con su badge `badge_conversaciones`—, comentado desde antes («ocultado a pedido»). Se fue con el apagado de la app. #}
 
         {# ── Reportes ─────────────────────────────────────────── #}
         {% if request.user|puede:"reporte.ver" %}
@@ -370,22 +317,7 @@
                             </svg>
                             Localidades
                         </a>
-                        {% if request.user|puede:"conversacion.configurar" %}
-                        <a href="{% url 'conversaciones:configurar_cola' %}"
-                           class="flex items-center gap-2 transition-colors duration-150"
-                           style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
-                                  {% if 'conversaciones/configurar-cola' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           {% if 'conversaciones/configurar-cola' in pagina_actual %}aria-current="page"{% endif %}>
-                            {# users-group icon #}
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0"
-                                 style="color: {% if 'conversaciones/configurar-cola' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                      d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/>
-                            </svg>
-                            Cola Conversaciones
-                        </a>
-                        {% endif %}
+                        {# G1-01 fase 2: acá estaba «Cola Conversaciones» (`conversaciones:configurar_cola`), con `conversacion.configurar`. Se fue con el apagado de la app. #}
                     </div>
                 </div>
             </template>

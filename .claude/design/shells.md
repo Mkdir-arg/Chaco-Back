@@ -30,12 +30,11 @@ Se hereda; no se recrean el sidebar ni sus offsets.
 - Los grupos del usuario llegan al JS como
   `{{ user_groups_list|json_script:"user-groups-data" }}` + `window.userGroups = JSON.parse(...)`:
   los nombres de rol son texto libre y **nunca** se interpolan con `|safe` dentro de un `<script>`.
-- El WebSocket `static/custom/js/conversaciones_lista_ws.js` se carga únicamente en la ruta
-  `conversaciones:lista`; en esa ruta, `static/custom/js/conversaciones_tiempo_real_global.js` usa HTTP
-  solo como fallback mientras el socket no esté abierto, y suspende o cancela el polling en
-  pestañas ocultas.
+- El shell carga **un solo** cliente de tiempo real, `static/custom/js/alertas_websocket.js`.
+  No hay scripts de chat ni bloque `window.conversacionesConfig`: un segundo cliente abre un
+  socket por página contra el mismo proceso ASGI.
 - `static/custom/js/alertas_websocket.js` viaja **solo** con `puede_alertas_sensibles`, la variable que
-  publica el context processor `conversaciones.context_processors.user_groups` a partir de
+  publica el context processor `core.context_processors.identidad_usuario` a partir de
   `ciudadano.sensible`. Es un guard **único**: la campana del navbar —su única superficie, con el
   dropdown y el punto de estado— y `/ws/alertas/` piden la misma capacidad desde D-11, así que quien no
   la tiene no ve campana ni recibe el archivo. Un script de tiempo real que se carga sin mirar
