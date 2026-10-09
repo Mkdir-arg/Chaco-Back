@@ -321,15 +321,15 @@ backoffice operativo. Alpine `dashboardInicio()`: buscador de ciudadanos con typ
 (`AbortController` + número de secuencia para descartar respuestas tardías), stat cards, «Mi
 trabajo de hoy» con dos feeds, accesos rápidos y la grilla «Cobertura por programa» (barras de
 progreso + tarjeta de tendencias con Chart.js vendorizado y carga diferida por
-`IntersectionObserver`).
+`IntersectionObserver`). «Mi trabajo de hoy» tenía **dos** feeds hasta G1-01 fase 2: el de
+conversaciones sin asignar se fue con el apagado de la app y la grilla quedó de una columna.
 
 **Cada pieza que pide datos a una API con capacidad se esconde con el mismo `puede` que exige esa
 API:** tarjeta de búsqueda rápida y feed de derivaciones con `ciudadano.ver` (la tarjeta sobrevive
-con solo `ciudadano.crear`, pero sin el input), feed de conversaciones sin asignar con
-`conversacion.operar`, tarjeta de tendencias con `dashboard.ver` —si falta el canvas, el JS no
+con solo `ciudadano.crear`, pero sin el input), tarjeta de tendencias con `dashboard.ver` —si falta el canvas, el JS no
 llama a `dashboard:api_tendencias`—. El typeahead pega a `dashboard:api_buscar_ciudadanos`. Un panel no se deja pedir y fallar en consola, ni se muestra vacío como si no
-hubiera trabajo pendiente: la bajada del encabezado solo dice «Todo al día» a quien tiene alguna
-de las dos capacidades de los contadores; sin ellas, saludo neutro. Sus cuatro stat cards son
+hubiera trabajo pendiente: la bajada del encabezado solo dice «Todo al día» a quien tiene
+`ciudadano.ver`, la capacidad del único contador que queda; sin ella, saludo neutro. Sus cuatro stat cards son
 conteos globales, sin gate de capacidad, y cada una cuenta lo que dice su rótulo: «Legajos
 activos» agrega `LegajoAtencion` con la regla de `legajos.selectors.legajos`, la misma que usa
 `/legajos/reportes/`. Siguen armadas a mano —`_stat_card.html` no tiene pie de tarjeta—, y

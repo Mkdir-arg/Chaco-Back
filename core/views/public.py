@@ -138,21 +138,9 @@ def inicio_view(request):
         context["derivaciones_pendientes_count"] = derivaciones_pendientes.count()
         context["derivaciones_pendientes"] = derivaciones_pendientes[:8]
 
-    context["conversaciones_sin_asignar_count"] = 0
-    context["conversaciones_sin_asignar"] = []
-    if puede(request.user, "conversacion.operar"):
-        try:
-            from conversaciones.models import Conversacion
-            from conversaciones.selectors import get_conversaciones_pendientes_count
-
-            conversaciones_sin_asignar = Conversacion.objects.filter(
-                estado="pendiente", operador_asignado__isnull=True
-            ).order_by("-fecha_inicio")
-            context["conversaciones_sin_asignar_count"] = get_conversaciones_pendientes_count(request.user)
-            context["conversaciones_sin_asignar"] = conversaciones_sin_asignar[:8]
-        except Exception:
-            context["conversaciones_sin_asignar_count"] = 0
-            context["conversaciones_sin_asignar"] = []
+    # G1-01 fase 2: el segundo panel de «Mi trabajo de hoy» era «Conversaciones sin
+    # asignar» (`conversaciones_sin_asignar{,_count}`, gateado por
+    # `conversacion.operar`). Se fue con el apagado de la app, junto con su card.
 
     # --- Inscripciones activas por programa (gráfico) ---
     # Era la única lectura pesada de la home sin cachear: agrega toda la tabla de

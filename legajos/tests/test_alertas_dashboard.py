@@ -8,6 +8,11 @@ abría. El arreglo quedó, el test no. Acá queda.
 El contrato JSON de `count`, `preview` y `cerrar-ajax` es el que leen
 `alertas_websocket.js` y el include `_alerta`: cambiarle una clave rompe el
 badge del navbar sin que nada falle del lado del servidor.
+
+G1-01 fase 2: la pantalla tenía al pie una tabla con el `HistorialAlertaConversacion`
+del operador, y de ahí salía el `FieldError`. La tabla se fue con el apagado de
+`conversaciones`; lo que queda medido es que la pantalla sigue en pie para quien
+**tenía** `conversacion.operar` y que no quedó ninguna lectura de esa app.
 """
 
 from django.contrib.auth.models import Group, Permission, User
@@ -16,7 +21,6 @@ from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from conversaciones.models import Conversacion, HistorialAlertaConversacion
 from core import rbac
 from legajos.models import AlertaCiudadano, Ciudadano, LegajoAtencion
 from users.models import Capacidad, RolMeta
@@ -44,17 +48,11 @@ class AlertasDashboardTests(TestCase):
             prioridad=AlertaCiudadano.Prioridad.CRITICA,
             mensaje="Sin contacto hace 30 días",
         )
-        # El operador ve sus alertas (`ciudadano.sensible` desde D-11) y además
-        # opera conversaciones.
+        # El operador ve sus alertas (`ciudadano.sensible` desde D-11). Conserva
+        # `conversacion.operar` a propósito: la capacidad sigue en el catálogo y la
+        # pantalla tiene que responder igual para quien la tenga.
         cls.operador.groups.add(
             _rol("Rol alertas + conversaciones", "ciudadano.ver", "ciudadano.sensible", "conversacion.operar")
-        )
-        conversacion = Conversacion.objects.create(tipo="anonima", estado="activa", operador_asignado=cls.operador)
-        HistorialAlertaConversacion.objects.create(
-            conversacion=conversacion,
-            operador=cls.operador,
-            tipo="NUEVO_MENSAJE",
-            mensaje="Nuevo mensaje del ciudadano",
         )
 
     def setUp(self):
@@ -67,13 +65,14 @@ class AlertasDashboardTests(TestCase):
         self.cliente.force_login(self.operador)
 
     def test_responde_200_para_un_operador_de_conversaciones(self):
-        """Falla con `FieldError` si vuelve el `select_related` inválido."""
+        """El `conversacion.operar` del operador ya no dispara ninguna consulta a la
+        app apagada: antes entraba por acá el `select_related` inválido que daba 500."""
         respuesta = self.cliente.get(reverse("legajos:alertas_dashboard"))
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(len(respuesta.context["alertas_conversaciones"]), 1)
+        self.assertNotIn("alertas_conversaciones", respuesta.context)
 
-    def test_responde_200_sin_la_capacidad_de_conversaciones_y_no_las_lista(self):
+    def test_responde_200_sin_la_capacidad_de_conversaciones(self):
         otro = User.objects.create_user("solo-ciudadanos", password="Clave-Seg-2026x")
         otro.groups.add(_rol("Rol solo ciudadanos", "ciudadano.ver", "ciudadano.sensible"))
         cliente = Client()
@@ -82,7 +81,6 @@ class AlertasDashboardTests(TestCase):
         respuesta = cliente.get(reverse("legajos:alertas_dashboard"))
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(list(respuesta.context["alertas_conversaciones"]), [])
 
     def test_los_tres_endpoints_ajax_responden_json(self):
         count = self.cliente.get(reverse("legajos:alertas_count_ajax"))

@@ -1,31 +1,38 @@
 """Los context processors degradan, pero dejan rastro (RED-55).
 
-`core.context_processors.sidebar_badges` y `conversaciones.context_processors.user_groups`
-corren en el **100 % del tráfico autenticado** del backoffice y los dos envolvían su
-trabajo en un `except Exception` mudo. El modo de falla medido por la auditoría no es
-hipotético: un `OperationalError` de MariaDB por el `read_timeout` de 10 s se convierte
-hoy en «badge 0» y en «usuario sin grupos» —el rol desaparece del sidebar— sin una sola
-línea en ningún log. El usuario ve una pantalla rara, nadie ve por qué.
+`core.context_processors.identidad_usuario` corre en el **100 % del tráfico
+autenticado** del backoffice y envolvía su trabajo en un `except Exception` mudo. El
+modo de falla medido por la auditoría no es hipotético: un `OperationalError` de MariaDB
+por el `read_timeout` de 10 s se convertía en «usuario sin grupos» —el rol desaparece
+del sidebar— sin una sola línea en ningún log. El usuario ve una pantalla rara, nadie ve
+por qué.
 
 Lo que estos tests fijan es lo mínimo que pedía la ficha y nada más: **el render sigue
 dando 200 y el contexto sigue degradando igual**, pero el fallo aparece en el log con su
 traceback. Ensanchar esto a «que explote» sería cambiar lo que ve el usuario en el 100 %
 del tráfico por un error que hoy es tolerado a propósito.
+
+Dos cambios respecto de cómo entró RED-55:
+
+- el processor se llamaba `conversaciones.context_processors.user_groups` y se mudó a
+  `core` con RED-13: cuatro de sus variables son del shell, no de esa app;
+- la otra mitad de RED-55, `sidebar_badges`, contaba las conversaciones sin asignar.
+  Con la app apagada (G1-01 fase 2) ya no cuenta nada y no consulta la base, así que no
+  hay nada que degradar: queda el test que lo afirma.
 """
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import User
 from django.db.utils import OperationalError
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
-from conversaciones.context_processors import user_groups
-from core.context_processors import sidebar_badges
+from core.context_processors import identidad_usuario, sidebar_badges
 
 
-class SidebarBadgesDegradacionTests(TestCase):
-    """RED-55 (a): `core.context_processors.sidebar_badges`."""
+class SidebarBadgesTests(TestCase):
+    """RED-55 (a) + G1-01 fase 2: el único badge era el de conversaciones."""
 
     def setUp(self):
         self.factory = RequestFactory()
@@ -36,35 +43,22 @@ class SidebarBadgesDegradacionTests(TestCase):
         request.user = self.user
         return request
 
-    def test_el_fallo_se_loguea(self):
-        """El `OperationalError` que hoy se traga entero tiene que quedar escrito."""
-        with patch(
-            "conversaciones.selectors.get_conversaciones_pendientes_count",
-            side_effect=OperationalError("read_timeout"),
-        ):
-            with self.assertLogs("core.context_processors", "ERROR") as registro:
-                badges = sidebar_badges(self._request())
+    def test_no_queda_ningun_badge_ni_consulta(self):
+        """Un superusuario ve todo lo que haya: no hay nada, y no se toca la base."""
+        with self.assertNumQueries(0):
+            badges = sidebar_badges(self._request())
 
-        self.assertEqual(badges, {"badge_conversaciones": 0}, "el badge sigue degradando a 0")
-        self.assertIn("OperationalError", "\n".join(registro.output), "el traceback tiene que estar")
+        self.assertEqual(badges, {})
 
-    def test_el_camino_feliz_no_loguea_nada(self):
-        """Un log por request en el 100 % del tráfico sería el bug de al lado."""
-        with patch("conversaciones.selectors.get_conversaciones_pendientes_count", return_value=7):
-            with self.assertNoLogs("core.context_processors", "ERROR"):
-                badges = sidebar_badges(self._request())
-
-        self.assertEqual(badges["badge_conversaciones"], 7)
-
-    def test_el_anonimo_no_toca_la_base(self):
+    def test_el_anonimo_tampoco(self):
         request = self.factory.get("/inicio/")
         request.user = None
 
         self.assertEqual(sidebar_badges(request), {})
 
 
-class UserGroupsDegradacionTests(TestCase):
-    """RED-55 (b): `conversaciones.context_processors.user_groups`."""
+class IdentidadUsuarioDegradacionTests(TestCase):
+    """RED-55 (b): `core.context_processors.identidad_usuario`."""
 
     def setUp(self):
         self.factory = RequestFactory()
@@ -79,21 +73,43 @@ class UserGroupsDegradacionTests(TestCase):
 
     def test_el_fallo_se_loguea(self):
         with patch(
-            "conversaciones.context_processors.prefetch_related_objects",
+            "core.context_processors.prefetch_related_objects",
             side_effect=OperationalError("read_timeout"),
         ):
-            with self.assertLogs("conversaciones.context_processors", "ERROR") as registro:
-                contexto = user_groups(self._request())
+            with self.assertLogs("core.context_processors", "ERROR") as registro:
+                contexto = identidad_usuario(self._request())
 
         self.assertEqual(contexto["user_groups_list"], [], "sigue degradando a «sin grupos»")
         self.assertIsNone(contexto["user_primary_group"])
         self.assertIn("OperationalError", "\n".join(registro.output))
 
     def test_el_camino_feliz_no_loguea_nada(self):
-        with self.assertNoLogs("conversaciones.context_processors", "ERROR"):
-            contexto = user_groups(self._request())
+        with self.assertNoLogs("core.context_processors", "ERROR"):
+            contexto = identidad_usuario(self._request())
 
         self.assertEqual(contexto["user_groups_list"], [])
+
+    def test_el_anonimo_recibe_las_mismas_claves(self):
+        """El shell lee estas variables sin `{% if %}`: el anónimo no puede traer menos."""
+        from django.contrib.auth.models import AnonymousUser
+
+        request = self.factory.get("/portal/")
+        request.user = AnonymousUser()
+
+        contexto = identidad_usuario(request)
+
+        self.assertEqual(
+            set(contexto),
+            {
+                "user_groups_list",
+                "user_primary_group",
+                "user_is_superuser",
+                "websockets_enabled",
+                "puede_alertas_sensibles",
+            },
+        )
+        self.assertFalse(contexto["user_is_superuser"])
+        self.assertFalse(contexto["puede_alertas_sensibles"])
 
 
 class RenderDegradadoTests(TestCase):
@@ -103,11 +119,16 @@ class RenderDegradadoTests(TestCase):
         self.user = User.objects.create_superuser("su-render", "su@x.com", "x")
         self.client.force_login(self.user)
 
-    def test_la_pantalla_sigue_en_200_con_el_contador_caido(self):
-        with patch(
-            "conversaciones.selectors.get_conversaciones_pendientes_count",
-            side_effect=OperationalError("read_timeout"),
-        ):
+    def test_la_pantalla_sigue_en_200_con_los_grupos_caidos(self):
+        # Se pisa el `rbac` **que ve el processor**, no `core.rbac`: en un request de
+        # verdad el middleware ya consultó los grupos (y dejó puesto el
+        # `_group_names_cache`, así que el `prefetch` del processor ni se ejecuta).
+        # Romper `core.rbac` entero mediría el middleware, no esto.
+        rbac_roto = Mock()
+        rbac_roto.nombres_de_grupos.side_effect = OperationalError("read_timeout")
+        rbac_roto.puede.return_value = False
+
+        with patch("core.context_processors.rbac", rbac_roto):
             with self.assertLogs("core.context_processors", "ERROR"):
                 respuesta = self.client.get(reverse("core:inicio"))
 

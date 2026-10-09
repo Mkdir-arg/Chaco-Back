@@ -11,6 +11,18 @@ from ..models import Conversacion, Mensaje
 logger = logging.getLogger(__name__)
 
 
+@receiver(post_save, sender=Mensaje)
+def alerta_mensaje_ciudadano(sender, instance, created, **kwargs):
+    """Genera alerta cuando un ciudadano envía mensaje.
+
+    RED-13: vivía en `legajos/signals/alertas.py`, que importaba
+    `conversaciones.models.Mensaje` a nivel de módulo y hacía que `legajos` no
+    pudiera arrancar sin esta app. El receiver está donde está su `sender`.
+    """
+    if created and instance.remitente == "ciudadano":
+        AlertasService.generar_alerta_mensaje_ciudadano(instance.conversacion)
+
+
 @receiver(post_save, sender=Conversacion)
 def alerta_nueva_conversacion(sender, instance, created, **kwargs):
     """Genera alerta cuando se crea nueva conversación"""

@@ -242,7 +242,11 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "conversaciones.context_processors.user_groups",
+                # RED-13: esto era `conversaciones.context_processors.user_groups`.
+                # Cuatro de sus variables (`user_groups_list`, `user_primary_group`,
+                # `user_is_superuser`, `websockets_enabled`) no son de esa app y las
+                # lee `includes/base.html`, que extiende todo el backoffice.
+                "core.context_processors.identidad_usuario",
                 "core.context_processors.sidebar_badges",
                 "core.context_processors.session_idle_config",
                 "portal.context_processors.gtm",

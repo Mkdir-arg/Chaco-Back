@@ -7,6 +7,8 @@ aplicaron a la lista que nombraba la ficha, y quedaron afuera las que nadie hab�
 inventariado: las cuatro de Conversaciones (montadas bajo **dos** prefijos), las
 ocho de performance, las tres pantallas de documentación de la API —que declaran
 `AllowAny` por dentro del `login_required`— y las raíces de los `DefaultRouter`.
+Las cuatro de Conversaciones se resolvieron apagando la app entera (G1-01 fase 2):
+sus rutas ya no existen, así que el barrido —que recorre el URLconf real— no las ve.
 
 Ninguna era explotable: la sesión viaja por cookie y `PortalCiudadanoMiddleware`
 frena al ciudadano del portal antes de la vista. Lo que cierra este test no es un
@@ -77,7 +79,6 @@ class PermisoDeLaApiDelBackofficeTests(SimpleTestCase):
 
         self.assertGreaterEqual(len(nombres), 20)
         for esperada in (
-            "conversaciones.api_views.alertas_conversaciones_count",
             "core.views.performance.performance_api",
             "drf_spectacular.views.SpectacularSwaggerView",
             "core.api_routers.RaizApiBackoffice",
