@@ -11,7 +11,7 @@
     {% bajada %}{{ meta.descripcion|default:"Sin descripción" }}{% endbajada %}
     {% if meta.protegido %}<span class="badge badge-warning"><i class="fas fa-lock" aria-hidden="true"></i> Protegido</span>{% endif %}
     {% if meta and not meta.activo %}<span class="badge badge-gray badge-dot">Inactivo</span>{% else %}<span class="badge badge-success badge-dot">Activo</span>{% endif %}
-    {% if not meta.protegido %}
+    {% if puede_editar and not meta.protegido %}
     <a href="{% url 'users:rol_editar' group.pk %}" class="btn-nodo btn-brand btn-sm">
       <i class="fas fa-pen" aria-hidden="true"></i> Editar
     </a>

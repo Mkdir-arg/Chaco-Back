@@ -4,6 +4,7 @@ Vive en `programas` y no en `legajos` a propósito: la dependencia va de Becas a
 legajo (`programas.models` importa `legajos.models`), nunca al revés.
 """
 
+from django.db import transaction
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
@@ -86,17 +87,32 @@ def recordar_codigo_de_programa(sender, instance, **kwargs):
     )
 
 
+def _invalidar_al_commitear(*codigos):
+    """Borra las claves **después** del COMMIT (seguimiento de #646).
+
+    `post_save`/`post_delete` corren dentro de la transacción: el changeform de
+    `/admin/` es atómico, y entre el `cache.delete` y el COMMIT otra request puede
+    leer la fila **anterior** —todavía es la que está commiteada— y volver a cachearla
+    300 s. Queda exactamente el modo de falla que RED-80 fue a cerrar, con la ventana
+    más chica. Si la transacción se revierte, `on_commit` no corre: tampoco hace falta,
+    porque la fila nunca cambió.
+
+    Fuera de una transacción (autocommit, que es el camino del wizard y de los seeds)
+    Django ejecuta el callback en el acto, así que el comportamiento no cambia.
+    """
+    unicos = [c for i, c in enumerate(codigos) if c and c not in codigos[:i]]
+    if unicos:
+        transaction.on_commit(lambda: [invalidar_programa(codigo) for codigo in unicos])
+
+
 @receiver(post_save, sender=Programa, dispatch_uid="programas.invalidar_cache_de_programa")
 def invalidar_cache_de_programa(sender, instance, **kwargs):
     """Borra la clave del código nuevo y, si cambió, también la del viejo."""
-    invalidar_programa(instance.codigo)
-    anterior = getattr(instance, "_codigo_anterior", None)
-    if anterior and anterior != instance.codigo:
-        invalidar_programa(anterior)
+    _invalidar_al_commitear(instance.codigo, getattr(instance, "_codigo_anterior", None))
     instance._codigo_anterior = instance.codigo
 
 
 @receiver(post_delete, sender=Programa, dispatch_uid="programas.invalidar_cache_de_programa_borrado")
 def invalidar_cache_de_programa_borrado(sender, instance, **kwargs):
     """Un programa borrado desde `/admin/` tiene que dejar de resolverse."""
-    invalidar_programa(instance.codigo)
+    _invalidar_al_commitear(instance.codigo)

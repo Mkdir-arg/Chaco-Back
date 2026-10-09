@@ -79,7 +79,16 @@ class CacheProgramaTests(TestCase):
 
 
 class ElWizardInvalidaTests(TestCase):
-    """Quien **escribe** un ``Programa`` es quien tiene que borrar su clave."""
+    """Quien **escribe** un ``Programa`` es quien tiene que borrar su clave.
+
+    Desde el Cambio 197 el ``cache.delete`` va en un ``transaction.on_commit``: hacerlo
+    adentro de la transacción deja que otra request lea la fila **anterior** —que hasta
+    el COMMIT sigue siendo la commiteada— y la recachee 300 s, que es justo el modo de
+    falla que RED-80 fue a cerrar. Dentro de un ``TestCase`` los callbacks hay que
+    soltarlos a mano (``captureOnCommitCallbacks``); lo que afirma cada test es lo mismo
+    que antes. Que el borrado **espere** al COMMIT lo prueba
+    ``programas.tests.test_ola7_pr3.InvalidacionAlCommitTests``.
+    """
 
     def setUp(self):
         cache.clear()
@@ -103,10 +112,11 @@ class ElWizardInvalidaTests(TestCase):
         programa_por_codigo("DISPOSITIVOS")  # la deja cacheada
         self.assertIsNotNone(cache.get("programas:dispositivos"))
 
-        self.client.post(
-            reverse("configuracion:programa_cambiar_estado", args=[self.dispositivos.pk]),
-            {"estado": Programa.Estado.SUSPENDIDO},
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                reverse("configuracion:programa_cambiar_estado", args=[self.dispositivos.pk]),
+                {"estado": Programa.Estado.SUSPENDIDO},
+            )
 
         self.assertIsNone(cache.get("programas:dispositivos"))
 
@@ -129,10 +139,11 @@ class ElWizardInvalidaTests(TestCase):
         }
         sesion.save()
 
-        self.client.post(
-            reverse("configuracion:programa_editar_paso4", args=[self.dispositivos.pk]),
-            {"icono": "folder", "color": "#6366f1", "orden": "0"},
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                reverse("configuracion:programa_editar_paso4", args=[self.dispositivos.pk]),
+                {"icono": "folder", "color": "#6366f1", "orden": "0"},
+            )
 
         self.dispositivos.refresh_from_db()
         self.assertEqual(self.dispositivos.codigo, "DISPOSITIVOS-V2")
@@ -147,6 +158,9 @@ class SenalesDeProgramaTests(TestCase):
     ``Programa``». No lo es: ``/admin/`` está ruteado (``config/urls.py``) y
     ``ProgramaAdmin`` deja cambiar el ``codigo`` y el ``estado``, y **borrar**. Con las
     señales queda cubierto cualquier camino, incluido el que no existe todavía.
+
+    El ``captureOnCommitCallbacks`` es del Cambio 197: ver la nota de
+    :class:`ElWizardInvalidaTests`.
     """
 
     def setUp(self):
@@ -157,8 +171,9 @@ class SenalesDeProgramaTests(TestCase):
         programa_por_codigo("DISPOSITIVOS")
         self.assertIsNotNone(cache.get("programas:dispositivos"))
 
-        self.dispositivos.estado = Programa.Estado.SUSPENDIDO
-        self.dispositivos.save(update_fields=["estado"])
+        with self.captureOnCommitCallbacks(execute=True):
+            self.dispositivos.estado = Programa.Estado.SUSPENDIDO
+            self.dispositivos.save(update_fields=["estado"])
 
         self.assertIsNone(cache.get("programas:dispositivos"))
 
@@ -166,8 +181,9 @@ class SenalesDeProgramaTests(TestCase):
         programa_por_codigo("DISPOSITIVOS")
         cache.set("programas:otro", self.dispositivos, 300)
 
-        self.dispositivos.codigo = "OTRO"
-        self.dispositivos.save()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.dispositivos.codigo = "OTRO"
+            self.dispositivos.save()
 
         self.assertIsNone(cache.get("programas:dispositivos"))
         self.assertIsNone(cache.get("programas:otro"))
@@ -176,7 +192,8 @@ class SenalesDeProgramaTests(TestCase):
         programa_por_codigo("DISPOSITIVOS")
         self.assertIsNotNone(cache.get("programas:dispositivos"))
 
-        self.dispositivos.delete()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.dispositivos.delete()
 
         self.assertIsNone(cache.get("programas:dispositivos"))
         self.assertIsNone(programa_por_codigo("DISPOSITIVOS"))
@@ -190,7 +207,8 @@ class SenalesDeProgramaTests(TestCase):
         self.dispositivos.codigo = "DISPOSITIVOS-ADMIN"
         admin = site._registry[Programa]
 
-        admin.save_model(RequestFactory().post("/admin/"), self.dispositivos, None, True)
+        with self.captureOnCommitCallbacks(execute=True):
+            admin.save_model(RequestFactory().post("/admin/"), self.dispositivos, None, True)
 
         self.assertIsNone(cache.get("programas:dispositivos"))
 

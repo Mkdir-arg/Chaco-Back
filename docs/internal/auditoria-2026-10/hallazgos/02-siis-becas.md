@@ -66,7 +66,7 @@ indicación.
 | BEC-21 | El masivo selecciona casos no aprobables y no mira pausas | BAJA | CONF. lectura | 1 | S | ✅ |
 | BEC-23 | La solapa Becas del legajo muestra casos fuera de alcance | BAJA | CONF. ajustado (decisión) | 2 | S | ✅ |
 | BEC-24 | Edición de contacto/apoderado en revisión no atómica | BAJA | CONF. lectura | 3 | S |  ✅ |
-| BEC-25 | `siguiente_nombre` calculado sin convocatoria y sin uso | BAJA | CONF. lectura | 7 | S | ⬜ |
+| BEC-25 | `siguiente_nombre` calculado sin convocatoria y sin uso | BAJA | CONF. lectura | 7 | S | ✅ |
 | G1-06 | Fecha de nacimiento ilegible de la app → caso sin legajo y bucle de 500 | BAJA | CONF. lectura | 3 | S | ✅ |
 | G1-07 | Adjuntos de la app sin idempotencia ni control de pertenencia | BAJA | CONF. lectura | 3 | S | ✅ |
 | G1-10 | Entre requisitos con el mismo destino gana el de mayor `orden` | BAJA | CONF. lectura | 1 | S | ✅ |
@@ -713,6 +713,18 @@ la máquina, y el test distingue las dos fuentes corra donde corra.
 
 ### BEC-25 · `siguiente_nombre` se calcula sin convocatoria y nadie lo usa
 **Severidad:** BAJA · **Origen:** A1-30 · **Ola:** 7 · **Esfuerzo:** S
+
+**Resolución:** ✅ Resuelto en #651 (Cambio 197, Ola 7 PR 3), 09-oct-2026 — las dos líneas, más el
+classmethod que quedaba sin llamadores. `ConvocatoriaDetailView` y `RelevamientoListView` corrían
+`Relevamiento.proximo_nombre()` en cada carga y dejaban el resultado en el contexto; ningún template lo
+imprime (`grep -rn "siguiente_nombre"` queda vacío fuera de `docs/`). El valor era además engañoso: se
+pedía **sin convocatoria**, así que daba «Relevamiento NNN» a secas y no el nombre que el alta iba a
+usar —que lleva el nombre de la convocatoria—. **Desvío de la ficha (ampliación):** con sus dos únicos
+llamadores fuera, `Relevamiento.proximo_nombre()` también se borra; `proximo_numero()` y `nombre_para()`,
+que son los que `save()` usa para numerar de verdad, se quedan y tienen su test. **Test permanente:**
+`programas.tests.test_ola7_pr3.SiguienteNombreTests.test_el_detalle_de_convocatoria_no_calcula_el_nombre_siguiente`
+(y `.test_el_listado_de_relevamientos_no_calcula_el_nombre_siguiente`,
+`.test_la_clase_ya_no_expone_proximo_nombre`, más `.test_el_nombre_real_lo_sigue_poniendo_el_alta` como control).
 - **Ubicación:** `programas/views/relevamientos.py:294`, `:617`.
 - **Propuesta:** borrar las dos líneas.
 

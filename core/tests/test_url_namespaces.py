@@ -17,8 +17,9 @@ class UrlNamespacesTests(SimpleTestCase):
     def test_healthcheck_namespace_es_el_contrato_estable(self):
         self.assertEqual(reverse("healthcheck:health_check"), "/health/")
 
-    def test_conversaciones_tiene_namespace_estable(self):
-        self.assertEqual(reverse("conversaciones:detalle", kwargs={"conversacion_id": 7}), "/conversaciones/7/")
+    # G1-01 fase 2: acá se fijaba el namespace de `conversaciones` (`conversaciones:detalle`
+    # → `/conversaciones/7/`). La app se apagó y sus dos `include()` salieron de
+    # `config/urls.py`; que ya no resuelvan lo mide `conversaciones/tests/test_apagado.py`.
 
     def test_legajos_alertas_tienen_names_unicos(self):
         self.assertEqual(

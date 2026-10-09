@@ -13,7 +13,8 @@ class SolapasService:
 
     SOLAPAS_ESTATICAS = [
         {"id": "resumen", "nombre": "Resumen", "icono": "gauge-high", "orden": 0, "estatica": True},
-        {"id": "conversaciones", "nombre": "Conversaciones", "icono": "comments", "orden": 860, "estatica": True},
+        # «Conversaciones» (orden 860) se retiró con G1-01 fase 2: la app está apagada
+        # y su panel en `ciudadano_detail.html` se fue con ella.
         {"id": "derivaciones", "nombre": "Derivaciones", "icono": "share-nodes", "orden": 870, "estatica": True},
         {"id": "alertas", "nombre": "Alertas", "icono": "bell", "orden": 880, "estatica": True},
         {
@@ -144,19 +145,8 @@ class SolapasService:
         if derivaciones_count:
             badges["derivaciones"] = {"tipo": "numero", "valor": derivaciones_count, "color_hex": "#F97316"}
 
-        try:
-            from conversaciones.models import Mensaje
-
-            mensajes_count = Mensaje.objects.filter(
-                conversacion__dni_ciudadano=ciudadano.dni,
-                conversacion__estado__in=["pendiente", "activa"],
-                remitente="ciudadano",
-                leido=False,
-            ).count()
-            if mensajes_count:
-                badges["conversaciones"] = {"tipo": "numero", "valor": mensajes_count, "color_hex": "#8B5CF6"}
-        except Exception:
-            pass
+        # G1-01 fase 2: acá se contaban los mensajes sin leer del ciudadano para el
+        # badge de la solapa «Conversaciones». Se fue con la solapa.
 
         return badges
 
@@ -220,7 +210,7 @@ class SolapasService:
         """Genera la solapa dinámica 'Becas' si el ciudadano tiene formularios (issue #80).
 
         Sin 'url': se renderiza embebida en el legajo (tab-becas), igual que Resumen
-        o Conversaciones, en vez de redirigir a la página standalone.
+        o Derivaciones, en vez de redirigir a la página standalone.
         """
         if resumen_becas is None:
             from programas.models import Formulario, ListaEspera
