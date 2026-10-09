@@ -367,6 +367,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 193 | Las capacidades de un programa dejan de valer fuera de él: catálogo, wizard, delegación y roles sembrados | Transversal — RBAC (ABM de Roles y de Usuarios) · Becas (exports de convocatoria, proceso masivo, pendientes de RENAPER) · Configuración (wizard de programas) | `#rbac` `#usuarios` `#datos` `#infra` | Auditoría oct-2026, Ola 2 PR 1 (SEC-06, SEC-07, G1b-02, G1b-06, OPS-06 fase 2, RED-80) | 08/10/2026 | 🟢 **Hecho** | Sí: `users.0029`-`0032` (la `0031` **quita** capacidades, con reversa real y registro) y `programas.0084` |
 | 194 | La red de seguridad de la Ola 4: presupuestos que no se suben solos, los dos destinos que faltaban, el cache de la home por modelo y los índices que no servían | Transversal (CI de performance, cache del inicio, índices de base) · Becas (link público y alta por la app de campo: presupuestos) · Legajos (admin de contactos) | `#performance` `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-62, RED-10 (2.ª parte), RED-51 (parte Ola 4) y RED-83 (migración) (Ola 4, PR 9) | 08/10/2026 | 🟢 **Hecho** (cierra la Ola 4) | `legajos.0011` y `programas.0084` (solo `DROP INDEX`, online) |
 | 195 | Sacar del repo lo que no corre: los módulos de «optimización», 29 JS huérfanos y el código muerto de Legajos | Transversal (dashboard de performance, comandos, guard del release, estáticos) · Legajos (vistas y templates sin ruta, «Derivar a Programa») | `#infra` `#performance` `#ui` `#rbac` | Auditoría integral oct-2026 — fichas OPS-10, OPS-14 (con RED-65), FE-14 y LEG-06 (Ola 7, PR 1) | 09/10/2026 | 🟢 **Hecho** (D-L06 aplicada por default; D-F16 no: `programa_detalle` sigue siendo destino de redirect de las derivaciones) | `users.0033` (sin DDL) |
+| 197 | Los hallazgos chicos de la deuda: la vista tapada, la carrera del último administrador y tres botones que mentían | Transversal (RBAC, app `dashboard`) · Becas (relevamientos) · Merenderos (solicitudes) · Usuarios y Roles | `#rbac` `#usuarios` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas BEC-25, G1b-09, G1b-10, RED-78 y R0-02, más los MINOR de #646 y #649 (Ola 7, PR 3) | 09/10/2026 | 🟢 **Hecho** (dos pendientes anotados sin código: el `codigo` del programa editable → SEC-07; los paneles de derivaciones congelados → LEG-06, PM) | No requiere |
 
 **Notas del índice**
 
@@ -29561,6 +29562,197 @@ docker/django/Dockerfile` a mano, deja de funcionar.
 (la fila de `auth_group_permissions` se fue por cascada y la migración no la guarda). Para
 el código, revertir el merge alcanza: no hay estado nuevo en la base ni archivos generados
 fuera de `static/custom/css/tailwind.css`, que se regenera con `npm run build:tailwind`.
+
+## Historial
+
+No aplica.
+
+---
+
+# Cambio 197 — Los hallazgos chicos de la deuda: la vista tapada, la carrera del último administrador y tres botones que mentían
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (RBAC: check de «último administrador»; app `dashboard`) · Becas (listado de relevamientos y detalle de convocatoria) · Merenderos (edición de solicitudes) · Usuarios y Roles (alta rápida, ficha del rol) |
+| **Etiquetas** | `#rbac` `#usuarios` `#infra` `#ui` `#performance` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 7 «Deuda», PR 3 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — fichas BEC-25, G1b-09, G1b-10, RED-78 y R0-02, más los seguimientos MINOR de las revisiones de #646 y #649 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Las cinco fichas chicas que quedaban sueltas en la Ola 7, más los seguimientos que los
+revisores de #646 y #649 dejaron anotados como MINOR.
+
+## Alcance acordado
+
+**Entra:** BEC-25 (el nombre del próximo relevamiento que nadie leía), G1b-09 (el check de
+«último administrador» se saltea con dos operaciones simultáneas), G1b-10 (la colisión de
+unicidad en carrera sale como 500), RED-78 (borrar `DashboardView` y su template) y R0-02
+(documentación que nombra una ruta apagada). Más tres correcciones MINOR: el botón «Editar»
+de la ficha del rol propio, el `creado_por` que la edición de una solicitud de merendero no
+sellaba, y la invalidación del cache de `Programa` dentro de la transacción.
+
+**Queda afuera, anotado y con dueño:**
+
+- **El `codigo` del programa como identificador de seguridad editable.** El catálogo de
+  SEC-06 decide qué módulos se ofrecen por `Programa.codigo`, y el paso 1 del wizard
+  —delegable en DISPOSITIVOS— deja cambiarlo. No es regresión (el campo es `unique` y el
+  estado anterior era más permisivo), pero hay que decidir de qué lado cae. Nota en la
+  ficha SEC-07, para la ola siguiente.
+- **Los dos paneles de derivaciones congelados.** Desde que D-L06 ocultó «Derivar a
+  Programa» (Cambio 195), el panel de la home y la solapa del legajo no reciben casos
+  nuevos, y las PENDIENTE que ya están en PRD siguen contando sin forma de cerrarlas. Está
+  dentro del default de la decisión; la salida es la v2 (M6, #390). Nota en LEG-06, para el PM.
+- **`dashboard/selectors.py::metricas_home()`,** que la propuesta de RED-78 pedía: con la
+  vista borrada no hay contadores que llevar. Los que sirven pantallas vivas son los de
+  `inicio_view` y ya viven en `dashboard/utils.py`, que RED-51 reorganizó en el Cambio 194.
+- **`dashboard.utils.contar_legajos()`,** cuyo último llamador era justamente la vista
+  borrada: RED-51 (Ola 4) tiene dos tests escritos sobre que `stats_legajos` agrega
+  inscripciones y el mapa de `dashboard/cache.py` la contempla. Sacarla es de esa ficha.
+
+## Decisiones tomadas
+
+- **El candado del «último administrador» va en los seis caminos, no solo en el toggle.**
+  La ficha proponía el `SELECT … FOR UPDATE` «dentro de la transacción del toggle», pero hay
+  **seis** caminos que pueden dejar al sistema sin administrador: desactivar un usuario,
+  editarle los roles, editar, borrar o desactivar un rol, y el alta masiva por CSV. Los seis
+  lo toman al abrir su transacción, y `asegurar_admin_restante` lo vuelve a tomar por las
+  dudas —si ya se tiene, no cuesta nada— para que el check nunca corra del todo sin candado.
+- **El ancla son las filas de `auth_permission`, no las `RolMeta` admin.** Bloquear las
+  `RolMeta` que confieren administración falla justo en el caso que importa: una base cuyo
+  último administrador es superusuario, o un programa sin roles, no tiene ninguna fila que
+  bloquear y el ancla desaparece. Las filas de capacidad las siembra el catálogo, existen
+  siempre, son las mismas para cualquier operación y no cambian al desactivar a nadie.
+- **El candado va antes de escribir, no después.** Es lo que hace que funcione y lo que
+  evita el deadlock, y lo encontró correr el test contra el motor de verdad. La primera
+  versión lo tomaba dentro de `asegurar_admin_restante` —después del `UPDATE`— y hacía
+  además la lectura del check con `FOR UPDATE`, para que trajera la última versión
+  commiteada en vez de la foto de la transacción: contra MariaDB eso da `ERROR 1213`,
+  porque cada transacción ya tiene tomada la fila del usuario que desactiva y pide las del
+  resto, que tiene la otra. Sería además un candado sobre buena parte de `auth_user`, que
+  mueve cualquier login con `update_last_login`. Tomando el ancla primero no hace falta: la
+  segunda transacción espera antes de tomar ninguna fila de usuario, y como un
+  `SELECT … FOR UPDATE` **no** establece la foto de lectura consistente de REPEATABLE READ
+  —la establece la primera lectura *sin* candado—, su primera lectura posterior ya ve lo que
+  la otra commiteó.
+- **`GET_LOCK` se descarta.** La ficha lo ofrecía como alternativa. No existe en SQLite —la
+  suite entera—, no es transaccional (hay que acordarse de soltarlo) y sobrevive a un
+  rollback. El `select_for_update` es un no-op en SQLite, que es inocuo, y es el patrón que
+  el repo ya tiene probado con `core.tests.candados`.
+- **La colisión del alta rápida contesta 409 con el campo.** La ficha dejaba elegir entre
+  error de campo y JSON 409: se hacen las dos cosas, porque el modal usa `data.message` para
+  el aviso y `data.errors` para elegir a qué campo mandar el foco. El campo sale del mensaje
+  del motor (MySQL y MariaDB nombran la clave; SQLite, la columna) y cuando no se puede
+  decidir va a `__all__`, para no culpar al equivocado.
+- **BEC-25 se lleva también el classmethod.** La ficha decía «borrar las dos líneas»; con
+  esas dos fuera, `Relevamiento.proximo_nombre()` no tiene un solo llamador.
+  `proximo_numero()` y `nombre_para()`, que son los que `save()` usa para numerar de verdad,
+  se quedan y tienen su test de control.
+- **El `creado_por` de una solicitud de merendero se sella solo si está vacío.** La solicitud
+  que ya tiene dueño sigue siendo de ese dueño: la edición no se la apropia.
+- **R0-02 tenía un solo texto para corregir.** `docs/client/architecture.md` ya decía
+  `portal:home` y ya aclaraba que `/media/` no está exento: lo arregló el PR de `/media/`
+  (Cambio 188), que tocó ese mismo párrafo. Code-first: la ficha quedó desactualizada.
+
+## Implementación
+
+`DashboardView` era una copia vieja del inicio del backoffice: contadores globales del
+organismo y `LoginRequiredMixin` a secas, sin el gate por capacidad que SEC-14 le puso a
+`inicio_view`. Nunca se servía porque en `config/urls.py` el include de `users.urls` va antes
+que el de `dashboard.urls` y gana el primero que matchea; lo único que la separaba de estar
+viva era el orden de dos líneas, con el comentario «Root paths last» invitando a moverlas.
+Se van el paquete `dashboard/views/` entero, `dashboard/templates/dashboard.html` y el
+`path` de `dashboard:inicio`. Las cinco APIs de `dashboard/api_views` quedan, con un test que
+lo fija. Antes de borrar se verificó que `dashboard:inicio` no lo nombra ningún template,
+vista, estático, cron, entrypoint ni workflow.
+
+`core/rbac.py` estrena `tomar_candado_de_administracion()`, y las seis transacciones que
+pueden dejar sin administrador la llaman como primera sentencia:
+`users/views/admin.py::UserToggleActivoView.post`,
+`users/services/admin.py::UsuariosAdminService.update_user_from_form`,
+`users/services/roles.py::RolesAdminService.actualizar`/`eliminar`/`toggle_activo` y
+`users/management/commands/import_users_from_csv.py`.
+
+`usuario_alta_rapida` envuelve el `create_user_from_form` en un `try/except IntegrityError`.
+`RolDetailView` pasa `puede_editar` al template y la ficha gatea el botón con él.
+`SolicitudMerenderoUpdateView` sella `creado_por` cuando viene en NULL. Y la invalidación del
+cache de `Programa` se agrupa en `_invalidar_al_commitear()`, que difiere los `cache.delete`
+a `transaction.on_commit`; fuera de una transacción Django los ejecuta en el acto, así que el
+wizard y los seeds no cambian de comportamiento.
+
+## Qué cambia para el usuario
+
+La ficha de un rol que el operador tiene asignado deja de ofrecer «Editar» (antes el botón
+estaba y la pantalla de edición le contestaba «no tenés permisos»). El alta rápida, cuando dos
+personas crean el mismo usuario a la vez, dice cuál es el dato repetido en vez de «respuesta
+inesperada del servidor». Quien edita una solicitud de merendero vieja puede abrir después la
+documentación que acaba de subir. Nada más cambia: el resto era código que no se ejecutaba o
+una ventana de carrera de milisegundos.
+
+## Archivos
+
+Borrados: `dashboard/views/home.py`, `dashboard/views/__init__.py`,
+`dashboard/templates/dashboard.html`.
+Editados: `core/rbac.py`, `core/urls.py`, `dashboard/urls.py`, `dashboard/utils.py`,
+`programas/models/__init__.py`, `programas/signals.py`, `programas/views/relevamientos.py`,
+`programas/views/merenderos.py`, `users/views/admin.py`, `users/views/quick_create.py`,
+`users/views/roles.py`, `users/services/admin.py`, `users/services/roles.py`,
+`users/management/commands/import_users_from_csv.py`, `users/templates/rol/rol_detail.html`,
+`CLAUDE.md`, y los tests `core/tests/test_dashboard_redirect.py`,
+`core/tests/test_inicio_legajos_ola5_pr7.py`, `dashboard/tests/test_package_exports.py`,
+`portal/tests/test_portal_apagado.py`, `programas/tests/test_programa_cache.py` y
+`programas/tests/test_aislamiento_modulos.py` (estos tres últimos, por el `on_commit`
+y por el guard nuevo de R0-02).
+Nuevos: `users/tests/test_ola7_pr3.py` y `programas/tests/test_ola7_pr3.py`.
+
+## Base de datos
+
+No requiere migración.
+
+## Validación
+
+`manage.py check` y `check --deploy`: 0 issues propios (los 4 avisos locales son el
+`SECRET_KEY` de prueba, HSTS, SSL y `SIIS_API_URL` vacía). `makemigrations --check
+--dry-run`: sin cambios. Suite de `core`, `users`, `dashboard`, `configuracion`,
+`conversaciones`, `programas`, `legajos` y `portal`: 0 fallos. `--tag performance`: 8/8.
+`--tag mysql` contra `mariadb:10.11` en un contenedor efímero: 50/50; la carrera de G1b-09
+también contra `mysql:8.0`. Los tests nuevos se corrieron primero contra un worktree de
+`origin/development`: **20 de 33 fallan** (los otros 13 son controles que tienen que pasar
+en los dos lados), y los dos de la carrera fallan también contra el motor real con el
+candado apagado. `compile_templates.py --bloques`: 0 errores, 0 bloques sin destino.
+`design_audit.py --ratchet` contra `origin/development`: 0 hallazgos nuevos; `--goldens`: 0;
+`check_design_agent.py --changed`: OK. `collectstatic --clear` con `ENVIRONMENT=prd`
+(`ManifestStaticFilesStorage`): 332 archivos, 1.448 post-procesados, sin errores. ruff
+`check` y `format --check` limpios.
+
+## Puesta en marcha en el servidor
+
+Nada especial: no hay migración ni estado nuevo. La URL `/` no cambia —era y sigue siendo el
+login— y `/dashboard/` sigue redirigiendo a `/inicio/`.
+
+## Pendientes / a definir
+
+- **Para la ola siguiente:** decidir si el `codigo` del programa deja de ser editable después
+  del alta o si el catálogo de capacidades se ancla al `pk` en vez de al código (ficha SEC-07).
+- **Para el PM:** los dos paneles de derivaciones quedan congelados para casos nuevos desde
+  el Cambio 195, y las PENDIENTE que ya están en PRD siguen contando sin forma de cerrarlas
+  (ficha LEG-06). Lo resuelve la v2 de Dispositivos (M6, #390).
+- `dashboard.utils.contar_legajos()` queda sin llamadores de producción: quién se la lleva es
+  decisión de RED-51 (Ola 4).
+- `portal/views/ciudadano_auth.py` y `portal/templates/portal/ciudadano/base_ciudadano.html`
+  todavía nombran `portal:ciudadano_mi_perfil`. No es un 500 latente —esas vistas y ese
+  template quedaron sin ruta con SEC-29 y lo fija `portal/tests/test_portal_apagado.py`—;
+  limpiarlos va con el apagado definitivo del portal.
+
+## Reversión
+
+Revertir el merge alcanza: no hay migración, ni estado nuevo en la base, ni archivos
+generados.
 
 ## Historial
 

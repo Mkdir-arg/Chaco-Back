@@ -10,13 +10,14 @@
 """
 
 import threading
+import time
+from unittest.mock import patch
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError, connections, transaction
 from django.test import TestCase, TransactionTestCase, tag
 from django.urls import reverse
-from unittest.mock import patch
 
 from core import rbac
 from core.tests.candados import candados_tomados
@@ -24,6 +25,7 @@ from core.tests.test_motor_real import MotorRealMixin
 from programas.management.commands.seed_becas import ROL_COORDINADOR
 from programas.models import Programa
 from users.models import Capacidad, RolMeta
+from users.services.roles import RolesAdminService
 
 
 def _perm(codigo):
@@ -47,51 +49,87 @@ def _rol_admin(nombre, programa=None):
 
 
 class CandadoDeUltimoAdminTests(TestCase):
-    """G1b-09 · el check toma su candado, y lo toma **antes** de contar.
+    """G1b-09 · el candado existe y se toma **antes** de escribir.
 
     En SQLite —la suite— `select_for_update()` es un no-op, así que la carrera no se
-    puede reproducir acá y lo que se prueba es la presencia del candado, con el mismo
-    criterio que `programas.tests.test_candados_concurrencia.ContratoDeCandadosTests`
-    (RED-67). La carrera de verdad está abajo, con `@tag("mysql")`.
+    puede reproducir acá y lo que se prueba es el contrato: que el candado se pida, y
+    que se pida antes de tocar la fila. Mismo criterio que
+    `programas.tests.test_candados_concurrencia.ContratoDeCandadosTests` (RED-67). La
+    carrera de verdad está abajo, con `@tag("mysql")`.
+
+    El **orden** no es un detalle de estilo. Tomarlo después del `UPDATE` serializa
+    igual, pero la segunda transacción sigue leyendo su propia foto —en REPEATABLE READ
+    una lectura con candado no la refresca— y pasa el check; y encima deadlockea contra
+    MariaDB, porque cada una tendría tomada la fila del usuario que desactivó.
     """
 
     def setUp(self):
         self.admin = User.objects.create_user("admin-g1b09", password="x")
         self.admin.groups.add(_rol_admin("Administración"))
+        self.operador = User.objects.create_superuser("root-g1b09", "r@o.com", "x")
+        self.client.force_login(self.operador)
 
-    def test_el_check_global_bloquea_las_capacidades_de_administracion(self):
+    def test_el_check_toma_el_candado_sobre_las_capacidades_de_administracion(self):
         with candados_tomados(Permission.objects) as candados:
             rbac.asegurar_admin_restante()
 
         self.assertIn("rbac.py:tomar_candado_de_administracion", candados)
 
-    def test_el_check_global_lee_los_usuarios_con_candado(self):
-        """El ancla sola no alcanza: la lectura tiene que ver lo último commiteado.
-
-        Con una lectura consistente, la segunda transacción sigue viendo activo al
-        administrador que la primera acaba de desactivar y pasa el check igual.
-        """
-        with candados_tomados(User.objects) as candados:
-            rbac.asegurar_admin_restante()
-
-        self.assertIn("rbac.py:usuarios_que_administran", candados)
-
-    def test_el_check_por_programa_toma_los_mismos_dos_candados(self):
+    def test_el_check_por_programa_toma_el_mismo_candado(self):
         programa = Programa.objects.create(codigo="BECAS", nombre="Becas")
         self.admin.groups.add(_rol_admin("Admin Becas", programa=programa))
 
-        with candados_tomados(Permission.objects) as anclas, candados_tomados(User.objects) as usuarios:
+        with candados_tomados(Permission.objects) as candados:
             rbac.asegurar_admin_restante(programa=programa.pk)
 
-        self.assertIn("rbac.py:tomar_candado_de_administracion", anclas)
-        self.assertIn("rbac.py:usuarios_que_administran_programa", usuarios)
+        self.assertIn("rbac.py:tomar_candado_de_administracion", candados)
+
+    def test_el_toggle_toma_el_candado_antes_de_desactivar(self):
+        """El orden, probado por lo que la base todavía dice cuando se pide el candado.
+
+        El espía lee la fila **desde la base** en el momento del candado: si el `UPDATE`
+        ya hubiera pasado, vería `is_active=False`.
+        """
+        visto = []
+        original = rbac.tomar_candado_de_administracion
+
+        def espiar():
+            # Solo la primera vez: `asegurar_admin_restante` lo vuelve a tomar al final.
+            if not visto:
+                visto.append(User.objects.filter(pk=self.admin.pk).values_list("is_active", flat=True).first())
+            return original()
+
+        with patch("core.rbac.tomar_candado_de_administracion", espiar):
+            self.client.post(reverse("users:usuario_toggle", args=[self.admin.pk]))
+
+        self.assertEqual(visto, [True], "el candado se tomó después del UPDATE")
+        self.admin.refresh_from_db()
+        self.assertFalse(self.admin.is_active)
+
+    def test_desactivar_un_rol_toma_el_candado_antes_de_guardarlo(self):
+        rol = _rol_admin("Rol que se desactiva")
+        User.objects.create_user("otro-admin-g1b09", password="x").groups.add(_rol_admin("Otra administración"))
+        visto = []
+        original = rbac.tomar_candado_de_administracion
+
+        def espiar():
+            if not visto:
+                visto.append(RolMeta.objects.filter(grupo=rol).values_list("activo", flat=True).first())
+            return original()
+
+        with patch("core.rbac.tomar_candado_de_administracion", espiar):
+            RolesAdminService.toggle_activo(rol)
+
+        self.assertEqual(visto, [True], "el candado se tomó después de guardar la RolMeta")
+        self.assertFalse(RolMeta.objects.get(grupo=rol).activo)
 
     def test_el_check_sigue_decidiendo_lo_mismo(self):
         """El candado no cambia la respuesta: con admin pasa, sin admin lanza."""
         rbac.asegurar_admin_restante()  # no lanza
 
-        self.admin.is_active = False
-        self.admin.save(update_fields=["is_active"])
+        for usuario in (self.admin, self.operador):
+            usuario.is_active = False
+            usuario.save(update_fields=["is_active"])
 
         with self.assertRaises(rbac.SinAdministradorError):
             rbac.asegurar_admin_restante()
@@ -99,15 +137,40 @@ class CandadoDeUltimoAdminTests(TestCase):
 
 @tag("mysql")
 class CarreraDeUltimoAdminTests(MotorRealMixin, TransactionTestCase):
-    """G1b-09 · capa 2: dos desactivaciones simultáneas, con el motor de verdad.
+    """G1b-09 · capa 2: dos desactivaciones a la vez, con el motor de verdad.
 
-    Es la única capa que puede mostrar el bug. Con los dos últimos administradores
-    activos, dos requests que desactivan uno cada una leen la foto de su propia
-    transacción —en REPEATABLE READ, el otro sigue activo—, pasan el check y
-    commitean: el sistema queda en cero administradores y no hay forma de volver
-    desde la UI. Con el candado, la segunda espera al COMMIT de la primera, su
-    lectura con candado ya la ve desactivada y revierte.
+    Es la única capa que puede mostrar el bug. Dos requests que desactivan cada una a
+    uno de los dos últimos administradores leen la foto de **su** transacción, ven al
+    otro todavía activo, pasan el check y commitean: el sistema queda en cero
+    administradores y no hay forma de volver desde la UI. Medido contra
+    `mariadb:10.11` con las dos transacciones sincronizadas entre el `UPDATE` y el
+    check: sin candado, las dos dicen «desactivado» y quedan **0** administradores.
+
+    Ese escenario no se puede escribir como test del código arreglado —con el candado
+    el segundo hilo nunca llega al punto de sincronización, porque está esperando—, así
+    que lo que se afirma acá es el mecanismo, que es igual de discriminante: **gana el
+    que arrancó primero, y el segundo espera**. Medido en los dos árboles:
+
+    ==================  ==============================  ==============================
+    hilo                sin candado (`development`)     con candado (este PR)
+    ==================  ==============================  ==============================
+    A (arranca a t=0)   frenado, 1,03 s                 **desactivado**, 1,01 s
+    B (arranca a t=0,2) **desactivado**, 0,01 s         frenado, **0,81 s** (esperó)
+    ==================  ==============================  ==============================
+
+    Sin el candado B no espera nada y se cuela mientras A tiene la transacción abierta;
+    A termina revertido aunque fue el primero. Las dos afirmaciones de abajo —quién gana
+    y cuánto esperó el segundo— se ponen rojas con cualquiera de las dos mitades fuera.
+
+    `_desactivar` reproduce la forma exacta de `UserToggleActivoView.post`: candado,
+    lectura, escritura, check.
     """
+
+    #: Cuánto retiene la primera transacción antes de chequear y commitear.
+    RETENCION = 1.0
+    #: Cuánto tarda en arrancar la segunda. Bastante menos que `RETENCION`, para que
+    #: la espera que se mide sea la del candado y no la del arranque.
+    DEMORA = 0.2
 
     def setUp(self):
         super().setUp()
@@ -116,46 +179,68 @@ class CarreraDeUltimoAdminTests(MotorRealMixin, TransactionTestCase):
         self.dos = User.objects.create_user("admin-carrera-2", password="x")
         for usuario in (self.uno, self.dos):
             usuario.groups.add(self.rol)
+        self.resultados = {}
 
-    def _desactivar(self, usuario):
-        def correr():
+    def _desactivar(self, etiqueta, usuario, antes=0.0, retener=0.0):
+        """Un hilo con la forma de `UserToggleActivoView.post`, instrumentado."""
+
+        def hilo():
             try:
+                time.sleep(antes)
+                arranque = time.monotonic()
                 with transaction.atomic():
+                    rbac.tomar_candado_de_administracion()
                     usuario.is_active = False
                     usuario.save(update_fields=["is_active"])
+                    time.sleep(retener)
                     rbac.asegurar_admin_restante()
-                return "desactivado"
+                self.resultados[etiqueta] = ("desactivado", time.monotonic() - arranque)
             except rbac.SinAdministradorError:
-                return "frenado"
-
-        return correr
-
-    def _en_paralelo(self, *operaciones):
-        barrera = threading.Barrier(len(operaciones), timeout=30)
-        resultados, errores = [], []
-
-        def correr(operacion):
-            try:
-                barrera.wait()
-                resultados.append(operacion())
-            except Exception as exc:
-                errores.append(exc)
+                self.resultados[etiqueta] = ("frenado", time.monotonic() - arranque)
+            except Exception as exc:  # noqa: BLE001 — se reporta como fallo del test
+                self.resultados[etiqueta] = (f"{type(exc).__name__}: {exc}", 0.0)
             finally:
                 connections.close_all()
 
-        hilos = [threading.Thread(target=correr, args=(op,)) for op in operaciones]
+        return threading.Thread(target=hilo)
+
+    def test_la_segunda_desactivacion_espera_y_la_primera_gana(self):
+        hilos = [
+            self._desactivar("primera", self.uno, retener=self.RETENCION),
+            self._desactivar("segunda", self.dos, antes=self.DEMORA),
+        ]
         for hilo in hilos:
             hilo.start()
         for hilo in hilos:
             hilo.join(timeout=60)
-        self.assertEqual([repr(e) for e in errores], [])
-        return resultados
 
-    def test_dos_desactivaciones_simultaneas_no_dejan_el_sistema_sin_admin(self):
-        resultados = self._en_paralelo(self._desactivar(self.uno), self._desactivar(self.dos))
+        desenlace = {etiqueta: valor[0] for etiqueta, valor in self.resultados.items()}
+        self.assertEqual(
+            desenlace,
+            {"primera": "desactivado", "segunda": "frenado"},
+            "sin el candado la segunda se cuela mientras la primera tiene la transacción abierta",
+        )
+        espera = self.resultados["segunda"][1]
+        self.assertGreater(
+            espera,
+            (self.RETENCION - self.DEMORA) / 2,
+            f"la segunda tardó {espera:.2f} s: no esperó el candado de la primera",
+        )
 
-        self.assertEqual(sorted(resultados), ["desactivado", "frenado"], "el candado no serializó")
+    def test_queda_un_administrador(self):
+        """La consecuencia: el sistema nunca se queda sin nadie que pueda entrar."""
+        hilos = [
+            self._desactivar("primera", self.uno, retener=self.RETENCION),
+            self._desactivar("segunda", self.dos, antes=self.DEMORA),
+        ]
+        for hilo in hilos:
+            hilo.start()
+        for hilo in hilos:
+            hilo.join(timeout=60)
+
         self.assertEqual(rbac.usuarios_que_administran().count(), 1)
+        self.dos.refresh_from_db()
+        self.assertTrue(self.dos.is_active, "la transacción frenada tiene que revertir su UPDATE")
 
 
 class AltaRapidaEnCarreraTests(TestCase):
@@ -174,9 +259,7 @@ class AltaRapidaEnCarreraTests(TestCase):
         self.admin = User.objects.create_superuser("admin-g1b10", "a@b.com", "x")
         self.client.force_login(self.admin)
         coordinador = Group.objects.create(name=ROL_COORDINADOR)
-        RolMeta.objects.create(
-            grupo=coordinador, categoria=rbac.CATEGORIA_PROGRAMA, programa=becas, activo=True
-        )
+        RolMeta.objects.create(grupo=coordinador, categoria=rbac.CATEGORIA_PROGRAMA, programa=becas, activo=True)
 
     def _post(self, **extra):
         datos = {
@@ -261,9 +344,7 @@ class BotonEditarDeLaFichaTests(TestCase):
         User.objects.create_user("root-ola7pr3", password="x").groups.add(_rol_admin("Administración"))
         self.rol_propio = _rol_admin("Becas — Admin de roles", programa=self.becas)
         self.otro_rol = Group.objects.create(name="Becas — Operador")
-        RolMeta.objects.create(
-            grupo=self.otro_rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True
-        )
+        RolMeta.objects.create(grupo=self.otro_rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.becas, activo=True)
         self.operador = User.objects.create_user("admin-roles-becas", password="x")
         self.operador.groups.add(self.rol_propio)
         self.client.force_login(self.operador)

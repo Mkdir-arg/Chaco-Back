@@ -117,7 +117,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-75 | `/set_dark_mode/` no existe: el toggle de tema postea a un 404 | BAJA | CONF. test (`resolve`) | 5 | S | ✅ |
 | RED-76 | Tipado: 2,7 % de retornos anotados, sin mypy ni pyright | BAJA | CONF. test (AST) | 7 | S-M | ⬜ |
 | RED-77 | RN-2 del padrón escrita dos veces: property y filtro de queryset | BAJA | CONF. lectura | R | S | ✅ |
-| RED-78 | `DashboardView`: copia del inicio sin el blindaje de SEC-14, muerta solo por el orden de URLs | BAJA | CONF. test (`resolve`) | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
+| RED-78 | `DashboardView`: copia del inicio sin el blindaje de SEC-14, muerta solo por el orden de URLs | BAJA | CONF. test (`resolve`) | R (+7) | S (+S) | ✅ |
 | RED-79 | Tres ciclos de import y nueve aristas vista→vista sin ratchet | BAJA | CONF. test (AST) | R (+2) | S (+S) | ✅ |
 | RED-80 | `programa_becas` y `programa_dispositivos`: mismo cache, distinta guarda e invalidación | BAJA | CONF. lectura | 2 | S | ✅ |
 | RED-81 | El registro de reglas de vencimiento puede quedar vacío y el comando sale OK | BAJA | CONF. lectura | R | S | ✅ |
@@ -1860,6 +1860,30 @@ pone rojo y la ficha baja de riesgo. **Mutación de control:** mover `path("", i
 `users.urls` —lo que el comentario «Root paths last» de `config/urls.py` invita a hacer— deja
 `test_la_raiz_es_el_login` en rojo con `'dashboard:inicio' != 'users:login'`.
 **Test permanente:** `core.tests.test_dashboard_redirect.RuteoRaizTests.test_la_raiz_es_el_login`.
+
+**Resolución:** ✅ (parte Ola 7) Resuelto en #NNN (Cambio 197, Ola 7 PR 3), 09-oct-2026 — se van
+`dashboard/views/` entero (`home.py` y el `__init__.py` que la reexportaba),
+`dashboard/templates/dashboard.html` y el `path("", …, name="inicio")` de `dashboard/urls.py`. Las cinco
+APIs de `dashboard/api_views` se conservan, con un test que lo fija: el hallazgo era la pantalla, no la
+app. `RuteoRaizTests` cambia de forma en consecuencia —`test_dashboard_inicio_sigue_apuntando_a_la_raiz`
+y `test_la_vista_tapada_no_tiene_el_gate_de_capacidad` describían una vista que ya no existe— y pasa a
+afirmar que `reverse("dashboard:inicio")` levanta `NoReverseMatch` y que `dashboard.views` no se puede
+importar; `test_la_raiz_es_el_login` queda, ahora sin depender del orden del URLconf.
+
+**Que estaba muerta se demostró antes de borrar:** `dashboard:inicio` no lo nombra ningún template, vista,
+estático, cron, entrypoint ni workflow (el único uso era el comentario de `core/urls.py`, que explicaba
+por qué el alias `/dashboard/` **no** apunta ahí), y `dashboard.html` no lo incluye ni lo extiende nadie.
+
+**Un desvío y una aclaración, los dos code-first.** (1) **`dashboard/selectors.py::metricas_home()` no se
+crea:** la propuesta pedía «llevar los contadores» ahí, y con la vista borrada no hay contadores que
+llevar —los que sirven pantallas vivas son los de `inicio_view` y ya están en `dashboard/utils.py`, que
+RED-51 acaba de reorganizar en #648—. (2) **`contar_legajos()` se queda**, aunque esta vista era su último
+llamador: RED-51 tiene dos tests escritos sobre que `stats_legajos` agrega inscripciones y el mapa de
+claves de `dashboard/cache.py` la contempla; sacarla es de esa ficha. Su docstring queda actualizado para
+no seguir citando a un llamador que no existe. **Test permanente:**
+`core.tests.test_dashboard_redirect.RuteoRaizTests.test_dashboard_inicio_ya_no_existe`
+(y `.test_el_paquete_de_vistas_del_dashboard_no_esta`, `.test_las_apis_del_dashboard_siguen_ruteadas`,
+`.test_la_raiz_es_el_login`).
 
 ### RED-79 · Tres ciclos de import y nueve aristas vista→vista sin ratchet
 **Severidad:** BAJA (era MEDIA) · **Estado:** CONFIRMADO con test (AST; VR2 midió 9 aristas, no 2) · **Origen:** RS-R4-14 (VR2: CONFIRMADO-AJUSTADO); incluye la parte no refutada de RS-R4-01 y el punto 3 de RS-R4-16 (VR2 §2.10: «un solo movimiento») · **Ola:** R (ratchets) + 2 (movimientos, PR 5 con SEC-21) · **Esfuerzo:** S (2 h) + S (2 h)

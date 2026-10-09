@@ -188,9 +188,9 @@ Django anclado al modelo `users.Capacidad`, tildado sobre cada Rol (`Group`) ví
 `core.middleware.PortalCiudadanoMiddleware` redirige a `portal:home` a cualquier
 usuario ciudadano que pise una URL fuera de `/portal/` (la única excepción es
 `/static/`: `/media/` **no** está exento). Es la barrera real entre las dos
-superficies: no alcanza con esconder el link. El destino era
-`portal:ciudadano_mi_perfil` hasta que SEC-29 apagó las rutas `mi-perfil/*`, que
-hoy no existen.
+superficies: no alcanza con esconder el link. Las rutas `mi-perfil/*` del portal
+están apagadas desde SEC-29 y no se publican: lo único vivo bajo `/portal/` es la
+home, el token CSRF y la inscripción pública por link.
 
 Otros middlewares propios que condicionan el comportamiento:
 `users.middleware.BackofficeSingleSessionMiddleware` (una sola sesión de backoffice

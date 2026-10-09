@@ -140,6 +140,9 @@ class RolesAdminService:
     def actualizar(form, group):
         if _meta(group).protegido:
             raise RolProtegidoError("El rol está protegido y no puede editarse.")
+        # G1b-09: el candado va antes de leer y de escribir; tomarlo recién en
+        # `asegurar_admin_restante` serializa pero deja el check contando sobre la foto vieja.
+        rbac.tomar_candado_de_administracion()
         # Programa que este rol administraba ANTES del cambio (puede quedar
         # huérfano si la edición le saca la capacidad de administración o le cambia el programa).
         programa_previo = _programa_que_administra(group)
@@ -170,6 +173,9 @@ class RolesAdminService:
     def eliminar(group):
         if _meta(group).protegido:
             raise RolProtegidoError("El rol está protegido y no puede eliminarse.")
+        # G1b-09: el candado va antes de leer y de escribir; tomarlo recién en
+        # `asegurar_admin_restante` serializa pero deja el check contando sobre la foto vieja.
+        rbac.tomar_candado_de_administracion()
         programa_previo = _programa_que_administra(group)
         # Al borrar el Group, Django desvincula a los usuarios (tabla intermedia)
         # y borra RolMeta por CASCADE.
@@ -184,6 +190,9 @@ class RolesAdminService:
         meta = _meta(group)
         if meta.protegido:
             raise RolProtegidoError("El rol está protegido y no puede desactivarse.")
+        # G1b-09: el candado va antes de leer y de escribir; tomarlo recién en
+        # `asegurar_admin_restante` serializa pero deja el check contando sobre la foto vieja.
+        rbac.tomar_candado_de_administracion()
         # Capturar antes: si es un rol que administra un programa y se va a
         # desactivar, podría dejar ese programa sin administrador.
         programa_admin = _programa_que_administra(group)

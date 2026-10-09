@@ -182,6 +182,10 @@ class UserToggleActivoView(AdminRequiredMixin, View):
             return redirect("users:usuarios")
         try:
             with transaction.atomic():
+                # G1b-09: el candado va antes de leer y de escribir; tomarlo recién en
+                # `asegurar_admin_restante` serializa pero deja el check contando sobre
+                # la foto vieja de la transacción.
+                rbac.tomar_candado_de_administracion()
                 # Programas que administra (antes de desactivar): no dejarlos huérfanos.
                 programas = UsuariosAdminService._programas_que_administra(user) if user.is_active else set()
                 user.is_active = not user.is_active

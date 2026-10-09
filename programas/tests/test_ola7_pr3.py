@@ -99,9 +99,7 @@ class CreadoPorAlEditarTests(TestCase):
             codigo="MERENDEROS", nombre="Merenderos", tipo=Programa.TipoPrograma.MERENDEROS
         )
         rol = Group.objects.create(name="Alta Merenderos")
-        RolMeta.objects.create(
-            grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True
-        )
+        RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True)
         rol.permissions.add(permiso("merendero.crear"))
         self.operador = get_user_model().objects.create_user("alta-merenderos", password="x")
         self.operador.groups.add(rol)

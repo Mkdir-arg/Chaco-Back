@@ -14,8 +14,8 @@ PoC: `poc/test_repro_usuarios.py`. Lo de la API REST de usuarios está en SEC-05
 | G2-03 | «Cambiar contraseña» abierto para cualquier sesión y sin pedir la clave actual | MEDIA | CONF. test | 2 | S | ✅ |
 | G1b-07 | Desactivar el último rol admin: 500 (programa) o sistema sin admin (global) | BAJA | CONF. test | 2 | S | ✅ |
 | G1b-08 | Claves tipeadas por un operador sin validadores ni cambio obligatorio | BAJA | CONF. lectura | 2 | S | ✅ |
-| G1b-09 | «Último administrador» salteable con dos operaciones simultáneas | BAJA | PLAUSIBLE | 7 | M | ⬜ |
-| G1b-10 | Alta rápida: 500 ante colisión en carrera | BAJA | CONF. ajustado | 7 | S | ⬜ |
+| G1b-09 | «Último administrador» salteable con dos operaciones simultáneas | BAJA | PLAUSIBLE | 7 | M | ✅ |
+| G1b-10 | Alta rápida: 500 ante colisión en carrera | BAJA | CONF. ajustado | 7 | S | ✅ |
 | G1b-12 | Dashboard de Becas: período sin tope y `?recalcular=1` sin freno | BAJA | CONF. ajustado | 4 | S | ✅ |
 | G2-04 | Inicio: los contadores no miden lo que dicen sus etiquetas | BAJA | CONF. lectura | 5 | S | ✅ |
 | G2-06 | El login pide «Tu correo electrónico» pero autentica por `username` | BAJA | CONF. lectura | 5 | S | ✅ |
@@ -202,11 +202,67 @@ al territorial le llega un enlace para fijarla él.
 
 ### G1b-09 · «Último administrador» salteable con dos operaciones simultáneas
 **Severidad:** BAJA · **Estado:** PLAUSIBLE (sin repro de concurrencia) · **Origen:** G1b-09 · **Ola:** 7 · **Esfuerzo:** M
+**Resolución:** ✅ Resuelto en #NNN (Cambio 197, Ola 7 PR 3), 09-oct-2026 — `rbac.tomar_candado_de_administracion()`
+es un `SELECT … FOR UPDATE` sobre las filas de `auth_permission` de `CAPS_ADMINISTRACION` +
+`CAPS_ADMIN_PROGRAMA`, y **va como primera sentencia de la transacción, antes de cualquier escritura**, en
+los **seis** caminos que pueden dejar sin administrador: el toggle del ABM (`UserToggleActivoView`),
+`UsuariosAdminService.update_user_from_form`, `RolesAdminService.actualizar`/`eliminar`/`toggle_activo` y
+el alta masiva `import_users_from_csv`. `asegurar_admin_restante` lo vuelve a tomar por las dudas —no
+cuesta nada si ya se tiene— para que el check nunca corra del todo sin candado.
+
+**Tres desvíos de la propuesta, los tres medidos contra `mariadb:10.11`:**
+
+1. **El ancla son las filas de `auth_permission`, no las `RolMeta` admin.** Una base cuyo último
+   administrador es superusuario, o un programa sin roles, no tiene ninguna `RolMeta` que bloquear: el
+   ancla desaparecería justo en el caso que importa. Las filas de capacidad las siembra el catálogo,
+   existen siempre, son las mismas para cualquier operación y no cambian al desactivar a nadie.
+2. **El candado va antes de escribir, no «dentro de la transacción del toggle» a secas.** La primera
+   versión lo tomaba dentro de `asegurar_admin_restante` —después del `UPDATE`— y hacía además la lectura
+   del check con `FOR UPDATE`, para que trajera la última versión commiteada en vez de la foto de la
+   transacción. Contra MariaDB eso **deadlockea** (`ERROR 1213`): cada transacción ya tiene tomada por su
+   `UPDATE` la fila del usuario que desactiva y pide las del resto, que tiene la otra. Y sería un candado
+   sobre buena parte de `auth_user`, que mueve cualquier login con `update_last_login`. Tomando el ancla
+   **antes** de escribir no hace falta: la segunda transacción queda esperando antes de tomar ninguna fila
+   de usuario, y como un `SELECT … FOR UPDATE` **no** establece la foto de lectura consistente de
+   REPEATABLE READ —la establece la primera lectura *sin* candado—, la primera lectura que haga después ya
+   ve lo que la otra commiteó.
+3. **`GET_LOCK` se descartó:** no existe en SQLite (la suite entera), no es transaccional —hay que
+   acordarse de soltarlo— y sobrevive a un rollback.
+
+**Cómo se prueba, y qué se midió.** El bug se reprodujo contra `mariadb:10.11` con las dos transacciones
+sincronizadas entre el `UPDATE` y el check: sin candado las dos dicen «desactivado» y quedan **0
+administradores**. Ese escenario no se puede escribir como test del código arreglado —con el candado el
+segundo hilo nunca llega al punto de sincronización, porque está esperando—, así que el test permanente
+afirma el mecanismo, que es igual de discriminante: **gana el que arrancó primero y el segundo espera**.
+Con la primera transacción reteniendo 1 s y la segunda arrancando 0,2 s después: sin candado la segunda se
+cuela en 0,01 s y la primera termina revertida; con candado la primera gana y la segunda espera 0,81 s y
+queda frenada. Verificado contra `mariadb:10.11` y `mysql:8.0`, y los dos tests se corrieron en rojo sobre
+`origin/development` (con `tomar_candado_de_administracion` apagado). En SQLite `select_for_update()` es un
+no-op, así que ahí se fija la **presencia** del candado (`core.tests.candados`, igual que RED-67) y su
+**orden**, con un espía que lee la fila desde la base en el momento en que se toma: si el `UPDATE` ya
+hubiera pasado, la vería cambiada. **Test permanente:**
+`users/tests/test_ola7_pr3.py::CarreraDeUltimoAdminTests.test_la_segunda_desactivacion_espera_y_la_primera_gana`
+(y `.test_queda_un_administrador`, más `CandadoDeUltimoAdminTests` ×5: el candado del check global, el del
+check por programa, el orden en el toggle de usuario, el orden en el toggle de rol y que la respuesta del
+check no cambió).
 - **Ubicación:** `core/rbac.py:745-770` (`exists()` sin bloqueo); `users/views/admin.py:157-165`; `users/services/admin.py:203-205`.
 - **Propuesta:** `SELECT … FOR UPDATE` sobre las `RolMeta` admin dentro de la transacción del toggle, o `GET_LOCK('datanach_ultimo_admin', 5)`.
 
 ### G1b-10 · Alta rápida: 500 ante colisión en carrera
 **Severidad:** BAJA · **Estado:** CONFIRMADO-AJUSTADO (el `ModelForm` ya valida `username` único y el `clean` el DNI: el 500 solo sale en una carrera sobre `auth_user.username` o `users_profile.dni`) · **Origen:** G1b-10 (el texto crudo de la excepción está en SEC-36) · **Ola:** 7 · **Esfuerzo:** S
+**Resolución:** ✅ Resuelto en #NNN (Cambio 197, Ola 7 PR 3), 09-oct-2026 — `usuario_alta_rapida` atrapa
+`IntegrityError` y contesta **409 con el campo**: `{"ok": false, "message": …, "errors": {"username"|"dni"|"__all__": [...]}}`.
+El campo sale del mensaje del motor (MySQL/MariaDB nombran la clave, `auth_user.username` /
+`users_profile.dni`; SQLite, la columna) y cuando no se puede decidir va a `__all__`, para no culpar al
+campo equivocado. Lo que cambia para el operador: el modal arma su aviso con `data.message` y enfoca
+`form.elements.namedItem(primerCampo)`, así que con el 500 recibía el HTML del error y le mostraba
+«respuesta inesperada del servidor»; ahora le dice qué dato repetir y le deja el cursor ahí. No se gana
+ni se pierde una validación: el `ModelForm` sigue frenando el duplicado sin carrera con su 400 de
+siempre, y eso tiene su test. **Test permanente:**
+`users.tests.test_ola7_pr3.AltaRapidaEnCarreraTests.test_la_colision_de_username_contesta_409_con_el_campo`
+(y `.test_la_colision_de_dni_apunta_al_dni`, `.test_una_colision_que_no_se_puede_atribuir_no_culpa_a_ningun_campo`,
+`.test_la_respuesta_sigue_siendo_json`, más `.test_el_alta_feliz_sigue_creando_el_usuario` y
+`.test_el_duplicado_que_el_form_ya_atrapa_sigue_dando_400` como controles).
 - **Ubicación:** `users/views/quick_create.py:64`.
 - **Propuesta:** capturar `IntegrityError` → error de campo (o JSON 409).
 

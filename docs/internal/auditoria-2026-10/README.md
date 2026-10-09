@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 09-oct-2026 (Ola 7, PR 3: hallazgos chicos)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 7 PR 3 | 197 | BEC-25 ✅ · G1b-09 ✅ · G1b-10 ✅ · RED-78 ✅ · R0-02 ✅ | ✅ | **Las 5 fichas, sin migraciones.** (1) **RED-78:** se van `dashboard/views/` entero, `dashboard/templates/dashboard.html` y el `path("", …, name="inicio")`. `DashboardView` era una copia vieja del inicio —contadores globales del organismo, sin el gate por capacidad de SEC-14— que no se servía nunca porque en `config/urls.py` el include de `users.urls` va antes; lo único que la separaba de estar viva era el orden de dos líneas, con el comentario «Root paths last» invitando a moverlas. Las cinco APIs de `dashboard/api_views` quedan, con su test. `RuteoRaizTests` pasa de «la vista está tapada» a «la vista no está». Con esto cierra el ítem (a) que **LEG-06** había dejado abierto a propósito. (2) **G1b-09:** el candado va en `asegurar_admin_restante` y no en el toggle —es el único punto por el que pasan los seis caminos que pueden dejar sin admin— y son **dos mitades**: un ancla (`FOR UPDATE` sobre las filas de `auth_permission` de las capacidades de administración, que existen siempre y son las mismas para toda operación) y la lectura del check **con candado**, que en InnoDB trae la última versión commiteada y no la foto. **Desvío:** la ficha proponía anclar en las `RolMeta` admin; una base cuyo último admin es superusuario, o un programa sin roles, no tiene ninguna fila que bloquear y el ancla desaparecería justo en el caso que importa. `GET_LOCK` se descartó (no existe en SQLite, no es transaccional). La carrera de verdad corre con `@tag("mysql")`; la presencia del candado, con `candados_tomados` (RED-67). (3) **G1b-10:** la colisión de unicidad en carrera contesta **409 con el campo** (`username`/`dni`/`__all__`, leído del mensaje del motor) en vez del 500 que le llegaba al modal como HTML y se mostraba «respuesta inesperada del servidor». (4) **BEC-25:** las dos líneas, más el classmethod que quedaba sin llamadores; `proximo_numero()`/`nombre_para()`, los que usa `save()`, se quedan. (5) **R0-02:** el texto a corregir **era uno solo** — `docs/client/architecture.md` ya lo había arreglado #643. **Los tres seguimientos MINOR de #646 también entran:** la ficha del rol deja de dibujar «Editar» sobre el rol propio (el listado ya lo escondía y la vista rebotaba), `SolicitudMerenderoUpdateView` sella `creado_por` cuando está vacío (sin eso el «Actualmente: /media/…» del widget le daba 403 a quien acababa de subir el archivo) y la invalidación del cache de `Programa` pasa a `transaction.on_commit`. **TDD:** de los 33 tests nuevos, 20 fallan contra un worktree de `origin/development` y los otros 13 son controles que tienen que pasar en los dos lados. **Dos pendientes anotados, sin código:** el `codigo` del programa es un identificador de seguridad **editable** desde el paso 1 del wizard (nota en SEC-07, para la ola siguiente: o deja de ser editable, o el catálogo se ancla al `pk`), y los dos paneles de derivaciones —la card de la home y la solapa del legajo— quedan **congelados para casos nuevos** desde que D-L06 ocultó su único productor (nota en LEG-06, para el PM) |
+
 ## Estado al 09-oct-2026 (Ola 7, PR 1: código muerto — **arranca la Ola 7**)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -2237,16 +2243,17 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 ### Ola 7 — Deuda
 - **Ítems:** OPS-10 ✅ (Cambio 195 — módulos de «optimización» y sus comandos), OPS-13 (dependencias),
   OPS-14 ✅ (Cambio 195 — código muerto; la parte de `.py` con CR ya la cerró RED-82), FE-14 ✅ (Cambio 195 —
-  29 JS huérfanos), LEG-06 🟡 (Cambio 195 — código muerto de Legajos; queda `dashboard.html`, que va con RED-78,
-  y el default de D-F16, que no aplica), BEC-25, G1b-09, G1b-10, **G1-01 fase 2** (apagar
+  29 JS huérfanos), LEG-06 🟡 (Cambio 195 — código muerto de Legajos; `dashboard.html` lo cerró RED-78 en el
+  Cambio 197; queda el default de D-F16, que no aplica), BEC-25 ✅ (Cambio 197), G1b-09 ✅ (Cambio 197),
+  G1b-10 ✅ (Cambio 197), **G1-01 fase 2** (apagar
   conversaciones completo: includes, `ws/conversaciones/…` y `ws/alertas-conversaciones/` —**no** `ws/alertas/`—, menú,
-  card del inicio y solapa del legajo; 2 h; R0-01 se cierra antes, en la Ola 0), **R0-02** (CLAUDE.md y
-  `docs/client/architecture.md` con `portal:ciudadano_mi_perfil`; 2 h) y **PERF-11** (tabla
+  card del inicio y solapa del legajo; 2 h; R0-01 se cierra antes, en la Ola 0), **R0-02 ✅** (Cambio 197 —
+  CLAUDE.md; `docs/client/architecture.md` ya estaba corregido) y **PERF-11** (tabla
   `FotoDefinicion`, plan propio, L). **Red de seguridad (04-oct), 40 h:** RED-64 (aprobación antes de publicar
   `docs/client/`), RED-76 (mypy gradual), RED-86 (suite en paralelo, después de RED-88) y segundas partes de RED-13
   (desacoplar el shell y la señal de `conversaciones` **antes** de G1-01 fase 2: +8 h), RED-37 (esquema del dashboard),
-  RED-39 (un solo sobre de error JSON), RED-54 (partir `formulario_detalle`), RED-78 (borrar `DashboardView` **y
-  `dashboard/templates/dashboard.html`**, que LEG-06 dejó en pie a propósito) y RED-85
+  RED-39 (un solo sobre de error JSON), RED-54 (partir `formulario_detalle`), RED-78 ✅ (Cambio 197 — borrado
+  `DashboardView` **y `dashboard/templates/dashboard.html`**, que LEG-06 dejó en pie a propósito) y RED-85
   (`requirements-ci.txt` + dependabot). RED-45 (borrar el parche de gevent) va dentro de OPS-13, sin horas extra;
   RED-65 ✅ (sacar del guard del release los artefactos muertos) entró con OPS-10/OPS-14 en el Cambio 195.
 - **Hecho cuando:** V-STD + V-UI; `git grep -n "phase2\|core.performance.monitoring"` vacío; `pip-audit` y build de imagen
