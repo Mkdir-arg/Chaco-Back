@@ -89,7 +89,7 @@ jobs:
 
       - name: Upload deterministic performance report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: performance-sqlite-report
           path: ${{ runner.temp }}/perf-timing.json
@@ -171,7 +171,7 @@ jobs:
 
       - name: Upload ephemeral performance report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: performance-ephemeral-stack-report
           path: ${{ runner.temp }}/performance-*.json
