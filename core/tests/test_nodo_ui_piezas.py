@@ -647,3 +647,21 @@ class ReporteEstadoVacioTest(TestCase):
 
         self.assertContains(resp, "Ningún dato coincide con los filtros")
         self.assertContains(resp, f'href="{self.url}" class="btn-nodo btn-tertiary btn-base mt-2"')
+
+
+class BtnFitTest(SimpleTestCase):
+    """C-15: btn-fit anula solo el min-width y los tamaños del sistema no cambian."""
+
+    def setUp(self):
+        self.css = (RAIZ / "static/custom/css/nodo-buttons.css").read_text(encoding="utf-8")
+
+    def test_los_min_width_por_tamano_siguen_intactos(self):
+        esperado = {"xs": 128, "sm": 143, "base": 151, "lg": 170, "xl": 186}
+        for tam, ancho in esperado.items():
+            bloque = re.search(r"\.btn-%s \{([^}]*)\}" % tam, self.css).group(1)
+            self.assertIn(f"min-width: {ancho}px;", bloque)
+
+    def test_btn_fit_solo_anula_el_min_width_y_va_despues_de_los_tamanos(self):
+        bloque = re.search(r"\.btn-fit \{([^}]*)\}", self.css).group(1)
+        self.assertEqual([d.strip() for d in bloque.split(";") if d.strip()], ["min-width: 0"])
+        self.assertGreater(self.css.index(".btn-fit {"), self.css.index(".btn-xl {"))

@@ -34,6 +34,17 @@ Siempre **`btn-nodo` + variante + tamaño**.
   { display: none }` porque se carga después de Tailwind y, con la misma especificidad, `display:
   inline-flex` le ganaba por orden (el «Cancelar» que `ModernModal` esconde se veía igual).
 
+### Variante `btn-fit` (sin ancho mínimo)
+
+`btn-nodo btn-secondary btn-sm btn-fit`: anula **solo** el `min-width` del tamaño (`btn-xs` 128 px …
+`btn-xl` 186 px); el botón mide su contenido más el padding. Alto, padding, radio, tipografía, hover,
+disabled y foco son los del tamaño y el tono elegidos, y se combina con cualquiera de los dos.
+
+- **Se usa** en headers densos (3 o más acciones) y en botones dentro de celdas de tabla.
+- **No se usa** en formularios ni en la acción principal de una pantalla: ahí manda el `min-width`.
+- El `min-width` del sistema no se toca; sin `btn-fit`, ningún botón cambia.
+- La regla vive en `nodo-buttons.css`, después de los tamaños (misma especificidad: gana por orden).
+
 ### Acción de fila (botón de ícono)
 
 `.nodo-icon-btn` y `.nodo-icon-btn--danger`: contrato completo en la ficha `tabla.md`

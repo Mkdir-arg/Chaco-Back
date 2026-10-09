@@ -79,6 +79,13 @@
     font-size: 16px;
 }
 
+/* btn-fit (C-15): anula solo el min-width del tamaño; alto, padding, radio, tipografía y
+   estados no se tocan. Va DESPUÉS de los tamaños (misma especificidad: gana por orden).
+   Uso acotado: headers densos (3+ acciones) y celdas de tabla. */
+.btn-fit {
+    min-width: 0;
+}
+
 /* Brand Button (Primary) — Jacarandá gradient, pill */
 .btn-brand {
     background: var(--gradient-brand, linear-gradient(45deg, #5059bc 0%, #f98dff 100%));
