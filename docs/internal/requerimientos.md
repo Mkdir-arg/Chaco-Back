@@ -375,6 +375,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 201 | Backlog del MVP de Dispositivos: 40 tasks numeradas por orden, y cierre de las 45 de la v2 | Dispositivos · gestión | `#gestion` | PM — en sesión: «actualizamos todos los task, en el título ponele un número que va a ser el número de orden, asignámelos a mí en esta iteración y agregalos al backlog» | 09/10/2026 | 🟢 **Hecho** | No requiere |
 | 202 | El código deja de leer los seis modelos del circuito viejo de Dispositivos (camas, admisiones, espera, parte diario y campos del tipo) | Dispositivos · backoffice y solapa del legajo | `#datos` `#ui` `#infra` | PM — plan del MVP, §1 del Cambio 191 (task #672) | 09/10/2026 | 🟢 **Hecho** | No requiere (la migración de borrado es la release siguiente) |
 | 203 | La stat card gana una variante «tablero» (grande) y el hallazgo CMP-23 pasa a declarar las dos | Transversal — diseño (pieza `_stat_card`, base del backoffice) · Dispositivos (base de P1, P4, P12, P19, P21) | `#ui` `#metodo` | PM — decisión C-2 del 06/10/2026 sobre el mapeo del mockup; task #582 | 09/10/2026 | 🟢 **Hecho** | No requiere |
+| 204 | La alerta inline admite icono y accion opcionales | Diseño · componentes | `#ui` | Decisión C-5 del PM (06/10) · task #584 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -30968,6 +30969,75 @@ Render de las 40 invocaciones del repo antes y después: idénticas byte a byte.
 
 - Decidir si Inicio pasa a la grande (ver Decisiones).
 - Las pantallas P1, P4, P12, P19 y P21 usan la variante cuando se construyan (tasks siguientes del MVP).
+
+## Historial
+
+Entrada nueva.
+
+---
+
+---
+
+# Cambio 204 — La alerta inline admite ícono y acción opcionales
+
+🟢 **HECHO — 10/10/2026** · Task #584 · PR del MVP 04
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · componente `_alerta.html` |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Decisión **C-5** del PM (06/10/2026), ejecutada por la task #584 |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | #584 · análisis #581 · épica #127 |
+| **Partes afectadas** | `templates/components/_alerta.html`, su ficha y la fila del inventario |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El mockup de la Versión 2 usa la alerta inline **con ícono** y **con acción** en quince de sus
+veintidós pantallas. El componente no tenía ninguna de las dos cosas, así que o las quince nacían
+fuera del canon o se veían distintas del link que el cliente aprobó. La decisión C-5 fue ampliar la
+pieza.
+
+## Decisiones tomadas
+
+Tres parámetros opcionales: `icono`, `accion_url` y `accion_texto`. **Sin ellos el render es idéntico**,
+y eso no se dio por sentado: se renderizaron **setenta casos** —los veintidós usos reales del repo más
+una matriz de cuarenta y ocho combinaciones de tono, título, texto y rol— comparando byte a byte
+contra la versión anterior. La comparación encontró dos diferencias de espacio en blanco que se
+corrigieron antes de commitear y que a ojo no se habrían visto.
+
+Tres decisiones que la task no definía: en el tono informativo el ícono propio **reemplaza** al fijo,
+porque sumarlo duplicaría íconos; el enlace toma el color del tono, por coherencia con el ícono; y la
+acción se dibuja **solo si vienen la URL y el texto**, para no dejar nunca un enlace vacío o sin
+etiqueta. Las tres quedaron en el docstring de la pieza.
+
+Los 18 px del ícono van con `text-lg`, la utilidad estándar, y no con un arbitrario: el canon admite
+un solo tamaño arbitrario y además vale 17 px, no 18.
+
+## Pendientes
+
+La revisión dejó dos menores que no se corrigen acá. Con `icono` pero sin título ni texto se
+renderiza una alerta vacía: es un uso inválido y no se defiende. Y la rama del tono informativo alinea
+distinto que las demás —`items-center` contra `items-start`—, que es deuda previa de esa nota
+canónica, no de este cambio; conviene comparar en una captura cuando la v2 la use con acción
+multilínea.
+
+## Implementación
+
+El test de escapado que traía la implementación solo comprobaba que el marcado **no** apareciera, cosa
+que pasaría igual si el texto se descartara. Se reforzó: ahora verifica que el `<b>` salga como
+`&lt;b&gt;` y que una comilla dentro de la URL salga como `&quot;` sin cerrar el atributo.
+
+## Archivos
+
+- `templates/components/_alerta.html`
+- `.claude/design/componentes/alerta.md` y la fila del inventario en `.claude/agents/chaco-design-system.md`
+- `core/tests/test_nodo_ui_piezas.py` — seis tests nuevos
+
+## Base de datos
+
+No requiere.
 
 ## Historial
 

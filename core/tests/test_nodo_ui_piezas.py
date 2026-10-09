@@ -509,9 +509,18 @@ class AlertaTest(SimpleTestCase):
         self.assertIn('<a href="/x/" class="flex-shrink-0 text-sm font-medium underline text-fg-info">Ver</a>', html)
 
     def test_escapa_la_accion(self):
-        html = render_to_string(ALERTA, {"tono": "danger", "accion_url": "/x/", "accion_texto": "<b>"})
+        html = render_to_string(
+            ALERTA,
+            {"tono": "danger", "accion_url": '/x/"onclick="y', "accion_texto": "<b>"},
+        )
 
+        # No alcanza con que el marcado no aparezca: eso pasaria tambien si el
+        # texto se descartara. Hay que ver que aparece escapado, y que la comilla
+        # de la URL no cierra el atributo.
         self.assertNotIn("<b>", html)
+        self.assertIn("&lt;b&gt;", html)
+        self.assertNotIn('onclick="y"', html)
+        self.assertIn("&quot;onclick=&quot;y", html)
 
     def test_escapa(self):
         html = render_to_string(ALERTA, {"tono": "danger", "titulo": "<script>", "texto": "<img src=x>"})
