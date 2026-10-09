@@ -4,9 +4,13 @@ RENAPER permanece desacoplado en ``legajos.services.consulta_renaper``. Este
 cliente usa credenciales propias, cachea el token y consulta solamente por DNI.
 """
 
+from __future__ import annotations
+
 import logging
 import re
+from collections.abc import Mapping
 from datetime import datetime
+from typing import Any
 
 import requests
 from django.conf import settings
@@ -30,15 +34,15 @@ sesion = sesion_http()
 cortacircuito = Cortacircuito("personas")
 
 
-def _texto(value):
+def _texto(value: Any) -> str:
     return str(value or "").strip()
 
 
-def _normalizar_clave(value):
+def _normalizar_clave(value: Any) -> str:
     return re.sub(r"[^a-z0-9]", "", _texto(value).lower())
 
 
-def _aplanar(value, target=None):
+def _aplanar(value: Any, target: dict[str, Any] | None = None) -> dict[str, Any]:
     target = target if target is not None else {}
     if isinstance(value, dict):
         for key, item in value.items():
@@ -52,7 +56,7 @@ def _aplanar(value, target=None):
     return target
 
 
-def _primero(flat, *keys):
+def _primero(flat: Mapping[str, Any], *keys: str) -> Any:
     for key in keys:
         value = flat.get(_normalizar_clave(key))
         if value not in (None, ""):
@@ -71,7 +75,7 @@ CLAVES_DNI = ("dni", "documento", "numero_documento", "nro_documento")
 CLAVES_SEXO = ("sexo", "genero")
 
 
-def _plano(registro):
+def _plano(registro: Any) -> dict[str, Any]:
     """Claves de **primer nivel** del registro, normalizadas.
 
     SIIS-10: antes se aplanaba el árbol entero con ``setdefault``, así que la
@@ -89,7 +93,7 @@ def _plano(registro):
     }
 
 
-def _registros(data):
+def _registros(data: Any) -> list[dict[str, Any]]:
     """Los registros de persona de la respuesta, por ruta y sin bajar de nivel.
 
     El contrato de la fuente 13 sigue abierto (task #243), así que se aceptan
@@ -110,7 +114,7 @@ def _registros(data):
     return [data]
 
 
-def _documento(valor):
+def _documento(valor: Any) -> str:
     """Un documento comparable: solo dígitos y sin ceros a la izquierda.
 
     La fuente devuelve el documento con el mismo largo que tiene en su base
@@ -121,7 +125,7 @@ def _documento(valor):
     return re.sub(r"\D", "", _texto(valor)).lstrip("0")
 
 
-def _inicial_de_sexo(valor):
+def _inicial_de_sexo(valor: Any) -> str:
     """``"F"``/``"M"``, o ``""`` si lo que vino no es ninguno de los dos.
 
     El proveedor manda ``F`` y ``FEMENINO``, así que alcanza con la inicial.
@@ -135,7 +139,7 @@ def _inicial_de_sexo(valor):
     return inicial if inicial in ("F", "M") else ""
 
 
-def _coincide(registro, dni, sexo):
+def _coincide(registro: Any, dni: Any, sexo: Any) -> bool:
     """¿El registro es de la persona que se consultó?
 
     Lo que el registro **no trae** —o trae en un formato que no se puede
@@ -150,7 +154,7 @@ def _coincide(registro, dni, sexo):
     return not (genero and pedido and genero != pedido)
 
 
-def elegir_registro(payload, dni, sexo=""):
+def elegir_registro(payload: Any, dni: Any, sexo: Any = "") -> tuple[dict[str, Any] | None, str]:
     """``(registro, error)``: el único registro atribuible a ``(dni, sexo)``.
 
     Ninguno o más de uno es una respuesta que no se puede usar: se devuelve el
@@ -166,12 +170,12 @@ def elegir_registro(payload, dni, sexo=""):
     return None, ERROR_AMBIGUA
 
 
-def fecha_iso(valor):
+def fecha_iso(valor: Any) -> str:
     """Normaliza la fecha de un proveedor a ``AAAA-MM-DD`` (o ``""`` si no se
     puede). Gran Base/RENAPER no garantizan formato: llegó ``15/03/2010`` y
     rompía RN-22 y el alta del ciudadano (revisión Cambio 40)."""
     if hasattr(valor, "isoformat"):
-        return valor.isoformat()[:10]
+        return str(valor.isoformat())[:10]
     texto = _texto(valor).split("T")[0].split(" ")[0]
     if not texto:
         return ""
@@ -183,7 +187,7 @@ def fecha_iso(valor):
     return ""
 
 
-def normalizar_persona(payload, dni, sexo=""):
+def normalizar_persona(payload: Any, dni: Any, sexo: Any = "") -> dict[str, str]:
     """Tolera variantes de nombres hasta que se cierre el contrato definitivo.
 
     Acepta el sobre completo del proveedor o un registro ya elegido. Lee solo el
@@ -202,7 +206,7 @@ def normalizar_persona(payload, dni, sexo=""):
     }
 
 
-def _informa_fallecido(data):
+def _informa_fallecido(data: Any) -> bool:
     """``True`` si la respuesta marca a la persona como fallecida.
 
     Se mira por las mismas vias que el resto del contrato: el ``mensaje`` que ya
@@ -228,7 +232,7 @@ def _informa_fallecido(data):
 
 
 class PersonasAPIClient:
-    def __init__(self):
+    def __init__(self) -> None:
         self.base_url = _texto(settings.PERSONAS_API_URL).rstrip("/")
         self.client_id = _texto(settings.PERSONAS_API_CLIENT_ID)
         self.client_secret = _texto(settings.PERSONAS_API_CLIENT_SECRET)
@@ -236,13 +240,13 @@ class PersonasAPIClient:
         self.fuente_id = settings.PERSONAS_API_FUENTE_ID
         self.timeout = (settings.PERSONAS_API_CONNECT_TIMEOUT, settings.PERSONAS_API_TIMEOUT)
 
-    def _configurada(self):
+    def _configurada(self) -> bool:
         return all((self.base_url, self.client_id, self.client_secret, self.entidad_uuid))
 
-    def _token(self):
+    def _token(self) -> str:
         token = cache.get(TOKEN_CACHE_KEY)
         if token:
-            return token
+            return str(token)
         response = instrument_external_call(
             "personas",
             sesion.post,
@@ -262,9 +266,9 @@ class PersonasAPIClient:
             raise ValueError("La API de Personas no devolvio un token.")
         # El proveedor informa 24 h; renovamos cinco minutos antes.
         cache.set(TOKEN_CACHE_KEY, token, 23 * 60 * 60 + 55 * 60)
-        return token
+        return str(token)
 
-    def consultar(self, dni, sexo):
+    def consultar(self, dni: Any, sexo: Any) -> dict[str, Any]:
         if not self._configurada():
             return {"success": False, "error": "Configuracion de Base de Personas incompleta."}
         if cortacircuito.abierto():
@@ -336,7 +340,7 @@ class PersonasAPIClient:
             return {"success": False, "error": "No se pudo consultar Base de Personas."}
 
 
-def consultar_persona(dni, sexo):
+def consultar_persona(dni: Any, sexo: Any) -> dict[str, Any]:
     dni = re.sub(r"\D", "", _texto(dni))
     if not dni:
         return {"success": False, "error": "El DNI es requerido."}

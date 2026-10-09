@@ -208,6 +208,72 @@ jobs:
             feat*|fix*) echo "::warning::«$TITULO» no toca docs/internal/requerimientos.md (CLAUDE.md, regla de oro)" ;;
           esac
 
+  # RED-76: el repo tiene 2,7 % de retornos anotados sobre 2.195 funciones. SIIS-11
+  # (`body.get` sobre una lista) y G1-06 (una fecha cruda al ORM) son errores de tipo que
+  # un checker habría marcado en el diff, y los dos llegaron a producción.
+  #
+  # Lo que arranca acá es la **adopción gradual**: el alcance está en `files` de
+  # `[tool.mypy]` (`pyproject.toml`) y hoy son tres módulos, en verde. Fuera de esa lista
+  # mypy no mira nada, así que el job no puede ponerse rojo por código ajeno al alcance.
+  # Crece un módulo por PR; se enciende —sin `continue-on-error` y sumado al ruleset—
+  # cuando estén los cinco que nombra la ficha.
+  #
+  # **No bloqueante a propósito**, como pide la ficha. El `continue-on-error` va en el
+  # paso que mide y no en el job: a nivel job GitHub reporta el check como *success*
+  # incluso cuando falla, y la evidencia queda solo adentro del log; en el paso, queda en
+  # rojo con su anotación en la pestaña del PR, que es lo que hace falta para que alguien
+  # lo mire.
+  #
+  # Instala `requirements.txt` además de `requirements-ci.txt` porque el plugin de
+  # `django-stubs` importa `config.settings` para resolver los modelos.
+  mypy:
+    name: Tipos (mypy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        id: filtro
+        with:
+          filters: |
+            python:
+              - '**/*.py'
+              - 'pyproject.toml'
+              # RED-85: subir el pin de una herramienta tiene que correr su propio job.
+              - 'requirements-ci.txt'
+              - 'requirements.txt'
+              - '.github/workflows/pr-quality.yml'
+
+      - uses: actions/setup-python@v5
+        if: steps.filtro.outputs.python == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-ci.txt
+
+      - name: Install system dependencies
+        if: steps.filtro.outputs.python == 'true'
+        run: sudo apt-get install -y default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        if: steps.filtro.outputs.python == 'true'
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-ci.txt
+
+      - name: Run mypy
+        if: steps.filtro.outputs.python == 'true'
+        continue-on-error: true
+        env:
+          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
+          PYTEST_RUNNING: "1"
+          DJANGO_SYNCDB_PROJECT_APPS: "True"
+        run: mypy --no-pretty
+
   bandit:
     name: Bandit Security Scan
     runs-on: ubuntu-latest

@@ -103,7 +103,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-61 | `SIIS_API_URL` cae al SIIS de desarrollo y nada lo valida al arrancar | MEDIA | CONF. lectura (PRD PLAUSIBLE) | R | S | ✅ |
 | RED-62 | Los presupuestos de performance son autodeclarados: subirlos en el mismo PR pasa | MEDIA | CONF. lectura | 4 | S | ✅ |
 | RED-63 | Ruff y Bandit en `continue-on-error`; excepción de `pip-audit` sin vencimiento | MEDIA | CONF. lectura | R | S | ✅ |
-| RED-64 | `docs/client/` se publica en GitHub Pages público en cada push, sin revisión | MEDIA | CONF. lectura (API) | 7 | S | ⬜ |
+| RED-64 | `docs/client/` se publica en GitHub Pages público en cada push, sin revisión | MEDIA | CONF. lectura (API) | 7 | S | ✅ |
 | RED-65 | El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14 | MEDIA | CONF. lectura | R (+7) | S | ✅ |
 | RED-66 | `reabrir` de la app de campo no tiene test negativo de la transición | MEDIA | CONF. test (mutación M17) | R | S | ✅ |
 | RED-67 | Ningún test afirma que se tome el `select_for_update` del cupo ni del link | MEDIA | CONF. test (mutaciones M21, M43) | R (+capa 2 en TST-01) | S | ✅ |
@@ -115,7 +115,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-73 | `CiudadanoConfirmarView` decide antes de mirar si hay sesión | BAJA | CONF. test (barrido) | R | S | ✅ |
 | RED-74 | Ocho arreglos mergeados sin ningún test | BAJA | CONF. lectura (git) | R | S | ✅ |
 | RED-75 | `/set_dark_mode/` no existe: el toggle de tema postea a un 404 | BAJA | CONF. test (`resolve`) | 5 | S | ✅ |
-| RED-76 | Tipado: 2,7 % de retornos anotados, sin mypy ni pyright | BAJA | CONF. test (AST) | 7 | S-M | ⬜ |
+| RED-76 | Tipado: 2,7 % de retornos anotados, sin mypy ni pyright | BAJA | CONF. test (AST) | 7 | S-M | ✅ |
 | RED-77 | RN-2 del padrón escrita dos veces: property y filtro de queryset | BAJA | CONF. lectura | R | S | ✅ |
 | RED-78 | `DashboardView`: copia del inicio sin el blindaje de SEC-14, muerta solo por el orden de URLs | BAJA | CONF. test (`resolve`) | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
 | RED-79 | Tres ciclos de import y nueve aristas vista→vista sin ratchet | BAJA | CONF. test (AST) | R (+2) | S (+S) | ✅ |
@@ -125,7 +125,7 @@ con lo que existe hoy; la lista solo baja.
 | RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ✅ |
 | RED-84 | `requerimientos.py --check` no verifica la sección «Reversión» | BAJA | CONF. lectura | R | S | ✅ |
 | RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ✅ |
-| RED-86 | Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento | BAJA | CONF. test (`gh run list`) | 7 | S | ⬜ |
+| RED-86 | Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento | BAJA | CONF. test (`gh run list`) | 7 | S | ✅ |
 | RED-87 | El largo mínimo del barrio del payload SIIS no se prueba en su borde | BAJA | CONF. test (mutación M33) | R | S | ✅ |
 | RED-88 | `manage.py test core users portal --parallel` revienta con `cannot pickle 'traceback'` | BAJA | CONF. test | R | S | ✅ |
 | RED-89 | Ningún test recorre el URLconf con un usuario **sin rol**: 200 en 31 rutas, y 17 de Legajos dejan borrar adjuntos y cerrar alertas ajenas (SEC-10, SEC-18, SEC-11) | CRÍTICA | CONF. test (barrido 04-oct) | R (**primero**) | S-M | ✅ |
@@ -1268,6 +1268,30 @@ forma de **cada campo** de `definicion_formulario` sigue siendo RED-12 (PR R-17)
   `programas.api.serializers`, `becas`/`diseno` con `TypedDict` para la definición, `siis`/`siis_envio`). Job en
   `pr-quality.yml` con `continue-on-error: true` hasta que estén los cinco módulos. RED-63 explica por qué antes de esto
   rinde más `ruff --select F` bloqueante.
+
+**Resolución:** ✅ Cerrada en el PR 5 de la Ola 7 (Cambio 199), 09-oct-2026 — **el arranque, con los dos módulos que
+pide la ficha anotados y en verde, no con la configuración puesta y 28 errores adentro.** `mypy` (job `Tipos (mypy)` en
+`pr-quality.yml`, **no bloqueante**) corre **solo** sobre `files` de `[tool.mypy]`; fuera de esa lista no mira nada, así
+que el job no puede ponerse rojo por código ajeno al alcance y la adopción es de verdad gradual. Las 28 funciones del
+alcance quedan anotadas **sin un solo `# type: ignore`**, y `enable_error_code = ["ignore-without-code"]` impide que
+aparezca uno mudo más adelante.
+**Tres desvíos, los tres code-first:**
+1. **Las versiones de la ficha no resuelven.** `mypy==1.14.1` + `django-stubs==5.1.3` + `djangorestframework-stubs==3.15.2`
+   son de la época de Django 5.1; hoy `pip` corta con `ResolutionImpossible` (drf-stubs 3.17 exige `django-stubs>=6.0.4`).
+   Van `mypy==2.1.0`, `django-stubs[compatible-mypy]==6.1.2` y `djangorestframework-stubs[compatible-mypy]==3.17.0`, que
+   es la terna compatible con el par que corre el CI (Django 5.2.17 + DRF 3.17.2).
+2. **Los pines van a `requirements-ci.txt`, no a `requirements-dev.txt`.** La ficha es anterior al Cambio 196, que creó
+   el archivo de herramientas del CI y el test que exige que lo que un job invoca salga de ahí. `requirements-dev.txt`
+   apunta a él.
+3. **Entra un tercer módulo, `core/edad.py`** (74 líneas, 3 funciones). Sin él, `edad_en_anios` devolvía `Any` y la
+   mitad estricta de `condiciones.py` era hueca: los cuatro operadores de edad —el borde de RN-22— se verificaban contra
+   nada.
+**Lo que la anotación destapó, sin ser un bug hoy:** `OPERADORES_POR_TIPO.get(origen.get("tipo_campo"), …)` se llamaba
+con una clave que puede faltar, y `evaluar_regla` reusaba el nombre `limite` para un número y después para una fecha en
+la misma función. Las dos quedan explícitas; ninguna cambia el comportamiento.
+**Test permanente:** `core.tests.test_gates_ci.TipadoGradualTests` (7 tests: el alcance existe y son archivos, lo
+estricto cubre exactamente el alcance, el plugin sabe de dónde salen los settings, un `# type: ignore` sin código no
+compila, el alcance no tiene ninguno, el job arranca sin bloquear y el job instala la aplicación).
 
 ## (d) Duplicación, dependencias ocultas y acoplamiento
 
@@ -2638,6 +2662,33 @@ archivo de este PR contra `origin/development`, salida 0—, más 16 casos sobre
   `(?i)(password|contraseña|secret|token)\s*[:=]\s*\S`, y si aparece un archivo fuera del `nav` de `mkdocs.yml` y de
   `not_in_nav`.
 
+**Resolución:** ✅ Cerrada en el PR 5 de la Ola 7 (Cambio 199), 09-oct-2026 — y **encontró un caso real en la primera
+corrida**: `docs/client/funcionalidades/programa-becas.md` publicaba una respuesta de RENAPER con el apellido, el
+nombre, el DNI, el CUIL, la fecha de nacimiento y el domicilio de **una persona de verdad**, pegada «para mostrar al
+equipo Ministerio». Estaba en internet desde que se escribió. El mismo PR la despublica (la estructura queda, los
+valores pasan a ficticios), que es exactamente el modo de falla que la ficha describe. El gate es
+`scripts/check_docs_client.py` y corre **dos veces**: como paso de `docs-auto-deploy.yml` antes de construir, y como
+test de la suite, para que el hallazgo aparezca en el PR y no recién cuando el dato ya está publicado.
+**Tres desvíos, los tres medidos:**
+1. **El `environment` no es `github-pages`.** `gh api repos/Mkdir-arg/Chaco-Back/environments/github-pages/deployment-branch-policies`
+   devuelve una política de rama única: `gh-pages`. El job corre en `development`, así que apuntarlo ahí lo dejaría
+   **rechazado por política de ramas en cada corrida** —la publicación dejaría de funcionar del todo en vez de quedar
+   esperando aprobación—. Va a `publicacion-docs`, que no existe: GitHub lo crea solo en la primera corrida, sin
+   reglas, así que hasta que el PM agregue los *required reviewers* publica igual que antes.
+2. **El `\S` de la ficha mira la clave; el gate mira el valor.** Medido sobre el repo, ese patrón marcaba doce líneas
+   y las doce son correctas: son la plantilla del `.env` de `versiones/version-001.md` (`<password-db>`, `…`) y dos
+   frases en prosa. Un gate que nace con doce falsos positivos se desactiva el primer día. La regla pasa a ser «clave
+   de secreto **más un valor que no es un marcador de posición**», y da 0 sobre esas doce.
+3. **Se suma el CUIL**, que la ficha no pedía: once dígitos con prefijo `20/23/24/27/30/33/34` se identifican solos,
+   sin ninguna palabra cerca, y es la mitad del hallazgo real que el patrón de «DNI» no habría visto en la línea del
+   JSON.
+Las siete plantillas de `docs/client/templates/` —que ya se publicaban fuera del menú— quedan **declaradas** en
+`not_in_nav`, no excluidas: el gate pide que lo que se publica sin estar en el menú esté escrito en algún lado, y
+sacarlas del sitio es un `exclude_docs:` de una línea que decide el PM.
+**Test permanente:** `core.tests.test_docs_client_publicacion.DocsClientPublicablesTests.test_docs_client_no_publica_nada_que_no_deba`
+(+ `.test_la_respuesta_de_renaper_de_ejemplo_no_trae_una_persona`, `DeteccionDelGateTests` ×10 y
+`WorkflowDePublicacionTests` ×5).
+
 ### RED-65 · El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R6-16 (VR2: CONFIRMADO) · **Ola:** R (el test) + 7 (sacar las rutas, sin horas extra: dentro de OPS-10/OPS-14) · **Esfuerzo:** S (2 h)
 - **Ubicación:** `publish-main.yml:38` exige `docker/django/Dockerfile` (no lo construye nadie; su `CMD` corre
@@ -2712,6 +2763,31 @@ y `core.tests.test_gates_ci.DependabotTests` (4 tests).
 - **Propuesta:** `coverage run --concurrency=multiprocessing manage.py test --parallel 4` + `coverage combine` (**depende de
   RED-88**: hoy `--parallel` revienta en `core`/`users`/`portal`); `timeout-minutes: 25` y un paso que escribe la duración
   en `$GITHUB_STEP_SUMMARY` y emite `::warning::` sobre 12 min.
+
+**Resolución:** ✅ Cerrada en el PR 5 de la Ola 7 (Cambio 199), 09-oct-2026 — con RED-88 cerrada desde el PR R-20, la
+dependencia estaba levantada. `Tests & Coverage` corre `coverage run manage.py test --parallel 4`, `timeout-minutes`
+pasa de 20 a **25** y un paso nuevo escribe los minutos en el resumen del job y emite `::warning::` a partir de 12.
+**Medido en local (Python 3.12 + Django 5.2.17, el par del CI), el mismo árbol en las tres corridas, 4.911 tests y
+`OK (skipped=50, expected failures=2)` en las tres:** `manage.py test` en serie, **637 s**; `coverage run manage.py
+test` en serie —lo que el job corría hasta ahora—, **792 s**; `coverage run manage.py test --parallel 4` —lo que corre
+desde este PR—, **599 s**. O sea **792 → 599 s, −24 %**, con el mismo conteo, los mismos 50 *skipped* y los mismos 2
+*expected failures*: **ningún test cambia de resultado**. En el runner de Linux la mejora tiene que ser mayor, porque
+ahí el arranque es *fork* y no *spawn*: la medición local paga el `django.setup()` y la creación del esquema en cada
+uno de los cuatro workers.
+**La mitad que la ficha nombra en una línea y es donde estaba el riesgo: la cobertura.** `coverage run` mide solo el
+proceso que lanza, y con `--parallel` ese proceso no corre ningún test: sin tocar nada, el `fail_under` se habría
+desplomado y el gate habría culpado al PR que lo encendiera. Van `concurrency = ["multiprocessing"]`, `parallel = true`
+y `sigterm = true` en `[tool.coverage.run]` —**en el archivo y no en la línea de comandos**, porque los subprocesos no
+ven los flags del padre— más un paso de `coverage combine` antes de los dos `coverage report`. Medido después de
+combinar: **86 % global** (techo 79) y **95 % en los nueve módulos críticos** (piso 90). El `fail_under` no se mueve en
+este PR: subirlo es la decisión de ratchet de TST-03, no de esta ficha.
+**Un desvío, hacia menos CI:** se retira el paso no bloqueante `core users portal --parallel 2` del job
+`Orden y paralelo`, que RED-88 había puesto explícitamente «hasta que RED-86 pase la suite entera a paralelo». Eso es lo
+que acaba de pasar, y ahora esas tres apps corren en paralelo adentro de un check **obligatorio**, con el doble de
+workers. El paso `--shuffle` de TST-02 se queda, porque mide otra cosa (el orden) y no es reproducible.
+**Test permanente:** `core.tests.test_gates_ci.SuiteEnParaleloTests` (8 tests: la suite corre en paralelo, el techo
+subió a 25, coverage sigue midiendo los hijos, la configuración está en el archivo y no en el comando, se combina antes
+de reportar, la duración se escribe y avisa sobre 12 min, se mide aunque la suite falle, y el job sigue bloqueando).
 
 ## (g) Las 10 partes más frágiles
 

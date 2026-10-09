@@ -20,9 +20,18 @@ depende de él. Sin anidamiento.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
+from datetime import date
+from typing import Any
+
 from core.edad import edad_en_anios
 from core.edad import fecha_o_none as _fecha
 from programas.models import TipoCampo
+
+#: Lo que respondió una persona en un ítem: llega de un JSON, así que es cualquier cosa.
+Respuesta = Any
+#: Un ítem del diseño, un dict con ``clave``, ``tipo``, ``padre`` y ``condicion``.
+Item = Mapping[str, Any]
 
 MODO_TODAS = "todas"
 MODO_ALGUNA = "alguna"
@@ -75,7 +84,7 @@ CON_LISTA = {"es_alguno", "incluye_alguno", "edad_entre"}
 # ── Utilidades de valor ──────────────────────────────────────────────────────
 
 
-def esta_vacio(valor):
+def esta_vacio(valor: Respuesta) -> bool:
     if valor is None:
         return True
     if isinstance(valor, str):
@@ -85,7 +94,7 @@ def esta_vacio(valor):
     return False
 
 
-def _numero(valor):
+def _numero(valor: Respuesta) -> int | float | None:
     if isinstance(valor, bool):
         return None
     if isinstance(valor, (int, float)):
@@ -97,7 +106,7 @@ def _numero(valor):
         return None
 
 
-def _lista(valor):
+def _lista(valor: Respuesta) -> list[str]:
     if valor is None:
         return []
     if isinstance(valor, (list, tuple, set)):
@@ -108,7 +117,7 @@ def _lista(valor):
 # ── Evaluación ───────────────────────────────────────────────────────────────
 
 
-def evaluar_regla(regla, valor, hoy=None):
+def evaluar_regla(regla: Mapping[str, Any], valor: Respuesta, hoy: date | None = None) -> bool:
     """¿Se cumple ``regla`` para ``valor`` (lo respondido en la fuente)?"""
     op = regla.get("op")
     esperado = regla.get("valor")
@@ -153,17 +162,18 @@ def evaluar_regla(regla, valor, hoy=None):
         rango = [_numero(v) for v in _lista(esperado)]
         if edad is None or len(rango) != 2 or None in rango:
             return False
-        return min(rango) <= edad <= max(rango)
+        desde, hasta = sorted(limite_del_rango for limite_del_rango in rango if limite_del_rango is not None)
+        return desde <= edad <= hasta
     if op in ("anterior", "posterior"):
-        fecha, limite = _fecha(valor), _fecha(esperado)
-        if fecha is None or limite is None:
+        fecha, tope = _fecha(valor), _fecha(esperado)
+        if fecha is None or tope is None:
             return False
-        return fecha < limite if op == "anterior" else fecha > limite
+        return fecha < tope if op == "anterior" else fecha > tope
 
     return False
 
 
-def evaluar(condicion, respuestas, hoy=None):
+def evaluar(condicion: Mapping[str, Any] | None, respuestas: Mapping[str, Respuesta], hoy: date | None = None) -> bool:
     """¿El ítem con ``condicion`` se muestra, dadas las ``respuestas`` visibles?
     Sin condición (o sin reglas) siempre se muestra."""
     if not condicion:
@@ -176,7 +186,9 @@ def evaluar(condicion, respuestas, hoy=None):
     return all(resultados) if modo == MODO_TODAS else any(resultados)
 
 
-def aplicar(items, respuestas, hoy=None):
+def aplicar(
+    items: Iterable[Item], respuestas: Mapping[str, Respuesta], hoy: date | None = None
+) -> tuple[set[str], set[str], dict[str, Respuesta]]:
     """Recorre los ítems del diseño en orden y decide qué se muestra.
 
     ``items``: lista ordenada de dicts con ``clave``, ``tipo`` (``grupo`` |
@@ -188,8 +200,9 @@ def aplicar(items, respuestas, hoy=None):
     Un ítem oculto cuenta como vacío para los que dependen de él; un hijo de
     un grupo oculto está oculto.
     """
-    visibles, ocultos = set(), set()
-    efectivas = {}
+    visibles: set[str] = set()
+    ocultos: set[str] = set()
+    efectivas: dict[str, Respuesta] = {}
     for item in items:
         clave = item["clave"]
         padre = item.get("padre")
@@ -208,11 +221,11 @@ def aplicar(items, respuestas, hoy=None):
 # ── Coherencia del diseño ────────────────────────────────────────────────────
 
 
-def validar_condicion(condicion, item, anteriores):
+def validar_condicion(condicion: Mapping[str, Any] | None, item: Item, anteriores: Mapping[str, Item]) -> list[str]:
     """Errores (lista de strings) de la condición de ``item`` dado el mapa de
     ítems ``anteriores`` (``clave → dict`` con ``tipo`` y ``tipo_campo``) que
     están antes en el orden. Vacío = coherente."""
-    errores = []
+    errores: list[str] = []
     if not condicion:
         return errores
     modo = condicion.get("modo") or MODO_TODAS
@@ -240,7 +253,8 @@ def validar_condicion(condicion, item, anteriores):
             errores.append(f"Regla {numero}: la fuente «{fuente}» no es un campo.")
             continue
         op = regla.get("op")
-        permitidos = OPERADORES_POR_TIPO.get(origen.get("tipo_campo"), set())
+        tipo_campo = origen.get("tipo_campo")
+        permitidos = OPERADORES_POR_TIPO.get(tipo_campo, set()) if tipo_campo else set()
         if op not in permitidos:
             errores.append(f"Regla {numero}: el operador «{op}» no aplica a un campo {origen.get('tipo_campo')}.")
             continue
@@ -251,12 +265,12 @@ def validar_condicion(condicion, item, anteriores):
     return errores
 
 
-def validar_coherencia(items):
+def validar_coherencia(items: Iterable[Item]) -> dict[str, list[str]]:
     """Valida todas las condiciones de un diseño en orden. Devuelve
     ``{clave: [errores]}`` solo para los ítems con problemas. Como la fuente
     tiene que estar antes, un ciclo es imposible por construcción."""
-    errores = {}
-    anteriores = {}
+    errores: dict[str, list[str]] = {}
+    anteriores: dict[str, Item] = {}
     for item in items:
         problemas = validar_condicion(item.get("condicion"), item, anteriores)
         if problemas:
@@ -265,7 +279,7 @@ def validar_coherencia(items):
     return errores
 
 
-def fuentes_fuera_del_canal(items_del_canal, etiqueta_canal):
+def fuentes_fuera_del_canal(items_del_canal: Sequence[Item], etiqueta_canal: str) -> dict[str, list[str]]:
     """``{clave: [errores]}`` de las condiciones cuya fuente no se pide en el canal (BEC-04).
 
     ``items_del_canal`` es la lista plana **ya filtrada** por ese canal: lo que la
@@ -286,7 +300,7 @@ def fuentes_fuera_del_canal(items_del_canal, etiqueta_canal):
     cada canal servido por separado.
     """
     presentes = {item["clave"] for item in items_del_canal}
-    errores = {}
+    errores: dict[str, list[str]] = {}
     for item in items_del_canal:
         reglas = (item.get("condicion") or {}).get("reglas") or []
         for numero, regla in enumerate(reglas, start=1):
@@ -301,10 +315,10 @@ def fuentes_fuera_del_canal(items_del_canal, etiqueta_canal):
     return errores
 
 
-def fuentes_disponibles(items, clave_item):
+def fuentes_disponibles(items: Iterable[Item], clave_item: str) -> list[Item]:
     """Los campos que pueden ser fuente de una condición de ``clave_item``: los
     campos anteriores en el orden (RN-6). Para el editor."""
-    fuentes = []
+    fuentes: list[Item] = []
     for item in items:
         if item["clave"] == clave_item:
             break

@@ -28,8 +28,78 @@ ignore = ["E501"]
 exclude_dirs = ["migrations", "tests", ".venv", "docs"]
 skips = ["B101", "B104", "B110", "B311", "B404", "B603", "B607"]
 
+# ---------------------------------------------------------------------------
+# mypy (RED-76) — adopción gradual, un módulo por PR.
+#
+# El repo tiene 2,7 % de retornos anotados sobre 2.195 funciones (`programas`: 5 de
+# 1.117), así que un checker sobre todo el árbol daría miles de hallazgos y el único
+# resultado sería que nadie lo mire. Lo que se adopta acá es el **alcance**, no la
+# herramienta: `files` de abajo es la lista de módulos verificados y es lo único que
+# crece. Fuera de esa lista mypy no mira nada.
+#
+# Los dos de arranque son los que pide la ficha, y son los que corresponden: SIIS-11
+# (`body.get` sobre una lista) y G1-06 (una fecha cruda al ORM) son errores de tipo que
+# un checker habría marcado en el diff. Siguen, un módulo por PR:
+# `programas.api.serializers`, `becas`/`diseno` con `TypedDict` para la definición, y
+# `siis`/`siis_envio`.
+#
+# El job (`Tipos (mypy)`, en `pr-quality.yml`) arranca **no bloqueante**; se enciende
+# cuando estén los cinco módulos. Correrlo en local:
+#
+#     & $env:PY_VENV -m mypy
+[tool.mypy]
+python_version = "3.12"
+# El alcance. Una línea nueva por PR, nunca un directorio entero: lo que entra acá
+# entra en verde y se queda en verde.
+files = [
+    "core/edad.py",
+    "programas/services/condiciones.py",
+    "programas/services/personas.py",
+]
+# Casi nada del árbol está anotado: sin esto, cada import arrastra los errores del
+# módulo importado y el alcance deja de significar algo.
+follow_imports = "silent"
+ignore_missing_imports = true
+exclude = ["(^|/)(migrations|tests)/", "^(\\.venv|\\.venv312|staticfiles|docs|node_modules)/"]
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+# Un `# type: ignore` sin código de error tapa cualquier cosa y nunca se revisa. Si hace
+# falta uno, va con su código (`# type: ignore[arg-type]`) y queda visible.
+enable_error_code = ["ignore-without-code"]
+pretty = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+# Lo estricto se aplica **solo** sobre el alcance de `files`: dentro de la lista, una
+# función sin anotar o un `Any` que se escapa por un `return` es un error.
+[[tool.mypy.overrides]]
+module = [
+    "core.edad",
+    "programas.services.condiciones",
+    "programas.services.personas",
+]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_return_any = true
+no_implicit_optional = true
+
 [tool.coverage.run]
 source = ["."]
+# RED-86: la suite del CI corre con `manage.py test --parallel 4`, que reparte los tests
+# en procesos hijos con `multiprocessing`. Sin estas dos líneas, coverage mide **solo el
+# proceso padre** —que no corre ningún test— y el `fail_under` se desplomaría sin que
+# nada hubiera cambiado en el código.
+#
+# Van en el archivo de configuración y no en la línea de comandos **a propósito**: los
+# subprocesos no ven los flags del `coverage run` del padre, solo leen este archivo.
+#
+# `parallel = true` hace que cada proceso escriba su propio `.coverage.<host>.<pid>.<n>`,
+# así que después hay que correr `coverage combine` antes de `coverage report`, también
+# en local. `sigterm` cierra el archivo del worker si el job se queda sin tiempo, para
+# que el dato parcial no se pierda en silencio.
+concurrency = ["multiprocessing"]
+parallel = true
+sigterm = true
 # TST-03: sin esto, un `if` cuyo cuerpo se ejecuta siempre por la misma rama cuenta
 # como 100 % cubierto. Medido el 07-10-2026 con la suite completa: 81 % de ramas
 # contra 83 % de sentencias, y los nueve módulos críticos 94 % contra 95 %.

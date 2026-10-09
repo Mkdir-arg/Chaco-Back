@@ -45,3 +45,16 @@ bandit[toml]==1.9.4
 
 # `Docs Auto Deploy`, que publica `docs/client/` en GitHub Pages con `contents: write`.
 mkdocs-material==9.7.7
+
+# `Tipos (mypy)` (no bloqueante, RED-76). El alcance —qué módulos se verifican— vive en
+# `files` de `[tool.mypy]`, en `pyproject.toml`, y crece un módulo por PR.
+#
+# Los tres van juntos o no van: `django-stubs[compatible-mypy]` es el que fija qué mypy
+# soporta, y `djangorestframework-stubs` exige `django-stubs>=6.0.4`. La ficha proponía
+# `mypy==1.14.1` + `django-stubs==5.1.3` + `djangorestframework-stubs==3.15.2`; esa terna
+# es de la época de Django 5.1 y hoy ni siquiera resuelve (`pip` da `ResolutionImpossible`:
+# drf-stubs 3.17 pide django-stubs 6). Estas son las versiones compatibles con el par que
+# corre el CI, Django 5.2.17 + DRF 3.17.2. Las sube dependabot con el resto.
+mypy==2.1.0
+django-stubs[compatible-mypy]==6.1.2
+djangorestframework-stubs[compatible-mypy]==3.17.0

@@ -7,7 +7,8 @@
 #
 #     pip install -r requirements-dev.txt
 #
-# Las herramientas del CI van aparte, en `requirements-ci.txt` (RED-85).
+# Las herramientas del CI van aparte, en `requirements-ci.txt` (RED-85). Ahí están
+# también `ruff` y `mypy`, que se usan en local: `pip install -r requirements-ci.txt`.
 
 -r requirements.txt
 
