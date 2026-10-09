@@ -90,7 +90,6 @@ DEFAULT_TARGETS = [
     "users/templates",
     "configuracion/templates",
     "conversaciones/templates",
-    "tramites/templates",
 ]
 
 # "email": los templates de correo (`**/templates/**/email/`) necesitan estilos

@@ -14,6 +14,7 @@ from core.performance.query_observability import (
     query_observability_report,
     route_name,
     sql_fingerprint,
+    sql_signature,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,17 @@ class QueryCollector:
         return any(count > 3 for count in self.fingerprints.values())
 
     @property
+    def n1_signature(self):
+        """``INSERT tabla ×5`` de la repetición que disparó el N+1, o vacío.
+
+        Sin esto, el único dato que cruzaba a la sonda era «hubo N+1 en alguna
+        ruta»: para saber qué consulta se repetía había que reproducir el stack
+        efímero a mano. Viaja el verbo y la tabla, nunca el SQL.
+        """
+        fingerprint, count = (self.fingerprints.most_common(1) or [(None, 0)])[0]
+        return f"{sql_signature(fingerprint)} ×{count}" if count > 3 else ""
+
+    @property
     def duplicate_query_count(self):
         return sum(count - 1 for count in self.fingerprints.values() if count > 1)
 
@@ -56,11 +68,6 @@ class QueryCountMiddleware:
             "/performance-api/",
             "/query-analysis-api/",
             "/optimization-suggestions-api/",
-            "/system-metrics-api/",
-            "/alerts-api/",
-            "/realtime-metrics-api/",
-            "/phase2-metrics-api/",
-            "/run-phase2-tests-api/",
         }
     )
 
@@ -109,10 +116,15 @@ class QueryCountMiddleware:
             duration_ms,
             measurement.dependencies,
             duplicate_query_count=collector.duplicate_query_count,
+            n1_signature=collector.n1_signature,
         )
         if collector.n1_detected and self._should_warn_n1(route):
             logger.warning(
-                "Performance Alert: route=%s query_count=%s duration_ms=%.0f", route, collector.count, duration_ms
+                "Performance Alert: route=%s query_count=%s duration_ms=%.0f repite=%s",
+                route,
+                collector.count,
+                duration_ms,
+                collector.n1_signature,
             )
         return response
 

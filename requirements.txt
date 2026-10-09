@@ -1,3 +1,27 @@
+# Lo que viaja en la imagen de producción (`Dockerfile`: `pip install -r requirements.txt`).
+#
+# OPS-13: acá había once paquetes con **cero** imports en el código. Cada uno es
+# superficie que `pip-audit` tiene que auditar y que un CVE puede frenar, y código de
+# terceros adentro de la imagen de PRD. Los que se fueron en el Cambio 196:
+#
+#   openai, httpx, anyio      el bloque «AI/ML». `openai` había subido a 1.3.8 solo para
+#                             destrabar `anyio>=4` (Cambio 97) y `anyio` se pineaba
+#                             porque lo arrastraban esos dos. Sin ellos, los tres sobran.
+#   structlog                 nunca se configuró: el logging del proyecto es el de Django.
+#   gevent, greenlet          RED-45 / D-RED-08. Ver `config/wsgi.py`.
+#   django-simple-history     el único `HistoricalRecords` del repo está comentado desde
+#                             siempre (`legajos/models/base.py:15`).
+#   pymysql                   lo usaba `core/performance/advanced_connection_pool.py`,
+#                             que borró OPS-10 (Cambio 195). El driver real es
+#                             `mysqlclient`.
+#   django-health-check       OPS-04 le sacó las URLs (Cambio 153) y las sondas son la
+#                             app `healthcheck` del repo. Sale con `core.0003`, que borra
+#                             su tabla y sus dos filas de `django_migrations`.
+#   debugpy, django-extensions, django-silk → `requirements-dev.txt`.
+#
+# Las herramientas del CI (ruff, coverage, pip-audit, bandit, mkdocs-material) viven en
+# `requirements-ci.txt`, pineadas (RED-85).
+
 # Django Core
 Django==5.2.17
 djangorestframework==3.17.2
@@ -13,13 +37,6 @@ cryptography==50.0.0
 django-redis==5.4.0
 redis==5.0.1
 
-# Health checks: las sondas del sistema son la app `healthcheck` del repo (`/health/` y
-# `/health/ready/`). `django-health-check` ya no monta ninguna URL desde el Cambio 153
-# (OPS-04), pero sigue instalado: tiene una migracion aplicada y una tabla en los
-# ambientes. Retirarlo es OPS-13 y requiere limpiar `health_check_db_testmodel` y sus
-# dos filas de `django_migrations`, o el deploy se frena en la guarda de OPS-01.
-django-health-check==3.17.0
-
 # Estaticos servidos por la propia app (clave en Kubernetes, donde no hay nginx
 # adelante; en la VM nginx los intercepta antes y el middleware queda inerte)
 whitenoise[brotli]==6.8.2
@@ -27,11 +44,10 @@ whitenoise[brotli]==6.8.2
 # Environment & Config
 python-dotenv==1.2.2
 gunicorn==23.0.0
-
-# Development Tools (solo para desarrollo)
-setuptools==80.9.0
-django-extensions==3.2.3
-debugpy==1.8.5
+# Backend de build de varias dependencias que no traen wheel para 3.12. 80.9.0 arrastraba
+# PYSEC-2026-3447 (CVE-2026-59890) con excepción vigente en `security/excepciones.toml`;
+# 83.0.0 es la primera corregida y la excepción se retiró en el mismo PR (RED-85).
+setuptools==83.0.0
 
 # Utilities básicas
 requests==2.33.0
@@ -53,34 +69,22 @@ lxml==6.1.3
 # la alternativa en texto plano. Es el binding de `ammonia` (Rust), sin dependencias.
 nh3==0.3.7
 
-# Auditoría
-django-simple-history==3.4.0
-
-# AI/ML
-# openai 1.3.0 topeaba anyio<4 y anyio 3.x trae CVE-2026-63374 y CVE-2026-64847
-# (pip-audit); 1.3.8 es el primer parche que acepta anyio 4. anyio se pinea aparte
-# porque lo traen openai y httpx sin fijar version.
-openai==1.3.8
-httpx==0.27.2
-anyio==4.14.2
-
 # WebSockets
 channels==4.2.2
 channels-redis==4.1.0
+daphne==4.2.2
 
 # Performance Profiling
-django-silk==5.1.0
+# `zeal` se queda acá y no en `requirements-dev.txt`: `config/settings.py` lo suma a
+# `INSTALLED_APPS` con `PYTEST_RUNNING` y cuatro módulos de tests hacen
+# `from zeal import zeal_ignore` al importar. Todo job que corre la suite instala este
+# archivo; moverlo obligaría a instalar otro en cada uno. En producción no se carga
+# nunca, porque `PYTEST_RUNNING` no está definida.
 django-zeal==2.2.1
 
 # System Monitoring
+# `core/views/performance.py` lo importa para la métrica de memoria del proceso.
 psutil==5.9.8
-
-# Production Workers
-gevent==25.9.1
-greenlet==3.2.4
-daphne==4.2.2
-pymysql==1.1.1
-structlog==23.2.0
 
 # API Documentation
 drf-spectacular==0.27.0

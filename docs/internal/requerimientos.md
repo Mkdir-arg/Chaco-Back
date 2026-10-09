@@ -363,7 +363,14 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 189 | Las descargas del tablero de Becas: una planilla que no es la única opción, y dejar de recalcular lo que ya está calculado | Becas — solapa «Dashboard» del programa (exportaciones y filtros) · Transversal (`requirements.txt`, banco de performance) | `#performance` `#relevamientos` `#ui` `#metodo` | Auditoría integral oct-2026 — fichas PERF-03, G1b-11 y G1b-12 (Ola 4, PR 5) | 08/10/2026 | 🟢 **Hecho** (PERF-03 parcial: el punto (3), exportar fuera del request, sigue abierto) | No requiere |
 | 190 | El chequeo de esquema del CI deja de marcar como huérfanas las tablas que carga el organismo | Transversal — CI (job «Migrate ida y vuelta»), `verificar_esquema_migraciones` | `#infra` `#datos` | Juez, por la regresión de #639 que dejaba rojo ese job en todo PR posterior | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 191 | Plan de implementación del MVP de Dispositivos: tabla rasa, dos carriles y las piezas de diseño primero | Dispositivos · planificación | `#gestion` `#ui` `#datos` | PM — en sesión: «quiero borrar lo que tenemos hoy de ese programa e implementarlo desde 0… planificá bien las etapas y quiero hacer hincapié en la parte de lógica y la parte de diseño, se tiene que ver igual» | 08/10/2026 | 🟢 **Hecho — plan escrito** | Sí: baja de 6 modelos en dos releases |
-| 192 | Notificaciones: campañas de correo masivo con lista en Excel y cuerpo en HTML | Transversal — módulo nuevo `notificaciones` (backoffice: sidebar, listado, alta y edición, previsualización y envío) | `#correo` `#rbac` `#ui` `#datos` `#infra` | PM — análisis funcional 007 | 08/10/2026 | 🟢 **Hecho** (falta probar el envío real contra el SMTP de ECOM en testing) | `notificaciones.0001` y `0002`, `users.0029` (sin DDL) y `users.0030` (datos, con reversa) |
+| 192 | Configuración, admin y las tres fichas de performance que se cerraron midiendo | Transversal (conexiones de base, Redis de sesiones, `/admin/` de Django) · Becas (link público: vigencia de la sesión anónima; banco de medición) · Legajos (admin de contactos y vínculos) | `#performance` `#infra` `#sesion` `#datos` | Auditoría integral oct-2026 — fichas PERF-08, PERF-10, G1c-09, G1c-11, PERF-12, PERF-13 y PERF-15 (Ola 4, PRs 6, 7 y 8) | 08/10/2026 | 🟢 **Hecho** (PERF-12, PERF-13 y PERF-15 cerradas con la medición como evidencia: **ningún índice entra**; `REDIS_SESSIONS_DB` preparada y apagada, H-06) | No requiere |
+| 193 | Las capacidades de un programa dejan de valer fuera de él: catálogo, wizard, delegación y roles sembrados | Transversal — RBAC (ABM de Roles y de Usuarios) · Becas (exports de convocatoria, proceso masivo, pendientes de RENAPER) · Configuración (wizard de programas) | `#rbac` `#usuarios` `#datos` `#infra` | Auditoría oct-2026, Ola 2 PR 1 (SEC-06, SEC-07, G1b-02, G1b-06, OPS-06 fase 2, RED-80) | 08/10/2026 | 🟢 **Hecho** | Sí: `users.0029`-`0032` (la `0031` **quita** capacidades, con reversa real y registro) y `programas.0084` |
+| 194 | La red de seguridad de la Ola 4: presupuestos que no se suben solos, los dos destinos que faltaban, el cache de la home por modelo y los índices que no servían | Transversal (CI de performance, cache del inicio, índices de base) · Becas (link público y alta por la app de campo: presupuestos) · Legajos (admin de contactos) | `#performance` `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-62, RED-10 (2.ª parte), RED-51 (parte Ola 4) y RED-83 (migración) (Ola 4, PR 9) | 08/10/2026 | 🟢 **Hecho** (cierra la Ola 4) | `legajos.0011` y `programas.0084` (solo `DROP INDEX`, online) |
+| 195 | Sacar del repo lo que no corre: los módulos de «optimización», 29 JS huérfanos y el código muerto de Legajos | Transversal (dashboard de performance, comandos, guard del release, estáticos) · Legajos (vistas y templates sin ruta, «Derivar a Programa») | `#infra` `#performance` `#ui` `#rbac` | Auditoría integral oct-2026 — fichas OPS-10, OPS-14 (con RED-65), FE-14 y LEG-06 (Ola 7, PR 1) | 09/10/2026 | 🟢 **Hecho** (D-L06 aplicada por default; D-F16 no: `programa_detalle` sigue siendo destino de redirect de las derivaciones) | `users.0033` (sin DDL) |
+| 196 | La imagen deja de llevar once paquetes que nadie importa, y el CI deja de instalar «lo último que haya» | Transversal — dependencias de la imagen (`requirements*.txt`), `INSTALLED_APPS`, workflows del CI, dependabot | `#infra` `#performance` | Auditoría integral oct-2026 — fichas OPS-13 (con RED-45) y RED-85 (Ola 7, PR 2) | 09/10/2026 | 🟢 **Hecho** (D-RED-08 aplicada: el parche de gevent se borra y la guarda del entrypoint se queda; `django-zeal` y `psutil` no se tocan, code-first) | `core.0003` (borra la tabla de `django-health-check` y sus dos filas de `django_migrations`) |
+| 197 | Los hallazgos chicos de la deuda: la vista tapada, la carrera del último administrador y tres botones que mentían | Transversal (RBAC, app `dashboard`) · Becas (relevamientos) · Merenderos (solicitudes) · Usuarios y Roles | `#rbac` `#usuarios` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas BEC-25, G1b-09, G1b-10, RED-78 y R0-02, más los MINOR de #646 y #649 (Ola 7, PR 3) | 09/10/2026 | 🟢 **Hecho** (dos pendientes anotados sin código: el `codigo` del programa editable → SEC-07; los paneles de derivaciones congelados → LEG-06, PM) | No requiere |
+| 198 | Apagar conversaciones: sin rutas, sin WebSockets de chat y sin superficie en el shell | Transversal (shell del backoffice, context processor de identidad, routing de Channels) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») | `#infra` `#ui` `#rbac` `#performance` | Auditoría integral oct-2026 — fichas G1-01 fase 2 y RED-13 (2.ª parte) (Ola 7, PR 4) | 09/10/2026 | 🟢 **Hecho** | No |
+| 199 | Notificaciones: campañas de correo masivo con lista en Excel y cuerpo en HTML | Transversal — módulo nuevo `notificaciones` (backoffice: sidebar, listado, alta y edición, previsualización y envío) | `#correo` `#rbac` `#ui` `#datos` `#infra` | PM — análisis funcional 007 | 08/10/2026 | 🟢 **Hecho** (falta probar el envío real contra el SMTP de ECOM en testing) | `notificaciones.0001` y `0002`, `users.0034` (sin DDL) y `users.0035` (datos, con reversa) |
 
 **Notas del índice**
 
@@ -28811,7 +28818,1537 @@ que lleve esas 100 horas»).
 
 ---
 
-# Cambio 192 — Notificaciones: campañas de correo masivo con lista en Excel y cuerpo en HTML
+---
+
+# Cambio 192 — Configuración, admin y las tres fichas de performance que se cerraron midiendo
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (conexiones de base, Redis de sesiones, `/admin/` de Django) · Becas (link público: vigencia de la sesión anónima; banco de medición) · Legajos (admin de contactos y vínculos) |
+| **Etiquetas** | `#performance` `#infra` `#sesion` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas PERF-08, PERF-10 (PR 6), G1c-09, G1c-11 (PR 7), PERF-12, PERF-13 y PERF-15 (PR 8) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 4 (Performance), ítems 6, 7 y 8 |
+| **Partes afectadas** | `config/settings.py` · `portal/services/inscripcion.py` · `portal/views/inscripcion.py` · `programas/admin.py` · `legajos/admin/__init__.py` · `legajos/admin/contactos.py` · `scripts/perf_mysql/` (banco) · tests de `core`, `portal`, `programas` y `legajos` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Siete fichas de la Ola 4 en tres grupos. Dos de configuración, dos del `/admin/` y tres
+que la auditoría dejó explícitamente **sin resolver, para medir primero en el banco
+MariaDB y recién ahí decidir si entraba un índice**.
+
+- **PERF-08** — `CONN_MAX_AGE = 60` bajo daphne no reutiliza ninguna conexión. La sonda
+  de la auditoría (`poc/perf_harness/asgi_conn_probe.py`) midió 200 requests → 200 hilos
+  y 200 conexiones nuevas, con 9 quedando abiertas hasta que pasó el GC cíclico (50 de 50
+  con el GC apagado).
+- **PERF-10** — sesiones y caché comparten base de Redis con `allkeys-lru 350mb`, y cada
+  visita al link público —persona, buscador o bot— estrena una sesión de 24 h porque el
+  GET del paso 1 escribe el desafío anti-bot.
+- **G1c-09** — las fichas del `/admin/` crecen con la tabla: la de un `Formulario` pasa
+  de 19 a 46 consultas con 5 → 35 casos y el alta de una `DerivacionPrograma` de 21 a 80.
+- **G1c-11** — N+1 en los listados del `/admin/`.
+- **PERF-12, PERF-13 y PERF-15** — el `COUNT` del cupo del link, la bandeja de revisión
+  filtrada por un estado raro y los conteos del padrón en los dos detalles. Las tres con
+  la misma instrucción: medir y decidir.
+
+## Alcance acordado
+
+Entran las siete fichas. Queda afuera el resto de la Ola 4 (el ítem 5 —exports y
+dashboard— y el 9 —red de seguridad—) y todo lo que viva en `users/`, que la **Ola 2
+PR 1** tiene tomado en paralelo.
+
+## Decisiones tomadas
+
+- **`CONN_MAX_AGE` lo decide el runtime, no el ambiente.** `APP_RUNTIME` pasa a leerse
+  una vez al principio de `settings.py` —hasta ahora se leía suelto, solo para
+  `WEBSOCKETS_ENABLED`— y `CONN_MAX_AGE` vale **0 con daphne y 60 con todo lo demás**.
+  Django guarda la conexión persistente en un `local()` por hilo y bajo ASGI cada request
+  lo atiende otro hilo del pool de `asgiref`: con 60 no se reutiliza nada y además
+  quedan conexiones huérfanas. Bajo gunicorn —el contenedor `web` de icore— los hilos sí
+  se reusan y el minuto sirve, así que no se toca. Reutilizar de verdad bajo daphne
+  exigiría WSGI, que es una decisión de despliegue y no de este PR.
+- **La base de Redis de las sesiones se separa con una variable, y la variable nace
+  apagada.** `REDIS_SESSIONS_DB` manda el alias `sessions` a otra base; sin ella, su
+  `LOCATION` es **exactamente** `REDIS_URL`, byte por byte. Se prepara y no se enciende
+  porque el Redis de ECOM no es nuestro (**H-06**) y porque mover la base con sesiones
+  vivas manda al login a todo el que esté adentro: va en una ventana coordinada.
+- **Lo que separar la base no arregla, dicho explícitamente:** `maxmemory` es del
+  servidor y no de la base, así que una caché que llena los 350 MB sigue pudiendo
+  desalojar sesiones. Lo que sí arregla —y era la mitad de G1c-12— es el `cache.clear()`:
+  en django_redis es un FLUSHDB, y con las bases separadas deja de desloguear a todos.
+- **La URL se reescribe conservando todo menos la base.** Con `urlsplit`/`urlunsplit`, no
+  con un `replace` del último carácter: ECOM puede entregar
+  `rediss://usuario:clave@host:6380/1?ssl_cert_reqs=none` y lo único que tiene que
+  cambiar es el `1`.
+- **La sesión anónima del link vive una hora; la que pasó el paso 1, un día.** De las dos
+  alternativas que la ficha propone, se aplica la segunda. La primera —no crear la sesión
+  en el GET y generar el desafío en el POST— **no se puede**: con el captcha aritmético el
+  GET tiene que mostrar la pregunta, y mostrarla sin guardarla deja al POST sin contra
+  qué validarla. `acotar_sesion_anonima` baja la vigencia a 3.600 s **solo** mientras la
+  sesión no tiene nada más que las dos claves del captcha, y `restaurar_vigencia_sesion`
+  la devuelve al default apenas el paso 1 guarda la identificación. Así no se repite el
+  error que el **Cambio 91** ya descartó: acortar la sesión entera hacía perder el paso 2
+  a medio completar, con los adjuntos ya elegidos. La regla mira el **contenido** de la
+  sesión y no la pantalla, así que quien ya pasó el paso 1 de otro relevamiento conserva
+  sus 24 h.
+- **En el `/admin/`, `raw_id_fields` para toda FK que apunte a una tabla que crece con el
+  padrón**, y combo para las que tienen decenas de filas (`programa`, `segmento`,
+  `programa_origen`/`programa_destino`). `raw_id_fields` cambia el widget, no el
+  `ModelForm` ni los permisos: nadie gana ni pierde acceso, y hay tests que lo afirman.
+- **Corrección code-first de G1c-11: de los cinco listados que la ficha nombra, solo tres
+  eran N+1.** Django ya le aplica `select_related()` **sin argumentos** a toda
+  `ChangeList` con un campo relacionado en `list_display`
+  (`ChangeList.apply_select_related`), y eso cubre las FK… pero `select_related()` sin
+  argumentos sigue **únicamente las FK no nulas**. Los que fallaban eran, exactamente, los
+  que tienen una FK nulable (`TracaFormulario.editado_por`, `Relevamiento.territorial`) o
+  un salto de segundo nivel en el `__str__` del objeto mostrado (`Formulario.__str__` abre
+  su ciudadano). `HistorialContactoAdmin` y `VinculoFamiliarAdmin` **no** llevan
+  `list_select_related`: sus cuatro FK son no nulas y declararlo no cambiaría ninguna
+  consulta.
+- **Las tres fichas de medición se cierran con la medición como evidencia, sin tocar
+  código, y ningún índice entra.** Cerrar también es eso. El detalle, abajo.
+- **El índice de PERF-13 se probó antes de descartarlo, y con las estadísticas
+  controladas.** El primer ensayo dio una mejora de 10× que era enteramente `ANALYZE
+  TABLE`: estadísticas frescas, no el índice. Con `ANALYZE TABLE` antes de cada ronda y
+  dos rondas A/B pareadas, no hay ninguna mejora reproducible y la página profunda queda
+  peor en las dos. En el caso caro MariaDB **ni siquiera lo elige**.
+
+## Implementación
+
+**PERF-08 y PERF-10 (`config/settings.py`).** `APP_RUNTIME` como constante del módulo;
+`CONN_MAX_AGE` condicional; `REDIS_SESSIONS_DB` + `_url_en_otra_base` →
+`REDIS_SESSIONS_URL`, que es lo que usa el alias `sessions`.
+
+**PERF-10, segunda mitad (`portal/`).** `acotar_sesion_anonima` y
+`restaurar_vigencia_sesion` en `portal/services/inscripcion.py`, con
+`SESION_ANONIMA_SEGUNDOS` (`INSCRIPCION_SESION_ANONIMA_SEGUNDOS`, 3.600) y
+`CLAVES_SOLO_CAPTCHA`. La primera la llama `nuevo_captcha`; la segunda, el paso 1 cuando
+guarda la identificación.
+
+**G1c-09 y G1c-11 (`programas/admin.py`, `legajos/admin/`).** `raw_id_fields` en las seis
+fichas; `list_select_related` en los tres listados que lo necesitan;
+`search_fields = ("campo", "=formulario__id")` en las trazas; se borra el
+`prefetch_related("inscripciones_programas__programa")` de `CiudadanoAdmin`, que
+alimentaba una caché que ni el `list_display` ni los `fieldsets` leen. El módulo estrena
+un docstring que explica las dos reglas, incluida la de las FK nulables.
+
+**Banco (`scripts/perf_mysql/`).** Dos scripts nuevos y un target más, porque las tres
+fichas de medición necesitaban datos que el banco no tenía:
+
+- `escenarios_borde.py` — marca 400 de 40.000 casos como `BAJA` (el «estado raro» de
+  PERF-13; `escalar_bench` solo reparte APROBADO/RECHAZADO/ENVIADO) y carga el padrón de
+  la convocatoria con 50.000 o 100.000 filas (PERF-15).
+- `medir_consultas_borde.py` — mide consulta por consulta con `EXPLAIN` y promediando
+  muchas corridas. Hizo falta porque `bench_mysql.py` cronometra con `perf_counter`, que
+  en Windows tiene una granularidad de **15,6 ms**: una consulta de 3 ms y una de 14 ms
+  miden las dos «16,0». El SQL no se transcribe a mano: se corre el código real (la
+  property del cupo, el queryset de la bandeja, el `aggregate` del detalle) y se captura
+  lo que salió hacia el motor.
+- `bench_mysql.py` — target `revision_bandeja_estado_raro`
+  (`/becas/revision/?estado=BAJA&page=10`).
+
+## Validación
+
+Banco **MariaDB 10.11** (`mariadb:10.11`, `OPTIONS` de producción, `read_timeout` 10 s),
+`chaco_perf_ci`, relevamiento público llevado a **40.000 casos**, padrón de la
+convocatoria a **50.000** y después a **100.000** filas:
+
+| Ficha | Consulta | Medición | Veredicto |
+|---|---|---|---|
+| PERF-12 | `COUNT(*) … WHERE relevamiento_id = X`, 40.000 casos | **7,0-8,4 ms**; `ref=const`, `Using index` (4,2 ms con 20.000: escala lineal) | Umbral del Cambio 91: 20 ms. **No se denormaliza** |
+| PERF-13 | Bandeja `estado=BAJA` (400 de 40.000) página 10 | **2,4-4,9 ms**; `key=programas_f_estado_e0feb6_idx`, `rows=400`, el `filesort` ordena esas 400 | El estado raro es el caso **barato**. **Sin índice** |
+| PERF-13 | Índice `(estado, creado, relevamiento)`, 2 rondas A/B pareadas | BAJA p10 3,82→2,69 y 3,25→4,87 · su COUNT 2,62→2,61 y 3,23→2,79 · APROBADO p10 6,20→16,57 y 8,78→7,99 · APROBADO p400 46,67→61,35 y 49,55→73,01 | Ninguna mejora reproducible; la página profunda queda **peor** en las dos rondas y en el caso caro el motor **no lo elige**. **No entra** |
+| PERF-15 | `aggregate` del padrón del detalle de convocatoria | 22,5-42,7 ms con 50.000 filas · **48,4 ms** con 100.000 | 0,5 % del `read_timeout`. **No se denormaliza** |
+| PERF-15 | `Count` anotado del detalle de relevamiento | 21,0-23,5 ms con 50.000 · **23,8 ms** con 100.000 | Duplicar el padrón no lo movió |
+
+El `ALTER TABLE programas_formulario ADD INDEX …, ALGORITHM=INPLACE, LOCK=NONE` del
+ensayo lo aceptó MariaDB en **116 ms** sobre 42.000 filas: si alguna vez hace falta un
+índice en esa tabla, aplicarlo no es el problema.
+
+Rutas del banco, antes y después del PR (mismos conteos: nada de esto agrega consultas):
+`portal_inscripcion_paso1` 6, `becas_revision` 15, `revision_bandeja_estado_raro` 15,
+`relevamiento_publico_detalle` 12, `convocatoria_publica_detalle` 20.
+
+Suite local (`.venv312`, Python 3.12 + Django 5.2.17, igual al CI): `manage.py check` sin
+issues · `check --deploy` con los 4 avisos preexistentes del entorno de test ·
+`makemigrations --check --dry-run` «No changes detected» · `test core portal` 1.243 OK ·
+`test programas legajos` 2.905 OK · `test --tag performance` 8 OK · `ruff check .` limpio
+y `ruff format --check` sobre lo tocado.
+
+Los 24 tests nuevos se vieron **en rojo** contra `HEAD` antes del cambio (se revirtieron
+los archivos de implementación y se corrió la misma selección) y en verde después.
+
+## Pendientes / a definir
+
+- **PERF-08 · medir en ECOM.** `SHOW STATUS LIKE 'Threads_connected'` antes y después del
+  deploy. Es la única parte de la ficha que no se puede correr desde acá.
+- **PERF-10 · H-06.** Qué política de evicción tiene el Redis de ECOM y si acepta una base
+  aparte —o una instancia— para las sesiones. Hasta que conteste, `REDIS_SESSIONS_DB`
+  queda sin definir y no cambia nada.
+- **`OptimizedGroupAdmin` prefetchea `user_set` sin usarlo** (parte de G1c-11). Vive en
+  `users/admin.py`, que es el alcance de la **Ola 2 PR 1**, abierta en paralelo: no se
+  tocó. Queda para quien cierre esa rama.
+- **El listado de contactos del `/admin/` paga una consulta por fila** que no se arregla
+  desde ahí: `LegajoAtencion.__str__` abre su property `ciudadano`, y el vínculo
+  legajo↔inscripción es un `UUIDField` suelto (`InscripcionPrograma.legajo_id`), no una
+  FK. Hay un test que fija que sea **exactamente una** por fila, para que no vuelvan a ser
+  tres.
+- **La bandeja de revisión es O(offset) y el `IN` de relevamientos se materializa.** Medido
+  de paso: con un estado **común** (`APROBADO`, 17.864 de 40.000) la página 10 cuesta 6-17
+  ms y la 400, 40-99 ms; sin filtro, la página 10 cuesta 22-36 ms. El `EXPLAIN` muestra que
+  el `relevamiento_id IN (2.001 ids)` pasa el `in_predicate_conversion_threshold` de
+  MariaDB y se vuelve una tabla derivada materializada. Está a dos órdenes de magnitud del
+  `read_timeout`, así que **no abre ficha**; queda anotado para quien retome la paginación
+  por keyset, que el propio `revision.py` ya nombra como la salida.
+
+## Reversión
+
+Todo es código y configuración: no hay migración ni cambio de datos. Revertir el commit
+devuelve `CONN_MAX_AGE=60` bajo daphne, las sesiones a la base de la caché, los
+`<select>` con la tabla entera en el `/admin/` —incluido el **500** del alta de
+inscripción— y las sesiones de 24 h por visita al link público. Si `REDIS_SESSIONS_DB`
+llegó a estar definida en algún ambiente, revertir deja esas sesiones en la base vieja:
+quien esté logueado vuelve al login una vez.
+
+## Historial
+
+- **08/10/2026 — alta.** Las siete fichas, en un solo PR: dos de configuración, dos del
+  `/admin/` y tres cerradas con la medición como evidencia. **Hallazgo nuevo, encontrado
+  por el test de G1c-09:** `/admin/programas/inscripcionprograma/add/` y su ficha de
+  edición respondían **500** —`fecha_inscripcion` es `editable=False` en el modelo y
+  estaba en los `fieldsets` sin ser de solo lectura, así que Django levantaba
+  `FieldError`—. No tenía ficha propia porque el `/admin/` no estaba en ningún test hasta
+  ahora; se arregla en el mismo PR sumándola a `readonly_fields`, donde se sigue viendo.
+
+---
+
+# Cambio 193 — Las capacidades de un programa dejan de valer fuera de él: catálogo, wizard, delegación y roles sembrados
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — RBAC (catálogo, ABM de Roles y de Usuarios) · Becas (exports de convocatoria, proceso masivo, pendientes de RENAPER) · Configuración (wizard de programas) |
+| **Etiquetas** | `#rbac` `#usuarios` `#datos` `#infra` |
+| **Solicitante** | Auditoría oct-2026, Ola 2 PR 1 (fichas SEC-06, SEC-07, G1b-02, G1b-06, OPS-06 fase 2, RED-80) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | `core/rbac.py` · `core/checks.py` · `core/validators.py` · `core/views/media.py` · `configuracion/views/programas.py` y su listado · `legajos/forms/contactos.py` · `programas/services/programa_cache.py` (nuevo) · `programas/services/{autorizacion,dispositivos}.py` · `programas/signals.py` · `programas/views/{relevamientos,proceso_masivo,revision,merenderos}.py` · `programas/templates/.../convocatoria_detail.html` · `programas/management/commands/seed_becas.py` · `programas/migrations/0084` · `users/{models,forms,selectors,services,views}` · `users/management/commands/{seed_rbac,seed_datos_base}.py` · `users/migrations/0029-0032` · `docker/k8s/README.md` |
+| **Migración** | Sí: `users.0029` (columna `RolMeta.clave` + tabla `users_capacidadrevocada`), `users.0030` (backfill de la clave), `users.0031` (**quita** capacidades de Becas a roles de otro programa, con reversa real), `users.0032` (la clave de los cinco roles de menú) y `programas.0084` (`SolicitudMerendero.creado_por`, nullable) |
+
+## Pedido original
+
+El RBAC distingue capacidades «globales» de capacidades «de programa», y a estas últimas
+`puede(user, codigo, programa=X)` las evalúa acotadas. El problema es que el catálogo las
+**ofrecía** en cualquier programa y la mayoría de los gates las **pedían sin alcance**, así
+que la distinción no existía en la práctica: el admin de roles de Dispositivos se tildaba
+`becas.programa.administrar` en un rol suyo y bajaba el padrón con DNI de cualquier
+convocatoria de Becas; el admin de roles de Becas se tildaba `programa.configurar` y editaba
+el wizard de Dispositivos; y quien administraba una sola mitad de un programa (roles **o**
+usuarios) se daba la otra en dos clics, contra lo que el Cambio 20 había decidido.
+
+## Decisiones tomadas
+
+- **D-06 = No** (default del README §2.2 de la auditoría): ningún rol de otro programa usa
+  capacidades de Becas a propósito, así que la migración las quita. **P-02 se corre en PRD
+  antes de desplegar**: si da vacío, la migración no quita nada.
+- **D-07 = Sí**: el admin de un programa edita el wizard **solo de su programa**. Crear un
+  programa queda para los roles **sin** programa, porque el alta no tiene contra qué evaluar
+  un alcance: el programa todavía no existe.
+- **Una capacidad «de programa» no se delega desde un rol de programa.** Las dos
+  transversales de administración (`programa.usuario.administrar`, `programa.rol.administrar`)
+  y `programa.configurar` solo las reparte un rol global. La excepción es
+  `programa.configurar` **en DISPOSITIVOS**, el único programa que la evalúa con alcance.
+- **No se recortó a «solo lo que el operador tiene en ese programa»**, que era el punto 1 de
+  G1b-02. Medido contra el ABM real lo rompe —un rol con `programa.rol.administrar` y nada
+  más no podía crear un rol con una sola capacidad— y no cierra nada que las otras dos reglas
+  no cierren: quien administra los dos ABM de su programa ya puede fabricar un rol y
+  asignárselo. El motivo queda escrito en la ficha y en el docstring.
+- **Consecuencia visible para el PM:** un Administrador de Becas ya **no** puede asignarle a
+  nadie el rol «Becas — Administrador». Los otros cuatro roles sembrados, incluido
+  Territorial, los sigue repartiendo.
+- **Los roles que siembra el arranque se identifican por una clave estable**, no por su
+  nombre: `RolMeta.clave`. Renombrar un rol desde el ABM deja de generar un duplicado en el
+  arranque siguiente. Actualiza el Cambio 104, que dejó esto como fase 2 pendiente.
+
+## Implementación
+
+**Catálogo (SEC-06).** Los trece módulos `becas_*` declaran `"programas": ("BECAS",)`. El
+árbol del ABM deja de ofrecerlos fuera de Becas y el `MultipleChoiceField` rechaza el POST
+que los mande igual, así que el rol ni se crea. El módulo `relevamientos` queda sin acotar a
+propósito: hoy no lo consume ninguna vista y acotarlo sin confirmación del PM sería quitarle
+una capacidad a un rol por una suposición.
+
+**Gates con alcance (SEC-06).** Los tres `convocatoria_export_*` resuelven la convocatoria
+con `convocatorias_visibles` y exigen `es_admin_becas`; `ProcesoMasivoView`,
+`proceso_masivo_lanzar` y `proceso_masivo_frenar` suman un guard sobre `programa_becas(user)`
+sin sacar el decorador, que sigue siendo la puerta; y la bandeja de pendientes de RENAPER
+filtra por alcance —con ids planos, no subconsulta, que es el patrón del cupo—, incluidos sus
+dos selectores.
+
+**Wizard (SEC-07).** `core.rbac` estrena `puede_sin_programa` y `requiere_sin_programa`. Los
+cuatro pasos del alta piden la capacidad en un rol global; los cuatro de edición y
+`programa_cambiar_estado` la piden sobre el programa del `pk`; y el listado decide el lápiz
+fila por fila. No se movió `programa.configurar` a un módulo global: `puede_configurar_dispositivos`
+la evalúa con alcance y globalizarla rompería eso.
+
+**Delegación (G1b-02, G1b-06).** `capacidades_no_delegables(programa)` es la fuente única, y
+la consultan el árbol, el `clean` del formulario y el combo de roles del ABM de Usuarios.
+`puede_editar_rol` impide que un operador no global edite, borre o desactive su **propio**
+rol (ver sí puede, y el listado lo muestra sin las acciones). Y el guardado arma
+`finales = (actuales − permitidas) ∪ seleccionadas`, así que lo que el árbol no muestra el
+guardado no lo pisa.
+
+**Roles sembrados (OPS-06 fase 2).** `asegurar_rol_sembrado(clave, nombre, defaults)`, una
+sola implementación para `seed_rbac`, `seed_becas` y los roles de menú de `seed_datos_base`,
+busca por `RolMeta.clave` y solo cae al nombre canónico cuando ninguna fila la tiene todavía
+—en ese caso se la deja puesta, así que a partir del segundo arranque el nombre deja de
+importar—. Son **doce** roles: dos de sistema, cinco de Becas y cinco de menú.
+
+**Cache del programa (RED-80).** `programas/services/programa_cache.py` unifica la lectura
+cacheada de los dos programas: clave derivada del código, memo por request e invalidación
+*best-effort* (un Redis caído no puede impedir el arranque, OPS-12). La invalidación la
+disparan **señales sobre el modelo** (`programas/signals.py`): `post_save` borra la clave del
+código nuevo, `pre_save` recuerda el anterior para borrar también el viejo cuando el wizard
+cambia el código, y `post_delete` cubre el borrado desde `/admin/`.
+
+**Tres seguimientos de #643.** La regla de `/media/` acepta la capacidad de la pantalla que
+**crea o valida** el archivo y no solo la de «ver» (el admisor baja el F-00 que él cargó, y
+quien da de alta o resuelve una solicitud de merendero baja su documentación); el adjunto de
+contactos dice en el `help_text` y en el `accept` lo que el servidor acepta, con
+`ACCEPT_ADJUNTO` mudado a `core/validators.py` para que no haya dos listas; y
+`MEDIA_X_ACCEL=True` sin el `location internal` del servidor de adelante avisa por
+`core.W004` en `check --deploy`, con el paso de verificación —que Django no puede hacer—
+escrito en `docker/k8s/README.md`.
+
+## Base de datos
+
+Tres migraciones sobre tablas chicas (una fila por rol): `users.0029`, `users.0030` y
+`users.0031`.
+
+- **`users.0029` (`0029_esquema_rolmeta_clave_y_capacidad_revocada`)** — **expand puro**, la única con DDL.
+  Agrega `users_rolmeta.clave` (`varchar(50) NULL UNIQUE`: el código viejo no la escribe y la
+  fila sigue entrando; MySQL y MariaDB admiten varios `NULL` en un índice único) y crea
+  `users_capacidadrevocada`, que nadie lee salvo la `0031` y su reversa.
+- **`users.0030` (`0030_backfill_rolmeta_clave`)** — datos. Le pone su clave a los siete roles de
+  `seed_rbac` y `seed_becas`, empatando por el nombre canónico, que es lo único que hay para hacer el
+  empate **esta vez**. Reversa: las vuelve a `NULL`.
+- **`users.0031` (`0031_quitar_becas_de_roles_de_otros_programas`)** — datos, y **es la que quita acceso**.
+  Saca los permisos `becas_%` de todo `Group` cuyo `RolMeta.programa` no sea nulo ni BECAS.
+  Antes de quitarlos escribe cada par (rol, capacidad) en `users_capacidadrevocada` y loguea
+  el listado completo en la salida del `migrate`. **Reversa real:** lee esas filas, restituye
+  exactamente lo mismo y las borra. Sobre datos existentes es segura en el sentido de que no
+  toca ninguna fila de negocio —solo `auth_group_permissions`— pero **cambia permisos**: por
+  eso va con P-02 corrido antes. **Sin la fila `Programa(codigo="BECAS")` no quita nada** y lo dice
+  en el log (ronda 2): con el ancla ausente, el «otro programa» pasaba a ser *todos*.
+- **`users.0032` (`0032_backfill_rolmeta_clave_menu`)** — datos, ronda 2. La misma clave para los
+  **cinco roles de menú**, que la `0030` no cubría. Va aparte y no ampliando la `0030` porque esta
+  rama se puede haber desplegado ya en testing, y una migración aplicada no vuelve a correr.
+  Reversa: las vuelve a `NULL`.
+- **`programas.0084` (`0084_solicitud_merendero_creado_por`)** — esquema, ronda 2. **Expand puro:**
+  `SolicitudMerendero.creado_por` nullable, para acotarle a `merendero.crear` qué documentación
+  puede bajar por `/media/`. Las filas existentes quedan en `NULL`.
+
+Ninguna bloquea: los dos `ALTER` (la `0029` sobre `users_rolmeta` y la `0084` sobre
+`programas_solicitudmerendero`) son instantáneos en los dos motores sobre tablas chicas, y las de
+datos recorren `auth_group_permissions` y `users_rolmeta`.
+
+## Validación
+
+`manage.py check` y `check --deploy` sin hallazgos nuevos (`core.E001` es el `SIIS_API_URL`
+vacío del entorno local). `makemigrations --check --dry-run`: sin cambios.
+`scripts/check_migraciones.py`: 3 migraciones, 0 problemas. Suite de `users`, `configuracion`,
+`legajos`, `core` y `programas` en verde. `--tag performance` OK, con `becas_proceso_masivo`
+de 2 a 3 duplicadas y la justificación en `scripts/perf_budgets.json`: son `programa_becas()`
+y `programa_dispositivos()`, misma forma de SQL y parámetro distinto, el caso ya documentado
+como `becas_consulta_duplicada`. `design_audit --changed` y `--ratchet`,
+`compile_templates --bloques` y `check_design_agent --changed`: 0. ruff limpio.
+
+## Pendientes
+
+- **P-02 en PRD antes del deploy** (D-06): si devuelve filas, son exactamente las que
+  `users.0031` va a quitar, y quedan registradas en `users_capacidadrevocada`.
+- **P-03** (quién tiene `programa.configurar`) y **P-06**, con el PM.
+- Un rol sembrado que ya hubiera sido **renombrado antes** de este deploy queda sin clave: el
+  arranque crea el canónico y hay que unirlos a mano.
+- Fuera de alcance, anotado al pasar: `HistorialContactoForm.clean_fecha_contacto` compara con
+  `datetime.now()` **naive** contra un valor aware y rompe con `TypeError`. Es anterior a este
+  PR y no se tocó.
+- De los seguimientos de #643 **no** entran acá y quedan abiertos: el nombre original del
+  archivo en la pantalla y en el `Content-Disposition`, los índices de las ocho columnas que
+  consulta `/media/`, y la segunda lista blanca de `legajos.Adjunto` (que es SEC-10 / Ola R).
+
+## Reversión
+
+Revertir el commit devuelve las capacidades `becas.*` al árbol de cualquier programa y los
+gates a la evaluación global. Las migraciones se desaplican con `migrate users 0028` y
+`migrate programas 0083`: `users.0031` **restituye** a cada rol exactamente lo que le quitó —lo
+lee de `users_capacidadrevocada`—, `users.0030` y `users.0032` vuelven las claves a `NULL`, y
+`programas.0084` borra la columna `creado_por` (el dato de quién creó cada solicitud se pierde,
+y nada más lo lee). Lo único que no se puede distinguir al revertir es una capacidad `becas.*`
+tildada **a mano** sobre un rol de otro programa después del deploy: esa no está registrada y se
+pierde.
+
+## Historial
+
+### 08/10/2026 — Ronda 2 de la revisión (2 MAJOR y 5 MINOR)
+
+- **`users.0031` sin la fila `Programa(codigo="BECAS")` quitaba las `becas.*` de TODOS los roles
+  de programa**, los cinco de Becas incluidos: `becas_ids = []` hace que el
+  `.exclude(meta__programa_id__in=[])` no excluya nada. El escenario es el restore que
+  `_programa_o_denegar` ya documenta como real (RED-56), y el daño no es simétrico: el arranque
+  siguiente repone las capacidades **base** de los roles de Becas, pero no las **opt-in**
+  (`becas.relevamiento.publico`), que es justo lo que OPS-06 fue a proteger. El resto del código
+  de Becas falla cerrado cuando falta el ancla; esta fallaba abierta. Ahora frena antes de tocar
+  nada, con un `logger.warning` que nombra P-02. La reversa queda igual.
+- **OPS-06 fase 2 cubría 7 de los 12 roles que siembra el arranque.** Los cinco de menú
+  (Dashboard, Gestión de Ciudadanos, Reportes, Configuración y Administración) seguían
+  identificándose por `Group.name`: renombrar dos desde el ABM y correr `seed_datos_base` dejaba
+  **14 → 16 grupos**, y el «Administración» duplicado nace con `usuario.administrar` +
+  `rol.administrar`, cero usuarios y `clave=None`, al lado del que la gente usa. Pasan por
+  `asegurar_rol_sembrado` con claves `menu.*` y su backfill es **`users.0032`**: una migración
+  **nueva** y no una ampliación de la `0030`, porque esta rama puede estar desplegada en testing y
+  una migración ya aplicada no vuelve a correr. Sigue valiendo el «solo al crearlo» del Cambio 104.
+- **El árbol del ABM con un operador de 2 o más programas** ofrecía los trece módulos `becas_*`
+  aunque no administrara Becas (`programa_fijo` solo se setea con un único programa, y
+  `capacidades_delegables(None)` es el catálogo de programa entero). Ahora `_permitidas()` devuelve
+  la **unión** de lo delegable de sus programas, así que el árbol muestra solo lo suyo; y una
+  capacidad que no corresponde al programa posteado deja de descartarse en silencio: es un error de
+  validación visible y el rol no se guarda.
+- **Mover un rol de programa** le dejaba las capacidades del anterior —un rol movido de Becas a
+  Dispositivos quedaba con `becas.programa.administrar` y `becas.segmento.ver`—, porque la fórmula
+  `(actuales − permitidas) ∪ seleccionadas` de G1b-06 las trata como «lo que el operador no ve».
+  Hoy no otorgan nada (los gates evalúan con alcance), pero reintroducen el dato que `users.0031`
+  acaba de limpiar. `_set_capacidades` recibe el programa final y descarta lo que no se puede
+  asignar ahí (`rbac.capacidades_fuera_del_programa`, la misma regla de la migración).
+- **RED-80:** la resolución afirmaba que el wizard «es la única pantalla que escribe un
+  `Programa`». `/admin/` está ruteado y `ProgramaAdmin` deja cambiar el `codigo` y el `estado`, y
+  **borrar**. La invalidación se muda a señales sobre el modelo (`post_save`, `post_delete`, más un
+  `pre_save` que recuerda el código anterior) y el wizard deja de invalidar a mano.
+- **Exports con 403:** el botón «Exportar beneficiarios (CSV)» de la solapa Beneficiarios no estaba
+  bajo `{% if puede_reportes %}`, a diferencia de los tres de la solapa Reportes; y el flag se
+  calculaba con `puede(...)` **sin alcance**, o sea la regla que SEC-06 acaba de dejar de aceptar.
+  Los cuatro botones van bajo el flag y el flag usa `es_admin_becas`, la misma regla del gate.
+- **`merendero.crear` abría la documentación de cualquier solicitud** (la regla de `/media/` no
+  tenía alcance por objeto). Se acota a las que ese usuario creó: `SolicitudMerendero.creado_por`
+  (`programas.0084`, columna nueva `NULL`), que escribe el alta. `merendero.ver` y
+  `merendero.validar` siguen leyendo todas; una solicitud anterior a la columna queda en `NULL` y
+  no la abre el alta.
+---
+
+# Cambio 194 — La red de seguridad de la Ola 4: presupuestos que no se suben solos, los dos destinos que faltaban, el cache de la home por modelo y los índices que no servían
+
+🟢 **HECHO — 08/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (CI de performance, cache del inicio, índices de base) · Becas (link público y alta por la app de campo: presupuestos) · Legajos (admin de contactos) |
+| **Etiquetas** | `#performance` `#infra` `#datos` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — fichas RED-62, RED-10 (segunda parte), RED-51 (parte Ola 4) y RED-83 (migración), Ola 4 PR 9 |
+| **Fecha del pedido** | 04/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, `docs/internal/auditoria-2026-10/` |
+| **Partes afectadas** | Servidor/API · Infra/ECOM |
+| **Migración** | `legajos.0011` y `programas.0084` (las dos solo `DROP INDEX`, online) |
+
+## Pedido original
+Cierre de la Ola 4 (Performance): «RED-62 (presupuestos que suben exigen justificación) y
+segundas partes de RED-10 (destinos del Performance Guard para el paso 2 del link y el alta
+por API), RED-51 (cache del dashboard por modelo) y RED-83 (quitar los índices
+redundantes)».
+
+## Alcance acordado
+Entra: el gate de CI que exige justificar un presupuesto que sube; los dos destinos nuevos
+del Performance Guard con sus presupuestos medidos; la tabla única de claves cacheadas del
+inicio con sus receivers por modelo; y la migración que saca los cinco índices redundantes
+medidos. Entran además los cinco seguimientos MINOR de la revisión del PR anterior (#645).
+
+Queda afuera: los 21 pares de índices redundantes que el ratchet de RED-83 lista en tablas
+chicas —deuda conocida, sin medir y sin ficha propia—; sacarlos pide la misma evidencia que
+se pidió acá (`EXPLAIN` antes y después contra el banco).
+
+## Decisiones tomadas
+- **Justificar es nombrar.** La ficha RED-62 pedía «una clave nueva en `_meta.adjustments`».
+  Se exige además que el texto **nombre** el presupuesto que sube: con la regla original, una
+  sola entrada nueva alcanzaba para tapar cualquier cantidad de subidas en el mismo PR, y la
+  convención del archivo ya escribe el nombre de la ruta («legajos_lista 14→12»).
+- **Los multiplicadores de la alarma de tiempo también se miran.** Dejar
+  `reference_total_ms` quieto y subir `failure_multiplier` corre el mismo techo sin que se
+  note en el diff. Es la puerta que quedaba abierta justo después de bajarlo de 3,0 a 2,0.
+- **Bajar un techo y estrenar una ruta no piden nada.** Un gate que pide trámite en la
+  dirección buena se vuelve ruido, y lo primero que genera es una justificación de trámite.
+- **Los dos destinos nuevos cuelgan de un segmento propio.** No se les colgaron a los
+  segmentos que ya se miden: así no les mueven ni una fila a `becas_cupo_segmento` ni al
+  detalle del caso, y el formulario público queda con lo que trae el catálogo.
+- **El payload del paso 2 se arma solo.** El formulario público es dinámico (el diseño de la
+  convocatoria sobre el catálogo de hoy, RN-1), así que el destino le pregunta al propio
+  `InscripcionPaso2Form` qué campos tiene y contesta por tipo. Escrito a mano, una pregunta
+  obligatoria nueva habría dejado el destino midiendo un 200 con errores de validación en
+  vez de la escritura.
+- **El cache de la home se invalida por modelo, no todo junto.** Un `save()` de `User` no
+  cambia cuántos ciudadanos hay; borrar de más obliga a recalcular lo que no se movió.
+- **La función única borra en el acto y los receivers en `on_commit`.** `invalidar_dashboard`
+  conserva la semántica de la que reemplaza (la llaman las vistas de ciudadanos después de
+  guardar); los receivers difieren el borrado para no invalidar ante un rollback.
+- **Los índices se sacan con `RemoveIndex`/`AlterField` y no con `RunSQL`.** Los nombres de
+  los índices que crea `db_index=True` llevan un hash del schema editor y no están escritos
+  en ningún lado: Django los resuelve por introspección, y eso es lo que vuelve el paso
+  portable entre MySQL y MariaDB.
+- **La lupa del legajo se arregla registrando el modelo, no sacando `raw_id_fields`.** Lo
+  segundo sería reponer el combo con la tabla entera que G1c-09 acababa de sacar. Registrar
+  `LegajoAtencion` no expone nada nuevo: al `/admin/` se entra con `is_staff`, que ningún
+  camino del ABM de Usuarios otorga, y `Ciudadano` ya estaba registrado ahí al lado.
+
+## Implementación
+1. **RED-62 — un presupuesto que sube viene justificado.** `scripts/check_perf_budgets.py`
+   compara `scripts/perf_budgets.json` contra el archivo del **árbol base del PR** y falla si
+   sube un `max_queries` o un `max_duplicate_queries`, si un servicio sube sus
+   `consultas_fijas` o baja sus `casos_por_consulta`, si `reference_total_ms` se corre más de
+   un 5 % o si cualquiera de los dos multiplicadores de la alarma de tiempo crece —salvo que
+   una entrada de `_meta.adjustments`, nueva o ampliada, nombre ese presupuesto—. Corre como
+   primer paso del job `Query Budgets & Smoke Time`. `failure_multiplier` baja de 3,0 a 2,0:
+   con 3,0 la alarma recién saltaba a 4,3 s, casi el triple de la referencia.
+2. **RED-10 — las dos escrituras bajo el lock entran al manifiesto.**
+   `inscripcion_publica_paso2` (anónimo, con la sesión del paso 1 ya sembrada, 302 al
+   comprobante) y `becas_api_alta` (Token de territorial, 201). Las dos trabajan adentro del
+   `select_for_update` del relevamiento contra el `read_timeout` de 10 s y las dos ya
+   rompieron o estuvieron al borde; ahora tienen techo: 43 consultas / 7 duplicadas y 32 / 1.
+   Medirlas fue lo que encontró el N+1 del punto 6.
+6. **El N+1 que destapó el destino nuevo (ronda 2).** El job `Ephemeral MySQL Redis
+   Contract` quedó rojo con los dos destinos puestos: el guardado de los adjuntos del
+   paso 2 era un `create()` por archivo y el catálogo de Becas pide **cinco** archivos
+   obligatorios, así que la sonda veía cinco `INSERT` idénticos en una request —su regla
+   es «el mismo SQL más de tres veces»—. Pasa a un solo `bulk_create`
+   (`programas/services/inscripcion_publica.py`), que guarda igual cada archivo en el
+   storage porque `FileField.pre_save` corre por fila también en el insert por lotes. El
+   paso 2 baja de 46/10 a 42/6 consultas en el camino más pesado del link público. Y la
+   sonda deja de decir solo «hubo N+1»: el `CommandError` nombra **la ruta y la forma de
+   la consulta repetida** (`portal:inscripcion_paso2`, `INSERT
+   programas_adjuntoformulario ×5`), que viaja entre workers por Redis como verbo + tabla
+   —nunca el SQL, los parámetros ni datos de personas—.
+3. **RED-51 — los contadores del inicio tienen dueño.** `dashboard/cache.py` es la tabla
+   única: clave → qué consulta la escribe → qué modelo la invalida. `stats_legajos` se
+   mueve al receiver de `InscripcionPrograma`, que es quien la escribe; `alertas_activas`
+   estrena el suyo sobre `AlertaCiudadano`; y la segunda `invalidate_dashboard_cache`
+   desaparece, con un test que falla si el nombre vuelve a definirse en cualquier lado.
+4. **RED-83 — se van los cinco índices redundantes medidos.** Cuatro de
+   `legajos_ciudadano` (`activo`, `apellido`, `dni`, `email`) y uno de
+   `programas_formulario` (`estado`), todos prefijo exacto —o copia exacta— de otro.
+5. **Los cinco MINOR de #645:** `LegajoAtencion` registrado en el admin (la lupa de
+   `legajo` vuelve); la ficha PERF-08 dice qué pierde el contenedor de websockets;
+   `docs/client/architecture.md` deja de afirmar «pool reusable 60 s» sin condición;
+   `SESION_ANONIMA_SEGUNDOS` pasa a leerse por llamada; y `escenarios_borde.py` —el primer
+   script del banco que **borra**— exige la base descartable y lo dice en su docstring.
+
+## Archivos
+- `scripts/check_perf_budgets.py` (nuevo), `scripts/perf_budgets.json`,
+  `.github/workflows/pr-performance.yml`, `core/tests/test_check_perf_budgets.py` (nuevo).
+- `scripts/perf_audit.py`, `core/management/commands/seed_perf.py`,
+  `core/tests/test_performance_budgets.py`.
+- Ronda 2 (el N+1): `programas/services/inscripcion_publica.py`,
+  `portal/tests/test_inscripcion_envio.py`, `config/middlewares/query_counter.py`,
+  `core/performance/query_observability.py`, `core/management/commands/perf_ci_probe.py`.
+- `dashboard/cache.py` (nuevo), `dashboard/signals/cache.py` (nuevo),
+  `dashboard/signals/__init__.py`, `dashboard/apps.py`, `dashboard/utils.py`,
+  `core/performance/cache_utils.py`, `legajos/signals/core.py`, `legajos/signals/__init__.py`,
+  `legajos/services/ciudadanos.py`, `dashboard/tests/test_cache_invalidacion.py`.
+- `legajos/models/base.py`, `programas/models/__init__.py`,
+  `legajos/migrations/0011_indices_redundantes_red83.py`,
+  `programas/migrations/0085_indices_redundantes_red83.py`,
+  `core/tests/test_indices_redundantes.py`.
+- `legajos/admin/__init__.py`, `legajos/admin/contactos.py`,
+  `legajos/tests/test_admin_performance.py`, `portal/services/inscripcion.py`,
+  `portal/tests/test_inscripcion_sesion_anonima.py`, `scripts/perf_mysql/_bootstrap.py`,
+  `scripts/perf_mysql/escenarios_borde.py`, `docs/client/architecture.md`.
+
+## Base de datos
+`legajos.0011_indices_redundantes_red83` y `programas.0085_indices_redundantes_red83`. Las
+dos son **solo `DROP INDEX`**: ninguna columna cambia de tipo ni de nulabilidad, ningún dato
+se toca. En InnoDB la baja de un índice secundario es in-place —no reconstruye la tabla ni
+bloquea DML—, y así quedó medido contra el banco MariaDB 10.11 con 21.522 ciudadanos y una
+`programas_formulario` de **362 MB**: 31 + 31 + 27 + 32 ms en `legajos_ciudadano` y 29 ms en
+`programas_formulario`, contra el `read_timeout` de 10 s de ECOM. Son seguras sobre datos
+existentes y toleran código viejo corriendo durante el rolling: la release anterior no
+nombra índices, los elige el optimizador.
+
+## Validación
+- `manage.py check` y `manage.py check --deploy`: sin hallazgos nuevos.
+- `manage.py makemigrations --check --dry-run`: sin cambios pendientes.
+- `scripts/check_migraciones.py` sobre las dos migraciones nuevas: OK.
+- Suite de las apps tocadas (`core legajos dashboard portal programas users`) contra el
+  venv Python 3.12 + Django 5.2.17, comparada con la misma corrida en un árbol de la base:
+  ninguna falla nueva.
+- `manage.py test --tag performance`: verde con los dos destinos nuevos.
+- `scripts/check_perf_budgets.py` probado con un caso rojo (un techo del archivo real
+  inflado sin justificación → salida 1) y uno verde (este PR → salida 0).
+- Banco MariaDB 10.11 (`scripts/perf_mysql`, 20.000 casos): `EXPLAIN` de ocho consultas
+  calientes antes y después de las bajas de índice; siete dan el **mismo plan** y la octava
+  —la búsqueda por apellido, la única que elegía un índice que se va— pasa al compuesto
+  `(apellido, nombre)` con el mismo `type=range`, el mismo `key_len=482` y las mismas filas.
+  Ciclo de migración ida → vuelta → ida sobre los datos sembrados, las tres en verde.
+- `ruff check .` y `ruff format --check` sobre lo tocado.
+- **Ronda 2 — el stack efímero del CI reproducido en local**: MySQL 8.0 y Redis 7 en
+  contenedores descartables (puertos 3340 y 6390) con las variables del job, `migrate` +
+  `seed_perf --scale 200` y los tres pasos de la sonda. Antes del arreglo:
+  `La sonda detectó N+1 … portal:inscripcion_paso2 (2 requests, repite INSERT
+  programas_adjuntoformulario ×5)`. Después: `n1_affected_requests: 0` y `--verify` en
+  verde, con el paso 2 en 35 consultas / 4 duplicadas contra MySQL.
+- El test de consultas constantes (`AdjuntosConsultasConstantesTests`, 2 adjuntos contra
+  6) verificado **en rojo** contra `b8071a48` —33 → 37 consultas, una por archivo— y en
+  verde con el arreglo.
+
+## Puesta en marcha en el servidor
+Nada más que el deploy. Las dos migraciones corren con el `migrate` del entrypoint y no
+necesitan ventana: son `DROP INDEX` de milisegundos.
+
+## Pendientes / a definir
+- Los 21 pares de índices redundantes que quedan en el ratchet de
+  `core/tests/test_indices_redundantes.py`, todos en tablas chicas y sin ficha propia.
+- `failure_multiplier = 2.0` es el valor que pide la ficha; medido acá da ratio 1,38×. Si el
+  runner del CI resulta más lento y la alarma se vuelve ruidosa, moverlo ahora exige su
+  propia justificación escrita, que es exactamente lo que RED-62 quería.
+
+## Reversión
+Revertir el commit alcanza para el código. Para la base, `migrate legajos 0010` y
+`migrate programas 0083` vuelven a crear los cinco índices; está probado contra MariaDB
+10.11 con datos. No se pierde ningún dato: lo único que se deshace es una decisión de
+esquema.
+
+## Historial
+- **08/10/2026** — entrada nueva: la Ola 4 cierra con RED-62, RED-10, RED-51 y RED-83.
+- **09/10/2026 (ronda 2)** — el destino nuevo del paso 2 dejó rojo el job `Ephemeral MySQL
+  Redis Contract`: los adjuntos se guardaban fila por fila y la sonda lo leyó como N+1. Se
+  arregla donde estaba, con `bulk_create` (42/6 consultas, techo de 47/11 a 43/7), se lo
+  fija con un test de consultas constantes en vez de un presupuesto —el catálogo decide
+  cuántos adjuntos hay— y la sonda pasa a nombrar la ruta y la consulta repetida en su
+  mensaje de error.
+
+---
+
+# Cambio 195 — Sacar del repo lo que no corre: los módulos de «optimización», 29 JS huérfanos y el código muerto de Legajos
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (dashboard de performance, comandos de management, guard del release, estáticos) · Legajos (vistas y templates sin ruta, botón «Derivar a Programa») |
+| **Etiquetas** | `#infra` `#performance` `#ui` `#rbac` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 7 «Deuda», PR 1 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — fichas OPS-10, OPS-14 (con RED-65), FE-14 y LEG-06 |
+| **Partes afectadas** | Backoffice · Infra/ECOM (guard de `publish-main.yml`) |
+| **Migración** | `users.0033` (retira la capacidad `ciudadano.eliminar`; sin DDL) |
+
+## Pedido original
+
+Las cuatro fichas de código muerto de la Ola 7. El criterio de cierre de la ola que
+aplica acá: `git grep -n "phase2\|core.performance.monitoring"` tiene que quedar vacío y
+`collectstatic` con el almacenamiento con manifest tiene que pasar sin 404.
+
+## Alcance acordado
+
+**Entra:** los nueve módulos de `core/performance/` con los que nadie mide nada y sus seis
+comandos; cinco endpoints del dashboard de performance; `tramites`; `docker/django/`;
+`scripts/startup.sh`; `core/services/cache.py`; la capacidad `ciudadano.eliminar`; los 29
+JS huérfanos y `dashboard.css`; las vistas y templates sin ruta de Legajos; y las dos
+rutas que el guard del release exigía y ya no existen (RED-65).
+
+**Queda afuera, y por qué:**
+
+- **`dashboard/templates/dashboard.html` y `DashboardView`.** LEG-06 nombra el template,
+  pero la vista, su `path` y el traslado de los contadores a `metricas_home()` son de
+  **RED-78**, que es otro PR de esta misma ola. Borrar solo el template deja una vista que
+  renderiza algo inexistente. Acá sale **únicamente** el `{% include %}` de
+  `widget_contactos.html`, que sí es de LEG-06.
+- **La pantalla «Gestión de Programas» de Legajos entera (default de D-F16).** Code-first:
+  `legajos:programa_detalle` es el destino de `redirect` de `aceptar_derivacion_programa` y
+  `rechazar_derivacion_programa`, las dos **ruteadas y vivas** desde SEC-12; y
+  `dashboard.html` la enlaza. No es código muerto: es una pantalla pobre. Lo muerto de ella
+  —`dar_de_baja_inscripcion` y su botón— sí sale.
+- **`relevamiento.ver`, `institucion.ver` e `institucion.administrar`.** R-18 las mandó a
+  OPS-14 («o se usan, o salen del catálogo»), pero la *Propuesta* de la ficha solo nombra
+  `ciudadano.eliminar`. Retirar las de `instituciones` vacía el módulo y hace desaparecer
+  una solapa del ABM de Roles, y `relevamiento.ver` convive con `relevamiento.gestionar`,
+  que sí se evalúa. Las tres siguen declaradas en `CAPACIDADES_SIN_USO` con su motivo.
+- **`legajos/services/ml_predictor.py`**, que OPS-14 lista en *Ubicación* y **no** en
+  *Propuesta*: `legajos/views/contactos_api.py::prediccion_riesgo_api` lo importa y esa
+  ruta existe (`legajos:prediccion_riesgo`). No está muerto.
+- **`BajaProgramaService`**, que se queda aunque su único invocador se haya ido: lo cubre un
+  test permanente de BEC-18 y estrenar una baja destructiva es decisión del PM.
+
+## Decisiones tomadas
+
+- **Del dashboard de performance sobrevive lo que mide de verdad.** `query_observability`,
+  `cache_utils` y `ci_external_stubs` se conservan, igual que `/performance-api/`,
+  `/query-analysis-api/` y `/optimization-suggestions-api/`. Se van `system-metrics`,
+  `alerts`, `realtime-metrics`, `phase2-metrics` y `run-phase2-tests`: las dos primeras
+  leían `psutil` **del proceso que atendiera el request** (una réplica cualquiera, no el
+  host) y las tres últimas un caché que solo llenaba un ciclo de «optimización» que nadie
+  dispara. `/run-phase2-tests-api/` autorizaba además por `IsAdminUser` (`is_staff`), contra
+  la regla de capacidades, y corría análisis de índices y particiones desde una request.
+- **`SET GLOBAL` y `CREATE INDEX IF NOT EXISTS` no vuelven.** `DatabaseOptimizer` pedía
+  `SUPER` (que ECOM casi seguro no da) y `DatabasePartitioner` escribía SQL que MySQL no
+  entiende sobre tablas que no existen. Se borran con sus comandos, no se arreglan.
+- **D-L06 con su default:** «Derivar a Programa» se **oculta** en el detalle del ciudadano.
+  La ruta y la vista siguen montadas: la decisión era sobre el botón, no sobre la URL.
+- **RED-65 en las dos direcciones.** Además del test que ya existía («lo que el guard exige
+  tiene que existir»), se agrega el inverso: una ruta solo puede salir de `RUNTIME` si el
+  archivo se borró. Sacarla con el archivo en el árbol apagaría la red en silencio.
+- **`ciudadano.eliminar` se borra también como `Permission`.** Django no lo hace al sacarlo
+  de `Meta.permissions`: quedaría tildado en los grupos que lo tenían y `rbac.puede()`
+  seguiría resolviéndolo. Mismo patrón que `users.0017`.
+
+## Implementación
+
+El dashboard de performance muestra cuatro paneles en vez de seis y ya no ofrece el botón
+«Ejecutar Pruebas Automáticas». El ABM de Roles deja de ofrecer «Eliminar ciudadanos». El
+detalle del ciudadano deja de ofrecer «Derivar a Programa». Nada más cambia de lo que el
+usuario ve: todo lo demás era código que no se ejecutaba.
+
+## Archivos
+
+Borrados: 9 módulos de `core/performance/`, 6 comandos de management, `tramites/`,
+`docker/django/`, `scripts/startup.sh`, `core/services/cache.py`, 29 `static/custom/js/*.js`,
+`static/custom/css/dashboard.css`, 4 módulos de `legajos/views/` y 3 templates.
+Editados: `core/views/performance.py`, `core/urls.py`, `core/middleware.py`,
+`config/middlewares/query_counter.py`, `config/settings.py`, `core/rbac.py`,
+`users/management/commands/seed_datos_base.py`, `templates/core/performance_dashboard.html`,
+`legajos/templates/legajos/ciudadano_detail.html`,
+`legajos/templates/legajos/programas/programa_detail.html`, `dashboard/templates/dashboard.html`,
+`.github/workflows/publish-main.yml`, `pyproject.toml`, `tailwind.config.js`,
+`scripts/design_audit.py`, `scripts/perf_audit.py`, `scripts/compile_templates.py`,
+`docs/api/core.postman_collection.json`, `static/custom/css/tailwind.css` y nueve módulos de tests.
+
+## Base de datos
+
+`users.0033_retirar_capacidad_ciudadano_eliminar`: `AlterModelOptions` sobre el modelo ancla
+`users.Capacidad` (`managed = False`: **no toca el esquema**) y un `RunPython` que borra la
+fila de `auth_permission` con codename `ciudadano_eliminar`, más las de
+`auth_group_permissions` que caen por cascada. Seguro sobre datos existentes y seguro
+durante el rolling: ninguna vista evalúa esa capacidad, y el `seed_datos_base` de la release
+vieja la busca con un `filter(codename__in=…)` que simplemente no la encuentra.
+
+## Validación
+
+`manage.py check` y `check --deploy`: 0 issues. `makemigrations --check --dry-run`: sin
+cambios. `scripts/check_migraciones.py`: OK. Suite de `core`, `users`, `dashboard`,
+`legajos`, `programas`, `configuracion`, `portal` y `conversaciones`: 0 fallos.
+Los 14 tests nuevos se corrieron primero contra un worktree de `origin/development` y
+**fallaron los 14**. `compile_templates.py --bloques`: 0 errores y 0 bloques sin destino.
+`design_audit.py --ratchet`: 0 hallazgos nuevos. `--goldens`: 0. `npm run build:tailwind`
+con su diff commiteado. `collectstatic --clear` con `ENVIRONMENT=prd`
+(`ManifestStaticFilesStorage`): 332 archivos, 1.448 post-procesados, sin errores. ruff
+`check` y `format --check` limpios.
+
+## Puesta en marcha en el servidor
+
+Nada especial. Conviene saber que `scripts/startup.sh` y `docker/django/Dockerfile` ya no
+existen: **ningún entorno los usaba** —el `Dockerfile` de la raíz y `docker-entrypoint.sh`
+son los que construyen y arrancan—, pero si alguien tenía un `docker build -f
+docker/django/Dockerfile` a mano, deja de funcionar.
+
+## Pendientes / a definir
+
+- **Para el juez:** los dos bloques de `.claude/` van en el cuerpo del PR (esta sesión no
+  escribe ahí). Hasta aplicarlos, «Design Agent Contract» queda rojo.
+- `relevamiento.ver`, `institucion.ver` e `institucion.administrar` siguen en el catálogo sin
+  que nada las evalúe: decisión del PM.
+- `dashboard/templates/dashboard.html` y `DashboardView` los retira RED-78, misma ola.
+- `legajos/forms/contactos.py::HistorialContactoForm` se quedó sin consumidores al irse
+  `historial_contactos.py`; el modelo `HistorialContacto` sigue vivo, así que no se tocó.
+
+## Reversión
+
+`manage.py migrate users 0032` recrea el `Permission` **sin volver a tildarlo en ningún rol**
+(la fila de `auth_group_permissions` se fue por cascada y la migración no la guarda). Para
+el código, revertir el merge alcanza: no hay estado nuevo en la base ni archivos generados
+fuera de `static/custom/css/tailwind.css`, que se regenera con `npm run build:tailwind`.
+
+## Historial
+
+No aplica.
+
+---
+
+# Cambio 196 — La imagen deja de llevar once paquetes que nadie importa, y el CI deja de instalar «lo último que haya»
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — dependencias de la imagen (`requirements*.txt`), `INSTALLED_APPS`, workflows del CI, dependabot |
+| **Etiquetas** | `#infra` `#performance` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 7 «Deuda», PR 2 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — fichas OPS-13 (con RED-45 adentro) y RED-85; más los cinco MINOR de la revisión de #648 |
+| **Partes afectadas** | Infra/ECOM (imagen de producción, `pip-audit`) · CI |
+| **Migración** | `core.0003_retirar_django_health_check` (borra una tabla de un paquete que se retira y sus dos filas de `django_migrations`) |
+
+## Pedido original
+
+Las dos fichas de dependencias y CI de la Ola 7. **OPS-13:** `requirements.txt` tenía
+paquetes con cero imports —el bloque «AI/ML» entero, `structlog`, `gevent`, `pymysql`,
+`django-simple-history`, `django-health-check`— y `django_extensions` cargado en
+`INSTALLED_APPS` también en producción. **RED-45**, adentro de OPS-13: borrar el parche de
+gevent. **RED-85:** `requirements-ci.txt` con las herramientas del CI pineadas y un
+dependabot semanal.
+
+## Alcance acordado
+
+**Entra:** los once paquetes de la *Ubicación* de OPS-13 (nueve se van del todo, tres se
+mudan a `requirements-dev.txt`); el borrado de `config/gevent_patch.py` y de las líneas de
+`wsgi.py`; la limpieza de base que la ampliación de OPS-13 exige para poder sacar
+`django-health-check`; `requirements-ci.txt` con las cinco herramientas del CI y los seis
+`pip install` sueltos reemplazados; `.github/dependabot.yml` para pip, GitHub Actions y
+npm; y el pin de `setuptools`, que RED-85 nombra como suyo.
+
+**Queda afuera, y por qué:**
+
+- **`django-zeal` no se muda a `requirements-dev.txt`**, contra la letra de la *Propuesta*
+  de OPS-13. Code-first: `config/settings.py` lo suma a `INSTALLED_APPS` con
+  `PYTEST_RUNNING` y cuatro módulos de tests hacen `from zeal import zeal_ignore` **al
+  importar**. Todo job que corre la suite instala `requirements.txt`; moverlo obligaría a
+  instalar otro archivo en cada uno de ellos y en cada checkout local, a cambio de un
+  paquete que en producción no se carga nunca porque `PYTEST_RUNNING` no está definida.
+- **`psutil` se queda**: la ficha no lo nombra y `core/views/performance.py` lo importa
+  para la métrica de memoria del proceso.
+- **Encender `Ruff estilo` como bloqueante.** El pin era la condición técnica que
+  faltaba y ya está, pero sumarlo al ruleset es una decisión del PM.
+
+## Decisiones tomadas
+
+- **RED-45 se borra, y la guarda del entrypoint se queda.** Se verificó antes, como pide
+  la consigna, qué worker usa gunicorn en cada ambiente: `docker-entrypoint.sh` arranca
+  `gunicorn config.wsgi:application` **sin `--worker-class`**, con `--threads`, o sea
+  gthread; la única forma de pedir gevent eran las dos variables de entorno, y desde el
+  Cambio 159 el entrypoint **aborta** ante las cuatro formas de pedirlo en cualquiera de
+  las dos. O sea: ningún ambiente puede estar arrancando con gevent sin que el pod muera
+  primero con el motivo escrito. Lo que ECOM usa sigue sin estar confirmado (H-05), y por
+  eso el paso 0 de `espejo-ecom.md` —leer `GUNICORN_CMD_ARGS` y `GUNICORN_WORKER_CLASS`
+  del ambiente antes de espejar— **no se toca**: sigue siendo la verificación humana. Sin
+  el paquete, el peor caso pasa de «respuestas con datos de otra persona» a «gunicorn no
+  arranca y lo dice».
+- **Sacar `django-health-check` necesita una migración, y esa es la mitad cara de la
+  ficha.** La ampliación de OPS-13 (PR R-15) ya lo había medido: la app tiene una
+  migración aplicada y la tabla `health_check_db_testmodel` en icore, testing y PRD.
+  `core.0003` borra la tabla y las **dos** filas de `django_migrations` (`db.0001_initial`
+  y `health_check_db.0001_initial`: el `app_label` del paquete cambió entre versiones y su
+  `0001_initial` declara un `replaces`).
+- **Es *contract*, no *expand*.** Lo que se borra dejó de leerse en el Cambio 153, cuando
+  OPS-04 retiró `path("health/", include("health_check.urls"))`: el backend
+  `health_check.db` solo toca esa tabla cuando corre un plugin de health check, y ninguna
+  URL llega a uno desde entonces. Van más de dos releases.
+- **`django_extensions` y `silk` se agregan a `INSTALLED_APPS` solo si están instalados**,
+  no con un `if DEBUG` a secas. El `docker-compose.yml` de desarrollo levanta **la misma
+  imagen de producción** con `DJANGO_DEBUG=True`: con la lista incondicional, el
+  contenedor de dev moriría al importar. Faltando, la app arranca igual y lo único que se
+  pierde es `shell_plus` y `/silk/`. Por lo mismo `config/urls.py` monta `/silk/` por
+  `SILK_HABILITADO` y no por `DEBUG`.
+- **`setuptools` sube de 80.9.0 a 83.0.0 y la excepción de seguridad se retira.**
+  `PYSEC-2026-3447` (CVE-2026-59890) era la única entrada de `security/excepciones.toml` y
+  su ticket decía «RED-85, que es donde se toca el pin». 83.0.0 es la primera versión
+  corregida —el salto más chico, como el Cambio 97—. Se verificó que
+  `pip-audit -r requirements.txt` da «No known vulnerabilities found» **sin ningún**
+  `--ignore-vuln` antes de sacarla.
+- **Las versiones de `requirements-ci.txt` son las que el CI ya venía instalando** al
+  09/10/2026 (`ruff` 0.16.10, `coverage` 7.16.2, `pip-audit` 2.10.1, `bandit` 1.9.4,
+  `mkdocs-material` 9.7.7). Pinear lo que ya corría significa que este PR no cambia ningún
+  resultado del CI: solo lo congela.
+- **El archivo se instala entero en cada job que usa alguna herramienta**, aunque use una
+  sola. Tener las versiones en un archivo y no repartidas por seis YAML es el punto de la
+  ficha; el costo son ~20 s de descarga en jobs que duran minutos.
+- **Dependabot sin ningún `ignore`.** Un mayor que no convenga se cierra a mano y queda el
+  registro de que se decidió; un `ignore` escrito en el YAML se olvida.
+- **Ningún job se renombra.** Los nueve contextos del ruleset de `development` siguen
+  llamándose igual; lo que cambió son pasos adentro de los jobs.
+
+## Implementación
+
+Para el usuario del sistema no cambia nada: ninguno de los paquetes que se van tenía un
+solo `import` en el código. Lo que cambia es qué viaja en la imagen y qué instala el CI.
+
+**Los cinco MINOR de la revisión de #648**, que entran en este mismo PR:
+
+1. `scripts/check_perf_budgets.py` — una subida de presupuesto queda justificada solo por
+   una entrada **nueva** de `_meta.adjustments` (clave que no existía) que **nombre** el
+   presupuesto como palabra entera o como clave exacta. Antes alcanzaba con editar un
+   carácter de una entrada vieja que ya nombraba varios, y el match por substring daba por
+   nombrada una clave corta como `login` porque aparecía adentro de otra palabra.
+2. El mismo script compara contra el **merge-base** y no contra el tip de la base. En el
+   CI da lo mismo; en un worktree cuyo `origin/development` avanzó más allá de una
+   *bajada* de presupuesto, la corrida local salía roja sin que el PR tocara el JSON.
+3. `pr-performance.yml` — el disparo por `push` compara contra `github.event.before`, que
+   cubre el rango entero. Con `HEAD^`, un push directo de N commits dejaba sin comparar
+   los N-1 primeros. `HEAD^` queda como respaldo para el primer push de una rama (donde
+   `before` son 40 ceros) y para `workflow_dispatch`.
+4. `scripts/perf_audit.py` — si el muestreo se queda sin sesiones sembradas, revienta
+   nombrando el número que hay que mover, en vez de reusar en silencio una sesión gastada
+   (el síntoma era un rechazo por DNI duplicado y un 200 donde se espera un 302). Y el
+   comentario del rango de DNI de `seed_perf.py` dice lo que pasa de verdad: el alta por
+   la API de campo numera desde 75.000.000 más un desplazamiento que llega a 8.999.999, o
+   sea hasta 83.999.999, **adentro** del bloque sembrado desde 80.000.000.
+5. `programas/migrations/0085` — se corrige **solo el comentario**: PERF-13 sí registró
+   `key=programas_f_estado_e0feb6_idx` para la bandeja `estado=BAJA` página 10. No hay
+   consecuencia (el índice que sobrevive es idéntico sobre `(estado)`), pero quien
+   reproduzca esa medición va a ver otro `key=`. Las operaciones no se tocan: es una
+   migración ya mergeada.
+
+## Archivos
+
+Nuevos: `requirements-dev.txt`, `requirements-ci.txt`, `.github/dependabot.yml`,
+`core/migrations/0003_retirar_django_health_check.py`, `core/tests/test_dependencias.py`.
+Borrado: `config/gevent_patch.py`.
+Editados: `requirements.txt`, `config/settings.py`, `config/urls.py`, `config/wsgi.py`,
+`security/excepciones.toml`, `scripts/check_perf_budgets.py`, `scripts/perf_audit.py`,
+`core/management/commands/seed_perf.py`,
+`core/management/commands/verificar_esquema_migraciones.py` (solo el docstring),
+`programas/migrations/0085_indices_redundantes_red83.py` (solo el docstring),
+`.github/workflows/pr-quality.yml`, `pr-backend.yml`, `pr-security.yml`,
+`pr-performance.yml`, `docs-auto-deploy.yml`, `docs/internal/venv-setup.md`,
+`docs/client/architecture.md` y cuatro módulos de tests.
+
+## Base de datos
+
+`core.0003_retirar_django_health_check`, con `atomic = False` y los tres pasos
+idempotentes (RED-58): `DROP TABLE health_check_db_testmodel` condicionado a que la tabla
+exista según `introspection`, y dos `DELETE FROM django_migrations` filtrados por su fila.
+La tabla es de un paquete de terceros, guarda una fila transitoria que el propio check
+escribe y borra, y nada la lee desde el Cambio 153.
+
+**Reversa real, no noop:** vuelven la tabla (vacía, con su DDL escrito a mano para
+MySQL/MariaDB y SQLite) y las dos filas. Lo único que no vuelve es el `applied` original de
+esas filas y el contenido de la tabla, que es transitorio por diseño. Las dos direcciones
+están cubiertas por tests que las ejecutan contra la base de la suite.
+
+## Validación
+
+`.venv312` (Python 3.12 + Django 5.2.17, igual al CI). `manage.py check`: 0 issues.
+`check --deploy`: los 4 avisos preexistentes del entorno local (`SIIS_API_URL` sin definir
+y tres `security.W*`); adentro de la imagen, con `settings_production` y `ENVIRONMENT=prd`,
+queda **1** aviso, el del `SECRET_KEY` de prueba. `makemigrations --check --dry-run`: sin
+cambios. `scripts/check_migraciones.py` sobre `core/migrations/0003`: 0 problemas. Suite
+completa: 0 fallos. ruff `check .` y `format --check` limpios.
+
+**Docker, corrido de verdad:** `docker build` sobre `python:3.12-slim` OK;
+`manage.py check --deploy` adentro de la imagen OK; `manage.py check` adentro de la imagen
+con `DJANGO_DEBUG=True` **también** OK (es el escenario del `docker-compose.yml` de
+desarrollo, que levanta esta imagen sin `django-extensions` ni `silk`); `collectstatic
+--noinput` con `ENVIRONMENT=prd`: 332 archivos, 1.448 post-procesados, sin errores.
+
+**pip-audit** (el método del CI) sobre el `requirements.txt` nuevo: «No known
+vulnerabilities found», sin ignores.
+
+**actionlint** (`docker run rhysd/actionlint`): 0 errores en los 9 workflows, incluido el
+shellcheck del paso de bash que se reescribió en `pr-performance.yml`.
+
+**TDD.** Los tests nuevos se corrieron contra el código anterior y fallan: `resolver_base`
+no existía (los dos de `BaseDeComparacionTests` dan error de import), los dos casos rojos
+nuevos de `check_perf_budgets` devolvían lista vacía contra el script viejo,
+`test_el_parche_ya_no_existe` estaba salteado y se saltea, `DependabotTests` no tenía
+archivo que leer y `test_ningun_workflow_instala_una_herramienta_sin_version` encontraba
+seis `pip install` sueltos.
+
+## Puesta en marcha en el servidor
+
+El deploy normal: la imagen reinstala `requirements.txt` al construir y el entrypoint
+corre `migrate`, que aplica `core.0003`.
+
+Dos cosas que conviene saber:
+
+- **Quien trabaje en local tiene que instalar `requirements-dev.txt`**, no
+  `requirements.txt`, o pierde `shell_plus`, `/silk/` y el debugger. Está documentado en
+  `docs/internal/venv-setup.md`.
+- **`manage.py shell_plus` deja de existir en los ambientes servidos.** `manage.py shell`
+  sigue estando. Si alguien de ECOM lo usaba, hay que saberlo antes y no después.
+
+## Pendientes / a definir
+
+- **Confirmar con ECOM que nadie usa `shell_plus` en testing ni en PRD**, que es lo que la
+  *Propuesta* de OPS-13 pide confirmar y esta sesión no puede. Si lo usan, la vuelta atrás
+  es una línea: `django-extensions` vuelve a `requirements.txt`.
+- **H-05 sigue abierta:** no está confirmado qué `GUNICORN_*` tiene el Deployment de ECOM.
+  El paso 0 de `espejo-ecom.md` es el que lo cubre y se corre antes de espejar.
+- `Ruff estilo` es candidato a bloquear: el pin que faltaba ya está. Decisión del PM.
+- El alta de `becas_api_alta` en `perf_audit` puede pisar un DNI sembrado para algunos
+  `worker_id` de `perf_ci_probe`. Queda **documentado y no arreglado** en `seed_perf.py`:
+  moverlo cambiaría los DNI medidos y el `TestCase` de presupuestos es determinista
+  (`worker_id=None` → desplazamiento 2.473.870, fuera del bloque).
+
+## Reversión
+
+Revertir el merge devuelve los once paquetes, el parche de gevent y los `pip install`
+sueltos. La base necesita además `manage.py migrate core 0002`, que recrea
+`health_check_db_testmodel` vacía y vuelve a insertar las dos filas de
+`django_migrations`; si no se corre, la release vieja igual arranca —su `migrate` ve
+`db.0001_initial` sin aplicar, no encuentra la tabla y la crea—. No se pierde ningún dato:
+esa tabla no guarda nada entre un health check y el siguiente.
+
+## Historial
+
+Entrada nueva.
+
+**Ronda 2 de revisión (09-10-2026).** Seis cosas, una de ellas el agujero que el PR
+abrió al sacar `debugpy` de la imagen:
+
+- **`manage.py` importaba `debugpy` sin condición y el contenedor de desarrollo no
+  arrancaba** (MAJOR). `docker compose up` levanta **la imagen de producción** con
+  `DJANGO_DEBUG=True` y `runserver`, que relanza el proceso con `RUN_MAIN=true` para el
+  autoreload: ese hijo moría con `ModuleNotFoundError`. El import pasa a
+  `importlib.import_module` dentro de un `try/except ImportError`, mismo criterio que
+  `config/settings.py` con `django_extensions`/`silk`; cuando el paquete está, sigue
+  abriendo el 3000. Se importa con `importlib` y no con `import debugpy` a propósito:
+  así `test_nadie_los_importa` puede barrer el archivo sin marcarlo.
+- **El barrido de `test_nadie_los_importa` ahora incluye los `.py` de la raíz.** Miraba
+  solo los diez paquetes del producto, y `manage.py` está fuera de todos: por eso el
+  import sobrevivió al PR. `ManagePySinDebugpyTests` reproduce el fallo con un finder de
+  `sys.meta_path` que levanta `ModuleNotFoundError` —el venv local **sí** tiene `debugpy`
+  instalado, así que un finder pasivo no mediría nada— más `RUN_MAIN=true` y `DEBUG=True`.
+- **`config/settings_production.py` filtraba `silk` de `INSTALLED_APPS` y no recalculaba
+  `SILK_HABILITADO`** (MINOR): la bandera la fija `settings.py` **antes** del filtro, así
+  que con `DJANGO_DEBUG=True` mal puesto en un ambiente servido quedaba en `True` con la
+  app afuera y `config/urls.py` montaba `/silk/` contra `silk.urls`. Queda
+  `SILK_HABILITADO = False`, con test que arma la situación a mano (la suite corre con
+  `DEBUG=False`, donde el test pasaría sin medir nada).
+- **La docstring de `core/migrations/0003` contaba el caso equivocado** (MINOR). Decía
+  que un rollback «se arregla solo». No: si un pod de la release vieja corre `migrate`
+  después de `core.0003`, recrea la tabla **y** la fila, y nadie las vuelve a limpiar
+  porque la migración ya figura aplicada. Queda escrito, con el `DROP TABLE` + `DELETE`
+  manual, acá y en los riesgos de deploy del PR. Las operaciones no se tocaron.
+- **Restos que el PR dejó** (MINOR): `HEALTH_CHECK` (configuración de
+  `django-health-check`) y `OPENAI_API_KEY` salen de `config/settings.py` —y la variable,
+  de `docs/client/architecture.md` y del aviso de `docs/internal/processes.md`, que pasa
+  de tres variables inertes a dos—, y `config/gevent_patch.py` sale de las
+  `per-file-ignores` de `pyproject.toml`.
+- **`requirements-dev.txt` y `requirements-ci.txt`** (MINOR): marcados `export-ignore`
+  —no son de runtime y no tienen por qué viajar al release ni al GitLab de ECOM; el
+  `RUNTIME` del guard de `publish-main.yml` pide `requirements.txt` y nada más, así que
+  sigue coherente— y auditados por `Pip Audit`, que ahora recorre los tres archivos en
+  invocaciones separadas (para que el rojo diga cuál) con los mismos ignores de
+  `security/excepciones.toml`. Medido: los tres dan «No known vulnerabilities found», así
+  que no hubo que subir ninguna versión ni documentar excepción.
+
+**Verificado en esta ronda:** `manage.py check` OK; `manage.py check` con
+`DJANGO_DEBUG=True`, `RUN_MAIN=true` y `debugpy` bloqueado por el finder, OK; `core` y
+`config` completos (1.118 + 4 tests, 0 fallos); ruff `check` y `format --check` de lo
+tocado, limpios; `actionlint` 0 errores; `requerimientos.py --check` OK. Los tres tests
+nuevos corridos contra `9676927e`: `test_arranca_con_debug_y_run_main_sin_el_paquete` da
+`ModuleNotFoundError: No module named 'debugpy'`, `test_nadie_los_importa` devuelve
+`{'debugpy': ['manage.py']}` y
+`test_el_modulo_endurecido_apaga_la_bandera_al_sacar_la_app` falla con «True is not
+false».
+
+---
+
+# Cambio 197 — Los hallazgos chicos de la deuda: la vista tapada, la carrera del último administrador y tres botones que mentían
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (RBAC: check de «último administrador»; app `dashboard`) · Becas (listado de relevamientos y detalle de convocatoria) · Merenderos (edición de solicitudes) · Usuarios y Roles (alta rápida, ficha del rol) |
+| **Etiquetas** | `#rbac` `#usuarios` `#infra` `#ui` `#performance` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 7 «Deuda», PR 3 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — fichas BEC-25, G1b-09, G1b-10, RED-78 y R0-02, más los seguimientos MINOR de las revisiones de #646 y #649 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Las cinco fichas chicas que quedaban sueltas en la Ola 7, más los seguimientos que los
+revisores de #646 y #649 dejaron anotados como MINOR.
+
+## Alcance acordado
+
+**Entra:** BEC-25 (el nombre del próximo relevamiento que nadie leía), G1b-09 (el check de
+«último administrador» se saltea con dos operaciones simultáneas), G1b-10 (la colisión de
+unicidad en carrera sale como 500), RED-78 (borrar `DashboardView` y su template) y R0-02
+(documentación que nombra una ruta apagada). Más tres correcciones MINOR: el botón «Editar»
+de la ficha del rol propio, el `creado_por` que la edición de una solicitud de merendero no
+sellaba, y la invalidación del cache de `Programa` dentro de la transacción.
+
+**Queda afuera, anotado y con dueño:**
+
+- **El `codigo` del programa como identificador de seguridad editable.** El catálogo de
+  SEC-06 decide qué módulos se ofrecen por `Programa.codigo`, y el paso 1 del wizard
+  —delegable en DISPOSITIVOS— deja cambiarlo. No es regresión (el campo es `unique` y el
+  estado anterior era más permisivo), pero hay que decidir de qué lado cae. Nota en la
+  ficha SEC-07, para la ola siguiente.
+- **Los dos paneles de derivaciones congelados.** Desde que D-L06 ocultó «Derivar a
+  Programa» (Cambio 195), el panel de la home y la solapa del legajo no reciben casos
+  nuevos, y las PENDIENTE que ya están en PRD siguen contando sin forma de cerrarlas. Está
+  dentro del default de la decisión; la salida es la v2 (M6, #390). Nota en LEG-06, para el PM.
+- **`dashboard/selectors.py::metricas_home()`,** que la propuesta de RED-78 pedía: con la
+  vista borrada no hay contadores que llevar. Los que sirven pantallas vivas son los de
+  `inicio_view` y ya viven en `dashboard/utils.py`, que RED-51 reorganizó en el Cambio 194.
+- **`dashboard.utils.contar_legajos()`,** cuyo último llamador era justamente la vista
+  borrada: RED-51 (Ola 4) tiene dos tests escritos sobre que `stats_legajos` agrega
+  inscripciones y el mapa de `dashboard/cache.py` la contempla. Sacarla es de esa ficha.
+
+## Decisiones tomadas
+
+- **El candado del «último administrador» va en los seis caminos, no solo en el toggle.**
+  La ficha proponía el `SELECT … FOR UPDATE` «dentro de la transacción del toggle», pero hay
+  **seis** caminos que pueden dejar al sistema sin administrador: desactivar un usuario,
+  editarle los roles, editar, borrar o desactivar un rol, y el alta masiva por CSV. Los seis
+  lo toman al abrir su transacción, y `asegurar_admin_restante` lo toma si el llamador no lo
+  hizo, para que el check nunca corra del todo sin candado. Si la transacción ya lo tiene no
+  lo vuelve a pedir (ronda 2): la vista de usuarios corre el check una vez por el sistema y
+  otra por cada programa, y repetir el `SELECT … FOR UPDATE` era un viaje a la base por
+  llamada que no agrega ninguna garantía.
+- **El ancla son las filas de `auth_permission`, no las `RolMeta` admin.** Bloquear las
+  `RolMeta` que confieren administración falla justo en el caso que importa: una base cuyo
+  último administrador es superusuario, o un programa sin roles, no tiene ninguna fila que
+  bloquear y el ancla desaparece. Las filas de capacidad las siembra el catálogo, existen
+  siempre, son las mismas para cualquier operación y no cambian al desactivar a nadie.
+- **El candado va antes de escribir, no después.** Es lo que hace que funcione y lo que
+  evita el deadlock, y lo encontró correr el test contra el motor de verdad. La primera
+  versión lo tomaba dentro de `asegurar_admin_restante` —después del `UPDATE`— y hacía
+  además la lectura del check con `FOR UPDATE`, para que trajera la última versión
+  commiteada en vez de la foto de la transacción: contra MariaDB eso da `ERROR 1213`,
+  porque cada transacción ya tiene tomada la fila del usuario que desactiva y pide las del
+  resto, que tiene la otra. Sería además un candado sobre buena parte de `auth_user`, que
+  mueve cualquier login con `update_last_login`. Tomando el ancla primero no hace falta: la
+  segunda transacción espera antes de tomar ninguna fila de usuario, y como un
+  `SELECT … FOR UPDATE` **no** establece la foto de lectura consistente de REPEATABLE READ
+  —la establece la primera lectura *sin* candado—, su primera lectura posterior ya ve lo que
+  la otra commiteó.
+- **`GET_LOCK` se descarta.** La ficha lo ofrecía como alternativa. No existe en SQLite —la
+  suite entera—, no es transaccional (hay que acordarse de soltarlo) y sobrevive a un
+  rollback. El `select_for_update` es un no-op en SQLite, que es inocuo, y es el patrón que
+  el repo ya tiene probado con `core.tests.candados`.
+- **La colisión del alta rápida contesta 409 con el campo.** La ficha dejaba elegir entre
+  error de campo y JSON 409: se hacen las dos cosas, porque el modal usa `data.message` para
+  el aviso y `data.errors` para elegir a qué campo mandar el foco. El campo sale del **nombre
+  de la clave** que informa el motor (MySQL y MariaDB la nombran; SQLite nombra la columna) y
+  cuando no se puede decidir va a `__all__`, para no culpar al equivocado. Del nombre de la
+  clave y no del mensaje entero: ahí también viaja el valor que chocó (ronda 2).
+- **BEC-25 se lleva también el classmethod.** La ficha decía «borrar las dos líneas»; con
+  esas dos fuera, `Relevamiento.proximo_nombre()` no tiene un solo llamador.
+  `proximo_numero()` y `nombre_para()`, que son los que `save()` usa para numerar de verdad,
+  se quedan y tienen su test de control.
+- **El `creado_por` de una solicitud de merendero se sella solo si está vacío y si el POST trae
+  documentación nueva.** La solicitud que ya tiene dueño sigue siendo de ese dueño: la edición
+  no se la apropia. Y la segunda condición (ronda 2) es para que abrir y confirmar el
+  formulario no sea la llave para bajar el archivo que subió otro.
+- **R0-02 tenía un solo texto para corregir.** `docs/client/architecture.md` ya decía
+  `portal:home` y ya aclaraba que `/media/` no está exento: lo arregló el PR de `/media/`
+  (Cambio 188), que tocó ese mismo párrafo. Code-first: la ficha quedó desactualizada.
+
+## Implementación
+
+`DashboardView` era una copia vieja del inicio del backoffice: contadores globales del
+organismo y `LoginRequiredMixin` a secas, sin el gate por capacidad que SEC-14 le puso a
+`inicio_view`. Nunca se servía porque en `config/urls.py` el include de `users.urls` va antes
+que el de `dashboard.urls` y gana el primero que matchea; lo único que la separaba de estar
+viva era el orden de dos líneas, con el comentario «Root paths last» invitando a moverlas.
+Se van el paquete `dashboard/views/` entero, `dashboard/templates/dashboard.html` y el
+`path` de `dashboard:inicio`. Las cinco APIs de `dashboard/api_views` quedan, con un test que
+lo fija. Antes de borrar se verificó que `dashboard:inicio` no lo nombra ningún template,
+vista, estático, cron, entrypoint ni workflow.
+
+`core/rbac.py` estrena `tomar_candado_de_administracion()`, y las seis transacciones que
+pueden dejar sin administrador la llaman como primera sentencia:
+`users/views/admin.py::UserToggleActivoView.post`,
+`users/services/admin.py::UsuariosAdminService.update_user_from_form`,
+`users/services/roles.py::RolesAdminService.actualizar`/`eliminar`/`toggle_activo` y
+`users/management/commands/import_users_from_csv.py`.
+
+`usuario_alta_rapida` envuelve el `create_user_from_form` en un `try/except IntegrityError`.
+`RolDetailView` pasa `puede_editar` al template y la ficha gatea el botón con él.
+`SolicitudMerenderoUpdateView` sella `creado_por` cuando viene en NULL. Y la invalidación del
+cache de `Programa` se agrupa en `_invalidar_al_commitear()`, que difiere los `cache.delete`
+a `transaction.on_commit`; fuera de una transacción Django los ejecuta en el acto, así que el
+wizard y los seeds no cambian de comportamiento.
+
+## Qué cambia para el usuario
+
+La ficha de un rol que el operador tiene asignado deja de ofrecer «Editar» (antes el botón
+estaba y la pantalla de edición le contestaba «no tenés permisos»). El alta rápida, cuando dos
+personas crean el mismo usuario a la vez, dice cuál es el dato repetido en vez de «respuesta
+inesperada del servidor». Quien edita una solicitud de merendero vieja puede abrir después la
+documentación que acaba de subir. Nada más cambia: el resto era código que no se ejecutaba o
+una ventana de carrera de milisegundos.
+
+## Archivos
+
+Borrados: `dashboard/views/home.py`, `dashboard/views/__init__.py`,
+`dashboard/templates/dashboard.html`.
+Editados: `core/rbac.py`, `core/urls.py`, `dashboard/urls.py`, `dashboard/utils.py`,
+`programas/models/__init__.py`, `programas/signals.py`, `programas/views/relevamientos.py`,
+`programas/views/merenderos.py`, `users/views/admin.py`, `users/views/quick_create.py`,
+`users/views/roles.py`, `users/services/admin.py`, `users/services/roles.py`,
+`users/management/commands/import_users_from_csv.py`, `users/templates/rol/rol_detail.html`,
+`CLAUDE.md`, y los tests `core/tests/test_dashboard_redirect.py`,
+`core/tests/test_inicio_legajos_ola5_pr7.py`, `dashboard/tests/test_package_exports.py`,
+`portal/tests/test_portal_apagado.py`, `programas/tests/test_programa_cache.py` y
+`programas/tests/test_aislamiento_modulos.py` (estos tres últimos, por el `on_commit`
+y por el guard nuevo de R0-02).
+Nuevos: `users/tests/test_ola7_pr3.py` y `programas/tests/test_ola7_pr3.py`.
+
+## Base de datos
+
+No requiere migración.
+
+## Validación
+
+`manage.py check` y `check --deploy`: 0 issues propios (los 4 avisos locales son el
+`SECRET_KEY` de prueba, HSTS, SSL y `SIIS_API_URL` vacía). `makemigrations --check
+--dry-run`: sin cambios. Suite de `core`, `users`, `dashboard`, `configuracion`,
+`conversaciones`, `programas`, `legajos` y `portal`: 0 fallos. `--tag performance`: 8/8.
+`--tag mysql` contra `mariadb:10.11` en un contenedor efímero: 51/51 en la ronda 2 (50/50 en
+la primera); la carrera de G1b-09 también contra `mysql:8.0`, 5 corridas limpias por motor, y
+el `EXPLAIN` del candado medido antes y después contra `mysql:8.0`. Los tests nuevos se corrieron primero contra un worktree de
+`origin/development`: **20 de 33 fallan** (los otros 13 son controles que tienen que pasar
+en los dos lados), y los dos de la carrera fallan también contra el motor real con el
+candado apagado. `compile_templates.py --bloques`: 0 errores, 0 bloques sin destino.
+`design_audit.py --ratchet` contra `origin/development`: 0 hallazgos nuevos; `--goldens`: 0;
+`check_design_agent.py --changed`: OK. `collectstatic --clear` con `ENVIRONMENT=prd`
+(`ManifestStaticFilesStorage`): 332 archivos, 1.448 post-procesados, sin errores. ruff
+`check` y `format --check` limpios.
+
+## Puesta en marcha en el servidor
+
+Nada especial: no hay migración ni estado nuevo. La URL `/` no cambia —era y sigue siendo el
+login— y `/dashboard/` sigue redirigiendo a `/inicio/`.
+
+## Pendientes / a definir
+
+- **Para la ola siguiente:** decidir si el `codigo` del programa deja de ser editable después
+  del alta o si el catálogo de capacidades se ancla al `pk` en vez de al código (ficha SEC-07).
+- **Para el PM:** los dos paneles de derivaciones quedan congelados para casos nuevos desde
+  el Cambio 195, y las PENDIENTE que ya están en PRD siguen contando sin forma de cerrarlas
+  (ficha LEG-06). Lo resuelve la v2 de Dispositivos (M6, #390).
+- `dashboard.utils.contar_legajos()` queda sin llamadores de producción: quién se la lleva es
+  decisión de RED-51 (Ola 4).
+- `portal/views/ciudadano_auth.py` y `portal/templates/portal/ciudadano/base_ciudadano.html`
+  todavía nombran `portal:ciudadano_mi_perfil`. No es un 500 latente —esas vistas y ese
+  template quedaron sin ruta con SEC-29 y lo fija `portal/tests/test_portal_apagado.py`—;
+  limpiarlos va con el apagado definitivo del portal.
+
+## Reversión
+
+Revertir el merge alcanza: no hay migración, ni estado nuevo en la base, ni archivos
+generados.
+
+## Historial
+
+### 09/10/2026 — Ronda 3 de la revisión (1 MAJOR y 2 MINOR)
+
+- **Faltaba un séptimo camino, y era el que más deadlockeaba: el alta de un rol.**
+  `RolesAdminService.crear` no tomaba el candado. No puede dejar al sistema sin
+  administradores —crear un rol no le saca nada a nadie—, así que la ronda 2 lo dejó
+  afuera mirando el check; pero el candado no sirve solo para el check, sirve para el
+  **orden de los locks**. El `permissions.set()` del alta escribe
+  `auth_group_permissions` y por la FK InnoDB pide locks sobre las filas de
+  `auth_permission` de las capacidades que tilda, que son las mismas que otra operación
+  está tomando con `FOR UPDATE` a mitad de su recorrido del índice: el ciclo se cierra
+  igual, aunque desde la ronda 2 el candado entre por el índice y no por un escaneo.
+  Medido sobre este árbol con esa única línea apagada, con el hilo de `crear` sumado a
+  `CandadoSinDeadlockTests` (ahora cinco hilos: desactivar usuario, toggle de rol, dos
+  reescrituras de capacidades y el alta): **11, 11 y 14 deadlocks de 20 corridas** en
+  `mariadb:10.11` y **18, 19 y 20 de 20** en `mysql:8.0` —`ERROR 1213`, que ninguna
+  vista atrapa, o sea 500—. Con la línea puesta, **0 de 20 en los dos motores**, dos
+  rondas por motor. De siete rondas sin candado una sola salió verde: no cae siempre,
+  pero cae casi siempre. **No hizo falta el orden estable por `pk`** que proponía la
+  revisión (leer los `pk` sin lock y volver a pedirlos con `pk__in` ordenado): el
+  candado ya entra por `(content_type_id, codename)` y el `set()` recorre el mismo
+  índice, así que las dos sentencias toman las filas en el mismo orden y basta con que
+  el ancla se tome **primero**. Se decidió con las corridas, que es lo que la revisión
+  pedía, y evita un viaje extra a la base en los siete caminos.
+- **El barrido encontró el `/admin/` de Django.** Buscando todo camino vivo que escriba
+  `auth_group_permissions` o desactive usuarios o roles de administración: además de
+  `crear` quedaba el `/admin/`, montado en todos los entornos, donde `auth/group/` tilda
+  capacidades (`filter_horizontal`) y `auth/user/` desactiva una cuenta. Un
+  `CandadoDeAdministracionMixin` sobre los dos `ModelAdmin` toma el candado en
+  `save_model` —que Django corre **antes** de `save_related`, donde se escribe el m2m—,
+  en `delete_model` y en el borrado masivo del listado, que abre su propia transacción
+  porque la acción del changelist no viene en una. El `/admin/` sigue **sin** correr
+  `asegurar_admin_restante`: es la escotilla del superusuario y el único camino que
+  queda para arreglar un sistema que ya se quedó sin administradores; lo que se le pide
+  es entrar en la misma fila, no que se autobloquee. Lo que **no** necesita candado, y
+  queda documentado en el docstring de `tomar_candado_de_administracion`: los seeds que
+  reescriben capacidades (`seed_rbac`, `seed_datos_base`, `seed_becas`) y las
+  migraciones que tildan permisos, porque corren en el arranque bajo el `GET_LOCK` del
+  bootstrap; `desactivar_usuarios_portal`, que solo toca cuentas del grupo `Ciudadanos`
+  —excluye superusuarios y a cualquiera con otro grupo— y no escribe capacidades; y el
+  alta de usuarios (ABM y alta rápida), que escribe `auth_user_groups` pero ninguna fila
+  de `auth_permission` y no puede sacarle la administración a nadie.
+- **El log de la colisión que no se puede atribuir no decía nada.** La ronda 2 sacó el
+  valor del log —ahí viajaba el DNI de una persona— y dejó el campo; pero cuando el
+  campo no se puede decidir, «campo `__all__`» no alcanza para entender qué pasó. Ahora
+  ese caso loguea el **nombre de la clave** que informó el motor (`auth_user.email`), que
+  es el único pedazo del mensaje que no lleva el valor; y si el mensaje no nombra ninguna
+  clave, lo dice. Los dos casos tienen test.
+- **Ficha G1b-09 al día:** decía que `asegurar_admin_restante` vuelve a tomar el candado
+  «por las dudas», que es lo que hacía la ronda 1. Desde la ronda 2 lo toma **solo si la
+  transacción no lo tiene ya**, con el callback de `on_commit` como testigo.
+
+### 09/10/2026 — Ronda 2 de la revisión (1 MAJOR y 3 MINOR)
+
+- **El candado de G1b-09 se trababa contra sí mismo, y no solo en MySQL 8.** El
+  `SELECT … FOR UPDATE` filtraba `auth_permission` **solo por `codename`**, y ahí no hay
+  ningún índice que empiece por esa columna: el `EXPLAIN` de MySQL 8 daba `type: index`,
+  `key: PRIMARY`, **391 filas**, o sea que el candado bloqueaba la tabla entera. El ciclo
+  lo cierra la otra operación que toca `auth_permission`: guardar las capacidades de un
+  rol escribe `auth_group_permissions` y por la FK InnoDB pide un lock sobre la fila de
+  la capacidad, una fila suelta en medio de las 391 que el escaneo recorre. Resultado,
+  `ERROR 1213 Deadlock`, que ninguna vista atrapa: **500**, y el candado puesto para que
+  el sistema no se quede sin administradores pasaba a ser la causa de la caída. Ahora el
+  filtro lleva el `content_type` del modelo ancla —`type: range` sobre el índice único
+  `(content_type_id, codename)`, **4 filas**, siempre las mismas y en el mismo orden— y
+  `asegurar_admin_restante` no vuelve a pedirlo si la transacción ya lo tiene (la marca
+  es el callback que `on_commit` guarda por transacción, y que Django descarta tanto al
+  COMMIT como al ROLLBACK y al ROLLBACK TO SAVEPOINT). **Corrige también la medición de
+  la ronda 1:** con el candado de `development`, `mariadb:10.11` da **15 deadlocks de 20
+  corridas** y `mysql:8.0` entre 7 y 9; lo que pasó es que la carrera de la ronda 1 usó
+  dos desactivaciones, que recorren el índice en el mismo orden y no cierran el ciclo. El
+  test nuevo (`CandadoSinDeadlockTests`, `@tag("mysql")`, 20 corridas de cuatro hilos)
+  deja los dos motores en **0 deadlocks** y en 0 corridas sin administradores, y contra
+  el árbol de antes se pone rojo en 5 de 5 corridas por motor. `_content_type_de_capacidad`
+  resuelve por *natural key* y no con `get_for_model`, porque importar `users.models`
+  desde `core/rbac.py` es un ciclo y `programas.tests.test_arquitectura` lo frena.
+- **La atribución del campo de G1b-10 culpaba al dato que estaba bien.** Buscaba «dni» en
+  el mensaje **entero** del motor, donde también viaja el valor que chocó: el alta del
+  usuario `dnievas` —`Duplicate entry 'dnievas' for key 'auth_user.username'`— mandaba al
+  operador a corregir el DNI y dejaba sin marcar el nombre de usuario, que era el que
+  había que cambiar. Ahora se recorta primero el **nombre de la clave** y recién ahí se la
+  parte en palabras, con las tres formas de nombrarla (MySQL 8, MariaDB y SQLite) fijadas
+  en un test.
+- **Había un DNI en los logs.** El `logger.warning` de la colisión imprimía la excepción
+  completa, o sea `Duplicate entry '30111222' for key 'users_profile.dni'`, en un archivo
+  sin control de acceso. Loguea el campo.
+- **Sellar `creado_por` al editar una solicitud de merendero regalaba la documentación.**
+  Se sellaba en cualquier guardado, así que a cualquiera con `merendero.crear` le
+  alcanzaba con abrir una solicitud sin dueño y apretar «Guardar» para quedarse con
+  permiso de bajar el archivo que había subido otro. Ahora se sella solo si el POST **trae
+  documentación nueva**: lo que se habilita es ver lo propio, no lo que ya estaba.
+
+---
+
+# Cambio 198 — Apagar conversaciones: sin rutas, sin WebSockets de chat y sin superficie en el shell
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (shell del backoffice, context processor de identidad, routing de Channels, presupuestos de performance) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle del ciudadano, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») |
+| **Etiquetas** | `#infra` `#ui` `#rbac` `#performance` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 7 «Deuda», PR 4 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — fichas G1-01 fase 2 y la segunda parte de RED-13 |
+| **Partes afectadas** | Backoffice · WebSockets (Channels/daphne) · CI de performance |
+| **Migración** | No |
+
+## Pedido original
+
+La app `conversaciones` **no está en uso** (decisión del PM, 29-sep-2026). Su chat público
+creaba el legajo de cualquier DNI con el nombre que mandara el cliente y devolvía los datos
+de RENAPER de cualquiera sin login (G1-01 y G1-02). La Ola 0 desmontó esas rutas (Cambio
+101) y el Cambio 111 cerró la última escritura anónima; faltaba la **fase 2**: apagar la app
+entera.
+
+La ficha de G1-01 estimaba la fase 2 en 2 h y **no nombraba** las tres dependencias que el
+resto del sistema tenía con esa app. Eso es RED-13, y es la mitad que va primero.
+
+## Alcance acordado
+
+**Entra, en este orden:**
+
+1. **Desacople (RED-13).** El context processor prestado, el consumer de `ws/alertas/`, la
+   señal que `legajos` tenía sobre un modelo de conversaciones y el bloque del shell.
+2. **Apagado (G1-01 fase 2).** Los dos `include()` de `config/urls.py`, los dos WebSockets
+   del chat, el menú, la card del inicio, la solapa del legajo y la tabla de alertas de
+   conversaciones del dashboard de alertas.
+
+**Queda afuera, y por qué:**
+
+- **Los modelos, las migraciones y las tablas.** Apagar no es borrar: no hay migración en
+  este cambio y ningún dato se toca. Las vistas, los forms, los servicios, los selectores y
+  los templates siguen en el repo sin ruta, igual que el portal ciudadano con SEC-29 (Cambio
+  102). Si el chat vuelve, vuelve con su `include` y su `ready()`.
+- **`ws/alertas/`.** Es el canal de las alertas sensibles del legajo —campana del navbar,
+  `ciudadano.sensible`, ruteo precalculado y ventana de 60 s—, asegurado en G1c-04 y
+  reforzado en el Cambio 179. **Se mudó**, no se apagó.
+- **Las capacidades `conversacion.operar`, `conversacion.configurar` y `conversacion.metricas`.**
+  Siguen en el `CATALOGO` de `core/rbac.py` y tildadas donde lo estén: sacarlas es borrar
+  filas de `auth_permission` y `auth_group_permissions`, que es una decisión de datos y no
+  entra en un apagado. Hoy no habilitan ninguna pantalla.
+- **El CronJob `limpiar_alertas_conversaciones`.** Limpia filas viejas de tablas que siguen
+  existiendo; apagarlo es tocar el manifiesto de despliegue sin ganancia.
+- **`seed_perf` sigue sembrando conversaciones.** Es el banco sintético del CI; sacarlo del
+  seed no cambia ninguna medición ahora que las tres rutas salieron del manifiesto.
+- **La tabla de rutas de `CLAUDE.md` y `docs/client/architecture.md`,** que nombran
+  `/conversaciones/`: son archivos del PR 3 de esta misma ola, abierto en paralelo.
+
+## Decisiones tomadas
+
+- **El desacople va antes que el apagado, y en el mismo PR.** Las tres dependencias tenían
+  tres modos de falla distintos, y dos de ellos no dan error donde se los busca:
+  - `templates/includes/base.html` resolvía **cinco** `{% url %}` de la app en el shell que
+    extiende todo el backoffice. Desmontar las rutas sin tocarlo es `NoReverseMatch`: **500
+    en todas las pantallas a la vez**, no en la de chat.
+  - `conversaciones.context_processors.user_groups` publicaba `user_groups_list`,
+    `user_primary_group`, `user_is_superuser` y `websockets_enabled`, que **no son de esa
+    app**. Borrar esa línea de `settings.py` creyendo que se limpia la app no rompe nada
+    visible: deja `window.isSuperuser` en `false` y los websockets apagados, en silencio.
+  - `legajos/signals/alertas.py` importaba `conversaciones.models.Mensaje` **a nivel de
+    módulo**, y `legajos/apps.py::ready()` importa ese paquete. Sacar `"conversaciones"` de
+    `INSTALLED_APPS` es un `ImportError` en el **arranque**: la app no levanta en el deploy.
+- **El context processor se llama `core.context_processors.identidad_usuario`.** Es lo que
+  pedía RED-13. Publica las cuatro variables del shell más `puede_alertas_sensibles` (la
+  campana). `puede_conversaciones` se fue con la app.
+- **`AlertasConsumer` se muda a `legajos`, con su `routing.py` y su test.** `config/asgi.py`
+  importa `legajos.routing`, que es ahora el único `websocket_urlpatterns` del proyecto.
+  `conversaciones/routing.py` se borró entero: de sus cuatro rutas, tres eran del chat y la
+  otra es esta.
+- **`alerta_mensaje_ciudadano` se muda a `conversaciones/signals/alertas.py`,** donde vive
+  el modelo que lo dispara. No desaparece: queda registrado y sin disparar, porque nada
+  crea `Mensaje`.
+- **De `ConversacionesConfig.ready()` sale `signals.presencia`.** Enganchaba `user_logged_in`
+  y `user_logged_out` —señales de `django.contrib.auth`, que disparan en **todo** login del
+  backoffice— para mantener en cache un registro que solo consumía la asignación automática
+  de conversaciones: un round-trip a Redis por login, para nadie. `signals.alertas` se queda
+  registrado: su `sender` son los dos modelos de la app.
+- **`notification_sound.js` también se borra.** Lo cargaba el shell para **todo** usuario
+  autenticado y sus dos únicos consumidores eran los scripts de chat.
+- **Los tres presupuestos de performance de la app salen de `scripts/perf_budgets.json`,**
+  junto con su `Conversacion` sembrada por worker en `scripts/perf_audit.py`. Con ellos cae
+  la excepción `conversaciones_consulta_duplicada`, que toleraba una duplicada entre dos
+  consultas que ya no existen.
+- **El grupo «Dashboard» del sidebar queda con un solo subítem** («Dashboard Contactos»), y
+  «Mi trabajo de hoy» con un solo feed, por lo que su grilla pasa de dos columnas a una. No
+  se rediseñó nada más: es el resultado de sacar la pieza.
+
+## Implementación
+
+Nadie ve «Conversaciones» en ningún lado. En el sidebar desaparecen «Dashboard
+Conversaciones» y «Cola Conversaciones»; el inicio deja de mostrar la card «Conversaciones
+sin asignar» y su bajada ya no cuenta conversaciones; el detalle del ciudadano pierde la
+solapa «Conversaciones»; el dashboard de alertas pierde la tabla «Historial de Alertas de
+Conversaciones». Las direcciones `/conversaciones/…` y `/api/conversaciones/…` devuelven
+404.
+
+La campana del navbar, su contador, su preview y el WebSocket de alertas del legajo
+funcionan exactamente igual: lo único que cambió de ellos es el módulo donde vive el
+consumer.
+
+## Archivos
+
+Borrados: `conversaciones/routing.py`, `conversaciones/context_processors.py`,
+`core/tests/urls_sin_conversaciones.py` y cinco `static/custom/js/*.js`
+(`alertas_conversaciones_fallback.js`, `alertas_conversaciones_rt.js`,
+`conversaciones_tiempo_real_global.js`, `conversaciones_lista_ws.js`,
+`notification_sound.js`).
+Nuevos: `legajos/consumers.py`, `legajos/routing.py`, `conversaciones/tests/test_apagado.py`.
+Movido: `conversaciones/tests/test_ws_alertas_rbac.py` → `legajos/tests/`.
+Editados: `config/urls.py`, `config/asgi.py`, `config/settings.py`,
+`core/context_processors.py`, `core/middleware.py`, `core/views/public.py`,
+`conversaciones/apps.py`, `conversaciones/consumers.py`, `conversaciones/signals/alertas.py`,
+`legajos/signals/__init__.py`, `legajos/signals/alertas.py`, `legajos/selectors/ciudadanos.py`,
+`legajos/views/alertas.py`, `programas/services/solapas.py`,
+`templates/includes/base.html`, `templates/includes/sidebar/opciones.html`,
+`templates/inicio.html`, `templates/legajos/alertas_dashboard.html`,
+`legajos/templates/legajos/ciudadano_detail.html`, `scripts/perf_audit.py`,
+`scripts/perf_budgets.json`, `static/custom/css/tailwind.css`, tres fichas de `.claude/design/`
+y once módulos de tests.
+
+## Base de datos
+
+Ninguna migración. Las tablas de `conversaciones` quedan como están y la app sigue en
+`INSTALLED_APPS` justamente para no tocarlas.
+
+## Validación
+
+`manage.py check` y `check --deploy`: 0 issues (los 4 avisos de `--deploy` son los de
+siempre, por el entorno local). `makemigrations --check --dry-run`: sin cambios. Suite de
+`core`, `legajos`, `users`, `portal`, `dashboard`, `configuracion`, `conversaciones` y
+`programas`: 0 fallos. Los dos `@unittest.expectedFailure` que la Ola R dejó rojos
+(`core.tests.test_shell_backoffice`) se invirtieron y pasan.
+`compile_templates.py --bloques`: 0 errores, 0 bloques sin destino. `design_audit.py
+--ratchet`: 0 hallazgos nuevos. `--goldens`: 0. `check_design_agent.py --changed` y
+`--limites`: OK. `npm run build:tailwind` con su diff commiteado. `collectstatic` con
+`ENVIRONMENT=prd` (`CompressedManifestStaticFilesStorage`): 327 archivos, 1.423
+post-procesados, manifest escrito, sin 404. ruff `check` y `format --check` limpios.
+
+## Puesta en marcha en el servidor
+
+Nada especial, y nada que hacer en orden. No hay migración, así que el rolling es seguro en
+las dos direcciones: durante el despliegue conviven la release vieja —que sirve
+`/conversaciones/…` y abre `ws/conversaciones/`— y la nueva, que devuelve 404; ninguna
+depende de la otra.
+
+Lo único a mirar es el proceso **daphne**: `config/asgi.py` ahora importa
+`legajos.routing`. Si el ASGI no se reinicia junto con el resto, sigue sirviendo el routing
+viejo —`ws/alertas/` incluido— hasta que se recicle. No hay pérdida de servicio.
+
+## Pendientes / a definir
+
+- **Para el juez:** la tabla de rutas de `CLAUDE.md` y `docs/client/architecture.md` siguen
+  nombrando `/conversaciones/` como superficie viva. Los dos archivos son del PR 3 de esta
+  ola; conviene corregir esa fila al mergear los dos.
+- Las tres capacidades `conversacion.*` quedan en el catálogo sin habilitar nada:
+  retirarlas (con su migración de datos, patrón `users.0017`) es decisión del PM.
+- El CronJob `datanach-limpiar-alertas-conversaciones` sigue corriendo a las 03:30.
+- `core/management/commands/seed_perf.py` sigue sembrando conversaciones y mensajes para el
+  banco del CI, que ya no los mide.
+
+## Reversión
+
+Revertir el merge alcanza: no hay migración, no hay estado nuevo en la base y lo único
+generado es `static/custom/css/tailwind.css`, que se rehace con `npm run build:tailwind`.
+Reactivar solo el chat, sin revertir, pide cuatro cosas: los dos `include()` en
+`config/urls.py`, las tres rutas de chat en un `routing.py` de la app, la línea de
+`signals.presencia` en `ConversacionesConfig.ready()` y volver a enlazar sus pantallas desde
+el shell.
+
+## Historial
+
+Entrada nueva.
+
+**Ronda 2 de revisión (09-10-2026).** Un MAJOR y tres MINOR, más el merge de
+`development`:
+
+- **La sonda HTTP seguía pidiendo las rutas apagadas** (MAJOR). `scripts/perf_http_probe.py`
+  declaraba `conversaciones_lista` y `conversacion_detalle` en `LECTURAS` y armaba
+  `envio_conversacion` contra `/conversaciones/{pk}/responder/`. No es un comentario viejo que
+  quedó: en la fase de lecturas `verify_manifest_metrics` exige que `/performance-api/` haya
+  agregado **cada** `route` del manifiesto, así que una ruta desmontada **aborta la corrida
+  entera** de la sonda, no solo su propio flujo. Salieron las tres, el `--conversacion-pk` que
+  alimentaba el envío y su `fixture`; con ellos cae el único consumidor del cuerpo JSON, así que
+  también salen `json_success`, el parámetro `require_json_success` de `summarize`/`measure_flow`
+  y la rama `json_body`/`csrf_token` de `Session.request`. El precedente es SEC-29, que dio de
+  baja las rutas del portal en los mismos tres archivos. Barridos `scripts/perf_*` y
+  `scripts/perf_mysql/`: lo que queda son las notas de `perf_budgets.json` y `perf_audit.py` que
+  **explican** la baja. **Test nuevo:** `core.tests.test_perf_http_probe`, que carga la sonda e
+  inspecciona su AST —los comentarios que explican el apagado no cuentan como ruta— y exige que
+  los dos manifiestos no estén vacíos, porque con `LECTURAS` vacía el control pasa solo.
+- **El control del detector de imports no usaba el detector** (MINOR).
+  `test_el_detector_sigue_viendo_un_import_plantado` parseaba un `ast` al lado y afirmaba sobre
+  esa copia: un walker roto lo dejaba verde igual. Ahora
+  `_imports_de_conversaciones_a_nivel_de_modulo` recibe la raíz, el control le pasa una carpeta
+  temporal con las dos formas que rompían el arranque (`from conversaciones… import` e
+  `import conversaciones…`) más una tercera diferida que **no** tiene que encontrar, y el helper
+  devuelve también cuántos archivos recorrió: los dos tests fallan si recorre cero, que es el
+  modo en que un barrido sin archivos se ve igual que un `legajos` limpio.
+- **El canon de diseño narraba el cambio en vez de describir el estado** (MINOR, dos lugares).
+  `.claude/design/dominio/becas.md` decía «con dos feeds» y dos renglones después que tenía dos
+  «hasta G1-01 fase 2»; ahora dice que «Mi trabajo de hoy» tiene un solo feed en una grilla de
+  una columna. `.claude/design/shells.md` listaba los cinco JS borrados; ahora nombra el único
+  cliente de tiempo real que el shell carga. La historia vive acá, no en el canon.
+- **Cláusula duplicada en futuro** (MINOR). `.claude/design/componentes/filtros.md` cerraba la
+  línea de `conversaciones/lista.html` con «(fuera de alcance; se apaga con G1-01 fase 2)»
+  además de la marca de pantalla sin ruta que agregó este PR.
+
+**Merge de `development`** (hasta `cbd8e5b6`, Cambio 196): conflicto en
+`docs/internal/requerimientos.md` y en el README de la auditoría, resueltos conservando las dos
+entradas con sus filas de índice y las dos tablas de estado, sin tocar las cuentas de horas.
+`CLAUDE.md` y `docs/client/architecture.md` siguen nombrando `/conversaciones/` y **no** se
+tocaron: son del PR 3 de esta ola (#651) y `development` todavía no los tiene.
+
+# Cambio 199 — Notificaciones: campañas de correo masivo con lista en Excel y cuerpo en HTML
 
 🟢 **HECHO — 08/10/2026** · falta probar el envío real contra el SMTP de ECOM en testing
 
@@ -28823,7 +30360,7 @@ que lleve esas 100 horas»).
 | **Fecha del pedido** | 08/10/2026 |
 | **Issue / épica** | sin issue (análisis 007, estado Definido) |
 | **Partes afectadas** | Backoffice · Servidor (hilo de envío) · Infra/ECOM (SMTP, `NOTIF_LOTE`, `NOTIF_PAUSA_SEG`) |
-| **Migración** | `notificaciones.0001` (cuatro tablas nuevas), `notificaciones.0002` (`Campana.corrida`, nullable; estado EN_CURSO), `users.0029` (capacidades, sin DDL) y `users.0030` (rol «Comunicaciones», datos con reversa) |
+| **Migración** | `notificaciones.0001` (cuatro tablas nuevas), `notificaciones.0002` (`Campana.corrida`, nullable; estado EN_CURSO), `users.0034` (capacidades, sin DDL) y `users.0035` (rol «Comunicaciones», datos con reversa) |
 
 ## Pedido original
 
@@ -28848,8 +30385,10 @@ propio, destinatarios desde legajos, otros canales).
   (módulo global, sin alcance de programa): el envío no se deshace y se le puede dar a menos gente.
   Las pantallas sin la capacidad redirigen con aviso, como el resto; las acciones POST responden
   **403** (el botón no se dibuja, así que el POST es armado a mano).
-- **Rol «Comunicaciones»** con las tres, por migración (`users.0030`, corre en todos los ambientes)
-  y por `seed_rbac` (base nueva). Se siembra solo al crearlo. El «Administrador» recibe las tres en
+- **Rol «Comunicaciones»** con las tres, por migración (`users.0035`, corre en todos los ambientes)
+  y por `seed_rbac` (base nueva). Lleva clave estable `notificaciones.comunicaciones`
+  (`RolMeta.clave`, OPS-06 fase 2 del Cambio 193): el arranque lo reconoce aunque lo renombren
+  desde el ABM, y los roles con clave pasan de doce a trece. Se siembra solo al crearlo. El «Administrador» recibe las tres en
   la misma migración porque es protegido y la pantalla de Roles no lo deja editar.
 - **La vista previa no inyecta el HTML en el backoffice**: va en un `iframe sandbox` vacío cuyo
   `src` es una vista propia que sirve el HTML **saneado** con su CSP (`default-src 'none'`, solo
@@ -28943,7 +30482,7 @@ propio, destinatarios desde legajos, otros canales).
   `.env.qa.example`, `requirements.txt` (`nh3==0.3.7`).
 - `core/rbac.py` (módulo `notificaciones` en el `CATALOGO`), `core/rutas_media.py` y
   `core/views/media.py` (prefijo y regla de `/media/`).
-- `users/migrations/0029_capacidades_notificaciones.py`, `users/migrations/0030_rol_comunicaciones.py`,
+- `users/migrations/0034_capacidades_notificaciones.py`, `users/migrations/0035_rol_comunicaciones.py`,
   `users/management/commands/seed_rbac.py`, `users/tests/test_menu_rbac.py`.
 - `templates/includes/sidebar/opciones.html`, `tailwind.config.js` (la app en `APPS`),
   `static/custom/css/tailwind.css`, `.claude/design/shells.md`.
@@ -28952,8 +30491,8 @@ propio, destinatarios desde legajos, otros canales).
 
 `notificaciones.0002` suma `Campana.corrida` (`null=True`) y el estado EN_CURSO del destinatario (solo `choices`). `notificaciones.0001` crea `Campana`, `Destinatario` (único por campaña y correo, índices por
 campaña+estado y estado+fecha de envío), `Descartado` y `PruebaEnviada`: tablas nuevas, sin tocar
-datos existentes. Sin `UUIDField`. `users.0029` es solo estado (los permisos los crea
-`post_migrate`) y `users.0030` siembra el rol y los permisos del Administrador, con reversa real.
+datos existentes. Sin `UUIDField`. `users.0034` es solo estado (los permisos los crea
+`post_migrate`) y `users.0035` siembra el rol y los permisos del Administrador, con reversa real.
 
 ## Validación
 
@@ -28980,10 +30519,18 @@ desde Administración › Roles.
 ## Reversión
 
 1. Revertir el código (la app deja de estar en `INSTALLED_APPS` y en las URLs).
-2. `migrate users 0028` saca las tres capacidades de todos los roles y borra el rol
+2. `migrate users 0033` saca las tres capacidades de todos los roles y borra el rol
    «Comunicaciones» si nadie lo tiene asignado.
 3. `migrate notificaciones zero` borra las cuatro tablas: **se pierden las campañas, sus
    destinatarios y el registro de pruebas**. Los archivos de `media/notificaciones/` quedan en el
    disco y se borran a mano.
+
+## Historial
+
+**09/10/2026 — merge con `development` antes de mergear el PR #647.** El número 192 que tenía esta
+entrada lo tomó el Cambio 192 de `development` (#645): esta pasó a ser la **199**. Las migraciones
+de `users` se renumeraron a `0034_capacidades_notificaciones` y `0035_rol_comunicaciones` para
+colgar de la `0033` (la `0029`-`0033` de `development` agregaron `RolMeta.clave` y retiraron
+`ciudadano.eliminar`), y el rol pasó a sembrarse con `asegurar_rol_sembrado` y clave estable.
 
 ---

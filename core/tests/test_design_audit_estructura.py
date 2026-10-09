@@ -491,12 +491,11 @@ class CssCompiladoAlDiaTests(SimpleTestCase):
         "bg-gray-900",
         "hover:bg-gray-50",
         # Bootstrap/AdminLTE heredado, con la forma justa para parecer utilidad.
-        # FE-20 (Cambio 167) se llevó `text-warning`, que solo vivía en `404.html`;
-        # las otras cinco siguen con consumidores fuera de su alcance (FE-14).
-        "bg-info",
+        # FE-20 (Cambio 167) se llevó `text-warning`, que solo vivía en `404.html`.
+        # FE-14 y OPS-10 (Cambio 195) se llevaron `bg-info`, `text-danger` y
+        # `text-info`: sus últimos consumidores eran los 29 JS huérfanos y el bloque
+        # de «Pruebas de Fase 2» de `core/performance_dashboard.html`.
         "content-header",
-        "text-danger",
-        "text-info",
         "text-success",
         # Definidas a mano en el `<style>` de un shell o en CSS propio, no por Tailwind.
         "animate-fadeInUp",

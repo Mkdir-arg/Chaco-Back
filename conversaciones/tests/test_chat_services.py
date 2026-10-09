@@ -1,12 +1,8 @@
-from pathlib import Path
-
-from django.conf import settings
-from django.contrib.auth.models import Group, Permission, User
+from django.contrib.auth.models import Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
-from django.test import Client, TestCase, override_settings
+from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
-from django.urls import reverse
 
 from conversaciones.forms.chat import MensajeConversacionForm
 from conversaciones.models import Conversacion, HistorialAlertaConversacion, Mensaje
@@ -120,121 +116,13 @@ class ChatServicesTests(TestCase):
         self.assertTrue(queryset.ordered)
 
 
-class ConversacionesViewsContractTests(TestCase):
-    def setUp(self):
-        self.client = Client(enforce_csrf_checks=True)
-        self.operador = User.objects.create_user(
-            username="super-chat",
-            password="secret",
-            is_superuser=True,
-            is_staff=True,
-        )
-
-    def _csrf_headers(self):
-        return {"HTTP_X_CSRFTOKEN": self.client.cookies["csrftoken"].value}
-
-    # El contrato de `conversaciones:evaluar` se retiró con la ruta: era la última
-    # escritura anónima de la app (R0-01, auditoría oct-2026). Que ya no exista lo
-    # cubre `conversaciones/tests/test_public.py`.
-
-    def test_enviar_mensaje_operador_requiere_csrf_y_devuelve_contrato(self):
-        conversacion = Conversacion.objects.create(tipo="anonima", prioridad="normal", estado="activa")
-        url = reverse("conversaciones:enviar_mensaje_operador", args=[conversacion.id])
-
-        self.client.force_login(self.operador)
-        self.client.get(reverse("conversaciones:detalle", args=[conversacion.id]))
-        forbidden = self.client.post(
-            url,
-            data='{"mensaje":"hola"}',
-            content_type="application/json",
-        )
-        allowed = self.client.post(
-            url,
-            data='{"mensaje":"hola"}',
-            content_type="application/json",
-            **self._csrf_headers(),
-        )
-
-        payload = allowed.json()
-        conversacion.refresh_from_db()
-        self.assertEqual(forbidden.status_code, 403)
-        self.assertEqual(allowed.status_code, 200)
-        self.assertTrue(payload["success"])
-        self.assertEqual(payload["mensaje"]["contenido"], "hola")
-        self.assertEqual(conversacion.operador_asignado, self.operador)
-
-    @override_settings(WEBSOCKETS_ENABLED=True)
-    def test_lista_renderiza_urls_para_websocket_runtime(self):
-        group = Group.objects.create(name="Conversaciones")
-        _conceder_conversacion_operar(group)
-        operador = User.objects.create_user(username="operador-lista", password="secret")
-        operador.groups.add(group)
-
-        self.client.force_login(operador)
-        response = self.client.get(reverse("conversaciones:lista"))
-
-        self.assertEqual(response.status_code, 200)
-        html = response.content.decode()
-        self.assertIn('data-detail-api-url-template="/conversaciones/api/conversacion/0/"', html)
-        self.assertIn('data-detail-url-template="/conversaciones/0/"', html)
-        self.assertIn('data-close-url-template="/conversaciones/0/cerrar/"', html)
-        self.assertIn('data-list-ws-path="/ws/conversaciones/"', html)
-        self.assertIn("conversaciones_lista_ws.js", html)
-        self.assertIn("/static/custom/css/tailwind.css", html)
-        self.assertNotIn("cdn.tailwindcss.com", html)
-
-    @override_settings(WEBSOCKETS_ENABLED=True)
-    def test_detalle_renderiza_path_websocket_desde_template(self):
-        group = Group.objects.create(name="Conversaciones")
-        _conceder_conversacion_operar(group)
-        operador = User.objects.create_user(username="operador-detalle", password="secret")
-        operador.groups.add(group)
-        conversacion = Conversacion.objects.create(
-            tipo="anonima",
-            prioridad="normal",
-            estado="activa",
-            operador_asignado=operador,
-        )
-
-        self.client.force_login(operador)
-        response = self.client.get(reverse("conversaciones:detalle", args=[conversacion.id]))
-
-        self.assertEqual(response.status_code, 200)
-        html = response.content.decode()
-        self.assertIn('data-ws-path-template="/ws/conversaciones/0/"', html)
-        self.assertNotIn("conversaciones_lista_ws.js", html)
-
-    def test_lista_no_expone_path_websocket_si_runtime_no_lo_soporta(self):
-        group = Group.objects.create(name="Conversaciones")
-        _conceder_conversacion_operar(group)
-        operador = User.objects.create_user(username="operador-lista-local", password="secret")
-        operador.groups.add(group)
-
-        self.client.force_login(operador)
-        response = self.client.get(reverse("conversaciones:lista"))
-
-        self.assertEqual(response.status_code, 200)
-        html = response.content.decode()
-        self.assertIn("websocket_disable.js", html)
-        self.assertIn('data-list-ws-path=""', html)
-
-    def test_http_a_endpoint_websocket_devuelve_upgrade_required(self):
-        response = self.client.get("/ws/conversaciones/")
-
-        self.assertEqual(response.status_code, 426)
-        self.assertIn("requires an ASGI server", response.content.decode())
-
-
-class NotificadorGlobalConversacionesPerformanceTests(TestCase):
-    def test_pausa_el_polling_en_pestanas_ocultas_y_cancela_la_solicitud_activa(self):
-        script = Path(settings.BASE_DIR, "static", "custom", "js", "conversaciones_tiempo_real_global.js").read_text(
-            encoding="utf-8"
-        )
-
-        self.assertIn("document.visibilityState !== 'hidden'", script)
-        self.assertIn("document.addEventListener('visibilitychange'", script)
-        self.assertIn("this.controladorSolicitud?.abort()", script)
-        self.assertIn("signal: controlador.signal", script)
+# G1-01 fase 2: acá vivían `ConversacionesViewsContractTests` (contrato de
+# `enviar_mensaje_operador`, URLs de la lista y el detalle, el 426 de
+# `/ws/conversaciones/`) y `NotificadorGlobalConversacionesPerformanceTests` (el
+# polling de `conversaciones_tiempo_real_global.js`). Las rutas, los WS y el JS se
+# apagaron; lo que queda medido es que ya no existen, en
+# `conversaciones/tests/test_apagado.py`. Los servicios y los selectores de abajo
+# siguen probados: son lo que habría que reactivar si el chat vuelve.
 
 
 class ListaConversacionesConsultasTests(TestCase):

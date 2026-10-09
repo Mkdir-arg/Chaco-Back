@@ -21,18 +21,18 @@ exige que coincidan).
 | PERF-11 | La foto `definicion` en cada caso (88 % de los bytes) | MEDIA (estructural) | CONF. medido | 7 | L | ⬜ |
 | PERF-20 | `generar_alertas` recorre todos los ciudadanos activos cada hora | MEDIA | CONF. medido | 4 | S | ✅ |
 | G1b-11 | Export del dashboard: un `JSON_EXTRACT` por pregunta sobre todo el recorte | MEDIA | PLAUSIBLE | 4 | M | ✅ |
-| G1c-09 | Admin: fichas de Formulario y Derivación que crecen con la tabla | MEDIA | CONF. test | 4 | S | ⬜ |
+| G1c-09 | Admin: fichas de Formulario y Derivación que crecen con la tabla | MEDIA | CONF. test | 4 | S | ✅ |
 | PERF-06 | `validar_casos_siis` trae todo con JSON en una consulta | BAJA | CONF. código | 4 | S | ✅ |
-| PERF-08 | `CONN_MAX_AGE = 60` bajo daphne no reutiliza conexiones | BAJA | CONF. ajustado (sonda) | 4 | S | ⬜ |
-| PERF-10 | Redis compartido (sesiones + cache, `allkeys-lru`) y sesión por visita pública | BAJA | CONF. ajustado | 4 | S | ⬜ |
-| PERF-12 | `COUNT(*)` del cupo del link | BAJA | CONF. ajustado | 4 | — (medir) | ⬜ |
-| PERF-13 | Bandeja filtrada por estado raro sin índice combinado | BAJA | PLAUSIBLE | 4 | S (medir) | ⬜ |
-| PERF-15 | Conteos de padrón en cada detalle | BAJA | CONF. código | 4 | S (medir) | ⬜ |
+| PERF-08 | `CONN_MAX_AGE = 60` bajo daphne no reutiliza conexiones | BAJA | CONF. ajustado (sonda) | 4 | S | ✅ |
+| PERF-10 | Redis compartido (sesiones + cache, `allkeys-lru`) y sesión por visita pública | BAJA | CONF. ajustado | 4 | S | ✅ |
+| PERF-12 | `COUNT(*)` del cupo del link | BAJA | CONF. ajustado | 4 | — (medir) | ✅ |
+| PERF-13 | Bandeja filtrada por estado raro sin índice combinado | BAJA | PLAUSIBLE | 4 | S (medir) | ✅ |
+| PERF-15 | Conteos de padrón en cada detalle | BAJA | CONF. código | 4 | S (medir) | ✅ |
 | PERF-16 | Señal de `Ciudadano`: 4 DEL de Redis por save | BAJA | CONF. medido | 4 | S | ✅ |
 | PERF-17 | Listados operativos sin paginar (Dispositivos/Merenderos/convocatorias) | BAJA | CONF. código | v2 (criterio) | S | ⬜ |
 | PERF-18 | Ocupación de Dispositivos con `Count(distinct)` sobre camas × admisiones | BAJA | CONF. código | v2 (criterio) | S | ⬜ |
 | PERF-19 | «Último intento» sin índice y subconsulta evaluada dos veces | BAJA | CONF. ajustado | 4 | S | ✅ |
-| G1c-11 | Admin: N+1 en listados | BAJA | CONF. lectura | 4 | S | ⬜ |
+| G1c-11 | Admin: N+1 en listados | BAJA | CONF. lectura | 4 | S | ✅ |
 | G3-03 | `alertas_websocket.js` cargado para todos, con 5 reintentos inútiles | BAJA | CONF. lectura | 2 | S | ✅ |
 
 Refutado: **A4-15 / PERF-14** (GZip sobre xlsx): ver README §8.
@@ -301,6 +301,29 @@ a **69 ms**.
 - **Propuesta:** `raw_id_fields` (o `autocomplete_fields` con `search_fields`) en `FormularioAdmin` (`ciudadano`, `apoderado_ciudadano`, `duplicado_de`, `created_by`, `relevamiento`), `InscripcionProgramaAdmin` (`ciudadano`, `responsable`), `DerivacionProgramaAdmin` (`ciudadano`, `inscripcion_creada`, `derivado_por`, `respondido_por`), `ListaEsperaAdmin` (`formulario`), `VinculoFamiliarAdmin`, `HistorialContactoAdmin` (`programas/admin.py:131`, `:298-307`).
 - **Tests:** el de la PoC con tope fijo (`assertNumQueries` igual con 5 y con 35 casos).
 
+**Resolución:** ✅ Resuelto en el PR 7 de la Ola 4 (Cambio 192), 08-oct-2026 — `raw_id_fields` en las seis fichas que
+la propuesta nombra: `FormularioAdmin` (`relevamiento`, `ciudadano`, `duplicado_de`, `apoderado_ciudadano`,
+`created_by`), `InscripcionProgramaAdmin` (`ciudadano`, `responsable`), `DerivacionProgramaAdmin` (`ciudadano`,
+`inscripcion_creada`, `derivado_por`, `respondido_por`), `ListaEsperaAdmin` (`formulario`), `VinculoFamiliarAdmin` (los
+dos ciudadanos) y `HistorialContactoAdmin` (`legajo`, `profesional`). `programa`, `segmento` y `programa_origen`/
+`programa_destino` quedan en combo a propósito: son tablas de decenas de filas. Las seis pantallas pasan de crecer con
+la tabla a costar **lo mismo con 5 que con 35 filas**, medido con `CaptureQueriesContext`. Nadie gana ni pierde acceso:
+`raw_id_fields` cambia el widget, no el `ModelForm` ni los permisos, y hay tests que lo afirman para las nueve pantallas
+tocadas (anónimo, `is_staff` sin permiso, `is_staff` con `view_*`, y los cuatro modelos de DAT-02 que siguen sin poder
+borrarse).
+**Hallazgo nuevo, encontrado por el test:** `/admin/programas/inscripcionprograma/add/` y su ficha de edición
+respondían **500**. `fecha_inscripcion` es `editable=False` en el modelo y estaba en los `fieldsets` sin ser de solo
+lectura: Django levanta `FieldError: 'fecha_inscripcion' cannot be specified for InscripcionPrograma model form as it
+is a non-editable field`. Se arregla sumándola a `readonly_fields` —sigue mostrándose, en el mismo bloque «Fechas»—.
+No tenía ficha propia: el admin no estaba en ningún test hasta ahora.
+**Test permanente:** `programas.tests.test_admin_performance.FichasQueNoCrecenConLaTablaTests`
+(`test_la_ficha_de_un_caso_no_crece_con_la_cantidad_de_casos`,
+`test_el_alta_de_una_derivacion_no_crece_con_las_inscripciones`, `test_el_alta_de_un_caso_no_crece_con_la_tabla`,
+`test_el_alta_de_una_inscripcion_no_crece_con_el_padron`, `test_el_alta_en_lista_de_espera_no_crece_con_los_casos` y
+`test_las_fk_grandes_de_cada_ficha_estan_en_raw_id_fields`),
+`programas.tests.test_admin_performance.NadieGanaNiPierdeAccesoAlAdminTests` y
+`legajos.tests.test_admin_performance.FichasDeLegajosTests`.
+
 ## BAJA
 
 ### PERF-06 · `validar_casos_siis` trae todos los casos con sus JSON en una consulta
@@ -324,24 +347,142 @@ contra ECOM muere por `read_timeout` a los 10 s— a **11 sentencias y 431 ms**.
 **Severidad:** BAJA (baja desde MEDIA) · **Estado:** CONFIRMADO-AJUSTADO (sonda `poc/perf_harness/asgi_conn_probe.py`: 200 requests → 200 hilos y 200 conexiones nuevas, ninguna reutilizada; 9 quedan abiertas hasta el GC cíclico; con 0 → 0) · **Origen:** A4-09 · **Ola:** 4 · **Esfuerzo:** S
 - **Propuesta:** `config/settings.py:295`: `"CONN_MAX_AGE": 0 if os.environ.get("APP_RUNTIME") == "daphne" else 60`. Reutilizar de verdad exige WSGI (gunicorn), decisión de despliegue (`docker/k8s/README.md:61`). Medir en ECOM `SHOW STATUS LIKE 'Threads_connected'` antes y después.
 
+**Resolución:** ✅ Resuelto en el PR 6 de la Ola 4 (Cambio 192), 08-oct-2026 — la propuesta tal cual. `APP_RUNTIME` se
+lee una vez al principio de `config/settings.py` (hasta ahora se leía suelto, solo para `WEBSOCKETS_ENABLED`) y
+`CONN_MAX_AGE` vale **0 bajo daphne y 60 en todo lo demás**. icore corre `APP_RUNTIME=gunicorn` en el contenedor `web`
+—ahí los hilos sí se reusan y el minuto sirve— y `daphne` en el de websockets, que es el que acumulaba conexiones; el
+dev local (`runserver`, el default del entrypoint) no cambia. **Medición en ECOM pendiente del PM** (`SHOW STATUS LIKE
+'Threads_connected'` antes y después): es la única parte de la ficha que no se puede correr desde acá.
+**No es ganancia pura: en los consumers el minuto sí se reusaba** (seguimiento MINOR de la revisión de #645, Ola 4
+PR 9). La sonda midió **HTTP** bajo ASGI, donde `django/core/handlers/asgi.py` abre un `ThreadSensitiveContext` por
+request —hilo nuevo, conexión que nunca se reusa—; Channels **no** abre ese contexto, así que sus consumers caen en el
+`single_thread_executor` global de `asgiref` y ahí la conexión persistente sí servía. Con `CONN_MAX_AGE=0` cada
+`database_sync_to_async` del contenedor daphne abre y cierra una conexión (`close_old_connections` →
+`close_if_unusable_or_obsolete` con el `close_at` ya vencido). El canje se acepta igual: conversaciones está sin uso
+(29-sep-2026) y el handshake de MySQL son milisegundos, contra las conexiones huérfanas que el `web` acumulaba. Si el
+chat vuelve a tener tráfico, la decisión se revisa.
+**Test permanente:** `core.tests.test_settings_entorno_y_timeouts.ConexionPersistenteSegunElRuntimeTests`
+(`test_bajo_daphne_las_conexiones_no_se_guardan`, `test_bajo_gunicorn_se_conserva_el_minuto` y
+`test_sin_app_runtime_declarado_se_conserva_el_minuto`), que arranca Django en un subproceso con la variable puesta:
+`settings.py` lee el entorno una sola vez, al importarse, y es justo esa derivación la que se verifica.
+
 ### PERF-10 · Redis compartido entre sesiones y cache con `allkeys-lru`; sesión de 24 h por visita del link público
 **Severidad:** BAJA (baja desde MEDIA: llenar 350 MB requiere 350-700 mil visitas únicas en 24 h) · **Estado:** CONFIRMADO-AJUSTADO · **Origen:** A4-11, A8-11 (= OPS-09) · **Ola:** 4 · **Esfuerzo:** S · **Decisión:** coordinación ECOM (config de su Redis)
 - **Ubicación:** `docker-compose.prod.yml:24` (VM: `allkeys-lru 350mb`); `config/settings.py:305-340` (`default` y `sessions` con el mismo `REDIS_URL`; channel layer también, `:381-385`).
 - **Propuesta:** `sessions` en otra DB de Redis (`REDIS_SESSIONS_DB`, default 2) con `volatile-lru` o `noeviction`, o `cached_db`; esto además protege las sesiones de un `cache.clear()` (G1c-12). **No** usar `set_expiry(3600)` en el paso 1 del link (contradice `portal/views/inscripcion.py:193-196`: «acortar la sesión entera hacía perder el paso 2»); alternativa compatible: `pregunta_captcha` no crea sesión en el GET si no existe `clave_sesion(relevamiento)` y el desafío se genera en el POST, o `set_expiry(3600)` solo mientras la sesión tenga únicamente las claves del captcha, restaurando `SESSION_COOKIE_AGE` al pasar el paso 1.
 
+**Resolución:** ✅ Resuelto en el PR 6 de la Ola 4 (Cambio 192), 08-oct-2026 — las dos mitades, con la **segunda**
+alternativa compatible de la ficha (la primera no se puede: con el captcha aritmético el GET tiene que mostrar la
+pregunta, y mostrarla sin guardarla deja el POST sin contra qué validar).
+1. **Base de Redis separable, preparada y apagada.** `REDIS_SESSIONS_DB` manda el alias `sessions` a otra base; sin la
+   variable, su `LOCATION` es **exactamente** `REDIS_URL`, que es lo que hace hoy. La URL se reescribe con
+   `urlsplit`/`urlunsplit`, así que conserva esquema, credenciales, host, puerto y querystring de la que entregue ECOM
+   (`rediss://usuario:clave@host:6380/1?ssl_cert_reqs=none` → `…/2?ssl_cert_reqs=none`). Queda apagada porque el Redis
+   de ECOM no es nuestro (**H-06**) y porque mover la base con sesiones vivas manda al login a todo el que esté
+   adentro: va coordinado, en una ventana. **Lo que esto no arregla, y hay que decirlo:** `maxmemory` es del servidor y
+   no de la base, así que separar no protege de la evicción —para eso hacen falta la política o la instancia aparte que
+   se le piden a ECOM—. Lo que sí protege, y era la mitad de G1c-12, es el `cache.clear()`: en django_redis es un
+   FLUSHDB, y con las bases separadas deja de desloguear a todo el mundo.
+2. **La visita que no pasa el paso 1 vive una hora, no un día.** `acotar_sesion_anonima` baja la vigencia a
+   `INSCRIPCION_SESION_ANONIMA_SEGUNDOS` (3.600) **solo** mientras la sesión no tiene nada más que las dos claves del
+   captcha, y `restaurar_vigencia_sesion` la devuelve al default apenas el paso 1 guarda la identificación: el paso 2 y
+   sus adjuntos no se pueden perder, que es lo que el Cambio 91 prohíbe. Quien ya pasó el paso 1 de otro relevamiento
+   conserva sus 24 h, porque la regla mira el contenido de la sesión y no la pantalla. Medido en el banco MariaDB
+   10.11: el paso 1 del link sigue costando **6 consultas** (no agrega ninguna).
+**Decisión del PM / ECOM (H-06):** qué política de evicción tiene su Redis y si acepta una base aparte o una instancia
+para sesiones. Hasta que conteste, la variable queda sin definir y no cambia nada.
+**Test permanente:** `core.tests.test_settings_entorno_y_timeouts.BaseDeRedisDeLasSesionesTests`
+(`test_sin_la_variable_las_sesiones_siguen_donde_estaban`, `test_con_la_variable_solo_cambia_la_base` y
+`test_conserva_credenciales_y_tls_de_la_url`) y
+`portal.tests.test_inscripcion_sesion_anonima.SesionAnonimaDelLinkPublicoTests`
+(`test_la_visita_que_solo_mira_deja_una_sesion_de_una_hora`,
+`test_pasar_el_paso_1_le_devuelve_la_vigencia_completa`,
+`test_un_captcha_nuevo_no_vuelve_a_acortar_una_sesion_con_identificacion` y
+`test_el_intento_fallido_sigue_siendo_una_visita_anonima`).
+
 ### PERF-12 · `COUNT(*)` del cupo del link público
 **Severidad:** BAJA · **Estado:** CONFIRMADO-AJUSTADO (el paso 1 GET hace 6 consultas, una `COUNT(*) … WHERE relevamiento_id = X`; se repite bajo el lock en el envío) · **Origen:** A4-13 · **Ola:** 4 · **Esfuerzo:** — (sin cambio)
 - **Decisión vigente:** el Cambio 91 decidió conservar ese `count` bajo el lock, por índice (pocos ms con 40k). **No** denormalizar salvo que el banco muestre > 20 ms con 40k casos.
+
+**Resolución:** ✅ Cerrada **sin cambio de código** en el PR 6-8 de la Ola 4 (Cambio 192), 08-oct-2026 — **medida, no
+alcanza el umbral**. En el banco MariaDB 10.11 con las `OPTIONS` de producción, el relevamiento público llevado a
+**40.000 casos**, `SELECT COUNT(*) FROM programas_formulario WHERE relevamiento_id = X` tarda **7,0-8,4 ms** (cuatro
+corridas de 40-60 repeticiones cada una; con 20.000 casos eran 4,2 ms, o sea que escala lineal como corresponde a un
+`ref` sobre índice). El `EXPLAIN` lo resuelve con `key=uniq_formulario_numero_relevamiento`, `ref=const` y
+**`Using index`**: no baja a la fila. El criterio del Cambio 91 era «no denormalizar salvo > 20 ms con 40k»: con 40k
+está a menos de la mitad, así que el `count` se queda donde está, también bajo el lock. La forma de medirlo quedó en
+`scripts/perf_mysql/medir_consultas_borde.py`, que captura el SQL corriendo la property real (`cupo_utilizado`) en vez
+de transcribirlo.
+**Test permanente:** `programas.tests.test_mediciones_banco_ola4.CupoDelLinkPublicoTests.test_el_count_del_cupo_filtra_solo_por_relevamiento`
+(y `test_el_cupo_anotado_no_vuelve_a_contar`). No hubo cambio de comportamiento que proteger, pero sí una **premisa**:
+los 7 ms valen porque el `count` filtra por `relevamiento_id` **y nada más**, que es lo que lo deja en `ref` sobre
+índice con `Using index`. Sumarle una condición —un estado, una fecha— lo saca del índice y la medición deja de aplicar;
+el test se pone rojo ahí.
 
 ### PERF-13 · Bandeja de personas filtrada por un estado raro sin índice que combine estado y orden
 **Severidad:** BAJA · **Estado:** PLAUSIBLE / NO-MEDIDO · **Origen:** A4-14 · **Ola:** 4 · **Esfuerzo:** S (medir; índice solo si el plan lo pide)
 - **Ubicación:** `programas/views/revision.py:398-422` (`relevamiento_id IN (...)` + `estado = X` + `ORDER BY creado DESC, pk DESC`); índices `programas/models/__init__.py:2629-2645`.
 - **Propuesta:** **medir antes de migrar** (Cambio 66): `EXPLAIN ANALYZE` de `/becas/revision/?estado=BAJA&page=10` en el banco. Si hace falta: `models.Index(fields=["estado", "creado", "relevamiento"], name="prog_formulario_estado_creado_idx")` (online en MariaDB, `ALGORITHM=INPLACE, LOCK=NONE`; segundos con 40-100k filas).
 
+**Resolución:** ✅ Cerrada **sin índice** en el PR 6-8 de la Ola 4 (Cambio 192), 08-oct-2026 — **medida, y el plan no lo
+pide**. Banco MariaDB 10.11, 40.000 casos en el relevamiento público, 400 en `BAJA` (1 %, el «estado raro» de la ficha),
+`/becas/revision/?estado=BAJA&page=10`:
+- **El estado raro es el caso barato, no el caro.** El `EXPLAIN` arranca en
+  `key=programas_f_estado_e0feb6_idx` (el índice de `estado`), `rows=400`: el recorte llega a las 400 filas exactas y el
+  `Using filesort` ordena **esas 400**. La página tarda **2,4-4,9 ms** y su `COUNT` **2,2-3,2 ms**.
+- **El índice se probó igual, en dos rondas A/B pareadas** (con y sin índice, `ANALYZE TABLE` antes de cada ronda para
+  que las estadísticas no fueran la variable escondida — el primer intento sin eso dio una mejora de 10× que era solo
+  estadísticas frescas). Resultado: BAJA página 10 3,82 → 2,69 y 3,25 → 4,87 ms; su `COUNT` 2,62 → 2,61 y 3,23 → 2,79;
+  `APROBADO` página 10 6,20 → 16,57 y 8,78 → 7,99; `APROBADO` página 400 46,67 → 61,35 y 49,55 → 73,01. **Ninguna
+  mejora reproducible, y la página profunda queda peor en las dos rondas.** En el caso caro MariaDB **ni siquiera lo
+  elige**: sigue con `prog_formulario_creado_idx`. No entra: sobre `programas_formulario` cada índice se paga en cada
+  alta del link público y de la app de campo.
+- **Lo que la ficha no vio, y es lo que de verdad cuesta:** el filtro por un estado **común**. `APROBADO` (17.864 de
+  40.000) página 10 cuesta **6-17 ms** y página 400 **40-99 ms**, y la bandeja **sin** filtro, página 10, **22-36 ms**.
+  El `EXPLAIN` muestra por qué, y no es el índice: el `relevamiento_id IN (2.001 ids)` pasa el
+  `in_predicate_conversion_threshold` de MariaDB y se convierte en una **tabla derivada materializada**
+  (`<subquery2> type=ALL rows=2001`, `Using temporary; Using filesort`), que se une con la tabla grande. El costo
+  restante es el `OFFSET`, que ningún índice arregla: eso es paginación por *keyset*, y el propio código ya lo dice en
+  `revision.py` («si el padrón llega a cientos de miles, lo que hace falta es paginar por keyset»). Todo esto está a dos
+  órdenes de magnitud del `read_timeout` de 10 s, así que **no abre ficha nueva**; queda anotado acá para quien
+  retome la paginación por keyset.
+- **Dato operativo del ensayo:** `ALTER TABLE programas_formulario ADD INDEX …, ALGORITHM=INPLACE, LOCK=NONE` lo aceptó
+  MariaDB 10.11 en **116 ms** sobre 42.000 filas. Si alguna vez hace falta un índice en esa tabla, el costo de aplicarlo
+  no es el problema.
+**Test permanente:** `programas.tests.test_mediciones_banco_ola4.BandejaFiltradaPorEstadoTests`
+(`test_la_bandeja_filtra_por_la_columna_desnuda_y_proyecta_solo_el_pk`,
+`test_siguen_declarados_los_indices_sobre_los_que_se_midio` y `test_la_tabla_grande_no_estreno_un_indice_mas`): fija las
+premisas de las que depende la medición —columna desnuda en el `WHERE`, proyección de solo el pk, y los índices de
+`estado` y de `creado` declarados—. Si alguien saca uno de esos índices, la ficha vuelve a estar abierta y el test lo
+avisa.
+
 ### PERF-15 · Conteos del padrón en cada vista de detalle
 **Severidad:** BAJA · **Estado:** CONFIRMADO (código) / NO-MEDIDO · **Origen:** A4-16 · **Ola:** 4 · **Esfuerzo:** S (medir)
 - **Ubicación:** `programas/views/relevamientos.py:298-306`, `:706-711`.
 - **Propuesta:** solo si se mide y pesa (padrón > 50k): guardar `padron_total` y `padron_con_identidad` al cargar (todo pasa por `cargar_padron`, PERF-04).
+
+**Resolución:** ✅ Cerrada **sin denormalizar** en el PR 6-8 de la Ola 4 (Cambio 192), 08-oct-2026 — **medida, y no
+pesa**. Banco MariaDB 10.11, padrón de la convocatoria llevado primero a **50.000** filas y después a **100.000** (el
+doble del umbral que la ficha pone como condición):
+
+| Consulta | 50.000 filas | 100.000 filas |
+|---|---|---|
+| `aggregate` de los tres números del detalle de **convocatoria** | 22,5-42,7 ms | **48,4 ms** |
+| `Count` anotado del detalle de **relevamiento** (propio + heredado) | 21,0-23,5 ms | **23,8 ms** |
+
+El `aggregate` es un `type=ALL` sobre las filas de la convocatoria, y no puede ser otra cosa: el `con_identidad` evalúa
+el `REGEXP` de la RN-2 (RED-77) fila por fila, que ningún índice cubre. Pero duplicar el padrón sumó 6 ms, no el doble,
+y el detalle de relevamiento ni se movió. Contra un `read_timeout` de 10 s, 48 ms es el 0,5 %. Denormalizar costaría dos
+contadores nuevos que hay que mantener en `cargar_padron`, en `quitar_padron_propio` y en el cruce —un dato que se puede
+desincronizar en silencio y que ya mostró su contracara en `CupoSegmento.cupo_ocupado`— para ahorrar milésimas: no entra.
+**Lo que sí importa y queda fijado:** que esos milisegundos no se multipliquen. Los tres números del detalle de
+convocatoria salen de **un** `aggregate` y los dos del detalle de relevamiento van anotados en la **misma** consulta que
+trae el relevamiento (Cambios 57, 59 y 74). Ahí es donde una regresión duele de verdad: no en los 48 ms, sino en que
+pasen a ser uno por fila.
+**Test permanente:** `programas.tests.test_mediciones_banco_ola4.ConteosDelPadronTests`
+(`test_el_detalle_de_convocatoria_cuenta_el_padron_una_sola_vez`,
+`test_el_detalle_de_relevamiento_cuenta_el_padron_en_la_consulta_del_relevamiento` y
+`test_los_conteos_no_crecen_con_el_tamano_del_padron`).
 
 ### PERF-16 · La señal de `Ciudadano` borra 4 claves de Redis por save
 **Severidad:** BAJA sola; se suma a PERF-04 · **Estado:** CONFIRMADO (medido: 26.668 `cache.delete` para 6.667 saves; `contar_ciudadanos` se borra dos veces) · **Origen:** A4-18 · **Ola:** 4 · **Esfuerzo:** S
@@ -400,6 +541,38 @@ y `programas.tests.test_circuito_siis_performance.LosMismosCandidatosTests`.
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1c-11 · **Ola:** 4 (mismo PR que G1c-09) · **Esfuerzo:** S
 - **Ubicación:** `list_display` con FK sin `list_select_related`: `ListaEsperaAdmin` (`formulario`→`ciudadano`, `segmento`), `TracaFormularioAdmin`, `HistorialContactoAdmin` (`legajo`, `profesional`), `VinculoFamiliarAdmin` (2 ciudadanos), `RelevamientoAdmin` (`convocatoria`, `territorial`): 100-300 consultas por página. `OptimizedGroupAdmin` prefetchea `user_set` y `CiudadanoAdmin` `inscripciones_programas` sin usarlas.
 - **Propuesta:** `list_select_related`; `search_fields=("=formulario__id",)` donde aplique; sacar los prefetch inútiles.
+
+**Resolución:** ✅ Resuelto en el PR 7 de la Ola 4 (Cambio 192), 08-oct-2026 — con una **corrección code-first de la
+ficha**: de los cinco listados que nombra, solo **tres** eran N+1.
+Django ya le aplica `select_related()` **sin argumentos** a toda `ChangeList` que tenga un campo relacionado en
+`list_display` (`ChangeList.apply_select_related`), y eso cubre las FK… pero `select_related()` sin argumentos sigue
+**únicamente las FK no nulas**. De ahí sale la lista real:
+- **Sí crecían**, y se arreglan con `list_select_related`: `TracaFormularioAdmin` (`editado_por` es nulable, y
+  `formulario` arrastra su ciudadano en el `__str__`) → `("formulario__ciudadano", "editado_por")`;
+  `ListaEsperaAdmin` (el `__str__` del formulario) → `("segmento", "formulario__ciudadano")`;
+  `RelevamientoAdmin` (`territorial` es nulable) → `("convocatoria", "territorial")`.
+- **No crecían**: `HistorialContactoAdmin` y `VinculoFamiliarAdmin`. Sus cuatro FK son **no nulas**, así que el
+  `select_related()` implícito ya las traía: un `list_select_related` ahí no cambia ninguna consulta y no se agrega.
+  Quedan tests de guarda que se ponen rojos si alguna se vuelve nulable, que es cuando Django la dejaría afuera.
+- `FormularioAdmin`, `InscripcionProgramaAdmin` y `DerivacionProgramaAdmin` ya tenían su `get_queryset` con
+  `select_related`, que sirve para el listado **y** para la ficha: no necesitan además `list_select_related`.
+Lo demás de la propuesta, aplicado: `TracaFormularioAdmin.search_fields` pasa a `"=formulario__id"` (sin el `=`,
+Django busca el id con `LIKE %texto%` sobre la tabla de trazas), y se saca el `prefetch_related` de
+`CiudadanoAdmin` (`inscripciones_programas__programa`), que alimentaba una caché que ni el `list_display` ni los
+`fieldsets` leen. **El `prefetch_related("user_set")` de `OptimizedGroupAdmin` no se tocó:** vive en `users/`, que es
+el alcance de la Ola 2 PR 1, abierta en paralelo. Queda para quien cierre esa rama.
+**Lo que no se puede arreglar desde el admin, y queda escrito:** el listado de contactos sigue pagando **una** consulta
+por fila, porque `LegajoAtencion.__str__` abre su property `ciudadano` y el vínculo legajo↔inscripción es un
+`UUIDField` suelto (`InscripcionPrograma.legajo_id`), no una FK: no hay relación que el ORM pueda seguir ni
+prefetchear. Un test fija que sea exactamente una por fila, para que no vuelvan a ser tres.
+**Test permanente:** `programas.tests.test_admin_performance.ListadosQueNoCrecenConLaPaginaTests`
+(`test_el_listado_de_trazas_no_crece_con_la_pagina`, `test_el_listado_de_lista_de_espera_no_crece_con_la_pagina`,
+`test_el_listado_de_relevamientos_no_crece_con_la_pagina`, `test_el_listado_de_casos_no_crece_con_la_pagina`,
+`test_el_listado_de_inscripciones_no_crece_con_la_pagina` y `test_la_traza_se_busca_por_id_exacto_y_no_con_like`) y
+`legajos.tests.test_admin_performance.ListadosDeLegajosTests`
+(`test_el_listado_de_ciudadanos_no_lee_las_inscripciones_que_no_muestra`,
+`test_el_listado_de_contactos_trae_el_legajo_y_el_profesional_en_la_misma_consulta` y
+`test_el_listado_de_contactos_crece_de_a_una_consulta_por_fila_y_solo_por_el_vinculo_blando`).
 
 ### G3-03 · `alertas_websocket.js` se carga para todo el backoffice y reintenta 5 veces con quien no tiene permiso
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** G3-03 · **Ola:** 2 (mismo PR que G1c-04) · **Esfuerzo:** S

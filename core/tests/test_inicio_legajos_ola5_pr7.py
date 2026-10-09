@@ -11,9 +11,9 @@ El rótulo manda (es el defecto que ataca G2-04), así que la tarjeta pasa a con
 `LegajoAtencion` con la **misma** definición de «activo» que usa reportes, y esa
 definición vive ahora en un solo lugar: `legajos.selectors.legajos`.
 
-`contar_legajos()` **no se tocó**: `dashboard.views.home.DashboardView` la usa y
-RED-51 (Ola 4) tiene dos tests escritos alrededor de que esa clave agrega
-inscripciones. El contador nuevo es otro, con su propia clave.
+`contar_legajos()` **no se tocó**: la usaba `dashboard.views.home.DashboardView` (que
+RED-78 borró después) y RED-51 (Ola 4) tiene dos tests escritos alrededor de que esa
+clave agrega inscripciones. El contador nuevo es otro, con su propia clave.
 """
 
 from django.contrib.auth import get_user_model
@@ -126,8 +126,10 @@ class UnaSolaDefinicionDeActivoTests(TestCase):
 class ContadorDeInscripcionesIntactoTests(TestCase):
     """`contar_legajos()` sigue agregando inscripciones, con su clave de siempre.
 
-    Lo exige `dashboard.views.home.DashboardView` (vista tapada, RED-78) y lo dan por
-    sentado los dos tests de RED-51 en `dashboard/tests/test_cache_invalidacion.py`.
+    Lo dan por sentado los dos tests de RED-51 en
+    `dashboard/tests/test_cache_invalidacion.py`. Su último llamador de producción era
+    `dashboard.views.home.DashboardView`, que RED-78 borró: quién se queda con la
+    función es decisión de RED-51 (Ola 4), no de esta ficha.
     """
 
     def setUp(self):
@@ -155,11 +157,18 @@ class ContadorDeInscripcionesIntactoTests(TestCase):
         self.assertIsNotNone(cache.get("stats_legajos_atencion"))
 
     def test_guardar_un_legajo_invalida_la_clave_nueva(self):
-        """Sin esto el inicio queda con el número viejo hasta que expire el TTL."""
+        """Sin esto el inicio queda con el número viejo hasta que expire el TTL.
+
+        Desde RED-51 (Cambio 194) el borrado va en un `on_commit`, como el de `Ciudadano`
+        desde PERF-04: invalidar antes del commit deja que otro request vuelva a cachear
+        el valor **viejo**, y si la transacción termina en rollback se borró por nada.
+        Dentro de un `TestCase` hay que soltarlo a mano; lo que se afirma es lo mismo.
+        """
         from dashboard.utils import contar_legajos_atencion
 
         contar_legajos_atencion()
 
-        LegajoAtencion.objects.create()
+        with self.captureOnCommitCallbacks(execute=True):
+            LegajoAtencion.objects.create()
 
         self.assertIsNone(cache.get("stats_legajos_atencion"))

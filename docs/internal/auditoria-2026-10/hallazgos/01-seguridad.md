@@ -17,8 +17,8 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-04 | Consulta RENAPER anónima con payload crudo y throttle evadible | CRÍTICA | CONF. test | 0 | S | ✅ |
 | SEC-05 | `activate`/`deactivate` de usuarios por API para cualquier autenticado | CRÍTICA | CONF. test | 0 | S | ✅ |
 | SEC-10 | Adjuntos de ciudadano/legajo sin capacidad ni pertenencia: cualquier autenticado **borra** el documento | CRÍTICA (04-oct) | CONF. test | 2 → **R (en R-19)** | S-M | ✅ |
-| SEC-06 | Capacidades `becas.*` otorgables en roles de otro programa | ALTA | CONF. test | 2 | M | ⬜ |
-| SEC-07 | `programa.configurar` en un rol de programa habilita el wizard de todos | ALTA | CONF. test | 2 | S-M | ⬜ |
+| SEC-06 | Capacidades `becas.*` otorgables en roles de otro programa | ALTA | CONF. test | 2 | M | ✅ |
+| SEC-07 | `programa.configurar` en un rol de programa habilita el wizard de todos | ALTA | CONF. test | 2 | S-M | ✅ |
 | SEC-08 | XSS almacenado por nombre de rol en todas las páginas | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-09 | `/media/` sin login en DEV (nginx); sin pertenencia en ECOM | ALTA (DEV) / MEDIA (ECOM) | CONF. test | 0 (etapa 1) / 2 (etapa 2) | S + M | ✅ |
 | SEC-11 | APIs JSON de legajos (riesgo, alertas, timeline) sin capacidad | ALTA | CONF. test | **R-19** (`ciudadano.ver` de piso en las 5) / 2 (subir 3 a `ciudadano.sensible`, D-11) | S | ✅ |
@@ -26,7 +26,7 @@ Base verificada: `origin/development @ 917e583`. PoC: `poc/test_repro_seguridad.
 | SEC-13 | Catálogo geográfico escribible por API | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-14 | APIs del dashboard: enumeración del padrón y alertas globales | ALTA | CONF. test | 0 | S | ✅ |
 | SEC-29 | Registro del portal sobre cualquier legajo con solo el DNI | ALTA | CONF. test | 0 | S | 🟡 |
-| G1-01 | Chat público crea legajos de cualquier DNI con nombre falso que llegan a SIIS | ALTA | CONF. lectura | 0 | S | 🟡 |
+| G1-01 | Chat público crea legajos de cualquier DNI con nombre falso que llegan a SIIS | ALTA | CONF. lectura | 0 / 7 | S | ✅ |
 | G1-02 | Segundo oráculo RENAPER anónimo en `/conversaciones/consultar-renaper/` | ALTA | CONF. lectura | 0 | S | ✅ |
 | SEC-15 | Uploads de F-00 y merenderos sin lista blanca ni tope | MEDIA | CONF. test | 2 | S | ✅ |
 | SEC-16 | `/api/users/` lista personal con DNI e `is_superuser` | MEDIA | CONF. test | 0 | (en SEC-05) | ✅ |
@@ -175,6 +175,28 @@ la API detrás de **login** y no detrás de capacidad —un usuario de backoffic
 
 ### SEC-06 · Las capacidades `becas.*` se otorgan en roles de otro programa y los gates no las acotan
 **Severidad:** ALTA · **Estado:** CONFIRMADO-AJUSTADO con test (`SEC06BecasCrossProgramTests`) · **Origen:** A5-06; observación de A4 sobre los exports (refutada en su forma original, absorbida acá) · **Ola:** 2 · **Esfuerzo:** M · **Decisión:** D-06
+
+**Resolución:** ✅ Resuelta en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 — tres candados, porque el catálogo
+solo cierra lo que se puede **otorgar** de acá en adelante. (1) Los **trece** módulos `becas_*` declaran
+`"programas": ("BECAS",)`, así que el árbol del ABM deja de ofrecérselos al admin de roles de otro programa y el
+`MultipleChoiceField` rechaza el POST que los mande igual —el rol ni se crea—. (2) Los gates de las tres superficies
+que la ficha nombraba pasan a evaluar **con alcance**: los tres `convocatoria_export_*` resuelven la convocatoria por
+`convocatorias_visibles` y exigen `es_admin_becas` (que evalúa contra el Programa Becas y **falla cerrado** si no está
+sembrado, RED-56); `ProcesoMasivoView`, `proceso_masivo_lanzar` y `proceso_masivo_frenar` suman `_asegurar_alcance`
+sobre `programa_becas(user)`, con el decorador conservado como puerta; y la bandeja de pendientes de RENAPER filtra por
+`convocatorias_visibles` —el selector de territoriales y el de segmentos, con el mismo alcance—. (3) `users.0031` quita
+las `becas_%` de todo rol con `RolMeta.programa` no nulo y distinto de BECAS, **registrando cada par (rol, capacidad)**
+en la tabla nueva `users_capacidadrevocada`, que es lo que le da **reversa real**: desaplicar restituye exactamente lo
+que quitó y borra las filas. Loguea en el `migrate` cada rol y cada capacidad, y con P-02 vacío no escribe nada.
+**Dos desvíos, los dos code-first:** (a) los tres exports pasan de rechazar con un **redirect** a hacerlo con **403**,
+que es el patrón del resto de los guards de alcance de Becas (`assert_alcance_formulario`,
+`programa_identificadores_siis`); (b) `configuracion.py:300` y `:615`, que la ficha listaba en «Ubicación», **ya
+estaban cerrados** por el PR 5 de esta ola (`programas_siis_visibles` y `es_admin_becas`, los dos con alcance), así que
+no se tocaron. **Lo que la ficha dejaba sujeto a confirmación del PM y no se hizo:** acotar el módulo `relevamientos` a
+Becas. Hoy no lo consume ninguna vista —solo un templatetag de ejemplo—, así que acotarlo sería quitarle una capacidad
+a un rol por una suposición. **Test permanente:** `programas.tests.test_sec06_alcance_becas` (17) y
+`users.tests.test_roles_ola2_pr1.Migracion0031Tests` (2). **Operativo (PM):** correr **P-02** en PRD **antes** de
+desplegar; si da vacío, la migración no quita nada.
 - **Ubicación:** `core/rbac.py:46-237` (catálogo sin `"programas"` en los módulos `becas_*`), `:417-426`; `users/forms/roles.py:137-146`; exports `programas/views/relevamientos.py:423`, `:462`, `:510` (`get_object_or_404(Convocatoria, pk=pk)` con `@requiere(CAP_REPORTES)`, `CAP_REPORTES = "becas.programa.administrar"` en `:57`); `ProgramaSiis` en `proceso_masivo.py:56`/`:101` y `configuracion.py:300`/`:615`; `RenaperPendientesListView.get_queryset` (`revision.py:443-469`).
 - **Escenario (reproducido):** el admin de Dispositivos abre `/roles/crear/`, el árbol le ofrece `becas.programa.administrar`; crea el rol «Escalada» (Programa/Dispositivos) con `becas.programa.administrar` y `becas.programa.proceso_masivo` y se lo asigna. `puede(u, "becas.programa.administrar")` → True, `es_admin_becas(u)` → False. `GET /becas/convocatorias/<pk>/export/beneficiarios/` → 200 con DNI; `/becas/config/programas/<pk>/proceso-masivo/` → 200. Contraste: un Coordinador sin admin → 302 (la versión de A4 «un coordinador baja DNI cambiando el id» es **falsa**).
 - **Causa raíz:** causas transversales 2 y 3.
@@ -190,9 +212,37 @@ la API detrás de **login** y no detrás de capacidad —un usuario de backoffic
 
 ### SEC-07 · `programa.configurar` tildada en un rol de programa habilita el wizard de **todos** los programas
 **Severidad:** ALTA · **Estado:** CONFIRMADO-AJUSTADO con test (`SEC07ProgramaConfigurarTests`) · **Origen:** A5-07; V1-NEW-02 (corrección de la propuesta de P1) · **Ola:** 2 · **Esfuerzo:** S-M · **Decisión:** D-07
+
+**Resolución:** ✅ Resuelta en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026, con **D-07 = Sí** aplicada —
+`core/rbac.py` estrena `puede_sin_programa(user, codigo)` (la capacidad tiene que venir de un rol con
+`RolMeta.programa` nulo) y el decorador `requiere_sin_programa`. Las **diez** vistas del wizard se reparten en tres
+grupos: los cuatro pasos del **alta** piden la capacidad en un rol global (crear un programa no tiene alcance posible —
+el programa todavía no existe—, y D-07 lo deja para sistema); los cuatro pasos de **edición** y
+`programa_cambiar_estado` resuelven el `pk` y evalúan `puede_sin_programa(...) or puede(..., programa=ese)`; y el
+**listado** sigue abierto a `CAPS_ENTRADA_PROGRAMAS` (SEC-36) pero decide el lápiz **fila por fila**. No se movió
+`programa.configurar` a un módulo global, que es lo que la ficha marcaba como el error de P1:
+`puede_configurar_dispositivos` la evalúa con alcance DISPOSITIVOS y seguiría andando igual. El punto 3 va con G1b-02:
+`capacidades_no_delegables` la saca del árbol de todo admin de programa **salvo** en DISPOSITIVOS, el único que la
+evalúa acotada. **Test permanente:** `configuracion.tests.test_programas_alcance` (19, incluida la batería por rol:
+anónimo, sin rol, rol de otro programa, admin del propio programa y superusuario) y
+`users.tests.test_roles_abm.RolAlcanceTests.test_form_admin_dispositivos_si_delega_programa_configurar`.
+**Operativo (PM):** **P-03** dice qué roles la tienen hoy; el Cambio 20 la repartió, y desde este deploy en un rol de
+programa solo sirve para su propio programa.
 - **Ubicación:** `core/rbac.py:46-55` (módulo `programas`, `alcance: programa`, sin lista `programas`); `configuracion/views/programas.py:90`, `:120`, `:146`, `:175`, `:246`, `:290`, `:319`, `:357`, `:429` (`@requiere("programa.configurar")` global) y `:67` (listado).
 - **Escenario (reproducido):** el admin de roles de Becas se tilda `programa.configurar` y `GET /configuracion/programas/<Dispositivos>/editar/paso1/` → 200.
 - **Lo que NO hay que hacer:** mover `programa.configurar` a un módulo global (propuesta de P1). `programas/services/dispositivos.py:13` y `:56` (`puede_configurar_dispositivos`) la evalúan **con programa DISPOSITIVOS**; globalizarla rompe ese alcance.
+
+**⚠ Pendiente abierto (anotado el 09-oct-2026, Ola 7 PR 3 — seguimiento MINOR de la revisión de #646):**
+**el `codigo` del programa es hoy un identificador de seguridad editable desde el producto.** El catálogo
+de SEC-06 decide qué módulos se le ofrecen a un rol **por `Programa.codigo`**, y el paso 1 del wizard
+—que en DISPOSITIVOS sigue siendo delegable, porque es el único programa que evalúa
+`programa.configurar` con alcance— deja **cambiar ese código**. Un admin de DISPOSITIVOS puede entonces
+mover la identidad de su programa (p. ej. a `MERENDEROS`, si esa fila no existe en esa base) y con eso
+abrirse el módulo ajeno. **No es regresión** —`codigo` es `unique` y el form lo valida, así que contra
+BECAS/MERENDEROS existentes no corre, y el estado anterior (`@requiere` global) era más permisivo— y por
+eso no se parchea acá. Lo que hay que decidir en la ola siguiente es de qué lado cae: o el `codigo` deja
+de ser editable después del alta (y el renombre pasa a ser de sistema), o el catálogo deja de anclarse al
+código y se ancla al `pk`. Nada de esto lo ve ninguna herramienta: hoy el único rastro es esta nota.
 - **Propuesta:**
   1. `core/rbac.py`: `puede_sin_programa(user, codigo)` → True si es superusuario activo o si alguna fila de `_filas_de_capacidad(user)` tiene ese codename con `programa_del_rol is None`; y el decorador `requiere_sin_programa(codigo, redirect_to=None)`.
   2. `configuracion/views/programas.py`: alta del wizard, paso 1 nuevo y acciones sin `pk` → `@requiere_sin_programa("programa.configurar")`. Vistas con `pk` (editar pasos, cambiar estado): `programa = get_object_or_404(Programa, pk=pk)` y `if not (rbac.puede_sin_programa(u, "programa.configurar") or rbac.puede(u, "programa.configurar", programa=programa)): return _respuesta_sin_permiso(...)`. Listado (`:67`): `puede_editar` por fila con el mismo criterio.
@@ -404,7 +454,9 @@ y `DerivarProgramaViewRbacTests.test_is_staff_sin_capacidad_ya_no_ofrece_inscrip
 
 **Ampliado por RS-R4-03 y RS-R4-13 (04-oct-2026, frente Red de seguridad):** la fase 2 no es de 2 h. El shell de todo el backoffice (`templates/includes/base.html:371-396`, 5 `{% url %}` a `conversaciones`), el context processor `conversaciones.context_processors.user_groups` (provee variables que no son de conversaciones) y la señal de `legajos/signals/alertas.py:4` (importa `conversaciones.models` en `ready()`) dependen de la app: desmontarla sin tocarlos da 500 en todas las pantallas o impide arrancar. Trabajo y tests en RED-13 (test de caracterización en la Ola R, refactor de 8 h en la Ola 7 antes del apagado).
 
-**Resolución:** 🟡 Parcial en #510 (Cambio 101), 01-oct-2026 — hecha la parte de la Ola 0: desmontadas `chat/`, `consultar-renaper/`, `iniciar/`, `<id>/enviar/` y `<id>/mensajes/`, y borrados `iniciar_conversacion_publica` (el `get_or_create` de legajos), sus forms y `chat_ciudadano.html`. Falta: la fase 2 (Ola 7); P-10 en PRD (operativo). `<id>/evaluar/` (R0-01) se desmontó en #537 (Cambio 111), 03-oct-2026: ya no queda escritura anónima en `conversaciones`.
+**Resolución:** 🟡 Parcial en #510 (Cambio 101), 01-oct-2026 — hecha la parte de la Ola 0: desmontadas `chat/`, `consultar-renaper/`, `iniciar/`, `<id>/enviar/` y `<id>/mensajes/`, y borrados `iniciar_conversacion_publica` (el `get_or_create` de legajos), sus forms y `chat_ciudadano.html`. `<id>/evaluar/` (R0-01) se desmontó en #537 (Cambio 111), 03-oct-2026: ya no queda escritura anónima en `conversaciones`.
+
+**Resolución:** ✅ Cerrada en #663 (Cambio 198), 09-oct-2026 — **fase 2 hecha**, con la segunda parte de RED-13 adelante en el mismo PR. Salieron de `config/urls.py` los dos `include()` (`conversaciones/` y `api/conversaciones/`) y los tres 426 de `ws/conversaciones/…` y `ws/alertas-conversaciones/`; de `conversaciones/routing.py` —borrado— las tres rutas del chat; y de la UI el ítem del sidebar, «Dashboard Conversaciones», «Cola Conversaciones», la card «Conversaciones sin asignar» del inicio con su contexto, la solapa `tab-conversaciones` del detalle del ciudadano (y su entrada en `SolapasService.SOLAPAS_ESTATICAS` y su badge) y la tabla «Historial de Alertas de Conversaciones» del dashboard de alertas, que enlazaba a `conversaciones:detalle`. Cinco JS borrados (los cuatro del chat más `notification_sound.js`, sin otro consumidor). **`ws/alertas/` se conservó**: `AlertasConsumer` se mudó a `legajos/consumers.py` con `legajos/routing.py`, que es el único `websocket_urlpatterns` que monta `config/asgi.py`. **No se borró nada de datos**: la app sigue en `INSTALLED_APPS`, sin migración, con sus modelos, vistas y templates sin ruta (mismo patrón que el portal con SEC-29). Las tres capacidades `conversacion.*` siguen en el `CATALOGO`: retirarlas es una migración de datos y la decide el PM. Resuelve también A5-42 y A6-28. Falta solo **P-10** (operativo, PRD). **Test permanente:** `conversaciones.tests.test_apagado` (`RutasApagadasTests`, `WebsocketsApagadosTests`, `SuperficieDeUiApagadaTests`) y `core.tests.test_shell_backoffice.ShellSinConversacionesTests.test_inicio_renderiza_sin_urls_de_conversaciones`.
 - **Ubicación:** `conversaciones/urls.py:13` (`iniciar/`); `conversaciones/views/public.py:108-139` (sin login ni rate limit); `conversaciones/forms/chat.py:17-22` (`datos_renaper = forms.JSONField` que manda el cliente); `conversaciones/services/chat.py:33-55` (`Ciudadano.objects.get_or_create(dni=…, defaults={nombre: datos_renaper["nombre"], …})`). Consumidores del legajo: `programas/services/becas.py:260-279` (`resolver_ciudadano_offline` no pisa nombre ni apellido), `programas/services/padron.py:466-480` (solo completa vacíos), `programas/services/siis_envio.py:437-452` (el alta usa `ciudadano.nombre/apellido`).
 - **Escenario:** un script toma la cookie CSRF de `/conversaciones/chat/` y hace `POST /conversaciones/iniciar/` con `{"tipo":"personal","dni":"45123456","sexo":"F","datos_renaper":{"nombre":"X","apellido":"Y"}}` para una lista de DNI. Cuando esas personas se inscriben, su caso se vincula a ese legajo; la validación por padrón o Gran Base marca el caso como validado pero no corrige el legajo (SIIS-08) y el alta a SIIS sale con el nombre falso (irreversible). Además deja una `Conversacion` activa por request.
 - **Propuesta:**
@@ -815,7 +867,7 @@ sobreescribible con `ALERTAS_WS_VENTANA_REVALIDACION`) y lo guarda en el socket:
 si tiene legajos propios; (iii) cada entrega decide en memoria, **sin tocar la base**, con la misma regla que
 `FiltrosUsuarioService`. Al vencer la ventana se revalida todo y, si lo perdió, 4403. **La ventana de 60 s es la
 latencia máxima declarada** entre quitarle la capacidad o la sesión a alguien y que deje de recibir.
-**Test permanente:** `conversaciones.tests.test_ws_alertas_rbac.WsAlertasRbacTests` (la PoC `G1c04WsAlertasTests`
+**Test permanente:** `legajos.tests.test_ws_alertas_rbac.WsAlertasRbacTests` (la PoC `G1c04WsAlertasTests`
 invertida: `test_origin_ajeno_no_conecta`, `test_sesion_reemplazada_no_conecta`,
 `test_no_entrega_una_alerta_fuera_del_alcance`, `test_quitarle_el_rol_corta_el_socket_abierto`,
 `test_reemplazarle_la_sesion_corta_el_socket_abierto` y `test_el_ruteo_no_viaja_al_cliente`) y

@@ -17,7 +17,7 @@ from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.edad import es_menor
 from core.models import Localidad, Municipio
 from core.selectors.geografia import localidades_operativas, municipios_operativos
-from core.validators import ADJUNTO_EXTENSIONES, validar_adjunto
+from core.validators import ACCEPT_ADJUNTO, validar_adjunto
 from programas.models import (
     AsignacionCoordinador,
     Cama,
@@ -50,11 +50,6 @@ from users.presentation import etiqueta_usuario
 # Definida en static/custom/css/nodo-forms.css (alto 42px, foco de marca con ring).
 INPUT_CLASS = "nodo-field"
 CHECKBOX_CLASS = "h-4 w-4 rounded border-base text-fg-brand focus:ring-brand"
-
-#: Lo que el selector de archivos ofrece por defecto. No es una validación —el
-#: `accept` del navegador se saltea—, pero evita que la persona elija un archivo
-#: que el servidor va a rechazar (SEC-15).
-ACCEPT_ADJUNTO = ",".join(ADJUNTO_EXTENSIONES)
 
 
 def _catalogo_choices(items, empty_label):

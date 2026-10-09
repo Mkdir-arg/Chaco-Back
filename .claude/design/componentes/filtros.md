@@ -69,8 +69,13 @@ Por eso el `aria-label` tiene que leerse bien **como chip**: «Estado», no «Es
   `configuracion/templates/configuracion/subsecretaria_list.html`,
   `configuracion/templates/configuracion/programa_list.html` y
   `legajos/templates/legajos/ciudadano_list.html` (un `input[type=search]` con `aria-label`).
-  También monta la barra, con clase propia y sin migrar: `conversaciones/templates/conversaciones/lista.html`
-  (fuera de alcance; se apaga con G1-01 fase 2).
+  En `rol_list.html` y `configuracion/templates/configuracion/programa_list.html` las acciones de cada fila siguen el
+  alcance **de esa fila** (`item.puede_editar`, `programa.puede_editar`) y la columna de acciones se
+  dibuja si hay alguna fila editable (`puede_editar_alguno`): un admin de programa ve su propio rol o
+  los programas ajenos sin el lápiz que el servidor le va a rechazar (G1b-02, SEC-07, Cambio 193).
+  También monta la barra, con clase propia y sin migrar:
+  `conversaciones/templates/conversaciones/lista.html` (pantalla **sin ruta**: no es
+  referencia de nada).
 
 ## Prohibido
 

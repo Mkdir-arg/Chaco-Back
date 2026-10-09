@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render
 
-from core.rbac import puede, requiere
+from core.rbac import requiere
 
 from ..services import AlertasService, FiltrosUsuarioService
 from .mensajes import ERROR_GENERICO
@@ -63,20 +63,9 @@ def alertas_dashboard(request):
         .order_by("-creado")[:10]
     )
 
-    # Alertas de conversaciones si el usuario tiene permisos
-    alertas_conversaciones = []
-    if puede(request.user, "conversacion.operar"):
-        from conversaciones.models import HistorialAlertaConversacion
-
-        alertas_conversaciones = (
-            HistorialAlertaConversacion.objects.filter(operador=request.user)
-            # ``Conversacion`` no tiene ningún campo ``usuario`` (sus FK son
-            # ``operador_asignado`` y ``ciudadano_usuario``): ese select_related tiraba
-            # FieldError y la pantalla respondía 500 para todo operador. La plantilla solo
-            # lee ``alerta.conversacion.id``, así que alcanza con traer la conversación.
-            .select_related("conversacion")
-            .order_by("-creado")[:20]
-        )
+    # G1-01 fase 2: acá se traía `alertas_conversaciones` (el `HistorialAlertaConversacion`
+    # del operador) para una tabla al pie de la pantalla que enlazaba a
+    # `conversaciones:detalle`. Se fue con el apagado de la app.
 
     # Estadísticas filtradas por usuario
     stats = FiltrosUsuarioService.obtener_estadisticas_usuario(request.user)
@@ -85,7 +74,6 @@ def alertas_dashboard(request):
         "alertas_criticas": alertas_criticas,
         "alertas_altas": alertas_altas,
         "alertas_medias": alertas_medias,
-        "alertas_conversaciones": alertas_conversaciones,
         "stats": stats,
     }
 

@@ -46,6 +46,9 @@ SESSION_KEY_CAPTCHA_PREGUNTA = "inscripcion_captcha_pregunta"
 
 CAMPO_RECAPTCHA = "g-recaptcha-response"
 
+#: Lo único que puede haber en la sesión para considerarla «todavía anónima».
+CLAVES_SOLO_CAPTCHA = {SESSION_KEY_CAPTCHA, SESSION_KEY_CAPTCHA_PREGUNTA}
+
 
 def timeout_recaptcha():
     """``(conectar, leer)``, leído de ``settings`` en cada llamada (SIIS-09).
@@ -56,6 +59,19 @@ def timeout_recaptcha():
     código pedir otra.
     """
     return (settings.RECAPTCHA_CONNECT_TIMEOUT, settings.RECAPTCHA_TIMEOUT)
+
+
+def sesion_anonima_segundos():
+    """PERF-10. Cuánto vive una sesión que todavía **solo** tiene el desafío anti-bot.
+
+    Leído de ``settings`` en cada llamada, por el mismo motivo que
+    :func:`timeout_recaptcha` (SIIS-09): era un escalar congelado en el import, así que
+    la variable de entorno funcionaba pero ``override_settings`` no lo movía y un test
+    no podía probar otra vigencia que la del arranque.
+
+    Ver :func:`acotar_sesion_anonima`.
+    """
+    return getattr(settings, "INSCRIPCION_SESION_ANONIMA_SEGUNDOS", 3600)
 
 
 def relevamiento_disponible(relevamiento):
@@ -153,11 +169,39 @@ def captcha_activo():
     return "aritmetico"
 
 
+def acotar_sesion_anonima(request):
+    """Le baja la vigencia a la sesión mientras lo único que guarda es el captcha.
+
+    PERF-10: cada visita al link público —persona, buscador o bot— estrena una sesión
+    de 24 h porque el GET del paso 1 escribe el desafío anti-bot. Las que nunca pasan
+    el paso 1 son basura que ocupa Redis un día entero.
+
+    Lo que **no** se hace es acortar la sesión entera: el Cambio 91 ya probó que así se
+    pierde el paso 2 a medio completar, con los adjuntos ya elegidos. Por eso la
+    vigencia corta dura solo mientras la sesión no tiene nada más que el captcha, y
+    :func:`restaurar_vigencia_sesion` la devuelve al default apenas el paso 1 escribe la
+    identificación.
+    """
+    if set(request.session.keys()) <= CLAVES_SOLO_CAPTCHA:
+        request.session.set_expiry(sesion_anonima_segundos())
+
+
+def restaurar_vigencia_sesion(request):
+    """Devuelve la sesión a ``SESSION_COOKIE_AGE`` (lo que vale para todo el resto).
+
+    Se llama cuando el paso 1 guarda la identificación: a partir de ahí la sesión tiene
+    algo que perder y la vigencia corta de :func:`acotar_sesion_anonima` dejaría a la
+    persona sin el paso 2 si tarda más de una hora en completarlo.
+    """
+    request.session.set_expiry(None)
+
+
 def nuevo_captcha(request):
     """Desafio aritmetico anti-bot del paso 1 (solo sin claves de Google)."""
     a, b = random.randint(2, 9), random.randint(2, 9)
     request.session[SESSION_KEY_CAPTCHA] = a + b
     request.session[SESSION_KEY_CAPTCHA_PREGUNTA] = f"¿Cuánto es {a} + {b}?"
+    acotar_sesion_anonima(request)
     return request.session[SESSION_KEY_CAPTCHA_PREGUNTA]
 
 

@@ -102,7 +102,8 @@
                    {% if item.meta.protegido %}aria-describedby="rol-protegido-{{ item.group.pk }}"{% endif %}>
                   <i class="fas fa-eye" aria-hidden="true"></i>
                 </a>
-                {% if not item.meta.protegido %}
+                {% comment %}G1b-02: un admin de programa ve su propio rol pero no lo edita, así que la fila tampoco lo ofrece.{% endcomment %}
+                {% if not item.meta.protegido and item.puede_editar %}
                 <a href="{% url 'users:rol_editar' item.group.pk %}" class="nodo-icon-btn"
                    aria-label="Editar rol {{ item.group.name }}">
                   <i class="fas fa-pen" aria-hidden="true"></i>

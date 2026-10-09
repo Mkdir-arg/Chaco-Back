@@ -5,7 +5,7 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 | ID | Título | Sev. | Estado | Ola | Esf. | Avance 03-oct |
 |---|---|---|---|---|---|---|
-| OPS-06 | **Seeds de arranque pisan configuración del ABM** (capacidades, roles, Operador de backoffice, programa Becas) | ALTA | CONF. test | **0** | S-M | 🟡 |
+| OPS-06 | **Seeds de arranque pisan configuración del ABM** (capacidades, roles, Operador de backoffice, programa Becas) | ALTA | CONF. test | **0** | S-M | ✅ |
 | DAT-01 | Borrar una pregunta o requisito borra los adjuntos de todos los casos | ALTA | CONF. test | 3 | S (+M fase 2) | ✅ fase 1 |
 | OPS-03 | Los tracebacks de 500 no llegan a stdout | ALTA | CONF. test | **R** (antes 3) | S | ✅ |
 | OPS-01 | Sin guarda de coherencia `django_migrations` ↔ esquema antes de `migrate` | MEDIA | CONF. código | **R** (antes 3) | M | ✅ |
@@ -20,16 +20,16 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | DAT-03 | `dni_titular` desincronizado del DNI real | BAJA | PLAUSIBLE | 3 | S | ✅ |
 | DAT-05 | El Excel del padrón reemplazado/quitado queda en `media/` (o se borra antes del commit) | BAJA | CONF. | 3 | S | ✅ |
 | V2-NEW-05 | Un restore deja pks de legajo en hex que el ORM de MariaDB no encuentra | BAJA | a confirmar | 3 | S | ✅ |
-| OPS-10 | Módulos de «optimización» con DDL y `SET GLOBAL` en el release | BAJA | CONF. ajustado | 7 | S-M | ⬜ |
+| OPS-10 | Módulos de «optimización» con DDL y `SET GLOBAL` en el release | BAJA | CONF. ajustado | 7 | S-M | ✅ |
 | OPS-11 | `migrate --run-syncdb` en el entrypoint | BAJA | CONF. ajustado | 3 | S | ✅ |
 | OPS-12 | QA no reproduce el cache de PRD y declara `ENVIRONMENT=prd` | BAJA | CONF. | 3 | S | ✅ |
-| OPS-13 | Dependencias sin uso en la imagen | BAJA | CONF. | 7 | S | ⬜ |
-| OPS-14 | Código muerto o stub; un `.py` vivo que git trata como binario | BAJA | CONF. | 7 | S | ⬜ |
+| OPS-13 | Dependencias sin uso en la imagen | BAJA | CONF. | 7 | S | ✅ |
+| OPS-14 | Código muerto o stub; un `.py` vivo que git trata como binario | BAJA | CONF. | 7 | S | ✅ |
 | TST-03 | Coverage global de 48 % sobre todo el repo | BAJA | CONF. | **R** (antes 3) | S | ✅ |
 | G2-05 | `import_users_from_csv` reparte grupos de un usuario fijo y pisa cuentas | BAJA | CONF. lectura | 3 | S | ✅ |
 | G3-04 | CronJobs de referencia sin deadlines, `backoffLimit` ni `timeZone` | BAJA | PLAUSIBLE | 3 | S | ✅ |
 | G3-05 | Cron de icore sin versionar y sin vigilancia | BAJA | CONF. lectura | 3 | S | ✅ |
-| R0-02 | `CLAUDE.md` y `docs/client/architecture.md` todavía nombran `portal:ciudadano_mi_perfil` | BAJA (MINOR) | revisión Ola 0 | 7 | S | ⬜ |
+| R0-02 | `CLAUDE.md` y `docs/client/architecture.md` todavía nombran `portal:ciudadano_mi_perfil` | BAJA (MINOR) | revisión Ola 0 | 7 | S | ✅ |
 | R0-03 | Fecha fija en `programas/tests/test_becas_relevamientos.py:636-648` que vence el 01-ene-2027 | BAJA (MINOR) | revisión Ola 0 | **R** (antes 3; antes del 31-dic-2026) | S | ✅ |
 
 ---
@@ -38,6 +38,30 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 
 ### OPS-06 · Seeds de arranque pisan la configuración que el ABM deja editar
 **Severidad:** ALTA (sube desde la MEDIA de OPS-06 de V6 por G1c-02) · **Estado:** CONFIRMADO con test (`poc/test_repro_admin_cron_renaper.py::G1c02SeedPisaCapacidadesTests`; `poc/test_repro_usuarios.py::G2OperadorBackofficeSeedTests`); impacto en PRD PLAUSIBLE con alta probabilidad · **Origen:** A8-08, G1c-02, G1c-03, G2-02 · **Ola:** **0** · **Esfuerzo:** S-M (M si se agrega `RolMeta.clave`) · **Decisión:** D-O06
+
+**Resolución (fase 2):** ✅ Cerrada en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 — `RolMeta.clave`
+identifica a los **doce** roles que siembra el arranque: `sistema.administrador`, `sistema.operador_backoffice`, los
+cinco `becas.*` y los **cinco de menú** (`menu.dashboard`, `menu.ciudadanos`, `menu.reportes`, `menu.configuracion`,
+`menu.administracion`). `users.0033` agrega la columna —`NULL`, única, expand puro: el código viejo no la escribe y
+MySQL y MariaDB admiten varios `NULL` en un índice único— y `users.0030` se la pone a los roles que ya existen
+empatando por el nombre canónico, con reversa que los vuelve a `NULL`. `asegurar_rol_sembrado` (en
+`users/services/roles.py`, una sola implementación para los tres seeds) busca por clave y solo cae al nombre cuando
+ninguna fila la tiene todavía; en ese caso se la deja puesta, así que a partir del segundo arranque el nombre deja de
+importar. Con eso, el escenario 3 —renombrar «Becas — Referente» y que el arranque siguiente cree un segundo rol vacío
+al lado del que la gente usa— deja de pasar, y el rol renombrado **se sigue sincronizando** (capacidades base del
+Cambio 29) sin que le toquen el nombre ni el estado activo (D-O06). **Lo que la clave no arregla hacia atrás:** un rol
+que ya estaba renombrado **antes** de este deploy no se puede reconocer —no hay por dónde empatarlo—, así que queda sin
+clave y el seed crea el canónico, como venía pasando. Es un paso del PM, no del código. **Test permanente:**
+`users.tests.test_seed_datos_base.ClaveEstableDeLosRolesSembradosTests` (6) y, en `SeedRolesBecasTests`,
+`test_un_rol_renombrado_no_genera_un_duplicado` + `test_un_rol_renombrado_se_sigue_sincronizando` (las dos que
+documentaban el hueco, invertidas).
+**Ronda 2 de la revisión:** la fase 2 cubría **7 de los 12** roles. Los cinco de menú seguían sembrándose con
+`Group.objects.get_or_create(name=…)` y no estaban en `users.0030`: renombrar «Gestión de Ciudadanos» y
+«Administración» desde el ABM y correr `seed_datos_base` daba **14 → 16 grupos**, y el «Administración» duplicado nace
+con `usuario.administrar` + `rol.administrar`, cero usuarios y `clave=None`, al lado del que la gente usa. Ahora pasan
+por el mismo helper y su backfill es **`users.0032`** —una migración nueva, no una ampliación de la `0030`, porque esta
+rama se puede haber desplegado ya en testing y una migración aplicada no vuelve a correr—. Sigue valiendo el «solo al
+crearlo» del Cambio 104: reconocer el rol no es rehacerle las capacidades.
 
 **Resolución:** 🟡 Parcial en #508 (Cambio 104), 01-oct-2026 — puntos 1-3: las opt-in (`seed_becas.CAPACIDADES_OPT_IN`) sobreviven al seed; de un rol existente no se pisan descripción, activo ni protegido; «Operador de backoffice» se siembra solo al crearlo; `crear_programas` busca por `codigo` y no toca un programa existente (cubre G1c-03); tests en `users/tests/test_seed_datos_base.py`. DECISIÓN PM 01-oct (D-O06): «Operador de backoffice» queda como está (no protegido, conserva sus capacidades). Falta: la fase 2 (`RolMeta.clave`: un rol renombrado sigue generando un segundo rol en el arranque, escenario 3) → Ola 2, PR 1 (+4 h); P-05 en PRD y volver a tildar `becas.relevamiento.publico` donde el deploy del 28/09 la haya borrado (operativo, PM).
 - **Ubicación:** `programas/management/commands/seed_becas.py:296-325` (`group.permissions.set(...)` por rol, línea 325; `:56-61` excluye `becas.relevamiento.publico`), `:313-325` (`asegurar_roles_becas`: `update_or_create(... "activo": True, "protegido": False ...)`); `users/management/commands/seed_rbac.py:86-111` (`RolMeta.update_or_create(... "protegido": False, "activo": True)` + `permissions.set` con `usuario.administrar` y `rol.administrar` sobre «Operador de backoffice», línea 110); `legajos/management/commands/crear_programas.py:28-40` (`update_or_create(tipo=BECAS, defaults={estado ACTIVO, nombre, color, orden})`); `users/views/roles.py:80-127` (el ABM permite renombrar, desactivar y borrar roles); `configuracion/views/programas.py:430-452` (permite cambiar el estado del programa); `docker-entrypoint.sh:61-62` (default `seed_datos_base crear_programas seed_catalogo_siis` en cada arranque).
@@ -450,6 +474,24 @@ la idempotencia; los corre el job «Motor real»).
 - **Propuesta:** borrar esos comandos; los módulos `advanced_*`, `database_*`, `intelligent_*`, `phase2_manager`, `performance_analyzer` y `monitoring`; las vistas y URLs `phase2-*`, `system-metrics`, `alerts`, `realtime-metrics` y su bloque de `templates/core/performance_dashboard.html`. Revisar `core/tests/test_package_exports.py`. Conservar `query_observability`, `cache_utils` y `ci_external_stubs`.
 - **Verificación:** suite completa, `manage.py check`, `git grep -n "phase2\|core.performance.monitoring"` vacío; V-UI si se toca el template.
 
+**Resolución:** ✅ Resuelto en el PR 1 de la Ola 7 (Cambio 195), 09-oct-2026 — se fueron los **nueve** módulos
+(`advanced_connection_pool`, `advanced_partitioning`, `database_optimizations`, `database_partitioning`,
+`intelligent_indexing`, `intelligent_query_optimizer`, `monitoring`, `performance_analyzer`, `phase2_manager`), los
+comandos `optimize_db`, `setup_system`, `initialize_phase2` y `optimize_database`, las cinco vistas y URLs
+(`system-metrics`, `alerts`, `realtime-metrics`, `phase2-metrics`, `run-phase2-tests`) y sus bloques de
+`templates/core/performance_dashboard.html`. Se conservan `query_observability`, `cache_utils` y `ci_external_stubs`,
+y con ellos `/performance-api/`, `/query-analysis-api/` y `/optimization-suggestions-api/`, que es lo que mide de
+verdad. El criterio de la ola se cumple: `git grep -n "phase2\|core.performance.monitoring"` no devuelve nada fuera de
+`docs/`. **Dos comandos más de los que la ficha nombraba, los dos code-first:** `monitor_performance` (único
+consumidor de `performance_analyzer`) y `performance_report` (lo llamaba solo `setup_system`) quedaban sin un solo
+invocador. `core/tests/test_package_exports.py` no necesitó cambios: solo nombra `performance_dashboard`, que se
+queda. Y el punto de SEC-01 sobre estas vistas se cierra por borrado: las ocho de `core/views/performance.py` pasaron a
+cuatro y las cuatro llevan `BackofficeAutenticado` + `IsPerformanceAdmin`; `IsAdminUser` —el `is_staff` que
+autorizaba `/run-phase2-tests-api/` contra la regla de capacidades— ya no se importa en el módulo. **RED-65 va en el
+mismo PR** (ver su ficha).
+**Test permanente:** `core.tests.test_performance_observability.PerformanceObservabilityTests.test_las_apis_de_monitoreo_que_mentian_ya_no_existen`
+(y `.test_el_endpoint_que_corria_pruebas_por_http_ya_no_existe`, que además pide el 404 por HTTP).
+
 ### OPS-11 · `migrate --run-syncdb` en el entrypoint
 **Severidad:** BAJA (hoy no-op: las 12 apps sin migraciones tienen 0 modelos, verificado con `MigrationLoader`) · **Origen:** A8-15 · **Ola:** 3 · **Esfuerzo:** S
 - **Propuesta:** sacar `--run-syncdb` de `docker-entrypoint.sh:38-40` (`health_check.db` trae migraciones propias). Verificación: bootstrap sobre base vacía del banco sin `--run-syncdb` → migra OK.
@@ -508,6 +550,34 @@ operación de *contract* (N+2) y con su reversa declarada. Las que solo son `pip
 - **Ubicación:** `requirements.txt` (`openai==1.3.8` —subido solo para parchear CVEs de `anyio`—, `httpx`, `anyio`, `structlog`, `gevent`, `greenlet`, `django-simple-history`, `debugpy`, `pymysql` —solo en `core/performance/advanced_connection_pool.py`, OPS-10—, `django-health-check` —OPS-04—); `config/settings.py:85` (`django_extensions` en `INSTALLED_APPS` también en prod). Verificado: 0 imports.
 - **Propuesta:** sacarlas; pasar `debugpy`, `django-extensions`, `django-silk`, `django-zeal` a `requirements-dev.txt`; `django_extensions` solo con `DEBUG`. Confirmar que ningún operador usa `shell_plus` en ECOM. Verificación: build de la imagen, suite completa y `pip-audit`.
 
+**Resolución:** ✅ Resuelto en el PR 2 de la Ola 7 (Cambio 196), 09-oct-2026 — **once paquetes menos en la imagen**.
+Se fueron del todo `openai`, `httpx`, `anyio` (los tres del bloque «AI/ML»: `openai` había subido a 1.3.8 solo para
+destrabar `anyio>=4` en el Cambio 97, y `anyio` se pineaba porque lo arrastraban esos dos), `structlog`,
+`gevent`/`greenlet` (**RED-45**, abajo), `django-simple-history` —su único `HistoricalRecords` está comentado desde
+siempre—, `pymysql` —lo usaba `advanced_connection_pool.py`, que borró OPS-10 en el Cambio 195— y
+`django-health-check`. `debugpy`, `django-extensions` y `django-silk` se mudaron a **`requirements-dev.txt`**
+(`-r requirements.txt` + las tres), que el `Dockerfile` no instala.
+**`django-health-check` necesitó la migración que esta misma ficha anticipaba:** `core.0003` borra
+`health_check_db_testmodel` y las **dos** filas de `django_migrations` (`db.0001_initial` y
+`health_check_db.0001_initial`), con `atomic = False`, los tres pasos idempotentes y reversa real —recrea la tabla y
+reinserta las filas—. Es *contract* y va legal: lo que borra dejó de leerse en el Cambio 153 (OPS-04), hace más de dos
+releases. **`django_extensions` y `silk` entran a `INSTALLED_APPS` solo si están instalados**, no con un `if DEBUG` a
+secas: el `docker-compose.yml` de desarrollo levanta la **imagen de producción** con `DJANGO_DEBUG=True` y una lista
+incondicional mataría ese contenedor al importar; por lo mismo `config/urls.py` monta `/silk/` por `SILK_HABILITADO`.
+**Dos desvíos, los dos code-first:** (a) **`django-zeal` no se muda** —`config/settings.py` lo suma a `INSTALLED_APPS`
+con `PYTEST_RUNNING` y cuatro módulos de tests hacen `from zeal import zeal_ignore` al importar, así que todo job que
+corre la suite lo necesita y en producción no se carga nunca—; (b) `psutil` se queda, que la ficha no nombra y
+`core/views/performance.py` importa. **Verificado como pide la ficha:** `docker build` sobre `python:3.12-slim` OK,
+`check --deploy` adentro de la imagen con 1 aviso (el `SECRET_KEY` de prueba), `check` adentro de la imagen con
+`DJANGO_DEBUG=True` también OK, `collectstatic` 332/1.448 sin errores, suite completa 4.874 tests en verde y
+`pip-audit -r requirements.txt` «No known vulnerabilities found» **sin ignores** —`setuptools` subió de 80.9.0 a
+83.0.0 y la excepción `PYSEC-2026-3447` se retiró, que era lo que RED-85 tenía anotado—.
+**Queda operativo (PM):** confirmar con ECOM que nadie usa `shell_plus` en testing ni en PRD, que es la confirmación
+que la *Propuesta* pide y esta sesión no puede hacer. Si lo usan, la vuelta es una línea.
+**Test permanente:** `core.tests.test_dependencias` (`RequirementsTests.test_los_paquetes_retirados_no_volvieron_a_la_imagen`,
+`.test_nadie_los_importa`, `.test_la_imagen_instala_solo_requirements`, `InstalledAppsTests.test_health_check_ya_no_esta_instalada`,
+`RetiroDeHealthCheckTests.test_restituir_deja_el_estado_de_antes_y_retirar_lo_limpia`).
+
 ### OPS-14 · Código muerto o stub; un `.py` vivo que git trata como binario
 **Severidad:** BAJA (la conversión a LF conviene ya) · **Origen:** A8-18 · **Ola:** 7 · **Esfuerzo:** S
 
@@ -515,6 +585,28 @@ operación de *contract* (N+2) y con su reversa declarada. Las que solo son `pip
 
 - **Ubicación:** `programas/services/exportacion_reportes.py` con fin de línea CR: `git ls-files --eol` lo marca `i/-text` (**binario**: los diffs de PR no muestran su contenido) y es código vivo (lo importan `views/dashboard_becas.py`, `reportes.py`, `reportes_becas.py`); `tramites/` (app en `INSTALLED_APPS` con `urlpatterns = []`); `docker/django/entrypoint_final.py` (dice «SISOC», corre un script inexistente); `core/services/cache.py` (sin importadores); capacidad `ciudadano.eliminar` (`core/rbac.py:41`, rol «Gestión de Ciudadanos» en `seed_datos_base.py:51`) sin ninguna vista que la use; `legajos/services/ml_predictor.py` (heurística sobre legajos que no se crean).
 - **Propuesta:** convertir `exportacion_reportes.py` a LF y agregar `*.py text eol=lf` en `.gitattributes`; borrar `tramites`, `docker/django/`, `core/services/cache.py` y la capacidad `ciudadano.eliminar` (con migración de `users` `AlterModelOptions`, como 0015/0018/0021/0026; ojo con G1c-08 punto 3, que la menciona como alternativa). Verificación: suite, `manage.py check`, `makemigrations --check`.
+
+**Resolución:** ✅ Resuelto en el PR 1 de la Ola 7 (Cambio 195), 09-oct-2026. La parte de los fines de línea ya la
+había cerrado **RED-82** (#607, Cambio 159): `*.py text eol=lf` está en `.gitattributes` y `core/tests/test_higiene_fuentes.py::EOLTests`
+recorre `git ls-files "*.py"`; verificado de nuevo acá, ningún `.py` con CR. Lo que entra en este PR: se borran
+`tramites/` (sin modelos ni rutas; sale también de `INSTALLED_APPS`, del `content` de Tailwind y de los dos scripts de
+auditoría que la nombraban), `docker/django/` —el `Dockerfile` que nadie construía y `entrypoint_final.py`, que corría
+un script inexistente y decía «SISOC»—, `core/services/cache.py` (cero importadores) y la capacidad
+`ciudadano.eliminar`, con `users.0033`: `AlterModelOptions` sobre el modelo ancla (`managed = False`, **no toca el
+esquema**) más un `RunPython` que borra el `Permission`, porque Django no lo hace al sacarlo de `Meta.permissions` y
+quedaría tildado en los grupos que lo tenían con `rbac.puede()` resolviéndolo —mismo patrón que `users.0017`—; la
+reversa lo recrea **sin reasignarlo**, y está marcada `# REVERSA-NOOP`.
+**Dos desvíos, los dos code-first.** (a) `legajos/services/ml_predictor.py` **no se borra**: la ficha lo nombra en
+*Ubicación* y no en *Propuesta*, y `legajos/views/contactos_api.py::prediccion_riesgo_api` lo importa desde una ruta
+que existe (`legajos:prediccion_riesgo`). No está muerto. (b) `relevamiento.ver`, `institucion.ver` e
+`institucion.administrar` —que R-18 mandó acá con «o se usan, o salen del catálogo»— **siguen en el catálogo**: la
+*Propuesta* solo nombra `ciudadano.eliminar`; retirar las dos de `instituciones` vacía el módulo y hace desaparecer
+una solapa del ABM de Roles, y `relevamiento.ver` convive con `relevamiento.gestionar`, que sí se evalúa. Las tres
+quedan declaradas en `CAPACIDADES_SIN_USO` con su motivo, y la decisión es del PM.
+**RED-65 entra en este mismo PR**, como la ficha pedía (ver su resolución).
+**Test permanente:** `users.tests.test_rbac_contrato.CapacidadRetiradaTests.test_no_esta_en_el_catalogo`
+(y `.test_no_la_siembra_ningun_rol`, `.test_las_hermanas_del_modulo_siguen_estando`, más
+`core.tests.test_publish_guard.PublishGuardTests.test_lo_que_salio_de_la_lista_salio_porque_no_existe`).
 
 ### TST-03 · El coverage de 48 % se mide sobre todo el repo
 **Severidad:** BAJA · **Origen:** A8-20 · **Ola:** 3 · **Esfuerzo:** S
@@ -645,6 +737,22 @@ las líneas son de `origin/development @ 7393c41`.
 
 ### R0-02 · `CLAUDE.md` y `docs/client/architecture.md` todavía nombran `portal:ciudadano_mi_perfil`
 **Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 7 · **Esfuerzo:** S
+**Resolución:** ✅ Resuelto en #651 (Cambio 197, Ola 7 PR 3), 09-oct-2026 — **el texto a corregir era uno
+solo.** `CLAUDE.md` ahora dice `portal:home` y, de paso, cuál es la excepción real del middleware: solo
+`/static/`; `/media/` **no** está exento (SEC-09 etapa 2). `docs/client/architecture.md:203` ya decía las
+dos cosas bien —lo corrigió el PR de `/media/` (#643, Cambio 188), que tocó ese mismo párrafo por la otra
+mitad del seguimiento anotada en SEC-09—, así que ahí no había nada que cambiar. **Sí deja guard**, y no
+fijando el nombre correcto (que envejece igual) sino la propiedad: **todo `portal:<algo>` que esos dos
+textos nombren tiene que reversear**, con su control de andamio. La próxima ruta del portal que se apague
+vuelve a poner esto en rojo. **Test permanente:**
+`portal/tests/test_portal_apagado.py::DocumentacionDelPortalTests.test_las_rutas_del_portal_que_nombran_los_docs_existen`
+(y `.test_el_control_del_andamio`).
+
+*Nota, fuera del alcance de la ficha:* `portal/views/ciudadano_auth.py` y
+`portal/templates/portal/ciudadano/base_ciudadano.html` todavía nombran `portal:ciudadano_mi_perfil` en
+un `redirect` y un `{% url %}`. No son un 500 latente: las vistas y el template que los contienen quedaron
+sin ruta con SEC-29 y `portal/tests/test_portal_apagado.py` lo fija (17 rutas y 19 nombres). Limpiarlos va
+con el apagado definitivo del portal, no acá.
 - **Ubicación:** `CLAUDE.md:165` y `docs/client/architecture.md:203` dicen que `PortalCiudadanoMiddleware` redirige a `portal:ciudadano_mi_perfil`; desde #511 (SEC-29) redirige a `portal:home` y esa ruta no existe.
 - **Propuesta:** actualizar los dos textos (documentación; `CLAUDE.md` no viaja en el release).
 

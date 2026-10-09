@@ -225,14 +225,20 @@ class AdminBecasAlcanceProgramaTests(TestCase):
 
         self.assertIn(self.segmento, list(form.fields["segmento_territorial"].queryset))
 
-    def test_puede_asignar_todos_los_roles_de_su_programa(self):
+    def test_puede_asignar_los_roles_operativos_de_su_programa(self):
         """No solo el Territorial: antes la rama territorial le recortaba el combo
-        a los roles de app de campo y no podía dar de alta un Coordinador."""
+        a los roles de app de campo y no podía dar de alta un Coordinador.
+
+        Desde G1b-02 el único que falta es ``Becas — Administrador``: otorga las dos
+        capacidades transversales de administración del programa, y repartirlas vuelve a
+        ser potestad de un rol global.
+        """
         form = UserCreationForm(operador=self.admin)
 
         ofrecidos = {g.name for g in form.fields["groups"].queryset}
 
         self.assertEqual(
             ofrecidos,
-            {ROL_ADMIN, ROL_COORDINADOR, ROL_COORDINADOR_REGIONAL, ROL_REFERENTE, ROL_TERRITORIAL},
+            {ROL_COORDINADOR, ROL_COORDINADOR_REGIONAL, ROL_REFERENTE, ROL_TERRITORIAL},
         )
+        self.assertNotIn(ROL_ADMIN, ofrecidos)

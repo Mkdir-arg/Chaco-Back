@@ -79,12 +79,12 @@ Descripción técnica del sistema **Chaco**: topología de despliegue, runtime, 
 
     | Componente | Versión | Rol |
     |---|---|---|
-    | django-silk | 5.0.4 | Profiling de requests y queries (`/silk/`, 100% en dev, 10% en prd) |
-    | django-health-check | 3.17.0 | Endpoint `/health/` con checks de DB, cache y disco |
-    | django-simple-history | 3.4.0 | Auditoría automática de modelos críticos |
+    | django-silk | 5.1.0 | Profiling de requests y queries (`/silk/`). Solo en desarrollo: no viaja en la imagen |
     | drf-spectacular | 0.27.0 | OpenAPI 3 + Swagger UI + ReDoc |
-    | structlog | 23.2.0 | Logging estructurado |
     | psutil | 5.9.8 | Métricas de sistema para monitoreo interno |
+
+    Las sondas de salud (`/health/` y `/health/ready/`) son código propio del
+    repo, no un paquete de terceros.
 
 ---
 
@@ -319,12 +319,16 @@ DATABASES["default"] = {
         "read_timeout": 10,
         "write_timeout": 10,
     },
-    "CONN_MAX_AGE": 60,            # connection pooling de Django
+    # 0 en el contenedor de websockets (APP_RUNTIME=daphne), 60 en el resto
+    "CONN_MAX_AGE": 0 if APP_RUNTIME == "daphne" else 60,
     "CONN_HEALTH_CHECKS": True,
 }
 ```
 
-- **Pool**: `CONN_MAX_AGE=60` mantiene conexiones reusables por 60 s con health-check previo.
+- **Pool**: `CONN_MAX_AGE=60` mantiene conexiones reusables por 60 s con health-check previo **en el
+  contenedor web** (gunicorn). En el contenedor de websockets (`APP_RUNTIME=daphne`) vale **0**: bajo
+  ASGI cada request HTTP lo atiende un hilo nuevo del pool de `asgiref`, así que la conexión persistente
+  no se reusaba nunca y quedaba abierta hasta que pasara el recolector.
 - **Aislamiento**: `READ COMMITTED` para reducir bloqueos en escrituras concurrentes (chat, derivaciones).
 - **Charset**: `utf8mb4` para soportar correctamente nombres con acentos y emojis.
 - **Tests**: bajo `pytest`, Django usa SQLite en memoria para acelerar.
@@ -387,7 +391,6 @@ REDIS_URL=redis://redis:6379/1       # alternativa única
 # Integraciones externas
 RENAPER_API_URL=…                    # padrón nacional de personas
 RENAPER_API_KEY=…
-OPENAI_API_KEY=…                     # asistencia IA en módulos puntuales
 ```
 
 ### 7.2 Endurecimiento aplicado en `prd`

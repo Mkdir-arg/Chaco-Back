@@ -14,9 +14,10 @@ import sys
 import tempfile
 import time
 import traceback
+import uuid
 from collections import Counter, defaultdict
 from contextlib import redirect_stderr, redirect_stdout
-from datetime import datetime, timedelta, timezone
+from importlib import import_module
 from io import StringIO
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -53,6 +54,11 @@ def bootstrap_django():
     database = settings.DATABASES["default"]
     if database["ENGINE"] != "django.db.backends.sqlite3" or database["NAME"] != ":memory:":
         raise RuntimeError("perf_audit se negó a iniciar: la base configurada no es SQLite in-memory")
+
+    # RED-10: el destino del paso 2 del link público sube los cinco adjuntos
+    # obligatorios del catálogo, así que medir **escribe archivos**. Van a un temporal:
+    # una auditoría no tiene por qué dejar basura en el `media/` del repo.
+    settings.MEDIA_ROOT = tempfile.mkdtemp(prefix="chaco_perf_media_")
 
 
 def normalize_sql(sql: str) -> str:
@@ -115,44 +121,103 @@ def duplicate_query_groups(query_records):
     return repeated
 
 
+#: Un PNG con la firma real y nada más. SIIS-16 (Cambio 174) valida los bytes del
+#: adjunto en el link público, así que un archivo de texto con extensión `.png` ya no
+#: entra y el envío medido no sería el que ocurre en producción.
+PNG_SINTETICO = b"\x89PNG\r\n\x1a\nPERF"
+
+#: Qué contesta el manifiesto en cada campo protegido del catálogo (RED-10). La
+#: identidad va por vínculo y no por posición: el texto de la etiqueta y el orden se
+#: pueden editar desde el backoffice, el vínculo no.
+RESPUESTAS_PROTEGIDAS = {
+    "nombre": "Nombre PERF",
+    "apellido": "Apellido PERF",
+    "dni": "20111222",
+    "genero": "F",
+    "fecha_nacimiento": "1990-01-01",
+    "telefono": "3624000000",
+    "email": "paso2@perf.invalid",
+}
+
+
+def datos_paso2(definicion, indice):
+    """``(data, files)`` de un envío válido del paso 2, armados desde el catálogo.
+
+    El formulario público es **dinámico**: lo arma el diseño de la convocatoria sobre el
+    catálogo de hoy (RN-1), así que una pregunta nueva obligatoria entra sola. Por eso el
+    payload no se escribe a mano: se le pregunta al propio form qué campos tiene y se
+    contesta por tipo. Si mañana el catálogo suma un adjunto obligatorio, este destino lo
+    manda sin que nadie lo actualice —y si no lo mandara, el presupuesto mediría un 200
+    con errores de validación en vez de la escritura, que es el modo de falla que importa.
+    """
+    from django import forms
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from portal.forms.inscripcion import InscripcionPaso2Form
+    from programas.models import PreguntaGlobal
+    from programas.services.diseno import clave_pregunta
+
+    identificacion = {"dni": "70000000", "sexo": "F", "datos": None, "origen": "manual"}
+    form = InscripcionPaso2Form(None, None, definicion=definicion, identificacion=identificacion)
+    vinculos = {clave_pregunta(p): p.vinculo for p in PreguntaGlobal.objects.filter(protegido=True)}
+
+    datos, archivos = {}, {}
+    for nombre, campo in form.fields.items():
+        vinculo = vinculos.get(nombre)
+        if isinstance(campo, forms.FileField):
+            archivos[nombre] = SimpleUploadedFile(
+                f"perf-{indice}-{nombre}.png", PNG_SINTETICO, content_type="image/png"
+            )
+        elif vinculo in RESPUESTAS_PROTEGIDAS:
+            datos[nombre] = RESPUESTAS_PROTEGIDAS[vinculo]
+        elif isinstance(campo, forms.DateField):
+            datos[nombre] = "1990-01-01"
+        elif isinstance(campo, forms.EmailField):
+            datos[nombre] = f"paso2-{indice}@perf.invalid"
+        elif getattr(campo, "choices", None):
+            opciones = [valor for valor, _ in campo.choices if valor not in ("", None)]
+            if not opciones:
+                continue
+            datos[nombre] = [opciones[0]] if isinstance(campo, forms.MultipleChoiceField) else opciones[0]
+        elif isinstance(campo, (forms.DecimalField, forms.FloatField, forms.IntegerField)):
+            datos[nombre] = "1"
+        else:
+            datos[nombre] = f"PERF {indice}"
+    return datos, archivos
+
+
 def build_targets(worker_id=None):
     """Resuelve el manifiesto después del seed, fuera de la captura SQL."""
+    from django.conf import settings
     from django.urls import reverse
 
-    from conversaciones.models import Conversacion
+    # `timezone` a secas es el del stdlib, que este módulo ya importa arriba.
+    from django.utils import timezone as timezone_django
+    from rest_framework.authtoken.models import Token
+
     from core.management.commands.seed_perf import (
         PERF_ADMIN_USERNAME,
         PERF_CITIZEN_USERNAME,
+        PERF_CONVOCATORIA_ESCRITURAS,
+        PERF_DNI_LINK_PUBLICO,
         PERF_FIRST_DNI,
         PERF_LOGIN_PASSWORD,
         PERF_LOGIN_USERNAME,
         PERF_SIIS_PROGRAMA_ID,
+        PERF_TERRITORIAL_API_USERNAME,
     )
     from core.models import Localidad
     from legajos.models import Ciudadano
-    from programas.models import ProgramaSiis, Relevamiento
+    from portal.services.inscripcion import clave_sesion
+    from programas.models import Convocatoria, ProgramaSiis, Relevamiento
+    from programas.services.becas import definicion_formulario
 
+    # G1-01 fase 2: acá se resolvía (o se creaba, una por worker del CI) la
+    # `Conversacion` de las tres rutas de conversaciones que medía este manifiesto.
+    # La app se apagó: sus rutas ya no existen y los tres presupuestos salieron de
+    # `scripts/perf_budgets.json`.
     ciudadano = Ciudadano.objects.get(dni=PERF_FIRST_DNI)
     programa_siis = ProgramaSiis.objects.get(siis_programa_id=PERF_SIIS_PROGRAMA_ID)
-    if worker_id is None:
-        conversacion = (
-            Conversacion.objects.filter(ciudadano_usuario__username=PERF_CITIZEN_USERNAME)
-            .order_by("fecha_inicio")
-            .first()
-        )
-    else:
-        worker_suffix = hashlib.sha256(worker_id.encode()).hexdigest()[:12]
-        worker_started_at = datetime(2040, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=int(worker_suffix, 16))
-        conversacion, _ = Conversacion.objects.get_or_create(
-            ciudadano_usuario__username=PERF_CITIZEN_USERNAME,
-            fecha_inicio=worker_started_at,
-            defaults={
-                "tipo": "personal",
-                "estado": "pendiente",
-                "prioridad": "normal",
-                "dni_ciudadano": PERF_FIRST_DNI,
-            },
-        )
     relevamiento = Relevamiento.objects.get(zona="Zona PERF item 0000")
     # Cambio 58: el detalle de un caso arma las respuestas desde la foto de la
     # definición, así que entra al presupuesto como cualquier otra ruta pesada.
@@ -163,9 +228,6 @@ def build_targets(worker_id=None):
         if worker_id is None
         else f"perf_ci_login_{hashlib.sha256(worker_id.encode()).hexdigest()[:12]}"
     )
-
-    if conversacion is None:
-        raise RuntimeError("seed_perf no creó la conversación PERF requerida")
 
     write_index = itertools.count(1)
 
@@ -225,12 +287,93 @@ def build_targets(worker_id=None):
             },
         )
 
-    def envio_conversacion(client, url):
-        index = siguiente_escritura()
+    # --- RED-10 · las dos escrituras que trabajan bajo el lock del relevamiento ------
+    #
+    # Las dos ya rompieron o estuvieron al borde contra el `read_timeout` de 10 s
+    # (Cambio 91: 165 × 500 en el link público; Cambio 93: el alta por API de 32 a 10
+    # consultas) y ninguna tenía destino en el manifiesto: el trabajo que hacen adentro
+    # del `select_for_update` no tenía ningún número que lo defendiera.
+
+    convocatoria_escrituras = Convocatoria.objects.get(nombre=PERF_CONVOCATORIA_ESCRITURAS)
+    relevamiento_publico = Relevamiento.objects.get(
+        convocatoria=convocatoria_escrituras, tipo=Relevamiento.Tipo.PUBLICO
+    )
+    relevamiento_api = Relevamiento.objects.get(
+        convocatoria=convocatoria_escrituras, tipo=Relevamiento.Tipo.TERRITORIAL
+    )
+    token_de_campo = Token.objects.get(user__username=PERF_TERRITORIAL_API_USERNAME).key
+    desplazamiento_dni = int(hashlib.sha256((worker_id or "local").encode()).hexdigest()[:6], 16) % 9_000_000
+
+    def _dni_sintetico(base, index):
+        return str(base + desplazamiento_dni + index)
+
+    # Las sesiones del paso 1 se crean **acá**, al armar el manifiesto, y no adentro de
+    # la petición medida: sembrarlas cuesta un `INSERT` y un `SELECT` que no son de la
+    # pantalla y ensuciarían el presupuesto. Cada una lleva su propio DNI porque el
+    # control de duplicados por convocatoria (RN-P5) rechaza el segundo envío del mismo
+    # documento, y la muestra en caliente de `perf_audit` repite la escritura.
+    motor_de_sesiones = import_module(settings.SESSION_ENGINE)
+    sesiones_paso2 = []
+    for indice_sesion in range(WARM_SAMPLE_COUNT + 3):
+        sesion = motor_de_sesiones.SessionStore()
+        sesion[clave_sesion(relevamiento_publico)] = {
+            "dni": _dni_sintetico(PERF_DNI_LINK_PUBLICO, indice_sesion),
+            "sexo": "F",
+            # `origen: manual` es el camino que **no** acredita identidad, así que el
+            # formulario pide nombre, apellido y fecha de nacimiento: el envío más
+            # pesado de los dos y el único que no depende de un servicio externo.
+            "datos": None,
+            "origen": "manual",
+            "sellada": timezone_django.now().isoformat(),
+        }
+        sesion.save()
+        sesiones_paso2.append(sesion.session_key)
+
+    definicion_publica = definicion_formulario(relevamiento_publico)
+    sesiones_disponibles = iter(sesiones_paso2)
+
+    def inscripcion_publica_paso2(client, url):
+        """El envío del paso 2: crea el formulario, el ciudadano y el legajo."""
+        indice = siguiente_escritura()
+        try:
+            client.cookies[settings.SESSION_COOKIE_NAME] = next(sesiones_disponibles)
+        except StopIteration:
+            # Antes acá había un `next(..., sesiones_paso2[-1])`: al agotarse las sesiones
+            # se reusaba en silencio la última, ya gastada. El síntoma era el rechazo por
+            # DNI duplicado (RN-P5) y un 200 donde el manifiesto espera un 302, o sea un
+            # mensaje que no dice qué pasó. Se siembran `WARM_SAMPLE_COUNT + 3` y se gastan
+            # `WARM_SAMPLE_COUNT + 1` (una muestra fría más las calientes): el día que el
+            # muestreo crezca, esto revienta nombrando el número que hay que mover.
+            raise RuntimeError(
+                f"inscripcion_publica_paso2 se quedó sin sesiones sembradas: hay {len(sesiones_paso2)} "
+                f"(WARM_SAMPLE_COUNT={WARM_SAMPLE_COUNT} + 3) y el muestreo pidió una más. "
+                "Subir el margen donde se arma `sesiones_paso2`; reusar una sesión gastada "
+                "haría fallar el envío por DNI duplicado (RN-P5) sin decir por qué."
+            ) from None
+        datos, archivos = datos_paso2(definicion_publica, indice)
+        return client.post(url, {**datos, **archivos})
+
+    def becas_api_alta(client, url):
+        """`POST …/formularios/`: el alta de un caso desde la app de campo."""
+        indice = siguiente_escritura()
         return client.post(
             url,
-            data=json.dumps({"mensaje": f"Mensaje sintético PERF {index}"}),
+            data=json.dumps(
+                {
+                    "client_uuid": str(uuid.uuid4()),
+                    "celular": "3624111222",
+                    "email_contacto": f"campo-{indice}@perf.invalid",
+                    "datos_identificacion": {
+                        "dni": _dni_sintetico(PERF_DNI_LINK_PUBLICO + 5_000_000, indice),
+                        "nombre": "Juan",
+                        "apellido": f"Campo PERF {indice}",
+                        "fecha_nacimiento": "1990-01-02",
+                    },
+                    "data": {"globales": {}, "requisitos": {}},
+                }
+            ),
             content_type="application/json",
+            headers={"authorization": f"Token {token_de_campo}"},
         )
 
     def login(client, url):
@@ -283,18 +426,6 @@ def build_targets(worker_id=None):
                 "key": "legajos_ciudadano_nuevo",
                 "route": "legajos:ciudadano_nuevo",
                 "url": reverse("legajos:ciudadano_nuevo"),
-                "actor": "backoffice",
-            },
-            {
-                "key": "conversaciones_lista",
-                "route": "conversaciones:lista",
-                "url": reverse("conversaciones:lista"),
-                "actor": "backoffice",
-            },
-            {
-                "key": "conversacion_detalle",
-                "route": "conversaciones:detalle",
-                "url": reverse("conversaciones:detalle", kwargs={"conversacion_id": conversacion.pk}),
                 "actor": "backoffice",
             },
             {
@@ -402,12 +533,28 @@ def build_targets(worker_id=None):
                 "include_in_timing": False,
             },
             {
-                "key": "envio_conversacion",
-                "route": "conversaciones:enviar_mensaje_operador",
-                "url": reverse("conversaciones:enviar_mensaje_operador", kwargs={"conversacion_id": conversacion.pk}),
-                "actor": "backoffice",
-                "request": envio_conversacion,
-                "expected_json_success": True,
+                # RED-10: el envío del paso 2 del link público. Escribe formulario,
+                # ciudadano, legajo y adjuntos bajo el `select_for_update` del
+                # relevamiento; el Cambio 91 lo vio dar 165 × 500 por `read_timeout`.
+                "key": "inscripcion_publica_paso2",
+                "route": "portal:inscripcion_paso2",
+                "url": reverse("portal:inscripcion_paso2", kwargs={"token": relevamiento_publico.token_publico}),
+                "actor": "anonymous",
+                "expected_status": 302,
+                "expected_redirect_view": "portal:inscripcion_confirmacion",
+                "request": inscripcion_publica_paso2,
+                "include_in_timing": False,
+            },
+            {
+                # RED-10: el alta de un caso por la app de campo, la otra escritura bajo
+                # el mismo lock (Cambio 93: de 32 a 10 consultas). El actor es anónimo
+                # porque la autenticación va por `Token` en el encabezado, no por sesión.
+                "key": "becas_api_alta",
+                "route": "becas_api:relevamiento-formularios",
+                "url": reverse("becas_api:relevamiento-formularios", kwargs={"pk": relevamiento_api.pk}),
+                "actor": "anonymous",
+                "expected_status": 201,
+                "request": becas_api_alta,
                 "include_in_timing": False,
             },
         ],
@@ -541,7 +688,6 @@ def create_report(scale):
         },
         "coverage_notes": [
             "dashboard_redirect documents that /dashboard/ redirects to the shadowed users login at /.",
-            "tramites is not measured because the current app has no models, views or URL patterns.",
             "SQLite timings and query plans are not representative of MySQL production.",
         ],
         "summary": {

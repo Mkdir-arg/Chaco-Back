@@ -111,6 +111,8 @@ class CiudadanosService:
 
     @staticmethod
     def invalidate_ciudadanos_cache():
-        from dashboard.utils import invalidate_dashboard_cache
+        # RED-51: era una de las dos `invalidate_dashboard_cache`. Ahora hay una sola, y
+        # las claves que borra viven en la tabla de `dashboard/cache.py`.
+        from dashboard.cache import invalidar_dashboard
 
-        invalidate_dashboard_cache()
+        invalidar_dashboard()

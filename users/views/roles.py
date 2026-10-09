@@ -15,6 +15,7 @@ from core.rbac import CapacidadRequeridaMixin
 from users.forms.roles import RolForm
 from users.selectors.roles import (
     programas_administrables_roles,
+    puede_editar_rol,
     puede_gestionar_rol,
     roles_filtrados_para,
     roles_lista_para,
@@ -81,6 +82,12 @@ class RolDetailView(_RolesPermMixin, View):
                 "meta": getattr(group, "meta", None),
                 "arbol": rbac.arbol_capacidades(rbac.capacidades_de_grupo(group)),
                 "num_usuarios": group.user_set.count(),
+                # Ver no es editar (G1b-02): el admin de programa abre la ficha de su
+                # propio rol pero no puede guardarlo. El listado ya escondía el botón
+                # (`item.puede_editar`) y la ficha lo seguía dibujando, así que desde
+                # acá el link llevaba a un 302 con «no tenés permisos». Una acción que
+                # el servidor rechaza no se dibuja, viva en la pantalla que viva.
+                "puede_editar": puede_editar_rol(request.user, group),
             },
         )
 
@@ -108,7 +115,7 @@ class RolUpdateView(_RolesPermMixin, View):
 
     def get(self, request, pk):
         group = self._get_group(pk)
-        if not puede_gestionar_rol(request.user, group):
+        if not puede_editar_rol(request.user, group):
             return _fuera_de_alcance(request)
         meta = getattr(group, "meta", None)
         if meta and meta.protegido:
@@ -126,7 +133,7 @@ class RolUpdateView(_RolesPermMixin, View):
 
     def post(self, request, pk):
         group = self._get_group(pk)
-        if not puede_gestionar_rol(request.user, group):
+        if not puede_editar_rol(request.user, group):
             return _fuera_de_alcance(request)
         form = RolForm(request.POST, instance=group, operador=request.user)
         if form.is_valid():
@@ -147,7 +154,7 @@ class RolUpdateView(_RolesPermMixin, View):
 class RolDeleteView(_RolesPermMixin, View):
     def post(self, request, pk):
         group = get_object_or_404(Group.objects.select_related("meta", "meta__programa"), pk=pk)
-        if not puede_gestionar_rol(request.user, group):
+        if not puede_editar_rol(request.user, group):
             return _fuera_de_alcance(request)
         try:
             RolesAdminService.eliminar(group)
@@ -161,7 +168,7 @@ class RolDeleteView(_RolesPermMixin, View):
 class RolToggleActivoView(_RolesPermMixin, View):
     def post(self, request, pk):
         group = get_object_or_404(Group.objects.select_related("meta", "meta__programa"), pk=pk)
-        if not puede_gestionar_rol(request.user, group):
+        if not puede_editar_rol(request.user, group):
             return _fuera_de_alcance(request)
         try:
             activo = RolesAdminService.toggle_activo(group)

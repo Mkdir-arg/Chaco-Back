@@ -46,7 +46,7 @@ aceptación de la v2** (README §7), con el test nombrado para que la task lo he
 | MER-02 | Entregas de mercadería sin anulación ni idempotencia | BAJA | CONF. lectura | Criterio v2 | v2 | S | ⬜ |
 | LEG-02 | Reinscribir con una inscripción no activa rompe `unique_together` | BAJA | CONF. test | Parchear v1 | 5 | S | ✅ |
 | LEG-05 | Subida múltiple de adjuntos no atómica | BAJA | CONF. test | Parchear v1 | 5 | S | ✅ |
-| LEG-06 | Código muerto de legajos y derivaciones sin dónde procesarse | BAJA | CONF. lectura | Parchear v1 | 7 | S | ⬜ |
+| LEG-06 | Código muerto de legajos y derivaciones sin dónde procesarse | BAJA | CONF. lectura | Parchear v1 | 7 | S | 🟡 |
 | G1c-17 | Difusión de alertas críticas es código muerto; channel layer InMemory fuera de prd | BAJA | CONF. lectura | Parchear v1 | 2 | S | ✅ |
 
 ---
@@ -365,6 +365,51 @@ objeto ya creado— se lo perdía. El nombre se anota en un `finally` alrededor 
 - **Propuesta:** borrar vistas, servicios y templates sin ruta (las rutas de debug/test se borran en SEC-19; `api_contactos.py` en LEG-03). D-L06 (default): ocultar «Derivar a Programa» hasta que la v2 defina las derivaciones (§4.6); la inscripción directa sigue para quien tenga capacidad.
 - **Tests:** `test_rutas_muertas_no_resuelven` (si se borran rutas). Verificación: V-STD + V-UI + `grep` de los nombres borrados vacío.
 
+**Resolución:** 🟡 Resuelto en el PR 1 de la Ola 7 (Cambio 195), 09-oct-2026, **salvo un ítem**. Se borraron
+`legajos/views/solapas.py` (con el segundo `aceptar_derivacion_programa` de `:148`),
+`legajos/views/historial_contactos.py` + `historial_contactos.html`, `legajos/views/dashboard_contactos.py`,
+`legajos/views/simple_contactos.py` (una fachada vacía), el `dashboard_contactos_simple` **homónimo y sin ruta** de
+`legajos/views/dashboard_simple.py` + `legajos/dashboard_simple.html`, `templates/components/widget_contactos.html`,
+`dar_de_baja_inscripcion` y el botón «Dar de Baja» que lo invocaba. Las **cuatro** entradas de LEG-06 en la `ALLOWLIST`
+de `core/tests/test_urls_del_front.py` salieron en el mismo diff, como pedía la nota del Cambio 160 —y con ellas la
+quinta, `/legajos/acompanamiento/1/dar-de-baja/`: **la allowlist de RED-42 queda vacía**—. También quedan vacías
+`URLS_ROTAS_CONOCIDAS` (`core/tests/test_listados_canonicos_ola5_pr6.py`) y `BLOQUES_SIN_DESTINO_CONOCIDOS`
+(`scripts/compile_templates.py`), los dos ratchets que esta ficha alimentaba. **D-L06 aplicada con su default:**
+«Derivar a Programa» se oculta en `ciudadano_detail.html`; la ruta y la vista siguen montadas (la decisión era sobre
+el botón) y la inscripción directa sigue para quien tenga la capacidad.
+**Lo que queda abierto (por eso 🟡), los dos code-first:** (a) `dashboard/templates/dashboard.html` **no se borra**:
+la ficha lo nombra, pero la vista, su `path` y el traslado de los contadores a `metricas_home()` son de **RED-78**,
+otro PR de esta misma ola; borrar solo el template dejaría una vista renderizando algo inexistente. Acá sale
+únicamente su `{% include %}` del widget. (b) **El default de D-F16 —borrar «Gestión de Programas» entera— no se
+aplica:** `legajos:programa_detalle` es el destino de `redirect` de `aceptar_derivacion_programa` y
+`rechazar_derivacion_programa`, las dos ruteadas y vivas desde SEC-12, y `dashboard.html` la enlaza. No es código
+muerto: es una pantalla pobre, y borrarla rompe un flujo que opera. **`BajaProgramaService` se conserva** aunque su
+único invocador se haya ido: lo cubre un test permanente de BEC-18, y rutear una baja destructiva que nunca corrió es
+decisión del PM, no limpieza de deuda.
+**Test permanente:** `legajos.tests.test_programa_detail_baja_nombre.BajaRetiradaDelDetalleTests.test_la_pantalla_ya_no_postea_a_la_ruta_que_no_existe`
+(y `.test_la_pantalla_ya_no_trae_el_boton_ni_su_handler`, `.test_la_vista_sin_ruta_ya_no_esta_en_el_modulo`,
+`.test_la_confirmacion_que_si_vive_sigue_escapando_el_nombre`, más
+`core.tests.test_urls_del_front.UrlsDelFrontTests.test_la_allowlist_no_tiene_entradas_de_mas`, que ahora
+sostiene la allowlist **en cero**).
+
+**Cerrado el ítem (a) el 09-oct-2026 (Cambio 197, Ola 7 PR 3):** `dashboard/templates/dashboard.html` se
+borró junto con `DashboardView` y su `path`, que es como RED-78 preveía. El ítem (b) —el default de D-F16—
+sigue sin aplicarse, por el mismo motivo code-first de arriba: `legajos:programa_detalle` es destino de
+redirect de las dos vistas de derivación de SEC-12, que están ruteadas y vivas. Por eso la ficha queda 🟡.
+
+**⚠ Para el PM (anotado el 09-oct-2026, seguimiento MINOR de la revisión de #649): los dos paneles de
+derivaciones quedan congelados para casos nuevos.** El comentario de `ciudadano_detail.html:191` dice que
+la `DerivacionPrograma` PENDIENTE «nadie puede aceptar desde la UI», y es cierto —`ProgramaDetailView`
+deja `derivaciones_ciudadanos` en `[]` fijo (`legajos/views/programas.py:63`)—, pero el registro **sí se
+muestra**, en dos pantallas vivas y con datos reales: el panel «Derivaciones pendientes» de la home
+(`templates/inicio.html:428-446`, alimentado por `core/views/public.py:134`) y la solapa Derivaciones del
+detalle del ciudadano (`legajos/templates/legajos/ciudadano_detail.html:784`, desde
+`legajos/selectors/ciudadanos.py:201`). El botón que D-L06 ocultó era el **único** productor de esas filas
+fuera de `seed_perf`, así que desde este deploy los dos paneles no reciben casos nuevos. Y las PENDIENTE
+que ya estén en PRD siguen sumando en el contador de la home **sin forma de cerrarlas** —eso ya pasaba
+antes de ocultar el botón—. Está dentro del default de D-L06 y no se trata como bloqueo; la salida es la
+v2 (M6, #390), que define las derivaciones de punta a punta.
+
 ### G1c-17 · La difusión de alertas críticas es código muerto; el channel layer es InMemory fuera de prd
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1c-17 · **Tratamiento:** parchear v1 · **Ola:** 2 (mismo PR que G1c-04) · **Esfuerzo:** S
 - **Ubicación:** `legajos/services/alertas.py:185-189` (manda a `alertas_criticas` / `nueva_alerta_critica`, que nadie escucha); `conversaciones/consumers.py:236-240` (el consumer tiene `alerta_critica` y `alerta_cerrada`, que nadie emite); el modal crítico de `alertas_websocket.js:57` **nunca se dispara**; `config/settings.py:387-392` (`InMemoryChannelLayer` fuera de `prd`: lo que emite un CronJob en otro pod no llega a nadie).
@@ -385,7 +430,7 @@ tarjeta que otro cierra desaparece del dashboard abierto. **Lo que queda y es de
 `prd` el channel layer es `InMemoryChannelLayer` (`config/settings.py`), así que en QA lo que emite el CronJob de
 `generar_alertas` en otro proceso no llega a ningún navegador; para verlo en QA hace falta Redis como channel layer
 (OPS-12). **Test permanente:**
-`conversaciones.tests.test_ws_alertas_rbac.WsAlertasRbacTests.test_la_alerta_critica_del_alcance_llega_una_sola_vez`
+`legajos.tests.test_ws_alertas_rbac.WsAlertasRbacTests.test_la_alerta_critica_del_alcance_llega_una_sola_vez`
 (y `test_el_emisor_manda_un_solo_group_send_por_alerta_critica`,
 `test_el_cierre_de_una_alerta_del_alcance_llega`,
 `core.tests.test_alertas_ws_shell.AlertaCriticaSinDuplicarTests` del lado del cliente).

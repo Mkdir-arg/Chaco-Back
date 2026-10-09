@@ -49,10 +49,10 @@ con lo que existe hoy; la lista solo baja.
 | RED-07 | Nada impide volver a poner `Trunc*`/`__date` sobre un `DateTimeField` (CONVERT_TZ, 500 en PRD) | ALTA | CONF. test (SQL compilado) | R | S-M | ✅ |
 | RED-08 | Los tests del 500 del link público cuentan consultas, no la forma del `WHERE` | ALTA | CONF. test (SQL compilado) | R | S | ✅ |
 | RED-09 | Un `UUIDField` nuevo sin `char(36)` pasa el CI; el único test de UUID se saltea siempre | ALTA | CONF. test | R (+3) | S-M (+S) | ✅ |
-| RED-10 | Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas | ALTA | CONF. lectura | R (+4) | S (+S-M) | 🟡 |
+| RED-10 | Las dos escrituras que dieron 500 bajo el lock no tienen presupuesto de consultas | ALTA | CONF. lectura | R (+4) | S (+S-M) | ✅ |
 | RED-11 | Ningún test fija la forma del JSON de `/api/becas/*` que lee la app de campo | ALTA | CONF. lectura (dos repos) | R | S | ✅ |
 | RED-12 | `definicion_formulario` y los prefijos `pg-`/`rn-`: contrato de dos repos sin serializer ni test | ALTA | CONF. lectura (dos repos) | R | M | ⬜ |
-| RED-13 | El shell de todo el backoffice y `legajos.ready()` dependen de `conversaciones` | ALTA | CONF. lectura | R (test) + 7 | S + M | ✅ (R; falta Ola 7) |
+| RED-13 | El shell de todo el backoffice y `legajos.ready()` dependen de `conversaciones` | ALTA | CONF. lectura | R (test) + 7 | S + M | ✅ |
 | RED-14 | Un rollback de release con una columna `NOT NULL` nueva rompe el alta de casos (error 1364) | ALTA | CONF. test (MariaDB 11.8) | R | M | ✅ |
 | RED-15 | En MariaDB la reversa falla (errno 150) y deja tabla huérfana y `django_migrations` a mitad | ALTA | CONF. test (MariaDB 11.8) | R | S | ✅ |
 | RED-16 | No hay artefacto al que volver: ECOM publica solo `:latest` y `main` no se tagea | ALTA | CONF. lectura (rollout PLAUSIBLE) | R | S | 🟡 |
@@ -84,13 +84,13 @@ con lo que existe hoy; la lista solo baja.
 | RED-42 | Endpoints JSON del backoffice sin contrato; 4 `fetch` literales resuelven 404 | MEDIA | CONF. test (`resolve`) | R (+5) | S-M (+S) | ✅ |
 | RED-43 | El CI no tiene ningún gate de contrato de API | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-44 | Una capacidad mal tipeada devuelve `False` en silencio y el superusuario no lo ve | MEDIA | CONF. test (prototipo) | R | S | ✅ |
-| RED-45 | `GUNICORN_CMD_ARGS` con gevent activa un parche que apaga `validate_thread_sharing` | MEDIA | CONF. lectura | R (+7 en OPS-13) | S | ✅ (R; falta Ola 7) |
+| RED-45 | `GUNICORN_CMD_ARGS` con gevent activa un parche que apaga `validate_thread_sharing` | MEDIA | CONF. lectura | R (+7 en OPS-13) | S | ✅ |
 | RED-46 | `programas/models/__init__.py` (3.252 líneas, 90 importadores) sin tests de contrato | MEDIA | CONF. test (radon) | R | S-M | ✅ |
 | RED-47 | `normalizar_dni` y sus tres copias agregan un 0 con `float` o `Decimal` | MEDIA | CONF. test | R | S | ✅ |
 | RED-48 | «DNI válido» está implementado 6 veces con 3 reglas de largo | MEDIA | CONF. lectura | 3 | S-M | ✅ |
 | RED-49 | `cupo_disponible` significa tres cosas y dos pantallas lo rotulan igual | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ |
 | RED-50 | La edad (RN-22) está cuatro veces y tres usan `date.today()` (UTC en los contenedores) | MEDIA | CONF. lectura | R (+3) | S (+S-M) | ✅ |
-| RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ (R; falta Ola 4) |
+| RED-51 | Dos `invalidate_dashboard_cache`; `stats_legajos` colgado del modelo equivocado | MEDIA | CONF. lectura | R (+4) | S (+S) | ✅ |
 | RED-52 | Contrato implícito por `user._state.fields_cache["profile"]` | MEDIA | CONF. lectura | R (+2) | S (+S) | ✅ |
 | RED-53 | Clones literales entre los comandos SIIS y entre las vistas de padrón | MEDIA | CONF. test (pylint + AST) | 1 (+5) | S-M (+S) | ✅ |
 | RED-54 | `revision.py` (1.331 líneas): ningún test fija el contexto del detalle | MEDIA | CONF. test (radon) | R (+7) | S-M (+M) | ✅ (R; falta Ola 7) |
@@ -101,10 +101,10 @@ con lo que existe hoy; la lista solo baja.
 | RED-59 | `deploy_prod.sh`: rollback sin base, detached HEAD y un health que siempre da 200 | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-60 | `processes.md` enseña un rollback que destruye datos y autoriza `--fake` | MEDIA | CONF. lectura | R (prioridad 1) | S | ✅ |
 | RED-61 | `SIIS_API_URL` cae al SIIS de desarrollo y nada lo valida al arrancar | MEDIA | CONF. lectura (PRD PLAUSIBLE) | R | S | ✅ |
-| RED-62 | Los presupuestos de performance son autodeclarados: subirlos en el mismo PR pasa | MEDIA | CONF. lectura | 4 | S | ⬜ |
+| RED-62 | Los presupuestos de performance son autodeclarados: subirlos en el mismo PR pasa | MEDIA | CONF. lectura | 4 | S | ✅ |
 | RED-63 | Ruff y Bandit en `continue-on-error`; excepción de `pip-audit` sin vencimiento | MEDIA | CONF. lectura | R | S | ✅ |
 | RED-64 | `docs/client/` se publica en GitHub Pages público en cada push, sin revisión | MEDIA | CONF. lectura (API) | 7 | S | ⬜ |
-| RED-65 | El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14 | MEDIA | CONF. lectura | R (+7) | S | ✅ (R; falta Ola 7) |
+| RED-65 | El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14 | MEDIA | CONF. lectura | R (+7) | S | ✅ |
 | RED-66 | `reabrir` de la app de campo no tiene test negativo de la transición | MEDIA | CONF. test (mutación M17) | R | S | ✅ |
 | RED-67 | Ningún test afirma que se tome el `select_for_update` del cupo ni del link | MEDIA | CONF. test (mutaciones M21, M43) | R (+capa 2 en TST-01) | S | ✅ |
 | RED-68 | La posición en la lista de espera no está probada en ningún lado | MEDIA | CONF. test (mutación M23) | R | S | ✅ |
@@ -117,14 +117,14 @@ con lo que existe hoy; la lista solo baja.
 | RED-75 | `/set_dark_mode/` no existe: el toggle de tema postea a un 404 | BAJA | CONF. test (`resolve`) | 5 | S | ✅ |
 | RED-76 | Tipado: 2,7 % de retornos anotados, sin mypy ni pyright | BAJA | CONF. test (AST) | 7 | S-M | ⬜ |
 | RED-77 | RN-2 del padrón escrita dos veces: property y filtro de queryset | BAJA | CONF. lectura | R | S | ✅ |
-| RED-78 | `DashboardView`: copia del inicio sin el blindaje de SEC-14, muerta solo por el orden de URLs | BAJA | CONF. test (`resolve`) | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
+| RED-78 | `DashboardView`: copia del inicio sin el blindaje de SEC-14, muerta solo por el orden de URLs | BAJA | CONF. test (`resolve`) | R (+7) | S (+S) | ✅ |
 | RED-79 | Tres ciclos de import y nueve aristas vista→vista sin ratchet | BAJA | CONF. test (AST) | R (+2) | S (+S) | ✅ |
-| RED-80 | `programa_becas` y `programa_dispositivos`: mismo cache, distinta guarda e invalidación | BAJA | CONF. lectura | 2 | S | ⬜ |
+| RED-80 | `programa_becas` y `programa_dispositivos`: mismo cache, distinta guarda e invalidación | BAJA | CONF. lectura | 2 | S | ✅ |
 | RED-81 | El registro de reglas de vencimiento puede quedar vacío y el comando sale OK | BAJA | CONF. lectura | R | S | ✅ |
 | RED-82 | `exportacion_reportes.py` con terminadores CR: git lo trata como binario y pylint lo saltea | BAJA | CONF. test | R | S | ✅ |
-| RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ✅ (R; falta Ola 4) |
+| RED-83 | Índices duplicados en `programas_formulario` y `legajos_ciudadano` | BAJA | CONF. test (`information_schema`) | R (+4) | S (+S) | ✅ |
 | RED-84 | `requerimientos.py --check` no verifica la sección «Reversión» | BAJA | CONF. lectura | R | S | ✅ |
-| RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ✅ (R; falta Ola 7) |
+| RED-85 | Herramientas del CI sin pinear y actions por tag en workflows con `contents: write` | BAJA | CONF. lectura | R (+7) | S (+S) | ✅ |
 | RED-86 | Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento | BAJA | CONF. test (`gh run list`) | 7 | S | ⬜ |
 | RED-87 | El largo mínimo del barrio del payload SIIS no se prueba en su borde | BAJA | CONF. test (mutación M33) | R | S | ✅ |
 | RED-88 | `manage.py test core users portal --parallel` revienta con `cannot pickle 'traceback'` | BAJA | CONF. test | R | S | ✅ |
@@ -848,6 +848,42 @@ que toque el link público; (2) los dos destinos del Performance Guard (`inscrip
 que siguen en la Ola 4 como dice la ficha.
 **Test permanente:** `programas/tests/test_becas_api.py::AltaBajoElLockTests.test_el_alta_no_crece_en_consultas`.
 
+**Resolución:** ✅ (segunda parte, Ola 4 PR 9) Resuelta en #648 (Cambio 194), 08-10-2026 — los **dos** destinos del
+Performance Guard, con la mitad que faltaba del gemelo del link público resuelta por el mismo camino.
+`inscripcion_publica_paso2` (anónimo, sesión del paso 1 ya sembrada, `expected_status: 302` al comprobante) y
+`becas_api_alta` (Token del territorial, `201`, `max_duplicate_queries: 1`) entran a `build_targets` y a
+`perf_budgets.json` con su justificación en `adjustments`, como pedía la ficha. Medidos con `seed_perf --scale 200`
+bajo el TestCase de presupuestos: **42 consultas / 6 duplicadas** el paso 2 y **31 / 1** el alta por API; los techos
+quedan en medido + 1, salvo las duplicadas del alta, que quedan en el medido. **Tres cosas que la ficha no
+anticipaba:** (a) el link público no tenía dónde medirse —`seed_perf` no creaba ningún relevamiento `PUBLICO` ni
+ninguno `EN_CURSO`—, así que el seed estrena un **segmento propio** con su convocatoria, su relevamiento público y el
+del alta por API, justamente para no moverles ni una fila a `becas_cupo_segmento` ni al detalle del caso, que leen el
+segmento 000; (b) la sesión del paso 1 se siembra **al armar el manifiesto** y no adentro de la petición medida, con
+un `session_key` y un DNI distintos por muestra —el control de duplicados por convocatoria (RN-P5) rechaza el segundo
+envío del mismo documento—, porque crearla adentro le cobraría al presupuesto dos consultas que no son de la pantalla;
+(c) el payload del paso 2 **no se escribe a mano**: el formulario es dinámico (RN-1) y se le pregunta al propio
+`InscripcionPaso2Form` qué campos tiene, de modo que los cinco adjuntos obligatorios del catálogo viajan solos. Como el
+envío sube archivos de verdad, el TestCase y `perf_audit` mandan `MEDIA_ROOT` a un temporal: medir no puede dejar
+basura en el `media/` del repo.
+**Test permanente:** `core/tests/test_performance_budgets.py::PerformanceBudgetTests.test_key_routes_stay_within_query_budgets`
+(cubre los dos destinos; el gemelo con `assertNumQueries` del alta sigue siendo `AltaBajoElLockTests`).
+
+**Resolución:** ✅ (ronda 2 de #648, Cambio 194), 09-10-2026 — **medir encontró un N+1 y la ficha se cierra
+arreglándolo, no tolerándolo.** Con el destino nuevo puesto, el job `Ephemeral MySQL Redis Contract` quedó rojo: el
+guardado de los adjuntos del paso 2 era un `AdjuntoFormulario.objects.create()` **por archivo**, y como el catálogo de
+Becas pide cinco archivos obligatorios la sonda veía cinco `INSERT` idénticos en una sola request —su regla es «el
+mismo SQL más de tres veces»—. Es el camino público más pesado, el mismo que el Cambio 91 vio romper contra el
+`read_timeout` de 10 s, así que las cinco idas y vueltas no eran un artefacto de la medición. `_completar_envio` pasa a
+un único `bulk_create` (guarda igual cada archivo en el storage: `FileField.pre_save` corre por fila también en el
+insert por lotes) y el paso 2 baja de 46/10 a **42/6** consultas; el techo **baja** de 47/11 a 43/7. Lo que fija el
+arreglo no es el presupuesto —el catálogo decide cuántos adjuntos hay, y sumar uno lo correría de nuevo— sino un test
+de forma: el mismo envío con 2 y con 6 adjuntos tiene que costar lo mismo (verificado en rojo contra `b8071a48`:
+33 → 37 consultas, una por archivo). Y la sonda deja de decir solo «hubo N+1»: el `CommandError` nombra la ruta y la
+forma de la consulta repetida (`portal:inscripcion_paso2`, `INSERT programas_adjuntoformulario ×5`), que cruza entre
+workers por Redis como verbo + tabla —nunca el SQL, los parámetros ni datos de personas—. Con eso queda también la
+mitad que la ficha daba por pendiente: el gemelo del link público del `AltaBajoElLockTests` de la app de campo.
+**Test permanente:** `portal/tests/test_inscripcion_envio.py::AdjuntosConsultasConstantesTests.test_el_envio_no_paga_una_consulta_por_adjunto`.
+
 ### RED-34 · Nada obliga a que una ficha cerrada deje un test permanente
 **Severidad:** MEDIA (era ALTA: las PoC nunca se pensaron para correr; el hueco es de proceso) · **Estado:** CONFIRMADO con test (`unittest.defaultTestLoader.discover('docs')` → 0 tests) · **Origen:** RS-R2-04 (VR1: CONFIRMADO-AJUSTADO) · **Ola:** R · **Esfuerzo:** S (2 h)
 - **Ubicación:** `docs/internal/auditoria-2026-10/poc/` (7 módulos, sin `__init__.py`); README §0.1 y §6 definen el cierre
@@ -1280,6 +1316,9 @@ que la ficha describe como «peor que un 500».
 **Test permanente:** `core.tests.test_shell_backoffice.ShellSinConversacionesTests.test_inicio_renderiza_sin_urls_de_conversaciones`
 (y `IndependenciaTests.test_legajos_no_importa_conversaciones`, `ContextProcessorPrestadoTests`).
 
+**Resolución (Ola 7):** ✅ Cerrada en #663 (Cambio 198), 09-oct-2026 — el refactor va **antes** del apagado y en el mismo PR, como pedía RS-R4-13. (1) El context processor se mudó a `core.context_processors.identidad_usuario` (la línea de `settings.py` apunta ahí) y `conversaciones/context_processors.py` se borró; publica las cuatro variables prestadas más `puede_alertas_sensibles`, y pierde `puede_conversaciones`. (2) `alerta_mensaje_ciudadano` se mudó a `conversaciones/signals/alertas.py`, donde vive su `sender`: `legajos` ya no importa `conversaciones` a nivel de módulo. (3) Del shell salieron `window.conversacionesConfig` y los cuatro `<script>` de chat. **Dos desvíos de la ficha, los dos a favor:** el bloque no se movió a «un include condicional» sino que se **borró**, porque el apagado va en el mismo PR y un include para nadie es deuda nueva; y el detector AST de `legajos/**` quedó en `core/tests/test_shell_backoffice.py` (donde lo dejó la Ola R) en vez de abrir `legajos/tests/test_signals_package.py`. Se agregó, además de lo que pedía la ficha: `AlertasConsumer` y su test se mudaron a `legajos` —`ws/alertas/` es de legajos y es lo único que sobrevive al apagado— y `ConversacionesConfig.ready()` dejó de registrar `signals.presencia`, que enganchaba `user_logged_in`/`user_logged_out` para escribir en Redis en **todo** login del backoffice. Los dos `expectedFailure` de la Ola R se invirtieron y el andamio (`core/tests/urls_sin_conversaciones.py`) se borró: el URLconf real ya es ese.
+**Test permanente (Ola 7):** `core.tests.test_shell_backoffice` (`ShellSinConversacionesTests.test_inicio_renderiza_sin_urls_de_conversaciones`, `IndependenciaTests.test_legajos_no_importa_conversaciones`, `IndependenciaTests.test_el_receiver_vive_en_conversaciones_y_sigue_conectado`, `IdentidadDelUsuarioTests`) y `legajos.tests.test_ws_alertas_rbac` (el módulo mudado, en verde en su destino).
+
 ### RED-45 · `GUNICORN_CMD_ARGS` con gevent activa un parche que apaga `validate_thread_sharing`
 **Severidad:** MEDIA (era ALTA: hoy nadie lo activa) · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R4-02 (VR2: CONFIRMADO) · **Ola:** R (test y guarda) + 7 (borrado, dentro de OPS-13) · **Esfuerzo:** S (2 h) · **Decisión:** D-RED-08
 - **Ubicación:** `config/wsgi.py:13-17` (`if "gevent" in os.environ.get("GUNICORN_CMD_ARGS", "") …`);
@@ -1322,6 +1361,25 @@ fallan contra la guarda anterior. La verificación de las dos variables en el am
 **Test permanente:** `config.tests.test_wsgi_runtime.GeventTests.test_nadie_piso_validate_thread_sharing` (y
 `EntrypointTests.test_las_cuatro_formas_de_pedir_gevent_abortan`,
 `EntrypointTests.test_un_worker_class_inocuo_avisa_pero_arranca`).
+
+**Resolución (parte Ola 7):** ✅ Cerrada en el PR 2 de la Ola 7 (Cambio 196), 09-oct-2026, adentro de OPS-13 y con
+**D-RED-08 en su default**. Se borraron `config/gevent_patch.py`, las líneas 12-17 de `config/wsgi.py` y
+`gevent`/`greenlet` de `requirements.txt`. `test_el_parche_ya_no_existe` dejó de saltearse, y los dos controles de
+andamio se dieron vuelta: ahora afirman que `wsgi.py` **no** lee las dos perillas y que los dos paquetes **no** están
+en `requirements.txt`.
+**Antes de borrar se verificó qué worker usa gunicorn**, como pedía la consigna: `docker-entrypoint.sh` arranca
+`gunicorn config.wsgi:application` **sin `--worker-class`** y con `--threads`, o sea gthread; la única forma de pedir
+gevent eran las dos variables de entorno, y desde el Cambio 159 el entrypoint aborta ante las cuatro formas de pedirlo
+en cualquiera de las dos. Ningún ambiente puede estar arrancando con gevent sin que el pod muera primero con el motivo
+escrito.
+**La guarda del entrypoint se queda tal cual**, y pasa a ser lo único que sostiene la ficha: sin el paquete, pedir
+gevent haría morir a gunicorn con un «class uri 'gevent' invalid or not found», que no dice nada; la guarda corre
+antes y dice qué pasa y qué hacer. **Lo que ECOM tiene configurado sigue sin confirmarse (H-05)**, así que el paso 0
+de [`espejo-ecom.md`](../../espejo-ecom.md) —leer `GUNICORN_CMD_ARGS` y `GUNICORN_WORKER_CLASS` del ambiente antes de
+espejar— **no se tocó**: sigue siendo la verificación humana, y lo que cambió es que el peor caso pasó de «respuestas
+con datos de otra persona» a «no arranca y lo dice».
+**Test permanente (Ola 7):** `config.tests.test_wsgi_runtime.GeventTests.test_el_parche_ya_no_existe`
+(y `.test_wsgi_ya_no_lee_las_perillas_de_gevent`, `.test_gevent_y_greenlet_no_viajan_en_la_imagen`).
 
 ### RED-46 · `programas/models/__init__.py` sin tests de contrato
 **Severidad:** MEDIA (era ALTA) · **Estado:** CONFIRMADO con test (`radon`: 3.252 líneas, MI 0.00; fan-in 90) · **Origen:** RS-R4-04 (VR2: CONFIRMADO) · **Ola:** R (los tests; el corte del archivo no se planifica) · **Esfuerzo:** S-M (4 h)
@@ -1549,7 +1607,27 @@ llamadores** —las tres vistas de alta, edición y borrado de ciudadanos (`lega
 que la función de `dashboard/utils.py` se ejecuta en producción y borrarla no es gratis. Queda fijado con un test AST
 (`test_el_servicio_de_ciudadanos_tiene_llamadores`).
 **Test permanente:** `dashboard.tests.test_cache_invalidacion.InvalidacionTests.test_inscripcion_nueva_invalida_stats_legajos`
-(y `.test_alerta_nueva_invalida_alertas_activas`, `DosFuncionesTests.test_no_borran_las_mismas_claves`).
+(y `.test_alerta_nueva_invalida_alertas_activas`).
+
+**Resolución:** ✅ (segunda parte, Ola 4 PR 9) Resuelta en #648 (Cambio 194), 08-10-2026 — `dashboard/cache.py` es la
+tabla única que pedía la ficha: cada clave con la consulta que la escribe y el `label_lower` del modelo que la
+invalida (`CLAVES_POR_MODELO`), con `clave_seguimientos_hoy()` resuelta en el momento porque lleva la fecha adentro.
+Los dos `expectedFailure` pasan a verde: `stats_legajos` la borra ahora el receiver de `InscripcionPrograma`
+(`dashboard/signals/cache.py`, registrado en `DashboardConfig.ready()`) y `alertas_activas` estrena el suyo sobre
+`AlertaCiudadano`. La segunda `invalidate_dashboard_cache` **se borró**: el receiver de `User` llama a
+`invalidar_por_modelo` y `CiudadanosService.invalidate_ciudadanos_cache` a `invalidar_dashboard`, la única que queda.
+`DosFuncionesTests` quedó invertido en `UnaSolaFuncionTests`: un recorrido `ast` por las siete apps falla si el nombre
+vuelve a definirse **en cualquier lado**, y dos tests nuevos cierran la regla por la otra punta —que la función única
+borre todo lo que la tabla declara, y que todo contador que escriba una clave esté en la tabla—, porque la mitad del
+bug original era un contador sin dueño. **Tres desvíos, los tres a favor:** (1) el receiver de `User` ya **no** borra
+`contar_ciudadanos` —dar de alta a alguien del backoffice no cambia cuántos ciudadanos hay, y la ficha no lo pedía
+pero es la consecuencia directa de invalidar por modelo—; (2) ese mismo receiver pasa a `on_commit`, como el de
+`Ciudadano` desde PERF-04, para no invalidar ante un rollback; (3) `invalidar_dashboard` borra **en el acto** y no
+diferido, que es la semántica de la función que reemplaza —la llaman las tres vistas de ciudadanos después de
+guardar—. Mutación de control: sin el `import` de `dashboard.signals` en `ready()`, los dos tests invertidos vuelven a
+rojo.
+**Test permanente:** `dashboard.tests.test_cache_invalidacion.InvalidacionTests.test_inscripcion_nueva_invalida_stats_legajos`
+(y `.test_alerta_nueva_invalida_alertas_activas`, `UnaSolaFuncionTests.test_no_quedan_dos_funciones_llamadas_invalidate_dashboard_cache`).
 
 ### RED-52 · Contrato implícito por `user._state.fields_cache["profile"]`
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura; 5 usos) · **Origen:** RS-R4-12 (VR2: CONFIRMADO-AJUSTADO) · **Ola:** R (tests) + 2 (PR 2, usuarios) · **Esfuerzo:** S (2 h) + S (2 h)
@@ -1805,6 +1883,30 @@ pone rojo y la ficha baja de riesgo. **Mutación de control:** mover `path("", i
 `test_la_raiz_es_el_login` en rojo con `'dashboard:inicio' != 'users:login'`.
 **Test permanente:** `core.tests.test_dashboard_redirect.RuteoRaizTests.test_la_raiz_es_el_login`.
 
+**Resolución:** ✅ (parte Ola 7) Resuelto en #651 (Cambio 197, Ola 7 PR 3), 09-oct-2026 — se van
+`dashboard/views/` entero (`home.py` y el `__init__.py` que la reexportaba),
+`dashboard/templates/dashboard.html` y el `path("", …, name="inicio")` de `dashboard/urls.py`. Las cinco
+APIs de `dashboard/api_views` se conservan, con un test que lo fija: el hallazgo era la pantalla, no la
+app. `RuteoRaizTests` cambia de forma en consecuencia —`test_dashboard_inicio_sigue_apuntando_a_la_raiz`
+y `test_la_vista_tapada_no_tiene_el_gate_de_capacidad` describían una vista que ya no existe— y pasa a
+afirmar que `reverse("dashboard:inicio")` levanta `NoReverseMatch` y que `dashboard.views` no se puede
+importar; `test_la_raiz_es_el_login` queda, ahora sin depender del orden del URLconf.
+
+**Que estaba muerta se demostró antes de borrar:** `dashboard:inicio` no lo nombra ningún template, vista,
+estático, cron, entrypoint ni workflow (el único uso era el comentario de `core/urls.py`, que explicaba
+por qué el alias `/dashboard/` **no** apunta ahí), y `dashboard.html` no lo incluye ni lo extiende nadie.
+
+**Un desvío y una aclaración, los dos code-first.** (1) **`dashboard/selectors.py::metricas_home()` no se
+crea:** la propuesta pedía «llevar los contadores» ahí, y con la vista borrada no hay contadores que
+llevar —los que sirven pantallas vivas son los de `inicio_view` y ya están en `dashboard/utils.py`, que
+RED-51 acaba de reorganizar en #648—. (2) **`contar_legajos()` se queda**, aunque esta vista era su último
+llamador: RED-51 tiene dos tests escritos sobre que `stats_legajos` agrega inscripciones y el mapa de
+claves de `dashboard/cache.py` la contempla; sacarla es de esa ficha. Su docstring queda actualizado para
+no seguir citando a un llamador que no existe. **Test permanente:**
+`core.tests.test_dashboard_redirect.RuteoRaizTests.test_dashboard_inicio_ya_no_existe`
+(y `.test_el_paquete_de_vistas_del_dashboard_no_esta`, `.test_las_apis_del_dashboard_siguen_ruteadas`,
+`.test_la_raiz_es_el_login`).
+
 ### RED-79 · Tres ciclos de import y nueve aristas vista→vista sin ratchet
 **Severidad:** BAJA (era MEDIA) · **Estado:** CONFIRMADO con test (AST; VR2 midió 9 aristas, no 2) · **Origen:** RS-R4-14 (VR2: CONFIRMADO-AJUSTADO); incluye la parte no refutada de RS-R4-01 y el punto 3 de RS-R4-16 (VR2 §2.10: «un solo movimiento») · **Ola:** R (ratchets) + 2 (movimientos, PR 5 con SEC-21) · **Esfuerzo:** S (2 h) + S (2 h)
 - **Ubicación:** ciclos `programas.services.becas ↔ diseno` (por privados `_alcance_requisito`, `_campo_dict`),
@@ -1871,6 +1973,22 @@ ese motivo.
 - **Propuesta:** `programa_por_codigo(codigo, user=None)` con clave derivada e `invalidar_programa(codigo)` usada por los
   dos seeds (Becas ya falla cerrado con RED-56). Test `programas/tests/test_dispositivos_config.py::CacheProgramaTests.
   test_el_seed_invalida_las_dos_claves`.
+
+**Resolución:** ✅ Resuelta en #646 (Cambio 193, Ola 2 PR 1), 08-oct-2026 —
+`programas/services/programa_cache.py` es la pieza única: `clave_de(codigo)` (que **deriva** las dos claves históricas,
+`programas:becas` y `programas:dispositivos`, así que una base con Redis vivo no pierde lo cacheado el día del deploy),
+`programa_por_codigo(codigo, user=None)` con el memo por request —ahora un dict por código en vez de dos atributos— y
+`invalidar_programa(codigo)` *best-effort*, con el mismo tratamiento del cache caído que tenía Becas (OPS-12: un Redis
+inalcanzable no puede dejar el pod en CrashLoopBackOff). `programa_becas` e `invalidar_programa_becas` quedan como
+fachadas, y `programa_dispositivos` también.
+**Desvío de la ficha, code-first:** el test que pedía —«el seed invalida las dos claves»— no se puede escribir, porque
+**no hay seed de Dispositivos**: `crear_programas` solo crea Becas y la fila `DISPOSITIVOS` se carga desde
+Configuración. Así que la invalidación se enganchó donde un `Programa` **de verdad se escribe**, que es el wizard
+(`programa_editar_paso4` y `programa_cambiar_estado`), y ahí está además el caso que la ficha no contemplaba: el paso 1
+deja **cambiar el código**, así que se invalidan la clave vieja y la nueva. Eso cubre el escenario de la ficha mejor que
+el seed: un restore que recrea la fila con otro pk sigue dependiendo del TTL de 300 s —nadie puede invalidar una clave
+por un cambio hecho fuera de la aplicación—, pero todo cambio hecho **desde el producto** se invalida ya.
+**Test permanente:** `programas.tests.test_programa_cache` (7).
 
 ### RED-81 · El registro de reglas de vencimiento puede quedar vacío y el comando sale OK
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura; tras `django.setup()` `REGLAS` = `['becas.convocatoria', 'becas.relevamiento']`) · **Origen:** RS-R4-19 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
@@ -2148,6 +2266,30 @@ puede medir desde el host sin parsear el plan entero. **Test permanente:** `core
   de `programas` y `legajos`; falla si un `Index`/`db_index`/`unique` es prefijo exacto de otro del mismo modelo, con
   `REDUNDANTES_CONOCIDOS` = los 5 pares; la lista solo baja). **Ola 4:** `AlterField` (sin `db_index`) + `RemoveIndex`
   por par (`DROP INDEX` secundario es `INPLACE`/`LOCK=NONE`).
+
+**Resolución:** ✅ (segunda parte, la migración) Resuelta en #648 (Cambio 194, Ola 4 PR 9), 08-10-2026 —
+`legajos.0011_indices_redundantes_red83` y `programas.0085_indices_redundantes_red83` sacan los **cinco** pares
+medidos, con la forma que pedía la ficha: `RemoveIndex` para los dos duplicados declarados en `Meta.indexes`
+(`dni`, `email`) y `AlterField` sin `db_index` para los dos de columna (`activo`, `apellido`), más el `RemoveIndex` de
+`estado` en `Formulario`. El ratchet baja de **26** a **21**; los que quedan son el mismo defecto en tablas chicas,
+sin medir. **Verificado contra el banco MariaDB 10.11** (`scripts/perf_mysql`, 21.522 ciudadanos y una
+`programas_formulario` de **362 MB**), que es lo que la ficha no pedía y el PR sí exigió: los cinco pares confirmados
+en `information_schema.STATISTICS` y `EXPLAIN` de ocho consultas calientes **antes y después**. Siete dan el plan
+idéntico —el listado de ciudadanos ya elegía `legajos_ciu_listado_idx` y no `activo`; el lookup por documento ya era
+`const` por el UNIQUE; el de email y el conteo por estado ya usaban el superviviente; la bandeja por estado usa
+`prog_formulario_creado_idx`—. La única que elegía un índice que se va es la **búsqueda por apellido**, y después del
+`DROP` resuelve con el compuesto `(apellido, nombre)` con el mismo `type=range`, el mismo `key_len=482` y las mismas
+filas estimadas: el prefijo izquierdo sirve el mismo rango. Ninguno estaba en uso exclusivo.
+**Tres cosas medidas que la ficha no tenía:** (a) el costo real del DDL —31 + 31 + 27 + 32 ms en `legajos_ciudadano` y
+**29 ms** en los 362 MB de `programas_formulario`, contra el `read_timeout` de 10 s de ECOM—; (b) el ciclo
+**ida → vuelta → ida** corrido sobre los datos sembrados, las tres en verde, así que la reversa (que vuelve a crear
+los cinco índices) está probada y no solo declarada; (c) ninguno de los cinco es el índice implícito de una FK, así
+que no hay riesgo de `ERROR 1553`. No lleva marca `# CONTRACT:` y no es un descuido: durante el rolling la release
+vieja no nombra índices —los elige el optimizador—, así que no hay código viejo que esto pueda romper, y
+`check_migraciones.py` tampoco la pide.
+**Test permanente:** `core.tests.test_indices_redundantes.IndicesRedundantesTests.test_la_lista_conocida_no_tiene_entradas_muertas`
+(el que exige que los cinco pares hayan desaparecido de verdad de los modelos, junto con
+`.test_no_hay_indices_prefijo_de_otro`).
 
 ### RED-84 · `requerimientos.py --check` no verifica la sección «Reversión»
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R5-13 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
@@ -2479,6 +2621,26 @@ entrypoint: queda para R-15.
   (`git show "${{ github.event.pull_request.base.sha }}":scripts/perf_budgets.json`) y falla si algún `max_queries` sube, o
   `reference_total_ms` sube más de 5 %, sin una clave nueva en `_meta.adjustments`; `failure_multiplier` a `2.0`.
 
+**Resolución:** ✅ Resuelta en #648 (Cambio 194, Ola 4 PR 9), 08-10-2026 — `scripts/check_perf_budgets.py` corre como
+**primer** paso del job `Query Budgets & Smoke Time` (antes de medir: es barato, no necesita base y el mensaje es más
+claro que el del presupuesto excedido), contra `github.event.pull_request.base.sha`, con `fetch-depth: 0` en el
+checkout —sin eso, `git show <base>:…` no resuelve y el paso compararía contra nada— y con `HEAD^` de respaldo para el
+disparo por `push`. `failure_multiplier` baja de `3.0` a `2.0`: con 3,0 la alarma recién saltaba a 4,3 s, casi el
+triple de la referencia, y no había degradación capaz de encenderla (medido en este PR: 1.982 ms, ratio 1,38×).
+**Tres desvíos, los tres hacia más estricto:** (1) la justificación no alcanza con ser una clave nueva, tiene que
+**nombrar** el presupuesto que sube —con la regla original, una sola entrada tapaba cualquier cantidad de subidas en
+el mismo PR, y la convención del archivo ya escribe el nombre de la ruta—, y una entrada vieja **ampliada** cuenta
+igual que una nueva; (2) se miran también los `servicios` (`consultas_fijas` que sube, `casos_por_consulta` que
+**baja**: las dos son «el servicio puede consultar más») y los dos multiplicadores de la alarma de tiempo, que son la
+forma barata de correr el techo sin tocar la referencia —la puerta que quedaba abierta justo después de bajarlo—;
+(3) bajar un techo y estrenar una ruta no piden nada, escrito como test, porque un gate que pide trámite en la
+dirección buena genera justificaciones de trámite. Probado con las dos puntas que pedía el pedido: caso **rojo** —se
+infla un techo del `perf_budgets.json` real sin tocar `adjustments` y el proceso sale con 1— y caso **verde** —el
+archivo de este PR contra `origin/development`, salida 0—, más 16 casos sobre documentos sintéticos.
+**Test permanente:** `core/tests/test_check_perf_budgets.py::CasoRojoTests.test_subir_max_queries_sin_justificacion_es_un_hallazgo`
+(y `CasoVerdeTests` ×6, `ArchivoRealTests.test_inflar_un_presupuesto_del_repo_devuelve_1`,
+`ElJobLoCorreTests.test_el_workflow_de_performance_corre_el_script_contra_la_base_del_pr`).
+
 ### RED-63 · Ruff y Bandit en `continue-on-error`; excepción de `pip-audit` sin vencimiento
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R6-12 (VR2: CONFIRMADO) · **Ola:** R · **Esfuerzo:** S (2 h)
 
@@ -2522,6 +2684,15 @@ contradicción que rompe el release **siempre**, después del merge) y uno que p
 ruta inventada, para que no quede en verde por no mirar nada.
 **Test permanente:** `core/tests/test_publish_guard.py::PublishGuardTests.test_los_requeridos_existen_en_el_arbol`
 
+**Cerrada del todo** en el PR 1 de la Ola 7 (Cambio 195), 09-oct-2026 — `docker/django/Dockerfile` (OPS-14) y
+`scripts/startup.sh` (OPS-10: arrancaba con `setup_system`) salieron del árbol y de la variable `RUNTIME` del guard en
+el mismo diff, que es exactamente el modo de falla que la parte R anticipó. El piso de
+`test_la_lista_de_runtime_no_esta_vacia` baja de 10 a 8, las ocho rutas que de verdad necesitan la imagen de PRD y el
+pipeline de ECOM. Y se suma el **camino inverso**, que la ficha no pedía y es el que queda abierto después de esto:
+sacar una ruta del guard **sin** borrar el archivo apagaría la red en silencio —el artefacto podría dejar de viajar al
+release y `Publish main` seguiría verde—, así que un test afirma que las dos rutas retiradas no están en el árbol.
+**Test permanente (Ola 7):** `core.tests.test_publish_guard.PublishGuardTests.test_lo_que_salio_de_la_lista_salio_porque_no_existe`.
+
 ### RED-85 · Herramientas del CI sin pinear y actions por tag en workflows con `contents: write`
 **Severidad:** BAJA (era MEDIA) · **Estado:** CONFIRMADO (lectura: 7 `pip install` sin versión) · **Origen:** RS-R6-13 (VR2: CONFIRMADO) · **Ola:** R (pinear las actions con `contents: write`) + 7 (el resto) · **Esfuerzo:** S (2 h) + S (2 h)
 
@@ -2535,6 +2706,30 @@ ruta inventada, para que no quede en verde por no mirar nada.
 - **Propuesta:** **R:** pinear por SHA (con el tag en comentario) las actions de `publish-main.yml` y `docs-auto-deploy.yml`, y
   `dorny/paths-filter` de RED-20. **Ola 7:** `requirements-ci.txt` con versiones fijas y `pip install -r requirements-ci.txt`
   en todos los workflows, más un dependabot semanal sobre ese archivo.
+
+**Resolución (parte Ola 7):** ✅ Cerrada en el PR 2 de la Ola 7 (Cambio 196), 09-oct-2026 — **`requirements-ci.txt`
+con las cinco herramientas pineadas** (`ruff==0.16.10`, `coverage==7.16.2`, `pip-audit==2.10.1`,
+`bandit[toml]==1.9.4`, `mkdocs-material==9.7.7`) y los **seis** `pip install` sueltos reemplazados por
+`pip install -r requirements-ci.txt`: los dos de Ruff y el de Bandit en `pr-quality.yml`, el de `coverage` en
+`pr-backend.yml`, el de `pip-audit` en `pr-security.yml` y el de `mkdocs-material` en `docs-auto-deploy.yml`. Las
+versiones son **las que el CI ya venía instalando**, así que pinear no cambia ningún resultado: solo lo congela.
+**`.github/dependabot.yml`** semanal contra `development` para los tres ecosistemas del repo: `pip` (los tres
+`requirements*.txt` viven en la raíz, así que `directory: "/"` los toma a los tres, con las cinco herramientas
+agrupadas en un solo PR), `github-actions` y `npm` (`tailwindcss`). Sin ningún `ignore`, a propósito: un mayor que no
+convenga se cierra a mano y queda el registro; un `ignore` en el YAML se olvida.
+**La prioridad que señaló el revisor del PR R-03 se atendió entera:** `pip-audit` deja de flotar, y además **se
+retiró la excepción `PYSEC-2026-3447`** —era `setuptools` 80.9.0 (CVE-2026-59890) y el ticket de la excepción decía
+«RED-85, que es donde se toca el pin»—: `setuptools` subió a 83.0.0, la primera corregida, y
+`pip-audit -r requirements.txt` da «No known vulnerabilities found» **sin ningún** `--ignore-vuln`.
+`security/excepciones.toml` queda vacío con la plantilla de cómo se agrega la próxima.
+**Lo que faltaba para encender `Ruff estilo` ya está** (la versión fija); encenderlo —sacarle el `continue-on-error`
+y sumarlo al ruleset— es decisión del PM y no se tomó acá. **Ningún job se renombró**, así que los nueve contextos
+del ruleset siguen igual. **Verificación:** `actionlint` (Docker `rhysd/actionlint`) sobre los 9 workflows, 0
+errores, incluido el shellcheck del paso de bash reescrito en `pr-performance.yml`.
+**Test permanente:** `core.tests.test_gates_ci.HerramientasDelCiPineadasTests`
+(`.test_ningun_workflow_instala_una_herramienta_sin_version`, `.test_requirements_ci_pinea_todas_sus_lineas`,
+`.test_el_job_que_usa_una_herramienta_instala_el_archivo`, `.test_requirements_ci_no_trae_nada_de_la_aplicacion`)
+y `core.tests.test_gates_ci.DependabotTests` (4 tests).
 
 ### RED-86 · Job de tests con timeout de 15 min, sin `--parallel` ni alarma de crecimiento
 **Severidad:** BAJA · **Estado:** CONFIRMADO con test (`gh run list`: 5-7 min por corrida; local, 20 min) · **Origen:** RS-R6-18 (VR2: CONFIRMADO) · **Ola:** 7 · **Esfuerzo:** S (2 h)

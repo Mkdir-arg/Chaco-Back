@@ -196,10 +196,20 @@ def _insertar_formulario(rel, identificacion, form, client_uuid):
 def _completar_envio(formulario, form):
     """Lo que no necesita el lock: los adjuntos (van al volumen de media) y el
     legajo. Idempotente: guarda solo los adjuntos que el formulario todavía no
-    tiene, y ``resolver_ciudadano_offline`` ya no hace nada si hay ciudadano."""
+    tiene, y ``resolver_ciudadano_offline`` ya no hace nada si hay ciudadano.
+
+    Los adjuntos entran en **un** ``INSERT`` (RED-10, ronda 2). El catálogo de
+    Becas pide cinco archivos obligatorios, así que el ``create()`` por archivo
+    eran cinco idas y vueltas idénticas a la base en el camino público más
+    pesado —el mismo que el Cambio 91 vio romper contra el ``read_timeout`` de
+    10 s— y lo que la sonda de CI marcaba como N+1. ``bulk_create`` guarda igual
+    cada archivo en el storage: ``FileField.pre_save`` corre por fila también en
+    el insert por lotes.
+    """
     guardados = set(
         AdjuntoFormulario.objects.filter(formulario=formulario).values_list("pregunta_global_id", "requisito_nativo_id")
     )
+    nuevos = []
     for clave, item, archivo in form.archivos():
         if not (clave.startswith("pg-") or clave.startswith("rn-")):
             continue  # un campo propio no puede ser archivo (lo veta el constructor)
@@ -209,12 +219,16 @@ def _completar_envio(formulario, form):
         )
         if referencia in guardados:
             continue
-        AdjuntoFormulario.objects.create(
-            formulario=formulario,
-            pregunta_global_id=referencia[0],
-            requisito_nativo_id=referencia[1],
-            archivo=archivo,
+        nuevos.append(
+            AdjuntoFormulario(
+                formulario=formulario,
+                pregunta_global_id=referencia[0],
+                requisito_nativo_id=referencia[1],
+                archivo=archivo,
+            )
         )
+    if nuevos:
+        AdjuntoFormulario.objects.bulk_create(nuevos)
     resolver_ciudadano_offline(formulario)
     formulario.refresh_from_db()
 

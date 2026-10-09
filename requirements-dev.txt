@@ -1,0 +1,24 @@
+# Herramientas que solo hacen falta trabajando en local (OPS-13, Cambio 196).
+#
+# No viajan en la imagen: el `Dockerfile` instala únicamente `requirements.txt`. Las tres
+# estaban ahí y ninguna corre en producción —`django_extensions` y `silk` entran a
+# `INSTALLED_APPS` solo con `DEBUG`, y `debugpy` solo cuando `manage.py` corre con
+# `DEBUG` y `RUN_MAIN`—, así que eran código de terceros instalado en PRD para nada.
+#
+#     pip install -r requirements-dev.txt
+#
+# Las herramientas del CI van aparte, en `requirements-ci.txt` (RED-85).
+
+-r requirements.txt
+
+# `manage.py` lo importa y abre el puerto 3000 cuando `DEBUG` y `RUN_MAIN`/`WERKZEUG_RUN_MAIN`.
+debugpy==1.8.5
+
+# `shell_plus`, `show_urls`, `graph_models`. `config/settings.py` lo suma a
+# `INSTALLED_APPS` solo con `DEBUG`: en un ambiente servido no hay `shell_plus`.
+django-extensions==3.2.3
+
+# Profiling de requests y consultas en `/silk/`. `config/settings.py` y `config/urls.py`
+# lo montan solo con `DEBUG`, y `config/settings_production.py` lo saca de
+# `INSTALLED_APPS` igual, por si el orden de carga del `.env` lo dejara prendido.
+django-silk==5.1.0

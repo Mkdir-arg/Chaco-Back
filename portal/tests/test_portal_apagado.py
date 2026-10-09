@@ -7,11 +7,14 @@ no está en uso (decisión del PM, 29-sep-2026), así que se apagan las rutas
 que es la superficie que se usa en producción.
 """
 
+import re
 from datetime import date, timedelta
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import NoReverseMatch, Resolver404, resolve, reverse
 from django.utils import timezone
 
@@ -154,3 +157,40 @@ class MiddlewareCiudadanoTests(TestCase):
         respuesta = self.client.get(reverse("portal:home"))
 
         self.assertEqual(respuesta.status_code, 200)
+
+
+class DocumentacionDelPortalTests(SimpleTestCase):
+    """R0-02 · la documentación no puede prometer una ruta del portal que no existe.
+
+    `CLAUDE.md` y `docs/client/architecture.md` son los dos textos que describen el
+    `PortalCiudadanoMiddleware`, y los dos siguieron diciendo que redirige a
+    `portal:ciudadano_mi_perfil` después de que SEC-29 apagara las rutas `mi-perfil/*`.
+    No es un bug de runtime, pero es la primera fuente que lee alguien —persona o
+    agente— antes de tocar la separación backoffice/portal, y mandaba a una ruta que
+    el `reverse` ya no resuelve.
+
+    En vez de fijar el nombre correcto, que envejece igual, se afirma la propiedad:
+    **todo `portal:<algo>` que esos dos textos nombren tiene que reversear.** Así la
+    próxima ruta que se apague vuelve a poner esto en rojo.
+    """
+
+    #: Los dos documentos del hallazgo, relativos a la raíz del repo.
+    DOCUMENTOS = ("CLAUDE.md", "docs/client/architecture.md")
+
+    def test_las_rutas_del_portal_que_nombran_los_docs_existen(self):
+        raiz = Path(settings.BASE_DIR)
+        rotas = []
+        for relativo in self.DOCUMENTOS:
+            texto = (raiz / relativo).read_text(encoding="utf-8")
+            for nombre in sorted(set(re.findall(r"portal:[a-z0-9_]+", texto))):
+                try:
+                    reverse(nombre)
+                except NoReverseMatch:
+                    rotas.append(f"{relativo} → {nombre}")
+
+        self.assertEqual(rotas, [], f"Rutas del portal nombradas en la documentación y sin destino: {rotas}")
+
+    def test_el_control_del_andamio(self):
+        """Si el `reverse` de una ruta apagada no fallara, el test de arriba no mira nada."""
+        with self.assertRaises(NoReverseMatch):
+            reverse("portal:ciudadano_mi_perfil")

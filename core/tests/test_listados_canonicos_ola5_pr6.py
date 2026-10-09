@@ -235,11 +235,17 @@ URL_LITERAL = re.compile(r"\{%\s*url\s+(['\"])([a-zA-Z0-9_:.-]+)\1")
 PORTAL_CIUDADANO_DIR = "portal/templates/portal/ciudadano/"
 PORTAL_CIUDADANO_ROTAS = 32
 
-#: Lo roto fuera de esa carpeta, con su dueño.
-URLS_ROTAS_CONOCIDAS = {
-    # Parcial del shell legacy `includes/main.html`; lo retira LEG-06 (Ola 7).
-    ("templates/components/widget_contactos.html", "legajos:metricas_contactos_api"),
-}
+#: Lo mismo con `conversaciones`: G1-01 fase 2 apagó la app —sus dos `include()`
+#: salieron de `config/urls.py`— y, como con el portal, las vistas y los templates
+#: quedaron en el repo sin ruta. Sus `{% url %}` no resuelven por definición y ninguna
+#: pantalla los renderiza. Se congela el conteo para que no crezcan.
+CONVERSACIONES_DIR = "conversaciones/templates/conversaciones/"
+CONVERSACIONES_ROTAS = 14
+
+#: Lo roto fuera de esa carpeta, con su dueño. **Vacío desde la Ola 7**: la única
+#: entrada era `widget_contactos.html` con `legajos:metricas_contactos_api`, y LEG-06
+#: (Cambio 195) borró el parcial junto con la vista sin ruta que pedía.
+URLS_ROTAS_CONOCIDAS = set()
 
 
 def _nombres_de_url_rotos():
@@ -269,7 +275,9 @@ class UrlsDeTemplatesResuelvenTests(SimpleTestCase):
         nuevos = sorted(
             par
             for par in _nombres_de_url_rotos()
-            if par not in URLS_ROTAS_CONOCIDAS and not par[0].startswith(PORTAL_CIUDADANO_DIR)
+            if par not in URLS_ROTAS_CONOCIDAS
+            and not par[0].startswith(PORTAL_CIUDADANO_DIR)
+            and not par[0].startswith(CONVERSACIONES_DIR)
         )
         self.assertEqual(nuevos, [], f"{len(nuevos)} nombre(s) de URL sin ruta: {nuevos}")
 
@@ -285,6 +293,14 @@ class UrlsDeTemplatesResuelvenTests(SimpleTestCase):
             len(del_portal),
             PORTAL_CIUDADANO_ROTAS,
             f"el portal ciudadano pasó de {PORTAL_CIUDADANO_ROTAS} a {len(del_portal)} nombres sin ruta",
+        )
+
+    def test_conversaciones_no_suma_rutas_rotas(self):
+        de_conversaciones = {par for par in _nombres_de_url_rotos() if par[0].startswith(CONVERSACIONES_DIR)}
+        self.assertEqual(
+            len(de_conversaciones),
+            CONVERSACIONES_ROTAS,
+            f"conversaciones pasó de {CONVERSACIONES_ROTAS} a {len(de_conversaciones)} nombres sin ruta",
         )
 
     def test_el_barrido_ve_la_forma_con_as(self):

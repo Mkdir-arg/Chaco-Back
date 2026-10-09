@@ -39,12 +39,11 @@ Se hereda; no se recrean el sidebar ni sus offsets.
 - Los grupos del usuario llegan al JS como
   `{{ user_groups_list|json_script:"user-groups-data" }}` + `window.userGroups = JSON.parse(...)`:
   los nombres de rol son texto libre y **nunca** se interpolan con `|safe` dentro de un `<script>`.
-- El WebSocket `static/custom/js/conversaciones_lista_ws.js` se carga únicamente en la ruta
-  `conversaciones:lista`; en esa ruta, `static/custom/js/conversaciones_tiempo_real_global.js` usa HTTP
-  solo como fallback mientras el socket no esté abierto, y suspende o cancela el polling en
-  pestañas ocultas.
+- El shell carga **un solo** cliente de tiempo real, `static/custom/js/alertas_websocket.js`.
+  No hay scripts de chat ni bloque `window.conversacionesConfig`: un segundo cliente abre un
+  socket por página contra el mismo proceso ASGI.
 - `static/custom/js/alertas_websocket.js` viaja **solo** con `puede_alertas_sensibles`, la variable que
-  publica el context processor `conversaciones.context_processors.user_groups` a partir de
+  publica el context processor `core.context_processors.identidad_usuario` a partir de
   `ciudadano.sensible`. Es un guard **único**: la campana del navbar —su única superficie, con el
   dropdown y el punto de estado— y `/ws/alertas/` piden la misma capacidad desde D-11, así que quien no
   la tiene no ve campana ni recibe el archivo. Un script de tiempo real que se carga sin mirar
@@ -221,6 +220,7 @@ templates de Configuración (`*_form`, `*_confirm_delete` y los cuatro pasos del
 páginas de error 403/404/500— al shell del backoffice y lo borró. La regla `[R:SHELLLEGACY]` de
 `scripts/design_audit.py` queda como guarda: si alguien vuelve a escribir ese `{% extends %}`, falla.
 
-Sus parciales `templates/components/alertas_eventos.html` y
-`templates/components/widget_contactos.html` siguen vivos y pertenecen a ese mundo: no se incluyen
-en pantallas nuevas (el segundo lo retira LEG-06).
+Su parcial `templates/components/alertas_eventos.html` sigue vivo y pertenece a ese mundo: no se
+incluye en pantallas nuevas. El widget de contactos que lo acompañaba ya no existe (LEG-06): su
+único consumidor era una pantalla tapada por el orden del URLconf y pedía cada 5 minutos una vista
+sin ruta.

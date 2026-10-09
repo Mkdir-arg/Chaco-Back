@@ -362,22 +362,10 @@ EXTRAS_SIN_ROL = {
     # rebotaría en bucle. Se verificó que su HTML trae solo contadores agregados,
     # ni el nombre ni el DNI de ningún ciudadano (RED-89, 04-oct-2026).
     "/inicio/": "Destino del propio rebote; solo contadores agregados, verificado.",
-    # Las cuatro de Conversaciones contestan 200 pero **vacío**: el guard está
-    # adentro de la vista (`usuario_tiene_permiso_conversaciones`), que devuelve
-    # `{"count": 0}` y `{"results": []}` a quien no lo tiene. No exponen nada, así
-    # que no son un bug que arreglar: son una forma distinta de escribir el guard.
-    "/api/conversaciones/alertas/count/": (
-        "responde vacío, el guard está adentro de la vista (`usuario_tiene_permiso_conversaciones`)"
-    ),
-    "/api/conversaciones/alertas/preview/": (
-        "responde vacío, el guard está adentro de la vista (`usuario_tiene_permiso_conversaciones`)"
-    ),
-    "/conversaciones/api/alertas/count/": (
-        "responde vacío, el guard está adentro de la vista (`usuario_tiene_permiso_conversaciones`)"
-    ),
-    "/conversaciones/api/alertas/preview/": (
-        "responde vacío, el guard está adentro de la vista (`usuario_tiene_permiso_conversaciones`)"
-    ),
+    # G1-01 fase 2: acá había cuatro excepciones de Conversaciones (las dos APIs de
+    # alertas, montadas bajo dos prefijos), que contestaban 200 pero vacío porque el
+    # guard estaba adentro de la vista. La app se apagó: sus rutas son 404 y salieron
+    # de la allowlist en vez de arreglarse.
 }
 
 #: Las públicas también: si un anónimo puede pedir una ruta, un autenticado sin
@@ -486,10 +474,12 @@ class SuperficieSinRolTests(TestCase):
 
         El Cambio 185 deja el total igual cambiando una por otra: sale
         `/configuracion/programas/`, que pasó a pedir capacidad (SEC-36), y entra
-        `/sesion/latido/`, que es nueva (SEC-35).
+        `/sesion/latido/`, que es nueva (SEC-35). G1-01 fase 2 baja **−4**: las dos
+        APIs de alertas de Conversaciones, montadas bajo dos prefijos, que ahora son
+        404 porque la app se apagó entera.
         """
-        self.assertEqual(len(EXTRAS_SIN_ROL), 22)
-        self.assertEqual(len(ALLOWLIST_SIN_ROL), 36)
+        self.assertEqual(len(EXTRAS_SIN_ROL), 18)
+        self.assertEqual(len(ALLOWLIST_SIN_ROL), 32)
 
     def test_la_allowlist_sin_rol_no_tiene_entradas_muertas(self):
         urls = {url for _, url in self.rutas}

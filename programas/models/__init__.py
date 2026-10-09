@@ -998,6 +998,20 @@ class SolicitudMerendero(TimeStamped):
         verbose_name="Estado",
     )
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    # SEC-09: la documentación respaldatoria se baja por `/media/`, y `merendero.crear`
+    # la abría para **cualquier** solicitud (la regla no tenía alcance por objeto). Con
+    # el autor registrado, quien solo da de alta ve el link de la suya —que es el caso
+    # que la regla tenía que cubrir: el widget del form rinde «Actualmente: …»— y no el
+    # de las demás. Las anteriores a este campo quedan en `NULL`: las leen `merendero.ver`
+    # y `merendero.validar`, que no cambian.
+    creado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="solicitudes_merendero_creadas",
+        verbose_name="Creada por",
+    )
     validada_por = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -2070,15 +2084,12 @@ class Relevamiento(PausableMixin, TimeStamped):
         if errores:
             raise ValidationError(errores)
 
-    @classmethod
-    def proximo_nombre(cls, convocatoria=None):
-        """Nombre autogenerado del próximo relevamiento.
-
-        Usa ``Max(numero)`` en vez de ``count()`` (evita el full scan y la carrera
-        de dos altas simultáneas con el mismo número).
-        """
-        siguiente = cls.proximo_numero(convocatoria)
-        return cls.nombre_para(convocatoria, siguiente)
+    # BEC-25: acá estaba `proximo_nombre()`, que componía el nombre del próximo
+    # relevamiento. Sus dos únicos llamadores lo dejaban en el contexto de
+    # `ConvocatoriaDetailView` y `RelevamientoListView` **sin convocatoria** —o sea
+    # «Relevamiento NNN» a secas, no el nombre que el alta iba a usar— y ningún
+    # template lo imprimía. El nombre real lo arma `save()` con `proximo_numero()`
+    # y `nombre_para()`, que siguen acá.
 
     @classmethod
     def nombre_para(cls, convocatoria, numero):
@@ -2864,7 +2875,10 @@ class Formulario(TimeStamped):
         ordering = ["-creado"]
         indexes = [
             models.Index(fields=["relevamiento", "estado"]),
-            models.Index(fields=["estado"]),
+            # RED-83: acá estaba `Index(fields=["estado"])`, duplicado exacto del que
+            # crea `estado = CharField(db_index=True)` más arriba. Dos árboles idénticos
+            # sobre la columna más escrita de la tabla más grande (283 MB): se paga en
+            # cada alta, en cada cambio de estado de la revisión y en el ALTER.
             # Dashboard del programa (Cambio 64): el recorte es siempre
             # relevamiento IN (...) AND creado BETWEEN ..., y la serie semanal lee
             # solo ``creado`` de esas filas.

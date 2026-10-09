@@ -404,13 +404,6 @@
                                     <a href="{% url 'legajos:ciudadano_detalle' acomp.ciudadano.id %}" class="text-blue-600 hover:underline">
                                         <i class="fas fa-user mr-1"></i>Ver Ciudadano
                                     </a>
-                                    {% if acomp.estado == 'ACTIVO' or acomp.estado == 'EN_SEGUIMIENTO' or acomp.estado == 'PENDIENTE' %}
-                                    <button type="button"
-                                        onclick="confirmarBaja({{ acomp.id }}, '{{ acomp.ciudadano.nombre_completo|escapejs }}')"
-                                        class="text-red-600 hover:underline text-sm">
-                                        <i class="fas fa-user-times mr-1"></i>Dar de Baja
-                                    </button>
-                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -625,41 +618,14 @@ function exportarIndicadores(formato) {
     window.toast('info', `Exportar indicadores en formato ${formato.toUpperCase()}: funcionalidad próxima.`);
 }
 
-function confirmarBaja(inscripcionId, nombreCiudadano) {
-    // El html de SweetAlert2 se interpreta como marcado: el nombre del ciudadano va escapado.
-    const nombreSeguro = String(nombreCiudadano).replace(/[&<>"']/g, (c) => (
-        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-    ));
-    Swal.fire({
-        title: '¿Dar de baja?',
-        html: `<p class="text-gray-600 mb-4">Estás por dar de baja a <strong>${nombreSeguro}</strong> del programa.</p>
-             <p class="text-gray-600 mb-2">Esta acción cerrará su inscripción activa y el flujo asociado.</p>
-               <textarea id="swal-motivo" class="swal2-textarea" placeholder="Motivo obligatorio..." rows="3"></textarea>`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Confirmar baja',
-        cancelButtonText: 'Cancelar',
-        buttonsStyling: false,
-        customClass: { confirmButton: 'btn-nodo btn-danger', cancelButton: 'btn-nodo btn-tertiary' },
-        focusConfirm: false,
-        preConfirm: () => {
-            const motivo = document.getElementById('swal-motivo').value.trim();
-            if (!motivo) {
-                Swal.showValidationMessage('El motivo es obligatorio.');
-                return false;
-            }
-            return motivo;
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const form = document.getElementById('form-dar-baja');
-            document.getElementById('baja-inscripcion-id').value = inscripcionId;
-            document.getElementById('baja-motivo').value = result.value;
-            form.action = `/legajos/acompanamiento/${inscripcionId}/dar-de-baja/`;
-            form.submit();
-        }
-    });
-}
+// LEG-06 (Ola 7): acá vivían la confirmación de baja de acompañamiento y su form
+// oculto. Posteaban a una ruta que **nunca** estuvo en el URLconf, así que el botón
+// daba 404 desde siempre (RED-42 lo midió y lo dejó anotado en su allowlist). Además
+// no llegaba a dibujarse, porque `acompanamientos` es una lista vacía fija desde que
+// se retiró `models_institucional` (FE-16). La vista sin ruta se borró con esto;
+// `BajaProgramaService` se conserva —lo cubre el test permanente de BEC-18— para el
+// día que el PM decida estrenar la baja. Candado:
+// `legajos/tests/test_programa_detail_baja_nombre.py`.
 
 // Rechazar una derivación la cierra sin vuelta atrás: confirmación con
 // SweetAlert2, nunca `confirm()` nativo (SEC-12, Cambio 48).
@@ -689,11 +655,5 @@ document.querySelectorAll('.js-rechazar-derivacion').forEach((formulario) => {
     });
 });
 </script>
-
-<form id="form-dar-baja" method="post">
-    {% csrf_token %}
-    <input type="hidden" id="baja-inscripcion-id" name="inscripcion_id">
-    <input type="hidden" id="baja-motivo" name="motivo">
-</form>
 
 {% endblock %}

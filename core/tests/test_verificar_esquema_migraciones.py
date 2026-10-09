@@ -154,12 +154,17 @@ class _Reemplazo:
 class ClavesConocidasTests(SimpleTestCase):
     """Una migración reemplazada por un squash figura aplicada y no tiene archivo propio.
 
-    Es correcto y permanente, no un fantasma. El caso vivo del repo es
-    `django-health-check`: su `db.0001_initial` declara
+    Es correcto y permanente, no un fantasma. El caso que lo destapó fue
+    `django-health-check`: su `db.0001_initial` declaraba
     `replaces = [("health_check_db", "0001_initial")]`, así que `django_migrations`
-    guarda **dos** filas y en disco hay **un** archivo, bajo un tercer label. Sin
-    contemplarlo, la guarda abortaría el arranque en icore, en testing y en PRD —lo midió
-    el CI de este mismo PR—, y lo haría además con cualquier squash futuro del proyecto.
+    guardaba **dos** filas y en disco había **un** archivo, bajo un tercer label. Sin
+    contemplarlo, la guarda abortaba el arranque en icore, en testing y en PRD —lo midió
+    el CI del PR R-15—.
+
+    Ese paquete se retiró en el Cambio 196 (OPS-13) y hoy el repo no tiene ningún
+    `replaces` vivo, así que estos dos tests corren sobre un loader de mentira. Quedan
+    igual: el modo de falla reaparece con el primer squash del proyecto o con la primera
+    dependencia que traiga uno, y ahí el ambiente que lo sufre es producción.
     """
 
     def test_una_migracion_reemplazada_no_es_un_fantasma(self):

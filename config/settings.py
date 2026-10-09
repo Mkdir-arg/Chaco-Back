@@ -1,6 +1,8 @@
+import importlib.util
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from django.contrib.messages import constants as messages
 from dotenv import load_dotenv
@@ -36,9 +38,14 @@ PYTEST_RUNNING = "pytest" in sys.argv or os.environ.get("PYTEST_RUNNING") == "1"
 # vez de volver a medir SQLite sin que nadie se entere.
 TEST_MOTOR = os.environ.get("DJANGO_TEST_MOTOR", "")
 
+# Con qué servidor arranca la imagen (`docker-entrypoint.sh`): `runserver`, `gunicorn`
+# o `daphne`. No es lo mismo para los websockets ni para las conexiones de base, así
+# que se lee una sola vez y se usa en los dos lugares.
+APP_RUNTIME = os.environ.get("APP_RUNTIME", "runserver")
+
 websockets_enabled_env = os.environ.get("WEBSOCKETS_ENABLED")
 if websockets_enabled_env is None:
-    WEBSOCKETS_ENABLED = os.environ.get("APP_RUNTIME", "runserver") == "daphne"
+    WEBSOCKETS_ENABLED = APP_RUNTIME == "daphne"
 else:
     WEBSOCKETS_ENABLED = websockets_enabled_env == "True"
 
@@ -95,7 +102,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.admindocs",
-    "django_extensions",
     "rest_framework",
     "rest_framework.authtoken",
     # Sin la app, `DEFAULT_SCHEMA_CLASS` y `SPECTACULAR_SETTINGS` quedaban
@@ -116,16 +122,14 @@ INSTALLED_APPS = [
     "django_filters",
     "channels",
     "django_redis",
-    # OPS-04: sus URLs ya **no** se montan (`config/urls.py`), porque el include de
-    # `healthcheck.urls` las tapaba y eran inalcanzables. Las apps siguen acá a
-    # propósito: tienen una migración aplicada (`db.0001_initial` y
-    # `health_check_db.0001_initial`) y la tabla `health_check_db_testmodel` en los
-    # ambientes. Sacarlas de INSTALLED_APPS deja esas dos filas sin archivo y esa tabla
-    # sin modelo, que es justo lo que `verificar_esquema_migraciones` frena. Retirar el
-    # paquete es OPS-13, y tiene que venir con esa limpieza.
-    "health_check",
-    "health_check.db",
-    "health_check.cache",
+    # OPS-13 (Cambio 196): acá estaban las tres apps de `django-health-check`. OPS-04 ya
+    # les había sacado las URLs (Cambio 153) y las sondas del sistema son la app
+    # `healthcheck` de este repo (`/health/` y `/health/ready/`). Lo que faltaba para
+    # poder retirarlas era la limpieza que `core.0003` hace: su tabla
+    # (`health_check_db_testmodel`) y sus dos filas de `django_migrations`
+    # (`db.0001_initial` y `health_check_db.0001_initial`; el `app_label` cambió entre
+    # versiones del paquete, por eso son dos). Sin eso quedaban una tabla sin modelo y
+    # dos filas sin archivo en icore, testing y PRD.
     "users",
     "core",
     "dashboard",
@@ -133,7 +137,6 @@ INSTALLED_APPS = [
     "configuracion",
     "conversaciones",
     "portal",
-    "tramites",
     "programas",
     "healthcheck",
     # Campañas de correo masivo (análisis 007). Solo correo saliente: no es la
@@ -141,9 +144,21 @@ INSTALLED_APPS = [
     "notificaciones",
 ]
 
-# Silk (profiling): solo en desarrollo, nunca en producción.
+# Silk (profiling) y django-extensions (`shell_plus`, `show_urls`): solo en desarrollo,
+# nunca en producción. OPS-13: `django_extensions` estaba arriba, incondicional, así que
+# viajaba en la imagen de PRD con sus comandos cargados; los dos paquetes pasaron a
+# `requirements-dev.txt` y la imagen (`requirements.txt`) ya no los trae.
+#
+# Se agregan solo **si están instalados**, y no a secas, porque el `docker-compose.yml` de
+# desarrollo levanta esa misma imagen con `DJANGO_DEBUG=True`: con un `INSTALLED_APPS`
+# incondicional el contenedor moriría al importar. Faltando, lo único que se pierde es el
+# profiling y `shell_plus`; la app arranca igual.
+_APPS_DE_DESARROLLO = ("django_extensions", "silk")
 if DEBUG:
-    INSTALLED_APPS += ["silk"]
+    INSTALLED_APPS += [app for app in _APPS_DE_DESARROLLO if importlib.util.find_spec(app) is not None]
+
+#: Lo lee `config/urls.py` para montar `/silk/` solo cuando la app entró de verdad.
+SILK_HABILITADO = "silk" in INSTALLED_APPS
 
 if PYTEST_RUNNING:
     INSTALLED_APPS += ["zeal"]
@@ -241,7 +256,11 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "conversaciones.context_processors.user_groups",
+                # RED-13: esto era `conversaciones.context_processors.user_groups`.
+                # Cuatro de sus variables (`user_groups_list`, `user_primary_group`,
+                # `user_is_superuser`, `websockets_enabled`) no son de esa app y las
+                # lee `includes/base.html`, que extiende todo el backoffice.
+                "core.context_processors.identidad_usuario",
                 "core.context_processors.sidebar_badges",
                 "core.context_processors.session_idle_config",
                 "portal.context_processors.gtm",
@@ -370,7 +389,16 @@ DATABASES = {
             "read_timeout": int(os.environ.get("DB_READ_TIMEOUT", "10")),
             "write_timeout": int(os.environ.get("DB_WRITE_TIMEOUT", "10")),
         },
-        "CONN_MAX_AGE": 60,
+        # PERF-08. Django guarda la conexión persistente en un `local()` **por hilo**
+        # y la devuelve al cerrar el request. Bajo daphne cada request HTTP lo atiende
+        # un hilo nuevo del pool de `asgiref` (`sync_to_async` con `thread_sensitive`
+        # no reusa el mismo hilo entre requests), así que ninguna conexión se reutiliza
+        # jamás: 200 requests abren 200 conexiones y las que no alcanza a cerrar el
+        # request quedan vivas hasta que pasa el GC cíclico. Medido con la sonda
+        # `poc/perf_harness/asgi_conn_probe.py`: con 60 quedaban 9 abiertas (50 de 50
+        # con el GC apagado); con 0, ninguna. Reutilizar de verdad exige WSGI, que es
+        # lo que corre icore (`APP_RUNTIME=gunicorn`) y ahí el 60 sí sirve.
+        "CONN_MAX_AGE": 0 if APP_RUNTIME == "daphne" else 60,
         "CONN_HEALTH_CHECKS": True,
         # La base que crea el runner de tests (TST-01) nace con el mismo juego de
         # caracteres que las conexiones de producción. Las tres imágenes de la
@@ -395,6 +423,33 @@ REDIS_URL = os.environ.get(
     f"{'rediss' if REDIS_SSL else 'redis'}://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
 )
 
+# PERF-10 / G1c-12. Las sesiones y la caché comparten hoy la misma base de Redis, así
+# que un `cache.clear()` —que en django_redis es un FLUSHDB— desloguea a todo el mundo,
+# y las dos poblaciones compiten por los mismos 350 MB con `allkeys-lru`.
+#
+# `REDIS_SESSIONS_DB` separa **solo la base**: con la variable sin definir el alias
+# `sessions` apunta exactamente a `REDIS_URL`, que es lo que hace hoy. Queda preparado
+# y apagado porque el Redis de ECOM no es nuestro (H-06): el cambio de verdad lo tiene
+# que acompañar su configuración, y mover la base con sesiones vivas las deja atrás
+# (quien esté logueado vuelve al login una vez).
+#
+# Lo que esto **no** arregla: `maxmemory` es del servidor, no de la base, así que una
+# caché que llena los 350 MB sigue pudiendo desalojar sesiones. Para eso hace falta la
+# política o la instancia aparte que se le pide a ECOM.
+REDIS_SESSIONS_DB = os.environ.get("REDIS_SESSIONS_DB", "")
+
+
+def _url_en_otra_base(url, db):
+    """La misma URL de Redis apuntando a otra base. Conserva esquema, credenciales,
+    host, puerto y querystring: lo único que se reemplaza es el path."""
+    if not db:
+        return url
+    partes = urlsplit(url)
+    return urlunsplit((partes.scheme, partes.netloc, f"/{db}", partes.query, partes.fragment))
+
+
+REDIS_SESSIONS_URL = _url_en_otra_base(REDIS_URL, REDIS_SESSIONS_DB)
+
 # OPS-12: QA (el testing de ECOM) también usa Redis. Antes el único ambiente servido
 # con Redis era `prd`, así que QA corría con un cache y un channel layer **locales al
 # proceso**: el throttle contaba por worker, una invalidación limpiaba uno de varios y
@@ -418,7 +473,8 @@ if USE_REDIS:
         },
         "sessions": {
             "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": REDIS_URL,
+            # Igual a `REDIS_URL` salvo que se defina `REDIS_SESSIONS_DB` (PERF-10).
+            "LOCATION": REDIS_SESSIONS_URL,
             # Mismos límites que `default` (Cambio 91): sin ellos, un Redis que
             # no responde deja colgado cada request que lee su sesión —el portal
             # público la lee y la escribe en cada paso— y cada hilo colgado
@@ -493,10 +549,9 @@ else:
         },
     }
 
-HEALTH_CHECK = {
-    "DISK_USAGE_MAX": 90,
-    "MEMORY_MIN": 100,
-}
+# OPS-13: acá estaba `HEALTH_CHECK = {"DISK_USAGE_MAX": 90, "MEMORY_MIN": 100}`, la
+# configuración de `django-health-check`. El paquete se fue del repo en este mismo
+# Cambio (196) y nadie más lee esa clave: las sondas son la app `healthcheck`.
 
 DEFAULT_CACHE_TIMEOUT = 600
 DASHBOARD_CACHE_TIMEOUT = 600
@@ -679,7 +734,9 @@ SIIS_API_TIMEOUT = int(os.getenv("SIIS_API_TIMEOUT", "20"))
 # directorio montado como volumen o secret, que no viaja con el código ni con la
 # imagen. Si no está montado, los comandos cortan nombrando la variable.
 DATOS_SIIS_DIR = os.getenv("DATOS_SIIS_DIR", "/datos-siis")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# OPS-13: y acá `OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")`, sin un solo consumidor en
+# el código. `openai` salió de `requirements.txt` en este Cambio; leer el secreto para no
+# usarlo solo servía para que apareciera en los `.env` de los ambientes.
 
 LOG_DIR = BASE_DIR / "logs"
 # OPS-03: stdout es el destino de verdad —es lo que recogen `docker compose logs` y

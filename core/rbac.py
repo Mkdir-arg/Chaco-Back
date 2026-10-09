@@ -19,10 +19,14 @@ Reglas:
 from functools import wraps
 
 from django.contrib.auth.models import Permission, User
+from django.db import transaction
 from django.db.models import Prefetch, Q, prefetch_related_objects
 
 # App donde vive el modelo ancla ``Capacidad`` (define el app_label de los permisos).
 APP_LABEL = "users"
+# Su nombre en ``django_content_type`` (``users.Capacidad`` en minúsculas), para pedir el
+# content type sin importar el modelo (ver :func:`_content_type_de_capacidad`).
+MODELO_ANCLA = "capacidad"
 
 # ---------------------------------------------------------------------------
 # Catálogo curado de capacidades (fuente única: alimenta el seed, el árbol del
@@ -38,7 +42,6 @@ CATALOGO = [
             ("ciudadano.ver", "Ver ciudadanos y legajos"),
             ("ciudadano.crear", "Crear ciudadanos"),
             ("ciudadano.editar", "Editar ciudadanos"),
-            ("ciudadano.eliminar", "Eliminar ciudadanos"),
             ("ciudadano.sensible", "Ver datos sensibles"),
             # SEC-20 / D-20: descargar el padrón entero (~100k DNI) es otra cosa que
             # consultar una ficha. Se siembra a los roles que ya tienen
@@ -100,6 +103,7 @@ CATALOGO = [
         "modulo": "becas_admin",
         "label": "Becas — Administración",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("becas.programa.administrar", "Administrar el programa Becas (acceso total, asigna coordinadores)"),
@@ -118,6 +122,7 @@ CATALOGO = [
         "modulo": "becas_segmentos",
         "label": "Becas — Segmentos",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.segmento.ver", "Ver segmentos"),
@@ -129,6 +134,7 @@ CATALOGO = [
         "modulo": "becas_subsegmentos",
         "label": "Becas — Subsegmentos",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.subsegmento.ver", "Ver subsegmentos"),
@@ -140,6 +146,7 @@ CATALOGO = [
         "modulo": "becas_requisitos",
         "label": "Becas — Requisitos",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.requisito.ver", "Ver requisitos nativos"),
@@ -151,6 +158,7 @@ CATALOGO = [
         "modulo": "becas_preguntas",
         "label": "Becas — Preguntas globales",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.pregunta.ver", "Ver preguntas globales (requisitos generales)"),
@@ -162,6 +170,7 @@ CATALOGO = [
         "modulo": "becas_coordinadores",
         "label": "Becas — Coordinadores",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.coordinador.ver", "Ver coordinadores asignados a segmentos"),
@@ -173,6 +182,7 @@ CATALOGO = [
         "modulo": "becas_convocatorias",
         "label": "Becas — Convocatorias",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.convocatoria.ver", "Ver convocatorias (incluye exportar CSV)"),
@@ -184,6 +194,7 @@ CATALOGO = [
         "modulo": "becas_relevamientos",
         "label": "Becas — Relevamientos",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.relevamiento.ver", "Ver relevamientos de Becas"),
@@ -196,6 +207,7 @@ CATALOGO = [
         "modulo": "becas_revision",
         "label": "Becas — Revisión",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.revision.ver", "Ver relevamientos en revisión y sus formularios"),
@@ -206,6 +218,7 @@ CATALOGO = [
         "modulo": "becas_cupo",
         "label": "Becas — Cupo",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.cupo.ver", "Ver ocupación y capacidad de cupo por segmento"),
@@ -215,6 +228,7 @@ CATALOGO = [
         "modulo": "becas_beneficiarios",
         "label": "Becas — Beneficiarios",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.beneficiario.ver", "Ver beneficiarios, lista de espera y pendientes"),
@@ -225,6 +239,7 @@ CATALOGO = [
         "modulo": "becas_reportes",
         "label": "Becas — Reportes",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.reportes.ver", "Ver reportes de Becas"),
@@ -235,6 +250,7 @@ CATALOGO = [
         "modulo": "becas_campo",
         "label": "Becas — Campo",
         "tab": "becas",
+        "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
             ("becas.campo", "Operar la app de campo de Becas (territorial)"),
@@ -379,6 +395,12 @@ CAPS_ENTRADA_PROGRAMAS = ("programa.configurar", "config.ver", "config.administr
 ROL_ADMINISTRADOR = "Administrador"
 GRUPO_CIUDADANO_PORTAL = "Ciudadanos"
 
+#: Único programa cuyo dominio evalúa ``programa.configurar`` **con alcance**
+#: (``programas.services.dispositivos.puede_configurar_dispositivos``). Por eso es el
+#: único donde un admin de programa puede delegarla (SEC-07). Vive acá y no en
+#: ``programas`` porque ``core`` no puede importar esa app.
+CODIGO_PROGRAMA_DISPOSITIVOS = "DISPOSITIVOS"
+
 
 class SinAdministradorError(Exception):
     """La operación dejaría al sistema sin ningún usuario que pueda administrar."""
@@ -446,13 +468,27 @@ def _modulo_asignable_en_programa(modulo, programa):
     Los módulos sin una lista ``programas`` conservan la compatibilidad: están
     disponibles en todos los programas. Los módulos especializados evitan que
     un administrador de Becas otorgue capacidades de Dispositivos por error.
+
+    **SEC-06:** los trece módulos ``becas_*`` declaran ``"programas": ("BECAS",)``.
+    Sin eso, el árbol del ABM le ofrecía ``becas.programa.administrar`` al admin de
+    roles de **Dispositivos**, que se la tildaba a un rol de su programa y bajaba el
+    padrón con DNI de cualquier convocatoria de Becas (los gates de los exports
+    evaluaban la capacidad **sin** alcance). Lo que se cierra acá es que se pueda
+    **otorgar**; lo que ya estaba otorgado lo quita ``users.0031``, y que los gates
+    la evalúen con alcance es el cambio de los exports, el masivo y RENAPER.
+
+    El módulo ``relevamientos`` (``relevamiento.ver`` / ``relevamiento.gestionar``)
+    queda sin lista a propósito: la ficha lo dejaba sujeto a que el PM confirmara
+    que es solo de Becas y hoy no lo consume ninguna vista, solo un templatetag.
+    Acotarlo sin esa confirmación sería sacarle una capacidad a un rol por una
+    suposición.
     """
 
     codigos_programa = modulo.get("programas")
     return not codigos_programa or programa is None or getattr(programa, "codigo", programa) in codigos_programa
 
 
-def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None):
+def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None, permitidas=None):
     """Catálogo agrupado por módulo, marcando las capacidades activas.
 
     Estructura lista para renderizar el árbol del ABM de Roles::
@@ -461,27 +497,125 @@ def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None):
 
     Con ``solo_programa=True`` se limita a los módulos "de programa"
     (``alcance == "programa"``). Si también se informa ``programa``, excluye
-    los módulos especializados para otros programas. El default es
-    retrocompatible: devuelve el catálogo completo.
+    los módulos especializados para otros programas. ``permitidas`` recorta a un
+    conjunto de códigos concreto (lo que el operador puede delegar: ver
+    :func:`capacidades_delegables`) y deja afuera los módulos que quedan vacíos. El
+    default es retrocompatible: devuelve el catálogo completo.
     """
     activos = set(codigos_activos)
-    return [
-        {
-            "modulo": modulo["modulo"],
-            "label": modulo["label"],
-            "alcance": modulo.get("alcance"),
-            "capacidades": [
-                {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
-                for (codigo, etiqueta) in modulo["capacidades"]
-            ],
-        }
-        for modulo in CATALOGO
-        if (not solo_programa or modulo.get("alcance") == "programa")
-        and _modulo_asignable_en_programa(modulo, programa)
-    ]
+    modulos = []
+    for modulo in CATALOGO:
+        if solo_programa and modulo.get("alcance") != "programa":
+            continue
+        if not _modulo_asignable_en_programa(modulo, programa):
+            continue
+        capacidades = [
+            {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
+            for (codigo, etiqueta) in modulo["capacidades"]
+            if permitidas is None or codigo in permitidas
+        ]
+        if not capacidades:
+            continue
+        modulos.append(
+            {
+                "modulo": modulo["modulo"],
+                "label": modulo["label"],
+                "alcance": modulo.get("alcance"),
+                "capacidades": capacidades,
+            }
+        )
+    return modulos
 
 
-def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None):
+def capacidades_de_programa_asignables(programa):
+    """Códigos "de programa" que el catálogo permite tildar en un rol de ``programa``.
+
+    Es el techo del ABM para un admin de programa: los módulos con ``alcance``
+    ``programa``, salteando los especializados en **otro** programa (SEC-06).
+    """
+    return {
+        codigo
+        for modulo in arbol_capacidades(solo_programa=True, programa=programa)
+        for codigo in (c["codigo"] for c in modulo["capacidades"])
+    }
+
+
+def capacidades_fuera_del_programa(programa):
+    """Capacidades "de programa" que **no** corresponden a un rol de ``programa``.
+
+    Es el complemento de :func:`capacidades_de_programa_asignables` dentro de
+    :func:`codigos_de_programa`: para un rol de DISPOSITIVOS son los trece módulos
+    ``becas_*`` y los de MERENDEROS. Con ``programa=None`` —un rol que no es de
+    programa— es el conjunto vacío: ahí no hay contra qué comparar y un rol global puede
+    tener cualquier capacidad.
+
+    Lo usa el guardado del ABM para que **mover** un rol de programa no le deje las
+    capacidades del anterior (es la misma limpieza que hizo ``users.0031`` de una vez).
+    """
+    return codigos_de_programa() - capacidades_de_programa_asignables(programa)
+
+
+def capacidades_no_delegables(programa):
+    """Capacidades que un admin **de programa** no puede repartir, ni tildando ni en un rol.
+
+    Son las que convierten a su portador en administrador —de los ABM del programa
+    (:data:`CAPS_ADMIN_PROGRAMA`) o del sistema entero
+    (:data:`CAPS_ADMINISTRACION`)— y ``programa.configurar``, que habilita el wizard de
+    programas y es potestad de sistema (SEC-07).
+
+    DISPOSITIVOS es la excepción de ``programa.configurar``: es el único programa que la
+    evalúa **con alcance** (``puede_configurar_dispositivos``), así que ahí delegarla no
+    sale del programa.
+
+    Delegar la administración es lo que rompe la separación del Cambio 20: quien solo
+    administra roles se tildaba ``programa.usuario.administrar`` sobre su propio rol y se
+    quedaba con las dos puntas, y quien solo administraba usuarios se asignaba un rol que
+    traía ``programa.rol.administrar`` (G1b-02). Eso vuelve al rol **global**.
+    """
+    bloqueadas = set(CAPS_ADMIN_PROGRAMA) | set(CAPS_ADMINISTRACION)
+    if getattr(programa, "codigo", programa) != CODIGO_PROGRAMA_DISPOSITIVOS:
+        bloqueadas.add("programa.configurar")
+    return bloqueadas
+
+
+def capacidades_delegables(programa):
+    """Capacidades que un operador **no global** puede tildar en un rol de ``programa``.
+
+    Fuente única de la regla: la consultan el árbol que dibuja el ABM de Roles, el
+    ``clean`` del formulario y el servicio que guarda (para no pisar lo que el operador
+    no ve, G1b-06).
+
+    Es el techo del catálogo para ese programa (:func:`capacidades_de_programa_asignables`,
+    que desde SEC-06 ya no ofrece los módulos ``becas_*`` fuera de Becas) **menos**
+    :func:`capacidades_no_delegables`.
+
+    **Desvío de la ficha, a propósito.** G1b-02 proponía además recortar a «lo que el
+    operador tiene en ese programa». Medido contra el ABM real, eso lo rompe: un rol con
+    ``programa.rol.administrar`` y nada más —que es exactamente como lo arma el Cambio
+    20— quedaba sin poder crear un rol con una sola capacidad, y un admin de los usuarios
+    de un programa no podía asignar ningún rol operativo del suyo. Y no compra
+    seguridad: quien administra los dos ABM de su programa ya puede fabricar un rol y
+    asignárselo, así que el recorte solo movía el trámite. Lo que sí escala —salir del
+    programa o volverse administrador— lo cierran el catálogo de SEC-06, esta lista y
+    ``puede_editar_rol`` (nadie no global edita su propio rol).
+
+    El admin **global** no pasa por acá: puede tildar todo el catálogo.
+    """
+    return capacidades_de_programa_asignables(programa) - capacidades_no_delegables(programa)
+
+
+def puede_asignar_capacidades(programa, codigos):
+    """¿Un operador **no global** puede asignar un rol que otorga ``codigos``? (G1b-02).
+
+    Un rol es un paquete: el combo del ABM de Usuarios ofrecía todos los roles del
+    programa sin mirar qué otorgaban, así que quien solo administraba *usuarios* se
+    asignaba el rol de al lado —que traía ``programa.rol.administrar``— y se quedaba con
+    las dos puntas. Es la misma lista que no se puede tildar a mano.
+    """
+    return not (set(codigos) & capacidades_no_delegables(programa))
+
+
+def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None, permitidas=None):
     """Catálogo agrupado por tab para el panel de capacidades del ABM de Roles.
 
     Devuelve la lista de tabs definida en :data:`TABS_CAPACIDADES`, cada una con
@@ -502,15 +636,15 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None):
         tab_id = modulo.get("tab", "backoffice")
         if tab_id not in tabs:
             continue
+        capacidades = [
+            {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
+            for (codigo, etiqueta) in modulo["capacidades"]
+            if permitidas is None or codigo in permitidas
+        ]
+        if not capacidades:
+            continue
         tabs[tab_id]["modulos"].append(
-            {
-                "modulo": modulo["modulo"],
-                "label": modulo["label"],
-                "capacidades": [
-                    {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
-                    for (codigo, etiqueta) in modulo["capacidades"]
-                ],
-            }
+            {"modulo": modulo["modulo"], "label": modulo["label"], "capacidades": capacidades}
         )
     return list(tabs.values())
 
@@ -624,6 +758,36 @@ def puede_alguna(user, codigos, programa=None):
     return any(puede(user, c, programa=programa) for c in codigos)
 
 
+def puede_sin_programa(user, codigo):
+    """¿Tiene la capacidad por un rol **sin programa**? (SEC-07).
+
+    ``puede(user, codigo)`` sin alcance contesta «la tiene por algún rol», y para
+    una capacidad de módulo "de programa" eso incluye los roles acotados a **otro**
+    programa: el admin de roles de Becas se tildaba ``programa.configurar`` en un rol
+    de Becas y editaba el wizard de Dispositivos. ``puede(user, codigo,
+    programa=X)`` tampoco sirve para la pregunta de las acciones **globales** (crear
+    un programa, que todavía no tiene pk): ahí cuenta solo el rol global.
+
+    Esta es esa tercera pregunta: la capacidad tiene que venir de un rol cuyo
+    ``RolMeta.programa`` sea nulo —categorías Backoffice y Sistema—. Superusuario
+    activo pasa; usuario inactivo o anónimo, no.
+
+    Para capacidades **globales** (módulos sin ``alcance``) el resultado coincide
+    con ``puede``: esos roles no acotan nada, pero la respuesta sigue siendo
+    «¿la tiene un rol sin programa?», que es lo que se quiere preguntar.
+    """
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+    if not getattr(user, "is_active", False):
+        return False
+    if user.is_superuser:
+        return codigo in codigos_de_capacidad()
+    objetivo = codename_de(codigo)
+    return any(
+        codename == objetivo and programa_del_rol is None for codename, programa_del_rol in _filas_de_capacidad(user)
+    )
+
+
 def nombres_de_grupos(user):
     """Nombres de grupos del usuario, cacheados durante la solicitud actual."""
     cache = getattr(user, "_group_names_cache", None)
@@ -719,6 +883,12 @@ def _respuesta_sin_permiso(request, redirect_to):
     return redirect(redirect_to)
 
 
+#: Nombre público: una vista que resuelve el alcance **adentro** (porque necesita el
+#: objeto para saber contra qué evaluar) tiene que poder contestar lo mismo que el
+#: decorador, o el 403 de una pantalla no se parece al de la de al lado (SEC-07).
+respuesta_sin_permiso = _respuesta_sin_permiso
+
+
 def requiere(*codigos, redirect_to="core:inicio"):
     """Decorador para FBV: exige al menos una de las capacidades indicadas.
 
@@ -736,6 +906,33 @@ def requiere(*codigos, redirect_to="core:inicio"):
 
                 return redirect_to_login(request.get_full_path())
             if puede_alguna(user, codigos):
+                return view_func(request, *args, **kwargs)
+            return _respuesta_sin_permiso(request, redirect_to)
+
+        return _wrapped
+
+    return decorator
+
+
+def requiere_sin_programa(codigo, redirect_to="core:inicio"):
+    """Como :func:`requiere`, pero la capacidad tiene que venir de un rol **global**.
+
+    Es la puerta de las acciones que no son de ningún programa en particular: el alta
+    del wizard crea un programa que todavía no existe, así que no hay alcance contra
+    el cual evaluar y **D-07** lo deja para los roles sin programa. Las pantallas que
+    sí tienen un ``pk`` resuelven el programa y evalúan con alcance (ver
+    ``configuracion/views/programas.py``).
+    """
+
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped(request, *args, **kwargs):
+            user = request.user
+            if not user.is_authenticated:
+                from django.contrib.auth.views import redirect_to_login
+
+                return redirect_to_login(request.get_full_path())
+            if puede_sin_programa(user, codigo):
                 return view_func(request, *args, **kwargs)
             return _respuesta_sin_permiso(request, redirect_to)
 
@@ -832,6 +1029,110 @@ def programas_que_administra(user):
     )
 
 
+def _content_type_de_capacidad():
+    """El ``ContentType`` del modelo ancla, cacheado por el manager de contenttypes.
+
+    Se resuelve por *natural key* y no con ``get_for_model(Capacidad)`` para no importar
+    ``users.models``, que importa este módulo: sería un ciclo, y
+    ``programas.tests.test_arquitectura`` cuida que no aparezcan nuevos. Que la clave
+    siga siendo la del modelo lo fija ``users.tests.test_ola7_pr3``.
+    """
+    from django.contrib.contenttypes.models import ContentType
+
+    return ContentType.objects.get_by_natural_key(APP_LABEL, MODELO_ANCLA)
+
+
+def _marca_del_candado():
+    """No hace nada: lo que importa es que esté anotada (ver :func:`_tiene_el_candado`)."""
+
+
+def _tiene_el_candado():
+    """¿La transacción en curso ya tomó el candado de administración?
+
+    La marca es el callback que :func:`tomar_candado_de_administracion` anota con
+    ``transaction.on_commit``. Sirve de testigo porque Django guarda esos callbacks
+    **por transacción** y los descarta en los tres finales posibles: al ``COMMIT`` (los
+    corre y vacía la lista), al ``ROLLBACK`` (la vacía) y al ``ROLLBACK TO SAVEPOINT``
+    (saca los anotados dentro de ese savepoint) —que es justo cuando InnoDB suelta las
+    filas bloqueadas ahí adentro—. Así la marca no puede sobrevivir al candado.
+
+    Peor caso si alguna vez dejara de valer: se vuelve a tomar el candado, que es lo que
+    hacía antes y hoy cuesta una búsqueda por índice sobre las mismas 4 filas.
+    """
+    anotados = transaction.get_connection().run_on_commit
+    return any(callback is _marca_del_candado for _sids, callback, _robusto in anotados)
+
+
+def tomar_candado_de_administracion():
+    """Candado que serializa las operaciones que pueden dejar sin administrador (G1b-09).
+
+    **Va como primera sentencia de la transacción, antes de cualquier escritura.** No es
+    un detalle de estilo: es lo que hace que funcione y lo que evita el deadlock.
+
+    *Por qué sirve.* Sin candado, dos operaciones simultáneas —cada una desactivando a
+    uno de los dos últimos administradores— leen cada una la foto de **su** transacción,
+    ven al otro todavía activo, pasan el check y commitean: el sistema queda sin
+    administradores y sin forma de recuperarse desde la UI. Con el candado la segunda
+    espera al COMMIT de la primera; y como un ``SELECT … FOR UPDATE`` **no** establece la
+    foto de lectura consistente de REPEATABLE READ —la establece la primera lectura
+    *sin* candado—, la primera lectura que haga después ya ve lo que la otra commiteó, y
+    :func:`asegurar_admin_restante` revierte.
+
+    *Por qué el ancla son las filas de ``auth_permission``.* Las de
+    :data:`CAPS_ADMINISTRACION` y :data:`CAPS_ADMIN_PROGRAMA` existen siempre (las siembra
+    el catálogo), son las mismas para cualquier operación y no cambian al desactivar a
+    nadie. Las ``RolMeta`` que confieren administración —lo que proponía la ficha— no
+    sirven: una base cuyo último administrador es superusuario, o un programa sin roles,
+    no tiene ninguna fila que bloquear, y el ancla desaparece justo en el caso que
+    importa. Los usuarios candidatos tampoco: cada transacción deja de ver al que ella
+    misma acaba de desactivar, así que los dos conjuntos pueden no solaparse.
+
+    *Por qué el filtro lleva el ``content_type``.* Es lo que hace que el candado entre
+    **por un índice** y no por un escaneo. ``auth_permission`` no tiene ningún índice que
+    empiece por ``codename``; filtrando solo por ahí, el motor resuelve el ``IN`` con un
+    *index scan* de la tabla entera (``EXPLAIN`` de MySQL 8: ``type: index``,
+    ``key: PRIMARY``, 391 filas) y, con ``FOR UPDATE``, **bloquea las 391**. Ahí adentro
+    cae la fila que otra transacción tiene tomada por la FK de ``auth_group_permissions``
+    —guardar las capacidades de un rol—, y el ciclo se cierra: ``ERROR 1213 Deadlock``,
+    que ninguna vista atrapa, o sea 500. Medido en los dos motores (``CandadoSinDeadlockTests``).
+    Con ``content_type=ct`` el plan pasa a ``type: range`` sobre el índice único
+    ``(content_type_id, codename)``: se bloquean solo las 4 filas del ancla, siempre las
+    mismas y en el mismo orden. Mismo criterio que
+    :func:`users.services.roles._set_capacidades`.
+
+    *Por qué el check no lee con ``FOR UPDATE``.* Se probó y **deadlockea** contra
+    MariaDB 10.11: cada transacción ya tiene tomada por su ``UPDATE`` la fila del usuario
+    que está desactivando y pide las del resto, que tiene la otra (``ERROR 1213``). Sería
+    además un candado sobre buena parte de ``auth_user``, que cualquier login mueve con
+    ``update_last_login``. Tomando el ancla antes de escribir no hace falta: la segunda
+    transacción queda esperando **antes** de tomar ninguna fila de usuario.
+
+    *Quiénes no lo toman, a propósito* (ronda 3). Los seeds que reescriben capacidades
+    —``users.seed_rbac``, ``users.seed_datos_base``, ``programas.seed_becas``— y las
+    migraciones que tildan permisos corren en el arranque del contenedor bajo el
+    ``GET_LOCK`` del bootstrap (``docker-entrypoint.sh`` → ``manage.py bootstrap_lock``),
+    que ya serializa el arranque entero contra los demás pods. Y
+    ``portal.desactivar_usuarios_portal`` desactiva únicamente cuentas del grupo
+    ``Ciudadanos`` —excluye superusuarios y a cualquiera que tenga otro grupo— y no
+    escribe ``auth_group_permissions``: no puede dejar sin administrador ni cerrar el
+    ciclo de locks. Cualquier camino nuevo que escriba capacidades o desactive usuarios
+    o roles desde la aplicación sí lo necesita como primera sentencia.
+
+    En SQLite (la suite) ``select_for_update()`` es un no-op, así que este contrato se
+    prueba por su **presencia**, su **orden** y la **forma del SQL**
+    (``core.tests.candados``, y un espía que mira el estado de la fila en el momento de
+    tomarlo) y por su efecto contra el motor real (``@tag("mysql")``).
+    """
+    codenames = {codename_de(c) for c in CAPS_ADMINISTRACION} | {codename_de(c) for c in CAPS_ADMIN_PROGRAMA}
+    list(
+        Permission.objects.select_for_update()
+        .filter(content_type=_content_type_de_capacidad(), codename__in=sorted(codenames))
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+    transaction.on_commit(_marca_del_candado)
+
+
 def asegurar_admin_restante(programa=None):
     """Lanza si una operación dejaría al sistema —o a un programa— sin administrador.
 
@@ -839,9 +1140,19 @@ def asegurar_admin_restante(programa=None):
     cambio (quitar rol, desactivar usuario, quitar capacidad de un rol, borrar
     rol): si dejaría sin admins, la excepción revierte la transacción.
 
+    Quien llama tiene que haber tomado :func:`tomar_candado_de_administracion` al abrir
+    la transacción (G1b-09). Si no lo hizo, se toma acá para que el check nunca corra del
+    todo sin candado; pero tomarlo recién acá solo serializa, no refresca la lectura, así
+    que **no reemplaza** al del llamador. Si la transacción ya lo tiene no se vuelve a
+    pedir: el caso normal es una vista que llama a este check una vez por el sistema y
+    otra por cada programa del usuario, y repetir el ``SELECT … FOR UPDATE`` es un viaje
+    a la base por llamada que no agrega ninguna garantía.
+
     **Retrocompatible:** sin ``programa`` realiza el check **global** histórico.
     Con ``programa`` realiza el check acotado a ese programa (RN-8).
     """
+    if not _tiene_el_candado():
+        tomar_candado_de_administracion()
     if programa is None:
         if not usuarios_que_administran().exists():
             raise SinAdministradorError(

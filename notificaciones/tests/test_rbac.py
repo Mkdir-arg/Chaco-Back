@@ -11,9 +11,10 @@ from core import rbac
 from core.tests.historico import estado_historico
 from core.views.media import _autorizar
 from notificaciones.tests.utils import ConMediaTemporal, crear_campana, usuario_con
+from users.models import RolMeta
 
-migracion = importlib.import_module("users.migrations.0030_rol_comunicaciones")
-APPS_DE_ENTONCES = estado_historico("users", "0030_rol_comunicaciones")
+migracion = importlib.import_module("users.migrations.0035_rol_comunicaciones")
+APPS_DE_ENTONCES = estado_historico("users", "0035_rol_comunicaciones")
 CAPS = {"notificacion.ver", "notificacion.gestionar", "notificacion.enviar"}
 
 
@@ -34,6 +35,7 @@ class SeedComunicacionesTests(TestCase):
         self.assertEqual(set(rbac.capacidades_de_grupo(grupo)), CAPS)
         self.assertEqual(grupo.meta.categoria, rbac.CATEGORIA_BACKOFFICE)
         self.assertFalse(grupo.meta.protegido)
+        self.assertEqual(grupo.meta.clave, migracion.CLAVE)
         administrador = Group.objects.get(name=rbac.ROL_ADMINISTRADOR)
         self.assertTrue(CAPS <= set(rbac.capacidades_de_grupo(administrador)))
 
@@ -57,6 +59,21 @@ class MigracionRolComunicacionesTests(TestCase):
         grupo = Group.objects.create(name="Comunicaciones")
         migracion.sembrar(APPS_DE_ENTONCES, None)
         self.assertEqual(rbac.capacidades_de_grupo(grupo), [])
+        self.assertEqual(RolMeta.objects.get(grupo=grupo).clave, migracion.CLAVE)
+
+    def test_el_seed_reconoce_el_rol_renombrado_por_la_clave(self):
+        migracion.sembrar(APPS_DE_ENTONCES, None)
+        grupo = Group.objects.get(name="Comunicaciones")
+        grupo.name = "Prensa"
+        grupo.save()
+        call_command("seed_rbac", verbosity=0, stdout=StringIO())
+        self.assertFalse(Group.objects.filter(name="Comunicaciones").exists())
+        self.assertEqual(set(rbac.capacidades_de_grupo(Group.objects.get(name="Prensa"))), CAPS)
+
+    def test_la_clave_es_la_del_seed(self):
+        from users.management.commands import seed_rbac
+
+        self.assertEqual(seed_rbac.CLAVE_COMUNICACIONES, migracion.CLAVE)
 
     def test_reversa_saca_las_capacidades_y_borra_el_rol_sin_usuarios(self):
         migracion.sembrar(APPS_DE_ENTONCES, None)

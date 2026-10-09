@@ -50,6 +50,7 @@ from programas.services.autorizacion import (
     assert_alcance_formulario,
     assert_alcance_relevamiento,
     convocatorias_visibles,
+    es_admin_becas,
     programa_becas,
     puede_relevamiento_publico,
     sin_formularios_publicos_si_no_puede,
@@ -240,6 +241,27 @@ def _sin_publicos(qs, user):
     return sin_formularios_publicos_si_no_puede(qs, user, programa=programa_becas(user))
 
 
+def _pendientes_de_renaper(user):
+    """Casos sin validar contra RENAPER **del alcance del usuario** (SEC-06).
+
+    La bandeja listaba ``Formulario.objects.filter(validado_renaper=False)`` sin más:
+    la capacidad de la pantalla es ``becas.programa.administrar``, que el mixin evalúa
+    **sin alcance**, así que un rol de **otro** programa con esa capacidad tildada veía
+    —y revalidaba— los casos de todo Becas. Acá el alcance va en la consulta.
+
+    Para el admin del programa ``convocatorias_visibles`` son *todas*, así que filtrar
+    no recorta nada y mete un ``IN`` con la tabla entera; para el resto el recorte sí
+    acota y viaja como **ids planos**, no como subconsulta (es el patrón del cupo: con
+    los joins adentro MariaDB materializa los casos del segmento y se come el
+    ``read_timeout``).
+    """
+    qs = _sin_publicos(Formulario.objects.filter(validado_renaper=False), user)
+    if es_admin_becas(user):
+        return qs
+    convocatorias = list(convocatorias_visibles(user).order_by().values_list("pk", flat=True))
+    return qs.filter(relevamiento__convocatoria_id__in=convocatorias)
+
+
 def _informar_a_siis(formulario, user):
     """Alta del beneficiario en SIIS tras la aprobación.
 
@@ -427,10 +449,7 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
         # El contador vive dentro del mismo ``{% if %}`` de la plantilla: para quien no
         # administra el programa, contarlo es un COUNT de toda la tabla al pedo.
         if ctx["puede_revalidar_renaper"]:
-            ctx["pendientes_renaper"] = _sin_publicos(
-                Formulario.objects.filter(validado_renaper=False),
-                self.request.user,
-            ).count()
+            ctx["pendientes_renaper"] = _pendientes_de_renaper(self.request.user).count()
         return ctx
 
 
@@ -444,8 +463,7 @@ class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, Lis
     def get_queryset(self):
         # Igual que la bandeja de personas: la página se elige sin joins de
         # presentación y se hidrata después (ver ``_pagina_hidratada``).
-        queryset = Formulario.objects.filter(validado_renaper=False).only("pk")
-        queryset = _sin_publicos(queryset, self.request.user)
+        queryset = _pendientes_de_renaper(self.request.user).only("pk")
         if self.request.GET.get("fecha"):
             fecha = parse_date(self.request.GET["fecha"])
             if fecha:
@@ -484,8 +502,9 @@ class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, Lis
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        base = Formulario.objects.filter(validado_renaper=False)
-        base = _sin_publicos(base, self.request.user)
+        # Mismo alcance que la tabla: si no, los dos selectores ofrecen territoriales y
+        # segmentos de casos que la pantalla no muestra (SEC-06).
+        base = _pendientes_de_renaper(self.request.user)
         context["territoriales"] = self.territoriales_pendientes(base)
         # Por relevamiento, no por formulario: filtrar por ``formularios__in=base`` compila
         # a un self-join de programas_formulario consigo misma para leer una columna que el

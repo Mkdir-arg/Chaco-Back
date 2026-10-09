@@ -76,6 +76,23 @@ class MecanismoDelGuardTests(TestCase):
 
         self.assertEqual(self.client.get(reverse("becas:convocatorias")).status_code, 200)
 
+    def test_borrar_el_programa_con_el_orm_si_invalida_la_clave(self):
+        """RED-80 (ronda 2 del Cambio 193): `post_delete` sobre `Programa` borra su
+        clave, así que **este** camino ya no deja la caché mintiendo.
+
+        Desde el Cambio 197 el borrado de la clave va en un `transaction.on_commit`:
+        invalidar antes del COMMIT deja que otra request lea la fila **vieja**, que
+        todavía es la commiteada, y la vuelva a cachear 300 s. Dentro de un `TestCase`
+        hay que soltar los callbacks a mano; lo que se afirma es lo mismo.
+        """
+        call_command("crear_programas", stdout=StringIO())
+        self.client.get(reverse("becas:convocatorias"))  # calienta `programas:becas`
+
+        with self.captureOnCommitCallbacks(execute=True):
+            Programa.objects.filter(codigo=Programa.TipoPrograma.BECAS).delete()
+
+        self.assertEqual(self.client.get(reverse("becas:convocatorias")).status_code, 403)
+
     def test_la_cache_sucia_abre_una_pantalla_que_la_base_ya_no_respalda(self):
         """El modo de falla que hacía pasar «gratis» a los cinco módulos.
 
@@ -84,10 +101,15 @@ class MecanismoDelGuardTests(TestCase):
         abre la pantalla **sin tener la fila**. Por eso limpiar la caché es parte del
         arreglo y no un detalle: sin el `cache.clear()`, el mixin tapa el problema en
         vez de resolverlo.
+
+        El `cache.set` es la forma honesta de reproducirlo desde que las señales
+        invalidan el borrado por ORM: la fila se va **sin pasar por este proceso** —el
+        rollback de la transacción del test, un restore—, y la clave queda igual.
         """
         call_command("crear_programas", stdout=StringIO())
-        self.client.get(reverse("becas:convocatorias"))  # calienta `programas:becas`
-        Programa.objects.filter(codigo=Programa.TipoPrograma.BECAS).delete()
+        becas = Programa.objects.get(codigo=Programa.TipoPrograma.BECAS)
+        Programa.objects.filter(pk=becas.pk).delete()
+        cache.set("programas:becas", becas, 300)
 
         self.assertEqual(self.client.get(reverse("becas:convocatorias")).status_code, 200)
 

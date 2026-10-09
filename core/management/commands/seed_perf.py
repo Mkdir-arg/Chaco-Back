@@ -44,6 +44,32 @@ PERF_FIRST_DNI = "80000000"
 #: Programa SIIS sintético de la pantalla del proceso masivo (PERF-07).
 PERF_SIIS_PROGRAMA_ID = 9900
 
+# RED-10: las dos escrituras que trabajan bajo el `select_for_update` del relevamiento
+# —el envío del link público y el alta por la API de campo— no tenían destino en el
+# Performance Guard. Van sobre un segmento **propio** y no sobre los que ya se miden:
+# un segmento sin requisitos propios deja el formulario público en lo que trae el
+# catálogo (los cinco adjuntos obligatorios + identidad, contacto y apoderado), y sobre
+# todo no les mueve ni una fila a `becas_cupo_segmento` ni al detalle del caso, que
+# leen el segmento 000.
+PERF_SEGMENTO_ESCRITURAS = "PERF Segmento escrituras"
+PERF_CONVOCATORIA_ESCRITURAS = "PERF Convocatoria escrituras"
+#: Territorial propio: `AsignacionTerritorial` es uno a uno, así que no se le puede
+#: pedir prestado el suyo a ninguno de los `perf_territorial_NNN`.
+PERF_TERRITORIAL_API_USERNAME = "perf_territorial_api"
+#: Desde dónde numera los DNI sintéticos del link público. El bloque sembrado acá son
+#: `scale` DNI consecutivos desde `PERF_FIRST_DNI` (80.000.000), así que 70.000.000 queda
+#: afuera con cualquier escala razonable.
+#:
+#: **No vale lo mismo para el alta por la API de campo.** `perf_audit` la numera desde
+#: `PERF_DNI_LINK_PUBLICO + 5_000_000` (75.000.000) y le suma un desplazamiento derivado
+#: del `worker_id` que llega hasta 8.999.999: el tope real es 83.999.999, o sea **adentro**
+#: del bloque de 80.000.000. Para algunos `worker_id` de `perf_ci_probe` eso pisa un DNI
+#: sembrado. El `TestCase` de presupuestos corre con `worker_id=None` (desplazamiento
+#: 2.473.870, DNI 77.473.870+), así que es determinista y queda afuera; lo que no está
+#: garantizado es la corrida paralela. Mover la base de `becas_api_alta` o acotar el
+#: desplazamiento es el arreglo, y no se hace acá porque cambiaría los DNI medidos.
+PERF_DNI_LINK_PUBLICO = 70_000_000
+
 
 def _ensure_user(username, *, first_name, last_name, is_staff=False, is_superuser=False, password=None):
     user, created = User.objects.get_or_create(username=username)
@@ -159,6 +185,88 @@ class Command(BaseCommand):
                 f"INSERT INTO {TABLA_APROBADOS_MATERIAS} (dni) VALUES (%s)",  # nosec B608
                 [(dni,) for dni in Ciudadano.objects.filter(dni__startswith="8").values_list("dni", flat=True)],
             )
+
+    def _seed_escrituras_bajo_el_lock(self, scale):
+        """RED-10 · El relevamiento público y el del alta por API, los dos EN CURSO.
+
+        Las dos escrituras que dieron 500 bajo el lock —el envío del paso 2 del link y el
+        `POST …/formularios/` de la app— no tenían destino en el Performance Guard, así
+        que el trabajo que hacen adentro del `select_for_update`, contra el `read_timeout`
+        de 10 s, no tenía ningún número que lo defendiera.
+
+        Todo cuelga de un segmento propio: no les cambia ni una fila a los presupuestos
+        que ya existen, y sin requisitos propios el formulario público queda con lo que
+        trae el catálogo, que es lo mismo para cualquier convocatoria.
+        """
+        segmento, _ = Segmento.objects.update_or_create(
+            nombre=PERF_SEGMENTO_ESCRITURAS,
+            defaults={
+                "descripcion": "Segmento sintético de las escrituras bajo el lock (RED-10).",
+                "cupo_maximo": max(scale, 200),
+                # Sin GPS: el link público lo manda best-effort y no hace falta para medir.
+                "requiere_gps": False,
+                "activo": True,
+            },
+        )
+        CupoSegmento.objects.update_or_create(segmento=segmento, defaults={"cupo_ocupado": 0})
+        convocatoria, _ = Convocatoria.objects.update_or_create(
+            nombre=PERF_CONVOCATORIA_ESCRITURAS,
+            segmento=segmento,
+            defaults={
+                "subsegmento": None,
+                "fecha_inicio": date(2025, 1, 1),
+                "fecha_fin": date(2030, 12, 31),
+                "descripcion": "Convocatoria sintética de las escrituras bajo el lock (RED-10).",
+                "activo": True,
+            },
+        )
+
+        territorial = _ensure_user(
+            PERF_TERRITORIAL_API_USERNAME,
+            first_name="Territorial API",
+            last_name="Performance",
+        )
+        _set_groups(territorial, ROL_TERRITORIAL)
+        AsignacionTerritorial.objects.update_or_create(
+            territorial=territorial,
+            defaults={"segmento": segmento},
+        )
+
+        # Las fechas son absolutas y no relativas a `now()` para que el seed siga siendo
+        # determinista; el período tiene que estar abierto, que es lo que mira
+        # `relevamiento_disponible` y `habilitado_en`.
+        desde = datetime(2025, 1, 1, 0, 0, tzinfo=UTC)
+        hasta = datetime(2035, 12, 31, 23, 59, tzinfo=UTC)
+
+        publico = Relevamiento.objects.filter(convocatoria=convocatoria, tipo=Relevamiento.Tipo.PUBLICO).first()
+        if publico is None:
+            publico = Relevamiento(convocatoria=convocatoria, tipo=Relevamiento.Tipo.PUBLICO)
+        publico.territorial = None
+        publico.zona = ""
+        publico.fecha_asignada = desde
+        publico.fecha_hasta = hasta
+        # Cupo holgado: `relevamiento_disponible` cierra el link al completarse, y cada
+        # medición del manifiesto suma un caso.
+        publico.cupo_maximo = 100_000
+        publico.estado = Relevamiento.Estado.EN_CURSO
+        publico.confirmar_por_email = False
+        publico.save()
+
+        api = Relevamiento.objects.filter(convocatoria=convocatoria, tipo=Relevamiento.Tipo.TERRITORIAL).first()
+        if api is None:
+            api = Relevamiento(convocatoria=convocatoria, tipo=Relevamiento.Tipo.TERRITORIAL)
+        api.territorial = territorial
+        api.zona = "Zona PERF alta API"
+        api.fecha_asignada = desde
+        api.fecha_hasta = hasta
+        api.cupo_maximo = 100_000
+        api.estado = Relevamiento.Estado.EN_CURSO
+        api.save()
+
+        # El token de la app de campo: el manifiesto lo lee para armar el `Authorization`.
+        from rest_framework.authtoken.models import Token
+
+        Token.objects.get_or_create(user=territorial)
 
     def _seed(self, scale):
 
@@ -515,6 +623,8 @@ class Command(BaseCommand):
 
         # Después de los ciudadanos: la tabla lista los DNI que ya existen (PERF-07).
         self._seed_aprobados_materias()
+
+        self._seed_escrituras_bajo_el_lock(scale)
 
         cache.clear()
         self.stdout.write(

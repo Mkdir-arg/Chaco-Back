@@ -36,13 +36,11 @@ VISTAS_CON_ERROR_CONOCIDO = {
     "buscar_ciudadanos",
     "metricas_dashboard",
     "tendencias_datos",
-    # conversaciones/api_views/
-    "alertas_conversaciones_count",
-    "alertas_conversaciones_preview",
-    "conversacion_detalle",
-    "marcar_mensajes_leidos",
-    # core/views/performance.py (puede desaparecer entero con OPS-10)
-    "run_phase2_tests_api",
+    # Las cuatro de `conversaciones/api_views/` salieron de acá con G1-01 fase 2
+    # (Ola 7): la app se apagó y sus dos `include()` ya no están en `config/urls.py`,
+    # así que el generador no las ve.
+    # La vista de las pruebas de la «fase 2» salió de acá con OPS-10 (Ola 7): se borró
+    # junto con el módulo que la alimentaba.
 }
 
 # Warnings del generador (tipos que caen a `string`, colisiones de enum, un

@@ -55,7 +55,10 @@ class MenuRestringidoTests(TestCase):
         self.assertIn(reverse("users:usuarios"), html)
         # No ve los 2 sub-ítems gateados ni los módulos sin capacidad.
         self.assertNotIn(reverse("legajos:ciudadano_nuevo"), html)  # TC-59-03
-        self.assertNotIn(reverse("conversaciones:configurar_cola"), html)  # TC-59-04
+        # TC-59-04 medía «Cola Conversaciones» (`conversacion.configurar`), el otro
+        # sub-ítem gateado. Se fue con el apagado de la app (G1-01 fase 2): que el
+        # sidebar no lo nombre lo mide `conversaciones/tests/test_apagado.py`.
+        self.assertNotIn("/conversaciones/", html)  # TC-59-04
         self.assertNotIn(reverse("legajos:dashboard_contactos"), html)  # TC-59-02
         self.assertNotIn(reverse("core:relevamientos"), html)  # TC-59-02
 
@@ -63,7 +66,9 @@ class MenuRestringidoTests(TestCase):
         su = User.objects.create_superuser("root", "root@example.com", "x")
         html = render_sidebar(su)
         self.assertNotIn(reverse("legajos:ciudadano_nuevo"), html)  # ocultado del menú por decisión de producto
-        self.assertIn(reverse("conversaciones:configurar_cola"), html)
+        # Ni al superusuario, que tiene `conversacion.configurar` por bypass: el ítem
+        # no existe más (G1-01 fase 2).
+        self.assertNotIn("/conversaciones/", html)
         self.assertIn(reverse("legajos:dashboard_contactos"), html)
         # Usamos href= para evitar falso positivo por substring de /becas/relevamientos/
         self.assertNotIn(f'href="{reverse("core:relevamientos")}"', html)

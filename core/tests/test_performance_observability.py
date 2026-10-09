@@ -12,12 +12,12 @@ from django.db import connection
 from django.http import HttpResponse
 from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 
 from config import settings as project_settings
 from config.middlewares.query_counter import QueryCollector, QueryCountMiddleware
-from conversaciones.context_processors import user_groups
 from core import rbac
+from core.context_processors import identidad_usuario
 from core.performance.ci_external_stubs import simulate_external_call
 from core.performance.query_observability import (
     QueryObservabilityStore,
@@ -171,12 +171,26 @@ class PerformanceObservabilityTests(TestCase):
         self.assertEqual(response.json()["metrics"]["queries"]["source"], "measured")
         self.assertEqual(response.json()["total_queries"], 8)
 
-    def test_system_metrics_do_not_claim_connection_queries(self):
-        response = self.client.get(reverse("core:system_metrics_api"))
+    def test_las_apis_de_monitoreo_que_mentian_ya_no_existen(self):
+        """OPS-10: `system-metrics`, `alerts`, `realtime-metrics` y `phase2-*` se fueron.
 
-        self.assertEqual(response.status_code, 200)
-        self.assertIsNone(response.json()["django"]["database"]["queries_count"])
-        self.assertEqual(response.json()["sources"]["database_connections"]["source"], "unavailable")
+        Las cuatro salían de `core/performance/monitoring.py` y `phase2_manager.py`, que
+        leían `psutil` del proceso que atendiera el request (una réplica cualquiera, no
+        el host) y un cache que nadie llenaba. Lo que queda del dashboard es lo que mide
+        de verdad: `query_observability`.
+        """
+        for nombre in ("system_metrics_api", "alerts_api", "realtime_metrics_api", "phase2_metrics_api"):
+            with self.subTest(nombre=nombre):
+                with self.assertRaises(NoReverseMatch):
+                    reverse(f"core:{nombre}")
+
+    def test_el_endpoint_que_corria_pruebas_por_http_ya_no_existe(self):
+        """`/run-phase2-tests-api/` autorizaba por `IsAdminUser` (`is_staff`), contra la
+        regla de capacidades, y disparaba un ciclo de «optimización» desde una request."""
+        with self.assertRaises(NoReverseMatch):
+            reverse("core:run_phase2_tests_api")
+
+        self.assertEqual(self.client.post("/run-phase2-tests-api/").status_code, 404)
 
 
 class QueryCountMiddlewareTests(TestCase):
@@ -398,7 +412,7 @@ class GroupLookupReuseTests(TestCase):
 
         with CaptureQueriesContext(connection) as queries:
             self.assertFalse(rbac.es_ciudadano_portal(user))
-            context = user_groups(request)
+            context = identidad_usuario(request)
 
         self.assertEqual(context["user_groups_list"], ["Operadores"])
         self.assertEqual(len(queries), 1)

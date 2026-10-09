@@ -1,15 +1,17 @@
-"""Señales de Becas sobre modelos de otras apps.
+"""Señales de Becas sobre modelos de otras apps, y la invalidación del cache de `Programa`.
 
 Vive en `programas` y no en `legajos` a propósito: la dependencia va de Becas al
 legajo (`programas.models` importa `legajos.models`), nunca al revés.
 """
 
-from django.db.models.signals import post_save
+from django.db import transaction
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
 from legajos.models import Ciudadano
 
-from .models import Formulario
+from .models import Formulario, Programa
+from .services.programa_cache import invalidar_programa
 
 
 @receiver(post_save, sender=Ciudadano, dispatch_uid="programas.sincronizar_dni_titular")
@@ -53,3 +55,64 @@ def sincronizar_dni_titular(sender, instance, created, **kwargs):
     nuevo = (instance.dni or "")[:20]
     Formulario.objects.filter(ciudadano_id=instance.pk).exclude(dni_titular=nuevo).update(dni_titular=nuevo)
     instance._dni_original = instance.dni
+
+
+# --------------------------------------------------------------------------- #
+# RED-80: quien **escribe** un `Programa` borra su clave cacheada.
+#
+# `programa_por_codigo` cachea la fila 300 s y todos los checks de alcance la leen.
+# La invalidación estaba escrita a mano en el wizard de Configuración «la única
+# pantalla que escribe un Programa», y no lo era: `/admin/` está ruteado y
+# `ProgramaAdmin` deja cambiar el `codigo` y el `estado`, y **borrar**. Durante cinco
+# minutos los pods evaluaban contra la fila anterior: en Dispositivos eso es «nadie
+# entra», en Becas un 403 (RED-56). Con las señales queda cubierto el admin, el wizard
+# y cualquier camino futuro, que es lo que no se podía garantizar enumerando pantallas.
+#
+# Lo que las señales **no** ven es un `queryset.update()` / `delete()` masivo: ahí la
+# invalidación sigue siendo del llamador. Hoy no hay ninguno sobre `Programa`.
+# --------------------------------------------------------------------------- #
+
+
+@receiver(pre_save, sender=Programa, dispatch_uid="programas.recordar_codigo_de_programa")
+def recordar_codigo_de_programa(sender, instance, **kwargs):
+    """Guarda el código con el que la fila está hoy en la base, antes de pisarlo.
+
+    El wizard deja **cambiar el código**, y después del `UPDATE` ya no hay forma de
+    saber cuál era: la clave vieja quedaría cacheada apuntando a un programa que ya no
+    responde a ese código. Es una consulta por escritura de `Programa` —decenas de
+    filas, y se escriben en el wizard, en el admin y en los seeds—.
+    """
+    instance._codigo_anterior = (
+        sender.objects.filter(pk=instance.pk).values_list("codigo", flat=True).first() if instance.pk else None
+    )
+
+
+def _invalidar_al_commitear(*codigos):
+    """Borra las claves **después** del COMMIT (seguimiento de #646).
+
+    `post_save`/`post_delete` corren dentro de la transacción: el changeform de
+    `/admin/` es atómico, y entre el `cache.delete` y el COMMIT otra request puede
+    leer la fila **anterior** —todavía es la que está commiteada— y volver a cachearla
+    300 s. Queda exactamente el modo de falla que RED-80 fue a cerrar, con la ventana
+    más chica. Si la transacción se revierte, `on_commit` no corre: tampoco hace falta,
+    porque la fila nunca cambió.
+
+    Fuera de una transacción (autocommit, que es el camino del wizard y de los seeds)
+    Django ejecuta el callback en el acto, así que el comportamiento no cambia.
+    """
+    unicos = [c for i, c in enumerate(codigos) if c and c not in codigos[:i]]
+    if unicos:
+        transaction.on_commit(lambda: [invalidar_programa(codigo) for codigo in unicos])
+
+
+@receiver(post_save, sender=Programa, dispatch_uid="programas.invalidar_cache_de_programa")
+def invalidar_cache_de_programa(sender, instance, **kwargs):
+    """Borra la clave del código nuevo y, si cambió, también la del viejo."""
+    _invalidar_al_commitear(instance.codigo, getattr(instance, "_codigo_anterior", None))
+    instance._codigo_anterior = instance.codigo
+
+
+@receiver(post_delete, sender=Programa, dispatch_uid="programas.invalidar_cache_de_programa_borrado")
+def invalidar_cache_de_programa_borrado(sender, instance, **kwargs):
+    """Un programa borrado desde `/admin/` tiene que dejar de resolverse."""
+    _invalidar_al_commitear(instance.codigo)
