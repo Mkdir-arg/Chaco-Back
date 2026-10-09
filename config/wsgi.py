@@ -7,14 +7,16 @@ For more information on this file, see
 https://docs.djangoproject.com/en/4.0/howto/deployment/wsgi/
 """
 
+# RED-45 / OPS-13 / D-RED-08: antes de estos imports había un bloque que, si
+# `GUNICORN_CMD_ARGS` contenía la palabra `gevent` o `GUNICORN_WORKER_CLASS` valía
+# `gevent`, importaba `config/gevent_patch.py` y pisaba
+# `BaseDatabaseWrapper.validate_thread_sharing` con una función vacía: gevent sin
+# `monkey.patch_all()` y sin el único chequeo que impide que dos greenlets compartan una
+# conexión. El parche, el módulo y `gevent`/`greenlet` de `requirements.txt` se fueron.
+# Los workers de la imagen son gthread (`--threads`), y `docker-entrypoint.sh` sigue
+# abortando con el motivo si alguien pide gevent o eventlet por cualquiera de las dos
+# perillas: ahora ni siquiera estaría el paquete.
 import os
-
-# Aplicar parches para gevent ANTES de importar Django
-if "gevent" in os.environ.get("GUNICORN_CMD_ARGS", "") or os.environ.get("GUNICORN_WORKER_CLASS") == "gevent":
-    os.environ["GUNICORN_WORKER_CLASS"] = "gevent"
-    from config.gevent_patch import apply_gevent_patches
-
-    apply_gevent_patches()
 
 from django.core.wsgi import get_wsgi_application
 

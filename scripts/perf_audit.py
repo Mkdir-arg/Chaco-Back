@@ -363,7 +363,21 @@ def build_targets(worker_id=None):
     def inscripcion_publica_paso2(client, url):
         """El envío del paso 2: crea el formulario, el ciudadano y el legajo."""
         indice = siguiente_escritura()
-        client.cookies[settings.SESSION_COOKIE_NAME] = next(sesiones_disponibles, sesiones_paso2[-1])
+        try:
+            client.cookies[settings.SESSION_COOKIE_NAME] = next(sesiones_disponibles)
+        except StopIteration:
+            # Antes acá había un `next(..., sesiones_paso2[-1])`: al agotarse las sesiones
+            # se reusaba en silencio la última, ya gastada. El síntoma era el rechazo por
+            # DNI duplicado (RN-P5) y un 200 donde el manifiesto espera un 302, o sea un
+            # mensaje que no dice qué pasó. Se siembran `WARM_SAMPLE_COUNT + 3` y se gastan
+            # `WARM_SAMPLE_COUNT + 1` (una muestra fría más las calientes): el día que el
+            # muestreo crezca, esto revienta nombrando el número que hay que mover.
+            raise RuntimeError(
+                f"inscripcion_publica_paso2 se quedó sin sesiones sembradas: hay {len(sesiones_paso2)} "
+                f"(WARM_SAMPLE_COUNT={WARM_SAMPLE_COUNT} + 3) y el muestreo pidió una más. "
+                "Subir el margen donde se arma `sesiones_paso2`; reusar una sesión gastada "
+                "haría fallar el envío por DNI duplicado (RN-P5) sin decir por qué."
+            ) from None
         datos, archivos = datos_paso2(definicion_publica, indice)
         return client.post(url, {**datos, **archivos})
 

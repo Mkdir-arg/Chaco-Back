@@ -14,7 +14,15 @@ revisión) de la tabla más grande del sistema. En el banco MariaDB 10.11 de
   (`Using where; Using index`);
 * `relevamiento_id + estado` → `programas_f_relevam_4c6a6a_idx`, intacto.
 
-Es decir: el que se va no lo elegía ninguna consulta caliente, ni sola ni compartida.
+Es decir: en las tres consultas medidas acá el plan no cambia. **El que se va sí
+aparecía en una medición previa**: PERF-13 (Cambio 180, `docs/internal/requerimientos.md`)
+registró `key=programas_f_estado_e0feb6_idx` para la bandeja `estado=BAJA` página 10
+(400 de 40.000 casos, 2,4-4,9 ms), que es el caso **barato** de esa pantalla. No hay
+consecuencia: el índice que sobrevive es idéntico —un árbol sobre `(estado)`— y el
+optimizador elige uno u otro indistintamente, así que el plan y el costo son los mismos.
+Lo que cambia es el **nombre** que imprime `EXPLAIN`: quien reproduzca PERF-13 después de
+esta migración va a ver `key=programas_formulario_estado_2cbb26f8` y no el `key=` que
+quedó escrito en aquella tabla.
 
 **Online.** `DROP INDEX` de un secundario en InnoDB es in-place: no reconstruye la tabla
 ni bloquea DML. Medido en el banco sobre los 362 MB: **29 ms**, contra el `read_timeout`

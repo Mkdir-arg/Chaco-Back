@@ -81,7 +81,10 @@ urlpatterns = [
 ]
 
 # Performance Profiling (Silk): solo en desarrollo/staging, nunca en producción.
-if settings.DEBUG:
+# Se mira `SILK_HABILITADO` y no `DEBUG` porque desde OPS-13 el paquete vive en
+# `requirements-dev.txt` y puede no estar instalado aunque `DEBUG` esté prendido (el
+# `docker-compose.yml` de desarrollo corre la imagen de producción con `DJANGO_DEBUG=True`).
+if getattr(settings, "SILK_HABILITADO", False):
     urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]
 
 urlpatterns += staticfiles_urlpatterns()
