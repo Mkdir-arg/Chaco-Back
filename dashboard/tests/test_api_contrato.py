@@ -27,6 +27,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from core import rbac
+from core.tests.test_api_schema_contrato import _generar_esquema_y_sus_avisos as _esquema
 from legajos.models import AlertaCiudadano, Ciudadano, LegajoAtencion
 from users.models import Capacidad, RolMeta
 
@@ -129,3 +130,93 @@ class ContratoDashboardTests(TestCase):
         cuerpo = self.client.get(reverse("legajos:alertas_count_ajax")).json()
 
         self.assertEqual(cuerpo, {"count": 0, "criticas": 0})
+
+
+class EsquemaContraElJsonRealTests(TestCase):
+    """RED-37 punto 3: lo que el esquema promete es lo que la vista devuelve.
+
+    `@extend_schema` es una **declaración**: nada obliga a que coincida con el
+    `Response({...})` de dos líneas más abajo. Un serializer que se queda viejo es
+    peor que no tener esquema, porque el cliente generado compila y falla en
+    producción. Estos tests cruzan las dos mitades endpoint por endpoint: las
+    claves que el esquema declara `required` tienen que estar en el JSON real, y
+    el JSON real no puede traer una clave que el esquema no publique.
+    """
+
+    def setUp(self):
+        cache.clear()
+        esquema, _, _ = _esquema()
+        self.esquema = esquema
+
+    def _declarado(self, ruta):
+        operacion = self.esquema["paths"][ruta]["get"]
+        ref = operacion["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        return self.esquema["components"]["schemas"][ref.split("/")[-1]]
+
+    def _items(self, componente, clave):
+        ref = componente["properties"][clave]["items"]["$ref"]
+        return self.esquema["components"]["schemas"][ref.split("/")[-1]]
+
+    def _cruzar(self, ruta, nombre_url, parametros=None):
+        declarado = self._declarado(ruta)
+        cuerpo = self.client.get(reverse(nombre_url), parametros or {}).json()
+
+        self.assertLessEqual(
+            set(declarado["required"]),
+            set(cuerpo),
+            f"{ruta}: el esquema promete claves que la vista no devuelve",
+        )
+        self.assertLessEqual(
+            set(cuerpo),
+            set(declarado["properties"]),
+            f"{ruta}: la vista devuelve claves que el esquema no publica",
+        )
+        return declarado, cuerpo
+
+    def test_metricas_coinciden_con_lo_declarado(self):
+        self.client.force_login(_usuario("esq-metricas", ["dashboard.ver"]))
+
+        declarado, cuerpo = self._cruzar("/api/metricas/", "dashboard:api_metricas")
+
+        for bloque in ("metricas", "estados_legajos"):
+            with self.subTest(bloque=bloque):
+                anidado = self.esquema["components"]["schemas"][declarado["properties"][bloque]["$ref"].split("/")[-1]]
+                self.assertEqual(set(cuerpo[bloque]), set(anidado["properties"]))
+
+    def test_tendencias_coinciden_con_lo_declarado(self):
+        self.client.force_login(_usuario("esq-tendencias", ["dashboard.ver"]))
+
+        self._cruzar("/api/tendencias/", "dashboard:api_tendencias", {"periodo": "7d"})
+
+    def test_buscar_ciudadanos_coincide_con_lo_declarado_hasta_el_item(self):
+        Ciudadano.objects.create(dni="30777111", nombre="Lia", apellido="Mota")
+        self.client.force_login(_usuario("esq-buscador", ["ciudadano.ver"]))
+
+        declarado, cuerpo = self._cruzar("/api/buscar-ciudadanos/", "dashboard:api_buscar_ciudadanos", {"q": "307"})
+
+        self.assertEqual(set(cuerpo["results"][0]), set(self._items(declarado, "results")["properties"]))
+
+    def test_alertas_criticas_coinciden_con_lo_declarado_hasta_el_item(self):
+        responsable = _usuario("esq-alertas", ["ciudadano.ver", "ciudadano.sensible"])
+        legajo = LegajoAtencion.objects.create(responsable=responsable)
+        ciudadano = Ciudadano.objects.create(dni="30777222", nombre="Oso", apellido="Vera")
+        AlertaCiudadano.objects.create(
+            ciudadano=ciudadano,
+            legajo=legajo,
+            tipo=AlertaCiudadano.TipoAlerta.RIESGO_ALTO,
+            prioridad=AlertaCiudadano.Prioridad.CRITICA,
+            mensaje="Alerta de prueba",
+            activa=True,
+        )
+        self.client.force_login(responsable)
+
+        declarado, cuerpo = self._cruzar("/api/alertas-criticas/", "dashboard:api_alertas_criticas")
+
+        self.assertEqual(set(cuerpo["results"][0]), set(self._items(declarado, "results")["properties"]))
+
+    def test_actividad_reciente_coincide_con_lo_declarado(self):
+        """El `timestamp` con el que ordena no sale en la respuesta: si saliera,
+        el esquema no lo publica y este test lo caza."""
+        self.client.force_login(_usuario("esq-actividad", ["ciudadano.ver", "ciudadano.sensible"]))
+
+        self._cruzar("/api/actividad-reciente/", "dashboard:api_actividad_reciente")

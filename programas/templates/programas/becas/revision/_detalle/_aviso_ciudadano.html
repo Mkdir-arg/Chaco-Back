@@ -1,0 +1,31 @@
+{% load static rbac nodo_ui becas_extras %}  {% if resultado_aviso %}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      {# `text-base` es la misma medida que el `style` de las secciones hermanas, con utilidad. #}
+      <h2 class="text-heading font-bold text-base"><i class="fas fa-envelope mr-1 text-fg-brand" aria-hidden="true"></i> Aviso al ciudadano</h2>
+    </div>
+    <div class="p-6">
+      {% if not aviso_por_correo_activo %}
+      <p class="text-sm text-body-subtle">El relevamiento tiene apagado el aviso por correo: no se manda nada.</p>
+      {% elif not formulario.email_contacto %}
+      <p class="text-sm text-body-subtle">El caso no tiene correo de contacto cargado: no hay a dónde avisar.</p>
+      {% else %}
+      <p class="text-sm text-heading">
+        Destinatario: <span class="font-medium">{{ formulario.email_contacto }}</span>
+      </p>
+      <p class="mt-1 text-sm text-body-subtle">
+        {% if ultimo_aviso %}Último intento: {{ ultimo_aviso.valor_nuevo }} · {{ ultimo_aviso.created_at|date:"d/m/Y H:i" }}
+        {% else %}Sin intentos registrados. Los avisos anteriores al registro de la traza no figuran acá.{% endif %}
+      </p>
+      {% if puede_reenviar_aviso %}
+      <form method="post" action="{% url 'becas:formulario_reenviar_aviso' formulario.pk %}{{ next_qs }}" class="mt-4">
+        {% csrf_token %}
+        <button type="submit" class="btn-nodo btn-secondary btn-base">
+          <i class="fas fa-paper-plane" aria-hidden="true"></i> Reenviar aviso
+        </button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}

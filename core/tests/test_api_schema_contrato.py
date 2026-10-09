@@ -27,27 +27,24 @@ from drf_spectacular.generators import SchemaGenerator
 
 # Las vistas que todavía no declaran serializer. Spectacular las descarta del
 # esquema ("Ignoring view for now"), así que cada una es un endpoint que la
-# documentación no publica. La Ola 7 las cierra con `inline_serializer`
-# (RED-37 punto 3); hasta entonces, la lista solo puede achicarse.
-VISTAS_CON_ERROR_CONOCIDO = {
-    # dashboard/api_views/__init__.py
-    "actividad_reciente",
-    "alertas_criticas",
-    "buscar_ciudadanos",
-    "metricas_dashboard",
-    "tendencias_datos",
-    # Las cuatro de `conversaciones/api_views/` salieron de acá con G1-01 fase 2
-    # (Ola 7): la app se apagó y sus dos `include()` ya no están en `config/urls.py`,
-    # así que el generador no las ve.
-    # La vista de las pruebas de la «fase 2» salió de acá con OPS-10 (Ola 7): se borró
-    # junto con el módulo que la alimentaba.
-}
+# documentación no publica. **La lista quedó vacía con el punto 3 de RED-37**
+# (Ola 7): las cinco del dashboard declaran su respuesta con `inline_serializer`.
+# Sigue acá —vacía— porque es el ratchet: una vista nueva sin serializer pone el
+# test en rojo y hay que anotarla o justificarla con su ficha.
+#
+# Las cinco de `dashboard/api_views/` salieron de acá con el punto 3 de RED-37.
+# Las cuatro de `conversaciones/api_views/` salieron con G1-01 fase 2 (Ola 7): la app
+# se apagó y sus dos `include()` ya no están en `config/urls.py`, así que el generador
+# no las ve. La vista de las pruebas de la «fase 2» salió con OPS-10 (Ola 7): se borró
+# junto con el módulo que la alimentaba.
+VISTAS_CON_ERROR_CONOCIDO: set[str] = set()
 
 # Warnings del generador (tipos que caen a `string`, colisiones de enum, un
 # parámetro de path sin tipo). No rompen el esquema pero lo empobrecen; el gate
 # de CI suma `--fail-on-warn` cuando este número llegue a 0 (RED-43). Eran 24
-# antes de anotar los serializers de Becas.
-MAX_WARNINGS_CONOCIDOS = 15
+# antes de anotar los serializers de Becas, 15 al cerrar la parte R de RED-37 y
+# **0** desde el punto 3 (Ola 7): el gate ya puede encender `--fail-on-warn`.
+MAX_WARNINGS_CONOCIDOS = 0
 
 
 def _generar_esquema_y_sus_avisos():
@@ -205,3 +202,94 @@ class EsquemaOpenApiTests(TestCase):
 
         respuesta = operacion["responses"]["200"]["content"]["application/json"]["schema"]
         self.assertEqual(respuesta.get("$ref", "").split("/")[-1], "ConsultaPersonaRespuesta")
+
+
+class EsquemaDelDashboardTests(TestCase):
+    """RED-37 punto 3: las cinco APIs del inicio entran al esquema con sus tipos.
+
+    Eran las cinco últimas vistas que Spectacular descartaba enteras («Ignoring
+    view for now»): el esquema no publicaba ni la ruta. Un cliente generado desde
+    el esquema no sabía que existían, y el ratchet de errores no podía bajar de 5.
+    """
+
+    #: Ruta → (componente de la respuesta 200, claves de primer nivel obligatorias).
+    APIS = {
+        "/api/metricas/": ("MetricasDashboard", ["estados_legajos", "metricas", "usuarios_conectados"]),
+        "/api/buscar-ciudadanos/": ("BusquedaCiudadanos", ["results"]),
+        "/api/alertas-criticas/": ("AlertasCriticas", ["results"]),
+        "/api/actividad-reciente/": ("ActividadReciente", ["results"]),
+        "/api/tendencias/": ("TendenciasDashboard", ["datos", "labels"]),
+    }
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.esquema, _, _ = _generar_esquema_y_sus_avisos()
+
+    def _componente(self, ruta):
+        operacion = self.esquema["paths"][ruta]["get"]
+        ref = operacion["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        return self.esquema["components"]["schemas"][ref.split("/")[-1]], ref.split("/")[-1]
+
+    def test_las_cinco_apis_publican_su_respuesta(self):
+        for ruta, (componente, requeridas) in self.APIS.items():
+            with self.subTest(ruta=ruta):
+                self.assertIn(ruta, self.esquema["paths"], f"{ruta} no está en el esquema")
+                esquema_respuesta, nombre = self._componente(ruta)
+
+                self.assertEqual(nombre, componente)
+                self.assertEqual(sorted(esquema_respuesta["required"]), requeridas)
+
+    def test_las_tendencias_publican_dos_listas_emparejadas_por_posicion(self):
+        """`labels` texto y `datos` entero: el gráfico del inicio los cruza por índice."""
+        tendencias, _ = self._componente("/api/tendencias/")
+
+        self.assertEqual(tendencias["properties"]["labels"]["items"]["type"], "string")
+        self.assertEqual(tendencias["properties"]["datos"]["items"]["type"], "integer")
+
+    def test_has_more_no_es_obligatorio_porque_la_rama_corta_no_lo_manda(self):
+        """Con menos de tres caracteres la vista responde `{"results": []}` y nada más."""
+        busqueda, _ = self._componente("/api/buscar-ciudadanos/")
+
+        self.assertIn("has_more", busqueda["properties"])
+        self.assertNotIn("has_more", busqueda["required"])
+
+    def test_las_metricas_publican_enteros_y_no_cadenas(self):
+        totales = self.esquema["components"]["schemas"]["MetricasDashboardTotales"]
+
+        self.assertEqual(sorted(totales["required"]), ["alertas", "ciudadanos", "legajos", "seguimientos"])
+        for campo, declarado in totales["properties"].items():
+            with self.subTest(campo=campo):
+                self.assertEqual(declarado["type"], "integer")
+
+    def test_el_periodo_de_tendencias_declara_sus_tres_valores(self):
+        parametros = {p["name"]: p for p in self.esquema["paths"]["/api/tendencias/"]["get"]["parameters"]}
+
+        # Spectacular ordena los valores del enum: lo que se fija es el conjunto.
+        self.assertEqual(sorted(parametros["periodo"]["schema"]["enum"]), ["30d", "7d", "90d"])
+
+
+class EsquemaSinNombresConHashTests(TestCase):
+    """RED-37 punto 3: ningún enum queda con el nombre que inventó el desempate.
+
+    `estado` nombraba dos conjuntos distintos y Spectacular resolvía la colisión
+    con `EstadoFb6Enum`: un nombre que **cambia** en cuanto cambie cualquiera de
+    los dos conjuntos de choices, sin que nadie toque el esquema.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.esquema, _, _ = _generar_esquema_y_sus_avisos()
+
+    def test_los_estados_tienen_nombre_propio(self):
+        componentes = self.esquema["components"]["schemas"]
+
+        self.assertEqual(componentes["FormularioEstadoEnum"]["enum"][0], "ENVIADO")
+        self.assertEqual(componentes["RelevamientoEstadoEnum"]["enum"][0], "ASIGNADO")
+        self.assertNotIn("EstadoFb6Enum", componentes)
+
+    def test_el_genero_es_un_solo_componente(self):
+        """`Ciudadano.genero` y `Formulario.apoderado_genero` son el mismo conjunto."""
+        componentes = self.esquema["components"]["schemas"]
+
+        self.assertEqual(componentes["GeneroEnum"]["enum"], ["M", "F", "X"])
+        self.assertNotIn("ApoderadoGeneroEnum", componentes)

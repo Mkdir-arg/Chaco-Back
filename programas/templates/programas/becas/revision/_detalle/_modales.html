@@ -1,0 +1,77 @@
+{% load static rbac nodo_ui becas_extras %}  {% if formulario.estado == 'ENVIADO' and request.user|puede:"becas.revision.editar" %}
+  <div id="modal-rechazo-overlay" class="fixed inset-0 z-[1001] hidden items-center justify-center p-4 bg-black/50" style="backdrop-filter:blur(4px);">
+    <div role="dialog" aria-modal="true" aria-labelledby="modal-rechazo-title"
+         class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden">
+      {% include "programas/becas/_modal_header.html" with titulo="Rechazar caso" titulo_id="modal-rechazo-title" icono="fa-circle-xmark" tono="danger" %}
+      <div class="px-6 py-6 overflow-y-auto min-h-0">
+        <label for="modal-rechazo-motivo" class="block text-sm font-medium text-heading mb-1">
+          Motivo del rechazo <span class="text-fg-danger">*</span>
+        </label>
+        <textarea id="modal-rechazo-motivo" class="nodo-field" rows="4" placeholder="Detallá el motivo..."></textarea>
+        <p id="modal-rechazo-error" class="hidden mt-1.5 text-xs text-fg-danger">El motivo es obligatorio.</p>
+      </div>
+      {% include "programas/becas/_modal_footer.html" with accion_texto="Rechazar caso" accion_icono="fa-circle-xmark" accion_tono="danger" form_id="form-rechazar" %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# Modal "Validar identidad manualmente" (POP-10) — motivo obligatorio, mismo patrón que el de rechazo #}
+  {% if puede_revalidar_renaper and not formulario.validado_renaper %}
+  <div id="modal-forzar-overlay" class="fixed inset-0 z-[1001] hidden items-center justify-center p-4 bg-black/50" style="backdrop-filter:blur(4px);">
+    <div role="dialog" aria-modal="true" aria-labelledby="modal-forzar-title"
+         class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden">
+      {% include "programas/becas/_modal_header.html" with titulo="Validar identidad manualmente" titulo_id="modal-forzar-title" icono="fa-triangle-exclamation" tono="warning" %}
+      <form method="post" action="{% url 'becas:formulario_forzar_identidad' formulario.pk %}{{ next_qs }}" id="form-forzar-identidad" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 overflow-y-auto min-h-0">
+          <p class="text-sm text-body mb-3">
+            Habilita la aprobación sin la validación de Base de Personas. No cambia los datos de la persona: quedan los que se cargaron. El motivo se guarda en la traza del caso.
+          </p>
+          <label for="{{ forzar_identidad_form.motivo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">
+            {{ forzar_identidad_form.motivo.label }} <span class="text-fg-danger">*</span>
+          </label>
+          {{ forzar_identidad_form.motivo }}
+          <p id="modal-forzar-error" class="hidden mt-1.5 text-xs text-fg-danger">Contá el motivo con un poco más de detalle (al menos 10 caracteres).</p>
+        </div>
+        {% include "programas/becas/_modal_footer.html" with accion_texto="Validar manualmente" accion_icono="fa-user-check" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Modal "Completar datos para SIIS" (POP-10) — pisa lo derivado del relevamiento; guardar no envía #}
+  {% if datos_siis_form %}
+  <div id="modal-datos-siis-overlay" class="fixed inset-0 z-[1001] hidden items-center justify-center p-4 bg-black/50" style="backdrop-filter:blur(4px);">
+    <div role="dialog" aria-modal="true" aria-labelledby="modal-datos-siis-title"
+         class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      {% include "programas/becas/_modal_header.html" with titulo="Completar datos para SIIS" titulo_id="modal-datos-siis-title" icono="fa-pen" %}
+      <form method="post" action="{% url 'becas:formulario_datos_siis' formulario.pk %}{{ next_qs }}" id="form-datos-siis" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 overflow-y-auto min-h-0">
+          <p class="text-sm text-body mb-4">
+            Lo que completes acá pisa lo que salió del relevamiento, solo para el alta en SIIS. Guardar no envía el caso: revisá y después usá «Reenviar a SIIS».
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+            {% for field in datos_siis_form %}
+              {% if field.name != 'quitar' %}{% include "components/_field.html" with field=field %}{% endif %}
+            {% endfor %}
+          </div>
+          {% comment %}
+            SIIS-17: lo vacío se descarta, así que sin esto una corrección cargada mal solo se tapaba con otra.
+            Sin bloque de errores a propósito: este form nunca se re-renderiza inválido —la vista arma un solo
+            aviso con todos los errores y redirige (ALR-8)—, así que recorrer .errors acá sería markup muerto
+            que simula una validación inline que no existe. La inline la trae DA-3, con el envío AJAX.
+          {% endcomment %}
+          {% if datos_siis_form.quitar %}
+          <div class="nodo-checks border-t border-light mt-2 pt-5">
+            <p class="block text-sm font-medium text-heading mb-1">{{ datos_siis_form.quitar.label }}</p>
+            {{ datos_siis_form.quitar }}
+            <p class="mt-1 text-xs text-body-subtle">{{ datos_siis_form.quitar.help_text }}</p>
+          </div>
+          {% endif %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with accion_texto="Guardar datos" accion_icono="fa-floppy-disk" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}

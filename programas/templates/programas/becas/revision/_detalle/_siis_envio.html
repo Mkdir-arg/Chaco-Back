@@ -1,0 +1,109 @@
+{% load static rbac nodo_ui becas_extras %}  {% if formulario.estado == 'APROBADO' %}
+  {# 7. Envio a SIIS: alta del beneficiario en la tabla intermedia #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="titulo-envio-siis">
+    <div class="px-5 py-4 border-b border-light flex items-center gap-2">
+      <i class="fas fa-paper-plane text-fg-brand" aria-hidden="true"></i>
+      <h2 id="titulo-envio-siis" class="text-heading font-bold" style="font-size:16px;">Envío a SIIS</h2>
+    </div>
+    <div class="p-6">
+      {% if envio_siis %}
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <p class="text-xs uppercase tracking-wide font-semibold text-body-subtle mb-2">Último intento</p>
+          {% if envio_siis.estado == 'ENVIADO' %}
+            <span class="badge badge-success">Enviado</span>
+          {% elif envio_siis.estado == 'EN_PROCESO' %}
+            <span class="badge badge-info">En proceso</span>
+          {% elif envio_siis.estado == 'INCIERTO' %}
+            <span class="badge badge-warning">Resultado incierto</span>
+          {% elif envio_siis.estado == 'INCOMPLETO' %}
+            <span class="badge badge-warning">Datos incompletos</span>
+          {% elif envio_siis.estado == 'RECHAZADO' %}
+            <span class="badge badge-danger">Rechazado por SIIS</span>
+          {% else %}
+            <span class="badge badge-warning">Error técnico</span>
+          {% endif %}
+          {% if envio_siis.codigo_error %}<span class="text-xs text-body-subtle ml-2">{{ envio_siis.codigo_error }}</span>{% endif %}
+        </div>
+        <p class="text-xs text-body-subtle">{{ envio_siis.creado|date:"d/m/Y H:i" }} · {{ envio_siis.solicitado_por.username|default:"sistema" }}</p>
+      </div>
+      {% if envio_siis.siis_id %}
+      <dl class="mt-4">
+        <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">ID SIIS</dt>
+        <dd class="text-heading text-sm font-medium">#{{ envio_siis.siis_id }}</dd>
+      </dl>
+      {% endif %}
+      {% if detalles_envio_siis %}
+      <div class="mt-4 rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="status">
+        <p class="font-semibold text-heading mb-2">{% if envio_siis.estado == 'RECHAZADO' %}SIIS señaló:{% else %}Falta resolver:{% endif %}</p>
+        <ul class="space-y-1">
+          {% for campo, mensaje in detalles_envio_siis %}
+          <li class="text-body"><span class="text-heading font-medium">{{ campo }}</span> — {{ mensaje }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      {% else %}
+      <p class="text-sm text-body-subtle">El beneficiario todavía no fue informado a SIIS.</p>
+      {% endif %}
+
+      {% comment %}SIIS-01: mientras haya un envío vigente —ENVIADO, EN_PROCESO o INCIERTO— no se
+      ofrece reenviar, porque el servicio no lo haría: el alta en SIIS no tiene baja. Un INCIERTO
+      se libera con `manage.py conciliar_envios_siis --liberar`, después de preguntarle a ECOM.{% endcomment %}
+      {% if envio_siis_activo and envio_siis_activo.estado != 'ENVIADO' %}
+      <div class="mt-4 rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="status">
+        {% if envio_siis_activo.incierto %}
+        <p class="text-body"><span class="text-heading font-medium">No sabemos si SIIS registró el alta.</span>
+          No se reenvía hasta verificarlo con SIIS: pedilo a quien opera la integración.</p>
+        {% else %}
+        <p class="text-body"><span class="text-heading font-medium">El alta se está informando a SIIS.</span>
+          Recargá la pantalla en un minuto para ver el resultado.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if puede_enviar_siis and not envio_siis_activo %}
+      <div class="mt-5 flex items-center gap-3 flex-wrap">
+        {% if datos_siis_form %}
+        <button type="button" id="btn-datos-siis" class="btn-nodo btn-secondary btn-base">
+          <i class="fas fa-pen" aria-hidden="true"></i> Completar datos para SIIS
+        </button>
+        {% endif %}
+        {% comment %}`data-un-solo-envio`: el guard de abajo deshabilita el botón al primer submit.
+        Sin él, un doble clic mandaba dos POST y los dos llamaban a SIIS (SIIS-01, BEC-14).{% endcomment %}
+        <form method="post" action="{% url 'becas:formulario_enviar_siis' formulario.pk %}{{ next_qs }}" data-un-solo-envio>
+          {% csrf_token %}
+          <button type="submit" class="btn-nodo btn-brand btn-base">{% if envio_siis %}Reenviar a SIIS{% else %}Informar a SIIS{% endif %}</button>
+        </form>
+      </div>
+      {% endif %}
+
+      {% if historial_envios_sis|length > 1 %}
+      <div class="mt-5 flex">
+        <button type="button"
+                id="btn-historial-envios-siis"
+                class="btn-nodo btn-tertiary btn-sm"
+                aria-expanded="false"
+                aria-controls="historial-envios-siis">
+          <i class="fas fa-history" aria-hidden="true"></i> Historial de envíos ({{ historial_envios_sis|length }})
+        </button>
+      </div>
+      <div id="historial-envios-siis" class="hidden mt-5 border-t border-light pt-5" aria-label="Historial de envíos a SIIS">
+        <div class="space-y-3">
+          {% for item in historial_envios_sis %}
+          <article class="rounded-lg border border-light bg-secondary p-4">
+            <div class="flex items-start justify-between gap-3 flex-wrap">
+              <span class="text-sm text-heading font-medium">
+                {{ item.get_estado_display }}{% if item.codigo_error %} · {{ item.codigo_error }}{% endif %}{% if item.siis_id %} · ID #{{ item.siis_id }}{% endif %}
+              </span>
+              <time class="text-xs text-body-subtle">{{ item.creado|date:"d/m/Y H:i" }}</time>
+            </div>
+            {% if item.solicitado_por %}<p class="mt-2 text-xs text-body-subtle">Solicitado por {{ item.solicitado_por.username }}</p>{% endif %}
+          </article>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}

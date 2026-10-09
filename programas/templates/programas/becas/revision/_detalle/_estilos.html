@@ -1,0 +1,36 @@
+{% load static rbac nodo_ui becas_extras %}<style>
+  .sexo-pill input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .sexo-pill span {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-base);
+    border-radius: 9999px;
+    background: var(--bg-primary);
+    color: var(--text-body);
+    font-size: 13px;
+    font-weight: 700;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .sexo-pill:hover span {
+    border-color: var(--border-brand);
+    color: var(--text-fg-brand);
+  }
+  .sexo-pill input:checked + span {
+    border-color: var(--bg-brand);
+    background: var(--bg-brand);
+    color: #fff;
+  }
+  .sexo-pill input:focus-visible + span {
+    outline: 2px solid var(--border-brand);
+    outline-offset: 2px;
+  }
+</style>

@@ -838,4 +838,27 @@ SPECTACULAR_SETTINGS = {
     # `core.tests.test_api_schema_contrato.EsquemaOpenApiTests`, que sí falla si
     # aparece uno nuevo. Acá solo sería ruido (RED-36, revisión del PR R-04).
     "ENABLE_DJANGO_DEPLOY_CHECK": False,
+    # RED-37 punto 3 (Ola 7). Los dos únicos warnings que no salían de una vista:
+    #
+    # - `('M','F','X')` aparecía dos veces con el mismo contenido y dos nombres
+    #   (`GeneroEnum` por `Ciudadano.genero` y `ApoderadoGeneroEnum` por
+    #   `Formulario.apoderado_genero`): un cliente generado desde el esquema se
+    #   llevaba dos tipos distintos para el mismo conjunto.
+    # - `estado` nombraba dos conjuntos distintos —el del caso y el del
+    #   relevamiento— y Spectacular desempataba solo, con un nombre con hash
+    #   (`EstadoFb6Enum`) que **cambia** si cambia cualquiera de los dos
+    #   conjuntos: el nombre del tipo en el cliente se movía sin que nadie lo
+    #   tocara. `FormularioEstadoEnum` ya lo resolvía bien; acá se nombra el otro.
+    #
+    # Las claves son el nombre que queda en el esquema; los valores, la ruta al
+    # `TextChoices`. `deep_import_string` de Spectacular pela **un solo** nivel de
+    # atributo, así que la ruta llega hasta la clase anidada y no hasta `.choices`:
+    # con el sufijo no resuelve y el aviso que da —«unable to load choice
+    # override»— es otro warning, no un error. Cambiar el nombre de un componente
+    # es cosmético para la API —no toca ningún cuerpo— pero sí mueve el nombre del
+    # tipo en un cliente generado; hoy no hay ninguno (RED-37).
+    "ENUM_NAME_OVERRIDES": {
+        "GeneroEnum": "legajos.models.Ciudadano.Genero",
+        "RelevamientoEstadoEnum": "programas.models.Relevamiento.Estado",
+    },
 }

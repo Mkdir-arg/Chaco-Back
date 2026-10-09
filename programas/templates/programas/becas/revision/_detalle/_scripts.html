@@ -1,0 +1,259 @@
+{% load static rbac nodo_ui becas_extras %}<script src="{% static 'custom/js/becas-modal.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // POP-10: los tres modales propios de esta pantalla delegan foco, Tab atrapado,
+  // Escape y bloqueo del scroll de fondo en becas-modal.js. `mostrar`/`ocultar`
+  // siguen tocando `hidden` + `style.display`, que es lo que observa `bind`.
+  function mostrar(overlay) {
+    overlay.classList.remove('hidden');
+    overlay.style.display = 'flex';
+  }
+  function ocultar(overlay) {
+    overlay.classList.add('hidden');
+    overlay.style.display = 'none';
+  }
+  function modalAccesible(overlay, alCerrar) {
+    // El clic en el fondo cierra; los botones con data-becas-modal-cerrar los
+    // atiende bind(). Sin becas-modal.js cargado, el modal igual abre y cierra.
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) alCerrar(); });
+    if (window.becasModal) { window.becasModal.bind(overlay, { onClose: alCerrar }); }
+    else { overlay.querySelectorAll('[data-becas-modal-cerrar]').forEach(function (b) { b.addEventListener('click', alCerrar); }); }
+  }
+
+  const btnHistorialSiis = document.getElementById('btn-historial-siis');
+  const historialSiis = document.getElementById('historial-validaciones-siis');
+  if (btnHistorialSiis && historialSiis) {
+    btnHistorialSiis.addEventListener('click', function () {
+      const abierto = btnHistorialSiis.getAttribute('aria-expanded') === 'true';
+      btnHistorialSiis.setAttribute('aria-expanded', String(!abierto));
+      historialSiis.classList.toggle('hidden', abierto);
+    });
+  }
+
+  // SEC-33: el mapa se carga recien cuando alguien lo pide. El `src` viaja en
+  // `data-src` para que abrir el caso no le mande las coordenadas del domicilio
+  // —ni la IP, ni el Referer— a OpenStreetMap.
+  const btnVerMapa = document.getElementById('ver-mapa');
+  const mapaDelCaso = document.getElementById('mapa-del-caso');
+  if (btnVerMapa && mapaDelCaso) {
+    btnVerMapa.addEventListener('click', function () {
+      if (!mapaDelCaso.getAttribute('src')) {
+        mapaDelCaso.setAttribute('src', mapaDelCaso.dataset.src);
+      }
+      mapaDelCaso.classList.remove('hidden');
+      btnVerMapa.classList.add('hidden');
+    });
+  }
+
+  // Historial de envios a SIIS: mismo plegado que el de validaciones.
+  const btnHistorialEnvios = document.getElementById('btn-historial-envios-siis');
+  const historialEnvios = document.getElementById('historial-envios-siis');
+  if (btnHistorialEnvios && historialEnvios) {
+    btnHistorialEnvios.addEventListener('click', function () {
+      const abierto = btnHistorialEnvios.getAttribute('aria-expanded') === 'true';
+      btnHistorialEnvios.setAttribute('aria-expanded', String(!abierto));
+      historialEnvios.classList.toggle('hidden', abierto);
+    });
+  }
+
+  // Modal "Completar datos para SIIS": la localidad depende de la provincia y
+  // sale del catalogo de SIIS, no de una lista propia.
+  const datosSiisOverlay = document.getElementById('modal-datos-siis-overlay');
+  const btnDatosSiis = document.getElementById('btn-datos-siis');
+  if (datosSiisOverlay && btnDatosSiis) {
+    const urlLocalidades = "{% url 'becas:siis_localidades' %}";
+
+    function cargarLocalidades(selProv, selLoc, actual) {
+      selLoc.innerHTML = '<option value="">Sin cambios</option>';
+      if (!selProv.value) { return; }
+      fetch(urlLocalidades + '?provincia=' + encodeURIComponent(selProv.value), { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          (data.localidades || []).forEach(function (l) {
+            const o = document.createElement('option');
+            o.value = l.id;
+            o.textContent = l.nombre;
+            if (String(l.id) === String(actual || '')) { o.selected = true; }
+            selLoc.appendChild(o);
+          });
+          if (data.error) { window.toast('error', data.error); }
+        })
+        .catch(function () { window.toast('error', 'No se pudieron cargar las localidades de SIIS.'); });
+    }
+
+    [['id_prov_actual', 'id_loc_actual', '{{ formulario.datos_siis.loc_actual|default:"" }}'],
+     ['id_prov_nacim', 'id_loc_nacim', '{{ formulario.datos_siis.loc_nacim|default:"" }}']].forEach(function (par) {
+      const selProv = document.getElementById(par[0]);
+      const selLoc = document.getElementById(par[1]);
+      if (!selProv || !selLoc) { return; }
+      selProv.addEventListener('change', function () { cargarLocalidades(selProv, selLoc, ''); });
+      cargarLocalidades(selProv, selLoc, par[2]);
+    });
+
+    // La funcion por programa depende del programa social elegido: mismo patron.
+    const urlFunciones = "{% url 'becas:siis_funciones' %}";
+    const selPlan = document.getElementById('id_id_plan_soc');
+    const selFuncion = document.getElementById('id_id_fun_x_plan');
+    if (selPlan && selFuncion) {
+      function cargarFunciones(actual) {
+        selFuncion.innerHTML = '<option value="">Sin cambios</option>';
+        if (!selPlan.value) { return; }
+        fetch(urlFunciones + '?programa=' + encodeURIComponent(selPlan.value), { credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            (data.funciones || []).forEach(function (f) {
+              const o = document.createElement('option');
+              o.value = f.id;
+              o.textContent = f.nombre;
+              if (String(f.id) === String(actual || '')) { o.selected = true; }
+              selFuncion.appendChild(o);
+            });
+            if (data.error) { window.toast('error', data.error); }
+          })
+          .catch(function () { window.toast('error', 'No se pudieron cargar las funciones del programa.'); });
+      }
+      selPlan.addEventListener('change', function () { cargarFunciones(''); });
+      cargarFunciones(selFuncion.getAttribute('data-actual') || '');
+    }
+
+    function cerrarDatosSiis() { ocultar(datosSiisOverlay); }
+    btnDatosSiis.addEventListener('click', function () { mostrar(datosSiisOverlay); });
+    modalAccesible(datosSiisOverlay, cerrarDatosSiis);
+  }
+
+  const imageOverlay = document.getElementById('image-preview-overlay');
+  const imagePreview = document.getElementById('image-preview-img');
+  const imageTitle = document.getElementById('image-preview-title');
+  const imageClose = document.getElementById('image-preview-close');
+  let imagePreviouslyFocused = null;
+
+  function closeImagePreview() {
+    imageOverlay.classList.add('hidden');
+    imageOverlay.style.display = 'none';
+    imagePreview.src = '';
+    if (imagePreviouslyFocused) imagePreviouslyFocused.focus();
+  }
+
+  document.querySelectorAll('[data-image-preview]').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+      imagePreviouslyFocused = trigger;
+      imagePreview.src = trigger.dataset.imageUrl;
+      imagePreview.alt = trigger.dataset.imageTitle || 'Imagen adjunta';
+      imageTitle.textContent = trigger.dataset.imageTitle || 'Imagen adjunta';
+      imageOverlay.classList.remove('hidden');
+      imageOverlay.style.display = 'flex';
+      imageClose.focus();
+    });
+  });
+  imageClose.addEventListener('click', closeImagePreview);
+  imageOverlay.addEventListener('click', function (event) {
+    if (event.target === imageOverlay) closeImagePreview();
+  });
+
+  // SIIS-01 / BEC-14: un form marcado con data-un-solo-envio se manda una sola vez.
+  // El alta en SIIS no tiene baja, así que un doble clic que llega dos veces al
+  // servidor es irreversible; el servidor igual lo rechaza (envío vigente), pero
+  // el segundo POST ya gastó una consulta a SIIS.
+  function tomarEnvio(form) {
+    if (!form || form.dataset.enviando) return false;
+    form.dataset.enviando = '1';
+    const boton = form.querySelector('button[type="submit"], button:not([type])');
+    if (boton) boton.disabled = true;
+    return true;
+  }
+
+  document.addEventListener('submit', function (e) {
+    const form = e.target && e.target.closest ? e.target.closest('form[data-un-solo-envio]') : null;
+    if (!form) return;
+    if (!tomarEnvio(form)) e.preventDefault();
+  });
+
+  const btnAprobar = document.getElementById('btn-aprobar');
+  if (btnAprobar) {
+    btnAprobar.addEventListener('click', function () {
+      if (btnAprobar.disabled) return;
+      ModernModal.show({
+        type: 'confirm',
+        title: '¿Aprobar caso?',
+        message: 'Si hay cupo disponible en el segmento, el caso pasará a estado aprobado. Si no, se agregará a la lista de espera. ¿Confirmás?',
+        confirmText: 'Sí, aprobar',
+        cancelText: 'Cancelar',
+        // ModernModal deja vivo el onclick de «Sí, …» durante los 300 ms del cierre:
+        // sin el guard, un doble clic ahí manda el form dos veces (BEC-14).
+        onConfirm: function () {
+          const form = document.getElementById('form-aprobar');
+          if (!tomarEnvio(form)) return;
+          btnAprobar.disabled = true;
+          form.submit();
+        }
+      });
+    });
+  }
+
+  // Modal "Validar identidad manualmente" (mismo patrón que el de rechazo).
+  const forzarOverlay = document.getElementById('modal-forzar-overlay');
+  if (forzarOverlay) {
+    const forzarForm = document.getElementById('form-forzar-identidad');
+    const forzarMotivo = forzarForm.querySelector('textarea, input[type="text"]');
+    const forzarError = document.getElementById('modal-forzar-error');
+
+    function cerrarModalForzar() { ocultar(forzarOverlay); }
+
+    const btnForzar = document.getElementById('btn-forzar-identidad');
+    if (btnForzar) {
+      btnForzar.addEventListener('click', function () {
+        forzarError.classList.add('hidden');
+        mostrar(forzarOverlay);
+      });
+    }
+    modalAccesible(forzarOverlay, cerrarModalForzar);
+    // El servidor vuelve a validar el motivo; esto solo evita el viaje al vacío.
+    forzarForm.addEventListener('submit', function (e) {
+      if (forzarMotivo.value.trim().length < 10) {
+        e.preventDefault();
+        forzarError.classList.remove('hidden');
+        forzarMotivo.focus();
+      }
+    });
+  }
+
+  // El visor de imágenes no es un modal de Becas: mantiene su propio Escape.
+  // becas-modal.js no lo toca (no está en su pila), así que no se pisan.
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !imageOverlay.classList.contains('hidden')) {
+      closeImagePreview();
+    }
+  });
+
+  // Modal "Rechazar caso" con motivo obligatorio (markup propio de esta página).
+  // El pie envía #form-rechazar con el atributo form=, y acá se valida el motivo
+  // y se copia al campo oculto antes de dejar salir el submit.
+  const rechazoOverlay = document.getElementById('modal-rechazo-overlay');
+  const formRechazar = document.getElementById('form-rechazar');
+  if (rechazoOverlay && formRechazar) {
+    const rechazoMotivo = document.getElementById('modal-rechazo-motivo');
+    const rechazoError = document.getElementById('modal-rechazo-error');
+
+    const btnRechazar = document.getElementById('btn-rechazar');
+    if (btnRechazar) {
+      btnRechazar.addEventListener('click', function () {
+        rechazoMotivo.value = '';
+        rechazoError.classList.add('hidden');
+        mostrar(rechazoOverlay);
+      });
+    }
+    modalAccesible(rechazoOverlay, function () { ocultar(rechazoOverlay); });
+
+    formRechazar.addEventListener('submit', function (e) {
+      const motivo = rechazoMotivo.value.trim();
+      if (!motivo) {
+        e.preventDefault();
+        rechazoError.classList.remove('hidden');
+        rechazoMotivo.focus();
+        return;
+      }
+      document.getElementById('motivo-rechazo').value = motivo;
+    });
+  }
+});
+</script>

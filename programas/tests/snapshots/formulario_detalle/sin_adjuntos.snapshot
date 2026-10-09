@@ -1,0 +1,2014 @@
+
+<!DOCTYPE html>
+<html lang="es" class="h-full overflow-x-hidden">
+    <head>
+        <meta charset="UTF-N" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=N.N" />
+        <link rel="shortcut icon" type="image/png" href="/static/custom/chaco/favicon.png" />
+        
+        <!-- Tailwind compilado: evita descargar y compilar utilidades en el navegador. -->
+        <link rel="stylesheet" href="/static/custom/css/tailwind.css" />
+        
+        <!-- Google Fonts -->
+        <link href="/static/vendor/manrope/manrope.css" rel="stylesheet">
+        
+        <!-- La fuente de iconos se descubre recién al parsear all.min.css y viene con
+             font-display:block, así que sin precarga los iconos tardan un round-trip extra. -->
+        <link rel="preload" as="font" type="font/woffN" crossorigin
+              href="/static/vendor/fontawesome/webfonts/fa-solid-N.woffN" />
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css" />
+        
+        <!-- Alpine.js for interactivity -->
+        <script defer src="/static/vendor/alpinejs/alpine.min.js"></script>
+        
+        <!-- CHACO Design Tokens — DEBE IR PRIMERO (define todas las CSS variables) -->
+        <link rel="stylesheet" href="/static/custom/css/chaco-tokens.css" />
+
+        <!-- Paleta de colores unificada (sombras, transiciones) -->
+        <link rel="stylesheet" href="/static/custom/css/paleta-unificada.css" />
+        
+        <!-- NODO Brand Manual de Marca -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-brand.css" />
+        <style>
+            :root {
+                /* === puente legacy: único consumo vivo = borde inferior .card-header (custom.css:N) === */
+                --color-primario: var(--border-base);
+                /* === === */
+                /* === canvas — repuntados a tokens semánticos para que dark mode funcione === */
+                --fondo-principal: var(--bg-secondary);
+                /* === puente legacy: consumido por custom.css (.texto-primario) === */
+                --texto-primario: var(--text-heading);
+                /* override que neutraliza valores legacy de nodo-brand.css hasta su migración (Fase N/N).
+                   nodo-brand.css define sus propios :root con valores off-brand. Este bloque viene
+                   DESPUÉS en el orden de carga y pisa esas definiciones con tokens semánticos de marca.
+                   Sin estos overrides gana el legacy → colores off-brand en runtime. */
+                /* consumidos como background/gradient */
+                --nodo-gradient: var(--gradient-brand);
+                --nodo-bg-gray: var(--bg-secondary);
+                --nodo-shadow-md: var(--shadow-sm);
+                /* consumidos como color sólido de marca (hover links, focus shadow) */
+                --nodo-purple: var(--bg-brand);
+                /* consumido como --tw-ring-color en focus rings de clases Tailwind legacy */
+                --nodo-magenta: var(--bg-brand);
+                /* consumido como color de acento cyan — apuntado a brand para evitar cyan off-brand */
+                --nodo-cyan: var(--text-fg-brand);
+                /* consumidos como color de texto */
+                --nodo-text-primary: var(--text-heading);
+                --nodo-text-secondary: var(--text-heading);
+                --nodo-text-tertiary: var(--text-body);
+                --nodo-text-muted: var(--text-body-subtle);
+                --nodo-border: var(--border-base);
+            }
+        </style>
+        
+        <!-- NODO Buttons Design System -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-buttons.css" />
+
+        <!-- NODO Badges Design System -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-badges.css" />
+
+        <!-- NODO Forms Design System -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-forms.css" />
+
+        <!-- NODO Tables Design System (tabla densa: .nodo-thead-row, .nodo-th, .nodo-td) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-tables.css" />
+
+        <!-- NODO SweetAlertN theming (fuente única — cascada a los N Swal.fire del sistema) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-swal.css" />
+        <link rel="stylesheet" href="/static/custom/css/nodo-tooltips.css" />
+
+        <!-- Custom CSS Files -->
+        <link rel="stylesheet" href="/static/custom/css/main.css" />
+        <link rel="stylesheet" href="/static/custom/css/custom.css" />
+        <link rel="stylesheet" href="/static/custom/css/utils.css" />
+        <link rel="stylesheet" href="/static/custom/css/override.css" />
+        <link rel="stylesheet" href="/static/custom/css/responsive.css" />
+        <link rel="stylesheet" href="/static/custom/css/mobile-modals.css" />
+        <link rel="stylesheet" href="/static/custom/css/mobile-forms.css" />
+        <link rel="stylesheet" href="/static/custom/css/mobile-tables.css" />
+        <link rel="stylesheet" href="/static/custom/css/alertas_notifications.css" />
+        <link rel="stylesheet" href="/static/custom/css/dynamic-list-filters.css" />
+
+        <!-- NODO Toast (notificaciones toast — reemplaza los mensajes inline) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-toast.css" />
+
+        <!-- Page specific CSS -->
+        
+        
+        <!-- Custom styles -->
+        
+        
+        <title>DATAÑACH - Becas · Caso N</title>
+    </head>
+    <body class="min-h-[Ndvh] overflow-x-hidden bg-white font-sans" x-data="{ sidebarOpen: false, sidebarCollapsed: false }" style="background: var(--fondo-principal);">
+        <div class="min-h-[Ndvh] overflow-x-hidden">
+            
+<style>
+    /* navbar-accent: color de texto para links de acento (ahora usa token de marca, no magenta) */
+    .navbar-accent {
+        color: var(--text-fg-brand) !important;
+    }
+
+    .navbar-accent-hover:hover {
+        color: var(--text-fg-brand-strong) !important;
+    }
+
+    /* navbar-accent-bg: botón sólido de acción (ej. "Dashboard de Alertas") — fondo de marca */
+    .navbar-accent-bg {
+        background-color: var(--bg-brand-strong) !important;
+        color: var(--text-white) !important;
+        font-weight: N;
+        border-radius: var(--rounded-lg);
+    }
+
+    .navbar-accent-bg:hover {
+        filter: brightness(N.N);
+        color: var(--text-white) !important;
+    }
+
+    /* Fix autofill celeste: la técnica inset box-shadow superpone el fondo correcto sobre
+       el highlight del browser (:-webkit-autofill tiene prioridad sobre author styles sin !important) */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+        -webkit-box-shadow: N N N Npx var(--bg-secondary) inset !important;
+        box-shadow: N N N Npx var(--bg-secondary) inset !important;
+        -webkit-text-fill-color: var(--text-heading) !important;
+    }
+
+</style>
+<div class="sticky top-N z-N flex h-N min-w-N shrink-N items-center gap-x-N border-b px-N shadow-sm sm:gap-x-N sm:px-N lg:pr-N transition-all duration-N"
+     :class="sidebarCollapsed ? 'lg:pl-N' : 'lg:pl-N'"
+     style="background: var(--bg-primary); border-color: var(--border-base);">
+    <!-- Mobile menu button -->
+    <button type="button" class="-m-N.N p-N.N lg:hidden" style="color: var(--text-body);" @click="sidebarOpen = true">
+        <span class="sr-only">Abrir sidebar</span>
+        <i class="fas fa-bars h-N w-N" aria-hidden="true"></i>
+    </button>
+
+    <!-- Separator -->
+    <div class="h-N w-px lg:hidden" aria-hidden="true" style="background-color: var(--border-base);"></div>
+
+    <div class="flex min-w-N flex-N gap-x-N self-stretch sm:gap-x-N lg:gap-x-N">
+        <!-- Search bar -->
+        <div class="hidden sm:flex sm:flex-N sm:items-center">
+            <form method="get" action="/legajos/ciudadanos/" role="search" style="width: Npx; max-width: Nvw;">
+                <div class="relative">
+                    <span class="pointer-events-none absolute inset-y-N left-N flex items-center pl-N" aria-hidden="true"
+                          style="color: var(--text-body-subtle);">
+                        <i class="fas fa-magnifying-glass" style="font-size: Npx;"></i>
+                    </span>
+                    <input
+                        type="search"
+                        name="search"
+                        value=""
+                        placeholder="Buscar ciudadanos..."
+                        aria-label="Buscar ciudadanos"
+                        autocomplete="off"
+                        style="height: Npx; border-radius: var(--rounded-full); background: var(--bg-secondary); border: Npx solid var(--border-base); padding: N Npx N Npx; font-size: N.Npx; font-family: var(--font-sans); color: var(--text-heading); width: N%; transition: border-color N.Ns, box-shadow N.Ns;"
+                        onfocus="this.style.borderColor='var(--border-brand)'; this.style.boxShadow='var(--ring-brand)';"
+                        onblur="this.style.borderColor='var(--border-base)'; this.style.boxShadow='none';"
+                    >
+                </div>
+            </form>
+        </div>
+        <div class="flex-N sm:hidden"></div>
+        <div class="flex items-center gap-x-N sm:gap-x-N lg:gap-x-N">
+            
+            
+            <!-- Profile dropdown -->
+            <div class="relative shrink-N" x-data="{ open: false }">
+                <button type="button"
+                        class="-m-N.N flex items-center p-N.N"
+                        @click="open = !open"
+                        aria-label="Abrir menú de usuario">
+                    <span class="sr-only">Abrir menú de usuario</span>
+                    <div class="rounded-full flex items-center justify-center" style="width: Npx; height: Npx; background: var(--gradient-brand);">
+                        <span style="font-size: Npx; font-weight: N; color: #fff;">A</span>
+                    </div>
+                    <span class="hidden lg:flex lg:items-center">
+                        <span class="ml-N text-sm font-semibold leading-N" style="color: var(--text-heading);">admin_becas</span>
+                        <i class="ml-N h-N w-N fas fa-chevron-down" aria-hidden="true" style="color: var(--text-body-subtle);"></i>
+                    </span>
+                </button>
+
+                <!-- Dropdown menu -->
+                <div x-show="open" @click.away="open = false" x-transition:enter="transition ease-out duration-N" x-transition:enter-start="transform opacity-N scale-N" x-transition:enter-end="transform opacity-N scale-N" x-transition:leave="transition ease-in duration-N" x-transition:leave-start="transform opacity-N scale-N" x-transition:leave-end="transform opacity-N scale-N"
+                     class="absolute right-N z-N mt-N.N w-N origin-top-right rounded-xl py-N"
+                     style="background: var(--bg-primary); box-shadow: var(--shadow-md); border: Npx solid var(--border-base);">
+                    
+                    <a href="/cambiar-contrasena/propia/"
+                       class="block w-full text-left px-N py-N text-sm leading-N text-heading hover:bg-secondary">
+                        <i class="fas fa-key mr-N" aria-hidden="true"></i>Cambiar contraseña
+                    </a>
+                    
+                    <form method="post" action="/logout">
+                        <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
+                        <button type="submit" class="block w-full text-left px-N py-N text-sm leading-N"
+                                style="color: var(--text-heading); background: transparent; border: none; cursor: pointer; font-family: inherit;"
+                                onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='transparent'">
+                            <i class="fas fa-sign-out-alt mr-N" aria-hidden="true"></i>Cerrar sesión
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+            
+<!-- ============================================================
+     SIDEBAR — Chaco NODO Design System §N
+     Mobile overlay + Desktop fixed (colapsable)
+     ============================================================ -->
+<style>
+    /* ============================================================
+       Sidebar — comportamiento de botones de navegación (spec §N).
+       Fuente única de estados, blindada contra el CSS global legacy
+       (gana siempre el token). Va inline en el HTML (no en .css cacheado).
+       ============================================================ */
+    .ds-snav a, .ds-snav button {
+        display: flex;
+        position: relative;                            /* ancla el dot de conteo en modo colapsado */
+        width: N%;                                   /* el pill ocupa toda la fila, no solo el texto */
+        box-sizing: border-box;
+        font-family: var(--font-sans);
+        font-weight: N;                              /* inactivo: medium */
+        color: var(--text-body) !important;
+        background: transparent;
+        transition: background Nms var(--ease-standard, ease), color Nms;
+        align-items: center;
+        justify-content: flex-start !important;         /* ícono + texto a la izquierda (expandido) */
+        gap: Npx;
+        text-align: left;
+    }
+    /* Colapsado (Alpine agrega .justify-center): ícono centrado */
+    .ds-snav a.justify-center, .ds-snav button.justify-center { justify-content: center !important; }
+    .ds-snav a svg, .ds-snav button svg { color: var(--text-body-subtle) !important; }
+
+    /* Vence la regla legacy de nodo-brand.css:
+       a:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) { color: magenta !important }
+       (espec. N,N,N) — afecta el texto que es nodo directo del <a>, p.ej. subítems.
+       Replicamos su patrón con .ds-snav delante para ganar por especificidad (N,N,N). */
+    .ds-snav a:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) { color: var(--text-body) !important; }
+    .ds-snav a[aria-current="page"]:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) { color: #fff !important; }
+
+    /* Hover — solo si NO está activo (gris muy suave) */
+    .ds-snav a:not([aria-current="page"]):hover,
+    .ds-snav button:hover { background: var(--bg-tertiary) !important; }
+
+    /* Activo — único con fondo de marca; texto e ícono blancos; bold */
+    .ds-snav [aria-current="page"] {
+        background: var(--bg-brand) !important;
+        color: #fff !important;
+        font-weight: N !important;
+    }
+    .ds-snav [aria-current="page"] svg { color: #fff !important; }
+    /* El texto va en un <span>; forzarlo en el span mismo (un color directo en el
+       span vence a la herencia del <a>, por eso CSS legacy lo pintaba). */
+    .ds-snav a span, .ds-snav button span { color: inherit !important; }
+    .ds-snav a:not([aria-current="page"]) span { color: var(--text-body) !important; }
+    .ds-snav [aria-current="page"] span { color: #fff !important; }
+
+    /* Contador / badge dentro del ítem */
+    .ds-snav .nav-count {
+        font-size: Npx; font-weight: N; line-height: N;
+        padding: Npx Npx; border-radius: Npx;
+        background: var(--bg-tertiary); color: var(--text-body-subtle);
+    }
+    .ds-snav [aria-current="page"] .nav-count { background: rgba(N,N,N,.N); color: #fff; }
+    /* Colapsado: el contador se reduce a un punto Npx (rojo si inactivo, blanco si activo) */
+    .ds-snav .nav-dot { width: Npx; height: Npx; border-radius: N%; background: var(--bg-danger); }
+    .ds-snav [aria-current="page"] .nav-dot { background: #fff; }
+
+    /* Área táctil mínima, solo con puntero grueso (FE-N). Antes la imponía
+       `mobile-enhancements.js` en todos los anchos: con mouse los ítems pasaban
+       de N a N px. */
+    @media (pointer: coarse) {
+        .ds-snav a, .ds-snav button { min-height: Npx; }
+    }
+</style>
+
+<!-- Backdrop móvil. El panel se renderiza una sola vez y cambia de presentación por breakpoint. -->
+<div class="fixed inset-N z-N bg-black/N lg:hidden"
+     x-show="sidebarOpen"
+     style="display: none;"
+     x-transition:enter="transition-opacity ease-linear duration-N"
+     x-transition:enter-start="opacity-N"
+     x-transition:enter-end="opacity-N"
+     x-transition:leave="transition-opacity ease-linear duration-N"
+     x-transition:leave-start="opacity-N"
+     x-transition:leave-end="opacity-N"
+     @click="sidebarOpen = false"></div>
+
+<!-- ── Sidebar única: overlay móvil + fixed colapsable en escritorio ── -->
+<aside class="fixed inset-y-N left-N z-N flex w-full max-w-xs flex-col transform transition-transform duration-N sm:max-w-sm lg:max-w-none lg:transition-[width]"
+       :class="[sidebarOpen ? 'translate-x-N' : '-translate-x-full lg:translate-x-N', sidebarCollapsed ? 'lg:w-N' : 'lg:w-N']"
+       @keydown.escape.window="sidebarOpen = false"
+       style="background: var(--bg-white); border-right: Npx solid var(--border-base);">
+
+    <!-- Botón cerrar (solo móvil, fuera del panel) -->
+    <div x-show="sidebarOpen" style="display: none;"
+         class="absolute left-full top-N flex w-N justify-center pt-N sm:w-N lg:hidden">
+        <button type="button" class="-m-N.N p-N.N" @click="sidebarOpen = false" aria-label="Cerrar sidebar">
+            <span class="sr-only">Cerrar sidebar</span>
+            <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                 width="N" height="N" aria-hidden="true" style="color: #fff;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="MN N N NMN NlN N"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- ── Header de marca ── -->
+    <div style="border-bottom: Npx solid var(--border-base);">
+
+        <!-- Móvil: siempre expandido -->
+        <div class="lg:hidden" style="padding: Npx;">
+            <div class="flex items-center gap-N">
+                <div class="flex items-center justify-center flex-shrink-N"
+                     style="width: Npx; height: Npx; border-radius: Npx;
+                            background: var(--bg-white); border: Npx solid var(--border-base);">
+                    <img src="/static/custom/chaco/mini-logo.png"
+                         alt="" aria-hidden="true"
+                         style="width: Npx; height: Npx; object-fit: contain;">
+                </div>
+                <div class="min-w-N">
+                    <p style="font-size: Npx; font-weight: N; color: var(--text-heading);
+                              line-height: N.N; white-space: nowrap;">DATAÑACH</p>
+                    <p style="font-size: N.Npx; color: var(--text-body-subtle);
+                              line-height: N.N; white-space: nowrap;">Gobierno del Chaco</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Escritorio: colapsable -->
+        <div class="hidden lg:block">
+
+            <!-- Expandido: logo box + título + subtítulo -->
+            <template x-if="!sidebarCollapsed">
+                <div style="padding: Npx;">
+                    <div class="flex items-center gap-N">
+                        <div class="flex items-center justify-center flex-shrink-N"
+                             style="width: Npx; height: Npx; border-radius: Npx;
+                                    background: var(--bg-white); border: Npx solid var(--border-base);">
+                            <img src="/static/custom/chaco/mini-logo.png"
+                                 alt="" aria-hidden="true"
+                                 style="width: Npx; height: Npx; object-fit: contain;">
+                        </div>
+                        <div class="min-w-N">
+                            <p style="font-size: Npx; font-weight: N; color: var(--text-heading);
+                                      line-height: N.N; white-space: nowrap; overflow: hidden;
+                                      text-overflow: ellipsis;">DATAÑACH</p>
+                            <p style="font-size: N.Npx; color: var(--text-body-subtle);
+                                      line-height: N.N; white-space: nowrap; overflow: hidden;
+                                      text-overflow: ellipsis;">Gobierno del Chaco</p>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Colapsado: solo logo box centrado -->
+            <template x-if="sidebarCollapsed">
+                <div style="padding: Npx; display: flex; justify-content: center;">
+                    <div class="flex items-center justify-center"
+                         style="width: Npx; height: Npx; border-radius: Npx;
+                                background: var(--bg-white); border: Npx solid var(--border-base);">
+                        <img src="/static/custom/chaco/mini-logo.png"
+                             alt="DATAÑACH"
+                             style="width: Npx; height: Npx; object-fit: contain;">
+                    </div>
+                </div>
+            </template>
+        </div>
+
+    </div>
+
+    <!-- ── Navegación compartida ── -->
+    <nav class="flex-N overflow-y-auto" style="padding: Npx;">
+        
+
+
+
+<div class="flex flex-N flex-col" style="gap: N;">
+
+    
+    <div style="margin-bottom: Npx;">
+
+        
+        <template x-if="!sidebarCollapsed">
+            <div style="padding: Npx Npx; border-bottom: Npx solid var(--border-base); margin-bottom: Npx;">
+                <div class="flex items-center gap-N">
+                    
+                    <div class="flex items-center justify-center flex-shrink-N"
+                         style="width: Npx; height: Npx; border-radius: Npx;
+                                background: var(--gradient-brand);">
+                        <span style="font-size: Npx; font-weight: N; color: #fff; line-height: N;">
+                            A
+                        </span>
+                    </div>
+                    <div class="flex-N min-w-N">
+                        <p style="font-size: Npx; font-weight: N;
+                                  color: var(--text-heading); white-space: nowrap;
+                                  overflow: hidden; text-overflow: ellipsis;">
+                            admin_becas
+                        </p>
+                        <p style="font-size: Npx; color: var(--text-body-subtle);
+                                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            
+                                Becas — Administrador
+                            
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        
+        <template x-if="sidebarCollapsed">
+            <div style="display: flex; justify-content: center;
+                        padding: Npx N; border-bottom: Npx solid var(--border-base);
+                        margin-bottom: Npx;">
+                <div class="flex items-center justify-center"
+                     style="width: Npx; height: Npx; border-radius: Npx;
+                            background: var(--gradient-brand);"
+                     title="admin_becas">
+                    <span style="font-size: Npx; font-weight: N; color: #fff; line-height: N;">
+                        A
+                    </span>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    
+    <nav class="ds-snav flex flex-col gap-N.N">
+
+        
+        <div class="relative" style="margin-bottom: Npx;">
+            <a href="/inicio/"
+               class="group flex items-center transition-colors duration-N"
+               :class="sidebarCollapsed ? 'justify-center' : 'gap-x-N'"
+               style="padding: Npx Npx; border-radius: Npx; text-decoration: none;
+                      
+                          background: transparent; color: var(--text-body); font-weight: N;
+                      
+                      font-size: N.Npx; font-family: var(--font-sans);"
+               >
+                
+                <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                     width="N" height="N" aria-hidden="true" class="flex-shrink-N"
+                     style="color: var(--text-body-subtle);">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="mN.N N N.N-N.Nc.N-.N N.N-.N N.N NLN.N NMN.N N.NvN.Na.N.N N N N .N.NhN.Na.N.N N N N .N-.NVNa.N.N N N N .N-.NhNa.N.N N N N .N.NvN.NcN .N.N.N.N.NhN.Na.N.N N N N .N-.NVN.NMN.N NhN.N"/>
+                </svg>
+                <template x-if="!sidebarCollapsed">
+                    <span>Inicio</span>
+                </template>
+            </a>
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+        
+
+        
+        
+
+        
+        
+
+        
+        
+        <div x-data="{ open: true }"
+             class="relative" style="margin-bottom: Npx;">
+
+            <template x-if="!sidebarCollapsed">
+                <div>
+                    <button @click="open = !open"
+                            class="group flex w-full items-center gap-x-N transition-colors duration-N"
+                            style="padding: Npx Npx; border-radius: Npx; border: none; cursor: pointer;
+                                   background: transparent; color: var(--text-body); font-weight: N;
+                                   font-size: N.Npx; font-family: var(--font-sans); text-align: left;">
+                        
+                        <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                             width="N" height="N" aria-hidden="true" class="flex-shrink-N"
+                             style="color: var(--text-body-subtle);">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="MN.N N.NaN.N N.N N N N-.N N.NAN.N N.N N N N N N.NaN.N N.N N N N N.N-N.N N.N N.N N N N-.N-N.Nm-N.N NaN.N N.N N N N-N.N-.NAN.N N.N N N N N N.NaN.N N.N N N N N.N N.Nc-.N.N-N.N.N-N.N.Nm-N.N NAN.N N.N N N N N N.NaN.N N.N N N N N.N-N.NMN.N Na.N.N N N N N-N.N.N.N N N N N N.NZmN Nv-N.NAN.N N.N N N N N N.Nm-N.N N.NAN.N N.N N N N N.N N.Nv-N.N"/>
+                        </svg>
+                        <span class="flex-N">Programas</span>
+                        <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                             width="N" height="N" aria-hidden="true"
+                             style="color: var(--text-body-subtle); transition: transform Nms;"
+                             :style="open ? 'transform: rotate(Ndeg)' : ''">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="mN.N N.N-N.N N.N-N.N-N.N"/>
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-transition class="mt-N.N ml-N flex flex-col gap-N.N">
+                        
+                        <a href="/becas/config/programas/"
+                           class="flex items-center gap-N transition-colors duration-N"
+                           style="padding: Npx Npx; border-radius: Npx; text-decoration: none; font-size: Npx; font-family: var(--font-sans);
+                                  background: transparent; color: var(--text-body-subtle); font-weight: N;"
+                           >
+                            
+                            <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                                 width="N" height="N" aria-hidden="true" class="flex-shrink-N"
+                                 style="color: var(--text-body-subtle);">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="MN.N N.NVNAN.N N.N N N N N.N N.NhNAN.N N.N N N N N.N Nv.Nm-N.N-N.N-N.N-N.NaN.N N.N N N N-N.N-.NHN.NAN.N N.N N N N N.N NvNaN.N N.N N N N N.N N.NhNAN.N N.N N N N N.N NVNaN.N N.N N N N-N.N-N.Nh-N.NaN.N N.N N N N-N.N-.NZ"/>
+                            </svg>
+                            Programas
+                        </a>
+                        
+                        
+                        <a href="/becas/config/segmentos/"
+                           class="flex items-center gap-N transition-colors duration-N"
+                           style="padding: Npx Npx; border-radius: Npx; text-decoration: none; font-size: Npx; font-family: var(--font-sans);
+                                  background: transparent; color: var(--text-body-subtle); font-weight: N;"
+                           >
+                            
+                            <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                                 width="N" height="N" aria-hidden="true" class="flex-shrink-N"
+                                 style="color: var(--text-body-subtle);">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="MN.N N.Nc.N-.N.N-.N.N-.NhN.Nc.N N .N.N.N.Nm-N.N NaN.N N.N N N N-N.N N.Nl.N NaN.N N.N N N N N.N N.NHN.NaN.N N.N N N N N.N-N.Nl.N-NaN.N N.N N N N-N.N-N.Nm-N.N NVNAN.N N.N N N N N N.NhN.NaN.N N.N N N N N.N.NlN.N N.NaN.N N.N N N N N.N.NHNAN.N N.N N N N N.N Nv.N"/>
+                            </svg>
+                            Segmentos
+                        </a>
+                        
+                        
+                        <a href="/becas/config/preguntas/"
+                           class="flex items-center gap-N transition-colors duration-N"
+                           style="padding: Npx Npx; border-radius: Npx; text-decoration: none; font-size: Npx; font-family: var(--font-sans);
+                                  background: transparent; color: var(--text-body-subtle); font-weight: N;"
+                           >
+                            
+                            <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                                 width="N" height="N" aria-hidden="true" class="flex-shrink-N"
+                                 style="color: var(--text-body-subtle);">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="MN NhN.NMN NhN.NMN NhN.NmN .NHNaN.N N.N N N N N.N-N.NVN.NcN-N.N-.N-N.N-N.N-N.NaN.N N.N N N N-N.N-.Nm-N.N Nc-.N.N-.N.N-.N.N N .N.N.N.N.NhN.Na.N.N N N N .N-.N N.N N.N N N N-.N-.Nm-N.N NAN.N N.N N N N N.N N.NHNcN.N N N.N.N N.N N.Nm-N.N Nc-.N.N-.N.N-N.N.NCN.N N.N N.N N.N N.N N.NVN.NmN NHN.Nc-.N N-N.N.N-N.N N.NvN.NcN .N.N N.N N.N N.NhN.Nc.N N N.N-.N N.N-N.NVN.NcN-.N-.N-N.N-N.N-N.NHN.NZ"/>
+                            </svg>
+                            Requisitos generales
+                        </a>
+                        
+                        
+                        <a href="/becas/convocatorias/"
+                           class="flex items-center gap-N transition-colors duration-N"
+                           style="padding: Npx Npx; border-radius: Npx; text-decoration: none; font-size: Npx; font-family: var(--font-sans);
+                                  background: transparent; color: var(--text-body-subtle); font-weight: N;"
+                           >
+                            
+                            <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                                 width="N" height="N" aria-hidden="true" class="flex-shrink-N"
+                                 style="color: var(--text-body-subtle);">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="MN.N N.Nc-.N-.N-N.N-.N-N.N-.NHN.NaN.N N.N N N N N-Nh.Nc.N N N.N-.N N.N-.NmN N.Nc.N.N.N N.N.N N.N.N.N.N N.N-.N N.Nl-.N.Nc-.N.N-N.N.N-N.N-.NaN.N N.N N N N-N.N-N.NmN.N.NaN.N N.N N N N-.N-N.NcN-N.N.N-N.N.N-N.NmN N.NaN.N N.N N N N N.N N.NMN.N N.NaN.N N.N N N N N.N-N.NmN NAN.N N.N N N N N.N Nm.N N.NaN.N N.N N N N N.N N.Nm-N.N N.Nc-.N.N-.N.N-.N N.Nm.N-N.NaN.N N.N N N N N.N-N.NmN-N.Nc.N.N.N N.N.N N.N N .N-.N N.N-.N N.NmN-N.NaN.N N.N N N N N N.N"/>
+                            </svg>
+                            Convocatorias
+                        </a>
+                        
+                        
+                        <a href="/becas/relevamientos/"
+                           class="flex items-center gap-N transition-colors duration-N"
+                           style="padding: Npx Npx; border-radius: Npx; text-decoration: none; font-size: Npx; font-family: var(--font-sans);
+                                  background: transparent; color: var(--text-body-subtle); font-weight: N;"
+                           >
+                            
+                            <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                                 width="N" height="N" aria-hidden="true" class="flex-shrink-N"
+                                 style="color: var(--text-body-subtle);">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="MN.N N.Nc-.N.N-.N.N-.N.N N .N.N.N.N.NhN.Na.N.N N N N .N-.N N.N N.N N N N-.N-.Nm-N.N NAN.N N.N N N N N.N N.NHNcN.N N N.N.N N.N N.Nm-N.N Nc-.N.N-.N.N-N.N.NCN.N N.N N.N N.N N.N N.NVN.NmN.N-N.Nc.N.N.N.N N.N.N N.N.N N.N N.N N.N N.NVN.NAN.N N.N N N N N N.Nh-N.Nm-N.N-N.NHN.Nc-.N N-N.N.N-N.N N.NvN.NcN .N.N N.N N.N N.NhN.Nc.N N N.N-.N N.N-N.NVN.Nm-N.N-N.NhN.Nc.N N N.N.N N.N N.NvN.Nm-N.N-N N.N N.N N-N.N"/>
+                            </svg>
+                            Relevamientos
+                        </a>
+                        
+                        
+                        <a href="/becas/revision/"
+                           class="flex items-center gap-N transition-colors duration-N"
+                           style="padding: Npx Npx; border-radius: Npx; text-decoration: none; font-size: Npx; font-family: var(--font-sans);
+                                  background: var(--bg-brand); color: #fff; font-weight: N;"
+                           aria-current="page">
+                            
+                            <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                                 width="N" height="N" aria-hidden="true" class="flex-shrink-N"
+                                 style="color: #fff;">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="MN NhN.NMN NhN.NMN NhN.NmN .NHNaN.N N.N N N N N.N-N.NVN.NcN-N.N-.N-N.N-N.N-N.NaN.N N.N N N N-N.N-.Nm-N.N Nc-.N.N-.N.N-.N.N N .N.N.N.N.NhN.Na.N.N N N N .N-.N N.N N.N N N N-.N-.Nm-N.N NAN.N N.N N N N N.N N.NHNcN.N N N.N.N N.N N.Nm-N.N Nc-.N.N-.N.N-N.N.NCN.N N.N N.N N.N N.N N.NVN.NmN NHN.Nc-.N N-N.N.N-N.N N.NvN.NcN .N.N N.N N.N N.NhN.Nc.N N N.N-.N N.N-N.NVN.NcN-.N-.N-N.N-N.N-N.NHN.NZ"/>
+                            </svg>
+                            Revisión
+                        </a>
+                        
+                        
+                        <a href="/becas/reportes/"
+                           class="flex items-center gap-N transition-colors duration-N"
+                           style="padding: Npx Npx; border-radius: Npx; text-decoration: none; font-size: Npx; font-family: var(--font-sans);
+                                  background: transparent; color: var(--text-body-subtle); font-weight: N;"
+                   >
+                            <i class="fas fa-chart-column" style="width:Npx; text-align:center;"></i>
+                            Reportes
+                        </a>
+                        
+                    </div>
+                </div>
+            </template>
+
+            
+            <template x-if="sidebarCollapsed">
+                <a href="/becas/config/segmentos/"
+                   class="group flex items-center justify-center transition-colors duration-N"
+                   style="padding: Npx Npx; border-radius: Npx; text-decoration: none;
+                          background: var(--bg-brand);"
+                   title="Programas"
+                   aria-label="Programas"
+                   aria-current="page">
+                    <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                         width="N" height="N" aria-hidden="true"
+                         style="color: #fff;">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="MN.N N.NaN.N N.N N N N-.N N.NAN.N N.N N N N N N.NaN.N N.N N N N N.N-N.N N.N N.N N N N-.N-N.Nm-N.N NaN.N N.N N N N-N.N-.NAN.N N.N N N N N N.NaN.N N.N N N N N.N N.Nc-.N.N-N.N.N-N.N.Nm-N.N NAN.N N.N N N N N N.NaN.N N.N N N N N.N-N.NMN.N Na.N.N N N N N-N.N.N.N N N N N N.NZmN Nv-N.NAN.N N.N N N N N N.Nm-N.N N.NAN.N N.N N N N N.N N.Nv-N.N"/>
+                    </svg>
+                </a>
+            </template>
+            
+
+            
+            <template x-if="sidebarCollapsed">
+                <a href="/becas/reportes/"
+                   class="group flex items-center justify-center transition-colors duration-N"
+                   style="padding: Npx Npx; border-radius: Npx; text-decoration: none;
+                          background: transparent;"
+                   title="Reportes"
+                   aria-label="Reportes"
+                   >
+                    <i class="fas fa-chart-column" aria-hidden="true"
+                       style="width:Npx; text-align:center; color: var(--text-body-subtle);"></i>
+                </a>
+            </template>
+            
+        </div>
+        
+
+        
+        
+
+        
+        
+        <div x-data="{ open: false }"
+             class="relative" style="margin-bottom: Npx;">
+
+            <template x-if="!sidebarCollapsed">
+                <div>
+                    <button @click="open = !open"
+                            class="group flex w-full items-center gap-x-N transition-colors duration-N"
+                            style="padding: Npx Npx; border-radius: Npx; border: none; cursor: pointer;
+                                   background: transparent; color: var(--text-body); font-weight: N;
+                                   font-size: N.Npx; font-family: var(--font-sans); text-align: left;">
+                        
+                        <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                             width="N" height="N" aria-hidden="true" class="flex-shrink-N"
+                             style="color: var(--text-body-subtle);">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="MN.N N.Nc.N-.N.N-.N N.N-.NhN.Nc.N N N.N.N N.N.Nl.N N.Nc.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N N.N.NlN.N-.NaN.N N.N N N N N.N.NlN.N N.NaN.N N.N N N N-.N N.Nl-N.N.Nc-.N.N-.N.N-.N.NaN.N N.N N N N N .Nc-.N.N.N.N.N.NlN.N.Nc.N.N.N.N.N N.Nl-N.N N.NaN.N N.N N N N-N.N.Nl-N.N-.Nc-.N-.N-.N-.N-N.N.NaN.N N.N N N N-.N.Nc-.N.N-.N.N-.N.Nl-.N N.Nc-.N.N-.N.N-N.N.Nh-N.Nc-.N N-N.N-.N-N.N-.Nl-.N-N.Nc-.N-.N-.N-.N-.N-.NaN.N N.N N N N-.N-.Nc-.N-.N-.N-.N-N.N-.Nl-N.N.NaN.N N.N N N N-N.N-.Nl-N.N-N.NaN.N N.N N N N .N-N.NlN.N-.Nc.N-.N.N-.N.N-.NaN.N N.N N N N N-.Nc.N-.N-.N-.N-.N-.Nl-N.N-.NaN.N N.N N N N-.N-N.NlN.N-N.NaN.N N.N N N N N.N-.NlN.N.Nc.N.N.N.N N.N-.N.N-.N.N-.N.N-.N.N-.N.N-.N.N-.Nl.N-N.NZ"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="MN NaN N N N N-N N N N N N N N NZ"/>
+                        </svg>
+                        <span class="flex-N">Administración</span>
+                        <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                             width="N" height="N" aria-hidden="true"
+                             style="color: var(--text-body-subtle); transition: transform Nms;"
+                             :style="open ? 'transform: rotate(Ndeg)' : ''">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="mN.N N.N-N.N N.N-N.N-N.N"/>
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-transition class="mt-N.N ml-N flex flex-col gap-N.N">
+                        
+                        <a href="/usuarios/"
+                           class="flex items-center gap-N transition-colors duration-N"
+                           style="padding: Npx Npx; border-radius: Npx; text-decoration: none; font-size: Npx; font-family: var(--font-sans);
+                                  background: transparent; color: var(--text-body-subtle); font-weight: N;"
+                           >
+                            
+                            <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                                 width="N" height="N" aria-hidden="true" class="flex-shrink-N"
+                                 style="color: var(--text-body-subtle);">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="MN N.NaN.N N.N N N N N.N.N N.N N.N N N N N.N-.N N.N N.N N N N-N.N-N.NMN N.Nv-.NcN-N.N-.N-N.N-.N-N.NMN N.Nv.NAN.N N.N N N N N.N Nc-N.N N-N.N-.N-N.N-N.Nl-.N-.NaN.N N.N N N N N.N-N.NMN N.NaN.N N.N N N N-N.N N N.N N.N N N N N.N NZmN.N N.NaN.N N.N N N N-N.N N N.N N.N N N N N.N NZ"/>
+                            </svg>
+                            Usuarios
+                        </a>
+                        
+                        
+                        <a href="/roles/"
+                           class="flex items-center gap-N transition-colors duration-N"
+                           style="padding: Npx Npx; border-radius: Npx; text-decoration: none; font-size: Npx; font-family: var(--font-sans);
+                                  background: transparent; color: var(--text-body-subtle); font-weight: N;"
+                           >
+                            
+                            <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                                 width="N" height="N" aria-hidden="true" class="flex-shrink-N"
+                                 style="color: var(--text-body-subtle);">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="MN NhN.NMN NhN.NMN NhN.NMN.N N.NhNaN.N N.N N N N N.N-N.NVN.NAN.N N.N N N N N.N N.Nh-NaN.N N.N N N N-N.N N.NvN.NAN.N N.N N N N N.N N.NZmN-N.NaN.N N.N N N N-N.N N N.N N.N N N N N.N NZMN.N N.NaN N N N N-N Nv.NcN .N.N.N.N.NhN.Na.N.N N N N .N-.Nv-.NZ"/>
+                            </svg>
+                            Roles
+                        </a>
+                        
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="sidebarCollapsed">
+                <a href="/usuarios/"
+                   class="group flex items-center justify-center transition-colors duration-N"
+                   style="padding: Npx Npx; border-radius: Npx; text-decoration: none;
+                          background: transparent;"
+                   title="Administración"
+                   aria-label="Administración"
+                   >
+                    <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                         width="N" height="N" aria-hidden="true"
+                         style="color: var(--text-body-subtle);">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="MN.N N.Nc.N-.N.N-.N N.N-.NhN.Nc.N N N.N.N N.N.Nl.N N.Nc.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N.N N.N.NlN.N-.NaN.N N.N N N N N.N.NlN.N N.NaN.N N.N N N N-.N N.Nl-N.N.Nc-.N.N-.N.N-.N.NaN.N N.N N N N N .Nc-.N.N.N.N.N.NlN.N.Nc.N.N.N.N.N N.Nl-N.N N.NaN.N N.N N N N-N.N.Nl-N.N-.Nc-.N-.N-.N-.N-N.N.NaN.N N.N N N N-.N.Nc-.N.N-.N.N-.N.Nl-.N N.Nc-.N.N-.N.N-N.N.Nh-N.Nc-.N N-N.N-.N-N.N-.Nl-.N-N.Nc-.N-.N-.N-.N-.N-.NaN.N N.N N N N-.N-.Nc-.N-.N-.N-.N-N.N-.Nl-N.N.NaN.N N.N N N N-N.N-.Nl-N.N-N.NaN.N N.N N N N .N-N.NlN.N-.Nc.N-.N.N-.N.N-.NaN.N N.N N N N N-.Nc.N-.N-.N-.N-.N-.Nl-N.N-.NaN.N N.N N N N-.N-N.NlN.N-N.NaN.N N.N N N N N.N-.NlN.N.Nc.N.N.N.N N.N-.N.N-.N.N-.N.N-.N.N-.N.N-.N.N-.Nl.N-N.NZ"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="MN NaN N N N N-N N N N N N N N NZ"/>
+                    </svg>
+                </a>
+            </template>
+        </div>
+        
+
+    </nav>
+</div>
+
+
+    </nav>
+
+    <!-- ── Footer: botón Minimizar (solo escritorio) ── -->
+    <div class="hidden lg:block" style="padding: Npx; border-top: Npx solid var(--border-base);">
+            <button @click="sidebarCollapsed = !sidebarCollapsed"
+                    class="w-full flex items-center justify-center gap-N transition-colors duration-N"
+                    style="background: var(--bg-secondary); border-radius: Npx;
+                           padding: Npx Npx; border: none; cursor: pointer;"
+                    aria-label="Minimizar sidebar">
+
+                <!-- Colapsado → apunta a la derecha (expandir) -->
+                <template x-if="sidebarCollapsed">
+                    <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                         width="N" height="N" aria-hidden="true"
+                         style="color: var(--text-body-subtle); flex-shrink: N;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="mN.N N.N N.N N.N-N.N N.N"/>
+                    </svg>
+                </template>
+
+                <!-- Expandido → apunta a la izquierda + label -->
+                <template x-if="!sidebarCollapsed">
+                    <div class="flex items-center gap-N">
+                        <svg viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N"
+                             width="N" height="N" aria-hidden="true"
+                             style="color: var(--text-body-subtle); flex-shrink: N;">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="MN.N N.N N.N NlN.N-N.N"/>
+                        </svg>
+                        <span style="font-size: Npx; font-weight: N;
+                                     color: var(--text-body-subtle);">Minimizar</span>
+                    </div>
+                </template>
+            </button>
+    </div>
+</aside>
+
+            
+            <div class="min-w-N transition-all duration-N" :class="sidebarCollapsed ? 'lg:pl-N' : 'lg:pl-N'">
+                <main class="min-w-N py-N sm:py-N lg:py-N">
+                    <div class="min-w-N px-N sm:px-N lg:px-N">
+                        
+                        
+
+                        
+<style>
+  .sexo-pill input {
+    position: absolute;
+    width: Npx;
+    height: Npx;
+    opacity: N;
+    pointer-events: none;
+  }
+  .sexo-pill span {
+    display: inline-flex;
+    width: Npx;
+    height: Npx;
+    align-items: center;
+    justify-content: center;
+    border: Npx solid var(--border-base);
+    border-radius: Npx;
+    background: var(--bg-primary);
+    color: var(--text-body);
+    font-size: Npx;
+    font-weight: N;
+    transition: background-color .Ns ease, border-color .Ns ease, color .Ns ease;
+  }
+  .sexo-pill:hover span {
+    border-color: var(--border-brand);
+    color: var(--text-fg-brand);
+  }
+  .sexo-pill input:checked + span {
+    border-color: var(--bg-brand);
+    background: var(--bg-brand);
+    color: #fff;
+  }
+  .sexo-pill input:focus-visible + span {
+    outline: Npx solid var(--border-brand);
+    outline-offset: Npx;
+  }
+</style>
+
+<div class="space-y-N">
+
+  
+  
+  
+<div class="space-y-N">
+  
+  <nav aria-label="Migas">
+    <ol class="flex items-center gap-N.N flex-wrap text-xs text-body-subtle">
+      
+      
+      <li><a href="/becas/config/programas/" class="text-fg-brand hover:underline">Programas</a></li>
+      <li aria-hidden="true">/</li>
+      
+      
+      
+      <li><a href="/becas/config/segmentos/N/" class="text-fg-brand hover:underline">Seg A</a></li>
+      <li aria-hidden="true">/</li>
+      
+      
+      
+      <li><a href="/becas/convocatorias/N/" class="text-fg-brand hover:underline">Conv A</a></li>
+      <li aria-hidden="true">/</li>
+      
+      
+      
+      <li><a href="/becas/relevamientos/N/" class="text-fg-brand hover:underline">Relevamiento N · Conv A</a></li>
+      <li aria-hidden="true">/</li>
+      
+      
+      
+      <li aria-current="page" class="font-semibold text-body">Caso N</li>
+      
+      
+    </ol>
+  </nav>
+  
+  <div class="flex items-start justify-between gap-N flex-wrap">
+    <div class="flex items-start gap-N min-w-N">
+      
+      <a href="/becas/revision/relevamiento/N/"
+         class="btn-tertiary btn-back-circle"
+         aria-label="Volver a los casos del relevamiento">
+        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+      </a>
+      
+      <div class="min-w-N">
+        <hN class="text-Nxl font-extrabold text-heading tracking-tight">Caso N</hN>
+        <p class="text-sm text-body-subtle mt-N">Relevamiento N · Conv A</p>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-N flex-wrap">
+      
+    
+    
+
+  <span class="badge badge-warning badge-dot">Enviado</span>
+
+
+
+    
+    
+    
+  
+    </div>
+    
+  </div>
+</div>
+
+
+  
+  
+
+  
+
+  
+  
+
+  
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-N py-N border-b border-light">
+      <hN class="text-heading font-bold" style="font-size:Npx;">Identidad</hN>
+    </div>
+    <div class="p-N">
+      <div class="grid grid-cols-N sm:grid-cols-N lg:grid-cols-N gap-N">
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-N">Nombre completo</dt>
+          <dd class="text-heading font-medium text-sm">
+            
+              <span class="text-body-subtle font-normal">Sin identificar</span>
+            
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-N">DNI</dt>
+          <dd class="text-heading text-sm">
+            
+              <span class="text-body-subtle">—</span>
+            
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-N">Sexo</dt>
+          <dd class="text-sm">
+            
+              <span class="text-body-subtle">Sin ciudadano vinculado</span>
+            
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-N">Validación de identidad</dt>
+          <dd class="text-sm">
+            
+              <span class="badge badge-warning">Pendiente</span>
+              
+              <div class="flex flex-wrap items-center gap-N mt-N">
+                
+                <form method="post" action="/becas/revision/formulario/N/revalidar-renaper/">
+                  <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
+                  <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-rotate"></i> Revalidar</button>
+                </form>
+                
+                
+                <button type="button" id="btn-forzar-identidad" class="btn-nodo btn-tertiary btn-sm">
+                  <i class="fas fa-user-check"></i> Validar manualmente
+                </button>
+              </div>
+              
+              
+            
+          </dd>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-N py-N border-b border-light">
+      <hN class="text-heading font-bold" style="font-size:Npx;">
+        <i class="fas fa-clock mr-N text-fg-brand" aria-hidden="true"></i>
+        Trazabilidad de la toma
+      </hN>
+    </div>
+    <div class="p-N space-y-N">
+      <dl class="grid grid-cols-N sm:grid-cols-N lg:grid-cols-N gap-N">
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-N">Fecha asignada</dt>
+          <dd class="text-heading text-sm">N/N/N N:N al N/N/N N:N</dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-N">Capturado en el dispositivo</dt>
+          <dd class="text-heading text-sm">
+            
+              <span class="text-body-subtle">No informado</span>
+            
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-N">Recibido en el servidor</dt>
+          <dd class="text-heading text-sm">N/N/N N:N:N</dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-N">Última actualización</dt>
+          <dd class="text-heading text-sm">N/N/N N:N:N</dd>
+        </div>
+      </dl>
+
+      <div class="border-t border-light pt-N">
+        <div class="flex items-center justify-between gap-N mb-N flex-wrap">
+          <div>
+            <hN class="text-heading font-semibold text-sm">
+              <i class="fas fa-map-marker-alt mr-N text-fg-brand" aria-hidden="true"></i>
+              Lugar de la toma
+            </hN>
+            
+          </div>
+          
+        </div>
+        
+          <div class="rounded-xl bg-secondary border border-light p-N text-sm text-body-subtle">
+            Este caso no tiene coordenadas GPS registradas.
+          </div>
+        
+      </div>
+    </div>
+  </section>
+
+  
+  <form method="post" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
+    <div class="px-N py-N border-b border-light">
+      <hN class="text-heading font-bold" style="font-size:Npx;">Datos de contacto</hN>
+    </div>
+    <div class="p-N">
+      
+      <div class="grid grid-cols-N sm:grid-cols-N gap-N">
+        <div>
+<div class="mb-N">
+  <label class="block text-sm font-medium text-heading mb-N" for="id_celular">
+    Celular
+  </label>
+  <input type="text" name="celular" value="N" class="nodo-field" maxlength="N" id="id_celular">
+  
+  <p id="id_celular-error" class="mt-N text-xs text-fg-danger hidden" data-error="celular"></p>
+</div>
+</div>
+        <div>
+<div class="mb-N">
+  <label class="block text-sm font-medium text-heading mb-N" for="id_email_contacto">
+    Correo electrónico
+  </label>
+  <input type="email" name="email_contacto" value="a@b.com" class="nodo-field" maxlength="N" id="id_email_contacto">
+  
+  <p id="id_email_contacto-error" class="mt-N text-xs text-fg-danger hidden" data-error="email_contacto"></p>
+</div>
+</div>
+      </div>
+      
+        <div class="border-t border-light mt-N pt-N">
+          <hN class="text-heading font-semibold text-sm mb-N">Datos del apoderado</hN>
+          <div class="grid grid-cols-N sm:grid-cols-N lg:grid-cols-N gap-N">
+            <div>
+<div class="mb-N">
+  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_nombre">
+    Nombre del apoderado
+  </label>
+  <input type="text" name="apoderado_nombre" class="nodo-field" maxlength="N" id="id_apoderado_nombre">
+  
+  <p id="id_apoderado_nombre-error" class="mt-N text-xs text-fg-danger hidden" data-error="apoderado_nombre"></p>
+</div>
+</div>
+            <div>
+<div class="mb-N">
+  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_apellido">
+    Apellido del apoderado
+  </label>
+  <input type="text" name="apoderado_apellido" class="nodo-field" maxlength="N" id="id_apoderado_apellido">
+  
+  <p id="id_apoderado_apellido-error" class="mt-N text-xs text-fg-danger hidden" data-error="apoderado_apellido"></p>
+</div>
+</div>
+            <div>
+<div class="mb-N">
+  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_dni">
+    DNI del apoderado
+  </label>
+  <input type="text" name="apoderado_dni" class="nodo-field" inputmode="numeric" maxlength="N" id="id_apoderado_dni">
+  
+  <p id="id_apoderado_dni-error" class="mt-N text-xs text-fg-danger hidden" data-error="apoderado_dni"></p>
+</div>
+</div>
+            <div>
+<div class="mb-N">
+  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_genero">
+    Sexo del apoderado
+  </label>
+  <select name="apoderado_genero" class="nodo-field" id="id_apoderado_genero">
+  <option value="" selected>---------</option>
+
+  <option value="M">Masculino</option>
+
+  <option value="F">Femenino</option>
+
+  <option value="X">No binario</option>
+
+</select>
+  
+  <p id="id_apoderado_genero-error" class="mt-N text-xs text-fg-danger hidden" data-error="apoderado_genero"></p>
+</div>
+</div>
+            <div>
+<div class="mb-N">
+  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_fecha_nacimiento">
+    Fecha de nacimiento del apoderado
+  </label>
+  <input type="date" name="apoderado_fecha_nacimiento" class="nodo-field" id="id_apoderado_fecha_nacimiento">
+  
+  <p id="id_apoderado_fecha_nacimiento-error" class="mt-N text-xs text-fg-danger hidden" data-error="apoderado_fecha_nacimiento"></p>
+</div>
+</div>
+          </div>
+          
+        </div>
+      
+      <p class="text-xs text-body-subtle mt-N"><i class="fas fa-history mr-N"></i> Cada cambio queda registrado en la traza.</p>
+    </div>
+    <div class="flex justify-end px-N py-N border-t border-light bg-secondary">
+      <button type="submit" class="btn-nodo btn-brand btn-base">Guardar cambios</button>
+    </div>
+  </form>
+
+  
+  
+  
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-N py-N border-b border-light">
+      <hN class="text-heading font-bold" style="font-size:Npx;">Requisitos generales</hN>
+    </div>
+    <div class="p-N">
+      <p class="text-sm text-body-subtle">Sin respuestas.</p>
+    </div>
+  </section>
+
+  
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-N py-N border-b border-light">
+      <hN class="text-heading font-bold" style="font-size:Npx;">Requisitos del segmento</hN>
+    </div>
+    <div class="p-N">
+      <p class="text-sm text-body-subtle">Sin respuestas.</p>
+    </div>
+  </section>
+
+  
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-N py-N border-b border-light">
+      <hN class="text-heading font-bold" style="font-size:Npx;">Requisitos del subsegmento</hN>
+    </div>
+    <div class="p-N">
+      <p class="text-sm text-body-subtle">Sin respuestas.</p>
+    </div>
+  </section>
+
+  
+
+  
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-N py-N border-b border-light flex items-center gap-N">
+      <i class="fas fa-plug text-fg-brand"></i>
+      <hN class="text-heading font-bold" style="font-size:Npx;">Resultado SIIS</hN>
+    </div>
+    <div class="p-N">
+    
+    <p class="text-sm text-body-subtle">Todavía no se consultó la compatibilidad de esta persona.</p>
+    
+    <div class="mt-N flex items-center justify-between gap-N flex-wrap">
+      
+      <form method="post" action="/becas/revision/formulario/N/validar-sis/">
+        <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
+        <button type="submit" class="btn-nodo btn-brand btn-base">Validar con SIIS</button>
+      </form>
+      
+      
+    </div>
+
+    
+    </div>
+  </section>
+
+  
+
+  
+  
+
+  
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-N py-N border-b border-light">
+      <hN class="text-heading font-bold" style="font-size:Npx;"><i class="fas fa-history mr-N text-fg-brand"></i> Traza de cambios</hN>
+    </div>
+    <div class="p-N">
+      <p class="text-sm text-body-subtle">Sin cambios registrados.</p>
+    </div>
+  </section>
+
+  
+  
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-N py-N border-b border-light">
+      <hN class="text-heading font-bold" style="font-size:Npx;">Acciones de revisión</hN>
+    </div>
+    <div class="p-N">
+      
+      <div class="mb-N rounded-lg bg-warning-soft border border-warning-subtle p-N text-sm text-fg-warning" role="status">
+        <strong>Aprobación bloqueada:</strong> La identidad debe estar validada antes de aprobar.
+      </div>
+      
+      
+      
+      <div class="flex justify-end gap-N">
+      <button type="button" id="btn-rechazar" class="btn-nodo btn-danger btn-base">
+        <i class="fas fa-times"></i> Rechazar
+      </button>
+      
+      <form method="post" action="/becas/revision/formulario/N/aprobar/" id="form-aprobar">
+        <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
+        <button type="button" id="btn-aprobar" class="btn-nodo btn-brand btn-base" disabled aria-disabled="true" title="La identidad debe estar validada antes de aprobar.">
+          <i class="fas fa-check"></i> Aprobar
+        </button>
+      </form>
+      
+      </div>
+    </div>
+  </section>
+  <form method="post" action="/becas/revision/formulario/N/rechazar/" id="form-rechazar" class="hidden">
+    <input type="hidden" name="csrfmiddlewaretoken" value="CSRF"><input type="hidden" name="motivo" id="motivo-rechazo">
+  </form>
+  
+
+  
+  
+  <div id="modal-rechazo-overlay" class="fixed inset-N z-[N] hidden items-center justify-center p-N bg-black/N" style="backdrop-filter:blur(Npx);">
+    <div role="dialog" aria-modal="true" aria-labelledby="modal-rechazo-title"
+         class="relative bg-white rounded-Nxl shadow-xl w-full max-w-[Npx] max-h-[Nvh] flex flex-col overflow-hidden">
+      
+<div class="flex items-center gap-N px-N py-N border-b border-light flex-shrink-N">
+  
+  <div class="flex items-center justify-center w-N h-N rounded-lg flex-shrink-N text-lg bg-danger-soft text-fg-danger">
+    <i class="fas fa-circle-xmark" aria-hidden="true"></i>
+  </div>
+  
+  <div class="flex-N min-w-N">
+    <hN id="modal-rechazo-title" class="text-lg font-bold text-heading">Rechazar caso</hN>
+    
+  </div>
+  <button type="button" data-becas-modal-cerrar  aria-label="Cerrar"
+          class="p-N.N rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors flex-shrink-N">
+    <i class="fas fa-xmark text-base" aria-hidden="true"></i>
+  </button>
+</div>
+
+      <div class="px-N py-N overflow-y-auto min-h-N">
+        <label for="modal-rechazo-motivo" class="block text-sm font-medium text-heading mb-N">
+          Motivo del rechazo <span class="text-fg-danger">*</span>
+        </label>
+        <textarea id="modal-rechazo-motivo" class="nodo-field" rows="N" placeholder="Detallá el motivo..."></textarea>
+        <p id="modal-rechazo-error" class="hidden mt-N.N text-xs text-fg-danger">El motivo es obligatorio.</p>
+      </div>
+      
+<div class="flex justify-end gap-N px-N py-N border-t border-light bg-secondary flex-shrink-N">
+  <button type="button" data-becas-modal-cerrar  class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+  <button type="submit" form="form-rechazar" class="btn-nodo btn-danger btn-base"><i class="fas fa-circle-xmark" aria-hidden="true"></i> Rechazar caso</button>
+</div>
+
+    </div>
+  </div>
+  
+
+  
+  
+  <div id="modal-forzar-overlay" class="fixed inset-N z-[N] hidden items-center justify-center p-N bg-black/N" style="backdrop-filter:blur(Npx);">
+    <div role="dialog" aria-modal="true" aria-labelledby="modal-forzar-title"
+         class="relative bg-white rounded-Nxl shadow-xl w-full max-w-[Npx] max-h-[Nvh] flex flex-col overflow-hidden">
+      
+<div class="flex items-center gap-N px-N py-N border-b border-light flex-shrink-N">
+  
+  <div class="flex items-center justify-center w-N h-N rounded-lg flex-shrink-N text-lg bg-warning-soft text-fg-warning">
+    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+  </div>
+  
+  <div class="flex-N min-w-N">
+    <hN id="modal-forzar-title" class="text-lg font-bold text-heading">Validar identidad manualmente</hN>
+    
+  </div>
+  <button type="button" data-becas-modal-cerrar  aria-label="Cerrar"
+          class="p-N.N rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors flex-shrink-N">
+    <i class="fas fa-xmark text-base" aria-hidden="true"></i>
+  </button>
+</div>
+
+      <form method="post" action="/becas/revision/formulario/N/forzar-identidad/" id="form-forzar-identidad" class="flex flex-col flex-N min-h-N">
+        <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
+        <div class="px-N py-N overflow-y-auto min-h-N">
+          <p class="text-sm text-body mb-N">
+            Habilita la aprobación sin la validación de Base de Personas. No cambia los datos de la persona: quedan los que se cargaron. El motivo se guarda en la traza del caso.
+          </p>
+          <label for="id_motivo" class="block text-sm font-medium text-heading mb-N">
+            Motivo de la validación manual <span class="text-fg-danger">*</span>
+          </label>
+          <textarea name="motivo" cols="N" rows="N" class="nodo-field" maxlength="N" required id="id_motivo">
+</textarea>
+          <p id="modal-forzar-error" class="hidden mt-N.N text-xs text-fg-danger">Contá el motivo con un poco más de detalle (al menos N caracteres).</p>
+        </div>
+        
+<div class="flex justify-end gap-N px-N py-N border-t border-light bg-secondary flex-shrink-N">
+  <button type="button" data-becas-modal-cerrar  class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+  <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-user-check" aria-hidden="true"></i> Validar manualmente</button>
+</div>
+
+      </form>
+    </div>
+  </div>
+  
+
+  
+  
+
+  <div id="image-preview-overlay"
+       class="fixed inset-N z-[N] hidden items-center justify-center p-N sm:p-N"
+       style="background:rgba(N,N,N,.N);"
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="image-preview-title">
+    <button type="button" id="image-preview-close"
+            aria-label="Cerrar imagen ampliada"
+            class="absolute right-N top-N flex h-N w-N items-center justify-center rounded-full text-white"
+            style="background:rgba(N,N,N,.N);">
+      <i class="fas fa-times text-xl" aria-hidden="true"></i>
+    </button>
+    <figure class="flex h-full w-full flex-col items-center justify-center gap-N">
+      <img id="image-preview-img"
+           src=""
+           alt=""
+           class="max-h-[Nvh] max-w-full rounded-xl object-contain shadow-Nxl">
+      <figcaption id="image-preview-title" class="text-center text-sm font-semibold text-white"></figcaption>
+    </figure>
+  </div>
+</div>
+
+                    </div>
+                </main>
+            </div>
+        </div>
+        
+        <!-- Alertas de Eventos Críticos -->
+        
+
+<style>
+@keyframes slideInRight {
+    from {
+        transform: translateX(N%);
+        opacity: N;
+    }
+    to {
+        transform: translateX(N);
+        opacity: N;
+    }
+}
+
+/* Renombramos para evitar conflicto con Tailwind 'pulse' y quitamos cambios de opacidad */
+@keyframes alertPulse {
+    N%, N% {
+        transform: scale(N);
+        filter: none;
+    }
+    N% {
+        transform: scale(N.N);
+        filter: brightness(N.N);
+    }
+}
+
+#alertas-eventos .alerta-critica {
+    opacity: N !important;
+    background: var(--bg-danger) !important;
+    animation: slideInRight N.Ns ease-out, alertPulse Ns infinite !important;
+    box-shadow: N Npx Npx rgba(N, N, N, N.N) !important;
+}
+
+#alertas-eventos .alerta-critica:hover {
+    animation-play-state: paused !important;
+    transform: scale(N.N) !important;
+}
+</style>
+
+<!-- Alertas de Eventos Críticos -->
+<div id="alertas-eventos" class="fixed top-N right-N z-[N] space-y-N">
+    
+</div>
+
+<script>
+function cerrarAlerta(eventoId) {
+    // Obtener CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.querySelector('meta[name=csrf-token]')?.getAttribute('content') ||
+                     getCookie('csrftoken');
+    
+    if (!csrfToken) {
+        console.error('CSRF token no encontrado');
+        return;
+    }
+    
+    fetch('/legajos/alertas/N/cerrar-ajax/'.replace('N', eventoId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken
+        },
+        body: ''
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const alertElement = document.getElementById('alerta-' + eventoId);
+            if (alertElement) {
+                alertElement.style.opacity = 'N';
+                alertElement.style.transform = 'translateX(N%)';
+                setTimeout(() => alertElement.remove(), N);
+            }
+        } else {
+            console.error('Error al cerrar alerta:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+// Función auxiliar para obtener cookie CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = N; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(N, name.length + N) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + N));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+        
+        <!-- Sistema de Modales Modernos -->
+        <template id="nodo-list-filters-template">
+<div class="dynamic-list-filters__toolbar">
+  <div class="dynamic-list-filters__title">
+    <svg width="N" height="N" viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="MN.N NhN.NMN.N NaN.N N.N N N-N NmN NaN.N N.N N N-N NMN.N NHN.NmN NhN.Nm-N.N NaN.N N.N N N-N NmN NaN.N N.N N N-N Nm-N.N NHN.NmN-NhN.Nm-N.N NaN.N N.N N N-N NmN NaN.N N.N N N-N Nm-N.N NhN.N"/></svg>
+    <span>Filtros</span>
+  </div>
+  <div class="dynamic-list-filters__actions">
+    <button type="button" class="btn-nodo btn-tertiary btn-base" data-list-filter-add>
+      <svg width="N" height="N" viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="MN N.NvNmN.N-N.Nh-N"/></svg>
+      Agregar filtro
+    </button>
+  </div>
+</div>
+<div class="dynamic-list-filters__rows" data-list-filter-rows></div>
+<div class="dynamic-list-filters__footer" data-list-filter-footer hidden>
+  <select class="nodo-field" style="width:Npx" data-list-filter-logic>
+    <option value="AND">Todos</option>
+    
+  </select>
+  <a href="#" class="btn-nodo btn-tertiary btn-base" data-list-filter-clear>Limpiar filtros</a>
+  <button type="submit" class="btn-nodo btn-brand btn-base">
+    <svg width="N" height="N" viewBox="N N N N" fill="none" stroke="currentColor" stroke-width="N.N" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="MN Nl-N.N-N.NmN NAN.N N.N N N.N N.NaN.N N.N N N.N N.Nz"/></svg>
+    Aplicar
+  </button>
+</div>
+</template>
+
+        <div id="modal-overlay" class="modal-responsive fixed inset-N z-N hidden bg-black/N backdrop-blur-sm transition-opacity duration-N">
+            <div class="flex min-h-[Ndvh] items-end justify-center p-N sm:min-h-screen sm:items-center sm:p-N">
+                <div id="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-message" class="modal-responsive-content w-full transform bg-white shadow-lg transition-all duration-N scale-N opacity-N sm:max-w-md sm:rounded-Nxl">
+                    <!-- Modal Header -->
+                    <div id="modal-header" class="modal-header border-b border-[color:var(--border-light)] p-N sm:p-N">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-N">
+                                <div id="modal-icon" class="w-N h-N rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-info-circle text-[Npx]" aria-hidden="true"></i>
+                                </div>
+                                <hN id="modal-title" class="text-lg font-bold text-[color:var(--text-heading)]">Información</hN>
+                            </div>
+                            <button id="modal-close" aria-label="Cerrar" class="touch-target text-[color:var(--text-body-subtle)] transition-colors hover:text-[color:var(--text-heading)]">
+                                <i class="fas fa-times text-[Npx]" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Modal Body -->
+                    <div id="modal-body" class="modal-body p-N sm:p-N">
+                        <p id="modal-message" class="text-[color:var(--text-body)] leading-relaxed"></p>
+                    </div>
+                    <!-- Modal Footer -->
+                    <div id="modal-footer" class="modal-footer flex flex-col-reverse gap-N border-t border-[color:var(--border-light)] bg-[color:var(--bg-secondary)] p-N sm:flex-row sm:justify-end sm:gap-N sm:space-x-N sm:p-N">
+                        <button id="modal-cancel" class="btn-nodo btn-tertiary btn-base hidden w-full sm:w-auto">
+                            Cancelar
+                        </button>
+                        <button id="modal-confirm" class="btn-nodo btn-brand btn-base w-full sm:w-auto">
+                            Aceptar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- CSRF Token para AJAX -->
+        <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
+        
+        <!-- NODO Toast: lee los mensajes de Django y expone window.toast() -->
+        <script src="/static/custom/js/nodo-toast.js"></script>
+        
+        <!-- Sistema de Modales Modernos -->
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Sistema de Modales Modernos
+                // Cada show() abre un turno nuevo: el cierre diferido de un modal anterior
+                // (p. ej. un onConfirm que abre otro modal) no toca al que está abierto.
+                let modalTurno = N;
+                window.ModernModal = {
+                    show: function(options) {
+                        const turno = ++modalTurno;
+                        const overlay = document.getElementById('modal-overlay');
+                        const content = document.getElementById('modal-content');
+                        const icon = document.getElementById('modal-icon');
+                        const title = document.getElementById('modal-title');
+                        const message = document.getElementById('modal-message');
+                        const confirmBtn = document.getElementById('modal-confirm');
+                        const cancelBtn = document.getElementById('modal-cancel');
+                        const closeBtn = document.getElementById('modal-close');
+                        
+                        // Configurar tipo de modal.
+                        // iconColor usa clases Tailwind mapeadas a los tokens del sistema (sin hex hardcodeado).
+                        const types = {
+                            success: { icon: 'fa-check-circle',        iconColor: 'bg-[color:var(--bg-success-soft)] text-[color:var(--text-fg-success)]' },
+                            error:   { icon: 'fa-exclamation-circle',  iconColor: 'bg-[color:var(--bg-danger-soft)] text-[color:var(--text-fg-danger)]' },
+                            warning: { icon: 'fa-exclamation-triangle', iconColor: 'bg-[color:var(--bg-warning-soft)] text-[color:var(--text-fg-warning)]' },
+                            info:    { icon: 'fa-info-circle',         iconColor: 'bg-[color:var(--bg-brand-soft)] text-[color:var(--text-fg-brand)]' },
+                            confirm: { icon: 'fa-question-circle',     iconColor: 'bg-[color:var(--bg-tertiary)] text-[color:var(--text-body-subtle)]' }
+                        };
+
+                        // Para confirmaciones destructivas pasá options.danger = true
+                        // (o options.confirmVariant = 'danger'): el botón toma btn-danger,
+                        // el ícono pasa al tono danger y el foco inicial va a Cancelar.
+                        const isDestructive = options.danger === true || options.confirmVariant === 'danger';
+
+                        // Tono del ícono de una confirmación: options.icon
+                        // ('warning' | 'danger' | 'question' | 'info'). Sin icon, una
+                        // destructiva usa 'danger' y el resto el «?» de siempre.
+                        const confirmIcons = {
+                            warning:  types.warning,
+                            danger:   types.error,
+                            question: types.confirm,
+                            info:     types.info
+                        };
+
+                        let type = types[options.type] || types.info;
+                        if (options.type === 'confirm') {
+                            type = Object.prototype.hasOwnProperty.call(confirmIcons, options.icon)
+                                ? confirmIcons[options.icon]
+                                : (isDestructive ? confirmIcons.danger : types.confirm);
+                        }
+
+                        // Configurar contenido
+                        icon.className = `w-N h-N rounded-lg flex items-center justify-center ${type.iconColor}`;
+                        icon.querySelector('i').className = `fas ${type.icon} text-[Npx]`;
+                        title.textContent = options.title || 'Información';
+                        message.textContent = options.message || '';
+
+                        // Configurar botón confirmar: btn-brand por defecto, btn-danger si es
+                        // destructiva. Mismo tamaño (btn-base) que los modales de formulario.
+                        confirmBtn.textContent = options.confirmText || 'Aceptar';
+                        confirmBtn.className = isDestructive
+                            ? 'btn-nodo btn-danger btn-base w-full sm:w-auto'
+                            : 'btn-nodo btn-brand btn-base w-full sm:w-auto';
+
+                        if (options.type === 'confirm') {
+                            cancelBtn.classList.remove('hidden');
+                            cancelBtn.textContent = options.cancelText || 'Cancelar';
+                        } else {
+                            cancelBtn.classList.add('hidden');
+                        }
+
+                        // Guardar el elemento que tenía el foco antes de abrir el modal
+                        // para restituirlo al cerrar (requisito aNy focus-return).
+                        const previouslyFocused = document.activeElement;
+
+                        // Trampa de foco: Tab / Shift+Tab ciclan solo entre los elementos
+                        // focusables del modal.
+                        const focusTrap = function(e) {
+                            if (e.key !== 'Tab') return;
+                            const focusable = Array.from(
+                                content.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-N"])')
+                            ).filter(el => !el.disabled && !el.classList.contains('hidden'));
+                            if (focusable.length === N) return;
+                            const first = focusable[N];
+                            const last = focusable[focusable.length - N];
+                            if (e.shiftKey) {
+                                if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+                            } else {
+                                if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+                            }
+                        };
+
+                        // Escape cierra el modal.
+                        const escHandler = function(e) {
+                            if (e.key === 'Escape') closeModal();
+                        };
+
+                        // Durante la animación de cierre (N ms) los botones siguen en el DOM:
+                        // tras el primer confirmar/cancelar/cerrar se ignoran los clics repetidos,
+                        // así un doble clic o un Enter-Enter no ejecuta onConfirm dos veces.
+                        let resuelto = false;
+                        let cerrando = false;
+
+                        // Configurar eventos de cierre (definidos antes de usarlos en los handlers)
+                        const closeModal = () => {
+                            if (cerrando) return;
+                            cerrando = true;
+                            resuelto = true;
+                            document.removeEventListener('keydown', focusTrap);
+                            document.removeEventListener('keydown', escHandler);
+                            if (turno !== modalTurno) return;
+                            overlay.style.opacity = 'N';
+                            content.style.transform = 'scale(N.N)';
+                            content.style.opacity = 'N';
+                            setTimeout(() => {
+                                if (turno !== modalTurno) return;
+                                overlay.classList.add('hidden');
+                                // Devolver el foco al elemento que lo tenía antes de abrir.
+                                if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+                                    previouslyFocused.focus();
+                                }
+                            }, N);
+                        };
+
+                        // Mostrar modal
+                        overlay.classList.remove('hidden');
+                        setTimeout(() => {
+                            overlay.style.opacity = 'N';
+                            content.style.transform = 'scale(N)';
+                            content.style.opacity = 'N';
+                            // Foco inicial: en una confirmación destructiva va a Cancelar (un Enter
+                            // de más no confirma); en el resto, al botón confirmar.
+                            (isDestructive && options.type === 'confirm' ? cancelBtn : confirmBtn).focus();
+                        }, N);
+
+                        document.addEventListener('keydown', focusTrap);
+                        document.addEventListener('keydown', escHandler);
+
+                        confirmBtn.onclick = () => {
+                            if (resuelto) return;
+                            resuelto = true;
+                            if (options.onConfirm) options.onConfirm();
+                            closeModal();
+                        };
+
+                        cancelBtn.onclick = () => {
+                            if (resuelto) return;
+                            resuelto = true;
+                            if (options.onCancel) options.onCancel();
+                            closeModal();
+                        };
+
+                        closeBtn.onclick = closeModal;
+
+                        overlay.onclick = (e) => {
+                            if (e.target === overlay) closeModal();
+                        };
+                    }
+                };
+
+                // Función global para mostrar alertas modernas.
+                // alert() nativo está prohibido; si ModernModal no estuviera disponible
+                // (no debería ocurrir en producción) se registra un error de diagnóstico.
+                window.showModernAlert = function(type, title, message) {
+                    if (typeof ModernModal !== 'undefined') {
+                        ModernModal.show({
+                            type: type,
+                            title: title,
+                            message: message
+                        });
+                    } else {
+                        console.error('ModernModal no disponible', message);
+                    }
+                };
+            });
+        </script>
+        
+        <!-- Cierre de sesión por inactividad (idle logout) -->
+        
+            <script>
+                window.idleLogoutConfig = {
+                    timeoutMinutes: N,
+                    warningSeconds: N,
+                    logoutUrl: "/logout",
+                    csrfToken: "CSRF",
+                    
+                    keepAliveUrl: "/sesion/latido/"
+                };
+            </script>
+            <script src="/static/custom/js/idle-logout.js"></script>
+        
+
+        <!-- Alertas WebSocket -->
+        
+            
+            <script id="user-groups-data" type="application/json">["Becas \uN Administrador"]</script>
+            <script>
+                // Pasar grupos del usuario al JavaScript
+                window.userGroups = JSON.parse(document.getElementById("user-groups-data").textContent);
+                window.isSuperuser = false;
+                window.websocketsEnabled = false;
+                // Destino de «Ver» en la alerta crítica: lo resuelve Django y no una
+                // ruta literal escrita en el JS. El `N` es el placeholder del id.
+                window.alertasConfig = {
+                    ciudadanoDetalleUrlTemplate: "/legajos/ciudadanos/N/",
+                };
+            </script>
+            
+                <script src="/static/custom/js/websocket_disable.js"></script>
+            
+            
+            
+            
+        
+        
+        
+<script src="/static/custom/js/becas-modal.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // POP-N: los tres modales propios de esta pantalla delegan foco, Tab atrapado,
+  // Escape y bloqueo del scroll de fondo en becas-modal.js. `mostrar`/`ocultar`
+  // siguen tocando `hidden` + `style.display`, que es lo que observa `bind`.
+  function mostrar(overlay) {
+    overlay.classList.remove('hidden');
+    overlay.style.display = 'flex';
+  }
+  function ocultar(overlay) {
+    overlay.classList.add('hidden');
+    overlay.style.display = 'none';
+  }
+  function modalAccesible(overlay, alCerrar) {
+    // El clic en el fondo cierra; los botones con data-becas-modal-cerrar los
+    // atiende bind(). Sin becas-modal.js cargado, el modal igual abre y cierra.
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) alCerrar(); });
+    if (window.becasModal) { window.becasModal.bind(overlay, { onClose: alCerrar }); }
+    else { overlay.querySelectorAll('[data-becas-modal-cerrar]').forEach(function (b) { b.addEventListener('click', alCerrar); }); }
+  }
+
+  const btnHistorialSiis = document.getElementById('btn-historial-siis');
+  const historialSiis = document.getElementById('historial-validaciones-siis');
+  if (btnHistorialSiis && historialSiis) {
+    btnHistorialSiis.addEventListener('click', function () {
+      const abierto = btnHistorialSiis.getAttribute('aria-expanded') === 'true';
+      btnHistorialSiis.setAttribute('aria-expanded', String(!abierto));
+      historialSiis.classList.toggle('hidden', abierto);
+    });
+  }
+
+  // SEC-N: el mapa se carga recien cuando alguien lo pide. El `src` viaja en
+  // `data-src` para que abrir el caso no le mande las coordenadas del domicilio
+  // —ni la IP, ni el Referer— a OpenStreetMap.
+  const btnVerMapa = document.getElementById('ver-mapa');
+  const mapaDelCaso = document.getElementById('mapa-del-caso');
+  if (btnVerMapa && mapaDelCaso) {
+    btnVerMapa.addEventListener('click', function () {
+      if (!mapaDelCaso.getAttribute('src')) {
+        mapaDelCaso.setAttribute('src', mapaDelCaso.dataset.src);
+      }
+      mapaDelCaso.classList.remove('hidden');
+      btnVerMapa.classList.add('hidden');
+    });
+  }
+
+  // Historial de envios a SIIS: mismo plegado que el de validaciones.
+  const btnHistorialEnvios = document.getElementById('btn-historial-envios-siis');
+  const historialEnvios = document.getElementById('historial-envios-siis');
+  if (btnHistorialEnvios && historialEnvios) {
+    btnHistorialEnvios.addEventListener('click', function () {
+      const abierto = btnHistorialEnvios.getAttribute('aria-expanded') === 'true';
+      btnHistorialEnvios.setAttribute('aria-expanded', String(!abierto));
+      historialEnvios.classList.toggle('hidden', abierto);
+    });
+  }
+
+  // Modal "Completar datos para SIIS": la localidad depende de la provincia y
+  // sale del catalogo de SIIS, no de una lista propia.
+  const datosSiisOverlay = document.getElementById('modal-datos-siis-overlay');
+  const btnDatosSiis = document.getElementById('btn-datos-siis');
+  if (datosSiisOverlay && btnDatosSiis) {
+    const urlLocalidades = "/becas/revision/siis/localidades/";
+
+    function cargarLocalidades(selProv, selLoc, actual) {
+      selLoc.innerHTML = '<option value="">Sin cambios</option>';
+      if (!selProv.value) { return; }
+      fetch(urlLocalidades + '?provincia=' + encodeURIComponent(selProv.value), { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          (data.localidades || []).forEach(function (l) {
+            const o = document.createElement('option');
+            o.value = l.id;
+            o.textContent = l.nombre;
+            if (String(l.id) === String(actual || '')) { o.selected = true; }
+            selLoc.appendChild(o);
+          });
+          if (data.error) { window.toast('error', data.error); }
+        })
+        .catch(function () { window.toast('error', 'No se pudieron cargar las localidades de SIIS.'); });
+    }
+
+    [['id_prov_actual', 'id_loc_actual', ''],
+     ['id_prov_nacim', 'id_loc_nacim', '']].forEach(function (par) {
+      const selProv = document.getElementById(par[N]);
+      const selLoc = document.getElementById(par[N]);
+      if (!selProv || !selLoc) { return; }
+      selProv.addEventListener('change', function () { cargarLocalidades(selProv, selLoc, ''); });
+      cargarLocalidades(selProv, selLoc, par[N]);
+    });
+
+    // La funcion por programa depende del programa social elegido: mismo patron.
+    const urlFunciones = "/becas/revision/siis/funciones/";
+    const selPlan = document.getElementById('id_id_plan_soc');
+    const selFuncion = document.getElementById('id_id_fun_x_plan');
+    if (selPlan && selFuncion) {
+      function cargarFunciones(actual) {
+        selFuncion.innerHTML = '<option value="">Sin cambios</option>';
+        if (!selPlan.value) { return; }
+        fetch(urlFunciones + '?programa=' + encodeURIComponent(selPlan.value), { credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            (data.funciones || []).forEach(function (f) {
+              const o = document.createElement('option');
+              o.value = f.id;
+              o.textContent = f.nombre;
+              if (String(f.id) === String(actual || '')) { o.selected = true; }
+              selFuncion.appendChild(o);
+            });
+            if (data.error) { window.toast('error', data.error); }
+          })
+          .catch(function () { window.toast('error', 'No se pudieron cargar las funciones del programa.'); });
+      }
+      selPlan.addEventListener('change', function () { cargarFunciones(''); });
+      cargarFunciones(selFuncion.getAttribute('data-actual') || '');
+    }
+
+    function cerrarDatosSiis() { ocultar(datosSiisOverlay); }
+    btnDatosSiis.addEventListener('click', function () { mostrar(datosSiisOverlay); });
+    modalAccesible(datosSiisOverlay, cerrarDatosSiis);
+  }
+
+  const imageOverlay = document.getElementById('image-preview-overlay');
+  const imagePreview = document.getElementById('image-preview-img');
+  const imageTitle = document.getElementById('image-preview-title');
+  const imageClose = document.getElementById('image-preview-close');
+  let imagePreviouslyFocused = null;
+
+  function closeImagePreview() {
+    imageOverlay.classList.add('hidden');
+    imageOverlay.style.display = 'none';
+    imagePreview.src = '';
+    if (imagePreviouslyFocused) imagePreviouslyFocused.focus();
+  }
+
+  document.querySelectorAll('[data-image-preview]').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+      imagePreviouslyFocused = trigger;
+      imagePreview.src = trigger.dataset.imageUrl;
+      imagePreview.alt = trigger.dataset.imageTitle || 'Imagen adjunta';
+      imageTitle.textContent = trigger.dataset.imageTitle || 'Imagen adjunta';
+      imageOverlay.classList.remove('hidden');
+      imageOverlay.style.display = 'flex';
+      imageClose.focus();
+    });
+  });
+  imageClose.addEventListener('click', closeImagePreview);
+  imageOverlay.addEventListener('click', function (event) {
+    if (event.target === imageOverlay) closeImagePreview();
+  });
+
+  // SIIS-N / BEC-N: un form marcado con data-un-solo-envio se manda una sola vez.
+  // El alta en SIIS no tiene baja, así que un doble clic que llega dos veces al
+  // servidor es irreversible; el servidor igual lo rechaza (envío vigente), pero
+  // el segundo POST ya gastó una consulta a SIIS.
+  function tomarEnvio(form) {
+    if (!form || form.dataset.enviando) return false;
+    form.dataset.enviando = 'N';
+    const boton = form.querySelector('button[type="submit"], button:not([type])');
+    if (boton) boton.disabled = true;
+    return true;
+  }
+
+  document.addEventListener('submit', function (e) {
+    const form = e.target && e.target.closest ? e.target.closest('form[data-un-solo-envio]') : null;
+    if (!form) return;
+    if (!tomarEnvio(form)) e.preventDefault();
+  });
+
+  const btnAprobar = document.getElementById('btn-aprobar');
+  if (btnAprobar) {
+    btnAprobar.addEventListener('click', function () {
+      if (btnAprobar.disabled) return;
+      ModernModal.show({
+        type: 'confirm',
+        title: '¿Aprobar caso?',
+        message: 'Si hay cupo disponible en el segmento, el caso pasará a estado aprobado. Si no, se agregará a la lista de espera. ¿Confirmás?',
+        confirmText: 'Sí, aprobar',
+        cancelText: 'Cancelar',
+        // ModernModal deja vivo el onclick de «Sí, …» durante los N ms del cierre:
+        // sin el guard, un doble clic ahí manda el form dos veces (BEC-N).
+        onConfirm: function () {
+          const form = document.getElementById('form-aprobar');
+          if (!tomarEnvio(form)) return;
+          btnAprobar.disabled = true;
+          form.submit();
+        }
+      });
+    });
+  }
+
+  // Modal "Validar identidad manualmente" (mismo patrón que el de rechazo).
+  const forzarOverlay = document.getElementById('modal-forzar-overlay');
+  if (forzarOverlay) {
+    const forzarForm = document.getElementById('form-forzar-identidad');
+    const forzarMotivo = forzarForm.querySelector('textarea, input[type="text"]');
+    const forzarError = document.getElementById('modal-forzar-error');
+
+    function cerrarModalForzar() { ocultar(forzarOverlay); }
+
+    const btnForzar = document.getElementById('btn-forzar-identidad');
+    if (btnForzar) {
+      btnForzar.addEventListener('click', function () {
+        forzarError.classList.add('hidden');
+        mostrar(forzarOverlay);
+      });
+    }
+    modalAccesible(forzarOverlay, cerrarModalForzar);
+    // El servidor vuelve a validar el motivo; esto solo evita el viaje al vacío.
+    forzarForm.addEventListener('submit', function (e) {
+      if (forzarMotivo.value.trim().length < N) {
+        e.preventDefault();
+        forzarError.classList.remove('hidden');
+        forzarMotivo.focus();
+      }
+    });
+  }
+
+  // El visor de imágenes no es un modal de Becas: mantiene su propio Escape.
+  // becas-modal.js no lo toca (no está en su pila), así que no se pisan.
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !imageOverlay.classList.contains('hidden')) {
+      closeImagePreview();
+    }
+  });
+
+  // Modal "Rechazar caso" con motivo obligatorio (markup propio de esta página).
+  // El pie envía #form-rechazar con el atributo form=, y acá se valida el motivo
+  // y se copia al campo oculto antes de dejar salir el submit.
+  const rechazoOverlay = document.getElementById('modal-rechazo-overlay');
+  const formRechazar = document.getElementById('form-rechazar');
+  if (rechazoOverlay && formRechazar) {
+    const rechazoMotivo = document.getElementById('modal-rechazo-motivo');
+    const rechazoError = document.getElementById('modal-rechazo-error');
+
+    const btnRechazar = document.getElementById('btn-rechazar');
+    if (btnRechazar) {
+      btnRechazar.addEventListener('click', function () {
+        rechazoMotivo.value = '';
+        rechazoError.classList.add('hidden');
+        mostrar(rechazoOverlay);
+      });
+    }
+    modalAccesible(rechazoOverlay, function () { ocultar(rechazoOverlay); });
+
+    formRechazar.addEventListener('submit', function (e) {
+      const motivo = rechazoMotivo.value.trim();
+      if (!motivo) {
+        e.preventDefault();
+        rechazoError.classList.remove('hidden');
+        rechazoMotivo.focus();
+        return;
+      }
+      document.getElementById('motivo-rechazo').value = motivo;
+    });
+  }
+});
+</script>
+
+
+        <script src="/static/custom/js/nodo-tooltips.js"></script>
+        <script src="/static/custom/js/dynamic_list_filters.js"></script>
+
+        <!-- Guardia de doble envío de los formularios clásicos (los `data-ajax` de
+             Becas traen la suya en _ajax_js.html). -->
+        <script src="/static/custom/js/nodo-submit-guard.js"></script>
+
+        <!-- Teclado de las solapas (FE-N): flechas, Home/End y tabindex itinerante
+             sobre toda [role="tablist"]. Mejora progresiva: no cambia nada visual ni
+             el estado de Alpine; activa la solapa disparando su propio click. -->
+        <script src="/static/custom/js/nodo-tabs.js"></script>
+
+        <!-- NODO SweetAlertN theming (fuente única): se ejecuta después de customJS
+             a propósito — reasigna window.Swal = Swal.mixin(...) y cada Swal.fire()
+             existente lee esa variable global recién al momento del click. -->
+        <script src="/static/custom/js/nodo-swal-theme.js"></script>
+    </body>
+</html>

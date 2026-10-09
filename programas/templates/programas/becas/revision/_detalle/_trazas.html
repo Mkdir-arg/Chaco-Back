@@ -1,0 +1,20 @@
+{% load static rbac nodo_ui becas_extras %}  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;"><i class="fas fa-history mr-1 text-fg-brand"></i> Traza de cambios</h2>
+    </div>
+    <div class="p-6">
+      {% if trazas %}
+      <ul class="space-y-2 text-sm">
+        {% for t in trazas %}
+        <li class="flex items-start gap-3 border-b border-light pb-2 last:border-0">
+          <span class="text-body-subtle whitespace-nowrap text-xs">{{ t.created_at|date:"d/m/Y H:i" }}</span>
+          <span class="text-heading flex-1"><strong>{{ t.campo }}</strong>:
+            <span class="text-body-subtle line-through">{{ t.valor_anterior|default:"—" }}</span>
+            → {{ t.valor_nuevo|default:"—" }}</span>
+          <span class="text-body-subtle text-xs">{{ t.editado_por.username|default:"—" }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="text-sm text-body-subtle">Sin cambios registrados.</p>{% endif %}
+    </div>
+  </section>

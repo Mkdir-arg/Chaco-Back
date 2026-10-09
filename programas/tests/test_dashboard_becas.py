@@ -916,3 +916,175 @@ class RespuestasPorPersonaTests(DashboardBecasBase):
         self.assertEqual(len(reporte.filas), 14)
         self.assertEqual(len(muchas), len(pocas))
         self.assertLessEqual(len(muchas), 10)
+
+
+#: Esquema del JSON de `programa_dashboard_datos`, clave por clave (RED-37, Ola 7).
+#:
+#: Un `dict` describe un objeto y se compara **por igualdad** de claves; una lista
+#: de un elemento describe «lista de esto» y se aplica a cada ítem; `None`
+#: significa «hoja: no se mira adentro». Lo que fija es el **conjunto exacto** de
+#: claves de cada nivel, porque `becas-dashboard.js` las lee a mano y sin
+#: fallback: `datos.localidades.top.map(f => f.localidad)` sobre una clave
+#: renombrada pinta un gráfico de `undefined`, sin error en consola y sin 500.
+ESQUEMA_DASHBOARD_BECAS = {
+    "datos": {
+        "programa_id": None,
+        "programa_nombre": None,
+        "filtros": {
+            "canal": None,
+            "convocatoria_id": None,
+            "desde": None,
+            "hasta": None,
+            "relevamiento_id": None,
+            "segmento_id": None,
+        },
+        "alcance": None,
+        "calculado_en": None,
+        "indicadores": {
+            "convocatorias_total": None,
+            "convocatorias_activas": None,
+            "convocatorias_cerradas_vencimiento": None,
+            "relevamientos_total": None,
+            "relevamientos_en_curso": None,
+            "relevamientos_publicos": None,
+            "formularios_recibidos": None,
+            "variacion_periodo_anterior": None,
+            "aprobados": None,
+            "tasa_aprobacion": None,
+            "pendientes": None,
+            "cupo_total": None,
+            "cupo_ocupado": None,
+            "lista_espera": None,
+        },
+        "serie_semanal": [{"semana": None, "hasta": None, "total": None}],
+        "estados": [{"clave": None, "etiqueta": None, "total": None}],
+        "canales": [{"clave": None, "etiqueta": None, "total": None}],
+        "convocatorias": [
+            {
+                "id": None,
+                "nombre": None,
+                "segmento": None,
+                "subsegmento": None,
+                "estado": None,
+                "activa": None,
+                "fecha_inicio": None,
+                "fecha_fin": None,
+                "relevamientos": None,
+                "en_curso": None,
+                "recibidos": None,
+                "aprobados": None,
+                "rechazados": None,
+                "bajas": None,
+                "pendientes": None,
+                "revisado_pct": None,
+                "cupo_segmento": None,
+                "cupo_ocupado": None,
+            }
+        ],
+        "relevamientos_por_estado": [{"clave": None, "etiqueta": None, "total": None}],
+        "embudo": [{"etapa": None, "total": None, "pct": None}],
+        "territoriales": [{"nombre": None, "formularios": None, "aprobados": None, "relevamientos": None}],
+        "localidades": {
+            "top": [{"localidad": None, "total": None, "pct": None}],
+            "detalle": [{"localidad": None, "total": None, "pct": None}],
+        },
+    },
+    "desde_cache": None,
+    "respuestas": {
+        "clave": None,
+        "texto": None,
+        "tipo": None,
+        "origen": None,
+        "multiple": None,
+        "base": None,
+        "opciones": [{"opcion": None, "total": None, "pct": None}],
+    },
+    "avisos": [],
+    "opciones": {"relevamientos": [{"id": None, "nombre": None, "tipo": None, "territorial": None, "estado": None}]},
+    "filtros_aplicados": {
+        "periodo": None,
+        "segmento": None,
+        "convocatoria": None,
+        "relevamiento": None,
+        "canal": None,
+        "pregunta": None,
+    },
+}
+
+
+class EsquemaDelJsonTests(DashboardBecasBase):
+    """RED-37 (Ola 7): el JSON del tablero de Becas tiene esquema fijado.
+
+    El endpoint no es DRF, así que no entra al OpenAPI: su contrato lo fija este
+    test. Son ~60 claves anidadas que `static/custom/js/becas-dashboard.js` lee
+    **a mano** —`datos.embudo.map(f => f.etapa)`, `datos.indicadores.cupo_total`,
+    `cuerpo.filtros_aplicados.pregunta`—, sin un solo `||` de fallback y sin
+    `try`. Renombrar una en el servicio deja el bloque del tablero en blanco o en
+    `NaN`, con 200, sin error en consola y sin ningún test en rojo.
+
+    Qué **no** toca este test: la caché por modelo (RED-51, #648) y el freno de
+    30 s de «Actualizar» (G1b-12), que miden `CacheTests` y
+    `test_dashboard_exports.py`. Acá se mide la forma, no la frescura.
+    """
+
+    def _url(self, **params):
+        base = reverse("becas:programa_dashboard_datos", args=[self.programa.pk])
+        return base + "?" + "&".join(f"{k}={v}" for k, v in params.items()) if params else base
+
+    def _comparar(self, esperado, real, ruta="cuerpo"):
+        if esperado is None:
+            return
+        if isinstance(esperado, dict):
+            self.assertIsInstance(real, dict, f"{ruta}: se esperaba un objeto")
+            self.assertEqual(set(esperado), set(real), f"{ruta}: cambió el conjunto de claves")
+            for clave, sub in esperado.items():
+                self._comparar(sub, real[clave], f"{ruta}.{clave}")
+            return
+        self.assertIsInstance(real, list, f"{ruta}: se esperaba una lista")
+        if not esperado:
+            return
+        for i, item in enumerate(real):
+            self._comparar(esperado[0], item, f"{ruta}[{i}]")
+
+    def _cuerpo_rico(self):
+        """Un recorte con al menos un ítem en cada lista, para que el esquema se
+        mida también adentro de los arreglos y no solo en el primer nivel."""
+        self._formulario(
+            self.rel_propio,
+            creado=HOY - timedelta(days=1),
+            data={"globales": {str(self.q_laboral.pk): "Trabaja"}, "requisitos": {}},
+        )
+        self.client.force_login(self.admin)
+        return self.client.get(self._url(periodo="90", convocatoria=self.conv_propia.pk)).json()
+
+    def test_el_json_del_tablero_tiene_el_esquema_declarado(self):
+        self._comparar(ESQUEMA_DASHBOARD_BECAS, self._cuerpo_rico())
+
+    def test_las_listas_del_esquema_traen_al_menos_un_item_en_el_caso_rico(self):
+        """Si vinieran todas vacías, el test de arriba no miraría nada adentro."""
+        datos = self._cuerpo_rico()["datos"]
+
+        for clave in ("serie_semanal", "estados", "canales", "convocatorias", "relevamientos_por_estado", "embudo"):
+            with self.subTest(clave=clave):
+                self.assertTrue(datos[clave], f"datos.{clave} vino vacío: el esquema de su ítem no se verificó")
+
+    def test_una_pregunta_inexistente_cae_a_la_primera_y_no_borra_la_clave(self):
+        """`pintarRespuestas(cuerpo.respuestas)` se llama siempre: la clave no se
+        puede ir del cuerpo aunque el filtro pedido no exista (RN-5)."""
+        self.client.force_login(self.admin)
+
+        cuerpo = self.client.get(self._url(periodo="90", pregunta="global:999999")).json()
+
+        self.assertIn("respuestas", cuerpo)
+        self._comparar(ESQUEMA_DASHBOARD_BECAS["respuestas"], cuerpo["respuestas"], "cuerpo.respuestas")
+        self.assertEqual(cuerpo["filtros_aplicados"]["pregunta"], cuerpo["respuestas"]["clave"])
+
+    def test_el_error_de_metricas_sigue_llegando_en_errores(self):
+        """`becas-dashboard.js:188` lee `(cuerpo.errores || []).join(' ')`: es una
+        **lista**, no el `errores` por campo del constructor."""
+        self.client.force_login(self.admin)
+
+        cuerpo = self.client.get(self._url(periodo="custom", desde="2026-09-05", hasta="2026-01-01")).json()
+
+        self.assertEqual(set(cuerpo), {"errores"})
+        self.assertIsInstance(cuerpo["errores"], list)
