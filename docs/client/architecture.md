@@ -79,12 +79,12 @@ Descripción técnica del sistema **Chaco**: topología de despliegue, runtime, 
 
     | Componente | Versión | Rol |
     |---|---|---|
-    | django-silk | 5.0.4 | Profiling de requests y queries (`/silk/`, 100% en dev, 10% en prd) |
-    | django-health-check | 3.17.0 | Endpoint `/health/` con checks de DB, cache y disco |
-    | django-simple-history | 3.4.0 | Auditoría automática de modelos críticos |
+    | django-silk | 5.1.0 | Profiling de requests y queries (`/silk/`). Solo en desarrollo: no viaja en la imagen |
     | drf-spectacular | 0.27.0 | OpenAPI 3 + Swagger UI + ReDoc |
-    | structlog | 23.2.0 | Logging estructurado |
     | psutil | 5.9.8 | Métricas de sistema para monitoreo interno |
+
+    Las sondas de salud (`/health/` y `/health/ready/`) son código propio del
+    repo, no un paquete de terceros.
 
 ---
 

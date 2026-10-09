@@ -367,6 +367,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 193 | Las capacidades de un programa dejan de valer fuera de él: catálogo, wizard, delegación y roles sembrados | Transversal — RBAC (ABM de Roles y de Usuarios) · Becas (exports de convocatoria, proceso masivo, pendientes de RENAPER) · Configuración (wizard de programas) | `#rbac` `#usuarios` `#datos` `#infra` | Auditoría oct-2026, Ola 2 PR 1 (SEC-06, SEC-07, G1b-02, G1b-06, OPS-06 fase 2, RED-80) | 08/10/2026 | 🟢 **Hecho** | Sí: `users.0029`-`0032` (la `0031` **quita** capacidades, con reversa real y registro) y `programas.0084` |
 | 194 | La red de seguridad de la Ola 4: presupuestos que no se suben solos, los dos destinos que faltaban, el cache de la home por modelo y los índices que no servían | Transversal (CI de performance, cache del inicio, índices de base) · Becas (link público y alta por la app de campo: presupuestos) · Legajos (admin de contactos) | `#performance` `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-62, RED-10 (2.ª parte), RED-51 (parte Ola 4) y RED-83 (migración) (Ola 4, PR 9) | 08/10/2026 | 🟢 **Hecho** (cierra la Ola 4) | `legajos.0011` y `programas.0084` (solo `DROP INDEX`, online) |
 | 195 | Sacar del repo lo que no corre: los módulos de «optimización», 29 JS huérfanos y el código muerto de Legajos | Transversal (dashboard de performance, comandos, guard del release, estáticos) · Legajos (vistas y templates sin ruta, «Derivar a Programa») | `#infra` `#performance` `#ui` `#rbac` | Auditoría integral oct-2026 — fichas OPS-10, OPS-14 (con RED-65), FE-14 y LEG-06 (Ola 7, PR 1) | 09/10/2026 | 🟢 **Hecho** (D-L06 aplicada por default; D-F16 no: `programa_detalle` sigue siendo destino de redirect de las derivaciones) | `users.0033` (sin DDL) |
+| 196 | La imagen deja de llevar once paquetes que nadie importa, y el CI deja de instalar «lo último que haya» | Transversal — dependencias de la imagen (`requirements*.txt`), `INSTALLED_APPS`, workflows del CI, dependabot | `#infra` `#performance` | Auditoría integral oct-2026 — fichas OPS-13 (con RED-45) y RED-85 (Ola 7, PR 2) | 09/10/2026 | 🟢 **Hecho** (D-RED-08 aplicada: el parche de gevent se borra y la guarda del entrypoint se queda; `django-zeal` y `psutil` no se tocan, code-first) | `core.0003` (borra la tabla de `django-health-check` y sus dos filas de `django_migrations`) |
 
 **Notas del índice**
 
@@ -29565,3 +29566,221 @@ fuera de `static/custom/css/tailwind.css`, que se regenera con `npm run build:ta
 ## Historial
 
 No aplica.
+---
+
+# Cambio 196 — La imagen deja de llevar once paquetes que nadie importa, y el CI deja de instalar «lo último que haya»
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — dependencias de la imagen (`requirements*.txt`), `INSTALLED_APPS`, workflows del CI, dependabot |
+| **Etiquetas** | `#infra` `#performance` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 7 «Deuda», PR 2 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — fichas OPS-13 (con RED-45 adentro) y RED-85; más los cinco MINOR de la revisión de #648 |
+| **Partes afectadas** | Infra/ECOM (imagen de producción, `pip-audit`) · CI |
+| **Migración** | `core.0003_retirar_django_health_check` (borra una tabla de un paquete que se retira y sus dos filas de `django_migrations`) |
+
+## Pedido original
+
+Las dos fichas de dependencias y CI de la Ola 7. **OPS-13:** `requirements.txt` tenía
+paquetes con cero imports —el bloque «AI/ML» entero, `structlog`, `gevent`, `pymysql`,
+`django-simple-history`, `django-health-check`— y `django_extensions` cargado en
+`INSTALLED_APPS` también en producción. **RED-45**, adentro de OPS-13: borrar el parche de
+gevent. **RED-85:** `requirements-ci.txt` con las herramientas del CI pineadas y un
+dependabot semanal.
+
+## Alcance acordado
+
+**Entra:** los once paquetes de la *Ubicación* de OPS-13 (nueve se van del todo, tres se
+mudan a `requirements-dev.txt`); el borrado de `config/gevent_patch.py` y de las líneas de
+`wsgi.py`; la limpieza de base que la ampliación de OPS-13 exige para poder sacar
+`django-health-check`; `requirements-ci.txt` con las cinco herramientas del CI y los seis
+`pip install` sueltos reemplazados; `.github/dependabot.yml` para pip, GitHub Actions y
+npm; y el pin de `setuptools`, que RED-85 nombra como suyo.
+
+**Queda afuera, y por qué:**
+
+- **`django-zeal` no se muda a `requirements-dev.txt`**, contra la letra de la *Propuesta*
+  de OPS-13. Code-first: `config/settings.py` lo suma a `INSTALLED_APPS` con
+  `PYTEST_RUNNING` y cuatro módulos de tests hacen `from zeal import zeal_ignore` **al
+  importar**. Todo job que corre la suite instala `requirements.txt`; moverlo obligaría a
+  instalar otro archivo en cada uno de ellos y en cada checkout local, a cambio de un
+  paquete que en producción no se carga nunca porque `PYTEST_RUNNING` no está definida.
+- **`psutil` se queda**: la ficha no lo nombra y `core/views/performance.py` lo importa
+  para la métrica de memoria del proceso.
+- **Encender `Ruff estilo` como bloqueante.** El pin era la condición técnica que
+  faltaba y ya está, pero sumarlo al ruleset es una decisión del PM.
+
+## Decisiones tomadas
+
+- **RED-45 se borra, y la guarda del entrypoint se queda.** Se verificó antes, como pide
+  la consigna, qué worker usa gunicorn en cada ambiente: `docker-entrypoint.sh` arranca
+  `gunicorn config.wsgi:application` **sin `--worker-class`**, con `--threads`, o sea
+  gthread; la única forma de pedir gevent eran las dos variables de entorno, y desde el
+  Cambio 159 el entrypoint **aborta** ante las cuatro formas de pedirlo en cualquiera de
+  las dos. O sea: ningún ambiente puede estar arrancando con gevent sin que el pod muera
+  primero con el motivo escrito. Lo que ECOM usa sigue sin estar confirmado (H-05), y por
+  eso el paso 0 de `espejo-ecom.md` —leer `GUNICORN_CMD_ARGS` y `GUNICORN_WORKER_CLASS`
+  del ambiente antes de espejar— **no se toca**: sigue siendo la verificación humana. Sin
+  el paquete, el peor caso pasa de «respuestas con datos de otra persona» a «gunicorn no
+  arranca y lo dice».
+- **Sacar `django-health-check` necesita una migración, y esa es la mitad cara de la
+  ficha.** La ampliación de OPS-13 (PR R-15) ya lo había medido: la app tiene una
+  migración aplicada y la tabla `health_check_db_testmodel` en icore, testing y PRD.
+  `core.0003` borra la tabla y las **dos** filas de `django_migrations` (`db.0001_initial`
+  y `health_check_db.0001_initial`: el `app_label` del paquete cambió entre versiones y su
+  `0001_initial` declara un `replaces`).
+- **Es *contract*, no *expand*.** Lo que se borra dejó de leerse en el Cambio 153, cuando
+  OPS-04 retiró `path("health/", include("health_check.urls"))`: el backend
+  `health_check.db` solo toca esa tabla cuando corre un plugin de health check, y ninguna
+  URL llega a uno desde entonces. Van más de dos releases.
+- **`django_extensions` y `silk` se agregan a `INSTALLED_APPS` solo si están instalados**,
+  no con un `if DEBUG` a secas. El `docker-compose.yml` de desarrollo levanta **la misma
+  imagen de producción** con `DJANGO_DEBUG=True`: con la lista incondicional, el
+  contenedor de dev moriría al importar. Faltando, la app arranca igual y lo único que se
+  pierde es `shell_plus` y `/silk/`. Por lo mismo `config/urls.py` monta `/silk/` por
+  `SILK_HABILITADO` y no por `DEBUG`.
+- **`setuptools` sube de 80.9.0 a 83.0.0 y la excepción de seguridad se retira.**
+  `PYSEC-2026-3447` (CVE-2026-59890) era la única entrada de `security/excepciones.toml` y
+  su ticket decía «RED-85, que es donde se toca el pin». 83.0.0 es la primera versión
+  corregida —el salto más chico, como el Cambio 97—. Se verificó que
+  `pip-audit -r requirements.txt` da «No known vulnerabilities found» **sin ningún**
+  `--ignore-vuln` antes de sacarla.
+- **Las versiones de `requirements-ci.txt` son las que el CI ya venía instalando** al
+  09/10/2026 (`ruff` 0.16.10, `coverage` 7.16.2, `pip-audit` 2.10.1, `bandit` 1.9.4,
+  `mkdocs-material` 9.7.7). Pinear lo que ya corría significa que este PR no cambia ningún
+  resultado del CI: solo lo congela.
+- **El archivo se instala entero en cada job que usa alguna herramienta**, aunque use una
+  sola. Tener las versiones en un archivo y no repartidas por seis YAML es el punto de la
+  ficha; el costo son ~20 s de descarga en jobs que duran minutos.
+- **Dependabot sin ningún `ignore`.** Un mayor que no convenga se cierra a mano y queda el
+  registro de que se decidió; un `ignore` escrito en el YAML se olvida.
+- **Ningún job se renombra.** Los nueve contextos del ruleset de `development` siguen
+  llamándose igual; lo que cambió son pasos adentro de los jobs.
+
+## Implementación
+
+Para el usuario del sistema no cambia nada: ninguno de los paquetes que se van tenía un
+solo `import` en el código. Lo que cambia es qué viaja en la imagen y qué instala el CI.
+
+**Los cinco MINOR de la revisión de #648**, que entran en este mismo PR:
+
+1. `scripts/check_perf_budgets.py` — una subida de presupuesto queda justificada solo por
+   una entrada **nueva** de `_meta.adjustments` (clave que no existía) que **nombre** el
+   presupuesto como palabra entera o como clave exacta. Antes alcanzaba con editar un
+   carácter de una entrada vieja que ya nombraba varios, y el match por substring daba por
+   nombrada una clave corta como `login` porque aparecía adentro de otra palabra.
+2. El mismo script compara contra el **merge-base** y no contra el tip de la base. En el
+   CI da lo mismo; en un worktree cuyo `origin/development` avanzó más allá de una
+   *bajada* de presupuesto, la corrida local salía roja sin que el PR tocara el JSON.
+3. `pr-performance.yml` — el disparo por `push` compara contra `github.event.before`, que
+   cubre el rango entero. Con `HEAD^`, un push directo de N commits dejaba sin comparar
+   los N-1 primeros. `HEAD^` queda como respaldo para el primer push de una rama (donde
+   `before` son 40 ceros) y para `workflow_dispatch`.
+4. `scripts/perf_audit.py` — si el muestreo se queda sin sesiones sembradas, revienta
+   nombrando el número que hay que mover, en vez de reusar en silencio una sesión gastada
+   (el síntoma era un rechazo por DNI duplicado y un 200 donde se espera un 302). Y el
+   comentario del rango de DNI de `seed_perf.py` dice lo que pasa de verdad: el alta por
+   la API de campo numera desde 75.000.000 más un desplazamiento que llega a 8.999.999, o
+   sea hasta 83.999.999, **adentro** del bloque sembrado desde 80.000.000.
+5. `programas/migrations/0085` — se corrige **solo el comentario**: PERF-13 sí registró
+   `key=programas_f_estado_e0feb6_idx` para la bandeja `estado=BAJA` página 10. No hay
+   consecuencia (el índice que sobrevive es idéntico sobre `(estado)`), pero quien
+   reproduzca esa medición va a ver otro `key=`. Las operaciones no se tocan: es una
+   migración ya mergeada.
+
+## Archivos
+
+Nuevos: `requirements-dev.txt`, `requirements-ci.txt`, `.github/dependabot.yml`,
+`core/migrations/0003_retirar_django_health_check.py`, `core/tests/test_dependencias.py`.
+Borrado: `config/gevent_patch.py`.
+Editados: `requirements.txt`, `config/settings.py`, `config/urls.py`, `config/wsgi.py`,
+`security/excepciones.toml`, `scripts/check_perf_budgets.py`, `scripts/perf_audit.py`,
+`core/management/commands/seed_perf.py`,
+`core/management/commands/verificar_esquema_migraciones.py` (solo el docstring),
+`programas/migrations/0085_indices_redundantes_red83.py` (solo el docstring),
+`.github/workflows/pr-quality.yml`, `pr-backend.yml`, `pr-security.yml`,
+`pr-performance.yml`, `docs-auto-deploy.yml`, `docs/internal/venv-setup.md`,
+`docs/client/architecture.md` y cuatro módulos de tests.
+
+## Base de datos
+
+`core.0003_retirar_django_health_check`, con `atomic = False` y los tres pasos
+idempotentes (RED-58): `DROP TABLE health_check_db_testmodel` condicionado a que la tabla
+exista según `introspection`, y dos `DELETE FROM django_migrations` filtrados por su fila.
+La tabla es de un paquete de terceros, guarda una fila transitoria que el propio check
+escribe y borra, y nada la lee desde el Cambio 153.
+
+**Reversa real, no noop:** vuelven la tabla (vacía, con su DDL escrito a mano para
+MySQL/MariaDB y SQLite) y las dos filas. Lo único que no vuelve es el `applied` original de
+esas filas y el contenido de la tabla, que es transitorio por diseño. Las dos direcciones
+están cubiertas por tests que las ejecutan contra la base de la suite.
+
+## Validación
+
+`.venv312` (Python 3.12 + Django 5.2.17, igual al CI). `manage.py check`: 0 issues.
+`check --deploy`: los 4 avisos preexistentes del entorno local (`SIIS_API_URL` sin definir
+y tres `security.W*`); adentro de la imagen, con `settings_production` y `ENVIRONMENT=prd`,
+queda **1** aviso, el del `SECRET_KEY` de prueba. `makemigrations --check --dry-run`: sin
+cambios. `scripts/check_migraciones.py` sobre `core/migrations/0003`: 0 problemas. Suite
+completa: 0 fallos. ruff `check .` y `format --check` limpios.
+
+**Docker, corrido de verdad:** `docker build` sobre `python:3.12-slim` OK;
+`manage.py check --deploy` adentro de la imagen OK; `manage.py check` adentro de la imagen
+con `DJANGO_DEBUG=True` **también** OK (es el escenario del `docker-compose.yml` de
+desarrollo, que levanta esta imagen sin `django-extensions` ni `silk`); `collectstatic
+--noinput` con `ENVIRONMENT=prd`: 332 archivos, 1.448 post-procesados, sin errores.
+
+**pip-audit** (el método del CI) sobre el `requirements.txt` nuevo: «No known
+vulnerabilities found», sin ignores.
+
+**actionlint** (`docker run rhysd/actionlint`): 0 errores en los 9 workflows, incluido el
+shellcheck del paso de bash que se reescribió en `pr-performance.yml`.
+
+**TDD.** Los tests nuevos se corrieron contra el código anterior y fallan: `resolver_base`
+no existía (los dos de `BaseDeComparacionTests` dan error de import), los dos casos rojos
+nuevos de `check_perf_budgets` devolvían lista vacía contra el script viejo,
+`test_el_parche_ya_no_existe` estaba salteado y se saltea, `DependabotTests` no tenía
+archivo que leer y `test_ningun_workflow_instala_una_herramienta_sin_version` encontraba
+seis `pip install` sueltos.
+
+## Puesta en marcha en el servidor
+
+El deploy normal: la imagen reinstala `requirements.txt` al construir y el entrypoint
+corre `migrate`, que aplica `core.0003`.
+
+Dos cosas que conviene saber:
+
+- **Quien trabaje en local tiene que instalar `requirements-dev.txt`**, no
+  `requirements.txt`, o pierde `shell_plus`, `/silk/` y el debugger. Está documentado en
+  `docs/internal/venv-setup.md`.
+- **`manage.py shell_plus` deja de existir en los ambientes servidos.** `manage.py shell`
+  sigue estando. Si alguien de ECOM lo usaba, hay que saberlo antes y no después.
+
+## Pendientes / a definir
+
+- **Confirmar con ECOM que nadie usa `shell_plus` en testing ni en PRD**, que es lo que la
+  *Propuesta* de OPS-13 pide confirmar y esta sesión no puede. Si lo usan, la vuelta atrás
+  es una línea: `django-extensions` vuelve a `requirements.txt`.
+- **H-05 sigue abierta:** no está confirmado qué `GUNICORN_*` tiene el Deployment de ECOM.
+  El paso 0 de `espejo-ecom.md` es el que lo cubre y se corre antes de espejar.
+- `Ruff estilo` es candidato a bloquear: el pin que faltaba ya está. Decisión del PM.
+- El alta de `becas_api_alta` en `perf_audit` puede pisar un DNI sembrado para algunos
+  `worker_id` de `perf_ci_probe`. Queda **documentado y no arreglado** en `seed_perf.py`:
+  moverlo cambiaría los DNI medidos y el `TestCase` de presupuestos es determinista
+  (`worker_id=None` → desplazamiento 2.473.870, fuera del bloque).
+
+## Reversión
+
+Revertir el merge devuelve los once paquetes, el parche de gevent y los `pip install`
+sueltos. La base necesita además `manage.py migrate core 0002`, que recrea
+`health_check_db_testmodel` vacía y vuelve a insertar las dos filas de
+`django_migrations`; si no se corre, la release vieja igual arranca —su `migrate` ve
+`db.0001_initial` sin aplicar, no encuentra la tabla y la crea—. No se pierde ningún dato:
+esa tabla no guarda nada entre un health check y el siguiente.
+
+## Historial
+
+Entrada nueva.

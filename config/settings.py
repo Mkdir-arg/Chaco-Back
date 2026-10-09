@@ -1,3 +1,4 @@
+import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -101,7 +102,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.admindocs",
-    "django_extensions",
     "rest_framework",
     "rest_framework.authtoken",
     # Sin la app, `DEFAULT_SCHEMA_CLASS` y `SPECTACULAR_SETTINGS` quedaban
@@ -122,16 +122,14 @@ INSTALLED_APPS = [
     "django_filters",
     "channels",
     "django_redis",
-    # OPS-04: sus URLs ya **no** se montan (`config/urls.py`), porque el include de
-    # `healthcheck.urls` las tapaba y eran inalcanzables. Las apps siguen acá a
-    # propósito: tienen una migración aplicada (`db.0001_initial` y
-    # `health_check_db.0001_initial`) y la tabla `health_check_db_testmodel` en los
-    # ambientes. Sacarlas de INSTALLED_APPS deja esas dos filas sin archivo y esa tabla
-    # sin modelo, que es justo lo que `verificar_esquema_migraciones` frena. Retirar el
-    # paquete es OPS-13, y tiene que venir con esa limpieza.
-    "health_check",
-    "health_check.db",
-    "health_check.cache",
+    # OPS-13 (Cambio 196): acá estaban las tres apps de `django-health-check`. OPS-04 ya
+    # les había sacado las URLs (Cambio 153) y las sondas del sistema son la app
+    # `healthcheck` de este repo (`/health/` y `/health/ready/`). Lo que faltaba para
+    # poder retirarlas era la limpieza que `core.0003` hace: su tabla
+    # (`health_check_db_testmodel`) y sus dos filas de `django_migrations`
+    # (`db.0001_initial` y `health_check_db.0001_initial`; el `app_label` cambió entre
+    # versiones del paquete, por eso son dos). Sin eso quedaban una tabla sin modelo y
+    # dos filas sin archivo en icore, testing y PRD.
     "users",
     "core",
     "dashboard",
@@ -143,9 +141,21 @@ INSTALLED_APPS = [
     "healthcheck",
 ]
 
-# Silk (profiling): solo en desarrollo, nunca en producción.
+# Silk (profiling) y django-extensions (`shell_plus`, `show_urls`): solo en desarrollo,
+# nunca en producción. OPS-13: `django_extensions` estaba arriba, incondicional, así que
+# viajaba en la imagen de PRD con sus comandos cargados; los dos paquetes pasaron a
+# `requirements-dev.txt` y la imagen (`requirements.txt`) ya no los trae.
+#
+# Se agregan solo **si están instalados**, y no a secas, porque el `docker-compose.yml` de
+# desarrollo levanta esa misma imagen con `DJANGO_DEBUG=True`: con un `INSTALLED_APPS`
+# incondicional el contenedor moriría al importar. Faltando, lo único que se pierde es el
+# profiling y `shell_plus`; la app arranca igual.
+_APPS_DE_DESARROLLO = ("django_extensions", "silk")
 if DEBUG:
-    INSTALLED_APPS += ["silk"]
+    INSTALLED_APPS += [app for app in _APPS_DE_DESARROLLO if importlib.util.find_spec(app) is not None]
+
+#: Lo lee `config/urls.py` para montar `/silk/` solo cuando la app entró de verdad.
+SILK_HABILITADO = "silk" in INSTALLED_APPS
 
 if PYTEST_RUNNING:
     INSTALLED_APPS += ["zeal"]

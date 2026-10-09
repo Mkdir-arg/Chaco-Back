@@ -52,7 +52,20 @@ jobs:
         shell: bash
         run: |
           base="${{ github.event.pull_request.base.sha }}"
-          [ -n "$base" ] || base="$(git rev-parse HEAD^)"
+          # Disparo por `push` a development: la base es el estado **anterior al push**
+          # entero, no el commit anterior. Con `HEAD^` un push de N commits dejaba sin
+          # comparar los N-1 primeros, que es justo donde se cuela una subida de techo.
+          # `github.event.before` son 40 ceros en el primer push de una rama y no existe
+          # en `workflow_dispatch`: ahí se cae a `HEAD^`, que es lo único que hay.
+          if [ -z "$base" ]; then
+            base="${{ github.event.before }}"
+            case "$base" in
+              ""|0000000000000000000000000000000000000000) base="" ;;
+            esac
+            [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null || base=""
+            [ -n "$base" ] || base="$(git rev-parse HEAD^)"
+          fi
+          echo "Comparando contra $base"
           python scripts/check_perf_budgets.py --base "$base"
 
       - name: Run performance query budgets

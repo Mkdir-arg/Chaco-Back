@@ -22,8 +22,13 @@ jobs:
         with:
           python-version: "3.12"
 
+      # RED-85: con `pip install pip-audit` cada corrida traía lo último publicado, y
+      # este check es **obligatorio** desde el Cambio 121: un release de pip-audit que
+      # estreche una regla frena todos los merges abiertos a la vez, incluidos los PRs
+      # que no tocaron ninguna dependencia. Con el pin, la novedad llega cuando se sube
+      # la versión, en un PR que la mira.
       - name: Install pip-audit
-        run: pip install pip-audit
+        run: pip install -r requirements-ci.txt
 
       # RED-63: los ignores salen de `security/excepciones.toml`, no del YAML. Cada
       # entrada declara motivo, ticket y `vence_el`, y este paso pone el job en rojo el

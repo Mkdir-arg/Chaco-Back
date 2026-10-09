@@ -59,6 +59,15 @@ RATCHET = RAIZ / ".design-audit-ratchet"
 USES = re.compile(r"^\s*-?\s*uses:\s*(?P<accion>[^@\s]+)@(?P<ref>\S+)\s*(?:#\s*(?P<comentario>.*))?$", re.MULTILINE)
 SHA = re.compile(r"^[0-9a-f]{40}$")
 
+# RED-85
+REQUIREMENTS_CI = RAIZ / "requirements-ci.txt"
+DEPENDABOT = RAIZ / ".github" / "dependabot.yml"
+HERRAMIENTAS_DEL_CI = ("ruff", "coverage", "pip-audit", "bandit", "mkdocs-material")
+#: Cómo se invoca cada herramienta en un `run:` (`mkdocs-material` instala `mkdocs`).
+INVOCACION = re.compile(r"(?m)^\s*(?:python -m\s+)?(ruff|coverage|pip-audit|bandit|mkdocs)\b")
+#: Un `pip install` cualquiera. Lo único admitido es `-r <archivo>` o el `--upgrade pip`.
+PIP_INSTALL = re.compile(r"(?m)^\s*(?:python -m\s+)?pip install\s+(?P<argumentos>.+)$")
+
 
 def _cargar(nombre):
     return yaml.safe_load((WORKFLOWS / nombre).read_text(encoding="utf-8"))
@@ -76,6 +85,20 @@ def _nombres_de_jobs(flujo):
 
 def _todos_los_workflows():
     return {ruta.name: _cargar(ruta.name) for ruta in sorted(WORKFLOWS.glob("*.yml"))}
+
+
+def _lineas_de_requisitos(ruta):
+    """Las líneas de un `requirements*.txt` que declaran un paquete (sin comentarios)."""
+    return [
+        linea.strip()
+        for linea in ruta.read_text(encoding="utf-8").splitlines()
+        if linea.strip() and not linea.lstrip().startswith(("#", "-r "))
+    ]
+
+
+def _distribucion(linea):
+    """`bandit[toml]==1.9.4` → `bandit`."""
+    return linea.split("==")[0].split("[")[0].strip().lower()
 
 
 # La lista literal de lo que el ruleset tiene que exigir. Va escrita a mano y no derivada
@@ -269,9 +292,10 @@ class RuffBloqueanteTests(SimpleTestCase):
         self.assertIn("--select F", comandos)
 
     def test_el_job_de_estilo_sigue_sin_bloquear(self):
-        """Hoy da 0, pero Ruff se instala sin versión: un release con una regla E/W nueva
-        volvería rojo un PR que no cambió nada. Se enciende cuando esté `requirements-ci.txt`
-        (RED-85, Ola 7).
+        """Hoy da 0 y desde el Cambio 196 Ruff está pineado (`requirements-ci.txt`,
+        RED-85), que era la condición técnica que faltaba. Encenderlo —sacarle el
+        `continue-on-error` y sumarlo al ruleset— lo decide el PM, y mientras tanto este
+        test fija el estado que hay.
         """
         job = self._job("Ruff estilo")
 
@@ -420,6 +444,111 @@ class ActionsPineadasTests(SimpleTestCase):
         self.assertTrue(usos, "RED-20 mueve los filtros `paths` adentro del job con dorny/paths-filter")
         for uso in usos:
             self.assertRegex(uso.group("ref"), SHA)
+
+
+class HerramientasDelCiPineadasTests(SimpleTestCase):
+    """RED-85 (Ola 7): ninguna herramienta del CI se instala «la última que haya».
+
+    Los workflows hacían `pip install ruff`, `pip install coverage`,
+    `pip install pip-audit` y `pip install mkdocs-material`. Un release de cualquiera
+    vuelve rojo un PR que no cambió una línea, y el autor no tiene cómo saber que el rojo
+    no es suyo. `Pip Audit` es el peor caso: es obligatorio desde el Cambio 121 y su base
+    de advisories cambia sola, así que un release suyo frena **todos** los merges
+    abiertos a la vez.
+    """
+
+    def _runs(self, nombre):
+        flujo = _cargar(nombre)
+        for job in (flujo.get("jobs") or {}).values():
+            yield job, "\n".join(paso.get("run", "") for paso in (job.get("steps") or []))
+
+    def test_ningun_workflow_instala_una_herramienta_sin_version(self):
+        sueltos = []
+        for ruta in sorted(WORKFLOWS.glob("*.yml")):
+            for _job, comandos in self._runs(ruta.name):
+                for coincidencia in PIP_INSTALL.finditer(comandos):
+                    argumentos = coincidencia.group("argumentos").strip()
+                    if argumentos.startswith("-r ") or argumentos == "--upgrade pip":
+                        continue
+                    sueltos.append(f"{ruta.name}: pip install {argumentos}")
+
+        self.assertEqual(
+            sueltos,
+            [],
+            "la versión tiene que salir de un archivo de requirements, no del índice de PyPI: " + str(sueltos),
+        )
+
+    def test_requirements_ci_pinea_todas_sus_lineas(self):
+        """Un `>=` o un nombre pelado acá es exactamente el problema que la ficha cierra."""
+        for linea in _lineas_de_requisitos(REQUIREMENTS_CI):
+            with self.subTest(linea=linea):
+                self.assertIn("==", linea)
+
+    def test_estan_las_cinco_herramientas_que_el_ci_usa(self):
+        distribuciones = {_distribucion(linea) for linea in _lineas_de_requisitos(REQUIREMENTS_CI)}
+
+        self.assertEqual(distribuciones, set(HERRAMIENTAS_DEL_CI))
+
+    def test_el_job_que_usa_una_herramienta_instala_el_archivo(self):
+        """Pinear en un archivo que ningún job instala no sirve de nada."""
+        for ruta in sorted(WORKFLOWS.glob("*.yml")):
+            for nombre_job, comandos in self._runs(ruta.name):
+                if not INVOCACION.search(comandos):
+                    continue
+                with self.subTest(workflow=ruta.name, job=nombre_job.get("name", "?")):
+                    self.assertIn("pip install -r requirements-ci.txt", comandos)
+
+    def test_requirements_ci_no_trae_nada_de_la_aplicacion(self):
+        """La separación es el punto de la ficha: lo que importa el producto va en
+        `requirements.txt` y lo instala la imagen; esto no viaja a ningún ambiente."""
+        de_la_imagen = {_distribucion(linea) for linea in _lineas_de_requisitos(RAIZ / "requirements.txt")}
+        del_ci = {_distribucion(linea) for linea in _lineas_de_requisitos(REQUIREMENTS_CI)}
+
+        self.assertEqual(de_la_imagen & del_ci, set())
+        self.assertNotIn("-r requirements.txt", REQUIREMENTS_CI.read_text(encoding="utf-8"))
+
+
+class DependabotTests(SimpleTestCase):
+    """RED-85, la otra mitad: con todo pineado, lo que envejece es el pin.
+
+    Sin dependabot, «fijar la versión» es cambiar un riesgo por otro: la advisory nueva
+    deja de frenar un PR ajeno y pasa a no aparecer nunca.
+    """
+
+    ECOSISTEMAS = {"pip", "github-actions", "npm"}
+
+    def setUp(self):
+        self.configuracion = yaml.safe_load(DEPENDABOT.read_text(encoding="utf-8"))
+
+    def test_cubre_los_tres_ecosistemas_del_repo(self):
+        """`pip` (los tres requirements), las actions de los workflows y el `tailwindcss`
+        de `package.json`, cuyo CSS compilado está commiteado."""
+        declarados = {bloque["package-ecosystem"] for bloque in self.configuracion["updates"]}
+
+        self.assertEqual(declarados, self.ECOSISTEMAS)
+
+    def test_todos_apuntan_a_development(self):
+        """`main` es una release generada por `publish-main.yml` y no se toca a mano
+        (`docs/internal/branching.md`): un PR de dependabot contra `main` no tendría
+        dónde mergear."""
+        for bloque in self.configuracion["updates"]:
+            with self.subTest(ecosistema=bloque["package-ecosystem"]):
+                self.assertEqual(bloque.get("target-branch"), "development")
+
+    def test_todos_corren_semanalmente(self):
+        for bloque in self.configuracion["updates"]:
+            with self.subTest(ecosistema=bloque["package-ecosystem"]):
+                self.assertEqual((bloque.get("schedule") or {}).get("interval"), "weekly")
+
+    def test_pip_mira_la_raiz_que_es_donde_viven_los_tres_archivos(self):
+        """`requirements.txt`, `requirements-dev.txt` y `requirements-ci.txt` están en la
+        raíz: con `directory: "/"` dependabot los toma a los tres."""
+        bloque = next(b for b in self.configuracion["updates"] if b["package-ecosystem"] == "pip")
+
+        self.assertEqual(bloque["directory"], "/")
+        for archivo in ("requirements.txt", "requirements-dev.txt", "requirements-ci.txt"):
+            with self.subTest(archivo=archivo):
+                self.assertTrue((RAIZ / archivo).exists())
 
 
 class ContratosDelRepoTests(SimpleTestCase):

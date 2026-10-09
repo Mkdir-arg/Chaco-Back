@@ -29,10 +29,13 @@ jobs:
         with:
           python-version: '3.12'
 
+      # RED-85: `mkdocs-material` se instalaba sin versión. Este job tiene
+      # `contents: write` y publica el sitio público: lo que construye el artefacto se
+      # pinea igual que las actions.
       - name: Install documentation dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install mkdocs-material
+          pip install -r requirements-ci.txt
 
       - name: Build docs (strict)
         run: python -m mkdocs build --strict
