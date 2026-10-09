@@ -12,7 +12,7 @@
 -r requirements.txt
 
 # `manage.py` lo importa y abre el puerto 3000 cuando `DEBUG` y `RUN_MAIN`/`WERKZEUG_RUN_MAIN`.
-debugpy==1.8.5
+debugpy==1.8.22
 
 # `shell_plus`, `show_urls`, `graph_models`. `config/settings.py` lo suma a
 # `INSTALLED_APPS` solo con `DEBUG`: en un ambiente servido no hay `shell_plus`.
