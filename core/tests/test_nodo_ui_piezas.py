@@ -3,6 +3,7 @@ alerta inline, errores no de campo y el filtro ``hay_filtros``
 (W2-C9b, CMP-11/22/23, ALR-14/15, FE-08)."""
 
 import re
+from decimal import Decimal
 from io import StringIO
 from pathlib import Path
 
@@ -23,6 +24,7 @@ STAT = "components/_stat_card.html"
 VACIO = "components/_estado_vacio.html"
 ALERTA = "components/_alerta.html"
 FORM_ERRORES = "components/_form_errores.html"
+UBICACION = "components/_ubicacion.html"
 
 
 def _pagina(total, numero=1, por_pagina=10):
@@ -531,6 +533,42 @@ class AlertaTest(SimpleTestCase):
 
         self.assertNotIn("<script>", html)
         self.assertNotIn("<img", html)
+
+
+class UbicacionTest(SimpleTestCase):
+    def test_con_coordenadas_muestra_valores_y_enlace_externo_seguro(self):
+        html = render_to_string(UBICACION, {"latitud": Decimal("-27.451234"), "longitud": Decimal("-58.986543")})
+
+        self.assertIn("-27,451234", html)
+        self.assertIn("-58,986543", html)
+        self.assertIn("mlat=-27.451234&amp;mlon=-58.986543", html)
+        self.assertIn('target="_blank" rel="noopener noreferrer"', html)
+        self.assertNotIn("Sin ubicación cargada", html)
+        self.assertNotIn("<script", html)
+        self.assertNotIn("<iframe", html)
+
+    def test_sin_coordenadas_muestra_el_vacio_y_ningun_enlace(self):
+        for contexto in ({}, {"latitud": None, "longitud": None}, {"latitud": Decimal("-27.4"), "longitud": None}):
+            html = render_to_string(UBICACION, contexto)
+
+            self.assertIn("Sin ubicación cargada", html)
+            self.assertNotIn("<a ", html)
+
+    def test_plano_adjunto_es_opcional(self):
+        base = {"latitud": Decimal("-27.45"), "longitud": Decimal("-58.98")}
+
+        self.assertNotIn("Plano del edificio", render_to_string(UBICACION, base))
+        html = render_to_string(UBICACION, {**base, "plano_url": "/media/plano.pdf"})
+        self.assertIn('href="/media/plano.pdf" target="_blank" rel="noopener noreferrer"', html)
+        self.assertIn("Plano del edificio", html)
+
+    def test_escapa_el_nombre_del_plano(self):
+        html = render_to_string(
+            UBICACION,
+            {"latitud": Decimal("-27.45"), "longitud": Decimal("-58.98"), "plano_url": "/p", "plano_nombre": "<b>x</b>"},
+        )
+
+        self.assertNotIn("<b>x", html)
 
 
 class FormErroresTest(SimpleTestCase):
