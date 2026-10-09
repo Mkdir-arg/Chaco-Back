@@ -9,8 +9,6 @@ from programas.services.exportacion_reportes import respuesta_reporte
 from programas.services.reportes import (
     filtrar_dispositivos,
     filtrar_merenderos,
-    movimientos_dispositivos,
-    ocupacion_dispositivos,
     padron_dispositivos,
     padron_merenderos_con_entregas,
     parsear_periodo,
@@ -28,32 +26,25 @@ def _respuesta(reporte, formato, nombre):
 
 
 class DispositivoExportView(DispositivoProgramaPermissionMixin, View):
+    """Padrón de dispositivos.
+
+    Los reportes de **ocupación** y **movimientos** se fueron con `Cama` y
+    `Admision`: los repone el MVP v2 sobre `Plaza` y `Estadia`. Con ellos se fue
+    también el filtro por período, que acotaba por fecha de ingreso o de egreso de
+    una estadía; el padrón se sigue filtrando por tipo, estado y localidad.
+    """
+
     capacidad_requerida = "dispositivo.ver"
 
     def get(self, request, reporte, formato):
-        try:
-            desde, hasta = _periodo(request)
-        except ValueError as error:
-            return HttpResponseBadRequest(str(error))
-
         dispositivos = filtrar_dispositivos(
             dispositivos_visibles(request.user),
             tipo=request.GET.get("tipo"),
             estado=request.GET.get("estado"),
             localidad=request.GET.get("localidad", "").strip(),
-            desde=desde,
-            hasta=hasta,
         )
         if reporte == "padron":
             return _respuesta(padron_dispositivos(dispositivos), formato, "padron_dispositivos")
-        if reporte == "ocupacion":
-            return _respuesta(ocupacion_dispositivos(dispositivos), formato, "ocupacion_dispositivos")
-        if reporte == "movimientos":
-            return _respuesta(
-                movimientos_dispositivos(dispositivos, desde=desde, hasta=hasta),
-                formato,
-                "movimientos_dispositivos",
-            )
         return HttpResponseBadRequest("Reporte no válido.")
 
 

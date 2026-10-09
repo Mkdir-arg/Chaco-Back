@@ -188,13 +188,10 @@ class UnSoloFieldTests(SimpleTestCase):
                 self.assertNotIn("programas/dispositivos/config/_field.html", contenido)
 
     def test_las_pantallas_de_la_ficha_dejaron_de_escribir_el_campo_a_mano(self):
+        # Las cinco de admisiones y camas se fueron con sus modelos (MVP v2, release A);
+        # las tres que quedan son las mismas pantallas de la ficha que siguen vivas.
         pantallas = [
-            "programas/templates/programas/admisiones/admitir.html",
-            "programas/templates/programas/admisiones/egreso.html",
-            "programas/templates/programas/admisiones/promover.html",
-            "programas/templates/programas/admisiones/traslado.html",
             "programas/templates/programas/dispositivos/legajo/form.html",
-            "programas/templates/programas/dispositivos/legajo/cama_form.html",
             "programas/templates/programas/merenderos/entrega_form.html",
             "programas/templates/programas/merenderos/solicitud_form.html",
         ]

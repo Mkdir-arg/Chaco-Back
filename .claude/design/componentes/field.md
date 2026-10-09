@@ -69,6 +69,12 @@ De `programas/forms.py` la evidencia de diseño es **`INPUT_CLASS` y los `widget
 el resto del archivo es validación de dominio (`clean_*`, validaciones cruzadas) y no define nada
 visual. Un cambio ahí que no toque `INPUT_CLASS` ni un widget no mueve esta ficha.
 
+**Formularios armados en runtime: queda uno.** El F-00 de Dispositivos (`F00DinamicoForm`) armaba
+sus campos leyendo la configuración del tipo y les ponía `INPUT_CLASS`/`CHECKBOX_CLASS` a mano,
+igual que el constructor de Becas. Se fue con `CampoTipoDispositivo` (MVP v2, release A), así que
+el único form dinámico vivo es el de Becas: si hace falta volver a rendir un formulario
+configurable, el molde es ese y no uno nuevo.
+
 **Campo de archivo: `accept` junto a `nodo-field`.** Los `ClearableFileInput` que aceptan adjuntos
 llevan `attrs={"class": INPUT_CLASS, "accept": ACCEPT_ADJUNTO}` —la constante vive en
 `core.validators` y se arma desde `ADJUNTO_EXTENSIONES`, la misma lista blanca que valida el

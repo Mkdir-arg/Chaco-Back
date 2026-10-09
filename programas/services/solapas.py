@@ -1,10 +1,9 @@
 import re
 import unicodedata
 
-from django.db.models import Exists, OuterRef, Q
-from django.urls import reverse
+from django.db.models import Q
 
-from ..models import Admision, DerivacionPrograma, InscripcionPrograma, Programa
+from ..models import DerivacionPrograma, InscripcionPrograma, Programa
 from .inscripciones import activar_inscripcion
 
 
@@ -41,21 +40,17 @@ class SolapasService:
         inscripciones_activas = (
             ciudadano.inscripciones_programas.filter(estado__in=["ACTIVO", "EN_SEGUIMIENTO"])
             .select_related("programa", "responsable")
-            .annotate(
-                tiene_admision_alojada=Exists(
-                    Admision.objects.filter(
-                        inscripcion_programa_id=OuterRef("pk"),
-                        estado=Admision.Estado.ALOJADO,
-                    )
-                )
-            )
             .order_by("programa__orden")
         )
 
         for inscripcion in inscripciones_activas:
             programa = inscripcion.programa
             tipo_normalizado = cls._normalizar_tipo_programa(programa.tipo)
-            if tipo_normalizado == "DISPOSITIVOS" and not inscripcion.tiene_admision_alojada:
+            # Dispositivos no abre solapa hasta que exista `Estadia` (MVP v2, E2): la
+            # condición que decidía si mostrarla —tener una estadía alojada— y el
+            # contenido que rendía eran lecturas de `Admision`. Sin ella la solapa
+            # quedaría abriendo una pantalla vacía, así que no se ofrece.
+            if tipo_normalizado == "DISPOSITIVOS":
                 continue
             url_name = cls._obtener_url_programa(tipo_normalizado)
             url_params = {"ciudadano_id": ciudadano.id, "inscripcion_id": inscripcion.id}
@@ -67,7 +62,7 @@ class SolapasService:
                     "color": programa.color,
                     "url_name": url_name,
                     "url_params": url_params,
-                    "url": reverse(url_name, kwargs=url_params) if tipo_normalizado == "DISPOSITIVOS" else None,
+                    "url": None,
                     "orden": 100 + programa.orden,
                     "estatica": False,
                     "programa": programa,

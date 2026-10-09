@@ -71,14 +71,14 @@ CICLOS_CONOCIDOS = {
 # es un helper compartido a propósito, no un acoplamiento accidental.
 EXENTOS = {"ajax_utils"}
 #
-# Seis: la Ola 2 (PR 5) bajó el techo de nueve a siete. `dashboard_becas →
+# Cinco: la Ola 2 (PR 5) bajó el techo de nueve a siete. `dashboard_becas →
 # configuracion` se fue con `_programas_qs` (hoy `autorizacion.programas_siis_visibles`)
 # y `pausas → relevamientos` con `CAP_RELEVAMIENTO_PUBLICO` (hoy en `autorizacion`).
 # `revision → relevamientos` se fue con PERF-02 (Ola 4): `PaginadorConConteo` y la
 # hidratación por pk viven en `programas.services.listados`, que es de donde las toman
-# las tres vistas que paginan casos.
+# las tres vistas que paginan casos. `admisiones → dispositivos_legajo` se fue con la
+# vista entera (MVP v2, release A): tomaba de ahí el mixin de permisos del programa.
 ARISTAS_CONOCIDAS = {
-    ("admisiones", "dispositivos_legajo"),
     ("configuracion", "dashboard_becas"),
     ("configuracion", "diseno"),
     ("reportes", "dispositivos_legajo"),

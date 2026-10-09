@@ -1,5 +1,5 @@
 import csv
-from datetime import date, datetime
+from datetime import date
 from io import BytesIO, StringIO
 
 from django.contrib.auth import get_user_model
@@ -8,15 +8,12 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
-from django.utils import timezone
 from openpyxl import load_workbook
 
 from core import rbac
 from legajos.models import Ciudadano
 from programas.models import (
-    Admision,
     AsignacionDispositivo,
-    Cama,
     Convocatoria,
     Dispositivo,
     EntregaMercaderia,
@@ -190,40 +187,6 @@ class ReportesExportablesTests(TestCase):
             self._xlsx(xlsx_response), [tuple(self._csv(csv_response)[0]), tuple(self._csv(csv_response)[1])]
         )
 
-    def test_ocupacion_y_movimientos_incluyen_los_limites_del_periodo(self):
-        cama_ocupada = Cama.objects.create(dispositivo=self.dispositivo, codigo="C-01", estado=Cama.Estado.OCUPADA)
-        Cama.objects.create(dispositivo=self.dispositivo, codigo="C-02")
-        ciudadano = Ciudadano.objects.create(dni="38000001", nombre="Ana", apellido="Reporte")
-        inicio = timezone.make_aware(datetime(2026, 7, 1, 9, 0))
-        fin = timezone.make_aware(datetime(2026, 7, 31, 18, 0))
-        Admision.objects.create(
-            ciudadano=ciudadano,
-            dispositivo=self.dispositivo,
-            fecha_ingreso=inicio,
-            fecha_egreso=fin,
-            estado=Admision.Estado.EGRESADO,
-        )
-        ciudadano_alojado = Ciudadano.objects.create(dni="38000002", nombre="Beto", apellido="Ocupación")
-        Admision.objects.create(
-            ciudadano=ciudadano_alojado,
-            dispositivo=self.dispositivo,
-            cama=cama_ocupada,
-            fecha_ingreso=timezone.now(),
-            estado=Admision.Estado.ALOJADO,
-        )
-
-        ocupacion = self.client.get(reverse("dispositivos:exportar", args=["ocupacion", "xlsx"]))
-        movimientos = self.client.get(
-            reverse("dispositivos:exportar", args=["movimientos", "csv"]),
-            {"desde": "2026-07-01", "hasta": "2026-07-31"},
-        )
-
-        fila_ocupacion = next(fila for fila in self._xlsx(ocupacion)[1:] if fila[0] == "DIS-001")
-        self.assertEqual(fila_ocupacion[3:7], (2, 1, 1, 50))
-        filas_movimientos = self._csv(movimientos)
-        self.assertEqual(filas_movimientos[1][0:2], ["Ingreso", "01/07/2026"])
-        self.assertIn(["Egreso", "31/07/2026"], [fila[0:2] for fila in filas_movimientos[1:]])
-
     def test_padron_merenderos_con_entregas_csv_y_excel_respeta_periodo_y_estado(self):
         EntregaMercaderia.objects.create(
             merendero=self.merendero,
@@ -249,38 +212,6 @@ class ReportesExportablesTests(TestCase):
 
         self.assertEqual(self._csv(csv_response)[1][-3:], ["15/07/2026", "5", "Merienda"])
         self.assertEqual(self._xlsx(xlsx_response)[1][-3:], ("15/07/2026", 5, "Merienda"))
-
-    def test_periodo_dispositivos_muestra_y_exporta_el_mismo_conjunto_inclusivo(self):
-        inicio = timezone.make_aware(datetime(2026, 7, 1, 9, 0))
-        fin = timezone.make_aware(datetime(2026, 7, 31, 18, 0))
-        ciudadano = Ciudadano.objects.create(dni="38000003", nombre="Cora", apellido="Período")
-        Admision.objects.create(
-            ciudadano=ciudadano,
-            dispositivo=self.dispositivo,
-            fecha_ingreso=inicio,
-            estado=Admision.Estado.ALOJADO,
-        )
-        Admision.objects.create(
-            ciudadano=Ciudadano.objects.create(dni="38000004", nombre="Dino", apellido="Egreso"),
-            dispositivo=self.otro_dispositivo,
-            fecha_ingreso=timezone.make_aware(datetime(2026, 6, 30, 9, 0)),
-            fecha_egreso=fin,
-            estado=Admision.Estado.EGRESADO,
-        )
-        filtros = {"desde": "2026-07-01", "hasta": "2026-07-31"}
-
-        listado = self.client.get(reverse("dispositivos:lista"), filtros)
-        padron_csv = self.client.get(reverse("dispositivos:exportar", args=["padron", "csv"]), filtros)
-        padron_xlsx = self.client.get(reverse("dispositivos:exportar", args=["padron", "xlsx"]), filtros)
-        movimientos_csv = self.client.get(reverse("dispositivos:exportar", args=["movimientos", "csv"]), filtros)
-        movimientos_xlsx = self.client.get(reverse("dispositivos:exportar", args=["movimientos", "xlsx"]), filtros)
-
-        visibles = {dispositivo.codigo for dispositivo in listado.context["dispositivos"]}
-        self.assertEqual(visibles, {"DIS-001", "DIS-002"})
-        self.assertEqual({fila[0] for fila in self._csv(padron_csv)[1:]}, visibles)
-        self.assertEqual({fila[0] for fila in self._xlsx(padron_xlsx)[1:]}, visibles)
-        self.assertEqual({fila[2] for fila in self._csv(movimientos_csv)[1:]}, visibles)
-        self.assertEqual({fila[2] for fila in self._xlsx(movimientos_xlsx)[1:]}, visibles)
 
     def test_periodo_merenderos_muestra_y_exporta_el_mismo_conjunto_no_anulado(self):
         EntregaMercaderia.objects.create(
@@ -327,17 +258,25 @@ class ReportesExportablesTests(TestCase):
                 self.assertEqual(self._xlsx(xlsx_response)[1][1], f"'{valor}")
 
     def test_periodo_invalido_devuelve_error_controlado_y_archivo_vacio_es_valido(self):
+        """El período quedó solo en Merenderos: el de Dispositivos acotaba por estadía."""
         invalido = self.client.get(
-            reverse("dispositivos:exportar", args=["movimientos", "csv"]),
+            reverse("merenderos:exportar", args=["csv"]),
             {"desde": "2026-08-01", "hasta": "2026-07-01"},
         )
         vacio = self.client.get(
-            reverse("dispositivos:exportar", args=["movimientos", "csv"]),
+            reverse("merenderos:exportar", args=["csv"]),
             {"desde": "2025-01-01", "hasta": "2025-01-31"},
         )
 
         self.assertEqual(invalido.status_code, 400)
         self.assertEqual(len(self._csv(vacio)), 1)
+
+    def test_el_reporte_de_ocupacion_dejo_de_existir(self):
+        """Lo repone el MVP v2 sobre `Plaza` y `Estadia`; hasta entonces no es un reporte."""
+        for reporte in ("ocupacion", "movimientos"):
+            with self.subTest(reporte=reporte):
+                respuesta = self.client.get(reverse("dispositivos:exportar", args=[reporte, "csv"]))
+                self.assertEqual(respuesta.status_code, 400)
 
     def test_consulta_solo_exporta_su_alcance_y_no_puede_acceder_a_merenderos(self):
         consulta = get_user_model().objects.create_user(username="consulta-reportes", password="test")

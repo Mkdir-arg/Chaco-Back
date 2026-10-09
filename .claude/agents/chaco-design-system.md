@@ -237,8 +237,11 @@ El lenguaje visual es el mismo en todos los módulos; el vocabulario de dominio,
   traslada: convocatoria, segmento, subsegmento, cupo, lista de espera, beneficiario,
   formulario enviado, relevamiento, padrón y SIIS **solo existen en Becas**.
 - **Dispositivos** es operación institucional continua: legajo del dispositivo, estado
-  operativo, camas, admisiones, egresos, traslados, partes diarios y auditoría de
-  movimientos. Lectura rápida de ocupación y disponibilidad; historial que no se borra.
+  operativo, tipos y auditoría de movimientos; historial que no se borra. El circuito
+  operativo viejo —camas, admisiones, egresos, traslados y partes diarios— se dio de baja
+  con sus modelos (MVP v2, release A) y **no es vocabulario vigente**: lo reemplazan
+  sector, plaza, estadía, turno y bitácora, que entran pantalla por pantalla con el MVP
+  (`docs/internal/dispositivos-v2/plan-mvp.md`). No copiar las pantallas dadas de baja.
 - **Merenderos** habla de solicitudes, validación institucional, entregas de mercadería,
   prestación mensual y documentación respaldatoria.
 - **Transversal** (shell, usuarios, roles, legajos, portal, configuración): verificar
