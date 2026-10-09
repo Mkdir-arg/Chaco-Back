@@ -20,6 +20,9 @@ class UsuariosAdminService:
     @staticmethod
     @transaction.atomic
     def update_user_from_form(form, alcance_group_ids=None):
+        # G1b-09: primero el candado, antes de leer y de escribir. Tomarlo después
+        # serializaría pero el check seguiría contando sobre la foto vieja.
+        rbac.tomar_candado_de_administracion()
         user = form.instance
         # Programas que el usuario administraba ANTES del cambio: si la edición le
         # quita el rol de administración de alguno, no puede dejarlo huérfano (RN-8).

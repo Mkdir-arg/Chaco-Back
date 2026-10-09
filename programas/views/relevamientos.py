@@ -329,7 +329,6 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         )
         # Fija: un disabled no viaja en el POST; el valor lo aporta el hidden del template.
         ctx["form_crear"].fields["convocatoria"].widget.attrs["disabled"] = True
-        ctx["siguiente_nombre"] = Relevamiento.proximo_nombre()
         # Padrón de habilitados (Cambio 57; herencia por relevamiento, Cambio 74):
         # acá se administra el de la convocatoria, que heredan los relevamientos
         # sin padrón propio. Un solo aggregate trae los dos niveles.
@@ -685,7 +684,6 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
         ]
         form_crear.fields["territorial"].choices = opciones_territoriales
         ctx["form_crear"] = form_crear
-        ctx["siguiente_nombre"] = Relevamiento.proximo_nombre()
         return ctx
 
 

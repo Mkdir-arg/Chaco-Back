@@ -121,6 +121,17 @@ class RolesAdminService:
     @staticmethod
     @transaction.atomic
     def crear(form):
+        # G1b-09 (ronda 3): crear un rol no puede dejar al sistema sin administradores,
+        # así que acá el candado no está por el check sino por el **orden de los locks**.
+        # `_set_capacidades` escribe `auth_group_permissions` y por la FK InnoDB pide un
+        # lock sobre filas sueltas de `auth_permission`, en el orden en que recorre las
+        # capacidades tildadas; el candado bloquea las suyas recorriendo el índice
+        # `(content_type_id, codename)`. Las dos cosas a la vez cierran el ciclo contra
+        # cualquiera de los otros seis caminos: sin esta línea, 11-14 deadlocks de 20
+        # corridas en `mariadb:10.11` y 18-20 de 20 en `mysql:8.0` —`ERROR 1213`, que
+        # ninguna vista atrapa, o sea 500— y 0 con ella (`CandadoSinDeadlockTests`).
+        # Tomando el ancla primero, el `set()` arranca con esas filas ya suyas.
+        rbac.tomar_candado_de_administracion()
         cd = form.cleaned_data
         group = Group.objects.create(name=cd["name"])
         RolMeta.objects.create(
@@ -140,6 +151,9 @@ class RolesAdminService:
     def actualizar(form, group):
         if _meta(group).protegido:
             raise RolProtegidoError("El rol está protegido y no puede editarse.")
+        # G1b-09: el candado va antes de leer y de escribir; tomarlo recién en
+        # `asegurar_admin_restante` serializa pero deja el check contando sobre la foto vieja.
+        rbac.tomar_candado_de_administracion()
         # Programa que este rol administraba ANTES del cambio (puede quedar
         # huérfano si la edición le saca la capacidad de administración o le cambia el programa).
         programa_previo = _programa_que_administra(group)
@@ -170,6 +184,9 @@ class RolesAdminService:
     def eliminar(group):
         if _meta(group).protegido:
             raise RolProtegidoError("El rol está protegido y no puede eliminarse.")
+        # G1b-09: el candado va antes de leer y de escribir; tomarlo recién en
+        # `asegurar_admin_restante` serializa pero deja el check contando sobre la foto vieja.
+        rbac.tomar_candado_de_administracion()
         programa_previo = _programa_que_administra(group)
         # Al borrar el Group, Django desvincula a los usuarios (tabla intermedia)
         # y borra RolMeta por CASCADE.
@@ -184,6 +201,9 @@ class RolesAdminService:
         meta = _meta(group)
         if meta.protegido:
             raise RolProtegidoError("El rol está protegido y no puede desactivarse.")
+        # G1b-09: el candado va antes de leer y de escribir; tomarlo recién en
+        # `asegurar_admin_restante` serializa pero deja el check contando sobre la foto vieja.
+        rbac.tomar_candado_de_administracion()
         # Capturar antes: si es un rol que administra un programa y se va a
         # desactivar, podría dejar ese programa sin administrador.
         programa_admin = _programa_que_administra(group)
