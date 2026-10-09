@@ -90,6 +90,10 @@ class CreadoPorAlEditarTests(TestCase):
     dejar que quien solo tiene `merendero.crear` baje **su** documentación. El alta lo
     sellaba y la edición no, así que una solicitud anterior al campo quedaba con el
     link roto justo para el operador que acababa de subir el archivo.
+
+    Ronda 2: se sella solo si el POST **trae documentación nueva**. Sellar en cualquier
+    guardado le daba acceso al archivo de otro a quien solo abrió y confirmó el
+    formulario.
     """
 
     def setUp(self):
@@ -144,15 +148,34 @@ class CreadoPorAlEditarTests(TestCase):
         solicitud.refresh_from_db()
         self.assertEqual(solicitud.creado_por, self.operador)
 
-    def test_despues_de_editarla_puede_bajar_la_documentacion_que_subio(self):
+    def test_despues_de_subir_la_documentacion_puede_bajarla(self):
         """El síntoma de la ficha: el «Actualmente: /media/…» del widget daba 403."""
         solicitud = self._solicitud("MER-403")
         self.assertFalse(_documentacion_de_merendero(self.operador, solicitud.documentacion.name))
 
-        self._editar(solicitud)
+        self._editar(
+            solicitud,
+            documentacion=SimpleUploadedFile("respaldo.pdf", b"%PDF-1.4 corregido", content_type="application/pdf"),
+        )
 
         solicitud.refresh_from_db()
         self.assertTrue(_documentacion_de_merendero(self.operador, solicitud.documentacion.name))
+
+    def test_guardar_sin_adjuntar_nada_no_regala_la_documentacion_que_ya_estaba(self):
+        """Ronda 2 · el sello es por subir el archivo, no por abrir el formulario.
+
+        Sellando en cualquier guardado, cualquiera con `merendero.crear` que entrara a
+        una solicitud sin dueño y apretara «Guardar» se quedaba con permiso para bajar
+        la documentación que había cargado otro.
+        """
+        solicitud = self._solicitud("MER-SIN-ADJUNTO")
+
+        respuesta = self._editar(solicitud)
+
+        self.assertEqual(respuesta.status_code, 302)
+        solicitud.refresh_from_db()
+        self.assertIsNone(solicitud.creado_por)
+        self.assertFalse(_documentacion_de_merendero(self.operador, solicitud.documentacion.name))
 
     def test_no_le_roba_la_solicitud_a_un_par(self):
         """Sellar solo si está vacío: la solicitud de otro sigue siendo de otro."""

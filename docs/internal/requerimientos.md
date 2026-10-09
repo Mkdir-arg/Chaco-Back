@@ -29621,8 +29621,11 @@ sellaba, y la invalidación del cache de `Programa` dentro de la transacción.
   La ficha proponía el `SELECT … FOR UPDATE` «dentro de la transacción del toggle», pero hay
   **seis** caminos que pueden dejar al sistema sin administrador: desactivar un usuario,
   editarle los roles, editar, borrar o desactivar un rol, y el alta masiva por CSV. Los seis
-  lo toman al abrir su transacción, y `asegurar_admin_restante` lo vuelve a tomar por las
-  dudas —si ya se tiene, no cuesta nada— para que el check nunca corra del todo sin candado.
+  lo toman al abrir su transacción, y `asegurar_admin_restante` lo toma si el llamador no lo
+  hizo, para que el check nunca corra del todo sin candado. Si la transacción ya lo tiene no
+  lo vuelve a pedir (ronda 2): la vista de usuarios corre el check una vez por el sistema y
+  otra por cada programa, y repetir el `SELECT … FOR UPDATE` era un viaje a la base por
+  llamada que no agrega ninguna garantía.
 - **El ancla son las filas de `auth_permission`, no las `RolMeta` admin.** Bloquear las
   `RolMeta` que confieren administración falla justo en el caso que importa: una base cuyo
   último administrador es superusuario, o un programa sin roles, no tiene ninguna fila que
@@ -29646,15 +29649,18 @@ sellaba, y la invalidación del cache de `Programa` dentro de la transacción.
   el repo ya tiene probado con `core.tests.candados`.
 - **La colisión del alta rápida contesta 409 con el campo.** La ficha dejaba elegir entre
   error de campo y JSON 409: se hacen las dos cosas, porque el modal usa `data.message` para
-  el aviso y `data.errors` para elegir a qué campo mandar el foco. El campo sale del mensaje
-  del motor (MySQL y MariaDB nombran la clave; SQLite, la columna) y cuando no se puede
-  decidir va a `__all__`, para no culpar al equivocado.
+  el aviso y `data.errors` para elegir a qué campo mandar el foco. El campo sale del **nombre
+  de la clave** que informa el motor (MySQL y MariaDB la nombran; SQLite nombra la columna) y
+  cuando no se puede decidir va a `__all__`, para no culpar al equivocado. Del nombre de la
+  clave y no del mensaje entero: ahí también viaja el valor que chocó (ronda 2).
 - **BEC-25 se lleva también el classmethod.** La ficha decía «borrar las dos líneas»; con
   esas dos fuera, `Relevamiento.proximo_nombre()` no tiene un solo llamador.
   `proximo_numero()` y `nombre_para()`, que son los que `save()` usa para numerar de verdad,
   se quedan y tienen su test de control.
-- **El `creado_por` de una solicitud de merendero se sella solo si está vacío.** La solicitud
-  que ya tiene dueño sigue siendo de ese dueño: la edición no se la apropia.
+- **El `creado_por` de una solicitud de merendero se sella solo si está vacío y si el POST trae
+  documentación nueva.** La solicitud que ya tiene dueño sigue siendo de ese dueño: la edición
+  no se la apropia. Y la segunda condición (ronda 2) es para que abrir y confirmar el
+  formulario no sea la llave para bajar el archivo que subió otro.
 - **R0-02 tenía un solo texto para corregir.** `docs/client/architecture.md` ya decía
   `portal:home` y ya aclaraba que `/media/` no está exento: lo arregló el PR de `/media/`
   (Cambio 188), que tocó ese mismo párrafo. Code-first: la ficha quedó desactualizada.
@@ -29720,8 +29726,9 @@ No requiere migración.
 `SECRET_KEY` de prueba, HSTS, SSL y `SIIS_API_URL` vacía). `makemigrations --check
 --dry-run`: sin cambios. Suite de `core`, `users`, `dashboard`, `configuracion`,
 `conversaciones`, `programas`, `legajos` y `portal`: 0 fallos. `--tag performance`: 8/8.
-`--tag mysql` contra `mariadb:10.11` en un contenedor efímero: 50/50; la carrera de G1b-09
-también contra `mysql:8.0`. Los tests nuevos se corrieron primero contra un worktree de
+`--tag mysql` contra `mariadb:10.11` en un contenedor efímero: 51/51 en la ronda 2 (50/50 en
+la primera); la carrera de G1b-09 también contra `mysql:8.0`, 5 corridas limpias por motor, y
+el `EXPLAIN` del candado medido antes y después contra `mysql:8.0`. Los tests nuevos se corrieron primero contra un worktree de
 `origin/development`: **20 de 33 fallan** (los otros 13 son controles que tienen que pasar
 en los dos lados), y los dos de la carrera fallan también contra el motor real con el
 candado apagado. `compile_templates.py --bloques`: 0 errores, 0 bloques sin destino.
@@ -29756,4 +29763,42 @@ generados.
 
 ## Historial
 
-No aplica.
+### 09/10/2026 — Ronda 2 de la revisión (1 MAJOR y 3 MINOR)
+
+- **El candado de G1b-09 se trababa contra sí mismo, y no solo en MySQL 8.** El
+  `SELECT … FOR UPDATE` filtraba `auth_permission` **solo por `codename`**, y ahí no hay
+  ningún índice que empiece por esa columna: el `EXPLAIN` de MySQL 8 daba `type: index`,
+  `key: PRIMARY`, **391 filas**, o sea que el candado bloqueaba la tabla entera. El ciclo
+  lo cierra la otra operación que toca `auth_permission`: guardar las capacidades de un
+  rol escribe `auth_group_permissions` y por la FK InnoDB pide un lock sobre la fila de
+  la capacidad, una fila suelta en medio de las 391 que el escaneo recorre. Resultado,
+  `ERROR 1213 Deadlock`, que ninguna vista atrapa: **500**, y el candado puesto para que
+  el sistema no se quede sin administradores pasaba a ser la causa de la caída. Ahora el
+  filtro lleva el `content_type` del modelo ancla —`type: range` sobre el índice único
+  `(content_type_id, codename)`, **4 filas**, siempre las mismas y en el mismo orden— y
+  `asegurar_admin_restante` no vuelve a pedirlo si la transacción ya lo tiene (la marca
+  es el callback que `on_commit` guarda por transacción, y que Django descarta tanto al
+  COMMIT como al ROLLBACK y al ROLLBACK TO SAVEPOINT). **Corrige también la medición de
+  la ronda 1:** con el candado de `development`, `mariadb:10.11` da **15 deadlocks de 20
+  corridas** y `mysql:8.0` entre 7 y 9; lo que pasó es que la carrera de la ronda 1 usó
+  dos desactivaciones, que recorren el índice en el mismo orden y no cierran el ciclo. El
+  test nuevo (`CandadoSinDeadlockTests`, `@tag("mysql")`, 20 corridas de cuatro hilos)
+  deja los dos motores en **0 deadlocks** y en 0 corridas sin administradores, y contra
+  el árbol de antes se pone rojo en 5 de 5 corridas por motor. `_content_type_de_capacidad`
+  resuelve por *natural key* y no con `get_for_model`, porque importar `users.models`
+  desde `core/rbac.py` es un ciclo y `programas.tests.test_arquitectura` lo frena.
+- **La atribución del campo de G1b-10 culpaba al dato que estaba bien.** Buscaba «dni» en
+  el mensaje **entero** del motor, donde también viaja el valor que chocó: el alta del
+  usuario `dnievas` —`Duplicate entry 'dnievas' for key 'auth_user.username'`— mandaba al
+  operador a corregir el DNI y dejaba sin marcar el nombre de usuario, que era el que
+  había que cambiar. Ahora se recorta primero el **nombre de la clave** y recién ahí se la
+  parte en palabras, con las tres formas de nombrarla (MySQL 8, MariaDB y SQLite) fijadas
+  en un test.
+- **Había un DNI en los logs.** El `logger.warning` de la colisión imprimía la excepción
+  completa, o sea `Duplicate entry '30111222' for key 'users_profile.dni'`, en un archivo
+  sin control de acceso. Loguea el campo.
+- **Sellar `creado_por` al editar una solicitud de merendero regalaba la documentación.**
+  Se sellaba en cualquier guardado, así que a cualquiera con `merendero.crear` le
+  alcanzaba con abrir una solicitud sin dueño y apretar «Guardar» para quedarse con
+  permiso de bajar el archivo que había subido otro. Ahora se sella solo si el POST **trae
+  documentación nueva**: lo que se habilita es ver lo propio, no lo que ya estaba.

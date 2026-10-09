@@ -3,8 +3,11 @@
 * ``CandadoDeUltimoAdminTests`` / ``CarreraDeUltimoAdminTests`` (G1b-09) — el check de
   «último administrador» leía sin candado, así que dos operaciones simultáneas lo
   salteaban y el sistema quedaba sin nadie que pudiera tocar usuarios ni roles.
+* ``CandadoSinDeadlockTests`` (G1b-09, ronda 2) — el candado entraba por un escaneo de
+  ``auth_permission`` y se trababa contra sí mismo en MySQL 8 (``ERROR 1213`` → 500).
 * ``AltaRapidaEnCarreraTests`` (G1b-10) — la colisión de unicidad en la carrera salía
-  como 500 y el modal mostraba «respuesta inesperada del servidor».
+  como 500 y el modal mostraba «respuesta inesperada del servidor»; y, en la ronda 2,
+  el campo se decide por el nombre de la clave y el DNI no viaja al log.
 * ``BotonEditarDeLaFichaTests`` (seguimiento de #646) — la ficha del rol propio
   dibujaba «Editar» y la vista rebotaba.
 """
@@ -15,8 +18,9 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
-from django.db import IntegrityError, connections, transaction
+from django.db import IntegrityError, OperationalError, connection, connections, transaction
 from django.test import TestCase, TransactionTestCase, tag
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from core import rbac
@@ -25,7 +29,9 @@ from core.tests.test_motor_real import MotorRealMixin
 from programas.management.commands.seed_becas import ROL_COORDINADOR
 from programas.models import Programa
 from users.models import Capacidad, RolMeta
-from users.services.roles import RolesAdminService
+from users.services.admin import UsuariosAdminService
+from users.services.roles import RolesAdminService, _set_capacidades
+from users.views.quick_create import _campo_en_colision
 
 
 def _perm(codigo):
@@ -122,6 +128,69 @@ class CandadoDeUltimoAdminTests(TestCase):
 
         self.assertEqual(visto, [True], "el candado se tomó después de guardar la RolMeta")
         self.assertFalse(RolMeta.objects.get(grupo=rol).activo)
+
+    def test_el_candado_filtra_por_el_content_type_del_modelo_ancla(self):
+        """Ronda 2 · sin eso, el `FOR UPDATE` entra por un escaneo de `auth_permission`.
+
+        No hay índice que empiece por `codename`: filtrando solo por ahí, MySQL 8
+        resuelve el `IN` leyendo la tabla entera y bloquea las 391 filas, y dos
+        operaciones a la vez se cortan con `ERROR 1213`. Con el content type adelante
+        entra por el índice único `(content_type_id, codename)`. Eso se mide contra el
+        motor (`CandadoSinDeadlockTests`); lo que se fija acá —en todos los PRs— es que
+        la condición esté en el SQL.
+        """
+        with CaptureQueriesContext(connection) as capturadas:
+            rbac.tomar_candado_de_administracion()
+
+        del_candado = [q["sql"] for q in capturadas if "auth_permission" in q["sql"]]
+        self.assertEqual(len(del_candado), 1, del_candado)
+        self.assertIn("content_type_id", del_candado[0])
+        self.assertIn("codename", del_candado[0])
+
+    def test_el_content_type_del_candado_es_el_del_modelo_ancla(self):
+        """`rbac` lo resuelve por natural key para no importar `users.models` (ciclo).
+
+        El precio es el nombre del modelo escrito a mano: si alguien renombrara
+        `Capacidad`, el candado filtraría por un content type que no existe y dejaría de
+        bloquear nada. Acá se empatan las dos formas de pedirlo.
+        """
+        self.assertEqual(
+            rbac._content_type_de_capacidad(),
+            ContentType.objects.get_for_model(Capacidad),
+        )
+
+    def test_el_check_no_vuelve_a_pedir_el_candado_si_la_transaccion_ya_lo_tiene(self):
+        """Lo toma el llamador al abrir la transacción; repetirlo es un viaje de más.
+
+        La vista de usuarios corre el check una vez por el sistema y otra por cada
+        programa que el usuario administra: con el candado repetido, cada una de esas
+        llamadas era otro `SELECT … FOR UPDATE` sobre las filas que la transacción ya
+        tiene tomadas.
+        """
+        programa = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        self.admin.groups.add(_rol_admin("Admin Becas", programa=programa))
+
+        with candados_tomados(Permission.objects) as candados:
+            rbac.tomar_candado_de_administracion()
+            rbac.asegurar_admin_restante()
+            rbac.asegurar_admin_restante(programa=programa.pk)
+
+        self.assertEqual(candados, ["rbac.py:tomar_candado_de_administracion"])
+
+    def test_la_marca_del_candado_no_sobrevive_a_la_transaccion(self):
+        """Lo que hace que saltearlo sea seguro: la marca muere con el candado.
+
+        Django descarta los callbacks de `on_commit` al COMMIT, al ROLLBACK y al
+        `ROLLBACK TO SAVEPOINT` —que es cuando InnoDB suelta las filas bloqueadas ahí
+        adentro—. Si eso dejara de valer, una transacción posterior creería tener un
+        candado que soltó la anterior.
+        """
+        with transaction.atomic():
+            rbac.tomar_candado_de_administracion()
+            self.assertTrue(rbac._tiene_el_candado())
+            transaction.set_rollback(True)
+
+        self.assertFalse(rbac._tiene_el_candado())
 
     def test_el_check_sigue_decidiendo_lo_mismo(self):
         """El candado no cambia la respuesta: con admin pasa, sin admin lanza."""
@@ -243,6 +312,133 @@ class CarreraDeUltimoAdminTests(MotorRealMixin, TransactionTestCase):
         self.assertTrue(self.dos.is_active, "la transacción frenada tiene que revertir su UPDATE")
 
 
+@tag("mysql")
+class CandadoSinDeadlockTests(MotorRealMixin, TransactionTestCase):
+    """G1b-09 · ronda 2: el candado no puede trabarse **contra sí mismo**.
+
+    La primera versión filtraba `auth_permission` solo por `codename`, y ahí no hay
+    ningún índice que empiece por esa columna: MySQL 8 resolvía el `IN` con un escaneo
+    completo (`EXPLAIN`: `type: index`, `key: PRIMARY`, 391 filas) y, con `FOR UPDATE`,
+    bloqueaba las 391. Varias operaciones de administración a la vez se cortaban con
+    `ERROR 1213 Deadlock found when trying to get lock`, que ninguna vista atrapa: 500 en
+    la cara del operador, y el candado puesto para que el sistema no se quede sin
+    administradores pasaba a ser la causa de la caída.
+
+    El cierre se arma entre el escaneo y el **otro** candado que el motor toma sobre
+    `auth_permission`: guardar las capacidades de un rol escribe
+    `auth_group_permissions`, y por la FK InnoDB pide un lock compartido sobre la fila de
+    la capacidad —una fila suelta, en medio de las 391 que el escaneo recorre—. El
+    escaneo tiene tomada la fila que la FK necesita y la FK tiene la que el escaneo está
+    por pedir. Hacen falta las dos cosas: con solo dos desactivaciones (usuario y rol),
+    que recorren el índice en el mismo orden, no se traba nada. Por eso los hilos de
+    abajo son los tres llamadores que conviven de verdad: `UserToggleActivoView.post`,
+    `RolesAdminService.toggle_activo` y la reescritura de capacidades de
+    `RolesAdminService.actualizar`.
+
+    Medido con este mismo test, 20 corridas por árbol. Con el candado de `development`
+    —escaneo, y repetido una vez por cada `asegurar_admin_restante`—: **15** deadlocks
+    en `mariadb:10.11` y **7-9** en `mysql:8.0`, y el test rojo en 5 de 5 corridas. Con
+    este: **0** en los dos motores, 5 de 5 verdes. El motor de ECOM no se salvaba; lo que
+    pasó en la ronda 1 fue que la medición usó dos hilos que no cierran el ciclo.
+    """
+
+    #: El deadlock es una carrera y no cae en todas las corridas (≈20% medido con el
+    #: candado viejo). Con 20, el árbol de antes se pone rojo siempre: medido.
+    CORRIDAS = 20
+
+    def _escenario(self, numero):
+        """Un rol de administración con su usuario, más un admin de respaldo.
+
+        El respaldo es para que ninguna de las operaciones sea rechazada por el check:
+        lo que se mide es el candado, no el «último administrador».
+        """
+        rol = _rol_admin(f"Administración deadlock {numero}")
+        usuario = User.objects.create_user(f"admin-deadlock-{numero}", password="x")
+        usuario.groups.add(rol)
+        respaldo = _rol_admin(f"Respaldo deadlock {numero}")
+        User.objects.create_user(f"respaldo-deadlock-{numero}", password="x").groups.add(respaldo)
+        return rol, usuario, respaldo
+
+    @staticmethod
+    def _desactivar_usuario(usuario):
+        """La forma exacta de `UserToggleActivoView.post`."""
+
+        def operacion():
+            with transaction.atomic():
+                rbac.tomar_candado_de_administracion()
+                programas = UsuariosAdminService._programas_que_administra(usuario)
+                usuario.is_active = False
+                usuario.save(update_fields=["is_active"])
+                rbac.asegurar_admin_restante()
+                for programa_id in programas:
+                    rbac.asegurar_admin_restante(programa=programa_id)
+
+        return operacion
+
+    @staticmethod
+    def _reescribir_capacidades(rol):
+        """La forma de `RolesAdminService.actualizar`, recortada a lo que agarra locks.
+
+        Lo que importa de esa operación para esta carrera es el `permissions.set()` de
+        `_set_capacidades`: es la escritura sobre `auth_group_permissions` que hace que
+        InnoDB pida el lock de FK sobre filas sueltas de `auth_permission`.
+        """
+
+        def operacion():
+            with transaction.atomic():
+                rbac.tomar_candado_de_administracion()
+                _set_capacidades(rol, list(rbac.CAPS_ADMINISTRACION))
+                rbac.asegurar_admin_restante()
+
+        return operacion
+
+    def _en_paralelo(self, *operaciones):
+        """Las corre a la vez y devuelve lo que levantó cada hilo."""
+        barrera = threading.Barrier(len(operaciones), timeout=30)
+        errores = []
+
+        def correr(operacion):
+            try:
+                barrera.wait()
+                operacion()
+            except rbac.SinAdministradorError:
+                pass  # desenlace legítimo del check: no es un error del candado
+            except Exception as exc:  # noqa: BLE001 — se reporta como fallo del test
+                errores.append(exc)
+            finally:
+                connections.close_all()
+
+        hilos = [threading.Thread(target=correr, args=(operacion,)) for operacion in operaciones]
+        for hilo in hilos:
+            hilo.start()
+        for hilo in hilos:
+            hilo.join(timeout=60)
+        return errores
+
+    def test_varias_operaciones_de_administracion_a_la_vez_no_deadlockean(self):
+        deadlocks, otros = [], []
+        for numero in range(self.CORRIDAS):
+            rol, usuario, respaldo = self._escenario(numero)
+
+            errores = self._en_paralelo(
+                self._desactivar_usuario(usuario),
+                lambda rol=rol: RolesAdminService.toggle_activo(rol),
+                self._reescribir_capacidades(respaldo),
+                self._reescribir_capacidades(rol),
+            )
+
+            for error in errores:
+                destino = deadlocks if isinstance(error, OperationalError) and 1213 in error.args else otros
+                destino.append(f"corrida {numero}: {type(error).__name__}: {error}")
+            self.assertTrue(
+                rbac.usuarios_que_administran().exists(),
+                f"corrida {numero}: el sistema quedó sin administradores",
+            )
+
+        self.assertEqual(deadlocks, [], "el candado se trabó contra sí mismo")
+        self.assertEqual(otros, [])
+
+
 class AltaRapidaEnCarreraTests(TestCase):
     """G1b-10 · la colisión de unicidad contesta 409 con el campo, no un 500.
 
@@ -297,6 +493,42 @@ class AltaRapidaEnCarreraTests(TestCase):
 
         self.assertEqual(respuesta.status_code, 409)
         self.assertIn("dni", respuesta.json()["errors"])
+
+    def test_el_username_dnievas_no_le_echa_la_culpa_al_dni(self):
+        """Ronda 2 · el campo se decide por el **nombre de la clave**, no por el mensaje.
+
+        Buscando «dni» en el mensaje entero, el apellido de la persona alcanzaba para
+        mandar al operador a corregir un dato que estaba bien, mientras el que había que
+        cambiar —el nombre de usuario— quedaba sin marcar.
+        """
+        with self._con_colision("Duplicate entry 'dnievas' for key 'auth_user.username'"):
+            respuesta = self._post(username="dnievas")
+
+        self.assertEqual(respuesta.status_code, 409)
+        self.assertEqual(list(respuesta.json()["errors"]), ["username"])
+
+    def test_tambien_con_la_clave_que_nombra_mariadb_y_la_de_sqlite(self):
+        """Los tres motores escriben la misma colisión distinto."""
+        casos = {
+            "Duplicate entry 'dnievas' for key 'username'": "username",  # MariaDB
+            "UNIQUE constraint failed: auth_user.username": "username",  # SQLite
+            "Duplicate entry '30111222' for key 'users_profile.dni'": "dni",  # MySQL 8
+            "UNIQUE constraint failed: users_profile.dni": "dni",  # SQLite
+            "Duplicate entry '30111222' for key 'users_profile_dni_8c1a2b3d_uniq'": "dni",
+        }
+        for mensaje, esperado in casos.items():
+            with self.subTest(mensaje=mensaje):
+                self.assertEqual(_campo_en_colision(IntegrityError(mensaje)), esperado)
+
+    def test_el_log_no_se_lleva_el_dni_de_la_persona(self):
+        """El mensaje del motor trae el **valor** que chocó, y el log no tiene control
+        de acceso: alcanza con saber qué campo fue."""
+        with self._con_colision("Duplicate entry '30111222' for key 'users_profile.dni'"):
+            with self.assertLogs("users.views.quick_create", level="WARNING") as registrado:
+                self._post()
+
+        self.assertNotIn("30111222", "\n".join(registrado.output))
+        self.assertIn("dni", registrado.output[0])
 
     def test_una_colision_que_no_se_puede_atribuir_no_culpa_a_ningun_campo(self):
         with self._con_colision("FOREIGN KEY constraint failed"):

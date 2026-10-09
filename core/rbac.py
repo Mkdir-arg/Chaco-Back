@@ -19,10 +19,14 @@ Reglas:
 from functools import wraps
 
 from django.contrib.auth.models import Permission, User
+from django.db import transaction
 from django.db.models import Prefetch, Q, prefetch_related_objects
 
 # App donde vive el modelo ancla ``Capacidad`` (define el app_label de los permisos).
 APP_LABEL = "users"
+# Su nombre en ``django_content_type`` (``users.Capacidad`` en minúsculas), para pedir el
+# content type sin importar el modelo (ver :func:`_content_type_de_capacidad`).
+MODELO_ANCLA = "capacidad"
 
 # ---------------------------------------------------------------------------
 # Catálogo curado de capacidades (fuente única: alimenta el seed, el árbol del
@@ -1012,6 +1016,40 @@ def programas_que_administra(user):
     )
 
 
+def _content_type_de_capacidad():
+    """El ``ContentType`` del modelo ancla, cacheado por el manager de contenttypes.
+
+    Se resuelve por *natural key* y no con ``get_for_model(Capacidad)`` para no importar
+    ``users.models``, que importa este módulo: sería un ciclo, y
+    ``programas.tests.test_arquitectura`` cuida que no aparezcan nuevos. Que la clave
+    siga siendo la del modelo lo fija ``users.tests.test_ola7_pr3``.
+    """
+    from django.contrib.contenttypes.models import ContentType
+
+    return ContentType.objects.get_by_natural_key(APP_LABEL, MODELO_ANCLA)
+
+
+def _marca_del_candado():
+    """No hace nada: lo que importa es que esté anotada (ver :func:`_tiene_el_candado`)."""
+
+
+def _tiene_el_candado():
+    """¿La transacción en curso ya tomó el candado de administración?
+
+    La marca es el callback que :func:`tomar_candado_de_administracion` anota con
+    ``transaction.on_commit``. Sirve de testigo porque Django guarda esos callbacks
+    **por transacción** y los descarta en los tres finales posibles: al ``COMMIT`` (los
+    corre y vacía la lista), al ``ROLLBACK`` (la vacía) y al ``ROLLBACK TO SAVEPOINT``
+    (saca los anotados dentro de ese savepoint) —que es justo cuando InnoDB suelta las
+    filas bloqueadas ahí adentro—. Así la marca no puede sobrevivir al candado.
+
+    Peor caso si alguna vez dejara de valer: se vuelve a tomar el candado, que es lo que
+    hacía antes y hoy cuesta una búsqueda por índice sobre las mismas 4 filas.
+    """
+    anotados = transaction.get_connection().run_on_commit
+    return any(callback is _marca_del_candado for _sids, callback, _robusto in anotados)
+
+
 def tomar_candado_de_administracion():
     """Candado que serializa las operaciones que pueden dejar sin administrador (G1b-09).
 
@@ -1036,6 +1074,19 @@ def tomar_candado_de_administracion():
     importa. Los usuarios candidatos tampoco: cada transacción deja de ver al que ella
     misma acaba de desactivar, así que los dos conjuntos pueden no solaparse.
 
+    *Por qué el filtro lleva el ``content_type``.* Es lo que hace que el candado entre
+    **por un índice** y no por un escaneo. ``auth_permission`` no tiene ningún índice que
+    empiece por ``codename``; filtrando solo por ahí, el motor resuelve el ``IN`` con un
+    *index scan* de la tabla entera (``EXPLAIN`` de MySQL 8: ``type: index``,
+    ``key: PRIMARY``, 391 filas) y, con ``FOR UPDATE``, **bloquea las 391**. Ahí adentro
+    cae la fila que otra transacción tiene tomada por la FK de ``auth_group_permissions``
+    —guardar las capacidades de un rol—, y el ciclo se cierra: ``ERROR 1213 Deadlock``,
+    que ninguna vista atrapa, o sea 500. Medido en los dos motores (``CandadoSinDeadlockTests``).
+    Con ``content_type=ct`` el plan pasa a ``type: range`` sobre el índice único
+    ``(content_type_id, codename)``: se bloquean solo las 4 filas del ancla, siempre las
+    mismas y en el mismo orden. Mismo criterio que
+    :func:`users.services.roles._set_capacidades`.
+
     *Por qué el check no lee con ``FOR UPDATE``.* Se probó y **deadlockea** contra
     MariaDB 10.11: cada transacción ya tiene tomada por su ``UPDATE`` la fila del usuario
     que está desactivando y pide las del resto, que tiene la otra (``ERROR 1213``). Sería
@@ -1044,17 +1095,18 @@ def tomar_candado_de_administracion():
     transacción queda esperando **antes** de tomar ninguna fila de usuario.
 
     En SQLite (la suite) ``select_for_update()`` es un no-op, así que este contrato se
-    prueba por su **presencia** y su **orden** (``core.tests.candados``, y un espía que
-    mira el estado de la fila en el momento de tomarlo) y por su efecto contra el motor
-    real (``@tag("mysql")``).
+    prueba por su **presencia**, su **orden** y la **forma del SQL**
+    (``core.tests.candados``, y un espía que mira el estado de la fila en el momento de
+    tomarlo) y por su efecto contra el motor real (``@tag("mysql")``).
     """
     codenames = {codename_de(c) for c in CAPS_ADMINISTRACION} | {codename_de(c) for c in CAPS_ADMIN_PROGRAMA}
     list(
         Permission.objects.select_for_update()
-        .filter(codename__in=sorted(codenames))
+        .filter(content_type=_content_type_de_capacidad(), codename__in=sorted(codenames))
         .order_by("pk")
         .values_list("pk", flat=True)
     )
+    transaction.on_commit(_marca_del_candado)
 
 
 def asegurar_admin_restante(programa=None):
@@ -1065,14 +1117,18 @@ def asegurar_admin_restante(programa=None):
     rol): si dejaría sin admins, la excepción revierte la transacción.
 
     Quien llama tiene que haber tomado :func:`tomar_candado_de_administracion` al abrir
-    la transacción (G1b-09). Se vuelve a tomar acá por las dudas —si ya se tiene, no
-    cuesta nada— para que el check nunca corra del todo sin candado; pero tomarlo recién
-    acá solo serializa, no refresca la lectura, así que **no reemplaza** al del llamador.
+    la transacción (G1b-09). Si no lo hizo, se toma acá para que el check nunca corra del
+    todo sin candado; pero tomarlo recién acá solo serializa, no refresca la lectura, así
+    que **no reemplaza** al del llamador. Si la transacción ya lo tiene no se vuelve a
+    pedir: el caso normal es una vista que llama a este check una vez por el sistema y
+    otra por cada programa del usuario, y repetir el ``SELECT … FOR UPDATE`` es un viaje
+    a la base por llamada que no agrega ninguna garantía.
 
     **Retrocompatible:** sin ``programa`` realiza el check **global** histórico.
     Con ``programa`` realiza el check acotado a ese programa (RN-8).
     """
-    tomar_candado_de_administracion()
+    if not _tiene_el_candado():
+        tomar_candado_de_administracion()
     if programa is None:
         if not usuarios_que_administran().exists():
             raise SinAdministradorError(

@@ -1,4 +1,5 @@
 import logging
+import re
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
@@ -39,18 +40,35 @@ MENSAJES_COLISION = {
 }
 
 
-def _campo_en_colision(error):
-    """Qué índice único rompió, leído del mensaje del motor.
+#: Dónde nombra cada motor la clave que se rompió. MySQL 8 y MariaDB: ``for key
+#: 'auth_user.username'`` / ``for key 'dni'``; SQLite: ``UNIQUE constraint failed:
+#: users_profile.dni``.
+_CLAVE_DEL_MOTOR = (
+    re.compile(r"for key ['\"`]?([^'\"`\s]+)", re.IGNORECASE),
+    re.compile(r"unique constraint failed:\s*([\w.,\s]+)", re.IGNORECASE),
+)
 
-    MySQL/MariaDB nombran la clave (``auth_user.username``, ``users_profile.dni``) y
-    SQLite la columna; cuando no se puede decidir, se devuelve el error de formulario
-    general en vez de culpar al campo equivocado.
+
+def _campo_en_colision(error):
+    """Qué índice único rompió, leído del **nombre de la clave** que informa el motor.
+
+    Buscar el nombre del campo en el mensaje entero no sirve: ahí también viaja el valor
+    que chocó, y el alta del usuario ``dnievas`` —``Duplicate entry 'dnievas' for key
+    'auth_user.username'``— le marcaba el DNI, que estaba bien. Se recorta primero la
+    clave (``auth_user.username``, ``dni``, ``users_profile_dni_…_uniq``) y recién ahí se
+    la parte en palabras: así ``dnievas`` no es ninguna de ellas.
+
+    Cuando no se puede decidir se devuelve el error de formulario general, en vez de
+    culpar al campo equivocado.
     """
-    texto = str(error).lower()
-    if "dni" in texto:
-        return "dni"
-    if "username" in texto:
-        return "username"
+    for patron in _CLAVE_DEL_MOTOR:
+        encontrada = patron.search(str(error))
+        if encontrada is None:
+            continue
+        palabras = set(re.split(r"\W|_", encontrada.group(1).lower()))
+        for campo in ("username", "dni"):
+            if campo in palabras:
+                return campo
     return "__all__"
 
 
@@ -93,8 +111,12 @@ def usuario_alta_rapida(request):
         # valor pasan las dos validaciones y la segunda choca contra el índice único.
         # Sin esto el modal recibía el HTML de un 500 y mostraba «respuesta inesperada
         # del servidor»; ahora dice qué dato repetir y deja el foco en ese campo.
-        logger.warning("Alta rápida: colisión de unicidad al crear el usuario (%s)", exc)
+        # El mensaje del motor trae el **valor** que chocó (`Duplicate entry '30111222'
+        # for key 'users_profile.dni'`): loguearlo entero deja el DNI de una persona en
+        # el log de la aplicación, que no es un lugar con control de acceso. Alcanza con
+        # el campo para entender qué pasó.
         campo = _campo_en_colision(exc)
+        logger.warning("Alta rápida: colisión de unicidad al crear el usuario (campo %s)", campo)
         return JsonResponse(
             {"ok": False, "message": MENSAJES_COLISION[campo], "errors": {campo: [MENSAJES_COLISION[campo]]}},
             status=409,
