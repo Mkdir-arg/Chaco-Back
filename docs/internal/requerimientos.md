@@ -371,6 +371,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 197 | Los hallazgos chicos de la deuda: la vista tapada, la carrera del último administrador y tres botones que mentían | Transversal (RBAC, app `dashboard`) · Becas (relevamientos) · Merenderos (solicitudes) · Usuarios y Roles | `#rbac` `#usuarios` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas BEC-25, G1b-09, G1b-10, RED-78 y R0-02, más los MINOR de #646 y #649 (Ola 7, PR 3) | 09/10/2026 | 🟢 **Hecho** (dos pendientes anotados sin código: el `codigo` del programa editable → SEC-07; los paneles de derivaciones congelados → LEG-06, PM) | No requiere |
 | 198 | Apagar conversaciones: sin rutas, sin WebSockets de chat y sin superficie en el shell | Transversal (shell del backoffice, context processor de identidad, routing de Channels) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») | `#infra` `#ui` `#rbac` `#performance` | Auditoría integral oct-2026 — fichas G1-01 fase 2 y RED-13 (2.ª parte) (Ola 7, PR 4) | 09/10/2026 | 🟢 **Hecho** | No |
 | 199 | Notificaciones: campañas de correo masivo con lista en Excel y cuerpo en HTML | Transversal — módulo nuevo `notificaciones` (backoffice: sidebar, listado, alta y edición, previsualización y envío) | `#correo` `#rbac` `#ui` `#datos` `#infra` | PM — análisis funcional 007 | 08/10/2026 | 🟢 **Hecho** (falta probar el envío real contra el SMTP de ECOM en testing) | `notificaciones.0001` y `0002`, `users.0034` (sin DDL) y `users.0035` (datos, con reversa) |
+| 200 | Lote de pantallas: se relevan todas las piezas y se construyen las que faltan antes de la primera | Diseño · contrato del agente | `#ui` | PM — en sesión: «esto que me comentás me gustaría que se implemente siempre así para evitar futuros errores» | 09/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -30532,5 +30533,76 @@ entrada lo tomó el Cambio 192 de `development` (#645): esta pasó a ser la **19
 de `users` se renumeraron a `0034_capacidades_notificaciones` y `0035_rol_comunicaciones` para
 colgar de la `0033` (la `0029`-`0033` de `development` agregaron `RolMeta.clave` y retiraron
 `ciudadano.eliminar`), y el rol pasó a sembrarse con `asegurar_rol_sembrado` y clave estable.
+
+---
+
+---
+
+# Cambio 200 — Lote de pantallas: las piezas primero
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · contrato del agente canónico |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — en sesión |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | — (regla de proceso; nace del plan del MVP, Cambio 191) |
+| **Partes afectadas** | `.claude/agents/chaco-design-system.md`, `CLAUDE.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Esto que me comentás me gustaría que se implemente siempre así para evitar futuros errores. Nosotros
+> ya hicimos hace poco una pasada de estandarización de front.»
+
+El PM lo pidió después de que el plan del MVP explicara por qué la etapa 0 construye las piezas antes
+que las pantallas.
+
+## Decisiones tomadas
+
+**Primero se verificó qué había.** El protocolo por pantalla **ya existía y tenía enforcement**: el
+paso 6 obliga a declarar el Plan de pantalla antes del primer Write, define qué cuenta como novedad
+—clase CSS nueva, archivo CSS o JS nuevo, include o tag nuevo, parámetro no exento, ícono fuera de
+Font Awesome, arquetipo sin ficha—, y la regla dice *«Novedad → Plan con Novedades → no escribir y
+devolver al llamador»*. `check_design_agent.py` valida el contrato en el hook y en el CI. No hacía
+falta inventar nada de eso.
+
+**El hueco era otro: el protocolo es por pantalla y no dice nada del lote.** Cuando entra un programa
+entero, descubrir las piezas de a una hace que cada pantalla frene y devuelva, y que la decisión se
+tome apurada en medio de la implementación, que es cuando más tienta resolverla dentro de la pantalla.
+Así nacieron las divergencias que la estandarización tuvo que ir a buscar después: el caso testigo es
+la franja de métricas de `inicio.html`, con su caja de ícono de 52 px y su gradiente, que el canon
+prohíbe y que quedó anotada como hallazgo CMP-23 — y que el mockup de la v2 terminó copiando.
+
+**Se agregó el paso 0 del lote** al protocolo del agente: si la tarea son varias pantallas de una vez,
+se relevan **todas** las piezas que el lote necesita y se construyen las que faltan, cada una con su
+ficha, **antes de abrir la primera pantalla**. Es el método que se usó para el MVP de Dispositivos: el
+mapeo del mockup relevó las 16 piezas de una sola pasada y el plan las puso en una etapa 0.
+
+**Se cerró además el final abierto de la regla de novedad.** Decía qué hace el implementador —frenar y
+devolver— pero no qué hace el llamador. Ahora la respuesta por defecto del llamador es **construir la
+pieza con su ficha**; resolverla dentro de la pantalla es la excepción y necesita motivo escrito.
+
+La misma regla se sumó a `CLAUDE.md`, en la sección de Diseño, que es donde se lee primero.
+
+## Implementación
+
+Dos bloques cortos. El núcleo del agente quedó en **28.034 bytes** de los 30.000 que admite
+`limites_del_nucleo`; `check_design_agent.py --limites` da OK.
+
+## Archivos
+
+- `.claude/agents/chaco-design-system.md` — paso 0 del lote y el default del llamador
+- `CLAUDE.md` — «Lote = las piezas primero» en la sección de Diseño
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva.
 
 ---

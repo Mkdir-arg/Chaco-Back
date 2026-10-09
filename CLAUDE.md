@@ -309,6 +309,13 @@ mismo módulo **nunca** es molde. Antes de escribir se declara el *Plan de panta
 trae novedades (clase, include, variante o valor nuevo) no se escribe y se devuelve al
 llamador.
 
+**Lote = las piezas primero.** Si lo que entra son varias pantallas de una vez —un programa
+nuevo, una ola, un rediseño—, antes de abrir la primera se relevan **todas** las piezas que
+el lote necesita y **se construyen las que faltan**, cada una con su ficha. Descubrirlas de a
+una hace que cada pantalla frene, y que la decisión se tome en medio de la implementación,
+que es cuando más tienta resolverla dentro de la pantalla: así nacieron las divergencias que
+la estandarización tuvo que ir a buscar después.
+
 **Auditoría mecánica compartida:** `scripts/design_audit.py` es la fuente única de los
 chequeos de adherencia (hex, fuentes legacy, `confirm()`, paleta cruda, `style=`,
 `<style>`, encabezado, tabla, íconos, clases inexistentes…). Funciona como *ratchet*: la

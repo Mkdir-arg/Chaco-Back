@@ -34,6 +34,18 @@ Para trabajar UI no hace falta leer `AGENTS.md`.
 
 ## Protocolo de construcción
 
+**Si la tarea es un lote** —un programa nuevo, una ola, un rediseño: varias pantallas de una
+sola vez— el protocolo de abajo no se aplica pantalla por pantalla sin antes hacer esto:
+
+0. **Relevá las piezas del lote entero antes de abrir la primera pantalla.** Recorré todas
+   las pantallas previstas, anotá qué pieza cubre cada bloque y cuáles no existen, y
+   **construí primero las que faltan**, cada una con su ficha. Recién después se implementa
+   la primera pantalla. Descubrir las piezas de a una hace que cada pantalla frene y
+   devuelva, y que la decisión se tome apurada en medio de la implementación, que es cuando
+   más tienta resolverla dentro de la pantalla. Una pieza construida tres veces y unificada
+   después cuesta varias veces más que construirla una vez al principio, y en el medio el
+   producto se ve distinto en cada pantalla.
+
 **Antes de escribir**
 
 1. **Clasificá la tarea.** (A) ajuste · (B) pantalla nueva · (C) pieza nueva o cambio de
@@ -123,7 +135,9 @@ Para trabajar UI no hace falta leer `AGENTS.md`.
   `messages` [existente].
 - Datos, permisos y contadores preparados en la vista; listados con `paginate_by` [revisión].
 - La hermana del módulo nunca es molde [revisión].
-- Novedad → Plan con Novedades → no escribir y devolver al llamador [revisión].
+- Novedad → Plan con Novedades → no escribir y devolver al llamador [revisión]. La respuesta
+  por defecto del llamador es **construir la pieza con su ficha** y recién después seguir;
+  resolverla dentro de la pantalla es la excepción y necesita motivo escrito.
 
 ## Superficies y shells
 
