@@ -1861,7 +1861,7 @@ pone rojo y la ficha baja de riesgo. **Mutación de control:** mover `path("", i
 `test_la_raiz_es_el_login` en rojo con `'dashboard:inicio' != 'users:login'`.
 **Test permanente:** `core.tests.test_dashboard_redirect.RuteoRaizTests.test_la_raiz_es_el_login`.
 
-**Resolución:** ✅ (parte Ola 7) Resuelto en #NNN (Cambio 197, Ola 7 PR 3), 09-oct-2026 — se van
+**Resolución:** ✅ (parte Ola 7) Resuelto en #651 (Cambio 197, Ola 7 PR 3), 09-oct-2026 — se van
 `dashboard/views/` entero (`home.py` y el `__init__.py` que la reexportaba),
 `dashboard/templates/dashboard.html` y el `path("", …, name="inicio")` de `dashboard/urls.py`. Las cinco
 APIs de `dashboard/api_views` se conservan, con un test que lo fija: el hallazgo era la pantalla, no la

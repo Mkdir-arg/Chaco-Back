@@ -709,7 +709,7 @@ las líneas son de `origin/development @ 7393c41`.
 
 ### R0-02 · `CLAUDE.md` y `docs/client/architecture.md` todavía nombran `portal:ciudadano_mi_perfil`
 **Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 7 · **Esfuerzo:** S
-**Resolución:** ✅ Resuelto en #NNN (Cambio 197, Ola 7 PR 3), 09-oct-2026 — **el texto a corregir era uno
+**Resolución:** ✅ Resuelto en #651 (Cambio 197, Ola 7 PR 3), 09-oct-2026 — **el texto a corregir era uno
 solo.** `CLAUDE.md` ahora dice `portal:home` y, de paso, cuál es la excepción real del middleware: solo
 `/static/`; `/media/` **no** está exento (SEC-09 etapa 2). `docs/client/architecture.md:203` ya decía las
 dos cosas bien —lo corrigió el PR de `/media/` (#643, Cambio 188), que tocó ese mismo párrafo por la otra

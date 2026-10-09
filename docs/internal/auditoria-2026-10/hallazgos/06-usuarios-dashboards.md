@@ -202,7 +202,7 @@ al territorial le llega un enlace para fijarla él.
 
 ### G1b-09 · «Último administrador» salteable con dos operaciones simultáneas
 **Severidad:** BAJA · **Estado:** PLAUSIBLE (sin repro de concurrencia) · **Origen:** G1b-09 · **Ola:** 7 · **Esfuerzo:** M
-**Resolución:** ✅ Resuelto en #NNN (Cambio 197, Ola 7 PR 3), 09-oct-2026 — `rbac.tomar_candado_de_administracion()`
+**Resolución:** ✅ Resuelto en #651 (Cambio 197, Ola 7 PR 3), 09-oct-2026 — `rbac.tomar_candado_de_administracion()`
 es un `SELECT … FOR UPDATE` sobre las filas de `auth_permission` de `CAPS_ADMINISTRACION` +
 `CAPS_ADMIN_PROGRAMA`, y **va como primera sentencia de la transacción, antes de cualquier escritura**, en
 los **seis** caminos que pueden dejar sin administrador: el toggle del ABM (`UserToggleActivoView`),
@@ -250,7 +250,7 @@ check no cambió).
 
 ### G1b-10 · Alta rápida: 500 ante colisión en carrera
 **Severidad:** BAJA · **Estado:** CONFIRMADO-AJUSTADO (el `ModelForm` ya valida `username` único y el `clean` el DNI: el 500 solo sale en una carrera sobre `auth_user.username` o `users_profile.dni`) · **Origen:** G1b-10 (el texto crudo de la excepción está en SEC-36) · **Ola:** 7 · **Esfuerzo:** S
-**Resolución:** ✅ Resuelto en #NNN (Cambio 197, Ola 7 PR 3), 09-oct-2026 — `usuario_alta_rapida` atrapa
+**Resolución:** ✅ Resuelto en #651 (Cambio 197, Ola 7 PR 3), 09-oct-2026 — `usuario_alta_rapida` atrapa
 `IntegrityError` y contesta **409 con el campo**: `{"ok": false, "message": …, "errors": {"username"|"dni"|"__all__": [...]}}`.
 El campo sale del mensaje del motor (MySQL/MariaDB nombran la clave, `auth_user.username` /
 `users_profile.dni`; SQLite, la columna) y cuando no se puede decidir va a `__all__`, para no culpar al

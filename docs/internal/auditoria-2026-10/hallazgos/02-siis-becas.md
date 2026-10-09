@@ -714,7 +714,7 @@ la máquina, y el test distingue las dos fuentes corra donde corra.
 ### BEC-25 · `siguiente_nombre` se calcula sin convocatoria y nadie lo usa
 **Severidad:** BAJA · **Origen:** A1-30 · **Ola:** 7 · **Esfuerzo:** S
 
-**Resolución:** ✅ Resuelto en #NNN (Cambio 197, Ola 7 PR 3), 09-oct-2026 — las dos líneas, más el
+**Resolución:** ✅ Resuelto en #651 (Cambio 197, Ola 7 PR 3), 09-oct-2026 — las dos líneas, más el
 classmethod que quedaba sin llamadores. `ConvocatoriaDetailView` y `RelevamientoListView` corrían
 `Relevamiento.proximo_nombre()` en cada carga y dejaban el resultado en el contexto; ningún template lo
 imprime (`grep -rn "siguiente_nombre"` queda vacío fuera de `docs/`). El valor era además engañoso: se
