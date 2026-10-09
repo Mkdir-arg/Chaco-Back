@@ -30,7 +30,7 @@ djangorestframework==3.17.2
 argon2-cffi==25.1.0
 
 # Database
-mysqlclient==2.1.1
+mysqlclient==2.3.0
 cryptography==50.0.0
 
 # Cache
