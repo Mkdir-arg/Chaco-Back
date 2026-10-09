@@ -50,7 +50,7 @@ gunicorn==23.0.0
 setuptools==83.0.0
 
 # Utilities básicas
-requests==2.33.0
+requests==2.34.2
 Pillow==12.3.0
 django-filter==23.5
 python-dateutil==2.8.2
