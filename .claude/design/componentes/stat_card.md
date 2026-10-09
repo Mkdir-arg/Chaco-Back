@@ -61,10 +61,15 @@ Regla de uso: **una sola franja grande por pantalla**, y la grande nunca convive
 la misma franja. Los opcionales (`kpi_id`, `sufijo`, `nota`…) valen en las dos. El ícono se sigue
 pasando por nombre de Font Awesome.
 
-**Inicio (`templates/inicio.html`).** Su CSS local `.stat-card` ya no existe (salió con FE-22: las
-cuatro tarjetas usan la pieza chica). No se pasa a la grande en esta task: sería un cambio
-visual del inicio general, que no es un tablero de programa; si el PM lo quiere, es agregar
-`variante="tablero"` a esas cuatro llamadas.
+**Inicio (`templates/inicio.html`) — deuda abierta.** Sus cuatro tarjetas **no usan esta pieza**:
+están escritas a mano con un `.stat-card` local (líneas 84-130) y el gradiente puesto con
+`style=` inline en el marcado (línea 464 y siguientes), que es exactamente lo que la sección
+*Prohibido* no admite. Es el caso que dio origen a CMP-23.
+
+No se migra en esta task **por alcance, no porque no haga falta**: el inicio es la portada general
+del sistema, no un tablero de programa, y cambiarlo de aspecto es una decisión del PM. Ahora que la
+variante existe, la migración es reemplazar ese bloque por cuatro `{% stat_card %}` con
+`variante="tablero"` y borrar el CSS local. Queda como deuda con nombre.
 
 **La grilla la arma el consumidor:** `grid grid-cols-2 gap-3`, `grid-cols-1 sm:grid-cols-3 gap-4`,
 lo que corresponda.
