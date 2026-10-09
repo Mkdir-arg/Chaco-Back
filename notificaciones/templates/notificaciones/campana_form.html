@@ -1,0 +1,24 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Notificaciones · {% if campana %}Editar{% else %}Nueva{% endif %} campaña{% endblock %}
+
+{% block main-content %}
+<div class="space-y-5">
+  {% if campana %}{% url 'notificaciones:campana_detalle' campana.pk as url_volver %}{% else %}{% url 'notificaciones:campanas' as url_volver %}{% endif %}
+  {% with titulo_pagina=campana|yesno:"Editar campaña,Nueva campaña" volver_label=campana|yesno:"la campaña,campañas" %}
+  {% page_header titulo=titulo_pagina volver_url=url_volver volver_label=volver_label migas=migas %}
+    {% bajada %}{% if campana %}Cambiá el nombre o el asunto, o reemplazá la lista o el HTML: al reemplazar el Excel se recalcula la lista completa.{% else %}Cargá la lista de destinatarios y el correo. Antes de enviar vas a ver la previsualización completa.{% endif %}{% endbajada %}
+  {% endpage_header %}
+  {% endwith %}
+  <form method="post" enctype="multipart/form-data" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    {% include "components/_form_errores.html" %}
+    {% for field in form %}{% include "components/_field.html" %}{% if field.name == "archivo_excel" %}<a href="{% url 'notificaciones:plantilla_excel' %}" class="btn-nodo btn-tertiary btn-sm mb-3"><i class="fas fa-download" aria-hidden="true"></i> Descargar plantilla</a>{% endif %}{% endfor %}
+    {% include "components/_alerta.html" with tono="info" texto="Cada persona recibe su propio correo: nadie ve las direcciones de los demás. El remitente es la casilla institucional de no responder." %}
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+      <a href="{{ url_volver }}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
+      <button type="submit" class="btn-nodo btn-brand btn-base"><i class="fas fa-check" aria-hidden="true"></i> {% if campana %}Guardar campaña{% else %}Guardar y previsualizar{% endif %}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

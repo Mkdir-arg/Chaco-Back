@@ -150,6 +150,47 @@ class MenuRestringidoTests(TestCase):
         self.assertIn(reverse("core:inicio"), html)  # Inicio siempre visible
 
 
+class MenuNotificacionesTests(TestCase):
+    """Análisis 007, RF-007-01: el grupo «Notificaciones» con «Campañas», solo con `notificacion.ver`."""
+
+    def _user(self, username, *codigos):
+        g = Group.objects.create(name=f"rol-{username}")
+        RolMeta.objects.create(grupo=g, categoria="Backoffice", activo=True)
+        for c in codigos:
+            g.permissions.add(_perm(c))
+        u = User.objects.create_user(username, password="x")
+        u.groups.add(g)
+        return User.objects.get(pk=u.pk)
+
+    def test_sin_notificacion_ver_no_ve_el_grupo(self):
+        html = render_sidebar(self._user("sin-notif", "reporte.ver"))
+        self.assertNotIn(reverse("notificaciones:campanas"), html)
+        self.assertNotIn("Notificaciones", html)
+
+    def test_con_notificacion_ver_ve_el_grupo_expandido_y_colapsado(self):
+        html = render_sidebar(self._user("con-notif", "notificacion.ver"))
+        self.assertIn('<span class="flex-1">Notificaciones</span>', html)
+        self.assertIn('title="Notificaciones"', html)
+        self.assertEqual(html.count(f'href="{reverse("notificaciones:campanas")}"'), 2)
+        self.assertIn("Campañas", html)
+
+    def test_va_despues_de_reportes(self):
+        su = User.objects.create_superuser("root-notif", "root-notif@example.com", "x")
+        html = render_sidebar(su)
+        self.assertLess(html.index(reverse("legajos:reportes")), html.index(reverse("notificaciones:campanas")))
+
+    def test_marca_la_pantalla_activa(self):
+        su = User.objects.create_superuser("root-notif-act", "root-notif-act@example.com", "x")
+        url = reverse("notificaciones:campanas")
+        req = RequestFactory().get(url)
+        req.user = su
+        req.resolver_match = resolve(url)
+        html = render_to_string("includes/sidebar/opciones.html", {"request": req, "branding": {}})
+        inicio = html.index(f'<a href="{url}"')
+        ancla = html[inicio : html.index("</a>", inicio)]
+        self.assertIn('aria-current="page"', ancla)
+
+
 class CiudadanoListBotonNuevoTests(TestCase):
     """#59 — el botón 'Nuevo Ciudadano' del LISTADO también se gatea por ciudadano.crear.
 

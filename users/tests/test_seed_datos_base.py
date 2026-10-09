@@ -234,7 +234,7 @@ class SeedOperadorBackofficeTests(TestCase):
 
 
 class ClaveEstableDeLosRolesSembradosTests(TestCase):
-    """OPS-06 fase 2: los **doce** roles del arranque llevan ``RolMeta.clave``.
+    """OPS-06 fase 2: los roles del arranque llevan ``RolMeta.clave`` (doce, y trece con «Comunicaciones», Cambio 199).
 
     Con la clave, el seed reconoce un rol renombrado desde el ABM y deja de crear un
     duplicado con el nombre canónico (escenario 3 de la ficha). Los cinco roles de menú
@@ -262,6 +262,8 @@ class ClaveEstableDeLosRolesSembradosTests(TestCase):
                 "menu.reportes": "Reportes",
                 "menu.configuracion": "Configuración",
                 "menu.administracion": "Administración",
+                # Cambio 199: el rol de Notificaciones lo siembra `seed_rbac` con su clave.
+                "notificaciones.comunicaciones": "Comunicaciones",
             },
         )
 

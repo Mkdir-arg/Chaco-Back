@@ -283,6 +283,19 @@ CATALOGO = [
         ],
     },
     {
+        # Campañas de correo masivo (análisis 007). Global, sin alcance de programa.
+        # Enviar va separado de gestionar a propósito: el envío no se deshace y
+        # conviene poder dárselo a menos gente que el armado (RN-007-12).
+        "modulo": "notificaciones",
+        "label": "Notificaciones",
+        "tab": "backoffice",
+        "capacidades": [
+            ("notificacion.ver", "Ver campañas de correo y su resultado"),
+            ("notificacion.gestionar", "Crear, editar, duplicar y eliminar campañas de correo, y mandar pruebas"),
+            ("notificacion.enviar", "Enviar, detener y reanudar campañas de correo"),
+        ],
+    },
+    {
         "modulo": "configuracion",
         "label": "Configuración (geografía)",
         "tab": "sistema",

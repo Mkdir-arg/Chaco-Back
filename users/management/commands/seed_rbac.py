@@ -5,7 +5,7 @@ Hace, sin duplicar nada al repetirse:
 1. Asegura las ``Permission`` del catálogo de capacidades (``core.rbac.CATALOGO``).
 2. Crea/asegura ``RolMeta`` para cada ``Group`` existente (con su categoría).
 3. Crea/asegura el rol protegido ``Administrador`` con **todas** las capacidades,
-   y crea «Operador de backoffice» si falta (si existe, no lo toca).
+   y crea «Operador de backoffice» y «Comunicaciones» si faltan (si existen, no los toca).
 4. Asigna el rol ``Administrador`` a los superusuarios (acceso garantizado).
 
 Ejecutar tras cada ``migrate``::
@@ -37,6 +37,12 @@ _CATEGORIA_POR_GRUPO = {
     "ProfesorInstitucion": rbac.CATEGORIA_INSTITUCION,
     rbac.ROL_ADMINISTRADOR: rbac.CATEGORIA_SISTEMA,
 }
+
+#: Rol de Notificaciones (análisis 007) y lo que trae al crearse.
+ROL_COMUNICACIONES = "Comunicaciones"
+#: Clave estable (OPS-06 fase 2): la misma que pone `users.0035`.
+CLAVE_COMUNICACIONES = "notificaciones.comunicaciones"
+CAPS_COMUNICACIONES = ["notificacion.ver", "notificacion.gestionar", "notificacion.enviar"]
 
 
 class Command(BaseCommand):
@@ -133,6 +139,32 @@ class Command(BaseCommand):
             )
         else:
             self.stdout.write("  · Operador de backoffice ya existe (no se tocan sus capacidades ni su estado)")
+
+        # 3c. Rol «Comunicaciones» (análisis 007): las tres capacidades de Notificaciones.
+        # Mismo criterio que el Operador: se siembra solo al crearlo, así lo que se cambie
+        # desde la pantalla de Roles sobrevive al arranque. En una base que ya existía lo
+        # crea `users.0035`, con la misma clave, el mismo nombre, la misma categoría y las mismas tres.
+        self.stdout.write(self.style.MIGRATE_LABEL("\nRol Comunicaciones..."))
+        com_group, _com_meta, com_creado = asegurar_rol_sembrado(
+            CLAVE_COMUNICACIONES,
+            ROL_COMUNICACIONES,
+            {
+                "descripcion": (
+                    "Arma, prueba y envía campañas de correo masivo desde Notificaciones: lista de "
+                    "destinatarios en Excel y cuerpo en HTML."
+                ),
+                "categoria": rbac.CATEGORIA_BACKOFFICE,
+                "protegido": False,
+                "activo": True,
+            },
+        )
+        if com_creado:
+            com_group.permissions.set([codename_a_perm[rbac.codename_de(c)] for c in CAPS_COMUNICACIONES])
+            self.stdout.write(
+                self.style.SUCCESS(f"  ✓ Comunicaciones creado con {len(CAPS_COMUNICACIONES)} capacidades")
+            )
+        else:
+            self.stdout.write("  · Comunicaciones ya existe (no se tocan sus capacidades ni su estado)")
 
         # 4. Asignar Administrador a los superusuarios (garantiza acceso post-deploy).
         superusers = User.objects.filter(is_superuser=True)

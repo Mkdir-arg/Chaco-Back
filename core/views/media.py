@@ -204,6 +204,22 @@ def _padron_de_becas(user, ruta):
     return True
 
 
+def _archivo_de_campana(user, ruta):
+    """El Excel y el HTML de una campaña: los mira quien ve las campañas.
+
+    Ninguna pantalla los enlaza —la lista sale de la base y la vista previa del HTML
+    saneado tiene su propia vista—, pero el campo existe y el contrato de esta tabla es
+    que todo `FileField` tenga dueño.
+    """
+    from django.db.models import Q
+
+    from notificaciones.models import Campana
+
+    if not Campana.objects.filter(Q(archivo_excel=ruta) | Q(archivo_html=ruta)).exists():
+        return None
+    return rbac.puede(user, "notificacion.ver")
+
+
 #: Prefijo -> resolver, uno por cada prefijo de :mod:`core.rutas_media`. El orden
 #: importa: gana el primero que matchea, así que los más largos van primero. Un
 #: `FileField` nuevo entra acá o su archivo no se puede bajar (lo fija
@@ -224,6 +240,7 @@ REGLAS = (
     (rutas.PREFIJO_CONTACTO, _archivo_de_contacto),
     (rutas.PREFIJO_F00, _archivo_de_f00),
     (rutas.PREFIJO_SOLICITUD_MERENDERO, _documentacion_de_merendero),
+    (rutas.PREFIJO_NOTIFICACIONES, _archivo_de_campana),
 )
 
 
