@@ -5,6 +5,6 @@
     "watch:tailwind": "tailwindcss -i static/custom/css/tailwind.input.css -o static/custom/css/tailwind.css --watch"
   },
   "devDependencies": {
-    "tailwindcss": "3.4.19"
+    "tailwindcss": "4.3.3"
   }
 }
