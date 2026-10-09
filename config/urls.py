@@ -19,10 +19,10 @@ urlpatterns = [
         "favicon.ico",
         RedirectView.as_view(url=f"{settings.STATIC_URL}custom/chaco/favicon.png", permanent=True),
     ),
-    path("ws/conversaciones/", websocket_upgrade_required),
-    re_path(r"^ws/conversaciones/(?P<conversacion_id>\w+)/$", websocket_upgrade_required),
+    # Único WebSocket del proyecto (`legajos/routing.py`). Esta ruta HTTP es el 426
+    # que contesta cuando el runtime no es ASGI. `ws/conversaciones/…` y
+    # `ws/alertas-conversaciones/` se fueron con el apagado de la app (G1-01 fase 2).
     path("ws/alertas/", websocket_upgrade_required),
-    path("ws/alertas-conversaciones/", websocket_upgrade_required),
     # G1c-10: acá estaba `admin/doc/` (`django.contrib.admindocs`), montado en
     # todos los entornos. Publicaba el índice de modelos, vistas, templates y
     # tags del proyecto —con sus docstrings— a cualquier `is_staff`; no lo
@@ -32,7 +32,12 @@ urlpatterns = [
     # Specific paths first
     path("legajos/", include("legajos.urls")),
     path("configuracion/", include("configuracion.urls")),
-    path("conversaciones/", include("conversaciones.urls")),
+    # G1-01 fase 2 (auditoría oct-2026): `conversaciones` está apagada. La app no
+    # está en uso (decisión del PM, 29-sep-2026) y su chat público creaba el legajo
+    # de cualquier DNI con el nombre que quisiera el cliente. Acá iba
+    # `path("conversaciones/", include("conversaciones.urls"))` y, más abajo,
+    # `api/conversaciones/`. Como con el portal (SEC-29), las vistas, los modelos y
+    # los templates siguen en el repo sin ruta: lo que se apaga es la superficie.
     path("portal/", include("portal.urls")),
     path("becas/", include("programas.urls")),
     path("dispositivos/", include("programas.dispositivos_urls")),
@@ -61,10 +66,6 @@ urlpatterns = [
     path("api/core/", include("core.api_urls")),
     path("api/users/", include("users.api_urls")),
     path("api/becas/", include("programas.api_urls")),
-    path(
-        "api/conversaciones/",
-        include(("conversaciones.api_urls", "conversaciones_api"), namespace="conversaciones_api"),
-    ),
     # API Documentation
     # Documentación de la API detrás de login: el inventario completo de
     # endpoints, parámetros y modelos era reconocimiento gratuito para cualquiera

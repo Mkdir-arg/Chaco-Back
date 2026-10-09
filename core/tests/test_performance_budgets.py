@@ -94,22 +94,11 @@ class PerformanceBudgetTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
 
-    def test_ci_workers_can_send_to_separate_conversations(self):
-        from core.management.commands.perf_ci_probe import Command
-
-        first_manifest = build_targets(worker_id="conversation-worker-one")
-        second_manifest = build_targets(worker_id="conversation-worker-two")
-        first_target = next(item for item in first_manifest["targets"] if item["key"] == "envio_conversacion")
-        second_target = next(item for item in second_manifest["targets"] if item["key"] == "envio_conversacion")
-
-        self.assertNotEqual(first_target["url"], second_target["url"])
-
-        for worker_id, manifest, target in (
-            ("conversation-worker-one", first_manifest, first_target),
-            ("conversation-worker-two", second_manifest, second_target),
-        ):
-            clients = Command._build_worker_clients(worker_id, manifest["actors"])
-            response = target["request"](clients["backoffice"], target["url"])
-
-            self.assertEqual(response.status_code, 200)
-            self.assertTrue(response.json()["success"])
+    # G1-01 fase 2: acá estaba `test_ci_workers_can_send_to_separate_conversations`,
+    # que medía que dos workers del CI escribieran en `Conversacion` distintas (la
+    # única escritura del manifiesto que compartía una fila entre workers: cada
+    # worker se creaba la suya por `worker_id`). La app se apagó y sus tres
+    # presupuestos salieron del manifiesto, así que no queda escritura compartida:
+    # las que quedan se separan por `siguiente_escritura()` y por el offset de DNI
+    # derivado del `worker_id`. La identidad aislada la sigue midiendo el test de
+    # arriba.

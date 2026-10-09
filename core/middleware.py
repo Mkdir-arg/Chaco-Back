@@ -134,9 +134,9 @@ RUTAS_SIN_MARCA_DE_ACTIVIDAD = frozenset(
         "/performance-api/",
         "/query-analysis-api/",
         "/optimization-suggestions-api/",
-        # `static/custom/js/conversaciones_tiempo_real_global.js:47` — cada 5 s
-        # mientras la pestaña esté visible y el WebSocket de la lista no esté abierto.
-        "/conversaciones/api/estadisticas/",
+        # Hubo una cuarta: `/conversaciones/api/estadisticas/`, que
+        # `conversaciones_tiempo_real_global.js` pedía cada 5 s. El apagado de
+        # `conversaciones` (G1-01 fase 2) se llevó la ruta y el script.
     }
 )
 

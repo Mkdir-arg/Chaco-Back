@@ -21,6 +21,10 @@ ventana y se cachea en el socket (`VentanaDeRevalidacionTests`).
 
 Los tests corren el `application` de `config/asgi.py` con el
 `WebsocketCommunicator` de Channels: no hace falta daphne ni `runserver`.
+
+El módulo vivía en `conversaciones/tests/`: se mudó acá con el consumer (RED-13),
+porque `/ws/alertas/` es de `legajos` y es el único canal que sobrevive al apagado
+de `conversaciones` (G1-01 fase 2).
 """
 
 from unittest import mock
@@ -35,8 +39,8 @@ from django.db import connection
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 
-from conversaciones.consumers import AlertasConsumer
 from core import rbac
+from legajos.consumers import AlertasConsumer
 from legajos.models import AlertaCiudadano, Ciudadano, LegajoAtencion
 from legajos.services.alertas import AlertasService
 from users.models import Capacidad, Profile, RolMeta

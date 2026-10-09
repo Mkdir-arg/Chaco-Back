@@ -183,19 +183,9 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     # --- Instituciones vinculadas (vía legajos) ---
     context["instituciones_ciudadano"] = []
 
-    # --- Conversaciones ---
-    try:
-        from conversaciones.models import Conversacion
-
-        # Materializado: como lista, la plantilla puede recorrerlo las veces que quiera
-        # sin volver a consultar.
-        context["conversaciones_ciudadano"] = list(
-            Conversacion.objects.filter(dni_ciudadano=ciudadano.dni)
-            .select_related("operador_asignado")
-            .order_by("-fecha_inicio")[:20]
-        )
-    except Exception:
-        context["conversaciones_ciudadano"] = []
+    # G1-01 fase 2: acá se armaba `conversaciones_ciudadano` (últimas 20 conversaciones
+    # por DNI) para la solapa «Conversaciones» del detalle. La solapa y la consulta se
+    # fueron con el apagado de la app.
 
     # --- Derivaciones ---
     derivaciones_ciudadano = list(
