@@ -14,10 +14,6 @@
     <div class="flex flex-wrap gap-2">
       <a href="{% url 'dispositivos:exportar' 'padron' 'csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Exportar padrón CSV</a>
       <a href="{% url 'dispositivos:exportar' 'padron' 'xlsx' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Excel</a>
-      <a href="{% url 'dispositivos:exportar' 'ocupacion' 'csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Ocupación CSV</a>
-      <a href="{% url 'dispositivos:exportar' 'ocupacion' 'xlsx' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Ocupación Excel</a>
-      <a href="{% url 'dispositivos:exportar' 'movimientos' 'csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Movimientos CSV</a>
-      <a href="{% url 'dispositivos:exportar' 'movimientos' 'xlsx' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Movimientos Excel</a>
       {% if puede_crear_dispositivos %}<a href="{% url 'dispositivos:crear' %}" class="btn-nodo btn-brand btn-base">Nuevo dispositivo</a>{% endif %}
     </div>
   </div>
@@ -26,8 +22,6 @@
     <select name="tipo" class="nodo-field"><option value="">Todos los tipos</option>{% for tipo in tipos %}<option value="{{ tipo.pk }}" {% if request.GET.tipo == tipo.pk|stringformat:'s' %}selected{% endif %}>{{ tipo.nombre }}</option>{% endfor %}</select>
     <select name="estado" class="nodo-field"><option value="">Todos los estados</option>{% for value, label in estados %}<option value="{{ value }}" {% if request.GET.estado == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
     <input name="localidad" value="{{ request.GET.localidad }}" class="nodo-field" placeholder="Localidad">
-    <input name="desde" value="{{ request.GET.desde }}" class="nodo-field" type="date" aria-label="Movimientos desde">
-    <input name="hasta" value="{{ request.GET.hasta }}" class="nodo-field" type="date" aria-label="Movimientos hasta">
     <button class="btn-nodo btn-secondary btn-base" type="submit">Filtrar</button>
   </form>
 

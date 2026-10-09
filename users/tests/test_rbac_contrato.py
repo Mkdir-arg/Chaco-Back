@@ -88,6 +88,13 @@ CAPACIDADES_SIN_USO = {
     # `config.ver` salió de esta lista en el Cambio 185: `programa_list` la evalúa
     # (SEC-36, vía `CAPS_ENTRADA_PROGRAMAS`), que es exactamente lo que el ratchet
     # de abajo pide que se registre cuando la pantalla llega.
+    # Las dos de Dispositivos quedaron sin pantalla con la baja del circuito viejo
+    # (MVP v2, release A): admitir, egresar y trasladar eran las vistas que las
+    # evaluaban. **No salen del catálogo**: los roles ya las tienen tildadas y la E2
+    # del MVP vuelve a pedirlas desde el ingreso y el egreso contra `Estadia`. Hasta
+    # entonces tildarlas no habilita nada, que es justo lo que esta lista declara.
+    "dispositivo.admitir": "la pantalla de admisión se dio de baja; vuelve con el ingreso de la v2 (MVP 02+)",
+    "dispositivo.egresar": "ídem `dispositivo.admitir`: el egreso y el traslado vuelven con `Estadia`",
     "relevamiento.ver": "Becas usa `becas.relevamiento.ver`; el módulo genérico quedó sin consumidores (OPS-14)",
     "institucion.ver": "no existe el módulo de Instituciones: no hay vista ni URL que la evalúe (OPS-14)",
     "institucion.administrar": "ídem `institucion.ver` (OPS-14)",

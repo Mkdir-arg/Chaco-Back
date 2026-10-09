@@ -7,10 +7,13 @@ fuente del mapa estado→badge (el de Dispositivos es el contrato de referencia)
 tests fijan el mapa de los dos modelos de Merenderos y exigen que las pantallas lo
 incluyan en vez de reinventarlo.
 
-El tercer bloque cubre el otro síntoma de la misma ficha: en el detalle del
+El tercer bloque cubría el otro síntoma de la misma ficha: en el detalle del
 dispositivo, «Sin datos» —ausencia de información, no un problema— salía en el rojo de
 `text-fg-danger`, porque la cadena de `{% if %}` del semáforo terminaba en un `else`
-que lo atrapaba.
+que lo atrapaba. **Se fue el 09-10-2026**: la franja de indicadores se dio de baja con
+`RegistroDiario` y `CampoTipoDispositivo` (MVP v2, release A). La regla que fijaba —que
+la ausencia de dato no se pinta de peligro— vale igual para los indicadores de la v2, y
+vuelve con ellos.
 """
 
 import re
@@ -111,32 +114,3 @@ class PantallasDeMerenderosUsanElParcialTests(SimpleTestCase):
             with self.subTest(ruta=ruta):
                 texto = (REPO / ruta).read_text(encoding="utf-8")
                 self.assertNotIn("get_estado_display", texto, f"{ruta}: el estado va por el parcial")
-
-
-class SemaforoSinDatosTests(SimpleTestCase):
-    """«Sin datos» no es un problema: no puede salir en el rojo de peligro."""
-
-    RUTA = "programas/templates/programas/dispositivos/legajo/detail.html"
-
-    #: Los dos indicadores que `programas/services/indicadores.py` puede devolver
-    #: con `semaforo == "SIN_DATOS"`. Ocupación y disponibilidad no: su semáforo
-    #: siempre sale VERDE, AMARILLO o ROJO.
-    INDICADORES = ("actualizacion", "completitud")
-
-    def setUp(self):
-        self.texto = (REPO / self.RUTA).read_text(encoding="utf-8")
-
-    def test_los_indicadores_sin_datos_salen_en_tono_neutro(self):
-        for indicador in self.INDICADORES:
-            with self.subTest(indicador=indicador):
-                rama = f"indicadores.{indicador}.semaforo == 'SIN_DATOS' %}}text-body-subtle"
-                self.assertTrue(rama in self.texto, f"falta la rama neutra de {indicador}")
-
-    def test_la_rama_sin_datos_va_antes_del_else_que_pinta_de_rojo(self):
-        for indicador in self.INDICADORES:
-            with self.subTest(indicador=indicador):
-                # La línea del indicador, recortada hasta su `{% else %}`: la rama
-                # neutra tiene que estar adentro, o el `else` se la come.
-                linea = next(ln for ln in self.texto.splitlines() if f"indicadores.{indicador}.semaforo" in ln)
-                antes_del_else = linea.split("{% else %}")[0]
-                self.assertTrue("SIN_DATOS" in antes_del_else, f"{indicador}: la rama neutra cae después del else")
