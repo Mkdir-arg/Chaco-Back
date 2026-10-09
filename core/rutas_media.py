@@ -41,6 +41,8 @@ PREFIJO_SOLICITUD_MERENDERO = "merenderos/solicitudes/"
 PREFIJO_ADJUNTO_BECAS = "becas/adjuntos/"
 #: Excel del padrón de habilitados (convocatoria y relevamiento).
 PREFIJO_PADRON_BECAS = "becas/padrones/"
+#: Excel de destinatarios y HTML del cuerpo de una campaña (``notificaciones.Campana``).
+PREFIJO_NOTIFICACIONES = "notificaciones/"
 
 
 def nombre_opaco(filename):
@@ -67,3 +69,13 @@ def ruta_archivo_admision(instance, filename):
 def ruta_solicitud_merendero(instance, filename):
     """Conserva el `%Y/%m` que ya tenía: son muchas solicitudes por año."""
     return f"{PREFIJO_SOLICITUD_MERENDERO}{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
+
+
+def ruta_notificacion_excel(instance, filename):
+    """La lista de destinatarios de una campaña: correos de personas, nombre opaco."""
+    return f"{PREFIJO_NOTIFICACIONES}excel/{nombre_opaco(filename)}"
+
+
+def ruta_notificacion_html(instance, filename):
+    """El HTML **original** que subió el operador; lo que se envía es la copia saneada."""
+    return f"{PREFIJO_NOTIFICACIONES}html/{nombre_opaco(filename)}"
