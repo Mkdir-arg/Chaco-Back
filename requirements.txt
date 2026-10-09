@@ -68,7 +68,7 @@ lxml==6.1.3
 # WebSockets
 channels==4.2.2
 channels-redis==4.1.0
-daphne==4.2.2
+daphne==4.2.3
 
 # Performance Profiling
 # `zeal` se queda acá y no en `requirements-dev.txt`: `config/settings.py` lo suma a
