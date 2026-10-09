@@ -1,0 +1,24 @@
+{% comment %}
+Bloque de ubicación sin mapa (coordenadas + enlace externo + plano adjunto). Va dentro de una card.
+  {% include "components/_ubicacion.html" with latitud=dispositivo.latitud longitud=dispositivo.longitud plano_url=plano.archivo.url plano_nombre=plano.nombre %}
+Contexto:
+  latitud, longitud  Decimal (o None). Sin las dos, se muestra el estado vacío y no hay enlace.
+  plano_url          opcional: enlace al plano del edificio (adjunto). Sin él no se muestra.
+  plano_nombre       texto del enlace del plano; por defecto «Plano del edificio».
+El enlace «Ver en el mapa» abre OpenStreetMap en una pestaña nueva: no carga nada dentro de la
+página, así que no hace falta tocar la CSP ni cargar librerías de mapas.
+{% endcomment %}{% load l10n %}
+{% if latitud is not None and latitud != "" and longitud is not None and longitud != "" %}
+<div class="flex flex-col gap-4">
+  <dl class="grid gap-5 sm:grid-cols-2">
+    <div><dt class="text-xs font-semibold uppercase text-body-subtle">Latitud</dt><dd class="mt-1 text-body">{{ latitud|floatformat:6 }}</dd></div>
+    <div><dt class="text-xs font-semibold uppercase text-body-subtle">Longitud</dt><dd class="mt-1 text-body">{{ longitud|floatformat:6 }}</dd></div>
+  </dl>
+  <div class="flex flex-wrap items-center gap-3">
+    <a href="https://www.openstreetmap.org/?mlat={{ latitud|unlocalize }}&amp;mlon={{ longitud|unlocalize }}#map=17/{{ latitud|unlocalize }}/{{ longitud|unlocalize }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-location-dot" aria-hidden="true"></i> Ver en el mapa<span class="sr-only"> (se abre en una pestaña nueva)</span></a>
+    {% if plano_url %}<a href="{{ plano_url }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-paperclip" aria-hidden="true"></i> {{ plano_nombre|default:"Plano del edificio" }}</a>{% endif %}
+  </div>
+</div>
+{% else %}
+{% include "components/_estado_vacio.html" with icono="fa-location-dot" titulo="Sin ubicación cargada" texto="Todavía no se cargaron las coordenadas de este dispositivo." %}
+{% endif %}
