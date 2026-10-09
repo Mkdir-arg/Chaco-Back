@@ -2798,7 +2798,8 @@ pasa de 20 a **25** y un paso nuevo escribe los minutos en el resumen del job y 
 `OK (skipped=50, expected failures=2)` en las tres:** `manage.py test` en serie, **637 s**; `coverage run manage.py
 test` en serie —lo que el job corría hasta ahora—, **792 s**; `coverage run manage.py test --parallel 4` —lo que corre
 desde este PR—, **599 s**. O sea **792 → 599 s, −24 %**, con el mismo conteo, los mismos 50 *skipped* y los mismos 2
-*expected failures*: **ningún test cambia de resultado**. En el runner de Linux la mejora tiene que ser mayor, porque
+*expected failures*: **ningún test cambia de resultado**. Sobre el árbol ya mergeado con `development`, el mismo par:
+4.967 tests `OK (skipped=53)` en **655 s** en serie y sin cobertura contra **463 s** en paralelo **con** cobertura. En el runner de Linux la mejora tiene que ser mayor, porque
 ahí el arranque es *fork* y no *spawn*: la medición local paga el `django.setup()` y la creación del esquema en cada
 uno de los cuatro workers.
 **La mitad que la ficha nombra en una línea y es donde estaba el riesgo: la cobertura.** `coverage run` mide solo el
@@ -2806,7 +2807,7 @@ proceso que lanza, y con `--parallel` ese proceso no corre ningún test: sin toc
 desplomado y el gate habría culpado al PR que lo encendiera. Van `concurrency = ["multiprocessing"]`, `parallel = true`
 y `sigterm = true` en `[tool.coverage.run]` —**en el archivo y no en la línea de comandos**, porque los subprocesos no
 ven los flags del padre— más un paso de `coverage combine` antes de los dos `coverage report`. Medido después de
-combinar: **86 % global** (techo 79) y **95 % en los nueve módulos críticos** (piso 90). El `fail_under` no se mueve en
+combinar: **85 % global** (techo 79) y **95 % en los nueve módulos críticos** (piso 90). El `fail_under` no se mueve en
 este PR: subirlo es la decisión de ratchet de TST-03, no de esta ficha.
 **Un desvío, hacia menos CI:** se retira el paso no bloqueante `core users portal --parallel 2` del job
 `Orden y paralelo`, que RED-88 había puesto explícitamente «hasta que RED-86 pase la suite entera a paralelo». Eso es lo
