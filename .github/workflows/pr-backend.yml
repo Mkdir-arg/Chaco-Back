@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -67,7 +67,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -112,7 +112,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -191,7 +191,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -270,7 +270,7 @@ jobs:
             *) echo "::error::el filtro por rutas no resolvió (contrato='$CONTRATO'): el job no puede decidir si hay contratos que verificar"; exit 1 ;;
           esac
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.filtro.outputs.contrato == 'true' || github.event_name == 'push'
         with:
           python-version: "3.12"
