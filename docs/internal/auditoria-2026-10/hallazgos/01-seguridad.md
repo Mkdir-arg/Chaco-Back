@@ -231,6 +231,18 @@ programa solo sirve para su propio programa.
 - **Ubicación:** `core/rbac.py:46-55` (módulo `programas`, `alcance: programa`, sin lista `programas`); `configuracion/views/programas.py:90`, `:120`, `:146`, `:175`, `:246`, `:290`, `:319`, `:357`, `:429` (`@requiere("programa.configurar")` global) y `:67` (listado).
 - **Escenario (reproducido):** el admin de roles de Becas se tilda `programa.configurar` y `GET /configuracion/programas/<Dispositivos>/editar/paso1/` → 200.
 - **Lo que NO hay que hacer:** mover `programa.configurar` a un módulo global (propuesta de P1). `programas/services/dispositivos.py:13` y `:56` (`puede_configurar_dispositivos`) la evalúan **con programa DISPOSITIVOS**; globalizarla rompe ese alcance.
+
+**⚠ Pendiente abierto (anotado el 09-oct-2026, Ola 7 PR 3 — seguimiento MINOR de la revisión de #646):**
+**el `codigo` del programa es hoy un identificador de seguridad editable desde el producto.** El catálogo
+de SEC-06 decide qué módulos se le ofrecen a un rol **por `Programa.codigo`**, y el paso 1 del wizard
+—que en DISPOSITIVOS sigue siendo delegable, porque es el único programa que evalúa
+`programa.configurar` con alcance— deja **cambiar ese código**. Un admin de DISPOSITIVOS puede entonces
+mover la identidad de su programa (p. ej. a `MERENDEROS`, si esa fila no existe en esa base) y con eso
+abrirse el módulo ajeno. **No es regresión** —`codigo` es `unique` y el form lo valida, así que contra
+BECAS/MERENDEROS existentes no corre, y el estado anterior (`@requiere` global) era más permisivo— y por
+eso no se parchea acá. Lo que hay que decidir en la ola siguiente es de qué lado cae: o el `codigo` deja
+de ser editable después del alta (y el renombre pasa a ser de sistema), o el catálogo deja de anclarse al
+código y se ancla al `pk`. Nada de esto lo ve ninguna herramienta: hoy el único rastro es esta nota.
 - **Propuesta:**
   1. `core/rbac.py`: `puede_sin_programa(user, codigo)` → True si es superusuario activo o si alguna fila de `_filas_de_capacidad(user)` tiene ese codename con `programa_del_rol is None`; y el decorador `requiere_sin_programa(codigo, redirect_to=None)`.
   2. `configuracion/views/programas.py`: alta del wizard, paso 1 nuevo y acciones sin `pk` → `@requiere_sin_programa("programa.configurar")`. Vistas con `pk` (editar pasos, cambiar estado): `programa = get_object_or_404(Programa, pk=pk)` y `if not (rbac.puede_sin_programa(u, "programa.configurar") or rbac.puede(u, "programa.configurar", programa=programa)): return _respuesta_sin_permiso(...)`. Listado (`:67`): `puede_editar` por fila con el mismo criterio.

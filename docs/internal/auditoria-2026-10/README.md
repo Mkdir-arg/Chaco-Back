@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 09-oct-2026 (Ola 7, PR 3: hallazgos chicos)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 7 PR 3 | 197 | BEC-25 ✅ · G1b-09 ✅ · G1b-10 ✅ · RED-78 ✅ · R0-02 ✅ | ✅ | **Las 5 fichas, sin migraciones.** (1) **RED-78:** se van `dashboard/views/` entero, `dashboard/templates/dashboard.html` y el `path("", …, name="inicio")`. `DashboardView` era una copia vieja del inicio —contadores globales del organismo, sin el gate por capacidad de SEC-14— que no se servía nunca porque en `config/urls.py` el include de `users.urls` va antes; lo único que la separaba de estar viva era el orden de dos líneas, con el comentario «Root paths last» invitando a moverlas. Las cinco APIs de `dashboard/api_views` quedan, con su test. `RuteoRaizTests` pasa de «la vista está tapada» a «la vista no está». Con esto cierra el ítem (a) que **LEG-06** había dejado abierto a propósito. (2) **G1b-09:** el candado va en `asegurar_admin_restante` y no en el toggle —es el único punto por el que pasan los seis caminos que pueden dejar sin admin— y son **dos mitades**: un ancla (`FOR UPDATE` sobre las filas de `auth_permission` de las capacidades de administración, que existen siempre y son las mismas para toda operación) y la lectura del check **con candado**, que en InnoDB trae la última versión commiteada y no la foto. **Desvío:** la ficha proponía anclar en las `RolMeta` admin; una base cuyo último admin es superusuario, o un programa sin roles, no tiene ninguna fila que bloquear y el ancla desaparecería justo en el caso que importa. `GET_LOCK` se descartó (no existe en SQLite, no es transaccional). La carrera de verdad corre con `@tag("mysql")`; la presencia del candado, con `candados_tomados` (RED-67). (3) **G1b-10:** la colisión de unicidad en carrera contesta **409 con el campo** (`username`/`dni`/`__all__`, leído del mensaje del motor) en vez del 500 que le llegaba al modal como HTML y se mostraba «respuesta inesperada del servidor». (4) **BEC-25:** las dos líneas, más el classmethod que quedaba sin llamadores; `proximo_numero()`/`nombre_para()`, los que usa `save()`, se quedan. (5) **R0-02:** el texto a corregir **era uno solo** — `docs/client/architecture.md` ya lo había arreglado #643. **Los tres seguimientos MINOR de #646 también entran:** la ficha del rol deja de dibujar «Editar» sobre el rol propio (el listado ya lo escondía y la vista rebotaba), `SolicitudMerenderoUpdateView` sella `creado_por` cuando está vacío (sin eso el «Actualmente: /media/…» del widget le daba 403 a quien acababa de subir el archivo) y la invalidación del cache de `Programa` pasa a `transaction.on_commit`. **TDD:** de los 33 tests nuevos, 20 fallan contra un worktree de `origin/development` y los otros 13 son controles que tienen que pasar en los dos lados. **Dos pendientes anotados, sin código:** el `codigo` del programa es un identificador de seguridad **editable** desde el paso 1 del wizard (nota en SEC-07, para la ola siguiente: o deja de ser editable, o el catálogo se ancla al `pk`), y los dos paneles de derivaciones —la card de la home y la solapa del legajo— quedan **congelados para casos nuevos** desde que D-L06 ocultó su único productor (nota en LEG-06, para el PM) |
+
 ## Estado al 09-oct-2026 (Ola 7, PRs 1, 2 y 4 — **arranca la Ola 7**)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1629,20 +1635,20 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 · **62 cerradas el 08-oct (PRs 1 y 2 = 10 + 2, con la parte RED-49 adentro · PR 3 = 8 · PR 4 = 6 · PR 5 = 12 de 14, PERF-03 🟡 · PRs 6, 7 y 8 = 12 · PR 9 = 12) → 2 restantes: el punto 3 de PERF-03 (exportar fuera del request)** |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **128 cerradas (PRs 1 a 8) → 0: la ola cierra** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **42 cerradas el 06-oct (pasos 0-7) → 0: la ola cierra** |
-| 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 · **24 cerradas el 09-oct (PR 1: OPS-10 = 4, OPS-14 + RED-65 = 2, FE-14 = 2, LEG-06 🟡 = 2 · PR 2: OPS-13 + RED-45 = 2, RED-85 = 2 · PR 4: G1-01 fase 2 = 2, RED-13 = 8) → 64 restantes** |
+| 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 · **40 cerradas el 09-oct (PR 1: OPS-10 = 4, OPS-14 + RED-65 = 2, FE-14 = 2, LEG-06 🟡 = 2 · PR 2: OPS-13 + RED-45 = 2, RED-85 = 2 · PR 3: G1b-09 = 8, BEC-25 = 2, G1b-10 = 2, RED-78 = 2, R0-02 = 2 · PR 4: G1-01 fase 2 = 2, RED-13 = 8) → 48 restantes** |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **888 cerradas al 09-oct-2026 → 84 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **904 cerradas al 09-oct-2026 → 68 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
 
 **Cómo se calcula la fila Total (08-oct-2026).** Las 972 h son la suma de la última columna, ola por ola: 0 (Ola 0, que
 cerró en código y cuyas horas ya se descontaron) + 285 (R) + 78 (1) + 135 (2) + 152 (3) + 64 (4) + 128 (5) + 42 (6) +
-88 (7); la v2 no tiene horas. Las **888 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
+88 (7); la v2 no tiene horas. Las **904 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
 sale de la lista de PRs de su propia sección de este §6: **269** de la Ola R (285 − las 16 de R-17, el único abierto),
 **76** de la Ola 1 (de 78: queda el ítem 0, operativo), **135** de la Ola 2 (PR 1 = 26 + 2 de RED-80, PR 2 = 24 + 2 de RED-52, PRs 3 y 4 = 7 + 12, PR 5 = 14 + 2 de RED-79, PR 6 = 12, PR 7 = 14, PR 8 = 20), **152** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22, PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 7b = 14,
-PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **62** de la Ola 4 (PRs 1 y 2 = 12, PR 3 = 8, PR 4 = 6, PR 5 = 12 de 14, PRs 6, 7 y 8 = 12, PR 9 = 12); **24** de la Ola 7 (PR 1 = 10, PR 2 = 4, PR 4 = 10).
-La cuenta: 269 + 76 + 135 + 152 + 62 + 128 + 42 + 24 = **888 cerradas**; 972 − 888 = **84 restantes**. Desde el 08-oct estas
+PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **62** de la Ola 4 (PRs 1 y 2 = 12, PR 3 = 8, PR 4 = 6, PR 5 = 12 de 14, PRs 6, 7 y 8 = 12, PR 9 = 12); **40** de la Ola 7 (PR 1 = 10, PR 2 = 4, PR 3 = 16, PR 4 = 10).
+La cuenta: 269 + 76 + 135 + 152 + 62 + 128 + 42 + 40 = **904 cerradas**; 972 − 904 = **68 restantes**. Desde el 08-oct estas
 cuentas las actualiza **solo el juez**, una vez por tanda de merges: los PRs #626 (Ola 2 PR 5) y #627 (Ola 3 PR 5b) se
 escribieron en paralelo y cada uno sumó sus horas sobre una base que no tenía las del otro (663 y 661). El «139
 cerradas» venía del 04-oct y no contaba nada de lo mergeado entre el 05 y el 07; el **543** del 07-oct arrastraba la
@@ -2242,16 +2248,17 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **Ítems:** OPS-10 ✅ (Cambio 195 — módulos de «optimización» y sus comandos), OPS-13 ✅ (Cambio 196 —
   once paquetes fuera de la imagen, `requirements-dev.txt` y el retiro de `django-health-check` con `core.0003`),
   OPS-14 ✅ (Cambio 195 — código muerto; la parte de `.py` con CR ya la cerró RED-82), FE-14 ✅ (Cambio 195 —
-  29 JS huérfanos), LEG-06 🟡 (Cambio 195 — código muerto de Legajos; queda `dashboard.html`, que va con RED-78,
-  y el default de D-F16, que no aplica), BEC-25, G1b-09, G1b-10, **G1-01 fase 2** (apagar
+  29 JS huérfanos), LEG-06 🟡 (Cambio 195 — código muerto de Legajos; `dashboard.html` lo cerró RED-78 en el
+  Cambio 197; queda el default de D-F16, que no aplica), BEC-25 ✅ (Cambio 197), G1b-09 ✅ (Cambio 197),
+  G1b-10 ✅ (Cambio 197), **G1-01 fase 2** (apagar
   conversaciones completo: includes, `ws/conversaciones/…` y `ws/alertas-conversaciones/` —**no** `ws/alertas/`—, menú,
-  card del inicio y solapa del legajo; 2 h; R0-01 se cierra antes, en la Ola 0), **R0-02** (CLAUDE.md y
-  `docs/client/architecture.md` con `portal:ciudadano_mi_perfil`; 2 h) y **PERF-11** (tabla
+  card del inicio y solapa del legajo; 2 h; R0-01 se cierra antes, en la Ola 0), **R0-02 ✅** (Cambio 197 —
+  CLAUDE.md; `docs/client/architecture.md` ya estaba corregido) y **PERF-11** (tabla
   `FotoDefinicion`, plan propio, L). **Red de seguridad (04-oct), 40 h:** RED-64 (aprobación antes de publicar
   `docs/client/`), RED-76 (mypy gradual), RED-86 (suite en paralelo, después de RED-88) y segundas partes de RED-13
   (desacoplar el shell y la señal de `conversaciones` **antes** de G1-01 fase 2: +8 h), RED-37 (esquema del dashboard),
-  RED-39 (un solo sobre de error JSON), RED-54 (partir `formulario_detalle`), RED-78 (borrar `DashboardView` **y
-  `dashboard/templates/dashboard.html`**, que LEG-06 dejó en pie a propósito) y RED-85 ✅ (Cambio 196 —
+  RED-39 (un solo sobre de error JSON), RED-54 (partir `formulario_detalle`), RED-78 ✅ (Cambio 197 — borrado
+  `DashboardView` **y `dashboard/templates/dashboard.html`**, que LEG-06 dejó en pie a propósito) y RED-85 ✅ (Cambio 196 —
   `requirements-ci.txt` + dependabot). RED-45 ✅ (borrar el parche de gevent) entró dentro de OPS-13, sin horas extra;
   RED-65 ✅ (sacar del guard del release los artefactos muertos) entró con OPS-10/OPS-14 en el Cambio 195.
 - **Hecho cuando:** V-STD + V-UI; `git grep -n "phase2\|core.performance.monitoring"` vacío; `pip-audit` y build de imagen

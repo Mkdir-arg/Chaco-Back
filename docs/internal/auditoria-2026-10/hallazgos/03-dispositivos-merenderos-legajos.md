@@ -392,6 +392,24 @@ decisión del PM, no limpieza de deuda.
 `core.tests.test_urls_del_front.UrlsDelFrontTests.test_la_allowlist_no_tiene_entradas_de_mas`, que ahora
 sostiene la allowlist **en cero**).
 
+**Cerrado el ítem (a) el 09-oct-2026 (Cambio 197, Ola 7 PR 3):** `dashboard/templates/dashboard.html` se
+borró junto con `DashboardView` y su `path`, que es como RED-78 preveía. El ítem (b) —el default de D-F16—
+sigue sin aplicarse, por el mismo motivo code-first de arriba: `legajos:programa_detalle` es destino de
+redirect de las dos vistas de derivación de SEC-12, que están ruteadas y vivas. Por eso la ficha queda 🟡.
+
+**⚠ Para el PM (anotado el 09-oct-2026, seguimiento MINOR de la revisión de #649): los dos paneles de
+derivaciones quedan congelados para casos nuevos.** El comentario de `ciudadano_detail.html:191` dice que
+la `DerivacionPrograma` PENDIENTE «nadie puede aceptar desde la UI», y es cierto —`ProgramaDetailView`
+deja `derivaciones_ciudadanos` en `[]` fijo (`legajos/views/programas.py:63`)—, pero el registro **sí se
+muestra**, en dos pantallas vivas y con datos reales: el panel «Derivaciones pendientes» de la home
+(`templates/inicio.html:428-446`, alimentado por `core/views/public.py:134`) y la solapa Derivaciones del
+detalle del ciudadano (`legajos/templates/legajos/ciudadano_detail.html:784`, desde
+`legajos/selectors/ciudadanos.py:201`). El botón que D-L06 ocultó era el **único** productor de esas filas
+fuera de `seed_perf`, así que desde este deploy los dos paneles no reciben casos nuevos. Y las PENDIENTE
+que ya estén en PRD siguen sumando en el contador de la home **sin forma de cerrarlas** —eso ya pasaba
+antes de ocultar el botón—. Está dentro del default de D-L06 y no se trata como bloqueo; la salida es la
+v2 (M6, #390), que define las derivaciones de punta a punta.
+
 ### G1c-17 · La difusión de alertas críticas es código muerto; el channel layer es InMemory fuera de prd
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** G1c-17 · **Tratamiento:** parchear v1 · **Ola:** 2 (mismo PR que G1c-04) · **Esfuerzo:** S
 - **Ubicación:** `legajos/services/alertas.py:185-189` (manda a `alertas_criticas` / `nueva_alerta_critica`, que nadie escucha); `conversaciones/consumers.py:236-240` (el consumer tiene `alerta_critica` y `alerta_cerrada`, que nadie emite); el modal crítico de `alertas_websocket.js:57` **nunca se dispara**; `config/settings.py:387-392` (`InMemoryChannelLayer` fuera de `prd`: lo que emite un CronJob en otro pod no llega a nadie).

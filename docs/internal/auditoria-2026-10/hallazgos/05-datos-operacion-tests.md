@@ -29,7 +29,7 @@ Fichas completas del dominio. Convenciones, `V-STD` y `V-UI`: README §0. PoC: `
 | G2-05 | `import_users_from_csv` reparte grupos de un usuario fijo y pisa cuentas | BAJA | CONF. lectura | 3 | S | ✅ |
 | G3-04 | CronJobs de referencia sin deadlines, `backoffLimit` ni `timeZone` | BAJA | PLAUSIBLE | 3 | S | ✅ |
 | G3-05 | Cron de icore sin versionar y sin vigilancia | BAJA | CONF. lectura | 3 | S | ✅ |
-| R0-02 | `CLAUDE.md` y `docs/client/architecture.md` todavía nombran `portal:ciudadano_mi_perfil` | BAJA (MINOR) | revisión Ola 0 | 7 | S | ⬜ |
+| R0-02 | `CLAUDE.md` y `docs/client/architecture.md` todavía nombran `portal:ciudadano_mi_perfil` | BAJA (MINOR) | revisión Ola 0 | 7 | S | ✅ |
 | R0-03 | Fecha fija en `programas/tests/test_becas_relevamientos.py:636-648` que vence el 01-ene-2027 | BAJA (MINOR) | revisión Ola 0 | **R** (antes 3; antes del 31-dic-2026) | S | ✅ |
 
 ---
@@ -737,6 +737,22 @@ las líneas son de `origin/development @ 7393c41`.
 
 ### R0-02 · `CLAUDE.md` y `docs/client/architecture.md` todavía nombran `portal:ciudadano_mi_perfil`
 **Severidad:** BAJA (MINOR del revisor) · **Estado:** CONFIRMADO (lectura) · **Origen:** revisión de la Ola 0 · **Ola:** 7 · **Esfuerzo:** S
+**Resolución:** ✅ Resuelto en #651 (Cambio 197, Ola 7 PR 3), 09-oct-2026 — **el texto a corregir era uno
+solo.** `CLAUDE.md` ahora dice `portal:home` y, de paso, cuál es la excepción real del middleware: solo
+`/static/`; `/media/` **no** está exento (SEC-09 etapa 2). `docs/client/architecture.md:203` ya decía las
+dos cosas bien —lo corrigió el PR de `/media/` (#643, Cambio 188), que tocó ese mismo párrafo por la otra
+mitad del seguimiento anotada en SEC-09—, así que ahí no había nada que cambiar. **Sí deja guard**, y no
+fijando el nombre correcto (que envejece igual) sino la propiedad: **todo `portal:<algo>` que esos dos
+textos nombren tiene que reversear**, con su control de andamio. La próxima ruta del portal que se apague
+vuelve a poner esto en rojo. **Test permanente:**
+`portal/tests/test_portal_apagado.py::DocumentacionDelPortalTests.test_las_rutas_del_portal_que_nombran_los_docs_existen`
+(y `.test_el_control_del_andamio`).
+
+*Nota, fuera del alcance de la ficha:* `portal/views/ciudadano_auth.py` y
+`portal/templates/portal/ciudadano/base_ciudadano.html` todavía nombran `portal:ciudadano_mi_perfil` en
+un `redirect` y un `{% url %}`. No son un 500 latente: las vistas y el template que los contienen quedaron
+sin ruta con SEC-29 y `portal/tests/test_portal_apagado.py` lo fija (17 rutas y 19 nombres). Limpiarlos va
+con el apagado definitivo del portal, no acá.
 - **Ubicación:** `CLAUDE.md:165` y `docs/client/architecture.md:203` dicen que `PortalCiudadanoMiddleware` redirige a `portal:ciudadano_mi_perfil`; desde #511 (SEC-29) redirige a `portal:home` y esa ruta no existe.
 - **Propuesta:** actualizar los dos textos (documentación; `CLAUDE.md` no viaja en el release).
 

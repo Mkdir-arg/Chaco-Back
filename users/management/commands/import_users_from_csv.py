@@ -176,6 +176,9 @@ class Command(BaseCommand):
         programas_previos = set()
 
         with transaction.atomic():
+            # G1b-09: el candado va antes de leer y de escribir. El lote puede pisarle
+            # los roles al último administrador mientras alguien lo desactiva desde el ABM.
+            rbac.tomar_candado_de_administracion()
             for item in plan:
                 usuario, creado = user_model.objects.get_or_create(username=item["username"], defaults=item["datos"])
                 if not creado:

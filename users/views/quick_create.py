@@ -1,7 +1,9 @@
 import logging
+import re
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
+from django.db import IntegrityError
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
@@ -28,6 +30,60 @@ ROLES_BACKOFFICE = {
     "coordinador": (ROL_COORDINADOR, "coordinadores"),
     "referente": (ROL_COORDINADOR_REGIONAL, "referentes"),
 }
+
+#: Qué decirle al operador cuando la carrera la gana el otro (G1b-10). La clave es el
+#: ``name`` del campo en el modal: el JS enfoca ``form.elements.namedItem(primerCampo)``.
+MENSAJES_COLISION = {
+    "username": "Ese nombre de usuario lo acaban de tomar. Probá con otro.",
+    "dni": "Ese DNI ya está cargado en otro usuario. Revisalo.",
+    "__all__": "No pudimos crear el usuario: alguno de los datos ya está en uso. Revisalos y probá de nuevo.",
+}
+
+
+#: Dónde nombra cada motor la clave que se rompió. MySQL 8 y MariaDB: ``for key
+#: 'auth_user.username'`` / ``for key 'dni'``; SQLite: ``UNIQUE constraint failed:
+#: users_profile.dni``.
+_CLAVE_DEL_MOTOR = (
+    re.compile(r"for key ['\"`]?([^'\"`\s]+)", re.IGNORECASE),
+    re.compile(r"unique constraint failed:\s*([\w.,\s]+)", re.IGNORECASE),
+)
+
+
+def _clave_rota(error):
+    """El nombre del índice que informa el motor (``auth_user.username``), o ``None``.
+
+    Es el único pedazo del mensaje que no trae el valor que chocó, y lo que hace falta
+    para entender una colisión que no se pudo atribuir a ``username`` ni a ``dni``: sin
+    él, el log decía «campo __all__» y no quedaba forma de saber contra qué índice fue.
+    """
+    for patron in _CLAVE_DEL_MOTOR:
+        encontrada = patron.search(str(error))
+        if encontrada is not None:
+            return encontrada.group(1).strip()
+    return None
+
+
+def _campo_en_colision(error):
+    """Qué índice único rompió, leído del **nombre de la clave** que informa el motor.
+
+    Buscar el nombre del campo en el mensaje entero no sirve: ahí también viaja el valor
+    que chocó, y el alta del usuario ``dnievas`` —``Duplicate entry 'dnievas' for key
+    'auth_user.username'``— le marcaba el DNI, que estaba bien. Se recorta primero la
+    clave (``auth_user.username``, ``dni``, ``users_profile_dni_…_uniq``) y recién ahí se
+    la parte en palabras: así ``dnievas`` no es ninguna de ellas.
+
+    Cuando no se puede decidir se devuelve el error de formulario general, en vez de
+    culpar al campo equivocado.
+    """
+    for patron in _CLAVE_DEL_MOTOR:
+        encontrada = patron.search(str(error))
+        if encontrada is None:
+            continue
+        palabras = set(re.split(r"\W|_", encontrada.group(1).lower()))
+        for campo in ("username", "dni"):
+            if campo in palabras:
+                return campo
+    return "__all__"
 
 
 @login_required
@@ -61,7 +117,33 @@ def usuario_alta_rapida(request):
         errores = {campo: [str(error) for error in lista] for campo, lista in form.errors.items()}
         return JsonResponse({"ok": False, "errors": errores}, status=400)
 
-    usuario = UsuariosAdminService.create_user_from_form(form, alcance_group_ids=alcance_roles_ids(request.user))
+    try:
+        usuario = UsuariosAdminService.create_user_from_form(form, alcance_group_ids=alcance_roles_ids(request.user))
+    except IntegrityError as exc:
+        # G1b-10: el `ModelForm` ya valida que el usuario y el DNI no estén tomados,
+        # así que acá solo llega la **carrera**: dos altas simultáneas con el mismo
+        # valor pasan las dos validaciones y la segunda choca contra el índice único.
+        # Sin esto el modal recibía el HTML de un 500 y mostraba «respuesta inesperada
+        # del servidor»; ahora dice qué dato repetir y deja el foco en ese campo.
+        # El mensaje del motor trae el **valor** que chocó (`Duplicate entry '30111222'
+        # for key 'users_profile.dni'`): loguearlo entero deja el DNI de una persona en
+        # el log de la aplicación, que no es un lugar con control de acceso. Alcanza con
+        # el campo para entender qué pasó.
+        campo = _campo_en_colision(exc)
+        if campo == "__all__":
+            # Ronda 3: acá el campo no se pudo atribuir, así que «campo __all__» no dice
+            # nada. El nombre de la clave sí —es contra qué índice chocó— y tampoco lleva
+            # el valor, que es lo que no puede quedar en el log.
+            logger.warning(
+                "Alta rápida: colisión de unicidad que no se pudo atribuir a un campo (clave %s)",
+                _clave_rota(exc) or "sin nombre en el mensaje del motor",
+            )
+        else:
+            logger.warning("Alta rápida: colisión de unicidad al crear el usuario (campo %s)", campo)
+        return JsonResponse(
+            {"ok": False, "message": MENSAJES_COLISION[campo], "errors": {campo: [MENSAJES_COLISION[campo]]}},
+            status=409,
+        )
 
     # Mismo criterio que el ABM de usuarios: con correo, la clave la genera el
     # sistema y viaja en el mensaje (RN-C1); sin correo, queda la que tipeó el

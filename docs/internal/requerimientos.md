@@ -368,6 +368,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 194 | La red de seguridad de la Ola 4: presupuestos que no se suben solos, los dos destinos que faltaban, el cache de la home por modelo y los índices que no servían | Transversal (CI de performance, cache del inicio, índices de base) · Becas (link público y alta por la app de campo: presupuestos) · Legajos (admin de contactos) | `#performance` `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-62, RED-10 (2.ª parte), RED-51 (parte Ola 4) y RED-83 (migración) (Ola 4, PR 9) | 08/10/2026 | 🟢 **Hecho** (cierra la Ola 4) | `legajos.0011` y `programas.0084` (solo `DROP INDEX`, online) |
 | 195 | Sacar del repo lo que no corre: los módulos de «optimización», 29 JS huérfanos y el código muerto de Legajos | Transversal (dashboard de performance, comandos, guard del release, estáticos) · Legajos (vistas y templates sin ruta, «Derivar a Programa») | `#infra` `#performance` `#ui` `#rbac` | Auditoría integral oct-2026 — fichas OPS-10, OPS-14 (con RED-65), FE-14 y LEG-06 (Ola 7, PR 1) | 09/10/2026 | 🟢 **Hecho** (D-L06 aplicada por default; D-F16 no: `programa_detalle` sigue siendo destino de redirect de las derivaciones) | `users.0033` (sin DDL) |
 | 196 | La imagen deja de llevar once paquetes que nadie importa, y el CI deja de instalar «lo último que haya» | Transversal — dependencias de la imagen (`requirements*.txt`), `INSTALLED_APPS`, workflows del CI, dependabot | `#infra` `#performance` | Auditoría integral oct-2026 — fichas OPS-13 (con RED-45) y RED-85 (Ola 7, PR 2) | 09/10/2026 | 🟢 **Hecho** (D-RED-08 aplicada: el parche de gevent se borra y la guarda del entrypoint se queda; `django-zeal` y `psutil` no se tocan, code-first) | `core.0003` (borra la tabla de `django-health-check` y sus dos filas de `django_migrations`) |
+| 197 | Los hallazgos chicos de la deuda: la vista tapada, la carrera del último administrador y tres botones que mentían | Transversal (RBAC, app `dashboard`) · Becas (relevamientos) · Merenderos (solicitudes) · Usuarios y Roles | `#rbac` `#usuarios` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas BEC-25, G1b-09, G1b-10, RED-78 y R0-02, más los MINOR de #646 y #649 (Ola 7, PR 3) | 09/10/2026 | 🟢 **Hecho** (dos pendientes anotados sin código: el `codigo` del programa editable → SEC-07; los paneles de derivaciones congelados → LEG-06, PM) | No requiere |
 | 198 | Apagar conversaciones: sin rutas, sin WebSockets de chat y sin superficie en el shell | Transversal (shell del backoffice, context processor de identidad, routing de Channels) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») | `#infra` `#ui` `#rbac` `#performance` | Auditoría integral oct-2026 — fichas G1-01 fase 2 y RED-13 (2.ª parte) (Ola 7, PR 4) | 09/10/2026 | 🟢 **Hecho** | No |
 
 **Notas del índice**
@@ -29836,6 +29837,293 @@ nuevos corridos contra `9676927e`: `test_arranca_con_debug_y_run_main_sin_el_paq
 `{'debugpy': ['manage.py']}` y
 `test_el_modulo_endurecido_apaga_la_bandera_al_sacar_la_app` falla con «True is not
 false».
+
+---
+
+# Cambio 197 — Los hallazgos chicos de la deuda: la vista tapada, la carrera del último administrador y tres botones que mentían
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (RBAC: check de «último administrador»; app `dashboard`) · Becas (listado de relevamientos y detalle de convocatoria) · Merenderos (edición de solicitudes) · Usuarios y Roles (alta rápida, ficha del rol) |
+| **Etiquetas** | `#rbac` `#usuarios` `#infra` `#ui` `#performance` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 7 «Deuda», PR 3 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — fichas BEC-25, G1b-09, G1b-10, RED-78 y R0-02, más los seguimientos MINOR de las revisiones de #646 y #649 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Las cinco fichas chicas que quedaban sueltas en la Ola 7, más los seguimientos que los
+revisores de #646 y #649 dejaron anotados como MINOR.
+
+## Alcance acordado
+
+**Entra:** BEC-25 (el nombre del próximo relevamiento que nadie leía), G1b-09 (el check de
+«último administrador» se saltea con dos operaciones simultáneas), G1b-10 (la colisión de
+unicidad en carrera sale como 500), RED-78 (borrar `DashboardView` y su template) y R0-02
+(documentación que nombra una ruta apagada). Más tres correcciones MINOR: el botón «Editar»
+de la ficha del rol propio, el `creado_por` que la edición de una solicitud de merendero no
+sellaba, y la invalidación del cache de `Programa` dentro de la transacción.
+
+**Queda afuera, anotado y con dueño:**
+
+- **El `codigo` del programa como identificador de seguridad editable.** El catálogo de
+  SEC-06 decide qué módulos se ofrecen por `Programa.codigo`, y el paso 1 del wizard
+  —delegable en DISPOSITIVOS— deja cambiarlo. No es regresión (el campo es `unique` y el
+  estado anterior era más permisivo), pero hay que decidir de qué lado cae. Nota en la
+  ficha SEC-07, para la ola siguiente.
+- **Los dos paneles de derivaciones congelados.** Desde que D-L06 ocultó «Derivar a
+  Programa» (Cambio 195), el panel de la home y la solapa del legajo no reciben casos
+  nuevos, y las PENDIENTE que ya están en PRD siguen contando sin forma de cerrarlas. Está
+  dentro del default de la decisión; la salida es la v2 (M6, #390). Nota en LEG-06, para el PM.
+- **`dashboard/selectors.py::metricas_home()`,** que la propuesta de RED-78 pedía: con la
+  vista borrada no hay contadores que llevar. Los que sirven pantallas vivas son los de
+  `inicio_view` y ya viven en `dashboard/utils.py`, que RED-51 reorganizó en el Cambio 194.
+- **`dashboard.utils.contar_legajos()`,** cuyo último llamador era justamente la vista
+  borrada: RED-51 (Ola 4) tiene dos tests escritos sobre que `stats_legajos` agrega
+  inscripciones y el mapa de `dashboard/cache.py` la contempla. Sacarla es de esa ficha.
+
+## Decisiones tomadas
+
+- **El candado del «último administrador» va en los seis caminos, no solo en el toggle.**
+  La ficha proponía el `SELECT … FOR UPDATE` «dentro de la transacción del toggle», pero hay
+  **seis** caminos que pueden dejar al sistema sin administrador: desactivar un usuario,
+  editarle los roles, editar, borrar o desactivar un rol, y el alta masiva por CSV. Los seis
+  lo toman al abrir su transacción, y `asegurar_admin_restante` lo toma si el llamador no lo
+  hizo, para que el check nunca corra del todo sin candado. Si la transacción ya lo tiene no
+  lo vuelve a pedir (ronda 2): la vista de usuarios corre el check una vez por el sistema y
+  otra por cada programa, y repetir el `SELECT … FOR UPDATE` era un viaje a la base por
+  llamada que no agrega ninguna garantía.
+- **El ancla son las filas de `auth_permission`, no las `RolMeta` admin.** Bloquear las
+  `RolMeta` que confieren administración falla justo en el caso que importa: una base cuyo
+  último administrador es superusuario, o un programa sin roles, no tiene ninguna fila que
+  bloquear y el ancla desaparece. Las filas de capacidad las siembra el catálogo, existen
+  siempre, son las mismas para cualquier operación y no cambian al desactivar a nadie.
+- **El candado va antes de escribir, no después.** Es lo que hace que funcione y lo que
+  evita el deadlock, y lo encontró correr el test contra el motor de verdad. La primera
+  versión lo tomaba dentro de `asegurar_admin_restante` —después del `UPDATE`— y hacía
+  además la lectura del check con `FOR UPDATE`, para que trajera la última versión
+  commiteada en vez de la foto de la transacción: contra MariaDB eso da `ERROR 1213`,
+  porque cada transacción ya tiene tomada la fila del usuario que desactiva y pide las del
+  resto, que tiene la otra. Sería además un candado sobre buena parte de `auth_user`, que
+  mueve cualquier login con `update_last_login`. Tomando el ancla primero no hace falta: la
+  segunda transacción espera antes de tomar ninguna fila de usuario, y como un
+  `SELECT … FOR UPDATE` **no** establece la foto de lectura consistente de REPEATABLE READ
+  —la establece la primera lectura *sin* candado—, su primera lectura posterior ya ve lo que
+  la otra commiteó.
+- **`GET_LOCK` se descarta.** La ficha lo ofrecía como alternativa. No existe en SQLite —la
+  suite entera—, no es transaccional (hay que acordarse de soltarlo) y sobrevive a un
+  rollback. El `select_for_update` es un no-op en SQLite, que es inocuo, y es el patrón que
+  el repo ya tiene probado con `core.tests.candados`.
+- **La colisión del alta rápida contesta 409 con el campo.** La ficha dejaba elegir entre
+  error de campo y JSON 409: se hacen las dos cosas, porque el modal usa `data.message` para
+  el aviso y `data.errors` para elegir a qué campo mandar el foco. El campo sale del **nombre
+  de la clave** que informa el motor (MySQL y MariaDB la nombran; SQLite nombra la columna) y
+  cuando no se puede decidir va a `__all__`, para no culpar al equivocado. Del nombre de la
+  clave y no del mensaje entero: ahí también viaja el valor que chocó (ronda 2).
+- **BEC-25 se lleva también el classmethod.** La ficha decía «borrar las dos líneas»; con
+  esas dos fuera, `Relevamiento.proximo_nombre()` no tiene un solo llamador.
+  `proximo_numero()` y `nombre_para()`, que son los que `save()` usa para numerar de verdad,
+  se quedan y tienen su test de control.
+- **El `creado_por` de una solicitud de merendero se sella solo si está vacío y si el POST trae
+  documentación nueva.** La solicitud que ya tiene dueño sigue siendo de ese dueño: la edición
+  no se la apropia. Y la segunda condición (ronda 2) es para que abrir y confirmar el
+  formulario no sea la llave para bajar el archivo que subió otro.
+- **R0-02 tenía un solo texto para corregir.** `docs/client/architecture.md` ya decía
+  `portal:home` y ya aclaraba que `/media/` no está exento: lo arregló el PR de `/media/`
+  (Cambio 188), que tocó ese mismo párrafo. Code-first: la ficha quedó desactualizada.
+
+## Implementación
+
+`DashboardView` era una copia vieja del inicio del backoffice: contadores globales del
+organismo y `LoginRequiredMixin` a secas, sin el gate por capacidad que SEC-14 le puso a
+`inicio_view`. Nunca se servía porque en `config/urls.py` el include de `users.urls` va antes
+que el de `dashboard.urls` y gana el primero que matchea; lo único que la separaba de estar
+viva era el orden de dos líneas, con el comentario «Root paths last» invitando a moverlas.
+Se van el paquete `dashboard/views/` entero, `dashboard/templates/dashboard.html` y el
+`path` de `dashboard:inicio`. Las cinco APIs de `dashboard/api_views` quedan, con un test que
+lo fija. Antes de borrar se verificó que `dashboard:inicio` no lo nombra ningún template,
+vista, estático, cron, entrypoint ni workflow.
+
+`core/rbac.py` estrena `tomar_candado_de_administracion()`, y las seis transacciones que
+pueden dejar sin administrador la llaman como primera sentencia:
+`users/views/admin.py::UserToggleActivoView.post`,
+`users/services/admin.py::UsuariosAdminService.update_user_from_form`,
+`users/services/roles.py::RolesAdminService.actualizar`/`eliminar`/`toggle_activo` y
+`users/management/commands/import_users_from_csv.py`.
+
+`usuario_alta_rapida` envuelve el `create_user_from_form` en un `try/except IntegrityError`.
+`RolDetailView` pasa `puede_editar` al template y la ficha gatea el botón con él.
+`SolicitudMerenderoUpdateView` sella `creado_por` cuando viene en NULL. Y la invalidación del
+cache de `Programa` se agrupa en `_invalidar_al_commitear()`, que difiere los `cache.delete`
+a `transaction.on_commit`; fuera de una transacción Django los ejecuta en el acto, así que el
+wizard y los seeds no cambian de comportamiento.
+
+## Qué cambia para el usuario
+
+La ficha de un rol que el operador tiene asignado deja de ofrecer «Editar» (antes el botón
+estaba y la pantalla de edición le contestaba «no tenés permisos»). El alta rápida, cuando dos
+personas crean el mismo usuario a la vez, dice cuál es el dato repetido en vez de «respuesta
+inesperada del servidor». Quien edita una solicitud de merendero vieja puede abrir después la
+documentación que acaba de subir. Nada más cambia: el resto era código que no se ejecutaba o
+una ventana de carrera de milisegundos.
+
+## Archivos
+
+Borrados: `dashboard/views/home.py`, `dashboard/views/__init__.py`,
+`dashboard/templates/dashboard.html`.
+Editados: `core/rbac.py`, `core/urls.py`, `dashboard/urls.py`, `dashboard/utils.py`,
+`programas/models/__init__.py`, `programas/signals.py`, `programas/views/relevamientos.py`,
+`programas/views/merenderos.py`, `users/views/admin.py`, `users/views/quick_create.py`,
+`users/views/roles.py`, `users/services/admin.py`, `users/services/roles.py`,
+`users/management/commands/import_users_from_csv.py`, `users/templates/rol/rol_detail.html`,
+`CLAUDE.md`, y los tests `core/tests/test_dashboard_redirect.py`,
+`core/tests/test_inicio_legajos_ola5_pr7.py`, `dashboard/tests/test_package_exports.py`,
+`portal/tests/test_portal_apagado.py`, `programas/tests/test_programa_cache.py` y
+`programas/tests/test_aislamiento_modulos.py` (estos tres últimos, por el `on_commit`
+y por el guard nuevo de R0-02).
+Nuevos: `users/tests/test_ola7_pr3.py` y `programas/tests/test_ola7_pr3.py`.
+
+## Base de datos
+
+No requiere migración.
+
+## Validación
+
+`manage.py check` y `check --deploy`: 0 issues propios (los 4 avisos locales son el
+`SECRET_KEY` de prueba, HSTS, SSL y `SIIS_API_URL` vacía). `makemigrations --check
+--dry-run`: sin cambios. Suite de `core`, `users`, `dashboard`, `configuracion`,
+`conversaciones`, `programas`, `legajos` y `portal`: 0 fallos. `--tag performance`: 8/8.
+`--tag mysql` contra `mariadb:10.11` en un contenedor efímero: 51/51 en la ronda 2 (50/50 en
+la primera); la carrera de G1b-09 también contra `mysql:8.0`, 5 corridas limpias por motor, y
+el `EXPLAIN` del candado medido antes y después contra `mysql:8.0`. Los tests nuevos se corrieron primero contra un worktree de
+`origin/development`: **20 de 33 fallan** (los otros 13 son controles que tienen que pasar
+en los dos lados), y los dos de la carrera fallan también contra el motor real con el
+candado apagado. `compile_templates.py --bloques`: 0 errores, 0 bloques sin destino.
+`design_audit.py --ratchet` contra `origin/development`: 0 hallazgos nuevos; `--goldens`: 0;
+`check_design_agent.py --changed`: OK. `collectstatic --clear` con `ENVIRONMENT=prd`
+(`ManifestStaticFilesStorage`): 332 archivos, 1.448 post-procesados, sin errores. ruff
+`check` y `format --check` limpios.
+
+## Puesta en marcha en el servidor
+
+Nada especial: no hay migración ni estado nuevo. La URL `/` no cambia —era y sigue siendo el
+login— y `/dashboard/` sigue redirigiendo a `/inicio/`.
+
+## Pendientes / a definir
+
+- **Para la ola siguiente:** decidir si el `codigo` del programa deja de ser editable después
+  del alta o si el catálogo de capacidades se ancla al `pk` en vez de al código (ficha SEC-07).
+- **Para el PM:** los dos paneles de derivaciones quedan congelados para casos nuevos desde
+  el Cambio 195, y las PENDIENTE que ya están en PRD siguen contando sin forma de cerrarlas
+  (ficha LEG-06). Lo resuelve la v2 de Dispositivos (M6, #390).
+- `dashboard.utils.contar_legajos()` queda sin llamadores de producción: quién se la lleva es
+  decisión de RED-51 (Ola 4).
+- `portal/views/ciudadano_auth.py` y `portal/templates/portal/ciudadano/base_ciudadano.html`
+  todavía nombran `portal:ciudadano_mi_perfil`. No es un 500 latente —esas vistas y ese
+  template quedaron sin ruta con SEC-29 y lo fija `portal/tests/test_portal_apagado.py`—;
+  limpiarlos va con el apagado definitivo del portal.
+
+## Reversión
+
+Revertir el merge alcanza: no hay migración, ni estado nuevo en la base, ni archivos
+generados.
+
+## Historial
+
+### 09/10/2026 — Ronda 3 de la revisión (1 MAJOR y 2 MINOR)
+
+- **Faltaba un séptimo camino, y era el que más deadlockeaba: el alta de un rol.**
+  `RolesAdminService.crear` no tomaba el candado. No puede dejar al sistema sin
+  administradores —crear un rol no le saca nada a nadie—, así que la ronda 2 lo dejó
+  afuera mirando el check; pero el candado no sirve solo para el check, sirve para el
+  **orden de los locks**. El `permissions.set()` del alta escribe
+  `auth_group_permissions` y por la FK InnoDB pide locks sobre las filas de
+  `auth_permission` de las capacidades que tilda, que son las mismas que otra operación
+  está tomando con `FOR UPDATE` a mitad de su recorrido del índice: el ciclo se cierra
+  igual, aunque desde la ronda 2 el candado entre por el índice y no por un escaneo.
+  Medido sobre este árbol con esa única línea apagada, con el hilo de `crear` sumado a
+  `CandadoSinDeadlockTests` (ahora cinco hilos: desactivar usuario, toggle de rol, dos
+  reescrituras de capacidades y el alta): **11, 11 y 14 deadlocks de 20 corridas** en
+  `mariadb:10.11` y **18, 19 y 20 de 20** en `mysql:8.0` —`ERROR 1213`, que ninguna
+  vista atrapa, o sea 500—. Con la línea puesta, **0 de 20 en los dos motores**, dos
+  rondas por motor. De siete rondas sin candado una sola salió verde: no cae siempre,
+  pero cae casi siempre. **No hizo falta el orden estable por `pk`** que proponía la
+  revisión (leer los `pk` sin lock y volver a pedirlos con `pk__in` ordenado): el
+  candado ya entra por `(content_type_id, codename)` y el `set()` recorre el mismo
+  índice, así que las dos sentencias toman las filas en el mismo orden y basta con que
+  el ancla se tome **primero**. Se decidió con las corridas, que es lo que la revisión
+  pedía, y evita un viaje extra a la base en los siete caminos.
+- **El barrido encontró el `/admin/` de Django.** Buscando todo camino vivo que escriba
+  `auth_group_permissions` o desactive usuarios o roles de administración: además de
+  `crear` quedaba el `/admin/`, montado en todos los entornos, donde `auth/group/` tilda
+  capacidades (`filter_horizontal`) y `auth/user/` desactiva una cuenta. Un
+  `CandadoDeAdministracionMixin` sobre los dos `ModelAdmin` toma el candado en
+  `save_model` —que Django corre **antes** de `save_related`, donde se escribe el m2m—,
+  en `delete_model` y en el borrado masivo del listado, que abre su propia transacción
+  porque la acción del changelist no viene en una. El `/admin/` sigue **sin** correr
+  `asegurar_admin_restante`: es la escotilla del superusuario y el único camino que
+  queda para arreglar un sistema que ya se quedó sin administradores; lo que se le pide
+  es entrar en la misma fila, no que se autobloquee. Lo que **no** necesita candado, y
+  queda documentado en el docstring de `tomar_candado_de_administracion`: los seeds que
+  reescriben capacidades (`seed_rbac`, `seed_datos_base`, `seed_becas`) y las
+  migraciones que tildan permisos, porque corren en el arranque bajo el `GET_LOCK` del
+  bootstrap; `desactivar_usuarios_portal`, que solo toca cuentas del grupo `Ciudadanos`
+  —excluye superusuarios y a cualquiera con otro grupo— y no escribe capacidades; y el
+  alta de usuarios (ABM y alta rápida), que escribe `auth_user_groups` pero ninguna fila
+  de `auth_permission` y no puede sacarle la administración a nadie.
+- **El log de la colisión que no se puede atribuir no decía nada.** La ronda 2 sacó el
+  valor del log —ahí viajaba el DNI de una persona— y dejó el campo; pero cuando el
+  campo no se puede decidir, «campo `__all__`» no alcanza para entender qué pasó. Ahora
+  ese caso loguea el **nombre de la clave** que informó el motor (`auth_user.email`), que
+  es el único pedazo del mensaje que no lleva el valor; y si el mensaje no nombra ninguna
+  clave, lo dice. Los dos casos tienen test.
+- **Ficha G1b-09 al día:** decía que `asegurar_admin_restante` vuelve a tomar el candado
+  «por las dudas», que es lo que hacía la ronda 1. Desde la ronda 2 lo toma **solo si la
+  transacción no lo tiene ya**, con el callback de `on_commit` como testigo.
+
+### 09/10/2026 — Ronda 2 de la revisión (1 MAJOR y 3 MINOR)
+
+- **El candado de G1b-09 se trababa contra sí mismo, y no solo en MySQL 8.** El
+  `SELECT … FOR UPDATE` filtraba `auth_permission` **solo por `codename`**, y ahí no hay
+  ningún índice que empiece por esa columna: el `EXPLAIN` de MySQL 8 daba `type: index`,
+  `key: PRIMARY`, **391 filas**, o sea que el candado bloqueaba la tabla entera. El ciclo
+  lo cierra la otra operación que toca `auth_permission`: guardar las capacidades de un
+  rol escribe `auth_group_permissions` y por la FK InnoDB pide un lock sobre la fila de
+  la capacidad, una fila suelta en medio de las 391 que el escaneo recorre. Resultado,
+  `ERROR 1213 Deadlock`, que ninguna vista atrapa: **500**, y el candado puesto para que
+  el sistema no se quede sin administradores pasaba a ser la causa de la caída. Ahora el
+  filtro lleva el `content_type` del modelo ancla —`type: range` sobre el índice único
+  `(content_type_id, codename)`, **4 filas**, siempre las mismas y en el mismo orden— y
+  `asegurar_admin_restante` no vuelve a pedirlo si la transacción ya lo tiene (la marca
+  es el callback que `on_commit` guarda por transacción, y que Django descarta tanto al
+  COMMIT como al ROLLBACK y al ROLLBACK TO SAVEPOINT). **Corrige también la medición de
+  la ronda 1:** con el candado de `development`, `mariadb:10.11` da **15 deadlocks de 20
+  corridas** y `mysql:8.0` entre 7 y 9; lo que pasó es que la carrera de la ronda 1 usó
+  dos desactivaciones, que recorren el índice en el mismo orden y no cierran el ciclo. El
+  test nuevo (`CandadoSinDeadlockTests`, `@tag("mysql")`, 20 corridas de cuatro hilos)
+  deja los dos motores en **0 deadlocks** y en 0 corridas sin administradores, y contra
+  el árbol de antes se pone rojo en 5 de 5 corridas por motor. `_content_type_de_capacidad`
+  resuelve por *natural key* y no con `get_for_model`, porque importar `users.models`
+  desde `core/rbac.py` es un ciclo y `programas.tests.test_arquitectura` lo frena.
+- **La atribución del campo de G1b-10 culpaba al dato que estaba bien.** Buscaba «dni» en
+  el mensaje **entero** del motor, donde también viaja el valor que chocó: el alta del
+  usuario `dnievas` —`Duplicate entry 'dnievas' for key 'auth_user.username'`— mandaba al
+  operador a corregir el DNI y dejaba sin marcar el nombre de usuario, que era el que
+  había que cambiar. Ahora se recorta primero el **nombre de la clave** y recién ahí se la
+  parte en palabras, con las tres formas de nombrarla (MySQL 8, MariaDB y SQLite) fijadas
+  en un test.
+- **Había un DNI en los logs.** El `logger.warning` de la colisión imprimía la excepción
+  completa, o sea `Duplicate entry '30111222' for key 'users_profile.dni'`, en un archivo
+  sin control de acceso. Loguea el campo.
+- **Sellar `creado_por` al editar una solicitud de merendero regalaba la documentación.**
+  Se sellaba en cualquier guardado, así que a cualquiera con `merendero.crear` le
+  alcanzaba con abrir una solicitud sin dueño y apretar «Guardar» para quedarse con
+  permiso de bajar el archivo que había subido otro. Ahora se sella solo si el POST **trae
+  documentación nueva**: lo que se habilita es ver lo propio, no lo que ya estaba.
 
 ---
 

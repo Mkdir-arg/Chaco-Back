@@ -82,6 +82,12 @@ class RolDetailView(_RolesPermMixin, View):
                 "meta": getattr(group, "meta", None),
                 "arbol": rbac.arbol_capacidades(rbac.capacidades_de_grupo(group)),
                 "num_usuarios": group.user_set.count(),
+                # Ver no es editar (G1b-02): el admin de programa abre la ficha de su
+                # propio rol pero no puede guardarlo. El listado ya escondía el botón
+                # (`item.puede_editar`) y la ficha lo seguía dibujando, así que desde
+                # acá el link llevaba a un 302 con «no tenés permisos». Una acción que
+                # el servidor rechaza no se dibuja, viva en la pantalla que viva.
+                "puede_editar": puede_editar_rol(request.user, group),
             },
         )
 
