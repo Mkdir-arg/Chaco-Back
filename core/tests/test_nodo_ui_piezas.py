@@ -653,7 +653,12 @@ class BtnFitTest(SimpleTestCase):
     """C-15: btn-fit anula solo el min-width y los tamaños del sistema no cambian."""
 
     def setUp(self):
-        self.css = (RAIZ / "static/custom/css/nodo-buttons.css").read_text(encoding="utf-8")
+        crudo = (RAIZ / "static/custom/css/nodo-buttons.css").read_text(encoding="utf-8")
+        # Sin los comentarios: los de esta hoja citan selectores y reglas para explicar
+        # por que estan donde estan, y una busqueda por texto los encuentra antes que al
+        # codigo real. Ya paso: `@media (pointer: coarse)` y `.btn-nodo.btn-fit` aparecen
+        # los dos en el comentario de `btn-fit`.
+        self.css = re.sub(r"/\*.*?\*/", "", crudo, flags=re.S)
 
     def test_los_min_width_por_tamano_siguen_intactos(self):
         esperado = {"xs": 128, "sm": 143, "base": 151, "lg": 170, "xl": 186}
@@ -661,7 +666,19 @@ class BtnFitTest(SimpleTestCase):
             bloque = re.search(r"\.btn-%s \{([^}]*)\}" % tam, self.css).group(1)
             self.assertIn(f"min-width: {ancho}px;", bloque)
 
-    def test_btn_fit_solo_anula_el_min_width_y_va_despues_de_los_tamanos(self):
+    def test_btn_fit_solo_anula_el_min_width_y_va_despues_de_todos_los_tamanos(self):
         bloque = re.search(r"\.btn-fit \{([^}]*)\}", self.css).group(1)
-        self.assertEqual([d.strip() for d in bloque.split(";") if d.strip()], ["min-width: 0"])
-        self.assertGreater(self.css.index(".btn-fit {"), self.css.index(".btn-xl {"))
+        # `auto`, no `0`: el boton no lleva `nowrap` ni `flex-shrink: 0`, asi que un 0 lo
+        # dejaria comprimirse por debajo de su texto en un header flex sin `flex-wrap`.
+        self.assertEqual([d.strip() for d in bloque.split(";") if d.strip()], ["min-width: auto"])
+
+        # Contra TODOS los tamanos, no solo contra .btn-xl: si manana se agrega uno
+        # despues de btn-fit, la variante deja de ganarle y el test tiene que avisar.
+        ultimo = max(self.css.index(".btn-%s {" % t) for t in ("xs", "sm", "base", "lg", "xl"))
+        self.assertGreater(self.css.index(".btn-fit {"), ultimo)
+
+    def test_btn_fit_no_le_gana_al_area_tactil(self):
+        # El bloque `pointer: coarse` impone 44 px a proposito (WCAG 2.5.8) y va despues:
+        # por eso btn-fit no sube su especificidad a `.btn-nodo.btn-fit`.
+        self.assertGreater(self.css.index("@media (pointer: coarse)"), self.css.index(".btn-fit {"))
+        self.assertNotIn(".btn-nodo.btn-fit", self.css)

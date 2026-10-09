@@ -43,7 +43,16 @@ disabled y foco son los del tamaño y el tono elegidos, y se combina con cualqui
 - **Se usa** en headers densos (3 o más acciones) y en botones dentro de celdas de tabla.
 - **No se usa** en formularios ni en la acción principal de una pantalla: ahí manda el `min-width`.
 - El `min-width` del sistema no se toca; sin `btn-fit`, ningún botón cambia.
-- La regla vive en `nodo-buttons.css`, después de los tamaños (misma especificidad: gana por orden).
+- La regla vive en `nodo-buttons.css`, después de los tamaños (misma especificidad: gana por orden)
+  y **antes** del bloque `@media (pointer: coarse)`, que es deliberado: en pantalla táctil ese bloque
+  le gana y el botón sigue midiendo 44 px de área táctil (WCAG 2.5.8). Por eso tampoco se sube la
+  especificidad a `.btn-nodo.btn-fit`: le ganaría y se perderían esos 44 px.
+- Declara `min-width: auto`, **no `0`**. El botón no lleva `white-space: nowrap` ni `flex-shrink: 0`,
+  así que con `0` dentro de un header flex sin `flex-wrap` se comprimiría por debajo de su texto: la
+  etiqueta se parte en dos líneas y rompe el alto fijo. `auto` anula igual el mínimo del tamaño, pero
+  no deja que el contenido se rompa.
+- **A 640 px o menos no hace nada**: ahí los cinco tamaños ya valen `min-width: 0` por su propio
+  bloque responsive.
 
 ### Acción de fila (botón de ícono)
 
