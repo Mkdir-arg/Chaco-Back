@@ -28,7 +28,7 @@ jobs:
     steps:
       # `fetch-depth: 0` lo pide el paso de RED-62: compara `perf_budgets.json` contra el
       # árbol **base** del PR, y con el checkout de profundidad 1 ese commit no está.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -141,7 +141,7 @@ jobs:
       REDIS_DB: "14"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -251,7 +251,7 @@ jobs:
       DATABASE_PORT: "3306"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -362,7 +362,7 @@ jobs:
       PYTHONPATH: ${{ github.workspace }}/.github/ci
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
