@@ -370,6 +370,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 196 | La imagen deja de llevar once paquetes que nadie importa, y el CI deja de instalar «lo último que haya» | Transversal — dependencias de la imagen (`requirements*.txt`), `INSTALLED_APPS`, workflows del CI, dependabot | `#infra` `#performance` | Auditoría integral oct-2026 — fichas OPS-13 (con RED-45) y RED-85 (Ola 7, PR 2) | 09/10/2026 | 🟢 **Hecho** (D-RED-08 aplicada: el parche de gevent se borra y la guarda del entrypoint se queda; `django-zeal` y `psutil` no se tocan, code-first) | `core.0003` (borra la tabla de `django-health-check` y sus dos filas de `django_migrations`) |
 | 197 | Los hallazgos chicos de la deuda: la vista tapada, la carrera del último administrador y tres botones que mentían | Transversal (RBAC, app `dashboard`) · Becas (relevamientos) · Merenderos (solicitudes) · Usuarios y Roles | `#rbac` `#usuarios` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas BEC-25, G1b-09, G1b-10, RED-78 y R0-02, más los MINOR de #646 y #649 (Ola 7, PR 3) | 09/10/2026 | 🟢 **Hecho** (dos pendientes anotados sin código: el `codigo` del programa editable → SEC-07; los paneles de derivaciones congelados → LEG-06, PM) | No requiere |
 | 198 | Apagar conversaciones: sin rutas, sin WebSockets de chat y sin superficie en el shell | Transversal (shell del backoffice, context processor de identidad, routing de Channels) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») | `#infra` `#ui` `#rbac` `#performance` | Auditoría integral oct-2026 — fichas G1-01 fase 2 y RED-13 (2.ª parte) (Ola 7, PR 4) | 09/10/2026 | 🟢 **Hecho** | No |
+| 199 | Antes de publicar en internet mira alguien, la suite corre en paralelo y el tipado empieza a existir | Transversal — publicación de `docs/client/` en GitHub Pages · CI (`Tests & Coverage`, `Tipos (mypy)`) · motor de condiciones y cliente de Base de Personas (solo anotaciones) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-64, RED-76 y RED-86 (Ola 7, PR 5) | 09/10/2026 | 🟢 **Hecho** (el gate de publicación encontró y despublicó una respuesta de RENAPER con los datos de una persona real; el `environment` no es `github-pages`, que solo admite la rama `gh-pages`) | No |
 
 **Notas del índice**
 
@@ -936,7 +937,7 @@ La API devolvía resultados, pero el desplegable del buscador de Inicio estaba d
 ## Validación
 
 - `manage.py check` sin errores.
-- La API encontró correctamente el ciudadano local `Ejemplo Mac, María`, DNI `31538703`.
+- La API encontró correctamente el ciudadano local `Ejemplo Mac, María`, DNI `12345678`.
 - El registro de ejemplo se creó sólo en la base local de desarrollo.
 
 ## Reversión
@@ -30346,3 +30347,217 @@ Entrada nueva.
 entradas con sus filas de índice y las dos tablas de estado, sin tocar las cuentas de horas.
 `CLAUDE.md` y `docs/client/architecture.md` siguen nombrando `/conversaciones/` y **no** se
 tocaron: son del PR 3 de esta ola (#651) y `development` todavía no los tiene.
+---
+
+# Cambio 199 — Antes de publicar en internet mira alguien, la suite corre en paralelo y el tipado empieza a existir
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — publicación de `docs/client/` en GitHub Pages · CI (`Tests & Coverage`, `Tipos (mypy)`) · motor de condiciones y cliente de Base de Personas (solo anotaciones) |
+| **Etiquetas** | `#infra` `#datos` `#metodo` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 7 «Deuda», PR 5 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — fichas RED-64, RED-76 y RED-86 |
+| **Partes afectadas** | Documentación pública (GitHub Pages) · CI |
+| **Migración** | No |
+
+## Pedido original
+
+Las tres fichas de calidad del propio CI de la Ola 7. **RED-64:** `docs/client/` se publica
+en GitHub Pages **público** en cada push a `development` que toque esa carpeta, sin que
+nadie lo mire; entre el commit y la URL pasa menos de un minuto. **RED-76:** 2,7 % de
+retornos anotados sobre 2.195 funciones y ningún checker de tipos; arrancar uno gradual.
+**RED-86:** el job de tests corre en serie con `timeout-minutes: 15` y sin alarma de
+crecimiento, así que un timeout se ve como «failure» genérico y la reacción es «re-run».
+
+## Alcance acordado
+
+**Entra:** el gate mecánico de `docs/client/` y el `environment` donde cuelgan los
+revisores; `mypy` con alcance acotado, no bloqueante, y los módulos de arranque
+**anotados**; la suite del CI en paralelo con la cobertura combinada y la duración escrita.
+
+**Queda afuera, y por qué:**
+
+- **Activar los *required reviewers*.** Es configuración del repositorio y solo la toca el
+  dueño (Settings → Environments → `publicacion-docs`). El PR deja el colgador puesto.
+- **Encender `Tipos (mypy)` como bloqueante y sumarlo al ruleset.** La ficha pide que
+  arranque no bloqueante hasta que estén los cinco módulos; faltan tres.
+- **Mover el `fail_under`.** Medido después de combinar da 86 % contra un techo de 79.
+  Subir el ratchet es la decisión de TST-03, no de estas fichas, y se toma mirando la
+  medición del CI, no la local.
+- **Sacar del sitio las siete plantillas de `docs/client/templates/`.** Ya se publicaban;
+  quedan **declaradas** en `not_in_nav`, que es lo que el gate exige. Excluirlas es un
+  `exclude_docs:` de una línea y lo decide el PM.
+
+## Decisiones tomadas
+
+- **El `environment` de la publicación no es `github-pages`.** La ficha lo nombraba así.
+  Medido antes de escribir:
+  `gh api repos/Mkdir-arg/Chaco-Back/environments/github-pages/deployment-branch-policies`
+  devuelve una única política de rama, `gh-pages`. El job corre en `development`, así que
+  apuntarlo ahí lo dejaría **rechazado por política de ramas en cada corrida**: la
+  publicación dejaría de funcionar en vez de quedar esperando aprobación. Va a
+  `publicacion-docs`, que no existe todavía; GitHub crea solo un environment nuevo en su
+  primera corrida y sin reglas, así que hasta que el PM agregue los revisores publica igual
+  que antes.
+- **El patrón de secretos mira el valor, no la clave.** El
+  `(?i)(password|contraseña|secret|token)\s*[:=]\s*\S` de la ficha, medido sobre el repo,
+  marcaba doce líneas y las doce son correctas: diez son la plantilla del `.env` de
+  `versiones/version-001.md` (`<password-db>`, `<lo-provee-ECOM>`, `…`) y dos son prosa
+  («Validadores de contraseña:», «**Recuperación de contraseña:**»). Un gate que nace con
+  doce falsos positivos se desactiva el primer día. La regla pasa a ser «clave de secreto
+  **más un valor de seis caracteres o más que no sea un marcador de posición**», y da 0
+  sobre esas doce sin perder el caso que importa.
+- **Se agrega el CUIL, que la ficha no pedía.** Once dígitos con prefijo
+  `20/23/24/27/30/33/34` se identifican solos, sin ninguna palabra cerca. Es la mitad del
+  hallazgo real que el patrón de «DNI» no habría visto, porque en el JSON el CUIL está en
+  su propia línea.
+- **El hallazgo real se despublica en este mismo PR.**
+  `docs/client/funcionalidades/programa-becas.md` publicaba una respuesta de RENAPER con el
+  apellido, el nombre, el DNI, el CUIL, la fecha de nacimiento y el domicilio de **una
+  persona de verdad**, pegada «para mostrar al equipo Ministerio». La estructura queda —es
+  lo que el documento explica— y los valores pasan a ficticios. El gate de `Sin datos
+  personales` no lo veía ni lo tenía que ver: ese mide **volumen** (volcados de más de 100
+  personas), y esto es una sola.
+- **El alcance de mypy es una lista de archivos, no un directorio.** `files` en
+  `[tool.mypy]`: fuera de esa lista mypy no mira nada, así que el job no puede ponerse rojo
+  por código ajeno. Crece **un módulo por PR** y lo que entra, entra en verde; el bloque
+  estricto (`disallow_untyped_defs`) declara exactamente el mismo conjunto, y un test lo
+  exige —un módulo en `files` sin su `override` entraría sin que se le pida anotar nada—.
+- **Las versiones que propone la ficha no se pueden instalar.** `mypy==1.14.1` +
+  `django-stubs==5.1.3` + `djangorestframework-stubs==3.15.2` son de la época de Django 5.1;
+  hoy `pip` corta con `ResolutionImpossible`, porque `djangorestframework-stubs` 3.17 exige
+  `django-stubs>=6.0.4`. Van `mypy==2.1.0`, `django-stubs[compatible-mypy]==6.1.2` y
+  `djangorestframework-stubs[compatible-mypy]==3.17.0`, la terna compatible con el par que
+  corre el CI (Django 5.2.17 + DRF 3.17.2).
+- **Los pines van a `requirements-ci.txt`.** La ficha decía `requirements-dev.txt`, pero es
+  anterior al Cambio 196, que creó el archivo de herramientas del CI y el test que exige que
+  lo que un job invoca salga de ahí. `requirements-dev.txt` apunta a él.
+- **Entra `core/edad.py` como tercer módulo del alcance.** Sin él, `edad_en_anios` devuelve
+  `Any` y lo estricto de `condiciones.py` queda hueco justo donde importa: los cuatro
+  operadores de edad son el borde de RN-22.
+- **La cobertura se configura en el archivo y no en la línea de comandos.** Es la mitad
+  riesgosa de RED-86: `coverage run` mide el proceso que lanza, y con `--parallel` ese
+  proceso no corre ningún test. Los subprocesos **no ven** los flags del `coverage run` del
+  padre: solo leen `pyproject.toml`. Por eso `concurrency = ["multiprocessing"]`,
+  `parallel = true` y `sigterm = true` van ahí, y el job suma un `coverage combine` antes de
+  los dos `coverage report`.
+- **Se retira el paso `core users portal --parallel 2`.** RED-88 lo había puesto
+  explícitamente «hasta que RED-86 pase la suite entera a paralelo», que es lo que hace este
+  cambio: esas tres apps corren ahora con cuatro workers adentro de un check **obligatorio**.
+  El paso `--shuffle` de TST-02 se queda, porque mide otra cosa y no es reproducible.
+- **Ningún job se renombró.** Los once contextos del ruleset siguen igual y `Tipos (mypy)`
+  nace fuera de él.
+
+## Qué se hizo
+
+- **`scripts/check_docs_client.py`** (nuevo): cinco reglas sobre **todos** los archivos de
+  texto que MkDocs copia al sitio, no solo los `.md` —persona identificable (documento
+  junto a la palabra que lo nombra, o CUIL/CUIT), fecha de nacimiento rodeada de campos de
+  identidad, domicilio con calle y número, secreto con valor que no es marcador, y `.md`
+  que se publica sin estar en el `nav` ni en `not_in_nav`—, más el modo `--todo-docs`, que
+  corre las de contenido sobre `docs/` entero y los `.md` de la raíz. Sale con
+  `::error file=…,line=…::` y código 1, y **nunca imprime el valor que encontró**: el log
+  de Actions de un repo público también es público.
+- **`docs-auto-deploy.yml`**: `environment: publicacion-docs` en el job y el gate como paso
+  previo a `mkdocs build`. El disparo suma `scripts/check_docs_client.py` a sus `paths`.
+- **`mkdocs.yml`**: `/templates/` declarado en `not_in_nav`, con el motivo escrito.
+- **`pr-datos.yml`**: paso informativo (`continue-on-error`) con `--todo-docs`, dentro del
+  job obligatorio `Sin datos personales`, que no se renombra.
+- **`docs/client/funcionalidades/programa-becas.md`** y
+  **`docs/internal/analisis/003-programa-becas-relevamiento-propuesta.md`**: la respuesta
+  de RENAPER de ejemplo pasa a datos ficticios en los dos lugares donde estaba (ver
+  Historial), más otros once archivos de `docs/` saneados por el barrido.
+- **`pyproject.toml`**: bloque `[tool.mypy]` con `files`, `follow_imports = "silent"`,
+  `ignore_missing_imports`, los dos plugins y `enable_error_code = ["ignore-without-code"]`;
+  `[tool.django-stubs]`; el `[[tool.mypy.overrides]]` estricto; y en `[tool.coverage.run]`,
+  `concurrency`, `parallel` y `sigterm`.
+- **`core/edad.py`, `programas/services/condiciones.py`, `programas/services/personas.py`**:
+  28 funciones anotadas, sin un solo `# type: ignore`. Dos cosas que la anotación destapó y
+  quedan explícitas sin cambiar comportamiento: `OPERADORES_POR_TIPO.get(…)` se llamaba con
+  una clave que puede faltar, y `evaluar_regla` reusaba el nombre `limite` para un número y
+  después para una fecha.
+- **`pr-quality.yml`**: job `Tipos (mypy)`, no bloqueante, con el `continue-on-error` en el
+  paso y no en el job (a nivel job GitHub reporta *success* y la evidencia queda enterrada).
+- **`pr-backend.yml`**: `--parallel 4`, `timeout-minutes` 25, `coverage combine` y el paso
+  `Duración de la suite`, que escribe los minutos en `$GITHUB_STEP_SUMMARY` y emite
+  `::warning::` sobre 12 min; corre con `if: always()`, porque el caso que importa es
+  justamente el timeout.
+- **`requirements-ci.txt`** suma las tres distribuciones de mypy; **`.gitignore`** suma
+  `.coverage.*`.
+- **Tests:** `core/tests/test_docs_client_publicacion.py` (44) y, en
+  `core/tests/test_gates_ci.py`, `SuiteEnParaleloTests` (8) y `TipadoGradualTests` (7).
+
+## Pendientes
+
+- **Para el PM:** activar *required reviewers* en Settings → Environments →
+  `publicacion-docs`. Sin eso el gate mecánico corre pero la aprobación humana no existe.
+- Subir el alcance de mypy a los cinco módulos de la ficha (`programas.api.serializers`,
+  `becas`/`diseno` con `TypedDict`, `siis`/`siis_envio`) y recién ahí sacarle el
+  `continue-on-error` y sumarlo al ruleset.
+- Decidir si las siete plantillas de `docs/client/templates/` siguen publicadas.
+
+## Riesgos y reversa
+
+Sin migraciones y sin cambios de comportamiento en la aplicación: lo único que se toca del
+código que se despliega son anotaciones de tipo, que Python no evalúa (los tres módulos
+llevan `from __future__ import annotations`). Revertir el merge alcanza.
+
+El único riesgo operativo es la publicación de `docs/client/`: si el gate encontrara algo,
+el sitio **no se actualiza** hasta que se corrija, que es exactamente lo que la ficha pide.
+Hoy da 0. Y si alguien activara los revisores y después nadie aprobara, la publicación
+queda *pending* —visible en la pestaña Actions—, nunca perdida.
+
+## Historial
+
+**Ronda 2 (09-oct-2026) — el saneamiento de la ronda 1 estaba incompleto.** La revisión
+encontró que el **mismo** registro de RENAPER que el PR decía despublicar seguía legible
+en el repositorio, que es **público**:
+
+- En `docs/internal/analisis/003-programa-becas-relevamiento-propuesta.md` estaba
+  **entero** —documento, fecha de nacimiento, CUIL, domicilio, apellido, nombre e
+  identificadores internos—. No lo publica MkDocs, pero se lee navegando GitHub, que para
+  el caso es lo mismo. La ronda 1 no lo había mirado porque el gate solo miraba `docs/client/`.
+- En `docs/client/funcionalidades/programa-becas.md` —el archivo que la ronda 1 **sí**
+  tocó— habían sobrevivido la `fechaNacimiento` y los datos del ejemplar del DNI
+  (`ejemplar`, `vencimiento`, `emision`): sacarle el número de documento a un registro no
+  lo despersonaliza.
+
+Los dos bloques pasan a ser estructura con valores inventados (documento `12345678`, CUIL
+`20-12345678-9`, fecha `01/01/2000`, «Calle Falsa 123»), con los nombres de los campos
+intactos, que es para lo que sirve el ejemplo.
+
+**Barrido completo de `docs/` + los `.md` de la raíz** (no solo `.md`: también `.html`,
+`.json`, `.csv`, `.txt`, `.yml`). 91 coincidencias revisadas una por una; el criterio fue
+«valor redondo, secuencial o explícitamente de prueba se queda; si podría ser de alguien,
+se reemplaza; ante la duda, se reemplaza». Resultado: **13 archivos saneados**. Lo más
+relevante, `docs/client/mockups/dispositivos-v2.html`, que MkDocs
+**publicaba entero** —seis documentos, un CUIL cuyo dígito verificador cierra, una fecha
+de nacimiento y un domicilio— y el gate de la ronda 1 no miraba por ser `.html`. El resto:
+el kit de diseño de `docs/design-kb/` (once documentos y tres teléfonos de personas de
+muestra), tres respuestas pegadas de SIIS y Personas, y un documento de prueba repetido en
+tres documentos internos.
+
+**El gate crece en cinco frentes**, todos salidos de lo que la ronda 1 dejó pasar
+(detalle en la ficha RED-64): todas las extensiones que MkDocs copia; reglas de fecha de
+nacimiento rodeada de identidad y de domicilio con calle y número; `numeroDocumento`, que
+se escapaba por el `\b` de la izquierda; y el reconocimiento de **marcadores de posición y
+unidades**, que es lo que saca los falsos positivos sin una lista de archivos perdonados
+—entre ellos el de «bytes», que marcaba el tamaño de un volcado por estar al lado de la
+palabra «DNI», y el de «Secretaría», que la regla de secretos leía como `secret`—.
+
+**Dos alcances, con los números medidos.** El estricto (lo que publica MkDocs) queda en
+**0** y sigue bloqueando. El `--todo-docs` —`docs/` entero y los `.md` de la raíz— da
+**37 hallazgos sobre el repo saneado y ninguno es un dato de una persona**: DNI de ejemplo
+de las colecciones de Postman, un `head -c` con su cantidad de bytes al lado de la palabra
+«DNI», un número de 8 dígitos dentro de un SQL de medición, direcciones de fixtures de
+parseo. Por eso va
+como paso **no bloqueante** del job `Sin datos personales` y no como gate: con 37 rojos de
+nacimiento se apagaría el primer día, y las anotaciones sobre el diff del PR se ven igual.
+Ningún job se renombró.
+
+Los tests pasan de 17 a **44** y ninguno escribe un dato real: el caso rojo se arma con
+valores inventados, y que lo despublicado ya no esté lo afirma el gate sobre el árbol, no
+un `assertNotIn` con el valor adentro.

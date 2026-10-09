@@ -5,9 +5,18 @@ site_dir: site
 
 # Páginas que se construyen y son accesibles por enlace, pero no aparecen en el menú.
 # Las estimaciones se llegan desde "Documentos relacionados" de cada funcionalidad.
+#
+# RED-64: MkDocs publica **todo** lo que hay en `docs_dir`, esté o no en el `nav`. Un
+# `.md` suelto queda en internet accesible por URL y sin aparecer en ningún índice, que
+# es la peor forma de publicar algo sin querer, así que lo que se publica a propósito
+# fuera del menú se declara acá y `scripts/check_docs_client.py` falla con lo que no esté
+# ni en el `nav` ni en esta lista. Las siete plantillas de trabajo de `templates/` ya se
+# publicaban: quedan declaradas tal como están. Sacarlas del sitio es un `exclude_docs:`
+# de una línea y es decisión del PM, no de este gate.
 not_in_nav: |
   /funcionalidades/estimacion-programa-becas.md
   /funcionalidades/estimacion-programa-dispositivos.md
+  /templates/
 
 theme:
   name: material

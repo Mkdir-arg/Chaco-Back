@@ -39,6 +39,10 @@ Thumbs.db
 # Testing
 .pytest_cache/
 .coverage
+# RED-86: con `parallel = true` cada worker de `--parallel` escribe su propio
+# `.coverage.<host>.<pid>.<n>`. `coverage combine` los borra al juntarlos, pero una
+# corrida cortada los deja tirados en el checkout.
+.coverage.*
 htmlcov/
 # Harness e2e de Playwright: local y nunca versionado (RED-72, D-RED-06 = No).
 # Si alguna vez se reconstruye, va contra el compose local, nightly o a mano y nunca

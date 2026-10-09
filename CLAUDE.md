@@ -93,6 +93,7 @@ Borrar los contenedores y el worktree al terminar (`docker rm -f rt-db rt-redis`
 ```powershell
 & $env:PY_VENV -m ruff check .          # line-length 120, reglas E/F/W/I
 & $env:PY_VENV -m ruff format .
+& $env:PY_VENV -m mypy                  # tipos, solo sobre el alcance de [tool.mypy] files (RED-76)
 npm run build:tailwind                  # el CSS compilado está COMMITTEADO: no se regenera solo
 ```
 
@@ -117,6 +118,22 @@ solo lo que agregó la edición; la deuda previa del archivo no se reporta.
 & $env:PY_VENV scripts\requerimientos.py --ver 24        # una entrada completa
 & $env:PY_VENV scripts\requerimientos.py --check         # coherencia índice <-> entradas
 ```
+
+### Publicación de `docs/client/`
+
+`docs/client/` se publica en **GitHub Pages, que es público**, en cada push a
+`development` que toque esa carpeta (`/analisis:publicar`, `/pm:minuta`, `/pm:reporte`).
+Antes de construir, el workflow corre el gate de RED-64, y la misma medición es un test de
+la suite (`core.tests.test_docs_client_publicacion`), así que un dato que no puede salir
+aparece en el PR:
+
+```powershell
+& $env:PY_VENV scripts\check_docs_client.py   # 0 hallazgos: ningún documento de persona,
+                                              # ningún secreto con valor, ningún .md fuera del nav
+```
+
+La aprobación humana antes de publicar cuelga del `environment: publicacion-docs` del job
+(`docs-auto-deploy.yml`); los *required reviewers* los activa el dueño del repo.
 
 ### Docker
 
@@ -332,8 +349,10 @@ repo**; hasta entonces, no mergear en rojo es una regla del proceso, no un mecan
 
 - **Backend CI** — `manage.py check --deploy` (`Django System Check`),
   `makemigrations --check --dry-run` + `scripts/check_migraciones.py` sobre las
-  migraciones nuevas del PR (`Migration Check`), `coverage run manage.py test`
-  (`Tests & Coverage`, `fail_under = 48` en `pyproject.toml`) y `Contratos de API`:
+  migraciones nuevas del PR (`Migration Check`), `coverage run manage.py test --parallel 4`
+  + `coverage combine` (`Tests & Coverage`, `fail_under = 79` con `branch = true` en
+  `pyproject.toml`; `concurrency = ["multiprocessing"]` es lo que hace que la cobertura
+  siga midiendo con la suite repartida en procesos) y `Contratos de API`:
   `manage.py spectacular --validate` más los módulos que congelan un contrato (esquema,
   app de campo, endpoints JSON del backoffice, servicios externos, forma de los JSON
   guardados, catálogo de capacidades). **Tocar `programas/api/serializers.py`,
@@ -361,9 +380,16 @@ Los dos últimos corren en **todos** los PRs: el filtro por rutas está adentro 
 así que cuando el PR no toca Python o UI el check termina en verde sin hacer nada. Un
 check con `paths:` en el trigger no puede ser obligatorio, porque no reporta nunca.
 
-No bloquean (`continue-on-error`): `Ruff estilo` (E, W, I y formato), Bandit y
-dependency-review. Igual se dejan en verde salvo que el rojo sea preexistente y ajeno
-al cambio.
+No bloquean (`continue-on-error`): `Ruff estilo` (E, W, I y formato), `Tipos (mypy)`,
+`Orden y paralelo`, Bandit y dependency-review. Igual se dejan en verde salvo que el rojo
+sea preexistente y ajeno al cambio.
+
+`Tipos (mypy)` (RED-76) corre **solo sobre el alcance declarado** en `files` de
+`[tool.mypy]` (`pyproject.toml`); fuera de esa lista mypy no mira nada. El alcance crece
+**un módulo por PR** y lo que entra, entra en verde: agregar una línea ahí obliga a anotar
+ese módulo en el mismo diff, y lo estricto (`disallow_untyped_defs`) se declara para el
+mismo conjunto. En local: `& $env:PY_VENV -m mypy` (se instala con
+`pip install -r requirements-ci.txt`).
 
 `Backend CI`, `Performance Guard` y `Datos` corren además en `push` a `development`,
 para que un push directo deje un check rojo visible mientras no haya ruleset.

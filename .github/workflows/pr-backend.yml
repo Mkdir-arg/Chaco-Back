@@ -105,9 +105,13 @@ jobs:
   tests-and-coverage:
     name: Tests & Coverage
     runs-on: ubuntu-latest
-    # Sube de 15 a 20: `branch = true` (TST-03) agrega ~50 % al tiempo de la corrida
-    # con coverage. Medido en local, de 480 s a 744 s.
-    timeout-minutes: 20
+    # RED-86: 25, como pide la ficha. El 15 original ya había subido a 20 por el
+    # `branch = true` de TST-03 (~50 % más de tiempo, medido: de 480 s a 744 s). Lo que
+    # no se arreglaba subiendo el techo es que **un timeout se ve como «failure»
+    # genérico**: la reacción es «re-run» y nadie ve el número crecer. Por eso, además
+    # del techo, el paso `Duración de la suite` escribe los minutos en el resumen del job
+    # y emite `::warning::` a partir de 12, que es el aviso de la ficha.
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v4
@@ -131,12 +135,48 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-ci.txt
 
+      # RED-86: la suite corre en **cuatro procesos** (`--parallel 4`, el ancho del
+      # runner estándar de GitHub). Lo bloqueaba RED-88 —`--parallel` moría con
+      # `cannot pickle 'traceback' object` sin decir qué test falló—, cerrada en el PR
+      # R-20. La cobertura se sigue midiendo igual: `concurrency = ["multiprocessing"]`
+      # y `parallel = true` en `pyproject.toml` hacen que cada worker escriba su propio
+      # `.coverage.*`, y el paso siguiente los junta. El `fail_under` no se mueve.
+      #
+      # `date +%s` antes de arrancar: si la suite falla, el paso muere y no escribe nada
+      # más, así que el inicio se publica **antes** y la duración se calcula en un paso
+      # con `if: always()`.
       - name: Run tests with coverage
+        id: suite
+        shell: bash
         env:
           DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
           PYTEST_RUNNING: "1"
           DJANGO_SYNCDB_PROJECT_APPS: "True"
-        run: coverage run manage.py test --verbosity=2
+        run: |
+          echo "inicio=$(date +%s)" >> "$GITHUB_OUTPUT"
+          coverage run manage.py test --parallel 4 --verbosity=2
+
+      # La alarma de crecimiento de la ficha. Corre aunque la suite falle: justamente el
+      # caso que importa es el timeout, donde no hay resultado pero sí hay número.
+      - name: Duración de la suite
+        if: always() && steps.suite.outputs.inicio != ''
+        shell: bash
+        env:
+          INICIO: ${{ steps.suite.outputs.inicio }}
+          AVISO_SEGUNDOS: "720"
+          TECHO_MINUTOS: "25"
+        run: |
+          duracion=$(( $(date +%s) - INICIO ))
+          minutos=$(( duracion / 60 ))
+          echo "Suite (\`--parallel 4\`, con cobertura de ramas): **${duracion} s** (~${minutos} min) · techo del job ${TECHO_MINUTOS} min" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$duracion" -gt "$AVISO_SEGUNDOS" ]; then
+            echo "::warning::la suite tardó ${minutos} min; el aviso está en $(( AVISO_SEGUNDOS / 60 )) min y el job muere a los ${TECHO_MINUTOS}"
+          fi
+
+      # Cada worker de `--parallel` deja su propio archivo de datos (`parallel = true`).
+      # Sin esto, `coverage report` no encuentra nada que reportar.
+      - name: Combinar la cobertura de los workers
+        run: coverage combine
 
       # Mide el repo entero con el `omit` de `pyproject.toml` (TST-03): fuera
       # `core/performance/*` (muerto), `scripts/*`, `awslabs-mcp/*` y `docker/*`, que
@@ -159,30 +199,32 @@ jobs:
           coverage report --fail-under=90
           --include=programas/services/siis_envio.py,programas/services/proceso_masivo.py,programas/services/cupo.py,programas/services/inscripcion_publica.py,programas/services/padron.py,programas/services/respuestas.py,programas/api/views.py,portal/views/inscripcion.py,core/rbac.py
 
-  # TST-02 y RED-88: la suite tiene que pasar **en cualquier orden** y en paralelo.
+  # TST-02: la suite tiene que pasar **en cualquier orden**.
   #
-  # Cinco módulos de `programas/tests/` solo pasaban si otro había corrido antes (el
-  # Programa Becas quedaba en una caché de proceso que sobrevive al rollback), y
-  # `--parallel` moría con `cannot pickle 'traceback' object` sin decir qué test
-  # falló. Las dos cosas se arreglaron en el PR R-20; esto es lo que avisa si vuelven.
+  # Cinco módulos de `programas/tests/` solo pasaban si otro había corrido antes: el
+  # Programa Becas quedaba en una caché de proceso que sobrevive al rollback de la base.
+  # Se arregló en el PR R-20; esto es lo que avisa si vuelve.
   #
-  # **No bloqueante a propósito**, por dos razones distintas:
+  # **No bloqueante a propósito**: `--shuffle` toma una semilla al azar en cada corrida,
+  # así que como gate obligatorio un PR podría quedar rojo por una dependencia de orden
+  # que introdujo otro PR, y re-correr lo pondría verde. Un check que no es reproducible
+  # no puede bloquear. Lo que sí hace es dejar la evidencia en el log, con la semilla
+  # para reproducir.
   #
-  # * `--shuffle` toma una semilla al azar en cada corrida. Como gate obligatorio, un
-  #   PR podría quedar rojo por una dependencia de orden que otro PR introdujo, y
-  #   re-correr lo pondría verde: un check que no es reproducible no puede bloquear.
-  #   Lo que sí hace es dejar la evidencia en el log, con la semilla para reproducir.
-  # * El paso `--parallel 2` es el que pide RED-88 explícitamente, hasta que RED-86
-  #   pase la suite entera a paralelo.
+  # El segundo paso que vivía acá —`core users portal --parallel 2`, el canario que pedía
+  # RED-88 «hasta que RED-86 pase la suite entera a paralelo»— se retiró en el PR 5 de la
+  # Ola 7, que es el que hizo exactamente eso: `Tests & Coverage` corre ahora la suite
+  # completa con `--parallel 4` y **bloquea**, o sea que cubre a esas tres apps con más
+  # workers y como gate obligatorio, no como aviso.
   #
   # El job duplica la suite (~8,5 min), por eso va aparte y no adentro de
-  # `Tests & Coverage`, que ya tarda ~12 min midiendo ramas.
+  # `Tests & Coverage`.
   #
-  # El `continue-on-error` va **en los dos pasos que miden**, no en el job: a nivel
-  # job, GitHub reporta el check como *success* incluso cuando falla y la evidencia
-  # queda solo adentro del log. En los pasos, el paso queda marcado en rojo y con su
-  # anotación en la pestaña del PR —que es lo que hace falta para que alguien lo mire—
-  # mientras el job termina en verde y no bloquea nada.
+  # El `continue-on-error` va **en el paso que mide**, no en el job: a nivel job, GitHub
+  # reporta el check como *success* incluso cuando falla y la evidencia queda solo adentro
+  # del log. En el paso, queda marcado en rojo y con su anotación en la pestaña del PR
+  # —que es lo que hace falta para que alguien lo mire— mientras el job termina en verde y
+  # no bloquea nada.
   orden-y-paralelo:
     name: Orden y paralelo
     runs-on: ubuntu-latest
@@ -212,14 +254,6 @@ jobs:
           PYTEST_RUNNING: "1"
           DJANGO_SYNCDB_PROJECT_APPS: "True"
         run: python manage.py test --shuffle
-
-      - name: Suite paralela de core, users y portal
-        continue-on-error: true
-        env:
-          DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret
-          PYTEST_RUNNING: "1"
-          DJANGO_SYNCDB_PROJECT_APPS: "True"
-        run: python manage.py test core users portal --parallel 2
 
   # RED-43: el CI no tenía **ningún** gate de contrato de API. El esquema se podía
   # romper, una clave que el front lee a mano podía desaparecer y una capacidad mal

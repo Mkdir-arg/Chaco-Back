@@ -28,6 +28,14 @@ El PR R-14 (Cambio 128) suma las tres fichas de los gates del release:
 - **RED-22** — la etapa `verify` se le propone a ECOM por escrito, sin tocar el
   `.gitlab-ci.yml` que es de ellos.
 
+El PR 5 de la Ola 7 (Cambio 199) suma las dos fichas de calidad del propio CI:
+
+- **RED-86** — la suite corre en paralelo (`--parallel 4`), la cobertura se sigue midiendo
+  con los procesos hijos (`concurrency = ["multiprocessing"]` + `coverage combine`) y la
+  duración queda escrita en el resumen del job, con aviso sobre 12 min.
+- **RED-76** — `mypy` existe, con un alcance acotado que crece un módulo por PR y arranca
+  no bloqueante.
+
 No toca la red: todo sale de los archivos del repo.
 """
 
@@ -42,6 +50,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import tomllib
 import yaml
 from django.conf import settings
 from django.test import SimpleTestCase
@@ -62,15 +71,30 @@ SHA = re.compile(r"^[0-9a-f]{40}$")
 # RED-85
 REQUIREMENTS_CI = RAIZ / "requirements-ci.txt"
 DEPENDABOT = RAIZ / ".github" / "dependabot.yml"
-HERRAMIENTAS_DEL_CI = ("ruff", "coverage", "pip-audit", "bandit", "mkdocs-material")
+HERRAMIENTAS_DEL_CI = (
+    "ruff",
+    "coverage",
+    "pip-audit",
+    "bandit",
+    "mkdocs-material",
+    # RED-76. Los tres van juntos: `django-stubs[compatible-mypy]` es el que fija qué
+    # mypy soporta y `djangorestframework-stubs` exige `django-stubs>=6`.
+    "mypy",
+    "django-stubs",
+    "djangorestframework-stubs",
+)
 #: Cómo se invoca cada herramienta en un `run:` (`mkdocs-material` instala `mkdocs`).
-INVOCACION = re.compile(r"(?m)^\s*(?:python -m\s+)?(ruff|coverage|pip-audit|bandit|mkdocs)\b")
+INVOCACION = re.compile(r"(?m)^\s*(?:python -m\s+)?(ruff|coverage|pip-audit|bandit|mkdocs|mypy)\b")
 #: Un `pip install` cualquiera. Lo único admitido es `-r <archivo>` o el `--upgrade pip`.
 PIP_INSTALL = re.compile(r"(?m)^\s*(?:python -m\s+)?pip install\s+(?P<argumentos>.+)$")
 
 
 def _cargar(nombre):
     return yaml.safe_load((WORKFLOWS / nombre).read_text(encoding="utf-8"))
+
+
+def _pyproject():
+    return tomllib.loads((RAIZ / "pyproject.toml").read_text(encoding="utf-8"))
 
 
 def _disparador_pull_request(flujo):
@@ -484,7 +508,7 @@ class HerramientasDelCiPineadasTests(SimpleTestCase):
             with self.subTest(linea=linea):
                 self.assertIn("==", linea)
 
-    def test_estan_las_cinco_herramientas_que_el_ci_usa(self):
+    def test_estan_las_herramientas_que_el_ci_usa(self):
         distribuciones = {_distribucion(linea) for linea in _lineas_de_requisitos(REQUIREMENTS_CI)}
 
         self.assertEqual(distribuciones, set(HERRAMIENTAS_DEL_CI))
@@ -791,6 +815,147 @@ class CoberturaTests(SimpleTestCase):
         for ruta in ("core/performance/*", "scripts/*", "awslabs-mcp/*", "docker/*"):
             with self.subTest(ruta=ruta):
                 self.assertIn(f'"{ruta}"', self.pyproject)
+
+
+class SuiteEnParaleloTests(SimpleTestCase):
+    """RED-86: la suite corre en paralelo, se sigue midiendo, y el tiempo queda escrito.
+
+    El job tenía `timeout-minutes: 15` sobre una corrida en serie. Los
+    `TransactionTestCase` de la Ola 1 la empujan hacia el techo, y **un timeout se ve
+    como «failure» genérico**: la reacción es «re-run» y el número crece sin que nadie
+    lo vea. Subir el techo solo corre el problema de lugar; lo que lo cierra es medir.
+
+    Las dos mitades que este test sostiene son las que se caen sin ruido:
+
+    * sacar `--parallel` deja la suite el triple de lenta y nada se pone rojo;
+    * sacar `concurrency`/`parallel` de `[tool.coverage.run]`, o el `coverage combine`,
+      deja a coverage midiendo **solo el proceso padre** —que no corre ningún test— y el
+      `fail_under` se desploma sin que haya cambiado una línea de código.
+    """
+
+    JOB = "Tests & Coverage"
+    TIMEOUT_MINUTOS = 25
+    #: El aviso de la ficha: 12 minutos, en segundos.
+    AVISO_SEGUNDOS = 720
+
+    def setUp(self):
+        self.flujo = _cargar("pr-backend.yml")
+        clave = _nombres_de_jobs(self.flujo).get(self.JOB)
+        self.assertIsNotNone(clave, f"no existe el job «{self.JOB}»")
+        self.job = self.flujo["jobs"][clave]
+        self.comandos = "\n".join(paso.get("run", "") for paso in self.job["steps"])
+        self.pyproject = (RAIZ / "pyproject.toml").read_text(encoding="utf-8")
+
+    def test_la_suite_corre_en_paralelo(self):
+        self.assertRegex(self.comandos, r"manage\.py test .*--parallel \d+")
+
+    def test_el_techo_del_job_subio_a_veinticinco(self):
+        self.assertEqual(self.job.get("timeout-minutes"), self.TIMEOUT_MINUTOS)
+
+    def test_coverage_sigue_midiendo_los_procesos_hijos(self):
+        """Sin esto el número cae por el paralelismo, no por el código."""
+        self.assertIn('concurrency = ["multiprocessing"]', self.pyproject)
+        self.assertIn("parallel = true", self.pyproject)
+
+    def test_la_configuracion_de_coverage_esta_en_el_archivo_y_no_en_el_comando(self):
+        """Los subprocesos no ven los flags del `coverage run` del padre: solo el archivo."""
+        self.assertNotIn("--concurrency", self.comandos)
+
+    def test_el_job_combina_antes_de_reportar(self):
+        orden = [paso.get("run", "") for paso in self.job["steps"]]
+        combine = next(i for i, run in enumerate(orden) if "coverage combine" in run)
+        reporte = next(i for i, run in enumerate(orden) if "coverage report" in run)
+
+        self.assertLess(combine, reporte, "`coverage report` sin `combine` no encuentra datos")
+
+    def test_el_job_escribe_la_duracion_y_avisa_sobre_doce_minutos(self):
+        paso = next(p for p in self.job["steps"] if "GITHUB_STEP_SUMMARY" in p.get("run", ""))
+
+        self.assertEqual(str(paso["env"]["AVISO_SEGUNDOS"]), str(self.AVISO_SEGUNDOS))
+        self.assertIn("::warning::", paso["run"])
+
+    def test_la_duracion_se_mide_aunque_la_suite_falle(self):
+        """El caso que importa es justo el timeout, donde no hay resultado pero sí número."""
+        paso = next(p for p in self.job["steps"] if "GITHUB_STEP_SUMMARY" in p.get("run", ""))
+
+        self.assertIn("always()", str(paso.get("if", "")))
+
+    def test_el_job_sigue_bloqueando(self):
+        self.assertIn(self.JOB, CHECKS_OBLIGATORIOS)
+        self.assertNotEqual(self.job.get("continue-on-error"), True)
+        for paso in self.job["steps"]:
+            if "manage.py test" in paso.get("run", ""):
+                self.assertNotEqual(paso.get("continue-on-error"), True)
+
+
+class TipadoGradualTests(SimpleTestCase):
+    """RED-76: mypy existe, tiene un alcance acotado y ese alcance está en verde.
+
+    2,7 % de retornos anotados sobre 2.195 funciones (`programas`: 5 de 1.117). Un
+    checker sobre todo el árbol daría miles de hallazgos y nadie lo miraría, así que lo
+    que se adopta es el **alcance**: `files` de `[tool.mypy]`. Lo que este test impide es
+    que el alcance crezca a un directorio entero (con lo que el job pasaría a ser ruido) o
+    que alguien lo haga pasar con `# type: ignore` sueltos, que es la otra forma de dejar
+    el gate en verde sin arreglar nada.
+    """
+
+    JOB = "Tipos (mypy)"
+
+    def setUp(self):
+        self.flujo = _cargar("pr-quality.yml")
+        clave = _nombres_de_jobs(self.flujo).get(self.JOB)
+        self.assertIsNotNone(clave, f"no existe el job «{self.JOB}»")
+        self.job = self.flujo["jobs"][clave]
+        self.configuracion = _pyproject()
+
+    def _alcance(self):
+        return self.configuracion["tool"]["mypy"]["files"]
+
+    def test_el_alcance_esta_declarado_y_son_archivos_que_existen(self):
+        alcance = self._alcance()
+
+        self.assertTrue(alcance, "sin `files`, mypy mira todo el árbol y el job es ruido")
+        for ruta in alcance:
+            with self.subTest(ruta=ruta):
+                self.assertTrue(ruta.endswith(".py"), "el alcance se amplía un módulo por vez, no por directorio")
+                self.assertTrue((RAIZ / ruta).is_file(), f"{ruta} no existe: mypy no avisa, simplemente mide menos")
+
+    def test_lo_estricto_cubre_exactamente_el_alcance(self):
+        """Un módulo en `files` sin su `override` entra sin que se le exija anotar nada."""
+        estrictos = set()
+        for override in self.configuracion["tool"]["mypy"].get("overrides", []):
+            if override.get("disallow_untyped_defs"):
+                estrictos |= set(override["module"])
+
+        self.assertEqual(estrictos, {ruta[: -len(".py")].replace("/", ".") for ruta in self._alcance()})
+
+    def test_el_plugin_de_django_sabe_de_donde_salen_los_settings(self):
+        self.assertIn("mypy_django_plugin.main", self.configuracion["tool"]["mypy"]["plugins"])
+        self.assertEqual(self.configuracion["tool"]["django-stubs"]["django_settings_module"], "config.settings")
+
+    def test_un_type_ignore_sin_codigo_no_compila(self):
+        self.assertIn("ignore-without-code", self.configuracion["tool"]["mypy"]["enable_error_code"])
+
+    def test_el_alcance_no_tiene_type_ignore(self):
+        """Hacerlo pasar a fuerza de `# type: ignore` deja el gate verde sin arreglar nada."""
+        con_ignore = [ruta for ruta in self._alcance() if "type: ignore" in (RAIZ / ruta).read_text(encoding="utf-8")]
+
+        self.assertEqual(con_ignore, [], f"el alcance de mypy se silencia en: {con_ignore}")
+
+    def test_el_job_arranca_sin_bloquear(self):
+        """Como pide la ficha, hasta que estén los cinco módulos. El `continue-on-error`
+        va en el paso: a nivel job, GitHub reporta *success* y la evidencia queda
+        enterrada en el log."""
+        self.assertNotIn(self.JOB, CHECKS_OBLIGATORIOS)
+        self.assertNotEqual(self.job.get("continue-on-error"), True)
+        paso = next(p for p in self.job["steps"] if "mypy" in p.get("run", ""))
+        self.assertTrue(paso.get("continue-on-error"))
+
+    def test_el_job_instala_la_aplicacion_porque_el_plugin_importa_los_settings(self):
+        comandos = "\n".join(paso.get("run", "") for paso in self.job["steps"])
+
+        self.assertIn("pip install -r requirements.txt", comandos)
+        self.assertIn("pip install -r requirements-ci.txt", comandos)
 
 
 class ReleaseGateTests(SimpleTestCase):
