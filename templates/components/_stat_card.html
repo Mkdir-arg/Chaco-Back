@@ -7,6 +7,11 @@ Contexto:
   valor     número (o texto corto) ya formateado.
   icono     nombre Font Awesome sin el prefijo «fas» («fa-users»).
   tono      brand (por defecto) | success | warning | danger: color de la caja del ícono.
+  variante  «tablero» (opcional): la versión grande, para tableros y pantallas de inicio de
+            programa. Caja de ícono de 52 px sobre `var(--gradient-brand)` (ignora `tono`),
+            valor de 32 px / 800 y sombra. Las reglas viven en `nodo-stat-card.css`. Sin
+            `variante` (o con cualquier otro valor) el render es el chico de siempre, el de
+            los listados y los detalles.
 Opcionales, para los tableros cuyos números llega a escribir un JS (`becas-dashboard.js`).
 Sin ninguno de ellos el render es exactamente el de arriba:
   kpi_id    marca el valor con `data-kpi="<kpi_id>"` para que el JS lo refresque.
@@ -18,11 +23,11 @@ Sin ninguno de ellos el render es exactamente el de arriba:
 Con `sufijo`/`sufijo_id`, `kpi_id` marca un `<span>` y no el `<p>`: el JS asigna
 `textContent`, que sobre el `<p>` entero borraría el sufijo.
 {% endcomment %}
-<div class="bg-white rounded-xl border border-base p-4">
+<div class="bg-white rounded-xl border border-base p-4{% if variante == 'tablero' %} nodo-stat-tablero shadow-sm{% endif %}">
   <div class="flex items-center justify-between gap-2">
     <p class="text-xs font-semibold text-body-subtle">{{ etiqueta }}</p>
-    <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 {% if tono == 'success' %}bg-success-soft text-fg-success{% elif tono == 'warning' %}bg-warning-soft text-fg-warning{% elif tono == 'danger' %}bg-danger-soft text-fg-danger{% else %}bg-brand-soft text-fg-brand{% endif %}"><i class="fas {{ icono|default:'fa-chart-simple' }} text-sm" aria-hidden="true"></i></div>
+    <div class="{% if variante == 'tablero' %}nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0{% else %}w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 {% if tono == 'success' %}bg-success-soft text-fg-success{% elif tono == 'warning' %}bg-warning-soft text-fg-warning{% elif tono == 'danger' %}bg-danger-soft text-fg-danger{% else %}bg-brand-soft text-fg-brand{% endif %}{% endif %}"><i class="fas {{ icono|default:'fa-chart-simple' }}{% if variante != 'tablero' %} text-sm{% endif %}" aria-hidden="true"></i></div>
   </div>
-  {% if sufijo or sufijo_id %}<p class="text-2xl font-bold text-heading mt-2">{% if kpi_id %}<span data-kpi="{{ kpi_id }}">{{ valor }}</span>{% else %}{{ valor }}{% endif %}<span class="text-sm text-body-subtle font-semibold">{{ sufijo }}{% if sufijo_id %}<span data-kpi="{{ sufijo_id }}">{{ valor_sufijo|default:"—" }}</span>{% endif %}</span></p>{% else %}<p class="text-2xl font-bold text-heading mt-2"{% if kpi_id %} data-kpi="{{ kpi_id }}"{% endif %}>{{ valor }}</p>{% endif %}{% if nota or nota_id %}
+  {% if sufijo or sufijo_id %}<p class="text-2xl font-bold text-heading mt-2{% if variante == 'tablero' %} nodo-stat-tablero-valor{% endif %}">{% if kpi_id %}<span data-kpi="{{ kpi_id }}">{{ valor }}</span>{% else %}{{ valor }}{% endif %}<span class="text-sm text-body-subtle font-semibold">{{ sufijo }}{% if sufijo_id %}<span data-kpi="{{ sufijo_id }}">{{ valor_sufijo|default:"—" }}</span>{% endif %}</span></p>{% else %}<p class="text-2xl font-bold text-heading mt-2{% if variante == 'tablero' %} nodo-stat-tablero-valor{% endif %}"{% if kpi_id %} data-kpi="{{ kpi_id }}"{% endif %}>{{ valor }}</p>{% endif %}{% if nota or nota_id %}
   <p class="text-xs text-body-subtle mt-1"{% if nota_id %} data-kpi="{{ nota_id }}"{% endif %}>{{ nota }}</p>{% endif %}
 </div>

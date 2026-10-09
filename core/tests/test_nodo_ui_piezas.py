@@ -294,6 +294,28 @@ class StatCardTest(SimpleTestCase):
             "</div>\n",
         )
 
+    def test_variante_tablero_es_la_franja_grande(self):
+        """#582 / C-2: caja de 52 px con gradiente y valor de 32 px / 800 (reglas en nodo-stat-card.css)."""
+        html = render_to_string(
+            STAT, {"etiqueta": "Plazas", "valor": 40, "icono": "fa-bed", "tono": "danger", "variante": "tablero"}
+        )
+
+        self.assertIn('class="bg-white rounded-xl border border-base p-4 nodo-stat-tablero shadow-sm"', html)
+        self.assertIn('class="nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0"', html)
+        self.assertIn('<i class="fas fa-bed" aria-hidden="true"></i>', html)
+        self.assertIn('class="text-2xl font-bold text-heading mt-2 nodo-stat-tablero-valor">40</p>', html)
+        self.assertNotIn("w-8 h-8", html)
+        self.assertNotIn("bg-danger-soft", html)  # el tono no pinta la caja grande
+        css = (RAIZ / "static/custom/css/nodo-stat-card.css").read_text(encoding="utf-8")
+        for regla in ("width: 52px", "height: 52px", "var(--gradient-brand)", "font-size: 32px", "font-weight: 800"):
+            self.assertIn(regla, css)
+
+    def test_una_variante_desconocida_es_la_chica(self):
+        chica = render_to_string(STAT, {"etiqueta": "X", "valor": 1, "icono": "fa-users"})
+        otra = render_to_string(STAT, {"etiqueta": "X", "valor": 1, "icono": "fa-users", "variante": "grande"})
+
+        self.assertEqual(chica, otra)
+
     def test_los_consumidores_que_no_los_piden_no_estrenan_data_kpi_ni_pie(self):
         """Ninguna de las llamadas que ya existían pasa un opcional: el render no se mueve."""
         for invocacion in _INCLUDES_DE_STAT_CARD:
