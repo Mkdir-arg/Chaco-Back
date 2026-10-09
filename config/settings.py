@@ -534,10 +534,9 @@ else:
         },
     }
 
-HEALTH_CHECK = {
-    "DISK_USAGE_MAX": 90,
-    "MEMORY_MIN": 100,
-}
+# OPS-13: acá estaba `HEALTH_CHECK = {"DISK_USAGE_MAX": 90, "MEMORY_MIN": 100}`, la
+# configuración de `django-health-check`. El paquete se fue del repo en este mismo
+# Cambio (196) y nadie más lee esa clave: las sondas son la app `healthcheck`.
 
 DEFAULT_CACHE_TIMEOUT = 600
 DASHBOARD_CACHE_TIMEOUT = 600
@@ -720,7 +719,9 @@ SIIS_API_TIMEOUT = int(os.getenv("SIIS_API_TIMEOUT", "20"))
 # directorio montado como volumen o secret, que no viaja con el código ni con la
 # imagen. Si no está montado, los comandos cortan nombrando la variable.
 DATOS_SIIS_DIR = os.getenv("DATOS_SIIS_DIR", "/datos-siis")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# OPS-13: y acá `OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")`, sin un solo consumidor en
+# el código. `openai` salió de `requirements.txt` en este Cambio; leer el secreto para no
+# usarlo solo servía para que apareciera en los `.env` de los ambientes.
 
 LOG_DIR = BASE_DIR / "logs"
 # OPS-03: stdout es el destino de verdad —es lo que recogen `docker compose logs` y

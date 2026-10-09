@@ -132,11 +132,14 @@ arranque. Ninguna de estas fallas se ve en pantalla ni deja traza en el log.
 server**, el entrypoint los levanta solo para migrar) · `USE_REDIS_CACHE` (reproducir en
 un dev el cache compartido de los ambientes servidos).
 
-!!! warning "Tres variables que no hacen nada"
+!!! warning "Dos variables que no hacen nada"
     Aparecieron en configuraciones reales y conviene saber que son inertes:
     `RUN_CREAR_PROGRAMAS` y `RUN_CREAR_SUPERADMIN` **no las lee nadie** —el bootstrap
-    no crea usuarios, el primer superusuario se crea a mano (ver abajo)— y
-    `OPENAI_API_KEY` quedó residual en `settings.py` sin ningún consumidor.
+    no crea usuarios, el primer superusuario se crea a mano (ver abajo)—.
+
+    Eran tres: `OPENAI_API_KEY` quedaba residual en `settings.py` sin ningún consumidor
+    y el Cambio 196 (OPS-13) la borró junto con el paquete `openai`. Si todavía está en
+    el `.env` de un ambiente, se puede sacar.
 
 #### Cómo verificar que están todas
 

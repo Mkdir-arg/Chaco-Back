@@ -37,11 +37,23 @@ jobs:
       - name: Excepciones de seguridad vigentes
         run: python3 scripts/check_excepciones_seguridad.py
 
+      # Los tres archivos, no solo el de la imagen: `requirements-dev.txt` se instala en
+      # la máquina de quien desarrolla y `requirements-ci.txt` en los runners, que tienen
+      # el token del workflow. Una advisory ahí no llega a PRD, pero tampoco se entera
+      # nadie si no se audita. Van en invocaciones separadas y no con tres `-r` para que
+      # el rojo diga qué archivo es, y `requirements.txt` se audita por su cuenta aunque
+      # `requirements-dev.txt` lo arrastre con su `-r`.
       - name: Audit dependencies
         shell: bash
         run: |
           read -r -a ignores <<< "$(python3 scripts/check_excepciones_seguridad.py --ignore-args)"
-          pip-audit -r requirements.txt "${ignores[@]}"
+          fail=0
+          for archivo in requirements.txt requirements-dev.txt requirements-ci.txt; do
+            echo "::group::pip-audit -r $archivo"
+            pip-audit -r "$archivo" "${ignores[@]}" || fail=1
+            echo "::endgroup::"
+          done
+          exit "$fail"
 
   dependency-review:
     name: Dependency Review

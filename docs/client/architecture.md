@@ -391,7 +391,6 @@ REDIS_URL=redis://redis:6379/1       # alternativa única
 # Integraciones externas
 RENAPER_API_URL=…                    # padrón nacional de personas
 RENAPER_API_KEY=…
-OPENAI_API_KEY=…                     # asistencia IA en módulos puntuales
 ```
 
 ### 7.2 Endurecimiento aplicado en `prd`

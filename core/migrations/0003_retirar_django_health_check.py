@@ -24,10 +24,19 @@ releases): el backend `health_check.db` solo toca esa tabla cuando corre un *plu
 health check, y ninguna URL llega a uno desde entonces. Durante el rolling, la release
 vieja tiene la app instalada y no la usa.
 
-**Si hay rollback de release**, el código viejo vuelve con `health_check` en
-`INSTALLED_APPS` y sin la fila: `migrate` corre su `CreateModel`, la tabla no está (la
-borramos) y la vuelve a crear vacía. Se arregla solo y no hay dato que perder: esa tabla
-solo guarda una fila transitoria que el propio check escribe y borra.
+**Si un pod de la release vieja corre `migrate` después de esta migración** —un rollback,
+o un pod rezagado del rolling que arranca cuando `core.0003` ya se aplicó— el código viejo
+trae `health_check` en `INSTALLED_APPS` y no encuentra su fila en `django_migrations`: su
+`0001_initial` se aplica otra vez, vuelve a crear `health_check_db_testmodel` **y** vuelve
+a escribir la fila. Y no se limpian solas: `core.0003` ya figura aplicada, así que el
+deploy siguiente no la vuelve a correr. El estado resultante es el de antes del PR —tabla
+huérfana más fila(s) sin archivo en disco—, o sea dos avisos por arranque de pod y nada
+roto: no hay dato que perder, esa tabla solo guarda una fila transitoria que el propio
+check escribe y borra. Si pasa, se limpia a mano contra la base del ambiente:
+
+    DROP TABLE IF EXISTS health_check_db_testmodel;
+    DELETE FROM django_migrations
+     WHERE app IN ('db', 'health_check_db') AND name = '0001_initial';
 
 **Reversa real, no noop:** vuelven la tabla (vacía) y las dos filas. Lo único que no vuelve
 es el `applied` original de esas filas —se graba la fecha de la reversa— y el contenido de

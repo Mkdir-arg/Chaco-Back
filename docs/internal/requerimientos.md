@@ -29784,3 +29784,53 @@ esa tabla no guarda nada entre un health check y el siguiente.
 ## Historial
 
 Entrada nueva.
+
+**Ronda 2 de revisión (09-10-2026).** Seis cosas, una de ellas el agujero que el PR
+abrió al sacar `debugpy` de la imagen:
+
+- **`manage.py` importaba `debugpy` sin condición y el contenedor de desarrollo no
+  arrancaba** (MAJOR). `docker compose up` levanta **la imagen de producción** con
+  `DJANGO_DEBUG=True` y `runserver`, que relanza el proceso con `RUN_MAIN=true` para el
+  autoreload: ese hijo moría con `ModuleNotFoundError`. El import pasa a
+  `importlib.import_module` dentro de un `try/except ImportError`, mismo criterio que
+  `config/settings.py` con `django_extensions`/`silk`; cuando el paquete está, sigue
+  abriendo el 3000. Se importa con `importlib` y no con `import debugpy` a propósito:
+  así `test_nadie_los_importa` puede barrer el archivo sin marcarlo.
+- **El barrido de `test_nadie_los_importa` ahora incluye los `.py` de la raíz.** Miraba
+  solo los diez paquetes del producto, y `manage.py` está fuera de todos: por eso el
+  import sobrevivió al PR. `ManagePySinDebugpyTests` reproduce el fallo con un finder de
+  `sys.meta_path` que levanta `ModuleNotFoundError` —el venv local **sí** tiene `debugpy`
+  instalado, así que un finder pasivo no mediría nada— más `RUN_MAIN=true` y `DEBUG=True`.
+- **`config/settings_production.py` filtraba `silk` de `INSTALLED_APPS` y no recalculaba
+  `SILK_HABILITADO`** (MINOR): la bandera la fija `settings.py` **antes** del filtro, así
+  que con `DJANGO_DEBUG=True` mal puesto en un ambiente servido quedaba en `True` con la
+  app afuera y `config/urls.py` montaba `/silk/` contra `silk.urls`. Queda
+  `SILK_HABILITADO = False`, con test que arma la situación a mano (la suite corre con
+  `DEBUG=False`, donde el test pasaría sin medir nada).
+- **La docstring de `core/migrations/0003` contaba el caso equivocado** (MINOR). Decía
+  que un rollback «se arregla solo». No: si un pod de la release vieja corre `migrate`
+  después de `core.0003`, recrea la tabla **y** la fila, y nadie las vuelve a limpiar
+  porque la migración ya figura aplicada. Queda escrito, con el `DROP TABLE` + `DELETE`
+  manual, acá y en los riesgos de deploy del PR. Las operaciones no se tocaron.
+- **Restos que el PR dejó** (MINOR): `HEALTH_CHECK` (configuración de
+  `django-health-check`) y `OPENAI_API_KEY` salen de `config/settings.py` —y la variable,
+  de `docs/client/architecture.md` y del aviso de `docs/internal/processes.md`, que pasa
+  de tres variables inertes a dos—, y `config/gevent_patch.py` sale de las
+  `per-file-ignores` de `pyproject.toml`.
+- **`requirements-dev.txt` y `requirements-ci.txt`** (MINOR): marcados `export-ignore`
+  —no son de runtime y no tienen por qué viajar al release ni al GitLab de ECOM; el
+  `RUNTIME` del guard de `publish-main.yml` pide `requirements.txt` y nada más, así que
+  sigue coherente— y auditados por `Pip Audit`, que ahora recorre los tres archivos en
+  invocaciones separadas (para que el rojo diga cuál) con los mismos ignores de
+  `security/excepciones.toml`. Medido: los tres dan «No known vulnerabilities found», así
+  que no hubo que subir ninguna versión ni documentar excepción.
+
+**Verificado en esta ronda:** `manage.py check` OK; `manage.py check` con
+`DJANGO_DEBUG=True`, `RUN_MAIN=true` y `debugpy` bloqueado por el finder, OK; `core` y
+`config` completos (1.118 + 4 tests, 0 fallos); ruff `check` y `format --check` de lo
+tocado, limpios; `actionlint` 0 errores; `requerimientos.py --check` OK. Los tres tests
+nuevos corridos contra `9676927e`: `test_arranca_con_debug_y_run_main_sin_el_paquete` da
+`ModuleNotFoundError: No module named 'debugpy'`, `test_nadie_los_importa` devuelve
+`{'debugpy': ['manage.py']}` y
+`test_el_modulo_endurecido_apaga_la_bandera_al_sacar_la_app` falla con «True is not
+false».
