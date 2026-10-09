@@ -26,11 +26,29 @@ def performance_dashboard(request):
     return render(request, "core/performance_dashboard.html")
 
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import BasePermission
 
 from core.api_permissions import BackofficeAutenticado
+
+# RED-37 punto 3 (Ola 7). Las tres APIs de acá declaraban `responses={200: "<una
+# frase>"}`: Spectacular no sabe resolver una cadena suelta, avisaba
+# («could not resolve … Defaulting to generic free-form object») y publicaba un
+# objeto sin una sola propiedad. Ahora declaran sus claves de primer nivel, que
+# son las mismas en las dos ramas de `query_observability_report()` —la medida y
+# la que devuelve todo en `null` cuando la instrumentación está apagada—.
+#
+# Los bloques anidados quedan como objetos libres **a propósito**: `metrics`,
+# `routes` y `real_time` cambian de forma con la instrumentación y declararlos
+# campo por campo sería fijar un contrato que la vista no sostiene. Son APIs de
+# diagnóstico para `config.administrar`, no superficie de integración.
+
+
+def _opcional(campo):
+    """Las métricas vienen en `null` enteras cuando no hay medición."""
+    return campo(allow_null=True, required=True)
 
 
 class IsPerformanceAdmin(BasePermission):
@@ -41,8 +59,30 @@ class IsPerformanceAdmin(BasePermission):
 
 
 @extend_schema(
-    description="API para obtener métricas de performance en tiempo real",
-    responses={200: "Métricas de performance del sistema"},
+    summary="Métricas de performance del sistema",
+    description="Observabilidad de consultas del proceso. Solo para `config.administrar`.",
+    responses={
+        200: inline_serializer(
+            name="MetricasPerformance",
+            fields={
+                "total_queries": _opcional(serializers.IntegerField),
+                "total_duplicate_queries": _opcional(serializers.IntegerField),
+                "total_requests": _opcional(serializers.IntegerField),
+                "slow_requests": _opcional(serializers.IntegerField),
+                "slow_queries_count": _opcional(serializers.IntegerField),
+                "slow_queries": _opcional(serializers.IntegerField),
+                "n1_detected": _opcional(serializers.IntegerField),
+                "n1_affected_requests": _opcional(serializers.IntegerField),
+                "performance_score": _opcional(serializers.FloatField),
+                "recommendations": serializers.ListField(child=serializers.DictField()),
+                "routes": serializers.ListField(child=serializers.DictField()),
+                "window": _opcional(serializers.IntegerField),
+                "sampling_rate": _opcional(serializers.FloatField),
+                "metrics": serializers.DictField(help_text="Una entrada por métrica, con `source`, `scope` y `value`."),
+                "real_time": serializers.DictField(help_text="Foto del proceso al momento de la consulta."),
+            },
+        )
+    },
 )
 @api_view(["GET"])
 @permission_classes([BackofficeAutenticado, IsPerformanceAdmin])
@@ -83,8 +123,26 @@ def performance_api(request):
 
 
 @extend_schema(
-    description="API para análisis detallado de patrones de consultas",
-    responses={200: "Análisis de patrones de queries"},
+    summary="Análisis de patrones de consultas",
+    description=(
+        "Mismas claves con o sin medición: sin ella todos los números vienen en `null` y "
+        "`recommendations` vacío, para que el tablero no tenga que distinguir dos formas."
+    ),
+    responses={
+        200: inline_serializer(
+            name="AnalisisDeConsultas",
+            fields={
+                "query_count": _opcional(serializers.IntegerField),
+                "patterns": serializers.DictField(
+                    help_text="`total_queries`, `n1_detected` y `affected_requests`, cada uno anulable."
+                ),
+                "slow_queries": _opcional(serializers.IntegerField),
+                "slow_queries_count": _opcional(serializers.IntegerField),
+                "recommendations": serializers.ListField(child=serializers.DictField()),
+                "metrics": serializers.DictField(),
+            },
+        )
+    },
 )
 @api_view(["GET"])
 @permission_classes([BackofficeAutenticado, IsPerformanceAdmin])
@@ -121,8 +179,27 @@ def query_analysis_api(request):
 
 
 @extend_schema(
-    description="API para obtener sugerencias de optimización",
-    responses={200: "Sugerencias de optimización de performance"},
+    summary="Sugerencias de optimización",
+    description="Texto fijo parametrizado con `?model=`; no mira el estado del sistema.",
+    responses={
+        200: inline_serializer(
+            name="SugerenciasDeOptimizacion",
+            fields={
+                "suggestions": inline_serializer(
+                    name="SugerenciaDeOptimizacion",
+                    many=True,
+                    fields={
+                        "category": serializers.CharField(),
+                        "items": serializers.ListField(
+                            child=serializers.DictField(
+                                help_text="`title`, `description`, `example` e `impact`.",
+                            )
+                        ),
+                    },
+                )
+            },
+        )
+    },
 )
 @api_view(["GET"])
 @permission_classes([BackofficeAutenticado, IsPerformanceAdmin])

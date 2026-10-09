@@ -10,7 +10,6 @@ por segmento. La validación SIIS conserva y presenta el detalle auditable de EC
 
 import logging
 from datetime import datetime, time, timedelta
-from pathlib import Path
 from urllib.parse import urlencode, urlparse
 
 from django.contrib import messages
@@ -39,12 +38,14 @@ from programas.forms import (
 from programas.models import (
     Formulario,
     ListaEspera,
-    PreguntaGlobal,
     Relevamiento,
-    RequisitoNativo,
     Segmento,
-    TipoCampo,
     ValidacionSIS,
+)
+from programas.selectors.revision import (
+    contexto_identidad,
+    contexto_respuestas,
+    contexto_siis,
 )
 from programas.services.autorizacion import (
     assert_alcance_formulario,
@@ -59,16 +60,14 @@ from programas.services.avisos_resolucion import CAMPO_TRAZA_AVISO, enviar_aviso
 from programas.services.becas import registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import (
     MENSAJE_CASO_EN_ESPERA,
-    advertencia_aprobacion,
     aprobar_o_poner_en_espera,
     cerrar_espera_activa,
-    motivo_bloqueo_aprobacion,
 )
 from programas.services.identidad import gran_base_activa
 from programas.services.listados import PaginadorConConteo
-from programas.services.padron import fila_padron, padron_de
+from programas.services.padron import fila_padron
 from programas.services.personas import consultar_persona
-from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
+from programas.services.respuestas import sincronizar_desde_legacy
 from programas.services.siis import SiisCatalogError, catalogo, funciones_programa
 from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis, mensaje_envio, provincia_de
 from programas.services.validacion_siis import validar_formulario_en_siis
@@ -81,7 +80,8 @@ CAP_REVISION_EDITAR = "becas.revision.editar"
 CAP_REVALIDAR_RENAPER = "becas.programa.administrar"
 #: Casos por página en la revisión de un relevamiento.
 CASOS_POR_PAGINA = 50
-EXTENSIONES_IMAGEN = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}
+# RED-54: `EXTENSIONES_IMAGEN` y las constantes de SIIS se fueron con sus
+# funciones a `programas/selectors/revision.py`; acá no las leía nadie más.
 
 #: TIT-9 / DE-3: al caso se llega desde varias pantallas y el volver tiene que
 #: devolver a la de origen. La clave es el ``url_name`` del ``next`` validado y el
@@ -108,67 +108,6 @@ NIVELES_AVISO = ("success", "info", "warning", "error")
 
 def _aware_start(fecha):
     return timezone.make_aware(datetime.combine(fecha, time.min), timezone.get_current_timezone())
-
-
-SIIS_CONTROLES = (
-    ("vigencia_programa", "Vigencia del programa"),
-    ("edad_minima", "Edad mínima"),
-    ("empleo_publico", "Empleo público"),
-    ("horas_docentes", "Horas docentes"),
-    ("duplicidad_becas", "Otros beneficios o becas"),
-)
-SIIS_VALORES_FAVORABLES = {"VIGENTE", "CUMPLE_EDAD_MINIMA", "SIN_INCOMPATIBILIDAD"}
-SIIS_VALORES_INFORMATIVOS = {"NO_EVALUADO_SIN_FECHA"}
-SIIS_ETIQUETAS_VALOR = {
-    "VIGENTE": "Programa vigente",
-    "PROGRAMA_INACTIVO": "Programa inactivo",
-    "CUMPLE_EDAD_MINIMA": "Cumple la edad mínima",
-    "EDAD_INSUFICIENTE": "No cumple la edad mínima",
-    "NO_EVALUADO_SIN_FECHA": "No evaluado: falta la fecha de nacimiento",
-    "SIN_INCOMPATIBILIDAD": "Sin incompatibilidad",
-    "INCOMPATIBLE_PLANTA": "Incompatible por empleo público",
-    "INCOMPATIBLE_EXCEDE_HORAS": "Incompatible por exceso de horas docentes",
-    "BENEFICIO_ACTIVO_EXISTENTE": "Tiene un beneficio activo incompatible",
-    "SUSPENDIDO_TEMPORAL": "Tiene una suspensión temporal vigente",
-}
-
-
-def _detalle_validacion_siis(validacion):
-    if validacion is None:
-        return None
-    respuesta = validacion.respuesta if isinstance(validacion.respuesta, dict) else {}
-    valores = respuesta.get("validaciones") if isinstance(respuesta.get("validaciones"), dict) else {}
-    controles = []
-    for clave, etiqueta in SIIS_CONTROLES:
-        valor = str(valores.get(clave) or "").strip().upper()
-        if not valor:
-            continue
-        if valor in SIIS_VALORES_FAVORABLES:
-            tono = "success"
-        elif valor in SIIS_VALORES_INFORMATIVOS:
-            tono = "warning"
-        else:
-            tono = "danger"
-        controles.append(
-            {
-                "etiqueta": etiqueta,
-                "detalle": SIIS_ETIQUETAS_VALOR.get(valor, valor.replace("_", " ").capitalize()),
-                "tono": tono,
-            }
-        )
-    registrado = respuesta.get("persona_registrada_siis")
-    if registrado is True:
-        situacion = "Registrado en SIIS"
-    elif registrado is False:
-        situacion = "Nuevo solicitante"
-    else:
-        situacion = "No informado"
-    return {
-        "programa_nombre": respuesta.get("nombre_programa") or "",
-        "programa_id": respuesta.get("id_programa") or validacion.id_programa,
-        "situacion": situacion,
-        "controles": controles,
-    }
 
 
 def _marcar_carga_duplicada_pendiente(formularios):
@@ -217,18 +156,6 @@ def _pagina_hidratada(pks, orden, duplicados=True, espera=False):
     )
     pagina = _marcar_carga_duplicada_pendiente(filas) if duplicados else list(filas)
     return _marcar_en_espera_activa(pagina) if espera else pagina
-
-
-def _detalles_envio_siis(envio):
-    """``[(campo, mensaje)]`` del intento: SIIS devuelve una lista por campo y
-    los faltantes locales una frase suelta."""
-    if envio is None:
-        return []
-    detalles = envio.detalles if isinstance(envio.detalles, dict) else {}
-    return [
-        (campo, " ".join(str(m) for m in valor) if isinstance(valor, (list, tuple)) else str(valor))
-        for campo, valor in detalles.items()
-    ]
 
 
 def _puede_publico(user):
@@ -562,66 +489,6 @@ def revision_formularios(request, relevamiento_pk):
     )
 
 
-def _respuestas_resueltas(formulario):
-    """Arma listas legibles de respuestas (pregunta/requisito → valor).
-
-    Los campos tipo ARCHIVO no traen el archivo en ``data`` (ahí la app de
-    campo solo deja un placeholder tipo ``{"pendiente_upload": true}``): el
-    archivo real se resuelve contra ``AdjuntoFormulario`` (#82).
-    """
-    data = formulario.data or {}
-    globales = data.get("globales", {}) or {}
-    requisitos = data.get("requisitos", {}) or {}
-
-    pregunta_ids = [int(k) for k in globales.keys() if str(k).isdigit()]
-    preguntas = {str(p.pk): p for p in PreguntaGlobal.objects.filter(pk__in=pregunta_ids)}
-    req_ids = [int(k) for k in requisitos.keys() if str(k).isdigit()]
-    requisitos_map = {str(r.pk): r for r in RequisitoNativo.objects.filter(pk__in=req_ids)}
-
-    # Una sola lectura de adjuntos: eran dos consultas sobre la misma tabla y el mismo caso.
-    adjuntos = list(formulario.adjuntos.all())
-    adjuntos_pregunta = {a.pregunta_global_id: a for a in adjuntos if a.pregunta_global_id}
-    adjuntos_requisito = {a.requisito_nativo_id: a for a in adjuntos if a.requisito_nativo_id}
-
-    def _fila(campo_map, adjuntos_map, k, v):
-        campo = campo_map.get(str(k))
-        label = campo.texto if campo else f"Campo #{k}"
-        es_archivo = campo is not None and campo.tipo == TipoCampo.ARCHIVO
-        adjunto = adjuntos_map.get(int(k)) if es_archivo and str(k).isdigit() else None
-        es_imagen = bool(adjunto and Path(adjunto.archivo.name or "").suffix.lower() in EXTENSIONES_IMAGEN)
-        return {
-            "label": label,
-            "valor": v,
-            "es_multiple": isinstance(v, list),
-            "es_archivo": es_archivo,
-            "adjunto": adjunto,
-            "es_imagen": es_imagen,
-            "es_subsegmento": bool(getattr(campo, "subsegmento_id", None)),
-        }
-
-    globales_list = [_fila(preguntas, adjuntos_pregunta, k, v) for k, v in globales.items()]
-    requisitos_list = [_fila(requisitos_map, adjuntos_requisito, k, v) for k, v in requisitos.items()]
-    requisitos_segmento = [item for item in requisitos_list if not item["es_subsegmento"]]
-    requisitos_subsegmento = [item for item in requisitos_list if item["es_subsegmento"]]
-    return globales_list, requisitos_segmento, requisitos_subsegmento
-
-
-def _sin_vinculados(bloques):
-    """Los campos vinculados al legajo y al apoderado ya tienen su sección en
-    el detalle (identidad, contacto, apoderado): en «Respuestas» quedan solo
-    las preguntas y los textos. Un grupo que se queda sin nada no se muestra."""
-    if bloques is None:
-        return None
-    filtrados = []
-    for bloque in bloques:
-        items = [
-            i for i in bloque["items"] if i.get("tipo") != "campo" or not i.get("origen") or i["origen"] == "pregunta"
-        ]
-        if items:
-            filtrados.append({**bloque, "items": items})
-    return filtrados
-
-
 @login_required
 @requiere(CAP_REVISION_VER, CAP_REVISION_EDITAR)
 def formulario_detalle(request, pk):
@@ -683,58 +550,11 @@ def formulario_detalle(request, pk):
     else:
         form = FormularioRevisionForm(instance=formulario)
 
-    # Cambio 58 (#347): un caso con foto se lee desde la foto; uno anterior, por pk.
-    bloques = _sin_vinculados(respuestas_legibles(formulario))
-    if bloques is None:
-        globales_list, requisitos_segmento, requisitos_subsegmento = _respuestas_resueltas(formulario)
-    else:
-        globales_list, requisitos_segmento, requisitos_subsegmento = [], [], []
     # Cambio 67: el apoderado se pide a toda persona que se inscribe, así que la
     # sección editable se muestra siempre (también en los casos anteriores, que se
     # pueden completar desde acá). Reemplaza la regla por condición de la foto del
     # Cambio 58: ya no hay caso en que el apoderado no se pida.
     mostrar_apoderado = True
-    mapa = None
-    if formulario.gps_lat is not None and formulario.gps_lng is not None:
-        lat = float(formulario.gps_lat)
-        lng = float(formulario.gps_lng)
-        margen = 0.005
-        mapa = {
-            "latitud": formulario.gps_lat,
-            "longitud": formulario.gps_lng,
-            "embed_url": "https://www.openstreetmap.org/export/embed.html?"
-            + urlencode(
-                {
-                    "bbox": (f"{lng - margen:.6f},{lat - margen:.6f},{lng + margen:.6f},{lat + margen:.6f}"),
-                    "layer": "mapnik",
-                    "marker": f"{lat:.6f},{lng:.6f}",
-                }
-            ),
-            "open_url": "https://www.openstreetmap.org/?"
-            + urlencode({"mlat": f"{lat:.6f}", "mlon": f"{lng:.6f}", "zoom": 16}),
-        }
-    validaciones_sis = list(formulario.validaciones_sis.select_related("solicitado_por"))
-    validacion_sis = validaciones_sis[0] if validaciones_sis else None
-    historial_validaciones_sis = [
-        {"validacion": validacion, "detalle": _detalle_validacion_siis(validacion)} for validacion in validaciones_sis
-    ]
-    # Alta del beneficiario en SIIS: solo tiene sentido en un caso aprobado.
-    puede_enviar_siis = puede(request.user, CAP_REVISION_EDITAR)
-    envios_sis = []
-    envio_siis = None
-    datos_siis_form = None
-    # SIIS-01: mientras haya un envío vigente la pantalla no ofrece reenviar.
-    # «Vigente» no es «el último»: puede haber un INCOMPLETO más nuevo que el
-    # EN_PROCESO que de verdad ocupa el caso. Se busca sobre la lista ya traída.
-    envio_siis_activo = None
-    if formulario.estado == Formulario.Estado.APROBADO:
-        envios_sis = list(formulario.envios_sis.select_related("solicitado_por"))
-        envio_siis = envios_sis[0] if envios_sis else None
-        envio_siis_activo = next((envio for envio in envios_sis if envio.vigente), None)
-        if puede_enviar_siis and envio_siis_activo is None:
-            correcciones = formulario.datos_siis or {}
-            datos_siis_form = DatosSiisForm(initial=correcciones, actuales=correcciones)
-    detalles_envio_siis = _detalles_envio_siis(envio_siis)
     volver_url, volver_label, migas_origen = _origen_del_caso(request, formulario)
     # G1-14: el aviso al ciudadano es el único hecho del circuito que no dejaba
     # rastro. Se lee de las trazas **ya traídas** para la sección «Traza de
@@ -757,17 +577,15 @@ def formulario_detalle(request, pk):
             # El origen viaja en los POST del caso para no perderlo al guardar.
             "next_qs": _query_next(request),
             "form": form,
-            "genero_form": CiudadanoGeneroRevisionForm(
-                initial={"genero": formulario.ciudadano.genero if formulario.ciudadano else ""}
-            ),
             "mostrar_apoderado": mostrar_apoderado,
+            # RED-54: los tres bloques que arma `selectors/revision.py`. Lo que
+            # queda en la vista es lo que depende del request —el origen, el
+            # `next`, el POST— y lo que no entra en ninguno de los tres.
+            **contexto_identidad(formulario, request.user),
             # Cambio 58 (#347): con foto, un solo listado en el orden del formulario
             # que respondio; sin foto, las tres listas historicas por alcance.
-            "bloques": bloques,
-            "globales_list": globales_list,
-            "requisitos_segmento": requisitos_segmento,
-            "requisitos_subsegmento": requisitos_subsegmento,
-            "mapa": mapa,
+            **contexto_respuestas(formulario),
+            **contexto_siis(formulario, request.user),
             "trazas": trazas,
             # G1-14: panel «Aviso al ciudadano». ``resultado_aviso`` vacío = el
             # caso no está resuelto y no hay nada que reenviar.
@@ -775,29 +593,10 @@ def formulario_detalle(request, pk):
             "ultimo_aviso": ultimo_aviso,
             "aviso_por_correo_activo": formulario.relevamiento.confirmar_por_email,
             "puede_reenviar_aviso": puede(request.user, CAP_REVISION_EDITAR),
-            "puede_revalidar_renaper": puede(request.user, CAP_REVALIDAR_RENAPER),
-            # Cambio 57: con la Gran Base apagada, «Revalidar» se deshabilita y
-            # se ofrece validar contra el padrón de la convocatoria.
-            "gran_base_activa": gran_base_activa(),
-            "convocatoria_tiene_padron": padron_de(formulario.relevamiento).exists(),
-            "forzar_identidad_form": ForzarIdentidadForm(),
-            "puede_validar_siis": puede(request.user, CAP_REVISION_EDITAR),
-            "validacion_sis": validacion_sis,
-            "detalle_siis": _detalle_validacion_siis(validacion_sis),
-            "historial_validaciones_sis": historial_validaciones_sis,
-            "motivo_bloqueo_aprobacion": motivo_bloqueo_aprobacion(formulario, validacion_sis),
-            # Cambio 81: un rechazo o un error de SIIS ya no bloquean; se advierten.
-            "advertencia_aprobacion": advertencia_aprobacion(formulario, validacion_sis),
             # ``conflicto_pendiente`` ya resolvio esta misma pregunta unas lineas arriba.
             "tiene_conflicto_duplicado_pendiente": conflicto_pendiente is not None,
             "conflicto_pendiente": conflicto_pendiente,
             "formulario_comparacion": formulario_comparacion,
-            "envio_siis": envio_siis,
-            "envio_siis_activo": envio_siis_activo,
-            "historial_envios_sis": envios_sis,
-            "datos_siis_form": datos_siis_form,
-            "puede_enviar_siis": puede_enviar_siis,
-            "detalles_envio_siis": detalles_envio_siis,
             # G1-04 / G1-05: lo que el servidor tuvo que decidir solo cuando
             # entró esta carga de la app. Son las dos cosas que el revisor no
             # podía saber: que la captura llegó después del cierre y qué le

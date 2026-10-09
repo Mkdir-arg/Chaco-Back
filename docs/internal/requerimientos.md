@@ -370,6 +370,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 196 | La imagen deja de llevar once paquetes que nadie importa, y el CI deja de instalar «lo último que haya» | Transversal — dependencias de la imagen (`requirements*.txt`), `INSTALLED_APPS`, workflows del CI, dependabot | `#infra` `#performance` | Auditoría integral oct-2026 — fichas OPS-13 (con RED-45) y RED-85 (Ola 7, PR 2) | 09/10/2026 | 🟢 **Hecho** (D-RED-08 aplicada: el parche de gevent se borra y la guarda del entrypoint se queda; `django-zeal` y `psutil` no se tocan, code-first) | `core.0003` (borra la tabla de `django-health-check` y sus dos filas de `django_migrations`) |
 | 197 | Los hallazgos chicos de la deuda: la vista tapada, la carrera del último administrador y tres botones que mentían | Transversal (RBAC, app `dashboard`) · Becas (relevamientos) · Merenderos (solicitudes) · Usuarios y Roles | `#rbac` `#usuarios` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas BEC-25, G1b-09, G1b-10, RED-78 y R0-02, más los MINOR de #646 y #649 (Ola 7, PR 3) | 09/10/2026 | 🟢 **Hecho** (dos pendientes anotados sin código: el `codigo` del programa editable → SEC-07; los paneles de derivaciones congelados → LEG-06, PM) | No requiere |
 | 198 | Apagar conversaciones: sin rutas, sin WebSockets de chat y sin superficie en el shell | Transversal (shell del backoffice, context processor de identidad, routing de Channels) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») | `#infra` `#ui` `#rbac` `#performance` | Auditoría integral oct-2026 — fichas G1-01 fase 2 y RED-13 (2.ª parte) (Ola 7, PR 4) | 09/10/2026 | 🟢 **Hecho** | No |
+| 200 | Las segundas partes de la red de seguridad: esquema del dashboard, un solo sobre de error y el detalle de revisión partido | Transversal (esquema OpenAPI, sobre de error JSON, auditoría de diseño) · Becas (detalle de revisión, tablero del programa) · Legajos (APIs del detalle de ciudadano) | `#api` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas RED-37, RED-39 y RED-54 (Ola 7, PR 6) | 09/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
 
 **Notas del índice**
 
@@ -30346,3 +30347,178 @@ Entrada nueva.
 entradas con sus filas de índice y las dos tablas de estado, sin tocar las cuentas de horas.
 `CLAUDE.md` y `docs/client/architecture.md` siguen nombrando `/conversaciones/` y **no** se
 tocaron: son del PR 3 de esta ola (#651) y `development` todavía no los tiene.
+# Cambio 200 — Las segundas partes de la red de seguridad: esquema del dashboard, un solo sobre de error y el detalle de revisión partido
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal (esquema OpenAPI, sobre de error JSON de las vistas AJAX, auditoría de diseño) · Becas (detalle de revisión, tablero del programa) · Legajos (APIs JSON del detalle de ciudadano) |
+| **Etiquetas** | `#api` `#infra` `#ui` `#performance` |
+| **Solicitante** | Auditoría integral oct-2026 — Ola 7 «Deuda», PR 6 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — fichas RED-37 (punto 3), RED-39 (parte Ola 7) y RED-54 (parte Ola 7) |
+| **Partes afectadas** | Backoffice · `/api/` (documentación, no contratos) · App de campo (**no se toca**) |
+| **Migración** | No |
+
+## Pedido original
+
+Tres fichas de la red de seguridad quedaron cerradas **a medias** en la Ola R: la pieza se
+construyó y los tests se escribieron, pero el trabajo que de verdad cambia el código quedó
+para la Ola 7.
+
+- **RED-37.** El esquema OpenAPI publicaba tipos falsos y perdía vistas. Los puntos 1 y 2 se
+  cerraron en el Cambio 118; el punto 3 —las cinco APIs del dashboard y los 15 warnings— no.
+- **RED-39.** Cinco sobres de error JSON conviven en el backoffice y cada front lee el suyo
+  con un `||` que tapa la diferencia. El Cambio 160 dejó `core/http.py` y congeló lo que lee
+  cada consumidor; migrar las vistas quedó pendiente.
+- **RED-54.** `formulario_detalle` son 155 líneas de vista y 1.214 de template, y las Olas 1,
+  2, 3 y 5 tocan esa pantalla. El Cambio 123 fijó las 36 claves del contexto y el presupuesto
+  de 15 consultas; partir el archivo quedó pendiente.
+
+## Alcance acordado
+
+**Entra:**
+
+1. **RED-37.** `@extend_schema(responses=inline_serializer(...))` en las cinco vistas de
+   `dashboard/api_views/`, serializers reales en las tres de `core/views/performance.py`,
+   type hints en los tres `SerializerMethodField` sin anotar, el tipo de `{id}` en los dos
+   ViewSets de Becas y `ENUM_NAME_OVERRIDES` para las dos colisiones de enum. El esquema
+   queda en **0 errores y 0 warnings**.
+2. **RED-39.** `programas/views/diseno.py` y `legajos/views/contactos_api.py` migradas al
+   sobre único, **de forma aditiva**, y la regla WARN `SOBREJSON` en `design_audit.py`.
+3. **RED-54.** `formulario_detalle.html` partido en 14 includes bajo `revision/_detalle/`
+   (de 1.214 líneas a 88) con el HTML renderizado **idéntico**, y `contexto_identidad`,
+   `contexto_siis` y `contexto_respuestas` extraídos a `programas/selectors/revision.py`,
+   que es el paquete `selectors/` que a `programas` le faltaba.
+
+**Queda afuera, y por qué:**
+
+- **`/api/becas/*` no se migra al sobre único.** La app de campo instalada
+  (`Chaco-mobile@a66c2d3`) lee el motivo del error con
+  `payload?.detail || payload?.error || payload?.non_field_errors?.[0]`, y es una build en el
+  teléfono del territorial: no se despliega junto con el backend. Cambiar esa forma deja al
+  territorial con «Error HTTP 400» en vez del motivo. `programas/tests/test_becas_api_contrato.py`
+  queda intacto.
+- **`--fail-on-warn` en el gate de esquema.** El esquema ya está en 0 warnings, así que el
+  flag se puede encender; pero vive en `.github/workflows/pr-backend.yml`, que es del PR 5 de
+  esta misma ola (calidad del CI), abierto en paralelo. Queda como paso para el PM.
+- **El resto de los cinco sobres.** `_ajax_js.html`, `users/_alta_rapida_modal.html` y
+  `dispositivos/config/tipo_detail.html` leen `data.errors` como **diccionario por campo**,
+  que es otro contrato (no el motivo legible). La regla WARN los marca; migrarlos es una
+  decisión por pantalla y no entra acá.
+- **La deuda de diseño del detalle de revisión.** Los 32 hallazgos P1 que viajaron con el
+  markup (`style="font-size:16px;"` en los encabezados, íconos sin `aria-hidden`) **no se
+  tocan**: arreglarlos cambia el HTML y rompe la única garantía que tiene este refactor.
+
+## Decisiones tomadas
+
+- **El sobre único es aditivo, no un reemplazo.** `error_json` y `ok_json` aceptan
+  `heredadas=`: las claves que algún consumidor **ya lee** viajan además de `ok`/`message`,
+  con el comentario que dice quién las lee. El motivo no es estético: el front no se
+  despliega con el backend —una pantalla puede quedar abierta durante la release y la app de
+  campo es una build instalada—, así que un reemplazo deja al usuario con el mensaje genérico
+  y sin un solo error en consola. Las heredadas se van cuando se mida que nadie las lee.
+- **`errores` (lista) y `errors` (diccionario) son dos contratos distintos.** `errores` es la
+  lista de strings que devuelven el constructor y el tablero de Becas (`becas-dashboard.js`
+  hace `(cuerpo.errores || []).join(' ')`); `errors` es el diccionario por campo que tres
+  pantallas vuelcan sobre el formulario. No es la misma clave en dos idiomas, y la regla
+  `SOBREJSON` es **WARN** justamente por eso.
+- **El HTML del detalle de revisión no cambia un byte.** La partición se hizo con dos reglas
+  mecánicas: cada include se guarda **sin** salto de línea final —el salto lo pone la línea
+  del `{% include %}`, que va en la columna 0— y cada include arranca con su propio
+  `{% load %}` **pegado** al markup, porque las librerías de tags no se heredan del padre y un
+  `{% load %}` en su propia línea sumaría un salto de línea a la salida.
+- **El ratchet de diseño aprende a leer una partición.** Un archivo nuevo tiene la base vacía,
+  así que toda la deuda que viaja con el markup se reporta como si la hubiera escrito este PR
+  (eran 32 hallazgos falsos). `design_audit.PARTICIONES` declara «estos archivos salieron de
+  aquel» y el ratchet mide el **conjunto** contra el origen: un movimiento puro da 0 y una
+  línea nueva en cualquiera de los pedazos se sigue contando. Verificado por mutación.
+- **Los snapshots se guardan con extensión `.snapshot`, no `.html`.** El repo tiene barridos
+  que recorren todo el árbol buscando `*.html` —`core/tests/test_submit_guard.py` y
+  `scripts/design_audit.py`, entre otros— y para ellos seis copias del render serían seis
+  pantallas más, con la deuda de la original multiplicada por seis.
+- **`queryset = Model.objects.none()` en los dos ViewSets de Becas es solo para el esquema.**
+  `get_queryset()` lo pisa entero, pero necesita `self.request.user` y al generar el esquema
+  no hay request: sin el atributo, `{id}` se publicaba como `string`. Los dos `basename` están
+  declarados en `api_urls.py`, así que el router no mira el atributo.
+
+## Qué se hizo
+
+### RED-37 — el esquema del dashboard
+
+Las cinco vistas de `dashboard/api_views/` eran `@api_view` sin serializer: drf-spectacular
+las descartaba enteras («unable to guess serializer. Ignoring view for now»). Ahora cada una
+declara su respuesta con `inline_serializer`, con **los nombres de campo que ya devolvía** —el
+contrato que RED-42 congeló—, más los parámetros de query (`q`, `periodo` con sus tres
+valores). `has_more` queda **opcional** porque la rama corta de la búsqueda no lo manda.
+
+Los 15 warnings bajaron a 0: `inline_serializer` en las tres APIs de `core/views/performance.py`
+(declaraban `responses={200: "una frase"}`, que Spectacular no sabe resolver), `-> str | None`,
+`-> int` y `-> str` en los tres `SerializerMethodField` de legajos y users, `queryset` de clase
+en `RelevamientoViewSet` y `FormularioViewSet`, y `ENUM_NAME_OVERRIDES` para las dos colisiones:
+`('M','F','X')` aparecía con dos nombres y `estado` nombraba dos conjuntos distintos, que
+Spectacular desempataba solo con `EstadoFb6Enum` —un nombre con hash que **cambia** si cambia
+cualquiera de los dos conjuntos—.
+
+Lo que da la red de verdad no es el esquema sino el cruce: `EsquemaContraElJsonRealTests`
+llama a cada endpoint y compara el JSON real contra lo declarado en las dos direcciones. Un
+serializer que se despegue de la vista pone un test en rojo (verificado por mutación: agregar
+`"total"` a la respuesta de tendencias lo enciende).
+
+El tablero de Becas (`programa_dashboard_datos`) no es DRF y no entra al OpenAPI: su contrato
+lo fija `EsquemaDelJsonTests`, que congela las ~60 claves anidadas que `becas-dashboard.js` lee
+a mano, sin un solo `||` de fallback. La caché por modelo y el freno de 30 s de «Actualizar» no
+se tocaron: los miden `CacheTests` y `test_dashboard_exports.py`.
+
+### RED-39 — un solo sobre de error JSON
+
+`diseno.py` ya devolvía `{"ok": False, "message", "errores"}`: migrarlo fue reemplazar once
+`JsonResponse` por `error_json`/`ok_json`, sin cambiar una clave.
+
+`legajos/views/contactos_api.py` devolvía `{"success": False, "error": …}` y, en el camino
+feliz de la subida, `{"success": True, "mensaje": …}`. Ahora pasa por el sobre y **las tres
+claves siguen viajando**. Las vistas de lectura conservan además su carga degradada
+(`results`/`count`/`eventos` en cero, el esqueleto de `abandono` del panel de riesgo), que es
+lo que evita que el panel explote cuando el cálculo falla.
+
+### RED-54 — partir el detalle de revisión
+
+El template pasó de 1.214 líneas a 88: lo que queda declara el **orden** de las secciones y
+cada una vive en `revision/_detalle/`. La vista perdió el armado del contexto, que se fue a
+`programas/selectors/revision.py` en tres funciones más los cuatro helpers que usaban.
+
+## Verificación
+
+- `manage.py check` y `check --deploy`: sin issues nuevos (los 4 de `--deploy` son los de
+  siempre, de settings de desarrollo). `makemigrations --check --dry-run`: sin cambios.
+- `manage.py test programas` (2.546) y `core dashboard users legajos configuracion portal`
+  (2.317): OK. `--tag performance`: 7 OK.
+- `design_audit.py --ratchet --base origin/development`: **0 nuevos**. `--goldens`: 0.
+  `scripts/test_design_audit.py`: 16 OK. `compile_templates.py --bloques`: 0 y 0.
+  `ruff check .` y `ruff format --check`: limpio.
+- El render idéntico se verificó **generando los snapshots con el template entero** y
+  corriéndolos después de partirlo.
+
+## Pendientes
+
+- Encender `--fail-on-warn` en el job `Contratos de API` (`pr-backend.yml`): el esquema ya
+  está en 0 warnings. Es del PR 5 de esta ola.
+- Las fichas de `.claude/design/` que citan `formulario_detalle.html` por ruta
+  (`arquetipos/pendientes.md`, `componentes/field.md`, `dominio/becas.md`) tienen que
+  actualizarse: el contenido nuevo va en el cuerpo del PR, porque esta sesión no tiene permiso
+  de escritura en `.claude/`.
+- Migrar al sobre único las tres pantallas que leen `data.errors` por campo es una decisión
+  por pantalla; la regla `SOBREJSON` las deja marcadas.
+- La deuda P1 de diseño del detalle de revisión (32 hallazgos) sigue donde estaba, ahora
+  repartida entre los includes.
+
+## Reversión
+
+Revertir el merge alcanza: no hay migración, no hay estado nuevo en la base y ningún archivo
+generado. El cambio con más superficie es la partición del template, y su reversa es volver al
+archivo entero: los snapshots dicen si el HTML quedó igual.
+
+## Historial
+
+Entrada nueva.

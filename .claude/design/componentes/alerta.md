@@ -4,7 +4,8 @@
 **Evidencia:** `templates/components/_alerta.html`, `core/tests/test_nodo_ui_piezas.py`.
 **Consumidores de referencia:** `programas/templates/programas/becas/config/programa_list.html`
 (nota informativa del modal), `programas/templates/programas/becas/config/programa_detail.html`,
-`programas/templates/programas/becas/revision/formulario_detalle.html`.
+`programas/templates/programas/becas/revision/formulario_detalle.html` (la alerta queda en el archivo
+raíz, junto al encabezado del caso; las secciones del detalle viven en `revision/_detalle/`).
 
 ## Invocación
 

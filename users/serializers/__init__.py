@@ -59,5 +59,6 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "date_joined", "last_login"]
 
-    def get_full_name(self, obj):
+    # RED-37: siempre devuelve algo (cae al `username`), así que no es anulable.
+    def get_full_name(self, obj) -> str:
         return obj.get_full_name() or obj.username

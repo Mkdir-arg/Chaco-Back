@@ -22,12 +22,12 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.views import View
 from django.views.decorators.http import require_POST
 
+from core.http import error_json, ok_json
 from core.rbac import CapacidadRequeridaMixin, requiere
 from programas.forms import ItemCampoPropioForm, ItemEtiquetaForm, ItemGrupoForm, ItemTextoForm
 from programas.models import CanalFormulario, ItemDiseno, PresentacionCampo, TipoCampo
@@ -214,9 +214,7 @@ def _contexto(request, diseno, avisos=None, items=None):
 def _respuesta(request, diseno, mensaje, avisos=None, items=None):
     ctx = _contexto(request, diseno, avisos, items)
     html = render_to_string(PARTIAL, ctx, request=request)
-    return JsonResponse(
-        {"ok": True, "target": TARGET, "html": html, "message": mensaje, "datos": ctx["datos"], "avisos": ctx["avisos"]}
-    )
+    return ok_json(target=TARGET, html=html, message=mensaje, datos=ctx["datos"], avisos=ctx["avisos"])
 
 
 def _mensaje(errores, titulos=None):
@@ -315,9 +313,7 @@ def _mutar(request, diseno, mensaje, operacion):
             diseno.tocar(request.user)
     except DisenoInvalido as exc:
         titulos = {i.clave: i.titulo or i.get_tipo_display() for i in items_ordenados(diseno)}
-        return JsonResponse(
-            {"ok": False, "message": _mensaje(exc.errores, titulos), "errores": exc.errores}, status=400
-        )
+        return error_json(_mensaje(exc.errores, titulos), errores=exc.errores)
     return _respuesta(request, diseno, mensaje, items=items)
 
 
@@ -366,13 +362,13 @@ def formulario_mover(request, pk):
     diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
     payload = _json(request)
     if payload is None or not payload.get("clave"):
-        return JsonResponse({"ok": False, "message": "Payload inválido."}, status=400)
+        return error_json("Payload inválido.")
     item = _item(diseno, payload["clave"])
     clave_padre = payload.get("padre") or None
     try:
         posicion = int(payload.get("posicion", 0))
     except (TypeError, ValueError):
-        return JsonResponse({"ok": False, "message": "Posición inválida."}, status=400)
+        return error_json("Posición inválida.")
 
     def operacion():
         if item.es_grupo:
@@ -531,10 +527,10 @@ def formulario_condicion(request, pk, clave):
     item = _item(diseno, clave)
     payload = _json(request)
     if payload is None or "condicion" not in payload:
-        return JsonResponse({"ok": False, "message": "Payload inválido."}, status=400)
+        return error_json("Payload inválido.")
     condicion = payload["condicion"]
     if condicion is not None and not isinstance(condicion, dict):
-        return JsonResponse({"ok": False, "message": "La condición tiene un formato inválido."}, status=400)
+        return error_json("La condición tiene un formato inválido.")
     if condicion is not None and not (condicion.get("reglas") or []):
         condicion = None  # sin reglas = sin condición
     # RED-40: la forma, antes de guardar. La coherencia contra el diseño la
@@ -544,7 +540,7 @@ def formulario_condicion(request, pk, clave):
     try:
         validar_condicion_json(condicion)
     except DjangoValidationError as error:
-        return JsonResponse({"ok": False, "message": " ".join(error.messages)}, status=400)
+        return error_json(" ".join(error.messages))
 
     def operacion():
         item.condicion = condicion
@@ -564,17 +560,11 @@ def formulario_item_eliminar(request, pk, clave):
     diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
     item = _item(diseno, clave)
     if item.es_campo and not item.es_propio:
-        return JsonResponse(
-            {
-                "ok": False,
-                "message": "Los requisitos del catálogo no se quitan del formulario: movelos de grupo o desactivalos en el catálogo.",
-            },
-            status=400,
+        return error_json(
+            "Los requisitos del catálogo no se quitan del formulario: movelos de grupo o desactivalos en el catálogo."
         )
     if item.es_grupo and item.hijos.exists():
-        return JsonResponse(
-            {"ok": False, "message": "El grupo tiene ítems adentro: movelos antes de eliminarlo."}, status=400
-        )
+        return error_json("El grupo tiene ítems adentro: movelos antes de eliminarlo.")
 
     titulo = item.titulo or item.get_tipo_display()
 

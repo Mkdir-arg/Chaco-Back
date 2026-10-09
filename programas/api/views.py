@@ -465,6 +465,12 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
     # acotadas por naturaleza: la agenda, a lo vigente del territorial; los
     # casos, al cupo del relevamiento.
     pagination_class = None
+    # RED-37: solo para el esquema. `get_queryset()` —que es el que corre— pisa
+    # esto entero, pero necesita `self.request.user` y al generar el esquema no
+    # hay request: sin el atributo, drf-spectacular no podía deducir el tipo de
+    # `{id}` y lo publicaba como `string`. `basename` está declarado en
+    # `api_urls.py`, así que el router no lo mira.
+    queryset = Relevamiento.objects.none()
 
     def get_queryset(self):
         queryset = (
@@ -679,6 +685,8 @@ class FormularioViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated, CampoBecasPermission]
     parser_classes = [JSONParser, FormParser, MultiPartParser]
     serializer_class = FormularioSerializer
+    # RED-37, igual que en `RelevamientoViewSet`: solo para el esquema.
+    queryset = Formulario.objects.none()
 
     def get_queryset(self):
         return Formulario.objects.filter(relevamiento__territorial=self.request.user).select_related(

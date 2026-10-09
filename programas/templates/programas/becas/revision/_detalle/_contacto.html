@@ -1,0 +1,34 @@
+{% load static rbac nodo_ui becas_extras %}  <form method="post" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% csrf_token %}
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">Datos de contacto</h2>
+    </div>
+    <div class="p-6">
+      {% if form.non_field_errors %}
+        <div class="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>{% with field=form.celular %}{% include "components/_field.html" %}{% endwith %}</div>
+        <div>{% with field=form.email_contacto %}{% include "components/_field.html" %}{% endwith %}</div>
+      </div>
+      {% if mostrar_apoderado %}
+        <div class="border-t border-light mt-2 pt-5">
+          <h3 class="text-heading font-semibold text-sm mb-4">Datos del apoderado</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>{% with field=form.apoderado_nombre %}{% include "components/_field.html" %}{% endwith %}</div>
+            <div>{% with field=form.apoderado_apellido %}{% include "components/_field.html" %}{% endwith %}</div>
+            <div>{% with field=form.apoderado_dni %}{% include "components/_field.html" %}{% endwith %}</div>
+            <div>{% with field=form.apoderado_genero %}{% include "components/_field.html" %}{% endwith %}</div>
+            <div>{% with field=form.apoderado_fecha_nacimiento %}{% include "components/_field.html" %}{% endwith %}</div>
+          </div>
+          {% if formulario.apoderado_ciudadano %}
+            <p class="text-xs text-body-subtle mt-3">Vinculado al ciudadano #{{ formulario.apoderado_ciudadano_id }}.</p>
+          {% endif %}
+        </div>
+      {% endif %}
+      <p class="text-xs text-body-subtle mt-2"><i class="fas fa-history mr-1"></i> Cada cambio queda registrado en la traza.</p>
+    </div>
+    <div class="flex justify-end px-6 py-4 border-t border-light bg-secondary">
+      <button type="submit" class="btn-nodo btn-brand btn-base">Guardar cambios</button>
+    </div>
+  </form>
