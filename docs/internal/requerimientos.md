@@ -372,6 +372,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 198 | Apagar conversaciones: sin rutas, sin WebSockets de chat y sin superficie en el shell | Transversal (shell del backoffice, context processor de identidad, routing de Channels) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») | `#infra` `#ui` `#rbac` `#performance` | Auditoría integral oct-2026 — fichas G1-01 fase 2 y RED-13 (2.ª parte) (Ola 7, PR 4) | 09/10/2026 | 🟢 **Hecho** | No |
 | 199 | Notificaciones: campañas de correo masivo con lista en Excel y cuerpo en HTML | Transversal — módulo nuevo `notificaciones` (backoffice: sidebar, listado, alta y edición, previsualización y envío) | `#correo` `#rbac` `#ui` `#datos` `#infra` | PM — análisis funcional 007 | 08/10/2026 | 🟢 **Hecho** (falta probar el envío real contra el SMTP de ECOM en testing) | `notificaciones.0001` y `0002`, `users.0034` (sin DDL) y `users.0035` (datos, con reversa) |
 | 200 | Lote de pantallas: se relevan todas las piezas y se construyen las que faltan antes de la primera | Diseño · contrato del agente | `#ui` | PM — en sesión: «esto que me comentás me gustaría que se implemente siempre así para evitar futuros errores» | 09/10/2026 | 🟢 **Hecho** | No requiere |
+| 201 | Backlog del MVP de Dispositivos: 40 tasks numeradas por orden, y cierre de las 45 de la v2 | Dispositivos · gestión | `#gestion` | PM — en sesión: «actualizamos todos los task, en el título ponele un número que va a ser el número de orden, asignámelos a mí en esta iteración y agregalos al backlog» | 09/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -30596,6 +30597,84 @@ Dos bloques cortos. El núcleo del agente quedó en **28.034 bytes** de los 30.0
 
 - `.claude/agents/chaco-design-system.md` — paso 0 del lote y el default del llamador
 - `CLAUDE.md` — «Lote = las piezas primero» en la sección de Diseño
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva.
+
+---
+
+---
+
+# Cambio 201 — Backlog del MVP de Dispositivos: 40 tasks numeradas por orden
+
+🟢 **HECHO — 09/10/2026** · Tasks `[TASK] Dispositivos MVP 01` a `40` (#672–#705 y #582–#587)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · gestión del backlog |
+| **Etiquetas** | `#gestion` |
+| **Solicitante** | PM — en sesión |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Épica #127 · ejecuta el plan del Cambio 191 |
+| **Partes afectadas** | Project #1 · issues #582–#587, #397–#441 y #672–#705 |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Actualizamos todos los task; en el título ponele un número que va a ser el número de orden,
+> asignámelos a mí en esta iteración y agregalos al backlog.»
+
+## Decisiones tomadas
+
+**Cuarenta tasks numeradas por orden de ejecución**, con el prefijo `Dispositivos MVP NN`, que ordena
+alfabéticamente igual que cronológicamente. Reparto por etapa del plan: **19 en la etapa 0** (terreno
+y piezas de diseño), **4 en la 1** (edificio, sectores y plazas), **5 en la 2** (ingreso y egreso),
+**6 en la 3** (circuito interno) y **6 en la 4** (relevamiento en campo). Suman **473 h de
+desarrollo**; las 700 h del Ministerio incluyen además QA, diseño, despliegue y la reserva.
+
+**Seis ya existían y se renumeraron en vez de duplicarse**: las piezas aprobadas el 06/10 (#582–#587)
+pasaron de `Dispositivos v2 · M0 ·` a `Dispositivos MVP 03` a `08`. Les faltaba el assignee; se
+agregó.
+
+**Las 45 tasks de la Versión 2 completa se cerraron como «no planificadas»** (`state_reason:
+not_planned`), **no como terminadas**. La distinción importa: el 08/09 se cerraron como completadas
+las 14 tasks de remediación que no estaban hechas, y por eso se perdió el requisito de la #313 hasta
+que la auditoría lo encontró. Cada una lleva un comentario que explica el reencuadre y apunta al
+backlog nuevo. **Los 13 análisis quedan abiertos**: siguen siendo la definición funcional válida y el
+MVP es un recorte de ellos.
+
+**Se saldó la deuda de los títulos rotos.** Los 57 issues creados el 08/09 tenían el separador
+doble-codificado (`Â·` en vez de `·`) porque el título pasó por la línea de comandos, donde Git Bash
+lo convierte a cp1252; los cuerpos, que iban por archivo, estaban bien. Esta vez **el título viaja
+dentro de un JSON en UTF-8 que `gh` lee con `--input`**, y se verificó: cero mojibake en las 40.
+
+## Implementación
+
+Scripts en el scratchpad, idempotentes (`creado.json`, `cerradas.json`): `gen.py` genera los cuerpos,
+`crear.py` crea y completa los campos del Project, `renumerar.py` renombra las seis previas y
+`cerrar_viejas.py` cierra las 45 con su comentario. El cierre tiene una guarda: no toca nada cuyo
+título no sea una task de la v2.
+
+Verificado sobre el Project: **40 tasks, ninguna con campos mal** —todas `Tipo=Task`, `Status=Backlog`,
+`Iteration 7`, asignadas a Mkdir-arg, con `Proyecto=Chaco`, módulo, responsable funcional y horas—.
+El `Status` se escribe **último**, porque el Project auto-mueve a Ready al crear o asignar.
+
+## Pendientes
+
+- **Los casos de prueba de las 40**: el cuerpo deja la sección creada y vacía. Los genera el agente de
+  QA cuando cada task entra en Ready; sin ellos ninguna es Ready.
+- **Las definiciones del Ministerio** que bloquean la etapa 4: escala de criticidad, si el agente debe
+  ser externo a la institución, y los estados del relevamiento. El correo a Guido está redactado.
+- La etapa 0 **no depende de nadie** y se puede arrancar ya.
+
+## Archivos
+
+Ninguno del repo: el trabajo es sobre GitHub.
 
 ## Base de datos
 
