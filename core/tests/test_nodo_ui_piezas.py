@@ -472,6 +472,47 @@ class AlertaTest(SimpleTestCase):
 
         self.assertIn('role="status"', html)
 
+    def test_sin_parametros_nuevos_el_markup_no_cambia(self):
+        html = render_to_string(ALERTA, {"tono": "warning", "titulo": "T", "texto": "x"})
+
+        self.assertNotIn("<i ", html)
+        self.assertNotIn("<a ", html)
+        self.assertNotIn("flex items-start", html)
+
+    def test_icono_va_a_18px_y_aria_hidden(self):
+        html = render_to_string(ALERTA, {"tono": "danger", "icono": "triangle-exclamation", "titulo": "T"})
+
+        self.assertIn('<i class="fas fa-triangle-exclamation text-lg flex-shrink-0 text-fg-danger" aria-hidden="true"></i>', html)
+        self.assertIn('role="alert"', html)
+        self.assertIn("bg-danger-soft border border-danger-subtle", html)
+
+    def test_accion_con_url_y_texto_dibuja_el_link(self):
+        html = render_to_string(ALERTA, {"tono": "warning", "titulo": "T", "accion_url": "/x/", "accion_texto": "Resolver"})
+
+        self.assertIn('<a href="/x/" class="flex-shrink-0 font-medium underline text-fg-warning">Resolver</a>', html)
+
+    def test_accion_incompleta_no_deja_link_ni_cambia_el_markup(self):
+        solo_url = render_to_string(ALERTA, {"tono": "warning", "texto": "x", "accion_url": "/x/"})
+        solo_texto = render_to_string(ALERTA, {"tono": "warning", "texto": "x", "accion_texto": "Resolver"})
+        base = render_to_string(ALERTA, {"tono": "warning", "texto": "x"})
+
+        self.assertEqual(solo_url, base)
+        self.assertEqual(solo_texto, base)
+
+    def test_info_con_icono_y_accion(self):
+        html = render_to_string(
+            ALERTA, {"tono": "info", "icono": "circle-check", "texto": "x", "accion_url": "/x/", "accion_texto": "Ver"}
+        )
+
+        self.assertIn("fa-circle-check text-lg", html)
+        self.assertNotIn("fa-circle-info", html)
+        self.assertIn('<a href="/x/" class="flex-shrink-0 text-sm font-medium underline text-fg-info">Ver</a>', html)
+
+    def test_escapa_la_accion(self):
+        html = render_to_string(ALERTA, {"tono": "danger", "accion_url": "/x/", "accion_texto": "<b>"})
+
+        self.assertNotIn("<b>", html)
+
     def test_escapa(self):
         html = render_to_string(ALERTA, {"tono": "danger", "titulo": "<script>", "texto": "<img src=x>"})
 
