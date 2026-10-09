@@ -1,17 +1,18 @@
+"""Señales de alertas de `legajos`.
+
+RED-13: acá vivía `alerta_mensaje_ciudadano`, un receiver de
+`post_save` sobre `conversaciones.models.Mensaje`. El import estaba a nivel de
+módulo y `legajos/apps.py::ready()` importa este paquete, así que sacar
+`"conversaciones"` de `INSTALLED_APPS` era un `ImportError` **en el arranque**,
+no un error en una pantalla. El receiver se mudó a `conversaciones/signals/alertas.py`,
+que es de quien es el modelo que lo dispara.
+"""
+
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
-from conversaciones.models import Mensaje
-
 from ..models import LegajoAtencion
 from ..services import AlertasService
-
-
-@receiver(post_save, sender=Mensaje)
-def alerta_mensaje_ciudadano(sender, instance, created, **kwargs):
-    """Genera alerta cuando un ciudadano envía mensaje."""
-    if created and instance.remitente == "ciudadano":
-        AlertasService.generar_alerta_mensaje_ciudadano(instance.conversacion)
 
 
 @receiver(post_save, sender=LegajoAtencion)

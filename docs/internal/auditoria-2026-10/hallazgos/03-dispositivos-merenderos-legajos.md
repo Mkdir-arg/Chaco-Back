@@ -430,7 +430,7 @@ tarjeta que otro cierra desaparece del dashboard abierto. **Lo que queda y es de
 `prd` el channel layer es `InMemoryChannelLayer` (`config/settings.py`), así que en QA lo que emite el CronJob de
 `generar_alertas` en otro proceso no llega a ningún navegador; para verlo en QA hace falta Redis como channel layer
 (OPS-12). **Test permanente:**
-`conversaciones.tests.test_ws_alertas_rbac.WsAlertasRbacTests.test_la_alerta_critica_del_alcance_llega_una_sola_vez`
+`legajos.tests.test_ws_alertas_rbac.WsAlertasRbacTests.test_la_alerta_critica_del_alcance_llega_una_sola_vez`
 (y `test_el_emisor_manda_un_solo_group_send_por_alerta_critica`,
 `test_el_cierre_de_una_alerta_del_alcance_llega`,
 `core.tests.test_alertas_ws_shell.AlertaCriticaSinDuplicarTests` del lado del cliente).

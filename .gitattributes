@@ -41,6 +41,13 @@ docs/internal/auditoria-2026-10/**/*.md text eol=lf
 /scripts/requerimientos.py export-ignore
 /scripts/perf_mysql export-ignore
 /scripts/check_datos_personales.py export-ignore
+# Cambio 196: ninguno es de runtime. La imagen instala **solo** `requirements.txt` (lo
+# fija `core/tests/test_dependencias.py`), `requirements-dev.txt` son las tres
+# herramientas de trabajo local y `requirements-ci.txt` las del CI, que vive en
+# `.github/`, ya export-ignore. El guard de `publish-main.yml` sigue coherente: su
+# `RUNTIME` pide `requirements.txt` y nada más.
+/requirements-dev.txt export-ignore
+/requirements-ci.txt export-ignore
 
 # Volcados del organismo (RED-01): aunque alguien los fuerce al índice, no salen en
 # el release de main ni, por lo tanto, en el espejo de ECOM. El molde sin datos sí.

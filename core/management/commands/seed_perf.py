@@ -56,8 +56,18 @@ PERF_CONVOCATORIA_ESCRITURAS = "PERF Convocatoria escrituras"
 #: Territorial propio: `AsignacionTerritorial` es uno a uno, así que no se le puede
 #: pedir prestado el suyo a ninguno de los `perf_territorial_NNN`.
 PERF_TERRITORIAL_API_USERNAME = "perf_territorial_api"
-#: Desde dónde numera los DNI sintéticos del link público. Fuera del rango de
-#: `PERF_FIRST_DNI` (8xxxxxxx) y del alta de ciudadanos del manifiesto (9xxxxxxx).
+#: Desde dónde numera los DNI sintéticos del link público. El bloque sembrado acá son
+#: `scale` DNI consecutivos desde `PERF_FIRST_DNI` (80.000.000), así que 70.000.000 queda
+#: afuera con cualquier escala razonable.
+#:
+#: **No vale lo mismo para el alta por la API de campo.** `perf_audit` la numera desde
+#: `PERF_DNI_LINK_PUBLICO + 5_000_000` (75.000.000) y le suma un desplazamiento derivado
+#: del `worker_id` que llega hasta 8.999.999: el tope real es 83.999.999, o sea **adentro**
+#: del bloque de 80.000.000. Para algunos `worker_id` de `perf_ci_probe` eso pisa un DNI
+#: sembrado. El `TestCase` de presupuestos corre con `worker_id=None` (desplazamiento
+#: 2.473.870, DNI 77.473.870+), así que es determinista y queda afuera; lo que no está
+#: garantizado es la corrida paralela. Mover la base de `becas_api_alta` o acotar el
+#: desplazamiento es el arreglo, y no se hace acá porque cambiaría los DNI medidos.
 PERF_DNI_LINK_PUBLICO = 70_000_000
 
 

@@ -50,11 +50,24 @@ $env:DJANGO_SECRET_KEY = "test-key"
 
 ```powershell
 & $env:PY_VENV -m pip install --upgrade pip
-& $env:PY_VENV -m pip install -r requirements.txt
+& $env:PY_VENV -m pip install -r requirements-dev.txt
 ```
 
-Las versiones del `requirements.txt` son la fuente de verdad. No instalar
-nada globalmente.
+Desde el Cambio 196 (OPS-13 / RED-85) hay **tres** archivos y conviene saber
+cuál se instala:
+
+| Archivo | Qué trae | Quién lo instala |
+|---|---|---|
+| `requirements.txt` | lo que la aplicación importa en producción | la imagen (`Dockerfile`) y todo job del CI que corra la suite |
+| `requirements-dev.txt` | `-r requirements.txt` + `debugpy`, `django-extensions` y `django-silk` | el venv local: es el que querés acá |
+| `requirements-ci.txt` | `ruff`, `coverage`, `pip-audit`, `bandit`, `mkdocs-material`, pineadas | los jobs del CI que usan esas herramientas |
+
+`django-extensions` y `django-silk` entran a `INSTALLED_APPS` **solo con
+`DEBUG=True`** y solo si están instaladas, así que con `requirements.txt` a secas
+la app arranca igual: lo que falta es `shell_plus` y `/silk/`.
+
+Las versiones de esos archivos son la fuente de verdad. No instalar nada
+globalmente.
 
 ## Versión de Python
 
@@ -74,7 +87,7 @@ El `requirements.txt` actual usa:
 - `Django==5.2.17`
 - `djangorestframework==3.17.2`
 - `channels==4.2.2`
-- `django-silk==5.1.0`
+- `django-silk==5.1.0` (en `requirements-dev.txt` desde el Cambio 196)
 
 El error global que motivó este doc:
 

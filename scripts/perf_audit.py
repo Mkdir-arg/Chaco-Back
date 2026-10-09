@@ -17,7 +17,6 @@ import traceback
 import uuid
 from collections import Counter, defaultdict
 from contextlib import redirect_stderr, redirect_stdout
-from datetime import datetime, timedelta, timezone
 from importlib import import_module
 from io import StringIO
 from pathlib import Path
@@ -196,7 +195,6 @@ def build_targets(worker_id=None):
     from django.utils import timezone as timezone_django
     from rest_framework.authtoken.models import Token
 
-    from conversaciones.models import Conversacion
     from core.management.commands.seed_perf import (
         PERF_ADMIN_USERNAME,
         PERF_CITIZEN_USERNAME,
@@ -214,27 +212,12 @@ def build_targets(worker_id=None):
     from programas.models import Convocatoria, ProgramaSiis, Relevamiento
     from programas.services.becas import definicion_formulario
 
+    # G1-01 fase 2: acá se resolvía (o se creaba, una por worker del CI) la
+    # `Conversacion` de las tres rutas de conversaciones que medía este manifiesto.
+    # La app se apagó: sus rutas ya no existen y los tres presupuestos salieron de
+    # `scripts/perf_budgets.json`.
     ciudadano = Ciudadano.objects.get(dni=PERF_FIRST_DNI)
     programa_siis = ProgramaSiis.objects.get(siis_programa_id=PERF_SIIS_PROGRAMA_ID)
-    if worker_id is None:
-        conversacion = (
-            Conversacion.objects.filter(ciudadano_usuario__username=PERF_CITIZEN_USERNAME)
-            .order_by("fecha_inicio")
-            .first()
-        )
-    else:
-        worker_suffix = hashlib.sha256(worker_id.encode()).hexdigest()[:12]
-        worker_started_at = datetime(2040, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=int(worker_suffix, 16))
-        conversacion, _ = Conversacion.objects.get_or_create(
-            ciudadano_usuario__username=PERF_CITIZEN_USERNAME,
-            fecha_inicio=worker_started_at,
-            defaults={
-                "tipo": "personal",
-                "estado": "pendiente",
-                "prioridad": "normal",
-                "dni_ciudadano": PERF_FIRST_DNI,
-            },
-        )
     relevamiento = Relevamiento.objects.get(zona="Zona PERF item 0000")
     # Cambio 58: el detalle de un caso arma las respuestas desde la foto de la
     # definición, así que entra al presupuesto como cualquier otra ruta pesada.
@@ -245,9 +228,6 @@ def build_targets(worker_id=None):
         if worker_id is None
         else f"perf_ci_login_{hashlib.sha256(worker_id.encode()).hexdigest()[:12]}"
     )
-
-    if conversacion is None:
-        raise RuntimeError("seed_perf no creó la conversación PERF requerida")
 
     write_index = itertools.count(1)
 
@@ -307,14 +287,6 @@ def build_targets(worker_id=None):
             },
         )
 
-    def envio_conversacion(client, url):
-        index = siguiente_escritura()
-        return client.post(
-            url,
-            data=json.dumps({"mensaje": f"Mensaje sintético PERF {index}"}),
-            content_type="application/json",
-        )
-
     # --- RED-10 · las dos escrituras que trabajan bajo el lock del relevamiento ------
     #
     # Las dos ya rompieron o estuvieron al borde contra el `read_timeout` de 10 s
@@ -363,7 +335,21 @@ def build_targets(worker_id=None):
     def inscripcion_publica_paso2(client, url):
         """El envío del paso 2: crea el formulario, el ciudadano y el legajo."""
         indice = siguiente_escritura()
-        client.cookies[settings.SESSION_COOKIE_NAME] = next(sesiones_disponibles, sesiones_paso2[-1])
+        try:
+            client.cookies[settings.SESSION_COOKIE_NAME] = next(sesiones_disponibles)
+        except StopIteration:
+            # Antes acá había un `next(..., sesiones_paso2[-1])`: al agotarse las sesiones
+            # se reusaba en silencio la última, ya gastada. El síntoma era el rechazo por
+            # DNI duplicado (RN-P5) y un 200 donde el manifiesto espera un 302, o sea un
+            # mensaje que no dice qué pasó. Se siembran `WARM_SAMPLE_COUNT + 3` y se gastan
+            # `WARM_SAMPLE_COUNT + 1` (una muestra fría más las calientes): el día que el
+            # muestreo crezca, esto revienta nombrando el número que hay que mover.
+            raise RuntimeError(
+                f"inscripcion_publica_paso2 se quedó sin sesiones sembradas: hay {len(sesiones_paso2)} "
+                f"(WARM_SAMPLE_COUNT={WARM_SAMPLE_COUNT} + 3) y el muestreo pidió una más. "
+                "Subir el margen donde se arma `sesiones_paso2`; reusar una sesión gastada "
+                "haría fallar el envío por DNI duplicado (RN-P5) sin decir por qué."
+            ) from None
         datos, archivos = datos_paso2(definicion_publica, indice)
         return client.post(url, {**datos, **archivos})
 
@@ -440,18 +426,6 @@ def build_targets(worker_id=None):
                 "key": "legajos_ciudadano_nuevo",
                 "route": "legajos:ciudadano_nuevo",
                 "url": reverse("legajos:ciudadano_nuevo"),
-                "actor": "backoffice",
-            },
-            {
-                "key": "conversaciones_lista",
-                "route": "conversaciones:lista",
-                "url": reverse("conversaciones:lista"),
-                "actor": "backoffice",
-            },
-            {
-                "key": "conversacion_detalle",
-                "route": "conversaciones:detalle",
-                "url": reverse("conversaciones:detalle", kwargs={"conversacion_id": conversacion.pk}),
                 "actor": "backoffice",
             },
             {
@@ -581,15 +555,6 @@ def build_targets(worker_id=None):
                 "actor": "anonymous",
                 "expected_status": 201,
                 "request": becas_api_alta,
-                "include_in_timing": False,
-            },
-            {
-                "key": "envio_conversacion",
-                "route": "conversaciones:enviar_mensaje_operador",
-                "url": reverse("conversaciones:enviar_mensaje_operador", kwargs={"conversacion_id": conversacion.pk}),
-                "actor": "backoffice",
-                "request": envio_conversacion,
-                "expected_json_success": True,
                 "include_in_timing": False,
             },
         ],

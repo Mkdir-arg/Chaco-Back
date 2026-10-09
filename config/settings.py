@@ -1,3 +1,4 @@
+import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -101,7 +102,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.admindocs",
-    "django_extensions",
     "rest_framework",
     "rest_framework.authtoken",
     # Sin la app, `DEFAULT_SCHEMA_CLASS` y `SPECTACULAR_SETTINGS` quedaban
@@ -122,16 +122,14 @@ INSTALLED_APPS = [
     "django_filters",
     "channels",
     "django_redis",
-    # OPS-04: sus URLs ya **no** se montan (`config/urls.py`), porque el include de
-    # `healthcheck.urls` las tapaba y eran inalcanzables. Las apps siguen acá a
-    # propósito: tienen una migración aplicada (`db.0001_initial` y
-    # `health_check_db.0001_initial`) y la tabla `health_check_db_testmodel` en los
-    # ambientes. Sacarlas de INSTALLED_APPS deja esas dos filas sin archivo y esa tabla
-    # sin modelo, que es justo lo que `verificar_esquema_migraciones` frena. Retirar el
-    # paquete es OPS-13, y tiene que venir con esa limpieza.
-    "health_check",
-    "health_check.db",
-    "health_check.cache",
+    # OPS-13 (Cambio 196): acá estaban las tres apps de `django-health-check`. OPS-04 ya
+    # les había sacado las URLs (Cambio 153) y las sondas del sistema son la app
+    # `healthcheck` de este repo (`/health/` y `/health/ready/`). Lo que faltaba para
+    # poder retirarlas era la limpieza que `core.0003` hace: su tabla
+    # (`health_check_db_testmodel`) y sus dos filas de `django_migrations`
+    # (`db.0001_initial` y `health_check_db.0001_initial`; el `app_label` cambió entre
+    # versiones del paquete, por eso son dos). Sin eso quedaban una tabla sin modelo y
+    # dos filas sin archivo en icore, testing y PRD.
     "users",
     "core",
     "dashboard",
@@ -143,9 +141,21 @@ INSTALLED_APPS = [
     "healthcheck",
 ]
 
-# Silk (profiling): solo en desarrollo, nunca en producción.
+# Silk (profiling) y django-extensions (`shell_plus`, `show_urls`): solo en desarrollo,
+# nunca en producción. OPS-13: `django_extensions` estaba arriba, incondicional, así que
+# viajaba en la imagen de PRD con sus comandos cargados; los dos paquetes pasaron a
+# `requirements-dev.txt` y la imagen (`requirements.txt`) ya no los trae.
+#
+# Se agregan solo **si están instalados**, y no a secas, porque el `docker-compose.yml` de
+# desarrollo levanta esa misma imagen con `DJANGO_DEBUG=True`: con un `INSTALLED_APPS`
+# incondicional el contenedor moriría al importar. Faltando, lo único que se pierde es el
+# profiling y `shell_plus`; la app arranca igual.
+_APPS_DE_DESARROLLO = ("django_extensions", "silk")
 if DEBUG:
-    INSTALLED_APPS += ["silk"]
+    INSTALLED_APPS += [app for app in _APPS_DE_DESARROLLO if importlib.util.find_spec(app) is not None]
+
+#: Lo lee `config/urls.py` para montar `/silk/` solo cuando la app entró de verdad.
+SILK_HABILITADO = "silk" in INSTALLED_APPS
 
 if PYTEST_RUNNING:
     INSTALLED_APPS += ["zeal"]
@@ -242,7 +252,11 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "conversaciones.context_processors.user_groups",
+                # RED-13: esto era `conversaciones.context_processors.user_groups`.
+                # Cuatro de sus variables (`user_groups_list`, `user_primary_group`,
+                # `user_is_superuser`, `websockets_enabled`) no son de esa app y las
+                # lee `includes/base.html`, que extiende todo el backoffice.
+                "core.context_processors.identidad_usuario",
                 "core.context_processors.sidebar_badges",
                 "core.context_processors.session_idle_config",
                 "portal.context_processors.gtm",
@@ -524,10 +538,9 @@ else:
         },
     }
 
-HEALTH_CHECK = {
-    "DISK_USAGE_MAX": 90,
-    "MEMORY_MIN": 100,
-}
+# OPS-13: acá estaba `HEALTH_CHECK = {"DISK_USAGE_MAX": 90, "MEMORY_MIN": 100}`, la
+# configuración de `django-health-check`. El paquete se fue del repo en este mismo
+# Cambio (196) y nadie más lee esa clave: las sondas son la app `healthcheck`.
 
 DEFAULT_CACHE_TIMEOUT = 600
 DASHBOARD_CACHE_TIMEOUT = 600
@@ -710,7 +723,9 @@ SIIS_API_TIMEOUT = int(os.getenv("SIIS_API_TIMEOUT", "20"))
 # directorio montado como volumen o secret, que no viaja con el código ni con la
 # imagen. Si no está montado, los comandos cortan nombrando la variable.
 DATOS_SIIS_DIR = os.getenv("DATOS_SIIS_DIR", "/datos-siis")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# OPS-13: y acá `OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")`, sin un solo consumidor en
+# el código. `openai` salió de `requirements.txt` en este Cambio; leer el secreto para no
+# usarlo solo servía para que apareciera en los `.env` de los ambientes.
 
 LOG_DIR = BASE_DIR / "logs"
 # OPS-03: stdout es el destino de verdad —es lo que recogen `docker compose logs` y
