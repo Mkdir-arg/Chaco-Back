@@ -18,8 +18,13 @@
 | `titulo` | Opcional, `strong text-heading` |
 | `texto` | Opcional, `p text-body mt-1` |
 | `role` | Por defecto `alert` en danger y warning, `status` en info y success. `role=""` no es válido: pasá el que corresponda |
+| `icono` | Opcional. Nombre Font Awesome sin prefijo (`triangle-exclamation`). Se dibuja a la izquierda a 18 px (`text-lg`), con `aria-hidden="true"` y el color del tono. En `info` reemplaza al `circle-info` |
+| `accion_url` + `accion_texto` | Opcionales y **van juntos**: link subrayado a la derecha dentro del bloque («Resolver», «Ver legajo»). Con solo uno de los dos no se dibuja el link y el render es el de siempre |
 
 Render: `rounded-lg bg-{tono}-soft border border-{tono}-subtle p-4 text-sm`.
+
+Con `icono` o con acción completa el bloque pasa a `flex items-start gap-3` (ícono · cuerpo `flex-1` · link
+`shrink-0`); sin ellos el HTML es idéntico al anterior. El tono, el `role` y el escapado no cambian.
 
 ## Cuándo cada tono
 
