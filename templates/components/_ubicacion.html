@@ -2,23 +2,34 @@
 Bloque de ubicación sin mapa (coordenadas + enlace externo + plano adjunto). Va dentro de una card.
   {% include "components/_ubicacion.html" with latitud=dispositivo.latitud longitud=dispositivo.longitud plano_url=plano.archivo.url plano_nombre=plano.nombre %}
 Contexto:
-  latitud, longitud  Decimal (o None). Sin las dos, se muestra el estado vacío y no hay enlace.
-  plano_url          opcional: enlace al plano del edificio (adjunto). Sin él no se muestra.
+  latitud, longitud  Decimal, float o None. Hacen falta las DOS para mostrar coordenadas y enlace;
+                     con una sola, o con ninguna, se muestra el estado vacío. Un 0 cuenta como
+                     cargada: si el modelo usa 0 por defecto en vez de null, el bloque va a mostrar
+                     «0,000000 / 0,000000» y enlazar a Null Island. Hay que pasar None, no 0.
+  plano_url          opcional: enlace al plano del edificio. Se muestra **aunque no haya
+                     coordenadas** — son dos datos independientes y uno no esconde al otro.
+                     Tiene que ser la URL de un archivo adjunto (FileField.url), no una URL libre:
+                     el autoescape protege del marcado, pero no de un esquema `javascript:`.
   plano_nombre       texto del enlace del plano; por defecto «Plano del edificio».
 El enlace «Ver en el mapa» abre OpenStreetMap en una pestaña nueva: no carga nada dentro de la
-página, así que no hace falta tocar la CSP ni cargar librerías de mapas.
+página, así que no hace falta tocar la CSP ni cargar librerías de mapas. Por ese enlace, el prefijo
+`https://www.openstreetmap.org/?mlat=` figura entre los permitidos de
+la prueba `SinRecursosDeTercerosTests` de `portal/tests/`, que es la red que impide volver
+a traer código de un CDN: si se cambia de proveedor hay que actualizar esa lista.
 {% endcomment %}{% load l10n %}
-{% if latitud is not None and latitud != "" and longitud is not None and longitud != "" %}
 <div class="flex flex-col gap-4">
+  {% if latitud is not None and latitud != "" and longitud is not None and longitud != "" %}
   <dl class="grid gap-5 sm:grid-cols-2">
     <div><dt class="text-xs font-semibold uppercase text-body-subtle">Latitud</dt><dd class="mt-1 text-body">{{ latitud|floatformat:6 }}</dd></div>
     <div><dt class="text-xs font-semibold uppercase text-body-subtle">Longitud</dt><dd class="mt-1 text-body">{{ longitud|floatformat:6 }}</dd></div>
   </dl>
+  {% else %}
+  {% include "components/_estado_vacio.html" with icono="fa-location-dot" titulo="Sin ubicación cargada" texto="Todavía no se cargaron las coordenadas de este dispositivo." %}
+  {% endif %}
+  {% if latitud is not None and latitud != "" and longitud is not None and longitud != "" or plano_url %}
   <div class="flex flex-wrap items-center gap-3">
-    <a href="https://www.openstreetmap.org/?mlat={{ latitud|unlocalize }}&amp;mlon={{ longitud|unlocalize }}#map=17/{{ latitud|unlocalize }}/{{ longitud|unlocalize }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-location-dot" aria-hidden="true"></i> Ver en el mapa<span class="sr-only"> (se abre en una pestaña nueva)</span></a>
-    {% if plano_url %}<a href="{{ plano_url }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-paperclip" aria-hidden="true"></i> {{ plano_nombre|default:"Plano del edificio" }}</a>{% endif %}
+    {% if latitud is not None and latitud != "" and longitud is not None and longitud != "" %}<a href="https://www.openstreetmap.org/?mlat={{ latitud|unlocalize }}&amp;mlon={{ longitud|unlocalize }}#map=17/{{ latitud|unlocalize }}/{{ longitud|unlocalize }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-secondary btn-sm"><i class="fas fa-location-dot" aria-hidden="true"></i> Ver en el mapa<span class="sr-only"> (se abre en una pestaña nueva)</span></a>{% endif %}
+    {% if plano_url %}<a href="{{ plano_url }}" target="_blank" rel="noopener noreferrer" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-paperclip" aria-hidden="true"></i> {{ plano_nombre|default:"Plano del edificio" }}<span class="sr-only"> (se abre en una pestaña nueva)</span></a>{% endif %}
   </div>
+  {% endif %}
 </div>
-{% else %}
-{% include "components/_estado_vacio.html" with icono="fa-location-dot" titulo="Sin ubicación cargada" texto="Todavía no se cargaron las coordenadas de este dispositivo." %}
-{% endif %}

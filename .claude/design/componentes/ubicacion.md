@@ -38,3 +38,22 @@ Render: `dl` de dos columnas (mismo patrón que las solapas de datos) + `btn-sec
 
 - Cargar librerías de mapas, iframes o imágenes de tiles; agregar orígenes a la CSP.
 - Armar el enlace al mapa a mano en una pantalla.
+
+## Lo que hay que saber antes de usarla
+
+- **El plano no depende de las coordenadas.** Son dos datos independientes: un plano cargado se
+  muestra aunque todavía nadie haya tomado las coordenadas del edificio, y el estado vacío cubre
+  solo la parte de la ubicación. Al revés también: coordenadas sin plano se ven completas.
+- **Un `0` cuenta como coordenada cargada.** El chequeo es contra `None` y contra la cadena vacía,
+  así que `0` pasa. Si el modelo que la alimenta usa `0` por defecto en vez de `null`, el bloque va a
+  mostrar «0,000000 / 0,000000» y enlazar a Null Island, frente a la costa de África. Hay que pasar
+  `None`, no `0`.
+- **`plano_url` tiene que venir de un archivo adjunto** (`FileField.url`), no de una URL libre. El
+  autoescape protege del marcado, pero no de un esquema `javascript:`.
+- **Los valores van como `Decimal`, `float` o `None`.** Un texto no numérico no rompe ni permite
+  inyección —sale escapado—, pero produce un enlace con basura.
+- **El proveedor del mapa está en un solo lugar de la pieza.** Si se cambia, hay que actualizar
+  también la lista de permitidos de la prueba `SinRecursosDeTercerosTests`, en
+  `portal/tests/test_seguridad_publica.py`, que es la red que impide volver a traer código de un CDN y que hoy admite el prefijo
+  `https://www.openstreetmap.org/?mlat=`. No es un recurso de terceros —es un `<a>` que navega
+  fuera— pero el barrido de ese test no distingue el atributo.

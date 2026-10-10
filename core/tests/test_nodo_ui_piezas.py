@@ -565,10 +565,34 @@ class UbicacionTest(SimpleTestCase):
     def test_escapa_el_nombre_del_plano(self):
         html = render_to_string(
             UBICACION,
-            {"latitud": Decimal("-27.45"), "longitud": Decimal("-58.98"), "plano_url": "/p", "plano_nombre": "<b>x</b>"},
+            {
+                "latitud": Decimal("-27.45"),
+                "longitud": Decimal("-58.98"),
+                "plano_url": "/p",
+                "plano_nombre": "<b>x</b>",
+            },
         )
 
+        # No alcanza con que el marcado no aparezca: eso pasaria igual si el nombre
+        # se descartara. Hay que ver que aparece escapado.
         self.assertNotIn("<b>x", html)
+        self.assertIn("&lt;b&gt;x", html)
+
+    def test_el_plano_se_muestra_aunque_no_haya_coordenadas(self):
+        # Son dos datos independientes: un plano cargado no puede desaparecer
+        # porque todavia nadie tomo las coordenadas del edificio.
+        html = render_to_string(UBICACION, {"plano_url": "/p.pdf", "plano_nombre": "Plano PB"})
+
+        self.assertIn("/p.pdf", html)
+        self.assertIn("Plano PB", html)
+        self.assertIn("Sin ubicacion cargada".replace("ubicacion", "ubicación"), html)
+        self.assertNotIn("openstreetmap", html)
+
+    def test_el_enlace_del_plano_avisa_que_abre_pestana_nueva(self):
+        html = render_to_string(UBICACION, {"plano_url": "/p.pdf"})
+
+        enlace = html[html.index("/p.pdf") :]
+        self.assertIn("se abre en una pestaña nueva", enlace)
 
 
 class FormErroresTest(SimpleTestCase):
