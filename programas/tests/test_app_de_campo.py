@@ -9,6 +9,11 @@ rechazaba— y que marca lo que antes no contaba. Lo que la app ya mandaba sigue
 significando lo mismo. G1-16 **habilita** un dato nuevo y opcional: mandarlo es
 lo que necesita una release de la app, no seguir sin mandarlo.
 
+#637 incorpora respuestas por clave y aplica la condición del grupo Apoderado
+en la definición app. El default conserva menores; un diseño guardado sin
+condición exige apoderado a todos y debe configurarse antes de desplegar si la
+convocatoria quiere conservar el flujo de menores de la app instalada.
+
 Las fichas comparten un criterio: una captura la hizo un territorial parado
 delante de una persona. Tirarla sin dejar rastro es perder trabajo de campo, así
 que se acepta y se marca; solo se rechaza lo que no se puede arreglar después.
@@ -454,10 +459,8 @@ class ValidacionDeLaCargaTests(_CampoBase):
         self.assertIsNone(formulario.observaciones_carga)
 
     def test_el_apoderado_de_un_adulto_no_se_reporta_como_faltante(self):
-        """Cambio 67: el catálogo pide el apoderado a toda persona **en el
-        link**; ahí mismo está escrito que «la app de campo mantiene, por ahora,
-        la regla de menores». En el canal app la obligatoriedad la decide RN-22
-        en el serializer, no el catálogo."""
+        """El default app trae la condición de menores; el motor oculta el
+        grupo de un adulto y no exige sus obligatorios."""
         self.assertTrue(
             PreguntaGlobal.objects.filter(grupo__clave="apoderado", obligatorio=True).exists(),
             "el catálogo sembrado tiene que traer el apoderado obligatorio, si no el test no prueba nada",
@@ -490,6 +493,10 @@ class ValidacionDeLaCargaTests(_CampoBase):
         from programas.services.diseno import obtener_o_crear_diseno
 
         diseno, _ = obtener_o_crear_diseno(self.conv)
+        nacimiento = PreguntaGlobal.objects.get(origen="legajo", vinculo="fecha_nacimiento")
+        diseno.items.filter(clave="g-apoderado").update(condicion={
+            "modo": "todas", "reglas": [{"fuente": f"pg-{nacimiento.pk}", "op": "edad_menor", "valor": 18}]
+        })
         item = diseno.items.get(clave=f"pg-{pregunta.pk}")
         item.condicion = {"modo": "todas", "reglas": [{"fuente": fuente, "op": op, "valor": valor}]}
         item.save(update_fields=["condicion", "modificado"])
@@ -917,6 +924,10 @@ class VersionDelFormularioTests(_CampoBase):
         # Sin diseño guardado la definición se sirve con `version = 0` y no hay
         # dos versiones que comparar: el constructor es el que las numera.
         self.diseno, _ = obtener_o_crear_diseno(self.conv)
+        nacimiento = PreguntaGlobal.objects.get(origen="legajo", vinculo="fecha_nacimiento")
+        self.diseno.items.filter(clave="g-apoderado").update(condicion={
+            "modo": "todas", "reglas": [{"fuente": f"pg-{nacimiento.pk}", "op": "edad_menor", "valor": 18}]
+        })
 
     def _alta(self, **extra):
         return self.client.post(self.url, self._payload(**extra), format="json")
@@ -1035,3 +1046,297 @@ class ContratoDelCatalogoTests(TestCase):
             condicion={"modo": "todas", "reglas": [{"fuente": "pg-2", "op": "es", "valor": "Sí"}]},
         )
         item.clean_fields(exclude=["diseno", "padre", "pregunta", "requisito"])
+
+
+class RespuestasPorClaveTests(_CampoBase):
+    """#637: el alta usa el diseño app y conserva el contrato instalado."""
+
+    def setUp(self):
+        super().setUp()
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+        from programas.models import OrigenRequisito
+        self.nacimiento = PreguntaGlobal.objects.get(origen=OrigenRequisito.LEGAJO, vinculo="fecha_nacimiento")
+        self.condicion_menor = {"modo": "todas", "reglas": [
+            {"fuente": f"pg-{self.nacimiento.pk}", "op": "edad_menor", "valor": 18}
+        ]}
+
+    def _diseno(self, condicion=True):
+        from programas.services.diseno import obtener_o_crear_diseno
+        diseno, _ = obtener_o_crear_diseno(self.conv)
+        diseno.items.filter(clave="g-apoderado").update(condicion=self.condicion_menor if condicion else None)
+        return diseno
+
+    def _respuestas(self, payload=None):
+        from programas.services.respuestas import foto_definicion, respuestas_desde_legacy
+        self.rel.refresh_from_db()
+        payload = payload or self._payload()
+        return respuestas_desde_legacy(payload["data"], payload, payload["datos_identificacion"], foto_definicion(self.rel))
+
+    def _propio(self, tipo=TipoCampo.STRING, condicion=None, canal="app"):
+        diseno = self._diseno()
+        padre = diseno.items.get(clave="g-cuestionario")
+        return ItemDiseno.objects.create(diseno=diseno, padre=padre, tipo=ItemDiseno.Tipo.CAMPO,
+            clave="cp-comedor", orden=100, canal=canal, condicion=condicion,
+            propio={"texto": "¿Asiste a un comedor?", "tipo": tipo, "obligatorio": True, "opciones": []})
+
+    def _post(self, payload):
+        return self.client.post(self.url, payload, format="json")
+
+    def test_un_cp_obligatorio_se_guarda_sin_observaciones(self):
+        self._propio()
+        respuestas = self._respuestas()
+        respuestas["cp-comedor"] = "No"
+        resp = self._post(self._payload(respuestas=respuestas))
+        self.assertEqual(resp.status_code, 201, resp.data)
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        self.assertEqual(caso.respuestas["cp-comedor"], "No")
+        self.assertIsNone(caso.observaciones_carga)
+
+    def test_el_contrato_legacy_sigue_traduciendo_data(self):
+        pregunta = PreguntaGlobal.objects.create(texto="Tenencia", tipo=TipoCampo.STRING, orden=1)
+        resp = self._post(self._payload(data={"globales": {str(pregunta.pk): "Propia"}, "requisitos": {}}))
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(Formulario.objects.get(pk=resp.data["id"]).respuestas[f"pg-{pregunta.pk}"], "Propia")
+
+    def test_respuestas_gana_sobre_data_y_columnas_incluso_con_legacy_invalido(self):
+        self._diseno()
+        payload = self._payload()
+        respuestas = self._respuestas(payload)
+        celular = next(k for k, v in respuestas.items() if v == payload["celular"])
+        respuestas[celular] = "3624999888"
+        resp = self._post(self._payload(respuestas=respuestas, celular="otro", email_contacto="no es correo",
+                                       apoderado_fecha_nacimiento="no es fecha"))
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(Formulario.objects.get(pk=resp.data["id"]).celular, "3624999888")
+
+    def test_un_diccionario_vacio_no_recupera_respuestas_del_payload_legacy(self):
+        resp = self._post(self._payload(respuestas={}))
+        self.assertEqual(resp.status_code, 201, resp.data)
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        self.assertEqual(caso.respuestas, {})
+        self.assertEqual(caso.celular, "")
+        self.assertIn("Falta la respuesta obligatoria", caso.observaciones_carga)
+
+    def test_clave_desconocida_se_observa_sin_rechazar(self):
+        respuestas = self._respuestas()
+        respuestas["cp-desconocida"] = "valor"
+        resp = self._post(self._payload(respuestas=respuestas))
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertIn("cp-desconocida", Formulario.objects.get(pk=resp.data["id"]).observaciones_carga)
+
+    def test_la_condicion_descarta_un_cp_oculto(self):
+        self._propio(condicion={"modo": "todas", "reglas": [
+            {"fuente": f"pg-{self.nacimiento.pk}", "op": "edad_menor", "valor": 18}]})
+        respuestas = self._respuestas()
+        respuestas["cp-comedor"] = "Sí"
+        resp = self._post(self._payload(respuestas=respuestas))
+        self.assertEqual(resp.status_code, 201, resp.data)
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        self.assertNotIn("cp-comedor", caso.respuestas)
+        self.assertIn("Se descartó la respuesta", caso.observaciones_carga)
+
+    def test_un_campo_solo_link_no_se_exige_en_app(self):
+        self._propio(canal="link")
+        resp = self._post(self._payload(respuestas=self._respuestas()))
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertIsNone(Formulario.objects.get(pk=resp.data["id"]).observaciones_carga)
+
+    def test_default_app_menores_y_link_sin_condicion(self):
+        from programas.services.becas import definicion_formulario
+        self.assertEqual(next(g for g in definicion_formulario(self.rel)["items"]
+                              if g["clave"] == "g-apoderado")["condicion"], self.condicion_menor)
+        self.rel.tipo = Relevamiento.Tipo.PUBLICO
+        self.assertIsNone(next(g for g in definicion_formulario(self.rel)["items"]
+                               if g["clave"] == "g-apoderado")["condicion"])
+
+    def test_sin_condicion_se_exige_apoderado_a_un_adulto_en_ambos_payloads(self):
+        self._diseno(condicion=False)
+        for nuevo in (False, True):
+            payload = self._payload()
+            if nuevo:
+                payload["respuestas"] = self._respuestas(payload)
+            resp = self._post(payload)
+            self.assertEqual(resp.status_code, 400, resp.data)
+            self.assertIn("apoderado_dni", resp.data)
+        self.assertEqual(self.rel.formularios.count(), 0)
+
+    def test_condicion_menor_exige_apoderado_en_nuevo_payload(self):
+        self._diseno()
+        payload = self._payload()
+        payload["datos_identificacion"]["fecha_nacimiento"] = (timezone.localdate() - timedelta(days=365*10)).isoformat()
+        payload["respuestas"] = self._respuestas(payload)
+        resp = self._post(payload)
+        self.assertEqual(resp.status_code, 400, resp.data)
+        self.assertIn("apoderado_nombre", resp.data)
+
+    def test_apoderado_por_clave_se_vincula_al_legajo(self):
+        self._diseno(condicion=False)
+        payload = self._payload(apoderado_nombre="Ana", apoderado_apellido="Perez", apoderado_dni="27111222",
+                                apoderado_genero="F", apoderado_fecha_nacimiento="1985-05-10")
+        payload["respuestas"] = self._respuestas(payload)
+        resp = self._post(payload)
+        self.assertEqual(resp.status_code, 201, resp.data)
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        self.assertEqual(caso.apoderado_ciudadano.dni, "27111222")
+
+    def test_apoderado_oculto_no_deja_columnas_ni_legajo(self):
+        self._diseno()
+        payload = self._payload(apoderado_nombre="Ana", apoderado_apellido="Perez", apoderado_dni="27111222",
+                                apoderado_genero="F", apoderado_fecha_nacimiento="1985-05-10")
+        respuestas = self._respuestas(payload)
+        fecha = next(k for k,v in respuestas.items() if v == "1985-05-10")
+        respuestas[fecha] = "fecha inválida oculta"
+        payload["respuestas"] = respuestas
+        resp = self._post(payload)
+        self.assertEqual(resp.status_code, 201, resp.data)
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        self.assertEqual(caso.apoderado_dni, "")
+        self.assertIsNone(caso.apoderado_ciudadano_id)
+        self.assertNotIn(fecha, caso.respuestas)
+
+    def test_reintento_no_pisa_cp_ni_duplica(self):
+        self._propio()
+        payload = self._payload(respuestas={**self._respuestas(), "cp-comedor": "No"})
+        first = self._post(payload)
+        self.assertEqual(first.status_code, 201, first.data)
+        payload["respuestas"]["cp-comedor"] = "Sí"
+        second = self._post(payload)
+        self.assertEqual(second.status_code, 200, second.data)
+        self.assertEqual(second.data["id"], first.data["id"])
+        self.assertEqual(Formulario.objects.get(pk=first.data["id"]).respuestas["cp-comedor"], "No")
+
+    def test_adjunto_cp_se_guarda_reemplaza_y_lee_por_clave(self):
+        from programas.services.respuestas import _adjuntos_por_clave
+        self._propio(tipo=TipoCampo.ARCHIVO)
+        resp = self._post(self._payload(respuestas=self._respuestas()))
+        self.assertEqual(resp.status_code, 201, resp.data)
+        url = reverse("becas_api:formulario-adjuntos", args=[resp.data["id"]])
+        directorio = tempfile.mkdtemp()
+        try:
+            with override_settings(MEDIA_ROOT=directorio):
+                for contenido in (b"first", b"second"):
+                    subido = self.client.post(url, {"clave": "cp-comedor",
+                        "archivo": SimpleUploadedFile("foto.jpg", contenido, content_type="image/jpeg")}, format="multipart")
+                    self.assertEqual(subido.status_code, 201, subido.data)
+                caso = Formulario.objects.get(pk=resp.data["id"])
+                self.assertEqual(caso.adjuntos.count(), 1)
+                self.assertEqual(_adjuntos_por_clave(caso)["cp-comedor"].pk, subido.data["id"])
+                caso.estado = Formulario.Estado.APROBADO
+                caso.save(update_fields=["estado"])
+                rechazado = self.client.post(url, {"clave": "cp-comedor", "archivo": SimpleUploadedFile("foto.jpg", b"third")}, format="multipart")
+                self.assertEqual(rechazado.status_code, 409, rechazado.data)
+                self.assertEqual(rechazado.data["code"], "CASO_RESUELTO")
+        finally:
+            shutil.rmtree(directorio)
+
+    def test_adjunto_con_clave_ajena_o_no_archivo_no_entra(self):
+        self._propio()
+        resp = self._post(self._payload(respuestas={**self._respuestas(), "cp-comedor": "No"}))
+        self.assertEqual(resp.status_code, 201, resp.data)
+        url = reverse("becas_api:formulario-adjuntos", args=[resp.data["id"]])
+        for clave in ("cp-comedor", "cp-ajena"):
+            subido = self.client.post(url, {"clave": clave, "archivo": SimpleUploadedFile("foto.jpg", b"x")}, format="multipart")
+            self.assertEqual(subido.status_code, 400, subido.data)
+        self.assertFalse(AdjuntoFormulario.objects.filter(formulario_id=resp.data["id"]).exists())
+
+
+    def test_identidad_por_clave_no_pisa_lo_acreditado_por_el_servidor(self):
+        from unittest.mock import patch
+        self._diseno()
+        payload = self._payload()
+        payload["datos_identificacion"]["origen"] = "personas"
+        payload["respuestas"] = self._respuestas(payload)
+        with patch("programas.services.identidad.consultar_persona", return_value={
+            "success": True, "data": {"dni": "40400400", "nombre": "Nombre acreditado",
+                "apellido": "Apellido acreditado", "sexo": "M", "fecha_nacimiento": "1990-01-02"}
+        }):
+            resp = self._post(payload)
+        self.assertEqual(resp.status_code, 201, resp.data)
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        nombre = PreguntaGlobal.objects.get(origen="legajo", vinculo="nombre")
+        self.assertEqual(caso.respuestas[f"pg-{nombre.pk}"], "Nombre acreditado")
+        self.assertEqual(caso.ciudadano.nombre, "Nombre acreditado")
+
+    def test_adjunto_del_catalogo_tambien_acepta_clave(self):
+        pregunta = PreguntaGlobal.objects.create(texto="Certificado", tipo=TipoCampo.ARCHIVO, orden=1)
+        resp = self._post(self._payload())
+        self.assertEqual(resp.status_code, 201, resp.data)
+        url = reverse("becas_api:formulario-adjuntos", args=[resp.data["id"]])
+        directorio = tempfile.mkdtemp()
+        try:
+            with override_settings(MEDIA_ROOT=directorio):
+                subido = self.client.post(url, {"clave": f"pg-{pregunta.pk}",
+                    "archivo": SimpleUploadedFile("foto.jpg", b"x")}, format="multipart")
+                self.assertEqual(subido.status_code, 201, subido.data)
+                self.assertEqual(subido.data["pregunta_global"], pregunta.pk)
+                self.assertEqual(subido.data["clave"], "")
+        finally:
+            shutil.rmtree(directorio)
+
+    def test_dos_cp_archivo_no_se_reemplazan_entre_si(self):
+        campo = self._propio(tipo=TipoCampo.ARCHIVO)
+        ItemDiseno.objects.create(diseno=campo.diseno, padre=campo.padre, tipo=ItemDiseno.Tipo.CAMPO,
+            clave="cp-otro", orden=101, canal="app", propio={"texto": "Otro", "tipo": TipoCampo.ARCHIVO})
+        resp = self._post(self._payload(respuestas=self._respuestas()))
+        self.assertEqual(resp.status_code, 201, resp.data)
+        url = reverse("becas_api:formulario-adjuntos", args=[resp.data["id"]])
+        directorio = tempfile.mkdtemp()
+        try:
+            with override_settings(MEDIA_ROOT=directorio):
+                for clave in ("cp-comedor", "cp-otro"):
+                    subido = self.client.post(url, {"clave": clave, "archivo": SimpleUploadedFile("foto.jpg", b"x")}, format="multipart")
+                    self.assertEqual(subido.status_code, 201, subido.data)
+                self.assertEqual(AdjuntoFormulario.objects.filter(formulario_id=resp.data["id"]).count(), 2)
+        finally:
+            shutil.rmtree(directorio)
+
+    def test_respuestas_con_forma_invalida_da_400_sin_caso(self):
+        for respuestas in (None, [], "texto"):
+            resp = self._post(self._payload(respuestas=respuestas))
+            self.assertEqual(resp.status_code, 400, resp.data)
+        self.assertEqual(self.rel.formularios.count(), 0)
+
+    def test_apoderado_depende_de_una_condicion_distinta_de_la_edad(self):
+        diseno = self._diseno()
+        sexo = PreguntaGlobal.objects.get(origen="legajo", vinculo="genero")
+        diseno.items.filter(clave="g-apoderado").update(condicion={"modo": "todas", "reglas": [
+            {"fuente": f"pg-{sexo.pk}", "op": "es", "valor": "F"}]})
+        menor = self._payload()
+        menor["datos_identificacion"]["fecha_nacimiento"] = (timezone.localdate() - timedelta(days=365*10)).isoformat()
+        menor["respuestas"] = self._respuestas(menor)
+        permitido = self._post(menor)
+        self.assertEqual(permitido.status_code, 201, permitido.data)
+        adulta = self._payload()
+        adulta["datos_identificacion"].update(dni="40400401", sexo="F")
+        adulta["respuestas"] = self._respuestas(adulta)
+        requerido = self._post(adulta)
+        self.assertEqual(requerido.status_code, 400, requerido.data)
+        self.assertIn("apoderado_dni", requerido.data)
+
+    def test_legacy_no_valida_ni_vincula_apoderado_oculto(self):
+        resp = self._post(self._payload(apoderado_dni="123", apoderado_nombre="Dato que no corresponde"))
+        self.assertEqual(resp.status_code, 201, resp.data)
+        caso = Formulario.objects.get(pk=resp.data["id"])
+        self.assertEqual(caso.apoderado_dni, "")
+        self.assertIsNone(caso.apoderado_ciudadano_id)
+
+    def test_adjunto_por_clave_de_catalogo_eliminado_da_400(self):
+        pregunta = PreguntaGlobal.objects.create(texto="Certificado", tipo=TipoCampo.ARCHIVO, orden=1)
+        clave = f"pg-{pregunta.pk}"
+        resp = self._post(self._payload())
+        self.assertEqual(resp.status_code, 201, resp.data)
+        pregunta.delete()
+        subido = self.client.post(reverse("becas_api:formulario-adjuntos", args=[resp.data["id"]]),
+            {"clave": clave, "archivo": SimpleUploadedFile("foto.jpg", b"x")}, format="multipart")
+        self.assertEqual(subido.status_code, 400, subido.data)
+
+    def test_adjunto_cp_figura_en_el_export_de_respuestas(self):
+        from programas.services.dashboard_becas import respuestas_por_persona
+        self._propio(tipo=TipoCampo.ARCHIVO)
+        resp = self._post(self._payload(respuestas=self._respuestas()))
+        self.assertEqual(resp.status_code, 201, resp.data)
+        AdjuntoFormulario.objects.create(formulario_id=resp.data["id"], clave="cp-comedor", archivo="adjuntos/certificado.jpg")
+        reporte, _ = respuestas_por_persona(self.conv, incluir_publicos=False)
+        posicion = reporte.encabezados.index("¿Asiste a un comedor?")
+        self.assertEqual(reporte.filas[0][posicion], "certificado.jpg")

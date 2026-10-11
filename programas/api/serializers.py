@@ -1,13 +1,11 @@
 """Serializers de la API de campo de Becas (#82)."""
 
-import logging
-
 from django.utils.dateparse import parse_date
 from rest_framework import serializers
 from rest_framework.settings import api_settings
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido
-from core.edad import es_menor
+from core.utils_fechas import fecha_local
 from core.validators import (
     ADJUNTO_EXTENSIONES,
     ADJUNTO_MAX_BYTES,
@@ -15,13 +13,12 @@ from core.validators import (
     MENSAJE_ADJUNTO_TAMANIO,
 )
 from legajos.models import Ciudadano
-from programas.models import AdjuntoFormulario, Formulario, Relevamiento
+from programas.models import AdjuntoFormulario, Formulario, OrigenRequisito, Relevamiento
 from programas.services import campo as servicio_campo
+from programas.services import respuestas as respuestas_servicio
 from programas.services.becas import definicion_formulario
 from programas.services.padron import normalizar_dni
 from programas.services.personas import fecha_iso
-
-logger = logging.getLogger(__name__)
 
 MENSAJE_FECHA_INVALIDA = "La fecha de nacimiento no es una fecha válida."
 
@@ -117,6 +114,8 @@ class FormularioSerializer(serializers.ModelSerializer):
     # lo contesta con un `DataError`, o sea un 500 para la app.
     version_capturada = serializers.IntegerField(required=False, allow_null=True, min_value=0, max_value=2_147_483_647)
 
+    respuestas = serializers.DictField(required=False)
+
     class Meta:
         model = Formulario
         fields = [
@@ -150,6 +149,7 @@ class FormularioSerializer(serializers.ModelSerializer):
             # y opcional en los dos sentidos: la app vieja ni la manda ni la lee.
             "version_capturada",
             "data",
+            "respuestas",
             "creado",
             "modificado",
         ]
@@ -178,7 +178,35 @@ class FormularioSerializer(serializers.ModelSerializer):
             "modificado",
         ]
 
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and "respuestas" in data:
+            data = {clave: valor for clave, valor in data.items()
+                    if clave not in {"data", *respuestas_servicio.COLUMNAS_FIJAS}}
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
+        relevamiento = self.context.get("relevamiento") or (self.instance.relevamiento if self.instance else None)
+        foto = None
+        hoy = fecha_local(attrs.get("capturado_en"))
+        if relevamiento is not None:
+            foto = respuestas_servicio.foto_definicion(relevamiento)
+            self.context["foto_definicion"] = foto
+        if "respuestas" in attrs and foto is not None:
+            # El nuevo contrato gana incluso si es un diccionario vacío.
+            nuevas = attrs["respuestas"]
+            _, ocultos, _ = respuestas_servicio.aplicar(foto, nuevas, hoy=hoy)
+            efectivas = {clave: valor for clave, valor in nuevas.items() if clave not in ocultos}
+            identidad = respuestas_servicio.identidad_desde_respuestas(efectivas, foto)
+            attrs["datos_identificacion"] = {**(attrs.get("datos_identificacion") or {}), **identidad}
+            data, fijos = respuestas_servicio.legacy_desde_respuestas(efectivas, foto)
+            attrs["data"] = data
+            for columna in respuestas_servicio.COLUMNAS_FIJAS:
+                valor = fijos.get(columna, None if columna.endswith("fecha_nacimiento") else "")
+                try:
+                    attrs[columna] = self.fields[columna].run_validation(valor)
+                except serializers.ValidationError as error:
+                    raise serializers.ValidationError({columna: error.detail})
+            attrs["definicion"] = foto
         # Debe poder identificarse: ciudadano (en update) o datos_identificacion.
         if not self.instance:
             datos = attrs.get("datos_identificacion")
@@ -225,44 +253,40 @@ class FormularioSerializer(serializers.ModelSerializer):
         if fecha_nacimiento is None and self.instance and self.instance.ciudadano_id:
             fecha_nacimiento = self.instance.ciudadano.fecha_nacimiento
 
-        if fecha_nacimiento is None:
-            logger.warning(
-                "RN-22 no pudo evaluarse: formulario sin fecha de nacimiento (dni=%s)",
-                datos.get("dni") if isinstance(datos, dict) else None,
-            )
-
-        if es_menor(fecha_nacimiento):
-            campos_apoderado = (
-                "apoderado_nombre",
-                "apoderado_apellido",
-                "apoderado_dni",
-                "apoderado_genero",
-                "apoderado_fecha_nacimiento",
-            )
-            faltantes = [
-                campo
-                for campo in campos_apoderado
-                if not (attrs.get(campo) if campo in attrs else getattr(self.instance, campo, None))
-            ]
-            if faltantes:
-                raise serializers.ValidationError(
-                    {
-                        campo: "Este dato es obligatorio cuando la persona relevada es menor de edad."
-                        for campo in faltantes
-                    }
-                )
-            valor_dni = attrs.get("apoderado_dni") if "apoderado_dni" in attrs else self.instance.apoderado_dni
-            # RED-48: misma normalización y misma regla de largo que el resto de las
-            # puertas (acá estaban las dos escritas a mano).
-            dni_apoderado = normalizar_dni(valor_dni)
+        requeridos = set()
+        apoderado_visible = set(respuestas_servicio.COLUMNAS_FIJAS)
+        if foto is not None:
+            entradas = attrs.get("respuestas")
+            if entradas is None:
+                fijos = {columna: attrs.get(columna, getattr(self.instance, columna, None))
+                         for columna in respuestas_servicio.COLUMNAS_FIJAS}
+                identidad = {**(datos or {})}
+                if fecha_nacimiento:
+                    identidad["fecha_nacimiento"] = fecha_nacimiento.isoformat()
+                entradas = respuestas_servicio.respuestas_desde_legacy(attrs.get("data"), fijos, identidad, foto)
+            visibles, _, _ = respuestas_servicio.aplicar(foto, entradas, hoy=hoy)
+            vinculos = respuestas_servicio.clave_por_vinculo(foto)
+            apoderado_visible = {columna for columna, vinculo in respuestas_servicio.COLUMNAS_FIJAS.items()
+                                 if vinculos.get(vinculo) in visibles}
+            obligatorios = {campo["clave"] for campo in respuestas_servicio.campos_de(foto)
+                            if campo.get("obligatorio") and campo["clave"] in visibles}
+            requeridos = {columna for columna, vinculo in respuestas_servicio.COLUMNAS_FIJAS.items()
+                          if vinculo[0] == OrigenRequisito.PERSONA_VINCULADA
+                          and vinculos.get(vinculo) in obligatorios}
+        faltantes = [columna for columna in sorted(requeridos)
+                     if not attrs.get(columna, getattr(self.instance, columna, None))]
+        if faltantes:
+            raise serializers.ValidationError({columna: "Este dato es obligatorio según la condición del grupo Apoderado."
+                                               for columna in faltantes})
+        if "apoderado_dni" in apoderado_visible and attrs.get("apoderado_dni"):
+            dni_apoderado = normalizar_dni(attrs["apoderado_dni"])
             if not dni_valido(dni_apoderado):
                 raise serializers.ValidationError({"apoderado_dni": MENSAJE_DNI_INVALIDO})
             attrs["apoderado_dni"] = dni_apoderado
-            valor_genero = (
-                attrs.get("apoderado_genero") if "apoderado_genero" in attrs else self.instance.apoderado_genero
-            )
-            if valor_genero not in (Ciudadano.Genero.MASCULINO, Ciudadano.Genero.FEMENINO):
-                raise serializers.ValidationError({"apoderado_genero": "Seleccioná sexo F o M."})
+        if "apoderado_genero" in apoderado_visible and attrs.get("apoderado_genero") and attrs["apoderado_genero"] not in (
+            Ciudadano.Genero.MASCULINO, Ciudadano.Genero.FEMENINO
+        ):
+            raise serializers.ValidationError({"apoderado_genero": "Seleccioná sexo F o M."})
         return attrs
 
 
@@ -282,7 +306,7 @@ class FormularioListSerializer(FormularioSerializer):
     """
 
     class Meta(FormularioSerializer.Meta):
-        fields = [clave for clave in FormularioSerializer.Meta.fields if clave != "data"]
+        fields = [clave for clave in FormularioSerializer.Meta.fields if clave not in {"data", "respuestas"}]
 
 
 class ConsultaPersonaSerializer(serializers.Serializer):
@@ -348,7 +372,7 @@ class ConsultaPersonaRespuestaSerializer(serializers.Serializer):
 class AdjuntoFormularioSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdjuntoFormulario
-        fields = ["id", "formulario", "pregunta_global", "requisito_nativo", "archivo", "creado"]
+        fields = ["id", "formulario", "pregunta_global", "requisito_nativo", "clave", "archivo", "creado"]
         read_only_fields = ["id", "formulario", "creado"]
 
     def validate(self, attrs):
@@ -370,8 +394,35 @@ class AdjuntoFormularioSerializer(serializers.ModelSerializer):
 
         pregunta = attrs.get("pregunta_global")
         requisito = attrs.get("requisito_nativo")
-        if bool(pregunta) == bool(requisito):
-            raise serializers.ValidationError("Se requiere exactamente uno: pregunta_global o requisito_nativo.")
+        clave = attrs.get("clave") or ""
+        if sum(bool(valor) for valor in (pregunta, requisito, clave)) != 1:
+            raise serializers.ValidationError("Se requiere exactamente uno: pregunta_global, requisito_nativo o clave.")
+        formulario = self.context.get("formulario")
+        if clave:
+            if formulario is None:
+                raise serializers.ValidationError("Se requiere el formulario para validar la clave.")
+            campos = {campo["clave"]: campo for campo in respuestas_servicio.campos_de(
+                servicio_campo.definicion_del_caso(formulario))}
+            campo = campos.get(clave)
+            if campo is None or campo.get("tipo") != "ARCHIVO":
+                raise serializers.ValidationError(servicio_campo.MENSAJE_ADJUNTO_AJENO)
+            if clave.startswith("pg-"):
+                from programas.models import PreguntaGlobal
+                pregunta = PreguntaGlobal.objects.filter(pk=campo["id"]).first()
+                if pregunta is None:
+                    raise serializers.ValidationError(servicio_campo.MENSAJE_ADJUNTO_AJENO)
+                attrs["pregunta_global"] = pregunta
+                attrs["clave"] = ""
+            elif clave.startswith("rn-"):
+                from programas.models import RequisitoNativo
+                requisito = RequisitoNativo.objects.filter(pk=campo["id"]).first()
+                if requisito is None:
+                    raise serializers.ValidationError(servicio_campo.MENSAJE_ADJUNTO_AJENO)
+                attrs["requisito_nativo"] = requisito
+                attrs["clave"] = ""
+            elif not clave.startswith("cp-"):
+                raise serializers.ValidationError(servicio_campo.MENSAJE_ADJUNTO_AJENO)
+            return attrs
         # G1-07: se rechaza **solo** la referencia que nunca pudo ser de esta
         # convocatoria (otro segmento, o un campo que no pide ningún archivo). La
         # que quedó vieja entre la captura y la sincronización entra y se observa
