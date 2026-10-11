@@ -175,6 +175,10 @@ def revisar_carga(formulario, relevamiento=None, identidad=None):
     # debajo) no se pierde por el camino.
     efectivas = {clave: valor for clave, valor in respuestas.items() if clave not in ocultos}
 
+    conocidas = {item.get("clave") for grupo in definicion.get("items", []) for item in grupo.get("items", [])}
+    for clave in sorted(set(respuestas) - conocidas):
+        observaciones.append(f"La respuesta «{clave}» no pertenece a la definición del canal app.")
+
     for clave in sorted(set(respuestas) - set(efectivas)):
         observaciones.append(f"Se descartó la respuesta a «{_etiqueta(definicion, clave)}»: no correspondía pedirla.")
 
@@ -211,17 +215,22 @@ def aplicar_revision(formulario, revision):
 
     Devuelve ``True`` si escribió algo (para no pagar un UPDATE de más en la
     enorme mayoría de las cargas, que no tienen nada que observar)."""
-    from programas.services.respuestas import legacy_desde_respuestas
+    from programas.services.respuestas import COLUMNAS_FIJAS, legacy_desde_respuestas
 
     campos = ["modificado"]
+    data, fijos = legacy_desde_respuestas(revision.respuestas, formulario.definicion or {})
     if revision.respuestas != (formulario.respuestas or {}):
         formulario.respuestas = revision.respuestas
         # ``data`` es el espejo del contrato anterior: si una respuesta se
         # descartó por oculta, tiene que irse de los dos lados o
         # ``respuestas_por_destino`` la seguiría mandando a SIIS.
-        data, _fijos = legacy_desde_respuestas(revision.respuestas, formulario.definicion or {})
         formulario.data = data
         campos.extend(["respuestas", "data"])
+    for columna in COLUMNAS_FIJAS:
+        valor = fijos.get(columna, None if columna.endswith("fecha_nacimiento") else "")
+        if str(getattr(formulario, columna) or "") != str(valor or ""):
+            setattr(formulario, columna, valor)
+            campos.append(columna)
     texto = revision.texto
     if texto != (formulario.observaciones_carga or ""):
         formulario.observaciones_carga = texto or None
@@ -478,7 +487,7 @@ def _observaciones_conservadas(formulario):
     ]
 
 
-def guardar_adjunto(formulario, *, archivo, pregunta_global=None, requisito_nativo=None):
+def guardar_adjunto(formulario, *, archivo, pregunta_global=None, requisito_nativo=None, clave=""):
     """Un archivo por campo de archivo del caso (G1-07).
 
     Si el campo ya tenía uno, se **reemplaza**: el reintento de la cola offline
@@ -506,7 +515,7 @@ def guardar_adjunto(formulario, *, archivo, pregunta_global=None, requisito_nati
     with transaction.atomic():
         existente = (
             formulario.adjuntos.select_for_update()
-            .filter(pregunta_global=pregunta_global, requisito_nativo=requisito_nativo)
+            .filter(pregunta_global=pregunta_global, requisito_nativo=requisito_nativo, clave=clave)
             .order_by("-creado", "-pk")
             .first()
         )
@@ -516,6 +525,7 @@ def guardar_adjunto(formulario, *, archivo, pregunta_global=None, requisito_nati
                 pregunta_global=pregunta_global,
                 requisito_nativo=requisito_nativo,
                 archivo=archivo,
+                clave=clave,
             )
         else:
             anterior = existente.archivo.name
@@ -526,7 +536,8 @@ def guardar_adjunto(formulario, *, archivo, pregunta_global=None, requisito_nati
                 transaction.on_commit(lambda: almacenamiento.delete(anterior))
             adjunto = existente
         if (
-            pertenencia_del_adjunto(formulario, pregunta_global=pregunta_global, requisito_nativo=requisito_nativo)
+            not clave
+            and pertenencia_del_adjunto(formulario, pregunta_global=pregunta_global, requisito_nativo=requisito_nativo)
             == ADJUNTO_YA_NO_SE_PIDE
         ):
             observar_adjunto(formulario, pregunta_global or requisito_nativo)
@@ -544,24 +555,9 @@ def _vacio(valor):
 
 
 def _se_responde_en_el_alta(campo):
-    """¿Este campo obligatorio tiene que venir **en el POST del alta**?
-
-    Dos no, y las dos exclusiones son code-first:
-
-    * **`ARCHIVO`:** su respuesta no viaja en el alta sino en los
-      ``POST …/adjuntos/`` que la app manda después (``becasUploadFile`` en
-      ``relevamientoService.js``). Exigirlo acá marcaría «falta» en el 100 % de
-      las cargas. Lo que faltara de verdad es G1-07, que mira los adjuntos.
-    * **Apoderado (`PERSONA_VINCULADA`):** el catálogo los tiene obligatorios
-      desde el **Cambio 67**, que los pide a toda persona… **en el link**; ahí
-      mismo está escrito que «la app de campo mantiene, por ahora, la regla de
-      menores» hasta que Mobile la cambie. En el canal app la obligatoriedad la
-      decide RN-22 en el serializer, y observarla acá contradiría esa decisión
-      con cinco líneas en cada caso de un adulto.
-    """
-    if campo.get("tipo") == TipoCampo.ARCHIVO:
-        return False
-    return campo.get("origen") != OrigenRequisito.PERSONA_VINCULADA
+    """Los archivos llegan por multipart después del alta; el resto se valida
+    contra los campos visibles de la foto, incluido el apoderado."""
+    return campo.get("tipo") != TipoCampo.ARCHIVO
 
 
 def _etiqueta(definicion, clave):

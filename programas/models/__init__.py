@@ -2959,7 +2959,7 @@ class Formulario(TimeStamped):
 
 class AdjuntoFormulario(TimeStamped):
     """Archivo subido por el territorial para un campo tipo ARCHIVO (pregunta
-    global o requisito nativo) de un formulario (#82)."""
+    global, requisito nativo o campo propio por clave) de un formulario."""
 
     formulario = models.ForeignKey(
         Formulario,
@@ -2991,6 +2991,7 @@ class AdjuntoFormulario(TimeStamped):
         related_name="adjuntos_formulario",
         verbose_name="Requisito nativo",
     )
+    clave = models.CharField(max_length=60, blank=True, default="", db_default="", verbose_name="Clave del campo propio")
     archivo = models.FileField(upload_to=ruta_adjunto_becas, verbose_name="Archivo")
 
     class Meta:
@@ -3000,15 +3001,17 @@ class AdjuntoFormulario(TimeStamped):
         constraints = [
             models.CheckConstraint(
                 check=(
-                    models.Q(pregunta_global__isnull=False, requisito_nativo__isnull=True)
-                    | models.Q(pregunta_global__isnull=True, requisito_nativo__isnull=False)
+                    models.Q(pregunta_global__isnull=False, requisito_nativo__isnull=True, clave="")
+                    | models.Q(pregunta_global__isnull=True, requisito_nativo__isnull=False, clave="")
+                    | (models.Q(pregunta_global__isnull=True, requisito_nativo__isnull=True)
+                       & models.Q(clave__startswith="cp-"))
                 ),
                 name="adjunto_formulario_una_sola_referencia",
             )
         ]
 
     def __str__(self):
-        campo = self.pregunta_global or self.requisito_nativo
+        campo = self.clave or self.pregunta_global or self.requisito_nativo
         return f"Formulario #{self.formulario_id} · {campo}"
 
 

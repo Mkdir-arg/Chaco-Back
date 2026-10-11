@@ -62,6 +62,7 @@ CLAVES_RELEVAMIENTO_LIST = [
 CLAVES_RELEVAMIENTO_DETAIL = [*CLAVES_RELEVAMIENTO_LIST, "definicion_formulario"]
 
 CLAVES_DEFINICION = [
+    "acepta_respuestas",
     "requiere_gps",
     "canal",
     "version",
@@ -97,6 +98,7 @@ CLAVES_FORMULARIO = [
     "sincronizado_tarde",
     "version_capturada",
     "data",
+    "respuestas",
     "creado",
     "modificado",
 ]
@@ -107,9 +109,9 @@ CLAVES_FORMULARIO = [
 # nombre y el DNI mientras el caso todavía no tiene legajo, que es el estado
 # normal de una carga offline recién sincronizada (`RelevamientoDetailScreen.js`,
 # la lista de personas, y `dniYaRelevado` en `relevamientoService.js`).
-CLAVES_FORMULARIO_LISTADO = [clave for clave in CLAVES_FORMULARIO if clave != "data"]
+CLAVES_FORMULARIO_LISTADO = [clave for clave in CLAVES_FORMULARIO if clave not in {"data", "respuestas"}]
 
-CLAVES_ADJUNTO = ["id", "formulario", "pregunta_global", "requisito_nativo", "archivo", "creado"]
+CLAVES_ADJUNTO = ["id", "formulario", "pregunta_global", "requisito_nativo", "clave", "archivo", "creado"]
 
 #: El sobre que arma `PageNumberPagination`. Acá no es un contrato: es
 #: exactamente lo que **no** tiene que salir de las dos listas de la API de campo

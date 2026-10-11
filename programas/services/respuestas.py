@@ -268,7 +268,7 @@ def _identidad_de(formulario):
 
 
 @transaction.atomic
-def sincronizar_desde_legacy(formulario, relevamiento=None):
+def sincronizar_desde_legacy(formulario, relevamiento=None, definicion=None):
     """Un caso que entró (o se editó) por el contrato anterior —la app de campo,
     la edición de contacto/apoderado en revisión— actualiza sus respuestas por
     clave y, si no la tenía, guarda la foto de la definición vigente.
@@ -277,7 +277,7 @@ def sincronizar_desde_legacy(formulario, relevamiento=None):
     del catálogo y las columnas fijas); lo demás (campos propios) se conserva.
     """
     if not formulario.definicion:
-        formulario.definicion = foto_definicion(relevamiento or formulario.relevamiento)
+        formulario.definicion = definicion or foto_definicion(relevamiento or formulario.relevamiento)
     definicion = formulario.definicion
     fijos = {columna: getattr(formulario, columna) for columna in COLUMNAS_FIJAS}
     nuevas = respuestas_desde_legacy(formulario.data, fijos, _identidad_de(formulario), definicion)
@@ -366,7 +366,7 @@ def respuestas_legibles(formulario, definicion=None, adjuntos=None):
 
 
 def _adjuntos_por_clave(formulario):
-    """Los adjuntos del caso por clave de ítem (``pg-<pk>`` / ``rn-<pk>``).
+    """Los adjuntos por clave de ítem (``pg-<pk>``, ``rn-<pk>`` o ``cp-…``).
 
     Con varias filas para el mismo campo gana la **más nueva** (G1-07). Antes
     ganaba la más vieja —el ``ordering`` del modelo es ``-creado`` y el bucle
@@ -378,7 +378,9 @@ def _adjuntos_por_clave(formulario):
     """
     adjuntos = {}
     for adjunto in formulario.adjuntos.order_by("-creado", "-pk"):
-        if adjunto.pregunta_global_id:
+        if adjunto.clave:
+            adjuntos.setdefault(adjunto.clave, adjunto)
+        elif adjunto.pregunta_global_id:
             adjuntos.setdefault(f"pg-{adjunto.pregunta_global_id}", adjunto)
         elif adjunto.requisito_nativo_id:
             adjuntos.setdefault(f"rn-{adjunto.requisito_nativo_id}", adjunto)

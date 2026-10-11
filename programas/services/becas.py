@@ -136,11 +136,24 @@ def definicion_formulario(relevamiento):
         items = items_vigentes(diseno, catalogo)
     else:
         items = plan_por_defecto(convocatoria, catalogo=catalogo)
+    estructura = serializar(items, canal)
+    # El default de campo conserva menores; un diseño guardado manda su
+    # condición explícita (incluido None: se pide a todos). El link no cambia.
+    if diseno is None and canal == CanalFormulario.APP:
+        nacimiento = next((p for p in preguntas if p.origen == OrigenRequisito.LEGAJO
+                           and p.vinculo == "fecha_nacimiento" and _se_pide_en(p, canal)), None)
+        if nacimiento is not None:
+            for grupo in estructura:
+                if grupo["clave"] == "g-apoderado" and grupo.get("condicion") is None:
+                    grupo["condicion"] = {"modo": "todas", "reglas": [
+                        {"fuente": f"pg-{nacimiento.pk}", "op": "edad_menor", "valor": 18}
+                    ]}
     return {
         "requiere_gps": convocatoria.segmento.requiere_gps,
+        "acepta_respuestas": True,
         "canal": canal,
         "version": diseno.version if diseno is not None else 0,
-        "items": serializar(items, canal),
+        "items": estructura,
         "globales": [_campo_dict(p, "global") for p in globales],
         "requisitos": [_campo_dict(r, _alcance_requisito(r)) for r in requisitos],
     }

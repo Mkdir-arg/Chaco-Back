@@ -301,7 +301,7 @@ def _actualizar_validacion_identidad(formulario, datos_identificacion=None):
         formulario.save(update_fields=[*campos, "modificado"])
 
 
-def _completar_alta(formulario, relevamiento, datos_identificacion):
+def _completar_alta(formulario, relevamiento, datos_identificacion, definicion=None):
     """Lo que no necesita el lock del relevamiento y por eso corre después del
     commit del alta (Cambio 91): la validación de identidad, las respuestas por
     clave con la foto de la definición y el legajo.
@@ -311,10 +311,24 @@ def _completar_alta(formulario, relevamiento, datos_identificacion):
     como existente— completa lo que faltó.
     """
     _actualizar_validacion_identidad(formulario, datos_identificacion)
-    # Cambio 58: la app manda el contrato anterior (data por pk + columnas
-    # fijas); acá se traduce a respuestas por clave y se guarda la foto de la
-    # definición que respondió (D3).
-    sincronizar_desde_legacy(formulario, relevamiento)
+    # Compatibilidad con data por pk y columnas fijas: se traduce solo si el
+    # alta no guardó ya respuestas por clave con su foto. Se reutiliza la
+    # definición leída al validar, sin otra pasada por el constructor.
+    if not formulario.definicion:
+        sincronizar_desde_legacy(formulario, relevamiento, definicion=definicion)
+    elif formulario.validado_renaper and formulario.origen_validacion in ("padron", "personas"):
+        # Las respuestas del contrato nuevo tampoco pueden reemplazar los
+        # datos que acaba de acreditar el servidor con el padrón/Gran Base.
+        from programas.models import OrigenRequisito
+        from programas.services.respuestas import IDENTIDAD, clave_por_vinculo
+
+        vinculos = clave_por_vinculo(formulario.definicion)
+        for vinculo, atributo in IDENTIDAD.items():
+            clave = vinculos.get((OrigenRequisito.LEGAJO, vinculo))
+            valor = (formulario.datos_identificacion or {}).get(atributo)
+            if clave is not None and valor not in (None, ""):
+                formulario.respuestas[clave] = valor
+        formulario.save(update_fields=["respuestas", "modificado"])
     # G1-05: recién acá hay foto y respuestas por clave, que es lo que el motor
     # de condiciones necesita. Va **antes** de `resolver_ciudadano_offline`
     # porque esa función borra `datos_identificacion` al vincular el legajo.
@@ -593,7 +607,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
         if respuesta := _respuesta_pausa(rel):
             return respuesta
 
-        serializer = FormularioSerializer(data=request.data)
+        serializer = FormularioSerializer(data=request.data, context={"relevamiento": rel})
         serializer.is_valid(raise_exception=True)
         capturado_en = serializer.validated_data.get("capturado_en")
         client_uuid = serializer.validated_data.get("client_uuid")
@@ -646,10 +660,10 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
             # después del commit (sin respuestas por clave, sin legajo), se
             # completa acá en vez de devolverlo a medias.
             if _alta_incompleta(existente):
-                _completar_alta(existente, rel, datos_identificacion)
+                _completar_alta(existente, rel, datos_identificacion, serializer.context.get("foto_definicion"))
                 existente = _formulario_fresco(existente.pk)
             return Response(FormularioSerializer(existente).data, status=status.HTTP_200_OK)
-        _completar_alta(formulario, rel, datos_identificacion)
+        _completar_alta(formulario, rel, datos_identificacion, serializer.context.get("foto_definicion"))
         return Response(FormularioSerializer(_formulario_fresco(formulario.pk)).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["get"], url_path="dni-existe")
@@ -721,6 +735,7 @@ class FormularioViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         pregunta_global = serializer.validated_data.get("pregunta_global")
         requisito_nativo = serializer.validated_data.get("requisito_nativo")
+        clave = serializer.validated_data.get("clave") or ""
 
         # SEC-23: lo que no se puede hacer sobre un caso ya resuelto es
         # **reemplazar** su documentación. El POST pisa el archivo del campo
@@ -742,7 +757,7 @@ class FormularioViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         resuelto = formulario.estado != Formulario.Estado.ENVIADO
         if (
             resuelto
-            and formulario.adjuntos.filter(pregunta_global=pregunta_global, requisito_nativo=requisito_nativo).exists()
+            and formulario.adjuntos.filter(pregunta_global=pregunta_global, requisito_nativo=requisito_nativo, clave=clave).exists()
         ):
             return Response(
                 {"detail": CASO_RESUELTO_MENSAJE, "code": "CASO_RESUELTO", "estado": formulario.estado},
@@ -754,6 +769,7 @@ class FormularioViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
             archivo=serializer.validated_data["archivo"],
             pregunta_global=pregunta_global,
             requisito_nativo=requisito_nativo,
+            clave=clave,
         )
         if resuelto:
             campo.observar_adjunto(

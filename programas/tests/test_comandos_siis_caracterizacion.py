@@ -396,7 +396,10 @@ class SincronizarProgramasSiisTests(TestCase):
 
     def correr(self, catalogo, *args):
         salida = StringIO()
-        with patch("programas.services.siis_sync.listar_programas_todos", return_value=catalogo):
+        with (
+            patch("programas.services.siis_sync.listar_programas_todos", return_value=catalogo),
+            patch("programas.management.commands.sincronizar_programas_siis.refrescar_catalogos_locales", return_value=([], [])),
+        ):
             call_command("sincronizar_programas_siis", *args, stdout=salida, stderr=salida)
         return salida.getvalue()
 

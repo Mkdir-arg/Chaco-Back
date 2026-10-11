@@ -1506,12 +1506,12 @@ def respuestas_por_persona(convocatoria, *, incluir_publicos):
 
     # Adjuntos por caso y pregunta: en esa columna va el nombre del archivo.
     adjuntos = {}
-    for form_id, pg_id, rn_id, archivo in (
+    for form_id, pg_id, rn_id, clave_propia, archivo in (
         AdjuntoFormulario.objects.filter(formulario__relevamiento__convocatoria=convocatoria)
         .order_by()
-        .values_list("formulario_id", "pregunta_global_id", "requisito_nativo_id", "archivo")
+        .values_list("formulario_id", "pregunta_global_id", "requisito_nativo_id", "clave", "archivo")
     ):
-        clave = f"pg-{pg_id}" if pg_id else f"rn-{rn_id}"
+        clave = clave_propia or (f"pg-{pg_id}" if pg_id else f"rn-{rn_id}")
         adjuntos.setdefault(form_id, {}).setdefault(clave, []).append(_nombre_archivo(archivo))
 
     relevamientos = _relevamientos_de(convocatoria, incluir_publicos=incluir_publicos)

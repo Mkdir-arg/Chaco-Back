@@ -11,6 +11,7 @@ from datetime import date
 from decimal import Decimal
 from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User
@@ -457,7 +458,8 @@ class PadronPorRelevamientoTests(_BasePadronTest):
         self.assertTrue(esta_habilitado(self.relevamiento, "30123456", "F"))
         self.assertFalse(esta_habilitado(self.relevamiento, "28111222", "M"))
 
-    def test_identificar_usa_el_padron_efectivo(self):
+    @patch("programas.services.identidad.consultar_persona", return_value={"success": False, "not_found": True})
+    def test_identificar_usa_el_padron_efectivo(self, _consultar):
         from programas.services.identidad import identificar
 
         cargar_padron(

@@ -450,11 +450,18 @@ class DefinicionEnUnaPasadaTests(_Base):
         globales, requisitos = get_campos_formulario(convocatoria, canal=canal)
         diseno = getattr(convocatoria, "diseno", None)
         items = items_vigentes(diseno) if diseno is not None else plan_por_defecto(convocatoria)
+        estructura = serializar(items, canal)
+        if diseno is None and canal == CanalFormulario.APP:
+            nacimiento = PreguntaGlobal.objects.get(origen="legajo", vinculo="fecha_nacimiento")
+            next(g for g in estructura if g["clave"] == "g-apoderado")["condicion"] = {
+                "modo": "todas", "reglas": [{"fuente": clave_pregunta(nacimiento), "op": "edad_menor", "valor": 18}]
+            }
         return {
+            "acepta_respuestas": True,
             "requiere_gps": convocatoria.segmento.requiere_gps,
             "canal": canal,
             "version": diseno.version if diseno is not None else 0,
-            "items": serializar(items, canal),
+            "items": estructura,
             "globales": [_campo_dict(p, "global") for p in globales],
             "requisitos": [_campo_dict(r, _alcance_requisito(r)) for r in requisitos],
         }
