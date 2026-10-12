@@ -18,15 +18,18 @@ clases de abajo. La de `cupo` la ficha la llamaba `aprobar_formulario`: ese
 nombre no existe en el código, la función es `cupo.aprobar_o_poner_en_espera`
 (desvío code-first, el único de esta tanda).
 
-Dos de ellas no estaban enteras, y el test que las nombra es el que lo muestra:
+Una de ellas no estaba entera, y el test que la nombra es el que lo muestra:
+`padron.quitar_padron_propio` borraba y escribía `padron_archivo` sin tomar el
+candado que `cargar_padron` sí toma (BEC-15), así que las dos operaciones se
+intercalaban sobre el mismo relevamiento.
 
-- `admisiones.trasladar_admision` guardaba el F-00 del destino **antes** de
-  cerrar el origen, y el storage no vuelve atrás con la transacción: un traslado
-  que fallaba al cerrar dejaba el adjunto en `media/` sin ninguna fila que lo
-  nombre (`core.archivos`, RED-35);
-- `padron.quitar_padron_propio` borraba y escribía `padron_archivo` sin tomar el
-  candado que `cargar_padron` sí toma (BEC-15), así que las dos operaciones se
-  intercalaban sobre el mismo relevamiento.
+La otra era `admisiones.trasladar_admision`, que guardaba el F-00 del destino
+**antes** de cerrar el origen y dejaba el adjunto en `media/` sin fila que lo
+nombre cuando el cierre fallaba. El traslado se fue con `Admision` (MVP v2,
+release A) y con él su clase de tests; lo que sigue vivo es el mecanismo que lo
+arreglaba, `core.archivos.archivos_atomicos`, hoy sobre el alta y la edición de
+una campaña de correo. Para que no quede sin dueño, la conducta se afirma igual:
+`CampanaAtomicaTests`, al final de este módulo.
 
 `PadronBajoCandadoTests` es la continuación de ese candado: tomarlo no alcanza si
 lo que se decide adentro se leyó afuera.
@@ -37,35 +40,24 @@ verdad y no un savepoint de SQLite— está en
 """
 
 from datetime import date
-from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
 from legajos.models import Ciudadano
 from portal.tests.test_inscripcion_envio import _BasePaso2Test, _identificacion
 from programas.models import (
-    Admision,
-    ArchivoAdmision,
-    Cama,
-    CampoTipoDispositivo,
     Convocatoria,
-    Dispositivo,
     Formulario,
     ListaEspera,
     PadronHabilitado,
-    Programa,
     Relevamiento,
     Segmento,
-    TipoCampo,
-    TipoDispositivo,
     TracaFormulario,
 )
-from programas.services.admisiones import admitir_ciudadano, trasladar_admision
 from programas.services.becas import resolver_ciudadano_offline
 from programas.services.cupo import aprobar_o_poner_en_espera
 from programas.services.inscripcion_publica import crear_formulario_publico
@@ -413,14 +405,14 @@ class PadronBajoCandadoTests(_BasePadronConExcel):
         )
 
 
-class TrasladoAtomicoTests(TestCase):
-    """`admisiones.trasladar_admision`: el F-00 del destino no sobrevive al fallo.
+class CampanaAtomicaTests(TestCase):
+    """RED-35 sobre la escritura con archivos que quedó viva: la campaña de correo.
 
-    El traslado abre el destino —crea la admisión, ocupa la cama y guarda el
-    F-00— y recién después cierra el origen, que puede negarse (otra pestaña ya
-    lo trasladó). La base vuelve atrás sola; el archivo **no**: `media/` no tiene
-    transacción. Quedaba ahí el adjunto del F-00 —DNI, informe social— sin fila
-    que lo nombre, sin fecha de baja y sin forma de encontrarlo.
+    El mecanismo —`core.archivos.archivos_atomicos`— lo descubrió el traslado de una
+    admisión, que guardaba el F-00 del destino antes de cerrar el origen y dejaba el
+    adjunto en `media/` cuando el cierre fallaba. El traslado se fue con `Admision`
+    (MVP v2, release A) y con él su test; el decorador sigue puesto en `crear_campana`
+    y `editar_campana`, así que la conducta se afirma acá y no se queda sin dueño.
     """
 
     def setUp(self):
@@ -429,114 +421,38 @@ class TrasladoAtomicoTests(TestCase):
         ajustes = override_settings(MEDIA_ROOT=temporal.name)
         ajustes.enable()
         self.addCleanup(ajustes.disable)
-        self.media = Path(temporal.name)
-        Programa.objects.get_or_create(
-            codigo=Programa.TipoPrograma.DISPOSITIVOS,
-            defaults={"nombre": "Dispositivos", "tipo": Programa.TipoPrograma.DISPOSITIVOS},
-        )
-        self.usuario = User.objects.create_user("operador_atomico", password="x")
-        tipo = TipoDispositivo.objects.create(codigo="TA", nombre="Hogar", maneja_camas=True)
-        self.origen = Dispositivo.objects.create(
-            codigo="HOGAR-A", nombre="Hogar A", tipo=tipo, estado=Dispositivo.Estado.ACTIVO
-        )
-        self.destino = Dispositivo.objects.create(
-            codigo="HOGAR-B", nombre="Hogar B", tipo=tipo, estado=Dispositivo.Estado.ACTIVO
-        )
-        self.cama_origen = Cama.objects.create(dispositivo=self.origen, codigo="A-01")
-        self.cama_destino = Cama.objects.create(dispositivo=self.destino, codigo="B-01")
-        self.campo = CampoTipoDispositivo.objects.create(
-            tipo_dispositivo=tipo,
-            seccion="Datos",
-            nombre="Constancia",
-            tipo_campo=TipoCampo.ARCHIVO,
-            orden=1,
-        )
-        ciudadano = Ciudadano.objects.create(dni="30444555", nombre="Persona", apellido="Trasladada")
-        self.admision = admitir_ciudadano(
-            ciudadano=ciudadano, dispositivo=self.origen, cama=self.cama_origen, usuario=self.usuario
-        )
-
-    def _trasladar(self):
-        return trasladar_admision(
-            admision=self.admision,
-            destino=self.destino,
-            cama=self.cama_destino,
-            usuario=self.usuario,
-            respuestas_f00={},
-            archivos_f00={self.campo: SimpleUploadedFile("constancia.txt", b"informe social")},
-        )
+        self.media = temporal.name
 
     def _archivos_en_media(self):
-        return sorted(p.name for p in self.media.rglob("*") if p.is_file())
+        from pathlib import Path
 
-    def test_si_no_se_puede_cerrar_el_origen_no_queda_nada_del_destino(self):
+        return [str(ruta) for ruta in Path(self.media).rglob("*") if ruta.is_file()]
+
+    def test_una_falla_despues_de_escribir_los_archivos_no_deja_ninguno(self):
+        from notificaciones.models import Campana
+        from notificaciones.tests.utils import crear_campana
+
         with patch(
-            "programas.services.admisiones._cerrar_origen_por_traslado",
-            side_effect=ValidationError("La estadía de origen ya no está alojada."),
+            "notificaciones.services.campanas._guardar_lista",
+            side_effect=RuntimeError("la lista no se pudo guardar"),
         ):
-            with self.assertRaises(ValidationError):
-                self._trasladar()
+            with self.assertRaises(RuntimeError):
+                crear_campana(emails=["a@ejemplo.com"])
 
-        self.assertFalse(Admision.objects.filter(dispositivo=self.destino).exists())
-        self.cama_destino.refresh_from_db()
-        self.assertEqual(self.cama_destino.estado, Cama.Estado.DISPONIBLE)
-        self.admision.refresh_from_db()
-        self.assertEqual(self.admision.estado, Admision.Estado.ALOJADO)
+        self.assertFalse(Campana.objects.exists())
         self.assertEqual(
             self._archivos_en_media(),
             [],
-            "El adjunto del F-00 quedó en media/ sin ninguna fila que lo nombre: el traslado "
-            "escribe en el storage, que no vuelve atrás con la transacción (`core.archivos`).",
+            "la campaña no quedó escrita y su Excel y su HTML sí: `media/` no tiene transacción "
+            "y por eso la escritura va con `@archivos_atomicos`.",
         )
 
-    def test_un_adjunto_que_ya_estaba_guardado_no_se_borra_al_volver_atras(self):
-        """Lo que la operación **no** escribió no es suyo y no se toca.
+    def test_sin_la_falla_inyectada_la_campana_guarda_sus_dos_archivos(self):
+        """Control: sin este par, borrar la escritura dejaría el otro test verde."""
+        from notificaciones.models import Campana
+        from notificaciones.tests.utils import crear_campana
 
-        Un F-00 también se llena reusando un adjunto que ya estaba —el del
-        origen—: ahí el campo recibe un `FieldFile` commiteado, Django no toca el
-        storage y las dos filas pasan a nombrar el mismo archivo. Si el traslado
-        falla y el limpiador borra igual, se lleva puesta documentación personal
-        **preexistente** que la fila del origen sigue nombrando: un archivo que
-        falta es peor que uno huérfano.
-        """
-        del_origen = ArchivoAdmision.objects.create(
-            admision=self.admision,
-            campo=self.campo,
-            archivo=SimpleUploadedFile("dni.txt", b"documento de identidad"),
-        )
-        del_origen.refresh_from_db()
-        guardado = del_origen.archivo.name
+        campana = crear_campana(emails=["a@ejemplo.com"])
 
-        with patch(
-            "programas.services.admisiones._cerrar_origen_por_traslado",
-            side_effect=ValidationError("La estadía de origen ya no está alojada."),
-        ):
-            with self.assertRaises(ValidationError):
-                trasladar_admision(
-                    admision=self.admision,
-                    destino=self.destino,
-                    cama=self.cama_destino,
-                    usuario=self.usuario,
-                    respuestas_f00={},
-                    archivos_f00={self.campo: del_origen.archivo},
-                )
-
-        del_origen.refresh_from_db()
-        self.assertEqual(del_origen.archivo.name, guardado)
-        self.assertEqual(
-            self._archivos_en_media(),
-            [Path(guardado).name],
-            "El limpiador borró un adjunto que esta operación no escribió: la fila del origen "
-            "sigue apuntando a él y el archivo ya no está (`core.archivos`).",
-        )
-
-    def test_sin_la_falla_inyectada_el_traslado_guarda_su_f00(self):
-        """Control: el archivo que el test de arriba exige que no quede, acá tiene
-        que estar. Sin este par, borrar el guardado del F-00 dejaría el otro verde."""
-        nueva = self._trasladar()
-
-        self.assertEqual(nueva.estado, Admision.Estado.ALOJADO)
-        self.admision.refresh_from_db()
-        self.assertEqual(self.admision.estado, Admision.Estado.TRASLADADO)
-        self.assertTrue(ArchivoAdmision.objects.filter(admision=nueva, campo=self.campo).exists())
-        self.assertEqual(len(self._archivos_en_media()), 1)
+        self.assertTrue(Campana.objects.filter(pk=campana.pk).exists())
+        self.assertEqual(len(self._archivos_en_media()), 2)

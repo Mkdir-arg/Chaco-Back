@@ -17,6 +17,15 @@ Se hereda; no se recrean el sidebar ni sus offsets.
   con una sola inclusión de `templates/includes/sidebar/opciones.html`. Su control de cierre móvil
   queda fuera del panel y usa `x-show="sidebarOpen"` con `display: none` inicial, para no
   interceptar el botón de abrir cuando está fuera de pantalla.
+- **Grupo nuevo del sidebar:** se escribe con utilidades, sin `style=` (el ratchet de `INLINESTYLE`
+  corta si el conteo de `opciones.html` sube): contenedor `relative mb-0.5`; botón del grupo y link
+  colapsado `px-3.5 py-2.5 rounded-full` (+ `text-[13.5px] border-0 cursor-pointer text-left` en el
+  botón); subítem `px-3 py-2 rounded-full text-[13px]`; chevron `transition-transform` con
+  `:class="open ? 'rotate-180' : ''"`. Colores, hover y activo (`aria-current="page"`) los pone
+  `.ds-snav` del `<style>` de `sidebar/base.html`, que gana con `!important`. Evidencia: el grupo
+  «Notificaciones». `text-[13.5px]` y `text-[13px]` son una **excepción de shell**: reproducen los
+  tamaños que los demás grupos fijan en línea y no amplían la lista blanca de arbitrarios del
+  contenido.
 - Tailwind se sirve desde `static/custom/css/tailwind.css`, generado por `npm run build:tailwind`
   con `tailwind.config.js`. **No** se usa el CDN de Play.
 - La fuente de íconos se precarga con

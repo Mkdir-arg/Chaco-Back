@@ -24,7 +24,6 @@ from core.tests.candados import candados_tomados
 from core.tests.test_motor_real import MotorRealMixin
 from legajos.models import Ciudadano
 from programas.models import DerivacionPrograma, InscripcionPrograma, Programa
-from programas.services.admisiones import _obtener_membresia
 from programas.services.inscripciones import activar_inscripcion, tomar_inscripcion
 from programas.services.solapas import SolapasService
 
@@ -200,19 +199,6 @@ class ContratoDeCandadoTests(TestCase):
                 via=InscripcionPrograma.ViaIngreso.DIRECTO,
                 usuario=self.usuario,
             )
-
-        self.assertIn("inscripciones.py:tomar_inscripcion", candados)
-
-    def test_la_lista_de_espera_de_dispositivos_tambien_pasa_por_el_candado(self):
-        """`_obtener_membresia` no activa la inscripción, pero la toma igual."""
-        programa_disp, _ = Programa.objects.get_or_create(
-            codigo=Programa.TipoPrograma.DISPOSITIVOS,
-            defaults={"nombre": "Dispositivos", "tipo": Programa.TipoPrograma.DISPOSITIVOS},
-        )
-        self.assertTrue(programa_disp.pk)
-
-        with candados_tomados(InscripcionPrograma.objects) as candados:
-            _obtener_membresia(self.ciudadano, self.usuario)
 
         self.assertIn("inscripciones.py:tomar_inscripcion", candados)
 

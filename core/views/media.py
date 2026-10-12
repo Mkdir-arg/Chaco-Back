@@ -114,18 +114,19 @@ def _archivo_de_contacto(user, ruta):
 
 
 def _archivo_de_f00(user, ruta):
-    """El F-00 se mira con el alcance del dispositivo, no con el del programa."""
-    from programas.models import ArchivoAdmision
-    from programas.services.dispositivos import CAP_ADMITIR, CAP_VER, puede_operar_dispositivo
+    """El F-00 ya no tiene dueño: 404 para todo `admisiones/f00/`.
 
-    archivo = ArchivoAdmision.objects.select_related("admision__dispositivo").filter(archivo=ruta).first()
-    if archivo is None:
-        return None
-    # El alcance fino por dispositivo lo sigue aplicando ``puede_operar_dispositivo``:
-    # lo que se amplía es **qué capacidad** cuenta, no sobre qué dispositivo.
-    return any(
-        puede_operar_dispositivo(user, archivo.admision.dispositivo, capacidad) for capacidad in (CAP_VER, CAP_ADMITIR)
-    )
+    La regla resolvía el archivo contra ``ArchivoAdmision`` y pedía la capacidad
+    sobre **ese** dispositivo. El modelo dejó de leerse con la baja de la admisión
+    vieja (MVP v2, release A) y su tabla está vacía, así que no hay fila que
+    autorice nada y el prefijo contesta lo mismo que un blob huérfano.
+
+    La regla **queda registrada** a propósito: ``PREFIJO_F00`` sigue siendo el
+    ``upload_to`` del campo mientras el modelo exista, y un prefijo declarado sin
+    regla es justo lo que ``CoberturaDePrefijosTests`` no deja pasar. El F-00 de la
+    v2 va a ser un adjunto del motor de formularios, con su propia regla.
+    """
+    return None
 
 
 def _documentacion_de_merendero(user, ruta):
@@ -204,6 +205,22 @@ def _padron_de_becas(user, ruta):
     return True
 
 
+def _archivo_de_campana(user, ruta):
+    """El Excel y el HTML de una campaña: los mira quien ve las campañas.
+
+    Ninguna pantalla los enlaza —la lista sale de la base y la vista previa del HTML
+    saneado tiene su propia vista—, pero el campo existe y el contrato de esta tabla es
+    que todo `FileField` tenga dueño.
+    """
+    from django.db.models import Q
+
+    from notificaciones.models import Campana
+
+    if not Campana.objects.filter(Q(archivo_excel=ruta) | Q(archivo_html=ruta)).exists():
+        return None
+    return rbac.puede(user, "notificacion.ver")
+
+
 #: Prefijo -> resolver, uno por cada prefijo de :mod:`core.rutas_media`. El orden
 #: importa: gana el primero que matchea, así que los más largos van primero. Un
 #: `FileField` nuevo entra acá o su archivo no se puede bajar (lo fija
@@ -224,6 +241,7 @@ REGLAS = (
     (rutas.PREFIJO_CONTACTO, _archivo_de_contacto),
     (rutas.PREFIJO_F00, _archivo_de_f00),
     (rutas.PREFIJO_SOLICITUD_MERENDERO, _documentacion_de_merendero),
+    (rutas.PREFIJO_NOTIFICACIONES, _archivo_de_campana),
 )
 
 

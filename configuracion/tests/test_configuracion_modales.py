@@ -202,5 +202,7 @@ class SubitemsDelSidebarTests(SimpleTestCase):
         opciones = (REPO / "templates/includes/sidebar/opciones.html").read_text(encoding="utf-8")
 
         self.assertNotIn("display: flex; flex-direction: column; gap: 2px;", opciones)
-        self.assertEqual(opciones.count('class="mt-0.5 ml-5 flex flex-col gap-0.5"'), 5)
+        # Seis grupos con subítems: Dashboard (comentado), Configuración, Programas,
+        # Dispositivos, Administración y Notificaciones (Cambio 199).
+        self.assertEqual(opciones.count('class="mt-0.5 ml-5 flex flex-col gap-0.5"'), 6)
         self.assertIn('<nav class="ds-snav flex flex-col gap-0.5">', opciones)

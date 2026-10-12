@@ -2255,10 +2255,10 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   conversaciones completo: includes, `ws/conversaciones/…` y `ws/alertas-conversaciones/` —**no** `ws/alertas/`—, menú,
   card del inicio y solapa del legajo; 2 h; R0-01 se cierra antes, en la Ola 0), **R0-02 ✅** (Cambio 197 —
   CLAUDE.md; `docs/client/architecture.md` ya estaba corregido) y **PERF-11** (tabla
-  `FotoDefinicion`, plan propio, L). **Red de seguridad (04-oct), 40 h:** RED-64 ✅ (Cambio 199 — aprobación antes de
+  `FotoDefinicion`, plan propio, L). **Red de seguridad (04-oct), 40 h:** RED-64 ✅ (Cambio 206 — aprobación antes de
   publicar `docs/client/`; el gate encontró en su primera corrida una respuesta de RENAPER con los datos de una persona
-  real publicada en el sitio, y el PR la despublica), RED-76 ✅ (Cambio 199 — mypy gradual, tres módulos anotados y en
-  verde, job no bloqueante), RED-86 ✅ (Cambio 199 — suite en paralelo con la cobertura combinada y la alarma de
+  real publicada en el sitio, y el PR la despublica), RED-76 ✅ (Cambio 206 — mypy gradual, tres módulos anotados y en
+  verde, job no bloqueante), RED-86 ✅ (Cambio 206 — suite en paralelo con la cobertura combinada y la alarma de
   duración) y segundas partes de RED-13
   (desacoplar el shell y la señal de `conversaciones` **antes** de G1-01 fase 2: +8 h), RED-37 (esquema del dashboard),
   RED-39 (un solo sobre de error JSON), RED-54 (partir `formulario_detalle`), RED-78 ✅ (Cambio 197 — borrado

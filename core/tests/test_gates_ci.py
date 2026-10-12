@@ -28,7 +28,7 @@ El PR R-14 (Cambio 128) suma las tres fichas de los gates del release:
 - **RED-22** — la etapa `verify` se le propone a ECOM por escrito, sin tocar el
   `.gitlab-ci.yml` que es de ellos.
 
-El PR 5 de la Ola 7 (Cambio 199) suma las dos fichas de calidad del propio CI:
+El PR 5 de la Ola 7 (Cambio 206) suma las dos fichas de calidad del propio CI:
 
 - **RED-86** — la suite corre en paralelo (`--parallel 4`), la cobertura se sigue midiendo
   con los procesos hijos (`concurrency = ["multiprocessing"]` + `coverage combine`) y la
