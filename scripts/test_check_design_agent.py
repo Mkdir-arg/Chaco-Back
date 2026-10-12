@@ -128,27 +128,75 @@ class FichasTests(unittest.TestCase):
 class LimitesDelNucleoTests(unittest.TestCase):
     """Los encendió el paso 4 de la Ola 6; el núcleo real tiene que cumplirlos."""
 
-    def test_nucleo_demasiado_grande(self) -> None:
-        enorme = "x" * (check_design_agent.NUCLEO_MAX_BYTES + 1)
+    def test_prosa_demasiado_grande(self) -> None:
+        enorme = "x" * (check_design_agent.PROSA_MAX_BYTES + 1)
 
         errores = check_design_agent.limites_del_nucleo(enorme, [])
 
-        self.assertTrue(any("core agent is too large" in e for e in errores), errores)
+        self.assertTrue(any("core agent prose is too large" in e for e in errores), errores)
 
-    def test_nucleo_en_el_limite_pasa(self) -> None:
-        justo = "x" * check_design_agent.NUCLEO_MAX_BYTES
+    def test_prosa_en_el_limite_pasa(self) -> None:
+        justo = "x" * check_design_agent.PROSA_MAX_BYTES
 
         errores = check_design_agent.limites_del_nucleo(justo, [])
 
-        self.assertFalse([e for e in errores if "core agent is too large" in e], errores)
+        self.assertFalse([e for e in errores if "prose is too large" in e], errores)
+
+    def test_las_filas_de_tabla_no_cuentan_contra_la_prosa(self) -> None:
+        """El inventario es un índice: crece una fila por pieza canónica, y eso es sano.
+
+        Lo que acota las filas es `CELDA_MAX_CARACTERES`, que va fila por fila y obliga a
+        que el detalle viva en la ficha. Antes había un único tope total, que mezclaba las
+        dos cosas: parecía proteger de la prosa y a la vez castigaba agregar piezas.
+        """
+        fila = "| Pieza | Canónico reutilizable | `templates/x.html`; contrato corto |\n"
+        texto = "prosa corta\n" + fila * 400
+
+        errores = check_design_agent.limites_del_nucleo(texto, [])
+
+        self.assertFalse([e for e in errores if "prose is too large" in e], errores)
+        self.assertGreater(len(texto.encode("utf-8")), check_design_agent.PROSA_MAX_BYTES)
 
     def test_el_tamanio_no_depende_del_fin_de_linea(self) -> None:
-        """CRLF en el checkout de Windows, LF en el del CI: el límite no puede moverse."""
-        linea = "x" * 99 + "\n"
-        texto = linea * (check_design_agent.NUCLEO_MAX_BYTES // 100)
+        """CRLF en el checkout de Windows, LF en el del CI: el mismo núcleo mide igual.
 
-        self.assertFalse(check_design_agent.limites_del_nucleo(texto, []))
-        self.assertTrue(check_design_agent.limites_del_nucleo(texto.replace("\n", "\r\n"), []))
+        Antes la función medía el texto crudo y confiaba en que quien lo leyera ya lo
+        hubiera normalizado, así que este test afirmaba que con CRLF el mismo contenido
+        **sí** se pasaba del tope: documentaba la fragilidad en vez de evitarla. Ahora la
+        función normaliza ella misma (`splitlines()` más `"\n".join`), que es lo que el
+        docstring decía querer desde el principio, y el veredicto es el mismo en los dos
+        checkouts.
+        """
+        linea = "x" * 99 + "\n"
+        texto = linea * (check_design_agent.PROSA_MAX_BYTES // 100)
+
+        self.assertEqual(
+            check_design_agent.limites_del_nucleo(texto, []),
+            check_design_agent.limites_del_nucleo(texto.replace("\n", "\r\n"), []),
+        )
+        apenas_pasado = texto + "x" * 200
+        self.assertTrue(check_design_agent.limites_del_nucleo(apenas_pasado, []))
+        self.assertTrue(check_design_agent.limites_del_nucleo(apenas_pasado.replace("\n", "\r\n"), []))
+
+    def test_los_topes_que_el_contrato_dice_son_los_que_el_checker_aplica(self) -> None:
+        """Nada contrastaba la cifra escrita contra la constante, y se desfasó.
+
+        El agente y el workflow decían «núcleo ≤ 30.000 bytes» mucho después de que eso
+        dejara de ser cierto, así que quien leía el contrato creía otra cosa que la que el
+        gate hacía cumplir. Un número en prosa que nadie verifica envejece sin avisar.
+        """
+        raiz = Path(__file__).resolve().parents[1]
+        prosa_kb = f"{check_design_agent.PROSA_MAX_BYTES:,}".replace(",", ".")
+        celdas = str(check_design_agent.CELDA_MAX_CARACTERES)
+
+        for ruta in (
+            raiz / ".claude/agents/chaco-design-system.md",
+            raiz / ".github/workflows/design-agent-contract.yml",
+        ):
+            with self.subTest(archivo=ruta.name):
+                texto = ruta.read_text(encoding="utf-8")
+                self.assertIn(prosa_kb, texto, f"{ruta.name} no nombra el tope de prosa vigente")
+                self.assertIn(celdas, texto, f"{ruta.name} no nombra el tope por celda vigente")
 
     def test_celda_demasiado_larga(self) -> None:
         fila = ("Pieza", "Canónico reutilizable", "x" * (check_design_agent.CELDA_MAX_CARACTERES + 1))

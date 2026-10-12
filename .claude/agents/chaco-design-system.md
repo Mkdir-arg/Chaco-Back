@@ -291,8 +291,10 @@ pantallas ajenas.
   `tailwind.css` generado, los tests ni las vistas.
 - La historia de los cambios va a `docs/internal/requerimientos.md`, **nunca** acá: este
   archivo describe el contrato vigente, no cómo se llegó a él.
-- Límites verificados por el checker (`--limites`): núcleo ≤ 30.000 bytes, celdas del
-  inventario ≤ 450 caracteres y cero referencias de historia.
+- Límites verificados por el checker (`--limites`): **la prosa** (todo lo que no es fila de
+  tabla) ≤ 16.000 bytes, cada celda del inventario ≤ 450 caracteres y cero referencias de
+  historia. Las tablas no tienen tope total: el inventario es un índice y crece una fila por
+  pieza, y lo que obliga a que el detalle viva en la ficha es el tope por celda.
 - `scripts/design_audit.py --goldens` mantiene en 0 las goldens de la tabla *Arquetipos*;
   si una golden se mueve, se cambia acá y en `GOLDENS` de ese script.
 - La auditoría mecánica es un control parcial: no sustituye verificar carga,
