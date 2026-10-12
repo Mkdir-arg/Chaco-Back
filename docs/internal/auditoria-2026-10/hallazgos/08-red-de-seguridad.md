@@ -2786,7 +2786,7 @@ es de nadie y no está en la lista de marcadores que el gate perdona.
 **Test permanente:** `DeteccionDelGateTests` ×36 (+6: la prosa enumerativa, el CSV con `;` y con tab, las dos tablas
 HTML y los dos casos de los marcadores con sufijo).
 
-**Seguimiento (cierre del carril):** #NNN (Cambio 259, Ola 7 PR 9), 13-oct-2026 — los cuatro MINOR de la revisión de
+**Seguimiento (cierre del carril):** #NNN (Cambio 261, Ola 7 PR 9), 13-oct-2026 — los cuatro MINOR de la revisión de
 #797, todos en el mismo archivo y todos de la misma familia: el precio que había pagado la ronda anterior por dejar de
 marcar prosa. (1) **Un padrón de dos columnas volvía a pasar en 0**: pedir tres celdas y contar palabras por celda
 perdía `documento,apellido` y cualquier encabezado con una etiqueta larga («apellido y nombre del titular»). Ahora

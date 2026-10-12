@@ -396,7 +396,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 256 | Segundas lecturas de los dos gates: el padrón que no se veía, el secreto que se perdonaba solo y el piso que no bajaba | Transversal — gate de publicación de `docs/client/` · auditoría de diseño (particiones del ratchet) · archivo vivo de requerimientos | `#infra` `#datos` | Revisiones de #664 (Cambio 207) y #665 (Cambio 208) — los MINOR que quedaron abiertos (Ola 7, PR 7) | 12/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
 | 257 | La descarga grande deja de armarse de una sola vez: el export de respuestas por persona sale de a lotes y el CSV se transmite | Becas — solapa «Dashboard» del programa (exportación de respuestas por persona) | `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — ficha PERF-03 punto 3 (Ola 4, PR 10); PERF-11 diferida por decisión del PM | 12/10/2026 | 🟢 **Hecho** (sin cola ni worker: no existen en el repo ni en ECOM. PERF-11 sale del alcance: proyecto propio) | No requiere |
 | 258 | Las colas de los dos gates y del export: la prosa que bloqueaba, la tabla HTML que no se miraba y las dos cotas que no estaban escritas | Transversal — gate de publicación de `docs/client/` · auditoría de diseño (piso de las particiones) · Becas — export «respuestas por persona» | `#infra` `#datos` `#performance` | Revisiones de #784 (Cambio 256) y #791 (Cambio 257) — los MINOR que quedaron abiertos (Ola 7, PR 8) | 12/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta; la ventana del ingress de ECOM sigue preguntada) | No |
-| 259 | El gate de publicación deja de pagar con padrones el precio de no marcar prosa | Transversal — gate de publicación de `docs/client/` | `#infra` `#datos` | Revisión de #797 (Cambio 258) — los MINOR que quedaron abiertos (Ola 7, PR 9: cierre del carril) | 13/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta; los límites del gate quedan declarados en la ficha RED-64) | No |
+| 260 | El gate del release corría la suite con media instalación: `tblib` faltaba y el rojo no era del release | Transversal — CI (`release-gate.yml` job «Suite completa (SQLite)» y `pr-backend.yml` job «Orden y paralelo») | `#infra` `#metodo` | Corrida 38314173223 del `release-gate` sobre `main` `7c617406` — hotfix | 13/10/2026 | 🟢 **Hecho** | No requiere |
+| 261 | El gate de publicación deja de pagar con padrones el precio de no marcar prosa | Transversal — gate de publicación de `docs/client/` | `#infra` `#datos` | Revisión de #797 (Cambio 258) — los MINOR que quedaron abiertos (Ola 7, PR 9: cierre del carril) | 13/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta; los límites del gate quedan declarados en la ficha RED-64) | No |
 
 **Notas del índice**
 
@@ -33280,7 +33281,138 @@ PERF-03 lo anotan en su línea «Seguimiento:». Primera versión.
 
 ---
 
-# Cambio 259 — El gate de publicación deja de pagar con padrones el precio de no marcar prosa
+# Cambio 260 — El gate del release corría la suite con media instalación: `tblib` faltaba y el rojo no era del release
+
+🟢 **HECHO — 13/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — CI: `release-gate.yml` (job «Suite completa (SQLite)») y `pr-backend.yml` (job «Orden y paralelo») |
+| **Etiquetas** | `#infra` `#metodo` |
+| **Solicitante** | Corrida 38314173223 del `release-gate` sobre `main` `7c617406` — hotfix |
+| **Fecha del pedido** | 13/10/2026 |
+| **Issue / épica** | Sin issue: hotfix del gate que habilita el espejo a ECOM (RED-23) |
+| **Partes afectadas** | `Release gate` · `Backend CI` (job no bloqueante «Orden y paralelo») |
+| **Migración** | No |
+
+## Pedido original
+
+El `release-gate` del release `7c617406` salió rojo con **un solo** fallo, y no era del
+release: `core.tests.test_dependencias.TblibEnElCiTests.test_el_runner_de_django_lo_encuentra`
+→ «Django no pudo importar tblib». Los otros tres jobs del gate (CI de origen, migraciones
+sobre MariaDB, imagen y smoke) pasaron.
+
+La causa es una asimetría entre dos jobs que corren la misma suite: el de `release-gate.yml`
+instalaba solo `requirements.txt`, mientras que `Tests & Coverage` de `pr-backend.yml` instala
+`requirements.txt` **y** `requirements-ci.txt`, que es donde vive `tblib==3.2.2` desde el
+Cambio 256 (RED-88). `tblib` no se invoca desde ningún `run:` —la importa Django al arrancar
+el runner—, así que el test que ya vigilaba las herramientas del CI
+(`test_el_job_que_usa_una_herramienta_instala_el_archivo`, que busca invocaciones en los
+comandos) no podía verlo.
+
+## Alcance acordado
+
+**Entra:** la instalación que falta en los jobs que corren la suite **entera**, la clave de
+caché de pip que los acompaña, y los tests de contrato que impiden que vuelva a pasar.
+
+**Queda afuera, y por qué:**
+
+- **El job `migraciones` del mismo workflow.** Corre `migrate --noinput`, `migrate --check` y
+  `makemigrations --check --dry-run`: no ejecuta un solo test, así que no necesita el archivo.
+  Se revisó y se dejó como estaba.
+- **Los jobs que corren un subconjunto de la suite**: `Contratos de API` (siete módulos
+  nombrados), `Query Budgets & Smoke Time` y `Motor real` (`--tag`). Ninguno arrastra
+  `core.tests.test_dependencias`, y sumarles un archivo que no usan solo alarga el job.
+- **Renombrar jobs o pasos.** El nombre de un job es el `context` que el ruleset exige
+  (`docs/internal/rulesets/`): tocarlo en un hotfix dejaría checks obligatorios huérfanos.
+
+## Decisiones tomadas
+
+- **La regla que se fija es «quien corre la suite entera instala los dos archivos».** No «el
+  job `suite` de `release-gate.yml`», que arregla este caso y deja pasar el próximo. La suite
+  completa incluye `core.tests.test_dependencias`, que exige `tblib` **importable**, no
+  listado; cualquier job que la corra entera lo necesita, corra o no con `--parallel`.
+- **«Suite entera» se decide por lo que viene detrás de `manage.py test`.** Sin módulos
+  nombrados y sin `--tag`. El valor de una bandera (`--parallel 4`) no cuenta como módulo. Los
+  tres jobs que hoy califican son `Tests & Coverage`, `Orden y paralelo` y
+  `Suite completa (SQLite)`; los otros tres que invocan al runner quedan afuera, como
+  corresponde.
+- **`Orden y paralelo` entra en el arreglo aunque no haya salido rojo.** Corre la suite entera
+  con `--shuffle` y tiene el mismo agujero; lo que lo tapaba es su `continue-on-error`, o sea
+  que fallaba **en silencio**. Dejarlo roto habría vuelto mentirosa la regla de arriba.
+- **La `cache-dependency-path` lista los dos archivos.** Con uno solo en la clave, un cambio
+  en el otro reusa una caché vieja: la instalación quedaría desactualizada sin que nada avise.
+  Mismo formato multilínea que `pr-backend.yml`.
+- **El rojo ajeno en este gate cuesta el doble.** Es el último lugar donde se frena una
+  regresión antes de que `main` dispare el deploy automático de producción en ECOM (RED-22):
+  un rojo que no es del release enseña a mirar el gate como ruido.
+
+## Qué se hizo
+
+**`.github/workflows/release-gate.yml`** (job `suite`, nombre intacto):
+
+- `cache-dependency-path` pasa a listar `requirements.txt` y `requirements-ci.txt`.
+- «Install Python dependencies» instala los dos, con el comentario de por qué.
+
+**`.github/workflows/pr-backend.yml`** (job `orden-y-paralelo`, nombre intacto): el mismo par
+de cambios.
+
+**`core/tests/test_gates_ci.py`** — tres tests nuevos y un helper:
+
+- `_corre_la_suite_completa()` + `MANAGE_TEST`: clasifican un `run:` como suite entera.
+- `HerramientasDelCiPineadasTests.test_todo_job_que_corre_la_suite_completa_instala_requirements_ci`
+  — el contrato general, sobre **todos** los workflows.
+- `ReleaseGateTests.test_el_job_de_la_suite_instala_tambien_las_dependencias_del_ci` y
+  `test_la_cache_de_pip_del_job_de_la_suite_mira_los_dos_archivos` — el caso concreto que
+  falló, con la forma del test hermano de `SuiteEnParaleloTests`.
+
+## Archivos
+
+- `.github/workflows/release-gate.yml` — la instalación y la clave de caché del job `suite`.
+- `.github/workflows/pr-backend.yml` — lo mismo en `orden-y-paralelo`.
+- `core/tests/test_gates_ci.py` — el helper y los tres tests de contrato.
+- `docs/internal/requerimientos.md` — esta entrada.
+
+## Base de datos
+
+No requiere.
+
+## Verificación
+
+- `manage.py check`: sin issues.
+- `core.tests.test_gates_ci` + `core.tests.test_dependencias`: **115 tests, OK** (3 nuevos).
+- El clasificador, medido contra los seis jobs que invocan el runner: da suite completa en
+  `Tests & Coverage`, `Orden y paralelo` y `Suite completa (SQLite)`, y **no** en
+  `Contratos de API`, `Query Budgets & Smoke Time` ni `Motor real`. Contra el árbol anterior
+  al arreglo, el test nuevo señala los dos jobs rotos; contra este, ninguno.
+- Los nueve workflows parsean como YAML. `actionlint` no está instalado en esta máquina, así
+  que la validación de sintaxis es el parseo más los tests de contrato que leen cada job.
+- `requerimientos.py --check`: OK.
+- `ruff check` y `ruff format --check` sobre `core/tests/test_gates_ci.py`: limpios.
+
+## Pendientes
+
+- **Volver a correr el `release-gate` sobre el SHA de `main` que se vaya a espejar.** Este PR
+  arregla el workflow, pero el gate verde que `/pushGitLabecomTEST` exige sale de una corrida
+  nueva, y el release tiene que incluir este cambio para que el job instale los dos archivos.
+- **`actionlint` no corre en ningún lado**, ni en local ni en el CI. Los workflows se validan
+  por parseo y por los tests de contrato de `core/tests/test_gates_ci.py`, que miran la
+  semántica pero no la sintaxis de las expresiones `${{ }}`.
+
+## Reversión
+
+Revertir el commit devuelve el gate del release a morir en el test de `tblib` y a
+`Orden y paralelo` a fallar en silencio. No toca runtime: los dos archivos modificados son
+workflows de CI y un módulo de tests.
+
+## Historial
+
+**13/10/2026 — hotfix del gate** (#NNN). Salió de la corrida 38314173223 sobre `main`
+`7c617406`. El 259 quedó reservado por otro PR en vuelo. Primera versión.
+
+---
+
+# Cambio 261 — El gate de publicación deja de pagar con padrones el precio de no marcar prosa
 
 🟢 **HECHO — 13/10/2026**
 
@@ -33429,3 +33561,5 @@ conocidos de la ficha conviene no revertirla.
 **13/10/2026 — los cuatro MINOR, cierre del carril** (#NNN). Sin horas de plan: es la cola
 de la revisión del PR 8 de la Ola 7. La ficha RED-64 lo anota en su línea «Seguimiento:» y
 suma la lista de límites conocidos, que es lo que cierra el tema. Primera versión.
+
+**13/10/2026 — merge del juez con `development` (hasta `79ea5d1f`, Cambio 260: hotfix del `release-gate`).** Esta entrada pasa a ser la **261**. La revisión de #798 (APPROVE) dejó dos MINOR que no abren ronda: fueron a «Límites conocidos del gate» de la ficha RED-64 (`;`/`,` ya no alcanzan solos para ser fila; un secreto entrecomillado o en bloque de código no se ve).
