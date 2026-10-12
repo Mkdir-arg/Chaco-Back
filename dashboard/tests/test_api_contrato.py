@@ -29,6 +29,7 @@ from django.urls import reverse
 from core import rbac
 from core.tests.test_api_schema_contrato import _generar_esquema_y_sus_avisos as _esquema
 from legajos.models import AlertaCiudadano, Ciudadano, LegajoAtencion
+from programas.models import InscripcionPrograma, Programa
 from users.models import Capacidad, RolMeta
 
 
@@ -214,9 +215,42 @@ class EsquemaContraElJsonRealTests(TestCase):
 
         self.assertEqual(set(cuerpo["results"][0]), set(self._items(declarado, "results")["properties"]))
 
-    def test_actividad_reciente_coincide_con_lo_declarado(self):
+    def test_actividad_reciente_coincide_con_lo_declarado_hasta_el_item(self):
         """El `timestamp` con el que ordena no sale en la respuesta: si saliera,
-        el esquema no lo publica y este test lo caza."""
-        self.client.force_login(_usuario("esq-actividad", ["ciudadano.ver", "ciudadano.sensible"]))
+        el esquema no lo publica y este test lo caza.
 
-        self._cruzar("/api/actividad-reciente/", "dashboard:api_actividad_reciente")
+        Con el feed vacío el cruce no compara nada —`results` es una lista sin
+        ítems—, así que se siembran las dos ramas que arman un ítem: una
+        inscripción (`tipo: create`) y una alerta (`tipo: alert`). El alcance
+        sale de `config.administrar`, que es la puerta global de
+        `FiltrosUsuarioService`.
+        """
+        responsable = _usuario(
+            "esq-actividad", ["ciudadano.ver", "ciudadano.sensible", "config.administrar"]
+        )
+        legajo = LegajoAtencion.objects.create(responsable=responsable)
+        ciudadano = Ciudadano.objects.create(dni="30777333", nombre="Rita", apellido="Luna")
+        InscripcionPrograma.objects.create(
+            ciudadano=ciudadano,
+            programa=Programa.objects.create(codigo="ACT-REC", nombre="Programa de prueba"),
+            legajo_id=legajo.id,
+            responsable=responsable,
+        )
+        AlertaCiudadano.objects.create(
+            ciudadano=ciudadano,
+            legajo=legajo,
+            tipo=AlertaCiudadano.TipoAlerta.RIESGO_ALTO,
+            prioridad=AlertaCiudadano.Prioridad.CRITICA,
+            mensaje="Alerta de prueba",
+            activa=True,
+        )
+        self.client.force_login(responsable)
+
+        declarado, cuerpo = self._cruzar("/api/actividad-reciente/", "dashboard:api_actividad_reciente")
+
+        item = self._items(declarado, "results")
+        self.assertEqual({a["tipo"] for a in cuerpo["results"]}, {"create", "alert"})
+        for actividad in cuerpo["results"]:
+            with self.subTest(tipo=actividad["tipo"]):
+                self.assertEqual(set(actividad), set(item["properties"]))
+                self.assertNotIn("timestamp", actividad)
