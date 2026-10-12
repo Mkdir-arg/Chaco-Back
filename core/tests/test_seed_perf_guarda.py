@@ -21,8 +21,11 @@ nombres, y un `TestCase` no puede pedirle al runner que clone la base. El `_seed
 reemplaza por un centinela, así que lo que se mide es **de qué lado de la guarda
 quedó el comando**, no lo que siembra.
 
-El contrato de que la suite paralela siga andando lo cuida el paso no bloqueante
-`core users portal --parallel 2` del job `Orden y paralelo` (`pr-backend.yml`).
+El contrato de que la suite paralela siga andando lo cuidaba el paso no bloqueante
+`core users portal --parallel 2` del job `Orden y paralelo`. Desde el PR 5 de la Ola 7
+(RED-86) lo cuida el gate **obligatorio**: `Tests & Coverage` corre la suite entera con
+`coverage run manage.py test --parallel 4`, así que una regresión como la de esta ficha
+pone en rojo el check que bloquea el merge, y no un aviso.
 """
 
 from unittest.mock import patch
