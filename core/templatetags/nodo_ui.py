@@ -329,3 +329,70 @@ def campo_wrapper_class(context):
     """
     valor = context.get("wrapper_class", "mb-4")
     return "" if valor is None else valor
+
+
+TEMPLATE_HERO_INICIO = "components/_hero_inicio.html"
+ARGUMENTOS_HERO_INICIO = ("titulo", "eyebrow", "bajada", "accion_url", "accion_texto", "accion_icono")
+
+
+class HeroInicioNode(template.Node):
+    """``{% hero_inicio %}``: el hero de la pantalla de inicio y de los tableros de programa.
+
+    Uso::
+
+        {% hero_inicio titulo="Red de dispositivos" eyebrow="Programa Dispositivos" accion_url=url accion_texto="Ver instituciones" accion_icono="fa-building" %}
+          {% bajada %}18 instituciones en tu alcance. <strong>3</strong> con ocupación exigida.{% endbajada %}
+        {% endhero_inicio %}
+
+    **Alcance taxativo: solo la pantalla de inicio y los tableros de programa.** Ocupa el lugar
+    de ``{% page_header %}`` (el ``h1`` es su título) y es el único contenido del backoffice
+    con gradiente de marca. Cualquier otra pantalla usa ``page_header``: el canon sigue sin
+    admitir heros en el backoffice operativo (ficha ``componentes/hero_inicio.md``).
+
+    ``titulo`` es obligatorio; ``eyebrow``, ``bajada`` y la acción son opcionales (la acción
+    exige ``accion_url`` y ``accion_texto``; ``accion_icono`` es un nombre de Font Awesome sin
+    ``fas``). Todo se escapa; ``{% bajada %}`` es un fragmento de la plantilla (con
+    ``<strong>``, por ejemplo) y tiene precedencia sobre ``bajada=``.
+    """
+
+    def __init__(self, kwargs, bajada):
+        self.kwargs = kwargs
+        self.bajada = bajada
+
+    def render(self, context):
+        valores = {nombre: valor.resolve(context) for nombre, valor in self.kwargs.items()}
+        bajada = _o_vacio(self.bajada.render(context)) if self.bajada is not None else valores.get("bajada")
+        plantilla = context.template.engine.get_template(TEMPLATE_HERO_INICIO)
+        with context.push(**{**{nombre: valores.get(nombre) for nombre in ARGUMENTOS_HERO_INICIO}, "bajada": bajada}):
+            return plantilla.render(context)
+
+
+@register.tag("hero_inicio")
+def do_hero_inicio(parser, token):
+    bits = token.split_contents()
+    nombre_tag = bits[0]
+    restantes = bits[1:]
+    kwargs = token_kwargs(restantes, parser)
+    if restantes:
+        raise template.TemplateSyntaxError(
+            f"'{nombre_tag}' solo acepta argumentos con nombre ({', '.join(ARGUMENTOS_HERO_INICIO)}); "
+            f"sobra: {restantes[0]!r}"
+        )
+    desconocidos = set(kwargs) - set(ARGUMENTOS_HERO_INICIO)
+    if desconocidos:
+        raise template.TemplateSyntaxError(f"'{nombre_tag}' no acepta: {', '.join(sorted(desconocidos))}")
+    if "titulo" not in kwargs:
+        raise template.TemplateSyntaxError(f"'{nombre_tag}' requiere titulo=")
+
+    cuerpo = parser.parse(("endhero_inicio",))
+    parser.delete_first_token()
+
+    bajada = None
+    for nodo in cuerpo:
+        if isinstance(nodo, BajadaNode):
+            if bajada is not None:
+                raise template.TemplateSyntaxError(f"'{nombre_tag}' admite un solo {{% bajada %}}")
+            bajada = nodo.nodelist
+        elif not (isinstance(nodo, template.base.TextNode) and not nodo.s.strip()):
+            raise template.TemplateSyntaxError(f"'{nombre_tag}' solo admite {{% bajada %}} en el cuerpo")
+    return HeroInicioNode(kwargs, bajada)

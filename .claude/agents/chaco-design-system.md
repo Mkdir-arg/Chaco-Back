@@ -204,6 +204,7 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Surface/card backoffice | Canónico reutilizable | Secciones y paneles con `bg-white rounded-xl border border-base shadow-sm overflow-hidden`; padding `p-5`/`p-6`, header interno `px-5 py-4 border-b border-light`, título interno `h2 text-heading font-bold`. Evidencia: `programas/templates/programas/becas/cupo/segmento_detail.html`. Sin cards anidadas salvo métricas o repetidos. |
 | Mapa de estados por módulo | Canónico reutilizable | El mapeo estado→badge vive en un parcial por módulo y las pantallas lo incluyen; nunca vuelcan el estado como texto suelto. Becas: `programas/templates/programas/becas/_pausable_estado_badge.html` y hermanos; Dispositivos: `programas/templates/programas/dispositivos/_estado_badge.html`; Merenderos: `programas/templates/programas/merenderos/_estado_badge.html` (+ `_solicitud_estado_badge.html`). Ficha: `.claude/design/dominio/becas.md` |
 | Drag & drop SortableJS | Canónico reutilizable, condicionado | `static/vendor/sortablejs/Sortable.min.js` + `static/custom/css/nodo-constructor.css`; se arrastra solo desde la manija, con alternativa de teclado y anuncio en `aria-live`, y se omite sin permiso de edición. Ficha: `.claude/design/dominio/becas.md` |
+| Hero de inicio de programa | Canónico reutilizable, acotado | Tag `{% hero_inicio %}` (`core/templatetags/nodo_ui.py`) + `components/_hero_inicio.html` + `nodo-hero.css`: gradiente de marca, `h1` de 30 px, bajada y una acción. **Solo Inicio y tableros de programa**; reemplaza a `page_header` y no va en otra pantalla (`HeroInicioTest`). Ficha: `.claude/design/componentes/hero_inicio.md` |
 | Home del backoffice | Canónico reutilizable | `templates/inicio.html` (`core.views.public.inicio_view`): cada panel que pide datos a una API con capacidad se esconde con el mismo `puede` que exige esa API; un panel no se deja fallar en consola ni se muestra vacío como si no hubiera trabajo. Los accesos rápidos siguen la misma regla con la capacidad de su destino (filtro propio en `core/templatetags/rbac.py`, derivado de la constante que usa la vista): un acceso que va a rebotar no se ofrece. |
 | Dominio Becas (constructor, SIIS, identificadores, dashboard) | Canónico reutilizable | Contratos propios del dominio: constructor de formularios, panel e identificadores de SIIS, dashboard del programa. Se componen con piezas de este inventario y **no son molde** para otros módulos. Ficha: `.claude/design/dominio/becas.md` |
 | Formulario público por diseño (paso 2) | Canónico reutilizable | `portal/templates/portal/inscripcion/paso2.html` + `static/custom/js/nodo-formulario.js` sobre `static/custom/js/nodo-condiciones.js`; sin JS el formulario se muestra completo y el servidor vuelve a evaluar las condiciones. Ficha: `.claude/design/dominio/inscripcion.md` |
@@ -240,8 +241,8 @@ Lista blanca. Lo que no está acá es una **novedad** (protocolo, paso 6).
 - **Gradiente:** `var(--gradient-brand)` queda para el shell y el panel de marca de
   inscripción. En el contenido no: las iniciales de una persona van
   `w-8 h-8 rounded-full bg-brand-soft text-fg-brand` y las métricas chicas sin gradiente
-  (un solo acento por bloque). Única excepción: la caja de ícono de la stat card
-  `variante="tablero"`.
+  (un solo acento por bloque). Únicas excepciones: la caja de ícono de la stat card
+  `variante="tablero"` y el hero de inicio de programa, solo en Inicio y tableros de programa.
 
 ## Perfiles de dominio
 
@@ -261,7 +262,8 @@ El lenguaje visual es el mismo en todos los módulos; el vocabulario de dominio,
 - **Transversal** (shell, usuarios, roles, legajos, portal, configuración): verificar
   consumidores en todos los módulos afectados; Becas no es el único consumidor.
 - No se arman landing pages, heros, cards decorativas ni grillas de tarjetas para
-  backoffice operativo: la primera pantalla es la herramienta usable.
+  backoffice operativo: la primera pantalla es la herramienta usable. Única excepción:
+  `{% hero_inicio %}`, solo en Inicio y tableros de programa; en otra pantalla se rechaza.
 
 ## Estados transversales
 
