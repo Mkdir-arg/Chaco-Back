@@ -82,6 +82,12 @@ HERRAMIENTAS_DEL_CI = (
     "mypy",
     "django-stubs",
     "djangorestframework-stubs",
+    # RED-88. La única que no se invoca: `tblib` es una biblioteca que **Django importa**
+    # al arrancar el runner, para poder pickear los tracebacks entre los workers de
+    # `--parallel`. Sin ella una falla no se ve: cuelga el job hasta el timeout. Por eso
+    # no está en `INVOCACION` —ningún `run:` la llama— y por eso igual va acá: el archivo
+    # que la trae tiene que seguir instalándose.
+    "tblib",
 )
 #: Cómo se invoca cada herramienta en un `run:` (`mkdocs-material` instala `mkdocs`).
 INVOCACION = re.compile(r"(?m)^\s*(?:python -m\s+)?(ruff|coverage|pip-audit|bandit|mkdocs|mypy)\b")
