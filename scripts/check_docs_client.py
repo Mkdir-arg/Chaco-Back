@@ -39,12 +39,18 @@ Cinco reglas. Alcanza con que dispare una.
 
    La palabra no siempre está en la **misma** línea, y ahí es donde se publica un padrón
    entero sin que el gate diga nada: en una tabla o en un CSV la dice el **encabezado**
-   (`| Apellido | Nombre | Documento |`, `apellido,nombre,dni`) y las filas de abajo ya no
-   la repiten. Así que un documento también es hallazgo cuando a menos de
-   `VENTANA_PADRON` líneas **arriba** hay un encabezado de padrón —una fila de etiquetas
-   donde una nombra el documento y otra nombra a la persona—, o cuando viene entre
-   paréntesis detrás de un nombre propio («Perez Ana (30111222) cobró la beca»), que es
-   como se escribe un caso concreto en prosa.
+   (`| Apellido | Nombre | Documento |`, `apellido,nombre,dni`, `<th>Apellido</th>…`) y
+   las filas de abajo ya no la repiten. Así que un documento también es hallazgo cuando a
+   menos de `VENTANA_PADRON` líneas **arriba** hay un encabezado de padrón —una fila de
+   etiquetas donde una nombra el documento y otra nombra a la persona—, o cuando viene
+   entre paréntesis detrás de un nombre propio («Perez Ana (30111222) cobró la beca»), que
+   es como se escribe un caso concreto en prosa.
+
+   Lo que cuenta como **fila** es lo separado como una tabla: `|`, `;`, un tab, o celdas
+   `<th>`/`<td>` de HTML, que es como se publica un padrón en un mockup. Con la coma sola
+   se piden además tres celdas que parezcan etiquetas, porque si no la prosa que
+   *enumera* las columnas («el padrón trae apellido, nombre, documento y domicilio»)
+   convertía en hallazgo al primer número de siete dígitos del párrafo siguiente.
 
 2. **Fecha de nacimiento rodeada de identidad.** Una fecha en una línea que la nombra
    («fecha de nacimiento», `fechaNacimiento`) con campos de identidad —apellido, nombres,
@@ -118,6 +124,32 @@ CUIL = re.compile(r"(?<![\w.-])(?:20|23|24|27|30|33|34)[-\s]?\d{8}[-\s]?\d(?!\d)
 
 #: Lo que separa las celdas de una fila: una tabla markdown, un CSV, un TSV.
 SEPARADOR_DE_CELDAS = re.compile(r"[|,;\t]")
+#: De esos separadores, los que **solo** aparecen separando celdas. La coma no: también
+#: separa una enumeración en prosa, y con ella sola «El padrón trae apellido, nombre,
+#: documento y domicilio.» calificaba como encabezado de padrón y bloqueaba la
+#: publicación por el primer número de siete dígitos que viniera abajo.
+SEPARADOR_DE_TABLA = re.compile(r"[|;\t]")
+#: Para que una línea separada **solo** por comas cuente como fila de padrón hacen falta
+#: tres celdas o más, y que todas parezcan etiquetas: cortas y sin verbo. Es lo que
+#: distingue `apellido,nombre,dni` de la oración que *habla* de esas columnas.
+MINIMO_DE_CELDAS_CON_COMA = 3
+LARGO_MAXIMO_DE_ETIQUETA = 40
+PALABRAS_MAXIMAS_POR_ETIQUETA = 3
+#: Los verbos con los que se escribe esa prosa. Una etiqueta de columna no tiene verbo.
+VERBO_DE_PROSA = re.compile(
+    r"(?i)\b(?:es|son|era|eran|fue|fueron|ser[áa]n?|est[áa]n?|hay|tiene|tienen|trae|traen"
+    r"|lleva|llevan|incluye|incluyen|contiene|contienen|muestra|muestran|guarda|guardan"
+    r"|viene|vienen|sale|salen|figura|figuran|aparece|aparecen|devuelve|devuelven"
+    r"|publica|publican|usa|usan|pide|piden|necesita|necesitan|arma|arman|deja|dejan)\b"
+)
+#: Una celda de una tabla HTML. MkDocs copia los `.html` del sitio tal cual, y un padrón
+#: escrito en `<table>` no tiene ni `|` ni coma: lo que nombra sus columnas es un `<th>`
+#: (o un `<td>`, que es como terminan escritas la mitad de las tablas).
+CELDA_HTML = re.compile(r"(?is)<(?P<tag>th|td)\b[^>]*>(?P<texto>.*?)</(?P=tag)>")
+#: El adorno de adentro de la celda (`<span>`, `<a>`…), que no es parte de la etiqueta.
+TAG_HTML = re.compile(r"(?s)<[^>]*>")
+#: Guarda barata: sin esto, cada línea de cada archivo pagaría el escaneo de la ventana.
+MARCA_DE_CELDA_HTML = re.compile(r"(?i)<t[hd]\b")
 #: La etiqueta que nombra a la **persona**, que no es la que nombra al documento. Sin una
 #: de estas, una enumeración de columnas técnicas no alcanza para llamar padrón a lo que
 #: sigue: lo que convierte a una fila de números en un padrón es que arriba diga de quién
@@ -204,8 +236,16 @@ REFERENCIA_DE_CODIGO = re.compile(r"^[A-Za-z_$][\w$]*(?:\.[\w$]+)+[;,)]*$")
 #: «Attestation» hay un «test», y un secreto de verdad tiene todas las letras del
 #: alfabeto. El borde es de letras y no `\b`, así `test123` y `ejemplo-1` —que sí son
 #: marcadores— siguen entrando y «Attestation» no.
+#:
+#: El borde de la **derecha** sí admite las formas del propio marcador: sin ellas,
+#: `TOKEN=testing123`, `tests`, `examples` y `fakes` eran hallazgos, que es marcar
+#: exactamente lo que el repo escribe para no publicar un secreto. Las variantes van
+#: declaradas una por una y no como un `[a-z]*` suelto, justamente para que «Attestation»
+#: —`test` seguido de `ation`— siga sin eximir. Por el mismo motivo el `(?<![a-z])` se
+#: queda: una palabra que *termina* en «test» («latest», «contest») no es un marcador.
 SABE_A_PRUEBA = re.compile(
-    r"(?i)(?<![a-z])(?:test|dummy|fake|ejemplo|example|sample|placeholder|changeme|cambiame|no[-_]?real)(?![a-z])"
+    r"(?i)(?<![a-z])(?:tests?(?:ing)?|dummy|dummies|fakes?|ejemplos?|examples?|samples?"
+    r"|placeholders?|changeme|cambiame|no[-_]?real)(?![a-z])"
 )
 #: Un valor que es un marcador de posición y no un secreto.
 RELLENO = re.compile(r"^[<{$`*\[(\"']|^\.{3}|^…|^-+$|^_+$")
@@ -340,15 +380,17 @@ def _celdas(linea: str) -> list[str]:
     return [celda.strip().strip("`*\"'") for celda in SEPARADOR_DE_CELDAS.split(linea.strip().strip("|"))]
 
 
-def _es_encabezado_de_padron(linea: str) -> bool:
-    """Una fila de etiquetas que dice «lo que viene abajo son personas».
+def _celdas_html(texto: str) -> list[str]:
+    """Las celdas `<th>`/`<td>` de `texto`, sin el adorno de adentro."""
+    return [TAG_HTML.sub(" ", celda.group("texto")).strip() for celda in CELDA_HTML.finditer(texto)]
 
-    Hace falta que **dos celdas distintas** nombren cosas distintas: una el documento y
-    otra a la persona. Una sola («Documento») podría ser un título cualquiera; las dos
-    juntas son el encabezado de un padrón, que es lo que le da sentido a los números de
-    las filas siguientes.
+
+def _celdas_nombran_un_padron(celdas: list[str]) -> bool:
+    """Que **dos celdas distintas** nombren cosas distintas: una el documento y otra a
+    la persona. Una sola («Documento») podría ser un título cualquiera; las dos juntas
+    dicen de quién es cada columna, que es lo que le da sentido a los números de abajo.
     """
-    celdas = [celda for celda in _celdas(linea) if celda and len(celda) <= 40]
+    celdas = [celda for celda in celdas if celda and len(celda) <= LARGO_MAXIMO_DE_ETIQUETA]
     if len(celdas) < 2:
         return False
     con_documento = {i for i, celda in enumerate(celdas) if NOMBRA_DOCUMENTO.search(_separar_camel(celda))}
@@ -356,9 +398,45 @@ def _es_encabezado_de_padron(linea: str) -> bool:
     return bool(con_documento) and bool(con_persona - con_documento)
 
 
+def _parece_fila_de_tabla(linea: str) -> bool:
+    """Si la línea está separada como una fila y no como una oración con comas.
+
+    Un `|`, un `;` o un tab solo aparecen separando celdas. La coma también separa una
+    enumeración en prosa, así que con ella sola se piden `MINIMO_DE_CELDAS_CON_COMA`
+    celdas y que todas parezcan etiquetas —cortas y sin verbo—: es lo que distingue
+    `apellido,nombre,dni` de «El padrón trae apellido, nombre, documento y domicilio.»,
+    que calificaba como encabezado y bloqueaba la publicación por el número de abajo.
+    """
+    if SEPARADOR_DE_TABLA.search(linea):
+        return True
+    celdas = [celda for celda in _celdas(linea) if celda]
+    if len(celdas) < MINIMO_DE_CELDAS_CON_COMA:
+        return False
+    return all(
+        len(celda) <= LARGO_MAXIMO_DE_ETIQUETA
+        and len(celda.split()) <= PALABRAS_MAXIMAS_POR_ETIQUETA
+        and not VERBO_DE_PROSA.search(celda)
+        for celda in celdas
+    )
+
+
+def _es_encabezado_de_padron(linea: str) -> bool:
+    """Una fila de etiquetas que dice «lo que viene abajo son personas»."""
+    return _parece_fila_de_tabla(linea) and _celdas_nombran_un_padron(_celdas(linea))
+
+
 def _hay_encabezado_de_padron_arriba(lineas: list[str], indice: int) -> bool:
-    """El encabezado va **antes** que sus filas: abajo no se mira."""
-    return any(_es_encabezado_de_padron(lineas[i]) for i in range(max(0, indice - VENTANA_PADRON), indice))
+    """El encabezado va **antes** que sus filas: abajo no se mira.
+
+    En HTML las celdas de un encabezado pueden venir repartidas en varias líneas (un
+    `<th>` por línea), así que además de mirar fila por fila se juntan las celdas
+    `<th>`/`<td>` de toda la ventana y se las lee como una sola.
+    """
+    desde = max(0, indice - VENTANA_PADRON)
+    if any(_es_encabezado_de_padron(lineas[i]) for i in range(desde, indice)):
+        return True
+    ventana = "\n".join(lineas[desde:indice])
+    return bool(MARCA_DE_CELDA_HTML.search(ventana)) and _celdas_nombran_un_padron(_celdas_html(ventana))
 
 
 def _documento_pegado_a_un_nombre(linea: str) -> bool:
