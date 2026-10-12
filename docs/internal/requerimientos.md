@@ -31331,3 +31331,12 @@ Ningún job se renombró.
 Los tests pasan de 17 a **44** y ninguno escribe un dato real: el caso rojo se arma con
 valores inventados, y que lo despublicado ya no esté lo afirma el gate sobre el árbol, no
 un `assertNotIn` con el valor adentro.
+
+**12/10/2026 — ronda 3, merge con `development` (hasta `2d632cd9`, Cambio 205).** El número 199 que tenía
+esta entrada lo tomó el Cambio 199 de `development` (Notificaciones, #647) y los 200 a 205 ya estaban
+usados, así que pasó a ser la **206** (los 207 y 208 están reservados para otros PRs). El conflicto de
+`docs/internal/requerimientos.md` se resolvió conservando las entradas 199 a 205 de `development` tal
+cual, con sus filas de índice, y moviendo esta al final. La renumeración arrastra las referencias propias
+en `core/tests/test_gates_ci.py`, `scripts/check_docs_client.py`, el README de la auditoría (fila de la
+Ola 7 PR 5 y las tres de la Red de seguridad) y la ficha 08; las menciones al Cambio 199 de Notificaciones
+no se tocaron, y las cuentas de horas del README tampoco.
