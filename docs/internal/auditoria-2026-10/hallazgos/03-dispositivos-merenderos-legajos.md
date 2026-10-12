@@ -90,9 +90,17 @@ encontraba **16** lookups vivos. Se sacaron los dos `@unittest.expectedFailure` 
 reemplazó por un pin invertido equivalente (`test_un_date_sobre_un_datetimefield_si_compila_convert_tz`). Verificado
 contra `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1`: `--tag mysql` en verde, 16/16.
 **Test permanente:** `core.tests.test_sql_portable.SqlPortableTests.test_ningun_lookup_por_dia_sobre_un_datetimefield`
-(+ `core.tests.test_motor_real.ParteDiarioEnElMotorRealTests.test_el_parte_diario_cuenta_el_ingreso_de_hoy` y
-`core.tests.test_sql_motor_real.SinConvertTZTests.test_ninguna_consulta_de_reporte_usa_convert_tz`, los dos ya sin
-`expectedFailure`, y `programas.tests.test_fechas_locales_dispositivos.ParteDiarioFechaLocalTests.test_ingreso_2330_art_cuenta_en_fecha_local`).
+(+ `core.tests.test_motor_real.FechaLocalEnElMotorRealTests.test_un_date_sobre_un_datetimefield_no_encuentra_la_fila_de_hoy` y
+`core.tests.test_sql_motor_real.SinConvertTZTests.test_ningun_filtro_por_periodo_usa_convert_tz`, los dos ya sin
+`expectedFailure`).
+
+**Nota de la baja del circuito viejo (09-10-2026, MVP v2 release A):** los dos tests del motor real se
+medían sobre el parte F-01 (`calcular_cantidades`) y el export de movimientos, que se fueron con
+`RegistroDiario` y `Admision`. **La lección es del motor, no de Dispositivos**, así que se
+reescribieron sobre entidades que siguen vivas —el `creado` de `TimeStamped` y el filtro por período
+de los contactos del legajo— y conservan su nombre de ficha acá. El cuarto, de Dispositivos
+(`programas/tests/test_fechas_locales_dispositivos.py`), se fue sin reemplazo: no hay dato de
+Dispositivos que fechar hasta que exista `Estadia`.
 
 ### DIS-02 · Doble estadía ALOJADA de la misma persona en el mismo dispositivo
 **Severidad:** ALTA · **Estado:** CONFIRMADO con matiz (`A306DobleAlojamiento`) · **Origen:** A3-06; incluye el gate faltante de `models.W036` · **Tratamiento:** criterio de aceptación v2 (M3, «unicidad residencial en la red»); puntos 1-3 en v1 solo si D-V1 = sí · **Ola:** v2 · **Esfuerzo:** S (1-3) / M (4, dentro de la v2)
@@ -101,9 +109,12 @@ contra `mariadb:10.11` con `MARIADB_INITDB_SKIP_TZINFO=1`: `--tag mysql` en verd
 - **Propuesta:** (1) en `promover_espera`, antes del `save()`, `admision.full_clean(exclude=["respuestas_f00"])` o `Admision.objects.select_for_update().filter(ciudadano, dispositivo, estado=ALOJADO).exists()` → `ValidationError`; (2) `poner_en_espera` rechaza si hay un ALOJADO del ciudadano en ese dispositivo; `admitir_ciudadano` rechaza si hay espera pendiente («tiene una espera pendiente: promovela»); (3) `PromoverEsperaView.post` captura también `IntegrityError`; (4) en la v2, campo real `clave_alojamiento = CharField(null=True, unique=True)` = `f"{ciudadano_id}"` al alojar y NULL al egresar/trasladar (UNIQUE con NULL funciona igual en SQLite, MySQL y MariaDB). **No** usar una columna generada con `RunSQL` por vendor (frágil con `DJANGO_SYNCDB_PROJECT_APPS`). Gate: como el CI corre en SQLite, el warning `models.W036` nunca aparece: test que, para cada `UniqueConstraint` con `condition`, exija el chequeo explícito en el servicio, o prohibir `condition=` nuevas por lint (los tres condicionales del repo están en `models/__init__.py:778, 783, 867`).
 - **Tests a agregar:** `test_no_se_puede_poner_en_espera_a_un_alojado`, `test_promover_rechaza_si_ya_esta_alojado`, `test_admitir_con_espera_pendiente_rechaza`, `test_promover_integrityerror_no_da_500`; v2: `test_clave_alojamiento_unica_en_la_red`.
 - **⚠ La ilusión ya está caracterizada en el CI (05-oct-2026, PR R-11, Cambio 130).**
-  `core/tests/test_motor_real.py::ConstraintCondicionalTests.test_una_uniqueconstraint_con_condicion_no_existe_en_el_motor`
-  mete dos admisiones ALOJADO en la **misma cama** contra el motor real y las dos entran: lo que en SQLite parece una
-  restricción de base, en MySQL y MariaDB no existe. No reemplaza el gate que pide esta ficha (el chequeo explícito en
+  `core/tests/test_motor_real.py::ConstraintCondicionalTests.test_ninguna_restriccion_condicional_del_repo_existe_en_la_base`
+  (hasta el 09-10-2026, `test_una_uniqueconstraint_con_condicion_no_existe_en_el_motor`, que metía dos admisiones ALOJADO
+  en la misma cama) afirma contra el motor real que las restricciones parciales no se crean: lo que en SQLite parece una
+  restricción de base, en MySQL y MariaDB no existe. Con la baja de `Admision` (MVP v2 release A) dejó de medirse sobre un
+  caso y pasó a **recorrer todas** las `UniqueConstraint` con `condition` que declare el repo, comprobando una por una que
+  la base no tiene su índice: así no se va con el modelo que lo descubrió y sigue avisando por el que venga. No reemplaza el gate que pide esta ficha (el chequeo explícito en
   `promover_espera`, o el lint sobre `condition=` nuevas): lo que hace es que el agujero deje de ser invisible mientras la
   v2 llega. El PR de la v2 que lo cierre va a cambiar este test por el de la unicidad real (`clave_alojamiento`).
 
@@ -281,7 +292,15 @@ con el día siguiente. El indicador de «última actualización» mide contra la
 uso es `:56` y es el que se corrigió; (b) **no** se cambió `modificado` por `ultimo_registro.fecha`: miden cosas distintas
 (cuándo se tocó el parte vs. de qué día es el parte) y el semáforo de actualización mide la primera, así que alcanzaba con
 leerlo en hora local.
-**Test permanente:** `programas.tests.test_fechas_locales_dispositivos.ExportMovimientosFechaLocalTests.test_movimiento_2230_art_se_exporta_con_fecha_local`
+**Test permanente:** `core.tests.test_sql_portable.SqlPortableTests.test_ningun_lookup_por_dia_sobre_un_datetimefield`.
+
+**Nota de la baja del circuito viejo (09-10-2026, MVP v2 release A):** los dos lugares que esta ficha
+corrigió —el indicador de «última actualización» y la columna «Fecha» del export de movimientos— se
+fueron con `RegistroDiario` y `Admision`, y con ellos sus tres tests
+(`programas/tests/test_fechas_locales_dispositivos.py`). Lo que queda cuidando la regla para todo el
+repo es la guardia de DIS-01, que es un test del código productivo entero y no de una pantalla.
+**Las fechas de la v2 nacen con el mismo criterio**: `core.utils_fechas` y nada de `__date` sobre un
+`DateTimeField`.
 (+ `IndicadorActualizacionFechaLocalTests.test_actualizacion_parte_nocturno_cuenta_en_fecha_local`).
 
 ### DIS-09 · El egreso cierra la membresía aunque haya una espera en otro dispositivo

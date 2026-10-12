@@ -39,7 +39,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone
 
 from core import rbac
 from users.models import Capacidad, RolMeta
@@ -354,81 +353,6 @@ class AlcanceBecasTests(MediaBaseTests):
         self.assertEqual(self._cliente(usuario_con("ciudadano.ver")).get(self.ruta_padron).status_code, 403)
 
 
-class AlcanceDispositivosTests(MediaBaseTests):
-    """El F-00 se baja con el alcance del dispositivo, no con la sesión."""
-
-    def setUp(self):
-        super().setUp()
-        from legajos.models import Ciudadano
-        from programas.models import (
-            Admision,
-            ArchivoAdmision,
-            CampoTipoDispositivo,
-            Dispositivo,
-            Programa,
-            TipoCampo,
-            TipoDispositivo,
-        )
-
-        self.programa, _ = Programa.objects.get_or_create(
-            codigo="DISPOSITIVOS",
-            defaults={"nombre": "Dispositivos", "tipo": Programa.TipoPrograma.DISPOSITIVOS},
-        )
-        tipo = TipoDispositivo.objects.create(codigo="AM", nombre="Adulto Mayor")
-        self.dispositivo = Dispositivo.objects.create(
-            codigo="HOGAR-01", nombre="Hogar Norte", tipo=tipo, estado=Dispositivo.Estado.ACTIVO
-        )
-        campo = CampoTipoDispositivo.objects.create(
-            tipo_dispositivo=tipo, seccion="Datos", nombre="Constancia", tipo_campo=TipoCampo.ARCHIVO, orden=1
-        )
-        ciudadano = Ciudadano.objects.create(dni="30222111", nombre="Juan", apellido="Rito")
-        admision = Admision.objects.create(
-            ciudadano=ciudadano, dispositivo=self.dispositivo, fecha_ingreso=timezone.now()
-        )
-        self.archivo_f00 = ArchivoAdmision.objects.create(admision=admision, campo=campo, archivo=archivo("f00.pdf"))
-        self.ruta = self._url(self.archivo_f00.archivo.name)
-
-    def test_sin_capacidad_de_dispositivos_es_403(self):
-        self.assertEqual(self._cliente(usuario_con()).get(self.ruta).status_code, 403)
-
-    def test_el_administrador_del_programa_baja_el_f00(self):
-        admin = usuario_con("dispositivo.ver", "programa.configurar", username="admin_disp", programa=self.programa)
-
-        self.assertEqual(self._cliente(admin).get(self.ruta).status_code, 200)
-
-    def test_el_operador_sin_asignacion_al_dispositivo_no_lo_baja(self):
-        """Mismo rol, otro dispositivo: el alcance fino es la asignación."""
-        operador = usuario_con("dispositivo.ver", username="operador_disp", programa=self.programa)
-
-        self.assertEqual(self._cliente(operador).get(self.ruta).status_code, 403)
-
-    def test_el_operador_asignado_al_dispositivo_lo_baja(self):
-        from programas.models import AsignacionDispositivo
-
-        operador = usuario_con("dispositivo.ver", username="operador_asignado", programa=self.programa)
-        AsignacionDispositivo.objects.create(dispositivo=self.dispositivo, rol=operador.groups.first(), activo=True)
-
-        self.assertEqual(self._cliente(operador).get(self.ruta).status_code, 200)
-
-    def test_el_admisor_asignado_baja_el_f00_que_el_mismo_cargo(self):
-        """Seguimiento de #643: la regla pedía ``dispositivo.ver``, pero las pantallas
-        que **cargan** el F-00 piden ``dispositivo.admitir``. Un admisor sin el `ver`
-        recibía 403 sobre su propio archivo."""
-        from programas.models import AsignacionDispositivo
-
-        admisor = usuario_con("dispositivo.admitir", username="admisor_f00", programa=self.programa)
-        AsignacionDispositivo.objects.create(dispositivo=self.dispositivo, rol=admisor.groups.first(), activo=True)
-
-        self.assertEqual(self._cliente(admisor).get(self.ruta).status_code, 200)
-
-    def test_el_admisor_sin_asignacion_sigue_sin_bajarlo(self):
-        """Lo que se amplía es **qué capacidad** cuenta, no sobre qué dispositivo: el
-        alcance fino por asignación sigue siendo el mismo."""
-        admisor = usuario_con("dispositivo.admitir", username="admisor_ajeno", programa=self.programa)
-
-        self.assertEqual(self._cliente(admisor).get(self.ruta).status_code, 403)
-
-
 class AlcanceMerenderosTests(MediaBaseTests):
     """La documentación respaldatoria: `merendero.ver` y `merendero.validar` leen
     cualquier solicitud; `merendero.crear`, solo las que ese usuario creó."""
@@ -541,6 +465,21 @@ class FotoDelCiudadanoTests(MediaBaseTests):
 
     def test_una_capacidad_de_otro_dominio_no_alcanza(self):
         self.assertEqual(self._cliente(usuario_con("dashboard.ver")).get(self.ruta).status_code, 403)
+
+
+class F00SinDuenoTests(MediaBaseTests):
+    """El F-00 perdió su dueño con `ArchivoAdmision` (MVP v2, release A).
+
+    La regla sigue registrada —el prefijo existe mientras exista el campo— pero ya
+    no resuelve ninguna fila, así que contesta 404 como cualquier blob huérfano.
+    """
+
+    def test_el_prefijo_del_f00_contesta_404_a_cualquiera(self):
+        from core import rutas_media
+
+        ruta = self._url(f"{rutas_media.PREFIJO_F00}3f2a.pdf")
+
+        self.assertEqual(self._cliente(usuario_con()).get(ruta).status_code, 404)
 
 
 class CoberturaDePrefijosTests(SimpleTestCase):

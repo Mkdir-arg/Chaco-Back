@@ -1,12 +1,16 @@
 """Lista blanca y techo de tamaño en los uploads del backoffice (SEC-15, SEC-31).
 
-Hasta este PR, el campo ARCHIVO del **F-00** y la **documentación respaldatoria**
-de una solicitud de merendero eran `FileField` pelados: cualquier extensión, de
-cualquier peso. Un `.html` con `<script>` quedaba en `media/` y se servía
-*same-origin* —en DEV por nginx, y en ECOM `django.views.static.serve` infiere
-`text/html` y no manda `attachment`—, así que el XSS corría en el origen del
-sitio. Requiere un usuario interno (`dispositivo.admitir` o `merendero.crear`),
-por eso es MEDIA y no ALTA, pero el archivo lo mira después cualquiera.
+Hasta aquel PR, la **documentación respaldatoria** de una solicitud de merendero
+era un `FileField` pelado: cualquier extensión, de cualquier peso. Un `.html` con
+`<script>` quedaba en `media/` y se servía *same-origin* —en DEV por nginx, y en
+ECOM `django.views.static.serve` infiere `text/html` y no manda `attachment`—, así
+que el XSS corría en el origen del sitio. Requiere un usuario interno
+(`merendero.crear`), por eso es MEDIA y no ALTA, pero el archivo lo mira después
+cualquiera.
+
+El campo ARCHIVO del **F-00** entraba por la misma puerta; se fue con
+`CampoTipoDispositivo` (MVP v2, release A). El adjunto de la v2 va a ser del motor
+de formularios, que tiene su propia cobertura de esta lista.
 
 La lista blanca es la que el repo ya usa para los adjuntos de la app de campo
 (Cambio 46), movida a `core/validators.py` para que haya una sola:
@@ -28,8 +32,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from core.validators import ADJUNTO_EXTENSIONES, ADJUNTO_MAX_BYTES
-from programas.forms import F00DinamicoForm, SolicitudMerenderoForm
-from programas.models import CampoTipoDispositivo, TipoCampo, TipoDispositivo
+from programas.forms import SolicitudMerenderoForm
 
 PDF = b"%PDF-1.4 contenido real"
 
@@ -99,49 +102,6 @@ class SolicitudMerenderoUploadTests(TestCase):
     def _errores(form):
         form.is_valid()
         return form.errors
-
-
-class F00UploadTests(TestCase):
-    """El campo ARCHIVO del F-00 dinámico."""
-
-    def setUp(self):
-        self.tipo = TipoDispositivo.objects.create(codigo="F00", nombre="Formulario")
-        self.campo = CampoTipoDispositivo.objects.create(
-            tipo_dispositivo=self.tipo,
-            seccion="Datos",
-            nombre="Constancia",
-            tipo_campo=TipoCampo.ARCHIVO,
-            obligatorio=True,
-            orden=1,
-        )
-        self.nombre = F00DinamicoForm.nombre_campo(self.campo)
-
-    def _form(self, archivo):
-        return F00DinamicoForm({}, {self.nombre: archivo}, tipo_dispositivo=self.tipo)
-
-    def test_f00_rechaza_svg(self):
-        form = self._form(subido("x.svg", b"<svg onload=alert(1)>", "image/svg+xml"))
-
-        self.assertFalse(form.is_valid())
-        self.assertIn(self.nombre, form.errors)
-
-    def test_f00_rechaza_html(self):
-        form = self._form(subido("x.html", b"<script>alert(1)</script>", "text/html"))
-
-        form.is_valid()
-        self.assertIn(self.nombre, form.errors)
-
-    def test_f00_rechaza_el_archivo_mayor_al_tope(self):
-        form = self._form(subido("grande.pdf", PDF + b"\x00" * ADJUNTO_MAX_BYTES))
-
-        form.is_valid()
-        self.assertIn(self.nombre, form.errors)
-
-    def test_f00_acepta_una_foto_del_telefono(self):
-        form = self._form(subido("constancia.jpg", b"\xff\xd8\xff\xe0contenido", "image/jpeg"))
-
-        form.is_valid()
-        self.assertNotIn(self.nombre, form.errors)
 
 
 class HistorialContactoUploadTests(TestCase):

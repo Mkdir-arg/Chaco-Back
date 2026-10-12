@@ -12,9 +12,9 @@ from programas.services.programa_cache import clave_de, programa_por_codigo
 PROGRAMA_DISPOSITIVOS_CODIGO = "DISPOSITIVOS"
 CAP_CONFIGURAR = "programa.configurar"
 CAP_VER = "dispositivo.ver"
-#: La capacidad de las pantallas que **cargan** el F-00 de una admisión. La necesita
-#: `core.views.media` para que el admisor pueda bajar el archivo que él mismo subió.
-CAP_ADMITIR = "dispositivo.admitir"
+# `CAP_ADMITIR` vivía acá para que `core.views.media` dejara al admisor bajar el F-00
+# que él mismo había subido. Se fue con la admisión vieja (MVP v2, release A); la
+# capacidad sigue en el catálogo y la repone la E2 con el ingreso contra `Estadia`.
 #: Se conserva el nombre: la clave la deriva ``programa_cache.clave_de`` (RED-80).
 _CACHE_KEY = clave_de(PROGRAMA_DISPOSITIVOS_CODIGO)
 _CAMPOS_REQUERIDOS_VALIDACION = (

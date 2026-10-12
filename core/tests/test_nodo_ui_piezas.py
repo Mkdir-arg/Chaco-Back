@@ -294,6 +294,28 @@ class StatCardTest(SimpleTestCase):
             "</div>\n",
         )
 
+    def test_variante_tablero_es_la_franja_grande(self):
+        """#582 / C-2: caja de 52 px con gradiente y valor de 32 px / 800 (reglas en nodo-stat-card.css)."""
+        html = render_to_string(
+            STAT, {"etiqueta": "Plazas", "valor": 40, "icono": "fa-bed", "tono": "danger", "variante": "tablero"}
+        )
+
+        self.assertIn('class="bg-white rounded-xl border border-base p-4 nodo-stat-tablero shadow-sm"', html)
+        self.assertIn('class="nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0"', html)
+        self.assertIn('<i class="fas fa-bed" aria-hidden="true"></i>', html)
+        self.assertIn('class="text-2xl font-bold text-heading mt-2 nodo-stat-tablero-valor">40</p>', html)
+        self.assertNotIn("w-8 h-8", html)
+        self.assertNotIn("bg-danger-soft", html)  # el tono no pinta la caja grande
+        css = (RAIZ / "static/custom/css/nodo-stat-card.css").read_text(encoding="utf-8")
+        for regla in ("width: 52px", "height: 52px", "var(--gradient-brand)", "font-size: 32px", "font-weight: 800"):
+            self.assertIn(regla, css)
+
+    def test_una_variante_desconocida_es_la_chica(self):
+        chica = render_to_string(STAT, {"etiqueta": "X", "valor": 1, "icono": "fa-users"})
+        otra = render_to_string(STAT, {"etiqueta": "X", "valor": 1, "icono": "fa-users", "variante": "grande"})
+
+        self.assertEqual(chica, otra)
+
     def test_los_consumidores_que_no_los_piden_no_estrenan_data_kpi_ni_pie(self):
         """Ninguna de las llamadas que ya existían pasa un opcional: el render no se mueve."""
         for invocacion in _INCLUDES_DE_STAT_CARD:
@@ -450,6 +472,60 @@ class AlertaTest(SimpleTestCase):
 
         self.assertIn('role="status"', html)
 
+    def test_sin_parametros_nuevos_el_markup_no_cambia(self):
+        html = render_to_string(ALERTA, {"tono": "warning", "titulo": "T", "texto": "x"})
+
+        self.assertNotIn("<i ", html)
+        self.assertNotIn("<a ", html)
+        self.assertNotIn("flex items-start", html)
+
+    def test_icono_va_a_18px_y_aria_hidden(self):
+        html = render_to_string(ALERTA, {"tono": "danger", "icono": "triangle-exclamation", "titulo": "T"})
+
+        self.assertIn(
+            '<i class="fas fa-triangle-exclamation text-lg flex-shrink-0 text-fg-danger" aria-hidden="true"></i>', html
+        )
+        self.assertIn('role="alert"', html)
+        self.assertIn("bg-danger-soft border border-danger-subtle", html)
+
+    def test_accion_con_url_y_texto_dibuja_el_link(self):
+        html = render_to_string(
+            ALERTA, {"tono": "warning", "titulo": "T", "accion_url": "/x/", "accion_texto": "Resolver"}
+        )
+
+        self.assertIn('<a href="/x/" class="flex-shrink-0 font-medium underline text-fg-warning">Resolver</a>', html)
+
+    def test_accion_incompleta_no_deja_link_ni_cambia_el_markup(self):
+        solo_url = render_to_string(ALERTA, {"tono": "warning", "texto": "x", "accion_url": "/x/"})
+        solo_texto = render_to_string(ALERTA, {"tono": "warning", "texto": "x", "accion_texto": "Resolver"})
+        base = render_to_string(ALERTA, {"tono": "warning", "texto": "x"})
+
+        self.assertEqual(solo_url, base)
+        self.assertEqual(solo_texto, base)
+
+    def test_info_con_icono_y_accion(self):
+        html = render_to_string(
+            ALERTA, {"tono": "info", "icono": "circle-check", "texto": "x", "accion_url": "/x/", "accion_texto": "Ver"}
+        )
+
+        self.assertIn("fa-circle-check text-lg", html)
+        self.assertNotIn("fa-circle-info", html)
+        self.assertIn('<a href="/x/" class="flex-shrink-0 text-sm font-medium underline text-fg-info">Ver</a>', html)
+
+    def test_escapa_la_accion(self):
+        html = render_to_string(
+            ALERTA,
+            {"tono": "danger", "accion_url": '/x/"onclick="y', "accion_texto": "<b>"},
+        )
+
+        # No alcanza con que el marcado no aparezca: eso pasaria tambien si el
+        # texto se descartara. Hay que ver que aparece escapado, y que la comilla
+        # de la URL no cierra el atributo.
+        self.assertNotIn("<b>", html)
+        self.assertIn("&lt;b&gt;", html)
+        self.assertNotIn('onclick="y"', html)
+        self.assertIn("&quot;onclick=&quot;y", html)
+
     def test_escapa(self):
         html = render_to_string(ALERTA, {"tono": "danger", "titulo": "<script>", "texto": "<img src=x>"})
 
@@ -571,3 +647,38 @@ class ReporteEstadoVacioTest(TestCase):
 
         self.assertContains(resp, "Ningún dato coincide con los filtros")
         self.assertContains(resp, f'href="{self.url}" class="btn-nodo btn-tertiary btn-base mt-2"')
+
+
+class BtnFitTest(SimpleTestCase):
+    """C-15: btn-fit anula solo el min-width y los tamaños del sistema no cambian."""
+
+    def setUp(self):
+        crudo = (RAIZ / "static/custom/css/nodo-buttons.css").read_text(encoding="utf-8")
+        # Sin los comentarios: los de esta hoja citan selectores y reglas para explicar
+        # por que estan donde estan, y una busqueda por texto los encuentra antes que al
+        # codigo real. Ya paso: `@media (pointer: coarse)` y `.btn-nodo.btn-fit` aparecen
+        # los dos en el comentario de `btn-fit`.
+        self.css = re.sub(r"/\*.*?\*/", "", crudo, flags=re.S)
+
+    def test_los_min_width_por_tamano_siguen_intactos(self):
+        esperado = {"xs": 128, "sm": 143, "base": 151, "lg": 170, "xl": 186}
+        for tam, ancho in esperado.items():
+            bloque = re.search(r"\.btn-%s \{([^}]*)\}" % tam, self.css).group(1)
+            self.assertIn(f"min-width: {ancho}px;", bloque)
+
+    def test_btn_fit_solo_anula_el_min_width_y_va_despues_de_todos_los_tamanos(self):
+        bloque = re.search(r"\.btn-fit \{([^}]*)\}", self.css).group(1)
+        # `auto`, no `0`: el boton no lleva `nowrap` ni `flex-shrink: 0`, asi que un 0 lo
+        # dejaria comprimirse por debajo de su texto en un header flex sin `flex-wrap`.
+        self.assertEqual([d.strip() for d in bloque.split(";") if d.strip()], ["min-width: auto"])
+
+        # Contra TODOS los tamanos, no solo contra .btn-xl: si manana se agrega uno
+        # despues de btn-fit, la variante deja de ganarle y el test tiene que avisar.
+        ultimo = max(self.css.index(".btn-%s {" % t) for t in ("xs", "sm", "base", "lg", "xl"))
+        self.assertGreater(self.css.index(".btn-fit {"), ultimo)
+
+    def test_btn_fit_no_le_gana_al_area_tactil(self):
+        # El bloque `pointer: coarse` impone 44 px a proposito (WCAG 2.5.8) y va despues:
+        # por eso btn-fit no sube su especificidad a `.btn-nodo.btn-fit`.
+        self.assertGreater(self.css.index("@media (pointer: coarse)"), self.css.index(".btn-fit {"))
+        self.assertNotIn(".btn-nodo.btn-fit", self.css)

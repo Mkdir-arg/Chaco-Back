@@ -35,20 +35,17 @@ from django.db.models.functions import TruncWeek
 from django.test import SimpleTestCase, TestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
 
+from core.utils_fechas import q_rango_local
+from legajos.models import HistorialContacto
 from programas.models import (
-    Admision,
-    Cama,
     Convocatoria,
-    Dispositivo,
     Formulario,
     InscripcionPrograma,
     Relevamiento,
 )
-from programas.services import reportes
 from programas.services.becas import formulario_por_client_uuid, relevamiento_publico_por_token
 from programas.services.dashboard_becas import Filtros, _serie_semanal
 from programas.services.inscripcion_publica import dni_en_convocatoria
-from programas.services.registro_diario import calcular_cantidades
 
 UUID_CUALQUIERA = uuid.UUID("5d0f3f0a-9b1a-4a7e-8f1a-2b3c4d5e6f70")
 
@@ -234,33 +231,29 @@ class SinConvertTZTests(TestCase):
     def test_un_date_sobre_un_datetimefield_si_compila_convert_tz(self):
         """Pin invertido del test de abajo, con la forma que tenía el código hasta la Ola 5.
 
-        ``_movimientos_en_periodo`` y el parte F-01 filtraban así. Mientras este test
-        pase, el de abajo afirma algo: si Django dejara de emitir ``CONVERT_TZ`` para
-        un ``__date``, el verde de allá no significaría nada.
+        Así filtraban el parte F-01 y los reportes de Dispositivos —que se fueron con
+        `Admision`— y así filtraban también los contactos del legajo y Conversaciones,
+        que siguen vivos. Mientras este test pase, el de abajo afirma algo: si Django
+        dejara de emitir ``CONVERT_TZ`` para un ``__date``, el verde de allá no
+        significaría nada.
         """
-        por_dia = Admision.objects.filter(fecha_ingreso__date__gte=date(2026, 1, 1))
+        por_dia = HistorialContacto.objects.filter(fecha_contacto__date__gte=date(2026, 1, 1))
         self.assertIn("CONVERT_TZ", sql_mysql(por_dia))
 
-    def test_ninguna_consulta_de_reporte_usa_convert_tz(self):
-        """DIS-01 (Ola 5, Cambio 140): el parte F-01 y los reportes van por rango local.
+    def test_ningun_filtro_por_periodo_usa_convert_tz(self):
+        """DIS-01 (Ola 5, Cambio 140): los filtros por período van por rango local.
 
-        ``fecha_ingreso``/``fecha_egreso`` son ``DateTimeField``: con ``__date`` el
-        SQL salía como ``DATE(CONVERT_TZ(...))`` y en ECOM —MariaDB sin tablas de
-        zona horaria— los conteos del parte diario daban cero y el reporte por
-        período no traía nada. Ahora se comparan contra ``[inicio, fin)`` en hora
-        local, calculado en Python (``core.utils_fechas``).
+        ``fecha_contacto`` es un ``DateTimeField``: con ``__date`` el SQL salía como
+        ``DATE(CONVERT_TZ(...))`` y en ECOM —MariaDB sin tablas de zona horaria— el
+        filtro no traía nada. Ahora se compara contra ``[inicio, fin)`` en hora local,
+        calculado en Python (``core.utils_fechas.q_rango_local``), que es lo que arman
+        los contactos del legajo y Conversaciones.
         """
-        sentencias = []
-        dispositivo = Dispositivo(pk=1)
-        with consultas_de(Admision, Cama) as capturadas:
-            calcular_cantidades(dispositivo=dispositivo, fecha=date(2026, 1, 15))
-        self.assertTrue(capturadas, "El parte diario no llegó a consultar movimientos")
-        sentencias.extend(sql_mysql(queryset) for queryset in capturadas)
-        periodo = reportes._movimientos_en_periodo(date(2026, 1, 1), date(2026, 1, 31))
-        sentencias.append(sql_mysql(Admision.objects.filter(periodo)))
-        for sql in sentencias:
-            with self.subTest(sql=sql[:80]):
-                self.assertNotIn("CONVERT_TZ", sql)
+        periodo = q_rango_local("fecha_contacto", date(2026, 1, 1), date(2026, 1, 31))
+
+        sql = sql_mysql(HistorialContacto.objects.filter(periodo))
+
+        self.assertNotIn("CONVERT_TZ", sql)
 
 
 class ColumnaSargableTests(TestCase):

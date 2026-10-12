@@ -911,10 +911,16 @@ que el POST ya exigía para dar de alta: a quien no la tiene, esos datos no le s
 pasa por una cubeta de 60 consultas por hora **por operador** —no por IP: un dispositivo entero sale a
 internet por una sola— y deja una línea en el log con el usuario y el dispositivo, **sin el documento**
 (SIIS-14). Quien no puede crear sigue buscando y admitiendo a los que ya están en el padrón, que es el
-camino normal y no consulta nada. **Test permanente:**
-`programas.tests.test_admision_renaper.ConsultaRenaperDesdeLaAdmisionTests` (5 tests: sin la capacidad
-no se consulta, con ella la pantalla no cambia, el padrón no dispara consulta, la cubeta corta y es por
-operador).
+camino normal y no consulta nada.
+
+**Nota de la baja del circuito viejo (09-10-2026, MVP v2 release A):** la pantalla que esta ficha
+protegía —`AdmisionCreateView`— se dio de baja junto con `Admision`, así que ese buscador ya no
+existe y sus cinco tests (`programas/tests/test_admision_renaper.py`) se fueron con él. **La regla
+sigue siendo la misma y la cuida el alta de Legajos**, que es la otra puerta a RENAPER: exige
+`ciudadano.crear` antes de consultar. **Cuando la v2 vuelva a poner un buscador de personas en el
+ingreso, las tres condiciones de esta ficha —capacidad, cubeta por operador y log sin el documento—
+van con él.** **Test permanente:** `legajos.tests.test_ciudadanos_alta.ConfirmarTests` (sin la
+capacidad no se llega al alta, ni por pantalla ni por AJAX).
 
 ### SEC-33 · El mapa del caso envía las coordenadas GPS del domicilio a OpenStreetMap
 **Severidad:** BAJA · **Estado:** CONFIRMADO (lectura) · **Origen:** A5-34 · **Ola:** 2 · **Esfuerzo:** S

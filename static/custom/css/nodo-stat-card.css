@@ -1,0 +1,19 @@
+/* NODO Design System — Stat card, variante «tablero»
+   Contrato: templates/components/_stat_card.html (`variante="tablero"`).
+   Es la versión grande, para tableros y pantallas de inicio de programa; la chica
+   (sin variante) vive en utilidades de Tailwind y no pasa por acá. */
+
+.nodo-stat-tablero .nodo-stat-tablero-ico {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    background: var(--gradient-brand);
+    color: var(--text-white);
+    font-size: 20px;
+}
+
+.nodo-stat-tablero .nodo-stat-tablero-valor {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.1;
+}

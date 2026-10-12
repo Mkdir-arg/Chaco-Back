@@ -370,7 +370,14 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 196 | La imagen deja de llevar once paquetes que nadie importa, y el CI deja de instalar «lo último que haya» | Transversal — dependencias de la imagen (`requirements*.txt`), `INSTALLED_APPS`, workflows del CI, dependabot | `#infra` `#performance` | Auditoría integral oct-2026 — fichas OPS-13 (con RED-45) y RED-85 (Ola 7, PR 2) | 09/10/2026 | 🟢 **Hecho** (D-RED-08 aplicada: el parche de gevent se borra y la guarda del entrypoint se queda; `django-zeal` y `psutil` no se tocan, code-first) | `core.0003` (borra la tabla de `django-health-check` y sus dos filas de `django_migrations`) |
 | 197 | Los hallazgos chicos de la deuda: la vista tapada, la carrera del último administrador y tres botones que mentían | Transversal (RBAC, app `dashboard`) · Becas (relevamientos) · Merenderos (solicitudes) · Usuarios y Roles | `#rbac` `#usuarios` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas BEC-25, G1b-09, G1b-10, RED-78 y R0-02, más los MINOR de #646 y #649 (Ola 7, PR 3) | 09/10/2026 | 🟢 **Hecho** (dos pendientes anotados sin código: el `codigo` del programa editable → SEC-07; los paneles de derivaciones congelados → LEG-06, PM) | No requiere |
 | 198 | Apagar conversaciones: sin rutas, sin WebSockets de chat y sin superficie en el shell | Transversal (shell del backoffice, context processor de identidad, routing de Channels) · Conversaciones (rutas HTTP y API) · Legajos (solapa del detalle, dashboard de alertas, `ws/alertas/`) · Inicio (card «Conversaciones sin asignar») | `#infra` `#ui` `#rbac` `#performance` | Auditoría integral oct-2026 — fichas G1-01 fase 2 y RED-13 (2.ª parte) (Ola 7, PR 4) | 09/10/2026 | 🟢 **Hecho** | No |
-| 200 | Las segundas partes de la red de seguridad: esquema del dashboard, un solo sobre de error y el detalle de revisión partido | Transversal (esquema OpenAPI, sobre de error JSON, auditoría de diseño) · Becas (detalle de revisión, tablero del programa) · Legajos (APIs del detalle de ciudadano) | `#api` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas RED-37, RED-39 y RED-54 (Ola 7, PR 6) | 09/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
+| 199 | Notificaciones: campañas de correo masivo con lista en Excel y cuerpo en HTML | Transversal — módulo nuevo `notificaciones` (backoffice: sidebar, listado, alta y edición, previsualización y envío) | `#correo` `#rbac` `#ui` `#datos` `#infra` | PM — análisis funcional 007 | 08/10/2026 | 🟢 **Hecho** (falta probar el envío real contra el SMTP de ECOM en testing) | `notificaciones.0001` y `0002`, `users.0034` (sin DDL) y `users.0035` (datos, con reversa) |
+| 200 | Lote de pantallas: se relevan todas las piezas y se construyen las que faltan antes de la primera | Diseño · contrato del agente | `#ui` | PM — en sesión: «esto que me comentás me gustaría que se implemente siempre así para evitar futuros errores» | 09/10/2026 | 🟢 **Hecho** | No requiere |
+| 201 | Backlog del MVP de Dispositivos: 40 tasks numeradas por orden, y cierre de las 45 de la v2 | Dispositivos · gestión | `#gestion` | PM — en sesión: «actualizamos todos los task, en el título ponele un número que va a ser el número de orden, asignámelos a mí en esta iteración y agregalos al backlog» | 09/10/2026 | 🟢 **Hecho** | No requiere |
+| 202 | El código deja de leer los seis modelos del circuito viejo de Dispositivos (camas, admisiones, espera, parte diario y campos del tipo) | Dispositivos · backoffice y solapa del legajo | `#datos` `#ui` `#infra` | PM — plan del MVP, §1 del Cambio 191 (task #672) | 09/10/2026 | 🟢 **Hecho** | No requiere (la migración de borrado es la release siguiente) |
+| 203 | La stat card gana una variante «tablero» (grande) y el hallazgo CMP-23 pasa a declarar las dos | Transversal — diseño (pieza `_stat_card`, base del backoffice) · Dispositivos (base de P1, P4, P12, P19, P21) | `#ui` `#metodo` | PM — decisión C-2 del 06/10/2026 sobre el mapeo del mockup; task #582 | 09/10/2026 | 🟢 **Hecho** | No requiere |
+| 204 | La alerta inline admite icono y accion opcionales | Diseño · componentes | `#ui` | Decisión C-5 del PM (06/10) · task #584 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
+| 205 | Variante `btn-fit`: botón sin ancho mínimo para barras de acciones densas | Diseño · componentes | `#ui` | Decisión C-15 del PM (06/10) · task #586 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
+| 207 | Las segundas partes de la red de seguridad: esquema del dashboard, un solo sobre de error y el detalle de revisión partido | Transversal (esquema OpenAPI, sobre de error JSON, auditoría de diseño) · Becas (detalle de revisión, tablero del programa) · Legajos (APIs del detalle de ciudadano) | `#api` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas RED-37, RED-39 y RED-54 (Ola 7, PR 6) | 09/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
 
 **Notas del índice**
 
@@ -30347,7 +30354,774 @@ Entrada nueva.
 entradas con sus filas de índice y las dos tablas de estado, sin tocar las cuentas de horas.
 `CLAUDE.md` y `docs/client/architecture.md` siguen nombrando `/conversaciones/` y **no** se
 tocaron: son del PR 3 de esta ola (#651) y `development` todavía no los tiene.
-# Cambio 200 — Las segundas partes de la red de seguridad: esquema del dashboard, un solo sobre de error y el detalle de revisión partido
+
+# Cambio 199 — Notificaciones: campañas de correo masivo con lista en Excel y cuerpo en HTML
+
+🟢 **HECHO — 08/10/2026** · falta probar el envío real contra el SMTP de ECOM en testing
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — módulo nuevo `notificaciones` (`/notificaciones/`), grupo «Notificaciones › Campañas» del sidebar |
+| **Etiquetas** | `#correo` `#rbac` `#ui` `#datos` `#infra` |
+| **Solicitante** | PM — análisis funcional 007, con mock-ups (`docs/internal/analisis/007-notificaciones-campanas-email.md`) |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | sin issue (análisis 007, estado Definido) |
+| **Partes afectadas** | Backoffice · Servidor (hilo de envío) · Infra/ECOM (SMTP, `NOTIF_LOTE`, `NOTIF_PAUSA_SEG`) |
+| **Migración** | `notificaciones.0001` (cuatro tablas nuevas), `notificaciones.0002` (`Campana.corrida`, nullable; estado EN_CURSO), `users.0034` (capacidades, sin DDL) y `users.0035` (rol «Comunicaciones», datos con reversa) |
+
+## Pedido original
+
+Un módulo donde el equipo arme una **campaña**: nombre, asunto, un Excel con la lista de correos
+y el cuerpo como archivo HTML ya diseñado. Antes de enviar, una previsualización con todos los
+destinatarios, el total y el correo tal como llega. La campaña queda «A enviar» hasta que alguien
+aprieta **Enviar**. Detalle completo, reglas y criterios de aceptación en el
+[análisis 007](analisis/007-notificaciones-campanas-email.md).
+
+## Alcance acordado
+
+Entra todo el análisis 007 (RF-007-01 a RF-007-19): listado con métricas y filtros, alta y edición
+con validación de los dos archivos, previsualización con solapas (vista previa, destinatarios,
+descartados), envío en segundo plano con avance, detener, reanudar, resultado en Excel, plantilla,
+prueba a una dirección y duplicar. Queda afuera lo de la sección 9 del análisis (personalización
+con columnas, programación, plantillas, adjuntos, métricas de apertura, desuscripción, remitente
+propio, destinatarios desde legajos, otros canales).
+
+## Decisiones tomadas
+
+- **Capacidades separadas** `notificacion.ver` / `notificacion.gestionar` / `notificacion.enviar`
+  (módulo global, sin alcance de programa): el envío no se deshace y se le puede dar a menos gente.
+  Las pantallas sin la capacidad redirigen con aviso, como el resto; las acciones POST responden
+  **403** (el botón no se dibuja, así que el POST es armado a mano).
+- **Rol «Comunicaciones»** con las tres, por migración (`users.0035`, corre en todos los ambientes)
+  y por `seed_rbac` (base nueva). Lleva clave estable `notificaciones.comunicaciones`
+  (`RolMeta.clave`, OPS-06 fase 2 del Cambio 193): el arranque lo reconoce aunque lo renombren
+  desde el ABM, y los roles con clave pasan de doce a trece. Se siembra solo al crearlo. El «Administrador» recibe las tres en
+  la misma migración porque es protegido y la pantalla de Roles no lo deja editar.
+- **La vista previa no inyecta el HTML en el backoffice**: va en un `iframe sandbox` vacío cuyo
+  `src` es una vista propia que sirve el HTML **saneado** con su CSP (`default-src 'none'`, solo
+  imágenes `https:` —sin `data:`—, fuentes, estilos en línea, `frame-ancestors 'self'`) y
+  `X-Frame-Options: SAMEORIGIN` (decorador `xframe_options_sameorigin`). El análisis decía
+  `srcdoc`; el juez pidió `src` a una vista con cabeceras propias. El `SecurityHeadersMiddleware`
+  **no se tocó**: respeta la CSP que ya trae la respuesta (`setdefault`), y el `frame-src 'self'`
+  de la página padre ya permite el iframe del mismo origen.
+- **Saneo con `nh3` al subir**: fuera `script`, `iframe`, `object`, `embed`, `form` y controles,
+  `meta`/`link`/`base`, eventos `on*` y `javascript:`; se conservan tablas, estilos en línea y el
+  `<style>` del `<head>`, pero al CSS (bloque y atributo `style`) se le sacan `@import`, las
+  declaraciones con `url(…)`, `expression(…)`, `behavior` o `-moz-binding`, los comentarios y las
+  barras de escape. Las imágenes solo conservan `src` `http(s)://`: `cid:`, rutas relativas y
+  `data:` lo pierden y cuentan para el aviso «hay imágenes que no se van a ver». El texto plano se
+  deriva del HTML saneado (enlaces como «texto (url)»).
+- **Asunto de la prueba**: `EMAIL_ASUNTO_PREFIJO` primero y después `[PRUEBA] ` («[QA] [PRUEBA] …»),
+  el mismo orden que ya usa `diagnosticar_correo`. Ejemplo en testing: «[QA] [PRUEBA] Ya podés
+  inscribirte».
+- **Envío**: hilo del pod con ejecutor inyectable, una conexión SMTP por lote, lote y pausa leídos
+  de `settings` en cada vuelta (`NOTIF_LOTE`=50, `NOTIF_PAUSA_SEG`=10), latido por correo, un correo
+  por destinatario con un solo `To`. El candado contra doble envío es la propia fila de la campaña
+  (`select_for_update`), commiteado antes de lanzar el hilo.
+- **Corridas y reclamo (revisión del juez, ronda 2)**: cada «Enviar» y cada «Reanudar» ponen un
+  token de corrida nuevo en la campaña (`Campana.corrida`); el hilo lo compara antes de cada
+  correo y se retira si cambió, y todo lo que escribe (latido, contadores, cierre) va filtrado por
+  su token, así un hilo reemplazado no mantiene «viva» una campaña ajena. Antes de mandar, cada
+  destinatario se **reclama** con un `UPDATE` PENDIENTE → EN_CURSO y se manda solo si afectó una
+  fila: dos hilos sobre la misma campaña no le mandan dos veces a nadie. La pausa entre lotes se
+  duerme en tramos de 30 s latiendo en cada uno, con techo de 120 s (menos de la mitad del umbral
+  de 5 min): una pausa larga ya no hace ver interrumpido a un hilo vivo.
+- **Semántica «al menos una vez»**: «Reanudar» devuelve a PENDIENTE los EN_CURSO que dejó la
+  corrida anterior. Si esa corrida estaba viva y justo mandando, ese único correo puede salir dos
+  veces (el resultado se anota igual desde PENDIENTE para achicar la ventana). Nunca se reenvía a
+  un destinatario ya anotado ENVIADO.
+- **Falla del destinatario vs. del servidor**: solo el rechazo de la dirección
+  (`SMTPRecipientsRefused`, el 5xx del RCPT) deja al destinatario FALLIDO. Cualquier otra excepción
+  —conexión cortada, timeout, rechazo por volumen— es del servidor: el destinatario vuelve a
+  PENDIENTE, se cierra la conexión, se corta el lote y el siguiente reabre. A los 10 fallos del
+  servidor seguidos se frena y la campaña queda interrumpida con el motivo, para reanudar cuando
+  el SMTP se normalice (lectura conservadora de «rechazo por cuota: si es masivo, se pausa»).
+- **SMTP caído al empezar o error no previsto**: la campaña queda «Enviando» interrumpida en el acto
+  (el latido se fecha vencido) con el error, y se ofrece Reanudar. «Detener» sobre una interrumpida
+  la cancela directamente (no hay hilo que lea el pedido).
+- **Excel**: primera hoja; encabezado `email`/`correo`/`mail` sin mayúsculas ni acentos, buscado en
+  la primera fila con datos; si no hay, columna A desde la fila 1. Las filas vacías del todo no
+  cuentan; una fila con datos y el correo vacío es «Vacío» (cuenta como inválido). Tope 5.000 y
+  techo de 20 MB descomprimido (mismo criterio que SEC-31 del padrón). Más de 20.000 filas
+  descartadas cortan con error en el campo (no es una lista de correos y evita una transacción
+  gigante). Los duplicados se comparan sin mayúsculas ni acentos (`casefold` + NFKD), igual que la
+  collation `*_ci` de MySQL/MariaDB sobre el único (campaña, correo): «mañana.com» y «manana.com»
+  son el mismo correo y el segundo va a Duplicado, sin `IntegrityError` en el `bulk_create`.
+- **Archivos** en `media/notificaciones/{excel,html}/` con nombre UUID; regla propia en
+  `media_protegida` (los baja quien tiene `notificacion.ver`). Lo que se envía y se previsualiza es
+  la copia saneada guardada en la base, no el archivo.
+- **Métricas del mes** por rango de fechas en hora local, sin `Trunc*` (ECOM sin tablas de zona).
+- **UI sin piezas nuevas**: las pantallas clonan sus goldens (Listado, Detalle con solapas,
+  Formulario, Modal y Confirmación). El avance se muestra con `_stat_card` y una alerta, y la
+  pantalla se relee sola cada 5 s como el proceso masivo, conservando la solapa activa en `?tab=`.
+  **No hay barra de progreso**: no existe pieza canónica; el avance va en la alerta «Van X de Y» y
+  en las métricas. El «Ver correo» del mock-up es la solapa **Vista previa**. El filtro de estado
+  del listado no ofrece «Interrumpida»: es un estado derivado del latido, no una columna. El grupo
+  del sidebar se escribió con utilidades en vez de estilos en línea para no subir el ratchet de
+  `INLINESTYLE`: suma dos utilidades al CSS compilado (`px-3.5`, `text-[13.5px]`) para quedar
+  idéntico a los demás grupos, como excepción de shell; la regla quedó en `.claude/design/shells.md`.
+
+## Implementación
+
+- Sidebar: grupo «Notificaciones» (ícono de sobre) con «Campañas», después de Reportes, visible con
+  `notificacion.ver`, expandido y colapsado.
+- Listado: métricas (a enviar, enviando, enviadas y correos enviados en el mes), filtros por estado
+  y texto, 25 por página, acciones ver y duplicar.
+- Alta y edición: nombre, asunto, Excel y HTML, con la ayuda del formato y «Descargar plantilla». En
+  la edición los archivos son opcionales: vacío conserva el que está; reemplazar el Excel recalcula
+  la lista entera.
+- Detalle: métricas de lectura (o de avance una vez enviada), solapas Vista previa (De, Para de
+  ejemplo, asunto con prefijo, escritorio o móvil, avisos de imágenes no visibles y de contenido
+  quitado), Destinatarios (búsqueda, filtro por resultado, paginado) y Descartados. Acciones según
+  estado y capacidad: Editar, Eliminar, Duplicar, Enviar prueba (popup), Enviar, Detener, Reanudar
+  y Descargar resultado (.xlsx con destinatarios y descartados, celdas saneadas con `celda_segura`).
+- Prueba: popup con el correo del usuario precargado, una sola dirección, no cambia el estado,
+  queda registrada (`PruebaEnviada`), 10 por hora por usuario (`core.services.throttle`).
+- Duplicar: copia los dos archivos, relee el Excel y vuelve a sanear el HTML; «Copia de …» en
+  «A enviar» y lleva a editar la copia.
+
+## Archivos
+
+- `notificaciones/` (nuevo): `models/`, `selectors/`, `services/` (`lectura_excel`, `html`,
+  `campanas`, `envio`, `exportacion`), `views/campanas.py`, `forms/`, `urls.py`, `templates/`,
+  `migrations/0001_initial.py`, `tests/`.
+- `config/settings.py` (app, `MIGRATION_MODULES`, `NOTIF_LOTE`, `NOTIF_PAUSA_SEG`), `config/urls.py`,
+  `.env.qa.example`, `requirements.txt` (`nh3==0.3.7`).
+- `core/rbac.py` (módulo `notificaciones` en el `CATALOGO`), `core/rutas_media.py` y
+  `core/views/media.py` (prefijo y regla de `/media/`).
+- `users/migrations/0034_capacidades_notificaciones.py`, `users/migrations/0035_rol_comunicaciones.py`,
+  `users/management/commands/seed_rbac.py`, `users/tests/test_menu_rbac.py`.
+- `templates/includes/sidebar/opciones.html`, `tailwind.config.js` (la app en `APPS`),
+  `static/custom/css/tailwind.css`, `.claude/design/shells.md`.
+
+## Base de datos
+
+`notificaciones.0002` suma `Campana.corrida` (`null=True`) y el estado EN_CURSO del destinatario (solo `choices`). `notificaciones.0001` crea `Campana`, `Destinatario` (único por campaña y correo, índices por
+campaña+estado y estado+fecha de envío), `Descartado` y `PruebaEnviada`: tablas nuevas, sin tocar
+datos existentes. Sin `UUIDField`. `users.0034` es solo estado (los permisos los crea
+`post_migrate`) y `users.0035` siembra el rol y los permisos del Administrador, con reversa real.
+
+## Validación
+
+`manage.py check` y `check --deploy`, `makemigrations --check`, `check_migraciones.py` (3
+migraciones, 0 problemas), tests de `notificaciones`, `users` y `core`, `ruff`,
+`design_audit --ratchet` (0 nuevos), `--arquetipo` OK en listado, detalle, formulario y modal,
+`compile_templates` 0 errores, `check_design_agent --changed` OK y build de Tailwind. El detalle
+con los números está en el informe del PR.
+
+## Puesta en marcha en el servidor
+
+Instalar dependencias (`nh3`) con la imagen nueva. Opcional: `NOTIF_LOTE` y `NOTIF_PAUSA_SEG` en el
+entorno si el SMTP de ECOM rechaza por volumen. Asignar el rol «Comunicaciones» a quien corresponda
+desde Administración › Roles.
+
+## Pendientes / a definir
+
+- Probar en testing el envío real (prueba y una campaña chica) contra el SMTP de ECOM.
+- DECISIÓN CLIENTE: ¿se aceptan más encabezados para la columna del correo («correo electrónico»,
+  «e-mail»)? Hoy solo `email`, `correo` y `mail`, como dice RN-007-02.
+- El envío vive en un hilo del pod, como el proceso masivo: no hay cola. El candado de la fila
+  impide dos hilos sobre la misma campaña.
+
+## Reversión
+
+1. Revertir el código (la app deja de estar en `INSTALLED_APPS` y en las URLs).
+2. `migrate users 0033` saca las tres capacidades de todos los roles y borra el rol
+   «Comunicaciones» si nadie lo tiene asignado.
+3. `migrate notificaciones zero` borra las cuatro tablas: **se pierden las campañas, sus
+   destinatarios y el registro de pruebas**. Los archivos de `media/notificaciones/` quedan en el
+   disco y se borran a mano.
+
+## Historial
+
+**09/10/2026 — merge con `development` antes de mergear el PR #647.** El número 192 que tenía esta
+entrada lo tomó el Cambio 192 de `development` (#645): esta pasó a ser la **199**. Las migraciones
+de `users` se renumeraron a `0034_capacidades_notificaciones` y `0035_rol_comunicaciones` para
+colgar de la `0033` (la `0029`-`0033` de `development` agregaron `RolMeta.clave` y retiraron
+`ciudadano.eliminar`), y el rol pasó a sembrarse con `asegurar_rol_sembrado` y clave estable.
+
+---
+
+---
+
+# Cambio 200 — Lote de pantallas: las piezas primero
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · contrato del agente canónico |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — en sesión |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | — (regla de proceso; nace del plan del MVP, Cambio 191) |
+| **Partes afectadas** | `.claude/agents/chaco-design-system.md`, `CLAUDE.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Esto que me comentás me gustaría que se implemente siempre así para evitar futuros errores. Nosotros
+> ya hicimos hace poco una pasada de estandarización de front.»
+
+El PM lo pidió después de que el plan del MVP explicara por qué la etapa 0 construye las piezas antes
+que las pantallas.
+
+## Decisiones tomadas
+
+**Primero se verificó qué había.** El protocolo por pantalla **ya existía y tenía enforcement**: el
+paso 6 obliga a declarar el Plan de pantalla antes del primer Write, define qué cuenta como novedad
+—clase CSS nueva, archivo CSS o JS nuevo, include o tag nuevo, parámetro no exento, ícono fuera de
+Font Awesome, arquetipo sin ficha—, y la regla dice *«Novedad → Plan con Novedades → no escribir y
+devolver al llamador»*. `check_design_agent.py` valida el contrato en el hook y en el CI. No hacía
+falta inventar nada de eso.
+
+**El hueco era otro: el protocolo es por pantalla y no dice nada del lote.** Cuando entra un programa
+entero, descubrir las piezas de a una hace que cada pantalla frene y devuelva, y que la decisión se
+tome apurada en medio de la implementación, que es cuando más tienta resolverla dentro de la pantalla.
+Así nacieron las divergencias que la estandarización tuvo que ir a buscar después: el caso testigo es
+la franja de métricas de `inicio.html`, con su caja de ícono de 52 px y su gradiente, que el canon
+prohíbe y que quedó anotada como hallazgo CMP-23 — y que el mockup de la v2 terminó copiando.
+
+**Se agregó el paso 0 del lote** al protocolo del agente: si la tarea son varias pantallas de una vez,
+se relevan **todas** las piezas que el lote necesita y se construyen las que faltan, cada una con su
+ficha, **antes de abrir la primera pantalla**. Es el método que se usó para el MVP de Dispositivos: el
+mapeo del mockup relevó las 16 piezas de una sola pasada y el plan las puso en una etapa 0.
+
+**Se cerró además el final abierto de la regla de novedad.** Decía qué hace el implementador —frenar y
+devolver— pero no qué hace el llamador. Ahora la respuesta por defecto del llamador es **construir la
+pieza con su ficha**; resolverla dentro de la pantalla es la excepción y necesita motivo escrito.
+
+La misma regla se sumó a `CLAUDE.md`, en la sección de Diseño, que es donde se lee primero.
+
+## Implementación
+
+Dos bloques cortos. El núcleo del agente quedó en **28.034 bytes** de los 30.000 que admite
+`limites_del_nucleo`; `check_design_agent.py --limites` da OK.
+
+## Archivos
+
+- `.claude/agents/chaco-design-system.md` — paso 0 del lote y el default del llamador
+- `CLAUDE.md` — «Lote = las piezas primero» en la sección de Diseño
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva.
+
+---
+
+---
+
+# Cambio 201 — Backlog del MVP de Dispositivos: 40 tasks numeradas por orden
+
+🟢 **HECHO — 09/10/2026** · Tasks `[TASK] Dispositivos MVP 01` a `40` (#672–#705 y #582–#587)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · gestión del backlog |
+| **Etiquetas** | `#gestion` |
+| **Solicitante** | PM — en sesión |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Épica #127 · ejecuta el plan del Cambio 191 |
+| **Partes afectadas** | Project #1 · issues #582–#587, #397–#441 y #672–#705 |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Actualizamos todos los task; en el título ponele un número que va a ser el número de orden,
+> asignámelos a mí en esta iteración y agregalos al backlog.»
+
+## Decisiones tomadas
+
+**Cuarenta tasks numeradas por orden de ejecución**, con el prefijo `Dispositivos MVP NN`, que ordena
+alfabéticamente igual que cronológicamente. Reparto por etapa del plan: **19 en la etapa 0** (terreno
+y piezas de diseño), **4 en la 1** (edificio, sectores y plazas), **5 en la 2** (ingreso y egreso),
+**6 en la 3** (circuito interno) y **6 en la 4** (relevamiento en campo). Suman **473 h de
+desarrollo**; las 700 h del Ministerio incluyen además QA, diseño, despliegue y la reserva.
+
+**Seis ya existían y se renumeraron en vez de duplicarse**: las piezas aprobadas el 06/10 (#582–#587)
+pasaron de `Dispositivos v2 · M0 ·` a `Dispositivos MVP 03` a `08`. Les faltaba el assignee; se
+agregó.
+
+**Las 45 tasks de la Versión 2 completa se cerraron como «no planificadas»** (`state_reason:
+not_planned`), **no como terminadas**. La distinción importa: el 08/09 se cerraron como completadas
+las 14 tasks de remediación que no estaban hechas, y por eso se perdió el requisito de la #313 hasta
+que la auditoría lo encontró. Cada una lleva un comentario que explica el reencuadre y apunta al
+backlog nuevo. **Los 13 análisis quedan abiertos**: siguen siendo la definición funcional válida y el
+MVP es un recorte de ellos.
+
+**Se saldó la deuda de los títulos rotos.** Los 57 issues creados el 08/09 tenían el separador
+doble-codificado (`Â·` en vez de `·`) porque el título pasó por la línea de comandos, donde Git Bash
+lo convierte a cp1252; los cuerpos, que iban por archivo, estaban bien. Esta vez **el título viaja
+dentro de un JSON en UTF-8 que `gh` lee con `--input`**, y se verificó: cero mojibake en las 40.
+
+## Implementación
+
+Scripts en el scratchpad, idempotentes (`creado.json`, `cerradas.json`): `gen.py` genera los cuerpos,
+`crear.py` crea y completa los campos del Project, `renumerar.py` renombra las seis previas y
+`cerrar_viejas.py` cierra las 45 con su comentario. El cierre tiene una guarda: no toca nada cuyo
+título no sea una task de la v2.
+
+Verificado sobre el Project: **40 tasks, ninguna con campos mal** —todas `Tipo=Task`, `Status=Backlog`,
+`Iteration 7`, asignadas a Mkdir-arg, con `Proyecto=Chaco`, módulo, responsable funcional y horas—.
+El `Status` se escribe **último**, porque el Project auto-mueve a Ready al crear o asignar.
+
+## Pendientes
+
+- **Los casos de prueba de las 40**: el cuerpo deja la sección creada y vacía. Los genera el agente de
+  QA cuando cada task entra en Ready; sin ellos ninguna es Ready.
+- **Las definiciones del Ministerio** que bloquean la etapa 4: escala de criticidad, si el agente debe
+  ser externo a la institución, y los estados del relevamiento. El correo a Guido está redactado.
+- La etapa 0 **no depende de nadie** y se puede arrancar ya.
+
+## Archivos
+
+Ninguno del repo: el trabajo es sobre GitHub.
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva.
+
+---
+
+# Cambio 202 — El código deja de leer los seis modelos del circuito viejo de Dispositivos
+
+🟢 **HECHO — 09/10/2026** · Release A del borrado en dos pasos (task #672, MVP 01)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · backoffice (legajo institucional, configuración de tipos, reportes) y solapa del legajo ciudadano |
+| **Etiquetas** | `#datos` `#ui` `#infra` |
+| **Solicitante** | PM — plan del MVP, §1 de `docs/internal/dispositivos-v2/plan-mvp.md` (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | #672 (`[TASK] Dispositivos MVP 01`) · Épica #127 · ejecuta el Cambio 191 |
+| **Partes afectadas** | Backoffice · no toca Mobile, Servidor/API ni Infra/ECOM |
+| **Migración** | **No requiere, a propósito** — las tablas quedan en pie y vacías; las borra la release B (task 02) |
+
+## Pedido original
+
+> «Release A del borrado en dos pasos: que el código deje de leer seis modelos. Las tablas siguen
+> existiendo y vacías. NO crear ninguna migración en esta task.»
+
+Los seis: `Cama`, `Admision`, `ArchivoAdmision`, `RegistroDiario`, `EsperaAdmision` y
+`CampoTipoDispositivo`.
+
+## Alcance acordado
+
+**Entra:** todo lo que *lee* esos seis modelos —servicios, vistas, formularios, URLs, plantillas,
+comandos y tests— y lo que queda colgando al sacarlo.
+
+**No entra, y es lo que distingue esta release de la siguiente:** las definiciones de clase en
+`programas/models/__init__.py`, que se quedan intactas, y cualquier migración. El gate
+`scripts/check_migraciones.py` pide que un `DeleteModel` vaya **una release después** de que el
+código deje de leer el modelo; esta es esa release. Con la base vacía y sin usuarios el riesgo es
+nulo, pero el orden se respeta igual: es el mismo que evita que el código viejo se quede sin tabla
+apenas se baja una release.
+
+**Se conservan sin tocar:** `TipoDispositivo`, `Dispositivo`, `AsignacionDispositivo`,
+`TrazaDispositivo` y los cinco de Merenderos (`Merendero`, `SolicitudMerendero`,
+`EntregaMercaderia`, `PrestacionMensual`, `PrestacionDiaria`). Merenderos está **fuera del alcance
+del MVP** y comparte archivos con Dispositivos: ahí estuvo el cuidado.
+
+## Decisiones tomadas
+
+**El legajo institucional queda en pie y es lo que se ve.** El detalle del dispositivo pierde la
+franja de indicadores y las solapas «Camas» y «Admisiones», y conserva «Datos» e «Historial» —la
+traza de validación, que es auditoría aditiva y no depende de ninguno de los seis—. El listado, el
+alta, la validación y el cierre no se tocan.
+
+**`programas/services/reportes.py` es compartido con Merenderos y se recortó al bisturí.** Se fueron
+`ocupacion_dispositivos` y `movimientos_dispositivos` (leían `Cama` y `Admision`) y el filtro por
+**período** de `filtrar_dispositivos`, que acotaba por fecha de ingreso o egreso de una estadía.
+`padron_dispositivos` no toca ninguno de los seis y queda igual; los tres de Merenderos
+(`filtrar_merenderos`, `padron_merenderos_con_entregas` y su período) siguen funcionando, con sus
+tests. El listado de dispositivos pierde los dos campos de fecha y cuatro botones de export que ya
+no tienen reporte detrás.
+
+**La solapa de Dispositivos del legajo ciudadano deja de ofrecerse, en vez de abrir una pantalla
+vacía.** `SolapasService` decidía mostrarla con un `Exists` sobre `Admision` ALOJADO: sin ese dato
+la solapa no tiene criterio ni contenido. Con las tablas vacías esa condición ya daba siempre falso,
+así que **no hay cambio visible**: lo que cambia es que la razón pasó a estar escrita. La ruta
+`legajos:dispositivos_ciudadano` y su vista **se conservan** con sus dos guardas (capacidad sobre el
+programa e inscripción vigente) y un estado vacío; la reescribe contra `Estadia` la E2 del MVP
+(task 28). Borrarla habría dejado al `url_map` del servicio apuntando a una ruta inexistente.
+
+**La configuración de tipos pierde los campos, no el tipo.** `CampoTipoDispositivo` era el F-00
+configurable de la admisión; el MVP no tiene formularios por tipo y, cuando los tenga, van sobre el
+motor de formularios de Becas. El ABM de tipos —alta, edición en modal, activar/desactivar— queda
+completo, y el detalle muestra en su lugar que ese tipo no tiene formulario propio.
+
+**El prefijo `media/admisiones/f00/` conserva su regla, que ahora contesta 404.** La regla de
+`core/views/media.py` resolvía el archivo contra `ArchivoAdmision`; ahora devuelve «no hay dueño».
+Se deja **registrada** porque `PREFIJO_F00` sigue siendo el `upload_to` del campo mientras el modelo
+exista, y un prefijo declarado sin regla es exactamente lo que `CoberturaDePrefijosTests` no deja
+pasar. No hay archivos que servir: la tabla está vacía.
+
+**Los tests del motor real se reescribieron, no se borraron.** `core/tests/test_motor_real.py` y
+`test_sql_motor_real.py` usaban `Admision` y `Cama` como fixture, pero lo que prueban es el **motor**:
+que `__date` sobre un `DateTimeField` se traduce a `CONVERT_TZ` y devuelve NULL en una base sin
+tablas de zona horaria (DIS-01), y que una `UniqueConstraint` con `condition` no existe en
+MySQL/MariaDB (DIS-02). El primero pasó a medirse sobre el `creado` de `TimeStamped` y sobre el
+filtro por período de los contactos del legajo, que son los usos vivos; el segundo, al quedarse el
+repo **sin ninguna** restricción condicional, pasó a afirmar las dos mitades —que el motor no las
+crea y que hoy nadie declara una—, que es lo que impide que la ilusión vuelva a entrar por un modelo
+nuevo.
+
+**`RED-35` no se quedó sin test.** El decorador `@archivos_atomicos` (el archivo escrito se borra si
+la base vuelve atrás) lo descubrió el traslado de una admisión y era `TrasladoAtomicoTests` quien lo
+afirmaba por conducta. El traslado se fue; el decorador sigue puesto en el alta y la edición de una
+campaña de correo, así que la conducta se reescribió ahí (`CampanaAtomicaTests`) en vez de perderse.
+
+**Tres fichas de la auditoría de octubre nombraban un «test permanente» que esta release borra.** Se
+actualizaron en el mismo diff, con la nota de la baja y el test que las sostiene hoy: SEC-32 (el
+buscador RENAPER de la admisión → el alta de Legajos, que pide la misma capacidad), DIS-08 (las
+fechas locales del export → la guardia de DIS-01, que recorre el código productivo entero) y RED-33
+(los 30 tests HTTP → los 14 de Merenderos). **La regla que cada una fija sigue vigente y pasa a la
+v2**: capacidad, cubeta y log sin documento para el buscador de personas; `core.utils_fechas` para
+toda fecha; y test HTTP para toda pantalla que opere.
+
+**Dos formularios se fueron aunque no leían ninguno de los seis.** `CiudadanoAdmisionForm` (alta
+mínima de una persona que no existe en Legajos) existía solo para alimentar `admitir_ciudadano`:
+sin esa vista es código muerto sin test. En cambio **`BusquedaCiudadanoDNIForm` se conserva**: es una
+de las diez «puertas» del contrato de DNI del repo (RED-48, `test_padron.py`) y sacarla aflojaba esa
+prueba.
+
+## Implementación
+
+El backoffice de Dispositivos queda con el legajo institucional (listado, alta, edición, el circuito
+de validación y el cierre), la configuración de tipos y el export del padrón. Lo que desapareció de
+la pantalla: admitir una persona, egresarla, trasladarla, la lista de espera, el parte diario, la
+gestión de camas, los indicadores operativos, los reportes de ocupación y movimientos, el filtro por
+período del listado y los campos configurables del tipo.
+
+Nada de eso tenía datos: la tabla rasa se habilitó justamente porque **no hay datos reales cargados
+y nadie usa el programa hoy** (Cambio 191).
+
+## Archivos
+
+**Se borran (12 de código, 11 de plantillas y tests):** `programas/services/{admisiones,camas,
+indicadores,registro_diario}.py` · `programas/views/admisiones.py` ·
+`programas/management/commands/cargar_config_dispositivos.py` · las cinco plantillas de
+`programas/templates/programas/admisiones/` · `dispositivos/_cama_estado_badge.html` ·
+`dispositivos/config/{_campo_form_fields,campo_form}.html` ·
+`dispositivos/legajo/{cama_form,camas_form,parte_diario}.html` · y los tests
+`test_admision_renaper.py`, `test_admisiones.py`, `test_admisiones_vistas.py`,
+`test_dispositivos_camas.py`, `test_fechas_locales_dispositivos.py`, `test_indicadores.py`,
+`test_registro_diario.py` y `test_solapa_dispositivos.py`.
+
+**Se recortan:** `programas/dispositivos_urls.py` (quedan 14 rutas de 23) ·
+`programas/views/{dispositivos_legajo,dispositivos_config,reportes}.py` ·
+`programas/services/{reportes,solapas}.py` · `programas/forms.py` (ocho formularios menos) ·
+`programas/management/commands/seed_aceptacion_reportes.py` · `core/views/media.py` ·
+`legajos/views/dispositivos.py` y su plantilla · `programas/templates/programas/dispositivos/`
+(`legajo/detail.html`, `legajo/list.html`, `config/tipo_list.html`,
+`config/_tipo_detail_content.html`, `config/_edit_modal.html`, `config/tipo_detail.html`).
+
+**Se reescriben:** `core/tests/test_motor_real.py`, `core/tests/test_sql_motor_real.py`,
+`core/tests/test_sql_portable.py`, `core/tests/test_contrato_escrituras.py` (entra
+`CampanaAtomicaTests`), `core/tests/test_media_protegida.py`, `core/tests/test_front_ola5_pr6c.py`
+y siete tests de `programas/tests/`.
+
+**Cuatro contratos del repo que la baja movió, y que avisaron solos:** `test_arquitectura`
+(la arista `admisiones → dispositivos_legajo` dejó de existir), `users/tests/test_rbac_contrato`
+(`dispositivo.admitir` y `dispositivo.egresar` quedaron sin pantalla que las evalúe:
+**no salen del catálogo** —los roles ya las tienen tildadas y la E2 vuelve a pedirlas—, se
+declaran en `CAPACIDADES_SIN_USO` con su motivo), `test_estado_badges_merenderos` (el semáforo
+«Sin datos» era de la franja de indicadores) y `core/tests/test_contrato_auditoria` (las tres
+fichas de arriba). La constante `CAP_ADMITIR` de `programas/services/dispositivos.py` se va con
+ellas: existía solo para que `core.views.media` dejara al admisor bajar su propio F-00.
+
+**Documentación de diseño, en el mismo diff:** `.claude/agents/chaco-design-system.md` (el perfil de
+dominio de Dispositivos ya no nombra camas, admisiones ni partes diarios como vocabulario vigente) y
+`.claude/design/componentes/field.md` (el F-00 dinámico deja de ser un formulario armado en runtime;
+queda solo el de Becas). Las tres fichas de `docs/internal/auditoria-2026-10/hallazgos/`.
+
+**No se toca:** `programas/models/__init__.py` y `programas/migrations/`.
+
+## Base de datos
+
+No requiere. Las seis tablas quedan creadas y vacías; ninguna fila se borra y ningún `FileField`
+cambia su `upload_to`. La migración de borrado, con su marca `# CONTRACT:`, es la task 02 del MVP y
+va en la release siguiente.
+
+## Validación
+
+- `manage.py check` — sin incidencias.
+- `manage.py makemigrations --check --dry-run` — «No changes detected»: no se tocaron modelos.
+- Suite completa con `PYTEST_RUNNING=1` y `DJANGO_SYNCDB_PROJECT_APPS=True` sobre `.venv312`
+  (Python 3.12 + Django 5.2.17, igual al CI).
+- `scripts/compile_templates.py` — 192 plantillas, 0 errores.
+- `scripts/design_audit.py --ratchet` — 0 hallazgos nuevos sobre 18 archivos tocados.
+  `--goldens` — 0 sobre las 5 goldens. `scripts/check_design_agent.py --changed` y `--limites` — OK.
+- `ruff check . --select F` — limpio.
+- `grep` de los seis nombres: fuera de `programas/models/__init__.py` y `programas/migrations/` solo
+  quedan menciones en prosa (comentarios que explican la baja), en `programas/tests/
+  test_models_contrato.py` —que enumera **todos** los modelos de la app y es el contrato de
+  `models/__init__.py`, así que los seis salen de ahí recién con la release B— y en `docs/`, que es
+  registro histórico.
+
+## Puesta en marcha en el servidor
+
+Nada especial: deploy normal. Las tablas siguen existiendo, así que un rollback a la release
+anterior vuelve a leerlas sin ningún paso manual —que es exactamente para lo que sirve partirlo en
+dos—.
+
+## Pendientes / a definir
+
+- **Release B (task 02):** la migración de borrado de los seis modelos, con su `# CONTRACT:` y la
+  salida de `test_models_contrato.TABLAS`. Es la que no tiene vuelta atrás.
+- **Task 28:** la solapa del legajo ciudadano se reescribe contra `Estadia`; hoy muestra el estado
+  vacío.
+- `Dispositivo.camas_totales` sigue en el modelo y ya no lo escribe nadie (lo mantenía
+  `crear_camas`). Lo resuelve la E1 con `Sector`/`Plaza`: no se tocó para no meter una migración en
+  esta release.
+- Sin reemplazo en el MVP, por decisión del plan: la **lista de espera** y los **campos
+  configurables** por tipo de dispositivo.
+- `dispositivo.admitir` y `dispositivo.egresar` quedan en el catálogo **sin pantalla que las
+  evalúe** hasta la E2. Están declaradas como tales en `CAPACIDADES_SIN_USO`; si la v2 cambiara
+  de criterio y no las repusiera, salen del catálogo con su migración de datos, no antes.
+
+## Reversión
+
+`git revert` del commit. Como no hay migración ni dato tocado, el código vuelve a leer las seis
+tablas —que siguen ahí— y el programa queda como estaba. No se pierde nada.
+
+## Historial
+
+Entrada nueva.
+
+---
+---
+
+# Cambio 203 — La stat card gana una variante «tablero» (grande) y CMP-23 pasa a declarar las dos
+
+🟢 **HECHO — 09/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — diseño (pieza `components/_stat_card.html`); base de las pantallas P1, P4, P12, P19 y P21 de la v2 de Dispositivos |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — decisión C-2 del 06/10/2026 (`docs/internal/dispositivos-v2/mapeo-mockup.md` §7) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | #582 (épica #127, análisis #581) |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Que la franja de métricas de los tableros se vea grande, como en el mockup, sin que cinco pantallas
+nuevas nazcan fuera del canon: la stat card gana una variante «tablero» declarada y el hallazgo
+CMP-23 se revisa en el mismo diff.
+
+## Alcance acordado
+
+Entra: `variante="tablero"` en `_stat_card.html`, su CSS, la revisión de la ficha y del inventario.
+Afuera: pasar las cuatro tarjetas de `inicio.html` a la grande, y migrar pantallas existentes.
+
+## Decisiones tomadas
+
+- **Hay dos tamaños declarados**: chica (por defecto; listados y detalles) y grande (tableros e
+  inicio de programa). CMP-23 deja de prohibir las cajas de 52 px a secas: prohíbe lo escrito a
+  mano o con CSS local; la grande existe solo como variante.
+- **Las reglas grandes viven en `static/custom/css/nodo-stat-card.css`** (nuevo, enlazado en
+  `includes/base.html`), no en utilidades: 52 px y 32 px no están en la lista blanca de Tailwind
+  y el gradiente no tiene utilidad. La chica no cambia y sigue en utilidades.
+- **En la grande, `tono` no pinta la caja**: va siempre sobre `var(--gradient-brand)`. La grande suma
+  `shadow-sm` (la chica no tiene sombra).
+- **`inicio.html` no se migra, y queda como deuda con nombre.** Corrección sobre lo que afirmó la
+  primera redacción de esta entrada: su CSS local `.stat-card` **sigue ahí** (líneas 84-130) y las
+  cuatro tarjetas **no usan la pieza**, están escritas a mano y con el gradiente puesto por `style=`
+  inline en el marcado. Es el caso que dio origen a CMP-23. No se migra acá por alcance —el inicio es
+  la portada general del sistema, no un tablero de programa, y cambiarle el aspecto es decisión del
+  PM—, no porque no haga falta. Con la variante ya construida, migrarlo es reemplazar ese bloque por
+  cuatro `{% stat_card %}` con `variante="tablero"` y borrar el CSS local.
+- **Una sola franja grande por pantalla** y nunca mezclada con la chica.
+- La excepción del gradiente en contenido (regla del núcleo) queda explícita: solo esta caja.
+
+## Implementación
+
+Sin `variante` (o con otro valor) el render es byte a byte el de antes. Con `variante="tablero"`: card con
+`nodo-stat-tablero shadow-sm`, caja `nodo-stat-tablero-ico` (52 px, radio 12, gradiente, ícono
+blanco de 20 px) y valor `nodo-stat-tablero-valor` (32 px / 800). El ícono se sigue pasando por
+nombre de Font Awesome; `kpi_id`, `sufijo`, `nota` valen en las dos.
+
+## Archivos
+
+`templates/components/_stat_card.html`, `static/custom/css/nodo-stat-card.css` (nuevo),
+`templates/includes/base.html`, `core/tests/test_nodo_ui_piezas.py`,
+`.claude/design/componentes/stat_card.md`, `.claude/agents/chaco-design-system.md`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Render de las 40 invocaciones del repo antes y después: idénticas byte a byte. Dos tests nuevos
+(variante y variante desconocida). Detalle de las auditorías en el informe del PR.
+
+## Pendientes / a definir
+
+- Decidir si Inicio pasa a la grande (ver Decisiones).
+- Las pantallas P1, P4, P12, P19 y P21 usan la variante cuando se construyan (tasks siguientes del MVP).
+
+## Historial
+
+Entrada nueva.
+
+---
+
+---
+
+# Cambio 204 — La alerta inline admite ícono y acción opcionales
+
+🟢 **HECHO — 10/10/2026** · Task #584 · PR del MVP 04
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · componente `_alerta.html` |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Decisión **C-5** del PM (06/10/2026), ejecutada por la task #584 |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | #584 · análisis #581 · épica #127 |
+| **Partes afectadas** | `templates/components/_alerta.html`, su ficha y la fila del inventario |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El mockup de la Versión 2 usa la alerta inline **con ícono** y **con acción** en quince de sus
+veintidós pantallas. El componente no tenía ninguna de las dos cosas, así que o las quince nacían
+fuera del canon o se veían distintas del link que el cliente aprobó. La decisión C-5 fue ampliar la
+pieza.
+
+## Decisiones tomadas
+
+Tres parámetros opcionales: `icono`, `accion_url` y `accion_texto`. **Sin ellos el render es idéntico**,
+y eso no se dio por sentado: se renderizaron **setenta casos** —los veintidós usos reales del repo más
+una matriz de cuarenta y ocho combinaciones de tono, título, texto y rol— comparando byte a byte
+contra la versión anterior. La comparación encontró dos diferencias de espacio en blanco que se
+corrigieron antes de commitear y que a ojo no se habrían visto.
+
+Tres decisiones que la task no definía: en el tono informativo el ícono propio **reemplaza** al fijo,
+porque sumarlo duplicaría íconos; el enlace toma el color del tono, por coherencia con el ícono; y la
+acción se dibuja **solo si vienen la URL y el texto**, para no dejar nunca un enlace vacío o sin
+etiqueta. Las tres quedaron en el docstring de la pieza.
+
+Los 18 px del ícono van con `text-lg`, la utilidad estándar, y no con un arbitrario: el canon admite
+un solo tamaño arbitrario y además vale 17 px, no 18.
+
+## Pendientes
+
+La revisión dejó dos menores que no se corrigen acá. Con `icono` pero sin título ni texto se
+renderiza una alerta vacía: es un uso inválido y no se defiende. Y la rama del tono informativo alinea
+distinto que las demás —`items-center` contra `items-start`—, que es deuda previa de esa nota
+canónica, no de este cambio; conviene comparar en una captura cuando la v2 la use con acción
+multilínea.
+
+## Implementación
+
+El test de escapado que traía la implementación solo comprobaba que el marcado **no** apareciera, cosa
+que pasaría igual si el texto se descartara. Se reforzó: ahora verifica que el `<b>` salga como
+`&lt;b&gt;` y que una comilla dentro de la URL salga como `&quot;` sin cerrar el atributo.
+
+## Archivos
+
+- `templates/components/_alerta.html`
+- `.claude/design/componentes/alerta.md` y la fila del inventario en `.claude/agents/chaco-design-system.md`
+- `core/tests/test_nodo_ui_piezas.py` — seis tests nuevos
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva.
+
+---
+
+---
+
+# Cambio 205 — Variante `btn-fit`: botón sin ancho mínimo
+
+🟢 **HECHO — 10/10/2026** · Task #586
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · botones NODO |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Decisión **C-15** del PM (06/10/2026), ejecutada por la task #586 |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | #586 · análisis #581 · épica #127 |
+| **Partes afectadas** | `static/custom/css/nodo-buttons.css`, su ficha y la fila del inventario |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Los botones del sistema tienen un ancho mínimo por tamaño —de 128 px en el más chico a 186 px en el
+más grande— que en el mockup de la Versión 2 no está. En las barras de acciones densas y en las
+celdas de tabla los botones se ven más anchos de lo dibujado, y **la diferencia no se arregla pantalla
+por pantalla**: sin la variante ninguna barra de acciones de la v2 se parece al mockup.
+
+## Decisiones tomadas
+
+Una sola regla: `.btn-fit { min-width: auto }`, que anula el mínimo del tamaño y no toca nada más
+—alto, padding, radio, tipografía, hover, foco y disabled siguen siendo los del tamaño y el tono—.
+
+**`auto` y no `0`, que fue el hallazgo de la revisión.** El botón no declara `white-space: nowrap` ni
+`flex-shrink: 0`, así que con `0` dentro de un header flex sin `flex-wrap` se comprime por debajo de
+su propio texto: la etiqueta se parte en dos líneas y rompe el alto fijo. Es exactamente el caso para
+el que se creó la variante. `auto` anula igual el mínimo declarado pero no deja que el contenido se
+rompa.
+
+**La regla va después de los tamaños y antes del bloque `@media (pointer: coarse)`, y es
+deliberado.** Tiene la misma especificidad que los tamaños, así que les gana por orden; y el bloque
+táctil, que viene después, le gana a ella e impone los 44 px de área táctil (WCAG 2.5.8). Por eso
+tampoco se sube la especificidad a `.btn-nodo.btn-fit`: le ganaría a esa regla y se perderían los
+44 px. A 640 px o menos la variante no hace nada, porque ahí los cinco tamaños ya valen cero por su
+propio bloque responsive.
+
+**Dónde se usa**, escrito en la ficha: headers con tres o más acciones y botones dentro de celdas de
+tabla. **Dónde no**: formularios y la acción principal de una pantalla, donde el ancho mínimo es el
+que da la jerarquía.
+
+## Implementación
+
+Ningún template usa todavía `btn-fit`, así que ningún botón existente puede cambiar: eso se verificó
+con un barrido del repo completo, no solo de los templates.
+
+Los tests comparan la posición de la regla contra **todos** los tamaños y no solo contra el último, de
+modo que un tamaño agregado después de la variante no pase inadvertido. Y el `setUp` **quita los
+comentarios del CSS antes de buscar**: los de esa hoja citan selectores y reglas para explicarse, y
+una búsqueda por texto los encuentra antes que al código real. Pasó dos veces escribiendo estos
+mismos tests, con `@media (pointer: coarse)` y con `.btn-nodo.btn-fit`.
+
+## Archivos
+
+- `static/custom/css/nodo-buttons.css`
+- `.claude/design/componentes/botones_badges.md` y la fila del inventario en `.claude/agents/chaco-design-system.md`
+- `core/tests/test_nodo_ui_piezas.py`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva.
+
+---
+
+---
+
+# Cambio 207 — Las segundas partes de la red de seguridad: esquema del dashboard, un solo sobre de error y el detalle de revisión partido
 
 🟢 **HECHO — 09/10/2026**
 
@@ -30504,10 +31278,6 @@ cada una vive en `revision/_detalle/`. La vista perdió el armado del contexto, 
 
 - Encender `--fail-on-warn` en el job `Contratos de API` (`pr-backend.yml`): el esquema ya
   está en 0 warnings. Es del PR 5 de esta ola.
-- Las fichas de `.claude/design/` que citan `formulario_detalle.html` por ruta
-  (`arquetipos/pendientes.md`, `componentes/field.md`, `dominio/becas.md`) tienen que
-  actualizarse: el contenido nuevo va en el cuerpo del PR, porque esta sesión no tiene permiso
-  de escritura en `.claude/`.
 - Migrar al sobre único las tres pantallas que leen `data.errors` por campo es una decisión
   por pantalla; la regla `SOBREJSON` las deja marcadas.
 - La deuda P1 de diseño del detalle de revisión (32 hallazgos) sigue donde estaba, ahora
@@ -30522,3 +31292,5 @@ archivo entero: los snapshots dicen si el HTML quedó igual.
 ## Historial
 
 Entrada nueva.
+
+---

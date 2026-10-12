@@ -13,7 +13,7 @@
         <div>
           <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-fg-brand">{{ tipo.nombre }}</p>
           <h2 id="dispositivos-edit-title" class="text-xl font-extrabold text-heading">
-            {% if modal_edicion == "tipo" %}Editar tipo de dispositivo{% else %}Editar campo{% endif %}
+            Editar tipo de dispositivo
           </h2>
         </div>
         <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}"
@@ -26,15 +26,10 @@
             action="{{ modal_action }}"
             class="flex min-h-0 flex-1 flex-col"
             data-ajax
-            data-reset="false"
-            {% if modal_edicion == "campo" %}data-campo-form{% endif %}>
+            data-reset="false">
         {% csrf_token %}
         <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
-          {% if modal_edicion == "tipo" %}
-            {% include "programas/dispositivos/config/_tipo_form_fields.html" %}
-          {% else %}
-            {% include "programas/dispositivos/config/_campo_form_fields.html" %}
-          {% endif %}
+          {% include "programas/dispositivos/config/_tipo_form_fields.html" %}
         </div>
         <footer class="flex flex-col-reverse gap-3 border-t border-light px-5 py-4 sm:flex-row sm:justify-end sm:px-6"
                 style="background:var(--bg-secondary)">
@@ -42,7 +37,7 @@
              class="btn-nodo btn-tertiary btn-base"
              data-modal-close>Cancelar</a>
           <button type="submit" class="btn-nodo btn-brand btn-base">
-            {% if modal_edicion == "tipo" %}Guardar tipo{% else %}Guardar campo{% endif %}
+            Guardar tipo
           </button>
         </footer>
       </form>

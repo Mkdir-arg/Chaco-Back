@@ -1,0 +1,24 @@
+{% comment %}
+Badge de estado de una campaña de correo. Espera `campana` en el contexto.
+Única fuente del mapa estado→badge de la entidad, con el contrato de
+`programas/merenderos/_estado_badge.html`: un `<span class="badge badge-dot …">` con un
+solo tono y el texto del estado, para que el color nunca sea el único indicador.
+
+  A_ENVIAR             info     armada, espera que alguien la envíe
+  ENVIANDO             brand    el hilo está mandando
+  (interrumpida)       warning  dice «Enviando» pero no da señales: se puede reanudar
+  ENVIADA              success  salieron todos
+  ENVIADA_CON_ERRORES  warning  salió, con fallidos
+  CANCELADA            gray     se detuvo a mano
+
+Uso: {% include "notificaciones/_estado_badge.html" %}
+     {% include "notificaciones/_estado_badge.html" with campana=fila %}
+{% endcomment %}
+{% with e=campana.estado %}
+{% if e == 'ENVIANDO' and campana.interrumpida %}<span class="badge badge-dot badge-warning">Interrumpida</span>{% else %}<span class="badge badge-dot
+  {% if e == 'A_ENVIAR' %}badge-info
+  {% elif e == 'ENVIANDO' %}badge-brand
+  {% elif e == 'ENVIADA' %}badge-success
+  {% elif e == 'ENVIADA_CON_ERRORES' %}badge-warning
+  {% else %}badge-gray{% endif %}">{{ campana.get_estado_display }}</span>{% endif %}
+{% endwith %}

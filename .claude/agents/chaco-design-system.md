@@ -34,6 +34,18 @@ Para trabajar UI no hace falta leer `AGENTS.md`.
 
 ## Protocolo de construcción
 
+**Si la tarea es un lote** —un programa nuevo, una ola, un rediseño: varias pantallas de una
+sola vez— el protocolo de abajo no se aplica pantalla por pantalla sin antes hacer esto:
+
+0. **Relevá las piezas del lote entero antes de abrir la primera pantalla.** Recorré todas
+   las pantallas previstas, anotá qué pieza cubre cada bloque y cuáles no existen, y
+   **construí primero las que faltan**, cada una con su ficha. Recién después se implementa
+   la primera pantalla. Descubrir las piezas de a una hace que cada pantalla frene y
+   devuelva, y que la decisión se tome apurada en medio de la implementación, que es cuando
+   más tienta resolverla dentro de la pantalla. Una pieza construida tres veces y unificada
+   después cuesta varias veces más que construirla una vez al principio, y en el medio el
+   producto se ve distinto en cada pantalla.
+
 **Antes de escribir**
 
 1. **Clasificá la tarea.** (A) ajuste · (B) pantalla nueva · (C) pieza nueva o cambio de
@@ -123,7 +135,9 @@ Para trabajar UI no hace falta leer `AGENTS.md`.
   `messages` [existente].
 - Datos, permisos y contadores preparados en la vista; listados con `paginate_by` [revisión].
 - La hermana del módulo nunca es molde [revisión].
-- Novedad → Plan con Novedades → no escribir y devolver al llamador [revisión].
+- Novedad → Plan con Novedades → no escribir y devolver al llamador [revisión]. La respuesta
+  por defecto del llamador es **construir la pieza con su ficha** y recién después seguir;
+  resolverla dentro de la pantalla es la excepción y necesita motivo escrito.
 
 ## Superficies y shells
 
@@ -169,11 +183,11 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Tabla densa backoffice | Canónico reutilizable | `static/custom/css/nodo-tables.css`: `.nodo-thead-row`, `.nodo-th`, `.nodo-td` dentro de `overflow-x-auto` + `table.w-full.border-collapse`; acción de fila con `.nodo-icon-btn` y `aria-label` con el registro. La columna de acciones se nombra con `sr-only`. Ficha: `.claude/design/componentes/tabla.md` |
 | Estado vacío backoffice | Canónico reutilizable | Pieza única `templates/components/_estado_vacio.html`, dentro de la card de la lista; variante con filtros («Limpiar filtros») decidida con el filtro `hay_filtros` de `core/templatetags/nodo_ui.py`. Ficha: `.claude/design/componentes/estado_vacio.md` |
 | Paginación | Canónico reutilizable | Pieza única `templates/components/_paginacion.html` (`page_obj`, `entidad`, `entidad_plural`, `filtros_qs`, `param`, `extra_qs`); con `param` propio por lista, una pantalla pagina más de una (una por solapa). Solo se muestra con más de una página y va dentro de la card. Ficha: `.claude/design/componentes/paginacion.md` |
-| Alertas inline backoffice | Canónico reutilizable | Pieza única `templates/components/_alerta.html` (`tono`, `titulo`, `texto`, `role`); bloqueo y advertencia se distinguen por el encabezado y por si la acción sigue disponible, no por el color. Ficha: `.claude/design/componentes/alerta.md` |
+| Alertas inline backoffice | Canónico reutilizable | Pieza única `templates/components/_alerta.html` (`tono`, `titulo`, `texto`, `role`; opcionales `icono`, `accion_url` + `accion_texto`); bloqueo y advertencia se distinguen por el encabezado y por si la acción sigue disponible, no por el color. Ficha: `.claude/design/componentes/alerta.md` |
 | Errores no de campo | Canónico reutilizable | Pieza única `templates/components/_form_errores.html` (`form`, `titulo`); va justo después de `{% csrf_token %}` y solo aparece si el form trae errores del conjunto (`unique_together`, `clean()` de form), que ningún campo muestra. En un modal que se repite por fila, acotada a la fila que falló. Ficha: `.claude/design/componentes/form_errores.md` |
-| Stat cards / métricas | Canónico reutilizable | Pieza única `templates/components/_stat_card.html` (`etiqueta`, `valor`, `icono` sin `fas`, `tono`; opcionales para tableros que llena un JS: `kpi_id`, `sufijo`, `sufijo_id`, `nota`, `nota_id`, que sin usarse no cambian el render); la grilla la arma el consumidor. Sin gradiente ni cajas de 52 px; **sin ranura de cuerpo**: minigráfico o progreso van en la pantalla con el mismo esqueleto. Ficha: `.claude/design/componentes/stat_card.md` |
+| Stat cards / métricas | Canónico reutilizable | Pieza única `templates/components/_stat_card.html` (`etiqueta`, `valor`, `icono` sin `fas`, `tono`; opcionales `kpi_id`, `sufijo`, `nota`, `variante`: sin usarse no cambian el render); grilla del consumidor. Dos variantes: chica (por defecto) y `variante="tablero"` (grande, 52 px con gradiente; `nodo-stat-card.css`); **sin ranura de cuerpo**: minigráfico o progreso van en la pantalla. Ficha: `.claude/design/componentes/stat_card.md` |
 | Campos NODO y `_field.html` | Canónico reutilizable | `static/custom/css/nodo-forms.css` (`nodo-field`, `.nodo-checks`, selector de color) y la pieza única `templates/components/_field.html` (`field`, `wrapper_class`), con `data-error="<campo>"` siempre presente para el guardado AJAX y `aria-describedby`/`aria-invalid` puestos por `nodo_ui.campo_control`. La clase del control la pone el widget del form (`programas/forms.py`), no el template. Ficha: `.claude/design/componentes/field.md` |
-| Botones y badges NODO | Canónico reutilizable | `static/custom/css/nodo-buttons.css` (`btn-nodo` + variante + tamaño, `.nodo-icon-btn`, `.nodo-icon-btn--danger`) y `static/custom/css/nodo-badges.css` (`badge` + variante, siempre con texto además del color). Ficha: `.claude/design/componentes/botones_badges.md` |
+| Botones y badges NODO | Canónico reutilizable | `static/custom/css/nodo-buttons.css` (`btn-nodo` + variante + tamaño, `.nodo-icon-btn`, `.nodo-icon-btn--danger`, y `btn-fit` —sin `min-width`— solo en headers densos de 3+ acciones y celdas de tabla) y `static/custom/css/nodo-badges.css` (`badge` + variante, siempre con texto además del color). Ficha: `.claude/design/componentes/botones_badges.md` |
 | Tabs backoffice | Canónico reutilizable | Solapas en una surface, con `role="tablist"` + `aria-label`, `role="tab"` + `id` + `aria-controls` + `aria-selected`, `role="tabpanel"` + `id` + `aria-labelledby`, y estado en `x-data` + querystring `tab`. **ARIA y teclado obligatorios:** el teclado lo da `static/custom/js/nodo-tabs.js` desde el shell; ninguna pantalla escribe el suyo. Lo que abre otra pantalla es acción del encabezado, no una solapa. Ficha: `.claude/design/componentes/tabs.md` |
 | Modal Becas accesible (partes) | Canónico reutilizable | `static/custom/js/becas-modal.js` + `programas/templates/programas/becas/_modal_header.html` + `programas/templates/programas/becas/_modal_footer.html`; **transversales**: se incluyen desde esa ruta cargando `becas-modal.js` en `customJS`, también fuera de Becas. Ficha: `.claude/design/componentes/modal_partes.md` |
 | Modal global `ModernModal` y toasts | Canónico reutilizable | Markup y script en `templates/includes/base.html` (`#modal-overlay`) + `static/custom/js/nodo-toast.js` y `static/custom/css/nodo-toast.css`; motor de las confirmaciones sí/no y único sistema de avisos (`window.toast`). Ficha: `.claude/design/componentes/modern_modal_toast.md` |
@@ -212,8 +226,9 @@ Lista blanca. Lo que no está acá es una **novedad** (protocolo, paso 6).
   solo en el shell.
 - **Gradiente:** `var(--gradient-brand)` queda para el shell y el panel de marca de
   inscripción. En el contenido no: las iniciales de una persona van
-  `w-8 h-8 rounded-full bg-brand-soft text-fg-brand` y las métricas sin gradiente
-  (un solo acento por bloque).
+  `w-8 h-8 rounded-full bg-brand-soft text-fg-brand` y las métricas chicas sin gradiente
+  (un solo acento por bloque). Única excepción: la caja de ícono de la stat card
+  `variante="tablero"`.
 
 ## Perfiles de dominio
 
@@ -223,8 +238,11 @@ El lenguaje visual es el mismo en todos los módulos; el vocabulario de dominio,
   traslada: convocatoria, segmento, subsegmento, cupo, lista de espera, beneficiario,
   formulario enviado, relevamiento, padrón y SIIS **solo existen en Becas**.
 - **Dispositivos** es operación institucional continua: legajo del dispositivo, estado
-  operativo, camas, admisiones, egresos, traslados, partes diarios y auditoría de
-  movimientos. Lectura rápida de ocupación y disponibilidad; historial que no se borra.
+  operativo, tipos y auditoría de movimientos; historial que no se borra. El circuito
+  operativo viejo —camas, admisiones, egresos, traslados y partes diarios— se dio de baja
+  con sus modelos (MVP v2, release A) y **no es vocabulario vigente**: lo reemplazan
+  sector, plaza, estadía, turno y bitácora, que entran pantalla por pantalla con el MVP
+  (`docs/internal/dispositivos-v2/plan-mvp.md`). No copiar las pantallas dadas de baja.
 - **Merenderos** habla de solicitudes, validación institucional, entregas de mercadería,
   prestación mensual y documentación respaldatoria.
 - **Transversal** (shell, usuarios, roles, legajos, portal, configuración): verificar

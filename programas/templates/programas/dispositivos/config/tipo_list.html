@@ -7,7 +7,7 @@
     <div>
       <p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">Programa Dispositivos</p>
       <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">Tipos de dispositivo</h1>
-      <p class="text-sm text-body-subtle mt-1.5">Configurá cada modalidad y los campos propios de su formulario.</p>
+      <p class="text-sm text-body-subtle mt-1.5">Configurá cada modalidad del programa.</p>
     </div>
     <a href="{% url 'dispositivos:tipo_crear' %}" class="btn-nodo btn-brand btn-base">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -26,7 +26,6 @@
               <th class="px-5 py-3 font-semibold">Tipo</th>
               <th class="px-5 py-3 font-semibold">Código</th>
               <th class="px-5 py-3 font-semibold">Maneja camas</th>
-              <th class="px-5 py-3 font-semibold">Campos</th>
               <th class="px-5 py-3 font-semibold">Estado</th>
               <th class="px-5 py-3 text-right"><span class="sr-only">Acciones</span></th>
             </tr>
@@ -40,7 +39,6 @@
                 </td>
                 <td class="px-5 py-4 font-mono text-xs text-body">{{ tipo.codigo }}</td>
                 <td class="px-5 py-4 text-body">{% if tipo.maneja_camas %}Sí{% else %}No{% endif %}</td>
-                <td class="px-5 py-4 text-body">{{ tipo.cantidad_campos }}</td>
                 <td class="px-5 py-4">
                   <span class="badge badge-dot {% if tipo.activo %}badge-success{% else %}badge-gray{% endif %}">
                     {% if tipo.activo %}Activo{% else %}Inactivo{% endif %}
@@ -57,7 +55,7 @@
     {% else %}
       <div class="px-6 py-14 text-center">
         <h2 class="font-bold text-heading">Todavía no hay tipos configurados</h2>
-        <p class="text-sm text-body-subtle mt-1">Creá el primero o ejecutá la carga inicial documentada.</p>
+        <p class="text-sm text-body-subtle mt-1">Creá el primero para empezar a dar de alta dispositivos.</p>
       </div>
     {% endif %}
   </div>
