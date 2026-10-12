@@ -377,6 +377,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 203 | La stat card gana una variante «tablero» (grande) y el hallazgo CMP-23 pasa a declarar las dos | Transversal — diseño (pieza `_stat_card`, base del backoffice) · Dispositivos (base de P1, P4, P12, P19, P21) | `#ui` `#metodo` | PM — decisión C-2 del 06/10/2026 sobre el mapeo del mockup; task #582 | 09/10/2026 | 🟢 **Hecho** | No requiere |
 | 204 | La alerta inline admite icono y accion opcionales | Diseño · componentes | `#ui` | Decisión C-5 del PM (06/10) · task #584 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
 | 205 | Variante `btn-fit`: botón sin ancho mínimo para barras de acciones densas | Diseño · componentes | `#ui` | Decisión C-15 del PM (06/10) · task #586 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
+| 206 | Bloque de ubicación sin mapa: coordenadas, enlace externo y plano adjunto | Diseño · componentes | `#ui` | Decisión C-14 del PM (06/10) · task #587 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
 | 207 | Las segundas partes de la red de seguridad: esquema del dashboard, un solo sobre de error y el detalle de revisión partido | Transversal (esquema OpenAPI, sobre de error JSON, auditoría de diseño) · Becas (detalle de revisión, tablero del programa) · Legajos (APIs del detalle de ciudadano) | `#api` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas RED-37, RED-39 y RED-54 (Ola 7, PR 6) | 09/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
 
 **Notas del índice**
@@ -31118,6 +31119,81 @@ No requiere.
 Entrada nueva.
 
 ---
+---
+
+# Cambio 206 — Bloque de ubicación sin mapa
+
+🟢 **HECHO — 10/10/2026** · Task #587 · pieza nueva `templates/components/_ubicacion.html`
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · pieza nueva |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Decisión **C-14** del PM (06/10/2026), ejecutada por la task #587 |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | #587 · análisis #581 · épica #127 |
+| **Partes afectadas** | `templates/components/_ubicacion.html` (nuevo), su ficha, el inventario y la red de seguridad del portal |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El mockup de la Versión 2 dibuja un **mapa embebido** en la solapa de infraestructura. No se puede:
+la política de seguridad de contenido del sistema bloquea los CDN, así que no hay forma de cargar la
+librería. La decisión C-14 fue **descartar el mapa embebido en la v2** —no postergarlo— y
+reemplazarlo por coordenadas legibles, un enlace que abre el mapa **fuera** del sistema, y el plano
+como adjunto.
+
+## Decisiones tomadas
+
+La pieza se construye **sin consumidor**: la pantalla que la usa es la task 37. Queda lista y
+documentada.
+
+**El plano no depende de las coordenadas**, que fue el hallazgo funcional de la revisión. En la
+primera versión el bloque del plano estaba dentro del `if` que exige latitud y longitud, así que un
+plano cargado desaparecía mientras nadie hubiera tomado las coordenadas del edificio. Son dos datos
+independientes: ahora el estado vacío cubre solo la ubicación y el plano se muestra igual.
+
+**El proveedor del mapa es OpenStreetMap**, elegido por el implementador porque la task no nombraba
+ninguno. Está en un solo lugar de la pieza. **Queda a decisión del PM** si se mantiene: el enlace
+manda las coordenadas de la institución a un servicio externo cuando alguien hace click. La decisión
+C-14 aprobó el enlace externo, no el proveedor.
+
+**Se tocó una red de seguridad, y se verificó antes de aceptarlo.** La prueba
+`SinRecursosDeTercerosTests` de `portal/tests/` barre las plantillas buscando dominios externos y el
+enlace la hacía fallar, así que su prefijo se agregó a la lista de permitidos. El docstring de esa
+prueba dice que protege contra volver a **traer código** de un CDN y reabrir el agujero de cadena de
+suministro; un `<a href>` de navegación no trae nada, y el precedente de Google Tag Manager usa el
+mismo patrón con su comentario. El prefijo está anclado al host y a `/?`, lo que deja afuera dominios
+parecidos y otras rutas —entre ellas `/export/embed.html`, que es la del iframe de OSM—.
+
+## Pendientes
+
+- **Si se cambia de proveedor de mapa**, hay que actualizar esa lista de permitidos. Queda escrito en
+  la ficha y en el encabezado de la pieza.
+- **Un `0` cuenta como coordenada cargada.** Si el modelo que la alimente usa `0` por defecto en vez
+  de `null`, el bloque va a mostrar «0,000000 / 0,000000» y enlazar a Null Island. Hay que
+  verificarlo en la task 37, al conectar el modelo.
+- El barrido de la prueba de terceros **no distingue el atributo**: un `src` con el mismo prefijo
+  pasaría. En la práctica no carga código —OSM responde HTML y la CSP bloquea el frame— pero la
+  entrada permite más de lo que su comentario declara.
+
+## Archivos
+
+- `templates/components/_ubicacion.html` (nuevo)
+- `.claude/design/componentes/ubicacion.md` (nueva) y la fila del inventario
+- `portal/tests/test_seguridad_publica.py` — el prefijo permitido, con su comentario
+- `core/tests/test_nodo_ui_piezas.py`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva.
+
+---
+
 
 ---
 
@@ -31317,9 +31393,10 @@ Entrada nueva.
 - **MINOR — las fichas de `.claude/design/` ya viajan en la rama**, así que se borró el
   pendiente que mandaba aplicarlas a mano (acá y en el README de la auditoría).
 
-**Merge de `development`** (hasta `2d632cd9`, Cambio 205): **el 200 ya lo usó otra sesión**
+**Merge de `development`** (hasta `f23f9e13`, Cambio 206): **el 200 ya lo usó otra sesión**
 («Lote de pantallas»), así que esta entrada se renumeró a **207** —206 y 208 quedan reservados
-para otros PRs—. El conflicto en `docs/internal/requerimientos.md` fue de yuxtaposición pura:
+para otros PRs, y el 206 entró a `development` mientras se cerraba esta ronda—. El conflicto en
+`docs/internal/requerimientos.md` fue de yuxtaposición pura:
 las dos ramas agregan filas al final del índice y entradas al final del archivo, y `git` las
 interleó por los encabezados repetidos de la plantilla. Se conservaron las dos mitades enteras,
 sin tocar las cuentas de horas del README de la auditoría.
