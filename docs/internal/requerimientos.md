@@ -387,6 +387,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 229 | RED-88 de verdad: sin `tblib`, una falla del CI se disfraza de timeout | Calidad · CI | `#metodo` `#infra` | Juez — diagnóstico del 12/10/2026 | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 230 | Golden del arquetipo Wizard: el alta de programa pasa a ser el molde | Diseño · arquetipos | `#ui` `#metodo` | Task 09 del MVP de Dispositivos (plan del Cambio 191) | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 236 | Golden del arquetipo Revisión, con línea de tiempo y sección de ficha | Diseño · arquetipos | `#ui` `#metodo` | Task 10 del MVP de Dispositivos (plan del Cambio 191) | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 239 | Edificio, Sector y Plaza: la base de la etapa 1, sin tipear ocupación | Dispositivos · modelo de datos | `#datos` `#ui` | Tasks 20 y 21 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | `programas.0086` |
 
 **Notas del índice**
 
@@ -32168,5 +32169,130 @@ No requiere.
 ## Historial
 
 Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 239 — Edificio, Sector y Plaza: la base de la etapa 1, sin tipear ocupación
+
+🟢 **HECHO — 12/10/2026** · Tasks `[TASK] Dispositivos MVP 20` (#685) y `21` (#686)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · modelo de datos |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) · decisión del 08/10/2026 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Tasks 20 y 21 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `programas/models/__init__.py`, `programas/migrations/0086_edificio_sector_plaza.py` |
+| **Migración** | `programas.0086` — tres tablas nuevas, dos columnas en `TipoDispositivo` |
+
+## Decisiones tomadas
+
+**`Plaza.estado` guarda solo el estado operativo, no los cinco del mockup.** Es la decisión de fondo
+de la etapa. El issue pedía «tipo, código y estado», y el mapeo lista DISPONIBLE / RESERVADA /
+OCUPADA / PRESTADA / FUERA_SERVICIO. Implementarlo así **obligaría a tipear ocupación**, que es
+exactamente lo que el plan prohíbe («todo lo numérico es derivado»): habría dos orígenes de verdad y
+se desincronizarían con el primer egreso que falle a mitad de camino.
+
+Quedó partido: la plaza guarda **lo único que alguien decide** —en servicio, o fuera de servicio con
+motivo— y la task 22 deriva ocupada / reservada / prestada desde las estadías. RESERVADA con
+vencimiento y PRESTADA 12/24 h además necesitan datos que son de la etapa 2 (a quién, hasta cuándo),
+así que hoy no tendrían dónde vivir. **Hay un test que afirma que `Plaza.Estado` no contiene
+OCUPADA/RESERVADA/PRESTADA**, para que el día que alguien los agregue el test lo frene en vez de
+dejar que el modelo se vuelva la segunda fuente de verdad.
+
+**La revisión respaldó el recorte con un argumento mejor que el original**: reserva y préstamo
+**vencen por reloj** (tránsito, 12/24 h), así que un estado guardado necesitaría un cron que lo
+revierta —el mismo problema que ya tiene el cron de las 03:10 de relevamientos—, mientras que un
+predicado `vence_en > ahora` no se desincroniza nunca. Y encontró el hueco que el recorte dejaba al
+descubierto: **el plan no nombraba la entidad de la que salen RESERVADA y PRESTADA**. La reserva
+desde la lista de espera no es una estadía, y el préstamo necesita a quién, qué plaza, desde y
+hasta. Se agregó `ReservaPlaza` a la etapa 2 del plan, junto con tres reglas que ninguna restricción
+de la base cubre —entre ellas que **un `UniqueConstraint` condicional lo ignora Django en MySQL y
+MariaDB**, así que la exclusión mutua va con `select_for_update()`, igual que exige la ficha del
+arquetipo Wizard para el paso final del ingreso—.
+
+**La N:M va como `ManyToManyField` plano, declarada en `Edificio`.** El vínculo no tiene atributos
+propios: todo lo que se le podría colgar —tenencia, servicios, relevamiento— es del edificio, no del
+par. El repo prefiere modelos intermedios, pero los suyos llevan campos extra. Declararla en
+`Edificio` además no toca la tabla `programas_dispositivo`.
+
+**El domicilio del edificio va en campos separados**, no en una línea libre como
+`Dispositivo.domicilio`: el caso de uso es justamente comparar instituciones del mismo predio, y eso
+no se hace con texto libre.
+
+**`Sector` cuelga del `Dispositivo`, no del `Edificio`.** El edificio es el inmueble; el sector es la
+organización operativa de la institución. `Sector.capacidad` es la cifra **declarada**, no la real
+—la operativa sale de contar plazas—, y está en el docstring para que nadie la use como fuente de
+verdad.
+
+**No se creó modelo de traza, a propósito.** Los dos issues piden traza aditiva, pero quien escribe
+trazas son los servicios, que son de la task 22 en adelante: un modelo de traza sin escritor habría
+sido especulativo. `TrazaDispositivo` ya alcanza sin cambio de esquema para `Sector` y `Plaza`, que
+llegan a un `Dispositivo`.
+
+## Pendientes
+
+- **Un `Edificio` sin instituciones vinculadas no se puede trazar**, y el alta es justo ese momento:
+  `TrazaDispositivo.dispositivo` es obligatorio. **Se resuelve en la task que primero escriba una
+  traza de edificio**, no antes, por el mismo motivo por el que no se creó el modelo. Recomendación
+  para esa task: agregarle a `TrazaDispositivo` un `edificio` nulo y volver `dispositivo` nulo con un
+  `CheckConstraint` que exija al menos uno, **en vez de un modelo de traza paralelo**, que partiría
+  la auditoría en dos lugares.
+- **`TipoDispositivo.maneja_camas` queda redundante** con `tipos_plaza_admitidos`. Sacarlo es un
+  `RemoveField`, o sea un *contract* que va una release después de que nadie lo lea: es trabajo de la
+  etapa que borre los modelos viejos.
+- **`Cama` y `Plaza` conviven**: la etapa 0 hizo la release A (ningún código lee los modelos viejos),
+  pero las clases y las tablas siguen. Hasta la release B el modelo de datos tiene dos unidades de
+  capacidad.
+- Los tres modelos **no están en `programas/admin.py`**. No hace falta hasta la pantalla (task 23).
+- **`Plaza` no tiene baja definitiva.** `Sector` tiene `activo` y `Plaza` no, y FUERA_SERVICIO
+  **cuenta en el total** del mockup («1.340 totales · 56 fuera de servicio»). Una cama desmantelada
+  para siempre no tiene salida: con `PROTECT` y estadías históricas no se puede borrar, así que
+  infla el total para siempre. Hay que decidir si FUERA_SERVICIO es terminal o si falta un `activo`;
+  es decisión de producto, no de modelo. Tampoco está definido qué significa `Sector.activo=False`
+  con plazas operativas adentro.
+- **`Plaza.clean()` toca la base tres veces** (`self.sector.dispositivo.tipo`). En una carga masiva
+  —1.340 plazas— es un N+1: el servicio tiene que traerlas con
+  `select_related("sector__dispositivo__tipo")`. Y como `tipos_plaza_admitidos` solo se valida en
+  `clean()`, cambiarlo en un `TipoDispositivo` **no revalida las plazas ya cargadas**; el servicio de
+  la task 22 tiene que llamar a `full_clean()`.
+- **Vincular o desvincular un edificio no deja traza**: el `ManyToManyField` plano no tiene dónde
+  colgarla y no hay `m2m_changed`. Si hiciera falta, la salida es pasar a `through` reusando la
+  tabla actual con `SeparateDatabaseAndState`, así que la decisión no es irreversible.
+
+## Implementación
+
+Una sola migración para las tres entidades, porque dos migraciones paralelas en `programas`
+chocarían de numeración. 21 tests nuevos y el ratchet `test_models_contrato` actualizado (46 → 49
+modelos). `Edificio` no lleva índice compuesto `(nombre, localidad)` y las plazas no llevan
+`db_index` suelto en `estado`, porque `core/tests/test_indices_redundantes.py` marca en rojo un
+índice que es prefijo de otro del mismo modelo.
+
+## Archivos
+
+`programas/models/__init__.py` · `programas/migrations/0086_edificio_sector_plaza.py` ·
+`programas/tests/test_dispositivos_edificio_sector_plaza.py` · `programas/tests/test_models_contrato.py`
+
+## Base de datos
+
+`programas.0086`: tablas `programas_edificio`, `programas_sector`, `programas_plaza` y la tabla de la
+N:M; en `TipoDispositivo`, `tipos_plaza_admitidos` (`null=True`) y `plaza_obligatoria_al_ingresar`
+(`db_default=False`). `check_migraciones.py` en verde.
+
+## Reversión
+
+`migrate programas 0085` y `git revert` del merge. La reversa es limpia **porque no hay datos que
+perder**: las tres tablas nacen vacías —el circuito que las va a poblar es de las etapas 2 y 3, que
+todavía no existen— y las dos columnas de `TipoDispositivo` son aditivas, una `null=True` y la otra
+con `db_default` en la base, así que el código viejo sigue dando de alta sin ellas.
+
+El único cuidado es el orden: **`migrate programas 0085` borra las tres tablas y la de la N:M sin
+avisar**. Hoy eso no pierde nada porque nacen vacías, pero «no hay forma de que haya datos» sería
+falso —un shell, un fixture o un script las pueblan—, así que la regla es: **desde el primer alta,
+bajar esta migración deja de ser gratis y pasa a ser una decisión explícita**. De la 0087 en
+adelante, cuando el circuito de la etapa 2 exista, directamente no lo va a ser.
 
 ---
