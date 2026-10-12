@@ -90,6 +90,7 @@ class ReglasP1Tests(SimpleTestCase):
         """
         for evasion in (
             '{% include "components/_hero_inicio.html" with titulo="x" %}',
+            "{% include 'components/_hero_inicio.html' %}",
             '<div class="nodo-hero__Titulo">x</div>',
             '<div class="nodo-hero__titulo_x">x</div>',
         ):
@@ -100,6 +101,9 @@ class ReglasP1Tests(SimpleTestCase):
         for inocente in (
             '<link rel="stylesheet" href="/static/custom/css/nodo-hero.css">',
             "{% hero_inicio_v2 %}",
+            # El shell nombra la ruta en un comentario para documentar de donde sale el
+            # CSS. Una regla que marca la documentacion de si misma ensenia a no documentar.
+            "<!-- NODO Hero de inicio (components/_hero_inicio.html; solo inicio) -->",
         ):
             with self.subTest(inocente=inocente):
                 self.assertNotIn("HEROFUERA", reglas(SHELL + inocente))

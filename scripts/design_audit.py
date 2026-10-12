@@ -771,11 +771,14 @@ HERO_PANTALLAS: frozenset[str] = frozenset()
 # propio componente dice que no se incluye a mano: sin esa alternativa la regla se
 # evadia escribiendo {% include "components/_hero_inicio.html" %}. El componente queda
 # exento igual, por HERO_COMPONENTE.
+# Se marca el TAG de include, no la ruta suelta: el shell tiene un comentario que la
+# nombra para documentar de donde sale el CSS, y eso es legitimo. Una regla que marca
+# la documentacion de si misma ensenia a no documentar.
 # El sufijo de la clase acepta mayusculas y guion bajo porque `nodo-hero__Titulo` y
 # `nodo-hero__titulo_x` se colaban: el \b no corta contra esos caracteres.
 HERO_RE = re.compile(
     r"\{%\s*(?:end)?hero_inicio\b"
-    r"|components/_hero_inicio\b"
+    r"|\{%\s*include\s+[\"']components/_hero_inicio"
     r"|\bnodo-hero(?:[_a-zA-Z]*)?(?!\.css)\b"
 )
 HERO_COMPONENTE = "templates/components/_hero_inicio.html"
