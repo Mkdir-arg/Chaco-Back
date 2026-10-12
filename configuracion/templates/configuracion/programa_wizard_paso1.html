@@ -2,9 +2,7 @@
 {% load nodo_ui %}
 {% block title %}Configuración · {% if es_edicion %}Editar{% else %}Nuevo{% endif %} programa — Paso 1{% endblock %}
 
-{% comment %}El wizard no tiene golden (D4 del agente de diseño): FE-20 migra el shell y el
-formulario de cada paso al arquetipo Formulario y **no inventa un stepper**. La barra de
-progreso que ya existía se conserva tal cual, con el ancho por clase en vez de por `style=`.{% endcomment %}
+{% comment %}Paso de un wizard (arquetipo Wizard, ficha `.claude/design/arquetipos/wizard.md`). Paso con lista de campos: sigue el esqueleto del arquetipo Formulario; el indicador es `components/_stepper.html`.{% endcomment %}
 
 {% block main-content %}
 <div class="space-y-5">
@@ -15,9 +13,7 @@ progreso que ya existía se conserva tal cual, con el ancho por clase en vez de 
   {% endpage_header %}
   {% endwith %}
 
-  <div class="w-full bg-tertiary rounded-full h-2" role="presentation">
-    <div class="bg-brand h-2 rounded-full w-1/4"></div>
-  </div>
+  {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
 
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
