@@ -380,6 +380,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 206 | Bloque de ubicación sin mapa: coordenadas, enlace externo y plano adjunto | Diseño · componentes | `#ui` | Decisión C-14 del PM (06/10) · task #587 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
 | 207 | Antes de publicar en internet mira alguien, la suite corre en paralelo y el tipado empieza a existir | Transversal — publicación de `docs/client/` en GitHub Pages · CI (`Tests & Coverage`, `Tipos (mypy)`) · motor de condiciones y cliente de Base de Personas (solo anotaciones) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-64, RED-76 y RED-86 (Ola 7, PR 5) | 09/10/2026 | 🟢 **Hecho** (el gate de publicación encontró y despublicó una respuesta de RENAPER con los datos de una persona real; el `environment` no es `github-pages`, que solo admite la rama `gh-pages`) | No |
 | 208 | Las segundas partes de la red de seguridad: esquema del dashboard, un solo sobre de error y el detalle de revisión partido | Transversal (esquema OpenAPI, sobre de error JSON, auditoría de diseño) · Becas (detalle de revisión, tablero del programa) · Legajos (APIs del detalle de ciudadano) | `#api` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas RED-37, RED-39 y RED-54 (Ola 7, PR 6) | 09/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
+| 214 | Mapa de plazas con su leyenda, galería fotográfica, y el tono `info` completado | Diseño · componentes | `#ui` `#metodo` | Tasks 14 y 18 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -31621,5 +31622,91 @@ para otros PRs, y el 206 entró a `development` mientras se cerraba esta ronda�
 las dos ramas agregan filas al final del índice y entradas al final del archivo, y `git` las
 interleó por los encabezados repetidos de la plantilla. Se conservaron las dos mitades enteras,
 sin tocar las cuentas de horas del README de la auditoría.
+
+---
+
+---
+
+# Cambio 214 — Mapa de plazas con su leyenda, galería fotográfica, y el tono `info` completado
+
+🟢 **HECHO — 12/10/2026** · Tasks `[TASK] Dispositivos MVP 14` (#679) y `18` (#683)
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · componentes · Dispositivos |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Tasks 14 y 18 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `templates/components/_mapa_plazas.html`, `_leyenda_plazas.html`, `_galeria_fotos.html`, `chaco-tokens.css`, `tailwind.config.js` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> Etapa 0 del MVP: el mapa de plazas de un dispositivo, con su leyenda, y la galería fotográfica del
+> historial de infraestructura.
+
+## Decisiones tomadas
+
+**El color nunca es el único portador del estado.** Cada plaza lleva su código (leído como «Plaza
+A-01» con `sr-only`), el texto del estado **y un ícono distinto por tono**; la leyenda repite muestra,
+ícono y texto, y un test verifica que leyenda y mapa usen los mismos. Un mapa que distinga las plazas
+solo por color es ilegible para quien no distingue colores, y acá de ese mapa se elige dónde alojar a
+una persona.
+
+**La vista decide qué plaza es elegible, no el componente a partir del estado.** Una plaza con `url`
+es un `<a>` real —Tab, Enter, foco nativo, sin JS ni `tabindex`—; una sin `url` es informativa y no
+entra en la tabulación. La elegida se marca con el texto «Elegida» y `aria-current`, no solo con
+color.
+
+**Las dos piezas tienen tope propio además del de la vista**: el mapa dibuja hasta 200 plazas y la
+galería hasta 24, y las dos avisan «Mostrando N de M». La ficha exige igual que la vista recorte —una
+surface por sector, una tanda de fotos por vez—. El tope del componente es la red, no el plan.
+
+**Se completó el tono `info` en vez de parchear la pieza.** El vocabulario del agente permite
+`border-{tono}-subtle` con `info` entre los cinco tonos, pero **`border-info-subtle` no estaba
+compilado**: sus cuatro hermanos sí. Se agregó el token en `chaco-tokens.css` (claro: el paso 200 de
+la rampa; oscuro: el 900, igual que los hermanos) y en `tailwind.config.js`. Dejarlo en `border-base`
+habría escondido el hueco para la próxima pieza que lo pisara. Queda escrito en el núcleo que los
+cinco tonos existen en las tres familias y que una faltante **se completa en los tokens, no se evita
+en la pieza**.
+
+**Las clases del tono van en el propio `<a>`, no en el `li`.** La regla global de `nodo-brand.css`
+(`a:not([class*="bg-"])`, con `!important`) pisaría el color en cualquier enlace sin clase `bg-*`.
+Está documentado en la ficha y tiene test.
+
+**La galería va en su card, no dentro de un evento de la línea de tiempo**, porque esa pieza todavía
+no tiene slot de cuerpo (Cambio 210). Todas las imágenes llevan `loading="lazy"`, `decoding="async"` y
+`alt` real —cae al rótulo si falta, nunca vacío—, y la `url` tiene que ser un archivo servido por la
+vista autenticada: `media/` está detrás de login.
+
+## Implementación
+
+Tres includes, dos fichas (`mapa_plazas.md`, `galeria_fotos.md`), dos filas de inventario y 22 tests
+en `core/tests/test_nodo_ui_lote_b.py` —archivo propio, para no chocar con los otros lotes de la
+etapa 0—. Tailwind regenerado y commiteado.
+
+## Pendientes
+
+- **Ninguna pantalla las consume todavía**: son piezas de la etapa 0, construidas antes que sus
+  pantallas, así que **no se vieron en un navegador**.
+- La galería **no maneja imágenes rotas**, porque requeriría JS. Anotado como límite en la ficha.
+- Los chips con «✕» y «+ agregar» del mockup P15 **no son esta pieza**: son un selector con alta, y no
+  existe.
+
+## Archivos
+
+`templates/components/_mapa_plazas.html` · `_leyenda_plazas.html` · `_galeria_fotos.html` ·
+`static/custom/css/chaco-tokens.css` · `tailwind.config.js` · `static/custom/css/tailwind.css` ·
+`core/tests/test_nodo_ui_lote_b.py` · `.claude/design/componentes/mapa_plazas.md` ·
+`galeria_fotos.md` · `.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
 
 ---
