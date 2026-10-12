@@ -1,0 +1,37 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Dispositivos · Sectores y plazas · {{ dispositivo.nombre }}{% endblock %}
+
+{% block main-content %}
+<div class="space-y-5">
+
+  {# ===== PageHeader ===== #}
+  {% url 'dispositivos:detalle' dispositivo.pk as url_volver %}
+  {% page_header titulo="Sectores y plazas" volver_url=url_volver volver_label=dispositivo.nombre migas=migas %}
+    {% bajada %}<a href="{{ url_volver }}" class="text-fg-brand hover:underline">{{ dispositivo.nombre }}</a> · {{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio{% endbajada %}
+  {% endpage_header %}
+
+  {% if not ocupacion_conocida %}
+  {% include "components/_alerta.html" with tono="info" icono="circle-info" titulo="Todavía no se ve la ocupación" texto="Las plazas muestran su estado operativo. Si están ocupadas, reservadas o prestadas se va a ver cuando se registren los ingresos." %}
+  {% endif %}
+
+  {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
+
+  {# ===== Una surface por sector ===== #}
+  {% for item in sectores %}
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
+      <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}</p>
+    </div>
+    <div class="p-5">
+      {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.resumen.total %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores, cada uno aparece acá con su mapa de plazas." %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
