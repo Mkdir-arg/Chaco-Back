@@ -31785,7 +31785,8 @@ origen. Las dos líneas saneadas del archivo vivo conviene no revertirlas.
 
 ## Historial
 
-**12/10/2026 — los cinco MINOR, en un PR de seguimiento.** Sin horas de plan: son las colas
-de los PR 5 y 6 de la Ola 7, y ninguno justificaba rama propia.
+**12/10/2026 — los cinco MINOR, en un PR de seguimiento** (#784). Sin horas de plan: son las
+colas de los PR 5 y 6 de la Ola 7, y ninguno justificaba rama propia. Las fichas RED-64 y
+RED-54 lo anotan en su línea «Seguimiento:».
 
 ---
