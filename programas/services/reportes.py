@@ -1,5 +1,6 @@
 """Datasets de solo lectura para los reportes exportables de Programas."""
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 
@@ -13,6 +14,26 @@ from programas.models import EntregaMercaderia
 class Reporte:
     encabezados: tuple[str, ...]
     filas: tuple[tuple, ...]
+
+
+@dataclass(frozen=True)
+class ReportePerezoso:
+    """Mismo contrato que :class:`Reporte` —``encabezados`` y ``filas``— pero las filas
+    llegan en un iterador que se arma **por lotes** mientras se escribe el archivo, y que
+    se consume **una sola vez** (PERF-03 punto 3).
+
+    Quien lo escribe no nota la diferencia: ``respuesta_libro`` y el CSV por streaming
+    recorren ``filas`` igual. Lo que cambia es que ni el servicio ni la respuesta tienen
+    las 40.000 filas en memoria a la vez, y que el archivo empieza a salir sin esperar a
+    la última.
+    """
+
+    encabezados: tuple[str, ...]
+    filas: Iterable[tuple]
+
+    def materializado(self) -> Reporte:
+        """El :class:`Reporte` de siempre, con todas las filas en memoria."""
+        return Reporte(self.encabezados, tuple(self.filas))
 
 
 def parsear_periodo(desde_valor, hasta_valor):

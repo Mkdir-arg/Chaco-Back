@@ -41,6 +41,11 @@ class ExportRespuestasFormatoTests(DashboardBecasBase):
         return reverse("becas:programa_dashboard_respuestas", args=[self.programa.pk, convocatoria.pk, formato])
 
     @staticmethod
+    def _cuerpo(respuesta):
+        """El CSV grande se transmite por trozos desde PERF-03 punto 3 (el XLSX no)."""
+        return respuesta.getvalue() if respuesta.streaming else respuesta.content
+
+    @staticmethod
     def _filas_del_xlsx(contenido):
         libro = load_workbook(BytesIO(contenido), read_only=True)
         return [
@@ -87,8 +92,8 @@ class ExportRespuestasFormatoTests(DashboardBecasBase):
         self.assertTrue(csv_["Content-Disposition"].endswith('.csv"'))
         self.assertEqual(csv_["Content-Type"], "text/csv; charset=utf-8")
 
-        filas_xlsx = self._filas_del_xlsx(xlsx.content)
-        filas_csv = self._filas_del_csv(csv_.content)
+        filas_xlsx = self._filas_del_xlsx(self._cuerpo(xlsx))
+        filas_csv = self._filas_del_csv(self._cuerpo(csv_))
         # El alcance encabeza los dos archivos (RN-16) y después va una fila en blanco.
         self.assertTrue(filas_xlsx[0][0].startswith("Alcance: Convocatoria "))
         self.assertEqual(len(filas_csv), len(filas_xlsx))
@@ -109,8 +114,8 @@ class ExportRespuestasFormatoTests(DashboardBecasBase):
         )
         self.client.force_login(self.admin)
 
-        xlsx = self._filas_del_xlsx(self.client.get(self._url(self.conv_propia, "xlsx")).content)
-        csv_ = self._filas_del_csv(self.client.get(self._url(self.conv_propia, "csv")).content)
+        xlsx = self._filas_del_xlsx(self._cuerpo(self.client.get(self._url(self.conv_propia, "xlsx"))))
+        csv_ = self._filas_del_csv(self._cuerpo(self.client.get(self._url(self.conv_propia, "csv"))))
 
         columna = xlsx[2].index("Situación laboral")
         self.assertIn("'=1+1", [fila[columna] for fila in xlsx[3:]])
