@@ -80,6 +80,8 @@
 
         <!-- NODO Indicador de pasos (components/_stepper.html, arquetipo Wizard) -->
         <link rel="stylesheet" href="/static/custom/css/nodo-stepper.css" />
+        <!-- NODO Sección de ficha, bloqueada y medidor (components/_ficha_seccion.html, `bloqueada`) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-ficha.css" />
 
         <!-- NODO SweetAlertN theming (fuente única — cascada a los N Swal.fire del sistema) -->
         <link rel="stylesheet" href="/static/custom/css/nodo-swal.css" />

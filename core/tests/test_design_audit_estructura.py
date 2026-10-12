@@ -248,8 +248,32 @@ class MarcadoresDeArquetipoTests(SimpleTestCase):
                     f"el arquetipo '{nombre}' esta en design_audit.ARQUETIPOS pero no tiene "
                     f"ficha en .claude/design/arquetipos/{nombre}.md",
                 )
-    def test_hay_ficha_de_marcadores_para_los_cinco_arquetipos(self):
-        self.assertEqual(sorted(design_audit.ARQUETIPOS), ["detalle", "formulario", "listado", "modal", "revisión"])
+    def test_todo_arquetipo_con_marcadores_tiene_su_ficha(self):
+        """Antes era una lista fija de cinco nombres y envejeció dos veces el mismo día, con
+        el wizard y con revision. Un test que hay que editar cada vez que el producto crece
+        no protege nada, solo molesta.
+
+        La relación es de **inclusión, no de igualdad**: `confirmacion` tiene ficha y no
+        tiene marcadores mecánicos, y eso es legítimo —no todo arquetipo se audita por
+        marcadores—. Lo que no puede pasar es lo inverso: declarar marcadores para algo que
+        nadie documentó.
+        """
+        fichas = Path(__file__).resolve().parents[2] / ".claude/design/arquetipos"
+        con_ficha = {f.stem for f in fichas.glob("*.md")} - {"pendientes"}
+
+        self.assertLessEqual(set(design_audit.ARQUETIPOS), con_ficha)
+
+    def test_ningun_arquetipo_lleva_tilde_ni_mayusculas(self):
+        """La clave es el argumento de `--arquetipo` y el nombre del archivo de su ficha.
+
+        `revision` nació con tilde y eso rompió el cruce contra el núcleo —que la escribía
+        distinto— y dejaba un nombre de archivo acentuado en un repo que ya se quemó dos
+        veces con la codificación en Windows.
+        """
+        for nombre in sorted(design_audit.ARQUETIPOS):
+            with self.subTest(arquetipo=nombre):
+                self.assertEqual(nombre, nombre.lower())
+                self.assertTrue(nombre.isascii(), f"«{nombre}» no es ASCII: es el nombre de un archivo")
 
 
 class GateDeCiTests(SimpleTestCase):

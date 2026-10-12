@@ -1,7 +1,7 @@
 # Arquetipo · Revisión (persona con ficha por secciones)
 
 **Golden (la única que se clona):** `programas/templates/programas/dispositivos/estadia/revision_referencia.html`.
-**Marcadores:** `scripts/design_audit.py --arquetipo revisión <archivo>`.
+**Marcadores:** `scripts/design_audit.py --arquetipo revision <archivo>`.
 **Componentes:** page_header · alerta · tabs · ficha_timeline (sección de ficha y línea de tiempo) ·
 estado_vacio · botones_badges.
 **Molde visual:** el mockup P7 (mockup `dispositivos-v2.html`, pantalla P7).
@@ -79,7 +79,7 @@ existe en `{% page_header %}`: la ubicación va al principio de la bajada.
 
 ## Checklist (la usa el revisor)
 
-- [ ] `--arquetipo revisión` OK y `--ratchet` con 0 nuevos.
+- [ ] `--arquetipo revision` OK y `--ratchet` con 0 nuevos.
 - [ ] Molde declarado = golden; de la hermana solo salió dominio.
 - [ ] Toda sección sensible sin permiso está bloqueada, con su avance y quién la completa.
 - [ ] Ninguna regla (avance, tono, permiso) vive en el template.

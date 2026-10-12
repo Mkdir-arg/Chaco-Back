@@ -1259,7 +1259,7 @@ ARQUETIPOS: dict[str, dict[str, list]] = {
             (r"di-stepper|class=\"nodo-step", "stepper armado a mano: usar components/_stepper.html"),
         ],
     },
-    "revisión": {
+    "revision": {
         "marcadores": [
             (r'\{%\s*extends\s+"includes/base\.html"\s*%\}', False, "extiende el shell del backoffice"),
             (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
@@ -1360,7 +1360,7 @@ GOLDENS: list[tuple[str, str]] = [
     ("formulario", "programas/templates/programas/becas/config/segmento_form.html"),
     ("modal", "programas/templates/programas/becas/config/programa_list.html"),
     ("wizard", "configuracion/templates/configuracion/programa_wizard_paso4.html"),
-    ("revisión", "programas/templates/programas/dispositivos/estadia/revision_referencia.html"),
+    ("revision", "programas/templates/programas/dispositivos/estadia/revision_referencia.html"),
 ]
 
 

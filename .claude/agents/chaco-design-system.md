@@ -163,9 +163,8 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Arquetipo · Modal | Canónico reutilizable | Golden `programas/templates/programas/becas/config/programa_list.html` (modal «Nuevo programa») — alta o edición corta sin salir de la pantalla, y confirmación con motivo. Ficha: `.claude/design/arquetipos/modal.md` |
 | Arquetipo · Confirmación | Canónico reutilizable | Golden `programas/templates/programas/becas/_confirm_js.html` + botón `data-confirm-url` → `ModernModal` — sí/no sin pedir datos. Ficha: `.claude/design/arquetipos/confirmacion.md` |
 | Arquetipo · Wizard | Canónico reutilizable | Golden `configuracion/templates/configuracion/programa_wizard_paso4.html` (paso final: resumen + confirmar) — alta o edición en varios pasos con validación por paso y resumen antes de confirmar. Indicador de pasos: `templates/components/_stepper.html`. Ficha: `.claude/design/arquetipos/wizard.md` |
-| Pendiente · revisión compleja y dashboard | Duplicado o conflictivo | **No hay golden: frenar y devolver al llamador.** El dashboard de Becas no es molde. Ficha: `.claude/design/arquetipos/pendientes.md` |
-| Arquetipo · Revisión | Canónico reutilizable | Golden `programas/templates/programas/dispositivos/estadia/revision_referencia.html` — una persona con su ficha por secciones plegables (con avance y bloqueo por sensibilidad), línea de tiempo y acciones. Ficha: `.claude/design/arquetipos/revision.md` |
-| Pendiente · wizard y dashboard | Duplicado o conflictivo | **No hay golden: frenar y devolver al llamador.** Para la semántica del stepper, `portal/templates/portal/inscripcion/_stepper.html`; el dashboard de Becas no es molde. Ficha: `.claude/design/arquetipos/pendientes.md` |
+| Pendiente · dashboard | Duplicado o conflictivo | **No hay golden: frenar y devolver al llamador.** El dashboard de Becas no es molde. Ficha: `.claude/design/arquetipos/pendientes.md` |
+| Arquetipo · Revision | Canónico reutilizable | Golden `programas/templates/programas/dispositivos/estadia/revision_referencia.html` — una persona con su ficha por secciones plegables (con avance y bloqueo por sensibilidad), línea de tiempo y acciones. Ficha: `.claude/design/arquetipos/revision.md` |
 
 ## Inventario operativo inicial
 
