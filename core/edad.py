@@ -19,6 +19,7 @@ de ruff (``pyproject.toml``), que prohíbe ``date.today()`` en el código produc
 """
 
 from datetime import date, datetime
+from typing import Any
 
 from django.utils import timezone
 
@@ -28,7 +29,7 @@ MAYORIA_DE_EDAD = 18
 __all__ = ["MAYORIA_DE_EDAD", "edad_en_anios", "es_menor", "fecha_o_none"]
 
 
-def fecha_o_none(valor):
+def fecha_o_none(valor: Any) -> date | None:
     """``date`` de lo que sea que haya llegado, o ``None`` si no se entiende.
 
     Es deliberadamente permisiva —acepta ``date``, ``datetime`` y los dos formatos
@@ -51,7 +52,7 @@ def fecha_o_none(valor):
     return None
 
 
-def edad_en_anios(fecha_nacimiento, hoy=None):
+def edad_en_anios(fecha_nacimiento: Any, hoy: date | None = None) -> int | None:
     """Años cumplidos a ``hoy`` (por defecto, la fecha **local**).
 
     Devuelve ``None`` si no hay fecha o es ilegible: la edad no se puede
@@ -64,7 +65,7 @@ def edad_en_anios(fecha_nacimiento, hoy=None):
     return hoy.year - nacimiento.year - ((hoy.month, hoy.day) < (nacimiento.month, nacimiento.day))
 
 
-def es_menor(fecha_nacimiento, hoy=None):
+def es_menor(fecha_nacimiento: Any, hoy: date | None = None) -> bool | None:
     """¿Es menor de :data:`MAYORIA_DE_EDAD` a ``hoy`` (RN-22)?
 
     ``None`` si no hay fecha: no se puede determinar, y el llamador tiene que

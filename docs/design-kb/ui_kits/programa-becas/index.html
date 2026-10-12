@@ -1606,13 +1606,13 @@ function Cupo() {
 
 /* 7 — Legajo ciudadano (lista + detalle con solapas) */
 const CIUDADANOS = [
-  { nombre: 'María Elena', apellido: 'Gómez', dni: '28.455.190', ingreso: '12/03/2024', dispositivo: 'CDR Resistencia', dispositivoSub: 'Zona Sur', responsable: 'L. Britos', riesgo: 'ALTO', estado: 'En seguimiento', alertas: 3, edad: 42, genero: 'Femenino' },
-  { nombre: 'Jorge Aníbal', apellido: 'Fernández', dni: '30.112.876', ingreso: '04/06/2024', dispositivo: 'CDR Sáenz Peña', dispositivoSub: 'Centro', responsable: 'M. Ojeda', riesgo: 'MEDIO', estado: 'Abierto', alertas: 1, edad: 37, genero: 'Masculino' },
-  { nombre: 'Rosa Beatriz', apellido: 'Sandoval', dni: '25.778.034', ingreso: '21/11/2023', dispositivo: 'CDR Resistencia', dispositivoSub: 'Zona Norte', responsable: 'L. Britos', riesgo: 'BAJO', estado: 'Abierto', alertas: 0, edad: 51, genero: 'Femenino' },
-  { nombre: 'Carlos Damián', apellido: 'Romero', dni: '33.901.245', ingreso: '09/01/2025', dispositivo: 'CDR Villa Ángela', dispositivoSub: 'Centro', responsable: 'P. Acuña', riesgo: 'MEDIO', estado: 'En seguimiento', alertas: 2, edad: 29, genero: 'Masculino' },
-  { nombre: 'Silvana Noemí', apellido: 'Quiroga', dni: '27.334.668', ingreso: '18/08/2024', dispositivo: 'CDR Resistencia', dispositivoSub: 'Zona Sur', responsable: 'M. Ojeda', riesgo: 'BAJO', estado: 'Cerrado', alertas: 0, edad: 45, genero: 'Femenino' },
-  { nombre: 'Héctor Raúl', apellido: 'Maidana', dni: '22.910.557', ingreso: '02/02/2024', dispositivo: 'CDR Charata', dispositivoSub: 'Centro', responsable: 'P. Acuña', riesgo: 'ALTO', estado: 'En seguimiento', alertas: 4, edad: 58, genero: 'Masculino' },
-  { nombre: 'Lucía Mariana', apellido: 'Benítez', dni: '34.556.781', ingreso: '27/05/2025', dispositivo: 'CDR Sáenz Peña', dispositivoSub: 'Zona Oeste', responsable: 'L. Britos', riesgo: 'BAJO', estado: 'Abierto', alertas: 0, edad: 24, genero: 'Femenino' },
+  { nombre: 'María Elena', apellido: 'Gómez', dni: '12.345.670', ingreso: '12/03/2024', dispositivo: 'CDR Resistencia', dispositivoSub: 'Zona Sur', responsable: 'L. Britos', riesgo: 'ALTO', estado: 'En seguimiento', alertas: 3, edad: 42, genero: 'Femenino' },
+  { nombre: 'Jorge Aníbal', apellido: 'Fernández', dni: '12.345.671', ingreso: '04/06/2024', dispositivo: 'CDR Sáenz Peña', dispositivoSub: 'Centro', responsable: 'M. Ojeda', riesgo: 'MEDIO', estado: 'Abierto', alertas: 1, edad: 37, genero: 'Masculino' },
+  { nombre: 'Rosa Beatriz', apellido: 'Sandoval', dni: '12.345.672', ingreso: '21/11/2023', dispositivo: 'CDR Resistencia', dispositivoSub: 'Zona Norte', responsable: 'L. Britos', riesgo: 'BAJO', estado: 'Abierto', alertas: 0, edad: 51, genero: 'Femenino' },
+  { nombre: 'Carlos Damián', apellido: 'Romero', dni: '12.345.673', ingreso: '09/01/2025', dispositivo: 'CDR Villa Ángela', dispositivoSub: 'Centro', responsable: 'P. Acuña', riesgo: 'MEDIO', estado: 'En seguimiento', alertas: 2, edad: 29, genero: 'Masculino' },
+  { nombre: 'Silvana Noemí', apellido: 'Quiroga', dni: '12.345.674', ingreso: '18/08/2024', dispositivo: 'CDR Resistencia', dispositivoSub: 'Zona Sur', responsable: 'M. Ojeda', riesgo: 'BAJO', estado: 'Cerrado', alertas: 0, edad: 45, genero: 'Femenino' },
+  { nombre: 'Héctor Raúl', apellido: 'Maidana', dni: '12.345.675', ingreso: '02/02/2024', dispositivo: 'CDR Charata', dispositivoSub: 'Centro', responsable: 'P. Acuña', riesgo: 'ALTO', estado: 'En seguimiento', alertas: 4, edad: 58, genero: 'Masculino' },
+  { nombre: 'Lucía Mariana', apellido: 'Benítez', dni: '12.345.676', ingreso: '27/05/2025', dispositivo: 'CDR Sáenz Peña', dispositivoSub: 'Zona Oeste', responsable: 'L. Britos', riesgo: 'BAJO', estado: 'Abierto', alertas: 0, edad: 24, genero: 'Femenino' },
 ];
 const RIESGO_BADGE = { ALTO: 'danger', MEDIO: 'warning', BAJO: 'success' };
 const ESTADO_BADGE = { 'Abierto': 'brand', 'En seguimiento': 'gray', 'Cerrado': 'white' };
@@ -1976,9 +1976,9 @@ function LegajoTimeline() {
 
 function LegajoRed({ push }) {
   const fam = [
-    { nombre: 'Pedro Gómez', relacion: 'Hijo', dni: '48.221.903', tel: '+54 362 4778120', estado: 'Convive' },
-    { nombre: 'Ana Morales', relacion: 'Madre', dni: '14.005.778', tel: '+54 362 4112905', estado: 'Referente' },
-    { nombre: 'Raúl Gómez', relacion: 'Hermano', dni: '26.880.341', tel: '+54 362 4339187', estado: 'Emergencia' },
+    { nombre: 'Pedro Gómez', relacion: 'Hijo', dni: '12.345.677', tel: '+54 362 1234567', estado: 'Convive' },
+    { nombre: 'Ana Morales', relacion: 'Madre', dni: '12.345.678', tel: '+54 362 1234567', estado: 'Referente' },
+    { nombre: 'Raúl Gómez', relacion: 'Hermano', dni: '12.345.679', tel: '+54 362 1234567', estado: 'Emergencia' },
   ];
   return (
     <div>

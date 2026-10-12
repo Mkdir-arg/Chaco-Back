@@ -131,7 +131,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"documento\": \"10578560\",\n  \"sexo\": \"F\",\n  \"id_segmento\": 1\n}"
+					"raw": "{\n  \"documento\": \"12345678\",\n  \"sexo\": \"F\",\n  \"id_segmento\": 1\n}"
 				},
 				"url": {
 					"raw": "{{baseUrl}}/api/v1/validaciones/compatibilidad",
