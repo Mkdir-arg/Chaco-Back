@@ -30,7 +30,7 @@ from programas.models import (
     Segmento,
     TipoCampo,
 )
-from programas.services.dashboard_becas import LOTE_RESPUESTAS, respuestas_por_persona
+from programas.services.dashboard_becas import CONSULTAS_POR_LOTE, LOTE_RESPUESTAS, respuestas_por_persona
 from programas.services.respuestas import foto_definicion
 
 PRESUPUESTOS = settings.BASE_DIR / "scripts" / "perf_budgets.json"
@@ -103,7 +103,9 @@ class ExportRespuestasPorPersonaPresupuestoTests(TestCase):
             f"{len(capturadas)} consultas para {casos} casos; el presupuesto de «{CLAVE}» en "
             f"scripts/perf_budgets.json es {techo}. Subirlo exige justificarlo en el mismo PR.",
         )
-        self.assertEqual(presupuesto["casos_por_consulta"], LOTE_RESPUESTAS)
+        # Desde PERF-03 punto 3 cada lote cuesta tres consultas acotadas, no una sobre
+        # toda la convocatoria: el presupuesto lo dice como casos por consulta.
+        self.assertEqual(presupuesto["casos_por_consulta"], LOTE_RESPUESTAS // CONSULTAS_POR_LOTE)
 
     def test_la_foto_de_la_definicion_no_viaja_por_fila(self):
         """El MAJOR de la ronda 2: `values_list("pk", "respuestas", "definicion")`.
