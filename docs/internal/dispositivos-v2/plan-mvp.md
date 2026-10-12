@@ -186,7 +186,31 @@ y hay que construirla acá.
 - **Clave de alojamiento**: el mecanismo que permite preguntar si una persona ya está alojada
   **en cualquier dispositivo de la red**. Es lo que sostiene la verificación que el PM sumó al
   alcance, y es un dato nuevo, no una consulta más.
+- **`ReservaPlaza`**, la entidad que faltaba: `plaza`, `persona`, `tipo` (reserva o préstamo),
+  `desde`, `hasta` y `motivo`. Sin ella, dos de los cinco estados del mapa de plazas **no se pueden
+  derivar**, y el servicio de la task 22 queda con un hueco:
+  - **RESERVADA** sirve para dos cosas distintas en el mockup. El «En tránsito» con vencimiento es
+    una `Estadia` en estado nuevo con `vence_en`, o sea derivable; pero la reserva desde la lista de
+    espera («espera #1 · liberar», P6) **no es una estadía** y no tiene dónde vivir.
+  - **PRESTADA** (12/24 h) necesita a quién, qué plaza, desde y hasta. El mapeo la marca como
+    novedad y el plan no la nombraba en ninguna parte: quedaba sin dueño.
 - Validaciones: plaza libre, egreso nunca anterior al ingreso.
+
+### Tres reglas que ninguna restricción de la base cubre
+
+Van acá porque se deciden al diseñar la etapa 2 y las consume el servicio de la task 22.
+
+1. **`FUERA_SERVICIO` tiene precedencia, pero no se puede declarar sobre una plaza ocupada.** Sacar
+   una plaza de servicio **falla** si tiene estadía, reserva o préstamo vigente: primero se reubica
+   (F5). El mapa nunca muestra OCUPADA y FUERA_SERVICIO a la vez.
+2. **La exclusión mutua va con `select_for_update()`, no con un `UniqueConstraint` condicional.**
+   Un constraint único con `condition=` —«una estadía activa por plaza»— **Django lo ignora en
+   MySQL y MariaDB**, que son los dos motores del proyecto: se escribe, pasa los tests en SQLite y
+   no existe en producción. La plaza se toma bloqueando su fila dentro de `transaction.atomic()`.
+   Es la misma regla que la ficha del arquetipo Wizard le exige al paso final del ingreso.
+3. **Un solo origen para todos los consumidores.** El mapa de plazas, el censo y los indicadores
+   salen del **mismo** servicio de cálculo. Si cada uno deriva por su lado, se desincronizan, que es
+   exactamente lo que el recorte de `Plaza.estado` evita en la base.
 - Egreso con catálogo de motivos, destino y derivación, más la liberación del cupo.
 - Reescritura de la **solapa del legajo ciudadano** contra `Estadia`, con el historial completo
   —incluidas las estadías cerradas— y sin los tres candados que hoy la hacen desaparecer al egresar.

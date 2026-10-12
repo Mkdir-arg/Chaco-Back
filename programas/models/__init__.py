@@ -791,7 +791,11 @@ class Sector(TimeStamped):
     class Meta:
         verbose_name = "Sector"
         verbose_name_plural = "Sectores"
-        ordering = ["dispositivo", "nombre"]
+        # Por `dispositivo_id`, no por `dispositivo`: ordenar por la FK hace que Django
+        # use el `Meta.ordering` del modelo relacionado y encadene JOINs (Plaza ->
+        # Sector -> Dispositivo), con lo que cada listado paga dos JOIN de mas y termina
+        # ordenado por el nombre del dispositivo, que nadie pidio.
+        ordering = ["dispositivo_id", "nombre"]
         constraints = [
             models.UniqueConstraint(fields=["dispositivo", "nombre"], name="sector_nombre_unico_por_dispositivo")
         ]
@@ -849,7 +853,8 @@ class Plaza(TimeStamped):
     class Meta:
         verbose_name = "Plaza"
         verbose_name_plural = "Plazas"
-        ordering = ["sector", "codigo"]
+        # Por `sector_id`: ver el comentario del ordering de Sector.
+        ordering = ["sector_id", "codigo"]
         constraints = [
             models.UniqueConstraint(fields=["sector", "codigo"], name="plaza_codigo_unico_por_sector"),
             models.CheckConstraint(

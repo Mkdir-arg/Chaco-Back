@@ -100,7 +100,7 @@ class Migration(migrations.Migration):
             options={
                 "verbose_name": "Sector",
                 "verbose_name_plural": "Sectores",
-                "ordering": ["dispositivo", "nombre"],
+                "ordering": ["dispositivo_id", "nombre"],
             },
         ),
         migrations.CreateModel(
@@ -145,7 +145,7 @@ class Migration(migrations.Migration):
             options={
                 "verbose_name": "Plaza",
                 "verbose_name_plural": "Plazas",
-                "ordering": ["sector", "codigo"],
+                "ordering": ["sector_id", "codigo"],
             },
         ),
         migrations.AddIndex(

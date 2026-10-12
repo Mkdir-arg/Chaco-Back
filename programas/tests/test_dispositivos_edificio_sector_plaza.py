@@ -176,12 +176,19 @@ class PlazaTests(TestCase):
         )
 
     def test_el_estado_guardado_es_solo_el_operativo(self):
-        """La ocupación se deriva de los movimientos: acá no hay dónde tipearla."""
+        """La plaza guarda lo único que alguien decide; la ocupación se deriva."""
 
         self.assertEqual(set(Plaza.Estado.values), {"OPERATIVA", "FUERA_SERVICIO"})
         self.assertEqual(
             {"OCUPADA", "RESERVADA", "PRESTADA"} & set(Plaza.Estado.values),
             set(),
+            "Estos tres NO se guardan: los deriva de las estadías el servicio de cálculo "
+            "(task 22). Guardarlos crearía una segunda fuente de verdad que se desincroniza "
+            "con el primer egreso que falle a mitad de camino; y además reserva y préstamo "
+            "vencen por reloj, así que un estado guardado necesitaría un cron que lo revierta "
+            "—el mismo problema que ya tiene el cron de las 03:10 de relevamientos—. Si "
+            "llegaste acá porque hace falta cachear alguno, eso es una decisión que se revisa "
+            "a propósito, no un test que se ajuste.",
         )
 
     def test_la_plaza_nace_operativa(self):
