@@ -376,6 +376,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 202 | El código deja de leer los seis modelos del circuito viejo de Dispositivos (camas, admisiones, espera, parte diario y campos del tipo) | Dispositivos · backoffice y solapa del legajo | `#datos` `#ui` `#infra` | PM — plan del MVP, §1 del Cambio 191 (task #672) | 09/10/2026 | 🟢 **Hecho** | No requiere (la migración de borrado es la release siguiente) |
 | 203 | La stat card gana una variante «tablero» (grande) y el hallazgo CMP-23 pasa a declarar las dos | Transversal — diseño (pieza `_stat_card`, base del backoffice) · Dispositivos (base de P1, P4, P12, P19, P21) | `#ui` `#metodo` | PM — decisión C-2 del 06/10/2026 sobre el mapeo del mockup; task #582 | 09/10/2026 | 🟢 **Hecho** | No requiere |
 | 204 | La alerta inline admite icono y accion opcionales | Diseño · componentes | `#ui` | Decisión C-5 del PM (06/10) · task #584 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
+| 205 | Variante `btn-fit`: botón sin ancho mínimo para barras de acciones densas | Diseño · componentes | `#ui` | Decisión C-15 del PM (06/10) · task #586 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -31034,6 +31035,78 @@ que pasaría igual si el texto se descartara. Se reforzó: ahora verifica que el
 - `templates/components/_alerta.html`
 - `.claude/design/componentes/alerta.md` y la fila del inventario en `.claude/agents/chaco-design-system.md`
 - `core/tests/test_nodo_ui_piezas.py` — seis tests nuevos
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva.
+
+---
+
+---
+
+# Cambio 205 — Variante `btn-fit`: botón sin ancho mínimo
+
+🟢 **HECHO — 10/10/2026** · Task #586
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · botones NODO |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Decisión **C-15** del PM (06/10/2026), ejecutada por la task #586 |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | #586 · análisis #581 · épica #127 |
+| **Partes afectadas** | `static/custom/css/nodo-buttons.css`, su ficha y la fila del inventario |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Los botones del sistema tienen un ancho mínimo por tamaño —de 128 px en el más chico a 186 px en el
+más grande— que en el mockup de la Versión 2 no está. En las barras de acciones densas y en las
+celdas de tabla los botones se ven más anchos de lo dibujado, y **la diferencia no se arregla pantalla
+por pantalla**: sin la variante ninguna barra de acciones de la v2 se parece al mockup.
+
+## Decisiones tomadas
+
+Una sola regla: `.btn-fit { min-width: auto }`, que anula el mínimo del tamaño y no toca nada más
+—alto, padding, radio, tipografía, hover, foco y disabled siguen siendo los del tamaño y el tono—.
+
+**`auto` y no `0`, que fue el hallazgo de la revisión.** El botón no declara `white-space: nowrap` ni
+`flex-shrink: 0`, así que con `0` dentro de un header flex sin `flex-wrap` se comprime por debajo de
+su propio texto: la etiqueta se parte en dos líneas y rompe el alto fijo. Es exactamente el caso para
+el que se creó la variante. `auto` anula igual el mínimo declarado pero no deja que el contenido se
+rompa.
+
+**La regla va después de los tamaños y antes del bloque `@media (pointer: coarse)`, y es
+deliberado.** Tiene la misma especificidad que los tamaños, así que les gana por orden; y el bloque
+táctil, que viene después, le gana a ella e impone los 44 px de área táctil (WCAG 2.5.8). Por eso
+tampoco se sube la especificidad a `.btn-nodo.btn-fit`: le ganaría a esa regla y se perderían los
+44 px. A 640 px o menos la variante no hace nada, porque ahí los cinco tamaños ya valen cero por su
+propio bloque responsive.
+
+**Dónde se usa**, escrito en la ficha: headers con tres o más acciones y botones dentro de celdas de
+tabla. **Dónde no**: formularios y la acción principal de una pantalla, donde el ancho mínimo es el
+que da la jerarquía.
+
+## Implementación
+
+Ningún template usa todavía `btn-fit`, así que ningún botón existente puede cambiar: eso se verificó
+con un barrido del repo completo, no solo de los templates.
+
+Los tests comparan la posición de la regla contra **todos** los tamaños y no solo contra el último, de
+modo que un tamaño agregado después de la variante no pase inadvertido. Y el `setUp` **quita los
+comentarios del CSS antes de buscar**: los de esa hoja citan selectores y reglas para explicarse, y
+una búsqueda por texto los encuentra antes que al código real. Pasó dos veces escribiendo estos
+mismos tests, con `@media (pointer: coarse)` y con `.btn-nodo.btn-fit`.
+
+## Archivos
+
+- `static/custom/css/nodo-buttons.css`
+- `.claude/design/componentes/botones_badges.md` y la fila del inventario en `.claude/agents/chaco-design-system.md`
+- `core/tests/test_nodo_ui_piezas.py`
 
 ## Base de datos
 
