@@ -2,6 +2,7 @@
 alerta inline, errores no de campo y el filtro ``hay_filtros``
 (W2-C9b, CMP-11/22/23, ALR-14/15, FE-08)."""
 
+import importlib.util
 import re
 from decimal import Decimal
 from io import StringIO
@@ -1122,3 +1123,117 @@ class MenuFilaTest(SimpleTestCase):
 
         self.assertIn("position: fixed;", bloque)
         self.assertIn(".nodo-menu-fila__menu[hidden]", css)
+
+
+# Pantallas autorizadas a usar el hero: SOLO la de inicio y los tableros de programa (C-3). Hoy
+# ninguna lo usa (el Inicio lo retiró FE-22); la primera en incorporarlo se agrega acá, y esa línea
+# es lo que un revisor tiene que ver: usarlo en otra pantalla es rechazable citando el agente.
+PANTALLAS_CON_HERO = frozenset()
+# Pantallas autorizadas a usar el hero: la lista vive en scripts/design_audit.py (HERO_PANTALLAS), que
+# la hace cumplir como regla P1 HEROFUERA. Esta prueba la contrasta contra los templates reales.
+_SPEC_AUDIT = importlib.util.spec_from_file_location("design_audit_hero", RAIZ / "scripts" / "design_audit.py")
+_design_audit = importlib.util.module_from_spec(_SPEC_AUDIT)
+_SPEC_AUDIT.loader.exec_module(_design_audit)
+PANTALLAS_CON_HERO = _design_audit.HERO_PANTALLAS
+
+
+class HeroInicioTest(SimpleTestCase):
+    """C-3: el hero es de inicio de programa y de ningun otro lado."""
+
+    def _render(self, argumentos, cuerpo="", **contexto):
+        plantilla = "{% load nodo_ui %}{% hero_inicio " + argumentos + " %}" + cuerpo + "{% endhero_inicio %}"
+        return Template(plantilla).render(Context(contexto))
+
+    def test_dibuja_titulo_eyebrow_bajada_y_accion(self):
+        html = self._render(
+            'titulo="Red de dispositivos" eyebrow="Programa Dispositivos" accion_url="/instituciones/" '
+            'accion_texto="Ver instituciones" accion_icono="fa-building"',
+            "{% bajada %}18 instituciones, <strong>3</strong> críticas.{% endbajada %}",
+        )
+
+        self.assertIn('<div class="nodo-hero">', html)
+        self.assertIn('<div class="nodo-hero__eyebrow">Programa Dispositivos</div>', html)
+        self.assertIn('<h1 class="nodo-hero__titulo">Red de dispositivos</h1>', html)
+        self.assertIn('<p class="nodo-hero__bajada">18 instituciones, <strong>3</strong> críticas.</p>', html)
+        self.assertIn('<a href="/instituciones/" class="nodo-hero__accion">', html)
+        self.assertIn('<i class="fas fa-building" aria-hidden="true"></i> Ver instituciones', html)
+
+    def test_solo_el_titulo_es_obligatorio(self):
+        html = self._render('titulo="Inicio"')
+
+        self.assertIn('<h1 class="nodo-hero__titulo">Inicio</h1>', html)
+        for ausente in ("eyebrow", "bajada", "nodo-hero__accion"):
+            self.assertNotIn(ausente, html.replace("nodo-hero__titulo", ""))
+
+    def test_la_accion_pide_url_y_texto(self):
+        self.assertNotIn("nodo-hero__accion", self._render('titulo="x" accion_url="/a/"'))
+        self.assertNotIn("nodo-hero__accion", self._render('titulo="x" accion_texto="Ir"'))
+
+    def test_la_bajada_como_argumento_se_escapa_y_el_bloque_manda(self):
+        html = self._render("titulo=t bajada=b", t="<i>t</i>", b="<u>b</u>")
+        self.assertIn("&lt;u&gt;b&lt;/u&gt;", html)
+        self.assertIn("&lt;i&gt;t&lt;/i&gt;", html)
+
+        html = self._render('titulo="x" bajada="no"', "{% bajada %}gana{% endbajada %}")
+        self.assertIn(">gana</p>", html)
+        self.assertNotIn("no</p>", html)
+
+    def test_el_bloque_bajada_escapa_las_variables(self):
+        html = self._render('titulo="x"', "{% bajada %}{{ nombre }}{% endbajada %}", nombre="<script>")
+
+        self.assertIn("&lt;script&gt;", html)
+        self.assertNotIn("<script>", html)
+
+    def test_un_bloque_bajada_en_blanco_no_deja_parrafo(self):
+        self.assertNotIn("nodo-hero__bajada", self._render('titulo="x"', "{% bajada %}   {% endbajada %}"))
+
+    def test_sintaxis_estricta(self):
+        casos = {
+            "sin titulo": ('eyebrow="a"', ""),
+            "argumento desconocido": ('titulo="a" color="rojo"', ""),
+            "argumento suelto": ('titulo="a" suelto', ""),
+            "cuerpo que no es bajada": ('titulo="a"', "<p>otro</p>"),
+            "dos bajadas": ('titulo="a"', "{% bajada %}1{% endbajada %}{% bajada %}2{% endbajada %}"),
+        }
+        for nombre, (argumentos, cuerpo) in casos.items():
+            with self.subTest(nombre), self.assertRaises(template.TemplateSyntaxError):
+                self._render(argumentos, cuerpo)
+
+    def test_sin_estilos_en_linea_ni_hex(self):
+        html = self._render('titulo="x" accion_url="/a/" accion_texto="Ir"')
+        css = (RAIZ / "static/custom/css/nodo-hero.css").read_text(encoding="utf-8")
+
+        self.assertNotIn("style=", html)
+        self.assertNotRegex(css, r"#[0-9a-fA-F]{3,8}\b")
+
+    def test_el_gradiente_sale_del_token_y_la_hoja_esta_en_el_shell(self):
+        css = (RAIZ / "static/custom/css/nodo-hero.css").read_text(encoding="utf-8")
+        base = (RAIZ / "templates/includes/base.html").read_text(encoding="utf-8")
+
+        self.assertIn("background: var(--gradient-brand);", css)
+        self.assertIn("custom/css/nodo-hero.css", base)
+
+    def test_solo_las_pantallas_autorizadas_lo_usan(self):
+        """El alcance escrito en el agente, hecho prueba: ni el tag ni las clases fuera de la lista."""
+        usos = {}
+        for ruta in sorted(RAIZ.glob("**/templates/**/*.html")):
+            rel = ruta.relative_to(RAIZ)
+            if {"node_modules", "docs", ".claude", "worktrees"} & set(rel.parts) or ruta.name == "_hero_inicio.html":
+                continue
+            if _design_audit.HERO_RE.search(ruta.read_text(encoding="utf-8")):
+                usos[rel.as_posix()] = True
+
+        self.assertEqual(
+            set(usos) - PANTALLAS_CON_HERO,
+            set(),
+            "El hero es solo de la pantalla de inicio y de los tableros de programa "
+            "(.claude/design/componentes/hero_inicio.md). Otra pantalla usa {% page_header %}.",
+        )
+        self.assertEqual(PANTALLAS_CON_HERO - set(usos), set(), "pantalla autorizada que ya no usa el hero")
+
+    def test_el_inicio_de_hoy_sigue_sin_hero(self):
+        """FE-22 retiró el hero del Inicio; esta pieza no lo devuelve sola."""
+        inicio = (RAIZ / "templates/inicio.html").read_text(encoding="utf-8")
+
+        self.assertNotIn("hero_inicio", inicio)
+        self.assertIn("{% page_header", inicio)

@@ -76,6 +76,43 @@ class ReglasP1Tests(SimpleTestCase):
         self.assertIn("PAGEHEADER", reglas(SHELL + '<h1 class="text-2xl">Título</h1>'))
         self.assertNotIn("PAGEHEADER", reglas(SHELL + '{% page_header titulo="Título" %}{% endpage_header %}'))
 
+    def test_herofuera(self):
+        self.assertIn("HEROFUERA", reglas(SHELL + '{% hero_inicio titulo="x" %}{% endhero_inicio %}'))
+        self.assertIn("HEROFUERA", reglas(SHELL + '<div class="nodo-hero">x</div>'))
+        self.assertNotIn("HEROFUERA", reglas(SHELL + '{% page_header titulo="Título" %}{% endpage_header %}'))
+
+    def test_herofuera_no_se_evade_por_el_include_ni_variando_la_clase(self):
+        """Los tres caminos que dejaban pasar un hero fuera de su pantalla.
+
+        El include directo era el mas obvio: el componente dice que no se incluye a
+        mano, pero nada lo impedia y la regla solo miraba el tag. Las dos variantes de
+        clase pasaban porque el `\\b` no corta contra mayuscula ni guion bajo.
+        """
+        for evasion in (
+            '{% include "components/_hero_inicio.html" with titulo="x" %}',
+            "{% include 'components/_hero_inicio.html' %}",
+            '<div class="nodo-hero__Titulo">x</div>',
+            '<div class="nodo-hero__titulo_x">x</div>',
+        ):
+            with self.subTest(evasion=evasion):
+                self.assertIn("HEROFUERA", reglas(SHELL + evasion))
+
+    def test_herofuera_no_marca_lo_que_solo_se_le_parece(self):
+        for inocente in (
+            '<link rel="stylesheet" href="/static/custom/css/nodo-hero.css">',
+            "{% hero_inicio_v2 %}",
+            # El shell nombra la ruta en un comentario para documentar de donde sale el
+            # CSS. Una regla que marca la documentacion de si misma ensenia a no documentar.
+            "<!-- NODO Hero de inicio (components/_hero_inicio.html; solo inicio) -->",
+        ):
+            with self.subTest(inocente=inocente):
+                self.assertNotIn("HEROFUERA", reglas(SHELL + inocente))
+
+    def test_herofuera_respeta_la_lista_y_el_componente(self):
+        usa = '{% hero_inicio titulo="x" %}{% endhero_inicio %}'
+        self.assertEqual(design_audit._p1_herofuera(design_audit.HERO_COMPONENTE, usa), [])
+        self.assertTrue(design_audit._p1_herofuera("programas/templates/x.html", usa))
+
     def test_pageheader_no_aplica_al_portal(self):
         self.assertEqual(design_audit._p1_pageheader("portal/templates/portal/x.html", SHELL + "<h1>T</h1>"), [])
         self.assertEqual(len(design_audit._p1_pageheader("legajos/templates/x.html", SHELL + "<h1>T</h1>")), 1)
