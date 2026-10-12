@@ -40,7 +40,7 @@ from programas.models import (
     Subsegmento,
 )
 
-# Los 49 modelos de la app, con la tabla con la que viven hoy en la base. El mapa es
+# Los 51 modelos de la app, con la tabla con la que viven hoy en la base. El mapa es
 # literal a propósito: calcularlo desde `_meta` haría que el test se mueva solo y no
 # detectaría nada. `AltaIntermediaSIIS` es la única con `db_table` explícita.
 TABLAS = {
@@ -66,6 +66,7 @@ TABLAS = {
     "EntregaMercaderia": "programas_entregamercaderia",
     "EnvioSIIS": "programas_enviosiis",
     "EsperaAdmision": "programas_esperaadmision",
+    "Estadia": "programas_estadia",
     "Formulario": "programas_formulario",
     "GrupoRequisito": "programas_gruporequisito",
     "InscripcionPrograma": "programas_inscripcionprograma",
@@ -85,6 +86,7 @@ TABLAS = {
     "RegistroPausa": "programas_registropausa",
     "Relevamiento": "programas_relevamiento",
     "RequisitoNativo": "programas_requisitonativo",
+    "ReservaPlaza": "programas_reservaplaza",
     "Sector": "programas_sector",
     "Segmento": "programas_segmento",
     "SolicitudMerendero": "programas_solicitudmerendero",
@@ -107,6 +109,7 @@ OTROS_NOMBRES_PUBLICOS = {
     "CARACTERES_SIN_TEXTO",
     "CanalFormulario",
     "Ciudadano",
+    "EstadiaQuerySet",
     "Group",
     "MaxValueValidator",
     "MinValueValidator",
@@ -115,6 +118,7 @@ OTROS_NOMBRES_PUBLICOS = {
     "Path",
     "PausableMixin",
     "PresentacionCampo",
+    "ReservaPlazaQuerySet",
     "SIN_TEXTO_REGEX",
     "TimeStamped",
     "TipoCampo",
