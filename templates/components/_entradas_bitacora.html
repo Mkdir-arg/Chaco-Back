@@ -1,0 +1,42 @@
+{% comment %}
+Entradas de la bitácora de un turno, una fila por anotación. Va dentro de la card del turno.
+  {% include "components/_entradas_bitacora.html" with entradas=entradas_del_turno total=turno.entradas_total %}
+Contexto:
+  entradas  lista (no queryset) de dicts armados por la VISTA, de la más nueva a la más vieja:
+              hora       obligatorio, «16:10».
+              categoria  obligatorio, texto de la categoría («Incidente»). Es el portador de la
+                         información: el color y el ícono solo la refuerzan.
+              tono       decidido por la vista: success | info | warning | danger | brand.
+                         Cualquier otro valor (o ninguno) dibuja el badge neutro. El template no
+                         sabe qué categoría es «grave».
+              titulo     opcional, en negrita.
+              texto      opcional, el texto que escribió el usuario. Se escapa y respeta los saltos de línea;
+                         sin texto (o None) no se dibuja nada.
+              autor      opcional, quién la escribió.
+              automatica opcional: la generó el sistema (ingreso, egreso, pase), no una persona.
+              version    opcional, número: desde 2 muestra «Versión N» (la entrada fue corregida).
+  total     opcional: cantidad real de entradas del turno si la vista mandó menos. Sin él se usa la
+            longitud de la lista.
+Tope: dibuja como máximo 100 entradas y avisa «Mostrando 100 de N entradas». El recorte lo hace la
+VISTA (las más recientes, con su total); el tope de acá es la red de seguridad, no el mecanismo.
+Sin entradas muestra el estado vacío canónico.
+{% endcomment %}
+{% if entradas %}
+<ol class="divide-y divide-light" role="list">
+  {% for entrada in entradas|slice:":100" %}
+  <li class="flex gap-3 py-3 text-sm">
+    <span class="w-12 flex-shrink-0 tabular-nums text-body-subtle">{{ entrada.hora }}</span>
+    <span class="w-28 flex-shrink-0"><span class="badge badge-dot {% if entrada.tono == 'success' %}badge-success{% elif entrada.tono == 'info' %}badge-info{% elif entrada.tono == 'warning' %}badge-warning{% elif entrada.tono == 'danger' %}badge-danger{% elif entrada.tono == 'brand' %}badge-brand{% else %}badge-gray{% endif %}"><i class="fas {% if entrada.tono == 'success' %}fa-circle-check{% elif entrada.tono == 'info' %}fa-circle-info{% elif entrada.tono == 'warning' %}fa-triangle-exclamation{% elif entrada.tono == 'danger' %}fa-circle-exclamation{% elif entrada.tono == 'brand' %}fa-flag{% else %}fa-circle{% endif %}" aria-hidden="true"></i> {{ entrada.categoria }}</span></span>
+    <div class="min-w-0 flex-1 break-words text-body">
+      {% if entrada.titulo %}<strong class="text-heading">{{ entrada.titulo }}</strong> {% endif %}{% if entrada.texto %}{{ entrada.texto|linebreaksbr }}{% endif %}
+      {% if entrada.automatica or entrada.autor or entrada.version and entrada.version > 1 %}<p class="mt-1 text-xs text-body-subtle">{% if entrada.automatica %}Automática{% if entrada.autor %} · {{ entrada.autor }}{% endif %}{% elif entrada.autor %}{{ entrada.autor }}{% endif %}{% if entrada.version and entrada.version > 1 %} · Versión {{ entrada.version }}{% endif %}</p>{% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+{% with cantidad=entradas|length %}{% if total and total > cantidad or cantidad > 100 %}
+<p class="mt-3 text-xs text-body-subtle">Mostrando {% if cantidad > 100 %}100{% else %}{{ cantidad }}{% endif %} de {% if total and total > cantidad %}{{ total }}{% else %}{{ cantidad }}{% endif %} entradas.</p>
+{% endif %}{% endwith %}
+{% else %}
+{% include "components/_estado_vacio.html" with icono="fa-book" titulo="Todavía no hay entradas" texto="Las novedades del turno aparecen acá a medida que se cargan." %}
+{% endif %}

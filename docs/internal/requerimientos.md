@@ -383,6 +383,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 214 | Mapa de plazas con su leyenda, galería fotográfica, y el tono `info` completado | Diseño · componentes | `#ui` `#metodo` | Tasks 14 y 18 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 219 | El tope del núcleo del agente se parte en dos: prosa y tablas | Diseño · contrato | `#metodo` `#ui` | Juez — desbloqueo de la etapa 0 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 220 | Dos pruebas de contrato que no verificaban nada adentro de un worktree | Calidad · pruebas | `#metodo` `#ui` | Juez — hallazgo al cerrar la task 07 del MVP | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 227 | Tarjeta de turno y entradas de bitácora del registro diario | Diseño · componentes | `#ui` `#metodo` | Task 17 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -31853,5 +31854,78 @@ No requiere.
 ## Historial
 
 Entrada nueva.
+
+---
+
+---
+
+# Cambio 227 — Tarjeta de turno y entradas de bitácora del registro diario
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 17` (#682)
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · componentes · Dispositivos |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 17 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `templates/components/_turno_tarjeta.html`, `_entradas_bitacora.html` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**La pieza de bitácora es la lista, no la fila suelta.** El tope, el aviso de recorte y el estado
+vacío necesitan un contenedor: sin él, cada pantalla tendría que reimplementar los tres y dos
+pantallas los harían distinto. Son dos includes, no tres.
+
+**El color nunca es el único portador de la categoría.** El badge de cada entrada lleva el texto de la
+categoría **más** un ícono por tono, y el de la tarjeta lleva el texto del estado. El mockup solo
+pinta el color; es una adición deliberada. Un tono desconocido o vacío cae a `badge-gray` con
+`fa-circle` en vez de romperse, porque la categoría la define parametría que va a crecer.
+
+**El texto de una entrada lo escribe un usuario, así que va escapado.** Pasa por `linebreaksbr`, que
+respeta los saltos de línea sin abrir HTML. Hay un test que **lee el código de las dos piezas** y
+exige que no aparezcan `|safe`, `autoescape off` ni `style=`: la tentación al mostrar texto con saltos
+es desactivar el escape, y acá ese texto viene de un formulario.
+
+**Tope propio además del de la vista.** La pieza dibuja hasta 100 entradas y avisa «Mostrando N de M».
+La ficha exige que el recorte lo haga la vista —las más recientes, más el `total`—; el 100 es la red,
+no el plan, y un queryset sin acotar no es contrato válido. Una bitácora no deja de crecer: un turno
+largo tiene muchas entradas y un dispositivo tiene turnos todos los días.
+
+**La vista decide qué acciones ofrece.** La tarjeta las recibe por parámetro (`url`, `texto`,
+`variante`) porque no tiene ranura de cuerpo; una variante desconocida cae a `secondary`.
+
+## Implementación
+
+Dos includes, la ficha `turno_bitacora.md`, una fila de inventario de 398 caracteres —bajo el tope de
+450— y 22 tests en `core/tests/test_nodo_ui_lote_c.py`, archivo propio para no chocar con los otros
+lotes de la etapa 0. No hizo falta ningún tag ni CSS nuevo: todas las clases ya estaban compiladas.
+
+## Pendientes
+
+- **Ninguna pantalla la consume todavía** y no existe la vista que arme los dicts: es otra task del
+  MVP. No se vio en un navegador.
+- Del mockup quedan afuera, por no estar definidas como piezas: el adjunto 📎 (emoji, conflicto C-10),
+  el enlace «corregir» y la etiqueta «Seguimiento abierto».
+- Tres apartamientos del mockup, los tres por quedarse dentro del sistema: flex con anchos de la
+  escala en vez de la grilla `56px 110px 1fr`; el turno activo marca `border-brand` sin el anillo de
+  3 px; y el turno sin abrir usa `bg-secondary` en vez de opacidad .65, **para que el texto conserve
+  el contraste**.
+
+## Archivos
+
+`templates/components/_turno_tarjeta.html` · `templates/components/_entradas_bitacora.html` ·
+`core/tests/test_nodo_ui_lote_c.py` · `.claude/design/componentes/turno_bitacora.md` ·
+`.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
 
 ---

@@ -1,0 +1,37 @@
+{% comment %}
+Tarjeta de turno de un dispositivo (mañana, tarde, noche). Una por turno; la grilla de tres la arma la pantalla.
+  {% include "components/_turno_tarjeta.html" with turno=turno_tarde %}
+Contexto:
+  turno   dict armado por la VISTA, no un modelo:
+            nombre     obligatorio, «Tarde».
+            horario    opcional, «14:00–22:00».
+            estado     obligatorio, texto del estado («Abierto», «Cerrado», «Sin abrir»). Es el portador
+                       de la información: el color solo lo refuerza.
+            tono       decidido por la vista: success | info | warning | danger | brand.
+                       Cualquier otro valor (o ninguno) dibuja el badge neutro. El template no sabe
+                       qué significa cada estado.
+            detalle    opcional, una línea («L. Méndez · 6 entradas · recibido de P. Ortiz 14:05»).
+            activo     opcional: el turno en curso. Borde de marca y aria-current.
+            sin_abrir  opcional: turno que todavía no abrió. Fondo atenuado (no se baja la opacidad:
+                       el texto tiene que seguir leyéndose).
+            acciones   opcional, lista de dicts de la vista, solo las que el usuario puede ejecutar:
+                       texto, variante (brand | secondary | tertiary; otra cosa dibuja secondary) y
+                       - url: lleva a otra pantalla, se dibuja un <a>.
+                       - confirm_url (+ confirm_title, confirm_text, confirm_ok, peligro): acción que
+                         MUTA; se dibuja un <button data-confirm-url> que confirma con ModernModal
+                         (la pantalla carga programas/becas/_confirm_js.html). Gana sobre url.
+                       Sin url ni confirm_url no se dibuja nada: un enlace nunca muta estado.
+El texto de la vista se escapa siempre (autoescape), sin excepciones.
+{% endcomment %}
+<article class="rounded-xl border p-4 shadow-sm {% if turno.activo %}bg-white border-brand{% elif turno.sin_abrir %}bg-secondary border-light{% else %}bg-white border-base{% endif %}"{% if turno.activo %} aria-current="true"{% endif %}>
+  <div class="flex items-center justify-between gap-2">
+    <h3 class="text-sm font-bold text-heading">{{ turno.nombre }}{% if turno.horario %} <span class="font-normal text-body-subtle">· {{ turno.horario }}</span>{% endif %}</h3>
+    <span class="badge badge-dot {% if turno.tono == 'success' %}badge-success{% elif turno.tono == 'info' %}badge-info{% elif turno.tono == 'warning' %}badge-warning{% elif turno.tono == 'danger' %}badge-danger{% elif turno.tono == 'brand' %}badge-brand{% else %}badge-gray{% endif %}">{{ turno.estado }}</span>
+  </div>
+  {% if turno.detalle %}<p class="mt-2 text-xs text-body-subtle">{{ turno.detalle }}</p>{% endif %}
+  {% if turno.acciones %}
+  <div class="mt-3 flex flex-wrap items-center gap-2">
+    {% for accion in turno.acciones %}{% if accion.confirm_url %}<button type="button" class="btn-nodo btn-sm btn-fit {% if accion.variante == 'brand' %}btn-brand{% elif accion.variante == 'tertiary' %}btn-tertiary{% else %}btn-secondary{% endif %}" data-confirm-url="{{ accion.confirm_url }}" data-confirm-title="{{ accion.confirm_title }}" data-confirm-text="{{ accion.confirm_text }}" data-confirm-ok="{{ accion.confirm_ok }}" data-confirm-danger="{% if accion.peligro %}true{% else %}false{% endif %}">{{ accion.texto }}</button>{% elif accion.url %}<a href="{{ accion.url }}" class="btn-nodo btn-sm btn-fit {% if accion.variante == 'brand' %}btn-brand{% elif accion.variante == 'tertiary' %}btn-tertiary{% else %}btn-secondary{% endif %}">{{ accion.texto }}</a>{% endif %}{% endfor %}
+  </div>
+  {% endif %}
+</article>
