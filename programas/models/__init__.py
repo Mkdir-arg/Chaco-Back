@@ -459,6 +459,20 @@ class TipoDispositivo(TimeStamped):
     nombre = models.CharField(max_length=200, unique=True, verbose_name="Nombre")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     maneja_camas = models.BooleanField(default=False, verbose_name="Maneja camas")
+    # Reemplaza a `maneja_camas` en la v2: aquel es un si/no y acá hay tres tipos de
+    # plaza. Vacío —o nulo, que es lo que ve el código viejo tras un rollback— quiere
+    # decir «sin restricción declarada», no «no admite ninguna».
+    tipos_plaza_admitidos = models.JSONField(
+        default=list,
+        blank=True,
+        null=True,
+        verbose_name="Tipos de plaza que admite",
+    )
+    plaza_obligatoria_al_ingresar = models.BooleanField(
+        default=False,
+        db_default=False,
+        verbose_name="Exige asignar una plaza al ingresar",
+    )
     umbral_ocupacion_amarillo = models.PositiveSmallIntegerField(
         default=50,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
@@ -479,10 +493,26 @@ class TipoDispositivo(TimeStamped):
     def __str__(self):
         return self.nombre
 
+    @property
+    def tipos_de_plaza(self):
+        """Los tipos de plaza que el tipo admite. Lista vacía = sin restricción."""
+
+        valores = self.tipos_plaza_admitidos
+        if not isinstance(valores, list):
+            return []
+        return [valor for valor in valores if isinstance(valor, str)]
+
+    def admite_tipo_de_plaza(self, tipo):
+        tipos = self.tipos_de_plaza
+        return not tipos or tipo in tipos
+
     def clean(self):
         super().clean()
         if self.umbral_ocupacion_amarillo >= self.umbral_ocupacion_rojo:
             raise ValidationError({"umbral_ocupacion_rojo": "El umbral rojo debe ser mayor que el amarillo."})
+        desconocidos = sorted(set(self.tipos_de_plaza) - set(Plaza.Tipo.values))
+        if desconocidos:
+            raise ValidationError({"tipos_plaza_admitidos": f"Tipos de plaza desconocidos: {', '.join(desconocidos)}."})
 
 
 class Dispositivo(TimeStamped):
@@ -664,6 +694,187 @@ class TrazaDispositivo(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Las trazas de dispositivos no se eliminan.")
+
+
+class Edificio(TimeStamped):
+    """El inmueble donde funcionan una o más instituciones (MVP v2, etapa 1).
+
+    Es la unidad del **relevamiento edilicio**: un predio compartido se releva una vez y
+    el resultado lo ven todas las instituciones que lo ocupan (decisión del PM del
+    08/10/2026). Por eso la relación con `Dispositivo` es de varios a varios: el predio
+    relevado en Resistencia aloja al parador, al geriátrico y a Sotai, y una misma
+    institución puede ocupar más de un inmueble.
+
+    Lo que **no** entra acá, porque es de la Versión 2 completa y no del MVP: tenencia,
+    servicios, estado físico y plano.
+    """
+
+    codigo = models.CharField(max_length=50, unique=True, verbose_name="Código del edificio")
+    nombre = models.CharField(max_length=200, db_index=True, verbose_name="Nombre")
+    # Domicilio normalizado: `Dispositivo.domicilio` es una sola línea libre, que no se
+    # puede buscar ni comparar entre instituciones del mismo predio. Acá cada parte va en
+    # su campo.
+    calle = models.CharField(max_length=160, blank=True, verbose_name="Calle")
+    numero = models.CharField(max_length=20, blank=True, verbose_name="Número")
+    piso_departamento = models.CharField(max_length=40, blank=True, verbose_name="Piso/Departamento")
+    localidad = models.CharField(max_length=120, blank=True, db_index=True, verbose_name="Localidad")
+    provincia = models.CharField(max_length=120, blank=True, default="Chaco", verbose_name="Provincia")
+    codigo_postal = models.CharField(max_length=10, blank=True, verbose_name="Código postal")
+    latitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Latitud")
+    longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Longitud")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+    # Varios a varios sin modelo intermedio: el vínculo no tiene atributos propios. Todo
+    # lo que se podría colgar de él —tenencia, servicios, relevamiento— es del edificio,
+    # no del par (edificio, institución).
+    dispositivos = models.ManyToManyField(
+        Dispositivo,
+        blank=True,
+        related_name="edificios",
+        verbose_name="Instituciones que lo ocupan",
+    )
+
+    class Meta:
+        verbose_name = "Edificio"
+        verbose_name_plural = "Edificios"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return f"{self.codigo} · {self.nombre}"
+
+    @property
+    def domicilio_completo(self):
+        """El domicilio normalizado en una línea, salteando las partes vacías."""
+
+        calle_y_numero = " ".join(parte for parte in (self.calle, self.numero) if parte)
+        partes = (calle_y_numero, self.piso_departamento, self.localidad, self.provincia)
+        return " · ".join(parte for parte in partes if parte)
+
+
+class Sector(TimeStamped):
+    """La organización operativa de la institución: una habitación, un pabellón, un servicio o un turno.
+
+    Cuelga del **dispositivo y no del edificio**, y la distinción es deliberada: el
+    edificio es el inmueble, el sector es cómo la institución ordena su capacidad adentro.
+    Dos instituciones del mismo predio tienen sectores propios.
+
+    `capacidad` es la cifra **declarada** —la que dice el legajo—, no la real: la
+    capacidad operativa sale de contar las plazas y la deriva el servicio único de
+    cálculo. Tenerlas separadas es lo que permite ver dónde el papel y el mapa no
+    coinciden.
+    """
+
+    class Tipo(models.TextChoices):
+        HABITACION = "HABITACION", "Habitación"
+        PABELLON = "PABELLON", "Pabellón"
+        SERVICIO = "SERVICIO", "Servicio"
+        TURNO = "TURNO", "Turno"
+        OTRO = "OTRO", "Otro"
+
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.PROTECT,
+        related_name="sectores",
+        verbose_name="Dispositivo",
+    )
+    nombre = models.CharField(max_length=120, verbose_name="Nombre")
+    tipo = models.CharField(
+        max_length=20,
+        choices=Tipo.choices,
+        default=Tipo.OTRO,
+        verbose_name="Tipo de sector",
+    )
+    perfil = models.CharField(max_length=120, blank=True, verbose_name="Perfil de la población")
+    capacidad = models.PositiveIntegerField(default=0, verbose_name="Capacidad declarada")
+    condiciones_uso = models.TextField(blank=True, verbose_name="Condiciones de uso")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    class Meta:
+        verbose_name = "Sector"
+        verbose_name_plural = "Sectores"
+        ordering = ["dispositivo", "nombre"]
+        constraints = [
+            models.UniqueConstraint(fields=["dispositivo", "nombre"], name="sector_nombre_unico_por_dispositivo")
+        ]
+        indexes = [models.Index(fields=["dispositivo", "activo"])]
+
+    def __str__(self):
+        return f"{self.dispositivo.codigo} · {self.nombre}"
+
+
+class Plaza(TimeStamped):
+    """La unidad de capacidad dentro del sector: una cama, un cupo o un turno.
+
+    **El estado que se guarda es el operativo —en servicio o fuera de servicio con su
+    motivo—, que es lo único que alguien decide.** La ocupación no se tipea: ocupada,
+    reservada y prestada se derivan de las estadías y sus movimientos, y las calcula el
+    servicio único de cálculo de la etapa 1 (F5 del mockup: «todo lo numérico es
+    derivado»). Guardar acá un estado «OCUPADA» sería un segundo origen de verdad, que se
+    desincroniza con el primer egreso que falle a mitad de camino.
+    """
+
+    class Tipo(models.TextChoices):
+        CAMA = "CAMA", "Cama"
+        CUPO = "CUPO", "Cupo"
+        TURNO = "TURNO", "Turno"
+
+    class Estado(models.TextChoices):
+        OPERATIVA = "OPERATIVA", "Operativa"
+        FUERA_SERVICIO = "FUERA_SERVICIO", "Fuera de servicio"
+
+    sector = models.ForeignKey(
+        Sector,
+        on_delete=models.PROTECT,
+        related_name="plazas",
+        verbose_name="Sector",
+    )
+    codigo = models.CharField(max_length=50, verbose_name="Código")
+    tipo = models.CharField(
+        max_length=10,
+        choices=Tipo.choices,
+        default=Tipo.CAMA,
+        verbose_name="Tipo de plaza",
+    )
+    estado = models.CharField(
+        max_length=20,
+        choices=Estado.choices,
+        default=Estado.OPERATIVA,
+        verbose_name="Estado operativo",
+    )
+    motivo_fuera_servicio = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Motivo del fuera de servicio",
+    )
+
+    class Meta:
+        verbose_name = "Plaza"
+        verbose_name_plural = "Plazas"
+        ordering = ["sector", "codigo"]
+        constraints = [
+            models.UniqueConstraint(fields=["sector", "codigo"], name="plaza_codigo_unico_por_sector"),
+            models.CheckConstraint(
+                condition=~models.Q(estado="FUERA_SERVICIO") | ~models.Q(motivo_fuera_servicio=""),
+                name="plaza_fuera_de_servicio_con_motivo",
+            ),
+        ]
+        indexes = [models.Index(fields=["sector", "estado"])]
+
+    def __str__(self):
+        return f"{self.sector} · {self.codigo}"
+
+    @property
+    def operativa(self):
+        return self.estado == self.Estado.OPERATIVA
+
+    def clean(self):
+        super().clean()
+        if self.estado == self.Estado.FUERA_SERVICIO and not self.motivo_fuera_servicio.strip():
+            raise ValidationError({"motivo_fuera_servicio": "Sacar una plaza de servicio exige un motivo."})
+        tipo_dispositivo = self.sector.dispositivo.tipo if self.sector_id else None
+        if tipo_dispositivo is not None and not tipo_dispositivo.admite_tipo_de_plaza(self.tipo):
+            raise ValidationError(
+                {"tipo": f"El tipo «{tipo_dispositivo.nombre}» no admite plazas de tipo {self.get_tipo_display()}."}
+            )
 
 
 class Cama(TimeStamped):
