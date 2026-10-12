@@ -225,9 +225,7 @@ class EsquemaContraElJsonRealTests(TestCase):
         sale de `config.administrar`, que es la puerta global de
         `FiltrosUsuarioService`.
         """
-        responsable = _usuario(
-            "esq-actividad", ["ciudadano.ver", "ciudadano.sensible", "config.administrar"]
-        )
+        responsable = _usuario("esq-actividad", ["ciudadano.ver", "ciudadano.sensible", "config.administrar"])
         legajo = LegajoAtencion.objects.create(responsable=responsable)
         ciudadano = Ciudadano.objects.create(dni="30777333", nombre="Rita", apellido="Luna")
         InscripcionPrograma.objects.create(

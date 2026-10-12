@@ -31208,6 +31208,15 @@ para la Ola 7.
   (eran 32 hallazgos falsos). `design_audit.PARTICIONES` declara «estos archivos salieron de
   aquel» y el ratchet mide el **conjunto** contra el origen: un movimiento puro da 0 y una
   línea nueva en cualquiera de los pedazos se sigue contando. Verificado por mutación.
+- **Y el origen se fija a un SHA, no a la base del PR** (ronda 2). Mientras la partición vive
+  en el PR, la base todavía tiene el archivo entero y comparar contra ella funciona; apenas
+  entra a `development`, la base pasa a ser el root de 88 líneas y **el PR siguiente** que
+  toque un include se lleva los mismos 32 hallazgos. `Particion.ref` es `9a3787db`, el último
+  commit de `development` donde el archivo tenía las 1.214 líneas. Del mismo problema sale el
+  segundo cambio: los miembros del conjunto se arman con un `glob` y **no** con los archivos
+  que el PR tocó —con un solo pedazo en la mano, su conteo por regla no llega a superar al del
+  archivo entero y el hallazgo nuevo queda en delta ≤ 0, o sea el ratchet ciego justo sobre las
+  reglas que ya tenían deuda (INLINESTYLE, 19 casos en el origen)—.
 - **Los snapshots se guardan con extensión `.snapshot`, no `.html`.** El repo tiene barridos
   que recorren todo el árbol buscando `*.html` —`core/tests/test_submit_guard.py` y
   `scripts/design_audit.py`, entre otros— y para ellos seis copias del render serían seis
@@ -31292,5 +31301,27 @@ archivo entero: los snapshots dicen si el HTML quedó igual.
 ## Historial
 
 Entrada nueva.
+
+**Ronda 2 de la revisión (12/10/2026).** Un MAJOR y dos MINOR.
+
+- **MAJOR — la partición se medía contra una base que se mueve.** Ver el punto correspondiente
+  en «Decisiones tomadas»: `PARTICIONES` pasa a declarar el commit donde el archivo estaba
+  entero y el conjunto se arma por `glob`. Sin eso, el primer PR que tocara un include después
+  del merge salía con los 32 hallazgos de la deuda vieja como propios. Test nuevo:
+  `ParticionesTests` (5) en `scripts/test_design_audit.py`.
+- **MINOR — el cruce de `actividad-reciente` no comparaba nada.** El feed llegaba vacío
+  (`{'results': []}`) y los dos `assertLessEqual` de `_cruzar` pasaban sobre el sobre, sin
+  tocar las claves del ítem. Ahora se siembran una inscripción y una alerta y se cruzan
+  `descripcion`/`usuario`/`tiempo`/`tipo`/`icono` contra `ActividadRecienteItem`; sacar el
+  `item.pop("timestamp", None)` de `dashboard/api_views/__init__.py` lo pone en rojo.
+- **MINOR — las fichas de `.claude/design/` ya viajan en la rama**, así que se borró el
+  pendiente que mandaba aplicarlas a mano (acá y en el README de la auditoría).
+
+**Merge de `development`** (hasta `2d632cd9`, Cambio 205): **el 200 ya lo usó otra sesión**
+(«Lote de pantallas»), así que esta entrada se renumeró a **207** —206 y 208 quedan reservados
+para otros PRs—. El conflicto en `docs/internal/requerimientos.md` fue de yuxtaposición pura:
+las dos ramas agregan filas al final del índice y entradas al final del archivo, y `git` las
+interleó por los encabezados repetidos de la plantilla. Se conservaron las dos mitades enteras,
+sin tocar las cuentas de horas del README de la auditoría.
 
 ---
