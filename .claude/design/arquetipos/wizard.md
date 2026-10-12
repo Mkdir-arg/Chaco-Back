@@ -19,7 +19,19 @@ orden son solapas de un Detalle, no un wizard.
 - **Una URL por paso.** Cada paso es una vista con su Django Form; el estado entre pasos va en
   sesión y se guarda **solo cuando el form del paso es válido** (esa es la validación por paso).
 - Un paso al que se llega sin haber completado el anterior **redirige** a ese anterior.
-- Solo el paso final **escribe** en la base, con un servicio, en una transacción, y limpia la sesión.
+- Solo el paso final **escribe** en la base, y limpia la sesión. La golden escribe con un
+  `Model.objects.create()` suelto porque toca **una sola fila** y nada de lo que eligió en los pasos
+  previos se lo puede llevar otro mientras tanto. **No copies eso sin pensarlo.**
+- **Revalidar en el paso final lo que pudo cambiar mientras el usuario completaba el wizard.** Entre el
+  paso 1 y el paso 4 pasan minutos; lo que ahí se validó puede haber dejado de ser cierto. Si el
+  wizard reserva algo que otro puede tomar —una plaza, un lugar del cupo, un código único—, el paso
+  final **revalida y escribe dentro de `transaction.atomic()`, tomando la fila con
+  `select_for_update()`**, y si ya no está disponible vuelve al paso que la eligió con el error, en vez
+  de dejar que reviente. Cuando eso pasa de una fila, va en un servicio.
+  El ingreso de Dispositivos es exactamente ese caso: la plaza elegida en el paso 2 puede ocuparse
+  antes del paso 4, así que **no alcanza con clonar la golden** — hay que agregarle el bloqueo.
+  La golden misma tiene la versión chica del problema: `Programa.codigo` es `unique=True` y se valida
+  en el paso 1, así que dos altas simultáneas del mismo código terminan en `IntegrityError`.
 - La vista arma el contexto del indicador (`pasos`, `paso_actual`, `total_pasos`): en
   Configuración, `_contexto_pasos(paso, programa=None)`. El template no calcula nada de dominio.
 - La bajada del encabezado dice «Paso N de M · qué se carga».
@@ -90,5 +102,6 @@ orden son solapas de un Detalle, no un wizard.
 - [ ] El indicador marca el paso actual (`aria-current`) y los hechos son links.
 - [ ] Cada paso valida con su form y redirige si falta el anterior.
 - [ ] El resumen sale de lo guardado en sesión, no de campos recalculados en el template.
-- [ ] El paso final escribe con un servicio, en transacción, y limpia la sesión.
+- [ ] El paso final limpia la sesión, y **revalida lo que pudo cambiar entre pasos**: si reserva algo
+  disputable, escribe en `atomic()` con la fila bloqueada y vuelve al paso que la eligió si se ocupó.
 - [ ] Pie con «Anterior» (`btn-tertiary btn-base`) y la acción primaria (`btn-brand btn-base`).
