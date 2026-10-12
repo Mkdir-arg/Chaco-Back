@@ -116,6 +116,30 @@ class WizardDeProgramaTests(TestCase):
 
         self.assertRedirects(respuesta, reverse("configuracion:programa_wizard_paso1"))
 
+    def test_el_indicador_de_pasos_marca_el_paso_y_vuelve_solo_hacia_atras(self):
+        """El paso final es la golden del arquetipo Wizard: el indicador anuncia el paso
+        actual, los hechos son links a su pantalla y los pendientes no lo son."""
+        self.client.post(reverse("configuracion:programa_wizard_paso1"), self._paso1())
+        self.client.post(
+            reverse("configuracion:programa_wizard_paso2"),
+            {"naturaleza": Programa.Naturaleza.PERSISTENTE},
+        )
+        self.client.post(reverse("configuracion:programa_wizard_paso3"), {"cupo_maximo": "50"})
+
+        respuesta = self.client.get(reverse("configuracion:programa_wizard_paso4"))
+
+        self.assertEqual(respuesta.context["paso_actual"], 4)
+        self.assertEqual(len(respuesta.context["pasos"]), respuesta.context["total_pasos"])
+        self.assertContains(respuesta, 'aria-current="step"', count=1)
+        self.assertContains(respuesta, '<span class="sr-only">Paso actual: </span>Confirmación', html=False)
+        for numero in (1, 2, 3):
+            self.assertContains(
+                respuesta, f'href="{reverse(f"configuracion:programa_wizard_paso{numero}")}" class="nodo-step__item"'
+            )
+        self.assertNotContains(
+            respuesta, 'href="%s" class="nodo-step__item"' % reverse("configuracion:programa_wizard_paso4")
+        )
+
     def test_sin_programa_configurar_los_ocho_pasos_vuelven_al_listado(self):
         """Los cuatro del alta y los cuatro de la edición, con un usuario sin rol.
 

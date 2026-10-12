@@ -1,4 +1,4 @@
-"""Piezas reutilizables del backoffice: paginación, tarjeta de número, estado vacío,
+"""Piezas reutilizables del backoffice: indicador de pasos, paginación, tarjeta de número, estado vacío,
 alerta inline, errores no de campo y el filtro ``hay_filtros``
 (W2-C9b, CMP-11/22/23, ALR-14/15, FE-08)."""
 
@@ -25,6 +25,7 @@ VACIO = "components/_estado_vacio.html"
 ALERTA = "components/_alerta.html"
 FORM_ERRORES = "components/_form_errores.html"
 UBICACION = "components/_ubicacion.html"
+STEPPER = "components/_stepper.html"
 
 
 def _pagina(total, numero=1, por_pagina=10):
@@ -744,3 +745,59 @@ class BtnFitTest(SimpleTestCase):
         # por eso btn-fit no sube su especificidad a `.btn-nodo.btn-fit`.
         self.assertGreater(self.css.index("@media (pointer: coarse)"), self.css.index(".btn-fit {"))
         self.assertNotIn(".btn-nodo.btn-fit", self.css)
+
+
+class StepperTest(SimpleTestCase):
+    """Indicador de pasos del arquetipo Wizard (``components/_stepper.html``)."""
+
+    PASOS = [
+        {"etiqueta": "Identidad", "url": "/paso/1/"},
+        {"etiqueta": "Naturaleza", "url": "/paso/2/"},
+        {"etiqueta": "Capacidades", "url": "/paso/3/"},
+        {"etiqueta": "Confirmación", "url": "/paso/4/"},
+    ]
+
+    def _render(self, paso_actual, pasos=None):
+        return render_to_string(STEPPER, {"pasos": self.PASOS if pasos is None else pasos, "paso_actual": paso_actual})
+
+    def test_marca_hecho_actual_y_pendiente_segun_el_paso(self):
+        html = self._render(3)
+        self.assertEqual(html.count("nodo-step--hecho"), 2)
+        self.assertEqual(html.count("nodo-step--actual"), 1)
+        self.assertEqual(html.count("nodo-step--pendiente"), 1)
+
+    def test_el_paso_actual_se_anuncia_y_no_depende_del_color(self):
+        html = self._render(2)
+        self.assertEqual(html.count('aria-current="step"'), 1)
+        self.assertIn('<span class="sr-only">Paso actual: </span>Naturaleza', html)
+        self.assertIn('<span class="sr-only">Paso completado: </span>Identidad', html)
+        self.assertIn('<span class="sr-only">Paso pendiente: </span>Capacidades', html)
+        # El hecho lleva tilde y el resto el numero: el estado se ve sin distinguir colores.
+        self.assertIn("fa-check", html)
+        self.assertIn(">3</span>", html)
+
+    def test_solo_los_pasos_hechos_son_links(self):
+        html = self._render(3)
+        self.assertIn('href="/paso/1/"', html)
+        self.assertIn('href="/paso/2/"', html)
+        self.assertNotIn('href="/paso/3/"', html)
+        self.assertNotIn('href="/paso/4/"', html)
+
+    def test_un_paso_hecho_sin_url_no_es_link(self):
+        html = self._render(2, pasos=[{"etiqueta": "Uno"}, {"etiqueta": "Dos"}])
+        self.assertNotIn("<a ", html)
+        self.assertIn("Uno", html)
+
+    def test_es_una_lista_ordenada_con_nombre_accesible(self):
+        html = self._render(1)
+        self.assertIn('<nav aria-label="Pasos del asistente">', html)
+        self.assertIn('<ol class="nodo-stepper">', html)
+
+    def test_el_shell_carga_la_hoja_y_define_el_circulo_y_el_conector(self):
+        base = (RAIZ / "templates/includes/base.html").read_text(encoding="utf-8")
+        self.assertIn("custom/css/nodo-stepper.css", base)
+        css = re.sub(
+            r"/\*.*?\*/", "", (RAIZ / "static/custom/css/nodo-stepper.css").read_text(encoding="utf-8"), flags=re.S
+        )
+        self.assertIn("width: 28px;", re.search(r"\.nodo-step__circle \{([^}]*)\}", css).group(1))
+        self.assertIn("width: 56px;", re.search(r"\.nodo-step \+ \.nodo-step::before \{([^}]*)\}", css).group(1))

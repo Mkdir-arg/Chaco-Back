@@ -1,0 +1,25 @@
+{% comment %}
+Indicador de pasos del backoffice (arquetipo Wizard). Estilos: static/custom/css/nodo-stepper.css.
+  {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
+Contexto:
+  pasos        lista (armada en la vista) de dicts con
+               etiqueta   texto del paso;
+               url        opcional, destino del paso; solo se dibuja como link si el paso ya
+                          está hecho (así se vuelve atrás con teclado, sin saltar adelante).
+  paso_actual  entero, base 1. Los anteriores quedan «hechos» y los posteriores «pendientes».
+Accesibilidad: el estado no depende del color. Cada paso lleva un texto para lectores de
+pantalla («Paso completado», «Paso actual», «Paso pendiente»), el hecho muestra una tilde
+y el actual lleva aria-current="step" en el <li>. Es una lista ordenada dentro de un <nav>.
+{% endcomment %}
+<nav aria-label="Pasos del asistente">
+  <ol class="nodo-stepper">
+    {% for paso in pasos %}
+    <li class="nodo-step {% if forloop.counter < paso_actual %}nodo-step--hecho{% elif forloop.counter == paso_actual %}nodo-step--actual{% else %}nodo-step--pendiente{% endif %}"{% if forloop.counter == paso_actual %} aria-current="step"{% endif %}>
+      {% if forloop.counter < paso_actual and paso.url %}<a href="{{ paso.url }}" class="nodo-step__item">{% else %}<span class="nodo-step__item">{% endif %}
+        <span class="nodo-step__circle" aria-hidden="true">{% if forloop.counter < paso_actual %}<i class="fas fa-check" aria-hidden="true"></i>{% else %}{{ forloop.counter }}{% endif %}</span>
+        <span class="nodo-step__label"><span class="sr-only">{% if forloop.counter < paso_actual %}Paso completado{% elif forloop.counter == paso_actual %}Paso actual{% else %}Paso pendiente{% endif %}: </span>{{ paso.etiqueta }}</span>
+      {% if forloop.counter < paso_actual and paso.url %}</a>{% else %}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</nav>
