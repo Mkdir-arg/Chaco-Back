@@ -122,6 +122,94 @@ class RatchetTests(unittest.TestCase):
         self.assertEqual(design_audit.nuevos(base, base, self.TEMPLATE_NO_CP1252), [])
 
 
+class ParticionesTests(unittest.TestCase):
+    """RED-54: el conjunto se mide contra el origen **antes** de partirse.
+
+    El riesgo que cubren estos tests no es el PR que parte el archivo —ahí la
+    base del PR todavía lo tiene entero— sino **el siguiente**: una vez que la
+    partición está en `development`, la base trae el padre ya reducido y
+    cualquier PR que toque un pedazo se lleva la deuda vieja como propia. Por
+    eso `Particion.ref` es un SHA fijo y no la base del PR.
+    """
+
+    def _particion(self) -> tuple[design_audit.Particion, list[tuple[str, str]], str]:
+        if not design_audit.PARTICIONES:
+            self.skipTest("no hay particiones declaradas")
+        particion = next(iter(design_audit.PARTICIONES.values()))
+        if not design_audit._ref_disponible(particion.ref):
+            self.skipTest(f"{particion.ref[:12]} no está en este clon")
+        miembros = design_audit._miembros_de(particion)
+        self.assertTrue(miembros, f"la partición de {particion.origen} no tiene archivos")
+        archivos = [(rel, Path(design_audit.REPO, rel).read_text(encoding="utf-8")) for rel in miembros]
+        origen_entero = design_audit.contenido_en(particion.ref, particion.origen)
+        self.assertIsNotNone(origen_entero, f"{particion.origen} no existe en {particion.ref[:12]}")
+        return particion, archivos, origen_entero
+
+    def test_un_pr_posterior_a_la_particion_no_hereda_la_deuda(self) -> None:
+        """El caso que falla si `ref` vuelve a ser la base del PR.
+
+        Se mide el conjunto tal como está hoy en el árbol —que es lo que vería un
+        PR posterior que toca un include— contra el archivo de origen entero: 0.
+        """
+        particion, archivos, origen_entero = self._particion()
+
+        self.assertEqual(
+            design_audit.nuevos_de_particion(origen_entero, particion.origen, archivos),
+            [],
+        )
+
+    def test_medir_contra_el_padre_ya_partido_devolveria_la_deuda_vieja(self) -> None:
+        """La mutación que demuestra que el SHA fijo hace falta."""
+        particion, archivos, _ = self._particion()
+        padre_partido = design_audit.contenido_en("HEAD", particion.origen)
+        if padre_partido is None:
+            self.skipTest(f"{particion.origen} ya no existe en HEAD")
+
+        heredados = design_audit.nuevos_de_particion(padre_partido, particion.origen, archivos)
+
+        self.assertTrue(
+            heredados,
+            "con el padre ya partido como base el conjunto tiene que heredar deuda: "
+            "si esto da vacío, el test de arriba dejó de probar algo",
+        )
+
+    #: Un `style=` suelto: la regla INLINESTYLE ya tenía deuda en el archivo de
+    #: origen (19 casos), que es justo donde el conteo por regla puede tapar algo.
+    LINEA_NUEVA = '\n<p style="margin-top: 4px">nuevo</p>'
+
+    def test_una_linea_nueva_en_un_pedazo_se_sigue_contando(self) -> None:
+        """El conjunto no es una amnistía: lo que agrega el PR se reporta igual."""
+        particion, archivos, origen_entero = self._particion()
+        tocado, texto = archivos[0]
+        mutados = [(tocado, texto + self.LINEA_NUEVA)] + archivos[1:]
+
+        hallazgos = design_audit.nuevos_de_particion(origen_entero, particion.origen, mutados)
+
+        self.assertEqual([(f[0], f[3]) for f in hallazgos], [(tocado, "INLINESTYLE")])
+
+    def test_el_conjunto_son_todos_los_archivos_y_no_solo_los_tocados(self) -> None:
+        """Por qué los miembros salen de un `glob` y no de lo que el PR tocó.
+
+        Con un solo pedazo en la mano, su conteo por regla no llega a superar al
+        del archivo de 1.214 líneas y el hallazgo nuevo queda en delta ≤ 0: el
+        ratchet se vuelve ciego justo sobre las reglas que ya tenían deuda.
+        """
+        particion, archivos, origen_entero = self._particion()
+        self.assertGreater(len(archivos), 1)
+        suelto, texto = archivos[0]
+
+        solo_el_tocado = design_audit.nuevos_de_particion(
+            origen_entero, particion.origen, [(suelto, texto + self.LINEA_NUEVA)]
+        )
+
+        self.assertEqual(solo_el_tocado, [])
+        self.assertIn(suelto, design_audit._miembros_de(particion))
+
+    def test_ref_inexistente_no_explota(self) -> None:
+        """Clon *shallow*: `--ratchet` avisa y sigue, no revienta."""
+        self.assertFalse(design_audit._ref_disponible("0" * 40))
+
+
 class GoldensTests(unittest.TestCase):
     """La tabla `## Arquetipos` del núcleo es la fuente del gate.
 

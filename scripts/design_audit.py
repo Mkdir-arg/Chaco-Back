@@ -76,6 +76,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -945,27 +946,51 @@ def nuevos(base_text: str | None, actual_text: str, rel: str) -> list[tuple[str,
     return reportar
 
 
+class Particion(NamedTuple):
+    """De dónde salió un conjunto de archivos, y en qué commit estaba entero.
+
+    `ref` es un **SHA fijo**, no la base del PR: una vez que la partición entra a
+    `development`, la base ya trae el archivo de origen partido y comparar contra
+    ella le devolvería la deuda vieja a cualquier PR posterior que toque un
+    pedazo (medido: `_identidad` 6, `_respuestas` 5, `_acciones` 2).
+    """
+
+    ref: str
+    origen: str
+
+
 #: Particiones declaradas: un template que se partió en varios archivos.
 #:
 #: El ratchet compara archivo contra archivo, y para un archivo **nuevo** la base
 #: está vacía: toda la deuda que viajó con el markup se reporta como si la
 #: hubiera escrito este PR. Declarando la partición, el ratchet mide el
-#: **conjunto** —el padre que quedó más todos sus pedazos— contra el archivo de
-#: origen en la base. Un movimiento puro da 0 y una línea nueva en cualquiera de
-#: los pedazos se sigue contando, porque el conteo por regla sube igual.
+#: **conjunto** —el padre que quedó más todos sus pedazos, estén tocados o no—
+#: contra el archivo de origen tal como estaba **antes** de partirse. Un
+#: movimiento puro da 0 y una línea nueva en cualquiera de los pedazos se sigue
+#: contando, porque el conteo por regla sube igual.
 #:
-#: Clave: patrón `fnmatch` de los destinos (incluido el origen, si sobrevivió).
-#: Valor: la ruta del origen en la base.
-PARTICIONES: dict[str, str] = {
+#: El conjunto se arma por `glob` y **no** con los archivos que el PR tocó: medir
+#: un pedazo suelto contra la deuda del archivo entero taparía cualquier hallazgo
+#: nuevo, porque el conteo por regla nunca llegaría a superar al del origen.
+#:
+#: Clave: patrón `glob` de los destinos (incluido el origen, si sobrevivió).
+#: Valor: el origen y el commit donde todavía estaba entero.
+PARTICIONES: dict[str, Particion] = {
     # RED-54 (Ola 7): `formulario_detalle.html` pasó de 1.214 líneas a 88 y sus
     # secciones viven en `_detalle/`. El HTML renderizado no cambió —lo fija
     # `programas/tests/test_becas_revision_detalle_html.py`— así que tampoco
     # cambió la deuda de diseño: solo se repartió.
-    "programas/templates/programas/becas/revision/_detalle/*.html": (
-        "programas/templates/programas/becas/revision/formulario_detalle.html"
+    #
+    # `9a3787db` es el último commit de `development` donde el archivo tenía las
+    # 1.214 líneas (`git log -1 --format=%H origin/development -- <ruta>`,
+    # 08-oct-2026).
+    "programas/templates/programas/becas/revision/_detalle/*.html": Particion(
+        ref="9a3787dbd50b6493dbefc64bcb3179772abdc1b4",
+        origen="programas/templates/programas/becas/revision/formulario_detalle.html",
     ),
-    "programas/templates/programas/becas/revision/formulario_detalle.html": (
-        "programas/templates/programas/becas/revision/formulario_detalle.html"
+    "programas/templates/programas/becas/revision/formulario_detalle.html": Particion(
+        ref="9a3787dbd50b6493dbefc64bcb3179772abdc1b4",
+        origen="programas/templates/programas/becas/revision/formulario_detalle.html",
     ),
 }
 
@@ -1008,12 +1033,30 @@ def nuevos_de_particion(
     return reportar
 
 
-def _particion_de(rel: str) -> str | None:
-    """La ruta de origen si `rel` es parte de una partición declarada."""
-    for patron, origen in PARTICIONES.items():
+def _particion_de(rel: str) -> Particion | None:
+    """La partición declarada a la que pertenece `rel`, si hay alguna."""
+    for patron, particion in PARTICIONES.items():
         if fnmatch.fnmatch(rel, patron):
-            return origen
+            return particion
     return None
+
+
+def _miembros_de(particion: Particion) -> list[str]:
+    """Todos los archivos de la partición que hoy existen, estén tocados o no."""
+    rels: set[str] = set()
+    for patron, declarada in PARTICIONES.items():
+        if declarada != particion:
+            continue
+        for ruta in REPO.glob(patron):
+            if ruta.is_file():
+                rels.add(ruta.relative_to(REPO).as_posix())
+    return sorted(rels)
+
+
+def _ref_disponible(ref: str) -> bool:
+    """Si el commit está en este clon (un clon *shallow* puede no tenerlo)."""
+    codigo, _ = _git(["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"])
+    return codigo == 0
 
 
 def archivos_del_ratchet(base: str) -> list[str]:
@@ -1053,22 +1096,32 @@ def ratchet_mode(base: str) -> int:
             return None
 
     # Las particiones declaradas se miden de a conjunto (ver `PARTICIONES`).
-    por_particion: dict[str, list[tuple[str, str]]] = {}
+    particiones: set[Particion] = set()
     sueltas: list[str] = []
     for rel in rutas:
-        origen = _particion_de(rel)
-        texto = _leer(rel)
-        if texto is None:
-            continue
-        if origen:
-            por_particion.setdefault(origen, []).append((rel, texto))
+        particion = _particion_de(rel)
+        if particion is None:
+            sueltas.append(rel)
+        elif _ref_disponible(particion.ref):
+            particiones.add(particion)
         else:
+            # Clon *shallow*: sin el commit pre-partición no hay con qué comparar
+            # el conjunto. Se avisa y se cae al ratchet normal (archivo contra
+            # archivo), que una vez que la partición está en la base es la
+            # comparación correcta. El job `Design Agent Contract` clona con
+            # `fetch-depth: 0`, así que ahí el commit siempre está.
+            print(
+                f"aviso: {particion.ref[:12]} no está en este clon; "
+                f"{rel} se mide contra {base} en vez de contra {particion.origen} entero",
+                file=sys.stderr,
+            )
             sueltas.append(rel)
 
     total = 0
-    for origen, archivos in sorted(por_particion.items()):
+    for particion in sorted(particiones):
+        archivos = [(rel, texto) for rel in _miembros_de(particion) if (texto := _leer(rel)) is not None]
         for rel, sev, ln, rule, msg, extracto in nuevos_de_particion(
-            contenido_en(base, origen), origen, sorted(archivos)
+            contenido_en(particion.ref, particion.origen), particion.origen, archivos
         ):
             print(f"{rel}:{ln}: [{sev}][{rule}] {msg}")
             if extracto:
