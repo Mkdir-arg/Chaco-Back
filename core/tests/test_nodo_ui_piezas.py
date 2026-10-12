@@ -1005,6 +1005,7 @@ class StepperTest(SimpleTestCase):
         self.assertIn("width: 28px;", re.search(r"\.nodo-step__circle \{([^}]*)\}", css).group(1))
         self.assertIn("width: 56px;", re.search(r"\.nodo-step \+ \.nodo-step::before \{([^}]*)\}", css).group(1))
 
+
 class MenuFilaTest(SimpleTestCase):
     """C-9: el menu de fila anuncia que controla, nace cerrado y explica lo deshabilitado."""
 
