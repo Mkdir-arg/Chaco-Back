@@ -26,7 +26,7 @@ del módulo destino solo se toma dominio.
    equivalente, usala en ese bloque y en ningún otro. No migres el resto de la pantalla.
    Saltá al paso 9.
 3. **(B) Elegí el arquetipo** de la tabla *Arquetipos* del agente canónico. Si no encaja
-   o figura como pendiente (revisión compleja, dashboard): **no escribas**,
+ o figura como pendiente ( dashboard): **no escribas**,
    devolvé la tarea al llamador con el motivo.
 4. **Abrí la golden completa** y su ficha, y las fichas de los componentes que la ficha
    cita.

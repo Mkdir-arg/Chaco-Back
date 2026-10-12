@@ -66,6 +66,10 @@ Se hereda; no se recrean el sidebar ni sus offsets.
   nada. Ninguna pantalla repite esa guardia. El shell publica además `window.alertasConfig`
   (`ciudadanoDetalleUrlTemplate`), que es de donde sale el destino de «Ver» en la alerta crítica:
   el JS no escribe rutas literales.
+- El shell carga `static/custom/css/nodo-ficha.css`: dos clases, `.nodo-ficha-bloqueada` (rayado
+  diagonal de la sección bloqueada de una ficha) y `.nodo-ficha-medidor` (relleno del medidor de avance,
+  por la custom property `--avance`), de `components/_ficha_seccion.html`. Ninguna pantalla
+  las usa a mano.
 - El shell carga `static/custom/js/nodo-tabs.js`: flechas ← →, Home/End y `tabindex`
   itinerante sobre toda `[role="tablist"]` con `[role="tab"]`, en cualquier pantalla. Es
   **mejora progresiva** —activa la solapa disparando su propio `click()`, así que no toca el

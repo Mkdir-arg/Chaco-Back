@@ -386,6 +386,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 227 | Tarjeta de turno y entradas de bitácora del registro diario | Diseño · componentes | `#ui` `#metodo` | Task 17 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 229 | RED-88 de verdad: sin `tblib`, una falla del CI se disfraza de timeout | Calidad · CI | `#metodo` `#infra` | Juez — diagnóstico del 12/10/2026 | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 230 | Golden del arquetipo Wizard: el alta de programa pasa a ser el molde | Diseño · arquetipos | `#ui` `#metodo` | Task 09 del MVP de Dispositivos (plan del Cambio 191) | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 236 | Golden del arquetipo Revisión, con línea de tiempo y sección de ficha | Diseño · arquetipos | `#ui` `#metodo` | Task 10 del MVP de Dispositivos (plan del Cambio 191) | 12/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -32076,6 +32077,89 @@ el `sr-only` y en `aria-current`, así que **el conector nunca portó informaci�
 `.claude/design/arquetipos/wizard.md` (nuevo) · `.claude/design/pendientes.md` ·
 `scripts/design_audit.py` · `core/tests/test_design_audit_estructura.py` ·
 `configuracion/templates/configuracion/programa_wizard_paso4.html`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 236 — Golden del arquetipo Revisión, con línea de tiempo y sección de ficha
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 10`
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · arquetipos · Dispositivos |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 10 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `.claude/design/arquetipos/revision.md`, `componentes/ficha_timeline.md`, `pendientes.md`, `scripts/design_audit.py`, dos componentes nuevos |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> Etapa 0 del MVP: la pantalla de revisión de una estadía es el corazón del circuito interno y no
+> tenía arquetipo. Es la más compleja del mockup.
+
+## Decisiones tomadas
+
+**La golden es una pantalla de referencia propia** (`revision_referencia.html`), no una productiva
+adaptada: no existe hoy ninguna pantalla con esta forma —ficha por secciones con avance, sensibilidad
+y bloqueo, más línea de tiempo—, así que no había de dónde copiar.
+
+**Bloquear no es ocultar, y el bloqueo es de la vista.** Una sección que el rol no puede leer se
+muestra con su título, su avance y quién la completa, pero **sus datos no llegan al template**: la
+vista no los pasa. Se verificó que el contenido bloqueado no aparece en el HTML. Esconder la sección
+dejaría al revisor sin saber que existe; mandarla y taparla con CSS la regalaría en el «ver código
+fuente».
+
+**Dos componentes nuevos, parametrizados de verdad** (`_linea_tiempo.html` y `_ficha_seccion.html`),
+no marcado suelto dentro de la golden: los dos se usan desde fuera con su contexto y tienen ficha.
+
+**Las listas de esta pantalla crecen sin techo y el recorte es de la vista** (hallazgo del revisor).
+Una estadía de dos años trae cientos de eventos y la pantalla dibuja todo lo que le pasen. La ficha
+ahora exige: `eventos`, `adjuntos` y `otras_estadias` llegan recortados a los últimos N con enlace
+«Ver todo»; los contadores `n_*` salen de un `.count()` y **nunca de `len()` sobre la lista
+recortada**, porque si no el encabezado miente justo cuando hay de más; y `secciones` se arma en una
+consulta —el avance por sección es la trampa cara de este arquetipo, porque preguntarlo por sección
+es un N+1 que crece con la parametría—.
+
+**La línea de tiempo no lleva contenido rico, y queda dicho.** `detalle` es una línea de texto, no un
+slot. La solapa de infraestructura (task 37) va a querer una grilla de fotos adentro de un evento:
+meter marcado en `detalle` lo escapa, y desactivar el escape abre un agujero con texto que carga un
+usuario. Se resuelve agregando un slot de cuerpo al componente, en una task propia; hasta entonces el
+contenido va en una card aparte debajo.
+
+## Implementación
+
+Golden con marcador, ficha `revision.md` (estructura, contrato de contexto, regla de la sección
+bloqueada, límites y rendimiento, checklist), ficha `ficha_timeline.md` de los dos componentes, y baja
+de `revisión` de `pendientes.md`.
+
+## Pendientes
+
+- **Slot de cuerpo en la línea de tiempo**, antes de la task 37 (infraestructura con fotos).
+- Menores del revisor, al PR siguiente del carril: falta `x-cloak` en el cuerpo plegable (el default
+  es *abierta*, así que no hay destello en el caso común, y agregarlo esconde el contenido si Alpine
+  no carga: se decidió no hacerlo acá); `{{ avance }}` no tiene tope —el medidor lo recorta con
+  `overflow-hidden`, pero el número escrito podría decir 120—; los estados vacíos fijos de los cuatro
+  paneles pueden confundir a quien clone.
+
+## Archivos
+
+`programas/templates/programas/dispositivos/estadia/revision_referencia.html` ·
+`templates/components/_linea_tiempo.html` · `templates/components/_ficha_seccion.html` ·
+`templates/components/_ficha_avance.html` · `.claude/design/arquetipos/revision.md` ·
+`.claude/design/componentes/ficha_timeline.md` · `.claude/design/pendientes.md` ·
+`scripts/design_audit.py`
 
 ## Base de datos
 
