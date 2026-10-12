@@ -418,11 +418,12 @@ class ValidacionConDatosIlegiblesTests(_ConPayloadCompleto):
 
     def test_el_detalle_de_la_pantalla_sobrevive_al_crudo(self):
         """El único lector estructurado de ``respuesta`` no se entera del cambio."""
-        from programas.views.revision import _detalle_validacion_siis
+        # RED-54: el helper se mudó de la vista al selector del detalle.
+        from programas.selectors.revision import detalle_validacion_siis
 
         registro = self._validar(["OK"])
 
-        detalle = _detalle_validacion_siis(registro)
+        detalle = detalle_validacion_siis(registro)
 
         self.assertEqual(detalle["controles"], [])
         self.assertEqual(detalle["situacion"], "No informado")

@@ -1,0 +1,130 @@
+{% load static rbac nodo_ui becas_extras %}  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">Identidad</h2>
+    </div>
+    <div class="p-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Nombre completo</dt>
+          <dd class="text-heading font-medium text-sm">
+            {% if formulario.ciudadano %}
+              {{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}
+            {% elif formulario.datos_identificacion %}
+              {{ formulario.datos_identificacion.nombre }} {{ formulario.datos_identificacion.apellido }}
+            {% else %}
+              <span class="text-body-subtle font-normal">Sin identificar</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">DNI</dt>
+          <dd class="text-heading text-sm">
+            {% if formulario.ciudadano %}
+              {{ formulario.ciudadano.dni }}
+            {% elif formulario.datos_identificacion %}
+              {{ formulario.datos_identificacion.dni }} <span class="text-body-subtle">· capturado offline</span>
+            {% else %}
+              <span class="text-body-subtle">—</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Sexo</dt>
+          <dd class="text-sm">
+            {% if formulario.ciudadano %}
+              {% if formulario.validado_renaper and not formulario.identidad_forzada and formulario.ciudadano.genero %}
+                <span class="text-heading font-medium">
+                  {{ formulario.ciudadano.get_genero_display|default:"Sin informar" }}
+                </span>
+              {% elif puede_revalidar_renaper %}
+                <form method="post"
+                      action="{% url 'becas:formulario_actualizar_genero' formulario.pk %}{{ next_qs }}"
+                      class="flex items-center gap-2">
+                  {% csrf_token %}
+                  <div class="flex items-center gap-1.5" role="radiogroup" aria-label="Sexo">
+                    {% for opcion in genero_form.genero %}
+                      {% if opcion.data.value %}
+                        <label class="sexo-pill cursor-pointer">
+                          {{ opcion.tag }}
+                          <span>{{ opcion.choice_label }}</span>
+                        </label>
+                      {% endif %}
+                    {% endfor %}
+                    {% for error in genero_form.genero.errors %}
+                      <p class="mt-1 text-xs text-fg-danger">{{ error }}</p>
+                    {% endfor %}
+                  </div>
+                  <button type="submit"
+                          class="btn-nodo btn-tertiary btn-sm"
+                          style="width:38px;height:38px;padding:0;display:inline-flex;align-items:center;justify-content:center;"
+                          aria-label="Guardar sexo"
+                          title="Guardar sexo">
+                    <i class="fas fa-save" aria-hidden="true"></i>
+                    <span class="sr-only">Guardar sexo</span>
+                  </button>
+                </form>
+              {% else %}
+                {{ formulario.ciudadano.get_genero_display|default:"Sin informar" }}
+              {% endif %}
+            {% else %}
+              <span class="text-body-subtle">Sin ciudadano vinculado</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Validación de identidad</dt>
+          <dd class="text-sm">
+            {% if formulario.identidad_forzada %}
+              <span class="badge badge-warning">Validada manualmente</span>
+              <p class="text-xs text-body-subtle mt-1">{{ formulario.identidad_forzada_motivo }}</p>
+              <p class="text-xs text-body-subtle">Base de Personas no la validó: el detalle de quién y cuándo está en la traza.</p>
+            {% elif formulario.validado_renaper and formulario.origen_validacion == "padron" %}
+              <span class="badge badge-success">Validada · Padrón</span>
+              <p class="text-xs text-body-subtle mt-1">Contra el padrón de la convocatoria: los datos son los que informó el organismo.</p>
+              {% if puede_revalidar_renaper and gran_base_activa %}
+              <form method="post" action="{% url 'becas:formulario_revalidar_renaper' formulario.pk %}{{ next_qs }}" class="mt-2">
+                {% csrf_token %}
+                <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-rotate"></i> Confirmar con Base de Personas</button>
+              </form>
+              {% endif %}
+            {% elif formulario.validado_renaper and formulario.origen_validacion == "scan" %}
+              <span class="badge badge-success">Validada · Escaneo del DNI</span>
+              <p class="text-xs text-body-subtle mt-1">El territorial escaneó el documento en la app de campo.</p>
+            {% elif formulario.validado_renaper %}
+              <span class="badge badge-success">Validada · Base de Personas</span>
+              <p class="text-xs text-body-subtle mt-1">Contra Base de Personas del Chaco.</p>
+            {% else %}
+              <span class="badge badge-warning">Pendiente</span>
+              {% if puede_revalidar_renaper %}
+              <div class="flex flex-wrap items-center gap-2 mt-2">
+                {% if gran_base_activa %}
+                <form method="post" action="{% url 'becas:formulario_revalidar_renaper' formulario.pk %}{{ next_qs }}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-rotate"></i> Revalidar</button>
+                </form>
+                {% else %}
+                <button type="button" class="btn-nodo btn-tertiary btn-sm" disabled
+                        title="Base de Personas está desactivada por configuración (PERSONAS_API_ACTIVA=false)">
+                  <i class="fas fa-rotate"></i> Revalidar
+                </button>
+                {% endif %}
+                {% if convocatoria_tiene_padron %}
+                <form method="post" action="{% url 'becas:formulario_validar_padron' formulario.pk %}{{ next_qs }}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-file-excel"></i> Validar contra el padrón</button>
+                </form>
+                {% endif %}
+                <button type="button" id="btn-forzar-identidad" class="btn-nodo btn-tertiary btn-sm">
+                  <i class="fas fa-user-check"></i> Validar manualmente
+                </button>
+              </div>
+              {% if not gran_base_activa %}
+              <p class="text-xs text-body-subtle mt-1">Base de Personas está desactivada por configuración: la identidad se resuelve con el padrón de la convocatoria.</p>
+              {% endif %}
+              {% endif %}
+            {% endif %}
+          </dd>
+        </div>
+      </div>
+    </div>
+  </section>

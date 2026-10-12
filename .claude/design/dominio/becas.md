@@ -57,8 +57,8 @@ registro al que pertenecen**, separados del resto con `pt-4 border-t border-ligh
 
 ## Panel de integración con el sistema externo en el caso
 
-Evidencia: `programas/templates/programas/becas/revision/formulario_detalle.html` (secciones
-«Resultado SIIS» y «Envío a SIIS») y `programas/templates/programas/becas/config/_siis_programa_modal.html`.
+Evidencia: `programas/templates/programas/becas/revision/_detalle/_siis_resultado.html` y
+`programas/templates/programas/becas/revision/_detalle/_siis_envio.html`, y `programas/templates/programas/becas/config/_siis_programa_modal.html`.
 
 Patrón para informar el estado de un intento contra un sistema externo: surface estándar con
 header `px-5 py-4 border-b border-light` e ícono `text-fg-brand`; dentro, el último intento como
@@ -126,7 +126,7 @@ principal de la pantalla.
 
 ## Mapa del lugar de la toma, en el detalle del caso
 
-Evidencia: `programas/templates/programas/becas/revision/formulario_detalle.html`.
+Evidencia: `programas/templates/programas/becas/revision/_detalle/_trazabilidad.html`.
 
 El `iframe` del mapa **no se carga al abrir la pantalla**: su URL viaja en `data-src` y la pone un
 botón «Ver el mapa», que se esconde al usarse. Lleva `referrerpolicy="no-referrer"`. La razón no es de

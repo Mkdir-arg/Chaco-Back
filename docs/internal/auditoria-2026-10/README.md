@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 12-oct-2026 (Ola 7, PR 6: segundas partes de la red de seguridad)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 7 PR 6 | 208 | RED-37 ✅ · RED-39 ✅ · RED-54 ✅ | ✅ | **Las tres fichas cerradas enteras, sin migración y sin tocar un dato.** (1) **RED-37:** las cinco APIs de `dashboard/api_views/` eran `@api_view` sin serializer y Spectacular las descartaba enteras; ahora declaran su respuesta con `inline_serializer` y **los nombres de campo que ya devolvían** (el contrato de RED-42). `VISTAS_CON_ERROR_CONOCIDO` queda vacío y `MAX_WARNINGS_CONOCIDOS` en **0** —`--fail-on-warn` ya se puede encender—: salieron los 15 warnings (serializers en `core/views/performance.py`, tres type hints, `queryset` de clase en los dos ViewSets de Becas para que `{id}` deje de ser `string`, y `ENUM_NAME_OVERRIDES` para el `GeneroEnum` duplicado y el `EstadoFb6Enum` con hash). La red real es el cruce: `EsquemaContraElJsonRealTests` compara el JSON de cada endpoint contra lo declarado **en las dos direcciones**. De yapa, el tablero de Becas —que no es DRF— tiene su esquema congelado clave por clave (~60 anidadas que `becas-dashboard.js` lee sin fallback), sin tocar la caché por modelo ni el freno de 30 s. (2) **RED-39:** `diseno.py` (11 respuestas) y `legajos/views/contactos_api.py` (16) migradas al sobre único de `core/http.py`, **de forma aditiva**: `error_json`/`ok_json` aceptan `heredadas=` y las claves que cada front lee hoy —`success`, `error`, `mensaje`— siguen viajando, porque el front no se despliega con el backend. Más la regla WARN `SOBREJSON` en `design_audit.py`. (3) **RED-54:** `formulario_detalle.html` de **1.214 líneas a 88** en 14 includes, con el HTML renderizado **idéntico** —los snapshots se generaron con el archivo entero y pasan después de partirlo— y el contexto en `programas/selectors/revision.py`, el paquete `selectors/` que a `programas` le faltaba. **Un freno deliberado:** `/api/becas/*` **no** se migra al sobre único — `Chaco-mobile@a66c2d3` lee el motivo con `payload?.detail || payload?.error || payload?.non_field_errors?.[0]` y es una build instalada en el teléfono del territorial. **Tres desvíos, los tres code-first:** `core/views/performance.py` sigue existiendo (OPS-10 no lo borró), así que sus tres APIs se anotaron; `errores` (lista) y `errors` (diccionario por campo) resultaron ser **dos contratos distintos**, no la misma clave en dos idiomas, y por eso la regla nueva es WARN; y el ratchet de diseño reportaba 32 hallazgos falsos por la partición, que se resolvió enseñándole a medir una partición declarada (`design_audit.PARTICIONES`) contra su archivo de origen —verificado por mutación—. **La ronda 2 cerró un MAJOR y dos MINOR:** (a) el ratchet medía la partición contra **la base del PR**, así que apenas entrara a `development` el PR siguiente que tocara un include se llevaba los 32 hallazgos viejos como propios —ahora el origen es un **SHA fijo** y los miembros salen de un `glob`, no de lo que el PR tocó—; (b) el cruce de `actividad-reciente` recibía `{'results': []}` y no comparaba una sola clave del ítem: ahora se siembran una inscripción y una alerta; (c) las fichas de `.claude/design/` ya viajan en la rama. **Para el PM:** encender `--fail-on-warn` en `pr-backend.yml` (es del PR 5, en paralelo). |
+
 ## Estado al 09-oct-2026 (Ola 7, PRs 3, 4 y 5)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -1636,20 +1642,20 @@ funcional ni coordinación con ECOM). Las horas de cada ola suman los esfuerzos 
 | 4 | Performance | 19 | 52 | 19 | 52 | 20 (+ RED-62; + partes de RED-10, 49, 51, 83) | 64 · **62 cerradas el 08-oct (PRs 1 y 2 = 10 + 2, con la parte RED-49 adentro · PR 3 = 8 · PR 4 = 6 · PR 5 = 12 de 14, PERF-03 🟡 · PRs 6, 7 y 8 = 12 · PR 9 = 12) → 2 restantes: el punto 3 de PERF-03 (exportar fuera del request)** |
 | 5 | Bugs de front y parches v1 de Legajos/Dispositivos | 31 (+ V5A-NEW-07 b) | 114 | 31 (+ V5A-NEW-07 b) | 114 | 33 (+ RED-33, RED-75; + partes de RED-42, 53) (+ V5A-NEW-07 b) | 128 · **128 cerradas (PRs 1 a 8) → 0: la ola cierra** |
 | 6 | Agente de diseño | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 | 4 (+8 pasos) | 42 · **42 cerradas el 06-oct (pasos 0-7) → 0: la ola cierra** |
-| 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 · **48 cerradas al 12-oct (PR 1: OPS-10 = 4, OPS-14 + RED-65 = 2, FE-14 = 2, LEG-06 🟡 = 2 · PR 2: OPS-13 + RED-45 = 2, RED-85 = 2 · PR 3: G1b-09 = 8, BEC-25 = 2, G1b-10 = 2, RED-78 = 2, R0-02 = 2 · PR 4: G1-01 fase 2 = 2, RED-13 = 8 · PR 5: RED-64 = 2, RED-76 = 4, RED-86 = 2) → 40 restantes** |
+| 7 | Deuda | 9 (+ fase 2 de G1-01) | 46 | 10 (+ fase 2 de G1-01; + R0-02) | 48 | 13 (+ RED-64, 76, 86; + partes de RED-13, 37, 39, 54, 78, 85) | 88 · **68 cerradas al 12-oct (PR 1: OPS-10 = 4, OPS-14 + RED-65 = 2, FE-14 = 2, LEG-06 🟡 = 2 · PR 2: OPS-13 + RED-45 = 2, RED-85 = 2 · PR 3: G1b-09 = 8, BEC-25 = 2, G1b-10 = 2, RED-78 = 2, R0-02 = 2 · PR 4: G1-01 fase 2 = 2, RED-13 = 8 · PR 5: RED-64 = 2, RED-76 = 4, RED-86 = 2 · PR 6: RED-37 = 4, RED-39 = 8, RED-54 = 8) → 20 restantes** |
 | v2 | Criterios de aceptación de la v2 (§7), no se implementan en v1 | 13 | — | 13 | — | 13 | — |
-| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **912 cerradas al 12-oct-2026 → 60 restantes** |
+| **Total** | | **206** | **636** | **208** | **628** | **297** | **972** · **932 cerradas al 12-oct-2026 → 40 restantes** |
 
 Cada ficha RED cuenta como ítem una sola vez, en la primera ola donde tiene trabajo (por eso la columna suma 297 = 208 +
 89); si tiene una segunda parte en otra ola, esas horas se suman en esa ola («+ partes de …»).
 
 **Cómo se calcula la fila Total (08-oct-2026).** Las 972 h son la suma de la última columna, ola por ola: 0 (Ola 0, que
 cerró en código y cuyas horas ya se descontaron) + 285 (R) + 78 (1) + 135 (2) + 152 (3) + 64 (4) + 128 (5) + 42 (6) +
-88 (7); la v2 no tiene horas. Las **912 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
+88 (7); la v2 no tiene horas. Las **932 cerradas** son la suma de las horas cerradas que declara cada fila, y cada una
 sale de la lista de PRs de su propia sección de este §6: **269** de la Ola R (285 − las 16 de R-17, el único abierto),
 **76** de la Ola 1 (de 78: queda el ítem 0, operativo), **135** de la Ola 2 (PR 1 = 26 + 2 de RED-80, PR 2 = 24 + 2 de RED-52, PRs 3 y 4 = 7 + 12, PR 5 = 14 + 2 de RED-79, PR 6 = 12, PR 7 = 14, PR 8 = 20), **152** de la Ola 3 (PR 1 = 14, PR 2 = 22, PR 3 = 6, PR 5 = 22, PR 5b = 14, PR 6 = 30, PR 7a = 16, PR 7b = 14,
-PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **62** de la Ola 4 (PRs 1 y 2 = 12, PR 3 = 8, PR 4 = 6, PR 5 = 12 de 14, PRs 6, 7 y 8 = 12, PR 9 = 12); **48** de la Ola 7 (PR 1 = 10, PR 2 = 4, PR 3 = 16, PR 4 = 10, PR 5 = 8).
-La cuenta: 269 + 76 + 135 + 152 + 62 + 128 + 42 + 48 = **912 cerradas**; 972 − 912 = **60 restantes**. Desde el 08-oct estas
+PR 8 = 8, PR 9 = 6), **128** de la Ola 5 y **42** de la Ola 6, las tres cerradas; **62** de la Ola 4 (PRs 1 y 2 = 12, PR 3 = 8, PR 4 = 6, PR 5 = 12 de 14, PRs 6, 7 y 8 = 12, PR 9 = 12); **68** de la Ola 7 (PR 1 = 10, PR 2 = 4, PR 3 = 16, PR 4 = 10, PR 5 = 8, PR 6 = 20).
+La cuenta: 269 + 76 + 135 + 152 + 62 + 128 + 42 + 68 = **932 cerradas**; 972 − 932 = **40 restantes**. Desde el 08-oct estas
 cuentas las actualiza **solo el juez**, una vez por tanda de merges: los PRs #626 (Ola 2 PR 5) y #627 (Ola 3 PR 5b) se
 escribieron en paralelo y cada uno sumó sus horas sobre una base que no tenía las del otro (663 y 661). El «139
 cerradas» venía del 04-oct y no contaba nada de lo mergeado entre el 05 y el 07; el **543** del 07-oct arrastraba la
@@ -2260,8 +2266,12 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   real publicada en el sitio, y el PR la despublica), RED-76 ✅ (Cambio 207 — mypy gradual, tres módulos anotados y en
   verde, job no bloqueante), RED-86 ✅ (Cambio 207 — suite en paralelo con la cobertura combinada y la alarma de
   duración) y segundas partes de RED-13
-  (desacoplar el shell y la señal de `conversaciones` **antes** de G1-01 fase 2: +8 h), RED-37 (esquema del dashboard),
-  RED-39 (un solo sobre de error JSON), RED-54 (partir `formulario_detalle`), RED-78 ✅ (Cambio 197 — borrado
+  (desacoplar el shell y la señal de `conversaciones` **antes** de G1-01 fase 2: +8 h), RED-37 ✅ (Cambio 208 —
+  esquema del dashboard: las 5 vistas con `inline_serializer`, esquema en 0 errores y **0 warnings**, y el JSON real
+  cruzado contra lo declarado), RED-39 ✅ (Cambio 208 — un solo sobre de error JSON, **aditivo**: `diseno.py` y
+  `legajos/views/contactos_api.py` migradas conservando las claves que cada front lee hoy; `/api/becas/*` **frenada**
+  porque la app instalada lee `detail`), RED-54 ✅ (Cambio 208 — `formulario_detalle.html` de 1.214 líneas a 88 en 14
+  includes con el HTML **idéntico**, y el contexto a `programas/selectors/revision.py`), RED-78 ✅ (Cambio 197 — borrado
   `DashboardView` **y `dashboard/templates/dashboard.html`**, que LEG-06 dejó en pie a propósito) y RED-85 ✅ (Cambio 196 —
   `requirements-ci.txt` + dependabot). RED-45 ✅ (borrar el parche de gevent) entró dentro de OPS-13, sin horas extra;
   RED-65 ✅ (sacar del guard del release los artefactos muertos) entró con OPS-10/OPS-14 en el Cambio 195.

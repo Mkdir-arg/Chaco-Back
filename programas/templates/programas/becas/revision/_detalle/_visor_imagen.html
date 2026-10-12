@@ -1,0 +1,20 @@
+{% load static rbac nodo_ui becas_extras %}  <div id="image-preview-overlay"
+       class="fixed inset-0 z-[1002] hidden items-center justify-center p-4 sm:p-8"
+       style="background:rgba(0,0,0,.86);"
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="image-preview-title">
+    <button type="button" id="image-preview-close"
+            aria-label="Cerrar imagen ampliada"
+            class="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full text-white"
+            style="background:rgba(255,255,255,.16);">
+      <i class="fas fa-times text-xl" aria-hidden="true"></i>
+    </button>
+    <figure class="flex h-full w-full flex-col items-center justify-center gap-3">
+      <img id="image-preview-img"
+           src=""
+           alt=""
+           class="max-h-[82vh] max-w-full rounded-xl object-contain shadow-2xl">
+      <figcaption id="image-preview-title" class="text-center text-sm font-semibold text-white"></figcaption>
+    </figure>
+  </div>

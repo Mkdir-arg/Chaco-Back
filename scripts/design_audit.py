@@ -64,6 +64,8 @@ Reglas P1 (estructura; ratchet):
 Reglas WARN:
   OUTLINE    outline:none / outline-none (nunca sin reemplazo de ring).
   OPACITY    opacity como estado disabled (usar --bg-disabled/--text-disabled).
+  SOBREJSON  data.mensaje / data.detail / data.errors — el motivo de un error AJAX
+             va en data.message, el sobre único de core/http.py (RED-39).
 """
 
 from __future__ import annotations
@@ -74,6 +76,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -169,6 +172,22 @@ RULES: list[tuple[str, str, re.Pattern[str], str]] = [
         "WARN",
         re.compile(r"disabled[^\n]{0,40}opacity|opacity[^\n]{0,40}disabled", re.I),
         "opacity como disabled — usar --bg-disabled + --text-disabled",
+    ),
+    (
+        # RED-39. El backoffice tenía cinco claves distintas para el mismo motivo
+        # de error y cada front leía la suya con un `||` que tapa la diferencia.
+        # El sobre único es `core/http.py` (`{"ok", "message", "errores"}`): una
+        # lectura nueva de `data.mensaje`, `data.detail` o `data.errors` es un
+        # consumidor que nace atado a una clave que se está retirando.
+        #
+        # WARN y no ERROR a propósito: `data.errors` **por campo** —el que vuelca
+        # los errores sobre el formulario en `_ajax_js.html`,
+        # `_alta_rapida_modal.html` y `tipo_detail.html`— es otro contrato, no el
+        # motivo legible, y migrarlo es una decisión por pantalla.
+        "SOBREJSON",
+        "WARN",
+        re.compile(r"\b(?:data|json|cuerpo|payload|respuesta)\.(?:mensaje|detail|errors)\b"),
+        "clave de error JSON fuera del sobre único — el motivo va en data.message (core/http.py, RED-39)",
     ),
 ]
 
@@ -874,6 +893,24 @@ def contenido_en(ref: str, rel: str) -> str | None:
     return out if code == 0 else None
 
 
+def _medir_para_ratchet(texto: str, rel: str) -> list[tuple[str, int, str, str, str]]:
+    """Hallazgos bloqueantes de `texto` como si viviera en `rel`."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        tmp = Path(d) / Path(rel).name
+        tmp.write_text(texto, encoding="utf-8")
+        crudos = audit_file(tmp)
+    # `audit_file` deduce el alcance de la ruta; con el temporal hay que
+    # recalcular las reglas sensibles a la ruta con el `rel` real.
+    if tmp.suffix == ".html":
+        crudos = [f for f in crudos if f[2] not in {r[0] for r in P1_RULES}]
+        for rule, fn, msg in P1_RULES:
+            for ln, extracto in fn(rel, texto):
+                crudos.append(("P1", ln, rule, msg, extracto))
+    return [f for f in crudos if f[0] in SEVERIDADES_BLOQUEANTES]
+
+
 def nuevos(base_text: str | None, actual_text: str, rel: str) -> list[tuple[str, int, str, str, str]]:
     """Hallazgos bloqueantes del texto actual que la base no tenía.
 
@@ -881,24 +918,8 @@ def nuevos(base_text: str | None, actual_text: str, rel: str) -> list[tuple[str,
     se reporta. De las que subieron se devuelven las líneas que no estaban en la
     base (y, si todas estaban, las últimas `delta`, porque igual hay más).
     """
-    import tempfile
-
-    def medir(texto: str) -> list[tuple[str, int, str, str, str]]:
-        with tempfile.TemporaryDirectory() as d:
-            tmp = Path(d) / Path(rel).name
-            tmp.write_text(texto, encoding="utf-8")
-            crudos = audit_file(tmp)
-        # `audit_file` deduce el alcance de la ruta; con el temporal hay que
-        # recalcular las reglas sensibles a la ruta con el `rel` real.
-        if tmp.suffix == ".html":
-            crudos = [f for f in crudos if f[2] not in {r[0] for r in P1_RULES}]
-            for rule, fn, msg in P1_RULES:
-                for ln, extracto in fn(rel, texto):
-                    crudos.append(("P1", ln, rule, msg, extracto))
-        return [f for f in crudos if f[0] in SEVERIDADES_BLOQUEANTES]
-
-    actuales = medir(actual_text)
-    previos = medir(base_text) if base_text is not None else []
+    actuales = _medir_para_ratchet(actual_text, rel)
+    previos = _medir_para_ratchet(base_text, rel) if base_text is not None else []
 
     por_regla_previa: dict[str, list[str]] = {}
     for sev, ln, rule, msg, extracto in previos:
@@ -923,6 +944,119 @@ def nuevos(base_text: str | None, actual_text: str, rel: str) -> list[tuple[str,
         reportar.extend(sin_match[:delta] if len(sin_match) >= delta else hallazgos[-delta:])
     reportar.sort(key=lambda f: (f[1], f[2]))
     return reportar
+
+
+class Particion(NamedTuple):
+    """De dónde salió un conjunto de archivos, y en qué commit estaba entero.
+
+    `ref` es un **SHA fijo**, no la base del PR: una vez que la partición entra a
+    `development`, la base ya trae el archivo de origen partido y comparar contra
+    ella le devolvería la deuda vieja a cualquier PR posterior que toque un
+    pedazo (medido: `_identidad` 6, `_respuestas` 5, `_acciones` 2).
+    """
+
+    ref: str
+    origen: str
+
+
+#: Particiones declaradas: un template que se partió en varios archivos.
+#:
+#: El ratchet compara archivo contra archivo, y para un archivo **nuevo** la base
+#: está vacía: toda la deuda que viajó con el markup se reporta como si la
+#: hubiera escrito este PR. Declarando la partición, el ratchet mide el
+#: **conjunto** —el padre que quedó más todos sus pedazos, estén tocados o no—
+#: contra el archivo de origen tal como estaba **antes** de partirse. Un
+#: movimiento puro da 0 y una línea nueva en cualquiera de los pedazos se sigue
+#: contando, porque el conteo por regla sube igual.
+#:
+#: El conjunto se arma por `glob` y **no** con los archivos que el PR tocó: medir
+#: un pedazo suelto contra la deuda del archivo entero taparía cualquier hallazgo
+#: nuevo, porque el conteo por regla nunca llegaría a superar al del origen.
+#:
+#: Clave: patrón `glob` de los destinos (incluido el origen, si sobrevivió).
+#: Valor: el origen y el commit donde todavía estaba entero.
+PARTICIONES: dict[str, Particion] = {
+    # RED-54 (Ola 7): `formulario_detalle.html` pasó de 1.214 líneas a 88 y sus
+    # secciones viven en `_detalle/`. El HTML renderizado no cambió —lo fija
+    # `programas/tests/test_becas_revision_detalle_html.py`— así que tampoco
+    # cambió la deuda de diseño: solo se repartió.
+    #
+    # `9a3787db` es el último commit de `development` donde el archivo tenía las
+    # 1.214 líneas (`git log -1 --format=%H origin/development -- <ruta>`,
+    # 08-oct-2026).
+    "programas/templates/programas/becas/revision/_detalle/*.html": Particion(
+        ref="9a3787dbd50b6493dbefc64bcb3179772abdc1b4",
+        origen="programas/templates/programas/becas/revision/formulario_detalle.html",
+    ),
+    "programas/templates/programas/becas/revision/formulario_detalle.html": Particion(
+        ref="9a3787dbd50b6493dbefc64bcb3179772abdc1b4",
+        origen="programas/templates/programas/becas/revision/formulario_detalle.html",
+    ),
+}
+
+
+def nuevos_de_particion(
+    base_text: str | None, origen: str, archivos: list[tuple[str, str]]
+) -> list[tuple[str, str, int, str, str, str]]:
+    """Igual que `nuevos`, pero el «actual» son varios archivos a la vez.
+
+    Devuelve `(rel, severidad, línea, regla, mensaje, extracto)`: el hallazgo
+    conserva el archivo donde está, así el reporte sigue siendo accionable.
+    """
+    previos = _medir_para_ratchet(base_text, origen) if base_text is not None else []
+    actuales: list[tuple[str, tuple[str, int, str, str, str]]] = []
+    for rel, texto in archivos:
+        actuales += [(rel, f) for f in _medir_para_ratchet(texto, rel)]
+
+    por_regla_previa: dict[str, list[str]] = {}
+    for _sev, _ln, rule, _msg, extracto in previos:
+        por_regla_previa.setdefault(rule, []).append(extracto)
+    por_regla_actual: dict[str, list[tuple[str, tuple[str, int, str, str, str]]]] = {}
+    for rel, f in actuales:
+        por_regla_actual.setdefault(f[2], []).append((rel, f))
+
+    reportar = []
+    for rule, hallazgos in por_regla_actual.items():
+        delta = len(hallazgos) - len(por_regla_previa.get(rule, []))
+        if delta <= 0:
+            continue
+        restantes = list(por_regla_previa.get(rule, []))
+        sin_match = []
+        for rel, f in hallazgos:
+            if f[4] in restantes:
+                restantes.remove(f[4])
+            else:
+                sin_match.append((rel, f))
+        elegidos = sin_match[:delta] if len(sin_match) >= delta else hallazgos[-delta:]
+        reportar += [(rel, *f) for rel, f in elegidos]
+    reportar.sort(key=lambda f: (f[0], f[2], f[3]))
+    return reportar
+
+
+def _particion_de(rel: str) -> Particion | None:
+    """La partición declarada a la que pertenece `rel`, si hay alguna."""
+    for patron, particion in PARTICIONES.items():
+        if fnmatch.fnmatch(rel, patron):
+            return particion
+    return None
+
+
+def _miembros_de(particion: Particion) -> list[str]:
+    """Todos los archivos de la partición que hoy existen, estén tocados o no."""
+    rels: set[str] = set()
+    for patron, declarada in PARTICIONES.items():
+        if declarada != particion:
+            continue
+        for ruta in REPO.glob(patron):
+            if ruta.is_file():
+                rels.add(ruta.relative_to(REPO).as_posix())
+    return sorted(rels)
+
+
+def _ref_disponible(ref: str) -> bool:
+    """Si el commit está en este clon (un clon *shallow* puede no tenerlo)."""
+    codigo, _ = _git(["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"])
+    return codigo == 0
 
 
 def archivos_del_ratchet(base: str) -> list[str]:
@@ -951,14 +1085,52 @@ def ratchet_mode(base: str) -> int:
     if not rutas:
         print(f"== design_audit --ratchet (base {base}): ningún archivo de UI cambiado ==")
         return 0
-    total = 0
-    for rel in rutas:
+
+    def _leer(rel: str) -> str | None:
         actual_path = REPO / rel
         if not actual_path.exists():
-            continue  # borrado: no puede sumar deuda
+            return None  # borrado: no puede sumar deuda
         try:
-            actual = actual_path.read_text(encoding="utf-8", errors="replace")
+            return actual_path.read_text(encoding="utf-8", errors="replace")
         except OSError:
+            return None
+
+    # Las particiones declaradas se miden de a conjunto (ver `PARTICIONES`).
+    particiones: set[Particion] = set()
+    sueltas: list[str] = []
+    for rel in rutas:
+        particion = _particion_de(rel)
+        if particion is None:
+            sueltas.append(rel)
+        elif _ref_disponible(particion.ref):
+            particiones.add(particion)
+        else:
+            # Clon *shallow*: sin el commit pre-partición no hay con qué comparar
+            # el conjunto. Se avisa y se cae al ratchet normal (archivo contra
+            # archivo), que una vez que la partición está en la base es la
+            # comparación correcta. El job `Design Agent Contract` clona con
+            # `fetch-depth: 0`, así que ahí el commit siempre está.
+            print(
+                f"aviso: {particion.ref[:12]} no está en este clon; "
+                f"{rel} se mide contra {base} en vez de contra {particion.origen} entero",
+                file=sys.stderr,
+            )
+            sueltas.append(rel)
+
+    total = 0
+    for particion in sorted(particiones):
+        archivos = [(rel, texto) for rel in _miembros_de(particion) if (texto := _leer(rel)) is not None]
+        for rel, sev, ln, rule, msg, extracto in nuevos_de_particion(
+            contenido_en(particion.ref, particion.origen), particion.origen, archivos
+        ):
+            print(f"{rel}:{ln}: [{sev}][{rule}] {msg}")
+            if extracto:
+                print(f"    {extracto}")
+            total += 1
+
+    for rel in sueltas:
+        actual = _leer(rel)
+        if actual is None:
             continue
         for sev, ln, rule, msg, extracto in nuevos(contenido_en(base, rel), actual, rel):
             print(f"{rel}:{ln}: [{sev}][{rule}] {msg}")

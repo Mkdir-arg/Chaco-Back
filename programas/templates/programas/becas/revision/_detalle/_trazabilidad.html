@@ -1,0 +1,79 @@
+{% load static rbac nodo_ui becas_extras %}  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">
+        <i class="fas fa-clock mr-1 text-fg-brand" aria-hidden="true"></i>
+        Trazabilidad de la toma
+      </h2>
+    </div>
+    <div class="p-6 space-y-6">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Fecha asignada</dt>
+          <dd class="text-heading text-sm">{{ relevamiento.fecha_asignada|date:"d/m/Y H:i" }} al {{ relevamiento.fecha_hasta|date:"d/m/Y H:i" }}</dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Capturado en el dispositivo</dt>
+          <dd class="text-heading text-sm">
+            {% if formulario.capturado_en %}
+              {{ formulario.capturado_en|date:"d/m/Y H:i:s" }}
+            {% else %}
+              <span class="text-body-subtle">No informado</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Recibido en el servidor</dt>
+          <dd class="text-heading text-sm">{{ formulario.creado|date:"d/m/Y H:i:s" }}</dd>
+        </div>
+        <div>
+          <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">Última actualización</dt>
+          <dd class="text-heading text-sm">{{ formulario.modificado|date:"d/m/Y H:i:s" }}</dd>
+        </div>
+      </dl>
+
+      <div class="border-t border-light pt-5">
+        <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+          <div>
+            <h3 class="text-heading font-semibold text-sm">
+              <i class="fas fa-map-marker-alt mr-1 text-fg-brand" aria-hidden="true"></i>
+              Lugar de la toma
+            </h3>
+            {% if mapa %}
+              <p class="text-xs text-body-subtle mt-1">{{ mapa.latitud }}, {{ mapa.longitud }}</p>
+            {% endif %}
+          </div>
+          {% if mapa %}
+            <a href="{{ mapa.open_url }}" target="_blank" rel="noopener noreferrer"
+               class="btn-nodo btn-tertiary btn-sm">
+              <i class="fas fa-external-link-alt" aria-hidden="true"></i> Abrir mapa
+            </a>
+          {% endif %}
+        </div>
+        {% if mapa %}
+          {% comment %}
+            SEC-33: el mapa no se carga solo. Abrir el caso mandaba las coordenadas
+            exactas del domicilio de la persona a OpenStreetMap —con la IP y el
+            Referer del backoffice— en cada apertura, aunque nadie mirara el mapa.
+            Ahora lo pide quien lo necesita, y sin Referer.
+          {% endcomment %}
+          <button type="button" id="ver-mapa"
+                  class="btn-nodo btn-secondary btn-sm w-full">
+            <i class="fas fa-map" aria-hidden="true"></i> Ver el mapa
+          </button>
+          <iframe
+            id="mapa-del-caso"
+            title="Mapa del lugar donde se realizó la toma"
+            data-src="{{ mapa.embed_url }}"
+            referrerpolicy="no-referrer"
+            class="w-full rounded-xl border border-base hidden"
+            style="height:320px;"
+            loading="lazy">
+          </iframe>
+        {% else %}
+          <div class="rounded-xl bg-secondary border border-light p-5 text-sm text-body-subtle">
+            Este caso no tiene coordenadas GPS registradas.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>

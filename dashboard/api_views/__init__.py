@@ -4,6 +4,17 @@ SEC-14 (auditoría oct-2026): alcanzaba con estar autenticado. `buscar-ciudadano
 devolvía nombre y DNI del padrón por prefijo —hasta 20 por consulta más `has_more`,
 suficiente para enumerarlo— y las alertas y la actividad reciente salían del alcance
 global, sin pasar por `FiltrosUsuarioService`.
+
+RED-37 punto 3 (Ola 7): las cinco eran `@api_view` sin serializer, así que
+drf-spectacular las descartaba enteras («unable to guess serializer. Ignoring
+view for now») y el esquema no publicaba ni la ruta. Ahora cada una declara su
+respuesta con `inline_serializer`, que es el único mecanismo que no obliga a
+inventar un `GenericAPIView` ni a mover la lógica. Los nombres de campo son
+**los que ya devolvía la vista** —`results`, `has_more`, `labels`, `datos`…—: el
+esquema documenta el contrato de RED-42, no uno nuevo.
+`dashboard/tests/test_api_contrato.py::EsquemaContraElJsonRealTests` cruza las
+dos mitades, así que un serializer que se despegue de la vista pone un test en
+rojo.
 """
 
 import logging
@@ -12,6 +23,9 @@ from datetime import datetime, timedelta
 from django.db.models import Count, Q
 from django.utils import timezone
 from django.utils.html import escape
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
@@ -24,6 +38,30 @@ from users.models import User
 logger = logging.getLogger(__name__)
 
 
+def _contador(nombre, campos):
+    """Un objeto anidado de puros enteros (los bloques de `metricas_dashboard`)."""
+    return inline_serializer(name=nombre, fields={campo: serializers.IntegerField() for campo in campos})
+
+
+@extend_schema(
+    summary="Métricas del inicio del backoffice",
+    description=(
+        "Totales globales del sistema, cacheados 60 s. No se acotan al alcance del "
+        "usuario: son conteos agregados, y la capacidad `dashboard.ver` es la que los habilita."
+    ),
+    responses={
+        200: inline_serializer(
+            name="MetricasDashboard",
+            fields={
+                "metricas": _contador("MetricasDashboardTotales", ["ciudadanos", "legajos", "seguimientos", "alertas"]),
+                "estados_legajos": _contador(
+                    "MetricasDashboardEstados", ["abiertos", "seguimiento", "derivados", "cerrados"]
+                ),
+                "usuarios_conectados": serializers.IntegerField(),
+            },
+        )
+    },
+)
 @api_view(["GET"])
 @permission_classes([BackofficeAutenticado, RequiereCapacidad("dashboard.ver")])
 def metricas_dashboard(request):
@@ -69,6 +107,46 @@ def _calcular_metricas_dashboard():
     }
 
 
+@extend_schema(
+    summary="Búsqueda rápida de ciudadanos (typeahead del inicio)",
+    description=(
+        "Con menos de tres caracteres devuelve `results` vacío y **sin** `has_more`: "
+        "es la rama corta de la vista, y el front la lee con la misma clave. "
+        "`has_more` avisa que hay más de 20 coincidencias."
+    ),
+    parameters=[
+        OpenApiParameter(
+            "q",
+            OpenApiTypes.STR,
+            OpenApiParameter.QUERY,
+            description="Prefijo de DNI (solo dígitos) o de nombre/apellido. Mínimo 3 caracteres.",
+        )
+    ],
+    responses={
+        200: inline_serializer(
+            name="BusquedaCiudadanos",
+            fields={
+                "results": inline_serializer(
+                    name="BusquedaCiudadanosItem",
+                    many=True,
+                    fields={
+                        "id": serializers.IntegerField(),
+                        "nombre": serializers.CharField(help_text="«Apellido, Nombre»"),
+                        "dni": serializers.CharField(),
+                    },
+                ),
+                "has_more": serializers.BooleanField(required=False),
+            },
+        ),
+        500: inline_serializer(
+            name="BusquedaCiudadanosError",
+            fields={
+                "results": serializers.ListField(child=serializers.DictField()),
+                "error": serializers.CharField(),
+            },
+        ),
+    },
+)
 @api_view(["GET"])
 @permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.ver")])
 def buscar_ciudadanos(request):
@@ -96,6 +174,34 @@ def buscar_ciudadanos(request):
         return Response({"results": [], "error": "Error en la busqueda"}, status=500)
 
 
+@extend_schema(
+    summary="Alertas críticas y altas del alcance del usuario (hasta 5)",
+    description=(
+        "Si el cálculo falla, la vista responde **200** con `results` vacío a propósito: "
+        "el panel del inicio se degrada en vez de romper la pantalla, y el traceback "
+        "queda en el log del servidor."
+    ),
+    responses={
+        200: inline_serializer(
+            name="AlertasCriticas",
+            fields={
+                "results": inline_serializer(
+                    name="AlertaCriticaItem",
+                    many=True,
+                    fields={
+                        "id": serializers.IntegerField(),
+                        "ciudadano_id": serializers.IntegerField(allow_null=True),
+                        "ciudadano": serializers.CharField(help_text="«Apellido, Nombre» o «Sin ciudadano»"),
+                        "tipo": serializers.CharField(help_text="Etiqueta legible del tipo de alerta"),
+                        "prioridad": serializers.CharField(),
+                        "fecha": serializers.CharField(help_text="`dd/mm HH:MM`, no ISO-8601"),
+                        "mensaje": serializers.CharField(),
+                    },
+                )
+            },
+        )
+    },
+)
 @api_view(["GET"])
 @permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.sensible")])
 def alertas_criticas(request):
@@ -134,6 +240,32 @@ def alertas_criticas(request):
         return Response({"results": []}, status=200)
 
 
+@extend_schema(
+    summary="Feed de actividad reciente del inicio (hasta 8 eventos)",
+    description=(
+        "Mezcla inscripciones, derivaciones y alertas del alcance del usuario, ordenadas "
+        "por fecha. El `timestamp` con el que se ordena **no sale** en la respuesta: la "
+        "vista lo descarta después de ordenar. Un fallo devuelve 200 con `results` vacío."
+    ),
+    responses={
+        200: inline_serializer(
+            name="ActividadReciente",
+            fields={
+                "results": inline_serializer(
+                    name="ActividadRecienteItem",
+                    many=True,
+                    fields={
+                        "descripcion": serializers.CharField(),
+                        "usuario": serializers.CharField(),
+                        "tiempo": serializers.CharField(help_text="Texto relativo («Hace 2 horas»)"),
+                        "tipo": serializers.ChoiceField(choices=["create", "update", "alert"]),
+                        "icono": serializers.CharField(help_text="Clases de Font Awesome"),
+                    },
+                )
+            },
+        )
+    },
+)
 @api_view(["GET"])
 @permission_classes([BackofficeAutenticado, RequiereCapacidad("ciudadano.sensible")])
 def actividad_reciente(request):
@@ -224,6 +356,31 @@ def actividad_reciente(request):
         return Response({"results": []}, status=200)
 
 
+@extend_schema(
+    summary="Serie diaria de inscripciones para el gráfico del inicio",
+    description=(
+        "`labels` y `datos` tienen **siempre la misma longitud** y se emparejan por posición: "
+        "Chart.js no las cruza por fecha. La serie termina hoy (hora local, no UTC)."
+    ),
+    parameters=[
+        OpenApiParameter(
+            "periodo",
+            OpenApiTypes.STR,
+            OpenApiParameter.QUERY,
+            enum=["7d", "30d", "90d"],
+            description="Cualquier otro valor cae a `30d`.",
+        )
+    ],
+    responses={
+        200: inline_serializer(
+            name="TendenciasDashboard",
+            fields={
+                "labels": serializers.ListField(child=serializers.CharField(help_text="`dd/mm`")),
+                "datos": serializers.ListField(child=serializers.IntegerField()),
+            },
+        )
+    },
+)
 @api_view(["GET"])
 @permission_classes([BackofficeAutenticado, RequiereCapacidad("dashboard.ver")])
 def tendencias_datos(request):
