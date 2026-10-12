@@ -33,3 +33,16 @@ jobs:
 
       - name: Ningún volcado entre los archivos versionados
         run: python3 scripts/check_datos_personales.py --versionados
+
+      # El alcance estricto de RED-64 —lo que MkDocs publica— bloquea desde
+      # `docs-auto-deploy.yml` y desde la suite. Este es el otro alcance: el
+      # repositorio es **público**, así que un dato de una persona en
+      # `docs/internal/` se lee igual que uno en `docs/client/`. Va informando y no
+      # bloqueando porque sobre esa superficie quedan 37 hallazgos deliberados —DNI
+      # de ejemplo en colecciones de Postman, un `head -c 2000000` al lado de la
+      # palabra «DNI», direcciones de fixtures de parseo— y sacarlos sería aflojar la
+      # regla o inventar una lista de archivos perdonados. Las anotaciones aparecen
+      # igual sobre el diff del PR, que es para lo que sirve.
+      - name: Barrido de datos personales en docs/ (informativo)
+        continue-on-error: true
+        run: python3 scripts/check_docs_client.py --todo-docs

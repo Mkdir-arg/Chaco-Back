@@ -7,6 +7,7 @@ on:
     paths:
       - 'docs/client/**'
       - 'mkdocs.yml'
+      - 'scripts/check_docs_client.py'
       - '.github/workflows/docs-auto-deploy.yml'
   workflow_dispatch:
 
@@ -16,6 +17,23 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    # RED-64: el sitio es **público** (`"public": true` según la API de Pages) y entre el
+    # push y la URL pasa menos de un minuto, sin nadie en el medio. Con el `environment`,
+    # el job queda *pending* hasta que un revisor lo apruebe —eso lo enciende el dueño del
+    # repo en Settings → Environments → `publicacion-docs` → *Required reviewers*—.
+    #
+    # El nombre **no** es `github-pages`, que es el que pedía la ficha: ese environment ya
+    # existe en el repo y su `deployment_branch_policy` admite **solo** la rama `gh-pages`
+    # (medido con `gh api repos/Mkdir-arg/Chaco-Back/environments/github-pages/deployment-branch-policies`).
+    # Este job corre en `development`, así que apuntarlo ahí lo dejaría rechazado por
+    # política de ramas en cada corrida: la publicación dejaría de funcionar del todo en
+    # vez de quedar esperando aprobación. Un environment que todavía no existe se crea solo
+    # en la primera corrida, sin reglas, así que hasta que el PM agregue los revisores esto
+    # publica exactamente igual que antes.
+    environment:
+      name: publicacion-docs
+      url: https://mkdir-arg.github.io/Chaco-Back/
 
     steps:
       # RED-85: pineadas por SHA. El job tiene `contents: write` y publica en la rama
@@ -36,6 +54,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-ci.txt
+
+      # RED-64, mitad mecánica: antes de construir nada. Un documento de persona, un
+      # secreto con valor de verdad o un `.md` que se publica sin estar en el `nav` frenan
+      # la publicación. El mismo script corre en la suite
+      # (`core.tests.test_docs_client_publicacion`), así que el hallazgo normal aparece en
+      # el PR; esto es la última puerta, la que mira el árbol que se va a publicar.
+      - name: Nada que no deba ser público
+        run: python scripts/check_docs_client.py
 
       - name: Build docs (strict)
         run: python -m mkdocs build --strict
