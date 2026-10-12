@@ -2786,6 +2786,46 @@ es de nadie y no está en la lista de marcadores que el gate perdona.
 **Test permanente:** `DeteccionDelGateTests` ×36 (+6: la prosa enumerativa, el CSV con `;` y con tab, las dos tablas
 HTML y los dos casos de los marcadores con sufijo).
 
+**Seguimiento (cierre del carril):** #NNN (Cambio 261, Ola 7 PR 9), 13-oct-2026 — los cuatro MINOR de la revisión de
+#797, todos en el mismo archivo y todos de la misma familia: el precio que había pagado la ronda anterior por dejar de
+marcar prosa. (1) **Un padrón de dos columnas volvía a pasar en 0**: pedir tres celdas y contar palabras por celda
+perdía `documento,apellido` y cualquier encabezado con una etiqueta larga («apellido y nombre del titular»). Ahora
+alcanzan **dos** celdas —el encabezado ya tiene que nombrar el documento *y* la persona, que es más exigente que contar
+columnas— y no se cuentan palabras. (2) **La prosa sin verbo seguía bloqueando**: «Columnas: apellido, nombre,
+documento.» no tiene ningún verbo de la lista. La heurística pasó a ser de puntuación —una fila no termina en punto ni
+se anuncia con dos puntos—, que es barata y predecible, y vale igual para `;`. (3) **El encabezado HTML sale de una
+misma `<tr>`**: leer las celdas de toda la ventana convertía una ficha clave-valor en un padrón. (4) **El marcador de
+posición de un secreto tiene que abrir el valor**: `k3yReal-testing` se perdonaba solo por terminar en «testing», el
+mismo agujero de «Attestation» por el otro lado.
+El alcance estricto sigue en **0** y `--todo-docs` sigue en **38**, comparados uno a uno.
+**Test permanente:** `DeteccionDelGateTests` ×43 (+7).
+
+**Límites conocidos del gate.** Lo que queda afuera **a propósito**, para que no se abra otra ronda por esto. El gate
+es una red mecánica sobre texto, no un clasificador: cada una de estas la cubre el ojo humano del `environment` con
+*required reviewers*, que es la otra mitad de la ficha.
+
+- **La prosa se reconoce por puntuación, no por sentido.** Una enumeración de columnas sin punto final y sin dos puntos
+  («Columnas del padrón — apellido, nombre, documento») se lee como una fila. Si arriba de un número de siete dígitos
+  queda una línea así, el gate marca; se arregla escribiendo la oración con su punto.
+- **Las tablas HTML se leen por `<tr>`.** Un padrón maquetado sin filas —`<div>` por celda, o `<td>` sueltos sin
+  `<tr>`— no se reconoce como tabla. Solo una corrida de `<th>` consecutivos cuenta sin `<tr>`.
+- **La ventana son cinco líneas.** Un encabezado más arriba que eso no alcanza a sus filas; es el precio de no releer
+  el archivo entero por cada número.
+- **El marcador de un secreto se reconoce por forma, no por entropía.** Un valor escrito todo en minúsculas y unido por
+  guiones con una palabra marcador adentro (`ci-test-key-not-a-real-secret`, el `DJANGO_SECRET_KEY` del CI) se perdona;
+  una passphrase de palabras en minúscula que contuviera «test» también se perdonaría.
+- **`;` y `,` ya no alcanzan solos para ser fila.** Un encabezado separado por coma o punto y coma que termine en punto
+  o traiga una celda con verbo se lee como prosa (`apellido;nombre;dni.` + fila con documento deja de marcarse). Es el
+  precio de la heurística de puntuación; `|` y tab siguen alcanzando solos (revisión de #798, 13-oct-2026).
+- **Un secreto entrecomillado o en bloque de código no se ve.** La regla de secretos perdona el valor entero apenas
+  empieza con comilla, backtick, llave o paréntesis (`RELLENO`), y no engancha la forma JSON `"clave": "valor"`. Es
+  justo la forma normal de documentar una credencial: hoy hay dos casos reales fuera de `docs/client/` que el gate no ve
+  solo por eso. Lo cubre la revisión humana del `environment` (revisión de #798, 13-oct-2026).
+- **`--todo-docs` no baja a 0 y no se persigue.** Sus 38 son DNI de ejemplo de colecciones de Postman, números con su
+  unidad al lado de la palabra «DNI» y direcciones de fixtures de parseo. No bloquea: informa sobre el diff del PR.
+- **No hay lista de archivos perdonados, y no va a haberla.** Un falso positivo se arregla escribiendo el dato como
+  marcador, no agregando una ruta a ningún lado (es la decisión original de la ficha).
+
 ### RED-65 · El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R6-16 (VR2: CONFIRMADO) · **Ola:** R (el test) + 7 (sacar las rutas, sin horas extra: dentro de OPS-10/OPS-14) · **Esfuerzo:** S (2 h)
 - **Ubicación:** `publish-main.yml:38` exige `docker/django/Dockerfile` (no lo construye nadie; su `CMD` corre
