@@ -1,7 +1,7 @@
 {% comment %}
-Filtros rápidos en píldora: «Campo: valor ⌄», de 36 px, que filtran apenas se elige una
-opción, sin abrir la tarjeta de filtros avanzados. Va en una fila propia, fuera del
-`<form data-dynamic-list-filters>` (ese JS vacía su form al montar).
+Filtros rápidos en píldora: «Campo: valor ⌄», de 36 px, que se aplican con el botón
+«Filtrar», sin abrir la tarjeta de filtros avanzados. Va en una fila propia, fuera del
+`<form data-dynamic-list-filters>` (ese JS vacía su form al montar) y NO se combina con él.
   {% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos %}
 Contexto:
   pildoras  lista de dicts preparada en la vista:
@@ -12,10 +12,11 @@ Contexto:
               todos     opcional, texto de la opción vacía (por defecto «Todos»).
   ocultos   opcional, lista de (nombre, valor) que se conservan al filtrar (p. ej. la búsqueda).
             La página no se conserva: al cambiar un filtro se vuelve a la primera.
-El form se envía con Alpine (`@change`), que ya carga el shell; sin JS queda el botón «Filtrar».
+No envía al cambiar el valor: con teclado, la flecha sobre un <select> cerrado cambia el valor y
+recargaría la página en la primera opción (WCAG 3.2.2). Se envía con el botón «Filtrar» o con Enter.
 Los nombres, textos y valores salen de la vista: acá no se decide ninguna regla.
 {% endcomment %}
-<form method="get" class="flex flex-wrap items-center gap-2" aria-label="Filtros rápidos" x-data @change="$el.requestSubmit()">
+<form method="get" class="flex flex-wrap items-center gap-2" aria-label="Filtros rápidos">
   {% for nombre, valor in ocultos %}<input type="hidden" name="{{ nombre }}" value="{{ valor }}">{% endfor %}
   {% for pildora in pildoras %}
   <label class="nodo-pildora">
@@ -26,5 +27,5 @@ Los nombres, textos y valores salen de la vista: acá no se decide ninguna regla
     </select>
   </label>
   {% endfor %}
-  <noscript><button type="submit" class="btn-nodo btn-tertiary btn-sm">Filtrar</button></noscript>
+  <button type="submit" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-filter" aria-hidden="true"></i> Filtrar</button>
 </form>

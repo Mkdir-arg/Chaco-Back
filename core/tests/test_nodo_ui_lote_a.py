@@ -87,11 +87,12 @@ class FiltroPildoraTests(SimpleTestCase):
         self.assertIn('<input type="hidden" name="q" value="pérez">', html)
         self.assertNotIn('name="page"', html)
 
-    def test_envia_el_form_al_cambiar_y_deja_boton_sin_js(self):
+    def test_no_envia_al_cambiar_y_tiene_boton_filtrar_visible(self):
         html = self._html()
         self.assertIn('method="get"', html)
-        self.assertIn('@change="$el.requestSubmit()"', html)
-        self.assertIn("<noscript>", html)
+        self.assertNotIn("@change", html)
+        self.assertNotIn("<noscript>", html)
+        self.assertIn('<button type="submit"', html)
 
     def test_escapa_textos_y_valores(self):
         from django.template.loader import render_to_string
@@ -135,6 +136,23 @@ class ChipsYSwitchTests(SimpleTestCase):
         self.assertIn('class="nodo-chips"', html)
         self.assertEqual(html.count('type="checkbox"'), 3)
         self.assertIn("Alojamiento", html)
+
+    def test_chips_son_un_grupo_nombrado_por_el_label_del_campo(self):
+        html = _campo(_FormPiezas(), "servicios")
+        self.assertIn('id="id_servicios-etiqueta"', html)
+        self.assertNotIn('for=""', html)
+        self.assertIn('role="group"', html)
+        self.assertIn('aria-labelledby="id_servicios-etiqueta"', html)
+        self.assertIn('aria-describedby="id_servicios-ayuda"', html)
+
+    def test_la_clase_y_el_aria_del_grupo_no_se_repiten_en_cada_chip(self):
+        html = _campo(_FormPiezas(), "servicios")
+        self.assertEqual(html.count("nodo-chips"), 1)
+        self.assertEqual(html.count("aria-describedby"), 1)
+        self.assertEqual(html.count('role="group"'), 1)
+
+    def test_el_label_de_un_control_unico_conserva_su_for(self):
+        self.assertIn('for="id_autoriza"', _campo(_FormPiezas(), "autoriza"))
 
     def test_chips_marcan_lo_elegido_y_el_form_valida_como_siempre(self):
         form = _FormPiezas(data={"servicios": ["alo", "cen"]})

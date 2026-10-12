@@ -125,6 +125,10 @@ servicios = forms.MultipleChoiceField(choices=SERVICIOS, widget=ChipsSelectMulti
 autoriza = forms.BooleanField(widget=SwitchInput, required=False)
 ```
 
+- **Accesibilidad de los chips:** el contenedor es `role="group"` con `aria-labelledby` hacia el
+  label de `_field.html` (que ahora lleva `id="<auto_id>-etiqueta"` y omite `for` cuando el widget
+  no tiene un único control). La ayuda y el error cuelgan del grupo, no de cada chip. La clase
+  `nodo-chips` y los `aria-*` van solo en el contenedor.
 - **Chip elegido:** tonos de `badge-brand` (fondo, borde y texto), negrita. Chip no elegido: borde
   base. Chip `disabled`: `--bg-disabled` + `--text-fg-disabled`. El input queda fuera de la vista
   pero enfocable: el foco se ve en el chip (`:has(input:focus-visible)`).
@@ -136,6 +140,11 @@ autoriza = forms.BooleanField(widget=SwitchInput, required=False)
   se enciende o apaga → switch; muchas opciones o en columna → `.nodo-checks` (arriba).
 - Un chip **no** es un badge (no informa un estado: se elige) ni un filtro: para filtrar un
   listado, la píldora de `filtros.md`.
+- **Lo que el mockup muestra y esta pieza no cubre** (la primera pantalla no lo busca acá):
+  chip como filtro de **selección única** (P10, bitácora: sería un `RadioSelect` con la misma
+  presentación, sin probar); chip con «✕» o «+ agregar»; chip deshabilitado al 55 % de opacidad
+  (acá, tokens de deshabilitado); chip elegido distinguido por color y negrita, sin marca
+  adicional; switch sin ajuste para el modo de alto contraste de Windows.
 - Lo que el mockup del MVP muestra como chip con «✕» o «+ agregar» (instituciones del alcance)
   **no** es esta pieza: es un selector con alta, que no existe.
 
