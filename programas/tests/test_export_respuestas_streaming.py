@@ -49,6 +49,7 @@ from programas.services.becas import get_campos_formulario
 from programas.services.exportacion_reportes import respuesta_csv_en_streaming, respuesta_reporte
 from programas.services.reportes import Reporte, ReportePerezoso
 from programas.tests.test_dashboard_becas import HOY, DashboardBecasBase
+from programas.views import dashboard_becas as vistas
 from users.models import Capacidad, RolMeta
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -459,6 +460,102 @@ class ArmadoPorLotesTests(ExportRespuestasBase):
         self.assertEqual(respuesta.status_code, 200)
         anchas = [q["sql"] for q in capturadas if '"programas_formulario"."data"' in q["sql"]]
         self.assertEqual([self._casos_mirados(sql) for sql in anchas], [2, 2, 2, 1] * 2)
+
+
+class LoQueNoEntraEnElArchivoTests(ExportRespuestasBase):
+    """Las dos pasadas abren una ventana, y lo que cae ahí no se pierde callado.
+
+    El encabezado se cierra en la primera pasada y las filas se leen en la segunda: una
+    respuesta con una clave **sin columna** escrita en el medio no tiene dónde salir. La
+    ventana es inherente a armar el archivo en dos pasadas (cerrarla pide bloquear la
+    convocatoria o volver a leerla entera); lo que no puede pasar es que se vaya en
+    silencio.
+    """
+
+    LOGGER = "programas.services.dashboard_becas"
+    CLAVE_NUEVA = "cp-llegada-tarde"
+
+    def test_una_respuesta_sin_columna_escrita_entre_las_dos_pasadas_queda_en_el_log(self):
+        self._poblar()
+        reporte, _alcance = svc.respuestas_por_persona_en_lotes(self.conv_propia, incluir_publicos=True)
+
+        # El encabezado ya está cerrado: alguien contesta mientras el archivo se escribe,
+        # y su pregunta no está ni en el formulario vigente ni en el catálogo.
+        caso = Formulario.objects.filter(relevamiento=self.rel_propio).order_by("pk").first()
+        caso.respuestas = {**svc._como_dict(caso.respuestas), self.CLAVE_NUEVA: "Sí"}
+        caso.save(update_fields=["respuestas"])
+
+        with self.assertLogs(self.LOGGER, level="WARNING") as registro:
+            filas = list(reporte.filas)
+
+        self.assertEqual(len(filas), 7)
+        self.assertNotIn(self.CLAVE_NUEVA, "".join(reporte.encabezados))
+        aviso = registro.output[0]
+        self.assertIn("1 clave(s)", aviso)
+        self.assertIn(f"convocatoria={self.conv_propia.pk}", aviso)
+        # El aviso dice cuántas y de qué convocatoria, nunca qué contestó quién.
+        self.assertNotIn(self.CLAVE_NUEVA, aviso)
+        self.assertNotIn("Sí", aviso)
+
+    def test_un_export_normal_no_avisa_nada(self):
+        """Las claves que a propósito no tienen columna —las del legajo y el apoderado—
+        no son una pérdida: si contaran, el aviso saldría en cada export y nadie lo leería."""
+        self._poblar()
+
+        with self.assertNoLogs(self.LOGGER, level="WARNING"):
+            reporte, _alcance = svc.respuestas_por_persona_en_lotes(self.conv_propia, incluir_publicos=True)
+            self.assertEqual(len(list(reporte.filas)), 7)
+
+
+class FalloAMitadDelStreamTests(ExportRespuestasBase):
+    """Con la respuesta ya empezada no hay 500 que mandar: el 200 queda, pero cortado.
+
+    El estado es `200` + cuerpo truncado + la excepción viajando al servidor. Es lo
+    correcto —un archivo incompleto es mejor que uno silenciosamente corto— y por eso se
+    fija acá: envolver `_vigilar` en un `except` que se trague el error convertiría la
+    descarga cortada en un CSV que parece entero.
+    """
+
+    LOGGER = "programas.views.dashboard_becas"
+
+    def test_el_vigilante_deja_el_fallo_en_el_log_y_lo_vuelve_a_lanzar(self):
+        def filas():
+            yield ("una fila",)
+            raise RuntimeError("se cortó la lectura")
+
+        vigilado = vistas._vigilar(filas(), 77)
+        self.assertEqual(next(vigilado), ("una fila",))
+
+        with self.assertLogs(self.LOGGER, level="ERROR") as registro, self.assertRaises(RuntimeError):
+            next(vigilado)
+
+        self.assertIn("convocatoria=77", registro.output[0])
+        self.assertIn("RuntimeError", registro.output[0], "sin el traceback el log no sirve para nada")
+
+    def test_un_fallo_a_mitad_del_csv_corta_la_descarga_en_vez_de_completarla(self):
+        self._poblar()
+        self.client.force_login(self.admin)
+
+        def filas_que_se_cortan(*_args, **_kwargs):
+            yield ("primera",)
+            raise RuntimeError("se cortó la lectura")
+
+        with (
+            mock.patch.object(svc, "_filas_por_persona", filas_que_se_cortan),
+            mock.patch("programas.services.exportacion_reportes.TROZO_CSV", 1),
+        ):
+            respuesta = self.client.get(self._url(self.conv_propia))
+            # El estado ya se mandó: no hay forma de convertir esto en un 500.
+            self.assertEqual(respuesta.status_code, 200)
+            self.assertTrue(respuesta.streaming)
+            trozos = iter(respuesta.streaming_content)
+            primero = next(trozos)
+
+            with self.assertLogs(self.LOGGER, level="ERROR") as registro, self.assertRaises(RuntimeError):
+                b"".join(trozos)
+
+        self.assertIn(b"Alcance: Convocatoria ", primero)
+        self.assertIn(f"convocatoria={self.conv_propia.pk}", registro.output[0])
 
 
 class AlcanceDelCsvTransmitidoTests(ExportRespuestasBase):

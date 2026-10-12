@@ -395,6 +395,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 255 | Servicio único de ocupación: lo que no se puede calcular devuelve `None`, no cero | Dispositivos · servicios | `#datos` `#performance` | Task 22 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 256 | Segundas lecturas de los dos gates: el padrón que no se veía, el secreto que se perdonaba solo y el piso que no bajaba | Transversal — gate de publicación de `docs/client/` · auditoría de diseño (particiones del ratchet) · archivo vivo de requerimientos | `#infra` `#datos` | Revisiones de #664 (Cambio 207) y #665 (Cambio 208) — los MINOR que quedaron abiertos (Ola 7, PR 7) | 12/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
 | 257 | La descarga grande deja de armarse de una sola vez: el export de respuestas por persona sale de a lotes y el CSV se transmite | Becas — solapa «Dashboard» del programa (exportación de respuestas por persona) | `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — ficha PERF-03 punto 3 (Ola 4, PR 10); PERF-11 diferida por decisión del PM | 12/10/2026 | 🟢 **Hecho** (sin cola ni worker: no existen en el repo ni en ECOM. PERF-11 sale del alcance: proyecto propio) | No requiere |
+| 258 | Las colas de los dos gates y del export: la prosa que bloqueaba, la tabla HTML que no se miraba y las dos cotas que no estaban escritas | Transversal — gate de publicación de `docs/client/` · auditoría de diseño (piso de las particiones) · Becas — export «respuestas por persona» | `#infra` `#datos` `#performance` | Revisiones de #784 (Cambio 256) y #791 (Cambio 257) — los MINOR que quedaron abiertos (Ola 7, PR 8) | 12/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta; la ventana del ingress de ECOM sigue preguntada) | No |
 
 **Notas del índice**
 
@@ -33097,3 +33098,181 @@ Primera versión.
 **12/10/2026 — merge del juez con `development` (hasta `a8985a58`) y con el PR 7 de la Ola 7 (Cambio 256).** El 209 quedó tomado por ramas en vuelo; esta entrada pasa a ser la **257**. En `scripts/perf_budgets.json` se conservan el presupuesto de 666 y su motivo, y entra el presupuesto nuevo `dispositivos_ocupacion_de_plazas` que trajo `development`.
 
 ---
+
+# Cambio 258 — Las colas de los dos gates y del export: la prosa que bloqueaba, la tabla HTML que no se miraba y las dos cotas que no estaban escritas
+
+🟢 **HECHO — 12/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — gate de publicación de `docs/client/` (`scripts/check_docs_client.py`) · auditoría de diseño (piso de las particiones, `scripts/design_audit.py`) · Becas — export «respuestas por persona» |
+| **Etiquetas** | `#infra` `#datos` `#performance` |
+| **Solicitante** | Revisiones de #784 (Cambio 256) y #791 (Cambio 257) — los MINOR que quedaron abiertos |
+| **Fecha del pedido** | 12/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — seguimiento de las fichas RED-64, RED-54 y PERF-03 (Ola 7, PR 8) |
+| **Partes afectadas** | CI (`Datos`, `Code Quality`, `Design Agent Contract`, `Backend CI`) · documentación interna |
+| **Migración** | No |
+
+## Pedido original
+
+Los ocho MINOR que dejaron las dos revisiones anteriores, ninguno con rama propia. Cuatro
+sobre los dos gates (RED-64 y RED-54) y cuatro sobre el export de Becas (PERF-03):
+
+1. `SEPARADOR_DE_CELDAS` incluye la coma, así que una enumeración en prosa calificaba como
+   encabezado de padrón: «El padrón trae apellido, nombre, documento y domicilio.» seguida de
+   «El identificador interno es 9876543.» era un hallazgo **que bloquea la publicación**.
+2. La regla del encabezado cubre markdown, CSV y TSV pero no `<th>`/`<td>`: un padrón
+   publicado en una tabla HTML pasaba en 0, y `docs/client/mockups/` se copia al sitio tal cual.
+3. El `(?![a-z])` de `SABE_A_PRUEBA` sacaba del perdón las formas del propio marcador:
+   `TOKEN=testing123`, `tests`, `examples` y `fakes` eran hallazgos.
+4. El escape del `min` del piso de partición era **todo-o-nada**: si un solo miembro faltaba
+   en la base, el piso de la partición entera volvía a `origen@ref` y un PR que agregara un
+   include nuevo recuperaba el hueco que una limpieza anterior había cerrado.
+5. La ficha PERF-03 trataba la ventana del ingress como desconocida, teniendo
+   `proxy_read_timeout 60s` escrito en `nginx.conf:97`.
+6. El primer byte del CSV sigue siendo **O(convocatoria)**: `_claves_sin_columna` recorre
+   todos los casos antes de responder.
+7. Una respuesta con una clave **sin columna** escrita entre la pasada del encabezado y la de
+   las filas se pierde **en silencio**.
+8. Un fallo a mitad del stream da `200` + cuerpo truncado + excepción al servidor —que es lo
+   correcto—, pero ningún test lo fijaba.
+
+## Alcance acordado
+
+**Entra:** las dos reglas del gate corregidas con sus tests, el perdón de los marcadores con
+sufijo, el piso medido por miembro presente, las dos cotas del export escritas donde viven, el
+`warning` del punto 7 y el test del punto 8.
+
+**Queda afuera, y por qué:**
+
+- **Cambiar el comportamiento del export.** Los puntos 5, 6 y 8 son documentación y un test:
+  el primer byte O(convocatoria) y el `200` truncado son decisiones correctas, y lo que
+  faltaba era que estuvieran escritas y fijadas.
+- **Cerrar la ventana entre las dos pasadas** (punto 7). Pide bloquear la convocatoria o
+  volver a leerla entera, que es justo lo que PERF-03 sacó. Se deja contada, no cerrada.
+- **Bajar los 38 de `--todo-docs`.** Ninguno es el dato de una persona; son los mismos de
+  siempre más una línea escrita desde el Cambio 256 con el DNI de ejemplo del repo.
+
+## Decisiones tomadas
+
+- **Lo que cuenta como fila es lo separado como una tabla.** Un `|`, un `;` o un tab solo
+  aparecen separando celdas; la coma también separa una oración. Con la coma sola se piden
+  además **tres celdas que parezcan etiquetas** —cortas, de hasta tres palabras y sin verbo—,
+  que es lo que distingue `apellido,nombre,dni` de la prosa que *habla* de esas columnas. El
+  costo declarado: un CSV de **dos** columnas separado por comas ya no se reconoce como
+  padrón. Es el precio de que el gate no marque prosa, y un gate que marca prosa se apaga el
+  primer día.
+- **La tabla HTML se lee con las mismas dos preguntas.** Las celdas `<th>`/`<td>` entran al
+  mismo `_celdas_nombran_un_padron` que markdown y CSV: una celda nombra el documento y otra
+  distinta nombra a la persona. Se juntan las celdas de **toda la ventana** y no solo de la
+  línea, porque en HTML un encabezado suele venir con un `<th>` por línea. No se tocó el
+  vocabulario de `NOMBRA_PERSONA`: agregar «persona» ahí haría padrón de media página de
+  prosa de este repo.
+- **El marcador de posición admite sus formas, declaradas una por una.** `tests?(?:ing)?`,
+  `examples?`, `fakes?`, `samples?`, `ejemplos?`… y **no** un `[a-z]*` suelto, justamente para
+  que «Attestation» —`test` seguido de `ation`— siga sin eximir. El `(?<![a-z])` se queda: una
+  palabra que *termina* en «test» («latest», «contest») no es un marcador.
+- **El piso de la partición se mide sobre los miembros que existen en la base.** Un include
+  nuevo simplemente no aporta piso, en vez de anular el de todos sus hermanos. En el PR que
+  **parte** el archivo no cambia nada —ahí el único miembro presente en la base es el origen
+  entero, así que el `min` elige lo mismo—, y eso está fijado con un test.
+- **La ventana del ingress son 60 s, con la reserva escrita.** `nginx.conf:97` es el proxy
+  que despliega el repo; el ingress de ECOM es de ellos y la pregunta sigue abierta, pero 60 s
+  es la única ventana medible que hay hoy. Contra ella, el acantilado del XLSX queda en
+  ~41.000 casos (~36.000 con el peor reloj medido) y el del CSV unas cinco veces más lejos,
+  ~190.000, porque lo que un `proxy_read_timeout` mide es **inactividad** y después del primer
+  byte sale un trozo cada 64 KB.
+- **Lo que no se puede cerrar se cuenta.** El punto 7 no se arregla sin romper lo que PERF-03
+  ganó, así que la pasada de las filas cuenta las claves que el encabezado no tiene y deja un
+  `warning` con el conteo y la convocatoria. **Nunca el valor ni la persona**: el log de un
+  servidor se lee en más lugares que la base.
+
+## Qué se hizo
+
+**Gate de publicación** (`scripts/check_docs_client.py`):
+
+- `_parece_fila_de_tabla` (separador de tabla, o coma con `MINIMO_DE_CELDAS_CON_COMA` celdas
+  cortas y sin `VERBO_DE_PROSA`), `_celdas_html` + `CELDA_HTML`/`TAG_HTML`/`MARCA_DE_CELDA_HTML`,
+  y `_celdas_nombran_un_padron` extraído para que los tres formatos lo compartan.
+  `_hay_encabezado_de_padron_arriba` mira la ventana también como HTML.
+- `SABE_A_PRUEBA` con las variantes sufijadas.
+
+**Auditoría de diseño** (`scripts/design_audit.py`):
+
+- `piso_de_la_base`: los miembros que existen en la base, o `None` si ninguno. `ratchet_mode`
+  la usa en lugar del `all(...)` todo-o-nada; los docstrings de `PARTICIONES` y
+  `nuevos_de_particion` lo dicen.
+- `test_un_pedazo_anidado_no_se_queda_sin_auditar` crea y borra el template dentro de un
+  `finally`, que también corre con Ctrl-C (los `addCleanup` de `unittest` no).
+
+**Export de Becas** (`programas/services/dashboard_becas.py`; la vista **no se toca**):
+
+- `_claves_sin_columna`: la cota del primer byte O(convocatoria) escrita, con los números y
+  con por qué se deja así.
+- `_filas_por_persona` recibe la convocatoria, cuenta las claves contestadas que no tienen
+  columna —descontando las que a propósito no la tienen, las del legajo y el apoderado— y deja
+  un `warning` si hay alguna. El comportamiento del archivo no cambia.
+- La vista no cambia: lo que se agrega es el test de que `_vigilar` re-lanza y loguea.
+
+## Archivos
+
+- `scripts/check_docs_client.py` — regla 1 (fila de tabla, HTML) y regla 4 (marcadores).
+- `core/tests/test_docs_client_publicacion.py` — 6 casos nuevos (2 rojos de tabla/CSV, 1 rojo
+  de secreto, 3 negativos).
+- `scripts/design_audit.py` — `piso_de_la_base`, `ratchet_mode` y los dos docstrings.
+- `scripts/test_design_audit.py` — 3 casos nuevos y la limpieza a prueba de Ctrl-C.
+- `programas/services/dashboard_becas.py` — docstrings de `_claves_sin_columna` y
+  `respuestas_por_persona_en_lotes`, y el conteo + `warning` de `_filas_por_persona`.
+- `programas/tests/test_export_respuestas_streaming.py` — 4 casos nuevos en dos clases.
+- `docs/internal/auditoria-2026-10/hallazgos/04-performance.md` — la ventana de 60 s, los dos
+  acantilados y la línea «Seguimiento:» de PERF-03.
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` — «Seguimiento:» de RED-64.
+- `docs/internal/requerimientos.md` — esta entrada.
+
+## Base de datos
+
+No requiere.
+
+## Verificación
+
+- `manage.py check`: sin issues.
+- `core.tests.test_docs_client_publicacion` + `core.tests.test_gates_ci` +
+  `core.tests.test_regla_dni`: **158 tests, OK** (57 del primero, con los 6 nuevos).
+- `scripts/test_design_audit.py`: **27 tests, OK** (3 nuevos).
+- `programas.tests.test_export_respuestas_streaming` + `programas.tests.test_dashboard_exports`:
+  **39 tests, OK** (4 nuevos).
+- `check_docs_client.py` (alcance estricto): **0 hallazgos**, antes y después.
+- `check_docs_client.py --todo-docs`: **38 antes, 38 después**. Los 38 son los 37 del Cambio
+  256 más una línea escrita desde entonces con el DNI inventado de los fixtures de Becas.
+- El caso de la prosa enumerativa medido contra el gate anterior da **1 hallazgo que bloquea**;
+  con el nuevo, 0. Las dos tablas HTML medidas contra el anterior dan **0** (ciego) y con el
+  nuevo, 2. `TOKEN=testing123` daba hallazgo y ahora no; `AttestationKe9f3Qx` sigue dándolo.
+- El PR que agrega un include nuevo medido con el piso todo-o-nada da **0 hallazgos nuevos**
+  (el hueco) y con el piso por miembro presente da **1** (`INLINESTYLE`); el PR que parte el
+  archivo sigue en **0** con los dos.
+- `design_audit.py --ratchet --base origin/development`: 0 (ningún archivo de UI cambiado);
+  `check_design_agent.py --changed`: OK.
+- `requerimientos.py --check`: OK. `ruff check` y `ruff format --check` sobre los siete
+  archivos tocados: limpios.
+
+## Pendientes
+
+- **La ventana entre las dos pasadas del export sigue abierta**, por construcción. Queda
+  contada en el log; cerrarla pide una cola, que es el punto 3 original de PERF-03.
+- **El ingress de ECOM.** La ficha conserva la pregunta: 60 s es lo que fija el proxy del
+  repo, no necesariamente lo que fija ECOM. Si confirman menos de 30 s, PERF-03 vuelve a ALTA.
+- **Un CSV de dos columnas separado por comas** ya no se reconoce como padrón. Es deliberado;
+  si alguna vez aparece uno, lo que lo cubre es escribirlo con `;` o declarar sus celdas.
+- **Los 38 de `--todo-docs`.** No bloquean y ninguno es un dato de persona.
+
+## Reversión
+
+Revertir el commit devuelve el gate a marcar prosa enumerativa y a no ver tablas HTML, el piso
+de la partición a ser todo-o-nada, y saca el `warning` del export (el archivo descargado es el
+mismo con y sin él). Las dos fichas y esta entrada conviene no revertirlas.
+
+## Historial
+
+**12/10/2026 — los ocho MINOR, en un PR de seguimiento** (#NNN). Sin horas de plan: son las
+colas de los PR 7 y 10 de la Ola 7 y ninguno justificaba rama propia. Las fichas RED-64 y
+PERF-03 lo anotan en su línea «Seguimiento:». Primera versión.

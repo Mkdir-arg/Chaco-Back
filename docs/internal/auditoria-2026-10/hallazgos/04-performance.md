@@ -169,7 +169,7 @@ alta necesita PERF-11, que es Ola 7.
 `test_hidratar_trae_los_json_que_el_payload_lee`).
 
 ### PERF-03 · Excel de respuestas por persona: CPU con el GIL tomado dentro del request
-**Severidad:** MEDIA (baja desde ALTA; vuelve a ALTA si ECOM confirma un timeout de ingress < 30 s o hay convocatorias > 40k casos) · **Estado:** CONFIRMADO-AJUSTADO · **Origen:** A4-03 · **Ola:** 4 · **Esfuerzo:** S-M · **Decisión:** pregunta ECOM (timeout del ingress)
+**Severidad:** MEDIA (baja desde ALTA; vuelve a ALTA si ECOM confirma un timeout de ingress < 30 s o hay convocatorias > 40k casos) · **Estado:** CONFIRMADO-AJUSTADO · **Origen:** A4-03 · **Ola:** 4 · **Esfuerzo:** S-M · **Decisión:** pregunta ECOM (timeout del ingress; el proxy del repo fija **60 s**, `nginx.conf:97`)
 - **Medición (20.000 × 22 columnas):** `respuestas_por_persona` 1,22 s; `respuesta_libro` (openpyxl) **9,24 s**; request **8,92 s**; xlsx 1,99 MB; pico **37,2 MB** (no 150-250 MB; ~84 B/celda → ~90 MB con 40k × 26). cProfile: casi todo `et_xmlfile` (serializador XML en Python puro, sin `lxml`); `celda_segura` ~6 %.
 - **Propuesta (en orden de retorno):** (1) **`lxml` en `requirements.txt`** (openpyxl lo detecta solo; el Cambio 93 estimó 2-3× más rápido; pasa por `pip-audit`); (2) **botón «CSV»** en la misma pantalla (`respuesta_reporte(reporte, "csv", ...)` ya existe; ~10× según el Cambio 93; es UI: V-UI); (3) solo si 1 y 2 no alcanzan: exportación fuera del request (`ExportacionPendiente` + CronJob/worker + link). **Descartado:** reescribir fila a fila (ahorra ~37 MB y no mueve el tiempo) y sacar GZip (A4-15 refutado).
 - **Criterio:** `perfil_ruta.py /becas/config/programas/<p>/dashboard/respuestas/<c>/xlsx/ 1` con 20k casos debe bajar de 5,7 s (Cambio 93) a < 3 s en el banco.
@@ -225,11 +225,26 @@ necesita nada nuevo: **el archivo se arma de a lotes mientras se escribe, y el C
   gana es que la memoria no crece con la convocatoria (−37 %), que ninguna consulta puede pasarse del `read_timeout` y
   que el CSV deja de tener un único salto de 10 s sin un byte: con el cuerpo fluyendo, un timeout **de inactividad**
   del ingress ya no corta la descarga por grande que sea la convocatoria.
+- **La ventana no es desconocida: son 60 s.** El proxy que el repo despliega la fija en `nginx.conf:97`
+  (`proxy_read_timeout 60s` para `location /`, con `proxy_connect_timeout` y `proxy_send_timeout` iguales). El ingress
+  de ECOM es de ellos y la pregunta sigue abierta, pero 60 s es la única ventana medible que hay hoy y es contra la que
+  se leen los números de arriba:
+  - **XLSX — acantilado a ~41.000 casos.** Se arma entero antes del primer byte, así que lo que compite con la ventana
+    es el reloj completo: 23,8-33,6 s con 20.000 casos, y el costo es lineal en la cantidad de casos. Con el reloj
+    típico (~29 s) los 60 s caen cerca de los **41.000 casos**; con el peor medido (33,6 s), cerca de los **36.000**.
+    Es el mismo umbral de «> 40k casos» que la ficha usa como disparador de severidad, ahora medido en vez de estimado.
+  - **CSV — unas cinco veces más lejos, ~190.000 casos.** Con el cuerpo fluyendo, un `proxy_read_timeout` mide
+    **inactividad**, y después del primer byte sale un trozo cada 64 KB: el único salto largo es el primer byte, que es
+    **O(convocatoria)** porque la pasada del encabezado recorre todos los casos antes de que exista una columna
+    (`_claves_sin_columna`, cota documentada en su docstring). Son 3,9-6,2 s con 20.000 casos → los 60 s caen alrededor
+    de los **190.000**. Es una cota conocida y deliberada: saltearla pide abrir columnas con el archivo ya empezado o
+    volver a leer la convocatoria entera, que es justo lo que este punto sacó.
 - **Lo que queda abierto, con nombre:** el **XLSX se sigue armando entero dentro del request** (no hay forma de
-  transmitir un zip que openpyxl escribe de una sola vez), así que para una convocatoria donde el xlsx no entre en la
-  ventana del ingress la respuesta sigue siendo el **CSV** del Cambio 189, que ahora sí escala. Si ECOM algún día tiene
-  cola, el punto 3 original (archivo + link) se puede hacer encima de esto sin tocar el servicio: ya devuelve filas por
-  lotes.
+  transmitir un zip que openpyxl escribe de una sola vez), así que para una convocatoria por encima de ese acantilado
+  la respuesta sigue siendo el **CSV** del Cambio 189, que ahora sí escala. Si ECOM algún día tiene cola, el punto 3
+  original (archivo + link) se puede hacer encima de esto sin tocar el servicio: ya devuelve filas por lotes. Y la
+  segunda cota, también con nombre: una respuesta con una clave **sin columna** escrita **entre** las dos pasadas no
+  sale en el archivo; desde el Cambio 258 queda contada en un `warning` con la convocatoria, en vez de perderse callada.
 **Test permanente:** `programas.tests.test_export_respuestas_streaming` —
 `EquivalenciaConElExportAnteriorTests.test_las_filas_son_las_mismas_que_las_del_algoritmo_anterior` (contra una copia
 congelada del algoritmo del Cambio 189, celda por celda),
@@ -237,6 +252,17 @@ congelada del algoritmo del Cambio 189, celda por celda),
 `ArmadoPorLotesTests.test_ninguna_consulta_ancha_mira_mas_de_un_lote_de_casos`,
 `ArmadoPorLotesTests.test_el_primer_trozo_del_csv_sale_sin_haber_leido_todos_los_casos` y
 `AlcanceDelCsvTransmitidoTests` (anónimo, sin capacidad, con la capacidad justa —sin RN-P13— y superusuario).
+
+**Seguimiento:** #NNN (Cambio 258, Ola 7 PR 8), 12-oct-2026 — los cuatro MINOR que dejó la revisión de #791, los tres
+primeros **sin cambiar el comportamiento**: la ventana del ingress deja de figurar como desconocida (60 s,
+`nginx.conf:97`) y con ella quedan escritos los dos acantilados —XLSX ~41.000 casos, CSV ~190.000—; el primer byte
+O(convocatoria) del CSV queda declarado como cota conocida en el docstring de `_claves_sin_columna` y acá arriba; y la
+ventana entre las dos pasadas —una clave sin columna contestada en el medio no sale en el archivo— deja de ser
+silenciosa: `_filas_por_persona` cuenta esas claves y las deja en un `warning` con la convocatoria, sin ningún dato de
+la persona. El cuarto es un test: que un fallo a mitad del stream siga dando `200` + cuerpo truncado + la excepción
+viajando al servidor, para que nadie envuelva `_vigilar` en un `except` que lo convierta en un CSV que parece entero.
+**Test permanente:** `programas.tests.test_export_respuestas_streaming.LoQueNoEntraEnElArchivoTests` (×2) y
+`.FalloAMitadDelStreamTests` (×2).
 
 
 ### PERF-07 · Pantalla del proceso masivo: `candidatos().count()` con 15.532 literales, recalculado cada 5 s

@@ -1494,6 +1494,16 @@ def _claves_sin_columna(pks, campos_vigentes, planos, en_definicion):
     34 del formulario, que son la enorme mayoría de lo contestado— se descarta con una
     búsqueda en un `set`, sin formatear su valor; el motor de condiciones corre solo para
     los casos que traen alguna clave desconocida, que es lo que no pasa casi nunca.
+
+    **Cota conocida: el primer byte del CSV es O(convocatoria).** Barata por caso, pero
+    la pasada recorre **todos** los casos antes de que el encabezado exista, así que el
+    streaming empieza recién cuando termina: 3,9-6,2 s con 20.000 casos en el banco, y
+    unos 40-60 s con 200.000. Para la ventana de 60 s del proxy (`nginx.conf:97`) eso
+    pone el acantilado del CSV alrededor de los 190.000 casos —cinco veces más lejos que
+    el del XLSX, que se arma entero dentro del request—. **Se deja así a propósito:**
+    saltearla obliga a abrir columnas con el archivo ya empezado (el encabezado del CSV
+    ya se mandó) o a volver a leer la convocatoria entera, que es justo lo que PERF-03
+    sacó. Si algún día hace falta, lo que la cierra es una cola, no un atajo acá.
     """
     conocidas = set(campos_vigentes) | set(en_definicion)
     extra = set()
@@ -1519,15 +1529,27 @@ def _claves_sin_columna(pks, campos_vigentes, planos, en_definicion):
     return extra
 
 
-def _filas_por_persona(pks, relevamientos, claves, campos_vigentes, planos):
+def _filas_por_persona(pks, relevamientos, claves, campos_vigentes, planos, convocatoria_pk=None):
     """Las filas del export, **de a lotes**: cada lote cuesta dos consultas acotadas —el
     caso con sus respuestas, y sus adjuntos— y ninguna mira más de ``LOTE_RESPUESTAS``
     casos.
 
     Que sea un generador es lo que deja escribir el archivo mientras se arma: ni el
     servicio ni la respuesta tienen las 40.000 filas en memoria a la vez (PERF-03).
+
+    **La ventana entre las dos pasadas.** El encabezado se cierra en
+    :func:`_claves_sin_columna` y las filas se leen después, así que una respuesta con
+    una clave **sin columna** escrita entre las dos pasadas —alguien que envía su caso
+    mientras el archivo se arma— no tiene dónde salir: el export la deja afuera. Es
+    inherente a armar el archivo en dos pasadas y no se arregla acá (cerrarlo pediría
+    bloquear la convocatoria o volver a leerla entera, que es justo lo que PERF-03 sacó);
+    lo que no puede pasar es que se pierda **en silencio**, así que se cuentan las claves
+    que el encabezado no tiene y queda un ``warning`` con el conteo y la convocatoria.
     """
     posicion = {clave: i for i, clave in enumerate(claves)}
+    # Las claves del formulario vigente que a propósito no tienen columna (las vinculadas
+    # al legajo o al apoderado, que ya viajan en las columnas fijas) no son una pérdida.
+    sin_columna = set()
     etiquetas_estado = {valor: str(etiqueta) for valor, etiqueta in Formulario.Estado.choices}
     for lote in _lotes(pks):
         adjuntos = _adjuntos_de_los_casos(lote)
@@ -1567,6 +1589,7 @@ def _filas_por_persona(pks, relevamientos, claves, campos_vigentes, planos):
             for clave in ocultas.get(form_id, ()):
                 contestadas.pop(clave, None)
             contestadas.update(celdas_de.get(form_id, {}))
+            sin_columna |= contestadas.keys() - posicion.keys() - campos_vigentes.keys()
             celdas = [contestadas.get(clave, "") for clave in claves]
             # Un adjunto pisa lo guardado en su columna; sin columna (pregunta que ya no
             # está y nadie respondió) no hay dónde mostrarlo, igual que antes.
@@ -1574,6 +1597,15 @@ def _filas_por_persona(pks, relevamientos, claves, campos_vigentes, planos):
                 if clave in posicion:
                     celdas[posicion[clave]] = " | ".join(nombres)
             yield tuple(base + celdas)
+    if sin_columna:
+        # Solo el conteo y la convocatoria: qué contestó quién no va al log.
+        logger.warning(
+            "dashboard becas: %s clave(s) respondida(s) sin columna en el export "
+            "(convocatoria=%s): se escribieron entre la pasada del encabezado y la de "
+            "las filas y no salen en el archivo",
+            len(sin_columna),
+            convocatoria_pk,
+        )
 
 
 def _celdas_de_las_respuestas(casos, campos, planos):
@@ -1627,6 +1659,12 @@ def respuestas_por_persona_en_lotes(convocatoria, *, incluir_publicos):
     2. :func:`_filas_por_persona`, tres consultas acotadas por lote de
        ``LOTE_RESPUESTAS`` casos. **Ninguna consulta del export trae la convocatoria
        entera**: ese era el riesgo contra el ``read_timeout`` de 10 s de ECOM.
+
+    Las dos cotas conocidas de ese orden están declaradas donde viven: el **primer byte
+    es O(convocatoria)** porque la pasada 1 recorre todos los casos antes de que exista
+    el encabezado (:func:`_claves_sin_columna`), y una respuesta con una clave **sin
+    columna** escrita **entre** las dos pasadas no sale en el archivo y queda en el log
+    (:func:`_filas_por_persona`).
 
     Las columnas y su orden salen del
     **formulario vigente** de la convocatoria (:func:`formulario_vigente`: el diseño
@@ -1705,7 +1743,7 @@ def respuestas_por_persona_en_lotes(convocatoria, *, incluir_publicos):
         f"Convocatoria {convocatoria.nombre} · {convocatoria.segmento.nombre} · {len(pks)} casos, "
         f"todos los estados, sin filtro de período · generado el {timezone.localtime():%d/%m/%Y %H:%M}"
     )
-    filas = _filas_por_persona(pks, relevamientos, claves, campos_vigentes, planos_vigentes)
+    filas = _filas_por_persona(pks, relevamientos, claves, campos_vigentes, planos_vigentes, convocatoria.pk)
     return ReportePerezoso(encabezados, filas), alcance
 
 
