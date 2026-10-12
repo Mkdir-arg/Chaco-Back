@@ -28,6 +28,7 @@ from programas.services.dispositivos import (
     validar_dispositivo,
 )
 from programas.services.reportes import filtrar_dispositivos
+from programas.services.sectores_plazas import sectores_con_plazas
 from programas.views.ajax_utils import is_ajax
 
 
@@ -257,3 +258,22 @@ class DispositivoCerrarView(DispositivoActionView):
 
     def ejecutar(self, dispositivo, request):
         cerrar_dispositivo(dispositivo, request.user)
+
+
+class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
+    """«Sectores y plazas» (MVP v2, etapa 1 · P5): el mapa de plazas de cada sector."""
+
+    capacidad_requerida = "dispositivo.ver"
+    model = Dispositivo
+    template_name = "programas/dispositivos/sectores/sectores.html"
+    context_object_name = "dispositivo"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(sectores_con_plazas(self.object))
+        context["migas"] = [
+            {"label": "Dispositivos", "url": reverse("dispositivos:lista")},
+            {"label": self.object.nombre, "url": reverse("dispositivos:detalle", args=[self.object.pk])},
+            {"label": "Sectores y plazas", "url": ""},
+        ]
+        return context
