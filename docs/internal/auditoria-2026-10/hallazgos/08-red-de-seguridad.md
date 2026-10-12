@@ -2876,6 +2876,18 @@ workers. El paso `--shuffle` de TST-02 se queda, porque mide otra cosa (el orden
 subió a 25, coverage sigue midiendo los hijos, la configuración está en el archivo y no en el comando, se combina antes
 de reportar, la duración se escribe y avisa sobre 12 min, se mide aunque la suite falle, y el job sigue bloqueando).
 
+**Seguimiento:** #784 (Cambio 209), 12-oct-2026 — **faltaba `tblib`**, y sin ella el paralelismo que esta ficha
+encendió convierte *cualquier* test que falle en un **cuelgue**. Django manda los resultados de cada worker por
+`multiprocessing` y un `exc_info` arrastra un `traceback`, que `pickle` no serializa: el proceso principal muere con
+`TypeError: cannot pickle 'traceback' object` (`django/test/runner.py:541`), los workers de `coverage` quedan
+huérfanos y el job termina por `timeout-minutes` como «cancelled» **sin nombrar el test**. Le pasó dos veces al propio
+#784, a los 25 min. RED-88 había arreglado una **causa** (la guarda de `seed_perf` que tiraba `CommandError` en
+`setUpTestData`), no el mecanismo. Va `tblib==3.2.2` en `requirements-ci.txt`, que es lo que instala `Tests &
+Coverage`; `pip-audit` sobre ella: *No known vulnerabilities found*. Medido en local (Django 5.2.17, Python 3.12):
+sin ella, tres módulos con un fallo adrede y `--parallel 2` mueren con el `TypeError`; con ella, `FAILED (failures=1)`
+nombrando el test. **Test permanente:** `SuiteEnParaleloTests.test_el_job_instala_lo_que_hace_falta_para_que_un_fallo_tenga_nombre`
+(y `tblib` entra a `HERRAMIENTAS_DEL_CI`, que `test_estan_las_herramientas_que_el_ci_usa` compara por igualdad).
+
 ## (g) Las 10 partes más frágiles
 
 Ranking por el cruce de churn medido (`git log origin/development --name-only -400 -- "*.py"`, sin tests ni migraciones),

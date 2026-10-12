@@ -31741,6 +31741,8 @@ de citarse.
 - `scripts/design_audit.py` — `_coincide`, `_particion_de`, `nuevos_de_particion`,
   `ratchet_mode`, `Particion.retiro` y el docstring de `PARTICIONES`.
 - `scripts/test_design_audit.py` — 3 casos nuevos en `ParticionesTests`.
+- `requirements-ci.txt` — `tblib==3.2.2` (ronda 2).
+- `core/tests/test_gates_ci.py` — `tblib` en `HERRAMIENTAS_DEL_CI` y el test del job (ronda 2).
 - `docs/internal/requerimientos.md` — las dos líneas saneadas y esta entrada.
 
 ## Base de datos
@@ -31788,5 +31790,28 @@ origen. Las dos líneas saneadas del archivo vivo conviene no revertirlas.
 **12/10/2026 — los cinco MINOR, en un PR de seguimiento** (#784). Sin horas de plan: son las
 colas de los PR 5 y 6 de la Ola 7, y ninguno justificaba rama propia. Las fichas RED-64 y
 RED-54 lo anotan en su línea «Seguimiento:».
+
+**Ronda 2 de la revisión (12/10/2026).** Un BLOCKER y un MAJOR, los dos salidos de que
+`Tests & Coverage` terminó **cancelado a los 25 minutos, dos veces**.
+
+- **BLOCKER — el regex nuevo era una regla de DNI escrita a mano.**
+  `core.tests.test_regla_dni` (RED-48) marcaba `NOMBRE_PROPIO_CON_DOCUMENTO`: tiene un
+  `\d{7,8}`. Lleva `# regla-dni: ok` con el motivo, como `DOCUMENTO` ahí arriba y como
+  `check_datos_personales.py`: **detectar un documento publicado no es validar uno**, y la
+  regla de validación sigue viviendo una sola vez, en `core.dni`.
+- **MAJOR — faltaba `tblib`, y por eso el job no decía qué test falló.** Es lo que convirtió
+  un test en rojo en un **cuelgue de 25 minutos**: Django manda los resultados de cada worker
+  por `multiprocessing` y un `exc_info` arrastra un `traceback`, que `pickle` no serializa,
+  así que el proceso principal muere con `TypeError: cannot pickle 'traceback' object`
+  (`django/test/runner.py:541`), los workers de `coverage` quedan huérfanos y el job termina
+  por `timeout-minutes` como «cancelled», sin nombre de test. Latente desde que RED-86
+  encendió `--parallel 4` (Cambio 207): RED-88 (Cambio 163) había cerrado **una causa** —la
+  guarda de `seed_perf`—, no el mecanismo. Va `tblib==3.2.2` en `requirements-ci.txt`, que es
+  el archivo que instala ese job; `pip-audit` sobre ella da *No known vulnerabilities found*
+  y la licencia es BSD-2-Clause. **Medido en local** (Django 5.2.17, Python 3.12): tres
+  módulos con un fallo adrede y `--parallel 2` mueren con el `TypeError` sin ella, y con ella
+  salen `FAILED (failures=1)` nombrando el test. El test que lo sostiene es
+  `SuiteEnParaleloTests.test_el_job_instala_lo_que_hace_falta_para_que_un_fallo_tenga_nombre`,
+  más `tblib` adentro de `HERRAMIENTAS_DEL_CI`, que se compara por igualdad.
 
 ---

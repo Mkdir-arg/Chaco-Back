@@ -36,6 +36,25 @@ ruff==0.16.10
 # mueve el número sin que cambie el código.
 coverage==7.16.2
 
+# Lo que le falta a `manage.py test --parallel` para poder **decir qué test falló**.
+# Django manda los resultados de cada worker al proceso principal por `multiprocessing`,
+# y un `exc_info` arrastra un `traceback`, que `pickle` no serializa: sin esta librería,
+# el primer test que falla en paralelo mata al proceso principal con
+# `TypeError: cannot pickle 'traceback' object` (`django/test/runner.py:541`), deja a los
+# workers de `coverage` huérfanos y el job muere por `timeout-minutes` como «cancelled»,
+# **sin nombrar el test**. Es lo que pasó dos veces en `Tests & Coverage` del PR #784.
+#
+# RED-88 (Cambio 163) había arreglado **una** causa —la guarda de `seed_perf` que tiraba
+# `CommandError` en `setUpTestData`—, no el mecanismo: cualquier test que falle en
+# paralelo vuelve a tapar el resultado. `tblib` serializa el traceback y el fallo sale
+# como un `FAIL:` normal, con nombre y traza.
+#
+# Medido en local (Django 5.2.17, Python 3.12): sin ella, `manage.py test <3 módulos>
+# --parallel 2` muere con el `TypeError`; con ella, `FAILED (failures=1)` nombrando el
+# test. Va acá y no en `requirements.txt` porque la aplicación no la importa: la usa el
+# runner de tests, igual que `coverage`.
+tblib==3.2.2
+
 # `Pip Audit`, obligatorio desde el Cambio 121.
 pip-audit==2.10.1
 

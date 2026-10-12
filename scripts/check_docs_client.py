@@ -134,8 +134,11 @@ VENTANA_PADRON = 5
 #: nombre pegado. Se piden **dos** palabras capitalizadas seguidas para que un «Cambio 207
 #: (1234567)» o un «Ola 7 (…)» no entre: lo que se busca es un nombre y un apellido.
 NOMBRE_PROPIO_CON_DOCUMENTO = re.compile(
-    r"[A-ZÁÉÍÓÚÜÑ][\wÁÉÍÓÚÜÑáéíóúüñ'’.-]*\s+[A-ZÁÉÍÓÚÜÑ][\wÁÉÍÓÚÜÑáéíóúüñ'’.-]*\s*"
-    r"[(\[]\s*(?P<doc>\d{1,2}\.\d{3}\.\d{3}|\d{7,8})\s*[)\]]"
+    # regla-dni: ok — se busca un documento **publicado**, no se valida uno (igual que
+    # `DOCUMENTO` acá arriba y que `check_datos_personales.py`): la regla de validación
+    # vive una sola vez, en `core.dni` (RED-48).
+    r"[A-ZÁÉÍÓÚÜÑ][\wÁÉÍÓÚÜÑáéíóúüñ'’.-]*\s+[A-ZÁÉÍÓÚÜÑ][\wÁÉÍÓÚÜÑáéíóúüñ'’.-]*\s*"  # regla-dni: ok
+    r"[(\[]\s*(?P<doc>\d{1,2}\.\d{3}\.\d{3}|\d{7,8})\s*[)\]]"  # regla-dni: ok
 )
 
 #: Un documento que es obviamente inventado: todos los dígitos iguales, o escrito sobre la
