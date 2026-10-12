@@ -77,6 +77,31 @@ Por eso el `aria-label` tiene que leerse bien **como chip**: «Estado», no «Es
   `conversaciones/templates/conversaciones/lista.html` (pantalla **sin ruta**: no es
   referencia de nada).
 
+## Filtro rápido en píldora (`components/_filtro_pildora.html`)
+
+Variante **compacta** del filtro: «Campo: valor ⌄» en una píldora de 36 px, que filtra apenas se
+elige una opción, **sin abrir la tarjeta** de filtros. No reemplaza al contrato de arriba: convive
+con él, en una fila propia **fuera** del `<form data-dynamic-list-filters>` (ese JS vacía su form
+al montar). Se usa para los pocos filtros que se tocan todo el tiempo (área, estado, sector).
+
+```django
+{% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos %}
+```
+
+- `pildoras`: lista de dicts armada **en la vista**: `nombre` (parámetro GET), `etiqueta` (texto
+  antes de los dos puntos y `aria-label`), `opciones` (lista de `(valor, texto)`), `valor` (el
+  elegido; vacío = «Todos») y opcional `todos` (texto de la opción vacía).
+- `ocultos`: opcional, `(nombre, valor)` que se conservan al filtrar (la búsqueda). La página no
+  se conserva: al filtrar se vuelve a la primera.
+- Es un `<form method="get">` propio que se envía con Alpine (`@change`, ya cargado por el shell);
+  sin JS queda un botón «Filtrar» en `<noscript>`.
+- CSS: `.nodo-pildora` y `.nodo-pildora__control` en `static/custom/css/nodo-forms.css` (borde y
+  foco de marca del `nodo-field`, radio completo, `<select>` nativo adentro sin caja propia).
+- Sin chevron propio: se ve la flecha nativa del `<select>`.
+- Una píldora **no** es un filtro de la tarjeta: no se arma con `{% page_header %}` ni se mezcla
+  con `data-dynamic-list-filters`; si el listado también tiene filtros avanzados, la vista lee los
+  dos conjuntos de parámetros.
+
 ## Prohibido
 
 - Clases en el `<form>`, card alrededor, grilla de filtros, `style=`.

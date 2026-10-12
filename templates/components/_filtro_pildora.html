@@ -1,0 +1,30 @@
+{% comment %}
+Filtros rápidos en píldora: «Campo: valor ⌄», de 36 px, que filtran apenas se elige una
+opción, sin abrir la tarjeta de filtros avanzados. Va en una fila propia, fuera del
+`<form data-dynamic-list-filters>` (ese JS vacía su form al montar).
+  {% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos %}
+Contexto:
+  pildoras  lista de dicts preparada en la vista:
+              nombre    nombre del parámetro GET.
+              etiqueta  texto antes de los dos puntos; también es el aria-label.
+              opciones  lista de (valor, texto).
+              valor     valor elegido hoy (texto); vacío = «Todos».
+              todos     opcional, texto de la opción vacía (por defecto «Todos»).
+  ocultos   opcional, lista de (nombre, valor) que se conservan al filtrar (p. ej. la búsqueda).
+            La página no se conserva: al cambiar un filtro se vuelve a la primera.
+El form se envía con Alpine (`@change`), que ya carga el shell; sin JS queda el botón «Filtrar».
+Los nombres, textos y valores salen de la vista: acá no se decide ninguna regla.
+{% endcomment %}
+<form method="get" class="flex flex-wrap items-center gap-2" aria-label="Filtros rápidos" x-data @change="$el.requestSubmit()">
+  {% for nombre, valor in ocultos %}<input type="hidden" name="{{ nombre }}" value="{{ valor }}">{% endfor %}
+  {% for pildora in pildoras %}
+  <label class="nodo-pildora">
+    <span>{{ pildora.etiqueta }}:</span>
+    <select name="{{ pildora.nombre }}" class="nodo-pildora__control" aria-label="{{ pildora.etiqueta }}">
+      <option value="">{{ pildora.todos|default:"Todos" }}</option>
+      {% for valor, texto in pildora.opciones %}<option value="{{ valor }}"{% if valor|stringformat:"s" == pildora.valor|stringformat:"s" %} selected{% endif %}>{{ texto }}</option>{% endfor %}
+    </select>
+  </label>
+  {% endfor %}
+  <noscript><button type="submit" class="btn-nodo btn-tertiary btn-sm">Filtrar</button></noscript>
+</form>

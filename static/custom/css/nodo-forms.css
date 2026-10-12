@@ -79,3 +79,39 @@ textarea.nodo-field {
     outline: 2px solid var(--border-brand);
     outline-offset: 2px;
 }
+
+/* Filtro rápido en píldora (`components/_filtro_pildora.html`): «Campo: valor ⌄» de 36px
+   con radio completo. Variante compacta del campo: mismo borde, mismo foco de marca,
+   pero el <select> nativo vive adentro sin caja propia, así que filtra sin abrir la
+   tarjeta de filtros avanzados. */
+.nodo-pildora {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 12px 0 16px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 14px;
+    color: var(--text-body);
+    background: var(--bg-white);
+    border: 1px solid var(--border-base);
+    border-radius: var(--radius-full);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.nodo-pildora:focus-within {
+    border-color: var(--border-brand);
+    box-shadow: var(--ring-brand);
+}
+
+.nodo-pildora__control {
+    height: 100%;
+    max-width: 14rem;
+    padding: 0;
+    font: inherit;
+    color: var(--text-heading);
+    background: transparent;
+    border: 0;
+    outline: none;
+    cursor: pointer;
+}
