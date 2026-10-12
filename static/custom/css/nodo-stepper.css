@@ -1,0 +1,101 @@
+/* NODO Design System — Indicador de pasos (arquetipo Wizard)
+   Contrato: templates/components/_stepper.html. Círculo de 28 px y conector de 56 px.
+   Hecho: círculo de marca con tilde. Actual: borde y número de marca, etiqueta en negrita.
+   Pendiente: borde gris. El estado también va en texto (sr-only) y en aria-current. */
+
+.nodo-stepper {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 13px;
+    color: var(--text-body-subtle);
+}
+
+.nodo-step {
+    display: flex;
+    align-items: center;
+}
+
+.nodo-step + .nodo-step::before {
+    content: "";
+    width: 56px;
+    height: 2px;
+    margin: 0 10px;
+    background: var(--color-gray-300);
+}
+
+.nodo-step--hecho + .nodo-step::before {
+    background: var(--bg-brand);
+}
+
+/* El stepper envuelve (flex-wrap), y un paso que cae a la linea siguiente arrastra su
+   conector al principio de esa linea, donde no conecta con nada: queda una barra suelta
+   colgando a la izquierda. CSS no sabe decir "primero de su linea envuelta", asi que
+   abajo del ancho donde empieza a envolver el conector no se dibuja. En un telefono el
+   indicador se lee igual como lista de pasos, y el estado ya esta en el texto, en el
+   sr-only y en aria-current: el conector no portaba informacion propia. */
+@media (max-width: 640px) {
+    .nodo-step + .nodo-step::before {
+        display: none;
+    }
+
+    .nodo-stepper {
+        column-gap: 14px;
+    }
+}
+
+.nodo-step__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: inherit;
+    text-decoration: none;
+    border-radius: 6px;
+}
+
+a.nodo-step__item:hover .nodo-step__label {
+    text-decoration: underline;
+}
+
+a.nodo-step__item:focus-visible {
+    outline: 2px solid var(--border-brand);
+    outline-offset: 3px;
+}
+
+.nodo-step__circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--color-gray-300);
+    background: var(--bg-white);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.nodo-step--hecho .nodo-step__circle {
+    background: var(--bg-brand);
+    border-color: var(--border-brand);
+    color: var(--text-white);
+}
+
+.nodo-step--actual .nodo-step__circle {
+    border-color: var(--border-brand);
+    color: var(--text-fg-brand);
+}
+
+.nodo-step--actual {
+    color: var(--text-heading);
+    font-weight: 700;
+}
+
+.nodo-step--pendiente {
+    color: var(--text-body-subtle);
+}

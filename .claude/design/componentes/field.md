@@ -109,6 +109,45 @@ El bloque de checks **no** lleva recorrido de `.errors` cuando su form no se re-
 así que ese markup sería muerto y simularía una validación inline que no existe. Donde el form sí vuelve
 renderizado —un formulario de pantalla completa—, el error va como en el resto de `_field.html`.
 
+## Chips de selección múltiple y switch
+
+Dos presentaciones de controles que **ya existen** en Django, con widget propio en
+`core/widgets.py` y CSS en `static/custom/css/nodo-forms.css`. El template sigue siendo
+`_field.html`: la clase la pone el widget, no el template.
+
+| Qué | Widget | Clase | Es |
+|---|---|---|---|
+| Selección múltiple en píldoras | `ChipsSelectMultiple` (sobre `CheckboxSelectMultiple`) | `.nodo-chips` en el contenedor | un checkbox real por chip; validación, `cleaned_data` y POST sin cambios |
+| Interruptor encendido/apagado | `SwitchInput` (sobre `CheckboxInput`) | `.nodo-switch` en el input | un `<input type="checkbox" role="switch">`; pista 34×18 px, perilla 14 px |
+
+```python
+servicios = forms.MultipleChoiceField(choices=SERVICIOS, widget=ChipsSelectMultiple, required=False)
+autoriza = forms.BooleanField(widget=SwitchInput, required=False)
+```
+
+- **Accesibilidad de los chips:** el contenedor es `role="group"` con `aria-labelledby` hacia el
+  label de `_field.html` (que ahora lleva `id="<auto_id>-etiqueta"` y omite `for` cuando el widget
+  no tiene un único control). La ayuda y el error cuelgan del grupo, no de cada chip. La clase
+  `nodo-chips` y los `aria-*` van solo en el contenedor.
+- **Chip elegido:** tonos de `badge-brand` (fondo, borde y texto), negrita. Chip no elegido: borde
+  base. Chip `disabled`: `--bg-disabled` + `--text-fg-disabled`. El input queda fuera de la vista
+  pero enfocable: el foco se ve en el chip (`:has(input:focus-visible)`).
+- **Switch:** `on` = `--bg-brand`, `off` = `--bg-gray`; la perilla se dibuja sobre el propio input
+  (`appearance: none`). Con `_field.html` el label queda arriba y el interruptor abajo; para el
+  texto al costado (listas de capacidades) va un `<label class="inline-flex items-center gap-2 text-sm text-body">`
+  envolviendo `{{ form.campo }}` y el texto.
+- **Cuándo cada uno:** pocas opciones visibles a la vez (≤ 8) → chips; una sola opción sí/no que
+  se enciende o apaga → switch; muchas opciones o en columna → `.nodo-checks` (arriba).
+- Un chip **no** es un badge (no informa un estado: se elige) ni un filtro: para filtrar un
+  listado, la píldora de `filtros.md`.
+- **Lo que el mockup muestra y esta pieza no cubre** (la primera pantalla no lo busca acá):
+  chip como filtro de **selección única** (P10, bitácora: sería un `RadioSelect` con la misma
+  presentación, sin probar); chip con «✕» o «+ agregar»; chip deshabilitado al 55 % de opacidad
+  (acá, tokens de deshabilitado); chip elegido distinguido por color y negrita, sin marca
+  adicional; switch sin ajuste para el modo de alto contraste de Windows.
+- Lo que el mockup del MVP muestra como chip con «✕» o «+ agregar» (instituciones del alcance)
+  **no** es esta pieza: es un selector con alta, que no existe.
+
 ## Campos dentro de un modal
 
 En un modal con guardado AJAX el campo se escribe a mano para poder enganchar el error inline:

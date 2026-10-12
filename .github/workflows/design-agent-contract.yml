@@ -52,10 +52,12 @@ jobs:
         with:
           python-version: "3.12"
 
-      # `--limites` exige lo que el paso 4 de la Ola 6 dejó cierto: núcleo
-      # ≤ 30.000 bytes, celdas del inventario ≤ 450 caracteres y cero historia
-      # (la historia vive en docs/internal/requerimientos.md). Sin la bandera el
-      # núcleo vuelve a crecer como changelog sin que falle nada.
+      # `--limites` exige lo que el paso 4 de la Ola 6 dejó cierto, con los topes
+      # separados: la prosa del núcleo ≤ 16.000 bytes, cada celda del inventario
+      # ≤ 450 caracteres y cero historia (que vive en docs/internal/requerimientos.md).
+      # Las tablas no llevan tope total: crecen una fila por pieza, y el detalle lo
+      # empuja a la ficha el tope por celda. Sin la bandera el núcleo vuelve a crecer
+      # como changelog sin que falle nada.
       - name: Validate design-agent contract
         if: steps.filtro.outputs.diseno == 'true'
         run: python scripts/check_design_agent.py --limites --base "${{ github.event.pull_request.base.sha }}"

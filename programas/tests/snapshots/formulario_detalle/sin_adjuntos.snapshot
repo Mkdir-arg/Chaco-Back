@@ -75,8 +75,18 @@
         <!-- NODO Tables Design System (tabla densa: .nodo-thead-row, .nodo-th, .nodo-td) -->
         <link rel="stylesheet" href="/static/custom/css/nodo-tables.css" />
 
+        <!-- NODO Menú de fila (botón ⋮ de las tablas densas, components/_menu_fila.html) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-menu-fila.css" />
+        <!-- NODO Hero de inicio de programa (components/_hero_inicio.html; solo inicio y tableros de programa) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-hero.css" />
+
         <!-- NODO Stat card, variante «tablero» (components/_stat_card.html, variante="tablero") -->
         <link rel="stylesheet" href="/static/custom/css/nodo-stat-card.css" />
+
+        <!-- NODO Indicador de pasos (components/_stepper.html, arquetipo Wizard) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-stepper.css" />
+        <!-- NODO Sección de ficha, bloqueada y medidor (components/_ficha_seccion.html, `bloqueada`) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-ficha.css" />
 
         <!-- NODO SweetAlertN theming (fuente única — cascada a los N Swal.fire del sistema) -->
         <link rel="stylesheet" href="/static/custom/css/nodo-swal.css" />
@@ -887,6 +897,7 @@
       </a>
       
       <div class="min-w-N">
+        
         <hN class="text-Nxl font-extrabold text-heading tracking-tight">Caso N</hN>
         <p class="text-sm text-body-subtle mt-N">Relevamiento N · Conv A</p>
       </div>
@@ -1040,7 +1051,7 @@
       <div class="grid grid-cols-N sm:grid-cols-N gap-N">
         <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_celular">
+  <label id="id_celular-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_celular">
     Celular
   </label>
   <input type="text" name="celular" value="N" class="nodo-field" maxlength="N" id="id_celular">
@@ -1050,7 +1061,7 @@
 </div>
         <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_email_contacto">
+  <label id="id_email_contacto-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_email_contacto">
     Correo electrónico
   </label>
   <input type="email" name="email_contacto" value="a@b.com" class="nodo-field" maxlength="N" id="id_email_contacto">
@@ -1065,7 +1076,7 @@
           <div class="grid grid-cols-N sm:grid-cols-N lg:grid-cols-N gap-N">
             <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_nombre">
+  <label id="id_apoderado_nombre-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_apoderado_nombre">
     Nombre del apoderado
   </label>
   <input type="text" name="apoderado_nombre" class="nodo-field" maxlength="N" id="id_apoderado_nombre">
@@ -1075,7 +1086,7 @@
 </div>
             <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_apellido">
+  <label id="id_apoderado_apellido-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_apoderado_apellido">
     Apellido del apoderado
   </label>
   <input type="text" name="apoderado_apellido" class="nodo-field" maxlength="N" id="id_apoderado_apellido">
@@ -1085,7 +1096,7 @@
 </div>
             <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_dni">
+  <label id="id_apoderado_dni-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_apoderado_dni">
     DNI del apoderado
   </label>
   <input type="text" name="apoderado_dni" class="nodo-field" inputmode="numeric" maxlength="N" id="id_apoderado_dni">
@@ -1095,7 +1106,7 @@
 </div>
             <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_genero">
+  <label id="id_apoderado_genero-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_apoderado_genero">
     Sexo del apoderado
   </label>
   <select name="apoderado_genero" class="nodo-field" id="id_apoderado_genero">
@@ -1114,7 +1125,7 @@
 </div>
             <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_fecha_nacimiento">
+  <label id="id_apoderado_fecha_nacimiento-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_apoderado_fecha_nacimiento">
     Fecha de nacimiento del apoderado
   </label>
   <input type="date" name="apoderado_fecha_nacimiento" class="nodo-field" id="id_apoderado_fecha_nacimiento">
@@ -2012,6 +2023,10 @@ document.addEventListener('DOMContentLoaded', function () {
              sobre toda [role="tablist"]. Mejora progresiva: no cambia nada visual ni
              el estado de Alpine; activa la solapa disparando su propio click. -->
         <script src="/static/custom/js/nodo-tabs.js"></script>
+
+        <!-- Menú de fila (components/_menu_fila.html): teclado, foco atrapado, Escape y posición del menú.
+             Delegado sobre [data-menu-fila]; sin este script el menú queda cerrado. -->
+        <script src="/static/custom/js/nodo-menu-fila.js"></script>
 
         <!-- NODO SweetAlertN theming (fuente única): se ejecuta después de customJS
              a propósito — reasigna window.Swal = Swal.mixin(...) y cada Swal.fire()

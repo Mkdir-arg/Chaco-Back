@@ -1,13 +1,14 @@
-"""Piezas reutilizables del backoffice: paginación, tarjeta de número, estado vacío,
+"""Piezas reutilizables del backoffice: indicador de pasos, paginación, tarjeta de número, estado vacío,
 alerta inline, errores no de campo y el filtro ``hay_filtros``
 (W2-C9b, CMP-11/22/23, ALR-14/15, FE-08)."""
 
+import importlib.util
 import re
 from decimal import Decimal
 from io import StringIO
 from pathlib import Path
 
-from django import forms
+from django import forms, template
 from django.contrib.auth.models import AnonymousUser, User
 from django.core.management import call_command
 from django.core.paginator import Paginator
@@ -25,6 +26,10 @@ VACIO = "components/_estado_vacio.html"
 ALERTA = "components/_alerta.html"
 FORM_ERRORES = "components/_form_errores.html"
 UBICACION = "components/_ubicacion.html"
+STEPPER = "components/_stepper.html"
+LINEA_TIEMPO = "components/_linea_tiempo.html"
+FICHA_SECCION = "components/_ficha_seccion.html"
+REVISION = "programas/dispositivos/estadia/revision_referencia.html"
 
 
 def _pagina(total, numero=1, por_pagina=10):
@@ -595,6 +600,206 @@ class UbicacionTest(SimpleTestCase):
         self.assertIn("se abre en una pestaña nueva", enlace)
 
 
+class LineaTiempoTest(SimpleTestCase):
+    def test_dibuja_cada_evento_con_su_cuando_y_su_titulo(self):
+        eventos = [
+            {"cuando": "08/09 · 16:48", "titulo": "Ficha actualizada", "detalle": "sección A"},
+            {"cuando": "03/09 · 19:40", "titulo": "Ingreso", "tono": "success"},
+        ]
+        html = render_to_string(LINEA_TIEMPO, {"eventos": eventos})
+
+        self.assertEqual(html.count("<li "), 2)
+        self.assertIn("08/09 · 16:48", html)
+        self.assertIn("Ficha actualizada</strong> · sección A", html)
+        self.assertIn("border-success", html)
+        self.assertIn("border-brand", html)
+
+    def test_tono_y_badge_son_opcionales(self):
+        html = render_to_string(
+            LINEA_TIEMPO,
+            {"eventos": [{"cuando": "x", "titulo": "Novedad", "tono": "danger", "badge": "sensible"}]},
+        )
+
+        self.assertIn("border-danger", html)
+        self.assertIn('badge badge-warning">sensible', html)
+        self.assertNotIn("border-brand", html)
+
+    def test_sin_eventos_muestra_el_estado_vacio(self):
+        html = render_to_string(LINEA_TIEMPO, {"eventos": []})
+
+        self.assertIn("Sin movimientos todavía", html)
+        self.assertNotIn("<ol", html)
+
+    def test_escapa_los_textos(self):
+        html = render_to_string(LINEA_TIEMPO, {"eventos": [{"cuando": "<i>", "titulo": "<b>x</b>"}]})
+
+        self.assertNotIn("<b>x", html)
+        self.assertIn("&lt;b&gt;x", html)
+
+
+class FichaSeccionTest(SimpleTestCase):
+    def _render(self, **contexto):
+        return render_to_string(FICHA_SECCION, {"codigo": "salud", "titulo": "9 · Salud", **contexto})
+
+    def test_seccion_legible_muestra_campos_avance_y_es_plegable(self):
+        campos = [
+            {"etiqueta": "Cobertura", "valor": "No"},
+            {"etiqueta": "Ingreso mensual", "valor": "falta", "estado": "falta"},
+            {"etiqueta": "Total egresos", "valor": "se calcula", "estado": "calculado"},
+        ]
+        html = self._render(avance=60, sensibilidad="Sensible · salud", campos=campos)
+
+        self.assertIn("Cobertura", html)
+        self.assertIn("60 %", html)
+        self.assertIn('aria-valuenow="60"', html)
+        self.assertIn("--avance:60%", html)
+        self.assertIn("badge badge-warning", html)
+        self.assertIn('aria-controls="ficha-salud"', html)
+        self.assertIn('id="ficha-salud"', html)
+        self.assertIn("text-fg-danger font-semibold", html)
+        self.assertIn('text-body-subtle">se calcula', html)
+        self.assertNotIn("nodo-ficha-bloqueada", html)
+
+    def test_por_defecto_abierta_y_con_abierta_false_plegada(self):
+        self.assertIn("{ abierta: true }", self._render())
+        self.assertIn("{ abierta: false }", self._render(abierta=False))
+
+    def test_sin_avance_no_hay_medidor_y_el_tono_warning_cambia_el_color(self):
+        self.assertNotIn("progressbar", self._render())
+        html = self._render(avance=20, avance_tono="warning")
+        self.assertIn("bg-warning", html)
+        self.assertNotIn("block h-full bg-brand", html)
+
+    def test_sin_campos_muestra_el_texto_de_vacio(self):
+        self.assertIn("Sin datos todavía.", self._render())
+        self.assertIn("Plazo de 15 días", self._render(vacio_texto="Plazo de 15 días"))
+
+    def test_completar_nombra_la_seccion(self):
+        html = self._render(avance=0, completar_url="/c/")
+
+        self.assertIn('href="/c/"', html)
+        self.assertIn('completar<span class="sr-only"> 9 · Salud</span>', html)
+
+    def test_bloqueada_no_se_oculta_y_no_muestra_datos(self):
+        html = self._render(
+            bloqueada=True,
+            avance=80,
+            sensibilidad="Sensible · psicosocial",
+            sensibilidad_tono="danger",
+            completa="el equipo de psicología",
+            campos=[{"etiqueta": "Secreto", "valor": "no se ve"}],
+        )
+
+        self.assertIn("nodo-ficha-bloqueada", html)
+        self.assertIn("9 · Salud", html)
+        self.assertIn("80 %", html)
+        self.assertIn("badge badge-danger", html)
+        self.assertIn("Tu rol no accede a esta sección.", html)
+        self.assertIn("La completa el equipo de psicología.", html)
+        self.assertIn("fa-lock", html)
+        self.assertNotIn("Secreto", html)
+        self.assertNotIn("no se ve", html)
+        self.assertNotIn("<button", html)
+        self.assertNotIn("\U0001f512", html)
+
+
+class RevisionReferenciaTest(TestCase):
+    """La golden del arquetipo Revisión se renderiza con los datos de ejemplo del mockup P7."""
+
+    def _contexto(self):
+        return {
+            "persona": {"nombre_completo": "Ramírez, Jorge Daniel", "dni": "28.556.001", "edad": 45},
+            "ubicacion": "CIS N.º 3 · Pabellón A · plaza A-02",
+            "estadia": {"estado": "Alojado", "reingreso": True, "ingreso": "03/09/2026 19:40", "dias": 5},
+            "ficha": {
+                "pendiente": True,
+                "titulo": "Ficha al 45 %.",
+                "texto": "Faltan Situación laboral, Red de sostén y Salud.",
+                "url_completar": "/completar/",
+            },
+            "secciones": [
+                {
+                    "codigo": "a",
+                    "titulo": "A · Datos personales",
+                    "avance": 100,
+                    "campos": [{"etiqueta": "Oficio", "valor": "Albañilería"}],
+                },
+                {"codigo": "b", "titulo": "B · Situación laboral", "avance": 20, "avance_tono": "warning"},
+                {
+                    "codigo": "c12",
+                    "titulo": "12 · Consumos y situaciones de crisis",
+                    "bloqueada": True,
+                    "avance": 80,
+                    "sensibilidad": "Sensible · psicosocial",
+                    "sensibilidad_tono": "danger",
+                    "completa": "el equipo de psicología",
+                },
+            ],
+            "eventos": [{"cuando": "08/09 · 16:48", "titulo": "Ficha actualizada"}],
+            "puede_cambiar_plaza": True,
+            "url_cambiar_plaza": "/plaza/",
+            "puede_egresar": True,
+            "url_egresar": "/egresar/",
+            "puede_cargar_novedad": True,
+            "url_novedad": "/novedad/",
+            "n_movimientos": 6,
+            "n_novedades": 3,
+            "n_adjuntos": 2,
+            "adjuntos": [{"nombre": "DNI frente y dorso.pdf", "url": "/a/1", "fecha": "03/09"}],
+            "otras_estadias": [{"estado": "En seguimiento", "detalle": "Mírame/Vedia desde 20/03/2026"}],
+        }
+
+    def _html(self, **cambios):
+        contexto = {**self._contexto(), **cambios}
+        request = RequestFactory().get("/")
+        request.user = User.objects.create_user(username="u", password="x", is_superuser=True)
+        return render_to_string(REVISION, contexto, request=request)
+
+    def test_dibuja_identidad_secciones_linea_de_tiempo_y_acciones(self):
+        html = self._html()
+
+        self.assertIn("Ramírez, Jorge Daniel", html)
+        self.assertIn("CIS N.º 3 · Pabellón A · plaza A-02", html)
+        self.assertIn("Reingreso", html)
+        self.assertIn("Ficha al 45 %.", html)
+        self.assertIn("Completar ahora", html)
+        self.assertIn("A · Datos personales", html)
+        self.assertIn("nodo-ficha-bloqueada", html)
+        self.assertIn("Ficha actualizada", html)
+        self.assertIn("Cambiar plaza", html)
+        self.assertIn("Egresar", html)
+
+    def test_las_acciones_dependen_de_las_capacidades_que_trae_la_vista(self):
+        html = self._html(puede_egresar=False, puede_cargar_novedad=False)
+
+        self.assertNotIn("Egresar", html)
+        self.assertNotIn("/novedad/", html)
+        self.assertIn("Cambiar plaza", html)
+
+    def test_sin_ficha_pendiente_no_hay_alerta(self):
+        self.assertNotIn("Completar ahora", self._html(ficha={"pendiente": False}))
+
+    def test_la_seccion_bloqueada_sigue_estando_y_muestra_quien_la_completa(self):
+        html = self._html()
+
+        self.assertIn("12 · Consumos y situaciones de crisis", html)
+        self.assertIn("La completa el equipo de psicología.", html)
+
+    def test_solapas_con_aria_y_contadores(self):
+        html = self._html()
+
+        for tab in ("ficha", "movimientos", "novedades", "adjuntos", "historial"):
+            self.assertIn(f'id="tab-{tab}" aria-controls="panel-{tab}"', html)
+            self.assertIn(f'id="panel-{tab}" aria-labelledby="tab-{tab}"', html)
+        self.assertIn('role="tablist" aria-label="Secciones de la estadía"', html)
+
+    def test_sin_emoji(self):
+        html = self._html()
+
+        self.assertNotIn("\U0001f512", html)
+        self.assertNotIn("\U0001f4ce", html)
+
+
 class FormErroresTest(SimpleTestCase):
     """FE-08: los errores no de campo dejan de ser invisibles.
 
@@ -744,3 +949,291 @@ class BtnFitTest(SimpleTestCase):
         # por eso btn-fit no sube su especificidad a `.btn-nodo.btn-fit`.
         self.assertGreater(self.css.index("@media (pointer: coarse)"), self.css.index(".btn-fit {"))
         self.assertNotIn(".btn-nodo.btn-fit", self.css)
+
+
+class StepperTest(SimpleTestCase):
+    """Indicador de pasos del arquetipo Wizard (``components/_stepper.html``)."""
+
+    PASOS = [
+        {"etiqueta": "Identidad", "url": "/paso/1/"},
+        {"etiqueta": "Naturaleza", "url": "/paso/2/"},
+        {"etiqueta": "Capacidades", "url": "/paso/3/"},
+        {"etiqueta": "Confirmación", "url": "/paso/4/"},
+    ]
+
+    def _render(self, paso_actual, pasos=None):
+        return render_to_string(STEPPER, {"pasos": self.PASOS if pasos is None else pasos, "paso_actual": paso_actual})
+
+    def test_marca_hecho_actual_y_pendiente_segun_el_paso(self):
+        html = self._render(3)
+        self.assertEqual(html.count("nodo-step--hecho"), 2)
+        self.assertEqual(html.count("nodo-step--actual"), 1)
+        self.assertEqual(html.count("nodo-step--pendiente"), 1)
+
+    def test_el_paso_actual_se_anuncia_y_no_depende_del_color(self):
+        html = self._render(2)
+        self.assertEqual(html.count('aria-current="step"'), 1)
+        self.assertIn('<span class="sr-only">Paso actual: </span>Naturaleza', html)
+        self.assertIn('<span class="sr-only">Paso completado: </span>Identidad', html)
+        self.assertIn('<span class="sr-only">Paso pendiente: </span>Capacidades', html)
+        # El hecho lleva tilde y el resto el numero: el estado se ve sin distinguir colores.
+        self.assertIn("fa-check", html)
+        self.assertIn(">3</span>", html)
+
+    def test_solo_los_pasos_hechos_son_links(self):
+        html = self._render(3)
+        self.assertIn('href="/paso/1/"', html)
+        self.assertIn('href="/paso/2/"', html)
+        self.assertNotIn('href="/paso/3/"', html)
+        self.assertNotIn('href="/paso/4/"', html)
+
+    def test_un_paso_hecho_sin_url_no_es_link(self):
+        html = self._render(2, pasos=[{"etiqueta": "Uno"}, {"etiqueta": "Dos"}])
+        self.assertNotIn("<a ", html)
+        self.assertIn("Uno", html)
+
+    def test_es_una_lista_ordenada_con_nombre_accesible(self):
+        html = self._render(1)
+        self.assertIn('<nav aria-label="Pasos del asistente">', html)
+        self.assertIn('<ol class="nodo-stepper">', html)
+
+    def test_el_shell_carga_la_hoja_y_define_el_circulo_y_el_conector(self):
+        base = (RAIZ / "templates/includes/base.html").read_text(encoding="utf-8")
+        self.assertIn("custom/css/nodo-stepper.css", base)
+        css = re.sub(
+            r"/\*.*?\*/", "", (RAIZ / "static/custom/css/nodo-stepper.css").read_text(encoding="utf-8"), flags=re.S
+        )
+        self.assertIn("width: 28px;", re.search(r"\.nodo-step__circle \{([^}]*)\}", css).group(1))
+        self.assertIn("width: 56px;", re.search(r"\.nodo-step \+ \.nodo-step::before \{([^}]*)\}", css).group(1))
+
+
+class MenuFilaTest(SimpleTestCase):
+    """C-9: el menu de fila anuncia que controla, nace cerrado y explica lo deshabilitado."""
+
+    ITEM = '{% include "components/_menu_fila_item.html" with '
+
+    def _render(self, cuerpo, argumentos='id="cis-3" etiqueta="Acciones de CIS N.º 3"', **contexto):
+        plantilla = "{% load nodo_ui %}{% menu_fila " + argumentos + " %}" + cuerpo + "{% endmenu_fila %}"
+        return Template(plantilla).render(Context(contexto))
+
+    def test_el_boton_nombra_el_registro_y_apunta_al_menu(self):
+        html = self._render(self.ITEM + 'texto="Ver ficha" url="/ficha/" only %}')
+
+        self.assertIn('aria-label="Acciones de CIS N.º 3"', html)
+        self.assertIn('aria-haspopup="menu"', html)
+        self.assertIn('aria-expanded="false"', html)
+        self.assertIn('aria-controls="menu-fila-cis-3"', html)
+        self.assertIn('id="menu-fila-cis-3" role="menu"', html)
+        self.assertIn("data-menu-fila-trigger", html)
+        self.assertIn('class="nodo-icon-btn nodo-menu-fila__trigger"', html)
+
+    def test_el_menu_nace_cerrado(self):
+        html = self._render(self.ITEM + 'texto="Ver ficha" url="/ficha/" only %}')
+
+        self.assertRegex(html, r'role="menu" aria-label="[^"]*" hidden>')
+
+    def test_el_icono_es_decorativo_y_no_hay_estilos_en_linea(self):
+        html = self._render(self.ITEM + 'texto="Ver ficha" icono="fa-eye" url="/ficha/" only %}')
+
+        self.assertIn('<i class="fas fa-ellipsis-vertical" aria-hidden="true"></i>', html)
+        self.assertIn('<i class="fas fa-eye nodo-menu-fila__icono" aria-hidden="true"></i>', html)
+        self.assertNotIn("style=", html)
+
+    def test_item_con_url_es_un_enlace_menuitem(self):
+        html = self._render(self.ITEM + 'texto="Ver ficha" url=url only %}', url="/ficha/?a=1&b=2")
+
+        self.assertIn('<a href="/ficha/?a=1&amp;b=2" role="menuitem" class="nodo-menu-fila__item">', html)
+
+    def test_item_deshabilitado_se_ve_con_su_motivo_y_no_lleva_destino(self):
+        html = self._render(
+            self.ITEM
+            + 'texto="Reasignar" url="/reasignar/" confirm_url="/x/" motivo="Solo con relevamiento vencido" only %}'
+        )
+
+        self.assertIn('role="menuitem" class="nodo-menu-fila__item" aria-disabled="true"', html)
+        self.assertIn('Reasignar<span class="nodo-menu-fila__motivo">Solo con relevamiento vencido</span>', html)
+        self.assertNotIn("/reasignar/", html)
+        self.assertNotIn("data-confirm-url", html)
+        # aria-disabled, no disabled: tiene que seguir enfocable para que se anuncie el motivo.
+        self.assertNotRegex(html, r"<button[^>]*\sdisabled[\s>]")
+
+    def test_item_que_confirma_usa_data_confirm_url(self):
+        html = self._render(
+            self.ITEM + 'texto="Dar de baja" peligro=True confirm_url="/baja/" confirm_title="¿Dar de baja?" '
+            'confirm_text="Se puede revertir." confirm_ok="Sí, dar de baja" only %}'
+        )
+
+        self.assertIn('data-confirm-url="/baja/"', html)
+        self.assertIn('data-confirm-title="¿Dar de baja?"', html)
+        self.assertIn('data-confirm-ok="Sí, dar de baja"', html)
+        self.assertIn('data-confirm-danger="true"', html)
+        self.assertIn("nodo-menu-fila__item--danger", html)
+
+    def test_item_sin_destino_ni_motivo_no_se_dibuja(self):
+        html = self._render(self.ITEM + 'texto="Nada" only %}')
+
+        self.assertEqual(html.strip(), "")
+
+    def test_sin_items_no_se_dibuja_ni_el_boton(self):
+        self.assertEqual(self._render("   {% if False %}x{% endif %}  ").strip(), "")
+
+    def test_el_id_se_sanea_para_aria_controls(self):
+        html = self._render(self.ITEM + 'texto="Ver" url="/x/" only %}', argumentos='id="cama 5/a" etiqueta="Acciones"')
+
+        self.assertIn('aria-controls="menu-fila-cama-5-a"', html)
+        self.assertIn('id="menu-fila-cama-5-a"', html)
+
+    def test_escapa_la_etiqueta_y_los_textos(self):
+        html = self._render(
+            self.ITEM + "texto=texto motivo=motivo only %}",
+            argumentos="id=1 etiqueta=etiqueta",
+            etiqueta='<b>"x"</b>',
+            texto="<i>t</i>",
+            motivo="<u>m</u>",
+        )
+
+        self.assertNotIn("<b>", html)
+        self.assertNotIn("<i>t", html)
+        self.assertNotIn("<u>", html)
+        self.assertIn("&lt;b&gt;&quot;x&quot;&lt;/b&gt;", html)
+
+    def test_exige_id_y_etiqueta_y_rechaza_el_resto(self):
+        for argumentos in ('etiqueta="a"', 'id="a"', 'id="a" etiqueta="b" extra="c"', 'id="a" etiqueta="b" suelto'):
+            with self.subTest(argumentos=argumentos), self.assertRaises(template.TemplateSyntaxError):
+                self._render("x", argumentos=argumentos)
+
+    def test_el_shell_carga_la_hoja_y_el_script(self):
+        base = (RAIZ / "templates/includes/base.html").read_text(encoding="utf-8")
+
+        self.assertIn("custom/css/nodo-menu-fila.css", base)
+        self.assertIn("custom/js/nodo-menu-fila.js", base)
+
+    def test_el_script_cubre_el_contrato_de_teclado(self):
+        js = (RAIZ / "static/custom/js/nodo-menu-fila.js").read_text(encoding="utf-8")
+
+        for clave in ("'Escape'", "'Tab'", "'ArrowDown'", "'ArrowUp'", "'Home'", "'End'", "aria-expanded"):
+            self.assertIn(clave, js)
+        self.assertNotIn("confirm(", js)
+
+    def test_el_menu_no_lo_recorta_el_contenedor_de_la_tabla(self):
+        css = re.sub(
+            r"/\*.*?\*/", "", (RAIZ / "static/custom/css/nodo-menu-fila.css").read_text(encoding="utf-8"), flags=re.S
+        )
+        bloque = re.search(r"\.nodo-menu-fila__menu \{([^}]*)\}", css).group(1)
+
+        self.assertIn("position: fixed;", bloque)
+        self.assertIn(".nodo-menu-fila__menu[hidden]", css)
+
+
+# Pantallas autorizadas a usar el hero: SOLO la de inicio y los tableros de programa (C-3). Hoy
+# ninguna lo usa (el Inicio lo retiró FE-22); la primera en incorporarlo se agrega acá, y esa línea
+# es lo que un revisor tiene que ver: usarlo en otra pantalla es rechazable citando el agente.
+PANTALLAS_CON_HERO = frozenset()
+# Pantallas autorizadas a usar el hero: la lista vive en scripts/design_audit.py (HERO_PANTALLAS), que
+# la hace cumplir como regla P1 HEROFUERA. Esta prueba la contrasta contra los templates reales.
+_SPEC_AUDIT = importlib.util.spec_from_file_location("design_audit_hero", RAIZ / "scripts" / "design_audit.py")
+_design_audit = importlib.util.module_from_spec(_SPEC_AUDIT)
+_SPEC_AUDIT.loader.exec_module(_design_audit)
+PANTALLAS_CON_HERO = _design_audit.HERO_PANTALLAS
+
+
+class HeroInicioTest(SimpleTestCase):
+    """C-3: el hero es de inicio de programa y de ningun otro lado."""
+
+    def _render(self, argumentos, cuerpo="", **contexto):
+        plantilla = "{% load nodo_ui %}{% hero_inicio " + argumentos + " %}" + cuerpo + "{% endhero_inicio %}"
+        return Template(plantilla).render(Context(contexto))
+
+    def test_dibuja_titulo_eyebrow_bajada_y_accion(self):
+        html = self._render(
+            'titulo="Red de dispositivos" eyebrow="Programa Dispositivos" accion_url="/instituciones/" '
+            'accion_texto="Ver instituciones" accion_icono="fa-building"',
+            "{% bajada %}18 instituciones, <strong>3</strong> críticas.{% endbajada %}",
+        )
+
+        self.assertIn('<div class="nodo-hero">', html)
+        self.assertIn('<div class="nodo-hero__eyebrow">Programa Dispositivos</div>', html)
+        self.assertIn('<h1 class="nodo-hero__titulo">Red de dispositivos</h1>', html)
+        self.assertIn('<p class="nodo-hero__bajada">18 instituciones, <strong>3</strong> críticas.</p>', html)
+        self.assertIn('<a href="/instituciones/" class="nodo-hero__accion">', html)
+        self.assertIn('<i class="fas fa-building" aria-hidden="true"></i> Ver instituciones', html)
+
+    def test_solo_el_titulo_es_obligatorio(self):
+        html = self._render('titulo="Inicio"')
+
+        self.assertIn('<h1 class="nodo-hero__titulo">Inicio</h1>', html)
+        for ausente in ("eyebrow", "bajada", "nodo-hero__accion"):
+            self.assertNotIn(ausente, html.replace("nodo-hero__titulo", ""))
+
+    def test_la_accion_pide_url_y_texto(self):
+        self.assertNotIn("nodo-hero__accion", self._render('titulo="x" accion_url="/a/"'))
+        self.assertNotIn("nodo-hero__accion", self._render('titulo="x" accion_texto="Ir"'))
+
+    def test_la_bajada_como_argumento_se_escapa_y_el_bloque_manda(self):
+        html = self._render("titulo=t bajada=b", t="<i>t</i>", b="<u>b</u>")
+        self.assertIn("&lt;u&gt;b&lt;/u&gt;", html)
+        self.assertIn("&lt;i&gt;t&lt;/i&gt;", html)
+
+        html = self._render('titulo="x" bajada="no"', "{% bajada %}gana{% endbajada %}")
+        self.assertIn(">gana</p>", html)
+        self.assertNotIn("no</p>", html)
+
+    def test_el_bloque_bajada_escapa_las_variables(self):
+        html = self._render('titulo="x"', "{% bajada %}{{ nombre }}{% endbajada %}", nombre="<script>")
+
+        self.assertIn("&lt;script&gt;", html)
+        self.assertNotIn("<script>", html)
+
+    def test_un_bloque_bajada_en_blanco_no_deja_parrafo(self):
+        self.assertNotIn("nodo-hero__bajada", self._render('titulo="x"', "{% bajada %}   {% endbajada %}"))
+
+    def test_sintaxis_estricta(self):
+        casos = {
+            "sin titulo": ('eyebrow="a"', ""),
+            "argumento desconocido": ('titulo="a" color="rojo"', ""),
+            "argumento suelto": ('titulo="a" suelto', ""),
+            "cuerpo que no es bajada": ('titulo="a"', "<p>otro</p>"),
+            "dos bajadas": ('titulo="a"', "{% bajada %}1{% endbajada %}{% bajada %}2{% endbajada %}"),
+        }
+        for nombre, (argumentos, cuerpo) in casos.items():
+            with self.subTest(nombre), self.assertRaises(template.TemplateSyntaxError):
+                self._render(argumentos, cuerpo)
+
+    def test_sin_estilos_en_linea_ni_hex(self):
+        html = self._render('titulo="x" accion_url="/a/" accion_texto="Ir"')
+        css = (RAIZ / "static/custom/css/nodo-hero.css").read_text(encoding="utf-8")
+
+        self.assertNotIn("style=", html)
+        self.assertNotRegex(css, r"#[0-9a-fA-F]{3,8}\b")
+
+    def test_el_gradiente_sale_del_token_y_la_hoja_esta_en_el_shell(self):
+        css = (RAIZ / "static/custom/css/nodo-hero.css").read_text(encoding="utf-8")
+        base = (RAIZ / "templates/includes/base.html").read_text(encoding="utf-8")
+
+        self.assertIn("background: var(--gradient-brand);", css)
+        self.assertIn("custom/css/nodo-hero.css", base)
+
+    def test_solo_las_pantallas_autorizadas_lo_usan(self):
+        """El alcance escrito en el agente, hecho prueba: ni el tag ni las clases fuera de la lista."""
+        usos = {}
+        for ruta in sorted(RAIZ.glob("**/templates/**/*.html")):
+            rel = ruta.relative_to(RAIZ)
+            if {"node_modules", "docs", ".claude", "worktrees"} & set(rel.parts) or ruta.name == "_hero_inicio.html":
+                continue
+            if _design_audit.HERO_RE.search(ruta.read_text(encoding="utf-8")):
+                usos[rel.as_posix()] = True
+
+        self.assertEqual(
+            set(usos) - PANTALLAS_CON_HERO,
+            set(),
+            "El hero es solo de la pantalla de inicio y de los tableros de programa "
+            "(.claude/design/componentes/hero_inicio.md). Otra pantalla usa {% page_header %}.",
+        )
+        self.assertEqual(PANTALLAS_CON_HERO - set(usos), set(), "pantalla autorizada que ya no usa el hero")
+
+    def test_el_inicio_de_hoy_sigue_sin_hero(self):
+        """FE-22 retiró el hero del Inicio; esta pieza no lo devuelve sola."""
+        inicio = (RAIZ / "templates/inicio.html").read_text(encoding="utf-8")
+
+        self.assertNotIn("hero_inicio", inicio)
+        self.assertIn("{% page_header", inicio)

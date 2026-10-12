@@ -25,6 +25,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from core import rbac
 from core.models import Subsecretaria
@@ -42,6 +43,26 @@ _REDIRECT = "configuracion:programas"
 #: Mismo tamaño que las otras listas de Configuración (FE-04/FE-17).
 POR_PAGINA = 20
 CAP_CONFIGURAR = "programa.configurar"
+
+
+#: Etiquetas de los cuatro pasos del wizard, en el orden del alta y de la edición.
+_ETIQUETAS_PASOS = ("Identidad", "Naturaleza", "Capacidades", "Confirmación")
+
+
+def _contexto_pasos(paso_actual, programa=None):
+    """Contexto del indicador de pasos (``components/_stepper.html``).
+
+    Cada paso lleva la URL de su pantalla —del alta, o de la edición del ``programa``— y el
+    componente solo la dibuja como link en los que ya quedaron atrás.
+    """
+    pasos = []
+    for numero, etiqueta in enumerate(_ETIQUETAS_PASOS, start=1):
+        if programa is None:
+            url = reverse(f"configuracion:programa_wizard_paso{numero}")
+        else:
+            url = reverse(f"configuracion:programa_editar_paso{numero}", args=[programa.pk])
+        pasos.append({"etiqueta": etiqueta, "url": url})
+    return {"paso_actual": paso_actual, "total_pasos": len(pasos), "pasos": pasos}
 
 
 def puede_crear_programas(user):
@@ -163,8 +184,7 @@ def programa_wizard_paso1(request):
         "configuracion/programa_wizard_paso1.html",
         {
             "form": form,
-            "paso_actual": 1,
-            "total_pasos": 4,
+            **_contexto_pasos(1),
         },
     )
 
@@ -189,8 +209,7 @@ def programa_wizard_paso2(request):
         "configuracion/programa_wizard_paso2.html",
         {
             "form": form,
-            "paso_actual": 2,
-            "total_pasos": 4,
+            **_contexto_pasos(2),
         },
     )
 
@@ -218,8 +237,7 @@ def programa_wizard_paso3(request):
         "configuracion/programa_wizard_paso3.html",
         {
             "form": form,
-            "paso_actual": 3,
-            "total_pasos": 4,
+            **_contexto_pasos(3),
         },
     )
 
@@ -275,8 +293,7 @@ def programa_wizard_paso4(request):
         "configuracion/programa_wizard_paso4.html",
         {
             "form": form,
-            "paso_actual": 4,
-            "total_pasos": 4,
+            **_contexto_pasos(4),
             "resumen": {
                 "nombre": p1.get("nombre"),
                 "codigo": p1.get("codigo"),
@@ -334,8 +351,7 @@ def programa_editar_paso1(request, pk):
         {
             "form": form,
             "programa": programa,
-            "paso_actual": 1,
-            "total_pasos": 4,
+            **_contexto_pasos(1, programa),
             "es_edicion": True,
         },
     )
@@ -365,8 +381,7 @@ def programa_editar_paso2(request, pk):
         {
             "form": form,
             "programa": programa,
-            "paso_actual": 2,
-            "total_pasos": 4,
+            **_contexto_pasos(2, programa),
             "es_edicion": True,
         },
     )
@@ -405,8 +420,7 @@ def programa_editar_paso3(request, pk):
         {
             "form": form,
             "programa": programa,
-            "paso_actual": 3,
-            "total_pasos": 4,
+            **_contexto_pasos(3, programa),
             "es_edicion": True,
         },
     )
@@ -469,8 +483,7 @@ def programa_editar_paso4(request, pk):
         {
             "form": form,
             "programa": programa,
-            "paso_actual": 4,
-            "total_pasos": 4,
+            **_contexto_pasos(4, programa),
             "es_edicion": True,
             "resumen": {
                 "nombre": p1.get("nombre"),

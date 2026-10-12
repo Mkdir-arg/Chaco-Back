@@ -3,20 +3,21 @@
 Encabezado de página::
 
     {% load nodo_ui %}
-    {% page_header titulo=obj.nombre volver_url=url_padre volver_label="convocatorias" migas=migas %}
+    {% page_header titulo=obj.nombre eyebrow="Programa Dispositivos" volver_url=url_padre volver_label="convocatorias" migas=migas %}
       {% bajada %}{{ obj.segmento.nombre }}{% if obj.subsegmento %} · {{ obj.subsegmento.nombre }}{% endif %}{% endbajada %}
       <span class="badge badge-success badge-dot">Activa</span>
       <a href="…" class="btn-nodo btn-brand btn-sm">Editar</a>
     {% endpage_header %}
 
-Renderiza ``templates/components/_page_header.html``: título ``h1``, bajada,
+Renderiza ``templates/components/_page_header.html``: ``eyebrow`` opcional (línea chica
+en mayúsculas sobre el título), título ``h1``, bajada,
 botón volver circular con ``aria-label="Volver a {volver_label}"``, migas de
 pan (solo con tres niveles o más) y, a la derecha, el cuerpo del bloque
 (badges y acciones).
 
 Escape:
 
-- ``titulo`` y ``bajada=`` se escapan siempre. La única forma de pasar HTML
+- ``titulo``, ``eyebrow=`` y ``bajada=`` se escapan siempre. La única forma de pasar HTML
   por ``bajada=`` es marcarlo explícitamente desde la plantilla
   (``bajada=texto|safe``); este módulo nunca marca como seguro un valor
   recibido por argumento.
@@ -51,6 +52,25 @@ las claves que se le pasan. Lo usa ``components/_paginacion.html`` para armar
 el enlace de la página siguiente cuando la pantalla pagina con un parámetro
 propio (``param``/``extra_qs``): sin esto el enlace salía con el parámetro de
 página repetido.
+
+Menú de fila (botón ⋮ de las tablas densas)::
+
+    {% menu_fila id="cis-3" etiqueta="Acciones de CIS N.º 3" %}
+      {% include "components/_menu_fila_item.html" with texto="Ver ficha" icono="fa-eye" url=url only %}
+      {% include "components/_menu_fila_item.html" with texto="Reasignar" icono="fa-user-pen" motivo="Solo con relevamiento vencido" only %}
+    {% endmenu_fila %}
+
+Renderiza ``templates/components/_menu_fila.html``: un ``.nodo-icon-btn`` de 28 px con
+``aria-label=etiqueta``, ``aria-expanded`` y ``aria-controls``, y el menú ``role="menu"`` con los
+ítems del bloque. El teclado, el foco y la posición los pone ``static/custom/js/nodo-menu-fila.js``.
+
+- ``etiqueta`` nombra el registro («Acciones de CIS N.º 3», no «Acciones»): la leen el lector de
+  pantalla y el tooltip. Se escapa.
+- ``id`` tiene que ser único en la página (el del registro con un prefijo de la tabla, p. ej.
+  ``cama-{{ cama.pk }}``): de él sale el ``id`` del menú que apunta ``aria-controls``. Se sanea a
+  letras, números, ``_`` y ``-``.
+- Si el bloque no dibuja ningún ítem (todos condicionados por permiso, p. ej.) no se dibuja ni el
+  botón: un ⋮ que abre un menú vacío es un control roto.
 """
 
 import re
@@ -64,7 +84,7 @@ register = template.Library()
 TEMPLATE_PAGE_HEADER = "components/_page_header.html"
 EXCLUIDOS_HAY_FILTROS = "page"
 MIGAS_MINIMO = 3
-ARGUMENTOS = ("titulo", "bajada", "volver_url", "volver_label", "migas")
+ARGUMENTOS = ("titulo", "eyebrow", "bajada", "volver_url", "volver_label", "migas")
 
 
 def _o_vacio(renderizado):
@@ -100,6 +120,7 @@ class PageHeaderNode(template.Node):
         plantilla = context.template.engine.get_template(TEMPLATE_PAGE_HEADER)
         with context.push(
             titulo=valores.get("titulo"),
+            eyebrow=valores.get("eyebrow"),
             bajada=bajada,
             volver_url=valores.get("volver_url"),
             volver_label=valores.get("volver_label"),
@@ -145,6 +166,50 @@ def do_page_header(parser, token):
         else:
             acciones.append(nodo)
     return PageHeaderNode(kwargs, acciones, bajada)
+
+
+TEMPLATE_MENU_FILA = "components/_menu_fila.html"
+ARGUMENTOS_MENU_FILA = ("id", "etiqueta")
+ID_NO_VALIDO = re.compile(r"[^\w-]+")
+
+
+class MenuFilaNode(template.Node):
+    def __init__(self, kwargs, items):
+        self.kwargs = kwargs
+        self.items = items
+
+    def render(self, context):
+        valores = {nombre: valor.resolve(context) for nombre, valor in self.kwargs.items()}
+        # ``NodeList.render`` ya devuelve ``SafeString`` (cada variable pasó por el autoescape).
+        items = _o_vacio(self.items.render(context))
+        if not items:
+            return ""
+        identificador = ID_NO_VALIDO.sub("-", str(valores["id"]))
+        plantilla = context.template.engine.get_template(TEMPLATE_MENU_FILA)
+        with context.push(id=identificador, etiqueta=valores["etiqueta"], items=items):
+            return plantilla.render(context)
+
+
+@register.tag("menu_fila")
+def do_menu_fila(parser, token):
+    bits = token.split_contents()
+    nombre_tag = bits[0]
+    restantes = bits[1:]
+    kwargs = token_kwargs(restantes, parser)
+    if restantes:
+        raise template.TemplateSyntaxError(
+            f"'{nombre_tag}' solo acepta argumentos con nombre ({', '.join(ARGUMENTOS_MENU_FILA)}); "
+            f"sobra: {restantes[0]!r}"
+        )
+    desconocidos = set(kwargs) - set(ARGUMENTOS_MENU_FILA)
+    if desconocidos:
+        raise template.TemplateSyntaxError(f"'{nombre_tag}' no acepta: {', '.join(sorted(desconocidos))}")
+    for obligatorio in ARGUMENTOS_MENU_FILA:
+        if obligatorio not in kwargs:
+            raise template.TemplateSyntaxError(f"'{nombre_tag}' requiere {obligatorio}=")
+    items = parser.parse(("endmenu_fila",))
+    parser.delete_first_token()
+    return MenuFilaNode(kwargs, items)
 
 
 @register.filter
@@ -266,3 +331,70 @@ def campo_wrapper_class(context):
     """
     valor = context.get("wrapper_class", "mb-4")
     return "" if valor is None else valor
+
+
+TEMPLATE_HERO_INICIO = "components/_hero_inicio.html"
+ARGUMENTOS_HERO_INICIO = ("titulo", "eyebrow", "bajada", "accion_url", "accion_texto", "accion_icono")
+
+
+class HeroInicioNode(template.Node):
+    """``{% hero_inicio %}``: el hero de la pantalla de inicio y de los tableros de programa.
+
+    Uso::
+
+        {% hero_inicio titulo="Red de dispositivos" eyebrow="Programa Dispositivos" accion_url=url accion_texto="Ver instituciones" accion_icono="fa-building" %}
+          {% bajada %}18 instituciones en tu alcance. <strong>3</strong> con ocupación exigida.{% endbajada %}
+        {% endhero_inicio %}
+
+    **Alcance taxativo: solo la pantalla de inicio y los tableros de programa.** Ocupa el lugar
+    de ``{% page_header %}`` (el ``h1`` es su título) y es el único contenido del backoffice
+    con gradiente de marca. Cualquier otra pantalla usa ``page_header``: el canon sigue sin
+    admitir heros en el backoffice operativo (ficha ``componentes/hero_inicio.md``).
+
+    ``titulo`` es obligatorio; ``eyebrow``, ``bajada`` y la acción son opcionales (la acción
+    exige ``accion_url`` y ``accion_texto``; ``accion_icono`` es un nombre de Font Awesome sin
+    ``fas``). Todo se escapa; ``{% bajada %}`` es un fragmento de la plantilla (con
+    ``<strong>``, por ejemplo) y tiene precedencia sobre ``bajada=``.
+    """
+
+    def __init__(self, kwargs, bajada):
+        self.kwargs = kwargs
+        self.bajada = bajada
+
+    def render(self, context):
+        valores = {nombre: valor.resolve(context) for nombre, valor in self.kwargs.items()}
+        bajada = _o_vacio(self.bajada.render(context)) if self.bajada is not None else valores.get("bajada")
+        plantilla = context.template.engine.get_template(TEMPLATE_HERO_INICIO)
+        with context.push(**{**{nombre: valores.get(nombre) for nombre in ARGUMENTOS_HERO_INICIO}, "bajada": bajada}):
+            return plantilla.render(context)
+
+
+@register.tag("hero_inicio")
+def do_hero_inicio(parser, token):
+    bits = token.split_contents()
+    nombre_tag = bits[0]
+    restantes = bits[1:]
+    kwargs = token_kwargs(restantes, parser)
+    if restantes:
+        raise template.TemplateSyntaxError(
+            f"'{nombre_tag}' solo acepta argumentos con nombre ({', '.join(ARGUMENTOS_HERO_INICIO)}); "
+            f"sobra: {restantes[0]!r}"
+        )
+    desconocidos = set(kwargs) - set(ARGUMENTOS_HERO_INICIO)
+    if desconocidos:
+        raise template.TemplateSyntaxError(f"'{nombre_tag}' no acepta: {', '.join(sorted(desconocidos))}")
+    if "titulo" not in kwargs:
+        raise template.TemplateSyntaxError(f"'{nombre_tag}' requiere titulo=")
+
+    cuerpo = parser.parse(("endhero_inicio",))
+    parser.delete_first_token()
+
+    bajada = None
+    for nodo in cuerpo:
+        if isinstance(nodo, BajadaNode):
+            if bajada is not None:
+                raise template.TemplateSyntaxError(f"'{nombre_tag}' admite un solo {{% bajada %}}")
+            bajada = nodo.nodelist
+        elif not (isinstance(nodo, template.base.TextNode) and not nodo.s.strip()):
+            raise template.TemplateSyntaxError(f"'{nombre_tag}' solo admite {{% bajada %}} en el cuerpo")
+    return HeroInicioNode(kwargs, bajada)

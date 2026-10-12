@@ -1,0 +1,28 @@
+{% comment %}
+Línea de tiempo vertical del backoffice: lo que fue pasando con un registro, del más nuevo al más viejo.
+Va dentro de una card; no es una card propia.
+  {% include "components/_linea_tiempo.html" with eventos=eventos %}
+Contexto:
+  eventos  lista de dicts, en el orden en que se dibujan (la vista los ordena):
+             cuando       texto de metadato (fecha · hora · turno · responsable), ya formateado.
+             titulo       qué pasó, en negrita.
+             detalle      opcional, sigue al título tras « · ».
+             tono         opcional: warning | danger | success. Sin él, el punto es de marca.
+             badge        opcional, texto de una etiqueta al final (p. ej. «sensible»).
+             badge_tono   opcional: warning (por defecto) | danger | info | gray.
+  vacio_titulo, vacio_texto  opcionales: textos del estado vacío cuando no hay eventos.
+El tono es un refuerzo visual del punto: lo que dice el evento va siempre en `titulo`.
+{% endcomment %}
+{% if eventos %}
+<ol class="relative ml-2 border-l-2 border-base space-y-3.5">
+  {% for ev in eventos %}
+  <li class="relative pl-5 text-sm">
+    <span class="absolute -left-1.5 top-1 w-2.5 h-2.5 rounded-full bg-white border-2 {% if ev.tono == 'warning' %}border-warning{% elif ev.tono == 'danger' %}border-danger{% elif ev.tono == 'success' %}border-success{% else %}border-brand{% endif %}" aria-hidden="true"></span>
+    <p class="text-xs text-body-subtle">{{ ev.cuando }}</p>
+    <p class="text-body"><strong class="text-heading">{{ ev.titulo }}</strong>{% if ev.detalle %} · {{ ev.detalle }}{% endif %}{% if ev.badge %} · <span class="badge badge-{{ ev.badge_tono|default:'warning' }}">{{ ev.badge }}</span>{% endif %}</p>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+{% include "components/_estado_vacio.html" with icono="fa-clock-rotate-left" titulo=vacio_titulo|default:"Sin movimientos todavía" texto=vacio_texto|default:"Cuando pase algo con este registro, aparece acá." %}
+{% endif %}

@@ -76,7 +76,14 @@ class ShellLegacyRetiradoTests(SimpleTestCase):
         self.assertFalse((REPO / "templates/includes/main.html").exists())
 
     def test_ningun_template_del_repo_lo_extiende(self):
-        candidatos = [p for p in REPO.rglob("*.html") if ".claude" not in p.parts and "node_modules" not in p.parts]
+        # El filtro va sobre la ruta RELATIVA al repo, no sobre `p.parts`. Con `p.parts` se
+        # mira la ruta absoluta, y como los worktrees de trabajo viven en `.claude/worktrees/`,
+        # ahi dentro `".claude" not in p.parts` descartaba los 286 templates: el test pasaba
+        # con cero candidatos, o sea sin verificar nada, justo donde se desarrolla.
+        candidatos = [
+            p for p in REPO.rglob("*.html") if not {".claude", "node_modules"} & set(p.relative_to(REPO).parts)
+        ]
+        self.assertGreater(len(candidatos), 100, "el filtro se comio los templates: no se esta verificando nada")
         culpables = [
             p.relative_to(REPO).as_posix()
             for p in candidatos

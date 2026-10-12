@@ -11,7 +11,7 @@ calculado), `programas/templates/programas/becas/cupo/segmento_detail.html` (det
 
 ```django
 {% load nodo_ui %}
-{% page_header titulo=<str> bajada=<str> volver_url=<url> volver_label=<str> migas=<lista> %}
+{% page_header titulo=<str> eyebrow=<str> bajada=<str> volver_url=<url> volver_label=<str> migas=<lista> %}
   {% bajada %}<HTML de plantilla>{% endbajada %}   {# opcional; hijo directo, uno solo #}
   <badges y acciones>
 {% endpage_header %}
@@ -24,6 +24,7 @@ calculado), `programas/templates/programas/becas/cupo/segmento_detail.html` (det
 | Parámetro | Tipo | Efecto |
 |---|---|---|
 | `titulo` | str (**obligatorio**) | `<h1 class="text-3xl font-extrabold text-heading tracking-tight">`, escapado |
+| `eyebrow` | str | Línea chica sobre el título: `<p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">`, escapada, dentro del mismo bloque que el `h1`. Dice **dónde está parado** el usuario (programa, institución, rol), no repite el título. Sin valor no se dibuja |
 | `bajada` | str | `<p class="text-sm text-body-subtle mt-1">`, escapada. Para HTML, el bloque `{% bajada %}`, que tiene precedencia sobre el argumento; con `bajada=texto|safe` lo marca la plantilla, nunca el tag |
 | `volver_url` | url | Botón circular `btn-tertiary btn-back-circle` con `fa-arrow-left` (`aria-hidden`) |
 | `volver_label` | str | `aria-label="Volver a {volver_label}"` (por defecto «la pantalla anterior»). Nombra la pantalla de **origen** |
@@ -38,7 +39,7 @@ reconoce como bajada: se renderiza entre las acciones.
 Contenedor `space-y-3` → migas (`nav aria-label="Migas"` + `ol flex items-center gap-1.5
 flex-wrap text-xs text-body-subtle`, enlaces `text-fg-brand hover:underline`, separador `/` con
 `aria-hidden`) → fila `flex items-start justify-between gap-4 flex-wrap`: a la izquierda
-`flex items-start gap-3 min-w-0` con volver + título + bajada, a la derecha el cuerpo en
+`flex items-start gap-3 min-w-0` con volver + (eyebrow + título + bajada), a la derecha el cuerpo en
 `flex items-center gap-2 flex-wrap`.
 
 ## Acciones del cuerpo (regla observada en el código)
@@ -62,7 +63,7 @@ flex-wrap text-xs text-body-subtle`, enlaces `text-fg-brand hover:underline`, se
 
 ## No usar / errores comunes
 
-- `<h1>` a mano (`text-2xl font-bold text-gray-900`, `style="font-size:28px"`), eyebrow en
-  mayúsculas, «← Volver» como link de texto, header dentro de una card.
+- `<h1>` a mano (`text-2xl font-bold text-gray-900`, `style="font-size:28px"`), un eyebrow
+  armado a mano en vez de `eyebrow=`, «← Volver» como link de texto, header dentro de una card.
 - Migas de 2 niveles: no se muestran (alcanza con el volver).
 - Acciones del header con tamaño mezclado en la misma pantalla.

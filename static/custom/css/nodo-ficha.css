@@ -1,0 +1,15 @@
+/* NODO Design System — Sección de ficha (bloqueada y medidor)
+   Contrato: templates/components/_ficha_seccion.html (`bloqueada`) y _ficha_avance.html (medidor).
+   Es lo único de la sección que Tailwind no da: el rayado diagonal que distingue
+   «existe pero no la ves» de «está vacía». El resto del componente va en utilidades. */
+
+.nodo-ficha-bloqueada {
+    background: repeating-linear-gradient(135deg, var(--bg-white) 0 8px, var(--bg-secondary) 8px 16px);
+}
+
+/* Relleno del medidor de avance (components/_ficha_avance.html): el ancho llega como
+   custom property (`style="--avance:60%"`), la única forma de pasar un número del servidor
+   sin `style=` con declaraciones. */
+.nodo-ficha-medidor {
+    width: var(--avance, 0%);
+}

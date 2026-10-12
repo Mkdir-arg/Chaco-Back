@@ -56,6 +56,8 @@ Reglas P1 (estructura; ratchet):
   SHELLLEGACY  {% extends "includes/main.html" %} — shell legacy, no se extiende.
   PAGEHEADER   <h1> a mano en el backoffice en vez de {% page_header %}.
   TABLECANON   <th> sin nodo-th, o <thead style=...>.
+  HEROFUERA    {% hero_inicio %} o clases nodo-hero* en una pantalla que no esté en
+               HERO_PANTALLAS (el hero es solo de Inicio y de los tableros de programa).
   ICONARIA     Ícono Font Awesome <i class="fas ..."> sin aria-hidden="true".
   CLASSDEF     Clase usada que no existe en ningún CSS cargable. P1 si tiene forma
                de utilidad Tailwind (build viejo o utilidad inválida); WARN si no
@@ -761,6 +763,33 @@ def _p1_tablecanon(rel: str, text: str) -> list[tuple[int, str]]:
     return out
 
 
+# Pantallas autorizadas a usar el hero de inicio de programa: SOLO la de inicio y los tableros de
+# programa (ficha componentes/hero_inicio.md). Hoy ninguna lo usa; la primera en incorporarlo se
+# agrega acá y esa línea es lo que ve el revisor. También la lee HeroInicioTest.
+HERO_PANTALLAS: frozenset[str] = frozenset()
+# El include directo del componente es la forma mas obvia de saltearse el tag, y el
+# propio componente dice que no se incluye a mano: sin esa alternativa la regla se
+# evadia escribiendo {% include "components/_hero_inicio.html" %}. El componente queda
+# exento igual, por HERO_COMPONENTE.
+# Se marca el TAG de include, no la ruta suelta: el shell tiene un comentario que la
+# nombra para documentar de donde sale el CSS, y eso es legitimo. Una regla que marca
+# la documentacion de si misma ensenia a no documentar.
+# El sufijo de la clase acepta mayusculas y guion bajo porque `nodo-hero__Titulo` y
+# `nodo-hero__titulo_x` se colaban: el \b no corta contra esos caracteres.
+HERO_RE = re.compile(
+    r"\{%\s*(?:end)?hero_inicio\b"
+    r"|\{%\s*include\s+[\"']components/_hero_inicio"
+    r"|\bnodo-hero(?:[_a-zA-Z]*)?(?!\.css)\b"
+)
+HERO_COMPONENTE = "templates/components/_hero_inicio.html"
+
+
+def _p1_herofuera(rel: str, text: str) -> list[tuple[int, str]]:
+    if rel == HERO_COMPONENTE or rel in HERO_PANTALLAS:
+        return []
+    return [(ln, "hero_inicio / nodo-hero") for ln in _lineas_de(text, HERO_RE)]
+
+
 def _p1_iconaria(rel: str, text: str) -> list[tuple[int, str]]:
     return [(ln, "ícono sin aria-hidden") for ln in _lineas_de(text, ICONARIA_RE)]
 
@@ -777,6 +806,11 @@ P1_RULES: list[tuple[str, object, str]] = [
     ("SHELLLEGACY", _p1_shelllegacy, "shell legacy includes/main.html — extender includes/base.html"),
     ("PAGEHEADER", _p1_pageheader, "<h1> a mano — el encabezado es {% page_header %}"),
     ("TABLECANON", _p1_tablecanon, "tabla fuera del canon — nodo-thead-row / nodo-th / nodo-td"),
+    (
+        "HEROFUERA",
+        _p1_herofuera,
+        "hero de inicio fuera de Inicio/tableros de programa — el encabezado es {% page_header %}",
+    ),
     ("ICONARIA", _p1_iconaria, 'ícono Font Awesome sin aria-hidden="true"'),
 ]
 
@@ -1309,6 +1343,59 @@ ARQUETIPOS: dict[str, dict[str, list]] = {
             (r"non_field_errors", "errores generales a mano: usar components/_form_errores.html"),
         ],
     },
+    "wizard": {
+        "marcadores": [
+            (r'\{%\s*extends\s+"includes/base\.html"\s*%\}', False, "extiende el shell del backoffice"),
+            (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
+            (r'class="space-y-5"', False, "contenedor de página space-y-5"),
+            (r"\{%\s*page_header\b", False, "{% page_header %}"),
+            (r"volver_url=", False, "page_header con volver_url"),
+            (r"\{%\s*endpage_header\s*%\}", False, "{% endpage_header %}"),
+            (r"components/_stepper\.html", False, "indicador de pasos con components/_stepper.html"),
+            (r"<dl\b", False, "resumen de lo cargado como lista de definiciones"),
+            (
+                r'<form method="post"[^>]*class="bg-white rounded-xl border border-base shadow-sm p-6"',
+                False,
+                "surface del formulario del paso",
+            ),
+            (r"\{%\s*csrf_token\s*%\}", False, "{% csrf_token %}"),
+            (r"components/_form_errores\.html", False, "errores no de campo con components/_form_errores.html"),
+            (r"_field\.html", False, "campos con el include _field.html"),
+            (r"btn-nodo btn-tertiary btn-base", False, "acción «Anterior» del pie"),
+            (r"btn-nodo btn-brand btn-base", False, "acción primaria del pie (Siguiente o Confirmar)"),
+        ],
+        "prohibidos": [
+            (r"<h1\b", "encabezado a mano: el título es {% page_header %}"),
+            (r"<style\b", "<style> local"),
+            (r"←\s*Volver", "«← Volver» de texto: va en page_header volver_url"),
+            (r"non_field_errors", "errores generales a mano: usar components/_form_errores.html"),
+            (r"bg-tertiary rounded-full h-2", "barra de progreso a mano: el indicador es components/_stepper.html"),
+            (r"di-stepper|class=\"nodo-step", "stepper armado a mano: usar components/_stepper.html"),
+        ],
+    },
+    "revision": {
+        "marcadores": [
+            (r'\{%\s*extends\s+"includes/base\.html"\s*%\}', False, "extiende el shell del backoffice"),
+            (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
+            (r'class="space-y-5"', False, "contenedor de página space-y-5"),
+            (r"\{%\s*page_header\b", False, "{% page_header %} con la identidad de la persona"),
+            (r"\{%\s*endpage_header\s*%\}", False, "{% endpage_header %}"),
+            (r"components/_alerta\.html", True, "aviso de avance con _alerta"),
+            (r'role="tablist"', False, 'contenedor de solapas con role="tablist"'),
+            (r'role="tab"', False, 'solapa con role="tab"'),
+            (r':aria-selected="', False, "estado seleccionado de la solapa"),
+            (r'role="tabpanel"', False, 'panel con role="tabpanel"'),
+            (r"components/_ficha_seccion\.html", False, "secciones de la ficha con _ficha_seccion"),
+            (r"components/_linea_tiempo\.html", False, "línea de tiempo con _linea_tiempo"),
+        ],
+        "prohibidos": [
+            (r"<h1\b", "encabezado a mano: el título es {% page_header %}"),
+            (r"<style\b", "<style> local"),
+            (r"←\s*Volver", "«← Volver» de texto: va en page_header volver_url"),
+            (r"nodo-ficha-bloqueada", "sección bloqueada a mano: la dibuja components/_ficha_seccion.html"),
+            ("[🔒📎]", "emoji como ícono: Font Awesome con aria-hidden"),
+        ],
+    },
     "modal": {
         "marcadores": [
             (r"x-becas-modal=", False, "x-becas-modal (foco, Tab atrapado, Escape, scroll)"),
@@ -1332,6 +1419,32 @@ ARQUETIPOS: dict[str, dict[str, list]] = {
 }
 
 
+#: Una variante se DECLARA en el template, con este comentario, y entonces el auditor le
+#: exige otros marcadores. No se infiere de que falten los de la forma principal: si se
+#: infiriera, una pantalla que se olvido las solapas pasaria como "apilada" y el gate no
+#: serviria para nada.
+VARIANTE_RE = re.compile(r"\{#\s*arquetipo:\s*([a-z-]+)\s*\+\s*([a-z-]+)\s*#\}")
+
+#: Variantes declarables, por arquetipo (ojo:  ya existe y son los prefijos de Tailwind).
+#: Variantes declarables, por arquetipo. Cada una REEMPLAZA los marcadores de la forma
+#: principal por los suyos; los `prohibidos` siguen valiendo igual.
+VARIANTES_DE_ARQUETIPO: dict[tuple[str, str], list] = {
+    # Ficha `detalle.md`: "Con un area sola no hay solapas: van secciones apiladas en
+    # surfaces." Sin solapas no hay tablist que pedir, pero si hay que exigir que cada
+    # seccion sea una surface con su encabezado: eso es lo que reemplaza a la solapa como
+    # unidad navegable, y sin encabezado la pantalla es una sabana.
+    ("detalle", "apilado"): [
+        (r"\{%\s*extends\s+\"includes/base\.html\"\s*%\}", False, "extiende el shell del backoffice"),
+        (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
+        (r"class=\"space-y-5\"", False, "contenedor de página space-y-5"),
+        (r"\{%\s*page_header\b", False, "{% page_header %}"),
+        (r"\{%\s*endpage_header\s*%\}", False, "{% endpage_header %}"),
+        (r"<(?:section|article)\b[^>]*aria-labelledby=", False, "sección con nombre accesible (reemplaza a la solapa)"),
+        (r"<h2\b", False, "encabezado de la sección apilada"),
+    ],
+}
+
+
 def arquetipo_mode(nombre: str, rutas: list[str]) -> int:
     especificacion = ARQUETIPOS.get(nombre)
     if especificacion is None:
@@ -1348,7 +1461,23 @@ def arquetipo_mode(nombre: str, rutas: list[str]) -> int:
             continue
         propias = 0
         posicion = 0
-        for patron, opcional, descripcion in especificacion["marcadores"]:
+        marcadores = especificacion["marcadores"]
+        etiqueta = nombre
+        declarada = VARIANTE_RE.search(text)
+        if declarada and declarada.group(1) == nombre:
+            variante = declarada.group(2)
+            propios = VARIANTES_DE_ARQUETIPO.get((nombre, variante))
+            if propios is None:
+                conocidas = sorted(v for a, v in VARIANTES_DE_ARQUETIPO if a == nombre)
+                print(
+                    f"{ruta}: [ARQUETIPO] variante «{variante}» no declarada para «{nombre}»"
+                    f" (hay: {', '.join(conocidas) or 'ninguna'})"
+                )
+                propias += 1
+            else:
+                marcadores = propios
+                etiqueta = f"{nombre} + {variante}"
+        for patron, opcional, descripcion in marcadores:
             m = re.compile(patron).search(text, posicion)
             if m is None:
                 if re.compile(patron).search(text):
@@ -1363,7 +1492,7 @@ def arquetipo_mode(nombre: str, rutas: list[str]) -> int:
             for ln in _lineas_de(text, re.compile(patron)):
                 print(f"{ruta}:{ln}: [ARQUETIPO] prohibido — {motivo}")
                 propias += 1
-        print(f"{ruta}: arquetipo «{nombre}» — {'OK' if not propias else f'{propias} desvío(s)'}")
+        print(f"{ruta}: arquetipo «{etiqueta}» — {'OK' if not propias else f'{propias} desvío(s)'}")
         fallas += propias
     return 1 if fallas else 0
 
@@ -1386,6 +1515,8 @@ GOLDENS: list[tuple[str, str]] = [
     ("detalle", "programas/templates/programas/becas/cupo/segmento_detail.html"),
     ("formulario", "programas/templates/programas/becas/config/segmento_form.html"),
     ("modal", "programas/templates/programas/becas/config/programa_list.html"),
+    ("wizard", "configuracion/templates/configuracion/programa_wizard_paso4.html"),
+    ("revision", "programas/templates/programas/dispositivos/estadia/revision_referencia.html"),
 ]
 
 

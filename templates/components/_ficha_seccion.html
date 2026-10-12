@@ -1,0 +1,69 @@
+{% comment %}
+Sección de una ficha: encabezado tonal con su avance y, si la persona no la puede leer, la sección
+bloqueada. Una sección bloqueada NO se oculta: muestra que existe, cuánto avanzó y quién la completa.
+Plegable (Alpine, ya cargado por el shell). Va dentro de una card, apilada con `space-y-3`.
+  {% include "components/_ficha_seccion.html" with codigo="salud" titulo="9 · Salud" avance=60 sensibilidad="Sensible · salud" sensibilidad_tono="warning" campos=campos %}
+  {% include "components/_ficha_seccion.html" with codigo="consumos" titulo="12 · Consumos" bloqueada=True avance=80 sensibilidad="Sensible · psicosocial" sensibilidad_tono="danger" completa="el equipo de psicología" %}
+Contexto:
+  codigo            obligatorio, único en la página: arma los id del panel (`ficha-<codigo>`).
+  titulo            obligatorio.
+  avance            entero 0-100 o None (sin medidor). Lo calcula la vista; acá no hay regla.
+  avance_tono       brand (por defecto) | warning: color del medidor, lo decide la vista.
+  sensibilidad      opcional, texto del badge («Sensible · salud»).
+  sensibilidad_tono warning (por defecto) | danger.
+  completar_url     opcional: link «completar» junto al avance (solo en secciones legibles).
+  abierta           por defecto True; False la deja plegada al cargar.
+  campos            lista de dicts {etiqueta, valor, estado}: `estado` vacío | «falta» (en rojo, el dato
+                    que se pide y no está) | «calculado» (en gris, lo arma el sistema).
+  vacio_texto       texto cuando no hay `campos` (sección sin datos todavía).
+  bloqueada         True: sin campos, sin plegar. Muestra `motivo` y «La completa <completa>».
+  motivo            por defecto «Tu rol no accede a esta sección.»
+  completa          opcional: quién la completa (equipo, rol).
+El medidor es informativo (`role="progressbar"` con su valor): el porcentaje también va escrito.
+{% endcomment %}
+{% if bloqueada %}
+<section class="nodo-ficha-bloqueada rounded-xl border border-base overflow-hidden" aria-labelledby="ficha-{{ codigo }}-titulo">
+  <div class="flex items-center justify-between gap-2 flex-wrap px-4 py-3 border-b border-light">
+    <h3 id="ficha-{{ codigo }}-titulo" class="text-sm font-bold text-heading">{{ titulo }}</h3>
+    <div class="flex items-center gap-2 flex-wrap">
+      {% if sensibilidad %}<span class="badge badge-{{ sensibilidad_tono|default:'danger' }}">{{ sensibilidad }}</span>{% endif %}
+      {% if avance is not None %}{% include "components/_ficha_avance.html" %}{% endif %}
+    </div>
+  </div>
+  <p class="px-4 py-3.5 text-sm text-body-subtle">
+    <i class="fas fa-lock" aria-hidden="true"></i>
+    {{ motivo|default:"Tu rol no accede a esta sección." }}{% if completa %} La completa {{ completa }}.{% endif %}
+  </p>
+</section>
+{% else %}
+<section class="rounded-xl border border-base overflow-hidden" x-data="{ abierta: {% if abierta is False %}false{% else %}true{% endif %} }">
+  <div class="flex items-center justify-between gap-2 flex-wrap px-4 py-3 bg-secondary" :class="abierta ? 'border-b border-light' : ''">
+    <h3 class="text-sm font-bold text-heading">
+      <button type="button" class="flex items-center gap-2 text-left" @click="abierta = !abierta"
+              :aria-expanded="abierta" aria-controls="ficha-{{ codigo }}">
+        <i class="fas fa-chevron-down text-xs text-body-subtle transition" :class="abierta ? '' : '-rotate-90'" aria-hidden="true"></i>
+        {{ titulo }}
+      </button>
+    </h3>
+    <div class="flex items-center gap-2 flex-wrap">
+      {% if sensibilidad %}<span class="badge badge-{{ sensibilidad_tono|default:'warning' }}">{{ sensibilidad }}</span>{% endif %}
+      {% if avance is not None %}{% include "components/_ficha_avance.html" %}{% endif %}
+      {% if completar_url %}<a href="{{ completar_url }}" class="text-xs font-semibold text-fg-brand underline">completar<span class="sr-only"> {{ titulo }}</span></a>{% endif %}
+    </div>
+  </div>
+  <div id="ficha-{{ codigo }}" class="px-4 py-3.5" x-show="abierta">
+    {% if campos %}
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      {% for c in campos %}
+      <div>
+        <dt class="text-xs font-semibold uppercase text-body-subtle">{{ c.etiqueta }}</dt>
+        <dd class="mt-1 text-sm {% if c.estado == 'falta' %}text-fg-danger font-semibold{% elif c.estado == 'calculado' %}text-body-subtle{% else %}text-body{% endif %}">{{ c.valor }}</dd>
+      </div>
+      {% endfor %}
+    </dl>
+    {% else %}
+    <p class="text-sm text-body-subtle">{{ vacio_texto|default:"Sin datos todavía." }}</p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}

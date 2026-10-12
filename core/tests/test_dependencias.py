@@ -170,6 +170,46 @@ class RequirementsTests(SimpleTestCase):
                 self.assertIn(ruta, barridos)
 
 
+class TblibEnElCiTests(SimpleTestCase):
+    """RED-88 · Sin `tblib`, una falla bajo `--parallel` no se ve: cuelga el job.
+
+    El CI corre la suite con `--parallel 4`, así que Django tiene que pickear el
+    resultado de cada worker para mandarlo al proceso padre. Un objeto `traceback` no es
+    pickleable por sí solo, y el propio código de Django avisa que «if tblib isn't
+    installed, pickling the traceback will always fail».
+
+    Sin `tblib` el síntoma no se parece a una falla: la suite muere con
+    `TypeError: cannot pickle 'traceback' object` **sin decir qué test falló**, el worker
+    queda colgado, y el job corre hasta que GitHub lo cancela por timeout —25 minutos—.
+    Encima `gh pr checks` lo muestra como `cancel`, igual que una cancelación por push, así
+    que el reflejo es relanzar; y relanzar un fallo determinista no lo arregla nunca.
+
+    El Cambio 163 dio RED-88 por cerrada, pero lo que arregló fueron los tests que
+    fallaban: el modo de falla quedó dormido hasta la próxima falla real, que llegó el
+    12/10/2026 con los snapshots de Becas. Por eso esto es un test y no un comentario.
+    """
+
+    def test_tblib_viaja_en_las_dependencias_del_ci(self):
+        distribuciones = {_distribucion(linea) for linea in _lineas_activas(RAIZ / "requirements-ci.txt")}
+
+        self.assertIn(
+            "tblib",
+            distribuciones,
+            "tblib salió de `requirements-ci.txt`: cualquier falla bajo `--parallel` vuelve a "
+            "colgar el job 25 minutos en vez de salir roja con su traza (RED-88).",
+        )
+
+    def test_el_runner_de_django_lo_encuentra(self):
+        """No alcanza con que esté listado: Django lo importa por nombre, al arrancar."""
+        from django.test import runner
+
+        self.assertIsNotNone(
+            runner.tblib,
+            "Django no pudo importar tblib, así que no va a registrar el pickler de "
+            "tracebacks y las fallas en paralelo van a ser ilegibles.",
+        )
+
+
 class InstalledAppsTests(SimpleTestCase):
     def test_health_check_ya_no_esta_instalada(self):
         """OPS-04 le sacó las URLs; OPS-13 la saca de `INSTALLED_APPS` y del `pip`. Las

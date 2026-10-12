@@ -68,11 +68,10 @@ desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los 
   `btn-nodo btn-danger btn-base`, no `btn-brand`. El modo de marcadores no modela esa variante:
   se valida por revisión. Evidencia: los cinco `*_confirm_delete.html` de Configuración, por ejemplo
   `configuracion/templates/configuracion/provincia_confirm_delete.html`.
-- **Paso de un wizard:** el arquetipo wizard está **pendiente** (ficha `pendientes.md`). Un paso que
-  es una lista de campos se escribe con este esqueleto y pasa los marcadores; uno cuyo control es un
-  grupo de radios con descripción por opción **no** (no cabe en `_field.html`) y conserva solo shell,
-  surface, `_form_errores` y pie. Evidencia:
-  `configuracion/templates/configuracion/programa_wizard_paso1.html` (y los pasos 3 y 4) contra
+- **Paso de un wizard:** es del arquetipo Wizard (ficha `wizard.md`). Un paso que es una lista de
+  campos sigue este esqueleto y pasa los marcadores; uno cuyo control es un grupo de radios con
+  descripción por opción **no** (no cabe en `_field.html`). Evidencia:
+  `configuracion/templates/configuracion/programa_wizard_paso3.html` contra
   `configuracion/templates/configuracion/programa_wizard_paso2.html`.
 
 ## Prohibido

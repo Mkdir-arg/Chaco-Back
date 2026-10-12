@@ -79,7 +79,7 @@ HERRAMIENTAS_DEL_CI = (
     "mkdocs-material",
     # Lo que le falta a `--parallel` para decir qué test falló: sin `tblib`, el primer
     # fallo en paralelo mata al proceso principal con `cannot pickle 'traceback' object`
-    # y el job muere por `timeout-minutes` sin nombrar el test (Cambio 209). No se
+    # y el job muere por `timeout-minutes` sin nombrar el test (Cambio 256). No se
     # invoca desde ningún `run:`: la usa el runner de Django adentro de `manage.py test`.
     "tblib",
     # RED-76. Los tres van juntos: `django-stubs[compatible-mypy]` es el que fija qué
@@ -87,6 +87,12 @@ HERRAMIENTAS_DEL_CI = (
     "mypy",
     "django-stubs",
     "djangorestframework-stubs",
+    # RED-88. La única que no se invoca: `tblib` es una biblioteca que **Django importa**
+    # al arrancar el runner, para poder pickear los tracebacks entre los workers de
+    # `--parallel`. Sin ella una falla no se ve: cuelga el job hasta el timeout. Por eso
+    # no está en `INVOCACION` —ningún `run:` la llama— y por eso igual va acá: el archivo
+    # que la trae tiene que seguir instalándose.
+    "tblib",
 )
 #: Cómo se invoca cada herramienta en un `run:` (`mkdocs-material` instala `mkdocs`).
 INVOCACION = re.compile(r"(?m)^\s*(?:python -m\s+)?(ruff|coverage|pip-audit|bandit|mkdocs|mypy)\b")
@@ -858,7 +864,7 @@ class SuiteEnParaleloTests(SimpleTestCase):
         self.assertEqual(self.job.get("timeout-minutes"), self.TIMEOUT_MINUTOS)
 
     def test_el_job_instala_lo_que_hace_falta_para_que_un_fallo_tenga_nombre(self):
-        """Sin `tblib`, un fallo en paralelo no se reporta: cuelga el job (Cambio 209).
+        """Sin `tblib`, un fallo en paralelo no se reporta: cuelga el job (Cambio 256).
 
         Django manda los resultados de cada worker por `multiprocessing` y un `exc_info`
         arrastra un `traceback`, que `pickle` no serializa. El proceso principal muere con

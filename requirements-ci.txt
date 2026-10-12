@@ -36,23 +36,20 @@ ruff==0.16.10
 # mueve el número sin que cambie el código.
 coverage==7.16.2
 
-# Lo que le falta a `manage.py test --parallel` para poder **decir qué test falló**.
-# Django manda los resultados de cada worker al proceso principal por `multiprocessing`,
-# y un `exc_info` arrastra un `traceback`, que `pickle` no serializa: sin esta librería,
-# el primer test que falla en paralelo mata al proceso principal con
-# `TypeError: cannot pickle 'traceback' object` (`django/test/runner.py:541`), deja a los
-# workers de `coverage` huérfanos y el job muere por `timeout-minutes` como «cancelled»,
-# **sin nombrar el test**. Es lo que pasó dos veces en `Tests & Coverage` del PR #784.
+# `tblib` no es una herramienta: es lo que hace que una falla bajo `--parallel` se vea.
+# Django pickea el resultado de cada worker para mandarlo al proceso padre, y un
+# `traceback` no es pickleable por sí solo. Sin `tblib`, su propio código avisa que
+# «pickling the traceback will always fail»: la suite muere con
+# `TypeError: cannot pickle 'traceback' object` **sin decir qué test falló**, el worker
+# queda colgado y el job corre hasta que GitHub lo cancela por timeout —25 minutos—.
+# Peor todavía, `gh pr checks` lo muestra como `cancel`, idéntico a una cancelación por
+# push, así que lo primero que uno hace es relanzar, y relanzar un fallo determinista no
+# lo arregla nunca.
 #
-# RED-88 (Cambio 163) había arreglado **una** causa —la guarda de `seed_perf` que tiraba
-# `CommandError` en `setUpTestData`—, no el mecanismo: cualquier test que falle en
-# paralelo vuelve a tapar el resultado. `tblib` serializa el traceback y el fallo sale
-# como un `FAIL:` normal, con nombre y traza.
-#
-# Medido en local (Django 5.2.17, Python 3.12): sin ella, `manage.py test <3 módulos>
-# --parallel 2` muere con el `TypeError`; con ella, `FAILED (failures=1)` nombrando el
-# test. Va acá y no en `requirements.txt` porque la aplicación no la importa: la usa el
-# runner de tests, igual que `coverage`.
+# Eso es RED-88. El Cambio 163 la dio por cerrada, pero lo que arregló fueron los tests
+# que fallaban: el modo de falla siguió ahí, dormido, esperando la próxima falla. Llegó
+# el 12/10/2026 con los snapshots de Becas y costó media hora de diagnóstico.
+# Con `tblib` instalado la misma falla sale al instante y con su traza completa.
 tblib==3.2.2
 
 # `Pip Audit`, obligatorio desde el Cambio 121.

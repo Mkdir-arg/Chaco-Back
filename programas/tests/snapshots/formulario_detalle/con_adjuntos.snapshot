@@ -75,8 +75,18 @@
         <!-- NODO Tables Design System (tabla densa: .nodo-thead-row, .nodo-th, .nodo-td) -->
         <link rel="stylesheet" href="/static/custom/css/nodo-tables.css" />
 
+        <!-- NODO Menú de fila (botón ⋮ de las tablas densas, components/_menu_fila.html) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-menu-fila.css" />
+        <!-- NODO Hero de inicio de programa (components/_hero_inicio.html; solo inicio y tableros de programa) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-hero.css" />
+
         <!-- NODO Stat card, variante «tablero» (components/_stat_card.html, variante="tablero") -->
         <link rel="stylesheet" href="/static/custom/css/nodo-stat-card.css" />
+
+        <!-- NODO Indicador de pasos (components/_stepper.html, arquetipo Wizard) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-stepper.css" />
+        <!-- NODO Sección de ficha, bloqueada y medidor (components/_ficha_seccion.html, `bloqueada`) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-ficha.css" />
 
         <!-- NODO SweetAlertN theming (fuente única — cascada a los N Swal.fire del sistema) -->
         <link rel="stylesheet" href="/static/custom/css/nodo-swal.css" />
@@ -887,6 +897,7 @@
       </a>
       
       <div class="min-w-N">
+        
         <hN class="text-Nxl font-extrabold text-heading tracking-tight">Caso N</hN>
         <p class="text-sm text-body-subtle mt-N">Ana Gomez · DNI N · Relevamiento N · Conv A</p>
       </div>
@@ -1099,7 +1110,7 @@
       <div class="grid grid-cols-N sm:grid-cols-N gap-N">
         <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_celular">
+  <label id="id_celular-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_celular">
     Celular
   </label>
   <input type="text" name="celular" value="N" class="nodo-field" maxlength="N" id="id_celular">
@@ -1109,7 +1120,7 @@
 </div>
         <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_email_contacto">
+  <label id="id_email_contacto-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_email_contacto">
     Correo electrónico
   </label>
   <input type="email" name="email_contacto" value="a@b.com" class="nodo-field" maxlength="N" id="id_email_contacto">
@@ -1124,7 +1135,7 @@
           <div class="grid grid-cols-N sm:grid-cols-N lg:grid-cols-N gap-N">
             <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_nombre">
+  <label id="id_apoderado_nombre-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_apoderado_nombre">
     Nombre del apoderado
   </label>
   <input type="text" name="apoderado_nombre" class="nodo-field" maxlength="N" id="id_apoderado_nombre">
@@ -1134,7 +1145,7 @@
 </div>
             <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_apellido">
+  <label id="id_apoderado_apellido-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_apoderado_apellido">
     Apellido del apoderado
   </label>
   <input type="text" name="apoderado_apellido" class="nodo-field" maxlength="N" id="id_apoderado_apellido">
@@ -1144,7 +1155,7 @@
 </div>
             <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_dni">
+  <label id="id_apoderado_dni-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_apoderado_dni">
     DNI del apoderado
   </label>
   <input type="text" name="apoderado_dni" class="nodo-field" inputmode="numeric" maxlength="N" id="id_apoderado_dni">
@@ -1154,7 +1165,7 @@
 </div>
             <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_genero">
+  <label id="id_apoderado_genero-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_apoderado_genero">
     Sexo del apoderado
   </label>
   <select name="apoderado_genero" class="nodo-field" id="id_apoderado_genero">
@@ -1173,7 +1184,7 @@
 </div>
             <div>
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_apoderado_fecha_nacimiento">
+  <label id="id_apoderado_fecha_nacimiento-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_apoderado_fecha_nacimiento">
     Fecha de nacimiento del apoderado
   </label>
   <input type="date" name="apoderado_fecha_nacimiento" class="nodo-field" id="id_apoderado_fecha_nacimiento">
@@ -1529,7 +1540,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_prov_actual">
+  <label id="id_prov_actual-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_prov_actual">
     Provincia del domicilio
   </label>
   <select name="prov_actual" class="nodo-field" id="id_prov_actual">
@@ -1543,7 +1554,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_loc_actual">
+  <label id="id_loc_actual-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_loc_actual">
     Localidad del domicilio
   </label>
   <select name="loc_actual" class="nodo-field" id="id_loc_actual">
@@ -1555,7 +1566,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_barrio_actual">
+  <label id="id_barrio_actual-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_barrio_actual">
     Barrio
   </label>
   <input type="text" name="barrio_actual" class="nodo-field" maxlength="N" id="id_barrio_actual">
@@ -1566,7 +1577,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_calle_actual">
+  <label id="id_calle_actual-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_calle_actual">
     Calle
   </label>
   <input type="text" name="calle_actual" class="nodo-field" maxlength="N" id="id_calle_actual">
@@ -1577,7 +1588,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_nro_actual">
+  <label id="id_nro_actual-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_nro_actual">
     Altura / número
   </label>
   <input type="number" name="nro_actual" class="nodo-field" min="N" id="id_nro_actual">
@@ -1588,7 +1599,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_piso_actual">
+  <label id="id_piso_actual-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_piso_actual">
     Piso
   </label>
   <input type="number" name="piso_actual" class="nodo-field" min="N" id="id_piso_actual">
@@ -1599,7 +1610,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_dpto_actual">
+  <label id="id_dpto_actual-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_dpto_actual">
     Departamento
   </label>
   <input type="text" name="dpto_actual" class="nodo-field" maxlength="N" id="id_dpto_actual">
@@ -1610,7 +1621,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_est_civil">
+  <label id="id_est_civil-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_est_civil">
     Estado civil
   </label>
   <select name="est_civil" class="nodo-field" id="id_est_civil">
@@ -1624,7 +1635,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_prov_nacim">
+  <label id="id_prov_nacim-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_prov_nacim">
     Provincia de nacimiento
   </label>
   <select name="prov_nacim" class="nodo-field" id="id_prov_nacim">
@@ -1638,7 +1649,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_loc_nacim">
+  <label id="id_loc_nacim-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_loc_nacim">
     Localidad de nacimiento
   </label>
   <select name="loc_nacim" class="nodo-field" id="id_loc_nacim">
@@ -1650,7 +1661,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_id_plan_soc">
+  <label id="id_id_plan_soc-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_id_plan_soc">
     Programa social (SIIS)
   </label>
   <select name="id_plan_soc" class="nodo-field" id="id_id_plan_soc">
@@ -1664,7 +1675,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_jurid">
+  <label id="id_jurid-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_jurid">
     Jurisdicción (SIIS)
   </label>
   <select name="jurid" class="nodo-field" id="id_jurid">
@@ -1678,7 +1689,7 @@
             
               
 <div class="mb-N">
-  <label class="block text-sm font-medium text-heading mb-N" for="id_id_fun_x_plan">
+  <label id="id_id_fun_x_plan-etiqueta" class="block text-sm font-medium text-heading mb-N" for="id_id_fun_x_plan">
     Función por programa (SIIS)
   </label>
   <select name="id_fun_x_plan" class="nodo-field" id="id_id_fun_x_plan">
@@ -2387,6 +2398,10 @@ document.addEventListener('DOMContentLoaded', function () {
              sobre toda [role="tablist"]. Mejora progresiva: no cambia nada visual ni
              el estado de Alpine; activa la solapa disparando su propio click. -->
         <script src="/static/custom/js/nodo-tabs.js"></script>
+
+        <!-- Menú de fila (components/_menu_fila.html): teclado, foco atrapado, Escape y posición del menú.
+             Delegado sobre [data-menu-fila]; sin este script el menú queda cerrado. -->
+        <script src="/static/custom/js/nodo-menu-fila.js"></script>
 
         <!-- NODO SweetAlertN theming (fuente única): se ejecuta después de customJS
              a propósito — reasigna window.Swal = Swal.mixin(...) y cada Swal.fire()
