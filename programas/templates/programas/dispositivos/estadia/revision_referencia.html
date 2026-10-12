@@ -1,0 +1,130 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Dispositivos · Estadía · {{ persona.nombre_completo }}{% endblock %}
+
+{% block main-content %}
+<div class="space-y-5"
+     x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'ficha' }">
+
+  {% page_header titulo=persona.nombre_completo volver_url=url_volver volver_label="estadías" migas=migas %}
+    {% bajada %}{{ ubicacion }} · DNI {{ persona.dni }} · {{ persona.edad }} años · ingreso {{ estadia.ingreso }} · {{ estadia.dias }} días de permanencia{% if url_legajo %} · <a href="{{ url_legajo }}" class="text-fg-brand hover:underline">legajo ciudadano</a>{% endif %}{% endbajada %}
+    <span class="badge badge-info badge-dot">{{ estadia.estado }}</span>
+    {% if estadia.reingreso %}<span class="badge badge-brand">Reingreso</span>{% endif %}
+    {% if puede_cambiar_plaza %}<a href="{{ url_cambiar_plaza }}" class="btn-nodo btn-secondary btn-sm btn-fit">Cambiar plaza</a>{% endif %}
+    {% if puede_permiso_salida %}<a href="{{ url_permiso_salida }}" class="btn-nodo btn-secondary btn-sm btn-fit">Permiso de salida</a>{% endif %}
+    {% if puede_trasladar %}<a href="{{ url_trasladar }}" class="btn-nodo btn-tertiary btn-sm btn-fit">Trasladar</a>{% endif %}
+    {% if puede_egresar %}<a href="{{ url_egresar }}" class="btn-nodo btn-danger btn-sm btn-fit">Egresar</a>{% endif %}
+  {% endpage_header %}
+
+  {% if ficha.pendiente %}
+  {% include "components/_alerta.html" with tono="warning" icono="file-circle-exclamation" titulo=ficha.titulo texto=ficha.texto accion_url=ficha.url_completar accion_texto="Completar ahora" %}
+  {% endif %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <div class="lg:col-span-2 min-w-0 self-start bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+
+      <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones de la estadía">
+        <button @click="tab='ficha'" type="button" role="tab" id="tab-ficha" aria-controls="panel-ficha"
+                :aria-selected="tab==='ficha'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='ficha' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-file-lines" aria-hidden="true"></i> Ficha
+        </button>
+        <button @click="tab='movimientos'" type="button" role="tab" id="tab-movimientos" aria-controls="panel-movimientos"
+                :aria-selected="tab==='movimientos'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='movimientos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Movimientos
+          <span class="badge" :class="tab==='movimientos' ? 'badge-info' : 'badge-gray'">{{ n_movimientos }}</span>
+        </button>
+        <button @click="tab='novedades'" type="button" role="tab" id="tab-novedades" aria-controls="panel-novedades"
+                :aria-selected="tab==='novedades'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='novedades' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-list" aria-hidden="true"></i> Novedades
+          <span class="badge" :class="tab==='novedades' ? 'badge-info' : 'badge-gray'">{{ n_novedades }}</span>
+        </button>
+        <button @click="tab='adjuntos'" type="button" role="tab" id="tab-adjuntos" aria-controls="panel-adjuntos"
+                :aria-selected="tab==='adjuntos'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='adjuntos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-folder-open" aria-hidden="true"></i> Adjuntos
+          <span class="badge" :class="tab==='adjuntos' ? 'badge-info' : 'badge-gray'">{{ n_adjuntos }}</span>
+        </button>
+        <button @click="tab='historial'" type="button" role="tab" id="tab-historial" aria-controls="panel-historial"
+                :aria-selected="tab==='historial'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='historial' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          Historial de cambios
+        </button>
+      </div>
+
+      <div x-show="tab==='ficha'" x-cloak role="tabpanel" id="panel-ficha" aria-labelledby="tab-ficha" class="p-5 space-y-3">
+        {% for s in secciones %}
+        {% include "components/_ficha_seccion.html" with codigo=s.codigo titulo=s.titulo avance=s.avance avance_tono=s.avance_tono sensibilidad=s.sensibilidad sensibilidad_tono=s.sensibilidad_tono bloqueada=s.bloqueada motivo=s.motivo completa=s.completa completar_url=s.completar_url campos=s.campos vacio_texto=s.vacio_texto %}
+        {% empty %}
+        {% include "components/_estado_vacio.html" with icono="fa-file-lines" titulo="La ficha todavía no tiene secciones" texto="Se arman con los campos configurados para este tipo de dispositivo." %}
+        {% endfor %}
+      </div>
+
+      <div x-show="tab==='movimientos'" x-cloak role="tabpanel" id="panel-movimientos" aria-labelledby="tab-movimientos">
+        {% include "components/_estado_vacio.html" with icono="fa-clock-rotate-left" titulo="Sin movimientos" texto="Los ingresos, cambios de plaza y egresos de la estadía aparecen acá." %}
+      </div>
+
+      <div x-show="tab==='novedades'" x-cloak role="tabpanel" id="panel-novedades" aria-labelledby="tab-novedades">
+        {% include "components/_estado_vacio.html" with icono="fa-list" titulo="Sin novedades" texto="Las novedades que carga el equipo aparecen acá." %}
+      </div>
+
+      <div x-show="tab==='adjuntos'" x-cloak role="tabpanel" id="panel-adjuntos" aria-labelledby="tab-adjuntos">
+        {% include "components/_estado_vacio.html" with icono="fa-folder-open" titulo="Sin adjuntos" texto="Los documentos de la estadía aparecen acá." %}
+      </div>
+
+      <div x-show="tab==='historial'" x-cloak role="tabpanel" id="panel-historial" aria-labelledby="tab-historial">
+        {% include "components/_estado_vacio.html" with icono="fa-clock-rotate-left" titulo="Sin cambios registrados" texto="Cada cambio de la ficha queda con quién lo hizo y cuándo." %}
+      </div>
+    </div>
+
+    <div class="space-y-4 min-w-0">
+
+      <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-2">
+          <h2 class="text-heading font-bold">Línea de tiempo</h2>
+          {% if puede_cargar_novedad %}<a href="{{ url_novedad }}" class="btn-nodo btn-tertiary btn-sm btn-fit"><i class="fas fa-plus" aria-hidden="true"></i> Novedad</a>{% endif %}
+        </div>
+        <div class="p-5">
+          {% include "components/_linea_tiempo.html" with eventos=eventos %}
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-light"><h2 class="text-heading font-bold">Otras estadías en la red</h2></div>
+        <div class="p-5 space-y-2 text-sm text-body">
+          {% for o in otras_estadias %}
+          <p><span class="badge badge-info badge-dot">{{ o.estado }}</span> {{ o.detalle }}</p>
+          {% empty %}
+          <p class="text-body-subtle">No tiene otras estadías abiertas en la red.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-2">
+          <h2 class="text-heading font-bold">Adjuntos</h2>
+          <span class="badge badge-gray">{{ n_adjuntos }}</span>
+        </div>
+        <div class="p-5">
+          <ul class="space-y-2 text-sm text-body">
+            {% for a in adjuntos %}
+            <li class="flex items-center gap-2"><i class="fas fa-paperclip text-body-subtle" aria-hidden="true"></i> <a href="{{ a.url }}" class="text-fg-brand hover:underline">{{ a.nombre }}</a> <span class="text-xs text-body-subtle">· {{ a.fecha }}</span></li>
+            {% empty %}
+            <li class="text-body-subtle">Sin adjuntos.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

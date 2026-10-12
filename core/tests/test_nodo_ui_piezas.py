@@ -26,6 +26,9 @@ ALERTA = "components/_alerta.html"
 FORM_ERRORES = "components/_form_errores.html"
 UBICACION = "components/_ubicacion.html"
 STEPPER = "components/_stepper.html"
+LINEA_TIEMPO = "components/_linea_tiempo.html"
+FICHA_SECCION = "components/_ficha_seccion.html"
+REVISION = "programas/dispositivos/estadia/revision_referencia.html"
 
 
 def _pagina(total, numero=1, por_pagina=10):
@@ -594,6 +597,206 @@ class UbicacionTest(SimpleTestCase):
 
         enlace = html[html.index("/p.pdf") :]
         self.assertIn("se abre en una pestaña nueva", enlace)
+
+
+class LineaTiempoTest(SimpleTestCase):
+    def test_dibuja_cada_evento_con_su_cuando_y_su_titulo(self):
+        eventos = [
+            {"cuando": "08/09 · 16:48", "titulo": "Ficha actualizada", "detalle": "sección A"},
+            {"cuando": "03/09 · 19:40", "titulo": "Ingreso", "tono": "success"},
+        ]
+        html = render_to_string(LINEA_TIEMPO, {"eventos": eventos})
+
+        self.assertEqual(html.count("<li "), 2)
+        self.assertIn("08/09 · 16:48", html)
+        self.assertIn("Ficha actualizada</strong> · sección A", html)
+        self.assertIn("border-success", html)
+        self.assertIn("border-brand", html)
+
+    def test_tono_y_badge_son_opcionales(self):
+        html = render_to_string(
+            LINEA_TIEMPO,
+            {"eventos": [{"cuando": "x", "titulo": "Novedad", "tono": "danger", "badge": "sensible"}]},
+        )
+
+        self.assertIn("border-danger", html)
+        self.assertIn('badge badge-warning">sensible', html)
+        self.assertNotIn("border-brand", html)
+
+    def test_sin_eventos_muestra_el_estado_vacio(self):
+        html = render_to_string(LINEA_TIEMPO, {"eventos": []})
+
+        self.assertIn("Sin movimientos todavía", html)
+        self.assertNotIn("<ol", html)
+
+    def test_escapa_los_textos(self):
+        html = render_to_string(LINEA_TIEMPO, {"eventos": [{"cuando": "<i>", "titulo": "<b>x</b>"}]})
+
+        self.assertNotIn("<b>x", html)
+        self.assertIn("&lt;b&gt;x", html)
+
+
+class FichaSeccionTest(SimpleTestCase):
+    def _render(self, **contexto):
+        return render_to_string(FICHA_SECCION, {"codigo": "salud", "titulo": "9 · Salud", **contexto})
+
+    def test_seccion_legible_muestra_campos_avance_y_es_plegable(self):
+        campos = [
+            {"etiqueta": "Cobertura", "valor": "No"},
+            {"etiqueta": "Ingreso mensual", "valor": "falta", "estado": "falta"},
+            {"etiqueta": "Total egresos", "valor": "se calcula", "estado": "calculado"},
+        ]
+        html = self._render(avance=60, sensibilidad="Sensible · salud", campos=campos)
+
+        self.assertIn("Cobertura", html)
+        self.assertIn("60 %", html)
+        self.assertIn('aria-valuenow="60"', html)
+        self.assertIn("--avance:60%", html)
+        self.assertIn("badge badge-warning", html)
+        self.assertIn('aria-controls="ficha-salud"', html)
+        self.assertIn('id="ficha-salud"', html)
+        self.assertIn("text-fg-danger font-semibold", html)
+        self.assertIn('text-body-subtle">se calcula', html)
+        self.assertNotIn("nodo-ficha-bloqueada", html)
+
+    def test_por_defecto_abierta_y_con_abierta_false_plegada(self):
+        self.assertIn("{ abierta: true }", self._render())
+        self.assertIn("{ abierta: false }", self._render(abierta=False))
+
+    def test_sin_avance_no_hay_medidor_y_el_tono_warning_cambia_el_color(self):
+        self.assertNotIn("progressbar", self._render())
+        html = self._render(avance=20, avance_tono="warning")
+        self.assertIn("bg-warning", html)
+        self.assertNotIn("block h-full bg-brand", html)
+
+    def test_sin_campos_muestra_el_texto_de_vacio(self):
+        self.assertIn("Sin datos todavía.", self._render())
+        self.assertIn("Plazo de 15 días", self._render(vacio_texto="Plazo de 15 días"))
+
+    def test_completar_nombra_la_seccion(self):
+        html = self._render(avance=0, completar_url="/c/")
+
+        self.assertIn('href="/c/"', html)
+        self.assertIn('completar<span class="sr-only"> 9 · Salud</span>', html)
+
+    def test_bloqueada_no_se_oculta_y_no_muestra_datos(self):
+        html = self._render(
+            bloqueada=True,
+            avance=80,
+            sensibilidad="Sensible · psicosocial",
+            sensibilidad_tono="danger",
+            completa="el equipo de psicología",
+            campos=[{"etiqueta": "Secreto", "valor": "no se ve"}],
+        )
+
+        self.assertIn("nodo-ficha-bloqueada", html)
+        self.assertIn("9 · Salud", html)
+        self.assertIn("80 %", html)
+        self.assertIn("badge badge-danger", html)
+        self.assertIn("Tu rol no accede a esta sección.", html)
+        self.assertIn("La completa el equipo de psicología.", html)
+        self.assertIn("fa-lock", html)
+        self.assertNotIn("Secreto", html)
+        self.assertNotIn("no se ve", html)
+        self.assertNotIn("<button", html)
+        self.assertNotIn("\U0001f512", html)
+
+
+class RevisionReferenciaTest(TestCase):
+    """La golden del arquetipo Revisión se renderiza con los datos de ejemplo del mockup P7."""
+
+    def _contexto(self):
+        return {
+            "persona": {"nombre_completo": "Ramírez, Jorge Daniel", "dni": "28.556.001", "edad": 45},
+            "ubicacion": "CIS N.º 3 · Pabellón A · plaza A-02",
+            "estadia": {"estado": "Alojado", "reingreso": True, "ingreso": "03/09/2026 19:40", "dias": 5},
+            "ficha": {
+                "pendiente": True,
+                "titulo": "Ficha al 45 %.",
+                "texto": "Faltan Situación laboral, Red de sostén y Salud.",
+                "url_completar": "/completar/",
+            },
+            "secciones": [
+                {
+                    "codigo": "a",
+                    "titulo": "A · Datos personales",
+                    "avance": 100,
+                    "campos": [{"etiqueta": "Oficio", "valor": "Albañilería"}],
+                },
+                {"codigo": "b", "titulo": "B · Situación laboral", "avance": 20, "avance_tono": "warning"},
+                {
+                    "codigo": "c12",
+                    "titulo": "12 · Consumos y situaciones de crisis",
+                    "bloqueada": True,
+                    "avance": 80,
+                    "sensibilidad": "Sensible · psicosocial",
+                    "sensibilidad_tono": "danger",
+                    "completa": "el equipo de psicología",
+                },
+            ],
+            "eventos": [{"cuando": "08/09 · 16:48", "titulo": "Ficha actualizada"}],
+            "puede_cambiar_plaza": True,
+            "url_cambiar_plaza": "/plaza/",
+            "puede_egresar": True,
+            "url_egresar": "/egresar/",
+            "puede_cargar_novedad": True,
+            "url_novedad": "/novedad/",
+            "n_movimientos": 6,
+            "n_novedades": 3,
+            "n_adjuntos": 2,
+            "adjuntos": [{"nombre": "DNI frente y dorso.pdf", "url": "/a/1", "fecha": "03/09"}],
+            "otras_estadias": [{"estado": "En seguimiento", "detalle": "Mírame/Vedia desde 20/03/2026"}],
+        }
+
+    def _html(self, **cambios):
+        contexto = {**self._contexto(), **cambios}
+        request = RequestFactory().get("/")
+        request.user = User.objects.create_user(username="u", password="x", is_superuser=True)
+        return render_to_string(REVISION, contexto, request=request)
+
+    def test_dibuja_identidad_secciones_linea_de_tiempo_y_acciones(self):
+        html = self._html()
+
+        self.assertIn("Ramírez, Jorge Daniel", html)
+        self.assertIn("CIS N.º 3 · Pabellón A · plaza A-02", html)
+        self.assertIn("Reingreso", html)
+        self.assertIn("Ficha al 45 %.", html)
+        self.assertIn("Completar ahora", html)
+        self.assertIn("A · Datos personales", html)
+        self.assertIn("nodo-ficha-bloqueada", html)
+        self.assertIn("Ficha actualizada", html)
+        self.assertIn("Cambiar plaza", html)
+        self.assertIn("Egresar", html)
+
+    def test_las_acciones_dependen_de_las_capacidades_que_trae_la_vista(self):
+        html = self._html(puede_egresar=False, puede_cargar_novedad=False)
+
+        self.assertNotIn("Egresar", html)
+        self.assertNotIn("/novedad/", html)
+        self.assertIn("Cambiar plaza", html)
+
+    def test_sin_ficha_pendiente_no_hay_alerta(self):
+        self.assertNotIn("Completar ahora", self._html(ficha={"pendiente": False}))
+
+    def test_la_seccion_bloqueada_sigue_estando_y_muestra_quien_la_completa(self):
+        html = self._html()
+
+        self.assertIn("12 · Consumos y situaciones de crisis", html)
+        self.assertIn("La completa el equipo de psicología.", html)
+
+    def test_solapas_con_aria_y_contadores(self):
+        html = self._html()
+
+        for tab in ("ficha", "movimientos", "novedades", "adjuntos", "historial"):
+            self.assertIn(f'id="tab-{tab}" aria-controls="panel-{tab}"', html)
+            self.assertIn(f'id="panel-{tab}" aria-labelledby="tab-{tab}"', html)
+        self.assertIn('role="tablist" aria-label="Secciones de la estadía"', html)
+
+    def test_sin_emoji(self):
+        html = self._html()
+
+        self.assertNotIn("\U0001f512", html)
+        self.assertNotIn("\U0001f4ce", html)
 
 
 class FormErroresTest(SimpleTestCase):
