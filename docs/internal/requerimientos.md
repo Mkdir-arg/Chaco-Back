@@ -31676,7 +31676,7 @@ en la pieza**.
 Está documentado en la ficha y tiene test.
 
 **La galería va en su card, no dentro de un evento de la línea de tiempo**, porque esa pieza todavía
-no tiene slot de cuerpo (Cambio 210). Todas las imágenes llevan `loading="lazy"`, `decoding="async"` y
+no tiene slot de cuerpo (Cambio 216). Todas las imágenes llevan `loading="lazy"`, `decoding="async"` y
 `alt` real —cae al rótulo si falta, nunca vacío—, y la `url` tiene que ser un archivo servido por la
 vista autenticada: `media/` está detrás de login.
 
