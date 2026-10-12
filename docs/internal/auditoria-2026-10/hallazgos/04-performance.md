@@ -16,9 +16,9 @@ exige que coincidan).
 | PERF-04 | Carga de padrón: cruce caso por caso (13.942 sentencias) | ALTA | CONF. medido; prototipo listo | 4 | M | ✅ |
 | PERF-02 | Cupo y beneficiarios: páginas anchas con join | ALTA | CONF. medido en MariaDB (8,99 s de SQL) | 4 | S | ✅ |
 | PERF-01 | `armar_payload` por candidato y `hidratar()` con JSON que nadie lee | MEDIA | CONF. ajustado | 4 | S | ✅ |
-| PERF-03 | Excel de respuestas por persona: 8,9 s de CPU en el request | MEDIA (baja desde ALTA) | CONF. ajustado | 4 | S-M | 🟡 |
+| PERF-03 | Excel de respuestas por persona: 8,9 s de CPU en el request | MEDIA (baja desde ALTA) | CONF. ajustado | 4 | S-M | ✅ |
 | PERF-07 | Pantalla del masivo: `count()` con 15.532 literales cada 5 s | MEDIA | CONF. ajustado | 4 | S | ✅ |
-| PERF-11 | La foto `definicion` en cada caso (88 % de los bytes) | MEDIA (estructural) | CONF. medido | 7 | L | ⬜ |
+| PERF-11 | La foto `definicion` en cada caso (88 % de los bytes) | MEDIA (estructural) | CONF. medido | 7 | L | ⏸️ diferida |
 | PERF-20 | `generar_alertas` recorre todos los ciudadanos activos cada hora | MEDIA | CONF. medido | 4 | S | ✅ |
 | G1b-11 | Export del dashboard: un `JSON_EXTRACT` por pregunta sobre todo el recorte | MEDIA | PLAUSIBLE | 4 | M | ✅ |
 | G1c-09 | Admin: fichas de Formulario y Derivación que crecen con la tabla | MEDIA | CONF. test | 4 | S | ✅ |
@@ -193,6 +193,51 @@ tiene 34 columnas y 12 preguntas de opciones cerradas donde el de entonces tení
 (`test_el_csv_trae_exactamente_lo_mismo_que_el_xlsx`, `test_los_dos_formatos_neutralizan_las_formulas`,
 `test_formato_invalido_permisos_y_alcance_valen_igual_para_el_csv` y `test_la_pantalla_ofrece_los_dos_formatos`).
 
+**Resolución (punto 3):** ✅ en #NNN (Cambio 209, Ola 4 PR 10), 12-oct-2026 — **sin la cola ni el worker que pedía la
+propuesta**. `ExportacionPendiente` + CronJob supone una infraestructura que no existe: el repo no tiene cola ni worker,
+y los CronJobs de ECOM son manifiestos que mantiene ECOM (H-05 sigue sin respuesta). Entra la alternativa que no
+necesita nada nuevo: **el archivo se arma de a lotes mientras se escribe, y el CSV se transmite**.
+- **El reporte pasó a ser perezoso.** `respuestas_por_persona_en_lotes` devuelve el encabezado y el alcance ya
+  resueltos y las filas en un iterador por lotes; `respuestas_por_persona` queda como la forma materializada para quien
+  necesita contarlas. El CSV sale por `StreamingHttpResponse` en trozos de 64 KB (`respuesta_csv_en_streaming`), y el
+  XLSX alimenta el `Workbook(write_only=True)` con el mismo iterador.
+- **Ninguna consulta mira la convocatoria entera.** Era el riesgo real contra el `read_timeout` de 10 s: la pasada
+  principal traía **todas** las filas anchas —con el JSON de `data`— en un solo SELECT. Ahora se leen los ids en una
+  consulta angosta y el resto va por lotes de `LOTE_RESPUESTAS` casos, con 3 consultas acotadas por lote. La lectura de
+  `respuestas` dejó de ser una segunda consulta por los mismos ids: viaja con la fila del lote, que ya está acotada.
+- **Son dos pasadas, y la primera es el precio del encabezado.** Las columnas «ya no está en el formulario» solo se
+  conocen después de mirar lo que contestó **cada** caso, y el encabezado se escribe antes que la primera fila. Esa
+  pasada lee únicamente los dos JSON y solo mira las claves: descarta con un `set` las que ya tienen columna y corre el
+  motor de condiciones solo para el caso que trae alguna desconocida.
+- **Medido en el banco** (`scripts/perf_mysql`, **MySQL 8** del puerto 3308 —el contenedor `mariadb:10.11` del Cambio
+  189 ya no existe en esta máquina—, 20.000 casos × 34 columnas, CPU mejor de 3, dos rondas antes/después en la misma
+  sesión):
+
+  | | antes | después |
+  |---|---|---|
+  | CSV: CPU · reloj | 6,2-6,5 s · 8,2-10,6 s | 7,8-8,1 s · 14,2-15,1 s |
+  | **CSV: primer byte** | 8,2-10,6 s (todo junto al final) | **3,9-6,2 s**, y después un trozo cada 64 KB |
+  | XLSX: CPU · reloj | 15,1-17,4 s · 18,2-24,1 s | 18,1-19,9 s · 23,8-33,6 s |
+  | **Pico del proceso** | 205-219 MB | **134-139 MB** |
+  | Consultas (CSV · XLSX) | 27 · 27-30 | 46 · 49 |
+
+  **El costo está declarado:** ~20 % más de CPU y más consultas, por la segunda lectura de los dos JSON. Lo que se
+  gana es que la memoria no crece con la convocatoria (−37 %), que ninguna consulta puede pasarse del `read_timeout` y
+  que el CSV deja de tener un único salto de 10 s sin un byte: con el cuerpo fluyendo, un timeout **de inactividad**
+  del ingress ya no corta la descarga por grande que sea la convocatoria.
+- **Lo que queda abierto, con nombre:** el **XLSX se sigue armando entero dentro del request** (no hay forma de
+  transmitir un zip que openpyxl escribe de una sola vez), así que para una convocatoria donde el xlsx no entre en la
+  ventana del ingress la respuesta sigue siendo el **CSV** del Cambio 189, que ahora sí escala. Si ECOM algún día tiene
+  cola, el punto 3 original (archivo + link) se puede hacer encima de esto sin tocar el servicio: ya devuelve filas por
+  lotes.
+**Test permanente:** `programas.tests.test_export_respuestas_streaming` —
+`EquivalenciaConElExportAnteriorTests.test_las_filas_son_las_mismas_que_las_del_algoritmo_anterior` (contra una copia
+congelada del algoritmo del Cambio 189, celda por celda),
+`EquivalenciaConElExportAnteriorTests.test_el_csv_transmitido_es_byte_por_byte_el_que_armaba_respuesta_reporte`,
+`ArmadoPorLotesTests.test_ninguna_consulta_ancha_mira_mas_de_un_lote_de_casos`,
+`ArmadoPorLotesTests.test_el_primer_trozo_del_csv_sale_sin_haber_leido_todos_los_casos` y
+`AlcanceDelCsvTransmitidoTests` (anónimo, sin capacidad, con la capacidad justa —sin RN-P13— y superusuario).
+
 
 ### PERF-07 · Pantalla del proceso masivo: `candidatos().count()` con 15.532 literales, recalculado cada 5 s
 **Severidad:** MEDIA · **Estado:** CONFIRMADO-AJUSTADO · **Origen:** A4-08, V4-NEW-03 · **Ola:** 4 · **Esfuerzo:** S
@@ -231,6 +276,15 @@ Medido en el banco MariaDB 10.11 (20.000 casos, 22.000 DNI habilitados):
 **Severidad:** MEDIA (estructural) · **Estado:** CONFIRMADO (medido: 5,3 de 6,0 KB de JSON por caso, 88 %; todos los casos del banco comparten la misma foto) · **Origen:** A4-12 · **Ola:** 7 (plan propio) · **Esfuerzo:** L
 - **Raíz de** PERF-02, PERF-01 (V4-NEW-02) y los `defer` de los Cambios 66, 91, 92 y 93.
 - **Propuesta:** tabla `FotoDefinicion` deduplicada por huella + FK desde `Formulario`, rellenada por lotes (migración de datos larga sobre la tabla más grande: ver README §0, gotchas de MariaDB). **No** recomendado: un queryset por defecto que difiera `definicion` (cualquier lector que la toque en un bucle se vuelve N+1 sin aviso). En su lugar, ya en Ola 4: método explícito `Formulario.objects.listado()` = `defer` de los 4 JSON, usado en todo listado nuevo, y un test que recorra las vistas paginadas de `programas/views/` y falle si el SQL de la página contiene `"definicion"` (estilo `pagina_trae_definicion` del harness).
+
+**Diferida ⏸️ — decisión del PM del 09-oct-2026: queda fuera del alcance de la auditoría.** La tabla `FotoDefinicion`
+deduplicada se hace **como proyecto propio, en otro momento**. El motivo es el que la propia ficha ya anotaba: es un
+cambio estructural (modelo nuevo, FK en `programas_formulario`, migración de datos larga sobre la tabla más grande del
+sistema, ventana acordada con ECOM y expand/contract en tres releases), de un tamaño que no entra en una ola de
+remediación. Nada de lo que depende de ella queda sin atender mientras tanto: los lectores calientes ya no piden la
+foto por fila —PERF-01, PERF-02 y PERF-03 se cerraron difiriendo `definicion` explícitamente, y el export tiene su
+propio test de que ninguna consulta la nombra (`test_export_respuestas_presupuesto`)—. **No se toca `definicion` hasta
+que ese proyecto arranque.**
 
 ### PERF-20 · `generar_alertas` recorre todos los ciudadanos activos cada hora
 **Severidad:** MEDIA (escala con el volumen de Becas y corre contra PRD; BAJA si ECOM no tiene el CronJob) · **Estado:** CONFIRMADO (medido) · **Origen:** V3-NEW-03, A8-10 (= OPS-08) · **Ola:** 4 (con LEG-01) · **Esfuerzo:** S

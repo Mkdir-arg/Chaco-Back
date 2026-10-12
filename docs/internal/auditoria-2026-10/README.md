@@ -1,5 +1,11 @@
 # Auditoría integral de DATAÑACH (Chaco) — octubre 2026
 
+## Estado al 12-oct-2026 (Ola 4, PR 10: el export grande fuera del armado en bloque — **la Ola 4 cierra**)
+
+| PR | Cambio | Fichas | Estado | Qué quedó abierto |
+|---|---|---|---|---|
+| Ola 4 PR 10 | 209 | PERF-03 punto 3 ✅ · PERF-11 ⏸️ diferida | ✅ | **El punto que le faltaba a PERF-03, sin la cola ni el worker que pedía la propuesta** (no hay ninguna de las dos en el repo ni en ECOM, y H-05 sigue sin respuesta): el export «respuestas por persona» se arma **de a lotes mientras se escribe el archivo** y el CSV se transmite con `StreamingHttpResponse`. Tres cosas cambian. (1) **Ninguna consulta mira la convocatoria entera**: la pasada principal traía todas las filas anchas —con el JSON de `data`— en un solo SELECT, que es el riesgo real contra el `read_timeout` de 10 s de ECOM; ahora son los ids en una consulta angosta y después lotes de `LOTE_RESPUESTAS` casos, 3 consultas acotadas cada uno, y `respuestas` viaja con la fila del lote en vez de pedirse en una segunda consulta por los mismos ids. (2) **El reporte es perezoso**: `respuestas_por_persona_en_lotes` devuelve encabezado y alcance resueltos y las filas en un iterador; el CSV sale en trozos de 64 KB y el XLSX alimenta el `write_only` con ese mismo iterador. (3) **Lo que se descarga no cambia**, y hay dos tests que lo sostienen: una copia congelada del algoritmo del Cambio 189 comparada celda por celda, y el cuerpo del CSV comparado **byte por byte** con el que armaba `respuesta_reporte`. **Medido** en el banco (MySQL 8 del puerto 3308 —el `mariadb:10.11` del Cambio 189 ya no existe en esta máquina—, 20.000 casos × 34 columnas): pico del proceso **219 → 139 MB** y primer byte del CSV **8,2-10,6 s → 3,9-6,2 s**, con el cuerpo fluyendo después; **el costo declarado** son ~20 % más de CPU y 46 consultas en vez de 27, por la segunda lectura de los dos JSON, que es lo que el encabezado necesita para existir antes de la primera fila (las columnas «ya no está en el formulario» solo se conocen mirando lo que contestó cada caso). **Lo que queda abierto, con nombre:** el **XLSX se sigue armando entero dentro del request** —no hay forma de transmitir un zip que openpyxl escribe de una vez—, así que para una convocatoria que no entre en la ventana del ingress la respuesta sigue siendo el CSV del Cambio 189, que ahora sí escala. **PERF-11 queda fuera del alcance de la auditoría por decisión del PM del 09-oct-2026**: la tabla `FotoDefinicion` deduplicada se hace como proyecto propio. **Para el juez:** las horas de la Ola 4 y la línea de la tabla que todavía dice «2 restantes: el punto 3 de PERF-03». |
+
 ## Estado al 12-oct-2026 (Ola 7, PR 6: segundas partes de la red de seguridad)
 
 | PR | Cambio | Fichas | Estado | Qué quedó abierto |
@@ -2152,14 +2158,16 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
 - **PRs y orden:** (1) ✅ PERF-04 + PERF-16 (padrón; prototipo listo) 10 h (Cambio 182) · (2) ✅ PERF-02 (cupo) 2 h
   (Cambio 182; los PRs 1 y 2 salieron juntos) · (3) ✅ PERF-01 (+V4-NEW-02),
   PERF-19, PERF-07, PERF-06 (circuito SIIS) 8 h (Cambio 186) · (4) ✅ PERF-20 + LEG-01 (alertas) 6 h (Cambio 187) ·
-  (5) ✅ PERF-03 (`lxml` + botón CSV, **parcial:** el punto 3 sigue abierto), G1b-11, G1b-12 (exports y dashboard)
+  (5) ✅ PERF-03 (`lxml` + botón CSV, **parcial:** el punto 3 lo cierra el PR 10), G1b-11, G1b-12 (exports y dashboard)
   14 h (Cambio 189) · (6) ✅ PERF-08, PERF-10 (config) 4 h (Cambio 192) · (7) ✅ G1c-09, G1c-11 (admin) 4 h
   (Cambio 192) · (8) ✅ PERF-12, PERF-13, PERF-15 (medidas en el banco; **ningún índice entra**: el plan no lo pide)
   4 h (Cambio 192) · (9) ✅ *Red de seguridad (04-oct):*
   RED-62 ✅ (presupuestos que suben exigen justificación) y segundas partes de RED-10 ✅ (destinos del Performance Guard
   para el paso 2 del link y el alta por API), ✅ RED-49 (renombrar las tres acepciones de `cupo_disponible`, con
   PERF-02 — Cambio 182), RED-51 ✅
-  (cache del dashboard por modelo) y RED-83 ✅ (quitar los índices redundantes) 12 h (Cambio 194). **Cierra la Ola 4.**
+  (cache del dashboard por modelo) y RED-83 ✅ (quitar los índices redundantes) 12 h (Cambio 194) ·
+  (10) ✅ **PERF-03 punto 3** (el export grande se arma por lotes mientras se escribe y el CSV se transmite; **sin cola
+  ni worker**, que no existen en el repo ni en ECOM) (Cambio 209). **Cierra la Ola 4.**
 - **Hecho cuando:** V-STD + `test --tag performance`; presupuestos nuevos en `perf_budgets.json` (`becas_cupo_segmento`,
   `becas_proceso_masivo`); tests de consultas constantes (PERF-04, PERF-01, PERF-20, G1c-09); los criterios de cierre en
   el banco MariaDB de `anexo-mediciones-performance.md`.
@@ -2260,8 +2268,8 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   G1b-10 ✅ (Cambio 197), **G1-01 fase 2** (apagar
   conversaciones completo: includes, `ws/conversaciones/…` y `ws/alertas-conversaciones/` —**no** `ws/alertas/`—, menú,
   card del inicio y solapa del legajo; 2 h; R0-01 se cierra antes, en la Ola 0), **R0-02 ✅** (Cambio 197 —
-  CLAUDE.md; `docs/client/architecture.md` ya estaba corregido) y **PERF-11** (tabla
-  `FotoDefinicion`, plan propio, L). **Red de seguridad (04-oct), 40 h:** RED-64 ✅ (Cambio 207 — aprobación antes de
+  CLAUDE.md; `docs/client/architecture.md` ya estaba corregido) y ~~**PERF-11** (tabla
+  `FotoDefinicion`, plan propio, L)~~ ⏸️ **PERF-11 fuera del alcance (decisión PM 09-oct-2026, proyecto propio)**. **Red de seguridad (04-oct), 40 h:** RED-64 ✅ (Cambio 207 — aprobación antes de
   publicar `docs/client/`; el gate encontró en su primera corrida una respuesta de RENAPER con los datos de una persona
   real publicada en el sitio, y el PR la despublica), RED-76 ✅ (Cambio 207 — mypy gradual, tres módulos anotados y en
   verde, job no bloqueante), RED-86 ✅ (Cambio 207 — suite en paralelo con la cobertura combinada y la alarma de
@@ -2277,8 +2285,9 @@ lo que va a tocar (flechas del diagrama y lista de la Ola R).
   RED-65 ✅ (sacar del guard del release los artefactos muertos) entró con OPS-10/OPS-14 en el Cambio 195.
 - **Hecho cuando:** V-STD + V-UI; `git grep -n "phase2\|core.performance.monitoring"` vacío; `pip-audit` y build de imagen
   OK; `collectstatic` sin 404.
-- **Riesgo de deploy:** bajo, salvo PERF-11 (migración de datos larga sobre `programas_formulario`: plan propio con ECOM,
-  por lotes, con el `read_timeout` de migrate y ventana acordada).
+- **Riesgo de deploy:** bajo. El único que no lo era —PERF-11, con su migración de datos larga sobre
+  `programas_formulario`— salió del alcance: se hace como proyecto propio, con ECOM, por lotes, con el `read_timeout`
+  de migrate y una ventana acordada.
 
 ---
 

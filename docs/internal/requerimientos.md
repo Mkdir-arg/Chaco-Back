@@ -380,6 +380,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 206 | Bloque de ubicación sin mapa: coordenadas, enlace externo y plano adjunto | Diseño · componentes | `#ui` | Decisión C-14 del PM (06/10) · task #587 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
 | 207 | Antes de publicar en internet mira alguien, la suite corre en paralelo y el tipado empieza a existir | Transversal — publicación de `docs/client/` en GitHub Pages · CI (`Tests & Coverage`, `Tipos (mypy)`) · motor de condiciones y cliente de Base de Personas (solo anotaciones) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-64, RED-76 y RED-86 (Ola 7, PR 5) | 09/10/2026 | 🟢 **Hecho** (el gate de publicación encontró y despublicó una respuesta de RENAPER con los datos de una persona real; el `environment` no es `github-pages`, que solo admite la rama `gh-pages`) | No |
 | 208 | Las segundas partes de la red de seguridad: esquema del dashboard, un solo sobre de error y el detalle de revisión partido | Transversal (esquema OpenAPI, sobre de error JSON, auditoría de diseño) · Becas (detalle de revisión, tablero del programa) · Legajos (APIs del detalle de ciudadano) | `#api` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas RED-37, RED-39 y RED-54 (Ola 7, PR 6) | 09/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
+| 209 | La descarga grande deja de armarse de una sola vez: el export de respuestas por persona sale de a lotes y el CSV se transmite | Becas — solapa «Dashboard» del programa (exportación de respuestas por persona) | `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — ficha PERF-03 punto 3 (Ola 4, PR 10); PERF-11 diferida por decisión del PM | 12/10/2026 | 🟢 **Hecho** (sin cola ni worker: no existen en el repo ni en ECOM. PERF-11 sale del alcance: proyecto propio) | No requiere |
 
 **Notas del índice**
 
@@ -31621,5 +31622,197 @@ para otros PRs, y el 206 entró a `development` mientras se cerraba esta ronda�
 las dos ramas agregan filas al final del índice y entradas al final del archivo, y `git` las
 interleó por los encabezados repetidos de la plantilla. Se conservaron las dos mitades enteras,
 sin tocar las cuentas de horas del README de la auditoría.
+
+---
+
+# Cambio 209 — La descarga grande deja de armarse de una sola vez: el export de respuestas por persona sale de a lotes y el CSV se transmite
+
+🟢 **HECHO — 12/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas — solapa «Dashboard» del programa (exportación «respuestas por persona», XLSX y CSV) |
+| **Etiquetas** | `#performance` `#relevamientos` `#datos` |
+| **Solicitante** | Auditoría integral oct-2026 — ficha PERF-03, punto 3 (Ola 4, PR 10). PERF-11 queda fuera del alcance por decisión del PM del 09/10/2026 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Auditoría oct-2026, Ola 4 (Performance) ítem 10 |
+| **Partes afectadas** | Backoffice (una vista y tres servicios). No toca Mobile, ni la API, ni la infraestructura |
+| **Migración** | No requiere |
+
+## Pedido original
+
+PERF-03 tenía tres puntos. Los dos primeros —`lxml` y el botón «CSV»— entraron en el
+Cambio 189. El tercero quedó abierto con su disparador escrito en la propia ficha:
+
+> (3) solo si 1 y 2 no alcanzan: exportación fuera del request (`ExportacionPendiente` +
+> CronJob/worker + link).
+>
+> **Severidad:** MEDIA (baja desde ALTA; **vuelve a ALTA si ECOM confirma un timeout de
+> ingress < 30 s o hay convocatorias > 40k casos**).
+
+El objetivo del pedido: que una convocatoria de más de 40.000 casos, o un ingress con un
+timeout menor a 30 s, no corte la descarga. Y, en el mismo PR, dejar registrada la
+decisión del PM sobre PERF-11.
+
+## Alcance acordado
+
+Entra el punto 3 de PERF-03 **sin infraestructura nueva**. Queda explícitamente afuera:
+
+- **La cola y el worker.** No hay ninguna de las dos en el repo ni en ECOM, y los
+  CronJobs de allá son manifiestos que mantiene ECOM (H-05 sigue sin respuesta). Meter
+  Celery —o un CronJob nuevo— para una pantalla es infraestructura que después hay que
+  operar, monitorear y desplegar en dos ambientes.
+- **PERF-11** (tabla `FotoDefinicion` deduplicada): **decisión del PM del 09/10/2026**,
+  se hace como proyecto propio, en otro momento. Acá solo se marca como diferida en la
+  ficha y en el README de la auditoría.
+- **Las cuentas de horas** del README de la auditoría: las actualiza el juez.
+
+## Decisiones tomadas
+
+- **La alternativa sin infraestructura es «armar de a lotes mientras se escribe».** El
+  reporte pasó a ser perezoso: `respuestas_por_persona_en_lotes` devuelve el encabezado
+  y el alcance ya resueltos, y las filas en un iterador que se arma por lotes a medida
+  que el archivo se escribe. El CSV sale con `StreamingHttpResponse` en trozos de 64 KB;
+  el XLSX alimenta el `Workbook(write_only=True)` con ese mismo iterador.
+- **Lo que de verdad amenazaba a ECOM no era el tiempo del request, era una consulta.**
+  La pasada principal traía **todas** las filas anchas de la convocatoria —con el JSON de
+  `data`— en un solo SELECT. El `read_timeout` de 10 s vale **por consulta**: con 40.000
+  casos esa sola consulta es de cientos de MB. Ahora se leen los ids en una consulta
+  angosta (8 bytes por caso) y el resto va por lotes de `LOTE_RESPUESTAS` casos, con tres
+  consultas acotadas por lote. **Ninguna consulta del export mira más de un lote**, y hay
+  un test que lee el SQL capturado y lo exige.
+- **`respuestas` dejó de pedirse dos veces.** Hasta el Cambio 189 el export leía cada
+  fila dos veces: la pasada ancha y, después, una segunda consulta por los mismos ids
+  para traerse `respuestas`. Con los dos pasos acotados al mismo lote eso no tiene
+  sentido: `respuestas` viaja con la fila. La foto `definicion` **sigue sin pedirse
+  nunca** por fila, con su test.
+- **Son dos pasadas sobre los casos, y la primera es el precio del encabezado.** Las
+  columnas «ya no está en el formulario» —las preguntas que alguien contestó y que el
+  formulario de hoy no tiene— solo se conocen después de mirar lo que contestó **cada**
+  caso, y el encabezado del archivo se escribe antes que la primera fila. Esa primera
+  pasada lee únicamente los dos JSON y solo mira **las claves**: las que ya tienen
+  columna se descartan con un `set`, y el motor de condiciones corre solo para el caso
+  que trae alguna desconocida, que es lo que no pasa casi nunca.
+- **El costo se declara, no se esconde.** Medido en el banco (`scripts/perf_mysql`,
+  MySQL 8 del puerto 3308, 20.000 casos × 34 columnas, CPU mejor de 3, dos rondas
+  antes/después en la misma sesión):
+
+  | | antes | después |
+  |---|---|---|
+  | CSV: CPU · reloj | 6,2-6,5 s · 8,2-10,6 s | 7,8-8,1 s · 14,2-15,1 s |
+  | **CSV: primer byte** | 8,2-10,6 s (todo al final) | **3,9-6,2 s**, y después un trozo cada 64 KB |
+  | XLSX: CPU · reloj | 15,1-17,4 s · 18,2-24,1 s | 18,1-19,9 s · 23,8-33,6 s |
+  | **Pico del proceso** | 205-219 MB | **134-139 MB** |
+  | Consultas (CSV · XLSX) | 27 · 27-30 | 46 · 49 |
+
+  Son ~20 % más de CPU y más consultas, por la segunda lectura de los dos JSON. A cambio:
+  la memoria no crece con la convocatoria (−37 %), ninguna consulta puede pasarse del
+  `read_timeout`, y el CSV deja de tener un único salto de 10 s sin mandar un byte. Con
+  el cuerpo fluyendo, un timeout **de inactividad** del ingress ya no corta la descarga
+  por grande que sea la convocatoria: el total deja de importar.
+- **El XLSX se sigue armando entero dentro del request, y está dicho.** No hay forma de
+  transmitir un zip que `openpyxl` escribe de una sola vez; lo que gana es la memoria y
+  el recorte de las consultas. Para una convocatoria que no entre en la ventana del
+  ingress, la respuesta sigue siendo el **CSV** del Cambio 189 —que es exactamente para
+  lo que se agregó— y ahora sí escala.
+- **Bajo daphne, un iterador sincrónico no se transmite.** Django lo junta entero con
+  `sync_to_async(list)` y recién después manda el cuerpo (`django/http/response.py`), que
+  es justo lo que este export quiere evitar. El `web` de los manifiestos corre gunicorn,
+  pero los de ECOM no los tenemos (H-05): si la vista cae en un proceso ASGI, el cuerpo
+  se adapta a iterador asincrónico, con cada `next` en el hilo sensible donde ya está la
+  conexión a la base. Tiene su test en los dos modos.
+- **Lo que el usuario descarga no cambia, y se demuestra dos veces.** Una copia congelada
+  del algoritmo del Cambio 189 vive en el test y se compara celda por celda contra la
+  versión por lotes, sobre un dataset con adjuntos, condiciones que ocultan, campos
+  propios, preguntas dadas de baja y fórmulas de Excel. Y el cuerpo del CSV transmitido
+  se compara **byte por byte** contra el que armaba `respuesta_reporte`.
+- **Si una fila revienta con la respuesta ya empezada, no hay 500 que mandar.** El
+  generador del CSV queda envuelto en un `try` que deja el error en el log con la
+  convocatoria y corta la descarga: el archivo queda incompleto, no silenciosamente
+  corto. Todo lo que puede fallar antes del primer byte —permisos, alcance, el armado de
+  las columnas— sigue dando el 500 con mensaje de siempre.
+
+## Implementación
+
+La pantalla y la descarga se ven igual. Por dentro:
+
+1. El servicio resuelve el formulario vigente, el catálogo y los relevamientos
+   permitidos (RN-P13), y lee **los ids** de los casos en el orden de la planilla.
+2. Primera pasada por lotes: qué claves respondidas no tienen columna. De ahí salen las
+   columnas «ya no está en el formulario»; la cantidad de casos del alcance sale de la
+   lista de ids.
+3. Se arma el encabezado y el texto de alcance, y se devuelve un `ReportePerezoso`.
+4. La vista elige: **CSV** → `StreamingHttpResponse` que va escribiendo trozos de 64 KB;
+   **XLSX** → `respuesta_libro`, que consume el mismo iterador en modo `write_only`.
+5. Segunda pasada, lote por lote y a medida que el archivo se escribe: el caso con sus
+   respuestas y sus adjuntos, dos consultas acotadas, y las filas salen en orden.
+
+## Archivos
+
+- `programas/services/dashboard_becas.py` — `respuestas_por_persona_en_lotes` (nueva, es
+  la implementación), `respuestas_por_persona` (queda como la forma materializada),
+  `_claves_sin_columna`, `_filas_por_persona`, `_contestadas_de_data`,
+  `_adjuntos_de_los_casos`, `_lotes`, `_celdas_de_las_respuestas` (era
+  `_respuestas_de_los_casos`: ahora trabaja sobre el lote ya leído), `CONSULTAS_POR_LOTE`.
+- `programas/services/reportes.py` — `ReportePerezoso`.
+- `programas/services/exportacion_reportes.py` — `respuesta_csv_en_streaming`, `_Eco`,
+  `_trozos_del_csv`, `_como_asincrono`, `TROZO_CSV`.
+- `programas/views/dashboard_becas.py` — `programa_dashboard_respuestas` y `_vigilar`.
+- `scripts/perf_budgets.json` — `casos_por_consulta` 2000 → 666 con su `adjustments`.
+- `programas/tests/test_export_respuestas_streaming.py` (nuevo),
+  `programas/tests/test_dashboard_exports.py` y
+  `programas/tests/test_export_respuestas_presupuesto.py`.
+- `docs/internal/auditoria-2026-10/hallazgos/04-performance.md` y su `README.md`.
+
+## Base de datos
+
+No requiere. No hay modelos nuevos, ni columnas, ni migración: el cambio es cómo se leen
+las filas que ya existen.
+
+## Validación
+
+- `manage.py check` → sin problemas. `manage.py check --deploy` → los 4 avisos de
+  siempre del entorno local (SECRET_KEY y SSL). `makemigrations --check --dry-run` → «No
+  changes detected».
+- `manage.py test programas core` (Python 3.12 + Django 5.2.17, `.venv312`) → en verde.
+- `manage.py test programas.tests.test_export_respuestas_streaming` → 16 tests.
+- **TDD:** las dos afirmaciones centrales corridas contra `origin/development` fallan con
+  su mensaje («el CSV grande se arma entero antes de mandar un byte» y «una consulta del
+  export no está acotada a un lote de ids») y pasan con el cambio.
+- `ruff check .` y `ruff format --check` sobre lo tocado → limpio.
+- Banco `scripts/perf_mysql` (MySQL 8, puerto 3308, 20.000 casos): la tabla de arriba.
+  Los contenedores quedaron como estaban (parados) y el script de medición no se commitea.
+- No toca templates, CSS ni JS: no corresponde `design_audit` ni `compile_templates`.
+
+## Puesta en marcha en el servidor
+
+Nada. No hay variables, ni cron, ni comando manual, ni migración. El deploy es el de
+siempre.
+
+**Un detalle para quien opere nginx o el ingress:** la respuesta del CSV ahora es
+*chunked*. Si algún proxy intermedio tuviera `proxy_buffering` encendido con un buffer
+grande, puede retener el cuerpo y anular el beneficio (no rompe nada: la descarga llega
+igual). Nuestro `nginx` no lo cambia; en ECOM no tenemos los manifiestos (H-05).
+
+## Pendientes / a definir
+
+- **H-05 sigue abierta:** cuánto es el timeout del ingress de ECOM y de qué tipo
+  (inactividad o total). Con el CSV transmitido, un timeout de inactividad deja de
+  cortar la descarga; uno **total** la cortaría igual, y ahí sí haría falta el punto 3
+  original (archivo + link), que se puede construir encima de esto sin tocar el servicio.
+- **El XLSX de una convocatoria enorme sigue sin garantía** de entrar en la ventana del
+  ingress. Camino recomendado: el CSV.
+- **PERF-11** (tabla `FotoDefinicion` deduplicada): proyecto propio, decisión del PM del
+  09/10/2026.
+
+## Reversión
+
+Revertir el PR. No hay datos que migrar ni que perder: el cambio es de lectura. Después
+de revertir, el export vuelve a armarse entero en memoria y a leer la convocatoria en una
+sola consulta ancha.
+
+## Historial
+
+Primera versión.
 
 ---
