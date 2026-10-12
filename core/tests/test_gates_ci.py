@@ -98,6 +98,31 @@ HERRAMIENTAS_DEL_CI = (
 INVOCACION = re.compile(r"(?m)^\s*(?:python -m\s+)?(ruff|coverage|pip-audit|bandit|mkdocs|mypy)\b")
 #: Un `pip install` cualquiera. Lo único admitido es `-r <archivo>` o el `--upgrade pip`.
 PIP_INSTALL = re.compile(r"(?m)^\s*(?:python -m\s+)?pip install\s+(?P<argumentos>.+)$")
+#: Una invocación del runner de Django, con lo que venga detrás.
+MANAGE_TEST = re.compile(r"(?m)^.*\bmanage\.py test\b(?P<resto>.*)$")
+
+
+def _corre_la_suite_completa(comandos):
+    """¿Algún `run:` de estos comandos corre la suite **entera**?
+
+    «Entera» = sin módulos detrás y sin `--tag`, o sea la corrida que arrastra
+    `core.tests.test_dependencias`. Un token que no empieza con `-` y que no es el valor
+    de la bandera anterior (`--parallel 4`) es un módulo, y entonces la corrida es un
+    subconjunto.
+    """
+    for corrida in MANAGE_TEST.finditer(comandos):
+        tokens = corrida.group("resto").split()
+        if "--tag" in tokens:
+            continue
+        modulos = [
+            token
+            for indice, token in enumerate(tokens)
+            if not token.startswith("-")
+            and not (indice and tokens[indice - 1].startswith("--") and "=" not in tokens[indice - 1])
+        ]
+        if not modulos:
+            return True
+    return False
 
 
 def _cargar(nombre):
@@ -532,6 +557,31 @@ class HerramientasDelCiPineadasTests(SimpleTestCase):
                     continue
                 with self.subTest(workflow=ruta.name, job=nombre_job.get("name", "?")):
                     self.assertIn("pip install -r requirements-ci.txt", comandos)
+
+    def test_todo_job_que_corre_la_suite_completa_instala_requirements_ci(self):
+        """`requirements.txt` solo no alcanza para correr la suite entera.
+
+        El caso medido: el 13/10/2026 el `release-gate` del release `7c617406` salió rojo
+        con un único fallo —`TblibEnElCiTests.test_el_runner_de_django_lo_encuentra`—
+        porque su job «Suite completa (SQLite)» instalaba un archivo y `tblib` vive en el
+        otro (RED-88, Cambio 256). El test de arriba solo mira los jobs que **invocan**
+        una herramienta en un `run:`, y `tblib` no se invoca: la importa Django adentro de
+        `manage.py test`. Por eso hace falta este, que mira quién corre la suite.
+        """
+        sin_el_archivo = []
+        for ruta in sorted(WORKFLOWS.glob("*.yml")):
+            for nombre_job, comandos in self._runs(ruta.name):
+                if not _corre_la_suite_completa(comandos):
+                    continue
+                if "pip install -r requirements-ci.txt" not in comandos:
+                    sin_el_archivo.append(f"{ruta.name}: {nombre_job.get('name', '?')}")
+
+        self.assertEqual(
+            sin_el_archivo,
+            [],
+            "estos jobs corren la suite completa sin instalar `requirements-ci.txt`, así que "
+            f"`core.tests.test_dependencias` los va a poner rojos: {sin_el_archivo}",
+        )
 
     def test_requirements_ci_no_trae_nada_de_la_aplicacion(self):
         """La separación es el punto de la ficha: lo que importa el producto va en
@@ -1055,6 +1105,30 @@ class ReleaseGateTests(SimpleTestCase):
 
     def test_corre_la_suite_completa(self):
         self.assertIn("manage.py test", self.texto)
+
+    def test_el_job_de_la_suite_instala_tambien_las_dependencias_del_ci(self):
+        """Mismo contrato que `Tests & Coverage` de `pr-backend.yml`, y por el mismo motivo.
+
+        El `release-gate` del release `7c617406` (13/10/2026) salió rojo con un solo
+        fallo: `TblibEnElCiTests.test_el_runner_de_django_lo_encuentra`. Este job
+        instalaba únicamente `requirements.txt`, y `tblib` —que Django importa al arrancar
+        el runner— vive en `requirements-ci.txt` (RED-88, Cambio 256). Como el gate es el
+        último lugar donde se frena una regresión antes de que ECOM despliegue producción
+        sola, un rojo suyo que no es del release cuesta el doble: tapa los de verdad.
+        """
+        job = self.flujo["jobs"][_nombres_de_jobs(self.flujo)["Suite completa (SQLite)"]]
+        comandos = "\n".join(paso.get("run", "") for paso in job["steps"])
+
+        self.assertIn("pip install -r requirements.txt", comandos)
+        self.assertIn("pip install -r requirements-ci.txt", comandos)
+
+    def test_la_cache_de_pip_del_job_de_la_suite_mira_los_dos_archivos(self):
+        """Con un solo archivo en la clave, cambiar el otro reusa una caché vieja."""
+        job = self.flujo["jobs"][_nombres_de_jobs(self.flujo)["Suite completa (SQLite)"]]
+        setup = next(p for p in job["steps"] if str(p.get("uses", "")).startswith("actions/setup-python"))
+        archivos = (setup["with"]["cache-dependency-path"] or "").split()
+
+        self.assertEqual(sorted(archivos), ["requirements-ci.txt", "requirements.txt"])
 
     def test_prueba_las_migraciones_contra_el_motor_de_produccion(self):
         """PRD y testing de ECOM son MariaDB, no MySQL (README §0, Cambio 99)."""
