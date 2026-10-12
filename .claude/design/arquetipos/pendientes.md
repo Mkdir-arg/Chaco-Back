@@ -1,21 +1,9 @@
-# Arquetipos pendientes · wizard, revisión compleja y dashboard
+# Arquetipos pendientes · revisión compleja y dashboard
 
 **No hay golden. La instrucción es frenar y devolver la tarea al llamador** con el motivo y lo
 que haga falta decidir. No se elige «el que más se parece» ni se clona una pantalla hermana.
 
-## Wizard de backoffice
-
-Decisión del cliente abierta: **no se define**. Si una tarea pide un alta en pasos dentro del
-backoffice, frená.
-
-Lo único aprovechable mientras tanto es la **semántica del stepper** del portal,
-`portal/templates/portal/inscripcion/_stepper.html`: el paso activo no se distingue solo por
-color, lleva `aria-current="step"` (con `data-step` conservado solo para el CSS del círculo) y
-un `<span class="sr-only">Paso actual: </span>` antes del nombre del paso. Eso es semántica, no
-un molde de pantalla: el stepper vive en el shell de inscripción, que el backoffice no usa.
-
-El wizard que hoy existe en Configuración (alta de programa) **no es referencia**: extiende el
-shell legacy.
+El wizard **ya tiene golden**: ficha `.claude/design/arquetipos/wizard.md`.
 
 ## Revisión de caso compleja
 
@@ -45,7 +33,7 @@ Para una pantalla con números el arquetipo correcto suele ser Detalle con su fr
 ## Qué devolver cuando frenás
 
 ```
-Tipo: B · Arquetipo: PENDIENTE (<wizard|revisión compleja|dashboard>)
+Tipo: B · Arquetipo: PENDIENTE (<revisión compleja|dashboard>)
 Motivo: no hay golden para este arquetipo; la ficha de pendientes pide frenar.
 Lo más cercano que existe: <pantalla> — qué sirve y qué no.
 Novedades que habría que aprobar: <lista>

@@ -230,11 +230,24 @@ class MarcadoresDeArquetipoTests(SimpleTestCase):
         self.assertIn("<style> local", salida)
 
     def test_arquetipo_desconocido_falla(self):
-        codigo, _ = self.marcadores("wizard", [])
+        # Un nombre que no va a existir nunca. Antes aca decia "wizard", y el dia que
+        # el wizard dejo de ser un arquetipo pendiente el test empezo a pasar en verde
+        # por el motivo equivocado: ya no probaba nada.
+        codigo, _ = self.marcadores("no-existe-este-arquetipo", [])
         self.assertEqual(codigo, 1)
 
-    def test_hay_ficha_de_marcadores_para_los_cuatro_arquetipos(self):
-        self.assertEqual(sorted(design_audit.ARQUETIPOS), ["detalle", "formulario", "listado", "modal"])
+    def test_cada_arquetipo_declarado_tiene_su_ficha(self):
+        # Sin lista escrita a mano: lo que importa es que ninguno entre al audit sin
+        # su ficha, no cuantos hay. Asi el contrato sobrevive a cada arquetipo nuevo
+        # (wizard y revision entraron con las goldens del MVP de Dispositivos).
+        fichas = Path(__file__).resolve().parents[2] / ".claude/design/arquetipos"
+        for nombre in sorted(design_audit.ARQUETIPOS):
+            with self.subTest(arquetipo=nombre):
+                self.assertTrue(
+                    (fichas / f"{nombre}.md").is_file(),
+                    f"el arquetipo '{nombre}' esta en design_audit.ARQUETIPOS pero no tiene "
+                    f"ficha en .claude/design/arquetipos/{nombre}.md",
+                )
 
 
 class GateDeCiTests(SimpleTestCase):

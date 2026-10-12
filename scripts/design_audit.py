@@ -1229,6 +1229,36 @@ ARQUETIPOS: dict[str, dict[str, list]] = {
             (r"non_field_errors", "errores generales a mano: usar components/_form_errores.html"),
         ],
     },
+    "wizard": {
+        "marcadores": [
+            (r'\{%\s*extends\s+"includes/base\.html"\s*%\}', False, "extiende el shell del backoffice"),
+            (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
+            (r'class="space-y-5"', False, "contenedor de página space-y-5"),
+            (r"\{%\s*page_header\b", False, "{% page_header %}"),
+            (r"volver_url=", False, "page_header con volver_url"),
+            (r"\{%\s*endpage_header\s*%\}", False, "{% endpage_header %}"),
+            (r"components/_stepper\.html", False, "indicador de pasos con components/_stepper.html"),
+            (r"<dl\b", False, "resumen de lo cargado como lista de definiciones"),
+            (
+                r'<form method="post"[^>]*class="bg-white rounded-xl border border-base shadow-sm p-6"',
+                False,
+                "surface del formulario del paso",
+            ),
+            (r"\{%\s*csrf_token\s*%\}", False, "{% csrf_token %}"),
+            (r"components/_form_errores\.html", False, "errores no de campo con components/_form_errores.html"),
+            (r"_field\.html", False, "campos con el include _field.html"),
+            (r"btn-nodo btn-tertiary btn-base", False, "acción «Anterior» del pie"),
+            (r"btn-nodo btn-brand btn-base", False, "acción primaria del pie (Siguiente o Confirmar)"),
+        ],
+        "prohibidos": [
+            (r"<h1\b", "encabezado a mano: el título es {% page_header %}"),
+            (r"<style\b", "<style> local"),
+            (r"←\s*Volver", "«← Volver» de texto: va en page_header volver_url"),
+            (r"non_field_errors", "errores generales a mano: usar components/_form_errores.html"),
+            (r"bg-tertiary rounded-full h-2", "barra de progreso a mano: el indicador es components/_stepper.html"),
+            (r"di-stepper|class=\"nodo-step", "stepper armado a mano: usar components/_stepper.html"),
+        ],
+    },
     "modal": {
         "marcadores": [
             (r"x-becas-modal=", False, "x-becas-modal (foco, Tab atrapado, Escape, scroll)"),
@@ -1306,6 +1336,7 @@ GOLDENS: list[tuple[str, str]] = [
     ("detalle", "programas/templates/programas/becas/cupo/segmento_detail.html"),
     ("formulario", "programas/templates/programas/becas/config/segmento_form.html"),
     ("modal", "programas/templates/programas/becas/config/programa_list.html"),
+    ("wizard", "configuracion/templates/configuracion/programa_wizard_paso4.html"),
 ]
 
 

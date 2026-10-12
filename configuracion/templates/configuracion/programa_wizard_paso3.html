@@ -2,9 +2,7 @@
 {% load nodo_ui %}
 {% block title %}Configuración · {% if es_edicion %}Editar{% else %}Nuevo{% endif %} programa — Paso 3{% endblock %}
 
-{% comment %}El wizard no tiene golden (D4): se migra el shell y el formulario, sin stepper
-inventado. El `x-data` que tenía la etiqueta `<form>` no lo leía ningún `x-show` ni `:disabled`
-de esta pantalla: se fue con el resto del markup muerto.{% endcomment %}
+{% comment %}Paso de un wizard (arquetipo Wizard): lista de campos con el esqueleto del arquetipo Formulario; el indicador es `components/_stepper.html`.{% endcomment %}
 
 {% block main-content %}
 <div class="space-y-5">
@@ -15,9 +13,7 @@ de esta pantalla: se fue con el resto del markup muerto.{% endcomment %}
   {% endpage_header %}
   {% endwith %}
 
-  <div class="w-full bg-tertiary rounded-full h-2" role="presentation">
-    <div class="bg-brand h-2 rounded-full w-3/4"></div>
-  </div>
+  {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
 
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
