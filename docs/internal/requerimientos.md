@@ -31695,6 +31695,28 @@ Tres includes, dos fichas (`mapa_plazas.md`, `galeria_fotos.md`), dos filas de i
 en `core/tests/test_nodo_ui_lote_b.py` —archivo propio, para no chocar con los otros lotes de la
 etapa 0—. Tailwind regenerado y commiteado.
 
+## Correcciones de la revisión
+
+El revisor rechazó la primera versión con tres MAJOR, los tres verificados **renderizando** los
+templates, no leyéndolos.
+
+**Los chips no tenían nombre de grupo y el label salía con `for=""`.** `CheckboxSelectMultiple` no
+expone `id_for_label`, así que el lector de pantalla anunciaba cada chip sin el contexto
+«Servicios», y el `aria-describedby` de la ayuda se repetía en cada input. Se resolvió con una
+plantilla propia del widget que envuelve el grupo con `role="group"` y `aria-labelledby`.
+
+**La píldora filtraba en cada `change`, y eso rompe el teclado.** En un `<select>` cerrado la flecha
+cambia el valor y dispara `change`: la primera flecha recargaba la página y **nunca se llegaba a la
+segunda opción**. Es WCAG 3.2.2, nivel A. Ahora lleva un botón «Filtrar» **visible** y no envía al
+cambiar. Se aparta del mockup, que filtra al elegir, y el motivo queda en la ficha: el botón es la
+forma de avisar y confirmar el cambio.
+
+**Las píldoras y la tarjeta de filtros se borraban entre sí.** Son dos `<form method="get">`
+separados y `dynamic_list_filters.js` vacía y reconstruye el suyo sin arrastrar parámetros ajenos:
+cada uno pisaba los del otro, y `ocultos` solo protege a la píldora. La ficha ahora **prohíbe
+combinarlos** y dice qué hace una pantalla que necesite los dos conjuntos: todos los filtros van en
+la tarjeta, o se amplía el JS para preservar los parámetros externos.
+
 ## Pendientes
 
 - **Ninguna pantalla las consume todavía**: son piezas de la etapa 0, construidas antes que sus
