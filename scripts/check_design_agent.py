@@ -88,7 +88,23 @@ SIN_MISMO_DIFF = ("static/custom/css/tailwind.css",)
 SIN_MISMO_DIFF_PARTES = ("/tests/", "/views/")
 
 FICHA_RE = re.compile(r"Ficha: `(\.claude/design/[^`]+\.md)`")
-NUCLEO_MAX_BYTES = 30_000
+# El nucleo tiene dos partes que crecen por motivos distintos, asi que tienen topes
+# distintos. Antes habia uno solo, total, y era enganioso: parecia proteger de la prosa
+# y a la vez castigaba agregar piezas, que no es un vicio. Al medirlo se vio que de los
+# ~29.000 bytes solo ~14.100 eran celdas de tabla: los otros ~14.800 eran prosa que
+# ninguna otra regla acotaba. Subir el total, entonces, le daba holgura gratis
+# justamente a lo que hay que vigilar.
+#
+#  - PROSA: todo lo que NO es fila de tabla. Es lo que de verdad se infla, y no crece
+#    porque el producto crezca. Tope propio y fijo.
+#  - TABLAS: el inventario es un indice y crece una fila por pieza canonica, lo cual es
+#    sano. No lleva tope total: lo acota CELDA_MAX_CARACTERES fila por fila, que es la
+#    regla que obliga a que el detalle viva en la ficha.
+#
+# Si la prosa se pasa, la pregunta es que parrafo sobra o que seccion es una ficha
+# disfrazada. Si se pasa una celda, el detalle va a la ficha. Ninguna de las dos se
+# contesta subiendo un numero.
+PROSA_MAX_BYTES = 16_000
 CELDA_MAX_CARACTERES = 450
 # La historia va a `docs/internal/requerimientos.md`, nunca al agente: es lo que
 # convirtió el núcleo en un changelog de filas de 4.000 caracteres.
@@ -216,9 +232,13 @@ def limites_del_nucleo(agent_text: str, rows: list[tuple[str, str, str]]) -> lis
     corriera. Además deja la regla ejercitable desde los tests sin tocar el disco.
     """
     errores: list[str] = []
-    tamanio = len(agent_text.encode("utf-8"))
-    if tamanio > NUCLEO_MAX_BYTES:
-        errores.append(f"core agent is too large: {tamanio} bytes (max {NUCLEO_MAX_BYTES})")
+    prosa = "\n".join(ln for ln in agent_text.splitlines() if not ln.lstrip().startswith("|"))
+    tamanio = len(prosa.encode("utf-8"))
+    if tamanio > PROSA_MAX_BYTES:
+        errores.append(
+            f"core agent prose is too large: {tamanio} bytes (max {PROSA_MAX_BYTES}); "
+            f"las tablas no cuentan — sobra prosa, o hay una seccion que es una ficha disfrazada"
+        )
     for name, _classification, contract in rows:
         if len(contract) > CELDA_MAX_CARACTERES:
             errores.append(

@@ -381,6 +381,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 207 | Antes de publicar en internet mira alguien, la suite corre en paralelo y el tipado empieza a existir | Transversal — publicación de `docs/client/` en GitHub Pages · CI (`Tests & Coverage`, `Tipos (mypy)`) · motor de condiciones y cliente de Base de Personas (solo anotaciones) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-64, RED-76 y RED-86 (Ola 7, PR 5) | 09/10/2026 | 🟢 **Hecho** (el gate de publicación encontró y despublicó una respuesta de RENAPER con los datos de una persona real; el `environment` no es `github-pages`, que solo admite la rama `gh-pages`) | No |
 | 208 | Las segundas partes de la red de seguridad: esquema del dashboard, un solo sobre de error y el detalle de revisión partido | Transversal (esquema OpenAPI, sobre de error JSON, auditoría de diseño) · Becas (detalle de revisión, tablero del programa) · Legajos (APIs del detalle de ciudadano) | `#api` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas RED-37, RED-39 y RED-54 (Ola 7, PR 6) | 09/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
 | 214 | Mapa de plazas con su leyenda, galería fotográfica, y el tono `info` completado | Diseño · componentes | `#ui` `#metodo` | Tasks 14 y 18 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 219 | El tope del núcleo del agente se parte en dos: prosa y tablas | Diseño · contrato | `#metodo` `#ui` | Juez — desbloqueo de la etapa 0 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 220 | Dos pruebas de contrato que no verificaban nada adentro de un worktree | Calidad · pruebas | `#metodo` `#ui` | Juez — hallazgo al cerrar la task 07 del MVP | 12/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -31708,5 +31710,148 @@ No requiere.
 ## Historial
 
 Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 219 — El tope del núcleo del agente se parte en dos: prosa y tablas
+
+🟢 **HECHO — 12/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · contrato del agente canónico |
+| **Etiquetas** | `#metodo` `#ui` |
+| **Solicitante** | Juez — desbloqueo de la etapa 0 del MVP de Dispositivos |
+| **Fecha del pedido** | 12/10/2026 |
+| **Issue / épica** | Plan del MVP de Dispositivos (Cambio 191) |
+| **Partes afectadas** | `scripts/check_design_agent.py`, su test, el agente y el workflow |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> La golden del arquetipo Revisión dejó el núcleo en **29.997 de 30.000 bytes**: tres bytes de
+> margen. Los lotes de piezas de la etapa 0 agregan filas de inventario y habrían fallado el gate
+> `Design Agent Contract` sin que el núcleo tuviera nada malo.
+
+## Decisiones tomadas
+
+**El primer intento fue subir el tope total a 34.000, y el revisor lo volteó con una medición.** El
+argumento era que el tope total «solo castiga tener muchas piezas», porque el inventario es un índice
+y lo que obliga a que el detalle vaya a la ficha es `CELDA_MAX_CARACTERES`. La medición mostró que es
+falso: de los ~29.000 bytes del núcleo, **solo ~14.100 son celdas de tabla**; los ~14.800 restantes
+son prosa que ninguna otra regla acota. O sea que el tope total **sí** era la única barrera de la
+prosa, y subirlo 4 KB le regalaba 4 KB de holgura justo a lo que hay que vigilar. Además
+`CELDA_MAX_CARACTERES` ya está saturado —máximos de 450, 448 y 438— y las quince piezas del MVP
+consumían exactamente los 4 KB agregados: el mismo problema con otro número.
+
+**Se parte en dos topes que escalan con lo que cada uno protege:**
+
+- **Prosa ≤ 16.000 bytes** (hoy 13.634): todo lo que no es fila de tabla. Es lo que de verdad se
+  infla, y **no crece porque el producto crezca**.
+- **Tablas sin tope total**: el inventario crece una fila por pieza canónica, que es sano. Lo acota
+  `CELDA_MAX_CARACTERES` fila por fila, que es la regla que empuja el detalle a la ficha.
+
+Si la prosa se pasa, la pregunta es qué párrafo sobra o qué sección es una ficha disfrazada; si se
+pasa una celda, el detalle va a la ficha. **Ninguna de las dos se contesta subiendo un número**, que
+era el defecto del tope único.
+
+**El contrato escrito ahora se verifica contra la constante.** El agente y el workflow decían «núcleo
+≤ 30.000 bytes» mucho después de que dejara de ser cierto —lo encontró el revisor—, así que quien
+leía el contrato creía una cosa y el gate hacía cumplir otra. Hay una prueba nueva que exige que la
+cifra escrita en los dos archivos sea la de la constante: **un número en prosa que nadie verifica
+envejece sin avisar**.
+
+**Y el tamaño dejó de depender del fin de línea de verdad.** La función medía el texto crudo y
+confiaba en que quien lo leyera lo hubiera normalizado; el test afirmaba que con CRLF el mismo
+contenido **sí** se pasaba del tope, o sea documentaba la fragilidad en vez de evitarla. Ahora
+normaliza ella misma y el veredicto es el mismo en el checkout de Windows y en el del CI.
+
+## Implementación
+
+`PROSA_MAX_BYTES` reemplaza a `NUCLEO_MAX_BYTES` en `scripts/check_design_agent.py`; el cuerpo de
+`limites_del_nucleo` descarta las filas de tabla antes de medir. 23 pruebas en
+`scripts/test_check_design_agent.py`, entre ellas la de que 400 filas de inventario **no** disparan el
+tope de prosa.
+
+## Pendientes
+
+Ninguno.
+
+## Archivos
+
+`scripts/check_design_agent.py` · `scripts/test_check_design_agent.py` ·
+`.claude/agents/chaco-design-system.md` · `.github/workflows/design-agent-contract.yml`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Reescrita tras la revisión, que refutó el razonamiento de la primera versión.
+---
+
+---
+
+# Cambio 220 — Dos pruebas de contrato que no verificaban nada adentro de un worktree
+
+🟢 **HECHO — 12/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Calidad · pruebas de contrato |
+| **Etiquetas** | `#metodo` `#ui` |
+| **Solicitante** | Juez — hallazgo al cerrar la task 07 del MVP de Dispositivos |
+| **Fecha del pedido** | 12/10/2026 |
+| **Issue / épica** | Plan del MVP de Dispositivos (Cambio 191) |
+| **Partes afectadas** | `configuracion/tests/test_formularios_canonicos_ola5_pr6b.py`, `core/tests/test_nodo_ui_piezas.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> Al terminar la task 07 apareció que `HeroInicioTest.test_solo_las_pantallas_autorizadas_lo_usan`
+> pasaba en falso. Buscando el patrón, el mismo defecto estaba en otra prueba.
+
+## Decisiones tomadas
+
+**El filtro de rutas va sobre la ruta relativa al repo, nunca sobre `p.parts`.** Las dos pruebas
+excluían el directorio `.claude` con `".claude" not in p.parts`, que mira la **ruta absoluta**. Como
+**los worktrees de trabajo viven en `.claude/worktrees/`**, ahí adentro esa condición es falsa para
+todos los archivos del repo: el filtro se comía todo.
+
+Medido: dentro de un worktree, `test_ningun_template_del_repo_lo_extiende` evaluaba **0 candidatos
+sobre 286 templates**. Pasaba en verde sin mirar un solo archivo. Y como **todo el desarrollo se hace
+en worktrees**, estuvo verde por vacío en cada PR revisado desde que existe.
+
+**La corrección lleva su propia guarda.** No alcanza con arreglar el filtro: se agregó
+`assertGreater(len(candidatos), 100)`, para que si alguien vuelve a vaciar la lista el test **falle**
+en vez de pasar por ausencia de evidencia. Una prueba que puede quedarse sin sujeto tiene que
+detectarlo ella misma; si no, el modo de falla es silencioso y se descubre por casualidad, como este.
+
+## Implementación
+
+En `test_formularios_canonicos_ola5_pr6b.py`, el filtro pasa a
+`set(p.relative_to(REPO).parts)` más la guarda. En `test_nodo_ui_piezas.py` la corrección entró con la
+task 07, donde además se vio que el `<link>` a `nodo-hero.css` de `base.html` contaba como uso.
+
+## Pendientes
+
+- Vale barrer el resto de la suite buscando pruebas que recorran el repo y puedan quedarse sin
+  sujeto. `check_migraciones.py` usa `.venv not in ruta.parts`, que tiene la misma forma pero no el
+  mismo riesgo: no desarrollamos adentro de `.venv`.
+
+## Archivos
+
+`configuracion/tests/test_formularios_canonicos_ola5_pr6b.py`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva.
 
 ---
