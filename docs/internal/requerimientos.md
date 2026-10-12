@@ -384,6 +384,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 219 | El tope del núcleo del agente se parte en dos: prosa y tablas | Diseño · contrato | `#metodo` `#ui` | Juez — desbloqueo de la etapa 0 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 220 | Dos pruebas de contrato que no verificaban nada adentro de un worktree | Calidad · pruebas | `#metodo` `#ui` | Juez — hallazgo al cerrar la task 07 del MVP | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 227 | Tarjeta de turno y entradas de bitácora del registro diario | Diseño · componentes | `#ui` `#metodo` | Task 17 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 229 | RED-88 de verdad: sin `tblib`, una falla del CI se disfraza de timeout | Calidad · CI | `#metodo` `#infra` | Juez — diagnóstico del 12/10/2026 | 12/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -31927,5 +31928,75 @@ No requiere.
 ## Historial
 
 Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 229 — RED-88 de verdad: sin `tblib`, una falla del CI se disfraza de timeout
+
+🟢 **HECHO — 12/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Calidad · CI |
+| **Etiquetas** | `#metodo` `#infra` |
+| **Solicitante** | Juez — media hora de diagnóstico perdida el 12/10/2026 |
+| **Fecha del pedido** | 12/10/2026 |
+| **Issue / épica** | RED-88 (la cerró el Cambio 163 sin cerrarla) |
+| **Partes afectadas** | `requirements-ci.txt`, `core/tests/test_dependencias.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> Cinco PRs de la etapa 0 del MVP aparecían con el CI en `cancel`. El diagnóstico costó media
+> hora porque el síntoma no se parece en nada a la causa.
+
+## Decisiones tomadas
+
+**El CI corre la suite con `--parallel 4`, así que Django tiene que pickear el resultado de cada
+worker para mandarlo al proceso padre. Un `traceback` no es pickleable por sí solo.** Sin `tblib`,
+el propio código de Django avisa que *«if tblib isn't installed, pickling the traceback will always
+fail»*. Lo que se ve entonces no se parece a una falla:
+
+- La suite muere con `TypeError: cannot pickle 'traceback' object` **sin decir qué test falló**.
+- El worker queda colgado y **el job corre 25 minutos** hasta que GitHub lo cancela por timeout.
+- `gh pr checks` lo muestra como **`cancel`**, idéntico a una cancelación por push posterior.
+
+Las tres cosas juntas llevan al error exacto que cometí: leer los tiempos, concluir «contención de
+runners» y **relanzar**. Relanzar un fallo determinista no lo arregla nunca.
+
+**`tblib` entra en `requirements-ci.txt` pineado**, que es donde viven las herramientas del CI. Con
+él, la misma falla sale al instante y con su traza completa —verificado acá, forzando un test a
+fallar bajo `--parallel 4`—.
+
+**RED-88 estaba cerrada y no lo estaba.** El Cambio 163 la dio por resuelta porque arregló *los
+tests que fallaban*; el modo de falla quedó intacto, dormido hasta la próxima falla real. Llegó el
+12/10/2026 con los snapshots de Becas. Por eso esto va con **dos tests**, no con un comentario: uno
+exige que `tblib` esté listado y el otro que Django lo pueda importar de verdad —estar en el archivo
+y estar instalado no son lo mismo—. Se verificó que la guarda **falla** al sacar la línea: un test
+que no puede fallar no protege nada.
+
+## Implementación
+
+Una línea en `requirements-ci.txt` con su motivo, y `TblibEnElCiTests` en
+`core/tests/test_dependencias.py`.
+
+## Pendientes
+
+Ninguno. Queda anotado para quien lea un `cancel` de `Tests & Coverage`: buscar el nombre del test
+en la traza del log (`grep -E '\.py", line [0-9]+, in test'`) **antes** de relanzar.
+
+## Archivos
+
+`requirements-ci.txt` · `core/tests/test_dependencias.py`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Reabre y cierra RED-88, que el Cambio 163 dio por cerrada.
 
 ---

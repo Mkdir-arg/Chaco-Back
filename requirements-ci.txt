@@ -36,6 +36,22 @@ ruff==0.16.10
 # mueve el número sin que cambie el código.
 coverage==7.16.2
 
+# `tblib` no es una herramienta: es lo que hace que una falla bajo `--parallel` se vea.
+# Django pickea el resultado de cada worker para mandarlo al proceso padre, y un
+# `traceback` no es pickleable por sí solo. Sin `tblib`, su propio código avisa que
+# «pickling the traceback will always fail»: la suite muere con
+# `TypeError: cannot pickle 'traceback' object` **sin decir qué test falló**, el worker
+# queda colgado y el job corre hasta que GitHub lo cancela por timeout —25 minutos—.
+# Peor todavía, `gh pr checks` lo muestra como `cancel`, idéntico a una cancelación por
+# push, así que lo primero que uno hace es relanzar, y relanzar un fallo determinista no
+# lo arregla nunca.
+#
+# Eso es RED-88. El Cambio 163 la dio por cerrada, pero lo que arregló fueron los tests
+# que fallaban: el modo de falla siguió ahí, dormido, esperando la próxima falla. Llegó
+# el 12/10/2026 con los snapshots de Becas y costó media hora de diagnóstico.
+# Con `tblib` instalado la misma falla sale al instante y con su traza completa.
+tblib==3.2.2
+
 # `Pip Audit`, obligatorio desde el Cambio 121.
 pip-audit==2.10.1
 
