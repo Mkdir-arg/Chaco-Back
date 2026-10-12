@@ -32,6 +32,22 @@
     background: var(--bg-brand);
 }
 
+/* El stepper envuelve (flex-wrap), y un paso que cae a la linea siguiente arrastra su
+   conector al principio de esa linea, donde no conecta con nada: queda una barra suelta
+   colgando a la izquierda. CSS no sabe decir "primero de su linea envuelta", asi que
+   abajo del ancho donde empieza a envolver el conector no se dibuja. En un telefono el
+   indicador se lee igual como lista de pasos, y el estado ya esta en el texto, en el
+   sr-only y en aria-current: el conector no portaba informacion propia. */
+@media (max-width: 640px) {
+    .nodo-step + .nodo-step::before {
+        display: none;
+    }
+
+    .nodo-stepper {
+        column-gap: 14px;
+    }
+}
+
 .nodo-step__item {
     display: inline-flex;
     align-items: center;
