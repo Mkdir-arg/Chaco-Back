@@ -2814,6 +2814,13 @@ es una red mecánica sobre texto, no un clasificador: cada una de estas la cubre
 - **El marcador de un secreto se reconoce por forma, no por entropía.** Un valor escrito todo en minúsculas y unido por
   guiones con una palabra marcador adentro (`ci-test-key-not-a-real-secret`, el `DJANGO_SECRET_KEY` del CI) se perdona;
   una passphrase de palabras en minúscula que contuviera «test» también se perdonaría.
+- **`;` y `,` ya no alcanzan solos para ser fila.** Un encabezado separado por coma o punto y coma que termine en punto
+  o traiga una celda con verbo se lee como prosa (`apellido;nombre;dni.` + fila con documento deja de marcarse). Es el
+  precio de la heurística de puntuación; `|` y tab siguen alcanzando solos (revisión de #798, 13-oct-2026).
+- **Un secreto entrecomillado o en bloque de código no se ve.** La regla de secretos perdona el valor entero apenas
+  empieza con comilla, backtick, llave o paréntesis (`RELLENO`), y no engancha la forma JSON `"clave": "valor"`. Es
+  justo la forma normal de documentar una credencial: hoy hay dos casos reales fuera de `docs/client/` que el gate no ve
+  solo por eso. Lo cubre la revisión humana del `environment` (revisión de #798, 13-oct-2026).
 - **`--todo-docs` no baja a 0 y no se persigue.** Sus 38 son DNI de ejemplo de colecciones de Postman, números con su
   unidad al lado de la palabra «DNI» y direcciones de fixtures de parseo. No bloquea: informa sobre el diff del PR.
 - **No hay lista de archivos perdonados, y no va a haberla.** Un falso positivo se arregla escribiendo el dato como
