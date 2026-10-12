@@ -1,0 +1,20 @@
+{% comment %}
+Leyenda de los estados del mapa de plazas. Va una vez por pantalla, encima de las cards de sector.
+  {% include "components/_leyenda_plazas.html" with leyenda=leyenda_plazas %}
+Contexto:
+  leyenda  lista de dicts armados por la VISTA, uno por estado: `estado` (texto) y `tono`
+           (los mismos valores que components/_mapa_plazas.html). Es la misma lista de estados
+           que la vista usa para dar el tono a las plazas, así no se desincronizan.
+Cada ítem lleva muestra de color, ícono y texto: el color nunca es el único portador.
+Sin leyenda no dibuja nada.
+{% endcomment %}
+{% if leyenda %}
+<ul class="flex flex-wrap gap-4 text-xs text-body-subtle" role="list" aria-label="Leyenda de estados de plaza">
+  {% for item in leyenda %}
+  <li class="inline-flex items-center gap-2">
+    <span class="inline-flex h-5 w-5 items-center justify-center rounded border text-xs {% if item.tono == 'success' %}bg-success-soft border-success-subtle text-fg-success{% elif item.tono == "info" %}bg-info-soft border-info-subtle text-fg-info{% elif item.tono == 'warning' %}bg-warning-soft border-warning-subtle text-fg-warning{% elif item.tono == 'brand' %}bg-brand-soft border-brand-subtle text-fg-brand{% elif item.tono == 'danger' %}bg-danger-soft border-danger-subtle text-fg-danger{% else %}bg-secondary border-base text-body{% endif %}"><i class="fas {% if item.tono == 'success' %}fa-circle-check{% elif item.tono == 'info' %}fa-user{% elif item.tono == 'warning' %}fa-clock{% elif item.tono == 'brand' %}fa-right-left{% elif item.tono == 'danger' %}fa-ban{% else %}fa-circle{% endif %}" aria-hidden="true"></i></span>
+    {{ item.estado }}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
