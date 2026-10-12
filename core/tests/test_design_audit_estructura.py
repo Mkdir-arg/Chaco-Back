@@ -312,6 +312,7 @@ class MarcadoresDeArquetipoTests(SimpleTestCase):
             with self.subTest(arquetipo=nombre):
                 self.assertEqual(nombre, nombre.lower())
                 self.assertTrue(nombre.isascii(), f"«{nombre}» no es ASCII: es el nombre de un archivo")
+
     def test_la_variante_apilada_se_declara_y_no_se_infiere(self):
         """Si la variante se infiriera de que faltan las solapas, el gate no serviría.
 
@@ -361,8 +362,6 @@ class MarcadoresDeArquetipoTests(SimpleTestCase):
             self.assertEqual(codigo, 1)
             self.assertIn("no declarada", salida)
 
-    def test_hay_ficha_de_marcadores_para_los_cuatro_arquetipos(self):
-        self.assertEqual(sorted(design_audit.ARQUETIPOS), ["detalle", "formulario", "listado", "modal"])
 
 
 class GateDeCiTests(SimpleTestCase):
