@@ -1339,6 +1339,32 @@ ARQUETIPOS: dict[str, dict[str, list]] = {
 }
 
 
+#: Una variante se DECLARA en el template, con este comentario, y entonces el auditor le
+#: exige otros marcadores. No se infiere de que falten los de la forma principal: si se
+#: infiriera, una pantalla que se olvido las solapas pasaria como "apilada" y el gate no
+#: serviria para nada.
+VARIANTE_RE = re.compile(r"\{#\s*arquetipo:\s*([a-z-]+)\s*\+\s*([a-z-]+)\s*#\}")
+
+#: Variantes declarables, por arquetipo (ojo:  ya existe y son los prefijos de Tailwind).
+#: Variantes declarables, por arquetipo. Cada una REEMPLAZA los marcadores de la forma
+#: principal por los suyos; los `prohibidos` siguen valiendo igual.
+VARIANTES_DE_ARQUETIPO: dict[tuple[str, str], list] = {
+    # Ficha `detalle.md`: "Con un area sola no hay solapas: van secciones apiladas en
+    # surfaces." Sin solapas no hay tablist que pedir, pero si hay que exigir que cada
+    # seccion sea una surface con su encabezado: eso es lo que reemplaza a la solapa como
+    # unidad navegable, y sin encabezado la pantalla es una sabana.
+    ("detalle", "apilado"): [
+        (r"\{%\s*extends\s+\"includes/base\.html\"\s*%\}", False, "extiende el shell del backoffice"),
+        (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
+        (r"class=\"space-y-5\"", False, "contenedor de página space-y-5"),
+        (r"\{%\s*page_header\b", False, "{% page_header %}"),
+        (r"\{%\s*endpage_header\s*%\}", False, "{% endpage_header %}"),
+        (r"<(?:section|article)\b[^>]*aria-labelledby=", False, "sección con nombre accesible (reemplaza a la solapa)"),
+        (r"<h2\b", False, "encabezado de la sección apilada"),
+    ],
+}
+
+
 def arquetipo_mode(nombre: str, rutas: list[str]) -> int:
     especificacion = ARQUETIPOS.get(nombre)
     if especificacion is None:
@@ -1355,7 +1381,23 @@ def arquetipo_mode(nombre: str, rutas: list[str]) -> int:
             continue
         propias = 0
         posicion = 0
-        for patron, opcional, descripcion in especificacion["marcadores"]:
+        marcadores = especificacion["marcadores"]
+        etiqueta = nombre
+        declarada = VARIANTE_RE.search(text)
+        if declarada and declarada.group(1) == nombre:
+            variante = declarada.group(2)
+            propios = VARIANTES_DE_ARQUETIPO.get((nombre, variante))
+            if propios is None:
+                conocidas = sorted(v for a, v in VARIANTES_DE_ARQUETIPO if a == nombre)
+                print(
+                    f"{ruta}: [ARQUETIPO] variante «{variante}» no declarada para «{nombre}»"
+                    f" (hay: {', '.join(conocidas) or 'ninguna'})"
+                )
+                propias += 1
+            else:
+                marcadores = propios
+                etiqueta = f"{nombre} + {variante}"
+        for patron, opcional, descripcion in marcadores:
             m = re.compile(patron).search(text, posicion)
             if m is None:
                 if re.compile(patron).search(text):
@@ -1370,7 +1412,7 @@ def arquetipo_mode(nombre: str, rutas: list[str]) -> int:
             for ln in _lineas_de(text, re.compile(patron)):
                 print(f"{ruta}:{ln}: [ARQUETIPO] prohibido — {motivo}")
                 propias += 1
-        print(f"{ruta}: arquetipo «{nombre}» — {'OK' if not propias else f'{propias} desvío(s)'}")
+        print(f"{ruta}: arquetipo «{etiqueta}» — {'OK' if not propias else f'{propias} desvío(s)'}")
         fallas += propias
     return 1 if fallas else 0
 

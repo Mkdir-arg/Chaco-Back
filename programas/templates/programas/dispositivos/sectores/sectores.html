@@ -1,3 +1,4 @@
+{# arquetipo: detalle + apilado #}{# un area sola: la ficha del arquetipo dice que sin solapas van secciones apiladas en surfaces #}
 {% extends "includes/base.html" %}
 {% load nodo_ui %}
 {% block title %}Dispositivos · Sectores y plazas · {{ dispositivo.nombre }}{% endblock %}
@@ -19,15 +20,18 @@
 
   {# ===== Una surface por sector ===== #}
   {% for item in sectores %}
-  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+  {% comment %}Sin solapas, cada sector es la unidad navegable: lleva nombre accesible
+  propio para que un lector de pantalla pueda saltar de sector a sector, que es lo que la
+  solapa daba gratis en la forma principal del arquetipo.{% endcomment %}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sector-{{ item.sector.pk }}-titulo">
     <div class="px-5 py-4 border-b border-light">
-      <h2 class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
+      <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
       <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}</p>
     </div>
     <div class="p-5">
       {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.resumen.total %}
     </div>
-  </div>
+  </section>
   {% empty %}
   <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores, cada uno aparece acá con su mapa de plazas." %}
