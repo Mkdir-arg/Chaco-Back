@@ -3,20 +3,21 @@
 Encabezado de página::
 
     {% load nodo_ui %}
-    {% page_header titulo=obj.nombre volver_url=url_padre volver_label="convocatorias" migas=migas %}
+    {% page_header titulo=obj.nombre eyebrow="Programa Dispositivos" volver_url=url_padre volver_label="convocatorias" migas=migas %}
       {% bajada %}{{ obj.segmento.nombre }}{% if obj.subsegmento %} · {{ obj.subsegmento.nombre }}{% endif %}{% endbajada %}
       <span class="badge badge-success badge-dot">Activa</span>
       <a href="…" class="btn-nodo btn-brand btn-sm">Editar</a>
     {% endpage_header %}
 
-Renderiza ``templates/components/_page_header.html``: título ``h1``, bajada,
+Renderiza ``templates/components/_page_header.html``: ``eyebrow`` opcional (línea chica
+en mayúsculas sobre el título), título ``h1``, bajada,
 botón volver circular con ``aria-label="Volver a {volver_label}"``, migas de
 pan (solo con tres niveles o más) y, a la derecha, el cuerpo del bloque
 (badges y acciones).
 
 Escape:
 
-- ``titulo`` y ``bajada=`` se escapan siempre. La única forma de pasar HTML
+- ``titulo``, ``eyebrow=`` y ``bajada=`` se escapan siempre. La única forma de pasar HTML
   por ``bajada=`` es marcarlo explícitamente desde la plantilla
   (``bajada=texto|safe``); este módulo nunca marca como seguro un valor
   recibido por argumento.
@@ -83,7 +84,7 @@ register = template.Library()
 TEMPLATE_PAGE_HEADER = "components/_page_header.html"
 EXCLUIDOS_HAY_FILTROS = "page"
 MIGAS_MINIMO = 3
-ARGUMENTOS = ("titulo", "bajada", "volver_url", "volver_label", "migas")
+ARGUMENTOS = ("titulo", "eyebrow", "bajada", "volver_url", "volver_label", "migas")
 
 
 def _o_vacio(renderizado):
@@ -119,6 +120,7 @@ class PageHeaderNode(template.Node):
         plantilla = context.template.engine.get_template(TEMPLATE_PAGE_HEADER)
         with context.push(
             titulo=valores.get("titulo"),
+            eyebrow=valores.get("eyebrow"),
             bajada=bajada,
             volver_url=valores.get("volver_url"),
             volver_label=valores.get("volver_label"),
