@@ -215,12 +215,22 @@ class ParticionesTests(unittest.TestCase):
     #: Un pedazo **más adentro** que el patrón de la partición.
     ANIDADO = "programas/templates/programas/becas/revision/_detalle/anidado/_x.html"
 
-    def _crear_anidado(self) -> str:
+    @contextlib.contextmanager
+    def _anidado_en_el_arbol(self):
+        """El pedazo anidado, creado **en el árbol real** y borrado pase lo que pase.
+
+        Tiene que vivir ahí: lo que se mide es `ratchet_mode` sobre este checkout, que
+        descubre los archivos con `git` y `REPO.glob`. El borrado va en un `finally` y no
+        en un `addCleanup` porque un Ctrl-C en el medio de la corrida no ejecuta los
+        cleanups de `unittest` y dejaba el template suelto adentro de la partición.
+        """
         ruta = Path(design_audit.REPO, self.ANIDADO)
-        ruta.parent.mkdir(parents=True, exist_ok=True)
-        ruta.write_text('<p style="margin-top: 4px">nuevo</p>\n', encoding="utf-8")
-        self.addCleanup(shutil.rmtree, ruta.parent, True)
-        return self.ANIDADO
+        try:
+            ruta.parent.mkdir(parents=True, exist_ok=True)
+            ruta.write_text('<p style="margin-top: 4px">nuevo</p>\n', encoding="utf-8")
+            yield self.ANIDADO
+        finally:
+            shutil.rmtree(ruta.parent, ignore_errors=True)
 
     def test_un_pedazo_anidado_no_se_queda_sin_auditar(self) -> None:
         """Los dos criterios de `glob` tienen que decidir igual.
@@ -229,19 +239,19 @@ class ParticionesTests(unittest.TestCase):
         partición y no a sus miembros, así que no se medía ni como conjunto ni
         contra su propia base. Hoy no es miembro, y se audita suelto.
         """
-        rel = self._crear_anidado()
         patron = next(p for p in design_audit.PARTICIONES if p.endswith("/_detalle/*.html"))
         particion = design_audit.PARTICIONES[patron]
 
-        self.assertTrue(fnmatch.fnmatch(rel, patron), "si esto deja de ser cierto, el test no prueba nada")
-        self.assertIsNone(design_audit._particion_de(rel))
-        self.assertNotIn(rel, design_audit._miembros_de(particion))
+        with self._anidado_en_el_arbol() as rel:
+            self.assertTrue(fnmatch.fnmatch(rel, patron), "si esto deja de ser cierto, el test no prueba nada")
+            self.assertIsNone(design_audit._particion_de(rel))
+            self.assertNotIn(rel, design_audit._miembros_de(particion))
 
-        salida = io.StringIO()
-        with contextlib.redirect_stdout(salida):
-            design_audit.ratchet_mode("HEAD")
+            salida = io.StringIO()
+            with contextlib.redirect_stdout(salida):
+                design_audit.ratchet_mode("HEAD")
+
         propios = [linea for linea in salida.getvalue().splitlines() if linea.startswith(f"{rel}:")]
-
         self.assertEqual(len(propios), 1, salida.getvalue())
         self.assertIn("INLINESTYLE", propios[0])
 
@@ -260,6 +270,54 @@ class ParticionesTests(unittest.TestCase):
         con_piso_de_la_base = design_audit.nuevos_de_particion(origen, "o.html", actual, base)
 
         self.assertEqual([(f[0], f[3]) for f in con_piso_de_la_base], [("b.html", "INLINESTYLE")])
+
+    #: Un origen con dos `style=`, sus dos pedazos y el include que llega después.
+    ORIGEN_CON_DOS = '<p style="a">1</p>\n<p style="b">2</p>\n'
+    PARTIDO = "<p>lo que quedó del padre</p>\n"
+
+    def test_el_pr_que_parte_el_archivo_sigue_dando_cero(self) -> None:
+        """En la base el único miembro presente es el origen entero: el piso no se mueve."""
+        en_la_base = [("o.html", self.ORIGEN_CON_DOS), ("a.html", None), ("b.html", None)]
+        actual = [("o.html", self.PARTIDO), ("a.html", '<p style="a">1</p>\n'), ("b.html", '<p style="b">2</p>\n')]
+
+        piso = design_audit.piso_de_la_base(en_la_base)
+
+        self.assertEqual(piso, [("o.html", self.ORIGEN_CON_DOS)])
+        self.assertEqual(design_audit.nuevos_de_particion(self.ORIGEN_CON_DOS, "o.html", actual, piso), [])
+
+    def test_un_include_nuevo_no_le_devuelve_el_piso_del_origen_a_sus_hermanos(self) -> None:
+        """El escape del `min` era todo-o-nada, y ese era el agujero.
+
+        La partición ya está en `development` y alguien limpió uno de los dos `style=`.
+        Un PR posterior agrega un include nuevo a la carpeta —que en la base no existe— y
+        de paso vuelve a escribir el `style=` que se había limpiado. Con el piso
+        todo-o-nada, el miembro faltante devolvía el piso del origen (2) a **toda** la
+        partición y el `style=` nuevo entraba gratis.
+        """
+        en_la_base = [
+            ("o.html", self.PARTIDO),
+            ("a.html", '<p style="a">1</p>\n'),
+            ("b.html", "<p>limpio</p>\n"),
+            ("c.html", None),  # el include que agrega este PR
+        ]
+        actual = [
+            ("o.html", self.PARTIDO),
+            ("a.html", '<p style="a">1</p>\n'),
+            ("b.html", '<p style="c">3</p>\n'),  # el hueco, vuelto a gastar
+            ("c.html", "<p>nuevo</p>\n"),
+        ]
+
+        hallazgos = design_audit.nuevos_de_particion(
+            self.ORIGEN_CON_DOS, "o.html", actual, design_audit.piso_de_la_base(en_la_base)
+        )
+
+        self.assertEqual([(f[0], f[3]) for f in hallazgos], [("b.html", "INLINESTYLE")])
+        # Y la mutación: con el piso todo-o-nada —el miembro que falta lo anula entero—
+        # el mismo PR pasaba en 0. Si esto deja de ser cierto, el test de arriba no prueba nada.
+        self.assertEqual(design_audit.nuevos_de_particion(self.ORIGEN_CON_DOS, "o.html", actual, None), [])
+
+    def test_sin_ningun_miembro_en_la_base_el_piso_es_el_origen(self) -> None:
+        self.assertIsNone(design_audit.piso_de_la_base([("a.html", None), ("b.html", None)]))
 
     def test_cada_particion_declara_cuando_se_retira(self) -> None:
         """Una excepción sin fecha de muerte se queda para siempre."""

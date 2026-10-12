@@ -164,6 +164,69 @@ class DeteccionDelGateTests(SimpleTestCase):
         )
         self.assertEqual(self._reglas(raiz), ["persona", "persona"])
 
+    def test_un_csv_con_punto_y_coma_tambien_es_una_fila(self):
+        """El separador de tabla no es solo la coma: `;` y el tab valen igual."""
+        for separador in (";", "\t"):
+            with self.subTest(separador=repr(separador)):
+                encabezado = separador.join(["apellido", "nombre", "dni"])
+                fila = separador.join(["PRUEBA", "PERSONA", DOCUMENTO_INVENTADO])
+                raiz = self._arbol({"index.md": "Hola.\n", "padron.csv": f"{encabezado}\n{fila}\n"})
+                self.assertEqual(self._reglas(raiz), ["persona"])
+
+    def test_la_prosa_que_enumera_las_columnas_no_es_un_encabezado_de_padron(self):
+        """Las comas de una oración no son celdas, y con la coma sola alcanzaba.
+
+        «El padrón trae apellido, nombre, documento y domicilio.» calificaba como
+        encabezado, y entonces el primer número de siete dígitos de las líneas
+        siguientes —un identificador interno, un presupuesto— bloqueaba la publicación.
+        """
+        raiz = self._arbol(
+            {
+                "index.md": """\
+                El padrón trae apellido, nombre, documento y domicilio.
+                El identificador interno es 9876543.
+                """
+            }
+        )
+        self.assertEqual(self._reglas(raiz), [])
+
+    def test_una_tabla_html_de_padron_frena_la_publicacion(self):
+        """MkDocs copia los `.html` del sitio: un padrón en `<table>` se publica igual.
+
+        Ahí no hay ni `|` ni coma; quien nombra la columna es el `<th>`, y las filas de
+        abajo son `<td>` con el número pelado.
+        """
+        raiz = self._arbol(
+            {
+                "index.md": "Hola.\n",
+                "mockups/padron.html": f"""\
+                <table>
+                  <thead><tr><th>Apellido y nombre</th><th>Documento</th><th>Estado</th></tr></thead>
+                  <tbody>
+                    <tr><td>PERSONA DE PRUEBA</td><td>{DOCUMENTO_INVENTADO}</td><td>Aprobada</td></tr>
+                    <tr><td>OTRA DE PRUEBA</td><td>{OTRO_DOCUMENTO_INVENTADO}</td><td>Aprobada</td></tr>
+                  </tbody>
+                </table>
+                """,
+            }
+        )
+        self.assertEqual(self._reglas(raiz), ["persona", "persona"])
+
+    def test_una_tabla_html_sin_columna_de_documento_no_convierte_sus_numeros_en_personas(self):
+        """La misma exigencia que en markdown: el encabezado nombra las dos cosas."""
+        raiz = self._arbol(
+            {
+                "index.md": "Hola.\n",
+                "mockups/tablero.html": """\
+                <table>
+                  <thead><tr><th>Dispositivo</th><th>Plazas</th><th>Inscriptos</th></tr></thead>
+                  <tbody><tr><td>Parador Nocturno</td><td>50</td><td>9876543</td></tr></tbody>
+                </table>
+                """,
+            }
+        )
+        self.assertEqual(self._reglas(raiz), [])
+
     def test_un_documento_pegado_a_un_nombre_propio_frena_la_publicacion(self):
         """En prosa no hay encabezado ni palabra: lo que identifica es el nombre."""
         raiz = self._arbol({"index.md": f"Persona De Prueba ({DOCUMENTO_INVENTADO}) cobró la beca.\n"})
@@ -283,6 +346,32 @@ class DeteccionDelGateTests(SimpleTestCase):
             {"index.md": "API_KEY=test-key\nSIIS_SECRET=test123\nTOKEN=ejemplo-1\nPASSWORD=mi_sample_valor\n"}
         )
         self.assertEqual(self._reglas(raiz), [])
+
+    def test_los_marcadores_en_plural_y_en_gerundio_siguen_siendo_marcadores(self):
+        """El borde de la derecha dejaba afuera las formas del propio marcador.
+
+        `TOKEN=testing123` era un hallazgo: el gate marcaba exactamente lo que se escribe
+        para **no** publicar un secreto.
+        """
+        raiz = self._arbol(
+            {
+                "index.md": textwrap.dedent(
+                    """\
+                    TOKEN=testing123
+                    API_KEY=tests-de-la-suite
+                    SIIS_SECRET=examples-del-manual
+                    PASSWORD=fakes-para-el-banco
+                    DATABASE_PASSWORD=ejemplos-de-la-ficha
+                    """
+                )
+            }
+        )
+        self.assertEqual(self._reglas(raiz), [])
+
+    def test_el_sufijo_no_le_abre_la_puerta_a_attestation(self):
+        """Las variantes van declaradas una por una, no como un `[a-z]*` suelto."""
+        raiz = self._arbol({"index.md": "SIIS_API_CLIENT_SECRET=AttestationKe9f3Qx\nTOKEN=protestaKe9f3Qx\n"})
+        self.assertEqual(self._reglas(raiz), ["secreto", "secreto"])
 
     def test_la_plantilla_del_env_que_el_repo_publica_no_es_un_secreto(self):
         """Las doce líneas que el `\\S` de la ficha marcaba y son exactamente lo que hay que escribir."""
@@ -459,7 +548,7 @@ class BarridoDeTodoDocsEnElPrTests(SimpleTestCase):
         self.assertIn("check_docs_client.py", self._paso()["run"])
 
     def test_el_barrido_amplio_no_bloquea(self):
-        """37 hallazgos sobre el repo saneado, los 37 deliberados: bloquear sería nacer en rojo."""
+        """38 hallazgos sobre el repo saneado, los 38 deliberados: bloquear sería nacer en rojo."""
         self.assertIs(self._paso().get("continue-on-error"), True)
 
     def test_el_job_que_lo_hospeda_sigue_siendo_bloqueante(self):

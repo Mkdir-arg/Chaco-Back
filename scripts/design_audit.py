@@ -1019,10 +1019,11 @@ class Particion(NamedTuple):
 #: **El piso baja.** Con `ref` fijo y nada más, la deuda del origen queda de techo
 #: para siempre: si un PR limpia un pedazo, el que viene atrás puede volver a
 #: gastar el hueco que dejó sin que el ratchet lo vea. Por eso el piso de cada
-#: regla es `min(origen@ref, el conjunto en la base del PR)`. La excepción es el
-#: PR que **parte** el archivo: ahí los pedazos todavía no existen en la base, su
-#: deuda ahí es 0, y el único piso posible es el origen —el `min` se saltea
-#: cuando algún miembro falta en la base—.
+#: regla es `min(origen@ref, el conjunto en la base del PR)`, y «el conjunto en la
+#: base» son **los miembros que ahí existen**, no todos: un include que el PR
+#: agrega no aporta piso, pero tampoco le devuelve el del origen a sus hermanos
+#: (ver `piso_de_la_base`). En el PR que **parte** el archivo el único miembro
+#: presente en la base es el origen entero, así que el `min` elige lo mismo.
 #:
 #: **Cuándo se borra una entrada.** La partición es un andamio del PR que parte el
 #: archivo. Se retira cuando se cumple lo que diga su `retiro`, y a más tardar en
@@ -1069,12 +1070,12 @@ def nuevos_de_particion(
     Devuelve `(rel, severidad, línea, regla, mensaje, extracto)`: el hallazgo
     conserva el archivo donde está, así el reporte sigue siendo accionable.
 
-    `archivos_en_la_base` son esos mismos miembros tal como están en la base del
-    PR. Cuando se pasan, el piso de cada regla es el **menor** de los dos conteos
-    —el del origen entero y el del conjunto en la base—, así limpiar un pedazo
-    baja el piso en vez de dejar hueco para el PR siguiente. Sin ellos (o con un
-    miembro que en la base todavía no existe, que es el PR que parte el archivo)
-    el único piso posible es el origen.
+    `archivos_en_la_base` son los miembros que **existen** en la base del PR
+    (`piso_de_la_base`). Cuando se pasan, el piso de cada regla es el **menor** de
+    los dos conteos —el del origen entero y el del conjunto en la base—, así
+    limpiar un pedazo baja el piso en vez de dejar hueco para el PR siguiente. Sin
+    ellos —ningún miembro está todavía en la base— el único piso posible es el
+    origen.
     """
     previos = _medir_para_ratchet(base_text, origen) if base_text is not None else []
     actuales: list[tuple[str, tuple[str, int, str, str, str]]] = []
@@ -1157,6 +1158,25 @@ def _miembros_de(particion: Particion) -> list[str]:
     return sorted(rels)
 
 
+def piso_de_la_base(en_la_base: list[tuple[str, str | None]]) -> list[tuple[str, str]] | None:
+    """Los miembros de la partición que **existen** en la base del PR, o `None` si ninguno.
+
+    Medir la base solo sobre lo que ahí está es lo que hace que el piso no sea
+    todo-o-nada. Con la condición anterior —todos los miembros o ninguno— bastaba que
+    **uno** faltara para que el piso de la partición entera volviera a ser el origen, y
+    un PR que agrega un include nuevo a la carpeta recuperaba el hueco que una limpieza
+    anterior ya había cerrado. Con el filtro por miembro, el archivo nuevo simplemente no
+    aporta piso y los demás siguen aportando el suyo.
+
+    En el PR que **parte** el archivo esto no cambia nada: ahí el único miembro presente
+    en la base es el origen entero, así que el conteo de la base es el del origen y el
+    `min` elige lo mismo. Si no hay ningún miembro en la base —la carpeta entera es
+    nueva— no hay con qué comparar y el único piso posible sigue siendo el origen.
+    """
+    presentes = [(rel, texto) for rel, texto in en_la_base if texto is not None]
+    return presentes or None
+
+
 def _ref_disponible(ref: str) -> bool:
     """Si el commit está en este clon (un clon *shallow* puede no tenerlo)."""
     codigo, _ = _git(["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"])
@@ -1226,14 +1246,10 @@ def ratchet_mode(base: str) -> int:
         miembros = _miembros_de(particion)
         archivos = [(rel, texto) for rel in miembros if (texto := _leer(rel)) is not None]
         # El piso también baja: el conjunto tal como está en la base compite con el
-        # origen y gana el conteo más chico (ver `PARTICIONES`). Si algún miembro no
-        # está en la base —el PR que parte el archivo— no hay con qué comparar.
-        en_la_base = [(rel, contenido_en(base, rel)) for rel in miembros]
-        archivos_en_la_base = (
-            [(rel, texto) for rel, texto in en_la_base if texto is not None]
-            if all(texto is not None for _, texto in en_la_base)
-            else None
-        )
+        # origen y gana el conteo más chico (ver `PARTICIONES`). Se mide **solo sobre los
+        # miembros que existen en la base**: un include nuevo no aporta piso, y los demás
+        # siguen aportando el suyo (ver `piso_de_la_base`).
+        archivos_en_la_base = piso_de_la_base([(rel, contenido_en(base, rel)) for rel in miembros])
         for rel, sev, ln, rule, msg, extracto in nuevos_de_particion(
             contenido_en(particion.ref, particion.origen), particion.origen, archivos, archivos_en_la_base
         ):

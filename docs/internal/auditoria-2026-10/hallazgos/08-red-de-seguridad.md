@@ -2770,6 +2770,22 @@ encabezado, y pasaba en 0), los marcadores de posición de un secreto se compara
 con «test» adentro de otra palabra se perdonaba solo— y se sanean las dos líneas de `requerimientos.md` que el
 barrido amplio no veía. El alcance estricto sigue en **0** y `--todo-docs` sigue en **37**, los mismos 37.
 
+**Seguimiento:** #NNN (Cambio 258, Ola 7 PR 8), 12-oct-2026 — los tres MINOR que dejó la revisión de #784, todos
+sobre el mismo filo: dónde termina la prosa y empieza un dato. (1) **Una enumeración en prosa no es un encabezado de
+padrón.** `SEPARADOR_DE_CELDAS` incluía la coma, así que «El padrón trae apellido, nombre, documento y domicilio.»
+calificaba como encabezado y el primer número de siete dígitos de las líneas siguientes —un identificador interno—
+**bloqueaba la publicación**. Ahora se pide un separador de tabla de verdad (`|`, `;`, tab o celdas HTML), y con la
+coma sola, tres celdas que parezcan etiquetas: cortas y sin verbo. (2) **Las tablas HTML entran.** La regla cubría
+markdown y CSV pero no `<th>`/`<td>`, así que un padrón publicado en un mockup —`docs/client/mockups/` se copia al
+sitio tal cual— pasaba en 0. (3) **Los marcadores de posición de un secreto admiten sus propias formas:**
+`TOKEN=testing123`, `tests`, `examples` y `fakes` eran hallazgos, que es marcar exactamente lo que se escribe para no
+publicar un secreto; las variantes van declaradas una por una para que «Attestation» siga sin eximir.
+El alcance estricto sigue en **0** y `--todo-docs` queda en **38** antes y después de este PR: los 37 de entonces más
+una línea escrita desde entonces con el mismo DNI inventado con el que el repo escribe sus fixtures de Becas, que no
+es de nadie y no está en la lista de marcadores que el gate perdona.
+**Test permanente:** `DeteccionDelGateTests` ×36 (+6: la prosa enumerativa, el CSV con `;` y con tab, las dos tablas
+HTML y los dos casos de los marcadores con sufijo).
+
 ### RED-65 · El guard de `publish-main.yml` exige artefactos muertos y va a bloquear OPS-10/OPS-14
 **Severidad:** MEDIA · **Estado:** CONFIRMADO (lectura) · **Origen:** RS-R6-16 (VR2: CONFIRMADO) · **Ola:** R (el test) + 7 (sacar las rutas, sin horas extra: dentro de OPS-10/OPS-14) · **Esfuerzo:** S (2 h)
 - **Ubicación:** `publish-main.yml:38` exige `docker/django/Dockerfile` (no lo construye nadie; su `CMD` corre
