@@ -152,13 +152,22 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            requirements-ci.txt
 
       - name: Install system dependencies
         run: sudo apt-get install -y default-libmysqlclient-dev
 
+      # Los dos archivos, igual que `Tests & Coverage` de `pr-backend.yml`. Con
+      # `requirements.txt` solo, el gate moría en
+      # `TblibEnElCiTests.test_el_runner_de_django_lo_encuentra`: `tblib` vive en
+      # `requirements-ci.txt` (RED-88, Cambio 256) y la suite completa la exige, así que
+      # cualquier job que la corra entera tiene que instalar los dos.
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-ci.txt
 
       - name: Correr la suite
         env:
