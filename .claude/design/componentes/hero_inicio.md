@@ -61,6 +61,17 @@ compilar la plantilla. Los números de la bajada se calculan en la vista, no en 
 `nodo-brand.css` fija el color y el tracking de todo `h1` con `!important`; la hoja del hero les gana a
 propósito, porque sobre el gradiente el título es blanco.
 
+## Qué cubre la regla y qué no
+
+`HEROFUERA` mira **templates `.html`** y marca tres cosas fuera de `HERO_PANTALLAS`: el tag
+`{% hero_inicio %}`, **el include directo de `components/_hero_inicio.html`** y las clases
+`nodo-hero*`. El include está adentro a propósito: es el camino más obvio para saltearse el tag, y
+el componente dice que no se incluye a mano.
+
+**No alcanza** a un hero armado desde JS o desde Python, ni a una clase construida concatenando
+cadenas. La regla habla de pantallas, y una pantalla que quiera evadirla con esos caminos lo está
+haciendo a propósito; lo que `HEROFUERA` impide es el descuido, no el sabotaje.
+
 ## Prohibido
 
 - Usar el hero fuera de Inicio y de los tableros de programa.

@@ -81,6 +81,29 @@ class ReglasP1Tests(SimpleTestCase):
         self.assertIn("HEROFUERA", reglas(SHELL + '<div class="nodo-hero">x</div>'))
         self.assertNotIn("HEROFUERA", reglas(SHELL + '{% page_header titulo="Título" %}{% endpage_header %}'))
 
+    def test_herofuera_no_se_evade_por_el_include_ni_variando_la_clase(self):
+        """Los tres caminos que dejaban pasar un hero fuera de su pantalla.
+
+        El include directo era el mas obvio: el componente dice que no se incluye a
+        mano, pero nada lo impedia y la regla solo miraba el tag. Las dos variantes de
+        clase pasaban porque el `\\b` no corta contra mayuscula ni guion bajo.
+        """
+        for evasion in (
+            '{% include "components/_hero_inicio.html" with titulo="x" %}',
+            '<div class="nodo-hero__Titulo">x</div>',
+            '<div class="nodo-hero__titulo_x">x</div>',
+        ):
+            with self.subTest(evasion=evasion):
+                self.assertIn("HEROFUERA", reglas(SHELL + evasion))
+
+    def test_herofuera_no_marca_lo_que_solo_se_le_parece(self):
+        for inocente in (
+            '<link rel="stylesheet" href="/static/custom/css/nodo-hero.css">',
+            "{% hero_inicio_v2 %}",
+        ):
+            with self.subTest(inocente=inocente):
+                self.assertNotIn("HEROFUERA", reglas(SHELL + inocente))
+
     def test_herofuera_respeta_la_lista_y_el_componente(self):
         usa = '{% hero_inicio titulo="x" %}{% endhero_inicio %}'
         self.assertEqual(design_audit._p1_herofuera(design_audit.HERO_COMPONENTE, usa), [])

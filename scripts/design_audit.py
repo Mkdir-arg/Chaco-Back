@@ -767,7 +767,17 @@ def _p1_tablecanon(rel: str, text: str) -> list[tuple[int, str]]:
 # programa (ficha componentes/hero_inicio.md). Hoy ninguna lo usa; la primera en incorporarlo se
 # agrega acá y esa línea es lo que ve el revisor. También la lee HeroInicioTest.
 HERO_PANTALLAS: frozenset[str] = frozenset()
-HERO_RE = re.compile(r"\{%\s*(?:end)?hero_inicio\b|\bnodo-hero(?:__[a-z]+)?\b(?!\.css)")
+# El include directo del componente es la forma mas obvia de saltearse el tag, y el
+# propio componente dice que no se incluye a mano: sin esa alternativa la regla se
+# evadia escribiendo {% include "components/_hero_inicio.html" %}. El componente queda
+# exento igual, por HERO_COMPONENTE.
+# El sufijo de la clase acepta mayusculas y guion bajo porque `nodo-hero__Titulo` y
+# `nodo-hero__titulo_x` se colaban: el \b no corta contra esos caracteres.
+HERO_RE = re.compile(
+    r"\{%\s*(?:end)?hero_inicio\b"
+    r"|components/_hero_inicio\b"
+    r"|\bnodo-hero(?:[_a-zA-Z]*)?(?!\.css)\b"
+)
 HERO_COMPONENTE = "templates/components/_hero_inicio.html"
 
 
