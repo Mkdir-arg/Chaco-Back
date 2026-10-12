@@ -63,6 +63,27 @@ class TurnoTarjetaTest(SimpleTestCase):
         self.assertIn("btn-secondary", html)
         self.assertIn("btn-tertiary", html)
 
+    def test_accion_que_muta_es_boton_con_confirmacion_y_no_enlace(self):
+        accion = {
+            "confirm_url": "/cerrar/",
+            "url": "/cerrar/",
+            "texto": "Cerrar turno",
+            "confirm_title": "¿Cerrar el turno?",
+            "confirm_text": "No se puede reabrir.",
+            "confirm_ok": "Sí, cerrar",
+            "peligro": True,
+        }
+        html = render_to_string(TURNO, {"turno": _turno(acciones=[accion])})
+        self.assertIn('data-confirm-url="/cerrar/"', html)
+        self.assertIn('data-confirm-title="¿Cerrar el turno?"', html)
+        self.assertIn('data-confirm-danger="true"', html)
+        self.assertIn('type="button"', html)
+        self.assertNotIn("<a ", html)
+
+    def test_accion_sin_url_ni_confirm_url_no_se_dibuja(self):
+        html = render_to_string(TURNO, {"turno": _turno(acciones=[{"texto": "Nada"}])})
+        self.assertNotIn("Nada", html)
+
     def test_sin_acciones_no_dibuja_botones(self):
         self.assertNotIn("btn-nodo", render_to_string(TURNO, {"turno": _turno()}))
 
@@ -113,6 +134,11 @@ class EntradasBitacoraTest(SimpleTestCase):
     def test_respeta_los_saltos_de_linea_sin_abrir_html(self):
         html = render_to_string(ENTRADAS, {"entradas": [_entrada(texto="uno\n<p>dos</p>")]})
         self.assertIn("uno<br>&lt;p&gt;dos&lt;/p&gt;", html)
+
+    def test_texto_none_o_ausente_no_imprime_none(self):
+        for texto in (None, ""):
+            html = render_to_string(ENTRADAS, {"entradas": [_entrada(texto=texto)]})
+            self.assertNotIn("None", html)
 
     def test_automatica_y_version(self):
         html = render_to_string(ENTRADAS, {"entradas": [_entrada(automatica=True, autor="L. Méndez", version=2)]})

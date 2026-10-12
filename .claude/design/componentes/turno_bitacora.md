@@ -34,9 +34,14 @@ Tarde · entradas», debajo de su encabezado.
   `fa-triangle-exclamation`, `fa-circle-exclamation`, `fa-flag`), todos `aria-hidden`.
 - **El texto lo escribe un usuario:** se imprime con autoescape y `linebreaksbr` (respeta los saltos de línea,
   no deja pasar HTML). No hay `|safe` ni `{% autoescape off %}`.
-- Las acciones de la tarjeta (`+ Novedad`, `Cerrar turno`) las arma la vista según capacidades: la pieza no
-  decide quién puede qué y solo dibuja los enlaces que recibe. Son enlaces a una URL; lo que pida confirmación
-  o motivo abre su modal desde la pantalla.
+- Las acciones de la tarjeta las arma la vista según capacidades; la pieza no decide quién puede qué.
+  **Un enlace nunca muta estado.** Cada acción es de uno de dos tipos: `url` lleva a otra pantalla
+  (`+ Novedad`, `Ver`) y se dibuja como `<a>`; `confirm_url` (con `confirm_title`, `confirm_text`,
+  `confirm_ok` y `peligro`) es la que cambia estado (`Cerrar turno`) y se dibuja como
+  `<button data-confirm-url>` que confirma con `ModernModal` y hace el POST con CSRF desde el handler de
+  `programas/templates/programas/becas/_confirm_js.html`, que la pantalla tiene que cargar. Es el mismo contrato que el ítem
+  del menú de fila. Una acción sin ninguno de los dos no se dibuja. Un cierre con pase de guardia que pide
+  datos (pendientes, quién recibe) no es esta pieza: es el arquetipo Modal.
 
 ## Tope
 
@@ -57,9 +62,20 @@ es contrato válido de esta pieza. Una lista vacía muestra el estado vacío can
 - El 📎 de «adjunto» y el enlace «corregir» no son parte de la pieza (emoji fuera de Font Awesome; la corrección
   la define la pantalla). Las etiquetas extra como «Seguimiento abierto» tampoco.
 
+## Para la pantalla que la use
+
+- La vista trae `autor` y `categoria` ya resueltos (`select_related` o un mapa), para no hacer una consulta
+  por entrada.
+- La columna de categoría mide `w-28`: una categoría larga («Pase de guardia») puede desbordar, sobre todo a
+  390 px. Revisarlo en la primera pantalla real.
+- El badge de la entrada lleva punto (`badge-dot`) e ícono; son dos marcas para lo mismo y hay que elegir
+  una cuando se mire la pantalla.
+- `texto` puede faltar o ser `None`: no se dibuja nada, no «None».
+
 ## Prohibido
 
 - Resolver estado, categoría o tono en el template, o mandar un queryset en `entradas`.
 - `|safe` o autoescape apagado sobre el texto de una entrada.
+- Una acción que muta estado como `url` (GET).
 - Mandar toda la bitácora de un turno sin recorte ni `total`.
 - Usar solo el color para distinguir la categoría.
