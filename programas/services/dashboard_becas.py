@@ -65,7 +65,7 @@ from programas.services.autorizacion import (
     subsegmentos_visibles,
 )
 from programas.services.becas import get_campos_formulario
-from programas.services.reportes import Reporte
+from programas.services.reportes import Reporte, ReportePerezoso
 from programas.services.respuestas import campos_de, legible, planos_de
 
 logger = logging.getLogger(__name__)
@@ -92,6 +92,11 @@ _CLAVE_DISENO = re.compile(r"^(?:pg|rn|g|t)-[0-9A-Za-z_-]{1,48}$")
 #: ECOM. Los lotes de 500 de la primera versión protegían de la **foto**, que ya no se
 #: lee por fila; con 20.000 casos eran 40 consultas en vez de 10, al mismo tiempo.
 LOTE_RESPUESTAS = 2000
+#: Consultas que cuesta cada lote del export por persona: una de la pasada que resuelve
+#: las columnas y dos de la que arma las filas (el caso con sus respuestas, y sus
+#: adjuntos). El presupuesto de `scripts/perf_budgets.json` lo expresa como una consulta
+#: cada `LOTE_RESPUESTAS // CONSULTAS_POR_LOTE` casos.
+CONSULTAS_POR_LOTE = 3
 
 
 # ---------------------------------------------------------------------------
@@ -1370,11 +1375,12 @@ def _relevamientos_de(convocatoria, *, incluir_publicos=True):
 # Lo único del caso que lee la planilla. Se pide con ``values`` y no como instancias:
 # con 20.000 casos, armar el modelo con sus tres relaciones —y convertir nueve
 # datetimes por fila que nadie mira— era la mitad del tiempo de Python del export
-# (banco MySQL, 25/09/2026). ``respuestas``, ``definicion`` y ``datos_siis`` quedan
-# afuera: eran lo más pesado de cada fila y pasaban el read_timeout (500, 24/09/2026).
-# ``respuestas`` entra en una **segunda pasada por lotes de pk** (G2-01,
-# :func:`_respuestas_de_los_casos`), que es lo que trae los campos propios;
-# ``definicion`` no se lee nunca por fila (ver el porqué en esa función).
+# (banco MySQL, 25/09/2026). ``definicion`` y ``datos_siis`` quedan afuera: eran lo más
+# pesado de cada fila y pasaban el read_timeout (500, 24/09/2026); ``definicion`` no se
+# lee **nunca** por fila (ver el porqué en :func:`_celdas_de_las_respuestas`).
+# ``respuestas`` —lo que trae los campos propios (G2-01)— sí se pide junto con estas
+# columnas desde PERF-03: la consulta del lote ya está acotada a ``LOTE_RESPUESTAS``
+# casos, así que leer la fila una sola vez cuesta menos que leerla dos.
 _COLUMNAS_CASO = (
     "pk",
     "relevamiento_id",
@@ -1434,51 +1440,195 @@ def formulario_vigente(convocatoria):
     return {campo["clave"]: campo for campo in campos_de(definicion)}, planos_de(definicion)
 
 
-def _respuestas_de_los_casos(pks, campos, planos):
-    """Segunda pasada del Excel por persona: ``{pk: {clave: celda}}`` y ``{pk: ocultas}``
-    (G2-01).
+def _lotes(pks, tamano=None):
+    """Los ids de a ``tamano``: ninguna consulta del export mira más casos que eso.
 
-    **Trae solo ``(pk, respuestas)``.** La foto (``definicion``) es la columna más pesada
-    del caso —15 KB— y es **la misma** para todos los que respondieron el mismo diseño:
-    pedirla por fila costaba 12,5 s de los 14 s del export con 20.000 casos, y hacer que
-    el motor la mire —aunque sea para hashearla y mandar 32 bytes— cuesta 3 s, porque
-    InnoDB tiene que leer igual las 300 MB de páginas externas (medido en
-    ``mariadb:10.11``, 08/10/2026). El texto, el tipo y las condiciones de cada clave
-    salen de :func:`formulario_vigente`, que son tres consultas fijas.
+    El tamaño se lee del módulo en cada llamada —y no como valor por defecto, que se
+    congela al importar— para que los tests puedan achicarlo y comprobar el recorte.
+    """
+    tamano = tamano or LOTE_RESPUESTAS
+    for inicio in range(0, len(pks), tamano):
+        yield pks[inicio : inicio + tamano]
 
-    Se lee **por lotes de pk**, que es lo que mantiene cada consulta lejos del
-    ``read_timeout`` de 10 s de ECOM.
+
+def _contestadas_de_data(data):
+    """``{clave: celda}`` con lo que el contrato anterior dejó en ``Formulario.data``.
+
+    Solo entran las claves **con** valor: una respuesta vacía no distingue a una pregunta
+    que ya no está en el formulario de una que nadie contestó.
+    """
+    contestadas = {}
+    for bolsa, prefijo in (("globales", "pg"), ("requisitos", "rn")):
+        for pk, valor in _como_dict(data.get(bolsa)).items():
+            valores = _valores_de(valor)
+            if valores:
+                contestadas[f"{prefijo}-{pk}"] = " | ".join(valores)
+    return contestadas
+
+
+def _adjuntos_de_los_casos(pks):
+    """``{pk: {clave: [nombres de archivo]}}`` del lote: en esa columna va el nombre del
+    archivo. Por lote y no por convocatoria —como hasta el Cambio 189— para que el
+    diccionario no crezca con la convocatoria entera."""
+    adjuntos = {}
+    for form_id, pg_id, rn_id, archivo in (
+        AdjuntoFormulario.objects.filter(formulario_id__in=pks)
+        .order_by()
+        .values_list("formulario_id", "pregunta_global_id", "requisito_nativo_id", "archivo")
+    ):
+        clave = f"pg-{pg_id}" if pg_id else f"rn-{rn_id}"
+        adjuntos.setdefault(form_id, {}).setdefault(clave, []).append(_nombre_archivo(archivo))
+    return adjuntos
+
+
+def _claves_sin_columna(pks, campos_vigentes, planos, en_definicion):
+    """Las claves respondidas que no tienen columna ni en el formulario vigente ni en el
+    catálogo: cada una se vuelve una columna «ya no está en el formulario» (PERF-03).
+
+    Es una pasada **propia y anterior** a la de las filas, y no un subproducto de ella,
+    porque el encabezado del archivo se escribe antes que la primera fila y estas
+    columnas solo se conocen mirando lo que contestó cada caso.
+
+    Cuesta lo menos posible: de cada caso se leen únicamente los dos JSON de respuestas
+    y lo único que se mira de ellos son las claves. Una clave que ya tiene columna —las
+    34 del formulario, que son la enorme mayoría de lo contestado— se descarta con una
+    búsqueda en un `set`, sin formatear su valor; el motor de condiciones corre solo para
+    los casos que traen alguna clave desconocida, que es lo que no pasa casi nunca.
+    """
+    conocidas = set(campos_vigentes) | set(en_definicion)
+    extra = set()
+    for lote in _lotes(pks):
+        for data, respuestas in Formulario.objects.filter(pk__in=lote).order_by().values_list("data", "respuestas"):
+            respuestas = _como_dict(respuestas)
+            data = _como_dict(data)
+            candidatas = set()
+            for bolsa, prefijo in (("globales", "pg"), ("requisitos", "rn")):
+                for pk, valor in _como_dict(data.get(bolsa)).items():
+                    clave = f"{prefijo}-{pk}"
+                    if clave not in conocidas and clave not in extra and _valores_de(valor):
+                        candidatas.add(clave)
+            for clave, valor in respuestas.items():
+                if clave not in conocidas and clave not in extra and _texto_legible({}, valor):
+                    candidatas.add(clave)
+            if not candidatas:
+                continue
+            # Lo que una condición ocultó no es una respuesta y no abre columna, igual
+            # que en la pasada de las filas.
+            ocultos = condiciones.aplicar(planos, respuestas)[1] if respuestas else ()
+            extra |= candidatas.difference(ocultos)
+    return extra
+
+
+def _filas_por_persona(pks, relevamientos, claves, campos_vigentes, planos):
+    """Las filas del export, **de a lotes**: cada lote cuesta dos consultas acotadas —el
+    caso con sus respuestas, y sus adjuntos— y ninguna mira más de ``LOTE_RESPUESTAS``
+    casos.
+
+    Que sea un generador es lo que deja escribir el archivo mientras se arma: ni el
+    servicio ni la respuesta tienen las 40.000 filas en memoria a la vez (PERF-03).
+    """
+    posicion = {clave: i for i, clave in enumerate(claves)}
+    etiquetas_estado = {valor: str(etiqueta) for valor, etiqueta in Formulario.Estado.choices}
+    for lote in _lotes(pks):
+        adjuntos = _adjuntos_de_los_casos(lote)
+        casos = {
+            f["pk"]: f for f in Formulario.objects.filter(pk__in=lote).order_by().values(*_COLUMNAS_CASO, "respuestas")
+        }
+        # ``respuestas`` manda sobre lo que el contrato anterior dejó en ``data``: las dos
+        # se escriben juntas, pero solo la primera tiene los campos propios y ya pasó por
+        # el motor de condiciones.
+        celdas_de, ocultas = _celdas_de_las_respuestas(casos, campos_vigentes, planos)
+        for form_id in lote:
+            f = casos.get(form_id)
+            if f is None:  # borrado entre la lista de ids y el lote
+                continue
+            rel_id, rel_nombre, canal, territorial = relevamientos[f["relevamiento_id"]]
+            dni, nombre = _identificacion(f)
+            creado = f["creado"]
+            base = [
+                rel_id,
+                rel_nombre,
+                canal,
+                territorial,
+                f["pk"],
+                f["numero"],
+                etiquetas_estado.get(f["estado"], f["estado"]),
+                timezone.localtime(creado).strftime("%d/%m/%Y %H:%M") if creado else "",
+                f["ciudadano_id"] or "",
+                dni,
+                nombre,
+                "Sí" if (f["validado_renaper"] or f["identidad_forzada"]) else "No",
+                f["celular"] or "",
+                f["email_contacto"] or "",
+                _apoderado(f),
+                f"{f['gps_lat']}, {f['gps_lng']}" if f["gps_lat"] is not None and f["gps_lng"] is not None else "",
+            ]
+            contestadas = _contestadas_de_data(_como_dict(f["data"]))
+            for clave in ocultas.get(form_id, ()):
+                contestadas.pop(clave, None)
+            contestadas.update(celdas_de.get(form_id, {}))
+            celdas = [contestadas.get(clave, "") for clave in claves]
+            # Un adjunto pisa lo guardado en su columna; sin columna (pregunta que ya no
+            # está y nadie respondió) no hay dónde mostrarlo, igual que antes.
+            for clave, nombres in adjuntos.get(form_id, {}).items():
+                if clave in posicion:
+                    celdas[posicion[clave]] = " | ".join(nombres)
+            yield tuple(base + celdas)
+
+
+def _celdas_de_las_respuestas(casos, campos, planos):
+    """``{pk: {clave: celda}}`` y ``{pk: ocultas}`` de un lote de casos ya leídos (G2-01).
+
+    Trabaja sobre el ``respuestas`` que la consulta del lote ya trajo: hasta PERF-03 esto
+    era una **segunda** consulta por los mismos ids, y con los dos pasos acotados al lote
+    no tiene sentido leer dos veces la misma fila. La foto (``definicion``) sigue sin
+    pedirse: es la columna más pesada del caso —15 KB— y es **la misma** para todos los
+    que respondieron el mismo diseño; pedirla por fila costaba 12,5 s de los 14 s del
+    export con 20.000 casos, y hacer que el motor la mire —aunque sea para hashearla y
+    mandar 32 bytes— cuesta 3 s, porque InnoDB tiene que leer igual las 300 MB de páginas
+    externas (medido en ``mariadb:10.11``, 08/10/2026). El texto, el tipo y las
+    condiciones de cada clave salen de :func:`formulario_vigente`, que son tres consultas
+    fijas.
 
     Lo que una condición ocultó no es una respuesta y no va a la planilla: sale de la
     celda y, si el contrato anterior lo había guardado en ``data``, también de ahí.
     """
     celdas, ocultas_por_caso = {}, {}
-    for inicio in range(0, len(pks), LOTE_RESPUESTAS):
-        lote = pks[inicio : inicio + LOTE_RESPUESTAS]
-        for pk, respuestas in Formulario.objects.filter(pk__in=lote).order_by().values_list("pk", "respuestas"):
-            respuestas = _como_dict(respuestas)
-            if not respuestas:
+    for pk, caso in casos.items():
+        respuestas = _como_dict(caso["respuestas"])
+        if not respuestas:
+            continue
+        _, ocultos, _ = condiciones.aplicar(planos, respuestas)
+        ocultas_por_caso[pk] = ocultos
+        valores = {}
+        for clave, valor in respuestas.items():
+            if clave in ocultos:
                 continue
-            _, ocultos, _ = condiciones.aplicar(planos, respuestas)
-            ocultas_por_caso[pk] = ocultos
-            valores = {}
-            for clave, valor in respuestas.items():
-                if clave in ocultos:
-                    continue
-                texto = _texto_legible(campos.get(clave) or {}, valor)
-                if texto:
-                    valores[clave] = texto
-            celdas[pk] = valores
+            texto = _texto_legible(campos.get(clave) or {}, valor)
+            if texto:
+                valores[clave] = texto
+        celdas[pk] = valores
     return celdas, ocultas_por_caso
 
 
-def respuestas_por_persona(convocatoria, *, incluir_publicos):
+def respuestas_por_persona_en_lotes(convocatoria, *, incluir_publicos):
     """Base cruda de una convocatoria: **un registro por caso** (formulario enviado,
     en cualquier estado) con los datos del relevamiento, de la persona y **una columna
     por cada pregunta** del formulario, más las preguntas que ya no están en el
     formulario pero fueron respondidas en su momento.
 
-    Devuelve ``(Reporte, texto_de_alcance)``. Las columnas y su orden salen del
+    Devuelve ``(ReportePerezoso, texto_de_alcance)``: el encabezado y el alcance ya
+    resueltos, y las filas en un iterador que se arma **por lotes** mientras se escribe
+    el archivo (PERF-03 punto 3). Son dos pasadas sobre los casos, en este orden, y la
+    primera existe porque el encabezado se escribe antes que la primera fila:
+
+    1. :func:`_claves_sin_columna` —qué preguntas respondidas ya no están en el
+       formulario— y, de la misma lista de ids, la cantidad de casos del alcance.
+    2. :func:`_filas_por_persona`, tres consultas acotadas por lote de
+       ``LOTE_RESPUESTAS`` casos. **Ninguna consulta del export trae la convocatoria
+       entera**: ese era el riesgo contra el ``read_timeout`` de 10 s de ECOM.
+
+    Las columnas y su orden salen del
     **formulario vigente** de la convocatoria (:func:`formulario_vigente`: el diseño
     reconciliado con el catálogo de hoy, que es lo que incluye los **campos propios**
     del constructor), completadas con el catálogo (:func:`get_campos_formulario`) para
@@ -1504,69 +1654,18 @@ def respuestas_por_persona(convocatoria, *, incluir_publicos):
     ]
     en_definicion = {clave for clave, _, _ in definicion}
 
-    # Adjuntos por caso y pregunta: en esa columna va el nombre del archivo.
-    adjuntos = {}
-    for form_id, pg_id, rn_id, archivo in (
-        AdjuntoFormulario.objects.filter(formulario__relevamiento__convocatoria=convocatoria)
-        .order_by()
-        .values_list("formulario_id", "pregunta_global_id", "requisito_nativo_id", "archivo")
-    ):
-        clave = f"pg-{pg_id}" if pg_id else f"rn-{rn_id}"
-        adjuntos.setdefault(form_id, {}).setdefault(clave, []).append(_nombre_archivo(archivo))
-
     relevamientos = _relevamientos_de(convocatoria, incluir_publicos=incluir_publicos)
-    etiquetas_estado = {valor: str(etiqueta) for valor, etiqueta in Formulario.Estado.choices}
-    # Filtrar por los ids de relevamiento (y no por el join a la convocatoria) deja que
-    # el motor lea por el índice (relevamiento, numero), que ya es el orden pedido, sin
-    # tabla temporal ni sort de las 20.000 filas.
-    formularios = (
+    # Los ids, en el orden de la planilla, de una consulta angosta: 8 bytes por caso
+    # contra los ~12 KB de la fila ancha, y es lo que permite leer todo lo demás por
+    # lotes acotados en vez de traer la convocatoria entera de un saque. Filtrar por los
+    # ids de relevamiento (y no por el join a la convocatoria) deja que el motor lea por
+    # el índice (relevamiento, numero), que ya es el orden pedido, sin tabla temporal.
+    pks = list(
         Formulario.objects.filter(relevamiento_id__in=list(relevamientos))
         .order_by("relevamiento_id", "numero")
-        .values(*_COLUMNAS_CASO)
+        .values_list("pk", flat=True)
     )
-    casos, extra_claves = [], set()
-    for f in formularios.iterator(chunk_size=2000):
-        rel_id, rel_nombre, canal, territorial = relevamientos[f["relevamiento_id"]]
-        dni, nombre = _identificacion(f)
-        creado = f["creado"]
-        base = [
-            rel_id,
-            rel_nombre,
-            canal,
-            territorial,
-            f["pk"],
-            f["numero"],
-            etiquetas_estado.get(f["estado"], f["estado"]),
-            timezone.localtime(creado).strftime("%d/%m/%Y %H:%M") if creado else "",
-            f["ciudadano_id"] or "",
-            dni,
-            nombre,
-            "Sí" if (f["validado_renaper"] or f["identidad_forzada"]) else "No",
-            f["celular"] or "",
-            f["email_contacto"] or "",
-            _apoderado(f),
-            f"{f['gps_lat']}, {f['gps_lng']}" if f["gps_lat"] is not None and f["gps_lng"] is not None else "",
-        ]
-        data = _como_dict(f["data"])
-        contestadas = {}
-        for bolsa, prefijo in (("globales", "pg"), ("requisitos", "rn")):
-            for pk, valor in _como_dict(data.get(bolsa)).items():
-                valores = _valores_de(valor)
-                if valores:
-                    contestadas[f"{prefijo}-{pk}"] = " | ".join(valores)
-        casos.append((f["pk"], base, contestadas))
-
-    # Segunda pasada: ``respuestas``. Lo que sale de ahí manda sobre lo que el contrato
-    # anterior dejó en ``data`` (las dos se escriben juntas, pero solo la primera tiene
-    # los campos propios y ya pasó por el motor de condiciones).
-    celdas, ocultas = _respuestas_de_los_casos([pk for pk, _, _ in casos], campos_vigentes, planos_vigentes)
-    for pk, _base, contestadas in casos:
-        for clave in ocultas.get(pk, ()):
-            contestadas.pop(clave, None)
-        contestadas.update(celdas.get(pk, {}))
-        extra_claves.update(
-            clave for clave in contestadas if clave not in en_definicion and clave not in campos_vigentes
-        )
+    extra_claves = _claves_sin_columna(pks, campos_vigentes, planos_vigentes, en_definicion)
 
     # Preguntas respondidas que ya no están en el formulario: se conservan como columnas propias.
     extras = []
@@ -1601,20 +1700,18 @@ def respuestas_por_persona(convocatoria, *, incluir_publicos):
     encabezados_preguntas = [f"{texto} [{clave}]" if repetidos[texto] > 1 else texto for clave, texto in columnas]
 
     claves = [clave for clave, _ in columnas]
-    posicion = {clave: i for i, clave in enumerate(claves)}
-    filas = []
-    for form_id, base, contestadas in casos:
-        celdas = [contestadas.get(clave, "") for clave in claves]
-        # Un adjunto pisa lo guardado en su columna; sin columna (pregunta que ya no
-        # está y nadie respondió) no hay dónde mostrarlo, igual que antes.
-        for clave, nombres in adjuntos.get(form_id, {}).items():
-            if clave in posicion:
-                celdas[posicion[clave]] = " | ".join(nombres)
-        filas.append(tuple(base + celdas))
-
     encabezados = COLUMNAS_FIJAS + tuple(encabezados_preguntas)
     alcance = (
-        f"Convocatoria {convocatoria.nombre} · {convocatoria.segmento.nombre} · {len(filas)} casos, "
+        f"Convocatoria {convocatoria.nombre} · {convocatoria.segmento.nombre} · {len(pks)} casos, "
         f"todos los estados, sin filtro de período · generado el {timezone.localtime():%d/%m/%Y %H:%M}"
     )
-    return Reporte(encabezados, tuple(filas)), alcance
+    filas = _filas_por_persona(pks, relevamientos, claves, campos_vigentes, planos_vigentes)
+    return ReportePerezoso(encabezados, filas), alcance
+
+
+def respuestas_por_persona(convocatoria, *, incluir_publicos):
+    """El mismo reporte que :func:`respuestas_por_persona_en_lotes`, con todas las filas
+    ya en memoria. Es la forma que piden los llamadores que necesitan contarlas o
+    recorrerlas dos veces; el export de la pantalla usa la perezosa."""
+    reporte, alcance = respuestas_por_persona_en_lotes(convocatoria, incluir_publicos=incluir_publicos)
+    return reporte.materializado(), alcance

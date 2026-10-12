@@ -28,7 +28,12 @@ from programas.services.autorizacion import (
     programas_siis_visibles,
     puede_relevamiento_publico,
 )
-from programas.services.exportacion_reportes import respuesta_libro, respuesta_reporte
+from programas.services.exportacion_reportes import (
+    respuesta_csv_en_streaming,
+    respuesta_libro,
+    respuesta_reporte,
+)
+from programas.services.reportes import ReportePerezoso
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +182,12 @@ def programa_dashboard_respuestas(request, pk, convocatoria_pk, formato):
     Los dos formatos salen del **mismo** reporte: mismas columnas, mismo orden y mismos
     valores. El CSV existe porque armar el xlsx de 20.000 casos son ~7 s de CPU con el
     GIL tomado y el mismo contenido en CSV son ~0,7 s (PERF-03, banco `mariadb:10.11`);
-    quien necesite la planilla la sigue bajando igual."""
+    quien necesite la planilla la sigue bajando igual.
+
+    Las filas se arman **por lotes mientras se escribe el archivo** (PERF-03 punto 3), y
+    el CSV además se transmite con `StreamingHttpResponse`: una convocatoria de 40.000
+    casos no tiene que estar entera en memoria ni esperar al último caso para que empiece
+    a bajar algo."""
     if formato not in FORMATOS:
         return HttpResponseBadRequest("Formato de exportación no válido.")
     programa = _programa_o_403(request, pk, CAP_EXPORTAR)
@@ -188,14 +198,29 @@ def programa_dashboard_respuestas(request, pk, convocatoria_pk, formato):
     try:
         # SEC-22: el XLSX traía DNI, celular, email, GPS y respuestas de los casos del
         # link público aunque el usuario no tuviera RN-P13 y no los viera en pantalla.
-        reporte, alcance = dashboard_becas.respuestas_por_persona(
+        reporte, alcance = dashboard_becas.respuestas_por_persona_en_lotes(
             convocatoria,
             incluir_publicos=puede_relevamiento_publico(request.user, programa=programa_becas(request.user)),
         )
         nombre = f"becas_respuestas_{slugify(convocatoria.nombre) or convocatoria.pk}_{timezone.localdate():%Y-%m-%d}"
         if formato == "csv":
-            return respuesta_reporte(reporte, "csv", nombre, alcance=alcance)
+            # Lo que falle de acá en adelante pasa con la respuesta ya empezada: no hay
+            # 500 que mandar, así que lo único que se puede hacer es dejarlo en el log y
+            # cortar la descarga (el archivo queda incompleto, no silenciosamente corto).
+            vigilado = ReportePerezoso(reporte.encabezados, _vigilar(reporte.filas, convocatoria_pk))
+            return respuesta_csv_en_streaming(request, vigilado, nombre, alcance=alcance)
         return respuesta_libro([("Respuestas", reporte)], nombre, alcance=alcance)
     except Exception as exc:  # noqa: BLE001
         logger.exception("dashboard becas: fallo al exportar respuestas por persona (convocatoria=%s)", convocatoria_pk)
         return HttpResponseServerError(_mensaje_error("las respuestas por persona", exc))
+
+
+def _vigilar(filas, convocatoria_pk):
+    """Las mismas filas, pero si una revienta queda en el log con la convocatoria."""
+    try:
+        yield from filas
+    except Exception:
+        logger.exception(
+            "dashboard becas: fallo al transmitir las respuestas por persona (convocatoria=%s)", convocatoria_pk
+        )
+        raise
