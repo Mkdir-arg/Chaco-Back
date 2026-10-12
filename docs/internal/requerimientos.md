@@ -389,6 +389,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 236 | Golden del arquetipo Revisión, con línea de tiempo y sección de ficha | Diseño · arquetipos | `#ui` `#metodo` | Task 10 del MVP de Dispositivos (plan del Cambio 191) | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 239 | Edificio, Sector y Plaza: la base de la etapa 1, sin tipear ocupación | Dispositivos · modelo de datos | `#datos` `#ui` | Tasks 20 y 21 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | `programas.0086` |
 | 243 | Menú de fila accesible para tablas densas | Diseño · componentes | `#ui` `#metodo` | Decisión C-13 del PM (06/10) · task #585 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 247 | Hero de inicio de programa, acotado por una regla que se hace cumplir sola | Diseño · componentes | `#ui` `#metodo` | Decisión del PM (06/10) · task #583 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -32367,6 +32368,78 @@ utilidad de Tailwind nueva.
 `static/custom/css/nodo-menu-fila.css` · `static/custom/js/nodo-menu-fila.js` ·
 `core/templatetags/nodo_ui.py` · `core/tests/test_nodo_ui_piezas.py` ·
 `templates/includes/base.html` · `.claude/design/componentes/tabla.md` ·
+`.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 247 — Hero de inicio de programa, acotado por una regla que se hace cumplir sola
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 07` (#583)
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · componentes |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — decisión del 06/10 · plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Task 07 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `templates/components/_hero_inicio.html`, `nodo-hero.css`, `scripts/design_audit.py` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**«Acotado por regla» significa una regla mecánica, no una frase en la ficha.** El hero va en la
+pantalla de inicio de un programa y en ninguna otra; eso estaba escrito pero **nada lo verificaba**.
+Se agregó la regla P1 `HEROFUERA` a `design_audit.py`: marca `{% hero_inicio %}` y las clases
+`nodo-hero*` en cualquier template fuera de `HERO_PANTALLAS`, exime el componente y el `<link>` del
+shell, y corta en `--ratchet`, hook y CI. Esa lista es ahora la **única fuente**.
+
+**La prueba que cuidaba esa regla pasaba en falso dentro de un worktree** y se corrigió —el defecto
+general quedó en el Cambio 213—. Al arreglarla apareció otro: contaba como uso el `<link>` a
+`nodo-hero.css` de `base.html`.
+
+**La regla se evadía con el include directo del componente** (hallazgo del revisor). `HEROFUERA`
+solo miraba el tag y las clases, así que `{% include "components/_hero_inicio.html" %}` pasaba
+limpio —el camino más obvio para saltearse el tag, y el componente dice que no se incluye a mano—.
+Se agregó a la expresión, junto con dos variantes de clase que el `` no cortaba
+(`nodo-hero__Titulo`, `nodo-hero__titulo_x`), y van con sus pruebas: las tres evasiones y los dos
+inocentes que no se deben marcar.
+
+**`var(--ease-standard)` no existe en ningún CSS del repo.** El WIP lo usaba y la transición quedaba
+inválida; pasó a `0.15s ease`, como el resto de las hojas `nodo-*`. Es el tipo de token inventado que
+no rompe nada visible y sobrevive por eso.
+
+**`becas.md` se corrigió a propósito, no por arrastre.** Decía «no hay hero» en el Inicio; ahora dice
+que el canon no usa heros en backoffice operativo **salvo `{% hero_inicio %}`**. Sin eso la ficha de
+dominio contradecía al inventario.
+
+## Pendientes
+
+- **`HERO_PANTALLAS` está vacía**, así que la prueba de alcance pasa de forma trivial. Cuando el
+  tablero de Dispositivos estrene el hero hay que agregar su ruta.
+- La regla **no alcanza** a un hero armado desde JS o Python, ni a una clase construida concatenando
+  cadenas: solo mira templates `.html`. Queda escrito en la ficha. `HEROFUERA` impide el descuido, no
+  el sabotaje.
+- **El título del hero usa dos `!important`** (en `color` y `letter-spacing`) para ganarle a
+  `nodo-brand.css`. Está justificado en un comentario, pero es deuda nueva.
+- El Inicio de hoy está autorizado y **no** usa el hero: sigue con `page_header`, y un test lo exige.
+
+## Archivos
+
+`templates/components/_hero_inicio.html` · `static/custom/css/nodo-hero.css` ·
+`core/templatetags/nodo_ui.py` · `scripts/design_audit.py` ·
+`core/tests/test_nodo_ui_piezas.py` · `core/tests/test_design_audit_estructura.py` ·
+`.claude/design/componentes/hero_inicio.md` · `.claude/design/dominio/becas.md` ·
 `.claude/agents/chaco-design-system.md`
 
 ## Base de datos

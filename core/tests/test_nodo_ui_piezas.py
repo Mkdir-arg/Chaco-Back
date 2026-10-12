@@ -1124,6 +1124,7 @@ class MenuFilaTest(SimpleTestCase):
         self.assertIn("position: fixed;", bloque)
         self.assertIn(".nodo-menu-fila__menu[hidden]", css)
 
+
 # Pantallas autorizadas a usar el hero: SOLO la de inicio y los tableros de programa (C-3). Hoy
 # ninguna lo usa (el Inicio lo retiró FE-22); la primera en incorporarlo se agrega acá, y esa línea
 # es lo que un revisor tiene que ver: usarlo en otra pantalla es rechazable citando el agente.
