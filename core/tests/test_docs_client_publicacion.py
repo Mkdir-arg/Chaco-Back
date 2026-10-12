@@ -42,6 +42,7 @@ WORKFLOW_PR = RAIZ / ".github" / "workflows" / "pr-datos.yml"
 
 #: Inventados, y elegidos para que **no** caigan en los marcadores que el gate perdona.
 DOCUMENTO_INVENTADO = "98765432"
+OTRO_DOCUMENTO_INVENTADO = "98765433"
 CUIL_INVENTADO = "27987654321"
 NACIMIENTO_INVENTADO = "1983-07-14"
 
@@ -134,6 +135,58 @@ class DeteccionDelGateTests(SimpleTestCase):
         raiz = self._arbol({"index.md": f'    "identificador": "{CUIL_INVENTADO}",\n'})
         self.assertEqual(self._reglas(raiz), ["persona"])
 
+    def test_una_tabla_de_padron_frena_la_publicacion_aunque_las_filas_no_repitan_la_palabra(self):
+        """Quien nombra la columna es el encabezado; las filas son solo números.
+
+        Pedir la palabra en la **misma** línea dejaba pasar un padrón entero: la tabla
+        dice «Documento» una vez, arriba, y después publica una persona por fila.
+        """
+        raiz = self._arbol(
+            {
+                "index.md": f"""\
+                | Apellido | Nombre | Documento |
+                |---|---|---|
+                | PRUEBA | PERSONA | {DOCUMENTO_INVENTADO} |
+                | PRUEBA | OTRA | {OTRO_DOCUMENTO_INVENTADO} |
+                """
+            }
+        )
+        self.assertEqual(self._reglas(raiz), ["persona", "persona"])
+
+    def test_un_csv_de_padron_tambien(self):
+        """Mismo caso sin markdown: la cabecera del CSV y dos filas."""
+        raiz = self._arbol(
+            {
+                "index.md": "Hola.\n",
+                "padron.csv": f"apellido,nombre,dni\nPRUEBA,PERSONA,{DOCUMENTO_INVENTADO}\n"
+                f"PRUEBA,OTRA,{OTRO_DOCUMENTO_INVENTADO}\n",
+            }
+        )
+        self.assertEqual(self._reglas(raiz), ["persona", "persona"])
+
+    def test_un_documento_pegado_a_un_nombre_propio_frena_la_publicacion(self):
+        """En prosa no hay encabezado ni palabra: lo que identifica es el nombre."""
+        raiz = self._arbol({"index.md": f"Persona De Prueba ({DOCUMENTO_INVENTADO}) cobró la beca.\n"})
+        self.assertEqual(self._reglas(raiz), ["persona"])
+
+    def test_una_tabla_sin_columna_de_documento_no_convierte_sus_numeros_en_personas(self):
+        """El encabezado tiene que nombrar al documento **y** a la persona."""
+        raiz = self._arbol(
+            {
+                "index.md": """\
+                | Programa | Convocatoria | Inscriptos |
+                |---|---|---|
+                | Becas | 2026 | 9876543 |
+                """
+            }
+        )
+        self.assertEqual(self._reglas(raiz), [])
+
+    def test_el_encabezado_de_padron_no_alcanza_a_las_filas_lejanas(self):
+        """La ventana es de `VENTANA_PADRON` filas y mira solo hacia arriba."""
+        raiz = self._arbol({"index.md": "| Apellido | Documento |\n" + "| texto |\n" * 8 + "| x | 9876543 |\n"})
+        self.assertEqual(self._reglas(raiz), [])
+
     def test_un_numero_de_siete_digitos_sin_contexto_no_es_un_documento(self):
         raiz = self._arbol({"index.md": "El presupuesto del programa es de 1234567 pesos.\n"})
         self.assertEqual(self._reglas(raiz), [])
@@ -214,6 +267,22 @@ class DeteccionDelGateTests(SimpleTestCase):
     def test_un_secreto_con_valor_de_verdad_frena_la_publicacion(self):
         raiz = self._arbol({"index.md": "SIIS_API_CLIENT_SECRET=aH7x29ZqLmTp4Rb\n"})
         self.assertEqual(self._reglas(raiz), ["secreto"])
+
+    def test_un_secreto_que_lleva_test_adentro_de_otra_palabra_no_se_perdona(self):
+        """«Attestation» tiene un «test» adentro, y así pasaba un secreto entero.
+
+        El valor inventado es el caso: la lista de marcadores se buscaba como subcadena,
+        y un secreto de verdad tiene todas las letras del alfabeto.
+        """
+        raiz = self._arbol({"index.md": "SIIS_API_CLIENT_SECRET=AttestationKe9f3Qx\n"})
+        self.assertEqual(self._reglas(raiz), ["secreto"])
+
+    def test_los_marcadores_con_sufijo_siguen_siendo_marcadores(self):
+        """El borde es de letras y no `\\b`: `test-key`, `test123` y `ejemplo-1` entran."""
+        raiz = self._arbol(
+            {"index.md": "API_KEY=test-key\nSIIS_SECRET=test123\nTOKEN=ejemplo-1\nPASSWORD=mi_sample_valor\n"}
+        )
+        self.assertEqual(self._reglas(raiz), [])
 
     def test_la_plantilla_del_env_que_el_repo_publica_no_es_un_secreto(self):
         """Las doce líneas que el `\\S` de la ficha marcaba y son exactamente lo que hay que escribir."""

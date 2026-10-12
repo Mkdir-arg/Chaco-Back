@@ -393,6 +393,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 251 | Eyebrow, filtro rápido en píldora, y chips y switch como widgets de Django | Diseño · componentes | `#ui` `#metodo` | Tasks 11, 12 y 13 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 253 | Pantalla de sectores y plazas, y la variante apilada del arquetipo Detalle | Dispositivos · pantallas | `#ui` `#metodo` | Task 23 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 255 | Servicio único de ocupación: lo que no se puede calcular devuelve `None`, no cero | Dispositivos · servicios | `#datos` `#performance` | Task 22 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 256 | Segundas lecturas de los dos gates: el padrón que no se veía, el secreto que se perdonaba solo y el piso que no bajaba | Transversal — gate de publicación de `docs/client/` · auditoría de diseño (particiones del ratchet) · archivo vivo de requerimientos | `#infra` `#datos` | Revisiones de #664 (Cambio 207) y #665 (Cambio 208) — los MINOR que quedaron abiertos (Ola 7, PR 7) | 12/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
 
 **Notas del índice**
 
@@ -32706,5 +32707,198 @@ No requiere.
 ## Historial
 
 Entrada nueva. Ejecuta la etapa 1 del plan del Cambio 191.
+
+---
+
+# Cambio 256 — Segundas lecturas de los dos gates: el padrón que no se veía, el secreto que se perdonaba solo y el piso que no bajaba
+
+🟢 **HECHO — 12/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — gate de publicación de `docs/client/` (`scripts/check_docs_client.py`) · auditoría de diseño (particiones del ratchet, `scripts/design_audit.py`) · archivo vivo de requerimientos |
+| **Etiquetas** | `#infra` `#datos` |
+| **Solicitante** | Revisiones de #664 (Cambio 207) y #665 (Cambio 208) — los MINOR que quedaron abiertos |
+| **Fecha del pedido** | 12/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — seguimiento de las fichas RED-64 y RED-54 (Ola 7) |
+| **Partes afectadas** | CI (`Datos`, `Code Quality`, `Design Agent Contract`) · documentación interna |
+| **Migración** | No |
+
+## Pedido original
+
+Los cinco MINOR que dejaron las dos revisiones de la Ola 7, ninguno con rama propia. Tres
+sobre el gate de publicación (RED-64, Cambio 207) y dos sobre las particiones del ratchet de
+diseño (RED-54, Cambio 208):
+
+1. El gate exige que la palabra que nombra al documento esté en la **misma línea** que el
+   número. En una tabla o en un CSV la dice el encabezado una sola vez, así que un padrón
+   entero pasaba en 0.
+2. La lista de marcadores de posición de un secreto se buscaba como **subcadena**: un
+   `SIIS_API_CLIENT_SECRET` con un valor inventado tipo `AttestationKe9f3Qx` se perdonaba
+   solo porque adentro de «Attestation» hay un «test».
+3. Dos líneas de este mismo archivo que el barrido amplio no vio: una fila de ejemplo de un
+   export CSV y un documento no numérico citado como observado.
+4. `_particion_de` resolvía el patrón con `fnmatch` —cuyo `*` cruza `/`— y `_miembros_de` con
+   `Path.glob` —que no—: un archivo más anidado entraba a la partición y no al conjunto, y
+   quedaba **sin auditar por ningún lado**.
+5. Con el `ref` de la partición fijo, la deuda del origen queda de techo para siempre: si un
+   PR limpia un pedazo, el que viene atrás puede volver a gastar el hueco sin que el ratchet
+   lo vea.
+
+## Alcance acordado
+
+**Entra:** las dos reglas nuevas del gate con sus tests rojos, el saneamiento de las dos
+líneas, la unificación del criterio de `glob` y el piso que baja, más la condición de retiro
+de cada partición declarada.
+
+**Queda afuera, y por qué:**
+
+- **Bajar los 37 hallazgos de `--todo-docs`.** Son los mismos 37 de antes y ninguno es el
+  dato de una persona (DNI de ejemplo de colecciones de Postman, un `head -c` con su cantidad
+  de bytes al lado de la palabra «DNI», direcciones de fixtures de parseo). Sacarlos pide
+  reescribir documentación ajena a este PR.
+- **Los 32 P1 de diseño del detalle de revisión.** Siguen donde estaban: arreglarlos cambia
+  el HTML y rompe la garantía del refactor del Cambio 208. Son justamente la condición de
+  retiro que ahora la partición declara.
+- **Retirar la partición.** Todavía no corresponde: la ficha de esos 32 P1 sigue abierta.
+
+## Decisiones tomadas
+
+- **El encabezado es lo que convierte una fila de números en un padrón.** La regla nueva no
+  es «un documento con identidad cerca» —`CAMPO_DE_IDENTIDAD` aparece en media página de
+  prosa de este repo y el gate nacería con decenas de falsos positivos—, sino «un documento
+  con un **encabezado de padrón** hasta cinco líneas más arriba»: una fila de etiquetas donde
+  **una celda distinta de la otra** nombra el documento y la persona
+  (`| Apellido | Nombre | Documento |`, `apellido,nombre,dni`). Mira solo hacia arriba,
+  porque un encabezado va antes que sus filas.
+- **El nombre propio con el documento entre paréntesis es la otra mitad.** «Persona De Prueba
+  (12345678) cobró la beca» no tiene encabezado ni palabra que lo nombre, y es como se
+  escribe un caso concreto en prosa. Se piden **dos** palabras capitalizadas seguidas antes
+  del paréntesis, para que «Cambio 207 (1234567)» u «Ola 7 (…)» no entren.
+- **El borde del marcador de posición es de letras, no `\b`.** Con `\b` quedaban afuera
+  `test123` y `ejemplo-1`, que sí son marcadores. Con `(?<![a-z])…(?![a-z])` entran los dos y
+  «Attestation» no.
+- **El piso de una partición es `min(origen@ref, conjunto en la base)`.** Era barato y cierra
+  el agujero del punto 5: limpiar un pedazo baja el piso en vez de dejar hueco. La excepción
+  es el PR que **parte** el archivo —ahí los pedazos todavía no existen en la base, su deuda
+  ahí es 0 y el `min` reportaría todo el markup movido—, así que el `min` se saltea cuando
+  algún miembro falta en la base. Eso también explica por qué no reemplaza al `ref` fijo: los
+  dos pisos se necesitan, cada uno para un momento distinto.
+- **Toda partición declara cuándo se retira.** `Particion.retiro` es obligatorio, por lo
+  mismo que el `vence` de `security/excepciones.toml`: una excepción sin fecha de muerte se
+  queda para siempre, y esta además cuesta mientras viva. La declarada hoy se retira con la
+  ficha de los 32 P1 del detalle de revisión, y a más tardar el 30/04/2027.
+- **El criterio de `glob` es el de `Path.glob`, y no al revés.** Ensanchar `_miembros_de`
+  para que `*` cruzara `/` metería al conjunto archivos que nadie declaró. Lo que se achica
+  es `_particion_de`: lo anidado no es miembro, así que se audita suelto contra la base, que
+  es la medición correcta para un archivo que nadie declaró como pedazo.
+
+## Qué se hizo
+
+**Gate de publicación** (`scripts/check_docs_client.py`):
+
+- `_es_encabezado_de_padron` + `_hay_encabezado_de_padron_arriba` + `NOMBRA_PERSONA` y
+  `VENTANA_PADRON` (5 filas, solo hacia arriba); `_documento_pegado_a_un_nombre` con
+  `NOMBRE_PROPIO_CON_DOCUMENTO`. La regla 1 pasa a tener tres caminos y cada uno dice en el
+  mensaje por qué disparó.
+- `SABE_A_PRUEBA` con bordes de letra.
+
+**Auditoría de diseño** (`scripts/design_audit.py`):
+
+- `_coincide` compara componente por componente (el criterio de `Path.glob`) y
+  `_particion_de` lo usa en lugar de `fnmatch`.
+- `nuevos_de_particion` acepta los miembros **tal como están en la base** y toma el conteo
+  más chico por regla, con sus extractos; `ratchet_mode` se los pasa cuando todos existen en
+  la base.
+- `Particion.retiro`, obligatorio, y el docstring de `PARTICIONES` con las dos cosas que
+  antes no estaban escritas: que el piso baja y cuándo se borra la entrada.
+
+**Archivo vivo:** la fila de ejemplo del export CSV de Ciudadanos pasa a
+`12345678, PRUEBA, PERSONA, 01/01/2000` (los mismos marcadores que el gate perdona) y el
+documento no numérico de `aprobados_materias` se describe por su forma (`B 12345678`) en vez
+de citarse.
+
+## Archivos
+
+- `scripts/check_docs_client.py` — reglas 1 y 4.
+- `core/tests/test_docs_client_publicacion.py` — 8 casos nuevos (3 rojos de padrón, 1 rojo de
+  secreto, 4 negativos).
+- `scripts/design_audit.py` — `_coincide`, `_particion_de`, `nuevos_de_particion`,
+  `ratchet_mode`, `Particion.retiro` y el docstring de `PARTICIONES`.
+- `scripts/test_design_audit.py` — 3 casos nuevos en `ParticionesTests`.
+- `requirements-ci.txt` — `tblib==3.2.2` (ronda 2).
+- `core/tests/test_gates_ci.py` — `tblib` en `HERRAMIENTAS_DEL_CI` y el test del job (ronda 2).
+- `docs/internal/requerimientos.md` — las dos líneas saneadas y esta entrada.
+
+## Base de datos
+
+No requiere.
+
+## Verificación
+
+- `manage.py check`: sin issues.
+- `core.tests.test_docs_client_publicacion` + `core.tests.test_gates_ci` +
+  `core.tests.test_design_audit_estructura` + `core.tests.test_design_audit_confirm`: 203
+  tests, OK. Los 51 del primero incluyen los 8 casos nuevos.
+- `scripts/test_design_audit.py`: 24 tests, OK (3 nuevos).
+- `check_docs_client.py` (alcance estricto): **0 hallazgos**, antes y después.
+- `check_docs_client.py --todo-docs`: **37 antes, 37 después**, y los 37 son los mismos
+  —comparados uno a uno—. Entre medio llegaron a ser 38: la regla nueva encontró la fila del
+  export CSV de este mismo archivo, que es el punto 3 del pedido.
+- Los cuatro casos nuevos medidos contra el gate anterior dan `[]`: tabla, CSV, prosa y
+  secreto estaban ciegos.
+- El pedazo anidado medido contra el criterio anterior da **0 hallazgos** (sin auditar) y con
+  el nuevo da **1** (`INLINESTYLE`).
+- `design_audit.py --ratchet --base origin/development`: 0 (ningún archivo de UI cambiado);
+  `check_design_agent.py --changed`: OK.
+- `requerimientos.py --check`: OK. `ruff check` y `ruff format --check` sobre los cuatro
+  archivos de código tocados: limpios.
+
+## Pendientes
+
+- **Los 37 de `--todo-docs`.** No bloquean y ninguno es un dato de persona; bajarlos es
+  reescribir documentación de otras fichas.
+- **La partición vive hasta que se cierren los 32 P1.** La condición ya está escrita en el
+  código; retirarla es sacar las dos entradas de `PARTICIONES`.
+- **El `min` no cubre al PR que parte un archivo**, por construcción. Si alguna vez una
+  partición nace con deuda **agregada** en el mismo PR, el único piso es el origen y hay que
+  mirarla a ojo.
+
+## Reversión
+
+Revertir el commit deja las dos reglas del gate como estaban (un padrón en tabla vuelve a
+pasar), `_particion_de` vuelve a `fnmatch` y el piso de la partición vuelve a ser solo el
+origen. Las dos líneas saneadas del archivo vivo conviene no revertirlas.
+
+## Historial
+
+**12/10/2026 — los cinco MINOR, en un PR de seguimiento** (#784). Sin horas de plan: son las
+colas de los PR 5 y 6 de la Ola 7, y ninguno justificaba rama propia. Las fichas RED-64 y
+RED-54 lo anotan en su línea «Seguimiento:».
+
+**Ronda 2 de la revisión (12/10/2026).** Un BLOCKER y un MAJOR, los dos salidos de que
+`Tests & Coverage` terminó **cancelado a los 25 minutos, dos veces**.
+
+- **BLOCKER — el regex nuevo era una regla de DNI escrita a mano.**
+  `core.tests.test_regla_dni` (RED-48) marcaba `NOMBRE_PROPIO_CON_DOCUMENTO`: tiene un
+  `\d{7,8}`. Lleva `# regla-dni: ok` con el motivo, como `DOCUMENTO` ahí arriba y como
+  `check_datos_personales.py`: **detectar un documento publicado no es validar uno**, y la
+  regla de validación sigue viviendo una sola vez, en `core.dni`.
+- **MAJOR — faltaba `tblib`, y por eso el job no decía qué test falló.** Es lo que convirtió
+  un test en rojo en un **cuelgue de 25 minutos**: Django manda los resultados de cada worker
+  por `multiprocessing` y un `exc_info` arrastra un `traceback`, que `pickle` no serializa,
+  así que el proceso principal muere con `TypeError: cannot pickle 'traceback' object`
+  (`django/test/runner.py:541`), los workers de `coverage` quedan huérfanos y el job termina
+  por `timeout-minutes` como «cancelled», sin nombre de test. Latente desde que RED-86
+  encendió `--parallel 4` (Cambio 207): RED-88 (Cambio 163) había cerrado **una causa** —la
+  guarda de `seed_perf`—, no el mecanismo. Va `tblib==3.2.2` en `requirements-ci.txt`, que es
+  el archivo que instala ese job; `pip-audit` sobre ella da *No known vulnerabilities found*
+  y la licencia es BSD-2-Clause. **Medido en local** (Django 5.2.17, Python 3.12): tres
+  módulos con un fallo adrede y `--parallel 2` mueren con el `TypeError` sin ella, y con ella
+  salen `FAILED (failures=1)` nombrando el test. El test que lo sostiene es
+  `SuiteEnParaleloTests.test_el_job_instala_lo_que_hace_falta_para_que_un_fallo_tenga_nombre`,
+  más `tblib` adentro de `HERRAMIENTAS_DEL_CI`, que se compara por igualdad.
+
+**12/10/2026 — merge del juez con `development` (hasta `a8985a58`).** El 209 quedó tomado por otras ramas en vuelo; esta entrada pasa a ser la **256**. `development` ya traía `tblib==3.2.2` en `requirements-ci.txt` (`8f60b84c`, el mismo arreglo hecho en paralelo por otra sesión): se conserva la versión de `development` del archivo y los tests de este PR que lo fijan siguen en verde.
 
 ---

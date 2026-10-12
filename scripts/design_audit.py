@@ -77,7 +77,7 @@ import fnmatch
 import re
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import NamedTuple
 
 REPO = Path(__file__).resolve().parent.parent
@@ -987,10 +987,16 @@ class Particion(NamedTuple):
     `development`, la base ya trae el archivo de origen partido y comparar contra
     ella le devolvería la deuda vieja a cualquier PR posterior que toque un
     pedazo (medido: `_identidad` 6, `_respuestas` 5, `_acciones` 2).
+
+    `retiro` dice **cuándo se borra la entrada**. Es obligatorio por lo mismo que
+    el `vence` de `security/excepciones.toml`: una excepción sin fecha de muerte
+    se queda para siempre, y esta además cuesta —mientras viva, el piso de esas
+    reglas lo fija un commit viejo—.
     """
 
     ref: str
     origen: str
+    retiro: str
 
 
 #: Particiones declaradas: un template que se partió en varios archivos.
@@ -1005,10 +1011,27 @@ class Particion(NamedTuple):
 #:
 #: El conjunto se arma por `glob` y **no** con los archivos que el PR tocó: medir
 #: un pedazo suelto contra la deuda del archivo entero taparía cualquier hallazgo
-#: nuevo, porque el conteo por regla nunca llegaría a superar al del origen.
+#: nuevo, porque el conteo por regla nunca llegaría a superar al del origen. El
+#: patrón se compara con el criterio de `Path.glob` —`*` **no** cruza `/`, ver
+#: `_coincide`—: un archivo más adentro (`_detalle/sub/_x.html`) no es miembro, y
+#: por eso tampoco puede entrar a la partición; se audita suelto, contra la base.
+#:
+#: **El piso baja.** Con `ref` fijo y nada más, la deuda del origen queda de techo
+#: para siempre: si un PR limpia un pedazo, el que viene atrás puede volver a
+#: gastar el hueco que dejó sin que el ratchet lo vea. Por eso el piso de cada
+#: regla es `min(origen@ref, el conjunto en la base del PR)`. La excepción es el
+#: PR que **parte** el archivo: ahí los pedazos todavía no existen en la base, su
+#: deuda ahí es 0, y el único piso posible es el origen —el `min` se saltea
+#: cuando algún miembro falta en la base—.
+#:
+#: **Cuándo se borra una entrada.** La partición es un andamio del PR que parte el
+#: archivo. Se retira cuando se cumple lo que diga su `retiro`, y a más tardar en
+#: la fecha que ahí figura; a partir de ahí el ratchet normal (archivo contra
+#: archivo, con la base ya partida) mide bien y la entrada solo sostiene un piso
+#: viejo. Borrarla es borrar las dos líneas: la del patrón y la del origen.
 #:
 #: Clave: patrón `glob` de los destinos (incluido el origen, si sobrevivió).
-#: Valor: el origen y el commit donde todavía estaba entero.
+#: Valor: el origen, el commit donde todavía estaba entero y su condición de retiro.
 PARTICIONES: dict[str, Particion] = {
     # RED-54 (Ola 7): `formulario_detalle.html` pasó de 1.214 líneas a 88 y sus
     # secciones viven en `_detalle/`. El HTML renderizado no cambió —lo fija
@@ -1018,24 +1041,40 @@ PARTICIONES: dict[str, Particion] = {
     # `9a3787db` es el último commit de `development` donde el archivo tenía las
     # 1.214 líneas (`git log -1 --format=%H origin/development -- <ruta>`,
     # 08-oct-2026).
+    #
+    # Retiro: cuando se cierre la ficha de los 32 P1 de diseño que viajaron con el
+    # markup (pendiente declarado del Cambio 208) —ahí los includes quedan limpios y
+    # el piso del conjunto es 0—, y a más tardar el 30/04/2027.
     "programas/templates/programas/becas/revision/_detalle/*.html": Particion(
         ref="9a3787dbd50b6493dbefc64bcb3179772abdc1b4",
         origen="programas/templates/programas/becas/revision/formulario_detalle.html",
+        retiro="con la ficha de los 32 P1 del detalle de revisión; a más tardar el 30/04/2027",
     ),
     "programas/templates/programas/becas/revision/formulario_detalle.html": Particion(
         ref="9a3787dbd50b6493dbefc64bcb3179772abdc1b4",
         origen="programas/templates/programas/becas/revision/formulario_detalle.html",
+        retiro="con la ficha de los 32 P1 del detalle de revisión; a más tardar el 30/04/2027",
     ),
 }
 
 
 def nuevos_de_particion(
-    base_text: str | None, origen: str, archivos: list[tuple[str, str]]
+    base_text: str | None,
+    origen: str,
+    archivos: list[tuple[str, str]],
+    archivos_en_la_base: list[tuple[str, str]] | None = None,
 ) -> list[tuple[str, str, int, str, str, str]]:
     """Igual que `nuevos`, pero el «actual» son varios archivos a la vez.
 
     Devuelve `(rel, severidad, línea, regla, mensaje, extracto)`: el hallazgo
     conserva el archivo donde está, así el reporte sigue siendo accionable.
+
+    `archivos_en_la_base` son esos mismos miembros tal como están en la base del
+    PR. Cuando se pasan, el piso de cada regla es el **menor** de los dos conteos
+    —el del origen entero y el del conjunto en la base—, así limpiar un pedazo
+    baja el piso en vez de dejar hueco para el PR siguiente. Sin ellos (o con un
+    miembro que en la base todavía no existe, que es el PR que parte el archivo)
+    el único piso posible es el origen.
     """
     previos = _medir_para_ratchet(base_text, origen) if base_text is not None else []
     actuales: list[tuple[str, tuple[str, int, str, str, str]]] = []
@@ -1045,6 +1084,17 @@ def nuevos_de_particion(
     por_regla_previa: dict[str, list[str]] = {}
     for _sev, _ln, rule, _msg, extracto in previos:
         por_regla_previa.setdefault(rule, []).append(extracto)
+    if archivos_en_la_base is not None:
+        en_la_base: dict[str, list[str]] = {}
+        for rel, texto in archivos_en_la_base:
+            for _sev, _ln, rule, _msg, extracto in _medir_para_ratchet(texto, rel):
+                en_la_base.setdefault(rule, []).append(extracto)
+        # El piso es el conteo más chico, con **sus** extractos: los de la lista que
+        # se descarta no son los que hay que ir tachando contra lo actual.
+        for rule in set(por_regla_previa) | set(en_la_base):
+            del_origen = por_regla_previa.get(rule, [])
+            de_la_base = en_la_base.get(rule, [])
+            por_regla_previa[rule] = del_origen if len(del_origen) <= len(de_la_base) else de_la_base
     por_regla_actual: dict[str, list[tuple[str, tuple[str, int, str, str, str]]]] = {}
     for rel, f in actuales:
         por_regla_actual.setdefault(f[2], []).append((rel, f))
@@ -1067,16 +1117,36 @@ def nuevos_de_particion(
     return reportar
 
 
+def _coincide(rel: str, patron: str) -> bool:
+    """`rel` contra un patrón `glob`, con el **mismo criterio que `Path.glob`**.
+
+    `fnmatch` deja que `*` cruce `/` y `Path.glob` no. Con uno de cada lado, un
+    archivo más anidado (`_detalle/sub/_x.html`) entraba a la partición por
+    `_particion_de` pero no a sus miembros por `_miembros_de`: no se medía como
+    conjunto ni como suelto, y quedaba **sin auditar**. Acá se compara componente
+    por componente, que es lo que hace `glob`.
+    """
+    partes = PurePosixPath(rel).parts
+    moldes = PurePosixPath(patron).parts
+    if len(partes) != len(moldes):
+        return False
+    return all(fnmatch.fnmatchcase(parte, molde) for parte, molde in zip(partes, moldes))
+
+
 def _particion_de(rel: str) -> Particion | None:
     """La partición declarada a la que pertenece `rel`, si hay alguna."""
     for patron, particion in PARTICIONES.items():
-        if fnmatch.fnmatch(rel, patron):
+        if _coincide(rel, patron):
             return particion
     return None
 
 
 def _miembros_de(particion: Particion) -> list[str]:
-    """Todos los archivos de la partición que hoy existen, estén tocados o no."""
+    """Todos los archivos de la partición que hoy existen, estén tocados o no.
+
+    `REPO.glob` y `_particion_de` tienen que decidir igual: lo que entra acá es
+    exactamente lo que allá devuelve esta partición (ver `_coincide`).
+    """
     rels: set[str] = set()
     for patron, declarada in PARTICIONES.items():
         if declarada != particion:
@@ -1153,9 +1223,19 @@ def ratchet_mode(base: str) -> int:
 
     total = 0
     for particion in sorted(particiones):
-        archivos = [(rel, texto) for rel in _miembros_de(particion) if (texto := _leer(rel)) is not None]
+        miembros = _miembros_de(particion)
+        archivos = [(rel, texto) for rel in miembros if (texto := _leer(rel)) is not None]
+        # El piso también baja: el conjunto tal como está en la base compite con el
+        # origen y gana el conteo más chico (ver `PARTICIONES`). Si algún miembro no
+        # está en la base —el PR que parte el archivo— no hay con qué comparar.
+        en_la_base = [(rel, contenido_en(base, rel)) for rel in miembros]
+        archivos_en_la_base = (
+            [(rel, texto) for rel, texto in en_la_base if texto is not None]
+            if all(texto is not None for _, texto in en_la_base)
+            else None
+        )
         for rel, sev, ln, rule, msg, extracto in nuevos_de_particion(
-            contenido_en(particion.ref, particion.origen), particion.origen, archivos
+            contenido_en(particion.ref, particion.origen), particion.origen, archivos, archivos_en_la_base
         ):
             print(f"{rel}:{ln}: [{sev}][{rule}] {msg}")
             if extracto:
