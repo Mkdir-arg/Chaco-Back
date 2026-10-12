@@ -1005,6 +1005,7 @@ class StepperTest(SimpleTestCase):
         )
         self.assertIn("width: 28px;", re.search(r"\.nodo-step__circle \{([^}]*)\}", css).group(1))
         self.assertIn("width: 56px;", re.search(r"\.nodo-step \+ \.nodo-step::before \{([^}]*)\}", css).group(1))
+
 class MenuFilaTest(SimpleTestCase):
     """C-9: el menu de fila anuncia que controla, nace cerrado y explica lo deshabilitado."""
 
@@ -1044,7 +1045,8 @@ class MenuFilaTest(SimpleTestCase):
 
     def test_item_deshabilitado_se_ve_con_su_motivo_y_no_lleva_destino(self):
         html = self._render(
-            self.ITEM + 'texto="Reasignar" url="/reasignar/" confirm_url="/x/" motivo="Solo con relevamiento vencido" only %}'
+            self.ITEM
+            + 'texto="Reasignar" url="/reasignar/" confirm_url="/x/" motivo="Solo con relevamiento vencido" only %}'
         )
 
         self.assertIn('role="menuitem" class="nodo-menu-fila__item" aria-disabled="true"', html)
@@ -1082,7 +1084,7 @@ class MenuFilaTest(SimpleTestCase):
 
     def test_escapa_la_etiqueta_y_los_textos(self):
         html = self._render(
-            self.ITEM + 'texto=texto motivo=motivo only %}',
+            self.ITEM + "texto=texto motivo=motivo only %}",
             argumentos="id=1 etiqueta=etiqueta",
             etiqueta='<b>"x"</b>',
             texto="<i>t</i>",
@@ -1113,7 +1115,9 @@ class MenuFilaTest(SimpleTestCase):
         self.assertNotIn("confirm(", js)
 
     def test_el_menu_no_lo_recorta_el_contenedor_de_la_tabla(self):
-        css = re.sub(r"/\*.*?\*/", "", (RAIZ / "static/custom/css/nodo-menu-fila.css").read_text(encoding="utf-8"), flags=re.S)
+        css = re.sub(
+            r"/\*.*?\*/", "", (RAIZ / "static/custom/css/nodo-menu-fila.css").read_text(encoding="utf-8"), flags=re.S
+        )
         bloque = re.search(r"\.nodo-menu-fila__menu \{([^}]*)\}", css).group(1)
 
         self.assertIn("position: fixed;", bloque)
