@@ -18,6 +18,16 @@
 `badge_tono` (`warning` por defecto). Sin eventos dibuja `_estado_vacio` (`vacio_titulo`, `vacio_texto`).
 Riel de 2 px (`border-base`), punto de 10 px con borde tonal. El tono refuerza; lo que pasó va en el título.
 
+**La lista llega acotada.** El componente dibuja todos los eventos que recibe y una estadía larga trae
+cientos: **recortar es responsabilidad de la vista** (las últimas N, más un enlace «Ver todo» cuando
+hay más). El componente no pagina.
+
+**No lleva contenido rico.** Cada evento es texto: `detalle` es una línea, no un slot. Si un evento
+necesita mostrar algo adentro —una grilla de fotos, una tabla—, **no se mete marcado en `detalle`**
+(va escapado, y si se desactiva el escape se abre un agujero con texto que carga un usuario). Ese
+caso todavía no tiene componente: se resuelve agregándole un slot de cuerpo acá, en una task propia,
+y hasta entonces el contenido va en una card aparte debajo de la línea de tiempo.
+
 ## Sección de ficha
 
 ```django

@@ -45,6 +45,25 @@ por capacidad; el template no evalúa permisos.
 | `otras_estadias`, `adjuntos` | listas; `n_movimientos`, `n_novedades`, `n_adjuntos` son contadores |
 | `url_volver`, `url_legajo`, `migas` | navegación |
 
+## Límites y rendimiento (la vista, no el template)
+
+La pantalla muestra **todo lo que le pasen**: una estadía de dos años trae cientos de eventos y la
+página no termina más. Las listas de este arquetipo son históricas y **crecen sin techo**, así que la
+vista las acota:
+
+- `eventos`, `adjuntos` y `otras_estadias` vienen **recortadas a las últimas N** (10 es el default que
+  usan los paneles del Detalle), con un enlace «Ver todo» al listado completo cuando hay más. El
+  template no pagina ni corta: recibe la lista ya corta.
+- Los contadores `n_movimientos`, `n_novedades` y `n_adjuntos` son el total real y salen de un
+  `.count()` —o de un `Count()` anotado—, **nunca de `len()` sobre la lista recortada**: si no, el
+  encabezado miente justo cuando hay de más.
+- `secciones` se arma en **una** consulta. El avance por sección es la trampa cara de este arquetipo:
+  calcularlo recorriendo las secciones y preguntando por los campos de cada una es un N+1 que crece
+  con la parametría. Se resuelve agregando en la base (`Count` con `filter`) o agrupando en Python
+  sobre un único queryset ya traído.
+- Si la pantalla entra al presupuesto de queries, va con su test `--tag performance` y su número en
+  `scripts/perf_budgets.json`, como el resto de las pantallas de lectura pesada.
+
 ## Prohibido
 
 - Lo del arquetipo Detalle (`<h1>`, `<style>`, «← Volver» de texto, solapas sin ARIA).
@@ -65,3 +84,5 @@ existe en `{% page_header %}`: la ubicación va al principio de la bajada.
 - [ ] Toda sección sensible sin permiso está bloqueada, con su avance y quién la completa.
 - [ ] Ninguna regla (avance, tono, permiso) vive en el template.
 - [ ] La acción destructiva va última, `btn-danger`, con confirmación.
+- [ ] Las listas históricas llegan recortadas y los contadores son el total, no `len()` del recorte.
+- [ ] El avance por sección no se resuelve con una consulta por sección.
