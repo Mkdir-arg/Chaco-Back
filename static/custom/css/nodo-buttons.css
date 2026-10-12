@@ -79,6 +79,23 @@
     font-size: 16px;
 }
 
+/* btn-fit (C-15): anula solo el min-width del tamaño; alto, padding, radio, tipografía y
+   estados no se tocan. Va DESPUÉS de los tamaños (misma especificidad: gana por orden), y
+   ANTES del bloque `pointer: coarse` del final, que le impone 44 px en táctil a propósito
+   (área táctil, WCAG 2.5.8). Por eso tampoco se sube la especificidad a `.btn-nodo.btn-fit`:
+   le ganaría a esa regla y se perderían los 44 px.
+
+   `auto` y no `0`: el botón no declara `white-space: nowrap` ni `flex-shrink: 0`, así que
+   dentro de un header flex sin `flex-wrap` un `0` lo dejaría comprimirse por debajo de su
+   texto, partir la etiqueta en dos líneas y romper el alto fijo. `auto` anula igual el
+   mínimo declarado del tamaño, pero no deja que el contenido se rompa.
+
+   A ≤640 px los tamaños ya valen 0, así que acá no cambia nada.
+   Uso acotado: headers densos (3+ acciones) y celdas de tabla. */
+.btn-fit {
+    min-width: auto;
+}
+
 /* Brand Button (Primary) — Jacarandá gradient, pill */
 .btn-brand {
     background: var(--gradient-brand, linear-gradient(45deg, #5059bc 0%, #f98dff 100%));
