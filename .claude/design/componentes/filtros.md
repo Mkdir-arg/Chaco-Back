@@ -77,6 +77,36 @@ Por eso el `aria-label` tiene que leerse bien **como chip**: «Estado», no «Es
   `conversaciones/templates/conversaciones/lista.html` (pantalla **sin ruta**: no es
   referencia de nada).
 
+## Filtro rápido en píldora (`components/_filtro_pildora.html`)
+
+Variante **compacta** del filtro: «Campo: valor ⌄» en una píldora de 36 px, para los pocos filtros
+que se tocan todo el tiempo (área, estado, sector). Va en una fila propia **fuera** del
+`<form data-dynamic-list-filters>` (ese JS vacía su form al montar).
+
+```django
+{% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos %}
+```
+
+- `pildoras`: lista de dicts armada **en la vista**: `nombre` (parámetro GET), `etiqueta` (texto
+  antes de los dos puntos y `aria-label`), `opciones` (lista de `(valor, texto)`), `valor` (el
+  elegido; vacío = «Todos») y opcional `todos` (texto de la opción vacía).
+- `ocultos`: opcional, `(nombre, valor)` que se conservan al filtrar (la búsqueda). La página no
+  se conserva: al filtrar se vuelve a la primera.
+- Es un `<form method="get">` propio, con botón «Filtrar» **visible**. No filtra al cambiar el
+  valor: con teclado la flecha sobre un `<select>` cerrado dispara `change` y recargaría la
+  página en la primera opción, sin llegar a la segunda (WCAG 3.2.2). Se aparta del mockup, que
+  filtra al elegir; el botón es la forma de avisar y confirmar el cambio.
+- CSS: `.nodo-pildora` y `.nodo-pildora__control` en `static/custom/css/nodo-forms.css`.
+- Sin chevron propio: se ve la flecha nativa del `<select>`.
+
+**Prohibido combinarlo con la tarjeta de filtros.** Son dos `<form method="get">` separados y
+`dynamic_list_filters.js` vacía y reconstruye el suyo sin arrastrar parámetros ajenos: cada form
+pisaría los filtros del otro, y `ocultos` solo protege a la píldora. Una pantalla usa **o** las
+píldoras **o** la tarjeta. Si necesita ambos conjuntos, todos los filtros van en la tarjeta (con
+`aria-label` por control); o se amplía `dynamic_list_filters.js` para preservar los parámetros
+externos, y eso es una pieza nueva con su propio OK. El mockup muestra píldoras **dentro** de la
+`.fcard` (P1, P4, P10…): esa composición no está cubierta.
+
 ## Prohibido
 
 - Clases en el `<form>`, card alrededor, grilla de filtros, `style=`.

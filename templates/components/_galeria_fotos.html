@@ -1,0 +1,35 @@
+{% comment %}
+Galería fotográfica histórica (grilla de fotos con su fecha). Va dentro de una card; no es una card propia.
+  {% include "components/_galeria_fotos.html" with fotos=fotos_de_la_tanda total=tanda.cantidad_fotos %}
+Contexto:
+  fotos  lista (no queryset) de dicts armados por la VISTA, uno por foto:
+           url      URL de la imagen **servida por la vista autenticada** (media/ va detrás de login):
+                    nunca una URL pública ni de un tercero. Sin url se dibuja la celda gris con cámara.
+           alt      texto alternativo real («Fachada del pabellón A», no «foto 3»). Si falta se usa el
+                    rótulo.
+           rotulo   obligatorio, «fachada», «cocina».
+           fecha    date o datetime; se muestra dd/mm/aaaa dentro de un <time>. Opcional.
+  total  opcional: cantidad real de fotos si la vista mandó menos. Sin él se usa la longitud de la lista.
+Tope: dibuja como máximo 24 fotos con `loading="lazy"`; si hay más, avisa «Mostrando 24 de N». La vista
+tiene que acotar (una tanda por vez, con paginación o «ver más»), no mandar el historial entero.
+Cada foto abre la imagen en una pestaña nueva. Sin fotos muestra el estado vacío.
+Todavía no entra dentro de un evento de components/_linea_tiempo.html: esa pieza no tiene slot de cuerpo.
+{% endcomment %}
+{% if fotos %}
+<ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6" role="list">
+  {% for foto in fotos|slice:":24" %}
+  <li>
+    <figure class="overflow-hidden rounded-lg border border-base bg-white">
+      {% if foto.url %}<a href="{{ foto.url }}" target="_blank" rel="noopener noreferrer" class="block bg-tertiary"><img src="{{ foto.url }}" alt="{{ foto.alt|default:foto.rotulo }}" loading="lazy" decoding="async" class="h-24 w-full object-cover"><span class="sr-only">Abrir la foto (se abre en una pestaña nueva)</span></a>
+      {% else %}<div class="flex h-24 w-full flex-col items-center justify-center gap-1 bg-tertiary text-body-subtle"><i class="fas fa-camera" aria-hidden="true"></i><span class="sr-only">{{ foto.alt|default:foto.rotulo }}: sin imagen</span></div>{% endif %}
+      <figcaption class="p-2 text-xs"><span class="block truncate font-semibold text-heading" title="{{ foto.rotulo }}">{{ foto.rotulo }}</span>{% if foto.fecha %}<time class="block text-body-subtle" datetime="{{ foto.fecha|date:'Y-m-d' }}">{{ foto.fecha|date:"d/m/Y" }}</time>{% endif %}</figcaption>
+    </figure>
+  </li>
+  {% endfor %}
+</ul>
+{% with cantidad=fotos|length %}{% if total and total > cantidad or cantidad > 24 %}
+<p class="mt-3 text-xs text-body-subtle">Mostrando {% if cantidad > 24 %}24{% else %}{{ cantidad }}{% endif %} de {% if total and total > cantidad %}{{ total }}{% else %}{{ cantidad }}{% endif %} fotos.</p>
+{% endif %}{% endwith %}
+{% else %}
+{% include "components/_estado_vacio.html" with icono="fa-camera" titulo="Sin fotos" texto="Todavía no se cargó ninguna foto." %}
+{% endif %}

@@ -204,6 +204,7 @@
   --border-danger-subtle: var(--color-rose-200);
   --border-danger: var(--color-rose-700);
   --border-warning-subtle: var(--color-orange-200);
+  --border-info-subtle: var(--color-brand-200);
   --border-warning: var(--color-orange-600);
   --border-brand-subtle: var(--color-pink-200);
   --border-brand-light: var(--color-pink-600);
@@ -389,6 +390,7 @@
   --border-danger-subtle: var(--color-rose-900);
   --border-danger: var(--color-rose-600);
   --border-warning-subtle: var(--color-orange-900);
+  --border-info-subtle: var(--color-brand-900);
   --border-warning: var(--color-orange-500);
   --border-brand-subtle: var(--color-brand-900);
   --border-brand-light: var(--color-brand-600);

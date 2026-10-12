@@ -53,7 +53,7 @@ sola vez— el protocolo de abajo no se aplica pantalla por pantalla sin antes h
 2. **(A) Ajuste:** tocá solo el bloque pedido. Si ese bloque tiene una pieza canónica
    equivalente, usala en ese bloque y en ningún otro. Saltá al paso 9.
 3. **(B) Elegí el arquetipo** de la tabla *Arquetipos*. Si no encaja o figura como
-   pendiente (wizard, revisión compleja, dashboard): **no escribas**, devolvé la tarea al
+   pendiente (dashboard): **no escribas**, devolvé la tarea al
    llamador con el motivo.
 4. **Abrí la golden completa** y su ficha, y las fichas de los componentes que cita.
 5. **Mirá la hermana del módulo** con Grep o Glob (nunca `grep -r`, que entra a
@@ -108,8 +108,9 @@ sola vez— el protocolo de abajo no se aplica pantalla por pantalla sin antes h
 - Extender `templates/includes/base.html`. El wrapper heredado `includes/main.html` ya no existe
   (FE-20): la regla `[R:SHELLLEGACY]` queda como guarda, para que nadie lo reescriba.
 - Encabezado de página solo con `{% page_header %}`; nada de `<h1>` propio `[R:PAGEHEADER]`.
+- Hero (`{% hero_inicio %}`) solo en Inicio y tableros de programa, lista `HERO_PANTALLAS` `[R:HEROFUERA]`.
 - Tabla solo con `nodo-thead-row`/`nodo-th`/`nodo-td`, dentro de la card de la lista `[R:TABLECANON]`.
-- Acción de fila solo con `.nodo-icon-btn` y un `aria-label` que nombre el registro [revisión].
+- Acción de fila con `.nodo-icon-btn` y `aria-label` que nombre el registro (hasta 2 acciones) o con `{% menu_fila %}` (3 o más, o alguna deshabilitada con motivo) [revisión].
 - Estado vacío, paginación, alerta y métrica solo con su include [revisión + marcadores].
 - Botones `btn-nodo` + variante + tamaño; en el encabezado, `btn-base` en listados y
   formularios y `btn-sm` en detalles [revisión].
@@ -162,7 +163,9 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Arquetipo · Formulario | Canónico reutilizable | Golden `programas/templates/programas/becas/config/segmento_form.html` — alta o edición en página propia, con los campos del form de Django. Ficha: `.claude/design/arquetipos/formulario.md` |
 | Arquetipo · Modal | Canónico reutilizable | Golden `programas/templates/programas/becas/config/programa_list.html` (modal «Nuevo programa») — alta o edición corta sin salir de la pantalla, y confirmación con motivo. Ficha: `.claude/design/arquetipos/modal.md` |
 | Arquetipo · Confirmación | Canónico reutilizable | Golden `programas/templates/programas/becas/_confirm_js.html` + botón `data-confirm-url` → `ModernModal` — sí/no sin pedir datos. Ficha: `.claude/design/arquetipos/confirmacion.md` |
-| Pendiente · wizard, revisión compleja y dashboard | Duplicado o conflictivo | **No hay golden: frenar y devolver al llamador.** Para la semántica del stepper, `portal/templates/portal/inscripcion/_stepper.html`; el dashboard de Becas no es molde. Ficha: `.claude/design/arquetipos/pendientes.md` |
+| Arquetipo · Wizard | Canónico reutilizable | Golden `configuracion/templates/configuracion/programa_wizard_paso4.html` (paso final: resumen + confirmar) — alta o edición en varios pasos con validación por paso y resumen antes de confirmar. Indicador de pasos: `templates/components/_stepper.html`. Ficha: `.claude/design/arquetipos/wizard.md` |
+| Pendiente · dashboard | Duplicado o conflictivo | **No hay golden: frenar y devolver al llamador.** El dashboard de Becas no es molde. Ficha: `.claude/design/arquetipos/pendientes.md` |
+| Arquetipo · Revision | Canónico reutilizable | Golden `programas/templates/programas/dispositivos/estadia/revision_referencia.html` — una persona con su ficha por secciones plegables (con avance y bloqueo por sensibilidad), línea de tiempo y acciones. Ficha: `.claude/design/arquetipos/revision.md` |
 
 ## Inventario operativo inicial
 
@@ -178,17 +181,23 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Shell de autenticación pública | Canónico reutilizable | `users/templates/user/base_public_auth.html`; pantallas de credenciales fuera de sesión (recuperar, establecer y cambio obligatorio). Clases `public-auth__*`; marca `static/custom/chaco/login-logo.png`. No reutiliza el shell del backoffice. Ficha: `.claude/design/shells.md` |
 | Shell portal ciudadano | Canónico reutilizable | `portal/templates/portal/base.html` y `portal/templates/portal/ciudadano/base_ciudadano.html`; superficie separada, light-only, marca DATAÑACH con una sola casilla de contacto. Las pantallas de `portal/templates/portal/ciudadano/` quedaron sin ruta: no son referencia. Ficha: `.claude/design/shells.md` |
 | Shell de inscripción pública | Canónico reutilizable | `portal/templates/portal/inscripcion/base_inscripcion.html`; panel de marca fijo + columna de contenido, bloques `panel_titulo`/`stepper`/`content`/`extra_js`, refresco de CSRF propio y analítica por entorno. No carga Alpine, Font Awesome ni los efectos del portal. Ficha: `.claude/design/shells.md` |
-| Header de página backoffice | Canónico reutilizable | Tag de bloque `{% page_header %}` de `core/templatetags/nodo_ui.py` sobre `templates/components/_page_header.html`; nunca el include a mano. Título, bajada, volver circular, migas de 3+ niveles y cuerpo con badges y acciones. Ficha: `.claude/design/componentes/page_header.md` |
-| Filtros de listado | Canónico reutilizable | `static/custom/js/dynamic_list_filters.js` + `templates/components/list_filters.html` (el shell lo inyecta como `template`); el `<form method="get" data-dynamic-list-filters>` va sin `class` y cada control con `aria-label`, porque el JS vacía el form al montar. Ficha: `.claude/design/componentes/filtros.md` |
+| Header de página backoffice | Canónico reutilizable | Tag de bloque `{% page_header %}` de `core/templatetags/nodo_ui.py` sobre `templates/components/_page_header.html`; nunca el include a mano. Eyebrow opcional, título, bajada, volver circular, migas de 3+ niveles y cuerpo con badges y acciones. Ficha: `.claude/design/componentes/page_header.md` |
+| Filtros de listado | Canónico reutilizable | `static/custom/js/dynamic_list_filters.js` + `templates/components/list_filters.html` (el shell lo inyecta como `template`); el `<form method="get" data-dynamic-list-filters>` va sin `class` y cada control con `aria-label`, porque el JS vacía el form al montar. Filtro rápido en píldora: `_filtro_pildora.html`, fuera de ese form. Ficha: `.claude/design/componentes/filtros.md` |
 | Tabla densa backoffice | Canónico reutilizable | `static/custom/css/nodo-tables.css`: `.nodo-thead-row`, `.nodo-th`, `.nodo-td` dentro de `overflow-x-auto` + `table.w-full.border-collapse`; acción de fila con `.nodo-icon-btn` y `aria-label` con el registro. La columna de acciones se nombra con `sr-only`. Ficha: `.claude/design/componentes/tabla.md` |
+| Menú de fila (⋮) | Canónico reutilizable | Tag `{% menu_fila id etiqueta %}` (`core/templatetags/nodo_ui.py`) + `components/_menu_fila_item.html`, `nodo-menu-fila.css` y `.js`. Foco atrapado, Escape devuelve el foco, `aria-expanded`/`aria-controls`, ítem deshabilitado con `motivo`. Ficha: `.claude/design/componentes/tabla.md` |
 | Estado vacío backoffice | Canónico reutilizable | Pieza única `templates/components/_estado_vacio.html`, dentro de la card de la lista; variante con filtros («Limpiar filtros») decidida con el filtro `hay_filtros` de `core/templatetags/nodo_ui.py`. Ficha: `.claude/design/componentes/estado_vacio.md` |
 | Paginación | Canónico reutilizable | Pieza única `templates/components/_paginacion.html` (`page_obj`, `entidad`, `entidad_plural`, `filtros_qs`, `param`, `extra_qs`); con `param` propio por lista, una pantalla pagina más de una (una por solapa). Solo se muestra con más de una página y va dentro de la card. Ficha: `.claude/design/componentes/paginacion.md` |
 | Alertas inline backoffice | Canónico reutilizable | Pieza única `templates/components/_alerta.html` (`tono`, `titulo`, `texto`, `role`; opcionales `icono`, `accion_url` + `accion_texto`); bloqueo y advertencia se distinguen por el encabezado y por si la acción sigue disponible, no por el color. Ficha: `.claude/design/componentes/alerta.md` |
 | Ubicación sin mapa | Canónico reutilizable | Pieza única `templates/components/_ubicacion.html` (`latitud`, `longitud`; opcionales `plano_url`, `plano_nombre`): coordenadas legibles, enlace «Ver en el mapa» que abre fuera (`target="_blank"`, `rel="noopener noreferrer"`) y plano como adjunto; sin coordenadas, estado vacío. Sin librería de mapas ni cambios de CSP. Ficha: `.claude/design/componentes/ubicacion.md` |
+| Mapa de plazas y leyenda | Canónico reutilizable | Includes `templates/components/_mapa_plazas.html` (`plazas`, `total`) y `_leyenda_plazas.html` (`leyenda`): estado y `tono` los decide la vista; cada plaza lleva texto e ícono además del color, y es enlace si trae `url`. Tope 200 por sector. Ficha: `.claude/design/componentes/mapa_plazas.md` |
+| Galería fotográfica histórica | Canónico reutilizable | Include `templates/components/_galeria_fotos.html` (`fotos`, `total`): grilla con `loading="lazy"`, `alt` real y fecha; `media/` va detrás de login. Tope 24, recorte en la vista; no entra aún en la línea de tiempo. Ficha: `.claude/design/componentes/galeria_fotos.md` |
 | Errores no de campo | Canónico reutilizable | Pieza única `templates/components/_form_errores.html` (`form`, `titulo`); va justo después de `{% csrf_token %}` y solo aparece si el form trae errores del conjunto (`unique_together`, `clean()` de form), que ningún campo muestra. En un modal que se repite por fila, acotada a la fila que falló. Ficha: `.claude/design/componentes/form_errores.md` |
 | Stat cards / métricas | Canónico reutilizable | Pieza única `templates/components/_stat_card.html` (`etiqueta`, `valor`, `icono` sin `fas`, `tono`; opcionales `kpi_id`, `sufijo`, `nota`, `variante`: sin usarse no cambian el render); grilla del consumidor. Dos variantes: chica (por defecto) y `variante="tablero"` (grande, 52 px con gradiente; `nodo-stat-card.css`); **sin ranura de cuerpo**: minigráfico o progreso van en la pantalla. Ficha: `.claude/design/componentes/stat_card.md` |
-| Campos NODO y `_field.html` | Canónico reutilizable | `static/custom/css/nodo-forms.css` (`nodo-field`, `.nodo-checks`, selector de color) y la pieza única `templates/components/_field.html` (`field`, `wrapper_class`), con `data-error="<campo>"` siempre presente para el guardado AJAX y `aria-describedby`/`aria-invalid` puestos por `nodo_ui.campo_control`. La clase del control la pone el widget del form (`programas/forms.py`), no el template. Ficha: `.claude/design/componentes/field.md` |
+| Línea de tiempo y sección de ficha | Canónico reutilizable | `templates/components/_linea_tiempo.html` (`eventos`: cuando, titulo, detalle, tono, badge) y `_ficha_seccion.html` (`codigo`, `titulo`, `avance`, `campos`, `bloqueada`, `completa`; plegable) con su `_ficha_avance.html` y `static/custom/css/nodo-ficha.css` (rayado de lo bloqueado). Una sección bloqueada no se oculta: muestra avance y quién la completa. Ficha: `.claude/design/componentes/ficha_timeline.md` |
+| Campos NODO y `_field.html` | Canónico reutilizable | `static/custom/css/nodo-forms.css` (`nodo-field`, `.nodo-checks`, `.nodo-chips`, `.nodo-switch`, color) y la pieza única `templates/components/_field.html` (`field`, `wrapper_class`), con `data-error="<campo>"` siempre presente y el ARIA puesto por `nodo_ui.campo_control`. La clase del control la pone el widget (`core/widgets.py`, `programas/forms.py`), no el template. Ficha: `.claude/design/componentes/field.md` |
 | Botones y badges NODO | Canónico reutilizable | `static/custom/css/nodo-buttons.css` (`btn-nodo` + variante + tamaño, `.nodo-icon-btn`, `.nodo-icon-btn--danger`, y `btn-fit` —sin `min-width`— solo en headers densos de 3+ acciones y celdas de tabla) y `static/custom/css/nodo-badges.css` (`badge` + variante, siempre con texto además del color). Ficha: `.claude/design/componentes/botones_badges.md` |
+| Tarjeta de turno y entradas de bitácora | Canónico reutilizable | Includes `templates/components/_turno_tarjeta.html` (`turno`) y `_entradas_bitacora.html` (`entradas`, `total`): estado, categoría y `tono` los decide la vista; el texto de la entrada se escapa y lleva ícono además del color. Tope 100 entradas, recorte en la vista. Ficha: `.claude/design/componentes/turno_bitacora.md` |
+| Indicador de pasos (stepper) | Canónico reutilizable | Pieza única `templates/components/_stepper.html` (`pasos` con `etiqueta` y `url`, `paso_actual` base 1) + `static/custom/css/nodo-stepper.css`; círculo de 28 px, conector de 56 px, estados hecho/actual/pendiente. El estado va también en texto `sr-only` y `aria-current="step"`; los pasos hechos son links. Ficha: `.claude/design/componentes/stepper.md` |
 | Tabs backoffice | Canónico reutilizable | Solapas en una surface, con `role="tablist"` + `aria-label`, `role="tab"` + `id` + `aria-controls` + `aria-selected`, `role="tabpanel"` + `id` + `aria-labelledby`, y estado en `x-data` + querystring `tab`. **ARIA y teclado obligatorios:** el teclado lo da `static/custom/js/nodo-tabs.js` desde el shell; ninguna pantalla escribe el suyo. Lo que abre otra pantalla es acción del encabezado, no una solapa. Ficha: `.claude/design/componentes/tabs.md` |
 | Modal Becas accesible (partes) | Canónico reutilizable | `static/custom/js/becas-modal.js` + `programas/templates/programas/becas/_modal_header.html` + `programas/templates/programas/becas/_modal_footer.html`; **transversales**: se incluyen desde esa ruta cargando `becas-modal.js` en `customJS`, también fuera de Becas. Ficha: `.claude/design/componentes/modal_partes.md` |
 | Modal global `ModernModal` y toasts | Canónico reutilizable | Markup y script en `templates/includes/base.html` (`#modal-overlay`) + `static/custom/js/nodo-toast.js` y `static/custom/css/nodo-toast.css`; motor de las confirmaciones sí/no y único sistema de avisos (`window.toast`). Ficha: `.claude/design/componentes/modern_modal_toast.md` |
@@ -196,6 +205,7 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Surface/card backoffice | Canónico reutilizable | Secciones y paneles con `bg-white rounded-xl border border-base shadow-sm overflow-hidden`; padding `p-5`/`p-6`, header interno `px-5 py-4 border-b border-light`, título interno `h2 text-heading font-bold`. Evidencia: `programas/templates/programas/becas/cupo/segmento_detail.html`. Sin cards anidadas salvo métricas o repetidos. |
 | Mapa de estados por módulo | Canónico reutilizable | El mapeo estado→badge vive en un parcial por módulo y las pantallas lo incluyen; nunca vuelcan el estado como texto suelto. Becas: `programas/templates/programas/becas/_pausable_estado_badge.html` y hermanos; Dispositivos: `programas/templates/programas/dispositivos/_estado_badge.html`; Merenderos: `programas/templates/programas/merenderos/_estado_badge.html` (+ `_solicitud_estado_badge.html`). Ficha: `.claude/design/dominio/becas.md` |
 | Drag & drop SortableJS | Canónico reutilizable, condicionado | `static/vendor/sortablejs/Sortable.min.js` + `static/custom/css/nodo-constructor.css`; se arrastra solo desde la manija, con alternativa de teclado y anuncio en `aria-live`, y se omite sin permiso de edición. Ficha: `.claude/design/dominio/becas.md` |
+| Hero de inicio de programa | Canónico reutilizable, acotado | Tag `{% hero_inicio %}` (`core/templatetags/nodo_ui.py`) + `components/_hero_inicio.html` + `nodo-hero.css`: gradiente de marca, `h1` de 30 px, bajada y una acción. **Solo Inicio y tableros de programa**; reemplaza a `page_header` y no va en otra pantalla (`[R:HEROFUERA]` + `HeroInicioTest`). Ficha: `.claude/design/componentes/hero_inicio.md` |
 | Home del backoffice | Canónico reutilizable | `templates/inicio.html` (`core.views.public.inicio_view`): cada panel que pide datos a una API con capacidad se esconde con el mismo `puede` que exige esa API; un panel no se deja fallar en consola ni se muestra vacío como si no hubiera trabajo. Los accesos rápidos siguen la misma regla con la capacidad de su destino (filtro propio en `core/templatetags/rbac.py`, derivado de la constante que usa la vista): un acceso que va a rebotar no se ofrece. |
 | Dominio Becas (constructor, SIIS, identificadores, dashboard) | Canónico reutilizable | Contratos propios del dominio: constructor de formularios, panel e identificadores de SIIS, dashboard del programa. Se componen con piezas de este inventario y **no son molde** para otros módulos. Ficha: `.claude/design/dominio/becas.md` |
 | Formulario público por diseño (paso 2) | Canónico reutilizable | `portal/templates/portal/inscripcion/paso2.html` + `static/custom/js/nodo-formulario.js` sobre `static/custom/js/nodo-condiciones.js`; sin JS el formulario se muestra completo y el servidor vuelve a evaluar las condiciones. Ficha: `.claude/design/dominio/inscripcion.md` |
@@ -216,6 +226,10 @@ Lista blanca. Lo que no está acá es una **novedad** (protocolo, paso 6).
 - **Color semántico:** `bg-white`, `bg-secondary`, `bg-tertiary`, `bg-{brand|success|warning|danger|info}-soft`,
   `border-base`, `border-light`, `border-brand`, `border-{tono}-subtle`, `text-heading`,
   `text-body`, `text-body-subtle`, `text-fg-{brand|danger|success|warning|info}`.
+  Los cinco tonos existen compilados en las tres familias (`bg-{tono}-soft`,
+  `border-{tono}-subtle`, `text-fg-{tono}`). Si una de las quince falta, es un hueco
+  del set y se completa en `chaco-tokens.css` + `tailwind.config.js`: no se parchea la
+  pieza con `border-base`, que es lo que esconde el hueco para la siguiente.
 - **Tipografía por rol:** título de página vía `{% page_header %}`; título de surface
   `h2 text-heading font-bold`; subtítulo `h3 text-sm font-bold text-heading`; texto
   `text-sm`; metadato `text-xs text-body-subtle`; números de métrica `text-2xl font-bold`.
@@ -228,8 +242,8 @@ Lista blanca. Lo que no está acá es una **novedad** (protocolo, paso 6).
 - **Gradiente:** `var(--gradient-brand)` queda para el shell y el panel de marca de
   inscripción. En el contenido no: las iniciales de una persona van
   `w-8 h-8 rounded-full bg-brand-soft text-fg-brand` y las métricas chicas sin gradiente
-  (un solo acento por bloque). Única excepción: la caja de ícono de la stat card
-  `variante="tablero"`.
+  (un solo acento por bloque). Únicas excepciones: la caja de ícono de la stat card
+  `variante="tablero"` y el hero de inicio de programa, solo en Inicio y tableros de programa.
 
 ## Perfiles de dominio
 
@@ -249,7 +263,8 @@ El lenguaje visual es el mismo en todos los módulos; el vocabulario de dominio,
 - **Transversal** (shell, usuarios, roles, legajos, portal, configuración): verificar
   consumidores en todos los módulos afectados; Becas no es el único consumidor.
 - No se arman landing pages, heros, cards decorativas ni grillas de tarjetas para
-  backoffice operativo: la primera pantalla es la herramienta usable.
+  backoffice operativo: la primera pantalla es la herramienta usable. Única excepción:
+  `{% hero_inicio %}`, solo en Inicio y tableros de programa; en otra pantalla se rechaza.
 
 ## Estados transversales
 
@@ -285,8 +300,10 @@ pantallas ajenas.
   `tailwind.css` generado, los tests ni las vistas.
 - La historia de los cambios va a `docs/internal/requerimientos.md`, **nunca** acá: este
   archivo describe el contrato vigente, no cómo se llegó a él.
-- Límites verificados por el checker (`--limites`): núcleo ≤ 30.000 bytes, celdas del
-  inventario ≤ 450 caracteres y cero referencias de historia.
+- Límites verificados por el checker (`--limites`): **la prosa** (todo lo que no es fila de
+  tabla) ≤ 16.000 bytes, cada celda del inventario ≤ 450 caracteres y cero referencias de
+  historia. Las tablas no tienen tope total: el inventario es un índice y crece una fila por
+  pieza, y lo que obliga a que el detalle viva en la ficha es el tope por celda.
 - `scripts/design_audit.py --goldens` mantiene en 0 las goldens de la tabla *Arquetipos*;
   si una golden se mueve, se cambia acá y en `GOLDENS` de ese script.
 - La auditoría mecánica es un control parcial: no sustituye verificar carga,

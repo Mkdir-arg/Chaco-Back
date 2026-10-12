@@ -23,7 +23,7 @@ que lo primero se lee navegando el repo y lo segundo sale además como página w
 alcance estricto (el default) mira lo que MkDocs copia al sitio y **bloquea**; el
 `--todo-docs` barre `docs/` entero y los `.md` de la raíz, y va **no bloqueante** en el
 PR porque sobre esa superficie quedan falsos positivos que no se pueden sacar sin
-aflojar la regla (los números, en el Cambio 207 de `requerimientos.md`).
+aflojar la regla (los números, en los Cambios 207 y 209 de `requerimientos.md`).
 
 **No solo `.md`.** MkDocs copia al sitio *todo* lo que haya en `docs_dir`, así que un
 `.html` de mockup se publica igual que una página: se revisan todas las extensiones de
@@ -36,6 +36,15 @@ Cinco reglas. Alcanza con que dispare una.
    que además nombra el documento —«DNI», «documento», `numeroDocumento`—, o un CUIL/CUIT
    bien formado en cualquier lado. El CUIL no necesita palabra cerca: el prefijo
    `20/23/24/27` más 9 dígitos ya lo identifica solo.
+
+   La palabra no siempre está en la **misma** línea, y ahí es donde se publica un padrón
+   entero sin que el gate diga nada: en una tabla o en un CSV la dice el **encabezado**
+   (`| Apellido | Nombre | Documento |`, `apellido,nombre,dni`) y las filas de abajo ya no
+   la repiten. Así que un documento también es hallazgo cuando a menos de
+   `VENTANA_PADRON` líneas **arriba** hay un encabezado de padrón —una fila de etiquetas
+   donde una nombra el documento y otra nombra a la persona—, o cuando viene entre
+   paréntesis detrás de un nombre propio («Perez Ana (30111222) cobró la beca»), que es
+   como se escribe un caso concreto en prosa.
 
 2. **Fecha de nacimiento rodeada de identidad.** Una fecha en una línea que la nombra
    («fecha de nacimiento», `fechaNacimiento`) con campos de identidad —apellido, nombres,
@@ -107,6 +116,31 @@ NOMBRA_DOCUMENTO = re.compile(r"(?i)\b(?:dni|d\.n\.i\.?|documento|nro\.?\s*doc)\
 #: CUIL/CUIT: prefijo de persona o empresa + 8 dígitos + verificador. Se identifica solo.
 CUIL = re.compile(r"(?<![\w.-])(?:20|23|24|27|30|33|34)[-\s]?\d{8}[-\s]?\d(?!\d)(?![A-Za-z])")
 
+#: Lo que separa las celdas de una fila: una tabla markdown, un CSV, un TSV.
+SEPARADOR_DE_CELDAS = re.compile(r"[|,;\t]")
+#: La etiqueta que nombra a la **persona**, que no es la que nombra al documento. Sin una
+#: de estas, una enumeración de columnas técnicas no alcanza para llamar padrón a lo que
+#: sigue: lo que convierte a una fila de números en un padrón es que arriba diga de quién
+#: es cada columna.
+NOMBRA_PERSONA = re.compile(
+    r"(?i)\b(?:apellidos?|nombres?|cuil|cuit|domicilio|legajo|beneficiari[oa]s?|titular|ciudadan[oa]s?)\b"
+)
+#: Cuántas filas después del encabezado se miran. No se trata de marcar las mil filas de
+#: un padrón —con una alcanza para frenar la publicación— sino de que ninguna tabla corta
+#: pase por no repetir la palabra en cada fila.
+VENTANA_PADRON = 5
+#: «Perez Ana (30111222) cobró la beca»: el documento entre paréntesis detrás de un nombre
+#: propio. No hay palabra que lo nombre ni encabezado arriba; lo que lo identifica es el
+#: nombre pegado. Se piden **dos** palabras capitalizadas seguidas para que un «Cambio 207
+#: (1234567)» o un «Ola 7 (…)» no entre: lo que se busca es un nombre y un apellido.
+NOMBRE_PROPIO_CON_DOCUMENTO = re.compile(
+    # regla-dni: ok — se busca un documento **publicado**, no se valida uno (igual que
+    # `DOCUMENTO` acá arriba y que `check_datos_personales.py`): la regla de validación
+    # vive una sola vez, en `core.dni` (RED-48).
+    r"[A-ZÁÉÍÓÚÜÑ][\wÁÉÍÓÚÜÑáéíóúüñ'’.-]*\s+[A-ZÁÉÍÓÚÜÑ][\wÁÉÍÓÚÜÑáéíóúüñ'’.-]*\s*"  # regla-dni: ok
+    r"[(\[]\s*(?P<doc>\d{1,2}\.\d{3}\.\d{3}|\d{7,8})\s*[)\]]"  # regla-dni: ok
+)
+
 #: Un documento que es obviamente inventado: todos los dígitos iguales, o escrito sobre la
 #: secuencia `1234567…` (y su reverso), que es con lo que el repo escribe sus ejemplos.
 DOCUMENTO_DE_RELLENO = re.compile(r"^(?:(\d)\1{6,7}|0?1234567\d?|0?7654321\d?)$")
@@ -164,7 +198,15 @@ CLAVE_ES_ARCHIVO = re.compile(r"(?i)\.(?:css|js|mjs|py|html?|md|ya?ml|json|txt|s
 REFERENCIA_DE_CODIGO = re.compile(r"^[A-Za-z_$][\w$]*(?:\.[\w$]+)+[;,)]*$")
 #: Un valor que se nombra a sí mismo como descartable. `DJANGO_SECRET_KEY=test-key` es la
 #: clave del CI y está escrita en veinte lugares del repo a propósito.
-SABE_A_PRUEBA = re.compile(r"(?i)(?:test|dummy|fake|ejemplo|example|sample|placeholder|changeme|cambiame|no[-_]?real)")
+#:
+#: Las palabras van **sueltas**, no como subcadena: sin los bordes,
+#: `SIIS_API_CLIENT_SECRET=AttestationKe9f3Qx` se perdonaba solo porque adentro de
+#: «Attestation» hay un «test», y un secreto de verdad tiene todas las letras del
+#: alfabeto. El borde es de letras y no `\b`, así `test123` y `ejemplo-1` —que sí son
+#: marcadores— siguen entrando y «Attestation» no.
+SABE_A_PRUEBA = re.compile(
+    r"(?i)(?<![a-z])(?:test|dummy|fake|ejemplo|example|sample|placeholder|changeme|cambiame|no[-_]?real)(?![a-z])"
+)
 #: Un valor que es un marcador de posición y no un secreto.
 RELLENO = re.compile(r"^[<{$`*\[(\"']|^\.{3}|^…|^-+$|^_+$")
 PALABRAS_DE_RELLENO = frozenset(
@@ -293,6 +335,37 @@ def _hay_identidad_cerca(lineas: list[str], indice: int, ventana: int, patron: r
     return any(patron.search(_separar_camel(lineas[i])) for i in range(desde, hasta))
 
 
+def _celdas(linea: str) -> list[str]:
+    """Las celdas de una fila de tabla o de CSV, sin el adorno de markdown."""
+    return [celda.strip().strip("`*\"'") for celda in SEPARADOR_DE_CELDAS.split(linea.strip().strip("|"))]
+
+
+def _es_encabezado_de_padron(linea: str) -> bool:
+    """Una fila de etiquetas que dice «lo que viene abajo son personas».
+
+    Hace falta que **dos celdas distintas** nombren cosas distintas: una el documento y
+    otra a la persona. Una sola («Documento») podría ser un título cualquiera; las dos
+    juntas son el encabezado de un padrón, que es lo que le da sentido a los números de
+    las filas siguientes.
+    """
+    celdas = [celda for celda in _celdas(linea) if celda and len(celda) <= 40]
+    if len(celdas) < 2:
+        return False
+    con_documento = {i for i, celda in enumerate(celdas) if NOMBRA_DOCUMENTO.search(_separar_camel(celda))}
+    con_persona = {i for i, celda in enumerate(celdas) if NOMBRA_PERSONA.search(_separar_camel(celda))}
+    return bool(con_documento) and bool(con_persona - con_documento)
+
+
+def _hay_encabezado_de_padron_arriba(lineas: list[str], indice: int) -> bool:
+    """El encabezado va **antes** que sus filas: abajo no se mira."""
+    return any(_es_encabezado_de_padron(lineas[i]) for i in range(max(0, indice - VENTANA_PADRON), indice))
+
+
+def _documento_pegado_a_un_nombre(linea: str) -> bool:
+    nombrado = NOMBRE_PROPIO_CON_DOCUMENTO.search(linea)
+    return bool(nombrado) and not DOCUMENTO_DE_RELLENO.match(nombrado.group("doc").replace(".", ""))
+
+
 def _hay_altura_cerca(lineas: list[str], indice: int) -> bool:
     desde = max(0, indice - VENTANA_DOMICILIO)
     hasta = min(len(lineas), indice + VENTANA_DOMICILIO + 1)
@@ -311,8 +384,13 @@ def _revisar_contenido(relativa: str, texto: str) -> list[dict]:
         def anotar(regla: str, mensaje: str, _n: int = numero) -> None:
             hallazgos.append({"archivo": relativa, "linea": _n, "regla": regla, "mensaje": mensaje})
 
-        if NOMBRA_DOCUMENTO.search(palabras) and _documentos(linea):
-            anotar("persona", "un número de documento junto a la palabra que lo nombra")
+        if _documentos(linea):
+            if NOMBRA_DOCUMENTO.search(palabras):
+                anotar("persona", "un número de documento junto a la palabra que lo nombra")
+            elif _hay_encabezado_de_padron_arriba(lineas, indice):
+                anotar("persona", "un número de documento en una fila de padrón (la columna la nombra el encabezado)")
+            elif _documento_pegado_a_un_nombre(linea):
+                anotar("persona", "un número de documento pegado al nombre de una persona")
         if _cuiles(linea):
             anotar("persona", "algo con forma de CUIL/CUIT")
 

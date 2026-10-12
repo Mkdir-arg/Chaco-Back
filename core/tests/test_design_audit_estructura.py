@@ -76,6 +76,43 @@ class ReglasP1Tests(SimpleTestCase):
         self.assertIn("PAGEHEADER", reglas(SHELL + '<h1 class="text-2xl">Título</h1>'))
         self.assertNotIn("PAGEHEADER", reglas(SHELL + '{% page_header titulo="Título" %}{% endpage_header %}'))
 
+    def test_herofuera(self):
+        self.assertIn("HEROFUERA", reglas(SHELL + '{% hero_inicio titulo="x" %}{% endhero_inicio %}'))
+        self.assertIn("HEROFUERA", reglas(SHELL + '<div class="nodo-hero">x</div>'))
+        self.assertNotIn("HEROFUERA", reglas(SHELL + '{% page_header titulo="Título" %}{% endpage_header %}'))
+
+    def test_herofuera_no_se_evade_por_el_include_ni_variando_la_clase(self):
+        """Los tres caminos que dejaban pasar un hero fuera de su pantalla.
+
+        El include directo era el mas obvio: el componente dice que no se incluye a
+        mano, pero nada lo impedia y la regla solo miraba el tag. Las dos variantes de
+        clase pasaban porque el `\\b` no corta contra mayuscula ni guion bajo.
+        """
+        for evasion in (
+            '{% include "components/_hero_inicio.html" with titulo="x" %}',
+            "{% include 'components/_hero_inicio.html' %}",
+            '<div class="nodo-hero__Titulo">x</div>',
+            '<div class="nodo-hero__titulo_x">x</div>',
+        ):
+            with self.subTest(evasion=evasion):
+                self.assertIn("HEROFUERA", reglas(SHELL + evasion))
+
+    def test_herofuera_no_marca_lo_que_solo_se_le_parece(self):
+        for inocente in (
+            '<link rel="stylesheet" href="/static/custom/css/nodo-hero.css">',
+            "{% hero_inicio_v2 %}",
+            # El shell nombra la ruta en un comentario para documentar de donde sale el
+            # CSS. Una regla que marca la documentacion de si misma ensenia a no documentar.
+            "<!-- NODO Hero de inicio (components/_hero_inicio.html; solo inicio) -->",
+        ):
+            with self.subTest(inocente=inocente):
+                self.assertNotIn("HEROFUERA", reglas(SHELL + inocente))
+
+    def test_herofuera_respeta_la_lista_y_el_componente(self):
+        usa = '{% hero_inicio titulo="x" %}{% endhero_inicio %}'
+        self.assertEqual(design_audit._p1_herofuera(design_audit.HERO_COMPONENTE, usa), [])
+        self.assertTrue(design_audit._p1_herofuera("programas/templates/x.html", usa))
+
     def test_pageheader_no_aplica_al_portal(self):
         self.assertEqual(design_audit._p1_pageheader("portal/templates/portal/x.html", SHELL + "<h1>T</h1>"), [])
         self.assertEqual(len(design_audit._p1_pageheader("legajos/templates/x.html", SHELL + "<h1>T</h1>")), 1)
@@ -230,11 +267,100 @@ class MarcadoresDeArquetipoTests(SimpleTestCase):
         self.assertIn("<style> local", salida)
 
     def test_arquetipo_desconocido_falla(self):
-        codigo, _ = self.marcadores("wizard", [])
+        # Un nombre que no va a existir nunca. Antes aca decia "wizard", y el dia que
+        # el wizard dejo de ser un arquetipo pendiente el test empezo a pasar en verde
+        # por el motivo equivocado: ya no probaba nada.
+        codigo, _ = self.marcadores("no-existe-este-arquetipo", [])
         self.assertEqual(codigo, 1)
 
-    def test_hay_ficha_de_marcadores_para_los_cuatro_arquetipos(self):
-        self.assertEqual(sorted(design_audit.ARQUETIPOS), ["detalle", "formulario", "listado", "modal"])
+    def test_cada_arquetipo_declarado_tiene_su_ficha(self):
+        # Sin lista escrita a mano: lo que importa es que ninguno entre al audit sin
+        # su ficha, no cuantos hay. Asi el contrato sobrevive a cada arquetipo nuevo
+        # (wizard y revision entraron con las goldens del MVP de Dispositivos).
+        fichas = Path(__file__).resolve().parents[2] / ".claude/design/arquetipos"
+        for nombre in sorted(design_audit.ARQUETIPOS):
+            with self.subTest(arquetipo=nombre):
+                self.assertTrue(
+                    (fichas / f"{nombre}.md").is_file(),
+                    f"el arquetipo '{nombre}' esta en design_audit.ARQUETIPOS pero no tiene "
+                    f"ficha en .claude/design/arquetipos/{nombre}.md",
+                )
+
+    def test_todo_arquetipo_con_marcadores_tiene_su_ficha(self):
+        """Antes era una lista fija de cinco nombres y envejeció dos veces el mismo día, con
+        el wizard y con revision. Un test que hay que editar cada vez que el producto crece
+        no protege nada, solo molesta.
+
+        La relación es de **inclusión, no de igualdad**: `confirmacion` tiene ficha y no
+        tiene marcadores mecánicos, y eso es legítimo —no todo arquetipo se audita por
+        marcadores—. Lo que no puede pasar es lo inverso: declarar marcadores para algo que
+        nadie documentó.
+        """
+        fichas = Path(__file__).resolve().parents[2] / ".claude/design/arquetipos"
+        con_ficha = {f.stem for f in fichas.glob("*.md")} - {"pendientes"}
+
+        self.assertLessEqual(set(design_audit.ARQUETIPOS), con_ficha)
+
+    def test_ningun_arquetipo_lleva_tilde_ni_mayusculas(self):
+        """La clave es el argumento de `--arquetipo` y el nombre del archivo de su ficha.
+
+        `revision` nació con tilde y eso rompió el cruce contra el núcleo —que la escribía
+        distinto— y dejaba un nombre de archivo acentuado en un repo que ya se quemó dos
+        veces con la codificación en Windows.
+        """
+        for nombre in sorted(design_audit.ARQUETIPOS):
+            with self.subTest(arquetipo=nombre):
+                self.assertEqual(nombre, nombre.lower())
+                self.assertTrue(nombre.isascii(), f"«{nombre}» no es ASCII: es el nombre de un archivo")
+
+    def test_la_variante_apilada_se_declara_y_no_se_infiere(self):
+        """Si la variante se infiriera de que faltan las solapas, el gate no serviría.
+
+        Una pantalla que se olvidó el `role="tablist"` pasaría como «apilada» y nadie se
+        enteraría. Por eso hay que escribirla: sin la declaración se siguen exigiendo los
+        siete marcadores de solapas, y con ella se exigen los de la forma apilada.
+        """
+        apilado = '{# arquetipo: detalle + apilado #}\\n{% extends "includes/base.html" %}\\n{% block main-content %}\\n<div class="space-y-5">{% page_header titulo="T" %}{% endpage_header %}\\n<section aria-labelledby="s1"><h2 id="s1">Uno</h2></section></div>\\n'
+        sin_declarar = apilado.replace("{# arquetipo: detalle + apilado #}\\n", "")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            con = Path(tmp) / "con.html"
+            con.write_text(apilado, encoding="utf-8")
+            sin = Path(tmp) / "sin.html"
+            sin.write_text(sin_declarar, encoding="utf-8")
+
+            self.assertEqual(self.marcadores("detalle", [str(con)])[0], 0)
+            self.assertEqual(self.marcadores("detalle", [str(sin)])[0], 1)
+
+    def test_la_variante_apilada_exige_el_nombre_accesible_de_la_seccion(self):
+        """Sin solapas, la sección es la unidad navegable: el nombre no es opcional."""
+        sin_nombre = (
+            '{# arquetipo: detalle + apilado #}\\n{% extends "includes/base.html" %}\\n{% block main-content %}\\n<div class="space-y-5">{% page_header titulo="T" %}{% endpage_header %}\\n<section aria-labelledby="s1"><h2 id="s1">Uno</h2></section></div>\\n'
+        ).replace('<section aria-labelledby="s1">', "<section>")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ruta = Path(tmp) / "x.html"
+            ruta.write_text(sin_nombre, encoding="utf-8")
+
+            codigo, salida = self.marcadores("detalle", [str(ruta)])
+
+            self.assertEqual(codigo, 1)
+            self.assertIn("nombre accesible", salida)
+
+    def test_una_variante_inventada_falla(self):
+        plantilla = (
+            "{# arquetipo: detalle + nomeinventes #}\n"
+            '{% extends "includes/base.html" %}\n{% block main-content %}\n'
+            '<div class="space-y-5">{% page_header titulo="T" %}{% endpage_header %}</div>\n'
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            ruta = Path(tmp) / "x.html"
+            ruta.write_text(plantilla, encoding="utf-8")
+
+            codigo, salida = self.marcadores("detalle", [str(ruta)])
+
+            self.assertEqual(codigo, 1)
+            self.assertIn("no declarada", salida)
 
 
 class GateDeCiTests(SimpleTestCase):

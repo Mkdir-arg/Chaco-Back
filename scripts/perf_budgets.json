@@ -155,12 +155,17 @@
     }
   },
   "servicios": {
-    "_nota": "Presupuestos de servicios que no son una ruta del manifiesto de perf_audit (no entran en `budgets`, que tiene que coincidir exactamente con build_targets). Los corre programas/tests/test_export_respuestas_presupuesto.py con --tag performance.",
+    "_nota": "Presupuestos de servicios que no son una ruta del manifiesto de perf_audit (no entran en `budgets`, que tiene que coincidir exactamente con build_targets). Los corren programas/tests/test_export_respuestas_presupuesto.py y programas/tests/test_dispositivos_ocupacion.py con --tag performance.",
     "becas_respuestas_por_persona": {
       "servicio": "programas.services.dashboard_becas.respuestas_por_persona",
       "consultas_fijas": 12,
       "casos_por_consulta": 666,
       "motivo": "El export es O(casos) en filas pero tiene que ser O(1) en consultas por caso: las fijas son el formulario vigente, el catalogo, los relevamientos y la lista de ids, y despues una consulta cada `casos_por_consulta`. El numero existe por el MAJOR de la ronda 2 del PR de G2-01: pedir `definicion` por fila llevo el export de 1,5 s a 14 s con 20.000 casos en mariadb:10.11 (08/10/2026). La foto no puede volver a leerse por fila, ni siquiera para hashearla: InnoDB lee igual las paginas externas."
+    },
+    "dispositivos_ocupacion_de_plazas": {
+      "servicio": "programas.services.ocupacion.ocupacion_de_plazas",
+      "consultas_fijas": 1,
+      "motivo": "Presupuesto nuevo (MVP v2 etapa 1, #687): es la unica fuente de las cifras de plazas, asi que la consumen el mapa de plazas, el detalle del dispositivo, el censo y los indicadores, y se paga en cada una de esas pantallas. El costo tiene que ser constante: 1 sola consulta -la agregacion de plazas por sector con Count(filter=...)- sin importar cuantos sectores, cuantas plazas ni cuantos dispositivos se pidan. La forma natural de escribirlo -un count por sector- seria un N+1 proporcional al mapa de plazas, que es justo lo que los indices (dispositivo, activo) y (sector, estado) estan puestos para evitar. No lleva `casos_por_consulta`: no es O(casos), es O(1). Si quien llama pasa un queryset perezoso de dispositivos, evaluarlo es una consulta suya y no entra en este techo."
     }
   }
 }

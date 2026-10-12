@@ -56,6 +56,8 @@ Reglas P1 (estructura; ratchet):
   SHELLLEGACY  {% extends "includes/main.html" %} — shell legacy, no se extiende.
   PAGEHEADER   <h1> a mano en el backoffice en vez de {% page_header %}.
   TABLECANON   <th> sin nodo-th, o <thead style=...>.
+  HEROFUERA    {% hero_inicio %} o clases nodo-hero* en una pantalla que no esté en
+               HERO_PANTALLAS (el hero es solo de Inicio y de los tableros de programa).
   ICONARIA     Ícono Font Awesome <i class="fas ..."> sin aria-hidden="true".
   CLASSDEF     Clase usada que no existe en ningún CSS cargable. P1 si tiene forma
                de utilidad Tailwind (build viejo o utilidad inválida); WARN si no
@@ -75,7 +77,7 @@ import fnmatch
 import re
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import NamedTuple
 
 REPO = Path(__file__).resolve().parent.parent
@@ -761,6 +763,33 @@ def _p1_tablecanon(rel: str, text: str) -> list[tuple[int, str]]:
     return out
 
 
+# Pantallas autorizadas a usar el hero de inicio de programa: SOLO la de inicio y los tableros de
+# programa (ficha componentes/hero_inicio.md). Hoy ninguna lo usa; la primera en incorporarlo se
+# agrega acá y esa línea es lo que ve el revisor. También la lee HeroInicioTest.
+HERO_PANTALLAS: frozenset[str] = frozenset()
+# El include directo del componente es la forma mas obvia de saltearse el tag, y el
+# propio componente dice que no se incluye a mano: sin esa alternativa la regla se
+# evadia escribiendo {% include "components/_hero_inicio.html" %}. El componente queda
+# exento igual, por HERO_COMPONENTE.
+# Se marca el TAG de include, no la ruta suelta: el shell tiene un comentario que la
+# nombra para documentar de donde sale el CSS, y eso es legitimo. Una regla que marca
+# la documentacion de si misma ensenia a no documentar.
+# El sufijo de la clase acepta mayusculas y guion bajo porque `nodo-hero__Titulo` y
+# `nodo-hero__titulo_x` se colaban: el \b no corta contra esos caracteres.
+HERO_RE = re.compile(
+    r"\{%\s*(?:end)?hero_inicio\b"
+    r"|\{%\s*include\s+[\"']components/_hero_inicio"
+    r"|\bnodo-hero(?:[_a-zA-Z]*)?(?!\.css)\b"
+)
+HERO_COMPONENTE = "templates/components/_hero_inicio.html"
+
+
+def _p1_herofuera(rel: str, text: str) -> list[tuple[int, str]]:
+    if rel == HERO_COMPONENTE or rel in HERO_PANTALLAS:
+        return []
+    return [(ln, "hero_inicio / nodo-hero") for ln in _lineas_de(text, HERO_RE)]
+
+
 def _p1_iconaria(rel: str, text: str) -> list[tuple[int, str]]:
     return [(ln, "ícono sin aria-hidden") for ln in _lineas_de(text, ICONARIA_RE)]
 
@@ -777,6 +806,11 @@ P1_RULES: list[tuple[str, object, str]] = [
     ("SHELLLEGACY", _p1_shelllegacy, "shell legacy includes/main.html — extender includes/base.html"),
     ("PAGEHEADER", _p1_pageheader, "<h1> a mano — el encabezado es {% page_header %}"),
     ("TABLECANON", _p1_tablecanon, "tabla fuera del canon — nodo-thead-row / nodo-th / nodo-td"),
+    (
+        "HEROFUERA",
+        _p1_herofuera,
+        "hero de inicio fuera de Inicio/tableros de programa — el encabezado es {% page_header %}",
+    ),
     ("ICONARIA", _p1_iconaria, 'ícono Font Awesome sin aria-hidden="true"'),
 ]
 
@@ -953,10 +987,16 @@ class Particion(NamedTuple):
     `development`, la base ya trae el archivo de origen partido y comparar contra
     ella le devolvería la deuda vieja a cualquier PR posterior que toque un
     pedazo (medido: `_identidad` 6, `_respuestas` 5, `_acciones` 2).
+
+    `retiro` dice **cuándo se borra la entrada**. Es obligatorio por lo mismo que
+    el `vence` de `security/excepciones.toml`: una excepción sin fecha de muerte
+    se queda para siempre, y esta además cuesta —mientras viva, el piso de esas
+    reglas lo fija un commit viejo—.
     """
 
     ref: str
     origen: str
+    retiro: str
 
 
 #: Particiones declaradas: un template que se partió en varios archivos.
@@ -971,10 +1011,27 @@ class Particion(NamedTuple):
 #:
 #: El conjunto se arma por `glob` y **no** con los archivos que el PR tocó: medir
 #: un pedazo suelto contra la deuda del archivo entero taparía cualquier hallazgo
-#: nuevo, porque el conteo por regla nunca llegaría a superar al del origen.
+#: nuevo, porque el conteo por regla nunca llegaría a superar al del origen. El
+#: patrón se compara con el criterio de `Path.glob` —`*` **no** cruza `/`, ver
+#: `_coincide`—: un archivo más adentro (`_detalle/sub/_x.html`) no es miembro, y
+#: por eso tampoco puede entrar a la partición; se audita suelto, contra la base.
+#:
+#: **El piso baja.** Con `ref` fijo y nada más, la deuda del origen queda de techo
+#: para siempre: si un PR limpia un pedazo, el que viene atrás puede volver a
+#: gastar el hueco que dejó sin que el ratchet lo vea. Por eso el piso de cada
+#: regla es `min(origen@ref, el conjunto en la base del PR)`. La excepción es el
+#: PR que **parte** el archivo: ahí los pedazos todavía no existen en la base, su
+#: deuda ahí es 0, y el único piso posible es el origen —el `min` se saltea
+#: cuando algún miembro falta en la base—.
+#:
+#: **Cuándo se borra una entrada.** La partición es un andamio del PR que parte el
+#: archivo. Se retira cuando se cumple lo que diga su `retiro`, y a más tardar en
+#: la fecha que ahí figura; a partir de ahí el ratchet normal (archivo contra
+#: archivo, con la base ya partida) mide bien y la entrada solo sostiene un piso
+#: viejo. Borrarla es borrar las dos líneas: la del patrón y la del origen.
 #:
 #: Clave: patrón `glob` de los destinos (incluido el origen, si sobrevivió).
-#: Valor: el origen y el commit donde todavía estaba entero.
+#: Valor: el origen, el commit donde todavía estaba entero y su condición de retiro.
 PARTICIONES: dict[str, Particion] = {
     # RED-54 (Ola 7): `formulario_detalle.html` pasó de 1.214 líneas a 88 y sus
     # secciones viven en `_detalle/`. El HTML renderizado no cambió —lo fija
@@ -984,24 +1041,40 @@ PARTICIONES: dict[str, Particion] = {
     # `9a3787db` es el último commit de `development` donde el archivo tenía las
     # 1.214 líneas (`git log -1 --format=%H origin/development -- <ruta>`,
     # 08-oct-2026).
+    #
+    # Retiro: cuando se cierre la ficha de los 32 P1 de diseño que viajaron con el
+    # markup (pendiente declarado del Cambio 208) —ahí los includes quedan limpios y
+    # el piso del conjunto es 0—, y a más tardar el 30/04/2027.
     "programas/templates/programas/becas/revision/_detalle/*.html": Particion(
         ref="9a3787dbd50b6493dbefc64bcb3179772abdc1b4",
         origen="programas/templates/programas/becas/revision/formulario_detalle.html",
+        retiro="con la ficha de los 32 P1 del detalle de revisión; a más tardar el 30/04/2027",
     ),
     "programas/templates/programas/becas/revision/formulario_detalle.html": Particion(
         ref="9a3787dbd50b6493dbefc64bcb3179772abdc1b4",
         origen="programas/templates/programas/becas/revision/formulario_detalle.html",
+        retiro="con la ficha de los 32 P1 del detalle de revisión; a más tardar el 30/04/2027",
     ),
 }
 
 
 def nuevos_de_particion(
-    base_text: str | None, origen: str, archivos: list[tuple[str, str]]
+    base_text: str | None,
+    origen: str,
+    archivos: list[tuple[str, str]],
+    archivos_en_la_base: list[tuple[str, str]] | None = None,
 ) -> list[tuple[str, str, int, str, str, str]]:
     """Igual que `nuevos`, pero el «actual» son varios archivos a la vez.
 
     Devuelve `(rel, severidad, línea, regla, mensaje, extracto)`: el hallazgo
     conserva el archivo donde está, así el reporte sigue siendo accionable.
+
+    `archivos_en_la_base` son esos mismos miembros tal como están en la base del
+    PR. Cuando se pasan, el piso de cada regla es el **menor** de los dos conteos
+    —el del origen entero y el del conjunto en la base—, así limpiar un pedazo
+    baja el piso en vez de dejar hueco para el PR siguiente. Sin ellos (o con un
+    miembro que en la base todavía no existe, que es el PR que parte el archivo)
+    el único piso posible es el origen.
     """
     previos = _medir_para_ratchet(base_text, origen) if base_text is not None else []
     actuales: list[tuple[str, tuple[str, int, str, str, str]]] = []
@@ -1011,6 +1084,17 @@ def nuevos_de_particion(
     por_regla_previa: dict[str, list[str]] = {}
     for _sev, _ln, rule, _msg, extracto in previos:
         por_regla_previa.setdefault(rule, []).append(extracto)
+    if archivos_en_la_base is not None:
+        en_la_base: dict[str, list[str]] = {}
+        for rel, texto in archivos_en_la_base:
+            for _sev, _ln, rule, _msg, extracto in _medir_para_ratchet(texto, rel):
+                en_la_base.setdefault(rule, []).append(extracto)
+        # El piso es el conteo más chico, con **sus** extractos: los de la lista que
+        # se descarta no son los que hay que ir tachando contra lo actual.
+        for rule in set(por_regla_previa) | set(en_la_base):
+            del_origen = por_regla_previa.get(rule, [])
+            de_la_base = en_la_base.get(rule, [])
+            por_regla_previa[rule] = del_origen if len(del_origen) <= len(de_la_base) else de_la_base
     por_regla_actual: dict[str, list[tuple[str, tuple[str, int, str, str, str]]]] = {}
     for rel, f in actuales:
         por_regla_actual.setdefault(f[2], []).append((rel, f))
@@ -1033,16 +1117,36 @@ def nuevos_de_particion(
     return reportar
 
 
+def _coincide(rel: str, patron: str) -> bool:
+    """`rel` contra un patrón `glob`, con el **mismo criterio que `Path.glob`**.
+
+    `fnmatch` deja que `*` cruce `/` y `Path.glob` no. Con uno de cada lado, un
+    archivo más anidado (`_detalle/sub/_x.html`) entraba a la partición por
+    `_particion_de` pero no a sus miembros por `_miembros_de`: no se medía como
+    conjunto ni como suelto, y quedaba **sin auditar**. Acá se compara componente
+    por componente, que es lo que hace `glob`.
+    """
+    partes = PurePosixPath(rel).parts
+    moldes = PurePosixPath(patron).parts
+    if len(partes) != len(moldes):
+        return False
+    return all(fnmatch.fnmatchcase(parte, molde) for parte, molde in zip(partes, moldes))
+
+
 def _particion_de(rel: str) -> Particion | None:
     """La partición declarada a la que pertenece `rel`, si hay alguna."""
     for patron, particion in PARTICIONES.items():
-        if fnmatch.fnmatch(rel, patron):
+        if _coincide(rel, patron):
             return particion
     return None
 
 
 def _miembros_de(particion: Particion) -> list[str]:
-    """Todos los archivos de la partición que hoy existen, estén tocados o no."""
+    """Todos los archivos de la partición que hoy existen, estén tocados o no.
+
+    `REPO.glob` y `_particion_de` tienen que decidir igual: lo que entra acá es
+    exactamente lo que allá devuelve esta partición (ver `_coincide`).
+    """
     rels: set[str] = set()
     for patron, declarada in PARTICIONES.items():
         if declarada != particion:
@@ -1119,9 +1223,19 @@ def ratchet_mode(base: str) -> int:
 
     total = 0
     for particion in sorted(particiones):
-        archivos = [(rel, texto) for rel in _miembros_de(particion) if (texto := _leer(rel)) is not None]
+        miembros = _miembros_de(particion)
+        archivos = [(rel, texto) for rel in miembros if (texto := _leer(rel)) is not None]
+        # El piso también baja: el conjunto tal como está en la base compite con el
+        # origen y gana el conteo más chico (ver `PARTICIONES`). Si algún miembro no
+        # está en la base —el PR que parte el archivo— no hay con qué comparar.
+        en_la_base = [(rel, contenido_en(base, rel)) for rel in miembros]
+        archivos_en_la_base = (
+            [(rel, texto) for rel, texto in en_la_base if texto is not None]
+            if all(texto is not None for _, texto in en_la_base)
+            else None
+        )
         for rel, sev, ln, rule, msg, extracto in nuevos_de_particion(
-            contenido_en(particion.ref, particion.origen), particion.origen, archivos
+            contenido_en(particion.ref, particion.origen), particion.origen, archivos, archivos_en_la_base
         ):
             print(f"{rel}:{ln}: [{sev}][{rule}] {msg}")
             if extracto:
@@ -1229,6 +1343,59 @@ ARQUETIPOS: dict[str, dict[str, list]] = {
             (r"non_field_errors", "errores generales a mano: usar components/_form_errores.html"),
         ],
     },
+    "wizard": {
+        "marcadores": [
+            (r'\{%\s*extends\s+"includes/base\.html"\s*%\}', False, "extiende el shell del backoffice"),
+            (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
+            (r'class="space-y-5"', False, "contenedor de página space-y-5"),
+            (r"\{%\s*page_header\b", False, "{% page_header %}"),
+            (r"volver_url=", False, "page_header con volver_url"),
+            (r"\{%\s*endpage_header\s*%\}", False, "{% endpage_header %}"),
+            (r"components/_stepper\.html", False, "indicador de pasos con components/_stepper.html"),
+            (r"<dl\b", False, "resumen de lo cargado como lista de definiciones"),
+            (
+                r'<form method="post"[^>]*class="bg-white rounded-xl border border-base shadow-sm p-6"',
+                False,
+                "surface del formulario del paso",
+            ),
+            (r"\{%\s*csrf_token\s*%\}", False, "{% csrf_token %}"),
+            (r"components/_form_errores\.html", False, "errores no de campo con components/_form_errores.html"),
+            (r"_field\.html", False, "campos con el include _field.html"),
+            (r"btn-nodo btn-tertiary btn-base", False, "acción «Anterior» del pie"),
+            (r"btn-nodo btn-brand btn-base", False, "acción primaria del pie (Siguiente o Confirmar)"),
+        ],
+        "prohibidos": [
+            (r"<h1\b", "encabezado a mano: el título es {% page_header %}"),
+            (r"<style\b", "<style> local"),
+            (r"←\s*Volver", "«← Volver» de texto: va en page_header volver_url"),
+            (r"non_field_errors", "errores generales a mano: usar components/_form_errores.html"),
+            (r"bg-tertiary rounded-full h-2", "barra de progreso a mano: el indicador es components/_stepper.html"),
+            (r"di-stepper|class=\"nodo-step", "stepper armado a mano: usar components/_stepper.html"),
+        ],
+    },
+    "revision": {
+        "marcadores": [
+            (r'\{%\s*extends\s+"includes/base\.html"\s*%\}', False, "extiende el shell del backoffice"),
+            (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
+            (r'class="space-y-5"', False, "contenedor de página space-y-5"),
+            (r"\{%\s*page_header\b", False, "{% page_header %} con la identidad de la persona"),
+            (r"\{%\s*endpage_header\s*%\}", False, "{% endpage_header %}"),
+            (r"components/_alerta\.html", True, "aviso de avance con _alerta"),
+            (r'role="tablist"', False, 'contenedor de solapas con role="tablist"'),
+            (r'role="tab"', False, 'solapa con role="tab"'),
+            (r':aria-selected="', False, "estado seleccionado de la solapa"),
+            (r'role="tabpanel"', False, 'panel con role="tabpanel"'),
+            (r"components/_ficha_seccion\.html", False, "secciones de la ficha con _ficha_seccion"),
+            (r"components/_linea_tiempo\.html", False, "línea de tiempo con _linea_tiempo"),
+        ],
+        "prohibidos": [
+            (r"<h1\b", "encabezado a mano: el título es {% page_header %}"),
+            (r"<style\b", "<style> local"),
+            (r"←\s*Volver", "«← Volver» de texto: va en page_header volver_url"),
+            (r"nodo-ficha-bloqueada", "sección bloqueada a mano: la dibuja components/_ficha_seccion.html"),
+            ("[🔒📎]", "emoji como ícono: Font Awesome con aria-hidden"),
+        ],
+    },
     "modal": {
         "marcadores": [
             (r"x-becas-modal=", False, "x-becas-modal (foco, Tab atrapado, Escape, scroll)"),
@@ -1252,6 +1419,32 @@ ARQUETIPOS: dict[str, dict[str, list]] = {
 }
 
 
+#: Una variante se DECLARA en el template, con este comentario, y entonces el auditor le
+#: exige otros marcadores. No se infiere de que falten los de la forma principal: si se
+#: infiriera, una pantalla que se olvido las solapas pasaria como "apilada" y el gate no
+#: serviria para nada.
+VARIANTE_RE = re.compile(r"\{#\s*arquetipo:\s*([a-z-]+)\s*\+\s*([a-z-]+)\s*#\}")
+
+#: Variantes declarables, por arquetipo (ojo:  ya existe y son los prefijos de Tailwind).
+#: Variantes declarables, por arquetipo. Cada una REEMPLAZA los marcadores de la forma
+#: principal por los suyos; los `prohibidos` siguen valiendo igual.
+VARIANTES_DE_ARQUETIPO: dict[tuple[str, str], list] = {
+    # Ficha `detalle.md`: "Con un area sola no hay solapas: van secciones apiladas en
+    # surfaces." Sin solapas no hay tablist que pedir, pero si hay que exigir que cada
+    # seccion sea una surface con su encabezado: eso es lo que reemplaza a la solapa como
+    # unidad navegable, y sin encabezado la pantalla es una sabana.
+    ("detalle", "apilado"): [
+        (r"\{%\s*extends\s+\"includes/base\.html\"\s*%\}", False, "extiende el shell del backoffice"),
+        (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
+        (r"class=\"space-y-5\"", False, "contenedor de página space-y-5"),
+        (r"\{%\s*page_header\b", False, "{% page_header %}"),
+        (r"\{%\s*endpage_header\s*%\}", False, "{% endpage_header %}"),
+        (r"<(?:section|article)\b[^>]*aria-labelledby=", False, "sección con nombre accesible (reemplaza a la solapa)"),
+        (r"<h2\b", False, "encabezado de la sección apilada"),
+    ],
+}
+
+
 def arquetipo_mode(nombre: str, rutas: list[str]) -> int:
     especificacion = ARQUETIPOS.get(nombre)
     if especificacion is None:
@@ -1268,7 +1461,23 @@ def arquetipo_mode(nombre: str, rutas: list[str]) -> int:
             continue
         propias = 0
         posicion = 0
-        for patron, opcional, descripcion in especificacion["marcadores"]:
+        marcadores = especificacion["marcadores"]
+        etiqueta = nombre
+        declarada = VARIANTE_RE.search(text)
+        if declarada and declarada.group(1) == nombre:
+            variante = declarada.group(2)
+            propios = VARIANTES_DE_ARQUETIPO.get((nombre, variante))
+            if propios is None:
+                conocidas = sorted(v for a, v in VARIANTES_DE_ARQUETIPO if a == nombre)
+                print(
+                    f"{ruta}: [ARQUETIPO] variante «{variante}» no declarada para «{nombre}»"
+                    f" (hay: {', '.join(conocidas) or 'ninguna'})"
+                )
+                propias += 1
+            else:
+                marcadores = propios
+                etiqueta = f"{nombre} + {variante}"
+        for patron, opcional, descripcion in marcadores:
             m = re.compile(patron).search(text, posicion)
             if m is None:
                 if re.compile(patron).search(text):
@@ -1283,7 +1492,7 @@ def arquetipo_mode(nombre: str, rutas: list[str]) -> int:
             for ln in _lineas_de(text, re.compile(patron)):
                 print(f"{ruta}:{ln}: [ARQUETIPO] prohibido — {motivo}")
                 propias += 1
-        print(f"{ruta}: arquetipo «{nombre}» — {'OK' if not propias else f'{propias} desvío(s)'}")
+        print(f"{ruta}: arquetipo «{etiqueta}» — {'OK' if not propias else f'{propias} desvío(s)'}")
         fallas += propias
     return 1 if fallas else 0
 
@@ -1306,6 +1515,8 @@ GOLDENS: list[tuple[str, str]] = [
     ("detalle", "programas/templates/programas/becas/cupo/segmento_detail.html"),
     ("formulario", "programas/templates/programas/becas/config/segmento_form.html"),
     ("modal", "programas/templates/programas/becas/config/programa_list.html"),
+    ("wizard", "configuracion/templates/configuracion/programa_wizard_paso4.html"),
+    ("revision", "programas/templates/programas/dispositivos/estadia/revision_referencia.html"),
 ]
 
 

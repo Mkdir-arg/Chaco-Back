@@ -1,0 +1,79 @@
+/* NODO Design System — Hero de inicio de programa
+   Contrato: `{% hero_inicio %}` de core/templatetags/nodo_ui.py sobre
+   templates/components/_hero_inicio.html. Ficha: .claude/design/componentes/hero_inicio.md.
+
+   ALCANCE (taxativo): solo la pantalla de inicio y los tableros de programa. Es el único
+   lugar del contenido del backoffice donde se permite el gradiente de marca; en el resto
+   de las pantallas el encabezado es `{% page_header %}`. No se usan estas clases a mano:
+   la prueba `HeroInicioTest` falla si aparecen fuera del componente. */
+
+.nodo-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 24px;
+    padding: 28px 32px;
+    border-radius: 16px;
+    background: var(--gradient-brand);
+    color: var(--text-white);
+    box-shadow: var(--shadow-brand);
+}
+
+.nodo-hero__eyebrow {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.92;
+}
+
+.nodo-hero__titulo {
+    margin: 4px 0 6px;
+    font-family: var(--font-sans);
+    font-size: 30px;
+    font-weight: 800;
+    /* nodo-brand.css fija color y tracking de todo `h1` con `!important` (títulos oscuros de
+       página): sobre el gradiente el título es blanco, así que acá se le gana igual. */
+    letter-spacing: -0.5px !important;
+    color: var(--text-white) !important;
+}
+
+.nodo-hero__bajada {
+    max-width: 560px;
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 14.5px;
+    line-height: 1.5;
+    opacity: 0.92;
+}
+
+.nodo-hero__accion {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 8px;
+    height: 44px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 9999px;
+    background: var(--bg-white);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+/* El color del texto lo pone nodo-brand.css (todo `a` en color de marca, `!important`), que sobre
+   el fondo blanco del botón es el que corresponde; el hover oscurece el fondo. */
+.nodo-hero__accion:hover {
+    filter: brightness(0.95);
+}
+
+.nodo-hero__accion:focus-visible {
+    outline: 2px solid var(--text-white);
+    outline-offset: 2px;
+}

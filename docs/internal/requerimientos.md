@@ -380,7 +380,21 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 206 | Bloque de ubicación sin mapa: coordenadas, enlace externo y plano adjunto | Diseño · componentes | `#ui` | Decisión C-14 del PM (06/10) · task #587 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
 | 207 | Antes de publicar en internet mira alguien, la suite corre en paralelo y el tipado empieza a existir | Transversal — publicación de `docs/client/` en GitHub Pages · CI (`Tests & Coverage`, `Tipos (mypy)`) · motor de condiciones y cliente de Base de Personas (solo anotaciones) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-64, RED-76 y RED-86 (Ola 7, PR 5) | 09/10/2026 | 🟢 **Hecho** (el gate de publicación encontró y despublicó una respuesta de RENAPER con los datos de una persona real; el `environment` no es `github-pages`, que solo admite la rama `gh-pages`) | No |
 | 208 | Las segundas partes de la red de seguridad: esquema del dashboard, un solo sobre de error y el detalle de revisión partido | Transversal (esquema OpenAPI, sobre de error JSON, auditoría de diseño) · Becas (detalle de revisión, tablero del programa) · Legajos (APIs del detalle de ciudadano) | `#api` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas RED-37, RED-39 y RED-54 (Ola 7, PR 6) | 09/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
-| 209 | La descarga grande deja de armarse de una sola vez: el export de respuestas por persona sale de a lotes y el CSV se transmite | Becas — solapa «Dashboard» del programa (exportación de respuestas por persona) | `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — ficha PERF-03 punto 3 (Ola 4, PR 10); PERF-11 diferida por decisión del PM | 12/10/2026 | 🟢 **Hecho** (sin cola ni worker: no existen en el repo ni en ECOM. PERF-11 sale del alcance: proyecto propio) | No requiere |
+| 214 | Mapa de plazas con su leyenda, galería fotográfica, y el tono `info` completado | Diseño · componentes | `#ui` `#metodo` | Tasks 14 y 18 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 219 | El tope del núcleo del agente se parte en dos: prosa y tablas | Diseño · contrato | `#metodo` `#ui` | Juez — desbloqueo de la etapa 0 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 220 | Dos pruebas de contrato que no verificaban nada adentro de un worktree | Calidad · pruebas | `#metodo` `#ui` | Juez — hallazgo al cerrar la task 07 del MVP | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 227 | Tarjeta de turno y entradas de bitácora del registro diario | Diseño · componentes | `#ui` `#metodo` | Task 17 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 229 | RED-88 de verdad: sin `tblib`, una falla del CI se disfraza de timeout | Calidad · CI | `#metodo` `#infra` | Juez — diagnóstico del 12/10/2026 | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 230 | Golden del arquetipo Wizard: el alta de programa pasa a ser el molde | Diseño · arquetipos | `#ui` `#metodo` | Task 09 del MVP de Dispositivos (plan del Cambio 191) | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 236 | Golden del arquetipo Revisión, con línea de tiempo y sección de ficha | Diseño · arquetipos | `#ui` `#metodo` | Task 10 del MVP de Dispositivos (plan del Cambio 191) | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 239 | Edificio, Sector y Plaza: la base de la etapa 1, sin tipear ocupación | Dispositivos · modelo de datos | `#datos` `#ui` | Tasks 20 y 21 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | `programas.0086` |
+| 243 | Menú de fila accesible para tablas densas | Diseño · componentes | `#ui` `#metodo` | Decisión C-13 del PM (06/10) · task #585 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 247 | Hero de inicio de programa, acotado por una regla que se hace cumplir sola | Diseño · componentes | `#ui` `#metodo` | Decisión del PM (06/10) · task #583 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 251 | Eyebrow, filtro rápido en píldora, y chips y switch como widgets de Django | Diseño · componentes | `#ui` `#metodo` | Tasks 11, 12 y 13 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 253 | Pantalla de sectores y plazas, y la variante apilada del arquetipo Detalle | Dispositivos · pantallas | `#ui` `#metodo` | Task 23 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 255 | Servicio único de ocupación: lo que no se puede calcular devuelve `None`, no cero | Dispositivos · servicios | `#datos` `#performance` | Task 22 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 256 | Segundas lecturas de los dos gates: el padrón que no se veía, el secreto que se perdonaba solo y el piso que no bajaba | Transversal — gate de publicación de `docs/client/` · auditoría de diseño (particiones del ratchet) · archivo vivo de requerimientos | `#infra` `#datos` | Revisiones de #664 (Cambio 207) y #665 (Cambio 208) — los MINOR que quedaron abiertos (Ola 7, PR 7) | 12/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
+| 257 | La descarga grande deja de armarse de una sola vez: el export de respuestas por persona sale de a lotes y el CSV se transmite | Becas — solapa «Dashboard» del programa (exportación de respuestas por persona) | `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — ficha PERF-03 punto 3 (Ola 4, PR 10); PERF-11 diferida por decisión del PM | 12/10/2026 | 🟢 **Hecho** (sin cola ni worker: no existen en el repo ni en ECOM. PERF-11 sale del alcance: proyecto propio) | No requiere |
 
 **Notas del índice**
 
@@ -31625,7 +31639,1272 @@ sin tocar las cuentas de horas del README de la auditoría.
 
 ---
 
-# Cambio 209 — La descarga grande deja de armarse de una sola vez: el export de respuestas por persona sale de a lotes y el CSV se transmite
+---
+
+# Cambio 214 — Mapa de plazas con su leyenda, galería fotográfica, y el tono `info` completado
+
+🟢 **HECHO — 12/10/2026** · Tasks `[TASK] Dispositivos MVP 14` (#679) y `18` (#683)
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · componentes · Dispositivos |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Tasks 14 y 18 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `templates/components/_mapa_plazas.html`, `_leyenda_plazas.html`, `_galeria_fotos.html`, `chaco-tokens.css`, `tailwind.config.js` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> Etapa 0 del MVP: el mapa de plazas de un dispositivo, con su leyenda, y la galería fotográfica del
+> historial de infraestructura.
+
+## Decisiones tomadas
+
+**El color nunca es el único portador del estado.** Cada plaza lleva su código (leído como «Plaza
+A-01» con `sr-only`), el texto del estado **y un ícono distinto por tono**; la leyenda repite muestra,
+ícono y texto, y un test verifica que leyenda y mapa usen los mismos. Un mapa que distinga las plazas
+solo por color es ilegible para quien no distingue colores, y acá de ese mapa se elige dónde alojar a
+una persona.
+
+**La vista decide qué plaza es elegible, no el componente a partir del estado.** Una plaza con `url`
+es un `<a>` real —Tab, Enter, foco nativo, sin JS ni `tabindex`—; una sin `url` es informativa y no
+entra en la tabulación. La elegida se marca con el texto «Elegida» y `aria-current`, no solo con
+color.
+
+**Las dos piezas tienen tope propio además del de la vista**: el mapa dibuja hasta 200 plazas y la
+galería hasta 24, y las dos avisan «Mostrando N de M». La ficha exige igual que la vista recorte —una
+surface por sector, una tanda de fotos por vez—. El tope del componente es la red, no el plan.
+
+**Se completó el tono `info` en vez de parchear la pieza.** El vocabulario del agente permite
+`border-{tono}-subtle` con `info` entre los cinco tonos, pero **`border-info-subtle` no estaba
+compilado**: sus cuatro hermanos sí. Se agregó el token en `chaco-tokens.css` (claro: el paso 200 de
+la rampa; oscuro: el 900, igual que los hermanos) y en `tailwind.config.js`. Dejarlo en `border-base`
+habría escondido el hueco para la próxima pieza que lo pisara. Queda escrito en el núcleo que los
+cinco tonos existen en las tres familias y que una faltante **se completa en los tokens, no se evita
+en la pieza**.
+
+**Las clases del tono van en el propio `<a>`, no en el `li`.** La regla global de `nodo-brand.css`
+(`a:not([class*="bg-"])`, con `!important`) pisaría el color en cualquier enlace sin clase `bg-*`.
+Está documentado en la ficha y tiene test.
+
+**La galería va en su card, no dentro de un evento de la línea de tiempo**, porque esa pieza todavía
+no tiene slot de cuerpo (Cambio 216). Todas las imágenes llevan `loading="lazy"`, `decoding="async"` y
+`alt` real —cae al rótulo si falta, nunca vacío—, y la `url` tiene que ser un archivo servido por la
+vista autenticada: `media/` está detrás de login.
+
+## Implementación
+
+Tres includes, dos fichas (`mapa_plazas.md`, `galeria_fotos.md`), dos filas de inventario y 22 tests
+en `core/tests/test_nodo_ui_lote_b.py` —archivo propio, para no chocar con los otros lotes de la
+etapa 0—. Tailwind regenerado y commiteado.
+
+## Pendientes
+
+- **Ninguna pantalla las consume todavía**: son piezas de la etapa 0, construidas antes que sus
+  pantallas, así que **no se vieron en un navegador**.
+- La galería **no maneja imágenes rotas**, porque requeriría JS. Anotado como límite en la ficha.
+- Los chips con «✕» y «+ agregar» del mockup P15 **no son esta pieza**: son un selector con alta, y no
+  existe.
+
+## Archivos
+
+`templates/components/_mapa_plazas.html` · `_leyenda_plazas.html` · `_galeria_fotos.html` ·
+`static/custom/css/chaco-tokens.css` · `tailwind.config.js` · `static/custom/css/tailwind.css` ·
+`core/tests/test_nodo_ui_lote_b.py` · `.claude/design/componentes/mapa_plazas.md` ·
+`galeria_fotos.md` · `.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 219 — El tope del núcleo del agente se parte en dos: prosa y tablas
+
+🟢 **HECHO — 12/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · contrato del agente canónico |
+| **Etiquetas** | `#metodo` `#ui` |
+| **Solicitante** | Juez — desbloqueo de la etapa 0 del MVP de Dispositivos |
+| **Fecha del pedido** | 12/10/2026 |
+| **Issue / épica** | Plan del MVP de Dispositivos (Cambio 191) |
+| **Partes afectadas** | `scripts/check_design_agent.py`, su test, el agente y el workflow |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> La golden del arquetipo Revisión dejó el núcleo en **29.997 de 30.000 bytes**: tres bytes de
+> margen. Los lotes de piezas de la etapa 0 agregan filas de inventario y habrían fallado el gate
+> `Design Agent Contract` sin que el núcleo tuviera nada malo.
+
+## Decisiones tomadas
+
+**El primer intento fue subir el tope total a 34.000, y el revisor lo volteó con una medición.** El
+argumento era que el tope total «solo castiga tener muchas piezas», porque el inventario es un índice
+y lo que obliga a que el detalle vaya a la ficha es `CELDA_MAX_CARACTERES`. La medición mostró que es
+falso: de los ~29.000 bytes del núcleo, **solo ~14.100 son celdas de tabla**; los ~14.800 restantes
+son prosa que ninguna otra regla acota. O sea que el tope total **sí** era la única barrera de la
+prosa, y subirlo 4 KB le regalaba 4 KB de holgura justo a lo que hay que vigilar. Además
+`CELDA_MAX_CARACTERES` ya está saturado —máximos de 450, 448 y 438— y las quince piezas del MVP
+consumían exactamente los 4 KB agregados: el mismo problema con otro número.
+
+**Se parte en dos topes que escalan con lo que cada uno protege:**
+
+- **Prosa ≤ 16.000 bytes** (hoy 13.634): todo lo que no es fila de tabla. Es lo que de verdad se
+  infla, y **no crece porque el producto crezca**.
+- **Tablas sin tope total**: el inventario crece una fila por pieza canónica, que es sano. Lo acota
+  `CELDA_MAX_CARACTERES` fila por fila, que es la regla que empuja el detalle a la ficha.
+
+Si la prosa se pasa, la pregunta es qué párrafo sobra o qué sección es una ficha disfrazada; si se
+pasa una celda, el detalle va a la ficha. **Ninguna de las dos se contesta subiendo un número**, que
+era el defecto del tope único.
+
+**El contrato escrito ahora se verifica contra la constante.** El agente y el workflow decían «núcleo
+≤ 30.000 bytes» mucho después de que dejara de ser cierto —lo encontró el revisor—, así que quien
+leía el contrato creía una cosa y el gate hacía cumplir otra. Hay una prueba nueva que exige que la
+cifra escrita en los dos archivos sea la de la constante: **un número en prosa que nadie verifica
+envejece sin avisar**.
+
+**Y el tamaño dejó de depender del fin de línea de verdad.** La función medía el texto crudo y
+confiaba en que quien lo leyera lo hubiera normalizado; el test afirmaba que con CRLF el mismo
+contenido **sí** se pasaba del tope, o sea documentaba la fragilidad en vez de evitarla. Ahora
+normaliza ella misma y el veredicto es el mismo en el checkout de Windows y en el del CI.
+
+## Implementación
+
+`PROSA_MAX_BYTES` reemplaza a `NUCLEO_MAX_BYTES` en `scripts/check_design_agent.py`; el cuerpo de
+`limites_del_nucleo` descarta las filas de tabla antes de medir. 23 pruebas en
+`scripts/test_check_design_agent.py`, entre ellas la de que 400 filas de inventario **no** disparan el
+tope de prosa.
+
+## Pendientes
+
+Ninguno.
+
+## Archivos
+
+`scripts/check_design_agent.py` · `scripts/test_check_design_agent.py` ·
+`.claude/agents/chaco-design-system.md` · `.github/workflows/design-agent-contract.yml`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Reescrita tras la revisión, que refutó el razonamiento de la primera versión.
+---
+
+---
+
+# Cambio 220 — Dos pruebas de contrato que no verificaban nada adentro de un worktree
+
+🟢 **HECHO — 12/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Calidad · pruebas de contrato |
+| **Etiquetas** | `#metodo` `#ui` |
+| **Solicitante** | Juez — hallazgo al cerrar la task 07 del MVP de Dispositivos |
+| **Fecha del pedido** | 12/10/2026 |
+| **Issue / épica** | Plan del MVP de Dispositivos (Cambio 191) |
+| **Partes afectadas** | `configuracion/tests/test_formularios_canonicos_ola5_pr6b.py`, `core/tests/test_nodo_ui_piezas.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> Al terminar la task 07 apareció que `HeroInicioTest.test_solo_las_pantallas_autorizadas_lo_usan`
+> pasaba en falso. Buscando el patrón, el mismo defecto estaba en otra prueba.
+
+## Decisiones tomadas
+
+**El filtro de rutas va sobre la ruta relativa al repo, nunca sobre `p.parts`.** Las dos pruebas
+excluían el directorio `.claude` con `".claude" not in p.parts`, que mira la **ruta absoluta**. Como
+**los worktrees de trabajo viven en `.claude/worktrees/`**, ahí adentro esa condición es falsa para
+todos los archivos del repo: el filtro se comía todo.
+
+Medido: dentro de un worktree, `test_ningun_template_del_repo_lo_extiende` evaluaba **0 candidatos
+sobre 286 templates**. Pasaba en verde sin mirar un solo archivo. Y como **todo el desarrollo se hace
+en worktrees**, estuvo verde por vacío en cada PR revisado desde que existe.
+
+**La corrección lleva su propia guarda.** No alcanza con arreglar el filtro: se agregó
+`assertGreater(len(candidatos), 100)`, para que si alguien vuelve a vaciar la lista el test **falle**
+en vez de pasar por ausencia de evidencia. Una prueba que puede quedarse sin sujeto tiene que
+detectarlo ella misma; si no, el modo de falla es silencioso y se descubre por casualidad, como este.
+
+## Implementación
+
+En `test_formularios_canonicos_ola5_pr6b.py`, el filtro pasa a
+`set(p.relative_to(REPO).parts)` más la guarda. En `test_nodo_ui_piezas.py` la corrección entró con la
+task 07, donde además se vio que el `<link>` a `nodo-hero.css` de `base.html` contaba como uso.
+
+## Pendientes
+
+- Vale barrer el resto de la suite buscando pruebas que recorran el repo y puedan quedarse sin
+  sujeto. `check_migraciones.py` usa `.venv not in ruta.parts`, que tiene la misma forma pero no el
+  mismo riesgo: no desarrollamos adentro de `.venv`.
+
+## Archivos
+
+`configuracion/tests/test_formularios_canonicos_ola5_pr6b.py`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva.
+
+---
+
+---
+
+# Cambio 227 — Tarjeta de turno y entradas de bitácora del registro diario
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 17` (#682)
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · componentes · Dispositivos |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 17 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `templates/components/_turno_tarjeta.html`, `_entradas_bitacora.html` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**La pieza de bitácora es la lista, no la fila suelta.** El tope, el aviso de recorte y el estado
+vacío necesitan un contenedor: sin él, cada pantalla tendría que reimplementar los tres y dos
+pantallas los harían distinto. Son dos includes, no tres.
+
+**El color nunca es el único portador de la categoría.** El badge de cada entrada lleva el texto de la
+categoría **más** un ícono por tono, y el de la tarjeta lleva el texto del estado. El mockup solo
+pinta el color; es una adición deliberada. Un tono desconocido o vacío cae a `badge-gray` con
+`fa-circle` en vez de romperse, porque la categoría la define parametría que va a crecer.
+
+**El texto de una entrada lo escribe un usuario, así que va escapado.** Pasa por `linebreaksbr`, que
+respeta los saltos de línea sin abrir HTML. Hay un test que **lee el código de las dos piezas** y
+exige que no aparezcan `|safe`, `autoescape off` ni `style=`: la tentación al mostrar texto con saltos
+es desactivar el escape, y acá ese texto viene de un formulario.
+
+**Tope propio además del de la vista.** La pieza dibuja hasta 100 entradas y avisa «Mostrando N de M».
+La ficha exige que el recorte lo haga la vista —las más recientes, más el `total`—; el 100 es la red,
+no el plan, y un queryset sin acotar no es contrato válido. Una bitácora no deja de crecer: un turno
+largo tiene muchas entradas y un dispositivo tiene turnos todos los días.
+
+**La vista decide qué acciones ofrece.** La tarjeta las recibe por parámetro (`url`, `texto`,
+`variante`) porque no tiene ranura de cuerpo; una variante desconocida cae a `secondary`.
+
+## Implementación
+
+Dos includes, la ficha `turno_bitacora.md`, una fila de inventario de 398 caracteres —bajo el tope de
+450— y 22 tests en `core/tests/test_nodo_ui_lote_c.py`, archivo propio para no chocar con los otros
+lotes de la etapa 0. No hizo falta ningún tag ni CSS nuevo: todas las clases ya estaban compiladas.
+
+## Pendientes
+
+- **Ninguna pantalla la consume todavía** y no existe la vista que arme los dicts: es otra task del
+  MVP. No se vio en un navegador.
+- Del mockup quedan afuera, por no estar definidas como piezas: el adjunto 📎 (emoji, conflicto C-10),
+  el enlace «corregir» y la etiqueta «Seguimiento abierto».
+- Tres apartamientos del mockup, los tres por quedarse dentro del sistema: flex con anchos de la
+  escala en vez de la grilla `56px 110px 1fr`; el turno activo marca `border-brand` sin el anillo de
+  3 px; y el turno sin abrir usa `bg-secondary` en vez de opacidad .65, **para que el texto conserve
+  el contraste**.
+
+## Archivos
+
+`templates/components/_turno_tarjeta.html` · `templates/components/_entradas_bitacora.html` ·
+`core/tests/test_nodo_ui_lote_c.py` · `.claude/design/componentes/turno_bitacora.md` ·
+`.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 229 — RED-88 de verdad: sin `tblib`, una falla del CI se disfraza de timeout
+
+🟢 **HECHO — 12/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Calidad · CI |
+| **Etiquetas** | `#metodo` `#infra` |
+| **Solicitante** | Juez — media hora de diagnóstico perdida el 12/10/2026 |
+| **Fecha del pedido** | 12/10/2026 |
+| **Issue / épica** | RED-88 (la cerró el Cambio 163 sin cerrarla) |
+| **Partes afectadas** | `requirements-ci.txt`, `core/tests/test_dependencias.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> Cinco PRs de la etapa 0 del MVP aparecían con el CI en `cancel`. El diagnóstico costó media
+> hora porque el síntoma no se parece en nada a la causa.
+
+## Decisiones tomadas
+
+**El CI corre la suite con `--parallel 4`, así que Django tiene que pickear el resultado de cada
+worker para mandarlo al proceso padre. Un `traceback` no es pickleable por sí solo.** Sin `tblib`,
+el propio código de Django avisa que *«if tblib isn't installed, pickling the traceback will always
+fail»*. Lo que se ve entonces no se parece a una falla:
+
+- La suite muere con `TypeError: cannot pickle 'traceback' object` **sin decir qué test falló**.
+- El worker queda colgado y **el job corre 25 minutos** hasta que GitHub lo cancela por timeout.
+- `gh pr checks` lo muestra como **`cancel`**, idéntico a una cancelación por push posterior.
+
+Las tres cosas juntas llevan al error exacto que cometí: leer los tiempos, concluir «contención de
+runners» y **relanzar**. Relanzar un fallo determinista no lo arregla nunca.
+
+**`tblib` entra en `requirements-ci.txt` pineado**, que es donde viven las herramientas del CI. Con
+él, la misma falla sale al instante y con su traza completa —verificado acá, forzando un test a
+fallar bajo `--parallel 4`—.
+
+**RED-88 estaba cerrada y no lo estaba.** El Cambio 163 la dio por resuelta porque arregló *los
+tests que fallaban*; el modo de falla quedó intacto, dormido hasta la próxima falla real. Llegó el
+12/10/2026 con los snapshots de Becas. Por eso esto va con **dos tests**, no con un comentario: uno
+exige que `tblib` esté listado y el otro que Django lo pueda importar de verdad —estar en el archivo
+y estar instalado no son lo mismo—. Se verificó que la guarda **falla** al sacar la línea: un test
+que no puede fallar no protege nada.
+
+## Implementación
+
+Una línea en `requirements-ci.txt` con su motivo, y `TblibEnElCiTests` en
+`core/tests/test_dependencias.py`.
+
+## Pendientes
+
+Ninguno. Queda anotado para quien lea un `cancel` de `Tests & Coverage`: buscar el nombre del test
+en la traza del log (`grep -E '\.py", line [0-9]+, in test'`) **antes** de relanzar.
+
+## Archivos
+
+`requirements-ci.txt` · `core/tests/test_dependencias.py`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Reabre y cierra RED-88, que el Cambio 163 dio por cerrada.
+
+---
+
+---
+
+# Cambio 230 — Golden del arquetipo Wizard: el alta de programa pasa a ser el molde
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 09` · PR #209PR
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · arquetipos · Configuración (wizard de programas) |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 09 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `.claude/design/arquetipos/wizard.md`, `pendientes.md`, `scripts/design_audit.py`, `core/tests/test_design_audit_estructura.py`, el wizard de Configuración |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> Etapa 0 del MVP: antes de escribir una pantalla nueva tiene que existir la golden de su arquetipo.
+> El ingreso a un dispositivo es un wizard y el arquetipo no tenía molde.
+
+## Decisiones tomadas
+
+**El wizard de alta de programa (`configuracion/`, pasos 1 a 4) es la golden**, no una pantalla nueva
+hecha para la ocasión: ya está en producción, tiene los cuatro pasos, el indicador y el resumen. Se le
+agregó el marcador de arquetipo y quedó en 0 hallazgos; `--arquetipo wizard` ya valida contra ella.
+
+**La ficha dice lo que la golden hace, no lo que uno querría que hiciera.** Decía que el paso final
+«escribe con un servicio, en una transacción»: es falso, hace un `Programa.objects.create()` suelto.
+Una ficha que promete algo que el molde no cumple es peor que no tenerla, porque cada clon hereda la
+promesa y ninguno la cumple. Se reescribió para describir el `create()` real **y** para exigir, donde
+sí hace falta, el contrato que faltaba.
+
+**El contrato que importa es revalidar entre pasos, no «usar un servicio».** Entre el paso 1 y el 4
+pasan minutos y lo que se validó al principio puede haber dejado de ser cierto. La ficha ahora pide:
+si el wizard reserva algo que otro puede tomar —una plaza, un lugar del cupo, un código único—, el
+paso final revalida y escribe dentro de `transaction.atomic()` con `select_for_update()`, y si se
+ocupó vuelve al paso que lo eligió con el error. **El ingreso de Dispositivos es exactamente ese
+caso** (la plaza del paso 2 puede ocuparse antes del paso 4), así que la task 24 no puede limitarse a
+clonar la golden: tiene que agregarle el bloqueo. Queda escrito en la ficha para que no se pierda.
+
+## Implementación
+
+Marcador de arquetipo en el paso 4, ficha `wizard.md` con el contrato de vista, el esqueleto literal y
+la checklist del revisor, y baja de `wizard` de `pendientes.md`.
+
+**Dos pruebas de contrato que pasaban por el motivo equivocado.** `test_arquetipo_desconocido_falla`
+usaba `"wizard"` como nombre inexistente: el día que el wizard dejó de estar pendiente, el test empezó
+a dar verde probando lo contrario de lo que decía su nombre. Ahora usa un nombre que no va a existir
+nunca. Y se agregó `test_cada_arquetipo_declarado_tiene_su_ficha`, que recorre `ARQUETIPOS` y exige el
+archivo en `.claude/design/arquetipos/`: declarar un arquetipo sin ficha ahora falla.
+
+## Pendientes
+
+- **`Programa.codigo` es `unique=True` y se valida en el paso 1**: dos altas simultáneas del mismo
+  código terminan en `IntegrityError` (500). Es la versión chica del problema que la ficha ahora
+  obliga a resolver en el ingreso. No se tocó acá —es el wizard productivo, fuera del alcance de una
+  task de diseño— y queda anotado.
+- Menores del revisor, al PR siguiente del carril: las etiquetas del pie y el `eyebrow` divergen de P6
+  sin que la ficha lo diga; «Anterior» es un GET y pierde lo tipeado en el paso actual; el paso final
+  mezcla resumen con un form de apariencia.
+
+**La task 19 (stepper de backoffice) quedó absorbida acá**, como la 15 y la 16 dentro de la golden de
+Revisión: el indicador salió como `components/_stepper.html`, con ficha y fila de inventario, en vez de
+marcado suelto adentro del wizard. Se corrigió además el conector colgando en mobile que marcó el
+revisor: el indicador envuelve, y un paso que caía a la línea siguiente arrastraba su conector al
+principio, donde no conecta con nada. Abajo de 640 px no se dibuja —el estado ya está en el texto, en
+el `sr-only` y en `aria-current`, así que **el conector nunca portó información propia**—.
+
+## Archivos
+
+`.claude/design/arquetipos/wizard.md` (nuevo) · `.claude/design/pendientes.md` ·
+`scripts/design_audit.py` · `core/tests/test_design_audit_estructura.py` ·
+`configuracion/templates/configuracion/programa_wizard_paso4.html`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 236 — Golden del arquetipo Revisión, con línea de tiempo y sección de ficha
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 10`
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · arquetipos · Dispositivos |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 10 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `.claude/design/arquetipos/revision.md`, `componentes/ficha_timeline.md`, `pendientes.md`, `scripts/design_audit.py`, dos componentes nuevos |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> Etapa 0 del MVP: la pantalla de revisión de una estadía es el corazón del circuito interno y no
+> tenía arquetipo. Es la más compleja del mockup.
+
+## Decisiones tomadas
+
+**La golden es una pantalla de referencia propia** (`revision_referencia.html`), no una productiva
+adaptada: no existe hoy ninguna pantalla con esta forma —ficha por secciones con avance, sensibilidad
+y bloqueo, más línea de tiempo—, así que no había de dónde copiar.
+
+**Bloquear no es ocultar, y el bloqueo es de la vista.** Una sección que el rol no puede leer se
+muestra con su título, su avance y quién la completa, pero **sus datos no llegan al template**: la
+vista no los pasa. Se verificó que el contenido bloqueado no aparece en el HTML. Esconder la sección
+dejaría al revisor sin saber que existe; mandarla y taparla con CSS la regalaría en el «ver código
+fuente».
+
+**Dos componentes nuevos, parametrizados de verdad** (`_linea_tiempo.html` y `_ficha_seccion.html`),
+no marcado suelto dentro de la golden: los dos se usan desde fuera con su contexto y tienen ficha.
+
+**Las listas de esta pantalla crecen sin techo y el recorte es de la vista** (hallazgo del revisor).
+Una estadía de dos años trae cientos de eventos y la pantalla dibuja todo lo que le pasen. La ficha
+ahora exige: `eventos`, `adjuntos` y `otras_estadias` llegan recortados a los últimos N con enlace
+«Ver todo»; los contadores `n_*` salen de un `.count()` y **nunca de `len()` sobre la lista
+recortada**, porque si no el encabezado miente justo cuando hay de más; y `secciones` se arma en una
+consulta —el avance por sección es la trampa cara de este arquetipo, porque preguntarlo por sección
+es un N+1 que crece con la parametría—.
+
+**La línea de tiempo no lleva contenido rico, y queda dicho.** `detalle` es una línea de texto, no un
+slot. La solapa de infraestructura (task 37) va a querer una grilla de fotos adentro de un evento:
+meter marcado en `detalle` lo escapa, y desactivar el escape abre un agujero con texto que carga un
+usuario. Se resuelve agregando un slot de cuerpo al componente, en una task propia; hasta entonces el
+contenido va en una card aparte debajo.
+
+## Implementación
+
+Golden con marcador, ficha `revision.md` (estructura, contrato de contexto, regla de la sección
+bloqueada, límites y rendimiento, checklist), ficha `ficha_timeline.md` de los dos componentes, y baja
+de `revisión` de `pendientes.md`.
+
+## Pendientes
+
+- **Slot de cuerpo en la línea de tiempo**, antes de la task 37 (infraestructura con fotos).
+- Menores del revisor, al PR siguiente del carril: falta `x-cloak` en el cuerpo plegable (el default
+  es *abierta*, así que no hay destello en el caso común, y agregarlo esconde el contenido si Alpine
+  no carga: se decidió no hacerlo acá); `{{ avance }}` no tiene tope —el medidor lo recorta con
+  `overflow-hidden`, pero el número escrito podría decir 120—; los estados vacíos fijos de los cuatro
+  paneles pueden confundir a quien clone.
+
+## Archivos
+
+`programas/templates/programas/dispositivos/estadia/revision_referencia.html` ·
+`templates/components/_linea_tiempo.html` · `templates/components/_ficha_seccion.html` ·
+`templates/components/_ficha_avance.html` · `.claude/design/arquetipos/revision.md` ·
+`.claude/design/componentes/ficha_timeline.md` · `.claude/design/pendientes.md` ·
+`scripts/design_audit.py`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 239 — Edificio, Sector y Plaza: la base de la etapa 1, sin tipear ocupación
+
+🟢 **HECHO — 12/10/2026** · Tasks `[TASK] Dispositivos MVP 20` (#685) y `21` (#686)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · modelo de datos |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) · decisión del 08/10/2026 |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Tasks 20 y 21 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `programas/models/__init__.py`, `programas/migrations/0086_edificio_sector_plaza.py` |
+| **Migración** | `programas.0086` — tres tablas nuevas, dos columnas en `TipoDispositivo` |
+
+## Decisiones tomadas
+
+**`Plaza.estado` guarda solo el estado operativo, no los cinco del mockup.** Es la decisión de fondo
+de la etapa. El issue pedía «tipo, código y estado», y el mapeo lista DISPONIBLE / RESERVADA /
+OCUPADA / PRESTADA / FUERA_SERVICIO. Implementarlo así **obligaría a tipear ocupación**, que es
+exactamente lo que el plan prohíbe («todo lo numérico es derivado»): habría dos orígenes de verdad y
+se desincronizarían con el primer egreso que falle a mitad de camino.
+
+Quedó partido: la plaza guarda **lo único que alguien decide** —en servicio, o fuera de servicio con
+motivo— y la task 22 deriva ocupada / reservada / prestada desde las estadías. RESERVADA con
+vencimiento y PRESTADA 12/24 h además necesitan datos que son de la etapa 2 (a quién, hasta cuándo),
+así que hoy no tendrían dónde vivir. **Hay un test que afirma que `Plaza.Estado` no contiene
+OCUPADA/RESERVADA/PRESTADA**, para que el día que alguien los agregue el test lo frene en vez de
+dejar que el modelo se vuelva la segunda fuente de verdad.
+
+**La revisión respaldó el recorte con un argumento mejor que el original**: reserva y préstamo
+**vencen por reloj** (tránsito, 12/24 h), así que un estado guardado necesitaría un cron que lo
+revierta —el mismo problema que ya tiene el cron de las 03:10 de relevamientos—, mientras que un
+predicado `vence_en > ahora` no se desincroniza nunca. Y encontró el hueco que el recorte dejaba al
+descubierto: **el plan no nombraba la entidad de la que salen RESERVADA y PRESTADA**. La reserva
+desde la lista de espera no es una estadía, y el préstamo necesita a quién, qué plaza, desde y
+hasta. Se agregó `ReservaPlaza` a la etapa 2 del plan, junto con tres reglas que ninguna restricción
+de la base cubre —entre ellas que **un `UniqueConstraint` condicional lo ignora Django en MySQL y
+MariaDB**, así que la exclusión mutua va con `select_for_update()`, igual que exige la ficha del
+arquetipo Wizard para el paso final del ingreso—.
+
+**La N:M va como `ManyToManyField` plano, declarada en `Edificio`.** El vínculo no tiene atributos
+propios: todo lo que se le podría colgar —tenencia, servicios, relevamiento— es del edificio, no del
+par. El repo prefiere modelos intermedios, pero los suyos llevan campos extra. Declararla en
+`Edificio` además no toca la tabla `programas_dispositivo`.
+
+**El domicilio del edificio va en campos separados**, no en una línea libre como
+`Dispositivo.domicilio`: el caso de uso es justamente comparar instituciones del mismo predio, y eso
+no se hace con texto libre.
+
+**`Sector` cuelga del `Dispositivo`, no del `Edificio`.** El edificio es el inmueble; el sector es la
+organización operativa de la institución. `Sector.capacidad` es la cifra **declarada**, no la real
+—la operativa sale de contar plazas—, y está en el docstring para que nadie la use como fuente de
+verdad.
+
+**No se creó modelo de traza, a propósito.** Los dos issues piden traza aditiva, pero quien escribe
+trazas son los servicios, que son de la task 22 en adelante: un modelo de traza sin escritor habría
+sido especulativo. `TrazaDispositivo` ya alcanza sin cambio de esquema para `Sector` y `Plaza`, que
+llegan a un `Dispositivo`.
+
+## Pendientes
+
+- **Un `Edificio` sin instituciones vinculadas no se puede trazar**, y el alta es justo ese momento:
+  `TrazaDispositivo.dispositivo` es obligatorio. **Se resuelve en la task que primero escriba una
+  traza de edificio**, no antes, por el mismo motivo por el que no se creó el modelo. Recomendación
+  para esa task: agregarle a `TrazaDispositivo` un `edificio` nulo y volver `dispositivo` nulo con un
+  `CheckConstraint` que exija al menos uno, **en vez de un modelo de traza paralelo**, que partiría
+  la auditoría en dos lugares.
+- **`TipoDispositivo.maneja_camas` queda redundante** con `tipos_plaza_admitidos`. Sacarlo es un
+  `RemoveField`, o sea un *contract* que va una release después de que nadie lo lea: es trabajo de la
+  etapa que borre los modelos viejos.
+- **`Cama` y `Plaza` conviven**: la etapa 0 hizo la release A (ningún código lee los modelos viejos),
+  pero las clases y las tablas siguen. Hasta la release B el modelo de datos tiene dos unidades de
+  capacidad.
+- Los tres modelos **no están en `programas/admin.py`**. No hace falta hasta la pantalla (task 23).
+- **`Plaza` no tiene baja definitiva.** `Sector` tiene `activo` y `Plaza` no, y FUERA_SERVICIO
+  **cuenta en el total** del mockup («1.340 totales · 56 fuera de servicio»). Una cama desmantelada
+  para siempre no tiene salida: con `PROTECT` y estadías históricas no se puede borrar, así que
+  infla el total para siempre. Hay que decidir si FUERA_SERVICIO es terminal o si falta un `activo`;
+  es decisión de producto, no de modelo. Tampoco está definido qué significa `Sector.activo=False`
+  con plazas operativas adentro.
+- **`Plaza.clean()` toca la base tres veces** (`self.sector.dispositivo.tipo`). En una carga masiva
+  —1.340 plazas— es un N+1: el servicio tiene que traerlas con
+  `select_related("sector__dispositivo__tipo")`. Y como `tipos_plaza_admitidos` solo se valida en
+  `clean()`, cambiarlo en un `TipoDispositivo` **no revalida las plazas ya cargadas**; el servicio de
+  la task 22 tiene que llamar a `full_clean()`.
+- **Vincular o desvincular un edificio no deja traza**: el `ManyToManyField` plano no tiene dónde
+  colgarla y no hay `m2m_changed`. Si hiciera falta, la salida es pasar a `through` reusando la
+  tabla actual con `SeparateDatabaseAndState`, así que la decisión no es irreversible.
+
+## Implementación
+
+Una sola migración para las tres entidades, porque dos migraciones paralelas en `programas`
+chocarían de numeración. 21 tests nuevos y el ratchet `test_models_contrato` actualizado (46 → 49
+modelos). `Edificio` no lleva índice compuesto `(nombre, localidad)` y las plazas no llevan
+`db_index` suelto en `estado`, porque `core/tests/test_indices_redundantes.py` marca en rojo un
+índice que es prefijo de otro del mismo modelo.
+
+## Archivos
+
+`programas/models/__init__.py` · `programas/migrations/0086_edificio_sector_plaza.py` ·
+`programas/tests/test_dispositivos_edificio_sector_plaza.py` · `programas/tests/test_models_contrato.py`
+
+## Base de datos
+
+`programas.0086`: tablas `programas_edificio`, `programas_sector`, `programas_plaza` y la tabla de la
+N:M; en `TipoDispositivo`, `tipos_plaza_admitidos` (`null=True`) y `plaza_obligatoria_al_ingresar`
+(`db_default=False`). `check_migraciones.py` en verde.
+
+## Reversión
+
+`migrate programas 0085` y `git revert` del merge. La reversa es limpia **porque no hay datos que
+perder**: las tres tablas nacen vacías —el circuito que las va a poblar es de las etapas 2 y 3, que
+todavía no existen— y las dos columnas de `TipoDispositivo` son aditivas, una `null=True` y la otra
+con `db_default` en la base, así que el código viejo sigue dando de alta sin ellas.
+
+El único cuidado es el orden: **`migrate programas 0085` borra las tres tablas y la de la N:M sin
+avisar**. Hoy eso no pierde nada porque nacen vacías, pero «no hay forma de que haya datos» sería
+falso —un shell, un fixture o un script las pueblan—, así que la regla es: **desde el primer alta,
+bajar esta migración deja de ser gratis y pasa a ser una decisión explícita**. De la 0087 en
+adelante, cuando el circuito de la etapa 2 exista, directamente no lo va a ser.
+
+---
+
+---
+
+# Cambio 243 — Menú de fila accesible para tablas densas
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 06` (#585)
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · componentes · tablas |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — decisión C-13 del 06/10 · plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Task 06 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `templates/components/_menu_fila*.html`, `nodo-menu-fila.css/js`, `core/templatetags/nodo_ui.py`, `.claude/design/componentes/tabla.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> Las tablas del MVP de Dispositivos tienen más acciones por fila de las que entran en la fila. Hace
+> falta un menú que las agrupe sin romper la densidad de la tabla.
+
+## Decisiones tomadas
+
+**La ficha va adentro de `tabla.md`, no en un archivo propio.** El menú de fila no es un componente
+suelto: es una forma de resolver las acciones de una tabla, y vive donde está la regla de «acción de
+fila», que también se actualizó. La fila del inventario apunta ahí.
+
+**El menú es accesible de verdad, no un `<div>` que se despliega.** El disparador es un `<button>` con
+`aria-haspopup="menu"`, `aria-expanded` y `aria-controls`; el menú tiene `role="menu"` y nace con
+`hidden`; los ítems son `role="menuitem"`. Enter, Espacio y las flechas abren; flechas, Home y End
+mueven el foco con vuelta circular; Tab y Shift+Tab circulan **dentro** del menú, así que el foco
+queda atrapado mientras está abierto; Escape cierra y **devuelve el foco al disparador**. Clic afuera,
+scroll y resize cierran sin mover el foco.
+
+**Un ítem deshabilitado usa `aria-disabled="true"`, no `disabled`.** La diferencia importa: con
+`disabled` el ítem desaparece del recorrido por teclado y quien navega así no se entera de que la
+acción existe. Así se alcanza, se anuncia y **muestra su motivo**.
+
+**Sin ítems no se dibuja ni el botón**, para que una fila sin acciones no quede con un disparador que
+no hace nada.
+
+Las confirmaciones destructivas van por `data-confirm-url` hacia `ModernModal`: **ningún `confirm()`
+nativo**, como manda el sistema de diseño.
+
+## Implementación
+
+`_menu_fila.html` y `_menu_fila_item.html`, `nodo-menu-fila.css` (sin un solo hex: todo por tokens),
+`nodo-menu-fila.js` con el teclado y el posicionamiento, el tag `{% menu_fila %}` y 85 pruebas de
+render en `core/tests/test_nodo_ui_piezas.py`.
+
+No hizo falta `npm run build:tailwind`: los templates usan solo clases `nodo-*` propias, ninguna
+utilidad de Tailwind nueva.
+
+## Pendientes
+
+- **El componente todavía no tiene consumidor real**: es una pieza de la etapa 0, construida antes que
+  las pantallas que la van a usar. Lo cubren las pruebas de render y las auditorías, pero **no se vio
+  en un navegador** hasta que la primera tabla del MVP lo use.
+- El ítem con `confirm_url` necesita que la pantalla cargue `programas/becas/_confirm_js.html`, y hoy
+  **ningún test lo comprueba**: si una pantalla se olvida, la confirmación no aparece.
+- Con dos tablas en la misma página los `id` tienen que llevar prefijo, preparado en la vista. Es una
+  convención escrita en la ficha; nada la valida.
+
+## Archivos
+
+`templates/components/_menu_fila.html` · `templates/components/_menu_fila_item.html` ·
+`static/custom/css/nodo-menu-fila.css` · `static/custom/js/nodo-menu-fila.js` ·
+`core/templatetags/nodo_ui.py` · `core/tests/test_nodo_ui_piezas.py` ·
+`templates/includes/base.html` · `.claude/design/componentes/tabla.md` ·
+`.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 247 — Hero de inicio de programa, acotado por una regla que se hace cumplir sola
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 07` (#583)
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · componentes |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — decisión del 06/10 · plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Task 07 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `templates/components/_hero_inicio.html`, `nodo-hero.css`, `scripts/design_audit.py` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**«Acotado por regla» significa una regla mecánica, no una frase en la ficha.** El hero va en la
+pantalla de inicio de un programa y en ninguna otra; eso estaba escrito pero **nada lo verificaba**.
+Se agregó la regla P1 `HEROFUERA` a `design_audit.py`: marca `{% hero_inicio %}` y las clases
+`nodo-hero*` en cualquier template fuera de `HERO_PANTALLAS`, exime el componente y el `<link>` del
+shell, y corta en `--ratchet`, hook y CI. Esa lista es ahora la **única fuente**.
+
+**La prueba que cuidaba esa regla pasaba en falso dentro de un worktree** y se corrigió —el defecto
+general quedó en el Cambio 213—. Al arreglarla apareció otro: contaba como uso el `<link>` a
+`nodo-hero.css` de `base.html`.
+
+**La regla se evadía con el include directo del componente** (hallazgo del revisor). `HEROFUERA`
+solo miraba el tag y las clases, así que `{% include "components/_hero_inicio.html" %}` pasaba
+limpio —el camino más obvio para saltearse el tag, y el componente dice que no se incluye a mano—.
+Se agregó a la expresión, junto con dos variantes de clase que el `` no cortaba
+(`nodo-hero__Titulo`, `nodo-hero__titulo_x`), y van con sus pruebas: las tres evasiones y los dos
+inocentes que no se deben marcar.
+
+**`var(--ease-standard)` no existe en ningún CSS del repo.** El WIP lo usaba y la transición quedaba
+inválida; pasó a `0.15s ease`, como el resto de las hojas `nodo-*`. Es el tipo de token inventado que
+no rompe nada visible y sobrevive por eso.
+
+**`becas.md` se corrigió a propósito, no por arrastre.** Decía «no hay hero» en el Inicio; ahora dice
+que el canon no usa heros en backoffice operativo **salvo `{% hero_inicio %}`**. Sin eso la ficha de
+dominio contradecía al inventario.
+
+## Pendientes
+
+- **`HERO_PANTALLAS` está vacía**, así que la prueba de alcance pasa de forma trivial. Cuando el
+  tablero de Dispositivos estrene el hero hay que agregar su ruta.
+- La regla **no alcanza** a un hero armado desde JS o Python, ni a una clase construida concatenando
+  cadenas: solo mira templates `.html`. Queda escrito en la ficha. `HEROFUERA` impide el descuido, no
+  el sabotaje.
+- **El título del hero usa dos `!important`** (en `color` y `letter-spacing`) para ganarle a
+  `nodo-brand.css`. Está justificado en un comentario, pero es deuda nueva.
+- El Inicio de hoy está autorizado y **no** usa el hero: sigue con `page_header`, y un test lo exige.
+
+## Archivos
+
+`templates/components/_hero_inicio.html` · `static/custom/css/nodo-hero.css` ·
+`core/templatetags/nodo_ui.py` · `scripts/design_audit.py` ·
+`core/tests/test_nodo_ui_piezas.py` · `core/tests/test_design_audit_estructura.py` ·
+`.claude/design/componentes/hero_inicio.md` · `.claude/design/dominio/becas.md` ·
+`.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 251 — Eyebrow, filtro rápido en píldora, y chips y switch como widgets de Django
+
+🟢 **HECHO — 12/10/2026** · Tasks `[TASK] Dispositivos MVP 11` (#676), `12` (#677) y `13` (#678)
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · componentes |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Tasks 11, 12 y 13 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `core/templatetags/nodo_ui.py`, `_page_header.html`, `_filtro_pildora.html`, `core/widgets.py`, `nodo-forms.css` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**El eyebrow es un parámetro de `{% page_header %}`, no una pieza nueva.** La ficha del arquetipo
+Revisión decía que «el `eyebrow` del mockup no existe en `{% page_header %}`»; esta task es la que lo
+agrega. Sin valor, el HTML queda **idéntico** al de antes, así que ninguna pantalla existente cambia.
+
+**El filtro en píldora es una variante del campo, no un componente aparte**, y va **fuera** de
+`data-dynamic-list-filters`: ese JS vacía su form al montar, así que una píldora adentro perdería el
+valor. Se envía con Alpine, que ya carga el shell, y sin JS queda un botón «Filtrar» en `<noscript>`.
+
+**Los chips y el switch son widgets de Django, no marcado suelto.** `ChipsSelectMultiple` y
+`SwitchInput` heredan de `CheckboxSelectMultiple` y `CheckboxInput`: siguen siendo checkboxes reales,
+así que **la validación, `cleaned_data` y el POST no cambian**, y `_field.html` no se tocó. El
+backoffice usa Django Forms y una pieza de selección que no sea un widget se sale de ese contrato.
+
+## Implementación
+
+Tres commits, uno por pieza. Tests en `core/tests/test_nodo_ui_lote_a.py` —archivo propio, para no
+chocar con los otros lotes de la etapa 0—. Sin CSS nuevo fuera de `nodo-forms.css` y sin JS nuevo.
+
+## Correcciones de la revisión
+
+El revisor rechazó la primera versión con tres MAJOR, los tres verificados **renderizando** los
+templates, no leyéndolos.
+
+**Los chips no tenían nombre de grupo y el label salía con `for=""`.** `CheckboxSelectMultiple` no
+expone `id_for_label`, así que el lector de pantalla anunciaba cada chip sin el contexto
+«Servicios», y el `aria-describedby` de la ayuda se repetía en cada input. Se resolvió con una
+plantilla propia del widget que envuelve el grupo con `role="group"` y `aria-labelledby`.
+
+**La píldora filtraba en cada `change`, y eso rompe el teclado.** En un `<select>` cerrado la flecha
+cambia el valor y dispara `change`: la primera flecha recargaba la página y **nunca se llegaba a la
+segunda opción**. Es WCAG 3.2.2, nivel A. Ahora lleva un botón «Filtrar» **visible** y no envía al
+cambiar. Se aparta del mockup, que filtra al elegir, y el motivo queda en la ficha: el botón es la
+forma de avisar y confirmar el cambio.
+
+**Las píldoras y la tarjeta de filtros se borraban entre sí.** Son dos `<form method="get">`
+separados y `dynamic_list_filters.js` vacía y reconstruye el suyo sin arrastrar parámetros ajenos:
+cada uno pisaba los del otro, y `ocultos` solo protege a la píldora. La ficha ahora **prohíbe
+combinarlos** y dice qué hace una pantalla que necesite los dos conjuntos: todos los filtros van en
+la tarjeta, o se amplía el JS para preservar los parámetros externos.
+
+## Pendientes
+
+- **Ninguna pantalla las consume todavía**: son piezas de la etapa 0 y **no se vieron en un
+  navegador**.
+- Tres apartamientos del mockup, los tres por quedarse dentro del sistema en vez de inventar un valor:
+  el eyebrow usa `text-xs`/`tracking-wide` (12 px y .025em) contra 12,5 px y .04em del mockup; el chip
+  deshabilitado usa `--bg-disabled` en vez de opacidad .55, que `design_audit` desaconseja; y la
+  píldora lleva la flecha nativa del select, porque el chevron del mockup pedía un SVG inline o un hex
+  en un data-URI, los dos prohibidos.
+- El mockup usa el chip también como filtro de **selección única** (P10): el CSS sirve para radios,
+  pero no se armó ni se probó un `RadioSelect`.
+- Con `_field.html` el switch queda con el label arriba; el texto al costado del mockup se arma
+  envolviendo el widget en un `<label class="inline-flex ...">`, documentado en la ficha.
+
+## Archivos
+
+`core/templatetags/nodo_ui.py` · `templates/components/_page_header.html` ·
+`templates/components/_filtro_pildora.html` · `core/widgets.py` ·
+`static/custom/css/nodo-forms.css` · `core/tests/test_nodo_ui_lote_a.py` ·
+`.claude/agents/chaco-design-system.md` · `.claude/design/componentes/page_header.md` ·
+`filtros.md` · `field.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 253 — Pantalla de sectores y plazas: la primera del MVP, y la variante apilada del arquetipo
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 23` (#688)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · pantallas · Diseño |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 23 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `programas/views/dispositivos_legajo.py`, `dispositivos_urls.py`, `services/sectores_plazas.py`, `scripts/design_audit.py` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**La pantalla no miente sobre la ocupación.** `Plaza.estado` solo guarda OPERATIVA y
+FUERA_SERVICIO; ocupada, reservada y prestada se derivan de `Estadia`, que es de la etapa 2. Una
+plaza operativa se dibuja con el **tono neutro** y la palabra «Operativa», **no con `success` ni
+«Disponible»**, que afirmaría algo que el sistema todavía no sabe. Hay un test que verifica que la
+página **no contenga** «Disponible», «Ocupada», «Reservada» ni «Prestada», y un aviso visible lo
+dice. Es la misma regla que el servicio de la task 22 aplica devolviendo `None` en vez de `0`.
+
+**Faltan los botones de alta del mockup —«Nuevo sector», «+ Agregar plazas», «Editar sector»— a
+propósito**: esas pantallas no existen, y un botón que no lleva a ninguna parte miente igual que un
+cero inventado. Entran cuando exista su pantalla.
+
+**El auditor aprendió la variante apilada del arquetipo Detalle.** La ficha dice textual que «con un
+área sola no hay solapas: van secciones apiladas en surfaces», pero `--arquetipo detalle` exigía los
+siete marcadores de solapas **siempre**: una pantalla que seguía la ficha al pie daba siete desvíos.
+Que el canon y el gate se contradigan es peor que no tener gate, porque enseña a ignorarlo o a
+fabricar solapas falsas para callarlo.
+
+**La variante se declara, no se infiere.** Va `{# arquetipo: detalle + apilado #}` en el template. Si
+se infiriera de que faltan las solapas, una pantalla que se las olvidó pasaría como «apilada» y el
+gate no serviría para nada. Hay tres tests: con la declaración pasa, sin ella sigue dando 1, y una
+variante inventada falla.
+
+**El marcador nuevo encontró algo real**: las secciones apiladas no tenían nombre accesible. Sin
+solapas **la sección es la unidad navegable**, así que ahora cada sector es un `<section
+aria-labelledby>` con su `<h2>` —lo que la solapa daba gratis—. La pantalla quedó mejor que antes de
+la discusión.
+
+## Implementación
+
+`DispositivoSectoresView` va en `dispositivos_legajo.py` y no en un módulo propio porque
+`test_arquitectura` prohíbe que una vista importe de otra. Capacidad `dispositivo.ver`, que ya
+existía: no se tocó el `CATALOGO`. El tope es de 200 plazas por sector.
+
+## Pendientes
+
+- **No hay enlace de entrada**: el detalle del dispositivo es legacy y no apunta acá, así que hoy se
+  llega solo por URL.
+- Las plazas se ordenan por código **como texto**, así que `A-10` sale antes que `A-2` salvo que el
+  código lleve ceros. Es del alta, no de esta pantalla.
+- El **panel lateral por plaza** y la regla «poner fuera de servicio exige reubicar primero»
+  dependen de `Estadia` y de una pieza que no existe.
+- Dos errores propios que los gates encontraron y conviene recordar: se pisó el `VARIANTES` que ya
+  existía en el auditor (los prefijos de Tailwind), y se escribió un `{# #}` **multilínea**, que en
+  Django **se renderiza como texto**.
+
+## Archivos
+
+`programas/templates/programas/dispositivos/sectores/sectores.html` ·
+`programas/services/sectores_plazas.py` · `programas/views/dispositivos_legajo.py` ·
+`programas/dispositivos_urls.py` · `programas/tests/test_dispositivos_sectores.py` ·
+`scripts/design_audit.py` · `core/tests/test_design_audit_estructura.py` ·
+`.claude/design/arquetipos/detalle.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 1 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 255 — Servicio único de ocupación: lo que no se puede calcular devuelve `None`, no cero
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 22` (#687)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · servicios |
+| **Etiquetas** | `#datos` `#performance` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 22 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `programas/services/ocupacion.py`, `scripts/perf_budgets.json` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**Lo que todavía no se puede calcular devuelve `None`, nunca `0` ni una clave ausente.** Es la
+decisión central. `ocupadas` y `reservadas` salen de `Estadia` y `ReservaPlaza`, que son de la etapa
+2 y no existen:
+
+- **`0` es una afirmación sobre el mundo**: «no hay ninguna ocupada». Una pantalla mostraría un
+  dispositivo entero libre y **mandaría a alojar gente sobre plazas tomadas**, sin que nada fallara.
+- **Una clave ausente falla en silencio donde más importa**: en un template, `{{ conteo.ocupadas }}`
+  con el atributo faltante renderiza cadena vacía, indistinguible de un dato legítimo.
+- **`None` se ve mal a propósito** —escribe `None` en el template— y en Python cualquier aritmética
+  explota con `TypeError` en vez de mentir. Hay un test que lo fija
+  (`test_un_pendiente_no_se_puede_sumar_por_accidente`).
+
+El pendiente es **uniforme**: un dispositivo sin ninguna plaza también devuelve `ocupadas=None`. Si
+devolviera `0` ahí, el contrato dependería de los datos y una pantalla podría ramificar sobre una
+completitud accidental.
+
+**`operativas` y `disponibles` son propiedades derivadas, no campos.** Esa es la pieza que hace que
+la etapa 2 se complete **sin tocar ninguna pantalla**: lo único que cambia es que la función pase dos
+enteros más al construir cada `Conteo`.
+
+**Una sola consulta, y no crece** con sectores, plazas ni dispositivos: una agregación desde `Sector`
+con dos `Count(filter=...)` sobre el **mismo** LEFT JOIN a `Plaza`. El LEFT JOIN es lo que hace que un
+sector sin plazas llegue en cero sin una segunda consulta. El `order_by` es explícito sobre columnas
+del `values()`, porque por `Meta.ordering` encadenaría el JOIN de más que se corrigió en los modelos.
+
+**Se cuentan solo los sectores activos, total y desglose a la vez**, de modo que el conteo del
+dispositivo es **exactamente** la suma de sus sectores —con test propio—. La alternativa habría
+dejado al total y al desglose mostrando números distintos, que es justo lo que la task evita.
+
+## Pendientes
+
+- **`Sector.activo` no tenía semántica en ningún lado del código**: ningún servicio, vista ni form lo
+  leía. Este servicio le asignó una —«no cuenta capacidad»—. Si el PM lo entendía de otra manera, el
+  cambio es de una línea, pero hay que decidirlo.
+- **Dar de baja un sector con plazas vivas evapora capacidad en silencio.** La regla —que la baja
+  falle si el sector tiene plazas, igual que `FUERA_SERVICIO` no se puede declarar sobre una plaza
+  ocupada— **le toca al servicio de baja de sector, que no existe**. Queda documentada en el módulo.
+- `Plaza.clean()` valida el tipo contra `TipoDispositivo`, pero `objects.create()` no lo ejecuta y no
+  hay constraint en la base: un alta que no pase por un ModelForm se saltea la regla. Es de los
+  modelos de la task 20/21.
+- El censo por turno de la etapa 3 **tiene que agrupar en Python**: nada de `Trunc*` sobre un
+  `DateTimeField` (precedente `dashboard_becas.py`).
+
+## Implementación
+
+`Censo` → `OcupacionDispositivo` → `OcupacionSector`, todos con su `Conteo`. 21 tests, más dos con
+`@tag("performance")`: uno compara 1 dispositivo contra 6 y otro agrega 20 sectores con sus plazas
+exigiendo **la misma cantidad exacta** de consultas. Presupuesto nuevo en `scripts/perf_budgets.json`
+con `consultas_fijas: 1` y sin `casos_por_consulta`, porque no es O(casos).
+
+## Archivos
+
+`programas/services/ocupacion.py` · `programas/tests/test_dispositivos_ocupacion.py` ·
+`scripts/perf_budgets.json`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 1 del plan del Cambio 191.
+
+---
+
+# Cambio 256 — Segundas lecturas de los dos gates: el padrón que no se veía, el secreto que se perdonaba solo y el piso que no bajaba
+
+🟢 **HECHO — 12/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — gate de publicación de `docs/client/` (`scripts/check_docs_client.py`) · auditoría de diseño (particiones del ratchet, `scripts/design_audit.py`) · archivo vivo de requerimientos |
+| **Etiquetas** | `#infra` `#datos` |
+| **Solicitante** | Revisiones de #664 (Cambio 207) y #665 (Cambio 208) — los MINOR que quedaron abiertos |
+| **Fecha del pedido** | 12/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — seguimiento de las fichas RED-64 y RED-54 (Ola 7) |
+| **Partes afectadas** | CI (`Datos`, `Code Quality`, `Design Agent Contract`) · documentación interna |
+| **Migración** | No |
+
+## Pedido original
+
+Los cinco MINOR que dejaron las dos revisiones de la Ola 7, ninguno con rama propia. Tres
+sobre el gate de publicación (RED-64, Cambio 207) y dos sobre las particiones del ratchet de
+diseño (RED-54, Cambio 208):
+
+1. El gate exige que la palabra que nombra al documento esté en la **misma línea** que el
+   número. En una tabla o en un CSV la dice el encabezado una sola vez, así que un padrón
+   entero pasaba en 0.
+2. La lista de marcadores de posición de un secreto se buscaba como **subcadena**: un
+   `SIIS_API_CLIENT_SECRET` con un valor inventado tipo `AttestationKe9f3Qx` se perdonaba
+   solo porque adentro de «Attestation» hay un «test».
+3. Dos líneas de este mismo archivo que el barrido amplio no vio: una fila de ejemplo de un
+   export CSV y un documento no numérico citado como observado.
+4. `_particion_de` resolvía el patrón con `fnmatch` —cuyo `*` cruza `/`— y `_miembros_de` con
+   `Path.glob` —que no—: un archivo más anidado entraba a la partición y no al conjunto, y
+   quedaba **sin auditar por ningún lado**.
+5. Con el `ref` de la partición fijo, la deuda del origen queda de techo para siempre: si un
+   PR limpia un pedazo, el que viene atrás puede volver a gastar el hueco sin que el ratchet
+   lo vea.
+
+## Alcance acordado
+
+**Entra:** las dos reglas nuevas del gate con sus tests rojos, el saneamiento de las dos
+líneas, la unificación del criterio de `glob` y el piso que baja, más la condición de retiro
+de cada partición declarada.
+
+**Queda afuera, y por qué:**
+
+- **Bajar los 37 hallazgos de `--todo-docs`.** Son los mismos 37 de antes y ninguno es el
+  dato de una persona (DNI de ejemplo de colecciones de Postman, un `head -c` con su cantidad
+  de bytes al lado de la palabra «DNI», direcciones de fixtures de parseo). Sacarlos pide
+  reescribir documentación ajena a este PR.
+- **Los 32 P1 de diseño del detalle de revisión.** Siguen donde estaban: arreglarlos cambia
+  el HTML y rompe la garantía del refactor del Cambio 208. Son justamente la condición de
+  retiro que ahora la partición declara.
+- **Retirar la partición.** Todavía no corresponde: la ficha de esos 32 P1 sigue abierta.
+
+## Decisiones tomadas
+
+- **El encabezado es lo que convierte una fila de números en un padrón.** La regla nueva no
+  es «un documento con identidad cerca» —`CAMPO_DE_IDENTIDAD` aparece en media página de
+  prosa de este repo y el gate nacería con decenas de falsos positivos—, sino «un documento
+  con un **encabezado de padrón** hasta cinco líneas más arriba»: una fila de etiquetas donde
+  **una celda distinta de la otra** nombra el documento y la persona
+  (`| Apellido | Nombre | Documento |`, `apellido,nombre,dni`). Mira solo hacia arriba,
+  porque un encabezado va antes que sus filas.
+- **El nombre propio con el documento entre paréntesis es la otra mitad.** «Persona De Prueba
+  (12345678) cobró la beca» no tiene encabezado ni palabra que lo nombre, y es como se
+  escribe un caso concreto en prosa. Se piden **dos** palabras capitalizadas seguidas antes
+  del paréntesis, para que «Cambio 207 (1234567)» u «Ola 7 (…)» no entren.
+- **El borde del marcador de posición es de letras, no `\b`.** Con `\b` quedaban afuera
+  `test123` y `ejemplo-1`, que sí son marcadores. Con `(?<![a-z])…(?![a-z])` entran los dos y
+  «Attestation» no.
+- **El piso de una partición es `min(origen@ref, conjunto en la base)`.** Era barato y cierra
+  el agujero del punto 5: limpiar un pedazo baja el piso en vez de dejar hueco. La excepción
+  es el PR que **parte** el archivo —ahí los pedazos todavía no existen en la base, su deuda
+  ahí es 0 y el `min` reportaría todo el markup movido—, así que el `min` se saltea cuando
+  algún miembro falta en la base. Eso también explica por qué no reemplaza al `ref` fijo: los
+  dos pisos se necesitan, cada uno para un momento distinto.
+- **Toda partición declara cuándo se retira.** `Particion.retiro` es obligatorio, por lo
+  mismo que el `vence` de `security/excepciones.toml`: una excepción sin fecha de muerte se
+  queda para siempre, y esta además cuesta mientras viva. La declarada hoy se retira con la
+  ficha de los 32 P1 del detalle de revisión, y a más tardar el 30/04/2027.
+- **El criterio de `glob` es el de `Path.glob`, y no al revés.** Ensanchar `_miembros_de`
+  para que `*` cruzara `/` metería al conjunto archivos que nadie declaró. Lo que se achica
+  es `_particion_de`: lo anidado no es miembro, así que se audita suelto contra la base, que
+  es la medición correcta para un archivo que nadie declaró como pedazo.
+
+## Qué se hizo
+
+**Gate de publicación** (`scripts/check_docs_client.py`):
+
+- `_es_encabezado_de_padron` + `_hay_encabezado_de_padron_arriba` + `NOMBRA_PERSONA` y
+  `VENTANA_PADRON` (5 filas, solo hacia arriba); `_documento_pegado_a_un_nombre` con
+  `NOMBRE_PROPIO_CON_DOCUMENTO`. La regla 1 pasa a tener tres caminos y cada uno dice en el
+  mensaje por qué disparó.
+- `SABE_A_PRUEBA` con bordes de letra.
+
+**Auditoría de diseño** (`scripts/design_audit.py`):
+
+- `_coincide` compara componente por componente (el criterio de `Path.glob`) y
+  `_particion_de` lo usa en lugar de `fnmatch`.
+- `nuevos_de_particion` acepta los miembros **tal como están en la base** y toma el conteo
+  más chico por regla, con sus extractos; `ratchet_mode` se los pasa cuando todos existen en
+  la base.
+- `Particion.retiro`, obligatorio, y el docstring de `PARTICIONES` con las dos cosas que
+  antes no estaban escritas: que el piso baja y cuándo se borra la entrada.
+
+**Archivo vivo:** la fila de ejemplo del export CSV de Ciudadanos pasa a
+`12345678, PRUEBA, PERSONA, 01/01/2000` (los mismos marcadores que el gate perdona) y el
+documento no numérico de `aprobados_materias` se describe por su forma (`B 12345678`) en vez
+de citarse.
+
+## Archivos
+
+- `scripts/check_docs_client.py` — reglas 1 y 4.
+- `core/tests/test_docs_client_publicacion.py` — 8 casos nuevos (3 rojos de padrón, 1 rojo de
+  secreto, 4 negativos).
+- `scripts/design_audit.py` — `_coincide`, `_particion_de`, `nuevos_de_particion`,
+  `ratchet_mode`, `Particion.retiro` y el docstring de `PARTICIONES`.
+- `scripts/test_design_audit.py` — 3 casos nuevos en `ParticionesTests`.
+- `requirements-ci.txt` — `tblib==3.2.2` (ronda 2).
+- `core/tests/test_gates_ci.py` — `tblib` en `HERRAMIENTAS_DEL_CI` y el test del job (ronda 2).
+- `docs/internal/requerimientos.md` — las dos líneas saneadas y esta entrada.
+
+## Base de datos
+
+No requiere.
+
+## Verificación
+
+- `manage.py check`: sin issues.
+- `core.tests.test_docs_client_publicacion` + `core.tests.test_gates_ci` +
+  `core.tests.test_design_audit_estructura` + `core.tests.test_design_audit_confirm`: 203
+  tests, OK. Los 51 del primero incluyen los 8 casos nuevos.
+- `scripts/test_design_audit.py`: 24 tests, OK (3 nuevos).
+- `check_docs_client.py` (alcance estricto): **0 hallazgos**, antes y después.
+- `check_docs_client.py --todo-docs`: **37 antes, 37 después**, y los 37 son los mismos
+  —comparados uno a uno—. Entre medio llegaron a ser 38: la regla nueva encontró la fila del
+  export CSV de este mismo archivo, que es el punto 3 del pedido.
+- Los cuatro casos nuevos medidos contra el gate anterior dan `[]`: tabla, CSV, prosa y
+  secreto estaban ciegos.
+- El pedazo anidado medido contra el criterio anterior da **0 hallazgos** (sin auditar) y con
+  el nuevo da **1** (`INLINESTYLE`).
+- `design_audit.py --ratchet --base origin/development`: 0 (ningún archivo de UI cambiado);
+  `check_design_agent.py --changed`: OK.
+- `requerimientos.py --check`: OK. `ruff check` y `ruff format --check` sobre los cuatro
+  archivos de código tocados: limpios.
+
+## Pendientes
+
+- **Los 37 de `--todo-docs`.** No bloquean y ninguno es un dato de persona; bajarlos es
+  reescribir documentación de otras fichas.
+- **La partición vive hasta que se cierren los 32 P1.** La condición ya está escrita en el
+  código; retirarla es sacar las dos entradas de `PARTICIONES`.
+- **El `min` no cubre al PR que parte un archivo**, por construcción. Si alguna vez una
+  partición nace con deuda **agregada** en el mismo PR, el único piso es el origen y hay que
+  mirarla a ojo.
+
+## Reversión
+
+Revertir el commit deja las dos reglas del gate como estaban (un padrón en tabla vuelve a
+pasar), `_particion_de` vuelve a `fnmatch` y el piso de la partición vuelve a ser solo el
+origen. Las dos líneas saneadas del archivo vivo conviene no revertirlas.
+
+## Historial
+
+**12/10/2026 — los cinco MINOR, en un PR de seguimiento** (#784). Sin horas de plan: son las
+colas de los PR 5 y 6 de la Ola 7, y ninguno justificaba rama propia. Las fichas RED-64 y
+RED-54 lo anotan en su línea «Seguimiento:».
+
+**Ronda 2 de la revisión (12/10/2026).** Un BLOCKER y un MAJOR, los dos salidos de que
+`Tests & Coverage` terminó **cancelado a los 25 minutos, dos veces**.
+
+- **BLOCKER — el regex nuevo era una regla de DNI escrita a mano.**
+  `core.tests.test_regla_dni` (RED-48) marcaba `NOMBRE_PROPIO_CON_DOCUMENTO`: tiene un
+  `\d{7,8}`. Lleva `# regla-dni: ok` con el motivo, como `DOCUMENTO` ahí arriba y como
+  `check_datos_personales.py`: **detectar un documento publicado no es validar uno**, y la
+  regla de validación sigue viviendo una sola vez, en `core.dni`.
+- **MAJOR — faltaba `tblib`, y por eso el job no decía qué test falló.** Es lo que convirtió
+  un test en rojo en un **cuelgue de 25 minutos**: Django manda los resultados de cada worker
+  por `multiprocessing` y un `exc_info` arrastra un `traceback`, que `pickle` no serializa,
+  así que el proceso principal muere con `TypeError: cannot pickle 'traceback' object`
+  (`django/test/runner.py:541`), los workers de `coverage` quedan huérfanos y el job termina
+  por `timeout-minutes` como «cancelled», sin nombre de test. Latente desde que RED-86
+  encendió `--parallel 4` (Cambio 207): RED-88 (Cambio 163) había cerrado **una causa** —la
+  guarda de `seed_perf`—, no el mecanismo. Va `tblib==3.2.2` en `requirements-ci.txt`, que es
+  el archivo que instala ese job; `pip-audit` sobre ella da *No known vulnerabilities found*
+  y la licencia es BSD-2-Clause. **Medido en local** (Django 5.2.17, Python 3.12): tres
+  módulos con un fallo adrede y `--parallel 2` mueren con el `TypeError` sin ella, y con ella
+  salen `FAILED (failures=1)` nombrando el test. El test que lo sostiene es
+  `SuiteEnParaleloTests.test_el_job_instala_lo_que_hace_falta_para_que_un_fallo_tenga_nombre`,
+  más `tblib` adentro de `HERRAMIENTAS_DEL_CI`, que se compara por igualdad.
+
+**12/10/2026 — merge del juez con `development` (hasta `a8985a58`).** El 209 quedó tomado por otras ramas en vuelo; esta entrada pasa a ser la **256**. `development` ya traía `tblib==3.2.2` en `requirements-ci.txt` (`8f60b84c`, el mismo arreglo hecho en paralelo por otra sesión): se conserva la versión de `development` del archivo y los tests de este PR que lo fijan siguen en verde.
+
+---
+
+# Cambio 257 — La descarga grande deja de armarse de una sola vez: el export de respuestas por persona sale de a lotes y el CSV se transmite
 
 🟢 **HECHO — 12/10/2026**
 
@@ -31814,5 +33093,7 @@ sola consulta ancha.
 ## Historial
 
 Primera versión.
+
+**12/10/2026 — merge del juez con `development` (hasta `a8985a58`) y con el PR 7 de la Ola 7 (Cambio 256).** El 209 quedó tomado por ramas en vuelo; esta entrada pasa a ser la **257**. En `scripts/perf_budgets.json` se conservan el presupuesto de 666 y su motivo, y entra el presupuesto nuevo `dispositivos_ocupacion_de_plazas` que trajo `development`.
 
 ---

@@ -2,9 +2,7 @@
 {% load nodo_ui %}
 {% block title %}Configuración · {% if es_edicion %}Editar{% else %}Nuevo{% endif %} programa — Paso 4{% endblock %}
 
-{% comment %}El wizard no tiene golden (D4): se migra el shell y el formulario, sin stepper
-inventado. El resumen de lo cargado es contenido de dominio del paso, dentro de su propia
-surface.{% endcomment %}
+{% comment %}GOLDEN del arquetipo Wizard (ficha `.claude/design/arquetipos/wizard.md`): paso final con el resumen de lo cargado y la confirmación. Indicador de pasos: `components/_stepper.html`. El resumen es contenido de dominio de este paso, dentro de su propia surface.{% endcomment %}
 
 {% block main-content %}
 <div class="space-y-5">
@@ -15,9 +13,7 @@ surface.{% endcomment %}
   {% endpage_header %}
   {% endwith %}
 
-  <div class="w-full bg-tertiary rounded-full h-2" role="presentation">
-    <div class="bg-brand h-2 rounded-full w-full"></div>
-  </div>
+  {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
 
   <div class="bg-white rounded-xl border border-base shadow-sm p-6">
     <h2 class="text-heading font-bold">Resumen del programa</h2>

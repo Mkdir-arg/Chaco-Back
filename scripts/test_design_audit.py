@@ -8,6 +8,9 @@ Backend CI.
 
 from __future__ import annotations
 
+import contextlib
+import fnmatch
+import io
 import shutil
 import tempfile
 import unittest
@@ -208,6 +211,61 @@ class ParticionesTests(unittest.TestCase):
     def test_ref_inexistente_no_explota(self) -> None:
         """Clon *shallow*: `--ratchet` avisa y sigue, no revienta."""
         self.assertFalse(design_audit._ref_disponible("0" * 40))
+
+    #: Un pedazo **más adentro** que el patrón de la partición.
+    ANIDADO = "programas/templates/programas/becas/revision/_detalle/anidado/_x.html"
+
+    def _crear_anidado(self) -> str:
+        ruta = Path(design_audit.REPO, self.ANIDADO)
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        ruta.write_text('<p style="margin-top: 4px">nuevo</p>\n', encoding="utf-8")
+        self.addCleanup(shutil.rmtree, ruta.parent, True)
+        return self.ANIDADO
+
+    def test_un_pedazo_anidado_no_se_queda_sin_auditar(self) -> None:
+        """Los dos criterios de `glob` tienen que decidir igual.
+
+        `fnmatch` deja que `*` cruce `/` y `Path.glob` no: el archivo entraba a la
+        partición y no a sus miembros, así que no se medía ni como conjunto ni
+        contra su propia base. Hoy no es miembro, y se audita suelto.
+        """
+        rel = self._crear_anidado()
+        patron = next(p for p in design_audit.PARTICIONES if p.endswith("/_detalle/*.html"))
+        particion = design_audit.PARTICIONES[patron]
+
+        self.assertTrue(fnmatch.fnmatch(rel, patron), "si esto deja de ser cierto, el test no prueba nada")
+        self.assertIsNone(design_audit._particion_de(rel))
+        self.assertNotIn(rel, design_audit._miembros_de(particion))
+
+        salida = io.StringIO()
+        with contextlib.redirect_stdout(salida):
+            design_audit.ratchet_mode("HEAD")
+        propios = [linea for linea in salida.getvalue().splitlines() if linea.startswith(f"{rel}:")]
+
+        self.assertEqual(len(propios), 1, salida.getvalue())
+        self.assertIn("INLINESTYLE", propios[0])
+
+    def test_el_piso_baja_con_lo_que_la_base_ya_tiene_limpio(self) -> None:
+        """Con `ref` fijo y nada más, el hueco que deja una limpieza queda para gastar.
+
+        El origen traía dos `style=`; la base del PR ya tiene uno solo porque alguien
+        limpió el otro. Volver a escribirlo es deuda nueva, aunque contra el origen el
+        conteo no suba.
+        """
+        origen = '<p style="a">1</p>\n<p style="b">2</p>\n'
+        base = [("a.html", '<p style="a">1</p>\n'), ("b.html", "<p>limpio</p>\n")]
+        actual = [("a.html", '<p style="a">1</p>\n'), ("b.html", '<p style="c">3</p>\n')]
+
+        self.assertEqual(design_audit.nuevos_de_particion(origen, "o.html", actual), [])
+        con_piso_de_la_base = design_audit.nuevos_de_particion(origen, "o.html", actual, base)
+
+        self.assertEqual([(f[0], f[3]) for f in con_piso_de_la_base], [("b.html", "INLINESTYLE")])
+
+    def test_cada_particion_declara_cuando_se_retira(self) -> None:
+        """Una excepción sin fecha de muerte se queda para siempre."""
+        for patron, particion in design_audit.PARTICIONES.items():
+            with self.subTest(particion=patron):
+                self.assertTrue(particion.retiro.strip(), f"{patron} no dice cuándo se borra")
 
 
 class GoldensTests(unittest.TestCase):

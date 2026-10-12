@@ -193,7 +193,7 @@ tiene 34 columnas y 12 preguntas de opciones cerradas donde el de entonces tení
 (`test_el_csv_trae_exactamente_lo_mismo_que_el_xlsx`, `test_los_dos_formatos_neutralizan_las_formulas`,
 `test_formato_invalido_permisos_y_alcance_valen_igual_para_el_csv` y `test_la_pantalla_ofrece_los_dos_formatos`).
 
-**Resolución (punto 3):** ✅ en #NNN (Cambio 209, Ola 4 PR 10), 12-oct-2026 — **sin la cola ni el worker que pedía la
+**Resolución (punto 3):** ✅ en #NNN (Cambio 257, Ola 4 PR 10), 12-oct-2026 — **sin la cola ni el worker que pedía la
 propuesta**. `ExportacionPendiente` + CronJob supone una infraestructura que no existe: el repo no tiene cola ni worker,
 y los CronJobs de ECOM son manifiestos que mantiene ECOM (H-05 sigue sin respuesta). Entra la alternativa que no
 necesita nada nuevo: **el archivo se arma de a lotes mientras se escribe, y el CSV se transmite**.
