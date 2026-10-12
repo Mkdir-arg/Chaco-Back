@@ -385,6 +385,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 220 | Dos pruebas de contrato que no verificaban nada adentro de un worktree | Calidad · pruebas | `#metodo` `#ui` | Juez — hallazgo al cerrar la task 07 del MVP | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 227 | Tarjeta de turno y entradas de bitácora del registro diario | Diseño · componentes | `#ui` `#metodo` | Task 17 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 229 | RED-88 de verdad: sin `tblib`, una falla del CI se disfraza de timeout | Calidad · CI | `#metodo` `#infra` | Juez — diagnóstico del 12/10/2026 | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 230 | Golden del arquetipo Wizard: el alta de programa pasa a ser el molde | Diseño · arquetipos | `#ui` `#metodo` | Task 09 del MVP de Dispositivos (plan del Cambio 191) | 12/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -31998,5 +31999,90 @@ No requiere.
 ## Historial
 
 Entrada nueva. Reabre y cierra RED-88, que el Cambio 163 dio por cerrada.
+
+---
+
+---
+
+# Cambio 230 — Golden del arquetipo Wizard: el alta de programa pasa a ser el molde
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 09` · PR #209PR
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · arquetipos · Configuración (wizard de programas) |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 09 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `.claude/design/arquetipos/wizard.md`, `pendientes.md`, `scripts/design_audit.py`, `core/tests/test_design_audit_estructura.py`, el wizard de Configuración |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> Etapa 0 del MVP: antes de escribir una pantalla nueva tiene que existir la golden de su arquetipo.
+> El ingreso a un dispositivo es un wizard y el arquetipo no tenía molde.
+
+## Decisiones tomadas
+
+**El wizard de alta de programa (`configuracion/`, pasos 1 a 4) es la golden**, no una pantalla nueva
+hecha para la ocasión: ya está en producción, tiene los cuatro pasos, el indicador y el resumen. Se le
+agregó el marcador de arquetipo y quedó en 0 hallazgos; `--arquetipo wizard` ya valida contra ella.
+
+**La ficha dice lo que la golden hace, no lo que uno querría que hiciera.** Decía que el paso final
+«escribe con un servicio, en una transacción»: es falso, hace un `Programa.objects.create()` suelto.
+Una ficha que promete algo que el molde no cumple es peor que no tenerla, porque cada clon hereda la
+promesa y ninguno la cumple. Se reescribió para describir el `create()` real **y** para exigir, donde
+sí hace falta, el contrato que faltaba.
+
+**El contrato que importa es revalidar entre pasos, no «usar un servicio».** Entre el paso 1 y el 4
+pasan minutos y lo que se validó al principio puede haber dejado de ser cierto. La ficha ahora pide:
+si el wizard reserva algo que otro puede tomar —una plaza, un lugar del cupo, un código único—, el
+paso final revalida y escribe dentro de `transaction.atomic()` con `select_for_update()`, y si se
+ocupó vuelve al paso que lo eligió con el error. **El ingreso de Dispositivos es exactamente ese
+caso** (la plaza del paso 2 puede ocuparse antes del paso 4), así que la task 24 no puede limitarse a
+clonar la golden: tiene que agregarle el bloqueo. Queda escrito en la ficha para que no se pierda.
+
+## Implementación
+
+Marcador de arquetipo en el paso 4, ficha `wizard.md` con el contrato de vista, el esqueleto literal y
+la checklist del revisor, y baja de `wizard` de `pendientes.md`.
+
+**Dos pruebas de contrato que pasaban por el motivo equivocado.** `test_arquetipo_desconocido_falla`
+usaba `"wizard"` como nombre inexistente: el día que el wizard dejó de estar pendiente, el test empezó
+a dar verde probando lo contrario de lo que decía su nombre. Ahora usa un nombre que no va a existir
+nunca. Y se agregó `test_cada_arquetipo_declarado_tiene_su_ficha`, que recorre `ARQUETIPOS` y exige el
+archivo en `.claude/design/arquetipos/`: declarar un arquetipo sin ficha ahora falla.
+
+## Pendientes
+
+- **`Programa.codigo` es `unique=True` y se valida en el paso 1**: dos altas simultáneas del mismo
+  código terminan en `IntegrityError` (500). Es la versión chica del problema que la ficha ahora
+  obliga a resolver en el ingreso. No se tocó acá —es el wizard productivo, fuera del alcance de una
+  task de diseño— y queda anotado.
+- Menores del revisor, al PR siguiente del carril: las etiquetas del pie y el `eyebrow` divergen de P6
+  sin que la ficha lo diga; «Anterior» es un GET y pierde lo tipeado en el paso actual; el paso final
+  mezcla resumen con un form de apariencia.
+
+**La task 19 (stepper de backoffice) quedó absorbida acá**, como la 15 y la 16 dentro de la golden de
+Revisión: el indicador salió como `components/_stepper.html`, con ficha y fila de inventario, en vez de
+marcado suelto adentro del wizard. Se corrigió además el conector colgando en mobile que marcó el
+revisor: el indicador envuelve, y un paso que caía a la línea siguiente arrastraba su conector al
+principio, donde no conecta con nada. Abajo de 640 px no se dibuja —el estado ya está en el texto, en
+el `sr-only` y en `aria-current`, así que **el conector nunca portó información propia**—.
+
+## Archivos
+
+`.claude/design/arquetipos/wizard.md` (nuevo) · `.claude/design/pendientes.md` ·
+`scripts/design_audit.py` · `core/tests/test_design_audit_estructura.py` ·
+`configuracion/templates/configuracion/programa_wizard_paso4.html`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
 
 ---
