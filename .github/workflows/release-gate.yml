@@ -49,7 +49,7 @@ jobs:
       development: ${{ steps.origen.outputs.development }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.sha }}
           fetch-depth: 0
@@ -144,7 +144,7 @@ jobs:
     needs: ci-de-origen
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.ci-de-origen.outputs.development }}
 
@@ -203,7 +203,7 @@ jobs:
       DATABASE_PORT: "3306"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.sha }}
 
@@ -255,7 +255,7 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.sha }}
 
