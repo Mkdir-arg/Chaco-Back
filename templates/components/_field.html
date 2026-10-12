@@ -15,7 +15,7 @@ que le cuelga `aria-describedby` hacia la ayuda y el error y `aria-invalid` con
 errores; la clase `nodo-field` sigue viniendo del widget del form.
 {% endcomment %}{% load nodo_ui %}
 <div class="{% campo_wrapper_class %}">
-  <label class="block text-sm font-medium text-heading mb-1" for="{{ field.id_for_label }}">
+  <label id="{{ field.auto_id }}-etiqueta" class="block text-sm font-medium text-heading mb-1"{% if field.id_for_label %} for="{{ field.id_for_label }}"{% endif %}>
     {{ field.label }}{% if field.field.required %} <span class="text-fg-danger">*</span>{% endif %}
   </label>
   {% campo_control field %}

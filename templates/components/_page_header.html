@@ -1,7 +1,7 @@
 {% comment %}
 Encabezado de página del backoffice. No se incluye a mano: lo renderiza
 {% page_header %} de core/templatetags/nodo_ui.py (ver su docstring).
-Contexto: titulo, bajada, volver_url, volver_label, migas (ya filtradas a 3 o más), acciones.
+Contexto: titulo, eyebrow (opcional), bajada, volver_url, volver_label, migas (ya filtradas a 3 o más), acciones.
 {% endcomment %}
 <div class="space-y-3">
   {% if migas %}
@@ -28,6 +28,7 @@ Contexto: titulo, bajada, volver_url, volver_label, migas (ya filtradas a 3 o m�
       </a>
       {% endif %}
       <div class="min-w-0">
+        {% if eyebrow %}<p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">{{ eyebrow }}</p>{% endif %}
         <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ titulo }}</h1>
         {% if bajada %}<p class="text-sm text-body-subtle mt-1">{{ bajada }}</p>{% endif %}
       </div>

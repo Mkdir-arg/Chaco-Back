@@ -1,0 +1,6 @@
+{% comment %}
+Contenedor de `ChipsSelectMultiple` (core/widgets.py): igual al `multiple_input.html` de Django,
+pero los atributos del grupo (id, class, role, aria-*) salen todos de `widget.attrs`.
+{% endcomment %}<div{% include "django/forms/widgets/attrs.html" %}>{% for group, options, index in widget.optgroups %}{% for option in options %}<div>
+    {% include option.template_name with widget=option %}</div>{% endfor %}{% endfor %}
+</div>
