@@ -699,7 +699,7 @@ class FichaSeccionTest(SimpleTestCase):
         self.assertNotIn("Secreto", html)
         self.assertNotIn("no se ve", html)
         self.assertNotIn("<button", html)
-        self.assertNotIn("\U0001F512", html)
+        self.assertNotIn("\U0001f512", html)
 
 
 class RevisionReferenciaTest(TestCase):
@@ -795,8 +795,8 @@ class RevisionReferenciaTest(TestCase):
     def test_sin_emoji(self):
         html = self._html()
 
-        self.assertNotIn("\U0001F512", html)
-        self.assertNotIn("\U0001F4CE", html)
+        self.assertNotIn("\U0001f512", html)
+        self.assertNotIn("\U0001f4ce", html)
 
 
 class FormErroresTest(SimpleTestCase):
