@@ -1,4 +1,4 @@
-# Arquetipos pendientes · revisión compleja y dashboard
+# Arquetipos pendientes dashboard
 
 **No hay golden. La instrucción es frenar y devolver la tarea al llamador** con el motivo y lo
 que haga falta decidir. No se elige «el que más se parece» ni se clona una pantalla hermana.
@@ -6,6 +6,9 @@ que haga falta decidir. No se elige «el que más se parece» ni se clona una pa
 El wizard **ya tiene golden**: ficha `.claude/design/arquetipos/wizard.md`.
 
 ## Revisión de caso compleja
+
+**Ya tiene golden** para el caso de una persona con ficha por secciones (`arquetipos/revision.md`).
+Lo que sigue sin ser molde es esta pantalla de Becas:
 
 `programas/templates/programas/becas/revision/formulario_detalle.html` es la pantalla de
 revisión del dominio Becas: validación de identidad, historial, panel de SIIS, modales propios y
@@ -16,9 +19,6 @@ El archivo son 88 líneas que solo declaran el **orden** de las secciones; cada 
 `_siis_resultado`, `_siis_envio`, `_aviso_ciudadano`, `_trazas`, `_acciones`, `_modales`…). Que
 esté partida **no la convierte en molde**: los includes son secciones de este dominio, no piezas
 reutilizables, y no se incluyen desde ninguna otra pantalla.
-
-Si una tarea pide «una pantalla de revisión» en otro módulo, frená y devolvé el plan: hay que
-decidir primero qué parte es realmente común (el detalle con solapas suele alcanzar).
 
 ## Dashboard
 
@@ -33,7 +33,7 @@ Para una pantalla con números el arquetipo correcto suele ser Detalle con su fr
 ## Qué devolver cuando frenás
 
 ```
-Tipo: B · Arquetipo: PENDIENTE (<revisión compleja|dashboard>)
+Tipo: B · Arquetipo: PENDIENTE (< dashboard>)
 Motivo: no hay golden para este arquetipo; la ficha de pendientes pide frenar.
 Lo más cercano que existe: <pantalla> — qué sirve y qué no.
 Novedades que habría que aprobar: <lista>

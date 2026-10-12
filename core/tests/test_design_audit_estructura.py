@@ -248,6 +248,8 @@ class MarcadoresDeArquetipoTests(SimpleTestCase):
                     f"el arquetipo '{nombre}' esta en design_audit.ARQUETIPOS pero no tiene "
                     f"ficha en .claude/design/arquetipos/{nombre}.md",
                 )
+    def test_hay_ficha_de_marcadores_para_los_cinco_arquetipos(self):
+        self.assertEqual(sorted(design_audit.ARQUETIPOS), ["detalle", "formulario", "listado", "modal", "revisión"])
 
 
 class GateDeCiTests(SimpleTestCase):

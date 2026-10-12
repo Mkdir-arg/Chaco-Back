@@ -1259,6 +1259,29 @@ ARQUETIPOS: dict[str, dict[str, list]] = {
             (r"di-stepper|class=\"nodo-step", "stepper armado a mano: usar components/_stepper.html"),
         ],
     },
+    "revisión": {
+        "marcadores": [
+            (r'\{%\s*extends\s+"includes/base\.html"\s*%\}', False, "extiende el shell del backoffice"),
+            (r"\{%\s*block\s+main-content\s*%\}", False, "bloque main-content"),
+            (r'class="space-y-5"', False, "contenedor de página space-y-5"),
+            (r"\{%\s*page_header\b", False, "{% page_header %} con la identidad de la persona"),
+            (r"\{%\s*endpage_header\s*%\}", False, "{% endpage_header %}"),
+            (r"components/_alerta\.html", True, "aviso de avance con _alerta"),
+            (r'role="tablist"', False, 'contenedor de solapas con role="tablist"'),
+            (r'role="tab"', False, 'solapa con role="tab"'),
+            (r':aria-selected="', False, "estado seleccionado de la solapa"),
+            (r'role="tabpanel"', False, 'panel con role="tabpanel"'),
+            (r"components/_ficha_seccion\.html", False, "secciones de la ficha con _ficha_seccion"),
+            (r"components/_linea_tiempo\.html", False, "línea de tiempo con _linea_tiempo"),
+        ],
+        "prohibidos": [
+            (r"<h1\b", "encabezado a mano: el título es {% page_header %}"),
+            (r"<style\b", "<style> local"),
+            (r"←\s*Volver", "«← Volver» de texto: va en page_header volver_url"),
+            (r"nodo-ficha-bloqueada", "sección bloqueada a mano: la dibuja components/_ficha_seccion.html"),
+            ("[🔒📎]", "emoji como ícono: Font Awesome con aria-hidden"),
+        ],
+    },
     "modal": {
         "marcadores": [
             (r"x-becas-modal=", False, "x-becas-modal (foco, Tab atrapado, Escape, scroll)"),
@@ -1337,6 +1360,7 @@ GOLDENS: list[tuple[str, str]] = [
     ("formulario", "programas/templates/programas/becas/config/segmento_form.html"),
     ("modal", "programas/templates/programas/becas/config/programa_list.html"),
     ("wizard", "configuracion/templates/configuracion/programa_wizard_paso4.html"),
+    ("revisión", "programas/templates/programas/dispositivos/estadia/revision_referencia.html"),
 ]
 
 
