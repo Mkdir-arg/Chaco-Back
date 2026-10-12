@@ -377,7 +377,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 203 | La stat card gana una variante «tablero» (grande) y el hallazgo CMP-23 pasa a declarar las dos | Transversal — diseño (pieza `_stat_card`, base del backoffice) · Dispositivos (base de P1, P4, P12, P19, P21) | `#ui` `#metodo` | PM — decisión C-2 del 06/10/2026 sobre el mapeo del mockup; task #582 | 09/10/2026 | 🟢 **Hecho** | No requiere |
 | 204 | La alerta inline admite icono y accion opcionales | Diseño · componentes | `#ui` | Decisión C-5 del PM (06/10) · task #584 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
 | 205 | Variante `btn-fit`: botón sin ancho mínimo para barras de acciones densas | Diseño · componentes | `#ui` | Decisión C-15 del PM (06/10) · task #586 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
-| 206 | Antes de publicar en internet mira alguien, la suite corre en paralelo y el tipado empieza a existir | Transversal — publicación de `docs/client/` en GitHub Pages · CI (`Tests & Coverage`, `Tipos (mypy)`) · motor de condiciones y cliente de Base de Personas (solo anotaciones) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-64, RED-76 y RED-86 (Ola 7, PR 5) | 09/10/2026 | 🟢 **Hecho** (el gate de publicación encontró y despublicó una respuesta de RENAPER con los datos de una persona real; el `environment` no es `github-pages`, que solo admite la rama `gh-pages`) | No |
+| 206 | Bloque de ubicación sin mapa: coordenadas, enlace externo y plano adjunto | Diseño · componentes | `#ui` | Decisión C-14 del PM (06/10) · task #587 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
+| 207 | Antes de publicar en internet mira alguien, la suite corre en paralelo y el tipado empieza a existir | Transversal — publicación de `docs/client/` en GitHub Pages · CI (`Tests & Coverage`, `Tipos (mypy)`) · motor de condiciones y cliente de Base de Personas (solo anotaciones) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-64, RED-76 y RED-86 (Ola 7, PR 5) | 09/10/2026 | 🟢 **Hecho** (el gate de publicación encontró y despublicó una respuesta de RENAPER con los datos de una persona real; el `environment` no es `github-pages`, que solo admite la rama `gh-pages`) | No |
 
 **Notas del índice**
 
@@ -31119,7 +31120,80 @@ Entrada nueva.
 
 ---
 
-# Cambio 206 — Antes de publicar en internet mira alguien, la suite corre en paralelo y el tipado empieza a existir
+# Cambio 206 — Bloque de ubicación sin mapa
+
+🟢 **HECHO — 10/10/2026** · Task #587 · pieza nueva `templates/components/_ubicacion.html`
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · pieza nueva |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Decisión **C-14** del PM (06/10/2026), ejecutada por la task #587 |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | #587 · análisis #581 · épica #127 |
+| **Partes afectadas** | `templates/components/_ubicacion.html` (nuevo), su ficha, el inventario y la red de seguridad del portal |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El mockup de la Versión 2 dibuja un **mapa embebido** en la solapa de infraestructura. No se puede:
+la política de seguridad de contenido del sistema bloquea los CDN, así que no hay forma de cargar la
+librería. La decisión C-14 fue **descartar el mapa embebido en la v2** —no postergarlo— y
+reemplazarlo por coordenadas legibles, un enlace que abre el mapa **fuera** del sistema, y el plano
+como adjunto.
+
+## Decisiones tomadas
+
+La pieza se construye **sin consumidor**: la pantalla que la usa es la task 37. Queda lista y
+documentada.
+
+**El plano no depende de las coordenadas**, que fue el hallazgo funcional de la revisión. En la
+primera versión el bloque del plano estaba dentro del `if` que exige latitud y longitud, así que un
+plano cargado desaparecía mientras nadie hubiera tomado las coordenadas del edificio. Son dos datos
+independientes: ahora el estado vacío cubre solo la ubicación y el plano se muestra igual.
+
+**El proveedor del mapa es OpenStreetMap**, elegido por el implementador porque la task no nombraba
+ninguno. Está en un solo lugar de la pieza. **Queda a decisión del PM** si se mantiene: el enlace
+manda las coordenadas de la institución a un servicio externo cuando alguien hace click. La decisión
+C-14 aprobó el enlace externo, no el proveedor.
+
+**Se tocó una red de seguridad, y se verificó antes de aceptarlo.** La prueba
+`SinRecursosDeTercerosTests` de `portal/tests/` barre las plantillas buscando dominios externos y el
+enlace la hacía fallar, así que su prefijo se agregó a la lista de permitidos. El docstring de esa
+prueba dice que protege contra volver a **traer código** de un CDN y reabrir el agujero de cadena de
+suministro; un `<a href>` de navegación no trae nada, y el precedente de Google Tag Manager usa el
+mismo patrón con su comentario. El prefijo está anclado al host y a `/?`, lo que deja afuera dominios
+parecidos y otras rutas —entre ellas `/export/embed.html`, que es la del iframe de OSM—.
+
+## Pendientes
+
+- **Si se cambia de proveedor de mapa**, hay que actualizar esa lista de permitidos. Queda escrito en
+  la ficha y en el encabezado de la pieza.
+- **Un `0` cuenta como coordenada cargada.** Si el modelo que la alimente usa `0` por defecto en vez
+  de `null`, el bloque va a mostrar «0,000000 / 0,000000» y enlazar a Null Island. Hay que
+  verificarlo en la task 37, al conectar el modelo.
+- El barrido de la prueba de terceros **no distingue el atributo**: un `src` con el mismo prefijo
+  pasaría. En la práctica no carga código —OSM responde HTML y la CSP bloquea el frame— pero la
+  entrada permite más de lo que su comentario declara.
+
+## Archivos
+
+- `templates/components/_ubicacion.html` (nuevo)
+- `.claude/design/componentes/ubicacion.md` (nueva) y la fila del inventario
+- `portal/tests/test_seguridad_publica.py` — el prefijo permitido, con su comentario
+- `core/tests/test_nodo_ui_piezas.py`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva.
+
+---
+
+# Cambio 207 — Antes de publicar en internet mira alguien, la suite corre en paralelo y el tipado empieza a existir
 
 🟢 **HECHO — 09/10/2026**
 
@@ -31334,7 +31408,7 @@ un `assertNotIn` con el valor adentro.
 
 **12/10/2026 — ronda 3, merge con `development` (hasta `2d632cd9`, Cambio 205).** El número 199 que tenía
 esta entrada lo tomó el Cambio 199 de `development` (Notificaciones, #647) y los 200 a 205 ya estaban
-usados, así que pasó a ser la **206** (los 207 y 208 están reservados para otros PRs). El conflicto de
+usados, así que pasó a ser la **206**; en el merge del 12-oct `development` ya tenía su propio 206 (Bloque de ubicación, #756) y esta quedó **207**. El conflicto de
 `docs/internal/requerimientos.md` se resolvió conservando las entradas 199 a 205 de `development` tal
 cual, con sus filas de índice, y moviendo esta al final. La renumeración arrastra las referencias propias
 en `core/tests/test_gates_ci.py`, `scripts/check_docs_client.py`, el README de la auditoría (fila de la

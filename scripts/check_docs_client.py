@@ -23,7 +23,7 @@ que lo primero se lee navegando el repo y lo segundo sale además como página w
 alcance estricto (el default) mira lo que MkDocs copia al sitio y **bloquea**; el
 `--todo-docs` barre `docs/` entero y los `.md` de la raíz, y va **no bloqueante** en el
 PR porque sobre esa superficie quedan falsos positivos que no se pueden sacar sin
-aflojar la regla (los números, en el Cambio 206 de `requerimientos.md`).
+aflojar la regla (los números, en el Cambio 207 de `requerimientos.md`).
 
 **No solo `.md`.** MkDocs copia al sitio *todo* lo que haya en `docs_dir`, así que un
 `.html` de mockup se publica igual que una página: se revisan todas las extensiones de

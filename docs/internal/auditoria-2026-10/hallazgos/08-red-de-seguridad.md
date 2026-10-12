@@ -1274,7 +1274,7 @@ forma de **cada campo** de `definicion_formulario` sigue siendo RED-12 (PR R-17)
   `pr-quality.yml` con `continue-on-error: true` hasta que estén los cinco módulos. RED-63 explica por qué antes de esto
   rinde más `ruff --select F` bloqueante.
 
-**Resolución:** ✅ Cerrada en el PR 5 de la Ola 7 (Cambio 206), 09-oct-2026 — **el arranque, con los dos módulos que
+**Resolución:** ✅ Cerrada en el PR 5 de la Ola 7 (Cambio 207), 09-oct-2026 — **el arranque, con los dos módulos que
 pide la ficha anotados y en verde, no con la configuración puesta y 28 errores adentro.** `mypy` (job `Tipos (mypy)` en
 `pr-quality.yml`, **no bloqueante**) corre **solo** sobre `files` de `[tool.mypy]`; fuera de esa lista no mira nada, así
 que el job no puede ponerse rojo por código ajeno al alcance y la adopción es de verdad gradual. Las 28 funciones del
@@ -2694,7 +2694,7 @@ archivo de este PR contra `origin/development`, salida 0—, más 16 casos sobre
   `(?i)(password|contraseña|secret|token)\s*[:=]\s*\S`, y si aparece un archivo fuera del `nav` de `mkdocs.yml` y de
   `not_in_nav`.
 
-**Resolución:** ✅ Cerrada en el PR 5 de la Ola 7 (Cambio 206), 09-oct-2026 — y **encontró un caso real en la primera
+**Resolución:** ✅ Cerrada en el PR 5 de la Ola 7 (Cambio 207), 09-oct-2026 — y **encontró un caso real en la primera
 corrida**: `docs/client/funcionalidades/programa-becas.md` publicaba una respuesta de RENAPER con el apellido, el
 nombre, el DNI, el CUIL, la fecha de nacimiento y el domicilio de **una persona de verdad**, pegada «para mostrar al
 equipo Ministerio». Estaba en internet desde que se escribió. El gate es `scripts/check_docs_client.py` y corre **dos
@@ -2824,7 +2824,7 @@ y `core.tests.test_gates_ci.DependabotTests` (4 tests).
   RED-88**: hoy `--parallel` revienta en `core`/`users`/`portal`); `timeout-minutes: 25` y un paso que escribe la duración
   en `$GITHUB_STEP_SUMMARY` y emite `::warning::` sobre 12 min.
 
-**Resolución:** ✅ Cerrada en el PR 5 de la Ola 7 (Cambio 206), 09-oct-2026 — con RED-88 cerrada desde el PR R-20, la
+**Resolución:** ✅ Cerrada en el PR 5 de la Ola 7 (Cambio 207), 09-oct-2026 — con RED-88 cerrada desde el PR R-20, la
 dependencia estaba levantada. `Tests & Coverage` corre `coverage run manage.py test --parallel 4`, `timeout-minutes`
 pasa de 20 a **25** y un paso nuevo escribe los minutos en el resumen del job y emite `::warning::` a partir de 12.
 **Medido en local (Python 3.12 + Django 5.2.17, el par del CI), el mismo árbol en las tres corridas, 4.911 tests y
