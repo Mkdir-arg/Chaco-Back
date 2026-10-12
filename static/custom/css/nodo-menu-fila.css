@@ -1,0 +1,130 @@
+/* NODO Design System — Menú de fila (botón ⋮ con menú desplegable)
+   Pieza: `{% menu_fila %}` de core/templatetags/nodo_ui.py sobre
+   templates/components/_menu_fila.html y _menu_fila_item.html; el comportamiento
+   (teclado, foco, posición) está en static/custom/js/nodo-menu-fila.js.
+
+   El menú es `position: fixed` y el JS le calcula la posición al abrirlo: así no lo
+   recorta el `overflow-x-auto` de la tabla ni el `overflow-hidden` de la card, y la
+   última fila de una tabla con scroll lo abre hacia arriba. */
+
+.nodo-menu-fila {
+    display: inline-block;
+}
+
+/* El disparador es un `.nodo-icon-btn` (colores, foco y hover vienen de ahí). */
+.nodo-menu-fila__trigger {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+}
+
+.nodo-menu-fila__menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 40;
+    min-width: 13rem;
+    max-width: min(20rem, calc(100vw - 16px));
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid var(--border-base);
+    border-radius: var(--rounded-lg);
+    background: var(--bg-white);
+    box-shadow: var(--shadow-lg);
+    text-align: left;
+}
+
+/* El `display` de arriba le gana al `hidden` del navegador. */
+.nodo-menu-fila__menu[hidden] {
+    display: none;
+}
+
+.nodo-menu-fila__item {
+    --nodo-menu-fila-color: var(--text-heading);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: var(--rounded-md);
+    background: transparent;
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    line-height: 1.3;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* nodo-brand.css pinta todo `a` con el color de marca y `!important`: el color se aplica
+   con el mismo peso que en `.nodo-icon-btn` para que el ítem resuelva el suyo por variable. */
+.nodo-menu-fila__item,
+a.nodo-menu-fila__item:not(.btn):not(.btn-nodo):not(.btn-brand):not([class*="bg-"]) {
+    color: var(--nodo-menu-fila-color) !important;
+}
+
+.nodo-menu-fila__item:hover,
+.nodo-menu-fila__item:focus-visible {
+    background: var(--bg-secondary);
+}
+
+.nodo-menu-fila__item:focus-visible {
+    outline: 2px solid var(--border-brand);
+    outline-offset: -2px;
+}
+
+.nodo-menu-fila__item--danger {
+    --nodo-menu-fila-color: var(--text-fg-danger);
+}
+
+.nodo-menu-fila__item--danger:hover,
+.nodo-menu-fila__item--danger:focus-visible {
+    background: var(--bg-danger-soft);
+}
+
+.nodo-menu-fila__icono {
+    flex: none;
+    width: 1rem;
+    margin-top: 1px;
+    text-align: center;
+}
+
+.nodo-menu-fila__texto {
+    display: block;
+    min-width: 0;
+}
+
+/* Deshabilitado: se ve y se alcanza por teclado (el motivo se anuncia con el ítem), pero
+   no actúa; el bloqueo del click lo hace el JS. */
+.nodo-menu-fila__item[aria-disabled="true"] {
+    --nodo-menu-fila-color: var(--text-fg-disabled);
+    cursor: not-allowed;
+}
+
+.nodo-menu-fila__item[aria-disabled="true"]:hover {
+    background: transparent;
+}
+
+.nodo-menu-fila__motivo {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-body-subtle);
+}
+
+/* Área táctil mínima (WCAG 2.5.8), solo con puntero grueso. */
+@media (pointer: coarse) {
+    .nodo-menu-fila__trigger {
+        width: 44px;
+        height: 44px;
+    }
+
+    .nodo-menu-fila__item {
+        min-height: 44px;
+        align-items: center;
+    }
+}

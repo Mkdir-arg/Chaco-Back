@@ -87,3 +87,74 @@ reusado por la solapa del legajo), `programas/templates/programas/becas/reportes
 
 `programas/templates/programas/becas/config/_segmentos_table.html` sigue con las utilidades en
 línea (mismo resultado visual): se migra al tocarla, no se copia.
+
+## Menú de fila (`{% menu_fila %}`)
+
+**Evidencia:** `core/templatetags/nodo_ui.py` (tag), `templates/components/_menu_fila.html` y
+`_menu_fila_item.html`, `static/custom/css/nodo-menu-fila.css`, `static/custom/js/nodo-menu-fila.js`
+(el shell carga los dos últimos). Tests: `core/tests/test_nodo_ui_piezas.py` (`MenuFilaTest`).
+**Consumidores de referencia:** ninguno todavía; lo usan P4, P12, P20, P21 y P22 de Dispositivos y
+Merenderos.
+
+### Cuándo va cada forma
+
+| Situación | Forma |
+|---|---|
+| 1 o 2 acciones, todas disponibles | `.nodo-icon-btn` sueltos, como arriba |
+| 3 o más acciones | `{% menu_fila %}`; la principal («Ver») puede quedar al lado como `.nodo-icon-btn`, en el mismo `inline-flex gap-1` |
+| Una acción que el usuario tiene que ver aunque hoy no pueda usarla | `{% menu_fila %}` con el ítem `motivo=`: el ícono suelto deshabilitado no tiene dónde explicar el porqué |
+| Acción de una sola fila que casi siempre se usa | `.nodo-icon-btn`: no se esconde en un menú lo que se toca a cada rato |
+
+No se mezclan las dos formas con las mismas acciones en pantallas hermanas de un mismo módulo: si
+una tabla de Dispositivos usa el menú para sus acciones secundarias, las demás también.
+
+### Esqueleto
+
+```django
+{% load nodo_ui %}
+<td class="nodo-td text-right">
+  <div class="inline-flex items-center gap-1">
+    <a href="{% url '<app>:<detalle>' obj.pk %}" class="nodo-icon-btn" aria-label="Ver <entidad> {{ obj.nombre }}">
+      <i class="fas fa-eye" aria-hidden="true"></i>
+    </a>
+    {% menu_fila id=obj.pk etiqueta="Acciones de <entidad> "|add:obj.nombre %}
+      {% include "components/_menu_fila_item.html" with texto="Editar" icono="fa-pen" url=url_editar only %}
+      {% include "components/_menu_fila_item.html" with texto="Reasignar" icono="fa-user-pen" motivo=motivo_reasignar only %}
+      {% include "components/_menu_fila_item.html" with texto="Dar de baja" icono="fa-ban" peligro=True confirm_url=url_baja confirm_title="¿Dar de baja?" confirm_text="…" confirm_ok="Sí, dar de baja" only %}
+    {% endmenu_fila %}
+  </div>
+</td>
+```
+
+El `id` (único en la página: si hay dos tablas con menús, uno de los dos lleva prefijo, p. ej. `id=obj.menu_id` preparado en la vista) y la `etiqueta` (con el registro, nunca
+«Acciones» a secas) son obligatorios; el tag falla al compilar sin ellos. Url y `motivo` se
+preparan en la vista (`motivo` vacío = acción disponible).
+
+### Ítems (`_menu_fila_item.html`, siempre con `only`)
+
+| Parámetro | Efecto |
+|---|---|
+| `texto` | Obligatorio. Verbo en infinitivo |
+| `icono` | Opcional, Font Awesome sin `fas` |
+| `url` | Enlace `<a role="menuitem">` |
+| `confirm_url` + `confirm_title`/`confirm_text`/`confirm_ok` | Botón con `data-confirm-url` → `ModernModal` (contrato de `arquetipos/confirmacion.md`; la pantalla carga `_confirm_js.html`). Nunca `confirm()` |
+| `peligro=True` | Ítem rojo y `data-confirm-danger="true"` |
+| `motivo` | Deshabilita el ítem y muestra el motivo debajo; gana sobre `url` y `confirm_url` |
+
+### Accesibilidad (lo que verifica el JS y lo que no se puede romper)
+
+- El disparador es un `.nodo-icon-btn` de 28 px (44 px con puntero grueso) con `aria-label` con el
+  registro, `aria-haspopup="menu"`, `aria-expanded` y `aria-controls` hacia el menú.
+- Enter, Espacio o ↓ abren y enfocan el primer ítem (↑ el último). ↑/↓/Home/End mueven; Tab y
+  Shift+Tab circulan **dentro** del menú. Enter y Espacio activan.
+- Escape cierra y devuelve el foco al disparador. Clic afuera, scroll y resize cierran sin mover
+  el foco. Activar un ítem deja el foco en el disparador antes de abrir el `ModernModal`.
+- Un ítem deshabilitado lleva `aria-disabled="true"` (no `disabled`): se alcanza por teclado, se
+  anuncia con su motivo y no actúa. No se esconde: esconder no es bloquear.
+- Con el bloque sin ningún ítem no se dibuja ni el botón.
+
+### Prohibido
+
+- Un `<details>`, un `x-data` o un menú armado a mano para las acciones de fila.
+- Ítems sin `only`, `confirm()` nativo, `style=` para posicionarlo (lo calcula el JS).
+- `.nodo-icon-btn` deshabilitado suelto para «explicar» por qué una acción no está disponible.
