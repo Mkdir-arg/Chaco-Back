@@ -133,8 +133,12 @@ class WizardDeProgramaTests(TestCase):
         self.assertContains(respuesta, 'aria-current="step"', count=1)
         self.assertContains(respuesta, '<span class="sr-only">Paso actual: </span>Confirmación', html=False)
         for numero in (1, 2, 3):
-            self.assertContains(respuesta, f'href="{reverse(f"configuracion:programa_wizard_paso{numero}")}" class="nodo-step__item"')
-        self.assertNotContains(respuesta, 'href="%s" class="nodo-step__item"' % reverse("configuracion:programa_wizard_paso4"))
+            self.assertContains(
+                respuesta, f'href="{reverse(f"configuracion:programa_wizard_paso{numero}")}" class="nodo-step__item"'
+            )
+        self.assertNotContains(
+            respuesta, 'href="%s" class="nodo-step__item"' % reverse("configuracion:programa_wizard_paso4")
+        )
 
     def test_sin_programa_configurar_los_ocho_pasos_vuelven_al_listado(self):
         """Los cuatro del alta y los cuatro de la edición, con un usuario sin rol.

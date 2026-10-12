@@ -773,7 +773,7 @@ class StepperTest(SimpleTestCase):
         self.assertIn('<span class="sr-only">Paso completado: </span>Identidad', html)
         self.assertIn('<span class="sr-only">Paso pendiente: </span>Capacidades', html)
         # El hecho lleva tilde y el resto el numero: el estado se ve sin distinguir colores.
-        self.assertIn('fa-check', html)
+        self.assertIn("fa-check", html)
         self.assertIn(">3</span>", html)
 
     def test_solo_los_pasos_hechos_son_links(self):
@@ -796,6 +796,8 @@ class StepperTest(SimpleTestCase):
     def test_el_shell_carga_la_hoja_y_define_el_circulo_y_el_conector(self):
         base = (RAIZ / "templates/includes/base.html").read_text(encoding="utf-8")
         self.assertIn("custom/css/nodo-stepper.css", base)
-        css = re.sub(r"/\*.*?\*/", "", (RAIZ / "static/custom/css/nodo-stepper.css").read_text(encoding="utf-8"), flags=re.S)
+        css = re.sub(
+            r"/\*.*?\*/", "", (RAIZ / "static/custom/css/nodo-stepper.css").read_text(encoding="utf-8"), flags=re.S
+        )
         self.assertIn("width: 28px;", re.search(r"\.nodo-step__circle \{([^}]*)\}", css).group(1))
         self.assertIn("width: 56px;", re.search(r"\.nodo-step \+ \.nodo-step::before \{([^}]*)\}", css).group(1))
