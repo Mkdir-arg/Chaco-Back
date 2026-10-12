@@ -316,8 +316,8 @@ necesita OK. No se clona para una pantalla nueva. Lo que vale como contrato:
 
 `templates/inicio.html` (ruta `/inicio/`, `core.views.public.inicio_view`). Encabezado
 **canónico** (`{% page_header %}` con el saludo como título, la bajada en el bloque
-`{% bajada %}` y «Ver ciudadanos» como acción): **no hay hero**, el canon no los usa en
-backoffice operativo. Alpine `dashboardInicio()`: buscador de ciudadanos con typeahead
+`{% bajada %}` y «Ver ciudadanos» como acción): **no hay hero** (el canon no los usa en
+backoffice operativo; la única pieza admitida es `{% hero_inicio %}`, ficha `componentes/hero_inicio.md`). Alpine `dashboardInicio()`: buscador de ciudadanos con typeahead
 (`AbortController` + número de secuencia para descartar respuestas tardías), stat cards, «Mi
 trabajo de hoy» —un solo feed, el de derivaciones pendientes, en una grilla de una columna—,
 accesos rápidos y la grilla «Cobertura por programa» (barras de progreso + tarjeta de tendencias

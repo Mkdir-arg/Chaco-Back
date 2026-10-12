@@ -28,7 +28,8 @@ deuda propia (KPIs en línea, títulos con tamaño fijo y un modal que todavía 
 modales) y su contrato está atado a los datos de Becas.
 
 Para una pantalla con números el arquetipo correcto suele ser Detalle con su franja de métricas
-(`templates/components/_stat_card.html`). Un tablero con gráficos es una **novedad**: frená.
+(`templates/components/_stat_card.html`). Un tablero con gráficos es una **novedad**: frená. Lo que sí existe para abrir un tablero de programa es
+`{% hero_inicio %}` (ficha `componentes/hero_inicio.md`), solo ahí y en el Inicio.
 
 ## Qué devolver cuando frenás
 

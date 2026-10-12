@@ -1,0 +1,18 @@
+{% comment %}
+Hero de inicio de programa. No se incluye a mano: lo renderiza {% hero_inicio %} de
+core/templatetags/nodo_ui.py (ver su docstring).
+ALCANCE: solo la pantalla de inicio y los tableros de programa; en cualquier otra pantalla el
+encabezado es {% page_header %}. Ficha: .claude/design/componentes/hero_inicio.md.
+Contexto: titulo, eyebrow, bajada, accion_url, accion_texto, accion_icono (todos opcionales salvo titulo;
+la acción solo se dibuja con url y texto).
+{% endcomment %}
+<div class="nodo-hero">
+  <div>
+    {% if eyebrow %}<div class="nodo-hero__eyebrow">{{ eyebrow }}</div>{% endif %}
+    <h1 class="nodo-hero__titulo">{{ titulo }}</h1>
+    {% if bajada %}<p class="nodo-hero__bajada">{{ bajada }}</p>{% endif %}
+  </div>
+  {% if accion_url and accion_texto %}
+  <a href="{{ accion_url }}" class="nodo-hero__accion">{% if accion_icono %}<i class="fas {{ accion_icono }}" aria-hidden="true"></i> {% endif %}{{ accion_texto }}</a>
+  {% endif %}
+</div>

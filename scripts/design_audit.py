@@ -56,6 +56,8 @@ Reglas P1 (estructura; ratchet):
   SHELLLEGACY  {% extends "includes/main.html" %} — shell legacy, no se extiende.
   PAGEHEADER   <h1> a mano en el backoffice en vez de {% page_header %}.
   TABLECANON   <th> sin nodo-th, o <thead style=...>.
+  HEROFUERA    {% hero_inicio %} o clases nodo-hero* en una pantalla que no esté en
+               HERO_PANTALLAS (el hero es solo de Inicio y de los tableros de programa).
   ICONARIA     Ícono Font Awesome <i class="fas ..."> sin aria-hidden="true".
   CLASSDEF     Clase usada que no existe en ningún CSS cargable. P1 si tiene forma
                de utilidad Tailwind (build viejo o utilidad inválida); WARN si no
@@ -761,6 +763,33 @@ def _p1_tablecanon(rel: str, text: str) -> list[tuple[int, str]]:
     return out
 
 
+# Pantallas autorizadas a usar el hero de inicio de programa: SOLO la de inicio y los tableros de
+# programa (ficha componentes/hero_inicio.md). Hoy ninguna lo usa; la primera en incorporarlo se
+# agrega acá y esa línea es lo que ve el revisor. También la lee HeroInicioTest.
+HERO_PANTALLAS: frozenset[str] = frozenset()
+# El include directo del componente es la forma mas obvia de saltearse el tag, y el
+# propio componente dice que no se incluye a mano: sin esa alternativa la regla se
+# evadia escribiendo {% include "components/_hero_inicio.html" %}. El componente queda
+# exento igual, por HERO_COMPONENTE.
+# Se marca el TAG de include, no la ruta suelta: el shell tiene un comentario que la
+# nombra para documentar de donde sale el CSS, y eso es legitimo. Una regla que marca
+# la documentacion de si misma ensenia a no documentar.
+# El sufijo de la clase acepta mayusculas y guion bajo porque `nodo-hero__Titulo` y
+# `nodo-hero__titulo_x` se colaban: el \b no corta contra esos caracteres.
+HERO_RE = re.compile(
+    r"\{%\s*(?:end)?hero_inicio\b"
+    r"|\{%\s*include\s+[\"']components/_hero_inicio"
+    r"|\bnodo-hero(?:[_a-zA-Z]*)?(?!\.css)\b"
+)
+HERO_COMPONENTE = "templates/components/_hero_inicio.html"
+
+
+def _p1_herofuera(rel: str, text: str) -> list[tuple[int, str]]:
+    if rel == HERO_COMPONENTE or rel in HERO_PANTALLAS:
+        return []
+    return [(ln, "hero_inicio / nodo-hero") for ln in _lineas_de(text, HERO_RE)]
+
+
 def _p1_iconaria(rel: str, text: str) -> list[tuple[int, str]]:
     return [(ln, "ícono sin aria-hidden") for ln in _lineas_de(text, ICONARIA_RE)]
 
@@ -777,6 +806,11 @@ P1_RULES: list[tuple[str, object, str]] = [
     ("SHELLLEGACY", _p1_shelllegacy, "shell legacy includes/main.html — extender includes/base.html"),
     ("PAGEHEADER", _p1_pageheader, "<h1> a mano — el encabezado es {% page_header %}"),
     ("TABLECANON", _p1_tablecanon, "tabla fuera del canon — nodo-thead-row / nodo-th / nodo-td"),
+    (
+        "HEROFUERA",
+        _p1_herofuera,
+        "hero de inicio fuera de Inicio/tableros de programa — el encabezado es {% page_header %}",
+    ),
     ("ICONARIA", _p1_iconaria, 'ícono Font Awesome sin aria-hidden="true"'),
 ]
 
