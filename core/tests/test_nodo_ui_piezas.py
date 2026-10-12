@@ -7,12 +7,11 @@ from decimal import Decimal
 from io import StringIO
 from pathlib import Path
 
-from django import forms
+from django import forms, template
 from django.contrib.auth.models import AnonymousUser, User
 from django.core.management import call_command
 from django.core.paginator import Paginator
 from django.http import QueryDict
-from django import template
 from django.template import Context, Template
 from django.template.loader import render_to_string
 from django.test import RequestFactory, SimpleTestCase, TestCase
