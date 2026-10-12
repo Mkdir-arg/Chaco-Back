@@ -52,7 +52,9 @@ pagina en la vista. Una lista vacía muestra el estado vacío canónico.
 
 - La grilla es responsive por columnas (`grid-cols-2` a `lg:grid-cols-6`) en vez de `auto-fill minmax(84px)`,
   que es un valor arbitrario fuera de la lista blanca.
-- Ocupada (violeta) usa `border-base`: no existe `border-info-subtle` en el CSS compilado.
+- Ocupada (violeta) usa `border-info-subtle`, el borde del tono `info`. El token faltaba cuando se
+  escribio la pieza —sus cuatro hermanos existian y el solo no—, asi que se agrego a `chaco-tokens.css`
+  (claro y oscuro) y a `tailwind.config.js`, siguiendo el mismo paso de rampa que los demas.
 - La celda lleva ícono además del texto, que el mockup no dibuja.
 - El panel lateral que el mockup describe al hacer clic en una plaza **no es parte de esta pieza**: la
   plaza enlaza a la `url` que decida la pantalla.

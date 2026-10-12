@@ -146,6 +146,7 @@ module.exports = {
         'success-subtle': 'var(--border-success-subtle)',
         warning: 'var(--border-warning)',
         'warning-subtle': 'var(--border-warning-subtle)',
+        'info-subtle': 'var(--border-info-subtle)',
       },
     },
   },

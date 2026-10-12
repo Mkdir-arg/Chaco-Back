@@ -218,6 +218,10 @@ Lista blanca. Lo que no está acá es una **novedad** (protocolo, paso 6).
 - **Color semántico:** `bg-white`, `bg-secondary`, `bg-tertiary`, `bg-{brand|success|warning|danger|info}-soft`,
   `border-base`, `border-light`, `border-brand`, `border-{tono}-subtle`, `text-heading`,
   `text-body`, `text-body-subtle`, `text-fg-{brand|danger|success|warning|info}`.
+  Los cinco tonos existen compilados en las tres familias (`bg-{tono}-soft`,
+  `border-{tono}-subtle`, `text-fg-{tono}`). Si una de las quince falta, es un hueco
+  del set y se completa en `chaco-tokens.css` + `tailwind.config.js`: no se parchea la
+  pieza con `border-base`, que es lo que esconde el hueco para la siguiente.
 - **Tipografía por rol:** título de página vía `{% page_header %}`; título de surface
   `h2 text-heading font-bold`; subtítulo `h3 text-sm font-bold text-heading`; texto
   `text-sm`; metadato `text-xs text-body-subtle`; números de métrica `text-2xl font-bold`.
