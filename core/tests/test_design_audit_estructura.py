@@ -363,7 +363,6 @@ class MarcadoresDeArquetipoTests(SimpleTestCase):
             self.assertIn("no declarada", salida)
 
 
-
 class GateDeCiTests(SimpleTestCase):
     """El check «Design Agent Contract» tiene que correr lo que el anexo pide.
 
