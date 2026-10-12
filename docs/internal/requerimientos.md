@@ -391,6 +391,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 243 | Menú de fila accesible para tablas densas | Diseño · componentes | `#ui` `#metodo` | Decisión C-13 del PM (06/10) · task #585 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 247 | Hero de inicio de programa, acotado por una regla que se hace cumplir sola | Diseño · componentes | `#ui` `#metodo` | Decisión del PM (06/10) · task #583 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 251 | Eyebrow, filtro rápido en píldora, y chips y switch como widgets de Django | Diseño · componentes | `#ui` `#metodo` | Tasks 11, 12 y 13 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 253 | Pantalla de sectores y plazas, y la variante apilada del arquetipo Detalle | Dispositivos · pantallas | `#ui` `#metodo` | Task 23 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -32540,5 +32541,86 @@ No requiere.
 ## Historial
 
 Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 253 — Pantalla de sectores y plazas: la primera del MVP, y la variante apilada del arquetipo
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 23` (#688)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · pantallas · Diseño |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 23 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `programas/views/dispositivos_legajo.py`, `dispositivos_urls.py`, `services/sectores_plazas.py`, `scripts/design_audit.py` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**La pantalla no miente sobre la ocupación.** `Plaza.estado` solo guarda OPERATIVA y
+FUERA_SERVICIO; ocupada, reservada y prestada se derivan de `Estadia`, que es de la etapa 2. Una
+plaza operativa se dibuja con el **tono neutro** y la palabra «Operativa», **no con `success` ni
+«Disponible»**, que afirmaría algo que el sistema todavía no sabe. Hay un test que verifica que la
+página **no contenga** «Disponible», «Ocupada», «Reservada» ni «Prestada», y un aviso visible lo
+dice. Es la misma regla que el servicio de la task 22 aplica devolviendo `None` en vez de `0`.
+
+**Faltan los botones de alta del mockup —«Nuevo sector», «+ Agregar plazas», «Editar sector»— a
+propósito**: esas pantallas no existen, y un botón que no lleva a ninguna parte miente igual que un
+cero inventado. Entran cuando exista su pantalla.
+
+**El auditor aprendió la variante apilada del arquetipo Detalle.** La ficha dice textual que «con un
+área sola no hay solapas: van secciones apiladas en surfaces», pero `--arquetipo detalle` exigía los
+siete marcadores de solapas **siempre**: una pantalla que seguía la ficha al pie daba siete desvíos.
+Que el canon y el gate se contradigan es peor que no tener gate, porque enseña a ignorarlo o a
+fabricar solapas falsas para callarlo.
+
+**La variante se declara, no se infiere.** Va `{# arquetipo: detalle + apilado #}` en el template. Si
+se infiriera de que faltan las solapas, una pantalla que se las olvidó pasaría como «apilada» y el
+gate no serviría para nada. Hay tres tests: con la declaración pasa, sin ella sigue dando 1, y una
+variante inventada falla.
+
+**El marcador nuevo encontró algo real**: las secciones apiladas no tenían nombre accesible. Sin
+solapas **la sección es la unidad navegable**, así que ahora cada sector es un `<section
+aria-labelledby>` con su `<h2>` —lo que la solapa daba gratis—. La pantalla quedó mejor que antes de
+la discusión.
+
+## Implementación
+
+`DispositivoSectoresView` va en `dispositivos_legajo.py` y no en un módulo propio porque
+`test_arquitectura` prohíbe que una vista importe de otra. Capacidad `dispositivo.ver`, que ya
+existía: no se tocó el `CATALOGO`. El tope es de 200 plazas por sector.
+
+## Pendientes
+
+- **No hay enlace de entrada**: el detalle del dispositivo es legacy y no apunta acá, así que hoy se
+  llega solo por URL.
+- Las plazas se ordenan por código **como texto**, así que `A-10` sale antes que `A-2` salvo que el
+  código lleve ceros. Es del alta, no de esta pantalla.
+- El **panel lateral por plaza** y la regla «poner fuera de servicio exige reubicar primero»
+  dependen de `Estadia` y de una pieza que no existe.
+- Dos errores propios que los gates encontraron y conviene recordar: se pisó el `VARIANTES` que ya
+  existía en el auditor (los prefijos de Tailwind), y se escribió un `{# #}` **multilínea**, que en
+  Django **se renderiza como texto**.
+
+## Archivos
+
+`programas/templates/programas/dispositivos/sectores/sectores.html` ·
+`programas/services/sectores_plazas.py` · `programas/views/dispositivos_legajo.py` ·
+`programas/dispositivos_urls.py` · `programas/tests/test_dispositivos_sectores.py` ·
+`scripts/design_audit.py` · `core/tests/test_design_audit_estructura.py` ·
+`.claude/design/arquetipos/detalle.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 1 del plan del Cambio 191.
 
 ---
