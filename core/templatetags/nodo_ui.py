@@ -51,6 +51,25 @@ las claves que se le pasan. Lo usa ``components/_paginacion.html`` para armar
 el enlace de la página siguiente cuando la pantalla pagina con un parámetro
 propio (``param``/``extra_qs``): sin esto el enlace salía con el parámetro de
 página repetido.
+
+Menú de fila (botón ⋮ de las tablas densas)::
+
+    {% menu_fila id="cis-3" etiqueta="Acciones de CIS N.º 3" %}
+      {% include "components/_menu_fila_item.html" with texto="Ver ficha" icono="fa-eye" url=url only %}
+      {% include "components/_menu_fila_item.html" with texto="Reasignar" icono="fa-user-pen" motivo="Solo con relevamiento vencido" only %}
+    {% endmenu_fila %}
+
+Renderiza ``templates/components/_menu_fila.html``: un ``.nodo-icon-btn`` de 28 px con
+``aria-label=etiqueta``, ``aria-expanded`` y ``aria-controls``, y el menú ``role="menu"`` con los
+ítems del bloque. El teclado, el foco y la posición los pone ``static/custom/js/nodo-menu-fila.js``.
+
+- ``etiqueta`` nombra el registro («Acciones de CIS N.º 3», no «Acciones»): la leen el lector de
+  pantalla y el tooltip. Se escapa.
+- ``id`` tiene que ser único en la página (el del registro con un prefijo de la tabla, p. ej.
+  ``cama-{{ cama.pk }}``): de él sale el ``id`` del menú que apunta ``aria-controls``. Se sanea a
+  letras, números, ``_`` y ``-``.
+- Si el bloque no dibuja ningún ítem (todos condicionados por permiso, p. ej.) no se dibuja ni el
+  botón: un ⋮ que abre un menú vacío es un control roto.
 """
 
 import re
@@ -145,6 +164,50 @@ def do_page_header(parser, token):
         else:
             acciones.append(nodo)
     return PageHeaderNode(kwargs, acciones, bajada)
+
+
+TEMPLATE_MENU_FILA = "components/_menu_fila.html"
+ARGUMENTOS_MENU_FILA = ("id", "etiqueta")
+ID_NO_VALIDO = re.compile(r"[^\w-]+")
+
+
+class MenuFilaNode(template.Node):
+    def __init__(self, kwargs, items):
+        self.kwargs = kwargs
+        self.items = items
+
+    def render(self, context):
+        valores = {nombre: valor.resolve(context) for nombre, valor in self.kwargs.items()}
+        # ``NodeList.render`` ya devuelve ``SafeString`` (cada variable pasó por el autoescape).
+        items = _o_vacio(self.items.render(context))
+        if not items:
+            return ""
+        identificador = ID_NO_VALIDO.sub("-", str(valores["id"]))
+        plantilla = context.template.engine.get_template(TEMPLATE_MENU_FILA)
+        with context.push(id=identificador, etiqueta=valores["etiqueta"], items=items):
+            return plantilla.render(context)
+
+
+@register.tag("menu_fila")
+def do_menu_fila(parser, token):
+    bits = token.split_contents()
+    nombre_tag = bits[0]
+    restantes = bits[1:]
+    kwargs = token_kwargs(restantes, parser)
+    if restantes:
+        raise template.TemplateSyntaxError(
+            f"'{nombre_tag}' solo acepta argumentos con nombre ({', '.join(ARGUMENTOS_MENU_FILA)}); "
+            f"sobra: {restantes[0]!r}"
+        )
+    desconocidos = set(kwargs) - set(ARGUMENTOS_MENU_FILA)
+    if desconocidos:
+        raise template.TemplateSyntaxError(f"'{nombre_tag}' no acepta: {', '.join(sorted(desconocidos))}")
+    for obligatorio in ARGUMENTOS_MENU_FILA:
+        if obligatorio not in kwargs:
+            raise template.TemplateSyntaxError(f"'{nombre_tag}' requiere {obligatorio}=")
+    items = parser.parse(("endmenu_fila",))
+    parser.delete_first_token()
+    return MenuFilaNode(kwargs, items)
 
 
 @register.filter
