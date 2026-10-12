@@ -248,6 +248,7 @@ class MarcadoresDeArquetipoTests(SimpleTestCase):
                     f"el arquetipo '{nombre}' esta en design_audit.ARQUETIPOS pero no tiene "
                     f"ficha en .claude/design/arquetipos/{nombre}.md",
                 )
+
     def test_todo_arquetipo_con_marcadores_tiene_su_ficha(self):
         """Antes era una lista fija de cinco nombres y envejeció dos veces el mismo día, con
         el wizard y con revision. Un test que hay que editar cada vez que el producto crece
