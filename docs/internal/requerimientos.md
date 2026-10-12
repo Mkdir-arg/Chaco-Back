@@ -380,6 +380,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 206 | Bloque de ubicación sin mapa: coordenadas, enlace externo y plano adjunto | Diseño · componentes | `#ui` | Decisión C-14 del PM (06/10) · task #587 del MVP de Dispositivos | 10/10/2026 | 🟢 **Hecho** | No requiere |
 | 207 | Antes de publicar en internet mira alguien, la suite corre en paralelo y el tipado empieza a existir | Transversal — publicación de `docs/client/` en GitHub Pages · CI (`Tests & Coverage`, `Tipos (mypy)`) · motor de condiciones y cliente de Base de Personas (solo anotaciones) | `#infra` `#datos` `#metodo` | Auditoría integral oct-2026 — fichas RED-64, RED-76 y RED-86 (Ola 7, PR 5) | 09/10/2026 | 🟢 **Hecho** (el gate de publicación encontró y despublicó una respuesta de RENAPER con los datos de una persona real; el `environment` no es `github-pages`, que solo admite la rama `gh-pages`) | No |
 | 208 | Las segundas partes de la red de seguridad: esquema del dashboard, un solo sobre de error y el detalle de revisión partido | Transversal (esquema OpenAPI, sobre de error JSON, auditoría de diseño) · Becas (detalle de revisión, tablero del programa) · Legajos (APIs del detalle de ciudadano) | `#api` `#infra` `#ui` `#performance` | Auditoría integral oct-2026 — fichas RED-37, RED-39 y RED-54 (Ola 7, PR 6) | 09/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
+| 209 | Segundas lecturas de los dos gates: el padrón que no se veía, el secreto que se perdonaba solo y el piso que no bajaba | Transversal — gate de publicación de `docs/client/` · auditoría de diseño (particiones del ratchet) · archivo vivo de requerimientos | `#infra` `#datos` | Revisiones de #664 (Cambio 207) y #665 (Cambio 208) — los MINOR que quedaron abiertos (Ola 7, PR 7) | 12/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
 
 **Notas del índice**
 
@@ -8582,7 +8583,7 @@ búsqueda activa y los ciudadanos activos—, ahora con el sexo de cada persona 
 | | Antes | Ahora |
 |---|---|---|
 | Encabezado | `DNI, Apellido, Nombre, Fecha de alta` | `DNI, Apellido, Nombre, Sexo, Fecha de alta` |
-| Fila | `30111222, Alvarez, Ana, 16/09/2026` | `30111222, Alvarez, Ana, Femenino, 16/09/2026` |
+| Fila | `12345678, PRUEBA, PERSONA, 01/01/2000` | `12345678, PRUEBA, PERSONA, Femenino, 01/01/2000` |
 
 ## Archivos
 
@@ -19208,8 +19209,8 @@ No requiere migración. La tabla es un insumo externo.
   y se respetó; queda anotado porque dentro de seis meses alguien va a leerlo al revés. Renombrarla a
   `SiisNoEnviar` es cambiar una constante y agregar el nombre viejo a los aceptados.
 - La columna de testing es `int(11)`, así que no admite un documento no numérico. En `aprobados_materias` hay
-  uno (`B 03746926`) y por eso esa columna es texto. Si alguna vez hay que excluir a alguien así, la columna
-  tiene que pasar a `VARCHAR`.
+  uno —con forma `B 12345678`, una letra y ocho dígitos— y por eso esa columna es texto. Si alguna vez hay
+  que excluir a alguien así, la columna tiene que pasar a `VARCHAR`.
 
 ## Reversión
 
@@ -31621,5 +31622,170 @@ para otros PRs, y el 206 entró a `development` mientras se cerraba esta ronda�
 las dos ramas agregan filas al final del índice y entradas al final del archivo, y `git` las
 interleó por los encabezados repetidos de la plantilla. Se conservaron las dos mitades enteras,
 sin tocar las cuentas de horas del README de la auditoría.
+
+---
+
+# Cambio 209 — Segundas lecturas de los dos gates: el padrón que no se veía, el secreto que se perdonaba solo y el piso que no bajaba
+
+🟢 **HECHO — 12/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — gate de publicación de `docs/client/` (`scripts/check_docs_client.py`) · auditoría de diseño (particiones del ratchet, `scripts/design_audit.py`) · archivo vivo de requerimientos |
+| **Etiquetas** | `#infra` `#datos` |
+| **Solicitante** | Revisiones de #664 (Cambio 207) y #665 (Cambio 208) — los MINOR que quedaron abiertos |
+| **Fecha del pedido** | 12/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — seguimiento de las fichas RED-64 y RED-54 (Ola 7) |
+| **Partes afectadas** | CI (`Datos`, `Code Quality`, `Design Agent Contract`) · documentación interna |
+| **Migración** | No |
+
+## Pedido original
+
+Los cinco MINOR que dejaron las dos revisiones de la Ola 7, ninguno con rama propia. Tres
+sobre el gate de publicación (RED-64, Cambio 207) y dos sobre las particiones del ratchet de
+diseño (RED-54, Cambio 208):
+
+1. El gate exige que la palabra que nombra al documento esté en la **misma línea** que el
+   número. En una tabla o en un CSV la dice el encabezado una sola vez, así que un padrón
+   entero pasaba en 0.
+2. La lista de marcadores de posición de un secreto se buscaba como **subcadena**: un
+   `SIIS_API_CLIENT_SECRET` con un valor inventado tipo `AttestationKe9f3Qx` se perdonaba
+   solo porque adentro de «Attestation» hay un «test».
+3. Dos líneas de este mismo archivo que el barrido amplio no vio: una fila de ejemplo de un
+   export CSV y un documento no numérico citado como observado.
+4. `_particion_de` resolvía el patrón con `fnmatch` —cuyo `*` cruza `/`— y `_miembros_de` con
+   `Path.glob` —que no—: un archivo más anidado entraba a la partición y no al conjunto, y
+   quedaba **sin auditar por ningún lado**.
+5. Con el `ref` de la partición fijo, la deuda del origen queda de techo para siempre: si un
+   PR limpia un pedazo, el que viene atrás puede volver a gastar el hueco sin que el ratchet
+   lo vea.
+
+## Alcance acordado
+
+**Entra:** las dos reglas nuevas del gate con sus tests rojos, el saneamiento de las dos
+líneas, la unificación del criterio de `glob` y el piso que baja, más la condición de retiro
+de cada partición declarada.
+
+**Queda afuera, y por qué:**
+
+- **Bajar los 37 hallazgos de `--todo-docs`.** Son los mismos 37 de antes y ninguno es el
+  dato de una persona (DNI de ejemplo de colecciones de Postman, un `head -c` con su cantidad
+  de bytes al lado de la palabra «DNI», direcciones de fixtures de parseo). Sacarlos pide
+  reescribir documentación ajena a este PR.
+- **Los 32 P1 de diseño del detalle de revisión.** Siguen donde estaban: arreglarlos cambia
+  el HTML y rompe la garantía del refactor del Cambio 208. Son justamente la condición de
+  retiro que ahora la partición declara.
+- **Retirar la partición.** Todavía no corresponde: la ficha de esos 32 P1 sigue abierta.
+
+## Decisiones tomadas
+
+- **El encabezado es lo que convierte una fila de números en un padrón.** La regla nueva no
+  es «un documento con identidad cerca» —`CAMPO_DE_IDENTIDAD` aparece en media página de
+  prosa de este repo y el gate nacería con decenas de falsos positivos—, sino «un documento
+  con un **encabezado de padrón** hasta cinco líneas más arriba»: una fila de etiquetas donde
+  **una celda distinta de la otra** nombra el documento y la persona
+  (`| Apellido | Nombre | Documento |`, `apellido,nombre,dni`). Mira solo hacia arriba,
+  porque un encabezado va antes que sus filas.
+- **El nombre propio con el documento entre paréntesis es la otra mitad.** «Persona De Prueba
+  (12345678) cobró la beca» no tiene encabezado ni palabra que lo nombre, y es como se
+  escribe un caso concreto en prosa. Se piden **dos** palabras capitalizadas seguidas antes
+  del paréntesis, para que «Cambio 207 (1234567)» u «Ola 7 (…)» no entren.
+- **El borde del marcador de posición es de letras, no `\b`.** Con `\b` quedaban afuera
+  `test123` y `ejemplo-1`, que sí son marcadores. Con `(?<![a-z])…(?![a-z])` entran los dos y
+  «Attestation» no.
+- **El piso de una partición es `min(origen@ref, conjunto en la base)`.** Era barato y cierra
+  el agujero del punto 5: limpiar un pedazo baja el piso en vez de dejar hueco. La excepción
+  es el PR que **parte** el archivo —ahí los pedazos todavía no existen en la base, su deuda
+  ahí es 0 y el `min` reportaría todo el markup movido—, así que el `min` se saltea cuando
+  algún miembro falta en la base. Eso también explica por qué no reemplaza al `ref` fijo: los
+  dos pisos se necesitan, cada uno para un momento distinto.
+- **Toda partición declara cuándo se retira.** `Particion.retiro` es obligatorio, por lo
+  mismo que el `vence` de `security/excepciones.toml`: una excepción sin fecha de muerte se
+  queda para siempre, y esta además cuesta mientras viva. La declarada hoy se retira con la
+  ficha de los 32 P1 del detalle de revisión, y a más tardar el 30/04/2027.
+- **El criterio de `glob` es el de `Path.glob`, y no al revés.** Ensanchar `_miembros_de`
+  para que `*` cruzara `/` metería al conjunto archivos que nadie declaró. Lo que se achica
+  es `_particion_de`: lo anidado no es miembro, así que se audita suelto contra la base, que
+  es la medición correcta para un archivo que nadie declaró como pedazo.
+
+## Qué se hizo
+
+**Gate de publicación** (`scripts/check_docs_client.py`):
+
+- `_es_encabezado_de_padron` + `_hay_encabezado_de_padron_arriba` + `NOMBRA_PERSONA` y
+  `VENTANA_PADRON` (5 filas, solo hacia arriba); `_documento_pegado_a_un_nombre` con
+  `NOMBRE_PROPIO_CON_DOCUMENTO`. La regla 1 pasa a tener tres caminos y cada uno dice en el
+  mensaje por qué disparó.
+- `SABE_A_PRUEBA` con bordes de letra.
+
+**Auditoría de diseño** (`scripts/design_audit.py`):
+
+- `_coincide` compara componente por componente (el criterio de `Path.glob`) y
+  `_particion_de` lo usa en lugar de `fnmatch`.
+- `nuevos_de_particion` acepta los miembros **tal como están en la base** y toma el conteo
+  más chico por regla, con sus extractos; `ratchet_mode` se los pasa cuando todos existen en
+  la base.
+- `Particion.retiro`, obligatorio, y el docstring de `PARTICIONES` con las dos cosas que
+  antes no estaban escritas: que el piso baja y cuándo se borra la entrada.
+
+**Archivo vivo:** la fila de ejemplo del export CSV de Ciudadanos pasa a
+`12345678, PRUEBA, PERSONA, 01/01/2000` (los mismos marcadores que el gate perdona) y el
+documento no numérico de `aprobados_materias` se describe por su forma (`B 12345678`) en vez
+de citarse.
+
+## Archivos
+
+- `scripts/check_docs_client.py` — reglas 1 y 4.
+- `core/tests/test_docs_client_publicacion.py` — 8 casos nuevos (3 rojos de padrón, 1 rojo de
+  secreto, 4 negativos).
+- `scripts/design_audit.py` — `_coincide`, `_particion_de`, `nuevos_de_particion`,
+  `ratchet_mode`, `Particion.retiro` y el docstring de `PARTICIONES`.
+- `scripts/test_design_audit.py` — 3 casos nuevos en `ParticionesTests`.
+- `docs/internal/requerimientos.md` — las dos líneas saneadas y esta entrada.
+
+## Base de datos
+
+No requiere.
+
+## Verificación
+
+- `manage.py check`: sin issues.
+- `core.tests.test_docs_client_publicacion` + `core.tests.test_gates_ci` +
+  `core.tests.test_design_audit_estructura` + `core.tests.test_design_audit_confirm`: 203
+  tests, OK. Los 51 del primero incluyen los 8 casos nuevos.
+- `scripts/test_design_audit.py`: 24 tests, OK (3 nuevos).
+- `check_docs_client.py` (alcance estricto): **0 hallazgos**, antes y después.
+- `check_docs_client.py --todo-docs`: **37 antes, 37 después**, y los 37 son los mismos
+  —comparados uno a uno—. Entre medio llegaron a ser 38: la regla nueva encontró la fila del
+  export CSV de este mismo archivo, que es el punto 3 del pedido.
+- Los cuatro casos nuevos medidos contra el gate anterior dan `[]`: tabla, CSV, prosa y
+  secreto estaban ciegos.
+- El pedazo anidado medido contra el criterio anterior da **0 hallazgos** (sin auditar) y con
+  el nuevo da **1** (`INLINESTYLE`).
+- `design_audit.py --ratchet --base origin/development`: 0 (ningún archivo de UI cambiado);
+  `check_design_agent.py --changed`: OK.
+- `requerimientos.py --check`: OK. `ruff check` y `ruff format --check` sobre los cuatro
+  archivos de código tocados: limpios.
+
+## Pendientes
+
+- **Los 37 de `--todo-docs`.** No bloquean y ninguno es un dato de persona; bajarlos es
+  reescribir documentación de otras fichas.
+- **La partición vive hasta que se cierren los 32 P1.** La condición ya está escrita en el
+  código; retirarla es sacar las dos entradas de `PARTICIONES`.
+- **El `min` no cubre al PR que parte un archivo**, por construcción. Si alguna vez una
+  partición nace con deuda **agregada** en el mismo PR, el único piso es el origen y hay que
+  mirarla a ojo.
+
+## Reversión
+
+Revertir el commit deja las dos reglas del gate como estaban (un padrón en tabla vuelve a
+pasar), `_particion_de` vuelve a `fnmatch` y el piso de la partición vuelve a ser solo el
+origen. Las dos líneas saneadas del archivo vivo conviene no revertirlas.
+
+## Historial
+
+**12/10/2026 — los cinco MINOR, en un PR de seguimiento.** Sin horas de plan: son las colas
+de los PR 5 y 6 de la Ola 7, y ninguno justificaba rama propia.
 
 ---
