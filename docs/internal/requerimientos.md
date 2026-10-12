@@ -392,6 +392,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 247 | Hero de inicio de programa, acotado por una regla que se hace cumplir sola | Diseño · componentes | `#ui` `#metodo` | Decisión del PM (06/10) · task #583 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 251 | Eyebrow, filtro rápido en píldora, y chips y switch como widgets de Django | Diseño · componentes | `#ui` `#metodo` | Tasks 11, 12 y 13 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 253 | Pantalla de sectores y plazas, y la variante apilada del arquetipo Detalle | Dispositivos · pantallas | `#ui` `#metodo` | Task 23 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 255 | Servicio único de ocupación: lo que no se puede calcular devuelve `None`, no cero | Dispositivos · servicios | `#datos` `#performance` | Task 22 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -32614,6 +32615,89 @@ existía: no se tocó el `CATALOGO`. El tope es de 200 plazas por sector.
 `programas/dispositivos_urls.py` · `programas/tests/test_dispositivos_sectores.py` ·
 `scripts/design_audit.py` · `core/tests/test_design_audit_estructura.py` ·
 `.claude/design/arquetipos/detalle.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 1 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 255 — Servicio único de ocupación: lo que no se puede calcular devuelve `None`, no cero
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 22` (#687)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · servicios |
+| **Etiquetas** | `#datos` `#performance` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 22 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `programas/services/ocupacion.py`, `scripts/perf_budgets.json` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**Lo que todavía no se puede calcular devuelve `None`, nunca `0` ni una clave ausente.** Es la
+decisión central. `ocupadas` y `reservadas` salen de `Estadia` y `ReservaPlaza`, que son de la etapa
+2 y no existen:
+
+- **`0` es una afirmación sobre el mundo**: «no hay ninguna ocupada». Una pantalla mostraría un
+  dispositivo entero libre y **mandaría a alojar gente sobre plazas tomadas**, sin que nada fallara.
+- **Una clave ausente falla en silencio donde más importa**: en un template, `{{ conteo.ocupadas }}`
+  con el atributo faltante renderiza cadena vacía, indistinguible de un dato legítimo.
+- **`None` se ve mal a propósito** —escribe `None` en el template— y en Python cualquier aritmética
+  explota con `TypeError` en vez de mentir. Hay un test que lo fija
+  (`test_un_pendiente_no_se_puede_sumar_por_accidente`).
+
+El pendiente es **uniforme**: un dispositivo sin ninguna plaza también devuelve `ocupadas=None`. Si
+devolviera `0` ahí, el contrato dependería de los datos y una pantalla podría ramificar sobre una
+completitud accidental.
+
+**`operativas` y `disponibles` son propiedades derivadas, no campos.** Esa es la pieza que hace que
+la etapa 2 se complete **sin tocar ninguna pantalla**: lo único que cambia es que la función pase dos
+enteros más al construir cada `Conteo`.
+
+**Una sola consulta, y no crece** con sectores, plazas ni dispositivos: una agregación desde `Sector`
+con dos `Count(filter=...)` sobre el **mismo** LEFT JOIN a `Plaza`. El LEFT JOIN es lo que hace que un
+sector sin plazas llegue en cero sin una segunda consulta. El `order_by` es explícito sobre columnas
+del `values()`, porque por `Meta.ordering` encadenaría el JOIN de más que se corrigió en los modelos.
+
+**Se cuentan solo los sectores activos, total y desglose a la vez**, de modo que el conteo del
+dispositivo es **exactamente** la suma de sus sectores —con test propio—. La alternativa habría
+dejado al total y al desglose mostrando números distintos, que es justo lo que la task evita.
+
+## Pendientes
+
+- **`Sector.activo` no tenía semántica en ningún lado del código**: ningún servicio, vista ni form lo
+  leía. Este servicio le asignó una —«no cuenta capacidad»—. Si el PM lo entendía de otra manera, el
+  cambio es de una línea, pero hay que decidirlo.
+- **Dar de baja un sector con plazas vivas evapora capacidad en silencio.** La regla —que la baja
+  falle si el sector tiene plazas, igual que `FUERA_SERVICIO` no se puede declarar sobre una plaza
+  ocupada— **le toca al servicio de baja de sector, que no existe**. Queda documentada en el módulo.
+- `Plaza.clean()` valida el tipo contra `TipoDispositivo`, pero `objects.create()` no lo ejecuta y no
+  hay constraint en la base: un alta que no pase por un ModelForm se saltea la regla. Es de los
+  modelos de la task 20/21.
+- El censo por turno de la etapa 3 **tiene que agrupar en Python**: nada de `Trunc*` sobre un
+  `DateTimeField` (precedente `dashboard_becas.py`).
+
+## Implementación
+
+`Censo` → `OcupacionDispositivo` → `OcupacionSector`, todos con su `Conteo`. 21 tests, más dos con
+`@tag("performance")`: uno compara 1 dispositivo contra 6 y otro agrega 20 sectores con sus plazas
+exigiendo **la misma cantidad exacta** de consultas. Presupuesto nuevo en `scripts/perf_budgets.json`
+con `consultas_fijas: 1` y sin `casos_por_consulta`, porque no es O(casos).
+
+## Archivos
+
+`programas/services/ocupacion.py` · `programas/tests/test_dispositivos_ocupacion.py` ·
+`scripts/perf_budgets.json`
 
 ## Base de datos
 
