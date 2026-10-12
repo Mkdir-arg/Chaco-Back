@@ -390,6 +390,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 239 | Edificio, Sector y Plaza: la base de la etapa 1, sin tipear ocupación | Dispositivos · modelo de datos | `#datos` `#ui` | Tasks 20 y 21 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | `programas.0086` |
 | 243 | Menú de fila accesible para tablas densas | Diseño · componentes | `#ui` `#metodo` | Decisión C-13 del PM (06/10) · task #585 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 247 | Hero de inicio de programa, acotado por una regla que se hace cumplir sola | Diseño · componentes | `#ui` `#metodo` | Decisión del PM (06/10) · task #583 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
+| 251 | Eyebrow, filtro rápido en píldora, y chips y switch como widgets de Django | Diseño · componentes | `#ui` `#metodo` | Tasks 11, 12 y 13 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -32441,6 +32442,96 @@ dominio contradecía al inventario.
 `core/tests/test_nodo_ui_piezas.py` · `core/tests/test_design_audit_estructura.py` ·
 `.claude/design/componentes/hero_inicio.md` · `.claude/design/dominio/becas.md` ·
 `.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 251 — Eyebrow, filtro rápido en píldora, y chips y switch como widgets de Django
+
+🟢 **HECHO — 12/10/2026** · Tasks `[TASK] Dispositivos MVP 11` (#676), `12` (#677) y `13` (#678)
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · componentes |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Tasks 11, 12 y 13 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `core/templatetags/nodo_ui.py`, `_page_header.html`, `_filtro_pildora.html`, `core/widgets.py`, `nodo-forms.css` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**El eyebrow es un parámetro de `{% page_header %}`, no una pieza nueva.** La ficha del arquetipo
+Revisión decía que «el `eyebrow` del mockup no existe en `{% page_header %}`»; esta task es la que lo
+agrega. Sin valor, el HTML queda **idéntico** al de antes, así que ninguna pantalla existente cambia.
+
+**El filtro en píldora es una variante del campo, no un componente aparte**, y va **fuera** de
+`data-dynamic-list-filters`: ese JS vacía su form al montar, así que una píldora adentro perdería el
+valor. Se envía con Alpine, que ya carga el shell, y sin JS queda un botón «Filtrar» en `<noscript>`.
+
+**Los chips y el switch son widgets de Django, no marcado suelto.** `ChipsSelectMultiple` y
+`SwitchInput` heredan de `CheckboxSelectMultiple` y `CheckboxInput`: siguen siendo checkboxes reales,
+así que **la validación, `cleaned_data` y el POST no cambian**, y `_field.html` no se tocó. El
+backoffice usa Django Forms y una pieza de selección que no sea un widget se sale de ese contrato.
+
+## Implementación
+
+Tres commits, uno por pieza. Tests en `core/tests/test_nodo_ui_lote_a.py` —archivo propio, para no
+chocar con los otros lotes de la etapa 0—. Sin CSS nuevo fuera de `nodo-forms.css` y sin JS nuevo.
+
+## Correcciones de la revisión
+
+El revisor rechazó la primera versión con tres MAJOR, los tres verificados **renderizando** los
+templates, no leyéndolos.
+
+**Los chips no tenían nombre de grupo y el label salía con `for=""`.** `CheckboxSelectMultiple` no
+expone `id_for_label`, así que el lector de pantalla anunciaba cada chip sin el contexto
+«Servicios», y el `aria-describedby` de la ayuda se repetía en cada input. Se resolvió con una
+plantilla propia del widget que envuelve el grupo con `role="group"` y `aria-labelledby`.
+
+**La píldora filtraba en cada `change`, y eso rompe el teclado.** En un `<select>` cerrado la flecha
+cambia el valor y dispara `change`: la primera flecha recargaba la página y **nunca se llegaba a la
+segunda opción**. Es WCAG 3.2.2, nivel A. Ahora lleva un botón «Filtrar» **visible** y no envía al
+cambiar. Se aparta del mockup, que filtra al elegir, y el motivo queda en la ficha: el botón es la
+forma de avisar y confirmar el cambio.
+
+**Las píldoras y la tarjeta de filtros se borraban entre sí.** Son dos `<form method="get">`
+separados y `dynamic_list_filters.js` vacía y reconstruye el suyo sin arrastrar parámetros ajenos:
+cada uno pisaba los del otro, y `ocultos` solo protege a la píldora. La ficha ahora **prohíbe
+combinarlos** y dice qué hace una pantalla que necesite los dos conjuntos: todos los filtros van en
+la tarjeta, o se amplía el JS para preservar los parámetros externos.
+
+## Pendientes
+
+- **Ninguna pantalla las consume todavía**: son piezas de la etapa 0 y **no se vieron en un
+  navegador**.
+- Tres apartamientos del mockup, los tres por quedarse dentro del sistema en vez de inventar un valor:
+  el eyebrow usa `text-xs`/`tracking-wide` (12 px y .025em) contra 12,5 px y .04em del mockup; el chip
+  deshabilitado usa `--bg-disabled` en vez de opacidad .55, que `design_audit` desaconseja; y la
+  píldora lleva la flecha nativa del select, porque el chevron del mockup pedía un SVG inline o un hex
+  en un data-URI, los dos prohibidos.
+- El mockup usa el chip también como filtro de **selección única** (P10): el CSS sirve para radios,
+  pero no se armó ni se probó un `RadioSelect`.
+- Con `_field.html` el switch queda con el label arriba; el texto al costado del mockup se arma
+  envolviendo el widget en un `<label class="inline-flex ...">`, documentado en la ficha.
+
+## Archivos
+
+`core/templatetags/nodo_ui.py` · `templates/components/_page_header.html` ·
+`templates/components/_filtro_pildora.html` · `core/widgets.py` ·
+`static/custom/css/nodo-forms.css` · `core/tests/test_nodo_ui_lote_a.py` ·
+`.claude/agents/chaco-design-system.md` · `.claude/design/componentes/page_header.md` ·
+`filtros.md` · `field.md`
 
 ## Base de datos
 
