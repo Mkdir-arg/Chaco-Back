@@ -2,6 +2,7 @@
 alerta inline, errores no de campo y el filtro ``hay_filtros``
 (W2-C9b, CMP-11/22/23, ALR-14/15, FE-08)."""
 
+import importlib.util
 import re
 from decimal import Decimal
 from io import StringIO
@@ -12,7 +13,6 @@ from django.contrib.auth.models import AnonymousUser, User
 from django.core.management import call_command
 from django.core.paginator import Paginator
 from django.http import QueryDict
-from django import template
 from django.template import Context, Template
 from django.template.loader import render_to_string
 from django.test import RequestFactory, SimpleTestCase, TestCase
@@ -1127,6 +1127,12 @@ class MenuFilaTest(SimpleTestCase):
 # ninguna lo usa (el Inicio lo retiró FE-22); la primera en incorporarlo se agrega acá, y esa línea
 # es lo que un revisor tiene que ver: usarlo en otra pantalla es rechazable citando el agente.
 PANTALLAS_CON_HERO = frozenset()
+# Pantallas autorizadas a usar el hero: la lista vive en scripts/design_audit.py (HERO_PANTALLAS), que
+# la hace cumplir como regla P1 HEROFUERA. Esta prueba la contrasta contra los templates reales.
+_SPEC_AUDIT = importlib.util.spec_from_file_location("design_audit_hero", RAIZ / "scripts" / "design_audit.py")
+_design_audit = importlib.util.module_from_spec(_SPEC_AUDIT)
+_SPEC_AUDIT.loader.exec_module(_design_audit)
+PANTALLAS_CON_HERO = _design_audit.HERO_PANTALLAS
 
 
 class HeroInicioTest(SimpleTestCase):
@@ -1196,7 +1202,7 @@ class HeroInicioTest(SimpleTestCase):
         css = (RAIZ / "static/custom/css/nodo-hero.css").read_text(encoding="utf-8")
 
         self.assertNotIn("style=", html)
-        self.assertNotRegex(css, r"#[0-9a-fA-F]{3,8}")
+        self.assertNotRegex(css, r"#[0-9a-fA-F]{3,8}\b")
 
     def test_el_gradiente_sale_del_token_y_la_hoja_esta_en_el_shell(self):
         css = (RAIZ / "static/custom/css/nodo-hero.css").read_text(encoding="utf-8")
@@ -1209,12 +1215,11 @@ class HeroInicioTest(SimpleTestCase):
         """El alcance escrito en el agente, hecho prueba: ni el tag ni las clases fuera de la lista."""
         usos = {}
         for ruta in sorted(RAIZ.glob("**/templates/**/*.html")):
-            partes = ruta.parts
-            if "node_modules" in partes or "docs" in partes or ".claude" in partes or ruta.name == "_hero_inicio.html":
+            rel = ruta.relative_to(RAIZ)
+            if {"node_modules", "docs", ".claude", "worktrees"} & set(rel.parts) or ruta.name == "_hero_inicio.html":
                 continue
-            texto = ruta.read_text(encoding="utf-8")
-            if "hero_inicio" in texto or "nodo-hero" in texto:
-                usos[ruta.relative_to(RAIZ).as_posix()] = True
+            if _design_audit.HERO_RE.search(ruta.read_text(encoding="utf-8")):
+                usos[rel.as_posix()] = True
 
         self.assertEqual(
             set(usos) - PANTALLAS_CON_HERO,

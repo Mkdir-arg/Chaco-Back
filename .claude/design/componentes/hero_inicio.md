@@ -25,9 +25,11 @@ se rechaza citando esta ficha y la fila del inventario del agente.
 - Es el único contenido del backoffice con gradiente de marca (más la caja de ícono de la stat card
   `variante="tablero"`). No se copia el gradiente a otras piezas ni se arma un hero a mano.
 - Uno por pantalla, arriba de todo; no se repite en solapas ni en modales.
-- La prueba `HeroInicioTest.test_solo_las_pantallas_autorizadas_lo_usan` falla si el tag o las clases
-  `nodo-hero*` aparecen en un template que no esté en `PANTALLAS_CON_HERO`. Incorporar una pantalla
-  nueva es agregar su ruta a esa lista, a la vista de quien revisa.
+- **Se hace cumplir en dos lugares.** `scripts/design_audit.py` tiene la regla P1 `HEROFUERA`: marca
+  `{% hero_inicio %}` o clases `nodo-hero*` en cualquier template fuera de `HERO_PANTALLAS` (hoy vacía;
+  corta en `--ratchet`, hook y CI). Y `HeroInicioTest.test_solo_las_pantallas_autorizadas_lo_usan` contrasta
+  esa misma lista contra los templates reales. Incorporar una pantalla es agregar su ruta a
+  `HERO_PANTALLAS`, a la vista de quien revisa.
 
 ## Invocación
 

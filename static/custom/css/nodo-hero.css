@@ -64,7 +64,7 @@
     font-weight: 700;
     text-decoration: none;
     cursor: pointer;
-    transition: filter 150ms var(--ease-standard);
+    transition: filter 0.15s ease;
 }
 
 /* El color del texto lo pone nodo-brand.css (todo `a` en color de marca, `!important`), que sobre

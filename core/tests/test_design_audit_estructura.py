@@ -76,6 +76,16 @@ class ReglasP1Tests(SimpleTestCase):
         self.assertIn("PAGEHEADER", reglas(SHELL + '<h1 class="text-2xl">Título</h1>'))
         self.assertNotIn("PAGEHEADER", reglas(SHELL + '{% page_header titulo="Título" %}{% endpage_header %}'))
 
+    def test_herofuera(self):
+        self.assertIn("HEROFUERA", reglas(SHELL + '{% hero_inicio titulo="x" %}{% endhero_inicio %}'))
+        self.assertIn("HEROFUERA", reglas(SHELL + '<div class="nodo-hero">x</div>'))
+        self.assertNotIn("HEROFUERA", reglas(SHELL + '{% page_header titulo="Título" %}{% endpage_header %}'))
+
+    def test_herofuera_respeta_la_lista_y_el_componente(self):
+        usa = '{% hero_inicio titulo="x" %}{% endhero_inicio %}'
+        self.assertEqual(design_audit._p1_herofuera(design_audit.HERO_COMPONENTE, usa), [])
+        self.assertTrue(design_audit._p1_herofuera("programas/templates/x.html", usa))
+
     def test_pageheader_no_aplica_al_portal(self):
         self.assertEqual(design_audit._p1_pageheader("portal/templates/portal/x.html", SHELL + "<h1>T</h1>"), [])
         self.assertEqual(len(design_audit._p1_pageheader("legajos/templates/x.html", SHELL + "<h1>T</h1>")), 1)
