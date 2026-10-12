@@ -1,0 +1,16 @@
+{% comment %}
+Menú de fila (botón ⋮ con las acciones de un registro). No se incluye a mano: lo renderiza
+{% menu_fila %} de core/templatetags/nodo_ui.py (ver su docstring); los ítems se escriben dentro
+del bloque con components/_menu_fila_item.html.
+Contexto: id (ya saneado), etiqueta, items (los ítems renderizados, nunca vacío).
+El menú nace `hidden`: lo abre static/custom/js/nodo-menu-fila.js.
+{% endcomment %}
+<div class="nodo-menu-fila" data-menu-fila>
+  <button type="button" class="nodo-icon-btn nodo-menu-fila__trigger" data-menu-fila-trigger
+          aria-label="{{ etiqueta }}" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-fila-{{ id }}">
+    <i class="fas fa-ellipsis-vertical" aria-hidden="true"></i>
+  </button>
+  <div class="nodo-menu-fila__menu" id="menu-fila-{{ id }}" role="menu" aria-label="{{ etiqueta }}" hidden>
+    {{ items }}
+  </div>
+</div>

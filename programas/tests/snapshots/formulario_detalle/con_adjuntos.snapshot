@@ -75,6 +75,9 @@
         <!-- NODO Tables Design System (tabla densa: .nodo-thead-row, .nodo-th, .nodo-td) -->
         <link rel="stylesheet" href="/static/custom/css/nodo-tables.css" />
 
+        <!-- NODO Menú de fila (botón ⋮ de las tablas densas, components/_menu_fila.html) -->
+        <link rel="stylesheet" href="/static/custom/css/nodo-menu-fila.css" />
+
         <!-- NODO Stat card, variante «tablero» (components/_stat_card.html, variante="tablero") -->
         <link rel="stylesheet" href="/static/custom/css/nodo-stat-card.css" />
 
@@ -2392,6 +2395,10 @@ document.addEventListener('DOMContentLoaded', function () {
              sobre toda [role="tablist"]. Mejora progresiva: no cambia nada visual ni
              el estado de Alpine; activa la solapa disparando su propio click. -->
         <script src="/static/custom/js/nodo-tabs.js"></script>
+
+        <!-- Menú de fila (components/_menu_fila.html): teclado, foco atrapado, Escape y posición del menú.
+             Delegado sobre [data-menu-fila]; sin este script el menú queda cerrado. -->
+        <script src="/static/custom/js/nodo-menu-fila.js"></script>
 
         <!-- NODO SweetAlertN theming (fuente única): se ejecuta después de customJS
              a propósito — reasigna window.Swal = Swal.mixin(...) y cada Swal.fire()

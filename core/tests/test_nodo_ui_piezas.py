@@ -7,7 +7,7 @@ from decimal import Decimal
 from io import StringIO
 from pathlib import Path
 
-from django import forms
+from django import forms, template
 from django.contrib.auth.models import AnonymousUser, User
 from django.core.management import call_command
 from django.core.paginator import Paginator
@@ -1004,3 +1004,121 @@ class StepperTest(SimpleTestCase):
         )
         self.assertIn("width: 28px;", re.search(r"\.nodo-step__circle \{([^}]*)\}", css).group(1))
         self.assertIn("width: 56px;", re.search(r"\.nodo-step \+ \.nodo-step::before \{([^}]*)\}", css).group(1))
+
+
+class MenuFilaTest(SimpleTestCase):
+    """C-9: el menu de fila anuncia que controla, nace cerrado y explica lo deshabilitado."""
+
+    ITEM = '{% include "components/_menu_fila_item.html" with '
+
+    def _render(self, cuerpo, argumentos='id="cis-3" etiqueta="Acciones de CIS N.º 3"', **contexto):
+        plantilla = "{% load nodo_ui %}{% menu_fila " + argumentos + " %}" + cuerpo + "{% endmenu_fila %}"
+        return Template(plantilla).render(Context(contexto))
+
+    def test_el_boton_nombra_el_registro_y_apunta_al_menu(self):
+        html = self._render(self.ITEM + 'texto="Ver ficha" url="/ficha/" only %}')
+
+        self.assertIn('aria-label="Acciones de CIS N.º 3"', html)
+        self.assertIn('aria-haspopup="menu"', html)
+        self.assertIn('aria-expanded="false"', html)
+        self.assertIn('aria-controls="menu-fila-cis-3"', html)
+        self.assertIn('id="menu-fila-cis-3" role="menu"', html)
+        self.assertIn("data-menu-fila-trigger", html)
+        self.assertIn('class="nodo-icon-btn nodo-menu-fila__trigger"', html)
+
+    def test_el_menu_nace_cerrado(self):
+        html = self._render(self.ITEM + 'texto="Ver ficha" url="/ficha/" only %}')
+
+        self.assertRegex(html, r'role="menu" aria-label="[^"]*" hidden>')
+
+    def test_el_icono_es_decorativo_y_no_hay_estilos_en_linea(self):
+        html = self._render(self.ITEM + 'texto="Ver ficha" icono="fa-eye" url="/ficha/" only %}')
+
+        self.assertIn('<i class="fas fa-ellipsis-vertical" aria-hidden="true"></i>', html)
+        self.assertIn('<i class="fas fa-eye nodo-menu-fila__icono" aria-hidden="true"></i>', html)
+        self.assertNotIn("style=", html)
+
+    def test_item_con_url_es_un_enlace_menuitem(self):
+        html = self._render(self.ITEM + 'texto="Ver ficha" url=url only %}', url="/ficha/?a=1&b=2")
+
+        self.assertIn('<a href="/ficha/?a=1&amp;b=2" role="menuitem" class="nodo-menu-fila__item">', html)
+
+    def test_item_deshabilitado_se_ve_con_su_motivo_y_no_lleva_destino(self):
+        html = self._render(
+            self.ITEM
+            + 'texto="Reasignar" url="/reasignar/" confirm_url="/x/" motivo="Solo con relevamiento vencido" only %}'
+        )
+
+        self.assertIn('role="menuitem" class="nodo-menu-fila__item" aria-disabled="true"', html)
+        self.assertIn('Reasignar<span class="nodo-menu-fila__motivo">Solo con relevamiento vencido</span>', html)
+        self.assertNotIn("/reasignar/", html)
+        self.assertNotIn("data-confirm-url", html)
+        # aria-disabled, no disabled: tiene que seguir enfocable para que se anuncie el motivo.
+        self.assertNotRegex(html, r"<button[^>]*\sdisabled[\s>]")
+
+    def test_item_que_confirma_usa_data_confirm_url(self):
+        html = self._render(
+            self.ITEM + 'texto="Dar de baja" peligro=True confirm_url="/baja/" confirm_title="¿Dar de baja?" '
+            'confirm_text="Se puede revertir." confirm_ok="Sí, dar de baja" only %}'
+        )
+
+        self.assertIn('data-confirm-url="/baja/"', html)
+        self.assertIn('data-confirm-title="¿Dar de baja?"', html)
+        self.assertIn('data-confirm-ok="Sí, dar de baja"', html)
+        self.assertIn('data-confirm-danger="true"', html)
+        self.assertIn("nodo-menu-fila__item--danger", html)
+
+    def test_item_sin_destino_ni_motivo_no_se_dibuja(self):
+        html = self._render(self.ITEM + 'texto="Nada" only %}')
+
+        self.assertEqual(html.strip(), "")
+
+    def test_sin_items_no_se_dibuja_ni_el_boton(self):
+        self.assertEqual(self._render("   {% if False %}x{% endif %}  ").strip(), "")
+
+    def test_el_id_se_sanea_para_aria_controls(self):
+        html = self._render(self.ITEM + 'texto="Ver" url="/x/" only %}', argumentos='id="cama 5/a" etiqueta="Acciones"')
+
+        self.assertIn('aria-controls="menu-fila-cama-5-a"', html)
+        self.assertIn('id="menu-fila-cama-5-a"', html)
+
+    def test_escapa_la_etiqueta_y_los_textos(self):
+        html = self._render(
+            self.ITEM + "texto=texto motivo=motivo only %}",
+            argumentos="id=1 etiqueta=etiqueta",
+            etiqueta='<b>"x"</b>',
+            texto="<i>t</i>",
+            motivo="<u>m</u>",
+        )
+
+        self.assertNotIn("<b>", html)
+        self.assertNotIn("<i>t", html)
+        self.assertNotIn("<u>", html)
+        self.assertIn("&lt;b&gt;&quot;x&quot;&lt;/b&gt;", html)
+
+    def test_exige_id_y_etiqueta_y_rechaza_el_resto(self):
+        for argumentos in ('etiqueta="a"', 'id="a"', 'id="a" etiqueta="b" extra="c"', 'id="a" etiqueta="b" suelto'):
+            with self.subTest(argumentos=argumentos), self.assertRaises(template.TemplateSyntaxError):
+                self._render("x", argumentos=argumentos)
+
+    def test_el_shell_carga_la_hoja_y_el_script(self):
+        base = (RAIZ / "templates/includes/base.html").read_text(encoding="utf-8")
+
+        self.assertIn("custom/css/nodo-menu-fila.css", base)
+        self.assertIn("custom/js/nodo-menu-fila.js", base)
+
+    def test_el_script_cubre_el_contrato_de_teclado(self):
+        js = (RAIZ / "static/custom/js/nodo-menu-fila.js").read_text(encoding="utf-8")
+
+        for clave in ("'Escape'", "'Tab'", "'ArrowDown'", "'ArrowUp'", "'Home'", "'End'", "aria-expanded"):
+            self.assertIn(clave, js)
+        self.assertNotIn("confirm(", js)
+
+    def test_el_menu_no_lo_recorta_el_contenedor_de_la_tabla(self):
+        css = re.sub(
+            r"/\*.*?\*/", "", (RAIZ / "static/custom/css/nodo-menu-fila.css").read_text(encoding="utf-8"), flags=re.S
+        )
+        bloque = re.search(r"\.nodo-menu-fila__menu \{([^}]*)\}", css).group(1)
+
+        self.assertIn("position: fixed;", bloque)
+        self.assertIn(".nodo-menu-fila__menu[hidden]", css)

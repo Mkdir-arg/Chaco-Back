@@ -388,6 +388,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 230 | Golden del arquetipo Wizard: el alta de programa pasa a ser el molde | Diseño · arquetipos | `#ui` `#metodo` | Task 09 del MVP de Dispositivos (plan del Cambio 191) | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 236 | Golden del arquetipo Revisión, con línea de tiempo y sección de ficha | Diseño · arquetipos | `#ui` `#metodo` | Task 10 del MVP de Dispositivos (plan del Cambio 191) | 12/10/2026 | 🟢 **Hecho** | No requiere |
 | 239 | Edificio, Sector y Plaza: la base de la etapa 1, sin tipear ocupación | Dispositivos · modelo de datos | `#datos` `#ui` | Tasks 20 y 21 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | `programas.0086` |
+| 243 | Menú de fila accesible para tablas densas | Diseño · componentes | `#ui` `#metodo` | Decisión C-13 del PM (06/10) · task #585 del MVP de Dispositivos | 12/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -32294,5 +32295,86 @@ avisar**. Hoy eso no pierde nada porque nacen vacías, pero «no hay forma de qu
 falso —un shell, un fixture o un script las pueblan—, así que la regla es: **desde el primer alta,
 bajar esta migración deja de ser gratis y pasa a ser una decisión explícita**. De la 0087 en
 adelante, cuando el circuito de la etapa 2 exista, directamente no lo va a ser.
+
+---
+
+---
+
+# Cambio 243 — Menú de fila accesible para tablas densas
+
+🟢 **HECHO — 12/10/2026** · Task `[TASK] Dispositivos MVP 06` (#585)
+
+| | |
+|---|---|
+| **Programa / módulo** | Diseño · componentes · tablas |
+| **Etiquetas** | `#ui` `#metodo` |
+| **Solicitante** | PM — decisión C-13 del 06/10 · plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | Task 06 del backlog del MVP · Épica #127 |
+| **Partes afectadas** | `templates/components/_menu_fila*.html`, `nodo-menu-fila.css/js`, `core/templatetags/nodo_ui.py`, `.claude/design/componentes/tabla.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> Las tablas del MVP de Dispositivos tienen más acciones por fila de las que entran en la fila. Hace
+> falta un menú que las agrupe sin romper la densidad de la tabla.
+
+## Decisiones tomadas
+
+**La ficha va adentro de `tabla.md`, no en un archivo propio.** El menú de fila no es un componente
+suelto: es una forma de resolver las acciones de una tabla, y vive donde está la regla de «acción de
+fila», que también se actualizó. La fila del inventario apunta ahí.
+
+**El menú es accesible de verdad, no un `<div>` que se despliega.** El disparador es un `<button>` con
+`aria-haspopup="menu"`, `aria-expanded` y `aria-controls`; el menú tiene `role="menu"` y nace con
+`hidden`; los ítems son `role="menuitem"`. Enter, Espacio y las flechas abren; flechas, Home y End
+mueven el foco con vuelta circular; Tab y Shift+Tab circulan **dentro** del menú, así que el foco
+queda atrapado mientras está abierto; Escape cierra y **devuelve el foco al disparador**. Clic afuera,
+scroll y resize cierran sin mover el foco.
+
+**Un ítem deshabilitado usa `aria-disabled="true"`, no `disabled`.** La diferencia importa: con
+`disabled` el ítem desaparece del recorrido por teclado y quien navega así no se entera de que la
+acción existe. Así se alcanza, se anuncia y **muestra su motivo**.
+
+**Sin ítems no se dibuja ni el botón**, para que una fila sin acciones no quede con un disparador que
+no hace nada.
+
+Las confirmaciones destructivas van por `data-confirm-url` hacia `ModernModal`: **ningún `confirm()`
+nativo**, como manda el sistema de diseño.
+
+## Implementación
+
+`_menu_fila.html` y `_menu_fila_item.html`, `nodo-menu-fila.css` (sin un solo hex: todo por tokens),
+`nodo-menu-fila.js` con el teclado y el posicionamiento, el tag `{% menu_fila %}` y 85 pruebas de
+render en `core/tests/test_nodo_ui_piezas.py`.
+
+No hizo falta `npm run build:tailwind`: los templates usan solo clases `nodo-*` propias, ninguna
+utilidad de Tailwind nueva.
+
+## Pendientes
+
+- **El componente todavía no tiene consumidor real**: es una pieza de la etapa 0, construida antes que
+  las pantallas que la van a usar. Lo cubren las pruebas de render y las auditorías, pero **no se vio
+  en un navegador** hasta que la primera tabla del MVP lo use.
+- El ítem con `confirm_url` necesita que la pantalla cargue `programas/becas/_confirm_js.html`, y hoy
+  **ningún test lo comprueba**: si una pantalla se olvida, la confirmación no aparece.
+- Con dos tablas en la misma página los `id` tienen que llevar prefijo, preparado en la vista. Es una
+  convención escrita en la ficha; nada la valida.
+
+## Archivos
+
+`templates/components/_menu_fila.html` · `templates/components/_menu_fila_item.html` ·
+`static/custom/css/nodo-menu-fila.css` · `static/custom/js/nodo-menu-fila.js` ·
+`core/templatetags/nodo_ui.py` · `core/tests/test_nodo_ui_piezas.py` ·
+`templates/includes/base.html` · `.claude/design/componentes/tabla.md` ·
+`.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
 
 ---

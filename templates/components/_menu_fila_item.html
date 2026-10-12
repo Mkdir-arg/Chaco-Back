@@ -1,0 +1,19 @@
+{% comment %}
+Ítem de un menú de fila. Va solo dentro de {% menu_fila %}...{% endmenu_fila %}.
+  {% include "components/_menu_fila_item.html" with texto="Ver ficha" icono="fa-eye" url=url_ficha only %}
+  {% include "components/_menu_fila_item.html" with texto="Dar de baja" icono="fa-ban" peligro=True confirm_url=url_baja confirm_title="¿Dar de baja el dispositivo?" confirm_text="Deja de estar disponible." confirm_ok="Sí, dar de baja" only %}
+  {% include "components/_menu_fila_item.html" with texto="Reasignar" icono="fa-user-pen" motivo="Solo con relevamiento vencido" only %}
+Contexto:
+  texto        obligatorio: lo que hace la acción, en infinitivo («Reasignar territorial»).
+  icono        opcional: clase Font Awesome sin `fas` («fa-eye»).
+  url          lleva a otra pantalla: se dibuja un <a role="menuitem">.
+  confirm_url  acción que muta: se dibuja un <button data-confirm-url> y confirma con ModernModal
+               (necesita programas/becas/_confirm_js.html cargado en la pantalla, como cualquier
+               data-confirm-url). confirm_title, confirm_text y confirm_ok son los de ese contrato;
+               peligro=True además pinta el ítem en rojo y manda data-confirm-danger="true".
+  motivo       deshabilita el ítem y lo explica: se ve, se alcanza por teclado y se anuncia junto con
+               el nombre del ítem, pero no actúa. Gana sobre url y confirm_url. Esconder una acción no
+               es bloquearla: no se omite el include, se le pasa el motivo.
+Sin motivo, sin url y sin confirm_url no se dibuja nada.
+Se incluye con `only`: así no se cuelan `url`, `motivo` ni `peligro` de la pantalla o de la fila anterior.
+{% endcomment %}{% if motivo %}<button type="button" role="menuitem" class="nodo-menu-fila__item" aria-disabled="true">{% if icono %}<i class="fas {{ icono }} nodo-menu-fila__icono" aria-hidden="true"></i>{% endif %}<span class="nodo-menu-fila__texto">{{ texto }}<span class="nodo-menu-fila__motivo">{{ motivo }}</span></span></button>{% elif confirm_url %}<button type="button" role="menuitem" class="nodo-menu-fila__item{% if peligro %} nodo-menu-fila__item--danger{% endif %}" data-confirm-url="{{ confirm_url }}" data-confirm-title="{{ confirm_title }}" data-confirm-text="{{ confirm_text }}" data-confirm-ok="{{ confirm_ok }}"{% if peligro %} data-confirm-danger="true"{% else %} data-confirm-danger="false"{% endif %}>{% if icono %}<i class="fas {{ icono }} nodo-menu-fila__icono" aria-hidden="true"></i>{% endif %}<span class="nodo-menu-fila__texto">{{ texto }}</span></button>{% elif url %}<a href="{{ url }}" role="menuitem" class="nodo-menu-fila__item{% if peligro %} nodo-menu-fila__item--danger{% endif %}">{% if icono %}<i class="fas {{ icono }} nodo-menu-fila__icono" aria-hidden="true"></i>{% endif %}<span class="nodo-menu-fila__texto">{{ texto }}</span></a>{% endif %}

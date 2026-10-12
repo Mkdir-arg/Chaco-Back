@@ -109,7 +109,7 @@ sola vez— el protocolo de abajo no se aplica pantalla por pantalla sin antes h
   (FE-20): la regla `[R:SHELLLEGACY]` queda como guarda, para que nadie lo reescriba.
 - Encabezado de página solo con `{% page_header %}`; nada de `<h1>` propio `[R:PAGEHEADER]`.
 - Tabla solo con `nodo-thead-row`/`nodo-th`/`nodo-td`, dentro de la card de la lista `[R:TABLECANON]`.
-- Acción de fila solo con `.nodo-icon-btn` y un `aria-label` que nombre el registro [revisión].
+- Acción de fila con `.nodo-icon-btn` y `aria-label` que nombre el registro (hasta 2 acciones) o con `{% menu_fila %}` (3 o más, o alguna deshabilitada con motivo) [revisión].
 - Estado vacío, paginación, alerta y métrica solo con su include [revisión + marcadores].
 - Botones `btn-nodo` + variante + tamaño; en el encabezado, `btn-base` en listados y
   formularios y `btn-sm` en detalles [revisión].
@@ -183,6 +183,7 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Header de página backoffice | Canónico reutilizable | Tag de bloque `{% page_header %}` de `core/templatetags/nodo_ui.py` sobre `templates/components/_page_header.html`; nunca el include a mano. Título, bajada, volver circular, migas de 3+ niveles y cuerpo con badges y acciones. Ficha: `.claude/design/componentes/page_header.md` |
 | Filtros de listado | Canónico reutilizable | `static/custom/js/dynamic_list_filters.js` + `templates/components/list_filters.html` (el shell lo inyecta como `template`); el `<form method="get" data-dynamic-list-filters>` va sin `class` y cada control con `aria-label`, porque el JS vacía el form al montar. Ficha: `.claude/design/componentes/filtros.md` |
 | Tabla densa backoffice | Canónico reutilizable | `static/custom/css/nodo-tables.css`: `.nodo-thead-row`, `.nodo-th`, `.nodo-td` dentro de `overflow-x-auto` + `table.w-full.border-collapse`; acción de fila con `.nodo-icon-btn` y `aria-label` con el registro. La columna de acciones se nombra con `sr-only`. Ficha: `.claude/design/componentes/tabla.md` |
+| Menú de fila (⋮) | Canónico reutilizable | Tag `{% menu_fila id etiqueta %}` (`core/templatetags/nodo_ui.py`) + `components/_menu_fila_item.html`, `nodo-menu-fila.css` y `.js`. Foco atrapado, Escape devuelve el foco, `aria-expanded`/`aria-controls`, ítem deshabilitado con `motivo`. Ficha: `.claude/design/componentes/tabla.md` |
 | Estado vacío backoffice | Canónico reutilizable | Pieza única `templates/components/_estado_vacio.html`, dentro de la card de la lista; variante con filtros («Limpiar filtros») decidida con el filtro `hay_filtros` de `core/templatetags/nodo_ui.py`. Ficha: `.claude/design/componentes/estado_vacio.md` |
 | Paginación | Canónico reutilizable | Pieza única `templates/components/_paginacion.html` (`page_obj`, `entidad`, `entidad_plural`, `filtros_qs`, `param`, `extra_qs`); con `param` propio por lista, una pantalla pagina más de una (una por solapa). Solo se muestra con más de una página y va dentro de la card. Ficha: `.claude/design/componentes/paginacion.md` |
 | Alertas inline backoffice | Canónico reutilizable | Pieza única `templates/components/_alerta.html` (`tono`, `titulo`, `texto`, `role`; opcionales `icono`, `accion_url` + `accion_texto`); bloqueo y advertencia se distinguen por el encabezado y por si la acción sigue disponible, no por el color. Ficha: `.claude/design/componentes/alerta.md` |
