@@ -37,7 +37,8 @@ class CiudadanoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "creado", "modificado"]
 
-    def get_legajos_count(self, obj):
+    # RED-37: es un conteo; el esquema lo publicaba como `string`.
+    def get_legajos_count(self, obj) -> int:
         return getattr(obj, "legajos_count", obj.inscripciones_programas.count())
 
     def to_representation(self, instance):
@@ -71,7 +72,9 @@ class AlertaCiudadanoSerializer(serializers.ModelSerializer):
     dispositivo_nombre = serializers.SerializerMethodField()
     cerrada_por_nombre = serializers.CharField(source="cerrada_por.get_full_name", read_only=True)
 
-    def get_dispositivo_nombre(self, obj):
+    # RED-37: sin la anotación el esquema publicaba este campo como `string`,
+    # cuando puede venir nulo.
+    def get_dispositivo_nombre(self, obj) -> str | None:
         if not obj.legajo or not obj.legajo.dispositivo:
             return None
         return obj.legajo.dispositivo.nombre

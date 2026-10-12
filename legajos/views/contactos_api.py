@@ -12,6 +12,17 @@ midió ruta por ruta. Acá se cierra con capacidades:
 - el dueño en la URL para borrar, así el borrado queda acotado al ciudadano o al
   legajo del que cuelga el adjunto (SEC-10).
 
+RED-39 (Ola 7): estas vistas eran uno de los cinco sobres de error del
+backoffice —``{"success": False, "error": ...}`` y, en el camino feliz de la
+subida, ``{"success": True, "mensaje": ...}``— y ``ciudadano_detail.html`` lee
+esas tres claves a mano, sin fallback. Ahora todas pasan por ``core/http.py``,
+que agrega ``ok`` y ``message``; **las claves de hoy siguen viajando** como
+``heredadas``, porque una pantalla abierta durante el deploy sigue leyendo las
+viejas. El dia que se mida que nadie las lee, se borra el ``heredadas`` y nada
+mas. Las vistas de **lectura** conservan ademas su carga degradada
+(``results``/``count``/``eventos`` en cero), que es lo que evita que el panel
+explote cuando el calculo falla.
+
 ``timeline_ciudadano_api``, ``alertas_ciudadano_api`` y ``prediccion_riesgo_api``
 llevaban ``ciudadano.ver`` como **piso** mientras se decidía D-11. Resuelta la
 decisión (**D-11 = Sí**), las tres piden ``ciudadano.sensible``: el timeline, el
@@ -26,6 +37,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404
 
+from core.http import error_json, ok_json
 from core.rbac import requiere
 
 from ..models import Ciudadano, LegajoAtencion
@@ -43,6 +55,18 @@ from .mensajes import ERROR_GENERICO
 logger = logging.getLogger(__name__)
 
 
+def _error(mensaje, *, status=400):
+    """Error de una vista de escritura: el sobre unico mas las dos claves que
+    `ciudadano_detail.html` lee hoy (`data.success` y `data.error`)."""
+    return error_json(mensaje, status=status, heredadas={"success": False, "error": mensaje})
+
+
+def _error_con_lista(mensaje):
+    """Igual, para las vistas que listan: el front recorre `data.results` sin
+    mirar el status, asi que la lista vacia y su contador viajan igual."""
+    return error_json(mensaje, status=500, heredadas={"results": [], "count": 0, "error": mensaje})
+
+
 @login_required
 @requiere("ciudadano.ver")
 def actividades_ciudadano_api(request, ciudadano_id):
@@ -53,7 +77,7 @@ def actividades_ciudadano_api(request, ciudadano_id):
         raise
     except Exception:
         logger.exception("Error armando las actividades del ciudadano %s", ciudadano_id)
-        return JsonResponse({"results": [], "count": 0, "error": ERROR_GENERICO}, status=500)
+        return _error_con_lista(ERROR_GENERICO)
 
 
 @login_required
@@ -61,7 +85,7 @@ def actividades_ciudadano_api(request, ciudadano_id):
 def subir_archivos_ciudadano(request, ciudadano_id):
     """Vista para subir archivos a un ciudadano"""
     if request.method != "POST":
-        return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+        return _error("Método no permitido", status=405)
 
     ciudadano = get_object_or_404(Ciudadano, id=ciudadano_id)
     return _subir_archivos(request, ciudadano)
@@ -72,7 +96,7 @@ def subir_archivos_ciudadano(request, ciudadano_id):
 def subir_archivos_legajo(request, legajo_id):
     """Vista para subir archivos a un legajo"""
     if request.method != "POST":
-        return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+        return _error("Método no permitido", status=405)
 
     legajo = get_object_or_404(LegajoAtencion, id=legajo_id)
     return _subir_archivos(request, legajo)
@@ -89,18 +113,14 @@ def _subir_archivos(request, instance):
     except ContactosFilesError as exc:
         # Mensajes de negocio ("Formato no permitido", "es muy grande"): los
         # escribe el servicio para que el usuario sepa qué corregir.
-        return JsonResponse({"success": False, "error": str(exc)}, status=400)
+        return _error(str(exc))
     except Exception:
         logger.exception("Error subiendo archivos a %s %s", type(instance).__name__, instance.pk)
-        return JsonResponse({"success": False, "error": ERROR_GENERICO}, status=500)
+        return _error(ERROR_GENERICO, status=500)
 
-    return JsonResponse(
-        {
-            "success": True,
-            "archivos": archivos_subidos,
-            "mensaje": f"{len(archivos_subidos)} archivo(s) subido(s) exitosamente",
-        }
-    )
+    resumen = f"{len(archivos_subidos)} archivo(s) subido(s) exitosamente"
+    # `ciudadano_detail.html:1245` lee el resumen en `mensaje`, no en `message`.
+    return ok_json(message=resumen, archivos=archivos_subidos, heredadas={"success": True, "mensaje": resumen})
 
 
 @login_required
@@ -113,7 +133,7 @@ def archivos_ciudadano_api(request, ciudadano_id):
         raise
     except Exception:
         logger.exception("Error listando los archivos del ciudadano %s", ciudadano_id)
-        return JsonResponse({"results": [], "count": 0, "error": ERROR_GENERICO}, status=500)
+        return _error_con_lista(ERROR_GENERICO)
 
 
 @login_required
@@ -121,7 +141,7 @@ def archivos_ciudadano_api(request, ciudadano_id):
 def eliminar_archivo_ciudadano(request, ciudadano_id, archivo_id):
     """Borra un adjunto **de ese ciudadano** (SEC-10)."""
     if request.method != "DELETE":
-        return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+        return _error("Método no permitido", status=405)
 
     ciudadano = get_object_or_404(Ciudadano, id=ciudadano_id)
     return _eliminar_archivo(ciudadano, archivo_id)
@@ -132,7 +152,7 @@ def eliminar_archivo_ciudadano(request, ciudadano_id, archivo_id):
 def eliminar_archivo_legajo(request, legajo_id, archivo_id):
     """Borra un adjunto **de ese legajo** (SEC-10)."""
     if request.method != "DELETE":
-        return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+        return _error("Método no permitido", status=405)
 
     legajo = get_object_or_404(LegajoAtencion, id=legajo_id)
     return _eliminar_archivo(legajo, archivo_id)
@@ -145,8 +165,8 @@ def _eliminar_archivo(instance, archivo_id):
         raise
     except Exception:
         logger.exception("Error eliminando el adjunto %s de %s", archivo_id, instance.pk)
-        return JsonResponse({"success": False, "error": ERROR_GENERICO}, status=500)
-    return JsonResponse({"success": True})
+        return _error(ERROR_GENERICO, status=500)
+    return ok_json(heredadas={"success": True})
 
 
 @login_required
@@ -177,7 +197,7 @@ def alertas_ciudadano_api(request, ciudadano_id):
         raise
     except Exception:
         logger.exception("Error listando las alertas del ciudadano %s", ciudadano_id)
-        return JsonResponse({"results": [], "count": 0, "error": ERROR_GENERICO}, status=500)
+        return _error_con_lista(ERROR_GENERICO)
 
 
 @login_required
@@ -194,17 +214,17 @@ def cerrar_alerta_api(request, alerta_id):
     piden lo mismo que la pantalla que las dispara.
     """
     if request.method != "POST":
-        return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+        return _error("Método no permitido", status=405)
 
     try:
         success = AlertasService.cerrar_alerta(alerta_id, request.user)
     except Exception:
         logger.exception("Error cerrando la alerta %s", alerta_id)
-        return JsonResponse({"success": False, "error": ERROR_GENERICO}, status=500)
+        return _error(ERROR_GENERICO, status=500)
 
     if not success:
-        return JsonResponse({"success": False, "error": "Alerta no encontrada"}, status=404)
-    return JsonResponse({"success": True})
+        return _error("Alerta no encontrada", status=404)
+    return ok_json(heredadas={"success": True})
 
 
 @login_required
@@ -216,14 +236,17 @@ def prediccion_riesgo_api(request, ciudadano_id):
         return JsonResponse(RiskPredictor.obtener_prediccion_completa(ciudadano))
     except Exception:
         logger.exception("Error calculando la predicción de riesgo del ciudadano %s", ciudadano_id)
-        return JsonResponse(
-            {
+        return error_json(
+            ERROR_GENERICO,
+            status=500,
+            # `ciudadano_detail.html:1361` entra directo a `data.abandono`: sin el
+            # esqueleto en cero, el panel de riesgo tira un TypeError.
+            heredadas={
                 "error": ERROR_GENERICO,
                 "abandono": {"score": 0, "nivel": "BAJO", "factores": []},
                 "evento_critico": {"score": 0, "nivel": "BAJO", "factores": []},
                 "recomendaciones": [],
             },
-            status=500,
         )
 
 
@@ -237,8 +260,10 @@ def evolucion_legajo_api(request, legajo_id):
         raise
     except Exception:
         logger.exception("Error armando la evolución del legajo %s", legajo_id)
-        return JsonResponse(
-            {
+        return error_json(
+            ERROR_GENERICO,
+            status=500,
+            heredadas={
                 "error": ERROR_GENERICO,
                 "total_seguimientos": 0,
                 "adherencia_promedio": None,
@@ -246,7 +271,6 @@ def evolucion_legajo_api(request, legajo_id):
                 "objetivos_cumplidos": 0,
                 "hitos": [],
             },
-            status=500,
         )
 
 
@@ -260,7 +284,7 @@ def timeline_ciudadano_api(request, ciudadano_id):
         raise
     except Exception:
         logger.exception("Error armando el timeline del ciudadano %s", ciudadano_id)
-        return JsonResponse({"eventos": [], "count": 0, "error": ERROR_GENERICO}, status=500)
+        return error_json(ERROR_GENERICO, status=500, heredadas={"eventos": [], "count": 0, "error": ERROR_GENERICO})
 
 
 @login_required
@@ -273,4 +297,4 @@ def archivos_legajo_api(request, legajo_id):
         raise
     except Exception:
         logger.exception("Error listando los archivos del legajo %s", legajo_id)
-        return JsonResponse({"success": False, "error": ERROR_GENERICO}, status=500)
+        return _error(ERROR_GENERICO, status=500)

@@ -1,0 +1,49 @@
+{% load static rbac nodo_ui becas_extras %}  {% if formulario.estado == 'ENVIADO' and request.user|puede:"becas.revision.editar" %}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 class="text-heading font-bold" style="font-size:16px;">Acciones de revisión</h2>
+    </div>
+    <div class="p-6">
+      {% if motivo_bloqueo_aprobacion %}
+      <div class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-3 text-sm text-fg-warning" role="status">
+        <strong>Aprobación bloqueada:</strong> {{ motivo_bloqueo_aprobacion }}
+      </div>
+      {% elif advertencia_aprobacion %}
+      <div class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-3 text-sm text-fg-warning" role="status">
+        <strong>Atención:</strong> {{ advertencia_aprobacion }}
+      </div>
+      {% endif %}
+      {% if formulario.identidad_forzada %}
+      <div class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-3 text-sm text-fg-warning" role="status">
+        <strong>Identidad validada manualmente:</strong> {{ formulario.identidad_forzada_motivo }}
+      </div>
+      {% endif %}
+      {% if posicion_espera %}
+      {# CMP-N1: en espera no se aprueba desde el caso; se promueve desde Cupo. #}
+      <div class="mb-4 rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="status">
+        <strong class="text-heading">En lista de espera</strong>
+        <p class="text-body mt-1">
+          Está en la lista de espera del segmento (posición {{ posicion_espera }}). Se aprueba al promoverlo desde Cupo y beneficiarios.
+          {% if puede_ver_cupo %}<a href="{% url 'becas:cupo_segmento' formulario.relevamiento.convocatoria.segmento_id %}?tab=lista_espera" class="text-fg-brand font-semibold hover:underline">Ir a Cupo y beneficiarios</a>{% endif %}
+        </p>
+      </div>
+      {% endif %}
+      <div class="flex justify-end gap-3">
+      <button type="button" id="btn-rechazar" class="btn-nodo btn-danger btn-base">
+        <i class="fas fa-times"></i> Rechazar
+      </button>
+      {% if not posicion_espera %}
+      <form method="post" action="{% url 'becas:formulario_aprobar' formulario.pk %}{{ next_qs }}" id="form-aprobar">
+        {% csrf_token %}
+        <button type="button" id="btn-aprobar" class="btn-nodo btn-brand btn-base"{% if motivo_bloqueo_aprobacion %} disabled aria-disabled="true" title="{{ motivo_bloqueo_aprobacion }}"{% endif %}>
+          <i class="fas fa-check"></i> Aprobar
+        </button>
+      </form>
+      {% endif %}
+      </div>
+    </div>
+  </section>
+  <form method="post" action="{% url 'becas:formulario_rechazar' formulario.pk %}{{ next_qs }}" id="form-rechazar" class="hidden">
+    {% csrf_token %}<input type="hidden" name="motivo" id="motivo-rechazo">
+  </form>
+  {% endif %}
