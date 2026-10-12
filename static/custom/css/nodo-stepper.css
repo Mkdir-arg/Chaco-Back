@@ -79,3 +79,7 @@ a.nodo-step__item:focus-visible {
     color: var(--text-heading);
     font-weight: 700;
 }
+
+.nodo-step--pendiente {
+    color: var(--text-body-subtle);
+}
