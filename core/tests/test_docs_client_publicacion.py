@@ -173,6 +173,57 @@ class DeteccionDelGateTests(SimpleTestCase):
                 raiz = self._arbol({"index.md": "Hola.\n", "padron.csv": f"{encabezado}\n{fila}\n"})
                 self.assertEqual(self._reglas(raiz), ["persona"])
 
+    def test_un_padron_de_dos_columnas_frena_la_publicacion(self):
+        """Pedir tres columnas perdía el padrón más fácil de publicar: DNI y apellido.
+
+        Dos celdas alcanzan, porque el encabezado ya tiene que nombrar **las dos cosas**
+        —el documento y la persona—, que es una exigencia más fuerte que contar columnas.
+        """
+        raiz = self._arbol(
+            {
+                "index.md": "Hola.\n",
+                "padron.csv": f"documento,apellido\n{DOCUMENTO_INVENTADO},PRUEBA\n{OTRO_DOCUMENTO_INVENTADO},OTRA\n",
+            }
+        )
+        self.assertEqual(self._reglas(raiz), ["persona", "persona"])
+        self.assertTrue(self.gate._parece_fila_de_tabla("documento,apellido"))
+
+    def test_una_etiqueta_de_varias_palabras_sigue_siendo_una_etiqueta(self):
+        """Contar palabras por celda tiraba abajo encabezados de verdad.
+
+        «apellido y nombre del titular» son cinco palabras y es el nombre de una columna.
+        Lo que la distingue de una oración no es el largo sino el verbo y la puntuación.
+        """
+        raiz = self._arbol(
+            {
+                "index.md": "Hola.\n",
+                "padron.csv": f"apellido y nombre del titular,documento,estado\n"
+                f"PERSONA DE PRUEBA,{DOCUMENTO_INVENTADO},Aprobada\n",
+            }
+        )
+        self.assertEqual(self._reglas(raiz), ["persona"])
+
+    def test_la_prosa_que_anuncia_las_columnas_con_dos_puntos_tampoco_es_un_encabezado(self):
+        """La otra mitad de la heurística: los dos puntos antes de la enumeración.
+
+        «Columnas: apellido, nombre, documento.» no tiene ningún verbo de la lista, así
+        que la regla anterior la leía como una fila y el número de la línea siguiente
+        frenaba la publicación. Vale igual con `;`, que también enumera en prosa.
+        """
+        for separador in (",", ";"):
+            with self.subTest(separador=separador):
+                enumeracion = separador.join([" apellido", " nombre", " documento"])
+                raiz = self._arbol(
+                    {"index.md": f"Columnas:{enumeracion}.\nEl expediente interno 9876543 quedó cerrado.\n"}
+                )
+                self.assertEqual(self._reglas(raiz), [])
+        # Y no es que la línea no se pueda leer: sin el punto y sin los dos puntos, las
+        # mismas celdas son una fila. Si esto deja de ser cierto, el test de arriba no
+        # prueba nada.
+        self.assertTrue(self.gate._parece_prosa_enumerativa("Columnas: apellido, nombre, documento."))
+        self.assertFalse(self.gate._parece_prosa_enumerativa("apellido,nombre,documento"))
+        self.assertTrue(self.gate._parece_fila_de_tabla("apellido,nombre,documento"))
+
     def test_la_prosa_que_enumera_las_columnas_no_es_un_encabezado_de_padron(self):
         """Las comas de una oración no son celdas, y con la coma sola alcanzaba.
 
@@ -226,6 +277,45 @@ class DeteccionDelGateTests(SimpleTestCase):
             }
         )
         self.assertEqual(self._reglas(raiz), [])
+
+    def test_una_tabla_clave_valor_no_es_un_encabezado_de_padron(self):
+        """Las celdas de **filas distintas** no forman un encabezado.
+
+        Leídas todas juntas, una ficha clave-valor —«Documento rector» en una fila,
+        «Nombre del programa» en otra— nombraba el documento y la persona, y el primer
+        número de siete dígitos de ahí abajo frenaba el deploy.
+        """
+        raiz = self._arbol(
+            {
+                "index.md": "Hola.\n",
+                "mockups/ficha.html": """\
+                <table>
+                  <tr><td>Documento rector</td><td>Resolución 12/2026</td></tr>
+                  <tr><td>Nombre del programa</td><td>Becas</td></tr>
+                  <tr><td>Presupuesto</td><td>El presupuesto es 9876543 pesos</td></tr>
+                </table>
+                """,
+            }
+        )
+        self.assertEqual(self._reglas(raiz), [])
+
+    def test_un_encabezado_html_repartido_en_varias_lineas_sigue_contando(self):
+        """Partir por `<tr>` no puede perder el encabezado que ocupa cinco líneas."""
+        raiz = self._arbol(
+            {
+                "index.md": "Hola.\n",
+                "mockups/padron.html": f"""\
+                <table>
+                  <tr>
+                    <th>Apellido</th>
+                    <th>Documento</th>
+                  </tr>
+                  <tr><td>PRUEBA</td><td>{DOCUMENTO_INVENTADO}</td></tr>
+                </table>
+                """,
+            }
+        )
+        self.assertEqual(self._reglas(raiz), ["persona"])
 
     def test_un_documento_pegado_a_un_nombre_propio_frena_la_publicacion(self):
         """En prosa no hay encabezado ni palabra: lo que identifica es el nombre."""
@@ -372,6 +462,31 @@ class DeteccionDelGateTests(SimpleTestCase):
         """Las variantes van declaradas una por una, no como un `[a-z]*` suelto."""
         raiz = self._arbol({"index.md": "SIIS_API_CLIENT_SECRET=AttestationKe9f3Qx\nTOKEN=protestaKe9f3Qx\n"})
         self.assertEqual(self._reglas(raiz), ["secreto", "secreto"])
+
+    def test_un_secreto_que_termina_en_un_marcador_tampoco_se_perdona(self):
+        """El mismo agujero de «Attestation», por el otro lado.
+
+        Buscando el marcador en cualquier posición, un secreto de verdad que *termina*
+        en una de esas palabras se perdonaba solo. El marcador tiene que **abrir** el
+        valor; lo que viene antes acá no es una palabra, es un secreto.
+        """
+        raiz = self._arbol({"index.md": "SIIS_API_CLIENT_SECRET=k3yReal-testing\nTOKEN=aH7x29Zq-example\n"})
+        self.assertEqual(self._reglas(raiz), ["secreto", "secreto"])
+        self.assertFalse(self.gate._sabe_a_prueba("k3yReal-testing"))
+        # Y los que sí abren con el marcador siguen perdonados: si esto deja de ser
+        # cierto, el gate marca lo que el repo escribe para no publicar un secreto.
+        for valor in ("testing123", "example-key", "test-key", "ejemplo-1"):
+            with self.subTest(valor=valor):
+                self.assertTrue(self.gate._sabe_a_prueba(valor))
+
+    def test_el_valor_escrito_a_mano_se_perdona_aunque_el_marcador_no_lo_abra(self):
+        """`ci-test-key-not-a-real-secret` es el `DJANGO_SECRET_KEY` del CI, escrito así
+        a propósito y citado en la ficha de la auditoría. Son palabras en minúscula
+        unidas por guiones: un secreto de verdad mezcla mayúsculas y dígitos."""
+        raiz = self._arbol(
+            {"index.md": "      DJANGO_SECRET_KEY: ci-test-key-not-a-real-secret\n      PASSWORD=mi_sample_valor\n"}
+        )
+        self.assertEqual(self._reglas(raiz), [])
 
     def test_la_plantilla_del_env_que_el_repo_publica_no_es_un_secreto(self):
         """Las doce líneas que el `\\S` de la ficha marcaba y son exactamente lo que hay que escribir."""

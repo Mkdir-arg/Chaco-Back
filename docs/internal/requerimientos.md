@@ -396,6 +396,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 256 | Segundas lecturas de los dos gates: el padrón que no se veía, el secreto que se perdonaba solo y el piso que no bajaba | Transversal — gate de publicación de `docs/client/` · auditoría de diseño (particiones del ratchet) · archivo vivo de requerimientos | `#infra` `#datos` | Revisiones de #664 (Cambio 207) y #665 (Cambio 208) — los MINOR que quedaron abiertos (Ola 7, PR 7) | 12/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta) | No |
 | 257 | La descarga grande deja de armarse de una sola vez: el export de respuestas por persona sale de a lotes y el CSV se transmite | Becas — solapa «Dashboard» del programa (exportación de respuestas por persona) | `#performance` `#relevamientos` `#datos` | Auditoría integral oct-2026 — ficha PERF-03 punto 3 (Ola 4, PR 10); PERF-11 diferida por decisión del PM | 12/10/2026 | 🟢 **Hecho** (sin cola ni worker: no existen en el repo ni en ECOM. PERF-11 sale del alcance: proyecto propio) | No requiere |
 | 258 | Las colas de los dos gates y del export: la prosa que bloqueaba, la tabla HTML que no se miraba y las dos cotas que no estaban escritas | Transversal — gate de publicación de `docs/client/` · auditoría de diseño (piso de las particiones) · Becas — export «respuestas por persona» | `#infra` `#datos` `#performance` | Revisiones de #784 (Cambio 256) y #791 (Cambio 257) — los MINOR que quedaron abiertos (Ola 7, PR 8) | 12/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta; la ventana del ingress de ECOM sigue preguntada) | No |
+| 259 | El gate de publicación deja de pagar con padrones el precio de no marcar prosa | Transversal — gate de publicación de `docs/client/` | `#infra` `#datos` | Revisión de #797 (Cambio 258) — los MINOR que quedaron abiertos (Ola 7, PR 9: cierre del carril) | 13/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta; los límites del gate quedan declarados en la ficha RED-64) | No |
 
 **Notas del índice**
 
@@ -33276,3 +33277,155 @@ mismo con y sin él). Las dos fichas y esta entrada conviene no revertirlas.
 **12/10/2026 — los ocho MINOR, en un PR de seguimiento** (#NNN). Sin horas de plan: son las
 colas de los PR 7 y 10 de la Ola 7 y ninguno justificaba rama propia. Las fichas RED-64 y
 PERF-03 lo anotan en su línea «Seguimiento:». Primera versión.
+
+---
+
+# Cambio 259 — El gate de publicación deja de pagar con padrones el precio de no marcar prosa
+
+🟢 **HECHO — 13/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — gate de publicación de `docs/client/` (`scripts/check_docs_client.py`) |
+| **Etiquetas** | `#infra` `#datos` |
+| **Solicitante** | Revisión de #797 (Cambio 258) — los MINOR que quedaron abiertos |
+| **Fecha del pedido** | 13/10/2026 |
+| **Issue / épica** | Auditoría oct-2026 — seguimiento de la ficha RED-64 (Ola 7, PR 9: cierre del carril) |
+| **Partes afectadas** | CI (`Datos`, `Code Quality`) · documentación interna |
+| **Migración** | No |
+
+## Pedido original
+
+Los cuatro MINOR de la revisión de #797, todos en el mismo archivo y todos de la misma
+familia: el **precio** que la ronda anterior pagó por dejar de marcar prosa. Dos son
+detecciones perdidas y dos son falsos positivos que siguen vivos:
+
+1. **Un padrón de dos columnas volvió a pasar en 0.** `MINIMO_DE_CELDAS_CON_COMA = 3`
+   perdía `documento,apellido` + sus filas, y el tope de tres palabras por celda perdía
+   `apellido y nombre del titular,documento,estado`. Los dos se detectaban antes de #797.
+2. **La prosa sin verbo de la lista seguía bloqueando.** Una línea que enumera las
+   columnas con dos puntos —«Columnas: apellido, nombre, documento.»— seguida de una
+   oración con un número de expediente de siete dígitos era hallazgo, y con `;` también,
+   porque el punto y coma se tomaba como separador de tabla sin mirar nada más.
+3. **El encabezado HTML se armaba con la ventana entera.** Una ficha clave-valor
+   —`<td>Documento rector</td>` en una fila y `<td>Nombre del programa</td>` en otra—
+   nombraba el documento y la persona, y el primer número de siete dígitos de ahí abajo
+   frenaba el deploy.
+4. **`SABE_A_PRUEBA` se buscaba con `search` sobre el valor entero.** Un secreto cuyo
+   valor *termina* en una forma larga del marcador —un `k3yReal-` seguido de «testing»—
+   se perdonaba solo: el mismo agujero de «Attestation» que cerró el Cambio 256, por el
+   otro lado.
+
+## Alcance acordado
+
+**Entra:** las dos reglas corregidas con sus tests, la lectura de HTML por `<tr>`, el
+marcador anclado al valor, y la lista de **límites conocidos** del gate en la ficha RED-64.
+
+**Queda afuera, y por qué:**
+
+- **Clasificar prosa de verdad.** La heurística es de puntuación a propósito: barata,
+  determinista y explicable en una línea. Lo que no cubre queda escrito como límite
+  conocido, no como pendiente.
+- **Bajar los 38 de `--todo-docs`.** Los mismos de siempre, ninguno es dato de persona.
+- **Reescribir `pr-backend.yml`.** El `DJANGO_SECRET_KEY` del CI —citado literalmente en
+  la ficha— es la razón de la segunda forma del marcador, no un hallazgo a tapar.
+
+## Decisiones tomadas
+
+- **Dos celdas alcanzan; contar columnas era la exigencia equivocada.** El encabezado ya
+  tiene que nombrar **las dos cosas** —el documento y la persona, en celdas distintas—, y
+  eso es más fuerte que pedir tres columnas. `documento,apellido` es un padrón
+  perfectamente publicable y es el más fácil de escribir.
+- **Tampoco se cuentan palabras por celda.** «apellido y nombre del titular» son cinco
+  palabras y es el nombre de una columna. Lo que distingue una etiqueta de una oración no
+  es el largo: es el verbo y la puntuación. Queda el tope de 40 caracteres y la lista de
+  verbos.
+- **La prosa se reconoce por puntuación.** Una fila de CSV o de tabla **no termina en
+  punto** y no se anuncia con dos puntos antes de la primera celda. Las dos marcas son
+  mecánicas, se explican en una línea y no dependen de una lista de palabras que siempre
+  va a estar incompleta —que es justo lo que falló con «Columnas: …»—. Se aplican a la
+  coma **y** al punto y coma, que es el separador que antes pasaba sin mirar.
+- **`|` y el tab siguen alcanzando solos.** No tienen otro uso en una línea de
+  documentación; pedirles la prueba de puntuación solo perdería tablas.
+- **El encabezado HTML sale de una misma `<tr>`.** Es la unidad que existe en el formato.
+  Sin ningún `<tr>` a la vista, lo único que se sigue leyendo como encabezado es una
+  corrida de `<th>` consecutivos: un `<td>` suelto no es una fila. El primer pedazo de la
+  ventana —la cola de la fila que empezó más arriba— cuenta igual, porque sigue siendo una
+  sola fila.
+- **El marcador de posición tiene que abrir el valor, o el valor tiene que estar escrito a
+  mano.** Un marcador se anuncia de entrada (`test-key`, `testing123`, `example-key`). La
+  segunda forma existe por un caso real: `ci-test-key-not-a-real-secret`, el
+  `DJANGO_SECRET_KEY` de `pr-backend.yml` que la ficha cita literalmente, tiene el marcador
+  en el medio. Se perdona porque es **palabras en minúscula unidas por guiones**, y un
+  secreto de verdad mezcla mayúsculas y dígitos: por eso `k3yReal-testing` no entra —su
+  primera palabra no es una palabra— y `AttestationKe9f3Qx` tampoco.
+- **Los límites van escritos en la ficha.** Seis, con nombre, en «Límites conocidos del
+  gate». El gate es una red mecánica sobre texto y la otra mitad de RED-64 es el ojo humano
+  del `environment` con *required reviewers*: dejar la lista escrita es lo que evita que se
+  abra una ronda nueva por cada caso que la heurística no cubre.
+
+## Qué se hizo
+
+`scripts/check_docs_client.py`:
+
+- `SEPARADOR_INEQUIVOCO` (`|`, tab) y `SEPARADOR_AMBIGUO` (`,`, `;`) en lugar de
+  `SEPARADOR_DE_TABLA`; `FIN_DE_ORACION` y `_parece_prosa_enumerativa`.
+- `_parece_fila_de_tabla` reescrita: sin tope de palabras, con `MINIMO_DE_CELDAS_ENUMERADAS
+  = 2` y la prueba de prosa. `MINIMO_DE_CELDAS_CON_COMA` y `PALABRAS_MAXIMAS_POR_ETIQUETA`
+  se borran.
+- `SEPARADOR_DE_FILA_HTML`, `CELDA_TH` y `_filas_de_celdas_html`;
+  `_hay_encabezado_de_padron_arriba` evalúa fila por fila en vez de la ventana entera.
+- `SABE_A_PRUEBA` anclada con `^` (tras las comillas) y `_sabe_a_prueba`, con la segunda
+  forma (`PALABRAS_EN_MINUSCULA`). `_es_relleno` la usa en lugar del `search` suelto.
+- El docstring del módulo, que describía la regla de las tres celdas.
+
+## Archivos
+
+- `scripts/check_docs_client.py` — reglas 1 y 4.
+- `core/tests/test_docs_client_publicacion.py` — 7 casos nuevos.
+- `docs/internal/auditoria-2026-10/hallazgos/08-red-de-seguridad.md` — el seguimiento de
+  este PR y la lista «Límites conocidos del gate».
+- `docs/internal/requerimientos.md` — esta entrada.
+
+## Base de datos
+
+No requiere.
+
+## Verificación
+
+- `manage.py check`: sin issues.
+- `core.tests.test_docs_client_publicacion` + `core.tests.test_gates_ci` +
+  `core.tests.test_regla_dni`: **165 tests, OK** (64 del primero, con los 7 nuevos).
+- `check_docs_client.py` (alcance estricto): **0 hallazgos**, antes y después.
+- `check_docs_client.py --todo-docs`: **38 antes, 38 después**, y son **los mismos 38**,
+  comparados uno a uno. Entre medio llegaron a ser 39: anclar el marcador dejó como
+  hallazgo el `DJANGO_SECRET_KEY` del CI que la ficha RED-64 cita —un falso positivo, no un
+  secreto—, y es lo que motivó la segunda forma de `_sabe_a_prueba`.
+- Los ocho casos sintéticos medidos contra el gate anterior, uno por uno:
+  padrón de dos columnas **0 → 2**, etiqueta de cinco palabras **0 → 1**, prosa con dos
+  puntos y coma **1 → 0**, la misma con `;` **1 → 0**, ficha clave-valor en HTML
+  **1 → 0**, secreto terminado en marcador **0 → 1**. Y los dos controles que **no**
+  tienen que moverse: encabezado HTML repartido en varias líneas **1 → 1**, marcador del CI
+  **0 → 0**.
+- `requerimientos.py --check`: OK. `ruff check` y `ruff format --check` sobre los dos
+  archivos de código: limpios.
+
+## Pendientes
+
+Ninguno propio. Lo que el gate no cubre está escrito como **límite conocido** en la ficha
+RED-64 —la heurística de prosa, las tablas HTML sin `<tr>`, la ventana de cinco líneas, el
+marcador reconocido por forma y no por entropía, los 38 de `--todo-docs` y la ausencia
+deliberada de lista de perdonados—, y es deuda declarada, no trabajo diferido.
+
+## Reversión
+
+Revertir el commit devuelve los dos falsos positivos (la prosa con dos puntos y la ficha
+clave-valor en HTML bloquean de nuevo) y las dos detecciones perdidas (padrón de dos
+columnas y encabezado con etiqueta larga vuelven a pasar en 0). La lista de límites
+conocidos de la ficha conviene no revertirla.
+
+## Historial
+
+**13/10/2026 — los cuatro MINOR, cierre del carril** (#NNN). Sin horas de plan: es la cola
+de la revisión del PR 8 de la Ola 7. La ficha RED-64 lo anota en su línea «Seguimiento:» y
+suma la lista de límites conocidos, que es lo que cierra el tema. Primera versión.
