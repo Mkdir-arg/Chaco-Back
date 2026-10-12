@@ -313,6 +313,55 @@ class MarcadoresDeArquetipoTests(SimpleTestCase):
                 self.assertEqual(nombre, nombre.lower())
                 self.assertTrue(nombre.isascii(), f"«{nombre}» no es ASCII: es el nombre de un archivo")
 
+    def test_la_variante_apilada_se_declara_y_no_se_infiere(self):
+        """Si la variante se infiriera de que faltan las solapas, el gate no serviría.
+
+        Una pantalla que se olvidó el `role="tablist"` pasaría como «apilada» y nadie se
+        enteraría. Por eso hay que escribirla: sin la declaración se siguen exigiendo los
+        siete marcadores de solapas, y con ella se exigen los de la forma apilada.
+        """
+        apilado = '{# arquetipo: detalle + apilado #}\\n{% extends "includes/base.html" %}\\n{% block main-content %}\\n<div class="space-y-5">{% page_header titulo="T" %}{% endpage_header %}\\n<section aria-labelledby="s1"><h2 id="s1">Uno</h2></section></div>\\n'
+        sin_declarar = apilado.replace("{# arquetipo: detalle + apilado #}\\n", "")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            con = Path(tmp) / "con.html"
+            con.write_text(apilado, encoding="utf-8")
+            sin = Path(tmp) / "sin.html"
+            sin.write_text(sin_declarar, encoding="utf-8")
+
+            self.assertEqual(self.marcadores("detalle", [str(con)])[0], 0)
+            self.assertEqual(self.marcadores("detalle", [str(sin)])[0], 1)
+
+    def test_la_variante_apilada_exige_el_nombre_accesible_de_la_seccion(self):
+        """Sin solapas, la sección es la unidad navegable: el nombre no es opcional."""
+        sin_nombre = (
+            '{# arquetipo: detalle + apilado #}\\n{% extends "includes/base.html" %}\\n{% block main-content %}\\n<div class="space-y-5">{% page_header titulo="T" %}{% endpage_header %}\\n<section aria-labelledby="s1"><h2 id="s1">Uno</h2></section></div>\\n'
+        ).replace('<section aria-labelledby="s1">', "<section>")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ruta = Path(tmp) / "x.html"
+            ruta.write_text(sin_nombre, encoding="utf-8")
+
+            codigo, salida = self.marcadores("detalle", [str(ruta)])
+
+            self.assertEqual(codigo, 1)
+            self.assertIn("nombre accesible", salida)
+
+    def test_una_variante_inventada_falla(self):
+        plantilla = (
+            "{# arquetipo: detalle + nomeinventes #}\n"
+            '{% extends "includes/base.html" %}\n{% block main-content %}\n'
+            '<div class="space-y-5">{% page_header titulo="T" %}{% endpage_header %}</div>\n'
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            ruta = Path(tmp) / "x.html"
+            ruta.write_text(plantilla, encoding="utf-8")
+
+            codigo, salida = self.marcadores("detalle", [str(ruta)])
+
+            self.assertEqual(codigo, 1)
+            self.assertIn("no declarada", salida)
+
 
 class GateDeCiTests(SimpleTestCase):
     """El check «Design Agent Contract» tiene que correr lo que el anexo pide.

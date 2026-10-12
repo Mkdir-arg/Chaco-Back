@@ -16,7 +16,19 @@
 ## Cuándo
 
 Un registro que se mira y se opera, con métricas de cabecera y **2 o más áreas equivalentes**.
-Con un área sola no hay solapas: van secciones apiladas en surfaces.
+Con un área sola no hay solapas: van secciones apiladas en surfaces. **Esa variante se
+declara**, con un comentario en la primera línea del template:
+
+```django
+{# arquetipo: detalle + apilado #}
+```
+
+Declarada, el auditor deja de pedir los siete marcadores de solapas y en su lugar exige que
+**cada sección sea un `<section>` con `aria-labelledby` y su `<h2>`**: sin solapas, la sección
+es la unidad navegable, y el nombre accesible es lo que la solapa daba gratis.
+
+Se **declara** y no se infiere de que falten las solapas: si se infiriera, una pantalla que
+se las olvidó pasaría como «apilada» y el gate no serviría para nada.
 
 ## Esqueleto (copiar literal; cambiar solo lo que está entre <>)
 

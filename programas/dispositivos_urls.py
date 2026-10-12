@@ -24,6 +24,7 @@ urlpatterns = [
     path("<int:pk>/cerrar/", legajo.DispositivoCerrarView.as_view(), name="cerrar"),
     path("<int:pk>/", legajo.DispositivoDetailView.as_view(), name="detalle"),
     path("<int:pk>/editar/", legajo.DispositivoUpdateView.as_view(), name="editar"),
+    path("<int:pk>/sectores/", legajo.DispositivoSectoresView.as_view(), name="sectores"),
     path("config/", cfg.TipoDispositivoListView.as_view(), name="tipos"),
     path("config/nuevo/", cfg.TipoDispositivoCreateView.as_view(), name="tipo_crear"),
     path("config/<int:pk>/", cfg.TipoDispositivoDetailView.as_view(), name="tipo_detalle"),
