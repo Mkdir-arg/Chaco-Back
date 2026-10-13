@@ -339,3 +339,64 @@ class PropiedadesDeNegocioTests(TestCase):
 
         with self.assertNumQueries(0):
             self.assertEqual(formulario._dni_titular_actual(), "11111111")
+
+
+class UniqueConstraintCondicionalTests(SimpleTestCase):
+    """Un `UniqueConstraint(condition=...)` no existe en MySQL ni en MariaDB.
+
+    Django lo descarta en silencio —`supports_partial_indexes = False`, y
+    `_create_unique_sql` devuelve `None` sin avisar— pero **en SQLite sí lo crea**. Como
+    los tests corren en SQLite, un constraint condicional pasa en verde en el CI y no
+    existe en ninguno de los dos motores reales del proyecto: la regla que uno cree que
+    está protegida, no está.
+
+    La exclusión mutua se consigue con `select_for_update()` sobre la fila, o con un UNIQUE
+    común sobre una columna anulable —los `NULL` cuentan como distintos entre sí, así que
+    «una sola fila viva por clave» sale sin condición—. Eso es lo que hace
+    `Estadia.clave_alojamiento`.
+    """
+
+    #: Deuda conocida: los tres son del circuito viejo que la release B borra (MVP 01/02).
+    #: No se agregan excepciones nuevas acá: si hace falta la regla, se consigue de otra forma.
+    CONDICIONALES_CONOCIDOS = {
+        "admision_una_cama_alojada",
+        "admision_una_estadia_activa_por_dispositivo",
+        "espera_admision_activa_unica",
+    }
+
+    def test_ningun_unique_constraint_condicional_nuevo(self):
+        from django.apps import apps
+        from django.db.models import UniqueConstraint
+
+        encontrados = {
+            c.name
+            for modelo in apps.get_app_config("programas").get_models()
+            for c in modelo._meta.constraints
+            if isinstance(c, UniqueConstraint) and c.condition is not None
+        }
+
+        self.assertEqual(
+            encontrados - self.CONDICIONALES_CONOCIDOS,
+            set(),
+            "UniqueConstraint con condition=: Django NO lo emite en MySQL ni MariaDB y no avisa, "
+            "pero sí en SQLite, así que tus tests pasan y la regla no existe en producción. "
+            "Usá select_for_update() sobre la fila, o un UNIQUE común sobre una columna anulable.",
+        )
+
+    def test_la_deuda_conocida_sigue_siendo_la_que_creemos(self):
+        """Si uno se borra —la release B los borra—, sale de la lista en el mismo PR."""
+        from django.apps import apps
+        from django.db.models import UniqueConstraint
+
+        encontrados = {
+            c.name
+            for modelo in apps.get_app_config("programas").get_models()
+            for c in modelo._meta.constraints
+            if isinstance(c, UniqueConstraint) and c.condition is not None
+        }
+
+        self.assertEqual(
+            self.CONDICIONALES_CONOCIDOS - encontrados,
+            set(),
+            "un condicional conocido ya no está: sacalo de CONDICIONALES_CONOCIDOS en este mismo PR",
+        )
