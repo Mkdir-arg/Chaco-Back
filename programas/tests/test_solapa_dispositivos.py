@@ -185,8 +185,9 @@ class PantallaTests(BaseSolapa):
         self.assertContains(respuesta, "Parador Vedia")
         self.assertContains(respuesta, "Traslado")
         self.assertContains(respuesta, "Pabellón A · A-02")
-        self.assertContains(respuesta, "Egresada")
-        self.assertContains(respuesta, "Activa")
+        # Texto y tono de la tabla única de `programas.services.estadias`: los mismos del detalle (P4).
+        self.assertContains(respuesta, '<span class="badge badge-dot badge-gray">Egresada</span>', html=True)
+        self.assertContains(respuesta, '<span class="badge badge-dot badge-info">Alojada</span>', html=True)
         self.assertContains(respuesta, "alojada en CIS N.º 3 (Pabellón A · A-02)")
         self.assertEqual(respuesta.context["n_estadias"], 2)
 

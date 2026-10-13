@@ -27,15 +27,10 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from programas.models import Estadia
+from programas.services.estadias import estado_visible
 
 #: Estadías por página. La trayectoria de una persona crece sin techo; el tope es de la vista.
 POR_PAGINA = 10
-
-#: Tono del badge de cada estado. Lo decide la vista, no el template.
-_TONO_ESTADO = {
-    Estadia.Estado.ACTIVA: "info",
-    Estadia.Estado.EGRESADA: "gray",
-}
 
 
 def _ubicacion(estadia):
@@ -46,14 +41,16 @@ def _ubicacion(estadia):
 
 
 def _fila(estadia):
+    # Texto y tono salen de la tabla única de `programas.services.estadias`, la misma del detalle del dispositivo.
+    estado, tono = estado_visible(estadia)
     return {
         "dispositivo": estadia.dispositivo.nombre,
         "tipo": estadia.dispositivo.tipo.nombre,
         "ubicacion": _ubicacion(estadia),
         "ingreso": estadia.fecha_ingreso,
         "egreso": estadia.fecha_egreso,
-        "estado": estadia.get_estado_display(),
-        "tono": _TONO_ESTADO.get(estadia.estado, "gray"),
+        "estado": estado,
+        "tono": tono,
         "motivo": estadia.motivo.nombre if estadia.motivo_id else "",
     }
 

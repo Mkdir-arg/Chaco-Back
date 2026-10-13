@@ -3,19 +3,28 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.utils import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from core.rbac import puede
 from programas.forms import DispositivoForm
 from programas.forms_dispositivos import EgresoForm
 from programas.models import Dispositivo, Estadia, TipoDispositivo
+from programas.services.detalle_dispositivo import (
+    aviso_sin_ingresos,
+    contar_alojadas,
+    estadias_del_dispositivo,
+    eventos_de_historial,
+    indicadores_de_plazas,
+    normalizar_filtros,
+    pildoras_de_estadias,
+    sectores_del_censo,
+)
 from programas.services.dispositivos import (
     buscar_posibles_duplicados,
     cerrar_dispositivo,
@@ -31,6 +40,8 @@ from programas.services.dispositivos import (
     validar_dispositivo,
 )
 from programas.services.estadias import CAP_EGRESAR, egresar_persona
+from programas.services.ingreso import maneja_plazas
+from programas.services.ocupacion import ocupacion_de_plazas
 from programas.services.reportes import filtrar_dispositivos
 from programas.services.sectores_plazas import sectores_con_plazas
 from programas.views.ajax_utils import ajax_redirect, is_ajax
@@ -146,14 +157,64 @@ class DispositivoDuplicateSearchView(DispositivoProgramaPermissionMixin, View):
 
 
 class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
+    """Detalle del dispositivo (MVP v2, etapa 2 · P4): indicadores, sectores, estadías e historial.
+
+    Las cifras de plazas salen del censo de `ocupacion_de_plazas` y el resto de los datos de
+    `programas.services.detalle_dispositivo`: acá solo se orquesta y se resuelven permisos.
+    """
+
     capacidad_requerida = "dispositivo.ver"
     model = Dispositivo
     template_name = "programas/dispositivos/legajo/detail.html"
     context_object_name = "dispositivo"
 
+    def get_queryset(self):
+        return Dispositivo.objects.select_related("tipo")
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["trazas"] = self.object.trazas.select_related("usuario")
+        dispositivo = self.object
+        user = self.request.user
+        get = self.request.GET
+
+        # Una sola llamada al censo: la franja, el desglose por sector y el contador de la
+        # solapa salen del mismo cálculo. La pantalla no deriva el estado de ninguna plaza.
+        ocupacion = ocupacion_de_plazas(dispositivo).de(dispositivo)
+        sectores = sectores_del_censo(ocupacion)
+        estado, sector = normalizar_filtros(get.get("estado", ""), get.get("sector", ""), {s["pk"] for s in sectores})
+        historial, eventos = eventos_de_historial(dispositivo, get.get("historial_page"))
+        estadias = estadias_del_dispositivo(dispositivo, estado=estado, sector=sector, pagina=get.get("estadias_page"))
+        puede_egresar = puede_operar_dispositivo(user, dispositivo, CAP_EGRESAR)
+        if puede_egresar:
+            for estadia in estadias:
+                if estadia.estado == Estadia.Estado.ACTIVA:
+                    estadia.url_egresar = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
+
+        context.update(
+            {
+                "maneja_plazas": maneja_plazas(dispositivo),
+                "aviso_sin_ingresos": aviso_sin_ingresos(dispositivo),
+                "indicadores": indicadores_de_plazas(ocupacion.conteo),
+                "sectores": sectores,
+                "n_plazas": ocupacion.conteo.operativas,
+                "n_alojadas": contar_alojadas(dispositivo),
+                "estadias": estadias,
+                "pildoras": pildoras_de_estadias(estado, sector, sectores),
+                # La píldora es un <form method="get">: sin esto, filtrar perdería la solapa de la URL.
+                "ocultos_estadias": [("tab", "estadias")],
+                "hay_filtros_estadias": bool(estado or sector),
+                "historial": historial,
+                "eventos": eventos,
+                "puede_editar": puede_operar_dispositivo(user, dispositivo, "dispositivo.editar"),
+                "puede_validar": puede_operar_dispositivo(user, dispositivo, "dispositivo.validar"),
+                "puede_admitir": puede_operar_dispositivo(user, dispositivo, "dispositivo.admitir"),
+                "puede_ver_ciudadano": puede(user, "ciudadano.ver"),
+                "puede_egresar": puede_egresar,
+                "form_egreso": EgresoForm() if puede_egresar else None,
+                "url_ingreso": reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]),
+                "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]),
+            }
+        )
         return context
 
 
@@ -283,44 +344,27 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         return context
 
 
-# Personas alojadas y egreso (MVP v2, etapa 2 · #691 · P9). El egreso muta estado: solo POST con
-# CSRF. La regla de fondo vive en `programas.services.estadias.egresar_persona`; la vista traduce
-# lo que el servicio rechaza a lo que el modal sabe mostrar. La disponibilidad de la plaza no se
-# cuenta acá: la recalcula `programas.services.ocupacion`.
-POR_PAGINA = 25
+# Egreso (MVP v2, etapa 2 · #691). El egreso muta estado: solo POST con CSRF. La regla de fondo
+# vive en `programas.services.estadias.egresar_persona`; la vista traduce lo que el servicio
+# rechaza a lo que el modal sabe mostrar. La disponibilidad de la plaza no se cuenta acá: la
+# recalcula `programas.services.ocupacion`. La lista de personas y el modal viven en la solapa
+# Estadías del detalle (P4): hay una sola lista de personas por dispositivo.
 
 
-class DispositivoEstadiasView(DispositivoObjectPermissionMixin, DetailView):
-    """Las personas alojadas hoy en un dispositivo, con el modal de egreso."""
+def url_solapa_estadias(dispositivo_pk):
+    """El detalle del dispositivo abierto en la solapa Estadías."""
 
-    capacidad_requerida = "dispositivo.ver"
-    model = Dispositivo
-    template_name = "programas/dispositivos/estadia/estadias.html"
-    context_object_name = "dispositivo"
+    return f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=estadias"
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        dispositivo = self.object
-        estadias = (
-            Estadia.objects.activas()
-            .filter(dispositivo=dispositivo)
-            .select_related("ciudadano", "plaza__sector")
-            .order_by("fecha_ingreso", "id")
-        )
-        page_obj = Paginator(estadias, POR_PAGINA).get_page(self.request.GET.get("page"))
-        ahora = timezone.now()
-        for estadia in page_obj:
-            estadia.dias_de_permanencia = (ahora - estadia.fecha_ingreso).days
-            estadia.url_egresar = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
-        context["page_obj"] = page_obj
-        context["puede_egresar"] = puede_operar_dispositivo(self.request.user, dispositivo, CAP_EGRESAR)
-        context["form_egreso"] = EgresoForm()
-        context["migas"] = [
-            {"label": "Dispositivos", "url": reverse("dispositivos:lista")},
-            {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
-            {"label": "Personas alojadas", "url": ""},
-        ]
-        return context
+
+class DispositivoEstadiasView(LoginRequiredMixin, View):
+    """Compatibilidad: la lista de personas alojadas pasó a la solapa Estadías del detalle.
+
+    No resuelve capacidades porque no muestra nada: el detalle hace las suyas.
+    """
+
+    def get(self, request, pk):
+        return redirect(url_solapa_estadias(pk))
 
 
 class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
@@ -334,7 +378,7 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
         if not puede_operar_dispositivo(request.user, dispositivo, CAP_EGRESAR):
             raise PermissionDenied
         estadia = get_object_or_404(Estadia.objects.select_related("ciudadano"), pk=estadia_pk, dispositivo=dispositivo)
-        volver = reverse("dispositivos:estadias", args=[dispositivo.pk])
+        volver = url_solapa_estadias(dispositivo.pk)
 
         form = EgresoForm(request.POST, estadia=estadia)
         if not form.is_valid():

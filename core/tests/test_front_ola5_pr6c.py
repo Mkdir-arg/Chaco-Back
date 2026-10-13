@@ -40,6 +40,7 @@ TABS_CON_ARIA = {
     "programas/templates/programas/becas/relevamientos/convocatoria_detail.html": "Secciones de la convocatoria",
     "programas/templates/programas/becas/relevamientos/relevamiento_detail.html": "Secciones del relevamiento",
     "users/templates/rol/rol_form.html": "Categorías de capacidades",
+    "programas/templates/programas/dispositivos/legajo/detail.html": "Secciones del dispositivo",
 }
 
 
@@ -262,7 +263,7 @@ class UnSoloFieldTests(SimpleTestCase):
 
 
 class SolapasConAriaTests(SimpleTestCase):
-    """Las cuatro pantallas de la ficha declaran el ARIA completo de la golden."""
+    """Las cinco pantallas de la ficha declaran el ARIA completo de la golden."""
 
     def test_cada_barra_es_un_tablist_con_nombre(self):
         for ruta, etiqueta in TABS_CON_ARIA.items():
@@ -301,12 +302,6 @@ class SolapasConAriaTests(SimpleTestCase):
         for ruta in list(TABS_CON_ARIA)[:3]:
             with self.subTest(ruta=ruta):
                 self.assertNotIn("[x-cloak]{display:none", texto(ruta))
-
-    def test_dispositivos_queda_afuera(self):
-        """D-V1 = No: el detalle del legajo de Dispositivos lo reemplaza la v2."""
-        contenido = texto("programas/templates/programas/dispositivos/legajo/detail.html")
-
-        self.assertNotIn('role="tabpanel"', contenido)
 
 
 # ------------------------------------------------- MINOR de la revisión del PR 6b (#615)

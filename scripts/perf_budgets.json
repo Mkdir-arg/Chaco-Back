@@ -163,6 +163,11 @@
       "casos_por_consulta": 666,
       "motivo": "El export es O(casos) en filas pero tiene que ser O(1) en consultas por caso: las fijas son el formulario vigente, el catalogo, los relevamientos y la lista de ids, y despues una consulta cada `casos_por_consulta`. El numero existe por el MAJOR de la ronda 2 del PR de G2-01: pedir `definicion` por fila llevo el export de 1,5 s a 14 s con 20.000 casos en mariadb:10.11 (08/10/2026). La foto no puede volver a leerse por fila, ni siquiera para hashearla: InnoDB lee igual las paginas externas."
     },
+    "dispositivos_detalle_estadias": {
+      "servicio": "programas.services.detalle_dispositivo.estadias_del_dispositivo",
+      "consultas_fijas": 2,
+      "motivo": "Presupuesto nuevo (MVP v2 etapa 2, #692, detalle del dispositivo). El listado de personas alojadas es el unico del detalle que crece con el volumen -una institucion acumula estadias para siempre-, asi que se acota y se mide: el COUNT del paginador y la pagina, con select_related de la persona y de la plaza con su sector y solo las columnas que la tabla dibuja. Dos consultas, no una por fila: leer ciudadano o plaza desde el template sin select_related seria un N+1 proporcional a la pagina (25 filas). El test mide con 1 y con 21 estadias y exige que el numero no cambie. Las cifras de plazas del mismo detalle no entran aca: salen de ocupacion_de_plazas y se pagan con su propio presupuesto (dispositivos_ocupacion_de_plazas)."
+    },
     "dispositivos_ocupacion_de_plazas": {
       "servicio": "programas.services.ocupacion.ocupacion_de_plazas",
       "consultas_fijas": 3,
