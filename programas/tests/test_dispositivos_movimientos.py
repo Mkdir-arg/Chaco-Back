@@ -23,6 +23,7 @@ from django.db import IntegrityError, transaction
 from django.db.models.query import QuerySet
 from django.utils import timezone
 
+from legajos.models import Ciudadano
 from programas.models import (
     Estadia,
     MotivoEgreso,
@@ -34,6 +35,7 @@ from programas.models import (
 )
 from programas.services.estadias import (
     PLAZA_FUERA_DEL_DISPOSITIVO,
+    PLAZA_OCUPADA_EN_EL_MEDIO,
     cambiar_plaza,
     egresar_persona,
     ingresar_persona,
@@ -398,3 +400,95 @@ class ReconstruccionDeLaMigracionTests(BaseEstadias):
         )
         self.assertEqual([m.tipo for m in linea_de_tiempo(abierta)], [Tipo.INGRESO])
         self.assertEqual(sum((t.duracion for t in tramos_por_plaza(cerrada)), timedelta()), cerrada.permanencia())
+
+
+class PlazaOcupadaEnElMedioTests(BaseEstadias):
+    """Revisión de #826, MINOR 3: una carga retroactiva mira la plaza **desde** su fecha, no solo ahora.
+
+    Juan ocupó P2 del lunes 10:00 al martes 10:00; hoy, miércoles al mediodía, P2 está
+    libre. Mover a Ana —o ingresar a alguien— a P2 con fecha del lunes a la noche pasaba
+    el control de «plaza libre ahora» y dejaba dos personas en P2 durante doce horas,
+    que es lo que después leen la línea de tiempo y el censo. Reloj fijo.
+    """
+
+    LUNES = timezone.make_aware(datetime(2026, 9, 7, 10))
+    AHORA = LUNES + timedelta(days=2, hours=2)
+
+    def setUp(self):
+        super().setUp()
+        with self._reloj():
+            self.ana = ingresar_persona(
+                ciudadano=self.persona,
+                dispositivo=self.cis,
+                plaza=self.plaza,
+                usuario=self.operador_cis,
+                fecha_ingreso=self.LUNES - timedelta(days=1),
+            )
+            juan = ingresar_persona(
+                ciudadano=self.otra_persona,
+                dispositivo=self.cis,
+                plaza=self.otra_plaza,
+                usuario=self.operador_cis,
+                fecha_ingreso=self.LUNES,
+            )
+            self.salida_de_juan = self.LUNES + timedelta(days=1)
+            egresar_persona(estadia=juan, usuario=self.operador_cis, fecha_egreso=self.salida_de_juan, motivo="Alta")
+
+    def _reloj(self):
+        return mock.patch("django.utils.timezone.now", return_value=self.AHORA)
+
+    def _cambiar(self, momento):
+        with self._reloj():
+            return cambiar_plaza(
+                estadia=self.ana,
+                plaza=self.otra_plaza,
+                usuario=self.operador_cis,
+                motivo="Convivencia",
+                momento=momento,
+            )
+
+    def _ingresar_tercera(self, fecha):
+        tercera = Ciudadano.objects.create(dni="30555666", nombre="Rosa", apellido="Benítez")
+        with self._reloj():
+            return ingresar_persona(
+                ciudadano=tercera,
+                dispositivo=self.cis,
+                plaza=self.otra_plaza,
+                usuario=self.operador_cis,
+                fecha_ingreso=fecha,
+            )
+
+    def test_un_cambio_retroactivo_a_una_plaza_que_otro_ocupo_en_el_medio_no_entra(self):
+        with self.assertRaisesMessage(ValidationError, PLAZA_OCUPADA_EN_EL_MEDIO):
+            self._cambiar(self.LUNES + timedelta(hours=12))
+
+        self.ana.refresh_from_db()
+        self.assertEqual(self.ana.plaza, self.plaza)
+        self.assertEqual(list(self.ana.movimientos.values_list("tipo", flat=True)), [Tipo.INGRESO])
+
+    def test_tambien_si_el_otro_entro_despues_de_la_fecha_del_cambio(self):
+        with self.assertRaisesMessage(ValidationError, PLAZA_OCUPADA_EN_EL_MEDIO):
+            self._cambiar(self.LUNES - timedelta(hours=2))
+
+    def test_el_cambio_fechado_despues_de_que_el_otro_salio_si_entra(self):
+        movimiento = self._cambiar(self.salida_de_juan + timedelta(hours=1))
+
+        self.assertEqual(movimiento.plaza_destino, self.otra_plaza)
+
+    def test_el_cambio_fechado_justo_cuando_el_otro_salio_entra(self):
+        """`[desde, hasta)`: Juan ya no estaba en el instante en que salió."""
+
+        movimiento = self._cambiar(self.salida_de_juan)
+
+        self.assertEqual(movimiento.momento, self.salida_de_juan)
+
+    def test_un_ingreso_retroactivo_a_una_plaza_que_otro_ocupo_en_el_medio_no_entra(self):
+        with self.assertRaisesMessage(ValidationError, PLAZA_OCUPADA_EN_EL_MEDIO):
+            self._ingresar_tercera(self.LUNES + timedelta(hours=12))
+
+        self.assertFalse(Estadia.objects.filter(ciudadano__dni="30555666").exists())
+
+    def test_el_ingreso_retroactivo_despues_de_que_el_otro_salio_si_entra(self):
+        estadia = self._ingresar_tercera(self.salida_de_juan + timedelta(minutes=1))
+
+        self.assertEqual(estadia.plaza, self.otra_plaza)

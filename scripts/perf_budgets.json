@@ -156,7 +156,7 @@
     }
   },
   "servicios": {
-    "_nota": "Presupuestos de servicios que no son una ruta del manifiesto de perf_audit (no entran en `budgets`, que tiene que coincidir exactamente con build_targets). Los corren programas/tests/test_export_respuestas_presupuesto.py, programas/tests/test_dispositivos_ocupacion.py y programas/tests/test_dispositivos_estadia_detalle.py con --tag performance.",
+    "_nota": "Presupuestos de servicios que no son una ruta del manifiesto de perf_audit (no entran en `budgets`, que tiene que coincidir exactamente con build_targets). Los corren programas/tests/test_export_respuestas_presupuesto.py, programas/tests/test_dispositivos_ocupacion.py, programas/tests/test_dispositivos_estadia_detalle.py y programas/tests/test_dispositivos_censo.py con --tag performance.",
     "becas_respuestas_por_persona": {
       "servicio": "programas.services.dashboard_becas.respuestas_por_persona",
       "consultas_fijas": 12,
@@ -177,6 +177,11 @@
       "servicio": "programas.selectors.estadia_detalle.detalle_de_estadia",
       "consultas_fijas": 3,
       "motivo": "Presupuesto nuevo (MVP v2 etapa 3, #698 · P7, detalle de la estadia). Tres consultas fijas: los movimientos de la estadia con sus plazas y sectores ya traidos (de esa sola lista salen la linea de tiempo, la tabla de la solapa Movimientos, el contador y el tramo en la plaza actual), un aggregate con el total de las otras estadias de la persona y las anteriores a esta (el Reingreso), y las ultimas cinco de esas otras estadias. No crece con los movimientos ni con las otras estadias: la forma natural de escribir la linea de tiempo -leer plaza, sector y responsable por movimiento- seria un N+1 proporcional a la historia de la persona. El test lo mide ademas sobre la pantalla entera, con poca y con mucha historia, y exige el mismo numero. No lleva `casos_por_consulta`: es O(1)."
+    },
+    "dispositivos_censo": {
+      "servicio": "programas.services.censo.censo_por_dia",
+      "consultas_fijas": 3,
+      "motivo": "Presupuesto nuevo (MVP v2 etapa 3, #696): el censo por turno y por dia de un dispositivo, para cualquier rango de fechas. Tres consultas fijas: los turnos activos (cero si quien llama ya los tiene), las estadias alojadas en algun instante del rango y los ingresos y egresos del rango (indice (dispositivo, momento)). La existencia al inicio y al fin de cada tramo y el reparto de los movimientos por turno se hacen en Python, en hora local: nada de Trunc* sobre un DateTimeField, que en ECOM es CONVERT_TZ y da NULL. La forma natural de escribirlo -un count por turno, o leer la existencia de cada persona- seria una consulta por turno y por dia, o por persona, que es lo que este techo impide. Lo corre programas/tests/test_dispositivos_censo.py con --tag performance."
     }
   }
 }
