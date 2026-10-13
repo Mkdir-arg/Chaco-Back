@@ -12,7 +12,6 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
-from core import rbac
 from core.rbac import puede
 from programas.forms import DispositivoForm
 from programas.forms_dispositivos import CambioPlazaForm, EgresoForm
@@ -496,7 +495,7 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
 
     def get_object(self, queryset=None):
         dispositivo = super().get_object(queryset)
-        if not rbac.puede(self.request.user, CAP_VER_CIUDADANO):
+        if not puede(self.request.user, CAP_VER_CIUDADANO):
             raise PermissionDenied
         self.estadia = _estadia_del_dispositivo(dispositivo, self.kwargs["estadia_pk"])
         return dispositivo
