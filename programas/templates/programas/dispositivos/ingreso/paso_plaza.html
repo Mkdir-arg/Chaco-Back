@@ -1,0 +1,59 @@
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Dispositivos · Ingresar persona — Paso {{ paso_actual }}{% endblock %}
+
+{% comment %}Paso de un wizard (arquetipo Wizard): el control no cabe en `_field.html` (mapa de plazas); conserva shell, indicador, surfaces y pie. Elegir una plaza no la reserva: se toma al confirmar.{% endcomment %}
+
+{% block main-content %}
+<div class="space-y-5">
+  {% page_header titulo="Ingresar persona" volver_url=urls.dispositivo volver_label=dispositivo.nombre %}
+    {% bajada %}Paso {{ paso_actual }} de {{ total_pasos }} · {{ bajada }}{% endbajada %}
+  {% endpage_header %}
+
+  {% include "components/_stepper.html" with pasos=pasos paso_actual=paso_actual %}
+
+  {% if error %}
+  {% include "components/_alerta.html" with tono="danger" icono="triangle-exclamation" titulo="No se pudo asignar la plaza" texto=error %}
+  {% endif %}
+  {% if not hay_disponibles %}
+  {% include "components/_alerta.html" with tono="warning" icono="bed" titulo="No hay plazas disponibles" texto="Todas las plazas de este dispositivo están ocupadas, reservadas o fuera de servicio." %}
+  {% endif %}
+
+  {% if persona %}
+  <div class="bg-white rounded-xl border border-base shadow-sm p-6">
+    <h2 class="text-heading font-bold">Persona</h2>
+    <dl class="mt-3 space-y-1 text-sm text-body">
+      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Nombre:</dt><dd>{{ persona.nombre }}</dd></div>
+      <div class="flex gap-2"><dt class="font-medium text-heading w-32">DNI:</dt><dd>{{ persona.dni }}</dd></div>
+      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Origen:</dt><dd>{{ persona.origen }}</dd></div>
+    </dl>
+  </div>
+  {% endif %}
+
+  {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
+
+  {% for item in sectores %}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sector-{{ item.sector.pk }}-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %}</h2>
+      <p class="text-xs text-body-subtle mt-1">{{ item.disponibles }} disponible{{ item.disponibles|pluralize }} de {{ item.total }} plaza{{ item.total|pluralize }}</p>
+    </div>
+    <div class="p-5">
+      {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.total %}
+    </div>
+  </section>
+  {% empty %}
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores y las plazas, se pueden elegir desde acá." %}
+  </div>
+  {% endfor %}
+
+  <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
+    {% csrf_token %}
+    <div class="flex justify-between gap-3">
+      <a href="{{ urls.persona }}" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-arrow-left" aria-hidden="true"></i> Anterior</a>
+      {% if not plaza_obligatoria %}<button type="submit" class="btn-nodo btn-secondary btn-base">Continuar sin plaza <i class="fas fa-arrow-right" aria-hidden="true"></i></button>{% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
