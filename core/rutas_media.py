@@ -43,6 +43,8 @@ PREFIJO_ADJUNTO_BECAS = "becas/adjuntos/"
 PREFIJO_PADRON_BECAS = "becas/padrones/"
 #: Excel de destinatarios y HTML del cuerpo de una campaña (``notificaciones.Campana``).
 PREFIJO_NOTIFICACIONES = "notificaciones/"
+#: Adjuntos de una entrada de la bitácora de turno (``programas.AdjuntoBitacora``).
+PREFIJO_ADJUNTO_BITACORA = "dispositivos/bitacora/"
 
 
 def nombre_opaco(filename):
@@ -69,6 +71,11 @@ def ruta_archivo_admision(instance, filename):
 def ruta_solicitud_merendero(instance, filename):
     """Conserva el `%Y/%m` que ya tenía: son muchas solicitudes por año."""
     return f"{PREFIJO_SOLICITUD_MERENDERO}{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
+
+
+def ruta_adjunto_bitacora(instance, filename):
+    """El acta o la foto de una novedad del turno: `%Y/%m` porque cada turno suma archivos."""
+    return f"{PREFIJO_ADJUNTO_BITACORA}{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
 
 
 def ruta_notificacion_excel(instance, filename):
