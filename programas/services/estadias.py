@@ -1,4 +1,4 @@
-"""Ingreso, egreso y reserva de plazas (MVP v2, etapa 2 · #689).
+"""Ingreso, egreso, cambio de plaza y reserva de plazas (MVP v2, etapas 2 y 3 · #689, #694).
 
 Acá viven las tres reglas de la etapa 2 que **ninguna restricción de la base cubre**, y
 el servicio existe justamente porque no se pueden delegar al esquema:
@@ -14,6 +14,11 @@ el servicio existe justamente porque no se pueden delegar al esquema:
    dentro de `transaction.atomic()`.
 3. **Un solo origen.** Nada de lo derivado se cuenta acá: las cifras salen de
    `programas.services.ocupacion`.
+
+Desde la etapa 3, cada cambio que le pasa a la persona —ingreso, cambio de sector o de
+plaza, egreso— deja además su `MovimientoEstadia` en la misma transacción, por
+`programas.services.movimientos.registrar_movimiento`. La línea de tiempo de la estadía
+sale de ahí y de ningún otro lado.
 
 Por qué el bloqueo alcanza
 --------------------------
@@ -56,12 +61,21 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from programas.models import Dispositivo, Estadia, MotivoEgreso, Plaza, ReservaPlaza, TrazaDispositivo
+from programas.models import (
+    Dispositivo,
+    Estadia,
+    MotivoEgreso,
+    MovimientoEstadia,
+    Plaza,
+    ReservaPlaza,
+    TrazaDispositivo,
+)
 from programas.services.dispositivos import (
     dispositivos_visibles,
     puede_en_programa_dispositivos,
     puede_operar_dispositivo,
 )
+from programas.services.movimientos import registrar_movimiento, ultimo_momento
 
 CAP_ADMITIR = "dispositivo.admitir"
 CAP_EGRESAR = "dispositivo.egresar"
@@ -371,6 +385,17 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
         if consumidas != 1:
             raise ValidationError({"reserva": "La reserva ya no está vigente."})
 
+    # El movimiento lleva la fecha del ingreso y no la de la carga: es lo que hace que la
+    # permanencia calculada y la línea de tiempo coincidan.
+    registrar_movimiento(
+        estadia=estadia,
+        tipo=MovimientoEstadia.Tipo.INGRESO,
+        momento=fecha_ingreso,
+        responsable=usuario,
+        plaza_destino=plaza,
+        estado_nuevo=Estadia.Estado.ACTIVA,
+    )
+
     _trazar(
         dispositivo,
         usuario,
@@ -410,6 +435,10 @@ def egresar_persona(
         raise ValidationError({"fecha_egreso": "El egreso no puede ser futuro."})
     if fecha_egreso < estadia.fecha_ingreso:
         raise ValidationError({"fecha_egreso": "El egreso no puede ser anterior al ingreso."})
+    if fecha_egreso < ultimo_momento(estadia):
+        # Un egreso fechado antes del último cambio de plaza dejaría a la persona
+        # moviéndose de plaza después de haberse ido.
+        raise ValidationError({"fecha_egreso": "El egreso no puede ser anterior al último movimiento de la estadía."})
 
     if motivo_egreso is not None and not MotivoEgreso.objects.filter(pk=motivo_egreso.pk, activo=True).exists():
         raise ValidationError({"motivo": "El motivo elegido ya no está disponible."})
@@ -439,6 +468,17 @@ def egresar_persona(
         ]
     )
 
+    registrar_movimiento(
+        estadia=estadia,
+        tipo=MovimientoEstadia.Tipo.EGRESO,
+        momento=fecha_egreso,
+        responsable=usuario,
+        motivo=motivo_egreso.nombre if motivo_egreso else motivo,
+        plaza_origen=estadia.plaza_id,
+        estado_anterior=Estadia.Estado.ACTIVA,
+        estado_nuevo=Estadia.Estado.EGRESADA,
+    )
+
     _trazar(
         estadia.dispositivo,
         usuario,
@@ -451,6 +491,84 @@ def egresar_persona(
         ),
     )
     return estadia
+
+
+@transaction.atomic
+def cambiar_plaza(*, estadia, plaza, usuario, motivo, momento=None):
+    """Mueve a una persona alojada a otra plaza **del mismo dispositivo** (#694).
+
+    Devuelve el `MovimientoEstadia` que lo registra: de sector si la plaza nueva es de
+    otro sector, de plaza si es del mismo. Un cambio a otra institución no es esto: es un
+    traslado, que cierra la estadía y abre otra.
+
+    Pasa por las mismas reglas que el ingreso, porque compite por lo mismo: la plaza de
+    destino se resuelve dentro del dispositivo y se bloquea (`_bloquear_plaza`), y tiene
+    que estar libre según `_exigir_plaza_libre` —ni fuera de servicio, ni en un sector
+    dado de baja, ni con una estadía activa, ni con una reserva o un préstamo que la tome
+    desde ahora, aunque sea para la misma persona—. La plaza de origen no se toca: queda
+    libre sola, porque la ocupación se deriva de las estadías activas
+    (`programas.services.ocupacion`).
+
+    Lo autoriza `dispositivo.admitir` sobre el dispositivo —asignar plaza es parte de
+    alojar—, igual que el ingreso. El motivo es obligatorio: es lo que la línea de
+    tiempo cuenta del cambio. `momento` puede ser anterior a ahora (carga tardía), pero
+    nunca anterior al último movimiento de la estadía.
+    """
+
+    dispositivo = estadia.dispositivo
+    if not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+        raise PermissionDenied("No tenés alcance para cambiar de plaza a personas de este dispositivo.")
+
+    motivo = (motivo or "").strip()
+    if not motivo:
+        raise ValidationError({"motivo": "El cambio de plaza exige un motivo."})
+
+    ahora = timezone.now()
+    momento = momento or ahora
+    if momento > ahora:
+        raise ValidationError({"momento": "El cambio no puede ser futuro."})
+
+    # Primero la plaza y después la estadía, el mismo orden que el ingreso con reserva
+    # (plaza y después reserva): dos transacciones que bloquean las dos cosas no se
+    # esperan en cruz. El dispositivo de la estadía no cambia nunca, así que leerlo del
+    # objeto que llega antes de bloquearla es seguro.
+    plaza = _bloquear_plaza(plaza, dispositivo)
+    estadia = Estadia.objects.select_for_update().get(pk=estadia.pk)
+    if not estadia.activa:
+        raise ValidationError({"estado": "La estadía ya está cerrada."})
+    if estadia.plaza_id == plaza.pk:
+        raise ValidationError({"plaza": "La persona ya está en esa plaza."})
+    if momento < ultimo_momento(estadia):
+        raise ValidationError({"momento": "El cambio no puede ser anterior al último movimiento de la estadía."})
+    _exigir_plaza_libre(plaza, momento=ahora)
+
+    origen = estadia.plaza
+    cambia_de_sector = origen is not None and origen.sector_id != plaza.sector_id
+    tipo = MovimientoEstadia.Tipo.CAMBIO_SECTOR if cambia_de_sector else MovimientoEstadia.Tipo.CAMBIO_PLAZA
+
+    estadia.plaza = plaza
+    estadia.save(update_fields=["plaza", "modificado"])
+
+    movimiento = registrar_movimiento(
+        estadia=estadia,
+        tipo=tipo,
+        momento=momento,
+        responsable=usuario,
+        motivo=motivo,
+        plaza_origen=origen,
+        plaza_destino=plaza,
+    )
+
+    _trazar(
+        dispositivo,
+        usuario,
+        "ESTADIA_CAMBIO_PLAZA",
+        detalle=(
+            f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · "
+            f"plaza {origen.codigo if origen else '—'} → {plaza.codigo}"
+        ),
+    )
+    return movimiento
 
 
 @transaction.atomic
