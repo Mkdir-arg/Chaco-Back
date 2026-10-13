@@ -19,6 +19,7 @@
         <p class="font-mono text-sm text-body-subtle mt-1">{{ dispositivo.codigo }}</p>
       </div>
       <div class="flex flex-wrap gap-2">
+        <a href="{% url 'dispositivos:estadias' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Personas alojadas</a>
         {% if puede_editar and dispositivo.estado != 'CERRADO' %}<a href="{% url 'dispositivos:editar' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Editar</a>{% endif %}
         {% if puede_editar and dispositivo.estado == 'BORRADOR' or puede_editar and dispositivo.estado == 'OBSERVADO' %}
           <form method="post" action="{% url 'dispositivos:enviar_validacion' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-brand btn-base" data-confirm data-confirm-title="¿Enviar a validación?" data-confirm-text="Se verificará que estén completos los datos requeridos." data-confirm-ok="Sí, enviar">Enviar a validación</button></form>

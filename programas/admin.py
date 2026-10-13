@@ -40,6 +40,7 @@ from .models import (
     Formulario,
     InscripcionPrograma,
     ListaEspera,
+    MotivoEgreso,
     PreguntaGlobal,
     Programa,
     ProgramaSiis,
@@ -412,3 +413,18 @@ class ListaEsperaAdmin(SinBorradoMixin, admin.ModelAdmin):
     raw_id_fields = ("formulario",)
     # G1c-11: dos FK por fila, y la del formulario arrastra su ciudadano.
     list_select_related = ("segmento", "formulario__ciudadano")
+
+
+@admin.register(MotivoEgreso)
+class MotivoEgresoAdmin(SinBorradoMixin, admin.ModelAdmin):
+    """El catálogo de motivos de egreso lo define el Ministerio (#691).
+
+    Sin borrado: una estadía egresada apunta al motivo, y el historial no pierde su razón.
+    Un motivo que deja de usarse se da de baja con `activo`.
+    """
+
+    list_display = ("nombre", "codigo", "orden", "activo")
+    list_editable = ("orden", "activo")
+    list_filter = ("activo",)
+    search_fields = ("nombre", "codigo")
+    prepopulated_fields = {"codigo": ("nombre",)}

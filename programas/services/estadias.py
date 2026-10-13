@@ -56,7 +56,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from programas.models import Dispositivo, Estadia, Plaza, ReservaPlaza, TrazaDispositivo
+from programas.models import Dispositivo, Estadia, MotivoEgreso, Plaza, ReservaPlaza, TrazaDispositivo
 from programas.services.dispositivos import (
     dispositivos_visibles,
     puede_en_programa_dispositivos,
@@ -382,11 +382,16 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
 
 
 @transaction.atomic
-def egresar_persona(*, estadia, usuario, fecha_egreso=None, motivo=""):
+def egresar_persona(
+    *, estadia, usuario, fecha_egreso=None, motivo="", motivo_egreso=None, destino="", pertenencias_devueltas=False
+):
     """Cierra la estadía y suelta la clave de alojamiento y la plaza.
 
     Soltar la clave es lo que devuelve a la persona al circuito: desde ese momento
     cualquier dispositivo de la red la puede volver a alojar.
+
+    `motivo_egreso` es el `MotivoEgreso` del catálogo (#691) y tiene que estar activo;
+    `motivo` sigue siendo el texto libre de observaciones, que es lo que ya recibía.
     """
 
     if not puede_operar_dispositivo(usuario, estadia.dispositivo, CAP_EGRESAR):
@@ -406,16 +411,32 @@ def egresar_persona(*, estadia, usuario, fecha_egreso=None, motivo=""):
     if fecha_egreso < estadia.fecha_ingreso:
         raise ValidationError({"fecha_egreso": "El egreso no puede ser anterior al ingreso."})
 
+    if motivo_egreso is not None and not MotivoEgreso.objects.filter(pk=motivo_egreso.pk, activo=True).exists():
+        raise ValidationError({"motivo": "El motivo elegido ya no está disponible."})
+
     estadia.fecha_egreso = fecha_egreso
     estadia.estado = Estadia.Estado.EGRESADA
     estadia.motivo_egreso = motivo
+    estadia.motivo = motivo_egreso
+    estadia.destino_egreso = (destino or "").strip()
+    estadia.pertenencias_devueltas = bool(pertenencias_devueltas)
     estadia.egresada_por = usuario
     # La clave se suelta en el mismo `UPDATE` que cierra la estadía: el constraint de
     # coherencia no admite ningún estado intermedio entre las dos cosas.
     estadia.clave_alojamiento = None
     estadia.clean()
     estadia.save(
-        update_fields=["fecha_egreso", "estado", "motivo_egreso", "egresada_por", "clave_alojamiento", "modificado"]
+        update_fields=[
+            "fecha_egreso",
+            "estado",
+            "motivo_egreso",
+            "motivo",
+            "destino_egreso",
+            "pertenencias_devueltas",
+            "egresada_por",
+            "clave_alojamiento",
+            "modificado",
+        ]
     )
 
     _trazar(
@@ -424,7 +445,10 @@ def egresar_persona(*, estadia, usuario, fecha_egreso=None, motivo=""):
         "ESTADIA_EGRESO",
         estado_anterior=Estadia.Estado.ACTIVA,
         estado_nuevo=Estadia.Estado.EGRESADA,
-        detalle=f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · motivo: {motivo or '—'}",
+        detalle=(
+            f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · "
+            f"motivo: {motivo_egreso.nombre if motivo_egreso else (motivo or '—')}"
+        ),
     )
     return estadia
 
