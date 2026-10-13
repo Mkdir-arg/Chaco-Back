@@ -407,6 +407,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 273 | Movimientos de la estadía: cambio de sector o de plaza con su historial, y permanencia calculada | Dispositivos · estadía | `#datos` `#rbac` | Task 29 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0089` |
 | 274 | Turnos y bitácora: la novedad se agrega, corregir crea una versión y nada se pisa | Dispositivos · datos y servicios | `#datos` `#rbac` | Task 30 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0090` · `users.0036` |
 | 276 | Detalle del dispositivo: quién está alojado, en qué sector y cuántas plazas quedan | Dispositivos · detalle | `#ui` `#rbac` `#performance` | Task 27 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
+| 275 | Relevamiento edilicio: el modelo de la inspección, colgado del edificio | Dispositivos · relevamiento edilicio | `#datos` `#rbac` | Task 35 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0091`, `users.0037` |
 
 **Notas del índice**
 
@@ -34813,5 +34814,177 @@ PR junto con los MINOR.
 ## Historial
 
 Entrada nueva. Etapa 2 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 275 — Relevamiento edilicio: el modelo de la inspección, colgado del edificio
+
+🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 35` (#700)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamiento edilicio |
+| **Etiquetas** | `#datos` `#rbac` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) · decisión del 08/10 «el relevamiento es por edificio» |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Task 35 del backlog del MVP · Épica #127 · primera de la etapa 4 |
+| **Partes afectadas** | Servidor (`programas/models/__init__.py`, `services/inspecciones.py`, `services/dispositivos.py`, `core/rbac.py`, `core/views/media.py`, `core/rutas_media.py`, `core/validators.py`) |
+| **Migración** | `programas.0091` — tablas `InspeccionEdificio` y `FotoInspeccion` · `users.0037` — dos capacidades |
+
+## Pedido original
+
+El relevamiento edilicio de la etapa 4: **cuelga del edificio**, no del sector ni del dispositivo,
+para que un predio compartido se releve una vez y el resultado lo vean todas las instituciones que
+lo ocupan. El coordinador crea y asigna (elige el edificio y el agente); el agente no elige qué
+relevar. Criticidad, observaciones, responsable, fecha y estado, y fotos como evidencia detrás de
+login. Sin UI (P21 es la task 36, P19 la 37) y sin API (la 38).
+
+## Alcance acordado
+
+Entra: los dos modelos, las capacidades, el servicio con el circuito completo y las lecturas que
+van a consumir P19, P21 y el semáforo (task 40), y la regla de `/media/` para las fotos. Queda
+afuera: pantallas, API de la app, periodicidad y aviso de vencimiento, validación por una tercera
+persona y la marca «en obra».
+
+## Decisiones tomadas
+
+**El modelo es `InspeccionEdificio`, la etiqueta visible «Relevamiento».** `Relevamiento` es de
+Becas (Cambio 191, Q4). El módulo nuevo del `CATALOGO` se llama `inspecciones` y su etiqueta en el
+ABM de Roles es «Relevamientos edilicios», para que no se confunda con el módulo `relevamientos`.
+
+**Dos capacidades y no una: `inspeccion.asignar` (coordinador) e `inspeccion.relevar` (agente).**
+Módulo de alcance `programa`, acotado a `DISPOSITIVOS` (un admin de Becas no las puede otorgar).
+No se siembran en ningún rol: las tilda el admin del programa desde el ABM, como las demás de
+Dispositivos.
+
+**El agente solo ve y carga lo que tiene asignado, y la guarda es `asignado_a`, no la capacidad.**
+Un usuario con todas las capacidades del programa y alcance de admin, que no es el asignado, no
+registra el resultado ni sube fotos (test). Reasignar le saca la tarea al anterior.
+
+**El alcance del coordinador es por edificio, derivado del dispositivo.** Asigna en los edificios
+que ocupa algún dispositivo donde un rol suyo **con `inspeccion.asignar`** está asignado; el admin
+del programa, en todos. Para eso `dispositivos_visibles` se generalizó en
+`dispositivos_en_alcance(user, capacidad)`, sin cambiar su comportamiento.
+
+**Quien ve un relevamiento lo resuelve una sola función**, `inspecciones_visibles`: coordinador en
+su alcance, agente en lo suyo y quien opera (`dispositivo.ver`) cualquier institución del edificio.
+La regla de `/media/` para las fotos la reusa, así que la foto se ve exactamente donde se ve la
+inspección.
+
+**Un solo relevamiento en curso por edificio**, sostenido con `select_for_update()` sobre la fila
+del edificio: un `UniqueConstraint` condicional no existiría en MySQL/MariaDB. El segundo se
+rechaza y lo que corresponde es reasignar.
+
+**La consulta del semáforo distingue «sin relevar» de «relevado y sano».**
+`ultimas_inspecciones_por_edificio` devuelve `None` para el edificio sin ninguna realizada y la
+inspección (criticidad `BAJA`) para el sano; `ultimas_inspecciones_de_dispositivos` devuelve `{}`
+para el dispositivo sin edificio cargado. Dos y tres consultas fijas, sin importar cuántos: la
+última va como subconsulta escalar con `LIMIT 1` en el `SELECT` (MySQL no admite `LIMIT` en un
+`IN`). Un dispositivo en más de un edificio trae todos: qué color gana lo decide la task 40.
+
+**«Vencido», «por vencer» y «al día» no son estados**: se derivan de `fecha_vencimiento` y de la
+última realizada (`InspeccionEdificio.vencida()`).
+
+**Las fotos se agregan y no se pisan**: `FotoInspeccion` es inmutable (como `TrazaDispositivo`),
+con nombre opaco bajo `dispositivos/inspecciones/AAAA/MM/`. Se aceptan JPG, PNG, WEBP y HEIC hasta
+5 MB con firma verificada (`core.validators.validar_foto`, la lista de los adjuntos sin el PDF).
+WEBP y HEIC/HEIF se verifican **solo acá** (`RIFF`…`WEBP`; caja `ftyp` con marca `heic`, `heix`,
+`mif1` o `msf1`): `FIRMAS` no las conoce y no se tocó porque la comparten Becas y la app de campo.
+La inmutabilidad alcanza también al queryset y al manager (`update`, `delete` y `bulk_update`
+levantan error), con el patrón de `TrazaDispositivoQuerySet`. El agente puede sumar fotos después de cerrar el resultado, porque la app sin conexión puede mandarlas
+tarde; un relevamiento cancelado no recibe más. Si algo falla, la base vuelve atrás y los archivos
+ya escritos se borran (`core.archivos`).
+
+### Defaults a confirmar con el Ministerio
+
+Son definiciones del correo a Guido que siguen abiertas. Quedaron como `TextChoices` o constante,
+fáciles de cambiar, y **los constraints de la base no enumeran valores**: cambiar la escala no
+toca el esquema.
+
+- **Escala de criticidad**: `BAJA` (en buen estado), `MEDIA` (regular), `ALTA` (requiere
+  intervención). Tres niveles, uno por color del semáforo. El mockup (P19) muestra «estado físico»
+  Bueno / Regular.
+- **Estados del circuito**: `ASIGNADA` («Asignado · en campo»), `REALIZADA` («Completado») y
+  `CANCELADA` (con motivo obligatorio). Salen de los rótulos y las solapas de P21.
+- **El agente es externo a la institución**: `AGENTE_DEBE_SER_EXTERNO = True` en el servicio. El
+  mockup dice «nunca se asigna al personal de la institución relevada»; «personal» es tener un rol
+  activo asignado a alguna institución del edificio. Apagarlo es cambiar la constante.
+
+## Implementación
+
+El coordinador crea la tarea (edificio, agente, vencimiento, indicaciones) y puede reasignarla o
+cancelarla mientras está en curso. El agente asignado registra criticidad, observaciones y fotos, y
+puede sumar fotos después. Las lecturas para las pantallas que vienen: `inspecciones_visibles`,
+`inspecciones_asignadas` (lo que le llega a la app), `agentes_asignables` (el selector de P21),
+`inspecciones_de_dispositivo` (P19, con las del predio compartido), `ultima_inspeccion` y las dos
+consultas en lote del semáforo.
+
+## Archivos
+
+`programas/models/__init__.py` · `programas/migrations/0091_inspeccion_edificio.py` ·
+`programas/services/inspecciones.py` (nuevo) · `programas/services/dispositivos.py` ·
+`core/rbac.py` · `users/migrations/0037_capacidades_inspeccion.py` · `core/rutas_media.py` ·
+`core/validators.py` · `core/views/media.py` · `programas/tests/test_dispositivos_inspecciones.py`
+(nuevo) · `programas/tests/test_models_contrato.py` · `users/tests/test_rbac.py`
+
+## Base de datos
+
+`programas.0091`: dos tablas nuevas, sin columnas sobre tablas existentes. `InspeccionEdificio` con
+tres `CheckConstraint` (realizada con criticidad, fecha y autor; sin realizar sin criticidad;
+cancelada con motivo) y dos índices (`edificio, estado, realizada_en` y `asignado_a, estado`).
+`users.0037`: `AlterModelOptions` de `Capacidad`, sin esquema. `check_migraciones.py` en verde.
+
+## Validación
+
+`manage.py check` OK · `makemigrations --check` limpio · `check_migraciones.py` sobre las dos
+migraciones: 0 problemas. `test_dispositivos_inspecciones` (39 tests), todos los
+`test_dispositivos_*`, `test_models_contrato`, `test_solapa_dispositivos`, `core.tests.test_gates_ci`,
+`core.tests.test_media_protegida`, la app `users` y los tests del catálogo en verde (Py 3.12 +
+Dj 5.2). **Mutación**, cada una con su rojo: sacar la guarda de `asignado_a` (6 fallas y 1 error),
+que el agente vea todo (3), sacar la regla del agente externo (1), contar las en curso como «última»
+(1) y sacar el alcance del coordinador (1). Después de la revisión de #828, también: que cualquier
+`inspeccion.asignar` vea todo sin ser admin del programa (1), sacar el camino del coordinador de la
+visibilidad (1), que `dispositivos_en_alcance` no exija la capacidad en el rol asignado (1), volver a
+la firma compartida para WEBP/HEIC (4) y quitar el manager inmutable de las fotos (1). Los
+coordinadores de esos tests tienen solo `inspeccion.asignar`, sin un `dispositivo.ver` que tape el
+camino roto. Sin UI: no aplica la auditoría de diseño.
+
+## Puesta en marcha en el servidor
+
+No requiere. Las capacidades las crea el `post_migrate`; hay que tildarlas en los roles del
+programa desde el ABM. Para QA y la configuración de roles:
+
+- **El rol del agente no se asigna a dispositivos.** Con `AGENTE_DEBE_SER_EXTERNO`, un rol asignado
+  a una institución del edificio lo vuelve «personal» y lo saca del selector de ese edificio.
+- **El coordinador de cualquier institución del predio puede reasignar o cancelar** el
+  relevamiento del edificio, aunque lo haya creado otro coordinador: el alcance es por edificio,
+  no por autor.
+
+## Pendientes / a definir
+
+- **Las tres definiciones del Ministerio** de arriba: escala, estados y agente externo.
+- **Qué es «personal» del edificio**, junto con `AGENTE_DEBE_SER_EXTERNO`: `_personal_del_edificio`
+  cuenta a cualquier usuario con un rol activo asignado a un dispositivo del edificio, **sin mirar
+  capacidades**. Un supervisor con rol de zona asignado a esas instituciones sale del selector sin
+  motivo. Lo define el Ministerio.
+- **Periodicidad y vencimiento automático** (6 meses, 1 mes «en obra», avisos por correo): el
+  mockup los muestra en P19 y P21, el plan los deja afuera del MVP («sin la regla de vigencia»).
+- **La validación por una tercera persona** («ni vos ni quien carga», P21) no existe: no hay estado
+  ni actor para eso.
+- **Cambiar el vencimiento y la prioridad** del menú de P21 no tienen servicio todavía.
+- **Sin traza** de asignaciones y reasignaciones: la auditoría básica es de la etapa 3.
+
+## Reversión
+
+`migrate programas 0090` y `migrate users 0036`, y `git revert` del merge. Se pierden los
+relevamientos y las fotos cargados (las filas; los archivos quedan en `media/` y hay que borrarlos a
+mano). Los `Permission` de las dos capacidades quedan huérfanos en `auth_permission` y tildados en
+los roles que los tengan, igual que en la OPS-14.
+
+## Historial
+
+Entrada nueva. Etapa 4 del plan del Cambio 191.
 
 ---
