@@ -51,7 +51,7 @@ La pieza tiene **dos tamaños declarados**. No es decoración: cada uno tiene su
 
 | | Chica (por defecto) | Grande · `variante="tablero"` |
 |---|---|---|
-| Cuándo | listados, detalles y franjas dentro de un contenido | tableros y pantalla de inicio de programa: la franja de métricas que **encabeza** la pantalla |
+| Cuándo | listados, detalles y franjas dentro de un contenido | tableros y pantalla de inicio de programa: la franja de métricas que **encabeza** la pantalla. También la franja de indicadores operativos que encabeza un detalle de Dispositivos (decisión C-2 del PM: P1, P4, P12, P19, P21) |
 | Caja de ícono | `w-8 h-8 rounded-lg`, color por `tono` | 52 px, radio 12, ícono blanco sobre `var(--gradient-brand)` (el `tono` no aplica) |
 | Valor | `text-2xl font-bold` (24 px) | 32 px / peso 800 |
 | Sombra | ninguna | `shadow-sm` |

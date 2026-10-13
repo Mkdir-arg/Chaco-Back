@@ -406,6 +406,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 272 | Asistente de ingreso, y un solo origen para el estado de cada plaza | Dispositivos · ingreso | `#ui` `#rbac` | Task 25 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 273 | Movimientos de la estadía: cambio de sector o de plaza con su historial, y permanencia calculada | Dispositivos · estadía | `#datos` `#rbac` | Task 29 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0089` |
 | 274 | Turnos y bitácora: la novedad se agrega, corregir crea una versión y nada se pisa | Dispositivos · datos y servicios | `#datos` `#rbac` | Task 30 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0090` · `users.0036` |
+| 276 | Detalle del dispositivo: quién está alojado, en qué sector y cuántas plazas quedan | Dispositivos · detalle | `#ui` `#rbac` `#performance` | Task 27 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -34638,5 +34639,179 @@ dieron rojo.
 ## Historial
 
 Entrada nueva. Etapa 3 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 276 — Detalle del dispositivo: quién está alojado, en qué sector y cuántas plazas quedan
+
+🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 27 · Detalle del dispositivo` (#692)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle del dispositivo (P4) · egreso · legajo |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | #692 · Épica #127 · etapa 2 |
+| **Partes afectadas** | Backoffice: `programas/templates/programas/dispositivos/legajo/detail.html`, `views/dispositivos_legajo.py`, `services/detalle_dispositivo.py`, `services/estadias.py`, `selectors/trayectoria.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«La pantalla central del programa: quién está alojado, en qué sector y cuántas plazas quedan.
+P4 del mockup.» Arquetipo detalle con solapas con el estado de la solapa en la URL, franja de
+indicadores con la variante tablero (task 03), filtro en píldora (task 12) y menú de fila (task 06),
+contadores resueltos en la vista y listados paginados.
+
+## Alcance acordado
+
+Entra: el legajo del dispositivo reescrito como P4 —encabezado, franja de indicadores, solapas Datos,
+Sectores y plazas (si el tipo maneja plazas), Estadías e Historial—, el egreso dentro de la solapa
+Estadías y un solo mapa de estado de la estadía para P4 y la solapa del legajo (P16).
+
+Queda afuera, porque los datos no existen todavía: las alertas de tránsito vencido y de
+infraestructura, las tarjetas Ocupación %, Bitácora y Fichas completas, las columnas Ficha y Alertas,
+la píldora «Ficha», las solapas Lista de espera, Bitácora, Documentación, Infraestructura y Consumos
+y contratos, y la acción «Bitácora del turno».
+
+## Decisiones tomadas
+
+**Plan de pantalla.**
+
+```
+Tipo: B (P4 reemplaza el legajo v1) · Arquetipo: Detalle con solapas · Golden: programas/templates/programas/becas/cupo/segmento_detail.html
+Secundarias: modales Observar/Rechazar/Registrar egreso = arquetipo Modal (confirmación con motivo); sí/no = _confirm_js.html
+Hermana (solo dominio): dispositivos/sectores/sectores.html, dispositivos/_estado_badge.html, dispositivos/estadia/estadias.html (la del egreso)
+Bloques: header=page_header(volver, bajada, badge, acciones btn-sm; sin eyebrow: P4 no lo tiene) · alerta por estado · surface Indicadores (4 stat_card tablero) ·
+         solapas Datos / Sectores y plazas / Estadías / Historial · Estadías: píldoras estado+sector, tabla 5 col, vacío x3, paginación estadias_page ·
+         Sectores: tabla 7 col + vacío · Historial: _linea_tiempo + paginación historial_page · modales observar/rechazar/egreso
+Vista: ocupacion_de_plazas una vez; estadías paginadas con select_related+only; alojadas contadas en el servicio; texto/tono del estado en el servicio
+Novedades: ninguna
+```
+
+**Las cifras de plazas salen de una sola llamada a `ocupacion_de_plazas`.** La franja, el desglose
+por sector y el contador de la solapa son el mismo `Censo`; la vista no cuenta ni deriva el estado de
+ninguna plaza. Lo único que se cuenta aparte son personas alojadas (estadías activas), que no es una
+cifra de plazas. Un test reemplaza el servicio por un censo inventado y exige que la pantalla muestre
+ese censo.
+
+**Una sola lista de personas por dispositivo.** La solapa Estadías de P4 es la lista. El modal de
+egreso de la task 26 (Cambio 269) se mudó ahí sin cambios —mismo form, `x-becas-modal`, `data-ajax`
+y el reset del form entre filas—, con «Registrar egreso» solo en filas activas y con
+`dispositivo.egresar` con alcance. `estadia/estadias.html` se borró; la ruta `dispositivos:estadias`
+queda por compatibilidad como redirect a `dispositivos:detalle?tab=estadias`. Después de egresar se
+vuelve a esa solapa.
+
+**Solapas.** Las acciones de dentro de una solapa (paginación, píldoras, egreso) conservan la solapa
+por `?tab=`. Las del encabezado (Validar, Inactivar, Cerrar, Observar, Rechazar) cambian el
+dispositivo entero y vuelven a la solapa por defecto (Estadías), como la golden. No se escribe la URL
+al hacer clic en una solapa (`$watch`/`replaceState`): se apartaría de la golden.
+
+**Un solo mapa de estado de la estadía.** `ESTADOS_VISIBLES` de `programas/services/estadias.py`
+(«Alojada» `info`, «Egresada» `gray`, los textos del mockup) lo leen P4 y la trayectoria del legajo;
+sale el `_TONO_ESTADO` de `selectors/trayectoria.py` y el «Activa» de `get_estado_display()`. El
+template dibuja `badge badge-dot badge-{{ tono }}` sin parcial nuevo; el canon («Mapa de estados por
+módulo» y las fichas `tabla.md`, `botones_badges.md` y `dominio/becas.md`) ahora dice que el mapeo lo
+decide el módulo, en su parcial o en su servicio/selector.
+
+**Alerta del encabezado por estado.** Borrador, Pendiente de validación, Observado, Rechazado,
+Inactivo y Cerrado explican cada uno por qué no se puede ingresar; Activo no lleva alerta.
+
+**Apartamientos del mockup.** Franja: Plazas operativas, Ocupadas, Reservadas o prestadas y
+Disponibles, en vez de Ocupación %, Disponibles, Bitácora y Fichas completas (sin datos ni regla de
+«crítica»). Acciones de fila: dos (Ver legajo y Registrar egreso) como `.nodo-icon-btn`, que es lo que
+manda el canon para una o dos acciones, en vez del menú ⋮ de P4: cambiar plaza, permiso de salida y
+trasladar no existen todavía. «Ver» es ícono y no botón con texto. Sin «Ver egresadas»: lo cubre la
+píldora Estado (Alojadas, Egresadas, Todas). «Cerrar» es `btn-danger`, no terciario. Iniciales en la
+fila, de la golden. Las solapas y columnas que no tienen datos, arriba en *Alcance*.
+
+## Implementación
+
+El detalle del dispositivo abre en Estadías: la página de personas (alojadas por defecto), filtrable
+por estado y sector, con ingreso, sector y plaza y el estado, y desde ahí se registra el egreso.
+Arriba están los cuatro indicadores de plazas; Sectores y plazas muestra las cifras por sector con el
+enlace al mapa, e Historial la línea de tiempo del legajo. Las confirmaciones sí/no van por
+`ModernModal`; Observar, Rechazar y el egreso piden motivo en un modal. Sale el handler legacy de
+SweetAlert2 de esta pantalla.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/legajo/detail.html` (reescrito)
+- `programas/templates/programas/dispositivos/estadia/estadias.html` (borrado)
+- `programas/services/detalle_dispositivo.py` (nuevo), `programas/services/estadias.py`, `programas/selectors/trayectoria.py`
+- `programas/views/dispositivos_legajo.py`
+- `programas/tests/test_dispositivos_detalle.py` (nuevo), `test_dispositivos_egreso.py`, `test_solapa_dispositivos.py`, `test_confirmaciones_legacy.py`, `core/tests/test_front_ola5_pr6c.py`
+- `scripts/perf_budgets.json` (presupuesto nuevo `dispositivos_detalle_estadias`: 2 consultas)
+- `.claude/agents/chaco-design-system.md`, `.claude/design/componentes/tabla.md`, `botones_badges.md`, `.claude/design/dominio/becas.md`
+- `static/custom/css/tailwind.css` (sale `.pl-4`, que solo usaba el historial viejo)
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py check`, `compile_templates.py` (0), `design_audit.py --arquetipo detalle` OK,
+  `--ratchet --base origin/development` 0 nuevos, `--goldens` 0, `check_design_agent.py --changed` y
+  `--limites` OK, ruff OK.
+- Tests de dispositivos y legajos, y `--tag performance` (el listado de alojados cuesta lo mismo con 1
+  y con 21 estadías y respeta el presupuesto).
+- Mutaciones (romper la regla, ver el test rojo, restaurar y verlo verde):
+  - **M1** sin el chequeo de alcance de `get_object` → `test_el_detalle_de_un_dispositivo_ajeno_es_403` rojo (200 ≠ 403).
+  - **M2** el detalle pide `dispositivo.editar` → `test_sin_dispositivo_ver_es_403_…` rojo.
+  - **M3** `puede_editar`/`puede_admitir` siempre verdaderos → `test_quien_solo_ve_…` rojo (aparece la URL de cerrar).
+  - **M4** el enlace al legajo sin `ciudadano.ver` → `test_la_fila_ofrece_el_legajo_…` rojo.
+  - **M5** la vista cuenta plazas por su cuenta → `test_todas_las_cifras_de_plazas_salen_del_censo_…` rojo (2 ≠ 94).
+  - **M6** sin `select_related` → `NPlusOneError` de zeal y el presupuesto rojo (65 ≠ 2).
+  - **M7** P4 ofrece el egreso sin `puede_egresar` → `test_sin_la_capacidad_de_egresar_no_hay_boton_ni_modal` rojo.
+  - **M8** el POST de egreso sin el chequeo de alcance de la vista sigue verde porque `egresar_persona`
+    lo repite (defensa en profundidad); sin los dos, `test_sin_alcance_sobre_el_dispositivo_no_egresa`
+    rojo (200 ≠ 403).
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- Observar y Rechazar postean clásico y avisan por toast: si el servicio rechaza el motivo, el error
+  no aparece en el `data-error` del modal (falta el contrato JSON del arquetipo Modal).
+- Menú de fila: entra cuando existan cambiar plaza, permiso de salida y trasladar.
+- Indicadores, alertas, columnas y solapas del mockup que esperan sus datos (ver *Alcance*).
+
+## Reversión
+
+Revertir el commit. No hay datos que se pierdan: la ruta `dispositivos:estadias` vuelve a su
+pantalla propia y el legajo a su versión anterior.
+
+## Revisión
+
+PR #830. Desarrollo: APPROVE. Diseño: REQUEST_CHANGES con un MAJOR de canon, resuelto en el mismo
+PR junto con los MINOR.
+
+- **MAJOR (diseño): el canon no admitía `variante="tablero"` en un detalle.** El uso es el que
+  decidió el PM en C-2 (opción C, `docs/internal/dispositivos-v2/mapeo-mockup.md`); lo que estaba
+  desalineado era el canon. La fila «Cuándo» de `.claude/design/componentes/stat_card.md` y la
+  excepción de gradiente de `.claude/agents/chaco-design-system.md` ahora admiten la franja de
+  indicadores operativos que encabeza un detalle de Dispositivos (P1, P4, P12, P19, P21). El
+  template no cambió.
+- **MINOR: la píldora «Sector» se armaba sin sectores.** Ahora solo aparece si el dispositivo tiene
+  sectores activos. Test nuevo; rojo con la píldora armada siempre.
+- **MINOR: `"²".isdigit()` daba 500 en el filtro de sector.** El filtro acepta solo dígitos ASCII
+  (`isascii()` + `isdecimal()`): «²», dígitos de otros alfabetos («١» se tomaba como el sector 1),
+  signos y espacios se descartan. El caso se sumó a `test_un_filtro_ajeno_o_roto_se_descarta`; con
+  el código viejo daba `ValueError` en «²» y aceptaba «١».
+- **MINOR: la guarda de alcance del POST de egreso en la vista no tenía test propio** (el servicio
+  la repite). `test_la_vista_corta_sin_alcance_antes_de_llamar_al_servicio` parchea
+  `egresar_persona`, espera 403 y verifica que no se llamó; sin la guarda de la vista da 200.
+- **Nota, queda pendiente:** con `?tab=sectores` en un tipo sin plazas, la tarjeta de solapas queda
+  vacía. Normalizarlo pide validar `tab` en la vista y dejar de leerlo con `URLSearchParams` en el
+  `x-data`, que es el patrón de la golden: no es una línea.
+
+## Historial
+
+Entrada nueva. Etapa 2 del plan del Cambio 191.
 
 ---

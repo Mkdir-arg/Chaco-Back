@@ -81,7 +81,8 @@ reusado por la solapa del legajo), `programas/templates/programas/becas/reportes
 - Cards repetidas por registro cuando el usuario compara filas.
 - «Ver detalle» como botón con texto dentro de la fila.
 - `aria-label` genérico en el botón de ícono.
-- Mapear estado a color dentro de la pantalla: va en el parcial de badges del módulo.
+- Mapear estado a color dentro de la pantalla: lo decide el módulo, en su parcial de badges o en
+  el servicio/selector que entrega texto y `tono` (`badge badge-dot badge-{{ tono }}`).
 
 ## Deuda conocida
 

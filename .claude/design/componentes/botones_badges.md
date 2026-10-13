@@ -79,7 +79,8 @@ marca).
 - `badge-sm` es solo geometría; en pantalla nueva no hace falta. El alias `badge-nodo` que acompañaba a
   `badge-sm` en plantillas legacy **ya no existe en ningún template** (FE-06): la clase base es `badge`.
 - El mapeo estado → variante **no se escribe en la pantalla**: vive en el parcial de badges del
-  módulo (ficha `dominio/becas.md`, sección «Mapa de estados»).
+  módulo o en su servicio/selector, que entrega texto y `tono` y el template dibuja
+  `badge badge-dot badge-{{ tono }}` (ficha `dominio/becas.md`, sección «Mapa de estados»).
 
 ## Prohibido
 
