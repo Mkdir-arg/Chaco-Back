@@ -35440,9 +35440,16 @@ Cancelados: edificio, agente, vencimiento con el «en N días / hace N días», 
 relevó, estado y, en lo que está en curso, reasignar y el menú ⋮. «Nuevo relevamiento» pide el edificio y después el agente, el vencimiento y las
 indicaciones; reasignar pide el nuevo agente y cancelar pide el motivo.
 
+**Los mixins de permisos de Dispositivos se mudaron a `programas/mixins_dispositivos.py`** (nuevo,
+fuera de `programas/views/`): la pantalla los tomaba de `views/dispositivos_legajo.py` y eso es una
+arista vista→vista, que el ratchet de `programas/tests/test_arquitectura.py` marca como un helper en
+el módulo equivocado. `dispositivos_legajo` los re-exporta, así que los imports que ya existían
+—`reportes.py`, la arista conocida— siguen funcionando sin tocarlos.
+
 ## Archivos
 
-`programas/views/dispositivos_relevamientos.py` (nuevo) · `programas/dispositivos_urls.py` ·
+`programas/views/dispositivos_relevamientos.py` (nuevo) · `programas/mixins_dispositivos.py`
+(nuevo) · `programas/views/dispositivos_legajo.py` · `programas/dispositivos_urls.py` ·
 `programas/forms_dispositivos.py` · `programas/services/inspecciones.py` ·
 `programas/templates/programas/dispositivos/relevamientos/list.html` (nuevo) ·
 `programas/templates/programas/dispositivos/_relevamiento_situacion_badge.html` y

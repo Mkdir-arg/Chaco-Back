@@ -28,6 +28,7 @@ from programas.forms_dispositivos import (
     ElegirEdificioForm,
     ReasignarRelevamientoForm,
 )
+from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
 from programas.models import InspeccionEdificio
 from programas.services.inspecciones import (
     AGENTE_DEBE_SER_EXTERNO,
@@ -45,7 +46,6 @@ from programas.services.inspecciones import (
     situacion_de,
 )
 from programas.views.ajax_utils import ajax_redirect, is_ajax
-from programas.views.dispositivos_legajo import DispositivoProgramaPermissionMixin
 
 #: Parámetros que abren un modal: no son filtros ni se conservan al paginar.
 PARAMETROS_DE_MODAL = ("nuevo", "asignar", "reasignar", "cancelar")
