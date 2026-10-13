@@ -3,6 +3,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.utils import IntegrityError
 from django.http import JsonResponse
@@ -13,8 +14,9 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.rbac import puede
 from programas.forms import DispositivoForm
-from programas.forms_dispositivos import EgresoForm
+from programas.forms_dispositivos import CambioPlazaForm, EgresoForm
 from programas.models import Dispositivo, Estadia, TipoDispositivo
+from programas.selectors.estadia_detalle import detalle_de_estadia
 from programas.services.detalle_dispositivo import (
     aviso_sin_ingresos,
     contar_alojadas,
@@ -39,8 +41,8 @@ from programas.services.dispositivos import (
     registrar_edicion_dispositivo,
     validar_dispositivo,
 )
-from programas.services.estadias import CAP_EGRESAR, egresar_persona
-from programas.services.ingreso import maneja_plazas
+from programas.services.estadias import CAP_ADMITIR, CAP_EGRESAR, cambiar_plaza, egresar_persona
+from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.ocupacion import ocupacion_de_plazas
 from programas.services.reportes import filtrar_dispositivos
 from programas.services.sectores_plazas import sectores_con_plazas
@@ -350,6 +352,9 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
 # recalcula `programas.services.ocupacion`. La lista de personas y el modal viven en la solapa
 # Estadías del detalle (P4): hay una sola lista de personas por dispositivo.
 
+#: Valor del campo oculto `volver` con el que el modal de egreso de P7 pide volver a la estadía.
+VOLVER_A_LA_ESTADIA = "estadia"
+
 
 def url_solapa_estadias(dispositivo_pk):
     """El detalle del dispositivo abierto en la solapa Estadías."""
@@ -378,7 +383,7 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
         if not puede_operar_dispositivo(request.user, dispositivo, CAP_EGRESAR):
             raise PermissionDenied
         estadia = get_object_or_404(Estadia.objects.select_related("ciudadano"), pk=estadia_pk, dispositivo=dispositivo)
-        volver = url_solapa_estadias(dispositivo.pk)
+        volver = self._volver(request, dispositivo, estadia)
 
         form = EgresoForm(request.POST, estadia=estadia)
         if not form.is_valid():
@@ -405,6 +410,19 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
         return redirect(volver)
 
     @staticmethod
+    def _volver(request, dispositivo, estadia):
+        """A dónde vuelve el modal: P7 si lo pidió con `volver=estadia`, si no la solapa Estadías de P4.
+
+        El destino lo arma el servidor con `reverse`: el campo es una **clave**, no una URL,
+        así que ningún valor que llegue en el POST puede mandar al usuario afuera. Cualquier
+        cosa que no sea `estadia` cae al destino de siempre.
+        """
+
+        if request.POST.get("volver") == VOLVER_A_LA_ESTADIA:
+            return reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
+        return url_solapa_estadias(dispositivo.pk)
+
+    @staticmethod
     def _errores_del_servicio(error, form):
         """Lo que el servicio rechaza, en la forma `{campo: [mensajes]}` del modal.
 
@@ -425,4 +443,144 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
         for mensajes in errores.values():
             for mensaje in mensajes:
                 messages.error(request, mensaje)
+        return redirect(volver)
+
+
+# Detalle de la estadía (MVP v2, etapa 3 · #698 · P7). La persona alojada con su plaza, su
+# línea de tiempo y las dos acciones que la mueven: cambiar de plaza y egresar.
+CAP_VER_CIUDADANO = "ciudadano.ver"
+#: Movimientos por página en la solapa Movimientos.
+MOVIMIENTOS_POR_PAGINA = 25
+#: Los dos formularios de P7 tienen un campo `motivo`: con el `id_%s` de Django los dos
+#: controles saldrían con `id="id_motivo"` y el label del segundo apuntaría al primero.
+AUTO_ID_CAMBIO = "cambio_%s"
+
+
+def _estadia_del_dispositivo(dispositivo, estadia_pk):
+    """La estadía, solo si es de ese dispositivo: un id de otro da 404, nunca la estadía ajena."""
+
+    return get_object_or_404(
+        Estadia.objects.select_related(
+            "ciudadano", "dispositivo", "plaza__sector", "motivo", "ingresada_por", "egresada_por"
+        ),
+        pk=estadia_pk,
+        dispositivo=dispositivo,
+    )
+
+
+def _sectores_para_cambio(estadia):
+    """Las plazas del dispositivo con su estado, de `ocupacion.estado_de_plazas` (vía el asistente de ingreso).
+
+    Es la misma fuente que el mapa y que el ingreso: acá no se decide qué es una plaza libre.
+    """
+
+    sectores, _elegibles = plazas_para_ingresar(estadia.dispositivo)
+    return sectores
+
+
+class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
+    """La estadía de una persona (P7): identidad, plaza, línea de tiempo y acciones.
+
+    Qué la habilita: `dispositivo.ver` con alcance de programa **y** asignación al
+    dispositivo (el mismo mixin que el detalle del dispositivo) **y** `ciudadano.ver`. La
+    pantalla muestra nombre, DNI y la historia de una persona: sin `ciudadano.ver` se
+    responde 403 **antes** de buscar la estadía, para que probar ids no diga cuáles
+    existen (la regla que sentó la solapa del legajo, #697).
+    """
+
+    capacidad_requerida = "dispositivo.ver"
+    model = Dispositivo
+    template_name = "programas/dispositivos/estadia/detalle.html"
+    context_object_name = "dispositivo"
+
+    def get_object(self, queryset=None):
+        dispositivo = super().get_object(queryset)
+        if not puede(self.request.user, CAP_VER_CIUDADANO):
+            raise PermissionDenied
+        self.estadia = _estadia_del_dispositivo(dispositivo, self.kwargs["estadia_pk"])
+        return dispositivo
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        dispositivo, estadia, usuario = self.object, self.estadia, self.request.user
+        datos = detalle_de_estadia(estadia)
+        context.update(datos)
+
+        context["movimientos_page"] = Paginator(datos["movimientos"], MOVIMIENTOS_POR_PAGINA).get_page(
+            self.request.GET.get("movimientos_page")
+        )
+        url_volver = url_solapa_estadias(dispositivo.pk)
+        context["url_volver"] = url_volver
+        context["url_legajo"] = reverse("legajos:ciudadano_detalle", args=[estadia.ciudadano_id])
+        context["url_trayectoria"] = reverse("legajos:dispositivos_ciudadano", args=[estadia.ciudadano_id])
+        context["migas"] = [
+            {"label": "Dispositivos", "url": reverse("dispositivos:lista")},
+            {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
+            {"label": "Estadías", "url": url_volver},
+            {"label": datos["persona"]["nombre_completo"], "url": ""},
+        ]
+
+        # Las acciones solo sobre una estadía abierta, y cada una con la capacidad que exige
+        # su servicio: el botón no se ofrece a quien el servicio va a rechazar. Cambiar de
+        # plaza supone tener una: una estadía sin plaza (tipo que no las identifica) no la ofrece.
+        abierta = estadia.activa
+        context["puede_cambiar_plaza"] = (
+            abierta and estadia.plaza_id is not None and puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
+        )
+        context["puede_egresar"] = abierta and puede_operar_dispositivo(usuario, dispositivo, CAP_EGRESAR)
+        if context["puede_cambiar_plaza"]:
+            form_cambio = CambioPlazaForm(
+                estadia=estadia, sectores=_sectores_para_cambio(estadia), auto_id=AUTO_ID_CAMBIO
+            )
+            # Sin plazas libres no se ofrece: el modal no tendría a dónde mover a nadie.
+            context["puede_cambiar_plaza"] = form_cambio.hay_plazas_libres
+            context["form_cambio"] = form_cambio
+            context["url_cambiar_plaza"] = reverse("dispositivos:cambiar_plaza", args=[dispositivo.pk, estadia.pk])
+        if context["puede_egresar"]:
+            context["form_egreso"] = EgresoForm(estadia=estadia)
+            context["url_egresar"] = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
+        return context
+
+
+class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
+    """Mueve a la persona a otra plaza del dispositivo. Solo POST, con CSRF.
+
+    La regla vive en `programas.services.estadias.cambiar_plaza`, que exige
+    `dispositivo.admitir` con alcance, bloquea la plaza y la estadía y registra el
+    movimiento. La vista valida lo que el operador puede corregir sin salir del modal y
+    traduce lo que el servicio rechaza al formato del modal, igual que el egreso.
+    """
+
+    capacidad_requerida = CAP_ADMITIR
+    http_method_names = ["post"]
+
+    def post(self, request, pk, estadia_pk):
+        dispositivo = get_object_or_404(Dispositivo, pk=pk)
+        if not puede_operar_dispositivo(request.user, dispositivo, CAP_ADMITIR):
+            raise PermissionDenied
+        estadia = _estadia_del_dispositivo(dispositivo, estadia_pk)
+        volver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
+
+        form = CambioPlazaForm(
+            request.POST, estadia=estadia, sectores=_sectores_para_cambio(estadia), auto_id=AUTO_ID_CAMBIO
+        )
+        if not form.is_valid():
+            return EstadiaEgresarView._rechazar(request, form.errors, volver)
+
+        datos = form.cleaned_data
+        try:
+            movimiento = cambiar_plaza(
+                estadia=estadia,
+                plaza=datos["plaza"],
+                usuario=request.user,
+                motivo=datos["motivo"],
+                momento=datos["momento"],
+            )
+        except ValidationError as error:
+            return EstadiaEgresarView._rechazar(request, EstadiaEgresarView._errores_del_servicio(error, form), volver)
+
+        mensaje = f"Cambio de plaza registrado: {movimiento.plaza_destino.codigo}."
+        if is_ajax(request):
+            return ajax_redirect(request, volver, mensaje)
+        messages.success(request, mensaje)
         return redirect(volver)

@@ -239,6 +239,26 @@ class CambioDePlazaTests(BaseMovimientos):
             self._cambiar(self.otra_plaza, momento=self.ingreso - timedelta(minutes=1))
         self._sin_cambios()
 
+    def test_el_cambio_no_puede_ser_anterior_al_cambio_previo_aunque_sea_posterior_al_ingreso(self):
+        """El de arriba pasa aunque la guarda compare contra el ingreso: este no.
+
+        El segundo cambio se fecha **entre el ingreso y el primer cambio**. Contra el ingreso
+        pasaría, y dejaría a la persona saliendo de P2 antes de haber llegado; contra
+        `ultimo_momento` —el del primer cambio— se rechaza.
+        """
+
+        primero = self.ingreso + timedelta(days=2)
+        self._cambiar(self.otra_plaza, momento=primero)
+
+        with self.assertRaisesMessage(ValidationError, "último movimiento"):
+            self._cambiar(self.plaza_otro_sector, momento=self.ingreso + timedelta(days=1))
+
+        self.estadia.refresh_from_db()
+        self.assertEqual(self.estadia.plaza_id, self.otra_plaza.pk)
+        self.assertEqual(
+            list(self.estadia.movimientos.values_list("tipo", flat=True)), [Tipo.INGRESO, Tipo.CAMBIO_PLAZA]
+        )
+
     def test_bloquea_la_plaza_de_destino_y_la_estadia(self):
         """La exclusión es `select_for_update`, no un constraint: si el bloqueo se va, esto se pone rojo.
 

@@ -313,15 +313,18 @@ class AccionesYAlcanceTests(BaseDetalle):
         for url in acciones:
             self.assertNotContains(respuesta, url)
 
-    def test_la_fila_ofrece_el_legajo_solo_con_ciudadano_ver(self):
-        _alojar(self.cis, self.plaza, self.persona)
-        legajo = reverse("legajos:ciudadano_detalle", args=[self.persona.pk])
+    def test_la_fila_ofrece_la_estadia_solo_con_ciudadano_ver(self):
+        """El ojo abre el detalle de la estadía (P7, #698), que a su vez enlaza al legajo."""
 
-        self.assertContains(self.client.get(self.url), legajo)
+        estadia = _alojar(self.cis, self.plaza, self.persona)
+        # Con `href=` y las comillas: la URL de la estadía es prefijo de la del egreso.
+        detalle = f'href="{reverse("dispositivos:estadia_detalle", args=[self.cis.pk, estadia.pk])}"'
+
+        self.assertContains(self.client.get(self.url), detalle)
 
         sin_legajo = self._operador("Sin legajo", self.cis, CAPACIDADES_OPERATIVAS)
         self.client.force_login(sin_legajo)
-        self.assertNotContains(self.client.get(self.url), legajo)
+        self.assertNotContains(self.client.get(self.url), detalle)
 
     def test_las_acciones_de_estado_confirman_con_el_modal_estandar_y_van_por_post(self):
         respuesta = self.client.get(self.url)
