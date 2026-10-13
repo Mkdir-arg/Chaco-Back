@@ -38,13 +38,14 @@ class ProgramaDetalleOla3Tests(TestCase):
             "texto",
             "tipo",
             "obligatorio",
-            "orden",
             "opciones_texto",
             "presentacion",
             "canal",
             "destino_siis",
         ):
             self.assertIn(f'name="{name}"', html)
+        # Cambio 264: el orden se define arrastrando, ya no es un campo del modal.
+        self.assertNotIn('name="orden"', html)
 
     def test_pausado_es_warning_y_reanudar_lleva_play(self):
         ProgramaSiis.objects.filter(pk=self.programa.pk).update(pausado=True, pausa_motivo="Prueba")

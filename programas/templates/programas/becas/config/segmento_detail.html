@@ -5,6 +5,7 @@
 
 {% block main-content %}
 <style>[x-cloak]{display:none!important}</style>
+{% if puede_ordenar %}<link rel="stylesheet" href="{% static 'custom/css/nodo-constructor.css' %}">{% endif %}
 <div class="space-y-5"
      x-data="{
        tab: '{% if solo_sus_subsegmentos %}subs{% else %}info{% endif %}',
@@ -24,15 +25,13 @@
        editReqTexto: '',
        editReqTipo: '',
        editReqObligatorio: 'True',
-       editReqOrden: 0,
        editReqOpciones: '',
        editReqPresentacion: 'LISTA', editReqCanal: 'ambos', editReqDestino: '',
-       openReqEdit(url, texto, tipo, obligatorio, orden, opciones, presentacion, canal, destino) {
+       openReqEdit(url, texto, tipo, obligatorio, opciones, presentacion, canal, destino) {
          this.editReqUrl = url;
          this.editReqTexto = texto;
          this.editReqTipo = tipo;
          this.editReqObligatorio = obligatorio;
-         this.editReqOrden = orden;
          this.editReqOpciones = (opciones || []).join('\n');
          this.editReqPresentacion = presentacion || 'LISTA';
          this.editReqCanal = canal || 'ambos';
@@ -356,7 +355,6 @@
             <tbody>
               {% for req in requisitos_programa %}
               <tr class="hover:bg-secondary">
-                <td class="nodo-td text-body-subtle font-semibold" style="width:64px">{{ req.orden }}</td>
                 <td class="nodo-td text-heading font-medium">{{ req.texto }}</td>
                 <td class="nodo-td"><span class="badge badge-white">{{ req.get_tipo_display }}</span></td>
                 <td class="nodo-td">
@@ -371,7 +369,10 @@
       {% endif %}
 
       <div class="flex items-start justify-between gap-4 flex-wrap">
-        <p class="text-sm text-body-subtle max-w-xl">Requisitos del segmento padre. Se heredan en los formularios de todos sus subsegmentos.</p>
+        <div class="max-w-xl">
+          <p class="text-sm text-body-subtle">Requisitos del segmento padre. Se heredan en los formularios de todos sus subsegmentos.{% if puede_ordenar %} Arrastrá desde la manija para ordenarlos; se guarda al soltar.{% endif %}</p>
+          <span id="reqs-orden-estado" class="text-xs text-body-subtle" aria-hidden="true"></span>
+        </div>
         {% if request.user|puede:"becas.requisito.crear" %}
         <button type="button" @click="modalReq=true" class="btn-nodo btn-brand btn-base">
           <i class="fas fa-plus"></i> Nuevo requisito
@@ -560,7 +561,7 @@
             {{ form_requisito.texto }}
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label for="{{ form_requisito.tipo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
               {{ form_requisito.tipo }}
@@ -569,11 +570,6 @@
             <div>
               <label for="{{ form_requisito.obligatorio.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
               {{ form_requisito.obligatorio }}
-            </div>
-            <div>
-              <label for="{{ form_requisito.orden.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Orden</label>
-              {{ form_requisito.orden }}
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
           <div data-opciones-wrapper>
@@ -619,7 +615,7 @@
             <input type="text" id="req-editar-texto" name="texto" x-model="editReqTexto" required class="nodo-field">
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label for="req-editar-tipo" class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
               <select id="req-editar-tipo" name="tipo" x-model="editReqTipo" class="nodo-field">
@@ -634,11 +630,6 @@
                 <option value="True">Obligatorio</option>
                 <option value="False">Opcional</option>
               </select>
-            </div>
-            <div>
-              <label for="req-editar-orden" class="block text-sm font-medium text-heading mb-1">Orden</label>
-              <input type="number" id="req-editar-orden" name="orden" x-model="editReqOrden" min="0" placeholder="Automático" class="nodo-field">
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
           <div x-show="editReqTipo === 'SELECTOR' || editReqTipo === 'SELECTOR_MULTIPLE'">
@@ -685,4 +676,6 @@
 {% include "programas/becas/_ajax_js.html" %}
 {% include "programas/becas/config/_tipo_selector_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>
+{% if puede_ordenar %}<script src="{% static 'vendor/sortablejs/Sortable.min.js' %}"></script>
+<script src="{% static 'custom/js/nodo-catalogo-grupos.js' %}"></script>{% endif %}
 {% endblock %}

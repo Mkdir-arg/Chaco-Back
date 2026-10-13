@@ -260,13 +260,15 @@ class SegmentoDetalleModalesTests(_BaseSegmentos):
             "texto",
             "tipo",
             "obligatorio",
-            "orden",
             "opciones_texto",
             "presentacion",
             "canal",
             "destino_siis",
         ):
             self.assertIn(f'name="{campo}"', editar, campo)
+        # Cambio 264: el orden ya no está en el formulario (se arrastra), así que
+        # tampoco en el modal: la edición conserva la posición.
+        self.assertNotIn('name="orden"', self.html)
 
     def test_el_modal_de_subsegmento_conserva_todos_sus_campos(self):
         crear = self._uno(
