@@ -1,4 +1,4 @@
-"""Cálculo único de ocupación, disponibilidad y censo de plazas (MVP v2, etapa 1 · #687).
+"""Cálculo único de ocupación, disponibilidad y censo de plazas (MVP v2, etapas 1 y 2 · #687, #689).
 
 **Esta es la única fuente.** El mapa de plazas, el detalle del dispositivo, el censo y
 los indicadores salen todos de :func:`ocupacion_de_plazas`; ninguno vuelve a contar por
@@ -12,22 +12,25 @@ Las cifras
 * ``totales`` — las plazas cargadas en los sectores activos.
 * ``fuera_de_servicio`` — las que están en ``Plaza.Estado.FUERA_SERVICIO``.
 * ``operativas`` — ``totales - fuera_de_servicio``.
-* ``ocupadas`` — las estadías activas con plaza. **Etapa 2.**
-* ``reservadas`` — las reservas y los préstamos vigentes. **Etapa 2.**
-* ``disponibles`` — ``operativas - ocupadas - reservadas``. **Etapa 2.**
+* ``ocupadas`` — las plazas con una estadía activa.
+* ``reservadas`` — las plazas con una reserva o un préstamo vigente.
+* ``disponibles`` — ``operativas - ocupadas - reservadas``.
 
-Qué falta y de dónde viene
---------------------------
+Lo que se recibe y lo que se deriva (y qué significa ``None``)
+--------------------------------------------------------------
 
-``ocupadas`` y ``reservadas`` **no se pueden calcular hoy**: salen de ``Estadia`` y de
-``ReservaPlaza``, dos modelos que la **etapa 2** (ingreso y egreso) todavía no creó. Y
-``disponibles`` se deriva de las dos, así que tampoco.
+La etapa 2 (#689) trajo ``Estadia`` y ``ReservaPlaza``, así que ``ocupadas`` y
+``reservadas`` **ya se calculan** y ``disponibles`` sale sola de las dos. La forma
+pública de la etapa 1 no cambió ni una letra: ``operativas`` y ``disponibles`` siempre
+fueron propiedades derivadas, no campos, y por eso completar las cifras **no tocó
+ninguna pantalla**.
 
-Esas tres claves valen ``None``, nunca ``0``. La distinción no es cosmética: ``0``
-significa «no hay ninguna ocupada» y es una afirmación sobre el mundo; ``None`` significa
-«este sistema todavía no lo sabe». Una pantalla que recibiera ``0`` mostraría un
-dispositivo entero libre —y mandaría a alojar gente sobre plazas tomadas— sin que nada
-fallara. Con ``None``:
+Lo que **sí** se conserva es la distinción entre no saber y saber que no hay. Un
+:class:`Conteo` armado a mano sin esas cifras —no el que devuelve este servicio, que las
+llena siempre— las deja en ``None``, nunca en ``0``: ``0`` significa «no hay ninguna
+ocupada» y es una afirmación sobre el mundo; ``None`` significa «este sistema todavía no
+lo sabe». Una pantalla que recibiera ``0`` mostraría un dispositivo entero libre —y
+mandaría a alojar gente sobre plazas tomadas— sin que nada fallara. Con ``None``:
 
 * en Python, cualquier aritmética explota (``TypeError``) en vez de mentir;
 * en un template, ``{{ conteo.ocupadas }}`` escribe ``None``, que se ve mal **a
@@ -35,11 +38,8 @@ fallara. Con ``None``:
   dato legítimo, y ese es justamente el fallo silencioso que se quiere evitar;
 * :attr:`Conteo.pendientes` y :attr:`Conteo.completo` permiten preguntarlo sin adivinar.
 
-La forma pública es la definitiva. Cuando la etapa 2 agregue ``Estadia`` y
-``ReservaPlaza``, lo único que cambia es que esta función pase ``ocupadas=`` y
-``reservadas=`` con un entero al construir cada :class:`Conteo`: ``operativas`` y
-``disponibles`` son propiedades derivadas, así que se completan solas y **ninguna
-pantalla cambia**.
+Esa red sigue puesta para el que sume una cifra nueva mañana, y para el que sume un
+:class:`Conteo` calculado con uno que no lo está: ``pendiente + lo que sea = pendiente``.
 
 Invariantes que el cálculo sostiene
 -----------------------------------
@@ -51,17 +51,29 @@ Invariantes que el cálculo sostiene
   sector con plazas vivas evaporaría capacidad en silencio: esa regla —que la baja falle
   si el sector tiene plazas— le toca al servicio de baja de sector, que todavía no
   existe.
-* ``FUERA_SERVICIO`` y ocupada son mutuamente excluyentes por regla de negocio (sacar de
-  servicio una plaza con estadía, reserva o préstamo vigente falla, y primero se
-  reubica), así que cuando la etapa 2 complete ``ocupadas`` valdrá
-  ``ocupadas <= operativas``.
+* ``FUERA_SERVICIO``, ocupada y reservada son mutuamente excluyentes **por regla de
+  negocio, no por constraint**: sacar de servicio una plaza tomada falla y primero se
+  reubica, y ni una estadía ni una reserva se dan sobre una plaza que ya tiene algo
+  (`programas.services.estadias`, con la fila de la plaza bloqueada). De ahí sale
+  ``ocupadas + reservadas <= operativas``, y por lo tanto ``disponibles >= 0``. Es una
+  invariante del servicio de escritura: si alguien escribe por afuera, acá se va a ver
+  —un ``disponibles`` negativo—, que es exactamente lo que se quiere que pase.
 
 Costo
 -----
 
-**Una consulta** —la agregación de plazas por sector, con ``Count(filter=...)``— más, a
-lo sumo, la que evalúe el queryset de dispositivos que reciba. No crece con la cantidad
-de sectores, de plazas ni de dispositivos: no hay un ``.count()`` por sector.
+**Tres consultas** —las plazas por sector, las estadías activas por sector y las
+reservas vigentes por sector— más, a lo sumo, la que evalúe el queryset de dispositivos
+que reciba. Son tres fijas: no crecen con la cantidad de sectores, de plazas ni de
+dispositivos, y cada una devuelve una fila por sector.
+
+Por qué tres y no una, que era el presupuesto de la etapa 1: meter las estadías en la
+misma agregación significa encadenar ``sector → plaza → estadia`` en un solo ``LEFT
+JOIN``, y Django pone el filtro del ``Count`` adentro de un ``CASE``, no en el ``ON``.
+El motor materializaría una fila por **cada estadía histórica** de cada plaza —un
+conjunto que crece para siempre, mientras que el de las plazas es fijo— para después
+descartarlas casi todas. Tres consultas acotadas a lo vigente son ``O(sectores)``
+siempre; una sola sería ``O(estadías de toda la vida)``.
 
 Acá no se agrupa por tiempo y por lo tanto **no hay ningún ``Trunc*``**: la base de ECOM
 no tiene tablas de zona horaria, Django traduce ``Trunc*`` sobre un ``DateTimeField`` a
@@ -74,10 +86,11 @@ from dataclasses import dataclass
 
 from django.db.models import Count, Q
 
-from programas.models import Dispositivo, Plaza, Sector
+from programas.models import Dispositivo, Estadia, Plaza, ReservaPlaza, Sector
 
-#: Las claves que la etapa 1 no puede calcular, y de dónde van a salir.
-PENDIENTES_DE_ETAPA_2 = ("ocupadas", "reservadas", "disponibles")
+#: Las cifras que no salen de las plazas: las dos que se reciben de los movimientos
+#: (``Estadia`` y ``ReservaPlaza``) y la que se deriva de ellas.
+CIFRAS_DE_MOVIMIENTOS = ("ocupadas", "reservadas", "disponibles")
 
 
 def _sumar(uno, otro):
@@ -98,9 +111,9 @@ class Conteo:
 
     totales: int = 0
     fuera_de_servicio: int = 0
-    #: ``None`` mientras ``Estadia`` no exista (etapa 2). Nunca ``0``: ver el módulo.
+    #: Plazas con estadía activa. ``None`` solo en un conteo armado a mano: ver el módulo.
     ocupadas: int | None = None
-    #: ``None`` mientras ``ReservaPlaza`` no exista (etapa 2). Nunca ``0``.
+    #: Plazas con reserva o préstamo vigente. ``None`` solo en un conteo armado a mano.
     reservadas: int | None = None
 
     @property
@@ -117,7 +130,7 @@ class Conteo:
     def pendientes(self) -> tuple[str, ...]:
         """Qué claves todavía no se pueden calcular, en el orden del tablero."""
 
-        return tuple(clave for clave in PENDIENTES_DE_ETAPA_2 if getattr(self, clave) is None)
+        return tuple(clave for clave in CIFRAS_DE_MOVIMIENTOS if getattr(self, clave) is None)
 
     @property
     def completo(self) -> bool:
@@ -135,9 +148,15 @@ class Conteo:
 
 
 def _sumar_conteos(conteos) -> Conteo:
-    """Suma una colección de conteos; la colección vacía da un conteo en cero y pendiente."""
+    """Suma una colección de conteos. La colección vacía da todo en cero, nada pendiente.
 
-    total = Conteo()
+    Cero y no pendiente porque la colección vacía es un ámbito **sin plazas** —un
+    dispositivo sin sectores, o un censo al que no se le pidió ningún dispositivo—, y un
+    ámbito sin plazas no tiene plazas tomadas. Eso se sabe; no es el caso de un
+    :class:`Conteo` armado a mano al que le falta la cifra.
+    """
+
+    total = Conteo(ocupadas=0, reservadas=0)
     for conteo in conteos:
         total = total + conteo
     return total
@@ -217,17 +236,57 @@ def _ids_de(dispositivos) -> list[int]:
     return ids
 
 
+def _por_sector(filas):
+    """``{sector_id: cuántas}`` a partir de una agregación que ya viene agrupada."""
+
+    return {fila["plaza__sector_id"]: fila["cuantas"] for fila in filas}
+
+
+def _ocupadas_por_sector(sector_ids):
+    """Plazas con estadía activa, por sector. Una consulta, una fila por sector.
+
+    Se filtra por los sectores que ya se conocen y no por el dispositivo: así el JOIN es
+    ``estadia → plaza`` y no ``estadia → plaza → sector → dispositivo``.
+
+    ``distinct`` sobre la plaza, no sobre la estadía: lo que se cuenta son plazas
+    tomadas. Que dos estadías activas compartan plaza no puede pasar —lo impide el
+    bloqueo de `programas.services.estadias`— pero si pasara, contarlas dos veces
+    escondería el problema detrás de un número que cierra.
+    """
+
+    return _por_sector(
+        Estadia.objects.filter(estado=Estadia.Estado.ACTIVA, plaza__sector_id__in=sector_ids)
+        .values("plaza__sector_id")
+        .annotate(cuantas=Count("plaza_id", distinct=True))
+    )
+
+
+def _reservadas_por_sector(sector_ids):
+    """Plazas con reserva o préstamo vigente, por sector.
+
+    La vigencia la define `ReservaPlaza.objects.vigentes()` y no se repite acá: es por
+    tiempo, sin cron que apague nada, y sin ningún ``Trunc*``.
+    """
+
+    return _por_sector(
+        ReservaPlaza.objects.vigentes()
+        .filter(plaza__sector_id__in=sector_ids)
+        .values("plaza__sector_id")
+        .annotate(cuantas=Count("plaza_id", distinct=True))
+    )
+
+
 def ocupacion_de_plazas(dispositivos) -> Censo:
-    """Las cifras de plazas de ``dispositivos``, en una consulta.
+    """Las cifras de plazas de ``dispositivos``, en tres consultas fijas.
 
     ``dispositivos`` puede ser un :class:`~programas.models.Dispositivo`, su id, o
     cualquier iterable de unos u otros (incluido un queryset, que entonces se evalúa).
     Los dispositivos sin sectores aparecen igual, en cero.
 
-    **Lo que todavía no se puede calcular vale ``None``**: ``ocupadas`` y ``reservadas``
-    salen de ``Estadia`` y ``ReservaPlaza``, que crea la etapa 2, y ``disponibles`` se
-    deriva de ellas. La forma del resultado ya es la definitiva; ver el docstring del
-    módulo.
+    Devuelve las cinco cifras completas: las plazas dan ``totales`` y
+    ``fuera_de_servicio``, las estadías activas dan ``ocupadas``, las reservas vigentes
+    dan ``reservadas``, y ``operativas`` y ``disponibles`` se derivan. Ver el docstring
+    del módulo para el porqué de cada consulta y de los ``None`` que siguen existiendo.
     """
 
     ids = _ids_de(dispositivos)
@@ -250,6 +309,12 @@ def ocupacion_de_plazas(dispositivos) -> Censo:
             # JOIN de más hacia `Dispositivo`.
             .order_by("dispositivo_id", "nombre")
         )
+        # Se materializa acá —y no se recorre perezosamente— porque las dos consultas de
+        # movimientos necesitan los ids de los sectores antes de armar los conteos.
+        filas = list(filas)
+        sector_ids = [fila["id"] for fila in filas]
+        ocupadas = _ocupadas_por_sector(sector_ids) if sector_ids else {}
+        reservadas = _reservadas_por_sector(sector_ids) if sector_ids else {}
         for fila in filas:
             sectores_por_dispositivo[fila["dispositivo_id"]].append(
                 OcupacionSector(
@@ -261,6 +326,11 @@ def ocupacion_de_plazas(dispositivos) -> Censo:
                     conteo=Conteo(
                         totales=fila["plazas_totales"],
                         fuera_de_servicio=fila["plazas_fuera_de_servicio"],
+                        # Cero y no `None`: acá sí se sabe. Un sector sin estadías no
+                        # aparece en la agregación porque no tiene filas que agrupar, no
+                        # porque falte el dato.
+                        ocupadas=ocupadas.get(fila["id"], 0),
+                        reservadas=reservadas.get(fila["id"], 0),
                     ),
                 )
             )

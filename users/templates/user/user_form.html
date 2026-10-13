@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load static %}
+{% load static nodo_ui %}
 
 {% block title %}{% if object %}Editar{% else %}Nuevo{% endif %} usuario{% endblock %}
 
@@ -203,12 +203,20 @@
             </div>
 
             {% if not object %}
-            <div class="md:col-span-2">
-                <label for="{{ form.password.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Contraseña <span class="text-fg-danger">*</span></label>
-                {{ form.password }}
-                {% if form.password.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ form.password.help_text }}</p>{% endif %}
-                {% for error in form.password.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+            {% comment %}
+            Con correo la clave la genera el sistema y viaja en el mensaje (RN-C1, Cambio 37):
+            lo que se tipee acá se ignora, así que la pantalla lo dice. Sin JS el estado sale
+            del valor del correo al renderizar; con JS se recalcula al tipearlo y el campo se
+            deshabilita. La regla vive en el servidor, no acá.
+            {% endcomment %}
+            {% with con_correo=form.email.value %}
+            <div class="md:col-span-2" id="clave-alta" data-ayuda-con-correo="Se genera automáticamente y se envía por correo." data-ayuda-sin-correo="{{ form.password.help_text }}">
+                <label for="{{ form.password.id_for_label }}" class="mb-1.5 block text-sm font-semibold text-heading">Contraseña <span id="clave-alta-obligatoria" class="text-fg-danger"{% if con_correo %} hidden{% endif %}>*</span></label>
+                {% campo_control form.password %}
+                <p id="{{ form.password.auto_id }}-ayuda" class="mt-1 text-xs text-body-subtle">{% if con_correo %}Se genera automáticamente y se envía por correo.{% else %}{{ form.password.help_text }}{% endif %}</p>
+                {% if form.password.errors %}<p id="{{ form.password.auto_id }}-error" class="mt-1 text-xs text-fg-danger">{{ form.password.errors|join:" " }}</p>{% endif %}
             </div>
+            {% endwith %}
             {% endif %}
         </div>
     </div>
@@ -335,6 +343,27 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // ---- Contraseña del alta: con correo la genera el sistema (RN-C1) ----
+        // Mejora progresiva: el servidor ya rindió el estado según el correo; acá
+        // solo se recalcula al tipearlo. Un campo deshabilitado no viaja en el POST.
+        var claveAlta = document.getElementById('clave-alta');
+        var correo = document.getElementById('id_email');
+        var clave = document.getElementById('id_password');
+        if (claveAlta && correo && clave) {
+            var claveAyuda = document.getElementById(clave.id + '-ayuda');
+            var claveObligatoria = document.getElementById('clave-alta-obligatoria');
+            var refrescarClave = function () {
+                var conCorreo = correo.value.trim() !== '';
+                clave.disabled = conCorreo;
+                if (claveObligatoria) claveObligatoria.hidden = conCorreo;
+                if (claveAyuda) {
+                    claveAyuda.textContent = conCorreo ? claveAlta.dataset.ayudaConCorreo : claveAlta.dataset.ayudaSinCorreo;
+                }
+            };
+            correo.addEventListener('input', refrescarClave);
+            refrescarClave();
+        }
+
         var picker = document.getElementById('roles-picker');
         if (!picker) return;
 

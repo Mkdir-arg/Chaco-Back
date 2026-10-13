@@ -398,6 +398,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 258 | Las colas de los dos gates y del export: la prosa que bloqueaba, la tabla HTML que no se miraba y las dos cotas que no estaban escritas | Transversal — gate de publicación de `docs/client/` · auditoría de diseño (piso de las particiones) · Becas — export «respuestas por persona» | `#infra` `#datos` `#performance` | Revisiones de #784 (Cambio 256) y #791 (Cambio 257) — los MINOR que quedaron abiertos (Ola 7, PR 8) | 12/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta; la ventana del ingress de ECOM sigue preguntada) | No |
 | 260 | El gate del release corría la suite con media instalación: `tblib` faltaba y el rojo no era del release | Transversal — CI (`release-gate.yml` job «Suite completa (SQLite)» y `pr-backend.yml` job «Orden y paralelo») | `#infra` `#metodo` | Corrida 38314173223 del `release-gate` sobre `main` `7c617406` — hotfix | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 261 | El gate de publicación deja de pagar con padrones el precio de no marcar prosa | Transversal — gate de publicación de `docs/client/` | `#infra` `#datos` | Revisión de #797 (Cambio 258) — los MINOR que quedaron abiertos (Ola 7, PR 9: cierre del carril) | 13/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta; los límites del gate quedan declarados en la ficha RED-64) | No |
+| 262 | Estadía, reserva de plaza y clave de alojamiento: una sola persona alojada en toda la red | Dispositivos · datos y servicios | `#datos` `#rbac` | Task 24 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0087` |
+| 263 | Un mismo correo en varios usuarios: cada correo de recupero dice de qué usuario es, y el alta no muestra una clave que el sistema ignora | Transversal — usuarios (recupero de contraseña y alta) | `#usuarios` `#correo` `#ui` | PM — decisión en sesión de trabajo: los correos se pueden repetir entre usuarios y el login no se toca | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 264 | Los requisitos se ordenan arrastrando: sale el campo «Orden» | Becas / requisitos | `#requisitos` `#ui` `#mobile` | PM — pedido directo en sesión de trabajo | 13/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -3628,6 +3630,8 @@ correr `diagnosticar_correo` desde el servidor (task #245) y falta la **aprobaci
 textos (#244)**, que la firma el cliente y no la desbloquea Infra. Siguen abiertos también la
 casilla de soporte y la dirección postal del pie, y el límite de intentos en el recupero. Ver
 **Cambio 50**.
+
+**13/10/2026 — el correo de recupero y la pantalla del enlace nombran al usuario (Cambio 263).** Un mismo correo puede estar en varios usuarios (decisión del PM): el asunto y el cuerpo del recupero dicen de qué usuario es cada enlace, y el alta muestra que con correo la clave la genera el sistema. RN-C1 no cambia.
 
 # Cambio 40 — Corregir la redirección autenticada de `/dashboard/`
 
@@ -33566,6 +33570,269 @@ de la revisión del PR 8 de la Ola 7. La ficha RED-64 lo anota en su línea «Se
 suma la lista de límites conocidos, que es lo que cierra el tema. Primera versión.
 
 **13/10/2026 — merge del juez con `development` (hasta `79ea5d1f`, Cambio 260: hotfix del `release-gate`).** Esta entrada pasa a ser la **261**. La revisión de #798 (APPROVE) dejó dos MINOR que no abren ronda: fueron a «Límites conocidos del gate» de la ficha RED-64 (`;`/`,` ya no alcanzan solos para ser fila; un secreto entrecomillado o en bloque de código no se ve).
+
+---
+
+# Cambio 262 — Estadía, reserva de plaza y clave de alojamiento: una sola persona alojada en toda la red
+
+🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 24` (#689)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · modelo de datos y servicios |
+| **Etiquetas** | `#datos` `#rbac` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 24 del backlog del MVP · Épica #127 · primera de la etapa 2 |
+| **Partes afectadas** | `programas/models/__init__.py`, `services/estadias.py`, `services/ocupacion.py` |
+| **Migración** | `programas.0087` — `Estadia` y `ReservaPlaza` |
+
+## Decisiones tomadas
+
+**La clave de alojamiento es una columna con UNIQUE común, no un constraint condicional.** Vale
+`CIU-<id>` mientras la estadía está abierta y **`NULL` apenas egresa**; como los tres motores tratan
+los `NULL` como distintos entre sí, todas las estadías cerradas de una persona conviven y **solo
+puede haber una abierta en toda la red**. Lo hace cumplir el motor: rechaza el segundo alojamiento
+aunque dos operadores de dos instituciones que no se ven lo intenten en el mismo milisegundo.
+
+**Y tenía que ser así, porque un `UniqueConstraint(condition=...)` no existe en MySQL ni en
+MariaDB.** Verificado en el fuente de Django 5.2.17 (`supports_partial_indexes = False`,
+`_create_unique_sql` devuelve `None`) y compilando el SQL con el generador real contra los tres
+motores: con `condition=` **no emite nada y no avisa**; en SQLite —el motor de los tests— **sí lo
+crea**. O sea que la regla pasaría en verde en el CI y no existiría en producción. **Ya cobró tres
+veces acá**: `admision_una_cama_alojada`, `admision_una_estadia_activa_por_dispositivo` y
+`espera_admision_activa_unica` nunca existieron en icore-srv ni en ECOM. Queda una guarda de repo que
+falla ante cualquier condicional nuevo, con esos tres en allowlist porque la release B los borra.
+
+**La exclusión por plaza va con `select_for_update()`, y alcanza por un motivo que conviene no
+perder**: el proyecto fija `"isolation_level": "read committed"` en las `OPTIONS` de la base. Con el
+REPEATABLE READ por omisión de InnoDB **no alcanzaría**, porque la foto se toma en la primera lectura
+no bloqueante de la transacción —la del control de permisos, antes del `FOR UPDATE`— y el segundo
+operador no vería la estadía del primero.
+
+**La verificación entre instituciones muestra la existencia, nunca los datos.** Fuera del alcance del
+usuario devuelve `alojada=True` y nada más: ni institución, ni plaza, ni fecha, ni responsable, **ni
+el `dispositivo_id`** —enumerado contra el listado propio diría cuál es—. Lo único que viaja es la
+clave de alojamiento, y esa fue la decisión fina: **se deriva de la persona que quien pregunta ya
+tiene delante**, así que no agrega ni un dato nuevo sobre la institución ajena, y a la vez es la
+referencia exacta con la que la coordinación encuentra la estadía y la resuelve. La **existencia** sí
+se filtra, a propósito: sin ella no hay forma de explicar por qué se rechaza el ingreso, que es el
+requisito del issue.
+
+**Un `CheckConstraint` de coherencia** ata estado, clave y egreso: ACTIVA ⇒ con clave y sin egreso;
+EGRESADA ⇒ con egreso y sin clave. Sin él, soltar la clave sin cerrar la estadía dejaría a la persona
+alojada e **invisible para la red**, que es el fallo silencioso que la clave existe para evitar.
+
+**El servicio de ocupación se completó sin tocar su contrato público.** `ocupadas` y `reservadas`
+pasan a ser enteros reales y **ninguna pantalla cambió**: era exactamente la apuesta de haber dejado
+`operativas` y `disponibles` como propiedades derivadas.
+
+## Correcciones de la revisión
+
+La revisión independiente **rechazó la primera versión** con dos MAJOR, los dos en el contrato de
+reservas del servicio. El modelo y la migración se sostuvieron, así que las ramas que se construían
+encima no perdieron trabajo de esquema. Los tests de cada defecto se escribieron **antes** del
+arreglo y fallaban —12 fallas y 2 errores contra el código viejo—, que es la prueba de que prueban
+algo.
+
+**El ingreso aceptaba cualquier reserva sin validarla.** Se podía alojar a B en la plaza reservada
+para A pasándole la reserva de A, y se podían «consumir» reservas ya liberadas o consumidas, porque
+el `update` no filtraba por estado. Ahora, dentro del `atomic` y después de bloquear la plaza, se
+**relee la reserva con `select_for_update()`** y se exige que sea de esa plaza, de esa persona y
+`VIGENTE`; el `update` filtra por `estado=VIGENTE` y verifica que tocó una fila. El bloqueo de la
+reserva es lo que ordena dos ingresos que quieren usarla a la vez.
+
+**El solape de reservas miraba un instante, no el intervalo.** Una reserva con `desde` futuro dejaba
+pasar otra solapada, y un ingreso hoy dejaba la plaza ocupada **y** reservada cuando llegaba el
+`desde`: el mapa terminaba mostrando **disponibles negativos**. Se resolvió haciendo que **la reserva
+nazca vigente** —`reservar_plaza` rechaza un `desde` futuro—, porque el mockup no tiene ninguna
+reserva diferida: la de lista de espera se toma en el momento y el préstamo de 12/24 h arranca ya.
+Y como protección extra, el control de «plaza tomada» cuenta **cualquier** reserva vigente sin
+vencer, haya empezado o no, por si una entra por el admin o un restore.
+
+**Plaza inexistente y plaza ajena daban errores distintos** —`DoesNotExist` (500) contra
+`ValidationError`—, un **oráculo de existencia de ids**, y además se tomaba `FOR UPDATE` sobre la
+plaza de otra institución antes de comprobar que era ajena. Ahora se comprueba primero sin bloquear
+y las dos dan el mismo error.
+
+**`verificar_alojamiento_en_red` no exigía capacidad**: cualquier vista futura que la llamara sin
+gate le habría expuesto a cualquier usuario autenticado si una persona está alojada en la red. Ahora
+la función misma exige `dispositivo.admitir` con alcance de programa —mínimo privilegio: saber que
+alguien está alojado en otra institución solo lo necesita quien está por alojarlo—.
+
+**Dos cosas que la revisión no pidió y aparecieron al arreglar:** `liberar_reserva` también relee con
+bloqueo, porque con un objeto viejo podía pisar con `LIBERADA` una reserva recién consumida; y el
+`FOR UPDATE` tenía `select_related("sector")`, que en MySQL y MariaDB **bloquea también el sector**,
+así que dos ingresos en plazas distintas del mismo sector se esperaban entre sí.
+
+**La vigencia de una reserva se evalúa por tiempo, no por un estado que alguien apague.** Una reserva
+vencida deja de contar sola, sin cron — a diferencia del cron de las 03:10 de relevamientos.
+
+## Pendientes
+
+- **El presupuesto de consultas del servicio subió de 1 a 3**, con motivo: colgar las estadías de la
+  misma agregación encadenaría `sector → plaza → estadia` y Django pone el filtro del `Count` en un
+  `CASE`, no en el `ON`, así que el motor materializaría **una fila por cada estadía histórica de cada
+  plaza** para descartarlas casi todas. Tres consultas acotadas a lo vigente son `O(sectores)`
+  siempre; una sola sería `O(estadías de toda la vida)`.
+- **`EN_TRANSITO` no está**: el tránsito con vencimiento y recepción es P8 · DIS-03, que no está en
+  la tabla de Diseño de la etapa 2 ni en los requisitos del issue.
+- **`ReservaPlaza.ciudadano` es obligatorio.** Si un préstamo puede ser entre instituciones, hay que
+  aflojarlo.
+- **La traza va al legajo institucional del dispositivo** (`TrazaDispositivo`, el patrón existente),
+  así que mezcla movimientos de personas con el historial de validación de la institución. La traza
+  por estadía es Ola 3. El detalle va con identificadores, no con nombres propios, y hay un test que
+  lo afirma.
+- **Cualquiera con `dispositivo.admitir` en un solo dispositivo puede sondear si una persona está
+  alojada en algún lugar de la red** —sin saber dónde—. Es deliberado: sin eso no se explica el
+  rechazo del ingreso. Si el Programa no lo acepta, el rechazo tendría que decir solo «consultá a la
+  coordinación», sin confirmar la estadía. **Decisión del Programa.**
+- Pendientes de la revisión, no tocados: el servicio para **reabrir una estadía egresada por
+  error** (hoy solo con SQL a mano), el mensaje confuso en la carrera del UNIQUE, las fechas
+  retroactivas que solapan con estadías previas de la misma persona, y la guarda de que la clave
+  siga al ciudadano ante una fusión.
+- `sacar_plaza_de_servicio` y `volver_plaza_a_servicio` todavía bloquean el sector con
+  `select_related`: es contención, no corrección.
+- **Falta un test de concurrencia real** —dos hilos sobre MySQL o MariaDB—. En SQLite
+  `select_for_update` no hace nada, así que la exclusión por plaza no la prueba la suite rápida.
+
+## Archivos
+
+`programas/models/__init__.py` · `programas/migrations/0087_estadia_reservaplaza.py` ·
+`programas/services/estadias.py` · `programas/services/ocupacion.py` ·
+`programas/tests/test_dispositivos_estadias.py` · `test_dispositivos_ocupacion.py` ·
+`test_models_contrato.py` · `users/tests/test_rbac_contrato.py` · `scripts/perf_budgets.json`
+
+## Base de datos
+
+`programas.0087`: tablas `programas_estadia` y `programas_reservaplaza`. `check_migraciones.py` en
+verde.
+
+## Reversión
+
+`migrate programas 0086` y `git revert` del merge. Las dos tablas nacen vacías —el circuito que las
+puebla es esta misma release— así que mientras no haya un ingreso cargado la reversa no pierde nada.
+**Desde el primer ingreso deja de ser gratis**: bajar la migración borra las estadías y sus reservas.
+
+## Historial
+
+Entrada nueva. Abre la etapa 2 del plan del Cambio 191.
+
+---
+
+# Cambio 263 — Un mismo correo en varios usuarios: cada correo de recupero dice de qué usuario es, y el alta no muestra una clave que el sistema ignora
+
+🟢 **HECHO — 13/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — usuarios: «Olvidé mi contraseña» (correo y pantalla del enlace) y alta de usuario del backoffice |
+| **Etiquetas** | `#usuarios` `#correo` `#ui` |
+| **Solicitante** | PM — decisión en sesión de trabajo del 13/10/2026 |
+| **Fecha del pedido** | 13/10/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Una persona puede tener **varios usuarios del backoffice con el mismo correo**. Al pedir
+«Olvidé mi contraseña» le llega un correo por cada usuario, pero ninguno dice de qué
+usuario es su enlace, y la pantalla que abre el enlace tampoco: la persona no sabe cuál es
+cuál. Y en el alta, el campo «Contraseña *» se ve obligatorio y habilitado aunque se cargue
+correo, cuando con correo el sistema ignora lo tipeado y manda otra clave: el operador le
+pasa una clave a la persona y le llega otra.
+
+## Alcance acordado
+
+**Entra:** el usuario en el asunto y en el cuerpo (texto y HTML) del correo de recupero; el
+usuario en la pantalla de «Establecer contraseña» cuando el enlace es válido; y que el alta
+diga, según haya correo o no, si la contraseña la genera el sistema o la tiene que poner el
+operador.
+
+**Queda afuera:**
+
+- **Correo único por usuario.** No se agrega: ver *Decisiones tomadas*.
+- **El login** (`users/templates/user/login.html`, `users/forms/auth.py`): no se toca.
+- **La regla de negocio del alta** (RN-C1 del Cambio 37: con correo la clave la genera el
+  sistema y viaja en el mensaje; sin correo la pone el operador). No cambia; solo la
+  pantalla la explica. La validación del servidor (`_validar_correo_de_entrega`) queda igual.
+
+## Decisiones tomadas
+
+- **Los correos se pueden repetir entre usuarios (PM, 13/10/2026).** Es el caso real de
+  una persona con varios usuarios, y se mantiene: no hay validación de correo único ni en
+  el alta ni en la edición. El recupero de Django ya manda un correo por cada usuario
+  activo con esa casilla; lo que faltaba era que cada correo dijera de cuál es.
+- **El login no se toca.** El pedido es solo sobre el recupero y el alta.
+- **El usuario va en el asunto**, no solo en el cuerpo: con dos correos iguales en la
+  bandeja, el asunto es lo primero que distingue uno de otro.
+- **En el alta, el campo se deshabilita con JS y no desde el form.** El estado inicial
+  (asterisco y ayuda) lo rinde el servidor según el correo cargado; el JS lo recalcula al
+  tipear el correo y deshabilita el campo. Sin JS el campo queda habilitado y el servidor
+  hace lo de siempre (ignora la clave si hay correo). Deshabilitarlo desde el form habría
+  dejado trabado a quien no tiene JS y quiere borrar el correo y poner una clave.
+
+## Implementación
+
+- **Correo de recupero:** asunto «Recuperación de contraseña de DATAÑACH — usuario
+  *X*»; en el cuerpo, antes del enlace/botón, «Este enlace cambia la contraseña del
+  usuario *X*.» (en el HTML con el mismo estilo en línea del resto del correo, y el
+  usuario también en el texto de vista previa).
+- **Pantalla del enlace:** con el enlace válido dice «Estás definiendo la contraseña del
+  usuario **X**». Con el enlace vencido o usado no nombra a nadie.
+- **Alta de usuario:** sin correo, «Contraseña *» con la ayuda de siempre; con correo,
+  el asterisco desaparece, el campo queda deshabilitado y la ayuda dice «Se genera
+  automáticamente y se envía por correo.». El campo pasa por `{% campo_control %}`, así
+  que el lector de pantalla lee la ayuda. La edición no cambia (ese bloque es solo del alta).
+
+## Archivos
+
+- `users/templates/user/email/recupero_contrasena_asunto.txt`, `recupero_contrasena.txt`,
+  `recupero_contrasena.html` — el usuario en asunto y cuerpo.
+- `users/templates/user/establecer_contrasena.html` — el usuario en la ayuda.
+- `users/templates/user/user_form.html` — bloque de contraseña del alta y su JS.
+- `users/tests/test_correo_compartido.py` — 6 pruebas nuevas.
+- `.claude/design/shells.md` — la pantalla del enlace es evidencia del shell de auth pública.
+- `docs/client/funcionalidades/correos-credenciales.md` — los textos para el cliente.
+- `docs/internal/requerimientos.md` — esta entrada y una línea de historial en el Cambio 37.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py check`: sin issues.
+- `manage.py test users` (Python 3.12 + Django 5.2, `.venv312`): **496 pruebas, OK**
+  (7 skipped), con las 6 nuevas: dos usuarios con el mismo correo → 2 correos, cada uno
+  con su usuario en asunto, texto y HTML y con su propio enlace; la pantalla del enlace
+  nombra al usuario y la del enlace inválido no; el alta sin correo muestra el asterisco y
+  con correo la ayuda nueva sin asterisco; la edición no muestra el bloque.
+- `ruff check` y `ruff format --check` sobre el test nuevo: OK.
+- `scripts/design_audit.py --ratchet`: **0 hallazgos nuevos**. `scripts/compile_templates.py`:
+  **0 errores** (223 compilados). `scripts/check_design_agent.py --changed`: OK.
+- `scripts/check_docs_client.py`: 0 hallazgos.
+- **Manual en testing (https://datanach.ecomdev.ar):** crear dos usuarios con el mismo
+  correo, pedir el recupero y verificar los dos correos y la pantalla de cada enlace; en
+  «Nuevo usuario», tipear y borrar el correo y ver cambiar el campo Contraseña.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- **Aprobación de los textos** por el cliente: el documento de `docs/client` quedó al día;
+  sigue el pendiente #244 del Cambio 37.
+
+## Reversión
+
+Revertir el commit. No hay datos que se pierdan.
+
+## Historial
+
+No aplica: entrada nueva.
 
 # Cambio 264 — Los requisitos se ordenan arrastrando: sale el campo «Orden»
 
