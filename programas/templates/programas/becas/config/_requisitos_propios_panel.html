@@ -4,18 +4,25 @@
   <table class="w-full border-collapse">
     <thead>
       <tr class="nodo-thead-row">
-        <th class="nodo-th">Orden</th>
+        {% if puede_ordenar %}<th class="nodo-th w-10"><span class="sr-only">Mover</span></th>{% endif %}
         <th class="nodo-th">Pregunta</th>
         <th class="nodo-th">Tipo</th>
         <th class="nodo-th">Obligatorio</th>
         <th class="nodo-th text-right">Acciones</th>
       </tr>
     </thead>
-    <tbody>
+    {# Cambio 264: el orden se define arrastrando desde la manija; solo filas propias. #}
+    <tbody data-sortable-lista data-url-reordenar="{% url 'becas:requisitos_reordenar' 'subsegmento' subsegmento.pk %}"
+           data-puede-ordenar="{% if puede_ordenar %}1{% else %}0{% endif %}" data-indicador="reqs-orden-estado">
       {% for req in requisitos_propios %}
-      <tr class="hover:bg-secondary transition-colors">
-        <td class="nodo-td text-body-subtle font-semibold">{{ req.orden }}</td>
-        <td class="nodo-td text-heading font-medium">{{ req.texto }}
+      <tr class="hover:bg-secondary transition-colors" data-item-id="{{ req.pk }}">
+        {% if puede_ordenar %}
+        <td class="nodo-td w-10">
+          <span class="grip lista-grip" role="button" tabindex="0" title="Arrastrar para mover"
+                aria-label="Reordenar {{ req.texto }}: flechas arriba y abajo"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>
+        </td>
+        {% endif %}
+        <td class="nodo-td text-heading font-medium js-lista-texto">{{ req.texto }}
           {% if req.destino_siis %}<span class="badge badge-info ml-1" title="Alimenta el alta de beneficiarios en SIIS">SIIS: {{ req.get_destino_siis_display }}</span>{% endif %}
         </td>
         <td class="nodo-td">
@@ -37,7 +44,6 @@
                 '{{ req.texto|escapejs }}',
                 '{{ req.tipo }}',
                 '{{ req.obligatorio|yesno:'True,False' }}',
-                {{ req.orden }},
                 [{% for o in req.opciones %}'{{ o|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],
                 '{{ req.presentacion }}',
                 '{{ req.canal }}',

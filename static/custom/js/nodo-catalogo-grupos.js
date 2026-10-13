@@ -16,6 +16,10 @@
  * Confirmación del autoguardado (DA-2): sin toast de éxito. El estado
  * «Guardando…» / «Orden guardado» vive en `#catalogo-guardado` (indicador de
  * la página) y en la región aria-live; los errores sí salen por toast.
+ *
+ * Listas planas (Cambio 264): el mismo archivo ordena los requisitos propios
+ * del programa, del segmento y del subsegmento (`[data-sortable-lista]`, ver
+ * el bloque del final). Una sola lista por tbody, sin grupos.
  */
 (function () {
   'use strict';
@@ -230,8 +234,133 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', init);
-  // Tras guardar una pregunta o un grupo por AJAX el parcial se reemplaza.
-  window.addEventListener('becas-saved', function () { window.setTimeout(init, 0); });
-  window.nodoCatalogoGrupos = { init: init };
+  // ------------------------------------------------------------------
+  // Listas planas (Cambio 264): los requisitos propios del programa, del
+  // segmento y del subsegmento. Mismo contrato que el catálogo agrupado:
+  // `tbody[data-sortable-lista]` con `data-url-reordenar` y
+  // `data-puede-ordenar`, filas `tr[data-item-id]` y manija `.lista-grip`.
+  // Se manda la lista entera `{ids: [...]}` y el servidor devuelve
+  // `{ok, target, html}` con el panel ya renderizado. Los heredados no van en
+  // la lista: no tienen manija ni fila ordenable.
+  // ------------------------------------------------------------------
+  var instanciasLista = [];
+
+  function filasDe(lista) {
+    return Array.prototype.filter.call(lista.children, function (el) {
+      return el.matches('tr[data-item-id]');
+    });
+  }
+
+  function enlazarLista(lista) {
+    var url = lista.getAttribute('data-url-reordenar');
+    var indicador = document.getElementById(lista.getAttribute('data-indicador') || '');
+    var sortable = null;
+
+    function indicarLista(texto) {
+      if (indicador) { indicador.textContent = texto; }
+    }
+
+    function guardarLista() {
+      // Mismo resguardo que el catálogo: si otro flujo ya reemplazó el panel,
+      // este orden es viejo y no se manda.
+      if (!lista.isConnected) { return; }
+      var foco = document.activeElement;
+      var filaFoco = foco && foco.closest && lista.contains(foco) ? foco.closest('tr[data-item-id]') : null;
+      var focoId = filaFoco ? filaFoco.getAttribute('data-item-id') : null;
+      if (sortable) { sortable.option('disabled', true); }
+      indicarLista('Guardando…');
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+          ids: filasDe(lista).map(function (tr) { return parseInt(tr.getAttribute('data-item-id'), 10); })
+        })
+      }).then(function (resp) {
+        return resp.json().catch(function () { return {}; }).then(function (data) {
+          return { status: resp.status, data: data };
+        });
+      }).then(function (r) {
+        var data = r.data || {};
+        if (r.status >= 200 && r.status < 300 && data.ok && data.target && typeof data.html === 'string') {
+          var tgt = document.querySelector(data.target);
+          if (tgt) {
+            tgt.innerHTML = data.html;
+            if (window.Alpine && typeof window.Alpine.initTree === 'function') { window.Alpine.initTree(tgt); }
+          }
+          indicarLista('Orden guardado');
+          anunciar('Orden guardado.');
+          initListas();
+          if (focoId) {
+            var grip = document.querySelector('[data-sortable-lista] tr[data-item-id="' + focoId + '"] .lista-grip');
+            if (grip) { grip.focus(); }
+          }
+        } else {
+          if (sortable) { sortable.option('disabled', false); }
+          indicarLista('No se guardó el orden');
+          aviso(data.error || 'No se pudo guardar el orden. Recargá la página.', 'error');
+        }
+      }).catch(function () {
+        if (sortable) { sortable.option('disabled', false); }
+        indicarLista('No se guardó el orden');
+        aviso('No se pudo guardar el orden. Revisá la conexión.', 'error');
+      });
+    }
+
+    var timerLista = null;
+    function guardarListaConDemora() {
+      window.clearTimeout(timerLista);
+      timerLista = window.setTimeout(guardarLista, 700);
+    }
+
+    if (!lista.dataset.tecladoEnlazado) {
+      lista.dataset.tecladoEnlazado = '1';
+      lista.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') { return; }
+        var grip = e.target.closest ? e.target.closest('.lista-grip') : null;
+        if (!grip) { return; }
+        e.preventDefault();
+        var tr = grip.closest('tr[data-item-id]');
+        var filas = filasDe(lista);
+        var destino = filas[filas.indexOf(tr) + (e.key === 'ArrowUp' ? -1 : 1)];
+        if (!tr || !destino) { return; }
+        lista.insertBefore(tr, e.key === 'ArrowUp' ? destino : destino.nextSibling);
+        grip.focus();
+        filas = filasDe(lista);
+        var celda = tr.querySelector('.js-lista-texto');
+        var texto = celda ? celda.textContent.trim().split('\n')[0].slice(0, 80) : 'Requisito';
+        anunciar(texto + ': posición ' + (filas.indexOf(tr) + 1) + ' de ' + filas.length + '.');
+        guardarListaConDemora();
+      });
+    }
+
+    sortable = new window.Sortable(lista, {
+      animation: 150,
+      handle: '.lista-grip',
+      draggable: 'tr[data-item-id]',
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      onEnd: function (evt) { if (evt.oldIndex !== evt.newIndex) { guardarLista(); } }
+    });
+    instanciasLista.push(sortable);
+  }
+
+  function initListas() {
+    instanciasLista.forEach(function (s) { try { s.destroy(); } catch (e) { /* ya desmontado */ } });
+    instanciasLista = [];
+    if (!window.Sortable) { return; }
+    document.querySelectorAll('[data-sortable-lista]').forEach(function (lista) {
+      if (lista.getAttribute('data-puede-ordenar') === '1') { enlazarLista(lista); }
+    });
+  }
+
+  function initTodo() { init(); initListas(); }
+
+  document.addEventListener('DOMContentLoaded', initTodo);
+  // Tras guardar una pregunta, un grupo o un requisito por AJAX el parcial se reemplaza.
+  window.addEventListener('becas-saved', function () { window.setTimeout(initTodo, 0); });
+  window.nodoCatalogoGrupos = { init: init, initListas: initListas };
 })();

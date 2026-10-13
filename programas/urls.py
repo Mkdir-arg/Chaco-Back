@@ -94,6 +94,11 @@ urlpatterns = [
     path("config/segmentos/<int:segmento_pk>/requisitos/nuevo/", cfg.requisito_crear, name="requisito_crear"),
     path("config/requisitos/<int:pk>/editar/", cfg.requisito_editar, name="requisito_editar"),
     path("config/requisitos/<int:pk>/eliminar/", cfg.requisito_eliminar, name="requisito_eliminar"),
+    path(
+        "config/requisitos/reordenar/<str:nivel>/<int:pk>/",
+        cfg.requisitos_reordenar,
+        name="requisitos_reordenar",
+    ),
     path("config/requisitos/", cfg.RequisitosSegmentoView.as_view(), name="requisitos_segmento"),
     # --- Preguntas globales (cuestionario social) ---
     path("config/preguntas/", cfg.PreguntaGlobalListView.as_view(), name="preguntas"),

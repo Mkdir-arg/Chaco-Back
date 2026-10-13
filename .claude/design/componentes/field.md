@@ -69,6 +69,12 @@ De `programas/forms.py` la evidencia de diseño es **`INPUT_CLASS` y los `widget
 el resto del archivo es validación de dominio (`clean_*`, validaciones cruzadas) y no define nada
 visual. Un cambio ahí que no toque `INPUT_CLASS` ni un widget no mueve esta ficha.
 
+**Un campo que sale del form sale también de los modales que lo dibujan a mano.** Los modales de
+requisito escriben sus controles sin `{{ form.campo }}` en la edición; cuando `RequisitoNativoForm`
+dejó de tener `orden` (Cambio 264, el orden pasó al arrastre), el widget y los controles
+`name="orden"` de las cuatro pantallas se fueron en el mismo diff. Un input que el form ya no lee es un control que no
+guarda nada.
+
 **Formularios armados en runtime: queda uno.** El F-00 de Dispositivos (`F00DinamicoForm`) armaba
 sus campos leyendo la configuración del tipo y les ponía `INPUT_CLASS`/`CHECKBOX_CLASS` a mano,
 igual que el constructor de Becas. Se fue con `CampoTipoDispositivo` (MVP v2, release A), así que

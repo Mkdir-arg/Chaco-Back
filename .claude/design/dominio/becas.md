@@ -152,7 +152,10 @@ Contrato: todo control con `nodo-field`; **cada campo del modelo que el formular
 control en todos los modales**, porque el POST reemplaza el registro completo y un campo ausente
 se guarda vacío (el selector «Este dato alimenta a SIIS como», `destino_siis`, se sumó a los cinco
 a la vez, con `badge badge-info` «SIIS: …» en las filas). Las mismas etiquetas y ayudas que el
-modal de preguntas generales.
+modal de preguntas generales. **Sin campo «Orden»** (Cambio 264): el formulario ya no lo acepta,
+el alta entra al final de su lista, la edición conserva la posición y el orden se cambia
+arrastrando (ver *Drag & drop*); la fila de Tipo y Obligatorio queda en `sm:grid-cols-2` y
+`openEdit` / `openReqEdit` ya no reciben el orden.
 `requisitos_segmento.html` y `subsegmento_detail.html` ya usan el helper de modales y las partes
 de header y pie; `segmento_detail.html` y `programa_detail.html` siguen con marcado propio hasta
 su propia migración.
@@ -195,7 +198,21 @@ convocatoria que se está editando, y un `disabled` de Django además ignora lo 
 `static/custom/css/nodo-constructor.css` (manija `.grip`, estados `.sortable-ghost` /
 `.sortable-chosen`, `.is-saving`). Evidencia: el catálogo agrupado de requisitos generales
 (`programas/templates/programas/becas/config/_preguntas_grupos.html` +
-`static/custom/js/nodo-catalogo-grupos.js`) y el constructor de formularios.
+`static/custom/js/nodo-catalogo-grupos.js`), las listas de requisitos propios de programa,
+segmento y subsegmento (`_requisitos_programa_panel.html`, `_requisitos_panel.html`,
+`_requisitos_propios_panel.html`, mismo JS) y el constructor de formularios.
+
+**Lista plana** (variante del mismo JS, sin grupos): `tbody[data-sortable-lista]` con
+`data-url-reordenar`, `data-puede-ordenar` y `data-indicador` (id del `<span>` de estado
+«Guardando… / Orden guardado», que vive **fuera** del parcial para sobrevivir al re-render); filas
+`tr[data-item-id]`, manija `.grip.lista-grip` en una primera columna con `<th>` `sr-only`
+«Mover» que solo existe con permiso, y texto en `.js-lista-texto` para el anuncio. El POST manda
+la lista entera `{ids: [...]}`; el servidor exige **exactamente** los propios de esa lista
+(repetidos 400; faltantes, ajenos o heredados 409) y renumera 1..N. Los heredados se muestran sin
+manija ni `data-item-id`. Mientras guarda, la instancia de Sortable queda `disabled` (no hay
+regla `.is-saving` para la lista). El permiso (`puede_ordenar`) lo calcula la vista con la
+capacidad **y** el alcance de la edición. `requisitos_segmento.html` (lista transversal que mezcla
+listas) no arrastra.
 
 - Se arrastra **solo desde la manija** (`handle`), nunca desde toda la fila.
 - La manija es

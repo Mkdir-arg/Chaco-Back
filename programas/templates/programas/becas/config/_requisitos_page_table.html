@@ -41,7 +41,6 @@
                 '{{ req.texto|escapejs }}',
                 '{{ req.tipo }}',
                 '{{ req.obligatorio|yesno:'True,False' }}',
-                {{ req.orden }},
                 [{% for o in req.opciones %}'{{ o|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],
                 '{{ req.presentacion }}',
                 '{{ req.canal }}',

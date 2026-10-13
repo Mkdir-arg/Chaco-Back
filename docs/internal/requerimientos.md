@@ -398,6 +398,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 258 | Las colas de los dos gates y del export: la prosa que bloqueaba, la tabla HTML que no se miraba y las dos cotas que no estaban escritas | Transversal — gate de publicación de `docs/client/` · auditoría de diseño (piso de las particiones) · Becas — export «respuestas por persona» | `#infra` `#datos` `#performance` | Revisiones de #784 (Cambio 256) y #791 (Cambio 257) — los MINOR que quedaron abiertos (Ola 7, PR 8) | 12/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta; la ventana del ingress de ECOM sigue preguntada) | No |
 | 260 | El gate del release corría la suite con media instalación: `tblib` faltaba y el rojo no era del release | Transversal — CI (`release-gate.yml` job «Suite completa (SQLite)» y `pr-backend.yml` job «Orden y paralelo») | `#infra` `#metodo` | Corrida 38314173223 del `release-gate` sobre `main` `7c617406` — hotfix | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 261 | El gate de publicación deja de pagar con padrones el precio de no marcar prosa | Transversal — gate de publicación de `docs/client/` | `#infra` `#datos` | Revisión de #797 (Cambio 258) — los MINOR que quedaron abiertos (Ola 7, PR 9: cierre del carril) | 13/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta; los límites del gate quedan declarados en la ficha RED-64) | No |
+| 264 | Los requisitos se ordenan arrastrando: sale el campo «Orden» | Becas / requisitos | `#requisitos` `#ui` `#mobile` | PM — pedido directo en sesión de trabajo | 13/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -1733,6 +1734,8 @@ Revertir los seis archivos. No se pierden datos: los órdenes ya asignados queda
 ## Historial
 
 No aplica: entrada nueva.
+
+**13/10/2026 — Cambio 264 (decisión del PM).** Para los requisitos de programa, segmento y subsegmento (`RequisitoNativo`) el orden deja de escribirse: sale el campo «Orden» del formulario y de las pantallas y se define arrastrando. El alta entra al final de su lista, la edición conserva la posición y el arrastre renumera la lista 1..N (lo que normaliza los repetidos que este cambio dejaba pendientes, lista por lista). Lo de esta entrada —orden opcional con autonumerado y sin repetidos— **sigue vigente solo para las preguntas globales** (`PreguntaGlobalForm`).
 
 # Cambio 24 — El alcance sobre Usuarios y Roles, solo por capacidades transversales
 
@@ -33563,3 +33566,145 @@ de la revisión del PR 8 de la Ola 7. La ficha RED-64 lo anota en su línea «Se
 suma la lista de límites conocidos, que es lo que cierra el tema. Primera versión.
 
 **13/10/2026 — merge del juez con `development` (hasta `79ea5d1f`, Cambio 260: hotfix del `release-gate`).** Esta entrada pasa a ser la **261**. La revisión de #798 (APPROVE) dejó dos MINOR que no abren ronda: fueron a «Límites conocidos del gate» de la ficha RED-64 (`;`/`,` ya no alcanzan solos para ser fila; un secreto entrecomillado o en bloque de código no se ve).
+
+# Cambio 264 — Los requisitos se ordenan arrastrando: sale el campo «Orden»
+
+🟢 **HECHO — 13/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas — configuración de requisitos (programa, segmento y subsegmento) |
+| **Etiquetas** | `#requisitos` `#ui` `#mobile` |
+| **Solicitante** | PM — pedido directo en sesión de trabajo |
+| **Fecha del pedido** | 13/10/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Backoffice (impacto indirecto en Mobile y en el alta a SIIS: ver *Decisiones*) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En los requisitos del programa, del segmento y del subsegmento se elimina el campo/columna
+«Orden» y el orden se define arrastrando y soltando, como en el constructor. En el subsegmento
+(y donde se muestren heredados) solo se arrastran los requisitos propios; los heredados quedan
+fijos. Las preguntas globales quedan fuera.
+
+## Alcance acordado
+
+- Entran las tres listas de `RequisitoNativo`: la del programa (detalle del programa, solapa
+  Requisitos), la del segmento (detalle del segmento, solapa Requisitos) y la del subsegmento
+  (detalle del subsegmento, «Requisitos del subsegmento»).
+- Sale el campo «Orden» de los modales de alta y edición de las cuatro pantallas que los tienen
+  (las tres de arriba y la lista transversal `config/requisitos/`) y la columna «Orden» de las
+  tablas, incluida la de heredados del programa en el detalle del segmento.
+- Queda **afuera** el catálogo de preguntas globales (`PreguntaGlobal`): ya se ordenaba
+  arrastrando (Cambio 58) y conserva su formulario con orden opcional (Cambio 23).
+- Queda afuera el arrastre en la lista transversal `config/requisitos/` (ver *Decisiones*).
+
+## Decisiones tomadas
+
+- **Decisión del PM del 13/10/2026: el orden de los requisitos se define arrastrando y no
+  escribiendo un número.** Reemplaza el orden manual del Cambio 23 para `RequisitoNativo`.
+- **El formulario ya no acepta `orden`.** Motivo: si el campo quedaba en el formulario y el
+  modal de edición dejaba de mandarlo, el autonumerado del Cambio 23 lo trataba como vacío y
+  cada edición mandaba el requisito al final. Ahora un `orden` que llegue en el POST se ignora.
+- **El alta entra al final de su lista** (el orden más alto de esa lista + 1) **y la edición
+  conserva la posición.** La lista es la misma del Cambio 23: la del programa, la del segmento
+  (sin subsegmento) o la del subsegmento.
+- **Solo se arrastran los propios; los heredados quedan fijos.** En el subsegmento los
+  requisitos del programa y del segmento se ven sin manija, y en el segmento los del programa
+  igual. El servidor lo exige además de la pantalla: el reordenamiento recibe la lista **entera**
+  de los propios y rechaza con 409 un id ajeno, uno heredado o uno que falte (la pantalla quedó
+  vieja), y con 400 los repetidos o un cuerpo mal formado.
+- **Reordenar renumera la lista 1..N.** Motivo: es la única forma de que el arrastre sea
+  determinista sobre datos viejos con órdenes repetidos o con huecos (el pendiente del Cambio
+  23). Cada arrastre normaliza la lista que toca; las que nadie arrastra quedan como estaban.
+- **Mismo alcance que editar un requisito.** El programa lo ordena solo su Administrador; el
+  segmento, quien lo configura (no el Coordinador Regional, SEC-30); el subsegmento, quien lo
+  opera. La capacidad es `becas.requisito.editar`; sin ella (el Coordinador sembrado solo ve y
+  crea) no hay manijas y el endpoint devuelve 403.
+- **La lista transversal `config/requisitos/` no arrastra.** Mezcla requisitos de varios
+  segmentos y subsegmentos en una sola tabla, ordenados por segmento: no hay una lista única que
+  reordenar. Solo pierde el campo «Orden» de sus modales. Además no tiene entrada en el menú.
+- **Se reusa la pieza canónica de arrastre** (`nodo-catalogo-grupos.js`, SortableJS
+  vendorizado, `nodo-constructor.css`) con una variante de lista plana: manija como única zona
+  de arrastre, flechas ↑/↓ como alternativa de teclado, anuncio en `aria-live`, guardado con
+  700 ms de demora en el teclado, estado «Guardando… / Orden guardado» en la página y errores
+  por toast. Sin archivo JS ni clase CSS nuevos.
+
+### Impacto fuera de la pantalla
+
+- **Convocatorias con diseño guardado en el constructor: no cambian.** Su orden lo manda
+  `ItemDiseno.orden` (decisión D1 del Cambio 58); reordenar el catálogo no las reordena.
+- **Sí afecta:** las convocatorias sin diseño (`plan_por_defecto`), el lugar donde se suma un
+  requisito nuevo a un diseño existente, la lista plana de la app móvil (`Chaco-mobile` ordena
+  por `orden`; su respaldo `orden < 100 / >= 100` para separar niveles solo corre si falta
+  `alcance`, y el backend hoy siempre lo manda), el export de base cruda y el desempate de
+  `destino_siis` en `siis_envio.py` (entre niveles gana el más específico, G1-10; el orden solo
+  desempata dos campos del **mismo** nivel con el mismo destino, que el formulario ya no deja
+  crear dentro de una misma lista).
+
+## Implementación
+
+- Los modales de requisito ya no tienen «Orden»; la fila de Tipo y Obligatorio queda en dos
+  columnas.
+- Las tablas de requisitos propios muestran una manija a la izquierda para quien puede
+  editarlos; se arrastra desde ahí (o con las flechas, con la manija enfocada) y el orden se
+  guarda al soltar, sin recargar la página.
+- Endpoint nuevo `becas:requisitos_reordenar` (`POST config/requisitos/reordenar/<nivel>/<pk>/`,
+  `nivel` = `programa` · `segmento` · `subsegmento`, cuerpo `{"ids": [...]}`), que devuelve el
+  panel re-renderizado con el contrato `{ok, target, html}`. Bloquea la lista con
+  `select_for_update` dentro de la transacción y solo escribe las filas que cambian de posición.
+
+## Archivos
+
+- `programas/forms.py` — `RequisitoNativoForm` sin `orden`; alta al final de su lista.
+- `programas/views/configuracion.py` — `requisitos_reordenar`, `_requisitos_de_lista`,
+  `_puede_ordenar_requisitos` y `puede_ordenar` en los tres detalles y sus respuestas AJAX.
+- `programas/urls.py`
+- `programas/templates/programas/becas/config/_requisitos_panel.html`,
+  `_requisitos_programa_panel.html`, `_requisitos_propios_panel.html`,
+  `_requisitos_page_table.html`, `programa_detail.html`, `segmento_detail.html`,
+  `subsegmento_detail.html`, `requisitos_segmento.html`
+- `static/custom/js/nodo-catalogo-grupos.js` — variante de lista plana.
+- `.claude/design/dominio/becas.md` (fichas *Drag & drop* y *Modal de requisito*) y
+  `.claude/design/componentes/field.md`.
+- Tests: `programas/tests/test_requisitos_orden_drag.py` (nuevo) y los ajustados
+  `test_becas_config.py` (`OrdenRequisitosTests` reescrita), `test_programa_detail_ola3.py`,
+  `test_becas_segmentos_diseno.py`.
+
+## Base de datos
+
+**No requiere migración.** `RequisitoNativo.orden` sigue igual y no tiene restricción en la base.
+Los órdenes repetidos que ya existan se normalizan la primera vez que alguien arrastra esa lista.
+
+## Validación
+
+- `test_requisitos_orden_drag` (nuevo): reordenar el programa, el segmento y el subsegmento
+  renumera 1..N y no toca las otras listas; repetidos y cuerpo inválido 400; ajeno, heredado o
+  faltante 409 sin escribir nada; nivel desconocido o ancla inexistente 404; solo POST; anónimo y
+  sin capacidad 403; coordinador sobre un segmento ajeno 403 y sobre el programa 403; Regional
+  solo sobre su subsegmento; manijas solo en las filas propias y nada de `name="orden"` en las
+  pantallas.
+- `OrdenRequisitosTests` reescrita: el formulario no tiene `orden`, el alta va al final de su
+  lista (también la del programa, y aunque el POST traiga un orden), la edición conserva el
+  orden.
+- Resultados de la corrida y de las auditorías: en el PR.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- Si se quiere el mismo arrastre en la lista transversal `config/requisitos/`, hay que agruparla
+  por lista primero (hoy mezcla segmentos y subsegmentos en una tabla).
+
+## Reversión
+
+Revertir el commit. No se pierden datos: los órdenes renumerados por el arrastre quedan como
+estén y el formulario anterior los vuelve a aceptar (con la validación de repetidos del Cambio
+23). No hay migración que deshacer.
+
+## Historial
+
+Entrada nueva.
