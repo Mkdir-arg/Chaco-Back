@@ -405,6 +405,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 271 | La solapa del legajo muestra toda la trayectoria, y no deja enumerar personas | Dispositivos · legajo | `#rbac` `#ui` | Task 28 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 272 | Asistente de ingreso, y un solo origen para el estado de cada plaza | Dispositivos · ingreso | `#ui` `#rbac` | Task 25 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 273 | Movimientos de la estadía: cambio de sector o de plaza con su historial, y permanencia calculada | Dispositivos · estadía | `#datos` `#rbac` | Task 29 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0089` |
+| 277 | Turnos y bitácora: la novedad se agrega, corregir crea una versión y nada se pisa | Dispositivos · datos y servicios | `#datos` `#rbac` | Task 30 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0090` · `users.0036` |
 
 **Notas del índice**
 
@@ -34446,6 +34447,193 @@ la del `CreateModel` borra la tabla entera, con los movimientos reconstruidos y 
 escrito los servicios. **Se pierde la historia de los cambios de plaza** como dato estructurado (la
 `TrazaDispositivo` conserva una línea por cambio, con usuario y plazas en el texto); las estadías
 quedan intactas, en la plaza en la que estaban.
+
+## Historial
+
+Entrada nueva. Etapa 3 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 277 — Turnos y bitácora: la novedad se agrega, corregir crea una versión y nada se pisa
+
+🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 30` (#695)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · datos y servicios |
+| **Etiquetas** | `#datos` `#rbac` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 30 del backlog del MVP (#695) · Épica #127 · etapa 3 |
+| **Partes afectadas** | Servidor: `programas/models/__init__.py`, `services/bitacora.py` (nuevo), `core/rbac.py`, `core/views/media.py`, `core/rutas_media.py` |
+| **Migración** | `programas.0090` (tablas `Turno`, `EntradaBitacora`, `AdjuntoBitacora`) · `users.0036` (capacidad `dispositivo.bitacora` y su siembra) |
+
+## Pedido original
+
+«Reemplaza al parte diario, que hoy el turno siguiente sobrescribe. Las entradas **se agregan**:
+corregir una crea una versión nueva y la anterior sigue visible.» Turno configurable por dispositivo
+con su horario, contemplando el nocturno que cruza la medianoche; una función que, dado un dispositivo
+y un momento, devuelva el turno vigente y su fecha operativa, limpia y testeada para que la consuma el
+censo de la task 31.
+
+## Alcance acordado
+
+Entra: el modelo de turnos y su configuración por servicio, el turno vigente y la fecha operativa, la
+entrada de bitácora con versiones, personas involucradas y adjuntos, y la capacidad para cargarla.
+**Queda afuera:** el pase de guardia (abrir y cerrar el turno), la regularización de días anteriores,
+las entradas automáticas desde la estadía y **toda pantalla** —la P10 es la task 32—.
+
+## Decisiones tomadas
+
+**La fecha operativa es la del turno, no la del reloj, y se guarda.** `turno_vigente(dispositivo,
+momento)` es el único lugar que la calcula: la Noche 22-06 que empieza el lunes es del lunes aunque
+sea martes 03:00. Se calcula sobre `timezone.localtime()` y en Python; la entrada la guarda en un
+`DateField`, así que filtrar el día nunca pasa por un `Trunc*` sobre `momento` (que en ECOM es
+`CONVERT_TZ` y da `NULL`). La ventana del turno es `[inicio, fin)`: las 14:00 en punto ya son de la
+Tarde. Un turno con `hora_hasta` menor que `hora_desde` cruza la medianoche; con las dos iguales es
+una guardia de 24 h. `turnos_del_dia` devuelve los turnos de una fecha operativa con sus ventanas, y
+las dos funciones aceptan la lista de turnos ya cargada para que el censo no haga una consulta por
+momento.
+
+**Dos turnos activos del mismo dispositivo no se superponen.** Si se superpusieran, «el turno
+vigente» dejaría de ser uno. Es una regla sobre intervalos circulares que ningún constraint dice:
+la sostienen `crear_turno` y `editar_turno` bloqueando la fila del dispositivo. Un turno no se borra
+(sus entradas lo apuntan con `PROTECT`): se desactiva. Cambiar el horario rige de ahí en adelante;
+las entradas ya cargadas conservan su turno y su fecha.
+
+**Corregir es agregar, nunca `UPDATE`.** La corrección es una fila nueva con `version` + 1 que apunta
+a la que corrige (`version_anterior`) y a la primera de la cadena (`entrada_original`). La anterior
+queda igual y se sigue viendo (`entrada.versiones()`); `EntradaBitacora.objects.vigentes()` trae la
+última de cada cadena. El manager no tiene `update`, `delete` ni `bulk_update`, y `save()` sobre una
+fila ya guardada falla, el mismo patrón que `TrazaDispositivo`. La corrección conserva el momento, el
+turno y la fecha (son de cuándo pasó) y hereda tipo, personas y adjuntos si no se pasan.
+
+**Dos operadores no se pisan, con tres capas.** El servicio bloquea la entrada original con
+`select_for_update()` —la fila común a toda la cadena—, así que dos correcciones simultáneas se
+forman en fila; el segundo ve la corrección del primero y recibe «la entrada ya fue corregida
+mientras la editabas», sin que se pierda nada. Debajo, la base: `version_anterior` es **uno a uno**
+(una versión se corrige una sola vez) y `(entrada_original, version)` es `UNIQUE`. Los dos son UNIQUE
+**sin `condition=`** sobre columnas anulables —la versión 1 lleva `NULL`—, que existen en MySQL y en
+MariaDB; un constraint condicional no existiría en producción.
+
+**Las personas involucradas son estadías, no ciudadanos sueltos.** La persona de una novedad del
+turno es alguien alojado en **este** dispositivo, y la estadía lo dice y lo acota sin otra consulta;
+además deja la novedad colgando de la estadía para su línea de tiempo. Se aceptan solo estadías del
+mismo dispositivo abiertas en el momento de la novedad, con un único mensaje de error para la ajena,
+la inexistente y la egresada (dos mensajes serían un oráculo de estadías de otras instituciones).
+
+**Los adjuntos son un modelo propio, compartido entre versiones.** `AdjuntoBitacora` cuelga del
+dispositivo y la entrada lo enlaza por varios a varios: corregir el texto no obliga a volver a subir
+el acta, y la versión anterior conserva sus archivos. `legajos.Adjunto` no servía (es genérico con
+`object_id` UUID). Pasa por `validar_adjunto` (lista blanca, 5 MB y firma), nombre opaco bajo el
+prefijo nuevo `dispositivos/bitacora/`, y `@archivos_atomicos` borra lo escrito si la carga falla.
+`/media/` lo sirve con su regla: `dispositivo.ver` **con la asignación a ese dispositivo**.
+
+**Capacidad nueva `dispositivo.bitacora`** («Cargar novedades en la bitácora del turno»), del bloque
+Bitácora del mockup P15. No se reusó `admitir` porque cargar la novedad del turno no es alojar a
+nadie. `users.0036` la siembra en los roles que ya tienen `dispositivo.admitir` —nadie que opera hoy
+pierde nada— y desde ahí se da o se quita en el ABM de Roles. Configurar turnos pide
+`dispositivo.editar`, como los sectores. Todo con `puede_operar_dispositivo` (capacidad + asignación).
+
+**Solo el turno en curso.** Como la regularización no es de esta etapa, una novedad se carga —y se
+corrige— solo si su momento cae en el turno que rige ahora; puede ser anterior a la carga dentro del
+mismo turno (se anota a las 16:52 lo de las 16:10). Lo del turno anterior se rechaza nombrando la
+regularización. Los tipos son `TextChoices`: los siete de P14 que carga el operador, y cinco
+reservados al sistema (ingreso, egreso, movimiento, permiso, pase) que un operador no puede cargar
+a mano; una novedad automática no se corrige desde la bitácora.
+
+## Implementación
+
+Sin pantalla. `programas/services/bitacora.py`: `turno_vigente`, `turnos_del_dia`, `turnos_activos`,
+`crear_turno`, `editar_turno`, `registrar_entrada` y `corregir_entrada`.
+
+## Archivos
+
+`programas/models/__init__.py` · `programas/services/bitacora.py` ·
+`programas/migrations/0090_turno_bitacora.py` · `users/migrations/0036_capacidad_dispositivo_bitacora.py` ·
+`core/rbac.py` · `core/rutas_media.py` · `core/views/media.py` ·
+`programas/tests/test_dispositivos_bitacora.py` · `programas/tests/test_models_contrato.py` ·
+`users/tests/test_migracion_dispositivo_bitacora.py`
+
+## Base de datos
+
+`programas.0090`: tres tablas nuevas —`programas_turno`, `programas_entradabitacora` (con sus dos M2M)
+y `programas_adjuntobitacora`—; ninguna columna en tablas existentes, así que bajar la release no
+rompe altas. `users.0036`: `AlterModelOptions` de `Capacidad` (sin esquema) y la siembra, con reversa
+real. `check_migraciones.py` en verde.
+
+## Validación
+
+- `programas.tests.test_dispositivos_bitacora`: 52 tests (62 tras la revisión). Turno vigente: borde exacto 13:59:59/14:00,
+  el nocturno del lunes a las 22:00, 23:59:59, 00:00 y 03:00 del martes, el cambio de día operativo a
+  las 06:00, la ventana del nocturno, hora local contra UTC, hueco entre turnos, guardia de 24 h y los
+  turnos del día contiguos. Superposición, autorización y alcance, personas, adjuntos, versionado,
+  concurrencia simulada (dos operadores con la misma versión delante) y las garantías de la base.
+  El reloj se fija en cada test.
+- **Mutación:** catorce guardas rotas de a una, cada una con su rojo — `save()` y `update` permitidos,
+  `version_anterior` como FK, sin `localtime`, el nocturno al día del reloj, el borde cerrado a la
+  derecha, sin capacidad, solo alcance de programa, sin comparar la fecha del turno en curso, personas
+  de cualquier dispositivo, sin control de superposición, media sin alcance y la corrección que pisa
+  la original. Sacar el chequeo de concurrencia del servicio deja verde el test de los dos operadores
+  **porque lo atajan los dos UNIQUE**; recién sin las tres capas se pone rojo.
+- `test_dispositivos_*`, `test_models_contrato`, `core.tests.test_gates_ci`, `test_media_protegida`,
+  `test_indices_redundantes`, `test_sql_portable`, `users.tests.test_rbac*`, `test_roles_abm`,
+  `test_seed_datos_base` y `test_migracion_dispositivo_bitacora` en verde con `.venv312`.
+  `manage.py check`, `makemigrations --check` y ruff en verde.
+
+## Puesta en marcha en el servidor
+
+No requiere: la siembra corre con `migrate`.
+
+## Pendientes / a definir
+
+- **No hay ABM de turnos**: los servicios existen, la pantalla no. Hasta que exista, los turnos se
+  cargan por shell; el admin **no** se registró. Lo decide el juez/PM (¿admin como con
+  `MotivoEgreso`, o pantalla junto con la task 32?).
+- **Los tipos de novedad son `TextChoices`**, no el catálogo configurable que muestra P14. Pasar a
+  catálogo es una migración de datos sobre `tipo`.
+- Las **entradas automáticas** (ingreso, egreso, movimiento, permiso, pase) tienen su tipo y su origen
+  pero nadie las genera todavía.
+- La lectura (quién ve la bitácora) no tiene selector propio: la task 32 la define con
+  `dispositivo.ver` y alcance, como el media.
+- **Sin turnos configurados, o en el hueco entre dos turnos, no se puede cargar ni corregir nada**, y
+  no hay ABM ni semilla de turnos. Lo resuelve la task 32.
+
+## Reversión
+
+`migrate programas 0089` y `migrate users 0035`, y `git revert` del merge. Bajar `0090` borra las tres
+tablas: **desde la primera novedad cargada se pierden** la bitácora y sus adjuntos (los archivos
+quedan en `media/` sin fila). La reversa de `users.0036` quita la capacidad de todos los roles.
+
+## Revisión
+
+**13/10/2026 — revisión independiente de #827 (cambios pedidos).** La lógica pasó las nueve
+mutaciones del revisor; lo observado fue de integración y de bordes:
+
+- **Rebase sobre `development`**, que ya traía `programas.0089_movimiento_estadia` (#826): la migración
+  pasa a ser **`programas.0090_turno_bitacora`** y depende de esa. Los modelos se volvieron a agregar
+  enteros antes de `Cama`, sin mezclar hunks con `MovimientoEstadia`, y `TABLAS` cuenta 56 modelos.
+  Esta entrada se había perdido en el rebase anterior (la reemplazó una copia del Cambio 272) y se
+  repuso desde el commit original.
+- **Las relaciones de una versión guardada tampoco cambian.** Un `m2m_changed` sobre los dos `through`
+  rechaza `add`, `remove`, `clear` y `set` de personas y adjuntos, desde los dos lados. Solo los
+  escribe el servicio al crear la versión, con una marca sobre esa instancia que se apaga al
+  terminar. Sale de Pendientes la línea que lo dejaba abierto. No cubre `through.objects.create(...)`
+  directo, que no emite la señal.
+- **`corregir_entrada` exige el dispositivo activo**, igual que `registrar_entrada`.
+- **La corrección compara contra el turno y la fecha operativa guardados** en la entrada, no contra
+  los que saldrían de recalcular su momento con la configuración de hoy. Si la Tarde se parte en dos,
+  lo de la Tarde que terminó ya no se puede corregir desde el turno nuevo; si la Tarde corre su
+  horario, lo suyo se sigue corrigiendo.
+- **Los ids de personas se normalizan** («5», 5 y « 5 » son la misma estadía), y uno que no es número
+  es un `ValidationError` con el mensaje de siempre, no un `ValueError` del ORM que termina en 500.
+- **Tope de adjuntos por entrada**: `MAX_ADJUNTOS_POR_ENTRADA = 10`, sumando los que la corrección
+  hereda. Se controla antes de escribir el primer archivo.
+
+Diez tests nuevos (62 en total en el módulo). Las cinco guardas se mutaron de a una: las cinco
+dieron rojo.
 
 ## Historial
 
