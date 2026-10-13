@@ -75,7 +75,7 @@ from programas.services.dispositivos import (
     puede_en_programa_dispositivos,
     puede_operar_dispositivo,
 )
-from programas.services.movimientos import registrar_movimiento, ultimo_momento
+from programas.services.movimientos import plaza_ocupada_despues_de, registrar_movimiento, ultimo_momento
 
 CAP_ADMITIR = "dispositivo.admitir"
 CAP_EGRESAR = "dispositivo.egresar"
@@ -312,6 +312,26 @@ def _tomar_plaza(plaza, dispositivo, *, momento=None):
     return plaza
 
 
+#: Una carga retroactiva sobre una plaza que otra persona usó en el medio.
+PLAZA_OCUPADA_EN_EL_MEDIO = (
+    "La plaza estuvo ocupada después de ese momento: con esa fecha quedarían dos personas en la misma plaza."
+)
+
+
+def _exigir_plaza_libre_desde(plaza, *, desde, ahora, campo):
+    """Falla si la plaza —**ya bloqueada**— tuvo a alguien entre ``desde`` y ahora.
+
+    Lo que `_exigir_plaza_libre` no ve: mira la plaza **ahora**. Un ingreso o un cambio
+    fechados hace dos días en una plaza que otra persona dejó ayer pasan ese control y
+    dejan a dos personas en la misma plaza durante un día entero, que es lo que después
+    leen la línea de tiempo y el censo. Solo cuesta una consulta cuando la carga es
+    retroactiva; con la fecha de ahora no hay nada en el medio.
+    """
+
+    if desde < ahora and plaza_ocupada_despues_de(plaza, desde):
+        raise ValidationError({campo: PLAZA_OCUPADA_EN_EL_MEDIO})
+
+
 def _exigir_plaza_libre(plaza, *, excepto_reserva=None, momento=None):
     """Falla si la plaza —**ya bloqueada**— no puede recibir a nadie.
 
@@ -357,6 +377,7 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
             # que bloquean las dos, para que dos transacciones no se esperen en cruz.
             reserva = _bloquear_reserva_propia(reserva, plaza=plaza, ciudadano=ciudadano, momento=ahora)
         _exigir_plaza_libre(plaza, excepto_reserva=reserva, momento=ahora)
+        _exigir_plaza_libre_desde(plaza, desde=fecha_ingreso, ahora=ahora, campo="fecha_ingreso")
     elif dispositivo.tipo.plaza_obligatoria_al_ingresar:
         raise ValidationError({"plaza": "Este tipo de dispositivo exige asignar una plaza al ingresar."})
 
@@ -529,7 +550,8 @@ def cambiar_plaza(*, estadia, plaza, usuario, motivo, momento=None):
     Lo autoriza `dispositivo.admitir` sobre el dispositivo —asignar plaza es parte de
     alojar—, igual que el ingreso. El motivo es obligatorio: es lo que la línea de
     tiempo cuenta del cambio. `momento` puede ser anterior a ahora (carga tardía), pero
-    nunca anterior al último movimiento de la estadía.
+    nunca anterior al último movimiento de la estadía, y la plaza de destino tiene que
+    haber estado libre **desde** ese momento, no solo ahora (`_exigir_plaza_libre_desde`).
     """
 
     dispositivo = estadia.dispositivo
@@ -558,6 +580,7 @@ def cambiar_plaza(*, estadia, plaza, usuario, motivo, momento=None):
     if momento < ultimo_momento(estadia):
         raise ValidationError({"momento": "El cambio no puede ser anterior al último movimiento de la estadía."})
     _exigir_plaza_libre(plaza, momento=ahora)
+    _exigir_plaza_libre_desde(plaza, desde=momento, ahora=ahora, campo="momento")
 
     origen = estadia.plaza
     cambia_de_sector = origen is not None and origen.sector_id != plaza.sector_id
