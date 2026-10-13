@@ -12,10 +12,6 @@
     {% bajada %}<a href="{{ url_volver }}" class="text-fg-brand hover:underline">{{ dispositivo.nombre }}</a> · {{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio{% endbajada %}
   {% endpage_header %}
 
-  {% if not ocupacion_conocida %}
-  {% include "components/_alerta.html" with tono="info" icono="circle-info" titulo="Todavía no se ve la ocupación" texto="Las plazas muestran su estado operativo. Si están ocupadas, reservadas o prestadas se va a ver cuando se registren los ingresos." %}
-  {% endif %}
-
   {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
 
   {# ===== Una surface por sector ===== #}

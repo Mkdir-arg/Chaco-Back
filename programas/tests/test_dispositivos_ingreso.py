@@ -5,13 +5,15 @@ elige en el paso 2 y otro operador la puede tomar antes del paso final. El paso 
 que volver al paso de la plaza con el error, no reventar.
 """
 
+from datetime import timedelta
 from unittest import mock
 
 from django.urls import reverse
+from django.utils import timezone
 
 from legajos.models import Ciudadano
-from programas.models import Estadia, Plaza
-from programas.services.estadias import ingresar_persona
+from programas.models import Estadia, Plaza, ReservaPlaza
+from programas.services.estadias import ingresar_persona, reservar_plaza
 from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias
 
 CAPACIDADES_INGRESO = (*CAPACIDADES_OPERATIVAS, "ciudadano.ver", "ciudadano.crear")
@@ -50,8 +52,8 @@ class CarreraPorLaPlazaTests(BaseIngreso):
         pagina = self.client.get(self.url_plaza)
         self.assertContains(pagina, "La plaza ya tiene una estadía activa.")
         # La plaza tomada ya no se ofrece; la otra sigue disponible y se puede elegir.
-        self.assertNotContains(pagina, f"?elegir={self.plaza.pk}")
-        self.assertContains(pagina, f"?elegir={self.otra_plaza.pk}")
+        self.assertNotContains(pagina, f'?elegir={self.plaza.pk}"')
+        self.assertContains(pagina, f'?elegir={self.otra_plaza.pk}"')
 
     def test_la_plaza_sacada_de_servicio_tambien_vuelve_al_paso_de_la_plaza(self):
         self._hasta_la_plaza(self.persona, self.plaza)
@@ -208,3 +210,46 @@ class AltaDesdeElRegistroDePersonasTests(BaseIngreso):
             respuesta = self.client.post(self.url_persona, {"dni": "27555666", "sexo": "F"})
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, "sin resultados")
+
+
+class UnSoloOrigenDelEstadoDeLaPlazaTests(BaseIngreso):
+    """Regla 3 de la etapa 2: «Sectores y plazas» y el ingreso muestran lo mismo."""
+
+    def test_la_misma_plaza_tiene_el_mismo_estado_y_tono_en_las_dos_pantallas(self):
+        sector = self.sector
+        libre = Plaza.objects.create(sector=sector, codigo="P3")
+        prestada = Plaza.objects.create(sector=sector, codigo="P4")
+        fuera = Plaza.objects.create(
+            sector=sector, codigo="P5", estado=Plaza.Estado.FUERA_SERVICIO, motivo_fuera_servicio="Rota"
+        )
+        ingresar_persona(
+            ciudadano=self.otra_persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza
+        )  # P1 ocupada
+        reservar_plaza(plaza=self.otra_plaza, ciudadano=self.persona, usuario=self.operador_cis)  # P2 reservada
+        reservar_plaza(
+            plaza=prestada,
+            ciudadano=self.persona,
+            usuario=self.operador_cis,
+            tipo=ReservaPlaza.Tipo.PRESTAMO,
+            hasta=timezone.now() + timedelta(hours=12),
+        )
+
+        sectores = self.client.get(reverse("dispositivos:sectores", args=[self.cis.pk])).context["sectores"]
+        en_p5 = {p["codigo"]: (p["estado"], p["tono"]) for item in sectores for p in item["plazas"]}
+        self.client.post(self.url_persona, {"dni": self.persona.dni})
+        sectores = self.client.get(self.url_plaza).context["sectores"]
+        en_p6 = {p["codigo"]: (p["estado"], p["tono"]) for item in sectores for p in item["plazas"]}
+
+        self.assertEqual(en_p5, en_p6)
+        self.assertEqual(
+            en_p5,
+            {
+                "P1": ("Ocupada", "info"),
+                "P2": ("Reservada", "warning"),
+                "P3": ("Disponible", "success"),
+                "P4": ("Prestada", "brand"),
+                "P5": ("Fuera de serv.", "danger"),
+            },
+        )
+        self.assertEqual(libre.codigo, "P3")
+        self.assertEqual(fuera.codigo, "P5")

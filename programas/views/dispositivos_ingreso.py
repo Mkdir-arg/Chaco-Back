@@ -27,13 +27,13 @@ from programas.models import Dispositivo, Plaza
 from programas.services.dispositivos import puede_operar_dispositivo
 from programas.services.estadias import CAP_ADMITIR, AlojamientoEnLaRed, verificar_alojamiento_en_red
 from programas.services.ingreso import (
-    LEYENDA,
     buscar_ciudadano_por_dni,
     confirmar_ingreso,
     consultar_registro_de_personas,
     maneja_plazas,
     plazas_para_ingresar,
 )
+from programas.services.ocupacion import LEYENDA_PLAZAS
 
 CLAVE_SESION = "ingreso_asistente"
 #: Quien busca a la persona en el legajo necesita verla: es lo que muestra el asistente.
@@ -216,7 +216,7 @@ class IngresoPlazaView(IngresoBaseView):
         contexto.update(
             {
                 "sectores": sectores,
-                "leyenda": LEYENDA,
+                "leyenda": LEYENDA_PLAZAS,
                 "hay_disponibles": bool(elegibles),
                 "plaza_obligatoria": self.dispositivo.tipo.plaza_obligatoria_al_ingresar,
                 "persona": self.resumen_persona(estado),

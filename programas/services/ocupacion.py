@@ -85,6 +85,7 @@ censo por turno sobre fechas, el agrupamiento va en Python (precedente:
 from dataclasses import dataclass
 
 from django.db.models import Count, Q
+from django.utils import timezone
 
 from programas.models import Dispositivo, Estadia, Plaza, ReservaPlaza, Sector
 
@@ -348,3 +349,74 @@ def ocupacion_de_plazas(dispositivos) -> Censo:
         por_dispositivo=por_dispositivo,
         total=_sumar_conteos(ocupacion.conteo for ocupacion in por_dispositivo.values()),
     )
+
+
+# ---------------------------------------------------------------------------------------
+# El estado de cada plaza
+# ---------------------------------------------------------------------------------------
+#
+# Misma fuente para todas las pantallas que dibujan plazas («Sectores y plazas» e ingreso):
+# si cada una decidiera por su lado qué es «ocupada», la misma plaza saldría en dos estados
+# distintos. El texto y el tono viajan juntos y la leyenda sale de la misma tabla.
+
+ESTADO_DISPONIBLE = "Disponible"
+ESTADO_OCUPADA = "Ocupada"
+ESTADO_RESERVADA = "Reservada"
+ESTADO_PRESTADA = "Prestada"
+ESTADO_FUERA_SERVICIO = "Fuera de serv."
+
+#: Estados del mapa con su tono (los de `components/_mapa_plazas.html`), en orden de leyenda.
+LEYENDA_PLAZAS = [
+    {"estado": ESTADO_DISPONIBLE, "tono": "success"},
+    {"estado": ESTADO_OCUPADA, "tono": "info"},
+    {"estado": ESTADO_RESERVADA, "tono": "warning"},
+    {"estado": ESTADO_PRESTADA, "tono": "brand"},
+    {"estado": ESTADO_FUERA_SERVICIO, "tono": "danger"},
+]
+_TONO_DE = {item["estado"]: item["tono"] for item in LEYENDA_PLAZAS}
+
+
+@dataclass(frozen=True)
+class EstadoPlaza:
+    """Cómo se ve una plaza ahora mismo. `disponible` es lo único que habilita alojar en ella."""
+
+    estado: str
+    tono: str
+    detalle: str = ""
+
+    @property
+    def disponible(self) -> bool:
+        return self.estado == ESTADO_DISPONIBLE
+
+
+def estado_de_plazas(plazas, momento=None) -> dict[int, EstadoPlaza]:
+    """`{plaza_id: EstadoPlaza}` derivado de `Plaza.estado`, las estadías y las reservas.
+
+    ``plazas`` son instancias de `Plaza` (hace falta `estado` y `motivo_fuera_servicio`).
+    Dos consultas fijas, sin importar cuántas plazas: las estadías activas y las reservas
+    vigentes de esas plazas. Precedencia: fuera de servicio, ocupada, prestada o reservada,
+    disponible; las tres primeras son excluyentes por regla de negocio, no por constraint.
+    """
+
+    plazas = list(plazas)
+    ids = [plaza.pk for plaza in plazas]
+    momento = momento or timezone.now()
+    ocupadas = set(Estadia.objects.activas().filter(plaza_id__in=ids).values_list("plaza_id", flat=True))
+    reservas = {
+        reserva.plaza_id: reserva.tipo for reserva in ReservaPlaza.objects.vigentes(momento).filter(plaza_id__in=ids)
+    }
+
+    derivados = {}
+    for plaza in plazas:
+        detalle = ""
+        if plaza.estado == Plaza.Estado.FUERA_SERVICIO:
+            estado, detalle = ESTADO_FUERA_SERVICIO, plaza.motivo_fuera_servicio
+        elif plaza.pk in ocupadas:
+            estado = ESTADO_OCUPADA
+        elif plaza.pk in reservas:
+            prestada = reservas[plaza.pk] == ReservaPlaza.Tipo.PRESTAMO
+            estado = ESTADO_PRESTADA if prestada else ESTADO_RESERVADA
+        else:
+            estado = ESTADO_DISPONIBLE
+        derivados[plaza.pk] = EstadoPlaza(estado=estado, tono=_TONO_DE[estado], detalle=detalle)
+    return derivados

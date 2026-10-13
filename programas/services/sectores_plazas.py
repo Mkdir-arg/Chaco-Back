@@ -1,44 +1,25 @@
 """Datos de la pantalla «Sectores y plazas» de un dispositivo (MVP v2, etapa 1 · P5).
 
-La vista no cuenta ni decide estados: delega acá. Y acá hay **dos costuras** que el
-servicio único de cálculo de la task 22 tiene que reemplazar cuando exista:
+La vista no cuenta ni decide estados: delega acá, y acá tampoco se deciden. El estado de
+cada plaza (disponible, ocupada, reservada, prestada, fuera de servicio) y su tono los
+deriva `programas.services.ocupacion.estado_de_plazas`, **el mismo** que usa el mapa del
+asistente de ingreso: la misma plaza no puede verse distinta en las dos pantallas.
 
-* `resumen_de_plazas`: los contadores por sector (total, operativas, fuera de servicio y,
-  con estadías, ocupadas, reservadas, prestadas y disponibles).
-* `ocupacion_de_plazas`: el estado derivado de cada plaza que se dibuja.
-
-**Mientras `Estadia` no exista, la ocupación no se puede saber.** `Plaza.estado` solo
-guarda OPERATIVA o FUERA_SERVICIO, y pintar «Disponible» una plaza operativa sería
-afirmar algo que nadie sabe. Por eso, con `OCUPACION_CONOCIDA = False`, una plaza
-operativa se dibuja «Operativa» con el tono neutro del mapa, la leyenda trae solo los
-dos estados que existen y la pantalla avisa por qué. El cuerpo provisional de las dos
-costuras se borra cuando entre el servicio de la task 22; el resto del módulo no cambia.
+Queda una costura: `resumen_de_plazas` (los contadores por sector) todavía cuenta por su
+cuenta y no suma ocupadas, reservadas ni disponibles; el servicio de ocupación ya las da.
 """
 
 from django.db.models import Count, Q
 
 from programas.models import Plaza, Sector
+from programas.services.ocupacion import LEYENDA_PLAZAS, estado_de_plazas
 
 # Tope por sector: el componente dibuja hasta 200 y avisa «Mostrando 200 de N»; la vista
 # acota cada sector para no mandar un dispositivo entero en una sola grilla.
 TOPE_PLAZAS_POR_SECTOR = 200
 
-# Costura de la task 22: pasa a True cuando las estadías permitan derivar la ocupación.
-OCUPACION_CONOCIDA = False
-
-ESTADO_OPERATIVA = "Operativa"
-ESTADO_FUERA_SERVICIO = "Fuera de servicio"
-TONO_OPERATIVA = "neutro"  # un tono desconocido dibuja la celda neutra: no es «disponible»
-TONO_FUERA_SERVICIO = "danger"
-
-
-def leyenda_plazas():
-    """Los estados que la pantalla puede mostrar hoy, con el mismo tono que las plazas."""
-
-    return [
-        {"estado": ESTADO_OPERATIVA, "tono": TONO_OPERATIVA},
-        {"estado": ESTADO_FUERA_SERVICIO, "tono": TONO_FUERA_SERVICIO},
-    ]
+# La ocupación sale de `ocupacion.estado_de_plazas`: ya se conoce.
+OCUPACION_CONOCIDA = True
 
 
 def resumen_de_plazas(sector_ids):
@@ -66,30 +47,10 @@ def resumen_de_plazas(sector_ids):
     return resumen
 
 
-def ocupacion_de_plazas(plaza_ids):
-    """Estado derivado de las plazas que la ocupación vuelve a colorear.
+def _plaza_para_el_mapa(plaza, estado):
+    """Un dict del mapa: estado y tono vienen del servicio, nunca del template ni de acá."""
 
-    `{plaza_id: {"estado": "Ocupada", "tono": "info", "detalle": "Benítez, R."}}`.
-    PROVISIONAL (costura task 22): sin estadías no hay nada que derivar.
-    """
-
-    return {}
-
-
-def _plaza_para_el_mapa(plaza, ocupacion):
-    """Un dict del mapa: estado y tono los decide esta función, nunca el template."""
-
-    if plaza.estado == Plaza.Estado.FUERA_SERVICIO:
-        return {
-            "codigo": plaza.codigo,
-            "estado": ESTADO_FUERA_SERVICIO,
-            "tono": TONO_FUERA_SERVICIO,
-            "detalle": plaza.motivo_fuera_servicio,
-        }
-    derivado = ocupacion.get(plaza.pk)
-    if derivado:
-        return {"codigo": plaza.codigo, **derivado}
-    return {"codigo": plaza.codigo, "estado": ESTADO_OPERATIVA, "tono": TONO_OPERATIVA}
+    return {"codigo": plaza.codigo, "estado": estado.estado, "tono": estado.tono, "detalle": estado.detalle}
 
 
 def sectores_con_plazas(dispositivo):
@@ -109,18 +70,18 @@ def sectores_con_plazas(dispositivo):
             .only("id", "codigo", "estado", "motivo_fuera_servicio")
             .order_by("codigo")[:TOPE_PLAZAS_POR_SECTOR]
         )
-        ocupacion = ocupacion_de_plazas([plaza.pk for plaza in plazas])
+        estados = estado_de_plazas(plazas)
         armados.append(
             {
                 "sector": sector,
                 "resumen": resumen[sector.pk],
                 "difiere_de_lo_declarado": sector.capacidad != resumen[sector.pk]["total"],
-                "plazas": [_plaza_para_el_mapa(plaza, ocupacion) for plaza in plazas],
+                "plazas": [_plaza_para_el_mapa(plaza, estados[plaza.pk]) for plaza in plazas],
             }
         )
     return {
         "sectores": armados,
         "totales": totales,
-        "leyenda": leyenda_plazas(),
+        "leyenda": LEYENDA_PLAZAS,
         "ocupacion_conocida": OCUPACION_CONOCIDA,
     }

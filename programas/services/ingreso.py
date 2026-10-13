@@ -19,34 +19,17 @@ Dos reglas que no se pueden perder:
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 
 from core.dni import normalizar_dni
 from legajos.forms import CiudadanoConfirmarForm
 from legajos.models import Ciudadano
 from legajos.services import CiudadanosService
-from programas.models import Estadia, Plaza, ReservaPlaza, Sector
+from programas.models import Plaza, Sector
 from programas.services.estadias import ingresar_persona
+from programas.services.ocupacion import estado_de_plazas
 
 #: Mismo tope por sector que el mapa de «Sectores y plazas».
 TOPE_PLAZAS_POR_SECTOR = 200
-
-ESTADO_DISPONIBLE = "Disponible"
-ESTADO_OCUPADA = "Ocupada"
-ESTADO_RESERVADA = "Reservada"
-ESTADO_PRESTADA = "Prestada"
-ESTADO_FUERA_SERVICIO = "Fuera de serv."
-
-#: Los estados del mapa con el tono con que se dibujan. La leyenda sale de acá, así no se
-#: desincroniza de las plazas.
-LEYENDA = [
-    {"estado": ESTADO_DISPONIBLE, "tono": "success"},
-    {"estado": ESTADO_OCUPADA, "tono": "info"},
-    {"estado": ESTADO_RESERVADA, "tono": "warning"},
-    {"estado": ESTADO_PRESTADA, "tono": "brand"},
-    {"estado": ESTADO_FUERA_SERVICIO, "tono": "danger"},
-]
-_TONO = {item["estado"]: item["tono"] for item in LEYENDA}
 
 #: Los campos de RENAPER que viajan por la sesión hasta la confirmación.
 CAMPOS_RENAPER = ("dni", "nombre", "apellido", "fecha_nacimiento", "genero", "domicilio", "provincia")
@@ -106,45 +89,38 @@ def consultar_registro_de_personas(dni, sexo):
 def plazas_para_ingresar(dispositivo):
     """El mapa del paso 2: sectores activos con cada plaza y su estado, sin bloquear nada.
 
-    Cuatro consultas fijas (sectores, plazas, ocupadas, reservadas). Se ofrecen solo las
-    plazas de un tipo que el dispositivo admite. Devuelve
+    El estado de cada plaza lo deriva `ocupacion.estado_de_plazas`, el mismo que usa
+    «Sectores y plazas»: acá no se decide qué es «ocupada». Se ofrecen solo las plazas de
+    un tipo que el dispositivo admite. Devuelve
     `([{"sector", "plazas", "total", "disponibles"}], {pk de plaza elegible})`.
     """
 
     tipo = dispositivo.tipo
-    ahora = timezone.now()
     sectores = list(Sector.objects.filter(dispositivo=dispositivo, activo=True).order_by("nombre"))
-    plazas = list(
-        Plaza.objects.filter(sector__in=sectores).only(
-            "id", "sector_id", "codigo", "tipo", "estado", "motivo_fuera_servicio"
-        )
+    plazas = Plaza.objects.filter(sector__in=sectores).only(
+        "id", "sector_id", "codigo", "tipo", "estado", "motivo_fuera_servicio"
     )
     plazas = [plaza for plaza in plazas if tipo.admite_tipo_de_plaza(plaza.tipo)]
-    ids = [plaza.pk for plaza in plazas]
-    ocupadas = set(Estadia.objects.activas().filter(plaza_id__in=ids).values_list("plaza_id", flat=True))
-    reservas = {
-        reserva.plaza_id: reserva.tipo for reserva in ReservaPlaza.objects.vigentes(ahora).filter(plaza_id__in=ids)
-    }
+    estados = estado_de_plazas(plazas)
 
     por_sector = {sector.pk: [] for sector in sectores}
     for plaza in sorted(plazas, key=lambda p: p.codigo):
-        if plaza.estado == Plaza.Estado.FUERA_SERVICIO:
-            estado, detalle = ESTADO_FUERA_SERVICIO, plaza.motivo_fuera_servicio
-        elif plaza.pk in ocupadas:
-            estado, detalle = ESTADO_OCUPADA, ""
-        elif plaza.pk in reservas:
-            prestada = reservas[plaza.pk] == ReservaPlaza.Tipo.PRESTAMO
-            estado, detalle = (ESTADO_PRESTADA if prestada else ESTADO_RESERVADA), ""
-        else:
-            estado, detalle = ESTADO_DISPONIBLE, ""
+        derivado = estados[plaza.pk]
         por_sector[plaza.sector_id].append(
-            {"pk": plaza.pk, "codigo": plaza.codigo, "estado": estado, "tono": _TONO[estado], "detalle": detalle}
+            {
+                "pk": plaza.pk,
+                "codigo": plaza.codigo,
+                "estado": derivado.estado,
+                "tono": derivado.tono,
+                "detalle": derivado.detalle,
+                "disponible": derivado.disponible,
+            }
         )
 
     armados, elegibles = [], set()
     for sector in sectores:
         del_sector = por_sector[sector.pk]
-        libres = [plaza for plaza in del_sector if plaza["estado"] == ESTADO_DISPONIBLE]
+        libres = [plaza for plaza in del_sector if plaza["disponible"]]
         elegibles.update(plaza["pk"] for plaza in libres)
         armados.append(
             {

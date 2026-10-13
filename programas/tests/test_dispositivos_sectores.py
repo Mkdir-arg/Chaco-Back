@@ -1,12 +1,14 @@
-"""Pantalla «Sectores y plazas» (MVP v2, etapa 1 · P5): alcance, tope y honestidad de los estados."""
+"""Pantalla «Sectores y plazas» (MVP v2, etapa 1 · P5): alcance, tope y estados derivados."""
 
 from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from core import rbac
-from programas.models import Dispositivo, Plaza, Programa, Sector, TipoDispositivo
+from legajos.models import Ciudadano
+from programas.models import Dispositivo, Estadia, Plaza, Programa, Sector, TipoDispositivo
 from programas.services.sectores_plazas import TOPE_PLAZAS_POR_SECTOR
 from programas.tests.test_dispositivos_config import permiso
 from users.models import RolMeta
@@ -48,7 +50,11 @@ class SectoresYPlazasPantallaTests(TestCase):
         self.client.force_login(self.sin_permiso)
         self.assertEqual(self.client.get(self.url).status_code, 403)
 
-    def test_muestra_el_mapa_con_los_dos_estados_que_existen(self):
+    def _estados(self, respuesta):
+        sector = next(item for item in respuesta.context["sectores"] if item["sector"] == self.sector)
+        return {plaza["codigo"]: plaza["estado"] for plaza in sector["plazas"]}
+
+    def test_muestra_el_mapa_con_sus_estados(self):
         self.client.force_login(self.lector)
         respuesta = self.client.get(self.url)
         self.assertEqual(respuesta.status_code, 200)
@@ -58,15 +64,35 @@ class SectoresYPlazasPantallaTests(TestCase):
         self.assertContains(respuesta, "colchón")
         self.assertNotContains(respuesta, "Pabellón viejo")
 
-    def test_no_miente_sobre_la_ocupacion(self):
-        """Sin estadías, una plaza operativa no es «disponible» ni «ocupada»."""
+    def test_sin_estadias_las_plazas_operativas_estan_disponibles_y_nada_esta_ocupado(self):
+        """Los estados salen de las estadías y las reservas: sin ellas no hay ocupadas."""
 
         self.client.force_login(self.lector)
         respuesta = self.client.get(self.url)
-        self.assertContains(respuesta, "Operativa")
-        self.assertContains(respuesta, "Todavía no se ve la ocupación")
-        for estado in ("Disponible", "Ocupada", "Reservada", "Prestada"):
-            self.assertNotContains(respuesta, estado)
+        self.assertEqual(
+            self._estados(respuesta),
+            {"A-01": "Disponible", "A-02": "Disponible", "A-03": "Fuera de serv."},
+        )
+        # Las celdas del mapa (`</i> Estado`), no la leyenda, que nombra todos los estados.
+        for estado in ("Ocupada", "Reservada", "Prestada"):
+            self.assertNotContains(respuesta, f"</i> {estado}")
+        self.assertNotContains(respuesta, "Todavía no se ve la ocupación")
+
+    def test_con_una_estadia_activa_la_plaza_aparece_ocupada(self):
+        persona = Ciudadano.objects.create(dni="30999888", nombre="Rosa", apellido="Paz")
+        Estadia.objects.create(
+            ciudadano=persona,
+            dispositivo=self.dispositivo,
+            plaza=Plaza.objects.get(codigo="A-01", sector=self.sector),
+            fecha_ingreso=timezone.now(),
+            estado=Estadia.Estado.ACTIVA,
+            clave_alojamiento=Estadia.clave_para(persona),
+        )
+        self.client.force_login(self.lector)
+        respuesta = self.client.get(self.url)
+        self.assertEqual(self._estados(respuesta)["A-01"], "Ocupada")
+        self.assertContains(respuesta, "</i> Ocupada")
+        self.assertEqual(self._estados(respuesta)["A-02"], "Disponible")
 
     def test_cada_sector_se_acota_al_tope_y_avisa(self):
         grande = Sector.objects.create(dispositivo=self.dispositivo, nombre="Galpón")
