@@ -882,6 +882,30 @@ class Plaza(TimeStamped):
             )
 
 
+class MotivoEgreso(TimeStamped):
+    """Catálogo de motivos de egreso de una estadía (MVP v2, etapa 2 · #691).
+
+    Lo administra el Ministerio desde el admin de Django: ampliar la lista, renombrar un
+    motivo o darlo de baja no toca código. Los motivos **no se borran**: una estadía
+    egresada los apunta con `PROTECT` y el historial no puede perder su razón, así que
+    sacar uno de circulación es `activo=False`. Las opciones concretas las define el
+    Ministerio; la migración solo siembra las que el mockup nombra.
+    """
+
+    codigo = models.SlugField(max_length=50, unique=True, verbose_name="Código")
+    nombre = models.CharField(max_length=200, unique=True, verbose_name="Nombre")
+    orden = models.PositiveSmallIntegerField(default=0, verbose_name="Orden")
+    activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
+
+    class Meta:
+        verbose_name = "Motivo de egreso"
+        verbose_name_plural = "Motivos de egreso"
+        ordering = ["orden", "nombre"]
+
+    def __str__(self):
+        return self.nombre
+
+
 class EstadiaQuerySet(models.QuerySet):
     """Las dos preguntas que el resto del circuito le hace a la estadía."""
 
@@ -978,7 +1002,30 @@ class Estadia(TimeStamped):
         editable=False,
         verbose_name="Clave de alojamiento",
     )
-    motivo_egreso = models.TextField(blank=True, verbose_name="Motivo del egreso")
+    # El motivo es `motivo`, tomado del catálogo. Este texto conserva el nombre de la
+    # columna para no renombrar sobre una tabla que otra rama ya crea, pero lo que guarda
+    # son las observaciones libres que acompañan al egreso.
+    motivo_egreso = models.TextField(blank=True, verbose_name="Observaciones del egreso")
+    motivo = models.ForeignKey(
+        MotivoEgreso,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="estadias",
+        verbose_name="Motivo del egreso",
+    )
+    destino_egreso = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        db_default="",
+        verbose_name="Destino del egreso",
+    )
+    pertenencias_devueltas = models.BooleanField(
+        default=False,
+        db_default=False,
+        verbose_name="Pertenencias devueltas y firmadas",
+    )
     ingresada_por = models.ForeignKey(
         User,
         on_delete=models.PROTECT,

@@ -166,7 +166,7 @@ Tabla maestra. Las fichas por pantalla referencian esta tabla en vez de repetirl
 | `.kv` (L202-L204) | patrón `dl` de los detalles de Becas | IGUAL de hecho; **sin pieza única** |
 | `.dl` (L205-L207) | patrón `dl` de `legajo/detail.html:86-94` | IGUAL de hecho; **sin pieza única** |
 | `.chips` + `.chip` + `.chip.on` (L250-L252) | — (lo más cercano son las píldoras de `nodo-buscador`) | **NUEVA** |
-| `.toggle` (L266-L269) | — (no hay switch en `nodo-forms.css`) | **NUEVA** |
+| `.toggle` (L266-L269) | `SwitchInput` + `.nodo-switch` (`core/widgets.py`, `nodo-forms.css`) | **IGUAL**: ya existe |
 | `.stepper` (L192-L199) | semántica de [`portal/inscripcion/_stepper.html`](../../../portal/templates/portal/inscripcion/_stepper.html) | **NUEVA en backoffice** |
 | `.plazas` + `.plz` + `.oc/.ok/.rs/.fs/.pr` (L208-L216) | — | **NUEVA** |
 | `.tl` + `.ev` (L217-L223) | — (lo más cercano es la `<ol>` del historial de `legajo/detail.html:131`) | **NUEVA** |
@@ -825,7 +825,7 @@ modal coincide con la «nota informativa» del canon de Becas.
 - Pie: `.btn.t` «Cancelar» + **`.btn.d` «Confirmar egreso»** (rojo).
 
 **Mapeo al sistema de diseño.** Modal, campos, ayudas, pie y nota informativa: **IGUAL**
-al canon. **NUEVO:** `.toggle` (switch), que no existe en
+al canon. `.toggle` (switch): **IGUAL**, ya existe como `SwitchInput` (`core/widgets.py`) con `.nodo-switch` en
 [`nodo-forms.css`](../../../static/custom/css/nodo-forms.css).
 
 **Arquetipo.** **Modal** — el núcleo lo dice en la misma fila: la golden del modal cubre
@@ -1135,7 +1135,7 @@ La bajada lo resume: *«Todo lo que hoy es código pasa a configuración»*.
   `badge bg-gray` «sin ficha aún»).
 
 **Mapeo al sistema de diseño.** Canónicos: `page_header`, tabs, surface, `.form`, `.kv`,
-badges. **NUEVAS:** `.chips` (selector múltiple) y `.toggle` (switch).
+badges. **NUEVA:** `.chips` (selector múltiple). `.toggle` (switch) ya existe: `SwitchInput`.
 
 **Arquetipo.** **Detalle con solapas** + formulario adentro.
 
@@ -1195,7 +1195,7 @@ y `tipo_form.html` / `dispositivos:tipo_detalle`.
   y queda auditado»*.
 
 **Mapeo al sistema de diseño.** `page_header`, surface, listas: canónicos.
-**NUEVAS:** `.toggle` y `.chips`; `.role` (tarjeta de grupo de capacidades) es una
+**NUEVA:** `.chips` (`.toggle` ya existe: `SwitchInput`); `.role` (tarjeta de grupo de capacidades) es una
 variante de surface.
 
 **Arquetipo.** **Detalle** (sin solapas) / formulario.
@@ -1683,7 +1683,7 @@ lo hace configurable en vez de agregar una segunda entrada»*; *«ocultar no es 
 cada URL y cada POST se verifica igual que en P15»*.
 
 **Mapeo al sistema de diseño.** Canónicos: `page_header`, surface, `table.dense`, `.kv`,
-`.bar`, badges, `.alert` (C-5). **NUEVAS:** `.toggle`, `.chips`, `.kebab`.
+`.bar`, badges, `.alert` (C-5). **NUEVAS:** `.chips`, `.kebab` (`.toggle` ya existe: `SwitchInput`).
 
 **Arquetipo.** «Dashboard → **sin golden: frenar y devolver**»
 ([`arquetipos/pendientes.md`](../../../.claude/design/arquetipos/pendientes.md)) para
@@ -1760,7 +1760,7 @@ Cada una exige su fila en
 | N-1 | `eyebrow` en `{% page_header %}` | línea 12,5 px uppercase en `--text-fg-brand` sobre el `<h1>` | todas menos P1, P4 y P16 (**19 de 22**) |
 | N-2 | Filtro rápido en píldora (`.nf.pill`) | `nodo-field` de 36 px, radio completo, «Campo: valor ⌄»; filtra sin abrir la tarjeta | P1 P4 P10 P11 P13 P20 P21 |
 | N-3 | Chips de selección múltiple (`.chip`) | píldora 4×12 px, borde base; activa `#FFEAF6`/`#FFB9DC`/`#A11F60` (los tonos de `badge-brand`) | P3 P10 P14 P15 P17 P21 P22 |
-| N-4 | Switch (`.toggle`) | pista 34×18 px, perilla 14 px; `on` = `--bg-brand`. **No existe** en `nodo-forms.css` | P9 P14 P15 P22 |
+| N-4 | Switch (`.toggle`) | pista 34×18 px, perilla 14 px; `on` = `--bg-brand`. **Ya existe**: `SwitchInput` + `.nodo-switch` | P9 P14 P15 P22 |
 | N-5 | Stepper de backoffice | 4 pasos con círculo de 28 px y conector de 56 px; estados `done`/`on`. Semántica de `portal/inscripcion/_stepper.html` | P6 |
 | N-6 | Mapa de plazas (`.plazas`/`.plz`) | grilla `auto-fill minmax(84px,1fr)` con 5 estados tonales + leyenda `.legendmini` | P5 P6 |
 | N-7 | Línea de tiempo (`.tl`) | riel de 2 px, punto de 10 px con borde tonal por severidad, «cuándo» en 12 px subtle | P7 P19 P20 |

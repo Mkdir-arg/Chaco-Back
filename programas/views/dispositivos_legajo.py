@@ -3,16 +3,19 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.utils import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from programas.forms import DispositivoForm
-from programas.models import Dispositivo, TipoDispositivo
+from programas.forms_dispositivos import EgresoForm
+from programas.models import Dispositivo, Estadia, TipoDispositivo
 from programas.services.dispositivos import (
     buscar_posibles_duplicados,
     cerrar_dispositivo,
@@ -27,9 +30,10 @@ from programas.services.dispositivos import (
     registrar_edicion_dispositivo,
     validar_dispositivo,
 )
+from programas.services.estadias import CAP_EGRESAR, egresar_persona
 from programas.services.reportes import filtrar_dispositivos
 from programas.services.sectores_plazas import sectores_con_plazas
-from programas.views.ajax_utils import is_ajax
+from programas.views.ajax_utils import ajax_redirect, is_ajax
 
 
 class DispositivoProgramaPermissionMixin(LoginRequiredMixin):
@@ -277,3 +281,104 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             {"label": "Sectores y plazas", "url": ""},
         ]
         return context
+
+
+# Personas alojadas y egreso (MVP v2, etapa 2 · #691 · P9). El egreso muta estado: solo POST con
+# CSRF. La regla de fondo vive en `programas.services.estadias.egresar_persona`; la vista traduce
+# lo que el servicio rechaza a lo que el modal sabe mostrar. La disponibilidad de la plaza no se
+# cuenta acá: la recalcula `programas.services.ocupacion`.
+POR_PAGINA = 25
+
+
+class DispositivoEstadiasView(DispositivoObjectPermissionMixin, DetailView):
+    """Las personas alojadas hoy en un dispositivo, con el modal de egreso."""
+
+    capacidad_requerida = "dispositivo.ver"
+    model = Dispositivo
+    template_name = "programas/dispositivos/estadia/estadias.html"
+    context_object_name = "dispositivo"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        dispositivo = self.object
+        estadias = (
+            Estadia.objects.activas()
+            .filter(dispositivo=dispositivo)
+            .select_related("ciudadano", "plaza__sector")
+            .order_by("fecha_ingreso", "id")
+        )
+        page_obj = Paginator(estadias, POR_PAGINA).get_page(self.request.GET.get("page"))
+        ahora = timezone.now()
+        for estadia in page_obj:
+            estadia.dias_de_permanencia = (ahora - estadia.fecha_ingreso).days
+            estadia.url_egresar = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
+        context["page_obj"] = page_obj
+        context["puede_egresar"] = puede_operar_dispositivo(self.request.user, dispositivo, CAP_EGRESAR)
+        context["form_egreso"] = EgresoForm()
+        context["migas"] = [
+            {"label": "Dispositivos", "url": reverse("dispositivos:lista")},
+            {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
+            {"label": "Personas alojadas", "url": ""},
+        ]
+        return context
+
+
+class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
+    """Registra el egreso. Solo POST: un GET no muta nada ni muestra nada."""
+
+    capacidad_requerida = CAP_EGRESAR
+    http_method_names = ["post"]
+
+    def post(self, request, pk, estadia_pk):
+        dispositivo = get_object_or_404(Dispositivo, pk=pk)
+        if not puede_operar_dispositivo(request.user, dispositivo, CAP_EGRESAR):
+            raise PermissionDenied
+        estadia = get_object_or_404(Estadia.objects.select_related("ciudadano"), pk=estadia_pk, dispositivo=dispositivo)
+        volver = reverse("dispositivos:estadias", args=[dispositivo.pk])
+
+        form = EgresoForm(request.POST, estadia=estadia)
+        if not form.is_valid():
+            return self._rechazar(request, form.errors, volver)
+
+        datos = form.cleaned_data
+        try:
+            egresar_persona(
+                estadia=estadia,
+                usuario=request.user,
+                fecha_egreso=datos["fecha_egreso"],
+                motivo=datos["observaciones"],
+                motivo_egreso=datos["motivo"],
+                destino=datos["destino"],
+                pertenencias_devueltas=datos["pertenencias_devueltas"],
+            )
+        except ValidationError as error:
+            return self._rechazar(request, self._errores_del_servicio(error, form), volver)
+
+        mensaje = f"Egreso registrado: {estadia.ciudadano.nombre_completo}."
+        if is_ajax(request):
+            return ajax_redirect(request, volver, mensaje)
+        messages.success(request, mensaje)
+        return redirect(volver)
+
+    @staticmethod
+    def _errores_del_servicio(error, form):
+        """Lo que el servicio rechaza, en la forma `{campo: [mensajes]}` del modal.
+
+        Una clave que el formulario no tiene (p. ej. `estado`: la estadía ya estaba
+        cerrada) va al error general, que es el único lugar donde el modal la puede mostrar.
+        """
+
+        errores = {}
+        for campo, mensajes in error.message_dict.items():
+            destino = campo if campo in form.fields else "__all__"
+            errores.setdefault(destino, []).extend(mensajes)
+        return errores
+
+    @staticmethod
+    def _rechazar(request, errores, volver):
+        if is_ajax(request):
+            return JsonResponse({"ok": False, "errors": {k: list(v) for k, v in errores.items()}}, status=400)
+        for mensajes in errores.values():
+            for mensaje in mensajes:
+                messages.error(request, mensaje)
+        return redirect(volver)
