@@ -80,6 +80,21 @@ CATALOGO = [
         ],
     },
     {
+        # Relevamiento edilicio de Dispositivos (MVP v2, etapa 4 · #700). El modelo es
+        # `InspeccionEdificio` porque «relevamiento» ya es de Becas (módulo
+        # `relevamientos` y `becas_relevamientos`). Dos capacidades y no una porque son
+        # dos personas distintas: quien asigna no carga, y el agente solo ve lo suyo.
+        "modulo": "inspecciones",
+        "label": "Relevamientos edilicios",
+        "tab": "backoffice",
+        "alcance": "programa",
+        "programas": ("DISPOSITIVOS",),
+        "capacidades": [
+            ("inspeccion.asignar", "Crear, asignar, reasignar y cancelar relevamientos edilicios"),
+            ("inspeccion.relevar", "Cargar el resultado de los relevamientos edilicios asignados"),
+        ],
+    },
+    {
         "modulo": "merenderos",
         "label": "Merenderos",
         "tab": "backoffice",

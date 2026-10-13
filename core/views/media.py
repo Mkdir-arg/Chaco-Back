@@ -129,6 +129,22 @@ def _archivo_de_f00(user, ruta):
     return None
 
 
+def _foto_de_inspeccion(user, ruta):
+    """La foto de un relevamiento edilicio: la ve quien ve el relevamiento.
+
+    Una sola regla con la pantalla (`programas.services.inspecciones.inspecciones_visibles`):
+    el coordinador en su alcance, el agente **solo en lo que tiene asignado** y quien opera
+    alguna institución que ocupa el edificio.
+    """
+    from programas.models import FotoInspeccion
+    from programas.services.inspecciones import inspecciones_visibles
+
+    foto = FotoInspeccion.objects.filter(archivo=ruta).only("pk", "inspeccion_id").first()
+    if foto is None:
+        return None
+    return inspecciones_visibles(user).filter(pk=foto.inspeccion_id).exists()
+
+
 def _documentacion_de_merendero(user, ruta):
     """``ver`` y ``validar`` leen cualquier solicitud; ``crear``, solo las suyas.
 
@@ -256,6 +272,7 @@ REGLAS = (
     (rutas.PREFIJO_FOTO_CIUDADANO, _foto_de_ciudadano),
     (rutas.PREFIJO_CONTACTO, _archivo_de_contacto),
     (rutas.PREFIJO_F00, _archivo_de_f00),
+    (rutas.PREFIJO_FOTO_INSPECCION, _foto_de_inspeccion),
     (rutas.PREFIJO_SOLICITUD_MERENDERO, _documentacion_de_merendero),
     (rutas.PREFIJO_NOTIFICACIONES, _archivo_de_campana),
     (rutas.PREFIJO_ADJUNTO_BITACORA, _adjunto_de_bitacora),

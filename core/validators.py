@@ -124,3 +124,45 @@ def validar_adjunto(archivo, extensiones=ADJUNTO_EXTENSIONES, max_bytes=ADJUNTO_
         raise ValidationError(MENSAJE_ADJUNTO_TAMANIO)
     validar_firma(archivo, extension, MENSAJE_ADJUNTO_FORMATO)
     return archivo
+
+
+#: Las fotos del relevamiento edilicio (MVP v2, etapa 4): la lista blanca de los
+#: adjuntos **sin el PDF**. Son evidencia fotográfica que se muestra en una galería;
+#: un PDF ahí no se puede ver ni comparar con la tanda anterior.
+FOTO_EXTENSIONES = tuple(extension for extension in ADJUNTO_EXTENSIONES if extension != ".pdf")
+MENSAJE_FOTO_FORMATO = "Solo se aceptan fotos JPG, PNG, WEBP o HEIC."
+
+
+#: Marcas de la caja `ftyp` que declaran una imagen HEIC/HEIF.
+MARCAS_HEIF = (b"heic", b"heix", b"mif1", b"msf1")
+
+
+def _es_foto_de_verdad(archivo, extension):
+    """Firma de la foto, incluidos WEBP y HEIC, que :data:`FIRMAS` deja pasar sin mirar.
+
+    Vive acá y no en :data:`FIRMAS` porque esa tabla la comparten los adjuntos de Becas y
+    la app de campo, donde angostarla tiene consecuencias en el teléfono (ver
+    :data:`ADJUNTO_EXTENSIONES`). Las dos firmas no son un prefijo: WEBP es `RIFF` en 0..4
+    y `WEBP` en 8..12; HEIC/HEIF, `ftyp` en 4..8 y la marca en 8..12.
+    """
+    if extension == ".webp":
+        inicio = cabecera(archivo, 12)
+        return inicio[:4] == b"RIFF" and inicio[8:12] == b"WEBP"
+    if extension in (".heic", ".heif"):
+        inicio = cabecera(archivo, 12)
+        return inicio[4:8] == b"ftyp" and inicio[8:12] in MARCAS_HEIF
+    return firma_coincide(archivo, extension)
+
+
+def validar_foto(archivo):
+    """:func:`validar_adjunto` acotado a imágenes, con un mensaje que no ofrece el PDF."""
+    if archivo is None or getattr(archivo, "_committed", False):
+        return archivo
+    extension = Path((getattr(archivo, "name", "") or "").lower()).suffix
+    if extension not in FOTO_EXTENSIONES:
+        raise ValidationError(MENSAJE_FOTO_FORMATO)
+    if (getattr(archivo, "size", 0) or 0) > ADJUNTO_MAX_BYTES:
+        raise ValidationError(MENSAJE_ADJUNTO_TAMANIO)
+    if not _es_foto_de_verdad(archivo, extension):
+        raise ValidationError(MENSAJE_FOTO_FORMATO)
+    return archivo
