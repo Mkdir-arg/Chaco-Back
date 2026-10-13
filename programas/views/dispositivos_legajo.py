@@ -13,9 +13,19 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from core.rbac import puede
 from programas.forms import DispositivoForm
 from programas.forms_dispositivos import EgresoForm
 from programas.models import Dispositivo, Estadia, TipoDispositivo
+from programas.services.detalle_dispositivo import (
+    contar_alojadas,
+    estadias_del_dispositivo,
+    eventos_de_historial,
+    indicadores_de_plazas,
+    normalizar_filtros,
+    pildoras_de_estadias,
+    sectores_del_censo,
+)
 from programas.services.dispositivos import (
     buscar_posibles_duplicados,
     cerrar_dispositivo,
@@ -31,6 +41,8 @@ from programas.services.dispositivos import (
     validar_dispositivo,
 )
 from programas.services.estadias import CAP_EGRESAR, egresar_persona
+from programas.services.ingreso import maneja_plazas
+from programas.services.ocupacion import ocupacion_de_plazas
 from programas.services.reportes import filtrar_dispositivos
 from programas.services.sectores_plazas import sectores_con_plazas
 from programas.views.ajax_utils import ajax_redirect, is_ajax
@@ -146,14 +158,57 @@ class DispositivoDuplicateSearchView(DispositivoProgramaPermissionMixin, View):
 
 
 class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
+    """Detalle del dispositivo (MVP v2, etapa 2 · P4): indicadores, sectores, estadías e historial.
+
+    Las cifras de plazas salen del censo de `ocupacion_de_plazas` y el resto de los datos de
+    `programas.services.detalle_dispositivo`: acá solo se orquesta y se resuelven permisos.
+    """
+
     capacidad_requerida = "dispositivo.ver"
     model = Dispositivo
     template_name = "programas/dispositivos/legajo/detail.html"
     context_object_name = "dispositivo"
 
+    def get_queryset(self):
+        return Dispositivo.objects.select_related("tipo")
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["trazas"] = self.object.trazas.select_related("usuario")
+        dispositivo = self.object
+        user = self.request.user
+        get = self.request.GET
+
+        # Una sola llamada al censo: la franja, el desglose por sector y el contador de la
+        # solapa salen del mismo cálculo. La pantalla no deriva el estado de ninguna plaza.
+        ocupacion = ocupacion_de_plazas(dispositivo).de(dispositivo)
+        sectores = sectores_del_censo(ocupacion)
+        estado, sector = normalizar_filtros(get.get("estado", ""), get.get("sector", ""), {s["pk"] for s in sectores})
+        historial, eventos = eventos_de_historial(dispositivo, get.get("historial_page"))
+
+        context.update(
+            {
+                "maneja_plazas": maneja_plazas(dispositivo),
+                "indicadores": indicadores_de_plazas(ocupacion.conteo),
+                "sectores": sectores,
+                "n_plazas": ocupacion.conteo.operativas,
+                "n_alojadas": contar_alojadas(dispositivo),
+                "estadias": estadias_del_dispositivo(
+                    dispositivo, estado=estado, sector=sector, pagina=get.get("estadias_page")
+                ),
+                "pildoras": pildoras_de_estadias(estado, sector, sectores),
+                # La píldora es un <form method="get">: sin esto, filtrar volvería a la solapa de Datos.
+                "ocultos_estadias": [("tab", "estadias")],
+                "hay_filtros_estadias": bool(estado or sector),
+                "historial": historial,
+                "eventos": eventos,
+                "puede_editar": puede_operar_dispositivo(user, dispositivo, "dispositivo.editar"),
+                "puede_validar": puede_operar_dispositivo(user, dispositivo, "dispositivo.validar"),
+                "puede_admitir": puede_operar_dispositivo(user, dispositivo, "dispositivo.admitir"),
+                "puede_ver_ciudadano": puede(user, "ciudadano.ver"),
+                "url_ingreso": reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]),
+                "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]),
+            }
+        )
         return context
 
 

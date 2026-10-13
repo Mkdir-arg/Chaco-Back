@@ -1,82 +1,288 @@
 {% extends "includes/base.html" %}
-{% load dispositivos %}
+{% load static nodo_ui %}
 {% block title %}Dispositivos · {{ dispositivo.nombre }}{% endblock %}
 
 {% block main-content %}
-{% puede_operar_dispositivo request.user dispositivo "dispositivo.editar" as puede_editar %}
-{% puede_operar_dispositivo request.user dispositivo "dispositivo.validar" as puede_validar %}
-{% puede_operar_dispositivo request.user dispositivo "dispositivo.admitir" as puede_admitir %}
-<style>[x-cloak]{display:none!important}</style>
-<div class="space-y-5" x-data="{ tab: 'datos' }">
+{% url 'dispositivos:detalle' dispositivo.pk as url_detalle %}
+<div x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'estadias', modalObservar: false, modalRechazar: false }">
 
-  <div>
-    <a href="{% url 'dispositivos:lista' %}" class="text-sm text-body-subtle hover:text-fg-brand">← Volver a dispositivos</a>
-    <div class="flex items-start justify-between gap-4 flex-wrap mt-3">
-      <div class="min-w-0">
-        <div class="flex items-center gap-2 flex-wrap">
-          <h1 class="text-3xl font-extrabold text-heading tracking-tight">{{ dispositivo.nombre }}</h1>
-          {% include "programas/dispositivos/_estado_badge.html" %}
+  {# Los overlays fixed van fuera del space-y-5: su margin-top los corría y el clic en esa franja no cerraba el modal #}
+  <div class="space-y-5">
+
+    {# ===== PageHeader ===== #}
+    {% url 'dispositivos:lista' as url_volver %}
+    {% page_header titulo=dispositivo.nombre volver_url=url_volver volver_label="Dispositivos" %}
+      {% bajada %}{{ dispositivo.codigo }} · {{ dispositivo.tipo.nombre }}{% if dispositivo.domicilio %} · {{ dispositivo.domicilio }}{% if dispositivo.localidad %}, {{ dispositivo.localidad }}{% endif %}{% elif dispositivo.localidad %} · {{ dispositivo.localidad }}{% endif %}{% if dispositivo.responsable_nombre %} · responsable {{ dispositivo.responsable_nombre }}{% endif %}{% endbajada %}
+      {% include "programas/dispositivos/_estado_badge.html" %}
+      {% if puede_editar and dispositivo.estado != 'CERRADO' %}
+      <a href="{% url 'dispositivos:editar' dispositivo.pk %}" class="btn-nodo btn-secondary btn-sm btn-fit">
+        <i class="fas fa-pen" aria-hidden="true"></i> Editar
+      </a>
+      {% endif %}
+      {% if puede_editar and dispositivo.estado == 'BORRADOR' or puede_editar and dispositivo.estado == 'OBSERVADO' %}
+      <button type="button" class="btn-nodo btn-brand btn-sm btn-fit"
+              data-confirm-url="{% url 'dispositivos:enviar_validacion' dispositivo.pk %}"
+              data-confirm-title="¿Enviar a validación?"
+              data-confirm-text="Se verificará que estén completos los datos requeridos."
+              data-confirm-danger="false" data-confirm-ok="Sí, enviar">Enviar a validación</button>
+      {% endif %}
+      {% if puede_validar and dispositivo.estado == 'PENDIENTE_VALIDACION' %}
+      <button type="button" class="btn-nodo btn-brand btn-sm btn-fit"
+              data-confirm-url="{% url 'dispositivos:validar' dispositivo.pk %}"
+              data-confirm-title="¿Validar dispositivo?"
+              data-confirm-text="Quedará habilitado para admitir personas."
+              data-confirm-danger="false" data-confirm-ok="Sí, validar">Validar</button>
+      <button type="button" @click="modalObservar=true" class="btn-nodo btn-secondary btn-sm btn-fit">Observar</button>
+      <button type="button" @click="modalRechazar=true" class="btn-nodo btn-danger btn-sm btn-fit">Rechazar</button>
+      {% endif %}
+      {% if puede_editar and dispositivo.estado == 'ACTIVO' %}
+      <button type="button" class="btn-nodo btn-secondary btn-sm btn-fit"
+              data-confirm-url="{% url 'dispositivos:inactivar' dispositivo.pk %}"
+              data-confirm-title="¿Inactivar dispositivo?"
+              data-confirm-text="Dejará de estar operativo, sin borrar su historial."
+              data-confirm-danger="false" data-confirm-ok="Sí, inactivar">Inactivar</button>
+      {% endif %}
+      {% if puede_editar %}{% if dispositivo.estado == 'ACTIVO' or dispositivo.estado == 'INACTIVO' or dispositivo.estado == 'RECHAZADO' %}
+      <button type="button" class="btn-nodo btn-danger btn-sm btn-fit"
+              data-confirm-url="{% url 'dispositivos:cerrar' dispositivo.pk %}"
+              data-confirm-title="¿Cerrar dispositivo?"
+              data-confirm-text="La acción conserva el legajo e impide nuevas operaciones."
+              data-confirm-danger="true" data-confirm-ok="Sí, cerrar">Cerrar</button>
+      {% endif %}{% endif %}
+      {% if puede_admitir and dispositivo.estado == 'ACTIVO' %}
+      <a href="{{ url_ingreso }}" class="btn-nodo btn-brand btn-sm btn-fit">
+        <i class="fas fa-plus" aria-hidden="true"></i> Ingresar persona
+      </a>
+      {% endif %}
+    {% endpage_header %}
+
+    {% if dispositivo.estado != 'ACTIVO' %}
+    {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="Dispositivo no activo" texto="No se pueden registrar ingresos hasta que el dispositivo esté activo." %}
+    {% endif %}
+
+    {# ===== Indicadores operativos: salen del censo de ocupacion_de_plazas ===== #}
+    {% if maneja_plazas %}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="indicadores-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="indicadores-titulo" class="text-heading font-bold">Indicadores operativos</h2>
+        <p class="text-xs text-body-subtle mt-1">Derivados de plazas y estadías; no admiten carga manual.</p>
+      </div>
+      <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {% for indicador in indicadores %}
+        {% include "components/_stat_card.html" with variante="tablero" etiqueta=indicador.etiqueta valor=indicador.valor icono=indicador.icono nota=indicador.nota %}
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {# ===== Solapas ===== #}
+    <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+
+      <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones del dispositivo">
+        <button @click="tab='datos'" type="button" role="tab" id="tab-datos" aria-controls="panel-datos"
+                :aria-selected="tab==='datos'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='datos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-id-card" aria-hidden="true"></i> Datos
+        </button>
+        {% if maneja_plazas %}
+        <button @click="tab='sectores'" type="button" role="tab" id="tab-sectores" aria-controls="panel-sectores"
+                :aria-selected="tab==='sectores'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='sectores' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-bed" aria-hidden="true"></i> Sectores y plazas
+          <span class="badge" :class="tab==='sectores' ? 'badge-info' : 'badge-gray'">{{ n_plazas }}</span>
+        </button>
+        {% endif %}
+        <button @click="tab='estadias'" type="button" role="tab" id="tab-estadias" aria-controls="panel-estadias"
+                :aria-selected="tab==='estadias'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='estadias' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-users" aria-hidden="true"></i> Estadías
+          <span class="badge" :class="tab==='estadias' ? 'badge-info' : 'badge-gray'">{{ n_alojadas }}</span>
+        </button>
+        <button @click="tab='historial'" type="button" role="tab" id="tab-historial" aria-controls="panel-historial"
+                :aria-selected="tab==='historial'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='historial' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Historial
+          <span class="badge" :class="tab==='historial' ? 'badge-info' : 'badge-gray'">{{ historial.paginator.count }}</span>
+        </button>
+      </div>
+
+      {# ===== TAB: Datos ===== #}
+      <div x-show="tab==='datos'" x-cloak role="tabpanel" id="panel-datos" aria-labelledby="tab-datos" class="p-6">
+        <dl class="grid gap-5 sm:grid-cols-2">
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Tipo</dt><dd class="mt-1 text-body">{{ dispositivo.tipo.nombre }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Localidad</dt><dd class="mt-1 text-body">{{ dispositivo.localidad|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ dispositivo.domicilio|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Responsable</dt><dd class="mt-1 text-body">{{ dispositivo.responsable_nombre|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Contacto</dt><dd class="mt-1 text-body">{{ dispositivo.contacto_telefono|default:'—' }}</dd></div>
+          {% if dispositivo.fuente_padron %}<div><dt class="text-xs font-semibold uppercase text-body-subtle">Procedencia del padrón</dt><dd class="mt-1 text-body">{{ dispositivo.fuente_padron }} · {{ dispositivo.fecha_padron|date:'d/m/Y'|default:'Sin fecha' }} · {{ dispositivo.responsable_padron|default:'Sin responsable' }}</dd></div>{% endif %}
+        </dl>
+      </div>
+
+      {# ===== TAB: Sectores y plazas (el mapa completo es la pantalla «Sectores y plazas») ===== #}
+      {% if maneja_plazas %}
+      <div x-show="tab==='sectores'" x-cloak role="tabpanel" id="panel-sectores" aria-labelledby="tab-sectores">
+        <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-4 border-b border-light">
+          <p class="text-xs text-body-subtle">Cifras por sector, del mismo cálculo que los indicadores y el mapa de plazas.</p>
+          <a href="{{ url_sectores }}" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-table-cells" aria-hidden="true"></i> Ver mapa de plazas</a>
         </div>
-        <p class="font-mono text-sm text-body-subtle mt-1">{{ dispositivo.codigo }}</p>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Sector</th>
+                <th class="nodo-th">Tipo</th>
+                <th class="nodo-th text-right">Plazas</th>
+                <th class="nodo-th text-right">Ocupadas</th>
+                <th class="nodo-th text-right">Reservadas</th>
+                <th class="nodo-th text-right">Disponibles</th>
+                <th class="nodo-th text-right">Fuera de servicio</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sector in sectores %}
+              <tr class="hover:bg-secondary transition">
+                <td class="nodo-td font-medium text-heading">{{ sector.nombre }}</td>
+                <td class="nodo-td">{{ sector.tipo }}</td>
+                <td class="nodo-td text-right">{{ sector.totales }}</td>
+                <td class="nodo-td text-right">{{ sector.ocupadas }}</td>
+                <td class="nodo-td text-right">{{ sector.reservadas }}</td>
+                <td class="nodo-td text-right">{{ sector.disponibles }}</td>
+                <td class="nodo-td text-right">{{ sector.fuera_de_servicio }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="7" class="p-0">
+                  {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores, cada uno aparece acá con sus cifras." %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="flex flex-wrap gap-2">
-        <a href="{% url 'dispositivos:estadias' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Personas alojadas</a>
-        {% if puede_admitir and dispositivo.estado == 'ACTIVO' %}<a href="{% url 'dispositivos:ingreso_persona' dispositivo.pk %}" class="btn-nodo btn-brand btn-base">Ingresar persona</a>{% endif %}
-        {% if puede_editar and dispositivo.estado != 'CERRADO' %}<a href="{% url 'dispositivos:editar' dispositivo.pk %}" class="btn-nodo btn-secondary btn-base">Editar</a>{% endif %}
-        {% if puede_editar and dispositivo.estado == 'BORRADOR' or puede_editar and dispositivo.estado == 'OBSERVADO' %}
-          <form method="post" action="{% url 'dispositivos:enviar_validacion' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-brand btn-base" data-confirm data-confirm-title="¿Enviar a validación?" data-confirm-text="Se verificará que estén completos los datos requeridos." data-confirm-ok="Sí, enviar">Enviar a validación</button></form>
-        {% endif %}
-        {% if puede_validar and dispositivo.estado == 'PENDIENTE_VALIDACION' %}
-          <form method="post" action="{% url 'dispositivos:validar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-brand btn-base" data-confirm data-confirm-title="¿Validar dispositivo?" data-confirm-text="Quedará habilitado para admitir personas." data-confirm-ok="Sí, validar">Validar</button></form>
-          <form method="post" action="{% url 'dispositivos:observar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-secondary btn-base" data-confirm data-requires-motivo data-confirm-title="Observar dispositivo" data-confirm-text="Indicá qué debe corregirse antes de reenviar." data-confirm-ok="Guardar observación">Observar</button></form>
-          <form method="post" action="{% url 'dispositivos:rechazar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-danger btn-base" data-confirm data-confirm-danger data-requires-motivo data-confirm-title="Rechazar dispositivo" data-confirm-text="Indicá el motivo del rechazo." data-confirm-ok="Sí, rechazar">Rechazar</button></form>
-        {% endif %}
-        {% if puede_editar and dispositivo.estado == 'ACTIVO' %}
-          <form method="post" action="{% url 'dispositivos:inactivar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-secondary btn-base" data-confirm data-confirm-title="¿Inactivar dispositivo?" data-confirm-text="Dejará de estar operativo, sin borrar su historial." data-confirm-ok="Sí, inactivar">Inactivar</button></form>
-        {% endif %}
-        {% if puede_editar %}{% if dispositivo.estado == 'ACTIVO' or dispositivo.estado == 'INACTIVO' or dispositivo.estado == 'RECHAZADO' %}
-          <form method="post" action="{% url 'dispositivos:cerrar' dispositivo.pk %}">{% csrf_token %}<button class="btn-nodo btn-danger btn-base" data-confirm data-confirm-danger data-confirm-title="¿Cerrar dispositivo?" data-confirm-text="La acción conserva el legajo e impide nuevas operaciones." data-confirm-ok="Sí, cerrar">Cerrar</button></form>
-        {% endif %}{% endif %}
+      {% endif %}
+
+      {# ===== TAB: Estadías ===== #}
+      <div x-show="tab==='estadias'" x-cloak role="tabpanel" id="panel-estadias" aria-labelledby="tab-estadias">
+        <div class="px-5 pt-4">
+          {% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos_estadias %}
+        </div>
+        <div class="overflow-x-auto mt-3">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Persona</th>
+                <th class="nodo-th">Ingreso</th>
+                <th class="nodo-th">Sector · plaza</th>
+                <th class="nodo-th">Estado</th>
+                <th class="nodo-th text-right w-28"><span class="sr-only">Acciones</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for estadia in estadias %}
+              <tr class="hover:bg-secondary transition">
+                <td class="nodo-td">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-full bg-brand-soft text-fg-brand flex items-center justify-center text-xs font-bold flex-shrink-0" aria-hidden="true">{{ estadia.ciudadano.nombre|slice:":1"|upper }}{{ estadia.ciudadano.apellido|slice:":1"|upper }}</div>
+                    <div class="min-w-0">
+                      <span class="font-medium text-heading">{{ estadia.ciudadano.apellido }}, {{ estadia.ciudadano.nombre }}</span>
+                      <span class="text-xs text-body-subtle block mt-px">DNI {{ estadia.ciudadano.dni }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="nodo-td whitespace-nowrap">{{ estadia.fecha_ingreso|date:"d/m/Y H:i" }}{% if estadia.fecha_egreso %}<span class="text-xs text-body-subtle block mt-px">Egreso {{ estadia.fecha_egreso|date:"d/m/Y H:i" }}</span>{% endif %}</td>
+                <td class="nodo-td">{% if estadia.plaza %}{{ estadia.plaza.sector.nombre }} · {{ estadia.plaza.codigo }}{% else %}<span class="text-body-subtle">Sin plaza</span>{% endif %}</td>
+                <td class="nodo-td"><span class="badge badge-dot badge-{{ estadia.tono }}">{{ estadia.estado_texto }}</span></td>
+                <td class="nodo-td text-right whitespace-nowrap">
+                  {% if puede_ver_ciudadano %}
+                  <a href="{% url 'legajos:ciudadano_detalle' estadia.ciudadano.pk %}"
+                     class="nodo-icon-btn" aria-label="Ver legajo de {{ estadia.ciudadano.nombre }} {{ estadia.ciudadano.apellido }}">
+                    <i class="fas fa-eye" aria-hidden="true"></i>
+                  </a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="p-0">
+                  {% if hay_filtros_estadias %}
+                  {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ninguna estadía coincide con los filtros" texto="Probá con otro estado o sector." accion_url=url_detalle|add:"?tab=estadias" %}
+                  {% elif puede_admitir and dispositivo.estado == 'ACTIVO' %}
+                  {% include "components/_estado_vacio.html" with icono="fa-users" titulo="No hay personas alojadas" texto="Cuando se registre un ingreso, la persona aparece acá." accion_url=url_ingreso accion_texto="Ingresar persona" accion_icono="fa-plus" %}
+                  {% else %}
+                  {% include "components/_estado_vacio.html" with icono="fa-users" titulo="No hay personas alojadas" texto="Cuando se registre un ingreso, la persona aparece acá." %}
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% include "components/_paginacion.html" with page_obj=estadias entidad="estadía" param="estadias_page" extra_qs="tab=estadias" %}
       </div>
+
+      {# ===== TAB: Historial ===== #}
+      <div x-show="tab==='historial'" x-cloak role="tabpanel" id="panel-historial" aria-labelledby="tab-historial">
+        <div class="p-5">
+          {% include "components/_linea_tiempo.html" with eventos=eventos vacio_titulo="Todavía no hay movimientos" vacio_texto="Las altas, ediciones y validaciones del dispositivo quedan registradas acá." %}
+        </div>
+        {% include "components/_paginacion.html" with page_obj=historial entidad="movimiento" param="historial_page" extra_qs="tab=historial" %}
+      </div>
+
     </div>
   </div>
 
-  <div class="rounded-xl border border-base shadow-sm" style="background:var(--bg-primary)">
-    {# Solapas #}
-    <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones del dispositivo">
-      <button @click="tab='datos'" type="button" role="tab" :aria-selected="tab==='datos'"
-              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='datos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
-        <i class="fas fa-id-card"></i> Datos
-      </button>
-      <button @click="tab='historial'" type="button" role="tab" :aria-selected="tab==='historial'"
-              class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5"
-              :class="tab==='historial' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
-        <i class="fas fa-clock-rotate-left"></i> Historial
-      </button>
-    </div>
-
-    {# ===== SOLAPA: Datos ===== #}
-    <div x-show="tab==='datos'" class="p-6">
-      <dl class="grid gap-5 sm:grid-cols-2">
-        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Tipo</dt><dd class="mt-1 text-body">{{ dispositivo.tipo.nombre }}</dd></div>
-        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Localidad</dt><dd class="mt-1 text-body">{{ dispositivo.localidad|default:'—' }}</dd></div>
-        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ dispositivo.domicilio|default:'—' }}</dd></div>
-        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Responsable</dt><dd class="mt-1 text-body">{{ dispositivo.responsable_nombre|default:'—' }}</dd></div>
-        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Contacto</dt><dd class="mt-1 text-body">{{ dispositivo.contacto_telefono|default:'—' }}</dd></div>
-        {% if dispositivo.fuente_padron %}<div><dt class="text-xs font-semibold uppercase text-body-subtle">Procedencia del padrón</dt><dd class="mt-1 text-body">{{ dispositivo.fuente_padron }} · {{ dispositivo.fecha_padron|date:'d/m/Y'|default:'Sin fecha' }} · {{ dispositivo.responsable_padron|default:'Sin responsable' }}</dd></div>{% endif %}
-      </dl>
-    </div>
-
-    {# ===== SOLAPA: Historial ===== #}
-    <div x-show="tab==='historial'" x-cloak class="p-6">
-      <h2 class="text-lg font-bold text-heading">Historial de validación</h2>
-      {% if trazas %}<ol class="mt-4 space-y-3">{% for traza in trazas %}<li class="border-l-2 border-brand pl-4"><p class="font-semibold text-heading">{{ traza.accion }}</p><p class="text-sm text-body-subtle">{{ traza.creado_en|date:'d/m/Y H:i' }} · {{ traza.usuario|default:'Sistema' }}</p><p class="text-sm text-body-subtle">{{ traza.estado_anterior_legible }} → {{ traza.estado_nuevo_legible }}</p>{% if traza.detalle_legible %}<p class="mt-1 text-sm text-body">{{ traza.detalle_legible }}</p>{% endif %}</li>{% endfor %}</ol>{% else %}<p class="mt-2 text-sm text-body-subtle">Todavía no hay movimientos registrados.</p>{% endif %}
+  {% if puede_validar and dispositivo.estado == 'PENDIENTE_VALIDACION' %}
+  {# Modal: Observar — confirmación con motivo (arquetipo Modal) #}
+  <div x-show="modalObservar" x-cloak x-becas-modal="modalObservar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalObservar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-observar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Observar dispositivo" titulo_id="modal-observar-titulo" icono="fa-comment-dots" tono="warning" cerrar="modalObservar=false" %}
+      <form method="post" action="{% url 'dispositivos:observar' dispositivo.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <label for="motivo-observar" class="block text-sm font-medium text-heading mb-1">Motivo <span class="text-fg-danger">*</span></label>
+            <textarea name="motivo" id="motivo-observar" rows="3" required class="nodo-field"></textarea>
+            <p class="mt-1 text-xs text-body-subtle">Indicá qué debe corregirse antes de reenviar.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="motivo"></p>
+          </div>
+          {% include "components/_alerta.html" with tono="warning" texto="El dispositivo queda observado hasta que se corrijan los datos y se vuelva a enviar a validación." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalObservar=false" accion_texto="Guardar observación" %}
+      </form>
     </div>
   </div>
+
+  {# Modal: Rechazar — confirmación con motivo (arquetipo Modal) #}
+  <div x-show="modalRechazar" x-cloak x-becas-modal="modalRechazar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalRechazar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-rechazar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Rechazar dispositivo" titulo_id="modal-rechazar-titulo" icono="fa-ban" tono="danger" cerrar="modalRechazar=false" %}
+      <form method="post" action="{% url 'dispositivos:rechazar' dispositivo.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <label for="motivo-rechazar" class="block text-sm font-medium text-heading mb-1">Motivo <span class="text-fg-danger">*</span></label>
+            <textarea name="motivo" id="motivo-rechazar" rows="3" required class="nodo-field"></textarea>
+            <p class="mt-1 text-xs text-body-subtle">Indicá el motivo del rechazo.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="motivo"></p>
+          </div>
+          {% include "components/_alerta.html" with tono="warning" texto="El dispositivo queda rechazado y no puede admitir personas." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalRechazar=false" accion_texto="Sí, rechazar" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
 
-{% block customJS %}
-{% include "programas/_swal_confirm_js.html" %}
-{% endblock %}
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}

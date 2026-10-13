@@ -23,7 +23,6 @@ REPO = Path(settings.BASE_DIR)
 
 INCLUDE = "programas/_swal_confirm_js.html"
 PANTALLAS = (
-    "programas/templates/programas/dispositivos/legajo/detail.html",
     "programas/templates/programas/merenderos/detail.html",
     "programas/templates/programas/merenderos/solicitudes.html",
 )
@@ -152,7 +151,7 @@ class HandlerUnicoTests(SimpleTestCase):
 
 
 class PantallasSinHandlerPropioTests(SimpleTestCase):
-    def test_las_tres_pantallas_incluyen_la_pieza_unica(self):
+    def test_las_pantallas_legacy_incluyen_la_pieza_unica(self):
         for ruta in PANTALLAS:
             with self.subTest(ruta=ruta):
                 texto = (REPO / ruta).read_text(encoding="utf-8")
@@ -167,7 +166,6 @@ class PantallasSinHandlerPropioTests(SimpleTestCase):
 
     def test_rechazar_y_cerrar_declaran_que_son_destructivas(self):
         esperado = {
-            "programas/templates/programas/dispositivos/legajo/detail.html": ("Rechazar", "Cerrar"),
             "programas/templates/programas/merenderos/detail.html": ("Cerrar",),
             "programas/templates/programas/merenderos/solicitudes.html": ("Rechazar",),
         }
