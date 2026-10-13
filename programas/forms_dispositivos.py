@@ -142,3 +142,94 @@ class CambioPlazaForm(forms.Form):
                 raise forms.ValidationError("El cambio no puede ser anterior al último movimiento de la estadía.")
             momento = max(momento, ultimo)
         return momento
+
+
+# --------------------------------------------------------------------------- #
+# Relevamientos edilicios (P21 · #701)
+# --------------------------------------------------------------------------- #
+# Las reglas de fondo —alcance del coordinador, un solo relevamiento en curso por
+# edificio, agente activo, con la capacidad y externo al edificio— las sostiene
+# `programas.services.inspecciones`. Los selectores ya llegan acotados por ese servicio.
+
+
+class _AgenteChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, usuario):
+        return usuario.get_full_name() or usuario.username
+
+
+class ElegirEdificioForm(forms.Form):
+    """Primer paso de «Nuevo relevamiento»: elegir el edificio (GET).
+
+    El agente depende del edificio —con el agente externo, el personal de sus
+    instituciones no se ofrece—, así que el modal de asignación se arma ya con uno elegido.
+    """
+
+    asignar = forms.ModelChoiceField(
+        label="Edificio",
+        queryset=None,
+        empty_label="Elegí un edificio",
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        help_text="Solo los edificios de tu alcance que no tienen un relevamiento en curso.",
+    )
+
+    def __init__(self, *args, edificios, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["asignar"].queryset = edificios
+
+
+class AsignarRelevamientoForm(forms.Form):
+    edificio = forms.CharField(
+        label="Edificio", required=False, disabled=True, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+    )
+    asignado_a = _AgenteChoiceField(
+        label="Agente territorial",
+        queryset=None,
+        empty_label="Elegí un agente",
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        error_messages={
+            "required": "Elegí el agente que va a relevar.",
+            "invalid_choice": "Ese agente no se puede asignar a este edificio.",
+        },
+    )
+    fecha_vencimiento = forms.DateField(
+        label="Vence",
+        input_formats=["%Y-%m-%d"],
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"class": INPUT_CLASS, "type": "date"}),
+        error_messages={"required": "Indicá hasta cuándo hay tiempo de relevar."},
+    )
+    indicaciones = forms.CharField(
+        label="Indicaciones para el territorial",
+        required=False,
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional"}),
+    )
+
+    def __init__(self, *args, edificio, agentes, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["edificio"].initial = f"{edificio.nombre} · {edificio.codigo}"
+        self.fields["asignado_a"].queryset = agentes
+
+
+class ReasignarRelevamientoForm(forms.Form):
+    asignado_a = _AgenteChoiceField(
+        label="Nuevo agente territorial",
+        queryset=None,
+        empty_label="Elegí un agente",
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        error_messages={
+            "required": "Elegí el agente que va a relevar.",
+            "invalid_choice": "Ese agente no se puede asignar a este edificio.",
+        },
+    )
+
+    def __init__(self, *args, agentes, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["asignado_a"].queryset = agentes
+
+
+class CancelarRelevamientoForm(forms.Form):
+    motivo = forms.CharField(
+        label="Motivo",
+        max_length=200,
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3}),
+        error_messages={"required": "Cancelar un relevamiento exige un motivo."},
+    )

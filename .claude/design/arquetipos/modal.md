@@ -93,6 +93,17 @@ Nada de `ModernModal` con input ni de un `Swal.fire` nuevo.
 - Modal sin Alpine: `window.becasModal.bind(overlay, {onClose})` observa la clase `hidden` del
   overlay; Escape y cualquier `[data-becas-modal-cerrar]` llaman a `onClose`.
 - Modal anidado sobre otro: el de arriba atrapa Tab y Escape; el de abajo no se cierra.
+- **Modal abierto por parámetro GET y armado por el servidor**: cuando el contenido depende del
+  registro (un selector acotado por el edificio de la fila) y lo dispara un menú de fila, que solo
+  navega. La vista lee `?<accion>=<id>`, valida que el registro siga siendo gestionable, arma el
+  form y deja el `x-data` del modal en `true`; si no es gestionable no lo abre. Esos parámetros no
+  cuentan como filtro (`hay_filtros` con exclusiones) ni viajan en la paginación. Al cerrarlo el
+  parámetro queda en la URL y un recargue lo reabre: se acepta, porque evita JS propio. Evidencia:
+  `programas/templates/programas/dispositivos/relevamientos/list.html` (P21).
+- **Paso previo de elección**: un modal con `<form method="get">` (sin `{% csrf_token %}` ni
+  `data-ajax`, porque no muta) que elige el registro y reabre la pantalla con el modal del paso
+  siguiente. Conserva la solapa y los filtros activos en `<input type="hidden">` armados en la
+  vista, así el guardado vuelve a donde estaba. Evidencia: «Nuevo relevamiento» de P21.
 
 ## Prohibido
 

@@ -409,6 +409,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 276 | Detalle del dispositivo: quién está alojado, en qué sector y cuántas plazas quedan | Dispositivos · detalle | `#ui` `#rbac` `#performance` | Task 27 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 277 | Detalle de la estadía: la persona alojada, su línea de tiempo y el cambio de plaza | Dispositivos · estadía | `#ui` `#rbac` `#performance` | Task 33 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 278 | Censo automático por turno y por día: existencia, ingresos y egresos calculados desde los movimientos | Dispositivos · datos y servicios | `#datos` `#performance` | Task 31 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | No requiere |
+| 279 | Relevamientos: listado y asignación del coordinador (P21) | Dispositivos · relevamiento edilicio | `#ui` `#rbac` `#performance` | Task 36 del MVP de Dispositivos | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 275 | Relevamiento edilicio: el modelo de la inspección, colgado del edificio | Dispositivos · relevamiento edilicio | `#datos` `#rbac` | Task 35 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0091`, `users.0037` |
 
 **Notas del índice**
@@ -35341,5 +35342,180 @@ cambios y los ingresos retroactivos vuelven a aceptar una plaza que otro ocupó 
 ## Historial
 
 Entrada nueva. Etapa 3 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 279 — Relevamientos: listado y asignación del coordinador (P21)
+
+🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 36` (#701)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamiento edilicio |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191), mockup P21 |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | Task 36 del backlog del MVP (#701) · Épica #127 · etapa 4 |
+| **Partes afectadas** | Backoffice (`programas/views/dispositivos_relevamientos.py`, plantilla nueva, sidebar), Servidor (`programas/services/inspecciones.py`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+P21 del mockup: la pantalla donde el **coordinador crea y asigna** los relevamientos edilicios,
+como ítem propio del menú Dispositivos. El agente territorial no ve el menú: recibe la tarea en la
+app. Listado con estado, vencimiento y agente, menú de fila con las acciones que existen y un modal
+de asignación que solo ofrece agentes externos a la institución relevada.
+
+## Alcance acordado
+
+Entra: el listado de `inspecciones_visibles` en tres solapas (En curso · Completados ·
+Cancelados) con píldoras de filtro, las cuatro tarjetas del mockup, el modal de asignación,
+reasignar y cancelar con motivo, y el ítem «Relevamientos» del sidebar. Queda afuera (ver
+*Pendientes*): ver el informe, exportar, periodicidad y «en obra», prioridad, validación por un
+tercero, la solapa «Sin relevar nunca» y el contador del menú.
+
+## Decisiones tomadas
+
+**El ítem del menú y la pantalla se condicionan con la misma capacidad, `inspeccion.asignar` en el
+programa Dispositivos.** Quien tiene todo lo demás del programa —incluido el admin— no ve el ítem
+ni entra (test). El grupo Dispositivos ahora aparece también para quien solo tiene esa capacidad.
+El subítem va con utilidades y sin `style=` (ficha `shells.md`), aunque sus hermanos sigan en línea.
+
+**Todo lo decide `programas.services.inspecciones`.** La vista no calcula alcance ni reglas:
+`inspecciones_visibles` arma el listado, `edificios_en_alcance` dice qué filas se pueden tocar,
+`edificios_para_asignar` (nueva) da los edificios del selector —de tu alcance, activos y **sin un
+relevamiento en curso**, la misma regla que hace cumplir `crear_inspeccion`— y
+`agentes_asignables` da el selector de agentes.
+
+**«Vencido», «por vencer» y «al día» se derivan en el servicio** (`situacion_de`,
+`filtrar_por_situacion`, `resumen_listado`, `DIAS_POR_VENCER = 30`), como pide el Cambio 275: no
+son estados del modelo. «Al día» es en curso con más de 30 días por delante; el mockup lo mide
+contra la periodicidad, que todavía no existe. **Los rótulos viven en el servicio**
+(`Situacion.ETIQUETAS`), así la tarjeta, el badge y la píldora dicen lo mismo («Al día» en los tres;
+antes el badge decía «Asignado · en campo» para las filas que la tarjeta contaba como al día).
+
+**Solapas y píldoras, como el mockup** (revisión de diseño). Dentro de la card, solapas canónicas
+(`tabs.md`) En curso (por defecto) · Completados · Cancelados, cada una con su contador y su lista
+paginada (`en_curso_page`, `completados_page`, `cancelados_page`, con `tab=` en la paginación).
+**Un solo aggregate** da las cuatro tarjetas y los tres contadores, y esos totales se le pasan a
+cada `Paginator` para que no sume su COUNT. Los filtros son píldoras (`_filtro_pildora.html`):
+«Estado» con la situación dentro de En curso (vencidos / por vencer / al día) y «Asignado a», que
+filtra las tres solapas. Se sacaron la tarjeta de filtros —la ficha prohíbe combinarlas— y la
+búsqueda, que el mockup no tiene. Las tarjetas van en `variante="tablero"` (decisión C-2).
+
+**Acciones de fila**: en lo que está en curso, «Reasignar» como `.nodo-icon-btn` al lado del ⋮ y
+«Cancelar» en el menú; si el edificio está fuera del alcance, sin el botón y con los dos ítems del
+menú deshabilitados con su motivo. Completado y Cancelado son terminales: ni botón ni menú.
+
+**Asignar sobre un edificio fuera del alcance es 404**, igual que un id inexistente (revisión de
+desarrollo). Antes el form se validaba contra los agentes de ese edificio antes de que el servicio
+mirara el alcance, y la respuesta (400 o 403 según el agente) decía qué edificios existen y quién es
+personal de instituciones ajenas. Se busca en `edificios_en_alcance` —no en
+`edificios_para_asignar`— para que «ya tiene uno en curso» siga siendo un error del campo. Los ids
+de la URL aceptan solo dígitos ASCII: «²» o «١» pasan `isdigit()` y rompían `int()` con un 500.
+
+**Los modales se abren con un parámetro GET** (`?nuevo=1`, `?asignar=<edificio>`,
+`?reasignar=<id>`, `?cancelar=<id>`). El selector de agentes depende del edificio —el personal de
+sus instituciones no se ofrece— y el menú de fila solo sabe navegar (`url`/`motivo`/`confirm_url`),
+así que cada modal llega armado por el servidor, sin JS propio ni parámetro nuevo en la pieza.
+«Nuevo relevamiento» tiene dos pasos: elegir el edificio (modal con un `<form method="get">`, que
+conserva la solapa y los filtros en campos ocultos) y después asignarlo, con el edificio en solo
+lectura, como el segundo frame del mockup. Los parámetros de modal no viajan en la paginación: cada solapa recibe su `filtros_qs` armado
+en la vista (filtros + su `tab`, nunca vacío, porque vacío la pieza copia todo `request.GET`). Al
+cerrar el modal el parámetro queda en la URL y un recargue lo reabre: se aceptó porque evita JS
+propio. Las dos variantes quedaron documentadas en `arquetipos/modal.md`.
+
+**Guardado por AJAX con el contrato de `_ajax_js.html`**: éxito = `ajax_redirect` al listado con
+los mismos filtros (el `volver` se rearma, no se copia crudo); error = JSON por campo, y lo que el
+servicio rechaza sin campo (ya no está en curso) va al error general. Sin JS, POST clásico con
+aviso y redirect.
+
+## Implementación
+
+El coordinador entra por Dispositivos → Relevamientos y ve las cuatro tarjetas (asignados, al
+día, por vencer, vencidos), las píldoras (estado y agente) y las solapas En curso, Completados y
+Cancelados: edificio, agente, vencimiento con el «en N días / hace N días», criticidad si ya se
+relevó, estado y, en lo que está en curso, reasignar y el menú ⋮. «Nuevo relevamiento» pide el edificio y después el agente, el vencimiento y las
+indicaciones; reasignar pide el nuevo agente y cancelar pide el motivo.
+
+**Los mixins de permisos de Dispositivos se mudaron a `programas/mixins_dispositivos.py`** (nuevo,
+fuera de `programas/views/`): la pantalla los tomaba de `views/dispositivos_legajo.py` y eso es una
+arista vista→vista, que el ratchet de `programas/tests/test_arquitectura.py` marca como un helper en
+el módulo equivocado. `dispositivos_legajo` los re-exporta, así que los imports que ya existían
+—`reportes.py`, la arista conocida— siguen funcionando sin tocarlos.
+
+## Archivos
+
+`programas/views/dispositivos_relevamientos.py` (nuevo) · `programas/mixins_dispositivos.py`
+(nuevo) · `programas/views/dispositivos_legajo.py` · `programas/dispositivos_urls.py` ·
+`programas/forms_dispositivos.py` · `programas/services/inspecciones.py` ·
+`programas/templates/programas/dispositivos/relevamientos/list.html` (nuevo) ·
+`programas/templates/programas/dispositivos/_relevamiento_situacion_badge.html` y
+`_relevamiento_criticidad_badge.html` (nuevos, parciales de badges del módulo) ·
+`templates/includes/sidebar/opciones.html` · `scripts/perf_budgets.json` ·
+`.claude/design/shells.md` · `.claude/design/componentes/tabla.md` ·
+`.claude/design/arquetipos/modal.md` · `.claude/agents/chaco-design-system.md` (perfil Dispositivos) ·
+`programas/tests/test_dispositivos_relevamientos_listado.py` (nuevo) ·
+`programas/tests/snapshots/formulario_detalle/*.snapshot` (dos líneas en blanco del sidebar)
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+`manage.py check` OK · `makemigrations --check` (con `DJANGO_SYNCDB_PROJECT_APPS=False`) limpio ·
+`compile_templates.py` 0 · `design_audit --arquetipo listado` y `--arquetipo modal` OK ·
+`--ratchet` 0 nuevos · `--goldens` 0 · `check_design_agent.py --changed` y `--limites` OK ·
+build de Tailwind sin diff. `test_dispositivos_relevamientos_listado` (36),
+`test_dispositivos_inspecciones`, `users.tests.test_menu_rbac`, `test_becas_revision_detalle_html`
+(snapshots regenerados), `core.tests.test_nodo_ui_piezas`, `test_gates_ci` y
+`test_check_perf_budgets` en verde (Py 3.12 + Dj 5.2). Presupuesto nuevo
+`servicios.dispositivos_relevamientos_listado = 13`, medido con 2 y con 20 filas en curso y las
+tres solapas con filas (iguales).
+
+**Mutación**, cada una con su rojo: sacar la guarda del ítem del sidebar; la pantalla por
+`dispositivo.ver`; los POST por `dispositivo.ver` (el test fija que frena la vista, no el
+servicio); el listado sin `inspecciones_visibles`; la fila sin el alcance; la fila sin «en curso»;
+el POST de reasignar/cancelar sin `inspecciones_visibles` (404); `AGENTE_DEBE_SER_EXTERNO = False`;
+el modal de asignar sobre cualquier edificio; sacar el alcance del servicio en `crear_inspeccion`;
+los parámetros de modal contados como filtro; el `volver` sin sanear; `csrf_exempt` en asignar;
+el borde de «por vencer» (`<=` → `<`). Después de las revisiones, también: la solapa En curso sin
+el filtro de estado (muestra completados y cancelados); asignar buscando el edificio en todos (vuelve
+el oráculo); los modales de reasignar y cancelar sin el alcance en `gestionables`; `isdigit()` en vez
+de `isascii() and isdecimal()`; el botón de reasignar en filas terminales; y el rótulo «al día»
+distinto entre el badge y la tarjeta.
+
+## Puesta en marcha en el servidor
+
+No requiere. Para verlo hay que tildar `inspeccion.asignar` en el rol del coordinador (ABM de Roles).
+
+## Pendientes / a definir
+
+Lo que el mockup muestra y **no** se dibujó, porque no existe en el servicio:
+
+- **Ver el informe**: no hay pantalla de detalle del relevamiento (resultado, observaciones y
+  fotos). Va con P19 (task 37) o una task propia.
+- **Exportar**, **periodicidad** y **«en obra»** (cambia la periodicidad a 1 mes), **prioridad**,
+  **cambiar el vencimiento** y **validación por una tercera persona**.
+- **Solapa «Sin relevar nunca»**: es una lista de edificios, no de relevamientos; va aparte.
+- **Filtrar desde otra solapa vuelve a En curso** (MINOR de la revisión de diseño): el oculto `tab`
+  de las píldoras lleva la solapa que resolvió el servidor, no la que se eligió después con Alpine.
+- **«No disponibles para esta asignación»** (chips deshabilitados con el personal del edificio): el
+  servicio no expone esa lista y la pieza de chips no cubre el chip deshabilitado; la ayuda del
+  selector dice que solo trae agentes externos.
+- **Contador del menú** (el «9» del mockup): sería una consulta en cada página del backoffice.
+- **Zona del agente** («territorial · Zona Sur»): no hay dato de zona.
+
+## Reversión
+
+Revertir el commit: no hay migración ni datos nuevos. Los relevamientos creados desde la pantalla
+quedan en la base y se siguen leyendo por el servicio.
+
+## Historial
+
+Entrada nueva. Etapa 4 del plan del Cambio 191.
 
 ---

@@ -1,0 +1,239 @@
+{% extends "includes/base.html" %}
+{% load static nodo_ui %}
+{% block title %}Dispositivos · Relevamientos{% endblock %}
+
+{% block main-content %}
+{% comment %}P21 · Relevamientos edilicios (en el código, InspeccionEdificio). Molde: golden de
+Listado (becas/revision/personas_list.html) + golden de Modal (becas/config/programa_list.html);
+las solapas siguen tabs.md (precedente: dispositivos/legajo/detail.html) y los filtros son
+píldoras (_filtro_pildora.html), que no se combinan con la tarjeta de filtros.
+Los modales de asignar, reasignar y cancelar llegan abiertos por un parámetro GET que arma la
+vista: el selector de agentes depende del edificio y el menú de fila solo navega.{% endcomment %}
+<div x-data="{ tab: '{{ solapa_actual }}', modalNuevo: {% if abrir_nuevo %}true{% else %}false{% endif %}, modalAsignar: {% if form_asignar %}true{% else %}false{% endif %}, modalReasignar: {% if form_reasignar %}true{% else %}false{% endif %}, modalCancelar: {% if form_cancelar %}true{% else %}false{% endif %} }">
+
+  {# Los overlays fixed van FUERA del space-y-*: el margin-top los corre y el clic en esa franja no cierra #}
+  <div class="space-y-6">
+
+    {% page_header titulo="Relevamientos" eyebrow="Programa Dispositivos" bajada="Asignación y seguimiento de los relevamientos edilicios de los dispositivos de tu alcance." %}
+      {% if puede_crear %}
+      <button type="button" @click="modalNuevo=true" class="btn-nodo btn-brand btn-base">
+        <i class="fas fa-plus" aria-hidden="true"></i> Nuevo relevamiento
+      </button>
+      {% endif %}
+    {% endpage_header %}
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {% include "components/_stat_card.html" with variante="tablero" etiqueta="Asignados" valor=resumen.asignados icono="fa-clipboard-list" nota="relevamientos en curso" %}
+      {% include "components/_stat_card.html" with variante="tablero" etiqueta="Al día" valor=resumen.al_dia icono="fa-circle-check" nota="vencen en más de 30 días" %}
+      {% include "components/_stat_card.html" with variante="tablero" etiqueta="Por vencer" valor=resumen.por_vencer icono="fa-clock" nota="vencen en los próximos 30 días" %}
+      {% include "components/_stat_card.html" with variante="tablero" etiqueta="Vencidos" valor=resumen.vencidos icono="fa-bell" nota="en curso con el vencimiento pasado" %}
+    </div>
+
+    {% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos_pildoras %}
+
+    <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+      <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Relevamientos por estado">
+        {% for solapa in solapas %}
+        <button @click="tab='{{ solapa.clave }}'" type="button" role="tab" id="tab-{{ solapa.clave }}" aria-controls="panel-{{ solapa.clave }}"
+                :aria-selected="tab==='{{ solapa.clave }}'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='{{ solapa.clave }}' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas {{ solapa.icono }}" aria-hidden="true"></i> {{ solapa.etiqueta }}
+          <span class="badge" :class="tab==='{{ solapa.clave }}' ? 'badge-info' : 'badge-gray'">{{ solapa.total }}</span>
+        </button>
+        {% endfor %}
+      </div>
+
+      {% for solapa in solapas %}
+      <div x-show="tab==='{{ solapa.clave }}'" x-cloak role="tabpanel" id="panel-{{ solapa.clave }}" aria-labelledby="tab-{{ solapa.clave }}">
+        {% if solapa.filas %}
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Edificio</th>
+                <th class="nodo-th">Asignado a</th>
+                <th class="nodo-th">Vence</th>
+                <th class="nodo-th">Criticidad</th>
+                <th class="nodo-th">Estado</th>
+                <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in solapa.filas %}
+              <tr class="hover:bg-secondary">
+                <td class="nodo-td text-heading font-medium">{{ r.edificio.nombre }}
+                  <span class="block text-xs text-body-subtle font-normal">{{ r.edificio.codigo }}{% if r.edificio.localidad %} · {{ r.edificio.localidad }}{% endif %}</span></td>
+                <td class="nodo-td text-body">{{ r.asignado_a.get_full_name|default:r.asignado_a.username }}</td>
+                <td class="nodo-td text-body">{{ r.fecha_vencimiento|date:"d/m/Y" }}
+                  {% if r.vence_relativo %}<span class="block text-xs text-body-subtle">{{ r.vence_relativo }}</span>{% endif %}</td>
+                <td class="nodo-td">
+                  {% if r.criticidad %}
+                    {% include "programas/dispositivos/_relevamiento_criticidad_badge.html" with relevamiento=r %}
+                    {% if r.realizada_en %}<span class="block text-xs text-body-subtle mt-1">relevado el {{ r.realizada_en|date:"d/m/Y" }}</span>{% endif %}
+                  {% else %}
+                    <span class="text-body-subtle">—</span>
+                  {% endif %}
+                </td>
+                <td class="nodo-td">
+                  {% include "programas/dispositivos/_relevamiento_situacion_badge.html" with situacion=r.situacion texto=r.situacion_texto %}
+                  {% if r.motivo_cancelacion %}<span class="block text-xs text-body-subtle mt-1">{{ r.motivo_cancelacion }}</span>{% endif %}
+                </td>
+                <td class="nodo-td text-right">
+                  {% if r.con_acciones %}
+                  <div class="inline-flex items-center gap-1">
+                    {% if r.gestionable %}
+                    <a href="{{ r.url_reasignar }}" class="nodo-icon-btn" aria-label="Reasignar el relevamiento de {{ r.edificio.nombre }}">
+                      <i class="fas fa-user-pen" aria-hidden="true"></i>
+                    </a>
+                    {% endif %}
+                    {% menu_fila id=r.menu_id etiqueta=r.menu_etiqueta %}
+                      {% if not r.gestionable %}{% include "components/_menu_fila_item.html" with texto="Reasignar" icono="fa-user-pen" url=r.url_reasignar motivo=r.motivo_reasignar only %}{% endif %}
+                      {% include "components/_menu_fila_item.html" with texto="Cancelar" icono="fa-ban" peligro=True url=r.url_cancelar motivo=r.motivo_cancelar only %}
+                    {% endmenu_fila %}
+                  </div>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% include "components/_paginacion.html" with page_obj=solapa.pagina entidad="relevamiento" param=solapa.param filtros_qs=solapa.filtros_qs %}
+        {% elif solapa.hay_filtros %}
+          {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún relevamiento coincide con los filtros" texto="Probá con otro estado o agente." accion_url=solapa.url_sin_filtros %}
+        {% elif solapa.clave == "en_curso" and puede_crear %}
+          {% include "components/_estado_vacio.html" with icono="fa-clipboard-list" titulo="No hay relevamientos en curso" texto="Asigná uno: elegí el edificio y el agente que lo va a relevar." accion_url=url_nuevo accion_texto="Nuevo relevamiento" accion_icono="fa-plus" %}
+        {% elif solapa.clave == "en_curso" %}
+          {% include "components/_estado_vacio.html" with icono="fa-clipboard-list" titulo="No hay relevamientos en curso" texto="Aparecerán acá cuando se asignen relevamientos en los edificios de tu alcance." %}
+        {% else %}
+          {% include "components/_estado_vacio.html" with icono=solapa.icono titulo=solapa.vacio_titulo texto="Aparecerán acá a medida que los relevamientos en curso se completen o se cancelen." %}
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if puede_crear %}
+  {# Modal: Nuevo relevamiento (paso 1, elegir el edificio). x-becas-modal da foco, Tab atrapado, Escape y bloqueo del scroll del fondo #}
+  <div x-show="modalNuevo" x-cloak x-becas-modal="modalNuevo" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalNuevo=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-nuevo-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Nuevo relevamiento" titulo_id="modal-nuevo-titulo" subtitulo="Elegí el edificio; después, el agente que lo va a relevar." icono="fa-clipboard-list" cerrar="modalNuevo=false" %}
+      <form method="get" action="{% url 'dispositivos:relevamientos' %}" class="flex flex-col flex-1 min-h-0">
+        {# La solapa y los filtros activos viajan al paso 2 y de ahí al «volver» del guardado #}
+        {% for nombre, valor in ocultos_nuevo %}<input type="hidden" name="{{ nombre }}" value="{{ valor }}">{% endfor %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <label for="{{ form_elegir.asignar.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Edificio <span class="text-fg-danger">*</span></label>
+            {{ form_elegir.asignar }}
+            {% if form_elegir.asignar.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ form_elegir.asignar.help_text }}</p>{% endif %}
+          </div>
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalNuevo=false" accion_texto="Continuar" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_asignar %}
+  {# Modal: Asignar relevamiento (paso 2, con el edificio elegido) #}
+  <div x-show="modalAsignar" x-cloak x-becas-modal="modalAsignar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalAsignar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-asignar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Asignar relevamiento · "|add:edificio_asignar.nombre titulo_id="modal-asignar-titulo" subtitulo="Se le crea la tarea al agente territorial; la institución relevada no la puede completar." icono="fa-clipboard-list" cerrar="modalAsignar=false" %}
+      <form method="post" action="{% url 'dispositivos:relevamiento_asignar' edificio_asignar.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <input type="hidden" name="volver" value="{{ volver_qs }}">
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              {# El error general va ADENTRO del bloque: como hijo directo de space-y-5 suma un hueco de 20px aunque esté oculto #}
+              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+              <label for="{{ form_asignar.edificio.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Edificio <span class="text-fg-danger">*</span></label>
+              {{ form_asignar.edificio }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="edificio"></p>
+            </div>
+            <div>
+              <label for="{{ form_asignar.fecha_vencimiento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Vence <span class="text-fg-danger">*</span></label>
+              {{ form_asignar.fecha_vencimiento }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_vencimiento"></p>
+            </div>
+          </div>
+          <div>
+            <label for="{{ form_asignar.asignado_a.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Agente territorial <span class="text-fg-danger">*</span></label>
+            {{ form_asignar.asignado_a }}
+            {% if agente_externo %}<p class="mt-1 text-xs text-body-subtle">La lista solo trae agentes <strong>externos a {{ edificio_asignar.nombre }}</strong>.</p>{% endif %}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="asignado_a"></p>
+          </div>
+          <div>
+            <label for="{{ form_asignar.indicaciones.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Indicaciones para el territorial</label>
+            {{ form_asignar.indicaciones }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="indicaciones"></p>
+          </div>
+          {% if agente_externo %}
+            {% include "components/_alerta.html" with tono="warning" icono="users" titulo="Nunca se asigna al personal de la institución relevada." texto="El relevamiento lo hace un agente externo para que no se omitan irregularidades." %}
+          {% endif %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalAsignar=false" accion_texto="Asignar relevamiento" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_reasignar %}
+  {# Modal: Reasignar relevamiento #}
+  <div x-show="modalReasignar" x-cloak x-becas-modal="modalReasignar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalReasignar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-reasignar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Reasignar relevamiento · "|add:relevamiento_reasignar.edificio.nombre titulo_id="modal-reasignar-titulo" subtitulo="El agente anterior deja de ver la tarea." icono="fa-user-pen" cerrar="modalReasignar=false" %}
+      <form method="post" action="{% url 'dispositivos:relevamiento_reasignar' relevamiento_reasignar.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <input type="hidden" name="volver" value="{{ volver_qs }}">
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            <label for="{{ form_reasignar.asignado_a.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Nuevo agente territorial <span class="text-fg-danger">*</span></label>
+            {{ form_reasignar.asignado_a }}
+            <p class="mt-1 text-xs text-body-subtle">Hoy lo tiene {{ relevamiento_reasignar.asignado_a.get_full_name|default:relevamiento_reasignar.asignado_a.username }}.{% if agente_externo %} La lista solo trae agentes <strong>externos a {{ relevamiento_reasignar.edificio.nombre }}</strong>.{% endif %}</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="asignado_a"></p>
+          </div>
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalReasignar=false" accion_texto="Reasignar" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_cancelar %}
+  {# Modal: Cancelar relevamiento (confirmación con motivo) #}
+  <div x-show="modalCancelar" x-cloak x-becas-modal="modalCancelar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCancelar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-cancelar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Cancelar relevamiento · "|add:relevamiento_cancelar.edificio.nombre titulo_id="modal-cancelar-titulo" icono="fa-ban" tono="danger" cerrar="modalCancelar=false" %}
+      <form method="post" action="{% url 'dispositivos:relevamiento_cancelar' relevamiento_cancelar.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <input type="hidden" name="volver" value="{{ volver_qs }}">
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            <label for="{{ form_cancelar.motivo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Motivo <span class="text-fg-danger">*</span></label>
+            {{ form_cancelar.motivo }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="motivo"></p>
+          </div>
+          {% include "components/_alerta.html" with tono="warning" texto="El relevamiento deja de estar en curso y el agente ya no lo ve. No se puede deshacer: para relevar el edificio hay que asignar uno nuevo." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCancelar=false" cancelar_texto="Volver" accion_texto="Sí, cancelar" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}

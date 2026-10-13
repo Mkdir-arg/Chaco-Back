@@ -26,6 +26,12 @@ Se hereda; no se recrean el sidebar ni sus offsets.
   «Notificaciones». `text-[13.5px]` y `text-[13px]` son una **excepción de shell**: reproducen los
   tamaños que los demás grupos fijan en línea y no amplían la lista blanca de arbitrarios del
   contenido.
+- **Subítem nuevo en un grupo heredado** (que todavía fija sus estilos en línea): el subítem nuevo
+  va con las mismas utilidades, sin `style=`, aunque sus hermanos sigan en línea; el activo lo marca
+  `aria-current="page"` y lo pinta `.ds-snav`. Si su ruta cuelga del prefijo del grupo, el hermano que
+  se marca por prefijo la excluye. Cada ítem se condiciona con la **misma capacidad** que exige su
+  vista, y el grupo se muestra si alguno de sus ítems se muestra. Evidencia: «Relevamientos» en
+  Dispositivos (`inspeccion.asignar`).
 - Tailwind se sirve desde `static/custom/css/tailwind.css`, generado por `npm run build:tailwind`
   con `tailwind.config.js`. **No** se usa el CDN de Play.
 - La fuente de íconos se precarga con

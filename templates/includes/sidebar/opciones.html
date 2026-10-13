@@ -1,6 +1,8 @@
 {% load static custom_filters rbac dispositivos %}
 {% puede_configurar_dispositivos request.user as puede_configurar_dispositivos %}
 {% puede_en_programa_dispositivos request.user "dispositivo.ver" as puede_ver_dispositivos %}
+{# Relevamientos edilicios (P21): solo el coordinador. El agente territorial recibe la tarea en la app. #}
+{% puede_en_programa_dispositivos request.user "inspeccion.asignar" as puede_asignar_relevamientos %}
 {% with pagina_actual=request.resolver_match|getattr:"route" %}
 <div class="flex flex-1 flex-col" style="gap: 0;">
 
@@ -576,7 +578,7 @@
         {% endif %}
 
         {# ── Dispositivos (grupo colapsable) ─────────────────── #}
-        {% if puede_configurar_dispositivos or puede_ver_dispositivos %}
+        {% if puede_configurar_dispositivos or puede_ver_dispositivos or puede_asignar_relevamientos %}
         <div x-data="{ open: {% if 'dispositivos' in pagina_actual %}true{% else %}false{% endif %} }"
              class="relative" style="margin-bottom: 2px;">
 
@@ -607,13 +609,26 @@
                         <a href="{% url 'dispositivos:lista' %}"
                            class="flex items-center gap-2 transition-colors duration-150"
                            style="padding: 8px 12px; border-radius: 9999px; text-decoration: none; font-size: 13px; font-family: var(--font-sans);
-                                  {% if 'dispositivos/config' not in pagina_actual and 'dispositivos' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
-                           {% if 'dispositivos/config' not in pagina_actual and 'dispositivos' in pagina_actual %}aria-current="page"{% endif %}>
+                                  {% if 'dispositivos/config' not in pagina_actual and 'dispositivos/relevamientos' not in pagina_actual and 'dispositivos' in pagina_actual %}background: var(--bg-brand); color: #fff; font-weight: 700;{% else %}background: transparent; color: var(--text-body-subtle); font-weight: 500;{% endif %}"
+                           {% if 'dispositivos/config' not in pagina_actual and 'dispositivos/relevamientos' not in pagina_actual and 'dispositivos' in pagina_actual %}aria-current="page"{% endif %}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16" aria-hidden="true" class="flex-shrink-0"
-                                 style="color: {% if 'dispositivos/config' not in pagina_actual and 'dispositivos' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
+                                 style="color: {% if 'dispositivos/config' not in pagina_actual and 'dispositivos/relevamientos' not in pagina_actual and 'dispositivos' in pagina_actual %}#fff{% else %}var(--text-body-subtle){% endif %};">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3.75h15v17.25h-15V3.75Zm3.75 3h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5m-7.5 3.75h1.5m4.5 0h1.5M9.75 21v-3.75h4.5V21"/>
                             </svg>
                             Legajos
+                        </a>
+                        {% endif %}
+                        {% if puede_asignar_relevamientos %}
+                        <a href="{% url 'dispositivos:relevamientos' %}"
+                           class="flex items-center gap-2 transition-colors duration-150 px-3 py-2 rounded-full text-[13px]"
+                           {% if 'dispositivos/relevamientos' in pagina_actual %}aria-current="page"{% endif %}>
+                            {# clipboard-document-list icon #}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                 width="16" height="16" aria-hidden="true" class="flex-shrink-0">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z"/>
+                            </svg>
+                            Relevamientos
                         </a>
                         {% endif %}
                         {% if puede_configurar_dispositivos %}
@@ -636,7 +651,7 @@
             </template>
 
             <template x-if="sidebarCollapsed">
-                <a href="{% if puede_ver_dispositivos %}{% url 'dispositivos:lista' %}{% else %}{% url 'dispositivos:tipos' %}{% endif %}"
+                <a href="{% if puede_ver_dispositivos %}{% url 'dispositivos:lista' %}{% elif puede_configurar_dispositivos %}{% url 'dispositivos:tipos' %}{% else %}{% url 'dispositivos:relevamientos' %}{% endif %}"
                    class="group flex items-center justify-center transition-colors duration-150"
                    style="padding: 10px 14px; border-radius: 9999px; text-decoration: none;
                           {% if 'dispositivos' in pagina_actual %}background: var(--bg-brand);{% else %}background: transparent;{% endif %}"

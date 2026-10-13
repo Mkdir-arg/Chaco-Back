@@ -15,6 +15,10 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 from core.rbac import puede
 from programas.forms import DispositivoForm
 from programas.forms_dispositivos import CambioPlazaForm, EgresoForm
+from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los importan otras vistas)
+    DispositivoObjectPermissionMixin,
+    DispositivoProgramaPermissionMixin,
+)
 from programas.models import Dispositivo, Estadia, TipoDispositivo
 from programas.selectors.estadia_detalle import detalle_de_estadia
 from programas.services.detalle_dispositivo import (
@@ -47,40 +51,6 @@ from programas.services.ocupacion import ocupacion_de_plazas
 from programas.services.reportes import filtrar_dispositivos
 from programas.services.sectores_plazas import sectores_con_plazas
 from programas.views.ajax_utils import ajax_redirect, is_ajax
-
-
-class DispositivoProgramaPermissionMixin(LoginRequiredMixin):
-    capacidad_requerida = None
-
-    def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            if is_ajax(request):
-                login_response = self.handle_no_permission()
-                return JsonResponse(
-                    {
-                        "ok": False,
-                        "message": "Tu sesión venció. Volvé a iniciar sesión.",
-                        "redirect": login_response.url,
-                    },
-                    status=401,
-                )
-            return self.handle_no_permission()
-        if not puede_en_programa_dispositivos(request.user, self.capacidad_requerida):
-            if is_ajax(request):
-                return JsonResponse(
-                    {"ok": False, "message": "No tenés permiso para realizar esta acción."},
-                    status=403,
-                )
-            raise PermissionDenied
-        return super().dispatch(request, *args, **kwargs)
-
-
-class DispositivoObjectPermissionMixin(DispositivoProgramaPermissionMixin):
-    def get_object(self, queryset=None):
-        dispositivo = super().get_object(queryset)
-        if not puede_operar_dispositivo(self.request.user, dispositivo, self.capacidad_requerida):
-            raise PermissionDenied
-        return dispositivo
 
 
 class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
