@@ -40,7 +40,7 @@ from programas.models import (
     Subsegmento,
 )
 
-# Los 56 modelos de la app, con la tabla con la que viven hoy en la base. El mapa es
+# Los 58 modelos de la app, con la tabla con la que viven hoy en la base. El mapa es
 # literal a propósito: calcularlo desde `_meta` haría que el test se mueva solo y no
 # detectaría nada. `AltaIntermediaSIIS` es la única con `db_table` explícita.
 TABLAS = {
@@ -69,9 +69,11 @@ TABLAS = {
     "EnvioSIIS": "programas_enviosiis",
     "EsperaAdmision": "programas_esperaadmision",
     "Estadia": "programas_estadia",
+    "FotoInspeccion": "programas_fotoinspeccion",
     "Formulario": "programas_formulario",
     "GrupoRequisito": "programas_gruporequisito",
     "InscripcionPrograma": "programas_inscripcionprograma",
+    "InspeccionEdificio": "programas_inspeccionedificio",
     "ItemDiseno": "programas_itemdiseno",
     "ListaEspera": "programas_listaespera",
     "LocalidadSiis": "programas_localidadsiis",
@@ -117,6 +119,8 @@ OTROS_NOMBRES_PUBLICOS = {
     "EntradaBitacoraManager",
     "EntradaBitacoraQuerySet",
     "EstadiaQuerySet",
+    "FotoInspeccionManager",
+    "FotoInspeccionQuerySet",
     "Group",
     "MaxValueValidator",
     "MinValueValidator",

@@ -87,10 +87,21 @@ def puede_operar_dispositivo(user, dispositivo, capacidad):
 def dispositivos_visibles(user):
     """Queryset de dispositivos que el usuario puede consultar dentro de su alcance."""
 
+    return dispositivos_en_alcance(user, CAP_VER)
+
+
+def dispositivos_en_alcance(user, capacidad):
+    """Dispositivos sobre los que el usuario tiene ``capacidad``, con el alcance fino.
+
+    La misma regla que :func:`puede_operar_dispositivo`, en forma de queryset: la
+    capacidad en el programa, y después todo (admin del programa) o solo los
+    dispositivos donde un rol activo **que tiene esa capacidad** está asignado.
+    """
+
     from programas.models import AsignacionDispositivo, Dispositivo
 
     programa = programa_dispositivos(user)
-    if programa is None or not rbac.puede(user, CAP_VER, programa=programa):
+    if programa is None or not rbac.puede(user, capacidad, programa=programa):
         return Dispositivo.objects.none()
     if puede_configurar_dispositivos(user):
         return Dispositivo.objects.all()
@@ -98,7 +109,7 @@ def dispositivos_visibles(user):
         rol__user=user,
         rol__meta__activo=True,
         rol__meta__programa=programa,
-        rol__permissions__codename=rbac.codename_de(CAP_VER),
+        rol__permissions__codename=rbac.codename_de(capacidad),
         activo=True,
     ).values("dispositivo_id")
     return Dispositivo.objects.filter(pk__in=asignados)
