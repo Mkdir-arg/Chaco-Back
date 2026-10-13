@@ -1,0 +1,13 @@
+{% comment %}
+Badge de la situación de un relevamiento edilicio (P21). Espera `situacion` y `texto`, que salen de
+`programas.services.inspecciones` (`situacion_de` y `Situacion.ETIQUETAS`): el rótulo vive en el
+servicio para que la tarjeta, el badge y la píldora digan lo mismo; acá solo se decide el color.
+Vencido, por vencer y al día no son estados del modelo: se derivan del vencimiento de lo que está
+en curso.
+{% endcomment %}
+<span class="badge badge-dot
+  {% if situacion == 'VENCIDA' %}badge-danger
+  {% elif situacion == 'POR_VENCER' %}badge-warning
+  {% elif situacion == 'AL_DIA' %}badge-success
+  {% elif situacion == 'REALIZADA' %}badge-info
+  {% else %}badge-gray{% endif %}">{{ texto }}</span>

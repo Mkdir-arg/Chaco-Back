@@ -94,8 +94,9 @@ línea (mismo resultado visual): se migra al tocarla, no se copia.
 **Evidencia:** `core/templatetags/nodo_ui.py` (tag), `templates/components/_menu_fila.html` y
 `_menu_fila_item.html`, `static/custom/css/nodo-menu-fila.css`, `static/custom/js/nodo-menu-fila.js`
 (el shell carga los dos últimos). Tests: `core/tests/test_nodo_ui_piezas.py` (`MenuFilaTest`).
-**Consumidores de referencia:** ninguno todavía; lo usan P4, P12, P20, P21 y P22 de Dispositivos y
-Merenderos.
+**Consumidores de referencia:** `programas/templates/programas/dispositivos/relevamientos/list.html`
+(P21: ítems con `url` y `motivo` preparados en la vista; las acciones con formulario abren su modal por
+parámetro GET). Lo van a usar también P4, P12, P20 y P22 de Dispositivos y Merenderos.
 
 ### Cuándo va cada forma
 

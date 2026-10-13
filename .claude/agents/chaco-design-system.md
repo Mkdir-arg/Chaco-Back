@@ -260,6 +260,8 @@ El lenguaje visual es el mismo en todos los módulos; el vocabulario de dominio,
   con sus modelos (MVP v2, release A) y **no es vocabulario vigente**: lo reemplazan
   sector, plaza, estadía, turno y bitácora, que entran pantalla por pantalla con el MVP
   (`docs/internal/dispositivos-v2/plan-mvp.md`). No copiar las pantallas dadas de baja.
+  También es suyo el relevamiento edilicio (en código `InspeccionEdificio`; las capacidades
+  `relevamiento.*` siguen siendo de Becas).
 - **Merenderos** habla de solicitudes, validación institucional, entregas de mercadería,
   prestación mensual y documentación respaldatoria.
 - **Transversal** (shell, usuarios, roles, legajos, portal, configuración): verificar

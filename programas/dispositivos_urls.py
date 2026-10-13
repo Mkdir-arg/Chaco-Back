@@ -3,6 +3,7 @@ from django.urls import path
 from programas.views import dispositivos_config as cfg
 from programas.views import dispositivos_ingreso as ingreso
 from programas.views import dispositivos_legajo as legajo
+from programas.views import dispositivos_relevamientos as relevamientos
 from programas.views import reportes
 
 app_name = "dispositivos"
@@ -37,6 +38,23 @@ urlpatterns = [
     path("<int:pk>/ingresar/", ingreso.IngresoPersonaView.as_view(), name="ingreso_persona"),
     path("<int:pk>/ingresar/plaza/", ingreso.IngresoPlazaView.as_view(), name="ingreso_plaza"),
     path("<int:pk>/ingresar/confirmar/", ingreso.IngresoConfirmarView.as_view(), name="ingreso_confirmar"),
+    # Relevamientos edilicios del coordinador (P21 · #701): en el código, `InspeccionEdificio`.
+    path("relevamientos/", relevamientos.RelevamientoListView.as_view(), name="relevamientos"),
+    path(
+        "relevamientos/edificio/<int:edificio_pk>/asignar/",
+        relevamientos.RelevamientoAsignarView.as_view(),
+        name="relevamiento_asignar",
+    ),
+    path(
+        "relevamientos/<int:pk>/reasignar/",
+        relevamientos.RelevamientoReasignarView.as_view(),
+        name="relevamiento_reasignar",
+    ),
+    path(
+        "relevamientos/<int:pk>/cancelar/",
+        relevamientos.RelevamientoCancelarView.as_view(),
+        name="relevamiento_cancelar",
+    ),
     path("config/", cfg.TipoDispositivoListView.as_view(), name="tipos"),
     path("config/nuevo/", cfg.TipoDispositivoCreateView.as_view(), name="tipo_crear"),
     path("config/<int:pk>/", cfg.TipoDispositivoDetailView.as_view(), name="tipo_detalle"),
