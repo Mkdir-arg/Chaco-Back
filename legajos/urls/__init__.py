@@ -25,7 +25,7 @@ urlpatterns = [
     path("ciudadanos/<int:pk>/", views_ciudadanos.CiudadanoDetailView.as_view(), name="ciudadano_detalle"),
     path("ciudadanos/<int:pk>/editar/", views_ciudadanos.CiudadanoUpdateView.as_view(), name="ciudadano_editar"),
     path(
-        "ciudadanos/<int:ciudadano_id>/dispositivos/<int:inscripcion_id>/",
+        "ciudadanos/<int:ciudadano_id>/dispositivos/",
         views_dispositivos.CiudadanoDispositivosView.as_view(),
         name="dispositivos_ciudadano",
     ),

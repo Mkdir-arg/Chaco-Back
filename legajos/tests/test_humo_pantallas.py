@@ -82,7 +82,7 @@ class PantallasDeLegajosAbrenTests(TestCase):
             "ciudadano_manual": (),
             "ciudadano_detalle": (self.ciudadano.id,),
             "ciudadano_editar": (self.ciudadano.id,),
-            "dispositivos_ciudadano": (self.ciudadano.id, 1),
+            "dispositivos_ciudadano": (self.ciudadano.id,),
             "programas": (),
             "programa_detalle": (self.programa.id,),
             "derivar_programa": (self.ciudadano.id,),
