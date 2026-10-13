@@ -36,13 +36,14 @@ relevar** —que no es lo mismo que relevado y sano, una inspección con critici
 consultas fijas: no crecen con la cantidad de edificios ni de dispositivos.
 """
 
+from datetime import timedelta
 from functools import reduce
 from operator import or_
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import OuterRef, Q, Subquery
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.utils import timezone
 
 from core import rbac
@@ -302,6 +303,113 @@ def agregar_foto(usuario, inspeccion, archivo, descripcion=""):
     if inspeccion.estado == InspeccionEdificio.Estado.CANCELADA:
         raise ValidationError("El relevamiento está cancelado.")
     return _guardar_foto(inspeccion, usuario, archivo, descripcion)
+
+
+# --------------------------------------------------------------------------- #
+# Listado del coordinador (P21): situación derivada, resumen y edificios para asignar
+# --------------------------------------------------------------------------- #
+
+#: Un relevamiento en curso está «por vencer» cuando le quedan estos días o menos (mockup P21).
+DIAS_POR_VENCER = 30
+
+
+class Situacion:
+    """Lo que dice el badge de Estado de P21. **No es un estado del modelo**: dentro de lo que
+    está en curso, «vencido», «por vencer» y «al día» se derivan del vencimiento (Cambio 275).
+
+    Los rótulos viven acá para que la tarjeta, el badge y la píldora digan lo mismo.
+    """
+
+    VENCIDA = "VENCIDA"
+    POR_VENCER = "POR_VENCER"
+    AL_DIA = "AL_DIA"
+    REALIZADA = InspeccionEdificio.Estado.REALIZADA.value
+    CANCELADA = InspeccionEdificio.Estado.CANCELADA.value
+
+    ETIQUETAS = {
+        VENCIDA: "Vencido",
+        POR_VENCER: "Por vencer",
+        AL_DIA: "Al día",
+        REALIZADA: "Completado",
+        CANCELADA: "Cancelado",
+    }
+    #: Las tres situaciones de lo que está en curso: la píldora «Estado» de la solapa En curso.
+    EN_CURSO = (
+        (VENCIDA, "Vencidos"),
+        (POR_VENCER, "Por vencer"),
+        (AL_DIA, "Al día"),
+    )
+
+
+def situacion_de(inspeccion, hoy=None):
+    """La situación de un relevamiento: vencido / por vencer / al día si está en curso, o su estado."""
+
+    if not inspeccion.en_curso:
+        return inspeccion.estado
+    hoy = hoy or timezone.localdate()
+    if inspeccion.fecha_vencimiento < hoy:
+        return Situacion.VENCIDA
+    if inspeccion.fecha_vencimiento <= hoy + timedelta(days=DIAS_POR_VENCER):
+        return Situacion.POR_VENCER
+    return Situacion.AL_DIA
+
+
+def _condicion_situacion(situacion, hoy):
+    """``Q`` de una situación en curso; ``None`` si no es una de :attr:`Situacion.EN_CURSO`."""
+
+    limite = hoy + timedelta(days=DIAS_POR_VENCER)
+    en_curso = Q(estado=InspeccionEdificio.Estado.ASIGNADA)
+    condiciones = {
+        Situacion.VENCIDA: en_curso & Q(fecha_vencimiento__lt=hoy),
+        Situacion.POR_VENCER: en_curso & Q(fecha_vencimiento__gte=hoy, fecha_vencimiento__lte=limite),
+        Situacion.AL_DIA: en_curso & Q(fecha_vencimiento__gt=limite),
+    }
+    return condiciones.get(situacion)
+
+
+def filtrar_por_situacion(queryset, situacion, hoy=None):
+    """Acota ``queryset`` a una situación en curso (vencido, por vencer, al día). Otra no filtra."""
+
+    condicion = _condicion_situacion(situacion, hoy or timezone.localdate())
+    return queryset if condicion is None else queryset.filter(condicion)
+
+
+def resumen_listado(queryset, *, situacion="", asignado_a_id=None, hoy=None):
+    """Los números de P21 en **una** consulta: las tarjetas y los contadores de las solapas.
+
+    Las tarjetas son sobre todo ``queryset`` (``asignados`` = en curso, que se parte en
+    ``al_dia`` + ``por_vencer`` + ``vencidos``). Los contadores de las solapas cuentan lo que
+    cada una muestra: el agente filtra las tres y la situación solo la de En curso.
+    """
+
+    hoy = hoy or timezone.localdate()
+    estado = InspeccionEdificio.Estado
+    en_curso = Q(estado=estado.ASIGNADA)
+    por_agente = Q(asignado_a_id=asignado_a_id) if asignado_a_id else Q()
+    totales = queryset.aggregate(
+        asignados=Count("pk", filter=en_curso),
+        vencidos=Count("pk", filter=_condicion_situacion(Situacion.VENCIDA, hoy)),
+        por_vencer=Count("pk", filter=_condicion_situacion(Situacion.POR_VENCER, hoy)),
+        al_dia=Count("pk", filter=_condicion_situacion(Situacion.AL_DIA, hoy)),
+        solapa_en_curso=Count("pk", filter=(_condicion_situacion(situacion, hoy) or en_curso) & por_agente),
+        solapa_completados=Count("pk", filter=Q(estado=estado.REALIZADA) & por_agente),
+        solapa_cancelados=Count("pk", filter=Q(estado=estado.CANCELADA) & por_agente),
+    )
+    return {clave: valor or 0 for clave, valor in totales.items()}
+
+
+def edificios_para_asignar(user):
+    """Donde el coordinador puede crear un relevamiento: su alcance, activos y **sin uno en curso**.
+
+    Es la misma regla que hace cumplir :func:`crear_inspeccion`; acá es la lista del selector.
+    """
+
+    return (
+        edificios_en_alcance(user, CAP_ASIGNAR)
+        .filter(activo=True)
+        .exclude(inspecciones__estado=InspeccionEdificio.Estado.ASIGNADA)
+        .order_by("nombre", "pk")
+    )
 
 
 # --------------------------------------------------------------------------- #

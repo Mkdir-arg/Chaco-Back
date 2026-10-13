@@ -1,0 +1,10 @@
+{% comment %}
+Badge de la criticidad de un relevamiento edilicio realizado (P21). Espera `relevamiento`.
+La escala (BAJA / MEDIA / ALTA) es un default a confirmar con el Ministerio (Cambio 275):
+el texto sale del modelo, así que cambiar los rótulos no toca este parcial.
+{% endcomment %}
+<span class="badge
+  {% if relevamiento.criticidad == 'ALTA' %}badge-danger
+  {% elif relevamiento.criticidad == 'MEDIA' %}badge-warning
+  {% elif relevamiento.criticidad == 'BAJA' %}badge-success
+  {% else %}badge-gray{% endif %}">{{ relevamiento.get_criticidad_display }}</span>
