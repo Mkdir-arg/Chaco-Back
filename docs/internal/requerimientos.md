@@ -407,6 +407,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 273 | Movimientos de la estadía: cambio de sector o de plaza con su historial, y permanencia calculada | Dispositivos · estadía | `#datos` `#rbac` | Task 29 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0089` |
 | 274 | Turnos y bitácora: la novedad se agrega, corregir crea una versión y nada se pisa | Dispositivos · datos y servicios | `#datos` `#rbac` | Task 30 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0090` · `users.0036` |
 | 276 | Detalle del dispositivo: quién está alojado, en qué sector y cuántas plazas quedan | Dispositivos · detalle | `#ui` `#rbac` `#performance` | Task 27 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
+| 277 | Detalle de la estadía: la persona alojada, su línea de tiempo y el cambio de plaza | Dispositivos · estadía | `#ui` `#rbac` `#performance` | Task 33 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 275 | Relevamiento edilicio: el modelo de la inspección, colgado del edificio | Dispositivos · relevamiento edilicio | `#datos` `#rbac` | Task 35 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0091`, `users.0037` |
 
 **Notas del índice**
@@ -34986,5 +34987,194 @@ los roles que los tengan, igual que en la OPS-14.
 ## Historial
 
 Entrada nueva. Etapa 4 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 277 — Detalle de la estadía: la persona alojada, su línea de tiempo y el cambio de plaza
+
+🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 33 · Detalle de la estadía` (#698)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · estadía |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191); «que se vea igual al mockup y mantenga la lógica» |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | #698 · Épica #127 · etapa 3 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«La pantalla de la persona alojada, con su línea de tiempo. P7 del mockup.» Identidad, plaza, línea de
+tiempo de movimientos, novedades y adjuntos; usa la línea de tiempo (task 15) y la sección de ficha
+(task 16). No incluye la ficha configurable por tipo ni los niveles de sensibilidad. Criterio: «la
+línea de tiempo refleja todos los movimientos en orden».
+
+## Alcance acordado
+
+Entra: identidad, plaza actual (sector, plaza, desde cuándo, tiempo en la plaza), permanencia
+calculada, línea de tiempo de movimientos, solapa Movimientos con la lista completa, otras estadías
+de la persona en la red, y las acciones **Cambiar plaza** (nueva) y **Registrar egreso** (la de la
+task 26, reutilizada). Queda afuera: novedades (la bitácora de la task 30 todavía no está en
+`development`), adjuntos (no hay modelo de adjuntos de estadía), permiso de salida y traslado (sin
+modelo), ficha configurable, niveles de sensibilidad e historial de cambios de la ficha.
+
+## Decisiones tomadas
+
+**Plan de pantalla.** Tipo B · Arquetipo Revisión · Golden
+`programas/templates/programas/dispositivos/estadia/revision_referencia.html` · Hermana (solo
+dominio) `estadia/estadias.html` (URL `dispositivos:egresar`, `EgresoForm`, textos del egreso) ·
+Bloques: `page_header` con identidad, badges y acciones · `_alerta` solo con la estadía cerrada ·
+solapas ARIA Ficha | Movimientos · Ficha con `_ficha_seccion` (Datos personales, Plaza actual,
+Estadía, Egreso si cerró) · Movimientos con tabla canónica, vacío y `_paginacion` con parámetro propio
+· derecha: Línea de tiempo (`_linea_tiempo`) y Otras estadías en la red · dos modales del arquetipo
+Modal. Novedades: ninguna.
+
+**Quién entra.** `dispositivo.ver` con alcance de programa y asignación al dispositivo —el mismo
+mixin que el detalle del dispositivo— **y** `ciudadano.ver`, la regla que sentó la solapa del legajo
+(Cambio 271). El 403 por `ciudadano.ver` sale **antes** de buscar la estadía: con un id inexistente
+también da 403, así que probar ids no dice cuáles existen. Una estadía de otro dispositivo da 404.
+
+**No se dibuja lo que no entra.** La golden trae cinco solapas; la pantalla real tiene dos (Ficha y
+Movimientos). Novedades, Adjuntos e Historial no se muestran deshabilitadas: no existen todavía. Las
+secciones no llevan avance ni sensibilidad (los da la ficha configurable de la Versión 2), y solo
+muestran datos que no son sensibles: ni las observaciones del egreso (texto libre) ni contacto o
+salud del legajo, que piden `ciudadano.sensible`. Es la misma regla que la trayectoria del legajo.
+
+**Una sola fuente para la línea de tiempo.** Sale de `services.movimientos.linea_de_tiempo` y de
+ningún otro lado; de esa misma lista salen la tabla, el contador y el tramo en la plaza actual
+(`tramos_por_plaza`). Se dibuja del más nuevo al más viejo, como el mockup y como documenta la pieza.
+Llega recortada a los últimos 10, con «Ver los N movimientos» a la solapa, que tiene la lista entera
+paginada; el contador es el total real.
+
+**El cambio de plaza ofrece solo las plazas libres**, y libres según `ocupacion.estado_de_plazas`
+(vía `plazas_para_ingresar`, el mismo camino que el ingreso): la pantalla no decide qué es una plaza
+tomada. La garantía es del servicio `cambiar_plaza`, que bloquea la plaza y la estadía: si otro
+operador toma la plaza con el modal abierto, el servicio lo rechaza y el error vuelve al campo.
+
+**La fecha del cambio se compara al minuto contra el último movimiento** (`ultimo_momento`), como
+`EgresoForm` hace con el ingreso: el `datetime-local` no trae segundos, y un cambio cargado en el
+mismo minuto que el anterior quedaría «anterior» por los segundos. Dentro de ese minuto el cambio va
+en el instante del último movimiento.
+
+**Las acciones no se ofrecen a quien el servicio va a rechazar**: Cambiar plaza con
+`dispositivo.admitir` con alcance y una plaza asignada; Egresar con `dispositivo.egresar` con
+alcance; ninguna sobre una estadía cerrada.
+
+**El egreso reutiliza el contrato existente** (`dispositivos:egresar` + `EgresoForm`): el modal de P7
+postea a la misma vista. Para volver a P7 —y que se vea el aviso «Estadía cerrada»— el modal manda un
+campo oculto `volver=estadia`: **una clave, no una URL**. `EstadiaEgresarView` la traduce en el
+servidor con `reverse`; cualquier otro valor cae al destino de siempre —la solapa Estadías del detalle
+del dispositivo (P4, Cambio 276)—, así que el POST no puede redirigir afuera.
+
+**Integración con P4 (Cambio 276).** En la tabla de la solapa Estadías de P4, el ícono «ver» de cada
+fila abre P7 (antes abría el legajo; P7 ya enlaza al legajo) y se ofrece con la misma condición,
+`ciudadano.ver`. Siguen siendo dos acciones por fila (ver y egresar), con `.nodo-icon-btn`. P7
+vuelve a P4 en la solapa Estadías (`url_solapa_estadias`) y sus migas dicen «Estadías», no «Personas
+alojadas». El estado de la estadía (texto y tono) sale de la tabla única `estado_visible` de
+`services/estadias.py`, la misma de P4 y de la solapa del legajo.
+
+**El motivo de un egreso en la línea de tiempo es el del catálogo, nunca las observaciones.**
+`MovimientoEstadia.motivo` podía traer el texto libre: `egresar_persona` lo copiaba cuando no había
+motivo del catálogo, y la migración 0089 reconstruyó así los egresos viejos. Dos arreglos: la pantalla
+muestra en el egreso `estadia.motivo.nombre` (o nada), y `egresar_persona` dejó de copiar las
+observaciones al movimiento —quedan solo en `Estadia.motivo_egreso`—. Los movimientos viejos no se
+tocan (son inmutables); la guarda de la pantalla es la que los cubre.
+
+**Ids únicos.** `CambioPlazaForm` y `EgresoForm` tienen los dos un campo `motivo`: el del cambio
+renderiza con `auto_id="cambio_%s"`, sin cambiar `name` ni `data-error`.
+
+**El eyebrow.** La ficha del arquetipo decía que `page_header` no tenía eyebrow; el código sí lo
+soporta (`eyebrow=`). Se corrigió la ficha y la pantalla lleva ahí «Dispositivo · Sector · plaza»,
+como el mockup; la bajada ya no la repite.
+
+**Sin plazas libres no se ofrece «Cambiar plaza»**: el modal no tendría a dónde mover a nadie.
+
+**Reingreso** = la persona tiene otra estadía, en cualquier dispositivo de la red, anterior a esta
+(el mapeo lo pide «en toda la red», no solo en el mismo dispositivo).
+
+## Implementación
+
+Ruta nueva `dispositivos:estadia_detalle` (`/dispositivos/<pk>/estadias/<estadia_pk>/`) y
+`dispositivos:cambiar_plaza` (POST con CSRF, `…/cambiar-plaza/`). El selector
+`programas/selectors/estadia_detalle.py` arma el contexto en tres consultas fijas: los movimientos
+con plazas y sectores, un `aggregate` con el total de otras estadías y las anteriores, y las últimas
+cinco de esas otras estadías.
+
+## Archivos
+
+`programas/selectors/estadia_detalle.py` (nuevo) · `programas/views/dispositivos_legajo.py` ·
+`programas/forms_dispositivos.py` (`CambioPlazaForm`) · `programas/dispositivos_urls.py` ·
+`programas/templates/programas/dispositivos/estadia/detalle.html` (nuevo) ·
+`programas/tests/test_dispositivos_estadia_detalle.py` (nuevo) ·
+`programas/tests/test_dispositivos_movimientos.py` · `scripts/perf_budgets.json` ·
+`programas/services/estadias.py` (egreso sin observaciones en el movimiento) ·
+`.claude/design/arquetipos/revision.md` (el eyebrow es opcional) ·
+`programas/templates/programas/dispositivos/legajo/detail.html` (el ícono «ver» abre P7) ·
+`programas/tests/test_dispositivos_detalle.py`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py check` sin observaciones; `compile_templates.py` 0 errores; `design_audit.py --ratchet`
+  0 nuevos; `--goldens` 0; `--arquetipo revision` y `--arquetipo modal` OK sobre la pantalla;
+  `check_design_agent.py --changed` y `--limites` OK; `check_perf_budgets.py` sin subidas; build de
+  Tailwind sin diff.
+- Tests: `test_dispositivos_estadia_detalle` (26), `test_dispositivos_movimientos`,
+  `test_dispositivos_egreso`, `test_dispositivos_estadias` en verde; `--tag performance programas`
+  en verde. Presupuesto nuevo `dispositivos_estadia_detalle` (servicios): 3 consultas fijas; la
+  pantalla entera mide lo mismo con 2 y con 16 movimientos y 1 u 8 otras estadías.
+- **Mutaciones** (romper la guarda → rojo → restaurar): comparar el cambio contra el ingreso en vez de
+  `ultimo_momento` en `cambiar_plaza` (rojo el test nuevo de movimientos; el viejo, con `ingreso - 1
+  min`, seguía verde: era el test vacío de la revisión de #826); sacar `ciudadano.ver` (rojo);
+  chequearla después de buscar la estadía (rojo el id inexistente); sacar el filtro por dispositivo
+  (rojo el 404); mixin sin alcance fino (rojo otra institución); capacidad de entrada cambiada (rojo
+  sin `dispositivo.ver`); botones sin capacidad o sobre estadía cerrada (rojo cada uno); comparar al
+  segundo o sin `max` en la fecha (rojo mismo minuto); ofrecer plazas no libres (rojo el modal);
+  sacar `_exigir_plaza_libre` del servicio (rojo la plaza tomada con el modal abierto); orden, fuente,
+  recorte y contador de la línea de tiempo (rojo cada uno); sacar el `select_related` (rojo el
+  presupuesto); mostrar las observaciones del egreso (rojo). **Ronda de revisión:** volver a mostrar
+  `movimiento.motivo` en el egreso deja verde el test con motivo del catálogo —pasaba por el motivo
+  equivocado— y rojo el nuevo, que arma el movimiento con el texto libre como la 0089; volver a
+  copiar las observaciones en `egresar_persona` (rojo); ignorar `volver=estadia` (rojo) o usar el valor
+  del POST como URL (rojo el test de valores maliciosos); `auto_id` por defecto (rojo, ids duplicados);
+  ofrecer el botón sin plazas libres (rojo); el sector repetido en un cambio de plaza (rojo).
+  **Defensa en profundidad:** sacar solo
+  la guarda de alcance de la vista del POST, o solo el filtro de plazas libres del formulario, deja
+  los tests de 403 y de plaza ocupada en verde porque el servicio también rechaza; sacando también la
+  del servicio, rojo.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- **Novedades**: la bitácora (Cambio 274) ya está en `development`, pero la solapa no entra acá. La
+  pieza `_entradas_bitacora.html` es de **un turno**: muestra solo la hora en una columna de 48 px, y
+  las novedades de una persona cruzan días, así que haría falta un parámetro nuevo de la pieza
+  (fecha y hora) o la pieza de la pantalla del turno (task 32). Además, qué tono lleva cada tipo de
+  novedad no está decidido en ningún lado todavía. Va como tercera solapa, «Novedades», después de
+  Movimientos (`EntradaBitacora.objects.vigentes().filter(personas=estadia)`, solo lectura), y la
+  acción «+ Novedad» en el encabezado de la surface «Línea de tiempo», como en la golden.
+- **Adjuntos**: sin modelo de adjuntos de estadía; no se dibuja la surface ni la solapa.
+- **Turno** en el «cuándo» de cada evento, cuando exista `Turno` (#695).
+- **Permiso de salida y Trasladar** del mockup: sin modelo.
+
+## Reversión
+
+Revertir el commit: no hay migración ni datos nuevos. Los movimientos de cambio de plaza que se
+hayan registrado desde la pantalla quedan (son historia inmutable y los escribe el servicio de la
+task 29).
+
+## Historial
+
+Entrada nueva. Etapa 3 del plan del Cambio 191.
 
 ---
