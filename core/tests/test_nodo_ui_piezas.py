@@ -636,6 +636,42 @@ class LineaTiempoTest(SimpleTestCase):
         self.assertNotIn("<b>x", html)
         self.assertIn("&lt;b&gt;x", html)
 
+    def test_las_fotos_van_dentro_del_evento_con_la_galeria(self):
+        fotos = [{"url": "/media/x/1.jpg", "alt": "Fachada del predio", "rotulo": "fachada"}]
+        eventos = [
+            {"cuando": "02/02", "titulo": "8 fotos", "fotos": fotos, "total_fotos": 8},
+            {"cuando": "14/08", "titulo": "Sin fotos"},
+        ]
+        html = render_to_string(LINEA_TIEMPO, {"eventos": eventos})
+
+        self.assertEqual(html.count("<ol "), 1)
+        primero, segundo = html.split('<li class="relative pl-5 text-sm">')[1:]
+        self.assertRegex(primero, r'<div class="mt-3">\s*<ul class="grid')
+        self.assertIn('src="/media/x/1.jpg"', primero)
+        self.assertIn('loading="lazy"', primero)
+        self.assertIn("Mostrando 1 de 8 fotos.", primero)
+        self.assertNotIn("<figure", segundo)
+
+    def test_sin_fotos_el_html_es_el_de_siempre(self):
+        """`fotos` vacío o ausente no cambia ni un carácter: ni galería ni estado vacío de fotos."""
+
+        base = [{"cuando": "x", "titulo": "Ingreso", "detalle": "plaza B-03", "badge": "nuevo", "tono": "success"}]
+        sin_clave = render_to_string(LINEA_TIEMPO, {"eventos": base})
+        vacia = render_to_string(LINEA_TIEMPO, {"eventos": [{**base[0], "fotos": [], "total_fotos": 0}]})
+
+        self.assertEqual(sin_clave, vacia)
+        self.assertNotIn("mt-3", sin_clave)
+        self.assertNotIn("Sin fotos", sin_clave)
+        self.assertIn("</p>\n  </li>", sin_clave)
+
+    def test_las_fotos_no_abren_el_escape_del_texto(self):
+        fotos = [{"url": "", "rotulo": "<b>techo</b>"}]
+        html = render_to_string(LINEA_TIEMPO, {"eventos": [{"cuando": "x", "titulo": "<i>t</i>", "fotos": fotos}]})
+
+        self.assertNotIn("<b>techo", html)
+        self.assertNotIn("<i>t", html)
+        self.assertIn("&lt;b&gt;techo", html)
+
 
 class FichaSeccionTest(SimpleTestCase):
     def _render(self, **contexto):

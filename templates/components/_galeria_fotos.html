@@ -13,7 +13,8 @@ Contexto:
 Tope: dibuja como máximo 24 fotos con `loading="lazy"`; si hay más, avisa «Mostrando 24 de N». La vista
 tiene que acotar (una tanda por vez, con paginación o «ver más»), no mandar el historial entero.
 Cada foto abre la imagen en una pestaña nueva. Sin fotos muestra el estado vacío.
-Todavía no entra dentro de un evento de components/_linea_tiempo.html: esa pieza no tiene slot de cuerpo.
+Dentro de un evento de components/_linea_tiempo.html no se incluye a mano: va como `fotos` + `total_fotos`
+del evento y esa pieza la dibuja adentro del <li>.
 {% endcomment %}
 {% if fotos %}
 <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6" role="list">
