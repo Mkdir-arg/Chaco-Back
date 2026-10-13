@@ -55,7 +55,7 @@ define una contraseña propia.
 Se envía cuando la persona usa "¿Olvidaste tu contraseña?" en la pantalla de
 ingreso. Aplica también a los territoriales que entran desde la app.
 
-**Asunto:** Recuperación de contraseña de DATAÑACH
+**Asunto:** Recuperación de contraseña de DATAÑACH — usuario *[nombre de usuario]*
 
 **Cuerpo:**
 
@@ -67,6 +67,8 @@ ingreso. Aplica también a los territoriales que entran desde la app.
 >
 > Recibimos una solicitud para restablecer la contraseña de tu usuario en el
 > backoffice de DATAÑACH. Creá una nueva contraseña desde el siguiente botón.
+>
+> Este enlace cambia la contraseña del usuario ***[nombre de usuario]***.
 >
 > **[ Definir contraseña nueva ]**
 >
@@ -81,6 +83,12 @@ ingreso. Aplica también a los territoriales que entran desde la app.
 alguien pide el recupero con un correo que no está en el sistema, la pantalla
 responde exactamente lo mismo que si existiera — así no se puede averiguar qué
 cuentas están dadas de alta.
+
+**Un mismo correo en varios usuarios:** una persona puede tener más de un
+usuario con la misma casilla. En ese caso le llega **un correo por cada usuario**,
+y cada uno dice en el asunto y en el cuerpo de qué usuario es su enlace. La
+pantalla que abre el enlace también lo dice: «Estás definiendo la contraseña del
+usuario *[nombre de usuario]*».
 
 ---
 

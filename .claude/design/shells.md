@@ -114,6 +114,9 @@ Superficie **sin sesión**, sin menú ni alertas internas, para credenciales. La
 
 Contrato: clases `public-auth__title`, `__help`, `__field`, `__error`, `__button` y `__link`, con
 `button.public-auth__link` para la misma apariencia cuando la acción tiene que ir por formulario.
+`establecer_contrasena.html`, con el enlace válido, nombra en su `public-auth__help` el usuario
+cuya clave se define (`<strong>{{ form.user.username }}</strong>`): un mismo correo puede estar
+en varios usuarios y el enlace es de uno solo.
 La marca web usa `static/custom/chaco/login-logo.png` (330×120, logo del Gobierno del Chaco) y el
 CSS compilado `static/custom/css/tailwind.css`. `static/custom/icore/nodo-logo.svg` es la marca de
 ICore y **no** se usa en superficies del organismo. No reutiliza el shell del backoffice.

@@ -399,6 +399,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 260 | El gate del release corría la suite con media instalación: `tblib` faltaba y el rojo no era del release | Transversal — CI (`release-gate.yml` job «Suite completa (SQLite)» y `pr-backend.yml` job «Orden y paralelo») | `#infra` `#metodo` | Corrida 38314173223 del `release-gate` sobre `main` `7c617406` — hotfix | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 261 | El gate de publicación deja de pagar con padrones el precio de no marcar prosa | Transversal — gate de publicación de `docs/client/` | `#infra` `#datos` | Revisión de #797 (Cambio 258) — los MINOR que quedaron abiertos (Ola 7, PR 9: cierre del carril) | 13/10/2026 | 🟢 **Hecho** (sin decisión de cliente abierta; los límites del gate quedan declarados en la ficha RED-64) | No |
 | 262 | Estadía, reserva de plaza y clave de alojamiento: una sola persona alojada en toda la red | Dispositivos · datos y servicios | `#datos` `#rbac` | Task 24 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0087` |
+| 263 | Un mismo correo en varios usuarios: cada correo de recupero dice de qué usuario es, y el alta no muestra una clave que el sistema ignora | Transversal — usuarios (recupero de contraseña y alta) | `#usuarios` `#correo` `#ui` | PM — decisión en sesión de trabajo: los correos se pueden repetir entre usuarios y el login no se toca | 13/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -3626,6 +3627,8 @@ correr `diagnosticar_correo` desde el servidor (task #245) y falta la **aprobaci
 textos (#244)**, que la firma el cliente y no la desbloquea Infra. Siguen abiertos también la
 casilla de soporte y la dirección postal del pie, y el límite de intentos en el recupero. Ver
 **Cambio 50**.
+
+**13/10/2026 — el correo de recupero y la pantalla del enlace nombran al usuario (Cambio 263).** Un mismo correo puede estar en varios usuarios (decisión del PM): el asunto y el cuerpo del recupero dicen de qué usuario es cada enlace, y el alta muestra que con correo la clave la genera el sistema. RN-C1 no cambia.
 
 # Cambio 40 — Corregir la redirección autenticada de `/dashboard/`
 
@@ -33713,3 +33716,117 @@ puebla es esta misma release— así que mientras no haya un ingreso cargado la 
 Entrada nueva. Abre la etapa 2 del plan del Cambio 191.
 
 ---
+
+# Cambio 263 — Un mismo correo en varios usuarios: cada correo de recupero dice de qué usuario es, y el alta no muestra una clave que el sistema ignora
+
+🟢 **HECHO — 13/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — usuarios: «Olvidé mi contraseña» (correo y pantalla del enlace) y alta de usuario del backoffice |
+| **Etiquetas** | `#usuarios` `#correo` `#ui` |
+| **Solicitante** | PM — decisión en sesión de trabajo del 13/10/2026 |
+| **Fecha del pedido** | 13/10/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Una persona puede tener **varios usuarios del backoffice con el mismo correo**. Al pedir
+«Olvidé mi contraseña» le llega un correo por cada usuario, pero ninguno dice de qué
+usuario es su enlace, y la pantalla que abre el enlace tampoco: la persona no sabe cuál es
+cuál. Y en el alta, el campo «Contraseña *» se ve obligatorio y habilitado aunque se cargue
+correo, cuando con correo el sistema ignora lo tipeado y manda otra clave: el operador le
+pasa una clave a la persona y le llega otra.
+
+## Alcance acordado
+
+**Entra:** el usuario en el asunto y en el cuerpo (texto y HTML) del correo de recupero; el
+usuario en la pantalla de «Establecer contraseña» cuando el enlace es válido; y que el alta
+diga, según haya correo o no, si la contraseña la genera el sistema o la tiene que poner el
+operador.
+
+**Queda afuera:**
+
+- **Correo único por usuario.** No se agrega: ver *Decisiones tomadas*.
+- **El login** (`users/templates/user/login.html`, `users/forms/auth.py`): no se toca.
+- **La regla de negocio del alta** (RN-C1 del Cambio 37: con correo la clave la genera el
+  sistema y viaja en el mensaje; sin correo la pone el operador). No cambia; solo la
+  pantalla la explica. La validación del servidor (`_validar_correo_de_entrega`) queda igual.
+
+## Decisiones tomadas
+
+- **Los correos se pueden repetir entre usuarios (PM, 13/10/2026).** Es el caso real de
+  una persona con varios usuarios, y se mantiene: no hay validación de correo único ni en
+  el alta ni en la edición. El recupero de Django ya manda un correo por cada usuario
+  activo con esa casilla; lo que faltaba era que cada correo dijera de cuál es.
+- **El login no se toca.** El pedido es solo sobre el recupero y el alta.
+- **El usuario va en el asunto**, no solo en el cuerpo: con dos correos iguales en la
+  bandeja, el asunto es lo primero que distingue uno de otro.
+- **En el alta, el campo se deshabilita con JS y no desde el form.** El estado inicial
+  (asterisco y ayuda) lo rinde el servidor según el correo cargado; el JS lo recalcula al
+  tipear el correo y deshabilita el campo. Sin JS el campo queda habilitado y el servidor
+  hace lo de siempre (ignora la clave si hay correo). Deshabilitarlo desde el form habría
+  dejado trabado a quien no tiene JS y quiere borrar el correo y poner una clave.
+
+## Implementación
+
+- **Correo de recupero:** asunto «Recuperación de contraseña de DATAÑACH — usuario
+  *X*»; en el cuerpo, antes del enlace/botón, «Este enlace cambia la contraseña del
+  usuario *X*.» (en el HTML con el mismo estilo en línea del resto del correo, y el
+  usuario también en el texto de vista previa).
+- **Pantalla del enlace:** con el enlace válido dice «Estás definiendo la contraseña del
+  usuario **X**». Con el enlace vencido o usado no nombra a nadie.
+- **Alta de usuario:** sin correo, «Contraseña *» con la ayuda de siempre; con correo,
+  el asterisco desaparece, el campo queda deshabilitado y la ayuda dice «Se genera
+  automáticamente y se envía por correo.». El campo pasa por `{% campo_control %}`, así
+  que el lector de pantalla lee la ayuda. La edición no cambia (ese bloque es solo del alta).
+
+## Archivos
+
+- `users/templates/user/email/recupero_contrasena_asunto.txt`, `recupero_contrasena.txt`,
+  `recupero_contrasena.html` — el usuario en asunto y cuerpo.
+- `users/templates/user/establecer_contrasena.html` — el usuario en la ayuda.
+- `users/templates/user/user_form.html` — bloque de contraseña del alta y su JS.
+- `users/tests/test_correo_compartido.py` — 6 pruebas nuevas.
+- `.claude/design/shells.md` — la pantalla del enlace es evidencia del shell de auth pública.
+- `docs/client/funcionalidades/correos-credenciales.md` — los textos para el cliente.
+- `docs/internal/requerimientos.md` — esta entrada y una línea de historial en el Cambio 37.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py check`: sin issues.
+- `manage.py test users` (Python 3.12 + Django 5.2, `.venv312`): **496 pruebas, OK**
+  (7 skipped), con las 6 nuevas: dos usuarios con el mismo correo → 2 correos, cada uno
+  con su usuario en asunto, texto y HTML y con su propio enlace; la pantalla del enlace
+  nombra al usuario y la del enlace inválido no; el alta sin correo muestra el asterisco y
+  con correo la ayuda nueva sin asterisco; la edición no muestra el bloque.
+- `ruff check` y `ruff format --check` sobre el test nuevo: OK.
+- `scripts/design_audit.py --ratchet`: **0 hallazgos nuevos**. `scripts/compile_templates.py`:
+  **0 errores** (223 compilados). `scripts/check_design_agent.py --changed`: OK.
+- `scripts/check_docs_client.py`: 0 hallazgos.
+- **Manual en testing (https://datanach.ecomdev.ar):** crear dos usuarios con el mismo
+  correo, pedir el recupero y verificar los dos correos y la pantalla de cada enlace; en
+  «Nuevo usuario», tipear y borrar el correo y ver cambiar el campo Contraseña.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- **Aprobación de los textos** por el cliente: el documento de `docs/client` quedó al día;
+  sigue el pendiente #244 del Cambio 37.
+
+## Reversión
+
+Revertir el commit. No hay datos que se pierdan.
+
+## Historial
+
+No aplica: entrada nueva.

@@ -19,7 +19,7 @@
 </style>
 </head>
 <body style="margin:0; padding:0; background-color:#f9fafb; -webkit-font-smoothing:antialiased;">
-<span style="display:none !important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden; mso-hide:all;">Recibimos un pedido para restablecer tu contraseña. El enlace vence en 24 horas.</span>
+<span style="display:none !important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden; mso-hide:all;">Recibimos un pedido para restablecer la contraseña del usuario {{ user.username }}. El enlace vence en 24 horas.</span>
 
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f9fafb;">
 <tr>
@@ -44,7 +44,9 @@
               <p style="margin:0 0 12px 0; font-size:12px; line-height:16px; mso-line-height-rule:exactly; letter-spacing:1px; text-transform:uppercase; color:#5059bc; font-weight:bold;">Seguridad de la cuenta</p>
               <h1 class="h1" style="margin:0 0 16px 0; font-size:28px; line-height:34px; mso-line-height-rule:exactly; letter-spacing:-0.8px; font-weight:bold; color:#252f40;">Restablecé tu contraseña</h1>
               <p style="margin:0 0 16px 0; font-size:16px; line-height:26px; mso-line-height-rule:exactly; color:#4b5563;">Hola {{ user.first_name|default:user.username }},</p>
-              <p style="margin:0 0 8px 0; font-size:16px; line-height:26px; mso-line-height-rule:exactly; color:#4b5563;">Recibimos una solicitud para restablecer la contraseña de tu usuario en el backoffice de DATAÑACH. Creá una nueva contraseña desde el siguiente botón.</p>
+              <p style="margin:0 0 16px 0; font-size:16px; line-height:26px; mso-line-height-rule:exactly; color:#4b5563;">Recibimos una solicitud para restablecer la contraseña de tu usuario en el backoffice de DATAÑACH. Creá una nueva contraseña desde el siguiente botón.</p>
+              {% comment %}Un mismo correo puede estar en varios usuarios: sale un mensaje por cada uno y este renglón dice de cuál es.{% endcomment %}
+              <p style="margin:0 0 8px 0; font-size:16px; line-height:26px; mso-line-height-rule:exactly; color:#4b5563;">Este enlace cambia la contraseña del usuario <strong style="color:#252f40;">{{ user.username }}</strong>.</p>
             </td>
           </tr>
 
