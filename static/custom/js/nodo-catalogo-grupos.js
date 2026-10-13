@@ -20,6 +20,10 @@
  * Listas planas (Cambio 264): el mismo archivo ordena los requisitos propios
  * del programa, del segmento y del subsegmento (`[data-sortable-lista]`, ver
  * el bloque del final). Una sola lista por tbody, sin grupos.
+ *
+ * Si el guardado falla (4xx/5xx o red), las dos variantes vuelven el DOM al
+ * último orden que vino del servidor: la pantalla no muestra un orden que no
+ * se guardó. El aviso de error queda igual y el foco vuelve a la manija.
  */
 (function () {
   'use strict';
@@ -50,6 +54,22 @@
       document.body.appendChild(el);
     }
     el.textContent = texto;
+  }
+
+  // Foto del orden tal como lo renderizó el servidor: por cada contenedor, sus
+  // hijos en orden (filas, tarjetas y el placeholder de grupo vacío, que el
+  // teclado saca al entrar). `restaurar` los vuelve a colgar en ese orden con
+  // los mismos nodos, sin re-render: appendChild mueve el nodo de donde esté.
+  function fotoDe(contenedores) {
+    return contenedores.map(function (padre) {
+      return { padre: padre, hijos: Array.prototype.slice.call(padre.children) };
+    });
+  }
+
+  function restaurar(foto) {
+    foto.forEach(function (f) {
+      f.hijos.forEach(function (hijo) { f.padre.appendChild(hijo); });
+    });
   }
 
   // La manija con foco, como selector re-localizable tras el re-render.
@@ -92,6 +112,17 @@
     var root = document.querySelector('[data-sortable-grupos]');
     if (!root || !window.Sortable || root.getAttribute('data-puede-ordenar') !== '1') { return; }
     var url = root.getAttribute('data-url-reordenar');
+    // Orden confirmado: `init()` corre al cargar y tras cada guardado exitoso.
+    var fotoGrupos = fotoDe([root].concat(Array.prototype.slice.call(
+      root.querySelectorAll('tbody[data-sortable-preguntas]'))));
+
+    function revertir(focoSel) {
+      restaurar(fotoGrupos);
+      if (focoSel) {
+        var grip = document.querySelector(focoSel);
+        if (grip) { grip.focus(); }
+      }
+    }
 
     function guardar() {
       // Un guardado demorado puede dispararse después de que otro flujo
@@ -130,11 +161,13 @@
           }
         } else {
           root.classList.remove('is-saving');
+          revertir(focoSel);
           indicar('No se guardó el orden');
           aviso(data.error || 'No se pudo guardar el orden. Recargá la página.', 'error');
         }
       }).catch(function () {
         root.classList.remove('is-saving');
+        revertir(focoSel);
         indicar('No se guardó el orden');
         aviso('No se pudo guardar el orden. Revisá la conexión.', 'error');
       });
@@ -255,9 +288,21 @@
     var url = lista.getAttribute('data-url-reordenar');
     var indicador = document.getElementById(lista.getAttribute('data-indicador') || '');
     var sortable = null;
+    // Orden confirmado por el servidor (al enlazar) y el último ítem movido, con
+    // mouse o con teclado: si el guardado falla se vuelve a esa foto y el foco
+    // a la manija de ese ítem.
+    var fotoLista = fotoDe([lista]);
+    var movidoId = null;
 
     function indicarLista(texto) {
       if (indicador) { indicador.textContent = texto; }
+    }
+
+    function revertirLista() {
+      restaurar(fotoLista);
+      var tr = movidoId ? lista.querySelector('tr[data-item-id="' + movidoId + '"]') : null;
+      var grip = tr ? tr.querySelector('.lista-grip') : null;
+      if (grip) { grip.focus(); }
     }
 
     function guardarLista() {
@@ -300,11 +345,13 @@
           }
         } else {
           if (sortable) { sortable.option('disabled', false); }
+          revertirLista();
           indicarLista('No se guardó el orden');
           aviso(data.error || 'No se pudo guardar el orden. Recargá la página.', 'error');
         }
       }).catch(function () {
         if (sortable) { sortable.option('disabled', false); }
+        revertirLista();
         indicarLista('No se guardó el orden');
         aviso('No se pudo guardar el orden. Revisá la conexión.', 'error');
       });
@@ -328,6 +375,7 @@
         var destino = filas[filas.indexOf(tr) + (e.key === 'ArrowUp' ? -1 : 1)];
         if (!tr || !destino) { return; }
         lista.insertBefore(tr, e.key === 'ArrowUp' ? destino : destino.nextSibling);
+        movidoId = tr.getAttribute('data-item-id');
         grip.focus();
         filas = filasDe(lista);
         var celda = tr.querySelector('.js-lista-texto');
@@ -343,7 +391,11 @@
       draggable: 'tr[data-item-id]',
       ghostClass: 'sortable-ghost',
       chosenClass: 'sortable-chosen',
-      onEnd: function (evt) { if (evt.oldIndex !== evt.newIndex) { guardarLista(); } }
+      onEnd: function (evt) {
+        if (evt.oldIndex === evt.newIndex) { return; }
+        movidoId = evt.item ? evt.item.getAttribute('data-item-id') : null;
+        guardarLista();
+      }
     });
     instanciasLista.push(sortable);
   }

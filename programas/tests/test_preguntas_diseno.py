@@ -125,6 +125,8 @@ var __ops = [];
 window.Sortable = function (el, opts) {{ __ops.push(opts); }};
 var __root = {{
   isConnected: true,
+  children: [],
+  appendChild: function () {{}},
   classList: {{add: function () {{}}, remove: function () {{}}}},
   getAttribute: function (n) {{ return n === 'data-puede-ordenar' ? '1' : '/reordenar/'; }},
   querySelectorAll: function () {{ return []; }},

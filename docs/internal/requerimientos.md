@@ -33975,3 +33975,16 @@ estén y el formulario anterior los vuelve a aceptar (con la validación de repe
 ## Historial
 
 Entrada nueva.
+
+**13/10/2026 — si el guardado del orden falla, la pantalla vuelve al orden anterior.** Hallazgo
+MINOR del revisor del PR #822: ante un 409/403/400 o un error de red, la fila quedaba movida en
+la pantalla con el aviso «recargá la página», mostrando un orden que no se había guardado. Ahora
+`nodo-catalogo-grupos.js` toma una foto del orden al enlazar la lista (el que vino del servidor)
+y, si el POST no sale bien, re-cuelga las mismas filas en ese orden sin recargar, deja el
+indicador en «No se guardó el orden», avisa por toast y devuelve el foco a la manija del ítem
+movido; igual con mouse o con teclado. El catálogo agrupado de preguntas generales (Cambio 58)
+tenía el mismo problema y recibió el mismo arreglo: vuelven los grupos, las preguntas que
+cruzaron de grupo y la fila de «grupo vacío». Tests: `JsListaRevierteSiFallaTests` en
+`test_requisitos_orden_drag.py` (corre el JS real con node); probado además en Chromium forzando
+un 409 y un corte de red sobre las dos pantallas. Ficha *Drag & drop* de
+`.claude/design/dominio/becas.md` actualizada.
