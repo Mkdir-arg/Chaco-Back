@@ -5,7 +5,8 @@
 {% block auth_content %}
 <h1 class="public-auth__title">Establecer contraseña</h1>
 {% if validlink %}
-  <p class="public-auth__help">Elegí una contraseña segura para ingresar a DATAÑACH.</p>
+  {% comment %}Un mismo correo puede estar en varios usuarios: el enlace es de uno solo y la pantalla dice cuál.{% endcomment %}
+  <p class="public-auth__help">Estás definiendo la contraseña del usuario <strong>{{ form.user.username }}</strong>. Elegí una contraseña segura para ingresar a DATAÑACH.</p>
   <form method="post">
     {% csrf_token %}
     {% for field in form %}
