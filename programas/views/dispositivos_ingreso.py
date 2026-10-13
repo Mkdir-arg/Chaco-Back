@@ -288,8 +288,15 @@ class IngresoPlazaView(IngresoBaseView):
             return redirect(self.urls()["confirmar"])
         return None
 
+    def mapa(self):
+        """`(sectores, elegibles)` del dispositivo, calculado una sola vez por petición."""
+
+        if not hasattr(self, "_mapa"):
+            self._mapa = plazas_para_ingresar(self.dispositivo)
+        return self._mapa
+
     def render_paso(self, request, estado, persona, elegida=None, error="", aviso=""):
-        sectores, elegibles = plazas_para_ingresar(self.dispositivo)
+        sectores, elegibles = self.mapa()
         url_plaza = self.urls()["plaza"]
         for item in sectores:
             for plaza in item["plazas"]:
@@ -323,7 +330,7 @@ class IngresoPlazaView(IngresoBaseView):
         if error:
             self.guardar(estado)
 
-        _sectores, elegibles = plazas_para_ingresar(self.dispositivo)
+        _sectores, elegibles = self.mapa()
         pedida = request.GET.get("elegir")
         if pedida:
             if pedida.isdigit() and int(pedida) in elegibles:
@@ -358,7 +365,7 @@ class IngresoPlazaView(IngresoBaseView):
         pedida = request.POST.get("plaza") or ""
         if not pedida:
             return self.render_paso(request, estado, persona, error="Elegí una plaza disponible en el mapa.")
-        _sectores, elegibles = plazas_para_ingresar(self.dispositivo)
+        _sectores, elegibles = self.mapa()
         if not (pedida.isdigit() and int(pedida) in elegibles):
             return self.render_paso(request, estado, persona, error="Esa plaza ya no está disponible. Elegí otra.")
         estado.update({"plaza_id": int(pedida), "plaza_decidida": True})
