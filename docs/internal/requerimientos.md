@@ -404,7 +404,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 269 | Egreso con catálogo de motivos: el historial no puede perder su razón | Dispositivos · egreso | `#datos` `#ui` | Task 26 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0088` |
 | 271 | La solapa del legajo muestra toda la trayectoria, y no deja enumerar personas | Dispositivos · legajo | `#rbac` `#ui` | Task 28 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 272 | Asistente de ingreso, y un solo origen para el estado de cada plaza | Dispositivos · ingreso | `#ui` `#rbac` | Task 25 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
-| 273 | Asistente de ingreso, y un solo origen para el estado de cada plaza | Dispositivos · ingreso | `#ui` `#rbac` | Task 25 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
+| 273 | Movimientos de la estadía: cambio de sector o de plaza con su historial, y permanencia calculada | Dispositivos · estadía | `#datos` `#rbac` | Task 29 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0089` |
 
 **Notas del índice**
 
@@ -34288,121 +34288,167 @@ Entrada nueva. Etapa 2 del plan del Cambio 191.
 
 ---
 
-# Cambio 273 — Asistente de ingreso, y un solo origen para el estado de cada plaza
+# Cambio 273 — Movimientos de la estadía: cambio de sector o de plaza con su historial, y permanencia calculada
 
-🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 25` (#690)
+🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 29` (#694)
 
 | | |
 |---|---|
-| **Programa / módulo** | Dispositivos · ingreso · ocupación |
-| **Etiquetas** | `#ui` `#rbac` |
+| **Programa / módulo** | Dispositivos · estadía |
+| **Etiquetas** | `#datos` `#rbac` |
 | **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
 | **Fecha del pedido** | 09/10/2026 |
-| **Issue / épica** | Task 25 del backlog del MVP · Épica #127 · etapa 2 |
-| **Partes afectadas** | `programas/services/ocupacion.py`, `services/ingreso.py`, `services/sectores_plazas.py`, `views/dispositivos_ingreso.py` |
-| **Migración** | No requiere |
+| **Issue / épica** | Task 29 del backlog del MVP · #694 · Épica #127 · etapa 3 |
+| **Partes afectadas** | `programas/models/__init__.py`, `services/estadias.py`, `services/movimientos.py` (nuevo) |
+| **Migración** | `programas.0089` — modelo `MovimientoEstadia` y reconstrucción de los movimientos de las estadías existentes |
+
+## Pedido original
+
+«Lo que le pasa a la persona mientras está alojada.» `MovimientoEstadia` con turno, hora, responsable
+y motivo; cambio de sector o de plaza, con su historial; permanencia calculada, no cargada. **No
+incluye** préstamo de plaza ni permiso de salida.
+
+## Alcance acordado
+
+Entra el modelo, el servicio de cambio de sector o de plaza dentro del mismo dispositivo, el
+movimiento de ingreso y de egreso, y la permanencia. **Sin UI**: la línea de tiempo se dibuja en P7
+(task 33). Fuera: préstamo de plaza, permiso de salida, traslado a otra institución (cierra una
+estadía y abre otra) y el modelo `Turno` (task 30, en paralelo).
 
 ## Decisiones tomadas
 
-**La plaza se puede perder entre el paso 2 y el final, y eso no es un 500.** Es exactamente el caso
-que la ficha del arquetipo Wizard advierte que la golden no cubre. Elegir la plaza en el paso 2 solo
-guarda la intención; el paso final llama a `ingresar_persona`, que toma la plaza con
-`select_for_update()` dentro de `transaction.atomic()`. Si otro operador la tomó en el medio —o la
-sacaron de servicio, o la reserva dejó de valer—, **el usuario vuelve al paso de la plaza con el
-error**, y el alta del legajo que se hubiera hecho en el camino se revierte: no quedan legajos
-huérfanos. Hay un test que simula esa carrera.
+**El turno no se guarda: se deriva de `(dispositivo, momento)`.** La task 30 crea `Turno`
+configurable por dispositivo y con su horario, en otra rama y al mismo tiempo. El movimiento guarda
+el `momento` en que pasó (que no es el `creado` de cuando se cargó) y su `dispositivo`, con el índice
+`(dispositivo, momento)` que es justo la consulta del censo por turno (task 31). Así no hay un segundo
+dato que contradiga al primero ni movimientos sin turno por haberse cargado antes de configurarlo. Si
+más adelante el turno tiene que **congelarse** —que cambiar los horarios no mueva movimientos viejos
+de turno—, entra como FK anulable a `Turno` sin tocar nada de esto.
 
-**Un solo origen para el estado de cada plaza.** La primera versión calculaba el estado por plaza en
-el servicio de ingreso, y eso violaba la regla 3 del plan de la etapa 2: si el mapa del ingreso y el
-de sectores derivan por separado, terminan mostrando **la misma plaza en estados distintos**. Ahora
-hay una sola función, `estado_de_plazas`, en el servicio de ocupación, que consumen **las dos
-pantallas**. Un test arma una plaza en cada estado —ocupada, reservada, prestada, disponible, fuera
-de servicio— y verifica que P5 y P6 muestran **el mismo estado y el mismo tono** para cada una.
+**El dispositivo va repetido en el movimiento**, aunque sea el de la estadía: no cambia nunca (un
+traslado es otra estadía) y el censo por turno lo filtra sin pasar por ella.
 
-**De paso, la pantalla de sectores y plazas pasó a mostrar ocupación real.** Hasta acá seguía
-diciendo «todavía no se ve la ocupación» aunque el servicio ya la daba: nadie había conectado el
-estado por plaza. Y su encabezado dejó de contar por su cuenta: los contadores salen del mismo
-servicio que el mapa, con un test que fija que lo que cuenta el encabezado coincide con lo que dibuja
-el mapa.
+**Un solo lugar para la línea de tiempo.** `ingresar_persona`, `cambiar_plaza` y `egresar_persona`
+escriben su movimiento en la misma transacción que el cambio, por
+`services.movimientos.registrar_movimiento`. Los de ingreso y egreso llevan **exactamente**
+`fecha_ingreso` y `fecha_egreso` como `momento`, no la hora de la carga.
 
-## Correcciones de la revisión
+**El cambio de plaza reusa las reglas del ingreso, no las copia.** `cambiar_plaza` vive en
+`services/estadias.py`, al lado del ingreso: resuelve la plaza **dentro del dispositivo** y la
+bloquea (`_bloquear_plaza`), relee la estadía con `select_for_update()` —en ese orden, plaza y
+después estadía, el mismo que el ingreso con reserva— y exige `_exigir_plaza_libre`, la misma
+función que el ingreso. Esa función mira las estadías activas y las reservas que toman la plaza
+**desde ahora**, sobre los mismos datos de los que `services/ocupacion.py` deriva las cifras; no se
+llamó a `ocupacion` porque cuenta por sector y con `vigentes()`, que mira un instante y deja pasar
+una reserva que empieza en una hora (MAJOR 2 de la revisión de #802). Falla: plaza ocupada, fuera
+de servicio, en un sector dado de baja, reservada o prestada (aunque sea para la misma persona), de
+otra institución (mismo mensaje que la inexistente) o la misma en la que ya está.
 
-**La revisión independiente rechazó la primera versión con un MAJOR grave: con el asistente abierto
-en dos pestañas se podía ingresar a una persona distinta de la que mostraba la pantalla.** Todo el
-estado vivía en una sola clave de sesión, y el «Confirmar» escribía lo que había en la sesión, no lo
-que la pestaña mostró. Si la pestaña A quedaba en «Confirmar» mostrando a la persona A y en la B se
-cargaba a otra, **confirmar en A alojaba a la de B**. Estamos alojando personas en situación de
-calle: alojar a la equivocada es grave.
+**Sector o plaza lo decide el servicio**: si la plaza nueva es de otro sector el movimiento es
+`CAMBIO_SECTOR`; si es del mismo, `CAMBIO_PLAZA`. El tipo `CAMBIO_ESTADO` queda en el catálogo pero
+**ningún servicio lo emite todavía**: hoy la estadía solo tiene ACTIVA y EGRESADA, y esos dos cambios
+son el ingreso y el egreso.
 
-**Ahora cada paso que decide algo lleva en campos ocultos lo que mostró** —la persona y la plaza—, y
-la vista lo compara con la sesión antes de escribir; si no coinciden, no escribe y vuelve a mostrar
-el paso con el aviso «el ingreso cambió en otra pestaña». **Una clave de sesión por intento no
-alcanzaba**: una pestaña duplicada o el botón «atrás» comparten el mismo intento, y seguirían
-escribiendo lo ajeno. El estado se guarda además **por dispositivo**, para que abrir el asistente de
-otro no borre el progreso. El test se escribió antes del arreglo y falló con *«se alojó a la persona
-de la otra pestaña, que esta pantalla nunca mostró»*.
+**Autorización: `dispositivo.admitir` sobre el dispositivo**, como el ingreso —asignar plaza es
+parte de alojar—. No se agregó capacidad al `CATALOGO`. El motivo del cambio es obligatorio.
 
-**La regla quedó en la ficha del arquetipo Wizard**, porque vale para cualquier wizard con estado en
-sesión, no solo para este: el paso final escribe lo que la pantalla mostró, no lo que hay en la
-sesión.
+**Nada se reescribe hacia atrás.** Un cambio o un egreso no pueden fecharse antes del último
+movimiento de la estadía: un cambio fechado antes del anterior dejaría a la persona saliendo de una
+plaza en la que todavía no estaba. **Esto le agrega una regla al egreso** que antes no tenía.
 
-**La fuente única no era del todo única.** `estado_de_plazas` resolvía un estado por plaza con
-precedencia, pero el conteo del encabezado restaba ocupadas y reservadas contadas por separado: **una
-plaza ocupada y reservada a la vez se contaba dos veces** y `disponibles` podía dar negativo. Ahora
-las dos usan los mismos dos querysets —estadías en plazas no fuera de servicio, y reservas en plazas
-no fuera de servicio y **sin estadía activa**—, así que cada plaza cuenta una sola vez y
-`disponibles >= 0` vale **por construcción**, sin depender de que el servicio de escritura impida la
-superposición. Sigue en tres consultas.
+**Los movimientos son inmutables**, con el mismo patrón que `TrazaDispositivo`: `save()` sobre uno
+existente, `delete()` y `update()`/`delete()`/`bulk_update()` del queryset fallan.
 
-**Se cerraron los apartamientos del mockup que tenían piezas**: el eyebrow con dispositivo y fecha
-(`page_header` ya lo soportaba), el panel de la persona con nacimiento, edad, género, obra social,
-domicilio y «Ver legajo completo», y el paso de la plaza con **elegir y después «Continuar»** como en
-el mockup. Elegir una plaza ya no escribe la sesión: solo la marca; la guarda el POST de «Continuar».
+**La permanencia se calcula.** `Estadia.permanencia(momento=None)` va del ingreso al egreso o a
+ahora; `Estadia.dias_de_permanencia()` cuenta días de calendario en la hora local (03/09 19:40 →
+08/09 = 5, como el mockup), en Python y sin `Trunc*`. `services.movimientos.tramos_por_plaza`
+reparte esa misma permanencia entre las plazas leyendo solo los movimientos, y la suma de los tramos
+es la permanencia.
 
-Además: el legajo borrado entre pasos ya no da 500, y la caché de ciudadanos se invalida en
-`on_commit`, no antes.
+**Sin constraint condicional.** La única regla nueva de la base es un `CheckConstraint` (un cambio
+de plaza va a alguna plaza, y a otra), que MySQL 8 y MariaDB sí aplican. La exclusión por plaza sigue
+siendo el `select_for_update()`.
 
-**El asistente exige `dispositivo.admitir` y también `ciudadano.ver`**, porque muestra datos del
-legajo. Es coherente con la solapa de la trayectoria, que exige lo mismo.
+## Implementación
 
-**La verificación en la red no filtra datos ajenos**: el asistente solo muestra lo que devuelve
-`verificar_alojamiento_en_red`, y hay un test que verifica que el nombre, el código y el responsable
-de la institución ajena no aparecen en el HTML.
-
-## Pendientes
-
-- **Ningún rol del seed tiene `dispositivo.admitir`**: los roles de operador se arman a mano desde el
-  ABM. **Si se arma el rol sin `ciudadano.ver`, el asistente le da 403.** El rol de operador de
-  dispositivos tiene que llevar las dos.
-- **Tres pasos, no cuatro**: falta «Ficha mínima», porque no hay forma de marcar secciones mínimas por
-  tipo de dispositivo.
-- **El layout `.split` del mockup** —la persona en un panel a la derecha— no está: no hay una pieza
-  canónica de dos columnas. La grilla de la golden de Revisión es el esqueleto de otro arquetipo.
-  Hace falta decidir si se promueve a pieza; mientras tanto el panel de la persona va arriba del mapa.
-- El eyebrow no lleva el **turno**: no hay modelo de turno operativo todavía.
-- **La pantalla de sectores (P5) hace consultas por sector**: un N+1 que no es de esta task.
-- Sin las celdas «Excepcional / sobre capacidad» ni «Sin plaza / lista de espera» del mockup: no hay
-  modelo de autorización ni de lista de espera. «Sin plaza» es un botón que no aparece si el tipo
-  exige plaza.
-- La cifra «reservadas» del servicio suma reservas y préstamos; en el mapa se distinguen, en el
-  encabezado van juntos.
+Cada ingreso, cambio de sector o de plaza y egreso queda registrado con su momento, su responsable,
+su motivo y las plazas de origen y destino. El operador con `dispositivo.admitir` puede mover a una
+persona alojada a otra plaza libre de la misma institución; la plaza vieja queda libre sola, porque
+la ocupación se deriva de las estadías activas.
 
 ## Archivos
 
-`programas/services/ocupacion.py` · `programas/services/ingreso.py` ·
-`programas/services/sectores_plazas.py` · `programas/views/dispositivos_ingreso.py` ·
-`programas/forms_ingreso.py` · `programas/dispositivos_urls.py` ·
-`programas/templates/programas/dispositivos/ingreso/` (tres pasos) ·
-`programas/templates/programas/dispositivos/sectores/sectores.html` ·
-`programas/templates/programas/dispositivos/legajo/detail.html` ·
-`programas/tests/test_dispositivos_ingreso.py` · `test_dispositivos_sectores.py` · `test_dispositivos_ocupacion.py`
+`programas/models/__init__.py` · `programas/migrations/0089_movimiento_estadia.py` ·
+`programas/services/estadias.py` · `programas/services/movimientos.py` ·
+`programas/tests/test_dispositivos_movimientos.py` · `programas/tests/test_models_contrato.py`
 
 ## Base de datos
 
-No requiere.
+`programas.0089`: tabla nueva `programas_movimientoestadia` (FK a estadía, dispositivo, responsable
+y dos plazas, todas `PROTECT`; índices `(estadia, momento)` y `(dispositivo, momento)`; un
+`CheckConstraint`). Un `RunPython` reconstruye el ingreso y, si egresó, el egreso de cada estadía
+existente con sus fechas y responsables; saltea las que ya tienen movimientos. En el MVP no hay
+estadías reales: cubre las de prueba de DEV y QA. `check_migraciones.py` en verde.
+
+## Validación
+
+- `programas.tests.test_dispositivos_movimientos`: 29 tests en verde. **Verificados con mutación**:
+  sacar `_exigir_plaza_libre` pone rojos los cinco de plaza tomada; sacar el permiso, los dos de
+  autorización (el usuario de prueba tiene `ver`, `egresar` y `editar`: todo menos `admitir`); sacar
+  `_bloquear_plaza`, el de otro dispositivo y el del bloqueo; sacar el chequeo de estadía activa, el
+  del último movimiento (en cambio y en egreso), la inmutabilidad o el `localtime` de los días, cada
+  uno su test; grabar el ingreso con la hora de carga, los de permanencia.
+- `test_dispositivos_*`, `test_models_contrato`, `test_contrato_migraciones`,
+  `core.tests.test_gates_ci` y `core.tests.test_migraciones_estado_historico` en verde (Py 3.12 +
+  Dj 5.2). `--tag performance` de ocupación en verde: no se tocó ninguna consulta con presupuesto.
+- `manage.py check`, `makemigrations --check --dry-run` y `ruff` OK. Sin UI.
+
+## Puesta en marcha en el servidor
+
+No requiere: el `migrate` del deploy crea la tabla y reconstruye los movimientos.
+
+## Revisión
+
+La revisión independiente de #826 **aprobó** con tres MINOR, que pasan a las tasks siguientes
+del carril:
+
+- **Un test pasaba por el motivo equivocado**: el de «cambio anterior al último movimiento» usaba
+  `ingreso − 1 min`, así que también pasaba si la guarda comparaba contra el ingreso y no contra el
+  último movimiento. Lo confirmó una mutación. Se arregla en la task 33, con un test de dos cambios.
+- **Egreso en el mismo minuto que un cambio de plaza**: el `datetime-local` no trae segundos, y el
+  egreso de las 14:30 queda antes de un cambio de las 14:30:45. Hoy no pasa porque todavía no hay
+  pantalla de cambio de plaza; el formulario de cambio de la task 33 compara al minuto.
+- **Un cambio retroactivo solo verifica que la plaza esté libre ahora**. Es la misma limitación que
+  tiene el ingreso retroactivo, pero el censo de la task 31 va a leer estos movimientos.
+
+**Este Cambio entró mal a development y se corrigió después.** El script que repone las entradas
+al rebasar una rama recortaba por número; la entrada de la rama venía como `NNN`, así que el recorte
+falló en silencio y se repuso la entrada de la corrida anterior, la del Cambio 272. #826 mergeó un
+Cambio 273 que era una copia del 272, con el número cambiado. Ahora el script recorta por título y
+aborta si no encuentra la entrada propia o si el título ya está en el archivo.
+
+## Pendientes / a definir
+
+- **El turno de cada movimiento** se deriva cuando exista `Turno` (task 30); falta la función que
+  lo resuelva desde `(dispositivo, momento)`.
+- **`CAMBIO_ESTADO` no lo emite nadie** hasta que la estadía tenga más estados (permiso de salida,
+  Versión 2 completa).
+- **Sin pantalla**: el cambio de plaza no tiene vista ni formulario todavía; la línea de tiempo y la
+  acción «Cambiar plaza» son de P7 (task 33).
+- **No hay admin** de movimientos: son inmutables y el admin de Django los dejaría editar.
+- El comentario «Los 52 modelos» de `test_models_contrato.py` quedó en 52 (son 53): no se tocó para
+  no chocar con la rama de la task 30, que agrega modelos en el mismo archivo.
+
+## Reversión
+
+`migrate programas 0088` y `git revert` del merge. La reversa del `RunPython` es `# REVERSA-NOOP`:
+la del `CreateModel` borra la tabla entera, con los movimientos reconstruidos y con los que hayan
+escrito los servicios. **Se pierde la historia de los cambios de plaza** como dato estructurado (la
+`TrazaDispositivo` conserva una línea por cambio, con usuario y plazas en el texto); las estadías
+quedan intactas, en la plaza en la que estaban.
 
 ## Historial
 
-Entrada nueva. Etapa 2 del plan del Cambio 191.
+Entrada nueva. Etapa 3 del plan del Cambio 191.
 
 ---
