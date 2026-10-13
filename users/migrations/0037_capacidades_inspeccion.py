@@ -32,6 +32,7 @@ class Migration(migrations.Migration):
                     ("dispositivo_validar", "Validar dispositivos"),
                     ("dispositivo_admitir", "Admitir personas en dispositivos"),
                     ("dispositivo_egresar", "Registrar egresos de dispositivos"),
+                    ("dispositivo_bitacora", "Cargar novedades en la bitácora del turno"),
                     ("inspeccion_asignar", "Crear, asignar, reasignar y cancelar relevamientos edilicios"),
                     ("inspeccion_relevar", "Cargar el resultado de los relevamientos edilicios asignados"),
                     ("merendero_ver", "Ver merenderos"),
