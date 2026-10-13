@@ -1,28 +1,34 @@
-"""El cálculo único de ocupación, disponibilidad y censo (MVP v2, etapa 1 · #687).
+"""El cálculo único de ocupación, disponibilidad y censo (MVP v2, etapas 1 y 2 · #687, #689).
 
-Tres cosas se verifican acá, y cada una tiene su motivo:
+Cuatro cosas se verifican acá, y cada una tiene su motivo:
 
-1. **Las cifras que se pueden calcular hoy** —totales, fuera de servicio y operativas—
-   con sus bordes: el dispositivo sin sectores, el sector sin plazas y el sector entero
-   fuera de servicio. Son los casos en los que un cálculo apurado devuelve ``None``,
-   explota o directamente no aparece.
-2. **Que lo que todavía no se puede calcular diga «no sé» y no «cero»**. ``ocupadas``,
-   ``reservadas`` y ``disponibles`` salen de ``Estadia`` y ``ReservaPlaza``, que crea la
-   etapa 2. Un ``0`` ahí mostraría un dispositivo libre y mandaría a alojar gente sobre
-   plazas tomadas, sin que nada fallara.
-3. **Que haya un solo origen**: el total de un dispositivo es exactamente la suma de sus
+1. **Las cifras de las plazas** —totales, fuera de servicio y operativas— con sus bordes:
+   el dispositivo sin sectores, el sector sin plazas y el sector entero fuera de
+   servicio. Son los casos en los que un cálculo apurado devuelve ``None``, explota o
+   directamente no aparece.
+2. **Las cifras de los movimientos**, que trajo la etapa 2: ``ocupadas`` sale de las
+   estadías activas, ``reservadas`` de las reservas y los préstamos **vigentes** —una
+   reserva vencida deja de contar sola, sin que nadie la apague— y ``disponibles`` se
+   deriva de las dos. Un conteo que las ignorara mostraría un dispositivo libre y
+   mandaría a alojar gente sobre plazas tomadas, sin que nada fallara.
+3. **Que un conteo armado a mano siga diciendo «no sé» y no «cero»**: la red que protege
+   a la cifra que alguien agregue mañana sigue puesta.
+4. **Que haya un solo origen**: el total de un dispositivo es exactamente la suma de sus
    sectores. Si el desglose y el total se pueden separar, las pantallas se desincronizan,
    que es justo lo que esta task existe para evitar.
 """
 
 import json
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import connection
 from django.test import TestCase, tag
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
-from programas.models import Dispositivo, Plaza, Sector, TipoDispositivo
+from legajos.models import Ciudadano
+from programas.models import Dispositivo, Estadia, Plaza, ReservaPlaza, Sector, TipoDispositivo
 from programas.services.ocupacion import Conteo, ocupacion_de_plazas
 
 PRESUPUESTOS = settings.BASE_DIR / "scripts" / "perf_budgets.json"
@@ -51,7 +57,9 @@ class ConteoTests(TestCase):
     def test_operativas_son_las_totales_menos_las_fuera_de_servicio(self):
         self.assertEqual(Conteo(totales=10, fuera_de_servicio=3).operativas, 7)
 
-    def test_sin_estadias_lo_derivado_dice_que_no_sabe_en_lugar_de_cero(self):
+    def test_un_conteo_armado_a_mano_sin_las_cifras_dice_que_no_sabe_en_lugar_de_cero(self):
+        """No es el que devuelve el servicio —ese las llena siempre—, es el de a mano."""
+
         conteo = Conteo(totales=10, fuera_de_servicio=3)
 
         self.assertIsNone(conteo.ocupadas)
@@ -66,8 +74,8 @@ class ConteoTests(TestCase):
         with self.assertRaises(TypeError):
             Conteo(totales=10).ocupadas + 1
 
-    def test_cuando_la_etapa_2_complete_las_cifras_lo_derivado_se_completa_solo(self):
-        """La forma pública ya es la definitiva: alcanza con pasar los dos enteros."""
+    def test_con_las_dos_cifras_recibidas_lo_derivado_se_completa_solo(self):
+        """Lo que la etapa 2 no tuvo que cambiar: alcanzó con pasar los dos enteros."""
 
         conteo = Conteo(totales=10, fuera_de_servicio=3, ocupadas=4, reservadas=1)
 
@@ -144,12 +152,15 @@ class OcupacionDePlazasTests(TestCase):
         self.assertEqual(vacio.conteo.fuera_de_servicio, 0)
         self.assertEqual(vacio.conteo.operativas, 0)
 
-    def test_un_dispositivo_sin_sectores_sigue_sin_saber_cuantas_estan_ocupadas(self):
-        """Tampoco acá se miente con un cero: el pendiente es uniforme."""
+    def test_un_dispositivo_sin_sectores_no_tiene_plazas_tomadas_y_eso_se_sabe(self):
+        """Cero y no pendiente: un ámbito sin plazas no puede tener plazas ocupadas."""
 
         conteo = ocupacion_de_plazas(self.parador).de(self.parador).conteo
 
-        self.assertEqual(conteo.pendientes, ("ocupadas", "reservadas", "disponibles"))
+        self.assertEqual(conteo.pendientes, ())
+        self.assertEqual(conteo.ocupadas, 0)
+        self.assertEqual(conteo.reservadas, 0)
+        self.assertEqual(conteo.disponibles, 0)
 
     def test_un_sector_sin_plazas_aparece_en_cero(self):
         _sector(self.cis, "Sector vacío", capacidad=6)
@@ -206,14 +217,15 @@ class OcupacionDePlazasTests(TestCase):
         self.assertEqual(censo.total.totales, 7)
         self.assertEqual(censo.total.fuera_de_servicio, 1)
         self.assertEqual(censo.total.operativas, 6)
-        self.assertIsNone(censo.total.disponibles)
+        self.assertEqual(censo.total.disponibles, 6)
 
     def test_el_censo_vacio_no_falla(self):
         censo = ocupacion_de_plazas([])
 
         self.assertEqual(censo.por_dispositivo, {})
         self.assertEqual(censo.total.totales, 0)
-        self.assertIsNone(censo.total.ocupadas)
+        self.assertEqual(censo.total.ocupadas, 0)
+        self.assertEqual(censo.total.disponibles, 0)
 
     def test_acepta_instancia_id_y_queryset(self):
         sector = _sector(self.cis, "Varones")
@@ -248,6 +260,144 @@ class OcupacionDePlazasTests(TestCase):
             ocupacion_de_plazas(Dispositivo(tipo=self.tipo, codigo="X", nombre="X"))
 
 
+class OcupacionConMovimientosTests(TestCase):
+    """Las cifras que la etapa 2 completó: ocupadas, reservadas y disponibles."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.tipo = TipoDispositivo.objects.create(codigo="ALBERGUE", nombre="Albergue")
+        cls.cis = _dispositivo(cls.tipo, "CIS-3")
+        cls.sector = _sector(cls.cis, "Varones", capacidad=6)
+        cls.plazas = _plazas(cls.sector, 4)
+        cls.persona = Ciudadano.objects.create(dni="40111222", nombre="Ana", apellido="Gómez")
+        cls.otra = Ciudadano.objects.create(dni="40333444", nombre="Juan", apellido="Pérez")
+
+    def _alojar(self, ciudadano, plaza):
+        return Estadia.objects.create(
+            ciudadano=ciudadano,
+            dispositivo=self.cis,
+            plaza=plaza,
+            fecha_ingreso=timezone.now(),
+            clave_alojamiento=Estadia.clave_para(ciudadano),
+        )
+
+    def _conteo(self):
+        return ocupacion_de_plazas(self.cis).de(self.cis).conteo
+
+    def test_una_estadia_activa_ocupa_su_plaza_y_descuenta_una_disponible(self):
+        self._alojar(self.persona, self.plazas[0])
+
+        conteo = self._conteo()
+
+        self.assertEqual(conteo.totales, 4)
+        self.assertEqual(conteo.operativas, 4)
+        self.assertEqual(conteo.ocupadas, 1)
+        self.assertEqual(conteo.reservadas, 0)
+        self.assertEqual(conteo.disponibles, 3)
+        self.assertTrue(conteo.completo)
+
+    def test_una_estadia_cerrada_deja_de_ocupar(self):
+        estadia = self._alojar(self.persona, self.plazas[0])
+        estadia.estado = Estadia.Estado.EGRESADA
+        estadia.fecha_egreso = timezone.now()
+        estadia.clave_alojamiento = None
+        estadia.save()
+
+        self.assertEqual(self._conteo().ocupadas, 0)
+
+    def test_una_estadia_sin_plaza_no_le_descuenta_capacidad_a_ningun_sector(self):
+        """Se cuentan plazas tomadas, no personas: sin plaza no hay plaza que restar."""
+
+        Estadia.objects.create(
+            ciudadano=self.persona,
+            dispositivo=self.cis,
+            fecha_ingreso=timezone.now(),
+            clave_alojamiento=Estadia.clave_para(self.persona),
+        )
+
+        self.assertEqual(self._conteo().ocupadas, 0)
+
+    def test_una_reserva_vigente_saca_la_plaza_de_la_disponibilidad(self):
+        ReservaPlaza.objects.create(plaza=self.plazas[1], ciudadano=self.persona, desde=timezone.now())
+
+        conteo = self._conteo()
+
+        self.assertEqual(conteo.reservadas, 1)
+        self.assertEqual(conteo.disponibles, 3)
+
+    def test_una_reserva_vencida_deja_de_contar_sola(self):
+        ahora = timezone.now()
+        ReservaPlaza.objects.create(
+            plaza=self.plazas[1],
+            ciudadano=self.persona,
+            tipo=ReservaPlaza.Tipo.PRESTAMO,
+            desde=ahora - timedelta(days=2),
+            hasta=ahora - timedelta(days=1),
+        )
+
+        self.assertEqual(self._conteo().reservadas, 0)
+
+    def test_una_reserva_que_todavia_no_empezo_tampoco_cuenta(self):
+        ahora = timezone.now()
+        ReservaPlaza.objects.create(
+            plaza=self.plazas[1],
+            ciudadano=self.persona,
+            desde=ahora + timedelta(days=1),
+            hasta=ahora + timedelta(days=2),
+        )
+
+        self.assertEqual(self._conteo().reservadas, 0)
+
+    def test_una_reserva_liberada_no_cuenta(self):
+        ReservaPlaza.objects.create(
+            plaza=self.plazas[1],
+            ciudadano=self.persona,
+            desde=timezone.now(),
+            estado=ReservaPlaza.Estado.LIBERADA,
+        )
+
+        self.assertEqual(self._conteo().reservadas, 0)
+
+    def test_una_plaza_fuera_de_servicio_no_se_cuenta_dos_veces(self):
+        """La invariante: ocupadas + reservadas nunca pasa de operativas."""
+
+        Plaza.objects.filter(pk=self.plazas[3].pk).update(
+            estado=Plaza.Estado.FUERA_SERVICIO, motivo_fuera_servicio="Refacción"
+        )
+        self._alojar(self.persona, self.plazas[0])
+        ReservaPlaza.objects.create(plaza=self.plazas[1], ciudadano=self.otra, desde=timezone.now())
+
+        conteo = self._conteo()
+
+        self.assertEqual(conteo.operativas, 3)
+        self.assertEqual(conteo.ocupadas + conteo.reservadas, 2)
+        self.assertEqual(conteo.disponibles, 1)
+
+    def test_el_total_del_dispositivo_sigue_siendo_la_suma_de_sus_sectores(self):
+        otro = _sector(self.cis, "Mujeres", capacidad=2)
+        plazas_otro = _plazas(otro, 2, prefijo="M")
+        self._alojar(self.persona, self.plazas[0])
+        self._alojar(self.otra, plazas_otro[0])
+
+        ocupacion = ocupacion_de_plazas(self.cis).de(self.cis)
+
+        self.assertEqual(
+            ocupacion.conteo.ocupadas,
+            sum(sector.conteo.ocupadas for sector in ocupacion.sectores),
+        )
+        self.assertEqual(ocupacion.conteo.ocupadas, 2)
+
+    def test_las_estadias_de_un_sector_no_se_le_cuentan_a_otro(self):
+        otro = _sector(self.cis, "Mujeres", capacidad=2)
+        _plazas(otro, 2, prefijo="M")
+        self._alojar(self.persona, self.plazas[0])
+
+        por_nombre = {s.nombre: s for s in ocupacion_de_plazas(self.cis).de(self.cis).sectores}
+
+        self.assertEqual(por_nombre["Varones"].conteo.ocupadas, 1)
+        self.assertEqual(por_nombre["Mujeres"].conteo.ocupadas, 0)
+
+
 @tag("performance")
 class OcupacionDePlazasPresupuestoTests(TestCase):
     """El costo del cálculo no puede crecer con los sectores, las plazas ni la red.
@@ -273,6 +423,8 @@ class OcupacionDePlazasPresupuestoTests(TestCase):
         return json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]
 
     def test_el_calculo_cuesta_lo_mismo_para_uno_que_para_toda_la_red(self):
+        """Tres consultas fijas: las plazas, las estadías activas y las reservas vigentes."""
+
         techo = self._presupuesto()["consultas_fijas"]
 
         with CaptureQueriesContext(connection) as una_institucion:

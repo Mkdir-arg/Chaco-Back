@@ -882,6 +882,314 @@ class Plaza(TimeStamped):
             )
 
 
+class EstadiaQuerySet(models.QuerySet):
+    """Las dos preguntas que el resto del circuito le hace a la estadía."""
+
+    def activas(self):
+        return self.filter(estado=Estadia.Estado.ACTIVA)
+
+    def de_la_red(self, clave_alojamiento):
+        """La estadía abierta de una persona, mire quien mire. Ver `Estadia.clave_alojamiento`."""
+
+        return self.filter(clave_alojamiento=clave_alojamiento)
+
+
+class Estadia(TimeStamped):
+    """La permanencia de una persona en un dispositivo (MVP v2, etapa 2 · #689).
+
+    Reemplaza a `Admision`, que sigue en el esquema hasta su migración de contrato pero
+    ya no la lee nadie. Guarda lo que alguien decide —quién, dónde, en qué plaza, desde
+    cuándo y hasta cuándo— y nada derivado: las cifras de ocupación las calcula
+    `programas.services.ocupacion`, que es el único origen.
+
+    La clave de alojamiento
+    -----------------------
+
+    `clave_alojamiento` es el mecanismo que permite preguntar si una persona ya está
+    alojada **en cualquier dispositivo de la red**, no solo en el que se está cargando
+    (criterio DIS-02 del mapeo del mockup). Vale `CIU-<id del ciudadano>` mientras la
+    estadía está abierta y **`NULL` apenas egresa**, con un `UniqueConstraint` **sin
+    `condition`** encima.
+
+    Por qué así y no con un constraint condicional, que es lo que se escribiría primero:
+    `UniqueConstraint(fields=["ciudadano"], condition=Q(estado="ACTIVA"))` **Django lo
+    ignora en MySQL y en MariaDB**, los dos motores del proyecto. No falla, no avisa:
+    `BaseDatabaseSchemaEditor._create_unique_sql` devuelve `None` cuando hay `condition`
+    y `features.supports_partial_indexes` es `False`, que es el caso de MySQL. El
+    constraint pasa los tests en SQLite —que sí soporta índices parciales— y **no existe
+    en producción**. Con una columna anulable y un UNIQUE común la garantía es real en
+    los tres motores, porque los tres tratan los `NULL` como distintos entre sí: todas
+    las estadías cerradas conviven y solo puede haber una abierta por persona.
+
+    Es un dato, no una consulta: el motor rechaza el segundo alojamiento aunque dos
+    operadores de dos instituciones distintas lo intenten en el mismo milisegundo, sin
+    que ninguno pueda ver al otro.
+
+    La exclusión por plaza, en cambio, **no** tiene constraint: sale de bloquear la fila
+    de la plaza con `select_for_update()` dentro de `transaction.atomic()`, y la hace
+    `programas.services.estadias`. Es la misma regla por el mismo motivo, resuelta donde
+    la base no llega: «una estadía activa por plaza» también se escribiría con
+    `condition=` y tampoco existiría.
+    """
+
+    class Estado(models.TextChoices):
+        ACTIVA = "ACTIVA", "Activa"
+        EGRESADA = "EGRESADA", "Egresada"
+
+    #: Prefijo de la clave: la columna no es un número de ciudadano, es una clave opaca.
+    PREFIJO_CLAVE = "CIU"
+
+    ciudadano = models.ForeignKey(
+        Ciudadano,
+        on_delete=models.PROTECT,
+        related_name="estadias",
+        verbose_name="Persona",
+    )
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.PROTECT,
+        related_name="estadias",
+        verbose_name="Dispositivo",
+    )
+    # Anulable porque hay tipos que no manejan plaza identificable: la exigencia la pone
+    # `TipoDispositivo.plaza_obligatoria_al_ingresar`, no el esquema.
+    plaza = models.ForeignKey(
+        Plaza,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="estadias",
+        verbose_name="Plaza",
+    )
+    fecha_ingreso = models.DateTimeField(verbose_name="Fecha de ingreso")
+    fecha_egreso = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de egreso")
+    estado = models.CharField(
+        max_length=10,
+        choices=Estado.choices,
+        default=Estado.ACTIVA,
+        verbose_name="Estado",
+    )
+    # `editable=False`: la deriva el servicio de ingreso y la suelta el de egreso. Que un
+    # formulario la pudiera tipear convertiría la garantía de la red en un campo más.
+    clave_alojamiento = models.CharField(
+        max_length=32,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Clave de alojamiento",
+    )
+    motivo_egreso = models.TextField(blank=True, verbose_name="Motivo del egreso")
+    ingresada_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="estadias_ingresadas",
+        verbose_name="Registró el ingreso",
+    )
+    egresada_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="estadias_egresadas",
+        verbose_name="Registró el egreso",
+    )
+
+    objects = EstadiaQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Estadía"
+        verbose_name_plural = "Estadías"
+        ordering = ["-fecha_ingreso", "-id"]
+        constraints = [
+            # Sin `condition=`, a propósito: ver el docstring de la clase. Esta es la
+            # única garantía de la verificación en toda la red que existe de verdad en
+            # MySQL y en MariaDB.
+            models.UniqueConstraint(fields=["clave_alojamiento"], name="estadia_clave_alojamiento_unica"),
+            models.CheckConstraint(
+                condition=models.Q(fecha_egreso__isnull=True) | models.Q(fecha_egreso__gte=models.F("fecha_ingreso")),
+                name="estadia_egreso_no_anterior_al_ingreso",
+            ),
+            # Lo que mantiene honesta a la clave: abierta ⇒ con clave y sin egreso;
+            # cerrada ⇒ con egreso y sin clave. Sin esto, soltar la clave sin cerrar la
+            # estadía dejaría a la persona alojada e invisible para la red.
+            models.CheckConstraint(
+                condition=models.Q(estado="ACTIVA", fecha_egreso__isnull=True, clave_alojamiento__isnull=False)
+                | models.Q(estado="EGRESADA", fecha_egreso__isnull=False, clave_alojamiento__isnull=True),
+                name="estadia_estado_coherente_con_la_clave",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["dispositivo", "estado"]),
+            models.Index(fields=["ciudadano", "estado"]),
+            # El que usa el servicio de ocupación para contar las ocupadas por sector.
+            models.Index(fields=["plaza", "estado"]),
+        ]
+
+    def __str__(self):
+        return f"{self.ciudadano.nombre_completo} · {self.dispositivo.nombre}"
+
+    @classmethod
+    def clave_para(cls, ciudadano):
+        """La clave de alojamiento de una persona. Única función que la arma."""
+
+        pk = getattr(ciudadano, "pk", ciudadano)
+        if pk is None:
+            raise ValueError("Una persona sin guardar no tiene clave de alojamiento.")
+        return f"{cls.PREFIJO_CLAVE}-{pk}"
+
+    @property
+    def activa(self):
+        return self.estado == self.Estado.ACTIVA
+
+    def clean(self):
+        super().clean()
+        if self.fecha_ingreso and self.fecha_egreso and self.fecha_egreso < self.fecha_ingreso:
+            raise ValidationError({"fecha_egreso": "El egreso no puede ser anterior al ingreso."})
+        if self.activa:
+            if self.fecha_egreso:
+                raise ValidationError({"fecha_egreso": "Una estadía activa no tiene fecha de egreso."})
+            if not self.clave_alojamiento:
+                raise ValidationError({"clave_alojamiento": "Una estadía activa necesita su clave de alojamiento."})
+        else:
+            if not self.fecha_egreso:
+                raise ValidationError({"fecha_egreso": "Una estadía cerrada necesita su fecha de egreso."})
+            if self.clave_alojamiento:
+                raise ValidationError({"clave_alojamiento": "Una estadía cerrada suelta la clave de alojamiento."})
+        if self.ciudadano_id and self.clave_alojamiento:
+            if self.clave_alojamiento != self.clave_para(self.ciudadano_id):
+                raise ValidationError({"clave_alojamiento": "La clave no corresponde a la persona de la estadía."})
+        if self.plaza_id:
+            if self.dispositivo_id and self.plaza.sector.dispositivo_id != self.dispositivo_id:
+                raise ValidationError({"plaza": "La plaza tiene que ser del dispositivo de la estadía."})
+            if self.activa and self.plaza.estado == Plaza.Estado.FUERA_SERVICIO:
+                raise ValidationError({"plaza": "No se puede alojar en una plaza fuera de servicio."})
+        elif self.activa and self.dispositivo_id and self.dispositivo.tipo.plaza_obligatoria_al_ingresar:
+            raise ValidationError({"plaza": "Este tipo de dispositivo exige asignar una plaza al ingresar."})
+
+
+class ReservaPlazaQuerySet(models.QuerySet):
+    def vigentes(self, momento=None):
+        """Las que sacan la plaza de la disponibilidad: ni futuras, ni vencidas, ni resueltas.
+
+        La vigencia se evalúa **por tiempo**, no por un estado que alguien tenga que ir a
+        apagar: una reserva con `hasta` pasado deja de contar sola, sin cron. La
+        comparación es de instante contra instante y **no lleva ningún `Trunc*`**, que
+        sobre un `DateTimeField` Django traduce a `CONVERT_TZ` y en ECOM —sin tablas de
+        zona horaria— devuelve `NULL` y rompe solo en producción.
+        """
+
+        momento = momento or timezone.now()
+        return self.filter(estado=ReservaPlaza.Estado.VIGENTE, desde__lte=momento).filter(
+            models.Q(hasta__isnull=True) | models.Q(hasta__gte=momento)
+        )
+
+
+class ReservaPlaza(TimeStamped):
+    """Una plaza tomada sin que haya nadie alojado todavía (MVP v2, etapa 2 · #689).
+
+    Es la entidad que faltaba para que el mapa de plazas pueda derivar sus cinco estados:
+    sin ella, **RESERVADA** —la plaza que se guarda para el primero de la lista de
+    espera— y **PRESTADA** —la cesión de 12 o 24 h— no tienen de dónde salir, y el
+    servicio de ocupación se queda con un hueco.
+
+    No es una estadía y no se la puede modelar como tal: no hay nadie adentro, y el
+    préstamo ni siquiera termina en un alojamiento en esta institución.
+
+    La exclusión con la estadía —que una plaza no esté ocupada y reservada a la vez— la
+    sostiene `programas.services.estadias` bloqueando la fila de la plaza, no un
+    constraint: ver el docstring de `Estadia`.
+    """
+
+    class Tipo(models.TextChoices):
+        RESERVA = "RESERVA", "Reserva"
+        PRESTAMO = "PRESTAMO", "Préstamo"
+
+    class Estado(models.TextChoices):
+        VIGENTE = "VIGENTE", "Vigente"
+        CONSUMIDA = "CONSUMIDA", "Consumida"
+        LIBERADA = "LIBERADA", "Liberada"
+
+    plaza = models.ForeignKey(
+        Plaza,
+        on_delete=models.PROTECT,
+        related_name="reservas",
+        verbose_name="Plaza",
+    )
+    ciudadano = models.ForeignKey(
+        Ciudadano,
+        on_delete=models.PROTECT,
+        related_name="reservas_de_plaza",
+        verbose_name="Persona",
+    )
+    tipo = models.CharField(
+        max_length=10,
+        choices=Tipo.choices,
+        default=Tipo.RESERVA,
+        verbose_name="Tipo",
+    )
+    estado = models.CharField(
+        max_length=10,
+        choices=Estado.choices,
+        default=Estado.VIGENTE,
+        verbose_name="Estado",
+    )
+    desde = models.DateTimeField(verbose_name="Desde")
+    # Anulable solo para la reserva: un préstamo sin vencimiento es una plaza perdida, y
+    # el constraint de abajo lo impide.
+    hasta = models.DateTimeField(null=True, blank=True, verbose_name="Hasta")
+    motivo = models.CharField(max_length=200, blank=True, verbose_name="Motivo")
+    creada_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="reservas_de_plaza",
+        verbose_name="Registró la reserva",
+    )
+
+    objects = ReservaPlazaQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Reserva de plaza"
+        verbose_name_plural = "Reservas de plaza"
+        ordering = ["-desde", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(hasta__isnull=True) | models.Q(hasta__gt=models.F("desde")),
+                name="reserva_plaza_hasta_posterior_a_desde",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(tipo="RESERVA") | models.Q(hasta__isnull=False),
+                name="reserva_plaza_prestamo_con_vencimiento",
+            ),
+        ]
+        indexes = [
+            # El que usa el servicio de ocupación para contar las reservadas por sector.
+            models.Index(fields=["plaza", "estado"]),
+            models.Index(fields=["ciudadano", "estado"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} · {self.plaza}"
+
+    def vigente(self, momento=None):
+        momento = momento or timezone.now()
+        if self.estado != self.Estado.VIGENTE or self.desde > momento:
+            return False
+        return self.hasta is None or self.hasta >= momento
+
+    def clean(self):
+        super().clean()
+        if self.desde and self.hasta and self.hasta <= self.desde:
+            raise ValidationError({"hasta": "El vencimiento tiene que ser posterior al inicio."})
+        if self.tipo == self.Tipo.PRESTAMO and not self.hasta:
+            raise ValidationError({"hasta": "Un préstamo necesita su vencimiento."})
+        if self.plaza_id and self.plaza.estado == Plaza.Estado.FUERA_SERVICIO:
+            raise ValidationError({"plaza": "No se puede reservar una plaza fuera de servicio."})
+
+
 class Cama(TimeStamped):
     """Unidad de capacidad identificable dentro de un dispositivo."""
 
