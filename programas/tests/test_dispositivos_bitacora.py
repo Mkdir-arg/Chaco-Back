@@ -49,6 +49,7 @@ from programas.models import (
 )
 from programas.services.bitacora import (
     CORRECCION_CONCURRENTE,
+    MAX_ADJUNTOS_POR_ENTRADA,
     PERSONAS_FUERA_DEL_TURNO,
     corregir_entrada,
     crear_turno,
@@ -646,3 +647,121 @@ class MediaDeLaBitacoraTests(BaseBitacora):
 
     def test_un_archivo_sin_fila_no_tiene_duenio(self):
         self.assertIsNone(_autorizar(self.operador, "dispositivos/bitacora/2026/09/inexistente.pdf"))
+
+
+def _pdf(nombre="acta.pdf"):
+    return SimpleUploadedFile(nombre, PDF, content_type="application/pdf")
+
+
+class RelacionesInmutablesTests(BaseBitacora):
+    """Revisión de #827: una versión guardada tampoco cambia sus personas ni sus adjuntos."""
+
+    def setUp(self):
+        super().setUp()
+        self.alojada = self._estadia(self.persona, self.cis, _local(LUNES, 9))
+        self.otra = self._estadia(self.otra_persona, self.cis, _local(LUNES, 10))
+        self.entrada = self._cargar(_local(LUNES, 16, 10), personas=[self.alojada], adjuntos=[_pdf()])
+
+    def test_las_personas_de_una_version_guardada_no_cambian(self):
+        for cambio in (
+            lambda: self.entrada.personas.add(self.otra),
+            lambda: self.entrada.personas.remove(self.alojada),
+            lambda: self.entrada.personas.clear(),
+            lambda: self.entrada.personas.set([self.otra]),
+            lambda: self.otra.entradas_bitacora.add(self.entrada),
+        ):
+            with self.subTest(cambio=cambio), self.assertRaises(ValidationError), transaction.atomic():
+                cambio()
+        self.assertEqual(list(EntradaBitacora.objects.get(pk=self.entrada.pk).personas.all()), [self.alojada])
+
+    def test_los_adjuntos_de_una_version_guardada_no_cambian(self):
+        adjunto = self.entrada.adjuntos.get()
+        otro = AdjuntoBitacora.objects.create(dispositivo=self.cis, archivo=_pdf("otra.pdf"))
+
+        for cambio in (
+            lambda: self.entrada.adjuntos.add(otro),
+            lambda: self.entrada.adjuntos.remove(adjunto),
+            lambda: self.entrada.adjuntos.clear(),
+            lambda: adjunto.entradas.clear(),
+        ):
+            with self.subTest(cambio=cambio), self.assertRaises(ValidationError), transaction.atomic():
+                cambio()
+        self.assertEqual(list(self.entrada.adjuntos.all()), [adjunto])
+
+    def test_el_servicio_si_las_escribe_al_crear_la_version(self):
+        corregida = self._corregir(_local(LUNES, 16, 30), self.entrada, personas=[self.alojada, self.otra])
+
+        self.assertEqual(set(corregida.personas.all()), {self.alojada, self.otra})
+        self.assertEqual(corregida.adjuntos.count(), 1)
+        self.assertFalse(corregida._relaciones_abiertas, "la marca no queda puesta después de crear")
+
+
+class CorreccionRevisionTests(BaseBitacora):
+    """Revisión de #827: dispositivo activo, turno guardado, ids de personas y tope de adjuntos."""
+
+    def test_no_se_corrige_en_un_dispositivo_que_ya_no_esta_activo(self):
+        original = self._cargar(_local(LUNES, 16, 10))
+        Dispositivo.objects.filter(pk=self.cis.pk).update(estado=Dispositivo.Estado.INACTIVO)
+
+        with self.assertRaises(ValidationError):
+            self._corregir(_local(LUNES, 16, 30), original)
+        self.assertEqual(EntradaBitacora.objects.count(), 1)
+
+    def test_si_cambian_los_turnos_no_se_corrige_lo_de_un_turno_que_ya_termino(self):
+        """La Tarde se parte en dos a las 16:00. Lo de las 16:10 quedó guardado en la Tarde,
+        que terminó: recalcular desde el momento lo ubicaría en el Vespertino en curso."""
+
+        original = self._cargar(_local(LUNES, 16, 10))
+        editar_turno(turno=self.tarde, usuario=self.operador, hora_hasta=time(16))
+        crear_turno(
+            dispositivo=self.cis, usuario=self.operador, nombre="Vespertino", hora_desde=time(16), hora_hasta=time(22)
+        )
+
+        with self.assertRaises(ValidationError):
+            self._corregir(_local(LUNES, 16, 30), original)
+        self.assertEqual(EntradaBitacora.objects.count(), 1)
+
+    def test_si_cambia_el_horario_del_turno_en_curso_lo_suyo_se_sigue_corrigiendo(self):
+        """La Tarde pasa a empezar 16:20. Lo de las 16:10 sigue guardado en la Tarde de hoy."""
+
+        original = self._cargar(_local(LUNES, 16, 10))
+        editar_turno(turno=self.tarde, usuario=self.operador, hora_desde=time(16, 20))
+
+        corregida = self._corregir(_local(LUNES, 16, 30), original)
+
+        self.assertEqual((corregida.turno, corregida.fecha_operativa), (self.tarde, LUNES))
+
+    def test_los_ids_de_personas_como_texto_son_la_misma_estadia(self):
+        alojada = self._estadia(self.persona, self.cis, _local(LUNES, 9))
+
+        entrada = self._cargar(_local(LUNES, 16), personas=[str(alojada.pk), alojada.pk, f" {alojada.pk} "])
+
+        self.assertEqual(list(entrada.personas.all()), [alojada])
+
+    def test_un_id_de_persona_que_no_es_numero_es_un_error_de_validacion(self):
+        for invalido in ("abc", None, "1.5"):
+            with self.subTest(invalido=invalido), self.assertRaisesMessage(ValidationError, PERSONAS_FUERA_DEL_TURNO):
+                self._cargar(_local(LUNES, 16), personas=[invalido])
+        self.assertFalse(EntradaBitacora.objects.exists())
+
+    def test_una_novedad_no_lleva_mas_del_tope_de_adjuntos(self):
+        archivos = [_pdf(f"acta{numero}.pdf") for numero in range(MAX_ADJUNTOS_POR_ENTRADA + 1)]
+
+        with self.assertRaises(ValidationError):
+            self._cargar(_local(LUNES, 16), adjuntos=archivos)
+        self.assertFalse(AdjuntoBitacora.objects.exists())
+
+    def test_la_correccion_suma_los_heredados_al_tope(self):
+        original = self._cargar(
+            _local(LUNES, 16), adjuntos=[_pdf(f"acta{n}.pdf") for n in range(MAX_ADJUNTOS_POR_ENTRADA)]
+        )
+
+        with self.assertRaises(ValidationError):
+            self._corregir(_local(LUNES, 16, 30), original, adjuntos_nuevos=[_pdf("una.pdf")])
+        corregida = self._corregir(
+            _local(LUNES, 16, 31),
+            original,
+            adjuntos_nuevos=[_pdf("una.pdf")],
+            quitar_adjuntos=[original.adjuntos.first()],
+        )
+        self.assertEqual(corregida.adjuntos.count(), MAX_ADJUNTOS_POR_ENTRADA)

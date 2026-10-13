@@ -50,6 +50,10 @@ CAP_EDITAR = "dispositivo.editar"
 
 _SEGUNDOS_DEL_DIA = 24 * 60 * 60
 
+#: Cuántos archivos puede llevar una entrada, sumando los heredados de la versión que
+#: corrige. Un acta, unas fotos: más que esto no es una novedad, es un expediente.
+MAX_ADJUNTOS_POR_ENTRADA = 10
+
 
 # --------------------------------------------------------------------------- #
 # Turno vigente y fecha operativa
@@ -250,7 +254,7 @@ PERSONAS_FUERA_DEL_TURNO = "Alguna de las personas no estaba alojada en este dis
 def _exigir_turno_en_curso(dispositivo, momento, ahora):
     """El turno de `momento`, que tiene que ser el que está en curso.
 
-    Cargar o corregir una novedad de un turno que ya terminó es **regularizar**, y la
+    Cargar una novedad de un turno que ya terminó es **regularizar**, y la
     regularización de días anteriores no es parte de esta etapa (P14 la prevé con su
     ventana configurable y P15 con su propia capacidad).
     """
@@ -274,7 +278,15 @@ def _exigir_turno_en_curso(dispositivo, momento, ahora):
 def _estadias_del_momento(dispositivo, personas, momento):
     """Las estadías involucradas, que tienen que ser de acá y estar abiertas en ese momento."""
 
-    ids = {persona.pk if isinstance(persona, Estadia) else persona for persona in personas or ()}
+    ids = set()
+    for persona in personas or ():
+        valor = persona.pk if isinstance(persona, Estadia) else persona
+        # Del formulario llegan como texto: «5» y 5 son la misma estadía, y «abc» es un
+        # dato inválido —un 400—, no un `ValueError` del ORM que termina en 500.
+        try:
+            ids.add(int(str(valor).strip()))
+        except (TypeError, ValueError):
+            raise ValidationError({"personas": PERSONAS_FUERA_DEL_TURNO}) from None
     if not ids:
         return []
     estadias = list(
@@ -287,14 +299,17 @@ def _estadias_del_momento(dispositivo, personas, momento):
     return estadias
 
 
-def _guardar_adjuntos(dispositivo, usuario, archivos):
+def _guardar_adjuntos(dispositivo, usuario, archivos, *, heredados=0):
     """Valida **todos** los archivos antes de escribir el primero, y anota lo escrito.
 
     Con `archivos_atomicos` por arriba, si después algo falla los archivos ya escritos
-    se borran: el storage no vuelve atrás con la transacción.
+    se borran: el storage no vuelve atrás con la transacción. `heredados` son los que la
+    entrada ya trae de la versión que corrige, y cuentan para el tope.
     """
 
     archivos = list(archivos or ())
+    if heredados + len(archivos) > MAX_ADJUNTOS_POR_ENTRADA:
+        raise ValidationError({"adjuntos": f"Una novedad lleva hasta {MAX_ADJUNTOS_POR_ENTRADA} archivos."})
     for archivo in archivos:
         validar_adjunto(archivo)
     adjuntos = []
@@ -347,11 +362,25 @@ def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, person
     estadias = _estadias_del_momento(dispositivo, personas, momento)
     archivos = _guardar_adjuntos(dispositivo, usuario, adjuntos)
     entrada.save()
-    if estadias:
-        entrada.personas.set(estadias)
-    if archivos:
-        entrada.adjuntos.set(archivos)
+    _vincular(entrada, estadias, archivos)
     return entrada
+
+
+def _vincular(entrada, estadias, adjuntos):
+    """Las personas y los adjuntos de una versión, **una sola vez**, al crearla.
+
+    Fuera de acá el modelo los rechaza (`m2m_changed`): una versión ya guardada no cambia
+    sus relaciones, igual que no cambia su texto. La marca vale solo mientras dura esto.
+    """
+
+    entrada._relaciones_abiertas = True
+    try:
+        if estadias:
+            entrada.personas.set(estadias)
+        if adjuntos:
+            entrada.adjuntos.set(adjuntos)
+    finally:
+        entrada._relaciones_abiertas = False
 
 
 CORRECCION_CONCURRENTE = (
@@ -389,9 +418,21 @@ def corregir_entrada(
         raise ValidationError({"entrada": CORRECCION_CONCURRENTE})
     if corregida.origen != EntradaBitacora.Origen.MANUAL:
         raise ValidationError({"entrada": "Las novedades automáticas se corrigen desde la estadía que las generó."})
+    if corregida.dispositivo.estado != Dispositivo.Estado.ACTIVO:
+        raise ValidationError({"dispositivo": "Solo se carga la bitácora de un dispositivo activo."})
 
-    ahora = timezone.now()
-    _exigir_turno_en_curso(corregida.dispositivo, corregida.momento, ahora)
+    # Contra el turno y la fecha **guardados** en la entrada, no recalculados desde su
+    # momento: si la configuración de turnos cambió después, recalcular podría ubicar
+    # una novedad del turno que ya terminó en el que rige ahora, y dejarla corregir.
+    en_curso = turno_vigente(corregida.dispositivo, timezone.now())
+    if (
+        en_curso is None
+        or en_curso.turno.pk != corregida.turno_id
+        or en_curso.fecha_operativa != corregida.fecha_operativa
+    ):
+        raise ValidationError(
+            {"entrada": "Solo se corrigen novedades del turno en curso. Los turnos anteriores se regularizan."}
+        )
 
     nueva = EntradaBitacora(
         dispositivo=corregida.dispositivo,
@@ -414,7 +455,7 @@ def corregir_entrada(
         estadias = _estadias_del_momento(corregida.dispositivo, personas, corregida.momento)
     quitar = {adjunto.pk if isinstance(adjunto, AdjuntoBitacora) else adjunto for adjunto in quitar_adjuntos or ()}
     heredados = [adjunto for adjunto in corregida.adjuntos.all() if adjunto.pk not in quitar]
-    archivos = _guardar_adjuntos(corregida.dispositivo, usuario, adjuntos_nuevos)
+    archivos = _guardar_adjuntos(corregida.dispositivo, usuario, adjuntos_nuevos, heredados=len(heredados))
     try:
         # La red de abajo: si alguien llegara sin pasar por el bloqueo de arriba, el
         # UNIQUE de `version_anterior` rechaza la segunda corrección de la misma versión.
@@ -422,8 +463,5 @@ def corregir_entrada(
             nueva.save()
     except IntegrityError as error:
         raise ValidationError({"entrada": CORRECCION_CONCURRENTE}) from error
-    if estadias:
-        nueva.personas.set(estadias)
-    if heredados or archivos:
-        nueva.adjuntos.set([*heredados, *archivos])
+    _vincular(nueva, estadias, [*heredados, *archivos])
     return nueva

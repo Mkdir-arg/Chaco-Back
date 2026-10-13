@@ -1705,6 +1705,33 @@ class EntradaBitacora(TimeStamped):
             raise ValidationError({"turno": "El turno tiene que ser del dispositivo de la entrada."})
 
 
+def _relaciones_de_la_entrada_inmutables(sender, instance, action, reverse, **kwargs):
+    """Una versión ya guardada no cambia sus personas ni sus adjuntos.
+
+    Es la misma regla que el texto —corregir es agregar una versión— aplicada a las dos
+    relaciones varios a varios, que `save()` no ve. Solo las escribe
+    `programas.services.bitacora` mientras crea la versión, con la marca
+    `_relaciones_abiertas` puesta sobre esa instancia. Desde el otro lado
+    (`estadia.entradas_bitacora.add(...)`) no hay marca posible: siempre falla.
+    """
+
+    if action not in ("pre_add", "pre_remove", "pre_clear"):
+        return
+    if not reverse and getattr(instance, "_relaciones_abiertas", False):
+        return
+    raise ValidationError(
+        "Las personas y los adjuntos de una entrada de bitácora no se cambian: se corrige con una versión nueva."
+    )
+
+
+for _through in (EntradaBitacora.personas.through, EntradaBitacora.adjuntos.through):
+    models.signals.m2m_changed.connect(
+        _relaciones_de_la_entrada_inmutables,
+        sender=_through,
+        dispatch_uid=f"entrada_bitacora_inmutable_{_through._meta.model_name}",
+    )
+
+
 class Cama(TimeStamped):
     """Unidad de capacidad identificable dentro de un dispositivo."""
 
