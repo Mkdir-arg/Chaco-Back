@@ -402,6 +402,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 263 | Un mismo correo en varios usuarios: cada correo de recupero dice de qué usuario es, y el alta no muestra una clave que el sistema ignora | Transversal — usuarios (recupero de contraseña y alta) | `#usuarios` `#correo` `#ui` | PM — decisión en sesión de trabajo: los correos se pueden repetir entre usuarios y el login no se toca | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 264 | Los requisitos se ordenan arrastrando: sale el campo «Orden» | Becas / requisitos | `#requisitos` `#ui` `#mobile` | PM — pedido directo en sesión de trabajo | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 269 | Egreso con catálogo de motivos: el historial no puede perder su razón | Dispositivos · egreso | `#datos` `#ui` | Task 26 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0088` |
+| 271 | La solapa del legajo muestra toda la trayectoria, y no deja enumerar personas | Dispositivos · legajo | `#rbac` `#ui` | Task 28 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -34066,6 +34067,95 @@ El egreso va por POST con CSRF; un GET da 405.
 bajar, la tabla del catálogo se borra entera. **Desde el primer egreso con motivo deja de ser
 gratis**: el `PROTECT` frena borrar un motivo usado, así que la reversa exige antes desvincular las
 estadías.
+
+## Historial
+
+Entrada nueva. Etapa 2 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 271 — La solapa del legajo muestra toda la trayectoria, y no deja enumerar personas
+
+🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 28` (#693)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · legajo ciudadano |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) · decisión §4.11 de la propuesta |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 28 del backlog del MVP · Épica #127 · etapa 2 |
+| **Partes afectadas** | `legajos/views/dispositivos.py`, `programas/selectors/trayectoria.py`, `programas/services/solapas.py` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**La regla es la de §4.11 de la propuesta al cliente, y no se renegoció**: la solapa **no se filtra
+por alcance** —cualquiera del programa que abra el legajo ve la trayectoria completa, en cualquier
+institución de la red—; **lo que decide qué se ve adentro es la sensibilidad**; y es **de lectura**.
+Antes la solapa desaparecía apenas la persona egresaba; ahora queda toda la historia.
+
+**«Abrir el legajo» exige ver ciudadanos, así que la solapa también.** La primera versión pedía solo
+`dispositivo.ver`, y como la solapa es una URL aparte, **se salteaba el control del legajo**: con esa
+sola capacidad, escribiendo `ciudadanos/<id>/dispositivos/` con distintos ids se veía nombre, DNI y
+edad de cualquier persona. Es decir, **se podía enumerar personas**. La §4.11 habla de quien «abre el
+legajo», y eso ya exige `ciudadano.ver`. Ahora se exigen las dos, igual que el asistente de ingreso,
+y un test verifica que con solo `dispositivo.ver` la respuesta **no contiene el nombre ni el DNI**.
+
+**La trayectoria muestra el motivo del catálogo, nunca las observaciones.** Con el egreso (Cambio 264)
+el motivo pasó a un catálogo, y `motivo_egreso` quedó como **observaciones libres**, donde puede haber
+datos sensibles. La §4.11 habla de «motivo de egreso»: el del catálogo. Tampoco se muestran la clave
+de alojamiento ni quién registró cada movimiento.
+
+**Y ni siquiera llegan al template.** La paginación llevaba las estadías completas —con observaciones,
+clave y quién registró— dentro de `page_obj`: no se mostraban, pero bastaba un `{% for %}` para
+exponerlas, y el docstring y un test afirmaban lo contrario. Ahora `page_obj` lleva solo las filas ya
+armadas. El test de claves exactas recorre `page_obj` y lo verifica.
+
+**«Ser del programa» es `dispositivo.ver` con alcance de programa.** Un rol de Becas con esa
+capacidad no habilita, ni un grupo con el nombre del programa: se autoriza por capacidad.
+
+## Los tests de alcance no probaban el alcance
+
+La revisión **corrió pruebas de mutación** y encontró algo más grave que una fuga: al agregar la
+exigencia de `ciudadano.ver`, los usuarios de los tests de «ser del programa» empezaron a dar 403
+**por no tener `ciudadano.ver`**, no por estar fuera del programa. Reemplazando el chequeo de alcance
+por uno **sin programa** —o sea, «un rol de Becas habilita»— **pasaban los 13 tests**. La única
+guarda contra esa regresión, en una pantalla con datos de personas en situación de calle, estaba
+vacía.
+
+Ahora cada usuario de prueba tiene **todo menos** la condición que el test quiere aislar, y la
+mutación da rojo: con el chequeo sin programa fallan dos tests. Se sumó además un test de rol global
+con las dos capacidades, que fija la decisión de que un global habilita.
+
+## Pendientes
+
+- **Los roles globales con `dispositivo.ver` ven la trayectoria de toda la red.** Es lo que dice la
+  política, pero desde el código no se puede saber cuáles lo tienen tildado en producción. **El PM
+  tiene que revisarlo en el ABM de Roles.**
+- **La solapa navega a una pantalla propia** en vez de embeberse en el legajo, como dibuja el mockup.
+  El legajo es legacy con estilos en línea, embeberla costaba tocarlo y sumarle consultas, y la barra
+  de solapas ya tiene otras que navegan. Se pierde ver la barra mientras se mira la trayectoria.
+- **El contador de la solapa cuenta el total de estadías**, no las abiertas: el modelo permite una
+  sola abierta por persona en toda la red, así que contar abiertas daría siempre 0 o 1.
+- El legajo ya no dice que la persona tiene el programa «activo» si egresó: la solapa lleva «Alojada»
+  o «Sin estadía activa».
+- Fuera de esta task: «Ver estadía», «Reingreso», «Trasladado», las derivaciones y el paso por lista
+  de espera.
+
+## Archivos
+
+`legajos/views/dispositivos.py` · `programas/selectors/trayectoria.py` ·
+`programas/services/solapas.py` · `legajos/selectors/ciudadanos.py` ·
+`legajos/templates/legajos/solapas/dispositivos.html` · `legajos/urls/__init__.py` ·
+`programas/tests/test_solapa_dispositivos.py` · `legajos/tests/test_humo_pantallas.py` ·
+`docs/internal/dispositivos-v2/mapeo-mockup.md`
+
+## Base de datos
+
+No requiere.
 
 ## Historial
 

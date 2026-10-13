@@ -1,12 +1,62 @@
+{# arquetipo: detalle + apilado #}{# un area sola (la trayectoria): la ficha del arquetipo dice que sin solapas van secciones apiladas en surfaces #}
 {% extends "includes/base.html" %}
+{% load nodo_ui %}
 {% block title %}Dispositivos · {{ ciudadano.nombre_completo }}{% endblock %}
+
 {% block main-content %}
-<main class="mx-auto max-w-5xl py-8">
-  <a href="{% url 'legajos:ciudadano_detalle' ciudadano.pk %}" class="text-sm text-body-subtle hover:text-fg-brand">← Volver al legajo</a>
-  <section class="mt-5 rounded-xl border border-base p-6" style="background:var(--bg-primary)">
-    <p class="text-xs font-semibold uppercase tracking-wide text-fg-brand">Legajo ciudadano</p>
-    <h1 class="mt-1 text-2xl font-bold text-heading">Dispositivos · {{ ciudadano.nombre_completo }}</h1>
-    <p class="mt-5 text-sm text-body-subtle">Todavía no hay estadías registradas para esta persona.</p>
+<div class="space-y-5">
+
+  {# ===== PageHeader (solo lectura: sin acciones) ===== #}
+  {% page_header titulo=ciudadano.nombre_completo volver_url=url_legajo volver_label="legajo ciudadano" %}
+    {% bajada %}Trayectoria en Dispositivos · DNI {{ ciudadano.dni }}{% if ciudadano.edad is not None %} · {{ ciudadano.edad }} años{% endif %}{% endbajada %}
+  {% endpage_header %}
+
+  {% include "components/_alerta.html" with tono="info" titulo="Hoy:" texto=hoy %}
+
+  {# ===== Trayectoria completa: abiertas y cerradas, en toda la red ===== #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="trayectoria-titulo">
+    <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-2">
+      <h2 id="trayectoria-titulo" class="text-heading font-bold">Estadías</h2>
+      <span class="badge badge-gray">{{ n_estadias }}</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Institución</th>
+            <th class="nodo-th">Tipo</th>
+            <th class="nodo-th">Ingreso</th>
+            <th class="nodo-th">Egreso</th>
+            <th class="nodo-th">Estado</th>
+            <th class="nodo-th">Motivo de egreso</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in filas %}
+          <tr class="hover:bg-secondary transition">
+            <td class="nodo-td">
+              <span class="font-medium text-heading">{{ fila.dispositivo }}</span>
+              {% if fila.ubicacion %}<span class="block text-xs text-body-subtle">{{ fila.ubicacion }}</span>{% endif %}
+            </td>
+            <td class="nodo-td">{{ fila.tipo }}</td>
+            <td class="nodo-td whitespace-nowrap">{{ fila.ingreso|date:"d/m/Y" }}</td>
+            <td class="nodo-td whitespace-nowrap">{{ fila.egreso|date:"d/m/Y"|default:"—" }}</td>
+            <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.tono }}">{{ fila.estado }}</span></td>
+            <td class="nodo-td">{{ fila.motivo|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="p-0">
+              {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Todavía no hay estadías registradas" texto="Cuando la persona ingrese a un dispositivo, su trayectoria aparece acá y se conserva aunque egrese." %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "components/_paginacion.html" with page_obj=page_obj entidad="estadía" param="estadias_page" %}
   </section>
-</main>
+
+  <p class="text-xs text-body-subtle">Las secciones sensibles de cada ficha se muestran según tu rol. El historial se conserva aunque no haya estadía activa. Para operar sobre una estadía, entrá al programa.</p>
+</div>
 {% endblock %}

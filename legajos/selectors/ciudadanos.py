@@ -138,7 +138,7 @@ def build_ciudadano_detail_context(ciudadano, user=None):
     # tiene RN-P13 y muestra el resto (el legajo es transversal).
     resumen_becas = SolapasService.obtener_resumen_becas_ciudadano(ciudadano, user=user)
     todas_las_solapas = SolapasService.obtener_solapas_ciudadano(
-        ciudadano, resumen_becas=resumen_becas, alertas_activas=alertas_activas
+        ciudadano, resumen_becas=resumen_becas, alertas_activas=alertas_activas, user=user
     )
     # La solapa «Alertas» es estática: aparece siempre, con alertas o sin ellas. Sin la
     # capacidad no hay nada que mostrar adentro, así que tampoco se dibuja el botón.

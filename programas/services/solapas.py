@@ -31,7 +31,7 @@ class SolapasService:
     ]
 
     @classmethod
-    def obtener_solapas_ciudadano(cls, ciudadano, resumen_becas=None, alertas_activas=None):
+    def obtener_solapas_ciudadano(cls, ciudadano, resumen_becas=None, alertas_activas=None, user=None):
         solapas = [dict(s) for s in cls.SOLAPAS_ESTATICAS]
 
         # Por el manager relacionado: deja cada fila apuntando al ciudadano que ya está en
@@ -46,10 +46,9 @@ class SolapasService:
         for inscripcion in inscripciones_activas:
             programa = inscripcion.programa
             tipo_normalizado = cls._normalizar_tipo_programa(programa.tipo)
-            # Dispositivos no abre solapa hasta que exista `Estadia` (MVP v2, E2): la
-            # condición que decidía si mostrarla —tener una estadía alojada— y el
-            # contenido que rendía eran lecturas de `Admision`. Sin ella la solapa
-            # quedaría abriendo una pantalla vacía, así que no se ofrece.
+            # Dispositivos no sale de la inscripción: su solapa es la trayectoria de estadías
+            # (`_obtener_solapa_dispositivos`) y existe aunque la inscripción ya no esté
+            # vigente. Acá se saltea para que no aparezca dos veces.
             if tipo_normalizado == "DISPOSITIVOS":
                 continue
             url_name = cls._obtener_url_programa(tipo_normalizado)
@@ -82,6 +81,10 @@ class SolapasService:
         solapa_becas = cls._obtener_solapa_becas(ciudadano, resumen_becas=resumen_becas)
         if solapa_becas:
             solapas_final.append(solapa_becas)
+
+        solapa_dispositivos = cls._obtener_solapa_dispositivos(ciudadano, user)
+        if solapa_dispositivos:
+            solapas_final.append(solapa_dispositivos)
 
         solapas_final.sort(key=lambda x: x["orden"])
         return solapas_final
@@ -186,7 +189,6 @@ class SolapasService:
     @classmethod
     def _obtener_url_programa(cls, tipo_programa):
         url_map = {
-            "DISPOSITIVOS": "legajos:dispositivos_ciudadano",
             "ACOMPANAMIENTO_SOCIAL": "legajos:programa_detalle",
             "ECONOMICO": "programas:economico_detalle",
             "FAMILIAR": "programas:familiar_detalle",
@@ -199,6 +201,54 @@ class SolapasService:
         ascii_valor = unicodedata.normalize("NFKD", valor).encode("ascii", "ignore").decode("ascii")
         ascii_valor = re.sub(r"[^A-Z0-9]+", "_", ascii_valor).strip("_")
         return ascii_valor or "PROGRAMA"
+
+    @classmethod
+    def _obtener_solapa_dispositivos(cls, ciudadano, user):
+        """Solapa «Dispositivos»: la trayectoria de estadías de la persona (P16 del mockup).
+
+        Se ofrece cuando la persona **tiene alguna estadía** —abierta o cerrada— y quien
+        mira es del programa. No depende de que esté alojada hoy ni de que su inscripción
+        siga vigente: la historia no se va cuando la persona egresa.
+
+        «Ser del programa» es la capacidad `dispositivo.ver` con alcance a Dispositivos,
+        nunca el nombre de un grupo; además hace falta `ciudadano.ver`, como en la pantalla. Sin ``user`` no se ofrece: es el default seguro.
+        No filtra por el alcance fino del dispositivo (decisión §4.11 de la propuesta v2).
+
+        Navega a la pantalla propia (`url`) y no embebe: así el legajo, que tiene
+        presupuesto de consultas, paga un solo COUNT.
+        """
+        from django.urls import reverse
+
+        from core import rbac
+
+        from ..selectors.trayectoria import resumen_de_estadias
+        from .dispositivos import CAP_VER, programa_dispositivos, puede_en_programa_dispositivos
+
+        if user is None or not (puede_en_programa_dispositivos(user, CAP_VER) and rbac.puede(user, "ciudadano.ver")):
+            return None
+        total, abiertas = resumen_de_estadias(ciudadano)
+        if not total:
+            return None
+        programa = programa_dispositivos(user)
+        return {
+            "id": "programa_DISPOSITIVOS",
+            "nombre": programa.nombre,
+            "icono": programa.icono or "bed",
+            "color": programa.color,
+            "url": reverse("legajos:dispositivos_ciudadano", args=[ciudadano.pk]),
+            "orden": 100 + programa.orden,
+            "estatica": False,
+            # El título es lo que dice el bloque «Programas activos» del legajo: sin él quedaba
+            # vacío y, con solo estadías cerradas, parecía que el programa seguía activo.
+            "badge": {
+                "tipo": "numero",
+                "valor": total,
+                "color_hex": "var(--bg-brand)",
+                "title": "Alojada" if abiertas else "Sin estadía activa",
+            },
+            # Sin panel dedicado en el legajo: el contenido vive en su pantalla.
+            "contenido_embebido": True,
+        }
 
     @classmethod
     def _obtener_solapa_becas(cls, ciudadano, resumen_becas=None):
