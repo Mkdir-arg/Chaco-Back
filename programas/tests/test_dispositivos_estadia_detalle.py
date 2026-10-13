@@ -38,6 +38,7 @@ from programas.selectors.estadia_detalle import TOPE_EVENTOS, detalle_de_estadia
 from programas.services.estadias import cambiar_plaza, egresar_persona, ingresar_persona
 from programas.services.movimientos import registrar_movimiento
 from programas.tests.test_dispositivos_estadias import BaseEstadias
+from programas.views.dispositivos_legajo import url_solapa_estadias
 
 FORMATO = "%Y-%m-%dT%H:%M"
 TOKEN_CSRF = "a" * 32
@@ -507,7 +508,7 @@ class EgresoDesdeLaEstadiaTests(BaseDetalle):
     def test_sin_volver_va_a_personas_alojadas_como_siempre(self):
         respuesta = self._egresar()
 
-        self.assertEqual(respuesta.json()["redirect"], reverse("dispositivos:estadias", args=[self.cis.pk]))
+        self.assertEqual(respuesta.json()["redirect"], url_solapa_estadias(self.cis.pk))
 
     def test_un_valor_que_no_es_la_clave_no_redirige_afuera(self):
         """Sin AJAX y con un dato inválido, el egreso se rechaza y redirige a `volver`: ahí se ve el destino.
@@ -515,7 +516,7 @@ class EgresoDesdeLaEstadiaTests(BaseDetalle):
         Así se prueban varios valores sin cerrar la estadía en cada uno.
         """
 
-        lista = reverse("dispositivos:estadias", args=[self.cis.pk])
+        lista = url_solapa_estadias(self.cis.pk)
         url = reverse("dispositivos:egresar", args=[self.cis.pk, self.estadia.pk])
         cliente = self._cliente()
         for malicioso in ("https://evil.example/robar", "//evil.example", "/admin/", "estadia/../../x", ""):
@@ -594,3 +595,32 @@ class EstadiaDetallePresupuestoTests(BaseDetalle):
         self.assertEqual(
             pantalla_larga, pantalla_corta, "la pantalla no puede pagar una consulta por movimiento o estadía"
         )
+
+
+class IntegracionConElDetalleDelDispositivoTests(BaseDetalle):
+    """P4 abre P7 desde la fila de la estadía, y P7 vuelve a la solapa Estadías de P4."""
+
+    def _p4(self, usuario=None):
+        return self._get(usuario, reverse("dispositivos:detalle", args=[self.cis.pk]) + "?tab=estadias")
+
+    def test_la_fila_de_p4_abre_la_estadia(self):
+        respuesta = self._p4()
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, f'href="{self.url}"')
+        self.assertContains(respuesta, f"Ver estadía de {self.persona.nombre_completo}")
+
+    def test_sin_ciudadano_ver_la_fila_no_ofrece_la_estadia(self):
+        usuario = self._operador("Sin ciudadano", self.cis, _menos("ciudadano.ver"))
+
+        respuesta = self._p4(usuario)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertNotContains(respuesta, f'href="{self.url}"')
+
+    def test_p7_vuelve_a_la_solapa_estadias(self):
+        respuesta = self._get()
+
+        destino = url_solapa_estadias(self.cis.pk)
+        self.assertEqual(respuesta.context["url_volver"], destino)
+        self.assertEqual(respuesta.context["migas"][2], {"label": "Estadías", "url": destino})

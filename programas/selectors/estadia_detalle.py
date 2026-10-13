@@ -27,6 +27,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from programas.models import Estadia, MovimientoEstadia
+from programas.services.estadias import estado_visible
 from programas.services.movimientos import linea_de_tiempo, tramos_por_plaza
 
 #: La línea de tiempo llega recortada: la lista completa está en la solapa Movimientos.
@@ -42,11 +43,6 @@ _TONO_MOVIMIENTO = {
     Tipo.CAMBIO_SECTOR: "warning",
     Tipo.CAMBIO_PLAZA: "warning",
     Tipo.EGRESO: "danger",
-}
-
-_ESTADO_ESTADIA = {
-    Estadia.Estado.ACTIVA: ("Alojada", "info"),
-    Estadia.Estado.EGRESADA: ("Egresada", "gray"),
 }
 
 SIN_DATO = "—"
@@ -227,7 +223,7 @@ def _seccion_egreso(estadia):
 
 
 def _otra_estadia(estadia):
-    estado, tono = _ESTADO_ESTADIA[estadia.estado]
+    estado, tono = estado_visible(estadia)
     donde = estadia.dispositivo.nombre
     if estadia.plaza_id:
         donde = f"{donde} · {_plaza(estadia.plaza, con_sector=True)}"
@@ -284,8 +280,8 @@ def detalle_de_estadia(estadia, momento=None):
             "texto": f"Egresó el {_fecha_hora(estadia.fecha_egreso)}" + (f" · motivo: {motivo}." if motivo else "."),
         }
 
-    estado, tono = _ESTADO_ESTADIA[estadia.estado]
-    # La línea que acompaña al nombre en el modal de egreso, como en «Personas alojadas» (P9).
+    estado, tono = estado_visible(estadia)
+    # La línea que acompaña al nombre en el modal de egreso, como en la solapa Estadías del dispositivo (P9).
     resumen = f"Ingreso {_fecha_hora(estadia.fecha_ingreso)}"
     if estadia.plaza_id:
         resumen = f"{resumen} · plaza {estadia.plaza.codigo}"

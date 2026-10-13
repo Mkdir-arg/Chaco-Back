@@ -9,7 +9,7 @@
 <div class="space-y-5"
      x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'ficha' }">
 
-  {% page_header titulo=persona.nombre_completo eyebrow=ubicacion volver_url=url_volver volver_label="Personas alojadas" migas=migas %}
+  {% page_header titulo=persona.nombre_completo eyebrow=ubicacion volver_url=url_volver volver_label="Estadías" migas=migas %}
     {% bajada %}DNI {{ persona.dni }}{% if persona.edad is not None %} · {{ persona.edad }} años{% endif %} · ingreso {{ estadia.ingreso }} · {{ estadia.dias }} día{{ estadia.dias|pluralize }} de permanencia{% if url_legajo %} · <a href="{{ url_legajo }}" class="text-fg-brand hover:underline">legajo ciudadano</a>{% endif %}{% endbajada %}
     <span class="badge badge-{{ estadia.tono }} badge-dot">{{ estadia.estado }}</span>
     {% if estadia.reingreso %}<span class="badge badge-brand">Reingreso</span>{% endif %}
@@ -147,7 +147,7 @@
   {% endif %}
 
   {% if puede_egresar %}
-  {# Modal: Registrar egreso — mismo contrato que el de «Personas alojadas» (dispositivos:egresar + EgresoForm) #}
+  {# Modal: Registrar egreso — mismo contrato que el de la solapa Estadías del dispositivo (dispositivos:egresar + EgresoForm) #}
   <div x-show="modalEgreso" x-cloak x-becas-modal="modalEgreso" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEgreso=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
