@@ -74,8 +74,10 @@ vista las acota:
 ## Qué no cubre la golden
 
 Los paneles de Movimientos, Novedades, Adjuntos e Historial traen solo el estado vacío: la pantalla
-real los llena con la tabla del arquetipo Detalle. El `eyebrow` del mockup (línea sobre el título) no
-existe en `{% page_header %}`: la ubicación va al principio de la bajada.
+real los llena con la tabla del arquetipo Detalle. El `eyebrow` del mockup (línea sobre el título) es
+opcional: `{% page_header %}` lo soporta con `eyebrow=` (ficha `componentes/page_header.md`). La golden no
+lo usa y pone la ubicación al principio de la bajada; la pantalla real puede llevarla en el eyebrow
+(«Dispositivo · Sector · plaza»), como el mockup, y entonces no la repite en la bajada.
 
 ## Checklist (la usa el revisor)
 

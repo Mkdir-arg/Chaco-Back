@@ -80,7 +80,21 @@ def _duracion(delta):
     return f"{horas} h" if horas else "menos de 1 h"
 
 
-def _detalle_del_movimiento(movimiento):
+def _motivo_del_movimiento(movimiento, estadia):
+    """El motivo que se puede mostrar.
+
+    En el egreso, **el del catálogo de la estadía y nada más**: `MovimientoEstadia.motivo`
+    puede traer las observaciones del egreso —texto libre— porque así lo guardaba
+    `egresar_persona` sin motivo del catálogo y así reconstruyó la migración 0089 los
+    egresos viejos. En los cambios de plaza el motivo es el que se pidió para el cambio.
+    """
+
+    if movimiento.tipo == Tipo.EGRESO:
+        return estadia.motivo.nombre if estadia.motivo_id else ""
+    return movimiento.motivo
+
+
+def _detalle_del_movimiento(movimiento, estadia):
     """La línea que sigue al título: de qué plaza a cuál y por qué."""
 
     partes = []
@@ -91,12 +105,13 @@ def _detalle_del_movimiento(movimiento):
         partes.append(f"{origen} → {_plaza(movimiento.plaza_destino, con_sector=True)}")
     elif movimiento.tipo == Tipo.CAMBIO_PLAZA:
         partes.append(f"{_plaza(movimiento.plaza_origen)} → {_plaza(movimiento.plaza_destino)}")
-    if movimiento.motivo:
-        partes.append(f"motivo: {movimiento.motivo}")
+    motivo = _motivo_del_movimiento(movimiento, estadia)
+    if motivo:
+        partes.append(f"motivo: {motivo}")
     return " · ".join(partes)
 
 
-def _evento(movimiento):
+def _evento(movimiento, estadia):
     """Un movimiento en la forma de `components/_linea_tiempo.html`."""
 
     cuando = timezone.localtime(movimiento.momento).strftime("%d/%m/%Y · %H:%M")
@@ -104,18 +119,21 @@ def _evento(movimiento):
     return {
         "cuando": f"{cuando} · {responsable}" if responsable else cuando,
         "titulo": movimiento.get_tipo_display(),
-        "detalle": _detalle_del_movimiento(movimiento),
+        "detalle": _detalle_del_movimiento(movimiento, estadia),
         "tono": _TONO_MOVIMIENTO.get(movimiento.tipo, ""),
     }
 
 
-def _fila_de_movimiento(movimiento):
+def _fila_de_movimiento(movimiento, estadia):
     """Un movimiento como fila de la tabla de la solapa Movimientos."""
 
-    if movimiento.tipo in MovimientoEstadia.TIPOS_DE_CAMBIO_DE_PLAZA:
+    if movimiento.tipo == Tipo.CAMBIO_SECTOR:
         plaza = (
             f"{_plaza(movimiento.plaza_origen, con_sector=True)} → {_plaza(movimiento.plaza_destino, con_sector=True)}"
         )
+    elif movimiento.tipo == Tipo.CAMBIO_PLAZA:
+        # Dentro del mismo sector, como en la línea de tiempo: el sector no cambió.
+        plaza = f"{_plaza(movimiento.plaza_origen)} → {_plaza(movimiento.plaza_destino)}"
     elif movimiento.tipo == Tipo.EGRESO:
         plaza = _plaza(movimiento.plaza_origen, con_sector=True)
     else:
@@ -124,7 +142,7 @@ def _fila_de_movimiento(movimiento):
         "cuando": _fecha_hora(movimiento.momento),
         "tipo": movimiento.get_tipo_display(),
         "plaza": plaza,
-        "motivo": movimiento.motivo or SIN_DATO,
+        "motivo": _motivo_del_movimiento(movimiento, estadia) or SIN_DATO,
         "responsable": _nombre_de(movimiento.responsable) or SIN_DATO,
     }
 
@@ -267,6 +285,11 @@ def detalle_de_estadia(estadia, momento=None):
         }
 
     estado, tono = _ESTADO_ESTADIA[estadia.estado]
+    # La línea que acompaña al nombre en el modal de egreso, como en «Personas alojadas» (P9).
+    resumen = f"Ingreso {_fecha_hora(estadia.fecha_ingreso)}"
+    if estadia.plaza_id:
+        resumen = f"{resumen} · plaza {estadia.plaza.codigo}"
+    resumen = f"{resumen} · {dias} día{'s' if dias != 1 else ''} de permanencia"
     return {
         "persona": {"nombre_completo": ciudadano.nombre_completo, "dni": ciudadano.dni, "edad": ciudadano.edad},
         "ubicacion": ubicacion,
@@ -277,11 +300,12 @@ def detalle_de_estadia(estadia, momento=None):
             "reingreso": bool(cuentas["anteriores"]),
             "ingreso": _fecha_hora(estadia.fecha_ingreso),
             "dias": dias,
+            "resumen": resumen,
         },
         "egreso": egreso,
         "secciones": secciones,
-        "eventos": [_evento(movimiento) for movimiento in recientes[:TOPE_EVENTOS]],
-        "movimientos": [_fila_de_movimiento(movimiento) for movimiento in recientes],
+        "eventos": [_evento(movimiento, estadia) for movimiento in recientes[:TOPE_EVENTOS]],
+        "movimientos": [_fila_de_movimiento(movimiento, estadia) for movimiento in recientes],
         "n_movimientos": len(movimientos),
         "hay_mas_eventos": len(movimientos) > TOPE_EVENTOS,
         "otras_estadias": otras_estadias,

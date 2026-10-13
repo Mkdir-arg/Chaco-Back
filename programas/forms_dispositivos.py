@@ -102,7 +102,7 @@ class CambioPlazaForm(forms.Form):
     motivo = forms.CharField(
         label="Motivo",
         widget=forms.Textarea(
-            attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Convivencia, salud, pedido de la persona…"}
+            attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Convivencia, pedido de la persona…"}
         ),
         error_messages={"required": "El cambio de plaza exige un motivo."},
     )

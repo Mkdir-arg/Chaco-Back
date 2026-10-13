@@ -19,6 +19,8 @@ Los usuarios de cada prueba tienen **todo menos la condición que se prueba**.
 """
 
 import json
+import re
+from collections import Counter
 from datetime import timedelta
 from pathlib import Path
 from unittest import mock
@@ -34,6 +36,7 @@ from programas.models import Estadia, MotivoEgreso, MovimientoEstadia, Plaza, Se
 from programas.selectors import estadia_detalle
 from programas.selectors.estadia_detalle import TOPE_EVENTOS, detalle_de_estadia
 from programas.services.estadias import cambiar_plaza, egresar_persona, ingresar_persona
+from programas.services.movimientos import registrar_movimiento
 from programas.tests.test_dispositivos_estadias import BaseEstadias
 
 FORMATO = "%Y-%m-%dT%H:%M"
@@ -148,6 +151,12 @@ class LineaDeTiempoTests(BaseDetalle):
         self.assertEqual(titulos, ["Egreso", "Cambio de sector", "Cambio de plaza", "Ingreso"])
         tabla = [fila["tipo"] for fila in respuesta.context["movimientos_page"]]
         self.assertEqual(tabla, titulos)
+        plazas = [fila["plaza"] for fila in respuesta.context["movimientos_page"]]
+        self.assertEqual(
+            plazas,
+            ["Mujeres · M1", "Varones · P2 → Mujeres · M1", "P1 → P2", "Varones · P1"],
+            "un cambio dentro del mismo sector no repite el sector, como la línea de tiempo",
+        )
         self.assertEqual(respuesta.context["n_movimientos"], 4)
         detalles = [evento["detalle"] for evento in respuesta.context["eventos"]]
         self.assertEqual(
@@ -388,6 +397,139 @@ class AccionesOcultasTests(BaseDetalle):
         )
 
         self.assertNotContains(self._get(), "Dato privado de la persona")
+
+    def test_sin_motivo_del_catalogo_las_observaciones_tampoco_se_muestran(self):
+        """El caso que el de arriba no cubre: egreso sin motivo del catálogo.
+
+        Así lo guardaba `egresar_persona` antes y así reconstruyó la migración 0089 los
+        egresos viejos: el texto libre en `MovimientoEstadia.motivo`. Se arma ese movimiento
+        tal cual, sin pasar por el servicio, para probar la guarda de la pantalla.
+        """
+
+        privado = "Dato privado de la persona"
+        ahora = timezone.now()
+        Estadia.objects.filter(pk=self.estadia.pk).update(
+            estado=Estadia.Estado.EGRESADA, fecha_egreso=ahora, clave_alojamiento=None, motivo_egreso=privado
+        )
+        self.estadia.refresh_from_db()
+        registrar_movimiento(
+            estadia=self.estadia,
+            tipo=Tipo.EGRESO,
+            momento=ahora,
+            responsable=self.operador,
+            motivo=privado,
+            plaza_origen=self.plaza,
+        )
+
+        respuesta = self._get()
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "Egreso")
+        self.assertNotContains(respuesta, privado)
+
+    def test_el_egreso_sin_motivo_del_catalogo_no_copia_las_observaciones_al_movimiento(self):
+        egresar_persona(
+            estadia=self.estadia, usuario=self.operador, destino="Domicilio", motivo="Dato privado de la persona"
+        )
+
+        movimiento = self.estadia.movimientos.get(tipo=Tipo.EGRESO)
+        self.assertEqual(movimiento.motivo, "")
+        self.estadia.refresh_from_db()
+        self.assertEqual(
+            self.estadia.motivo_egreso, "Dato privado de la persona", "las observaciones siguen en la estadía"
+        )
+
+
+class PantallaTests(BaseDetalle):
+    def test_la_pantalla_no_repite_ids(self):
+        """Los dos modales tienen un campo `motivo`: sin `auto_id` propio saldrían dos `id_motivo`."""
+
+        html = self._get().content.decode()
+        repetidos = [i for i, n in Counter(re.findall(r'\sid="([^"]+)"', html)).items() if n > 1]
+
+        self.assertEqual(repetidos, [])
+        self.assertIn('id="cambio_motivo"', html)
+        self.assertIn('id="id_motivo"', html)
+
+    def test_eyebrow_con_la_ubicacion_y_modal_de_egreso_con_la_persona(self):
+        respuesta = self._get()
+
+        self.assertContains(respuesta, "Centro integrador · Varones · plaza P1")
+        self.assertContains(respuesta, f"Registrar egreso de {self.persona.nombre_completo}")
+        self.assertContains(respuesta, "Ingreso ")
+        self.assertContains(respuesta, " · plaza P1 · 3 días de permanencia")
+
+    def test_sin_plazas_libres_no_se_ofrece_cambiar_plaza(self):
+        ingresar_persona(
+            ciudadano=self.otra_persona, dispositivo=self.cis, plaza=self.otra_plaza, usuario=self.operador
+        )
+        tercera = self.persona.__class__.objects.create(dni="30555666", nombre="Rosa", apellido="Díaz")
+        ingresar_persona(ciudadano=tercera, dispositivo=self.cis, plaza=self.plaza_otro_sector, usuario=self.operador)
+
+        respuesta = self._get()
+
+        self.assertNotContains(respuesta, "Cambiar plaza")
+        self.assertContains(respuesta, ">Egresar<")
+
+    def test_el_total_de_otras_estadias_se_dice_en_total(self):
+        for numero in range(7):
+            Estadia.objects.create(
+                ciudadano=self.persona,
+                dispositivo=self.parador,
+                fecha_ingreso=self.ingreso - timedelta(days=60 - numero * 5),
+                fecha_egreso=self.ingreso - timedelta(days=58 - numero * 5),
+                estado=Estadia.Estado.EGRESADA,
+            )
+
+        self.assertContains(self._get(), "Ver la trayectoria completa (7 en total)")
+
+
+class EgresoDesdeLaEstadiaTests(BaseDetalle):
+    """El modal de P7 postea al egreso de siempre y pide volver a la estadía con una clave, no con una URL."""
+
+    def _egresar(self, **extra):
+        datos = {
+            "fecha_egreso": timezone.localtime().strftime(FORMATO),
+            "motivo": self.alta.pk,
+            "destino": "Domicilio",
+            "observaciones": "",
+        }
+        datos.update(extra)
+        url = reverse("dispositivos:egresar", args=[self.cis.pk, self.estadia.pk])
+        return self._cliente().post(url, datos, headers={"x-requested-with": "XMLHttpRequest"})
+
+    def test_con_volver_estadia_vuelve_a_la_pantalla_de_la_estadia(self):
+        respuesta = self._egresar(volver="estadia")
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json()["redirect"], self.url)
+
+    def test_sin_volver_va_a_personas_alojadas_como_siempre(self):
+        respuesta = self._egresar()
+
+        self.assertEqual(respuesta.json()["redirect"], reverse("dispositivos:estadias", args=[self.cis.pk]))
+
+    def test_un_valor_que_no_es_la_clave_no_redirige_afuera(self):
+        """Sin AJAX y con un dato inválido, el egreso se rechaza y redirige a `volver`: ahí se ve el destino.
+
+        Así se prueban varios valores sin cerrar la estadía en cada uno.
+        """
+
+        lista = reverse("dispositivos:estadias", args=[self.cis.pk])
+        url = reverse("dispositivos:egresar", args=[self.cis.pk, self.estadia.pk])
+        cliente = self._cliente()
+        for malicioso in ("https://evil.example/robar", "//evil.example", "/admin/", "estadia/../../x", ""):
+            with self.subTest(malicioso=malicioso):
+                respuesta = cliente.post(url, {"motivo": "", "volver": malicioso})
+                self.assertEqual(respuesta.status_code, 302)
+                self.assertEqual(respuesta["Location"], lista)
+        respuesta = cliente.post(url, {"motivo": "", "volver": "estadia"})
+        self.assertEqual(respuesta["Location"], self.url)
+        self.estadia.refresh_from_db()
+        self.assertTrue(self.estadia.activa)
+
+    def test_la_pantalla_de_la_estadia_manda_la_clave(self):
+        self.assertContains(self._get(), '<input type="hidden" name="volver" value="estadia">')
 
 
 @tag("performance")

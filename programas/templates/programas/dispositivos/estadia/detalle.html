@@ -9,8 +9,8 @@
 <div class="space-y-5"
      x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'ficha' }">
 
-  {% page_header titulo=persona.nombre_completo volver_url=url_volver volver_label="Personas alojadas" migas=migas %}
-    {% bajada %}{{ ubicacion }} · DNI {{ persona.dni }}{% if persona.edad is not None %} · {{ persona.edad }} años{% endif %} · ingreso {{ estadia.ingreso }} · {{ estadia.dias }} día{{ estadia.dias|pluralize }} de permanencia{% if url_legajo %} · <a href="{{ url_legajo }}" class="text-fg-brand hover:underline">legajo ciudadano</a>{% endif %}{% endbajada %}
+  {% page_header titulo=persona.nombre_completo eyebrow=ubicacion volver_url=url_volver volver_label="Personas alojadas" migas=migas %}
+    {% bajada %}DNI {{ persona.dni }}{% if persona.edad is not None %} · {{ persona.edad }} años{% endif %} · ingreso {{ estadia.ingreso }} · {{ estadia.dias }} día{{ estadia.dias|pluralize }} de permanencia{% if url_legajo %} · <a href="{{ url_legajo }}" class="text-fg-brand hover:underline">legajo ciudadano</a>{% endif %}{% endbajada %}
     <span class="badge badge-{{ estadia.tono }} badge-dot">{{ estadia.estado }}</span>
     {% if estadia.reingreso %}<span class="badge badge-brand">Reingreso</span>{% endif %}
     {% if puede_cambiar_plaza %}<button type="button" @click="modalCambio=true" class="btn-nodo btn-secondary btn-sm">Cambiar plaza</button>{% endif %}
@@ -102,7 +102,7 @@
           {% empty %}
           <p class="text-body-subtle">No tiene otras estadías en la red.</p>
           {% endfor %}
-          {% if n_otras_estadias > otras_estadias|length %}<p><a href="{{ url_trayectoria }}" class="text-fg-brand hover:underline">Ver la trayectoria completa ({{ n_otras_estadias }} estadías más)</a></p>{% endif %}
+          {% if n_otras_estadias > otras_estadias|length %}<p><a href="{{ url_trayectoria }}" class="text-fg-brand hover:underline">Ver la trayectoria completa ({{ n_otras_estadias }} en total)</a></p>{% endif %}
         </div>
       </div>
 
@@ -138,11 +138,7 @@
             {{ form_cambio.motivo }}
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="motivo"></p>
           </div>
-          {% if form_cambio.hay_plazas_libres %}
           {% include "components/_alerta.html" with tono="info" texto="La plaza de ahora queda libre en el acto. El cambio queda en la línea de tiempo con su motivo y quién lo registró." %}
-          {% else %}
-          {% include "components/_alerta.html" with tono="warning" titulo="No hay plazas libres" texto="Todas las plazas del dispositivo están ocupadas, reservadas o fuera de servicio." %}
-          {% endif %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCambio=false" accion_texto="Confirmar cambio" %}
       </form>
@@ -156,16 +152,17 @@
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEgreso=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-egreso-titulo">
-      {% include "programas/becas/_modal_header.html" with titulo="Registrar egreso" titulo_id="modal-egreso-titulo" subtitulo=persona.nombre_completo icono="fa-users" tono="danger" cerrar="modalEgreso=false" %}
+      {% with titulo_egreso="Registrar egreso de "|add:persona.nombre_completo %}
+      {% include "programas/becas/_modal_header.html" with titulo=titulo_egreso titulo_id="modal-egreso-titulo" subtitulo=estadia.resumen icono="fa-users" tono="danger" cerrar="modalEgreso=false" %}
+      {% endwith %}
       <form method="post" action="{{ url_egresar }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
+        {# Una clave, no una URL: el servidor la traduce a esta pantalla con `reverse` #}
+        <input type="hidden" name="volver" value="estadia">
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          <div>
-            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
-            <p class="text-sm text-body-subtle">Ingreso {{ estadia.ingreso }} · {{ estadia.dias }} día{{ estadia.dias|pluralize }} de permanencia</p>
-          </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
+              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
               <label for="{{ form_egreso.fecha_egreso.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_egreso.fecha_egreso.label }} <span class="text-fg-danger">*</span></label>
               {{ form_egreso.fecha_egreso }}
               {% if form_egreso.fecha_egreso.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ form_egreso.fecha_egreso.help_text }}</p>{% endif %}
