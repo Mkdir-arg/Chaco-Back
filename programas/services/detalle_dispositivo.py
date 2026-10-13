@@ -24,7 +24,8 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from django.utils.formats import date_format
 
-from programas.models import Estadia, Sector
+from programas.models import Dispositivo, Estadia, Sector
+from programas.services.estadias import estado_visible
 
 POR_PAGINA_ESTADIAS = 25
 POR_PAGINA_HISTORIAL = 20
@@ -36,11 +37,21 @@ FILTRO_TODAS = "TODAS"
 
 _TIPOS_DE_SECTOR = dict(Sector.Tipo.choices)
 
-#: Texto y tono del badge de cada estado de la estadía. Lo decide el servicio, no el template.
-_ESTADO_DE_ESTADIA = {
-    Estadia.Estado.ACTIVA: ("Alojada", "info"),
-    Estadia.Estado.EGRESADA: ("Egresada", "gray"),
+#: Por qué el dispositivo no admite ingresos, según su estado. Activo no lleva aviso.
+_AVISO_SIN_INGRESOS = {
+    Dispositivo.Estado.BORRADOR: "Está en borrador: admite ingresos cuando se envíe a validación y se valide.",
+    Dispositivo.Estado.PENDIENTE_VALIDACION: "Está pendiente de validación: admite ingresos cuando se valide.",
+    Dispositivo.Estado.OBSERVADO: "Está observado: hay que corregir los datos y volver a enviarlo a validación.",
+    Dispositivo.Estado.RECHAZADO: "Fue rechazado en la validación: no admite ingresos.",
+    Dispositivo.Estado.INACTIVO: "Está inactivo: no admite ingresos mientras siga así.",
+    Dispositivo.Estado.CERRADO: "Está cerrado: el legajo se conserva, pero no admite ingresos ni otras operaciones.",
 }
+
+
+def aviso_sin_ingresos(dispositivo):
+    """El texto de la alerta del encabezado, o vacío si el dispositivo está activo."""
+
+    return _AVISO_SIN_INGRESOS.get(dispositivo.estado, "")
 
 
 def indicadores_de_plazas(conteo):
@@ -131,13 +142,16 @@ def pildoras_de_estadias(estado, sector, sectores):
     ]
 
 
-def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None, pagina=1):
+def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None, pagina=1, momento=None):
     """La página de estadías del dispositivo, lista para dibujar.
 
     Trae a la persona y a la plaza con su sector en la misma consulta y solo las columnas
-    que la tabla muestra. A cada estadía de la página le deja ``estado_texto`` y ``tono``,
-    para que el template dibuje el badge sin decidir nada.
+    que la tabla muestra. A cada estadía de la página le deja ``estado_texto`` y ``tono`` (de
+    la tabla única de `programas.services.estadias`) y ``dias_de_permanencia`` (hasta el
+    egreso, o hasta ``momento`` si sigue alojada), para que el template no decida nada.
     """
+
+    momento = momento or timezone.now()
 
     consulta = (
         Estadia.objects.filter(dispositivo=dispositivo)
@@ -167,7 +181,8 @@ def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None
     pagina_de_estadias = Paginator(consulta, POR_PAGINA_ESTADIAS).get_page(pagina)
     # Recorrer el `Page` lo materializa en una lista, así que los atributos llegan al template.
     for estadia in pagina_de_estadias:
-        estadia.estado_texto, estadia.tono = _ESTADO_DE_ESTADIA.get(estadia.estado, (estadia.estado, "gray"))
+        estadia.estado_texto, estadia.tono = estado_visible(estadia)
+        estadia.dias_de_permanencia = ((estadia.fecha_egreso or momento) - estadia.fecha_ingreso).days
     return pagina_de_estadias
 
 

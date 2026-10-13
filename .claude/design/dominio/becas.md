@@ -23,7 +23,10 @@ Todos con `badge badge-<tono> badge-dot`. **Pausado nunca es danger** y apagado 
 Un módulo nuevo arma **su propio** parcial de badges con el mismo patrón:
 `programas/templates/programas/dispositivos/_estado_badge.html` es el de Dispositivos y
 `programas/templates/programas/merenderos/_estado_badge.html` (+ `_solicitud_estado_badge.html`)
-los de Merenderos. **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
+los de Merenderos. El mapeo también puede vivir en el servicio o selector del módulo, que
+entrega texto y `tono` y el template dibuja `badge badge-dot badge-{{ tono }}` sin decidir nada:
+así lo hace la estadía de Dispositivos (`ESTADOS_VISIBLES` de `programas/services/estadias.py`,
+que leen el detalle del dispositivo y la solapa del legajo). **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
 `badge-danger` ni en `text-fg-danger`.
 
 ---

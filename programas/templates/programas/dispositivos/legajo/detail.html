@@ -4,7 +4,31 @@
 
 {% block main-content %}
 {% url 'dispositivos:detalle' dispositivo.pk as url_detalle %}
-<div x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'estadias', modalObservar: false, modalRechazar: false }">
+<div x-data="{
+       tab: new URLSearchParams(window.location.search).get('tab') || 'estadias',
+       modalObservar: false,
+       modalRechazar: false,
+       modalEgreso: false,
+       egreso: { url: '', persona: '', bajada: '' },
+       abrirEgreso(datos) {
+         this.egreso = { url: datos.url, persona: datos.persona, bajada: datos.bajada };
+         this.limpiarForm();
+         this.modalEgreso = true;
+       },
+       limpiarForm() {
+         // El modal es uno solo para todas las filas: sin esto, lo cargado (o rechazado) para una
+         // persona quedaria a la vista en el formulario de la siguiente.
+         var form = this.$refs.form;
+         if (!form) return;
+         form.reset();
+         form.querySelectorAll('[data-error]').forEach(function (el) { el.textContent = ''; el.classList.add('hidden'); });
+         var ahora = new Date();
+         ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+         var fecha = form.querySelector('[name=fecha_egreso]');
+         if (fecha) fecha.value = ahora.toISOString().slice(0, 16);
+       }
+     }"
+     @becas-saved.window="modalEgreso=false">
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corría y el clic en esa franja no cerraba el modal #}
   <div class="space-y-5">
@@ -56,8 +80,8 @@
       {% endif %}
     {% endpage_header %}
 
-    {% if dispositivo.estado != 'ACTIVO' %}
-    {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="Dispositivo no activo" texto="No se pueden registrar ingresos hasta que el dispositivo esté activo." %}
+    {% if aviso_sin_ingresos %}
+    {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se pueden registrar ingresos" texto=aviso_sin_ingresos %}
     {% endif %}
 
     {# ===== Indicadores operativos: salen del censo de ocupacion_de_plazas ===== #}
@@ -198,12 +222,24 @@
                 <td class="nodo-td">{% if estadia.plaza %}{{ estadia.plaza.sector.nombre }} · {{ estadia.plaza.codigo }}{% else %}<span class="text-body-subtle">Sin plaza</span>{% endif %}</td>
                 <td class="nodo-td"><span class="badge badge-dot badge-{{ estadia.tono }}">{{ estadia.estado_texto }}</span></td>
                 <td class="nodo-td text-right whitespace-nowrap">
-                  {% if puede_ver_ciudadano %}
-                  <a href="{% url 'legajos:ciudadano_detalle' estadia.ciudadano.pk %}"
-                     class="nodo-icon-btn" aria-label="Ver legajo de {{ estadia.ciudadano.nombre }} {{ estadia.ciudadano.apellido }}">
-                    <i class="fas fa-eye" aria-hidden="true"></i>
-                  </a>
-                  {% endif %}
+                  <div class="inline-flex items-center gap-1">
+                    {% if puede_ver_ciudadano %}
+                    <a href="{% url 'legajos:ciudadano_detalle' estadia.ciudadano.pk %}"
+                       class="nodo-icon-btn" aria-label="Ver legajo de {{ estadia.ciudadano.nombre_completo }}">
+                      <i class="fas fa-eye" aria-hidden="true"></i>
+                    </a>
+                    {% endif %}
+                    {% if estadia.url_egresar %}
+                    <button type="button" class="nodo-icon-btn nodo-icon-btn--danger"
+                            aria-label="Registrar egreso de {{ estadia.ciudadano.nombre_completo }}"
+                            data-url="{{ estadia.url_egresar }}"
+                            data-persona="{{ estadia.ciudadano.nombre_completo }}"
+                            data-bajada="Ingreso {{ estadia.fecha_ingreso|date:'d/m/Y H:i' }}{% if estadia.plaza %} · plaza {{ estadia.plaza.codigo }}{% endif %} · {{ estadia.dias_de_permanencia }} día{{ estadia.dias_de_permanencia|pluralize }} de permanencia"
+                            @click="abrirEgreso($el.dataset)">
+                      <i class="fas fa-right-from-bracket" aria-hidden="true"></i>
+                    </button>
+                    {% endif %}
+                  </div>
                 </td>
               </tr>
               {% empty %}
@@ -281,8 +317,57 @@
     </div>
   </div>
   {% endif %}
+
+  {% if puede_egresar %}
+  {# Modal: Registrar egreso — confirmación con motivo (arquetipo Modal); uno solo para todas las filas #}
+  <div x-show="modalEgreso" x-cloak x-becas-modal="modalEgreso" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEgreso=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-egreso-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Registrar egreso" titulo_x_text="'Registrar egreso de ' + egreso.persona" titulo_id="modal-egreso-titulo" icono="fa-users" cerrar="modalEgreso=false" %}
+      <form method="post" x-ref="form" :action="egreso.url" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            <p class="text-sm text-body-subtle" x-text="egreso.bajada"></p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="{{ form_egreso.fecha_egreso.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_egreso.fecha_egreso.label }} <span class="text-fg-danger">*</span></label>
+              {{ form_egreso.fecha_egreso }}
+              {% if form_egreso.fecha_egreso.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ form_egreso.fecha_egreso.help_text }}</p>{% endif %}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_egreso"></p>
+            </div>
+            <div>
+              <label for="{{ form_egreso.motivo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_egreso.motivo.label }} <span class="text-fg-danger">*</span></label>
+              {{ form_egreso.motivo }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="motivo"></p>
+            </div>
+          </div>
+          <div>
+            <label for="{{ form_egreso.destino.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_egreso.destino.label }} <span class="text-fg-danger">*</span></label>
+            {{ form_egreso.destino }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="destino"></p>
+          </div>
+          <div>
+            <label for="{{ form_egreso.observaciones.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_egreso.observaciones.label }}</label>
+            {{ form_egreso.observaciones }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="observaciones"></p>
+          </div>
+          <div>
+            <label class="inline-flex items-center gap-2 text-sm text-body">{{ form_egreso.pertenencias_devueltas }} {{ form_egreso.pertenencias_devueltas.label }}</label>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="pertenencias_devueltas"></p>
+          </div>
+          {% include "components/_alerta.html" with tono="info" texto="Libera la plaza y la persona vuelve a poder alojarse en cualquier dispositivo de la red. El egreso queda en el historial del dispositivo." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalEgreso=false" accion_texto="Confirmar egreso" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
 
-{% block customJS %}{% include "programas/becas/_confirm_js.html" %}
+{% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% include "programas/becas/_ajax_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}

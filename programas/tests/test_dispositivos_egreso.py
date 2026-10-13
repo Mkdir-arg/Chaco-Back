@@ -1,4 +1,4 @@
-"""Egreso con catálogo de motivos y liberación de la plaza (MVP v2, etapa 2 · #691 · P9).
+"""Egreso con catálogo de motivos y liberación de la plaza (MVP v2, etapa 2 · #691).
 
 Lo que se verifica, y por qué:
 
@@ -7,7 +7,9 @@ Lo que se verifica, y por qué:
 2. **La plaza queda libre en el acto** y lo dice el servicio de ocupación, no una cuenta de
    la vista.
 3. **La pantalla** muta solo por POST con CSRF, respeta el alcance por dispositivo y
-   devuelve los errores en la forma que espera el modal (`{campo: [mensajes]}`).
+   devuelve los errores en la forma que espera el modal (`{campo: [mensajes]}`). La lista
+   de personas y el modal viven en la solapa Estadías del detalle del dispositivo (P4): es
+   la única lista de personas, y después de egresar se vuelve a esa solapa.
 4. **El catálogo se amplía sin tocar código**: está en el admin, y la migración solo
    siembra los seis que nombra el mockup.
 """
@@ -128,6 +130,10 @@ class EgresoPantallaTests(BaseEgreso):
 
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
         self.assertTrue(respuesta.json()["ok"])
+        # Vuelve a la solapa desde la que se egresó, no a la de por defecto del detalle.
+        self.assertEqual(
+            respuesta.json()["redirect"], reverse("dispositivos:detalle", args=[self.cis.pk]) + "?tab=estadias"
+        )
         self.estadia.refresh_from_db()
         self.assertEqual(self.estadia.estado, Estadia.Estado.EGRESADA)
         self.assertEqual(self.estadia.egresada_por, self.operador_cis)
@@ -218,24 +224,69 @@ class EgresoPantallaTests(BaseEgreso):
         self.assertEqual(cerrada.estado, Estadia.Estado.EGRESADA)
         self.assertGreaterEqual(cerrada.fecha_egreso, cerrada.fecha_ingreso)
 
+    def _detalle(self, cliente=None):
+        return (cliente or self.cliente).get(reverse("dispositivos:detalle", args=[self.cis.pk]), {"tab": "estadias"})
+
     def test_el_modal_unico_se_limpia_al_abrirse_para_otra_persona(self):
         """No se puede correr el JS desde Django: se afirma que el template lo lleva."""
 
-        html = self.cliente.get(reverse("dispositivos:estadias", args=[self.cis.pk])).content.decode()
+        html = self._detalle().content.decode()
 
         self.assertIn('x-ref="form"', html)
         self.assertIn("this.limpiarForm();", html)
         self.assertIn("form.reset();", html)
         self.assertIn("[data-error]", html)
         self.assertLess(html.index("this.limpiarForm();"), html.index("this.modalEgreso = true;"))
+        self.assertIn("data-ajax", html)
+        self.assertIn('x-becas-modal="modalEgreso"', html)
 
-    def test_la_lista_muestra_el_boton_solo_con_la_capacidad(self):
-        respuesta = self.cliente.get(reverse("dispositivos:estadias", args=[self.cis.pk]))
+    def test_la_solapa_estadias_ofrece_el_egreso_con_la_capacidad(self):
+        respuesta = self._detalle()
 
         self.assertContains(respuesta, "Registrar egreso de Ana Gómez")
-        self.assertContains(respuesta, 'role="dialog"')
+        self.assertContains(respuesta, 'aria-labelledby="modal-egreso-titulo"')
+        self.assertContains(respuesta, self.url)
         self.assertContains(respuesta, "Alta")
         self.assertNotContains(respuesta, "Motivo viejo")
+
+    def test_sin_la_capacidad_de_egresar_no_hay_boton_ni_modal(self):
+        """Ve el dispositivo y opera el resto, pero sin `dispositivo.egresar`: ni botón ni modal."""
+
+        self.assertContains(self._detalle(), self.url)  # el caso positivo, en el mismo estado
+        sin_egresar = self._operador("Sin egresar", self.cis, ("dispositivo.ver", "dispositivo.admitir"))
+        cliente = Client()
+        cliente.force_login(sin_egresar)
+
+        respuesta = self._detalle(cliente)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertNotContains(respuesta, self.url)
+        self.assertNotContains(respuesta, "Registrar egreso de Ana Gómez")
+        self.assertNotContains(respuesta, 'aria-labelledby="modal-egreso-titulo"')
+
+    def test_una_estadia_egresada_no_ofrece_egresar_otra_vez(self):
+        self.assertEqual(self._post().status_code, 200)
+
+        respuesta = self.cliente.get(
+            reverse("dispositivos:detalle", args=[self.cis.pk]), {"tab": "estadias", "estado": "TODAS"}
+        )
+
+        self.assertContains(respuesta, "Egresada")
+        self.assertNotContains(respuesta, self.url)
+
+    def test_el_modal_muestra_la_permanencia_de_la_persona(self):
+        """Ingresó hace dos días (`BaseEgreso`): el modal lo dice antes de confirmar."""
+
+        self.assertContains(self._detalle(), "2 días de permanencia")
+
+    def test_la_ruta_vieja_de_personas_alojadas_lleva_a_la_solapa(self):
+        respuesta = self.cliente.get(reverse("dispositivos:estadias", args=[self.cis.pk]))
+
+        self.assertRedirects(
+            respuesta,
+            reverse("dispositivos:detalle", args=[self.cis.pk]) + "?tab=estadias",
+            fetch_redirect_response=False,
+        )
 
 
 class CatalogoDeMotivosTests(BaseEgreso):

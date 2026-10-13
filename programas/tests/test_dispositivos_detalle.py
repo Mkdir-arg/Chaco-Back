@@ -26,6 +26,7 @@ from django.utils import timezone
 
 from legajos.models import Ciudadano
 from programas.models import Dispositivo, Estadia, Plaza, ReservaPlaza, Sector, TrazaDispositivo
+from programas.selectors.trayectoria import _fila
 from programas.services.detalle_dispositivo import (
     POR_PAGINA_ESTADIAS,
     estadias_del_dispositivo,
@@ -244,6 +245,16 @@ class FiltrosDeEstadiasTests(BaseDetalle):
         self.assertContains(respuesta, '<span class="badge badge-dot badge-info">Alojada</span>', html=True)
         self.assertContains(respuesta, '<span class="badge badge-dot badge-gray">Egresada</span>', html=True)
 
+    def test_la_misma_estadia_se_ve_igual_en_la_solapa_del_legajo(self):
+        """Una sola tabla de estados: P4 y la trayectoria del legajo (P16) no pueden discrepar."""
+
+        respuesta = self.client.get(self.url, {"estado": "TODAS"})
+
+        for estadia in respuesta.context["estadias"]:
+            with self.subTest(estado=estadia.estado):
+                fila = _fila(Estadia.objects.select_related("dispositivo__tipo", "plaza__sector").get(pk=estadia.pk))
+                self.assertEqual((fila["estado"], fila["tono"]), (estadia.estado_texto, estadia.tono))
+
     def test_sin_resultados_ofrece_limpiar_los_filtros(self):
         Estadia.objects.filter(estado=Estadia.Estado.EGRESADA).delete()
         respuesta = self.client.get(self.url, {"estado": "EGRESADA"})
@@ -323,8 +334,23 @@ class AccionesYAlcanceTests(BaseDetalle):
 
         respuesta = self.client.get(self.url)
 
-        self.assertContains(respuesta, "Dispositivo no activo")
+        self.assertContains(respuesta, "No se pueden registrar ingresos")
+        self.assertContains(respuesta, "Está inactivo: no admite ingresos mientras siga así.")
         self.assertNotContains(respuesta, reverse("dispositivos:ingreso_persona", args=[self.cis.pk]))
+
+    def test_el_aviso_dice_por_que_segun_el_estado_y_no_aparece_si_esta_activo(self):
+        self.assertNotContains(self.client.get(self.url), "No se pueden registrar ingresos")
+        esperados = {
+            Dispositivo.Estado.BORRADOR: "Está en borrador",
+            Dispositivo.Estado.PENDIENTE_VALIDACION: "Está pendiente de validación",
+            Dispositivo.Estado.OBSERVADO: "Está observado",
+            Dispositivo.Estado.RECHAZADO: "Fue rechazado en la validación",
+            Dispositivo.Estado.CERRADO: "Está cerrado",
+        }
+        for estado, texto in esperados.items():
+            with self.subTest(estado=estado):
+                Dispositivo.objects.filter(pk=self.cis.pk).update(estado=estado)
+                self.assertContains(self.client.get(self.url), texto)
 
 
 class SinPlazasTests(BaseDetalle):

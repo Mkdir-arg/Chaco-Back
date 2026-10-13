@@ -85,6 +85,20 @@ CAP_EDITAR = "dispositivo.editar"
 #: A quién se le pide que resuelva una estadía abierta fuera del alcance de quien pregunta.
 REFERENTE_FUERA_DE_ALCANCE = "la coordinación del Programa Dispositivos"
 
+#: Cómo se muestra cada estado de la estadía: texto (el del mockup) y tono del badge. Es la
+#: **única** tabla: la leen el detalle del dispositivo (P4) y la solapa del legajo (P16), así
+#: que la misma estadía no puede verse con dos rótulos ni dos colores.
+ESTADOS_VISIBLES = {
+    Estadia.Estado.ACTIVA: ("Alojada", "info"),
+    Estadia.Estado.EGRESADA: ("Egresada", "gray"),
+}
+
+
+def estado_visible(estadia):
+    """``(texto, tono)`` del badge de una estadía. El template lo dibuja; no lo decide."""
+
+    return ESTADOS_VISIBLES.get(estadia.estado, (estadia.get_estado_display(), "gray"))
+
 
 class AlojamientoEnLaRed(ValidationError):
     """La persona ya está alojada en algún dispositivo. Trae la verificación que lo explica."""
