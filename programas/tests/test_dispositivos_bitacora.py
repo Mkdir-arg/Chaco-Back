@@ -731,6 +731,27 @@ class CorreccionRevisionTests(BaseBitacora):
 
         self.assertEqual((corregida.turno, corregida.fecha_operativa), (self.tarde, LUNES))
 
+    def test_el_mismo_turno_de_otro_dia_no_corrige(self):
+        """Revisión de #827: Tarde del lunes 16:10, corregida el martes 16:30 —también Tarde—.
+
+        Es la condición `fecha_operativa` del turno en curso: el turno coincide, el día no.
+        """
+
+        original = self._cargar(_local(LUNES, 16, 10))
+
+        with self.assertRaises(ValidationError):
+            self._corregir(_local(MARTES, 16, 30), original)
+        self.assertEqual(EntradaBitacora.objects.count(), 1)
+
+    def test_la_noche_de_otro_dia_tampoco_corrige(self):
+        """Noche del lunes 23:00 corregida el martes 23:00: Noche las dos, de fechas operativas distintas."""
+
+        original = self._cargar(_local(LUNES, 23))
+
+        with self.assertRaises(ValidationError):
+            self._corregir(_local(MARTES, 23), original)
+        self.assertEqual(EntradaBitacora.objects.count(), 1)
+
     def test_los_ids_de_personas_como_texto_son_la_misma_estadia(self):
         alojada = self._estadia(self.persona, self.cis, _local(LUNES, 9))
 

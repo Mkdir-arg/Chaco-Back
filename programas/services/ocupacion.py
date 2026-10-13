@@ -88,9 +88,17 @@ siempre; una sola sería ``O(estadías de toda la vida)``.
 
 Acá no se agrupa por tiempo y por lo tanto **no hay ningún ``Trunc*``**: la base de ECOM
 no tiene tablas de zona horaria, Django traduce ``Trunc*`` sobre un ``DateTimeField`` a
-``CONVERT_TZ``, devuelve ``NULL`` y rompe solo en producción. Cuando la etapa 3 sume el
-censo por turno sobre fechas, el agrupamiento va en Python (precedente:
-``programas/services/dashboard_becas.py``).
+``CONVERT_TZ``, devuelve ``NULL`` y rompe solo en producción. El censo por turno de la
+etapa 3 (`programas.services.censo`) agrupa en Python.
+
+Alojada en un instante
+----------------------
+
+El censo (#696) necesita la existencia en instantes pasados —al inicio y al fin de cada
+turno—, que no es la foto de ahora. La regla vive acá y no allá, para que «alojada» se
+decida en un solo lugar: :func:`alojada_en` (ingresó **antes** del instante y no egresó
+antes de él) y :func:`estadias_alojadas_entre`, la consulta que trae las estadías
+candidatas de un rango. Para el instante presente coincide con ``Estadia.objects.activas()``.
 """
 
 from dataclasses import dataclass
@@ -252,6 +260,35 @@ def _por_sector(filas):
     """``{sector_id: cuántas}`` a partir de una agregación que ya viene agrupada."""
 
     return {fila["plaza__sector_id"]: fila["cuantas"] for fila in filas}
+
+
+def alojada_en(fecha_ingreso, fecha_egreso, momento) -> bool:
+    """Si una estadía con esas fechas tenía a la persona alojada en ``momento``.
+
+    Ingresó **antes** del instante y no había egresado: ``fecha_ingreso < momento`` y
+    (``fecha_egreso`` vacía o ``>= momento``). Es la frontera ``[inicio, fin)`` del censo
+    vista desde la existencia: quien ingresa justo en el inicio de un turno es un ingreso
+    de ese turno y no parte de su existencia inicial; quien egresa justo en el inicio
+    estaba al empezar y es un egreso de ese turno.
+    """
+
+    return fecha_ingreso < momento and (fecha_egreso is None or fecha_egreso >= momento)
+
+
+def estadias_alojadas_entre(dispositivo, desde, hasta):
+    """``(fecha_ingreso, fecha_egreso)`` de las estadías alojadas en algún instante de ``[desde, hasta]``.
+
+    Es el universo sobre el que :func:`alojada_en` se evalúa en Python para cualquier
+    instante del rango: una consulta para todo el rango y no una por instante. Filtra
+    solo por fechas, sin ``Trunc*``. ``dispositivo`` es la instancia o su id.
+    """
+
+    return (
+        Estadia.objects.filter(dispositivo_id=getattr(dispositivo, "pk", dispositivo), fecha_ingreso__lt=hasta)
+        .filter(Q(fecha_egreso__isnull=True) | Q(fecha_egreso__gte=desde))
+        .order_by()
+        .values_list("fecha_ingreso", "fecha_egreso")
+    )
 
 
 def _estadias_que_ocupan():
