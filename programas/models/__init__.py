@@ -1090,6 +1090,29 @@ class Estadia(TimeStamped):
     def activa(self):
         return self.estado == self.Estado.ACTIVA
 
+    def permanencia(self, momento=None):
+        """Cuánto lleva —o llevó— la persona alojada. **Se calcula, no se carga** (#694).
+
+        Va del ingreso al egreso, o hasta `momento` (por omisión, ahora) si la estadía
+        sigue abierta. Sale de las mismas dos fechas que escriben los movimientos de
+        ingreso y de egreso —los servicios los graban con esos instantes exactos—, así
+        que la permanencia y la línea de tiempo no pueden decir cosas distintas.
+        """
+
+        hasta = self.fecha_egreso or momento or timezone.now()
+        return hasta - self.fecha_ingreso
+
+    def dias_de_permanencia(self, momento=None):
+        """Días **de calendario** en la hora local: del 03/09 a las 19:40 al 08/09 son 5.
+
+        Se cuenta en Python con `localtime`, nunca con un `Trunc*` en la base: sobre un
+        `DateTimeField` Django lo traduce a `CONVERT_TZ`, y en ECOM —sin tablas de zona
+        horaria— devuelve `NULL` y rompe solo en producción.
+        """
+
+        hasta = self.fecha_egreso or momento or timezone.now()
+        return (timezone.localtime(hasta).date() - timezone.localtime(self.fecha_ingreso).date()).days
+
     def clean(self):
         super().clean()
         if self.fecha_ingreso and self.fecha_egreso and self.fecha_egreso < self.fecha_ingreso:
@@ -1235,6 +1258,155 @@ class ReservaPlaza(TimeStamped):
             raise ValidationError({"hasta": "Un préstamo necesita su vencimiento."})
         if self.plaza_id and self.plaza.estado == Plaza.Estado.FUERA_SERVICIO:
             raise ValidationError({"plaza": "No se puede reservar una plaza fuera de servicio."})
+
+
+class MovimientoEstadiaQuerySet(models.QuerySet):
+    """Solo aditivo, como `TrazaDispositivoQuerySet`: un movimiento no se corrige ni se borra."""
+
+    def update(self, **kwargs):
+        raise ValidationError("Los movimientos de una estadía son inmutables.")
+
+    def delete(self):
+        raise ValidationError("Los movimientos de una estadía no se eliminan.")
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Los movimientos de una estadía son inmutables.")
+
+    def linea_de_tiempo(self):
+        """En el orden en que pasaron. El `id` desempata dos movimientos del mismo instante."""
+
+        return self.order_by("momento", "id")
+
+
+class MovimientoEstadiaManager(models.Manager.from_queryset(MovimientoEstadiaQuerySet)):
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Los movimientos de una estadía son inmutables.")
+
+
+class MovimientoEstadia(TimeStamped):
+    """Lo que le pasa a la persona mientras está alojada (MVP v2, etapa 3 · #694).
+
+    Es la **traza por estadía** que el mapeo del mockup pedía para la línea de tiempo de
+    P7 (`TrazaDispositivo` es del dispositivo, no de la persona): ingreso, cambio de
+    sector o de plaza, cambio de estado y egreso, cada uno con su momento, su
+    responsable y su motivo. **Inmutable**, como `TrazaDispositivo`: corregir un
+    movimiento sería reescribir la historia de alguien.
+
+    Un solo lugar
+    -------------
+
+    Los escriben únicamente los servicios de `programas.services.estadias`
+    —`ingresar_persona`, `cambiar_plaza` y `egresar_persona`—, en la misma transacción
+    que el cambio que registran, a través de `programas.services.movimientos`. Los de
+    ingreso y egreso llevan **exactamente** `Estadia.fecha_ingreso` y
+    `Estadia.fecha_egreso` como `momento`: por eso la permanencia, que se calcula de esas
+    dos fechas, coincide con la línea de tiempo.
+
+    El turno, a la espera de `Turno` (#695)
+    ---------------------------------------
+
+    No hay columna de turno. El turno es una franja horaria **configurable por
+    dispositivo** (task 30), así que el de un movimiento se **deriva** de
+    `(dispositivo, momento)`: no se guarda un segundo dato que pueda contradecir al
+    primero, ni quedan movimientos sin turno por haberse cargado antes de que existiera
+    la configuración. Por eso el movimiento lleva su propio `dispositivo` —que es el de
+    la estadía y no cambia: un traslado a otra institución es otra estadía— con el
+    índice `(dispositivo, momento)`, que es la consulta del censo por turno (task 31).
+    Si el día de mañana el turno tuviera que congelarse —que un cambio en los horarios no
+    mueva movimientos viejos de turno—, entra como FK anulable a `Turno`, sin tocar nada
+    de esto.
+    """
+
+    class Tipo(models.TextChoices):
+        INGRESO = "INGRESO", "Ingreso"
+        CAMBIO_SECTOR = "CAMBIO_SECTOR", "Cambio de sector"
+        CAMBIO_PLAZA = "CAMBIO_PLAZA", "Cambio de plaza"
+        CAMBIO_ESTADO = "CAMBIO_ESTADO", "Cambio de estado"
+        EGRESO = "EGRESO", "Egreso"
+
+    #: Los dos tipos que mueven a la persona de plaza: llevan plaza de destino distinta del origen.
+    TIPOS_DE_CAMBIO_DE_PLAZA = (Tipo.CAMBIO_SECTOR, Tipo.CAMBIO_PLAZA)
+
+    estadia = models.ForeignKey(
+        Estadia,
+        on_delete=models.PROTECT,
+        related_name="movimientos",
+        verbose_name="Estadía",
+    )
+    # Es el de la estadía y no cambia nunca. Va repetido para el censo por turno, que
+    # pregunta por dispositivo y franja horaria sin pasar por la estadía.
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.PROTECT,
+        related_name="movimientos_de_estadias",
+        verbose_name="Dispositivo",
+    )
+    tipo = models.CharField(max_length=20, choices=Tipo.choices, verbose_name="Tipo de movimiento")
+    #: Cuándo pasó, que no es cuándo se cargó (`creado`): un ingreso se puede registrar tarde.
+    momento = models.DateTimeField(verbose_name="Momento")
+    # Anulable solo por los movimientos que la migración reconstruye de estadías cargadas
+    # sin responsable. Los servicios lo exigen siempre: sin usuario no hay permiso que mirar.
+    responsable = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="movimientos_de_estadias",
+        verbose_name="Responsable",
+    )
+    motivo = models.TextField(blank=True, verbose_name="Motivo")
+    plaza_origen = models.ForeignKey(
+        Plaza,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="movimientos_salientes",
+        verbose_name="Plaza de origen",
+    )
+    plaza_destino = models.ForeignKey(
+        Plaza,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="movimientos_entrantes",
+        verbose_name="Plaza de destino",
+    )
+    estado_anterior = models.CharField(max_length=10, blank=True, verbose_name="Estado anterior")
+    estado_nuevo = models.CharField(max_length=10, blank=True, verbose_name="Estado nuevo")
+
+    objects = MovimientoEstadiaManager()
+
+    class Meta:
+        verbose_name = "Movimiento de estadía"
+        verbose_name_plural = "Movimientos de estadías"
+        ordering = ["momento", "id"]
+        base_manager_name = "objects"
+        default_manager_name = "objects"
+        constraints = [
+            # Un cambio de sector o de plaza va a alguna plaza, y a otra.
+            models.CheckConstraint(
+                condition=~models.Q(tipo__in=["CAMBIO_SECTOR", "CAMBIO_PLAZA"])
+                | (models.Q(plaza_destino__isnull=False) & ~models.Q(plaza_origen=models.F("plaza_destino"))),
+                name="movimiento_estadia_cambio_a_otra_plaza",
+            ),
+        ]
+        indexes = [
+            # La línea de tiempo de la estadía (P7).
+            models.Index(fields=["estadia", "momento"]),
+            # El censo por turno: movimientos de un dispositivo en una franja horaria.
+            models.Index(fields=["dispositivo", "momento"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} · estadía {self.estadia_id}"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Los movimientos de una estadía son inmutables.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Los movimientos de una estadía no se eliminan.")
 
 
 class Cama(TimeStamped):
