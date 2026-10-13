@@ -9,6 +9,8 @@ Los contadores del encabezado y de cada sector salen de `ocupacion.ocupacion_de_
 (el `Conteo` del servicio), no de una cuenta propia de la pantalla.
 """
 
+from django.utils import timezone
+
 from programas.models import Plaza, Sector
 from programas.services.ocupacion import LEYENDA_PLAZAS, estado_de_plazas, ocupacion_de_plazas
 
@@ -47,7 +49,10 @@ def sectores_con_plazas(dispositivo):
     servicio, así que el encabezado y el mapa no pueden decir cosas distintas.
     """
 
-    ocupacion = ocupacion_de_plazas(dispositivo).de(dispositivo)
+    # Un solo instante para las dos: la vigencia de una reserva es por tiempo, y con dos
+    # `now()` distintos el encabezado y una celda podrían discrepar justo en su borde.
+    momento = timezone.now()
+    ocupacion = ocupacion_de_plazas(dispositivo, momento).de(dispositivo)
     sectores = {sector.pk: sector for sector in Sector.objects.filter(dispositivo=dispositivo, activo=True)}
 
     armados = []
@@ -58,7 +63,7 @@ def sectores_con_plazas(dispositivo):
             .only("id", "codigo", "estado", "motivo_fuera_servicio")
             .order_by("codigo")[:TOPE_PLAZAS_POR_SECTOR]
         )
-        estados = estado_de_plazas(plazas)
+        estados = estado_de_plazas(plazas, momento)
         armados.append(
             {
                 "sector": sector,

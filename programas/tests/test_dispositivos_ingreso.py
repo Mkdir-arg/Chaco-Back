@@ -432,6 +432,55 @@ class DosPestanasTests(BaseIngreso):
         self.assertFalse(Estadia.objects.exists())
         self.assertContains(respuesta, "cambió en otra pestaña")
 
+    def test_el_paso_de_la_plaza_no_guarda_la_plaza_si_otra_pestana_cambio_la_persona(self):
+        # Pestaña A: Ana, en el paso de la plaza, con P1 marcada.
+        self.client.post(self.url_persona, {"dni": self.persona.dni})
+        mostrado_en_a = self._campos_ocultos(self.client.get(f"{self.url_plaza}?elegir={self.plaza.pk}"))
+
+        # Pestaña B, misma sesión: Juan.
+        self.client.post(self.url_persona, {"dni": self.otra_persona.dni})
+
+        # «Continuar» en A.
+        respuesta = self.client.post(self.url_plaza, mostrado_en_a)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "cambió en otra pestaña")
+        estado = self.client.session["ingreso_asistente"][str(self.cis.pk)]
+        self.assertEqual(estado["ciudadano_id"], self.otra_persona.pk)
+        self.assertNotIn("plaza_id", estado, "se guardó para Juan la plaza que A eligió para Ana")
+        self.assertRedirects(self.client.get(self.url_confirmar), self.url_plaza)
+
+    def test_mismo_dni_con_otro_sexo_en_otra_pestana_no_da_de_alta_a_esa_persona(self):
+        """Sin legajo, la persona es el DNI **y** el sexo con que se consultó el Registro de Personas."""
+
+        marta = AltaDesdeElRegistroDePersonasTests.DATOS
+        mario = {
+            **marta,
+            "data": {**marta["data"], "nombre": "Mario", "genero": "M", "fecha_nacimiento": "1975-01-09"},
+        }
+        # Pestaña A: Marta (DNI 27555666, F), en «Confirmar» con P1.
+        with mock.patch("programas.services.ingreso.CiudadanosService.consultar_renaper", return_value=marta):
+            self.client.post(self.url_persona, {"dni": "27555666", "sexo": "F"})
+        self._elegir_plaza(self.plaza)
+        pestana_a = self.client.get(self.url_confirmar)
+        self.assertContains(pestana_a, "Marta")
+        mostrado_en_a = self._campos_ocultos(pestana_a)
+
+        # Pestaña B: el mismo DNI con sexo M es otra persona; también con P1.
+        with mock.patch("programas.services.ingreso.CiudadanosService.consultar_renaper", return_value=mario):
+            self.client.post(self.url_persona, {"dni": "27555666", "sexo": "M"})
+        self._elegir_plaza(self.plaza)
+
+        respuesta = self.client.post(self.url_confirmar, mostrado_en_a)
+
+        self.assertFalse(
+            Ciudadano.objects.filter(dni="27555666").exists(),
+            "se dio de alta a la persona de la otra pestaña, que esta pantalla nunca mostró",
+        )
+        self.assertFalse(Estadia.objects.exists())
+        self.assertContains(respuesta, "cambió en otra pestaña")
+        self.assertContains(respuesta, "Mario")
+
     def test_abrir_el_asistente_de_otro_dispositivo_no_borra_el_progreso(self):
         rol = self.operador_cis.groups.get()
         AsignacionDispositivo.objects.create(dispositivo=self.parador, rol=rol, activo=True)

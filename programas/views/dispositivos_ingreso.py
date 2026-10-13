@@ -23,6 +23,9 @@ lo que hay ahora y un aviso. El progreso se guarda **por dispositivo**, así que
 asistente de otro dispositivo no pisa el de este.
 """
 
+import hashlib
+import json
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -112,12 +115,20 @@ class IngresoBaseView(LoginRequiredMixin, View):
 
     @staticmethod
     def huella_persona(estado):
-        """Quién es la persona del asistente, en un texto que viaja en un campo oculto."""
+        """Quién es la persona del asistente, en un texto que viaja en un campo oculto.
+
+        Con legajo, su id. Sin legajo, la persona es lo que respondió el Registro de
+        Personas, que se consulta por DNI **y** sexo: el mismo DNI con otro sexo puede ser
+        otra persona. Por eso la huella lleva el sexo consultado y un resumen de los datos
+        que se van a dar de alta, no solo el DNI.
+        """
 
         if estado.get("ciudadano_id"):
             return f"legajo:{estado['ciudadano_id']}"
-        if estado.get("renaper"):
-            return f"registro:{estado['renaper'].get('dni') or ''}"
+        datos = estado.get("renaper")
+        if datos:
+            resumen = hashlib.sha256(json.dumps(datos, sort_keys=True, default=str).encode()).hexdigest()[:16]
+            return f"registro:{datos.get('dni') or ''}:{estado.get('sexo') or ''}:{resumen}"
         return ""
 
     def mostrado(self, estado, plaza_id=None):
@@ -260,7 +271,7 @@ class IngresoPersonaView(IngresoBaseView):
             if error:
                 form.add_error("dni", error)
                 return self.render_paso(request, form)
-            nuevo = {"ciudadano_id": None, "renaper": datos}
+            nuevo = {"ciudadano_id": None, "renaper": datos, "sexo": sexo}
 
         # El paso se guarda recién ahora, con el form válido; lo que dependía de la persona
         # anterior (la plaza) se descarta.
