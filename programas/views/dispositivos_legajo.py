@@ -27,6 +27,7 @@ from programas.services.detalle_dispositivo import (
     estadias_del_dispositivo,
     eventos_de_historial,
     indicadores_de_plazas,
+    infraestructura_del_dispositivo,
     normalizar_filtros,
     pildoras_de_estadias,
     sectores_del_censo,
@@ -47,6 +48,7 @@ from programas.services.dispositivos import (
 )
 from programas.services.estadias import CAP_ADMITIR, CAP_EGRESAR, cambiar_plaza, egresar_persona
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
+from programas.services.inspecciones import semaforos_de_dispositivos
 from programas.services.ocupacion import ocupacion_de_plazas
 from programas.services.reportes import filtrar_dispositivos
 from programas.services.sectores_plazas import sectores_con_plazas
@@ -72,6 +74,13 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["estados"] = Dispositivo.Estado.choices
         context["tipos"] = TipoDispositivo.objects.filter(activo=True).order_by("nombre")
+        # Semáforo edilicio de toda la página en tres consultas fijas, no una por fila. Texto y
+        # tono los decide el servicio; el template solo dibuja el badge.
+        dispositivos = list(context["dispositivos"])
+        semaforos = semaforos_de_dispositivos([dispositivo.pk for dispositivo in dispositivos])
+        for dispositivo in dispositivos:
+            dispositivo.semaforo = semaforos[dispositivo.pk]
+        context["dispositivos"] = context["object_list"] = dispositivos
         return context
 
 
@@ -129,7 +138,7 @@ class DispositivoDuplicateSearchView(DispositivoProgramaPermissionMixin, View):
 
 
 class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
-    """Detalle del dispositivo (MVP v2, etapa 2 · P4): indicadores, sectores, estadías e historial.
+    """Detalle del dispositivo (MVP v2, etapa 2 · P4): indicadores, sectores, estadías, infraestructura e historial.
 
     Las cifras de plazas salen del censo de `ocupacion_de_plazas` y el resto de los datos de
     `programas.services.detalle_dispositivo`: acá solo se orquesta y se resuelven permisos.
@@ -177,6 +186,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "hay_filtros_estadias": bool(estado or sector),
                 "historial": historial,
                 "eventos": eventos,
+                "infraestructura": infraestructura_del_dispositivo(dispositivo, get.get("relevamientos_page")),
                 "puede_editar": puede_operar_dispositivo(user, dispositivo, "dispositivo.editar"),
                 "puede_validar": puede_operar_dispositivo(user, dispositivo, "dispositivo.validar"),
                 "puede_admitir": puede_operar_dispositivo(user, dispositivo, "dispositivo.admitir"),

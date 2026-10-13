@@ -22,11 +22,22 @@ Riel de 2 px (`border-base`), punto de 10 px con borde tonal. El tono refuerza; 
 cientos: **recortar es responsabilidad de la vista** (las últimas N, más un enlace «Ver todo» cuando
 hay más). El componente no pagina.
 
-**No lleva contenido rico.** Cada evento es texto: `detalle` es una línea, no un slot. Si un evento
-necesita mostrar algo adentro —una grilla de fotos, una tabla—, **no se mete marcado en `detalle`**
-(va escapado, y si se desactiva el escape se abre un agujero con texto que carga un usuario). Ese
-caso todavía no tiene componente: se resuelve agregándole un slot de cuerpo acá, en una task propia,
-y hasta entonces el contenido va en una card aparte debajo de la línea de tiempo.
+**Fotos dentro del evento (opcional).** Un evento puede traer `fotos` (lista de dicts con el
+contrato de `components/_galeria_fotos.html`: `url`, `alt`, `rotulo`, `fecha`) y `total_fotos`
+(la cantidad real si la vista recortó la tanda). La pieza dibuja la galería **dentro del `<li>`**,
+debajo del texto, en un `div mt-3`: una sola `<ol>` con el riel continuo y cada tanda colgada de su
+evento (P19, «Registro fotográfico»). Sin `fotos` —o con la lista vacía— el HTML del evento es el de
+siempre, carácter por carácter. Consumidor: la solapa Infraestructura de
+`programas/templates/programas/dispositivos/legajo/detail.html`.
+
+## Límites actuales
+
+- **No lleva otro contenido rico.** `detalle` sigue siendo una línea escapada, no un slot. Las fotos
+  son la única ranura: otro contenido —una tabla, un formulario— **no se mete marcado en
+  `detalle`** (si se desactiva el escape se abre un agujero con texto que carga un usuario); se
+  resuelve con otro opcional acá, en una task propia, y hasta entonces va en una card aparte debajo
+  de la línea de tiempo.
+- El recorte de la tanda (tope 24 de la galería) y el de los eventos son de la vista.
 
 ## Sección de ficha
 

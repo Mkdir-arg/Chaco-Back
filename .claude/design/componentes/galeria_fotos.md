@@ -3,8 +3,10 @@
 **Clasificación:** Canónico reutilizable. Pieza única, sin variantes.
 **Evidencia:** `templates/components/_galeria_fotos.html`, `core/tests/test_nodo_ui_lote_b.py`
 (`GaleriaFotosTest`).
-**Consumidores de referencia:** ninguno todavía; lo usará la solapa Infraestructura del detalle de
-Dispositivos (mockup P19).
+**Consumidores de referencia:** `templates/components/_linea_tiempo.html`, que la anida dentro de cada
+evento que trae `fotos` (ficha `ficha_timeline.md`); a través de ella, la solapa Infraestructura del
+detalle de Dispositivos (`programas/templates/programas/dispositivos/legajo/detail.html`, mockup P19),
+una tanda por relevamiento.
 
 ## Invocación
 
@@ -37,9 +39,10 @@ vez, con paginación o «ver más»; la pieza dibuja **hasta 24 fotos** como red
 
 ## Límites actuales
 
-- **No va dentro de un evento de la línea de tiempo** (`components/_linea_tiempo.html`): esa pieza no tiene
-  slot de cuerpo. Por ahora es una pieza propia dentro de su card; cuando la línea de tiempo tenga cuerpo,
-  se anida sin cambiar esta pieza.
+- **Dentro de una línea de tiempo no se incluye a mano:** se pasa como `fotos` + `total_fotos` del evento
+  y `components/_linea_tiempo.html` la dibuja adentro del `<li>`. Suelta, va dentro de su card.
+- Un formato que el navegador no dibuja (HEIC/HEIF) va con `url` vacía desde la vista: queda la celda gris
+  con cámara en vez de una imagen rota.
 - No hay manejo de imagen rota (sería JS): la vista no debería mandar una `url` cuyo archivo no existe.
 
 ## Prohibido

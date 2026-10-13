@@ -125,6 +125,13 @@
           <i class="fas fa-users" aria-hidden="true"></i> Estadías
           <span class="badge" :class="tab==='estadias' ? 'badge-info' : 'badge-gray'">{{ n_alojadas }}</span>
         </button>
+        <button @click="tab='infraestructura'" type="button" role="tab" id="tab-infraestructura" aria-controls="panel-infraestructura"
+                :aria-selected="tab==='infraestructura'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='infraestructura' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-building" aria-hidden="true"></i> Infraestructura
+          <span class="badge badge-dot badge-{{ infraestructura.semaforo.tono }}">{{ infraestructura.semaforo.texto }}</span>
+        </button>
         <button @click="tab='historial'" type="button" role="tab" id="tab-historial" aria-controls="panel-historial"
                 :aria-selected="tab==='historial'"
                 class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
@@ -259,6 +266,61 @@
           </table>
         </div>
         {% include "components/_paginacion.html" with page_obj=estadias entidad="estadía" param="estadias_page" extra_qs="tab=estadias" %}
+      </div>
+
+      {# ===== TAB: Infraestructura (P19 del MVP: criticidad, observaciones y registro fotográfico del edificio) ===== #}
+      <div x-show="tab==='infraestructura'" x-cloak role="tabpanel" id="panel-infraestructura" aria-labelledby="tab-infraestructura">
+        {% if infraestructura.edificios %}
+        <div class="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {% for indicador in infraestructura.indicadores %}
+          {% include "components/_stat_card.html" with etiqueta=indicador.etiqueta valor=indicador.valor icono=indicador.icono tono=indicador.tono nota=indicador.nota %}
+          {% endfor %}
+        </div>
+
+        {% for edificio in infraestructura.edificios %}
+        <section class="border-t border-light" aria-labelledby="edificio-{{ edificio.pk }}-titulo">
+          <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h3 id="edificio-{{ edificio.pk }}-titulo" class="text-sm font-bold text-heading">Estado edilicio · {{ edificio.nombre }}</h3>
+              <p class="text-xs text-body-subtle mt-1">{{ edificio.codigo }}{% if edificio.ultima %} · criticidad y observaciones del último relevamiento{% endif %}</p>
+            </div>
+            <span class="badge badge-dot badge-{{ edificio.semaforo.tono }}">{{ edificio.semaforo.texto }}</span>
+          </div>
+          <div class="p-5 space-y-4">
+            {% if edificio.ultima %}
+            <dl class="grid gap-5 sm:grid-cols-3">
+              <div><dt class="text-xs font-semibold uppercase text-body-subtle">Criticidad</dt><dd class="mt-1 text-body">{{ edificio.ultima.get_criticidad_display }}</dd></div>
+              <div><dt class="text-xs font-semibold uppercase text-body-subtle">Relevado el</dt><dd class="mt-1 text-body">{{ edificio.ultima.realizada_en|date:"d/m/Y" }}</dd></div>
+              <div><dt class="text-xs font-semibold uppercase text-body-subtle">Relevó</dt><dd class="mt-1 text-body">{{ edificio.relevo }}</dd></div>
+            </dl>
+            {% if edificio.ultima.observaciones %}
+            {% include "components/_alerta.html" with tono="warning" icono="screwdriver-wrench" titulo="Observaciones" texto=edificio.ultima.observaciones role="status" %}
+            {% else %}
+            <p class="text-sm text-body-subtle">El último relevamiento no dejó observaciones.</p>
+            {% endif %}
+            {% else %}
+            <p class="text-sm text-body-subtle">Todavía no se relevó este edificio: la criticidad aparece con el primer relevamiento realizado.</p>
+            {% endif %}
+            {% if edificio.otras_instituciones %}
+            {% include "components/_alerta.html" with tono="info" icono="building" titulo="Predio compartido:" texto="el relevamiento es del edificio y lo ven todas las instituciones que lo ocupan; cada una mantiene su propio legajo." %}
+            {% endif %}
+          </div>
+        </section>
+        {% endfor %}
+
+        <section class="border-t border-light" aria-labelledby="registro-fotografico-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h3 id="registro-fotografico-titulo" class="text-sm font-bold text-heading">Registro fotográfico</h3>
+            <p class="text-xs text-body-subtle mt-1">Histórico: cada relevamiento agrega su tanda, no pisa la anterior.</p>
+          </div>
+          <div class="p-5">
+            {% include "components/_linea_tiempo.html" with eventos=infraestructura.eventos vacio_titulo="Todavía no hay relevamientos" vacio_texto="Cuando se releve el edificio, cada relevamiento aparece acá con sus fotos." %}
+          </div>
+          {% include "components/_paginacion.html" with page_obj=infraestructura.relevamientos entidad="relevamiento" param="relevamientos_page" extra_qs="tab=infraestructura" %}
+        </section>
+        {% else %}
+        {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Este dispositivo no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio: aparecen cuando se le asigne uno." %}
+        {% endif %}
       </div>
 
       {# ===== TAB: Historial ===== #}
