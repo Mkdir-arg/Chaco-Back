@@ -22,6 +22,17 @@ orden son solapas de un Detalle, no un wizard.
 - Solo el paso final **escribe** en la base, y limpia la sesión. La golden escribe con un
   `Model.objects.create()` suelto porque toca **una sola fila** y nada de lo que eligió en los pasos
   previos se lo puede llevar otro mientras tanto. **No copies eso sin pensarlo.**
+- **El paso final escribe lo que la pantalla mostró, no lo que hay en la sesión.** El estado del
+  wizard vive en la sesión, y **la sesión la comparten todas las pestañas** del mismo usuario: si en
+  otra pestaña se avanza con otra persona u otra elección, el «Confirmar» de la primera escribiría lo
+  de la segunda, que esa pantalla nunca mostró. Por eso **el formulario de cada paso que decide algo
+  lleva en campos ocultos lo que mostró**, y la vista lo compara con la sesión: si no coinciden, no
+  escribe y vuelve a mostrar el paso con un aviso. Una clave de sesión por intento **no alcanza**:
+  una pestaña duplicada o el botón «atrás» comparten el mismo intento. El estado se guarda además
+  **por objeto** —por dispositivo, por programa—, para que abrir el wizard de otro no borre el
+  progreso del primero. Pasó en el ingreso a un dispositivo, donde alojaba a la persona equivocada.
+- Elegir dentro de un paso —una plaza en el mapa— **no escribe la sesión**: solo marca la elección.
+  Recién el botón que avanza, por POST, la guarda.
 - **Revalidar en el paso final lo que pudo cambiar mientras el usuario completaba el wizard.** Entre el
   paso 1 y el paso 4 pasan minutos; lo que ahí se validó puede haber dejado de ser cierto. Si el
   wizard reserva algo que otro puede tomar —una plaza, un lugar del cupo, un código único—, el paso
@@ -102,6 +113,8 @@ orden son solapas de un Detalle, no un wizard.
 - [ ] El indicador marca el paso actual (`aria-current`) y los hechos son links.
 - [ ] Cada paso valida con su form y redirige si falta el anterior.
 - [ ] El resumen sale de lo guardado en sesión, no de campos recalculados en el template.
+- [ ] Cada paso que decide algo lleva en ocultos lo que mostró, y la vista lo compara con la
+  sesión antes de escribir. El estado de la sesión se guarda por objeto, no uno global.
 - [ ] El paso final limpia la sesión, y **revalida lo que pudo cambiar entre pasos**: si reserva algo
   disputable, escribe en `atomic()` con la fila bloqueada y vuelve al paso que la eligió si se ocupó.
 - [ ] Pie con «Anterior» (`btn-tertiary btn-base`) y la acción primaria (`btn-brand btn-base`).

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from programas.views import dispositivos_config as cfg
+from programas.views import dispositivos_ingreso as ingreso
 from programas.views import dispositivos_legajo as legajo
 from programas.views import reportes
 
@@ -27,6 +28,9 @@ urlpatterns = [
     path("<int:pk>/sectores/", legajo.DispositivoSectoresView.as_view(), name="sectores"),
     path("<int:pk>/estadias/", legajo.DispositivoEstadiasView.as_view(), name="estadias"),
     path("<int:pk>/estadias/<int:estadia_pk>/egresar/", legajo.EstadiaEgresarView.as_view(), name="egresar"),
+    path("<int:pk>/ingresar/", ingreso.IngresoPersonaView.as_view(), name="ingreso_persona"),
+    path("<int:pk>/ingresar/plaza/", ingreso.IngresoPlazaView.as_view(), name="ingreso_plaza"),
+    path("<int:pk>/ingresar/confirmar/", ingreso.IngresoConfirmarView.as_view(), name="ingreso_confirmar"),
     path("config/", cfg.TipoDispositivoListView.as_view(), name="tipos"),
     path("config/nuevo/", cfg.TipoDispositivoCreateView.as_view(), name="tipo_crear"),
     path("config/<int:pk>/", cfg.TipoDispositivoDetailView.as_view(), name="tipo_detalle"),
