@@ -225,6 +225,11 @@ listas) no arrastra.
 - Se omite cuando el usuario no puede editar (`data-puede-ordenar="0"` ⇒ no se inicializa).
 - Cada soltada guarda **en vivo** contra un endpoint JSON que devuelve `{ok, target, html}` (el
   mismo contrato de `ajax_ok`) y el JS reemplaza el contenedor y se vuelve a enlazar.
+- Si el guardado falla (4xx/5xx o red) el JS **vuelve el DOM al último orden del servidor**
+  (foto de los hijos tomada al enlazar, re-colgados sin re-render; incluye el placeholder del
+  grupo vacío), deja el indicador en «No se guardó el orden», avisa por toast y devuelve el foco a
+  la manija movida: la pantalla nunca muestra un orden que no se guardó. Vale para las dos
+  variantes, con mouse o teclado (`JsListaRevierteSiFallaTests`).
 - Los huecos vacíos llevan una fila `.sortable-placeholder` (filtrada del arrastre) para que se
   pueda soltar adentro. Sin `confirm()` ni recarga de página.
 - El vendor se carga en `{% block customJS %}` **antes** del JS propio.
