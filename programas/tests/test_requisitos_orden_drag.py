@@ -7,14 +7,17 @@ y los renumera 1..N; los heredados no se mueven desde otra pantalla.
 
 import json
 from io import StringIO
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User
 from django.core.cache import cache
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from core.rbac import APP_LABEL, codename_de
+from core.tests.js_harness import correr_script_pagina, requiere_node
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR, ROL_COORDINADOR_REGIONAL
 from programas.models import AsignacionCoordinador, ProgramaSiis, RequisitoNativo, Segmento, Subsegmento, TipoCampo
 
@@ -250,12 +253,171 @@ class RenderTests(_Base):
 
 class JsListasTests(TestCase):
     def test_el_js_cablea_las_listas_planas(self):
-        from pathlib import Path
-
-        from django.conf import settings
-
         js = Path(settings.BASE_DIR, "static", "custom", "js", "nodo-catalogo-grupos.js").read_text(encoding="utf-8")
         self.assertIn("[data-sortable-lista]", js)
         self.assertIn("handle: '.lista-grip'", js)
         self.assertIn("lista.isConnected", js)
         self.assertIn("JSON.stringify({\n          ids:", js.replace("\r\n", "\n"))
+
+
+# DOM falso con lo justo para mover nodos de verdad: cada contenedor tiene
+# `children` real (Array) y appendChild/insertBefore sacan el nodo de su padre
+# anterior, como el navegador. Las filas registran el foco de su manija.
+_DOM_FALSO = r"""
+var __foco = null;
+function __sacar(n) {
+  if (n.parentElement) {
+    var arr = n.parentElement.children, i = arr.indexOf(n);
+    if (i >= 0) { arr.splice(i, 1); }
+  }
+}
+function __contenedor(attrs, hijos) {
+  var c = {
+    children: [], isConnected: true, dataset: {}, __on: {},
+    classList: {add: function () {}, remove: function () {}},
+    getAttribute: function (n) { return n in attrs ? attrs[n] : null; },
+    appendChild: function (n) { __sacar(n); c.children.push(n); n.parentElement = c; return n; },
+    insertBefore: function (n, ref) {
+      __sacar(n);
+      var i = ref ? c.children.indexOf(ref) : -1;
+      if (i < 0) { c.children.push(n); } else { c.children.splice(i, 0, n); }
+      n.parentElement = c;
+      return n;
+    },
+    contains: function () { return false; },
+    addEventListener: function (tipo, fn) { c.__on[tipo] = fn; },
+    querySelector: function (sel) {
+      var m = /data-item-id="(\d+)"/.exec(sel);
+      return m ? c.children.filter(function (h) { return String(h.id) === m[1]; })[0] || null : null;
+    }
+  };
+  (hijos || []).forEach(function (h) { c.appendChild(h); });
+  return c;
+}
+function __fila(id) {
+  var grip = {
+    focus: function () { __foco = id; },
+    closest: function (sel) { return sel.indexOf('grip') !== -1 ? grip : fila; }
+  };
+  var fila = {
+    id: id, parentElement: null, grip: grip,
+    get nextSibling() { var p = this.parentElement; return p.children[p.children.indexOf(this) + 1] || null; },
+    getAttribute: function (n) { return n === 'data-item-id' || n === 'data-pregunta-id' ? String(id) : null; },
+    matches: function () { return true; },
+    querySelector: function (sel) { return sel.indexOf('grip') !== -1 ? grip : null; }
+  };
+  return fila;
+}
+function __ids(c) { return c.children.map(function (h) { return h.id === undefined ? 'placeholder' : h.id; }); }
+__log.toasts = [];
+window.toast = function (tipo, msg) { __log.toasts.push([tipo, msg]); };
+window.setTimeout = function (fn) { fn(); return 0; };
+window.clearTimeout = function () {};
+var __ops = [];
+window.Sortable = function (el, opts) { __ops.push(opts); return {option: function () {}, destroy: function () {}}; };
+document.activeElement = null;
+document.cookie = '';
+"""
+
+
+@requiere_node
+class JsListaRevierteSiFallaTests(SimpleTestCase):
+    """Si el guardado falla, la pantalla vuelve al orden que vino del servidor
+    (hallazgo del revisor del PR #822): no queda mostrando un orden no guardado."""
+
+    def setUp(self):
+        self.script = (Path(settings.BASE_DIR) / "static" / "custom" / "js" / "nodo-catalogo-grupos.js").read_text(
+            encoding="utf-8"
+        )
+
+    def _lista(self, mover, respuesta=None, red_caida=False):
+        falla = (
+            "fetch = function () { return Promise.reject(new Error('red')); };"
+            if red_caida
+            else f"__respuestas['/reordenar-lista/'] = {json.dumps(respuesta)};"
+        )
+        acciones = (
+            _DOM_FALSO
+            + f"""
+var __f = [__fila(1), __fila(2), __fila(3)];
+var __lista = __contenedor({{'data-url-reordenar': '/reordenar-lista/', 'data-indicador': 'ind',
+                            'data-puede-ordenar': '1'}}, __f);
+document.querySelector = function () {{ return null; }};
+document.querySelectorAll = function (sel) {{ return sel === '[data-sortable-lista]' ? [__lista] : []; }};
+{falla}
+__disparar('document', 'DOMContentLoaded');
+{mover}
+__setTimeoutReal(function () {{
+  __log.orden = __ids(__lista);
+  __log.foco = __foco;
+  __log.indicador = String(__el('ind').textContent);
+}}, 20);
+"""
+        )
+        return correr_script_pagina(self.script, acciones)
+
+    # Arrastre: Sortable ya movió la fila 1 al medio cuando llama a onEnd.
+    ARRASTRE = "__lista.insertBefore(__f[0], __f[2]); __ops[0].onEnd({oldIndex: 0, newIndex: 1, item: __f[0]});"
+    # Teclado: flecha abajo sobre la manija de la fila 1.
+    TECLADO = "__lista.__on.keydown({key: 'ArrowDown', target: __f[0].grip, preventDefault: function () {}});"
+
+    def test_arrastre_rechazado_vuelve_al_orden_previo_y_enfoca_la_manija(self):
+        log = self._lista(self.ARRASTRE, {"ok": False, "error": "La lista cambió. Recargá la página."})
+        self.assertEqual(log["orden"], [1, 2, 3])
+        self.assertEqual(log["foco"], 1)
+        self.assertEqual(log["toasts"], [["error", "La lista cambió. Recargá la página."]])
+        self.assertEqual(log["indicador"], "No se guardó el orden")
+
+    def test_teclado_rechazado_vuelve_al_orden_previo(self):
+        log = self._lista(self.TECLADO, {"ok": False, "error": "Sin permiso."})
+        self.assertEqual(log["orden"], [1, 2, 3])
+        self.assertEqual(log["foco"], 1)
+
+    def test_red_caida_vuelve_al_orden_previo(self):
+        log = self._lista(self.ARRASTRE, red_caida=True)
+        self.assertEqual(log["orden"], [1, 2, 3])
+        self.assertEqual(log["toasts"], [["error", "No se pudo guardar el orden. Revisá la conexión."]])
+
+    def test_guardado_ok_no_revierte(self):
+        log = self._lista(self.TECLADO, {"ok": True, "target": "#x", "html": "<p></p>"})
+        self.assertEqual(log["orden"], [2, 1, 3])
+        self.assertEqual(log["toasts"], [])
+
+    def test_catalogo_agrupado_rechazado_vuelve_grupos_preguntas_y_placeholder(self):
+        """El catálogo agrupado tenía el mismo problema: grupos, preguntas que
+        cruzaron de grupo y el placeholder del grupo vacío vuelven a su lugar."""
+        acciones = (
+            _DOM_FALSO
+            + """
+var __ph = {placeholder: true, parentElement: null, matches: function () { return false; }};
+var __tbA = __contenedor({}, [__fila(1), __fila(2)]);
+var __tbB = __contenedor({}, [__ph]);
+function __card(gid, tb) {
+  var card = __contenedor({'data-grupo-id': gid}, []);
+  card.id = 'g' + gid;
+  card.querySelectorAll = function () { return tb.children.filter(function (h) { return !h.placeholder; }); };
+  return card;
+}
+var __cA = __card('10', __tbA), __cB = __card('20', __tbB);
+var __root = __contenedor({'data-puede-ordenar': '1', 'data-url-reordenar': '/reordenar/'}, [__cA, __cB]);
+__root.querySelectorAll = function (sel) { return sel === '.grupo-card' ? __root.children : [__tbA, __tbB]; };
+document.querySelector = function (sel) { return sel === '[data-sortable-grupos]' ? __root : null; };
+document.querySelectorAll = function () { return []; };
+__respuestas['/reordenar/'] = {ok: false, error: 'No se pudo.'};
+__disparar('document', 'DOMContentLoaded');
+// La pregunta 1 cruza al grupo vacío (sale el placeholder) y los grupos se invierten.
+__tbB.appendChild(__tbA.children[0]); __sacar(__ph); __ph.parentElement = null;
+__root.insertBefore(__cB, __cA);
+__ops[1].onEnd({from: __tbA, to: __tbB, oldIndex: 0, newIndex: 0});
+__setTimeoutReal(function () {
+  __log.grupos = __ids(__root);
+  __log.tbA = __ids(__tbA);
+  __log.tbB = __ids(__tbB);
+}, 20);
+"""
+        )
+        log = correr_script_pagina(self.script, acciones)
+        self.assertEqual(log["grupos"], ["g10", "g20"])
+        self.assertEqual(log["tbA"], [1, 2])
+        self.assertEqual(log["tbB"], ["placeholder"])
+        self.assertEqual(log["toasts"], [["error", "No se pudo."]])
