@@ -12,9 +12,16 @@ Las cifras
 * ``totales`` — las plazas cargadas en los sectores activos.
 * ``fuera_de_servicio`` — las que están en ``Plaza.Estado.FUERA_SERVICIO``.
 * ``operativas`` — ``totales - fuera_de_servicio``.
-* ``ocupadas`` — las plazas con una estadía activa.
-* ``reservadas`` — las plazas con una reserva o un préstamo vigente.
+* ``ocupadas`` — las plazas operativas con una estadía activa.
+* ``reservadas`` — las plazas operativas sin estadía activa y con una reserva o un
+  préstamo vigente.
 * ``disponibles`` — ``operativas - ocupadas - reservadas``.
+
+Cada plaza se cuenta **una sola vez**, en el estado que le resuelve
+:func:`estado_de_plazas` con su precedencia —fuera de servicio, ocupada, reservada o
+prestada, disponible—. Las dos cuentas filtran con los mismos querysets
+(:func:`_estadias_que_ocupan` y :func:`_reservas_que_cuentan`), así que el encabezado y
+las celdas del mapa no pueden decir cosas distintas.
 
 Lo que se recibe y lo que se deriva (y qué significa ``None``)
 --------------------------------------------------------------
@@ -54,16 +61,20 @@ Invariantes que el cálculo sostiene
 * ``FUERA_SERVICIO``, ocupada y reservada son mutuamente excluyentes **por regla de
   negocio, no por constraint**: sacar de servicio una plaza tomada falla y primero se
   reubica, y ni una estadía ni una reserva se dan sobre una plaza que ya tiene algo
-  (`programas.services.estadias`, con la fila de la plaza bloqueada). De ahí sale
-  ``ocupadas + reservadas <= operativas``, y por lo tanto ``disponibles >= 0``. Es una
-  invariante del servicio de escritura: si alguien escribe por afuera, acá se va a ver
-  —un ``disponibles`` negativo—, que es exactamente lo que se quiere que pase.
+  (`programas.services.estadias`, con la fila de la plaza bloqueada). Como el modelo no
+  lo impide, el conteo **no confía en esa regla**: aplica la precedencia, y por
+  construcción ``ocupadas + reservadas <= operativas`` y ``disponibles >= 0`` aunque
+  alguien escriba por afuera. Una superposición así se ve en el mapa como el estado que
+  gana, igual que en el encabezado.
+* Todo el cálculo se hace sobre **un mismo instante** (``momento``): la vigencia de una
+  reserva es por tiempo, y dos consultas con dos «ahora» distintos podrían discrepar.
 
 Costo
 -----
 
 **Tres consultas** —las plazas por sector, las estadías activas por sector y las
-reservas vigentes por sector— más, a lo sumo, la que evalúe el queryset de dispositivos
+reservas vigentes por sector (la exclusión de las plazas ocupadas va como subconsulta
+``NOT EXISTS`` adentro de esa misma consulta)— más, a lo sumo, la que evalúe el queryset de dispositivos
 que reciba. Son tres fijas: no crecen con la cantidad de sectores, de plazas ni de
 dispositivos, y cada una devuelve una fila por sector.
 
@@ -84,7 +95,7 @@ censo por turno sobre fechas, el agrupamiento va en Python (precedente:
 
 from dataclasses import dataclass
 
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
 from django.utils import timezone
 
 from programas.models import Dispositivo, Estadia, Plaza, ReservaPlaza, Sector
@@ -243,8 +254,34 @@ def _por_sector(filas):
     return {fila["plaza__sector_id"]: fila["cuantas"] for fila in filas}
 
 
+def _estadias_que_ocupan():
+    """Las estadías que hacen «ocupada» a su plaza: activas, en una plaza que no está fuera de servicio.
+
+    Fuera de servicio gana: es la primera regla de la precedencia de :func:`estado_de_plazas`.
+    """
+
+    return Estadia.objects.activas().exclude(plaza__estado=Plaza.Estado.FUERA_SERVICIO)
+
+
+def _reservas_que_cuentan(momento):
+    """Las reservas que hacen «reservada» o «prestada» a su plaza.
+
+    Vigentes en ``momento``, en una plaza que no está fuera de servicio y **sin** una
+    estadía activa: ocupada gana sobre reservada. Así una plaza ocupada y reservada a la
+    vez —que el servicio de estadías no deja escribir, pero el modelo sí— se cuenta una
+    sola vez, como ocupada, que es como la dibuja el mapa.
+    """
+
+    ocupada = Estadia.objects.activas().filter(plaza_id=OuterRef("plaza_id"))
+    return (
+        ReservaPlaza.objects.vigentes(momento)
+        .exclude(plaza__estado=Plaza.Estado.FUERA_SERVICIO)
+        .exclude(Exists(ocupada))
+    )
+
+
 def _ocupadas_por_sector(sector_ids):
-    """Plazas con estadía activa, por sector. Una consulta, una fila por sector.
+    """Plazas ocupadas (:func:`_estadias_que_ocupan`), por sector. Una consulta, una fila por sector.
 
     Se filtra por los sectores que ya se conocen y no por el dispositivo: así el JOIN es
     ``estadia → plaza`` y no ``estadia → plaza → sector → dispositivo``.
@@ -256,29 +293,30 @@ def _ocupadas_por_sector(sector_ids):
     """
 
     return _por_sector(
-        Estadia.objects.filter(estado=Estadia.Estado.ACTIVA, plaza__sector_id__in=sector_ids)
-        .values("plaza__sector_id")
-        .annotate(cuantas=Count("plaza_id", distinct=True))
-    )
-
-
-def _reservadas_por_sector(sector_ids):
-    """Plazas con reserva o préstamo vigente, por sector.
-
-    La vigencia la define `ReservaPlaza.objects.vigentes()` y no se repite acá: es por
-    tiempo, sin cron que apague nada, y sin ningún ``Trunc*``.
-    """
-
-    return _por_sector(
-        ReservaPlaza.objects.vigentes()
+        _estadias_que_ocupan()
         .filter(plaza__sector_id__in=sector_ids)
         .values("plaza__sector_id")
         .annotate(cuantas=Count("plaza_id", distinct=True))
     )
 
 
-def ocupacion_de_plazas(dispositivos) -> Censo:
-    """Las cifras de plazas de ``dispositivos``, en tres consultas fijas.
+def _reservadas_por_sector(sector_ids, momento):
+    """Plazas reservadas o prestadas (:func:`_reservas_que_cuentan`), por sector.
+
+    La vigencia la define `ReservaPlaza.objects.vigentes()` y no se repite acá: es por
+    tiempo, sin cron que apague nada, y sin ningún ``Trunc*``.
+    """
+
+    return _por_sector(
+        _reservas_que_cuentan(momento)
+        .filter(plaza__sector_id__in=sector_ids)
+        .values("plaza__sector_id")
+        .annotate(cuantas=Count("plaza_id", distinct=True))
+    )
+
+
+def ocupacion_de_plazas(dispositivos, momento=None) -> Censo:
+    """Las cifras de plazas de ``dispositivos`` en ``momento`` (por defecto, ahora), en tres consultas fijas.
 
     ``dispositivos`` puede ser un :class:`~programas.models.Dispositivo`, su id, o
     cualquier iterable de unos u otros (incluido un queryset, que entonces se evalúa).
@@ -291,6 +329,7 @@ def ocupacion_de_plazas(dispositivos) -> Censo:
     """
 
     ids = _ids_de(dispositivos)
+    momento = momento or timezone.now()
     sectores_por_dispositivo: dict[int, list[OcupacionSector]] = {pk: [] for pk in ids}
 
     if ids:
@@ -315,7 +354,7 @@ def ocupacion_de_plazas(dispositivos) -> Censo:
         filas = list(filas)
         sector_ids = [fila["id"] for fila in filas]
         ocupadas = _ocupadas_por_sector(sector_ids) if sector_ids else {}
-        reservadas = _reservadas_por_sector(sector_ids) if sector_ids else {}
+        reservadas = _reservadas_por_sector(sector_ids, momento) if sector_ids else {}
         for fila in filas:
             sectores_por_dispositivo[fila["dispositivo_id"]].append(
                 OcupacionSector(
@@ -396,15 +435,15 @@ def estado_de_plazas(plazas, momento=None) -> dict[int, EstadoPlaza]:
     Dos consultas fijas, sin importar cuántas plazas: las estadías activas y las reservas
     vigentes de esas plazas. Precedencia: fuera de servicio, ocupada, prestada o reservada,
     disponible; las tres primeras son excluyentes por regla de negocio, no por constraint.
+    Las consultas son las mismas que cuenta :func:`ocupacion_de_plazas`, así que la celda y
+    el encabezado resuelven igual una plaza que tenga dos cosas a la vez.
     """
 
     plazas = list(plazas)
     ids = [plaza.pk for plaza in plazas]
     momento = momento or timezone.now()
-    ocupadas = set(Estadia.objects.activas().filter(plaza_id__in=ids).values_list("plaza_id", flat=True))
-    reservas = {
-        reserva.plaza_id: reserva.tipo for reserva in ReservaPlaza.objects.vigentes(momento).filter(plaza_id__in=ids)
-    }
+    ocupadas = set(_estadias_que_ocupan().filter(plaza_id__in=ids).values_list("plaza_id", flat=True))
+    reservas = dict(_reservas_que_cuentan(momento).filter(plaza_id__in=ids).values_list("plaza_id", "tipo"))
 
     derivados = {}
     for plaza in plazas:

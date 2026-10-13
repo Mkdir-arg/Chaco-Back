@@ -6,7 +6,7 @@
 
 {% block main-content %}
 <div class="space-y-5">
-  {% page_header titulo="Ingresar persona" volver_url=urls.dispositivo volver_label=dispositivo.nombre %}
+  {% page_header titulo="Ingresar persona" eyebrow=eyebrow volver_url=urls.dispositivo volver_label=dispositivo.nombre %}
     {% bajada %}Paso {{ paso_actual }} de {{ total_pasos }} · {{ bajada }}{% endbajada %}
   {% endpage_header %}
 

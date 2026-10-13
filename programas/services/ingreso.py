@@ -138,7 +138,9 @@ def confirmar_ingreso(*, dispositivo, usuario, ciudadano_id, datos_renaper, plaz
 
     La plaza se **revalida y se toma** dentro de `ingresar_persona` (bloqueando su fila).
     Si ya no está disponible, o la persona ya está alojada, lanza `ValidationError` y la
-    transacción entera —incluida el alta del legajo— se deshace.
+    transacción entera —incluida el alta del legajo— se deshace. Si el legajo o la plaza
+    se borraron entre pasos, deja pasar `Ciudadano.DoesNotExist` o `Plaza.DoesNotExist`:
+    la vista decide a qué paso se vuelve.
     """
 
     with transaction.atomic():
@@ -174,5 +176,7 @@ def _alta_desde_registro(datos):
         if existente is None:
             raise
         return existente
-    CiudadanosService.invalidate_ciudadanos_cache()
+    # Después del commit y no ahora: adentro de la transacción, otra petición podría volver
+    # a llenar la caché con el listado viejo antes de que el alta se vea.
+    transaction.on_commit(CiudadanosService.invalidate_ciudadanos_cache)
     return ciudadano

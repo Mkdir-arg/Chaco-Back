@@ -373,6 +373,22 @@ class OcupacionConMovimientosTests(TestCase):
         self.assertEqual(conteo.ocupadas + conteo.reservadas, 2)
         self.assertEqual(conteo.disponibles, 1)
 
+    def test_una_plaza_con_dos_cosas_a_la_vez_se_cuenta_una_vez_con_la_precedencia_del_mapa(self):
+        """Escrito por el ORM, saltando la regla del servicio: ocupada gana sobre reservada, y
+        fuera de servicio sobre las dos. ``disponibles`` no puede quedar negativo."""
+
+        self._alojar(self.persona, self.plazas[0])
+        ReservaPlaza.objects.create(plaza=self.plazas[0], ciudadano=self.otra, desde=timezone.now())
+        self._alojar(self.otra, self.plazas[1])
+        Plaza.objects.filter(pk=self.plazas[1].pk).update(
+            estado=Plaza.Estado.FUERA_SERVICIO, motivo_fuera_servicio="Refacción"
+        )
+
+        conteo = self._conteo()
+
+        self.assertEqual((conteo.fuera_de_servicio, conteo.ocupadas, conteo.reservadas), (1, 1, 0))
+        self.assertEqual(conteo.disponibles, 2)
+
     def test_el_total_del_dispositivo_sigue_siendo_la_suma_de_sus_sectores(self):
         otro = _sector(self.cis, "Mujeres", capacidad=2)
         plazas_otro = _plazas(otro, 2, prefijo="M")

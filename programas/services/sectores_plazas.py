@@ -16,9 +16,6 @@ from programas.services.ocupacion import LEYENDA_PLAZAS, estado_de_plazas, ocupa
 # acota cada sector para no mandar un dispositivo entero en una sola grilla.
 TOPE_PLAZAS_POR_SECTOR = 200
 
-# La ocupación sale de `ocupacion.estado_de_plazas`: ya se conoce.
-OCUPACION_CONOCIDA = True
-
 
 def _resumen(conteo):
     """Las cifras de un `Conteo` del servicio de ocupación, con las claves que lee la pantalla.
@@ -74,5 +71,4 @@ def sectores_con_plazas(dispositivo):
         "sectores": armados,
         "totales": _resumen(ocupacion.conteo),
         "leyenda": LEYENDA_PLAZAS,
-        "ocupacion_conocida": OCUPACION_CONOCIDA,
     }
