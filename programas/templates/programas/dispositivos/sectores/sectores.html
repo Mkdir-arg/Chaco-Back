@@ -9,7 +9,7 @@
   {# ===== PageHeader ===== #}
   {% url 'dispositivos:detalle' dispositivo.pk as url_volver %}
   {% page_header titulo="Sectores y plazas" volver_url=url_volver volver_label=dispositivo.nombre migas=migas %}
-    {% bajada %}<a href="{{ url_volver }}" class="text-fg-brand hover:underline">{{ dispositivo.nombre }}</a> · {{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio{% endbajada %}
+    {% bajada %}<a href="{{ url_volver }}" class="text-fg-brand hover:underline">{{ dispositivo.nombre }}</a> · {{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio · {{ totales.ocupadas }} ocupada{{ totales.ocupadas|pluralize }} · {{ totales.reservadas }} reservada{{ totales.reservadas|pluralize }} · {{ totales.disponibles }} disponible{{ totales.disponibles|pluralize }}{% endbajada %}
   {% endpage_header %}
 
   {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
@@ -22,7 +22,7 @@
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sector-{{ item.sector.pk }}-titulo">
     <div class="px-5 py-4 border-b border-light">
       <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
-      <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}</p>
+      <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio · {{ item.resumen.ocupadas }} ocupada{{ item.resumen.ocupadas|pluralize }} · {{ item.resumen.reservadas }} reservada{{ item.resumen.reservadas|pluralize }} · {{ item.resumen.disponibles }} disponible{{ item.resumen.disponibles|pluralize }}{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}</p>
     </div>
     <div class="p-5">
       {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.resumen.total %}

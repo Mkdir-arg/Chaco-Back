@@ -253,3 +253,36 @@ class UnSoloOrigenDelEstadoDeLaPlazaTests(BaseIngreso):
         )
         self.assertEqual(libre.codigo, "P3")
         self.assertEqual(fuera.codigo, "P5")
+
+    def test_el_encabezado_de_sectores_cuenta_lo_mismo_que_dibuja_el_mapa(self):
+        Plaza.objects.create(sector=self.sector, codigo="P3")
+        prestada = Plaza.objects.create(sector=self.sector, codigo="P4")
+        Plaza.objects.create(
+            sector=self.sector, codigo="P5", estado=Plaza.Estado.FUERA_SERVICIO, motivo_fuera_servicio="Rota"
+        )
+        ingresar_persona(ciudadano=self.otra_persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza)
+        reservar_plaza(plaza=self.otra_plaza, ciudadano=self.persona, usuario=self.operador_cis)
+        reservar_plaza(
+            plaza=prestada,
+            ciudadano=self.persona,
+            usuario=self.operador_cis,
+            tipo=ReservaPlaza.Tipo.PRESTAMO,
+            hasta=timezone.now() + timedelta(hours=12),
+        )
+
+        contexto = self.client.get(reverse("dispositivos:sectores", args=[self.cis.pk])).context
+        celdas = [p["estado"] for item in contexto["sectores"] for p in item["plazas"]]
+        totales = contexto["totales"]
+
+        self.assertEqual(totales["ocupadas"], celdas.count("Ocupada"))
+        # El servicio cuenta reservas y préstamos vigentes juntos.
+        self.assertEqual(totales["reservadas"], celdas.count("Reservada") + celdas.count("Prestada"))
+        self.assertEqual(totales["disponibles"], celdas.count("Disponible"))
+        self.assertEqual(totales["fuera_servicio"], celdas.count("Fuera de serv."))
+        self.assertEqual(totales["total"], len(celdas))
+        # Y lo mismo por sector, que es lo que suma el encabezado.
+        for item in contexto["sectores"]:
+            estados = [p["estado"] for p in item["plazas"]]
+            self.assertEqual(item["resumen"]["ocupadas"], estados.count("Ocupada"))
+            self.assertEqual(item["resumen"]["disponibles"], estados.count("Disponible"))
+        self.assertEqual((totales["ocupadas"], totales["reservadas"], totales["disponibles"]), (1, 2, 1))
