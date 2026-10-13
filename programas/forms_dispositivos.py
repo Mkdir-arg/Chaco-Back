@@ -61,6 +61,13 @@ class EgresoForm(forms.Form):
         fecha = self.cleaned_data["fecha_egreso"]
         if fecha > timezone.now():
             raise forms.ValidationError("El egreso no puede ser futuro.")
-        if self.estadia is not None and fecha < self.estadia.fecha_ingreso:
-            raise forms.ValidationError("El egreso no puede ser anterior al ingreso.")
+        if self.estadia is not None:
+            ingreso = self.estadia.fecha_ingreso
+            # El input `datetime-local` no trae segundos y el ingreso sí: egresar en el mismo
+            # minuto del ingreso (un alta por error, corregida enseguida) quedaría «anterior».
+            # Se compara al minuto y, dentro de ese minuto, se egresa en el instante del ingreso,
+            # que es lo que el servicio y el constraint de la base aceptan.
+            if fecha < ingreso.replace(second=0, microsecond=0):
+                raise forms.ValidationError("El egreso no puede ser anterior al ingreso.")
+            fecha = max(fecha, ingreso)
         return fecha

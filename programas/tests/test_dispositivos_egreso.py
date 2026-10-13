@@ -203,6 +203,32 @@ class EgresoPantallaTests(BaseEgreso):
 
         self.assertEqual(respuesta.status_code, 404)
 
+    def test_egresar_en_el_mismo_minuto_del_ingreso_no_se_rechaza(self):
+        """El `datetime-local` pierde los segundos; el ingreso los trae."""
+
+        estadia = Estadia.objects.get(pk=self.estadia.pk)
+        Estadia.objects.filter(pk=estadia.pk).update(fecha_ingreso=timezone.now().replace(second=30, microsecond=0))
+        if estadia.fecha_ingreso > timezone.now():
+            self.skipTest("el minuto todavia no tiene segundo 30")
+        ingreso = Estadia.objects.get(pk=estadia.pk).fecha_ingreso
+        respuesta = self._post(fecha_egreso=timezone.localtime(ingreso).strftime(FORMATO))
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        cerrada = Estadia.objects.get(pk=estadia.pk)
+        self.assertEqual(cerrada.estado, Estadia.Estado.EGRESADA)
+        self.assertGreaterEqual(cerrada.fecha_egreso, cerrada.fecha_ingreso)
+
+    def test_el_modal_unico_se_limpia_al_abrirse_para_otra_persona(self):
+        """No se puede correr el JS desde Django: se afirma que el template lo lleva."""
+
+        html = self.cliente.get(reverse("dispositivos:estadias", args=[self.cis.pk])).content.decode()
+
+        self.assertIn('x-ref="form"', html)
+        self.assertIn("this.limpiarForm();", html)
+        self.assertIn("form.reset();", html)
+        self.assertIn("[data-error]", html)
+        self.assertLess(html.index("this.limpiarForm();"), html.index("this.modalEgreso = true;"))
+
     def test_la_lista_muestra_el_boton_solo_con_la_capacidad(self):
         respuesta = self.cliente.get(reverse("dispositivos:estadias", args=[self.cis.pk]))
 

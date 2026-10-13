@@ -9,7 +9,20 @@
        egreso: { url: '', persona: '', bajada: '' },
        abrirEgreso(datos) {
          this.egreso = { url: datos.url, persona: datos.persona, bajada: datos.bajada };
+         this.limpiarForm();
          this.modalEgreso = true;
+       },
+       limpiarForm() {
+         // El modal es uno solo para todas las filas: sin esto, lo cargado (o rechazado) para una
+         // persona quedaria a la vista en el formulario de la siguiente.
+         var form = this.$refs.form;
+         if (!form) return;
+         form.reset();
+         form.querySelectorAll('[data-error]').forEach(function (el) { el.textContent = ''; el.classList.add('hidden'); });
+         var ahora = new Date();
+         ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+         var fecha = form.querySelector('[name=fecha_egreso]');
+         if (fecha) fecha.value = ahora.toISOString().slice(0, 16);
        }
      }"
      @becas-saved.window="modalEgreso=false">
@@ -75,7 +88,7 @@
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-egreso-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Registrar egreso" titulo_x_text="'Registrar egreso de ' + egreso.persona" titulo_id="modal-egreso-titulo" icono="fa-users" cerrar="modalEgreso=false" %}
-      <form method="post" :action="egreso.url" data-ajax class="flex flex-col flex-1 min-h-0">
+      <form method="post" x-ref="form" :action="egreso.url" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
