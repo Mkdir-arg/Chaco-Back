@@ -36,6 +36,7 @@ relevar** —que no es lo mismo que relevado y sano, una inspección con critici
 consultas fijas: no crecen con la cantidad de edificios ni de dispositivos.
 """
 
+from dataclasses import dataclass
 from datetime import timedelta
 from functools import reduce
 from operator import or_
@@ -427,6 +428,19 @@ def ultima_inspeccion(edificio):
     )
 
 
+def subconsulta_ultima_realizada():
+    """El id de la última realizada del edificio de la fila (``OuterRef("pk")``), para anotar.
+
+    Escalar con ``LIMIT 1`` en el ``SELECT``: MySQL no admite ``LIMIT`` dentro de un ``IN``.
+    """
+
+    return Subquery(
+        InspeccionEdificio.objects.filter(edificio=OuterRef("pk"), estado=InspeccionEdificio.Estado.REALIZADA)
+        .order_by("-realizada_en", "-pk")
+        .values("pk")[:1]
+    )
+
+
 def ultimas_inspecciones_por_edificio(edificio_ids):
     """``{edificio_id: InspeccionEdificio | None}`` en dos consultas, sin importar cuántos.
 
@@ -439,14 +453,9 @@ def ultimas_inspecciones_por_edificio(edificio_ids):
     ids = {pk for pk in edificio_ids if pk is not None}
     if not ids:
         return {}
-    ultima = (
-        InspeccionEdificio.objects.filter(edificio=OuterRef("pk"), estado=InspeccionEdificio.Estado.REALIZADA)
-        .order_by("-realizada_en", "-pk")
-        .values("pk")[:1]
-    )
     pares = dict(
         Edificio.objects.filter(pk__in=ids)
-        .annotate(ultima_id=Subquery(ultima))
+        .annotate(ultima_id=subconsulta_ultima_realizada())
         .order_by()
         .values_list("pk", "ultima_id")
     )
@@ -472,6 +481,84 @@ def ultimas_inspecciones_de_dispositivos(dispositivo_ids):
     for dispositivo_id, edificio_id in vinculos:
         resultado[dispositivo_id][edificio_id] = por_edificio.get(edificio_id)
     return resultado
+
+
+# --------------------------------------------------------------------------- #
+# Semáforo de criticidad del edificio (task 40 · #705)
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class Semaforo:
+    """Lo que dibuja el badge: ``texto`` y ``tono`` (`badge-{{ tono }}`). El template no decide nada.
+
+    ``nivel`` es el código estable que usan los tests y el orden de gravedad: la criticidad
+    de la última realizada (``ALTA``, ``MEDIA``, ``BAJA``), :data:`SIN_RELEVAR` o
+    :data:`SIN_EDIFICIO`.
+    """
+
+    nivel: str
+    texto: str
+    tono: str
+
+
+SIN_RELEVAR = "SIN_RELEVAR"
+SIN_EDIFICIO = "SIN_EDIFICIO"
+
+#: Vocabulario operativo del semáforo: el texto dice el estado sin depender del color. «Bueno» y
+#: «Regular» son los del mockup (P19, «Estado físico»); «Crítico» es el nivel que el mockup no
+#: muestra y la escala del modelo sí tiene («requiere intervención»).
+SEMAFOROS = {
+    InspeccionEdificio.Criticidad.ALTA: Semaforo(InspeccionEdificio.Criticidad.ALTA, "Crítico", "danger"),
+    InspeccionEdificio.Criticidad.MEDIA: Semaforo(InspeccionEdificio.Criticidad.MEDIA, "Regular", "warning"),
+    InspeccionEdificio.Criticidad.BAJA: Semaforo(InspeccionEdificio.Criticidad.BAJA, "Bueno", "success"),
+    SIN_RELEVAR: Semaforo(SIN_RELEVAR, "Sin relevar", "gray"),
+    SIN_EDIFICIO: Semaforo(SIN_EDIFICIO, "Sin edificio cargado", "gray"),
+}
+
+#: Qué gana cuando un dispositivo ocupa más de un edificio: el peor. «Sin relevar» va por encima
+#: de «Bueno» porque no saber cómo está un edificio no es lo mismo que saber que está sano: si
+#: ganara el sano, el edificio que nadie miró quedaría escondido detrás de él.
+_GRAVEDAD = {
+    InspeccionEdificio.Criticidad.ALTA: 3,
+    InspeccionEdificio.Criticidad.MEDIA: 2,
+    SIN_RELEVAR: 1,
+    InspeccionEdificio.Criticidad.BAJA: 0,
+}
+
+
+def semaforo_de_inspeccion(inspeccion):
+    """El semáforo de un edificio a partir de su última realizada (``None`` = sin relevar)."""
+
+    if inspeccion is None:
+        return SEMAFOROS[SIN_RELEVAR]
+    semaforo = SEMAFOROS.get(inspeccion.criticidad)
+    if semaforo is None:
+        # Una escala que el Ministerio cambie y que este mapa todavía no conozca: se muestra
+        # con su etiqueta y sin color, en lugar de romper la pantalla.
+        return Semaforo(inspeccion.criticidad, inspeccion.get_criticidad_display(), "gray")
+    return semaforo
+
+
+def semaforo_de_ultimas(ultimas):
+    """El semáforo de un dispositivo: ``ultimas`` es ``{edificio_id: InspeccionEdificio | None}``.
+
+    Sin edificios cargados es :data:`SIN_EDIFICIO`; con varios, gana el más grave.
+    """
+
+    if not ultimas:
+        return SEMAFOROS[SIN_EDIFICIO]
+    semaforos = [semaforo_de_inspeccion(inspeccion) for inspeccion in ultimas.values()]
+    return max(semaforos, key=lambda semaforo: _GRAVEDAD.get(semaforo.nivel, 1))
+
+
+def semaforos_de_dispositivos(dispositivo_ids):
+    """``{dispositivo_id: Semaforo}`` en tres consultas fijas: el listado no hace una por fila."""
+
+    return {
+        dispositivo_id: semaforo_de_ultimas(ultimas)
+        for dispositivo_id, ultimas in ultimas_inspecciones_de_dispositivos(dispositivo_ids).items()
+    }
 
 
 def inspecciones_de_dispositivo(dispositivo, *, incluir_canceladas=False):

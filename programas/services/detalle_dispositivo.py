@@ -20,15 +20,29 @@ cada listado paginado dos (el ``COUNT`` y la página) con ``select_related`` de 
 la plaza, así que **no hay una consulta por fila**.
 """
 
+from collections import defaultdict
+
 from django.core.paginator import Paginator
+from django.db.models import Count, F, Q
 from django.utils import timezone
 from django.utils.formats import date_format
 
-from programas.models import Dispositivo, Estadia, Sector
+from programas.models import Dispositivo, Edificio, Estadia, FotoInspeccion, InspeccionEdificio, Sector
 from programas.services.estadias import estado_visible
+from programas.services.inspecciones import (
+    SEMAFOROS,
+    SIN_EDIFICIO,
+    inspecciones_de_dispositivo,
+    semaforo_de_inspeccion,
+    semaforo_de_ultimas,
+    subconsulta_ultima_realizada,
+)
 
 POR_PAGINA_ESTADIAS = 25
 POR_PAGINA_HISTORIAL = 20
+POR_PAGINA_RELEVAMIENTOS = 10
+#: El tope que dibuja `components/_galeria_fotos.html`: la tanda se recorta acá, no en la pieza.
+FOTOS_POR_TANDA = 24
 
 #: Valores del filtro «Estado»: vacío = las alojadas (lo que se mira todo el día).
 FILTRO_ALOJADAS = ""
@@ -216,3 +230,207 @@ def eventos_de_historial(dispositivo, pagina=1):
             }
         )
     return pagina_de_trazas, eventos
+
+
+# --------------------------------------------------------------------------- #
+# Solapa Infraestructura (P19 recortada · task 37) y su semáforo (task 40)
+# --------------------------------------------------------------------------- #
+
+_REALIZADA = InspeccionEdificio.Estado.REALIZADA
+_TONOS_CON_COLOR = ("success", "warning", "danger")
+
+
+def _nombre(usuario):
+    if usuario is None:
+        return "sin responsable"
+    return usuario.get_full_name() or usuario.username
+
+
+def _fecha(momento):
+    return date_format(timezone.localtime(momento), "d/m/Y")
+
+
+def _cantidad_de_fotos(cantidad):
+    if not cantidad:
+        return "Sin fotos"
+    return f"{cantidad} foto{'s' if cantidad != 1 else ''}"
+
+
+def _evento_de_relevamiento(inspeccion, fotos, con_edificio):
+    """Una entrada de la línea de tiempo por relevamiento, con su tanda de fotos adentro.
+
+    Lo que pasó va en el texto, no en el color. ``fotos`` y ``total_fotos`` son el opcional de
+    `components/_linea_tiempo.html` que dibuja la galería dentro del evento.
+    """
+
+    edificio = f" · {inspeccion.edificio.nombre}" if con_edificio else ""
+    rotulos = ", ".join(list(dict.fromkeys(foto.descripcion for foto in fotos if foto.descripcion))[:8])
+    galeria = {"pk": inspeccion.pk, "fotos": _fotos_de_la_tanda(inspeccion, fotos), "total_fotos": inspeccion.n_fotos}
+    if inspeccion.estado != _REALIZADA:
+        detalle = _cantidad_de_fotos(inspeccion.n_fotos).lower()
+        return {
+            "cuando": f"en curso{edificio} · asignado a {_nombre(inspeccion.asignado_a)}",
+            "titulo": "Relevamiento en curso",
+            "detalle": f"{detalle} · {rotulos}" if rotulos else detalle,
+            **galeria,
+        }
+    semaforo = semaforo_de_inspeccion(inspeccion)
+    evento = {
+        "cuando": f"{_fecha(inspeccion.realizada_en)} · relevamiento{edificio} · {_nombre(inspeccion.realizada_por)}",
+        "titulo": _cantidad_de_fotos(inspeccion.n_fotos),
+        "detalle": rotulos,
+        "badge": semaforo.texto,
+        "badge_tono": semaforo.tono,
+        **galeria,
+    }
+    if semaforo.tono in _TONOS_CON_COLOR:
+        evento["tono"] = semaforo.tono
+    return evento
+
+
+#: Formatos que se aceptan al cargar (Cambio 275) y que un navegador no dibuja en un `<img>`.
+_SIN_VISTA_PREVIA = (".heic", ".heif")
+
+
+def _fotos_de_la_tanda(inspeccion, fotos):
+    """Los dicts que pide `_galeria_fotos.html`. La URL es la de `/media/`, que está detrás de login.
+
+    Una HEIC o HEIF va sin URL: la pieza dibuja la celda gris con cámara en vez de una imagen rota.
+    """
+
+    fecha = _fecha(inspeccion.realizada_en or inspeccion.creado)
+    galeria = []
+    for numero, foto in enumerate(fotos[:FOTOS_POR_TANDA], start=1):
+        rotulo = foto.descripcion or f"Foto {numero}"
+        galeria.append(
+            {
+                "url": "" if foto.archivo.name.lower().endswith(_SIN_VISTA_PREVIA) else foto.archivo.url,
+                "alt": f"{rotulo} · {inspeccion.edificio.nombre} · relevamiento del {fecha}",
+                "rotulo": rotulo,
+                "fecha": foto.creado,
+            }
+        )
+    return galeria
+
+
+def _indicadores_edilicios(semaforo, edificios, realizados, fotos):
+    """La franja de la solapa: el semáforo y dos cifras, ya formateadas."""
+
+    if len(edificios) > 1:
+        nota_estado = f"el más grave de {len(edificios)} edificios"
+    elif edificios[0]["ultima"] is not None:
+        nota_estado = f"último relevamiento {_fecha(edificios[0]['ultima'].realizada_en)}"
+    else:
+        nota_estado = "ningún relevamiento realizado"
+    return [
+        {
+            "etiqueta": "Estado edilicio",
+            "valor": semaforo.texto,
+            "icono": "fa-building",
+            # La stat card chica no tiene gris: sin color, va con el de marca y el texto manda.
+            "tono": semaforo.tono if semaforo.tono in _TONOS_CON_COLOR else "brand",
+            "nota": nota_estado,
+        },
+        {
+            "etiqueta": "Relevamientos realizados",
+            "valor": realizados,
+            "icono": "fa-clipboard-check",
+            "tono": "brand",
+            "nota": "cada uno queda en el registro",
+        },
+        {
+            "etiqueta": "Fotos",
+            "valor": fotos,
+            "icono": "fa-camera",
+            "tono": "brand",
+            "nota": "cada relevamiento agrega su tanda",
+        },
+    ]
+
+
+def infraestructura_del_dispositivo(dispositivo, pagina=1):
+    """Lo que dibuja la solapa Infraestructura: criticidad, observaciones y registro fotográfico.
+
+    El relevamiento **cuelga del edificio**: un predio compartido muestra los mismos en todas las
+    instituciones que lo ocupan. Sin edificio cargado devuelve ``edificios`` vacío y el semáforo
+    «Sin edificio cargado», que no es lo mismo que un edificio sin relevar.
+
+    No trae tenencia, servicios, ubicación, habitaciones, plano ni vigencia: no son del MVP.
+
+    Costo fijo, sin importar cuántos relevamientos ni cuántas fotos: los edificios con su última
+    realizada y la cantidad de instituciones (1), esas últimas con quien relevó (1), los totales
+    de la franja (1), el ``COUNT`` y la página del registro fotográfico (2) y las fotos de la
+    página (1). Sin edificio, una sola.
+    """
+
+    edificios = list(
+        Edificio.objects.filter(
+            pk__in=Edificio.dispositivos.through.objects.filter(dispositivo=dispositivo).values("edificio_id")
+        )
+        .annotate(ultima_id=subconsulta_ultima_realizada(), n_instituciones=Count("dispositivos", distinct=True))
+        .only("id", "codigo", "nombre")
+        .order_by("nombre", "pk")
+    )
+    if not edificios:
+        return {
+            "edificios": [],
+            "semaforo": SEMAFOROS[SIN_EDIFICIO],
+            "indicadores": [],
+            "eventos": [],
+            "relevamientos": None,
+        }
+
+    ultimas = InspeccionEdificio.objects.select_related("realizada_por").in_bulk(
+        [edificio.ultima_id for edificio in edificios if edificio.ultima_id]
+    )
+    filas = []
+    for edificio in edificios:
+        ultima = ultimas.get(edificio.ultima_id)
+        filas.append(
+            {
+                "pk": edificio.pk,
+                "codigo": edificio.codigo,
+                "nombre": edificio.nombre,
+                "semaforo": semaforo_de_inspeccion(ultima),
+                "ultima": ultima,
+                "relevo": _nombre(ultima.realizada_por) if ultima else "",
+                "otras_instituciones": edificio.n_instituciones - 1,
+            }
+        )
+    semaforo = semaforo_de_ultimas({fila["pk"]: fila["ultima"] for fila in filas})
+
+    totales = InspeccionEdificio.objects.filter(edificio_id__in=[fila["pk"] for fila in filas]).aggregate(
+        realizados=Count("pk", filter=Q(estado=_REALIZADA), distinct=True),
+        fotos=Count("fotos", filter=~Q(estado=InspeccionEdificio.Estado.CANCELADA)),
+    )
+
+    # Las canceladas no entran: no tienen resultado. La en curso va primero (todavía no tiene fecha).
+    consulta = (
+        inspecciones_de_dispositivo(dispositivo)
+        .annotate(n_fotos=Count("fotos"))
+        .order_by(F("realizada_en").desc(nulls_first=True), "-creado", "-pk")
+    )
+    relevamientos = Paginator(consulta, POR_PAGINA_RELEVAMIENTOS).get_page(pagina)
+    ids = [inspeccion.pk for inspeccion in relevamientos]
+    fotos_por_inspeccion = defaultdict(list)
+    if ids:
+        for foto in (
+            FotoInspeccion.objects.filter(inspeccion_id__in=ids)
+            .only("id", "inspeccion_id", "archivo", "descripcion", "creado")
+            .order_by("inspeccion_id", "creado", "pk")
+        ):
+            fotos_por_inspeccion[foto.inspeccion_id].append(foto)
+
+    con_edificio = len(filas) > 1
+    eventos = [
+        _evento_de_relevamiento(inspeccion, fotos_por_inspeccion.get(inspeccion.pk, []), con_edificio)
+        for inspeccion in relevamientos
+    ]
+
+    return {
+        "edificios": filas,
+        "semaforo": semaforo,
+        "indicadores": _indicadores_edilicios(semaforo, filas, totales["realizados"], totales["fotos"]),
+        "eventos": eventos,
+        "relevamientos": relevamientos,
+    }
