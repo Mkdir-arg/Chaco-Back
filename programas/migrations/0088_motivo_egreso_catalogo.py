@@ -24,48 +24,58 @@ def sembrar_motivos(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('programas', '0087_estadia_reserva_plaza'),
+        ("programas", "0087_estadia_reserva_plaza"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='MotivoEgreso',
+            name="MotivoEgreso",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('creado', models.DateTimeField(auto_now_add=True)),
-                ('modificado', models.DateTimeField(auto_now=True)),
-                ('codigo', models.SlugField(unique=True, verbose_name='Código')),
-                ('nombre', models.CharField(max_length=200, unique=True, verbose_name='Nombre')),
-                ('orden', models.PositiveSmallIntegerField(default=0, verbose_name='Orden')),
-                ('activo', models.BooleanField(db_index=True, default=True, verbose_name='Activo')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("creado", models.DateTimeField(auto_now_add=True)),
+                ("modificado", models.DateTimeField(auto_now=True)),
+                ("codigo", models.SlugField(unique=True, verbose_name="Código")),
+                ("nombre", models.CharField(max_length=200, unique=True, verbose_name="Nombre")),
+                ("orden", models.PositiveSmallIntegerField(default=0, verbose_name="Orden")),
+                ("activo", models.BooleanField(db_index=True, default=True, verbose_name="Activo")),
             ],
             options={
-                'verbose_name': 'Motivo de egreso',
-                'verbose_name_plural': 'Motivos de egreso',
-                'ordering': ['orden', 'nombre'],
+                "verbose_name": "Motivo de egreso",
+                "verbose_name_plural": "Motivos de egreso",
+                "ordering": ["orden", "nombre"],
             },
         ),
         migrations.AddField(
-            model_name='estadia',
-            name='destino_egreso',
-            field=models.CharField(blank=True, db_default='', default='', max_length=200, verbose_name='Destino del egreso'),
+            model_name="estadia",
+            name="destino_egreso",
+            field=models.CharField(
+                blank=True, db_default="", default="", max_length=200, verbose_name="Destino del egreso"
+            ),
         ),
         migrations.AddField(
-            model_name='estadia',
-            name='pertenencias_devueltas',
-            field=models.BooleanField(db_default=False, default=False, verbose_name='Pertenencias devueltas y firmadas'),
+            model_name="estadia",
+            name="pertenencias_devueltas",
+            field=models.BooleanField(
+                db_default=False, default=False, verbose_name="Pertenencias devueltas y firmadas"
+            ),
         ),
         migrations.AlterField(
-            model_name='estadia',
-            name='motivo_egreso',
-            field=models.TextField(blank=True, verbose_name='Observaciones del egreso'),
+            model_name="estadia",
+            name="motivo_egreso",
+            field=models.TextField(blank=True, verbose_name="Observaciones del egreso"),
         ),
         migrations.AddField(
-            model_name='estadia',
-            name='motivo',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='estadias', to='programas.motivoegreso', verbose_name='Motivo del egreso'),
+            model_name="estadia",
+            name="motivo",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="estadias",
+                to="programas.motivoegreso",
+                verbose_name="Motivo del egreso",
+            ),
         ),
         # REVERSA-NOOP: la tabla de motivos se elimina al deshacer el CreateModel de esta misma
         # migración, así que no queda ningún dato inconsistente.
