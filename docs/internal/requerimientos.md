@@ -408,6 +408,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 274 | Turnos y bitácora: la novedad se agrega, corregir crea una versión y nada se pisa | Dispositivos · datos y servicios | `#datos` `#rbac` | Task 30 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0090` · `users.0036` |
 | 276 | Detalle del dispositivo: quién está alojado, en qué sector y cuántas plazas quedan | Dispositivos · detalle | `#ui` `#rbac` `#performance` | Task 27 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 277 | Detalle de la estadía: la persona alojada, su línea de tiempo y el cambio de plaza | Dispositivos · estadía | `#ui` `#rbac` `#performance` | Task 33 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
+| 278 | Censo automático por turno y por día: existencia, ingresos y egresos calculados desde los movimientos | Dispositivos · datos y servicios | `#datos` `#performance` | Task 31 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | No requiere |
 | 275 | Relevamiento edilicio: el modelo de la inspección, colgado del edificio | Dispositivos · relevamiento edilicio | `#datos` `#rbac` | Task 35 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0091`, `users.0037` |
 
 **Notas del índice**
@@ -35172,6 +35173,170 @@ No requiere.
 Revertir el commit: no hay migración ni datos nuevos. Los movimientos de cambio de plaza que se
 hayan registrado desde la pantalla quedan (son historia inmutable y los escribe el servicio de la
 task 29).
+
+## Historial
+
+Entrada nueva. Etapa 3 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 278 — Censo automático por turno y por día: existencia, ingresos y egresos calculados desde los movimientos
+
+🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 31` (#696)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · datos y servicios |
+| **Etiquetas** | `#datos` `#performance` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 31 del backlog del MVP (#696) · Épica #127 · etapa 3 |
+| **Partes afectadas** | Servidor: `programas/services/censo.py` (nuevo), `services/ocupacion.py`, `services/movimientos.py`, `services/estadias.py`, `scripts/perf_budgets.json` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Existencia inicial, ingresos, egresos y existencia final, calculados desde los movimientos. **Nadie
+tipea un número.**» Se deriva del servicio de la task 22 sin duplicar el cálculo; nada de `Trunc*`
+sobre un `DateTimeField`; por turno y por día.
+
+## Alcance acordado
+
+Entra el servicio del censo, por turno y por día operativo, para un dispositivo y un rango de fechas.
+**Sin UI**: la pantalla P10 es la task 32, que lo consume. Entran además dos pendientes de revisión
+del carril: el cambio de plaza retroactivo (MINOR 3 de #826) y el test de la corrección de bitácora
+en el mismo turno de otro día (MINOR de #827).
+
+## Decisiones tomadas
+
+**De dónde sale cada cifra.** La **existencia** (la inicial y la de verificación al fin) es la
+cantidad de personas alojadas en un instante, con la regla única `ocupacion.alojada_en`: ingresó
+**antes** del instante y no había egresado (`fecha_ingreso < t` y egreso vacío o `>= t`). Vive en
+`services/ocupacion.py` —el servicio de la task 22— para que «alojada» se decida en un solo lugar;
+para el instante presente coincide con `Estadia.objects.activas()`. Los **ingresos y egresos** son
+los `MovimientoEstadia` `INGRESO` y `EGRESO` con `momento` en `[inicio, fin)` del tramo: los mismos
+que muestran la bitácora y la línea de tiempo. **Final = inicial + ingresos − egresos**, aritmética:
+el censo cierra por definición. Las cifras de **plazas** (totales, operativas, reservadas,
+disponibles) no se cuentan acá: P10 las toma de `ocupacion_de_plazas`.
+
+**Un cambio de sector o de plaza no cambia la existencia** del dispositivo: el censo solo lee
+`INGRESO` y `EGRESO`.
+
+**El invariante y qué manda.** Cada tramo se verifica: `final` contra `alojadas_al_fin`, calculado
+aparte desde las estadías. Con lo que escriben los servicios siempre coincide, retroactivos
+incluidos: ingreso y egreso graban la misma fecha en la estadía y en el movimiento, y el cambio de
+plaza no mueve la existencia. Solo se rompe con escrituras por afuera (una estadía sin su
+movimiento, una fecha editada a mano). **Si no coincide, manda la existencia de las estadías**, que
+es la del mapa y los indicadores —el censo no puede contradecir al mapa—, pero no se corrige en
+silencio: el tramo queda con `cuadra = False` y `diferencia`, para que la pantalla lo muestre. Por
+eso cada tramo toma su inicial de las estadías y **no** del final del anterior: un descuadre queda en
+el turno en que pasó y no se arrastra al resto del día.
+
+**El día operativo** va del inicio de su primer turno al inicio del primer turno del día siguiente
+(con Mañana 06–14, Tarde 14–22 y Noche 22–06: lunes 06:00 → martes 06:00). Los turnos y su fecha
+operativa salen de `bitacora.turnos_del_dia`, el único que sabe que la Noche del lunes es del lunes.
+**Los huecos entre turnos son tramos sin turno** (`turno = None`): los tramos de un día son
+contiguos, la suma de los tramos es el día y un día empieza donde terminó el anterior; ningún
+movimiento queda fuera de todos los días. **Sin turnos configurados**, el día es el de calendario en
+hora local, de 00:00 a 00:00, en un solo tramo «Día completo». Se usan los turnos **activos hoy**,
+como en la bitácora: si cambian los horarios, un día viejo se reparte distinto entre turnos, pero su
+total no cambia (los movimientos guardan el momento, no el turno).
+
+**Hora local y en Python.** Las ventanas son instantes con zona armados en hora local
+(`Turno.ventana`, o la medianoche local); la base solo compara `momento >= inicio AND momento < fin`
+y el reparto por tramo es un `bisect` en Python. Ningún `Trunc*` ni `__date`.
+
+**Tres consultas fijas** para cualquier rango: los turnos activos (cero si se pasan), las estadías
+alojadas en algún instante del rango y los ingresos y egresos del rango (índice
+`(dispositivo, momento)`). Presupuesto nuevo `dispositivos_censo` en la sección `servicios` de
+`scripts/perf_budgets.json`; no sube ninguno existente (`check_perf_budgets.py` en verde).
+
+**Carga retroactiva sobre una plaza que otro usó en el medio (MINOR 3 de #826): se rechaza.** Un
+cambio de plaza **o un ingreso** fechados antes de ahora fallan con `PLAZA_OCUPADA_EN_EL_MEDIO` si
+la plaza de destino tuvo a alguien entre esa fecha y ahora, según los movimientos
+(`movimientos.plaza_ocupada_despues_de`: alguien **salió** de ella después de esa fecha). Quien
+salió justo en ese instante ya no estaba (`[desde, hasta)`). No se mira quién **entró** después:
+quien entró y ya no está dejó su salida, y quien sigue adentro es la estadía activa que el control
+de plaza libre ya ve (revisión de #832: esa rama era redundante y el `OR` entre dos FK terminaba en
+`index_merge` en MySQL). Se
+aplicó también al ingreso porque tiene la misma limitación y el censo lee los dos. Con la fecha de
+ahora no consulta nada.
+
+## Implementación
+
+API para la task 32 (`programas.services.censo`):
+
+- `censo_por_dia(dispositivo, desde, hasta=None, *, turnos=None, ahora=None) -> list[CensoDia]`
+- `censo_del_dia(dispositivo, fecha_operativa, *, turnos=None, ahora=None) -> CensoDia`
+- `censo_en_curso(dispositivo, *, ahora=None) -> CensoDia` — el día operativo de ahora; su
+  `tramo_en_curso` es el turno vigente.
+- `fecha_operativa_de(dispositivo, momento=None, *, turnos=None) -> date`
+
+`CensoDia`: `dispositivo_id`, `fecha_operativa`, `tramos`, `con_turnos`; propiedades `inicio`, `fin`,
+`inicial`, `ingresos`, `egresos`, `final`, `alojadas_al_fin`, `cuadra`, `diferencia`, `turnos` (sin
+huecos), `tramo_en_curso`, `tramo_de(momento)`. `TramoCenso`: `turno` (o `None`), `nombre`, `inicio`,
+`fin`, `inicial`, `ingresos`, `egresos`, `alojadas_al_fin`, `estado` (`cerrado`, `en_curso`,
+`por_venir`); propiedades `final`, `cuadra`, `diferencia`, `en_curso`.
+
+## Archivos
+
+`programas/services/censo.py` (nuevo) · `programas/services/ocupacion.py` ·
+`programas/services/movimientos.py` · `programas/services/estadias.py` ·
+`programas/tests/test_dispositivos_censo.py` (nuevo) · `programas/tests/test_dispositivos_movimientos.py` ·
+`programas/tests/test_dispositivos_bitacora.py` · `scripts/perf_budgets.json`
+
+## Base de datos
+
+No requiere: el índice `(dispositivo, momento)` de `MovimientoEstadia` ya estaba puesto para esto
+(Cambio 273).
+
+## Validación
+
+- `test_dispositivos_censo`: 23 tests con reloj fijo (miércoles 09/09/2026 12:00). Cubren el cambio
+  de turno en el borde exacto (el egreso y el ingreso de las 14:00 en punto son de la Tarde; 13:59:59
+  es de la Mañana), el cambio de día (lunes → martes encadenados, rango igual a días sueltos), la
+  Noche 22–06 con una estadía que ingresa a las 23:00 y egresa a las 03:00 (entera en la Noche del
+  lunes), hora local contra UTC (martes 00:30 UTC es la Tarde del lunes; sin turnos, lunes 22:00
+  local sigue siendo lunes), el cambio de plaza que no cuenta, el día sin turnos, los huecos, el
+  descuadre localizado, el turno en curso y tres de presupuesto (`--tag performance`).
+- **Verificado contra MariaDB 10.11** (contenedor efímero `mariadb:10.11.19`, **sin tablas de zona
+  horaria** como ECOM: `CONVERT_TZ` devuelve `NULL`), con las migraciones aplicadas de verdad y
+  `DJANGO_TEST_MOTOR=mariadb:10.11`: el módulo del censo, los retroactivos, las correcciones de
+  bitácora y `core.tests.test_motor_real`, 71 tests en verde. Las clases del censo llevan
+  `@tag("mysql")`, así que el job «Motor real» del CI las corre en `mariadb:10.11`, `mariadb:11` y
+  `mysql:8.0`.
+- **Mutaciones, de a una, todas en rojo**: `cuadra` siempre verdadero; verificación tautológica
+  (fin = inicio + flujos); `bisect_left` en la frontera; `alojada_en` con `<=`; medianoche en UTC;
+  `Turno.ventana` en UTC; contar todos los tipos de movimiento (el cambio de plaza contaría); inicial
+  encadenada al final anterior (arrastra el descuadre); sin la guarda retroactiva (tres tests: es el
+  estado previo al arreglo); salida justo en el momento contada como ocupada; no mirar las salidas
+  de la plaza; y la condición de `fecha_operativa` de `corregir_entrada` reemplazada por `or False`
+  (los dos tests nuevos de bitácora).
+- `test_dispositivos_*` con `test_models_contrato` y `core.tests.test_gates_ci` (456 tests) y
+  `--tag performance programas` en verde (Py 3.12 + Dj 5.2). `manage.py check`,
+  `makemigrations --check --dry-run`, `check_perf_budgets.py` y `ruff` OK. Sin UI.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- **Sin pantalla**: P10 (task 32) lo muestra; las cifras de plazas del recuadro «Censo del turno»
+  salen de `ocupacion_de_plazas`, no de acá.
+- **La consulta de estadías recorre las egresadas del dispositivo** (filtra por `fecha_egreso` sin
+  índice propio; usa `(dispositivo, estado)`). Es O(historia del dispositivo), aceptable en el MVP; si
+  crece, un índice `(dispositivo, fecha_egreso)`.
+- **La guarda retroactiva no mira reservas ni préstamos**: una reserva no pone a nadie en la plaza;
+  un préstamo sí, y entra cuando exista el permiso de salida.
+- Una estadía cargada por afuera sin su movimiento se ve como descuadre, no se reconstruye sola.
+
+## Reversión
+
+`git revert` del merge. No hay datos que perder: el censo se calcula, no se guarda. Al revertir, los
+cambios y los ingresos retroactivos vuelven a aceptar una plaza que otro ocupó en el medio.
 
 ## Historial
 
