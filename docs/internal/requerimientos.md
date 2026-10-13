@@ -405,7 +405,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 271 | La solapa del legajo muestra toda la trayectoria, y no deja enumerar personas | Dispositivos · legajo | `#rbac` `#ui` | Task 28 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 272 | Asistente de ingreso, y un solo origen para el estado de cada plaza | Dispositivos · ingreso | `#ui` `#rbac` | Task 25 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 273 | Movimientos de la estadía: cambio de sector o de plaza con su historial, y permanencia calculada | Dispositivos · estadía | `#datos` `#rbac` | Task 29 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0089` |
-| 277 | Turnos y bitácora: la novedad se agrega, corregir crea una versión y nada se pisa | Dispositivos · datos y servicios | `#datos` `#rbac` | Task 30 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0090` · `users.0036` |
+| 274 | Turnos y bitácora: la novedad se agrega, corregir crea una versión y nada se pisa | Dispositivos · datos y servicios | `#datos` `#rbac` | Task 30 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0090` · `users.0036` |
 
 **Notas del índice**
 
@@ -34456,7 +34456,7 @@ Entrada nueva. Etapa 3 del plan del Cambio 191.
 
 ---
 
-# Cambio 277 — Turnos y bitácora: la novedad se agrega, corregir crea una versión y nada se pisa
+# Cambio 274 — Turnos y bitácora: la novedad se agrega, corregir crea una versión y nada se pisa
 
 🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 30` (#695)
 
