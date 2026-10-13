@@ -446,13 +446,6 @@ class VerificacionEnLaRedTests(BaseEstadias):
         self.assertTrue(verificacion.dentro_del_alcance)
         self.assertEqual(verificacion.dispositivo, self.cis.nombre)
 
-    def test_sin_usuario_no_se_cuenta_nada_de_la_institucion(self):
-        verificacion = verificar_alojamiento_en_red(self.persona, None)
-
-        self.assertTrue(verificacion.alojada)
-        self.assertFalse(verificacion.dentro_del_alcance)
-        self.assertEqual(verificacion.dispositivo, "")
-
 
 class ReservaPlazaTests(BaseEstadias):
     def test_se_reserva_una_plaza_libre_y_queda_traza(self):
@@ -625,7 +618,7 @@ class CarreraEntreInstitucionesTests(BaseEstadias):
 
         with mock.patch(
             "programas.services.estadias.verificar_alojamiento_en_red",
-            side_effect=[libre, verificar_alojamiento_en_red(self.persona, None)],
+            side_effect=[libre, verificar_alojamiento_en_red(self.persona, self._usuario(self.operador_parador.pk))],
         ):
             with self.assertRaises(AlojamientoEnLaRed):
                 ingresar_persona(
@@ -636,3 +629,246 @@ class CarreraEntreInstitucionesTests(BaseEstadias):
                 )
 
         self.assertEqual(Estadia.objects.activas().count(), 1)
+
+
+class ContratoDeLaReservaTests(BaseEstadias):
+    """MAJOR 1 de la revision de #802: el ingreso que consume una reserva la tiene que validar.
+
+    Antes, `ingresar_persona(reserva=...)` usaba la reserva solo para excluirla del
+    control de plaza tomada y para marcarla consumida: no miraba de quien era, ni de que
+    plaza, ni si seguia vigente.
+    """
+
+    def test_no_se_aloja_a_otra_persona_con_la_reserva_ajena(self):
+        reserva_de_ana = reservar_plaza(plaza=self.plaza, ciudadano=self.persona, usuario=self.operador_cis)
+
+        with self.assertRaises(ValidationError):
+            ingresar_persona(
+                ciudadano=self.otra_persona,
+                dispositivo=self.cis,
+                plaza=self.plaza,
+                usuario=self.operador_cis,
+                reserva=reserva_de_ana,
+            )
+
+        reserva_de_ana.refresh_from_db()
+        self.assertEqual(reserva_de_ana.estado, ReservaPlaza.Estado.VIGENTE)
+        self.assertFalse(Estadia.objects.activas().exists())
+
+    def test_una_reserva_liberada_no_se_consume(self):
+        reserva = reservar_plaza(plaza=self.plaza, ciudadano=self.persona, usuario=self.operador_cis)
+        liberar_reserva(reserva=reserva, usuario=self.operador_cis)
+
+        with self.assertRaises(ValidationError):
+            ingresar_persona(
+                ciudadano=self.persona,
+                dispositivo=self.cis,
+                plaza=self.plaza,
+                usuario=self.operador_cis,
+                reserva=reserva,
+            )
+
+        reserva.refresh_from_db()
+        self.assertEqual(reserva.estado, ReservaPlaza.Estado.LIBERADA)
+
+    def test_una_reserva_consumida_no_se_consume_dos_veces(self):
+        reserva = reservar_plaza(plaza=self.plaza, ciudadano=self.persona, usuario=self.operador_cis)
+        estadia = ingresar_persona(
+            ciudadano=self.persona,
+            dispositivo=self.cis,
+            plaza=self.plaza,
+            usuario=self.operador_cis,
+            reserva=reserva,
+        )
+        egresar_persona(estadia=estadia, usuario=self.operador_cis)
+
+        with self.assertRaises(ValidationError):
+            ingresar_persona(
+                ciudadano=self.persona,
+                dispositivo=self.cis,
+                plaza=self.plaza,
+                usuario=self.operador_cis,
+                reserva=reserva,
+            )
+
+    def test_la_reserva_tiene_que_ser_de_la_plaza_del_ingreso(self):
+        reserva = reservar_plaza(plaza=self.plaza, ciudadano=self.persona, usuario=self.operador_cis)
+
+        with self.assertRaises(ValidationError):
+            ingresar_persona(
+                ciudadano=self.persona,
+                dispositivo=self.cis,
+                plaza=self.otra_plaza,
+                usuario=self.operador_cis,
+                reserva=reserva,
+            )
+
+        reserva.refresh_from_db()
+        self.assertEqual(reserva.estado, ReservaPlaza.Estado.VIGENTE)
+
+    def test_un_ingreso_con_reserva_y_sin_plaza_no_entra(self):
+        reserva = reservar_plaza(plaza=self.plaza, ciudadano=self.persona, usuario=self.operador_cis)
+
+        with self.assertRaises(ValidationError):
+            ingresar_persona(
+                ciudadano=self.persona,
+                dispositivo=self.cis,
+                usuario=self.operador_cis,
+                reserva=reserva,
+            )
+
+
+class ReservasAFuturoTests(BaseEstadias):
+    """MAJOR 2 de la revision de #802: una reserva que todavia no empezo tambien toma la plaza.
+
+    El control miraba un instante (`vigentes(momento)`) y no el intervalo: una reserva
+    con `desde` futuro no se veia, y al llegar su `desde` la plaza quedaba ocupada **y**
+    reservada, o reservada dos veces. Eso rompe `ocupadas + reservadas <= operativas` y
+    da `disponibles` negativos en el mapa.
+    """
+
+    def _reserva_que_empieza_en(self, horas, *, plaza=None, ciudadano=None):
+        """La que el servicio ya no deja crear, pero que puede existir por fuera de el."""
+
+        ahora = timezone.now()
+        return ReservaPlaza.objects.create(
+            plaza=plaza or self.plaza,
+            ciudadano=ciudadano or self.otra_persona,
+            desde=ahora + timedelta(hours=horas),
+            hasta=ahora + timedelta(hours=horas + 24),
+        )
+
+    def test_el_servicio_no_crea_reservas_que_empiezan_en_el_futuro(self):
+        with self.assertRaises(ValidationError):
+            reservar_plaza(
+                plaza=self.plaza,
+                ciudadano=self.persona,
+                usuario=self.operador_cis,
+                desde=timezone.now() + timedelta(hours=12),
+            )
+
+        self.assertFalse(ReservaPlaza.objects.exists())
+
+    def test_no_se_reserva_encima_de_una_reserva_que_todavia_no_empezo(self):
+        self._reserva_que_empieza_en(12)
+
+        with self.assertRaises(ValidationError):
+            reservar_plaza(
+                plaza=self.plaza,
+                ciudadano=self.persona,
+                usuario=self.operador_cis,
+                tipo=ReservaPlaza.Tipo.PRESTAMO,
+                hasta=timezone.now() + timedelta(hours=24),
+            )
+
+    def test_no_se_aloja_en_una_plaza_con_una_reserva_que_empieza_en_una_hora(self):
+        self._reserva_que_empieza_en(1)
+
+        with self.assertRaises(ValidationError):
+            ingresar_persona(
+                ciudadano=self.persona,
+                dispositivo=self.cis,
+                plaza=self.plaza,
+                usuario=self.operador_cis,
+            )
+
+    def test_tampoco_se_saca_de_servicio(self):
+        self._reserva_que_empieza_en(1)
+
+        with self.assertRaises(ValidationError):
+            sacar_plaza_de_servicio(plaza=self.plaza, usuario=self.operador_cis, motivo="Refaccion")
+
+    def test_una_reserva_vencida_sigue_sin_tomar_la_plaza(self):
+        """La contracara: lo que ya termino no bloquea, aunque nadie la haya apagado."""
+
+        ahora = timezone.now()
+        ReservaPlaza.objects.create(
+            plaza=self.plaza,
+            ciudadano=self.otra_persona,
+            desde=ahora - timedelta(days=2),
+            hasta=ahora - timedelta(days=1),
+        )
+
+        estadia = ingresar_persona(
+            ciudadano=self.persona,
+            dispositivo=self.cis,
+            plaza=self.plaza,
+            usuario=self.operador_cis,
+        )
+        self.assertEqual(estadia.plaza_id, self.plaza.pk)
+
+
+class OraculoDePlazasTests(BaseEstadias):
+    """MINOR de la revision de #802: una plaza que no existe y una ajena dan el mismo error.
+
+    Antes la ajena daba `ValidationError` y la inexistente `DoesNotExist` (un 500): un
+    oraculo para enumerar ids de plazas de otras instituciones. Y la ajena se bloqueaba
+    con `FOR UPDATE` antes de mirar de quien era.
+    """
+
+    def _error_al_ingresar_en(self, plaza):
+        with self.assertRaises(ValidationError) as capturado:
+            ingresar_persona(
+                ciudadano=self.persona,
+                dispositivo=self.cis,
+                plaza=plaza,
+                usuario=self.operador_cis,
+            )
+        return capturado.exception.message_dict
+
+    def test_inexistente_y_ajena_dan_el_mismo_error(self):
+        inexistente = Plaza.objects.order_by("-pk").first().pk + 1000
+
+        self.assertEqual(self._error_al_ingresar_en(inexistente), self._error_al_ingresar_en(self.plaza_parador))
+
+    def test_al_reservar_inexistente_y_ajena_dan_el_mismo_error(self):
+        """Al reservar, el dispositivo sale de la plaza: «ajena» es «sin alcance»."""
+
+        inexistente = Plaza.objects.order_by("-pk").first().pk + 1000
+        errores = []
+        for plaza in (inexistente, self.plaza_parador):
+            with self.assertRaises(PermissionDenied) as capturado:
+                reservar_plaza(plaza=plaza, ciudadano=self.persona, usuario=self.operador_cis)
+            errores.append(str(capturado.exception))
+
+        self.assertEqual(errores[0], errores[1])
+        self.assertFalse(ReservaPlaza.objects.exists())
+
+
+class VerificacionExigeCapacidadTests(BaseEstadias):
+    """MINOR de la revision de #802: la verificacion de red exige capacidad por si misma.
+
+    Si no, cualquier vista futura que la llame sin gate le dice a cualquier usuario
+    autenticado si una persona esta alojada en algun lugar de la red.
+    """
+
+    def setUp(self):
+        super().setUp()
+        ingresar_persona(
+            ciudadano=self.persona,
+            dispositivo=self.cis,
+            plaza=self.plaza,
+            usuario=self.operador_cis,
+        )
+
+    def test_sin_usuario_no_se_pregunta(self):
+        with self.assertRaises(PermissionDenied):
+            verificar_alojamiento_en_red(self.persona, None)
+
+    def test_un_usuario_autenticado_sin_capacidad_no_se_entera(self):
+        cualquiera = User.objects.create_user(username="cualquiera", password="x")
+
+        with self.assertRaises(PermissionDenied):
+            verificar_alojamiento_en_red(self.persona, cualquiera)
+
+    def test_quien_solo_ve_no_puede_preguntar_por_la_red(self):
+        mirador = self._operador("Solo mirar", self.parador, capacidades=("dispositivo.ver",))
+
+        with self.assertRaises(PermissionDenied):
+            verificar_alojamiento_en_red(self.persona, mirador)
+
+    def test_quien_admite_en_otra_institucion_si_pregunta_y_ve_solo_que_existe(self):
+        verificacion = verificar_alojamiento_en_red(self.persona, self._usuario(self.operador_parador.pk))
+
+        self.assertTrue(verificacion.alojada)
+        self.assertFalse(verificacion.dentro_del_alcance)

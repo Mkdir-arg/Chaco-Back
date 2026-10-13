@@ -32,7 +32,8 @@ La verificación en toda la red
 ------------------------------
 
 `verificar_alojamiento_en_red` es lo único que puede preguntar por una persona **fuera
-del alcance de quien pregunta**, y por eso su resultado está partido en dos:
+del alcance de quien pregunta**. Por eso exige ella misma `dispositivo.admitir` en el
+programa —no confía en que la vista se acuerde— y su resultado está partido en dos:
 
 * **Dentro del alcance** (`dispositivos_visibles`, por capacidad y asignación, nunca por
   nombre de grupo): se devuelve todo —institución, plaza, desde cuándo y a quién
@@ -52,10 +53,15 @@ from datetime import datetime
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from programas.models import Dispositivo, Estadia, Plaza, ReservaPlaza, TrazaDispositivo
-from programas.services.dispositivos import dispositivos_visibles, puede_operar_dispositivo
+from programas.services.dispositivos import (
+    dispositivos_visibles,
+    puede_en_programa_dispositivos,
+    puede_operar_dispositivo,
+)
 
 CAP_ADMITIR = "dispositivo.admitir"
 CAP_EGRESAR = "dispositivo.egresar"
@@ -117,10 +123,26 @@ class VerificacionAlojamiento:
 def verificar_alojamiento_en_red(ciudadano, usuario=None):
     """¿Esta persona ya está alojada en algún dispositivo? Con el recorte de quien pregunta.
 
-    Dos consultas: la estadía abierta por su clave, y si la institución está dentro del
-    alcance del usuario. El alcance sale de `dispositivos_visibles`, que evalúa capacidad
-    y asignación; `usuario=None` es «nadie», o sea el recorte más angosto.
+    **Exige `dispositivo.admitir` en el Programa Dispositivos**, y lo exige la función
+    misma, no la vista que la llame: es la única pregunta del sistema que cruza el
+    alcance de quien la hace —contesta «sí, está alojada» aunque la institución sea
+    ajena—, así que una vista futura que la llamara sin gate le diría a cualquier
+    usuario autenticado si una persona está alojada en algún lugar de la red. Sin
+    usuario, o sin la capacidad, `PermissionDenied`.
+
+    `admitir` y no `ver`: la existencia de una estadía fuera del alcance solo la
+    necesita quien está por alojar a esa persona —es el motivo de que exista la
+    verificación—. Quien solo mira el legajo institucional no tiene por qué enterarse de
+    dónde está alguien en el resto de la red. Se evalúa **con alcance de programa**, no
+    de dispositivo, porque la pregunta es de red: el operador de A pregunta por una
+    estadía que puede estar en B.
+
+    Después, dos consultas: la estadía abierta por su clave, y si la institución está
+    dentro del alcance del usuario (`dispositivos_visibles`, por capacidad y asignación).
     """
+
+    if usuario is None or not puede_en_programa_dispositivos(usuario, CAP_ADMITIR):
+        raise PermissionDenied("No tenés alcance para verificar alojamientos en la red.")
 
     clave = Estadia.clave_para(ciudadano)
     estadia = Estadia.objects.de_la_red(clave).select_related("dispositivo", "plaza").first()
@@ -164,8 +186,28 @@ def _trazar(dispositivo, usuario, accion, *, estado_anterior="", estado_nuevo=""
     )
 
 
+def _reservas_que_toman(plaza, momento):
+    """Las reservas que toman la plaza desde ahora: las vigentes **y las que todavía no empezaron**.
+
+    No es `ReservaPlaza.objects.vigentes()`, y la diferencia es el MAJOR 2 de la revisión
+    de #802: `vigentes()` contesta «¿cuenta hoy en el mapa?» y mira un instante; acá la
+    pregunta es «¿puedo dar esta plaza?», que es un intervalo que arranca ahora y no
+    termina. Una reserva con `desde` dentro de una hora no cuenta hoy, pero si se aloja
+    a alguien encima, al llegar su `desde` la plaza queda ocupada **y** reservada, y el
+    mapa muestra `disponibles` negativos.
+
+    Lo único que libera la plaza es que la reserva haya **terminado**: resuelta
+    (consumida o liberada) o con `hasta` pasado. `reservar_plaza` ya no crea reservas a
+    futuro, así que esto es la red para las que entren por otro camino.
+    """
+
+    return ReservaPlaza.objects.filter(plaza=plaza, estado=ReservaPlaza.Estado.VIGENTE).filter(
+        Q(hasta__isnull=True) | Q(hasta__gte=momento)
+    )
+
+
 def _plaza_tomada_por(plaza, *, excepto_reserva=None, momento=None):
-    """Qué tiene tomada la plaza ahora mismo, o cadena vacía si está libre.
+    """Qué tiene tomada la plaza desde ahora, o cadena vacía si está libre.
 
     Se llama **con la fila de la plaza ya bloqueada**: fuera de ese bloqueo la respuesta
     envejece en el acto.
@@ -173,7 +215,7 @@ def _plaza_tomada_por(plaza, *, excepto_reserva=None, momento=None):
 
     if Estadia.objects.activas().filter(plaza=plaza).exists():
         return "una estadía activa"
-    reservas = ReservaPlaza.objects.vigentes(momento).filter(plaza=plaza)
+    reservas = _reservas_que_toman(plaza, momento or timezone.now())
     if excepto_reserva is not None:
         reservas = reservas.exclude(pk=excepto_reserva.pk)
     reserva = reservas.first()
@@ -182,18 +224,73 @@ def _plaza_tomada_por(plaza, *, excepto_reserva=None, momento=None):
     return ""
 
 
-def _tomar_plaza(plaza, dispositivo, *, excepto_reserva=None, momento=None):
+#: El mismo para una plaza que no existe y para una de otra institución: dos mensajes
+#: distintos serían un oráculo para enumerar los ids de las plazas ajenas.
+PLAZA_FUERA_DEL_DISPOSITIVO = "La plaza no es de este dispositivo."
+
+
+def _bloquear_plaza(plaza, dispositivo):
+    """Resuelve la plaza **dentro del dispositivo** y recién entonces bloquea su fila.
+
+    En ese orden por dos motivos (MINOR de la revisión de #802). Uno: bloquear antes de
+    mirar de quién es dejaba que un operador con `admitir` en A tomara `FOR UPDATE` sobre
+    una plaza de B. Dos: la inexistente daba `DoesNotExist` —un 500— y la ajena un
+    `ValidationError`, un oráculo de existencia de ids. Ahora las dos dan el mismo error.
+
+    El `FOR UPDATE` va sobre la plaza sola, sin `select_related`: en MySQL y en MariaDB
+    un `SELECT ... FOR UPDATE` con JOIN bloquea también las filas de la tabla unida, y con
+    el sector adentro dos ingresos en plazas **distintas** del mismo sector se esperarían
+    entre sí.
+    """
+
+    pk = plaza.pk if isinstance(plaza, Plaza) else plaza
+    if pk is None or not Plaza.objects.filter(pk=pk, sector__dispositivo_id=dispositivo.pk).exists():
+        raise ValidationError({"plaza": PLAZA_FUERA_DEL_DISPOSITIVO})
+    return Plaza.objects.select_for_update().get(pk=pk)
+
+
+def _bloquear_reserva_propia(reserva, *, plaza, ciudadano, momento):
+    """Relee con bloqueo la reserva que un ingreso dice consumir, y exige que sea suya.
+
+    MAJOR 1 de la revisión de #802: la reserva se usaba para excluirla del control de
+    plaza tomada y para marcarla consumida, sin mirar de quién era, de qué plaza, ni si
+    seguía vigente. Así entraba B en la plaza reservada para A pasando la reserva de A, y
+    se «consumían» reservas ya liberadas.
+
+    El bloqueo de la reserva es el que serializa dos ingresos que la consumen a la vez:
+    el de la plaza solo serializa a los que compiten por la misma plaza.
+    """
+
+    pk = reserva.pk if isinstance(reserva, ReservaPlaza) else reserva
+    reserva = ReservaPlaza.objects.select_for_update().filter(pk=pk).first()
+    if reserva is None or reserva.plaza_id != plaza.pk:
+        raise ValidationError({"reserva": "La reserva no es de esta plaza."})
+    if reserva.ciudadano_id != ciudadano.pk:
+        raise ValidationError({"reserva": "La reserva es de otra persona."})
+    if reserva.estado != ReservaPlaza.Estado.VIGENTE or (reserva.hasta is not None and reserva.hasta < momento):
+        raise ValidationError({"reserva": "La reserva ya no está vigente."})
+    return reserva
+
+
+def _tomar_plaza(plaza, dispositivo, *, momento=None):
     """Bloquea la fila de la plaza y la devuelve si está en condiciones de recibir a alguien.
 
     El `select_for_update()` es la regla 2 de la etapa 2 y no se puede reemplazar por un
     constraint: ver el docstring del módulo.
     """
 
-    plaza = (
-        Plaza.objects.select_for_update().select_related("sector").get(pk=plaza.pk if hasattr(plaza, "pk") else plaza)
-    )
-    if plaza.sector.dispositivo_id != dispositivo.pk:
-        raise ValidationError({"plaza": "La plaza tiene que ser del dispositivo de la estadía."})
+    plaza = _bloquear_plaza(plaza, dispositivo)
+    _exigir_plaza_libre(plaza, momento=momento)
+    return plaza
+
+
+def _exigir_plaza_libre(plaza, *, excepto_reserva=None, momento=None):
+    """Falla si la plaza —**ya bloqueada**— no puede recibir a nadie.
+
+    `excepto_reserva` es la que el ingreso consume, y tiene que venir validada y
+    bloqueada por `_bloquear_reserva_propia`: es la única que no cuenta como tomada.
+    """
+
     if not plaza.sector.activo:
         raise ValidationError({"plaza": "El sector de la plaza está dado de baja."})
     if plaza.estado == Plaza.Estado.FUERA_SERVICIO:
@@ -201,7 +298,6 @@ def _tomar_plaza(plaza, dispositivo, *, excepto_reserva=None, momento=None):
     tomada = _plaza_tomada_por(plaza, excepto_reserva=excepto_reserva, momento=momento)
     if tomada:
         raise ValidationError({"plaza": f"La plaza ya tiene {tomada}."})
-    return plaza
 
 
 @transaction.atomic
@@ -224,8 +320,15 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
     if fecha_ingreso > ahora:
         raise ValidationError({"fecha_ingreso": "El ingreso no puede ser futuro."})
 
+    if reserva is not None and plaza is None:
+        raise ValidationError({"plaza": "Un ingreso con reserva va a la plaza reservada."})
     if plaza is not None:
-        plaza = _tomar_plaza(plaza, dispositivo, excepto_reserva=reserva, momento=ahora)
+        plaza = _bloquear_plaza(plaza, dispositivo)
+        if reserva is not None:
+            # Primero la plaza y después la reserva: el mismo orden en todos los caminos
+            # que bloquean las dos, para que dos transacciones no se esperen en cruz.
+            reserva = _bloquear_reserva_propia(reserva, plaza=plaza, ciudadano=ciudadano, momento=ahora)
+        _exigir_plaza_libre(plaza, excepto_reserva=reserva, momento=ahora)
     elif dispositivo.tipo.plaza_obligatoria_al_ingresar:
         raise ValidationError({"plaza": "Este tipo de dispositivo exige asignar una plaza al ingresar."})
 
@@ -259,7 +362,14 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
         raise AlojamientoEnLaRed(verificar_alojamiento_en_red(ciudadano, usuario)) from error
 
     if reserva is not None:
-        ReservaPlaza.objects.filter(pk=reserva.pk).update(estado=ReservaPlaza.Estado.CONSUMIDA)
+        # Filtrado por estado y verificado: con la fila bloqueada no debería fallar nunca,
+        # y si falla es que alguien la cambió por un camino que no bloquea. Mejor una
+        # excepción —que deshace la estadía— que una reserva consumida dos veces.
+        consumidas = ReservaPlaza.objects.filter(pk=reserva.pk, estado=ReservaPlaza.Estado.VIGENTE).update(
+            estado=ReservaPlaza.Estado.CONSUMIDA
+        )
+        if consumidas != 1:
+            raise ValidationError({"reserva": "La reserva ya no está vigente."})
 
     _trazar(
         dispositivo,
@@ -326,15 +436,31 @@ def reservar_plaza(*, plaza, ciudadano, usuario, tipo=ReservaPlaza.Tipo.RESERVA,
     Pasa por el mismo bloqueo que el ingreso, porque compite por lo mismo: una plaza
     reservada mientras alguien la está ocupando sería la contradicción que el mapa no
     puede mostrar.
-    """
 
-    dispositivo = plaza.sector.dispositivo
-    if not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
-        raise PermissionDenied("No tenés alcance para reservar plazas en este dispositivo.")
+    **La reserva nace vigente: `desde` no puede ser futuro** (MAJOR 2 de la revisión de
+    #802). El mockup no tiene reservas a futuro —la de la lista de espera se toma en el
+    momento, y el préstamo es «por 12 o 24 h» a partir de ahora: «a quién, por cuánto,
+    vencimiento»—, y admitirlas obligaba a comparar intervalos en cada ingreso y en cada
+    reserva para que dos de ellas, o una reserva y una estadía, no se pisaran al llegar
+    su `desde`. Sin futuro, cualquier reserva que exista ya está tomando la plaza, y el
+    bloqueo de la plaza alcanza.
+    """
 
     ahora = timezone.now()
     desde = desde or ahora
-    plaza = _tomar_plaza(plaza, dispositivo, momento=max(desde, ahora))
+    if desde > ahora:
+        raise ValidationError({"desde": "Una reserva empieza en el momento en que se toma: no puede ser futura."})
+    if hasta is not None and hasta <= ahora:
+        raise ValidationError({"hasta": "El vencimiento tiene que ser posterior a este momento."})
+
+    pk = plaza.pk if isinstance(plaza, Plaza) else plaza
+    dispositivo_id = Plaza.objects.filter(pk=pk).values_list("sector__dispositivo_id", flat=True).first()
+    dispositivo = Dispositivo.objects.filter(pk=dispositivo_id).first() if dispositivo_id else None
+    if dispositivo is None or not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+        # El mismo error para la plaza inexistente y para la de una institución sin
+        # alcance: no se distingue «no existe» de «no es tuya».
+        raise PermissionDenied("No tenés alcance para reservar plazas en este dispositivo.")
+    plaza = _tomar_plaza(pk, dispositivo, momento=ahora)
 
     reserva = ReservaPlaza(
         plaza=plaza,
@@ -366,6 +492,12 @@ def liberar_reserva(*, reserva, usuario, motivo=""):
     dispositivo = reserva.plaza.sector.dispositivo
     if not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
         raise PermissionDenied("No tenés alcance para liberar plazas en este dispositivo.")
+
+    # Releída con bloqueo, como en el ingreso que la consume: sin esto, liberar con un
+    # objeto viejo pisaría con LIBERADA una reserva que un ingreso acaba de consumir. Sin
+    # `select_related`: el JOIN bloquearía también la plaza, en el orden inverso al del
+    # ingreso (plaza y después reserva), y las dos transacciones se esperarían en cruz.
+    reserva = ReservaPlaza.objects.select_for_update().get(pk=reserva.pk)
     if reserva.estado != ReservaPlaza.Estado.VIGENTE:
         raise ValidationError({"estado": "La reserva ya no está vigente."})
 
