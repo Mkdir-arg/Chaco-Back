@@ -242,8 +242,10 @@ Lista blanca. Lo que no está acá es una **novedad** (protocolo, paso 6).
 - **Gradiente:** `var(--gradient-brand)` queda para el shell y el panel de marca de
   inscripción. En el contenido no: las iniciales de una persona van
   `w-8 h-8 rounded-full bg-brand-soft text-fg-brand` y las métricas chicas sin gradiente
-  (un solo acento por bloque). Únicas excepciones: la caja de ícono de la stat card
-  `variante="tablero"` y el hero de inicio de programa, solo en Inicio y tableros de programa.
+  (un solo acento por bloque). Únicas excepciones: el hero de inicio de programa, solo en
+  Inicio y tableros de programa, y la caja de ícono de la stat card `variante="tablero"`, en
+  Inicio, tableros de programa y la franja de indicadores operativos que encabeza un detalle de
+  Dispositivos (decisión C-2: P1, P4, P12, P19, P21).
 
 ## Perfiles de dominio
 

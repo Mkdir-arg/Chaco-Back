@@ -117,14 +117,21 @@ def normalizar_filtros(estado, sector, sector_ids):
     """Lleva lo que llegó por la URL a valores que el servicio entiende; lo ajeno se descarta."""
 
     estado = estado if estado in (FILTRO_EGRESADAS, FILTRO_TODAS) else FILTRO_ALOJADAS
-    sector = int(sector) if str(sector).isdigit() and int(sector) in sector_ids else None
-    return estado, sector
+    texto = str(sector)
+    # Solo dígitos ASCII: `isdigit()` acepta «²» (y `int()` lo rechaza con un 500) y `int()`
+    # acepta dígitos de otros alfabetos, espacios y signos que una URL armada a mano puede traer.
+    sector = int(texto) if texto.isascii() and texto.isdecimal() else None
+    return estado, sector if sector in sector_ids else None
 
 
 def pildoras_de_estadias(estado, sector, sectores):
-    """Las dos píldoras de la fila de filtros, armadas acá porque el componente no decide nada."""
+    """Las píldoras de la fila de filtros, armadas acá porque el componente no decide nada.
 
-    return [
+    «Sector» solo aparece si el dispositivo tiene sectores: una píldora con «Todos» como única
+    opción no filtra nada.
+    """
+
+    pildoras = [
         {
             "nombre": "estado",
             "etiqueta": "Estado",
@@ -132,14 +139,18 @@ def pildoras_de_estadias(estado, sector, sectores):
             "opciones": [(FILTRO_EGRESADAS, "Egresadas"), (FILTRO_TODAS, "Todas")],
             "valor": estado,
         },
-        {
-            "nombre": "sector",
-            "etiqueta": "Sector",
-            "todos": "Todos",
-            "opciones": [(fila["pk"], fila["nombre"]) for fila in sectores],
-            "valor": sector or "",
-        },
     ]
+    if sectores:
+        pildoras.append(
+            {
+                "nombre": "sector",
+                "etiqueta": "Sector",
+                "todos": "Todos",
+                "opciones": [(fila["pk"], fila["nombre"]) for fila in sectores],
+                "valor": sector or "",
+            }
+        )
+    return pildoras
 
 
 def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None, pagina=1, momento=None):

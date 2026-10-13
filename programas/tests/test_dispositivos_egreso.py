@@ -16,6 +16,7 @@ Lo que se verifica, y por qué:
 
 import importlib
 from datetime import timedelta
+from unittest import mock
 
 from django.apps import apps
 from django.conf import settings
@@ -198,6 +199,18 @@ class EgresoPantallaTests(BaseEgreso):
         self.assertEqual(respuesta.status_code, 403)
         self.estadia.refresh_from_db()
         self.assertTrue(self.estadia.activa)
+
+    def test_la_vista_corta_sin_alcance_antes_de_llamar_al_servicio(self):
+        """La guarda de la vista, sola: el servicio repite el chequeo y escondería que falta."""
+
+        otro = Client(enforce_csrf_checks=True)
+        otro.force_login(self.operador_parador)
+
+        with mock.patch("programas.views.dispositivos_legajo.egresar_persona") as servicio:
+            respuesta = self._post(cliente=otro)
+
+        self.assertEqual(respuesta.status_code, 403)
+        servicio.assert_not_called()
 
     def test_la_estadia_tiene_que_ser_del_dispositivo_de_la_url(self):
         url = reverse("dispositivos:egresar", args=[self.parador.pk, self.estadia.pk])

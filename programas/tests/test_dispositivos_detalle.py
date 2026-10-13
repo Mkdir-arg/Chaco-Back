@@ -232,6 +232,23 @@ class FiltrosDeEstadiasTests(BaseDetalle):
         self.assertEqual(self._personas_en(respuesta), {"Gómez"})
         self.assertFalse(respuesta.context["hay_filtros_estadias"])
         self.assertEqual(self.client.get(self.url, {"sector": "abc"}).status_code, 200)
+        # «²» es un dígito para `isdigit()` pero `int()` lo rechaza: tiene que descartarse, no dar 500.
+        for raro in ("²", "١", "-1", " 1"):
+            with self.subTest(sector=raro):
+                respuesta = self.client.get(self.url, {"sector": raro})
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertFalse(respuesta.context["hay_filtros_estadias"])
+
+    def test_la_pildora_sector_solo_aparece_si_hay_sectores(self):
+        con_sectores = self.client.get(self.url)
+        self.assertEqual([p["nombre"] for p in con_sectores.context["pildoras"]], ["estado", "sector"])
+        self.assertContains(con_sectores, '<select name="sector"')
+
+        Sector.objects.filter(dispositivo=self.cis).update(activo=False)
+        sin_sectores = self.client.get(self.url)
+
+        self.assertEqual([p["nombre"] for p in sin_sectores.context["pildoras"]], ["estado"])
+        self.assertNotContains(sin_sectores, '<select name="sector"')
 
     def test_el_contador_de_la_solapa_cuenta_estadias_alojadas_aunque_el_filtro_sea_otro(self):
         respuesta = self.client.get(self.url, {"estado": "EGRESADA"})

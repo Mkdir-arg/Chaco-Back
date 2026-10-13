@@ -34448,6 +34448,30 @@ escrito los servicios. **Se pierde la historia de los cambios de plaza** como da
 `TrazaDispositivo` conserva una línea por cambio, con usuario y plazas en el texto); las estadías
 quedan intactas, en la plaza en la que estaban.
 
+## Revisión
+
+PR #830. Desarrollo: APPROVE. Diseño: REQUEST_CHANGES con un MAJOR de canon, resuelto en el mismo
+PR junto con los MINOR.
+
+- **MAJOR (diseño): el canon no admitía `variante="tablero"` en un detalle.** El uso es el que
+  decidió el PM en C-2 (opción C, `docs/internal/dispositivos-v2/mapeo-mockup.md`); lo que estaba
+  desalineado era el canon. La fila «Cuándo» de `.claude/design/componentes/stat_card.md` y la
+  excepción de gradiente de `.claude/agents/chaco-design-system.md` ahora admiten la franja de
+  indicadores operativos que encabeza un detalle de Dispositivos (P1, P4, P12, P19, P21). El
+  template no cambió.
+- **MINOR: la píldora «Sector» se armaba sin sectores.** Ahora solo aparece si el dispositivo tiene
+  sectores activos. Test nuevo; rojo con la píldora armada siempre.
+- **MINOR: `"²".isdigit()` daba 500 en el filtro de sector.** El filtro acepta solo dígitos ASCII
+  (`isascii()` + `isdecimal()`): «²», dígitos de otros alfabetos («١» se tomaba como el sector 1),
+  signos y espacios se descartan. El caso se sumó a `test_un_filtro_ajeno_o_roto_se_descarta`; con
+  el código viejo daba `ValueError` en «²» y aceptaba «١».
+- **MINOR: la guarda de alcance del POST de egreso en la vista no tenía test propio** (el servicio
+  la repite). `test_la_vista_corta_sin_alcance_antes_de_llamar_al_servicio` parchea
+  `egresar_persona`, espera 403 y verifica que no se llamó; sin la guarda de la vista da 200.
+- **Nota, queda pendiente:** con `?tab=sectores` en un tipo sin plazas, la tarjeta de solapas queda
+  vacía. Normalizarlo pide validar `tab` en la vista y dejar de leerlo con `URLSearchParams` en el
+  `x-data`, que es el patrón de la golden: no es una línea.
+
 ## Historial
 
 Entrada nueva. Etapa 3 del plan del Cambio 191.
