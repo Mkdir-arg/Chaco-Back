@@ -221,6 +221,22 @@ def _archivo_de_campana(user, ruta):
     return rbac.puede(user, "notificacion.ver")
 
 
+def _adjunto_de_bitacora(user, ruta):
+    """El acta de una novedad del turno: la ve quien ve **ese** dispositivo.
+
+    Mismo alcance que la bitácora en pantalla: `dispositivo.ver` evaluada con la
+    asignación al dispositivo concreto, no con la capacidad suelta. Un operador de otra
+    institución tiene `dispositivo.ver` y no tiene por qué leer las actas de esta.
+    """
+    from programas.models import AdjuntoBitacora
+    from programas.services.dispositivos import puede_operar_dispositivo
+
+    adjunto = AdjuntoBitacora.objects.select_related("dispositivo").filter(archivo=ruta).first()
+    if adjunto is None:
+        return None
+    return puede_operar_dispositivo(user, adjunto.dispositivo, "dispositivo.ver")
+
+
 #: Prefijo -> resolver, uno por cada prefijo de :mod:`core.rutas_media`. El orden
 #: importa: gana el primero que matchea, así que los más largos van primero. Un
 #: `FileField` nuevo entra acá o su archivo no se puede bajar (lo fija
@@ -242,6 +258,7 @@ REGLAS = (
     (rutas.PREFIJO_F00, _archivo_de_f00),
     (rutas.PREFIJO_SOLICITUD_MERENDERO, _documentacion_de_merendero),
     (rutas.PREFIJO_NOTIFICACIONES, _archivo_de_campana),
+    (rutas.PREFIJO_ADJUNTO_BITACORA, _adjunto_de_bitacora),
 )
 
 

@@ -73,6 +73,10 @@ CATALOGO = [
             ("dispositivo.validar", "Validar dispositivos"),
             ("dispositivo.admitir", "Admitir personas en dispositivos"),
             ("dispositivo.egresar", "Registrar egresos de dispositivos"),
+            # MVP v2, etapa 3 (#695): «Cargar novedades» del bloque Bitácora del mockup
+            # P15. Separada de `admitir` porque cargar la bitácora del turno no es alojar
+            # a nadie. `users.0036` la siembra en los roles que ya admiten.
+            ("dispositivo.bitacora", "Cargar novedades en la bitácora del turno"),
         ],
     },
     {

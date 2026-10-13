@@ -18,6 +18,7 @@ from core.rutas_media import (
 )
 from core.rutas_media import (
     nombre_opaco,
+    ruta_adjunto_bitacora,
     ruta_archivo_admision,
     ruta_solicitud_merendero,
 )
@@ -1407,6 +1408,328 @@ class MovimientoEstadia(TimeStamped):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Los movimientos de una estadía no se eliminan.")
+
+
+class Turno(TimeStamped):
+    """Un turno de trabajo del dispositivo, con su horario (MVP v2, etapa 3 · #695).
+
+    Lo configura cada institución: el CIS N.º 3 trabaja Mañana 06-14, Tarde 14-22 y Noche
+    22-06, y otra puede tener dos turnos de doce horas o una sola guardia.
+
+    **El turno nocturno cruza la medianoche** y se declara tal cual: `hora_hasta` menor
+    que `hora_desde`. Un turno con las dos horas iguales es una guardia de 24 h. Qué
+    turno rige en un momento dado y a qué **fecha operativa** pertenece —la Noche que
+    empieza el lunes es del lunes aunque sea martes 03:00— lo resuelve un solo lugar:
+    `programas.services.bitacora.turno_vigente`.
+
+    Que dos turnos activos del mismo dispositivo no se superpongan **no** lo dice el
+    esquema —es una regla sobre intervalos circulares que ningún constraint expresa— y la
+    sostiene el servicio que los da de alta, bloqueando la fila del dispositivo.
+    """
+
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.PROTECT,
+        related_name="turnos",
+        verbose_name="Dispositivo",
+    )
+    nombre = models.CharField(max_length=60, verbose_name="Nombre")
+    hora_desde = models.TimeField(verbose_name="Desde")
+    hora_hasta = models.TimeField(verbose_name="Hasta")
+    orden = models.PositiveSmallIntegerField(default=0, verbose_name="Orden")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    class Meta:
+        verbose_name = "Turno"
+        verbose_name_plural = "Turnos"
+        # Por `dispositivo_id`: ver el comentario del ordering de Sector.
+        ordering = ["dispositivo_id", "orden", "hora_desde"]
+        constraints = [
+            models.UniqueConstraint(fields=["dispositivo", "nombre"], name="turno_nombre_unico_por_dispositivo"),
+        ]
+
+    def __str__(self):
+        return f"{self.nombre} · {self.hora_desde:%H:%M}–{self.hora_hasta:%H:%M}"
+
+    @property
+    def cruza_medianoche(self):
+        """El nocturno (22-06) y la guardia de 24 h terminan al día siguiente de empezar."""
+
+        return self.hora_hasta <= self.hora_desde
+
+    def ventana(self, fecha_operativa):
+        """El intervalo `[inicio, fin)` del turno de esa fecha operativa, en hora local con zona."""
+
+        zona = timezone.get_current_timezone()
+        inicio = timezone.make_aware(datetime.combine(fecha_operativa, self.hora_desde), zona)
+        dia_fin = fecha_operativa + timedelta(days=1) if self.cruza_medianoche else fecha_operativa
+        fin = timezone.make_aware(datetime.combine(dia_fin, self.hora_hasta), zona)
+        return inicio, fin
+
+
+class AdjuntoBitacora(TimeStamped):
+    """Un archivo de la bitácora del turno: el acta del incidente, la foto del daño.
+
+    Cuelga del **dispositivo** y no de una entrada: las versiones de una entrada lo
+    comparten (`EntradaBitacora.adjuntos` es varios a varios), así que corregir el texto
+    no obliga a volver a subir el acta, y la versión anterior conserva los archivos que
+    tenía. El dispositivo es además lo que `core.views.media` mira para decidir quién
+    lo baja.
+    """
+
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.PROTECT,
+        related_name="adjuntos_bitacora",
+        verbose_name="Dispositivo",
+    )
+    archivo = models.FileField(upload_to=ruta_adjunto_bitacora, validators=[validar_adjunto], verbose_name="Archivo")
+    nombre_original = models.CharField(max_length=255, blank=True, verbose_name="Nombre original")
+    subido_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="adjuntos_bitacora",
+        verbose_name="Subido por",
+    )
+
+    class Meta:
+        verbose_name = "Adjunto de bitácora"
+        verbose_name_plural = "Adjuntos de bitácora"
+        ordering = ["creado", "id"]
+
+    def __str__(self):
+        return self.nombre_original or self.archivo.name
+
+
+class EntradaBitacoraQuerySet(models.QuerySet):
+    """Las entradas **no se pisan**: ni `update`, ni `delete`, ni `bulk_update` en masa.
+
+    Corregir es agregar una versión (`programas.services.bitacora.corregir_entrada`).
+    """
+
+    def update(self, **kwargs):
+        raise ValidationError("Las entradas de bitácora no se modifican: se corrigen con una versión nueva.")
+
+    def delete(self):
+        raise ValidationError("Las entradas de bitácora no se eliminan.")
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las entradas de bitácora no se modifican: se corrigen con una versión nueva.")
+
+    def vigentes(self):
+        """La última versión de cada entrada: las que nadie corrigió todavía."""
+
+        return self.filter(correccion__isnull=True)
+
+
+class EntradaBitacoraManager(models.Manager.from_queryset(EntradaBitacoraQuerySet)):
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las entradas de bitácora no se modifican: se corrigen con una versión nueva.")
+
+
+class EntradaBitacora(TimeStamped):
+    """Una novedad del turno (MVP v2, etapa 3 · #695). Reemplaza al parte diario.
+
+    El parte diario era una fila por turno que el turno siguiente **sobrescribía**. Acá
+    cada novedad es una fila y **nada se pisa**:
+
+    * **Corregir es agregar.** La corrección es una fila nueva con `version` + 1 que
+      apunta a la que corrige (`version_anterior`) y a la primera de la cadena
+      (`entrada_original`). La anterior queda como estaba y se sigue viendo; el texto
+      nunca se actualiza. El manager no ofrece `update` ni `delete`, y `save()` sobre
+      una fila ya guardada falla.
+    * **Dos operadores no se pisan.** `version_anterior` es uno a uno: una versión se
+      corrige **una sola vez**, y la segunda corrección simultánea de la misma versión la
+      rechaza la base —un `UNIQUE` común sobre una columna anulable, que existe en los
+      tres motores—. El servicio además bloquea la entrada original con
+      `select_for_update()`, así que el segundo espera, ve la corrección del primero y
+      recibe un error que lo dice, en vez de un `IntegrityError`. `UNIQUE
+      (entrada_original, version)` es la misma garantía dicha por el número de versión.
+      Ninguno de los dos es un `UniqueConstraint(condition=...)`, que en MySQL y en
+      MariaDB **no existe** (ver el docstring de `Estadia`).
+
+    La **fecha operativa** se guarda y no se deriva al leer: es la del turno, no la del
+    reloj —la Noche que empieza el lunes es del lunes aunque la novedad sea del martes
+    03:00— y la calcula `turno_vigente` en hora local. Guardarla permite filtrar el día
+    por un `DateField`, sin ningún `Trunc*` sobre `momento`, que en ECOM se vuelve
+    `CONVERT_TZ` y da `NULL`.
+    """
+
+    class Tipo(models.TextChoices):
+        # Las que carga el operador: «Tipos de novedad de bitácora» del mockup P14.
+        GENERAL = "GENERAL", "General"
+        INCIDENTE = "INCIDENTE", "Incidente"
+        VISITA = "VISITA", "Visita"
+        SALUD = "SALUD", "Salud"
+        ALIMENTOS = "ALIMENTOS", "Alimentos"
+        LIMPIEZA = "LIMPIEZA", "Limpieza"
+        MANTENIMIENTO = "MANTENIMIENTO", "Mantenimiento"
+        # Las que genera el sistema desde la estadía y el pase (P10: «automática»).
+        INGRESO = "INGRESO", "Ingreso"
+        EGRESO = "EGRESO", "Egreso"
+        MOVIMIENTO = "MOVIMIENTO", "Movimiento"
+        PERMISO = "PERMISO", "Permiso"
+        PASE = "PASE", "Pase de guardia"
+
+    class Origen(models.TextChoices):
+        MANUAL = "MANUAL", "Manual"
+        AUTOMATICA = "AUTOMATICA", "Automática"
+
+    #: Los tipos que solo puede escribir el sistema: un operador que cargara un
+    #: «Ingreso» a mano tendría una novedad que no corresponde a ninguna estadía.
+    TIPOS_AUTOMATICOS = frozenset({"INGRESO", "EGRESO", "MOVIMIENTO", "PERMISO", "PASE"})
+
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.PROTECT,
+        related_name="entradas_bitacora",
+        verbose_name="Dispositivo",
+    )
+    turno = models.ForeignKey(
+        Turno,
+        on_delete=models.PROTECT,
+        related_name="entradas",
+        verbose_name="Turno",
+    )
+    fecha_operativa = models.DateField(verbose_name="Fecha operativa")
+    momento = models.DateTimeField(verbose_name="Fecha y hora")
+    responsable = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="entradas_bitacora",
+        verbose_name="Responsable",
+    )
+    tipo = models.CharField(max_length=20, choices=Tipo.choices, verbose_name="Tipo")
+    origen = models.CharField(
+        max_length=12,
+        choices=Origen.choices,
+        default=Origen.MANUAL,
+        verbose_name="Origen",
+    )
+    texto = models.TextField(verbose_name="Texto")
+    # Las estadías y no las personas sueltas: la persona involucrada en una novedad del
+    # turno es alguien alojado en **este** dispositivo, y la estadía lo dice —y lo
+    # acota— sin otra consulta. Lleva a la persona (`estadia.ciudadano`) y deja la
+    # novedad colgando de la estadía para su línea de tiempo.
+    personas = models.ManyToManyField(
+        Estadia,
+        blank=True,
+        related_name="entradas_bitacora",
+        verbose_name="Personas involucradas",
+    )
+    adjuntos = models.ManyToManyField(
+        AdjuntoBitacora,
+        blank=True,
+        related_name="entradas",
+        verbose_name="Adjuntos",
+    )
+    version = models.PositiveSmallIntegerField(default=1, verbose_name="Versión")
+    entrada_original = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="correcciones",
+        verbose_name="Entrada original",
+    )
+    version_anterior = models.OneToOneField(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="correccion",
+        verbose_name="Versión que corrige",
+    )
+    motivo_correccion = models.CharField(max_length=255, blank=True, verbose_name="Motivo de la corrección")
+
+    objects = EntradaBitacoraManager()
+
+    class Meta:
+        verbose_name = "Entrada de bitácora"
+        verbose_name_plural = "Entradas de bitácora"
+        ordering = ["momento", "id"]
+        base_manager_name = "objects"
+        default_manager_name = "objects"
+        constraints = [
+            # Sin `condition=`: la versión 1 lleva `entrada_original` en NULL y los NULL no
+            # chocan entre sí; desde la 2, el par es único en los tres motores.
+            models.UniqueConstraint(fields=["entrada_original", "version"], name="entrada_bitacora_version_unica"),
+            models.CheckConstraint(
+                condition=models.Q(version=1, entrada_original__isnull=True, version_anterior__isnull=True)
+                | models.Q(version__gt=1, entrada_original__isnull=False, version_anterior__isnull=False),
+                name="entrada_bitacora_cadena_de_versiones",
+            ),
+            models.CheckConstraint(condition=~models.Q(texto=""), name="entrada_bitacora_con_texto"),
+        ]
+        indexes = [
+            # El de la pantalla del turno y del censo: un dispositivo, un día, un turno.
+            models.Index(fields=["dispositivo", "fecha_operativa", "turno"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.dispositivo.codigo} · {self.fecha_operativa:%d/%m/%Y} · {self.get_tipo_display()} v{self.version}"
+        )
+
+    @property
+    def raiz_id(self):
+        """La primera versión de la cadena: la propia fila si es la versión 1."""
+
+        return self.entrada_original_id or self.pk
+
+    def versiones(self):
+        """Todas las versiones de la cadena, de la primera a la última. Ninguna se pierde."""
+
+        raiz = self.raiz_id
+        return EntradaBitacora.objects.filter(models.Q(pk=raiz) | models.Q(entrada_original_id=raiz)).order_by(
+            "version"
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Las entradas de bitácora no se modifican: se corrigen con una versión nueva.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Las entradas de bitácora no se eliminan.")
+
+    def clean(self):
+        super().clean()
+        if not (self.texto or "").strip():
+            raise ValidationError({"texto": "La novedad necesita un texto."})
+        if self.origen == self.Origen.MANUAL and self.tipo in self.TIPOS_AUTOMATICOS:
+            raise ValidationError({"tipo": "Ese tipo de novedad lo genera el sistema, no se carga a mano."})
+        if self.turno_id and self.dispositivo_id and self.turno.dispositivo_id != self.dispositivo_id:
+            raise ValidationError({"turno": "El turno tiene que ser del dispositivo de la entrada."})
+
+
+def _relaciones_de_la_entrada_inmutables(sender, instance, action, reverse, **kwargs):
+    """Una versión ya guardada no cambia sus personas ni sus adjuntos.
+
+    Es la misma regla que el texto —corregir es agregar una versión— aplicada a las dos
+    relaciones varios a varios, que `save()` no ve. Solo las escribe
+    `programas.services.bitacora` mientras crea la versión, con la marca
+    `_relaciones_abiertas` puesta sobre esa instancia. Desde el otro lado
+    (`estadia.entradas_bitacora.add(...)`) no hay marca posible: siempre falla.
+    """
+
+    if action not in ("pre_add", "pre_remove", "pre_clear"):
+        return
+    if not reverse and getattr(instance, "_relaciones_abiertas", False):
+        return
+    raise ValidationError(
+        "Las personas y los adjuntos de una entrada de bitácora no se cambian: se corrige con una versión nueva."
+    )
+
+
+for _through in (EntradaBitacora.personas.through, EntradaBitacora.adjuntos.through):
+    models.signals.m2m_changed.connect(
+        _relaciones_de_la_entrada_inmutables,
+        sender=_through,
+        dispatch_uid=f"entrada_bitacora_inmutable_{_through._meta.model_name}",
+    )
 
 
 class Cama(TimeStamped):
