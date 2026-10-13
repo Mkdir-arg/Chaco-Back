@@ -211,7 +211,7 @@ class SolapasService:
         siga vigente: la historia no se va cuando la persona egresa.
 
         «Ser del programa» es la capacidad `dispositivo.ver` con alcance a Dispositivos,
-        nunca el nombre de un grupo. Sin ``user`` no se ofrece: es el default seguro.
+        nunca el nombre de un grupo; además hace falta `ciudadano.ver`, como en la pantalla. Sin ``user`` no se ofrece: es el default seguro.
         No filtra por el alcance fino del dispositivo (decisión §4.11 de la propuesta v2).
 
         Navega a la pantalla propia (`url`) y no embebe: así el legajo, que tiene
@@ -219,10 +219,12 @@ class SolapasService:
         """
         from django.urls import reverse
 
+        from core import rbac
+
         from ..selectors.trayectoria import cantidad_de_estadias
         from .dispositivos import CAP_VER, programa_dispositivos, puede_en_programa_dispositivos
 
-        if user is None or not puede_en_programa_dispositivos(user, CAP_VER):
+        if user is None or not (puede_en_programa_dispositivos(user, CAP_VER) and rbac.puede(user, "ciudadano.ver")):
             return None
         total = cantidad_de_estadias(ciudadano)
         if not total:

@@ -20,9 +20,10 @@ class CiudadanoDispositivosView(LoginRequiredMixin, TemplateView):
     Qué la habilita
     ---------------
 
-    Una sola cosa: **ser del programa**, que acá es tener `dispositivo.ver` con alcance
-    al programa Dispositivos (un rol del programa o uno global que la tenga). Nunca el
-    nombre de un grupo.
+    **Ser del programa** —`dispositivo.ver` con alcance al programa Dispositivos (un rol
+    del programa o uno global que la tenga), nunca el nombre de un grupo— **y** poder
+    abrir el legajo (`ciudadano.ver`): la solapa es parte del legajo y, al ser una URL
+    aparte, se saltearía ese control.
 
     Los tres candados que tenía quedaron afuera, cada uno por su razón:
 
@@ -41,7 +42,9 @@ class CiudadanoDispositivosView(LoginRequiredMixin, TemplateView):
     template_name = "legajos/solapas/dispositivos.html"
 
     def get(self, request, *args, **kwargs):
-        if not puede_en_programa_dispositivos(request.user, CAP_VER):
+        # Las dos: la solapa es parte del legajo, y abrir el legajo exige `ciudadano.ver`.
+        # Como esta URL es aparte, sin la segunda se podía probar ids y leer nombre y DNI.
+        if not (puede_en_programa_dispositivos(request.user, CAP_VER) and rbac.puede(request.user, "ciudadano.ver")):
             raise PermissionDenied
         return super().get(request, *args, **kwargs)
 
@@ -50,7 +53,5 @@ class CiudadanoDispositivosView(LoginRequiredMixin, TemplateView):
         ciudadano = get_object_or_404(Ciudadano, pk=self.kwargs["ciudadano_id"])
         context["ciudadano"] = ciudadano
         context.update(trayectoria_de(ciudadano, self.request.GET.get("estadias_page")))
-        # El legajo pide `ciudadano.ver`: sin ella el enlace de vuelta rebotaría.
-        if rbac.puede(self.request.user, "ciudadano.ver"):
-            context["url_legajo"] = reverse("legajos:ciudadano_detalle", args=[ciudadano.pk])
+        context["url_legajo"] = reverse("legajos:ciudadano_detalle", args=[ciudadano.pk])
         return context

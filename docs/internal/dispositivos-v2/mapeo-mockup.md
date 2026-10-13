@@ -1260,16 +1260,16 @@ toca Becas, Legajos, Usuarios y Merenderos a la vez.
 | Dato | Origen hoy | Falta |
 |---|---|---|
 | Solapa del programa | `SolapasService.obtener_solapas_ciudadano()` ([`services/solapas.py:30`](../../../programas/services/solapas.py)) | — |
-| **La solapa aparece solo con estadía alojada** | `if tipo_normalizado == "DISPOSITIVOS" and not inscripcion.tiene_admision_alojada: continue` (`services/solapas.py:53-54`) | el mockup pide que **se conserve el historial aunque no haya estadía activa** |
-| **La solapa navega, no embebe** | `"url": reverse("legajos:dispositivos_ciudadano", …)` y `"contenido_embebido": False` (`services/solapas.py:65,71`) | el mockup la muestra **embebida como las demás** |
-| Historial de estadías | `Admision` filtrado por ciudadano | — |
-| Contador «2» | — | derivable |
-| Estado «Trasladado» | `Admision.Estado.TRASLADADO` existe (`models:706`) | — |
+| **Cuándo aparece la solapa** | `SolapasService._obtener_solapa_dispositivos` ([`services/solapas.py`](../../../programas/services/solapas.py)): la persona tiene **alguna** estadía, abierta o cerrada, y quien mira tiene `dispositivo.ver` con alcance al programa **y** `ciudadano.ver`. No depende de estar alojada ni de la inscripción. | hecho (task 28) |
+| **Navega, no embebe** | `"url": reverse("legajos:dispositivos_ciudadano", args=[ciudadano.pk])` y `"contenido_embebido": True` (sin panel en el legajo) | **aparte del mockup**: es una pantalla propia, no embebida, para no sumar consultas al legajo |
+| Historial de estadías | `programas/selectors/trayectoria.py` sobre `Estadia`, paginado de a 10, **sin filtro por alcance** (§4.11); motivo del catálogo (`Estadia.motivo`), nunca las observaciones libres | hecho |
+| Contador «2» | `.count()` de las estadías de la persona | hecho |
+| Estado «Trasladado», «Reingreso» y «Ver estadía» | `Estadia` solo tiene Activa y Egresada y no hay pantalla de estadía | **fuera de esta task**: el traslado va en el motivo |
 | Criterio §7 | **DIS-09** (membresía) y la solapa de §4.10 de la auditoría | — |
 
 **Reemplaza a.** La solapa actual de Dispositivos en
 [`legajos/templates/legajos/ciudadano_detail.html`](../../../legajos/templates/legajos/ciudadano_detail.html)
-(L389 y siguientes) + la vista `legajos:dispositivos_ciudadano`.
+(L389 y siguientes) + la vista `legajos:dispositivos_ciudadano`, reescrita contra `Estadia` en la task 28 (URL sin `inscripcion_id`).
 
 **Conflictos.** C-5.
 

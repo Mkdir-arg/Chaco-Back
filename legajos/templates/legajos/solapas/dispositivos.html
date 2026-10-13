@@ -42,7 +42,7 @@
             <td class="nodo-td whitespace-nowrap">{{ fila.ingreso|date:"d/m/Y" }}</td>
             <td class="nodo-td whitespace-nowrap">{{ fila.egreso|date:"d/m/Y"|default:"—" }}</td>
             <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.tono }}">{{ fila.estado }}</span></td>
-            <td class="nodo-td">{{ fila.motivo_egreso|default:"—" }}</td>
+            <td class="nodo-td">{{ fila.motivo|default:"—" }}</td>
           </tr>
           {% empty %}
           <tr>

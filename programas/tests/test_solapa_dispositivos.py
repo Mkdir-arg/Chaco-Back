@@ -23,7 +23,16 @@ from django.utils import timezone
 
 from core import rbac
 from legajos.models import Ciudadano
-from programas.models import Dispositivo, Estadia, InscripcionPrograma, Plaza, Programa, Sector, TipoDispositivo
+from programas.models import (
+    Dispositivo,
+    Estadia,
+    InscripcionPrograma,
+    MotivoEgreso,
+    Plaza,
+    Programa,
+    Sector,
+    TipoDispositivo,
+)
 from programas.selectors.trayectoria import POR_PAGINA, trayectoria_de
 from programas.services.solapas import SolapasService
 from users.models import Capacidad, RolMeta
@@ -69,14 +78,21 @@ class BaseSolapa(TestCase):
         self.persona = Ciudadano.objects.create(dni="39000100", nombre="Jorge", apellido="Ramírez")
         self.ahora = timezone.now()
 
-    def estadia_cerrada(self, dispositivo, dias_ingreso=30, dias_egreso=10, motivo="", persona=None):
+    def estadia_cerrada(self, dispositivo, dias_ingreso=30, dias_egreso=10, motivo="", persona=None, observaciones=""):
+        """`motivo` es el nombre del catálogo; `observaciones` el texto libre del egreso."""
+        catalogo = (
+            MotivoEgreso.objects.get_or_create(codigo=motivo.lower().replace(" ", "-"), defaults={"nombre": motivo})[0]
+            if motivo
+            else None
+        )
         return Estadia.objects.create(
             ciudadano=persona or self.persona,
             dispositivo=dispositivo,
             fecha_ingreso=self.ahora - timedelta(days=dias_ingreso),
             fecha_egreso=self.ahora - timedelta(days=dias_egreso),
             estado=Estadia.Estado.EGRESADA,
-            motivo_egreso=motivo,
+            motivo=catalogo,
+            motivo_egreso=observaciones,
         )
 
     def estadia_activa(self, dispositivo, plaza=None, persona=None):
@@ -94,14 +110,14 @@ class BaseSolapa(TestCase):
         return reverse("legajos:dispositivos_ciudadano", args=[(persona or self.persona).pk])
 
     def del_programa(self, username="operador-programa"):
-        """Un usuario del programa: la capacidad con alcance, **sin** asignación a ningún dispositivo."""
+        """Del programa y con acceso al legajo: `dispositivo.ver` con alcance **y** `ciudadano.ver`, sin asignación."""
         return _usuario(username, _rol(f"Rol {username}", ["dispositivo.ver", "ciudadano.ver"], self.programa))
 
 
 class SolapaSeOfreceTests(BaseSolapa):
     def test_la_solapa_sigue_ofrecida_despues_de_que_la_persona_egresa(self):
         """Candado 1: antes exigía una admisión **alojada**; la trayectoria existe aunque ya no esté."""
-        self.estadia_cerrada(self.cis, motivo="Alta con derivación")
+        self.estadia_cerrada(self.cis, motivo="Alta")
 
         solapas = SolapasService.obtener_solapas_ciudadano(self.persona, user=self.del_programa())
 
@@ -157,7 +173,7 @@ class SolapaSeOfreceTests(BaseSolapa):
 class PantallaTests(BaseSolapa):
     def test_muestra_la_trayectoria_completa_incluidas_las_cerradas_de_toda_la_red(self):
         """Sin filtro por alcance: el usuario no tiene asignado ni el CIS ni el parador y ve los dos."""
-        self.estadia_cerrada(self.parador, 90, 60, motivo="Traslado a CIS N.º 3")
+        self.estadia_cerrada(self.parador, 90, 60, motivo="Traslado")
         self.estadia_activa(self.cis, self.plaza)
         self.client.force_login(self.del_programa())
 
@@ -165,7 +181,7 @@ class PantallaTests(BaseSolapa):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, "Parador Vedia")
-        self.assertContains(respuesta, "Traslado a CIS N.º 3")
+        self.assertContains(respuesta, "Traslado")
         self.assertContains(respuesta, "Pabellón A · A-02")
         self.assertContains(respuesta, "Egresada")
         self.assertContains(respuesta, "Activa")
@@ -183,13 +199,13 @@ class PantallaTests(BaseSolapa):
         self.assertContains(respuesta, "sin estadía activa en la red")
 
     def test_la_persona_egresada_sin_inscripcion_tambien_se_ve(self):
-        self.estadia_cerrada(self.cis, motivo="Egreso voluntario")
+        self.estadia_cerrada(self.cis, motivo="Abandono")
         self.client.force_login(self.del_programa())
 
         respuesta = self.client.get(self.url())
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertContains(respuesta, "Egreso voluntario")
+        self.assertContains(respuesta, "Abandono")
 
     def test_persona_inexistente_es_404(self):
         self.client.force_login(self.del_programa())
@@ -213,17 +229,27 @@ class PantallaTests(BaseSolapa):
         self.assertEqual(set(trayectoria_de(self.persona)), {"page_obj", "filas", "n_estadias", "hay_activa", "hoy"})
         self.assertEqual(
             set(trayectoria_de(self.persona)["filas"][0]),
-            {"dispositivo", "tipo", "ubicacion", "ingreso", "egreso", "estado", "tono", "motivo_egreso"},
+            {"dispositivo", "tipo", "ubicacion", "ingreso", "egreso", "estado", "tono", "motivo"},
         )
 
-    def test_el_enlace_al_legajo_solo_va_con_ciudadano_ver(self):
-        self.estadia_cerrada(self.cis)
-        solo_programa = _usuario("solo-programa", _rol("Rol solo programa", ["dispositivo.ver"], self.programa))
-
+    def test_las_observaciones_del_egreso_no_van_en_la_trayectoria(self):
+        """Son texto libre y pueden traer datos sensibles: se muestra el motivo del catálogo, no ellas."""
+        self.estadia_cerrada(self.cis, motivo="Abandono", observaciones="Observacion-reservada-del-egreso-qwz")
         self.client.force_login(self.del_programa())
-        self.assertIn("url_legajo", self.client.get(self.url()).context)
-        self.client.force_login(solo_programa)
-        self.assertNotIn("url_legajo", self.client.get(self.url()).context)
+
+        respuesta = self.client.get(self.url())
+
+        self.assertContains(respuesta, "Abandono")
+        self.assertNotContains(respuesta, "Observacion-reservada-del-egreso-qwz")
+
+    def test_el_enlace_al_legajo_esta_siempre(self):
+        self.estadia_cerrada(self.cis)
+        self.client.force_login(self.del_programa())
+
+        self.assertEqual(
+            self.client.get(self.url()).context["url_legajo"],
+            reverse("legajos:ciudadano_detalle", args=[self.persona.pk]),
+        )
 
 
 class QuienPuedeVerlaTests(BaseSolapa):
@@ -233,6 +259,33 @@ class QuienPuedeVerlaTests(BaseSolapa):
         self.client.force_login(_usuario("sin-rol"))
 
         self.assertEqual(self.client.get(self.url()).status_code, 403)
+
+    def test_solo_dispositivo_ver_es_403_y_no_filtra_nombre_ni_dni(self):
+        """Sin `ciudadano.ver` no se llega: la URL aparte no puede saltearse el control del legajo."""
+        self.estadia_cerrada(self.cis)
+        self.client.force_login(
+            _usuario("solo-programa", _rol("Rol solo programa", ["dispositivo.ver"], self.programa))
+        )
+
+        respuesta = self.client.get(self.url())
+
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertNotContains(respuesta, "Ramírez", status_code=403)
+        self.assertNotContains(respuesta, "39000100", status_code=403)
+
+    def test_solo_ciudadano_ver_tampoco_alcanza(self):
+        self.estadia_cerrada(self.cis)
+        self.client.force_login(_usuario("solo-legajo", _rol("Rol solo legajo", ["ciudadano.ver"])))
+
+        self.assertEqual(self.client.get(self.url()).status_code, 403)
+
+    def test_la_solapa_no_se_ofrece_sin_ciudadano_ver(self):
+        self.estadia_cerrada(self.cis)
+        usuario = _usuario("solapa-sin-legajo", _rol("Rol solapa sin legajo", ["dispositivo.ver"], self.programa))
+
+        solapas = SolapasService.obtener_solapas_ciudadano(self.persona, user=usuario)
+
+        self.assertNotIn("programa_DISPOSITIVOS", [s["id"] for s in solapas])
 
     def test_la_capacidad_de_otro_programa_no_alcanza(self):
         self.estadia_cerrada(self.cis)

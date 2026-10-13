@@ -9,7 +9,10 @@ Sensibilidad en el MVP
 ----------------------
 
 Esta lectura solo trae datos de la estadía misma: institución, tipo, fechas, estado y
-motivo de egreso. Ninguno es una sección sensible, porque las secciones sensibles son las
+motivo de egreso **del catálogo** (`Estadia.motivo`). Las observaciones del egreso
+(`Estadia.motivo_egreso`) son texto libre, pueden traer datos sensibles y **no** van acá.
+
+Ninguno de esos datos es una sección sensible, porque las secciones sensibles son las
 de la ficha de ingreso (salud, consumo, violencia), que todavía no se guardan contra la
 estadía. **Cuando existan, no se agregan acá:** la ficha pasa por la sección bloqueada del
 arquetipo Revisión, que decide `bloqueada` por capacidad en la vista y no manda los datos
@@ -50,7 +53,7 @@ def _fila(estadia):
         "egreso": estadia.fecha_egreso,
         "estado": estadia.get_estado_display(),
         "tono": _TONO_ESTADO.get(estadia.estado, "gray"),
-        "motivo_egreso": estadia.motivo_egreso,
+        "motivo": estadia.motivo.nombre if estadia.motivo_id else "",
     }
 
 
@@ -71,7 +74,7 @@ def trayectoria_de(ciudadano, pagina=None):
     página con `dispositivo`, su tipo, la plaza y su sector ya traídos, y la estadía
     abierta. Los contadores salen del COUNT, no de `len()` sobre el recorte.
     """
-    base = Estadia.objects.filter(ciudadano=ciudadano).select_related("dispositivo__tipo", "plaza__sector")
+    base = Estadia.objects.filter(ciudadano=ciudadano).select_related("dispositivo__tipo", "plaza__sector", "motivo")
     paginador = Paginator(base, POR_PAGINA)
     pagina_obj = paginador.get_page(pagina)
     activa = base.activas().first()
