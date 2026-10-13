@@ -401,6 +401,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 262 | Estadía, reserva de plaza y clave de alojamiento: una sola persona alojada en toda la red | Dispositivos · datos y servicios | `#datos` `#rbac` | Task 24 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0087` |
 | 263 | Un mismo correo en varios usuarios: cada correo de recupero dice de qué usuario es, y el alta no muestra una clave que el sistema ignora | Transversal — usuarios (recupero de contraseña y alta) | `#usuarios` `#correo` `#ui` | PM — decisión en sesión de trabajo: los correos se pueden repetir entre usuarios y el login no se toca | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 264 | Los requisitos se ordenan arrastrando: sale el campo «Orden» | Becas / requisitos | `#requisitos` `#ui` `#mobile` | PM — pedido directo en sesión de trabajo | 13/10/2026 | 🟢 **Hecho** | No requiere |
+| 269 | Egreso con catálogo de motivos: el historial no puede perder su razón | Dispositivos · egreso | `#datos` `#ui` | Task 26 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0088` |
 
 **Notas del índice**
 
@@ -33988,3 +33989,86 @@ cruzaron de grupo y la fila de «grupo vacío». Tests: `JsListaRevierteSiFallaT
 `test_requisitos_orden_drag.py` (corre el JS real con node); probado además en Chromium forzando
 un 409 y un corte de red sobre las dos pantallas. Ficha *Drag & drop* de
 `.claude/design/dominio/becas.md` actualizada.
+
+---
+
+# Cambio 269 — Egreso con catálogo de motivos: el historial no puede perder su razón
+
+🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 26` (#691)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · egreso |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 26 del backlog del MVP · Épica #127 · etapa 2 |
+| **Partes afectadas** | `programas/models/__init__.py`, `services/estadias.py`, `views/dispositivos_legajo.py`, `forms_dispositivos.py` |
+| **Migración** | `programas.0088` — catálogo `MotivoEgreso` y tres campos en `Estadia` |
+
+## Decisiones tomadas
+
+**El catálogo de motivos no existía y se creó sin inventar opciones.** `Estadia.motivo_egreso` era
+texto libre. Ahora hay un modelo `MotivoEgreso` —código, nombre, orden, activo— con el mismo patrón
+que `TipoDispositivo`. **La semilla son solo los seis motivos que el mockup nombra explícitamente**
+(Alta, Alta con derivación, Abandono, Traslado, Fallecimiento, Otro): las opciones definitivas las
+define el Ministerio, y la semilla está para que el modal no nazca vacío.
+
+**Un motivo no se borra: se da de baja.** Se administra desde el admin de Django **sin permiso de
+borrado**, porque una estadía egresada lo apunta con `PROTECT` y **el historial no puede perder la
+razón de un egreso**. Un motivo con `activo=False` ni se ofrece ni se acepta, pero las estadías que
+lo usaron lo siguen mostrando.
+
+**No se renombró la columna `motivo_egreso`**, aunque ahora sea solo «observaciones»: es una tabla
+que otra rama acababa de crear y renombrar sobre ella es pedir un conflicto. Cambia solo su
+`verbose_name`, sin SQL.
+
+**El egreso consume el servicio, no lo reimplementa.** `egresar_persona` ya relee la estadía con
+`select_for_update()` —el objeto puede venir de una pantalla abierta hace diez minutos— y ya valida
+que el egreso no sea anterior al ingreso. Solo ganó tres argumentos y el chequeo de motivo activo.
+
+**Libera la plaza sin contar nada**: la disponibilidad la recalcula sola el servicio de ocupación.
+El egreso va por POST con CSRF; un GET da 405.
+
+## Pendientes
+
+- **Falta «derivación con seguimiento».** La task dice «destino o derivación» y se resolvió el
+  destino, como texto libre. Engancharlo con `DerivacionPrograma` es otra pieza. Si el Ministerio
+  esperaba la derivación con seguimiento, falta.
+- **El catálogo es global**, no por tipo de dispositivo como sugiere la configuración del mockup
+  (P14), y se administra desde el admin de Django, no desde una pantalla propia.
+- **`egresar_persona` acepta egresar sin motivo del catálogo**: la obligatoriedad vive solo en el
+  formulario. Es el mismo patrón que la revisión del Cambio 262 marcó como trampa en la verificación
+  de alojamiento —que la regla dependa de que la vista se acuerde—. Cerrarlo exige tocar tests de la
+  task 24.
+- **La pantalla anfitriona es una lista de personas alojadas**, no la ficha de la estadía (P7) que
+  usa el mockup: P7 es un caso complejo que todavía no existe.
+- Se corrigió `mapeo-mockup.md` en seis lugares que decían que el switch no existe; `.chips` arrastra
+  el mismo desfasaje.
+
+## Archivos
+
+`programas/models/__init__.py` · `programas/migrations/0088_motivo_egreso_catalogo.py` ·
+`programas/services/estadias.py` · `programas/views/dispositivos_legajo.py` ·
+`programas/forms_dispositivos.py` · `programas/dispositivos_urls.py` · `programas/admin.py` ·
+`programas/templates/programas/dispositivos/estadia/estadias.html` ·
+`programas/tests/test_dispositivos_egreso.py` · `docs/internal/dispositivos-v2/mapeo-mockup.md`
+
+## Base de datos
+
+`programas.0088`: tabla `programas_motivoegreso` con su semilla, y en `Estadia` los campos `motivo`
+(FK nula, `PROTECT`), `destino_egreso` (`db_default=""`) y `pertenencias_devueltas`
+(`db_default=False`). `check_migraciones.py` en verde.
+
+## Reversión
+
+`migrate programas 0087` y `git revert` del merge. La semilla tiene reversa `# REVERSA-NOOP`: al
+bajar, la tabla del catálogo se borra entera. **Desde el primer egreso con motivo deja de ser
+gratis**: el `PROTECT` frena borrar un motivo usado, así que la reversa exige antes desvincular las
+estadías.
+
+## Historial
+
+Entrada nueva. Etapa 2 del plan del Cambio 191.
+
+---
