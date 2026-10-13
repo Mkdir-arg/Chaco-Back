@@ -33621,6 +33621,44 @@ alojada e **invisible para la red**, que es el fallo silencioso que la clave exi
 pasan a ser enteros reales y **ninguna pantalla cambió**: era exactamente la apuesta de haber dejado
 `operativas` y `disponibles` como propiedades derivadas.
 
+## Correcciones de la revisión
+
+La revisión independiente **rechazó la primera versión** con dos MAJOR, los dos en el contrato de
+reservas del servicio. El modelo y la migración se sostuvieron, así que las ramas que se construían
+encima no perdieron trabajo de esquema. Los tests de cada defecto se escribieron **antes** del
+arreglo y fallaban —12 fallas y 2 errores contra el código viejo—, que es la prueba de que prueban
+algo.
+
+**El ingreso aceptaba cualquier reserva sin validarla.** Se podía alojar a B en la plaza reservada
+para A pasándole la reserva de A, y se podían «consumir» reservas ya liberadas o consumidas, porque
+el `update` no filtraba por estado. Ahora, dentro del `atomic` y después de bloquear la plaza, se
+**relee la reserva con `select_for_update()`** y se exige que sea de esa plaza, de esa persona y
+`VIGENTE`; el `update` filtra por `estado=VIGENTE` y verifica que tocó una fila. El bloqueo de la
+reserva es lo que ordena dos ingresos que quieren usarla a la vez.
+
+**El solape de reservas miraba un instante, no el intervalo.** Una reserva con `desde` futuro dejaba
+pasar otra solapada, y un ingreso hoy dejaba la plaza ocupada **y** reservada cuando llegaba el
+`desde`: el mapa terminaba mostrando **disponibles negativos**. Se resolvió haciendo que **la reserva
+nazca vigente** —`reservar_plaza` rechaza un `desde` futuro—, porque el mockup no tiene ninguna
+reserva diferida: la de lista de espera se toma en el momento y el préstamo de 12/24 h arranca ya.
+Y como protección extra, el control de «plaza tomada» cuenta **cualquier** reserva vigente sin
+vencer, haya empezado o no, por si una entra por el admin o un restore.
+
+**Plaza inexistente y plaza ajena daban errores distintos** —`DoesNotExist` (500) contra
+`ValidationError`—, un **oráculo de existencia de ids**, y además se tomaba `FOR UPDATE` sobre la
+plaza de otra institución antes de comprobar que era ajena. Ahora se comprueba primero sin bloquear
+y las dos dan el mismo error.
+
+**`verificar_alojamiento_en_red` no exigía capacidad**: cualquier vista futura que la llamara sin
+gate le habría expuesto a cualquier usuario autenticado si una persona está alojada en la red. Ahora
+la función misma exige `dispositivo.admitir` con alcance de programa —mínimo privilegio: saber que
+alguien está alojado en otra institución solo lo necesita quien está por alojarlo—.
+
+**Dos cosas que la revisión no pidió y aparecieron al arreglar:** `liberar_reserva` también relee con
+bloqueo, porque con un objeto viejo podía pisar con `LIBERADA` una reserva recién consumida; y el
+`FOR UPDATE` tenía `select_related("sector")`, que en MySQL y MariaDB **bloquea también el sector**,
+así que dos ingresos en plazas distintas del mismo sector se esperaban entre sí.
+
 **La vigencia de una reserva se evalúa por tiempo, no por un estado que alguien apague.** Una reserva
 vencida deja de contar sola, sin cron — a diferencia del cron de las 03:10 de relevamientos.
 
@@ -33639,8 +33677,18 @@ vencida deja de contar sola, sin cron — a diferencia del cron de las 03:10 de 
   así que mezcla movimientos de personas con el historial de validación de la institución. La traza
   por estadía es Ola 3. El detalle va con identificadores, no con nombres propios, y hay un test que
   lo afirma.
-- `verificar_alojamiento_en_red` **no exige capacidad por sí misma**: el gate está en
-  `ingresar_persona`. La vista de la task 25 tiene que poner el suyo.
+- **Cualquiera con `dispositivo.admitir` en un solo dispositivo puede sondear si una persona está
+  alojada en algún lugar de la red** —sin saber dónde—. Es deliberado: sin eso no se explica el
+  rechazo del ingreso. Si el Programa no lo acepta, el rechazo tendría que decir solo «consultá a la
+  coordinación», sin confirmar la estadía. **Decisión del Programa.**
+- Pendientes de la revisión, no tocados: el servicio para **reabrir una estadía egresada por
+  error** (hoy solo con SQL a mano), el mensaje confuso en la carrera del UNIQUE, las fechas
+  retroactivas que solapan con estadías previas de la misma persona, y la guarda de que la clave
+  siga al ciudadano ante una fusión.
+- `sacar_plaza_de_servicio` y `volver_plaza_a_servicio` todavía bloquean el sector con
+  `select_related`: es contención, no corrección.
+- **Falta un test de concurrencia real** —dos hilos sobre MySQL o MariaDB—. En SQLite
+  `select_for_update` no hace nada, así que la exclusión por plaza no la prueba la suite rápida.
 
 ## Archivos
 
