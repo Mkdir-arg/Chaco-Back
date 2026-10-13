@@ -410,6 +410,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 277 | Detalle de la estadía: la persona alojada, su línea de tiempo y el cambio de plaza | Dispositivos · estadía | `#ui` `#rbac` `#performance` | Task 33 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 278 | Censo automático por turno y por día: existencia, ingresos y egresos calculados desde los movimientos | Dispositivos · datos y servicios | `#datos` `#performance` | Task 31 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | No requiere |
 | 279 | Relevamientos: listado y asignación del coordinador (P21) | Dispositivos · relevamiento edilicio | `#ui` `#rbac` `#performance` | Task 36 del MVP de Dispositivos | 08/10/2026 | 🟢 **Hecho** | No requiere |
+| 280 | Solapa Infraestructura del dispositivo y semáforo de criticidad del edificio | Dispositivos · relevamiento edilicio | `#ui` `#rbac` `#performance` | Tasks 37 y 40 del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 275 | Relevamiento edilicio: el modelo de la inspección, colgado del edificio | Dispositivos · relevamiento edilicio | `#datos` `#rbac` | Task 35 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0091`, `users.0037` |
 
 **Notas del índice**
@@ -35517,5 +35518,210 @@ quedan en la base y se siguen leyendo por el servicio.
 ## Historial
 
 Entrada nueva. Etapa 4 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 280 — Solapa Infraestructura del dispositivo y semáforo de criticidad del edificio
+
+🟢 **HECHO — 14/10/2026** · Tasks `[TASK] Dispositivos MVP 37` (#702) y `[TASK] Dispositivos MVP 40` (#705)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamiento edilicio |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191), etapa 4 |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | #702 y #705 · Épica #127 |
+| **Partes afectadas** | Backoffice (`legajo/detail.html`, `legajo/list.html`, pieza `components/_linea_tiempo.html`), Servidor (`services/detalle_dispositivo.py`, `services/inspecciones.py`, `views/dispositivos_legajo.py`), `scripts/perf_budgets.json` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+**Task 37 (P19 recortada):** una solapa «Infraestructura» en el detalle del dispositivo con
+**solo** la parte del MVP: criticidad, observaciones y galería fotográfica con su línea de tiempo;
+cada relevamiento o carga es una entrada nueva y no pisa la anterior. Sin tenencia, servicios,
+ubicación en mapa, habitaciones, plano ni la regla de vigencia a seis meses.
+
+**Task 40:** «ver de un vistazo qué edificios están en rojo, desde el listado y desde el detalle».
+Se deriva de la criticidad de la última inspección, no se carga a mano; vocabulario operativo, no
+solo color; un edificio sin relevar se distingue de uno relevado y sano.
+
+## Alcance acordado
+
+Entra: la solapa, el semáforo en la solapa y en el listado de instituciones, los presupuestos de
+consultas y los tests. Queda afuera todo lo de P19 que no es del MVP (tenencia, servicios,
+ubicación, habitaciones, plano, vigencia y su aviso, «Relevar ya», «Exportar ficha», «Comparar dos
+fechas» y la tabla «Historial de relevamientos»), y la migración del listado al arquetipo (P2).
+
+## Decisiones tomadas
+
+**Vocabulario del semáforo: «Crítico», «Regular», «Bueno», «Sin relevar» y «Sin edificio
+cargado».** «Regular» y «Bueno» son los del mockup (P19, «Estado físico»); «Crítico» es la
+criticidad `ALTA` («requiere intervención»), que el mockup no muestra. Tonos `danger`, `warning`,
+`success` y `gray` para los dos últimos: los cinco textos son distintos, así que el estado se
+entiende sin el color (test). Texto y tono los decide el servicio (`SEMAFOROS` en
+`services/inspecciones.py`); el template dibuja `badge badge-dot badge-{{ tono }}`.
+
+**Sin edificio cargado no es «sin relevar».** Son dos estados con dos textos: el primero es un
+dato que falta en el legajo, el segundo un edificio que nadie miró todavía.
+
+**Con varios edificios gana el más grave, y «sin relevar» le gana a «Bueno».** El orden es
+Crítico > Regular > Sin relevar > Bueno: si ganara el sano, el edificio que nadie relevó quedaría
+escondido detrás de él.
+
+**Cuenta la última realizada, no la peor de la historia.** Una en curso no cuenta: el edificio
+sigue con el semáforo de la anterior, o «Sin relevar».
+
+**En el detalle, el semáforo se ve sin abrir la solapa: va en su botón**, como un badge
+`badge-dot` con el texto («Infraestructura · Crítico»), en el lugar donde las otras solapas llevan
+su contador (decisión del juez en la revisión de diseño). Adentro, la franja de la solapa repite
+el estado con su nota. La franja de arriba del detalle no se tocó: es la de plazas («derivados de
+plazas y estadías») y solo existe en los tipos que manejan plazas; como ya es la grande
+(`variante="tablero"`, decisión C-2), la de la solapa es la chica. **No hay alerta de «Crítico»
+arriba**: la regla de alerta «último relevamiento con criticidad ALTA» la trae la task 34.
+
+**Una sola línea de tiempo, con la galería dentro de cada evento.** Es lo que muestra P19
+(`.tl > .ev > .fotos`). Para eso `components/_linea_tiempo.html` suma un opcional por evento,
+`fotos` + `total_fotos`, que incluye `_galeria_fotos.html` dentro del `<li>` en un `div mt-3`: el
+riel queda continuo y el texto sigue escapado. Sin `fotos` el HTML es el de siempre (test). Es una
+pieza canónica que cambia (tipo C, autorizada por el juez): se actualizaron su ficha, la de la
+galería y las dos filas del inventario en el mismo diff. La primera versión de esta entrada —una
+`_linea_tiempo` de un evento por relevamiento con la galería afuera— se descartó en la revisión
+porque cortaba el riel. El evento lleva la cantidad de fotos, los rótulos, quién relevó y el
+semáforo como badge.
+
+**Las fotos HEIC/HEIF van sin vista previa.** Se aceptan al cargar (Cambio 275) pero un navegador
+no las dibuja en un `<img>`: la vista las manda con `url` vacía y la galería dibuja la celda gris
+con cámara (la `.foto` del mockup), con el rótulo y su texto para lectores de pantalla.
+
+**La bajada de cada edificio** dice «criticidad y observaciones del último relevamiento» solo si
+hay uno; sin relevar, solo el código del edificio.
+
+**El registro se pagina de a 10 relevamientos y cada tanda se recorta en 24 fotos** (el tope de la
+galería, con «Mostrando 24 de N»). Las canceladas no se muestran; la en curso va primero.
+
+**Las fotos las ve quien ve el detalle.** No hubo que tocar `inspecciones_visibles`: su camino de
+`dispositivo.ver` usa `dispositivos_en_alcance`, la misma regla que `puede_operar_dispositivo`.
+Tests: 200 para el operador con solo `dispositivo.ver` asignado y para el admin del programa; 403
+para el operador de otra institución con todas las capacidades salvo el alcance de admin; 302 sin
+sesión.
+
+**Predio compartido**: la solapa lo avisa con una alerta informativa, y las instituciones del
+predio ven los mismos relevamientos y el mismo semáforo.
+
+**El listado se tocó en el bloque de la tabla y nada más.** Para sumar la columna «Infraestructura»
+sin un hallazgo nuevo del ratchet, la tabla pasó a `nodo-thead-row`/`nodo-th`/`nodo-td`. El resto
+de la pantalla (encabezado a mano, filtros, estado vacío, sin paginación) sigue legacy:
+`--arquetipo listado` pasa de 11 a 6 desvíos, todos previos.
+
+## Implementación
+
+- **Solapa Infraestructura** del detalle (`?tab=infraestructura`), entre Estadías e Historial:
+  franja de tres métricas (Estado edilicio, Relevamientos realizados, Fotos); por edificio, su
+  semáforo, la criticidad, la fecha, quién relevó y las observaciones del último relevamiento; y el
+  registro fotográfico histórico. Sin edificio, un estado vacío que lo dice.
+- **Listado de instituciones**: columna «Infraestructura» con el semáforo de cada fila.
+- `infraestructura_del_dispositivo()` en `services/detalle_dispositivo.py`;
+  `Semaforo`, `SEMAFOROS`, `semaforo_de_inspeccion()`, `semaforo_de_ultimas()`,
+  `semaforos_de_dispositivos()` y `subconsulta_ultima_realizada()` en `services/inspecciones.py`.
+
+## Archivos
+
+- `programas/services/inspecciones.py`, `programas/services/detalle_dispositivo.py`
+- `programas/views/dispositivos_legajo.py`
+- `programas/templates/programas/dispositivos/legajo/detail.html`, `.../legajo/list.html`
+- `templates/components/_linea_tiempo.html` (opcional `fotos` + `total_fotos`)
+- `.claude/design/componentes/ficha_timeline.md`, `.claude/design/componentes/galeria_fotos.md` y
+  las filas «Galería fotográfica histórica» y «Línea de tiempo y sección de ficha» de
+  `.claude/agents/chaco-design-system.md`
+- `programas/tests/test_dispositivos_infraestructura.py` (nuevo) y `core/tests/test_nodo_ui_piezas.py`
+  (`LineaTiempoTest`: con fotos, sin fotos sin cambio de HTML, escape)
+- `scripts/perf_budgets.json`: `dispositivos_semaforo_edilicio` (3) y `dispositivos_infraestructura` (6)
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `programas.tests.test_dispositivos_infraestructura`: 32 tests; `core.tests.test_nodo_ui_piezas`
+  con los tres nuevos de `LineaTiempoTest`. Suite de `programas` completa en verde (`.venv312`,
+  Django 5.2) y `--tag performance programas` en verde.
+- **Mutación** de cada guarda (romper, ver rojo, restaurar): guarda del detalle sin alcance fino;
+  camino de `dispositivo.ver` caído y abierto a todos los edificios; «sin relevar» como sano; «sin
+  edificio» como «sin relevar»; gana el menos grave; «sin relevar» por debajo de sano; dos niveles con
+  el mismo texto; una consulta por fila en el listado; un solo relevamiento por página; un bloque de
+  vigencia en el panel; fotos leídas por relevamiento. Las doce dieron rojo.
+- **Mutación de los cuatro arreglos de la revisión**, también en rojo: sacar la galería del `<li>`
+  (5 tests, entre ellos el del riel único); dibujarla siempre, aun sin fotos (cae el de «sin
+  `fotos` el HTML es el de siempre»); devolverle la URL a la HEIC; sacar el badge del botón de la
+  solapa (3 tests); y volver a prometer «criticidad y observaciones» en un edificio sin relevar.
+- `manage.py check`, `makemigrations --check` (con `DJANGO_SYNCDB_PROJECT_APPS=False`),
+  `compile_templates.py` 0, `design_audit.py --ratchet` 0 nuevos, `--goldens` 0, `--arquetipo
+  detalle` OK, `check_design_agent.py --changed` y `--limites` OK, `check_perf_budgets.py` sin
+  subas, build de Tailwind sin diff, ruff.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- **Fotos HEIC/HEIF**: hoy se muestran como celda sin vista previa. Falta convertirlas a JPEG al
+  recibirlas (pillow-heif) o, al menos, ofrecer la descarga del original desde la celda.
+- **La institución relevada ve qué agente tiene asignado** el relevamiento en curso («en curso ·
+  asignado a …» en la línea de tiempo). Decisión del PM.
+- **Las fotos de la página se leen sin tope**: una consulta trae todas las de los 10 relevamientos de
+  la página y la vista recorta a 24 por tanda. Si una tanda crece mucho, recortar en la base con
+  `ROW_NUMBER()` por relevamiento.
+- **«Comparar dos fechas», la tabla «Historial de relevamientos» y el informe adjunto** de P19.
+- **El listado de instituciones (P2)** sigue sin el arquetipo: encabezado, filtros, estado vacío y
+  paginación.
+- **Vigencia**: el badge «vencido» de la solapa y del encabezado (mockup P4 y P19) llega con la regla
+  de vigencia, fuera del MVP.
+
+## Reversión
+
+`git revert` del merge. No hay datos nuevos: el semáforo se deriva y la solapa solo lee.
+
+## Revisión
+
+Revisión de diseño con un MAJOR de canon —la novedad tipo C la autorizó el juez— y tres arreglos
+más, todos resueltos en el mismo PR. Los dos últimos puntos quedaron anotados como pendientes.
+
+- **MAJOR (diseño): el riel de la línea de tiempo quedaba cortado.** La primera versión armaba una
+  `_linea_tiempo` de un evento por relevamiento y colgaba la galería afuera, en un
+  `div mt-3 ml-2 pl-5` que imitaba la sangría del riel; el resultado eran N `<ol>` sueltas en vez
+  del `.tl > .ev > .fotos` de P19. Como `detalle` es una línea escapada y no hay slot de cuerpo, el
+  arreglo fue ampliar la pieza canónica (novedad tipo C, autorizada por el juez):
+  `components/_linea_tiempo.html` acepta `fotos` + `total_fotos` por evento e incluye
+  `_galeria_fotos.html` dentro del `<li>`. El servicio dejó de armar `tandas` y devuelve una sola
+  lista de `eventos` por página. Tres tests nuevos en `LineaTiempoTest`, uno de ellos comparando el
+  render carácter por carácter para fijar que **sin `fotos` el HTML no cambia**; y en
+  `test_dispositivos_infraestructura`, que el panel trae una sola `<ol>` y dos `<figure>` en el
+  primer evento y uno en el segundo. Se actualizaron las dos fichas y las dos filas del inventario.
+- **Las fotos HEIC/HEIF se dibujaban rotas.** Se aceptan al cargar (Cambio 275) pero ningún
+  navegador las muestra en un `<img>`. `_fotos_de_la_tanda` manda `url` vacía cuando el nombre
+  termina en `.heic`/`.heif` y la galería dibuja su celda gris con cámara, con el rótulo y el texto
+  para lectores de pantalla. Test con una foto normal y una HEIC en la misma tanda: verifica el par
+  `(rótulo, hay URL)` y que el nombre del archivo no aparece en el panel.
+- **El semáforo no se veía sin abrir la solapa.** El detalle abre en Estadías, así que el estado
+  edilicio quedaba escondido detrás de un clic. Ahora el botón de la solapa «Infraestructura» lleva
+  su `badge badge-dot` con texto, en el lugar donde las otras solapas ponen el contador. Dos tests:
+  que el badge está en el botón con la solapa cerrada, y que distingue «Sin relevar» de «Sin
+  edificio cargado». **No** se agregó alerta de «Crítico» arriba: esa regla la trae la task 34.
+- **La bajada prometía observaciones que no existían.** «criticidad y observaciones del último
+  relevamiento» aparecía también en un edificio sin relevar; ahora cuelga de `edificio.ultima` y sin
+  relevamiento queda solo el código. Test sobre el CIS, que no tiene ninguno.
+- **Dos cosas anotadas, no resueltas** (están en *Pendientes*): que la institución relevada vea el
+  nombre del agente asignado al relevamiento en curso es decisión del PM, no se cambió; y las fotos
+  de la página se siguen leyendo sin tope en la base (una consulta por las 10 tandas, recorte a 24
+  en la vista), que recién molesta si una tanda crece mucho.
+
+## Historial
+
+Entrada nueva. Etapa 4 del plan del Cambio 191; lee lo que dejó el Cambio 275.
 
 ---
