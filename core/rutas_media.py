@@ -35,6 +35,8 @@ PREFIJO_FOTO_CIUDADANO = "ciudadanos/fotos/"
 PREFIJO_CONTACTO = "contactos/"
 #: Campo ARCHIVO del F-00 de Dispositivos (``programas.ArchivoAdmision``).
 PREFIJO_F00 = "admisiones/f00/"
+#: Fotos de un relevamiento edilicio (``programas.FotoInspeccion``, MVP v2 · etapa 4).
+PREFIJO_FOTO_INSPECCION = "dispositivos/inspecciones/"
 #: Documentación respaldatoria de una solicitud (``programas.SolicitudMerendero``).
 PREFIJO_SOLICITUD_MERENDERO = "merenderos/solicitudes/"
 #: Adjuntos de un caso de Becas (``programas.AdjuntoFormulario``).
@@ -66,6 +68,11 @@ def ruta_contacto(instance, filename):
 
 def ruta_archivo_admision(instance, filename):
     return f"{PREFIJO_F00}{nombre_opaco(filename)}"
+
+
+def ruta_foto_inspeccion(instance, filename):
+    """Con `%Y/%m`: cada relevamiento agrega su tanda de fotos y ninguna pisa a otra."""
+    return f"{PREFIJO_FOTO_INSPECCION}{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
 
 
 def ruta_solicitud_merendero(instance, filename):

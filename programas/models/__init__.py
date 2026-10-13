@@ -20,9 +20,10 @@ from core.rutas_media import (
     nombre_opaco,
     ruta_adjunto_bitacora,
     ruta_archivo_admision,
+    ruta_foto_inspeccion,
     ruta_solicitud_merendero,
 )
-from core.validators import validar_adjunto
+from core.validators import validar_adjunto, validar_foto
 from legajos.models import Ciudadano
 from programas.validadores import validar_condicion_json
 
@@ -1730,6 +1731,195 @@ for _through in (EntradaBitacora.personas.through, EntradaBitacora.adjuntos.thro
         sender=_through,
         dispatch_uid=f"entrada_bitacora_inmutable_{_through._meta.model_name}",
     )
+
+
+class InspeccionEdificio(TimeStamped):
+    """Un relevamiento edilicio: la tarea que el coordinador asigna y el agente carga (MVP v2, etapa 4 · #700).
+
+    En pantalla se llama **«Relevamiento»**, que es el vocabulario del cliente; en el
+    código no, porque `Relevamiento` ya es el modelo de Becas con sus capacidades.
+
+    **Cuelga del edificio, no del sector ni del dispositivo** (decisión del PM del
+    08/10/2026): un predio compartido —el parador, el geriátrico y Sotai en el mismo
+    inmueble de Resistencia— se releva una vez y el resultado lo ven todas las
+    instituciones que lo ocupan, por `Edificio.dispositivos`.
+
+    El circuito lo maneja `programas.services.inspecciones`: el coordinador crea y
+    asigna (elige el edificio y el agente; el agente no elige qué relevar), puede
+    reasignar o cancelar mientras está en curso, y el agente asignado registra el
+    resultado —criticidad, observaciones y fotos—.
+
+    **Escala de criticidad y estados son defaults a confirmar con el Ministerio.** Están
+    como `TextChoices` para que cambiarlos sea tocar la lista, no el modelo: los
+    constraints de abajo no enumeran valores, solo exigen que el relevamiento realizado
+    tenga **alguna** criticidad. «Vencido», «por vencer» y «al día» del mockup (P21) no
+    son estados: se derivan de `fecha_vencimiento` y de la última realizada.
+    """
+
+    class Estado(models.TextChoices):
+        ASIGNADA = "ASIGNADA", "Asignado · en campo"
+        REALIZADA = "REALIZADA", "Completado"
+        CANCELADA = "CANCELADA", "Cancelado"
+
+    class Criticidad(models.TextChoices):
+        # Tres niveles, uno por color del semáforo (task 40). El mockup muestra el estado
+        # físico como Bueno / Regular; la escala real la define el Ministerio.
+        BAJA = "BAJA", "Baja · en buen estado"
+        MEDIA = "MEDIA", "Media · estado regular"
+        ALTA = "ALTA", "Alta · requiere intervención"
+
+    edificio = models.ForeignKey(
+        Edificio,
+        on_delete=models.PROTECT,
+        related_name="inspecciones",
+        verbose_name="Edificio",
+    )
+    estado = models.CharField(
+        max_length=12,
+        choices=Estado.choices,
+        default=Estado.ASIGNADA,
+        verbose_name="Estado",
+    )
+    criticidad = models.CharField(
+        max_length=12,
+        choices=Criticidad.choices,
+        blank=True,
+        verbose_name="Criticidad",
+    )
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    indicaciones = models.TextField(blank=True, verbose_name="Indicaciones para el agente")
+    asignado_a = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="inspecciones_asignadas",
+        verbose_name="Agente asignado",
+    )
+    creado_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="inspecciones_creadas",
+        verbose_name="Creado por",
+    )
+    fecha_vencimiento = models.DateField(verbose_name="Vence")
+    realizada_en = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de realización")
+    realizada_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Realizado por",
+    )
+    motivo_cancelacion = models.CharField(max_length=200, blank=True, verbose_name="Motivo de la cancelación")
+
+    class Meta:
+        verbose_name = "Relevamiento edilicio"
+        verbose_name_plural = "Relevamientos edilicios"
+        ordering = ["-fecha_vencimiento", "-id"]
+        constraints = [
+            # Lo realizado tiene resultado, fecha y autor; lo que no, no tiene criticidad.
+            # Sin enumerar la escala: cambiarla no tiene que tocar la base.
+            models.CheckConstraint(
+                condition=~models.Q(estado="REALIZADA")
+                | (
+                    ~models.Q(criticidad="")
+                    & models.Q(realizada_en__isnull=False)
+                    & models.Q(realizada_por__isnull=False)
+                ),
+                name="inspeccion_realizada_con_resultado",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(estado="REALIZADA") | models.Q(criticidad=""),
+                name="inspeccion_sin_realizar_sin_criticidad",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(estado="CANCELADA") | ~models.Q(motivo_cancelacion=""),
+                name="inspeccion_cancelada_con_motivo",
+            ),
+        ]
+        indexes = [
+            # «La última realizada de cada edificio» (semáforo de la task 40) y la solapa P19.
+            models.Index(fields=["edificio", "estado", "realizada_en"]),
+            # «Mis tareas» del agente en la app.
+            models.Index(fields=["asignado_a", "estado"]),
+        ]
+
+    def __str__(self):
+        return f"Relevamiento {self.pk} · {self.edificio}"
+
+    @property
+    def en_curso(self):
+        return self.estado == self.Estado.ASIGNADA
+
+    def vencida(self, hoy=None):
+        """En curso y con el vencimiento pasado. No es un estado: se deriva."""
+
+        hoy = hoy or timezone.localdate()
+        return self.en_curso and self.fecha_vencimiento < hoy
+
+
+class FotoInspeccionQuerySet(models.QuerySet):
+    """Sin vías masivas de mutación: la galería es aditiva, igual que `TrazaDispositivoQuerySet`."""
+
+    def update(self, **kwargs):
+        raise ValidationError("Las fotos de un relevamiento no se reemplazan: se agrega una nueva.")
+
+    def delete(self):
+        raise ValidationError("Las fotos de un relevamiento no se eliminan.")
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las fotos de un relevamiento no se reemplazan: se agrega una nueva.")
+
+
+class FotoInspeccionManager(models.Manager.from_queryset(FotoInspeccionQuerySet)):
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las fotos de un relevamiento no se reemplazan: se agrega una nueva.")
+
+
+class FotoInspeccion(TimeStamped):
+    """Una foto de evidencia de un relevamiento edilicio.
+
+    **Cada carga es una fila nueva y ninguna pisa a otra**: la galería de la solapa
+    Infraestructura (P19, task 37) muestra la línea de tiempo de las tandas, y comparar dos
+    fechas solo sirve si la anterior sigue ahí. Por eso la fila es inmutable, como
+    `TrazaDispositivo`.
+
+    El archivo vive detrás de login con nombre opaco (`core.rutas_media`) y lo sirve
+    `core.views.media` con la misma regla de alcance que la inspección.
+    """
+
+    inspeccion = models.ForeignKey(
+        InspeccionEdificio,
+        on_delete=models.PROTECT,
+        related_name="fotos",
+        verbose_name="Relevamiento",
+    )
+    archivo = models.FileField(upload_to=ruta_foto_inspeccion, validators=[validar_foto], verbose_name="Foto")
+    descripcion = models.CharField(max_length=120, blank=True, verbose_name="Descripción")
+    cargada_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="Cargada por",
+    )
+
+    objects = FotoInspeccionManager()
+
+    class Meta:
+        verbose_name = "Foto de relevamiento edilicio"
+        verbose_name_plural = "Fotos de relevamientos edilicios"
+        ordering = ["creado", "id"]
+
+    def __str__(self):
+        return f"Foto {self.pk} · relevamiento {self.inspeccion_id}"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Las fotos de un relevamiento no se reemplazan: se agrega una nueva.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Las fotos de un relevamiento no se eliminan.")
 
 
 class Cama(TimeStamped):
