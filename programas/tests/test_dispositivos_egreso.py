@@ -206,15 +206,15 @@ class EgresoPantallaTests(BaseEgreso):
     def test_egresar_en_el_mismo_minuto_del_ingreso_no_se_rechaza(self):
         """El `datetime-local` pierde los segundos; el ingreso los trae."""
 
-        estadia = Estadia.objects.get(pk=self.estadia.pk)
-        Estadia.objects.filter(pk=estadia.pk).update(fecha_ingreso=timezone.now().replace(second=30, microsecond=0))
-        if estadia.fecha_ingreso > timezone.now():
-            self.skipTest("el minuto todavia no tiene segundo 30")
-        ingreso = Estadia.objects.get(pk=estadia.pk).fecha_ingreso
+        # Cinco minutos atras y con segundo 30: inequivocamente pasado, corra cuando corra el test.
+        ingreso = (timezone.now() - timedelta(minutes=5)).replace(second=30, microsecond=0)
+        Estadia.objects.filter(pk=self.estadia.pk).update(fecha_ingreso=ingreso)
+        # El input datetime-local manda el minuto del ingreso, o sea segundo 00: 30 s antes.
         respuesta = self._post(fecha_egreso=timezone.localtime(ingreso).strftime(FORMATO))
 
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
-        cerrada = Estadia.objects.get(pk=estadia.pk)
+        cerrada = Estadia.objects.get(pk=self.estadia.pk)
+        self.assertEqual(cerrada.fecha_egreso, ingreso)
         self.assertEqual(cerrada.estado, Estadia.Estado.EGRESADA)
         self.assertGreaterEqual(cerrada.fecha_egreso, cerrada.fecha_ingreso)
 
