@@ -11,7 +11,7 @@ import core.validators
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("programas", "0089_movimiento_estadia"),
+        ("programas", "0090_turno_bitacora"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
