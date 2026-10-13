@@ -403,6 +403,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 264 | Los requisitos se ordenan arrastrando: sale el campo «Orden» | Becas / requisitos | `#requisitos` `#ui` `#mobile` | PM — pedido directo en sesión de trabajo | 13/10/2026 | 🟢 **Hecho** | No requiere |
 | 269 | Egreso con catálogo de motivos: el historial no puede perder su razón | Dispositivos · egreso | `#datos` `#ui` | Task 26 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0088` |
 | 271 | La solapa del legajo muestra toda la trayectoria, y no deja enumerar personas | Dispositivos · legajo | `#rbac` `#ui` | Task 28 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
+| 272 | Asistente de ingreso, y un solo origen para el estado de cada plaza | Dispositivos · ingreso | `#ui` `#rbac` | Task 25 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -34152,6 +34153,127 @@ con las dos capacidades, que fija la decisión de que un global habilita.
 `legajos/templates/legajos/solapas/dispositivos.html` · `legajos/urls/__init__.py` ·
 `programas/tests/test_solapa_dispositivos.py` · `legajos/tests/test_humo_pantallas.py` ·
 `docs/internal/dispositivos-v2/mapeo-mockup.md`
+
+## Base de datos
+
+No requiere.
+
+## Historial
+
+Entrada nueva. Etapa 2 del plan del Cambio 191.
+
+---
+
+---
+
+# Cambio 272 — Asistente de ingreso, y un solo origen para el estado de cada plaza
+
+🟢 **HECHO — 13/10/2026** · Task `[TASK] Dispositivos MVP 25` (#690)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · ingreso · ocupación |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | Task 25 del backlog del MVP · Épica #127 · etapa 2 |
+| **Partes afectadas** | `programas/services/ocupacion.py`, `services/ingreso.py`, `services/sectores_plazas.py`, `views/dispositivos_ingreso.py` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**La plaza se puede perder entre el paso 2 y el final, y eso no es un 500.** Es exactamente el caso
+que la ficha del arquetipo Wizard advierte que la golden no cubre. Elegir la plaza en el paso 2 solo
+guarda la intención; el paso final llama a `ingresar_persona`, que toma la plaza con
+`select_for_update()` dentro de `transaction.atomic()`. Si otro operador la tomó en el medio —o la
+sacaron de servicio, o la reserva dejó de valer—, **el usuario vuelve al paso de la plaza con el
+error**, y el alta del legajo que se hubiera hecho en el camino se revierte: no quedan legajos
+huérfanos. Hay un test que simula esa carrera.
+
+**Un solo origen para el estado de cada plaza.** La primera versión calculaba el estado por plaza en
+el servicio de ingreso, y eso violaba la regla 3 del plan de la etapa 2: si el mapa del ingreso y el
+de sectores derivan por separado, terminan mostrando **la misma plaza en estados distintos**. Ahora
+hay una sola función, `estado_de_plazas`, en el servicio de ocupación, que consumen **las dos
+pantallas**. Un test arma una plaza en cada estado —ocupada, reservada, prestada, disponible, fuera
+de servicio— y verifica que P5 y P6 muestran **el mismo estado y el mismo tono** para cada una.
+
+**De paso, la pantalla de sectores y plazas pasó a mostrar ocupación real.** Hasta acá seguía
+diciendo «todavía no se ve la ocupación» aunque el servicio ya la daba: nadie había conectado el
+estado por plaza. Y su encabezado dejó de contar por su cuenta: los contadores salen del mismo
+servicio que el mapa, con un test que fija que lo que cuenta el encabezado coincide con lo que dibuja
+el mapa.
+
+## Correcciones de la revisión
+
+**La revisión independiente rechazó la primera versión con un MAJOR grave: con el asistente abierto
+en dos pestañas se podía ingresar a una persona distinta de la que mostraba la pantalla.** Todo el
+estado vivía en una sola clave de sesión, y el «Confirmar» escribía lo que había en la sesión, no lo
+que la pestaña mostró. Si la pestaña A quedaba en «Confirmar» mostrando a la persona A y en la B se
+cargaba a otra, **confirmar en A alojaba a la de B**. Estamos alojando personas en situación de
+calle: alojar a la equivocada es grave.
+
+**Ahora cada paso que decide algo lleva en campos ocultos lo que mostró** —la persona y la plaza—, y
+la vista lo compara con la sesión antes de escribir; si no coinciden, no escribe y vuelve a mostrar
+el paso con el aviso «el ingreso cambió en otra pestaña». **Una clave de sesión por intento no
+alcanzaba**: una pestaña duplicada o el botón «atrás» comparten el mismo intento, y seguirían
+escribiendo lo ajeno. El estado se guarda además **por dispositivo**, para que abrir el asistente de
+otro no borre el progreso. El test se escribió antes del arreglo y falló con *«se alojó a la persona
+de la otra pestaña, que esta pantalla nunca mostró»*.
+
+**La regla quedó en la ficha del arquetipo Wizard**, porque vale para cualquier wizard con estado en
+sesión, no solo para este: el paso final escribe lo que la pantalla mostró, no lo que hay en la
+sesión.
+
+**La fuente única no era del todo única.** `estado_de_plazas` resolvía un estado por plaza con
+precedencia, pero el conteo del encabezado restaba ocupadas y reservadas contadas por separado: **una
+plaza ocupada y reservada a la vez se contaba dos veces** y `disponibles` podía dar negativo. Ahora
+las dos usan los mismos dos querysets —estadías en plazas no fuera de servicio, y reservas en plazas
+no fuera de servicio y **sin estadía activa**—, así que cada plaza cuenta una sola vez y
+`disponibles >= 0` vale **por construcción**, sin depender de que el servicio de escritura impida la
+superposición. Sigue en tres consultas.
+
+**Se cerraron los apartamientos del mockup que tenían piezas**: el eyebrow con dispositivo y fecha
+(`page_header` ya lo soportaba), el panel de la persona con nacimiento, edad, género, obra social,
+domicilio y «Ver legajo completo», y el paso de la plaza con **elegir y después «Continuar»** como en
+el mockup. Elegir una plaza ya no escribe la sesión: solo la marca; la guarda el POST de «Continuar».
+
+Además: el legajo borrado entre pasos ya no da 500, y la caché de ciudadanos se invalida en
+`on_commit`, no antes.
+
+**El asistente exige `dispositivo.admitir` y también `ciudadano.ver`**, porque muestra datos del
+legajo. Es coherente con la solapa de la trayectoria, que exige lo mismo.
+
+**La verificación en la red no filtra datos ajenos**: el asistente solo muestra lo que devuelve
+`verificar_alojamiento_en_red`, y hay un test que verifica que el nombre, el código y el responsable
+de la institución ajena no aparecen en el HTML.
+
+## Pendientes
+
+- **Ningún rol del seed tiene `dispositivo.admitir`**: los roles de operador se arman a mano desde el
+  ABM. **Si se arma el rol sin `ciudadano.ver`, el asistente le da 403.** El rol de operador de
+  dispositivos tiene que llevar las dos.
+- **Tres pasos, no cuatro**: falta «Ficha mínima», porque no hay forma de marcar secciones mínimas por
+  tipo de dispositivo.
+- **El layout `.split` del mockup** —la persona en un panel a la derecha— no está: no hay una pieza
+  canónica de dos columnas. La grilla de la golden de Revisión es el esqueleto de otro arquetipo.
+  Hace falta decidir si se promueve a pieza; mientras tanto el panel de la persona va arriba del mapa.
+- El eyebrow no lleva el **turno**: no hay modelo de turno operativo todavía.
+- **La pantalla de sectores (P5) hace consultas por sector**: un N+1 que no es de esta task.
+- Sin las celdas «Excepcional / sobre capacidad» ni «Sin plaza / lista de espera» del mockup: no hay
+  modelo de autorización ni de lista de espera. «Sin plaza» es un botón que no aparece si el tipo
+  exige plaza.
+- La cifra «reservadas» del servicio suma reservas y préstamos; en el mapa se distinguen, en el
+  encabezado van juntos.
+
+## Archivos
+
+`programas/services/ocupacion.py` · `programas/services/ingreso.py` ·
+`programas/services/sectores_plazas.py` · `programas/views/dispositivos_ingreso.py` ·
+`programas/forms_ingreso.py` · `programas/dispositivos_urls.py` ·
+`programas/templates/programas/dispositivos/ingreso/` (tres pasos) ·
+`programas/templates/programas/dispositivos/sectores/sectores.html` ·
+`programas/templates/programas/dispositivos/legajo/detail.html` ·
+`programas/tests/test_dispositivos_ingreso.py` · `test_dispositivos_sectores.py` · `test_dispositivos_ocupacion.py`
 
 ## Base de datos
 
