@@ -300,24 +300,29 @@ def censo_por_dia(dispositivo, desde: date, hasta: date | None = None, *, turnos
     def alojadas(momento):
         return sum(1 for ingreso, egreso in estadias if alojada_en(ingreso, egreso, momento))
 
+    # Los tramos son contiguos, así que la existencia al fin de uno es la del inicio del
+    # siguiente: se evalúa una vez por borde y no dos (revisión de #832).
     censos = []
     indice = 0
+    al_inicio = alojadas(inicio_rango)
     for fecha, del_dia in dias:
         tramos = []
         for turno, nombre, inicio, fin in del_dia:
+            al_fin = alojadas(fin)
             tramos.append(
                 TramoCenso(
                     turno=turno,
                     nombre=nombre,
                     inicio=inicio,
                     fin=fin,
-                    inicial=alojadas(inicio),
+                    inicial=al_inicio,
                     ingresos=ingresos[indice],
                     egresos=egresos[indice],
-                    alojadas_al_fin=alojadas(fin),
+                    alojadas_al_fin=al_fin,
                     estado=_estado(inicio, fin, ahora),
                 )
             )
+            al_inicio = al_fin
             indice += 1
         censos.append(CensoDia(dispositivo_id=pk, fecha_operativa=fecha, tramos=tuple(tramos), con_turnos=bool(turnos)))
     return censos

@@ -20,7 +20,6 @@ Todo en Python y sin ningún `Trunc*`: la base de ECOM no tiene tablas de zona h
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from django.db.models import Q
 from django.utils import timezone
 
 from programas.models import Estadia, MovimientoEstadia
@@ -91,19 +90,21 @@ def plaza_ocupada_despues_de(plaza, momento):
 
     Es la pregunta de una carga **retroactiva** (revisión de #826, MINOR 3): que la plaza
     esté libre ahora no dice que lo estuvo desde ``momento``. Alguien la ocupó en ese
-    lapso si **entró** a ella en ``momento`` o después, o si **salió** de ella después de
-    ``momento`` —entrara cuando entrara—. Quien salió justo en ``momento`` ya no estaba:
-    la ventana de su tramo es ``[desde, hasta)``. Quien sigue adentro lo dice la estadía
-    activa, que el ingreso y el cambio ya controlan aparte.
+    lapso si **salió** de ella después de ``momento``, entrara cuando entrara. Quien
+    salió justo en ``momento`` ya no estaba: la ventana de su tramo es ``[desde, hasta)``.
+    Quien sigue adentro lo dice la estadía activa, que el ingreso y el cambio ya
+    controlan aparte.
+
+    No se pregunta también por quien **entró** después de ``momento`` (revisión de #832):
+    sería redundante. Quien entró a la plaza y ya no está salió de ella, y toda salida
+    —un cambio a otra plaza o el egreso— deja un movimiento con esta plaza de origen y un
+    momento posterior a su entrada; y quien entró y sigue adentro es la estadía activa.
+    Lo único que esa rama sumaba era la estadía que entra y sale en el mismo instante
+    ``momento``, que bajo ``[desde, hasta)`` no ocupó nada. Sacarla deja además una sola
+    columna en el filtro: el ``OR`` entre dos FK terminaba en un ``index_merge`` en MySQL.
     """
 
-    return (
-        MovimientoEstadia.objects.filter(
-            Q(plaza_destino_id=_pk(plaza), momento__gte=momento) | Q(plaza_origen_id=_pk(plaza), momento__gt=momento)
-        )
-        .order_by()
-        .exists()
-    )
+    return MovimientoEstadia.objects.filter(plaza_origen_id=_pk(plaza), momento__gt=momento).order_by().exists()
 
 
 def linea_de_tiempo(estadia):
