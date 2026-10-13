@@ -482,12 +482,15 @@ def egresar_persona(
         ]
     )
 
+    # El movimiento lleva el motivo **del catálogo** y nunca las observaciones: son texto
+    # libre, pueden traer datos de la persona, y la línea de tiempo la lee todo el que opera
+    # el dispositivo. Las observaciones quedan solo en `Estadia.motivo_egreso`.
     registrar_movimiento(
         estadia=estadia,
         tipo=MovimientoEstadia.Tipo.EGRESO,
         momento=fecha_egreso,
         responsable=usuario,
-        motivo=motivo_egreso.nombre if motivo_egreso else motivo,
+        motivo=motivo_egreso.nombre if motivo_egreso else "",
         plaza_origen=estadia.plaza_id,
         estado_anterior=Estadia.Estado.ACTIVA,
         estado_nuevo=Estadia.Estado.EGRESADA,

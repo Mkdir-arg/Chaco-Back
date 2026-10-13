@@ -27,7 +27,13 @@ urlpatterns = [
     path("<int:pk>/editar/", legajo.DispositivoUpdateView.as_view(), name="editar"),
     path("<int:pk>/sectores/", legajo.DispositivoSectoresView.as_view(), name="sectores"),
     path("<int:pk>/estadias/", legajo.DispositivoEstadiasView.as_view(), name="estadias"),
+    path("<int:pk>/estadias/<int:estadia_pk>/", legajo.EstadiaDetalleView.as_view(), name="estadia_detalle"),
     path("<int:pk>/estadias/<int:estadia_pk>/egresar/", legajo.EstadiaEgresarView.as_view(), name="egresar"),
+    path(
+        "<int:pk>/estadias/<int:estadia_pk>/cambiar-plaza/",
+        legajo.EstadiaCambiarPlazaView.as_view(),
+        name="cambiar_plaza",
+    ),
     path("<int:pk>/ingresar/", ingreso.IngresoPersonaView.as_view(), name="ingreso_persona"),
     path("<int:pk>/ingresar/plaza/", ingreso.IngresoPlazaView.as_view(), name="ingreso_plaza"),
     path("<int:pk>/ingresar/confirmar/", ingreso.IngresoConfirmarView.as_view(), name="ingreso_confirmar"),

@@ -224,8 +224,8 @@
                 <td class="nodo-td text-right whitespace-nowrap">
                   <div class="inline-flex items-center gap-1">
                     {% if puede_ver_ciudadano %}
-                    <a href="{% url 'legajos:ciudadano_detalle' estadia.ciudadano.pk %}"
-                       class="nodo-icon-btn" aria-label="Ver legajo de {{ estadia.ciudadano.nombre_completo }}">
+                    <a href="{% url 'dispositivos:estadia_detalle' dispositivo.pk estadia.pk %}"
+                       class="nodo-icon-btn" aria-label="Ver estadía de {{ estadia.ciudadano.nombre_completo }}">
                       <i class="fas fa-eye" aria-hidden="true"></i>
                     </a>
                     {% endif %}
