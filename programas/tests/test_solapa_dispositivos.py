@@ -163,7 +163,9 @@ class SolapaSeOfreceTests(BaseSolapa):
 
     def test_no_se_ofrece_a_quien_no_es_del_programa(self):
         self.estadia_cerrada(self.cis)
-        de_becas = _usuario("operador-becas", _rol("Rol becas", ["dispositivo.ver"], self.otro_programa))
+        de_becas = _usuario(
+            "operador-becas", _rol("Rol becas", ["dispositivo.ver", "ciudadano.ver"], self.otro_programa)
+        )
 
         for usuario in (de_becas, None):
             solapas = SolapasService.obtener_solapas_ciudadano(self.persona, user=usuario)
@@ -227,6 +229,11 @@ class PantallaTests(BaseSolapa):
         # La lectura solo entrega la trayectoria: ni permisos ni URLs de operación
         # (cambiar plaza, trasladar, egresar), ni el modelo de la estadía.
         self.assertEqual(set(trayectoria_de(self.persona)), {"page_obj", "filas", "n_estadias", "hay_activa", "hoy"})
+        # Ni dentro del `Page`: iterarlo en el template no puede dar instancias de Estadia.
+        for item in trayectoria_de(self.persona)["page_obj"]:
+            self.assertIsInstance(item, dict)
+            self.assertNotIn("motivo_egreso", item)
+            self.assertNotIn("clave_alojamiento", item)
         self.assertEqual(
             set(trayectoria_de(self.persona)["filas"][0]),
             {"dispositivo", "tipo", "ubicacion", "ingreso", "egreso", "estado", "tono", "motivo"},
@@ -252,11 +259,33 @@ class PantallaTests(BaseSolapa):
         )
 
 
+class LegajoProgramasActivosTests(BaseSolapa):
+    """El bloque «Programas activos» del legajo lee `badge.title` de cada solapa de programa."""
+
+    def _solapa(self, usuario=None):
+        solapas = SolapasService.obtener_solapas_ciudadano(self.persona, user=usuario or self.del_programa())
+        return next(s for s in solapas if s["id"] == "programa_DISPOSITIVOS")
+
+    def test_con_estadia_abierta_dice_alojada(self):
+        self.estadia_activa(self.cis, self.plaza)
+
+        self.assertEqual(self._solapa()["badge"]["title"], "Alojada")
+
+    def test_con_solo_estadias_cerradas_no_dice_que_el_programa_sigue_activo(self):
+        self.estadia_cerrada(self.cis)
+        usuario = self.del_programa()
+        self.client.force_login(usuario)
+
+        self.assertEqual(self._solapa(usuario)["badge"]["title"], "Sin estadía activa")
+        detalle = self.client.get(reverse("legajos:ciudadano_detalle", args=[self.persona.pk]))
+        self.assertContains(detalle, "Sin estadía activa")
+
+
 class QuienPuedeVerlaTests(BaseSolapa):
     def test_sin_capacidad_del_programa_es_403(self):
         """Pertenecer al programa sigue habilitando: sin `dispositivo.ver` no hay pantalla."""
         self.estadia_cerrada(self.cis)
-        self.client.force_login(_usuario("sin-rol"))
+        self.client.force_login(_usuario("sin-rol", _rol("Rol solo legajo 2", ["ciudadano.ver"])))
 
         self.assertEqual(self.client.get(self.url()).status_code, 403)
 
@@ -289,18 +318,27 @@ class QuienPuedeVerlaTests(BaseSolapa):
 
     def test_la_capacidad_de_otro_programa_no_alcanza(self):
         self.estadia_cerrada(self.cis)
-        self.client.force_login(_usuario("de-becas", _rol("Rol becas", ["dispositivo.ver"], self.otro_programa)))
+        self.client.force_login(
+            _usuario("de-becas", _rol("Rol becas", ["dispositivo.ver", "ciudadano.ver"], self.otro_programa))
+        )
 
         self.assertEqual(self.client.get(self.url()).status_code, 403)
 
     def test_un_grupo_con_el_nombre_del_programa_no_habilita(self):
         """Se autoriza por capacidad, nunca por el nombre de un grupo."""
         self.estadia_cerrada(self.cis)
-        usuario = _usuario("grupo-homonimo")
+        usuario = _usuario("grupo-homonimo", _rol("Rol solo legajo 3", ["ciudadano.ver"]))
         usuario.groups.add(Group.objects.create(name="Dispositivos"))
         self.client.force_login(usuario)
 
         self.assertEqual(self.client.get(self.url()).status_code, 403)
+
+    def test_un_rol_global_con_las_dos_capacidades_la_ve(self):
+        """Decisión: un rol sin programa (`RolMeta.programa=None`) con las capacidades también habilita."""
+        self.estadia_cerrada(self.cis)
+        self.client.force_login(_usuario("global", _rol("Rol global", ["dispositivo.ver", "ciudadano.ver"])))
+
+        self.assertEqual(self.client.get(self.url()).status_code, 200)
 
     def test_el_superusuario_la_ve(self):
         self.estadia_cerrada(self.cis)

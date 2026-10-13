@@ -23,6 +23,7 @@ Es una vista de lectura: no devuelve URLs ni capacidades de operación.
 """
 
 from django.core.paginator import Paginator
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from programas.models import Estadia
@@ -78,15 +79,24 @@ def trayectoria_de(ciudadano, pagina=None):
     paginador = Paginator(base, POR_PAGINA)
     pagina_obj = paginador.get_page(pagina)
     activa = base.activas().first()
+    filas = [_fila(e) for e in pagina_obj.object_list]
+    # El `Page` solo lleva la paginación (número, contador, anterior/siguiente): se le
+    # cambian las instancias por las filas ya recortadas, así que ni un
+    # `{% for e in page_obj %}` puede tocar las observaciones del egreso, la clave de
+    # alojamiento ni quién registró cada movimiento.
+    pagina_obj.object_list = filas
     return {
         "page_obj": pagina_obj,
-        "filas": [_fila(e) for e in pagina_obj.object_list],
+        "filas": filas,
         "n_estadias": paginador.count,
         "hay_activa": activa is not None,
         "hoy": _texto_hoy(activa),
     }
 
 
-def cantidad_de_estadias(ciudadano):
-    """Cuántas estadías tiene la persona (abiertas y cerradas): el contador de la solapa."""
-    return Estadia.objects.filter(ciudadano=ciudadano).count()
+def resumen_de_estadias(ciudadano):
+    """`(total, abiertas)` de la persona en **una** consulta: el contador y el subtítulo de la solapa."""
+    datos = Estadia.objects.filter(ciudadano=ciudadano).aggregate(
+        total=Count("pk"), abiertas=Count("pk", filter=Q(estado=Estadia.Estado.ACTIVA))
+    )
+    return datos["total"], datos["abiertas"]

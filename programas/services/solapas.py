@@ -221,12 +221,12 @@ class SolapasService:
 
         from core import rbac
 
-        from ..selectors.trayectoria import cantidad_de_estadias
+        from ..selectors.trayectoria import resumen_de_estadias
         from .dispositivos import CAP_VER, programa_dispositivos, puede_en_programa_dispositivos
 
         if user is None or not (puede_en_programa_dispositivos(user, CAP_VER) and rbac.puede(user, "ciudadano.ver")):
             return None
-        total = cantidad_de_estadias(ciudadano)
+        total, abiertas = resumen_de_estadias(ciudadano)
         if not total:
             return None
         programa = programa_dispositivos(user)
@@ -238,7 +238,14 @@ class SolapasService:
             "url": reverse("legajos:dispositivos_ciudadano", args=[ciudadano.pk]),
             "orden": 100 + programa.orden,
             "estatica": False,
-            "badge": {"tipo": "numero", "valor": total, "color_hex": "var(--bg-brand)"},
+            # El título es lo que dice el bloque «Programas activos» del legajo: sin él quedaba
+            # vacío y, con solo estadías cerradas, parecía que el programa seguía activo.
+            "badge": {
+                "tipo": "numero",
+                "valor": total,
+                "color_hex": "var(--bg-brand)",
+                "title": "Alojada" if abiertas else "Sin estadía activa",
+            },
             # Sin panel dedicado en el legajo: el contenido vive en su pantalla.
             "contenido_embebido": True,
         }
