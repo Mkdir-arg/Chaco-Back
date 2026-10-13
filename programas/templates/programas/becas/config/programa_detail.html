@@ -6,6 +6,7 @@
 {% block title %}Becas · {{ programa.nombre }}{% endblock %}
 
 {% block main-content %}
+{% if puede_ordenar %}<link rel="stylesheet" href="{% static 'custom/css/nodo-constructor.css' %}">{% endif %}
 <div class="space-y-5"
      x-data="{
        tab: new URLSearchParams(window.location.search).get('tab') || 'segs',
@@ -18,15 +19,13 @@
        editReqTexto: '',
        editReqTipo: '',
        editReqObligatorio: 'True',
-       editReqOrden: 0,
        editReqOpciones: '',
        editReqPresentacion: 'LISTA', editReqCanal: 'ambos', editReqDestino: '',
-       openReqEdit(url, texto, tipo, obligatorio, orden, opciones, presentacion, canal, destino) {
+       openReqEdit(url, texto, tipo, obligatorio, opciones, presentacion, canal, destino) {
          this.editReqUrl = url;
          this.editReqTexto = texto;
          this.editReqTipo = tipo;
          this.editReqObligatorio = obligatorio;
-         this.editReqOrden = orden;
          this.editReqOpciones = (opciones || []).join('\n');
          this.editReqPresentacion = presentacion || 'LISTA';
          this.editReqCanal = canal || 'ambos';
@@ -173,7 +172,10 @@
     {# ============ TAB: Requisitos del programa ============ #}
     <div x-show="tab==='reqs'" x-cloak role="tabpanel" id="panel-reqs" aria-labelledby="tab-reqs" class="p-6 space-y-4">
       <div class="flex items-start justify-between gap-4 flex-wrap">
-        <p class="text-sm text-body-subtle max-w-xl">Requisitos del programa. Se heredan en los formularios de todos sus segmentos y subsegmentos.</p>
+        <div class="max-w-xl">
+          <p class="text-sm text-body-subtle">Requisitos del programa. Se heredan en los formularios de todos sus segmentos y subsegmentos.{% if puede_ordenar %} Arrastrá desde la manija para ordenarlos; se guarda al soltar.{% endif %}</p>
+          <span id="reqs-orden-estado" class="text-xs text-body-subtle" aria-hidden="true"></span>
+        </div>
         {% if request.user|puede:"becas.requisito.crear" %}
         <button type="button" @click="modalReq=true" class="btn-nodo btn-brand btn-base">
           <i class="fas fa-plus"></i> Nuevo requisito
@@ -261,7 +263,7 @@
             {{ form_requisito.texto }}
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
               {{ form_requisito.tipo }}
@@ -270,11 +272,6 @@
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Obligatorio</label>
               {{ form_requisito.obligatorio }}
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-heading mb-1">Orden</label>
-              {{ form_requisito.orden }}
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
           <div data-opciones-wrapper>
@@ -326,7 +323,7 @@
             <input type="text" name="texto" x-model="editReqTexto" required class="nodo-field">
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
               <select name="tipo" x-model="editReqTipo" class="nodo-field">
@@ -341,11 +338,6 @@
                 <option value="True">Obligatorio</option>
                 <option value="False">Opcional</option>
               </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-heading mb-1">Orden</label>
-              <input type="number" name="orden" x-model="editReqOrden" min="0" placeholder="Automático" class="nodo-field">
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
           <div x-show="editReqTipo === 'SELECTOR' || editReqTipo === 'SELECTOR_MULTIPLE'">
@@ -390,4 +382,6 @@
 {% block customJS %}{% include "programas/becas/_ajax_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>
 {% include "programas/becas/config/_tipo_selector_js.html" %}
+{% if puede_ordenar %}<script src="{% static 'vendor/sortablejs/Sortable.min.js' %}"></script>
+<script src="{% static 'custom/js/nodo-catalogo-grupos.js' %}"></script>{% endif %}
 {% if puede_dashboard %}<script src="{% static 'custom/js/becas-dashboard.js' %}" defer></script>{% endif %}{% endblock %}

@@ -18,7 +18,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Max
 from django.db.models.deletion import ProtectedError
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_POST
@@ -134,14 +134,40 @@ def _segmentos_ajax(request, message="Segmento guardado."):
     )
 
 
+def _requisitos_de_lista(nivel, ancla):
+    """Los requisitos **propios** de una lista ordenable (Cambio 264): los del
+    programa, los del segmento (sin subsegmento) o los del subsegmento. Es la
+    misma lista que muestra cada panel y la que renumera el arrastre."""
+    if nivel == "programa":
+        return RequisitoNativo.objects.filter(programa=ancla, segmento__isnull=True, subsegmento__isnull=True)
+    if nivel == "segmento":
+        return RequisitoNativo.objects.filter(segmento=ancla, subsegmento__isnull=True)
+    return RequisitoNativo.objects.filter(subsegmento=ancla)
+
+
+def _puede_ordenar_requisitos(user, nivel, ancla):
+    """¿Ve las manijas de arrastre? La capacidad de editar requisitos **y** el
+    mismo alcance que la edición (``_assert_scope_requisito``): el programa solo
+    su Administrador, el segmento quien lo configura y el subsegmento quien lo
+    opera."""
+    if not puede(user, CAP_REQUISITO_EDITAR):
+        return False
+    if nivel == "programa":
+        return es_admin_becas(user)
+    if nivel == "segmento":
+        return puede_configurar_segmento(user, ancla)
+    return puede_operar_subsegmento(user, ancla)
+
+
 def _requisitos_segmento_ajax(request, segmento, message="Requisito guardado."):
     return ajax_ok(
         request,
         target="#reqs-panel",
         partial="programas/becas/config/_requisitos_panel.html",
         context={
-            "requisitos": segmento.requisitos.filter(subsegmento__isnull=True).order_by("orden", "id"),
+            "requisitos": _requisitos_de_lista("segmento", segmento).order_by("orden", "id"),
             "segmento": segmento,
+            "puede_ordenar": _puede_ordenar_requisitos(request.user, "segmento", segmento),
         },
         message=message,
     )
@@ -153,8 +179,9 @@ def _requisitos_programa_ajax(request, programa, message="Requisito guardado."):
         target="#reqs-programa-panel",
         partial="programas/becas/config/_requisitos_programa_panel.html",
         context={
-            "requisitos": programa.requisitos.order_by("orden", "id"),
+            "requisitos": _requisitos_de_lista("programa", programa).order_by("orden", "id"),
             "programa": programa,
+            "puede_ordenar": _puede_ordenar_requisitos(request.user, "programa", programa),
         },
         message=message,
     )
@@ -166,9 +193,10 @@ def _requisitos_subsegmento_ajax(request, subsegmento, message="Requisito guarda
         target="#reqs-propios-panel",
         partial="programas/becas/config/_requisitos_propios_panel.html",
         context={
-            "requisitos_propios": subsegmento.requisitos.order_by("orden", "id"),
+            "requisitos_propios": _requisitos_de_lista("subsegmento", subsegmento).order_by("orden", "id"),
             "subsegmento": subsegmento,
             "segmento": subsegmento.segmento,
+            "puede_ordenar": _puede_ordenar_requisitos(request.user, "subsegmento", subsegmento),
         },
         message=message,
     )
@@ -266,7 +294,8 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
             .order_by("nombre")
         )
         ctx["segmentos"] = segmentos
-        ctx["requisitos"] = programa.requisitos.order_by("orden", "id")
+        ctx["requisitos"] = _requisitos_de_lista("programa", programa).order_by("orden", "id")
+        ctx["puede_ordenar"] = _puede_ordenar_requisitos(self.request.user, "programa", programa)
         ctx["form_segmento"] = SegmentoCreateForm(initial={"programa": programa.pk})
         ctx["form_requisito"] = RequisitoNativoForm(programa=programa)
         ctx["presentacion_choices"] = PresentacionCampo.choices
@@ -425,7 +454,8 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
         ctx["territoriales"] = seg.asignaciones_territorial.select_related("territorial").order_by(
             "territorial__first_name", "territorial__last_name", "territorial__username"
         )
-        ctx["requisitos"] = seg.requisitos.filter(subsegmento__isnull=True).order_by("orden", "id")
+        ctx["requisitos"] = _requisitos_de_lista("segmento", seg).order_by("orden", "id")
+        ctx["puede_ordenar"] = _puede_ordenar_requisitos(self.request.user, "segmento", seg)
         # Heredados del programa: solo lectura acá, se editan en el detalle del programa.
         ctx["requisitos_programa"] = (
             seg.programa.requisitos.order_by("orden", "id") if seg.programa_id else RequisitoNativo.objects.none()
@@ -791,6 +821,60 @@ def requisito_editar(request, pk):
     )
 
 
+_ANCLAS_REQUISITO = {"programa": ProgramaSiis, "segmento": Segmento, "subsegmento": Subsegmento}
+
+
+@login_required
+@requiere(CAP_REQUISITO_EDITAR)
+@require_POST
+def requisitos_reordenar(request, nivel, pk):
+    """Guarda el orden que dejó el arrastre en una lista de requisitos (Cambio 264).
+
+    Recibe ``{"ids": [...]}`` con **todos** los requisitos propios de la lista
+    —la del programa, la del segmento o la del subsegmento— en el orden nuevo y
+    los renumera 1..N. Los heredados no son de esta lista: si vienen, igual que
+    un id ajeno o uno que falta, es 409 (la pantalla quedó vieja). El alcance es
+    el mismo que el de editar un requisito de esa lista.
+    """
+    modelo = _ANCLAS_REQUISITO.get(nivel)
+    if modelo is None:
+        raise Http404("Nivel desconocido.")
+    ancla = get_object_or_404(modelo, pk=pk)
+    if nivel == "programa":
+        if not es_admin_becas(request.user):
+            raise PermissionDenied("Solo el Administrador del programa puede configurar sus requisitos.")
+    elif nivel == "segmento":
+        _assert_scope_segmento(request, ancla)
+    else:
+        _assert_scope_subsegmento(request, ancla)
+
+    try:
+        payload = json.loads(request.body or b"{}")
+        ids = payload["ids"]
+        if not isinstance(ids, list) or not all(type(item) is int for item in ids):
+            raise ValueError("ids")
+    except (ValueError, KeyError, TypeError):
+        return JsonResponse({"ok": False, "error": "Payload inválido."}, status=400)
+    if len(set(ids)) != len(ids):
+        return JsonResponse({"ok": False, "error": "Hay ids repetidos."}, status=400)
+
+    with transaction.atomic():
+        actuales = dict(
+            _requisitos_de_lista(nivel, ancla).select_for_update().order_by("orden", "id").values_list("pk", "orden")
+        )
+        if set(ids) != set(actuales):
+            return JsonResponse({"ok": False, "error": "La lista de requisitos cambió; recargá la página."}, status=409)
+        for posicion, req_pk in enumerate(ids, start=1):
+            if actuales[req_pk] != posicion:
+                RequisitoNativo.objects.filter(pk=req_pk).update(orden=posicion)
+
+    if nivel == "programa":
+        return _requisitos_programa_ajax(request, ancla, message="Orden guardado.")
+    if nivel == "segmento":
+        return _requisitos_segmento_ajax(request, ancla, message="Orden guardado.")
+    return _requisitos_subsegmento_ajax(request, ancla, message="Orden guardado.")
+
+
 class RequisitosSegmentoView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
     """Vista filtrable: todos los requisitos nativos, con filtro por segmento y subsegmento."""
 
@@ -844,7 +928,8 @@ class SubsegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginR
         heredados = list(seg.programa.requisitos.order_by("orden", "id")) if seg.programa_id else []
         heredados += list(seg.requisitos.filter(subsegmento__isnull=True).order_by("orden", "id"))
         ctx["requisitos_heredados"] = heredados
-        ctx["requisitos_propios"] = sub.requisitos.order_by("orden", "id")
+        ctx["requisitos_propios"] = _requisitos_de_lista("subsegmento", sub).order_by("orden", "id")
+        ctx["puede_ordenar"] = _puede_ordenar_requisitos(self.request.user, "subsegmento", sub)
         ctx["form_requisito"] = RequisitoNativoForm(segmento=seg, subsegmento=sub)
         ctx["presentacion_choices"] = PresentacionCampo.choices
         ctx["canal_choices"] = CanalFormulario.choices

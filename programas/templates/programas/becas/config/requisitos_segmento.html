@@ -11,11 +11,11 @@
        createSeg: '{{ seg_actual }}',
        createTipo: 'STRING', createPresentacion: 'LISTA', createCanal: 'ambos',
        segUrls: { {% for s in segmentos %}'{{ s.pk }}': '{% url 'becas:requisito_crear' s.pk %}'{% if not forloop.last %},{% endif %}{% endfor %} },
-       editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editOrden: 0, editOpciones: '',
+       editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editOpciones: '',
        editPresentacion: 'LISTA', editCanal: 'ambos', editDestino: '',
-       openEdit(url, texto, tipo, obl, orden, opc, presentacion, canal, destino) {
+       openEdit(url, texto, tipo, obl, opc, presentacion, canal, destino) {
          this.editUrl = url; this.editTexto = texto; this.editTipo = tipo;
-         this.editObl = obl; this.editOrden = orden; this.editOpciones = (opc || []).join('\n');
+         this.editObl = obl; this.editOpciones = (opc || []).join('\n');
          this.editPresentacion = presentacion || 'LISTA'; this.editCanal = canal || 'ambos';
          this.editDestino = destino || '';
          this.modalEdit = true;
@@ -92,7 +92,7 @@
             <input type="text" name="texto" required class="nodo-field">
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
               <select name="tipo" x-model="createTipo" class="nodo-field">
@@ -105,11 +105,6 @@
                 <option value="True">Obligatorio</option>
                 <option value="False">Opcional</option>
               </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-heading mb-1">Orden</label>
-              <input type="number" name="orden" min="0" placeholder="Automático" class="nodo-field">
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
           <div x-show="createTipo === 'SELECTOR' || createTipo === 'SELECTOR_MULTIPLE'">
@@ -168,7 +163,7 @@
             <input type="text" name="texto" x-model="editTexto" required class="nodo-field">
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="texto"></p>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-sm font-medium text-heading mb-1">Tipo de campo <span class="text-fg-danger">*</span></label>
               <select name="tipo" x-model="editTipo" class="nodo-field">
@@ -181,11 +176,6 @@
                 <option value="True">Obligatorio</option>
                 <option value="False">Opcional</option>
               </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-heading mb-1">Orden</label>
-              <input type="number" name="orden" x-model="editOrden" min="0" placeholder="Automático" class="nodo-field">
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
           <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">

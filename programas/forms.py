@@ -606,6 +606,9 @@ class _OrdenUnicoMixin:
     escribe, no puede chocar con el de otro registro del mismo alcance (dos
     requisitos no pueden compartir la misma posición en el formulario).
     Las subclases definen el alcance en ``hermanos_orden()``.
+
+    Hoy solo lo usa ``PreguntaGlobalForm``: los requisitos nativos dejaron de
+    tener el campo y se ordenan arrastrando (Cambio 264).
     """
 
     # Texto del error de choque; las subclases lo ajustan al alcance real.
@@ -990,8 +993,13 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
         return PreguntaGlobal.objects.all()
 
 
-class RequisitoNativoForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
-    """El ancla (programa, segmento o subsegmento) se fija desde la vista."""
+class RequisitoNativoForm(_PresentacionMixin, _OpcionesMixin):
+    """El ancla (programa, segmento o subsegmento) se fija desde la vista.
+
+    Sin ``orden`` (Cambio 264): el orden de cada lista se define arrastrando
+    en la pantalla (``requisitos_reordenar``). El alta entra al final de su
+    lista y la edición conserva la posición que tenía.
+    """
 
     obligatorio = forms.TypedChoiceField(
         label="Obligatorio",
@@ -1003,13 +1011,12 @@ class RequisitoNativoForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
 
     class Meta:
         model = RequisitoNativo
-        fields = ["texto", "tipo", "presentacion", "canal", "obligatorio", "orden", "destino_siis"]
+        fields = ["texto", "tipo", "presentacion", "canal", "obligatorio", "destino_siis"]
         widgets = {
             "texto": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
             "presentacion": forms.Select(attrs={"class": INPUT_CLASS}),
             "canal": forms.Select(attrs={"class": INPUT_CLASS}),
-            "orden": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
             "destino_siis": forms.Select(attrs={"class": INPUT_CLASS}),
         }
 
@@ -1023,17 +1030,6 @@ class RequisitoNativoForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
             self.instance.segmento = segmento
         # subsegmento puede ser None (requisito del segmento) o una instancia.
         self.instance.subsegmento = subsegmento
-        # El orden es único dentro de su lista: la del subsegmento, la del
-        # segmento (subsegmento nulo) o la del programa (Cambio 23).
-        if subsegmento is not None:
-            alcance = "subsegmento"
-        elif segmento is not None or self.instance.segmento_id:
-            alcance = "segmento"
-        else:
-            alcance = "programa"
-        self.mensaje_orden_duplicado = (
-            f"Ya hay otro requisito con el orden {{orden}} en este {alcance}. Elegí un número libre."
-        )
 
     def clean(self):
         cleaned = super().clean()
@@ -1056,7 +1052,17 @@ class RequisitoNativoForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
                 )
         return cleaned
 
+    def save(self, commit=True):
+        # Alta: al final de su lista (la del programa, la del segmento o la del
+        # subsegmento). Edición: el orden no viaja en el POST y se conserva.
+        if self.instance.pk is None:
+            ultimo = self.hermanos_orden().aggregate(m=models.Max("orden"))["m"]
+            self.instance.orden = (ultimo or 0) + 1
+        return super().save(commit=commit)
+
     def hermanos_orden(self):
+        """Los requisitos de la misma lista: la que comparte la numeración y
+        donde se controla el destino SIIS (Cambio 80)."""
         # Por ``_id`` para no explotar cuando el form se instancia sin ancla
         # (la vista de listado lo usa solo para renderizar el modal).
         return RequisitoNativo.objects.filter(
