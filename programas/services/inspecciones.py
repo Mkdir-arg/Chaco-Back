@@ -605,7 +605,7 @@ def situacion_de(inspeccion, hoy=None):
 def _condicion_situacion(situacion, hoy):
     """``Q`` de una situación en curso; ``None`` si no es una de :attr:`Situacion.EN_CURSO`."""
 
-    from programas.selectors.inspecciones import condicion_relevamiento_vencido
+    from programas.selectors.vencimiento_inspecciones import condicion_relevamiento_vencido
 
     limite = hoy + timedelta(days=DIAS_POR_VENCER)
     en_curso = Q(estado=InspeccionEdificio.Estado.ASIGNADA)
@@ -853,7 +853,7 @@ def semaforo_de_ultimas(ultimas, *, vencidos=()):
 def semaforos_de_dispositivos(dispositivo_ids):
     """``{dispositivo_id: Semaforo}`` en tres consultas fijas: el listado no hace una por fila."""
 
-    from programas.selectors.inspecciones import tiene_relevamiento_vencido
+    from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 
     ids = {pk for pk in dispositivo_ids if pk is not None}
     vinculos = list(

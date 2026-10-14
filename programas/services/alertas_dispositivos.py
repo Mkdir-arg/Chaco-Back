@@ -219,7 +219,7 @@ def relevamientos_vencidos(dispositivo, momento=None, usuario=None):
     """
 
     hoy = timezone.localdate(momento) if momento else timezone.localdate()
-    from programas.selectors.inspecciones import relevamientos_vencidos as consulta_vencidos
+    from programas.selectors.vencimiento_inspecciones import relevamientos_vencidos as consulta_vencidos
 
     inspecciones = (
         consulta_vencidos(hoy)

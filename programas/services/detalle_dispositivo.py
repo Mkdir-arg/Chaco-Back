@@ -34,7 +34,7 @@ from core.services.vencimientos import avisos
 from programas.models import Dispositivo, Edificio, Estadia, FotoInspeccion, InspeccionEdificio, Sector
 from programas.selectors.auditoria_dispositivo import auditoria_del_dispositivo
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio
-from programas.selectors.inspecciones import tiene_relevamiento_vencido
+from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.alertas_dispositivos import AMBITO, ICONOS, TONOS
 from programas.services.estadias import estado_visible
 from programas.services.inspecciones import (
