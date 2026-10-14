@@ -23,20 +23,20 @@
 
   <div class="bg-white rounded-xl border border-base shadow-sm p-6">
     <h2 class="text-heading font-bold">Resumen del ingreso</h2>
-    <dl class="mt-3 space-y-1 text-sm text-body">
-      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Persona:</dt><dd>{{ resumen.persona.nombre }}</dd></div>
-      <div class="flex gap-2"><dt class="font-medium text-heading w-32">DNI:</dt><dd class="font-mono">{{ resumen.persona.dni }}</dd></div>
+    <dl class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Persona</dt><dd class="mt-1 text-sm text-body">{{ resumen.persona.nombre }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">DNI</dt><dd class="mt-1 text-sm text-body font-mono">{{ resumen.persona.dni }}</dd></div>
       {% if resumen.persona.nacimiento %}
-      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Nacimiento:</dt><dd>{{ resumen.persona.nacimiento }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Nacimiento</dt><dd class="mt-1 text-sm text-body">{{ resumen.persona.nacimiento }}</dd></div>
       {% endif %}
       {% if resumen.persona.genero %}
-      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Género:</dt><dd>{{ resumen.persona.genero }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Género</dt><dd class="mt-1 text-sm text-body">{{ resumen.persona.genero }}</dd></div>
       {% endif %}
       {% if resumen.persona.domicilio %}
-      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Domicilio:</dt><dd>{{ resumen.persona.domicilio }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-sm text-body">{{ resumen.persona.domicilio }}</dd></div>
       {% endif %}
-      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Dispositivo:</dt><dd>{{ dispositivo.nombre }}</dd></div>
-      <div class="flex gap-2"><dt class="font-medium text-heading w-32">Plaza:</dt><dd>{% if resumen.plaza %}{{ resumen.plaza.codigo }} · {{ resumen.plaza.sector.nombre }}{% else %}Sin plaza asignada{% endif %}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Dispositivo</dt><dd class="mt-1 text-sm text-body">{{ dispositivo.nombre }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Plaza</dt><dd class="mt-1 text-sm text-body">{% if resumen.plaza %}{{ resumen.plaza.codigo }} · {{ resumen.plaza.sector.nombre }}{% else %}Sin plaza asignada{% endif %}</dd></div>
     </dl>
     <p class="mt-3 text-xs text-body-subtle">Al confirmar se registra la estadía{% if not resumen.persona.en_legajo %} y se da de alta a la persona en el Legajo Ciudadano con los datos del Registro de Personas{% endif %}.</p>
   </div>

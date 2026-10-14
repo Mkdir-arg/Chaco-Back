@@ -86,7 +86,7 @@ def consultar_registro_de_personas(dni, sexo):
     return datos, ""
 
 
-def plazas_para_ingresar(dispositivo):
+def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False):
     """El mapa del paso 2: sectores activos con cada plaza y su estado, sin bloquear nada.
 
     El estado de cada plaza lo deriva `ocupacion.estado_de_plazas`, el mismo que usa
@@ -101,7 +101,7 @@ def plazas_para_ingresar(dispositivo):
         "id", "sector_id", "codigo", "tipo", "estado", "motivo_fuera_servicio"
     )
     plazas = [plaza for plaza in plazas if tipo.admite_tipo_de_plaza(plaza.tipo)]
-    estados = estado_de_plazas(plazas)
+    estados = estado_de_plazas(plazas, puede_ver_personas=puede_ver_personas)
 
     por_sector = {sector.pk: [] for sector in sectores}
     for plaza in sorted(plazas, key=lambda p: p.codigo):

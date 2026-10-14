@@ -244,6 +244,16 @@
       "consultas_fijas": 2,
       "motivo": "Presupuesto nuevo (MVP v2 etapa 3, #697: solapa Novedades del detalle de la estadia, P7). Las novedades de la bitacora en las que la persona esta involucrada crecen todos los dias, asi que se paginan y no entran en las tres fijas de detalle_de_estadia: el COUNT del paginador y la pagina, con el responsable por select_related y solo las columnas que la tabla dibuja. Leer el responsable por fila seria un N+1 proporcional a la pagina. El test mide con 1 y con 16 novedades y exige el mismo numero. Lo corre programas/tests/test_dispositivos_bitacora_pantalla.py con --tag performance."
     },
+    "dispositivos_estado_de_plazas": {
+      "servicio": "programas.services.ocupacion.estado_de_plazas",
+      "consultas_fijas": 2,
+      "motivo": "Carril FA (P5/P6): dos consultas de movimientos vigentes, con apellido e inicial y vencimiento obtenidos mediante JOIN en esas mismas lecturas. Las plazas llegan materializadas por el consumidor. El test con 1 y 13 sectores y personas verifica que los detalles no producen consultas por plaza ni por ciudadano."
+    },
+    "dispositivos_plazas_para_ingresar": {
+      "servicio": "programas.services.ingreso.plazas_para_ingresar",
+      "consultas_fijas": 4,
+      "motivo": "Carril FA (P6): sectores activos (1), plazas compatibles (1) y estado_de_plazas con identidad autorizada y vencimiento (2). El test mide con 1 y 13 sectores, estadias y reservas; exige cuatro consultas, independientemente del volumen. El tipo del dispositivo ya llega cargado por la vista."
+    },
     "dispositivos_sectores_con_plazas": {
       "servicio": "programas.services.sectores_plazas.sectores_con_plazas",
       "consultas_fijas": 8,
