@@ -27,6 +27,25 @@ _CAMPOS_REQUERIDOS_VALIDACION = (
     "contacto_telefono",
 )
 
+# El mismo mapa para el encabezado y las filas del legajo institucional.
+TONOS_ESTADO = {
+    "BORRADOR": "white",
+    "PENDIENTE_VALIDACION": "info",
+    "ACTIVO": "success",
+    "OBSERVADO": "warning",
+    "RECHAZADO": "danger",
+    "INACTIVO": "gray",
+    "CERRADO": "gray",
+}
+
+
+def estado_de_dispositivo(dispositivo):
+    return {"texto": dispositivo.get_estado_display(), "tono": TONOS_ESTADO.get(dispositivo.estado, "gray")}
+
+
+def estado_de_tipo(tipo):
+    return {"texto": "Activo" if tipo.activo else "Inactivo", "tono": "success" if tipo.activo else "gray"}
+
 
 def normalizar_codigo_institucional(codigo):
     return " ".join(codigo.split()).upper()

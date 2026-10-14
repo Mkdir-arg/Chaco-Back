@@ -404,6 +404,33 @@ class EdificioTests(BaseCapacidad):
             self.assertEqual([fila["pk"] for fila in filas], [edificio.pk])
             self.assertEqual(filas[0]["otras_instituciones"], 1)
 
+    def test_el_detalle_renderiza_el_estado_de_la_otra_institucion_del_predio(self):
+        edificio = crear_edificio(dispositivo=self.cis, usuario=self.operador_cis, **self._datos())
+        vincular_edificio(edificio=edificio, dispositivo=self.parador, usuario=self.administrador)
+        self.client.force_login(self.administrador)
+
+        for estado, texto, tono in (
+            (Dispositivo.Estado.BORRADOR, "Borrador", "white"),
+            (Dispositivo.Estado.PENDIENTE_VALIDACION, "Pendiente de validación", "info"),
+            (Dispositivo.Estado.ACTIVO, "Activo", "success"),
+            (Dispositivo.Estado.OBSERVADO, "Observado", "warning"),
+            (Dispositivo.Estado.RECHAZADO, "Rechazado", "danger"),
+            (Dispositivo.Estado.INACTIVO, "Inactivo", "gray"),
+            (Dispositivo.Estado.CERRADO, "Cerrado", "gray"),
+        ):
+            with self.subTest(estado=estado):
+                Dispositivo.objects.filter(pk=self.parador.pk).update(estado=estado)
+
+                respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]))
+
+                self.assertEqual(respuesta.status_code, 200)
+                fila = next(
+                    fila
+                    for fila in respuesta.content.decode().split("</tr>")
+                    if f'href="{reverse("dispositivos:detalle", args=[self.parador.pk])}"' in fila
+                )
+                self.assertInHTML(f'<span class="badge badge-dot badge-{tono}">{texto}</span>', fila)
+
     def test_solo_se_vincula_lo_que_el_alcance_alcanza(self):
         """Sin esto, el combo sería la lista de los inmuebles de todas las instituciones."""
 

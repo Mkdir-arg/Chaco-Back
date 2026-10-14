@@ -24,6 +24,58 @@ from django.urls import reverse
 from core.templatetags.nodo_ui import hay_filtros, sin_parametros
 
 
+class PageHeaderEstadoTests(SimpleTestCase):
+    def render(self, argumentos="", **datos):
+        return Template(
+            '{% load nodo_ui %}{% page_header titulo="CIS N.º 3" '
+            + argumentos
+            + ' %}<button type="button">Editar</button>{% endpage_header %}'
+        ).render(Context(datos))
+
+    def test_sin_parametro_conserva_html_completo_y_no_hereda_estado(self):
+        # JSON conserva cada espacio del render anterior sin whitespace final en el archivo.
+        esperado = json.loads(
+            (Path(__file__).parent / "snapshots/page_header_sin_estado.snapshot").read_text(encoding="utf-8")
+        )
+        for argumentos in ("", 'estado_texto=""', 'estado_variante="success"'):
+            with self.subTest(argumentos=argumentos):
+                html = self.render(argumentos, estado_texto="Estado del contexto", estado_variante="danger")
+                self.assertEqual(html.replace("\r\n", "\n"), esperado)
+                self.assertNotIn("badge", html)
+
+    def test_estado_junto_al_h1_fuera_de_acciones(self):
+        html = self.render('estado_texto="Activo" estado_variante="success"')
+        self.assertInHTML(
+            '<div class="flex items-center gap-3 flex-wrap">'
+            '<h1 class="text-3xl font-extrabold text-heading tracking-tight">CIS N.º 3</h1>'
+            '<span class="badge badge-dot badge-success">Activo</span></div>',
+            html,
+        )
+        self.assertInHTML(
+            '<div class="flex items-center gap-2 flex-wrap"><button type="button">Editar</button></div>', html
+        )
+        self.assertEqual(html.count("badge-dot"), 1)
+
+    def test_texto_escapado_y_variante_validada(self):
+        for variante in ("gray", "white", "brand", "success", "danger", "warning", "info", 'inventada" onclick=mal'):
+            with self.subTest(variante=variante):
+                html = self.render(
+                    "estado_texto=texto estado_variante=variante", texto="<script>x</script>", variante=variante
+                )
+                tono = (
+                    variante
+                    if variante in ("gray", "white", "brand", "success", "danger", "warning", "info")
+                    else "gray"
+                )
+                self.assertIn(f'class="badge badge-dot badge-{tono}"', html)
+                self.assertIn("&lt;script&gt;x&lt;/script&gt;", html)
+                self.assertNotIn("<script>", html)
+                self.assertNotIn("onclick", html)
+
+    def test_variante_ausente_es_gris(self):
+        self.assertIn('class="badge badge-dot badge-gray"', self.render('estado_texto="Activo"'))
+
+
 @skipUnless(os.environ.get("CHACO_PLAYWRIGHT") == "1", "Requiere Playwright y Chromium en el entorno de prueba")
 class TablaResponsiveTest(SimpleTestCase):
     """Mide el overflow real, incluido el rótulo accesible absoluto de Acciones."""

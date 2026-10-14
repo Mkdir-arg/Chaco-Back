@@ -1,16 +1,8 @@
 {% comment %}
 Badge de estado del legajo de dispositivo. Espera `dispositivo` en el contexto.
-Mapa de los 7 estados de Dispositivo.Estado a las variantes canónicas de
-`nodo-badges.css`, siguiendo el patrón de becas/relevamientos/_estado_badge.html.
+Acepta modelos y dicts con estado y get_estado_display (texto precalculado).
+Tono: TONOS_ESTADO en services/dispositivos.py, compartido con el header P4/P19.
+Conserva las variantes canónicas de nodo-badges.css para los 7 estados de Dispositivo.Estado.
 {% endcomment %}
-{% with e=dispositivo.estado %}
-<span class="badge badge-dot
-  {% if e == 'BORRADOR' %}badge-white
-  {% elif e == 'PENDIENTE_VALIDACION' %}badge-info
-  {% elif e == 'ACTIVO' %}badge-success
-  {% elif e == 'OBSERVADO' %}badge-warning
-  {% elif e == 'RECHAZADO' %}badge-danger
-  {% elif e == 'INACTIVO' %}badge-gray
-  {% elif e == 'CERRADO' %}badge-gray
-  {% else %}badge-gray{% endif %}">{{ dispositivo.get_estado_display }}</span>
-{% endwith %}
+{% load dispositivos %}
+<span class="badge badge-dot badge-{{ dispositivo.estado|tono_estado_dispositivo }}">{{ dispositivo.get_estado_display }}</span>

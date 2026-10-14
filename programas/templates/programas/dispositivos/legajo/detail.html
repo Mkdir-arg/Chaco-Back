@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load static nodo_ui %}
+{% load static nodo_ui dispositivos %}
 {% block title %}Dispositivos · {{ dispositivo.nombre }}{% endblock %}
 
 {% block main-content %}
@@ -22,9 +22,9 @@
 
     {# ===== PageHeader ===== #}
     {% url 'dispositivos:lista' as url_volver %}
-    {% page_header titulo=dispositivo.nombre volver_url=url_volver volver_label="Dispositivos" %}
+    {% estado_dispositivo dispositivo as estado_header %}
+    {% page_header titulo=dispositivo.nombre volver_url=url_volver volver_label="Instituciones" estado_texto=estado_header.texto estado_variante=estado_header.tono %}
       {% bajada %}{{ dispositivo.codigo }} · {{ dispositivo.tipo.nombre }}{% if dispositivo.domicilio %} · {{ dispositivo.domicilio }}{% if dispositivo.localidad %}, {{ dispositivo.localidad }}{% endif %}{% elif dispositivo.localidad %} · {{ dispositivo.localidad }}{% endif %}{% if dispositivo.responsable_nombre %} · responsable {{ dispositivo.responsable_nombre }}{% endif %}{% endbajada %}
-      {% include "programas/dispositivos/_estado_badge.html" %}
       {# La bitácora pide lo mismo que esta pantalla (dispositivo.ver con alcance): quien está acá la puede abrir #}
       <a href="{% url 'dispositivos:bitacora' dispositivo.pk %}" class="btn-nodo btn-secondary btn-sm btn-fit">
         <i class="fas fa-clock" aria-hidden="true"></i> Bitácora del turno

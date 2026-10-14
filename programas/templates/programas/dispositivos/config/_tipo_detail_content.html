@@ -1,23 +1,10 @@
+{% load nodo_ui dispositivos %}
 <div class="mb-8">
-  <div class="flex items-start justify-between gap-4 flex-wrap mb-6">
-    <div class="flex items-start gap-3 min-w-0">
-      <a href="{% url 'dispositivos:tipos' %}"
-         class="btn-tertiary btn-back-circle"
-         aria-label="Volver a tipos de dispositivo">
-        <i class="fas fa-arrow-left" aria-hidden="true"></i>
-      </a>
-      <div class="min-w-0">
-      <div class="flex items-center gap-2">
-        <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">{{ tipo.nombre }}</h1>
-        <span class="badge badge-dot {% if tipo.activo %}badge-success{% else %}badge-gray{% endif %}">
-          {% if tipo.activo %}Activo{% else %}Inactivo{% endif %}
-        </span>
-      </div>
-      <p class="text-sm text-body-subtle mt-1.5">{{ tipo.codigo }}{% if tipo.descripcion %} · {{ tipo.descripcion }}{% endif %}</p>
-      {% if tipo.maneja_camas %}<p class="text-sm text-body-subtle mt-1">Semáforo de ocupación: amarillo desde {{ tipo.umbral_ocupacion_amarillo }}% · rojo desde {{ tipo.umbral_ocupacion_rojo }}%.</p>{% endif %}
-      </div>
-    </div>
-    <div class="flex gap-2 flex-wrap">
+  <div class="mb-6">
+    {% url 'dispositivos:tipos' as url_volver %}
+    {% estado_tipo_dispositivo tipo as estado_header %}
+    {% page_header titulo=tipo.nombre eyebrow="Tipo de dispositivo" volver_url=url_volver volver_label="tipos de dispositivo" estado_texto=estado_header.texto estado_variante=estado_header.tono %}
+      {% bajada %}{{ tipo.codigo }}{% if tipo.descripcion %} · {{ tipo.descripcion }}{% endif %}{% if tipo.maneja_camas %}<br>Semáforo de ocupación: amarillo desde {{ tipo.umbral_ocupacion_amarillo }}% · rojo desde {{ tipo.umbral_ocupacion_rojo }}%.{% endif %}{% endbajada %}
       <a href="{% url 'dispositivos:tipo_editar' tipo.pk %}"
          class="btn-nodo btn-secondary btn-base"
          data-edit-url="{% url 'dispositivos:tipo_editar' tipo.pk %}">Editar tipo</a>
@@ -29,7 +16,7 @@
               data-confirm-ok="{% if tipo.activo %}Sí, desactivar{% else %}Sí, activar{% endif %}">
         {% if tipo.activo %}Desactivar{% else %}Activar{% endif %}
       </button>
-    </div>
+    {% endpage_header %}
   </div>
 
   <form class="hidden">{% csrf_token %}</form>
