@@ -318,7 +318,9 @@ class IngresoPlazaView(IngresoBaseView):
         """`(sectores, elegibles)` del dispositivo, calculado una sola vez por petición."""
 
         if not hasattr(self, "_mapa"):
-            self._mapa = plazas_para_ingresar(self.dispositivo)
+            self._mapa = plazas_para_ingresar(
+                self.dispositivo, puede_ver_personas=puede(self.request.user, CAP_VER_CIUDADANO)
+            )
         return self._mapa
 
     def render_paso(self, request, estado, persona, elegida=None, error="", aviso=""):

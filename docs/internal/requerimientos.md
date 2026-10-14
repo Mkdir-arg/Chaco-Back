@@ -426,6 +426,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 296 | Test del censo independiente de la hora del runner | Dispositivos · tests de bitácora y censo | `#datos` `#infra` | Juez — encargo urgente en sesión | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 297 | Fidelidad de bitácora, trayectoria e instituciones | Dispositivos · P10, P16 y P2 | `#ui` `#rbac` `#performance` | Juez — carril FC de fidelidad del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 298 | Fidelidad del detalle del dispositivo y su Infraestructura | Dispositivos · P2/P4/P19 | `#ui` `#rbac` `#gps` `#performance` | Juez — carril FB | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 299 | Fidelidad del mapa de plazas y del asistente de ingreso | Dispositivos · sectores, plazas e ingreso | `#ui` `#rbac` `#performance` | Juez — carril FA del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -38292,6 +38293,176 @@ y corrige unicidad entre sectores y respuestas de alcance. Rebasado únicamente 
 
 ---
 
+# Cambio 292 — Notificaciones: las imágenes del .zip viajan incrustadas en cada correo y se retira la ruta pública
+
+🟢 **HECHO — 14/10/2026** · revierte la parte pública del [Cambio 285](#cambio-285--notificaciones-el-cuerpo-del-correo-se-sube-como-zip-con-la-carpeta-y-sus-imágenes-quedan-publicadas) · análisis [007](analisis/007-notificaciones-campanas-email.md) (RNF-007-14, RN-007-22)
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — notificaciones (armado del correo, envío masivo y prueba, vista previa, alta y edición) |
+| **Etiquetas** | `#correo` `#datos` `#ui` |
+| **Solicitante** | PM — plan B del 14/10/2026, diseño del juez |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | sin issue (análisis 007) · rama `feature/notificaciones-imagenes-incrustadas` |
+| **Partes afectadas** | Backoffice (detalle y formulario de la campaña) · Hilo de envío · Middlewares de sesión · Superficie pública |
+| **Migración** | `notificaciones.0004` (solo datos: los `src` guardados pasan a `cid:`) |
+
+## Pedido original
+
+En testing la campaña con el .zip quedó bien en la base (14 imágenes, `src` a
+`https://datanach.ecomdev.ar/notificaciones/img/<token>/…`) y desde la red interna las URLs daban 200,
+pero el correo llegó a Gmail con las **14 imágenes rotas**: desde internet el WAF de ECOM (FortiWeb,
+«Web Page Blocked! Attack ID: 20000018») bloquea esa ruta, y PRD tiene el mismo WAF. Gmail baja las
+imágenes con su proxy desde internet, así que no llegan. El PM decidió el **plan B**: las imágenes
+viajan incrustadas en cada correo y dejan de depender de cualquier URL pública.
+
+## Alcance acordado
+
+Se mantiene todo lo del Cambio 285 sobre el .zip (topes, validación, recodificación sin EXIF/GPS, tope
+de píxeles, `ImagenCampana` en `media/`). Cambia cómo llegan las imágenes al correo y a la vista previa,
+se agrega un tope de peso y se retira la superficie pública con su configuración.
+
+## Decisiones tomadas
+
+- **Por qué se revierte la parte pública del Cambio 285.** La ruta `/notificaciones/img/` la bloquea el
+  WAF de ECOM desde internet en testing y en PRD; ningún cliente de correo con proxy (Gmail) la puede
+  bajar. Con las imágenes incrustadas la ruta no sirve para nada, así que se retira entera: la vista,
+  la URL, la exención `RUTAS_PUBLICAS_SIN_SESION` de los cuatro middlewares de sesión, la entrada de
+  `ALLOWLIST_PUBLICA` (los ratchets vuelven a **14** y **32**) y `NOTIF_URL_PUBLICA` de `settings` y
+  `.env.qa.example`. **La exposición pública aprobada por el PM el 14/10 a la mañana queda retirada**:
+  las imágenes vuelven a estar solo detrás de login (`/media/` con `notificacion.ver`).
+- **Formato del HTML guardado**: cada `src` de imagen alojada se reescribe, antes del saneo, a
+  `cid:<nombre>@datanach` (el nombre publicado, único por campaña). `nh3` admite el esquema `cid`; después
+  del saneo se le saca el `src` a todo `cid:` que no sea de una imagen del paquete, así un `cid:` en un
+  HTML suelto sigue sin llegar a nadie y sigue contando como «no visible». Cualquier otro atributo con
+  `cid:` (`href="cid:…"`) se quita siempre. La comparación es **sin distinguir mayúsculas** en el saneo y
+  en el armado del correo: un `CID:01-LOGO.PNG@DATANACH` escrito a mano recibe el mismo trato y el saneo
+  lo deja escrito con el nombre exacto. `data:` sigue prohibido en el HTML del operador.
+- **Árbol MIME**: `multipart/related [ multipart/alternative [text/plain, text/html], imagen1, … ]`
+  (`EmailMultiAlternatives` con `mixed_subtype = "related"`). Cada imagen es una `MIMEImage` con
+  `Content-ID: <nombre@datanach>`, `Content-Disposition: inline; filename=…` y su tipo real; una sola parte
+  aunque el HTML la use varias veces, y solo las que el HTML nombra. El HTML referencia `cid:` **sin**
+  `<>`, que es lo que entiende Gmail. No se agrega el parámetro `type=` del `multipart/related` (Django no
+  lo expone y los clientes no lo exigen).
+- **Una lectura por corrida**: el envío masivo arma las partes una vez y las reusa para todos los
+  destinatarios (la imagen se lee del disco y se pasa a base64 una sola vez). La prueba usa el mismo
+  armado. Una imagen que falta en el disco no frena el correo: sale sin esa imagen, queda en el log y
+  se avisa (revisión del juez, ronda 2): el envío masivo deja «Faltan en el servidor N imágenes: …; los
+  correos salen sin ellas» en `campana.mensaje` —acompaña cualquier desenlace y el detalle lo muestra
+  como «Aviso del envío» también en una campaña enviada— y la prueba lo suma al mensaje del toast.
+- **Vista previa**: el `iframe sandbox` es de origen opaco y no manda cookies, así que no puede pedir las
+  imágenes a una ruta con login. La respuesta de la vista previa cambia cada `cid:` propio por un
+  `data:` con la imagen (solo ahí, después del saneo; lo guardado sigue con `cid:`) y su CSP pasa a
+  `img-src https: data:` (sale `'self'`; `https:` queda para las imágenes publicadas afuera de un HTML
+  suelto).
+- **Tope de peso**: el total de las imágenes incluidas, ya recodificadas, es de **2 MB** por campaña
+  (cada correo las lleva todas: ~2,7 MB en base64). Si se pasa, error en el campo con el total y el tope,
+  y la campaña no se crea ni se edita. La previsualización muestra «Cada correo pesa ~N KB (M imágenes
+  incrustadas)»: HTML + texto + imágenes en base64.
+- **Datos existentes**: `notificaciones.0004` reescribe en `html_sanitizado` de todas las campañas los
+  `src` `…/notificaciones/img/<token>/<nombre>` a `cid:<nombre>@datanach`, **solo** cuando existe la
+  `ImagenCampana` con ese token y nombre; lo demás queda igual. `texto_plano` no nombra imágenes. En
+  testing la toca la campaña «Test2» (14 imágenes); PRD no tiene el módulo.
+- **Textos**: la ayuda del campo dice «Las imágenes del .zip viajan dentro de cada correo (hasta 2 MB en
+  total)»; los avisos hablan de imágenes «que no se incluyen»; la confirmación de «Eliminar» vuelve al
+  texto original (el aviso de que las imágenes «dejan de verse en los correos ya enviados» ya no aplica:
+  los correos enviados las llevan adentro).
+
+## Implementación
+
+- `notificaciones/services/incrustadas.py` (nuevo): `cid_de`/`src_de`, `imagenes_referenciadas`,
+  `partes_mime`, `html_para_vista_previa` (data URIs) y `peso_aproximado`; `TOPE_BYTES` = 2 MB.
+- `notificaciones/services/paquete.py`: reescribe a `cid:` y controla el tope de peso.
+- `notificaciones/services/html.py`: `cid` en los esquemas, `quitar_cid_ajenos` y el conteo de no visibles
+  sin los `cid:` propios.
+- `notificaciones/services/envio.py`: `armar_mensaje(…, partes=…)` arma el `multipart/related`; `correr`
+  arma las partes una vez.
+- `notificaciones/views/campanas.py`: sin `imagen_publica`; vista previa con `data:` y la CSP nueva;
+  aviso de peso. `notificaciones/urls.py`: sin `img/<token>/<nombre>`.
+- `notificaciones/forms/__init__.py`, `notificaciones/templates/notificaciones/campana_detail.html`: textos.
+- `notificaciones/models/__init__.py`, `core/rutas_media.py`, `core/views/media.py`: docstrings (sin cambio
+  de esquema; la regla de `/media/` para las imágenes queda).
+- `core/middleware.py`, `users/middleware.py`, `config/settings.py`, `.env.qa.example`,
+  `core/tests/test_superficie_publica.py`: vuelven a como estaban antes del Cambio 285 (ningún otro
+  cambio los había tocado).
+
+## Archivos
+
+`notificaciones/{services/incrustadas.py, services/paquete.py, services/html.py, services/envio.py,
+services/campanas.py, views/campanas.py, urls.py, forms/__init__.py, models/__init__.py,
+migrations/0004_imagenes_incrustadas.py, templates/notificaciones/campana_detail.html}`,
+`notificaciones/tests/{test_imagenes_incrustadas.py (reemplaza a test_imagenes_publicas.py), test_paquete.py}`,
+`core/{middleware.py, rutas_media.py, views/media.py, tests/test_superficie_publica.py}`,
+`users/middleware.py`, `config/settings.py`, `.env.qa.example`,
+`docs/internal/analisis/007-notificaciones-campanas-email.md`.
+
+## Base de datos
+
+`notificaciones.0004`: `RunPython` de datos, sin DDL. Reescribe `Campana.html_sanitizado` (los `src` de
+la ruta pública con su `ImagenCampana` → `cid:`). Reversa `noop` con `# REVERSA-NOOP`: los `src` quedan
+como `cid:`.
+
+## Validación
+
+- `notificaciones`: 155 tests en verde (Py 3.12 + Dj 5.2). `test_imagenes_incrustadas` fija el **árbol MIME
+  exacto** (`related > alternative[text, html] + image/jpeg + image/png`), que los Content-ID son
+  `<nombre@datanach>` y coinciden con los `cid:` sin `<>` del HTML, que una imagen usada dos veces es una
+  sola parte, que los bytes de cada parte son los guardados, que prueba y envío masivo (locmem) llevan
+  las imágenes y que el envío arma las partes **una vez** por corrida; la vista previa con `data:` y su
+  CSP; la ruta pública que ya no responde 200 sin sesión; `/media/` con `notificacion.ver`; la migración
+  (forward con una campaña en el formato viejo: reescribe las propias y deja un token ajeno y una URL
+  externa); el tope de 2 MB por servicio y por pantalla; el HTML suelto sigue como `alternative` sin
+  partes. `core.tests.test_superficie_publica` y `test_media_protegida` en verde con los ratchets en 14 y 32.
+  **Suite completa**: 6.120 tests en verde (64 salteados), sobre `development` @ 986ab1b5. Ronda 2:
+  `notificaciones` + `test_superficie_publica` + `test_media_protegida`, 215 tests en verde (el merge
+  solo trajo `programas`, `.claude/` y `scripts/perf_budgets.json`)..
+- **Mutaciones, de a una, todas en rojo**: Content-ID distinto del `cid:` del HTML, Content-ID sin `<>`,
+  `src` sin el dominio del Content-ID, sin `mixed_subtype = "related"`, partes armadas por destinatario,
+  vista previa sin `data:` y sin el tope de 2 MB (dos tests). Ronda 2: sin el aviso en la campaña, sin el
+  aviso en la prueba, `href="cid:"` conservado, saneo e incrustadas distinguiendo mayúsculas.
+- **Prueba manual con el mailing real** (zip fuera del repo, base SQLite de prueba, alta por la
+  pantalla): 14 imágenes incluidas (210 KB recodificadas), 0 faltantes, 0 no incluidas; el `.eml` de la
+  prueba (locmem) pesa **305.956 bytes** (~299 KB), raíz `multipart/related`, 14 partes de imagen cuyos
+  Content-ID coinciden con los 14 `cid:` distintos del HTML; el detalle dice «Cada correo pesa ~287 KB
+  (14 imágenes incrustadas)» y la vista previa trae 14 `data:` y ningún `cid:`.
+- `manage.py check`, `makemigrations --check --dry-run` (SYNCDB=False), `check_migraciones.py` (1
+  migración, 0 problemas), `ruff`, `bandit` (0 issues), `design_audit --ratchet` (0 nuevos),
+  `--arquetipo detalle` OK, `compile_templates` 0 errores, `check_design_agent --changed` OK.
+
+## Puesta en marcha en el servidor
+
+- Migrar (`notificaciones.0004`): en testing reescribe «Test2». Después, mandar una prueba de esa campaña
+  a una casilla de Gmail y verificar que se ven las 14 imágenes.
+- Si alguien cargó `NOTIF_URL_PUBLICA` en el entorno, se puede borrar: ya no se lee.
+
+## Pendientes / a definir
+
+- Peso de los correos: con 2 MB de imágenes cada correo pesa ~2,7 MB; 5.000 destinatarios son ~13 GB
+  por el SMTP de ECOM. Si el relay limita por volumen, bajar `NOTIF_LOTE` o subir `NOTIF_PAUSA_SEG`.
+- DECISIÓN CLIENTE (sigue del Cambio 285): ¿se incluyen también los fondos por CSS y el atributo
+  `background`?
+
+## Reversión
+
+1. `git revert` del merge: vuelve la ruta pública y `NOTIF_URL_PUBLICA` (el WAF la sigue bloqueando).
+2. `migrate notificaciones 0003`: la reversa no deshace nada; los `src` quedan como `cid:` y, con el
+   código del Cambio 285, esas imágenes se verían rotas. Para volver a URLs hay que re-subir el .zip de
+   cada campaña «A enviar».
+3. Sin archivos que borrar.
+
+## Historial
+
+**14/10/2026** — Entrada nueva (reservada al empezar la rama).
+
+**14/10/2026 — revisión del juez, ronda 2 (APPROVE con MINOR).** Se trajo `development` (conflicto solo
+en este archivo, resuelto a mano: el de `development` entero más esta fila, esta entrada y la nota del
+285; el 292 seguía libre). Entraron los tres MINOR: aviso visible de imágenes que faltan en el servidor
+(campaña y toast de la prueba), `cid:` fuera de todo atributo que no sea el `src` de una imagen del
+paquete, y `cid:` sin distinguir mayúsculas en saneo y armado. `enviar_prueba` devuelve ahora
+`(ok, error, aviso)`. La CSP de la vista previa no cambia.
+
+---
+
 # Cambio 296 — Test del censo independiente de la hora del runner
 
 🟢 **HECHO — 14/10/2026**
@@ -38726,172 +38897,177 @@ el pase adicional de 70 tests volvió a verde.
 
 ---
 
-# Cambio 292 — Notificaciones: las imágenes del .zip viajan incrustadas en cada correo y se retira la ruta pública
+---
 
-🟢 **HECHO — 14/10/2026** · revierte la parte pública del [Cambio 285](#cambio-285--notificaciones-el-cuerpo-del-correo-se-sube-como-zip-con-la-carpeta-y-sus-imágenes-quedan-publicadas) · análisis [007](analisis/007-notificaciones-campanas-email.md) (RNF-007-14, RN-007-22)
+# Cambio 299 — Fidelidad del mapa de plazas y del asistente de ingreso
+
+🟢 **HECHO — 14/10/2026** · Carril FA · P5/P6 del MVP de Dispositivos
 
 | | |
 |---|---|
-| **Programa / módulo** | Transversal — notificaciones (armado del correo, envío masivo y prueba, vista previa, alta y edición) |
-| **Etiquetas** | `#correo` `#datos` `#ui` |
-| **Solicitante** | PM — plan B del 14/10/2026, diseño del juez |
+| **Programa / módulo** | Dispositivos · sectores, plazas e ingreso |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | Juez — encargo directo del carril FA del MVP de Dispositivos |
 | **Fecha del pedido** | 14/10/2026 |
-| **Issue / épica** | sin issue (análisis 007) · rama `feature/notificaciones-imagenes-incrustadas` |
-| **Partes afectadas** | Backoffice (detalle y formulario de la campaña) · Hilo de envío · Middlewares de sesión · Superficie pública |
-| **Migración** | `notificaciones.0004` (solo datos: los `src` guardados pasan a `cid:`) |
+| **Issue / épica** | Sin issue propio · Épica #127 · apilado sobre PR #858 (carril C5) |
+| **Partes afectadas** | P5, P6, mapa de plazas canónico y auditor de Wizard |
+| **Migración** | No requiere |
 
 ## Pedido original
 
-En testing la campaña con el .zip quedó bien en la base (14 imágenes, `src` a
-`https://datanach.ecomdev.ar/notificaciones/img/<token>/…`) y desde la red interna las URLs daban 200,
-pero el correo llegó a Gmail con las **14 imágenes rotas**: desde internet el WAF de ECOM (FortiWeb,
-«Web Page Blocked! Attack ID: 20000018») bloquea esa ruta, y PRD tiene el mismo WAF. Gmail baja las
-imágenes con su proxy desde internet, así que no llegan. El PM decidió el **plan B**: las imágenes
-viajan incrustadas en cada correo y dejan de depender de cualquier URL pública.
-
-## Alcance acordado
-
-Se mantiene todo lo del Cambio 285 sobre el .zip (topes, validación, recodificación sin EXIF/GPS, tope
-de píxeles, `ImagenCampana` en `media/`). Cambia cómo llegan las imágenes al correo y a la vista previa,
-se agrega un tope de peso y se retira la superficie pública con su configuración.
+Cerrar seis diferencias de fidelidad contra `docs/client/mockups/dispositivos-v2.html`,
+P5/P6: identificar ocupantes, reservas y préstamos; porcentaje por sector; Persona como
+columna lateral; distinguir plazas elegibles; unificar listas de datos con P7; dejar el
+paso de plaza en OK en `design_audit --arquetipo wizard`. Reutilizar las piezas existentes,
+conservar la lógica y no introducir consultas por plaza.
 
 ## Decisiones tomadas
 
-- **Por qué se revierte la parte pública del Cambio 285.** La ruta `/notificaciones/img/` la bloquea el
-  WAF de ECOM desde internet en testing y en PRD; ningún cliente de correo con proxy (Gmail) la puede
-  bajar. Con las imágenes incrustadas la ruta no sirve para nada, así que se retira entera: la vista,
-  la URL, la exención `RUTAS_PUBLICAS_SIN_SESION` de los cuatro middlewares de sesión, la entrada de
-  `ALLOWLIST_PUBLICA` (los ratchets vuelven a **14** y **32**) y `NOTIF_URL_PUBLICA` de `settings` y
-  `.env.qa.example`. **La exposición pública aprobada por el PM el 14/10 a la mañana queda retirada**:
-  las imágenes vuelven a estar solo detrás de login (`/media/` con `notificacion.ver`).
-- **Formato del HTML guardado**: cada `src` de imagen alojada se reescribe, antes del saneo, a
-  `cid:<nombre>@datanach` (el nombre publicado, único por campaña). `nh3` admite el esquema `cid`; después
-  del saneo se le saca el `src` a todo `cid:` que no sea de una imagen del paquete, así un `cid:` en un
-  HTML suelto sigue sin llegar a nadie y sigue contando como «no visible». Cualquier otro atributo con
-  `cid:` (`href="cid:…"`) se quita siempre. La comparación es **sin distinguir mayúsculas** en el saneo y
-  en el armado del correo: un `CID:01-LOGO.PNG@DATANACH` escrito a mano recibe el mismo trato y el saneo
-  lo deja escrito con el nombre exacto. `data:` sigue prohibido en el HTML del operador.
-- **Árbol MIME**: `multipart/related [ multipart/alternative [text/plain, text/html], imagen1, … ]`
-  (`EmailMultiAlternatives` con `mixed_subtype = "related"`). Cada imagen es una `MIMEImage` con
-  `Content-ID: <nombre@datanach>`, `Content-Disposition: inline; filename=…` y su tipo real; una sola parte
-  aunque el HTML la use varias veces, y solo las que el HTML nombra. El HTML referencia `cid:` **sin**
-  `<>`, que es lo que entiende Gmail. No se agrega el parámetro `type=` del `multipart/related` (Django no
-  lo expone y los clientes no lo exigen).
-- **Una lectura por corrida**: el envío masivo arma las partes una vez y las reusa para todos los
-  destinatarios (la imagen se lee del disco y se pasa a base64 una sola vez). La prueba usa el mismo
-  armado. Una imagen que falta en el disco no frena el correo: sale sin esa imagen, queda en el log y
-  se avisa (revisión del juez, ronda 2): el envío masivo deja «Faltan en el servidor N imágenes: …; los
-  correos salen sin ellas» en `campana.mensaje` —acompaña cualquier desenlace y el detalle lo muestra
-  como «Aviso del envío» también en una campaña enviada— y la prueba lo suma al mensaje del toast.
-- **Vista previa**: el `iframe sandbox` es de origen opaco y no manda cookies, así que no puede pedir las
-  imágenes a una ruta con login. La respuesta de la vista previa cambia cada `cid:` propio por un
-  `data:` con la imagen (solo ahí, después del saneo; lo guardado sigue con `cid:`) y su CSP pasa a
-  `img-src https: data:` (sale `'self'`; `https:` queda para las imágenes publicadas afuera de un HTML
-  suelto).
-- **Tope de peso**: el total de las imágenes incluidas, ya recodificadas, es de **2 MB** por campaña
-  (cada correo las lleva todas: ~2,7 MB en base64). Si se pasa, error en el campo con el total y el tope,
-  y la campaña no se crea ni se edita. La previsualización muestra «Cada correo pesa ~N KB (M imágenes
-  incrustadas)»: HTML + texto + imágenes en base64.
-- **Datos existentes**: `notificaciones.0004` reescribe en `html_sanitizado` de todas las campañas los
-  `src` `…/notificaciones/img/<token>/<nombre>` a `cid:<nombre>@datanach`, **solo** cuando existe la
-  `ImagenCampana` con ese token y nombre; lo demás queda igual. `texto_plano` no nombra imágenes. En
-  testing la toca la campaña «Test2» (14 imágenes); PRD no tiene el módulo.
-- **Textos**: la ayuda del campo dice «Las imágenes del .zip viajan dentro de cada correo (hasta 2 MB en
-  total)»; los avisos hablan de imágenes «que no se incluyen»; la confirmación de «Eliminar» vuelve al
-  texto original (el aviso de que las imágenes «dejan de verse en los correos ya enviados» ya no aplica:
-  los correos enviados las llevan adentro).
+- `estado_de_plazas` sigue siendo la fuente única de los estados y sus detalles. Las dos
+  consultas de movimientos traen apellido, nombre y vencimiento mediante JOIN; no se
+  consulta una persona por celda. La precedencia y vigencia vigentes se conservan.
+- Los nombres solo se muestran con `ciudadano.ver` (Cambios 271/277). La vista resuelve la
+  capacidad; los servicios reciben un booleano con valor predeterminado seguro. Ocupada
+  muestra apellido e inicial; sin capacidad, el detalle queda vacío y no repite el estado.
+  Reservada/Prestada muestran persona abreviada y vencimiento, o solo vencimiento sin
+  capacidad. No se expone DNI.
+- El vencimiento lleva fecha y hora local en formato `hasta DD/MM HH:MM`, sin año,
+  para que entre en la celda móvil y permita distinguir préstamos de distintos días;
+  una reserva sin fecha dice «sin vencimiento». Fuera de servicio conserva su motivo.
+- El porcentaje sale de `tension_de_ocupacion(Conteo)` sobre ocupadas/operativas, calculadas
+  por `ocupacion_de_plazas`: no suma reservas ni usa capacidad declarada o total cargado.
+  Cero ocupadas muestra 0 %; sin operativas se omite el porcentaje.
+- P6 conserva la intención por GET y la confirmación por POST, con protección contra
+  cambios en otra pestaña. El mapa queda a la izquierda y Persona a la derecha; en móvil
+  se apilan. Persona y el resumen final usan los rótulos en versalita de P7.
+- El pie de P6 y su grupo de acciones usan `flex-wrap` con el `gap-3` existente: los
+  botones envuelven a 390 px y conservan su disposición a 1440 px.
+- La pieza existente distingue enlaces con `cursor-pointer` de celdas informativas con
+  `cursor-not-allowed` y `aria-disabled`. Se conservan estados tonales y texto «Elegida»;
+  no hay variante nueva ni CSS o JavaScript propio.
+- El paso de plaza no tiene BoundFields visibles. El auditor reconoce el include real
+  del mapa como el control compuesto ya documentado por la ficha Wizard, en lugar de
+  exigir `_field` sobre un comentario. No acepta mapas comentados y sigue exigiendo el
+  include real de errores, el formulario y su pie. Las fichas se actualizan en el mismo diff.
+
+### Plan de pantalla
+
+Tipo A (ajuste existente) · P5: Detalle apilado, referencia
+`programas/templates/programas/becas/cupo/segmento_detail.html`; bajada de cada sector con
+porcentaje y `_mapa_plazas` con detalle. P6: Wizard, referencia
+`configuracion/templates/configuracion/programa_wizard_paso4.html`; stepper y pie existentes,
+grilla `grid grid-cols-1 lg:grid-cols-3 gap-5` pedida en el encargo, con la distribución
+de la golden de Revisión
+`programas/templates/programas/dispositivos/estadia/revision_referencia.html`, mapa en
+`lg:col-span-2`, Persona a la derecha, rótulos del include canónico `_ficha_seccion` que usa
+P7. Resumen final con los mismos rótulos. Rutas y assets: `dispositivos:sectores`,
+`dispositivos:ingreso_plaza`, `dispositivos:ingreso_confirmar` → templates de `sectores/` e
+`ingreso/` → shell `includes/base.html`, Tailwind compilado, stepper, forms y tokens NODO.
+Clasificación: mapa, leyenda, surfaces, campos, errores y grilla de referencia son canónicos
+reutilizables. Novedades: ninguna. No se modifica legacy.
+La corrección de revisión se limita al detalle del mapa y al pie existente de P6:
+`flex flex-wrap justify-between gap-3` y grupo `flex flex-wrap gap-3`, con botones
+canónicos y la misma golden de Wizard. Se actualizan las fichas de mapa y Wizard.
+
+### Apartamientos del mockup
+
+- El mapa mantiene las columnas responsive canónicas y sus íconos; no reproduce los valores
+  arbitrarios ni colores crudos del prototipo. No se agrega una variante de elegibilidad:
+  la distinción usa cursor, ARIA y los estados que ya ofrece la pieza.
+- El porcentaje respeta ocupadas/operativas aunque el ejemplo «14 ocupadas, 1 fuera de
+  servicio, 16 plazas · 88 %» del mockup usa el total: esos datos reales darían 93 %.
+  Conserva la fuente `tension_de_ocupacion`, compartida con P1/P2; la revisión no cambia
+  el cálculo ni el denominador.
+- El mapa de P6 conserva una surface por sector y el pie de navegación debajo de la grilla;
+  no se convierte en una única lista ni se lleva el formulario dentro de Persona.
+- No se agregan «Excepcional», lista de espera, Ficha mínima configurable, liberación desde
+  P6, «Ver mapa», ni panel lateral de acciones/historial de P5. Son diferencias heredadas
+  que requieren otros datos, flujos o piezas y no forman parte del carril.
 
 ## Implementación
 
-- `notificaciones/services/incrustadas.py` (nuevo): `cid_de`/`src_de`, `imagenes_referenciadas`,
-  `partes_mime`, `html_para_vista_previa` (data URIs) y `peso_aproximado`; `TOPE_BYTES` = 2 MB.
-- `notificaciones/services/paquete.py`: reescribe a `cid:` y controla el tope de peso.
-- `notificaciones/services/html.py`: `cid` en los esquemas, `quitar_cid_ajenos` y el conteo de no visibles
-  sin los `cid:` propios.
-- `notificaciones/services/envio.py`: `armar_mensaje(…, partes=…)` arma el `multipart/related`; `correr`
-  arma las partes una vez.
-- `notificaciones/views/campanas.py`: sin `imagen_publica`; vista previa con `data:` y la CSP nueva;
-  aviso de peso. `notificaciones/urls.py`: sin `img/<token>/<nombre>`.
-- `notificaciones/forms/__init__.py`, `notificaciones/templates/notificaciones/campana_detail.html`: textos.
-- `notificaciones/models/__init__.py`, `core/rutas_media.py`, `core/views/media.py`: docstrings (sin cambio
-  de esquema; la regla de `/media/` para las imágenes queda).
-- `core/middleware.py`, `users/middleware.py`, `config/settings.py`, `.env.qa.example`,
-  `core/tests/test_superficie_publica.py`: vuelven a como estaban antes del Cambio 285 (ningún otro
-  cambio los había tocado).
+P5 y P6 muestran quién ocupa o tiene tomada cada plaza según la capacidad del lector.
+Los vencimientos y motivos se leen en la misma celda. Cada sector de P5 termina su
+bajada con el porcentaje. El paso 2 distribuye mapa y Persona en dos columnas de escritorio.
+La navegación y la escritura del ingreso mantienen su contrato anterior.
 
 ## Archivos
 
-`notificaciones/{services/incrustadas.py, services/paquete.py, services/html.py, services/envio.py,
-services/campanas.py, views/campanas.py, urls.py, forms/__init__.py, models/__init__.py,
-migrations/0004_imagenes_incrustadas.py, templates/notificaciones/campana_detail.html}`,
-`notificaciones/tests/{test_imagenes_incrustadas.py (reemplaza a test_imagenes_publicas.py), test_paquete.py}`,
-`core/{middleware.py, rutas_media.py, views/media.py, tests/test_superficie_publica.py}`,
-`users/middleware.py`, `config/settings.py`, `.env.qa.example`,
-`docs/internal/analisis/007-notificaciones-campanas-email.md`.
+`programas/services/ocupacion.py`, `services/ingreso.py`, `services/sectores_plazas.py`,
+`programas/views/dispositivos_ingreso.py`, `views/dispositivos_legajo.py`, templates
+`dispositivos/sectores/sectores.html`, `dispositivos/ingreso/paso_plaza.html` y
+`paso_confirmar.html`, `templates/components/_mapa_plazas.html`,
+`programas/tests/test_dispositivos_fidelidad.py`, `core/tests/test_nodo_ui_lote_b.py`,
+`core/tests/test_design_audit_estructura.py`, `scripts/design_audit.py`,
+`scripts/perf_budgets.json`, fichas `componentes/mapa_plazas.md` y `arquetipos/wizard.md`.
 
 ## Base de datos
 
-`notificaciones.0004`: `RunPython` de datos, sin DDL. Reescribe `Campana.html_sanitizado` (los `src` de
-la ruta pública con su `ImagenCampana` → `cid:`). Reversa `noop` con `# REVERSA-NOOP`: los `src` quedan
-como `cid:`.
+No requiere migraciones ni cambios de datos.
 
 ## Validación
 
-- `notificaciones`: 155 tests en verde (Py 3.12 + Dj 5.2). `test_imagenes_incrustadas` fija el **árbol MIME
-  exacto** (`related > alternative[text, html] + image/jpeg + image/png`), que los Content-ID son
-  `<nombre@datanach>` y coinciden con los `cid:` sin `<>` del HTML, que una imagen usada dos veces es una
-  sola parte, que los bytes de cada parte son los guardados, que prueba y envío masivo (locmem) llevan
-  las imágenes y que el envío arma las partes **una vez** por corrida; la vista previa con `data:` y su
-  CSP; la ruta pública que ya no responde 200 sin sesión; `/media/` con `notificacion.ver`; la migración
-  (forward con una campaña en el formato viejo: reescribe las propias y deja un token ajeno y una URL
-  externa); el tope de 2 MB por servicio y por pantalla; el HTML suelto sigue como `alternative` sin
-  partes. `core.tests.test_superficie_publica` y `test_media_protegida` en verde con los ratchets en 14 y 32.
-  **Suite completa**: 6.120 tests en verde (64 salteados), sobre `development` @ 986ab1b5. Ronda 2:
-  `notificaciones` + `test_superficie_publica` + `test_media_protegida`, 215 tests en verde (el merge
-  solo trajo `programas`, `.claude/` y `scripts/perf_budgets.json`)..
-- **Mutaciones, de a una, todas en rojo**: Content-ID distinto del `cid:` del HTML, Content-ID sin `<>`,
-  `src` sin el dominio del Content-ID, sin `mixed_subtype = "related"`, partes armadas por destinatario,
-  vista previa sin `data:` y sin el tope de 2 MB (dos tests). Ronda 2: sin el aviso en la campaña, sin el
-  aviso en la prueba, `href="cid:"` conservado, saneo e incrustadas distinguiendo mayúsculas.
-- **Prueba manual con el mailing real** (zip fuera del repo, base SQLite de prueba, alta por la
-  pantalla): 14 imágenes incluidas (210 KB recodificadas), 0 faltantes, 0 no incluidas; el `.eml` de la
-  prueba (locmem) pesa **305.956 bytes** (~299 KB), raíz `multipart/related`, 14 partes de imagen cuyos
-  Content-ID coinciden con los 14 `cid:` distintos del HTML; el detalle dice «Cada correo pesa ~287 KB
-  (14 imágenes incrustadas)» y la vista previa trae 14 `data:` y ningún `cid:`.
-- `manage.py check`, `makemigrations --check --dry-run` (SYNCDB=False), `check_migraciones.py` (1
-  migración, 0 problemas), `ruff`, `bandit` (0 issues), `design_audit --ratchet` (0 nuevos),
-  `--arquetipo detalle` OK, `compile_templates` 0 errores, `check_design_agent --changed` OK.
+- `manage.py check`, `makemigrations --check --dry-run` con syncdb desactivado,
+  `check_migraciones.py`, compilación de templates, auditoría de cada pantalla,
+  ratchet contra `origin/development` y goldens: OK. Tailwind reconstruido sin diff.
+- Tests por módulos: ingreso, sectores, acciones y ocupación (100); fidelidad,
+  arquitectura y contratos UI (112); snapshots de detalle de Becas regenerados (6),
+  sin diff; performance de programas (24): OK. Ruff y contratos de diseño/performance: OK.
+- Presupuestos nuevos: `dispositivos_estado_de_plazas` = 2 consultas;
+  `dispositivos_plazas_para_ingresar` = 4. El presupuesto existente de P5 sigue en 8.
+  El test compara 1 y 13 sectores, con personas, estadías y reservas en ambos tamaños.
+  No sube ningún presupuesto; no requiere una entrada en `_meta.adjustments`.
+- **Mutaciones verificadas** (romper → rojo por aserción → restaurar desde copia exacta):
+  saltar privacidad en el servicio; habilitar identidad en P5 sin capacidad; quitar
+  vencimiento; usar total como denominador; leer ciudadano por estadía sin JOIN;
+  omitir identidad autorizada en P6; enlazar plazas no elegibles; quitar `aria-disabled`;
+  quitar reconocimiento del control compuesto del auditor; quitar errores del paso;
+  quitar la columna doble del mapa; volver al rótulo «Persona:». Las 12 dieron rojo.
+  Los originales se restauraron byte a byte, sin `git checkout` ni stash.
+- `requerimientos.py --check`: el registro numérico se valida. El marcador `295`, pedido
+  por el juez, queda para numeración final; el parser actual solo indexa números.
+  También se valida la entrada nueva en una copia temporal con número provisional: OK.
+- Tras rebasar sobre C5 actualizado: 183 tests de fidelidad, contratos, arquitectura,
+  P7 y alta de edificio/sector/plaza en verde. Render real revisado en Edge headless:
+  P5/P6 a 1440 px y P6 a 390 px; se comparan los renders con las capturas P05/P06.
+  Base final: `origin/development` tras el merge de #858; el árbol de esa base es idéntico
+  al C5 validado y el rebase no tiene conflictos.
+- Corrección de revisión independiente: los 82 tests de fidelidad, sectores, ingreso y
+  ocupación y los 24 de performance pasan; tras restaurar las mutaciones, los 24 tests
+  de fidelidad y arquitectura vuelven a verde. Reloj fijo del 14/10/2026.
+- Mutaciones adicionales verificadas: rellenar el detalle de ocupada con su estado;
+  anteponer el estado al vencimiento de reservada/prestada; volver a incluir el año.
+  Las tres dan rojo por aserciones; restauración byte a byte desde copia, sin checkout.
+- Playwright con Edge headless, SQLite temporal y `runserver` en puerto libre:
+  P5/P6 tienen `scrollWidth == innerWidth` tanto a 390 como a 1440 px; los vencimientos
+  sin identidad caben completos a 390 px y los botones de P6 quedan dentro de la card.
+  Se comprueba P6 tanto con plaza obligatoria como opcional («Continuar sin plaza»).
+  A 1440 px las cajas de los botones son idénticas con y sin `flex-wrap`.
+  Mutación visual: quitar la envoltura del pie a 390 px vuelve a desbordar el contenido
+  del botón; la aserción detecta la regresión. Capturas y mediciones quedan fuera del repo
+  en el directorio temporal `chaco-fa-playwright-20261014`.
 
 ## Puesta en marcha en el servidor
 
-- Migrar (`notificaciones.0004`): en testing reescribe «Test2». Después, mandar una prueba de esa campaña
-  a una casilla de Gmail y verificar que se ven las 14 imágenes.
-- Si alguien cargó `NOTIF_URL_PUBLICA` en el entorno, se puede borrar: ya no se lee.
+No requiere pasos adicionales al deploy.
 
 ## Pendientes / a definir
 
-- Peso de los correos: con 2 MB de imágenes cada correo pesa ~2,7 MB; 5.000 destinatarios son ~13 GB
-  por el SMTP de ECOM. Si el relay limita por volumen, bajar `NOTIF_LOTE` o subir `NOTIF_PAUSA_SEG`.
-- DECISIÓN CLIENTE (sigue del Cambio 285): ¿se incluyen también los fondos por CSS y el atributo
-  `background`?
+El juez debe asignar número a `295` en encabezado e índice. Los apartamientos heredados
+se mantienen fuera de alcance. No quedan reglas de producto ni consultas por resolver
+para los seis puntos del carril FA. No se abre PR ni se cambia configuración de roles.
+El hallazgo móvil del pie de P6 se corrige en esta revisión con envoltura de sus acciones.
+La grilla apila mapa y Persona, como corresponde; no se modifica el shell/CSS legacy.
 
 ## Reversión
 
-1. `git revert` del merge: vuelve la ruta pública y `NOTIF_URL_PUBLICA` (el WAF la sigue bloqueando).
-2. `migrate notificaciones 0003`: la reversa no deshace nada; los `src` quedan como `cid:` y, con el
-   código del Cambio 285, esas imágenes se verían rotas. Para volver a URLs hay que re-subir el .zip de
-   cada campaña «A enviar».
-3. Sin archivos que borrar.
+Revertir los commits propios del carril FA. No se pierden datos ni hay migraciones que
+desaplicar. Se vuelve al mapa sin identidades y al armado previo del asistente.
 
 ## Historial
 
-**14/10/2026** — Entrada nueva (reservada al empezar la rama).
-
-**14/10/2026 — revisión del juez, ronda 2 (APPROVE con MINOR).** Se trajo `development` (conflicto solo
-en este archivo, resuelto a mano: el de `development` entero más esta fila, esta entrada y la nota del
-285; el 292 seguía libre). Entraron los tres MINOR: aviso visible de imágenes que faltan en el servidor
-(campaña y toast de la prueba), `cid:` fuera de todo atributo que no sea el `src` de una imagen del
-paquete, y `cid:` sin distinguir mayúsculas en saneo y armado. `enviar_prueba` devuelve ahora
-`(ok, error, aviso)`. La CSP de la vista previa no cambia.
+Entrada nueva; numeración final a cargo del juez.
+14/10/2026: revisión independiente — se corrigen el estado repetido, el vencimiento
+demasiado largo y el pie móvil de P6. El porcentaje sobre operativas se conserva.
 
 ---
