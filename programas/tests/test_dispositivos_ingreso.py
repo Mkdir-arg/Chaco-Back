@@ -437,7 +437,7 @@ class DosPestanasTests(BaseIngreso):
         # Pestaña A: Ana en P1, en «Confirmar».
         self._hasta_la_plaza(self.persona, self.plaza)
         pestana_a = self.client.get(self.url_confirmar)
-        self.assertContains(pestana_a, self.persona.dni)
+        self.assertContains(pestana_a, "30.111.222")
         mostrado_en_a = self._campos_ocultos(pestana_a)
 
         # Pestaña B, misma sesión: Juan en P2.
@@ -454,7 +454,7 @@ class DosPestanasTests(BaseIngreso):
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, "cambió en otra pestaña")
         # El resumen se vuelve a mostrar con lo que hay ahora, y recién eso se puede confirmar.
-        self.assertContains(respuesta, self.otra_persona.dni)
+        self.assertContains(respuesta, "30.333.444")
         self.client.post(self.url_confirmar, self._campos_ocultos(respuesta))
         self.assertEqual(Estadia.objects.get(ciudadano=self.otra_persona).plaza, self.otra_plaza)
 
@@ -535,7 +535,7 @@ class DosPestanasTests(BaseIngreso):
 
         respuesta = self.client.get(self.url_confirmar)
         self.assertEqual(respuesta.status_code, 200)
-        self.assertContains(respuesta, self.persona.dni)
+        self.assertContains(respuesta, "30.111.222")
 
 
 class EntrePasosTests(BaseIngreso):

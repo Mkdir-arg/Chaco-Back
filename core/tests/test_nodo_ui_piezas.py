@@ -4,10 +4,12 @@ alerta inline, errores no de campo y el filtro ``hay_filtros``
 
 import importlib.util
 import json
+import os
 import re
 from decimal import Decimal
 from io import StringIO
 from pathlib import Path
+from unittest import skipUnless
 
 from django import forms, template
 from django.contrib.auth.models import AnonymousUser, User
@@ -20,6 +22,41 @@ from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.urls import reverse
 
 from core.templatetags.nodo_ui import hay_filtros, sin_parametros
+
+
+@skipUnless(os.environ.get("CHACO_PLAYWRIGHT") == "1", "Requiere Playwright y Chromium en el entorno de prueba")
+class TablaResponsiveTest(SimpleTestCase):
+    """Mide el overflow real, incluido el rótulo accesible absoluto de Acciones."""
+
+    def test_el_scroll_de_la_tabla_no_amplia_la_pagina(self):
+        from playwright.sync_api import sync_playwright
+
+        raiz = Path(__file__).resolve().parents[2]
+        css = "\n".join(
+            (raiz / "static/custom/css" / nombre).read_text(encoding="utf-8")
+            for nombre in ("tailwind.css", "nodo-tables.css")
+        )
+        with sync_playwright() as motor:
+            navegador = motor.chromium.launch()
+            pagina = navegador.new_page(viewport={"width": 390, "height": 700})
+            pagina.set_content(
+                '<!DOCTYPE html><html class="overflow-x-hidden"><head><style>' + css + "</style></head>"
+                '<body class="overflow-x-hidden"><div class="p-4"><div class="overflow-x-auto">'
+                '<table class="w-full border-collapse"><thead><tr class="nodo-thead-row">'
+                '<th class="nodo-th">Persona</th><th class="nodo-th text-right">'
+                '<span class="sr-only">Acciones</span></th></tr></thead><tbody><tr>'
+                '<td class="nodo-td">' + "DocumentoSinEspacios" * 8 + '</td><td class="nodo-td">Ver</td>'
+                "</tr></tbody></table></div></div></body></html>"
+            )
+            self.assertEqual(pagina.evaluate("document.documentElement.scrollWidth"), 390)
+            wrapper = pagina.locator(".overflow-x-auto")
+            self.assertTrue(wrapper.evaluate("e => e.scrollWidth > e.clientWidth"))
+            wrapper.evaluate("e => e.scrollLeft = e.scrollWidth")
+            self.assertGreater(wrapper.evaluate("e => e.scrollLeft"), 0)
+            self.assertEqual(pagina.locator("th").last.text_content().strip(), "Acciones")
+            self.assertEqual(pagina.evaluate("document.documentElement.scrollWidth"), 390)
+            navegador.close()
+
 
 PAGINACION = "components/_paginacion.html"
 STAT = "components/_stat_card.html"
@@ -748,6 +785,13 @@ class LineaTiempoTest(SimpleTestCase):
 
 
 class FichaSeccionTest(SimpleTestCase):
+    def test_formatea_el_dni_y_conserva_los_otros_valores_y_el_contexto(self):
+        campos = [{"etiqueta": "DNI", "valor": "12345678"}, {"etiqueta": "Expediente", "valor": "12345678"}]
+        html = render_to_string("components/_ficha_seccion.html", {"codigo": "persona", "campos": campos})
+        self.assertInHTML('<dd class="mt-1 text-sm text-body">12.345.678</dd>', html)
+        self.assertInHTML('<dd class="mt-1 text-sm text-body">12345678</dd>', html)
+        self.assertEqual(campos[0]["valor"], "12345678")
+
     def _render(self, **contexto):
         return render_to_string(FICHA_SECCION, {"codigo": "salud", "titulo": "9 · Salud", **contexto})
 

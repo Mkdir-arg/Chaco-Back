@@ -8,7 +8,7 @@
 
   {# ===== PageHeader (solo lectura: sin acciones) ===== #}
   {% page_header titulo=ciudadano.nombre_completo volver_url=url_legajo volver_label="legajo ciudadano" %}
-    {% bajada %}Trayectoria en Dispositivos · DNI {{ ciudadano.dni }}{% if ciudadano.edad is not None %} · {{ ciudadano.edad }} años{% endif %}{% endbajada %}
+    {% bajada %}Trayectoria en Dispositivos · DNI {{ ciudadano.dni|dni }}{% if ciudadano.edad is not None %} · {{ ciudadano.edad }} años{% endif %}{% endbajada %}
   {% endpage_header %}
 
   {% include "components/_alerta.html" with tono="info" titulo="Hoy:" texto=hoy %}

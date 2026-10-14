@@ -145,7 +145,7 @@
 
       {# ===== TAB: Datos ===== #}
       <div x-show="tab==='datos'" x-cloak role="tabpanel" id="panel-datos" aria-labelledby="tab-datos" class="p-6">
-        <dl class="grid gap-5 sm:grid-cols-2">
+        <dl class="grid gap-5 sm:grid-cols-2 break-words">
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Tipo</dt><dd class="mt-1 text-body">{{ dispositivo.tipo.nombre }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Localidad</dt><dd class="mt-1 text-body">{{ dispositivo.localidad|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ dispositivo.domicilio|default:'—' }}</dd></div>
@@ -228,7 +228,7 @@
                     <div class="w-8 h-8 rounded-full bg-brand-soft text-fg-brand flex items-center justify-center text-xs font-bold flex-shrink-0" aria-hidden="true">{{ estadia.ciudadano.nombre|slice:":1"|upper }}{{ estadia.ciudadano.apellido|slice:":1"|upper }}</div>
                     <div class="min-w-0">
                       <span class="font-medium text-heading">{{ estadia.ciudadano.apellido }}, {{ estadia.ciudadano.nombre }}</span>
-                      <span class="text-xs text-body-subtle block mt-px">DNI {{ estadia.ciudadano.dni }}</span>
+                      <span class="text-xs text-body-subtle block mt-px">DNI {{ estadia.ciudadano.dni|dni }}</span>
                     </div>
                   </div>
                 </td>
