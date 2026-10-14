@@ -429,7 +429,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 299 | Fidelidad del mapa de plazas y del asistente de ingreso | Dispositivos · sectores, plazas e ingreso | `#ui` `#rbac` `#performance` | Juez — carril FA del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 300 | P4 en celular y DNI con separador de miles | Dispositivos · P2/P4/P5/P6/P7/P10/P16/P21 | `#ui` `#textos` | Juez — carril FD | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 301 | Correcciones menores de fidelidad FA–FD | Dispositivos · P4/P5/P6/P7/P10/P16 | `#ui` `#rbac` `#performance` `#textos` | Juez — carril FE | 14/10/2026 | 🟢 **Hecho** | No requiere |
-| NNN | Segunda pasada de fidelidad del MVP: instituciones y tablas compartidas | Dispositivos · P2/P3/P4/P5 · tablas transversales | `#ui` `#textos` `#performance` | PM / juez — carril FF | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 302 | Segunda pasada de fidelidad del MVP: instituciones y tablas compartidas | Dispositivos · P2/P3/P4/P5 · tablas transversales | `#ui` `#textos` `#performance` | PM / juez — carril FF | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -39430,7 +39430,9 @@ Entrada nueva y única del carril FE. Las entradas anteriores se conservan sin c
 
 ---
 
-# Cambio NNN — Segunda pasada de fidelidad del MVP: instituciones y tablas compartidas
+---
+
+# Cambio 302 — Segunda pasada de fidelidad del MVP: instituciones y tablas compartidas
 
 🟢 **HECHO — 14/10/2026** · Carril FF · el juez asigna el número definitivo.
 
@@ -39455,7 +39457,7 @@ innecesaria de plazas elegibles en P4 y medición de Infraestructura inflada.
 
 Solo el worktree `mvp-ff`, rama `fix/mvp-fidelidad-ff`. Reutilizar piezas existentes,
 conservar campos, validaciones, URLs, POST, capacidades y confirmaciones. Sin roles,
-seeds, migraciones, piezas nuevas, pantallas ajenas ni PR. Una entrada con marcador NNN.
+seeds, migraciones, piezas nuevas, pantallas ajenas ni PR. Una entrada con marcador 302.
 Código y documentación en commits separados; push y rebase sobre development si FE mergea.
 
 ## Decisiones tomadas
@@ -39583,7 +39585,7 @@ No requiere pasos extra. Deploy habitual de código y CSS de la tabla compartida
 
 ## Pendientes / a definir
 
-- El juez asigna el número al encabezado NNN y a su fila; no se modifica el checker.
+- El juez asigna el número al encabezado 302 y a su fila; no se modifica el checker.
 - El PM decide la columna lateral de posibles duplicados de P3. Los datos y servicios
   ausentes del mockup se conservan como apartamientos; no se inventan piezas para ellos.
 - FE #866 mergeó durante la tarea: FF se entrega rebasada sobre `origin/development`.
