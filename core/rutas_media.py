@@ -43,6 +43,12 @@ PREFIJO_SOLICITUD_MERENDERO = "merenderos/solicitudes/"
 PREFIJO_ADJUNTO_BECAS = "becas/adjuntos/"
 #: Excel del padrón de habilitados (convocatoria y relevamiento).
 PREFIJO_PADRON_BECAS = "becas/padrones/"
+#: Imágenes del .zip del cuerpo de una campaña (``notificaciones.ImagenCampana``, Cambio 285).
+#: Va **antes** que el prefijo general de notificaciones en ``REGLAS``: es más largo. Por
+#: ``/media/`` las baja quien ve las campañas; al destinatario del correo se las sirve la vista
+#: pública ``notificaciones:imagen_publica``, que busca por token y nombre en la base y nunca
+#: por esta ruta.
+PREFIJO_NOTIFICACIONES_IMAGENES = "notificaciones/imagenes/"
 #: Excel de destinatarios y HTML del cuerpo de una campaña (``notificaciones.Campana``).
 PREFIJO_NOTIFICACIONES = "notificaciones/"
 #: Adjuntos de una entrada de la bitácora de turno (``programas.AdjuntoBitacora``).
@@ -93,3 +99,13 @@ def ruta_notificacion_excel(instance, filename):
 def ruta_notificacion_html(instance, filename):
     """El HTML **original** que subió el operador; lo que se envía es la copia saneada."""
     return f"{PREFIJO_NOTIFICACIONES}html/{nombre_opaco(filename)}"
+
+
+def ruta_notificacion_imagen(instance, filename):
+    """Una imagen publicada de una campaña: carpeta por token del paquete, nombre opaco.
+
+    Sin token (``generate_filename(None, …)`` del test de cobertura de prefijos) queda en la
+    raíz del prefijo: el prefijo es lo que decide la regla de ``/media/``.
+    """
+    carpeta = f"{instance.token}/" if getattr(instance, "token", None) else ""
+    return f"{PREFIJO_NOTIFICACIONES_IMAGENES}{carpeta}{nombre_opaco(filename)}"

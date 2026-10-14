@@ -12,6 +12,7 @@ from django.conf import settings
 
 from notificaciones.models import TOPE_DESTINATARIOS, Campana
 from notificaciones.services import html as servicio_html
+from notificaciones.services import paquete as servicio_paquete
 from notificaciones.services.lectura_excel import parsear_destinatarios
 
 _FIELD_CLASS = "nodo-field"
@@ -38,8 +39,8 @@ class CampanaForm(forms.Form):
         widget=forms.FileInput(attrs={"class": _FIELD_CLASS, "accept": ".xlsx"}),
     )
     archivo_html = forms.FileField(
-        label="Cuerpo del correo (HTML)",
-        widget=forms.FileInput(attrs={"class": _FIELD_CLASS, "accept": ".html,.htm"}),
+        label="Cuerpo del correo (HTML o .zip con la carpeta)",
+        widget=forms.FileInput(attrs={"class": _FIELD_CLASS, "accept": ".html,.htm,.zip"}),
     )
 
     def __init__(self, *args, campana=None, **kwargs):
@@ -57,8 +58,12 @@ class CampanaForm(forms.Form):
             "columna A. Las direcciones inválidas y las repetidas se descartan y se listan en la previsualización."
         )
         ayuda_html = (
-            "Solo .html, hasta 1 MB, en UTF-8. Las imágenes tienen que estar publicadas en una dirección "
-            "https://: no se envían adjuntos. Se quitan scripts, formularios y contenido incrustado por seguridad."
+            "Un .html (hasta 1 MB, en UTF-8) o un .zip con la carpeta del correo: el .html y sus imágenes "
+            f"(PNG, JPG, GIF o WEBP; hasta {servicio_paquete.MAX_IMAGENES} imágenes y "
+            f"{servicio_paquete.ZIP_MAX_BYTES // (1024 * 1024)} MB). Las imágenes del .zip quedan publicadas en "
+            "DATAÑACH con una dirección que se abre sin iniciar sesión; las de un .html suelto tienen que estar "
+            "en una dirección https://. No se envían adjuntos, y se quitan scripts, formularios y contenido "
+            "incrustado por seguridad."
         )
         if campana is not None:
             self.fields["archivo_excel"].required = False

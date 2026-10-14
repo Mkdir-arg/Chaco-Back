@@ -415,6 +415,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 281 | Alertas por criticidad y auditoría básica del dispositivo | Dispositivos · detalle y auditoría | `#ui` `#datos` `#rbac` `#performance` | Task 34 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0092` |
 | 282 | La app del agente trae sus relevamientos edilicios y manda el resultado y las fotos, también sin señal | Dispositivos · relevamiento edilicio (app de campo) | `#api` `#mobile` `#rbac` `#usuarios` `#datos` | Tasks 38 y 39 (parte del sistema) del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0093` |
 | 283 | Bitácora del turno: las novedades del día, el censo del turno y la configuración de turnos | Dispositivos · bitácora | `#ui` `#rbac` `#performance` | Task 32 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | No requiere |
+| 285 | Notificaciones: el cuerpo del correo se sube como .zip con la carpeta y sus imágenes quedan publicadas | Transversal — notificaciones (alta, edición y previsualización de campañas; vista pública de imágenes) | `#correo` `#ui` `#datos` | PM — pedido del 14/10/2026 (opción 1); sigue al Cambio 199 | 14/10/2026 | 🟢 **Hecho** | `notificaciones.0003` |
 | 286 | Listado de instituciones al arquetipo: filtros canónicos, plazas por fila y paginación (P2) | Dispositivos · legajo institucional | `#ui` `#rbac` `#performance` | Carril C4 del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 287 | Acciones del mapa de plazas y enlaces de resolución de las alertas | Dispositivos · plazas y alertas | `#ui` `#rbac` `#performance` | Carril C1 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 288 | El turno visible, las novedades automáticas de la bitácora y tres contratos que faltaban | Dispositivos · estadía, ingreso, detalle y bitácora | `#ui` `#datos` `#rbac` `#performance` | Carril C3 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0094` |
@@ -37177,5 +37178,230 @@ Validación de la revisión: **146 tests OK** en `test_dispositivos_egreso`,
 0 hallazgos nuevos; `--goldens`: 0 en 7; `check_design_agent --changed`: OK.
 Ruff: errores F en todo el repo y lint/formato de los 27 archivos Python existentes
 del diff, OK; `requerimientos.py --check` y `git diff --check`: OK.
+
+---
+
+# Cambio 285 — Notificaciones: el cuerpo del correo se sube como .zip con la carpeta y sus imágenes quedan publicadas
+
+🟢 **HECHO — 14/10/2026** · sigue al [Cambio 199](#cambio-199--notificaciones-campañas-de-correo-masivo-con-lista-en-excel-y-cuerpo-en-html) · análisis [007](analisis/007-notificaciones-campanas-email.md) (RF-007-20)
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — notificaciones (alta, edición, duplicado y previsualización de campañas; vista pública de imágenes) |
+| **Etiquetas** | `#correo` `#ui` `#datos` |
+| **Solicitante** | PM — pedido del 14/10/2026, opción 1 aprobada explícitamente (incluida la política de exposición) |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | sin issue (análisis 007, RF-007-20) · rama `feature/notificaciones-zip-imagenes` |
+| **Partes afectadas** | Backoffice (formulario y detalle de la campaña) · Vista pública `/notificaciones/img/<token>/<nombre>` · Hilo de envío · Middlewares de sesión · `/media/` |
+| **Migración** | `notificaciones.0003` (tabla `ImagenCampana`; tres columnas en `Campana` y dos en `Destinatario`, todas `null=True` o con `db_default`) |
+
+## Pedido original
+
+A los operadores les mandan el mailing como una **carpeta**: `mailing.html` + `img/*.png|jpg` con
+`src="img/foto-header.jpg"`. Subido solo el HTML, esas imágenes no existen en ningún servidor y el
+correo llega sin ninguna (hoy el sistema las cuenta como «no visibles» y avisa). El PM eligió la
+opción 1: que el campo «Cuerpo del correo» acepte también un **.zip** con la carpeta, que DATAÑACH
+aloje las imágenes y que el correo las pida a una URL pública.
+
+En el mismo PR van los **tres MINOR que quedaron abiertos de #647** (envío, Cambio 199).
+
+## Alcance acordado
+
+- El campo acepta `.html`/`.htm` **o** `.zip`. El HTML suelto sigue exactamente igual.
+- Del .zip se extrae el HTML, se resuelven sus `<img src>` relativos, se validan las imágenes y se
+  publican; cada `src` pasa a la URL absoluta de la imagen.
+- Vista pública sin login para esas imágenes, y nada más que esas.
+- Ciclo de vida: editar con otro cuerpo reemplaza las imágenes, eliminar las borra, duplicar las
+  copia con token nuevo.
+- Previsualización: avisos de imágenes faltantes, no publicadas y cuántas quedaron alojadas.
+- Los MINOR a, b y c de #647 en `notificaciones/services/envio.py`.
+
+Queda afuera: fondos por CSS (`url(…)`) y por el atributo `background` (el saneo los sigue
+quitando), `srcset`, enlaces `<a href>` relativos dentro del paquete y fuentes propias.
+
+## Decisiones tomadas
+
+- **Imágenes de campañas públicas (decisión del PM, 14/10/2026).** Es una **excepción explícita** a
+  «`media/` detrás de login» (SEC-09) y alcanza **solo** a imágenes de campañas validadas como imagen
+  real: nunca otro archivo de `media/`. Lo que la acota:
+  - la vista `notificaciones:imagen_publica` busca la fila por **token + nombre en la base**
+    (`ImagenCampana`); nunca arma una ruta del disco con lo que trae el pedido, y el nombre de la URL
+    (`01-foto-header.jpg`) no es el del disco (`<uuid>.jpg`);
+  - el **token es uno por paquete subido** (`secrets.token_urlsafe(24)`, 32 caracteres): no se
+    adivina, y reemplazar el cuerpo o duplicar genera uno nuevo. `CharField`, no `UUIDField`: sin el
+    gotcha de `char(32)` de MariaDB;
+  - sale con el tipo del **formato detectado** por Pillow, `X-Content-Type-Options: nosniff`,
+    `Content-Disposition: inline`, `Content-Security-Policy: default-src 'none'; sandbox`,
+    `Cache-Control: public, max-age=2592000` (30 días: la misma URL nunca cambia de contenido) y
+    `Cross-Origin-Resource-Policy: cross-origin` (la carga un webmail de otro origen);
+  - borrar la campaña o reemplazar el cuerpo borra las filas: la URL da **404** desde el commit. Lo
+    que un cliente de correo ya tenga en caché sigue ahí: es el costo aceptado de publicar.
+- **Las URLs se guardan absolutas.** El HTML saneado guarda `NOTIF_URL_PUBLICA` + la ruta, así la
+  vista previa, la prueba y el envío masivo usan **los mismos bytes**. La base sale de settings porque
+  el correo se arma en un hilo sin request: `NOTIF_URL_PUBLICA` (nuevo), por defecto
+  `https://<DOMINIO>` (`http://` si `DOMINIO` es local, la misma regla que `diagnosticar_correo`).
+  Si el dominio público cambia, las campañas «A enviar» ya cargadas siguen apuntando al viejo: se
+  vuelve a subir el cuerpo.
+- **Orden: extraer → reescribir → sanear.** Las URLs reescritas son `http(s)://` y `nh3` las
+  conserva (en dev también, con `http`). La CSP de la vista previa pasa a `img-src 'self' https:`.
+- **Topes del .zip**: 10 MB comprimido, 20 MB descomprimido (sumando lo declarado **y** leyendo cada
+  entrada con techo, porque el encabezado puede mentir), 5 MB por imagen, 50 imágenes y 500 archivos.
+  Se rechazan rutas con `..`, absolutas, con unidad de Windows, enlaces simbólicos y entradas
+  cifradas. Se ignoran `__MACOSX/`, `.DS_Store`, `Thumbs.db`, `desktop.ini` y los `._*`.
+- **Un solo HTML.** Con varios, vale el `index.html` de la raíz **de la carpeta** (el .zip que arma
+  Windows al comprimir una carpeta mete todo dentro de `mailing/`, y esa es la raíz); si no hay, error
+  con los nombres. Un `index.html` en una subcarpeta no desempata.
+- **Resolución de `src`**: relativa a la carpeta del HTML; se aceptan `./`, `\`, `%20`, `?v=`/`#`,
+  y una ruta que empieza con `/` se toma desde la raíz del paquete; si no aparece exacta, se busca sin
+  distinguir mayúsculas (los diseñadores trabajan en Windows). Una ruta que sale del paquete cuenta
+  como faltante. Las imágenes del .zip que el HTML no nombra **no se publican**.
+- **Qué se publica**: PNG, JPG, GIF y WEBP verificados por contenido (`Image.open` + `verify`), con la
+  extensión del formato real. **SVG no** (puede llevar scripts) y tampoco un archivo que no es imagen
+  con extensión `.png`: no frenan la carga, van a la lista «no se publicaron» con el motivo. Una
+  imagen de más de 5 MB o de más de **25 millones de píxeles** (ancho × alto, mirado en el
+  encabezado antes de decodificar), igual; las alarmas de bomba de Pillow
+  (`DecompressionBombWarning`/`Error`) cuentan como lo mismo.
+- **Se publica la imagen recodificada, no el archivo que vino** (revisión del juez, ronda 2). Cada
+  imagen se vuelve a codificar con Pillow en su mismo formato: así no sale a internet el EXIF de la
+  cámara (GPS, aparato, fecha), XMP, los textos de un PNG, el comentario de un GIF ni lo que un
+  archivo políglota traiga pegado atrás. JPEG va con calidad 90 y con la orientación del EXIF ya
+  aplicada (si no, la foto quedaba girada al perder el EXIF); WEBP con calidad 90. Se conservan el
+  perfil de color ICC (no identifica a nadie y sin él cambian los colores), la transparencia y la
+  **animación** de GIF y WEBP (se recodifican todos los cuadros). Se eligió recodificar siempre en
+  vez de «guardar el original si no trae EXIF» porque es una sola regla para los cuatro formatos y
+  cubre también lo que no es EXIF.
+- **Avisos**: `imagenes_no_visibles` pasa a contar solo lo que no se explica por nombre (`cid:`,
+  `data:`, relativas en un HTML suelto); las faltantes y las no publicadas se listan aparte.
+- **Middlewares**: la vista pública queda exenta, **sin tocar la sesión**, de
+  `ExpiracionPorInactividadMiddleware`, `PortalCiudadanoMiddleware`,
+  `BackofficeSingleSessionMiddleware` y `CambioContrasenaObligatorioMiddleware`
+  (`core.middleware.RUTAS_PUBLICAS_SIN_SESION`). Sin la exención, una cookie que viajara por
+  casualidad redirigía la imagen (ciudadano, clave provisoria, sesión vencida o reemplazada) y, peor,
+  la marca de actividad podía meter un `Set-Cookie` en una respuesta `Cache-Control: public`.
+- **`/media/`**: prefijo propio `notificaciones/imagenes/` con regla que pide `notificacion.ver`
+  (antes que el prefijo general de notificaciones). Por ahí la ve el backoffice; al destinatario se
+  la sirve la vista pública.
+- **MINOR a de #647 — residuo de otra corrida.** El reclamo queda firmado con la corrida
+  (`Destinatario.corrida`). Cuando la corrida a cargo se queda sin pendientes, devuelve **una vez** a
+  PENDIENTE los EN_CURSO de otra corrida (o sin firma) y los manda: la campaña ya no queda
+  «Enviando» hasta un «Reanudar» extra. Semántica **al menos una vez**, igual que «Reanudar».
+- **MINOR b de #647 — una dirección que falla siempre.** `Destinatario.intentos`: una falla propia de
+  la dirección que no es el rechazo del RCPT —un 5xx al DATA que no es del remitente, o un error al
+  armar ese mensaje— cuenta un intento; al **tercero** queda FALLIDO con el último error. Un 4xx
+  (volumen, greylisting), la conexión cortada, un timeout o el remitente rechazado **no** cuentan. La
+  racha de 10 fallos seguidos sigue contando igual: si el SMTP rechaza a todos con 5xx, se frena; en
+  ese caso pueden quedar hasta tres direcciones FALLIDAS de más (se ven y se reenvían duplicando).
+- **MINOR c de #647 — `_devolver`.** Solo devuelve a PENDIENTE si el destinatario sigue EN_CURSO
+  **y** lo reclamó esa corrida.
+- **Eliminar avisa** (revisión del juez, ronda 2): si la campaña tiene imágenes alojadas, la
+  confirmación de «Eliminar» agrega «Las imágenes alojadas dejan de verse en los correos ya
+  enviados, incluidas las pruebas». Una campaña enviada no se puede eliminar (RN-007-10), así que lo
+  que ya salió con esas imágenes son las pruebas; el texto queda escrito igual por si esa regla se
+  abre.
+
+## Implementación
+
+- `notificaciones/services/paquete.py` (nuevo): lectura segura del .zip, elección del HTML,
+  resolución de `src`, validación y recodificación con Pillow y reescritura a la URL pública.
+- `notificaciones/services/html.py`: `procesar` acepta `.zip` y delega; `procesar_texto` sanea y
+  arma los campos nuevos (`imagenes_alojadas`, `imagenes_faltantes`, `imagenes_rechazadas`).
+- `notificaciones/services/campanas.py`: publica las `ImagenCampana` dentro de la transacción
+  (anotadas en `archivos_atomicos`), las del cuerpo reemplazado y las de la campaña eliminada se
+  borran con `on_commit`; duplicar vuelve a leer el .zip guardado (token nuevo).
+- `notificaciones/services/envio.py`: los tres MINOR.
+- `notificaciones/views/campanas.py`: `imagen_publica` y los textos de los avisos;
+  `notificaciones/urls.py`: `img/<token>/<nombre>`.
+- `notificaciones/forms/__init__.py`: label «Cuerpo del correo (HTML o .zip con la carpeta)»,
+  `accept=".html,.htm,.zip"` y la ayuda con los topes y la exposición pública.
+- `notificaciones/templates/notificaciones/campana_detail.html`: tres `_alerta` nuevas en la solapa
+  Vista previa (faltantes, no publicadas, alojadas) y el texto de la confirmación de «Eliminar» sale
+  de la vista (`texto_confirmar_eliminar`). Sin piezas ni clases nuevas.
+- `core/middleware.py` y `users/middleware.py`: exención de la ruta pública.
+- `core/rutas_media.py` y `core/views/media.py`: prefijo y regla de las imágenes.
+- `config/settings.py` y `.env.qa.example`: `NOTIF_URL_PUBLICA`.
+- `core/tests/test_superficie_publica.py`: la ruta entra a `ALLOWLIST_PUBLICA` con su motivo (los
+  ratchets pasan a 15 y 33).
+
+## Archivos
+
+`notificaciones/{models/__init__.py, migrations/0003_imagenes_y_reintentos.py, services/paquete.py,
+services/html.py, services/campanas.py, services/envio.py, views/campanas.py, urls.py,
+forms/__init__.py, templates/notificaciones/campana_detail.html}`,
+`notificaciones/tests/{test_paquete.py, test_imagenes_publicas.py, test_envio.py, backends.py}`,
+`core/{middleware.py, rutas_media.py, views/media.py, tests/test_superficie_publica.py}`,
+`users/middleware.py`, `config/settings.py`, `.env.qa.example`,
+`docs/internal/analisis/007-notificaciones-campanas-email.md`.
+
+## Base de datos
+
+`notificaciones.0003`: tabla nueva `notificaciones_imagencampana` (FK a la campaña con `CASCADE`,
+índice por `token`, único `token`+`nombre`); en `Campana`, `imagenes_alojadas` (`db_default=0`),
+`imagenes_faltantes` y `imagenes_rechazadas` (`TEXT NULL`); en `Destinatario`, `corrida`
+(`varchar(32) NULL`) e `intentos` (`db_default=0`). Todo aditivo: el código anterior sigue dando de
+alta sin conocer las columnas. Sin `UUIDField` ni `UniqueConstraint` condicional.
+
+## Validación
+
+- `notificaciones`: 157 tests en verde (Py 3.12 + Dj 5.2), entre ellos `test_paquete` (33),
+  `test_imagenes_publicas` (26) y seis nuevos de `test_envio` para los MINOR de #647, con los paquetes
+  armados en el test con `zipfile` + Pillow (incluida una JPEG con EXIF de GPS, que sale sin EXIF).
+  **Suite completa** con `.venv312`, después de traer `development`: 6.027 tests en verde (53 salteados), que incluye `core` (barrido de superficie pública y cobertura de prefijos de `/media/`), `users` y `configuracion`..
+- **Mutaciones, de a una, todas en rojo**: sin el chequeo de `..`/absolutas
+  (`test_ruta_con_puntos_puntos`, `test_ruta_absoluta_y_unidad_de_windows`); sin Pillow
+  (`test_svg_no_se_publica`, `test_imagen_falsa_con_extension_png_no_se_publica`); sin el corte por
+  SVG; la vista pública buscando solo por nombre (`test_el_token_de_una_campana_no_abre_las_imagenes_de_otra`)
+  y sirviendo por ruta del disco (`test_no_expone_otros_archivos_de_media`, tres archivos expuestos);
+  sin la exención del portal y sin la de inactividad; sin devolver el residuo, `_devolver` sin filtro
+  de corrida y sin el tope de intentos (cada una con su test de #647 en rojo). Ronda 2: publicando los
+  bytes originales (cuatro tests de `ImagenRecodificadaTests` en rojo: EXIF/GPS, textos del PNG,
+  comentario del GIF y lo pegado atrás), sin el tope de píxeles y con la alarma de bomba de Pillow
+  ignorada.
+- **Prueba manual con el mailing real** (la carpeta comprimida fuera del repo, base SQLite de prueba,
+  por la pantalla de alta): 14 imágenes alojadas, 14 `src` absolutos a la vista pública (14 distintos),
+  0 faltantes, 0 no publicadas, las 14 responden 200 sin sesión con `image/png`/`image/jpeg`, el
+  `<link>` de Google Fonts quedó afuera, el detalle avisa «Se alojaron 14 imágenes» y la prueba por
+  correo lleva los 14 `src` públicos.
+- `manage.py check`, `makemigrations --check --dry-run` (con `DJANGO_SYNCDB_PROJECT_APPS=False`),
+  `check_migraciones.py` (1 migración, 0 problemas), `ruff check`/`format`, `design_audit --ratchet`
+  (0 nuevos), `--arquetipo detalle` OK, `compile_templates` 0 errores, `check_design_agent --changed` OK.
+
+## Puesta en marcha en el servidor
+
+- Migrar (`notificaciones.0003`, aditiva).
+- `NOTIF_URL_PUBLICA` solo si el host público no es `DOMINIO` (vacía = `https://<DOMINIO>`). En
+  testing y PRD de ECOM, verificar que `DOMINIO` es el host público.
+- El ingress no tiene que pedir login para `/notificaciones/img/`: hoy no lo pide para nada (el login
+  es de Django). Verificar con un correo de prueba que las imágenes se ven en Gmail y Outlook.
+
+## Pendientes / a definir
+
+- DECISIÓN CLIENTE: ¿se publican también los fondos por CSS (`background-image: url(img/…)`) y el
+  atributo `background`? Hoy se quitan como en un HTML suelto; abrirlos pide reescribir dentro del CSS
+  saneado.
+- DECISIÓN CLIENTE: ¿las imágenes de una campaña **enviada** se dan de baja pasado un tiempo? Hoy
+  viven mientras viva la campaña (y la campaña enviada no se elimina): un correo viejo las sigue
+  pidiendo.
+- **Sin límite de pedidos en la vista pública** (decidido en la revisión del juez, ronda 2: no se
+  hace en este cambio). Sirve archivos chicos y fijos con caché pública de 30 días; si hiciera falta,
+  se cubre en nginx o en la caché del ingress, no en Django.
+
+## Reversión
+
+1. `git revert` del merge: el formulario vuelve a aceptar solo `.html` y la URL pública deja de
+   existir (los correos ya enviados con imágenes alojadas **dejan de mostrarlas**).
+2. `migrate notificaciones 0002`: se borra la tabla de imágenes y las cinco columnas; **se pierden**
+   los registros de imágenes publicadas, los contadores de intentos y la firma de corrida de los
+   destinatarios (ningún envío depende de ellos después del revert).
+3. Borrar a mano `media/notificaciones/imagenes/`.
+
+## Historial
+
+**14/10/2026** — Entrada nueva (reservada al empezar la rama para que otras ramas vieran el número).
+
+**14/10/2026 — revisión del juez, ronda 2 (APPROVE con MINOR).** Se trajo `development` (el
+conflicto de este archivo se resolvió a mano: las entradas y filas de `development`, 286 incluida,
+intactas, más esta entrada y su fila; el 285 seguía libre). Se repitió igual una segunda vez, cuando `development` sumó el Cambio 287 en el medio. Entraron los tres MINOR: imágenes
+recodificadas sin metadatos, tope de 25 millones de píxeles y el aviso en la confirmación de
+«Eliminar». El límite de pedidos de la vista pública quedó en Pendientes.
 
 ---
