@@ -35,7 +35,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import connection, transaction
-from django.db.models import Count
+from django.db.models import Count, F
 from django.utils import timezone
 
 from notificaciones.models import Campana, Destinatario, PruebaEnviada
@@ -49,6 +49,11 @@ PREFIJO_PRUEBA = "[PRUEBA] "
 #: por volumen, timeout) y que frenan el envío. Los correos de esa racha vuelven a
 #: pendientes: su falla fue del servidor, no de la dirección, y se reintentan al reanudar.
 MAX_FALLOS_SEGUIDOS = 10
+#: Fallas **propias de una dirección** que no son el rechazo del RCPT (un 5xx al DATA, un
+#: error al armar ese mensaje) antes de darla por FALLIDA con el último error. Sin este tope,
+#: esa dirección quedaba primera en la cola y frenaba el envío —y cada reanudación— en el
+#: mismo lugar (Cambio 285, MINOR de #647).
+MAX_INTENTOS = 3
 LARGO_ERROR = 500
 #: La pausa entre lotes se duerme en tramos de este largo, latiendo en cada uno.
 TRAMO_PAUSA = 30
@@ -169,7 +174,7 @@ def preparar_reanudacion(campana):
         actual.corrida = _token_nuevo()
         actual.save(update_fields=["latido", "cancelacion_pedida", "mensaje", "corrida", "modificado"])
         Destinatario.objects.filter(campana_id=actual.pk, estado=Destinatario.Estado.EN_CURSO).update(
-            estado=Destinatario.Estado.PENDIENTE
+            estado=Destinatario.Estado.PENDIENTE, corrida=None
         )
     return actual
 
@@ -189,7 +194,7 @@ def pedir_detencion(campana):
             raise TransicionInvalida("Solo se detiene una campaña que se está enviando.")
         if actual.interrumpida:
             Destinatario.objects.filter(campana_id=actual.pk, estado=Destinatario.Estado.EN_CURSO).update(
-                estado=Destinatario.Estado.PENDIENTE
+                estado=Destinatario.Estado.PENDIENTE, corrida=None
             )
             _cerrar(
                 actual, None, Campana.Estado.CANCELADA, "Se detuvo un envío interrumpido. Lo enviado quedó enviado."
@@ -276,15 +281,16 @@ def _sigue_a_cargo(campana, token):
     return campana.estado == Campana.Estado.ENVIANDO and corrida == token
 
 
-def _reclamar(destinatario_id):
+def _reclamar(destinatario_id, token):
     """PENDIENTE → EN_CURSO con un ``UPDATE`` condicional. Solo se manda si devolvió 1.
 
     Dos corridas sobre la misma campaña (la vieja que se creyó muerta y la que la
-    reemplazó) nunca mandan al mismo destinatario: la base deja pasar una sola.
+    reemplazó) nunca mandan al mismo destinatario: la base deja pasar una sola. El reclamo
+    queda firmado con el token de la corrida, que es lo que mira ``_devolver``.
     """
     return (
         Destinatario.objects.filter(pk=destinatario_id, estado=Destinatario.Estado.PENDIENTE).update(
-            estado=Destinatario.Estado.EN_CURSO
+            estado=Destinatario.Estado.EN_CURSO, corrida=token
         )
         == 1
     )
@@ -305,10 +311,46 @@ def _anotar(destinatario_id, estado, *, error=""):
     ).update(**campos)
 
 
-def _devolver(destinatario_id):
-    """EN_CURSO → PENDIENTE: el correo no salió por un problema del servidor, no de la dirección."""
-    Destinatario.objects.filter(pk=destinatario_id, estado=Destinatario.Estado.EN_CURSO).update(
+def _devolver(destinatario_id, token):
+    """EN_CURSO → PENDIENTE: el correo no salió y se reintenta.
+
+    Solo si sigue EN_CURSO **reclamado por esta corrida**: si en el medio una reanudación lo
+    devolvió y otra corrida lo volvió a reclamar, no es nuestro y no se toca.
+    """
+    Destinatario.objects.filter(pk=destinatario_id, estado=Destinatario.Estado.EN_CURSO, corrida=token).update(
         estado=Destinatario.Estado.PENDIENTE
+    )
+
+
+def _sumar_intento(destinatario_id, token, error):
+    """Cuenta una falla propia de la dirección. Devuelve ``True`` si con esta quedó FALLIDO.
+
+    Mismo filtro que ``_devolver``: solo sobre un reclamo de esta corrida. A los
+    ``MAX_INTENTOS`` queda FALLIDO con el último error; antes, sigue EN_CURSO y lo devuelve
+    quien llama.
+    """
+    propio = Destinatario.objects.filter(pk=destinatario_id, estado=Destinatario.Estado.EN_CURSO, corrida=token)
+    if not propio.update(intentos=F("intentos") + 1):
+        return False
+    intentos = propio.values_list("intentos", flat=True).first() or 0
+    if intentos >= MAX_INTENTOS:
+        _anotar(destinatario_id, Destinatario.Estado.FALLIDO, error=error)
+        return True
+    return False
+
+
+def _devolver_residuo(campana_id, token):
+    """Los EN_CURSO que dejó otra corrida (o uno sin firma, anterior al Cambio 285) a pendientes.
+
+    Lo llama la corrida a cargo cuando ya no le quedan pendientes. Esos reclamos son de una
+    corrida reemplazada —que se retira antes del próximo correo— o de un hilo que murió con el
+    reclamo tomado: esperar a que «la última que termine» cierre dejaba la campaña «Enviando»
+    hasta que alguien reanudara. Misma semántica **al menos una vez** que ``preparar_reanudacion``.
+    """
+    return (
+        Destinatario.objects.filter(campana_id=campana_id, estado=Destinatario.Estado.EN_CURSO)
+        .exclude(corrida=token)
+        .update(estado=Destinatario.Estado.PENDIENTE, corrida=None)
     )
 
 
@@ -340,9 +382,38 @@ def _es_rechazo_del_destinatario(exc):
     """El servidor rechazó **esta dirección** (RCPT TO 5xx): falla del destinatario.
 
     Cualquier otra excepción —conexión cortada, timeout, rechazo por volumen, error de
-    datos— es del servidor: el destinatario vuelve a pendientes y se reintenta.
+    datos— vuelve a pendientes y se reintenta; ``_es_falla_propia`` dice cuáles además
+    cuentan un intento de esa dirección.
     """
     return isinstance(exc, smtplib.SMTPRecipientsRefused)
+
+
+#: Fallas de la conexión o de la sesión SMTP: no dicen nada de la dirección.
+_FALLAS_DE_CONEXION = (
+    smtplib.SMTPServerDisconnected,
+    smtplib.SMTPConnectError,
+    smtplib.SMTPHeloError,
+    smtplib.SMTPAuthenticationError,
+    smtplib.SMTPNotSupportedError,
+    smtplib.SMTPSenderRefused,  # el remitente es el mismo en todos los correos
+)
+
+
+def _es_falla_propia(exc):
+    """¿La falla puede ser de **esta dirección** y no del servidor? Entonces cuenta un intento.
+
+    - Un 5xx que no es de conexión ni del remitente (``SMTPDataError`` 550/554 al DATA): sí.
+    - Un 4xx (volumen, greylisting): no, es temporal y del servidor.
+    - Conexión cortada, timeout, red (``OSError``): no.
+    - Cualquier otra excepción (armar el mensaje con esa dirección, por ejemplo): sí.
+
+    Los ``smtplib.SMTP*`` heredan de ``OSError``: el orden de las preguntas importa.
+    """
+    if isinstance(exc, _FALLAS_DE_CONEXION):
+        return False
+    if isinstance(exc, smtplib.SMTPResponseException):
+        return exc.smtp_code >= 500
+    return not isinstance(exc, OSError)
 
 
 def correr(campana, *, token=None, dormir=time.sleep):
@@ -360,6 +431,7 @@ def correr(campana, *, token=None, dormir=time.sleep):
         _latir(campana.pk, token)
         racha = 0  # fallos seguidos del servidor
         ultimo_error = ""
+        residuo_devuelto = False
         while True:
             if not _sigue_a_cargo(campana, token):
                 return campana  # otro request u otra corrida tomó la campaña: se retira
@@ -374,6 +446,11 @@ def correr(campana, *, token=None, dormir=time.sleep):
                 .values_list("pk", "email")[:lote]
             )
             if not pendientes:
+                # Antes de cerrar: los EN_CURSO de otra corrida son residuo (ver
+                # ``_devolver_residuo``). Se devuelven una vez y se sigue con ellos.
+                if not residuo_devuelto and _devolver_residuo(campana.pk, token):
+                    residuo_devuelto = True
+                    continue
                 break
 
             conexion = get_connection(fail_silently=False)
@@ -397,7 +474,7 @@ def correr(campana, *, token=None, dormir=time.sleep):
                             campana, token, Campana.Estado.CANCELADA, "Se detuvo el envío. Lo enviado quedó enviado."
                         )
                         return campana
-                    if not _reclamar(destinatario_id):
+                    if not _reclamar(destinatario_id, token):
                         continue  # lo tomó otra corrida
                     try:
                         conexion.send_messages([armar_mensaje(campana, email, conexion=conexion)])
@@ -406,11 +483,14 @@ def correr(campana, *, token=None, dormir=time.sleep):
                             _anotar(destinatario_id, Destinatario.Estado.FALLIDO, error=_error_corto(exc))
                             racha = 0
                         else:
-                            # Falla del servidor: el correo no salió. Vuelve a pendientes, se
+                            # El correo no salió. Vuelve a pendientes —salvo que sea la última
+                            # falla propia permitida de esta dirección: ahí queda FALLIDO—, se
                             # corta el lote (la conexión puede estar rota) y el próximo reabre.
-                            _devolver(destinatario_id)
+                            # La racha sigue contando: si el SMTP rechaza a todos, igual se frena.
                             racha += 1
                             ultimo_error = _error_corto(exc)
+                            if not (_es_falla_propia(exc) and _sumar_intento(destinatario_id, token, ultimo_error)):
+                                _devolver(destinatario_id, token)
                             _latir(campana.pk, token)
                             break
                     else:
@@ -440,7 +520,8 @@ def correr(campana, *, token=None, dormir=time.sleep):
 
         conteos = contar_por_estado(campana.pk)
         if conteos[Destinatario.Estado.EN_CURSO]:
-            # Otra corrida tiene correos reclamados: el cierre lo hace la última que termine.
+            # Quedan reclamos de esta misma corrida en otro hilo, o un residuo que apareció
+            # después de devolver el anterior: el cierre lo hace la última que termine.
             return campana
         if conteos[Destinatario.Estado.FALLIDO]:
             _cerrar(campana, token, Campana.Estado.ENVIADA_CON_ERRORES)

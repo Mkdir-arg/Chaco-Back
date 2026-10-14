@@ -74,3 +74,20 @@ class OtraCorridaEnElMedio(locmem.EmailBackend):
         if accion is not None:
             accion()
         return super().send_messages(messages)
+
+
+class DatosRechazadosParaAlgunos(locmem.EmailBackend):
+    """Un 5xx al DATA para las direcciones con «datos»: propio de esa dirección, no del RCPT."""
+
+    def send_messages(self, messages):
+        for mensaje in messages:
+            if any("datos" in destino for destino in mensaje.to):
+                raise smtplib.SMTPDataError(554, b"5.7.1 Message rejected for this recipient")
+        return super().send_messages(messages)
+
+
+class VolumenTemporal(locmem.EmailBackend):
+    """Un 4xx al DATA para todos: rechazo temporal del servidor (volumen), no de la dirección."""
+
+    def send_messages(self, messages):
+        raise smtplib.SMTPDataError(451, b"4.7.0 Too many messages, try later")
