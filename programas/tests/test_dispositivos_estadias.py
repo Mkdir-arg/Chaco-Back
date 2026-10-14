@@ -81,7 +81,8 @@ class BaseEstadias(TestCase):
         self.plaza_parador = Plaza.objects.create(sector=self.sector_parador, codigo="G1")
         # El egreso exige un motivo del catálogo, y lo exige el servicio: el terreno mínimo
         # trae uno para que no haya que crearlo en cada test que egresa a alguien.
-        self.motivo_alta = MotivoEgreso.objects.create(codigo="alta", nombre="Alta", orden=1)
+        # El catalogo lo siembra la 0088: en el motor real «alta» ya existe y en SQLite sin migraciones no.
+        self.motivo_alta, _ = MotivoEgreso.objects.get_or_create(codigo="alta", defaults={"nombre": "Alta", "orden": 1})
         self.persona = Ciudadano.objects.create(dni="30111222", nombre="Ana", apellido="Gómez")
         self.otra_persona = Ciudadano.objects.create(dni="30333444", nombre="Juan", apellido="Pérez")
         self.operador_cis = self._operador("Operador CIS", self.cis)
