@@ -29,9 +29,11 @@ class FidelidadFFTests(BaseDetalle):
         self.client.force_login(self.operador)
 
     def test_formulario_alta_y_edicion_conserva_campos_post_y_acciones(self):
-        for url, titulo, volver in (
-            (reverse("dispositivos:crear"), "Nueva institución", reverse("dispositivos:lista")),
-            (reverse("dispositivos:editar", args=[self.cis.pk]), "Editar institución", self.url),
+        # FI (Cambio 308): en edición el pie dice «Guardar cambios»; el margen de cada título
+        # de sección depende de su bloque, así que se fija el título y no el margen.
+        for url, titulo, volver, guardar in (
+            (reverse("dispositivos:crear"), "Nueva institución", reverse("dispositivos:lista"), "Guardar borrador"),
+            (reverse("dispositivos:editar", args=[self.cis.pk]), "Editar institución", self.url, "Guardar cambios"),
         ):
             with self.subTest(titulo=titulo):
                 respuesta = self.client.get(url)
@@ -49,9 +51,11 @@ class FidelidadFFTests(BaseDetalle):
                 for nombre in respuesta.context["form"].fields:
                     self.assertContains(respuesta, f'name="{nombre}"', count=1)
                 self.assertContains(respuesta, "Cancelar")
-                self.assertContains(respuesta, "Guardar borrador")
+                self.assertContains(respuesta, guardar)
                 for seccion in ("Identidad y encuadre", "Ubicación", "Responsable y contacto"):
-                    self.assertContains(respuesta, f'<h2 class="text-heading font-bold mb-4">{seccion}</h2>', html=True)
+                    self.assertRegex(
+                        respuesta.content.decode(), rf'<h2 class="text-heading font-bold[^"]*">{seccion}</h2>'
+                    )
 
     def test_aviso_de_duplicados_usa_la_alerta_canonica_solo_en_alta(self):
         respuesta = self.client.get(reverse("dispositivos:crear"))
