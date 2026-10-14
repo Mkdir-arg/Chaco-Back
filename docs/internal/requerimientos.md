@@ -423,6 +423,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 290 | Concurrencia real del MVP de Dispositivos y orden de bloqueo de las reservas | Dispositivos · estadías, reservas, relevamiento edilicio y bitácora | `#datos` `#performance` `#mobile` | Encargo T1 del juez del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 291 | Alta y edición de edificio, sectores y plazas | Dispositivos · capacidad instalada | `#ui` `#datos` `#rbac` `#performance` | Juez — carril C5 del cierre del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 296 | Test del censo independiente de la hora del runner | Dispositivos · tests de bitácora y censo | `#datos` `#infra` | Juez — encargo urgente en sesión | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 297 | Fidelidad de bitácora, trayectoria e instituciones | Dispositivos · P10, P16 y P2 | `#ui` `#rbac` `#performance` | Juez — carril FC de fidelidad del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -38379,5 +38380,169 @@ El juez asigna el número definitivo a `296`. Sin decisiones funcionales pendien
 
 Revertir los commits del test y de este registro. No se pierden datos; vuelve la dependencia
 horaria del test anterior.
+
+---
+
+---
+
+# Cambio 297 — Fidelidad de bitácora, trayectoria e instituciones
+
+🟢 **HECHO — 14/10/2026** · Carril FC de fidelidad del MVP de Dispositivos
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · bitácora (P10), trayectoria del ciudadano (P16), instituciones (P2) |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | Juez — encargo directo del carril FC de fidelidad del MVP |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Sin issue propio · Épica #127 |
+| **Partes afectadas** | Backoffice: pieza compartida de entradas, servicio de pantalla de bitácora, selector de trayectoria, solapa del legajo y sus pruebas |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Acercar P10, P16 y P2 al mockup con piezas existentes: corregir la novedad desde su autoría,
+abrir la estadía desde cada fila con acceso, corregir el pie de la trayectoria y distinguir
+los vacíos del listado. Exportar debe ser un único menú solo si existe una pieza canónica
+para el header; de lo contrario se conservan los dos enlaces y se registra el apartamiento.
+Verificar las nuevas guardas por mutación y actualizar ficha e inventario de la pieza compartida.
+
+## Alcance acordado
+
+Tres ajustes acotados sobre pantallas existentes; sin cambios de modelos, permisos, roles ni
+servicios de escritura. La corrección sigue creando una versión y conserva la anterior.
+La trayectoria sigue mostrando abiertas y cerradas de toda la red, incluso fuera del alcance
+fino: solo el enlace al detalle depende de ese alcance. No se modifica P7 ni se crea un menú.
+
+## Decisiones tomadas
+
+- **P10:** `url_corregir` es un parámetro opcional de cada entrada de la pieza canónica.
+  Dibuja «corregir (crea versión)» junto a la autoría, con enlace discreto. Sin el parámetro,
+  el HTML conserva exactamente su salida anterior; lo fija un snapshot generado desde la
+  versión anterior del template, con entradas manuales, automáticas, versionadas y sin autoría.
+- El servicio de pantalla prepara la URL solo para versiones vigentes, manuales, del turno
+  en curso, en un dispositivo activo y con `dispositivo.bitacora` con alcance. Reutiliza la
+  lista autorizada que alimenta el modal existente; la URL incluye fecha, turno e id.
+  Se elimina «Corregir» de la tarjeta, que queda con «+ Novedad».
+- Si el filtro muestra una entrada más vieja que el recorte de correcciones, se incorpora
+  desde las entradas ya leídas y se conserva `tipo` en el enlace: también se precarga sin
+  una nueva consulta. Ni las automáticas ni las versiones reemplazadas reciben la acción.
+- **P16:** el selector acepta el usuario y anota el acceso al detalle mediante `EXISTS`
+  sobre `dispositivos_visibles`, la forma por queryset de la misma autorización que P7.
+  Exige además `ciudadano.ver`. No consulta por fila ni filtra la trayectoria de toda la red.
+  Un rol asignado que no tenga `dispositivo.ver` no aporta alcance para este enlace.
+- La fila muestra `.nodo-icon-btn`, `fa-eye` con `aria-hidden` y un `aria-label` que nombra
+  institución y fecha de ingreso. El vacío abarca las siete columnas. El pie copia el mockup:
+  «Las secciones sensibles de cada ficha se muestran según tu rol. El historial se conserva
+  aunque no haya estadía activa.»
+- **P2 ya estaba resuelto:** `request.GET|hay_filtros` distingue «Ningún dispositivo coincide
+  con los filtros», con «Limpiar filtros», de «No hay dispositivos en tu alcance» sin filtros.
+  Se conservan template y vista y se agregan pruebas de ambos estados.
+- No hay un menú canónico de exportación para el encabezado. El inventario ofrece
+  `menu_fila` para acciones de registros, con botón de ícono ⋮; convertirlo en «Exportar»
+  requeriría una variante nueva. Se mantienen CSV y Excel conforme al encargo.
+
+### Plan de pantalla
+
+```text
+Tipo: A (P10, P16, P2 existentes) + C (extensión autorizada de entradas de bitácora)
+Arquetipos: Detalle apilado (P10, P16); Listado con filtros (P2)
+Goldens de referencia: becas/cupo/segmento_detail.html; becas/revision/personas_list.html
+P10: _entradas_bitacora con acción discreta en autoría; modal existente por ?corregir=<id>
+P16: tabla canónica, columna Acciones con nodo-icon-btn autorizado; pie del mockup
+P2: _estado_vacio en sus dos variantes existentes; exportación conservada
+Lecturas: URLs por entrada ya leída; EXISTS de alcance en la página de trayectoria
+Novedades: solo url_corregir, autorizado expresamente; sin clases, includes ni assets nuevos
+Clasificación: entradas, tabla, botones, estado vacío y modales son Canónico reutilizable
+Assets: los de includes/base.html; Tailwind, nodo-buttons, nodo-tables y nodo-tooltips
+```
+
+### Apartamientos del mockup
+
+- P2 conserva dos enlaces «Exportar CSV» y «Exportar Excel»: falta una pieza canónica de
+  menú para el header. No se inventa una variante del menú de fila.
+- P16 usa un botón de ícono con etiqueta accesible y tooltip, según el encargo y la tabla
+  canónica, en lugar del botón de texto del mockup. No hay acción deshabilitada fuera de alcance.
+- Se conservan los apartamientos previos del MVP: P16 es una superficie independiente del
+  legajo, P10 no simula pase de guardia ni datos sin servicio, y P2 no agrega importación,
+  categoría o confianza del dato. El carril no modifica esas decisiones.
+
+## Implementación
+
+La novedad que se está leyendo ofrece corregir en su línea de autoría y abre el modal con
+esa misma entrada y su texto. La trayectoria permite abrir estadías accesibles, incluidas
+las cerradas, y sigue mostrando las de otras instituciones sin ofrecerles un detalle que
+rechazaría al usuario. El listado conserva los vacíos correctos ya existentes.
+
+## Archivos
+
+- `templates/components/_entradas_bitacora.html`, `programas/services/bitacora_pantalla.py`.
+- `programas/selectors/trayectoria.py`, `legajos/views/dispositivos.py`,
+  `legajos/templates/legajos/solapas/dispositivos.html`.
+- `core/tests/test_nodo_ui_piezas.py`, `core/tests/snapshots/entradas_bitacora_sin_accion.json`.
+- `programas/tests/test_dispositivos_bitacora_pantalla.py`, `test_solapa_dispositivos.py`,
+  `test_dispositivos_legajo.py`, `scripts/perf_budgets.json`.
+- `.claude/agents/chaco-design-system.md`, `.claude/design/componentes/turno_bitacora.md`
+  (contrato vigente actualizado junto con la pieza).
+- Esta entrada y su única fila nueva del índice. P2 no necesita cambios productivos.
+
+## Base de datos
+
+No requiere migraciones ni cambios de datos. El `EXISTS` es una lectura sobre dispositivos
+y asignaciones existentes. Presupuesto nuevo `dispositivos_trayectoria_enlaces`: tres consultas
+con capacidades ya evaluadas por la vista, iguales con una y diez filas; no sube ningún techo.
+
+## Validación
+
+- Regresión: 280 pruebas de arquitectura, bitácora de pantalla, trayectoria, legajo
+  institucional y piezas canónicas en verde. Pruebas de bitácora de dominio, entradas
+  automáticas, detalle de estadía, snapshots de Becas y performance por módulo.
+- Snapshot de la pieza compartida: igualdad exacta del HTML sin acción, también con
+  `url_corregir` vacío; con acción cambia solo la línea de autoría y el texto sigue escapado.
+- `manage.py check`; `makemigrations --check --dry-run` con
+  `DJANGO_SYNCDB_PROJECT_APPS=False`; contrato de migraciones; compilación de 232 templates;
+  auditorías de arquetipo de P10/P16/P2; ratchet contra `origin/development` y siete goldens.
+- Build de Tailwind sin diff; ruff check y formato; presupuesto de performance; registro;
+  contrato y límites del agente de diseño. Snapshots de Becas regenerados y diff revisado.
+- Revisión visual en Edge del HTML generado por los fixtures a 1440 px: enlace de P10
+  junto a la autoría, modal abierto con entrada, tipo y texto precargados; P16 con íconos
+  en estadías abiertas y cerradas propias y sin acción en la institución ajena.
+
+**Mutaciones, romper → rojo → restaurar desde copia → verde:**
+
+1. Sin capacidad en la selección de corregibles: la acción aparece y el test falla.
+2. Capacidad de bitácora sin comprobar alcance al dispositivo: falla el test de rol asignado
+   a otra institución que solo tiene lectura en la propia.
+3. Sin filtro de origen manual: la entrada automática ofrece corregir y el test falla.
+4. Sin filtro de turno en curso: la entrada del turno cerrado ofrece corregir y el test falla.
+5. `EXISTS` sin alcance: fallan las pruebas de institución ajena, asignación inactiva,
+   asignación mediante rol sin la capacidad y ausencia de `dispositivo.ver`.
+6. Sin `ciudadano.ver` en el selector: ofrece detalle y el test falla.
+7. Consulta de alcance por cada fila: el presupuesto deja de ser constante y falla.
+8. Sin incorporar la entrada filtrada fuera del recorte: desaparece su acción y falla.
+9. Incorporación de entradas visibles sin origen manual: la automática recibe la acción y falla.
+10. Incorporación sin turno en curso: la entrada del turno cerrado recibe la acción y falla.
+
+## Puesta en marcha en el servidor
+
+No requiere pasos adicionales al deploy habitual ni configuración de roles.
+
+## Pendientes / a definir
+
+- El juez asigna el número definitivo a `293`, tanto en encabezado como en índice.
+  El checker actual reconoce números y omite el marcador; se valida además una copia
+  temporal numerada, sin modificar el documento entregado ni el script.
+- Menú canónico de exportación de header: apartamiento explícito, fuera del carril.
+- Sin preguntas funcionales abiertas.
+
+## Reversión
+
+Revertir los commits de FC, conservando los datos y las versiones de bitácora cargadas.
+No hay migraciones que bajar: se vuelven a ofrecer la corrección en tarjeta y la trayectoria
+sin enlaces por fila, y se restaura el contrato anterior de la pieza compartida.
+
+## Historial
+
+Entrada nueva y única del carril FC; los registros anteriores se conservan.
 
 ---
