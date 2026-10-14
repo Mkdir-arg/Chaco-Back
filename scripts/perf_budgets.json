@@ -194,6 +194,11 @@
       "consultas_fijas": 3,
       "motivo": "Presupuesto nuevo (MVP v2 etapa 1, #687), subido de 1 a 3 por la etapa 2 (#689). Es la unica fuente de las cifras de plazas, asi que la consumen el mapa de plazas, el detalle del dispositivo, el censo y los indicadores, y se paga en cada una de esas pantallas. El costo tiene que ser constante: tres consultas -plazas por sector, estadias activas por sector y reservas vigentes por sector-, cada una con una fila por sector, sin importar cuantos sectores, cuantas plazas ni cuantos dispositivos se pidan. Las tres y no una: colgar las estadias de la misma agregacion encadena sector->plaza->estadia en un LEFT JOIN y Django pone el filtro del Count adentro de un CASE, no en el ON, asi que el motor materializaria una fila por cada estadia historica de cada plaza -un conjunto que crece para siempre- para descartarlas casi todas. La forma natural de escribir cualquiera de las tres -un count por sector- seria un N+1 proporcional al mapa de plazas, que es justo lo que los indices (dispositivo, activo), (sector, estado) y (plaza, estado) estan puestos para evitar. No lleva `casos_por_consulta`: no es O(casos), es O(1). Si quien llama pasa un queryset perezoso de dispositivos, evaluarlo es una consulta suya y no entra en este techo."
     },
+    "dispositivos_trayectoria_enlaces": {
+      "servicio": "programas.selectors.trayectoria.trayectoria_de",
+      "consultas_fijas": 3,
+      "motivo": "Carril FC, P16: COUNT del paginador, pagina con relaciones y estadia activa. Con capacidades ya evaluadas por la vista, el alcance de dispositivo.ver se anota mediante EXISTS en la misma lectura, sin consultar por fila ni filtrar la trayectoria de toda la red. El test mide una y diez filas, con instituciones dentro y fuera del alcance."
+    },
     "dispositivos_estadia_detalle": {
       "servicio": "programas.selectors.estadia_detalle.detalle_de_estadia",
       "consultas_fijas": 4,

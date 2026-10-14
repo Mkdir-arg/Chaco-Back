@@ -78,7 +78,7 @@ PDF = b"%PDF-1.4\n%prueba\n"
 
 #: Las acciones de la tarjeta del turno: enlaces a esta misma pantalla que piden el modal por GET.
 ENLACE_NOVEDAD = 'novedad=1"'
-ENLACE_CORREGIR = 'corregir="'
+ENLACE_CORREGIR = ">corregir</a> (crea versión)"
 AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
 
 
@@ -760,7 +760,7 @@ class FechaYEleccionTests(BasePantalla):
             for accion in tarjeta["acciones"]
             if accion["texto"] in ("+ Novedad", "Corregir")
         }
-        self.assertEqual(sorted(acciones), ["+ Novedad", "Corregir"])
+        self.assertEqual(sorted(acciones), ["+ Novedad"])
         for texto, url in acciones.items():
             with self.subTest(accion=texto):
                 self.assertIn(f"turno={self.tarde.pk}", url)
@@ -775,6 +775,79 @@ class FechaYEleccionTests(BasePantalla):
         self.assertIn(f"fecha={MARTES.isoformat()}", url)
         self.assertIn(f"turno={self.manana.pk}", url)
         self.assertIn("turnos=1", url)
+
+
+class AccionPorEntradaTests(BasePantalla):
+    def test_entrada_visible_por_filtro_fuera_del_recorte_del_select_tambien_se_precarga(self):
+        entrada = self._cargar(_local(MIERCOLES, 14), tipo=EntradaBitacora.Tipo.SALUD, texto="Control de salud.")
+        self._cargar(_local(MIERCOLES, 15))
+        with mock.patch("programas.services.bitacora_pantalla.TOPE_CORREGIBLES", 1):
+            respuesta = self._get(tipo=EntradaBitacora.Tipo.SALUD)
+            url = respuesta.context["entradas"][0].get("url_corregir")
+            self.assertIsNotNone(url, "Toda entrada manual visible del turno en curso debe ofrecer corregir")
+            self.assertIn("tipo=SALUD", url)
+            with _reloj():
+                modal = self.client.get(url)
+        self.assertEqual(modal.context["correccion_inicial"], str(entrada.pk))
+        self.assertEqual(modal.context["corregibles_datos"][str(entrada.pk)]["texto"], entrada.texto)
+
+    def test_enlace_de_la_entrada_abre_su_modal_precargado(self):
+        entrada = self._cargar(_local(MIERCOLES, 15), texto="Texto a corregir.")
+        respuesta = self._get()
+        url = next(e["url_corregir"] for e in respuesta.context["entradas"] if e.get("url_corregir"))
+        self.assertContains(respuesta, f'href="{url.replace("&", "&amp;")}"')
+        self.assertContains(respuesta, ENLACE_CORREGIR)
+        self.assertFalse(any(a["texto"] == "Corregir" for t in respuesta.context["tarjetas"] for a in t["acciones"]))
+
+        with _reloj():
+            modal = self.client.get(url)
+        self.assertTrue(modal.context["abrir_modal_corregir"])
+        self.assertEqual(modal.context["correccion_inicial"], str(entrada.pk))
+        self.assertEqual(modal.context["corregibles_datos"][str(entrada.pk)]["texto"], entrada.texto)
+        self.assertContains(modal, 'x-init="if (correccion.entrada) elegirCorreccion()"')
+
+    def test_sin_capacidad_no_hay_accion_en_la_entrada(self):
+        self._cargar(_local(MIERCOLES, 15))
+        usuario = self._usuario("Sin capacidad corregir", self.cis, _sin("dispositivo.bitacora"))
+        respuesta = self._get(usuario)
+        self.assertFalse(any(e.get("url_corregir") for e in respuesta.context["entradas"]))
+        self.assertNotContains(respuesta, ENLACE_CORREGIR)
+
+    def test_capacidad_en_otro_dispositivo_no_ofrece_corregir(self):
+        self._cargar(_local(MIERCOLES, 15))
+        usuario = self._usuario("Bitacora parador", self.parador)
+        rol_lectura = Group.objects.create(name="Lectura CIS sin bitacora")
+        RolMeta.objects.create(grupo=rol_lectura, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa)
+        rol_lectura.permissions.add(_permiso("dispositivo.ver"))
+        AsignacionDispositivo.objects.create(dispositivo=self.cis, rol=rol_lectura)
+        usuario.groups.add(rol_lectura)
+        respuesta = self._get(User.objects.get(pk=usuario.pk))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertNotContains(respuesta, ENLACE_CORREGIR)
+
+    def test_automatica_no_ofrece_corregir_aunque_el_turno_este_en_curso(self):
+        respuesta = self._get()
+        self.assertTrue(respuesta.context["entradas"])
+        self.assertTrue(all(e["automatica"] for e in respuesta.context["entradas"]))
+        self.assertFalse(any(e.get("url_corregir") for e in respuesta.context["entradas"]))
+        self.assertNotContains(respuesta, ENLACE_CORREGIR)
+
+    def test_turno_terminado_no_ofrece_corregir(self):
+        self._cargar(_local(MIERCOLES, 10))
+        self._cargar(_local(MIERCOLES, 15))
+        respuesta = self._get(turno=self.manana.pk)
+        self.assertTrue(respuesta.context["puede_cargar"])
+        self.assertTrue(respuesta.context["entradas"])
+        self.assertFalse(any(e.get("url_corregir") for e in respuesta.context["entradas"]))
+        self.assertNotContains(respuesta, ENLACE_CORREGIR)
+
+    def test_version_reemplazada_no_ofrece_corregir(self):
+        entrada = self._cargar(_local(MIERCOLES, 15))
+        with _reloj():
+            nueva = corregir_entrada(entrada=entrada, usuario=self.operador, texto="Texto corregido.")
+        respuesta = self._get()
+        self.assertFalse(any(e.get("url_corregir") for e in respuesta.context["versiones"]))
+        self.assertTrue(any(f"corregir={nueva.pk}" in e.get("url_corregir", "") for e in respuesta.context["entradas"]))
 
 
 class ModalPorGetTests(BasePantalla):

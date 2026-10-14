@@ -166,6 +166,15 @@ def _personas_prefetch(nombrar_personas: bool):
     return Prefetch("personas", queryset=estadias)
 
 
+def _opcion_correccion(entrada):
+    return {
+        "pk": entrada.pk,
+        "etiqueta": f"{_hora(entrada.momento)} · {entrada.get_tipo_display()} · {entrada.texto[:60]}",
+        "tipo": entrada.tipo,
+        "texto": entrada.texto,
+    }
+
+
 def _del_turno(dispositivo, fecha, turno, tipo):
     entradas = EntradaBitacora.objects.filter(dispositivo=dispositivo, fecha_operativa=fecha, turno=turno)
     if tipo:
@@ -361,7 +370,7 @@ def pantalla_bitacora(
     # Las plazas son la foto de ahora: solo tienen sentido en el día en curso.
     conteo = ocupacion_de_plazas(dispositivo, ahora).de(dispositivo).conteo if es_hoy else None
 
-    entradas, total, versiones, adjuntos = [], 0, [], []
+    entradas, total, versiones, adjuntos, vigentes = [], 0, [], [], []
     if turno is not None:
         vigentes = list(
             _del_turno(dispositivo, fecha, turno, tipo)
@@ -397,12 +406,7 @@ def pantalla_bitacora(
     corregibles = []
     if puede_cargar:
         corregibles = [
-            {
-                "pk": entrada.pk,
-                "etiqueta": f"{_hora(entrada.momento)} · {entrada.get_tipo_display()} · {entrada.texto[:60]}",
-                "tipo": entrada.tipo,
-                "texto": entrada.texto,
-            }
+            _opcion_correccion(entrada)
             for entrada in EntradaBitacora.objects.vigentes()
             .filter(
                 dispositivo=dispositivo,
@@ -413,6 +417,15 @@ def pantalla_bitacora(
             .only("id", "momento", "tipo", "texto")
             .order_by("-momento", "-id")[:TOPE_CORREGIBLES]
         ]
+        # Un filtro puede mostrar una entrada más vieja que el recorte del select.
+        # También debe poder corregirse desde su fila, sin ninguna lectura adicional.
+        if tramo is not None and tramo.en_curso:
+            incluidos = {entrada["pk"] for entrada in corregibles}
+            corregibles.extend(
+                _opcion_correccion(entrada)
+                for entrada in vigentes
+                if entrada.origen == EntradaBitacora.Origen.MANUAL and entrada.pk not in incluidos
+            )
 
     personas = []
     if puede_cargar and nombrar_personas:
@@ -448,8 +461,15 @@ def pantalla_bitacora(
             partes.append(extra)
         return f"{url_base}?{'&'.join(partes)}"
 
-    # Las acciones de la tarjeta llevan a esta misma pantalla con el modal pedido por GET
-    # (`?novedad=1`, `?corregir=`): la vista lo abre al dibujarla. Ningún enlace muta nada.
+    # Cada enlace de corrección usa la misma lista autorizada que precarga el modal:
+    # versiones vigentes, manuales, del turno en curso y con capacidad y alcance.
+    ids_corregibles = {entrada["pk"] for entrada in corregibles}
+    for entrada, datos in zip(vigentes, entradas):
+        if entrada.pk in ids_corregibles:
+            extra = f"tipo={tipo}&corregir={entrada.pk}" if tipo else f"corregir={entrada.pk}"
+            datos["url_corregir"] = url_de(fecha, turno, extra)
+
+    # La tarjeta lleva a esta misma pantalla con `?novedad=1`; corregir vive en la entrada.
     #
     # El turno de la URL es el EN CURSO, no el que se está mirando: la tarjeta con acciones es
     # siempre la del turno en curso (`_tarjeta` las cuelga solo de ese tramo) y `corregibles`
@@ -461,10 +481,6 @@ def pantalla_bitacora(
         acciones_en_curso.append(
             {"texto": "+ Novedad", "variante": "brand", "url": url_de(fecha, en_curso.turno, "novedad=1")}
         )
-        if corregibles:
-            acciones_en_curso.append(
-                {"texto": "Corregir", "variante": "secondary", "url": url_de(fecha, en_curso.turno, "corregir=")}
-            )
     tarjetas = [
         _tarjeta(
             opcion_turno,
