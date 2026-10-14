@@ -152,7 +152,7 @@ dárselo a menos gente que el armado.
 | RF-007-17 | Plantilla Excel descargable desde el formulario | Baja | |
 | RF-007-18 | **Enviar prueba**: popup que pide un correo y manda la campaña solo a esa dirección con «[PRUEBA] » en el asunto | Alta | Decidido 08/10 |
 | RF-007-19 | **Duplicar** una campaña en cualquier estado → copia en «A enviar» con «Copia de …» | Media | Decidido 08/10 |
-| RF-007-20 | El cuerpo se puede subir como **.zip con la carpeta** del mailing (`.html` + imágenes). El sistema publica las imágenes que el HTML nombra en una dirección pública de DATAÑACH y reescribe cada `src` a esa URL absoluta; la previsualización avisa las que faltan, las que no se publican y cuántas quedaron alojadas | Alta | Decidido 14/10 (PM, opción 1) — Cambio 285 |
+| RF-007-20 | El cuerpo se puede subir como **.zip con la carpeta** del mailing (`.html` + imágenes). Las imágenes que el HTML nombra **viajan incrustadas en cada correo** (`cid:`, `multipart/related`); la previsualización avisa las que faltan, las que no se incluyen y el peso aproximado de cada correo | Alta | Decidido 14/10 (PM, opción 1) — Cambio 285; **plan B** (incrustadas) el mismo 14/10 — Cambio 292 |
 
 ### Requerimientos no funcionales
 
@@ -169,8 +169,9 @@ dárselo a menos gente que el armado.
 | RNF-007-09 | Se respeta `EMAIL_ASUNTO_PREFIJO`: en QA el asunto lleva `[QA] ` | Operación |
 | RNF-007-10 | Lectura del Excel con `openpyxl` en `read_only`, sobre el patrón de `parsear_padron` | Performance |
 | RNF-007-11 | Funciona igual en MySQL 8 y MariaDB (sin `Trunc*` sobre `DateTimeField`, sin `UUIDField` en `char(32)`) | Compatibilidad |
-| RNF-007-12 | Las imágenes del .zip se sirven en `/notificaciones/img/<token>/<nombre>` **sin login** (las pide el cliente de correo del destinatario). Única excepción a RNF-007-02, aceptada por el PM el 14/10: solo imágenes de campañas validadas con Pillow; se buscan por token (uno por paquete, `secrets.token_urlsafe`) y nombre en la base, nunca por ruta del disco; salen con el tipo real, `nosniff`, `inline`, CSP `default-src 'none'; sandbox` y caché pública de 30 días; borrar la campaña o reemplazar el cuerpo las da de baja (404) | Seguridad |
-| RNF-007-13 | La base de esas URLs sale de `NOTIF_URL_PUBLICA` (por defecto `https://<DOMINIO>`, `http://` si es local): el correo se arma en un hilo sin request | Operación |
+| RNF-007-12 | ~~Retirado por el Cambio 292: el WAF de ECOM bloquea esta ruta desde internet.~~ Las imágenes del .zip se servían en `/notificaciones/img/<token>/<nombre>` **sin login** (las pide el cliente de correo del destinatario). Única excepción a RNF-007-02, aceptada por el PM el 14/10: solo imágenes de campañas validadas con Pillow; se buscan por token (uno por paquete, `secrets.token_urlsafe`) y nombre en la base, nunca por ruta del disco; salen con el tipo real, `nosniff`, `inline`, CSP `default-src 'none'; sandbox` y caché pública de 30 días; borrar la campaña o reemplazar el cuerpo las da de baja (404) | Seguridad |
+| RNF-007-13 | ~~Retirado por el Cambio 292 (ya no hay URLs): la base salía de `NOTIF_URL_PUBLICA`.~~ | Operación |
+| RNF-007-14 | Las imágenes del .zip viajan **dentro de cada correo**: el HTML las nombra `cid:<nombre>@datanach` (sin `<>`) y el correo es `multipart/related [ multipart/alternative [texto, html], imagen… ]`, una parte por imagen con `Content-ID: <nombre@datanach>`, `Content-Disposition: inline` y su tipo real, armadas una vez por envío. La vista previa las muestra como `data:` (el `iframe sandbox` no manda cookies). Los archivos siguen en `media/` detrás de login (`notificacion.ver`); **no hay ninguna ruta pública** | Seguridad / Entregabilidad |
 
 ---
 
@@ -198,7 +199,8 @@ dárselo a menos gente que el armado.
 | RN-007-18 | El .zip: hasta 10 MB comprimido y 20 MB descomprimido, hasta 50 imágenes (5 MB cada una) y 500 archivos; sin rutas con `..`, absolutas ni enlaces simbólicos, sin cifrar. Se ignoran `__MACOSX/`, `.DS_Store`, `Thumbs.db` y los `._*`. Tiene que traer **un** `.html`/`.htm`; si trae varios, vale el `index.html` de la raíz de la carpeta | Error en el campo |
 | RN-007-19 | Cada `src` relativo se resuelve contra la carpeta del HTML (con `./`, `\`, `%20`, `?v=` y, si no aparece, sin distinguir mayúsculas). Solo se publican PNG, JPG, GIF y WEBP verificados por su contenido (no por la extensión), de hasta 25 millones de píxeles, y **recodificados** sin metadatos (EXIF/GPS, XMP, textos, comentarios; se conservan perfil de color, transparencia y animación); **SVG no** (puede llevar scripts) | Faltante o no publicada: aviso con el nombre en la previsualización; el resto del correo sigue |
 | RN-007-20 | Las imágenes del .zip que el HTML no nombra no se publican. Las de fondo por CSS (`url(…)`) o por el atributo `background` tampoco: el saneo las quita igual que en un HTML suelto | — |
-| RN-007-21 | Reemplazar el cuerpo publica el paquete nuevo con token nuevo y da de baja las imágenes anteriores; duplicar publica las de la copia con su propio token | — |
+| RN-007-21 | Reemplazar el cuerpo guarda el paquete nuevo con token nuevo y da de baja las imágenes anteriores; duplicar guarda las de la copia con su propio token | — |
+| RN-007-22 | Las imágenes incluidas de una campaña, ya recodificadas, pesan **hasta 2 MB en total** (cada correo las lleva todas). La previsualización muestra el peso aproximado de cada correo | Error en el campo con el total y el tope |
 
 ---
 
@@ -309,3 +311,4 @@ notificaciones/
 | 2026-10-08 | Versión inicial + mock-ups | Pedido del PM |
 | 2026-10-08 | Cierre de las 9 preguntas: rol Comunicaciones, tope 5.000, prueba por popup, duplicar, sin desuscripción, solo correos, remitente no-responder | Respuestas del PM |
 | 2026-10-14 | RF-007-20, RNF-007-12/13 y RN-007-18 a 21: el cuerpo como .zip con la carpeta y las imágenes publicadas sin login (Cambio 285). **Decisión del PM (opción 1)**: las imágenes de campañas quedan públicas, como excepción explícita a «media detrás de login», solo para imágenes validadas | Los mailings llegan como carpeta con `img/` y rutas relativas: subido solo el HTML, no se veía ninguna imagen |
+| 2026-10-14 | **Plan B** (Cambio 292): RNF-007-14 y RN-007-22; RNF-007-12/13 retirados. Las imágenes viajan incrustadas en cada correo (`cid:`) y la exposición pública aprobada a la mañana **queda retirada** | En testing el correo llegó a Gmail con las 14 imágenes rotas: el WAF de ECOM (FortiWeb) bloquea `/notificaciones/img/` desde internet y PRD tiene el mismo WAF |

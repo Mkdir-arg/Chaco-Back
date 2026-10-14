@@ -421,7 +421,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 288 | El turno visible, las novedades automáticas de la bitácora y tres contratos que faltaban | Dispositivos · estadía, ingreso, detalle y bitácora | `#ui` `#datos` `#rbac` `#performance` | Carril C3 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0094` |
 | 289 | Ver informe del relevamiento, la solapa «Sin relevar nunca» y las decisiones del juez sobre el relevamiento edilicio | Dispositivos · relevamiento edilicio | `#ui` `#rbac` `#api` `#mobile` `#performance` | Pendientes del Cambio 279 + decisiones del juez | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 290 | Concurrencia real del MVP de Dispositivos y orden de bloqueo de las reservas | Dispositivos · estadías, reservas, relevamiento edilicio y bitácora | `#datos` `#performance` `#mobile` | Encargo T1 del juez del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
-| 292 | Notificaciones: las imágenes del .zip viajan incrustadas en cada correo y se retira la ruta pública | Transversal — notificaciones (armado del correo, vista previa, alta y edición) | `#correo` `#datos` `#ui` | PM — plan B del 14/10/2026: el WAF de ECOM bloquea la ruta pública del Cambio 285 | 14/10/2026 | 🟡 **En curso** | `notificaciones.0004` |
+| 292 | Notificaciones: las imágenes del .zip viajan incrustadas en cada correo y se retira la ruta pública | Transversal — notificaciones (armado del correo, vista previa, alta y edición) | `#correo` `#datos` `#ui` | PM — plan B del 14/10/2026: el WAF de ECOM bloquea la ruta pública del Cambio 285 | 14/10/2026 | 🟢 **Hecho** | `notificaciones.0004` |
 
 **Notas del índice**
 
@@ -37407,6 +37407,8 @@ intactas, más esta entrada y su fila; el 285 seguía libre). Se repitió igual 
 recodificadas sin metadatos, tope de 25 millones de píxeles y el aviso en la confirmación de
 «Eliminar». El límite de pedidos de la vista pública quedó en Pendientes.
 
+
+**14/10/2026 — la parte pública se retiró en el Cambio 292.** El WAF de ECOM bloquea `/notificaciones/img/` desde internet: las imágenes pasan a viajar incrustadas en cada correo (`cid:`) y la ruta pública, su exención en los middlewares y `NOTIF_URL_PUBLICA` dejan de existir.
 ---
 
 ---
@@ -38024,34 +38026,155 @@ Entrada nueva del encargo T1. Cierra el pendiente de concurrencia real del Cambi
 
 # Cambio 292 — Notificaciones: las imágenes del .zip viajan incrustadas en cada correo y se retira la ruta pública
 
-🟡 **EN CURSO — 14/10/2026** · revierte la parte pública del Cambio 285
+🟢 **HECHO — 14/10/2026** · revierte la parte pública del [Cambio 285](#cambio-285--notificaciones-el-cuerpo-del-correo-se-sube-como-zip-con-la-carpeta-y-sus-imágenes-quedan-publicadas) · análisis [007](analisis/007-notificaciones-campanas-email.md) (RNF-007-14, RN-007-22)
 
 | | |
 |---|---|
-| **Programa / módulo** | Transversal — notificaciones |
+| **Programa / módulo** | Transversal — notificaciones (armado del correo, envío masivo y prueba, vista previa, alta y edición) |
 | **Etiquetas** | `#correo` `#datos` `#ui` |
-| **Solicitante** | PM — 14/10/2026 |
+| **Solicitante** | PM — plan B del 14/10/2026, diseño del juez |
 | **Fecha del pedido** | 14/10/2026 |
-| **Issue / épica** | sin issue (análisis 007) |
-| **Partes afectadas** | Backoffice · Hilo de envío |
-| **Migración** | `notificaciones.0004` |
+| **Issue / épica** | sin issue (análisis 007) · rama `feature/notificaciones-imagenes-incrustadas` |
+| **Partes afectadas** | Backoffice (detalle y formulario de la campaña) · Hilo de envío · Middlewares de sesión · Superficie pública |
+| **Migración** | `notificaciones.0004` (solo datos: los `src` guardados pasan a `cid:`) |
 
 ## Pedido original
 
-Reservado: la entrada se completa al cerrar la rama `feature/notificaciones-imagenes-incrustadas`.
+En testing la campaña con el .zip quedó bien en la base (14 imágenes, `src` a
+`https://datanach.ecomdev.ar/notificaciones/img/<token>/…`) y desde la red interna las URLs daban 200,
+pero el correo llegó a Gmail con las **14 imágenes rotas**: desde internet el WAF de ECOM (FortiWeb,
+«Web Page Blocked! Attack ID: 20000018») bloquea esa ruta, y PRD tiene el mismo WAF. Gmail baja las
+imágenes con su proxy desde internet, así que no llegan. El PM decidió el **plan B**: las imágenes
+viajan incrustadas en cada correo y dejan de depender de cualquier URL pública.
+
+## Alcance acordado
+
+Se mantiene todo lo del Cambio 285 sobre el .zip (topes, validación, recodificación sin EXIF/GPS, tope
+de píxeles, `ImagenCampana` en `media/`). Cambia cómo llegan las imágenes al correo y a la vista previa,
+se agrega un tope de peso y se retira la superficie pública con su configuración.
+
+## Decisiones tomadas
+
+- **Por qué se revierte la parte pública del Cambio 285.** La ruta `/notificaciones/img/` la bloquea el
+  WAF de ECOM desde internet en testing y en PRD; ningún cliente de correo con proxy (Gmail) la puede
+  bajar. Con las imágenes incrustadas la ruta no sirve para nada, así que se retira entera: la vista,
+  la URL, la exención `RUTAS_PUBLICAS_SIN_SESION` de los cuatro middlewares de sesión, la entrada de
+  `ALLOWLIST_PUBLICA` (los ratchets vuelven a **14** y **32**) y `NOTIF_URL_PUBLICA` de `settings` y
+  `.env.qa.example`. **La exposición pública aprobada por el PM el 14/10 a la mañana queda retirada**:
+  las imágenes vuelven a estar solo detrás de login (`/media/` con `notificacion.ver`).
+- **Formato del HTML guardado**: cada `src` de imagen alojada se reescribe, antes del saneo, a
+  `cid:<nombre>@datanach` (el nombre publicado, único por campaña). `nh3` admite el esquema `cid`; después
+  del saneo se le saca el `src` a todo `cid:` que no sea de una imagen del paquete, así un `cid:` en un
+  HTML suelto sigue sin llegar a nadie y sigue contando como «no visible». `data:` sigue prohibido en el
+  HTML del operador.
+- **Árbol MIME**: `multipart/related [ multipart/alternative [text/plain, text/html], imagen1, … ]`
+  (`EmailMultiAlternatives` con `mixed_subtype = "related"`). Cada imagen es una `MIMEImage` con
+  `Content-ID: <nombre@datanach>`, `Content-Disposition: inline; filename=…` y su tipo real; una sola parte
+  aunque el HTML la use varias veces, y solo las que el HTML nombra. El HTML referencia `cid:` **sin**
+  `<>`, que es lo que entiende Gmail. No se agrega el parámetro `type=` del `multipart/related` (Django no
+  lo expone y los clientes no lo exigen).
+- **Una lectura por corrida**: el envío masivo arma las partes una vez y las reusa para todos los
+  destinatarios (la imagen se lee del disco y se pasa a base64 una sola vez). La prueba usa el mismo
+  armado. Una imagen que falta en el disco no frena el correo: sale sin esa imagen y queda en el log.
+- **Vista previa**: el `iframe sandbox` es de origen opaco y no manda cookies, así que no puede pedir las
+  imágenes a una ruta con login. La respuesta de la vista previa cambia cada `cid:` propio por un
+  `data:` con la imagen (solo ahí, después del saneo; lo guardado sigue con `cid:`) y su CSP pasa a
+  `img-src https: data:` (sale `'self'`; `https:` queda para las imágenes publicadas afuera de un HTML
+  suelto).
+- **Tope de peso**: el total de las imágenes incluidas, ya recodificadas, es de **2 MB** por campaña
+  (cada correo las lleva todas: ~2,7 MB en base64). Si se pasa, error en el campo con el total y el tope,
+  y la campaña no se crea ni se edita. La previsualización muestra «Cada correo pesa ~N KB (M imágenes
+  incrustadas)»: HTML + texto + imágenes en base64.
+- **Datos existentes**: `notificaciones.0004` reescribe en `html_sanitizado` de todas las campañas los
+  `src` `…/notificaciones/img/<token>/<nombre>` a `cid:<nombre>@datanach`, **solo** cuando existe la
+  `ImagenCampana` con ese token y nombre; lo demás queda igual. `texto_plano` no nombra imágenes. En
+  testing la toca la campaña «Test2» (14 imágenes); PRD no tiene el módulo.
+- **Textos**: la ayuda del campo dice «Las imágenes del .zip viajan dentro de cada correo (hasta 2 MB en
+  total)»; los avisos hablan de imágenes «que no se incluyen»; la confirmación de «Eliminar» vuelve al
+  texto original (el aviso de que las imágenes «dejan de verse en los correos ya enviados» ya no aplica:
+  los correos enviados las llevan adentro).
+
+## Implementación
+
+- `notificaciones/services/incrustadas.py` (nuevo): `cid_de`/`src_de`, `imagenes_referenciadas`,
+  `partes_mime`, `html_para_vista_previa` (data URIs) y `peso_aproximado`; `TOPE_BYTES` = 2 MB.
+- `notificaciones/services/paquete.py`: reescribe a `cid:` y controla el tope de peso.
+- `notificaciones/services/html.py`: `cid` en los esquemas, `quitar_cid_ajenos` y el conteo de no visibles
+  sin los `cid:` propios.
+- `notificaciones/services/envio.py`: `armar_mensaje(…, partes=…)` arma el `multipart/related`; `correr`
+  arma las partes una vez.
+- `notificaciones/views/campanas.py`: sin `imagen_publica`; vista previa con `data:` y la CSP nueva;
+  aviso de peso. `notificaciones/urls.py`: sin `img/<token>/<nombre>`.
+- `notificaciones/forms/__init__.py`, `notificaciones/templates/notificaciones/campana_detail.html`: textos.
+- `notificaciones/models/__init__.py`, `core/rutas_media.py`, `core/views/media.py`: docstrings (sin cambio
+  de esquema; la regla de `/media/` para las imágenes queda).
+- `core/middleware.py`, `users/middleware.py`, `config/settings.py`, `.env.qa.example`,
+  `core/tests/test_superficie_publica.py`: vuelven a como estaban antes del Cambio 285 (ningún otro
+  cambio los había tocado).
+
+## Archivos
+
+`notificaciones/{services/incrustadas.py, services/paquete.py, services/html.py, services/envio.py,
+services/campanas.py, views/campanas.py, urls.py, forms/__init__.py, models/__init__.py,
+migrations/0004_imagenes_incrustadas.py, templates/notificaciones/campana_detail.html}`,
+`notificaciones/tests/{test_imagenes_incrustadas.py (reemplaza a test_imagenes_publicas.py), test_paquete.py}`,
+`core/{middleware.py, rutas_media.py, views/media.py, tests/test_superficie_publica.py}`,
+`users/middleware.py`, `config/settings.py`, `.env.qa.example`,
+`docs/internal/analisis/007-notificaciones-campanas-email.md`.
 
 ## Base de datos
 
-`notificaciones.0004` (a completar).
+`notificaciones.0004`: `RunPython` de datos, sin DDL. Reescribe `Campana.html_sanitizado` (los `src` de
+la ruta pública con su `ImagenCampana` → `cid:`). Reversa `noop` con `# REVERSA-NOOP`: los `src` quedan
+como `cid:`.
+
+## Validación
+
+- `notificaciones`: 155 tests en verde (Py 3.12 + Dj 5.2). `test_imagenes_incrustadas` fija el **árbol MIME
+  exacto** (`related > alternative[text, html] + image/jpeg + image/png`), que los Content-ID son
+  `<nombre@datanach>` y coinciden con los `cid:` sin `<>` del HTML, que una imagen usada dos veces es una
+  sola parte, que los bytes de cada parte son los guardados, que prueba y envío masivo (locmem) llevan
+  las imágenes y que el envío arma las partes **una vez** por corrida; la vista previa con `data:` y su
+  CSP; la ruta pública que ya no responde 200 sin sesión; `/media/` con `notificacion.ver`; la migración
+  (forward con una campaña en el formato viejo: reescribe las propias y deja un token ajeno y una URL
+  externa); el tope de 2 MB por servicio y por pantalla; el HTML suelto sigue como `alternative` sin
+  partes. `core.tests.test_superficie_publica` y `test_media_protegida` en verde con los ratchets en 14 y 32.
+  **Suite completa**: 6.120 tests en verde (64 salteados), sobre `development` @ 986ab1b5..
+- **Mutaciones, de a una, todas en rojo**: Content-ID distinto del `cid:` del HTML, Content-ID sin `<>`,
+  `src` sin el dominio del Content-ID, sin `mixed_subtype = "related"`, partes armadas por destinatario,
+  vista previa sin `data:` y sin el tope de 2 MB (dos tests).
+- **Prueba manual con el mailing real** (zip fuera del repo, base SQLite de prueba, alta por la
+  pantalla): 14 imágenes incluidas (210 KB recodificadas), 0 faltantes, 0 no incluidas; el `.eml` de la
+  prueba (locmem) pesa **305.956 bytes** (~299 KB), raíz `multipart/related`, 14 partes de imagen cuyos
+  Content-ID coinciden con los 14 `cid:` distintos del HTML; el detalle dice «Cada correo pesa ~287 KB
+  (14 imágenes incrustadas)» y la vista previa trae 14 `data:` y ningún `cid:`.
+- `manage.py check`, `makemigrations --check --dry-run` (SYNCDB=False), `check_migraciones.py` (1
+  migración, 0 problemas), `ruff`, `bandit` (0 issues), `design_audit --ratchet` (0 nuevos),
+  `--arquetipo detalle` OK, `compile_templates` 0 errores, `check_design_agent --changed` OK.
+
+## Puesta en marcha en el servidor
+
+- Migrar (`notificaciones.0004`): en testing reescribe «Test2». Después, mandar una prueba de esa campaña
+  a una casilla de Gmail y verificar que se ven las 14 imágenes.
+- Si alguien cargó `NOTIF_URL_PUBLICA` en el entorno, se puede borrar: ya no se lee.
+
+## Pendientes / a definir
+
+- Peso de los correos: con 2 MB de imágenes cada correo pesa ~2,7 MB; 5.000 destinatarios son ~13 GB
+  por el SMTP de ECOM. Si el relay limita por volumen, bajar `NOTIF_LOTE` o subir `NOTIF_PAUSA_SEG`.
+- DECISIÓN CLIENTE (sigue del Cambio 285): ¿se incluyen también los fondos por CSS y el atributo
+  `background`?
 
 ## Reversión
 
-1. `git revert` del merge (la entrada se completa al cerrar la rama).
-2. `migrate notificaciones 0003`: la reversa no deshace la reescritura de los `src`.
+1. `git revert` del merge: vuelve la ruta pública y `NOTIF_URL_PUBLICA` (el WAF la sigue bloqueando).
+2. `migrate notificaciones 0003`: la reversa no deshace nada; los `src` quedan como `cid:` y, con el
+   código del Cambio 285, esas imágenes se verían rotas. Para volver a URLs hay que re-subir el .zip de
+   cada campaña «A enviar».
 3. Sin archivos que borrar.
 
 ## Historial
 
-Entrada nueva.
+**14/10/2026** — Entrada nueva (reservada al empezar la rama).
 
 ---
