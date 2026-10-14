@@ -1,5 +1,6 @@
 from django.urls import path
 
+from programas.views import dispositivos_bitacora as bitacora
 from programas.views import dispositivos_config as cfg
 from programas.views import dispositivos_ingreso as ingreso
 from programas.views import dispositivos_legajo as legajo
@@ -35,6 +36,10 @@ urlpatterns = [
         legajo.EstadiaCambiarPlazaView.as_view(),
         name="cambiar_plaza",
     ),
+    path("<int:pk>/bitacora/", bitacora.BitacoraTurnoView.as_view(), name="bitacora"),
+    path("<int:pk>/bitacora/novedad/", bitacora.NovedadCrearView.as_view(), name="bitacora_novedad"),
+    path("<int:pk>/bitacora/corregir/", bitacora.NovedadCorregirView.as_view(), name="bitacora_corregir"),
+    path("<int:pk>/bitacora/turnos/", bitacora.TurnoGuardarView.as_view(), name="bitacora_turnos"),
     path("<int:pk>/ingresar/", ingreso.IngresoPersonaView.as_view(), name="ingreso_persona"),
     path("<int:pk>/ingresar/plaza/", ingreso.IngresoPlazaView.as_view(), name="ingreso_plaza"),
     path("<int:pk>/ingresar/confirmar/", ingreso.IngresoConfirmarView.as_view(), name="ingreso_confirmar"),

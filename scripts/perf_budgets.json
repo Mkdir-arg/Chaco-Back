@@ -156,7 +156,7 @@
     }
   },
   "servicios": {
-    "_nota": "Presupuestos de servicios que no son una ruta del manifiesto de perf_audit (no entran en `budgets`, que tiene que coincidir exactamente con build_targets). Los corren programas/tests/test_export_respuestas_presupuesto.py, programas/tests/test_dispositivos_ocupacion.py, programas/tests/test_dispositivos_estadia_detalle.py, programas/tests/test_dispositivos_censo.py, programas/tests/test_dispositivos_infraestructura.py, programas/tests/test_dispositivos_alertas.py y programas/tests/test_dispositivos_auditoria.py con --tag performance.",
+    "_nota": "Presupuestos de servicios que no son una ruta del manifiesto de perf_audit (no entran en `budgets`, que tiene que coincidir exactamente con build_targets). Los corren programas/tests/test_export_respuestas_presupuesto.py, programas/tests/test_dispositivos_ocupacion.py, programas/tests/test_dispositivos_estadia_detalle.py, programas/tests/test_dispositivos_censo.py, programas/tests/test_dispositivos_infraestructura.py, programas/tests/test_dispositivos_alertas.py, programas/tests/test_dispositivos_auditoria.py y programas/tests/test_dispositivos_bitacora_pantalla.py con --tag performance.",
     "becas_respuestas_por_persona": {
       "servicio": "programas.services.dashboard_becas.respuestas_por_persona",
       "consultas_fijas": 12,
@@ -207,6 +207,16 @@
       "servicio": "programas.services.detalle_dispositivo.infraestructura_del_dispositivo",
       "consultas_fijas": 6,
       "motivo": "Presupuesto nuevo (MVP v2 etapa 4, #702, solapa Infraestructura del detalle). Los edificios del dispositivo con su ultima realizada y la cantidad de instituciones (1), esas ultimas con quien relevo (1), los totales de la franja en un aggregate (1), el COUNT y la pagina del registro fotografico con la cantidad de fotos anotada (2) y las fotos de la pagina (1). El registro crece para siempre -cada relevamiento suma su tanda y ninguna se borra-, asi que se pagina de a 10 y las fotos de la pagina van en una sola consulta: leer las fotos por relevamiento seria un N+1 proporcional a la pagina. Sin edificio cargado es una sola consulta. El test mide con 1 y con 8 relevamientos en dos edificios y exige el mismo numero."
+    },
+    "dispositivos_bitacora_turno": {
+      "servicio": "programas.services.bitacora_pantalla.pantalla_bitacora",
+      "consultas_fijas": 17,
+      "motivo": "Presupuesto nuevo (MVP v2 etapa 3, #697, pantalla P10 Bitacora del turno). Todo lo que dibuja la pantalla, en el peor caso (hoy, con permiso de cargar y de configurar y con nombres): los turnos activos (1), el censo del dia con los turnos ya leidos (2, el de censo_por_dia), las plazas de ahora (3, ocupacion_de_plazas: solo hoy), las entradas vigentes por turno del dia (1), la pagina de entradas del turno con responsable, personas y adjuntos (3), las versiones reemplazadas con lo mismo (3), las novedades corregibles del turno en curso (1), las personas alojadas para elegir (1) y los turnos para configurar (1): 16. Y una mas, solo si la fecha tiene novedades de un turno que despues se dio de baja (Turno.filter(pk__in=...) para dibujar su tarjeta sin censo): 17, el peor caso, que es lo que mide el test. Un COUNT mas solo si el turno tiene mas entradas que el tope de 50, que no entra en este techo porque el test mide por debajo del tope. La forma natural de escribirla -leer responsable, personas o adjuntos desde cada entrada, o contar entradas turno por turno- seria una consulta por entrada o por turno, que es lo que este techo impide: el test mide con 1 y con 21 entradas (con personas, adjuntos y correcciones) y exige el mismo numero. Lo corre programas/tests/test_dispositivos_bitacora_pantalla.py con --tag performance."
+    },
+    "dispositivos_estadia_novedades": {
+      "servicio": "programas.selectors.estadia_detalle.novedades_de_estadia",
+      "consultas_fijas": 2,
+      "motivo": "Presupuesto nuevo (MVP v2 etapa 3, #697: solapa Novedades del detalle de la estadia, P7). Las novedades de la bitacora en las que la persona esta involucrada crecen todos los dias, asi que se paginan y no entran en las tres fijas de detalle_de_estadia: el COUNT del paginador y la pagina, con el responsable por select_related y solo las columnas que la tabla dibuja. Leer el responsable por fila seria un N+1 proporcional a la pagina. El test mide con 1 y con 16 novedades y exige el mismo numero. Lo corre programas/tests/test_dispositivos_bitacora_pantalla.py con --tag performance."
     }
   }
 }

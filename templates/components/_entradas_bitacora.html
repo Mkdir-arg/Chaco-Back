@@ -24,10 +24,11 @@ Sin entradas muestra el estado vacío canónico.
 {% if entradas %}
 <ol class="divide-y divide-light" role="list">
   {% for entrada in entradas|slice:":100" %}
-  <li class="flex gap-3 py-3 text-sm">
+  {# gap-y-1: al envolverse (móvil) el texto baja de línea y sin gap de fila queda pegado al badge. #}
+  <li class="flex flex-wrap gap-x-3 gap-y-1 py-3 text-sm">
     <span class="w-12 flex-shrink-0 tabular-nums text-body-subtle">{{ entrada.hora }}</span>
-    <span class="w-28 flex-shrink-0"><span class="badge badge-dot {% if entrada.tono == 'success' %}badge-success{% elif entrada.tono == 'info' %}badge-info{% elif entrada.tono == 'warning' %}badge-warning{% elif entrada.tono == 'danger' %}badge-danger{% elif entrada.tono == 'brand' %}badge-brand{% else %}badge-gray{% endif %}"><i class="fas {% if entrada.tono == 'success' %}fa-circle-check{% elif entrada.tono == 'info' %}fa-circle-info{% elif entrada.tono == 'warning' %}fa-triangle-exclamation{% elif entrada.tono == 'danger' %}fa-circle-exclamation{% elif entrada.tono == 'brand' %}fa-flag{% else %}fa-circle{% endif %}" aria-hidden="true"></i> {{ entrada.categoria }}</span></span>
-    <div class="min-w-0 flex-1 break-words text-body">
+    <span class="w-32 flex-shrink-0"><span class="badge {% if entrada.tono == 'success' %}badge-success{% elif entrada.tono == 'info' %}badge-info{% elif entrada.tono == 'warning' %}badge-warning{% elif entrada.tono == 'danger' %}badge-danger{% elif entrada.tono == 'brand' %}badge-brand{% else %}badge-gray{% endif %}"><i class="fas {% if entrada.tono == 'success' %}fa-circle-check{% elif entrada.tono == 'info' %}fa-circle-info{% elif entrada.tono == 'warning' %}fa-triangle-exclamation{% elif entrada.tono == 'danger' %}fa-circle-exclamation{% elif entrada.tono == 'brand' %}fa-flag{% else %}fa-circle{% endif %}" aria-hidden="true"></i> {{ entrada.categoria }}</span></span>
+    <div class="min-w-0 w-full sm:flex-1 break-words text-body">
       {% if entrada.titulo %}<strong class="text-heading">{{ entrada.titulo }}</strong> {% endif %}{% if entrada.texto %}{{ entrada.texto|linebreaksbr }}{% endif %}
       {% if entrada.automatica or entrada.autor or entrada.version and entrada.version > 1 %}<p class="mt-1 text-xs text-body-subtle">{% if entrada.automatica %}Automática{% if entrada.autor %} · {{ entrada.autor }}{% endif %}{% elif entrada.autor %}{{ entrada.autor }}{% endif %}{% if entrada.version and entrada.version > 1 %} · Versión {{ entrada.version }}{% endif %}</p>{% endif %}
     </div>

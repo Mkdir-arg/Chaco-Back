@@ -39,6 +39,13 @@
           <i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Movimientos
           <span class="badge" :class="tab==='movimientos' ? 'badge-info' : 'badge-gray'">{{ n_movimientos }}</span>
         </button>
+        <button @click="tab='novedades'" type="button" role="tab" id="tab-novedades" aria-controls="panel-novedades"
+                :aria-selected="tab==='novedades'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='novedades' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-book" aria-hidden="true"></i> Novedades
+          <span class="badge" :class="tab==='novedades' ? 'badge-info' : 'badge-gray'">{{ novedades_page.paginator.count }}</span>
+        </button>
       </div>
 
       <div x-show="tab==='ficha'" x-cloak role="tabpanel" id="panel-ficha" aria-labelledby="tab-ficha" class="p-5 space-y-3">
@@ -79,6 +86,39 @@
           </table>
         </div>
         {% include "components/_paginacion.html" with page_obj=movimientos_page entidad="movimiento" param="movimientos_page" extra_qs="tab=movimientos" %}
+      </div>
+
+      <div x-show="tab==='novedades'" x-cloak role="tabpanel" id="panel-novedades" aria-labelledby="tab-novedades">
+        <p class="px-5 py-3 border-b border-light text-sm text-body-subtle">Las novedades se cargan y se corrigen en la <a href="{{ url_bitacora }}" class="text-fg-brand hover:underline">bitácora del turno</a>.</p>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Fecha y hora</th>
+                <th class="nodo-th">Categoría</th>
+                <th class="nodo-th">Novedad</th>
+                <th class="nodo-th">Autor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for n in novedades_page %}
+              <tr class="hover:bg-secondary transition">
+                <td class="nodo-td text-body whitespace-nowrap">{{ n.cuando }}</td>
+                <td class="nodo-td whitespace-nowrap"><span class="badge badge-{{ n.tono }} badge-dot">{{ n.categoria }}</span></td>
+                <td class="nodo-td text-body break-words">{{ n.texto|linebreaksbr }}{% if n.version > 1 %} <span class="text-xs text-body-subtle">· Versión {{ n.version }}</span>{% endif %}</td>
+                <td class="nodo-td text-body">{{ n.autor }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="p-0">
+                  {% include "components/_estado_vacio.html" with icono="fa-book" titulo="Sin novedades" texto="Las novedades de la bitácora en las que la persona está involucrada aparecen acá." %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% include "components/_paginacion.html" with page_obj=novedades_page entidad="novedad" entidad_plural="novedades" param="novedades_page" extra_qs="tab=novedades" %}
       </div>
     </div>
 
