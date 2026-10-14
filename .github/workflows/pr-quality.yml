@@ -25,9 +25,9 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filtro
         with:
           filters: |
@@ -38,7 +38,7 @@ jobs:
               - 'requirements-ci.txt'
               - '.github/workflows/pr-quality.yml'
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.filtro.outputs.python == 'true'
         with:
           python-version: "3.12"
@@ -64,9 +64,9 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filtro
         with:
           filters: |
@@ -77,7 +77,7 @@ jobs:
               - 'requirements-ci.txt'
               - '.github/workflows/pr-quality.yml'
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.filtro.outputs.python == 'true'
         with:
           python-version: "3.12"
@@ -114,11 +114,11 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -191,7 +191,7 @@ jobs:
 
       # No bloquea: es un recordatorio de la regla de oro de `CLAUDE.md` (el requerimiento
       # se registra al terminarlo), no una condición de cierre automatizable.
-      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         if: github.event_name == 'pull_request'
         id: filtro
         with:
@@ -232,9 +232,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filtro
         with:
           filters: |
@@ -246,7 +246,7 @@ jobs:
               - 'requirements.txt'
               - '.github/workflows/pr-quality.yml'
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.filtro.outputs.python == 'true'
         with:
           python-version: "3.12"
@@ -281,9 +281,9 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filtro
         with:
           filters: |
@@ -294,7 +294,7 @@ jobs:
               - 'requirements-ci.txt'
               - '.github/workflows/pr-quality.yml'
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.filtro.outputs.python == 'true'
         with:
           python-version: "3.12"

@@ -1842,6 +1842,15 @@ class InspeccionEdificio(TimeStamped):
         verbose_name="Realizado por",
     )
     motivo_cancelacion = models.CharField(max_length=200, blank=True, verbose_name="Motivo de la cancelación")
+    revisado_en = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de revisión")
+    revisado_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Revisado por",
+    )
     # App sin conexión (task 39): el identificador que el celular generó para el envío del
     # resultado. Reenviar el mismo es idempotente; otro sobre un relevamiento ya realizado es
     # un conflicto. La columna es `char(36)` en MySQL/MariaDB (programas.0093).
@@ -2018,6 +2027,7 @@ class TrazaInspeccion(models.Model):
         CANCELADA = "CANCELADA", "Relevamiento edilicio cancelado"
         REALIZADA = "REALIZADA", "Resultado del relevamiento edilicio"
         FOTO = "FOTO", "Foto sumada a un relevamiento edilicio"
+        REVISADA = "REVISADA", "Relevamiento edilicio revisado"
 
     inspeccion = models.ForeignKey(
         InspeccionEdificio,
@@ -4352,7 +4362,7 @@ class Formulario(TimeStamped):
 
 class AdjuntoFormulario(TimeStamped):
     """Archivo subido por el territorial para un campo tipo ARCHIVO (pregunta
-    global o requisito nativo) de un formulario (#82)."""
+    global, requisito nativo o campo propio por clave) de un formulario."""
 
     formulario = models.ForeignKey(
         Formulario,
@@ -4384,6 +4394,9 @@ class AdjuntoFormulario(TimeStamped):
         related_name="adjuntos_formulario",
         verbose_name="Requisito nativo",
     )
+    clave = models.CharField(
+        max_length=60, blank=True, default="", db_default="", verbose_name="Clave del campo propio"
+    )
     archivo = models.FileField(upload_to=ruta_adjunto_becas, verbose_name="Archivo")
 
     class Meta:
@@ -4393,15 +4406,19 @@ class AdjuntoFormulario(TimeStamped):
         constraints = [
             models.CheckConstraint(
                 check=(
-                    models.Q(pregunta_global__isnull=False, requisito_nativo__isnull=True)
-                    | models.Q(pregunta_global__isnull=True, requisito_nativo__isnull=False)
+                    models.Q(pregunta_global__isnull=False, requisito_nativo__isnull=True, clave="")
+                    | models.Q(pregunta_global__isnull=True, requisito_nativo__isnull=False, clave="")
+                    | (
+                        models.Q(pregunta_global__isnull=True, requisito_nativo__isnull=True)
+                        & models.Q(clave__startswith="cp-")
+                    )
                 ),
                 name="adjunto_formulario_una_sola_referencia",
             )
         ]
 
     def __str__(self):
-        campo = self.pregunta_global or self.requisito_nativo
+        campo = self.clave or self.pregunta_global or self.requisito_nativo
         return f"Formulario #{self.formulario_id} · {campo}"
 
 
