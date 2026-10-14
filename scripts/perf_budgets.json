@@ -215,6 +215,11 @@
       "consultas_fijas": 3,
       "motivo": "Presupuesto nuevo (MVP v2 etapa 3, #696): el censo por turno y por dia de un dispositivo, para cualquier rango de fechas. Tres consultas fijas: los turnos activos (cero si quien llama ya los tiene), las estadias alojadas en algun instante del rango y los ingresos y egresos del rango (indice (dispositivo, momento)). La existencia al inicio y al fin de cada tramo y el reparto de los movimientos por turno se hacen en Python, en hora local: nada de Trunc* sobre un DateTimeField, que en ECOM es CONVERT_TZ y da NULL. La forma natural de escribirlo -un count por turno, o leer la existencia de cada persona- seria una consulta por turno y por dia, o por persona, que es lo que este techo impide. Lo corre programas/tests/test_dispositivos_censo.py con --tag performance."
     },
+    "dispositivos_relevamientos_revisados": {
+      "vista": "dispositivos:relevamientos",
+      "consultas_fijas": 17,
+      "motivo": "Carril FR: P21 con las cinco solapas pobladas y revisores. Una lectura adicional fija para la pagina Revisados; el contador se agrega al aggregate existente. select_related(edificio, asignado_a, revisado_por) evita consultas por fila. test_dispositivos_revision.RevisionPresupuestoTests mide con 2 y 20 revisados y exige el mismo costo. El presupuesto de listado sin revisados sigue en 16."
+    },
     "dispositivos_relevamientos_listado": {
       "vista": "dispositivos:relevamientos",
       "consultas_fijas": 16,

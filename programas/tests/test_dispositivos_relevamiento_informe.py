@@ -9,7 +9,7 @@ Lo que se fija acá, y por qué:
 2. **La institución relevada no ve el nombre del agente asignado** ni las indicaciones que
    le dio la coordinación (decisión del juez). Un relevamiento en curso le dice «en curso»
    y nada más. Los ven el coordinador del edificio y el propio agente.
-3. **El informe es de solo lectura**: no hay un POST, un form ni un `data-confirm-url`.
+3. **La institución y el agente leen el informe**; la coordinación puede marcar la revisión.
 4. **Se llega desde las dos pantallas**: el menú de fila de P21 para lo completado y cada
    evento de la línea de tiempo de P4, y el botón «volver» devuelve a la de origen.
 
@@ -135,10 +135,10 @@ class AlcanceTests(BaseInforme):
 
         self.assertEqual(self._cliente(self.otro_agente).get(_url(inspeccion)).status_code, 404)
 
-    def test_es_de_solo_lectura(self):
+    def test_es_de_solo_lectura_para_la_institucion(self):
         inspeccion = self._realizado()
 
-        html = self._cliente(self.coordinador).get(_url(inspeccion)).content.decode()
+        html = self._cliente(self.operador_geriatrico).get(_url(inspeccion)).content.decode()
 
         self.assertNotIn("<form", html.split('id="resultado-titulo"')[1])
         self.assertNotIn("data-confirm-url", html)

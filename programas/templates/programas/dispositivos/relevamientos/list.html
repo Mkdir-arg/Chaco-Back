@@ -82,7 +82,8 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
                   {% endif %}
                 </td>
                 <td class="nodo-td">
-                  {% include "programas/dispositivos/_relevamiento_situacion_badge.html" with situacion=r.situacion texto=r.situacion_texto %}
+                  {% include "programas/dispositivos/_relevamiento_situacion_badge.html" with situacion=r.situacion texto=r.situacion_texto relevamiento=r only %}
+                  {% if r.revisado_en %}<span class="block text-xs text-body-subtle mt-1">{{ r.revisado_por.get_full_name|default:r.revisado_por.username }} · {{ r.revisado_en|date:"d/m/Y H:i" }}</span>{% endif %}
                   {% if r.motivo_cancelacion %}<span class="block text-xs text-body-subtle mt-1">{{ r.motivo_cancelacion }}</span>{% endif %}
                 </td>
                 <td class="nodo-td text-right">
@@ -101,6 +102,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
                     {% else %}
                     {% menu_fila id=r.menu_id etiqueta=r.menu_etiqueta %}
                       {% include "components/_menu_fila_item.html" with texto="Ver informe" icono="fa-file-lines" url=r.url_informe only %}
+                      {% if r.url_revisar %}{% include "components/_menu_fila_item.html" with texto="Marcar como revisado" icono="fa-circle-check" confirm_url=r.url_revisar confirm_title="¿Marcar como revisado?" confirm_text=r.edificio.nombre confirm_ok="Sí, marcar como revisado" only %}{% endif %}
                     {% endmenu_fila %}
                     {% endif %}
                   </div>
@@ -293,4 +295,5 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_ajax_js.html" %}
+{% include "programas/becas/_confirm_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}
