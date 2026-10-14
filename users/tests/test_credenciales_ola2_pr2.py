@@ -728,3 +728,104 @@ class EdicionHaciaUsuarioDeCampoTests(_SinCubetas):
         self.assertEqual(respuesta.status_code, 302)
         operador.refresh_from_db()
         self.assertEqual(operador.first_name, "Ana")
+
+
+# --------------------------------------------------------------------------- #
+# D-26/SEC-26 también para el agente del relevamiento edilicio (MVP v2, task 38)
+# --------------------------------------------------------------------------- #
+
+
+class AgenteDeInspeccionEsDeCampoTests(_SinCubetas):
+    """El agente con solo ``inspeccion.relevar`` entra por la app con el mismo login que el
+    territorial, así que tiene la misma regla: el backoffice nunca le pide cambiar la
+    clave. Sin esto recibía la clave provisoria en claro, sacaba token y la conservaba
+    para siempre. Cada test tiene su par de Becas más arriba.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.dispositivos = Programa.objects.create(
+            codigo="DISPOSITIVOS", nombre="Dispositivos", tipo=Programa.TipoPrograma.DISPOSITIVOS
+        )
+        self.rol_agente = _rol("Agente", ["inspeccion.relevar"], self.dispositivos)
+        self.agente = _user("agente", self.rol_agente)
+        self.rol_op = _rol("OpX", ["ciudadano.ver"])
+
+    def test_el_alta_del_agente_manda_un_link_y_no_una_clave_en_claro(self):
+        from users.services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
+
+        modalidad = entregar_credenciales_provisorias(self.agente, self.client.request().wsgi_request)
+
+        self.assertEqual(modalidad, ENTREGA_LINK)
+        cuerpo = mail.outbox[0].body
+        self.assertIn("/establecer-contrasena/", cuerpo)
+        self.assertNotIn("Contraseña provisoria", cuerpo)
+
+    def test_el_agente_no_entra_al_backoffice(self):
+        respuesta = self.client.post(reverse("users:login"), {"username": "agente", "password": CLAVE})
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.context["form"].non_field_errors().as_data()[0].code, "territorial_mobile_only")
+
+    def test_el_agente_saca_token_de_la_app(self):
+        respuesta = APIClient().post(reverse("becas_api:token"), {"username": "agente", "password": CLAVE})
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("token", respuesta.data)
+
+    def test_el_agente_que_ademas_coordina_no_es_solo_campo(self):
+        """``inspeccion.asignar`` se usa desde el backoffice (P21): el circuito de la clave
+        provisoria sí le aplica."""
+        coordinador = _user("agente-coord", self.rol_agente, _rol("Coord", ["inspeccion.asignar"], self.dispositivos))
+
+        self.assertTrue(rbac.es_solo_campo(self.agente))
+        self.assertFalse(rbac.es_solo_campo(coordinador))
+        self.assertFalse(rbac.es_solo_campo(_user("mixto", self.rol_agente, self.rol_op)))
+
+    def test_los_roles_del_agente_son_de_campo(self):
+        becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        rol_terr = _rol("Terr", ["becas.campo"], becas)
+
+        self.assertTrue(rbac.roles_solo_campo([self.rol_agente]))
+        self.assertTrue(rbac.roles_solo_campo([self.rol_agente, rol_terr]))
+        self.assertFalse(rbac.roles_solo_campo([self.rol_agente, self.rol_op]))
+
+
+class AltaDelAgenteDeInspeccionTests(_SinCubetas):
+    """El par de `AltaDeUsuarioDeCampoTests` para el rol del agente: correo obligatorio."""
+
+    def setUp(self):
+        super().setUp()
+        self.dispositivos = Programa.objects.create(
+            codigo="DISPOSITIVOS", nombre="Dispositivos", tipo=Programa.TipoPrograma.DISPOSITIVOS
+        )
+        self.rol_agente = _rol("Agente", ["inspeccion.relevar"], self.dispositivos)
+        self.root = _user("root-global", _rol("Admins", ["usuario.administrar"]))
+        self.client.force_login(self.root)
+
+    def _alta(self, **extra):
+        datos = {
+            "username": "nuevo-agente",
+            "email": "",
+            "password": "Clave-Larguisima-2026",
+            "first_name": "",
+            "last_name": "",
+            "groups": [str(self.rol_agente.pk)],
+        }
+        datos.update(extra)
+        return self.client.post(reverse("users:usuario_crear"), datos)
+
+    def test_el_alta_del_agente_sin_correo_se_rechaza(self):
+        respuesta = self._alta()
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("email", respuesta.context["form"].errors)
+        self.assertFalse(User.objects.filter(username="nuevo-agente").exists())
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_con_correo_el_alta_del_agente_anda_y_manda_el_link(self):
+        respuesta = self._alta(email="agente@x.test")
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertTrue(User.objects.filter(username="nuevo-agente").exists())
+        self.assertIn("/establecer-contrasena/", mail.outbox[0].body)

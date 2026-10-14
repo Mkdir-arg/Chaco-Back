@@ -26,6 +26,16 @@ sea **externo a la institución** relevada es :data:`AGENTE_DEBE_SER_EXTERNO`: e
 apagarlo es cambiar esa constante. «Personal» es tener un rol activo asignado
 (`AsignacionDispositivo`) a alguno de los dispositivos que ocupan el edificio.
 
+La app de campo (tasks 38 y 39)
+-------------------------------
+
+La API de ``/api/dispositivos/`` (`programas/api/views_inspecciones.py`) no decide reglas:
+llama a :func:`registrar_resultado` y :func:`agregar_foto`. Para la app sin conexión las dos
+son **idempotentes** por el identificador que genera el celular (``uuid_resultado`` y
+``uuid_cliente``): el reenvío devuelve lo que ya quedó. Lo que cambió en el servidor mientras
+el celular estaba sin señal sale como :class:`InspeccionEnConflicto` (cancelado, ya realizado
+con otro envío) o :class:`InspeccionReasignada`, que la API traduce a 409 con un código.
+
 La consulta del semáforo
 ------------------------
 
@@ -36,6 +46,7 @@ relevar** —que no es lo mismo que relevado y sano, una inspección con critici
 consultas fijas: no crecen con la cantidad de edificios ni de dispositivos.
 """
 
+import uuid
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import reduce
@@ -43,12 +54,13 @@ from operator import or_
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, OuterRef, Q, Subquery
 from django.utils import timezone
 
 from core import rbac
 from core.archivos import anotar_archivo_escrito, archivos_atomicos
+from core.db import q_uuid_en_texto
 from programas.models import AsignacionDispositivo, Edificio, FotoInspeccion, InspeccionEdificio, TrazaInspeccion
 from programas.services.dispositivos import (
     CAP_VER,
@@ -66,6 +78,40 @@ CAP_RELEVAR = "inspeccion.relevar"
 AGENTE_DEBE_SER_EXTERNO = True
 
 _EdificioDispositivo = Edificio.dispositivos.through
+_AgenteAnterior = InspeccionEdificio.agentes_anteriores.through
+
+# Códigos de conflicto (409) que la app muestra. Son contrato con `Chaco-mobile`.
+CONFLICTO_CANCELADA = "CANCELADA"
+CONFLICTO_YA_REALIZADA = "YA_REALIZADA"
+CONFLICTO_REASIGNADA = "REASIGNADA"
+CONFLICTO_UUID_EN_USO = "UUID_EN_USO"
+#: Red de contención: el relevamiento está en un estado que la app no conoce. Los estados
+#: son «defaults a confirmar con el Ministerio» (ver `InspeccionEdificio`), así que agregar
+#: uno —«vencido», por ejemplo— no puede hacer que el agente lo cierre igual. La app lo
+#: muestra como conflicto genérico y manda a refrescar; el `estado` del cuerpo dice cuál es.
+CONFLICTO_ESTADO = "ESTADO_NO_ADMITE"
+
+
+class InspeccionEnConflicto(ValidationError):
+    """El servidor cambió mientras la app estaba sin conexión y el envío ya no se aplica.
+
+    Es un `ValidationError` para quien no lo distinga (el backoffice); la API lo contesta
+    409 con ``codigo``.
+    """
+
+    def __init__(self, codigo, mensaje):
+        super().__init__(mensaje, code=codigo)
+        self.codigo = codigo
+
+
+class InspeccionReasignada(PermissionDenied):
+    """El usuario **tuvo** asignado el relevamiento y se lo reasignaron a otro agente.
+
+    Es un `PermissionDenied` —ya no lo puede cargar—, pero a diferencia de lo ajeno se le
+    puede decir: el relevamiento ya estaba en su celular, no hay existencia que revelar.
+    """
+
+    codigo = CONFLICTO_REASIGNADA
 
 
 # --------------------------------------------------------------------------- #
@@ -122,6 +168,32 @@ def inspecciones_asignadas(user):
     return InspeccionEdificio.objects.filter(asignado_a=user, estado=InspeccionEdificio.Estado.ASIGNADA).select_related(
         "edificio"
     )
+
+
+def inspecciones_del_agente(user):
+    """Todo lo que el agente tiene asignado, en cualquier estado: el detalle de la app.
+
+    Un relevamiento cancelado lo sigue viendo, con su motivo, para que la app lo saque de
+    la agenda; uno reasignado ya no es suyo y no está acá.
+    """
+
+    if not puede_en_programa_dispositivos(user, CAP_RELEVAR):
+        return InspeccionEdificio.objects.none()
+    return InspeccionEdificio.objects.filter(asignado_a=user)
+
+
+def inspecciones_para_envio(user):
+    """A qué relevamientos puede **intentar** enviarles algo la app: los suyos y los que tuvo.
+
+    Los que tuvo están para contestar «se reasignó» (409) en vez de «no existe»; el servicio
+    igual rechaza la carga. Lo de otro agente que nunca fue suyo no está, y la API contesta
+    404, el mismo que para un id que no existe.
+    """
+
+    if not puede_en_programa_dispositivos(user, CAP_RELEVAR):
+        return InspeccionEdificio.objects.none()
+    tuvo = _AgenteAnterior.objects.filter(user=user).values("inspeccionedificio_id")
+    return InspeccionEdificio.objects.filter(Q(asignado_a=user) | Q(pk__in=tuvo))
 
 
 def _personal_del_edificio(edificio):
@@ -240,6 +312,8 @@ def reasignar_inspeccion(usuario, inspeccion, asignado_a):
         raise ValidationError({"asignado_a": "El relevamiento ya está asignado a ese agente."})
     _validar_agente(asignado_a, inspeccion.edificio)
     anterior = inspeccion.asignado_a
+    # El anterior queda anotado: si su app manda algo después, se le contesta «se reasignó».
+    inspeccion.agentes_anteriores.add(inspeccion.asignado_a_id)
     inspeccion.asignado_a = asignado_a
     inspeccion.save(update_fields=["asignado_a", "modificado"])
     _trazar(
@@ -277,37 +351,101 @@ def cancelar_inspeccion(usuario, inspeccion, motivo):
 # --------------------------------------------------------------------------- #
 
 
-def _bloquear_como_agente(usuario, inspeccion):
-    """La guarda de «solo lo asignado»: la capacidad sola no alcanza."""
-
+def _exigir_capacidad_de_agente(usuario):
     if not puede_en_programa_dispositivos(usuario, CAP_RELEVAR):
         raise PermissionDenied("No tenés la capacidad de relevar edificios.")
+
+
+def _exigir_asignado(usuario, inspeccion):
+    """La guarda de «solo lo asignado»: la capacidad sola no alcanza."""
+
+    if inspeccion.asignado_a_id == usuario.pk:
+        return
+    if inspeccion.agentes_anteriores.filter(pk=usuario.pk).exists():
+        raise InspeccionReasignada("El relevamiento se reasignó a otro agente.")
+    raise PermissionDenied("Solo el agente asignado carga este relevamiento.")
+
+
+def _bloquear_como_agente(usuario, inspeccion):
+    _exigir_capacidad_de_agente(usuario)
     inspeccion = _bloquear(inspeccion)
-    if inspeccion.asignado_a_id != usuario.pk:
-        raise PermissionDenied("Solo el agente asignado carga este relevamiento.")
+    _exigir_asignado(usuario, inspeccion)
     return inspeccion
 
 
-def _guardar_foto(inspeccion, usuario, archivo, descripcion=""):
-    foto = FotoInspeccion(inspeccion=inspeccion, archivo=archivo, descripcion=descripcion[:120], cargada_por=usuario)
-    foto.full_clean()
-    foto.save()
+def _como_uuid(valor):
+    if valor is None or isinstance(valor, uuid.UUID):
+        return valor
+    try:
+        return uuid.UUID(str(valor))
+    except (TypeError, ValueError, AttributeError):
+        raise ValidationError({"uuid_cliente": "El identificador del envío no es un UUID válido."}) from None
+
+
+def _conflicto_cancelada(inspeccion):
+    motivo = f": {inspeccion.motivo_cancelacion}" if inspeccion.motivo_cancelacion else "."
+    return InspeccionEnConflicto(CONFLICTO_CANCELADA, f"El relevamiento fue cancelado{motivo}")
+
+
+def _conflicto_uuid_en_uso():
+    return InspeccionEnConflicto(CONFLICTO_UUID_EN_USO, "Ese identificador ya se usó para otra foto.")
+
+
+def _conflicto_estado():
+    return InspeccionEnConflicto(CONFLICTO_ESTADO, "El relevamiento ya no admite esta operación.")
+
+
+def _guardar_foto(inspeccion, usuario, archivo, descripcion="", uuid_cliente=None):
+    foto = FotoInspeccion(
+        inspeccion=inspeccion,
+        archivo=archivo,
+        descripcion=descripcion[:120],
+        cargada_por=usuario,
+        uuid_cliente=uuid_cliente,
+    )
+    # El único de `uuid_cliente` lo resuelve `agregar_foto` con `q_uuid_en_texto`: el
+    # chequeo de `full_clean` usa el lookup del ORM, que en MariaDB no ve la otra forma.
+    foto.full_clean(validate_unique=False)
+    try:
+        with transaction.atomic():
+            foto.save()
+    except IntegrityError:
+        # Solo puede ser el `UNIQUE` de `uuid_cliente`: el mismo identificador llegó a la vez
+        # para otro relevamiento. El archivo ya se escribió: se anota para que el rollback
+        # de la operación lo borre.
+        anotar_archivo_escrito(foto.archivo, asignado=archivo)
+        raise _conflicto_uuid_en_uso() from None
     anotar_archivo_escrito(foto.archivo, asignado=archivo)
+    foto.ya_existia = False
     return foto
 
 
 @archivos_atomicos
 @transaction.atomic
-def registrar_resultado(usuario, inspeccion, *, criticidad, observaciones="", fotos=()):
+def registrar_resultado(usuario, inspeccion, *, criticidad, observaciones="", fotos=(), uuid_resultado=None):
     """El agente asignado cierra el relevamiento: criticidad, observaciones y fotos.
 
     ``fotos`` es una lista de archivos o de pares ``(archivo, descripcion)``. Si algo
     falla, la base vuelve atrás y las fotos ya escritas se borran (`core.archivos`).
+
+    ``uuid_resultado`` es el identificador que generó la app (task 39): reenviar el mismo
+    sobre un relevamiento ya realizado devuelve el relevamiento como quedó, sin tocarlo;
+    cualquier otro envío sobre uno realizado es :data:`CONFLICTO_YA_REALIZADA`, y sobre uno
+    cancelado, :data:`CONFLICTO_CANCELADA`.
     """
 
+    uuid_resultado = _como_uuid(uuid_resultado)
     inspeccion = _bloquear_como_agente(usuario, inspeccion)
+    if inspeccion.estado == InspeccionEdificio.Estado.REALIZADA:
+        if uuid_resultado is not None and inspeccion.uuid_resultado == uuid_resultado:
+            return inspeccion
+        raise InspeccionEnConflicto(CONFLICTO_YA_REALIZADA, "Este relevamiento ya tiene un resultado registrado.")
+    if inspeccion.estado == InspeccionEdificio.Estado.CANCELADA:
+        raise _conflicto_cancelada(inspeccion)
+    # Lista blanca, no negra: los dos chequeos de arriba son por su código, pero lo único
+    # que se cierra es un relevamiento **en curso**. Un estado nuevo cae acá, no al cuerpo.
     if not inspeccion.en_curso:
-        raise ValidationError("Este relevamiento ya no está en curso.")
+        raise _conflicto_estado()
     if criticidad not in InspeccionEdificio.Criticidad.values:
         raise ValidationError({"criticidad": "Elegí una criticidad válida."})
     inspeccion.estado = InspeccionEdificio.Estado.REALIZADA
@@ -315,8 +453,17 @@ def registrar_resultado(usuario, inspeccion, *, criticidad, observaciones="", fo
     inspeccion.observaciones = (observaciones or "").strip()
     inspeccion.realizada_en = timezone.now()
     inspeccion.realizada_por = usuario
+    inspeccion.uuid_resultado = uuid_resultado
     inspeccion.save(
-        update_fields=["estado", "criticidad", "observaciones", "realizada_en", "realizada_por", "modificado"]
+        update_fields=[
+            "estado",
+            "criticidad",
+            "observaciones",
+            "realizada_en",
+            "realizada_por",
+            "uuid_resultado",
+            "modificado",
+        ]
     )
     cantidad = 0
     for foto in fotos:
@@ -333,17 +480,39 @@ def registrar_resultado(usuario, inspeccion, *, criticidad, observaciones="", fo
 
 @archivos_atomicos
 @transaction.atomic
-def agregar_foto(usuario, inspeccion, archivo, descripcion=""):
+def agregar_foto(usuario, inspeccion, archivo, descripcion="", *, uuid_cliente=None):
     """Una foto más, en curso o ya realizado: la app sin conexión puede mandarlas después.
 
     Cada carga es una fila nueva; ninguna pisa a otra. Un relevamiento cancelado no
-    recibe fotos.
+    recibe fotos (:data:`CONFLICTO_CANCELADA`).
+
+    Con ``uuid_cliente`` (task 39) es idempotente: si esa foto ya llegó —del mismo agente y
+    al mismo relevamiento— se devuelve la fila que quedó, con ``ya_existia = True``, aunque
+    después el relevamiento se haya cancelado o reasignado: el reenvío no cambia nada. El
+    mismo identificador en otra foto es :data:`CONFLICTO_UUID_EN_USO`.
     """
 
-    inspeccion = _bloquear_como_agente(usuario, inspeccion)
+    uuid_cliente = _como_uuid(uuid_cliente)
+    _exigir_capacidad_de_agente(usuario)
+    inspeccion = _bloquear(inspeccion)
+    previa = None
+    if uuid_cliente is not None:
+        previa = FotoInspeccion.objects.filter(q_uuid_en_texto("uuid_cliente", uuid_cliente)).first()
+        if previa is not None and previa.inspeccion_id == inspeccion.pk and previa.cargada_por_id == usuario.pk:
+            previa.ya_existia = True
+            return previa
+    _exigir_asignado(usuario, inspeccion)
+    if previa is not None:
+        raise _conflicto_uuid_en_uso()
     if inspeccion.estado == InspeccionEdificio.Estado.CANCELADA:
-        raise ValidationError("El relevamiento está cancelado.")
-    foto = _guardar_foto(inspeccion, usuario, archivo, descripcion)
+        raise _conflicto_cancelada(inspeccion)
+    # Igual que en `registrar_resultado`: acá la lista blanca son dos estados —en curso y
+    # realizado—, y cualquier otro se rechaza en vez de caer en el alta.
+    if not (inspeccion.en_curso or inspeccion.estado == InspeccionEdificio.Estado.REALIZADA):
+        raise _conflicto_estado()
+    foto = _guardar_foto(inspeccion, usuario, archivo, descripcion, uuid_cliente)
+    # La traza cuelga del alta, no de la llamada: el reenvío idempotente ya volvió arriba y no
+    # deja una segunda línea de auditoría por la misma foto.
     _trazar(inspeccion, usuario, TrazaInspeccion.Accion.FOTO, f"Edificio {inspeccion.edificio.nombre}")
     return foto
 
