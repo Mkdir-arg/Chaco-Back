@@ -425,6 +425,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 296 | Test del censo independiente de la hora del runner | Dispositivos · tests de bitácora y censo | `#datos` `#infra` | Juez — encargo urgente en sesión | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 297 | Fidelidad de bitácora, trayectoria e instituciones | Dispositivos · P10, P16 y P2 | `#ui` `#rbac` `#performance` | Juez — carril FC de fidelidad del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 298 | Fidelidad del detalle del dispositivo y su Infraestructura | Dispositivos · P2/P4/P19 | `#ui` `#rbac` `#gps` `#performance` | Juez — carril FB | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 299 | Fidelidad del mapa de plazas y del asistente de ingreso | Dispositivos · sectores, plazas e ingreso | `#ui` `#rbac` `#performance` | Juez — carril FA del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -38720,5 +38721,180 @@ de C2 que ocultan al agente de un relevamiento en curso. P19 reusa `fotos_para_g
 y ajusta la fecha de su evento sin alterar la fecha de carga que muestra el informe.
 La mutación de fecha de subida se repitió sobre esa integración y quedó roja; restaurada,
 el pase adicional de 70 tests volvió a verde.
+
+---
+
+---
+
+# Cambio 299 — Fidelidad del mapa de plazas y del asistente de ingreso
+
+🟢 **HECHO — 14/10/2026** · Carril FA · P5/P6 del MVP de Dispositivos
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · sectores, plazas e ingreso |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | Juez — encargo directo del carril FA del MVP de Dispositivos |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Sin issue propio · Épica #127 · apilado sobre PR #858 (carril C5) |
+| **Partes afectadas** | P5, P6, mapa de plazas canónico y auditor de Wizard |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cerrar seis diferencias de fidelidad contra `docs/client/mockups/dispositivos-v2.html`,
+P5/P6: identificar ocupantes, reservas y préstamos; porcentaje por sector; Persona como
+columna lateral; distinguir plazas elegibles; unificar listas de datos con P7; dejar el
+paso de plaza en OK en `design_audit --arquetipo wizard`. Reutilizar las piezas existentes,
+conservar la lógica y no introducir consultas por plaza.
+
+## Decisiones tomadas
+
+- `estado_de_plazas` sigue siendo la fuente única de los estados y sus detalles. Las dos
+  consultas de movimientos traen apellido, nombre y vencimiento mediante JOIN; no se
+  consulta una persona por celda. La precedencia y vigencia vigentes se conservan.
+- Los nombres solo se muestran con `ciudadano.ver` (Cambios 271/277). La vista resuelve la
+  capacidad; los servicios reciben un booleano con valor predeterminado seguro. Ocupada
+  muestra apellido e inicial; sin capacidad, el detalle queda vacío y no repite el estado.
+  Reservada/Prestada muestran persona abreviada y vencimiento, o solo vencimiento sin
+  capacidad. No se expone DNI.
+- El vencimiento lleva fecha y hora local en formato `hasta DD/MM HH:MM`, sin año,
+  para que entre en la celda móvil y permita distinguir préstamos de distintos días;
+  una reserva sin fecha dice «sin vencimiento». Fuera de servicio conserva su motivo.
+- El porcentaje sale de `tension_de_ocupacion(Conteo)` sobre ocupadas/operativas, calculadas
+  por `ocupacion_de_plazas`: no suma reservas ni usa capacidad declarada o total cargado.
+  Cero ocupadas muestra 0 %; sin operativas se omite el porcentaje.
+- P6 conserva la intención por GET y la confirmación por POST, con protección contra
+  cambios en otra pestaña. El mapa queda a la izquierda y Persona a la derecha; en móvil
+  se apilan. Persona y el resumen final usan los rótulos en versalita de P7.
+- El pie de P6 y su grupo de acciones usan `flex-wrap` con el `gap-3` existente: los
+  botones envuelven a 390 px y conservan su disposición a 1440 px.
+- La pieza existente distingue enlaces con `cursor-pointer` de celdas informativas con
+  `cursor-not-allowed` y `aria-disabled`. Se conservan estados tonales y texto «Elegida»;
+  no hay variante nueva ni CSS o JavaScript propio.
+- El paso de plaza no tiene BoundFields visibles. El auditor reconoce el include real
+  del mapa como el control compuesto ya documentado por la ficha Wizard, en lugar de
+  exigir `_field` sobre un comentario. No acepta mapas comentados y sigue exigiendo el
+  include real de errores, el formulario y su pie. Las fichas se actualizan en el mismo diff.
+
+### Plan de pantalla
+
+Tipo A (ajuste existente) · P5: Detalle apilado, referencia
+`programas/templates/programas/becas/cupo/segmento_detail.html`; bajada de cada sector con
+porcentaje y `_mapa_plazas` con detalle. P6: Wizard, referencia
+`configuracion/templates/configuracion/programa_wizard_paso4.html`; stepper y pie existentes,
+grilla `grid grid-cols-1 lg:grid-cols-3 gap-5` pedida en el encargo, con la distribución
+de la golden de Revisión
+`programas/templates/programas/dispositivos/estadia/revision_referencia.html`, mapa en
+`lg:col-span-2`, Persona a la derecha, rótulos del include canónico `_ficha_seccion` que usa
+P7. Resumen final con los mismos rótulos. Rutas y assets: `dispositivos:sectores`,
+`dispositivos:ingreso_plaza`, `dispositivos:ingreso_confirmar` → templates de `sectores/` e
+`ingreso/` → shell `includes/base.html`, Tailwind compilado, stepper, forms y tokens NODO.
+Clasificación: mapa, leyenda, surfaces, campos, errores y grilla de referencia son canónicos
+reutilizables. Novedades: ninguna. No se modifica legacy.
+La corrección de revisión se limita al detalle del mapa y al pie existente de P6:
+`flex flex-wrap justify-between gap-3` y grupo `flex flex-wrap gap-3`, con botones
+canónicos y la misma golden de Wizard. Se actualizan las fichas de mapa y Wizard.
+
+### Apartamientos del mockup
+
+- El mapa mantiene las columnas responsive canónicas y sus íconos; no reproduce los valores
+  arbitrarios ni colores crudos del prototipo. No se agrega una variante de elegibilidad:
+  la distinción usa cursor, ARIA y los estados que ya ofrece la pieza.
+- El porcentaje respeta ocupadas/operativas aunque el ejemplo «14 ocupadas, 1 fuera de
+  servicio, 16 plazas · 88 %» del mockup usa el total: esos datos reales darían 93 %.
+  Conserva la fuente `tension_de_ocupacion`, compartida con P1/P2; la revisión no cambia
+  el cálculo ni el denominador.
+- El mapa de P6 conserva una surface por sector y el pie de navegación debajo de la grilla;
+  no se convierte en una única lista ni se lleva el formulario dentro de Persona.
+- No se agregan «Excepcional», lista de espera, Ficha mínima configurable, liberación desde
+  P6, «Ver mapa», ni panel lateral de acciones/historial de P5. Son diferencias heredadas
+  que requieren otros datos, flujos o piezas y no forman parte del carril.
+
+## Implementación
+
+P5 y P6 muestran quién ocupa o tiene tomada cada plaza según la capacidad del lector.
+Los vencimientos y motivos se leen en la misma celda. Cada sector de P5 termina su
+bajada con el porcentaje. El paso 2 distribuye mapa y Persona en dos columnas de escritorio.
+La navegación y la escritura del ingreso mantienen su contrato anterior.
+
+## Archivos
+
+`programas/services/ocupacion.py`, `services/ingreso.py`, `services/sectores_plazas.py`,
+`programas/views/dispositivos_ingreso.py`, `views/dispositivos_legajo.py`, templates
+`dispositivos/sectores/sectores.html`, `dispositivos/ingreso/paso_plaza.html` y
+`paso_confirmar.html`, `templates/components/_mapa_plazas.html`,
+`programas/tests/test_dispositivos_fidelidad.py`, `core/tests/test_nodo_ui_lote_b.py`,
+`core/tests/test_design_audit_estructura.py`, `scripts/design_audit.py`,
+`scripts/perf_budgets.json`, fichas `componentes/mapa_plazas.md` y `arquetipos/wizard.md`.
+
+## Base de datos
+
+No requiere migraciones ni cambios de datos.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check --dry-run` con syncdb desactivado,
+  `check_migraciones.py`, compilación de templates, auditoría de cada pantalla,
+  ratchet contra `origin/development` y goldens: OK. Tailwind reconstruido sin diff.
+- Tests por módulos: ingreso, sectores, acciones y ocupación (100); fidelidad,
+  arquitectura y contratos UI (112); snapshots de detalle de Becas regenerados (6),
+  sin diff; performance de programas (24): OK. Ruff y contratos de diseño/performance: OK.
+- Presupuestos nuevos: `dispositivos_estado_de_plazas` = 2 consultas;
+  `dispositivos_plazas_para_ingresar` = 4. El presupuesto existente de P5 sigue en 8.
+  El test compara 1 y 13 sectores, con personas, estadías y reservas en ambos tamaños.
+  No sube ningún presupuesto; no requiere una entrada en `_meta.adjustments`.
+- **Mutaciones verificadas** (romper → rojo por aserción → restaurar desde copia exacta):
+  saltar privacidad en el servicio; habilitar identidad en P5 sin capacidad; quitar
+  vencimiento; usar total como denominador; leer ciudadano por estadía sin JOIN;
+  omitir identidad autorizada en P6; enlazar plazas no elegibles; quitar `aria-disabled`;
+  quitar reconocimiento del control compuesto del auditor; quitar errores del paso;
+  quitar la columna doble del mapa; volver al rótulo «Persona:». Las 12 dieron rojo.
+  Los originales se restauraron byte a byte, sin `git checkout` ni stash.
+- `requerimientos.py --check`: el registro numérico se valida. El marcador `295`, pedido
+  por el juez, queda para numeración final; el parser actual solo indexa números.
+  También se valida la entrada nueva en una copia temporal con número provisional: OK.
+- Tras rebasar sobre C5 actualizado: 183 tests de fidelidad, contratos, arquitectura,
+  P7 y alta de edificio/sector/plaza en verde. Render real revisado en Edge headless:
+  P5/P6 a 1440 px y P6 a 390 px; se comparan los renders con las capturas P05/P06.
+  Base final: `origin/development` tras el merge de #858; el árbol de esa base es idéntico
+  al C5 validado y el rebase no tiene conflictos.
+- Corrección de revisión independiente: los 82 tests de fidelidad, sectores, ingreso y
+  ocupación y los 24 de performance pasan; tras restaurar las mutaciones, los 24 tests
+  de fidelidad y arquitectura vuelven a verde. Reloj fijo del 14/10/2026.
+- Mutaciones adicionales verificadas: rellenar el detalle de ocupada con su estado;
+  anteponer el estado al vencimiento de reservada/prestada; volver a incluir el año.
+  Las tres dan rojo por aserciones; restauración byte a byte desde copia, sin checkout.
+- Playwright con Edge headless, SQLite temporal y `runserver` en puerto libre:
+  P5/P6 tienen `scrollWidth == innerWidth` tanto a 390 como a 1440 px; los vencimientos
+  sin identidad caben completos a 390 px y los botones de P6 quedan dentro de la card.
+  Se comprueba P6 tanto con plaza obligatoria como opcional («Continuar sin plaza»).
+  A 1440 px las cajas de los botones son idénticas con y sin `flex-wrap`.
+  Mutación visual: quitar la envoltura del pie a 390 px vuelve a desbordar el contenido
+  del botón; la aserción detecta la regresión. Capturas y mediciones quedan fuera del repo
+  en el directorio temporal `chaco-fa-playwright-20261014`.
+
+## Puesta en marcha en el servidor
+
+No requiere pasos adicionales al deploy.
+
+## Pendientes / a definir
+
+El juez debe asignar número a `295` en encabezado e índice. Los apartamientos heredados
+se mantienen fuera de alcance. No quedan reglas de producto ni consultas por resolver
+para los seis puntos del carril FA. No se abre PR ni se cambia configuración de roles.
+El hallazgo móvil del pie de P6 se corrige en esta revisión con envoltura de sus acciones.
+La grilla apila mapa y Persona, como corresponde; no se modifica el shell/CSS legacy.
+
+## Reversión
+
+Revertir los commits propios del carril FA. No se pierden datos ni hay migraciones que
+desaplicar. Se vuelve al mapa sin identidades y al armado previo del asistente.
+
+## Historial
+
+Entrada nueva; numeración final a cargo del juez.
+14/10/2026: revisión independiente — se corrigen el estado repetido, el vencimiento
+demasiado largo y el pie móvil de P6. El porcentaje sobre operativas se conserva.
 
 ---
