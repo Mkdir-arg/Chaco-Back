@@ -415,6 +415,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 281 | Alertas por criticidad y auditoría básica del dispositivo | Dispositivos · detalle y auditoría | `#ui` `#datos` `#rbac` `#performance` | Task 34 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0092` |
 | 282 | La app del agente trae sus relevamientos edilicios y manda el resultado y las fotos, también sin señal | Dispositivos · relevamiento edilicio (app de campo) | `#api` `#mobile` `#rbac` `#usuarios` `#datos` | Tasks 38 y 39 (parte del sistema) del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0093` |
 | 283 | Bitácora del turno: las novedades del día, el censo del turno y la configuración de turnos | Dispositivos · bitácora | `#ui` `#rbac` `#performance` | Task 32 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | No requiere |
+| 285 | Notificaciones: el cuerpo del correo se sube como .zip con la carpeta y sus imágenes quedan publicadas | Transversal — notificaciones (alta, edición y previsualización de campañas; vista pública de imágenes) | `#correo` `#ui` `#datos` | PM — pedido del 14/10/2026 (opción 1); sigue al Cambio 199 | 14/10/2026 | 🟡 **En curso** | `notificaciones.0003` |
 
 **Notas del índice**
 
@@ -36456,5 +36457,39 @@ bitácora deja de tener pantalla y las novedades solo se ven por la base.
 
 Entrada nueva. Etapa 3 del plan del Cambio 191. La sección **Revisión** se agregó al cerrar,
 con lo que cambió después de la primera implementación.
+
+---
+
+# Cambio 285 — Notificaciones: el cuerpo del correo se sube como .zip con la carpeta y sus imágenes quedan publicadas
+
+🟡 **EN CURSO — 14/10/2026** · sigue al [Cambio 199](#cambio-199--notificaciones-campañas-de-correo-masivo-con-lista-en-excel-y-cuerpo-en-html)
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — notificaciones |
+| **Etiquetas** | `#correo` `#ui` `#datos` |
+| **Solicitante** | PM — pedido del 14/10/2026 |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | sin issue (análisis 007) |
+| **Partes afectadas** | Backoffice · Vista pública de imágenes |
+| **Migración** | `notificaciones.0003` |
+
+## Pedido original
+
+Reservado: la entrada se completa al cerrar la rama `feature/notificaciones-zip-imagenes`.
+
+## Base de datos
+
+`notificaciones.0003` (a completar).
+
+## Reversión
+
+1. `git revert` del merge (la entrada se completa al cerrar la rama).
+2. `migrate notificaciones 0002`: se pierden las filas de imágenes de campañas.
+3. Borrar `media/notificaciones/imagenes/`.
+
+## Historial
+
+Entrada nueva.
 
 ---
