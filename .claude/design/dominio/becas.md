@@ -32,6 +32,9 @@ módulo, **solo** `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egre
 
 En `ESTADOS_VISIBLES`, una estadía activa se presenta como «Alojada» (`info`) y una
 egresada como «Egresada» (`gray`); el motivo obligatorio del egreso no altera ese mapa.
+En el mapa de estadías, `ACTIVA` entrega «Alojada»/`info` y `EGRESADA`, «Egresada»/`gray`.
+Los estados de `ReservaPlaza` no alimentan ese badge: consumir o liberar una reserva
+no agrega estados visuales al alojamiento.
 
 ---
 
