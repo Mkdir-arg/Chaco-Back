@@ -67,6 +67,8 @@ urlpatterns = [
     path("api/core/", include("core.api_urls")),
     path("api/users/", include("users.api_urls")),
     path("api/becas/", include("programas.api_urls")),
+    # App de campo del relevamiento edilicio (MVP v2 de Dispositivos, tasks 38 y 39).
+    path("api/dispositivos/", include("programas.api_dispositivos_urls")),
     # API Documentation
     # Documentación de la API detrás de login: el inventario completo de
     # endpoints, parámetros y modelos era reconocimiento gratuito para cualquiera

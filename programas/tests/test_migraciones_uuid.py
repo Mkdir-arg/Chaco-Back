@@ -51,6 +51,11 @@ REVERSAS = (
         "restaurar_token_mysql",
         ("token",),
     ),
+    (
+        "programas.migrations.0093_inspeccion_app_sin_conexion",
+        "restaurar_uuid_mysql",
+        ("uuid_cliente", "uuid_resultado"),
+    ),
 )
 
 ACHICA = re.compile(r"MODIFY\s+(?P<columna>\w+)\s+char\(32\)", re.IGNORECASE)

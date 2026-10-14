@@ -413,6 +413,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 280 | Solapa Infraestructura del dispositivo y semáforo de criticidad del edificio | Dispositivos · relevamiento edilicio | `#ui` `#rbac` `#performance` | Tasks 37 y 40 del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 275 | Relevamiento edilicio: el modelo de la inspección, colgado del edificio | Dispositivos · relevamiento edilicio | `#datos` `#rbac` | Task 35 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0091`, `users.0037` |
 | 281 | Alertas por criticidad y auditoría básica del dispositivo | Dispositivos · detalle y auditoría | `#ui` `#datos` `#rbac` `#performance` | Task 34 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0092` |
+| 282 | La app del agente trae sus relevamientos edilicios y manda el resultado y las fotos, también sin señal | Dispositivos · relevamiento edilicio (app de campo) | `#api` `#mobile` `#rbac` `#usuarios` `#datos` | Tasks 38 y 39 (parte del sistema) del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0093` |
 
 **Notas del índice**
 
@@ -35957,5 +35958,221 @@ el historial viejo las muestra con el código de acción).
 ## Historial
 
 Entrada nueva. Etapa 3 del plan del Cambio 191. Corregida tras las dos revisiones (ver *Revisión*).
+
+---
+
+# Cambio 282 — La app del agente trae sus relevamientos edilicios y manda el resultado y las fotos, también sin señal
+
+🟢 **HECHO — 14/10/2026** · Tasks `[TASK] Dispositivos MVP 38` (#703) y la parte del sistema de `MVP 39` (#704)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamiento edilicio (app de campo) |
+| **Etiquetas** | `#api` `#mobile` `#rbac` `#usuarios` `#datos` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191), etapa 4 |
+| **Fecha del pedido** | 08/10/2026 |
+| **Issue / épica** | #703 (task 38) · #704 (task 39, solo la parte del servidor) · Épica #127 |
+| **Partes afectadas** | Servidor/API (`programas/api/views_inspecciones.py`, `programas/api/serializers_inspecciones.py`, `programas/api_dispositivos_urls.py`, `programas/api/views.py`, `programas/services/inspecciones.py`, `core/rbac.py`, `programas/models/__init__.py`, `config/urls.py`, `config/settings.py`) · Mobile (contrato para `Chaco-mobile`) |
+| **Migración** | `programas.0093` — `uuid_cliente` en la foto, `uuid_resultado` y `agentes_anteriores` en la inspección |
+
+## Pedido original
+
+Task 38: los servicios para que la app móvil del agente territorial trabaje el relevamiento edilicio
+—autenticarse, traer sus tareas asignadas, mandar el resultado (criticidad y observaciones) y las
+fotos—, documentados en el esquema de la API. Criterio: **un agente no puede traer ni enviar
+relevamientos que no son suyos**. Task 39: la app carga sin señal y sincroniza después; acá va
+solo lo que eso le exige al servidor.
+
+## Alcance acordado
+
+Entra: los extremos de la app, el permiso propio, la idempotencia de cada envío, los conflictos
+legibles cuando el servidor cambió mientras tanto, el esquema y el contrato para el equipo móvil.
+Queda afuera: todo lo del celular (cola offline, compresión, reintentos, pantallas), las pantallas
+del backoffice (P21 es la task 36, P19 la 37) y el semáforo (task 40).
+
+## Decisiones tomadas
+
+**Mismo molde que la API de campo de Becas, otro namespace.** `/api/dispositivos/` con su router
+(`RouterApiInspecciones`, con la raíz autenticada como R0-04), `TokenAuthentication` +
+`SessionAuthentication` y la regla en el servicio. No se colgó de `/api/becas/` porque cada
+recurso tiene su permiso y su raíz; sí se sumó a `FUERA_DEL_BACKOFFICE` del test de SEC-01, que
+ahora lista las dos superficies de la app de campo.
+
+**Un solo login para la app: `/api/becas/auth/token/`.** `ObtainCampoToken` le da token a quien
+tenga `becas.campo` **o** `inspeccion.relevar` (con alcance a Dispositivos). El token no abre nada
+solo: `CampoBecasPermission` sigue exigiendo `becas.campo` y el nuevo `CampoInspeccionPermission`
+exige `inspeccion.relevar`. El agente que no es territorial recibe 403 en `/api/becas/` y el
+territorial que no es agente, 403 en `/api/dispositivos/` (tests). La respuesta del token **no
+cambió** (`token`, `user_id`, `username`: lo fija el contrato con la app instalada); la app sabe qué
+módulo mostrar pidiendo cada listado (200 o 403).
+
+**El agente es usuario de campo, con la misma regla que el territorial (D-26/SEC-26).** Decisión
+del juez en la revisión. `core/rbac.py` tiene ahora `CAPACIDADES_DE_CAMPO = {"becas.campo",
+"inspeccion.relevar"}` y `es_solo_campo`/`roles_solo_campo` preguntan por el conjunto: quien tiene
+alguna de las dos **y nada más** no entra al backoffice (`territorial_mobile_only`), el alta y la
+edición del ABM le **exigen correo** y las credenciales le llegan como **link de reseteo**, no como
+clave en claro. Sin esto el agente recibía la clave provisoria, sacaba token y la conservaba para
+siempre, porque el backoffice —el único que cobra `debe_cambiar_contrasena`— nunca le pide nada.
+Las dos capacidades son de módulos «de programa» y se preguntan sin alcance, como siempre se
+preguntó `becas.campo`: el `CATALOGO` solo las deja otorgar en su programa (SEC-06). El agente que
+además coordina (`inspeccion.asignar`, que se usa desde P21) no es de campo. **Correo obligatorio
+para el rol del agente: avisar al PM**, porque cambia el alta de esos usuarios en el ABM.
+
+**Lo ajeno es 404, con el mismo cuerpo que un id que no existe** (`{"detail": "No encontrado."}`,
+el genérico de DRF; `get_object` no deja pasar el «No InspeccionEdificio matches…» de Django). Dos
+capas: el queryset de la vista (`inspecciones_del_agente` para el detalle,
+`inspecciones_para_envio` para los envíos) y la guarda de `asignado_a` del servicio, que sigue ahí.
+Un `PermissionDenied` que el servicio levante sale con ese mismo 404.
+
+**Reasignado es 409 para quien lo tenía, no 404.** Para distinguirlo sin oráculo, la inspección
+recuerda quiénes la tuvieron (`agentes_anteriores`, lo anota `reasignar_inspeccion`): solo a ellos
+—que ya la tenían en el celular— se les contesta `REASIGNADA`. Para cualquier otro sigue siendo
+404. El detalle de un reasignado también es 404: ya no es suyo.
+
+**La vista no decide reglas.** Criticidad, estado, tipo, firma y tamaño de la foto
+(`validar_foto`, la del Cambio 275), idempotencia y conflictos los resuelve
+`programas/services/inspecciones.py`; la vista traduce `ValidationError` → 400 (con `detail` y
+`non_field_errors` además del detalle por campo, el patrón de `rechazo_legible`),
+`InspeccionEnConflicto`/`InspeccionReasignada` → 409 con `code`, y valida solo la forma del cuerpo.
+
+**Idempotencia por un campo, no por header.** Cada envío lleva `uuid_cliente` (obligatorio, UUID
+generado en el celular). No se aceptó también `Idempotency-Key`: dos lugares para lo mismo es un
+caso más de desacuerdo, y el campo queda documentado en el esquema.
+- **Resultado**: el `uuid_cliente` se guarda en `uuid_resultado`. El mismo uuid sobre uno ya
+  realizado devuelve 200 con el relevamiento como quedó (no lo pisa, aunque traiga otra
+  criticidad); otro uuid sobre uno realizado es 409 `YA_REALIZADA`.
+- **Foto**: `uuid_cliente` único en `FotoInspeccion`. El reenvío de la misma foto —mismo agente
+  y mismo relevamiento: el agente nuevo de un reasignado no se queda con la del anterior— devuelve 200 con la fila que quedó, **aunque después lo hayan cancelado o
+  reasignado**: el reenvío no cambia nada. El mismo uuid en otra foto es 409 `UUID_EN_USO`; si dos
+  envíos así llegan a la vez, el `UNIQUE` de la base lo frena y el archivo escrito se borra.
+- Las búsquedas por esos uuid van con `q_uuid_en_texto` y las dos columnas entraron al lint de
+  RED-09 (`core/tests/test_uuid_mariadb.py`).
+
+**MariaDB: `char(36)`.** Las dos columnas UUID se amplían a `char(36)` en MySQL/MariaDB en la misma
+migración (patrón de `programas.0073`, con `core.migraciones.modificar_columna`, idempotente). El
+único de la foto es sobre columna anulable; no hay `UniqueConstraint(condition=)`.
+
+**Sin paginación en la agenda**, como la de Becas (G1-03): son las tareas en curso del agente.
+
+## Contrato para el equipo móvil (`Chaco-mobile`)
+
+Todas con `Authorization: Token <token>`. Errores: `detail` siempre legible para mostrar.
+
+| Método y ruta | Cuerpo | Respuestas |
+|---|---|---|
+| `POST /api/becas/auth/token/` | JSON `{username, password}` | 200 `{token, user_id, username}` · 400 credenciales · 403 sin `becas.campo` ni `inspeccion.relevar` · 429. La clave la define el agente con el link que le llega por correo al alta |
+| `GET /api/dispositivos/inspecciones/` | — | 200 lista (sin paginar) de las **en curso**, por vencimiento: `id`, `edificio{id, codigo, nombre, calle, numero, piso_departamento, localidad, provincia, codigo_postal, latitud, longitud}`, `estado`, `fecha_vencimiento`, `vencida`, `indicaciones` · 403 sin la capacidad |
+| `GET /api/dispositivos/inspecciones/{id}/` | — | 200 lo de arriba + `criticidad`, `observaciones`, `realizada_en`, `uuid_resultado`, `motivo_cancelacion`, `fotos[{id, uuid_cliente, descripcion, creado}]` · 404 ajeno, reasignado o inexistente |
+| `POST /api/dispositivos/inspecciones/{id}/resultado/` | JSON `{uuid_cliente, criticidad: BAJA\|MEDIA\|ALTA, observaciones?}` | 200 el detalle (también en el reenvío) · 400 · 404 · 409 |
+| `POST /api/dispositivos/inspecciones/{id}/fotos/` | multipart `{uuid_cliente, archivo, descripcion? (≤120)}` | 201 la foto · 200 reenvío (la misma) · 400 · 404 · 409 |
+
+**Códigos del 409** (`code`, con `estado` del relevamiento cuando corresponde):
+`CANCELADA` (el motivo viene en `detail`), `REASIGNADA`, `YA_REALIZADA`, `UUID_EN_USO`. Un 409 no se
+reintenta: se le muestra al agente y la operación sale de la cola. Un 400 tampoco se reintenta (el
+dato está mal). 401 → volver a loguear; 5xx o sin red → reintentar con **el mismo** `uuid_cliente`.
+
+**Fotos**: JPG, PNG, WEBP o HEIC con firma real, hasta 5 MB **después** de comprimir; una por
+request. La compresión es de la app (sugerido: lado mayor ~1600 px, JPEG calidad ~0,8, que deja
+fotos de 300-600 KB).
+
+**Orden sugerido de sincronización** por relevamiento: primero el resultado, después las fotos de a
+una. El servidor acepta fotos antes o después del resultado, así que el orden no rompe nada, pero
+el resultado es lo que cierra la tarea y saca el edificio de «sin relevar». Si el resultado vuelve
+409 `CANCELADA` o `REASIGNADA`, las fotos de ese relevamiento van a volver igual: descartarlas (o
+guardarlas para el agente) sin reintentar. El `uuid_cliente` se genera **al capturar** (no al
+enviar) y se persiste con la operación: es lo que hace seguro el reintento.
+
+**Refresco de la agenda**: lo que deja de aparecer en el listado se realizó, se canceló o se
+reasignó; el detalle distingue los dos primeros (200 con `estado`) del tercero (404).
+
+## Implementación
+
+El agente entra con su usuario en la app, ve su agenda de relevamientos en curso con el edificio,
+el vencimiento y las indicaciones, y manda el resultado y las fotos. Si los mandó sin señal y los
+reenvía, el servidor no duplica nada. Si mientras tanto el coordinador canceló o reasignó la tarea,
+el envío vuelve con un aviso que la app puede mostrar.
+
+## Archivos
+
+`programas/api/views_inspecciones.py` (nuevo) · `programas/api/serializers_inspecciones.py` (nuevo)
+· `programas/api_dispositivos_urls.py` (nuevo) · `config/urls.py` · `config/settings.py`
+(`InspeccionEstadoEnum`) · `programas/api/views.py` (`ObtainCampoToken`) ·
+`programas/services/inspecciones.py` · `programas/models/__init__.py` ·
+`programas/migrations/0093_inspeccion_app_sin_conexion.py` ·
+`core/rbac.py` (`CAPACIDADES_DE_CAMPO`) · `programas/tests/test_api_campo_inspecciones.py` (nuevo) ·
+`programas/tests/test_migraciones_uuid.py` · `core/tests/test_uuid_mariadb.py` ·
+`core/tests/test_api_backoffice_permiso.py` · `users/tests/test_credenciales_ola2_pr2.py`
+
+## Base de datos
+
+`programas.0093`: `FotoInspeccion.uuid_cliente` (UUID anulable, único) e
+`InspeccionEdificio.uuid_resultado` (UUID anulable) ampliadas a `char(36)` en MySQL/MariaDB, y la
+tabla de `InspeccionEdificio.agentes_anteriores`. Sobre tablas de la `programas.0091` (Cambio 275),
+todavía sin datos en ningún ambiente. Va detrás de la `programas.0092` (Cambio 281). `check_migraciones.py`: 0 problemas.
+
+## Validación
+
+`manage.py check` OK · `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`
+limpio · `manage.py spectacular --validate`: 0 warnings · `check_migraciones.py` 0 problemas.
+`test_api_campo_inspecciones` (30 tests, también con migraciones reales), los siete del agente
+como usuario de campo en `users.tests.test_credenciales_ola2_pr2` (link en vez de clave, login web
+rechazado, token, correo obligatorio en el alta, el que coordina no es de campo) y, en verde con Py 3.12 +
+Dj 5.2: `test_dispositivos_inspecciones`, `test_models_contrato`, `test_migraciones_uuid`,
+`test_contrato_migraciones`, `test_becas_api`, `test_becas_api_contrato`, `test_app_de_campo`, los
+ocho módulos del job «Contratos de API», `core.tests.test_media_protegida`,
+`test_api_backoffice_permiso`, `test_superficie_publica`, `test_uuid_mariadb`, `test_api_auth`,
+`test_barreras_de_reversa` y `users.tests.test_credenciales_ola2_pr2`.
+
+**Mutación**, cada una con su rojo: el permiso que no exige `inspeccion.relevar` (2), el detalle
+que trae todo (3), el selector de envíos que trae todo, con la guarda del servicio intacta (3), la
+guarda `asignado_a` del servicio apagada, con el selector intacto (9 y 1 error), sin la idempotencia
+del resultado (1), sin la de la foto (2), sin la memoria de la reasignación (2), foto aceptada
+sobre un cancelado (3), el token solo para Becas (1), `CAPACIDADES_DE_CAMPO` solo con
+`becas.campo` (6), el reenvío de foto sin mirar quién la cargó (1), el 404 de `get_object` con el
+mensaje de Django (3) y el respaldo del servicio como 403 (1). El que lo intenta tiene todas las
+capacidades del programa y alcance de admin, menos ser el asignado; el que no tiene
+`inspeccion.relevar` tiene todas las demás.
+
+## Puesta en marcha en el servidor
+
+No requiere. **Al PM**: dar de alta un agente (rol con solo `inspeccion.relevar`) ahora exige
+correo, y la clave la define él con el link. Los agentes que ya existan sin correo se pueden seguir
+editando (la regla mira la transición, como con los territoriales). Para QA: el usuario del agente necesita un rol del programa Dispositivos con
+`inspeccion.relevar` (no asignado a dispositivos del edificio, Cambio 275) y una tarea creada por
+un coordinador. Sin la app, se prueba con `/api/docs/` (sesión) o con `curl` y el token.
+
+## Pendientes / a definir
+
+- **Todo lo del celular** (task 39 del lado de `Chaco-mobile`): la cola offline con el
+  `uuid_cliente` persistido, la compresión, el manejo de 409/400 sin reintento y las pantallas.
+- **Sin throttle propio** en los envíos: el token ya está detrás del login con cubetas (SEC-26).
+  Si el uso real muestra abuso, un `UserRateThrottle` por scope como `personas_campo`.
+- **Tamaño del cuerpo en el ingress de ECOM**: la foto llega hasta 5 MB; si el ingress corta antes,
+  la app ve un 413 que no es de Django. A verificar en testing.
+- **La foto no viaja de vuelta**: el detalle no trae URL del archivo porque `/media/` va por sesión,
+  no por token. Si la app necesita mostrar fotos que no sacó ella, hace falta un extremo propio.
+
+## Reversión
+
+Revertir el código y desaplicar la `programas.0093` con `migrate programas 0092` (la reversa
+normaliza los UUID a hex, achica a
+`char(32)` y borra las columnas y la tabla). Se pierden los identificadores de envío y la memoria
+de reasignaciones; las fotos y los resultados quedan.
+
+## Revisión
+
+APPROVE con un MINOR de riesgo latente, cerrado en la misma rama.
+
+- **MINOR: la guarda de estado del envío era lista negra.** `registrar_resultado` y `agregar_foto`
+  nombraban los estados que rechazan, así que un estado nuevo —los de `InspeccionEdificio` son
+  «defaults a confirmar con el Ministerio»— habría caído al cuerpo y cerrado el relevamiento igual.
+  Ahora los dos exigen la lista blanca (en curso; la foto, también sobre realizado) y devuelven el
+  409 `ESTADO_NO_ADMITE`, documentado en el esquema. Test nuevo con el estado forzado por
+  `update()`; rojo con cada guarda sacada por separado (3 y 2 fallas). De paso, el 403 del login de
+  la app ya no dice «de Becas»: el mismo extremo lo usa el agente edilicio.
+
+## Historial
+
+Entrada nueva. Etapa 4 del plan del Cambio 191, sobre el modelo del Cambio 275.
 
 ---
