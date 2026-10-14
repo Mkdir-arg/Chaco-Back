@@ -39844,7 +39844,7 @@ Semáforo, última realizada, criticidad y resultado conservan su funcionamiento
 
 ## Base de datos
 
-0095 depende de 0094, última migración de origin/development verificada. Agrega datetime
+`programas.0095_inspeccion_revision` depende de `programas.0094`, última migración de origin/development verificada. Agrega datetime
 anulable y FK anulable a usuario, sin backfill; los relevamientos anteriores permanecen
 sin revisar. El AlterField de la acción de traza solo amplía choices; no cambia columna,
 nullabilidad ni enum del estado de inspección. Contrato de migraciones sin marcas especiales.
