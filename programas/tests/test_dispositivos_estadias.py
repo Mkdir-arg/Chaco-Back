@@ -14,7 +14,7 @@ Cuatro cosas se verifican acá, y cada una existe por un motivo distinto:
 4. **`FUERA_SERVICIO` no se declara sobre una plaza tomada** (regla 1 de la etapa 2).
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest import mock
 
 from django.contrib.auth.models import Group, Permission, User
@@ -27,6 +27,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from core import rbac
+from core.tests.candados import orden_de_candados
 from legajos.models import Ciudadano
 from programas.models import (
     AsignacionDispositivo,
@@ -732,6 +733,59 @@ class ContratoDeLaReservaTests(BaseEstadias):
                 usuario=self.operador_cis,
                 reserva=reserva,
             )
+
+
+class OrdenDeLosCandadosTests(BaseEstadias):
+    """Todos los caminos que bloquean la plaza **y** la reserva las piden en el mismo orden.
+
+    Es la cara de contrato del deadlock entre un ingreso que consume una reserva y una
+    liberación de esa misma reserva: InnoDB abortaba una transacción con `ERROR 1213`
+    en vez de dar el error de dominio (`CarreraDePlazaTests`, escenario 5).
+
+    La causa no se ve leyendo `liberar_reserva`: escribir `ReservaPlaza.estado` reescribe
+    la entrada del índice `(plaza, estado)` —que por tener `plaza_id` a la izquierda es el
+    que InnoDB adopta como índice de la FK—, y por eso el `UPDATE` pide un lock compartido
+    sobre la fila de la **plaza**, después del candado de la reserva. El ingreso va al
+    revés. De ahí que la regla sea «plaza y después reserva, siempre», aunque el camino no
+    tenga nada que preguntarle a la plaza.
+
+    Acá se prueba por la secuencia de llamadas y no por su efecto: en SQLite
+    `select_for_update()` es un no-op y no hay deadlock que reproducir. La carrera de
+    verdad es `programas.tests.test_dispositivos_concurrencia`, con `@tag("mysql")`.
+    """
+
+    def setUp(self):
+        super().setUp()
+        reloj = mock.patch("django.utils.timezone.now", return_value=timezone.make_aware(datetime(2026, 9, 7, 10)))
+        reloj.start()
+        self.addCleanup(reloj.stop)
+
+    def _orden(self):
+        return orden_de_candados(plaza=Plaza.objects, reserva=ReservaPlaza.objects)
+
+    def test_liberar_una_reserva_toma_primero_la_plaza(self):
+        reserva = reservar_plaza(plaza=self.plaza, ciudadano=self.persona, usuario=self.operador_cis)
+
+        with self._orden() as orden:
+            liberar_reserva(reserva=reserva, usuario=self.operador_cis, motivo="No se presentó")
+
+        self.assertEqual(orden, ["plaza", "reserva"])
+        reserva.refresh_from_db()
+        self.assertEqual(reserva.estado, ReservaPlaza.Estado.LIBERADA)
+
+    def test_el_ingreso_que_consume_una_reserva_toma_primero_la_plaza(self):
+        reserva = reservar_plaza(plaza=self.plaza, ciudadano=self.persona, usuario=self.operador_cis)
+
+        with self._orden() as orden:
+            ingresar_persona(
+                ciudadano=self.persona,
+                dispositivo=self.cis,
+                plaza=self.plaza,
+                usuario=self.operador_cis,
+                reserva=reserva,
+            )
+
+        self.assertEqual(orden, ["plaza", "reserva"])
 
 
 class ReservasAFuturoTests(BaseEstadias):
