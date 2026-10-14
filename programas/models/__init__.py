@@ -1624,6 +1624,20 @@ class EntradaBitacora(TimeStamped):
         default=Origen.MANUAL,
         verbose_name="Origen",
     )
+    # El movimiento que generó la novedad automática, y **uno a uno**: un ingreso, un
+    # egreso o un cambio de plaza dejan UNA entrada y no dos. No es una comodidad de
+    # lectura: es la garantía de que un reintento —el doble clic, el POST repetido, el
+    # servicio llamado dos veces— no duplique la novedad en la bitácora del turno. Es un
+    # UNIQUE común sobre una columna anulable (las manuales van en NULL y los NULL no
+    # chocan), que existe en MySQL y en MariaDB; un `UniqueConstraint(condition=...)` no.
+    movimiento = models.OneToOneField(
+        MovimientoEstadia,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="entrada_bitacora",
+        verbose_name="Movimiento que la generó",
+    )
     texto = models.TextField(verbose_name="Texto")
     # Las estadías y no las personas sueltas: la persona involucrada en una novedad del
     # turno es alguien alojado en **este** dispositivo, y la estadía lo dice —y lo
@@ -1717,6 +1731,8 @@ class EntradaBitacora(TimeStamped):
             raise ValidationError({"texto": "La novedad necesita un texto."})
         if self.origen == self.Origen.MANUAL and self.tipo in self.TIPOS_AUTOMATICOS:
             raise ValidationError({"tipo": "Ese tipo de novedad lo genera el sistema, no se carga a mano."})
+        if self.origen == self.Origen.MANUAL and self.movimiento_id:
+            raise ValidationError({"movimiento": "Solo una novedad automática cuelga de un movimiento de estadía."})
         if self.turno_id and self.dispositivo_id and self.turno.dispositivo_id != self.dispositivo_id:
             raise ValidationError({"turno": "El turno tiene que ser del dispositivo de la entrada."})
 

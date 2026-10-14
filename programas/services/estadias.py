@@ -20,6 +20,12 @@ plaza, egreso— deja además su `MovimientoEstadia` en la misma transacción, p
 `programas.services.movimientos.registrar_movimiento`. La línea de tiempo de la estadía
 sale de ahí y de ningún otro lado.
 
+Y desde ese mismo movimiento —en la misma transacción— sale la **novedad automática de
+la bitácora del turno** (`programas.services.bitacora.anotar_en_bitacora`), que es lo
+que P10 muestra como «automática». Cuelga del movimiento con un uno a uno, así que no
+se puede duplicar, y si el dispositivo no tiene un turno para ese momento no se escribe
+ninguna: no se inventa un turno.
+
 Por qué el bloqueo alcanza
 --------------------------
 
@@ -70,6 +76,7 @@ from programas.models import (
     ReservaPlaza,
     TrazaDispositivo,
 )
+from programas.services.bitacora import anotar_en_bitacora
 from programas.services.dispositivos import (
     dispositivos_visibles,
     puede_en_programa_dispositivos,
@@ -344,6 +351,9 @@ def _tomar_plaza(plaza, dispositivo, *, momento=None):
     return plaza
 
 
+#: El egreso sin motivo del catálogo: lo rechaza el servicio, no el formulario.
+EGRESO_SIN_MOTIVO = "El egreso exige un motivo del catálogo."
+
 #: Una carga retroactiva sobre una plaza que otra persona usó en el medio.
 PLAZA_OCUPADA_EN_EL_MEDIO = (
     "La plaza estuvo ocupada después de ese momento: con esa fecha quedarían dos personas en la misma plaza."
@@ -454,7 +464,7 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
 
     # El movimiento lleva la fecha del ingreso y no la de la carga: es lo que hace que la
     # permanencia calculada y la línea de tiempo coincidan.
-    registrar_movimiento(
+    movimiento = registrar_movimiento(
         estadia=estadia,
         tipo=MovimientoEstadia.Tipo.INGRESO,
         momento=fecha_ingreso,
@@ -462,6 +472,7 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
         plaza_destino=plaza,
         estado_nuevo=Estadia.Estado.ACTIVA,
     )
+    anotar_en_bitacora(movimiento)
 
     _trazar(
         dispositivo,
@@ -482,8 +493,16 @@ def egresar_persona(
     Soltar la clave es lo que devuelve a la persona al circuito: desde ese momento
     cualquier dispositivo de la red la puede volver a alojar.
 
-    `motivo_egreso` es el `MotivoEgreso` del catálogo (#691) y tiene que estar activo;
-    `motivo` sigue siendo el texto libre de observaciones, que es lo que ya recibía.
+    `motivo_egreso` es el `MotivoEgreso` del catálogo (#691), es **obligatorio** y tiene
+    que estar activo; `motivo` sigue siendo el texto libre de observaciones, que es lo que
+    ya recibía.
+
+    La obligatoriedad vive acá y no solo en `EgresoForm` (pendiente del Cambio 269): es la
+    misma trampa que la revisión del Cambio 262 marcó en la verificación de alojamiento
+    —que la regla dependa de que la vista se acuerde—. El historial no puede perder la
+    razón de un egreso, y la razón es la del catálogo: `motivo` es texto libre y no
+    sustituye a ninguna opción. Las estadías **ya egresadas** sin motivo no se tocan: la
+    regla rige para los egresos nuevos.
     """
 
     if not puede_operar_dispositivo(usuario, estadia.dispositivo, CAP_EGRESAR):
@@ -507,7 +526,9 @@ def egresar_persona(
         # moviéndose de plaza después de haberse ido.
         raise ValidationError({"fecha_egreso": "El egreso no puede ser anterior al último movimiento de la estadía."})
 
-    if motivo_egreso is not None and not MotivoEgreso.objects.filter(pk=motivo_egreso.pk, activo=True).exists():
+    if motivo_egreso is None:
+        raise ValidationError({"motivo": EGRESO_SIN_MOTIVO})
+    if not MotivoEgreso.objects.filter(pk=motivo_egreso.pk, activo=True).exists():
         raise ValidationError({"motivo": "El motivo elegido ya no está disponible."})
 
     estadia.fecha_egreso = fecha_egreso
@@ -538,16 +559,17 @@ def egresar_persona(
     # El movimiento lleva el motivo **del catálogo** y nunca las observaciones: son texto
     # libre, pueden traer datos de la persona, y la línea de tiempo la lee todo el que opera
     # el dispositivo. Las observaciones quedan solo en `Estadia.motivo_egreso`.
-    registrar_movimiento(
+    movimiento = registrar_movimiento(
         estadia=estadia,
         tipo=MovimientoEstadia.Tipo.EGRESO,
         momento=fecha_egreso,
         responsable=usuario,
-        motivo=motivo_egreso.nombre if motivo_egreso else "",
+        motivo=motivo_egreso.nombre,
         plaza_origen=estadia.plaza_id,
         estado_anterior=Estadia.Estado.ACTIVA,
         estado_nuevo=Estadia.Estado.EGRESADA,
     )
+    anotar_en_bitacora(movimiento)
 
     _trazar(
         estadia.dispositivo,
@@ -555,10 +577,7 @@ def egresar_persona(
         "ESTADIA_EGRESO",
         estado_anterior=Estadia.Estado.ACTIVA,
         estado_nuevo=Estadia.Estado.EGRESADA,
-        detalle=(
-            f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · "
-            f"motivo: {motivo_egreso.nombre if motivo_egreso else (motivo or '—')}"
-        ),
+        detalle=f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · motivo: {motivo_egreso.nombre}",
     )
     return estadia
 
@@ -630,6 +649,7 @@ def cambiar_plaza(*, estadia, plaza, usuario, motivo, momento=None):
         plaza_origen=origen,
         plaza_destino=plaza,
     )
+    anotar_en_bitacora(movimiento)
 
     _trazar(
         dispositivo,

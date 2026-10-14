@@ -26,6 +26,9 @@ Tarde · entradas», debajo de su encabezado.
 | `entradas` | Lista de dicts (no queryset), de la más nueva a la más vieja: `hora`, `categoria`, y opcionales `tono`, `titulo`, `texto`, `autor`, `automatica`, `version` |
 | `total` | Opcional: cantidad real de entradas si la vista mandó menos |
 
+`programas/services/bitacora.py` genera las novedades de ingreso, egreso y cambio de plaza
+con origen automático: la vista pasa `automatica=True` y no ofrece «Corregir» para ellas.
+
 ## Quién decide qué
 
 - **El estado, la categoría y el tono los decide la vista.** El template solo traduce `tono` a la variante de
@@ -34,7 +37,7 @@ Tarde · entradas», debajo de su encabezado.
 - **El color no es el único portador.** El badge de la tarjeta lleva el texto del estado; el de cada entrada
   lleva el texto de la categoría y un ícono por tono (`fa-circle-check`, `fa-circle-info`,
   `fa-triangle-exclamation`, `fa-circle-exclamation`, `fa-flag`), todos `aria-hidden`.
-- **El texto lo escribe un usuario:** se imprime con autoescape y `linebreaksbr` (respeta los saltos de línea,
+- **El texto puede ser manual o automático:** se imprime con autoescape y `linebreaksbr` (respeta los saltos de línea,
   no deja pasar HTML). No hay `|safe` ni `{% autoescape off %}`.
 - Las acciones de la tarjeta las arma la vista según capacidades; la pieza no decide quién puede qué.
   **Un enlace nunca muta estado.** Cada acción es de uno de dos tipos: `url` navega —a otra pantalla

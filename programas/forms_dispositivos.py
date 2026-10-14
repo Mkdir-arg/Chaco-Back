@@ -18,7 +18,7 @@ from programas.services.movimientos import ultimo_momento
 class EgresoForm(forms.Form):
     """Egreso de una persona del dispositivo (P9 del mockup · #691).
 
-    La regla de fondo —fecha no futura ni anterior al ingreso, motivo vigente— la sostiene
+    La regla de fondo —fecha no futura ni anterior al último movimiento, motivo vigente— la sostiene
     `programas.services.estadias.egresar_persona`, que relee la estadía con la fila
     bloqueada. Acá se repite lo que el operador puede corregir sin salir del modal.
     """
@@ -27,7 +27,7 @@ class EgresoForm(forms.Form):
         label="Fecha y hora",
         input_formats=["%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"],
         widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"class": INPUT_CLASS, "type": "datetime-local"}),
-        help_text="No puede ser anterior al ingreso.",
+        help_text="No puede ser anterior al último movimiento de la estadía.",
     )
     motivo = forms.ModelChoiceField(
         label="Motivo",
@@ -65,14 +65,13 @@ class EgresoForm(forms.Form):
         if fecha > timezone.now():
             raise forms.ValidationError("El egreso no puede ser futuro.")
         if self.estadia is not None:
-            ingreso = self.estadia.fecha_ingreso
-            # El input `datetime-local` no trae segundos y el ingreso sí: egresar en el mismo
-            # minuto del ingreso (un alta por error, corregida enseguida) quedaría «anterior».
-            # Se compara al minuto y, dentro de ese minuto, se egresa en el instante del ingreso,
-            # que es lo que el servicio y el constraint de la base aceptan.
-            if fecha < ingreso.replace(second=0, microsecond=0):
-                raise forms.ValidationError("El egreso no puede ser anterior al ingreso.")
-            fecha = max(fecha, ingreso)
+            ultimo = ultimo_momento(self.estadia)
+            # El `datetime-local` no trae segundos y el último movimiento sí: se compara
+            # al minuto y se conserva su instante si el egreso cae en ese mismo minuto.
+            # El servicio vuelve a validar con la estadía bloqueada.
+            if fecha < ultimo.replace(second=0, microsecond=0):
+                raise forms.ValidationError("El egreso no puede ser anterior al último movimiento de la estadía.")
+            fecha = max(fecha, ultimo)
         return fecha
 
 
@@ -136,7 +135,7 @@ class CambioPlazaForm(forms.Form):
             raise forms.ValidationError("El cambio no puede ser futuro.")
         if self.estadia is not None:
             ultimo = ultimo_momento(self.estadia)
-            # Como en `EgresoForm` con el ingreso: el `datetime-local` no trae segundos y el
+            # Como en `EgresoForm`: el `datetime-local` no trae segundos y el
             # último movimiento sí. Un cambio cargado en el mismo minuto que el anterior
             # quedaría «anterior» por los segundos; se compara al minuto y, dentro de ese
             # minuto, el cambio va en el instante del último movimiento.

@@ -200,7 +200,120 @@ class SolapaEnLaUrlTests(BaseDetalle):
     def test_la_solapa_sale_de_la_url_y_sin_ella_es_estadias(self):
         """Como en la golden: `?tab=` manda, y sin él se abre la solapa que P4 muestra activa."""
 
-        self.assertContains(self.client.get(self.url), "get('tab') || 'estadias'")
+        self.assertContains(self.client.get(self.url, {"tab": "historial"}), "tab: 'historial'")
+        self.assertContains(self.client.get(self.url), "tab: 'estadias'")
+
+
+class SolapaNormalizadaTests(BaseDetalle):
+    """Una solapa pedida que este dispositivo no tiene cae en la de siempre (carril C3).
+
+    Sin esto, Alpine se quedaba con el valor de la URL, ningún panel coincidía con él y la
+    tarjeta entera quedaba en blanco: ni solapas, ni estadías, ni historial.
+    """
+
+    def test_una_solapa_inventada_cae_en_la_de_siempre(self):
+        respuesta = self.client.get(self.url, {"tab": "inventada"})
+
+        self.assertEqual(respuesta.context["tab"], "estadias")
+        self.assertContains(respuesta, "tab: 'estadias'")
+
+    def test_sectores_en_un_tipo_que_no_maneja_plazas_cae_en_la_de_siempre(self):
+        """El caso del pedido: `?tab=sectores` donde esa solapa ni siquiera se dibuja."""
+
+        con_plazas = self.client.get(self.url, {"tab": "sectores"})
+        self.assertContains(con_plazas, 'id="tab-sectores"')
+        self.assertEqual(con_plazas.context["tab"], "sectores")
+
+        self.tipo.plaza_obligatoria_al_ingresar = False
+        self.tipo.save()
+
+        respuesta = self.client.get(self.url, {"tab": "sectores"})
+
+        self.assertNotContains(respuesta, 'id="tab-sectores"')
+        self.assertEqual(respuesta.context["tab"], "estadias")
+        self.assertContains(respuesta, "tab: 'estadias'")
+
+    def test_la_estadia_normaliza_su_propia_solapa(self):
+        """P7 tiene el mismo `?tab=` y el mismo agujero: ficha, movimientos o novedades."""
+
+        estadia = _alojar(self.cis, self.plaza, self.persona)
+        url = reverse("dispositivos:estadia_detalle", args=[self.cis.pk, estadia.pk])
+
+        self.assertEqual(self.client.get(url, {"tab": "movimientos"}).context["tab"], "movimientos")
+        self.assertEqual(self.client.get(url, {"tab": "sectores"}).context["tab"], "ficha")
+
+
+class ObservarYRechazarTests(BaseDetalle):
+    """Los dos modales de P4 que piden motivo, con el contrato JSON del arquetipo Modal.
+
+    Antes posteaban clásico: el error del servicio llegaba como toast **después** de
+    recargar la pantalla, con el modal ya cerrado y el texto escrito perdido.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.cis.estado = Dispositivo.Estado.PENDIENTE_VALIDACION
+        self.cis.save(update_fields=["estado"])
+        self.validador = self._operador("Validador", self.cis, (*CAPACIDADES_OPERATIVAS, "dispositivo.validar"))
+        self.client.force_login(self.validador)
+
+    def _post(self, accion, datos, ajax=True):
+        cabeceras = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"} if ajax else {}
+        return self.client.post(reverse(f"dispositivos:{accion}", args=[self.cis.pk]), datos, **cabeceras)
+
+    def test_los_dos_modales_mandan_por_ajax_y_tienen_donde_pintar_el_error(self):
+        html = self.client.get(self.url).content.decode()
+
+        for accion in ("observar", "rechazar"):
+            with self.subTest(accion=accion):
+                desde = html.index(reverse(f"dispositivos:{accion}", args=[self.cis.pk]))
+                formulario = html[desde : html.index("</form>", desde)]
+                self.assertIn("data-ajax", formulario)
+                self.assertIn('data-error="motivo"', formulario)
+                self.assertIn('data-error="__all__"', formulario)
+
+    def test_sin_motivo_el_error_vuelve_en_su_campo_y_no_cambia_nada(self):
+        for accion in ("observar", "rechazar"):
+            with self.subTest(accion=accion):
+                respuesta = self._post(accion, {"motivo": "   "})
+
+                self.assertEqual(respuesta.status_code, 400)
+                self.assertIn("motivo", respuesta.json()["errors"])
+                self.cis.refresh_from_db()
+                self.assertEqual(self.cis.estado, Dispositivo.Estado.PENDIENTE_VALIDACION)
+
+    def test_lo_que_el_servicio_rechaza_sin_campo_va_al_error_general(self):
+        """El dispositivo ya no está en validación: no es un problema del campo «Motivo»."""
+
+        self.cis.estado = Dispositivo.Estado.ACTIVO
+        self.cis.save(update_fields=["estado"])
+
+        respuesta = self._post("observar", {"motivo": "Faltan datos"})
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("__all__", respuesta.json()["errors"])
+
+    def test_al_observar_el_front_navega_al_detalle(self):
+        respuesta = self._post("observar", {"motivo": "Falta el responsable"})
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()["redirect"], self.url)
+        self.cis.refresh_from_db()
+        self.assertEqual(self.cis.estado, Dispositivo.Estado.OBSERVADO)
+
+    def test_sin_js_sigue_posteando_y_redirigiendo_como_antes(self):
+        respuesta = self._post("rechazar", {"motivo": "No corresponde"}, ajax=False)
+
+        self.assertRedirects(respuesta, self.url)
+        self.cis.refresh_from_db()
+        self.assertEqual(self.cis.estado, Dispositivo.Estado.RECHAZADO)
+
+    def test_sin_js_y_sin_motivo_el_error_vuelve_como_mensaje(self):
+        respuesta = self._post("observar", {"motivo": ""}, ajax=False)
+
+        self.assertRedirects(respuesta, self.url)
+        self.cis.refresh_from_db()
+        self.assertEqual(self.cis.estado, Dispositivo.Estado.PENDIENTE_VALIDACION)
 
 
 class FiltrosDeEstadiasTests(BaseDetalle):

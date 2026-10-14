@@ -14,6 +14,7 @@ from django.utils import timezone
 
 from legajos.models import Ciudadano
 from programas.models import AsignacionDispositivo, Estadia, Plaza, ReservaPlaza
+from programas.services.bitacora import crear_turno
 from programas.services.estadias import ingresar_persona, reservar_plaza
 from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias
 
@@ -180,6 +181,49 @@ class FlujoDeIngresoTests(BaseIngreso):
 
         self.assertEqual(respuesta.status_code, 200)  # no avanza
         self.assertContains(respuesta, "La persona ya está alojada")
+
+
+class EyebrowConElTurnoTests(BaseIngreso):
+    """El eyebrow de P6 es «CIS N.º 3 · turno Tarde · 08/09/2026 16:48» (carril C3).
+
+    El turno sale de `turno_vigente`, el único lugar del sistema que lo calcula, y en hora
+    local: el nocturno que empieza el lunes es del lunes aunque sean las 03:00 del martes.
+    """
+
+    def _con_turno_de_ahora(self, minutos_de_ventana=60):
+        """Un turno que contiene a este momento, y otro activo que no, para que elija uno."""
+
+        local = timezone.localtime()
+        desde = (local - timedelta(minutes=minutos_de_ventana)).time().replace(second=0, microsecond=0)
+        hasta = (local + timedelta(minutes=minutos_de_ventana)).time().replace(second=0, microsecond=0)
+        return crear_turno(
+            dispositivo=self.cis, usuario=self.operador_cis, nombre="Tarde", hora_desde=desde, hora_hasta=hasta
+        )
+
+    def test_el_eyebrow_de_cada_paso_nombra_el_turno_en_curso(self):
+        self._con_turno_de_ahora()
+        esperado = f"{self.cis.nombre} · turno Tarde · "
+
+        primero = self.client.get(self.url_persona)
+        self.client.post(self.url_persona, {"dni": self.persona.dni})
+        segundo = self.client.get(self.url_plaza)
+        self._elegir_plaza(self.plaza)
+        final = self.client.get(self.url_confirmar)
+
+        for paso, respuesta in (("persona", primero), ("plaza", segundo), ("confirmar", final)):
+            with self.subTest(paso=paso):
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertTrue(respuesta.context["eyebrow"].startswith(esperado), respuesta.context["eyebrow"])
+                self.assertContains(respuesta, esperado)
+
+    def test_sin_turno_para_este_momento_el_eyebrow_no_inventa_ninguno(self):
+        """El dispositivo no tiene turnos configurados: el eyebrow queda como antes."""
+
+        respuesta = self.client.get(self.url_persona)
+
+        self.assertRegex(
+            respuesta.context["eyebrow"], rf"^{self.cis.nombre} · \d{{2}}/\d{{2}}/\d{{4}} \d{{2}}:\d{{2}}$"
+        )
 
 
 class VerificacionEnLaRedTests(BaseIngreso):

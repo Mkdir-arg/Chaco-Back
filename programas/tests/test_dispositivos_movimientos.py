@@ -110,7 +110,10 @@ class IngresoYEgresoDejanMovimientoTests(BaseMovimientos):
 
         with self.assertRaises(ValidationError):
             egresar_persona(
-                estadia=self.estadia, usuario=self.operador_cis, fecha_egreso=cambio - timedelta(hours=1), motivo="x"
+                estadia=self.estadia,
+                usuario=self.operador_cis,
+                fecha_egreso=cambio - timedelta(hours=1),
+                motivo_egreso=self.motivo_alta,
             )
 
         self.estadia.refresh_from_db()
@@ -218,7 +221,7 @@ class CambioDePlazaTests(BaseMovimientos):
         self._sin_cambios()
 
     def test_una_estadia_cerrada_no_se_mueve(self):
-        egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo="Alta")
+        egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
 
         with self.assertRaisesMessage(ValidationError, "ya está cerrada"):
             self._cambiar(self.otra_plaza)
@@ -300,7 +303,7 @@ class PermanenciaTests(BaseMovimientos):
     def test_la_permanencia_de_una_estadia_cerrada_coincide_con_sus_movimientos(self):
         self._cambiar(self.otra_plaza, momento=timezone.now() - timedelta(days=2))
         self._cambiar(self.plaza_otro_sector, momento=timezone.now() - timedelta(days=1))
-        egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo="Alta")
+        egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
         self.estadia.refresh_from_db()
 
         movimientos = list(linea_de_tiempo(self.estadia))
@@ -432,7 +435,12 @@ class PlazaOcupadaEnElMedioTests(BaseEstadias):
                 fecha_ingreso=self.LUNES,
             )
             self.salida_de_juan = self.LUNES + timedelta(days=1)
-            egresar_persona(estadia=juan, usuario=self.operador_cis, fecha_egreso=self.salida_de_juan, motivo="Alta")
+            egresar_persona(
+                estadia=juan,
+                usuario=self.operador_cis,
+                fecha_egreso=self.salida_de_juan,
+                motivo_egreso=self.motivo_alta,
+            )
 
     def _reloj(self):
         return mock.patch("django.utils.timezone.now", return_value=self.AHORA)
