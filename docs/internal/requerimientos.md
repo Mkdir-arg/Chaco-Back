@@ -36724,7 +36724,18 @@ quitando), `srcset`, enlaces `<a href>` relativos dentro del paquete y fuentes p
 - **Qué se publica**: PNG, JPG, GIF y WEBP verificados por contenido (`Image.open` + `verify`), con la
   extensión del formato real. **SVG no** (puede llevar scripts) y tampoco un archivo que no es imagen
   con extensión `.png`: no frenan la carga, van a la lista «no se publicaron» con el motivo. Una
-  imagen de más de 5 MB, igual.
+  imagen de más de 5 MB o de más de **25 millones de píxeles** (ancho × alto, mirado en el
+  encabezado antes de decodificar), igual; las alarmas de bomba de Pillow
+  (`DecompressionBombWarning`/`Error`) cuentan como lo mismo.
+- **Se publica la imagen recodificada, no el archivo que vino** (revisión del juez, ronda 2). Cada
+  imagen se vuelve a codificar con Pillow en su mismo formato: así no sale a internet el EXIF de la
+  cámara (GPS, aparato, fecha), XMP, los textos de un PNG, el comentario de un GIF ni lo que un
+  archivo políglota traiga pegado atrás. JPEG va con calidad 90 y con la orientación del EXIF ya
+  aplicada (si no, la foto quedaba girada al perder el EXIF); WEBP con calidad 90. Se conservan el
+  perfil de color ICC (no identifica a nadie y sin él cambian los colores), la transparencia y la
+  **animación** de GIF y WEBP (se recodifican todos los cuadros). Se eligió recodificar siempre en
+  vez de «guardar el original si no trae EXIF» porque es una sola regla para los cuatro formatos y
+  cubre también lo que no es EXIF.
 - **Avisos**: `imagenes_no_visibles` pasa a contar solo lo que no se explica por nombre (`cid:`,
   `data:`, relativas en un HTML suelto); las faltantes y las no publicadas se listan aparte.
 - **Middlewares**: la vista pública queda exenta, **sin tocar la sesión**, de
@@ -36748,11 +36759,16 @@ quitando), `srcset`, enlaces `<a href>` relativos dentro del paquete y fuentes p
   ese caso pueden quedar hasta tres direcciones FALLIDAS de más (se ven y se reenvían duplicando).
 - **MINOR c de #647 — `_devolver`.** Solo devuelve a PENDIENTE si el destinatario sigue EN_CURSO
   **y** lo reclamó esa corrida.
+- **Eliminar avisa** (revisión del juez, ronda 2): si la campaña tiene imágenes alojadas, la
+  confirmación de «Eliminar» agrega «Las imágenes alojadas dejan de verse en los correos ya
+  enviados, incluidas las pruebas». Una campaña enviada no se puede eliminar (RN-007-10), así que lo
+  que ya salió con esas imágenes son las pruebas; el texto queda escrito igual por si esa regla se
+  abre.
 
 ## Implementación
 
 - `notificaciones/services/paquete.py` (nuevo): lectura segura del .zip, elección del HTML,
-  resolución de `src`, validación con Pillow y reescritura a la URL pública.
+  resolución de `src`, validación y recodificación con Pillow y reescritura a la URL pública.
 - `notificaciones/services/html.py`: `procesar` acepta `.zip` y delega; `procesar_texto` sanea y
   arma los campos nuevos (`imagenes_alojadas`, `imagenes_faltantes`, `imagenes_rechazadas`).
 - `notificaciones/services/campanas.py`: publica las `ImagenCampana` dentro de la transacción
@@ -36764,7 +36780,8 @@ quitando), `srcset`, enlaces `<a href>` relativos dentro del paquete y fuentes p
 - `notificaciones/forms/__init__.py`: label «Cuerpo del correo (HTML o .zip con la carpeta)»,
   `accept=".html,.htm,.zip"` y la ayuda con los topes y la exposición pública.
 - `notificaciones/templates/notificaciones/campana_detail.html`: tres `_alerta` nuevas en la solapa
-  Vista previa (faltantes, no publicadas, alojadas). Sin piezas ni clases nuevas.
+  Vista previa (faltantes, no publicadas, alojadas) y el texto de la confirmación de «Eliminar» sale
+  de la vista (`texto_confirmar_eliminar`). Sin piezas ni clases nuevas.
 - `core/middleware.py` y `users/middleware.py`: exención de la ruta pública.
 - `core/rutas_media.py` y `core/views/media.py`: prefijo y regla de las imágenes.
 - `config/settings.py` y `.env.qa.example`: `NOTIF_URL_PUBLICA`.
@@ -36791,18 +36808,20 @@ alta sin conocer las columnas. Sin `UUIDField` ni `UniqueConstraint` condicional
 
 ## Validación
 
-- `notificaciones`: 150 tests en verde (Py 3.12 + Dj 5.2), entre ellos `test_paquete` (27),
-  `test_imagenes_publicas` (25) y seis nuevos de `test_envio` para los MINOR de #647, con los paquetes
-  armados en el test con `zipfile` + Pillow. **Suite completa** con `.venv312`: 5.960 tests en verde
-  (53 salteados), que incluye `core` (barrido de superficie pública y cobertura de prefijos de
-  `/media/`), `users` y `configuracion`.
+- `notificaciones`: 157 tests en verde (Py 3.12 + Dj 5.2), entre ellos `test_paquete` (33),
+  `test_imagenes_publicas` (26) y seis nuevos de `test_envio` para los MINOR de #647, con los paquetes
+  armados en el test con `zipfile` + Pillow (incluida una JPEG con EXIF de GPS, que sale sin EXIF).
+  **Suite completa** con `.venv312`, después de traer `development`: 5.992 tests en verde (53 salteados), que incluye `core` (barrido de superficie pública y cobertura de prefijos de `/media/`), `users` y `configuracion`..
 - **Mutaciones, de a una, todas en rojo**: sin el chequeo de `..`/absolutas
   (`test_ruta_con_puntos_puntos`, `test_ruta_absoluta_y_unidad_de_windows`); sin Pillow
   (`test_svg_no_se_publica`, `test_imagen_falsa_con_extension_png_no_se_publica`); sin el corte por
   SVG; la vista pública buscando solo por nombre (`test_el_token_de_una_campana_no_abre_las_imagenes_de_otra`)
   y sirviendo por ruta del disco (`test_no_expone_otros_archivos_de_media`, tres archivos expuestos);
   sin la exención del portal y sin la de inactividad; sin devolver el residuo, `_devolver` sin filtro
-  de corrida y sin el tope de intentos (cada una con su test de #647 en rojo).
+  de corrida y sin el tope de intentos (cada una con su test de #647 en rojo). Ronda 2: publicando los
+  bytes originales (cuatro tests de `ImagenRecodificadaTests` en rojo: EXIF/GPS, textos del PNG,
+  comentario del GIF y lo pegado atrás), sin el tope de píxeles y con la alarma de bomba de Pillow
+  ignorada.
 - **Prueba manual con el mailing real** (la carpeta comprimida fuera del repo, base SQLite de prueba,
   por la pantalla de alta): 14 imágenes alojadas, 14 `src` absolutos a la vista pública (14 distintos),
   0 faltantes, 0 no publicadas, las 14 responden 200 sin sesión con `image/png`/`image/jpeg`, el
@@ -36828,8 +36847,9 @@ alta sin conocer las columnas. Sin `UUIDField` ni `UniqueConstraint` condicional
 - DECISIÓN CLIENTE: ¿las imágenes de una campaña **enviada** se dan de baja pasado un tiempo? Hoy
   viven mientras viva la campaña (y la campaña enviada no se elimina): un correo viejo las sigue
   pidiendo.
-- La vista pública no tiene límite de pedidos: sirve archivos chicos y fijos; si hiciera falta, va en
-  el ingress.
+- **Sin límite de pedidos en la vista pública** (decidido en la revisión del juez, ronda 2: no se
+  hace en este cambio). Sirve archivos chicos y fijos con caché pública de 30 días; si hiciera falta,
+  se cubre en nginx o en la caché del ingress, no en Django.
 
 ## Reversión
 
@@ -36843,5 +36863,11 @@ alta sin conocer las columnas. Sin `UUIDField` ni `UniqueConstraint` condicional
 ## Historial
 
 **14/10/2026** — Entrada nueva (reservada al empezar la rama para que otras ramas vieran el número).
+
+**14/10/2026 — revisión del juez, ronda 2 (APPROVE con MINOR).** Se trajo `development` (el
+conflicto de este archivo se resolvió a mano: las entradas y filas de `development`, 286 incluida,
+intactas, más esta entrada y su fila; el 285 seguía libre). Entraron los tres MINOR: imágenes
+recodificadas sin metadatos, tope de 25 millones de píxeles y el aviso en la confirmación de
+«Eliminar». El límite de pedidos de la vista pública quedó en Pendientes.
 
 ---
