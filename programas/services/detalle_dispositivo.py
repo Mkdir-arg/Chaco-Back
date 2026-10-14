@@ -436,7 +436,20 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
             pk__in=Edificio.dispositivos.through.objects.filter(dispositivo=dispositivo).values("edificio_id")
         )
         .annotate(ultima_id=subconsulta_ultima_realizada(), n_instituciones=Count("dispositivos", distinct=True))
-        .only("id", "codigo", "nombre")
+        # El domicilio normalizado viaja en la MISMA consulta: leerlo
+        # después desde el objeto sería una consulta por edificio, porque `only()` los deja
+        # diferidos (el N+1 que este `only` está puesto para evitar, no para provocar).
+        .only(
+            "id",
+            "codigo",
+            "nombre",
+            "calle",
+            "numero",
+            "piso_departamento",
+            "localidad",
+            "provincia",
+            "codigo_postal",
+        )
         .order_by("nombre", "pk")
     )
     if not edificios:
@@ -459,6 +472,7 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
                 "pk": edificio.pk,
                 "codigo": edificio.codigo,
                 "nombre": edificio.nombre,
+                "domicilio": edificio.domicilio_completo,
                 "semaforo": semaforo_de_inspeccion(ultima),
                 "ultima": ultima,
                 "relevo": _nombre(ultima.realizada_por) if ultima else "",

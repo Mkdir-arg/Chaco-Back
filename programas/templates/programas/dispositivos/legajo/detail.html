@@ -10,6 +10,8 @@
        modalObservar: false,
        modalRechazar: false,
        modalEgreso: false,
+       modalEdificio: {% if form_edificio %}true{% else %}false{% endif %},
+       modalVincular: {% if form_vincular %}true{% else %}false{% endif %},
        egreso: { url: '', persona: '', bajada: '' },
        abrirEgreso(datos) {
          this.egreso = { url: datos.url, persona: datos.persona, bajada: datos.bajada };
@@ -29,7 +31,7 @@
          if (fecha) fecha.value = ahora.toISOString().slice(0, 16);
        }
      }"
-     @becas-saved.window="modalEgreso=false">
+     @becas-saved.window="modalEgreso=false; modalEdificio=false; modalVincular=false">
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corría y el clic en esa franja no cerraba el modal #}
   <div class="space-y-5">
@@ -286,6 +288,20 @@
 
       {# ===== TAB: Infraestructura (P19 del MVP: criticidad, observaciones y registro fotográfico del edificio) ===== #}
       <div x-show="tab==='infraestructura'" x-cloak role="tabpanel" id="panel-infraestructura" aria-labelledby="tab-infraestructura">
+        {% if puede_editar %}
+        {# El alta y la vinculación abren su modal con un parámetro GET, como los de P21 #}
+        <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-4 border-b border-light">
+          <p class="text-xs text-body-subtle">El edificio es el inmueble: un predio compartido se releva una vez y el resultado lo ven todas las instituciones que lo ocupan.</p>
+          <div class="flex gap-2 flex-wrap">
+            <a href="{{ url_detalle }}?tab=infraestructura&amp;edificio=vincular" class="btn-nodo btn-tertiary btn-sm btn-fit">
+              <i class="fas fa-link" aria-hidden="true"></i> Vincular un edificio
+            </a>
+            <a href="{{ url_detalle }}?tab=infraestructura&amp;edificio=nuevo" class="btn-nodo btn-brand btn-sm btn-fit">
+              <i class="fas fa-plus" aria-hidden="true"></i> Cargar edificio
+            </a>
+          </div>
+        </div>
+        {% endif %}
         {% if infraestructura.edificios %}
         <div class="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
           {% for indicador in infraestructura.indicadores %}
@@ -300,9 +316,27 @@
               <h3 id="edificio-{{ edificio.pk }}-titulo" class="text-sm font-bold text-heading">Estado edilicio · {{ edificio.nombre }}</h3>
               <p class="text-xs text-body-subtle mt-1">{{ edificio.codigo }}{% if edificio.ultima %} · criticidad y observaciones del último relevamiento{% endif %}</p>
             </div>
-            <span class="badge badge-dot badge-{{ edificio.semaforo.tono }}">{{ edificio.semaforo.texto }}</span>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="badge badge-dot badge-{{ edificio.semaforo.tono }}">{{ edificio.semaforo.texto }}</span>
+              {% if puede_editar %}
+              <a href="{{ url_detalle }}?tab=infraestructura&amp;edificio={{ edificio.pk }}" class="btn-nodo btn-secondary btn-sm btn-fit">
+                <i class="fas fa-pen" aria-hidden="true"></i> Editar edificio
+              </a>
+              <button type="button" class="btn-nodo btn-tertiary btn-sm btn-fit"
+                      data-confirm-url="{% url 'dispositivos:edificio_desvincular' dispositivo.pk edificio.pk %}"
+                      data-confirm-title="¿Desvincular el edificio?"
+                      data-confirm-text="Esta institución deja de ver su estado edilicio y sus relevamientos. El edificio no se borra: volver a vincularlo lo repone con su historia."
+                      data-confirm-danger="true" data-confirm-ok="Sí, desvincular">Desvincular</button>
+              {% endif %}
+            </div>
           </div>
           <div class="p-5 space-y-4">
+            {# Domicilio y nada más: coordenadas, tenencia, servicios y plano son de la v2 completa #}
+            {# y la task 37 los prohíbe en este panel (`FueraDelMvpTests`). #}
+            <dl class="grid gap-5 sm:grid-cols-2">
+              <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ edificio.domicilio|default:'—' }}</dd></div>
+              <div><dt class="text-xs font-semibold uppercase text-body-subtle">Instituciones en el predio</dt><dd class="mt-1 text-body">{{ edificio.otras_instituciones|add:1 }}</dd></div>
+            </dl>
             {% if edificio.ultima %}
             <dl class="grid gap-5 sm:grid-cols-3">
               <div><dt class="text-xs font-semibold uppercase text-body-subtle">Criticidad</dt><dd class="mt-1 text-body">{{ edificio.ultima.get_criticidad_display }}</dd></div>
@@ -335,7 +369,12 @@
           {% include "components/_paginacion.html" with page_obj=infraestructura.relevamientos entidad="relevamiento" param="relevamientos_page" extra_qs="tab=infraestructura" %}
         </section>
         {% else %}
+        {% if puede_editar %}
+        {% url 'dispositivos:detalle' dispositivo.pk as url_base_edificio %}
+        {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Este dispositivo no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio. Cargá el inmueble donde funciona la institución, o vinculá uno que ya exista si comparte el predio." accion_url=url_base_edificio|add:"?tab=infraestructura&edificio=nuevo" accion_texto="Cargar edificio" accion_icono="fa-plus" %}
+        {% else %}
         {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Este dispositivo no tiene edificio cargado" texto="El estado edilicio y el registro fotográfico se relevan por edificio: aparecen cuando se le asigne uno." %}
+        {% endif %}
         {% endif %}
       </div>
 
@@ -442,6 +481,97 @@
           {% include "components/_alerta.html" with tono="info" texto="Libera la plaza y la persona vuelve a poder alojarse en cualquier dispositivo de la red. El egreso queda en el historial del dispositivo." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalEgreso=false" accion_texto="Confirmar egreso" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_edificio %}
+  {# Modal: Cargar / Editar edificio (P19). El alta lo vincula a esta institución #}
+  <div x-show="modalEdificio" x-cloak x-becas-modal="modalEdificio" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEdificio=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-edificio-titulo">
+      {% if edificio_en_edicion %}
+        {% include "programas/becas/_modal_header.html" with titulo="Editar edificio" titulo_id="modal-edificio-titulo" subtitulo=edificio_en_edicion.nombre icono="fa-building" cerrar="modalEdificio=false" %}
+      {% else %}
+        {% include "programas/becas/_modal_header.html" with titulo="Cargar edificio" titulo_id="modal-edificio-titulo" subtitulo="El inmueble donde funciona la institución. Queda vinculado a ella." icono="fa-building" cerrar="modalEdificio=false" %}
+      {% endif %}
+      <form method="post" action="{{ url_edificio }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              {# El error general va ADENTRO del bloque: como hijo directo de space-y-5 suma un hueco de 20px aunque esté oculto #}
+              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+              <label for="{{ form_edificio.codigo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Código del edificio <span class="text-fg-danger">*</span></label>
+              {{ form_edificio.codigo }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="codigo"></p>
+            </div>
+            <div>
+              <label for="{{ form_edificio.nombre.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Nombre <span class="text-fg-danger">*</span></label>
+              {{ form_edificio.nombre }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
+            </div>
+            <div>
+              <label for="{{ form_edificio.calle.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Calle</label>
+              {{ form_edificio.calle }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="calle"></p>
+            </div>
+            <div>
+              <label for="{{ form_edificio.numero.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Número</label>
+              {{ form_edificio.numero }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="numero"></p>
+            </div>
+            <div>
+              <label for="{{ form_edificio.piso_departamento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Piso/Departamento</label>
+              {{ form_edificio.piso_departamento }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="piso_departamento"></p>
+            </div>
+            <div>
+              <label for="{{ form_edificio.localidad.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Localidad</label>
+              {{ form_edificio.localidad }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="localidad"></p>
+            </div>
+            <div>
+              <label for="{{ form_edificio.provincia.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Provincia</label>
+              {{ form_edificio.provincia }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="provincia"></p>
+            </div>
+            <div>
+              <label for="{{ form_edificio.codigo_postal.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Código postal</label>
+              {{ form_edificio.codigo_postal }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="codigo_postal"></p>
+            </div>
+          </div>
+          {% include "components/_alerta.html" with tono="info" texto="Los datos son del inmueble, no del legajo: si el predio lo comparten varias instituciones, el cambio lo ven todas." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalEdificio=false" accion_texto="Guardar edificio" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_vincular %}
+  {# Modal: Vincular un edificio existente (predio compartido) #}
+  <div x-show="modalVincular" x-cloak x-becas-modal="modalVincular" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalVincular=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-vincular-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Vincular un edificio" titulo_id="modal-vincular-titulo" subtitulo="Predio compartido: el mismo inmueble aloja a más de una institución." icono="fa-link" cerrar="modalVincular=false" %}
+      <form method="post" action="{{ url_vincular }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            <label for="{{ form_vincular.edificio.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Edificio <span class="text-fg-danger">*</span></label>
+            {{ form_vincular.edificio }}
+            <p class="mt-1 text-xs text-body-subtle">{{ form_vincular.edificio.help_text }}</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="edificio"></p>
+          </div>
+          {% include "components/_alerta.html" with tono="info" texto="A partir de acá el relevamiento edilicio es uno solo y lo ven las dos instituciones. Cada una mantiene su propio legajo, sus sectores y sus plazas." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalVincular=false" accion_texto="Vincular edificio" %}
       </form>
     </div>
   </div>

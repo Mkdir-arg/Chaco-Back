@@ -37,15 +37,18 @@ from .models import (
     Convocatoria,
     CupoSegmento,
     DerivacionPrograma,
+    Edificio,
     Formulario,
     InscripcionPrograma,
     ListaEspera,
     MotivoEgreso,
+    Plaza,
     PreguntaGlobal,
     Programa,
     ProgramaSiis,
     Relevamiento,
     RequisitoNativo,
+    Sector,
     Segmento,
     Subsegmento,
     TracaFormulario,
@@ -428,3 +431,60 @@ class MotivoEgresoAdmin(SinBorradoMixin, admin.ModelAdmin):
     list_filter = ("activo",)
     search_fields = ("nombre", "codigo")
     prepopulated_fields = {"codigo": ("nombre",)}
+
+
+# --------------------------------------------------------------------------- #
+# Capacidad instalada de Dispositivos (carril C5)
+# --------------------------------------------------------------------------- #
+# **Red de soporte, no la vía normal.** El alta y la edición de todos los días van por
+# `/dispositivos/`, donde las reglas las sostienen `programas.services.plazas` y
+# `programas.services.edificios`: alcance al dispositivo, sector sin plazas tomadas para
+# darlo de baja, tipo de plaza que el tipo de institución admite, traza en el legajo. Nada
+# de eso corre acá, así que esto es para desatascar, no para operar.
+#
+# Las tres van `SinBorradoMixin` por el mismo motivo que `MotivoEgreso`: una estadía
+# cerrada y un movimiento apuntan a su plaza, y el historial no pierde dónde estuvo la
+# persona. Un sector que deja de usarse se da de baja con `activo`; una plaza, sacándola
+# de servicio con su motivo.
+
+
+@admin.register(Edificio)
+class EdificioAdmin(SinBorradoMixin, admin.ModelAdmin):
+    """El inmueble, varios a varios con las instituciones que lo ocupan (predio compartido)."""
+
+    list_display = ("codigo", "nombre", "localidad", "activo")
+    list_filter = ("activo", "localidad")
+    search_fields = ("codigo", "nombre", "calle", "localidad")
+    # G1c-09: el combo de un M2M trae **todos** los dispositivos y llama a su `__str__` por
+    # opción. Con la lupa queda el id y la búsqueda.
+    raw_id_fields = ("dispositivos",)
+
+
+@admin.register(Sector)
+class SectorAdmin(SinBorradoMixin, admin.ModelAdmin):
+    """La organización operativa de la institución. Cuelga del dispositivo, no del edificio."""
+
+    list_display = ("nombre", "dispositivo", "tipo", "capacidad", "activo")
+    list_filter = ("activo", "tipo")
+    search_fields = ("nombre", "dispositivo__codigo", "dispositivo__nombre")
+    raw_id_fields = ("dispositivo",)
+    # G1c-11: `Sector.__str__` abre el dispositivo, así que la columna sería una consulta por fila.
+    list_select_related = ("dispositivo",)
+
+
+@admin.register(Plaza)
+class PlazaAdmin(SinBorradoMixin, admin.ModelAdmin):
+    """La unidad de capacidad. El estado guardado es el **operativo**: ocupada y reservada se derivan.
+
+    Por eso `estado` y `motivo_fuera_servicio` son de solo lectura acá: cambiarlos a mano
+    saltearía la regla de `estadias.sacar_plaza_de_servicio` —que rechaza la plaza tomada—
+    y dejaría una persona alojada en una plaza que el mapa cuenta como no operativa.
+    """
+
+    list_display = ("codigo", "sector", "tipo", "estado")
+    list_filter = ("estado", "tipo")
+    search_fields = ("codigo", "sector__nombre", "sector__dispositivo__codigo")
+    raw_id_fields = ("sector",)
+    readonly_fields = ("estado", "motivo_fuera_servicio")
+    # G1c-11: `Plaza.__str__` abre el sector y el sector abre el dispositivo.
+    list_select_related = ("sector__dispositivo",)
