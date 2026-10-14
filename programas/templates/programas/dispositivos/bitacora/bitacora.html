@@ -1,0 +1,258 @@
+{# arquetipo: detalle + apilado #}{# P10: un area sola -el dia de la bitacora- en secciones apiladas; los tres modales siguen el arquetipo Modal. Sin pase de guardia: no se dibuja #}
+{% extends "includes/base.html" %}
+{% load static nodo_ui %}
+{% block title %}Dispositivos · Bitácora · {{ dispositivo.nombre }}{% endblock %}
+
+{% block main-content %}
+<div x-data="{
+       modalNovedad: {% if abrir_modal_novedad %}true{% else %}false{% endif %},
+       modalCorregir: {% if abrir_modal_corregir %}true{% else %}false{% endif %},
+       modalTurnos: {% if abrir_modal_turnos %}true{% else %}false{% endif %},
+       correccion: { entrada: '{{ correccion_inicial }}', tipo: '', texto: '' },
+       turnoForm: { turno: '', nombre: '', desde: '', hasta: '', orden: '0', activo: true },
+       datos(id) {
+         var nodo = document.getElementById(id);
+         return nodo ? JSON.parse(nodo.textContent) : {};
+       },
+       elegirCorreccion() {
+         var elegida = this.datos('bitacora-corregibles')[this.correccion.entrada] || { tipo: '', texto: '' };
+         this.correccion.tipo = elegida.tipo;
+         this.correccion.texto = elegida.texto;
+       },
+       elegirTurno() {
+         var turno = this.datos('bitacora-turnos')[this.turnoForm.turno];
+         this.turnoForm = turno
+           ? { turno: this.turnoForm.turno, nombre: turno.nombre, desde: turno.desde, hasta: turno.hasta, orden: turno.orden, activo: turno.activo }
+           : { turno: '', nombre: '', desde: '', hasta: '', orden: '0', activo: true };
+       }
+     }"
+     x-init="if (correccion.entrada) elegirCorreccion()"
+     @becas-saved.window="modalNovedad=false; modalCorregir=false; modalTurnos=false">
+
+  {# Los overlays fixed van fuera del space-y-5: su margin-top los corre y el clic en esa franja no cierra el modal #}
+  <div class="space-y-5">
+
+    {# ===== PageHeader ===== #}
+    {% url 'dispositivos:detalle' dispositivo.pk as url_volver %}
+    {% page_header titulo="Bitácora" eyebrow=dispositivo.nombre bajada="Un registro por turno: las novedades se agregan y corregir crea una versión nueva, sin borrar la anterior." volver_url=url_volver volver_label=dispositivo.nombre migas=migas %}
+      <nav class="flex items-center gap-2" aria-label="Día de la bitácora">
+        {% if dia_anterior %}
+        <a href="{{ dia_anterior.url }}" class="btn-nodo btn-secondary btn-sm btn-fit" aria-label="Día anterior: {{ dia_anterior.texto }}">
+          <i class="fas fa-chevron-left" aria-hidden="true"></i>
+        </a>
+        {% endif %}
+        <span class="text-sm font-semibold text-heading" aria-current="date">{{ fecha_texto }}</span>
+        {% if dia_siguiente %}
+        <a href="{{ dia_siguiente.url }}" class="btn-nodo btn-secondary btn-sm btn-fit" aria-label="Día siguiente: {{ dia_siguiente.texto }}">
+          <i class="fas fa-chevron-right" aria-hidden="true"></i>
+        </a>
+        {% endif %}
+      </nav>
+      {% if url_hoy %}<a href="{{ url_hoy }}" class="btn-nodo btn-secondary btn-sm btn-fit">Hoy</a>{% endif %}
+      {% if puede_configurar %}
+      <a href="{{ url_abrir_turnos }}" @click.prevent="modalTurnos=true" class="btn-nodo btn-secondary btn-sm btn-fit">
+        <i class="fas fa-gear" aria-hidden="true"></i> Configurar turnos
+      </a>
+      {% endif %}
+    {% endpage_header %}
+
+    {# ===== Avisos ===== #}
+    {% if not es_hoy %}
+    {% include "components/_alerta.html" with tono="info" titulo="Día anterior, solo lectura." texto="Las novedades se cargan y se corrigen en el turno en curso. La regularización de días anteriores todavía no está disponible." %}
+    {% elif not dispositivo_activo %}
+    {% include "components/_alerta.html" with tono="warning" titulo="El dispositivo no está activo." texto="La bitácora se puede leer, pero no se cargan novedades mientras siga así." %}
+    {% endif %}
+    {% if sin_turnos %}
+    {% if puede_configurar %}
+    {% include "components/_alerta.html" with tono="warning" titulo="Este dispositivo no tiene turnos configurados." texto="Sin turnos no se puede cargar la bitácora. Configuralos con «Configurar turnos»." %}
+    {% else %}
+    {% include "components/_alerta.html" with tono="warning" titulo="Este dispositivo no tiene turnos configurados." texto="Sin turnos no se puede cargar la bitácora. Pedile a quien administra el dispositivo que los configure." %}
+    {% endif %}
+    {% endif %}
+
+    {# ===== Turnos del día ===== #}
+    {% if tarjetas %}
+    <section aria-labelledby="turnos-titulo">
+      <h2 id="turnos-titulo" class="sr-only">Turnos del {{ fecha_texto }}</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {% for item in tarjetas %}{% include "components/_turno_tarjeta.html" with turno=item %}{% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+
+      {# ===== Entradas del turno elegido ===== #}
+      <div class="lg:col-span-2 grid grid-cols-1 gap-4">
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="entradas-titulo">
+          {% if turno %}
+          <div class="px-5 py-4 border-b border-light flex items-start justify-between gap-4 flex-wrap">
+            <div class="min-w-0">
+              <h2 id="entradas-titulo" class="text-heading font-bold">{{ titulo_entradas }}</h2>
+              <p class="text-xs text-body-subtle mt-1">Corregir crea una versión nueva.</p>
+            </div>
+            {% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos %}
+          </div>
+          <div class="px-5">
+            {% if not entradas and tipo %}
+            {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ninguna novedad de ese tipo" texto="En este turno no hay novedades del tipo elegido." accion_url=url_sin_tipo %}
+            {% else %}
+            {% include "components/_entradas_bitacora.html" with entradas=entradas total=entradas_total %}
+            {% endif %}
+          </div>
+          {% else %}
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="entradas-titulo" class="text-heading font-bold">Entradas</h2>
+          </div>
+          {% include "components/_estado_vacio.html" with icono="fa-clock" titulo="Todavía no hay turnos" texto="Cuando se configuren los turnos del dispositivo, sus novedades aparecen acá." %}
+          {% endif %}
+        </section>
+
+        {% if versiones %}
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="versiones-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="versiones-titulo" class="text-heading font-bold">Versiones anteriores</h2>
+            <p class="text-xs text-body-subtle mt-1">Lo que decían las novedades antes de corregirse. No se borra ni se modifica.</p>
+          </div>
+          <div class="px-5">
+            {% include "components/_entradas_bitacora.html" with entradas=versiones %}
+          </div>
+        </section>
+        {% endif %}
+      </div>
+
+      {# ===== Censo calculado y adjuntos ===== #}
+      <div class="grid grid-cols-1 gap-4">
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="censo-titulo">
+          <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-2">
+            <h2 id="censo-titulo" class="text-heading font-bold">{{ censo_titulo }}</h2>
+            <span class="badge badge-gray">Calculado</span>
+          </div>
+          <div class="p-5 grid grid-cols-1 gap-4">
+            {% if censo_descuadre %}
+            {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="El censo no cuadra." texto=censo_descuadre %}
+            {% endif %}
+            {% if censo_nota %}
+            <p class="text-sm text-body-subtle">{{ censo_nota }}</p>
+            {% endif %}
+            <dl>
+              {% for fila in censo_filas %}
+              <div class="flex items-center justify-between gap-4 py-2 text-sm{% if not forloop.first %} border-t border-light{% endif %}">
+                <dt class="text-body-subtle">{{ fila.etiqueta }}</dt>
+                <dd class="tabular-nums text-right {% if fila.destacado %}font-bold text-heading{% else %}text-body{% endif %}">{{ fila.valor }}</dd>
+              </div>
+              {% endfor %}
+            </dl>
+          </div>
+        </section>
+
+        {% if adjuntos %}
+        <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="adjuntos-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h2 id="adjuntos-titulo" class="text-heading font-bold">Adjuntos del turno</h2>
+          </div>
+          <ul class="px-5" role="list">
+            {% for adjunto in adjuntos %}
+            <li class="flex items-center gap-3 py-3 text-sm{% if not forloop.first %} border-t border-light{% endif %}">
+              <i class="fas fa-paperclip text-body-subtle" aria-hidden="true"></i>
+              <div class="min-w-0 flex-1">
+                <a href="{{ adjunto.url }}" class="text-fg-brand hover:underline break-words" target="_blank" rel="noopener noreferrer">{{ adjunto.nombre }}</a>
+                <p class="text-xs text-body-subtle">{{ adjunto.hora }} · {{ adjunto.categoria }}</p>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        </section>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if form_novedad %}
+  {# Modal: Nueva novedad — x-becas-modal: foco, Tab atrapado, Escape y scroll del fondo (becas-modal.js) #}
+  <div x-show="modalNovedad" x-cloak x-becas-modal="modalNovedad" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalNovedad=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-novedad-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Nueva novedad" titulo_id="modal-novedad-titulo" subtitulo=subtitulo_en_curso icono="fa-pen-to-square" cerrar="modalNovedad=false" %}
+      <form method="post" action="{% url 'dispositivos:bitacora_novedad' dispositivo.pk %}" enctype="multipart/form-data" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            {% include "components/_field.html" with field=form_novedad.tipo wrapper_class="" %}
+          </div>
+          {% include "components/_field.html" with field=form_novedad.momento wrapper_class="" %}
+          {% include "components/_field.html" with field=form_novedad.texto wrapper_class="" %}
+          {% if personas %}{% include "components/_field.html" with field=form_novedad.personas wrapper_class="" %}{% endif %}
+          {% include "components/_field.html" with field=form_novedad.adjuntos wrapper_class="" %}
+          {% include "components/_alerta.html" with tono="info" texto="La novedad queda en el turno en curso, con tu nombre. No se borra: si hay que cambiarla, se corrige y la versión anterior sigue visible." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalNovedad=false" accion_texto="Cargar novedad" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_correccion %}
+  {{ corregibles_datos|json_script:"bitacora-corregibles" }}
+  {# Modal: Corregir novedad — agrega una versión; la anterior queda en «Versiones anteriores» #}
+  <div x-show="modalCorregir" x-cloak x-becas-modal="modalCorregir" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCorregir=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-corregir-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Corregir novedad" titulo_id="modal-corregir-titulo" subtitulo=subtitulo_en_curso icono="fa-pen" cerrar="modalCorregir=false" %}
+      <form method="post" action="{% url 'dispositivos:bitacora_corregir' dispositivo.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            {% include "components/_field.html" with field=form_correccion.entrada wrapper_class="" %}
+          </div>
+          {% include "components/_field.html" with field=form_correccion.tipo wrapper_class="" %}
+          {% include "components/_field.html" with field=form_correccion.texto wrapper_class="" %}
+          {% include "components/_field.html" with field=form_correccion.motivo wrapper_class="" %}
+          {% include "components/_alerta.html" with tono="info" texto="Se agrega una versión nueva con tu nombre; la anterior sigue visible en «Versiones anteriores». Las personas y los adjuntos se conservan." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCorregir=false" accion_texto="Guardar corrección" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_turno %}
+  {{ turnos_datos|json_script:"bitacora-turnos" }}
+  {# Modal: Configurar turnos — alta («Nuevo turno») o edición del turno elegido; un turno no se borra, se da de baja #}
+  <div x-show="modalTurnos" x-cloak x-becas-modal="modalTurnos" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalTurnos=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-turnos-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Configurar turnos" titulo_id="modal-turnos-titulo" subtitulo=dispositivo.nombre icono="fa-clock" cerrar="modalTurnos=false" %}
+      <form method="post" action="{% url 'dispositivos:bitacora_turnos' dispositivo.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            {% include "components/_field.html" with field=form_turno.turno wrapper_class="" %}
+          </div>
+          {% include "components/_field.html" with field=form_turno.nombre wrapper_class="" %}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {% include "components/_field.html" with field=form_turno.hora_desde wrapper_class="" %}
+            {% include "components/_field.html" with field=form_turno.hora_hasta wrapper_class="" %}
+          </div>
+          {% include "components/_field.html" with field=form_turno.orden wrapper_class="" %}
+          <div x-show="turnoForm.turno">
+            {% include "components/_field.html" with field=form_turno.activo wrapper_class="" %}
+          </div>
+          {% include "components/_alerta.html" with tono="info" texto="Dos turnos activos no se pueden superponer. Un turno no se borra: se da de baja, y sus novedades quedan. Las novedades ya cargadas conservan su turno; el censo de días anteriores se recalcula con los horarios vigentes." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalTurnos=false" accion_texto="Guardar turno" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block customJS %}{% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}

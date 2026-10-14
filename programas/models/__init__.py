@@ -1582,6 +1582,21 @@ class EntradaBitacora(TimeStamped):
     #: «Ingreso» a mano tendría una novedad que no corresponde a ninguna estadía.
     TIPOS_AUTOMATICOS = frozenset({"INGRESO", "EGRESO", "MOVIMIENTO", "PERMISO", "PASE"})
 
+    #: Tono del badge del tipo, para la pieza `_entradas_bitacora.html`. Vive acá, con el
+    #: enum del que es tabla de traducción, y no en el servicio que arma la pantalla de la
+    #: bitácora: la solapa Novedades del detalle de la estadía dibuja las mismas entradas y
+    #: necesita el mismo tono, y un selector no tiene por qué importar de un service para
+    #: conseguirlo. Un tipo sin fila cae en el gris de la pieza.
+    TONO_POR_TIPO = {
+        Tipo.INCIDENTE: "danger",
+        Tipo.SALUD: "warning",
+        Tipo.VISITA: "info",
+        Tipo.INGRESO: "success",
+        Tipo.MOVIMIENTO: "info",
+        Tipo.PERMISO: "warning",
+        Tipo.PASE: "brand",
+    }
+
     dispositivo = models.ForeignKey(
         Dispositivo,
         on_delete=models.PROTECT,
