@@ -39,6 +39,7 @@ from django.db.models import Count, F
 from django.utils import timezone
 
 from notificaciones.models import Campana, Destinatario, PruebaEnviada
+from notificaciones.services import incrustadas
 from notificaciones.services.campanas import TransicionInvalida
 from notificaciones.services.html import documento
 
@@ -70,8 +71,15 @@ def asunto_de(campana, *, prueba=False):
     return f"{settings.EMAIL_ASUNTO_PREFIJO}{PREFIJO_PRUEBA if prueba else ''}{campana.asunto}"
 
 
-def armar_mensaje(campana, email, *, conexion=None, prueba=False):
-    """Un correo de la campaña para **una** dirección: HTML saneado + texto plano."""
+def armar_mensaje(campana, email, *, conexion=None, prueba=False, partes=None):
+    """Un correo de la campaña para **una** dirección: HTML saneado + texto plano.
+
+    Con imágenes del .zip (Cambio 292) el correo es ``multipart/related``: la ``alternative``
+    (texto y HTML) y una parte por imagen con su Content-ID. ``partes`` son las de
+    :func:`incrustadas.partes_mime`, armadas una vez por corrida; sin ellas se arman acá.
+    """
+    if partes is None:
+        partes = incrustadas.partes_mime(campana)
     mensaje = EmailMultiAlternatives(
         subject=asunto_de(campana, prueba=prueba),
         body=campana.texto_plano,
@@ -80,6 +88,10 @@ def armar_mensaje(campana, email, *, conexion=None, prueba=False):
         connection=conexion,
     )
     mensaje.attach_alternative(documento(campana.html_sanitizado), "text/html")
+    if partes:
+        mensaje.mixed_subtype = "related"
+        for parte in partes:
+            mensaje.attach(parte)
     return mensaje
 
 
@@ -429,6 +441,8 @@ def correr(campana, *, token=None, dormir=time.sleep):
     token = token or campana.corrida
     try:
         _latir(campana.pk, token)
+        # Las imágenes incrustadas se leen y se codifican una sola vez para toda la corrida.
+        partes = incrustadas.partes_mime(campana)
         racha = 0  # fallos seguidos del servidor
         ultimo_error = ""
         residuo_devuelto = False
@@ -477,7 +491,7 @@ def correr(campana, *, token=None, dormir=time.sleep):
                     if not _reclamar(destinatario_id, token):
                         continue  # lo tomó otra corrida
                     try:
-                        conexion.send_messages([armar_mensaje(campana, email, conexion=conexion)])
+                        conexion.send_messages([armar_mensaje(campana, email, conexion=conexion, partes=partes)])
                     except Exception as exc:
                         if _es_rechazo_del_destinatario(exc):
                             _anotar(destinatario_id, Destinatario.Estado.FALLIDO, error=_error_corto(exc))

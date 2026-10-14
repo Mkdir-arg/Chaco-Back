@@ -11,13 +11,16 @@ se envía es siempre la copia saneada:
   sacan ``@import`` y toda declaración con ``url(…)``, ``expression(…)``, ``behavior`` o
   ``-moz-binding``: cargarían recursos o código de afuera;
 - las imágenes con ``src`` ``cid:``, ``data:`` o una ruta relativa no le llegan a nadie y se
-  cuentan para el aviso de la previsualización (``data:`` pierde el ``src``; la relativa lo
-  conserva, pero no hay contra qué resolverla).
+  cuentan para el aviso de la previsualización (``data:`` y un ``cid:`` que no es de una imagen
+  alojada pierden el ``src``; la relativa lo conserva, pero no hay contra qué resolverla).
 
-El cuerpo también puede venir como **.zip** con la carpeta del mailing (Cambio 285): lo abre
-:mod:`notificaciones.services.paquete`, que publica las imágenes y reescribe sus ``src`` a URLs
-absolutas **antes** del saneo. Las imágenes de fondo por CSS (``url(…)``) y por atributo
-``background`` siguen sin publicarse: el saneo las quita igual que en un HTML suelto.
+El cuerpo también puede venir como **.zip** con la carpeta del mailing (Cambios 285 y 292): lo
+abre :mod:`notificaciones.services.paquete`, que reescribe los ``src`` de sus imágenes a
+``cid:<nombre>@datanach`` **antes** del saneo; las imágenes viajan incrustadas en cada correo
+(:mod:`notificaciones.services.incrustadas`). El saneo admite el esquema ``cid`` y después le saca
+el ``src`` a todo ``cid:`` que no sea de una imagen de ese paquete. Las imágenes de fondo por CSS
+(``url(…)``) y por atributo ``background`` siguen sin incluirse: el saneo las quita igual que en
+un HTML suelto.
 
 La vista previa además va en un ``iframe`` con ``sandbox`` vacío y una CSP propia
 (``views.campanas.vista_previa_html``): el saneo no es la única barrera.
@@ -74,7 +77,11 @@ ATRIBUTOS = {
     "ol": {"start", "type"},
     "ul": {"type"},
 }
-ESQUEMAS_URL = {"http", "https", "mailto", "tel"}
+#: ``cid`` desde el Cambio 292: las imágenes del .zip van incrustadas y el HTML las nombra así.
+#: ``data`` sigue afuera: en el HTML del operador no entra (la vista previa lo usa aparte).
+ESQUEMAS_URL = {"http", "https", "mailto", "tel", "cid"}
+#: Un ``src="cid:…"`` en la salida de nh3 (siempre con comillas dobles).
+_SRC_CID_SANEADO = re.compile(r'\s+src="(cid:[^"]*)"', re.IGNORECASE)
 
 # Lo que el saneo quita y conviene contarle al operador (el mock-up: «se quitó 1 bloque
 # <script>»). Se cuenta sobre el original, antes de sanear.
@@ -166,19 +173,29 @@ def contar_quitados(html_original):
     )
 
 
-def contar_imagenes_no_visibles(html_original):
+def contar_imagenes_no_visibles(html_original, cids_propios=()):
     """Imágenes cuyo ``src`` no es una URL absoluta ``http(s)://`` (RN-007-08).
 
-    Relativas, ``cid:`` y ``data:``: el saneo les saca el ``src`` (no se adjuntan archivos
-    y ``data:`` no está entre los esquemas permitidos), así que no le llegan a nadie y la
-    previsualización lo avisa.
+    Relativas, ``cid:`` y ``data:``: no le llegan a nadie y la previsualización lo avisa. La
+    excepción son los ``cid:`` de ``cids_propios``: las imágenes del .zip que viajan incrustadas.
     """
+    propios = {cid.lower() for cid in cids_propios}
     total = 0
     for match in _IMG_SRC.finditer(html_original):
         src = next((g for g in match.groups() if g is not None), "").strip().lower()
-        if not src.startswith(("https://", "http://")):
+        if not src.startswith(("https://", "http://")) and src not in propios:
             total += 1
     return total
+
+
+def quitar_cid_ajenos(html_saneado, cids_propios=()):
+    """Le saca el ``src`` a todo ``cid:`` que no sea de una imagen incrustada de la campaña.
+
+    Sin una parte con ese Content-ID en el correo, el ``cid:`` es una imagen rota: queda como
+    antes del Cambio 292, cuando el saneo lo quitaba por esquema.
+    """
+    propios = {cid.lower() for cid in cids_propios}
+    return _SRC_CID_SANEADO.sub(lambda m: m.group(0) if m.group(1).lower() in propios else "", html_saneado)
 
 
 def a_texto(html_sanitizado):
@@ -209,15 +226,18 @@ def documento(html_sanitizado):
 def procesar_texto(original, paquete=None):
     """Sanea un HTML ya leído. Devuelve el dict que se guarda en la campaña.
 
-    Con ``paquete`` (el .zip ya leído), ``original`` trae los ``src`` reescritos a las URLs
-    públicas y el dict suma, en la clave ``imagenes``, lo que hay que publicar. Las faltantes y
-    las rechazadas se listan aparte y no se cuentan en ``imagenes_no_visibles``, que queda para
-    las demás (``cid:``, ``data:``, relativas en un HTML suelto).
+    Con ``paquete`` (el .zip ya leído), ``original`` trae los ``src`` reescritos a
+    ``cid:<nombre>@datanach`` y el dict suma, en la clave ``imagenes``, lo que hay que guardar
+    para incrustar. Las faltantes y las rechazadas se listan aparte y no se cuentan en
+    ``imagenes_no_visibles``, que queda para las demás (``cid:`` ajenos, ``data:``, relativas).
     """
-    saneado = sanitizar(original)
+    from notificaciones.services.incrustadas import src_de
+
+    cids_propios = [src_de(imagen.nombre) for imagen in paquete.imagenes] if paquete is not None else []
+    saneado = quitar_cid_ajenos(sanitizar(original), cids_propios)
     if not saneado:
         raise ValidationError("Después de quitar el contenido inseguro, el HTML quedó vacío.")
-    no_visibles = contar_imagenes_no_visibles(original)
+    no_visibles = contar_imagenes_no_visibles(original, cids_propios)
     datos = {
         "html_sanitizado": saneado,
         "texto_plano": a_texto(saneado),
@@ -227,7 +247,7 @@ def procesar_texto(original, paquete=None):
         "imagenes_faltantes": None,
         "imagenes_rechazadas": None,
         "imagenes": [],
-        "token_imagenes": None,  # nosec B105 - token público de las imágenes del .zip, no una credencial
+        "token_imagenes": None,  # nosec B105 - carpeta de las imágenes del .zip en media, no una credencial
     }
     if paquete is not None:
         datos.update(

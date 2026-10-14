@@ -14,7 +14,7 @@ antes y la base volviera atrás, la fila quedaría nombrando un archivo que ya n
 Las imágenes del .zip (Cambio 285) siguen la misma regla: se escriben como ``ImagenCampana``
 dentro de la transacción (anotadas para el rollback) y las del cuerpo reemplazado se borran
 con ``on_commit``. Duplicar vuelve a leer el .zip guardado, así que la copia publica sus
-propias imágenes con un token nuevo y su HTML apunta a ellas, no a las de la original.
+propias imágenes con un token nuevo: borrar la original no le saca las imágenes a la copia.
 """
 
 from __future__ import annotations
@@ -93,7 +93,7 @@ def _aplicar_html(campana, datos_html):
 
 
 def _publicar_imagenes(campana, datos_html):
-    """Escribe una ``ImagenCampana`` por imagen del .zip, con el token que ya lleva su URL."""
+    """Escribe una ``ImagenCampana`` por imagen del .zip, con el token (la carpeta) del paquete."""
     token = datos_html.get("token_imagenes")
     for imagen in datos_html.get("imagenes") or []:
         archivo = ContentFile(imagen.contenido, name=imagen.nombre)
@@ -197,7 +197,7 @@ def eliminar_campana(campana):
     for campo in ("archivo_excel", "archivo_html"):
         archivo = getattr(actual, campo)
         _borrar_tras_commit(archivo.storage, archivo.name)
-    # Las filas se van con la campaña (CASCADE) y con ellas la URL pública: 404 desde ya.
+    # Las filas se van con la campaña (CASCADE); los archivos, al confirmar.
     _borrar_imagenes(actual)
     actual.delete()
 
@@ -221,7 +221,7 @@ def duplicar_campana(campana, *, usuario):
     Se copian los **dos archivos** y se vuelve a leer el Excel y a sanear el HTML, igual
     que en el alta: una copia de una campaña vieja no hereda una lista calculada con
     reglas que pudieron cambiar. La original no se toca. Si el cuerpo es un .zip, la copia
-    publica sus imágenes con un token nuevo: borrar o editar una no rompe el correo de la otra.
+    guarda sus propias imágenes con un token nuevo: borrar o editar una no rompe el correo de la otra.
     """
     excel = ContentFile(_copia_de(campana.archivo_excel), name=campana.nombre_excel or "destinatarios.xlsx")
     # El nombre decide si se procesa como HTML o como .zip: sin el original, la extensión

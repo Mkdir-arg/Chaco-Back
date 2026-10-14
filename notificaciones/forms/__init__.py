@@ -12,6 +12,7 @@ from django.conf import settings
 
 from notificaciones.models import TOPE_DESTINATARIOS, Campana
 from notificaciones.services import html as servicio_html
+from notificaciones.services import incrustadas
 from notificaciones.services import paquete as servicio_paquete
 from notificaciones.services.lectura_excel import parsear_destinatarios
 
@@ -60,10 +61,9 @@ class CampanaForm(forms.Form):
         ayuda_html = (
             "Un .html (hasta 1 MB, en UTF-8) o un .zip con la carpeta del correo: el .html y sus imágenes "
             f"(PNG, JPG, GIF o WEBP; hasta {servicio_paquete.MAX_IMAGENES} imágenes y "
-            f"{servicio_paquete.ZIP_MAX_BYTES // (1024 * 1024)} MB). Las imágenes del .zip quedan publicadas en "
-            "DATAÑACH con una dirección que se abre sin iniciar sesión; las de un .html suelto tienen que estar "
-            "en una dirección https://. No se envían adjuntos, y se quitan scripts, formularios y contenido "
-            "incrustado por seguridad."
+            f"{servicio_paquete.ZIP_MAX_BYTES // (1024 * 1024)} MB). Las imágenes del .zip viajan dentro de cada correo "
+            f"(hasta {incrustadas.TOPE_BYTES // (1024 * 1024)} MB en total); las de un .html suelto tienen que estar "
+            "en una dirección https://. Se quitan scripts, formularios y contenido incrustado por seguridad."
         )
         if campana is not None:
             self.fields["archivo_excel"].required = False
