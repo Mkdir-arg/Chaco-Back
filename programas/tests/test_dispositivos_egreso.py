@@ -287,26 +287,28 @@ class EgresoPantallaTests(BaseEgreso):
         self.assertEqual(cerrada.estado, Estadia.Estado.EGRESADA)
         self.assertGreaterEqual(cerrada.fecha_egreso, cerrada.fecha_ingreso)
 
-    def _detalle(self, cliente=None):
-        return (cliente or self.cliente).get(reverse("dispositivos:detalle", args=[self.cis.pk]), {"tab": "estadias"})
+    def _detalle(self, cliente=None, *, egreso=False):
+        parametros = {"tab": "estadias"}
+        if egreso:
+            parametros["egreso"] = self.estadia.pk
+        return (cliente or self.cliente).get(reverse("dispositivos:detalle", args=[self.cis.pk]), parametros)
 
-    def test_el_modal_unico_se_limpia_al_abrirse_para_otra_persona(self):
-        """No se puede correr el JS desde Django: se afirma que el template lo lleva."""
+    def test_el_modal_se_abre_con_un_formulario_nuevo_sin_datos_del_post_anterior(self):
+        """La acción GET por fila abre un formulario fresco, como los modales de P21."""
 
-        html = self._detalle().content.decode()
+        self._post(destino="Destino anterior", fecha_egreso="roto")
+        html = self._detalle(egreso=True).content.decode()
 
         self.assertIn('x-ref="form"', html)
-        self.assertIn("this.limpiarForm();", html)
-        self.assertIn("form.reset();", html)
-        self.assertIn("[data-error]", html)
-        self.assertLess(html.index("this.limpiarForm();"), html.index("this.modalEgreso = true;"))
+        self.assertNotIn("Destino anterior", html)
+        self.assertIn("modalEgreso: true", html)
         self.assertIn("data-ajax", html)
         self.assertIn('x-becas-modal="modalEgreso"', html)
 
     def test_la_solapa_estadias_ofrece_el_egreso_con_la_capacidad(self):
-        respuesta = self._detalle()
+        respuesta = self._detalle(egreso=True)
 
-        self.assertContains(respuesta, "Registrar egreso de Ana Gómez")
+        self.assertContains(respuesta, "Acciones de estadía de Ana Gómez")
         self.assertContains(respuesta, 'aria-labelledby="modal-egreso-titulo"')
         self.assertContains(respuesta, self.url)
         self.assertContains(respuesta, "Alta")
@@ -315,7 +317,7 @@ class EgresoPantallaTests(BaseEgreso):
     def test_sin_la_capacidad_de_egresar_no_hay_boton_ni_modal(self):
         """Ve el dispositivo y opera el resto, pero sin `dispositivo.egresar`: ni botón ni modal."""
 
-        self.assertContains(self._detalle(), self.url)  # el caso positivo, en el mismo estado
+        self.assertContains(self._detalle(egreso=True), self.url)  # el caso positivo, en el mismo estado
         sin_egresar = self._operador("Sin egresar", self.cis, ("dispositivo.ver", "dispositivo.admitir"))
         cliente = Client()
         cliente.force_login(sin_egresar)
@@ -340,7 +342,7 @@ class EgresoPantallaTests(BaseEgreso):
     def test_el_modal_muestra_la_permanencia_de_la_persona(self):
         """Ingresó hace dos días (`BaseEgreso`): el modal lo dice antes de confirmar."""
 
-        self.assertContains(self._detalle(), "2 días de permanencia")
+        self.assertContains(self._detalle(egreso=True), "2 días de permanencia")
 
     def test_la_ruta_vieja_de_personas_alojadas_lleva_a_la_solapa(self):
         respuesta = self.cliente.get(reverse("dispositivos:estadias", args=[self.cis.pk]))

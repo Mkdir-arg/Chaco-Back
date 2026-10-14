@@ -711,7 +711,8 @@ class IntegracionConElDetalleDelDispositivoTests(BaseDetalle):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, f'href="{self.url}"')
-        self.assertContains(respuesta, f"Ver estadía de {self.persona.nombre_completo}")
+        self.assertContains(respuesta, f"Acciones de estadía de {self.persona.nombre_completo}")
+        self.assertContains(respuesta, ">Ver estadía<")
 
     def test_sin_ciudadano_ver_la_fila_no_ofrece_la_estadia(self):
         usuario = self._operador("Sin ciudadano", self.cis, _menos("ciudadano.ver"))

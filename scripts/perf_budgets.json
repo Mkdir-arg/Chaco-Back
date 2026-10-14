@@ -224,6 +224,11 @@
       "consultas_fijas": 3,
       "motivo": "Presupuesto nuevo (MVP v2 etapa 4, #705, semaforo edilicio). El listado de instituciones dibuja el semaforo de cada fila, asi que se calcula una sola vez para toda la pagina: los vinculos edificio-dispositivo (1), los edificios con el id de su ultima realizada como subconsulta escalar con LIMIT 1 (1) y esas inspecciones por id (1). Tres consultas sin importar cuantos dispositivos ni cuantos edificios; la forma natural -ultima_inspeccion() por fila- seria un N+1 proporcional al listado. El test mide con 1 y con 12 dispositivos y exige el mismo numero."
     },
+    "dispositivos_predio_instituciones": {
+      "servicio": "programas.selectors.capacidad_dispositivo.instituciones_del_predio",
+      "consultas_fijas": 1,
+      "motivo": "Carril FB: identidad y tipo de las instituciones visibles de todos los edificios en una consulta, con alcance por subconsulta. La autorización se calienta antes de medir; no hay consultas por institución ni por edificio. Sector no tiene relación con Edificio y no se atribuye al predio. Test performance con 2 y 22 instituciones."
+    },
     "dispositivos_infraestructura": {
       "servicio": "programas.services.detalle_dispositivo.infraestructura_del_dispositivo",
       "consultas_fijas": 6,
