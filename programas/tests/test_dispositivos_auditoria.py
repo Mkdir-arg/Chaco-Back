@@ -261,6 +261,10 @@ class LegibleTests(BaseAuditoria):
         acciones = {"CREADO", "EDITADO", "ENVIADO_VALIDACION", "VALIDADO", "OBSERVADO", "RECHAZADO", "INACTIVADO"}
         acciones |= {"CERRADO", "PLAZA_RESERVADA", "PLAZA_LIBERADA", "PLAZA_FUERA_SERVICIO", "PLAZA_EN_SERVICIO"}
         acciones |= {"TURNO_CREADO", "TURNO_EDITADO"}
+        # Capacidad instalada (carril C5): el alta del edificio, los sectores y los lotes de
+        # plazas trazan en el mismo historial, así que cada una necesita su título.
+        acciones |= {"SECTOR_CREADO", "SECTOR_EDITADO", "SECTOR_BAJA", "PLAZAS_AGREGADAS", "PLAZA_EDITADA"}
+        acciones |= {"EDIFICIO_CREADO", "EDIFICIO_EDITADO", "EDIFICIO_VINCULADO", "EDIFICIO_DESVINCULADO"}
         self.assertEqual(set(TITULOS_TRAZA), acciones)
 
     def test_un_valor_cero_no_se_dibuja_como_un_campo_vacio(self):

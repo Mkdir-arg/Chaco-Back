@@ -8,8 +8,16 @@
 enlace solo si la vista le puso `url`, y esa url abre acá el modal de su acción con
 `?plaza=<id>`. El modal sigue la golden de Modal (becas/config/programa_list.html) con la
 variante «abierto por parámetro GET y armado por el servidor» de P21: el cuerpo depende del
-estado de la plaza y la celda solo sabe navegar.{% endcomment %}
-<div x-data="{ modalPlaza: {% if plaza_accion %}true{% else %}false{% endif %} }" @becas-saved.window="modalPlaza=false">
+estado de la plaza y la celda solo sabe navegar.
+
+Las tres acciones de configuración del mockup —«Nuevo sector» y «+ Agregar plazas» en el
+encabezado, «Editar sector» en el de cada sector— usan la misma variante, con `?sector=`
+y `?plazas=`.{% endcomment %}
+<div x-data="{ modalPlaza: {% if plaza_accion %}true{% else %}false{% endif %},
+               modalSector: {% if form_sector %}true{% else %}false{% endif %},
+               modalPlazas: {% if form_plazas %}true{% else %}false{% endif %},
+               modalEditarPlaza: {% if form_editar_plaza %}true{% else %}false{% endif %} }"
+     @becas-saved.window="modalPlaza=false; modalSector=false; modalPlazas=false; modalEditarPlaza=false">
 
   {# Los overlays fixed van FUERA del space-y-*: el margin-top los corre y el clic en esa franja no cierra #}
   <div class="space-y-5">
@@ -18,6 +26,18 @@ estado de la plaza y la celda solo sabe navegar.{% endcomment %}
     {% url 'dispositivos:detalle' dispositivo.pk as url_volver %}
     {% page_header titulo="Sectores y plazas" volver_url=url_volver volver_label=dispositivo.nombre migas=migas %}
       {% bajada %}<a href="{{ url_volver }}" class="text-fg-brand hover:underline">{{ dispositivo.nombre }}</a> · {{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio · {{ totales.ocupadas }} ocupada{{ totales.ocupadas|pluralize }} · {{ totales.reservadas }} reservada{{ totales.reservadas|pluralize }} · {{ totales.disponibles }} disponible{{ totales.disponibles|pluralize }}{% endbajada %}
+      {% if puede_configurar_plazas %}
+      {# Enlaces y no botones: el modal lo arma el servidor con el parámetro GET, como los de P21 #}
+      <a href="?sector=nuevo" class="btn-nodo btn-tertiary btn-sm btn-fit">
+        <i class="fas fa-layer-group" aria-hidden="true"></i> Nuevo sector
+      </a>
+      {% if sectores %}
+      {# Sin sectores activos no hay a qué agregarle plazas: el estado vacío manda al alta del sector #}
+      <a href="?plazas=1" class="btn-nodo btn-brand btn-sm btn-fit">
+        <i class="fas fa-plus" aria-hidden="true"></i> Agregar plazas
+      </a>
+      {% endif %}
+      {% endif %}
     {% endpage_header %}
 
     {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
@@ -28,17 +48,33 @@ estado de la plaza y la celda solo sabe navegar.{% endcomment %}
     propio para que un lector de pantalla pueda saltar de sector a sector, que es lo que la
     solapa daba gratis en la forma principal del arquetipo.{% endcomment %}
     <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sector-{{ item.sector.pk }}-titulo">
-      <div class="px-5 py-4 border-b border-light">
-        <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
-        <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio · {{ item.resumen.ocupadas }} ocupada{{ item.resumen.ocupadas|pluralize }} · {{ item.resumen.reservadas }} reservada{{ item.resumen.reservadas|pluralize }} · {{ item.resumen.disponibles }} disponible{{ item.resumen.disponibles|pluralize }}{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}</p>
+      <div class="px-5 py-4 border-b border-light flex items-start justify-between gap-3 flex-wrap">
+        <div class="min-w-0">
+          <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
+          <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio · {{ item.resumen.ocupadas }} ocupada{{ item.resumen.ocupadas|pluralize }} · {{ item.resumen.reservadas }} reservada{{ item.resumen.reservadas|pluralize }} · {{ item.resumen.disponibles }} disponible{{ item.resumen.disponibles|pluralize }}{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}</p>
+        </div>
+        {% if puede_configurar_plazas %}
+        <a href="?sector={{ item.sector.pk }}" class="btn-nodo btn-secondary btn-sm btn-fit">
+          <i class="fas fa-pen" aria-hidden="true"></i> Editar sector
+        </a>
+        {% endif %}
       </div>
       <div class="p-5">
         {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.resumen.total %}
+        {% if not item.plazas and puede_configurar_plazas %}
+        <a href="?plazas={{ item.sector.pk }}" class="btn-nodo btn-brand btn-sm mt-3">
+          <i class="fas fa-plus" aria-hidden="true"></i> Agregar plazas
+        </a>
+        {% endif %}
       </div>
     </section>
     {% empty %}
     <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+      {% if puede_configurar_plazas %}
+      {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Un sector es cómo la institución ordena su capacidad: una habitación, un pabellón, un servicio o un turno. Las plazas se agregan adentro de uno." accion_url="?sector=nuevo" accion_texto="Nuevo sector" accion_icono="fa-plus" %}
+      {% else %}
       {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores, cada uno aparece acá con su mapa de plazas." %}
+      {% endif %}
     </div>
     {% endfor %}
   </div>
@@ -104,6 +140,140 @@ estado de la plaza y la celda solo sabe navegar.{% endcomment %}
           {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Sí, volver a servicio" %}
         </form>
       {% endif %}
+      {% if puede_configurar_plazas %}
+      <div class="px-6 py-4 border-t border-light bg-secondary flex justify-end">
+        <a href="?editar_plaza={{ plaza_accion.plaza.pk }}" class="btn-nodo btn-secondary btn-sm">
+          <i class="fas fa-pen" aria-hidden="true"></i> Editar plaza
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_editar_plaza %}
+  <div x-show="modalEditarPlaza" x-cloak x-becas-modal="modalEditarPlaza" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEditarPlaza=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-editar-plaza-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Editar plaza" titulo_id="modal-editar-plaza-titulo" subtitulo=plaza_en_edicion.codigo icono="fa-bed" cerrar="modalEditarPlaza=false" %}
+      <form method="post" action="{{ url_editar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            {% include "components/_field.html" with field=form_editar_plaza.codigo %}
+            {% include "components/_field.html" with field=form_editar_plaza.tipo %}
+          </div>
+          {% include "components/_alerta.html" with tono="info" texto="El código debe ser único en la institución. El estado operativo se cambia desde la acción de la plaza." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalEditarPlaza=false" accion_texto="Guardar plaza" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_sector %}
+  {# Modal: Nuevo sector / Editar sector. Mismo formulario; la baja es el switch «Sector activo» #}
+  <div x-show="modalSector" x-cloak x-becas-modal="modalSector" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalSector=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-sector-titulo">
+      {% if sector_en_edicion %}
+        {% include "programas/becas/_modal_header.html" with titulo="Editar sector" titulo_id="modal-sector-titulo" subtitulo=sector_en_edicion.nombre icono="fa-layer-group" cerrar="modalSector=false" %}
+      {% else %}
+        {% include "programas/becas/_modal_header.html" with titulo="Nuevo sector" titulo_id="modal-sector-titulo" subtitulo="Cómo la institución ordena su capacidad adentro del edificio." icono="fa-layer-group" cerrar="modalSector=false" %}
+      {% endif %}
+      <form method="post" action="{{ url_sector }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              {# El error general va ADENTRO del bloque: como hijo directo de space-y-5 suma un hueco de 20px aunque esté oculto #}
+              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+              <label for="{{ form_sector.nombre.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Nombre <span class="text-fg-danger">*</span></label>
+              {{ form_sector.nombre }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
+            </div>
+            <div>
+              <label for="{{ form_sector.tipo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Tipo de sector <span class="text-fg-danger">*</span></label>
+              {{ form_sector.tipo }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="tipo"></p>
+            </div>
+            <div>
+              <label for="{{ form_sector.perfil.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Perfil de la población</label>
+              {{ form_sector.perfil }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="perfil"></p>
+            </div>
+            <div>
+              <label for="{{ form_sector.capacidad.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Capacidad declarada <span class="text-fg-danger">*</span></label>
+              {{ form_sector.capacidad }}
+              <p class="mt-1 text-xs text-body-subtle">{{ form_sector.capacidad.help_text }}</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="capacidad"></p>
+            </div>
+          </div>
+          <div>
+            <label for="{{ form_sector.condiciones_uso.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Condiciones de uso</label>
+            {{ form_sector.condiciones_uso }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="condiciones_uso"></p>
+          </div>
+          {% if form_sector.activo %}
+          <div>
+            <label for="{{ form_sector.activo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Sector activo</label>
+            {{ form_sector.activo }}
+            <p class="mt-1 text-xs text-body-subtle">{{ form_sector.activo.help_text }}</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="activo"></p>
+          </div>
+          {% include "components/_alerta.html" with tono="warning" texto="No se da de baja un sector con plazas tomadas: primero se reubica a esas personas o se liberan sus reservas. Las plazas no se borran, siguen colgando de la historia que ya tienen." %}
+          {% else %}
+          {% include "components/_alerta.html" with tono="info" texto="El sector nace vacío: las plazas se agregan después, con «Agregar plazas». La capacidad operativa se cuenta desde ellas, no desde la cifra declarada." %}
+          {% endif %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalSector=false" accion_texto="Guardar sector" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_plazas %}
+  {# Modal: Agregar plazas (lote). El sector se elige acá: el botón vive en el encabezado de la pantalla #}
+  <div x-show="modalPlazas" x-cloak x-becas-modal="modalPlazas" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalPlazas=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-plazas-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Agregar plazas" titulo_id="modal-plazas-titulo" subtitulo="Un lote con el código autogenerado. Nacen operativas." icono="fa-bed" cerrar="modalPlazas=false" %}
+      <form method="post" action="{{ url_plazas }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            <label for="{{ form_plazas.sector.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Sector <span class="text-fg-danger">*</span></label>
+            {{ form_plazas.sector }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="sector"></p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="{{ form_plazas.cantidad.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Cantidad <span class="text-fg-danger">*</span></label>
+              {{ form_plazas.cantidad }}
+              <p class="mt-1 text-xs text-body-subtle">{{ form_plazas.cantidad.help_text }}</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="cantidad"></p>
+            </div>
+            <div>
+              <label for="{{ form_plazas.tipo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Tipo de plaza <span class="text-fg-danger">*</span></label>
+              {{ form_plazas.tipo }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="tipo"></p>
+            </div>
+          </div>
+          <div>
+            <label for="{{ form_plazas.prefijo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Prefijo del código</label>
+            {{ form_plazas.prefijo }}
+            <p class="mt-1 text-xs text-body-subtle">{{ form_plazas.prefijo.help_text }}</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="prefijo"></p>
+          </div>
+          {% include "components/_alerta.html" with tono="info" texto="Los códigos que ya existen en la institución se saltean, así que el lote nunca pisa una plaza cargada." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalPlazas=false" accion_texto="Agregar plazas" %}
+      </form>
     </div>
   </div>
   {% endif %}

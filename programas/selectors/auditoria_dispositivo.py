@@ -63,6 +63,15 @@ TITULOS_TRAZA = {
     "PLAZA_EN_SERVICIO": "Plaza de nuevo en servicio",
     "TURNO_CREADO": "Alta de un turno",
     "TURNO_EDITADO": "Cambio en un turno",
+    "SECTOR_CREADO": "Alta de un sector",
+    "SECTOR_EDITADO": "Cambio en un sector",
+    "SECTOR_BAJA": "Baja de un sector",
+    "PLAZAS_AGREGADAS": "Alta de plazas",
+    "PLAZA_EDITADA": "Cambio en una plaza",
+    "EDIFICIO_CREADO": "Alta de un edificio",
+    "EDIFICIO_EDITADO": "Cambio en los datos del edificio",
+    "EDIFICIO_VINCULADO": "Edificio vinculado al dispositivo",
+    "EDIFICIO_DESVINCULADO": "Edificio desvinculado del dispositivo",
 }
 
 #: Las acciones que mueven el estado del legajo: el detalle es «antes → después».
@@ -76,6 +85,9 @@ _TONOS_TRAZA = {
     "RECHAZADO": "danger",
     "CERRADO": "danger",
     "PLAZA_FUERA_SERVICIO": "warning",
+    # La baja de un sector saca plazas de la capacidad operativa: se lee como la de una plaza.
+    "SECTOR_BAJA": "warning",
+    "EDIFICIO_DESVINCULADO": "warning",
 }
 
 #: El id del ciudadano que `reservar_plaza` escribe en la traza: no va a la pantalla.

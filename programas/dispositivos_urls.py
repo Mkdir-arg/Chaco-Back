@@ -1,6 +1,7 @@
 from django.urls import path
 
 from programas.views import dispositivos_bitacora as bitacora
+from programas.views import dispositivos_capacidad as capacidad
 from programas.views import dispositivos_config as cfg
 from programas.views import dispositivos_ingreso as ingreso
 from programas.views import dispositivos_legajo as legajo
@@ -28,6 +29,30 @@ urlpatterns = [
     path("<int:pk>/", legajo.DispositivoDetailView.as_view(), name="detalle"),
     path("<int:pk>/editar/", legajo.DispositivoUpdateView.as_view(), name="editar"),
     path("<int:pk>/sectores/", legajo.DispositivoSectoresView.as_view(), name="sectores"),
+    # Capacidad instalada (carril C5). Mutan: solo POST. Los modales que las disparan se
+    # abren con `?sector=nuevo`, `?sector=<id>` y `?plazas=1` sobre `sectores`.
+    path("<int:pk>/sectores/nuevo/", capacidad.SectorCrearView.as_view(), name="sector_crear"),
+    path(
+        "<int:pk>/sectores/<int:sector_pk>/editar/",
+        capacidad.SectorEditarView.as_view(),
+        name="sector_editar",
+    ),
+    path("<int:pk>/plazas/agregar/", capacidad.PlazasAgregarView.as_view(), name="plazas_agregar"),
+    path("<int:pk>/plazas/<int:plaza_pk>/editar/", capacidad.PlazaEditarView.as_view(), name="plaza_editar"),
+    # Edificio de la solapa Infraestructura (P19). El alta lo vincula; «vincular» declara el
+    # predio compartido con un edificio que ya existe.
+    path("<int:pk>/edificio/nuevo/", capacidad.EdificioCrearView.as_view(), name="edificio_crear"),
+    path(
+        "<int:pk>/edificio/<int:edificio_pk>/editar/",
+        capacidad.EdificioEditarView.as_view(),
+        name="edificio_editar",
+    ),
+    path("<int:pk>/edificio/vincular/", capacidad.EdificioVincularView.as_view(), name="edificio_vincular"),
+    path(
+        "<int:pk>/edificio/<int:edificio_pk>/desvincular/",
+        capacidad.EdificioDesvincularView.as_view(),
+        name="edificio_desvincular",
+    ),
     # Acciones del mapa de plazas (P5). El modal las abre con `?plaza=<id>` sobre `sectores`.
     path(
         "<int:pk>/plazas/<int:plaza_pk>/liberar/",

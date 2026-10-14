@@ -17,7 +17,8 @@ Lo que se fija acá, y por qué:
 """
 
 import json
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 from django.conf import settings
 from django.db import connection
@@ -155,6 +156,12 @@ class AccionPorPlazaTests(BaseMapa):
 class CapacidadDelMapaTests(BaseMapa):
     """La celda es enlace solo si quien mira puede ejercer la acción de esa plaza."""
 
+    def setUp(self):
+        reloj = patch("django.utils.timezone.now", return_value=datetime(2026, 10, 14, 10, tzinfo=UTC))
+        reloj.start()
+        self.addCleanup(reloj.stop)
+        super().setUp()
+
     def test_sin_dispositivo_editar_la_plaza_disponible_no_es_enlace(self):
         respuesta = self._pantalla(self.sin_editar)
         self.assertEqual(self._celdas(respuesta)["P1"]["url"], "")
@@ -169,7 +176,7 @@ class CapacidadDelMapaTests(BaseMapa):
 
         respuesta = self._pantalla(self.sin_admitir, plaza=self.plaza.pk)
 
-        self.assertEqual(self._celdas(respuesta)["P1"]["url"], "")
+        self.assertEqual(self._celdas(respuesta)["P1"]["url"], f"?editar_plaza={self.plaza.pk}")
         self.assertNotIn("plaza_accion", respuesta.context)
 
     def test_con_dispositivo_editar_la_plaza_reservada_tampoco_se_saca_de_servicio(self):
@@ -178,7 +185,7 @@ class CapacidadDelMapaTests(BaseMapa):
         reservar_plaza(plaza=self.plaza, ciudadano=self.otra_persona, usuario=self.operador_cis)
         datos = sectores_con_plazas(self.cis, puede_liberar=False, puede_configurar_plazas=True)
         celdas = {celda["codigo"]: celda for item in datos["sectores"] for celda in item["plazas"]}
-        self.assertEqual(celdas["P1"]["url"], "")
+        self.assertEqual(celdas["P1"]["url"], f"?editar_plaza={self.plaza.pk}")
 
     def test_solo_lectura_no_ve_ninguna_plaza_accionable(self):
         respuesta = self._pantalla(self.solo_lectura)
