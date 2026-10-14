@@ -428,7 +428,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 298 | Fidelidad del detalle del dispositivo y su Infraestructura | Dispositivos · P2/P4/P19 | `#ui` `#rbac` `#gps` `#performance` | Juez — carril FB | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 299 | Fidelidad del mapa de plazas y del asistente de ingreso | Dispositivos · sectores, plazas e ingreso | `#ui` `#rbac` `#performance` | Juez — carril FA del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 300 | P4 en celular y DNI con separador de miles | Dispositivos · P2/P4/P5/P6/P7/P10/P16/P21 | `#ui` `#textos` | Juez — carril FD | 14/10/2026 | 🟢 **Hecho** | No requiere |
-| NNN | Correcciones menores de fidelidad FA–FD | Dispositivos · P4/P5/P6/P7/P10/P16 | `#ui` `#rbac` `#performance` `#textos` | Juez — carril FE | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 301 | Correcciones menores de fidelidad FA–FD | Dispositivos · P4/P5/P6/P7/P10/P16 | `#ui` `#rbac` `#performance` `#textos` | Juez — carril FE | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -39273,7 +39273,9 @@ entradas anteriores. Sin PR; entrega por push de `feat/mvp-fidelidad-fd`.
 
 ---
 
-# Cambio NNN — Correcciones menores de fidelidad FA–FD
+---
+
+# Cambio 301 — Correcciones menores de fidelidad FA–FD
 
 🟢 **HECHO — 14/10/2026** · Carril FE · número definitivo a cargo del juez.
 
@@ -39411,7 +39413,7 @@ No requiere pasos adicionales al deploy habitual.
 
 ## Pendientes / a definir
 
-- El juez asigna `NNN` en encabezado e índice. El checker actual omite ese marcador;
+- El juez asigna `301` en encabezado e índice. El checker actual omite ese marcador;
   se comprueba además una copia temporal numerada sin cambiar el script ni otras entradas.
 - Sin pendientes funcionales ni apartamientos nuevos. PR #865 mergeado; entrega FE rebasada
   sobre `origin/development` (`17ce3d3b`), con código y documentación en commits separados, sin PR.
