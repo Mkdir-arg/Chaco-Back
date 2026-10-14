@@ -454,7 +454,8 @@ class DefinicionEnUnaPasadaTests(_Base):
         if diseno is None and canal == CanalFormulario.APP:
             nacimiento = PreguntaGlobal.objects.get(origen="legajo", vinculo="fecha_nacimiento")
             next(g for g in estructura if g["clave"] == "g-apoderado")["condicion"] = {
-                "modo": "todas", "reglas": [{"fuente": clave_pregunta(nacimiento), "op": "edad_menor", "valor": 18}]
+                "modo": "todas",
+                "reglas": [{"fuente": clave_pregunta(nacimiento), "op": "edad_menor", "valor": 18}],
             }
         return {
             "acepta_respuestas": True,

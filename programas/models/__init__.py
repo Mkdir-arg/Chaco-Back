@@ -4384,7 +4384,9 @@ class AdjuntoFormulario(TimeStamped):
         related_name="adjuntos_formulario",
         verbose_name="Requisito nativo",
     )
-    clave = models.CharField(max_length=60, blank=True, default="", db_default="", verbose_name="Clave del campo propio")
+    clave = models.CharField(
+        max_length=60, blank=True, default="", db_default="", verbose_name="Clave del campo propio"
+    )
     archivo = models.FileField(upload_to=ruta_adjunto_becas, verbose_name="Archivo")
 
     class Meta:
@@ -4396,8 +4398,10 @@ class AdjuntoFormulario(TimeStamped):
                 check=(
                     models.Q(pregunta_global__isnull=False, requisito_nativo__isnull=True, clave="")
                     | models.Q(pregunta_global__isnull=True, requisito_nativo__isnull=False, clave="")
-                    | (models.Q(pregunta_global__isnull=True, requisito_nativo__isnull=True)
-                       & models.Q(clave__startswith="cp-"))
+                    | (
+                        models.Q(pregunta_global__isnull=True, requisito_nativo__isnull=True)
+                        & models.Q(clave__startswith="cp-")
+                    )
                 ),
                 name="adjunto_formulario_una_sola_referencia",
             )

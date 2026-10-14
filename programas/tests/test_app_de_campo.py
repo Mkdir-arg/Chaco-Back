@@ -494,9 +494,9 @@ class ValidacionDeLaCargaTests(_CampoBase):
 
         diseno, _ = obtener_o_crear_diseno(self.conv)
         nacimiento = PreguntaGlobal.objects.get(origen="legajo", vinculo="fecha_nacimiento")
-        diseno.items.filter(clave="g-apoderado").update(condicion={
-            "modo": "todas", "reglas": [{"fuente": f"pg-{nacimiento.pk}", "op": "edad_menor", "valor": 18}]
-        })
+        diseno.items.filter(clave="g-apoderado").update(
+            condicion={"modo": "todas", "reglas": [{"fuente": f"pg-{nacimiento.pk}", "op": "edad_menor", "valor": 18}]}
+        )
         item = diseno.items.get(clave=f"pg-{pregunta.pk}")
         item.condicion = {"modo": "todas", "reglas": [{"fuente": fuente, "op": op, "valor": valor}]}
         item.save(update_fields=["condicion", "modificado"])
@@ -925,9 +925,9 @@ class VersionDelFormularioTests(_CampoBase):
         # dos versiones que comparar: el constructor es el que las numera.
         self.diseno, _ = obtener_o_crear_diseno(self.conv)
         nacimiento = PreguntaGlobal.objects.get(origen="legajo", vinculo="fecha_nacimiento")
-        self.diseno.items.filter(clave="g-apoderado").update(condicion={
-            "modo": "todas", "reglas": [{"fuente": f"pg-{nacimiento.pk}", "op": "edad_menor", "valor": 18}]
-        })
+        self.diseno.items.filter(clave="g-apoderado").update(
+            condicion={"modo": "todas", "reglas": [{"fuente": f"pg-{nacimiento.pk}", "op": "edad_menor", "valor": 18}]}
+        )
 
     def _alta(self, **extra):
         return self.client.post(self.url, self._payload(**extra), format="json")
@@ -1056,29 +1056,42 @@ class RespuestasPorClaveTests(_CampoBase):
         self.rel.estado = Relevamiento.Estado.EN_CURSO
         self.rel.save(update_fields=["estado", "modificado"])
         from programas.models import OrigenRequisito
+
         self.nacimiento = PreguntaGlobal.objects.get(origen=OrigenRequisito.LEGAJO, vinculo="fecha_nacimiento")
-        self.condicion_menor = {"modo": "todas", "reglas": [
-            {"fuente": f"pg-{self.nacimiento.pk}", "op": "edad_menor", "valor": 18}
-        ]}
+        self.condicion_menor = {
+            "modo": "todas",
+            "reglas": [{"fuente": f"pg-{self.nacimiento.pk}", "op": "edad_menor", "valor": 18}],
+        }
 
     def _diseno(self, condicion=True):
         from programas.services.diseno import obtener_o_crear_diseno
+
         diseno, _ = obtener_o_crear_diseno(self.conv)
         diseno.items.filter(clave="g-apoderado").update(condicion=self.condicion_menor if condicion else None)
         return diseno
 
     def _respuestas(self, payload=None):
         from programas.services.respuestas import foto_definicion, respuestas_desde_legacy
+
         self.rel.refresh_from_db()
         payload = payload or self._payload()
-        return respuestas_desde_legacy(payload["data"], payload, payload["datos_identificacion"], foto_definicion(self.rel))
+        return respuestas_desde_legacy(
+            payload["data"], payload, payload["datos_identificacion"], foto_definicion(self.rel)
+        )
 
     def _propio(self, tipo=TipoCampo.STRING, condicion=None, canal="app"):
         diseno = self._diseno()
         padre = diseno.items.get(clave="g-cuestionario")
-        return ItemDiseno.objects.create(diseno=diseno, padre=padre, tipo=ItemDiseno.Tipo.CAMPO,
-            clave="cp-comedor", orden=100, canal=canal, condicion=condicion,
-            propio={"texto": "¿Asiste a un comedor?", "tipo": tipo, "obligatorio": True, "opciones": []})
+        return ItemDiseno.objects.create(
+            diseno=diseno,
+            padre=padre,
+            tipo=ItemDiseno.Tipo.CAMPO,
+            clave="cp-comedor",
+            orden=100,
+            canal=canal,
+            condicion=condicion,
+            propio={"texto": "¿Asiste a un comedor?", "tipo": tipo, "obligatorio": True, "opciones": []},
+        )
 
     def _post(self, payload):
         return self.client.post(self.url, payload, format="json")
@@ -1105,8 +1118,14 @@ class RespuestasPorClaveTests(_CampoBase):
         respuestas = self._respuestas(payload)
         celular = next(k for k, v in respuestas.items() if v == payload["celular"])
         respuestas[celular] = "3624999888"
-        resp = self._post(self._payload(respuestas=respuestas, celular="otro", email_contacto="no es correo",
-                                       apoderado_fecha_nacimiento="no es fecha"))
+        resp = self._post(
+            self._payload(
+                respuestas=respuestas,
+                celular="otro",
+                email_contacto="no es correo",
+                apoderado_fecha_nacimiento="no es fecha",
+            )
+        )
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertEqual(Formulario.objects.get(pk=resp.data["id"]).celular, "3624999888")
 
@@ -1126,8 +1145,12 @@ class RespuestasPorClaveTests(_CampoBase):
         self.assertIn("cp-desconocida", Formulario.objects.get(pk=resp.data["id"]).observaciones_carga)
 
     def test_la_condicion_descarta_un_cp_oculto(self):
-        self._propio(condicion={"modo": "todas", "reglas": [
-            {"fuente": f"pg-{self.nacimiento.pk}", "op": "edad_menor", "valor": 18}]})
+        self._propio(
+            condicion={
+                "modo": "todas",
+                "reglas": [{"fuente": f"pg-{self.nacimiento.pk}", "op": "edad_menor", "valor": 18}],
+            }
+        )
         respuestas = self._respuestas()
         respuestas["cp-comedor"] = "Sí"
         resp = self._post(self._payload(respuestas=respuestas))
@@ -1144,11 +1167,15 @@ class RespuestasPorClaveTests(_CampoBase):
 
     def test_default_app_menores_y_link_sin_condicion(self):
         from programas.services.becas import definicion_formulario
-        self.assertEqual(next(g for g in definicion_formulario(self.rel)["items"]
-                              if g["clave"] == "g-apoderado")["condicion"], self.condicion_menor)
+
+        self.assertEqual(
+            next(g for g in definicion_formulario(self.rel)["items"] if g["clave"] == "g-apoderado")["condicion"],
+            self.condicion_menor,
+        )
         self.rel.tipo = Relevamiento.Tipo.PUBLICO
-        self.assertIsNone(next(g for g in definicion_formulario(self.rel)["items"]
-                               if g["clave"] == "g-apoderado")["condicion"])
+        self.assertIsNone(
+            next(g for g in definicion_formulario(self.rel)["items"] if g["clave"] == "g-apoderado")["condicion"]
+        )
 
     def test_sin_condicion_se_exige_apoderado_a_un_adulto_en_ambos_payloads(self):
         self._diseno(condicion=False)
@@ -1164,7 +1191,9 @@ class RespuestasPorClaveTests(_CampoBase):
     def test_condicion_menor_exige_apoderado_en_nuevo_payload(self):
         self._diseno()
         payload = self._payload()
-        payload["datos_identificacion"]["fecha_nacimiento"] = (timezone.localdate() - timedelta(days=365*10)).isoformat()
+        payload["datos_identificacion"]["fecha_nacimiento"] = (
+            timezone.localdate() - timedelta(days=365 * 10)
+        ).isoformat()
         payload["respuestas"] = self._respuestas(payload)
         resp = self._post(payload)
         self.assertEqual(resp.status_code, 400, resp.data)
@@ -1172,8 +1201,13 @@ class RespuestasPorClaveTests(_CampoBase):
 
     def test_apoderado_por_clave_se_vincula_al_legajo(self):
         self._diseno(condicion=False)
-        payload = self._payload(apoderado_nombre="Ana", apoderado_apellido="Perez", apoderado_dni="27111222",
-                                apoderado_genero="F", apoderado_fecha_nacimiento="1985-05-10")
+        payload = self._payload(
+            apoderado_nombre="Ana",
+            apoderado_apellido="Perez",
+            apoderado_dni="27111222",
+            apoderado_genero="F",
+            apoderado_fecha_nacimiento="1985-05-10",
+        )
         payload["respuestas"] = self._respuestas(payload)
         resp = self._post(payload)
         self.assertEqual(resp.status_code, 201, resp.data)
@@ -1182,10 +1216,15 @@ class RespuestasPorClaveTests(_CampoBase):
 
     def test_apoderado_oculto_no_deja_columnas_ni_legajo(self):
         self._diseno()
-        payload = self._payload(apoderado_nombre="Ana", apoderado_apellido="Perez", apoderado_dni="27111222",
-                                apoderado_genero="F", apoderado_fecha_nacimiento="1985-05-10")
+        payload = self._payload(
+            apoderado_nombre="Ana",
+            apoderado_apellido="Perez",
+            apoderado_dni="27111222",
+            apoderado_genero="F",
+            apoderado_fecha_nacimiento="1985-05-10",
+        )
         respuestas = self._respuestas(payload)
-        fecha = next(k for k,v in respuestas.items() if v == "1985-05-10")
+        fecha = next(k for k, v in respuestas.items() if v == "1985-05-10")
         respuestas[fecha] = "fecha inválida oculta"
         payload["respuestas"] = respuestas
         resp = self._post(payload)
@@ -1208,6 +1247,7 @@ class RespuestasPorClaveTests(_CampoBase):
 
     def test_adjunto_cp_se_guarda_reemplaza_y_lee_por_clave(self):
         from programas.services.respuestas import _adjuntos_por_clave
+
         self._propio(tipo=TipoCampo.ARCHIVO)
         resp = self._post(self._payload(respuestas=self._respuestas()))
         self.assertEqual(resp.status_code, 201, resp.data)
@@ -1216,15 +1256,25 @@ class RespuestasPorClaveTests(_CampoBase):
         try:
             with override_settings(MEDIA_ROOT=directorio):
                 for contenido in (b"first", b"second"):
-                    subido = self.client.post(url, {"clave": "cp-comedor",
-                        "archivo": SimpleUploadedFile("foto.jpg", contenido, content_type="image/jpeg")}, format="multipart")
+                    subido = self.client.post(
+                        url,
+                        {
+                            "clave": "cp-comedor",
+                            "archivo": SimpleUploadedFile("foto.jpg", contenido, content_type="image/jpeg"),
+                        },
+                        format="multipart",
+                    )
                     self.assertEqual(subido.status_code, 201, subido.data)
                 caso = Formulario.objects.get(pk=resp.data["id"])
                 self.assertEqual(caso.adjuntos.count(), 1)
                 self.assertEqual(_adjuntos_por_clave(caso)["cp-comedor"].pk, subido.data["id"])
                 caso.estado = Formulario.Estado.APROBADO
                 caso.save(update_fields=["estado"])
-                rechazado = self.client.post(url, {"clave": "cp-comedor", "archivo": SimpleUploadedFile("foto.jpg", b"third")}, format="multipart")
+                rechazado = self.client.post(
+                    url,
+                    {"clave": "cp-comedor", "archivo": SimpleUploadedFile("foto.jpg", b"third")},
+                    format="multipart",
+                )
                 self.assertEqual(rechazado.status_code, 409, rechazado.data)
                 self.assertEqual(rechazado.data["code"], "CASO_RESUELTO")
         finally:
@@ -1236,21 +1286,32 @@ class RespuestasPorClaveTests(_CampoBase):
         self.assertEqual(resp.status_code, 201, resp.data)
         url = reverse("becas_api:formulario-adjuntos", args=[resp.data["id"]])
         for clave in ("cp-comedor", "cp-ajena"):
-            subido = self.client.post(url, {"clave": clave, "archivo": SimpleUploadedFile("foto.jpg", b"x")}, format="multipart")
+            subido = self.client.post(
+                url, {"clave": clave, "archivo": SimpleUploadedFile("foto.jpg", b"x")}, format="multipart"
+            )
             self.assertEqual(subido.status_code, 400, subido.data)
         self.assertFalse(AdjuntoFormulario.objects.filter(formulario_id=resp.data["id"]).exists())
 
-
     def test_identidad_por_clave_no_pisa_lo_acreditado_por_el_servidor(self):
         from unittest.mock import patch
+
         self._diseno()
         payload = self._payload()
         payload["datos_identificacion"]["origen"] = "personas"
         payload["respuestas"] = self._respuestas(payload)
-        with patch("programas.services.identidad.consultar_persona", return_value={
-            "success": True, "data": {"dni": "40400400", "nombre": "Nombre acreditado",
-                "apellido": "Apellido acreditado", "sexo": "M", "fecha_nacimiento": "1990-01-02"}
-        }):
+        with patch(
+            "programas.services.identidad.consultar_persona",
+            return_value={
+                "success": True,
+                "data": {
+                    "dni": "40400400",
+                    "nombre": "Nombre acreditado",
+                    "apellido": "Apellido acreditado",
+                    "sexo": "M",
+                    "fecha_nacimiento": "1990-01-02",
+                },
+            },
+        ):
             resp = self._post(payload)
         self.assertEqual(resp.status_code, 201, resp.data)
         caso = Formulario.objects.get(pk=resp.data["id"])
@@ -1266,8 +1327,11 @@ class RespuestasPorClaveTests(_CampoBase):
         directorio = tempfile.mkdtemp()
         try:
             with override_settings(MEDIA_ROOT=directorio):
-                subido = self.client.post(url, {"clave": f"pg-{pregunta.pk}",
-                    "archivo": SimpleUploadedFile("foto.jpg", b"x")}, format="multipart")
+                subido = self.client.post(
+                    url,
+                    {"clave": f"pg-{pregunta.pk}", "archivo": SimpleUploadedFile("foto.jpg", b"x")},
+                    format="multipart",
+                )
                 self.assertEqual(subido.status_code, 201, subido.data)
                 self.assertEqual(subido.data["pregunta_global"], pregunta.pk)
                 self.assertEqual(subido.data["clave"], "")
@@ -1276,8 +1340,15 @@ class RespuestasPorClaveTests(_CampoBase):
 
     def test_dos_cp_archivo_no_se_reemplazan_entre_si(self):
         campo = self._propio(tipo=TipoCampo.ARCHIVO)
-        ItemDiseno.objects.create(diseno=campo.diseno, padre=campo.padre, tipo=ItemDiseno.Tipo.CAMPO,
-            clave="cp-otro", orden=101, canal="app", propio={"texto": "Otro", "tipo": TipoCampo.ARCHIVO})
+        ItemDiseno.objects.create(
+            diseno=campo.diseno,
+            padre=campo.padre,
+            tipo=ItemDiseno.Tipo.CAMPO,
+            clave="cp-otro",
+            orden=101,
+            canal="app",
+            propio={"texto": "Otro", "tipo": TipoCampo.ARCHIVO},
+        )
         resp = self._post(self._payload(respuestas=self._respuestas()))
         self.assertEqual(resp.status_code, 201, resp.data)
         url = reverse("becas_api:formulario-adjuntos", args=[resp.data["id"]])
@@ -1285,7 +1356,9 @@ class RespuestasPorClaveTests(_CampoBase):
         try:
             with override_settings(MEDIA_ROOT=directorio):
                 for clave in ("cp-comedor", "cp-otro"):
-                    subido = self.client.post(url, {"clave": clave, "archivo": SimpleUploadedFile("foto.jpg", b"x")}, format="multipart")
+                    subido = self.client.post(
+                        url, {"clave": clave, "archivo": SimpleUploadedFile("foto.jpg", b"x")}, format="multipart"
+                    )
                     self.assertEqual(subido.status_code, 201, subido.data)
                 self.assertEqual(AdjuntoFormulario.objects.filter(formulario_id=resp.data["id"]).count(), 2)
         finally:
@@ -1300,10 +1373,13 @@ class RespuestasPorClaveTests(_CampoBase):
     def test_apoderado_depende_de_una_condicion_distinta_de_la_edad(self):
         diseno = self._diseno()
         sexo = PreguntaGlobal.objects.get(origen="legajo", vinculo="genero")
-        diseno.items.filter(clave="g-apoderado").update(condicion={"modo": "todas", "reglas": [
-            {"fuente": f"pg-{sexo.pk}", "op": "es", "valor": "F"}]})
+        diseno.items.filter(clave="g-apoderado").update(
+            condicion={"modo": "todas", "reglas": [{"fuente": f"pg-{sexo.pk}", "op": "es", "valor": "F"}]}
+        )
         menor = self._payload()
-        menor["datos_identificacion"]["fecha_nacimiento"] = (timezone.localdate() - timedelta(days=365*10)).isoformat()
+        menor["datos_identificacion"]["fecha_nacimiento"] = (
+            timezone.localdate() - timedelta(days=365 * 10)
+        ).isoformat()
         menor["respuestas"] = self._respuestas(menor)
         permitido = self._post(menor)
         self.assertEqual(permitido.status_code, 201, permitido.data)
@@ -1327,16 +1403,22 @@ class RespuestasPorClaveTests(_CampoBase):
         resp = self._post(self._payload())
         self.assertEqual(resp.status_code, 201, resp.data)
         pregunta.delete()
-        subido = self.client.post(reverse("becas_api:formulario-adjuntos", args=[resp.data["id"]]),
-            {"clave": clave, "archivo": SimpleUploadedFile("foto.jpg", b"x")}, format="multipart")
+        subido = self.client.post(
+            reverse("becas_api:formulario-adjuntos", args=[resp.data["id"]]),
+            {"clave": clave, "archivo": SimpleUploadedFile("foto.jpg", b"x")},
+            format="multipart",
+        )
         self.assertEqual(subido.status_code, 400, subido.data)
 
     def test_adjunto_cp_figura_en_el_export_de_respuestas(self):
         from programas.services.dashboard_becas import respuestas_por_persona
+
         self._propio(tipo=TipoCampo.ARCHIVO)
         resp = self._post(self._payload(respuestas=self._respuestas()))
         self.assertEqual(resp.status_code, 201, resp.data)
-        AdjuntoFormulario.objects.create(formulario_id=resp.data["id"], clave="cp-comedor", archivo="adjuntos/certificado.jpg")
+        AdjuntoFormulario.objects.create(
+            formulario_id=resp.data["id"], clave="cp-comedor", archivo="adjuntos/certificado.jpg"
+        )
         reporte, _ = respuestas_por_persona(self.conv, incluir_publicos=False)
         posicion = reporte.encabezados.index("¿Asiste a un comedor?")
         self.assertEqual(reporte.filas[0][posicion], "certificado.jpg")

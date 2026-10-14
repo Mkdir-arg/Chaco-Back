@@ -11,23 +11,36 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('programas', '0094_entrada_bitacora_automatica'),
+        ("programas", "0094_entrada_bitacora_automatica"),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='adjuntoformulario',
-            name='adjunto_formulario_una_sola_referencia',
+            model_name="adjuntoformulario",
+            name="adjunto_formulario_una_sola_referencia",
         ),
         migrations.AddField(
-            model_name='adjuntoformulario',
-            name='clave',
-            field=models.CharField(blank=True, db_default='', default='', max_length=60, verbose_name='Clave del campo propio'),
+            model_name="adjuntoformulario",
+            name="clave",
+            field=models.CharField(
+                blank=True, db_default="", default="", max_length=60, verbose_name="Clave del campo propio"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='adjuntoformulario',
-            constraint=models.CheckConstraint(condition=models.Q(models.Q(('clave', ''), ('pregunta_global__isnull', False), ('requisito_nativo__isnull', True)), models.Q(('clave', ''), ('pregunta_global__isnull', True), ('requisito_nativo__isnull', False)), models.Q(('pregunta_global__isnull', True), ('requisito_nativo__isnull', True), ('clave__startswith', 'cp-')), _connector='OR'), name='adjunto_formulario_una_sola_referencia'),
+            model_name="adjuntoformulario",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    models.Q(("clave", ""), ("pregunta_global__isnull", False), ("requisito_nativo__isnull", True)),
+                    models.Q(("clave", ""), ("pregunta_global__isnull", True), ("requisito_nativo__isnull", False)),
+                    models.Q(
+                        ("pregunta_global__isnull", True),
+                        ("requisito_nativo__isnull", True),
+                        ("clave__startswith", "cp-"),
+                    ),
+                    _connector="OR",
+                ),
+                name="adjunto_formulario_una_sola_referencia",
+            ),
         ),
     ]

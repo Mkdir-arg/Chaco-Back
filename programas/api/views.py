@@ -772,7 +772,9 @@ class FormularioViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         resuelto = formulario.estado != Formulario.Estado.ENVIADO
         if (
             resuelto
-            and formulario.adjuntos.filter(pregunta_global=pregunta_global, requisito_nativo=requisito_nativo, clave=clave).exists()
+            and formulario.adjuntos.filter(
+                pregunta_global=pregunta_global, requisito_nativo=requisito_nativo, clave=clave
+            ).exists()
         ):
             return Response(
                 {"detail": CASO_RESUELTO_MENSAJE, "code": "CASO_RESUELTO", "estado": formulario.estado},

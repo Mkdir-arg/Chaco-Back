@@ -180,8 +180,11 @@ class FormularioSerializer(serializers.ModelSerializer):
 
     def to_internal_value(self, data):
         if isinstance(data, dict) and "respuestas" in data:
-            data = {clave: valor for clave, valor in data.items()
-                    if clave not in {"data", *respuestas_servicio.COLUMNAS_FIJAS}}
+            data = {
+                clave: valor
+                for clave, valor in data.items()
+                if clave not in {"data", *respuestas_servicio.COLUMNAS_FIJAS}
+            }
         return super().to_internal_value(data)
 
     def validate(self, attrs):
@@ -258,33 +261,47 @@ class FormularioSerializer(serializers.ModelSerializer):
         if foto is not None:
             entradas = attrs.get("respuestas")
             if entradas is None:
-                fijos = {columna: attrs.get(columna, getattr(self.instance, columna, None))
-                         for columna in respuestas_servicio.COLUMNAS_FIJAS}
+                fijos = {
+                    columna: attrs.get(columna, getattr(self.instance, columna, None))
+                    for columna in respuestas_servicio.COLUMNAS_FIJAS
+                }
                 identidad = {**(datos or {})}
                 if fecha_nacimiento:
                     identidad["fecha_nacimiento"] = fecha_nacimiento.isoformat()
                 entradas = respuestas_servicio.respuestas_desde_legacy(attrs.get("data"), fijos, identidad, foto)
             visibles, _, _ = respuestas_servicio.aplicar(foto, entradas, hoy=hoy)
             vinculos = respuestas_servicio.clave_por_vinculo(foto)
-            apoderado_visible = {columna for columna, vinculo in respuestas_servicio.COLUMNAS_FIJAS.items()
-                                 if vinculos.get(vinculo) in visibles}
-            obligatorios = {campo["clave"] for campo in respuestas_servicio.campos_de(foto)
-                            if campo.get("obligatorio") and campo["clave"] in visibles}
-            requeridos = {columna for columna, vinculo in respuestas_servicio.COLUMNAS_FIJAS.items()
-                          if vinculo[0] == OrigenRequisito.PERSONA_VINCULADA
-                          and vinculos.get(vinculo) in obligatorios}
-        faltantes = [columna for columna in sorted(requeridos)
-                     if not attrs.get(columna, getattr(self.instance, columna, None))]
+            apoderado_visible = {
+                columna
+                for columna, vinculo in respuestas_servicio.COLUMNAS_FIJAS.items()
+                if vinculos.get(vinculo) in visibles
+            }
+            obligatorios = {
+                campo["clave"]
+                for campo in respuestas_servicio.campos_de(foto)
+                if campo.get("obligatorio") and campo["clave"] in visibles
+            }
+            requeridos = {
+                columna
+                for columna, vinculo in respuestas_servicio.COLUMNAS_FIJAS.items()
+                if vinculo[0] == OrigenRequisito.PERSONA_VINCULADA and vinculos.get(vinculo) in obligatorios
+            }
+        faltantes = [
+            columna for columna in sorted(requeridos) if not attrs.get(columna, getattr(self.instance, columna, None))
+        ]
         if faltantes:
-            raise serializers.ValidationError({columna: "Este dato es obligatorio según la condición del grupo Apoderado."
-                                               for columna in faltantes})
+            raise serializers.ValidationError(
+                {columna: "Este dato es obligatorio según la condición del grupo Apoderado." for columna in faltantes}
+            )
         if "apoderado_dni" in apoderado_visible and attrs.get("apoderado_dni"):
             dni_apoderado = normalizar_dni(attrs["apoderado_dni"])
             if not dni_valido(dni_apoderado):
                 raise serializers.ValidationError({"apoderado_dni": MENSAJE_DNI_INVALIDO})
             attrs["apoderado_dni"] = dni_apoderado
-        if "apoderado_genero" in apoderado_visible and attrs.get("apoderado_genero") and attrs["apoderado_genero"] not in (
-            Ciudadano.Genero.MASCULINO, Ciudadano.Genero.FEMENINO
+        if (
+            "apoderado_genero" in apoderado_visible
+            and attrs.get("apoderado_genero")
+            and attrs["apoderado_genero"] not in (Ciudadano.Genero.MASCULINO, Ciudadano.Genero.FEMENINO)
         ):
             raise serializers.ValidationError({"apoderado_genero": "Seleccioná sexo F o M."})
         return attrs
@@ -401,13 +418,16 @@ class AdjuntoFormularioSerializer(serializers.ModelSerializer):
         if clave:
             if formulario is None:
                 raise serializers.ValidationError("Se requiere el formulario para validar la clave.")
-            campos = {campo["clave"]: campo for campo in respuestas_servicio.campos_de(
-                servicio_campo.definicion_del_caso(formulario))}
+            campos = {
+                campo["clave"]: campo
+                for campo in respuestas_servicio.campos_de(servicio_campo.definicion_del_caso(formulario))
+            }
             campo = campos.get(clave)
             if campo is None or campo.get("tipo") != "ARCHIVO":
                 raise serializers.ValidationError(servicio_campo.MENSAJE_ADJUNTO_AJENO)
             if clave.startswith("pg-"):
                 from programas.models import PreguntaGlobal
+
                 pregunta = PreguntaGlobal.objects.filter(pk=campo["id"]).first()
                 if pregunta is None:
                     raise serializers.ValidationError(servicio_campo.MENSAJE_ADJUNTO_AJENO)
@@ -415,6 +435,7 @@ class AdjuntoFormularioSerializer(serializers.ModelSerializer):
                 attrs["clave"] = ""
             elif clave.startswith("rn-"):
                 from programas.models import RequisitoNativo
+
                 requisito = RequisitoNativo.objects.filter(pk=campo["id"]).first()
                 if requisito is None:
                     raise serializers.ValidationError(servicio_campo.MENSAJE_ADJUNTO_AJENO)
