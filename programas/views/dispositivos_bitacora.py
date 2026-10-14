@@ -111,7 +111,7 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
         context["correccion_inicial"] = pedida if pedida in context.get("corregibles_datos", {}) else ""
         context["abrir_modal_corregir"] = bool(context["correccion_inicial"])
         context["migas"] = [
-            {"label": "Dispositivos", "url": reverse("dispositivos:lista")},
+            {"label": "Instituciones", "url": reverse("dispositivos:lista")},
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
             {"label": "Bitácora", "url": ""},
         ]

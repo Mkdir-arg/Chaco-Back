@@ -1,12 +1,24 @@
 from django import template
 
 from programas.services.dispositivos import (
+    estado_de_dispositivo,
+    estado_de_tipo,
     puede_configurar_dispositivos,
     puede_en_programa_dispositivos,
     puede_operar_dispositivo,
 )
 
 register = template.Library()
+
+
+@register.simple_tag
+def estado_dispositivo(dispositivo):
+    return estado_de_dispositivo(dispositivo)
+
+
+@register.simple_tag
+def estado_tipo_dispositivo(tipo):
+    return estado_de_tipo(tipo)
 
 
 @register.simple_tag(name="puede_configurar_dispositivos")

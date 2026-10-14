@@ -309,3 +309,20 @@ class ConfiguracionDispositivosViewsTests(TestCase):
         self.assertLess(configuracion_dispositivos, grupo_administracion)
         self.assertNotIn("Dispositivos", contenido[grupo_administracion:])
         self.assertNotIn('href="/dispositivos/config/"', render(self.ajeno))
+
+    def test_p14_estado_junto_al_titulo_conserva_textos_y_acciones(self):
+        self.client.force_login(self.admin)
+        for activo, texto, tono in ((True, "Activo", "success"), (False, "Inactivo", "gray")):
+            self.tipo.activo = activo
+            self.tipo.save(update_fields=["activo"])
+            with self.subTest(activo=activo):
+                respuesta = self.client.get(reverse("dispositivos:tipo_detalle", args=[self.tipo.pk]))
+                self.assertInHTML(
+                    '<div class="flex items-center gap-3 flex-wrap">'
+                    '<h1 class="text-3xl font-extrabold text-heading tracking-tight">Tipo test</h1>'
+                    f'<span class="badge badge-dot badge-{tono}">{texto}</span></div>',
+                    respuesta.content.decode(),
+                )
+                self.assertContains(respuesta, "Editar tipo")
+                self.assertContains(respuesta, "Desactivar" if activo else "Activar")
+                self.assertContains(respuesta, "Semáforo de ocupación: amarillo desde")
