@@ -134,8 +134,11 @@ class BaseAlertas(BaseEstadias):
         inspeccion.refresh_from_db()
         return inspeccion
 
-    def _alertas(self, dispositivo=None, regla=None):
-        alertas = alertas_del_dispositivo(dispositivo or self.cis)
+    def _alertas(self, dispositivo=None, regla=None, usuario=None):
+        """Las alertas tal como las pide la pantalla. Sin usuario, las que dependen de una
+        capacidad llegan sin enlace: es el contrato de `alertas_del_dispositivo`."""
+
+        alertas = alertas_del_dispositivo(dispositivo or self.cis, usuario=usuario)
         if regla:
             alertas = [alerta for alerta in alertas if alerta["regla"] == regla]
         return alertas
@@ -198,8 +201,9 @@ class ReservaVencidaTests(BaseAlertas):
         self.assertEqual(alerta["titulo"], "Préstamo vencido sin liberar")
         self.assertEqual(alerta["origen"], "Plaza P2 · Varones")
         self.assertEqual(alerta["fecha"], prestamo.hasta)
+        # Al mapa de plazas, que desde el Cambio de P5 tiene la acción que la resuelve.
         self.assertEqual(alerta["enlace"], reverse("dispositivos:sectores", args=[self.cis.pk]))
-        self.assertEqual(alerta["accion"], "Ver plazas")
+        self.assertEqual(alerta["accion"], "Liberar la plaza")
 
     def test_una_reserva_vencida_tambien_y_con_su_titulo(self):
         self._prestamo_vencido(tipo=ReservaPlaza.Tipo.RESERVA)
@@ -310,7 +314,7 @@ class EdificioCriticoTests(BaseAlertas):
         self.assertIn("No bloquea la operación", alerta["texto"])
         # El edificio lo nombra el pie una sola vez: el texto no lo repite.
         self.assertEqual(alerta["texto"].count("Edificio del CIS"), 1)
-        # Todavía no hay pantalla de relevamientos en esta rama: sin enlace, en vez de uno roto.
+        # Sin usuario no se puede decidir si el enlace a P21 corresponde: sin enlace.
         self.assertEqual((alerta["enlace"], alerta["accion"]), ("", ""))
 
     def test_desaparece_con_un_relevamiento_nuevo_que_no_es_critico(self):
@@ -422,6 +426,81 @@ class SinTurnosTests(BaseAlertas):
         self.assertEqual(alerta["fecha"], validado)
 
 
+class EnlaceDeResolucionTests(BaseAlertas):
+    """Dónde se resuelve cada alerta, y para quién.
+
+    El enlace depende de quién mira porque la pantalla de destino tiene su propia
+    capacidad: ofrecérselo a quien va a rebotar con un 403 sería anunciarle una puerta
+    cerrada. Qué alertas hay **no** depende de quién mira.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.url_p21 = reverse("dispositivos:relevamientos")
+        self.url_turnos = f"{reverse('dispositivos:bitacora', args=[self.cis.pk])}?turnos=1"
+
+    def _con(self, usuario, regla):
+        # Recargado: `rbac` memoiza las capacidades en el objeto, y el usuario pudo pasar
+        # por el cliente de prueba antes de llegar acá.
+        return self._alertas(regla=regla, usuario=User.objects.get(pk=usuario.pk))
+
+    def test_el_edificio_critico_lleva_a_relevamientos_con_inspeccion_asignar(self):
+        registrar_resultado(self.agente, self._relevamiento(), criticidad=Criticidad.ALTA)
+
+        [alerta] = self._con(self.coordinador, "dispositivos.edificio_critico")
+
+        self.assertEqual((alerta["enlace"], alerta["accion"]), (self.url_p21, "Ver relevamientos"))
+
+    def test_sin_inspeccion_asignar_la_alerta_sigue_pero_sin_enlace(self):
+        """El operador del dispositivo ve la alerta; P21 le da 403, así que no se le ofrece."""
+
+        registrar_resultado(self.agente, self._relevamiento(), criticidad=Criticidad.ALTA)
+        self.assertEqual(self.client.get(self.url_p21).status_code, 302)
+        self.client.force_login(self.operador_cis)
+        self.assertEqual(self.client.get(self.url_p21).status_code, 403)
+
+        [alerta] = self._con(self.operador_cis, "dispositivos.edificio_critico")
+
+        self.assertEqual(alerta["titulo"], "El edificio requiere intervención")
+        self.assertEqual((alerta["enlace"], alerta["accion"]), ("", ""))
+
+    def test_el_relevamiento_vencido_lleva_a_relevamientos_con_la_misma_regla(self):
+        self._vencer(self._relevamiento())
+
+        con = self._con(self.coordinador, "dispositivos.relevamiento_vencido")
+        sin = self._con(self.operador_cis, "dispositivos.relevamiento_vencido")
+
+        self.assertEqual(con[0]["enlace"], self.url_p21)
+        self.assertEqual(sin[0]["enlace"], "")
+
+    def test_sin_turnos_lleva_a_la_bitacora_con_el_modal_abierto_con_dispositivo_editar(self):
+        [alerta] = self._con(self.operador_cis, "dispositivos.sin_turnos")
+
+        self.assertEqual((alerta["enlace"], alerta["accion"]), (self.url_turnos, "Configurar turnos"))
+        # El destino abre el modal de turnos de verdad, no una bitácora cualquiera.
+        self.client.force_login(self.operador_cis)
+        self.assertTrue(self.client.get(alerta["enlace"]).context["abrir_modal_turnos"])
+
+    def test_sin_dispositivo_editar_la_alerta_de_turnos_sigue_pero_sin_enlace(self):
+        mirón = self._usuario("miron", ("dispositivo.ver",), [self.cis])
+
+        [alerta] = self._alertas(regla="dispositivos.sin_turnos", usuario=mirón)
+
+        self.assertEqual(alerta["titulo"], "Sin turnos configurados")
+        self.assertEqual((alerta["enlace"], alerta["accion"]), ("", ""))
+        self.client.force_login(mirón)
+        self.assertFalse(self.client.get(self.url_turnos).context["abrir_modal_turnos"])
+
+    def test_el_alcance_es_al_dispositivo_y_no_al_programa(self):
+        """`dispositivo.editar` en otra institución no habilita el enlace de esta."""
+
+        ajeno = self._usuario("editor_parador", ("dispositivo.ver", "dispositivo.editar"), [self.parador])
+
+        [alerta] = self._alertas(regla="dispositivos.sin_turnos", usuario=ajeno)
+
+        self.assertEqual((alerta["enlace"], alerta["accion"]), ("", ""))
+
+
 class NuncaBloqueaTests(BaseAlertas):
     """Con las cinco alertas encendidas, ninguna acción deja de poder completarse."""
 
@@ -495,14 +574,23 @@ class PantallaTests(BaseAlertas):
 class AlertasPresupuestoTests(BaseAlertas):
     """Las alertas cuestan lo mismo con un origen de cada regla que con veinte."""
 
+    def setUp(self):
+        super().setUp()
+        # El peor caso: un usuario que **no** es admin del programa, así que el alcance al
+        # dispositivo del enlace de turnos se resuelve con una consulta.
+        self.mira = self._usuario("mira_alertas", ("dispositivo.ver", "dispositivo.editar"), [self.cis])
+
     def _medir(self):
         with CaptureQueriesContext(connection) as medida:
-            alertas = alertas_del_dispositivo(self.cis)
+            alertas = alertas_del_dispositivo(self.cis, usuario=self.mira)
         return len(medida), alertas
 
     def test_las_alertas_respetan_el_presupuesto_y_no_crecen_con_los_origenes(self):
         techo = json.loads(PRESUPUESTOS.read_text(encoding="utf-8"))["servicios"][CLAVE_PRESUPUESTO]["consultas_fijas"]
         self._todas_encendidas()
+        # Las capacidades del usuario y el programa se memoizan por request (`core.rbac`):
+        # se calientan antes de medir, como en una petición real donde el mixin ya las pidió.
+        self._medir()
         pocas, alertas = self._medir()
         self.assertEqual({alerta["regla"] for alerta in alertas}, SLUGS)
 

@@ -234,6 +234,38 @@ def _reservas_que_toman(plaza, momento):
     )
 
 
+def reservas_abiertas(plaza_ids):
+    """Las reservas y préstamos **sin resolver** de esas plazas: ``VIGENTE``, venzan o no.
+
+    La tercera pregunta sobre una reserva, distinta de las otras dos:
+
+    * ``ReservaPlaza.objects.vigentes()`` contesta «¿cuenta hoy en el mapa?» y mira un
+      instante;
+    * :func:`_reservas_que_toman` contesta «¿puedo dar esta plaza?» y mira de ahora en
+      adelante;
+    * esta contesta **«¿queda algo que liberar?»**, y la respuesta no depende del
+      vencimiento: una reserva con el ``hasta`` pasado que nadie liberó sigue abierta.
+
+    Es justo el caso que enciende la alerta «Préstamo vencido sin liberar» de P4 —la plaza
+    ya cuenta como disponible y la reserva sigue ahí—, y por eso el mapa necesita esta
+    lectura y no la de `vigentes()`: con esa, la plaza de esa alerta sale «Disponible» y
+    la única acción que ofrecería sería sacarla de servicio, que no resuelve nada.
+    """
+
+    return ReservaPlaza.objects.filter(plaza_id__in=plaza_ids, estado=ReservaPlaza.Estado.VIGENTE)
+
+
+def reserva_abierta_de(plaza):
+    """La reserva sin resolver de una plaza, o ``None``. La más vieja si hubiera más de una.
+
+    Más de una no puede pasar —la plaza se toma con la fila bloqueada—, pero si pasara,
+    liberar la más vieja primero es determinista y la pantalla vuelve a ofrecer la que
+    queda.
+    """
+
+    return reservas_abiertas([getattr(plaza, "pk", plaza)]).order_by("id").first()
+
+
 def _plaza_tomada_por(plaza, *, excepto_reserva=None, momento=None):
     """Qué tiene tomada la plaza desde ahora, o cadena vacía si está libre.
 
@@ -704,6 +736,13 @@ def sacar_plaza_de_servicio(*, plaza, usuario, motivo):
 
     Vive en este módulo y no en el de plazas porque la condición que la gobierna es la
     estadía: hasta que `Estadia` y `ReservaPlaza` existieron, no había nada que mirar.
+
+    El `FOR UPDATE` va **sobre la plaza sola**, sin `select_related("sector")`, por lo
+    mismo que `_bloquear_plaza`: en MySQL y en MariaDB un `SELECT ... FOR UPDATE` con
+    JOIN bloquea también las filas de la tabla unida, así que con el sector adentro sacar
+    de servicio una plaza dejaba esperando a cualquier ingreso o cambio de plaza de
+    **otra** plaza del mismo sector. Nada de acá lee el sector: el dispositivo se resuelve
+    arriba, con el objeto que llega.
     """
 
     motivo = (motivo or "").strip()
@@ -714,7 +753,7 @@ def sacar_plaza_de_servicio(*, plaza, usuario, motivo):
     if not puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para cambiar las plazas de este dispositivo.")
 
-    plaza = Plaza.objects.select_for_update().select_related("sector").get(pk=plaza.pk)
+    plaza = Plaza.objects.select_for_update().get(pk=plaza.pk)
     if plaza.estado == Plaza.Estado.FUERA_SERVICIO:
         return plaza
     tomada = _plaza_tomada_por(plaza)
@@ -738,13 +777,17 @@ def sacar_plaza_de_servicio(*, plaza, usuario, motivo):
 
 @transaction.atomic
 def volver_plaza_a_servicio(*, plaza, usuario):
-    """Repone una plaza. No compite con nadie: una plaza fuera de servicio no está tomada."""
+    """Repone una plaza. No compite con nadie: una plaza fuera de servicio no está tomada.
+
+    El `FOR UPDATE` va sobre la plaza sola, sin `select_related("sector")`, por el mismo
+    motivo que en :func:`sacar_plaza_de_servicio`: el JOIN bloquearía el sector entero.
+    """
 
     dispositivo = plaza.sector.dispositivo
     if not puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para cambiar las plazas de este dispositivo.")
 
-    plaza = Plaza.objects.select_for_update().select_related("sector").get(pk=plaza.pk)
+    plaza = Plaza.objects.select_for_update().get(pk=plaza.pk)
     if plaza.estado == Plaza.Estado.OPERATIVA:
         return plaza
 
