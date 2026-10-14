@@ -1,8 +1,8 @@
 {% comment %}
 Badge de estado del legajo de dispositivo. Espera `dispositivo` en el contexto.
-Texto y tono: estado_de_dispositivo en services/dispositivos.py, compartido con el header P4/P19.
+Acepta modelos y dicts con estado y get_estado_display (texto precalculado).
+Tono: TONOS_ESTADO en services/dispositivos.py, compartido con el header P4/P19.
 Conserva las variantes canónicas de nodo-badges.css para los 7 estados de Dispositivo.Estado.
 {% endcomment %}
 {% load dispositivos %}
-{% estado_dispositivo dispositivo as estado_badge %}
-<span class="badge badge-dot badge-{{ estado_badge.tono }}">{{ estado_badge.texto }}</span>
+<span class="badge badge-dot badge-{{ dispositivo.estado|tono_estado_dispositivo }}">{{ dispositivo.get_estado_display }}</span>

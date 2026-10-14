@@ -1,6 +1,7 @@
 from django import template
 
 from programas.services.dispositivos import (
+    TONOS_ESTADO,
     estado_de_dispositivo,
     estado_de_tipo,
     puede_configurar_dispositivos,
@@ -9,6 +10,11 @@ from programas.services.dispositivos import (
 )
 
 register = template.Library()
+
+
+@register.filter
+def tono_estado_dispositivo(estado):
+    return TONOS_ESTADO.get(estado, "gray")
 
 
 @register.simple_tag

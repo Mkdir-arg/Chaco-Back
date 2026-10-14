@@ -3,7 +3,7 @@
   <div class="mb-6">
     {% url 'dispositivos:tipos' as url_volver %}
     {% estado_tipo_dispositivo tipo as estado_header %}
-    {% page_header titulo=tipo.nombre volver_url=url_volver volver_label="tipos de dispositivo" estado_texto=estado_header.texto estado_variante=estado_header.tono %}
+    {% page_header titulo=tipo.nombre eyebrow="Tipo de dispositivo" volver_url=url_volver volver_label="tipos de dispositivo" estado_texto=estado_header.texto estado_variante=estado_header.tono %}
       {% bajada %}{{ tipo.codigo }}{% if tipo.descripcion %} · {{ tipo.descripcion }}{% endif %}{% if tipo.maneja_camas %}<br>Semáforo de ocupación: amarillo desde {{ tipo.umbral_ocupacion_amarillo }}% · rojo desde {{ tipo.umbral_ocupacion_rojo }}%.{% endif %}{% endbajada %}
       <a href="{% url 'dispositivos:tipo_editar' tipo.pk %}"
          class="btn-nodo btn-secondary btn-base"

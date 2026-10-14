@@ -31,8 +31,10 @@ módulo, `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egreso, plaza
 `badge-danger` ni en `text-fg-danger`.
 
 Para la institución, `TONOS_ESTADO` y `estado_de_dispositivo` de
-`programas/services/dispositivos.py` entregan el texto y tono del header P4/P19 y del
-parcial `_estado_badge.html`; `estado_de_tipo` conserva Activo/success e Inactivo/gray en P14.
+`programas/services/dispositivos.py` entregan el texto y tono del header P4/P19. El
+parcial `_estado_badge.html` acepta modelos y dicts: resuelve `get_estado_display` en
+el template y obtiene el tono con el filtro `tono_estado_dispositivo`, que lee el mismo
+`TONOS_ESTADO` (desconocido → gray). `estado_de_tipo` conserva Activo/success e Inactivo/gray en P14.
 Los tags `estado_dispositivo` y `estado_tipo_dispositivo` solo presentan esos datos, sin consultas.
 
 En `ESTADOS_VISIBLES`, una estadía activa se presenta como «Alojada» (`info`) y una

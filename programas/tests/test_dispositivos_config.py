@@ -317,6 +317,12 @@ class ConfiguracionDispositivosViewsTests(TestCase):
             self.tipo.save(update_fields=["activo"])
             with self.subTest(activo=activo):
                 respuesta = self.client.get(reverse("dispositivos:tipo_detalle", args=[self.tipo.pk]))
+                self.assertContains(
+                    respuesta,
+                    '<p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">'
+                    "Tipo de dispositivo</p>",
+                    html=True,
+                )
                 self.assertInHTML(
                     '<div class="flex items-center gap-3 flex-wrap">'
                     '<h1 class="text-3xl font-extrabold text-heading tracking-tight">Tipo test</h1>'
