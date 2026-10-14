@@ -419,6 +419,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 286 | Listado de instituciones al arquetipo: filtros canónicos, plazas por fila y paginación (P2) | Dispositivos · legajo institucional | `#ui` `#rbac` `#performance` | Carril C4 del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 287 | Acciones del mapa de plazas y enlaces de resolución de las alertas | Dispositivos · plazas y alertas | `#ui` `#rbac` `#performance` | Carril C1 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 288 | El turno visible, las novedades automáticas de la bitácora y tres contratos que faltaban | Dispositivos · estadía, ingreso, detalle y bitácora | `#ui` `#datos` `#rbac` `#performance` | Carril C3 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0094` |
+| 289 | Ver informe del relevamiento, la solapa «Sin relevar nunca» y las decisiones del juez sobre el relevamiento edilicio | Dispositivos · relevamiento edilicio | `#ui` `#rbac` `#api` `#mobile` `#performance` | Pendientes del Cambio 279 + decisiones del juez | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -37403,5 +37404,345 @@ conflicto de este archivo se resolvió a mano: las entradas y filas de `developm
 intactas, más esta entrada y su fila; el 285 seguía libre). Se repitió igual una segunda vez, cuando `development` sumó el Cambio 287 en el medio. Entraron los tres MINOR: imágenes
 recodificadas sin metadatos, tope de 25 millones de píxeles y el aviso en la confirmación de
 «Eliminar». El límite de pedidos de la vista pública quedó en Pendientes.
+
+---
+
+---
+
+# Cambio 289 — Ver informe del relevamiento, la solapa «Sin relevar nunca» y las decisiones del juez sobre el relevamiento edilicio
+
+🟢 **HECHO — 14/10/2026** · Pendientes del Cambio 279 (P21) y decisiones del juez del 14/10/2026
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamiento edilicio |
+| **Etiquetas** | `#ui` `#rbac` `#api` `#mobile` `#performance` |
+| **Solicitante** | PM — cierre del MVP de Dispositivos (Cambio 191); decisiones 4 a 6 delegadas al juez |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Pendientes del Cambio 279 (task 36, #701) · Épica #127 · etapa 4 |
+| **Partes afectadas** | Backoffice (`programas/views/dispositivos_relevamientos.py`, pantalla nueva, P21, solapa Infraestructura de P4), Servidor (`programas/services/inspecciones.py`, `detalle_dispositivo.py`, `core/validators.py`), API de campo y contrato con `Chaco-mobile` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cerrar lo que el Cambio 279 dejó anotado como pendiente y que sí tiene dato y servicio: **ver el
+informe** de un relevamiento (el mockup P21 lo pone en el menú ⋮ de la fila y P19 muestra qué se
+ve: criticidad, observaciones, fotos, quién y cuándo), la cuarta solapa **«Sin relevar nunca»**
+(P21) y el MINOR de la revisión de diseño —filtrar desde otra solapa volvía a «En curso»—. Más las
+tres decisiones que el PM delegó en el juez: quién ve el nombre del agente, qué pasa con las fotos
+HEIC y si los defaults del Ministerio quedan como están.
+
+## Alcance acordado
+
+Entra: la pantalla «Ver informe» (solo lectura) enlazada desde P21 y desde la línea de tiempo de la
+solapa Infraestructura; la solapa «Sin relevar nunca» con su contador, su paginación y la acción
+«Asignar»; las píldoras dentro de cada panel; la regla de visibilidad del agente asignado; y el
+rechazo de HEIC/HEIF en la carga de fotos con el contrato móvil actualizado. Queda afuera, igual
+que en el Cambio 279: exportar, periodicidad y «en obra», prioridad, cambiar el vencimiento,
+validación por una tercera persona, los chips de «No disponibles», el contador del menú y la zona
+del agente (ver *Pendientes*).
+
+## Decisiones tomadas
+
+**La institución relevada no ve el nombre del agente asignado** (decisión del juez). En la solapa
+Infraestructura —y en cualquier lugar que mire quien solo tiene `dispositivo.ver`— un relevamiento
+en curso dice **«en curso»** y nada más. El nombre lo ven el **coordinador del edificio**
+(`inspeccion.asignar` **con alcance sobre ese edificio**) y el **propio agente**. El motivo es el
+mismo por el que el agente es externo (`AGENTE_DEBE_SER_EXTERNO`, mockup P21: «nunca se asigna al
+personal de la institución relevada»): el relevamiento sirve para que no se omitan irregularidades,
+y saber de antemano quién va a ir lo desarma. **Las indicaciones de la coordinación van con el
+nombre**, bajo la misma regla: son lo que la coordinación le encarga al agente —«verificar el estado
+de los techos»—, no el resultado del relevamiento. Lo que **no** se oculta es el resultado: quién
+relevó, cuándo y con qué criticidad se siguen viendo, porque el informe tiene que ser auditable.
+La regla es una sola función del servicio, `ve_la_asignacion`, con su versión por lote
+(`edificios_con_asignacion_visible`, una consulta para toda la página): **el template no evalúa
+permisos y el nombre que no se puede mostrar no se le pasa**.
+
+**El nombre también se filtraba por la solapa Historial**, y eso lo encontró el test: `TrazaInspeccion`
+escribe el detalle **legible al momento de la acción** —«Edificio X · agente Claudia Ríos · vence el…»—,
+así que el nombre viaja adentro del texto guardado y la auditoría del dispositivo lo mostraba. Para
+quien no pasa `ve_la_asignacion`, las líneas de un relevamiento **sin realizar, en curso o cancelado**, se **rearman
+desde el modelo** (edificio y vencimiento) y el «quién» pasa a ser «Equipo territorial». Se rearma y
+no se recorta el texto guardado: recortar depende del formato con el que se escribió y se rompe en
+silencio cuando ese formato cambia. Una vez realizado se ve todo, porque el resultado es auditable y
+la solapa ya dice quién relevó. El alcance lo resuelve el **servicio**
+(`edificios_de_dispositivo_con_asignacion_visible`, una consulta) y al selector le llegan el conjunto
+de ids y el id del usuario para reconocer al propio agente: `programas/selectors/auditoria_dispositivo.py`
+no evalúa capacidades. La excepción que muestra la traza original corresponde solo a `REALIZADA`.
+
+**Las fotos HEIC/HEIF se rechazan: la app manda JPEG** (decisión del juez). `core.validators.FOTO_EXTENSIONES`
+pierde `.heic` y `.heif`, y el mensaje —el que la app le muestra al agente— pasa a ser **«La foto
+tiene que llegar en JPEG, PNG o WEBP.»**: dice qué hacer, no «formato inválido». Un 400 no se
+reintenta, así que ese texto es lo único que el agente va a leer. La alternativa era convertir en el
+servidor, que pide una dependencia nativa (`libheif`) solo para que la galería del backoffice no
+muestre una celda gris; convertir en el teléfono es gratis y deja **una sola forma** de foto
+guardada. El Cambio 282 ya había puesto la compresión del lado de la app: ahora también la
+conversión. `ADJUNTO_EXTENSIONES` **no se toca** —los adjuntos de Becas y el F-00 siguen aceptando
+HEIC—: lo que se angosta es la foto de evidencia, que es la que se dibuja en un `<img>`.
+
+**Los defaults del Ministerio quedan como están** (decisión del juez, no hay código que cambiar):
+la escala de criticidad **Baja / Media / Alta**, los estados **Asignado / Completado / Cancelado** y
+que el **agente sea externo** a la institución relevada. Siguen siendo defaults —el modelo los tiene
+como `TextChoices` y lo del agente externo es la constante `AGENTE_DEBE_SER_EXTERNO`—, así que si el
+Ministerio los cambia se cambian ahí y no hay nada desparramado.
+
+**«Ver informe» tiene una sola regla de alcance y no lleva mixin de capacidad.** La pantalla la
+entran tres personas con capacidades distintas: el coordinador desde P21 (`inspeccion.asignar`), el
+agente que la cargó (`inspeccion.relevar`) y quien opera una institución del edificio
+(`dispositivo.ver`) desde la solapa Infraestructura. Poner una capacidad en la vista sería una
+**segunda** regla de alcance que se desincroniza de `inspecciones_visibles`; la única es esa, y lo
+que no está en ella da **404**, el mismo cuerpo que un id inexistente. Quien no tiene ninguna
+capacidad de Dispositivos cae ahí también, porque el servicio le devuelve el conjunto vacío.
+
+**La cuarta solapa lista edificios, no relevamientos.** «Sin relevar nunca» es
+`edificios_sin_relevar`: del alcance del coordinador, **activos** y sin ninguna inspección
+**realizada**. Una en curso no cuenta —es lo mismo que mide el semáforo (`SIN_RELEVAR`)— y una
+cancelada tampoco, porque no dejó resultado. Los inactivos no aparecen: `crear_inspeccion` los
+rechaza, así que ofrecer «Asignar» ahí sería ofrecer una acción que no existe. El edificio que ya
+tiene un relevamiento en curso **sí** aparece (sigue sin relevar) pero **sin el botón**, con el
+agente y el vencimiento: es la regla de «un solo relevamiento en curso por edificio» que
+`crear_inspeccion` hace cumplir. «Asignar» abre el **mismo modal del paso 2** que ya existía
+(`?asignar=<edificio>`), sin pieza ni parámetro nuevos.
+
+**Las píldoras se dibujan dentro de cada panel** (MINOR del Cambio 279). El formulario de filtros lo
+arma el servidor y la solapa la cambia Alpine en el navegador: con un solo oculto `tab` arriba, el
+valor era siempre la solapa que resolvió el servidor, así que filtrar parado en «Completados»
+devolvía a «En curso». Cada panel lleva su `ocultos=(("tab", <clave>),)`, que es el patrón que ya
+usaba P4 en la solapa Estadías. De paso, **«Estado» solo se ofrece en «En curso»**: vencido, por
+vencer y al día se derivan del vencimiento de lo que está en curso, y una píldora que no filtra nada
+confunde. La cuarta solapa no lleva píldoras: filtran relevamientos y ahí hay edificios.
+
+**Lo completado deja de ser «sin acciones».** El Cambio 279 trataba completado y cancelado como
+terminales sin menú; completado ahora tiene el ⋮ con **«Ver informe»**, que es lo único que queda
+por hacer con él (es lo que el mockup lista en las notas del menú de fila). Cancelado sigue sin
+menú: no dejó resultado.
+
+## Plan de pantalla
+
+**«Ver informe»** (`programas/templates/programas/dispositivos/relevamientos/informe.html`), pantalla
+nueva. Arquetipo **Detalle**, variante **apilado** declarada en la primera línea
+(`{# arquetipo: detalle + apilado #}`): es un área sola —el resultado—, y la ficha
+`arquetipos/detalle.md` manda secciones apiladas en surfaces, cada una `<section>` con
+`aria-labelledby` y su `<h2>`. Molde: la golden del arquetipo
+(`programas/templates/programas/becas/cupo/segmento_detail.html`); ninguna hermana de Dispositivos.
+
+- `{% page_header %}` con `eyebrow` = el edificio, `volver_url`/`volver_label` y el badge de
+  situación (`_relevamiento_situacion_badge.html`, el parcial que ya existía).
+- Tres `components/_stat_card.html` armadas en el servicio: Estado edilicio (el semáforo, con su
+  tono), Relevado el / Vence el, y Fotos.
+- Sección «Resultado del relevamiento»: `<dl>` con edificio, criticidad
+  (`_relevamiento_criticidad_badge.html`), quién relevó y —solo si corresponde— el agente asignado;
+  observaciones en `components/_alerta.html`, y el motivo si está cancelado.
+- Sección «Indicaciones para el agente», solo cuando el servicio las pasa.
+- Sección «Registro fotográfico» con `components/_galeria_fotos.html`.
+
+Sin novedades de inventario: ninguna clase, include, variante ni valor fuera de lo que ya existe.
+`npm run build:tailwind` no produjo diff.
+
+**Pieza canónica tocada:** `templates/components/_linea_tiempo.html` suma la ranura opcional
+`enlace` + `enlace_texto` (link al final de la línea del texto, con el `cuando` del evento en el
+nombre accesible para que diez «Ver» no se llamen igual). Es lo que convierte la línea de tiempo de
+la solapa Infraestructura en el «Historial de relevamientos» con acción por fila que pide P19. Sin
+`enlace`, el HTML del evento es el de siempre carácter por carácter (test). La ficha
+`.claude/design/componentes/ficha_timeline.md` se actualiza en el mismo diff, incluido su límite
+(«las fotos y el `enlace` son las únicas ranuras»).
+
+## Implementación
+
+El coordinador entra a Relevamientos y ahora ve **cuatro** solapas. En «Completados», el ⋮ de cada
+fila lleva a **Ver informe**: una pantalla de solo lectura con el semáforo del edificio, la
+criticidad, las observaciones, quién relevó y cuándo, y la galería de la tanda. El botón «volver»
+devuelve a donde se entró: al listado con sus filtros si se vino de P21 (el querystring se **rearma**
+con `_url_lista`, no se copia crudo), al detalle del dispositivo en la solapa Infraestructura si se
+vino de P4 (el `?dispositivo=` se valida contra el alcance del usuario), y a la lista de Dispositivos
+si no hay nada válido.
+
+«Sin relevar nunca» lista los edificios que todavía no tienen un relevamiento cerrado, con «Asignar»
+cuando se puede. Desde la solapa Infraestructura, cada relevamiento de la línea de tiempo enlaza su
+informe; y un relevamiento en curso, para la institución, dice solo «en curso».
+
+En el servidor, la galería de fotos pasó a tener **una sola definición**: `fotos_para_galeria` vive
+ahora en `programas/services/inspecciones.py` —junto con `FOTOS_POR_TANDA`— y la usan la línea de
+tiempo de P4 y el informe. `infraestructura_del_dispositivo` recibe el `usuario` para decidir qué
+muestra, y resuelve el alcance **una vez para toda la página y solo si hay algún relevamiento en
+curso** que lo necesite: preguntarlo por fila sería un N+1.
+
+## Archivos
+
+`programas/views/dispositivos_relevamientos.py` · `programas/dispositivos_urls.py` ·
+`programas/templates/programas/dispositivos/relevamientos/informe.html` (nuevo) ·
+`programas/templates/programas/dispositivos/relevamientos/list.html` ·
+`programas/services/inspecciones.py` · `programas/services/detalle_dispositivo.py` ·
+`programas/views/dispositivos_legajo.py` · `programas/selectors/auditoria_dispositivo.py` ·
+`core/validators.py` ·
+`programas/api/serializers_inspecciones.py` · `programas/api/views_inspecciones.py` ·
+`templates/components/_linea_tiempo.html` · `.claude/design/componentes/ficha_timeline.md` ·
+`scripts/perf_budgets.json` · `programas/tests/test_dispositivos_relevamiento_informe.py` (nuevo) ·
+`programas/tests/test_dispositivos_relevamientos_listado.py` ·
+`programas/tests/test_dispositivos_infraestructura.py` ·
+`programas/tests/test_dispositivos_inspecciones.py` ·
+`programas/tests/test_api_campo_inspecciones.py` · `core/tests/test_nodo_ui_piezas.py`
+
+## Base de datos
+
+No requiere. El rechazo de HEIC/HEIF **no cambia el modelo**: `validar_foto` sigue siendo el mismo
+validador en el mismo campo, y lo ya guardado no se revalida (`_committed`), así que una foto HEIC
+anterior se sigue viendo —sin vista previa, con la celda gris de la galería— y se sigue
+descargando.
+
+## Contrato para el equipo móvil (`Chaco-mobile`)
+
+Cambia **una** línea del contrato del Cambio 282, la de las fotos:
+
+> **Fotos**: **JPEG, PNG o WEBP** con firma real, hasta 5 MB **después** de comprimir; una por
+> request. **La conversión y la compresión son de la app**: el celular saca HEIC por defecto y el
+> servidor ya **no** lo acepta. Sugerido: convertir a JPEG, lado mayor ~1600 px, calidad ~0,8 (deja
+> fotos de 300-600 KB). Un HEIC/HEIF vuelve **400** con
+> `detail = "La foto tiene que llegar en JPEG, PNG o WEBP."`, que es el texto a mostrarle al agente;
+> como todo 400, **no se reintenta**.
+
+El resto del contrato —rutas, idempotencia por `uuid_cliente`, los códigos del 409, el orden de
+sincronización— no cambia.
+
+## Revisión
+
+**14/10/2026 — Correcciones de la revisión independiente del carril C2.**
+
+- **MAJOR, P21:** coordinar el edificio A y tener solo lectura sobre B no habilita el nombre del
+  agente de B. Cada fila resuelve la regla por edificio o por identidad del agente y muestra «—»
+  si no corresponde. La píldora «Asignado a» ofrece únicamente agentes de asignaciones visibles.
+  Se mantiene una consulta de alcance por lote, también para Completados y Cancelados.
+- **MAJOR, Historial:** cancelar no equivale a realizar. Las trazas de asignación, reasignación,
+  cancelación, resultado y foto se rearman sin nombres cuando la asignación no es visible y el
+  relevamiento no está `REALIZADA`. Se conserva la excepción del resultado realizado y auditable.
+- **MINOR, Historial:** el agente que además puede leer el legajo ve su propia asignación. Se
+  compara su id con el agente actual de cada relevamiento; tras reasignarlo pierde esa visibilidad.
+  Ser agente de una inspección no abre las asignaciones de todo el edificio.
+
+**Regresión comprobada contra `e06c37d6`:** cinco tests nuevos, 12 fallos de privacidad y cero
+errores de fixtures. `PrivacidadAsignacionTests` prueba fila en los tres estados y opciones de
+píldora, con un coordinador de A que tiene todas las capacidades operativas en B salvo asignar.
+`PrivacidadHistorialTests` prueba cancelar después de reasignar, los cinco tipos de traza en curso
+y cancelados, y al propio agente antes y después de perder la asignación. `programa.configurar`
+se excluye de estos lectores porque implica alcance global y anularía la condición investigada.
+
+Mutaciones verificadas por separado: nombre habilitado siempre en la vista; template leyendo el
+nombre crudo; píldora sin restringir asignaciones; Historial equiparando cancelado con realizado;
+Historial sin la condición del propio agente. Las cinco volvieron a poner su test en rojo
+(3, 3, 1, 6 y 1 fallos respectivamente), sin errores de ejecución, y se restauró el arreglo.
+
+**Validación de esta revisión:** 208 tests de los seis módulos pedidos en verde, incluidos los
+cinco nuevos. `check` OK, 232 templates compilados y cero bloques sin destino, ratchet contra
+`origin/development` sin hallazgos nuevos, siete goldens sin hallazgos, contrato de diseño,
+presupuestos de performance, ruff y coherencia de requerimientos OK. Se usa `.venv` de este
+worktree con Python 3.12 y Django 5.2.17; los tests corren sobre SQLite. Solo en ese venv se
+reemplazó `mysqlclient==2.1.1` por la rueda de `2.3.0`, porque el pin requiere un compilador
+de C++ que no está instalado; los archivos de dependencias del repo conservan sus pines.
+
+## Validación
+
+`manage.py check` OK · `makemigrations --check --dry-run` (con `DJANGO_SYNCDB_PROJECT_APPS=False`)
+limpio · `compile_templates.py --bloques` 0 · `design_audit.py --arquetipo detalle informe.html` OK
+(variante «detalle + apilado») · `--arquetipo listado list.html` OK · `--ratchet` 0 hallazgos nuevos
+· `--goldens` 0 · `check_design_agent.py --changed` y `--limites` OK · `npm run build:tailwind` sin
+diff · `ruff check` y `ruff format --check` limpios · `requerimientos.py --check` OK.
+`check_perf_budgets.py` OK (justificado).
+
+Tests: `test_dispositivos_relevamiento_informe` (nuevo), `test_dispositivos_relevamientos_listado`,
+`test_dispositivos_infraestructura`, `test_dispositivos_inspecciones`,
+`test_api_campo_inspecciones`, `core.tests.test_nodo_ui_piezas` y `programas.tests.test_arquitectura`
+en verde (Py 3.12 + Dj 5.2, `.venv312`).
+
+**Presupuesto.** `dispositivos_relevamientos_listado` sube de **13 a 16** con su entrada nueva en
+`_meta.adjustments` (RED-62): las tres consultas de la cuarta solapa son **fijas** —el `COUNT` del
+paginador de edificios, su página y los relevamientos en curso de esa página en una sola lectura—,
+no una por fila. El test de presupuesto que ya existía mide con 2 y con 20 relevamientos en curso y
+las cuatro solapas con filas, y da 16 en los dos casos. `dispositivos_infraestructura` **no sube**:
+la consulta del alcance solo se paga cuando la página trae algo en curso y el usuario podría
+coordinar el edificio. `dispositivos_auditoria` tampoco: el alcance de la solapa Historial se
+resuelve **fuera** del feed, en una consulta que no depende de cuántas trazas haya.
+
+**Mutación**, cada una con su rojo:
+
+- `informe_de_relevamiento` devolviendo siempre el nombre del agente → el test de la institución en
+  el informe se pone rojo (y el de la solapa Infraestructura, que mira el `cuando` del evento).
+- `ve_la_asignacion` preguntando solo por la capacidad en vez del alcance sobre el edificio → el
+  coordinador de otro edificio pasa a verlo.
+- `evento_de_inspeccion` devolviendo siempre `traza.detalle` → el nombre vuelve a aparecer en la
+  solapa Historial del detalle (el test mira la **pantalla entera**, no el panel de Infraestructura).
+- La vista del informe buscando en `InspeccionEdificio.objects.all()` en vez de
+  `inspecciones_visibles` → el ajeno pasa de 404 a 200 y vuelve el oráculo.
+- `edificios_sin_relevar` sin el filtro de alcance → aparece el edificio del CIS; sin `activo=True`
+  → aparece el inactivo; excluyendo `ASIGNADA` en vez de `REALIZADA` → el edificio con uno en curso
+  desaparece de la solapa y el cancelado también.
+- La fila de «Sin relevar» ofreciendo «Asignar» con uno en curso → el test del botón se pone rojo.
+- El oculto de las píldoras volviendo a `solapa_actual` → el panel de Completados manda
+  `tab=en_curso` y el test del MINOR se pone rojo.
+- `FOTO_EXTENSIONES` con `.heic` de vuelta → los tests del servicio y de la API dejan de ver el 400;
+  el mensaje sin «JPEG, PNG o WEBP» → rojo en los dos.
+- `enlace` dibujado siempre en `_linea_tiempo.html` → el test de «sin enlace el HTML es el de
+  siempre» se pone rojo.
+
+## Puesta en marcha en el servidor
+
+No requiere. Para que el coordinador vea la solapa nueva y el menú «Ver informe» alcanza con la
+capacidad `inspeccion.asignar` que ya pedía P21 (ABM de Roles, lo configura el PM). **Avisar al
+equipo móvil** del rechazo de HEIC/HEIF antes de que la release llegue a testing: una app que todavía
+mande HEIC va a recibir 400 en cada foto.
+
+## Pendientes / a definir
+
+- Lo que el Cambio 279 dejó anotado y sigue igual: **exportar**, **periodicidad** y **«en obra»**,
+  **prioridad**, **cambiar el vencimiento**, **validación por una tercera persona**, los chips de
+  **«No disponibles para esta asignación»**, el **contador del menú** y la **zona del agente**.
+- **El informe muestra hasta 24 fotos** (el tope de `components/_galeria_fotos.html`, que la pieza
+  anuncia con «Mostrando 24 de N»). Una tanda más grande necesita paginar la galería; hoy ningún
+  relevamiento se acerca.
+- **«Sin relevar nunca» no se filtra**: no lleva píldoras porque las que hay filtran relevamientos.
+  Si el alcance de un coordinador llega a tener muchos edificios, va a querer buscar por nombre o
+  por localidad.
+- **La solapa Infraestructura no distingue qué relevamiento está cancelado** en la línea de tiempo
+  (`inspecciones_de_dispositivo` los excluye por defecto); el informe sí los muestra si se llega por
+  la URL.
+
+## Apartamientos del mockup
+
+- **P21, columna «Acciones»:** el mockup dibuja un `.btn.s.sm` «Ver» suelto en la fila; acá «Ver
+  informe» va en el menú ⋮, que es donde las **notas** del mismo tablero lo listan («Menú ⋮ por
+  fila: ver informe, reasignar…»). El `.btn` suelto de la fila lo ocupa «Reasignar», que es la
+  acción de lo que está en curso.
+- **P21, «Ver informe» solo en lo completado:** el mockup ofrece el «Ver» —y las notas, el «ver
+  informe» del ⋮— también en las filas **en curso**. Acá el ⋮ de lo que está en curso tiene
+  Reasignar y Cancelar, y «Ver informe» aparece recién cuando hay resultado, que es el alcance que
+  fijó el juez. La pantalla **sí** sabe dibujar uno en curso —se llega desde la línea de tiempo de
+  P19, y dice «todavía sin resultado» con el vencimiento—, así que sumarlo al menú de En curso es
+  una línea si el PM lo quiere.
+- **P21, columnas de la cuarta solapa:** el mockup no le da tabla propia: usa la misma, con una fila
+  por **dispositivo** y columnas Periodicidad y Última carga que no existen en el MVP. La solapa de
+  edificios lleva Edificio · Asignado a · Estado · Acciones, con el badge gris «Sin relevar» que el
+  mockup sí muestra.
+- **P21, solapas:** el mockup tiene tres —En curso, Completados, Sin relevar nunca— y acá son
+  cuatro: «Cancelados» ya existía desde el Cambio 279, porque cancelar es una acción del producto y
+  lo cancelado tiene que poder mirarse.
+- **P21, filtros:** siguen siendo píldoras y ahora van dentro de cada panel, no en la `.fcard`
+  encima de la card. El mockup las pone arriba; la ficha de filtros prohíbe combinar la tarjeta de
+  filtros con las píldoras, y el oculto `tab` por panel es lo que arregla el MINOR.
+- **P19, «Historial de relevamientos»:** el mockup lo tiene como tabla aparte, debajo del registro
+  fotográfico; en el MVP las dos cosas son **la misma** línea de tiempo (Cambio 280), así que el
+  «Ver» de esa tabla es el enlace de cada evento.
+- **P19/P21, «Informe» como adjunto (`📎 INF-0219`):** el mockup muestra un número de informe
+  adjunto; no existe ese documento, así que no se dibuja. El informe **es** la pantalla.
+
+## Reversión
+
+Revertir el commit: no hay migración ni datos nuevos. Lo único que no vuelve solo es el rechazo de
+HEIC/HEIF —si se revierte, el servidor vuelve a aceptarlos y la galería vuelve a necesitar la celda
+gris, que nunca se sacó—. Los relevamientos y sus fotos quedan donde están; lo que se pierde son dos
+pantallas de lectura.
+
+## Historial
+
+Entrada nueva. Cierra los pendientes del Cambio 279 que tenían dato y servicio, y registra las
+decisiones del juez del 14/10/2026 sobre los puntos que el PM le delegó.
 
 ---
