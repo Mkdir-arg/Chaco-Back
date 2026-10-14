@@ -379,8 +379,9 @@ class UnSoloOrigenDelEstadoDeLaPlazaTests(BaseIngreso):
         totales = contexto["totales"]
 
         self.assertEqual(totales["ocupadas"], celdas.count("Ocupada"))
-        # El servicio cuenta reservas y préstamos vigentes juntos.
-        self.assertEqual(totales["reservadas"], celdas.count("Reservada") + celdas.count("Prestada"))
+        # El resumen de P5 desglosa el agregado del servicio con los mismos estados del mapa.
+        self.assertEqual(totales["reservadas"], celdas.count("Reservada"))
+        self.assertEqual(totales["prestadas"], celdas.count("Prestada"))
         self.assertEqual(totales["disponibles"], celdas.count("Disponible"))
         self.assertEqual(totales["fuera_servicio"], celdas.count("Fuera de serv."))
         self.assertEqual(totales["total"], len(celdas))
@@ -388,8 +389,12 @@ class UnSoloOrigenDelEstadoDeLaPlazaTests(BaseIngreso):
         for item in contexto["sectores"]:
             estados = [p["estado"] for p in item["plazas"]]
             self.assertEqual(item["resumen"]["ocupadas"], estados.count("Ocupada"))
+            self.assertEqual(item["resumen"]["reservadas"], estados.count("Reservada"))
+            self.assertEqual(item["resumen"]["prestadas"], estados.count("Prestada"))
             self.assertEqual(item["resumen"]["disponibles"], estados.count("Disponible"))
-        self.assertEqual((totales["ocupadas"], totales["reservadas"], totales["disponibles"]), (1, 2, 1))
+        self.assertEqual(
+            (totales["ocupadas"], totales["reservadas"], totales["prestadas"], totales["disponibles"]), (1, 1, 1, 1)
+        )
 
     def test_una_plaza_ocupada_y_reservada_a_la_vez_se_cuenta_una_sola_vez(self):
         """El encabezado cuenta cada plaza **una** vez, con la misma precedencia que el mapa.
@@ -416,12 +421,17 @@ class UnSoloOrigenDelEstadoDeLaPlazaTests(BaseIngreso):
 
         self.assertEqual(celdas, ["Ocupada", "Ocupada", "Fuera de serv."])
         self.assertEqual(totales["ocupadas"], celdas.count("Ocupada"))
-        self.assertEqual(totales["reservadas"], celdas.count("Reservada") + celdas.count("Prestada"))
+        self.assertEqual(totales["reservadas"], celdas.count("Reservada"))
+        self.assertEqual(totales["prestadas"], celdas.count("Prestada"))
         self.assertEqual(totales["fuera_servicio"], celdas.count("Fuera de serv."))
         self.assertEqual(totales["disponibles"], celdas.count("Disponible"))
         self.assertGreaterEqual(totales["disponibles"], 0)
         self.assertEqual(
-            totales["ocupadas"] + totales["reservadas"] + totales["fuera_servicio"] + totales["disponibles"],
+            totales["ocupadas"]
+            + totales["reservadas"]
+            + totales["prestadas"]
+            + totales["fuera_servicio"]
+            + totales["disponibles"],
             totales["total"],
         )
 

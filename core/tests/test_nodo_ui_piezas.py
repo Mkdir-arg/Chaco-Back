@@ -534,6 +534,23 @@ class EstadoVacioTest(SimpleTestCase):
 
 
 class AlertaTest(SimpleTestCase):
+    def test_contenido_propio_va_fuera_del_parrafo_en_las_tres_ramas(self):
+        contenido = render_to_string("programas/dispositivos/legajo/_duplicados.html")
+        for extra in ({"tono": "warning"}, {"tono": "danger", "icono": "triangle-exclamation"}, {"tono": "info"}):
+            with self.subTest(extra=extra):
+                html = render_to_string(
+                    ALERTA,
+                    {
+                        **extra,
+                        "texto": "Texto previo",
+                        "contenido_template": "programas/dispositivos/legajo/_duplicados.html",
+                    },
+                )
+                self.assertInHTML(contenido, html)
+                # El párrafo/span de texto debe cerrarse antes de incluir contenido de bloque.
+                cierre = "</span>" if extra["tono"] == "info" else "</p>"
+                self.assertLess(html.index(cierre), html.index("data-duplicados-contenido"))
+
     def test_warning_es_alert_con_titulo_y_texto(self):
         html = render_to_string(ALERTA, {"tono": "warning", "titulo": "Sin padrón", "texto": "Link abierto."})
 

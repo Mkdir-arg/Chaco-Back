@@ -57,7 +57,7 @@ class FidelidadFFTests(BaseDetalle):
         respuesta = self.client.get(reverse("dispositivos:crear"))
         alerta = render_to_string(
             "components/_alerta.html",
-            {"tono": "warning", "titulo": "Posibles duplicados", "texto": "Revisá las coincidencias antes de guardar."},
+            {"tono": "warning", "contenido_template": "programas/dispositivos/legajo/_duplicados.html"},
         )
         self.assertInHTML(alerta, respuesta.content.decode())
         self.assertContains(respuesta, '<div id="duplicate-search" class="hidden">')
@@ -87,7 +87,7 @@ class FidelidadFFTests(BaseDetalle):
             hasta=AHORA + timedelta(hours=1),
         )
         respuesta = self.client.get(reverse("dispositivos:sectores", args=[self.cis.pk]))
-        self.assertContains(respuesta, "1 reservadas o prestadas", count=2)
+        self.assertContains(respuesta, "0 reservadas · 1 prestada · ", count=2)
         self.assertContains(
             respuesta,
             '<p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">' + self.cis.nombre + "</p>",

@@ -138,7 +138,7 @@ def plaza_para_accion(dispositivo, plaza_pk, *, puede_liberar=False, puede_confi
 def _resumen(conteo):
     """Las cifras de un `Conteo` del servicio de ocupación, con las claves que lee la pantalla.
 
-    `reservadas` es la cifra del servicio: reservas **y** préstamos vigentes.
+    P5 separa las reservas de los préstamos; P4 conserva el agregado del servicio.
     """
 
     return {
@@ -146,7 +146,8 @@ def _resumen(conteo):
         "operativas": conteo.operativas,
         "fuera_servicio": conteo.fuera_de_servicio,
         "ocupadas": conteo.ocupadas,
-        "reservadas": conteo.reservadas,
+        "reservadas": conteo.reservadas_sin_prestamo,
+        "prestadas": conteo.prestadas,
         "disponibles": conteo.disponibles,
         "porcentaje": tension_de_ocupacion(conteo).porcentaje,
     }
