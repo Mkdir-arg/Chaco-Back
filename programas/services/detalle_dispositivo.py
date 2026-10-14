@@ -224,16 +224,22 @@ def _fecha_legible(fecha):
     return date_format(fecha, "d/m/Y")
 
 
-def alertas_del_dispositivo(dispositivo, momento=None):
+def alertas_del_dispositivo(dispositivo, momento=None, usuario=None):
     """Las alertas vigentes del dispositivo, de la más severa a la menos, listas para `_alerta.html`.
 
     Salen del registro de reglas de aviso (``core.services.vencimientos``, ámbito
     ``dispositivos``): se derivan del dato en cada pedido y no bloquean nada. Cada una
     lleva severidad, origen, fecha y —si hay pantalla donde resolverla— su enlace.
+
+    ``usuario`` es quien mira, y decide **solo el enlace**: las pantallas donde se
+    resuelve una alerta tienen su propia capacidad, así que ofrecerle el link a quien va a
+    rebotar con un 403 sería anunciarle una puerta cerrada. Qué alertas hay no depende de
+    quién mira (ver `programas.services.alertas_dispositivos`). Sin usuario, las alertas
+    que dependen de una capacidad llegan sin enlace.
     """
 
     alertas = []
-    for aviso in avisos(AMBITO, dispositivo, momento or timezone.now()):
+    for aviso in avisos(AMBITO, dispositivo, momento or timezone.now(), usuario=usuario):
         fecha = _fecha_legible(aviso.fecha)
         pie = f"{aviso.origen} · desde el {fecha}" if fecha else aviso.origen
         alertas.append(
