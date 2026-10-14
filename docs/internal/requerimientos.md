@@ -423,6 +423,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 290 | Concurrencia real del MVP de Dispositivos y orden de bloqueo de las reservas | Dispositivos · estadías, reservas, relevamiento edilicio y bitácora | `#datos` `#performance` `#mobile` | Encargo T1 del juez del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 291 | Alta y edición de edificio, sectores y plazas | Dispositivos · capacidad instalada | `#ui` `#datos` `#rbac` `#performance` | Juez — carril C5 del cierre del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 292 | Notificaciones: las imágenes del .zip viajan incrustadas en cada correo y se retira la ruta pública | Transversal — notificaciones (armado del correo, vista previa, alta y edición) | `#correo` `#datos` `#ui` | PM — plan B del 14/10/2026: el WAF de ECOM bloquea la ruta pública del Cambio 285 | 14/10/2026 | 🟢 **Hecho** | `notificaciones.0004` |
+| 296 | Test del censo independiente de la hora del runner | Dispositivos · tests de bitácora y censo | `#datos` `#infra` | Juez — encargo urgente en sesión | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -38284,6 +38285,103 @@ trazas que se hayan cargado. No requiere borrar datos ni modificar la historia d
 Entrada nueva y única de C5. Retoma el commit `c2e82f24`, completa edición de plaza y verificaciones,
 y corrige unicidad entre sectores y respuestas de alcance. Rebasado únicamente C5 sobre
 `origin/development` después del merge de #853; la entrada 287 de C1 se conserva desde la base.
+
+---
+
+---
+
+# Cambio 296 — Test del censo independiente de la hora del runner
+
+🟢 **HECHO — 14/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · tests de bitácora y censo |
+| **Etiquetas** | `#datos` `#infra` |
+| **Solicitante** | Juez — encargo urgente en sesión |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Sin issue · Épica #127 |
+| **Partes afectadas** | CI: `programas/tests/test_dispositivos_bitacora_automatica.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Urgente y chico: solo tests». El test del censo de novedades automáticas falla según la
+hora del runner: la guardia de 24 horas empieza a las 08:00 y un ingreso de hace tres
+horas puede pertenecer al día operativo anterior. Revisar el mismo patrón en los tests
+de Dispositivos y comprobar el arreglo a las 08:30, 10:59 y 23:30 locales.
+
+## Alcance acordado
+
+Corregir los datos y la fecha consultada del test, revisar los tests hermanos y registrar
+la evidencia. Fuera de alcance: código de producción, UI, roles y migraciones.
+
+## Decisiones tomadas
+
+- Ingreso ayer a las 10:00 y egreso a las 12:00 locales, con
+  `timezone.localtime(...).replace(...)`: ambos momentos ya pasaron y pertenecen al
+  mismo día operativo, independientemente de cuándo corre el CI.
+- Consultar `fecha_operativa_de(self.cis, ingreso)`, porque se verifica el censo de los
+  movimientos cargados y no el del momento actual.
+- Conservar las aserciones de ingresos, egresos y cuadratura: no se cambia la regla probada.
+- Revisar `programas/tests/test_dispositivos_*.py`: no se encontró otro caso de restas
+  de horas comparadas con el día operativo o turno actual que falle en una ventana diaria.
+  Las otras restas verifican intervalos, vigencia de reservas o el momento del movimiento;
+  los tests del censo y de la pantalla de bitácora ya usan fechas y relojes explícitos.
+- Comprobar los relojes y la mutación con scripts temporales fuera del repo, sin agregar
+  infraestructura permanente ni modificar otros worktrees.
+
+### Apartamientos del mockup
+
+No aplica: solo tests, sin cambios de pantalla ni assets. No requiere Plan de pantalla.
+
+## Implementación
+
+`NoRompeElCensoNiLaAuditoriaTests.test_el_censo_sigue_contando_movimientos_y_no_novedades`
+usa dos momentos del día anterior y pide su censo. El comportamiento del sistema no cambia.
+
+## Archivos
+
+- `programas/tests/test_dispositivos_bitacora_automatica.py`.
+- `docs/internal/requerimientos.md`: esta única entrada y su fila del índice.
+
+## Base de datos
+
+No requiere migraciones ni cambios de datos del sistema. Pruebas locales con SQLite en memoria.
+
+## Validación
+
+- Rojo previo con `unittest.mock.patch("django.utils.timezone.now")` a las 08:30 de
+  `America/Argentina/Buenos_Aires`: `(0, 0) != (1, 1)`.
+- Test corregido en verde a las 08:30, 10:59 y 23:30 locales del 14/10/2026.
+- Mutación: quitar `ingreso` de `fecha_operativa_de` vuelve a consultar el día actual y
+  pone rojos los tres relojes. Restauración desde copia de bytes: los tres verdes otra vez.
+- Módulo de bitácora automática y arquitectura: 27 tests OK.
+- `test_dispositivos_censo`: 23 tests OK. `--tag performance programas`: 23 tests OK;
+  `check_perf_budgets.py`: ningún presupuesto sube.
+- `manage.py check`: sin problemas. `makemigrations --check --dry-run` con syncdb False:
+  sin cambios. `check_migraciones.py`: sin migraciones nuevas.
+- `ruff check .` y `ruff format --check programas/ core/ users/`: OK.
+- `compile_templates.py`: 232 templates, 0 errores; ratchet contra `origin/development`:
+  ninguna UI cambiada; goldens: 0 hallazgos. Tailwind compila sin diferencias en CSS.
+- Tras el commit del test, `check_design_agent.py --changed` y
+  `--limites --base origin/development`: OK.
+- `requerimientos.py --check`: OK. Como el lector solo indexa números, se verificaron
+  también la fila y la entrada `296` con el mismo checker sobre una copia temporal
+  numerada fuera del repo; el original conserva `296` para el juez.
+
+## Puesta en marcha en el servidor
+
+No requiere: el cambio afecta exclusivamente la suite de tests.
+
+## Pendientes / a definir
+
+El juez asigna el número definitivo a `296`. Sin decisiones funcionales pendientes.
+
+## Reversión
+
+Revertir los commits del test y de este registro. No se pierden datos; vuelve la dependencia
+horaria del test anterior.
 
 ---
 
