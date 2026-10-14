@@ -38,6 +38,9 @@ sector (header con título y bajada, cuerpo con la grilla).
 - Una plaza con `url` es un `<a>` real: se llega con Tab, se activa con Enter y muestra el foco nativo.
   Una plaza sin `url` es informativa y no entra en el orden de tabulación. La vista decide cuáles se
   pueden elegir (p. ej. en el ingreso, solo las disponibles); el componente no lo infiere del estado.
+- En P5, quien puede configurar ve «Editar plaza» dentro del modal de su acción. Si no puede
+  liberar una reserva, la celda enlaza directamente a la edición de código y tipo; esa edición
+  no cambia la ocupación. El sector vacío ofrece «Agregar plazas» desde la pantalla consumidora.
 - La celda con enlace lleva siempre una clase `bg-*`: sin ella la regla global de enlaces de
   `nodo-brand.css` (`a:not([class*="bg-"])`, con `!important`) le pisaría el color del tono.
 
