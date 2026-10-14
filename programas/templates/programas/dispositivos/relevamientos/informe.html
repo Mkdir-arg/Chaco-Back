@@ -1,4 +1,4 @@
-{# arquetipo: detalle + apilado #}{# Ver informe de un relevamiento edilicio (P21, menu de fila; P19, linea de tiempo). Un area sola -el resultado-, asi que la ficha arquetipos/detalle.md manda secciones apiladas en surfaces. Molde: golden de Detalle (becas/cupo/segmento_detail.html). Es SOLO LECTURA: no hay ninguna accion que mute. #}
+{# arquetipo: detalle + apilado #}{# Informe de un relevamiento edilicio (P21/P19). Un area sola: secciones apiladas, molde golden becas/cupo/segmento_detail.html. La coordinacion puede marcar la revision con ModernModal y POST. #}
 {% extends "includes/base.html" %}
 {% load nodo_ui %}
 {% block title %}Dispositivos · Relevamiento · {{ edificio.nombre }}{% endblock %}
@@ -9,7 +9,15 @@
   {# ===== PageHeader ===== #}
   {% page_header titulo="Informe del relevamiento" eyebrow=edificio.nombre volver_url=volver_url volver_label=volver_label %}
     {% bajada %}{{ edificio.codigo }}{% if edificio.localidad %} · {{ edificio.localidad }}{% endif %}{% if realizada %} · relevado el {{ relevamiento.realizada_en|date:"d/m/Y" }} por {{ relevo }}{% else %} · vence el {{ relevamiento.fecha_vencimiento|date:"d/m/Y" }}{% endif %}{% endbajada %}
-    {% include "programas/dispositivos/_relevamiento_situacion_badge.html" with situacion=situacion texto=situacion_texto %}
+    {% include "programas/dispositivos/_relevamiento_situacion_badge.html" with situacion=situacion texto=situacion_texto relevamiento=relevamiento only %}
+    {% if puede_revisar %}
+    {% csrf_token %}
+    <button type="button" class="btn-nodo btn-secondary btn-sm"
+            data-confirm-url="{{ url_revisar }}" data-confirm-title="¿Marcar como revisado?"
+            data-confirm-text="{{ edificio.nombre }}" data-confirm-ok="Sí, marcar como revisado" data-confirm-danger="false">
+      <i class="fas fa-circle-check" aria-hidden="true"></i> Marcar como revisado
+    </button>
+    {% endif %}
   {% endpage_header %}
 
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -33,6 +41,10 @@
         {% if agente %}
         {# El nombre del agente lo decide el servicio (`ve_la_asignacion`): a la institución relevada no se le pasa #}
         <div><dt class="text-xs font-semibold uppercase text-body-subtle">Agente asignado</dt><dd class="mt-1 text-body">{{ agente }}</dd></div>
+        {% endif %}
+        {% if relevamiento.revisado_en %}
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Revisado por</dt><dd class="mt-1 text-body">{{ revisor }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Revisado el</dt><dd class="mt-1 text-body">{{ relevamiento.revisado_en|date:"d/m/Y H:i" }}</dd></div>
         {% endif %}
       </dl>
       {% if relevamiento.observaciones %}
@@ -71,3 +83,4 @@
   </section>
 </div>
 {% endblock %}
+{% block customJS %}{% if puede_revisar %}{% include "programas/becas/_confirm_js.html" %}{% endif %}{% endblock %}

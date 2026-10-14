@@ -1842,6 +1842,15 @@ class InspeccionEdificio(TimeStamped):
         verbose_name="Realizado por",
     )
     motivo_cancelacion = models.CharField(max_length=200, blank=True, verbose_name="Motivo de la cancelación")
+    revisado_en = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de revisión")
+    revisado_por = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Revisado por",
+    )
     # App sin conexión (task 39): el identificador que el celular generó para el envío del
     # resultado. Reenviar el mismo es idempotente; otro sobre un relevamiento ya realizado es
     # un conflicto. La columna es `char(36)` en MySQL/MariaDB (programas.0093).
@@ -2018,6 +2027,7 @@ class TrazaInspeccion(models.Model):
         CANCELADA = "CANCELADA", "Relevamiento edilicio cancelado"
         REALIZADA = "REALIZADA", "Resultado del relevamiento edilicio"
         FOTO = "FOTO", "Foto sumada a un relevamiento edilicio"
+        REVISADA = "REVISADA", "Relevamiento edilicio revisado"
 
     inspeccion = models.ForeignKey(
         InspeccionEdificio,
