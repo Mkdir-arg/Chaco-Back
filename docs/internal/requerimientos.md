@@ -430,7 +430,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 300 | P4 en celular y DNI con separador de miles | Dispositivos · P2/P4/P5/P6/P7/P10/P16/P21 | `#ui` `#textos` | Juez — carril FD | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 301 | Correcciones menores de fidelidad FA–FD | Dispositivos · P4/P5/P6/P7/P10/P16 | `#ui` `#rbac` `#performance` `#textos` | Juez — carril FE | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 302 | Segunda pasada de fidelidad del MVP: instituciones y tablas compartidas | Dispositivos · P2/P3/P4/P5 · tablas transversales | `#ui` `#textos` `#performance` | PM / juez — carril FF | 14/10/2026 | 🟢 **Hecho** | No requiere |
-| NNN | Separar reservas y préstamos y corregir el contenido de duplicados | Dispositivos · P3/P5 | `#ui` `#textos` `#performance` | PM / juez — carril FG | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 303 | Separar reservas y préstamos y corregir el contenido de duplicados | Dispositivos · P3/P5 | `#ui` `#textos` `#performance` | PM / juez — carril FG | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -39603,7 +39603,9 @@ Entrada nueva y única de FF. No se modifican entradas anteriores.
 
 ---
 
-# Cambio NNN — Separar reservas y préstamos y corregir el contenido de duplicados
+---
+
+# Cambio 303 — Separar reservas y préstamos y corregir el contenido de duplicados
 
 🟢 **HECHO — 14/10/2026** · Carril FG · el juez asigna el número definitivo.
 
@@ -39728,7 +39730,7 @@ existente usando el tipo ya almacenado en `ReservaPlaza`.
   no se usa. Corrida final de snapshots + alerta: 19 tests en verde.
 - Ruff check y format sobre `programas/ core/ users/` OK (503 archivos ya formateados),
   con el venv indicado. `requerimientos.py --check` OK para las entradas numeradas;
-  `NNN` queda como marcador del juez, con una única cabecera y una única fila nuevas.
+  `303` queda como marcador del juez, con una única cabecera y una única fila nuevas.
 - Después de los commits: `check_design_agent.py --changed` y
   `--limites --base origin/development` OK. Rama rebasada sobre el merge de FF.
 
@@ -39738,7 +39740,7 @@ No requiere más que el deploy habitual. No hay nuevos assets, variables ni coma
 
 ## Pendientes / a definir
 
-El juez asigna el número definitivo a `NNN`. Sin pendientes funcionales dentro del
+El juez asigna el número definitivo a `303`. Sin pendientes funcionales dentro del
 recorte; los apartamientos previos de P3 siguen fuera de alcance. FF ya mergeó:
 la rama se rebasa sobre `origin/development` antes del push, sin abrir PR.
 
