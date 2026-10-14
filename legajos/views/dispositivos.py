@@ -14,8 +14,8 @@ class CiudadanoDispositivosView(LoginRequiredMixin, TemplateView):
     """Solapa de Dispositivos del legajo ciudadano: la trayectoria completa de la persona.
 
     Lee de `Estadia` y muestra **todas** las estadías de la persona —abiertas y
-    cerradas, de cualquier institución de la red—. Es de lectura: ni un botón operativo;
-    para operar sobre una estadía hay que entrar al programa, donde sí manda el alcance.
+    cerradas, de cualquier institución de la red—. Es de lectura: ofrece el detalle
+    solo donde el usuario tiene alcance, con las mismas capacidades que P7.
 
     Qué la habilita
     ---------------
@@ -52,6 +52,6 @@ class CiudadanoDispositivosView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         ciudadano = get_object_or_404(Ciudadano, pk=self.kwargs["ciudadano_id"])
         context["ciudadano"] = ciudadano
-        context.update(trayectoria_de(ciudadano, self.request.GET.get("estadias_page")))
+        context.update(trayectoria_de(ciudadano, self.request.GET.get("estadias_page"), usuario=self.request.user))
         context["url_legajo"] = reverse("legajos:ciudadano_detalle", args=[ciudadano.pk])
         return context

@@ -304,6 +304,27 @@ class LegajoDispositivoViewsTests(TestCase):
         self.assertNotContains(detalle_en_alcance, "Editar")
         self.assertEqual(fuera_de_alcance.status_code, 403)
 
+    def test_vacio_con_filtros_ofrece_limpiar_y_no_afirma_falta_de_alcance(self):
+        self.client.force_login(self.consulta)
+        respuesta = self.client.get(reverse("dispositivos:lista"), {"localidad": "Sin coincidencias"})
+
+        self.assertContains(respuesta, "Ningún dispositivo coincide con los filtros")
+        self.assertContains(
+            respuesta,
+            f'<a href="{reverse("dispositivos:lista")}" class="btn-nodo btn-tertiary btn-base mt-2">Limpiar filtros</a>',
+            html=True,
+        )
+        self.assertNotContains(respuesta, "No hay dispositivos en tu alcance")
+
+    def test_vacio_sin_asignacion_y_sin_filtros_explica_el_alcance(self):
+        AsignacionDispositivo.objects.filter(rol=self.rol).update(activo=False)
+        self.client.force_login(self.consulta)
+        respuesta = self.client.get(reverse("dispositivos:lista"))
+
+        self.assertContains(respuesta, "No hay dispositivos en tu alcance")
+        self.assertNotContains(respuesta, "Ningún dispositivo coincide con los filtros")
+        self.assertNotContains(respuesta, 'class="btn-nodo btn-tertiary btn-base mt-2"')
+
     def test_busqueda_previa_muestra_coincidencias_antes_del_alta(self):
         self.client.force_login(self.operador)
 
