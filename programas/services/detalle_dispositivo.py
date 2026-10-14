@@ -1,7 +1,7 @@
 """Datos del detalle de un dispositivo (MVP v2, etapa 2 · #692 · P4).
 
 La vista no cuenta ni decide estados: delega acá, y acá tampoco se deciden las cifras de
-plazas. Las cuatro cifras de la franja de indicadores y el desglose por sector salen del
+plazas. Las cifras y el porcentaje de la franja de indicadores y el desglose por sector salen del
 :class:`~programas.services.ocupacion.Censo` de ``ocupacion_de_plazas``, **la misma fuente**
 que el mapa de «Sectores y plazas» y el asistente de ingreso: dos pantallas que derivan
 por separado terminan mostrando el mismo dispositivo con dos ocupaciones distintas.
@@ -33,6 +33,7 @@ from django.utils.formats import date_format
 from core.services.vencimientos import avisos
 from programas.models import Dispositivo, Edificio, Estadia, FotoInspeccion, InspeccionEdificio, Sector
 from programas.selectors.auditoria_dispositivo import auditoria_del_dispositivo
+from programas.selectors.capacidad_dispositivo import instituciones_del_predio
 from programas.services.alertas_dispositivos import AMBITO, ICONOS, TONOS
 from programas.services.estadias import estado_visible
 from programas.services.inspecciones import (
@@ -46,6 +47,7 @@ from programas.services.inspecciones import (
     semaforo_de_ultimas,
     subconsulta_ultima_realizada,
 )
+from programas.services.ocupacion import tension_de_ocupacion
 
 POR_PAGINA_ESTADIAS = 25
 POR_PAGINA_HISTORIAL = 20
@@ -94,25 +96,26 @@ def aviso_sin_ingresos(dispositivo):
     return _AVISO_SIN_INGRESOS.get(dispositivo.estado, "")
 
 
-def indicadores_de_plazas(conteo):
-    """Las cuatro tarjetas de la franja, con las cifras del ``Conteo`` y nada más.
+def indicadores_de_plazas(conteo, *, tipo=None):
+    """Cifras y semáforo de la franja, derivados del mismo ``Conteo`` que el mapa."""
 
-    ``conteo`` es el del dispositivo (``Censo.de(dispositivo).conteo``): acá solo se le
-    da formato. No se suma, no se resta y no se saca ningún porcentaje.
-    """
+    tension = tension_de_ocupacion(conteo, tipo=tipo)
 
     return [
+        {
+            "etiqueta": "Ocupación",
+            "valor": f"{tension.porcentaje} %" if tension.hay_cifra else "—",
+            "icono": "fa-chart-simple",
+            "tono": tension.tono,
+            "nota": f"{tension.etiqueta} · {conteo.ocupadas} de {conteo.operativas} operativas"
+            if tension.hay_cifra
+            else "Sin plazas operativas o sin ocupación calculable",
+        },
         {
             "etiqueta": "Plazas operativas",
             "valor": conteo.operativas,
             "icono": "fa-bed",
             "nota": f"{conteo.totales} cargadas · {conteo.fuera_de_servicio} fuera de servicio",
-        },
-        {
-            "etiqueta": "Ocupadas",
-            "valor": conteo.ocupadas,
-            "icono": "fa-users",
-            "nota": f"de {conteo.operativas} operativas",
         },
         {
             "etiqueta": "Reservadas o prestadas",
@@ -348,7 +351,8 @@ def _evento_de_relevamiento(inspeccion, fotos, con_edificio, *, ve_asignacion=Fa
     rotulos = ", ".join(list(dict.fromkeys(foto.descripcion for foto in fotos if foto.descripcion))[:8])
     galeria = {
         "pk": inspeccion.pk,
-        "fotos": fotos_para_galeria(inspeccion, fotos),
+        # P19 rotula la tanda por el relevamiento; el informe conserva su contrato propio.
+        "fotos": [{**foto, "fecha": inspeccion.realizada_en} for foto in fotos_para_galeria(inspeccion, fotos)],
         "total_fotos": inspeccion.n_fotos,
         "enlace": enlace,
         "enlace_texto": "Ver informe",
@@ -418,7 +422,8 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
     instituciones que lo ocupan. Sin edificio cargado devuelve ``edificios`` vacío y el semáforo
     «Sin edificio cargado», que no es lo mismo que un edificio sin relevar.
 
-    No trae tenencia, servicios, ubicación, habitaciones, plano ni vigencia: no son del MVP.
+    Incluye coordenadas del edificio y las instituciones visibles del predio. No trae
+    tenencia, servicios, habitaciones, plano ni vigencia: no son del MVP.
 
     ``usuario`` decide **de quién** se muestra el relevamiento en curso: sin él —o con quien solo
     opera la institución— el evento dice «en curso» y nada más
@@ -429,6 +434,8 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
     de la franja (1), el ``COUNT`` y la página del registro fotográfico (2) y las fotos de la
     página (1). Sin edificio, una sola. Una más —no una por fila— solo cuando la página trae algún
     relevamiento en curso y el usuario podría coordinar el edificio.
+    Las instituciones visibles agregan una consulta para todos los edificios,
+    además de evaluar el alcance con el servicio RBAC.
     """
 
     edificios = list(
@@ -449,6 +456,8 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
             "localidad",
             "provincia",
             "codigo_postal",
+            "latitud",
+            "longitud",
         )
         .order_by("nombre", "pk")
     )
@@ -461,6 +470,7 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
             "relevamientos": None,
         }
 
+    instituciones = instituciones_del_predio(usuario, [edificio.pk for edificio in edificios])
     ultimas = InspeccionEdificio.objects.select_related("realizada_por").in_bulk(
         [edificio.ultima_id for edificio in edificios if edificio.ultima_id]
     )
@@ -473,6 +483,9 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
                 "codigo": edificio.codigo,
                 "nombre": edificio.nombre,
                 "domicilio": edificio.domicilio_completo,
+                "latitud": edificio.latitud,
+                "longitud": edificio.longitud,
+                "instituciones": instituciones.get(edificio.pk, []),
                 "semaforo": semaforo_de_inspeccion(ultima),
                 "ultima": ultima,
                 "relevo": _nombre(ultima.realizada_por) if ultima else "",
