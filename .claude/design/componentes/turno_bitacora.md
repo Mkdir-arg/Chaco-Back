@@ -5,6 +5,8 @@ de cada turno y la lista de anotaciones de un turno.
 **Evidencia:** `templates/components/_turno_tarjeta.html`, `templates/components/_entradas_bitacora.html`,
 `core/tests/test_nodo_ui_lote_c.py`.
 **Consumidores de referencia:** `programas/templates/programas/dispositivos/bitacora/bitacora.html` (bitácora del turno, P10).
+Se entra desde el botón «Bitácora del turno» del encabezado de P4
+(`programas/templates/programas/dispositivos/legajo/detail.html`), como en el mockup.
 
 ## Invocación
 
