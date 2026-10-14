@@ -7,6 +7,14 @@
 **Consumidor de referencia:** `programas/templates/programas/dispositivos/estadia/revision_referencia.html`
 (arquetipo Revisión, `arquetipos/revision.md`).
 
+La bajada de esa golden muestra el DNI con el filtro de presentación `nodo_ui.dni`
+(`12.345.678`); controles y búsquedas mantienen el valor original. Contrato del filtro
+en `componentes/tabla.md`.
+
+En `_ficha_seccion`, un campo cuya `etiqueta` es «DNI» presenta `valor` con ese mismo
+filtro; los demás campos conservan su representación. La lista de campos no se modifica.
+Lo verifica `FichaSeccionTest` en `core/tests/test_nodo_ui_piezas.py`.
+
 ## Línea de tiempo
 
 ```django
