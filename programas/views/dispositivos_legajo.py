@@ -224,7 +224,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         ocupacion = ocupacion_de_plazas(dispositivo).de(dispositivo)
         sectores = sectores_del_censo(ocupacion)
         estado, sector = normalizar_filtros(get.get("estado", ""), get.get("sector", ""), {s["pk"] for s in sectores})
-        historial, eventos = eventos_de_historial(dispositivo, get.get("historial_page"))
+        historial, eventos = eventos_de_historial(dispositivo, get.get("historial_page"), user)
         estadias = estadias_del_dispositivo(dispositivo, estado=estado, sector=sector, pagina=get.get("estadias_page"))
         puede_egresar = puede_operar_dispositivo(user, dispositivo, CAP_EGRESAR)
         if puede_egresar:
@@ -255,7 +255,9 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "hay_filtros_estadias": bool(estado or sector),
                 "historial": historial,
                 "eventos": eventos,
-                "infraestructura": infraestructura_del_dispositivo(dispositivo, get.get("relevamientos_page")),
+                # `user` y no solo el dispositivo: el nombre del agente de un relevamiento en
+                # curso no lo ve la institución relevada (`inspecciones.ve_la_asignacion`).
+                "infraestructura": infraestructura_del_dispositivo(dispositivo, get.get("relevamientos_page"), user),
                 "puede_editar": puede_operar_dispositivo(user, dispositivo, "dispositivo.editar"),
                 "puede_validar": puede_operar_dispositivo(user, dispositivo, "dispositivo.validar"),
                 "puede_admitir": puede_operar_dispositivo(user, dispositivo, "dispositivo.admitir"),

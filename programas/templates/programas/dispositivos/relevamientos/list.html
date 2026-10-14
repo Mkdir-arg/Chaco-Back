@@ -6,7 +6,9 @@
 {% comment %}P21 · Relevamientos edilicios (en el código, InspeccionEdificio). Molde: golden de
 Listado (becas/revision/personas_list.html) + golden de Modal (becas/config/programa_list.html);
 las solapas siguen tabs.md (precedente: dispositivos/legajo/detail.html) y los filtros son
-píldoras (_filtro_pildora.html), que no se combinan con la tarjeta de filtros.
+píldoras (_filtro_pildora.html), que no se combinan con la tarjeta de filtros. Las píldoras van
+dentro de cada panel con su propia solapa en el oculto, como P4: así filtrar desde Completados
+no devuelve a En curso. La cuarta solapa lista EDIFICIOS sin relevar, no relevamientos.
 Los modales de asignar, reasignar y cancelar llegan abiertos por un parámetro GET que arma la
 vista: el selector de agentes depende del edificio y el menú de fila solo navega.{% endcomment %}
 <div x-data="{ tab: '{{ solapa_actual }}', modalNuevo: {% if abrir_nuevo %}true{% else %}false{% endif %}, modalAsignar: {% if form_asignar %}true{% else %}false{% endif %}, modalReasignar: {% if form_reasignar %}true{% else %}false{% endif %}, modalCancelar: {% if form_cancelar %}true{% else %}false{% endif %} }">
@@ -29,11 +31,9 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
       {% include "components/_stat_card.html" with variante="tablero" etiqueta="Vencidos" valor=resumen.vencidos icono="fa-bell" nota="en curso con el vencimiento pasado" %}
     </div>
 
-    {% include "components/_filtro_pildora.html" with pildoras=pildoras ocultos=ocultos_pildoras %}
-
     <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
       <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Relevamientos por estado">
-        {% for solapa in solapas %}
+        {% for solapa in solapas_nav %}
         <button @click="tab='{{ solapa.clave }}'" type="button" role="tab" id="tab-{{ solapa.clave }}" aria-controls="panel-{{ solapa.clave }}"
                 :aria-selected="tab==='{{ solapa.clave }}'"
                 class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
@@ -46,8 +46,14 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
 
       {% for solapa in solapas %}
       <div x-show="tab==='{{ solapa.clave }}'" x-cloak role="tabpanel" id="panel-{{ solapa.clave }}" aria-labelledby="tab-{{ solapa.clave }}">
+        {% comment %}Las píldoras van DENTRO del panel, con su propia solapa en el oculto: la
+        solapa la cambia Alpine en el navegador y el form de filtros lo arma el servidor, así que
+        un solo oculto arriba mandaba siempre «En curso» (precedente: P4, solapa Estadías).{% endcomment %}
+        <div class="px-5 pt-4">
+          {% include "components/_filtro_pildora.html" with pildoras=solapa.pildoras ocultos=solapa.ocultos %}
+        </div>
         {% if solapa.filas %}
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto mt-3">
           <table class="w-full border-collapse">
             <thead>
               <tr class="nodo-thead-row">
@@ -64,7 +70,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
               <tr class="hover:bg-secondary">
                 <td class="nodo-td text-heading font-medium">{{ r.edificio.nombre }}
                   <span class="block text-xs text-body-subtle font-normal">{{ r.edificio.codigo }}{% if r.edificio.localidad %} · {{ r.edificio.localidad }}{% endif %}</span></td>
-                <td class="nodo-td text-body">{{ r.asignado_a.get_full_name|default:r.asignado_a.username }}</td>
+                <td class="nodo-td text-body">{{ r.agente_visible|default:"—" }}</td>
                 <td class="nodo-td text-body">{{ r.fecha_vencimiento|date:"d/m/Y" }}
                   {% if r.vence_relativo %}<span class="block text-xs text-body-subtle">{{ r.vence_relativo }}</span>{% endif %}</td>
                 <td class="nodo-td">
@@ -82,6 +88,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
                 <td class="nodo-td text-right">
                   {% if r.con_acciones %}
                   <div class="inline-flex items-center gap-1">
+                    {% if r.en_curso %}
                     {% if r.gestionable %}
                     <a href="{{ r.url_reasignar }}" class="nodo-icon-btn" aria-label="Reasignar el relevamiento de {{ r.edificio.nombre }}">
                       <i class="fas fa-user-pen" aria-hidden="true"></i>
@@ -91,6 +98,11 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
                       {% if not r.gestionable %}{% include "components/_menu_fila_item.html" with texto="Reasignar" icono="fa-user-pen" url=r.url_reasignar motivo=r.motivo_reasignar only %}{% endif %}
                       {% include "components/_menu_fila_item.html" with texto="Cancelar" icono="fa-ban" peligro=True url=r.url_cancelar motivo=r.motivo_cancelar only %}
                     {% endmenu_fila %}
+                    {% else %}
+                    {% menu_fila id=r.menu_id etiqueta=r.menu_etiqueta %}
+                      {% include "components/_menu_fila_item.html" with texto="Ver informe" icono="fa-file-lines" url=r.url_informe only %}
+                    {% endmenu_fila %}
+                    {% endif %}
                   </div>
                   {% endif %}
                 </td>
@@ -111,6 +123,51 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
         {% endif %}
       </div>
       {% endfor %}
+
+      {% comment %}Cuarta solapa: EDIFICIOS, no relevamientos. Lo que nunca se relevó no tiene fila en
+      InspeccionEdificio, así que no sale de las otras tres. Sin píldoras: «Estado» y «Asignado a»
+      filtran relevamientos. «Asignar» abre el mismo modal del paso 2 (?asignar=<edificio>).{% endcomment %}
+      <div x-show="tab==='{{ sin_relevar.clave }}'" x-cloak role="tabpanel" id="panel-{{ sin_relevar.clave }}" aria-labelledby="tab-{{ sin_relevar.clave }}">
+        {% if sin_relevar.filas %}
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Edificio</th>
+                <th class="nodo-th">Asignado a</th>
+                <th class="nodo-th">Estado</th>
+                <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for edificio in sin_relevar.filas %}
+              <tr class="hover:bg-secondary">
+                <td class="nodo-td text-heading font-medium">{{ edificio.nombre }}
+                  <span class="block text-xs text-body-subtle font-normal">{{ edificio.codigo }}{% if edificio.localidad %} · {{ edificio.localidad }}{% endif %}</span></td>
+                <td class="nodo-td text-body">{% if edificio.asignado_a %}{{ edificio.asignado_a }}
+                  <span class="block text-xs text-body-subtle">vence el {{ edificio.relevamiento_en_curso.fecha_vencimiento|date:"d/m/Y" }}</span>{% else %}<span class="text-body-subtle">Sin asignar</span>{% endif %}</td>
+                <td class="nodo-td">
+                  {% include "programas/dispositivos/_relevamiento_situacion_badge.html" with situacion="SIN_RELEVAR" texto="Sin relevar" %}
+                </td>
+                <td class="nodo-td text-right">
+                  {% if edificio.url_asignar %}
+                  <a href="{{ edificio.url_asignar }}" class="btn-nodo btn-brand btn-sm btn-fit">
+                    <i class="fas fa-plus" aria-hidden="true"></i> Asignar
+                  </a>
+                  {% else %}
+                  <span class="text-xs text-body-subtle">ya tiene uno en curso</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% include "components/_paginacion.html" with page_obj=sin_relevar.pagina entidad="edificio" param=sin_relevar.param filtros_qs=sin_relevar.filtros_qs %}
+        {% else %}
+          {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Todos los edificios de tu alcance ya se relevaron al menos una vez" texto="Cuando se dé de alta un edificio nuevo, aparece acá hasta que se cierre su primer relevamiento." %}
+        {% endif %}
+      </div>
     </div>
   </div>
 

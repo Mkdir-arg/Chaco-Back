@@ -80,11 +80,12 @@ class FotoInspeccionEnvioSerializer(serializers.Serializer):
     """Cuerpo multipart de ``POST /api/dispositivos/inspecciones/{id}/fotos/``.
 
     El tipo, la firma y el tamaño del archivo los valida el modelo (`validar_foto`), no
-    este serializer: una sola regla para la app y el backoffice.
+    este serializer: una sola regla para la app y el backoffice. **HEIC/HEIF no entran**:
+    la conversión a JPEG es de la app, como la compresión.
     """
 
     uuid_cliente = serializers.UUIDField(
         help_text="Identificador de la foto, generado en el celular. Reenviarla no duplica."
     )
-    archivo = serializers.FileField(help_text="JPG, PNG, WEBP o HEIC, hasta 5 MB.")
+    archivo = serializers.FileField(help_text="JPEG, PNG o WEBP, hasta 5 MB. HEIC/HEIF se convierten en la app.")
     descripcion = serializers.CharField(required=False, allow_blank=True, default="", max_length=120)

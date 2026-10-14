@@ -55,7 +55,8 @@ _RESPUESTAS_DE_ENVIO = {
     400: OpenApiResponse(
         description=(
             "El envío no es válido: falta `uuid_cliente`, criticidad fuera de la escala, foto que no es "
-            "JPG/PNG/WEBP/HEIC de verdad o que pasa de 5 MB. Trae `detail` legible y el detalle por campo."
+            "JPEG/PNG/WEBP de verdad —un HEIC/HEIF se rechaza acá: la app lo convierte— o que pasa de "
+            "5 MB. Trae `detail` legible y el detalle por campo."
         )
     ),
     401: OpenApiResponse(description="Sin token o token inválido."),

@@ -290,6 +290,27 @@ class FotoTests(BaseApiInspecciones):
 
         self.assertFalse(FotoInspeccion.objects.exists())
 
+    def test_una_heic_es_400_y_le_dice_a_la_app_en_que_formato_mandarla(self):
+        """Contrato con `Chaco-mobile`: la conversión a JPEG es de la app, como la compresión.
+
+        Un 400 no se reintenta, así que el `detail` es lo único que el agente va a leer: tiene
+        que decir qué hacer, no «formato inválido».
+        """
+
+        casos = {
+            "HEIC con firma real": _foto("cocina.heic", b"\x00\x00\x00\x18ftypheic" + b"0" * 16),
+            "HEIF con firma real": _foto("patio.heif", b"\x00\x00\x00\x18ftypmif1" + b"0" * 16),
+        }
+        for caso, archivo in casos.items():
+            with self.subTest(caso=caso):
+                respuesta = self._enviar_foto(self.agente, self.inspeccion.pk, archivo=archivo)
+
+                self.assertEqual(respuesta.status_code, 400)
+                self.assertIn("JPEG, PNG o WEBP", respuesta.data["detail"])
+                self.assertIn("archivo", respuesta.data)
+
+        self.assertFalse(FotoInspeccion.objects.exists())
+
     def test_sin_archivo_o_sin_uuid_es_400(self):
         sin_uuid = self._enviar_foto(self.agente, self.inspeccion.pk, uuid_cliente=False)
         sin_archivo = self._como(self.agente).post(
