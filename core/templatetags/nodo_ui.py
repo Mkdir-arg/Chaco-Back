@@ -81,6 +81,21 @@ from django.template.base import NodeList, token_kwargs
 
 register = template.Library()
 
+
+@register.filter
+def dni(valor):
+    """Presenta los dígitos con puntos, sin normalizar ni convertir la identidad.
+
+    Conserva ceros iniciales y devuelve intactos los valores vacíos/no numéricos.
+    Solo se usa en texto visible: nunca en controles, URLs o atributos de datos.
+    """
+    texto = str(valor)
+    if not (texto.isascii() and texto.isdecimal()):
+        return valor
+    grupos = [texto[max(0, fin - 3) : fin] for fin in range(len(texto), 0, -3)]
+    return ".".join(reversed(grupos))
+
+
 TEMPLATE_PAGE_HEADER = "components/_page_header.html"
 EXCLUIDOS_HAY_FILTROS = "page"
 MIGAS_MINIMO = 3

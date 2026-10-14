@@ -13,7 +13,8 @@ Contexto:
   sensibilidad_tono warning (por defecto) | danger.
   completar_url     opcional: link «completar» junto al avance (solo en secciones legibles).
   abierta           por defecto True; False la deja plegada al cargar.
-  campos            lista de dicts {etiqueta, valor, estado}: `estado` vacío | «falta» (en rojo, el dato
+  campos            lista de dicts {etiqueta, valor, estado}: el valor de etiqueta «DNI» se presenta
+                    con nodo_ui.dni, sin modificar el dato; `estado` vacío | «falta» (en rojo, el dato
                     que se pide y no está) | «calculado» (en gris, lo arma el sistema).
   vacio_texto       texto cuando no hay `campos` (sección sin datos todavía).
   bloqueada         True: sin campos, sin plegar. Muestra `motivo` y «La completa <completa>».
@@ -21,6 +22,7 @@ Contexto:
   completa          opcional: quién la completa (equipo, rol).
 El medidor es informativo (`role="progressbar"` con su valor): el porcentaje también va escrito.
 {% endcomment %}
+{% load nodo_ui %}
 {% if bloqueada %}
 <section class="nodo-ficha-bloqueada rounded-xl border border-base overflow-hidden" aria-labelledby="ficha-{{ codigo }}-titulo">
   <div class="flex items-center justify-between gap-2 flex-wrap px-4 py-3 border-b border-light">
@@ -57,7 +59,7 @@ El medidor es informativo (`role="progressbar"` con su valor): el porcentaje tam
       {% for c in campos %}
       <div>
         <dt class="text-xs font-semibold uppercase text-body-subtle">{{ c.etiqueta }}</dt>
-        <dd class="mt-1 text-sm {% if c.estado == 'falta' %}text-fg-danger font-semibold{% elif c.estado == 'calculado' %}text-body-subtle{% else %}text-body{% endif %}">{{ c.valor }}</dd>
+        <dd class="mt-1 text-sm {% if c.estado == 'falta' %}text-fg-danger font-semibold{% elif c.estado == 'calculado' %}text-body-subtle{% else %}text-body{% endif %}">{% if c.etiqueta == 'DNI' %}{{ c.valor|dni }}{% else %}{{ c.valor }}{% endif %}</dd>
       </div>
       {% endfor %}
     </dl>

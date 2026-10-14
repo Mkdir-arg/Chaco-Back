@@ -7,7 +7,7 @@
      x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'ficha' }">
 
   {% page_header titulo=persona.nombre_completo volver_url=url_volver volver_label="estadías" migas=migas %}
-    {% bajada %}{{ ubicacion }} · DNI {{ persona.dni }} · {{ persona.edad }} años · ingreso {{ estadia.ingreso }} · {{ estadia.dias }} días de permanencia{% if url_legajo %} · <a href="{{ url_legajo }}" class="text-fg-brand hover:underline">legajo ciudadano</a>{% endif %}{% endbajada %}
+    {% bajada %}{{ ubicacion }} · DNI {{ persona.dni|dni }} · {{ persona.edad }} años · ingreso {{ estadia.ingreso }} · {{ estadia.dias }} días de permanencia{% if url_legajo %} · <a href="{{ url_legajo }}" class="text-fg-brand hover:underline">legajo ciudadano</a>{% endif %}{% endbajada %}
     <span class="badge badge-info badge-dot">{{ estadia.estado }}</span>
     {% if estadia.reingreso %}<span class="badge badge-brand">Reingreso</span>{% endif %}
     {% if puede_cambiar_plaza %}<a href="{{ url_cambiar_plaza }}" class="btn-nodo btn-secondary btn-sm btn-fit">Cambiar plaza</a>{% endif %}
