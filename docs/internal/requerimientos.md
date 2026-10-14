@@ -428,6 +428,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 298 | Fidelidad del detalle del dispositivo y su Infraestructura | Dispositivos · P2/P4/P19 | `#ui` `#rbac` `#gps` `#performance` | Juez — carril FB | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 299 | Fidelidad del mapa de plazas y del asistente de ingreso | Dispositivos · sectores, plazas e ingreso | `#ui` `#rbac` `#performance` | Juez — carril FA del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 300 | P4 en celular y DNI con separador de miles | Dispositivos · P2/P4/P5/P6/P7/P10/P16/P21 | `#ui` `#textos` | Juez — carril FD | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 301 | Correcciones menores de fidelidad FA–FD | Dispositivos · P4/P5/P6/P7/P10/P16 | `#ui` `#rbac` `#performance` `#textos` | Juez — carril FE | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -39269,5 +39270,161 @@ datos: el DNI vuelve a mostrarse sin puntos y se pierde la contención del rótu
 
 Entrada nueva y única del carril FD, apilado sobre `feat/mvp-fidelidad-fb`; no modifica
 entradas anteriores. Sin PR; entrega por push de `feat/mvp-fidelidad-fd`.
+
+---
+
+---
+
+# Cambio 301 — Correcciones menores de fidelidad FA–FD
+
+🟢 **HECHO — 14/10/2026** · Carril FE · número definitivo a cargo del juez.
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P4, P5/P6, P7, P10 y P16 · piezas compartidas |
+| **Etiquetas** | `#ui` `#rbac` `#performance` `#textos` |
+| **Solicitante** | Juez — encargo directo del carril FE, revisiones menores de FA–FD |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Sin issue nuevo · Épica #127 · apilado sobre PR #865 |
+| **Partes afectadas** | Backoffice: vistas, selectores, servicios de presentación, tabla, ficha y mapa canónicos, pruebas y presupuesto de Infraestructura |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Resolver los MINOR de FA–FD con las piezas existentes, sus tests y mutaciones de las
+guardas: modal de corrección inválida, EXISTS sobrante, elegibilidad de Cambiar plaza,
+estado desconocido, presupuesto autenticado, especificidad de tabla, guarda del wrapper,
+formato explícito de DNI y año del vencimiento en el title de plazas. Solo este worktree;
+commits de código y documentación separados, push de `fix/mvp-fidelidad-fe`, sin PR.
+
+## Alcance acordado
+
+Los nueve puntos enumerados como 2–10 en el encargo. Ajustes acotados de pantallas y piezas
+existentes; se conservan composición, textos, permisos y reglas de dominio. Sin pantallas,
+clases, includes, roles, seed ni migraciones nuevas. No se modifica otra entrada del registro.
+
+## Decisiones tomadas
+
+- **2 · P10:** la corrección inicial se valida contra `corregibles_datos`; el modal abre
+  solo si esa selección es válida. Automática, inexistente, vacío y texto lo dejan cerrado,
+  incluso cuando existe otra entrada que sí puede corregirse.
+- **3 · P16:** la estadía activa se lee antes de anotar acceso. El `EXISTS` queda solo
+  en la página de filas; se conservan las tres consultas del presupuesto y el alcance.
+- **4 · P4:** menú y modal usan las plazas elegibles de `plazas_para_ingresar`, que filtra
+  por los tipos admitidos. Se llama una vez antes del bucle para quien puede cambiar, y
+  se reutilizan sus sectores al abrir el modal. Un CUPO libre no habilita a un tipo CAMA.
+- **5 · Predio:** un estado fuera del catálogo conserva su valor con `.get(valor, valor)`;
+  no derriba la solapa Infraestructura ni el detalle completo.
+- **6 · Presupuesto:** el test llama al servicio con `usuario=self._fresco(self.admin)`.
+  Medición fría: **9 consultas con 1 y 8 relevamientos**, frente a las 6 sin usuario.
+  Las nuevas fijas son usuario fresco (1), capacidades RBAC (1) e instituciones visibles
+  del predio (1, `dispositivos_predio_instituciones`). Se enumeran las nueve en el motivo y
+  se agrega la entrada nueva `dispositivos_infraestructura_usuario_fe` a `_meta.adjustments`.
+- **7 · Tabla:** `position: relative` pasa a `:where(.nodo-th)` para contener `sr-only`
+  sin pisar `sticky`. Sin cambio visual a 1440 px ni desborde de página a 390 px.
+- **8 · Guarda responsive:** cada tabla visible cuyo contenido excede el ancho de su
+  contenedor exige un ancestro `.overflow-x-auto`, además de comprobar el scroll interno.
+- **9 · Ficha:** el productor marca `formato: "dni"`; el template no decide por la etiqueta.
+  P7 y el fixture de la golden declaran el formato. La golden no tiene productor ni ruta
+  propios: sigue consumiendo `secciones`. Sin formato, vacío o desconocido, el HTML se
+  conserva; el valor guardado no cambia y una etiqueta distinta también puede presentar DNI.
+- **10 · Mapa:** ocupación emite `detalle` corto y `detalle_completo` con vencimiento local
+  `DD/MM/AAAA HH:MM`. P5 y P6 transportan ambos; el title usa el completo y, si falta,
+  vuelve al corto. Ambos respetan `ciudadano.ver`; sin capacidad solo muestran la fecha.
+
+### Plan de pantalla
+
+```text
+Tipo: A (pantallas existentes) + C (contratos autorizados de tabla, ficha y mapa)
+Arquetipos: Detalle con solapas P4; Detalle apilado P5/P10; Revisión P7; Wizard P6
+Goldens: becas/cupo/segmento_detail.html; dispositivos/estadia/revision_referencia.html;
+         configuracion/programa_wizard_paso4.html
+Rutas/templates finales: dispositivos/legajo/detail.html; sectores/sectores.html;
+                        estadia/detalle.html; bitacora/bitacora.html; ingreso/paso_plaza.html
+Includes: _menu_fila_item, _mapa_plazas, _ficha_seccion; modales existentes de P4/P10
+Clasificación: tabla, menú, ficha, mapa y modal = Canónico reutilizable
+Assets: los cargados por includes/base.html; nodo-tables.css con especificidad cero
+Bloques: mismos wrappers, clases y textos; validar selección y elegibilidad en las capas existentes
+Novedades: solo formato dni y detalle_completo, autorizados expresamente; ninguna pieza visual nueva
+Fichas actualizadas: tabla.md, ficha_timeline.md, mapa_plazas.md y arquetipos/revision.md
+```
+
+### Apartamientos del mockup
+
+Sin apartamientos nuevos. Se conserva el texto corto de la plaza y la composición del
+mockup P4/P5/P7/P10/P16; el año completo va al title. El mockup no define 390 px: se conserva
+el responsive canónico con scroll interno. Se mantienen los apartamientos previos del MVP
+por falta de datos o servicios, sin dibujar acciones adicionales ni controles ficticios.
+
+## Implementación
+
+Una URL de corrección inválida ya no abre un formulario vacío. Cambiar plaza ofrece el mismo
+conjunto que el modal. La trayectoria deja de calcular acceso para su resumen «Hoy». El
+detalle tolera estados desconocidos del predio. La ficha presenta DNI por metadato explícito
+y el mapa permite distinguir vencimientos de otro año sin revelar identidades no autorizadas.
+
+## Archivos
+
+- `programas/views/dispositivos_bitacora.py`, `dispositivos_legajo.py`.
+- `programas/selectors/trayectoria.py`, `capacidad_dispositivo.py`, `estadia_detalle.py`.
+- `programas/services/ocupacion.py`, `ingreso.py`, `sectores_plazas.py`.
+- `templates/components/_ficha_seccion.html`, `_mapa_plazas.html`; `static/custom/css/nodo-tables.css`.
+- Tests de fidelidad FA/FB/FD, bitácora de pantalla, trayectoria, Infraestructura y piezas de `core`.
+- `scripts/perf_budgets.json`; las cuatro fichas del Plan y esta única entrada con su fila del índice.
+
+## Base de datos
+
+No requiere migraciones ni cambios de datos. Pruebas con SQLite y datos ficticios; Playwright
+instalado en un venv temporal fuera del repo, expuesto por `PYTHONPATH` solo en las pruebas.
+
+## Validación
+
+- 545 pruebas de regresión en verde sobre la rama rebasada, con `CHACO_PLAYWRIGHT=1`
+  y Chromium: incluye los dos tests de navegador, sin omisiones. La primera mutación por
+  etiqueta detectó una debilidad en la asociación etiqueta/valor del test de DNI; la versión
+  corregida falla por el campo concreto y vuelve a verde al restaurar el template.
+- 26 pruebas `--tag performance programas` en verde; P16 mantiene su techo y la solapa
+  Infraestructura mide 9 constantes. `check_perf_budgets.py` reconoce el aumento justificado.
+- Playwright: todas las solapas de P4 y P5/P7/P10/P21/P2, 390 y 1440 px, sin scroll de página.
+  Comparación exacta de capturas a 1440 px entre regla anterior y especificidad cero:
+  sin diferencia. El test de la pieza verifica que `sticky` conserve su posición.
+- Seis snapshots de Becas regenerados y revisados: sin diff.
+- `manage.py check`; `makemigrations --check --dry-run` con syncdb apagado;
+  `check_migraciones`; compilación de 232 templates; auditorías de los arquetipos afectados;
+  ratchet contra `origin/development`; siete goldens; Tailwind sin diff; ruff y registro.
+- Contrato del agente de diseño y sus límites comprobados después de los commits.
+
+**Mutaciones: 12 variantes (romper → rojo → restaurar desde copia → verde):**
+
+1. Abrir P10 por presencia de `corregir`, sin selección válida.
+2. Leer la estadía activa del queryset anotado con `EXISTS`.
+3. Habilitar Cambiar plaza por disponibles del censo, ignorando tipo admitido.
+4. Indexar el catálogo de estados sin fallback.
+5. Medir Infraestructura sin usuario: la nueva guarda de instituciones visibles falla.
+6. Mover `position: relative` a `.nodo-th`: pisa `sticky` y falla Playwright.
+7. Quitar `overflow-x-auto` del wrapper de Estadías: falla la guarda de tabla visible ancha
+   con `CHACO_PLAYWRIGHT=1`.
+8. Formatear DNI por etiqueta en la ficha; quitar la marca del productor P7.
+9. Usar detalle corto en el title; omitir el año completo; incluir nombre sin capacidad.
+
+## Puesta en marcha en el servidor
+
+No requiere pasos adicionales al deploy habitual.
+
+## Pendientes / a definir
+
+- El juez asigna `301` en encabezado e índice. El checker actual omite ese marcador;
+  se comprueba además una copia temporal numerada sin cambiar el script ni otras entradas.
+- Sin pendientes funcionales ni apartamientos nuevos. PR #865 mergeado; entrega FE rebasada
+  sobre `origin/development` (`17ce3d3b`), con código y documentación en commits separados, sin PR.
+
+## Reversión
+
+Revertir los dos commits FE. No bajar migraciones ni modificar datos; se restauran los
+contratos y pruebas anteriores, incluida la medición sin usuario de Infraestructura.
+
+## Historial
+
+Entrada nueva y única del carril FE. Las entradas anteriores se conservan sin cambios.
 
 ---

@@ -443,6 +443,18 @@ class EnlacesEstadiaTests(BaseSolapa):
         self.assertTrue(any(f.get("url_estadia") for f in datos["filas"]))
         self.assertTrue(any(not f.get("url_estadia") for f in datos["filas"]))
 
+    def test_solo_la_pagina_anota_el_alcance_no_la_estadia_activa(self):
+        self.estadia_activa(self.cis, self.plaza)
+        rbac.puede(self.usuario, "ciudadano.ver")
+        dispositivos_visibles(self.usuario)
+        with CaptureQueriesContext(connection) as consultas:
+            datos = trayectoria_de(self.persona, usuario=self.usuario)
+        self.assertTrue(datos["hay_activa"])
+        self.assertIn("url_estadia", datos["filas"][0])
+        lecturas = [q["sql"] for q in consultas if q["sql"].lstrip().startswith("SELECT") and "COUNT(" not in q["sql"]]
+        self.assertEqual(len(lecturas), 2)
+        self.assertEqual(sum("EXISTS(" in sql.upper() for sql in lecturas), 1)
+
 
 class TopeYConsultasTests(BaseSolapa):
     def _muchas(self, cantidad):

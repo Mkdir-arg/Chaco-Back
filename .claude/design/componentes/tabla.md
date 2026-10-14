@@ -36,15 +36,17 @@ reusado por la solapa del legajo), `programas/templates/programas/becas/reportes
 - `<th class="nodo-th">`: 11 px, bold, mayúsculas, tracking .05em, `--text-body-subtle`,
   padding 11px 16px, alineado a la izquierda.
 - `<td class="nodo-td">`: `--font-size-sm`, padding 13px 16px, borde superior `--border-light`.
-- Padding, tamaño, color y alineación de `th` y `td` están en `:where()` (especificidad cero):
+- Posición, padding, tamaño, color y alineación de `th` y `td` están en `:where()` (especificidad cero):
   una utilidad en el mismo elemento los reemplaza (`text-center`, `text-right`, `px-3`,
   `text-body`, `text-heading font-medium`). Peso, mayúsculas, tracking y bordes quedan en la clase.
 - Wrapper `overflow-x-auto`; tabla `w-full border-collapse`; filas `hover:bg-secondary`
   (opcionalmente `transition`); links de entidad `text-fg-brand hover:underline`.
-- `.nodo-th` establece `position: relative`: contiene el rótulo absoluto `sr-only`
-  de Acciones dentro del scroll de la tabla, sin ampliar el ancho de la página.
+- `:where(.nodo-th)` establece `position: relative`: contiene el rótulo absoluto `sr-only`
+  de Acciones dentro del scroll de la tabla, sin ampliar el ancho de la página ni pisar `sticky`.
   La verificación de navegador está en `core/tests/test_nodo_ui_piezas.py`
   (`TablaResponsiveTest`, activada con `CHACO_PLAYWRIGHT=1`).
+  `DispositivosResponsiveFDTests` exige wrapper para cada tabla visible cuyo contenido no entra,
+  compara el aspecto a 1440 px y mide ausencia de desborde a 390 px.
 - La columna de acciones **no lleva el `<th>` vacío**:
   `<th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>`, porque una columna
   sin nombre no se anuncia.

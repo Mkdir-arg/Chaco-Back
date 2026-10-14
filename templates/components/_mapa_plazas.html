@@ -10,7 +10,8 @@ Contexto:
                            Cualquier otro valor (o ninguno) dibuja la celda neutra. El template no
                            evalúa reglas de dominio: no sabe qué es «ocupada».
              detalle       opcional, una línea (persona, motivo). Se trunca con puntos suspensivos y
-                           va entera en `title`.
+                           va entera en `title` si no llega detalle_completo.
+             detalle_completo opcional, texto del title con fecha y año del vencimiento.
              url           opcional: con ella la celda es un enlace (accionable, con teclado); sin
                            ella es informativa, con cursor de no disponible y aria-disabled. La vista decide
                            qué plazas se pueden elegir.
@@ -29,7 +30,7 @@ Sin plazas muestra el estado vacío. La leyenda es otra pieza: components/_leyen
       <b class="block text-sm font-bold text-heading"><span class="sr-only">Plaza </span>{{ plaza.codigo }}</b>
       <span class="mt-1 block font-semibold"><i class="fas {% if plaza.tono == 'success' %}fa-circle-check{% elif plaza.tono == 'info' %}fa-user{% elif plaza.tono == 'warning' %}fa-clock{% elif plaza.tono == 'brand' %}fa-right-left{% elif plaza.tono == 'danger' %}fa-ban{% else %}fa-circle{% endif %}" aria-hidden="true"></i> {{ plaza.estado }}</span>
       {% if plaza.seleccionada %}<span class="block font-bold"><i class="fas fa-check" aria-hidden="true"></i> Elegida</span>{% endif %}
-      {% if plaza.detalle %}<span class="mt-1 block truncate text-body-subtle" title="{{ plaza.detalle }}">{{ plaza.detalle }}</span>{% endif %}
+      {% if plaza.detalle %}<span class="mt-1 block truncate text-body-subtle" title="{{ plaza.detalle_completo|default:plaza.detalle }}">{{ plaza.detalle }}</span>{% endif %}
     {% if plaza.url %}</a>{% else %}</div>{% endif %}
   </li>
   {% endfor %}

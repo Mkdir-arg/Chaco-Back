@@ -156,6 +156,22 @@ class DispositivosResponsiveFDTests(StaticLiveServerTestCase):
                             "El email largo debe poder leerse completo dentro de Datos, sin recortarlo.",
                         )
                     self.assertEqual(self.pagina.evaluate("document.documentElement.scrollWidth"), ancho)
+                    if ancho == 1440:
+                        self.pagina.add_style_tag(
+                            content="*, *::before, *::after { animation: none !important; transition: none !important; }"
+                        )
+                        antes = self.pagina.screenshot()
+                        regla_anterior = self.pagina.add_style_tag(content=".nodo-th { position: relative; }")
+                        self.assertEqual(
+                            self.pagina.screenshot(), antes, f"{pantalla}: la tabla conserva su aspecto a 1440px"
+                        )
+                        regla_anterior.evaluate("e => e.remove()")
+                    for tabla in self.pagina.locator("table:visible").all():
+                        if tabla.evaluate("e => e.scrollWidth > e.parentElement.clientWidth"):
+                            self.assertTrue(
+                                tabla.evaluate("e => e.closest('.overflow-x-auto') !== null"),
+                                f"{pantalla} a {ancho}px: toda tabla ancha necesita su wrapper de scroll.",
+                            )
                     for wrapper in self.pagina.locator(".overflow-x-auto:visible").all():
                         if wrapper.evaluate("e => e.scrollWidth > e.clientWidth"):
                             wrapper.evaluate("e => e.scrollLeft = e.scrollWidth")

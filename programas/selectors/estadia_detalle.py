@@ -219,7 +219,7 @@ def _seccion_persona(ciudadano):
         "codigo": "persona",
         "titulo": "Datos personales",
         "campos": [
-            {"etiqueta": "DNI", "valor": ciudadano.dni},
+            {"etiqueta": "DNI", "valor": ciudadano.dni, "formato": "dni"},
             {"etiqueta": "Fecha de nacimiento", "valor": nacimiento},
             {
                 "etiqueta": "Edad",

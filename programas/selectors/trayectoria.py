@@ -81,13 +81,13 @@ def trayectoria_de(ciudadano, pagina=None, *, usuario=None):
     sin otra consulta por estadía. Los contadores salen del COUNT, no del recorte.
     """
     base = Estadia.objects.filter(ciudadano=ciudadano).select_related("dispositivo__tipo", "plaza__sector", "motivo")
+    activa = base.activas().first()
     if usuario is not None and rbac.puede(usuario, "ciudadano.ver"):
         base = base.annotate(
             puede_ver_detalle=Exists(dispositivos_visibles(usuario).filter(pk=OuterRef("dispositivo_id")))
         )
     paginador = Paginator(base, POR_PAGINA)
     pagina_obj = paginador.get_page(pagina)
-    activa = base.activas().first()
     filas = [_fila(e) for e in pagina_obj.object_list]
     # El `Page` solo lleva la paginación (número, contador, anterior/siguiente): se le
     # cambian las instancias por las filas ya recortadas, así que ni un

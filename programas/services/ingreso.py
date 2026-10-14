@@ -113,6 +113,7 @@ def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False):
                 "estado": derivado.estado,
                 "tono": derivado.tono,
                 "detalle": derivado.detalle,
+                "detalle_completo": derivado.detalle_completo,
                 "disponible": derivado.disponible,
             }
         )
