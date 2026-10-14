@@ -430,7 +430,12 @@ class DispositivoUpdateView(FormularioInstitucionMixin, DispositivoObjectPermiss
         except ValidationError as error:
             form.add_error(None, error)
             return self.form_invalid(form)
-        messages.success(self.request, "Dispositivo actualizado.")
+        messages.success(
+            self.request,
+            "Dispositivo enviado a validación."
+            if self.object.estado == Dispositivo.Estado.PENDIENTE_VALIDACION
+            else "Dispositivo actualizado.",
+        )
         return redirect(self.get_success_url())
 
     def get_success_url(self):

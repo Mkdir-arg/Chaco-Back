@@ -517,23 +517,6 @@ class CarreraDePlazaTests(_BaseCarrera):
 class CarreraDeInspeccionTests(_BaseCarrera):
     """Relevamientos en curso, revisiones y reenvíos de la app sin conexión."""
 
-    def test_dos_revisiones_del_mismo_resultado_dejan_una_revision_y_una_traza(self):
-        inspeccion = registrar_resultado(
-            self._fresco(self.agente), self._crear(), criticidad=InspeccionEdificio.Criticidad.ALTA
-        )
-
-        def revisar():
-            return marcar_revisado(InspeccionEdificio.objects.get(pk=inspeccion.pk), self._fresco(self.coordinador))
-
-        resultados, errores = en_paralelo(revisar, revisar, punto_a=INSPECCION_BLOQUEADA)
-        self.assertEqual(len(resultados), 1)
-        self.assertIn("ya está revisado", str(self._un_error(errores)))
-        inspeccion.refresh_from_db()
-        self.assertEqual(inspeccion.revisado_por_id, resultados[0].revisado_por_id)
-        self.assertEqual(inspeccion.revisado_en, resultados[0].revisado_en)
-        self.assertEqual(inspeccion.estado, InspeccionEdificio.Estado.REALIZADA)
-        self.assertEqual(inspeccion.trazas.filter(accion=TrazaInspeccion.Accion.REVISADA).count(), 1)
-
     def setUp(self):
         super().setUp()
         media = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
@@ -561,6 +544,23 @@ class CarreraDeInspeccionTests(_BaseCarrera):
 
     def _archivos_en_media(self):
         return [Path(raiz) / nombre for raiz, _, nombres in os.walk(self.media) for nombre in nombres]
+
+    def test_dos_revisiones_del_mismo_resultado_dejan_una_revision_y_una_traza(self):
+        inspeccion = registrar_resultado(
+            self._fresco(self.agente), self._crear(), criticidad=InspeccionEdificio.Criticidad.ALTA
+        )
+
+        def revisar():
+            return marcar_revisado(self._fresco(self.coordinador), InspeccionEdificio.objects.get(pk=inspeccion.pk))
+
+        resultados, errores = en_paralelo(revisar, revisar, punto_a=INSPECCION_BLOQUEADA)
+        self.assertEqual(len(resultados), 1)
+        self.assertIn("ya está revisado", str(self._un_error(errores)))
+        inspeccion.refresh_from_db()
+        self.assertEqual(inspeccion.revisado_por_id, resultados[0].revisado_por_id)
+        self.assertEqual(inspeccion.revisado_en, resultados[0].revisado_en)
+        self.assertEqual(inspeccion.estado, InspeccionEdificio.Estado.REALIZADA)
+        self.assertEqual(inspeccion.trazas.filter(accion=TrazaInspeccion.Accion.REVISADA).count(), 1)
 
     def test_dos_asignaciones_del_mismo_edificio_dejan_un_relevamiento_en_curso(self):
         """Escenario 6: dos coordinadores asignan el mismo predio en el mismo minuto.

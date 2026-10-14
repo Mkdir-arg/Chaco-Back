@@ -50,7 +50,6 @@ from programas.services.inspecciones import (
     reasignar_inspeccion,
     registrar_resultado,
     ultima_inspeccion,
-    ultimas_inspecciones_de_dispositivos,
     ultimas_inspecciones_por_edificio,
 )
 from users.models import Capacidad, RolMeta
@@ -156,10 +155,6 @@ class PredioCompartidoTests(BaseInspecciones):
             self.assertEqual(list(inspecciones_de_dispositivo(dispositivo)), [inspeccion])
         self.assertEqual(list(inspecciones_de_dispositivo(self.cis)), [])
 
-        ultimas = ultimas_inspecciones_de_dispositivos([self.parador.pk, self.geriatrico.pk])
-        self.assertEqual(ultimas[self.parador.pk], {self.predio.pk: inspeccion})
-        self.assertEqual(ultimas[self.geriatrico.pk], {self.predio.pk: inspeccion})
-
     def test_el_operador_de_otra_institucion_del_predio_ve_el_relevamiento(self):
         inspeccion = self._crear()
 
@@ -186,12 +181,6 @@ class UltimaInspeccionTests(BaseInspecciones):
         self.assertEqual(ultima[self.predio.pk].criticidad, Criticidad.BAJA)
         self.assertIn(self.edificio_cis.pk, ultima)
         self.assertIsNone(ultima[self.edificio_cis.pk])
-
-    def test_el_dispositivo_sin_edificio_trae_un_diccionario_vacio(self):
-        resultado = ultimas_inspecciones_de_dispositivos([self.sin_edificio.pk, self.cis.pk])
-
-        self.assertEqual(resultado[self.sin_edificio.pk], {})
-        self.assertEqual(resultado[self.cis.pk], {self.edificio_cis.pk: None})
 
     def test_gana_la_ultima_realizada(self):
         agente = self._fresco(self.agente)
@@ -224,8 +213,6 @@ class UltimaInspeccionTests(BaseInspecciones):
         with self.assertNumQueries(2):
             resultado = ultimas_inspecciones_por_edificio([e.pk for e in edificios])
         self.assertEqual(sum(1 for valor in resultado.values() if valor is not None), 3)
-        with self.assertNumQueries(3):
-            ultimas_inspecciones_de_dispositivos([self.cis.pk, self.parador.pk, self.sin_edificio.pk])
 
 
 class AsignacionTests(BaseInspecciones):

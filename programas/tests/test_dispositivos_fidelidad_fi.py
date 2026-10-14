@@ -9,6 +9,7 @@ from unittest import skipUnless
 from unittest.mock import patch
 
 from django.conf import settings
+from django.contrib.messages import get_messages
 from django.db import connection
 from django.db.utils import IntegrityError
 from django.test import tag
@@ -76,11 +77,32 @@ class FidelidadFITests(BaseInfraestructura):
         self.assertEqual(respuesta.status_code, 302)
         self.assertEqual(Dispositivo.objects.get(codigo=self.datos["codigo"]).estado, Dispositivo.Estado.BORRADOR)
 
+    def test_editar_sin_enviar_conserva_el_mensaje_de_actualizacion(self):
+        respuesta = self.client.post(self.editar, self.datos)
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertEqual([str(m) for m in get_messages(respuesta.wsgi_request)], ["Dispositivo actualizado."])
+
+    def test_contador_solo_en_alta_y_envio_habilitado_sin_javascript(self):
+        alta = self.client.get(self.crear)
+        self.assertContains(
+            alta, 'id="duplicate-count" class="badge badge-warning" aria-label="Coincidencias">0</span>'
+        )
+        self.assertNotContains(self.client.get(self.editar), 'id="duplicate-count"')
+        for url in (self.crear, self.editar):
+            html = self.client.get(url).content.decode()
+            boton = re.search(r'<button[^>]*name="accion"[^>]*>', html).group()
+            self.assertNotIn("disabled", boton)
+        self.assertContains(alta, 'id="duplicate-search" class="hidden" tabindex="-1"')
+
     def test_enviar_desde_alta_y_edicion_guarda_y_transiciona_con_traza(self):
         for url, codigo in ((self.crear, "FI-NUEVO"), (self.editar, self.cis.codigo)):
             with self.subTest(url=url):
+                self.client.get(url)  # Consume los mensajes del POST anterior, como el navegador.
                 respuesta = self.client.post(url, {**self.datos, "codigo": codigo, "accion": "enviar_validacion"})
                 self.assertEqual(respuesta.status_code, 302)
+                self.assertEqual(
+                    [str(m) for m in get_messages(respuesta.wsgi_request)], ["Dispositivo enviado a validación."]
+                )
                 dispositivo = Dispositivo.objects.get(codigo=codigo)
                 self.assertEqual(dispositivo.estado, Dispositivo.Estado.PENDIENTE_VALIDACION)
                 self.assertEqual(dispositivo.responsable_nombre, self.datos["responsable_nombre"])
@@ -164,6 +186,7 @@ class FidelidadFITests(BaseInfraestructura):
             [shutil.which("node"), str(settings.BASE_DIR / "programas/tests/js/faltantes_fi.cjs")],
             input=json.dumps(script),
             text=True,
+            encoding="utf-8",
             capture_output=True,
             timeout=15,
         )
@@ -177,6 +200,7 @@ class FidelidadFITests(BaseInfraestructura):
             [shutil.which("node"), str(settings.BASE_DIR / "programas/tests/js/duplicados_fi.cjs")],
             input=json.dumps(script),
             text=True,
+            encoding="utf-8",
             capture_output=True,
             timeout=15,
         )

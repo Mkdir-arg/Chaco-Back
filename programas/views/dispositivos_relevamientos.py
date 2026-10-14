@@ -464,9 +464,9 @@ class RelevamientoRevisarView(_RelevamientoAccionView):
     def post(self, request, pk):
         relevamiento = relevamiento_para_revision(request.user, pk)
         if relevamiento is None:
-            raise PermissionDenied("No tenés permiso para revisar este relevamiento.")
+            return self._prohibido(PermissionDenied("No tenés permiso para revisar este relevamiento."))
         try:
-            marcar_revisado(relevamiento, request.user)
+            marcar_revisado(request.user, relevamiento)
         except PermissionDenied as error:
             return self._prohibido(error)
         except ValidationError as error:
