@@ -17,7 +17,7 @@ La carrera de verdad —dos hilos sobre el último lugar— es la otra capa: un
 """
 
 import inspect
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -44,4 +44,34 @@ def candados_tomados(manager):
         return original(*args, **kwargs)
 
     with patch.object(manager, "select_for_update", registrar):
+        yield llamadas
+
+
+@contextmanager
+def orden_de_candados(**managers):
+    """Registra los ``select_for_update()`` de varios managers en **una sola** lista.
+
+    ``candados_tomados`` mira un manager por vez y pierde el orden relativo entre dos
+    tablas, que es justo lo que decide si dos transacciones se esperan o se matan: dos
+    caminos que bloquean las mismas filas tienen que pedirlas **en el mismo orden**, o el
+    motor los corta con un `ERROR 1213`. El orden tampoco se puede probar por su efecto en
+    SQLite —ahí no hay candados—, así que se prueba por la secuencia de llamadas.
+
+    Uso::
+
+        with orden_de_candados(plaza=Plaza.objects, reserva=ReservaPlaza.objects) as orden:
+            liberar_reserva(reserva=reserva, usuario=self.operador)
+        self.assertEqual(orden, ["plaza", "reserva"])
+    """
+
+    llamadas = []
+    with ExitStack() as pila:
+        for nombre, manager in managers.items():
+            original = manager.select_for_update
+
+            def registrar(*args, _nombre=nombre, _original=original, **kwargs):
+                llamadas.append(_nombre)
+                return _original(*args, **kwargs)
+
+            pila.enter_context(patch.object(manager, "select_for_update", registrar))
         yield llamadas

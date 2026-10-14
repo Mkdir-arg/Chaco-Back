@@ -39,6 +39,25 @@ omisión de InnoDB esto **no** sería cierto: la foto se toma en la primera lect
 bloqueante de la transacción —la del control de permisos, antes del `FOR UPDATE`— y el
 segundo operador no vería la estadía del primero.
 
+El orden de los candados: plaza y después reserva
+-------------------------------------------------
+
+`ingresar_persona` y `liberar_reserva` piden las dos filas en ese orden. Invertirlo
+puede formar un ciclo: InnoDB aborta una transacción con `ERROR 1213`, que el servicio
+no traduce a un error de dominio.
+
+Lo que lo hace fácil de romper es que la mitad de los candados no se ven en el código.
+`ReservaPlaza` y `Estadia` declaran un índice `(plaza, estado)` con `plaza_id` a la
+izquierda. Cuando InnoDB usa ese índice para la FK, un `UPDATE` que cambie
+`estado` reescribe esa entrada y puede pedir un **lock compartido sobre la fila de
+la plaza**. O sea que escribir una reserva toma la plaza aunque el código no la nombre.
+Por eso `liberar_reserva` bloquea la plaza antes de la reserva aunque no tenga nada que
+preguntarle. Lo verifica `programas.tests.test_dispositivos_concurrencia`.
+
+Al ordenar candados hay que contemplar también los que toma InnoDB al modificar
+índices usados por una FK. `OrdenDeLosCandadosTests` fija el orden por la secuencia de
+llamadas en SQLite; `programas.tests.test_dispositivos_concurrencia` corre la carrera real.
+
 La verificación en toda la red
 ------------------------------
 
@@ -727,10 +746,14 @@ def liberar_reserva(*, reserva, usuario, motivo=""):
     if not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
         raise PermissionDenied("No tenés alcance para liberar plazas en este dispositivo.")
 
+    # Plaza y después reserva, igual que el ingreso: el UPDATE de estado puede tomar
+    # también la plaza al revalidar la FK por su índice (plaza, estado). Con el orden
+    # inverso se forma un deadlock (ERROR 1213) en vez del error de reserva no vigente.
+    # plaza_id es estable: ningún servicio mueve una reserva de plaza. Sin JOIN para
+    # no bloquear también el sector.
+    Plaza.objects.select_for_update().filter(pk=reserva.plaza_id).first()
     # Releída con bloqueo, como en el ingreso que la consume: sin esto, liberar con un
-    # objeto viejo pisaría con LIBERADA una reserva que un ingreso acaba de consumir. Sin
-    # `select_related`: el JOIN bloquearía también la plaza, en el orden inverso al del
-    # ingreso (plaza y después reserva), y las dos transacciones se esperarían en cruz.
+    # objeto viejo pisaría con LIBERADA una reserva que un ingreso acaba de consumir.
     reserva = ReservaPlaza.objects.select_for_update().get(pk=reserva.pk)
     if reserva.estado != ReservaPlaza.Estado.VIGENTE:
         raise ValidationError({"estado": "La reserva ya no está vigente."})
