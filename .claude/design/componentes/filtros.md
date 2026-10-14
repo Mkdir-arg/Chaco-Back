@@ -108,7 +108,8 @@ include con `ocultos=(("tab", <su clave>),)`, y la vista le arma a cada uno las 
 `programas/templates/programas/dispositivos/relevamientos/list.html` (P21) y la solapa Estadías de
 `programas/templates/programas/dispositivos/legajo/detail.html` (P4).
 
-En P21, las opciones de «Asignado a» se limitan a relevamientos cuya asignación puede ver
+En P21, «Revisados» filtra completados con fecha de revisión; su contador y «Asignado a»
+conservan el mismo alcance que las demás solapas. Las opciones de «Asignado a» se limitan a relevamientos cuya asignación puede ver
 quien mira: coordina ese edificio o es el agente asignado. Leer el edificio por
 `dispositivo.ver` no habilita su nombre ni en la píldora ni en la fila (que muestra «—»).
 

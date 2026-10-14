@@ -113,7 +113,8 @@ línea (mismo resultado visual): se migra al tocarla, no se copia.
 `_menu_fila_item.html`, `static/custom/css/nodo-menu-fila.css`, `static/custom/js/nodo-menu-fila.js`
 (el shell carga los dos últimos). Tests: `core/tests/test_nodo_ui_piezas.py` (`MenuFilaTest`).
 **Consumidores de referencia:** `programas/templates/programas/dispositivos/relevamientos/list.html`
-(P21: ítems con `url` y `motivo` preparados en la vista; las acciones con formulario abren su modal por
+(P21: ítems con `url`, `motivo` y `confirm_url` preparados en la vista; revisión sin datos con
+`_confirm_js.html` y ModernModal; las acciones con formulario abren su modal por
 parámetro GET). P4 (`dispositivos/legajo/detail.html`) reusa el mismo contrato para cambiar plaza
 y egresar: un modal por URL y capacidad, sin consultas por fila. Lo van a usar también P12, P20 y P22.
 

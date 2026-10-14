@@ -265,7 +265,7 @@ def _trazar(inspeccion, usuario, accion, detalle):
 
 
 # --------------------------------------------------------------------------- #
-# Coordinador: crear, reasignar, cancelar
+# Coordinador: crear, reasignar, cancelar y revisar
 # --------------------------------------------------------------------------- #
 
 
@@ -353,6 +353,38 @@ def cancelar_inspeccion(usuario, inspeccion, motivo):
 # --------------------------------------------------------------------------- #
 # Agente: resultado y fotos
 # --------------------------------------------------------------------------- #
+
+
+@transaction.atomic
+def marcar_revisado(inspeccion, usuario):
+    """La coordinación revisa una sola vez un resultado, sin cambiar REALIZADA."""
+
+    inspeccion = _bloquear(inspeccion)
+    _exigir_alcance_coordinador(usuario, inspeccion.edificio)
+    if inspeccion.estado != InspeccionEdificio.Estado.REALIZADA:
+        raise ValidationError("Solo se puede revisar un relevamiento completado.")
+    if inspeccion.revisado_en is not None:
+        raise ValidationError("El relevamiento ya está revisado.")
+    inspeccion.revisado_en = timezone.now()
+    inspeccion.revisado_por = usuario
+    inspeccion.save(update_fields=["revisado_en", "revisado_por", "modificado"])
+    _trazar(
+        inspeccion,
+        usuario,
+        TrazaInspeccion.Accion.REVISADA,
+        f"Edificio {inspeccion.edificio.nombre} · revisado por {_nombre(usuario)}",
+    )
+    return inspeccion
+
+
+def puede_revisar(usuario, inspeccion, *, edificios_gestionables=None):
+    """Disponibilidad de la acción; el POST vuelve a validar bajo el candado."""
+
+    if inspeccion.estado != InspeccionEdificio.Estado.REALIZADA or inspeccion.revisado_en is not None:
+        return False
+    if edificios_gestionables is not None:
+        return inspeccion.edificio_id in edificios_gestionables
+    return edificios_en_alcance(usuario, CAP_ASIGNAR).filter(pk=inspeccion.edificio_id).exists()
 
 
 def _exigir_capacidad_de_agente(usuario):
@@ -609,6 +641,7 @@ def resumen_listado(queryset, *, situacion="", asignado_a_id=None, hoy=None):
         al_dia=Count("pk", filter=_condicion_situacion(Situacion.AL_DIA, hoy)),
         solapa_en_curso=Count("pk", filter=(_condicion_situacion(situacion, hoy) or en_curso) & por_agente),
         solapa_completados=Count("pk", filter=Q(estado=estado.REALIZADA) & por_agente),
+        solapa_revisados=Count("pk", filter=Q(estado=estado.REALIZADA, revisado_en__isnull=False) & por_agente),
         solapa_cancelados=Count("pk", filter=Q(estado=estado.CANCELADA) & por_agente),
     )
     return {clave: valor or 0 for clave, valor in totales.items()}
@@ -962,7 +995,7 @@ def _indicadores_del_informe(inspeccion, semaforo, situacion_texto, total_fotos,
 
 
 def informe_de_relevamiento(usuario, inspeccion, *, hoy=None):
-    """Lo que dibuja «Ver informe»: un relevamiento en **solo lectura**, con su galería.
+    """Resultado y galería, con revisión disponible solo para su coordinación.
 
     Quién **entra** ya lo decidió `inspecciones_visibles` (ajeno e inexistente dan el mismo
     404); acá se decide **qué ve**: el resultado lo lee cualquiera que vea el relevamiento,
@@ -989,6 +1022,8 @@ def informe_de_relevamiento(usuario, inspeccion, *, hoy=None):
         "situacion_texto": situacion_texto,
         "semaforo": semaforo,
         "relevo": _nombre(inspeccion.realizada_por) if realizada else "",
+        "revisor": _nombre(inspeccion.revisado_por) if inspeccion.revisado_en else "",
+        "puede_revisar": puede_revisar(usuario, inspeccion),
         # Vacío = no se muestra. El nombre que no se puede ver no llega al template.
         "agente": _nombre(inspeccion.asignado_a) if ve_asignacion else "",
         "indicaciones": inspeccion.indicaciones if ve_asignacion else "",

@@ -10,14 +10,14 @@ Los modales de asignar, reasignar y cancelar se abren con un parámetro GET
 agentes depende del edificio —el personal de sus instituciones no se ofrece— y el menú de
 fila solo sabe navegar. Así cada modal llega armado por el servidor, sin JS propio.
 
-Cuatro solapas, y la última **no es de relevamientos**: «Sin relevar nunca» lista
+Cinco solapas, y la última **no es de relevamientos**: «Sin relevar nunca» lista
 *edificios* del alcance que no tienen ninguno realizado, que es justo lo que no puede salir
 de una tabla de `InspeccionEdificio`. Las píldoras de filtro van **dentro de cada panel**
 (`ocultos=("tab", <clave>)`, el patrón de P4): el formulario de filtros es del servidor y
 la solapa la cambia Alpine en el navegador, así que un solo oculto arriba mandaba siempre
 la solapa que resolvió el servidor y filtrar desde otra volvía a «En curso».
 
-:class:`RelevamientoInformeView` es la pantalla de solo lectura de un relevamiento y **no
+:class:`RelevamientoInformeView` muestra el resultado de un relevamiento y **no
 es solo del coordinador**: también entra quien opera una institución del edificio, desde la
 solapa Infraestructura. Por eso no lleva el mixin de capacidad: la única regla es
 `inspecciones_visibles`, y lo ajeno da el mismo 404 que lo inexistente.
@@ -45,6 +45,7 @@ from programas.forms_dispositivos import (
 )
 from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
 from programas.models import Dispositivo, InspeccionEdificio
+from programas.selectors.inspecciones import relevamiento_para_revision
 from programas.services.dispositivos import CAP_VER, puede_en_programa_dispositivos, puede_operar_dispositivo
 from programas.services.inspecciones import (
     AGENTE_DEBE_SER_EXTERNO,
@@ -60,6 +61,8 @@ from programas.services.inspecciones import (
     informe_de_relevamiento,
     inspecciones_en_curso_por_edificio,
     inspecciones_visibles,
+    marcar_revisado,
+    puede_revisar,
     reasignar_inspeccion,
     resumen_listado,
     situacion_de,
@@ -77,10 +80,10 @@ Estado = InspeccionEdificio.Estado
 SOLAPAS = (
     ("en_curso", "En curso", "fa-clipboard-list", Estado.ASIGNADA, ("fecha_vencimiento", "pk")),
     ("completados", "Completados", "fa-circle-check", Estado.REALIZADA, ("-realizada_en", "-pk")),
+    ("revisados", "Revisados", "fa-circle-check", Estado.REALIZADA, ("-revisado_en", "-pk")),
     ("cancelados", "Cancelados", "fa-ban", Estado.CANCELADA, ("-modificado", "-pk")),
 )
-#: La cuarta solapa no lista relevamientos sino **edificios**: lo que nunca se relevó no
-#: tiene fila en `InspeccionEdificio`, así que no puede salir de las otras tres.
+#: La última solapa lista **edificios**: lo nunca relevado no tiene fila de resultado.
 SOLAPA_SIN_RELEVAR = "sin_relevar"
 SOLAPA_POR_DEFECTO = "en_curso"
 
@@ -127,7 +130,7 @@ def _nombre(usuario):
 
 
 class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
-    """P21: los relevamientos que el coordinador puede ver, en cuatro solapas, y sus modales."""
+    """P21: los relevamientos que el coordinador puede ver, en cinco solapas, y sus modales."""
 
     capacidad_requerida = CAP_ASIGNAR
     template_name = "programas/dispositivos/relevamientos/list.html"
@@ -147,7 +150,7 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         asignado_id = _entero(params.get("asignado_a"))
 
         resumen = resumen_listado(visibles, situacion=situacion, asignado_a_id=asignado_id, hoy=hoy)
-        base = visibles.select_related("edificio", "asignado_a")
+        base = visibles.select_related("edificio", "asignado_a", "revisado_por")
         if asignado_id:
             base = base.filter(asignado_a_id=asignado_id)
         vista = _sin(params, PARAMETROS_DE_MODAL)
@@ -182,6 +185,8 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         solapas = []
         for clave, etiqueta, icono, estado, orden in SOLAPAS:
             queryset = base.filter(estado=estado).order_by(*orden)
+            if clave == "revisados":
+                queryset = queryset.filter(revisado_en__isnull=False)
             if clave == "en_curso":
                 queryset = filtrar_por_situacion(queryset, situacion, hoy)
             paginator = Paginator(queryset, self.paginate_by)
@@ -219,7 +224,7 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
             for relevamiento in solapa["filas"]:
                 ve_asignacion = relevamiento.edificio_id in en_alcance or relevamiento.asignado_a_id == user.pk
                 relevamiento.agente_visible = _nombre(relevamiento.asignado_a) if ve_asignacion else ""
-                self._preparar_fila(relevamiento, hoy, en_alcance, vista, solapa["clave"])
+                self._preparar_fila(user, relevamiento, hoy, en_alcance, vista, solapa["clave"])
 
         edificios_libres = edificios_para_asignar(user)
         sin_relevar = self._solapa_sin_relevar(user, params, vista, querystring_de)
@@ -274,11 +279,11 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         }
 
     @staticmethod
-    def _preparar_fila(relevamiento, hoy, en_alcance, vista, solapa):
+    def _preparar_fila(user, relevamiento, hoy, en_alcance, vista, solapa):
         """Lo que la fila muestra.
 
-        Completado es terminal pero tiene una acción: **ver el informe**, que es lo único que
-        queda por hacer con él. Cancelado no dejó resultado, así que sigue sin menú.
+        Completado ofrece el informe y, para su coordinación, marcar como revisado.
+        Cancelado no dejó resultado, así que sigue sin menú.
         """
 
         relevamiento.situacion = situacion_de(relevamiento, hoy)
@@ -297,6 +302,11 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
                 reverse("dispositivos:relevamiento_informe", args=[relevamiento.pk])
                 + f"?{urlencode({PARAMETRO_VOLVER: consulta.urlencode()})}"
             )
+            if puede_revisar(user, relevamiento, edificios_gestionables=en_alcance):
+                relevamiento.url_revisar = (
+                    reverse("dispositivos:relevamiento_revisar", args=[relevamiento.pk])
+                    + f"?{urlencode({PARAMETRO_VOLVER: consulta.urlencode()})}"
+                )
         if not relevamiento.en_curso:
             return
         relevamiento.gestionable = relevamiento.edificio_id in en_alcance
@@ -344,7 +354,7 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
 
 
 class RelevamientoInformeView(LoginRequiredMixin, TemplateView):
-    """«Ver informe»: el relevamiento en solo lectura, con su resultado y su galería.
+    """«Ver informe»: resultado, galería y revisión por la coordinación.
 
     **Sin mixin de capacidad a propósito.** La entran tres personas distintas —el
     coordinador desde P21, el agente que lo cargó y quien opera una institución del edificio
@@ -364,12 +374,16 @@ class RelevamientoInformeView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         relevamiento = get_object_or_404(
-            inspecciones_visibles(user).select_related("edificio", "asignado_a", "realizada_por"),
+            inspecciones_visibles(user).select_related("edificio", "asignado_a", "realizada_por", "revisado_por"),
             pk=kwargs["pk"],
         )
         volver_url, volver_label = self._volver(user, self.request.GET)
         context.update(informe_de_relevamiento(user, relevamiento))
         context.update({"volver_url": volver_url, "volver_label": volver_label})
+        context["url_revisar"] = reverse("dispositivos:relevamiento_revisar", args=[relevamiento.pk])
+        origen = {k: self.request.GET[k] for k in (PARAMETRO_VOLVER, "dispositivo") if self.request.GET.get(k)}
+        if origen:
+            context["url_revisar"] += "?" + urlencode({"origen": "informe", **origen})
         return context
 
     @staticmethod
@@ -433,6 +447,31 @@ class _RelevamientoAccionView(DispositivoProgramaPermissionMixin, View):
         return get_object_or_404(
             inspecciones_visibles(self.request.user).select_related("edificio", "asignado_a"), pk=pk
         )
+
+
+class RelevamientoRevisarView(_RelevamientoAccionView):
+    """POST autorizado por capacidad y alcance, sin revelar registros ajenos."""
+
+    def _volver(self):
+        if self.request.GET.get("origen") == "informe":
+            origen = {k: self.request.GET[k] for k in (PARAMETRO_VOLVER, "dispositivo") if self.request.GET.get(k)}
+            url = reverse("dispositivos:relevamiento_informe", args=[self.kwargs["pk"]])
+            return url + ("?" + urlencode(origen) if origen else "")
+        if self.request.GET.get(PARAMETRO_VOLVER):
+            return _url_lista(self.request.GET[PARAMETRO_VOLVER])
+        return reverse("dispositivos:relevamiento_informe", args=[self.kwargs["pk"]])
+
+    def post(self, request, pk):
+        relevamiento = relevamiento_para_revision(request.user, pk)
+        if relevamiento is None:
+            raise PermissionDenied("No tenés permiso para revisar este relevamiento.")
+        try:
+            marcar_revisado(relevamiento, request.user)
+        except PermissionDenied as error:
+            return self._prohibido(error)
+        except ValidationError as error:
+            return self._rechazar({"__all__": error.messages})
+        return self._ok("El relevamiento quedó revisado.")
 
 
 class RelevamientoAsignarView(_RelevamientoAccionView):

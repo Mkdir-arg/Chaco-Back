@@ -177,7 +177,7 @@ class ListadoTests(BaseListado):
         self.assertEqual([r.pk for r in _filas(respuesta, "completados")], [completado.pk])
         self.assertEqual([r.pk for r in _filas(respuesta, "cancelados")], [cancelado.pk])
         # Los contadores salen del aggregate y tienen que coincidir con lo que cada solapa lista.
-        self.assertEqual([s["total"] for s in respuesta.context["solapas"]], [1, 1, 1])
+        self.assertEqual([s["total"] for s in respuesta.context["solapas"]], [1, 1, 0, 1])
         self.assertContains(respuesta, 'role="tab" id="tab-en_curso" aria-controls="panel-en_curso"')
 
     def test_la_solapa_activa_viene_de_la_url_y_una_invalida_cae_en_en_curso(self):
@@ -340,6 +340,7 @@ class ListadoTests(BaseListado):
                 "al_dia": 0,
                 "solapa_en_curso": 1,
                 "solapa_completados": 0,
+                "solapa_revisados": 0,
                 "solapa_cancelados": 0,
             },
         )

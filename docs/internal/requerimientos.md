@@ -431,6 +431,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 301 | Correcciones menores de fidelidad FA–FD | Dispositivos · P4/P5/P6/P7/P10/P16 | `#ui` `#rbac` `#performance` `#textos` | Juez — carril FE | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 302 | Segunda pasada de fidelidad del MVP: instituciones y tablas compartidas | Dispositivos · P2/P3/P4/P5 · tablas transversales | `#ui` `#textos` `#performance` | PM / juez — carril FF | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 303 | Separar reservas y préstamos y corregir el contenido de duplicados | Dispositivos · P3/P5 | `#ui` `#textos` `#performance` | PM / juez — carril FG | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 304 | Relevamiento completado y revisado sin cambiar el estado operativo | Dispositivos · relevamientos P21/informe | `#relevamientos` `#rbac` `#ui` `#datos` `#performance` | PM / juez — carril FR, fidelidad del MVP presentado | 14/10/2026 | 🟢 **Hecho** | `programas.0095` |
 
 **Notas del índice**
 
@@ -39752,5 +39753,149 @@ migraciones; vuelven el resumen agregado de P5 y la inserción anterior de dupli
 ## Historial
 
 Entrada nueva y única de FG. Las entradas anteriores se conservan.
+
+---
+
+---
+
+# Cambio 304 — Relevamiento completado y revisado sin cambiar el estado operativo
+
+🟢 **HECHO — 14/10/2026** · Carril FR · Número definitivo a cargo del juez
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamiento edilicio |
+| **Etiquetas** | `#relevamientos` `#rbac` `#ui` `#datos` `#performance` |
+| **Solicitante** | PM / juez — encargo directo del carril FR |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Sin issue nuevo · Épica #127 |
+| **Partes afectadas** | Servidor: modelo, servicio y selector · Backoffice: P21 e informe · Tests y canon |
+| **Migración** | `programas.0095_inspeccion_revision` |
+
+## Pedido original
+
+El MVP presentado al Ministerio, [§2, El relevamiento en campo](../client/funcionalidades/mvp-dispositivos-v2.md),
+promete: «Estado del relevamiento, para saber si está asignado, cargado o revisado.»
+Completar la revisión sin alterar los estados operativos ni los consumidores de REALIZADA.
+
+## Alcance acordado
+
+Dos campos de revisión, transición auditada, acción de coordinación en P21 e informe,
+badge y datos del revisor, solapa Revisados y pruebas de permisos, concurrencia y consultas.
+No entran roles, cambios de API móvil, nuevas capacidades ni superficies ajenas.
+
+## Decisiones tomadas
+
+- Se conserva REALIZADA. `revisado_en` y `revisado_por` son anulables; el usuario usa PROTECT,
+  como los demás autores del modelo. No hay estado REVISADA en InspeccionEdificio.
+- `marcar_revisado(inspeccion, usuario)` bloquea la fila con select_for_update dentro de atomic,
+  exige `inspeccion.asignar` con el alcance existente del edificio y rechaza ASIGNADA,
+  CANCELADA y una segunda revisión. Una traza REVISADA se escribe en la misma transacción;
+  no se crea ningún UniqueConstraint condicional.
+- Revisados es un subconjunto de Completados, que sigue contando todos los resultados.
+  El contador se calcula en el aggregate existente y conserva el filtro por agente.
+- P21 trae `revisado_por` por select_related, sin consultas por fila. La nueva página de
+  Revisados suma una lectura fija: presupuesto nuevo `dispositivos_relevamientos_revisados`,
+  17 consultas con las cinco solapas pobladas; el presupuesto previo sin revisados sigue en 16.
+- El POST devuelve 403 tanto para ajeno como para inexistente, con el mismo cuerpo y sin
+  nombres ni estado. El informe conserva el 404 existente para lecturas ajenas/inexistentes.
+- Se usa ModernModal con confirmación no destructiva, POST y CSRF. No se modifica el shell.
+  La disponibilidad de la acción se decide en el servicio; P21 le pasa el alcance preparado en lote.
+- No se expone `revisado_en` en la API móvil: es opcional en el encargo y conservar el contrato
+  versionado evita introducir una diferencia para el equipo móvil. Serializadores y API intactos.
+
+**Plan de pantalla.**
+
+```
+Tipo: A · Ajuste de P21 y del informe existentes
+Arquetipos: Listado y Detalle apilado · referencias: becas/revision/personas_list.html y becas/cupo/segmento_detail.html
+Rutas: dispositivos:relevamientos · dispositivos:relevamiento_informe
+Templates: dispositivos/relevamientos/list.html · dispositivos/relevamientos/informe.html
+Bloques: estado=parcial del módulo (Completado + Revisado) · menú=menu_fila con confirm_url · header=page_header + btn-secondary btn-sm
+Confirmación: becas/_confirm_js.html + ModernModal del shell · POST y CSRF
+Detalle: Revisado por y Revisado el dentro del dl existente · conserva origen de Volver
+Lecturas: select_related(edificio, asignado_a, revisado_por) y aggregate compartido
+Clasificación: badges, botones, menú, tabs y confirmación = Canónico reutilizable; sin uso nuevo de legacy
+Novedades: ninguna pieza, clase, CSS, include ni variante nueva; solo dominio y extensión del badge del módulo
+Fichas: botones_badges.md, tabla.md, filtros.md y arquetipos/modal.md actualizadas en el mismo cambio
+```
+
+**Apartamientos del mockup.** P21 no dibuja revisión en su muestra: se agrega por la promesa
+del documento y la decisión del juez, manteniendo su lenguaje. No se incorporan Exportar,
+Tipo, periodicidad, «en obra» ni cambiar el vencimiento: no tienen dato/servicio habilitado
+en este recorte y ya estaban fuera del alcance. Se conserva la columna Edificio del producto
+(un predio se releva una vez para todas sus instituciones), sin migrar columnas ajenas.
+
+## Implementación
+
+La coordinación marca una sola vez un resultado completado. P21 y el informe muestran
+Completado más Revisado; el informe registra quién y cuándo. El menú de P21 y el encabezado
+del informe ofrecen la acción únicamente dentro del alcance y mientras falta la revisión.
+Semáforo, última realizada, criticidad y resultado conservan su funcionamiento.
+
+## Archivos
+
+- `programas/models/__init__.py`, `programas/migrations/0095_inspeccion_revision.py`.
+- `programas/services/inspecciones.py`, `programas/selectors/inspecciones.py`.
+- `programas/views/dispositivos_relevamientos.py`, `programas/dispositivos_urls.py`.
+- P21, informe y `_relevamiento_situacion_badge.html` en `programas/templates/programas/dispositivos/`.
+- `test_dispositivos_revision.py`, `test_dispositivos_concurrencia.py`, tests existentes de listado e informe.
+- `scripts/perf_budgets.json` y las cuatro fichas del Plan de pantalla.
+
+## Base de datos
+
+`programas.0095_inspeccion_revision` depende de `programas.0094`, última migración de origin/development verificada. Agrega datetime
+anulable y FK anulable a usuario, sin backfill; los relevamientos anteriores permanecen
+sin revisar. El AlterField de la acción de traza solo amplía choices; no cambia columna,
+nullabilidad ni enum del estado de inspección. Contrato de migraciones sin marcas especiales.
+
+## Validación
+
+- `manage.py check` y `makemigrations --check --dry-run` con DJANGO_SYNCDB_PROJECT_APPS=False: OK.
+- Contrato de 0095: sin hallazgos; gate completo repetido después de commitear.
+- Dominio, arquitectura, auditoría, alertas y API de campo: 149 tests OK.
+- Listado, informe y revisión: 94 tests OK; guarda de disponibilidad sobre asignada/cancelada: 1 test adicional OK.
+- Job Contratos de API: los 8 módulos, 114 tests OK. API móvil sin campos nuevos.
+- Performance de programas: 29 tests OK; costo fijo de P21 con 2 y 20 revisados.
+- MariaDB 10.11, usando migraciones reales: 5 tests de CarreraDeInspeccionTests OK,
+  incluida la revisión simultánea (una gana, una rechaza, una traza). W036 preexistentes
+  de Admision/EsperaAdmision; no se agregan constraints condicionales.
+- Mutaciones: quitar estado, autorización, guarda de doble revisión o candado puso cada
+  test rojo. Se restauraron los bytes desde copias; sin git checkout ni stash.
+- También quedan rojos al romper disponibilidad del botón, alcance del selector o conteo
+  de Revisados. Quitar select_related del revisor provoca NPlusOneError de Zeal en el test
+  de presupuesto. Ocho mutaciones detectadas; restauración desde copias exactas.
+- Corrida final después de restaurar las mutaciones: 14 tests de revisión y presupuesto OK.
+- Compilación: 233 templates, cero errores. Arquetipos de ambas pantallas, ratchet contra
+  origin/development y goldens: OK. Tailwind recompilado, sin diff de CSS.
+- Ruff check y format sobre programas/core/users: OK. Canon changed y límites: OK,
+  repetidos después de los commits. Presupuestos de performance: OK.
+- Inspección de capturas del mockup P21 y renders locales en Edge: listado con ambos badges,
+  informe antes/después y confirmación ModernModal con los textos de la acción.
+- `requerimientos.py --check` valida las entradas numeradas. 304 queda deliberadamente
+  sin numerar para el juez: el parser actual solo reconoce números. Se verifican por separado
+  una única cabecera y una única fila 304 y sus etiquetas; se debe repetir el check tras numerar.
+
+## Puesta en marcha en el servidor
+
+Aplicar migraciones mediante el deploy habitual. Los roles siguen a cargo del PM;
+no hay nuevas capacidades, seeds, variables ni comandos manuales.
+
+## Pendientes / a definir
+
+El juez asigna el número definitivo a 304 (cabecera y fila) y repite requerimientos.py --check.
+Sin pendientes funcionales del carril. La API móvil conserva el contrato anterior por decisión explícita.
+
+## Reversión
+
+Revertir los commits FR de código y documentación. El código anterior admite las columnas
+anulables durante el rollback y sigue leyendo REALIZADA. Si se decide retirar el esquema,
+respaldar primero las marcas y trazas y ejecutar `manage.py migrate programas 0094` usando
+el venv del servidor: se pierden revisado_en y revisado_por. Las trazas REVISADA permanecen
+como historial y el código viejo puede mostrar su código en lugar del rótulo; no borrarlas.
+
+## Historial
+
+Entrada nueva y única del carril FR. No se modifican las entradas anteriores.
 
 ---
