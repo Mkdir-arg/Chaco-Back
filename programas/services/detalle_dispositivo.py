@@ -17,7 +17,9 @@ Costo
 
 Constante en el volumen: el ``Censo`` son tres consultas, el contador de estadías una, y
 cada listado paginado dos (el ``COUNT`` y la página) con ``select_related`` de la persona y
-la plaza, así que **no hay una consulta por fila**.
+la plaza, así que **no hay una consulta por fila**. Las alertas son una o dos consultas por
+regla (``programas.services.alertas_dispositivos``) y el historial, un ``COUNT`` y una
+lectura por cada una de sus cuatro fuentes (``programas.selectors.auditoria_dispositivo``).
 """
 
 from collections import defaultdict
@@ -27,7 +29,10 @@ from django.db.models import Count, F, Q
 from django.utils import timezone
 from django.utils.formats import date_format
 
+from core.services.vencimientos import avisos
 from programas.models import Dispositivo, Edificio, Estadia, FotoInspeccion, InspeccionEdificio, Sector
+from programas.selectors.auditoria_dispositivo import auditoria_del_dispositivo
+from programas.services.alertas_dispositivos import AMBITO, ICONOS, TONOS
 from programas.services.estadias import estado_visible
 from programas.services.inspecciones import (
     SEMAFOROS,
@@ -211,25 +216,61 @@ def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None
     return pagina_de_estadias
 
 
-def eventos_de_historial(dispositivo, pagina=1):
-    """La página del historial de validación como eventos de la línea de tiempo (más nuevo primero)."""
+def _fecha_legible(fecha):
+    if fecha is None:
+        return ""
+    if hasattr(fecha, "hour"):
+        return date_format(timezone.localtime(fecha), "d/m/Y H:i")
+    return date_format(fecha, "d/m/Y")
 
-    trazas = dispositivo.trazas.select_related("usuario").order_by("-creado_en", "-id")
-    pagina_de_trazas = Paginator(trazas, POR_PAGINA_HISTORIAL).get_page(pagina)
-    eventos = []
-    for traza in pagina_de_trazas:
-        cuando = date_format(timezone.localtime(traza.creado_en), "d/m/Y H:i")
-        detalle = f"{traza.estado_anterior_legible} → {traza.estado_nuevo_legible}"
-        if traza.detalle_legible:
-            detalle = f"{detalle} · {traza.detalle_legible}"
-        eventos.append(
+
+def alertas_del_dispositivo(dispositivo, momento=None):
+    """Las alertas vigentes del dispositivo, de la más severa a la menos, listas para `_alerta.html`.
+
+    Salen del registro de reglas de aviso (``core.services.vencimientos``, ámbito
+    ``dispositivos``): se derivan del dato en cada pedido y no bloquean nada. Cada una
+    lleva severidad, origen, fecha y —si hay pantalla donde resolverla— su enlace.
+    """
+
+    alertas = []
+    for aviso in avisos(AMBITO, dispositivo, momento or timezone.now()):
+        fecha = _fecha_legible(aviso.fecha)
+        pie = f"{aviso.origen} · desde el {fecha}" if fecha else aviso.origen
+        alertas.append(
             {
-                "cuando": f"{cuando} · {traza.usuario or 'Sistema'}",
-                "titulo": traza.accion,
-                "detalle": detalle,
+                "regla": aviso.regla,
+                "severidad": aviso.severidad,
+                "tono": TONOS[aviso.severidad],
+                "icono": ICONOS[aviso.severidad],
+                "titulo": aviso.titulo,
+                "texto": f"{aviso.texto} {pie}.",
+                "origen": aviso.origen,
+                "fecha": aviso.fecha,
+                "enlace": aviso.enlace,
+                "accion": aviso.accion,
             }
         )
-    return pagina_de_trazas, eventos
+    return alertas
+
+
+def eventos_de_historial(dispositivo, pagina=1):
+    """La página de la auditoría del dispositivo como eventos de la línea de tiempo (más nuevo primero).
+
+    Junta las cuatro trazas —legajo, estadías, correcciones de bitácora y relevamientos
+    edilicios— en una sola lista (``programas.selectors.auditoria_dispositivo``).
+    """
+
+    pagina_de_eventos = Paginator(auditoria_del_dispositivo(dispositivo), POR_PAGINA_HISTORIAL).get_page(pagina)
+    eventos = [
+        {
+            "cuando": f"{_fecha_legible(evento['fecha'])} · {evento['quien']}",
+            "titulo": evento["titulo"],
+            "detalle": evento["detalle"],
+            "tono": evento["tono"],
+        }
+        for evento in pagina_de_eventos
+    ]
+    return pagina_de_eventos, eventos
 
 
 # --------------------------------------------------------------------------- #

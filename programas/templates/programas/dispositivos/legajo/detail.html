@@ -84,6 +84,17 @@
     {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se pueden registrar ingresos" texto=aviso_sin_ingresos %}
     {% endif %}
 
+    {# ===== Alertas del programa: derivadas del dato, se resuelven en su origen y no bloquean nada ===== #}
+    {# role="status" y no el "alert" por defecto: son permanentes mientras el origen siga asi, no #}
+    {# novedades que interrumpan la lectura; el lector de pantalla las anuncia cuando termina lo que dice. #}
+    {% if alertas %}
+    <section class="space-y-3" aria-label="Alertas del dispositivo">
+      {% for alerta in alertas %}
+      {% include "components/_alerta.html" with tono=alerta.tono icono=alerta.icono titulo=alerta.titulo texto=alerta.texto accion_url=alerta.enlace accion_texto=alerta.accion role="status" %}
+      {% endfor %}
+    </section>
+    {% endif %}
+
     {# ===== Indicadores operativos: salen del censo de ocupacion_de_plazas ===== #}
     {% if maneja_plazas %}
     <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="indicadores-titulo">
@@ -326,9 +337,9 @@
       {# ===== TAB: Historial ===== #}
       <div x-show="tab==='historial'" x-cloak role="tabpanel" id="panel-historial" aria-labelledby="tab-historial">
         <div class="p-5">
-          {% include "components/_linea_tiempo.html" with eventos=eventos vacio_titulo="Todavía no hay movimientos" vacio_texto="Las altas, ediciones y validaciones del dispositivo quedan registradas acá." %}
+          {% include "components/_linea_tiempo.html" with eventos=eventos vacio_titulo="Todavía no hay movimientos" vacio_texto="Las altas y validaciones, los ingresos, egresos y cambios de plaza, las reservas, los turnos, las correcciones de la bitácora y los relevamientos edilicios quedan registrados acá." %}
         </div>
-        {% include "components/_paginacion.html" with page_obj=historial entidad="movimiento" param="historial_page" extra_qs="tab=historial" %}
+        {% include "components/_paginacion.html" with page_obj=historial entidad="evento" param="historial_page" extra_qs="tab=historial" %}
       </div>
 
     </div>

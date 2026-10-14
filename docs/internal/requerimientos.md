@@ -412,6 +412,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 279 | Relevamientos: listado y asignación del coordinador (P21) | Dispositivos · relevamiento edilicio | `#ui` `#rbac` `#performance` | Task 36 del MVP de Dispositivos | 08/10/2026 | 🟢 **Hecho** | No requiere |
 | 280 | Solapa Infraestructura del dispositivo y semáforo de criticidad del edificio | Dispositivos · relevamiento edilicio | `#ui` `#rbac` `#performance` | Tasks 37 y 40 del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 275 | Relevamiento edilicio: el modelo de la inspección, colgado del edificio | Dispositivos · relevamiento edilicio | `#datos` `#rbac` | Task 35 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0091`, `users.0037` |
+| 281 | Alertas por criticidad y auditoría básica del dispositivo | Dispositivos · detalle y auditoría | `#ui` `#datos` `#rbac` `#performance` | Task 34 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0092` |
 
 **Notas del índice**
 
@@ -35723,5 +35724,238 @@ más, todos resueltos en el mismo PR. Los dos últimos puntos quedaron anotados 
 ## Historial
 
 Entrada nueva. Etapa 4 del plan del Cambio 191; lee lo que dejó el Cambio 275.
+
+---
+
+# Cambio 281 — Alertas por criticidad y auditoría básica del dispositivo
+
+🟢 **HECHO — 14/10/2026** · Task `[TASK] Dispositivos MVP 34` (#699)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle del dispositivo (P4) · auditoría |
+| **Etiquetas** | `#ui` `#datos` `#rbac` `#performance` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | #699 · Épica #127 · etapa 3 |
+| **Partes afectadas** | Backoffice: `legajo/detail.html`, `services/detalle_dispositivo.py`, `views/dispositivos_legajo.py` · Servidor: `core/services/vencimientos.py`, `services/alertas_dispositivos.py` (nuevo), `selectors/auditoria_dispositivo.py` (nuevo), `services/inspecciones.py`, `services/bitacora.py`, `models/__init__.py` |
+| **Migración** | `programas.0092` — tabla `TrazaInspeccion` |
+
+## Pedido original
+
+«Los avisos del programa y la traza legible de lo actuado.» Cada alerta con severidad, origen,
+enlace de resolución y fecha; se resuelve desde su origen y no se cierra a mano; el sistema avisa y
+nunca bloquea. Auditoría: qué pasó, quién lo hizo y cuándo, en idioma de operador, sin perder
+eventos. Las reglas, en el registro de `core/services/vencimientos.py`, sin motor nuevo.
+
+## Alcance acordado
+
+Entra: cinco reglas de alerta con datos reales, dibujadas en P4 debajo del encabezado (donde las
+pone el mockup), y la solapa Historial de P4 convertida en el feed de auditoría del dispositivo,
+con la traza que faltaba en los relevamientos edilicios y en la configuración de turnos.
+
+Queda afuera, porque el mockup las muestra y los datos no existen: **tránsito vencido** (no hay
+estado de tránsito), **permanencia mayor al límite** (no hay límite configurable por tipo),
+**turno sin cerrar** (no hay apertura ni cierre de turno: el pase de guardia no está),
+**documentación vencida** (no hay documentación del dispositivo), **fichas incompletas** (no hay
+ficha por secciones) y **ocupación crítica** (el semáforo es la task 40). Tampoco entra «turno en
+curso sin novedades»: con datos alcanza, pero se encendería en el primer minuto de cada turno.
+Las alertas de red (P1) y por fila de estadía tampoco: P1 no existe.
+
+## Decisiones tomadas
+
+**El registro de vencimientos suma reglas de aviso, en una lista aparte.** `ReglaVencimiento`
+aplica cierres y la corre el cron; una alerta no aplica nada. Se agregó `ReglaAviso` (slug, ámbito,
+descripción, severidad, `pendientes(...)` que devuelve `Aviso`), la lista `AVISOS`,
+`registrar_aviso` y `avisos(ámbito, ...)`, que ordena por severidad. `REGLAS` y
+`procesar_vencimientos` no cambian: las de Becas siguen siendo las únicas que corre el cron, y su
+test lo sigue afirmando.
+
+**Las alertas se derivan en cada pedido; no hay tabla.** Una alerta existe mientras su origen
+cumple la condición y desaparece sola cuando se lo resuelve: no se cierra a mano, no hay estado
+«cerrada» y no hay nada que limpiar. Ningún servicio las consulta: **avisan y nunca bloquean**.
+
+**Las cinco reglas** (`programas/services/alertas_dispositivos.py`, ámbito `dispositivos`):
+
+| Regla | Severidad | Se resuelve | Enlace |
+|---|---|---|---|
+| Préstamo o reserva vencidos sin liberar | alta | liberándolos (`liberar_reserva`) | Sectores y plazas |
+| El edificio requiere intervención (el **último** relevamiento realizado es de criticidad alta) | alta | con un relevamiento nuevo que no sea crítico | sin enlace (ver Pendientes) |
+| Relevamiento edilicio en curso con el vencimiento pasado | media | registrando el resultado o cancelándolo | sin enlace |
+| Dispositivo activo sin turnos activos: no puede cargar la bitácora | media | configurando un turno | sin enlace |
+| Plazas fuera de servicio (una sola alerta, con cada plaza y su motivo) | baja | volviéndolas a servicio | Sectores y plazas |
+
+El préstamo vencido ya no toma la plaza —la vigencia es por tiempo—, así que la alerta no dice que
+la plaza esté ocupada: dice que la reserva sigue abierta y nadie la cerró. «El edificio requiere
+intervención» mira la última realizada, con la misma subconsulta que el semáforo
+(`ultima_realizada_del_edificio`, extraída de `inspecciones.py`). El predio compartido avisa en
+todas sus instituciones, como su relevamiento.
+
+**Severidad → tono de `_alerta.html`**: alta `danger`, media `warning`, baja `info`, con ícono, y
+el enlace como acción de la pieza (Cambio 204). Alta va en `danger` como el `.alert.d` del mockup
+P4 aunque no bloquee: el título dice qué pasó, y el botón de la acción sigue habilitado. **Sin
+enlace no se dibuja link**: tres reglas no tienen todavía pantalla donde resolverse en esta rama, y
+un link a una pantalla que no existe o que da 403 es peor que ninguno. La fecha y el origen van al
+final del texto («Plaza P2 · Varones · desde el 13/10/2026 08:00»).
+
+**La auditoría es un solo feed de cuatro trazas** (`programas/selectors/auditoria_dispositivo.py`),
+de lo más nuevo a lo más viejo: `TrazaDispositivo` (legajo, plazas, reservas y turnos),
+`MovimientoEstadia` (ingreso, cambio de sector o de plaza, egreso), las **correcciones** de la
+bitácora (`EntradaBitacora` con versión mayor a 1) y la `TrazaInspeccion` de los edificios que ocupa
+el dispositivo. **Una acción, una línea**: el ingreso, el egreso y el cambio de plaza escriben
+traza **y** movimiento; el feed omite la traza `ESTADIA_*` y muestra el movimiento, que dice más y
+lleva la fecha de cuándo pasó. Las **novedades** de la bitácora no entran: la bitácora ya es su
+propio registro inmutable y el historial se llenaría de partes del turno.
+
+**Textos de operador.** Cada acción tiene su título («Ingreso de Gómez, Ana», «Plaza fuera de
+servicio», «Relevamiento edilicio reasignado»), los cambios de estado se leen «Pendiente de
+validación → Observado · Motivo: …» y la edición nombra los campos como el formulario
+(«Responsable: — → Marta»). La persona va por nombre: es el mismo público que ve la solapa
+Estadías. El egreso muestra el motivo **del catálogo** y nunca las observaciones libres —que el
+movimiento guarda cuando no hay motivo de catálogo—, por la misma regla de sensibilidad de la
+trayectoria (P16).
+
+**Lo que no dejaba rastro, ahora lo deja.** Los relevamientos edilicios no tenían traza (Cambio
+275 la difirió a esta etapa): `TrazaInspeccion` (nueva, inmutable como `TrazaDispositivo`, una fila
+por acción, con el detalle escrito legible al momento) la escriben asignar, reasignar —con el agente
+anterior—, cancelar, registrar el resultado (una línea con la cantidad de fotos) y sumar una foto.
+Cuelga del relevamiento y no del dispositivo porque el relevamiento es del edificio. Crear y editar
+un turno ahora escriben `TrazaDispositivo` (`TURNO_CREADO`, `TURNO_EDITADO` con el horario anterior
+y el nuevo). Ingreso, egreso, cambio de plaza, reservas y plazas ya lo dejaban. Como
+`TrazaDispositivo`, el modelo nuevo no hereda `TimeStamped`: una traza no se modifica.
+
+**Alcance.** Todo se lee desde P4, que ya exige `dispositivo.ver` con alcance sobre el
+dispositivo: no hay capacidad nueva. Las alertas y el feed se calculan **del** dispositivo, así que
+lo de otra institución no aparece; lo del predio compartido, sí.
+
+**Consultas fijas.** Las alertas, siete con todas encendidas (una o dos por regla); el historial,
+ocho (un `COUNT` y una lectura por fuente, cada lectura acotada a `página × 20` filas y con
+`select_related`, mezcladas en Python). Un `UNION ALL` lo bajaría a dos, pero obliga a alinear
+columnas heterogéneas en tres motores. Hora local y sin `Trunc*`.
+
+**Plan de pantalla.**
+
+```
+Tipo: B (P4 existente) · Arquetipo: Detalle con solapas · Golden: programas/templates/programas/becas/cupo/segmento_detail.html
+Bloques: alertas debajo del encabezado (después de la alerta por estado) con _alerta.html (tono, icono, título, texto, acción) en una section space-y-3 ·
+         solapa Historial: la misma _linea_tiempo y _paginacion, ahora con tono por evento y entidad «evento»
+Vista: alertas_del_dispositivo y eventos_de_historial del servicio; la vista no decide nada
+Novedades: ninguna (pieza y variantes existentes)
+```
+
+## Implementación
+
+El detalle del dispositivo muestra, debajo del encabezado, las alertas vigentes de la más severa a
+la menos, cada una con qué pasa, dónde (origen), desde cuándo y —si hay pantalla— un enlace para
+resolverla. Desaparecen solas cuando se resuelve el origen. La solapa Historial cuenta todo lo que
+pasó en el dispositivo —validaciones, ingresos, egresos, cambios de plaza, reservas, plazas, turnos,
+correcciones de la bitácora y relevamientos edilicios— con quién y cuándo, paginado.
+
+## Archivos
+
+- `core/services/vencimientos.py` (reglas de aviso)
+- `programas/services/alertas_dispositivos.py` (nuevo), `programas/selectors/auditoria_dispositivo.py` (nuevo)
+- `programas/services/detalle_dispositivo.py`, `programas/views/dispositivos_legajo.py`, `programas/apps.py`
+- `programas/services/inspecciones.py` (traza y `ultima_realizada_del_edificio`), `programas/services/bitacora.py` (traza de turnos)
+- `programas/models/__init__.py` (`TrazaInspeccion`), `programas/migrations/0092_traza_inspeccion.py`
+- `programas/templates/programas/dispositivos/legajo/detail.html`
+- `programas/tests/test_dispositivos_alertas.py` y `test_dispositivos_auditoria.py` (nuevos), `test_models_contrato.py`
+- `scripts/perf_budgets.json` (presupuestos nuevos `dispositivos_alertas`: 7 y `dispositivos_auditoria`: 8)
+
+## Base de datos
+
+`programas.0092`: una tabla nueva (`programas_trazainspeccion`) con índice `(inspeccion, creado_en)`,
+sin columnas sobre tablas existentes. `check_migraciones.py`: 0 problemas. Sin datos que migrar:
+`programas.0091` (los relevamientos) todavía no está en `development`, así que no hay relevamientos
+sin traza en ningún ambiente.
+
+## Validación
+
+- `manage.py check` OK · `makemigrations --check` (con `DJANGO_SYNCDB_PROJECT_APPS=False`) sin
+  cambios · `check_migraciones.py` 0 problemas · `check_perf_budgets.py` ningún techo sube.
+- `compile_templates.py` 0 errores · `design_audit.py --arquetipo detalle` OK · `--ratchet --base
+  origin/development` 0 nuevos · `--goldens` 0 · `check_design_agent.py --changed` OK · build de
+  Tailwind sin diff · ruff OK.
+- Tests (Py 3.12 + Dj 5.2): `test_dispositivos_alertas` (31) y `test_dispositivos_auditoria` (17)
+  nuevos; `test_dispositivos_detalle`, `_inspecciones`, `_bitacora`, `_estadias`, `_movimientos`,
+  `_egreso`, `_ingreso`, `_legajo`, `_sectores`, `_models`, `_migrations`, `_config`,
+  `_edificio_sector_plaza`, `_ocupacion`, `test_solapa_dispositivos`, `test_confirmaciones_legacy`,
+  `test_models_contrato`, `test_becas_vencimientos`, `core.tests.test_procesar_vencimientos_aislado`,
+  `test_tareas_programadas`, `test_gates_ci`, `test_front_ola5_pr6c` y `--tag performance programas`
+  en verde.
+- Mutaciones (romper → rojo → restaurar → verde):
+  - **A1** `ingresar_persona` consulta las alertas y corta si hay → `NuncaBloqueaTests` rojo.
+  - **A2** la regla de reservas sin `estado=VIGENTE` → «desaparece al liberarla» y «consumida no avisa» rojos.
+  - **A3** «crítico» con cualquier realizada y no la última → «desaparece con un relevamiento nuevo» rojo.
+  - **A4** vencido con `lte` → «el día del vencimiento todavía no avisa» rojo.
+  - **A5** sin `activo=True` en turnos → «un turno dado de baja no cuenta» rojo.
+  - **A6** sin `sector__activo` → «un sector dado de baja no avisa» rojo.
+  - **H1** el feed sin omitir `ESTADIA_*` → «una línea y solo una» rojo (el ingreso sumaba dos).
+  - **H2** `reasignar_inspeccion` sin traza → rojo. **H3** `crear_turno` sin traza → rojo.
+  - **H4** el egreso con el texto del movimiento → «las observaciones libres no llegan» rojo.
+  - **H5** trazas de relevamiento sin filtrar por dispositivo → «edificio ajeno no aparece» rojo.
+  - **H6** sin `select_related` de la persona → presupuesto rojo (28 ≠ 10).
+  - **H7** sin ordenar la mezcla → «de lo más nuevo a lo más viejo» rojo.
+
+## Puesta en marcha en el servidor
+
+No requiere: la tabla la crea la migración; las alertas no tienen cron.
+
+## Pendientes / a definir
+
+- **Enlaces que faltan**: «El edificio requiere intervención» y «Relevamiento vencido» enlazan a
+  Relevamientos (P21, `dispositivos:relevamientos`, rama de la task 36) cuando entre —solo para
+  quien tenga `inspeccion.asignar`, porque esa pantalla le da 403 al resto—; «Sin turnos», a la
+  configuración de turnos cuando exista. Préstamo vencido y plazas fuera de servicio enlazan al mapa
+  de plazas, que hoy muestra la plaza pero no tiene las acciones de liberar ni de volver a servicio.
+- **Las reglas del mockup sin datos** (ver *Alcance*), y el contador «Alertas activas» de P1.
+- **Las reservas trazan «ciudadano N»** (`Plaza P1 · Préstamo · ciudadano 34`): el servicio escribe
+  ids y no nombres a propósito. El historial **recorta ese tramo** y muestra «Plaza P1 · Préstamo»;
+  poner el **nombre** pide un vínculo de la traza con la reserva, que no existe.
+- **La alerta `info` tiene otra geometría** que las de `danger` y `warning`: la variante de tono
+  bajo de `_alerta.html` es la nota informativa canónica (ALR-10), con su propio padding, radio y
+  tipografía, así que «Plazas fuera de servicio» no se alinea con las otras cuatro. Es deuda
+  declarada de la pieza (ficha `alerta.md`), no de esta pantalla: se resuelve el día que `info`
+  tenga su par de tokens `bg`/`border` compilado.
+
+## Revisión
+
+Dos revisiones independientes sobre `6e95a55c`: diseño **APPROVE** con observaciones menores,
+desarrollo **REQUEST_CHANGES** por un hallazgo mayor de tests. Lo corregido:
+
+- **[MAJOR] El filtro por institución de dos fuentes del historial no estaba probado.**
+  `test_lo_de_otra_institucion_no_aparece` hacía un solo ingreso en el parador, así que medía la
+  fuente de estadías y ninguna más: borrarle el `dispositivo=` a `TrazaDispositivo` o a las
+  correcciones de la bitácora dejaba la suite en verde. El test suma ahora, del lado del parador,
+  una reserva, una plaza fuera de servicio, un turno y una corrección de bitácora, y exige que el
+  historial del CIS siga vacío. Las dos mutaciones dan rojo.
+- **Alertas.** `sin_turnos` fecha por la traza `VALIDADO` y no por `estado_nuevo=ACTIVO`, que
+  también matchea cualquier edición posterior. `plazas_fuera_de_servicio` usa la plaza **más
+  vieja**: el pie dice «desde cuándo pasa», no cuál fue la última. Los textos dejaron de repetir la
+  plaza, el edificio y la fecha que ya dice el pie —cada alerta ocupa una línea, como en el
+  mockup— y la reserva concuerda en femenino («la reserva sigue abierta: falta liberarla»).
+- **Historial.** La edición muestra `0` y `False` como valores y no como «—» (se compara contra
+  `None` y `""`, no con `or`); el resultado de un relevamiento con criticidad **alta** sale en
+  `danger` y no en `success`, con `select_related("inspeccion")` para no pagar un N+1; y la reserva
+  ya no muestra el id del ciudadano.
+- **Accesibilidad.** Las alertas del dispositivo se dibujan con `role="status"` —parámetro que la
+  pieza ya admitía— y no con el `alert` por defecto: son permanentes mientras el origen siga así,
+  no novedades que deban interrumpir al lector de pantalla.
+
+Mutaciones de la revisión (romper → rojo → restaurar → verde): **R1** `TrazaDispositivo` sin
+`dispositivo=` y **R2** las correcciones sin `dispositivo=` → alcance rojo; **R3** `sin_turnos` por
+`estado_nuevo` → fecha rojo; **R4** la fecha de las plazas por la más nueva → rojo; **R5**
+`_valor_legible` con `or` → el 0 rojo; **R6** el relevamiento crítico en `success` → rojo; **R7**
+sin recortar el id del ciudadano → rojo.
+
+## Reversión
+
+`git revert` del merge y `migrate programas 0091`. Se pierden las trazas de relevamientos
+edilicios cargadas desde el deploy (las de turnos quedan en `TrazaDispositivo`, que es aditiva, y
+el historial viejo las muestra con el código de acción).
+
+## Historial
+
+Entrada nueva. Etapa 3 del plan del Cambio 191. Corregida tras las dos revisiones (ver *Revisión*).
 
 ---
