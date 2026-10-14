@@ -415,7 +415,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 281 | Alertas por criticidad y auditoría básica del dispositivo | Dispositivos · detalle y auditoría | `#ui` `#datos` `#rbac` `#performance` | Task 34 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0092` |
 | 282 | La app del agente trae sus relevamientos edilicios y manda el resultado y las fotos, también sin señal | Dispositivos · relevamiento edilicio (app de campo) | `#api` `#mobile` `#rbac` `#usuarios` `#datos` | Tasks 38 y 39 (parte del sistema) del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0093` |
 | 283 | Bitácora del turno: las novedades del día, el censo del turno y la configuración de turnos | Dispositivos · bitácora | `#ui` `#rbac` `#performance` | Task 32 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | No requiere |
-| 284 | Listado de instituciones al arquetipo: filtros canónicos, plazas por fila y paginación (P2) | Dispositivos · legajo institucional | `#ui` `#rbac` `#performance` | Carril C4 del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 286 | Listado de instituciones al arquetipo: filtros canónicos, plazas por fila y paginación (P2) | Dispositivos · legajo institucional | `#ui` `#rbac` `#performance` | Carril C4 del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -36460,7 +36460,9 @@ con lo que cambió después de la primera implementación.
 
 ---
 
-# Cambio 284 — Listado de instituciones al arquetipo: filtros canónicos, plazas por fila y paginación (P2)
+---
+
+# Cambio 286 — Listado de instituciones al arquetipo: filtros canónicos, plazas por fila y paginación (P2)
 
 🟢 **HECHO — 14/10/2026** · Carril C4 del MVP de Dispositivos
 
