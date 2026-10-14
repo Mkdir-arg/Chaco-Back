@@ -180,6 +180,11 @@
       "consultas_fijas": 2,
       "motivo": "Presupuesto nuevo (MVP v2 etapa 2, #692, detalle del dispositivo). El listado de personas alojadas es el unico del detalle que crece con el volumen -una institucion acumula estadias para siempre-, asi que se acota y se mide: el COUNT del paginador y la pagina, con select_related de la persona y de la plaza con su sector y solo las columnas que la tabla dibuja. Dos consultas, no una por fila: leer ciudadano o plaza desde el template sin select_related seria un N+1 proporcional a la pagina (25 filas). El test mide con 1 y con 21 estadias y exige que el numero no cambie. Las cifras de plazas del mismo detalle no entran aca: salen de ocupacion_de_plazas y se pagan con su propio presupuesto (dispositivos_ocupacion_de_plazas)."
     },
+    "dispositivos_detalle_sin_estadias": {
+      "servicio": "programas.views.dispositivos_legajo.DispositivoDetailView",
+      "consultas_fijas": 25,
+      "motivo": "Carril FF: detalle HTTP con administrador autenticado, sectores y plazas, sin estadias ni edificios. Techo de 25 en cada una de las cinco solapas; medicion SQLite Django 5.2: 24 con cache de programas fria y 22 caliente (antes 28 y 26). El mapa elegible para cambiar plaza se lee solo ante una fila activa con plaza o su modal, y se memoiza por peticion. El techo impide pagar sus cuatro consultas innecesarias. Test performance en test_dispositivos_fidelidad_ff; el comportamiento perezoso se verifica tambien sin bypass de superusuario."
+    },
     "dispositivos_alertas": {
       "servicio": "programas.services.detalle_dispositivo.alertas_del_dispositivo",
       "consultas_fijas": 8,
@@ -232,8 +237,8 @@
     },
     "dispositivos_infraestructura": {
       "servicio": "programas.services.detalle_dispositivo.infraestructura_del_dispositivo",
-      "consultas_fijas": 9,
-      "motivo": "MVP v2 etapa 4, #702, solapa Infraestructura del detalle, corregido en FE para medir con usuario fresco. Usuario fresco (1), capacidades RBAC (1), edificios con ultima realizada y cantidad de instituciones (1), instituciones visibles del predio con tipo y estado (1, dispositivos_predio_instituciones), ultimas realizadas con quien relevo (1), totales de la franja (1), COUNT y pagina del registro fotografico con cantidad de fotos (2), fotos de la pagina (1). El test mide 9 con 1 y 8 relevamientos en dos edificios; no crece por institucion, edificio o relevamiento. Fotos en una consulta para la pagina de 10. Sin edificio, solo usuario fresco y edificios (2)."
+      "consultas_fijas": 7,
+      "motivo": "MVP v2 etapa 4, #702, solapa Infraestructura. Usuario fresco y capacidades RBAC preparados antes de CaptureQueriesContext en ambas mediciones: se excluyen usuario (1) y autorizacion (1), no las consultas del predio. Siete del servicio: edificios con ultima realizada y cantidad de instituciones (1), instituciones visibles del predio con tipo y estado (1, dispositivos_predio_instituciones), ultimas realizadas con quien relevo (1), totales de la franja (1), COUNT y pagina del registro fotografico con cantidad de fotos (2), fotos de la pagina (1). Medido con 1 y 8 relevamientos en dos edificios; no crece por institucion, edificio o relevamiento. Fotos en una consulta para la pagina de 10. Sin edificio, solo edificios (1)."
     },
     "dispositivos_bitacora_turno": {
       "servicio": "programas.services.bitacora_pantalla.pantalla_bitacora",

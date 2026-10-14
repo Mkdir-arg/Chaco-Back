@@ -21,6 +21,12 @@
     border-bottom: 1px solid var(--border-base);
 }
 
+/* El wrapper contiene también los rótulos absolutos de tablas legacy. Un th
+   relativo no basta cuando el ancho intrínseco de la tabla excede la página. */
+:where(.overflow-x-auto) {
+    position: relative;
+}
+
 .nodo-th {
     font-weight: 700;
     text-transform: uppercase;

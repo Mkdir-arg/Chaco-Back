@@ -219,6 +219,12 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
     def get_queryset(self):
         return Dispositivo.objects.select_related("tipo")
 
+    def _mapa_de_ingreso(self):
+        """Plazas elegibles, solo cuando una acción de cambio las necesita."""
+        if not hasattr(self, "_mapa"):
+            self._mapa = plazas_para_ingresar(self.object)
+        return self._mapa
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         dispositivo = self.object
@@ -235,11 +241,11 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         puede_egresar = puede_operar_dispositivo(user, dispositivo, CAP_EGRESAR)
         puede_cambiar = puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR)
         puede_ver_ciudadano = puede(user, "ciudadano.ver")
-        sectores_ingreso, plazas_elegibles = plazas_para_ingresar(dispositivo) if puede_cambiar else ([], set())
         for estadia in estadias:
             if puede_ver_ciudadano:
                 estadia.url_ver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
             if puede_cambiar and estadia.activa and estadia.plaza_id is not None:
+                _, plazas_elegibles = self._mapa_de_ingreso()
                 estadia.url_cambiar = f"{self.request.path}?{urlencode({'tab': 'estadias', 'cambio': estadia.pk})}"
                 estadia.motivo_cambiar = "No hay plazas libres en el dispositivo." if not plazas_elegibles else ""
         if puede_egresar:
@@ -287,11 +293,11 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]),
             }
         )
-        self._preparar_modales_de_estadia(context, dispositivo, puede_cambiar, puede_egresar, sectores_ingreso)
+        self._preparar_modales_de_estadia(context, dispositivo, puede_cambiar, puede_egresar)
         self._preparar_modales_de_edificio(context, dispositivo, context["puede_editar"])
         return context
 
-    def _preparar_modales_de_estadia(self, context, dispositivo, puede_cambiar, puede_egresar, sectores_ingreso):
+    def _preparar_modales_de_estadia(self, context, dispositivo, puede_cambiar, puede_egresar):
         """Un solo modal abierto por URL, sin formularios ni consultas por fila (contrato P21)."""
 
         for parametro, autorizado in (("cambio", puede_cambiar), ("egreso", puede_egresar)):
@@ -309,6 +315,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             if parametro == "cambio":
                 if estadia.plaza_id is None:
                     continue
+                sectores_ingreso, _ = self._mapa_de_ingreso()
                 form = CambioPlazaForm(estadia=estadia, sectores=sectores_ingreso, auto_id=AUTO_ID_CAMBIO)
                 if not form.hay_plazas_libres:
                     messages.info(self.request, "No hay plazas libres en el dispositivo.")
