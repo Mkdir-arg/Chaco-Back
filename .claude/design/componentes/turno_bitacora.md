@@ -3,7 +3,7 @@
 **Clasificación:** Canónico reutilizable. Dos includes del registro diario de un dispositivo: la cabecera
 de cada turno y la lista de anotaciones de un turno.
 **Evidencia:** `templates/components/_turno_tarjeta.html`, `templates/components/_entradas_bitacora.html`,
-`core/tests/test_nodo_ui_lote_c.py`.
+`core/tests/test_nodo_ui_lote_c.py`, `core/tests/test_nodo_ui_piezas.py`.
 **Consumidores de referencia:** `programas/templates/programas/dispositivos/bitacora/bitacora.html` (bitácora del turno, P10).
 Se entra desde el botón «Bitácora del turno» del encabezado de P4
 (`programas/templates/programas/dispositivos/legajo/detail.html`), como en el mockup.
@@ -23,11 +23,16 @@ Tarde · entradas», debajo de su encabezado.
 | Parámetro | Efecto |
 |---|---|
 | `turno` | Dict armado por la vista: `nombre`, `estado`, y opcionales `horario`, `tono`, `detalle`, `activo`, `sin_abrir`, `acciones` (lista de `url`, `texto`, `variante`) |
-| `entradas` | Lista de dicts (no queryset), de la más nueva a la más vieja: `hora`, `categoria`, y opcionales `tono`, `titulo`, `texto`, `autor`, `automatica`, `version` |
+| `entradas` | Lista de dicts (no queryset), de la más nueva a la más vieja: `hora`, `categoria`, y opcionales `tono`, `titulo`, `texto`, `autor`, `automatica`, `version`, `url_corregir` |
 | `total` | Opcional: cantidad real de entradas si la vista mandó menos |
 
 `programas/services/bitacora.py` genera las novedades de ingreso, egreso y cambio de plaza
 con origen automático: la vista pasa `automatica=True` y no ofrece «Corregir» para ellas.
+
+`url_corregir` dibuja «corregir (crea versión)» como enlace discreto en la línea de autoría.
+La pantalla lo prepara solo para entradas corregibles y con capacidad y alcance; abre
+el modal precargado con `?corregir=<id>` sin mutar nada. Sin el parámetro, el HTML es idéntico.
+En P10 la corrección vive en cada entrada, no en la tarjeta del turno.
 
 ## Quién decide qué
 
@@ -41,7 +46,7 @@ con origen automático: la vista pasa `automatica=True` y no ofrece «Corregir»
   no deja pasar HTML). No hay `|safe` ni `{% autoescape off %}`.
 - Las acciones de la tarjeta las arma la vista según capacidades; la pieza no decide quién puede qué.
   **Un enlace nunca muta estado.** Cada acción es de uno de dos tipos: `url` navega —a otra pantalla
-  (`Ver`) o a la misma con el modal pedido por querystring (`+ Novedad`, `Corregir`), nunca por ancla—
+  (`Ver`) o a la misma con el modal pedido por querystring (`+ Novedad`), nunca por ancla—
   y se dibuja como `<a>`; `confirm_url` (con `confirm_title`, `confirm_text`,
   `confirm_ok` y `peligro`) es la que cambia estado (`Cerrar turno`) y se dibuja como
   `<button data-confirm-url>` que confirma con `ModernModal` y hace el POST con CSRF desde el handler de
@@ -68,8 +73,8 @@ es contrato válido de esta pieza. Una lista vacía muestra el estado vacío can
 - El turno sin abrir no baja la opacidad (.65): usa fondo `bg-secondary`, para que el texto conserve el contraste.
 - El badge de la entrada lleva un ícono por tono **en lugar** del punto del mockup (`badge-dot`): una sola marca,
   que además del color distingue la categoría.
-- El 📎 de «adjunto» y el enlace «corregir» no son parte de la pieza (emoji fuera de Font Awesome; la corrección
-  la define la pantalla). Las etiquetas extra como «Seguimiento abierto» tampoco.
+- El 📎 de «adjunto» no es parte de la pieza (emoji fuera de Font Awesome).
+  Las etiquetas extra como «Seguimiento abierto» tampoco.
 
 ## Para la pantalla que la use
 
