@@ -416,6 +416,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 282 | La app del agente trae sus relevamientos edilicios y manda el resultado y las fotos, también sin señal | Dispositivos · relevamiento edilicio (app de campo) | `#api` `#mobile` `#rbac` `#usuarios` `#datos` | Tasks 38 y 39 (parte del sistema) del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0093` |
 | 283 | Bitácora del turno: las novedades del día, el censo del turno y la configuración de turnos | Dispositivos · bitácora | `#ui` `#rbac` `#performance` | Task 32 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | No requiere |
 | 286 | Listado de instituciones al arquetipo: filtros canónicos, plazas por fila y paginación (P2) | Dispositivos · legajo institucional | `#ui` `#rbac` `#performance` | Carril C4 del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 287 | Acciones del mapa de plazas y enlaces de resolución de las alertas | Dispositivos · plazas y alertas | `#ui` `#rbac` `#performance` | Carril C1 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -36643,5 +36644,243 @@ restauró desde una copia, nunca con `git checkout`:
   (`INAUGURACION_PENDIENTE`, `SUSPENDIDO`) son parte de F2 y entran con el flujo de validación.
 - Un control único «Exportar ⌄» exige una pieza canónica de desplegable en el encabezado; hoy
   no existe y no se inventó acá.
+
+---
+
+---
+
+# Cambio 287 — Acciones del mapa de plazas y enlaces de resolución de las alertas
+
+🟢 **HECHO — 14/10/2026** · Carril C1 del cierre del MVP de Dispositivos
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Sectores y plazas (P5) · alertas del detalle (P4) |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | Juez — cierre del MVP de Dispositivos v2 |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Épica #127 · pendientes de los Cambios 262, 272 y 281 |
+| **Partes afectadas** | Backoffice: `dispositivos/sectores/sectores.html` · Servidor: `services/sectores_plazas.py`, `services/estadias.py`, `services/alertas_dispositivos.py`, `services/detalle_dispositivo.py`, `views/dispositivos_legajo.py`, `forms_dispositivos.py`, `dispositivos_urls.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cerrar tres huecos de lógica que dejó el MVP: dos alertas de P4 no se podían resolver desde
+ninguna pantalla porque el mapa de plazas no tenía las acciones; faltaban los enlaces de
+resolución de las alertas; y el mapa hacía consultas por sector. Más la contención que arrastraba
+`sacar_plaza_de_servicio`.
+
+## Alcance acordado
+
+Entra: las tres acciones que ya tenían servicio (`liberar_reserva`, `sacar_plaza_de_servicio`,
+`volver_plaza_a_servicio`) ofrecidas desde el mapa de plazas; los cinco enlaces de resolución de
+las alertas de P4, cada uno condicionado a la capacidad de su pantalla de destino; el mapa llevado
+a consultas fijas; y el `select_related` sacado de los dos `FOR UPDATE` de plaza.
+
+Queda afuera, porque no tiene servicio ni dato: **reservar** y **prestar 12/24 h** desde el mapa
+—el mockup las nombra en la nota de P5, pero la reserva necesita elegir a la persona y eso es el
+asistente de ingreso—, **reubicar** (es el cambio de plaza de P7, que ya existe ahí), **Nuevo
+sector** y **+ Agregar plazas** del encabezado de P5 (no hay alta de sectores ni de plazas por
+pantalla en esta rama) y **Editar sector** por sector.
+
+## Decisiones tomadas
+
+**Las alertas avisan y nunca bloquean** (decisión del juez, igual que en el Cambio 281): ninguna de
+las tres acciones nuevas consulta una alerta, y ninguna alerta decide si una acción procede. Lo que
+cambia es que ahora **hay dónde resolverlas**.
+
+**La configuración de roles la hace el PM**: no se tocó ningún rol ni el seed. Las tres acciones
+reutilizan capacidades que ya existen —`dispositivo.admitir` para liberar, `dispositivo.editar`
+para sacar y reponer—, que son las que sus servicios ya exigían.
+
+**Una acción por plaza, y la decide la situación de la plaza.** El estado dibujado sigue saliendo
+de `ocupacion.estado_de_plazas`, fuente única, pero la acción necesita **un segundo hecho**: si
+queda una reserva **sin liberar** (`estadias.reservas_abiertas`, estado `VIGENTE` venza o no).
+
+| Situación | Acción | Capacidad |
+|---|---|---|
+| Fuera de servicio | volver a servicio | `dispositivo.editar` |
+| Con una reserva o préstamo sin liberar | liberar | `dispositivo.admitir` |
+| Ocupada | sacar de servicio, **bloqueada con su motivo** | `dispositivo.editar` |
+| Disponible | sacar de servicio | `dispositivo.editar` |
+
+Ese segundo hecho es el que hace que la alerta se pueda resolver, y no es un capricho: una reserva
+**vencida** que nadie liberó deja la plaza **Disponible** en el mapa —la vigencia es por tiempo— y
+sigue abierta. Si la acción se decidiera por el estado del mapa, esa plaza solo ofrecería «sacar de
+servicio», que no resuelve nada, y la alerta «Préstamo vencido sin liberar» quedaría sin salida.
+La consulta de reservas abiertas **no** se saltea para quien no puede liberar: si se salteara, una
+plaza reservada le ofrecería «sacar de servicio» a quien tiene `dispositivo.editar`, y el servicio
+lo rechaza porque la plaza está tomada.
+
+**La plaza ocupada no esconde la acción: la explica.** Abre el modal sin formulario, con el motivo
+por el que `sacar_plaza_de_servicio` la va a rechazar y qué hacer (reubicar desde su estadía). Es
+la misma regla del menú de fila: esconder una acción no es bloquearla.
+
+**La celda es enlace solo si quien mira puede ejercer su acción.** Es el contrato que
+`_mapa_plazas.html` ya tenía («con `url` la celda es un enlace; la vista decide cuáles»): la pieza
+**no se tocó**. Las dos capacidades las resuelve la vista con alcance al dispositivo y llegan al
+servicio como dos booleanos: el servicio recibe hechos, no usuarios.
+
+**Enlaces de resolución, condicionados a la capacidad del destino.** Un enlace ofrecido a quien va
+a rebotar con un 403 es una puerta cerrada anunciada:
+
+| Alerta | Enlace | Condición |
+|---|---|---|
+| Préstamo o reserva vencida | mapa de plazas · «Liberar la plaza» | sin condición (quien ve P4 ve P5) |
+| Plazas fuera de servicio | mapa de plazas · «Ver plazas» | sin condición |
+| El edificio requiere intervención | Relevamientos (P21) · «Ver relevamientos» | `inspeccion.asignar` en el programa |
+| Relevamiento vencido | Relevamientos (P21) · «Ver relevamientos» | `inspeccion.asignar` en el programa |
+| Dispositivo activo sin turnos | bitácora con el modal de turnos abierto (`?turnos=1`) | `dispositivo.editar` **sobre ese dispositivo** |
+
+Sin la capacidad, la alerta aparece igual, **sin enlace**: avisar es de todos, resolver no. Las dos
+condiciones son exactamente las que usan las pantallas de destino, así que el enlace no puede
+mentir: P21 exige `inspeccion.asignar` con alcance al programa (`DispositivoProgramaPermissionMixin`)
+y la bitácora abre el modal de turnos solo con `puede_operar_dispositivo(..., "dispositivo.editar")`.
+`alertas_del_dispositivo` recibe el usuario y lo pasa a las reglas; **qué alertas hay no depende de
+quién mira**, solo el enlace.
+
+**El modal lo arma el servidor y lo abre un parámetro GET** (`?plaza=<id>`), la variante del
+arquetipo Modal que ya usa P21: el cuerpo depende del estado de la plaza y la celda del mapa solo
+sabe navegar. La plaza ajena, la inexistente, la de un sector dado de baja y la que el usuario no
+puede gestionar dan **todas** el mismo resultado —no se abre el modal, mismo aviso—; en el POST,
+las tres primeras dan el mismo 404. Cuatro respuestas distintas serían un oráculo para enumerar las
+plazas de otras instituciones.
+
+**La compuerta de alcance va antes de buscar la plaza.** Si fuera después, quien tiene
+`dispositivo.editar` en el programa pero no sobre esta institución recibiría 403 con una plaza que
+existe (la rechaza el servicio) y 404 con una inexistente, y la diferencia enumera. Mismo patrón
+que los POST de la bitácora.
+
+**Consultas fijas en P5** (pendiente del Cambio 272). Eran **tres por sector** —las plazas del
+sector y las dos de `estado_de_plazas`—, así que un dispositivo con ocho pabellones costaba
+veinticuatro consultas nada más que para dibujarse. Ahora: las tres de `ocupacion_de_plazas`, los
+sectores activos (1), **todas** las plazas de esos sectores en una sola consulta con el tope de 200
+por sector recortado en Python (1), `estado_de_plazas` llamado **una vez** con todas las plazas
+dibujadas (2) y las reservas sin liberar (1). **Ocho fijas.** Un `LIMIT` por sector en el SQL es
+justamente la consulta por sector que se quería sacar; el recorte en Python va sobre un conjunto
+acotado por la capacidad instalada real.
+
+**El `FOR UPDATE` de la plaza, sin `select_related`** (pendiente del Cambio 262). En MySQL y en
+MariaDB un `SELECT … FOR UPDATE` con JOIN bloquea también las filas de la tabla unida: con el
+sector adentro, sacar de servicio una plaza dejaba esperando a cualquier ingreso o cambio de plaza
+de **otra** plaza del mismo sector. Lo mismo que ya se había hecho en `_bloquear_plaza` para el
+ingreso. Nada de los dos servicios lee el sector: el dispositivo se resuelve arriba.
+
+**Plan de pantalla.**
+
+```
+Tipo: A (P5 existente) + modal · Arquetipo: Detalle+apilado (ya declarado) y Modal · Goldens: becas/cupo/segmento_detail.html y becas/config/programa_list.html
+Hermana (solo dominio): dispositivos/relevamientos/list.html — de ahí sale el PATRÓN de modal abierto por GET y armado por el servidor, ya declarado como variante en la ficha del arquetipo
+Bloques: el mapa no cambia (_mapa_plazas.html con `url`) · modal único al final, con tres cuerpos según la acción y uno sin form para la plaza bloqueada
+Vista: puede_liberar / puede_configurar_plazas con alcance; plaza_para_accion para el ?plaza=<id>; tres POST con CSRF
+Novedades: ninguna (pieza, arquetipo y variante existentes; el mapa de plazas no se tocó)
+```
+
+## Implementación
+
+En «Sectores y plazas», cada plaza sobre la que el usuario puede actuar es un enlace que abre un
+modal con la acción que esa plaza admite: liberar la reserva o el préstamo, sacarla de servicio con
+su motivo, o volverla a servicio. Una plaza ocupada abre el modal y explica por qué no se puede
+sacar de servicio. Después de cualquiera de las tres, la alerta correspondiente del detalle del
+dispositivo desaparece sola, porque se resolvió su origen. Las alertas del detalle llevan ahora el
+enlace de la pantalla donde se arreglan, y solo se lo muestran a quien puede entrar.
+
+## Archivos
+
+- `programas/services/sectores_plazas.py` (consultas fijas, acción por plaza, `plaza_para_accion`)
+- `programas/services/estadias.py` (`reservas_abiertas`, `reserva_abierta_de`, los dos `FOR UPDATE` sin `select_related`)
+- `programas/services/alertas_dispositivos.py` y `programas/services/detalle_dispositivo.py` (enlaces por capacidad)
+- `programas/views/dispositivos_legajo.py` (modal de P5 y las tres vistas de POST), `programas/dispositivos_urls.py`
+- `programas/forms_dispositivos.py` (`SacarPlazaDeServicioForm`, `LiberarPlazaForm`)
+- `programas/templates/programas/dispositivos/sectores/sectores.html`
+- `programas/tests/test_dispositivos_plazas_acciones.py` (nuevo), `test_dispositivos_alertas.py`
+- `scripts/perf_budgets.json` (presupuesto nuevo `dispositivos_sectores_con_plazas`: 8; `dispositivos_alertas` 7 → 8 con su entrada en `adjustments`)
+
+## Base de datos
+
+No requiere. Ningún modelo cambió.
+
+## Apartamientos del mockup
+
+- **El panel lateral de P5 no se dibuja.** La nota del mockup dice «clic en una plaza: panel lateral
+  con estado, historial y acciones»; el panel lateral no existe en el inventario y el mapeo ya lo
+  anotó como pieza nueva. Se resolvió con el **modal** del arquetipo, que es la pieza que sí existe
+  y que ya cubre este caso (variante «abierto por parámetro GET y armado por el servidor»). El
+  **historial** de la plaza no entra: no hay selector que lo arme.
+- **De las cuatro acciones que nombra esa nota entran dos** (fuera de servicio con motivo, y volver
+  a servicio, que la nota no nombra pero es su reverso). **Reservar** y **prestar 12/24 h** piden
+  elegir a la persona —son del asistente de ingreso— y **reubicar** es el cambio de plaza de P7.
+- **El encabezado de P5 no tiene «Nuevo sector» ni «+ Agregar plazas»**, y los sectores no tienen
+  «Editar sector»: no hay pantalla ni servicio de alta ni de edición de sectores ni de plazas en
+  esta rama. Se mantiene como estaba; no se dibujan deshabilitados.
+- **El modal de la plaza bloqueada no lleva pie.** El pie canónico siempre dibuja un botón de
+  acción, y acá no hay ninguna que ofrecer; escribir un pie propio con solo «Cerrar» sería duplicar
+  el markup de la pieza. Se cierra con la X del encabezado, con Escape o con el fondo, que es lo que
+  el arquetipo ya garantiza.
+
+## Validación
+
+- `manage.py check` OK · `makemigrations --check` (con `DJANGO_SYNCDB_PROJECT_APPS=False`) sin
+  cambios · `check_migraciones.py` 0 problemas · `check_perf_budgets.py` OK (el único techo que sube
+  tiene su entrada en `adjustments`).
+- `compile_templates.py --bloques` 0 · `design_audit.py --arquetipo detalle` OK y `--arquetipo
+  modal` OK sobre `sectores.html` · `--ratchet --base origin/development` 0 nuevos · `--goldens` 0 ·
+  `check_design_agent.py --changed` OK · `npm run build:tailwind` sin diff · ruff OK.
+  `check_design_agent.py --limites --base origin/development` OK, después de que el juez agregara
+  la línea de canon que la sesión de implementación no podía escribir (ver *Revisión*).
+- Tests (Py 3.12 + Dj 5.2): `test_dispositivos_plazas_acciones` (29) nuevo;
+  `test_dispositivos_alertas`, `_sectores`, `_detalle`, `_estadias`, `_ingreso`, `_egreso`,
+  `_ocupacion`, `_bitacora_pantalla`, `_relevamientos_listado`, `test_arquitectura` y
+  `--tag performance programas` en verde.
+- Mutaciones (romper → rojo → restaurar → verde):
+  - **M1** la compuerta de alcance **después** de buscar la plaza → «no se puede distinguir una
+    plaza que existe» rojo (403 ≠ 404). Es el único test que justifica esa compuerta: el 403 por sí
+    solo lo da igual el servicio.
+  - **M2** el POST sin acotar la plaza al dispositivo → la plaza ajena da 403 en vez de 404, rojo.
+  - **M3** la acción sin mirar la reserva abierta → «la reserva vencida ofrece liberarla» rojo.
+  - **M4** `_habilitada` siempre `True` → los cinco tests de capacidad rojos.
+  - **M5** sin bloqueo para la plaza ocupada → «explica por qué no se puede» rojo.
+  - **M6** `_url_turnos` sin exigir `dispositivo.editar` → los dos tests de esa alerta rojos
+    (incluido el de alcance al dispositivo y no al programa).
+  - **M7** `_url_relevamientos` sin exigir `inspeccion.asignar` → los dos de P21 rojos.
+  - **M8** las plazas con una consulta por sector → presupuesto rojo (15 ≠ 8).
+  - **M9** liberar como no-op → «la alerta de préstamo vencido desaparece» rojo (la alerta seguía).
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- **Reservar y prestar desde el mapa**: la nota de P5 las pide y `reservar_plaza` ya existe, pero
+  hace falta elegir a la persona. Entra con la lista de espera, que es de donde sale el candidato.
+- **El historial de la plaza** que la nota del mockup pide en el panel: no hay selector. Los
+  movimientos están en `MovimientoEstadia` y las trazas de plaza en `TrazaDispositivo`, así que es
+  un selector nuevo, no un dato que falte.
+- **Alta y edición de sectores y plazas** («Nuevo sector», «+ Agregar plazas», «Editar sector»).
+- **La reserva se vuelve a buscar en el POST y no viaja en el formulario**: es a propósito (entre el
+  dibujo y el envío un ingreso puede consumirla), pero si alguna vez hubiera dos reservas abiertas
+  sobre la misma plaza —que el bloqueo de la plaza impide— se libera la más vieja y la pantalla
+  vuelve a ofrecer la que queda.
+
+
+## Revisión
+
+La revisión independiente (desarrollo + diseño, con render de P5 y P4) dio **APPROVE**. El gate del
+agente de diseño lo cerró el juez: la fila «Mapa de estados por módulo» del inventario ahora dice que
+la evidencia es **solo** `ESTADOS_VISIBLES` de `programas/services/estadias.py` (la aclaración vive en
+`dominio/becas.md`) y la ficha `mapa_plazas.md` nombra a P5 y P6 como consumidores. Quedan como
+MINOR para el carril siguiente: un test de la compuerta de alcance de «liberar» con una plaza de otro
+dispositivo, y el salto de línea final de `perf_budgets.json`.
+
+## Reversión
+
+`git revert` del merge. No hay datos nuevos: las tres acciones escriben sobre modelos que ya
+existían y dejan su `TrazaDispositivo`, que es aditiva.
+
+## Historial
+
+Entrada nueva. Cierra los pendientes de enlaces del Cambio 281, el N+1 del Cambio 272 y la
+contención del Cambio 262.
 
 ---
