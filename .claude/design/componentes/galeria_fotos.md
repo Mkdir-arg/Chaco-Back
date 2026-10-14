@@ -42,7 +42,9 @@ vez, con paginación o «ver más»; la pieza dibuja **hasta 24 fotos** como red
 - **Dentro de una línea de tiempo no se incluye a mano:** se pasa como `fotos` + `total_fotos` del evento
   y `components/_linea_tiempo.html` la dibuja adentro del `<li>`. Suelta, va dentro de su card.
 - Un formato que el navegador no dibuja (HEIC/HEIF) va con `url` vacía desde la vista: queda la celda gris
-  con cámara en vez de una imagen rota.
+  con cámara en vez de una imagen rota. Es un manejo **de legado**: desde que
+  `core.validators.FOTO_EXTENSIONES` rechaza HEIC/HEIF no entra ninguna nueva, y la app de campo convierte
+  a JPEG antes de enviar.
 - No hay manejo de imagen rota (sería JS): la vista no debería mandar una `url` cuyo archivo no existe.
 
 ## Prohibido

@@ -238,12 +238,42 @@ def evento_de_correccion(entrada):
     }
 
 
-def evento_de_inspeccion(traza):
+#: Lo que la institución relevada lee en lugar del nombre mientras el relevamiento no se realizó.
+EQUIPO_TERRITORIAL = "Equipo territorial"
+
+
+def evento_de_inspeccion(traza, ve_asignacion=True):
+    """Una línea del historial por cada movimiento del relevamiento edilicio.
+
+    Con ``ve_asignacion`` en falso —quien solo opera la institución— y el relevamiento
+    **sin realizar (en curso o cancelado)**, la línea no nombra a nadie: ni al agente asignado ni a quien
+    ejecutó la acción. Es la misma regla que la solapa Infraestructura
+    (`programas.services.inspecciones.ve_la_asignacion`), que acá hay que volver a aplicar
+    porque el detalle de la traza se escribió legible **con el nombre adentro**. El texto se
+    **rearma desde el modelo** en vez de recortar el guardado: recortar depende del formato
+    con el que se escribió y se rompe en silencio cuando ese formato cambia.
+
+    Una vez realizado, se ve todo: el resultado del relevamiento es auditable y la solapa ya
+    muestra quién relevó.
+    """
+
+    inspeccion = traza.inspeccion
+    if ve_asignacion or inspeccion.estado == inspeccion.Estado.REALIZADA:
+        return {
+            "fecha": traza.creado_en,
+            "quien": _quien(traza.usuario),
+            "titulo": traza.get_accion_display(),
+            "detalle": traza.detalle,
+            "tono": _tono_de_inspeccion(traza),
+        }
+    detalle = f"Edificio {inspeccion.edificio.nombre}"
+    if traza.accion == TrazaInspeccion.Accion.ASIGNADA:
+        detalle = f"{detalle} · vence el {date_format(inspeccion.fecha_vencimiento, 'd/m/Y')}"
     return {
         "fecha": traza.creado_en,
-        "quien": _quien(traza.usuario),
+        "quien": EQUIPO_TERRITORIAL,
         "titulo": traza.get_accion_display(),
-        "detalle": traza.detalle,
+        "detalle": detalle,
         "tono": _tono_de_inspeccion(traza),
     }
 
@@ -257,7 +287,11 @@ class FeedAuditoria:
     ``detalle`` y ``tono``.
     """
 
-    def __init__(self, dispositivo):
+    def __init__(self, dispositivo, edificios_con_asignacion=frozenset(), *, usuario_id=None):
+        # Los edificios de los que quien mira puede ver de quién es el relevamiento. Lo
+        # resuelve el servicio y llega como un conjunto de ids: el selector no evalúa
+        # capacidades ni alcance, solo decide qué texto arma con lo que le dieron.
+        visibles = frozenset(edificios_con_asignacion)
         self.fuentes = (
             (
                 _TRAZA,
@@ -290,9 +324,13 @@ class FeedAuditoria:
             (
                 _INSPECCION,
                 TrazaInspeccion.objects.filter(inspeccion__edificio__dispositivos=dispositivo)
-                .select_related("usuario", "inspeccion")
+                .select_related("usuario", "inspeccion__edificio")
                 .order_by("-creado_en", "-id"),
-                evento_de_inspeccion,
+                lambda traza: evento_de_inspeccion(
+                    traza,
+                    traza.inspeccion.edificio_id in visibles
+                    or (usuario_id is not None and traza.inspeccion.asignado_a_id == usuario_id),
+                ),
             ),
         )
         self._count = None
@@ -320,7 +358,7 @@ class FeedAuditoria:
         return [evento for _clave, evento in filas[desde:hasta]]
 
 
-def auditoria_del_dispositivo(dispositivo):
+def auditoria_del_dispositivo(dispositivo, edificios_con_asignacion=frozenset(), *, usuario_id=None):
     """El feed de auditoría del dispositivo, para paginar. Ver :class:`FeedAuditoria`."""
 
-    return FeedAuditoria(dispositivo)
+    return FeedAuditoria(dispositivo, edificios_con_asignacion, usuario_id=usuario_id)

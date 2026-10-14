@@ -15,7 +15,10 @@ Dos personas, dos capacidades del `CATALOGO` (módulo ``inspecciones``):
   otro agente: la guarda es `asignado_a`, no el alcance sobre el dispositivo.
 
 Quien opera el dispositivo (``dispositivo.ver`` con su alcance) **lee** los relevamientos
-de los edificios que ocupa: es la solapa Infraestructura (P19).
+de los edificios que ocupa: es la solapa Infraestructura (P19), y el informe de cada uno
+(:func:`informe_de_relevamiento`). Lo que **no** ve es de quién es la tarea: el nombre del
+agente asignado y las indicaciones de la coordinación son :func:`ve_la_asignacion`, porque
+el agente externo solo sirve si la institución no sabe de antemano quién va a ir.
 
 Lo que define el Ministerio y acá es un default
 ----------------------------------------------
@@ -57,6 +60,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Count, OuterRef, Q, Subquery
 from django.utils import timezone
+from django.utils.formats import date_format
 
 from core import rbac
 from core.archivos import anotar_archivo_escrito, archivos_atomicos
@@ -624,6 +628,45 @@ def edificios_para_asignar(user):
     )
 
 
+def edificios_sin_relevar(user):
+    """La solapa «Sin relevar nunca» de P21: edificios del alcance **sin ninguna realizada**.
+
+    Es una lista de **edificios**, no de relevamientos: lo que falta no tiene fila en
+    `InspeccionEdificio` y por eso no puede salir de las otras tres solapas. «Sin relevar»
+    es lo mismo que mide el semáforo (:data:`SIN_RELEVAR`): uno en curso todavía no cuenta,
+    y uno cancelado tampoco —no dejó resultado—, así que el edificio sigue acá hasta que
+    alguien cierre un relevamiento.
+
+    Solo los activos: un edificio inactivo no se puede relevar (`crear_inspeccion` lo
+    rechaza), y listarlo sería ofrecer una acción que no existe.
+    """
+
+    return (
+        edificios_en_alcance(user, CAP_ASIGNAR)
+        .filter(activo=True)
+        .exclude(inspecciones__estado=InspeccionEdificio.Estado.REALIZADA)
+        .order_by("nombre", "pk")
+    )
+
+
+def inspecciones_en_curso_por_edificio(edificio_ids):
+    """``{edificio_id: InspeccionEdificio}`` de lo que está en curso, en una consulta.
+
+    Para la solapa «Sin relevar nunca»: un edificio que nunca se relevó puede tener un
+    relevamiento **en curso**, y ahí no se vuelve a asignar (es la regla de
+    :func:`crear_inspeccion`). Sin una fila por edificio no habría cómo decirlo sin una
+    consulta por fila.
+    """
+
+    ids = {pk for pk in edificio_ids if pk is not None}
+    if not ids:
+        return {}
+    en_curso = InspeccionEdificio.objects.filter(
+        edificio_id__in=ids, estado=InspeccionEdificio.Estado.ASIGNADA
+    ).select_related("asignado_a")
+    return {inspeccion.edificio_id: inspeccion for inspeccion in en_curso}
+
+
 # --------------------------------------------------------------------------- #
 # Lecturas: la última de cada edificio (semáforo) y las de un dispositivo (P19)
 # --------------------------------------------------------------------------- #
@@ -770,6 +813,188 @@ def semaforos_de_dispositivos(dispositivo_ids):
     return {
         dispositivo_id: semaforo_de_ultimas(ultimas)
         for dispositivo_id, ultimas in ultimas_inspecciones_de_dispositivos(dispositivo_ids).items()
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Quién ve la asignación, la galería y el informe de un relevamiento
+# --------------------------------------------------------------------------- #
+
+#: El tope que dibuja `components/_galeria_fotos.html`: la tanda se recorta acá, no en la pieza.
+FOTOS_POR_TANDA = 24
+
+#: Formatos que un navegador no dibuja en un `<img>`. Desde el rechazo de HEIC/HEIF
+#: (`core.validators.FOTO_EXTENSIONES`) no entra ninguno nuevo; el manejo queda por las
+#: fotos que ya hubieran entrado antes.
+_SIN_VISTA_PREVIA = (".heic", ".heif")
+
+
+def ve_la_asignacion(usuario, inspeccion):
+    """Si ``usuario`` ve **de quién es** el relevamiento: el agente y las indicaciones.
+
+    Decisión del juez (MVP v2, etapa 4): **la institución relevada no ve el nombre del
+    agente asignado**. Un relevamiento en curso le dice «en curso» y nada más. El agente
+    externo es la garantía de que no se omitan irregularidades (`AGENTE_DEBE_SER_EXTERNO`)
+    y saber de antemano quién va a ir —y qué le pidieron mirar— la desarma.
+
+    Lo ven dos: el **coordinador** del edificio (``inspeccion.asignar`` con alcance sobre
+    él, que es quien asigna y reasigna) y el **propio agente**. Las indicaciones van con el
+    nombre porque son de la misma conversación: lo que la coordinación le encarga al agente,
+    no el resultado del relevamiento.
+
+    La regla vive acá y no en el template: el template no evalúa permisos, y el nombre que
+    no se puede mostrar **no se le pasa**.
+    """
+
+    if usuario is None or not getattr(usuario, "is_authenticated", False):
+        return False
+    if inspeccion.asignado_a_id is not None and inspeccion.asignado_a_id == usuario.pk:
+        return True
+    return inspeccion.edificio_id in edificios_con_asignacion_visible(usuario, [inspeccion.edificio_id])
+
+
+def edificios_con_asignacion_visible(usuario, edificio_ids):
+    """La versión por lote de :func:`ve_la_asignacion`: ids de edificio, en **una** consulta.
+
+    La usa la solapa Infraestructura, que dibuja varios relevamientos: preguntar por fila
+    sería un N+1 proporcional a la página. Sin la capacidad no consulta nada
+    (`edificios_en_alcance` devuelve `none()`).
+    """
+
+    ids = {pk for pk in edificio_ids if pk is not None}
+    if not ids:
+        return set()
+    return set(edificios_en_alcance(usuario, CAP_ASIGNAR).filter(pk__in=ids).values_list("pk", flat=True))
+
+
+def edificios_de_dispositivo_con_asignacion_visible(usuario, dispositivo):
+    """Lo mismo, acotado a los edificios de un dispositivo, **sin pedir antes sus ids**.
+
+    La usa la solapa Historial del detalle, que lee las trazas por el dispositivo y no tiene
+    la lista de edificios a mano: así resuelve el alcance en una consulta en vez de dos.
+    """
+
+    return set(edificios_en_alcance(usuario, CAP_ASIGNAR).filter(dispositivos=dispositivo).values_list("pk", flat=True))
+
+
+def _fecha_corta(momento):
+    return date_format(timezone.localtime(momento), "d/m/Y")
+
+
+def fotos_para_galeria(inspeccion, fotos, tope=FOTOS_POR_TANDA):
+    """Los dicts que pide `components/_galeria_fotos.html` para la tanda de un relevamiento.
+
+    Una sola definición para la línea de tiempo de P19 y para el informe. La URL es la de
+    `/media/`, que está **detrás de login** y con la misma regla de alcance que el
+    relevamiento (`core.views.media`): nunca una URL pública.
+
+    Una foto vieja en HEIC/HEIF va sin URL y la pieza dibuja la celda gris con cámara en vez
+    de una imagen rota; ninguna nueva puede serlo.
+    """
+
+    fecha = _fecha_corta(inspeccion.realizada_en or inspeccion.creado)
+    galeria = []
+    for numero, foto in enumerate(fotos[:tope], start=1):
+        rotulo = foto.descripcion or f"Foto {numero}"
+        galeria.append(
+            {
+                "url": "" if foto.archivo.name.lower().endswith(_SIN_VISTA_PREVIA) else foto.archivo.url,
+                "alt": f"{rotulo} · {inspeccion.edificio.nombre} · relevamiento del {fecha}",
+                "rotulo": rotulo,
+                "fecha": foto.creado,
+            }
+        )
+    return galeria
+
+
+#: Los tonos que el sistema de diseño sabe colorear en una stat card; el resto va con el de marca.
+_TONOS_CON_COLOR = ("success", "warning", "danger")
+
+#: Color del badge de cada situación en curso, para que el informe diga lo mismo que P21.
+_TONOS_DE_SITUACION = {
+    Situacion.VENCIDA: "danger",
+    Situacion.POR_VENCER: "warning",
+    Situacion.AL_DIA: "success",
+}
+
+
+def _indicadores_del_informe(inspeccion, semaforo, situacion_texto, total_fotos, hoy):
+    """Las tres cifras del encabezado del informe, ya formateadas. El template no decide nada."""
+
+    if semaforo is not None:
+        estado = {"valor": semaforo.texto, "tono": semaforo.tono, "nota": "criticidad del último resultado"}
+        cuando = {
+            "etiqueta": "Relevado el",
+            "valor": _fecha_corta(inspeccion.realizada_en),
+            "icono": "fa-calendar-check",
+            "nota": "queda en el registro del edificio",
+        }
+    else:
+        estado = {
+            "valor": situacion_texto,
+            "tono": _TONOS_DE_SITUACION.get(situacion_de(inspeccion, hoy), "gray"),
+            "nota": "todavía no hay resultado cargado",
+        }
+        cuando = {
+            "etiqueta": "Vence el",
+            "valor": date_format(inspeccion.fecha_vencimiento, "d/m/Y"),
+            "icono": "fa-calendar-day",
+            "nota": "fecha límite para cargar el resultado",
+        }
+    return [
+        {
+            "etiqueta": "Estado edilicio",
+            "valor": estado["valor"],
+            "icono": "fa-building",
+            # La stat card chica no tiene gris: sin color, va con el de marca y el texto manda.
+            "tono": estado["tono"] if estado["tono"] in _TONOS_CON_COLOR else "brand",
+            "nota": estado["nota"],
+        },
+        {**cuando, "tono": "brand"},
+        {
+            "etiqueta": "Fotos",
+            "valor": total_fotos,
+            "icono": "fa-camera",
+            "tono": "brand",
+            "nota": "evidencia cargada por el agente",
+        },
+    ]
+
+
+def informe_de_relevamiento(usuario, inspeccion, *, hoy=None):
+    """Lo que dibuja «Ver informe»: un relevamiento en **solo lectura**, con su galería.
+
+    Quién **entra** ya lo decidió `inspecciones_visibles` (ajeno e inexistente dan el mismo
+    404); acá se decide **qué ve**: el resultado lo lee cualquiera que vea el relevamiento,
+    y el agente y las indicaciones solo quien pasa :func:`ve_la_asignacion`.
+
+    Costo fijo: el total de fotos y la tanda de la página (2 consultas), más la del alcance
+    cuando el usuario puede coordinar. No crece con las fotos: la galería se recorta en
+    :data:`FOTOS_POR_TANDA`.
+    """
+
+    hoy = hoy or timezone.localdate()
+    realizada = inspeccion.estado == InspeccionEdificio.Estado.REALIZADA
+    situacion = situacion_de(inspeccion, hoy)
+    situacion_texto = Situacion.ETIQUETAS.get(situacion, situacion)
+    semaforo = semaforo_de_inspeccion(inspeccion) if realizada else None
+    total_fotos = inspeccion.fotos.count()
+    fotos = list(inspeccion.fotos.order_by("creado", "pk")[:FOTOS_POR_TANDA])
+    ve_asignacion = ve_la_asignacion(usuario, inspeccion)
+    return {
+        "relevamiento": inspeccion,
+        "edificio": inspeccion.edificio,
+        "realizada": realizada,
+        "situacion": situacion,
+        "situacion_texto": situacion_texto,
+        "semaforo": semaforo,
+        "relevo": _nombre(inspeccion.realizada_por) if realizada else "",
+        # Vacío = no se muestra. El nombre que no se puede ver no llega al template.
+        "agente": _nombre(inspeccion.asignado_a) if ve_asignacion else "",
+        "indicaciones": inspeccion.indicaciones if ve_asignacion else "",
+        "fotos": fotos_para_galeria(inspeccion, fotos),
+        "total_fotos": total_fotos,
+        "indicadores": _indicadores_del_informe(inspeccion, semaforo, situacion_texto, total_fotos, hoy),
     }
 
 

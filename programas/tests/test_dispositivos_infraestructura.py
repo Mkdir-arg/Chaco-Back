@@ -28,7 +28,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core import rbac
-from programas.models import AsignacionDispositivo, Edificio, InspeccionEdificio
+from programas.models import AsignacionDispositivo, Edificio, FotoInspeccion, InspeccionEdificio
 from programas.services.detalle_dispositivo import infraestructura_del_dispositivo
 from programas.services.inspecciones import (
     SEMAFOROS,
@@ -193,15 +193,20 @@ class HistorialFotograficoTests(BaseInfraestructura):
         self.assertEqual(len(eventos), 2)
         self.assertEqual([evento.count("<figure") for evento in eventos], [2, 1])
 
-    def test_una_foto_heic_no_se_dibuja_rota(self):
-        """El navegador no muestra HEIC en un `<img>`: va la celda gris con cámara, sin URL."""
+    def test_una_foto_heic_vieja_no_se_dibuja_rota(self):
+        """El navegador no muestra HEIC en un `<img>`: va la celda gris con cámara, sin URL.
+
+        Desde el rechazo de HEIC/HEIF (`core.validators.FOTO_EXTENSIONES`) ninguna nueva puede
+        serlo, así que la fila se arma **sin pasar por el servicio**: es el caso de una foto que
+        ya hubiera entrado antes. El manejo queda justamente por ellas.
+        """
 
         inspeccion = self._relevar(self.predio, Criticidad.BAJA, fotos=("fachada",))
-        heic = agregar_foto(
-            self._fresco(self.agente),
-            inspeccion,
-            _foto("celular.heic", b"\x00\x00\x00\x18ftypheic" + b"0" * 16),
-            "celular",
+        heic = FotoInspeccion.objects.create(
+            inspeccion=inspeccion,
+            archivo=_foto("celular.heic", b"\x00\x00\x00\x18ftypheic" + b"0" * 16),
+            descripcion="celular",
+            cargada_por=self._fresco(self.agente),
         )
         self.assertTrue(heic.archivo.name.endswith(".heic"))
 

@@ -65,6 +65,50 @@ class BaseListado(BaseInspecciones):
         return edificio
 
 
+class PrivacidadAsignacionTests(BaseListado):
+    def setUp(self):
+        super().setUp()
+        # Configurar da alcance global: acá la única condición ausente es coordinar B.
+        capacidades = [c for c in TODAS_DE_DISPOSITIVOS if c != "programa.configurar"]
+        self.lector = self._usuario("coord_a", capacidades, [self.parador])
+        lector_b = self._usuario("lector_b", [c for c in capacidades if c != "inspeccion.asignar"], [self.cis])
+        self.lector.groups.add(*lector_b.groups.all())
+        self.agente.first_name = "Agente exclusivo B"
+        self.agente.save(update_fields=["first_name"])
+        self.otro_agente.first_name = "Agente visible A"
+        self.otro_agente.save(update_fields=["first_name"])
+        admin = self._usuario("admin_creador", TODAS_DE_DISPOSITIVOS)
+        self.relevamiento_b = servicio.crear_inspeccion(
+            admin, edificio=self.edificio_cis, asignado_a=self.agente, fecha_vencimiento=self.vence
+        )
+        self._crear(agente=self.otro_agente)
+
+    def test_la_fila_oculta_el_nombre_sin_alcance_en_cada_estado(self):
+        cliente = self._cliente(self.lector)
+        for estado in Estado.values:
+            with self.subTest(estado=estado):
+                InspeccionEdificio.objects.filter(pk=self.relevamiento_b.pk).update(
+                    estado=estado,
+                    realizada_en=timezone.now() if estado == Estado.REALIZADA else None,
+                    realizada_por=self.agente if estado == Estado.REALIZADA else None,
+                    criticidad=InspeccionEdificio.Criticidad.BAJA if estado == Estado.REALIZADA else "",
+                    motivo_cancelacion="Se reprograma" if estado == Estado.CANCELADA else "",
+                )
+                respuesta = cliente.get(URL_LISTA)
+                self.assertEqual(respuesta.status_code, 200)
+                fila = re.search(r"<tr[^>]*>\s*<td[^>]*>Edificio CIS.*?</tr>", respuesta.content.decode(), re.S)
+                self.assertIsNotNone(fila)
+                self.assertNotIn("Agente exclusivo B", fila.group())
+                self.assertIn("Agente visible A", respuesta.content.decode())
+
+    def test_la_pildora_solo_ofrece_agentes_con_asignacion_visible(self):
+        respuesta = self._cliente(self.lector).get(URL_LISTA)
+        self.assertEqual(respuesta.status_code, 200)
+        for solapa in respuesta.context["solapas"]:
+            opciones = next(p["opciones"] for p in solapa["pildoras"] if p["nombre"] == "asignado_a")
+            self.assertEqual(opciones, [(str(self.otro_agente.pk), "Agente visible A")])
+
+
 class MenuTests(BaseListado):
     def test_quien_tiene_todo_menos_asignar_no_ve_el_menu_ni_entra(self):
         todo_menos = [c for c in TODAS_DE_DISPOSITIVOS if c != "inspeccion.asignar"]
@@ -163,7 +207,7 @@ class ListadoTests(BaseListado):
         self.assertContains(respuesta, 'aria-label="Reasignar el relevamiento de Predio Resistencia"')
         self.assertNotContains(respuesta, 'aria-label="Reasignar el relevamiento de Edificio CIS"')
 
-    def test_los_estados_terminales_no_tienen_acciones(self):
+    def test_lo_cancelado_no_tiene_ninguna_accion(self):
         inspeccion = self._crear()
         servicio.cancelar_inspeccion(self._fresco(self.coord), inspeccion, "Duplicado")
 
@@ -172,6 +216,23 @@ class ListadoTests(BaseListado):
         self.assertFalse(_filas(respuesta, "cancelados")[0].con_acciones)
         self.assertNotContains(respuesta, f"menu-fila-relevamiento-{inspeccion.pk}")
         self.assertNotContains(respuesta, "Reasignar el relevamiento de")
+
+    def test_lo_completado_solo_ofrece_ver_el_informe(self):
+        """Terminal, pero no sin acciones: queda leerlo. Ni reasignar ni cancelar."""
+
+        inspeccion = self._crear()
+        servicio.registrar_resultado(
+            self._fresco(self.agente), inspeccion, criticidad=InspeccionEdificio.Criticidad.BAJA
+        )
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA, {"tab": "completados"})
+        html = respuesta.content.decode()
+
+        self.assertTrue(_filas(respuesta, "completados")[0].con_acciones)
+        self.assertIn(f"menu-fila-relevamiento-{inspeccion.pk}", html)
+        self.assertIn(reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk]), html)
+        self.assertNotIn("Reasignar el relevamiento de", html)
+        self.assertNotIn(f"cancelar={inspeccion.pk}", html)
 
     def test_pildoras_filtran_por_situacion_y_agente(self):
         hoy = timezone.localdate()
@@ -232,7 +293,7 @@ class ListadoTests(BaseListado):
 
         fila = _filas(respuesta)[0]
         self.assertEqual((fila.situacion, fila.situacion_texto), (Situacion.AL_DIA, "Al día"))
-        self.assertIn((Situacion.AL_DIA, "Al día"), respuesta.context["pildoras"][0]["opciones"])
+        self.assertIn((Situacion.AL_DIA, "Al día"), _solapa(respuesta, "en_curso")["pildoras"][0]["opciones"])
         self.assertContains(respuesta, "Al día", count=3)  # tarjeta, opción de la píldora y badge
 
     def test_parametros_con_digitos_no_ascii_no_rompen(self):
@@ -470,6 +531,149 @@ class ReasignarYCancelarTests(BaseListado):
         url = self._url("relevamiento_cancelar", self.inspeccion.pk)
         respuesta = self._cliente(self.coord).post(url, {"motivo": "Duplicado", "volver": "page=2"})
         self.assertRedirects(respuesta, f"{URL_LISTA}?page=2", fetch_redirect_response=False)
+
+
+class SinRelevarTests(BaseListado):
+    """La cuarta solapa no lista relevamientos: lista EDIFICIOS que nunca se relevaron.
+
+    Lo que falta no tiene fila en `InspeccionEdificio`, así que no puede salir de las otras
+    tres. «Relevado» es lo mismo que mide el semáforo: una realizada, no una asignada.
+    """
+
+    def _sin_relevar(self, respuesta):
+        return respuesta.context["sin_relevar"]
+
+    def test_lista_los_edificios_del_alcance_que_nunca_se_relevaron(self):
+        otro = self._edificio_del_parador("ED-2")
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA, {"tab": "sin_relevar"})
+        solapa = self._sin_relevar(respuesta)
+
+        self.assertEqual({e.pk for e in solapa["filas"]}, {self.predio.pk, otro.pk})
+        self.assertEqual(solapa["total"], 2)
+        self.assertContains(respuesta, "Sin relevar nunca")
+
+    def test_el_edificio_relevado_sale_de_la_solapa(self):
+        inspeccion = self._crear()
+        self._edificio_del_parador("ED-2")
+
+        servicio.registrar_resultado(
+            self._fresco(self.agente), inspeccion, criticidad=InspeccionEdificio.Criticidad.BAJA
+        )
+        solapa = self._sin_relevar(self._cliente(self.coord).get(URL_LISTA, {"tab": "sin_relevar"}))
+
+        self.assertEqual([e.codigo for e in solapa["filas"]], ["ED-2"])
+
+    def test_un_cancelado_no_cuenta_como_relevado(self):
+        """No dejó resultado: el edificio sigue sin relevar y hay que volver a asignarlo."""
+
+        inspeccion = self._crear()
+        servicio.cancelar_inspeccion(self._fresco(self.coord), inspeccion, "Duplicado")
+
+        solapa = self._sin_relevar(self._cliente(self.coord).get(URL_LISTA, {"tab": "sin_relevar"}))
+
+        self.assertEqual([e.pk for e in solapa["filas"]], [self.predio.pk])
+        self.assertTrue(solapa["filas"][0].url_asignar)
+
+    def test_un_edificio_de_otro_alcance_no_aparece(self):
+        respuesta = self._cliente(self.coord).get(URL_LISTA, {"tab": "sin_relevar"})
+
+        self.assertNotIn(self.edificio_cis.pk, [e.pk for e in self._sin_relevar(respuesta)["filas"]])
+        self.assertNotContains(respuesta, "Edificio CIS")
+
+    def test_un_edificio_inactivo_no_aparece(self):
+        """No se puede relevar (`crear_inspeccion` lo rechaza): ofrecer «Asignar» sería mentir."""
+
+        inactivo = self._edificio_del_parador("ED-OFF")
+        Edificio.objects.filter(pk=inactivo.pk).update(activo=False)
+
+        solapa = self._sin_relevar(self._cliente(self.coord).get(URL_LISTA, {"tab": "sin_relevar"}))
+
+        self.assertEqual([e.pk for e in solapa["filas"]], [self.predio.pk])
+
+    def test_el_que_ya_tiene_uno_en_curso_aparece_sin_el_boton_asignar(self):
+        self._crear()
+        libre = self._edificio_del_parador("ED-2")
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA, {"tab": "sin_relevar"})
+        por_pk = {e.pk: e for e in self._sin_relevar(respuesta)["filas"]}
+
+        self.assertEqual(por_pk[self.predio.pk].url_asignar, "")
+        self.assertEqual(por_pk[self.predio.pk].asignado_a, self.agente.username)
+        self.assertTrue(por_pk[libre.pk].url_asignar)
+        self.assertContains(respuesta, "ya tiene uno en curso")
+        self.assertContains(respuesta, "Sin asignar")
+
+    def test_asignar_abre_el_modal_que_ya_existe(self):
+        libre = self._edificio_del_parador("ED-2")
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA, {"tab": "sin_relevar", "asignar": libre.pk})
+
+        self.assertIn("form_asignar", respuesta.context)
+        self.assertEqual(respuesta.context["edificio_asignar"], libre)
+
+    def test_pagina_con_su_propio_parametro_sin_mover_las_otras_solapas(self):
+        for n in range(26):
+            self._edificio_del_parador(f"ED-P{n}")
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA, {"tab": "sin_relevar", "sin_relevar_page": 2})
+        solapa = self._sin_relevar(respuesta)
+
+        self.assertEqual(solapa["total"], 27)
+        self.assertEqual(len(solapa["filas"]), 2)
+        self.assertIn("tab=sin_relevar", solapa["filtros_qs"])
+
+
+class PildorasPorPanelTests(BaseListado):
+    """MINOR del Cambio 279: filtrar desde otra solapa tiene que quedarse en esa solapa.
+
+    La solapa la cambia Alpine en el navegador y el formulario de filtros lo arma el
+    servidor, así que el oculto `tab` es el de **cada panel**, no el que resolvió el
+    servidor (patrón de P4).
+    """
+
+    def _ocultos(self, html, clave):
+        """Los ocultos `tab` del panel: de su `id` al del panel siguiente, sin los modales."""
+
+        cuerpo = html.split("x-becas-modal")[0]
+        panel = cuerpo.split(f'id="panel-{clave}"')[1]
+        siguiente = panel.find('id="panel-')
+        return re.findall(
+            r'<input type="hidden" name="tab" value="([^"]+)">', panel[:siguiente] if siguiente != -1 else panel
+        )
+
+    def test_cada_panel_manda_su_propia_solapa(self):
+        self._crear()
+
+        html = self._cliente(self.coord).get(URL_LISTA).content.decode()
+
+        for clave in ("en_curso", "completados", "cancelados"):
+            self.assertEqual(self._ocultos(html, clave), [clave], clave)
+
+    def test_el_oculto_no_sigue_a_la_solapa_que_pidio_la_url(self):
+        """Antes el oculto era `solapa_actual`: desde Completados, filtrar volvía a En curso."""
+
+        html = self._cliente(self.coord).get(URL_LISTA, {"tab": "completados"}).content.decode()
+
+        self.assertEqual(self._ocultos(html, "en_curso"), ["en_curso"])
+        self.assertEqual(self._ocultos(html, "completados"), ["completados"])
+
+    def test_la_pildora_estado_solo_se_ofrece_donde_filtra(self):
+        """«Vencido / por vencer / al día» se derivan de lo que está en curso: en las otras no."""
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA)
+
+        nombres = {s["clave"]: [p["nombre"] for p in s["pildoras"]] for s in respuesta.context["solapas"]}
+        self.assertEqual(nombres["en_curso"], ["estado", "asignado_a"])
+        self.assertEqual(nombres["completados"], ["asignado_a"])
+        self.assertEqual(nombres["cancelados"], ["asignado_a"])
+
+    def test_la_cuarta_solapa_no_ofrece_pildoras(self):
+        """Filtran relevamientos y ahí hay edificios: una píldora que no hace nada confunde."""
+
+        html = self._cliente(self.coord).get(URL_LISTA).content.decode()
+
+        self.assertEqual(self._ocultos(html, "sin_relevar"), [])
 
 
 @tag("performance")

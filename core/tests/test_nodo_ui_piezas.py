@@ -661,6 +661,32 @@ class LineaTiempoTest(SimpleTestCase):
 
         self.assertEqual(sin_clave, vacia)
         self.assertNotIn("mt-3", sin_clave)
+
+    def test_el_enlace_del_evento_se_dibuja_al_final_de_su_linea(self):
+        """La ranura que convierte la línea de tiempo en el «historial» con acción por fila (P19)."""
+
+        eventos = [
+            {"cuando": "02/02/2026 · C. Ríos", "titulo": "8 fotos", "enlace": "/x/1/", "enlace_texto": "Ver informe"},
+            {"cuando": "14/08/2025", "titulo": "6 fotos", "enlace": "/x/2/"},
+        ]
+        html = render_to_string(LINEA_TIEMPO, {"eventos": eventos})
+
+        primero, segundo = html.split('<li class="relative pl-5 text-sm">')[1:]
+        self.assertIn('<a href="/x/1/"', primero)
+        self.assertIn("Ver informe", primero)
+        # El nombre accesible no es diez veces «Ver»: le suma el metadato del evento.
+        self.assertIn('<span class="sr-only"> · 02/02/2026 · C. Ríos</span>', primero)
+        self.assertIn(">Ver<", segundo)
+
+    def test_sin_enlace_el_html_es_el_de_siempre(self):
+        """`enlace` ausente o vacío no cambia ni un carácter del evento."""
+
+        base = [{"cuando": "x", "titulo": "Ingreso", "detalle": "plaza B-03", "badge": "nuevo", "tono": "success"}]
+        sin_clave = render_to_string(LINEA_TIEMPO, {"eventos": base})
+        vacio = render_to_string(LINEA_TIEMPO, {"eventos": [{**base[0], "enlace": "", "enlace_texto": "Ver"}]})
+
+        self.assertEqual(sin_clave, vacio)
+        self.assertNotIn("<a ", sin_clave)
         self.assertNotIn("Sin fotos", sin_clave)
         self.assertIn("</p>\n  </li>", sin_clave)
 

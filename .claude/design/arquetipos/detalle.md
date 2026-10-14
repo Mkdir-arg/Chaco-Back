@@ -127,6 +127,13 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
 - Acción de la fila que muta: `<button type="button">` con `data-*` + `<form method="post" class="hidden">`
   con `{% csrf_token %}`, y la confirmación por `data-confirm-url` (arquetipo Confirmación).
 
+En P4, `programas/services/detalle_dispositivo.py` prepara Infraestructura e Historial según
+quien mira: la institución no recibe el nombre del agente de un relevamiento sin realizar,
+incluidos los cancelados. La asignación la ven el coordinador del edificio y el propio agente
+(`programas.services.inspecciones.ve_la_asignacion`). El Historial rearma esas trazas sin
+nombres; una vez realizado, el resultado muestra quién relevó. Infraestructura enlaza cada
+evento con su informe de solo lectura y conserva el dispositivo de origen para volver.
+
 ## Prohibido
 
 - `<h1>` propio, «← Volver» como link de texto, header dentro de una card.
