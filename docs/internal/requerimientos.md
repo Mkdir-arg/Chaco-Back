@@ -431,7 +431,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 301 | Correcciones menores de fidelidad FA–FD | Dispositivos · P4/P5/P6/P7/P10/P16 | `#ui` `#rbac` `#performance` `#textos` | Juez — carril FE | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 302 | Segunda pasada de fidelidad del MVP: instituciones y tablas compartidas | Dispositivos · P2/P3/P4/P5 · tablas transversales | `#ui` `#textos` `#performance` | PM / juez — carril FF | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 303 | Separar reservas y préstamos y corregir el contenido de duplicados | Dispositivos · P3/P5 | `#ui` `#textos` `#performance` | PM / juez — carril FG | 14/10/2026 | 🟢 **Hecho** | No requiere |
-| NNN | Relevamiento completado y revisado sin cambiar el estado operativo | Dispositivos · relevamientos P21/informe | `#relevamientos` `#rbac` `#ui` `#datos` `#performance` | PM / juez — carril FR, fidelidad del MVP presentado | 14/10/2026 | 🟢 **Hecho** | `programas.0095` |
+| 304 | Relevamiento completado y revisado sin cambiar el estado operativo | Dispositivos · relevamientos P21/informe | `#relevamientos` `#rbac` `#ui` `#datos` `#performance` | PM / juez — carril FR, fidelidad del MVP presentado | 14/10/2026 | 🟢 **Hecho** | `programas.0095` |
 
 **Notas del índice**
 
@@ -39756,8 +39756,9 @@ Entrada nueva y única de FG. Las entradas anteriores se conservan.
 
 ---
 
+---
 
-# Cambio NNN — Relevamiento completado y revisado sin cambiar el estado operativo
+# Cambio 304 — Relevamiento completado y revisado sin cambiar el estado operativo
 
 🟢 **HECHO — 14/10/2026** · Carril FR · Número definitivo a cargo del juez
 
@@ -39871,9 +39872,9 @@ nullabilidad ni enum del estado de inspección. Contrato de migraciones sin marc
   repetidos después de los commits. Presupuestos de performance: OK.
 - Inspección de capturas del mockup P21 y renders locales en Edge: listado con ambos badges,
   informe antes/después y confirmación ModernModal con los textos de la acción.
-- `requerimientos.py --check` valida las entradas numeradas. NNN queda deliberadamente
+- `requerimientos.py --check` valida las entradas numeradas. 304 queda deliberadamente
   sin numerar para el juez: el parser actual solo reconoce números. Se verifican por separado
-  una única cabecera y una única fila NNN y sus etiquetas; se debe repetir el check tras numerar.
+  una única cabecera y una única fila 304 y sus etiquetas; se debe repetir el check tras numerar.
 
 ## Puesta en marcha en el servidor
 
@@ -39882,7 +39883,7 @@ no hay nuevas capacidades, seeds, variables ni comandos manuales.
 
 ## Pendientes / a definir
 
-El juez asigna el número definitivo a NNN (cabecera y fila) y repite requerimientos.py --check.
+El juez asigna el número definitivo a 304 (cabecera y fila) y repite requerimientos.py --check.
 Sin pendientes funcionales del carril. La API móvil conserva el contrato anterior por decisión explícita.
 
 ## Reversión
