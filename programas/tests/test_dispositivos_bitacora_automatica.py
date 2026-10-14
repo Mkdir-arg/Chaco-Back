@@ -176,15 +176,20 @@ class SinTurnoNoSeInventaTests(BaseAutomaticas):
 
 class NoRompeElCensoNiLaAuditoriaTests(BaseAutomaticas):
     def test_el_censo_sigue_contando_movimientos_y_no_novedades(self):
-        estadia = self._alojar(fecha_ingreso=timezone.now() - timedelta(hours=3))
+        # Ambos movimientos pertenecen al mismo día operativo, a cualquier hora del runner.
+        ingreso = timezone.localtime(timezone.now() - timedelta(days=1)).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        )
+        egreso = ingreso.replace(hour=12)
+        estadia = self._alojar(fecha_ingreso=ingreso)
         egresar_persona(
             estadia=estadia,
             usuario=self.operador_cis,
-            fecha_egreso=timezone.now() - timedelta(hours=1),
+            fecha_egreso=egreso,
             motivo_egreso=self.motivo_alta,
         )
 
-        censo = censo_del_dia(self.cis, fecha_operativa_de(self.cis))
+        censo = censo_del_dia(self.cis, fecha_operativa_de(self.cis, ingreso))
 
         self.assertEqual((censo.ingresos, censo.egresos), (1, 1))
         self.assertTrue(all(tramo.cuadra for tramo in censo.tramos), "una novedad no mueve el censo")
