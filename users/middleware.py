@@ -3,7 +3,6 @@ from django.contrib.auth import logout
 from django.shortcuts import redirect
 from django.urls import reverse
 
-from core.middleware import es_ruta_publica_sin_sesion
 from users.models import Profile
 
 
@@ -14,8 +13,6 @@ class BackofficeSingleSessionMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if es_ruta_publica_sin_sesion(request.path):
-            return self.get_response(request)
         if request.user.is_authenticated:
             profile, _ = Profile.objects.get_or_create(user=request.user)
             # Evita que templates/context processors vuelvan a consultar la
@@ -48,11 +45,7 @@ class CambioContrasenaObligatorioMiddleware:
     def __call__(self, request):
         # /api/ usa tokens (Mobile): ahí request.user todavía es anónimo y el
         # cambio de clave se resuelve en el navegador, no interceptando la API.
-        if (
-            request.user.is_authenticated
-            and not request.path.startswith("/api/")
-            and not es_ruta_publica_sin_sesion(request.path)
-        ):
+        if request.user.is_authenticated and not request.path.startswith("/api/"):
             # RelatedObjectDoesNotExist hereda de AttributeError: getattr alcanza.
             profile = getattr(request.user, "profile", None)
             if profile is not None and profile.debe_cambiar_contrasena:

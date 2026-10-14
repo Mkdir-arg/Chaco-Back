@@ -220,19 +220,19 @@ class PruebaEnviada(TimeStamped):
 
 
 class ImagenCampana(TimeStamped):
-    """Una imagen del .zip del cuerpo, publicada para que el correo la muestre (Cambio 285).
+    """Una imagen del .zip del cuerpo, que viaja incrustada en cada correo (Cambios 285 y 292).
 
-    **Pública a propósito** (decisión del PM, 14/10/2026): el destinatario no tiene sesión, así
-    que la vista ``notificaciones:imagen_publica`` la sirve sin login, buscándola por ``token``
-    —uno por paquete subido, no adivinable— y ``nombre``. Es la única excepción a «`media/`
-    detrás de login» y alcanza solo a esto: imágenes validadas con Pillow, nunca otro archivo.
+    El HTML guardado la nombra como ``cid:<nombre>@datanach`` y cada correo la lleva como parte
+    ``multipart/related`` con ese Content-ID (:mod:`notificaciones.services.incrustadas`). El
+    archivo vive en ``media/`` detrás de login (``notificacion.ver``): el Cambio 285 la servía en
+    una ruta pública y el Cambio 292 la retiró, porque el WAF de ECOM la bloquea desde internet.
     """
 
     campana = models.ForeignKey(Campana, on_delete=models.CASCADE, related_name="imagenes")
-    # ``secrets.token_urlsafe``: 32 caracteres [A-Za-z0-9_-]. Cambia con cada paquete subido,
-    # así una imagen reemplazada nunca se sirve con la URL (y la caché) de la anterior.
+    # ``secrets.token_urlsafe``: uno por paquete subido. Hoy solo agrupa los archivos del paquete
+    # en una carpeta de ``media/`` y desambigua el único (desde el Cambio 292 no es parte de una URL).
     token = models.CharField(max_length=64, db_index=True)
-    #: El nombre de la URL: ``NN-nombre.ext``, con la extensión del formato detectado.
+    #: El nombre del Content-ID: ``NN-nombre.ext``, con la extensión del formato detectado.
     nombre = models.CharField(max_length=100)
     ruta_original = models.CharField(max_length=255, verbose_name="Ruta dentro del .zip")
     archivo = models.FileField(upload_to=ruta_notificacion_imagen, max_length=255)

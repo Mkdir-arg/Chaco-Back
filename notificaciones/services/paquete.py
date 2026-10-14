@@ -1,12 +1,16 @@
-"""El cuerpo de una campaña subido como .zip: el HTML y sus imágenes (Cambio 285).
+"""El cuerpo de una campaña subido como .zip: el HTML y sus imágenes (Cambios 285 y 292).
 
 A los operadores les llega el mailing como una **carpeta**: ``mailing.html`` + ``img/*.png``
 con ``src="img/foto.jpg"``. Subido solo el HTML, esas imágenes no existen en ningún servidor y
 no se ven. Acá se abre el .zip, se elige el HTML, se resuelve cada ``src`` relativo contra los
-archivos del paquete, se validan las imágenes con Pillow y se reescribe cada ``src`` a la URL
-**pública y absoluta** de la imagen (``notificaciones:imagen_publica``). El saneo viene
-después, en :func:`notificaciones.services.html.procesar_texto`: el orden es
-extraer → reescribir → sanear, y las URLs reescritas son ``http(s)://``, que el saneo conserva.
+archivos del paquete, se validan las imágenes con Pillow y se reescribe cada ``src`` a
+``cid:<nombre>@datanach``: la imagen **viaja incrustada en cada correo**
+(:mod:`notificaciones.services.incrustadas`). El saneo viene después, en
+:func:`notificaciones.services.html.procesar_texto`: el orden es extraer → reescribir → sanear,
+y el saneo admite el esquema ``cid`` solo para las imágenes de este paquete.
+
+Hasta el Cambio 292 el ``src`` era una URL pública de DATAÑACH: el WAF de ECOM la bloquea desde
+internet y el proxy de imágenes de Gmail no podía bajarlas.
 
 Lo que se rechaza con error (el .zip no se acepta):
 
@@ -15,7 +19,9 @@ Lo que se rechaza con error (el .zip no se acepta):
   tamaño se controla con lo declarado **y** leyendo con techo, porque el encabezado puede mentir);
 - una entrada con ``..``, ruta absoluta, unidad de Windows, enlace simbólico o cifrada;
 - más de :data:`MAX_IMAGENES` imágenes o más de :data:`MAX_ENTRADAS` archivos;
-- ningún HTML, o más de uno sin un ``index.html`` en la raíz del paquete.
+- ningún HTML, o más de uno sin un ``index.html`` en la raíz del paquete;
+- imágenes publicables que, ya recodificadas, pesan más de ``incrustadas.TOPE_BYTES`` (2 MB) en
+  total: cada correo las lleva todas.
 
 Lo que no se publica pero no frena (va a los avisos de la previsualización): una imagen que el
 HTML nombra y no vino (**faltante**) y una que vino pero no es PNG, JPG, GIF ni WEBP de verdad
@@ -44,10 +50,10 @@ import zipfile
 from dataclasses import dataclass, field
 from urllib.parse import unquote
 
-from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.urls import reverse
 from PIL import Image, ImageOps, UnidentifiedImageError
+
+from notificaciones.services import incrustadas
 
 ZIP_MAX_BYTES = 10 * 1024 * 1024
 DESCOMPRIMIDO_MAX_BYTES = 20 * 1024 * 1024
@@ -115,11 +121,6 @@ class PaqueteLeido:
 
 def es_zip(archivo):
     return (getattr(archivo, "name", "") or "").lower().endswith(EXTENSIONES_ZIP)
-
-
-def url_publica(token, nombre):
-    """La URL absoluta de una imagen publicada: la que va en el correo y en la vista previa."""
-    return f"{settings.NOTIF_URL_PUBLICA}{reverse('notificaciones:imagen_publica', args=[token, nombre])}"
 
 
 def _mb(n):
@@ -363,7 +364,7 @@ def leer_paquete(archivo):
             sin_mayusculas.setdefault(nombre.casefold(), nombre)
 
         paquete = PaqueteLeido(html="", nombre_html=nombre_html, token=token)
-        publicadas = {}  # ruta del paquete → URL
+        publicadas = {}  # ruta del paquete → src «cid:»
         avisadas = set()
 
         def reescribir(match):
@@ -388,13 +389,14 @@ def leer_paquete(archivo):
             return f'{match.group(1)}"{url}"'
 
         paquete.html = _IMG_SRC.sub(reescribir, texto)
+        _controlar_peso(paquete)
         return paquete
     finally:
         zf.close()
 
 
 def _publicar(zf, info, ruta, paquete):
-    """Valida la imagen y la suma al paquete. Devuelve su URL pública o ``None`` si no va."""
+    """Valida la imagen y la suma al paquete. Devuelve su ``src`` «cid:» o ``None`` si no va."""
     try:
         datos = _leer(zf, info, IMAGEN_MAX_BYTES, MOTIVO_GRANDE)
     except ValidationError as exc:
@@ -410,4 +412,14 @@ def _publicar(zf, info, ruta, paquete):
     paquete.imagenes.append(
         ImagenExtraida(nombre=nombre, ruta_original=ruta[:255], contenido=contenido, content_type=content_type)
     )
-    return url_publica(paquete.token, nombre)
+    return incrustadas.src_de(nombre)
+
+
+def _controlar_peso(paquete):
+    """Las imágenes publicables, sumadas, no pasan el tope: cada correo las lleva todas."""
+    total = sum(imagen.tamano for imagen in paquete.imagenes)
+    if total > incrustadas.TOPE_BYTES:
+        raise ValidationError(
+            f"Las imágenes del .zip pesan {total / (1024 * 1024):.1f} MB en total y viajan dentro de cada "
+            f"correo: el tope es {incrustadas.TOPE_BYTES // (1024 * 1024)} MB. Achicalas o sacá alguna."
+        )

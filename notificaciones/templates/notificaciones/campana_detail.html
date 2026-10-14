@@ -19,7 +19,7 @@
     <button type="button" class="btn-nodo btn-secondary btn-sm"
             data-confirm-url="{% url 'notificaciones:campana_eliminar' campana.pk %}"
             data-confirm-title="¿Eliminar la campaña?"
-            data-confirm-text="{{ texto_confirmar_eliminar }}"
+            data-confirm-text="Se borran la campaña «{{ campana.nombre }}», su lista de destinatarios y sus archivos. No se puede deshacer."
             data-confirm-ok="Sí, eliminar"
             data-confirm-danger="true">
       <i class="fas fa-trash" aria-hidden="true"></i> Eliminar
@@ -86,6 +86,9 @@
     {% include "components/_alerta.html" with tono="info" titulo="Enviando · se actualiza solo" texto=avance %}
   {% elif campana.estado == "ENVIADA_CON_ERRORES" %}
     {% include "components/_alerta.html" with tono="warning" role="status" titulo="Hay correos que no se pudieron enviar" texto="El resto de la campaña salió bien. El motivo de cada uno está en la solapa «Destinatarios» (filtrá por «Fallido»). Para volver a mandarla con cambios, usá «Duplicar»." %}
+    {% if campana.mensaje %}{% include "components/_alerta.html" with tono="warning" role="status" titulo="Aviso del envío" texto=campana.mensaje %}{% endif %}
+  {% elif campana.estado == "ENVIADA" and campana.mensaje %}
+    {% include "components/_alerta.html" with tono="warning" role="status" titulo="Aviso del envío" texto=campana.mensaje %}
   {% elif campana.estado == "CANCELADA" %}
     {% include "components/_alerta.html" with tono="warning" role="status" titulo="Se detuvo el envío" texto=campana.mensaje|default:"Lo enviado quedó enviado; los pendientes no se enviaron." %}
   {% endif %}
@@ -154,7 +157,7 @@
           {% include "components/_alerta.html" with tono="warning" role="status" titulo="Imágenes que faltan en el .zip" texto=texto_imagenes_faltantes %}
         {% endif %}
         {% if texto_imagenes_rechazadas %}
-          {% include "components/_alerta.html" with tono="warning" role="status" titulo="Imágenes del .zip que no se publicaron" texto=texto_imagenes_rechazadas %}
+          {% include "components/_alerta.html" with tono="warning" role="status" titulo="Imágenes del .zip que no se incluyen" texto=texto_imagenes_rechazadas %}
         {% endif %}
         {% if campana.imagenes_no_visibles %}
           {% include "components/_alerta.html" with tono="warning" role="status" titulo="Hay imágenes que no se van a ver" texto="Algunas imágenes del HTML usan una ruta relativa o «cid:». No se envían adjuntos: subí un .zip con la carpeta del correo o publicalas en una dirección https://, y reemplazá el cuerpo desde «Editar»." %}

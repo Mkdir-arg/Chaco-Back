@@ -344,7 +344,7 @@ class PruebaTests(ConMediaTemporal):
     def test_prueba_va_a_una_sola_direccion_con_prefijo_y_no_cambia_el_estado(self):
         usuario = usuario_con("notificacion.gestionar", username="gestiona")
         campana = crear_campana(asunto="Ya podés inscribirte")
-        ok, error = envio.enviar_prueba(campana, "prueba@gmail.com", usuario=usuario)
+        ok, error, _aviso = envio.enviar_prueba(campana, "prueba@gmail.com", usuario=usuario)
 
         self.assertTrue(ok)
         self.assertEqual(error, "")
@@ -361,7 +361,7 @@ class PruebaTests(ConMediaTemporal):
     def test_prueba_que_falla_se_registra_y_no_propaga(self):
         campana = crear_campana()
         with self.assertLogs("notificaciones.services.envio", "ERROR"):
-            ok, error = envio.enviar_prueba(campana, "falla@gmail.com", usuario=None)
+            ok, error, _aviso = envio.enviar_prueba(campana, "falla@gmail.com", usuario=None)
         self.assertFalse(ok)
         self.assertIn("SMTPRecipientsRefused", error)
         self.assertFalse(PruebaEnviada.objects.get().ok)
