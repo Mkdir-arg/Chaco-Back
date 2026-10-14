@@ -72,9 +72,10 @@ body {
 
 /* Botones Brand */
 /* IMPACTO: ~4 botones legacy (btn-primary, btn-success) dependen de este gradiente automático.
-   Eliminación estructural requiere migración dedicada. Se conserva tokenizado + .btn-danger excluido. */
+   Eliminación estructural requiere migración dedicada. Se conserva tokenizado + .btn-danger excluido.
+   Los submits deshabilitados usan el estado gris canónico de nodo-buttons.css. */
 .btn-brand,
-button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):not(.btn-danger),
+button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):not(.btn-danger):not(:disabled),
 .bg-gradient-to-r {
     background: var(--nodo-gradient) !important;
     color: var(--text-white) !important;
@@ -83,12 +84,12 @@ button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):not(.btn-danger),
 }
 
 .btn-brand:hover,
-button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):not(.btn-danger):hover {
+button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):not(.btn-danger):not(:disabled):hover {
     filter: brightness(0.85) !important;
 }
 
 .btn-brand:focus,
-button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):not(.btn-danger):focus {
+button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):not(.btn-danger):not(:disabled):focus {
     box-shadow: 0 0 0 2px var(--bg-brand) !important;
 }
 

@@ -16,11 +16,6 @@ app_name = "dispositivos"
 # `Estadia` y `Turno`; mientras tanto el legajo institucional del dispositivo y la
 # configuración de tipos siguen en pie.
 urlpatterns = [
-    path(
-        "relevamientos/<int:pk>/revisar/",
-        relevamientos.RelevamientoRevisarView.as_view(),
-        name="relevamiento_revisar",
-    ),
     path("", legajo.DispositivoListView.as_view(), name="lista"),
     path("export/<str:reporte>/<str:formato>/", reportes.DispositivoExportView.as_view(), name="exportar"),
     path("nuevo/", legajo.DispositivoCreateView.as_view(), name="crear"),
@@ -110,6 +105,11 @@ urlpatterns = [
         "relevamientos/<int:pk>/cancelar/",
         relevamientos.RelevamientoCancelarView.as_view(),
         name="relevamiento_cancelar",
+    ),
+    path(
+        "relevamientos/<int:pk>/revisar/",
+        relevamientos.RelevamientoRevisarView.as_view(),
+        name="relevamiento_revisar",
     ),
     path("config/", cfg.TipoDispositivoListView.as_view(), name="tipos"),
     path("config/nuevo/", cfg.TipoDispositivoCreateView.as_view(), name="tipo_crear"),

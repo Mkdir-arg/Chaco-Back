@@ -46,11 +46,14 @@
   </div>
   <aside class="space-y-5 min-w-0" aria-label="Ayuda del legajo institucional">
     <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="titulo-duplicados">
-      <div class="px-5 py-4 border-b border-light"><h2 id="titulo-duplicados" class="text-heading font-bold">Posibles duplicados</h2></div>
+      <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-light">
+        <h2 id="titulo-duplicados" class="text-heading font-bold">Posibles duplicados</h2>
+        {% if not form.instance.pk %}<span id="duplicate-count" class="badge badge-warning" aria-label="Coincidencias">0</span>{% endif %}
+      </div>
       <div class="p-5">
         {% if not form.instance.pk %}
         <p id="duplicate-empty" class="text-sm text-body-subtle">No se encontraron coincidencias. Completá código, o nombre y localidad para buscar.</p>
-        <div id="duplicate-search" class="hidden">
+        <div id="duplicate-search" class="hidden" tabindex="-1">
           {% include "components/_alerta.html" with tono="warning" contenido_template="programas/dispositivos/legajo/_duplicados.html" only %}
         </div>
         {% else %}<p class="text-sm text-body-subtle">La búsqueda de coincidencias se realiza durante el alta. El código se verifica al guardar.</p>{% endif %}
@@ -74,6 +77,7 @@
 <script>
 (function () {
   const requisitos = Array.from(document.querySelectorAll('[data-requisito-campo]'));
+  const enviar = document.querySelector('button[value="enviar_validacion"]');
   function actualizarFaltantes() {
     let faltantes = 0;
     requisitos.forEach(function (fila) {
@@ -83,6 +87,7 @@
       if (falta) faltantes++;
     });
     document.querySelector('[data-validacion-completa]').classList.toggle('hidden', faltantes > 0);
+    if (enviar) enviar.disabled = faltantes > 0;
   }
   requisitos.forEach(function (fila) {
     document.getElementById(fila.dataset.requisitoCampo).addEventListener('input', actualizarFaltantes);
@@ -99,12 +104,14 @@
   const localidad = document.getElementById('id_localidad');
   const aviso = document.getElementById('duplicate-search');
   const vacio = document.getElementById('duplicate-empty');
+  const contador = document.getElementById('duplicate-count');
   const formulario = codigo.closest('form');
   let controller;
   let enviando = false;
   let accion;
 
   function mostrarCoincidencias(data) {
+    contador.textContent = data.coincidencias.length;
     vacio.classList.toggle('hidden', data.codigo_duplicado || data.coincidencias.length > 0);
     if (!data.codigo_duplicado && !data.coincidencias.length) { aviso.classList.add('hidden'); return; }
     const mensaje = aviso.querySelector('[data-duplicados-mensaje]');
@@ -124,6 +131,7 @@
     if (!codigo.value.trim() && !(nombre.value.trim() && localidad.value.trim())) {
       aviso.classList.add('hidden');
       vacio.classList.remove('hidden');
+      contador.textContent = 0;
       return {codigo_duplicado: false, coincidencias: []};
     }
     if (controller) controller.abort();
@@ -148,7 +156,11 @@
     event.preventDefault();
     accion = event.submitter;
     buscar().then(function (data) {
-      if (data.codigo_duplicado) return;
+      if (data.codigo_duplicado) {
+        aviso.scrollIntoView({block: 'center'});
+        aviso.focus({preventScroll: true});
+        return;
+      }
       if (!data.coincidencias.length) { enviar(); return; }
       Swal.fire({
         title: '¿Confirmás el alta?',

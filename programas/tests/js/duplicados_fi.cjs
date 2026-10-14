@@ -11,8 +11,13 @@ const clases = () => ({
   toggle(_, value) { this.hidden = value; },
 });
 const mensaje = {};
-const lista = { replaceChildren() {} };
-const aviso = { classList: clases(), querySelector: s => s.includes('mensaje') ? mensaje : lista };
+const lista = { hijos: [], replaceChildren(n) { this.hijos = [n]; }, appendChild(n) { this.hijos.push(n); } };
+let scrolls = 0;
+let focos = 0;
+const aviso = { classList: clases(), querySelector: s => s.includes('mensaje') ? mensaje : lista,
+  scrollIntoView(options) { assert.equal(options.block, 'center'); scrolls++; },
+  focus(options) { assert.equal(options.preventScroll, true); focos++; } };
+const contador = { textContent: 0 };
 const vacio = { classList: clases() };
 let enviado = 0;
 let ultimoBoton;
@@ -28,7 +33,7 @@ const codigo = input('FI-LIBRE');
 const nombre = input('Institución FI');
 const localidad = input('Resistencia');
 const elementos = { id_codigo: codigo, id_nombre: nombre, id_localidad: localidad,
-  'duplicate-search': aviso, 'duplicate-empty': vacio };
+  'duplicate-search': aviso, 'duplicate-empty': vacio, 'duplicate-count': contador };
 global.document = {
   getElementById: id => elementos[id],
   createElement: () => ({ appendChild() {} }),
@@ -68,6 +73,19 @@ eval(script);
   assert.equal(avisosDeError, 0, 'El aborto no debe abrir una alerta de fallo');
   assert.equal(enviado, 0);
 
+  const coincidencias = [{codigo: 'FJ-1', nombre: 'Institución FJ', localidad: 'Resistencia'}];
+  global.fetch = () => respuesta({ codigo_duplicado: false, coincidencias });
+  codigo.listeners.blur();
+  await tick();
+  nombre.listeners.blur();
+  await tick();
+  assert.equal(lista.hijos.length, 1, 'Dos búsquedas deben reemplazar la lista, sin acumular hijos');
+  assert.equal(Number(contador.textContent), 1, 'El badge cuenta las coincidencias visibles');
+  global.fetch = () => respuesta({ codigo_duplicado: false, coincidencias: [...coincidencias, ...coincidencias] });
+  codigo.listeners.blur();
+  await tick();
+  assert.equal(Number(contador.textContent), 2, 'El badge se actualiza con cada búsqueda');
+
   // Coincidencia que el endpoint no puede revelar por alcance: explica y bloquea.
   global.fetch = () => respuesta({ codigo_duplicado: true, coincidencias: [] });
   codigo.listeners.blur();
@@ -77,12 +95,23 @@ eval(script);
   form.listeners.submit(evento);
   await tick();
   assert.equal(enviado, 0, 'El código repetido no se envía');
+  assert.equal(scrolls, 1, 'El bloqueo debe llevar el aviso a la vista');
+  assert.equal(focos, 1, 'El bloqueo debe llevar el foco al aviso');
+  assert.equal(Number(contador.textContent), 0, 'No se cuentan coincidencias fuera del alcance');
 
   global.fetch = () => respuesta(limpio);
   codigo.listeners.blur();
   await tick();
   assert.equal(aviso.classList.hidden, true);
   assert.equal(vacio.classList.hidden, false);
+  assert.equal(Number(contador.textContent), 0);
+  codigo.value = '';
+  nombre.value = '';
+  contador.textContent = 2;
+  codigo.listeners.blur();
+  await tick();
+  assert.equal(Number(contador.textContent), 0, 'Limpiar los campos también limpia el contador');
+  codigo.value = 'FI-LIBRE';
   form.listeners.submit(evento);
   await tick();
   assert.equal(enviado, 1);

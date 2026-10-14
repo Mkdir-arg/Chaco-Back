@@ -49,7 +49,7 @@ class RevisionTests(BaseRevision):
     def test_revision_registra_autor_fecha_traza_y_candado_sin_cambiar_el_resultado(self):
         inspeccion = self._completada()
         with candados_tomados(InspeccionEdificio.objects) as candados:
-            revisada = servicio.marcar_revisado(inspeccion, self._fresco(self.coordinador))
+            revisada = servicio.marcar_revisado(self._fresco(self.coordinador), inspeccion)
         self.assertEqual(candados, ["inspecciones.py:_bloquear"])
         self.assertEqual(revisada.revisado_en, AHORA)
         self.assertEqual(revisada.revisado_por, self.coordinador)
@@ -67,7 +67,7 @@ class RevisionTests(BaseRevision):
     def test_no_se_revisa_una_asignada(self):
         inspeccion = self._crear()
         with self.assertRaisesMessage(ValidationError, "Solo se puede revisar un relevamiento completado"):
-            servicio.marcar_revisado(inspeccion, self._fresco(self.coordinador))
+            servicio.marcar_revisado(self._fresco(self.coordinador), inspeccion)
         inspeccion.refresh_from_db()
         self.assertIsNone(inspeccion.revisado_en)
         self.assertIsNone(inspeccion.revisado_por)
@@ -76,15 +76,15 @@ class RevisionTests(BaseRevision):
     def test_no_se_revisa_una_cancelada(self):
         inspeccion = servicio.cancelar_inspeccion(self._fresco(self.coordinador), self._crear(), "Reprogramado")
         with self.assertRaisesMessage(ValidationError, "Solo se puede revisar un relevamiento completado"):
-            servicio.marcar_revisado(inspeccion, self._fresco(self.coordinador))
+            servicio.marcar_revisado(self._fresco(self.coordinador), inspeccion)
         inspeccion.refresh_from_db()
         self.assertIsNone(inspeccion.revisado_en)
 
     def test_dos_revisiones_incluso_con_objeto_desactualizado_no_pisan_la_primera(self):
         inspeccion = self._completada()
-        servicio.marcar_revisado(inspeccion, self._fresco(self.coordinador))
+        servicio.marcar_revisado(self._fresco(self.coordinador), inspeccion)
         with self.assertRaisesMessage(ValidationError, "ya está revisado"):
-            servicio.marcar_revisado(inspeccion, self._fresco(self.coordinador))
+            servicio.marcar_revisado(self._fresco(self.coordinador), inspeccion)
         inspeccion.refresh_from_db()
         self.assertEqual(inspeccion.revisado_en, AHORA)
         self.assertEqual(inspeccion.trazas.filter(accion=TrazaInspeccion.Accion.REVISADA).count(), 1)
@@ -95,7 +95,7 @@ class RevisionTests(BaseRevision):
         )
         inspeccion = self._completada()
         with self.assertRaises(PermissionDenied):
-            servicio.marcar_revisado(inspeccion, self._fresco(usuario))
+            servicio.marcar_revisado(self._fresco(usuario), inspeccion)
         respuesta = self._cliente(usuario).post(self._url(inspeccion))
         self.assertEqual(respuesta.status_code, 403)
         self.assertNotContains(respuesta, self.predio.nombre, status_code=403)
@@ -108,7 +108,7 @@ class RevisionTests(BaseRevision):
             "otra_institucion", [c for c in TODAS_DE_DISPOSITIVOS if c != "programa.configurar"], [self.cis]
         )
         with self.assertRaises(PermissionDenied):
-            servicio.marcar_revisado(inspeccion, self._fresco(usuario))
+            servicio.marcar_revisado(self._fresco(usuario), inspeccion)
         self.assertIsNone(relevamiento_para_revision(self._fresco(usuario), inspeccion.pk))
         self.assertIsNone(relevamiento_para_revision(self._fresco(usuario), 999999))
         cliente = self._cliente(usuario)
@@ -117,6 +117,15 @@ class RevisionTests(BaseRevision):
         self.assertEqual((ajeno.status_code, inexistente.status_code), (403, 403))
         self.assertEqual(_sin_token(ajeno.content), _sin_token(inexistente.content))
         self.assertNotContains(ajeno, self.predio.nombre, status_code=403)
+        ajeno_ajax = cliente.post(self._url(inspeccion), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        inexistente_ajax = cliente.post(
+            reverse("dispositivos:relevamiento_revisar", args=[999999]), HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        self.assertEqual((ajeno_ajax.status_code, inexistente_ajax.status_code), (403, 403))
+        self.assertEqual(
+            ajeno_ajax.json(), {"ok": False, "message": "No tenés permiso para revisar este relevamiento."}
+        )
+        self.assertEqual(ajeno_ajax.json(), inexistente_ajax.json())
         inspeccion.refresh_from_db()
         self.assertIsNone(inspeccion.revisado_en)
 
@@ -124,14 +133,14 @@ class RevisionTests(BaseRevision):
         inspeccion = self._completada()
         with patch.object(servicio, "_trazar", side_effect=RuntimeError("Traza fallida")):
             with self.assertRaises(RuntimeError):
-                servicio.marcar_revisado(inspeccion, self._fresco(self.coordinador))
+                servicio.marcar_revisado(self._fresco(self.coordinador), inspeccion)
         inspeccion.refresh_from_db()
         self.assertIsNone(inspeccion.revisado_en)
         self.assertIsNone(inspeccion.revisado_por)
 
     def test_revisor_protegido_aunque_no_tenga_otras_referencias(self):
         usuario = self._usuario("revisor_nuevo", ("inspeccion.asignar",), [self.parador])
-        servicio.marcar_revisado(self._completada(), usuario)
+        servicio.marcar_revisado(usuario, self._completada())
         # El campo, además de la traza, conserva su autor.
         self.assertEqual(InspeccionEdificio._meta.get_field("revisado_por").remote_field.on_delete.__name__, "PROTECT")
         with self.assertRaises(ProtectedError):
@@ -181,7 +190,7 @@ class RevisionTests(BaseRevision):
         self.assertNotContains(cliente.get(url), "Marcar como revisado")
 
     def test_revisados_es_subconjunto_de_completados_con_filtro_y_conteo(self):
-        revisada = servicio.marcar_revisado(self._completada(), self._fresco(self.coordinador))
+        revisada = servicio.marcar_revisado(self._fresco(self.coordinador), self._completada())
         pendiente = self._completada()
         cliente = self._cliente(self.coordinador)
         lista = reverse("dispositivos:relevamientos")
@@ -221,19 +230,18 @@ class RevisionPresupuestoTests(BaseRevision):
         lista = reverse("dispositivos:relevamientos")
         cliente.get(lista)
         servicio.cancelar_inspeccion(self._fresco(self.coordinador), self._crear(), "Reprogramado")
+        presupuesto = json.loads((Path(__file__).resolve().parents[2] / "scripts/perf_budgets.json").read_text())
+        techo = presupuesto["servicios"]["dispositivos_relevamientos_revisados"]["consultas_fijas"]
         medidas = []
         for total in (2, 20):
             for _ in range(total - (2 if medidas else 0)):
-                servicio.marcar_revisado(self._completada(), self._fresco(self.coordinador))
+                servicio.marcar_revisado(self._fresco(self.coordinador), self._completada())
             en_curso = self._crear()
             with CaptureQueriesContext(connection) as consultas:
                 respuesta = cliente.get(lista, {"tab": "revisados"})
             self.assertEqual(respuesta.status_code, 200)
             self.assertEqual(next(s for s in respuesta.context["solapas"] if s["clave"] == "revisados")["total"], total)
             medidas.append(len(consultas))
+            self.assertLessEqual(len(consultas), techo, f"Revisados excede el presupuesto con {total} filas")
             servicio.cancelar_inspeccion(self._fresco(self.coordinador), en_curso, "Reprogramado")
-        presupuesto = json.loads((Path(__file__).resolve().parents[2] / "scripts/perf_budgets.json").read_text())
         self.assertEqual(medidas[0], medidas[1], "P21 consulta por revisor o por fila")
-        self.assertLessEqual(
-            medidas[1], presupuesto["servicios"]["dispositivos_relevamientos_revisados"]["consultas_fijas"]
-        )
