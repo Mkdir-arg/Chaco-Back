@@ -15,12 +15,17 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.rbac import puede
 from programas.forms import DispositivoForm
-from programas.forms_dispositivos import CambioPlazaForm, EgresoForm
+from programas.forms_dispositivos import (
+    CambioPlazaForm,
+    EgresoForm,
+    LiberarPlazaForm,
+    SacarPlazaDeServicioForm,
+)
 from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los importan otras vistas)
     DispositivoObjectPermissionMixin,
     DispositivoProgramaPermissionMixin,
 )
-from programas.models import Dispositivo, Estadia, TipoDispositivo
+from programas.models import Dispositivo, Estadia, Plaza, TipoDispositivo
 from programas.selectors.estadia_detalle import detalle_de_estadia, novedades_de_estadia
 from programas.services.detalle_dispositivo import (
     alertas_del_dispositivo,
@@ -48,12 +53,28 @@ from programas.services.dispositivos import (
     registrar_edicion_dispositivo,
     validar_dispositivo,
 )
-from programas.services.estadias import CAP_ADMITIR, CAP_EGRESAR, cambiar_plaza, egresar_persona
+from programas.services.estadias import (
+    CAP_ADMITIR,
+    CAP_EDITAR,
+    CAP_EGRESAR,
+    cambiar_plaza,
+    egresar_persona,
+    liberar_reserva,
+    reserva_abierta_de,
+    sacar_plaza_de_servicio,
+    volver_plaza_a_servicio,
+)
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import semaforos_de_dispositivos
 from programas.services.ocupacion import ocupacion_de_plazas, tension_de_ocupacion
 from programas.services.reportes import filtrar_dispositivos
-from programas.services.sectores_plazas import sectores_con_plazas
+from programas.services.sectores_plazas import (
+    ACCION_FUERA_SERVICIO,
+    ACCION_LIBERAR,
+    ACCION_VOLVER,
+    plaza_para_accion,
+    sectores_con_plazas,
+)
 from programas.views.ajax_utils import ajax_redirect, is_ajax
 
 
@@ -208,8 +229,10 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             {
                 "maneja_plazas": maneja_plazas(dispositivo),
                 "aviso_sin_ingresos": aviso_sin_ingresos(dispositivo),
-                # Avisan y no bloquean: ninguna decide si un botón aparece o una acción procede.
-                "alertas": alertas_del_dispositivo(dispositivo),
+                # Avisan y no bloquean: ninguna decide si un botón aparece o una acción
+                # procede. Son las mismas para todos; lo que depende de quién mira es el
+                # enlace de resolución, porque la pantalla de destino tiene su capacidad.
+                "alertas": alertas_del_dispositivo(dispositivo, usuario=user),
                 "indicadores": indicadores_de_plazas(ocupacion.conteo),
                 "sectores": sectores,
                 "n_plazas": ocupacion.conteo.operativas,
@@ -342,8 +365,22 @@ class DispositivoCerrarView(DispositivoActionView):
         cerrar_dispositivo(dispositivo, request.user)
 
 
+def _entero(valor):
+    """El id de un parámetro GET, o `None`. Solo dígitos ASCII: un superíndice o un dígito
+    arábigo pasan `isdigit()` y rompen `int()`."""
+
+    valor = (valor or "").strip()
+    return int(valor) if valor.isascii() and valor.isdecimal() else None
+
+
 class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
-    """«Sectores y plazas» (MVP v2, etapa 1 · P5): el mapa de plazas de cada sector."""
+    """«Sectores y plazas» (MVP v2, etapas 1 y 5 · P5): el mapa de plazas y sus acciones.
+
+    El modal de la acción se abre con `?plaza=<id>` y lo arma el servidor, como los de P21:
+    el contenido depende del estado de esa plaza y la celda del mapa solo sabe navegar. Si
+    la plaza no se puede gestionar —ajena, inexistente, de un sector dado de baja o sin la
+    capacidad— el modal no se abre y el aviso es el mismo para los cuatro casos.
+    """
 
     capacidad_requerida = "dispositivo.ver"
     model = Dispositivo
@@ -352,13 +389,175 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update(sectores_con_plazas(self.object))
+        dispositivo = self.object
+        usuario = self.request.user
+        puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
+        puede_configurar_plazas = puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR)
+
+        context.update(
+            sectores_con_plazas(
+                dispositivo, puede_liberar=puede_liberar, puede_configurar_plazas=puede_configurar_plazas
+            )
+        )
         context["migas"] = [
             {"label": "Dispositivos", "url": reverse("dispositivos:lista")},
-            {"label": self.object.nombre, "url": reverse("dispositivos:detalle", args=[self.object.pk])},
+            {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
             {"label": "Sectores y plazas", "url": ""},
         ]
+        self._preparar_modal(context, dispositivo, puede_liberar, puede_configurar_plazas)
         return context
+
+    def _preparar_modal(self, context, dispositivo, puede_liberar, puede_configurar_plazas):
+        pedida = self.request.GET.get("plaza", "")
+        if not pedida:
+            return
+        pk = _entero(pedida)
+        accion = (
+            plaza_para_accion(
+                dispositivo, pk, puede_liberar=puede_liberar, puede_configurar_plazas=puede_configurar_plazas
+            )
+            if pk is not None
+            else None
+        )
+        if accion is None:
+            messages.warning(self.request, "Esa plaza ya no se puede gestionar desde acá.")
+            return
+        plaza = accion["plaza"]
+        context["plaza_accion"] = accion
+        context["url_plaza_accion"] = reverse(URL_DE_ACCION[accion["accion"]], args=[dispositivo.pk, plaza.pk])
+        if accion["bloqueo"]:
+            return
+        if accion["accion"] == ACCION_LIBERAR:
+            context["form_plaza"] = LiberarPlazaForm()
+        elif accion["accion"] == ACCION_FUERA_SERVICIO:
+            context["form_plaza"] = SacarPlazaDeServicioForm()
+
+
+# Acciones sobre una plaza del mapa (P5). Mutan: solo POST con CSRF. Las reglas —que la
+# plaza no esté tomada, que la reserva siga abierta, el bloqueo de la fila— viven en
+# `programas.services.estadias`; acá se resuelve el alcance y se traduce lo que el
+# servicio rechaza a lo que el modal sabe mostrar.
+
+#: Adónde manda el modal de cada acción. La vista lo resuelve con `reverse`: el template
+#: no arma URLs y el parámetro `?plaza=` nunca se usa como destino.
+URL_DE_ACCION = {
+    ACCION_LIBERAR: "dispositivos:plaza_liberar",
+    ACCION_FUERA_SERVICIO: "dispositivos:plaza_fuera_servicio",
+    ACCION_VOLVER: "dispositivos:plaza_volver_servicio",
+}
+
+
+class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
+    """Base de las tres acciones del mapa de plazas.
+
+    La capacidad en el programa la exige el mixin; el alcance al dispositivo, una compuerta
+    acá, **antes** de mirar la plaza y de validar el formulario: si no, quien no opera el
+    dispositivo recibiría 404 con una plaza inexistente y otra cosa con una ajena, y podría
+    distinguirlas. Después el servicio vuelve a exigir lo suyo, que es donde vive la regla.
+    """
+
+    http_method_names = ["post"]
+    form_class = None
+    mensaje_exito = ""
+
+    def post(self, request, pk, plaza_pk):
+        dispositivo = get_object_or_404(Dispositivo, pk=pk)
+        volver = reverse("dispositivos:sectores", args=[dispositivo.pk])
+        if not puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida):
+            if is_ajax(request):
+                return JsonResponse({"ok": False, "message": "No tenés alcance sobre este dispositivo."}, status=403)
+            raise PermissionDenied
+        # La ajena, la inexistente y la del sector dado de baja dan el mismo 404: ninguna de
+        # las tres se dibuja en el mapa, y tres respuestas distintas serían un oráculo.
+        plaza = get_object_or_404(
+            # Con el sector y su dispositivo ya traídos: los servicios los leen del objeto
+            # que reciben para resolver el alcance, y sin esto serían dos consultas más.
+            Plaza.objects.select_related("sector__dispositivo"),
+            pk=plaza_pk,
+            sector__dispositivo=dispositivo,
+            sector__activo=True,
+        )
+        form = self.form_class(request.POST) if self.form_class else None
+        if form is not None and not form.is_valid():
+            return self._rechazar(request, form.errors, volver)
+        try:
+            self.ejecutar(request, plaza, form.cleaned_data if form else {})
+        except PermissionDenied:
+            if is_ajax(request):
+                return JsonResponse({"ok": False, "message": "No tenés alcance sobre este dispositivo."}, status=403)
+            raise
+        except ValidationError as error:
+            return self._rechazar(request, self._errores_del_servicio(error, form), volver)
+        mensaje = self.mensaje_exito.format(plaza=plaza.codigo)
+        if is_ajax(request):
+            return ajax_redirect(request, volver, mensaje)
+        messages.success(request, mensaje)
+        return redirect(volver)
+
+    @staticmethod
+    def _errores_del_servicio(error, form):
+        """Lo que el servicio rechaza, en la forma `{campo: [mensajes]}` del modal.
+
+        Una clave que el formulario no tiene —`estado` cuando la reserva ya se liberó,
+        `plaza` cuando quedó tomada— va al error general, el único lugar donde el modal la
+        puede mostrar.
+        """
+
+        if not hasattr(error, "error_dict"):
+            return {"__all__": list(error.messages)}
+        campos = form.fields if form else {}
+        errores = {}
+        for campo, mensajes in error.message_dict.items():
+            destino = campo if campo in campos else "__all__"
+            errores.setdefault(destino, []).extend(mensajes)
+        return errores
+
+    @staticmethod
+    def _rechazar(request, errores, volver):
+        if is_ajax(request):
+            return JsonResponse({"ok": False, "errors": {k: list(v) for k, v in errores.items()}}, status=400)
+        for mensajes in errores.values():
+            for mensaje in mensajes:
+                messages.error(request, mensaje)
+        return redirect(volver)
+
+
+class PlazaLiberarView(_PlazaAccionView):
+    """Suelta la reserva o el préstamo que tiene tomada la plaza (resuelve la alerta de P4)."""
+
+    capacidad_requerida = CAP_ADMITIR
+    form_class = LiberarPlazaForm
+    mensaje_exito = "Plaza {plaza} liberada."
+
+    def ejecutar(self, request, plaza, datos):
+        # La reserva se vuelve a buscar acá y no viaja en el POST: entre que la pantalla se
+        # dibujó y el envío, un ingreso pudo consumirla. `liberar_reserva` la relee con la
+        # fila bloqueada y rechaza la que ya no está vigente.
+        reserva = reserva_abierta_de(plaza)
+        if reserva is None:
+            raise ValidationError({"estado": "La plaza ya no tiene una reserva ni un préstamo sin liberar."})
+        liberar_reserva(reserva=reserva, usuario=request.user, motivo=datos.get("motivo", ""))
+
+
+class PlazaFueraDeServicioView(_PlazaAccionView):
+    """Saca la plaza de servicio con su motivo. Falla si está tomada: primero se reubica."""
+
+    capacidad_requerida = CAP_EDITAR
+    form_class = SacarPlazaDeServicioForm
+    mensaje_exito = "Plaza {plaza} fuera de servicio."
+
+    def ejecutar(self, request, plaza, datos):
+        sacar_plaza_de_servicio(plaza=plaza, usuario=request.user, motivo=datos["motivo"])
+
+
+class PlazaVolverAServicioView(_PlazaAccionView):
+    """Repone la plaza (resuelve la alerta «plazas fuera de servicio» de P4)."""
+
+    capacidad_requerida = CAP_EDITAR
+    mensaje_exito = "Plaza {plaza} de nuevo en servicio."
+
+    def ejecutar(self, request, plaza, datos):
+        volver_plaza_a_servicio(plaza=plaza, usuario=request.user)
 
 
 # Egreso (MVP v2, etapa 2 · #691). El egreso muta estado: solo POST con CSRF. La regla de fondo

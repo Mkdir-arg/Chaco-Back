@@ -4,8 +4,8 @@
 leyenda de la pantalla.
 **Evidencia:** `templates/components/_mapa_plazas.html`, `templates/components/_leyenda_plazas.html`,
 `core/tests/test_nodo_ui_lote_b.py` (`MapaPlazasTest`).
-**Consumidores de referencia:** ninguno todavía; lo usarán «Sectores y plazas» y el selector de plaza del
-ingreso (mockup P5 y P6).
+**Consumidores de referencia:** «Sectores y plazas» (P5, `programas/templates/programas/dispositivos/sectores/`),
+con sus acciones por plaza, y el selector de plaza del ingreso (P6).
 
 ## Invocación
 

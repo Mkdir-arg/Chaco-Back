@@ -28,6 +28,22 @@ urlpatterns = [
     path("<int:pk>/", legajo.DispositivoDetailView.as_view(), name="detalle"),
     path("<int:pk>/editar/", legajo.DispositivoUpdateView.as_view(), name="editar"),
     path("<int:pk>/sectores/", legajo.DispositivoSectoresView.as_view(), name="sectores"),
+    # Acciones del mapa de plazas (P5). El modal las abre con `?plaza=<id>` sobre `sectores`.
+    path(
+        "<int:pk>/plazas/<int:plaza_pk>/liberar/",
+        legajo.PlazaLiberarView.as_view(),
+        name="plaza_liberar",
+    ),
+    path(
+        "<int:pk>/plazas/<int:plaza_pk>/fuera-servicio/",
+        legajo.PlazaFueraDeServicioView.as_view(),
+        name="plaza_fuera_servicio",
+    ),
+    path(
+        "<int:pk>/plazas/<int:plaza_pk>/volver-servicio/",
+        legajo.PlazaVolverAServicioView.as_view(),
+        name="plaza_volver_servicio",
+    ),
     path("<int:pk>/estadias/", legajo.DispositivoEstadiasView.as_view(), name="estadias"),
     path("<int:pk>/estadias/<int:estadia_pk>/", legajo.EstadiaDetalleView.as_view(), name="estadia_detalle"),
     path("<int:pk>/estadias/<int:estadia_pk>/egresar/", legajo.EstadiaEgresarView.as_view(), name="egresar"),
