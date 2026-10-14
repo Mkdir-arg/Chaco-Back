@@ -74,6 +74,16 @@ class PageHeaderEstadoTests(SimpleTestCase):
 
     def test_variante_ausente_es_gris(self):
         self.assertIn('class="badge badge-dot badge-gray"', self.render('estado_texto="Activo"'))
+class BotonDeshabilitadoReglaTest(SimpleTestCase):
+    """Red sin navegador de la prueba visual de abajo, que en el CI se saltea."""
+
+    def test_la_regla_automatica_de_submit_excluye_los_deshabilitados(self):
+        css = (Path(__file__).resolve().parents[2] / "static/custom/css/nodo-brand.css").read_text(encoding="utf-8")
+        selector = 'button[type="submit"]:not(.btn-secondary):not(.btn-tertiary):not(.btn-danger)'
+        reglas = [linea for linea in css.splitlines() if linea.startswith(selector)]
+        self.assertTrue(reglas)
+        for regla in reglas:
+            self.assertIn(":not(:disabled)", regla)
 
 
 @skipUnless(os.environ.get("CHACO_PLAYWRIGHT") == "1", "Requiere Playwright y Chromium en el entorno de prueba")

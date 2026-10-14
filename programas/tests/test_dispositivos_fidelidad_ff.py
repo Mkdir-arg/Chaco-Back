@@ -64,7 +64,8 @@ class FidelidadFFTests(BaseDetalle):
             {"tono": "warning", "contenido_template": "programas/dispositivos/legajo/_duplicados.html"},
         )
         self.assertInHTML(alerta, respuesta.content.decode())
-        self.assertContains(respuesta, '<div id="duplicate-search" class="hidden">')
+        # FJ: el aviso recibe el foco cuando un código repetido bloquea el envío.
+        self.assertContains(respuesta, '<div id="duplicate-search" class="hidden" tabindex="-1">')
         self.assertNotContains(
             self.client.get(reverse("dispositivos:editar", args=[self.cis.pk])), 'id="duplicate-search"'
         )
