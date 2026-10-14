@@ -11,8 +11,9 @@ La bajada de esa golden muestra el DNI con el filtro de presentación `nodo_ui.d
 (`12.345.678`); controles y búsquedas mantienen el valor original. Contrato del filtro
 en `componentes/tabla.md`.
 
-En `_ficha_seccion`, un campo cuya `etiqueta` es «DNI» presenta `valor` con ese mismo
-filtro; los demás campos conservan su representación. La lista de campos no se modifica.
+En `_ficha_seccion`, un campo con `formato: "dni"` presenta `valor` con ese mismo
+filtro, independientemente de su etiqueta. El productor marca el campo; sin `formato`,
+vacío o desconocido, conserva su representación y el HTML. La lista de campos no se modifica.
 Lo verifica `FichaSeccionTest` en `core/tests/test_nodo_ui_piezas.py`.
 
 ## Línea de tiempo
@@ -76,7 +77,7 @@ siempre, carácter por carácter. Consumidor: la solapa Infraestructura de
 | `sensibilidad`, `sensibilidad_tono` | Badge («Sensible · salud»), `warning` o `danger` |
 | `completar_url` | Link «completar» junto al avance, con el título en `sr-only` |
 | `abierta` | `False` la deja plegada al cargar; por defecto abierta |
-| `campos` | Lista de `{etiqueta, valor, estado}`; `estado`: vacío, `falta` (rojo) o `calculado` (gris) |
+| `campos` | Lista de `{etiqueta, valor, estado, formato}`; `estado`: vacío, `falta` (rojo) o `calculado` (gris); `formato: "dni"` opcional |
 | `vacio_texto` | Texto cuando no hay `campos` |
 | `bloqueada`, `motivo`, `completa` | Sección rayada: sin campos, sin plegar; «La completa <completa>» |
 
