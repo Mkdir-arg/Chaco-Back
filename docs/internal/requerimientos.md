@@ -435,6 +435,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 307 | Merge de las dos migraciones 0095 de programas | Programas · migraciones | `#datos` `#infra` | Juez — encargo urgente en sesión | 14/10/2026 | 🟢 **Hecho** | `programas.0096_merge_revision_y_adjunto` |
 | 308 | P3 en dos columnas y Vencido en Infraestructura | Dispositivos · P3/P2/P4/P19 | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` | PM / juez — carril FI | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 309 | Estado junto al título e Instituciones en el sidebar | Dispositivos · P4/P7/P19/P14 · shell transversal | `#ui` `#textos` | PM / juez — carril FH | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 310 | Correcciones menores de FR y FI y fidelidad de P3 | Dispositivos · P3 y relevamiento edilicio | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` | PM / juez — carril FJ | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -40353,5 +40354,181 @@ texto anterior y P14 a su header propio. No se pierden datos ni hay rollback de 
 
 Entrada nueva del carril FH; las entradas anteriores se conservan.
 Revisión independiente (14/10/2026): corregido el 500 de P4 con predio compartido mediante el filtro sobre `TONOS_ESTADO` y lectura del texto en el template; agregado el eyebrow de P14, sin apartamientos nuevos.
+
+---
+
+---
+
+# Cambio 310 — Correcciones menores de FR y FI y fidelidad de P3
+
+🟢 **HECHO — 14/10/2026** · Carril FJ · el juez asigna el número definitivo.
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P3 y relevamiento edilicio |
+| **Etiquetas** | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` |
+| **Solicitante** | PM / juez — encargo directo del carril FJ |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Sin issue nuevo · Épica #127 |
+| **Partes afectadas** | Backoffice P3 · servidor · tests y presupuesto de P21 · ficha de formulario |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Que se vea igual al mockup y mantenga la lógica». Resolver los diez MINOR de
+las revisiones de FR (Cambio 304) y FI (Cambio 308), con pruebas y mutaciones
+para las guardas. Trabajo solo en `mvp-fj`, rama `fix/mvp-fidelidad-fj`.
+
+## Alcance acordado
+
+Techo de consultas, contrato AJAX, firma del servicio y orden de rutas/tests de
+revisión; toast de edición; antiacumulación de duplicados, bloqueo perceptible,
+contador y envío progresivo de P3; eliminación del helper sin consumidores.
+No se modifican roles, seeds, modelos, migraciones, shell ni pantallas ajenas.
+
+## Decisiones tomadas
+
+1. **Presupuesto de Revisados: 14**, costo observado tanto con 2 como con 20 filas,
+   con las cinco solapas pobladas. El test aplica el techo a cada medida antes de
+   comparar el costo fijo. Se corrige el motivo, sin subir ningún presupuesto.
+2. La revisión fuera de alcance o inexistente usa `_prohibido`: AJAX devuelve
+   403 y el mismo JSON `{ok: false, message: ...}`; el POST clásico mantiene 403.
+   La prueba compara ambos casos para evitar un oráculo de existencia.
+3. `marcar_revisado(usuario, inspeccion)` sigue el orden de cancelar y reasignar.
+   Se actualizan todos los consumidores, incluida la prueba concurrente.
+4. La URL de revisar conserva su nombre y pasa al bloque de relevamientos.
+5. El test concurrente de revisión se ubica después de `setUp` y los helpers.
+6. Editar y enviar a validación muestra «Dispositivo enviado a validación.» con
+   el mismo ternario del alta. Guardar cambios conserva «Dispositivo actualizado.».
+7. El stub JS mantiene hijos y soporta reemplazo y agregado: dos búsquedas con
+   coincidencias deben dejar exactamente una lista. Mutar a `appendChild` debe
+   fallar por cantidad, sin `TypeError`. La salida de Node se lee como UTF-8.
+8. El código duplicado sigue bloqueando. Antes de retornar se hace
+   `scrollIntoView({block: 'center'})` y foco con `preventScroll`; el contenedor
+   lleva `tabindex="-1"` y conserva la alerta existente con `role="alert"`.
+9. Se retira `ultimas_inspecciones_de_dispositivos`: ninguna llamada productiva.
+   Se eliminan sus pruebas específicas y se corrige la descripción del semáforo.
+   Se conservan las pruebas de predio compartido y costo de últimas por edificio.
+10. El header de Posibles duplicados reutiliza `badge badge-warning` y cuenta
+    coincidencias visibles desde el JS actual. Sin coincidencias o al limpiar,
+    vuelve a cero; no revela cantidades fuera del alcance. En edición se omite
+    el contador porque no existe búsqueda de coincidencias.
+    El mismo JS del resumen deja Enviar deshabilitado mientras falten requisitos,
+    lo habilita al completarlos y vuelve a bloquearlo al vaciar uno. Sin JS el
+    botón queda habilitado; el servidor mantiene su validación y autorización.
+
+### Plan de pantalla
+
+```text
+Tipo: A · Ajuste de P3 existente · Arquetipo: Formulario con asistencia lateral
+Golden: programas/templates/programas/becas/config/segmento_form.html
+Rutas: dispositivos:crear y dispositivos:editar
+Template final: programas/templates/programas/dispositivos/legajo/form.html
+Includes: components/_field.html, _form_errores.html, _alerta.html;
+          dispositivos/_estado_badge.html y legajo/_duplicados.html
+Bloques: header de duplicados con contador; aviso con foco/scroll;
+         resumen de faltantes controla disabled del botón de envío
+Assets: includes/base.html, Tailwind compilado, nodo-buttons.css,
+        nodo-badges.css y SweetAlert2 existentes; JS inline de P3
+Clasificación: formulario lateral, campos, alertas, botones y badges = Canónico reutilizable
+Novedades: ninguna clase, include, variante, CSS ni archivo JS productivo nuevo
+Fichas actualizadas: arquetipos/formulario.md y componentes/botones_badges.md
+```
+
+**Reconciliación comprobada en navegador.** `includes/base.html` carga
+`nodo-brand.css` antes de `nodo-buttons.css`. El selector legacy de submit,
+con tres exclusiones de variante e `!important`, superaba a `.btn-brand:disabled`:
+el botón estaba bloqueado pero seguía mostrando el gradiente. Se excluye
+`:disabled` de esa regla y sus estados hover/foco para recuperar el gris del
+componente existente. Se conserva la clasificación Duplicado o conflictivo del
+puente y se documenta en la ficha de botones; no se migra el shell ni se agrega
+una variante. Los snapshots de Becas se regeneran y se revisan sin diferencias.
+
+### Apartamientos del mockup
+
+Se conservan los apartamientos de FI: sin categoría, área, titularidad,
+dependencia, servicios, buscador de responsable ni Procedencia del dato porque
+no están respaldados por los datos/servicios actuales. Sin coincidencia por
+distancia ni separación de autoría inventadas. Las coincidencias usan el listado
+actual; no se dibujan datos de instituciones ajenas. En edición no hay badge sin
+una búsqueda real. El contador refleja resultados visibles, incluso cero, y el
+resumen usa los siete requisitos existentes, sin agregar disponibilidad de código
+como regla nueva del resumen: el endpoint y el servidor siguen comprobando duplicados.
+
+## Implementación
+
+P3 muestra cuántas coincidencias encontró y permite distinguir un guardado
+bloqueado de una acción que no respondió: el aviso queda visible y enfocado,
+también en celular. El envío orienta con los requisitos existentes, y la edición
+informa la transición efectivamente realizada. P21 mantiene revisión, permisos,
+auditoría y costo fijo, con un contrato JSON uniforme ante rechazo AJAX.
+
+## Archivos
+
+- `scripts/perf_budgets.json`.
+- `programas/services/inspecciones.py`, `views/dispositivos_relevamientos.py`,
+  `views/dispositivos_legajo.py` y `dispositivos_urls.py`.
+- `programas/templates/programas/dispositivos/legajo/form.html`.
+- Tests de revisión, concurrencia, inspecciones, FI y sus dos fixtures JS.
+- `static/custom/css/nodo-brand.css`, prueba visual en `core/tests/test_nodo_ui_piezas.py`,
+  fichas de Formulario y Botones/badges, y esta entrada única.
+- Capturas en `docs/internal/dispositivos-v2/capturas/`:
+  `fj-p3-1440.png`, `fj-p3-390.png`, `fj-p3-bloqueo-1440.png` y `fj-p3-bloqueo-390.png`.
+
+## Base de datos
+
+No requiere migraciones. Verificación visual con datos ficticios en SQLite fuera
+del repo. No se modifica ninguna base compartida ni catálogo de roles.
+
+## Validación
+
+- Django check OK; makemigrations con `DJANGO_SYNCDB_PROJECT_APPS=False` sin
+  cambios; contrato de migraciones sin novedades. Compilan los 233 templates.
+- P3 pasa Formulario; ratchet contra origin/development con cero hallazgos
+  nuevos; siete goldens OK. Tailwind reconstruido sin diff del CSS compilado.
+  Ruff check y format en programas/core/users OK; contrato y límites del canon OK.
+- Arquitectura, legajo, inspecciones, listado y FG: 130 tests OK. Informe y
+  concurrencia en SQLite: 30 OK y 12 carreras omitidas por requerir motor real.
+  Revisión y FI tras restaurar mutaciones: 33 tests OK. Performance de programas:
+  30 tests OK; ningún presupuesto sube.
+- MariaDB 10.11.19 temporal propio, sin tablas de timezone y con migraciones
+  reales: cinco tests de CarreraDeInspeccionTests OK, incluida la revisión
+  simultánea con una revisión y una traza. Advertencias de constraints
+  condicionales preexistentes; no se agregan constraints.
+- Se regeneran y revisan los seis snapshots de detalle de Becas, sin diff.
+  Prueba visual optativa de botones con Playwright/Chromium: OK, ejecutada
+  con `CHACO_PLAYWRIGHT=1` y Playwright del venv temporal fuera del repo.
+- Playwright sobre SQLite y runserver en puerto libre: 1440 y 390 px. Se
+  comprueban columnas/apilado, badge 2, ausencia de overflow, envío gris y
+  deshabilitado hasta completar requisitos, retorno al bloqueo al vaciar un
+  campo, y código duplicado que desplaza/enfoca el aviso sin enviar el form.
+  Sin JS el botón queda habilitado. Sin errores de consola. Cuatro capturas
+  inspeccionadas, con el sidebar ya estabilizado.
+- **13 mutaciones, todas detectadas y restauradas desde copias de bytes:**
+  Exists por cada fila revisada (16 > 14, falla por presupuesto), retorno HTML
+  ante AJAX ajeno, toast anterior en edición, appendChild acumulando listas
+  (falla por cantidad, sin TypeError), quitar scroll, quitar foco, no actualizar
+  contador, no limpiar contador, envío siempre habilitado, condición invertida,
+  envío siempre deshabilitado, disabled en el HTML sin JS y regla CSS legacy
+  aplicándose a disabled (falla por gradiente en lugar de gris).
+- `requerimientos.py --check` OK para las entradas numeradas; se comprueban
+  por separado una única cabecera 310, su única fila y las mismas cinco etiquetas.
+  La numeración definitiva corresponde al juez.
+
+## Puesta en marcha en el servidor
+
+Deploy habitual. No requiere variables, comandos manuales, migraciones ni seeds.
+
+## Pendientes / a definir
+
+El juez numera 310 en la cabecera y la fila del índice y repite
+`requerimientos.py --check`: el parser actual solo reconoce números.
+Sin pendientes funcionales de los diez puntos del carril.
+
+## Reversión
+
+Revertir los commits de código y documentación de FJ. No requiere cambios de
+base ni pierde datos. Retorna la firma anterior del servicio junto con todos
+sus consumidores y el comportamiento previo de P3.
 
 ---

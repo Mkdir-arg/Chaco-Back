@@ -74,6 +74,8 @@ class PageHeaderEstadoTests(SimpleTestCase):
 
     def test_variante_ausente_es_gris(self):
         self.assertIn('class="badge badge-dot badge-gray"', self.render('estado_texto="Activo"'))
+
+
 class BotonDeshabilitadoReglaTest(SimpleTestCase):
     """Red sin navegador de la prueba visual de abajo, que en el CI se saltea."""
 
