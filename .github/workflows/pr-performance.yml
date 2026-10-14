@@ -28,11 +28,11 @@ jobs:
     steps:
       # `fetch-depth: 0` lo pide el paso de RED-62: compara `perf_budgets.json` contra el
       # árbol **base** del PR, y con el checkout de profundidad 1 ese commit no está.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -89,7 +89,7 @@ jobs:
 
       - name: Upload deterministic performance report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: performance-sqlite-report
           path: ${{ runner.temp }}/perf-timing.json
@@ -141,9 +141,9 @@ jobs:
       REDIS_DB: "14"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -171,7 +171,7 @@ jobs:
 
       - name: Upload ephemeral performance report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: performance-ephemeral-stack-report
           path: ${{ runner.temp }}/performance-*.json
@@ -251,9 +251,9 @@ jobs:
       DATABASE_PORT: "3306"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -362,13 +362,13 @@ jobs:
       PYTHONPATH: ${{ github.workspace }}/.github/ci
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       # El filtro va adentro del job y no en el trigger (RED-20): un check filtrado por
       # `paths:` nunca reporta, y uno que nunca reporta no puede volverse obligatorio.
-      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filtro
         with:
           filters: |
@@ -397,7 +397,7 @@ jobs:
             *) echo "::error::el filtro por rutas no resolvió (migraciones='$MIGRACIONES'): el job no puede decidir si hay migraciones que probar"; exit 1 ;;
           esac
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.filtro.outputs.migraciones == 'true'
         with:
           python-version: "3.12"
