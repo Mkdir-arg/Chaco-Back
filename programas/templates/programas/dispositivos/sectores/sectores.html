@@ -1,37 +1,114 @@
 {# arquetipo: detalle + apilado #}{# un area sola: la ficha del arquetipo dice que sin solapas van secciones apiladas en surfaces #}
 {% extends "includes/base.html" %}
-{% load nodo_ui %}
+{% load static nodo_ui %}
 {% block title %}Dispositivos · Sectores y plazas · {{ dispositivo.nombre }}{% endblock %}
 
 {% block main-content %}
-<div class="space-y-5">
+{% comment %}P5 · Sectores y plazas. El mapa es `components/_mapa_plazas.html`: cada celda es
+enlace solo si la vista le puso `url`, y esa url abre acá el modal de su acción con
+`?plaza=<id>`. El modal sigue la golden de Modal (becas/config/programa_list.html) con la
+variante «abierto por parámetro GET y armado por el servidor» de P21: el cuerpo depende del
+estado de la plaza y la celda solo sabe navegar.{% endcomment %}
+<div x-data="{ modalPlaza: {% if plaza_accion %}true{% else %}false{% endif %} }" @becas-saved.window="modalPlaza=false">
 
-  {# ===== PageHeader ===== #}
-  {% url 'dispositivos:detalle' dispositivo.pk as url_volver %}
-  {% page_header titulo="Sectores y plazas" volver_url=url_volver volver_label=dispositivo.nombre migas=migas %}
-    {% bajada %}<a href="{{ url_volver }}" class="text-fg-brand hover:underline">{{ dispositivo.nombre }}</a> · {{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio · {{ totales.ocupadas }} ocupada{{ totales.ocupadas|pluralize }} · {{ totales.reservadas }} reservada{{ totales.reservadas|pluralize }} · {{ totales.disponibles }} disponible{{ totales.disponibles|pluralize }}{% endbajada %}
-  {% endpage_header %}
+  {# Los overlays fixed van FUERA del space-y-*: el margin-top los corre y el clic en esa franja no cierra #}
+  <div class="space-y-5">
 
-  {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
+    {# ===== PageHeader ===== #}
+    {% url 'dispositivos:detalle' dispositivo.pk as url_volver %}
+    {% page_header titulo="Sectores y plazas" volver_url=url_volver volver_label=dispositivo.nombre migas=migas %}
+      {% bajada %}<a href="{{ url_volver }}" class="text-fg-brand hover:underline">{{ dispositivo.nombre }}</a> · {{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio · {{ totales.ocupadas }} ocupada{{ totales.ocupadas|pluralize }} · {{ totales.reservadas }} reservada{{ totales.reservadas|pluralize }} · {{ totales.disponibles }} disponible{{ totales.disponibles|pluralize }}{% endbajada %}
+    {% endpage_header %}
 
-  {# ===== Una surface por sector ===== #}
-  {% for item in sectores %}
-  {% comment %}Sin solapas, cada sector es la unidad navegable: lleva nombre accesible
-  propio para que un lector de pantalla pueda saltar de sector a sector, que es lo que la
-  solapa daba gratis en la forma principal del arquetipo.{% endcomment %}
-  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sector-{{ item.sector.pk }}-titulo">
-    <div class="px-5 py-4 border-b border-light">
-      <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
-      <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio · {{ item.resumen.ocupadas }} ocupada{{ item.resumen.ocupadas|pluralize }} · {{ item.resumen.reservadas }} reservada{{ item.resumen.reservadas|pluralize }} · {{ item.resumen.disponibles }} disponible{{ item.resumen.disponibles|pluralize }}{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}</p>
+    {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
+
+    {# ===== Una surface por sector ===== #}
+    {% for item in sectores %}
+    {% comment %}Sin solapas, cada sector es la unidad navegable: lleva nombre accesible
+    propio para que un lector de pantalla pueda saltar de sector a sector, que es lo que la
+    solapa daba gratis en la forma principal del arquetipo.{% endcomment %}
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sector-{{ item.sector.pk }}-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
+        <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio · {{ item.resumen.ocupadas }} ocupada{{ item.resumen.ocupadas|pluralize }} · {{ item.resumen.reservadas }} reservada{{ item.resumen.reservadas|pluralize }} · {{ item.resumen.disponibles }} disponible{{ item.resumen.disponibles|pluralize }}{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}</p>
+      </div>
+      <div class="p-5">
+        {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.resumen.total %}
+      </div>
+    </section>
+    {% empty %}
+    <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+      {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores, cada uno aparece acá con su mapa de plazas." %}
     </div>
-    <div class="p-5">
-      {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.resumen.total %}
-    </div>
-  </section>
-  {% empty %}
-  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
-    {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores, cada uno aparece acá con su mapa de plazas." %}
+    {% endfor %}
   </div>
-  {% endfor %}
+
+  {% if plaza_accion %}
+  {# Modal: la acción de una plaza. x-becas-modal da foco, Tab atrapado, Escape y bloqueo del scroll del fondo #}
+  <div x-show="modalPlaza" x-cloak x-becas-modal="modalPlaza" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalPlaza=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-plaza-titulo">
+      {% if plaza_accion.bloqueo %}
+        {% include "programas/becas/_modal_header.html" with titulo="Plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-plaza-titulo" subtitulo=plaza_accion.plaza.sector.nombre icono="fa-bed" cerrar="modalPlaza=false" %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se puede sacar de servicio" texto=plaza_accion.bloqueo %}
+          <p class="text-sm text-body">La plaza está <strong class="text-heading">{{ plaza_accion.estado.estado|lower }}</strong>. Sacar de servicio una plaza tomada dejaría a la persona en una plaza que el mapa cuenta como no operativa, así que primero se la reubica desde su estadía.</p>
+        </div>
+      {% elif plaza_accion.accion == "liberar" %}
+        {% include "programas/becas/_modal_header.html" with titulo="Liberar la plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-plaza-titulo" subtitulo="Suelta la reserva o el préstamo: la plaza vuelve a estar disponible." icono="fa-unlock" cerrar="modalPlaza=false" %}
+        <form method="post" action="{{ url_plaza_accion }}" data-ajax class="flex flex-col flex-1 min-h-0">
+          {% csrf_token %}
+          <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+            <div>
+              {# El error general va ADENTRO del bloque: como hijo directo de space-y-5 suma un hueco de 20px aunque esté oculto #}
+              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+              <label for="{{ form_plaza.motivo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Motivo</label>
+              {{ form_plaza.motivo }}
+              <p class="mt-1 text-xs text-body-subtle">Opcional. Si se escribe, reemplaza el motivo con el que se tomó la plaza.</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="motivo"></p>
+            </div>
+            {% include "components/_alerta.html" with tono="warning" texto="La reserva queda registrada como liberada y la plaza vuelve a contar como disponible. La persona que la tenía reservada no queda alojada." %}
+          </div>
+          {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Sí, liberar" %}
+        </form>
+      {% elif plaza_accion.accion == "fuera_servicio" %}
+        {% include "programas/becas/_modal_header.html" with titulo="Sacar de servicio la plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-plaza-titulo" subtitulo="Deja de contar como capacidad operativa hasta que vuelva a servicio." icono="fa-ban" tono="danger" cerrar="modalPlaza=false" %}
+        <form method="post" action="{{ url_plaza_accion }}" data-ajax class="flex flex-col flex-1 min-h-0">
+          {% csrf_token %}
+          <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+            <div>
+              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+              <label for="{{ form_plaza.motivo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Motivo <span class="text-fg-danger">*</span></label>
+              {{ form_plaza.motivo }}
+              <p class="mt-1 text-xs text-body-subtle">Se ve en el mapa y en la alerta del dispositivo mientras la plaza esté fuera de servicio.</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="motivo"></p>
+            </div>
+            {% include "components/_alerta.html" with tono="warning" texto="No se puede sacar de servicio una plaza con alguien alojado, reservada o prestada: primero se reubica o se libera." %}
+          </div>
+          {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Sí, sacar de servicio" accion_tono="danger" %}
+        </form>
+      {% else %}
+        {% include "programas/becas/_modal_header.html" with titulo="Volver a servicio la plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-plaza-titulo" subtitulo="Vuelve a contar como capacidad operativa y se puede alojar en ella." icono="fa-rotate-left" tono="success" cerrar="modalPlaza=false" %}
+        <form method="post" action="{{ url_plaza_accion }}" data-ajax class="flex flex-col flex-1 min-h-0">
+          {% csrf_token %}
+          <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+            <div>
+              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+              {% if plaza_accion.estado.detalle %}
+                {% include "components/_alerta.html" with tono="info" titulo="Salió de servicio por:" texto=plaza_accion.estado.detalle %}
+              {% endif %}
+            </div>
+            {% include "components/_alerta.html" with tono="warning" texto="El motivo del fuera de servicio se borra. Si el arreglo no está hecho, dejala como está." %}
+          </div>
+          {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Sí, volver a servicio" %}
+        </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
+
+{% block customJS %}{% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}

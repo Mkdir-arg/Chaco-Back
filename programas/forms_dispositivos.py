@@ -147,6 +147,48 @@ class CambioPlazaForm(forms.Form):
 
 
 # --------------------------------------------------------------------------- #
+# Acciones sobre una plaza del mapa (P5)
+# --------------------------------------------------------------------------- #
+#
+# Las reglas de fondo —que la plaza no esté tomada, que la reserva siga abierta, el
+# bloqueo de la fila— viven en `programas.services.estadias`. Acá solo viaja el motivo,
+# que es lo único que el modal pide.
+
+
+class SacarPlazaDeServicioForm(forms.Form):
+    """Sacar una plaza de servicio: el motivo es obligatorio y queda en la plaza.
+
+    Lo exige también `estadias.sacar_plaza_de_servicio` —la regla es del servicio, no del
+    modal—: acá se repite para que el operador lo corrija sin un viaje al servidor.
+    """
+
+    motivo = forms.CharField(
+        label="Motivo",
+        max_length=200,
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Colchón roto, reparación…"}),
+        error_messages={"required": "Sacar una plaza de servicio exige un motivo."},
+    )
+
+
+class LiberarPlazaForm(forms.Form):
+    """Liberar la reserva o el préstamo de una plaza. El motivo es opcional.
+
+    Opcional y no obligatorio porque la reserva ya tiene el suyo —por qué se tomó— y esto
+    solo lo reemplaza si se escribe algo: la mayoría de las veces se libera porque la
+    persona no llegó, y obligar a tipearlo todos los días convierte el campo en ruido.
+    """
+
+    motivo = forms.CharField(
+        label="Motivo",
+        max_length=200,
+        required=False,
+        widget=forms.Textarea(
+            attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional: reemplaza el motivo de la reserva"}
+        ),
+    )
+
+
+# --------------------------------------------------------------------------- #
 # Relevamientos edilicios (P21 · #701)
 # --------------------------------------------------------------------------- #
 # Las reglas de fondo —alcance del coordinador, un solo relevamiento en curso por
