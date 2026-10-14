@@ -421,6 +421,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 288 | El turno visible, las novedades automáticas de la bitácora y tres contratos que faltaban | Dispositivos · estadía, ingreso, detalle y bitácora | `#ui` `#datos` `#rbac` `#performance` | Carril C3 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0094` |
 | 289 | Ver informe del relevamiento, la solapa «Sin relevar nunca» y las decisiones del juez sobre el relevamiento edilicio | Dispositivos · relevamiento edilicio | `#ui` `#rbac` `#api` `#mobile` `#performance` | Pendientes del Cambio 279 + decisiones del juez | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 290 | Concurrencia real del MVP de Dispositivos y orden de bloqueo de las reservas | Dispositivos · estadías, reservas, relevamiento edilicio y bitácora | `#datos` `#performance` `#mobile` | Encargo T1 del juez del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 292 | Notificaciones: las imágenes del .zip viajan incrustadas en cada correo y se retira la ruta pública | Transversal — notificaciones (armado del correo, vista previa, alta y edición) | `#correo` `#datos` `#ui` | PM — plan B del 14/10/2026: el WAF de ECOM bloquea la ruta pública del Cambio 285 | 14/10/2026 | 🟡 **En curso** | `notificaciones.0004` |
 
 **Notas del índice**
 
@@ -38018,5 +38019,39 @@ deadlock; quitar las pruebas elimina la cobertura real de estas carreras.
 ## Historial
 
 Entrada nueva del encargo T1. Cierra el pendiente de concurrencia real del Cambio 262.
+
+---
+
+# Cambio 292 — Notificaciones: las imágenes del .zip viajan incrustadas en cada correo y se retira la ruta pública
+
+🟡 **EN CURSO — 14/10/2026** · revierte la parte pública del Cambio 285
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — notificaciones |
+| **Etiquetas** | `#correo` `#datos` `#ui` |
+| **Solicitante** | PM — 14/10/2026 |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | sin issue (análisis 007) |
+| **Partes afectadas** | Backoffice · Hilo de envío |
+| **Migración** | `notificaciones.0004` |
+
+## Pedido original
+
+Reservado: la entrada se completa al cerrar la rama `feature/notificaciones-imagenes-incrustadas`.
+
+## Base de datos
+
+`notificaciones.0004` (a completar).
+
+## Reversión
+
+1. `git revert` del merge (la entrada se completa al cerrar la rama).
+2. `migrate notificaciones 0003`: la reversa no deshace la reescritura de los `src`.
+3. Sin archivos que borrar.
+
+## Historial
+
+Entrada nueva.
 
 ---
