@@ -20,7 +20,7 @@ from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los i
     DispositivoProgramaPermissionMixin,
 )
 from programas.models import Dispositivo, Estadia, TipoDispositivo
-from programas.selectors.estadia_detalle import detalle_de_estadia
+from programas.selectors.estadia_detalle import detalle_de_estadia, novedades_de_estadia
 from programas.services.detalle_dispositivo import (
     alertas_del_dispositivo,
     aviso_sin_ingresos,
@@ -492,6 +492,11 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         context["movimientos_page"] = Paginator(datos["movimientos"], MOVIMIENTOS_POR_PAGINA).get_page(
             self.request.GET.get("movimientos_page")
         )
+        # Las novedades de la bitácora en las que la persona está involucrada: de lectura,
+        # paginadas y con su propio presupuesto (`dispositivos_estadia_novedades`). Se cargan
+        # y se corrigen en la bitácora del turno (P10).
+        context["novedades_page"] = novedades_de_estadia(estadia, self.request.GET.get("novedades_page"))
+        context["url_bitacora"] = reverse("dispositivos:bitacora", args=[dispositivo.pk])
         url_volver = url_solapa_estadias(dispositivo.pk)
         context["url_volver"] = url_volver
         context["url_legajo"] = reverse("legajos:ciudadano_detalle", args=[estadia.ciudadano_id])

@@ -38,6 +38,10 @@
     {% page_header titulo=dispositivo.nombre volver_url=url_volver volver_label="Dispositivos" %}
       {% bajada %}{{ dispositivo.codigo }} · {{ dispositivo.tipo.nombre }}{% if dispositivo.domicilio %} · {{ dispositivo.domicilio }}{% if dispositivo.localidad %}, {{ dispositivo.localidad }}{% endif %}{% elif dispositivo.localidad %} · {{ dispositivo.localidad }}{% endif %}{% if dispositivo.responsable_nombre %} · responsable {{ dispositivo.responsable_nombre }}{% endif %}{% endbajada %}
       {% include "programas/dispositivos/_estado_badge.html" %}
+      {# La bitácora pide lo mismo que esta pantalla (dispositivo.ver con alcance): quien está acá la puede abrir #}
+      <a href="{% url 'dispositivos:bitacora' dispositivo.pk %}" class="btn-nodo btn-secondary btn-sm btn-fit">
+        <i class="fas fa-clock" aria-hidden="true"></i> Bitácora del turno
+      </a>
       {% if puede_editar and dispositivo.estado != 'CERRADO' %}
       <a href="{% url 'dispositivos:editar' dispositivo.pk %}" class="btn-nodo btn-secondary btn-sm btn-fit">
         <i class="fas fa-pen" aria-hidden="true"></i> Editar

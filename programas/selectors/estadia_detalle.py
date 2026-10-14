@@ -1,8 +1,10 @@
 """Lo que muestra el detalle de la estadía (P7 · MVP v2, etapa 3 · #698).
 
 Lectura pura: no mira permisos ni decide nada del negocio. La vista resuelve quién puede
-ver la pantalla y qué acciones se ofrecen; acá se arma, en **tres consultas fijas**, lo
-que se dibuja:
+ver la pantalla y qué acciones se ofrecen; acá se arma, en **tres consultas fijas** más
+las dos de la solapa Novedades, lo que se dibuja.
+
+`detalle_de_estadia` arma las tres fijas:
 
 1. Los movimientos de la estadía, de `programas.services.movimientos.linea_de_tiempo`
    —la única fuente de la línea de tiempo— con las plazas y sus sectores ya traídos. De
@@ -15,18 +17,46 @@ que se dibuja:
 
 Los movimientos se traen enteros a propósito: los de una estadía son operaciones
 (ingreso, cambios de plaza, egreso), no la bitácora, y el tramo en la plaza actual
-necesita la lista completa. Las novedades, que sí crecen todos los días, no pasan por acá.
+necesita la lista completa.
+
+Las **novedades de la bitácora** no entran en esas tres: crecen todos los días, así que
+se piden aparte y paginadas, en `novedades_de_estadia`, con su propio presupuesto
+(`dispositivos_estadia_novedades`). Abrir la pantalla las cuesta igual —la solapa se
+dibuja siempre—, pero el costo no crece con la historia de la persona.
 
 Sin niveles de sensibilidad (los trae la ficha configurable de la Versión 2): las
 secciones muestran solo datos que no son sensibles. Por eso no van las observaciones del
 egreso —texto libre— ni los datos de contacto o de salud del legajo, que piden
 `ciudadano.sensible`; la misma regla que `programas.selectors.trayectoria`.
+
+**La bitácora es la excepción a esa regla, y es deliberada** (decisión de esta entrega,
+MVP v2 etapa 3): el texto de una novedad es libre y puede contar un incidente o una
+cuestión de salud, y aun así se muestra con lo que ya abre esta pantalla —`dispositivo.ver`
+con alcance al dispositivo, más `ciudadano.ver`—, sin pedir `ciudadano.sensible`. Los
+motivos:
+
+* **Es el mismo dato, con una puerta más estrecha.** La novedad ya se lee entera en la
+  bitácora del turno (P10) con `dispositivo.ver`, que es menos que lo que pide esta
+  pantalla; esta solapa no agrega información, solo la ordena por persona. Esconderla acá
+  no la protegería: la escondería de quien la necesita.
+* **La audiencia es operativa, no analítica.** Quien abre el detalle de una estadía es el
+  operador del dispositivo donde esa persona está alojada —el alcance lo exige el mixin
+  de la vista—, y lo que pasó en los turnos anteriores es justamente lo que tiene que
+  saber para recibir el turno. Las observaciones del egreso, en cambio, son una lectura
+  de legajo, y por eso siguen afuera.
+* **Nada se edita desde acá.** La solapa es de lectura y lleva a la bitácora: cargar y
+  corregir piden `dispositivo.bitacora` y pasan por `services.bitacora`.
+
+Cuando lleguen los niveles de sensibilidad de la Versión 2, la novedad es el candidato
+natural a llevar uno: la decisión de hoy es que **mientras no existan**, la bitácora se
+muestra, no que no deba clasificarse nunca.
 """
 
+from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from programas.models import Estadia, MovimientoEstadia
+from programas.models import EntradaBitacora, Estadia, MovimientoEstadia
 from programas.services.estadias import estado_visible
 from programas.services.movimientos import linea_de_tiempo, tramos_por_plaza
 
@@ -307,3 +337,53 @@ def detalle_de_estadia(estadia, momento=None):
         "otras_estadias": otras_estadias,
         "n_otras_estadias": cuentas["total"],
     }
+
+
+# --------------------------------------------------------------------------- #
+# Solapa «Novedades» (P7 · #697)
+# --------------------------------------------------------------------------- #
+
+#: Las novedades sí crecen todos los días: se paginan, y no entran en las tres consultas
+#: fijas de `detalle_de_estadia`.
+NOVEDADES_POR_PAGINA = 20
+
+
+def novedades_de_estadia(estadia, pagina=None):
+    """Las novedades de la bitácora en las que la persona está involucrada, paginadas.
+
+    Solo la versión vigente de cada novedad (`EntradaBitacora.objects.vigentes()`): las
+    reemplazadas se miran en la bitácora del turno. De lectura. **Dos consultas fijas**
+    —el ``COUNT`` del paginador y la página, con el responsable traído—, sin importar
+    cuántas novedades tenga la persona. Devuelve el ``Page`` con filas ya armadas: al
+    template no llega ningún modelo.
+    """
+
+    entradas = (
+        EntradaBitacora.objects.vigentes()
+        .filter(personas=estadia)
+        .select_related("responsable")
+        .only(
+            "id",
+            "momento",
+            "tipo",
+            "texto",
+            "version",
+            "responsable__username",
+            "responsable__first_name",
+            "responsable__last_name",
+        )
+        .order_by("-momento", "-id")
+    )
+    page = Paginator(entradas, NOVEDADES_POR_PAGINA).get_page(pagina)
+    page.object_list = [
+        {
+            "cuando": _fecha_hora(entrada.momento),
+            "categoria": entrada.get_tipo_display(),
+            "tono": EntradaBitacora.TONO_POR_TIPO.get(entrada.tipo, "") or "gray",
+            "texto": entrada.texto,
+            "version": entrada.version,
+            "autor": _nombre_de(entrada.responsable) or SIN_DATO,
+        }
+        for entrada in page.object_list
+    ]
+    return page

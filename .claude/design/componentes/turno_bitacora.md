@@ -4,7 +4,7 @@
 de cada turno y la lista de anotaciones de un turno.
 **Evidencia:** `templates/components/_turno_tarjeta.html`, `templates/components/_entradas_bitacora.html`,
 `core/tests/test_nodo_ui_lote_c.py`.
-**Consumidores de referencia:** ninguno todavía; lo usará la bitácora del turno (mockup P10).
+**Consumidores de referencia:** `programas/templates/programas/dispositivos/bitacora/bitacora.html` (bitácora del turno, P10).
 
 ## Invocación
 
@@ -35,8 +35,9 @@ Tarde · entradas», debajo de su encabezado.
 - **El texto lo escribe un usuario:** se imprime con autoescape y `linebreaksbr` (respeta los saltos de línea,
   no deja pasar HTML). No hay `|safe` ni `{% autoescape off %}`.
 - Las acciones de la tarjeta las arma la vista según capacidades; la pieza no decide quién puede qué.
-  **Un enlace nunca muta estado.** Cada acción es de uno de dos tipos: `url` lleva a otra pantalla
-  (`+ Novedad`, `Ver`) y se dibuja como `<a>`; `confirm_url` (con `confirm_title`, `confirm_text`,
+  **Un enlace nunca muta estado.** Cada acción es de uno de dos tipos: `url` navega —a otra pantalla
+  (`Ver`) o a la misma con el modal pedido por querystring (`+ Novedad`, `Corregir`), nunca por ancla—
+  y se dibuja como `<a>`; `confirm_url` (con `confirm_title`, `confirm_text`,
   `confirm_ok` y `peligro`) es la que cambia estado (`Cerrar turno`) y se dibuja como
   `<button data-confirm-url>` que confirma con `ModernModal` y hace el POST con CSRF desde el handler de
   `programas/templates/programas/becas/_confirm_js.html`, que la pantalla tiene que cargar. Es el mismo contrato que el ítem
@@ -54,11 +55,14 @@ es contrato válido de esta pieza. Una lista vacía muestra el estado vacío can
 ## Diferencias con el mockup
 
 - La fila no usa la grilla `56px 110px 1fr` (valor arbitrario fuera de la lista blanca): son tres columnas en
-  `flex` con `w-12`, `w-28` y el cuerpo `flex-1`.
+  `flex flex-wrap` con `w-12`, `w-32` y el cuerpo `w-full sm:flex-1`. Desde `sm` van en una fila; a 390 px la hora
+  y el badge quedan arriba y el texto abajo, a todo el ancho. `w-32` es lo que entra «Mantenimiento» sin montarse
+  sobre el texto (`.badge` no corta línea).
 - El turno activo marca el borde con `border-brand` y `aria-current`; no dibuja el anillo de 3 px, que no tiene
   utilidad en la lista blanca.
 - El turno sin abrir no baja la opacidad (.65): usa fondo `bg-secondary`, para que el texto conserve el contraste.
-- El badge de la entrada suma un ícono, que el mockup no dibuja.
+- El badge de la entrada lleva un ícono por tono **en lugar** del punto del mockup (`badge-dot`): una sola marca,
+  que además del color distingue la categoría.
 - El 📎 de «adjunto» y el enlace «corregir» no son parte de la pieza (emoji fuera de Font Awesome; la corrección
   la define la pantalla). Las etiquetas extra como «Seguimiento abierto» tampoco.
 
@@ -66,10 +70,8 @@ es contrato válido de esta pieza. Una lista vacía muestra el estado vacío can
 
 - La vista trae `autor` y `categoria` ya resueltos (`select_related` o un mapa), para no hacer una consulta
   por entrada.
-- La columna de categoría mide `w-28`: una categoría larga («Pase de guardia») puede desbordar, sobre todo a
-  390 px. Revisarlo en la primera pantalla real.
-- El badge de la entrada lleva punto (`badge-dot`) e ícono; son dos marcas para lo mismo y hay que elegir
-  una cuando se mire la pantalla.
+- La columna de categoría mide `w-32`: entran todas las categorías manuales («Mantenimiento» es la más larga).
+  «Pase de guardia», cuando exista, hay que mirarla en la pantalla.
 - `texto` puede faltar o ser `None`: no se dibuja nada, no «None».
 
 ## Prohibido
