@@ -415,6 +415,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 281 | Alertas por criticidad y auditoría básica del dispositivo | Dispositivos · detalle y auditoría | `#ui` `#datos` `#rbac` `#performance` | Task 34 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0092` |
 | 282 | La app del agente trae sus relevamientos edilicios y manda el resultado y las fotos, también sin señal | Dispositivos · relevamiento edilicio (app de campo) | `#api` `#mobile` `#rbac` `#usuarios` `#datos` | Tasks 38 y 39 (parte del sistema) del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0093` |
 | 283 | Bitácora del turno: las novedades del día, el censo del turno y la configuración de turnos | Dispositivos · bitácora | `#ui` `#rbac` `#performance` | Task 32 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | No requiere |
+| 286 | Listado de instituciones al arquetipo: filtros canónicos, plazas por fila y paginación (P2) | Dispositivos · legajo institucional | `#ui` `#rbac` `#performance` | Carril C4 del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -36456,5 +36457,191 @@ bitácora deja de tener pantalla y las novedades solo se ven por la base.
 
 Entrada nueva. Etapa 3 del plan del Cambio 191. La sección **Revisión** se agregó al cerrar,
 con lo que cambió después de la primera implementación.
+
+---
+
+---
+
+# Cambio 286 — Listado de instituciones al arquetipo: filtros canónicos, plazas por fila y paginación (P2)
+
+🟢 **HECHO — 14/10/2026** · Carril C4 del MVP de Dispositivos
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · legajo institucional (P2, listado) |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191), carril C4 |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Épica #127 · carril C4 |
+| **Partes afectadas** | Backoffice: `programas/templates/programas/dispositivos/legajo/list.html`, `programas/views/dispositivos_legajo.py` (`DispositivoListView`), `programas/services/ocupacion.py` (`tension_de_ocupacion`, nuevo), `scripts/perf_budgets.json`, `programas/tests/test_dispositivos_listado.py` (nuevo) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Llevar al arquetipo y al mockup el listado de dispositivos, que es la puerta de entrada al
+programa y seguía legacy: encabezado a mano, card y estado vacío propios, sin paginación y con
+los filtros fuera de la pieza canónica. `design_audit.py --arquetipo listado` daba **6 desvíos**.
+
+## Alcance acordado
+
+Entra la pantalla P2 completa sobre los datos que ya existen: encabezado canónico, filtros con
+la pieza canónica, tabla canónica con las columnas del mockup **que tienen dato** —incluidas la
+de infraestructura con su semáforo (Cambio 280) y la de plazas desde `ocupacion_de_plazas`
+(Cambio 276)—, acción de fila según el canon, los dos estados vacíos y **paginación**.
+
+Queda afuera todo lo que el mockup muestra y el sistema no tiene dato ni servicio para
+sostener: no se dibuja ni deshabilitado (ver *Apartamientos del mockup*).
+
+## Decisiones tomadas
+
+**La regla de visibilidad no cambia.** El listado sigue siendo exactamente
+`dispositivos_visibles(user)`; la paginación se aplica **después** del alcance y de los filtros,
+nunca antes. Tres tests lo fijan, uno de ellos sobre la página 2 (decisión del juez).
+
+**La configuración de roles la hace el PM.** No se tocó el catálogo de capacidades ni el seed:
+la pantalla solo *resuelve* `dispositivo.ver` (la vista, por el mixin) y `dispositivo.crear`
+(la acción de alta, en el encabezado y en el estado vacío).
+
+**El umbral que decide el color de la ocupación vive en el servicio, no en el template.**
+`tension_de_ocupacion(conteo)` en `programas/services/ocupacion.py` devuelve cifras, porcentaje,
+nivel y tono; la fila solo dibuja `badge badge-{{ tono }}`. Es la regla de
+`.claude/design/componentes/tabla.md` («mapear estado a color dentro de la pantalla: prohibido»)
+y además deja el umbral en un solo lugar para P1, que muestra la misma situación con el
+vocabulario del mockup (normal · exigida · crítica). Los cortes salen del mockup: **80 %**
+crítica, **60 %** exigida.
+
+**Sin plazas operativas no hay 0 %.** La celda dice «sin plazas», no un porcentaje. Es la misma
+distinción que el módulo de ocupación ya cuidaba entre `None` («no se sabe») y `0` («no hay
+ninguna ocupada»): una institución recién cargada no es una institución vacía, y dibujarla al
+0 % invitaría a mandar gente ahí. Lo mismo vale para el conteo con `ocupadas = None`.
+
+**La exportación lleva los filtros y no la página.** Exporta el padrón filtrado entero, que es
+lo que el botón promete; arrastrar `page` exportaría los 25 que se están mirando.
+
+**El orden de la página es total (`nombre`, `codigo`).** Con el orden del modelo —`nombre`
+solo— dos instituciones homónimas pueden repetirse o perderse entre páginas según el plan del
+motor. `codigo` es único, así que el desempate cierra. Hay test.
+
+**El estado vacío por filtros no habla del alcance.** El usuario filtró: decirle que no tiene
+alcance sería mentirle sobre por qué no ve nada. Las dos ramas tienen texto propio, el del
+mockup.
+
+## Plan de pantalla
+
+**Arquetipo:** Listado. **Golden clonada:**
+`programas/templates/programas/becas/revision/personas_list.html` (ficha
+`.claude/design/arquetipos/listado.md`). Ninguna pantalla hermana de Dispositivos fue molde.
+
+| Bloque | Qué va |
+|---|---|
+| Encabezado | `{% page_header eyebrow="Programa Dispositivos" titulo="Instituciones" bajada=… %}` con el texto literal del mockup; acciones «Exportar CSV» y «Exportar Excel» (`btn-tertiary btn-base`) y «Nueva institución» (`btn-brand btn-base` + `fa-plus`) solo con `puede_crear` |
+| Filtros | `<form method="get" data-dynamic-list-filters>` sin clase, tres controles con `name` + `aria-label`: Tipo, Estado, Localidad. La tarjeta de filtros del mockup **es** esta pieza: la dibuja `dynamic_list_filters.js` |
+| Tabla | Una sola card con `overflow-x-auto` → `nodo-thead-row` / `nodo-th` / `nodo-td`. Columnas: Institución (nombre + `CÓDIGO · Localidad`) · Tipo · Plazas · Estado · Infraestructura · Acciones |
+| Acción de fila | `.nodo-icon-btn` con `fa-eye` y `aria-label` con el registro, con `?next=` |
+| Paginación | `components/_paginacion.html`, `entidad="institución"` / `entidad_plural="instituciones"`, `paginate_by = 25` |
+| Estado vacío | Dos: con filtros («Ningún dispositivo coincide con los filtros» + Limpiar filtros) y sin datos («No hay dispositivos en tu alcance», con el alta solo si `puede_crear`) |
+
+Ninguna clase, include, variante ni valor fuera del inventario: no hubo novedades que devolver
+al llamador. `--arquetipo listado` pasa de **6 desvíos a OK**.
+
+## Apartamientos del mockup
+
+Todo lo que el mockup P2 muestra y acá no se dibuja —ni deshabilitado—, con el motivo:
+
+1. **Columna «Tipo · área»** → queda **Tipo**. El área del Ministerio es un campo nuevo que el
+   modelo no tiene (`configuracion` tiene secretarías y subsecretarías, falta la FK).
+2. **Columna «Categoría»** (Público / Estatal · Religioso · ONG) → **no se dibuja**. Campo
+   nuevo.
+3. **Columna «Dato»** (badge Verificado / Migrado, *«nivel de confianza del legajo»*) → **no se
+   dibuja**. Hay procedencia del padrón (`fuente_padron`, `fecha_padron`, `responsable_padron`),
+   no hay nivel de confianza.
+4. **«Importar padrón»** → **no se dibuja**. No existe la vista.
+5. **«Exportar ⌄» como un solo desplegable** → quedan los **dos enlaces** que ya existían
+   (CSV y Excel). No hay pieza canónica de menú desplegable en el encabezado, y
+   `{% menu_fila %}` es de fila, no de header: un desplegable propio sería una pieza nueva.
+6. **«Ver detalle» como botón con texto en la fila** → `.nodo-icon-btn` con `fa-eye`. Lo
+   prohíbe explícitamente la ficha del arquetipo y la de tabla; el canon le gana al mockup en
+   la forma del control, no en el dato.
+7. **Operador «es» entre campo y valor** → lo dibuja `dynamic_list_filters.js` («Igual a» /
+   «Contiene»). Es la pieza canónica, no el consumidor: no se toca desde acá.
+8. **Estados «Inauguración pendiente» y «Suspendido»** → no existen en `Dispositivo.Estado`
+   (sí en `Merendero`, `Programa` e `InscripcionPrograma`). El filtro ofrece los siete que hay.
+9. **Denominador de plazas** → el mockup dice «37 / 42» sobre **operativas**, y así se
+   implementó (`totales - fuera_de_servicio`), no sobre las cargadas.
+10. **«64 en seguimiento»** (fila ambulatoria del mockup) → no hay dato de seguimiento
+    ambulatorio; esas filas caen en «sin plazas».
+11. **Columna «Infraestructura»** → **no está en el mockup** y se conserva: la trajo el Cambio
+    280 y el pedido del carril la mantiene explícitamente.
+12. **Vocabulario** → el `h1` adopta «Instituciones» (mockup). El ítem del sidebar sigue
+    diciendo «Legajos»: cambiarlo es la pregunta **Q3** del mapeo, que sigue abierta y toca una
+    pieza compartida (y los snapshots de Becas). Queda como pendiente.
+
+## Implementación
+
+`DispositivoListView` pagina de a 25 (`paginate_by`), ordena por `nombre`, `codigo`, y resuelve
+en el contexto `estado_actual`, `tipo_actual`, `localidad_actual`, `puede_crear`, `url_crear`,
+`url_sin_filtros` y `exportar_qs`. El semáforo edilicio y las plazas se calculan **una vez por
+página** —`semaforos_de_dispositivos(ids)` y `ocupacion_de_plazas(ids)`, tres consultas cada
+uno— y se cuelgan de cada fila; el template no consulta nada.
+
+`tension_de_ocupacion(conteo)` es nuevo en `programas/services/ocupacion.py`, al lado de
+`estado_de_plazas`, y por el mismo motivo: una sola fuente para el mapeo de una cifra a una
+situación y a un color, con `UMBRAL_CRITICA` y `UMBRAL_EXIGIDA` como constantes del módulo.
+
+### Presupuesto
+
+Presupuesto nuevo `dispositivos_listado_instituciones` en la sección `servicios` de
+`scripts/perf_budgets.json`: **14 consultas**, medidas en el peor caso (cada institución con su
+sector, sus plazas y su edificio relevado). Desglose: shell (5) · COUNT del paginador + la
+página con `select_related` del tipo (2) · semáforo edilicio (3) · plazas (3) · tipos activos
+del filtro (1). No crece con las filas ni con el padrón: el test mide con 2 y con 20, y después
+con 60 —donde la página sigue siendo de 25— y exige el mismo número. Ningún presupuesto
+existente sube (`scripts/check_perf_budgets.py`: «Ningún presupuesto de performance sube en este
+PR»).
+
+## Validación
+
+`manage.py check` · `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`
+(«No changes detected») · `check_migraciones.py` (ninguna nueva) · `compile_templates.py`
+(231 OK, 0 errores) · `design_audit.py --arquetipo listado` sobre `legajo/list.html` (**OK**,
+antes 6 desvíos) · `--ratchet --base origin/development` (0 nuevos) · `--goldens` (0 en 7) ·
+`npm run build:tailwind` (sin diff: las clases ya estaban en el build) · `ruff check` y
+`ruff format --check` · `manage.py test --tag performance programas` (20 OK, con los 2 nuevos) ·
+`check_perf_budgets.py`.
+
+Suite: `test_arquitectura`, `test_dispositivos_legajo`, `test_dispositivos_infraestructura` y
+`test_dispositivos_listado` (90 OK); `test_dispositivos_ocupacion` y
+`test_dispositivos_relevamientos_listado` (69 OK); `test_dispositivos_censo`,
+`test_dispositivos_alertas` y `test_reportes` (74, con **3 fallas preexistentes** de
+`ExportsDeConvocatoriaTests` sobre la neutralización de fórmulas en los exports de Becas,
+verificadas iguales en un worktree de `origin/development`); `core.tests.test_front_ola5`
+(11 OK).
+
+### Mutaciones
+
+Cada guarda nueva se rompió a propósito y se verificó que el test se pusiera rojo; después se
+restauró desde una copia, nunca con `git checkout`:
+
+| Mutación | Resultado |
+|---|---|
+| `dispositivos_visibles(user)` → `Dispositivo.objects.all()` | `AlcanceTests` en rojo (3 fallas, incluida la de la página 2) |
+| `paginate_by = 25` → `None` | `PaginacionTests` + `PresupuestoTests` en rojo (4 fallas) |
+| Semáforo y plazas resueltos **por fila** en vez de en lote | `PresupuestoTests` en rojo (2 fallas: N+1) |
+| `puede_crear` → `True` fijo | `AccionDeAltaTests` en rojo (2 fallas: encabezado y estado vacío) |
+| `UMBRAL_CRITICA` 80 → 50 | `TensionDeOcupacionTests` en rojo |
+| Se saca la guarda de «sin plazas operativas» | `TensionDeOcupacionTests` + `PlazasEnLaFilaTests` en rojo (5) |
+
+## Pendientes
+
+- **Q3 del mapeo sigue abierta:** el `h1` dice «Instituciones» y el ítem del sidebar sigue
+  diciendo «Legajos». Alinearlos toca `templates/includes/sidebar/opciones.html`, que es pieza
+  compartida y obliga a regenerar los snapshots de Becas. Lo decide el PM.
+- Los apartamientos 1 a 4 (área, categoría, nivel de confianza del dato, importar padrón)
+  necesitan **campos y una vista nuevos** antes de poder dibujarse; el mapeo los tiene
+  inventariados en P2 y P3.
+- Los dos estados que el mockup muestra y el modelo no tiene
+  (`INAUGURACION_PENDIENTE`, `SUSPENDIDO`) son parte de F2 y entran con el flujo de validación.
+- Un control único «Exportar ⌄» exige una pieza canónica de desplegable en el encabezado; hoy
+  no existe y no se inventó acá.
 
 ---
