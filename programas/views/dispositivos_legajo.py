@@ -9,6 +9,7 @@ from django.db.utils import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
@@ -50,37 +51,68 @@ from programas.services.dispositivos import (
 from programas.services.estadias import CAP_ADMITIR, CAP_EGRESAR, cambiar_plaza, egresar_persona
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import semaforos_de_dispositivos
-from programas.services.ocupacion import ocupacion_de_plazas
+from programas.services.ocupacion import ocupacion_de_plazas, tension_de_ocupacion
 from programas.services.reportes import filtrar_dispositivos
 from programas.services.sectores_plazas import sectores_con_plazas
 from programas.views.ajax_utils import ajax_redirect, is_ajax
 
 
 class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
+    """P2 · Listado de instituciones (MVP v2, etapa 4).
+
+    Pagina de a 25: sin eso la puerta de entrada del programa materializaba el padrón
+    entero y pagaba el semáforo y las plazas de todas las filas en cada visita. El
+    semáforo edilicio y la ocupación se calculan **una vez por página** —tres consultas
+    cada uno, no una por fila— y el template solo dibuja lo que el servicio decidió.
+    """
+
     capacidad_requerida = "dispositivo.ver"
     model = Dispositivo
     template_name = "programas/dispositivos/legajo/list.html"
     context_object_name = "dispositivos"
+    paginate_by = 25
+
+    def _filtros(self):
+        return {
+            "tipo": self.request.GET.get("tipo", ""),
+            "estado": self.request.GET.get("estado", ""),
+            "localidad": self.request.GET.get("localidad", "").strip(),
+        }
 
     def get_queryset(self):
         queryset = dispositivos_visibles(self.request.user).select_related("tipo")
-        return filtrar_dispositivos(
-            queryset,
-            tipo=self.request.GET.get("tipo"),
-            estado=self.request.GET.get("estado"),
-            localidad=self.request.GET.get("localidad", "").strip(),
-        )
+        # `nombre` solo —el orden del modelo— no alcanza para paginar: dos instituciones
+        # homónimas pueden repetirse o perderse entre páginas según el plan del motor.
+        # `codigo` es único, así que con él el orden queda total.
+        return filtrar_dispositivos(queryset, **self._filtros()).order_by("nombre", "codigo")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        filtros = self._filtros()
         context["estados"] = Dispositivo.Estado.choices
+        context["estado_actual"] = filtros["estado"]
         context["tipos"] = TipoDispositivo.objects.filter(activo=True).order_by("nombre")
-        # Semáforo edilicio de toda la página en tres consultas fijas, no una por fila. Texto y
-        # tono los decide el servicio; el template solo dibuja el badge.
+        context["tipo_actual"] = filtros["tipo"]
+        context["localidad_actual"] = filtros["localidad"]
+        puede_crear = puede_en_programa_dispositivos(self.request.user, "dispositivo.crear")
+        context["puede_crear"] = puede_crear
+        # Sin `dispositivo.crear` el estado vacío no ofrece el alta: el botón llevaría a un
+        # 403, y el alcance vacío de quien solo consulta no se resuelve dando de alta.
+        context["url_crear"] = reverse("dispositivos:crear") if puede_crear else ""
+        context["url_sin_filtros"] = reverse("dispositivos:lista")
+        # La exportación lleva los filtros y **no** la página: exporta el padrón filtrado
+        # entero, no los 25 que se están mirando.
+        context["exportar_qs"] = urlencode({clave: valor for clave, valor in filtros.items() if valor})
+        # Semáforo edilicio y plazas de **la página**, cada uno en tres consultas fijas y
+        # no una por fila. Texto, tono y nivel los deciden los servicios; el template solo
+        # dibuja el badge.
         dispositivos = list(context["dispositivos"])
-        semaforos = semaforos_de_dispositivos([dispositivo.pk for dispositivo in dispositivos])
+        ids = [dispositivo.pk for dispositivo in dispositivos]
+        semaforos = semaforos_de_dispositivos(ids)
+        censo = ocupacion_de_plazas(ids)
         for dispositivo in dispositivos:
             dispositivo.semaforo = semaforos[dispositivo.pk]
+            dispositivo.plazas = tension_de_ocupacion(censo.de(dispositivo).conteo)
         context["dispositivos"] = context["object_list"] = dispositivos
         return context
 
