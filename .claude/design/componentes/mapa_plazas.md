@@ -40,7 +40,8 @@ sector (header con título y bajada, cuerpo con la grilla).
   es informativa y no entra en el orden de tabulación. La vista decide cuáles se
   pueden elegir (p. ej. en el ingreso, solo las disponibles); el componente no lo infiere del estado.
   El `detalle` trae apellido e inicial solo con `ciudadano.ver`; sin esa capacidad la plaza
-  ocupada dice «Ocupada». Reservas y préstamos agregan el vencimiento (fecha y hora local),
+  ocupada no agrega detalle debajo de su estado. Reservas y préstamos agregan solo el
+  vencimiento sin esa capacidad (`hasta DD/MM HH:MM`, fecha y hora local, sin año),
   o «sin vencimiento» en una reserva sin fecha; fuera de servicio conserva su motivo.
 - En P5, quien puede configurar ve «Editar plaza» dentro del modal de su acción. Si no puede
   liberar una reserva, la celda enlaza directamente a la edición de código y tipo; esa edición

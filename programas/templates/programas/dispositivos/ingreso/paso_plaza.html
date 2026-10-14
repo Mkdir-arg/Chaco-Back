@@ -73,9 +73,9 @@
     {# Control compuesto: el mapa anterior elige la plaza; este paso no tiene campos visibles. Variante intermedia documentada en la ficha Wizard. #}
     <input type="hidden" name="persona" value="{{ mostrado.persona }}">
     <input type="hidden" name="plaza" value="{{ mostrado.plaza }}">
-    <div class="flex justify-between gap-3">
+    <div class="flex flex-wrap justify-between gap-3">
       <a href="{{ urls.persona }}" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-arrow-left" aria-hidden="true"></i> Anterior</a>
-      <div class="flex gap-3">
+      <div class="flex flex-wrap gap-3">
         {% if not plaza_obligatoria %}<button type="submit" name="sin_plaza" value="1" class="btn-nodo btn-secondary btn-base">Continuar sin plaza</button>{% endif %}
         <button type="submit" class="btn-nodo btn-brand btn-base">Continuar <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
       </div>

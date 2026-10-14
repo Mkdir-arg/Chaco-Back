@@ -501,14 +501,14 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
             estado, detalle = ESTADO_FUERA_SERVICIO, plaza.motivo_fuera_servicio
         elif plaza.pk in ocupadas:
             estado = ESTADO_OCUPADA
-            detalle = _nombre_en_plaza(*ocupadas[plaza.pk]) if puede_ver_personas else estado
+            detalle = _nombre_en_plaza(*ocupadas[plaza.pk]) if puede_ver_personas else ""
         elif plaza.pk in reservas:
             tipo, apellido, nombre, hasta = reservas[plaza.pk]
             prestada = tipo == ReservaPlaza.Tipo.PRESTAMO
             estado = ESTADO_PRESTADA if prestada else ESTADO_RESERVADA
-            persona = _nombre_en_plaza(apellido, nombre) if puede_ver_personas else estado
-            vencimiento = f"hasta {timezone.localtime(hasta):%d/%m/%Y %H:%M}" if hasta else "sin vencimiento"
-            detalle = f"{persona} · {vencimiento}"
+            persona = _nombre_en_plaza(apellido, nombre) if puede_ver_personas else ""
+            vencimiento = f"hasta {timezone.localtime(hasta):%d/%m %H:%M}" if hasta else "sin vencimiento"
+            detalle = f"{persona} · {vencimiento}" if persona else vencimiento
         else:
             estado = ESTADO_DISPONIBLE
         derivados[plaza.pk] = EstadoPlaza(estado=estado, tono=_TONO_DE[estado], detalle=detalle)

@@ -1,6 +1,7 @@
 """Fidelidad P5/P6: identidad autorizada, vencimientos y consultas constantes."""
 
 import json
+import re
 from datetime import datetime, timedelta
 from datetime import timezone as tz
 from pathlib import Path
@@ -66,20 +67,25 @@ class DetalleDePlazaTests(BaseMapaFidelidad):
         self.assertEqual(estados[self.plaza.pk].detalle, "Gómez, A.")
         self.assertEqual(
             estados[self.otra_plaza.pk].detalle,
-            f"Pérez, J. · hasta {timezone.localtime(self.reserva.hasta):%d/%m/%Y %H:%M}",
+            f"Pérez, J. · hasta {timezone.localtime(self.reserva.hasta):%d/%m %H:%M}",
         )
         self.assertEqual(
             estados[self.prestada.pk].detalle,
-            f"Pérez, J. · hasta {timezone.localtime(AHORA + timedelta(hours=3)):%d/%m/%Y %H:%M}",
+            f"Pérez, J. · hasta {timezone.localtime(AHORA + timedelta(hours=3)):%d/%m %H:%M}",
         )
         self.assertEqual(estados[self.fuera.pk].detalle, "colchón")
         self.assertEqual(estados[self.libre.pk].detalle, "")
 
     def test_por_defecto_no_expone_personas_y_conserva_vencimientos_y_motivo(self):
         estados = self._estados()
-        self.assertEqual(estados[self.plaza.pk].detalle, "Ocupada")
-        self.assertTrue(estados[self.otra_plaza.pk].detalle.startswith("Reservada · hasta "))
-        self.assertTrue(estados[self.prestada.pk].detalle.startswith("Prestada · hasta "))
+        self.assertEqual(estados[self.plaza.pk].detalle, "")
+        self.assertEqual(
+            estados[self.otra_plaza.pk].detalle, f"hasta {timezone.localtime(self.reserva.hasta):%d/%m %H:%M}"
+        )
+        self.assertEqual(
+            estados[self.prestada.pk].detalle,
+            f"hasta {timezone.localtime(AHORA + timedelta(hours=3)):%d/%m %H:%M}",
+        )
         for estado in estados.values():
             for privado in ("Gómez", "Pérez", self.persona.dni, self.otra_persona.dni):
                 self.assertNotIn(privado, estado.detalle)
@@ -91,6 +97,7 @@ class DetalleDePlazaTests(BaseMapaFidelidad):
         self.assertEqual(
             self._estados(puede_ver_personas=True)[self.otra_plaza.pk].detalle, "Pérez, J. · sin vencimiento"
         )
+        self.assertEqual(self._estados()[self.otra_plaza.pk].detalle, "sin vencimiento")
 
     def test_vencida_no_muestra_persona_y_la_estadia_gana_a_la_reserva(self):
         ReservaPlaza.objects.filter(pk=self.reserva.pk).update(hasta=AHORA - timedelta(seconds=1))
@@ -114,6 +121,23 @@ class MapaP5FidelidadTests(BaseMapaFidelidad):
     def _pagina(self, usuario):
         self.client.force_login(usuario)
         return self.client.get(reverse("dispositivos:sectores", args=[self.cis.pk]))
+
+    def test_celdas_sin_capacidad_no_repiten_estado_y_solo_detallan_vencimiento(self):
+        respuesta = self._pagina(self.operador_cis)
+        self.assertEqual(respuesta.status_code, 200)
+        celdas = re.findall(r"<li\b[^>]*>(.*?)</li>", respuesta.content.decode(), re.DOTALL)
+        for plaza, estado, detalle in (
+            (self.plaza, "Ocupada", ""),
+            (self.otra_plaza, "Reservada", f"hasta {timezone.localtime(self.reserva.hasta):%d/%m %H:%M}"),
+            (self.prestada, "Prestada", f"hasta {timezone.localtime(AHORA + timedelta(hours=3)):%d/%m %H:%M}"),
+        ):
+            with self.subTest(estado=estado):
+                celda = next(celda for celda in celdas if f"</span>{plaza.codigo}</b>" in celda)
+                self.assertEqual(celda.count(estado), 1)
+                if detalle:
+                    self.assertIn(f'title="{detalle}">{detalle}</span>', celda)
+                else:
+                    self.assertNotIn("truncate", celda)
 
     def test_capacidad_ciudadano_ver_decide_identidad_en_html_y_contexto(self):
         for usuario, permitido in ((self.operador_cis, False), (self.autorizado, True)):
