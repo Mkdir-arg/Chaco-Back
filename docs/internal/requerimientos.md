@@ -422,7 +422,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 289 | Ver informe del relevamiento, la solapa «Sin relevar nunca» y las decisiones del juez sobre el relevamiento edilicio | Dispositivos · relevamiento edilicio | `#ui` `#rbac` `#api` `#mobile` `#performance` | Pendientes del Cambio 279 + decisiones del juez | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 290 | Concurrencia real del MVP de Dispositivos y orden de bloqueo de las reservas | Dispositivos · estadías, reservas, relevamiento edilicio y bitácora | `#datos` `#performance` `#mobile` | Encargo T1 del juez del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 291 | Alta y edición de edificio, sectores y plazas | Dispositivos · capacidad instalada | `#ui` `#datos` `#rbac` `#performance` | Juez — carril C5 del cierre del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
-| NNN | Test del censo independiente de la hora del runner | Dispositivos · tests de bitácora y censo | `#datos` `#infra` | Juez — encargo urgente en sesión | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 296 | Test del censo independiente de la hora del runner | Dispositivos · tests de bitácora y censo | `#datos` `#infra` | Juez — encargo urgente en sesión | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -38285,7 +38285,9 @@ y corrige unicidad entre sectores y respuestas de alcance. Rebasado únicamente 
 
 ---
 
-# Cambio NNN — Test del censo independiente de la hora del runner
+---
+
+# Cambio 296 — Test del censo independiente de la hora del runner
 
 🟢 **HECHO — 14/10/2026**
 
@@ -38362,8 +38364,8 @@ No requiere migraciones ni cambios de datos del sistema. Pruebas locales con SQL
 - Tras el commit del test, `check_design_agent.py --changed` y
   `--limites --base origin/development`: OK.
 - `requerimientos.py --check`: OK. Como el lector solo indexa números, se verificaron
-  también la fila y la entrada `NNN` con el mismo checker sobre una copia temporal
-  numerada fuera del repo; el original conserva `NNN` para el juez.
+  también la fila y la entrada `296` con el mismo checker sobre una copia temporal
+  numerada fuera del repo; el original conserva `296` para el juez.
 
 ## Puesta en marcha en el servidor
 
@@ -38371,7 +38373,7 @@ No requiere: el cambio afecta exclusivamente la suite de tests.
 
 ## Pendientes / a definir
 
-El juez asigna el número definitivo a `NNN`. Sin decisiones funcionales pendientes.
+El juez asigna el número definitivo a `296`. Sin decisiones funcionales pendientes.
 
 ## Reversión
 
