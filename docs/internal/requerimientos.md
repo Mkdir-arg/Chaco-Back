@@ -418,6 +418,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 285 | Notificaciones: el cuerpo del correo se sube como .zip con la carpeta y sus imágenes quedan publicadas | Transversal — notificaciones (alta, edición y previsualización de campañas; vista pública de imágenes) | `#correo` `#ui` `#datos` | PM — pedido del 14/10/2026 (opción 1); sigue al Cambio 199 | 14/10/2026 | 🟢 **Hecho** | `notificaciones.0003` |
 | 286 | Listado de instituciones al arquetipo: filtros canónicos, plazas por fila y paginación (P2) | Dispositivos · legajo institucional | `#ui` `#rbac` `#performance` | Carril C4 del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 287 | Acciones del mapa de plazas y enlaces de resolución de las alertas | Dispositivos · plazas y alertas | `#ui` `#rbac` `#performance` | Carril C1 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 288 | El turno visible, las novedades automáticas de la bitácora y tres contratos que faltaban | Dispositivos · estadía, ingreso, detalle y bitácora | `#ui` `#datos` `#rbac` `#performance` | Carril C3 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0094` |
 
 **Notas del índice**
 
@@ -36883,6 +36884,300 @@ existían y dejan su `TrazaDispositivo`, que es aditiva.
 
 Entrada nueva. Cierra los pendientes de enlaces del Cambio 281, el N+1 del Cambio 272 y la
 contención del Cambio 262.
+
+---
+
+---
+
+# Cambio 288 — El turno visible, las novedades automáticas de la bitácora y tres contratos que faltaban
+
+🟢 **HECHO — 14/10/2026** · Carril C3 del cierre del MVP de Dispositivos
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · estadía (P7) · ingreso (P6) · detalle del dispositivo (P4) · bitácora (P10) |
+| **Etiquetas** | `#ui` `#datos` `#rbac` `#performance` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Épica #127 · cierre de las etapas 2 y 3 |
+| **Partes afectadas** | Backoffice: `estadia/detalle.html`, `legajo/detail.html`, `views/dispositivos_legajo.py`, `views/dispositivos_ingreso.py`, `selectors/estadia_detalle.py` · Servidor: `services/bitacora.py`, `services/estadias.py`, `services/movimientos.py`, `services/detalle_dispositivo.py`, `services/dispositivos.py`, `models/__init__.py` |
+| **Migración** | `programas.0094` — `EntradaBitacora.movimiento`, uno a uno anulable |
+
+## Pedido original
+
+Cinco pendientes que las entregas anteriores dejaron anotados, en un solo carril:
+
+1. **El turno en el «cuándo»** (Cambios 272, 273 y 277): ahora que existe `Turno`, mostrar el
+   turno de cada evento donde el mockup lo muestra.
+2. **Las entradas automáticas de la bitácora** (Cambio 274): el modelo tiene tipos reservados
+   al sistema que nadie generaba.
+3. **El egreso exige motivo del catálogo en el servicio** (Cambio 269), no solo en el
+   formulario.
+4. **Observar y Rechazar de P4 con el contrato JSON del arquetipo Modal** (Cambio 276).
+5. **`?tab=` inválido en P4** dejaba la tarjeta vacía.
+
+## Alcance acordado
+
+Entra todo lo de arriba. **Queda afuera** lo que el mockup muestra y no tiene dato: el turno en
+la tabla de estadías de P4 y en su solapa Historial (el mockup no los lleva), la tarjeta
+«Bitácora» de la franja de indicadores, el pase de guardia y las novedades automáticas de
+permiso de salida y traslado (`PERMISO` y `PASE` siguen sin emisor, porque esos servicios no
+existen).
+
+## Decisiones tomadas
+
+**El turno se deriva, nunca se guarda, y se resuelve una sola vez por pantalla.** Es la decisión
+del Cambio 273 llevada hasta la UI: el turno de un evento sale de `turno_vigente(dispositivo,
+momento)`, en hora local, sobre la lista de turnos que `turnos_activos` trae **una vez** por
+pantalla y que `turno_vigente` acepta en `turnos=`. Dibujar el turno de cada evento sin eso
+sería una consulta por evento, O(historia de la persona). Dónde se ve:
+
+| Pantalla | Dónde | Cómo queda |
+|---|---|---|
+| P7 línea de tiempo | el «cuándo» de cada evento | `08/09/2026 · 16:48 · turno Tarde · L. Méndez` |
+| P7 solapa Movimientos | columna **Turno**, nueva, después de «Fecha y hora» | `Tarde`, o `—` |
+| P6 asistente de ingreso | eyebrow de los tres pasos | `CIS N.º 3 · turno Tarde · 08/09/2026 16:48` |
+
+**Si el momento cae en un hueco sin turno, no se inventa ninguno.** El eyebrow queda como
+estaba (institución y fecha) y la línea de tiempo, sin la parte del turno; en la tabla va el
+guion de «sin dato». Un dispositivo sin turnos configurados se comporta igual: la alerta
+«dispositivo activo sin turnos activos» del Cambio 281 ya lo avisa, y la bitácora no es el lugar
+para avisarlo de nuevo con un turno falso.
+
+**P4 y P10 no suman turno.** El mockup de P4 no lo muestra —ni en la tabla de estadías, ni en el
+encabezado, que no tiene eyebrow— y P10 ya está agrupada **por** turno desde el Cambio 283: la
+hora de cada entrada se lee dentro de la tarjeta de su turno. Agregarlo sería apartarse del
+mockup, no acercarse.
+
+**El mockup sí muestra entradas automáticas, así que se generan.** P10 las dibuja con la marca
+«automática» (`16:48 · Ingreso`, `16:52 · Movimiento`), P9 dice que el egreso «genera la novedad
+en la bitácora del turno Tarde» y la nota de P6 que el paso final «genera la entrada en la
+bitácora». `ingresar_persona`, `egresar_persona` y `cambiar_plaza` escriben la suya con
+`services.bitacora.anotar_en_bitacora`, **en la misma transacción** que el cambio: un ingreso
+que se deshace no deja rastro en la bitácora.
+
+**Una novedad automática por movimiento, y lo garantiza la base.** `EntradaBitacora.movimiento`
+es un uno a uno anulable con el `MovimientoEstadia` que la generó. No es comodidad de lectura:
+es lo que impide que un reintento —el doble clic, el POST repetido, el servicio llamado dos
+veces— deje la misma cosa contada dos veces en el turno. Es un `UNIQUE` común sobre una columna
+anulable (las manuales van en `NULL` y los `NULL` no chocan), que existe en MySQL y en MariaDB;
+un `UniqueConstraint(condition=…)` no existiría en producción.
+
+**El nombre de la persona no va en el texto de la novedad.** El mockup lo pone en negrita, pero
+desde el Cambio 283 la pantalla **nombra** a las personas involucradas solo con `ciudadano.ver`,
+y sin esa capacidad dice «Personas involucradas: 1». Si el nombre estuviera en el texto, la
+bitácora se lo contaría a cualquiera con `dispositivo.ver`, que es menos. Va en `personas` —la
+estadía, como cualquier novedad— y el texto queda `Ingreso · plaza P1`, `Egreso · motivo: Alta`,
+`Cambio de plaza · P1 → P2 · motivo: convivencia`. Las **observaciones libres** del egreso
+tampoco entran: son texto libre de la persona, igual que en el movimiento y en la traza.
+
+**Ni el censo ni la auditoría se mueven.** El censo cuenta estadías y movimientos, no novedades
+(Cambio 278). La auditoría muestra de la bitácora **solo las correcciones** (`version > 1`,
+Cambio 281), y una novedad automática nace en la versión 1 y no se corrige: `corregir_entrada`
+rechaza las de origen automático y P10 no las ofrece —su lista de corregibles filtra
+`origen=MANUAL`—. Así el ingreso sigue siendo **una** línea del historial, la del movimiento.
+
+**El egreso exige motivo del catálogo en el servicio** (decisión del juez). `egresar_persona`
+rechaza `motivo_egreso=None` con `{"motivo": …}`: era el pendiente del Cambio 269 y el mismo
+patrón que la revisión del Cambio 262 marcó como trampa —una regla que depende de que la vista
+se acuerde no es una regla—. `motivo` (texto libre de observaciones) **no** sustituye al
+catálogo. Las estadías ya egresadas sin motivo no se tocan: la regla rige para los egresos
+nuevos, y la auditoría sigue sabiendo leerlas. De paso, la traza del egreso dejó de caer en las
+observaciones cuando no había motivo del catálogo: ahora siempre lleva el del catálogo y nunca
+el texto libre, que es lo que ya hacían el movimiento y la línea de tiempo.
+
+**Observar y Rechazar responden el contrato del arquetipo Modal.** Los dos formularios llevan
+`data-ajax` y `data-error="motivo"` / `data-error="__all__"`, y `DispositivoActionView` responde
+**400 con el error en su campo** o `{ok, redirect}` al guardar. Los servicios
+`observar_dispositivo` y `rechazar_dispositivo` pasaron a nombrar el campo que rechazan
+(`ValidationError({"motivo": …})`), que es lo que permite pintarlo debajo de «Motivo» en vez de
+mandarlo a un aviso general; lo que rechazan sin campo —el dispositivo que ya salió de
+validación— va a `__all__`. **Sin JS el formulario postea igual** y el error vuelve como
+mensaje: la vista no depende de que haya fetch. El helper `errores_por_campo` es uno solo y lo
+comparten el egreso, el cambio de plaza y estas dos acciones.
+
+**La solapa la normaliza el servidor, no el navegador.** `normalizar_solapa(pedida,
+con_plazas=…)` resuelve `?tab=` contra las solapas que **este** dispositivo tiene y se la pasa a
+Alpine en el `x-data`. Antes Alpine se quedaba con el valor crudo de la URL: `?tab=sectores` en
+un tipo que no maneja plazas —o cualquier valor inventado— dejaba la tarjeta entera en blanco,
+sin solapas, sin estadías y sin historial. P7 tiene el mismo `?tab=` y el mismo agujero, así que
+se normaliza igual (`ficha`, `movimientos`, `novedades`); es lo único de este carril que excede
+el pedido literal, y se hizo porque es la misma línea del mismo defecto.
+
+## Plan de pantalla
+
+Ninguna pantalla nueva: las tres que se tocan ya tienen su arquetipo declarado y no cambian de
+esqueleto.
+
+```
+P7 estadia/detalle.html — Tipo C (ajuste) · Arquetipo Revisión · Golden estadia/revision_referencia.html
+    Cambio: una columna «Turno» en la tabla canónica de la solapa Movimientos (de 5 a 6) y el
+    turno dentro del «cuándo» de `_linea_tiempo`, que es texto de la pieza. Novedades: ninguna.
+P4 legajo/detail.html — Tipo C (ajuste) · Arquetipo Detalle con solapas · Golden becas/cupo/segmento_detail.html
+    Cambio: `data-ajax` + `data-error="__all__"` en los modales Observar y Rechazar (los dos ya
+    seguían el arquetipo Modal y ya tenían `data-error="motivo"`), y `tab: '{{ tab }}'` en vez
+    de leer la URL en JS. Novedades: ninguna.
+P6 ingreso/paso_*.html — Tipo C (ajuste) · Arquetipo Wizard
+    Cambio: el eyebrow suma el turno. Ninguna clase, include ni variante nueva.
+```
+
+## Apartamientos del mockup
+
+- **El nombre de la persona no va en el texto de la novedad automática** (P10 lo pone en
+  negrita). Va en «Personas», detrás de `ciudadano.ver`. Está arriba el porqué.
+- **Las entradas automáticas de P10 que el mockup muestra y no se generan**: «Permiso» (no hay
+  permiso de salida), «Pase» (no hay pase de guardia) y el «Movimiento» de un traslado en
+  tránsito (no hay traslado). Los tipos existen en el modelo y siguen sin emisor.
+- **«autorización PC-2291» y «reingresa»** del texto del ingreso en P10: no hay autorización
+  previa ni marca de reingreso en el momento del ingreso (el «Reingreso» de P7 se deriva de las
+  estadías anteriores al dibujar, no se guarda).
+- **P4 sigue sin turno** porque el mockup no lo muestra ahí; queda dicho para que no se lea como
+  un olvido.
+- La columna **Turno** de la solapa Movimientos de P7 es nuestra: el mockup no dibuja esa tabla
+  (solo la línea de tiempo, que sí lleva turno). Se agregó para que la tabla diga lo mismo que
+  la línea de tiempo y no menos.
+
+## Apartamiento del arquetipo
+
+**La solapa inicial ya no se lee en JS en P4 y P7.** El esqueleto de
+`.claude/design/arquetipos/detalle.md` dice `x-data="{ tab: new URLSearchParams(...).get('tab')
+|| '<default>' }"`, y las dos pantallas ahora reciben `tab` ya resuelto de la vista. Es el
+arreglo del punto 5: con el esqueleto literal, un `?tab=` que esa pantalla no tiene deja la
+tarjeta entera en blanco, y P4 tiene una solapa condicionada por el tipo del dispositivo. Las
+demás pantallas de detalle —y la golden `becas/cupo/segmento_detail.html`, cuyas solapas están
+**siempre**— quedan como estaban: el esqueleto literal les alcanza. **La ficha del arquetipo no
+se había actualizado en la primera entrega**. La revisión sincroniza la variante en
+*Variantes permitidas*: la vista normaliza la solapa inicial y la pasa al `x-data`.
+La golden conserva su esqueleto.
+
+## Archivos
+
+`programas/models/__init__.py` (`EntradaBitacora.movimiento` y su `clean`) ·
+`programas/migrations/0094_entrada_bitacora_automatica.py` (nueva) ·
+`programas/services/bitacora.py` (`anotar_en_bitacora`, `NOVEDAD_POR_MOVIMIENTO`,
+`_texto_automatico`) · `programas/services/estadias.py` (`EGRESO_SIN_MOTIVO` y los tres
+llamados) · `programas/services/movimientos.py` (`_asignar_plaza`) ·
+`programas/services/detalle_dispositivo.py` (`SOLAPAS`, `normalizar_solapa`) ·
+`programas/services/dispositivos.py` (los dos `ValidationError` con campo) ·
+`programas/selectors/estadia_detalle.py` (`_turno_de`, `SOLAPAS`, `normalizar_solapa`) ·
+`programas/views/dispositivos_legajo.py` (`errores_por_campo`, `DispositivoActionView`) ·
+`programas/views/dispositivos_ingreso.py` (`eyebrow`) ·
+`programas/templates/programas/dispositivos/estadia/detalle.html` ·
+`programas/templates/programas/dispositivos/legajo/detail.html` · `scripts/perf_budgets.json` ·
+`programas/tests/test_dispositivos_bitacora_automatica.py` (nuevo) y siete módulos de tests
+existentes.
+
+## Base de datos
+
+`programas.0094`: `programas_entradabitacora.movimiento_id`, FK **anulable** y uno a uno hacia
+`programas_movimientoestadia`, con `PROTECT`. Columna nueva `null=True`, así que la release
+anterior sigue pudiendo dar de alta novedades: `check_migraciones.py` en verde. No hay datos que
+migrar —las novedades ya cargadas son manuales y quedan en `NULL`—, y las novedades automáticas
+de los ingresos y egresos **anteriores** a esta release no se reconstruyen: la bitácora es un
+registro de lo que pasó, y escribirle hoy lo de hace un mes sería inventarlo.
+
+## Validación
+
+- Suite por módulo, Py 3.12 + Dj 5.2 (`.venv312`, el del CI): `test_dispositivos_estadias` +
+  `test_dispositivos_egreso` + `test_dispositivos_movimientos` (117), `test_dispositivos_censo`
+  + `test_dispositivos_alertas` + `test_dispositivos_auditoria` (79),
+  `test_dispositivos_estadia_detalle` + `test_dispositivos_detalle` (81),
+  `test_dispositivos_ingreso`, `test_dispositivos_bitacora_automatica` (14, nuevo),
+  `test_arquitectura` (13) y los trece módulos restantes de Dispositivos: todo en verde.
+- `--tag performance programas`: 18 en verde. `scripts/check_perf_budgets.py`: la única suba es
+  `dispositivos_estadia_detalle` 3 → 4, con su entrada nueva en `_meta.adjustments`
+  (`c3_turno_en_la_linea_de_tiempo`): la consulta que se suma es **una**, `turnos_activos`.
+- **Mutaciones, de a una, todas en rojo por el motivo correcto:**
+  1. `egresar_persona` sin la guarda de motivo → rojo
+     `test_sin_motivo_del_catalogo_el_servicio_rechaza_el_egreso` y
+     `test_las_observaciones_libres_no_sustituyen_al_motivo`.
+  2. `EntradaBitacora.movimiento` de uno a uno a FK común → rojo
+     `test_la_base_rechaza_una_segunda_novedad_del_mismo_movimiento` (la novedad se duplica).
+  3. Sin turno para el momento, agarrar el primero del día → rojo
+     `test_un_momento_en_un_hueco_entre_turnos_no_deja_novedad`.
+  4. `normalizar_solapa` sin mirar `con_plazas` → rojo
+     `test_sectores_en_un_tipo_que_no_maneja_plazas_cae_en_la_de_siempre`.
+  5. `errores_por_campo` mandando todo a `__all__` → rojo
+     `test_sin_motivo_el_error_vuelve_en_su_campo_y_no_cambia_nada`, en las dos acciones.
+  6. `turno_vigente` sin `turnos=` (una consulta por evento) → rojo
+     `test_el_turno_no_cuesta_una_consulta_por_evento`.
+  7. El texto de la novedad con el nombre de la persona → rojo
+     `test_el_nombre_de_la_persona_no_va_en_el_texto` y los tres que fijan el texto exacto.
+- `manage.py check`, `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`
+  («No changes»), `scripts/check_migraciones.py`, `ruff check` / `format`: OK.
+- UI: `compile_templates.py` 0 errores sobre 231 templates; `design_audit.py --ratchet` 0
+  hallazgos nuevos sobre `origin/development`; `--goldens` 0 en 7; arquetipo `detalle` OK en los
+  dos templates tocados; `npm run build:tailwind` sin diff (ninguna clase nueva).
+
+## Puesta en marcha en el servidor
+
+`migrate` (trae `programas.0094`). Nada que configurar: la novedad automática aparece sola en el
+primer ingreso, egreso o cambio de plaza de un dispositivo **que tenga turnos configurados**. En
+los que todavía no los tienen no pasa nada —ni error ni novedad— hasta que se configuren.
+
+## Pendientes / a definir
+
+- **El egreso sigue sin derivación con seguimiento** (pendiente del Cambio 269, sin tocar).
+- **`PERMISO` y `PASE` no tienen emisor**: cuando existan el permiso de salida y el pase de
+  guardia, sus novedades automáticas entran por el mismo camino (`anotar_en_bitacora` con otro
+  tipo).
+- **Las novedades automáticas no se corrigen desde ningún lado.** El servicio las rechaza y la
+  pantalla no las ofrece; lo que las corregiría es corregir el movimiento, que hoy es inmutable.
+  Si el Ministerio pide anular un ingreso mal cargado, hay que resolver el movimiento primero.
+- **El turno de la solapa Historial de P4 y de la tabla de estadías**: no está porque el mockup
+  no lo muestra. Si el PM lo quiere, es la misma función y una consulta más por pantalla.
+- **El `?tab=` no se escribe en la URL al hacer clic en una solapa** (decisión del Cambio 276,
+  sigue igual): la normalización vale para la solapa con la que se **llega**.
+- **Las novedades automáticas aparecen también en la solapa Novedades de P7**, al lado de la
+  solapa Movimientos, que cuenta lo mismo de otra manera. Es consecuencia de que la persona
+  involucrada sea la estadía; si molesta, se filtra por origen en `novedades_de_estadia`.
+
+## Reversión
+
+`migrate programas 0093` y `git revert` del merge. La migración baja sin pérdida mientras no se
+haya escrito ninguna novedad automática; desde la primera, el `PROTECT` hacia el movimiento
+obliga a borrar esas entradas antes —y `EntradaBitacora` no se borra por el manager: hay que
+hacerlo por SQL—. Al revertir el código sin bajar la migración, la columna queda y deja de
+escribirse: no rompe nada.
+
+## Historial
+
+Entrada nueva. Cierra pendientes de los Cambios 269, 272, 273, 274, 276 y 277.
+
+## Revisión
+
+La revisión independiente del carril C3 pidió corregir dos MAJOR:
+
+- **Egreso en el mismo minuto que un cambio de plaza (P4 y P7).** `EgresoForm` comparaba
+  contra el ingreso, pero `egresar_persona` exige no anteceder al último movimiento.
+  `clean_fecha_egreso` ahora consulta `services.movimientos.ultimo_momento`, compara al
+  minuto y devuelve `max(fecha, ultimo)`. La guarda del servicio, con la estadía bloqueada,
+  se conserva; una fecha de un minuto anterior sigue siendo inválida.
+  Los tests `EgresoPantallaTests.test_egreso_en_el_mismo_minuto_del_cambio_de_plaza_desde_p4`
+  y `EgresoDesdeLaEstadiaTests.test_egreso_en_el_mismo_minuto_del_cambio_de_plaza_desde_p7`
+  registran el cambio con segundo 45 y postean el egreso sin segundos. **Rojo previo
+  comprobado en ambos:** HTTP 400 en vez de 200, con error `fecha_egreso` por anteceder
+  al último movimiento. Verifican el cierre en ese instante, el movimiento de egreso
+  y el retorno a cada pantalla; P4 verifica además la liberación de la plaza.
+- **Sincronización de las fichas canónicas.** `arquetipos/modal.md` documenta el contrato
+  JSON vigente de Observar/Rechazar en P4; `componentes/ficha_timeline.md`, el turno
+  derivado en los eventos de P7 y su ausencia en el Historial de P4. Se sincronizan también
+  la solapa inicial normalizada (`arquetipos/detalle.md`), las entradas automáticas de
+  solo lectura (`componentes/turno_bitacora.md`) y el mapa de estados vigente citado
+  desde `services/estadias.py` (`dominio/becas.md`). No se agregan reglas de producto.
+
+Entorno de revisión: venv propio del worktree, Python 3.12.12 y Django 5.2.17, SQLite en
+memoria con `DJANGO_SYNCDB_PROJECT_APPS=True`. `mysqlclient` requiere override local a
+2.2.7 por disponibilidad de wheel en Windows; los requisitos versionados no cambian.
+
+Validación de la revisión: **146 tests OK** en `test_dispositivos_egreso`,
+`test_dispositivos_estadia_detalle`, `test_dispositivos_detalle` y
+`test_dispositivos_movimientos`, incluidas las dos regresiones antes rojas.
+`manage.py check`: sin incidencias; `compile_templates --bloques`: 231 templates,
+0 errores y 0 bloques sin destino; `design_audit --ratchet --base origin/development`:
+0 hallazgos nuevos; `--goldens`: 0 en 7; `check_design_agent --changed`: OK.
+Ruff: errores F en todo el repo y lint/formato de los 27 archivos Python existentes
+del diff, OK; `requerimientos.py --check` y `git diff --check`: OK.
 
 ---
 

@@ -233,7 +233,9 @@ def observar_dispositivo(dispositivo, usuario, motivo):
 
     motivo = (motivo or "").strip()
     if not motivo:
-        raise ValidationError("Indicá el motivo de la observación.")
+        # Con el campo nombrado: así el modal de P4 lo pinta bajo «Motivo» en vez de
+        # mandarlo a un aviso general. Sin JS, `error.messages[0]` sigue siendo el texto.
+        raise ValidationError({"motivo": "Indicá el motivo de la observación."})
     return _transicionar(
         dispositivo,
         usuario,
@@ -249,7 +251,7 @@ def rechazar_dispositivo(dispositivo, usuario, motivo):
 
     motivo = (motivo or "").strip()
     if not motivo:
-        raise ValidationError("Indicá el motivo del rechazo.")
+        raise ValidationError({"motivo": "Indicá el motivo del rechazo."})
     return _transicionar(
         dispositivo,
         usuario,

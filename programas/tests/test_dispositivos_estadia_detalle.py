@@ -21,7 +21,7 @@ Los usuarios de cada prueba tienen **todo menos la condición que se prueba**.
 import json
 import re
 from collections import Counter
-from datetime import timedelta
+from datetime import time, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -32,9 +32,10 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Estadia, MotivoEgreso, MovimientoEstadia, Plaza, Sector
+from programas.models import Estadia, MovimientoEstadia, Plaza, Sector
 from programas.selectors import estadia_detalle
 from programas.selectors.estadia_detalle import TOPE_EVENTOS, detalle_de_estadia
+from programas.services.bitacora import crear_turno
 from programas.services.estadias import cambiar_plaza, egresar_persona, ingresar_persona
 from programas.services.movimientos import registrar_movimiento
 from programas.tests.test_dispositivos_estadias import BaseEstadias
@@ -58,7 +59,7 @@ class BaseDetalle(BaseEstadias):
 
     def setUp(self):
         super().setUp()
-        self.alta = MotivoEgreso.objects.create(codigo="alta", nombre="Alta", orden=1)
+        self.alta = self.motivo_alta
         self.otro_sector = Sector.objects.create(dispositivo=self.cis, nombre="Mujeres", capacidad=2)
         self.plaza_otro_sector = Plaza.objects.create(sector=self.otro_sector, codigo="M1")
         self.operador = self._operador("Operador P7", self.cis, TODO)
@@ -214,6 +215,85 @@ class LineaDeTiempoTests(BaseDetalle):
         self.assertEqual(campos["Plaza"], "P2")
         self.assertEqual(campos["Desde"], timezone.localtime(cambio).strftime("%d/%m/%Y %H:%M"))
         self.assertEqual(respuesta.context["estadia"]["dias"], self.estadia.dias_de_permanencia())
+
+
+class TurnoEnLaLineaDeTiempoTests(BaseDetalle):
+    """El «cuándo» del mockup lleva el turno: «08/09 · 16:48 · turno Tarde · L. Méndez».
+
+    El turno no se guarda en el movimiento (Cambio 273): se deriva de `(dispositivo,
+    momento)` con `turno_vigente`, en hora local y sobre la lista de turnos ya cargada.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # Mañana 06-14 y Tarde 14-22; entre las 22 y las 06 no hay turno.
+        self.manana = crear_turno(
+            dispositivo=self.cis, usuario=self.operador, nombre="Mañana", hora_desde=time(6), hora_hasta=time(14)
+        )
+        self.tarde = crear_turno(
+            dispositivo=self.cis,
+            usuario=self.operador,
+            nombre="Tarde",
+            hora_desde=time(14),
+            hora_hasta=time(22),
+            orden=2,
+        )
+
+    def _a_las(self, hora, dias=2):
+        """Un instante **pasado**: hace `dias` días, a las `hora` y media, en hora local.
+
+        Nunca el segundo actual, y nunca futuro: con `dias >= 1` cualquier hora del día
+        ya pasó, así que el cambio no choca con «el cambio no puede ser futuro».
+        """
+
+        local = timezone.localtime(timezone.now() - timedelta(days=dias))
+        return local.replace(hour=hora, minute=30, second=0, microsecond=0)
+
+    def test_cada_evento_dice_en_que_turno_paso(self):
+        self._cambiar(self._a_las(16, dias=2), plaza=self.otra_plaza, motivo="Convivencia")
+        self._cambiar(self._a_las(9, dias=1), plaza=self.plaza, motivo="Salud")
+
+        respuesta = self._get()
+
+        eventos = respuesta.context["eventos"]
+        self.assertIn("turno Mañana", eventos[0]["cuando"], eventos[0]["cuando"])
+        self.assertIn("turno Tarde", eventos[1]["cuando"], eventos[1]["cuando"])
+        # Y en el orden del mockup: fecha · hora · turno · quién.
+        self.assertRegex(eventos[0]["cuando"], r"^\d{2}/\d{2}/\d{4} · \d{2}:\d{2} · turno Mañana · ")
+        self.assertContains(respuesta, "turno Mañana")
+
+    def test_la_tabla_de_movimientos_tiene_su_columna_de_turno(self):
+        self._cambiar(self._a_las(16, dias=2), plaza=self.otra_plaza, motivo="Convivencia")
+
+        respuesta = self._get(url=f"{self.url}?tab=movimientos")
+
+        turnos = [fila["turno"] for fila in respuesta.context["movimientos_page"]]
+        self.assertEqual(turnos[0], "Tarde")
+        self.assertContains(respuesta, '<th class="nodo-th">Turno</th>', html=True)
+
+    def test_un_momento_en_un_hueco_sin_turno_no_inventa_ninguno(self):
+        """Entre las 22 y las 06 no hay turno configurado: la línea va sin turno."""
+
+        self._cambiar(self._a_las(23, dias=2), plaza=self.otra_plaza, motivo="Madrugada")
+
+        respuesta = self._get()
+
+        cuando = respuesta.context["eventos"][0]["cuando"]
+        self.assertNotIn("turno", cuando, cuando)
+        self.assertEqual(respuesta.context["movimientos_page"][0]["turno"], "—")
+
+    def test_el_turno_no_cuesta_una_consulta_por_evento(self):
+        """La guarda de `turnos=`: con tres movimientos más, el mismo número de consultas."""
+
+        with CaptureQueriesContext(connection) as pocas:
+            detalle_de_estadia(self.estadia)
+        for numero, (hora, dias) in enumerate(((9, 2), (16, 2), (10, 1))):
+            self._cambiar(self._a_las(hora, dias=dias), plaza=(self.otra_plaza, self.plaza)[numero % 2])
+
+        with CaptureQueriesContext(connection) as muchas:
+            detalle_de_estadia(self.estadia)
+
+        self.assertEqual(len(muchas), len(pocas), "el turno de cada evento no puede costar una consulta")
 
 
 class CambioDePlazaPantallaTests(BaseDetalle):
@@ -428,13 +508,20 @@ class AccionesOcultasTests(BaseDetalle):
         self.assertContains(respuesta, "Egreso")
         self.assertNotContains(respuesta, privado)
 
-    def test_el_egreso_sin_motivo_del_catalogo_no_copia_las_observaciones_al_movimiento(self):
+    def test_el_movimiento_del_egreso_lleva_el_motivo_del_catalogo_y_no_las_observaciones(self):
+        """La línea de tiempo la lee todo el que opera el dispositivo: el texto libre del
+        egreso se queda en la estadía, que es donde lo protege `ciudadano.ver`."""
+
         egresar_persona(
-            estadia=self.estadia, usuario=self.operador, destino="Domicilio", motivo="Dato privado de la persona"
+            estadia=self.estadia,
+            usuario=self.operador,
+            destino="Domicilio",
+            motivo="Dato privado de la persona",
+            motivo_egreso=self.alta,
         )
 
         movimiento = self.estadia.movimientos.get(tipo=Tipo.EGRESO)
-        self.assertEqual(movimiento.motivo, "")
+        self.assertEqual(movimiento.motivo, "Alta")
         self.estadia.refresh_from_db()
         self.assertEqual(
             self.estadia.motivo_egreso, "Dato privado de la persona", "las observaciones siguen en la estadía"
@@ -504,6 +591,22 @@ class EgresoDesdeLaEstadiaTests(BaseDetalle):
 
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
         self.assertEqual(respuesta.json()["redirect"], self.url)
+
+    def test_egreso_en_el_mismo_minuto_del_cambio_de_plaza_desde_p7(self):
+        """P7 usa el mismo egreso, con `volver=estadia` y sin segundos en el input."""
+
+        ultimo = (timezone.now() - timedelta(hours=1)).replace(second=45, microsecond=0)
+        self._cambiar(ultimo)
+
+        respuesta = self._egresar(volver="estadia", fecha_egreso=timezone.localtime(ultimo).strftime(FORMATO))
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertTrue(respuesta.json()["ok"])
+        self.assertEqual(respuesta.json()["redirect"], self.url)
+        self.estadia.refresh_from_db()
+        self.assertEqual(self.estadia.estado, Estadia.Estado.EGRESADA)
+        self.assertEqual(self.estadia.fecha_egreso, ultimo)
+        self.assertEqual(self.estadia.movimientos.get(tipo=Tipo.EGRESO).momento, ultimo)
 
     def test_sin_volver_va_a_personas_alojadas_como_siempre(self):
         respuesta = self._egresar()

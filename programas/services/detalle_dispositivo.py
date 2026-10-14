@@ -49,6 +49,25 @@ POR_PAGINA_RELEVAMIENTOS = 10
 #: El tope que dibuja `components/_galeria_fotos.html`: la tanda se recorta acá, no en la pieza.
 FOTOS_POR_TANDA = 24
 
+#: Las solapas de P4, en el orden en que se dibujan. «Sectores y plazas» solo existe si el
+#: tipo del dispositivo maneja plazas: en los demás, `?tab=sectores` no lleva a ninguna parte.
+SOLAPAS = ("datos", "sectores", "estadias", "infraestructura", "historial")
+#: La que abre la pantalla, y a la que vuelven las acciones del encabezado.
+SOLAPA_POR_DEFECTO = "estadias"
+
+
+def normalizar_solapa(pedida, *, con_plazas):
+    """Qué solapa abre la pantalla: la de `?tab=` si existe para **este** dispositivo.
+
+    Lo ajeno cae en la de siempre. Sin esto, `?tab=sectores` en un tipo que no maneja
+    plazas —o cualquier valor inventado— dejaba la tarjeta entera en blanco: Alpine
+    guardaba el valor de la URL y ningún panel coincidía con él.
+    """
+
+    solapas = SOLAPAS if con_plazas else tuple(solapa for solapa in SOLAPAS if solapa != "sectores")
+    return pedida if pedida in solapas else SOLAPA_POR_DEFECTO
+
+
 #: Valores del filtro «Estado»: vacío = las alojadas (lo que se mira todo el día).
 FILTRO_ALOJADAS = ""
 FILTRO_EGRESADAS = Estadia.Estado.EGRESADA

@@ -1,10 +1,10 @@
 """Lo que muestra el detalle de la estadía (P7 · MVP v2, etapa 3 · #698).
 
 Lectura pura: no mira permisos ni decide nada del negocio. La vista resuelve quién puede
-ver la pantalla y qué acciones se ofrecen; acá se arma, en **tres consultas fijas** más
+ver la pantalla y qué acciones se ofrecen; acá se arma, en **cuatro consultas fijas** más
 las dos de la solapa Novedades, lo que se dibuja.
 
-`detalle_de_estadia` arma las tres fijas:
+`detalle_de_estadia` arma las cuatro fijas:
 
 1. Los movimientos de la estadía, de `programas.services.movimientos.linea_de_tiempo`
    —la única fuente de la línea de tiempo— con las plazas y sus sectores ya traídos. De
@@ -14,6 +14,9 @@ las dos de la solapa Novedades, lo que se dibuja.
 2. El total de las otras estadías de la persona y cuántas son anteriores a esta (el
    «Reingreso»), en un `aggregate`.
 3. Las últimas `TOPE_OTRAS` de esas otras estadías, solo si hay alguna.
+4. Los turnos activos del dispositivo, **una vez**: el turno de cada movimiento —el
+   «turno Tarde» del «cuándo» del mockup— lo resuelve `turno_vigente` en Python sobre
+   esa lista, sin una consulta por evento.
 
 Los movimientos se traen enteros a propósito: los de una estadía son operaciones
 (ingreso, cambios de plaza, egreso), no la bitácora, y el tramo en la plaza actual
@@ -57,8 +60,22 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from programas.models import EntradaBitacora, Estadia, MovimientoEstadia
+from programas.services.bitacora import turno_vigente, turnos_activos
 from programas.services.estadias import estado_visible
 from programas.services.movimientos import linea_de_tiempo, tramos_por_plaza
+
+#: Las solapas de P7 y la que abre la pantalla. La normalización es la misma que la de P4
+#: (`services.detalle_dispositivo.normalizar_solapa`) y por el mismo motivo: un `?tab=`
+#: que no existe dejaba la tarjeta entera en blanco.
+SOLAPAS = ("ficha", "movimientos", "novedades")
+SOLAPA_POR_DEFECTO = "ficha"
+
+
+def normalizar_solapa(pedida):
+    """La solapa de `?tab=` si existe; cualquier otra cosa, la de siempre."""
+
+    return pedida if pedida in SOLAPAS else SOLAPA_POR_DEFECTO
+
 
 #: La línea de tiempo llega recortada: la lista completa está en la solapa Movimientos.
 TOPE_EVENTOS = 10
@@ -106,6 +123,17 @@ def _duracion(delta):
     return f"{horas} h" if horas else "menos de 1 h"
 
 
+def _turno_de(dispositivo, momento, turnos):
+    """El nombre del turno en el que pasó algo, o cadena vacía si no hay ninguno.
+
+    Sobre la lista de turnos ya cargada y en hora local, que es lo que `turno_vigente`
+    resuelve: sin consulta por evento y sin un segundo lugar que calcule el turno.
+    """
+
+    situado = turno_vigente(dispositivo, momento, turnos=turnos)
+    return situado.turno.nombre if situado is not None else ""
+
+
 def _motivo_del_movimiento(movimiento, estadia):
     """El motivo que se puede mostrar.
 
@@ -137,20 +165,30 @@ def _detalle_del_movimiento(movimiento, estadia):
     return " · ".join(partes)
 
 
-def _evento(movimiento, estadia):
-    """Un movimiento en la forma de `components/_linea_tiempo.html`."""
+def _evento(movimiento, estadia, turno=""):
+    """Un movimiento en la forma de `components/_linea_tiempo.html`.
 
-    cuando = timezone.localtime(movimiento.momento).strftime("%d/%m/%Y · %H:%M")
+    El «cuándo» del mockup es «08/09 · 16:48 · turno Tarde · L. Méndez»: la fecha, la
+    hora, el turno en el que pasó y quién lo registró. Sin turno para ese momento —un
+    hueco entre turnos, o un dispositivo que todavía no los configuró— la línea va sin
+    turno, no con uno inventado.
+    """
+
+    partes = [timezone.localtime(movimiento.momento).strftime("%d/%m/%Y · %H:%M")]
+    if turno:
+        partes.append(f"turno {turno}")
     responsable = _nombre_de(movimiento.responsable)
+    if responsable:
+        partes.append(responsable)
     return {
-        "cuando": f"{cuando} · {responsable}" if responsable else cuando,
+        "cuando": " · ".join(partes),
         "titulo": movimiento.get_tipo_display(),
         "detalle": _detalle_del_movimiento(movimiento, estadia),
         "tono": _TONO_MOVIMIENTO.get(movimiento.tipo, ""),
     }
 
 
-def _fila_de_movimiento(movimiento, estadia):
+def _fila_de_movimiento(movimiento, estadia, turno=""):
     """Un movimiento como fila de la tabla de la solapa Movimientos."""
 
     if movimiento.tipo == Tipo.CAMBIO_SECTOR:
@@ -166,6 +204,7 @@ def _fila_de_movimiento(movimiento, estadia):
         plaza = _plaza(movimiento.plaza_destino, con_sector=True)
     return {
         "cuando": _fecha_hora(movimiento.momento),
+        "turno": turno or SIN_DATO,
         "tipo": movimiento.get_tipo_display(),
         "plaza": plaza,
         "motivo": _motivo_del_movimiento(movimiento, estadia) or SIN_DATO,
@@ -280,6 +319,10 @@ def detalle_de_estadia(estadia, momento=None):
     tramos = tramos_por_plaza(estadia, movimientos, momento)
     recientes = movimientos[::-1]
     dias = estadia.dias_de_permanencia(momento)
+    # Los turnos del dispositivo **una sola vez**, y el turno de cada movimiento resuelto
+    # en Python sobre esa lista: `turno_vigente` acepta los turnos ya cargados justamente
+    # para que nadie haga una consulta por evento.
+    turnos = turnos_activos(estadia.dispositivo)
 
     otras = Estadia.objects.filter(ciudadano_id=estadia.ciudadano_id).exclude(pk=estadia.pk)
     cuentas = otras.aggregate(
@@ -330,8 +373,14 @@ def detalle_de_estadia(estadia, momento=None):
         },
         "egreso": egreso,
         "secciones": secciones,
-        "eventos": [_evento(movimiento, estadia) for movimiento in recientes[:TOPE_EVENTOS]],
-        "movimientos": [_fila_de_movimiento(movimiento, estadia) for movimiento in recientes],
+        "eventos": [
+            _evento(movimiento, estadia, _turno_de(estadia.dispositivo, movimiento.momento, turnos))
+            for movimiento in recientes[:TOPE_EVENTOS]
+        ],
+        "movimientos": [
+            _fila_de_movimiento(movimiento, estadia, _turno_de(estadia.dispositivo, movimiento.momento, turnos))
+            for movimiento in recientes
+        ],
         "n_movimientos": len(movimientos),
         "hay_mas_eventos": len(movimientos) > TOPE_EVENTOS,
         "otras_estadias": otras_estadias,

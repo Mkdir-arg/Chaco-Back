@@ -43,6 +43,7 @@ from programas.models import (
     AsignacionDispositivo,
     Dispositivo,
     EntradaBitacora,
+    Estadia,
     Plaza,
     Programa,
     Sector,
@@ -186,6 +187,15 @@ class BasePantalla(TestCase):
     def _html(self, respuesta):
         return respuesta.content.decode()
 
+    def _manuales(self):
+        """Las novedades que carga un operador.
+
+        Los dos ingresos del terreno dejan su novedad automática (Cambio NNN): contar
+        `EntradaBitacora.objects` entero mezclaría las dos cosas.
+        """
+
+        return EntradaBitacora.objects.filter(origen=EntradaBitacora.Origen.MANUAL)
+
 
 class VerTests(BasePantalla):
     def test_con_ver_y_alcance_se_ve(self):
@@ -238,7 +248,7 @@ class CargarTests(BasePantalla):
         )
 
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
-        entrada = EntradaBitacora.objects.get()
+        entrada = self._manuales().get()
         self.assertEqual(entrada.turno, self.tarde)
         self.assertEqual(entrada.fecha_operativa, MIERCOLES)
         self.assertEqual(list(entrada.personas.all()), [self.estadia_ana])
@@ -249,7 +259,7 @@ class CargarTests(BasePantalla):
         respuesta = self._post("bitacora_novedad", {"tipo": "GENERAL", "texto": "Acta.", "adjuntos": [archivo]})
 
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
-        self.assertEqual(EntradaBitacora.objects.get().adjuntos.count(), 1)
+        self.assertEqual(self._manuales().get().adjuntos.count(), 1)
         self.assertContains(self._get(), "Adjuntos del turno")
 
     def test_sin_bitacora_no_se_ofrece_ni_se_carga(self):
@@ -262,7 +272,7 @@ class CargarTests(BasePantalla):
 
         respuesta = self._post("bitacora_novedad", {"tipo": "GENERAL", "texto": "Algo."}, usuario)
         self.assertEqual(respuesta.status_code, 403)
-        self.assertFalse(EntradaBitacora.objects.exists())
+        self.assertFalse(self._manuales().exists())
 
     def test_otra_institucion_no_carga(self):
         """Con `dispositivo.bitacora` en el programa, pero asignado al parador: lo frena el servicio."""
@@ -272,7 +282,7 @@ class CargarTests(BasePantalla):
         )
 
         self.assertEqual(respuesta.status_code, 403)
-        self.assertFalse(EntradaBitacora.objects.exists())
+        self.assertFalse(self._manuales().exists())
 
     def test_fuera_del_turno_en_curso_muestra_el_error_del_servicio(self):
         """La vista no repite la regla: el mensaje es el de `registrar_entrada`."""
@@ -285,7 +295,7 @@ class CargarTests(BasePantalla):
         self.assertIn(
             "Solo se cargan y corrigen novedades del turno en curso", " ".join(respuesta.json()["errors"]["momento"])
         )
-        self.assertFalse(EntradaBitacora.objects.exists())
+        self.assertFalse(self._manuales().exists())
 
     def test_fuera_del_turno_sin_ajax_vuelve_con_el_aviso(self):
         self.client.force_login(self.operador)
@@ -326,7 +336,7 @@ class CorregirTests(BasePantalla):
         self.assertIn("Versiones anteriores", html)
         self.assertIn("Versión 1, reemplazada.", html)
         self.assertIn("Discusion en comedor.", html)
-        self.assertEqual(EntradaBitacora.objects.count(), 2)
+        self.assertEqual(self._manuales().count(), 2)
 
     def test_sin_bitacora_no_corrige(self):
         usuario = self._usuario("Sin bitacora", self.cis, _sin("dispositivo.bitacora"))
@@ -337,7 +347,7 @@ class CorregirTests(BasePantalla):
         )
 
         self.assertEqual(respuesta.status_code, 403)
-        self.assertEqual(EntradaBitacora.objects.count(), 1)
+        self.assertEqual(self._manuales().count(), 1)
 
     def test_la_entrada_de_otro_dispositivo_no_se_corrige_desde_aca(self):
         operador_parador = self._usuario("Operador parador", self.parador)
@@ -350,7 +360,7 @@ class CorregirTests(BasePantalla):
 
         self.assertEqual(respuesta.status_code, 400)
         self.assertIn("no es de este dispositivo", " ".join(respuesta.json()["errors"]["entrada"]))
-        self.assertEqual(EntradaBitacora.objects.filter(dispositivo=self.parador).count(), 1)
+        self.assertEqual(self._manuales().filter(dispositivo=self.parador).count(), 1)
 
     def test_una_entrada_de_un_turno_terminado_no_se_corrige(self):
         """Más tarde, en la Noche: el error es el del servicio."""
@@ -581,7 +591,8 @@ class VersionesYDiasAnterioresTests(BasePantalla):
         html = self._html(self._get())
         horas = re.findall(r'<span class="w-12 flex-shrink-0 tabular-nums text-body-subtle">([^<]*)</span>', html)
 
-        self.assertEqual(horas, ["16:00", "15:30", "14:05"])
+        # 15:00 es la novedad automática del ingreso de Juan, que cae en este mismo turno.
+        self.assertEqual(horas, ["16:00", "15:30", "15:00", "14:05"])
 
 
 class PrivacidadTests(BasePantalla):
@@ -879,7 +890,16 @@ class NovedadesDeLaEstadiaTests(BasePantalla):
         self.assertIn("novedades_page=2", primera)
 
     def test_sin_novedades_muestra_el_estado_vacio(self):
-        self.assertIn("Sin novedades", self._html(self._p7(self.estadia_juan)))
+        """Una estadía cargada por fuera de los servicios: sin movimiento, sin novedad automática."""
+
+        sola = Estadia.objects.create(
+            ciudadano=Ciudadano.objects.create(dni="30555666", nombre="Sin", apellido="Novedades"),
+            dispositivo=self.cis,
+            fecha_ingreso=_local(MARTES, 9),
+            clave_alojamiento=Estadia.clave_para(Ciudadano.objects.get(dni="30555666")),
+        )
+
+        self.assertIn("Sin novedades", self._html(self._p7(sola)))
 
 
 @tag("performance")
