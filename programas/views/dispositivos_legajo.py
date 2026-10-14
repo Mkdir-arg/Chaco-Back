@@ -26,7 +26,13 @@ from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los i
     DispositivoProgramaPermissionMixin,
 )
 from programas.models import Dispositivo, Estadia, Plaza, TipoDispositivo
-from programas.selectors.estadia_detalle import detalle_de_estadia, novedades_de_estadia
+from programas.selectors.estadia_detalle import (
+    detalle_de_estadia,
+    novedades_de_estadia,
+)
+from programas.selectors.estadia_detalle import (
+    normalizar_solapa as normalizar_solapa_estadia,
+)
 from programas.services.detalle_dispositivo import (
     alertas_del_dispositivo,
     aviso_sin_ingresos,
@@ -36,6 +42,7 @@ from programas.services.detalle_dispositivo import (
     indicadores_de_plazas,
     infraestructura_del_dispositivo,
     normalizar_filtros,
+    normalizar_solapa,
     pildoras_de_estadias,
     sectores_del_censo,
 )
@@ -225,9 +232,13 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 if estadia.estado == Estadia.Estado.ACTIVA:
                     estadia.url_egresar = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
 
+        con_plazas = maneja_plazas(dispositivo)
         context.update(
             {
-                "maneja_plazas": maneja_plazas(dispositivo),
+                "maneja_plazas": con_plazas,
+                # La solapa abierta la resuelve el servidor y se la pasa a Alpine: una
+                # pedida que este dispositivo no tiene dejaba la tarjeta en blanco.
+                "tab": normalizar_solapa(get.get("tab", ""), con_plazas=con_plazas),
                 "aviso_sin_ingresos": aviso_sin_ingresos(dispositivo),
                 # Avisan y no bloquean: ninguna decide si un botón aparece o una acción
                 # procede. Son las mismas para todos; lo que depende de quién mira es el
@@ -293,8 +304,34 @@ class DispositivoUpdateView(DispositivoObjectPermissionMixin, UpdateView):
         return reverse("dispositivos:detalle", args=[self.object.pk])
 
 
+def errores_por_campo(error, campos):
+    """Lo que un servicio rechaza, en la forma `{campo: [mensajes]}` del arquetipo Modal.
+
+    Una clave que el modal no dibuja —o un `ValidationError` sin campo— va al error
+    general (`__all__`), que es el único lugar donde se puede mostrar sin perderla.
+    """
+
+    if not hasattr(error, "error_dict"):
+        return {"__all__": list(error.messages)}
+    errores = {}
+    for campo, mensajes in error.message_dict.items():
+        errores.setdefault(campo if campo in campos else "__all__", []).extend(mensajes)
+    return errores
+
+
 class DispositivoActionView(DispositivoProgramaPermissionMixin, View):
+    """Una acción del encabezado de P4. Solo POST; la regla vive en el servicio.
+
+    Las que piden un motivo (Observar, Rechazar) se envían desde un modal con `data-ajax`,
+    así que responden el contrato JSON del arquetipo: `{ok, redirect}` al guardar y, si el
+    servicio rechaza, **400 con el error en su campo** —`data-error="motivo"`— en vez de un
+    toast después de recargar la pantalla. Sin JS el formulario postea igual y el error
+    vuelve como mensaje: la vista no depende de que haya fetch.
+    """
+
     accion = None
+    #: Los campos que el modal de la acción dibuja y puede marcar con `data-error`.
+    campos_del_modal = ()
 
     def ejecutar(self, dispositivo, request):
         raise NotImplementedError
@@ -308,13 +345,19 @@ class DispositivoActionView(DispositivoProgramaPermissionMixin, View):
                     status=403,
                 )
             raise PermissionDenied
+        volver = reverse("dispositivos:detalle", args=[dispositivo.pk])
         try:
             self.ejecutar(dispositivo, request)
         except ValidationError as error:
+            if is_ajax(request):
+                errores = errores_por_campo(error, self.campos_del_modal)
+                return JsonResponse({"ok": False, "errors": errores}, status=400)
             messages.error(request, error.messages[0])
-        else:
-            messages.success(request, self.mensaje_exito)
-        return redirect("dispositivos:detalle", pk=dispositivo.pk)
+            return redirect(volver)
+        if is_ajax(request):
+            return ajax_redirect(request, volver, self.mensaje_exito)
+        messages.success(request, self.mensaje_exito)
+        return redirect(volver)
 
 
 class DispositivoEnviarValidacionView(DispositivoActionView):
@@ -336,6 +379,7 @@ class DispositivoValidarView(DispositivoActionView):
 class DispositivoObservarView(DispositivoActionView):
     capacidad_requerida = "dispositivo.validar"
     mensaje_exito = "Dispositivo observado."
+    campos_del_modal = ("motivo",)
 
     def ejecutar(self, dispositivo, request):
         observar_dispositivo(dispositivo, request.user, request.POST.get("motivo"))
@@ -344,6 +388,7 @@ class DispositivoObservarView(DispositivoActionView):
 class DispositivoRechazarView(DispositivoActionView):
     capacidad_requerida = "dispositivo.validar"
     mensaje_exito = "Dispositivo rechazado."
+    campos_del_modal = ("motivo",)
 
     def ejecutar(self, dispositivo, request):
         rechazar_dispositivo(dispositivo, request.user, request.POST.get("motivo"))
@@ -644,11 +689,7 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
         cerrada) va al error general, que es el único lugar donde el modal la puede mostrar.
         """
 
-        errores = {}
-        for campo, mensajes in error.message_dict.items():
-            destino = campo if campo in form.fields else "__all__"
-            errores.setdefault(destino, []).extend(mensajes)
-        return errores
+        return errores_por_campo(error, form.fields)
 
     @staticmethod
     def _rechazar(request, errores, volver):
@@ -727,6 +768,7 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         # paginadas y con su propio presupuesto (`dispositivos_estadia_novedades`). Se cargan
         # y se corrigen en la bitácora del turno (P10).
         context["novedades_page"] = novedades_de_estadia(estadia, self.request.GET.get("novedades_page"))
+        context["tab"] = normalizar_solapa_estadia(self.request.GET.get("tab", ""))
         context["url_bitacora"] = reverse("dispositivos:bitacora", args=[dispositivo.pk])
         url_volver = url_solapa_estadias(dispositivo.pk)
         context["url_volver"] = url_volver

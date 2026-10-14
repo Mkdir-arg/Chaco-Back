@@ -31,6 +31,20 @@ def _pk(objeto):
     return getattr(objeto, "pk", objeto)
 
 
+def _asignar_plaza(movimiento, campo, valor):
+    """Deja la plaza en el movimiento, y **con el objeto puesto** si quien llama lo tenía.
+
+    Asignar el id pierde la instancia, y leerla de vuelta —como hace la novedad
+    automática de la bitácora para nombrar la plaza— costaría una consulta adentro de la
+    transacción que aloja o mueve a alguien.
+    """
+
+    if valor is None or isinstance(valor, int):
+        setattr(movimiento, f"{campo}_id", valor)
+    else:
+        setattr(movimiento, campo, valor)
+
+
 def registrar_movimiento(
     *,
     estadia,
@@ -56,11 +70,11 @@ def registrar_movimiento(
         momento=momento,
         responsable=responsable,
         motivo=(motivo or "").strip(),
-        plaza_origen_id=_pk(plaza_origen),
-        plaza_destino_id=_pk(plaza_destino),
         estado_anterior=estado_anterior,
         estado_nuevo=estado_nuevo,
     )
+    _asignar_plaza(movimiento, "plaza_origen", plaza_origen)
+    _asignar_plaza(movimiento, "plaza_destino", plaza_destino)
     movimiento.save()
     return movimiento
 

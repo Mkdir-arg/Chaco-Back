@@ -27,7 +27,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from programas.models import Estadia, MotivoEgreso, TrazaDispositivo
-from programas.services.estadias import egresar_persona, ingresar_persona
+from programas.services.estadias import cambiar_plaza, egresar_persona, ingresar_persona
 from programas.services.ocupacion import ocupacion_de_plazas
 from programas.tests.test_dispositivos_estadias import BaseEstadias
 
@@ -38,7 +38,7 @@ TOKEN_CSRF = "a" * 32
 class BaseEgreso(BaseEstadias):
     def setUp(self):
         super().setUp()
-        self.alta = MotivoEgreso.objects.create(codigo="alta", nombre="Alta", orden=1)
+        self.alta = self.motivo_alta
         self.baja = MotivoEgreso.objects.create(codigo="viejo", nombre="Motivo viejo", activo=False)
         self.ingreso = timezone.now() - timedelta(days=2)
         self.estadia = ingresar_persona(
@@ -69,6 +69,31 @@ class EgresoServicioTests(BaseEgreso):
         self.assertTrue(self.estadia.pertenencias_devueltas)
         traza = TrazaDispositivo.objects.filter(dispositivo=self.cis, accion="ESTADIA_EGRESO").get()
         self.assertIn("motivo: Alta", traza.detalle)
+
+    def test_sin_motivo_del_catalogo_el_servicio_rechaza_el_egreso(self):
+        """La obligatoriedad vive en el servicio, no solo en `EgresoForm` (carril C3).
+
+        Era el pendiente del Cambio 269 y el mismo patrón que la revisión del Cambio 262
+        marcó como trampa: una regla que depende de que la vista se acuerde no es una
+        regla. El historial no puede perder la razón de un egreso.
+        """
+
+        with self.assertRaises(ValidationError) as error:
+            egresar_persona(estadia=self.estadia, usuario=self.operador_cis, destino="X")
+
+        self.assertIn("motivo", error.exception.message_dict)
+        self.estadia.refresh_from_db()
+        self.assertTrue(self.estadia.activa, "la estadía no se cierra")
+        self.assertFalse(self.estadia.movimientos.filter(tipo="EGRESO").exists())
+
+    def test_las_observaciones_libres_no_sustituyen_al_motivo(self):
+        """`motivo` es texto libre de observaciones y no es una opción del catálogo."""
+
+        with self.assertRaises(ValidationError):
+            egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo="Se fue por su cuenta")
+
+        self.estadia.refresh_from_db()
+        self.assertTrue(self.estadia.activa)
 
     def test_un_motivo_dado_de_baja_se_rechaza_y_no_cierra_nada(self):
         with self.assertRaises(ValidationError) as error:
@@ -147,6 +172,31 @@ class EgresoPantallaTests(BaseEgreso):
         self.estadia.refresh_from_db()
         self.assertTrue(self.estadia.activa)
 
+    def test_egreso_en_el_mismo_minuto_del_cambio_de_plaza_desde_p4(self):
+        """P4 envía solo el minuto: el egreso debe conservar el instante del último movimiento."""
+
+        ultimo = (timezone.now() - timedelta(hours=1)).replace(second=45, microsecond=0)
+        cambiar_plaza(
+            estadia=self.estadia,
+            plaza=self.otra_plaza,
+            usuario=self.operador_cis,
+            motivo="Convivencia",
+            momento=ultimo,
+        )
+
+        respuesta = self._post(fecha_egreso=timezone.localtime(ultimo).strftime(FORMATO))
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertTrue(respuesta.json()["ok"])
+        self.assertEqual(
+            respuesta.json()["redirect"], reverse("dispositivos:detalle", args=[self.cis.pk]) + "?tab=estadias"
+        )
+        self.estadia.refresh_from_db()
+        self.assertEqual(self.estadia.estado, Estadia.Estado.EGRESADA)
+        self.assertEqual(self.estadia.fecha_egreso, ultimo)
+        self.assertEqual(self.estadia.movimientos.get(tipo="EGRESO").momento, ultimo)
+        self.assertEqual(ocupacion_de_plazas(self.cis).de(self.cis).conteo.ocupadas, 0)
+
     def test_sin_csrf_no_egresa(self):
         self.cliente.cookies[settings.CSRF_COOKIE_NAME] = TOKEN_CSRF
         respuesta = self.cliente.post(self.url, {"motivo": self.alta.pk})
@@ -181,7 +231,7 @@ class EgresoPantallaTests(BaseEgreso):
         respuesta = self._post(fecha_egreso=antes)
 
         self.assertEqual(respuesta.status_code, 400)
-        self.assertIn("anterior al ingreso", respuesta.json()["errors"]["fecha_egreso"][0])
+        self.assertIn("anterior al último movimiento", respuesta.json()["errors"]["fecha_egreso"][0])
 
     def test_una_estadia_ya_cerrada_va_al_error_general(self):
         self.assertEqual(self._post().status_code, 200)

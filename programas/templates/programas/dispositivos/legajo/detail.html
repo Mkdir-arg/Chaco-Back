@@ -4,8 +4,9 @@
 
 {% block main-content %}
 {% url 'dispositivos:detalle' dispositivo.pk as url_detalle %}
+{# La solapa abierta la normaliza la vista (`normalizar_solapa`): una que este dispositivo no tiene cae en la de siempre #}
 <div x-data="{
-       tab: new URLSearchParams(window.location.search).get('tab') || 'estadias',
+       tab: '{{ tab }}',
        modalObservar: false,
        modalRechazar: false,
        modalEgreso: false,
@@ -356,10 +357,11 @@
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-observar-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Observar dispositivo" titulo_id="modal-observar-titulo" icono="fa-comment-dots" tono="warning" cerrar="modalObservar=false" %}
-      <form method="post" action="{% url 'dispositivos:observar' dispositivo.pk %}" class="flex flex-col flex-1 min-h-0">
+      <form method="post" action="{% url 'dispositivos:observar' dispositivo.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
             <label for="motivo-observar" class="block text-sm font-medium text-heading mb-1">Motivo <span class="text-fg-danger">*</span></label>
             <textarea name="motivo" id="motivo-observar" rows="3" required class="nodo-field"></textarea>
             <p class="mt-1 text-xs text-body-subtle">Indicá qué debe corregirse antes de reenviar.</p>
@@ -378,10 +380,11 @@
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-rechazar-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Rechazar dispositivo" titulo_id="modal-rechazar-titulo" icono="fa-ban" tono="danger" cerrar="modalRechazar=false" %}
-      <form method="post" action="{% url 'dispositivos:rechazar' dispositivo.pk %}" class="flex flex-col flex-1 min-h-0">
+      <form method="post" action="{% url 'dispositivos:rechazar' dispositivo.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
             <label for="motivo-rechazar" class="block text-sm font-medium text-heading mb-1">Motivo <span class="text-fg-danger">*</span></label>
             <textarea name="motivo" id="motivo-rechazar" rows="3" required class="nodo-field"></textarea>
             <p class="mt-1 text-xs text-body-subtle">Indicá el motivo del rechazo.</p>
