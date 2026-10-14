@@ -15,6 +15,8 @@ Las cifras
 * ``ocupadas`` — las plazas operativas con una estadía activa.
 * ``reservadas`` — las plazas operativas sin estadía activa y con una reserva o un
   préstamo vigente.
+* ``prestadas`` — el subconjunto de ``reservadas`` con préstamo vigente;
+  ``reservadas_sin_prestamo`` es la diferencia. El agregado se conserva para P4.
 * ``disponibles`` — ``operativas - ocupadas - reservadas``.
 
 Cada plaza se cuenta **una sola vez**, en el estado que le resuelve
@@ -126,7 +128,8 @@ class Conteo:
     """Las cifras de un ámbito —una plaza, un sector, un dispositivo o toda la red—.
 
     ``ocupadas`` y ``reservadas`` se reciben; ``operativas`` y ``disponibles`` se derivan
-    y por eso no pueden quedar desalineadas con ellas.
+    y por eso no pueden quedar desalineadas con ellas. ``prestadas`` desglosa el agregado
+    sin cambiar esa aritmética ni la completitud de las cifras originales.
     """
 
     totales: int = 0
@@ -135,6 +138,14 @@ class Conteo:
     ocupadas: int | None = None
     #: Plazas con reserva o préstamo vigente. ``None`` solo en un conteo armado a mano.
     reservadas: int | None = None
+    #: Desglose del agregado; un conteo manual sin desglose lo deja pendiente.
+    prestadas: int | None = None
+
+    @property
+    def reservadas_sin_prestamo(self) -> int | None:
+        if self.reservadas is None or self.prestadas is None:
+            return None
+        return self.reservadas - self.prestadas
 
     @property
     def operativas(self) -> int:
@@ -164,6 +175,7 @@ class Conteo:
             fuera_de_servicio=self.fuera_de_servicio + otro.fuera_de_servicio,
             ocupadas=_sumar(self.ocupadas, otro.ocupadas),
             reservadas=_sumar(self.reservadas, otro.reservadas),
+            prestadas=_sumar(self.prestadas, otro.prestadas),
         )
 
 
@@ -176,7 +188,7 @@ def _sumar_conteos(conteos) -> Conteo:
     :class:`Conteo` armado a mano al que le falta la cifra.
     """
 
-    total = Conteo(ocupadas=0, reservadas=0)
+    total = Conteo(ocupadas=0, reservadas=0, prestadas=0)
     for conteo in conteos:
         total = total + conteo
     return total
@@ -342,14 +354,19 @@ def _reservadas_por_sector(sector_ids, momento):
 
     La vigencia la define `ReservaPlaza.objects.vigentes()` y no se repite acá: es por
     tiempo, sin cron que apague nada, y sin ningún ``Trunc*``.
+    Devuelve ``{sector_id: (total_reservadas_o_prestadas, prestadas)}`` en la misma consulta.
     """
 
-    return _por_sector(
-        _reservas_que_cuentan(momento)
+    return {
+        fila["plaza__sector_id"]: (fila["cuantas"], fila["prestadas"])
+        for fila in _reservas_que_cuentan(momento)
         .filter(plaza__sector_id__in=sector_ids)
         .values("plaza__sector_id")
-        .annotate(cuantas=Count("plaza_id", distinct=True))
-    )
+        .annotate(
+            cuantas=Count("plaza_id", distinct=True),
+            prestadas=Count("plaza_id", filter=Q(tipo=ReservaPlaza.Tipo.PRESTAMO), distinct=True),
+        )
+    }
 
 
 def ocupacion_de_plazas(dispositivos, momento=None) -> Censo:
@@ -407,7 +424,8 @@ def ocupacion_de_plazas(dispositivos, momento=None) -> Censo:
                         # aparece en la agregación porque no tiene filas que agrupar, no
                         # porque falte el dato.
                         ocupadas=ocupadas.get(fila["id"], 0),
-                        reservadas=reservadas.get(fila["id"], 0),
+                        reservadas=reservadas.get(fila["id"], (0, 0))[0],
+                        prestadas=reservadas.get(fila["id"], (0, 0))[1],
                     ),
                 )
             )

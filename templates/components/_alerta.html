@@ -6,6 +6,8 @@ Contexto:
   tono          warning (por defecto) | danger | success | info.
   titulo        opcional, en negrita.
   texto         opcional, debajo del título.
+  contenido_template opcional, template propio incluido fuera del párrafo de texto.
+                Su contenido y sus selectores pertenecen al consumidor.
   role          por defecto «alert» en danger/warning y «status» en info/success.
                 `role=""` no es válido: pasá el que corresponda.
   icono         opcional, nombre Font Awesome sin prefijo (p. ej. «triangle-exclamation»).
@@ -23,20 +25,20 @@ Info no tiene par de tokens bg/border compilado: usa la nota informativa canóni
   <i class="fas fa-{% if icono %}{{ icono }} text-lg{% else %}circle-info{% endif %} flex-shrink-0" style="color:var(--text-fg-info)" aria-hidden="true"></i>
   <span{% if accion_url and accion_texto %} class="flex-1 min-w-0"{% endif %} style="font-size:12.5px; color:var(--text-body)">{% if titulo %}<strong class="text-heading">{{ titulo }}</strong>{% if texto %} {% endif %}{% endif %}{{ texto }}</span>{% if accion_url and accion_texto %}
   <a href="{{ accion_url }}" class="flex-shrink-0 text-sm font-medium underline text-fg-info">{{ accion_texto }}</a>
-  {% endif %}
+  {% endif %}{% if contenido_template %}{% include contenido_template %}{% endif %}
 </div>
 {% elif icono or accion_url and accion_texto %}
 <div class="flex items-start gap-3 rounded-lg {% if tono == 'danger' %}bg-danger-soft border border-danger-subtle{% elif tono == 'success' %}bg-success-soft border border-success-subtle{% else %}bg-warning-soft border border-warning-subtle{% endif %} p-4 text-sm" role="{% if role %}{{ role }}{% elif tono == 'success' %}status{% else %}alert{% endif %}">
   {% if icono %}<i class="fas fa-{{ icono }} text-lg flex-shrink-0 {% if tono == 'danger' %}text-fg-danger{% elif tono == 'success' %}text-fg-success{% else %}text-fg-warning{% endif %}" aria-hidden="true"></i>{% endif %}
   <div class="flex-1 min-w-0">
     {% if titulo %}<strong class="text-heading">{{ titulo }}</strong>{% endif %}
-    {% if texto %}<p class="text-body{% if titulo %} mt-1{% endif %}">{{ texto }}</p>{% endif %}
+    {% if texto %}<p class="text-body{% if titulo %} mt-1{% endif %}">{{ texto }}</p>{% endif %}{% if contenido_template %}{% include contenido_template %}{% endif %}
   </div>
   {% if accion_url and accion_texto %}<a href="{{ accion_url }}" class="flex-shrink-0 font-medium underline {% if tono == 'danger' %}text-fg-danger{% elif tono == 'success' %}text-fg-success{% else %}text-fg-warning{% endif %}">{{ accion_texto }}</a>{% endif %}
 </div>
 {% else %}
 <div class="rounded-lg {% if tono == 'danger' %}bg-danger-soft border border-danger-subtle{% elif tono == 'success' %}bg-success-soft border border-success-subtle{% else %}bg-warning-soft border border-warning-subtle{% endif %} p-4 text-sm" role="{% if role %}{{ role }}{% elif tono == 'success' %}status{% else %}alert{% endif %}">
   {% if titulo %}<strong class="text-heading">{{ titulo }}</strong>{% endif %}
-  {% if texto %}<p class="text-body{% if titulo %} mt-1{% endif %}">{{ texto }}</p>{% endif %}
+  {% if texto %}<p class="text-body{% if titulo %} mt-1{% endif %}">{{ texto }}</p>{% endif %}{% if contenido_template %}{% include contenido_template %}{% endif %}
 </div>
 {% endif %}

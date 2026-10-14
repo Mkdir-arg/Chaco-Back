@@ -18,8 +18,10 @@ La leyenda va una vez por pantalla, encima de las cards de sector; el mapa va de
 sector (header con título y bajada, cuerpo con la grilla).
 
 En P5, el encabezado usa `eyebrow=dispositivo.nombre` y su bajada muestra las cifras.
-Los resúmenes de página y sector nombran `Conteo.reservadas` como «reservadas o prestadas»:
-el censo agrupa ambos estados; la celda y la leyenda conservan su distinción individual.
+Los resúmenes de página y sector separan «reservada(s)» y «prestada(s)», con `pluralize`,
+desde `Conteo.reservadas_sin_prestamo` y `Conteo.prestadas`. Conservan los ceros, como el
+resto de la línea. `Conteo.reservadas` sigue siendo el agregado usado en P4; el desglose
+sale de la misma consulta de reservas y no aumenta el presupuesto del censo.
 
 | Parámetro | Efecto |
 |---|---|

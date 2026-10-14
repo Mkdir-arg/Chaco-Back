@@ -25,7 +25,7 @@ y `?plazas=`.{% endcomment %}
     {# ===== PageHeader ===== #}
     {% url 'dispositivos:detalle' dispositivo.pk as url_volver %}
     {% page_header titulo="Sectores y plazas" eyebrow=dispositivo.nombre volver_url=url_volver volver_label=dispositivo.nombre migas=migas %}
-      {% bajada %}{{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio · {{ totales.ocupadas }} ocupada{{ totales.ocupadas|pluralize }} · {{ totales.reservadas }} reservadas o prestadas · {{ totales.disponibles }} disponible{{ totales.disponibles|pluralize }}{% endbajada %}
+      {% bajada %}{{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio · {{ totales.ocupadas }} ocupada{{ totales.ocupadas|pluralize }} · {{ totales.reservadas }} reservada{{ totales.reservadas|pluralize }} · {{ totales.prestadas }} prestada{{ totales.prestadas|pluralize }} · {{ totales.disponibles }} disponible{{ totales.disponibles|pluralize }}{% endbajada %}
       {% if puede_configurar_plazas %}
       {# Enlaces y no botones: el modal lo arma el servidor con el parámetro GET, como los de P21 #}
       <a href="?sector=nuevo" class="btn-nodo btn-tertiary btn-sm btn-fit">
@@ -51,7 +51,7 @@ y `?plazas=`.{% endcomment %}
       <div class="px-5 py-4 border-b border-light flex items-start justify-between gap-3 flex-wrap">
         <div class="min-w-0">
           <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
-          <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio · {{ item.resumen.ocupadas }} ocupada{{ item.resumen.ocupadas|pluralize }} · {{ item.resumen.reservadas }} reservadas o prestadas · {{ item.resumen.disponibles }} disponible{{ item.resumen.disponibles|pluralize }}{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}{% if item.resumen.porcentaje is not None %} · {{ item.resumen.porcentaje }} %{% endif %}</p>
+          <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio · {{ item.resumen.ocupadas }} ocupada{{ item.resumen.ocupadas|pluralize }} · {{ item.resumen.reservadas }} reservada{{ item.resumen.reservadas|pluralize }} · {{ item.resumen.prestadas }} prestada{{ item.resumen.prestadas|pluralize }} · {{ item.resumen.disponibles }} disponible{{ item.resumen.disponibles|pluralize }}{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}{% if item.resumen.porcentaje is not None %} · {{ item.resumen.porcentaje }} %{% endif %}</p>
         </div>
         {% if puede_configurar_plazas %}
         <a href="?sector={{ item.sector.pk }}" class="btn-nodo btn-secondary btn-sm btn-fit">

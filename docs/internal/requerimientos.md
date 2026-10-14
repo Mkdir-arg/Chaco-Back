@@ -430,6 +430,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 300 | P4 en celular y DNI con separador de miles | Dispositivos · P2/P4/P5/P6/P7/P10/P16/P21 | `#ui` `#textos` | Juez — carril FD | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 301 | Correcciones menores de fidelidad FA–FD | Dispositivos · P4/P5/P6/P7/P10/P16 | `#ui` `#rbac` `#performance` `#textos` | Juez — carril FE | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 302 | Segunda pasada de fidelidad del MVP: instituciones y tablas compartidas | Dispositivos · P2/P3/P4/P5 · tablas transversales | `#ui` `#textos` `#performance` | PM / juez — carril FF | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 303 | Separar reservas y préstamos y corregir el contenido de duplicados | Dispositivos · P3/P5 | `#ui` `#textos` `#performance` | PM / juez — carril FG | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -39599,5 +39600,157 @@ datos; regresan la presentación anterior y las consultas anticipadas del mapa d
 ## Historial
 
 Entrada nueva y única de FF. No se modifican entradas anteriores.
+
+---
+
+---
+
+# Cambio 303 — Separar reservas y préstamos y corregir el contenido de duplicados
+
+🟢 **HECHO — 14/10/2026** · Carril FG · el juez asigna el número definitivo.
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · sectores y plazas (P5) · alta institucional (P3) |
+| **Etiquetas** | `#ui` `#textos` `#performance` |
+| **Solicitante** | PM / juez — encargo directo de implementación, dos MINOR de FF |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Sin issue nuevo · Épica #127 · continuación de FF, PR #867 |
+| **Partes afectadas** | Ocupación, resúmenes de P5, contenido dinámico de duplicados en P3, alerta canónica, tests y fichas |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Separar «reservadas» y «prestadas» en los dos resúmenes de P5, con singular/plural y
+sin consultas extra. Corregir el JS de duplicados de P3: selectores propios, lista
+fuera de un párrafo y errores registrados en consola. Mantener la lógica y la apariencia.
+
+## Alcance acordado
+
+Solo este worktree `mvp-fg`, rama `fix/mvp-fidelidad-fg`. Dos correcciones de FF,
+tests y una entrada nueva. Sin roles, seeds, migraciones, pantallas ajenas ni PR.
+P4 conserva su métrica agregada. Código y documentación en commits separados.
+
+## Decisiones tomadas
+
+1. `estado_de_plazas` ya distingue reserva y préstamo, pero `Conteo.reservadas`
+   es el agregado de ambos. Se conserva ese contrato para P4 y disponibilidad;
+   `Conteo.prestadas` cuenta el subconjunto de préstamos y
+   `reservadas_sin_prestamo` deriva la diferencia. La misma consulta agrega un
+   `Count` filtrado por tipo: tres consultas fijas, sin aumentar presupuestos.
+   El desglose se suma por sector, institución y red. Si un conteo manual no
+   proporciona el desglose, se conserva `None` y no se inventa un cero.
+2. P5 usa el desglose en el encabezado y en cada sector, con `pluralize`.
+   Conserva cifras en cero porque el resto de ambas líneas también las muestra.
+   No cambia el mapa, los estados, las acciones ni la métrica de P4.
+3. P3 conserva el aviso canónico `warning`, visible solo en alta. Como la alerta
+   no ofrecía contenido propio, se incorpora `contenido_template`, una extensión
+   opcional para implementar el contenedor pedido dentro de la alerta. El parcial
+   de dominio contiene el mensaje y un `div` para la lista; el JS solo usa sus
+   selectores `data-*`. Ningún consumidor sin ese parámetro cambia su estructura.
+   La ficha documenta el contrato y el test de la pieza cubre sus tres ramas.
+4. La lista usa `textContent` y se inserta en ese `div`, fuera de todo `p`.
+   Los dos `.catch()` registran `console.error` y conservan sus respuestas visibles.
+   La búsqueda, el bloqueo de código repetido y la confirmación blanda no cambian.
+
+### Plan de pantalla
+
+```text
+Tipo: A (P3/P5 existentes) + C (contenido propio de alerta, pedido por el encargo)
+P3: Formulario · referencia: programas/templates/programas/becas/config/segmento_form.html
+P5: Detalle apilado · referencia: programas/templates/programas/becas/cupo/segmento_detail.html
+Rutas finales: dispositivos:crear, dispositivos:editar y dispositivos:sectores
+Templates: legajo/form.html + legajo/_duplicados.html; sectores/sectores.html
+Clasificación: page_header, alerta, field, form_errores, botones y mapa = Canónico reutilizable
+P3: misma alerta bajo el encabezado; contenido de dominio con mensaje y lista hermanos
+P5: mismas surfaces; dos líneas de resumen con el desglose del servicio único
+Assets: includes/base.html y sus CSS/JS; P3 conserva SweetAlert2; sin assets nuevos
+Extensión acotada: contenido_template para el contenedor solicitado; sin novedades visuales
+Fichas: componentes/alerta.md y componentes/mapa_plazas.md en el mismo diff
+```
+
+### Apartamientos del mockup
+
+- P5 mantiene el orden y las otras cifras de sus líneas actuales, incluidos ceros
+  y disponibilidad. El recorte solo separa reservas y préstamos y ajusta su concordancia.
+- P3 mantiene el aviso en el flujo, sin la columna lateral del mockup. No agrega
+  cercanía de domicilios, procedencia, checklist, campos sin fuente ni Enviar a
+  validación: son apartamientos previos de FF, fuera de estos dos MINOR.
+- El contenedor propio requiere la extensión opcional de la alerta descrita arriba;
+  la caja, los textos dinámicos, las clases y el rol se conservan.
+
+## Implementación
+
+P5 muestra «1 reservada · 1 prestada» y «2 reservadas · 2 prestadas» a partir del
+servicio único. P3 actualiza su propio contenido sin inspeccionar `strong` ni `p`
+de la pieza compartida y sin insertar una lista dentro de un párrafo.
+
+## Archivos
+
+- `programas/services/ocupacion.py`, `programas/services/sectores_plazas.py`.
+- `programas/templates/programas/dispositivos/sectores/sectores.html`.
+- `programas/templates/programas/dispositivos/legajo/form.html`, `_duplicados.html`.
+- `templates/components/_alerta.html` y su ficha `componentes/alerta.md`.
+- `.claude/design/componentes/mapa_plazas.md`.
+- `programas/tests/test_dispositivos_fidelidad_ff.py`, `test_dispositivos_fidelidad_fg.py`,
+  `test_dispositivos_ingreso.py` (invariantes mapa/resumen adaptados al desglose).
+- `core/tests/test_nodo_ui_piezas.py` y este registro.
+
+## Base de datos
+
+No requiere migración ni cambios de datos. El préstamo se cuenta en la agregación
+existente usando el tipo ya almacenado en `ReservaPlaza`.
+
+## Validación
+
+- Primera corrida: 26 tests de FF, FG y alerta en verde.
+- 21 mutaciones detectadas, restauradas desde copias: tipo y descuento del préstamo;
+  dos guardas de datos desconocidos, default manual, suma y propagación de `None`,
+  vacío conocido, consulta extra; cuatro plurales (página/sector, reserva/préstamo);
+  lista dentro de `p`, dos selectores internos, tres ramas del contenido opcional y
+  los dos logs de error. Todas producen rojo con su test correspondiente.
+- La mutación del plural reveló que buscar «1 prestada» también encontraba
+  «1 prestadas». El test exige ahora el separador siguiente; las cuatro mutaciones
+  de concordancia se detectan.
+- Regresión: 245 tests de FF, FG, ocupación, sectores, acciones de plazas, legajo,
+  arquitectura y piezas canónicas en verde (un test opcional de Playwright omitido).
+  También pasan los consumidores P4/listado; se actualiza el test de ingreso que
+  esperaba el agregado en P5, conservando la igualdad mapa/resumen y la suma total.
+  Corrida final de ingreso + FF/FG: 46 tests en verde.
+- Performance: 28 tests de `--tag performance programas` en verde; el desglose con
+  préstamos mantiene el techo existente de tres consultas. `check_perf_budgets.py`
+  confirma que ningún presupuesto sube.
+- `manage.py check` OK; `makemigrations --check --dry-run` con syncdb desactivado,
+  sin cambios; `check_migraciones.py`, sin migraciones nuevas.
+- `compile_templates.py`: 233 compilados, cero errores; arquetipos Formulario (P3)
+  y Detalle apilado (P5) OK; ratchet contra `origin/development`: cero hallazgos
+  nuevos; siete goldens OK. Tailwind reconstruido, sin diff de CSS.
+- Snapshots de Becas regenerados con `ACTUALIZAR_SNAPSHOTS_DETALLE=1` y diff revisado:
+  sin cambios. La extensión opcional conserva incluso el whitespace anterior si
+  no se usa. Corrida final de snapshots + alerta: 19 tests en verde.
+- Ruff check y format sobre `programas/ core/ users/` OK (503 archivos ya formateados),
+  con el venv indicado. `requerimientos.py --check` OK para las entradas numeradas;
+  `303` queda como marcador del juez, con una única cabecera y una única fila nuevas.
+- Después de los commits: `check_design_agent.py --changed` y
+  `--limites --base origin/development` OK. Rama rebasada sobre el merge de FF.
+
+## Puesta en marcha en el servidor
+
+No requiere más que el deploy habitual. No hay nuevos assets, variables ni comandos.
+
+## Pendientes / a definir
+
+El juez asigna el número definitivo a `303`. Sin pendientes funcionales dentro del
+recorte; los apartamientos previos de P3 siguen fuera de alcance. FF ya mergeó:
+la rama se rebasa sobre `origin/development` antes del push, sin abrir PR.
+
+## Reversión
+
+Revertir los commits FG de código y documentación. No modificar la base ni bajar
+migraciones; vuelven el resumen agregado de P5 y la inserción anterior de duplicados.
+
+## Historial
+
+Entrada nueva y única de FG. Las entradas anteriores se conservan.
 
 ---
