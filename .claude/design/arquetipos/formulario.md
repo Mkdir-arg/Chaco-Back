@@ -57,6 +57,12 @@ desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los 
   Puede sumar «Enviar a validación» si existe la transición, con su capacidad y alcance,
   guardando y enviando en una transacción del POST actual. En edición dice «Guardar cambios».
   Cuando está disponible el envío, Guardar es `btn-secondary` y Enviar es `btn-brand`;
+  con JS, Enviar queda `disabled` mientras el resumen indique campos faltantes y se
+  habilita al completarlos. Sin JS queda habilitado: siempre valida el servidor.
+  En alta, el header de duplicados incluye `badge badge-warning` con la cantidad
+  de coincidencias visibles, actualizada por la búsqueda existente (sin revelar ajenas).
+  Un código duplicado bloquea el envío y lleva su aviso a la vista y al foco;
+  el contenedor es enfocable con `tabindex="-1"` y conserva la alerta canónica.
   sin envío, Guardar conserva `btn-brand`. Campos en `sm:grid-cols-2`, nombre y textarea
   de ancho completo mediante `wrapper_class="sm:col-span-2"` del campo canónico.
   Evidencia: `programas/templates/programas/dispositivos/legajo/form.html` (P3).

@@ -25,6 +25,10 @@ Siempre **`btn-nodo` + variante + tamaño**.
 - Deshabilitado: `disabled` en `<button>`; en un `<a>`, `aria-disabled="true"` (mismo aspecto que
   `:disabled` pero sigue alcanzable por teclado para anunciar su `aria-describedby`). El bloqueo
   del click va en el handler.
+- El submit `btn-brand:disabled` conserva fondo y texto grises canónicos. La regla automática
+  de `static/custom/css/nodo-brand.css` para submits excluye `:disabled` (también en hover y
+  foco): su especificidad superaba al estado de `nodo-buttons.css` y dejaba el gradiente visible.
+  El puente sigue clasificado como Duplicado o conflictivo; no se copia ni se extiende a UI nueva.
 - `btn-tertiary.btn-back-circle` es el botón circular de volver: lo pone `{% page_header %}`, no
   se escribe a mano.
 - **Área táctil:** `@media (pointer: coarse)` lleva `.btn-nodo` y `.nodo-icon-btn` a 44 px de mínimo. Con
