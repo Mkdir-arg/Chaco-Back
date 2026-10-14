@@ -426,6 +426,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 297 | Fidelidad de bitácora, trayectoria e instituciones | Dispositivos · P10, P16 y P2 | `#ui` `#rbac` `#performance` | Juez — carril FC de fidelidad del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 298 | Fidelidad del detalle del dispositivo y su Infraestructura | Dispositivos · P2/P4/P19 | `#ui` `#rbac` `#gps` `#performance` | Juez — carril FB | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 299 | Fidelidad del mapa de plazas y del asistente de ingreso | Dispositivos · sectores, plazas e ingreso | `#ui` `#rbac` `#performance` | Juez — carril FA del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 300 | P4 en celular y DNI con separador de miles | Dispositivos · P2/P4/P5/P6/P7/P10/P16/P21 | `#ui` `#textos` | Juez — carril FD | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -38896,5 +38897,204 @@ desaplicar. Se vuelve al mapa sin identidades y al armado previo del asistente.
 Entrada nueva; numeración final a cargo del juez.
 14/10/2026: revisión independiente — se corrigen el estado repetido, el vencimiento
 demasiado largo y el pie móvil de P6. El porcentaje sobre operativas se conserva.
+
+---
+
+---
+
+# Cambio 300 — P4 en celular y DNI con separador de miles
+
+🟢 **HECHO — 14/10/2026** · Carril FD · número definitivo a cargo del juez.
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle, estadía, ingreso y trayectoria ciudadana |
+| **Etiquetas** | `#ui` `#textos` |
+| **Solicitante** | Juez — encargo directo del carril FD, revisión de fidelidad del MVP |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Sin issue nuevo · Épica #127 |
+| **Partes afectadas** | Backoffice: tabla canónica, P4, P6, P7 y P16; verificación responsive de P5, P10, P21 y P2 |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«P4 se desborda horizontalmente a 390 px. Reproducirlo con SQLite, datos ficticios,
+runserver y Playwright; medir todas las solapas con alertas, corregir con el canon y
+verificar P5, P7, P10, P21 y P2. Mostrar DNI con separador de miles en las pantallas
+MVP de Dispositivos, solo en presentación.»
+
+## Alcance acordado
+
+Contener el scroll de las tablas dentro de su wrapper, conservar las acciones, ARIA,
+solapas y lógica existentes, y compartir un único filtro de DNI. Incluye el DNI que P7
+recibe dentro de los campos de Datos personales, además de la bajada del encabezado.
+No modifica modelos, servicios de dominio, autorización, roles, seed, controles,
+búsquedas, exportaciones ni documentos guardados. Sin pantallas nuevas, migraciones o PR.
+
+## Decisiones tomadas
+
+- **Se corrige la causa en la tabla canónica.** Las tablas de P4, P21 y P2 ya tenían
+  `overflow-x-auto`. El rótulo `sr-only` «Acciones» quedaba en posición absoluta sin
+  contexto en su celda y ampliaba el scroll del documento aun con la tabla recortada.
+  `.nodo-th` ahora establece `position: relative`: el rótulo queda dentro del scroll
+  de la tabla. Se conserva el nombre accesible de la columna. No se agregan wrappers,
+  clases ni CSS de pantalla, ni se cambia el CSS responsive conflictivo del shell.
+- **Lo que ya responde bien se conserva.** Con alertas de reserva vencida, relevamiento
+  vencido y plazas fuera de servicio visibles, el encabezado envuelve acciones, las
+  solapas envuelven y los indicadores y la ubicación no desbordan. P5, P7 y P10 ya
+  cumplen el ancho pedido. Datos usa el `break-words` existente en su `<dl>` para que
+  el email largo se lea completo dentro de la columna en celular, sin recortarlo.
+- **Un único filtro de presentación.** `nodo_ui.dni` agrupa dígitos ASCII con puntos,
+  independiente del locale y sin convertirlos a entero: conserva ceros iniciales.
+  `None`, vacío y valores no numéricos se devuelven tal cual y mantienen el escapado
+  del template. La investigación no encontró otro formateador de DNI en Legajos:
+  sus superficies mostraban el valor crudo; no se reutiliza el normalizador de entrada.
+- **También dentro de la ficha.** `_ficha_seccion.html` aplica el mismo filtro cuando
+  la etiqueta del campo es «DNI»; conserva la representación de los demás valores y
+  no modifica el contexto. Evita importar presentación desde un selector o convertir
+  el documento usado para búsquedas y comparaciones.
+- **Formularios sin cambios.** El test de P6 recorre buscar → elegir plaza → confirmar:
+  busca `12345678`, muestra `12.345.678` y conserva `12345678` en el ciudadano guardado.
+  Las expectativas de texto de los tests de dos pestañas se actualizan al formato visible;
+  mantienen sus verificaciones de sesión, identidad y plaza.
+
+**Plan de pantalla.**
+
+```
+Tipo: A (ajustes en pantallas existentes) + C (tabla y ficha canónicas existentes)
+Arquetipos: Detalle con solapas (P4/P7), Detalle apilado (P16), Wizard (P6), Listado (P2/P21 verificados)
+Goldens: becas/cupo/segmento_detail.html · dispositivos/estadia/revision_referencia.html ·
+         configuracion/programa_wizard_paso4.html · becas/revision/personas_list.html
+Rutas finales: dispositivos/legajo/detail.html · ingreso/paso_plaza.html y paso_confirmar.html ·
+               estadia/detalle.html · legajos/solapas/dispositivos.html
+Clasificación: tabla, page_header, tabs, alerta, stat_card, ficha y ubicación = Canónico reutilizable
+Assets: los cargados por includes/base.html; corrección en nodo-tables.css, sin tocar el shell
+Bloques: tabla = mismo wrapper overflow-x-auto y th con contexto de posición ·
+         Datos = break-words en el dl para email largo ·
+         DNI = filtro único en texto visible, incluida la golden de Revisión y Datos personales
+Novedades: solo el filtro de DNI autorizado explícitamente por el encargo; ninguna clase/include/variante nueva
+Fichas: componentes/tabla.md · componentes/ficha_timeline.md · arquetipos/revision.md
+```
+
+## Implementación
+
+A 390 px, todas las solapas de P4 y las cinco pantallas adicionales mantienen el ancho
+de la página; las tablas se desplazan dentro de su contenedor. El DNI visible usa puntos
+en P4, P6, P7, P16 y la golden de Revisión, incluyendo los campos de la ficha compartida.
+El formato no afecta el valor almacenado ni la operación del ingreso.
+
+**Apartamientos del mockup.** No se agregan apartamientos funcionales ni datos ficticios
+al producto. El mockup no define una composición a 390 px: se mantiene el responsive del
+canon, con envoltura de acciones y solapas y scroll interno de tabla. P5, P10, P21 y P2
+se verifican sin editar sus templates. Se conservan los apartamientos previos por falta
+de datos o servicios; este carril no dibuja controles adicionales.
+
+## Archivos
+
+- `static/custom/css/nodo-tables.css`; `core/templatetags/nodo_ui.py`.
+- `templates/components/_ficha_seccion.html`.
+- `programas/templates/programas/dispositivos/legajo/detail.html`,
+  `ingreso/paso_plaza.html`, `ingreso/paso_confirmar.html`,
+  `estadia/detalle.html`, `estadia/revision_referencia.html`.
+- `legajos/templates/legajos/solapas/dispositivos.html`.
+- `core/tests/test_dni_presentacion.py`, `core/tests/test_nodo_ui_piezas.py`,
+  `programas/tests/test_dispositivos_fidelidad_fd.py`,
+  `test_dispositivos_estadia_detalle.py`, `test_dispositivos_ingreso.py`.
+- Las tres fichas del Plan y esta entrada nueva con su fila del índice.
+
+## Base de datos
+
+No requiere. Las reproducciones usan una SQLite descartable en el directorio temporal
+fuera del repo y las pruebas Django usan su base de tests. Sin datos reales ni cambios
+a otro worktree o al checkout principal.
+
+## Validación
+
+**Reproducción antes/después.** Chromium mediante Playwright instalado en un venv temporal
+fuera del repo; app real con `runserver 127.0.0.1:8934`, SQLite y datos ficticios. Operador
+administrador de prueba para mostrar todas las acciones; dispositivo activo, plaza ocupada,
+reserva vencida, plaza fuera de servicio, edificio con relevamiento vencido, coordenadas y
+email largo. Alertas visibles en todas las solapas de P4. La tabla registra
+`document.documentElement.scrollWidth / window.innerWidth` (px).
+
+| Pantalla / solapa | Antes, 390 px | Después, 390 px | Antes → después, 1440 px |
+|---|---|---|---|
+| P4 · Datos | 390 / 390 | 390 / 390 | 1440 / 1440 → 1440 / 1440 |
+| P4 · Sectores y plazas | 390 / 390 | 390 / 390 | 1440 / 1440 → 1440 / 1440 |
+| P4 · Estadías | **643 / 390** | **390 / 390** | 1440 / 1440 → 1440 / 1440 |
+| P4 · Infraestructura | 390 / 390 | 390 / 390 | 1440 / 1440 → 1440 / 1440 |
+| P4 · Historial | 390 / 390 | 390 / 390 | 1440 / 1440 → 1440 / 1440 |
+| P5 · Sectores y plazas | 390 / 390 | 390 / 390 | 1440 / 1440 → 1440 / 1440 |
+| P7 · Estadía | 390 / 390 | 390 / 390 | 1440 / 1440 → 1440 / 1440 |
+| P10 · Bitácora | 390 / 390 | 390 / 390 | 1440 / 1440 → 1440 / 1440 |
+| P21 · Relevamientos | **676 / 390** | **390 / 390** | 1440 / 1440 → 1440 / 1440 |
+| P2 · Instituciones | **693 / 390** | **390 / 390** | 1440 / 1440 → 1440 / 1440 |
+
+Comparación de capturas a 1440 px, con animaciones desactivadas: quitar/reponer
+solo la corrección de posición de la tabla produce **cero píxeles de diferencia**
+en las diez vistas. El cambio de DNI visible es el ajuste de texto pedido.
+
+La regresión permanente `DispositivosResponsiveFDTests` sirve la app y sus assets con
+`StaticLiveServerTestCase`, fija el reloj al 14/10/2026 12:00 UTC, mantiene alertas visibles
+y también verifica que una tabla ancha pueda desplazarse sin ampliar la página.
+El pase de navegador se activa con `CHACO_PLAYWRIGHT=1`; se ejecutó localmente, con el
+site-packages del venv temporal en `PYTHONPATH`. No añade una dependencia productiva.
+
+**Gates.** `manage.py check`, `makemigrations --check --dry-run` con syncdb apagado,
+`check_migraciones`, `compile_templates`, auditorías de Detalle/Revisión/Wizard final,
+ratchet contra `origin/development`, goldens, build de Tailwind, ruff y presupuestos
+pasan. Tailwind se reconstruye sin diff. Los snapshots de Becas se regeneran con
+`ACTUALIZAR_SNAPSHOTS_DETALLE=1`: sin cambios de snapshots.
+
+La auditoría individual de P6/Plaza señala dos marcadores preexistentes: falta
+`_form_errores.html` y `_field.html` queda fuera del orden esperado para el wizard final.
+Se conserva el paso existente (solo cambia el DNI visible); el ratchet no incorpora
+hallazgos nuevos. No se agregan marcadores ficticios para silenciar el gate.
+
+Regresiones por módulo: arquitectura, detalle de dispositivo, detalle de estadía,
+ingreso, egreso, fidelidad FB, infraestructura, sectores, capacidad, bitácora y su
+pantalla, inspecciones, legajo, listado de relevamientos y solapa ciudadana. También
+`core.tests.test_nodo_ui_piezas`, filtro DNI y `--tag performance programas`.
+
+**Mutaciones (romper → rojo → restaurar desde copia → verde).**
+
+- Quitar el contexto de posición de `.nodo-th`: P4/Estadías, P21 y P2 vuelven a
+  643/676/693 px; la regresión de navegador da rojo. El test de la pieza, en modo
+  estándar de HTML como el shell real, también da rojo (1447 ≠ 390).
+- Quitar `break-words` de Datos: la medición de los rectángulos del texto detecta
+  el email recortado fuera de su columna y da rojo.
+- Quitar los puntos del filtro: 7 y 8 dígitos y la integración de templates dan rojo.
+- Devolver vacío en lugar del valor inválido: `None`, no numéricos y escapado dan rojo.
+- Convertir a entero antes de agrupar: la conservación de ceros iniciales da rojo.
+- Aceptar dígitos Unicode sin exigir ASCII: los valores no numéricos admitidos por el
+  contrato dejan de preservarse y el test da rojo.
+- Quitar el filtro de cada uno de los seis templates de pantalla/golden: sus tests
+  de presentación dan rojo, uno por uno.
+- Quitar el filtro dentro de `_ficha_seccion`: el test de la pieza y P7 dan rojo.
+
+Cada mutación se restaura desde una copia de bytes, sin `git checkout` ni stash.
+
+## Puesta en marcha en el servidor
+
+No requiere setup, seeds, cron ni migraciones. Publicar con el procedimiento habitual
+de la aplicación y servir el CSS actualizado de la tabla.
+
+## Pendientes / a definir
+
+- El juez asigna el número definitivo al marcador 300 de esta entrada y su fila.
+- Los dos marcadores preexistentes del paso P6/Plaza quedan documentados para el carril
+  que revise ese wizard; no afectan la medición responsive ni el formato del DNI.
+- El pase de navegador requiere Playwright/Chromium y `CHACO_PLAYWRIGHT=1`; sin esa
+  activación se omiten esos dos tests, y los tests de DNI/presentación siguen ejecutándose.
+
+## Reversión
+
+Revertir los commits FD de código y documentación. No bajar migraciones ni modificar
+datos: el DNI vuelve a mostrarse sin puntos y se pierde la contención del rótulo de la tabla.
+
+## Historial
+
+Entrada nueva y única del carril FD, apilado sobre `feat/mvp-fidelidad-fb`; no modifica
+entradas anteriores. Sin PR; entrega por push de `feat/mvp-fidelidad-fd`.
 
 ---
