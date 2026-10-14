@@ -464,16 +464,17 @@ class PresupuestosTests(BaseInfraestructura):
     def test_la_solapa_cuesta_lo_mismo_con_uno_que_con_muchos_relevamientos(self):
         self._relevar(self.predio, Criticidad.MEDIA, fotos=("fachada",))
         with CaptureQueriesContext(connection) as uno:
-            infraestructura_del_dispositivo(self.parador)
+            infraestructura_del_dispositivo(self.parador, usuario=self._fresco(self.admin))
 
         self.edificio_cis.dispositivos.add(self.parador)
         for dias in range(1, 7):
             self._relevar(self.predio, Criticidad.BAJA, fotos=("fachada", "patio", "techo"), dias_atras=dias)
         self._relevar(self.edificio_cis, Criticidad.ALTA, fotos=("cocina",))
         with CaptureQueriesContext(connection) as muchos:
-            infra = infraestructura_del_dispositivo(self.parador)
+            infra = infraestructura_del_dispositivo(self.parador, usuario=self._fresco(self.admin))
 
         self.assertEqual(len(infra["eventos"]), 8)
+        self.assertTrue(all(edificio["instituciones"] for edificio in infra["edificios"]))
         self.assertEqual(len(muchos), len(uno))
         self.assertLessEqual(len(muchos), self._techo("dispositivos_infraestructura"))
 

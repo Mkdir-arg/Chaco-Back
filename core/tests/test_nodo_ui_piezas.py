@@ -55,6 +55,8 @@ class TablaResponsiveTest(SimpleTestCase):
             self.assertGreater(wrapper.evaluate("e => e.scrollLeft"), 0)
             self.assertEqual(pagina.locator("th").last.text_content().strip(), "Acciones")
             self.assertEqual(pagina.evaluate("document.documentElement.scrollWidth"), 390)
+            pagina.locator("th").first.evaluate("e => e.classList.add('sticky')")
+            self.assertEqual(pagina.locator("th").first.evaluate("e => getComputedStyle(e).position"), "sticky")
             navegador.close()
 
 
@@ -786,11 +788,29 @@ class LineaTiempoTest(SimpleTestCase):
 
 class FichaSeccionTest(SimpleTestCase):
     def test_formatea_el_dni_y_conserva_los_otros_valores_y_el_contexto(self):
-        campos = [{"etiqueta": "DNI", "valor": "12345678"}, {"etiqueta": "Expediente", "valor": "12345678"}]
+        campos = [
+            {"etiqueta": "Documento", "valor": "12345678", "formato": "dni"},
+            {"etiqueta": "DNI", "valor": "12345678"},
+        ]
         html = render_to_string("components/_ficha_seccion.html", {"codigo": "persona", "campos": campos})
-        self.assertInHTML('<dd class="mt-1 text-sm text-body">12.345.678</dd>', html)
-        self.assertInHTML('<dd class="mt-1 text-sm text-body">12345678</dd>', html)
+        self.assertInHTML(
+            '<div><dt class="text-xs font-semibold uppercase text-body-subtle">Documento</dt>'
+            '<dd class="mt-1 text-sm text-body">12.345.678</dd></div>',
+            html,
+        )
+        self.assertInHTML(
+            '<div><dt class="text-xs font-semibold uppercase text-body-subtle">DNI</dt>'
+            '<dd class="mt-1 text-sm text-body">12345678</dd></div>',
+            html,
+        )
         self.assertEqual(campos[0]["valor"], "12345678")
+
+    def test_sin_formato_el_html_no_cambia_con_formato_vacio_o_desconocido(self):
+        campo = {"etiqueta": "DNI", "valor": "12345678"}
+        html = self._render(campos=[campo])
+        for formato in ("", "otro"):
+            with self.subTest(formato=formato):
+                self.assertEqual(self._render(campos=[{**campo, "formato": formato}]), html)
 
     def _render(self, **contexto):
         return render_to_string(FICHA_SECCION, {"codigo": "salud", "titulo": "9 · Salud", **contexto})
@@ -876,7 +896,10 @@ class RevisionReferenciaTest(TestCase):
                     "codigo": "a",
                     "titulo": "A · Datos personales",
                     "avance": 100,
-                    "campos": [{"etiqueta": "Oficio", "valor": "Albañilería"}],
+                    "campos": [
+                        {"etiqueta": "DNI", "valor": "28556001", "formato": "dni"},
+                        {"etiqueta": "Oficio", "valor": "Albañilería"},
+                    ],
                 },
                 {"codigo": "b", "titulo": "B · Situación laboral", "avance": 20, "avance_tono": "warning"},
                 {

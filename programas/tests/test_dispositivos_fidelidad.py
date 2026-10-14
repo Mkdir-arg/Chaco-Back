@@ -62,6 +62,20 @@ class BaseMapaFidelidad(BaseEstadias):
 
 
 class DetalleDePlazaTests(BaseMapaFidelidad):
+    def test_vencimiento_de_otro_ano_conserva_detalle_corto_y_title_completo_sin_identidad(self):
+        self.reserva.hasta = datetime(2027, 11, 18, 11, 46, tzinfo=tz.utc)
+        self.reserva.save()
+        for autorizado in (False, True):
+            with self.subTest(autorizado=autorizado):
+                estado = self._estados(puede_ver_personas=autorizado)[self.otra_plaza.pk]
+                prefijo = "Pérez, J. · " if autorizado else ""
+                local = timezone.localtime(self.reserva.hasta)
+                self.assertEqual(estado.detalle, prefijo + f"hasta {local:%d/%m %H:%M}")
+                self.assertEqual(estado.detalle_completo, prefijo + f"hasta {local:%d/%m/%Y %H:%M}")
+                if not autorizado:
+                    for privado in ("Pérez", "Juan", self.otra_persona.dni):
+                        self.assertNotIn(privado, estado.detalle_completo)
+
     def test_detalle_de_los_cinco_estados_con_identidad_autorizada(self):
         estados = self._estados(puede_ver_personas=True)
         self.assertEqual(estados[self.plaza.pk].detalle, "Gómez, A.")
@@ -135,7 +149,8 @@ class MapaP5FidelidadTests(BaseMapaFidelidad):
                 celda = next(celda for celda in celdas if f"</span>{plaza.codigo}</b>" in celda)
                 self.assertEqual(celda.count(estado), 1)
                 if detalle:
-                    self.assertIn(f'title="{detalle}">{detalle}</span>', celda)
+                    completo = self._estados()[plaza.pk].detalle_completo
+                    self.assertIn(f'title="{completo}">{detalle}</span>', celda)
                 else:
                     self.assertNotIn("truncate", celda)
 
@@ -155,6 +170,18 @@ class MapaP5FidelidadTests(BaseMapaFidelidad):
                         self.assertNotIn(nombre, " ".join(detalles))
                 self.assertNotContains(respuesta, self.persona.dni)
                 self.assertContains(respuesta, "colchón")
+
+    def test_p5_y_p6_llevan_el_ano_al_title_y_mantienen_el_texto_corto(self):
+        self.reserva.hasta = datetime(2027, 11, 18, 11, 46, tzinfo=tz.utc)
+        self.reserva.save()
+        for usuario, nombrar in ((self.operador_cis, False), (self.autorizado, True)):
+            with self.subTest(nombrar=nombrar):
+                estado = self._estados(puede_ver_personas=nombrar)[self.otra_plaza.pk]
+                respuesta = self._pagina(usuario)
+                self.assertContains(respuesta, f'title="{estado.detalle_completo}">{estado.detalle}</span>')
+                sectores, _ = plazas_para_ingresar(self.cis, puede_ver_personas=nombrar)
+                plaza = next(p for sector in sectores for p in sector["plazas"] if p["pk"] == self.otra_plaza.pk)
+                self.assertEqual(plaza["detalle_completo"], estado.detalle_completo)
 
     def test_porcentaje_ocupadas_sobre_operativas_no_total_ni_reservadas(self):
         respuesta = self._pagina(self.autorizado)

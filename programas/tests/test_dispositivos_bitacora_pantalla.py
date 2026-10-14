@@ -873,6 +873,18 @@ class ModalPorGetTests(BasePantalla):
         sin = self._usuario("Sin editar", self.cis, _sin("dispositivo.editar"))
         self.assertFalse(self._get(sin, turnos="1").context["abrir_modal_turnos"])
 
+    def test_corregir_invalido_cierra_el_modal_aunque_haya_novedades_corregibles(self):
+        manual = self._cargar(_local(MIERCOLES, 15))
+        automatica = EntradaBitacora.objects.filter(
+            dispositivo=self.cis, origen=EntradaBitacora.Origen.AUTOMATICA
+        ).first()
+        for pedido in (str(automatica.pk), "999999", "", "texto", "١٢"):
+            with self.subTest(pedido=pedido):
+                respuesta = self._get(corregir=pedido)
+                self.assertIn(str(manual.pk), respuesta.context["corregibles_datos"])
+                self.assertEqual(respuesta.context["correccion_inicial"], "")
+                self.assertFalse(respuesta.context["abrir_modal_corregir"])
+
     def test_no_queda_el_ancla_ni_el_hashchange(self):
         html = self._html(self._get())
 

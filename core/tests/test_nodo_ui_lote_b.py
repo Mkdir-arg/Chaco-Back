@@ -79,6 +79,17 @@ class MapaPlazasTest(SimpleTestCase):
 
         self.assertIn('<span class="sr-only">Plaza </span>C-04', html)
 
+    def test_detalle_completo_solo_cambia_el_title_y_mantiene_el_escapado(self):
+        plaza = _plaza(detalle="hasta 18/11 08:46")
+        html = render_to_string(MAPA, {"plazas": [plaza]})
+        completo = 'hasta 18/11/2027 08:46 <b>"</b>'
+        extendido = render_to_string(MAPA, {"plazas": [{**plaza, "detalle_completo": completo}]})
+        self.assertEqual(
+            extendido,
+            html.replace('title="hasta 18/11 08:46"', 'title="hasta 18/11/2027 08:46 &lt;b&gt;&quot;&lt;/b&gt;"'),
+        )
+        self.assertEqual(render_to_string(MAPA, {"plazas": [{**plaza, "detalle_completo": ""}]}), html)
+
     def test_tiene_tope_de_200_y_avisa(self):
         plazas = [_plaza(f"P-{n:03d}") for n in range(250)]
         html = render_to_string(MAPA, {"plazas": plazas})

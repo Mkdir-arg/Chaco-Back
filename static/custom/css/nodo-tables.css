@@ -22,15 +22,14 @@
 }
 
 .nodo-th {
-    /* El rótulo sr-only de acciones queda dentro del scroll de la tabla. Sin
-       este contexto, su posición absoluta puede ampliar el ancho de la página. */
-    position: relative;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
 
 :where(.nodo-th) {
+    /* Contiene el rótulo sr-only sin pisar una posición sticky de la pantalla. */
+    position: relative;
     padding: 11px 16px;
     font-size: 11px;
     color: var(--text-body-subtle);
