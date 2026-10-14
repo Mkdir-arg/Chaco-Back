@@ -589,18 +589,6 @@ REST_FRAMEWORK = {
 }
 
 DOMINIO = os.environ.get("DOMINIO", "localhost:8000")
-
-
-def _url_publica_por_defecto(dominio):
-    """``https://<DOMINIO>``, o ``http://`` si es local: la misma regla que ``diagnosticar_correo``."""
-    local = dominio.startswith(("localhost", "127."))
-    return f"{'http' if local else 'https'}://{dominio}"
-
-
-# Campañas de Notificaciones (Cambio 285): base de las URLs **absolutas** de las imágenes que
-# vienen en el .zip del cuerpo. El correo sale desde un hilo, sin request del que sacar el
-# host, y el cliente de correo no resuelve rutas relativas. Por defecto, derivada de DOMINIO.
-NOTIF_URL_PUBLICA = (os.environ.get("NOTIF_URL_PUBLICA", "").strip() or _url_publica_por_defecto(DOMINIO)).rstrip("/")
 RENAPER_API_USERNAME = os.getenv("RENAPER_API_USERNAME")
 RENAPER_API_PASSWORD = os.getenv("RENAPER_API_PASSWORD")
 RENAPER_API_URL = os.getenv("RENAPER_API_URL", "").strip().strip('"').strip("'")

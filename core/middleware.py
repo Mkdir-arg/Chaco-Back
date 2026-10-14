@@ -74,19 +74,6 @@ class ApiCorsMiddleware:
             response["Access-Control-Allow-Private-Network"] = "true"
 
 
-#: Rutas públicas que no tienen nada que ver con la sesión de quien las pide (Cambio 285).
-#: Hoy, las imágenes de las campañas de correo: las pide el cliente de correo del
-#: destinatario y salen con ``Cache-Control: public``. Por eso los middlewares de sesión las
-#: dejan pasar **sin tocar la sesión**: una cookie que viajara por casualidad (el ciudadano con
-#: el portal abierto, una clave provisoria, una sesión vencida o reemplazada) no puede
-#: redirigir la imagen ni, peor, hacer que la respuesta cacheable lleve un ``Set-Cookie``.
-RUTAS_PUBLICAS_SIN_SESION = ("/notificaciones/img/",)
-
-
-def es_ruta_publica_sin_sesion(path):
-    return (path or "").startswith(RUTAS_PUBLICAS_SIN_SESION)
-
-
 class PortalCiudadanoMiddleware:
     """
     Impide que usuarios del grupo Ciudadanos accedan al backoffice.
@@ -103,7 +90,6 @@ class PortalCiudadanoMiddleware:
         if (
             not request.path.startswith("/portal/")
             and not request.path.startswith("/static/")
-            and not es_ruta_publica_sin_sesion(request.path)
             and rbac.es_ciudadano_portal(request.user)
         ):
             # SEC-29: «mi perfil» ya no existe (el portal ciudadano está apagado).
@@ -234,8 +220,6 @@ class ExpiracionPorInactividadMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if es_ruta_publica_sin_sesion(request.path):
-            return self.get_response(request)
         minutos = minutos_de_inactividad()
         usuario = getattr(request, "user", None)
         if minutos <= 0 or not (usuario and usuario.is_authenticated):

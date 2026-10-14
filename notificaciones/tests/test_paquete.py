@@ -3,6 +3,7 @@
 Los paquetes se arman en el test con ``zipfile`` y Pillow: ningún mailing real entra al repo.
 """
 
+import os
 import re
 import stat
 import zipfile
@@ -11,13 +12,11 @@ from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase
 from PIL import Image
 
 from notificaciones.services import html as servicio_html
 from notificaciones.services import paquete
-
-BASE = "https://datanach.test"
 
 
 def imagen(formato="PNG", color=(200, 30, 30), tam=(4, 4)):
@@ -46,11 +45,11 @@ def mailing(cuerpo, *, carpeta="mailing/", extra=None):
     return zip_de(archivos)
 
 
-def urls_publicas(html, token):
-    return re.findall(rf'src="({re.escape(BASE)}/notificaciones/img/{re.escape(token)}/[^"]+)"', html)
+def cids(html):
+    """Los ``src`` de imágenes incrustadas: ``cid:<nombre>@datanach``, sin ``<>`` (Cambio 292)."""
+    return re.findall(r'src="(cid:[^"]+@datanach)"', html)
 
 
-@override_settings(NOTIF_URL_PUBLICA=BASE)
 class PaqueteValidoTests(SimpleTestCase):
     def test_publica_las_imagenes_referenciadas_y_reescribe_los_src(self):
         leido = paquete.leer_paquete(mailing('<img src="img/foto-header.jpg" alt="x"><img src="./img/logo.png">'))
@@ -61,19 +60,42 @@ class PaqueteValidoTests(SimpleTestCase):
         self.assertEqual(
             [i.ruta_original for i in leido.imagenes], ["mailing/img/foto-header.jpg", "mailing/img/logo.png"]
         )
-        self.assertEqual(len(urls_publicas(leido.html, leido.token)), 2)
+        self.assertEqual(cids(leido.html), ["cid:01-foto-header.jpg@datanach", "cid:02-logo.png@datanach"])
         self.assertNotIn('src="img/', leido.html)
         self.assertEqual(leido.faltantes, [])
         self.assertEqual(leido.rechazadas, [])
 
-    def test_las_urls_sobreviven_al_saneo_tambien_con_http(self):
-        with override_settings(NOTIF_URL_PUBLICA="http://localhost:8000"):
-            datos = servicio_html.procesar(mailing('<img src="img/logo.png">'))
-        self.assertRegex(
-            datos["html_sanitizado"], r'src="http://localhost:8000/notificaciones/img/[\w-]{32}/01-logo\.png"'
+    def test_los_cid_propios_sobreviven_al_saneo_y_los_ajenos_no(self):
+        datos = servicio_html.procesar(
+            mailing('<img src="img/logo.png"><img src="cid:ajeno@x"><img src="data:image/png;base64,AA">')
         )
+        self.assertEqual(cids(datos["html_sanitizado"]), ["cid:01-logo.png@datanach"])
+        self.assertNotIn("cid:ajeno", datos["html_sanitizado"])
+        self.assertNotIn("data:", datos["html_sanitizado"])
         self.assertEqual(datos["imagenes_alojadas"], 1)
-        self.assertEqual(datos["imagenes_no_visibles"], 0)
+        # El cid: ajeno y el data: no le llegan a nadie; el propio sí.
+        self.assertEqual(datos["imagenes_no_visibles"], 2)
+
+    def test_cid_en_otros_atributos_se_quita_siempre(self):
+        datos = servicio_html.procesar(
+            mailing(
+                '<img src="img/logo.png"><a href="cid:01-logo.png@datanach">propio</a>'
+                '<a href="CID:ajeno@x">ajeno</a><a href="https://x.com">web</a>'
+            )
+        )
+        html = datos["html_sanitizado"]
+        self.assertEqual(cids(html), ["cid:01-logo.png@datanach"])
+        self.assertNotIn('href="cid:', html.lower())
+        self.assertIn('href="https://x.com"', html)
+        self.assertEqual(html.lower().count("cid:"), 1)
+
+    def test_un_cid_propio_escrito_a_mano_con_otras_mayusculas_queda_canonico(self):
+        datos = servicio_html.procesar(
+            mailing('<img src="img/logo.png"><img src="CID:01-LOGO.PNG@DATANACH"><img src="Cid:otro@DataNach">')
+        )
+        self.assertEqual(cids(datos["html_sanitizado"]), ["cid:01-logo.png@datanach", "cid:01-logo.png@datanach"])
+        # El propio a mano no cuenta como «no visible»; el ajeno sí y pierde el src.
+        self.assertEqual(datos["imagenes_no_visibles"], 1)
 
     def test_barra_invertida_mayusculas_y_espacios_codificados(self):
         archivo = zip_de(
@@ -89,12 +111,12 @@ class PaqueteValidoTests(SimpleTestCase):
         self.assertEqual(
             [i.ruta_original for i in leido.imagenes], ["img/foto-header.jpg", "img/mi foto.png", "img/logo.png"]
         )
-        self.assertEqual(len(urls_publicas(leido.html, leido.token)), 3)
+        self.assertEqual(len(cids(leido.html)), 3)
 
     def test_una_imagen_nombrada_dos_veces_se_publica_una_vez(self):
         leido = paquete.leer_paquete(mailing('<img src="img/logo.png"><img src="img/logo.png?v=2">'))
         self.assertEqual(len(leido.imagenes), 1)
-        self.assertEqual(len(urls_publicas(leido.html, leido.token)), 2)
+        self.assertEqual(len(cids(leido.html)), 2)
 
     def test_imagen_que_falta_va_a_la_lista_y_no_cuenta_como_no_visible(self):
         datos = servicio_html.procesar(mailing('<img src="img/logo.png"><img src="img/nada.png"><img src="cid:x">'))
@@ -112,7 +134,7 @@ class PaqueteValidoTests(SimpleTestCase):
         datos = servicio_html.procesar(mailing('<img src="img/logo.svg">', extra={"mailing/img/logo.svg": svg}))
         self.assertEqual(datos["imagenes"], [])
         self.assertIn("mailing/img/logo.svg (SVG no se admite)", datos["imagenes_rechazadas"])
-        self.assertNotIn("notificaciones/img/", datos["html_sanitizado"])
+        self.assertEqual(cids(datos["html_sanitizado"]), [])
 
     def test_svg_con_extension_png_tampoco(self):
         svg = b'<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"></svg>'
@@ -125,7 +147,7 @@ class PaqueteValidoTests(SimpleTestCase):
         leido = paquete.leer_paquete(mailing('<img src="img/falsa.png">', extra={"mailing/img/falsa.png": falsa}))
         self.assertEqual(leido.imagenes, [])
         self.assertEqual(leido.rechazadas, [f"mailing/img/falsa.png ({paquete.MOTIVO_NO_IMAGEN})"])
-        self.assertEqual(urls_publicas(leido.html, leido.token), [])
+        self.assertEqual(cids(leido.html), [])
 
     def test_un_formato_real_no_admitido_no_se_publica(self):
         leido = paquete.leer_paquete(mailing('<img src="img/x.png">', extra={"mailing/img/x.png": imagen("BMP")}))
@@ -185,7 +207,6 @@ def _exif_con_gps():
     return exif
 
 
-@override_settings(NOTIF_URL_PUBLICA=BASE)
 class ImagenRecodificadaTests(SimpleTestCase):
     """Lo que se publica es la imagen recodificada, sin metadatos (revisión del juez, ronda 2)."""
 
@@ -265,7 +286,6 @@ class ImagenRecodificadaTests(SimpleTestCase):
                 self.assertEqual(leido.rechazadas, [f"mailing/img/b.png ({paquete.MOTIVO_PIXELES})"])
 
 
-@override_settings(NOTIF_URL_PUBLICA=BASE)
 class PaqueteRechazadoTests(SimpleTestCase):
     def _rechaza(self, archivo, fragmento):
         with self.assertRaises(ValidationError) as ctx:
@@ -315,6 +335,26 @@ class PaqueteRechazadoTests(SimpleTestCase):
 
     def test_html_que_no_es_utf8(self):
         self._rechaza(zip_de({"m.html": "<p>Ñandú</p>".encode("latin-1")}), "UTF-8")
+
+    def test_las_imagenes_pasan_los_2_mb_en_total(self):
+        """Cada correo lleva todas las imágenes: el total (ya recodificado) tiene tope (Cambio 292)."""
+        archivos = {"mailing.html": "".join(f'<img src="img/ruido{n}.png">' for n in range(3))}
+        for n in range(3):
+            salida = BytesIO()
+            Image.frombytes("RGB", (600, 600), os.urandom(600 * 600 * 3)).save(salida, "PNG")  # ~1 MB, no comprime
+            archivos[f"img/ruido{n}.png"] = salida.getvalue()
+        with self.assertRaises(ValidationError) as ctx:
+            servicio_html.procesar(zip_de(archivos))
+        mensaje = " ".join(ctx.exception.messages)
+        self.assertRegex(mensaje, r"pesan 3\.\d MB en total")
+        self.assertIn("el tope es 2 MB", mensaje)
+
+    def test_justo_debajo_del_tope_entra(self):
+        archivos = {"mailing.html": '<img src="img/ruido.png">'}
+        salida = BytesIO()
+        Image.frombytes("RGB", (600, 600), os.urandom(600 * 600 * 3)).save(salida, "PNG")
+        archivos["img/ruido.png"] = salida.getvalue()
+        self.assertEqual(len(paquete.leer_paquete(zip_de(archivos)).imagenes), 1)
 
     def test_otra_extension(self):
         self._rechaza(SimpleUploadedFile("m.rar", b"x"), ".zip con la carpeta")

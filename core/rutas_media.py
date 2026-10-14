@@ -45,9 +45,8 @@ PREFIJO_ADJUNTO_BECAS = "becas/adjuntos/"
 PREFIJO_PADRON_BECAS = "becas/padrones/"
 #: Imágenes del .zip del cuerpo de una campaña (``notificaciones.ImagenCampana``, Cambio 285).
 #: Va **antes** que el prefijo general de notificaciones en ``REGLAS``: es más largo. Por
-#: ``/media/`` las baja quien ve las campañas; al destinatario del correo se las sirve la vista
-#: pública ``notificaciones:imagen_publica``, que busca por token y nombre en la base y nunca
-#: por esta ruta.
+#: ``/media/`` las baja quien ve las campañas; al destinatario le llegan incrustadas en el correo
+#: (Cambio 292), así que no hay ninguna ruta pública.
 PREFIJO_NOTIFICACIONES_IMAGENES = "notificaciones/imagenes/"
 #: Excel de destinatarios y HTML del cuerpo de una campaña (``notificaciones.Campana``).
 PREFIJO_NOTIFICACIONES = "notificaciones/"

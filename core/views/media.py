@@ -240,9 +240,8 @@ def _archivo_de_campana(user, ruta):
 def _imagen_de_campana(user, ruta):
     """Una imagen del .zip de una campaña, por `/media/`: la mira quien ve las campañas.
 
-    El destinatario del correo no pasa por acá: la ve por ``notificaciones:imagen_publica``,
-    sin sesión, que la busca por token y nombre (Cambio 285). Esta regla existe porque el
-    contrato de la tabla es que todo `FileField` tenga dueño.
+    El destinatario del correo no pasa por acá: la recibe incrustada en el correo (Cambio 292).
+    Esta regla existe porque el contrato de la tabla es que todo `FileField` tenga dueño.
     """
     from notificaciones.models import ImagenCampana
 
