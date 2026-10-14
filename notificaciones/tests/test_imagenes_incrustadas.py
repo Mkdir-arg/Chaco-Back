@@ -91,7 +91,7 @@ class CorreoConImagenesTests(ConMediaTemporal):
                 guardadas[nombre].archivo.close()
 
     def test_la_prueba_lleva_las_imagenes_incrustadas(self):
-        ok, _error = envio.enviar_prueba(self.campana, "yo@x.com", usuario=self.usuario)
+        ok, _error, _aviso = envio.enviar_prueba(self.campana, "yo@x.com", usuario=self.usuario)
         self.assertTrue(ok)
         self._verificar_correo(mail.outbox[0])
 
@@ -138,9 +138,51 @@ class CorreoConImagenesTests(ConMediaTemporal):
         fila = self.campana.imagenes.get(nombre="02-logo.png")
         os.remove(fila.archivo.path)
         with self.assertLogs("notificaciones.services.incrustadas", "ERROR"):
-            ok, _ = envio.enviar_prueba(self.campana, "yo@x.com", usuario=self.usuario)
+            ok, _, aviso = envio.enviar_prueba(self.campana, "yo@x.com", usuario=self.usuario)
         self.assertTrue(ok)
+        self.assertEqual(aviso, "Falta en el servidor 1 imagen: 02-logo.png; los correos salen sin ellas.")
         self.assertEqual([p["Content-ID"] for p in imagenes_de(mail.outbox[0].message())], [f"<{CIDS[0]}>"])
+
+    def test_la_prueba_avisa_en_el_toast_las_imagenes_que_faltan(self):
+        os.remove(self.campana.imagenes.get(nombre="02-logo.png").archivo.path)
+        with self.assertLogs("notificaciones.services.incrustadas", "ERROR"):
+            respuesta = self.client.post(
+                reverse("notificaciones:campana_prueba", args=[self.campana.pk]), {"email": "yo@x.com"}
+            )
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(
+            respuesta.json()["message"],
+            "Se envió la prueba a yo@x.com. Falta en el servidor 1 imagen: 02-logo.png; los correos salen sin ellas.",
+        )
+
+    def test_el_envio_masivo_deja_el_aviso_en_la_campana(self):
+        for nombre in ("01-foto-header.jpg", "02-logo.png"):
+            os.remove(self.campana.imagenes.get(nombre=nombre).archivo.path)
+        campana = envio.iniciar_envio(self.campana, usuario=self.usuario)
+        with self.assertLogs("notificaciones.services.incrustadas", "ERROR"):
+            envio.correr(campana)
+
+        campana.refresh_from_db()
+        self.assertEqual(campana.estado, Campana.Estado.ENVIADA)
+        aviso = "Faltan en el servidor 2 imágenes: 01-foto-header.jpg, 02-logo.png; los correos salen sin ellas."
+        self.assertEqual(campana.mensaje, aviso)
+        self.assertEqual(len(mail.outbox), 2)
+        detalle = self.client.get(reverse("notificaciones:campana_detalle", args=[campana.pk])).content.decode()
+        self.assertIn("Aviso del envío", detalle)
+        self.assertIn(aviso, detalle)
+
+    def test_sin_faltantes_el_envio_no_deja_aviso(self):
+        envio.correr(envio.iniciar_envio(self.campana, usuario=self.usuario))
+        self.campana.refresh_from_db()
+        self.assertEqual(self.campana.mensaje, "")
+
+    def test_un_cid_guardado_con_otras_mayusculas_igual_viaja(self):
+        Campana.objects.filter(pk=self.campana.pk).update(
+            html_sanitizado='<img src="CID:01-FOTO-HEADER.JPG@DataNach"><img src="cid:02-logo.png@datanach">'
+        )
+        self.campana.refresh_from_db()
+        self.assertEqual([p["Content-ID"] for p in incrustadas.partes_mime(self.campana)], [f"<{cid}>" for cid in CIDS])
+        self.assertEqual(incrustadas.html_para_vista_previa(self.campana).count('src="data:image/'), 2)
 
     def test_html_suelto_sigue_siendo_un_alternative_sin_imagenes(self):
         suelta = crear_con_zip(html('<p>Hola</p><img src="https://cdn.x/a.png">'), nombre="Suelta")

@@ -107,18 +107,21 @@ def enviar_prueba(campana, email, *, usuario):
     """Manda la campaña **solo** a ``email`` con «[PRUEBA] » (RF-007-18). Nunca propaga.
 
     No cambia el estado de la campaña ni toca sus destinatarios; queda registrada en
-    ``PruebaEnviada``. Devuelve ``(ok, error)``.
+    ``PruebaEnviada``. Devuelve ``(ok, error, aviso)``: ``aviso`` nombra las imágenes que faltan
+    en el servidor y no viajaron (Cambio 292), o ``""``.
     """
     if not campana.editable:
         raise TransicionInvalida("La prueba se manda solo mientras la campaña está «A enviar».")
-    ok, error = True, ""
+    ok, error, aviso = True, "", ""
     try:
-        armar_mensaje(campana, email, prueba=True).send(fail_silently=False)
+        partes = incrustadas.partes_mime(campana)
+        aviso = partes.aviso
+        armar_mensaje(campana, email, prueba=True, partes=partes).send(fail_silently=False)
     except Exception as exc:  # SMTP caído, rechazo, mal configurado…
         logger.exception("No se pudo enviar la prueba de la campaña %s a %s", campana.pk, email)
         ok, error = False, _error_corto(exc)
     PruebaEnviada.objects.create(campana=campana, enviada_por=usuario, email=email, ok=ok, error=error)
-    return ok, error
+    return ok, error, aviso
 
 
 # ---------------------------------------------------------------------------
@@ -441,8 +444,16 @@ def correr(campana, *, token=None, dormir=time.sleep):
     token = token or campana.corrida
     try:
         _latir(campana.pk, token)
-        # Las imágenes incrustadas se leen y se codifican una sola vez para toda la corrida.
+        # Las imágenes incrustadas se leen y se codifican una sola vez para toda la corrida. Si
+        # falta alguna en el servidor, el aviso queda en la campaña y acompaña cualquier desenlace.
         partes = incrustadas.partes_mime(campana)
+        aviso = partes.aviso
+        if aviso:
+            _de_la_corrida(campana.pk, token).update(mensaje=aviso[:LARGO_ERROR])
+
+        def con_aviso(texto=""):
+            return f"{texto} {aviso}".strip()
+
         racha = 0  # fallos seguidos del servidor
         ultimo_error = ""
         residuo_devuelto = False
@@ -450,7 +461,9 @@ def correr(campana, *, token=None, dormir=time.sleep):
             if not _sigue_a_cargo(campana, token):
                 return campana  # otro request u otra corrida tomó la campaña: se retira
             if campana.cancelacion_pedida:
-                _cerrar(campana, token, Campana.Estado.CANCELADA, "Se detuvo el envío. Lo enviado quedó enviado.")
+                _cerrar(
+                    campana, token, Campana.Estado.CANCELADA, con_aviso("Se detuvo el envío. Lo enviado quedó enviado.")
+                )
                 return campana
 
             lote = max(1, int(getattr(settings, "NOTIF_LOTE", 50)))
@@ -485,7 +498,10 @@ def correr(campana, *, token=None, dormir=time.sleep):
                         return campana
                     if campana.cancelacion_pedida:
                         _cerrar(
-                            campana, token, Campana.Estado.CANCELADA, "Se detuvo el envío. Lo enviado quedó enviado."
+                            campana,
+                            token,
+                            Campana.Estado.CANCELADA,
+                            con_aviso("Se detuvo el envío. Lo enviado quedó enviado."),
                         )
                         return campana
                     if not _reclamar(destinatario_id, token):
@@ -538,9 +554,9 @@ def correr(campana, *, token=None, dormir=time.sleep):
             # después de devolver el anterior: el cierre lo hace la última que termine.
             return campana
         if conteos[Destinatario.Estado.FALLIDO]:
-            _cerrar(campana, token, Campana.Estado.ENVIADA_CON_ERRORES)
+            _cerrar(campana, token, Campana.Estado.ENVIADA_CON_ERRORES, con_aviso())
         else:
-            _cerrar(campana, token, Campana.Estado.ENVIADA)
+            _cerrar(campana, token, Campana.Estado.ENVIADA, con_aviso())
         return campana
     except Exception as exc:  # noqa: BLE001 - la campaña es el único lugar donde se puede informar
         logger.exception("Campaña %s: error no previsto en el envío", campana.pk)

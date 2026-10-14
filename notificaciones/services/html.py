@@ -80,8 +80,8 @@ ATRIBUTOS = {
 #: ``cid`` desde el Cambio 292: las imágenes del .zip van incrustadas y el HTML las nombra así.
 #: ``data`` sigue afuera: en el HTML del operador no entra (la vista previa lo usa aparte).
 ESQUEMAS_URL = {"http", "https", "mailto", "tel", "cid"}
-#: Un ``src="cid:…"`` en la salida de nh3 (siempre con comillas dobles).
-_SRC_CID_SANEADO = re.compile(r'\s+src="(cid:[^"]*)"', re.IGNORECASE)
+#: Cualquier atributo con un ``cid:`` en la salida de nh3 (siempre con comillas dobles).
+_ATRIBUTO_CID = re.compile(r'\s+([a-zA-Z][\w:-]*)="(\s*cid:[^"]*)"', re.IGNORECASE)
 
 # Lo que el saneo quita y conviene contarle al operador (el mock-up: «se quitó 1 bloque
 # <script>»). Se cuenta sobre el original, antes de sanear.
@@ -189,13 +189,26 @@ def contar_imagenes_no_visibles(html_original, cids_propios=()):
 
 
 def quitar_cid_ajenos(html_saneado, cids_propios=()):
-    """Le saca el ``src`` a todo ``cid:`` que no sea de una imagen incrustada de la campaña.
+    """Deja ``cid:`` solo en el ``src`` de una imagen incrustada de la campaña.
 
-    Sin una parte con ese Content-ID en el correo, el ``cid:`` es una imagen rota: queda como
-    antes del Cambio 292, cuando el saneo lo quitaba por esquema.
+    - un ``src`` con un ``cid:`` propio queda, escrito con el nombre exacto (``CID:01-LOGO.PNG@…``
+      escrito a mano pasa a ``cid:01-logo.png@datanach``: el mismo trato sin distinguir
+      mayúsculas que ``incrustadas``);
+    - un ``src`` con un ``cid:`` ajeno pierde el atributo: sin una parte con ese Content-ID es una
+      imagen rota, como antes del Cambio 292, cuando el saneo lo quitaba por esquema;
+    - cualquier otro atributo con ``cid:`` (``href="cid:…"``) se va siempre: ``cid`` se admite
+      solo para mostrar las imágenes del paquete.
     """
-    propios = {cid.lower() for cid in cids_propios}
-    return _SRC_CID_SANEADO.sub(lambda m: m.group(0) if m.group(1).lower() in propios else "", html_saneado)
+    propios = {cid.lower(): cid for cid in cids_propios}
+
+    def reemplazo(match):
+        atributo, valor = match.group(1).lower(), match.group(2).strip()
+        canonico = propios.get(valor.lower())
+        if atributo == "src" and canonico:
+            return f' src="{canonico}"'
+        return ""
+
+    return _ATRIBUTO_CID.sub(reemplazo, html_saneado)
 
 
 def a_texto(html_sanitizado):

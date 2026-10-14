@@ -76,6 +76,27 @@ class PaqueteValidoTests(SimpleTestCase):
         # El cid: ajeno y el data: no le llegan a nadie; el propio sí.
         self.assertEqual(datos["imagenes_no_visibles"], 2)
 
+    def test_cid_en_otros_atributos_se_quita_siempre(self):
+        datos = servicio_html.procesar(
+            mailing(
+                '<img src="img/logo.png"><a href="cid:01-logo.png@datanach">propio</a>'
+                '<a href="CID:ajeno@x">ajeno</a><a href="https://x.com">web</a>'
+            )
+        )
+        html = datos["html_sanitizado"]
+        self.assertEqual(cids(html), ["cid:01-logo.png@datanach"])
+        self.assertNotIn('href="cid:', html.lower())
+        self.assertIn('href="https://x.com"', html)
+        self.assertEqual(html.lower().count("cid:"), 1)
+
+    def test_un_cid_propio_escrito_a_mano_con_otras_mayusculas_queda_canonico(self):
+        datos = servicio_html.procesar(
+            mailing('<img src="img/logo.png"><img src="CID:01-LOGO.PNG@DATANACH"><img src="Cid:otro@DataNach">')
+        )
+        self.assertEqual(cids(datos["html_sanitizado"]), ["cid:01-logo.png@datanach", "cid:01-logo.png@datanach"])
+        # El propio a mano no cuenta como «no visible»; el ajeno sí y pierde el src.
+        self.assertEqual(datos["imagenes_no_visibles"], 1)
+
     def test_barra_invertida_mayusculas_y_espacios_codificados(self):
         archivo = zip_de(
             {

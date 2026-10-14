@@ -450,7 +450,7 @@ def campana_prueba(request, pk):
             status=429,
         )
     email = form.cleaned_data["email"]
-    ok, error = envio.enviar_prueba(campana, email, usuario=request.user)
+    ok, error, aviso = envio.enviar_prueba(campana, email, usuario=request.user)
     if not ok:
         return JsonResponse({"ok": False, "message": f"No se pudo enviar la prueba a {email}: {error}"}, status=502)
-    return JsonResponse({"ok": True, "message": f"Se envió la prueba a {email}."})
+    return JsonResponse({"ok": True, "message": f"Se envió la prueba a {email}. {aviso}".strip()})

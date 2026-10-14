@@ -34,7 +34,9 @@ DOMINIO_CID = "datanach"
 #: lleva todas: 2 MB de imágenes son ~2,7 MB por correo en base64.
 TOPE_BYTES = 2 * 1024 * 1024
 
-_SRC_CID = re.compile(r'(\ssrc=")cid:([^"@\s]+)@' + re.escape(DOMINIO_CID) + '(")')
+#: Sin distinguir mayúsculas, igual que el saneo (``html.quitar_cid_ajenos``), que además deja
+#: cada ``cid:`` propio escrito con el nombre exacto.
+_SRC_CID = re.compile(r'(\ssrc=")cid:([^"@\s]+)@' + re.escape(DOMINIO_CID) + '(")', re.IGNORECASE)
 
 
 def cid_de(nombre):
@@ -57,8 +59,13 @@ def imagenes_referenciadas(campana):
     nombres = nombres_referenciados(campana.html_sanitizado)
     if not nombres:
         return []
-    por_nombre = {imagen.nombre: imagen for imagen in campana.imagenes.filter(nombre__in=nombres)}
-    return [por_nombre[nombre] for nombre in nombres if nombre in por_nombre]
+    por_nombre = {imagen.nombre.lower(): imagen for imagen in campana.imagenes.all()}
+    vistas = {}
+    for nombre in nombres:
+        imagen = por_nombre.get(nombre.lower())
+        if imagen is not None:
+            vistas.setdefault(imagen.pk, imagen)
+    return list(vistas.values())
 
 
 def _bytes_de(imagen):
@@ -74,17 +81,38 @@ def _bytes_de(imagen):
         return None
 
 
+class PartesMime(list):
+    """Las partes de imagen de un correo, con los nombres de las que faltan en el disco."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.faltantes = []
+
+    @property
+    def aviso(self):
+        """El aviso para el operador si falta alguna imagen en el servidor, o ``""``."""
+        if not self.faltantes:
+            return ""
+        cantidad = len(self.faltantes)
+        return (
+            f"Falta{'n' if cantidad > 1 else ''} en el servidor {cantidad} "
+            f"{'imágenes' if cantidad > 1 else 'imagen'}: {', '.join(self.faltantes)}; los correos salen sin ellas."
+        )
+
+
 def partes_mime(campana):
     """Una ``MIMEImage`` por imagen referenciada, lista para adjuntar a cada correo.
 
     Se arma **una vez por corrida** y se reusa en todos los correos: la imagen se lee del disco
     y se pasa a base64 una sola vez, no una por destinatario. Una imagen que falta en el disco no
-    frena el envío: ese correo sale sin esa imagen y queda en el log.
+    frena el envío: ese correo sale sin esa imagen, queda en el log y en ``faltantes``, que el
+    envío masivo deja en ``campana.mensaje`` y la prueba en su aviso (:attr:`PartesMime.aviso`).
     """
-    partes = []
+    partes = PartesMime()
     for imagen in imagenes_referenciadas(campana):
         contenido = _bytes_de(imagen)
         if contenido is None:
+            partes.faltantes.append(imagen.nombre)
             continue
         parte = MIMEImage(contenido, _subtype=imagen.content_type.split("/", 1)[1])
         parte.add_header("Content-ID", f"<{cid_de(imagen.nombre)}>")
@@ -104,10 +132,12 @@ def html_para_vista_previa(campana):
     for imagen in imagenes_referenciadas(campana):
         contenido = _bytes_de(imagen)
         if contenido is not None:
-            datos[imagen.nombre] = f"data:{imagen.content_type};base64,{base64.b64encode(contenido).decode('ascii')}"
+            datos[imagen.nombre.lower()] = (
+                f"data:{imagen.content_type};base64,{base64.b64encode(contenido).decode('ascii')}"
+            )
 
     def reemplazo(match):
-        uri = datos.get(match.group(2))
+        uri = datos.get(match.group(2).lower())
         return f"{match.group(1)}{uri}{match.group(3)}" if uri else match.group(0)
 
     return _SRC_CID.sub(reemplazo, html)
