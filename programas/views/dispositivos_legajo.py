@@ -587,7 +587,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             )
         )
         context["migas"] = [
-            {"label": "Dispositivos", "url": reverse("dispositivos:lista")},
+            {"label": "Instituciones", "url": reverse("dispositivos:lista")},
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
             {"label": "Sectores y plazas", "url": ""},
         ]
@@ -965,7 +965,7 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         context["url_legajo"] = reverse("legajos:ciudadano_detalle", args=[estadia.ciudadano_id])
         context["url_trayectoria"] = reverse("legajos:dispositivos_ciudadano", args=[estadia.ciudadano_id])
         context["migas"] = [
-            {"label": "Dispositivos", "url": reverse("dispositivos:lista")},
+            {"label": "Instituciones", "url": reverse("dispositivos:lista")},
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
             {"label": "Estadías", "url": url_volver},
             {"label": datos["persona"]["nombre_completo"], "url": ""},

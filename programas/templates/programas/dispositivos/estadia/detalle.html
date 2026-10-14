@@ -9,9 +9,8 @@
 {# La solapa abierta la normaliza la vista (`normalizar_solapa`): una que no existe cae en la de siempre #}
 <div class="space-y-5" x-data="{ tab: '{{ tab }}' }">
 
-  {% page_header titulo=persona.nombre_completo eyebrow=ubicacion volver_url=url_volver volver_label="Estadías" migas=migas %}
+  {% page_header titulo=persona.nombre_completo eyebrow=ubicacion volver_url=url_volver volver_label="Estadías" migas=migas estado_texto=estadia.estado estado_variante=estadia.tono %}
     {% bajada %}DNI {{ persona.dni|dni }}{% if persona.edad is not None %} · {{ persona.edad }} años{% endif %} · ingreso {{ estadia.ingreso }} · {{ estadia.dias }} día{{ estadia.dias|pluralize }} de permanencia{% if url_legajo %} · <a href="{{ url_legajo }}" class="text-fg-brand hover:underline">legajo ciudadano</a>{% endif %}{% endbajada %}
-    <span class="badge badge-{{ estadia.tono }} badge-dot">{{ estadia.estado }}</span>
     {% if estadia.reingreso %}<span class="badge badge-brand">Reingreso</span>{% endif %}
     {% if puede_cambiar_plaza %}<button type="button" @click="modalCambio=true" class="btn-nodo btn-secondary btn-sm">Cambiar plaza</button>{% endif %}
     {% if puede_egresar %}<button type="button" @click="modalEgreso=true" class="btn-nodo btn-danger btn-sm">Egresar</button>{% endif %}

@@ -14,6 +14,9 @@ en mayúsculas sobre el título), título ``h1``, bajada,
 botón volver circular con ``aria-label="Volver a {volver_label}"``, migas de
 pan (solo con tres niveles o más) y, a la derecha, el cuerpo del bloque
 (badges y acciones).
+``estado_texto`` y ``estado_variante`` opcionales colocan el estado junto al título;
+sin texto conservan el HTML previo. El tono lo decide el módulo y el tag valida
+que sea una variante de badge existente (por defecto, ``gray``).
 
 Escape:
 
@@ -99,7 +102,8 @@ def dni(valor):
 TEMPLATE_PAGE_HEADER = "components/_page_header.html"
 EXCLUIDOS_HAY_FILTROS = "page"
 MIGAS_MINIMO = 3
-ARGUMENTOS = ("titulo", "eyebrow", "bajada", "volver_url", "volver_label", "migas")
+ARGUMENTOS = ("titulo", "eyebrow", "bajada", "volver_url", "volver_label", "migas", "estado_texto", "estado_variante")
+VARIANTES_ESTADO = frozenset(("gray", "white", "brand", "success", "danger", "warning", "info"))
 
 
 def _o_vacio(renderizado):
@@ -141,6 +145,10 @@ class PageHeaderNode(template.Node):
             volver_label=valores.get("volver_label"),
             migas=migas,
             acciones=_o_vacio(self.acciones.render(context)),
+            estado_texto=valores.get("estado_texto"),
+            estado_variante=(
+                valores.get("estado_variante") if valores.get("estado_variante") in VARIANTES_ESTADO else "gray"
+            ),
         ):
             return plantilla.render(context)
 
