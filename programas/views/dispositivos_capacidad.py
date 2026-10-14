@@ -28,9 +28,9 @@ from programas.forms_dispositivos import (
     VincularEdificioForm,
 )
 from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
-from programas.models import Dispositivo, Edificio, Plaza, Sector
+from programas.models import Edificio, Plaza, Sector
 from programas.selectors.capacidad_dispositivo import edificios_vinculables
-from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.dispositivos import dispositivos_en_alcance
 from programas.services.edificios import (
     CAP_EDITAR,
     crear_edificio,
@@ -65,7 +65,7 @@ class _AccionDeCapacidadView(DispositivoProgramaPermissionMixin, View):
     """Base de las acciones de configuración: alcance, formulario, servicio y vuelta.
 
     Las subclases ponen el formulario (`construir_form`), qué hace el servicio (`ejecutar`)
-    y el mensaje de éxito; todo lo demás —el 403 de alcance, el 400 con los errores del
+    y el mensaje de éxito; todo lo demás —el 404 fuera de alcance, el 400 con los errores del
     modal, el toast y el redirect— es el mismo para las siete.
     """
 
@@ -87,12 +87,10 @@ class _AccionDeCapacidadView(DispositivoProgramaPermissionMixin, View):
         raise NotImplementedError
 
     def post(self, request, pk, **kwargs):
-        dispositivo = get_object_or_404(Dispositivo.objects.select_related("tipo"), pk=pk)
+        dispositivo = get_object_or_404(
+            dispositivos_en_alcance(request.user, self.capacidad_requerida).select_related("tipo"), pk=pk
+        )
         volver = self.volver(dispositivo)
-        if not puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida):
-            if is_ajax(request):
-                return JsonResponse({"ok": False, "message": "No tenés alcance sobre este dispositivo."}, status=403)
-            raise PermissionDenied
 
         form = self.construir_form(request, dispositivo)
         if form is not None and not form.is_valid():

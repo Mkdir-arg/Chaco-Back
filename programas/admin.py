@@ -25,7 +25,6 @@ Ninguna de las dos cosas cambia qué se puede editar ni quién puede entrar: la
 validación sigue siendo la del `ModelForm` y los permisos, los de Django.
 """
 
-from django import forms
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
@@ -437,21 +436,28 @@ class MotivoEgresoAdmin(SinBorradoMixin, admin.ModelAdmin):
 # --------------------------------------------------------------------------- #
 # Capacidad instalada de Dispositivos (carril C5)
 # --------------------------------------------------------------------------- #
-# **Red de soporte, no la vía normal.** El alta y la edición de todos los días van por
-# `/dispositivos/`, donde las reglas las sostienen `programas.services.plazas` y
-# `programas.services.edificios`: alcance al dispositivo, sector sin plazas tomadas para
-# darlo de baja, tipo de plaza que el tipo de institución admite, traza en el legajo.
-# La baja y el cambio de estado solo se hacen por esas pantallas; el admin conserva su
-# auditoría LogEntry y valida la identidad y el tipo de plaza como red de soporte.
-#
-# Las tres van `SinBorradoMixin` por el mismo motivo que `MotivoEgreso`: una estadía
-# cerrada y un movimiento apuntan a su plaza, y el historial no pierde dónde estuvo la
-# persona. Un sector que deja de usarse se da de baja con `activo`; una plaza, sacándola
-# de servicio con su motivo.
+# Red de consulta: toda escritura pasa por las pantallas y sus servicios de dominio.
+# El admin no aplica el alcance por institución ni los bloqueos de capacidad instalada.
+
+
+class CapacidadSoloLecturaMixin:
+    """La decisión del juez para Edificio, Sector y Plaza incluye al superusuario."""
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        return tuple(campo.name for campo in self.model._meta.fields + self.model._meta.many_to_many)
 
 
 @admin.register(Edificio)
-class EdificioAdmin(SinBorradoMixin, admin.ModelAdmin):
+class EdificioAdmin(CapacidadSoloLecturaMixin, admin.ModelAdmin):
     """El inmueble, varios a varios con las instituciones que lo ocupan (predio compartido)."""
 
     list_display = ("codigo", "nombre", "localidad", "activo")
@@ -463,58 +469,24 @@ class EdificioAdmin(SinBorradoMixin, admin.ModelAdmin):
 
 
 @admin.register(Sector)
-class SectorAdmin(SinBorradoMixin, admin.ModelAdmin):
+class SectorAdmin(CapacidadSoloLecturaMixin, admin.ModelAdmin):
     """La organización operativa de la institución. Cuelga del dispositivo, no del edificio."""
 
     list_display = ("nombre", "dispositivo", "tipo", "capacidad", "activo")
     list_filter = ("activo", "tipo")
     search_fields = ("nombre", "dispositivo__codigo", "dispositivo__nombre")
     raw_id_fields = ("dispositivo",)
-    readonly_fields = ("activo",)
-
-    def get_readonly_fields(self, request, obj=None):
-        # Mover el sector cambiaría también de institución toda la historia de sus plazas.
-        return (*self.readonly_fields, "dispositivo") if obj else self.readonly_fields
-
     # G1c-11: `Sector.__str__` abre el dispositivo, así que la columna sería una consulta por fila.
     list_select_related = ("dispositivo",)
 
 
-class PlazaSoporteForm(forms.ModelForm):
-    class Meta:
-        model = Plaza
-        fields = "__all__"
-
-    def clean(self):
-        datos = super().clean()
-        sector = datos.get("sector") or (self.instance.sector if self.instance.pk else None)
-        if sector is not None:
-            if (
-                Plaza.objects.filter(sector__dispositivo=sector.dispositivo, codigo__iexact=datos.get("codigo"))
-                .exclude(pk=self.instance.pk)
-                .exists()
-            ):
-                self.add_error("codigo", "Ya hay una plaza con ese código en el dispositivo.")
-        return datos
-
-
 @admin.register(Plaza)
-class PlazaAdmin(SinBorradoMixin, admin.ModelAdmin):
-    """La unidad de capacidad. El estado guardado es el **operativo**: ocupada y reservada se derivan.
-
-    Por eso `estado` y `motivo_fuera_servicio` son de solo lectura acá: cambiarlos a mano
-    saltearía la regla de `estadias.sacar_plaza_de_servicio` —que rechaza la plaza tomada—
-    y dejaría una persona alojada en una plaza que el mapa cuenta como no operativa.
-    """
+class PlazaAdmin(CapacidadSoloLecturaMixin, admin.ModelAdmin):
+    """Consulta de identidad y estado operativo; la ocupación se deriva en los servicios."""
 
     list_display = ("codigo", "sector", "tipo", "estado")
-    form = PlazaSoporteForm
     list_filter = ("estado", "tipo")
     search_fields = ("codigo", "sector__nombre", "sector__dispositivo__codigo")
     raw_id_fields = ("sector",)
-    readonly_fields = ("estado", "motivo_fuera_servicio")
     # G1c-11: `Plaza.__str__` abre el sector y el sector abre el dispositivo.
     list_select_related = ("sector__dispositivo",)
-
-    def get_readonly_fields(self, request, obj=None):
-        return (*self.readonly_fields, "sector") if obj else self.readonly_fields

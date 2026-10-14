@@ -35,6 +35,7 @@ from django.db import transaction
 from programas.models import Dispositivo, Plaza, Sector, TrazaDispositivo
 from programas.selectors.capacidad_dispositivo import codigos_del_dispositivo, plazas_tomadas_del_sector
 from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.estadias import _plaza_tomada_por
 
 #: Configurar la capacidad instalada es edición del legajo, no operación diaria. La misma
 #: capacidad con la que se saca una plaza de servicio.
@@ -160,7 +161,7 @@ def editar_sector(*, sector, usuario, nombre, tipo, perfil="", capacidad=0, cond
     if not nombre:
         raise ValidationError({"nombre": "El sector necesita un nombre."})
 
-    sector = Sector.objects.select_for_update().select_related("dispositivo__tipo").get(pk=sector.pk)
+    sector = Sector.objects.select_for_update().get(pk=sector.pk)
     dispositivo = sector.dispositivo
     _exigir_nombre_libre(dispositivo, nombre, excepto=sector)
 
@@ -224,7 +225,7 @@ def agregar_plazas(*, sector, usuario, cantidad, tipo=Plaza.Tipo.CAMA, prefijo="
 
     _exigir_alcance(sector.dispositivo, usuario)
     Dispositivo.objects.select_for_update().get(pk=sector.dispositivo_id)
-    sector = Sector.objects.select_for_update().select_related("dispositivo__tipo").get(pk=sector.pk)
+    sector = Sector.objects.select_for_update().get(pk=sector.pk)
     dispositivo = sector.dispositivo
     if not sector.activo:
         raise ValidationError({"sector": "El sector está dado de baja: reactivalo antes de agregarle plazas."})
@@ -259,6 +260,11 @@ def agregar_plazas(*, sector, usuario, cantidad, tipo=Plaza.Tipo.CAMA, prefijo="
 def editar_plaza(*, plaza, usuario, codigo, tipo):
     """Corrige el código o el tipo de una plaza. No la mueve de sector ni toca su estado.
 
+    Una plaza con estadía, reserva o préstamo vigente primero se reubica o libera.
+    Se consulta la misma guarda de estadías con la fila de la plaza bloqueada.
+    El dispositivo se bloquea antes: la unicidad del código abarca todos sus sectores
+    y se revalida dentro de esta transacción, también frente a altas en lote.
+
     El estado operativo es de `estadias.sacar_plaza_de_servicio` y
     `estadias.volver_plaza_a_servicio`: tienen su propia regla (la plaza tomada no sale) y
     su propio modal en P5.
@@ -274,6 +280,9 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
 
     Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
     plaza = Plaza.objects.select_for_update().get(pk=plaza.pk)
+    tomada = _plaza_tomada_por(plaza)
+    if tomada:
+        raise ValidationError({"__all__": f"La plaza tiene {tomada}: reubicá o liberá antes de editarla."})
     if Plaza.objects.filter(sector__dispositivo=dispositivo, codigo__iexact=codigo).exclude(pk=plaza.pk).exists():
         raise ValidationError({"codigo": "Ya hay una plaza con ese código en el dispositivo."})
 

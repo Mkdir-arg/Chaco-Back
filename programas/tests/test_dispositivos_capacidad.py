@@ -308,7 +308,7 @@ class AlcanceDeLaConfiguracionTests(BaseCapacidad):
 
         respuesta = self.client.post(reverse("dispositivos:sector_crear", args=[self.cis.pk]), self._datos_de_sector())
 
-        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.status_code, 404)
 
     def test_un_sector_ajeno_da_el_mismo_404_que_uno_inexistente(self):
         self.client.force_login(self.operador_cis)
@@ -620,7 +620,7 @@ class GuardasDeCapacidadTests(BaseCapacidad):
         with patch("programas.views.dispositivos_capacidad.SectorForm") as form:
             for pk in (self.sector.pk, 99999):
                 respuesta = self.client.post(reverse("dispositivos:sector_editar", args=[self.cis.pk, pk]), {})
-                self.assertEqual(respuesta.status_code, 403)
+                self.assertEqual(respuesta.status_code, 404)
             form.assert_not_called()
 
     def test_edificios_y_plazas_ajenos_e_inexistentes_devuelven_el_mismo_404_antes_de_validar(self):
@@ -708,8 +708,6 @@ class GuardasDeCapacidadTests(BaseCapacidad):
         from django.contrib.auth.models import User
         from django.test import RequestFactory
 
-        from programas.admin import PlazaSoporteForm
-
         request = RequestFactory().get("/admin/")
         request.user = User.objects.create_superuser(username="soporte", password="x")
         for modelo in (Edificio, Sector, Plaza):
@@ -717,16 +715,6 @@ class GuardasDeCapacidadTests(BaseCapacidad):
         self.assertIn("activo", admin.site._registry[Sector].get_readonly_fields(request, self.sector))
         self.assertIn("dispositivo", admin.site._registry[Sector].get_readonly_fields(request, self.sector))
         self.assertIn("sector", admin.site._registry[Plaza].get_readonly_fields(request, self.plaza))
-        otro = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
-        Plaza.objects.create(sector=otro, codigo="B-01")
-        form = PlazaSoporteForm({"sector": self.sector.pk, "codigo": "B-01", "tipo": Plaza.Tipo.CAMA})
-        self.assertFalse(form.is_valid())
-        self.assertIn("codigo", form.errors)
-        self.tipo.tipos_plaza_admitidos = [Plaza.Tipo.CAMA]
-        self.tipo.save()
-        form = PlazaSoporteForm({"sector": self.sector.pk, "codigo": "NUEVA", "tipo": Plaza.Tipo.CUPO})
-        self.assertFalse(form.is_valid())
-        self.assertIn("tipo", form.errors)
 
 
 @tag("performance")

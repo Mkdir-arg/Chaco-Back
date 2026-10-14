@@ -123,6 +123,10 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   (`programas/templates/programas/dispositivos/legajo/detail.html`),
   `programas/services/detalle_dispositivo.py` normaliza `?tab=` según las solapas disponibles
   y la vista pasa `tab` al `x-data`; una inexistente cae en la predeterminada.
+- Infraestructura de P4/P19: cada edificio muestra su domicilio normalizado junto a su
+  identidad. `infraestructura_del_dispositivo` entrega `domicilio` en el mismo queryset
+  de edificios, sin consultas por fila. Alta, edición y vínculo se abren en los modales
+  canónicos de esa solapa y exigen alcance de edición al dispositivo.
 - Estado vacío dentro de la tabla: `{% empty %}` con `<td colspan="n" class="p-0">`.
 - Acción de la fila que muta: `<button type="button">` con `data-*` + `<form method="post" class="hidden">`
   con `{% csrf_token %}`, y la confirmación por `data-confirm-url` (arquetipo Confirmación).
