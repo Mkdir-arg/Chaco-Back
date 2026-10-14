@@ -15,8 +15,9 @@ encabezado, «Editar sector» en el de cada sector— usan la misma variante, co
 y `?plazas=`.{% endcomment %}
 <div x-data="{ modalPlaza: {% if plaza_accion %}true{% else %}false{% endif %},
                modalSector: {% if form_sector %}true{% else %}false{% endif %},
-               modalPlazas: {% if form_plazas %}true{% else %}false{% endif %} }"
-     @becas-saved.window="modalPlaza=false; modalSector=false; modalPlazas=false">
+               modalPlazas: {% if form_plazas %}true{% else %}false{% endif %},
+               modalEditarPlaza: {% if form_editar_plaza %}true{% else %}false{% endif %} }"
+     @becas-saved.window="modalPlaza=false; modalSector=false; modalPlazas=false; modalEditarPlaza=false">
 
   {# Los overlays fixed van FUERA del space-y-*: el margin-top los corre y el clic en esa franja no cierra #}
   <div class="space-y-5">
@@ -60,6 +61,11 @@ y `?plazas=`.{% endcomment %}
       </div>
       <div class="p-5">
         {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.resumen.total %}
+        {% if not item.plazas and puede_configurar_plazas %}
+        <a href="?plazas={{ item.sector.pk }}" class="btn-nodo btn-brand btn-sm mt-3">
+          <i class="fas fa-plus" aria-hidden="true"></i> Agregar plazas
+        </a>
+        {% endif %}
       </div>
     </section>
     {% empty %}
@@ -134,6 +140,35 @@ y `?plazas=`.{% endcomment %}
           {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Sí, volver a servicio" %}
         </form>
       {% endif %}
+      {% if puede_configurar_plazas %}
+      <div class="px-6 py-4 border-t border-light bg-secondary flex justify-end">
+        <a href="?editar_plaza={{ plaza_accion.plaza.pk }}" class="btn-nodo btn-secondary btn-sm">
+          <i class="fas fa-pen" aria-hidden="true"></i> Editar plaza
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_editar_plaza %}
+  <div x-show="modalEditarPlaza" x-cloak x-becas-modal="modalEditarPlaza" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEditarPlaza=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-editar-plaza-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Editar plaza" titulo_id="modal-editar-plaza-titulo" subtitulo=plaza_en_edicion.codigo icono="fa-bed" cerrar="modalEditarPlaza=false" %}
+      <form method="post" action="{{ url_editar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            {% include "components/_field.html" with field=form_editar_plaza.codigo %}
+            {% include "components/_field.html" with field=form_editar_plaza.tipo %}
+          </div>
+          {% include "components/_alerta.html" with tono="info" texto="El código debe ser único en la institución. El estado operativo se cambia desde la acción de la plaza." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalEditarPlaza=false" accion_texto="Guardar plaza" %}
+      </form>
     </div>
   </div>
   {% endif %}
@@ -171,7 +206,7 @@ y `?plazas=`.{% endcomment %}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="perfil"></p>
             </div>
             <div>
-              <label for="{{ form_sector.capacidad.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Capacidad declarada</label>
+              <label for="{{ form_sector.capacidad.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Capacidad declarada <span class="text-fg-danger">*</span></label>
               {{ form_sector.capacidad }}
               <p class="mt-1 text-xs text-body-subtle">{{ form_sector.capacidad.help_text }}</p>
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="capacidad"></p>

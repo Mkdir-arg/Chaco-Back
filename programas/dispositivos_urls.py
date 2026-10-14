@@ -38,6 +38,7 @@ urlpatterns = [
         name="sector_editar",
     ),
     path("<int:pk>/plazas/agregar/", capacidad.PlazasAgregarView.as_view(), name="plazas_agregar"),
+    path("<int:pk>/plazas/<int:plaza_pk>/editar/", capacidad.PlazaEditarView.as_view(), name="plaza_editar"),
     # Edificio de la solapa Infraestructura (P19). El alta lo vincula; «vincular» declara el
     # predio compartido con un edificio que ya existe.
     path("<int:pk>/edificio/nuevo/", capacidad.EdificioCrearView.as_view(), name="edificio_crear"),

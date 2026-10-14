@@ -210,8 +210,8 @@ def sectores_con_plazas(dispositivo, *, puede_liberar=False, puede_configurar_pl
 
     `puede_liberar` (`dispositivo.admitir`) y `puede_configurar_plazas`
     (`dispositivo.editar`) los resuelve la vista con alcance al dispositivo. Una plaza
-    cuya acción el usuario no puede ejercer llega **sin** `url`: el mapa la dibuja
-    informativa, que es lo que su contrato ya hacía.
+    cuya acción el usuario no puede ejercer llega sin `url`, salvo que pueda editar su
+    identidad: en ese caso enlaza al modal de edición, sin liberar ni cambiar el estado.
     """
 
     # Un solo instante para las dos: la vigencia de una reserva es por tiempo, y con dos
@@ -237,7 +237,11 @@ def sectores_con_plazas(dispositivo, *, puede_liberar=False, puede_configurar_pl
             habilitada = _habilitada(
                 accion, puede_liberar=puede_liberar, puede_configurar_plazas=puede_configurar_plazas
             )
-            celdas.append(_plaza_para_el_mapa(plaza, estado, f"?plaza={plaza.pk}" if habilitada else ""))
+            url = f"?plaza={plaza.pk}" if habilitada else ""
+            if not url and puede_configurar_plazas:
+                # Editar la identidad no libera la reserva ni exige dispositivo.admitir.
+                url = f"?editar_plaza={plaza.pk}"
+            celdas.append(_plaza_para_el_mapa(plaza, estado, url))
         armados.append(
             {
                 "sector": sector,

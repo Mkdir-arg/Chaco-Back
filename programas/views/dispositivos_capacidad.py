@@ -15,7 +15,7 @@ relee con la fila bloqueada.
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
@@ -23,27 +23,34 @@ from django.views import View
 from programas.forms_dispositivos import (
     AgregarPlazasForm,
     EdificioForm,
+    PlazaForm,
     SectorForm,
     VincularEdificioForm,
 )
 from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
-from programas.models import Dispositivo, Edificio, Sector
+from programas.models import Dispositivo, Edificio, Plaza, Sector
+from programas.selectors.capacidad_dispositivo import edificios_vinculables
 from programas.services.dispositivos import puede_operar_dispositivo
 from programas.services.edificios import (
     CAP_EDITAR,
     crear_edificio,
     desvincular_edificio,
-    edificios_vinculables,
     editar_edificio,
     vincular_edificio,
 )
-from programas.services.plazas import agregar_plazas, crear_sector, editar_sector
+from programas.services.plazas import agregar_plazas, crear_sector, editar_plaza, editar_sector
 from programas.views.ajax_utils import ajax_redirect, errores_del_servicio, is_ajax, rechazar
 
 #: Adónde vuelve cada familia de acciones. Las de sectores y plazas, al mapa (P5); las del
 #: edificio, al detalle abierto en su solapa (P4/P19). Se arman con `reverse`: ningún
 #: parámetro que llegue en el POST puede mandar al usuario afuera.
 SOLAPA_INFRAESTRUCTURA = "infraestructura"
+
+
+def _id_de_seleccion(valor):
+    if not (valor.isascii() and valor.isdecimal()):
+        raise Http404
+    return int(valor)
 
 
 def url_mapa_de_plazas(dispositivo_pk):
@@ -160,6 +167,8 @@ class PlazasAgregarView(_AccionDeSectorView):
     """«+ Agregar plazas» del encabezado de P5: el lote, con su sector elegido en el modal."""
 
     def construir_form(self, request, dispositivo):
+        if request.POST.get("sector"):
+            get_object_or_404(Sector, pk=_id_de_seleccion(request.POST["sector"]), dispositivo=dispositivo, activo=True)
         return AgregarPlazasForm(
             request.POST,
             dispositivo=dispositivo,
@@ -177,6 +186,22 @@ class PlazasAgregarView(_AccionDeSectorView):
 
     def mensaje(self, resultado):
         return f"{len(resultado)} plaza{'s' if len(resultado) > 1 else ''} agregada{'s' if len(resultado) > 1 else ''}."
+
+
+class PlazaEditarView(_AccionDeSectorView):
+    def construir_form(self, request, dispositivo):
+        self.plaza = get_object_or_404(
+            Plaza.objects.select_related("sector__dispositivo__tipo"),
+            pk=self.kwargs["plaza_pk"],
+            sector__dispositivo=dispositivo,
+        )
+        return PlazaForm(request.POST, dispositivo=dispositivo, plaza=self.plaza)
+
+    def ejecutar(self, request, dispositivo, datos):
+        return editar_plaza(plaza=self.plaza, usuario=request.user, **datos)
+
+    def mensaje(self, resultado):
+        return f"Plaza {resultado.codigo} actualizada."
 
 
 # --------------------------------------------------------------------------- #
@@ -206,9 +231,7 @@ class EdificioEditarView(_AccionDeEdificioView):
     """Corrección de los datos del inmueble. Si el predio es compartido, la ven las dos instituciones."""
 
     def construir_form(self, request, dispositivo):
-        # Sin filtrar por dispositivo: que el edificio sea de esta institución lo decide el
-        # servicio, y con el mismo resultado que un id inexistente.
-        self.edificio = get_object_or_404(Edificio, pk=self.kwargs["edificio_pk"])
+        self.edificio = get_object_or_404(Edificio, pk=self.kwargs["edificio_pk"], dispositivos=dispositivo)
         return EdificioForm(request.POST, edificio=self.edificio)
 
     def ejecutar(self, request, dispositivo, datos):
@@ -222,7 +245,10 @@ class EdificioVincularView(_AccionDeEdificioView):
     """Predio compartido: declarar que esta institución ocupa un edificio que ya existe."""
 
     def construir_form(self, request, dispositivo):
-        return VincularEdificioForm(request.POST, edificios=edificios_vinculables(request.user, dispositivo))
+        edificios = edificios_vinculables(request.user, dispositivo)
+        if request.POST.get("edificio"):
+            get_object_or_404(edificios, pk=_id_de_seleccion(request.POST["edificio"]))
+        return VincularEdificioForm(request.POST, edificios=edificios)
 
     def ejecutar(self, request, dispositivo, datos):
         return vincular_edificio(edificio=datos["edificio"], dispositivo=dispositivo, usuario=request.user)
@@ -235,7 +261,7 @@ class EdificioDesvincularView(_AccionDeEdificioView):
     """Deshace el vínculo. No borra el edificio ni sus relevamientos: son del inmueble."""
 
     def ejecutar(self, request, dispositivo, datos):
-        edificio = get_object_or_404(Edificio, pk=self.kwargs["edificio_pk"])
+        edificio = get_object_or_404(Edificio, pk=self.kwargs["edificio_pk"], dispositivos=dispositivo)
         return desvincular_edificio(edificio=edificio, dispositivo=dispositivo, usuario=request.user)
 
     def mensaje(self, resultado):

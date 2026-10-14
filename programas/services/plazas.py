@@ -32,9 +32,9 @@ una de la capacidad operativa es sacarla de servicio, con su motivo.
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
-from programas.models import Dispositivo, Estadia, Plaza, Sector, TrazaDispositivo
+from programas.models import Dispositivo, Plaza, Sector, TrazaDispositivo
+from programas.selectors.capacidad_dispositivo import codigos_del_dispositivo, plazas_tomadas_del_sector
 from programas.services.dispositivos import puede_operar_dispositivo
-from programas.services.estadias import reservas_abiertas
 
 #: Configurar la capacidad instalada es edición del legajo, no operación diaria. La misma
 #: capacidad con la que se saca una plaza de servicio.
@@ -109,23 +109,11 @@ def _exigir_tipo_de_plaza_admitido(dispositivo, tipo):
     es lo que ya dice `TipoDispositivo.admite_tipo_de_plaza`, y acá no se vuelve a decidir.
     """
 
+    if tipo not in Plaza.Tipo.values:
+        raise ValidationError({"tipo": "Elegí un tipo de plaza válido."})
     if not dispositivo.tipo.admite_tipo_de_plaza(tipo):
         admitidos = ", ".join(Plaza.Tipo(valor).label for valor in dispositivo.tipo.tipos_de_plaza)
         raise ValidationError({"tipo": f"{dispositivo.tipo.nombre} solo admite plazas de tipo: {admitidos}."})
-
-
-def plazas_tomadas_del_sector(sector):
-    """Cuántas plazas del sector están tomadas: estadía activa, reserva o préstamo sin liberar.
-
-    Dos consultas fijas, no una por plaza. «Sin liberar» y no «vigente» a propósito: la
-    reserva vencida que nadie liberó sigue atada a la plaza (es la que enciende la alerta
-    de P4), y dar de baja el sector la dejaría colgando de una plaza que ya no se dibuja.
-    """
-
-    plazas = Plaza.objects.filter(sector=sector).values("pk")
-    con_estadia = set(Estadia.objects.activas().filter(plaza__sector=sector).values_list("plaza_id", flat=True))
-    con_reserva = set(reservas_abiertas(plazas).values_list("plaza_id", flat=True))
-    return len(con_estadia | con_reserva)
 
 
 @transaction.atomic
@@ -163,8 +151,8 @@ def editar_sector(*, sector, usuario, nombre, tipo, perfil="", capacidad=0, cond
     acción distinta: el sector dado de baja deja de dibujarse en el mapa y de ofrecerse
     para ingresar, y sus plazas siguen existiendo para la historia que ya tienen.
 
-    La fila se relee bloqueada: entre que la pantalla se dibujó y el envío, alguien pudo
-    alojar a una persona en una plaza del sector que se está dando de baja.
+    Se bloquean también las plazas antes de comprobar la baja: el ingreso y la reserva
+    toman ese mismo bloqueo, así que no pueden ocuparlas entre la consulta y el guardado.
     """
 
     _exigir_alcance(sector.dispositivo, usuario)
@@ -178,6 +166,7 @@ def editar_sector(*, sector, usuario, nombre, tipo, perfil="", capacidad=0, cond
 
     daba_de_baja = sector.activo and not activo
     if daba_de_baja:
+        list(Plaza.objects.select_for_update().filter(sector=sector).order_by("pk").values_list("pk", flat=True))
         tomadas = plazas_tomadas_del_sector(sector)
         if tomadas:
             raise ValidationError(
@@ -201,18 +190,6 @@ def editar_sector(*, sector, usuario, nombre, tipo, perfil="", capacidad=0, cond
     return sector
 
 
-def _codigos_del_dispositivo(dispositivo):
-    """Todos los códigos de plaza de la institución, en una consulta.
-
-    Dispositivo y no sector: el modelo exige el código único **por sector**, así que dos
-    pabellones podrían tener los dos una «01». El lote autogenerado no las crea igual de
-    todos modos —un código se lee solo, sin su sector, en los mensajes y en la bitácora—,
-    pero tampoco rechaza la que ya exista: lo que hace es saltearla al numerar.
-    """
-
-    return set(Plaza.objects.filter(sector__dispositivo=dispositivo).values_list("codigo", flat=True))
-
-
 def codigos_en_lote(*, cantidad, prefijo, tomados):
     """Los `cantidad` códigos del lote: `prefijo` + número, salteando los que ya existen.
 
@@ -221,13 +198,15 @@ def codigos_en_lote(*, cantidad, prefijo, tomados):
     probarla sin base.
     """
 
+    # La comparación coincide con la collation de códigos de MySQL/MariaDB.
+    tomados = {codigo.casefold() for codigo in tomados}
     codigos = []
     numero = 1
     while len(codigos) < cantidad:
         codigo = f"{prefijo}{numero:02d}"
-        if codigo not in tomados:
+        if codigo.casefold() not in tomados:
             codigos.append(codigo)
-            tomados.add(codigo)
+            tomados.add(codigo.casefold())
         numero += 1
     return codigos
 
@@ -239,12 +218,12 @@ def agregar_plazas(*, sector, usuario, cantidad, tipo=Plaza.Tipo.CAMA, prefijo="
     Las plazas nacen operativas: una plaza que todavía no se puede usar se saca de servicio
     con su motivo, que es lo que el mapa sabe mostrar.
 
-    La fila del sector se bloquea mientras se numera: dos lotes simultáneos sobre el mismo
-    sector elegirían los mismos números y el segundo moriría contra el `UniqueConstraint`.
+    Se bloquea el dispositivo antes del sector: la numeración es única entre sectores,
+    incluso cuando dos lotes se cargan al mismo tiempo en pabellones distintos.
     """
 
     _exigir_alcance(sector.dispositivo, usuario)
-
+    Dispositivo.objects.select_for_update().get(pk=sector.dispositivo_id)
     sector = Sector.objects.select_for_update().select_related("dispositivo__tipo").get(pk=sector.pk)
     dispositivo = sector.dispositivo
     if not sector.activo:
@@ -258,7 +237,7 @@ def agregar_plazas(*, sector, usuario, cantidad, tipo=Plaza.Tipo.CAMA, prefijo="
     _exigir_tipo_de_plaza_admitido(dispositivo, tipo)
 
     prefijo = (prefijo or "").strip()
-    codigos = codigos_en_lote(cantidad=cantidad, prefijo=prefijo, tomados=_codigos_del_dispositivo(dispositivo))
+    codigos = codigos_en_lote(cantidad=cantidad, prefijo=prefijo, tomados=codigos_del_dispositivo(dispositivo))
     largo = max(len(codigo) for codigo in codigos)
     if largo > Plaza._meta.get_field("codigo").max_length:
         raise ValidationError({"prefijo": "El prefijo es demasiado largo para el código de la plaza."})
@@ -293,9 +272,10 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
         raise ValidationError({"codigo": "La plaza necesita un código."})
     _exigir_tipo_de_plaza_admitido(dispositivo, tipo)
 
+    Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
     plaza = Plaza.objects.select_for_update().get(pk=plaza.pk)
-    if Plaza.objects.filter(sector_id=plaza.sector_id, codigo=codigo).exclude(pk=plaza.pk).exists():
-        raise ValidationError({"codigo": "Ya hay una plaza con ese código en el sector."})
+    if Plaza.objects.filter(sector__dispositivo=dispositivo, codigo__iexact=codigo).exclude(pk=plaza.pk).exists():
+        raise ValidationError({"codigo": "Ya hay una plaza con ese código en el dispositivo."})
 
     anterior = plaza.codigo
     plaza.codigo = codigo

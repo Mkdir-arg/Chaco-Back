@@ -574,13 +574,34 @@ class AgregarPlazasForm(forms.Form):
     def __init__(self, *args, dispositivo, sectores, **kwargs):
         super().__init__(*args, **kwargs)
         self.dispositivo = dispositivo
-        self.fields["sector"].queryset = sectores
+        # El label de Sector usa el código del dispositivo; cargarlo una vez evita
+        # una consulta por opción cuando hay varios pabellones en el modal.
+        self.fields["sector"].queryset = sectores.select_related("dispositivo")
         admitidos = dispositivo.tipo.tipos_de_plaza
         if admitidos:
             self.fields["tipo"].choices = [
                 (valor, etiqueta) for valor, etiqueta in Plaza.Tipo.choices if valor in admitidos
             ]
         self.fields["tipo"].initial = self.fields["tipo"].choices[0][0]
+
+
+class PlazaForm(forms.Form):
+    """Identidad de la plaza; el estado operativo se cambia desde su acción propia."""
+
+    codigo = forms.CharField(label="Código", max_length=50, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
+    tipo = forms.ChoiceField(
+        label="Tipo de plaza", choices=Plaza.Tipo.choices, widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+
+    def __init__(self, *args, dispositivo, plaza, **kwargs):
+        super().__init__(*args, **kwargs)
+        admitidos = dispositivo.tipo.tipos_de_plaza
+        if admitidos:
+            self.fields["tipo"].choices = [
+                (valor, etiqueta) for valor, etiqueta in Plaza.Tipo.choices if valor in admitidos
+            ]
+        if not self.is_bound:
+            self.initial.update(codigo=plaza.codigo, tipo=plaza.tipo)
 
 
 class EdificioForm(forms.Form):

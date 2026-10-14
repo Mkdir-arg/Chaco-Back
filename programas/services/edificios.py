@@ -31,8 +31,8 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
 from programas.models import Dispositivo, Edificio, TrazaDispositivo
+from programas.selectors.capacidad_dispositivo import edificios_vinculables
 from programas.services.dispositivos import puede_operar_dispositivo
-from programas.services.inspecciones import edificios_en_alcance
 
 #: La misma capacidad con la que se edita el legajo: el edificio es dato del legajo.
 CAP_EDITAR = "dispositivo.editar"
@@ -71,18 +71,6 @@ def _exigir_alcance(dispositivo, usuario):
 
 def _normalizar(texto):
     return " ".join((texto or "").split())
-
-
-def edificios_vinculables(usuario, dispositivo):
-    """Los edificios que el usuario puede vincular a este dispositivo: los de su alcance, menos los ya vinculados."""
-
-    return edificios_en_alcance(usuario, CAP_EDITAR).exclude(dispositivos=dispositivo).order_by("nombre", "pk")
-
-
-def edificios_del_dispositivo(dispositivo):
-    """Los edificios que ocupa la institución. La misma lectura que usa la solapa Infraestructura."""
-
-    return Edificio.objects.filter(dispositivos=dispositivo).order_by("nombre", "pk")
 
 
 def _exigir_codigo_libre(codigo, *, excepto=None):

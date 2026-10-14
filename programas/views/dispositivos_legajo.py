@@ -21,6 +21,7 @@ from programas.forms_dispositivos import (
     EdificioForm,
     EgresoForm,
     LiberarPlazaForm,
+    PlazaForm,
     SacarPlazaDeServicioForm,
     SectorForm,
     VincularEdificioForm,
@@ -30,6 +31,7 @@ from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los i
     DispositivoProgramaPermissionMixin,
 )
 from programas.models import Dispositivo, Edificio, Estadia, Plaza, Sector, TipoDispositivo
+from programas.selectors.capacidad_dispositivo import edificios_vinculables
 from programas.selectors.estadia_detalle import (
     detalle_de_estadia,
     novedades_de_estadia,
@@ -64,7 +66,6 @@ from programas.services.dispositivos import (
     registrar_edicion_dispositivo,
     validar_dispositivo,
 )
-from programas.services.edificios import edificios_vinculables
 from programas.services.estadias import (
     CAP_ADMITIR,
     CAP_EDITAR,
@@ -541,6 +542,20 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
                 sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True),
             )
             context["url_plazas"] = reverse("dispositivos:plazas_agregar", args=[dispositivo.pk])
+            pk = _entero(self.request.GET.get("plazas", ""))
+            if pk is not None:
+                context["form_plazas"].initial["sector"] = pk
+
+        pedido = self.request.GET.get("editar_plaza", "")
+        if pedido:
+            pk = _entero(pedido)
+            plaza = Plaza.objects.filter(pk=pk, sector__dispositivo=dispositivo).first() if pk is not None else None
+            if plaza is None:
+                messages.warning(self.request, "Esa plaza ya no se puede editar desde acá.")
+            else:
+                context["plaza_en_edicion"] = plaza
+                context["form_editar_plaza"] = PlazaForm(dispositivo=dispositivo, plaza=plaza)
+                context["url_editar_plaza"] = reverse("dispositivos:plaza_editar", args=[dispositivo.pk, plaza.pk])
 
     def _preparar_modal(self, context, dispositivo, puede_liberar, puede_configurar_plazas):
         pedida = self.request.GET.get("plaza", "")
