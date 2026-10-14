@@ -417,7 +417,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 283 | Bitácora del turno: las novedades del día, el censo del turno y la configuración de turnos | Dispositivos · bitácora | `#ui` `#rbac` `#performance` | Task 32 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | No requiere |
 | 286 | Listado de instituciones al arquetipo: filtros canónicos, plazas por fila y paginación (P2) | Dispositivos · legajo institucional | `#ui` `#rbac` `#performance` | Carril C4 del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 287 | Acciones del mapa de plazas y enlaces de resolución de las alertas | Dispositivos · plazas y alertas | `#ui` `#rbac` `#performance` | Carril C1 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
-| NNN | El turno visible, las novedades automáticas de la bitácora y tres contratos que faltaban | Dispositivos · estadía, ingreso, detalle y bitácora | `#ui` `#datos` `#rbac` `#performance` | Carril C3 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0094` |
+| 288 | El turno visible, las novedades automáticas de la bitácora y tres contratos que faltaban | Dispositivos · estadía, ingreso, detalle y bitácora | `#ui` `#datos` `#rbac` `#performance` | Carril C3 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0094` |
 
 **Notas del índice**
 
@@ -36888,7 +36888,7 @@ contención del Cambio 262.
 
 ---
 
-# Cambio NNN — El turno visible, las novedades automáticas de la bitácora y tres contratos que faltaban
+# Cambio 288 — El turno visible, las novedades automáticas de la bitácora y tres contratos que faltaban
 
 🟢 **HECHO — 14/10/2026** · Carril C3 del cierre del MVP de Dispositivos
 
