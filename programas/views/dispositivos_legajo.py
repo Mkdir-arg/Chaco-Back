@@ -146,7 +146,7 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         censo = ocupacion_de_plazas(ids)
         for dispositivo in dispositivos:
             dispositivo.semaforo = semaforos[dispositivo.pk]
-            dispositivo.plazas = tension_de_ocupacion(censo.de(dispositivo).conteo)
+            dispositivo.plazas = tension_de_ocupacion(censo.de(dispositivo).conteo, tipo=dispositivo.tipo)
         context["dispositivos"] = context["object_list"] = dispositivos
         return context
 
@@ -233,10 +233,23 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         historial, eventos = eventos_de_historial(dispositivo, get.get("historial_page"), user)
         estadias = estadias_del_dispositivo(dispositivo, estado=estado, sector=sector, pagina=get.get("estadias_page"))
         puede_egresar = puede_operar_dispositivo(user, dispositivo, CAP_EGRESAR)
+        puede_cambiar = puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR)
+        puede_ver_ciudadano = puede(user, "ciudadano.ver")
+        for estadia in estadias:
+            if puede_ver_ciudadano:
+                estadia.url_ver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
+            if puede_cambiar and estadia.activa and estadia.plaza_id is not None:
+                estadia.url_cambiar = f"{self.request.path}?{urlencode({'tab': 'estadias', 'cambio': estadia.pk})}"
+                estadia.motivo_cambiar = (
+                    "No hay plazas libres en el dispositivo." if not ocupacion.conteo.disponibles else ""
+                )
         if puede_egresar:
             for estadia in estadias:
                 if estadia.estado == Estadia.Estado.ACTIVA:
                     estadia.url_egresar = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
+                    estadia.url_modal_egreso = (
+                        f"{self.request.path}?{urlencode({'tab': 'estadias', 'egreso': estadia.pk})}"
+                    )
 
         con_plazas = maneja_plazas(dispositivo)
         context.update(
@@ -250,9 +263,9 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 # procede. Son las mismas para todos; lo que depende de quién mira es el
                 # enlace de resolución, porque la pantalla de destino tiene su capacidad.
                 "alertas": alertas_del_dispositivo(dispositivo, usuario=user),
-                "indicadores": indicadores_de_plazas(ocupacion.conteo),
+                "indicadores": indicadores_de_plazas(ocupacion.conteo, tipo=dispositivo.tipo),
                 "sectores": sectores,
-                "n_plazas": ocupacion.conteo.operativas,
+                "n_plazas": ocupacion.conteo.totales,
                 "n_alojadas": contar_alojadas(dispositivo),
                 "estadias": estadias,
                 "pildoras": pildoras_de_estadias(estado, sector, sectores),
@@ -263,19 +276,54 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "eventos": eventos,
                 # `user` y no solo el dispositivo: el nombre del agente de un relevamiento en
                 # curso no lo ve la institución relevada (`inspecciones.ve_la_asignacion`).
-                "infraestructura": infraestructura_del_dispositivo(dispositivo, get.get("relevamientos_page"), user),
+                "infraestructura": infraestructura_del_dispositivo(
+                    dispositivo, get.get("relevamientos_page"), usuario=user
+                ),
                 "puede_editar": puede_operar_dispositivo(user, dispositivo, "dispositivo.editar"),
                 "puede_validar": puede_operar_dispositivo(user, dispositivo, "dispositivo.validar"),
                 "puede_admitir": puede_operar_dispositivo(user, dispositivo, "dispositivo.admitir"),
-                "puede_ver_ciudadano": puede(user, "ciudadano.ver"),
+                "puede_ver_ciudadano": puede_ver_ciudadano,
                 "puede_egresar": puede_egresar,
-                "form_egreso": EgresoForm() if puede_egresar else None,
                 "url_ingreso": reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]),
                 "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]),
             }
         )
+        self._preparar_modales_de_estadia(context, dispositivo, puede_cambiar, puede_egresar)
         self._preparar_modales_de_edificio(context, dispositivo, context["puede_editar"])
         return context
+
+    def _preparar_modales_de_estadia(self, context, dispositivo, puede_cambiar, puede_egresar):
+        """Un solo modal abierto por URL, sin formularios ni consultas por fila (contrato P21)."""
+
+        for parametro, autorizado in (("cambio", puede_cambiar), ("egreso", puede_egresar)):
+            pedido = self.request.GET.get(parametro, "")
+            if not pedido:
+                continue
+            if not autorizado:
+                raise PermissionDenied
+            # Un id ajeno, inexistente o no ASCII tiene la misma respuesta.
+            estadia_pk = int(pedido) if pedido.isascii() and pedido.isdecimal() else None
+            estadia = _estadia_del_dispositivo(dispositivo, estadia_pk)
+            if not estadia.activa:
+                messages.info(self.request, "La estadía ya está cerrada.")
+                continue
+            if parametro == "cambio":
+                if estadia.plaza_id is None:
+                    continue
+                sectores, _ = plazas_para_ingresar(dispositivo)
+                form = CambioPlazaForm(estadia=estadia, sectores=sectores, auto_id=AUTO_ID_CAMBIO)
+                if not form.hay_plazas_libres:
+                    messages.info(self.request, "No hay plazas libres en el dispositivo.")
+                    continue
+                context["form_cambio"] = form
+                context["url_cambiar_plaza"] = reverse("dispositivos:cambiar_plaza", args=[dispositivo.pk, estadia.pk])
+                context["estadia_cambio"] = estadia
+            else:
+                context["estadia_egreso"] = estadia
+                context["form_egreso"] = EgresoForm(estadia=estadia)
+                context["url_egresar"] = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
+            context["tab"] = "estadias"
+            break
 
     def _preparar_modales_de_edificio(self, context, dispositivo, puede_editar):
         """El alta, la edición y la vinculación del edificio de la solapa Infraestructura (P19).
@@ -925,7 +973,11 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
         if not puede_operar_dispositivo(request.user, dispositivo, CAP_ADMITIR):
             raise PermissionDenied
         estadia = _estadia_del_dispositivo(dispositivo, estadia_pk)
-        volver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
+        volver = (
+            url_solapa_estadias(dispositivo.pk)
+            if request.POST.get("volver") == "dispositivo"
+            else reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
+        )
 
         form = CambioPlazaForm(
             request.POST, estadia=estadia, sectores=_sectores_para_cambio(estadia), auto_id=AUTO_ID_CAMBIO

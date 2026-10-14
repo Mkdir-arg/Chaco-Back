@@ -61,6 +61,13 @@ Regla de uso: **una sola franja grande por pantalla**, y la grande nunca convive
 la misma franja. Los opcionales (`kpi_id`, `sufijo`, `nota`…) valen en las dos. El ícono se sigue
 pasando por nombre de Font Awesome.
 
+**P4/P19** (`programas/templates/programas/dispositivos/legajo/detail.html`) usan la chica en
+ambas franjas para conservar los acentos semánticos del mockup. Ocupación recibe texto y tono
+desde `tension_de_ocupacion(conteo, tipo=dispositivo.tipo)`, con los umbrales configurados del
+tipo. La grande ignora `tono`, por lo que no expresa ese semáforo. La franja conserva cuatro
+tarjetas: Ocupación incluye «X de Y operativas» en su pie y reemplaza a Ocupadas, sin perder esa
+cifra. Sin plazas operativas el porcentaje es «—», nunca un cero inventado.
+
 **Inicio (`templates/inicio.html`) — deuda abierta.** Sus cuatro tarjetas **no usan esta pieza**:
 están escritas a mano con un `.stat-card` local (líneas 84-130) y el gradiente puesto con
 `style=` inline en el marcado (línea 464 y siguientes), que es exactamente lo que la sección

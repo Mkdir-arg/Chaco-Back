@@ -565,12 +565,15 @@ class Tension:
         return self.porcentaje is not None
 
 
-def tension_de_ocupacion(conteo: Conteo) -> Tension:
+def tension_de_ocupacion(conteo: Conteo, *, tipo=None) -> Tension:
     """Cómo se lee el ``Conteo`` de un ámbito en una fila: cifras, porcentaje, nivel y tono.
 
     Sin plazas operativas —o sin saber cuántas están ocupadas, que es el ``None`` que el
     módulo se cuida de no confundir con cero— no hay porcentaje y el nivel es
     ``sin_plazas``: una institución recién cargada no es una institución vacía.
+
+    P2 y P4 pasan el tipo para usar sus umbrales configurados. Sin tipo (por ejemplo,
+    una cifra agregada de red) se conserva el corte general de 60/80.
     """
 
     operativas = conteo.operativas
@@ -578,9 +581,11 @@ def tension_de_ocupacion(conteo: Conteo) -> Tension:
     if operativas <= 0 or ocupadas is None:
         return Tension(ocupadas=ocupadas, operativas=max(operativas, 0), porcentaje=None, nivel=NIVEL_SIN_PLAZAS)
     porcentaje = round(ocupadas * 100 / operativas)
-    if porcentaje >= UMBRAL_CRITICA:
+    amarillo = tipo.umbral_ocupacion_amarillo if tipo is not None else UMBRAL_EXIGIDA
+    rojo = tipo.umbral_ocupacion_rojo if tipo is not None else UMBRAL_CRITICA
+    if porcentaje >= rojo:
         nivel = NIVEL_CRITICA
-    elif porcentaje >= UMBRAL_EXIGIDA:
+    elif porcentaje >= amarillo:
         nivel = NIVEL_EXIGIDA
     else:
         nivel = NIVEL_NORMAL
