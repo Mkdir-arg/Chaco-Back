@@ -37050,7 +37050,7 @@ alta sin conocer las columnas. Sin `UUIDField` ni `UniqueConstraint` condicional
 - `notificaciones`: 157 tests en verde (Py 3.12 + Dj 5.2), entre ellos `test_paquete` (33),
   `test_imagenes_publicas` (26) y seis nuevos de `test_envio` para los MINOR de #647, con los paquetes
   armados en el test con `zipfile` + Pillow (incluida una JPEG con EXIF de GPS, que sale sin EXIF).
-  **Suite completa** con `.venv312`, después de traer `development`: 5.992 tests en verde (53 salteados), que incluye `core` (barrido de superficie pública y cobertura de prefijos de `/media/`), `users` y `configuracion`..
+  **Suite completa** con `.venv312`, después de traer `development`: 6.027 tests en verde (53 salteados), que incluye `core` (barrido de superficie pública y cobertura de prefijos de `/media/`), `users` y `configuracion`..
 - **Mutaciones, de a una, todas en rojo**: sin el chequeo de `..`/absolutas
   (`test_ruta_con_puntos_puntos`, `test_ruta_absoluta_y_unidad_de_windows`); sin Pillow
   (`test_svg_no_se_publica`, `test_imagen_falsa_con_extension_png_no_se_publica`); sin el corte por
@@ -37105,7 +37105,7 @@ alta sin conocer las columnas. Sin `UUIDField` ni `UniqueConstraint` condicional
 
 **14/10/2026 — revisión del juez, ronda 2 (APPROVE con MINOR).** Se trajo `development` (el
 conflicto de este archivo se resolvió a mano: las entradas y filas de `development`, 286 incluida,
-intactas, más esta entrada y su fila; el 285 seguía libre). Entraron los tres MINOR: imágenes
+intactas, más esta entrada y su fila; el 285 seguía libre). Se repitió igual una segunda vez, cuando `development` sumó el Cambio 287 en el medio. Entraron los tres MINOR: imágenes
 recodificadas sin metadatos, tope de 25 millones de píxeles y el aviso en la confirmación de
 «Eliminar». El límite de pedidos de la vista pública quedó en Pendientes.
 
