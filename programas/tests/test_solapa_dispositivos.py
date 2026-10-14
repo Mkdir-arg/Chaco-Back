@@ -10,13 +10,15 @@ del usuario. Cada candado pasó a afirmar lo contrario (decisión §4.11 de la p
 * «ser del programa» es una capacidad con alcance al programa, nunca un nombre de grupo.
 """
 
-from datetime import timedelta
+import json
+from datetime import datetime, timedelta
+from pathlib import Path
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.db import connection
-from django.test import TestCase
+from django.test import TestCase, tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -24,6 +26,7 @@ from django.utils import timezone
 from core import rbac
 from legajos.models import Ciudadano
 from programas.models import (
+    AsignacionDispositivo,
     Dispositivo,
     Estadia,
     InscripcionPrograma,
@@ -34,6 +37,7 @@ from programas.models import (
     TipoDispositivo,
 )
 from programas.selectors.trayectoria import POR_PAGINA, trayectoria_de
+from programas.services.dispositivos import dispositivos_visibles
 from programas.services.solapas import SolapasService
 from users.models import Capacidad, RolMeta
 
@@ -349,6 +353,95 @@ class QuienPuedeVerlaTests(BaseSolapa):
 
     def test_anonimo_va_al_login(self):
         self.assertEqual(self.client.get(self.url()).status_code, 302)
+
+
+class EnlacesEstadiaTests(BaseSolapa):
+    def setUp(self):
+        super().setUp()
+        self.ahora = timezone.make_aware(datetime(2026, 10, 14, 16))
+        self.rol = _rol(
+            "Operador con detalle",
+            ["dispositivo.ver", "ciudadano.ver", "dispositivo.admitir", "dispositivo.egresar", "dispositivo.bitacora"],
+            self.programa,
+        )
+        self.usuario = _usuario("operador-detalle", self.rol)
+        self.asignacion = AsignacionDispositivo.objects.create(dispositivo=self.cis, rol=self.rol)
+
+    def _url(self, estadia):
+        return reverse("dispositivos:estadia_detalle", args=[estadia.dispositivo_id, estadia.pk])
+
+    def test_en_alcance_ofrece_detalle_abierto_y_cerrado_con_nombre_accesible(self):
+        cerrada = self.estadia_cerrada(self.cis)
+        abierta = self.estadia_activa(self.cis, self.plaza)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(self.url())
+        for estadia in (abierta, cerrada):
+            with self.subTest(estadia=estadia.pk):
+                self.assertContains(respuesta, f'href="{self._url(estadia)}" class="nodo-icon-btn"')
+                self.assertContains(respuesta, 'aria-label="Ver estadía en CIS N.º 3 del ')
+                self.assertEqual(self.client.get(self._url(estadia)).status_code, 200)
+        self.assertNotContains(respuesta, "entrá al programa")
+
+    def test_sin_alcance_conserva_la_fila_pero_no_ofrece_detalle(self):
+        propia = self.estadia_cerrada(self.cis)
+        ajena = self.estadia_cerrada(self.parador)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(self.url())
+        self.assertContains(respuesta, "Parador Vedia")
+        self.assertContains(respuesta, f'href="{self._url(propia)}"')
+        self.assertNotContains(respuesta, self._url(ajena))
+        self.assertEqual(self.client.get(self._url(ajena)).status_code, 403)
+
+    def test_asignacion_inactiva_no_ofrece_detalle(self):
+        self.estadia_cerrada(self.cis)
+        self.asignacion.activo = False
+        self.asignacion.save(update_fields=["activo"])
+        self.assertFalse(any(f.get("url_estadia") for f in trayectoria_de(self.persona, usuario=self.usuario)["filas"]))
+
+    def test_asignacion_en_rol_sin_la_capacidad_no_aporta_alcance(self):
+        self.estadia_cerrada(self.cis)
+        self.asignacion.delete()
+        rol = _rol("Asignado sin ver", ["ciudadano.ver", "dispositivo.admitir"], self.programa)
+        self.usuario.groups.add(rol)
+        AsignacionDispositivo.objects.create(dispositivo=self.cis, rol=rol)
+        self.assertFalse(any(f.get("url_estadia") for f in trayectoria_de(self.persona, usuario=self.usuario)["filas"]))
+
+    def test_sin_ciudadano_ver_el_selector_no_ofrece_detalle(self):
+        self.estadia_cerrada(self.cis)
+        self.rol.permissions.remove(_permiso("ciudadano.ver"))
+        self.assertFalse(any(f.get("url_estadia") for f in trayectoria_de(self.persona, usuario=self.usuario)["filas"]))
+
+    def test_sin_dispositivo_ver_el_selector_no_ofrece_detalle(self):
+        self.estadia_cerrada(self.cis)
+        self.rol.permissions.remove(_permiso("dispositivo.ver"))
+        self.assertFalse(any(f.get("url_estadia") for f in trayectoria_de(self.persona, usuario=self.usuario)["filas"]))
+
+    def test_admin_del_programa_ofrece_detalle_en_toda_la_red(self):
+        estadia = self.estadia_cerrada(self.parador)
+        self.rol.permissions.add(_permiso("programa.configurar"))
+        self.assertEqual(
+            trayectoria_de(self.persona, usuario=self.usuario)["filas"][0]["url_estadia"], self._url(estadia)
+        )
+
+    @tag("performance")
+    def test_presupuesto_de_enlaces_no_crece_con_las_filas(self):
+        # La vista ya evaluó capacidades antes del selector; calentamos solo esas lecturas.
+        rbac.puede(self.usuario, "ciudadano.ver")
+        dispositivos_visibles(self.usuario)
+        self.estadia_cerrada(self.cis)
+        with CaptureQueriesContext(connection) as pocas:
+            trayectoria_de(self.persona, usuario=self.usuario)
+        for i in range(POR_PAGINA):
+            self.estadia_cerrada(self.cis if i % 2 else self.parador, 400 - i * 10, 395 - i * 10)
+        with CaptureQueriesContext(connection) as muchas:
+            datos = trayectoria_de(self.persona, usuario=self.usuario)
+        techo = json.loads((Path(__file__).resolve().parents[2] / "scripts/perf_budgets.json").read_text())[
+            "servicios"
+        ]["dispositivos_trayectoria_enlaces"]["consultas_fijas"]
+        self.assertEqual(len(pocas), len(muchas), "El alcance no se consulta por fila")
+        self.assertLessEqual(len(muchas), techo)
+        self.assertTrue(any(f.get("url_estadia") for f in datos["filas"]))
+        self.assertTrue(any(not f.get("url_estadia") for f in datos["filas"]))
 
 
 class TopeYConsultasTests(BaseSolapa):

@@ -19,14 +19,18 @@ arquetipo Revisión, que decide `bloqueada` por capacidad en la vista y no manda
 al template. Que esta función no devuelva campos de la ficha es lo que garantiza que no
 puedan filtrarse; el test de la solapa lo afirma.
 
-Es una vista de lectura: no devuelve URLs ni capacidades de operación.
+Es una vista de lectura. El enlace al detalle exige `ciudadano.ver` y el mismo alcance
+de `dispositivo.ver` que P7; se resuelve para toda la página, nunca por fila.
 """
 
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
+from django.urls import reverse
 from django.utils import timezone
 
+from core import rbac
 from programas.models import Estadia
+from programas.services.dispositivos import dispositivos_visibles
 from programas.services.estadias import estado_visible
 
 #: Estadías por página. La trayectoria de una persona crece sin techo; el tope es de la vista.
@@ -43,7 +47,7 @@ def _ubicacion(estadia):
 def _fila(estadia):
     # Texto y tono salen de la tabla única de `programas.services.estadias`, la misma del detalle del dispositivo.
     estado, tono = estado_visible(estadia)
-    return {
+    fila = {
         "dispositivo": estadia.dispositivo.nombre,
         "tipo": estadia.dispositivo.tipo.nombre,
         "ubicacion": _ubicacion(estadia),
@@ -53,6 +57,9 @@ def _fila(estadia):
         "tono": tono,
         "motivo": estadia.motivo.nombre if estadia.motivo_id else "",
     }
+    if getattr(estadia, "puede_ver_detalle", False):
+        fila["url_estadia"] = reverse("dispositivos:estadia_detalle", args=[estadia.dispositivo_id, estadia.pk])
+    return fila
 
 
 def _texto_hoy(estadia):
@@ -65,14 +72,19 @@ def _texto_hoy(estadia):
     return f"alojada en {donde} desde el {desde}."
 
 
-def trayectoria_de(ciudadano, pagina=None):
+def trayectoria_de(ciudadano, pagina=None, *, usuario=None):
     """La trayectoria de `ciudadano`: página de filas, contadores y la estadía de hoy.
 
     Tres consultas, sin importar cuántas estadías tenga: el COUNT del paginador, la
     página con `dispositivo`, su tipo, la plaza y su sector ya traídos, y la estadía
-    abierta. Los contadores salen del COUNT, no de `len()` sobre el recorte.
+    abierta. El alcance del detalle se anota con EXISTS en la lectura de la página,
+    sin otra consulta por estadía. Los contadores salen del COUNT, no del recorte.
     """
     base = Estadia.objects.filter(ciudadano=ciudadano).select_related("dispositivo__tipo", "plaza__sector", "motivo")
+    if usuario is not None and rbac.puede(usuario, "ciudadano.ver"):
+        base = base.annotate(
+            puede_ver_detalle=Exists(dispositivos_visibles(usuario).filter(pk=OuterRef("dispositivo_id")))
+        )
     paginador = Paginator(base, POR_PAGINA)
     pagina_obj = paginador.get_page(pagina)
     activa = base.activas().first()
