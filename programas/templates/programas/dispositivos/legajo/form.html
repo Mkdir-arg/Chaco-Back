@@ -12,7 +12,7 @@
   {% endwith %}
   {% if not form.instance.pk %}
   <div id="duplicate-search" class="hidden">
-    {% include "components/_alerta.html" with tono="warning" titulo="Posibles duplicados" texto="Revisá las coincidencias antes de guardar." only %}
+    {% include "components/_alerta.html" with tono="warning" contenido_template="programas/dispositivos/legajo/_duplicados.html" only %}
   </div>
   {% endif %}
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
@@ -51,7 +51,7 @@
 
   function mostrarCoincidencias(data) {
     if (!data.coincidencias.length) { aviso.classList.add('hidden'); return; }
-    const mensaje = aviso.querySelector('strong');
+    const mensaje = aviso.querySelector('[data-duplicados-mensaje]');
     mensaje.textContent = data.codigo_duplicado ? 'El código ya está en uso. No se podrá guardar un duplicado.' : 'Posible coincidencia. Podés continuar si es una institución diferente.';
     const lista = document.createElement('ul');
     lista.className = 'mt-2 list-disc pl-5';
@@ -60,7 +60,7 @@
       fila.textContent = item.codigo + ' · ' + item.nombre + ' (' + (item.localidad || 'sin localidad') + ')';
       lista.appendChild(fila);
     });
-    aviso.querySelector('p').replaceChildren(lista);
+    aviso.querySelector('[data-duplicados-lista]').replaceChildren(lista);
     aviso.classList.remove('hidden');
   }
 
@@ -79,7 +79,10 @@
     return data;
   }
   [codigo, nombre, localidad].forEach(function (input) {
-    input.addEventListener('blur', function () { buscar().catch(function () { aviso.classList.add('hidden'); }); });
+    input.addEventListener('blur', function () { buscar().catch(function (error) {
+      console.error('No se pudo verificar duplicados.', error);
+      aviso.classList.add('hidden');
+    }); });
   });
   formulario.addEventListener('submit', function (event) {
     if (enviando) return;
@@ -99,7 +102,8 @@
         enviando = true;
         formulario.submit();
       });
-    }).catch(function () {
+    }).catch(function (error) {
+      console.error('No se pudo verificar duplicados.', error);
       Swal.fire('No se pudo verificar duplicados', 'Reintentá antes de guardar.', 'error');
     });
   });
