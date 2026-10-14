@@ -414,6 +414,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 275 | Relevamiento edilicio: el modelo de la inspección, colgado del edificio | Dispositivos · relevamiento edilicio | `#datos` `#rbac` | Task 35 del MVP de Dispositivos | 13/10/2026 | 🟢 **Hecho** | `programas.0091`, `users.0037` |
 | 281 | Alertas por criticidad y auditoría básica del dispositivo | Dispositivos · detalle y auditoría | `#ui` `#datos` `#rbac` `#performance` | Task 34 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | `programas.0092` |
 | 282 | La app del agente trae sus relevamientos edilicios y manda el resultado y las fotos, también sin señal | Dispositivos · relevamiento edilicio (app de campo) | `#api` `#mobile` `#rbac` `#usuarios` `#datos` | Tasks 38 y 39 (parte del sistema) del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0093` |
+| 283 | Bitácora del turno: las novedades del día, el censo del turno y la configuración de turnos | Dispositivos · bitácora | `#ui` `#rbac` `#performance` | Task 32 del MVP de Dispositivos | 09/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -36174,5 +36175,286 @@ APPROVE con un MINOR de riesgo latente, cerrado en la misma rama.
 ## Historial
 
 Entrada nueva. Etapa 4 del plan del Cambio 191, sobre el modelo del Cambio 275.
+
+---
+
+# Cambio 283 — Bitácora del turno: las novedades del día, el censo del turno y la configuración de turnos
+
+🟢 **HECHO — 14/10/2026** · Task `[TASK] Dispositivos MVP 32` (#697)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · bitácora del turno (P10) · detalle del dispositivo (P4) · detalle de la estadía (P7) |
+| **Etiquetas** | `#ui` `#rbac` `#performance` |
+| **Solicitante** | PM — plan del MVP de Dispositivos (Cambio 191) |
+| **Fecha del pedido** | 09/10/2026 |
+| **Issue / épica** | #697 · Épica #127 · etapa 3 |
+| **Partes afectadas** | Backoffice: `dispositivos/bitacora/bitacora.html`, `views/dispositivos_bitacora.py` (nuevo), `services/bitacora_pantalla.py` (nuevo), `forms_dispositivos.py`, `dispositivos_urls.py`, `legajo/detail.html`, `estadia/detalle.html`, `selectors/estadia_detalle.py`, `views/dispositivos_legajo.py`, `templates/components/_entradas_bitacora.html` |
+| **Migración** | No requiere — los modelos son los del Cambio 274 (`programas.0090`, `users.0036`) |
+
+## Pedido original
+
+«La pantalla del turno: qué pasó hoy, quién lo escribió y cuántas personas hay.» Las novedades
+del día agrupadas por turno, el censo del turno a la vista, carga y corrección desde la misma
+pantalla y la configuración de los turnos del dispositivo. Sin pase de guardia.
+
+## Alcance acordado
+
+Entra la pantalla P10 (`/dispositivos/<pk>/bitacora/`) sobre los servicios que ya existían —la
+bitácora del Cambio 274 y el censo del Cambio 278—, su integración con las dos pantallas
+vecinas (el botón del encabezado de P4 y la solapa «Novedades» de P7) y la configuración de
+turnos desde el modal.
+
+Queda afuera el **pase de guardia**: no hay apertura ni cierre de turno, ni traspaso de
+pendientes de un turno al siguiente. El modelo no lo tiene y la pantalla no lo simula; un test
+verifica que ninguna palabra del pase aparezca en el HTML ni en los nombres de ruta. El tipo
+de entrada `PASE` existe en el modelo y **no** se ofrece en el filtro ni en la carga.
+
+## Decisiones tomadas
+
+**Leer la bitácora pide `dispositivo.ver` con alcance, no `dispositivo.bitacora`.** Es el
+registro diario de la institución y lo ve quien ve la institución, igual que el `media` de sus
+adjuntos. `dispositivo.bitacora` con alcance es lo que hace falta para **cargar y corregir**, y
+`dispositivo.editar` con alcance para **configurar turnos**. Por eso el botón del encabezado de
+P4 no lleva condición: quien llegó a P4 ya tiene lo que la bitácora pide.
+
+**La pantalla no repite ninguna regla del servicio.** Que la novedad sea del turno en curso,
+que las personas estuvieran alojadas en ese momento, el tope de adjuntos y la superposición de
+turnos los decide `programas.services.bitacora`. La vista traduce su `PermissionDenied` a 403 y
+su `ValidationError` al campo del modal que corresponde. La única compuerta propia de la
+pantalla es **dónde se dibujan los controles**: el turno en curso del día en curso.
+
+**El censo que se muestra es el de los servicios, no un conteo propio.** Las cifras del turno y
+del día salen de `censo_del_dia` (Cambio 278) y las de plazas de `ocupacion_de_plazas`. Las
+plazas son la foto de **ahora**: en un día anterior no se dibujan, porque serían una mentira.
+Un tramo que no cuadra se dice con texto («47 según estadías · 45 según movimientos»), no se
+corrige en silencio.
+
+**Corregir agrega una versión y la anterior sigue visible**, debajo, atenuada. La pantalla no
+tiene ningún camino que borre o pise una novedad.
+
+**Ninguna consulta por entrada.** El presupuesto `dispositivos_bitacora_turno` fija el techo en
+17 consultas y el test lo mide con 1 y con 21 entradas —con personas, adjuntos y correcciones—
+exigiendo el mismo número. La lista se corta en `TOPE_ENTRADAS = 50` con el aviso «Mostrando 50
+de N».
+
+**Los nombres de las personas involucradas solo con `ciudadano.ver`** (Cambio 271). Sin esa
+capacidad la entrada dice «Personas involucradas: 1», el modal no ofrece la lista y, si llegan
+ids por POST igual, el servicio no las vincula.
+
+## Implementación
+
+`/dispositivos/<pk>/bitacora/` muestra, para un día operativo:
+
+- **Las tarjetas de los turnos del día**, en el orden del día, con su estado (por venir, en
+  curso, cerrado), la cantidad de entradas y las cifras del censo del tramo. El turno en curso
+  lleva sus acciones «+ Novedad» y «Corregir».
+- **Las entradas del turno elegido**, con filtro de tipo en píldora, y debajo las versiones
+  reemplazadas.
+- **El recuadro «Censo del turno»**, con las plazas, el movimiento del turno y el del día.
+- **Navegación por día** (anterior / siguiente / hoy) y por turno («Ver»).
+- **Tres modales**: cargar una novedad, corregir una y configurar un turno (alta, edición,
+  baja).
+
+Las cuatro rutas nuevas son `dispositivos:bitacora`, `bitacora_novedad`, `bitacora_corregir` y
+`bitacora_turnos`.
+
+### Integración con las pantallas vecinas
+
+- **P4 (detalle del dispositivo)**: botón «Bitácora del turno» en el encabezado, junto a las
+  demás acciones, como en el mockup.
+- **P7 (detalle de la estadía)**: solapa **«Novedades»**, de **solo lectura**, con las novedades
+  de la bitácora en las que la persona está involucrada: fecha y hora, categoría, texto y autor.
+  Son solo las versiones vigentes —las reemplazadas se miran en la bitácora del turno— y
+  únicamente las de esa estadía. Paginan con su propio parámetro (`novedades_page`), porque
+  crecen todos los días; por eso no entran en las tres consultas fijas de `detalle_de_estadia`
+  y llevan presupuesto propio (`dispositivos_estadia_novedades`, 2 consultas). Un enlace lleva a
+  la bitácora, que es donde se cargan y se corrigen.
+
+## Revisión
+
+Lo que cambió después de la primera implementación, por la revisión de diseño y la de
+desarrollo. Cada punto tiene su test, y cada test se verificó con mutación.
+
+**Diseño**
+
+1. **El badge de la entrada se montaba sobre el texto.** El badge llevaba punto (`badge-dot`)
+   **e** ícono —dos marcas para lo mismo— y medía 137 px en una columna de 112 (`w-28`);
+   como `.badge` no corta línea, se superponía. Se saca el punto y queda el ícono, que además
+   del color distingue la categoría; la columna pasa a `w-32`, que es lo que entra
+   «Mantenimiento». A 390 px la fila envuelve (`flex-wrap`): la hora y el badge arriba, el
+   texto abajo a todo el ancho (`w-full sm:flex-1`). La ficha
+   `.claude/design/componentes/turno_bitacora.md` se actualizó en el mismo diff.
+2. **Los modales se piden por GET, no por cambio de ancla.** La primera versión abría el modal
+   escuchando `hashchange` sobre `#nueva-novedad` / `#corregir-novedad` y después limpiaba el
+   ancla con `history.replaceState`. Se reemplazó por el precedente del servidor que ya usa
+   Configuración: la acción de la tarjeta es un enlace a la misma pantalla con `?novedad=1`,
+   `?corregir=<id>` o `?turnos=1`, la vista resuelve `abrir_modal_*` —solo si el usuario puede
+   usar ese modal— y el `x-data` arranca en `true`. `?corregir=<id>` además preselecciona la
+   novedad, y un id que no esté entre las corregibles del turno en curso se ignora. Los
+   parámetros de modal **no** viajan en los ocultos del filtro ni en los enlaces de navegación:
+   si viajaran, filtrar o cambiar de día reabriría el modal solo.
+3. **El censo va en el orden del mockup**: primero «Plazas totales / operativas», después el
+   bloque del turno y del día, y al final «Reservadas o prestadas» y «Disponibles». La negrita
+   es solo de **«Disponibles»**, que es la cifra que se mira para decidir si entra alguien; la
+   fila «Ocupadas» sale, porque «Alojadas ahora» ya la dice.
+4. **La píldora de tipo va a la derecha del título** de la lista, y la bajada de esa tarjeta se
+   acortó a «Corregir crea una versión nueva.» para que entren las dos en la misma fila.
+5. **Mirar otro turno con «Ver» se dice en el título**: «Turno Mañana · entradas · no es el
+   turno en curso (ahora, Tarde)». Por omisión se mira el turno en curso, así que la aclaración
+   aparece exactamente cuando se llegó con «Ver».
+
+**Desarrollo**
+
+6. **[MAJOR] Dar de baja un turno escondía su historial.** Las tarjetas salían de los tramos
+   del censo, que solo conoce los turnos **activos**; las novedades, en cambio, guardan su
+   turno. Una fecha con novedades de un turno dado de baja las dejaba inalcanzables. Ahora, si
+   el conteo de entradas del día nombra un turno que no está entre los activos, se cargan esos
+   turnos con un `filter(pk__in=…)` —**una** consulta, y solo si los hay— y se dibujan como
+   tarjetas de solo lectura «Dado de baja», sin censo propio y con la nota «no tiene censo
+   propio. Abajo, el del día». Se pueden elegir con «Ver», van en el lugar del día que les daba
+   su horario y el presupuesto sube de 16 a 17 para cubrir ese peor caso.
+7. **`?fecha=0001-01-01` daba 500.** `fecha - timedelta(days=1)` desbordaba con
+   `OverflowError`. La fecha operativa ahora se acota también por abajo, en
+   `PISO_FECHA = 2020-01-01`: antes de eso no hubo bitácora, así que una fecha más vieja es un
+   error de tipeo. En el piso, el enlace «día anterior» no se dibuja.
+8. **Oráculo de ids en los POST de corregir y de turnos.** Quien no opera el dispositivo
+   llegaba a validar el formulario: con un id ajeno recibía 400 con «no es de este
+   dispositivo» y con un id inexistente, 400 con otro mensaje. La diferencia dejaba sondear
+   qué ids existen en otras instituciones. `_BitacoraPostView.post` ahora corta con
+   `puede_operar_dispositivo(...)` → 403 **antes** de armar el formulario, así que las dos
+   respuestas son idénticas. El servicio conserva su propia verificación: la compuerta no la
+   reemplaza.
+9. **Una sola guarda de «día anterior».** La condición `es_hoy` era redundante con la del
+   servicio: en un día anterior todos los tramos del censo están cerrados, así que no hay turno
+   en curso. Queda `puede_cargar and activo and en_curso is not None`, con el comentario de
+   que la regla de fondo vive en `programas.services.bitacora`.
+10. **El texto del modal de turnos dice qué pasa con lo ya cargado**: «Las novedades ya
+    cargadas conservan su turno; el censo de días anteriores se recalcula con los horarios
+    vigentes».
+
+**Cierre de la revisión (segunda vuelta, sobre `development` al 14/10/2026)**
+
+11. **Rebase sobre `development`.** Tres conflictos, resueltos tomando los dos lados enteros y
+    nunca hunk por hunk: `scripts/perf_budgets.json` conserva los presupuestos de las dos ramas
+    y el `_nota` con los cinco tests; `programas/forms_dispositivos.py` queda con el bloque de
+    relevamientos (P21) **y** el de la bitácora, cada uno bajo su encabezado; y
+    `docs/internal/requerimientos.md` se rehízo desde `development` para volver a agregar
+    **una sola** entrada, la de la bitácora (los entrelazados del Cambio 214/218). El build de
+    Tailwind se regeneró después de rebasar.
+12. **Los mixins de permisos se importan de `programas/mixins_dispositivos.py`**, no de
+    `programas.views.dispositivos_legajo`. `development` ya los había mudado ahí, y
+    `test_arquitectura.CapasTests.test_no_crecen_las_dependencias_entre_vistas` prohíbe aristas
+    vista→vista nuevas: importarlos de la vista dejaba el CI en rojo.
+13. **[MINOR] «+ Novedad» y «Corregir» llevaban el turno MIRADO, no el en curso.** Las dos
+    acciones cuelgan de la tarjeta del turno en curso y la lista de correcciones sale de
+    `en_curso.turno`, pero la URL se armaba con el turno de la vista: si se había llegado con
+    «Ver» a otro turno, el modal se abría sobre un turno al que no se puede cargar, con
+    correcciones que no eran suyas. Ahora `url_de(fecha, en_curso.turno, …)`. Test
+    `test_las_acciones_llevan_al_turno_en_curso_aunque_se_mire_otro`.
+14. **[MINOR] Abrir el modal de turnos perdía dónde se estaba.** `url_abrir_turnos` era
+    `{url_base}?turnos=1`, sin `fecha` ni `turno`: cerrar el modal devolvía a hoy y al turno en
+    curso. Se arma en el servicio con `url_de(fecha, turno, "turnos=1")` —la vista no conoce la
+    fecha resuelta ni el turno elegido por omisión— y sale del contexto de la vista. Test
+    `test_abrir_turnos_vuelve_a_la_misma_fecha_y_al_mismo_turno`.
+15. **[MINOR] La entrada apilada quedaba pegada al badge.** `_entradas_bitacora.html` tenía
+    `gap-x-3` y ningún gap de fila; `flex-wrap` solo separa en el eje principal, así que en
+    móvil el texto bajaba de línea sin aire. Queda `gap-x-3 gap-y-1`, con Tailwind regenerado
+    (la clase no existía en el build).
+16. **[MINOR, doc] La bitácora es la excepción a la regla de sensibilidad de P7, y está
+    escrita.** El docstring de `programas/selectors/estadia_detalle.py` decía que las novedades
+    «no pasan por acá» y que no se muestran textos libres; con `novedades_de_estadia` dejó de
+    ser cierto. Se registró la decisión: el texto de una novedad es libre y puede contar un
+    incidente o una cuestión de salud, y aun así se muestra con lo que ya abre la pantalla
+    (`dispositivo.ver` con alcance + `ciudadano.ver`), sin pedir `ciudadano.sensible`. Los
+    motivos: es el **mismo dato con una puerta más estrecha** que la bitácora del turno, que lo
+    muestra entero con solo `dispositivo.ver`; la **audiencia es operativa** —el operador del
+    dispositivo donde la persona está alojada, que necesita saber qué pasó en los turnos
+    anteriores—, a diferencia de las observaciones del egreso, que son lectura de legajo y
+    siguen afuera; y **nada se edita desde ahí**. Cuando lleguen los niveles de sensibilidad de
+    la Versión 2, la novedad es el candidato natural a llevar uno: lo decidido es que
+    **mientras no existan**, se muestra.
+17. **[MINOR] `TONO_POR_TIPO` sale del service y va al modelo.** El selector lo importaba de
+    `programas.services.bitacora_pantalla` —un selector leyendo de un service que arma una
+    pantalla—. Ahora es `EntradaBitacora.TONO_POR_TIPO`, con el enum del que es tabla de
+    traducción y que los dos consumidores ya importan; `bitacora_pantalla` lo reexporta para no
+    tocar el resto. Sin arista nueva entre capas.
+
+## Archivos
+
+`programas/views/dispositivos_bitacora.py` (nuevo) · `programas/services/bitacora_pantalla.py`
+(nuevo) · `programas/templates/programas/dispositivos/bitacora/bitacora.html` (nuevo) ·
+`programas/dispositivos_urls.py` · `programas/forms_dispositivos.py` (`NovedadForm`,
+`CorreccionForm`, `TurnoForm`) · `programas/selectors/estadia_detalle.py`
+(`novedades_de_estadia`) · `programas/views/dispositivos_legajo.py` ·
+`programas/templates/programas/dispositivos/estadia/detalle.html` ·
+`programas/templates/programas/dispositivos/legajo/detail.html` ·
+`templates/components/_entradas_bitacora.html` ·
+`.claude/design/componentes/turno_bitacora.md` · `scripts/perf_budgets.json` ·
+`programas/models/__init__.py` (`EntradaBitacora.TONO_POR_TIPO`) ·
+`static/custom/css/tailwind.css` · `programas/tests/test_dispositivos_bitacora_pantalla.py`.
+
+## Base de datos
+
+No requiere. Los modelos (`Turno`, `EntradaBitacora`, sus versiones y adjuntos) son los del
+Cambio 274 y ya están en la base con `programas.0090` y `users.0036`; el censo se calcula y
+no se guarda (Cambio 278).
+
+## Validación
+
+- `programas.tests.test_dispositivos_bitacora_pantalla`: 53 tests en verde (Py 3.12 + Dj 5.2).
+  Cubren autorización —ver, cargar, corregir y configurar, cada usuario con **todo menos** la
+  capacidad que el test aísla, y también desde otra institución—, ausencia del pase de guardia,
+  las cifras del censo con los servicios parcheados, las versiones, los días anteriores, la
+  privacidad de los nombres, los dos presupuestos y los puntos de la revisión.
+- **Mutaciones, de a una, todas en rojo**: sin la compuerta de alcance en los POST (el oráculo
+  de ids vuelve: 400 en vez de 403, en los cuatro casos); sin la rama de los turnos dados de
+  baja (sus novedades desaparecen); con el código original de la fecha (`OverflowError` con
+  `0001-01-01`); las novedades de P7 sin `filter(personas=estadia)` y sin `vigentes()`;
+  `abrir_modal_turnos` sin `puede_configurar`; `correccion_inicial` sin verificar que el id sea
+  corregible; «Reservadas o prestadas» también en negrita; el parámetro del modal filtrado en
+  los ocultos y en el enlace «Ver»; y el botón de P4 borrado del encabezado. En el cierre de la
+  revisión, las dos del turno de las acciones y de `url_abrir_turnos`: con el código anterior
+  —`turno` mirado en vez de `en_curso.turno`, y `{url_base}?turnos=1`— los dos tests nuevos dan
+  rojo por el motivo correcto (`'turno=2' not found` y `'fecha=2026-09-08' not found`).
+- Tras el rebase, con los módulos que `development` trajo: `test_arquitectura`,
+  `test_dispositivos_estadia_detalle`, `test_dispositivos_detalle`, `test_dispositivos_censo`,
+  `test_dispositivos_bitacora`, `test_dispositivos_edificio_sector_plaza`,
+  `test_dispositivos_inspecciones`, `test_dispositivos_relevamientos_listado`,
+  `core.tests.test_nodo_ui_piezas` y `test_becas_revision_detalle_html`: **447 tests en verde**.
+  `--tag performance programas` en verde (14) y `scripts/check_perf_budgets.py` sin subas.
+- `manage.py check`, `makemigrations --check --dry-run` y `ruff check`/`format` OK.
+- UI: `compile_templates.py` 0 errores sobre 228 templates; `design_audit.py --ratchet` 0
+  hallazgos nuevos sobre `origin/development` en 4 archivos; `--goldens` 0 en 7 goldens; los
+  cuatro arquetipos de las pantallas tocadas (detalle y modal de P10, detalle de P4, revisión de
+  P7) en OK; `npm run build:tailwind` corrido y commiteado.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- **Pase de guardia**: cuando exista apertura y cierre de turno, la pantalla es donde va. Hoy
+  no se simula.
+- **«Pase de guardia» como categoría**: el tipo `PASE` existe en el modelo y no se ofrece. La
+  columna de categoría mide `w-32`, que no lo contiene: hay que mirarlo cuando se encienda.
+- **Un turno dado de baja no se puede reactivar desde la tarjeta**: se hace desde el modal de
+  configuración, que lista los turnos con «(dado de baja)».
+- **El censo de días anteriores se recalcula con los horarios vigentes.** Cambiar el horario de
+  un turno mueve el reparto del censo de los días ya pasados; las novedades no se mueven,
+  porque guardan su turno. Está dicho en el modal; si algún día hace falta, pide versionar los
+  horarios.
+
+## Reversión
+
+`git revert` del merge. No hay datos que perder: la pantalla no crea nada propio —las novedades
+y los turnos son del Cambio 274 y siguen existiendo—, y el censo se calcula. Al revertir, la
+bitácora deja de tener pantalla y las novedades solo se ven por la base.
+
+## Historial
+
+Entrada nueva. Etapa 3 del plan del Cambio 191. La sección **Revisión** se agregó al cerrar,
+con lo que cambió después de la primera implementación.
 
 ---
