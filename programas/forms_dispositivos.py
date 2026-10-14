@@ -10,9 +10,11 @@ from django.utils import timezone
 from core.validators import ACCEPT_ADJUNTO
 from core.widgets import ChipsSelectMultiple, SwitchInput
 from programas.forms import INPUT_CLASS
-from programas.models import EntradaBitacora, MotivoEgreso, Turno
+from programas.models import EntradaBitacora, MotivoEgreso, Plaza, Sector, Turno
 from programas.services.bitacora_pantalla import TIPOS_MANUALES
+from programas.services.edificios import CAMPOS as CAMPOS_EDIFICIO
 from programas.services.movimientos import ultimo_momento
+from programas.services.plazas import TOPE_POR_LOTE
 
 
 class EgresoForm(forms.Form):
@@ -460,3 +462,217 @@ class TurnoForm(forms.Form):
         if turno is None:
             raise forms.ValidationError("Ese turno no es de este dispositivo.")
         return turno
+
+
+# --------------------------------------------------------------------------- #
+# Capacidad instalada: sectores, plazas y edificio (carril C5 · P5 y P19)
+# --------------------------------------------------------------------------- #
+# Las reglas de fondo —nombre único en el dispositivo, tipo de plaza que el tipo de
+# institución admite, sector sin plazas tomadas para darlo de baja, código de edificio
+# único— las sostienen `programas.services.plazas` y `programas.services.edificios`, que
+# releen con la fila bloqueada. Acá va lo que el operador puede corregir sin salir del modal.
+
+
+class SectorForm(forms.Form):
+    """Alta y edición de un sector (P5: «Nuevo sector» y «Editar sector»).
+
+    `capacidad` es la cifra **declarada**, la del legajo: la operativa sale de contar las
+    plazas y la deriva el servicio de ocupación. Que no coincidan no es un error —P5 ya lo
+    muestra como diferencia— y por eso el formulario no las confronta.
+    """
+
+    nombre = forms.CharField(
+        label="Nombre",
+        max_length=120,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "Pabellón A"}),
+        error_messages={"required": "El sector necesita un nombre."},
+    )
+    tipo = forms.ChoiceField(
+        label="Tipo de sector",
+        choices=Sector.Tipo.choices,
+        initial=Sector.Tipo.HABITACION,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+    perfil = forms.CharField(
+        label="Perfil de la población",
+        max_length=120,
+        required=False,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "varones, mujeres, tránsito…"}),
+    )
+    capacidad = forms.IntegerField(
+        label="Capacidad declarada",
+        min_value=0,
+        initial=0,
+        widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
+        help_text="La del legajo. La operativa se cuenta desde las plazas cargadas.",
+    )
+    condiciones_uso = forms.CharField(
+        label="Condiciones de uso",
+        required=False,
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional"}),
+    )
+    activo = forms.BooleanField(
+        label="Sector activo",
+        required=False,
+        initial=True,
+        widget=SwitchInput,
+        help_text="Un sector dado de baja deja de dibujarse en el mapa y de ofrecerse para ingresar.",
+    )
+
+    def __init__(self, *args, sector=None, **kwargs):
+        """Con `sector`, es edición: el switch de baja existe solo ahí.
+
+        En el alta el sector nace activo, y ofrecer «dar de baja» en el mismo formulario
+        que lo crea sería una casilla que nadie toca.
+        """
+
+        super().__init__(*args, **kwargs)
+        self.sector = sector
+        if sector is None:
+            del self.fields["activo"]
+        elif not self.is_bound:
+            for campo in ("nombre", "tipo", "perfil", "capacidad", "condiciones_uso", "activo"):
+                self.initial.setdefault(campo, getattr(sector, campo))
+
+
+class AgregarPlazasForm(forms.Form):
+    """Lote de plazas de P5 («+ Agregar plazas»): a qué sector, cuántas y con qué código.
+
+    Los tipos ofrecidos son los que el **tipo de institución** admite
+    (`TipoDispositivo.tipos_plaza_admitidos`); con la lista vacía —«sin restricción
+    declarada»— se ofrecen los tres. El servicio lo vuelve a exigir.
+    """
+
+    sector = forms.ModelChoiceField(
+        label="Sector",
+        queryset=None,
+        empty_label="Elegí el sector",
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        error_messages={"required": "Elegí a qué sector agregar las plazas."},
+    )
+    cantidad = forms.IntegerField(
+        label="Cantidad",
+        min_value=1,
+        max_value=TOPE_POR_LOTE,
+        widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1, "max": TOPE_POR_LOTE}),
+        help_text=f"Hasta {TOPE_POR_LOTE} por vez.",
+        error_messages={"required": "Indicá cuántas plazas agregar."},
+    )
+    tipo = forms.ChoiceField(
+        label="Tipo de plaza",
+        choices=Plaza.Tipo.choices,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+    prefijo = forms.CharField(
+        label="Prefijo del código",
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "A-"}),
+        help_text="Opcional. El número va detrás, de a dos dígitos: con «A-», A-01, A-02…",
+    )
+
+    def __init__(self, *args, dispositivo, sectores, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dispositivo = dispositivo
+        # El label de Sector usa el código del dispositivo; cargarlo una vez evita
+        # una consulta por opción cuando hay varios pabellones en el modal.
+        self.fields["sector"].queryset = sectores.select_related("dispositivo")
+        admitidos = dispositivo.tipo.tipos_de_plaza
+        if admitidos:
+            self.fields["tipo"].choices = [
+                (valor, etiqueta) for valor, etiqueta in Plaza.Tipo.choices if valor in admitidos
+            ]
+        self.fields["tipo"].initial = self.fields["tipo"].choices[0][0]
+
+
+class PlazaForm(forms.Form):
+    """Identidad de la plaza; el estado operativo se cambia desde su acción propia."""
+
+    codigo = forms.CharField(label="Código", max_length=50, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
+    tipo = forms.ChoiceField(
+        label="Tipo de plaza", choices=Plaza.Tipo.choices, widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+
+    def __init__(self, *args, dispositivo, plaza, **kwargs):
+        super().__init__(*args, **kwargs)
+        admitidos = dispositivo.tipo.tipos_de_plaza
+        if admitidos:
+            self.fields["tipo"].choices = [
+                (valor, etiqueta) for valor, etiqueta in Plaza.Tipo.choices if valor in admitidos
+            ]
+        if not self.is_bound:
+            self.initial.update(codigo=plaza.codigo, tipo=plaza.tipo)
+
+
+class EdificioForm(forms.Form):
+    """Alta y edición del inmueble (P19 · solapa Infraestructura).
+
+    El domicilio va **normalizado**, cada parte en su campo: `Dispositivo.domicilio` es una
+    línea libre que no se puede comparar entre las instituciones de un mismo predio, y el
+    edificio es justo lo que las junta.
+    """
+
+    codigo = forms.CharField(
+        label="Código del edificio",
+        max_length=50,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "EDI-001"}),
+        error_messages={"required": "El edificio necesita un código."},
+    )
+    nombre = forms.CharField(
+        label="Nombre",
+        max_length=200,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "Predio Av. Sarmiento"}),
+        error_messages={"required": "El edificio necesita un nombre."},
+    )
+    calle = forms.CharField(
+        label="Calle", max_length=160, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+    )
+    numero = forms.CharField(
+        label="Número", max_length=20, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+    )
+    piso_departamento = forms.CharField(
+        label="Piso/Departamento", max_length=40, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+    )
+    localidad = forms.CharField(
+        label="Localidad", max_length=120, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+    )
+    provincia = forms.CharField(
+        label="Provincia",
+        max_length=120,
+        required=False,
+        initial="Chaco",
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
+    )
+    codigo_postal = forms.CharField(
+        label="Código postal", max_length=10, required=False, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
+    )
+
+    def __init__(self, *args, edificio=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.edificio = edificio
+        if edificio is not None and not self.is_bound:
+            self.initial.setdefault("codigo", edificio.codigo)
+            for campo in CAMPOS_EDIFICIO:
+                self.initial.setdefault(campo, getattr(edificio, campo))
+
+
+class VincularEdificioForm(forms.Form):
+    """Predio compartido: sumar a esta institución un edificio que ya existe.
+
+    El selector llega acotado por `edificios.edificios_vinculables`, que solo ofrece los
+    del alcance del usuario: sin eso, el combo sería la lista de los inmuebles de todas
+    las instituciones de la provincia.
+    """
+
+    edificio = forms.ModelChoiceField(
+        label="Edificio",
+        queryset=None,
+        empty_label="Elegí un edificio",
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        error_messages={"required": "Elegí el edificio a vincular."},
+        help_text="Solo los edificios de tu alcance que esta institución todavía no ocupa.",
+    )
+
+    def __init__(self, *args, edificios, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["edificio"].queryset = edificios

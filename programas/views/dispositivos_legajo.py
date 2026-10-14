@@ -16,16 +16,22 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 from core.rbac import puede
 from programas.forms import DispositivoForm
 from programas.forms_dispositivos import (
+    AgregarPlazasForm,
     CambioPlazaForm,
+    EdificioForm,
     EgresoForm,
     LiberarPlazaForm,
+    PlazaForm,
     SacarPlazaDeServicioForm,
+    SectorForm,
+    VincularEdificioForm,
 )
 from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los importan otras vistas)
     DispositivoObjectPermissionMixin,
     DispositivoProgramaPermissionMixin,
 )
-from programas.models import Dispositivo, Estadia, Plaza, TipoDispositivo
+from programas.models import Dispositivo, Edificio, Estadia, Plaza, Sector, TipoDispositivo
+from programas.selectors.capacidad_dispositivo import edificios_vinculables
 from programas.selectors.estadia_detalle import (
     detalle_de_estadia,
     novedades_de_estadia,
@@ -268,7 +274,50 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]),
             }
         )
+        self._preparar_modales_de_edificio(context, dispositivo, context["puede_editar"])
         return context
+
+    def _preparar_modales_de_edificio(self, context, dispositivo, puede_editar):
+        """El alta, la edición y la vinculación del edificio de la solapa Infraestructura (P19).
+
+        Se abren con `?tab=infraestructura&edificio=nuevo|<id>|vincular`. Ninguno cuesta
+        nada mientras esté cerrado: el selector de edificios vinculables y la ficha del que
+        se edita se leen **solo** con su modal abierto, así que el detalle de siempre sigue
+        costando lo mismo.
+        """
+
+        if not puede_editar:
+            return
+        pedido = self.request.GET.get("edificio", "")
+        if pedido == "nuevo":
+            context["form_edificio"] = EdificioForm()
+            context["url_edificio"] = reverse("dispositivos:edificio_crear", args=[dispositivo.pk])
+        elif pedido == "vincular":
+            vinculables = edificios_vinculables(self.request.user, dispositivo)
+            # Se pregunta antes de armar el modal: un combo vacío sería un callejón sin
+            # salida y quien lo abrió no sabría por qué. Son dos consultas —`ModelChoiceField`
+            # recorre su queryset con `iterator()` y no reusa esta caché, como ya pasa en el
+            # «Nuevo relevamiento» de P21—, y se pagan solo con el modal abierto.
+            if not vinculables.exists():
+                messages.info(
+                    self.request,
+                    "No hay ningún edificio de tu alcance que esta institución todavía no ocupe: "
+                    "cargá el inmueble con «Cargar edificio».",
+                )
+                return
+            context["form_vincular"] = VincularEdificioForm(edificios=vinculables)
+            context["url_vincular"] = reverse("dispositivos:edificio_vincular", args=[dispositivo.pk])
+        elif pedido:
+            pk = _entero(pedido)
+            # Acotado al dispositivo: el edificio de otra institución y el inexistente dan
+            # lo mismo, que es lo que el servicio vuelve a exigir al guardar.
+            edificio = Edificio.objects.filter(pk=pk, dispositivos=dispositivo).first() if pk is not None else None
+            if edificio is None:
+                messages.warning(self.request, "Ese edificio ya no se puede editar desde acá.")
+            else:
+                context["edificio_en_edicion"] = edificio
+                context["form_edificio"] = EdificioForm(edificio=edificio)
+                context["url_edificio"] = reverse("dispositivos:edificio_editar", args=[dispositivo.pk, edificio.pk])
 
 
 class DispositivoUpdateView(DispositivoObjectPermissionMixin, UpdateView):
@@ -427,6 +476,12 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
     el contenido depende del estado de esa plaza y la celda del mapa solo sabe navegar. Si
     la plaza no se puede gestionar —ajena, inexistente, de un sector dado de baja o sin la
     capacidad— el modal no se abre y el aviso es el mismo para los cuatro casos.
+
+    Los tres modales de configuración del carril C5 —«Nuevo sector», «Editar sector» y
+    «+ Agregar plazas»— se abren igual, con `?sector=nuevo`, `?sector=<id>` y `?plazas=1`,
+    y **solo** si quien mira puede configurar las plazas: sin eso, el formulario llegaría
+    armado a quien la acción va a rechazar. Lo que cuestan se paga únicamente con el modal
+    abierto; el mapa cerrado sigue en las consultas fijas de su presupuesto.
     """
 
     capacidad_requerida = "dispositivo.ver"
@@ -451,8 +506,56 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
             {"label": "Sectores y plazas", "url": ""},
         ]
+        context["puede_configurar_plazas"] = puede_configurar_plazas
         self._preparar_modal(context, dispositivo, puede_liberar, puede_configurar_plazas)
+        self._preparar_modales_de_configuracion(context, dispositivo, puede_configurar_plazas)
         return context
+
+    def _preparar_modales_de_configuracion(self, context, dispositivo, puede_configurar_plazas):
+        """«Nuevo sector», «Editar sector» y «+ Agregar plazas»: cuál abrir y con qué formulario.
+
+        Un sector ajeno, inexistente o dado de baja no abre nada y avisa lo mismo que una
+        plaza no gestionable: tres respuestas distintas serían un oráculo de ids. El sector
+        dado de baja entra igual —se edita para reactivarlo—, lo que no abre es el que no
+        es de este dispositivo.
+        """
+
+        if not puede_configurar_plazas:
+            return
+        pedido = self.request.GET.get("sector", "")
+        if pedido == "nuevo":
+            context["form_sector"] = SectorForm()
+            context["url_sector"] = reverse("dispositivos:sector_crear", args=[dispositivo.pk])
+        elif pedido:
+            pk = _entero(pedido)
+            sector = Sector.objects.filter(pk=pk, dispositivo=dispositivo).first() if pk is not None else None
+            if sector is None:
+                messages.warning(self.request, "Ese sector ya no se puede editar desde acá.")
+            else:
+                context["sector_en_edicion"] = sector
+                context["form_sector"] = SectorForm(sector=sector)
+                context["url_sector"] = reverse("dispositivos:sector_editar", args=[dispositivo.pk, sector.pk])
+
+        if self.request.GET.get("plazas"):
+            context["form_plazas"] = AgregarPlazasForm(
+                dispositivo=dispositivo,
+                sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True),
+            )
+            context["url_plazas"] = reverse("dispositivos:plazas_agregar", args=[dispositivo.pk])
+            pk = _entero(self.request.GET.get("plazas", ""))
+            if pk is not None:
+                context["form_plazas"].initial["sector"] = pk
+
+        pedido = self.request.GET.get("editar_plaza", "")
+        if pedido:
+            pk = _entero(pedido)
+            plaza = Plaza.objects.filter(pk=pk, sector__dispositivo=dispositivo).first() if pk is not None else None
+            if plaza is None:
+                messages.warning(self.request, "Esa plaza ya no se puede editar desde acá.")
+            else:
+                context["plaza_en_edicion"] = plaza
+                context["form_editar_plaza"] = PlazaForm(dispositivo=dispositivo, plaza=plaza)
+                context["url_editar_plaza"] = reverse("dispositivos:plaza_editar", args=[dispositivo.pk, plaza.pk])
 
     def _preparar_modal(self, context, dispositivo, puede_liberar, puede_configurar_plazas):
         pedida = self.request.GET.get("plaza", "")

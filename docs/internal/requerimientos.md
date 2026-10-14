@@ -421,6 +421,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 288 | El turno visible, las novedades automáticas de la bitácora y tres contratos que faltaban | Dispositivos · estadía, ingreso, detalle y bitácora | `#ui` `#datos` `#rbac` `#performance` | Carril C3 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0094` |
 | 289 | Ver informe del relevamiento, la solapa «Sin relevar nunca» y las decisiones del juez sobre el relevamiento edilicio | Dispositivos · relevamiento edilicio | `#ui` `#rbac` `#api` `#mobile` `#performance` | Pendientes del Cambio 279 + decisiones del juez | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 290 | Concurrencia real del MVP de Dispositivos y orden de bloqueo de las reservas | Dispositivos · estadías, reservas, relevamiento edilicio y bitácora | `#datos` `#performance` `#mobile` | Encargo T1 del juez del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 291 | Alta y edición de edificio, sectores y plazas | Dispositivos · capacidad instalada | `#ui` `#datos` `#rbac` `#performance` | Juez — carril C5 del cierre del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -38018,5 +38019,267 @@ deadlock; quitar las pruebas elimina la cobertura real de estas carreras.
 ## Historial
 
 Entrada nueva del encargo T1. Cierra el pendiente de concurrencia real del Cambio 262.
+
+---
+
+---
+
+# Cambio 291 — Alta y edición de edificio, sectores y plazas
+
+🟢 **HECHO — 14/10/2026** · Carril C5 del cierre del MVP de Dispositivos v2
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · capacidad instalada (P5) · edificio (P4/P19) |
+| **Etiquetas** | `#ui` `#datos` `#rbac` `#performance` |
+| **Solicitante** | Juez — encargo directo de cierre del MVP, carril C5 |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Épica #127 · completa las altas de los modelos del Cambio 239 y las acciones de P5 del Cambio 287 |
+| **Partes afectadas** | Backoffice · servicios, selectors, formularios y admin de Django |
+| **Migración** | No requiere |
+
+## Pedido original
+
+No había forma de dar de alta `Edificio`, `Sector` ni `Plaza`. Implementar «Nuevo sector»,
+«+ Agregar plazas» y «Editar sector» de P5; crear y editar edificio, vincular y desvincular
+instituciones para el predio compartido; editar plazas; conservar la historia; agregar admin
+como soporte y probar cada guarda con mutación.
+
+## Alcance acordado
+
+Crear/editar edificios y sus vínculos desde Infraestructura; crear/editar/dar de baja sectores;
+agregar plazas en lote y editar código/tipo desde P5. Reutilizar la salida de servicio de plaza
+del Cambio 287. Todas las operaciones normales dejan `TrazaDispositivo` y exigen
+`dispositivo.editar` con programa y asignación.
+
+No entran roles ni seeds, otros worktrees, borrado físico, campos edilicios que el MVP no
+modela, reservas/préstamos nuevos desde el mapa ni cambios de las pantallas de otros carriles.
+
+## Decisiones tomadas
+
+- **Mockup como guía de estructura y textos:** encabezado de P5 con «Nuevo sector» y «Agregar
+  plazas», botón «Editar sector» en cada surface. El edificio se gestiona donde se lee su
+  información, en la solapa Infraestructura de P4/P19. Sin dato o servicio no se dibuja una
+  operación de la Versión 2 completa, tampoco deshabilitada.
+- **Capacidades con alcance:** la compuerta del POST va antes de consultar el objeto hijo y
+  antes de validar el formulario. Sector, plaza o edificio ajeno e inexistente reciben el
+  mismo 404; un id de selección que no es decimal ASCII también recibe 404. Los modales GET
+  no exponen datos ajenos. Los servicios vuelven a exigir el alcance. Un dispositivo cerrado
+  no admite cambios de edificio o capacidad instalada.
+- **Predio compartido:** el alta vincula el edificio a la institución actual. El selector de
+  vínculo solo ofrece edificios dentro del alcance de edición del usuario. Vincular es
+  idempotente; desvincular conserva el inmueble y sus relevamientos. Quien configura el
+  programa puede recuperar un inmueble que quedó sin instituciones; un operador solo ve los
+  vinculados a las instituciones de su alcance.
+- **Baja lógica:** `Sector.activo=False` conserva sector y plazas. Estadía activa, reserva o
+  préstamo abierto bloquean la baja; también una reserva vencida sin liberar. Una plaza se
+  retira de la capacidad operativa sacándola de servicio con motivo, mediante el servicio
+  existente, que rechaza estadía/reserva/préstamo vigente. No se introduce borrado físico.
+- **Capacidad declarada y operativa siguen distintas:** editar el dato declarado no crea ni
+  borra plazas. Los indicadores y el mapa siguen derivados del servicio único de ocupación.
+- **Códigos únicos en el dispositivo:** el lote saltea los ya usados en cualquier sector;
+  editar plaza valida contra todos los sectores del dispositivo, aunque el constraint
+  existente solo cubra el sector. El dispositivo se bloquea durante la numeración/edición
+  para serializar lotes de sectores distintos. El lote admite entre 1 y 200 plazas y un
+  prefijo que quepa en el código. El tipo permitido lo decide `TipoDispositivo`.
+  La comparación de códigos también contempla diferencias de mayúsculas/minúsculas;
+  el operador conserva la escritura de su prefijo.
+- **Editar plaza conserva sector y estado operativo:** estadía activa, reserva o préstamo vigente
+  bloquean la edición de código y tipo bajo el bloqueo de la plaza; se reubica o libera primero.
+  Si el usuario edita pero no puede liberar, la celda reservada abre directamente la edición
+  de identidad; no le ofrece la operación de liberar.
+- **Admin de solo lectura — decisión del juez en revisión:** `Edificio`, `Sector` y `Plaza`
+  permiten consultar, pero no agregar, cambiar ni borrar, incluso con superusuario. Todos sus
+  campos, incluidos los vínculos M2M, son de solo lectura. Toda escritura pasa por las pantallas
+  y servicios que aplican alcance, ocupación y unicidad bajo bloqueo. Se retira el formulario
+  de soporte: no existe una segunda vía de escritura ni de validación de códigos.
+- **Capas:** escrituras en `services/plazas.py` y `services/edificios.py`; lecturas nuevas en
+  `selectors/capacidad_dispositivo.py`; vistas orquestan formularios y servicios, sin importar
+  otra vista. No se agregan capacidades ni permisos sueltos.
+
+### Plan de pantalla
+
+```text
+Tipo: A (P5 y P4/P19 existentes) + Modal de alta/edición.
+Arquetipos: Detalle apilado (P5), Detalle con solapas (P4/P19), Modal.
+Goldens: becas/cupo/segmento_detail.html y becas/config/programa_list.html.
+Rutas/templates: dispositivos:sectores -> dispositivos/sectores/sectores.html;
+                 dispositivos:detalle -> dispositivos/legajo/detail.html.
+Piezas: page_header, surfaces, mapa/leyenda, estado_vacio, field, alerta,
+        _modal_header/_modal_footer, becas-modal.js, _ajax_js, confirmación existente.
+Clasificación: todas canónicas reutilizables; no se usan piezas legacy ni duplicadas.
+Bloques P5: altas en header; edición por sector; alta en sector sin plazas;
+           modal de identidad de plaza desde la celda/acción.
+Bloques Infraestructura: alta/vínculo en header y vacío; editar/desvincular por edificio.
+GET: sector=nuevo|id, plazas=id, editar_plaza=id; edificio=nuevo|id|vincular.
+POST: formularios Django acotados, CSRF, data-ajax, errores por campo y toast/redirect.
+Vista: permisos con alcance; formas y consultas adicionales solo al abrir el modal.
+Assets: shell vigente y becas-modal.js; sin CSS/JS propio.
+Novedades: ninguna. La ficha mapa_plazas.md documenta el acceso de edición de P5.
+```
+
+### Apartamientos del mockup
+
+- Los formularios de estas altas no están dibujados en el mockup: se componen con la golden
+  Modal y campos del modelo vigente. El panel lateral de plaza se mantiene como modal
+  accesible, variante canónica que adoptó C1; la edición suma código y tipo.
+- La baja de sector es el switch «Sector activo» dentro de «Editar sector». No se agrega una
+  eliminación. La baja de plaza sigue «Sacar de servicio», con su motivo e historia.
+- P19 conserva el recorte del MVP: sin tenencia, servicios, estado físico, plano, superficie,
+  ubicación geolocalizada, exportación ni mapa nuevo. Las coordenadas no se piden porque el
+  MVP no las muestra. Los edificios comparten domicilio e identidad, no datos inventados.
+- En vez de un nuevo ABM independiente de edificio, el alta, edición y vínculo son modales
+  en Infraestructura, junto al contenido que ya consume ese inmueble.
+
+## Implementación
+
+Los estados vacíos permiten cargar el primer sector y el primer edificio. Cada sector vacío
+permite agregar sus plazas. Un lote sin prefijo genera `01`, `02`…; con prefijo, `A-01`,
+`A-02`…, salteando códigos existentes. El mapa y el censo muestran los registros nuevos sin
+actualizar cifras a mano. Desde la plaza se puede editar su identidad, además de las acciones
+operativas que ya tenía. Crear, editar, vincular, desvincular y dar de baja quedan en el
+historial del dispositivo con actor, acción y detalle.
+
+## Archivos
+
+- `programas/services/{edificios,plazas,sectores_plazas,detalle_dispositivo}.py` y
+  `programas/selectors/{capacidad_dispositivo,auditoria_dispositivo}.py`.
+- `programas/{forms_dispositivos,admin,dispositivos_urls}.py` y
+  `programas/views/{dispositivos_capacidad,dispositivos_legajo,ajax_utils}.py`.
+- `programas/templates/programas/dispositivos/{sectores/sectores,legajo/detail}.html`.
+- `programas/tests/test_dispositivos_{capacidad,plazas_acciones,auditoria}.py`,
+  `scripts/perf_budgets.json` y `.claude/design/componentes/mapa_plazas.md`.
+
+## Base de datos
+
+No requiere migraciones, columnas, UUID ni constraints nuevos. Usa los modelos existentes,
+transacciones y bloqueos de fila; la unicidad entre sectores se aplica en el servicio.
+
+## Validación
+
+Gates en Git Bash desde este worktree, usando `.venv312` (Django 5.2) y `.venv` para Ruff:
+
+- `manage.py check`: 0 problemas. `makemigrations --check --dry-run` con
+  `DJANGO_SYNCDB_PROJECT_APPS=False`: sin cambios. `check_migraciones.py`: sin migraciones nuevas.
+- `compile_templates.py --bloques`: 231 templates, 0 errores. Auditoría Detalle y Modal en
+  las dos pantallas: OK. Ratchet contra `origin/development`: 0 hallazgos nuevos. Goldens: 0.
+- Tailwind compilado: sin diferencias en el CSS generado. Ruff check y format de
+  `programas/`, `core/`, `users/`: OK. No se tocó shell/sidebar ni una pieza compartida;
+  no corresponde regenerar snapshots de Becas.
+- Tests por módulo: arquitectura 13; capacidad 66; acciones de plazas 29; auditoría 21;
+  detalle 29; infraestructura 32: **190 tests OK**. Se repitió la clase de alcance del mapa
+  después de fijar su reloj. Suite `--tag performance programas`: **23 tests OK**.
+- Presupuestos nuevos: `dispositivos_baja_sector` y `dispositivos_selector_lote_plazas`, ambos
+  de 2 consultas fijas. Se verifican con 2/200 plazas y 1/8 sectores. No sube ningún presupuesto
+  existente; `check_perf_budgets.py`: OK.
+- Render HTTP 200 de P5, Nuevo sector, Agregar plazas, Editar plaza, Infraestructura y Editar
+  edificio. Revisión visual con Chromium headless a 1440×1200, contra las capturas P05/P19:
+  encabezado, surfaces, acciones, foco inicial, campos y pie de modal visibles. El render con
+  tres sectores detectó y permitió corregir el N+1 del selector del lote.
+- `requerimientos.py --check`: OK. Contrato del agente de diseño con `--changed` y límites
+  contra `origin/development`: OK después de commitear código y fichas.
+
+**Mutaciones: 48 blancos, todos rojo → restauración desde copia → verde.** Se alteraron
+temporalmente las fuentes, se ejecutaron los tests correspondientes y se restauraron bytes
+originales; las adicionales también restauraron las funciones cargadas para reusar una única
+base de tests. No se usó `git checkout` ni `stash`. Usuarios con todo salvo la condición
+probada y reloj fijo en las pruebas nuevas/adaptadas.
+
+| Mutaciones | Guarda o regla rota y comprobada |
+|---|---|
+| M01–M03 | Capacidad, asignación y dispositivo cerrado al configurar sectores/plazas |
+| M04–M07 | Nombre obligatorio/único de sector y tipo de plaza válido/admitido |
+| M08–M11 | Baja de sector con estadía, reserva, préstamo y reserva vencida sin liberar |
+| M12–M16 | Conservación de plazas, sector inactivo, mínimo/máximo de lote y largo del código |
+| M17–M19 | Códigos del lote y edición únicos entre sectores; código de plaza obligatorio |
+| M20–M24 | Capacidad/cierre de edificio, código/nombre obligatorios y código único |
+| M25–M28 | Pertenencia del edificio, vínculo dentro del alcance, idempotencia y no borrado |
+| M29–M31 | Compuerta antes del form y mismo 404 de sector/edificio ajeno o inexistente |
+| M32–M33 | Admin sin borrado y sin baja directa de sector |
+| M34–M36 | Plaza con estadía/reserva/préstamo vigente no sale de servicio (servicio heredado) |
+| M37–M38 | Identificadores ASCII y plaza ajena/inexistente con el mismo 404 |
+| M39–M41 | Trazas de capacidad y edificio; edición de plaza conserva su estado |
+| M42–M44 | Admin no mueve sector/plaza con historia y el modelo exige el tipo admitido |
+| M45–M47 | Comparación de códigos por mayúsculas/minúsculas y unicidad entre sectores en admin |
+| M48 | Selector del lote sin consultas por sector: quitar el JOIN rompe el presupuesto |
+
+Las mutaciones comprobaron también que la validación de tipo del `ModelForm` de soporte ya
+estaba cubierta por `Plaza.clean`; se eliminó la comprobación duplicada del formulario nuevo.
+Las pruebas locales usan SQLite en memoria, como indican los gates del encargo.
+
+## Revisión
+
+La revisión independiente de C5 pidió cuatro correcciones. Se conserva esta única entrada
+`Cambio 291`; el juez asignará su número definitivo.
+
+- **BLOCKER — plaza tomada:** `editar_plaza` consulta `_plaza_tomada_por`, la misma guarda de
+  `sacar_plaza_de_servicio` y las operaciones de estadías, después de adquirir el
+  `select_for_update()` de la plaza, sin `select_related`. Una estadía activa, reserva vigente
+  o préstamo vigente devuelve `ValidationError` legible y HTTP 400 en el POST AJAX; no cambia
+  código/tipo ni genera traza de edición.
+- **MAJOR — admin:** por decisión explícita del juez, los tres modelos quedan de **solo lectura**.
+  `has_add_permission`, `has_change_permission` y `has_delete_permission` devuelven `False`;
+  todos los campos son readonly. Se probó tanto con staff de otra institución que posee todos
+  los permisos nativos como con superusuario: GET de consulta 200 y POST add/change/delete 403.
+- **MAJOR — concurrencia de códigos:** el UNIQUE existente cubre `(sector, codigo)`, no todo
+  el dispositivo. Se conserva el bloqueo de la fila del dispositivo compartido por lote y
+  edición y la relectura/revalidación posterior dentro de la transacción. Los FOR UPDATE no
+  llevan JOIN. No se introduce un UNIQUE condicional, que MySQL/MariaDB no implementan.
+  Se agregan pruebas de revalidación después de esperar el bloqueo y tres carreras HTTP con
+  dos conexiones reales a MariaDB 10.11: dos lotes en distintos sectores, dos ediciones al
+  mismo código y lote contra edición. No hay códigos duplicados.
+- **MINOR — oráculo de dispositivo:** la búsqueda parte de `dispositivos_en_alcance` con
+  `dispositivo.editar`. Ajeno e inexistente reciben el mismo 404, también en AJAX, antes de
+  construir/validar el formulario. La falta de capacidad en el programa conserva su 403.
+
+**Rojo previo:** antes de modificar producción, las tres pruebas de ocupación fallaron con
+`ValidationError not raised`; el admin admitía agregar/cambiar y los POST escribían;
+los dispositivos ajenos e inexistentes dieron `[403, 404]` en vez de `[404, 404]`.
+Las guardas de unicidad y bloqueo ya existían: se demuestra su necesidad por mutación.
+
+**Mutaciones adicionales:** 12 variantes comprobadas en rojo y restauradas desde copia de
+bytes: ocupación (estadía/reserva/préstamo), permisos add/change/delete del admin, alcance,
+bloqueo del dispositivo en lote y edición, bloqueo de plaza, unicidad al editar, consulta de
+códigos antes del bloqueo, consulta de ocupación antes del bloqueo y campos readonly del admin. Después de restaurar,
+los 75 tests de capacidad y revisión pasan; los 2 tests de admin se repitieron tras la última mutación. Las tres carreras reales también pasan.
+
+Las pruebas locales usan un venv aislado dentro de C5 con Python 3.12 y Django 5.2.17.
+Solo en ese venv se usa `mysqlclient==2.2.7` (wheel de Windows); el pin del repo no cambia.
+Las carreras reales usan migraciones completas, sin syncdb, como el job de motor real.
+
+**Rebase de cierre:** sobre `origin/development` con C3 (#855, `d6898e3b`). Se conserva la versión de development de
+`requerimientos.md` más esta única entrada y su fila de índice; todos sus presupuestos de
+`perf_budgets.json` se conservan. Los imports de la vista mantienen los cambios de C3 y C5.
+Se sincroniza `.claude/design/arquetipos/detalle.md` con el domicilio normalizado que ya
+entrega la consulta de Infraestructura, requerido por el contrato del agente canónico.
+
+**Validación después del rebase:** 353 tests del carril y regresiones solicitadas en verde
+(3 carreras omitidas en SQLite y ejecutadas aparte contra MariaDB); 23 tests de performance
+OK. Gates: `check`, `makemigrations --check --dry-run` con syncdb False, `check_migraciones`,
+`compile_templates --bloques` (231 templates, 0 errores y 0 bloques sin destino), ratchet
+contra `origin/development` (0 nuevos), goldens (0), `check_design_agent --changed` y
+`--limites --base origin/development` después de commitear, `check_perf_budgets`, Ruff
+completo con el pin del repo (`0.16.10`) y `requerimientos --check`.
+
+## Puesta en marcha en el servidor
+
+No requiere pasos fuera del deploy habitual. El PM configura los roles/capacidades existentes.
+
+## Pendientes / a definir
+
+El juez asigna el número definitivo a `291`. Sin decisiones funcionales abiertas.
+Las capacidades de la Versión 2 completa listadas en Apartamientos permanecen fuera del MVP.
+
+## Reversión
+
+Revertir los commits de C5, incluyendo el código retomado y este registro, sin bajar migraciones.
+Se pierden los accesos de alta/edición, pero se conservan edificios, vínculos, sectores, plazas y
+trazas que se hayan cargado. No requiere borrar datos ni modificar la historia de estadías.
+
+## Historial
+
+Entrada nueva y única de C5. Retoma el commit `c2e82f24`, completa edición de plaza y verificaciones,
+y corrige unicidad entre sectores y respuestas de alcance. Rebasado únicamente C5 sobre
+`origin/development` después del merge de #853; la entrada 287 de C1 se conserva desde la base.
 
 ---

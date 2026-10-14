@@ -159,6 +159,14 @@
     }
   },
   "servicios": {
+    "dispositivos_selector_lote_plazas": {
+      "consultas_fijas": 2,
+      "nota": "C5: el selector de sector del lote carga dispositivo por JOIN; dos consultas del widget, con uno u ocho sectores. CapacidadPresupuestoTests."
+    },
+    "dispositivos_baja_sector": {
+      "consultas_fijas": 2,
+      "nota": "C5: plazas con estadías activas y reservas/préstamos abiertos; dos consultas incluso con 200 plazas. test_dispositivos_capacidad.CapacidadPresupuestoTests."
+    },
     "_nota": "Presupuestos de servicios que no son una ruta del manifiesto de perf_audit (no entran en `budgets`, que tiene que coincidir exactamente con build_targets). Los corren programas/tests/test_export_respuestas_presupuesto.py, programas/tests/test_dispositivos_ocupacion.py, programas/tests/test_dispositivos_estadia_detalle.py, programas/tests/test_dispositivos_censo.py, programas/tests/test_dispositivos_infraestructura.py, programas/tests/test_dispositivos_alertas.py, programas/tests/test_dispositivos_auditoria.py y programas/tests/test_dispositivos_bitacora_pantalla.py con --tag performance.",
     "becas_respuestas_por_persona": {
       "servicio": "programas.services.dashboard_becas.respuestas_por_persona",

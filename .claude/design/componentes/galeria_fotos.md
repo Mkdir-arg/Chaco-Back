@@ -8,6 +8,12 @@ evento que trae `fotos` (ficha `ficha_timeline.md`); a través de ella, la solap
 detalle de Dispositivos (`programas/templates/programas/dispositivos/legajo/detail.html`, mockup P19),
 una tanda por relevamiento.
 
+En esa solapa, cada tanda pertenece al edificio del relevamiento. El encabezado del inmueble
+ofrece editar y desvincular con `dispositivo.editar` sobre la institución; desvincular conserva
+las tandas y solo retira su acceso desde ese legajo. El vacío sin edificio enlaza a «Cargar
+edificio» para quien puede editar. Alta, edición y vínculo usan las partes del modal canónico,
+sin cambiar el contrato de la galería.
+
 ## Invocación
 
 ```django
