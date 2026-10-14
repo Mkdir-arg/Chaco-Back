@@ -32,7 +32,9 @@ def instituciones_del_predio(usuario, edificios_ids):
                 "nombre": fila["dispositivo__nombre"],
                 "tipo": fila["dispositivo__tipo__nombre"],
                 "estado": fila["dispositivo__estado"],
-                "get_estado_display": dict(Dispositivo.Estado.choices)[fila["dispositivo__estado"]],
+                "get_estado_display": dict(Dispositivo.Estado.choices).get(
+                    fila["dispositivo__estado"], fila["dispositivo__estado"]
+                ),
             }
         )
     return resultado

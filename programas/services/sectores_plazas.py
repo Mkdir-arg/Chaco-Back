@@ -160,6 +160,7 @@ def _plaza_para_el_mapa(plaza, estado, url):
         "estado": estado.estado,
         "tono": estado.tono,
         "detalle": estado.detalle,
+        "detalle_completo": estado.detalle_completo,
         "url": url,
     }
 

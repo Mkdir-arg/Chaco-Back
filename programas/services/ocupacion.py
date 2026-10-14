@@ -459,6 +459,7 @@ class EstadoPlaza:
     estado: str
     tono: str
     detalle: str = ""
+    detalle_completo: str = ""
 
     @property
     def disponible(self) -> bool:
@@ -497,6 +498,7 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
     derivados = {}
     for plaza in plazas:
         detalle = ""
+        detalle_completo = ""
         if plaza.estado == Plaza.Estado.FUERA_SERVICIO:
             estado, detalle = ESTADO_FUERA_SERVICIO, plaza.motivo_fuera_servicio
         elif plaza.pk in ocupadas:
@@ -509,9 +511,13 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
             persona = _nombre_en_plaza(apellido, nombre) if puede_ver_personas else ""
             vencimiento = f"hasta {timezone.localtime(hasta):%d/%m %H:%M}" if hasta else "sin vencimiento"
             detalle = f"{persona} · {vencimiento}" if persona else vencimiento
+            vencimiento_completo = f"hasta {timezone.localtime(hasta):%d/%m/%Y %H:%M}" if hasta else "sin vencimiento"
+            detalle_completo = f"{persona} · {vencimiento_completo}" if persona else vencimiento_completo
         else:
             estado = ESTADO_DISPONIBLE
-        derivados[plaza.pk] = EstadoPlaza(estado=estado, tono=_TONO_DE[estado], detalle=detalle)
+        derivados[plaza.pk] = EstadoPlaza(
+            estado=estado, tono=_TONO_DE[estado], detalle=detalle, detalle_completo=detalle_completo or detalle
+        )
     return derivados
 
 

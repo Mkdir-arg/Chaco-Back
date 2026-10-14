@@ -106,10 +106,10 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
         # vista decide si el modal arranca abierto. Solo si el usuario lo puede usar.
         parametros = self.request.GET
         context["abrir_modal_novedad"] = "novedad" in parametros and "form_novedad" in context
-        context["abrir_modal_corregir"] = "corregir" in parametros and "form_correccion" in context
         context["abrir_modal_turnos"] = "turnos" in parametros and puede_configurar
         pedida = parametros.get("corregir", "")
         context["correccion_inicial"] = pedida if pedida in context.get("corregibles_datos", {}) else ""
+        context["abrir_modal_corregir"] = bool(context["correccion_inicial"])
         context["migas"] = [
             {"label": "Dispositivos", "url": reverse("dispositivos:lista")},
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},

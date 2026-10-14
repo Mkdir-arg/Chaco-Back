@@ -115,6 +115,24 @@ class FidelidadDetalleTests(BaseDetalle):
         self.assertNotIn("form_cambio", self.client.get(self.url, {"cambio": self.estadia.pk}).context)
         self.assertNotIn("estadia_egreso", self.client.get(self.url, {"egreso": self.estadia.pk}).context)
 
+    def test_cambiar_plaza_no_ofrece_el_cupo_libre_si_el_tipo_solo_admite_camas(self):
+        self.tipo.tipos_plaza_admitidos = [Plaza.Tipo.CAMA]
+        self.tipo.save()
+        self.otra_plaza.tipo = Plaza.Tipo.CUPO
+        self.otra_plaza.save()
+        respuesta = self.client.get(self.url)
+        [fila] = respuesta.context["estadias"]
+        self.assertEqual(fila.motivo_cambiar, "No hay plazas libres en el dispositivo.")
+        self.assertContains(respuesta, 'aria-disabled="true"')
+        self.assertNotIn("form_cambio", self.client.get(self.url, {"cambio": self.estadia.pk}).context)
+
+    def test_menu_y_modal_consultan_las_plazas_elegibles_una_sola_vez(self):
+        from programas.services.ingreso import plazas_para_ingresar
+
+        with patch("programas.views.dispositivos_legajo.plazas_para_ingresar", wraps=plazas_para_ingresar) as mapa:
+            self.assertIn("form_cambio", self.client.get(self.url, {"cambio": self.estadia.pk}).context)
+        mapa.assert_called_once()
+
     def test_cada_accion_y_modal_exigen_su_capacidad(self):
         for capacidad, accion, parametro in (
             ("dispositivo.admitir", "Cambiar plaza", "cambio"),
@@ -218,6 +236,14 @@ class FidelidadInfraestructuraTests(BaseInfraestructura):
     def test_selector_sin_usuario_no_devuelve_identidades_ni_consulta(self):
         with self.assertNumQueries(0):
             self.assertEqual(instituciones_del_predio(None, [self.predio.pk]), {})
+
+    def test_estado_fuera_del_catalogo_conserva_el_valor_y_no_rompe_p4(self):
+        type(self.parador).objects.filter(pk=self.parador.pk).update(estado="DESCONOCIDO")
+        respuesta = self._detalle(self.admin, self.geriatrico)
+        self.assertEqual(respuesta.status_code, 200)
+        instituciones = respuesta.context["infraestructura"]["edificios"][0]["instituciones"]
+        fila = next(fila for fila in instituciones if fila["pk"] == self.parador.pk)
+        self.assertEqual(fila["get_estado_display"], "DESCONOCIDO")
 
     def test_relevamiento_en_curso_no_rotula_fotos_con_fecha_de_subida(self):
         from programas.services.inspecciones import agregar_foto
