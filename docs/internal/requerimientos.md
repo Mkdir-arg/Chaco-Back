@@ -433,6 +433,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 303 | Separar reservas y préstamos y corregir el contenido de duplicados | Dispositivos · P3/P5 | `#ui` `#textos` `#performance` | PM / juez — carril FG | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 304 | Relevamiento completado y revisado sin cambiar el estado operativo | Dispositivos · relevamientos P21/informe | `#relevamientos` `#rbac` `#ui` `#datos` `#performance` | PM / juez — carril FR, fidelidad del MVP presentado | 14/10/2026 | 🟢 **Hecho** | `programas.0095` |
 | 307 | Merge de las dos migraciones 0095 de programas | Programas · migraciones | `#datos` `#infra` | Juez — encargo urgente en sesión | 14/10/2026 | 🟢 **Hecho** | `programas.0096_merge_revision_y_adjunto` |
+| 308 | P3 en dos columnas y Vencido en Infraestructura | Dispositivos · P3/P2/P4/P19 | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` | PM / juez — carril FI | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -39973,5 +39974,199 @@ Ninguno.
 
 1. `migrate programas 0095_adjunto_clave_campo_propio` y `migrate programas 0095_inspeccion_revision` no hacen falta: el merge no tiene operaciones.
 2. Revertir el commit deja otra vez dos hojas; solo tiene sentido si también se revierte una de las dos `0095`. No se pierden datos.
+
+---
+
+---
+
+# Cambio 308 — P3 en dos columnas y Vencido en Infraestructura
+
+🟢 **HECHO — 14/10/2026** · Carril FI · el juez asigna el número definitivo.
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alta y edición institucional (P3) · Infraestructura (P2/P4/P19) |
+| **Etiquetas** | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` |
+| **Solicitante** | PM / juez — encargo directo del carril FI |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Sin issue nuevo · Épica #127 |
+| **Partes afectadas** | Backoffice: formulario institucional, semáforo edilicio y alerta canónica; servicios, selector, tests y fichas |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Que se vea igual al mockup y mantenga la lógica». P3 en dos columnas con Posibles
+duplicados y Qué falta para validar; Infraestructura dice Vencido con la misma regla
+de la alerta. Resolver dos MINOR de FG: abortos intencionales en consola y contenido
+de la alerta info fuera de su columna de texto.
+
+## Alcance acordado
+
+Solo el worktree `mvp-fi`, rama `feat/mvp-fidelidad-fi`. P3, el semáforo compartido de
+P2/P4/P19 y el contenedor de texto de la alerta info. Mismos campos, validaciones,
+URLs y POST; sin roles, seeds, migraciones, otras pantallas ni PR. Una entrada nueva,
+sin modificar entradas anteriores. Código y documentación en commits separados.
+
+## Decisiones tomadas
+
+1. El PM **autorizó la variante nueva de Formulario con asistencia lateral**:
+   `grid grid-cols-1 lg:grid-cols-3 gap-5`, formulario en `lg:col-span-2`, apilado en
+   móvil. Mantiene el esqueleto de la golden de Segmento, con las surfaces, campos,
+   alertas y botones canónicos. La variante se documenta en la ficha de Formulario
+   y en una fila propia del inventario; P3 es su evidencia.
+2. Posibles duplicados usa el mismo endpoint y contenido de FG. Alta busca por código
+   o nombre y localidad; edición conserva la comprobación de código al guardar.
+   Un código repetido sigue bloqueando aunque no haya coincidencias visibles por
+   alcance: el panel ahora explica ese caso, sin revelar la institución ajena.
+3. Qué falta para validar usa los siete campos de la regla existente de
+   `enviar_a_validacion`: tipo, código, nombre, localidad, domicilio, responsable y
+   teléfono. El form obtiene de ahí sus BoundFields y los faltantes, incluso tras un
+   POST inválido. El resumen se actualiza al escribir; no decide si el servidor
+   acepta un envío. Guardar borrador sigue admitiendo datos operativos incompletos.
+4. **El envío a validación ya existe**, con origen Borrador u Observado. P3 incorpora
+   el botón para quien tiene `dispositivo.editar` con alcance. Una institución nueva
+   todavía no tiene asignaciones: enviar desde el alta exige alcance total y esa
+   capacidad, sin crear ni ampliar roles. El POST actual distingue la acción con
+   `accion=enviar_validacion`; guarda y ejecuta la transición existente dentro de
+   la misma transacción. Si faltan datos o el estado cambió, vuelve al form y revierte
+   datos y trazas. Un POST forjado sin autorización da 403 y no crea la institución.
+5. El chip usa el estado real del legajo; en alta dice Borrador. El pie dice Guardar
+   borrador en alta y Guardar cambios en edición. Cuando se ofrece el envío, Guardar
+   es secundario y Enviar es la acción principal. La búsqueda asincrónica conserva
+   el botón original mediante `requestSubmit`, para no perder la acción del POST.
+6. El PM confirmó **Vencido** en Infraestructura. Corresponde a un relevamiento
+   **en curso** con fecha anterior al día local, como la alerta; no al tiempo desde
+   la última realizada. El selector es compartido por alerta, semáforo y filtro de
+   vencidos de P21. El día del vencimiento todavía está vigente. Cancelados y
+   realizados no activan ese nivel. Vencido usa `badge-warning` y prevalece en el
+   semáforo agregado; sin vencidos se conserva la criticidad de la última realizada,
+   Sin relevar o Sin edificio cargado. Un predio compartido da el mismo resultado
+   en las instituciones que lo ocupan.
+7. P2 y las píldoras de la solapa y de cada edificio de P4/P19 usan ese mismo estado.
+   P21 ya decía Vencido para la situación de su relevamiento: no se cambia su UI.
+   La condición de su filtro reutiliza el selector compartido.
+8. Los dos catch de duplicados actúan solo si `error.name !== 'AbortError'`. Los
+   fallos reales conservan consola y tratamiento visible; un aborto intencional
+   no abre el aviso de fallo ni oculta las coincidencias de una búsqueda posterior.
+9. En `_alerta.html`, info agrupa texto y `contenido_template` en
+   `div.flex-1.min-w-0`; la acción queda como hermana. Se conserva tono, rol,
+   escapado, padding y tipografía. La ficha se actualiza junto al test estructural.
+
+### Plan de pantalla
+
+```text
+Tipo: B/C (variante autorizada de Formulario) + A (semáforo y alerta info)
+Golden: programas/templates/programas/becas/config/segmento_form.html
+Dominio: DispositivoForm, services/dispositivos.py y legajo/form.html
+Rutas finales: dispositivos:crear, dispositivos:editar, dispositivos:detalle, dispositivos:lista
+P3: page_header; grilla 1/3, form ocupa 2; estado real; Identidad y encuadre,
+    Ubicación, Responsable y contacto; campos en sm:grid-cols-2; pie con wrap;
+    paneles Posibles duplicados y Qué falta para validar en surfaces canónicas
+P4/P19 y P2: mismos templates; texto/tono del semáforo preparado por los servicios
+Clasificación: header, field, form_errores, alerta, surfaces, botones/badges = Canónico reutilizable
+Assets: shell includes/base.html; Tailwind compilado y SweetAlert2 existentes
+Novedad autorizada: variante Formulario con asistencia lateral; sin piezas visuales nuevas
+Fichas: arquetipos/formulario.md, arquetipos/detalle.md, componentes/alerta.md e inventario
+```
+
+### Apartamientos del mockup
+
+- No se dibujan categoría, área del Ministerio, titularidad, dependencia, servicios,
+  buscador de responsable, cercanía de domicilios ni Procedencia del dato: faltan
+  datos o servicios en el modelo/form actual. Se conservan latitud, longitud,
+  DNI/CUIT, email y horarios, que sí existen.
+- En edición no se inventa otra búsqueda de duplicados: la búsqueda actual es de
+  alta; el panel lo explica y el form verifica el código al guardar.
+- No se afirma «Valida otra persona, no quien carga»: la transición existente no
+  implementa esa separación de autoría. No se agrega una regla nueva.
+- Vencido usa la asignación en curso con fecha pasada, no el plazo de seis meses
+  del ejemplo visual: ese plazo de renovación no existe en el dominio.
+- Enviar valida en el servidor y devuelve los faltantes; no se incorpora una
+  validación distinta ni un botón ficticio. Las diferencias geométricas previas de
+  info siguen siendo las de su ficha, fuera de este ajuste del contenedor.
+
+## Implementación
+
+P3 ofrece el formulario a la izquierda y dos paneles laterales. La columna de
+faltantes sigue la regla existente y los valores actuales, sin consultas adicionales.
+El envío usa la transición y el alcance vigentes, con rollback completo ante rechazo.
+Infraestructura y el listado muestran Vencido desde la misma condición que la alerta.
+El selector se integra como Exists en las consultas actuales, sin consultas por fila.
+
+## Archivos
+
+- `programas/forms.py`, `services/dispositivos.py`, `views/dispositivos_legajo.py`.
+- `programas/templates/programas/dispositivos/legajo/form.html`.
+- `programas/selectors/vencimiento_inspecciones.py` (nuevo; aparte de `selectors/inspecciones.py` del Cambio 304 para no formar un ciclo con el servicio), `services/inspecciones.py`,
+  `services/alertas_dispositivos.py`, `services/detalle_dispositivo.py`.
+- `templates/components/_alerta.html`, `core/tests/test_nodo_ui_piezas.py`.
+- `programas/tests/test_dispositivos_fidelidad_fi.py` y dos fixtures JS ejecutables
+  de tests en `programas/tests/js/` (sin red, con DOM/fetch controlados).
+- Fichas, inventario y esta entrada. Tailwind se reconstruye; sin cambios del CSS.
+
+## Base de datos
+
+No requiere migraciones ni cambios de datos. Se usan los estados, campos, capacidades
+y trazas existentes. Pruebas sobre SQLite con datos ficticios; el reloj de las
+pruebas FI está fijado al 14/10/2026. No se modifica ningún catálogo de roles.
+
+## Validación
+
+- Django check OK; makemigrations con syncdb apagado sin cambios;
+  check_migraciones sin migraciones nuevas; 233 templates compilan sin errores.
+- P3 Formulario OK; ratchet contra origin/development sin hallazgos nuevos;
+  siete goldens sin hallazgos. Tailwind reconstruido, Ruff check/format en verde.
+- Regresiones de arquitectura, legajo, piezas compartidas, FG y FI; 149 pruebas de
+  Infraestructura, listado, alertas y relevamientos en verde. Último lote de 187
+  pruebas en verde; la suite FI final tiene 17 tests. Se regeneran y revisan
+  los seis snapshots de Becas, sin diff.
+- Las 29 pruebas de performance de programas pasan. El test FI mide uno y nueve
+  dispositivos/edificios vencidos: semáforo e Infraestructura conservan el costo
+  fijo y sus techos actuales. check_perf_budgets confirma que ningún techo sube;
+  no hace falta una entrada en `_meta.adjustments`.
+- Playwright con Chromium, venv temporal fuera del repo, SQLite y runserver en
+  puerto libre: alta sin/con duplicados y edición de P3, y P4-Infraestructura, a
+  1440 y 390 px. Grilla lateral en escritorio, apilada en móvil, scrollWidth igual
+  al viewport. Capturas inspeccionadas tras terminar la transición del sidebar.
+  Cambio de faltantes al escribir, aborto intencional sin error en consola y POST
+  real de Enviar a validación con el estado final Pendiente de validación.
+- El test de alerta comprueba el include como hijo del contenedor de texto, con
+  y sin acción. Los tests JS ejecutan las funciones renderizadas, sin red: ambos
+  abortos, código duplicado sin filas visibles, limpieza del aviso y submitter.
+
+**28 mutaciones: romper → rojo → restaurar desde copia de bytes → verde.**
+
+Grilla; faltantes del form y su render; faltantes dinámicos, contador y anuncio de
+completitud; estados de envío; capacidad y alcance del alta; permiso del POST;
+invocación de la transición desde alta y edición; atomicidad de ambos guardados;
+render de alta tras rechazo o colisión concurrente; comparación estricta de fecha;
+estado del relevamiento; nivel y prioridad del semáforo; píldora del edificio,
+agregado de P4 y lectura de P2; ambos AbortError; conservación del submitter;
+explicación de código duplicado fuera del alcance; contenedor de info.
+
+El registro mantiene el marcador literal **305**, como pide el juez. El checker
+actual indexa números: `requerimientos.py --check` valida las entradas numeradas
+existentes; la fila y el encabezado nuevos se comprueban manualmente y quedan
+pendientes de numeración. No se cambia el checker ni otra entrada.
+
+## Puesta en marcha en el servidor
+
+Deploy habitual de código y templates. Sin migraciones, cron, variables ni pasos extra.
+
+## Pendientes / a definir
+
+- El juez asigna el número definitivo al encabezado 305 y a su fila del índice.
+- Los datos/servicios ausentes del mockup quedan como apartamientos; no se inventan
+  dentro de FI. Sin pendientes funcionales en el recorte autorizado.
+
+## Reversión
+
+Revertir los commits FI de código y documentación. No modificar la base ni bajar
+migraciones. Regresan el formulario de una columna y el semáforo de criticidad.
+
+## Historial
+
+Entrada nueva y única de FI. Las decisiones anteriores de FF/FG se conservan en
+sus entradas; la columna y Vencido quedan autorizados por este encargo del PM.
 
 ---

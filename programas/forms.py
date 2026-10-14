@@ -736,6 +736,16 @@ class DispositivoForm(forms.ModelForm):
             raise forms.ValidationError("Ya existe un dispositivo con este código institucional.")
         return codigo
 
+    @property
+    def requisitos_validacion(self):
+        from programas.services.dispositivos import campos_para_validacion
+
+        return [self[nombre] for nombre in campos_para_validacion()]
+
+    @property
+    def faltantes_validacion(self):
+        return [campo for campo in self.requisitos_validacion if not str(campo.value() or "").strip()]
+
 
 class BusquedaCiudadanoDNIForm(forms.Form):
     dni = forms.CharField(
