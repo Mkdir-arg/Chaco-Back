@@ -97,6 +97,12 @@ orden son solapas de un Detalle, no un wizard.
 - **Control que no cabe en `_field.html`** (grupo de radios con descripción por opción): conserva
   shell, indicador, surface, `_form_errores` y pie; no pasa los marcadores del arquetipo Formulario
   (evidencia: `programa_wizard_paso2.html`).
+  En el paso de plaza de Dispositivos, el include real `components/_mapa_plazas.html` reemplaza
+  el marcador de campo del auditor Wizard; no hay campos visibles ni un include ficticio.
+  El mapa queda a la izquierda (`lg:col-span-2`) y Persona a la derecha, en la grilla
+  `grid grid-cols-1 lg:grid-cols-3 gap-5`: distribución de la golden de Revisión con
+  la separación de 5 pedida en el encargo (la golden usa 4). Los datos usan los
+  rótulos `text-xs font-semibold uppercase text-body-subtle` de P7, también en el resumen final.
 - Avisos de situación dentro de un paso (bloqueos, advertencias): `components/_alerta.html`.
 
 ## Prohibido
