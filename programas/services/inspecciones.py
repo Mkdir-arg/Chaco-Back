@@ -605,10 +605,12 @@ def situacion_de(inspeccion, hoy=None):
 def _condicion_situacion(situacion, hoy):
     """``Q`` de una situación en curso; ``None`` si no es una de :attr:`Situacion.EN_CURSO`."""
 
+    from programas.selectors.vencimiento_inspecciones import condicion_relevamiento_vencido
+
     limite = hoy + timedelta(days=DIAS_POR_VENCER)
     en_curso = Q(estado=InspeccionEdificio.Estado.ASIGNADA)
     condiciones = {
-        Situacion.VENCIDA: en_curso & Q(fecha_vencimiento__lt=hoy),
+        Situacion.VENCIDA: condicion_relevamiento_vencido(hoy),
         Situacion.POR_VENCER: en_curso & Q(fecha_vencimiento__gte=hoy, fecha_vencimiento__lte=limite),
         Situacion.AL_DIA: en_curso & Q(fecha_vencimiento__gt=limite),
     }
@@ -781,8 +783,8 @@ class Semaforo:
     """Lo que dibuja el badge: ``texto`` y ``tono`` (`badge-{{ tono }}`). El template no decide nada.
 
     ``nivel`` es el código estable que usan los tests y el orden de gravedad: la criticidad
-    de la última realizada (``ALTA``, ``MEDIA``, ``BAJA``), :data:`SIN_RELEVAR` o
-    :data:`SIN_EDIFICIO`.
+    de la última realizada (``ALTA``, ``MEDIA``, ``BAJA``), :data:`SIN_RELEVAR`,
+    :data:`SIN_EDIFICIO` o :data:`VENCIDO` (relevamiento en curso con fecha pasada).
     """
 
     nivel: str
@@ -792,11 +794,13 @@ class Semaforo:
 
 SIN_RELEVAR = "SIN_RELEVAR"
 SIN_EDIFICIO = "SIN_EDIFICIO"
+VENCIDO = "VENCIDO"
 
 #: Vocabulario operativo del semáforo: el texto dice el estado sin depender del color. «Bueno» y
 #: «Regular» son los del mockup (P19, «Estado físico»); «Crítico» es el nivel que el mockup no
 #: muestra y la escala del modelo sí tiene («requiere intervención»).
 SEMAFOROS = {
+    VENCIDO: Semaforo(VENCIDO, "Vencido", "warning"),
     InspeccionEdificio.Criticidad.ALTA: Semaforo(InspeccionEdificio.Criticidad.ALTA, "Crítico", "danger"),
     InspeccionEdificio.Criticidad.MEDIA: Semaforo(InspeccionEdificio.Criticidad.MEDIA, "Regular", "warning"),
     InspeccionEdificio.Criticidad.BAJA: Semaforo(InspeccionEdificio.Criticidad.BAJA, "Bueno", "success"),
@@ -808,6 +812,7 @@ SEMAFOROS = {
 #: de «Bueno» porque no saber cómo está un edificio no es lo mismo que saber que está sano: si
 #: ganara el sano, el edificio que nadie miró quedaría escondido detrás de él.
 _GRAVEDAD = {
+    VENCIDO: 4,
     InspeccionEdificio.Criticidad.ALTA: 3,
     InspeccionEdificio.Criticidad.MEDIA: 2,
     SIN_RELEVAR: 1,
@@ -815,9 +820,11 @@ _GRAVEDAD = {
 }
 
 
-def semaforo_de_inspeccion(inspeccion):
-    """El semáforo de un edificio a partir de su última realizada (``None`` = sin relevar)."""
+def semaforo_de_inspeccion(inspeccion, *, vencido=False):
+    """Vencimiento en curso primero; luego la última realizada (``None`` = sin relevar)."""
 
+    if vencido:
+        return SEMAFOROS[VENCIDO]
     if inspeccion is None:
         return SEMAFOROS[SIN_RELEVAR]
     semaforo = SEMAFOROS.get(inspeccion.criticidad)
@@ -828,7 +835,7 @@ def semaforo_de_inspeccion(inspeccion):
     return semaforo
 
 
-def semaforo_de_ultimas(ultimas):
+def semaforo_de_ultimas(ultimas, *, vencidos=()):
     """El semáforo de un dispositivo: ``ultimas`` es ``{edificio_id: InspeccionEdificio | None}``.
 
     Sin edificios cargados es :data:`SIN_EDIFICIO`; con varios, gana el más grave.
@@ -836,17 +843,32 @@ def semaforo_de_ultimas(ultimas):
 
     if not ultimas:
         return SEMAFOROS[SIN_EDIFICIO]
-    semaforos = [semaforo_de_inspeccion(inspeccion) for inspeccion in ultimas.values()]
+    semaforos = [
+        semaforo_de_inspeccion(inspeccion, vencido=edificio_id in vencidos)
+        for edificio_id, inspeccion in ultimas.items()
+    ]
     return max(semaforos, key=lambda semaforo: _GRAVEDAD.get(semaforo.nivel, 1))
 
 
 def semaforos_de_dispositivos(dispositivo_ids):
     """``{dispositivo_id: Semaforo}`` en tres consultas fijas: el listado no hace una por fila."""
 
-    return {
-        dispositivo_id: semaforo_de_ultimas(ultimas)
-        for dispositivo_id, ultimas in ultimas_inspecciones_de_dispositivos(dispositivo_ids).items()
-    }
+    from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
+
+    ids = {pk for pk in dispositivo_ids if pk is not None}
+    vinculos = list(
+        _EdificioDispositivo.objects.filter(dispositivo_id__in=ids)
+        .annotate(vencido=tiene_relevamiento_vencido("edificio_id"))
+        .values_list("dispositivo_id", "edificio_id", "vencido")
+    )
+    ultimas = ultimas_inspecciones_por_edificio({e for _d, e, _v in vinculos})
+    por_dispositivo = {pk: {} for pk in ids}
+    vencidos = set()
+    for dispositivo_id, edificio_id, vencido in vinculos:
+        por_dispositivo[dispositivo_id][edificio_id] = ultimas.get(edificio_id)
+        if vencido:
+            vencidos.add(edificio_id)
+    return {pk: semaforo_de_ultimas(filas, vencidos=vencidos) for pk, filas in por_dispositivo.items()}
 
 
 # --------------------------------------------------------------------------- #
