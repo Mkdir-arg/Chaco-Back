@@ -420,6 +420,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 287 | Acciones del mapa de plazas y enlaces de resolución de las alertas | Dispositivos · plazas y alertas | `#ui` `#rbac` `#performance` | Carril C1 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 288 | El turno visible, las novedades automáticas de la bitácora y tres contratos que faltaban | Dispositivos · estadía, ingreso, detalle y bitácora | `#ui` `#datos` `#rbac` `#performance` | Carril C3 del cierre del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | `programas.0094` |
 | 289 | Ver informe del relevamiento, la solapa «Sin relevar nunca» y las decisiones del juez sobre el relevamiento edilicio | Dispositivos · relevamiento edilicio | `#ui` `#rbac` `#api` `#mobile` `#performance` | Pendientes del Cambio 279 + decisiones del juez | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 290 | Concurrencia real del MVP de Dispositivos y orden de bloqueo de las reservas | Dispositivos · estadías, reservas, relevamiento edilicio y bitácora | `#datos` `#performance` `#mobile` | Encargo T1 del juez del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -37744,5 +37745,278 @@ pantallas de lectura.
 
 Entrada nueva. Cierra los pendientes del Cambio 279 que tenían dato y servicio, y registra las
 decisiones del juez del 14/10/2026 sobre los puntos que el PM le delegó.
+
+---
+
+---
+
+# Cambio 290 — Concurrencia real del MVP de Dispositivos y orden de bloqueo de las reservas
+
+🟢 **HECHO — 14/10/2026** · T1 del MVP de Dispositivos
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · estadías, reservas, relevamiento edilicio y bitácora |
+| **Etiquetas** | `#datos` `#performance` `#mobile` |
+| **Solicitante** | Juez del MVP, encargo T1 de implementación |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Épica #127 · pendiente de concurrencia real del Cambio 262 |
+| **Partes afectadas** | Servidor: servicios de estadías y pruebas de concurrencia; utilidad de pruebas de candados |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Probar las exclusiones del MVP con dos hilos y barrera, siguiendo `TransactionTestCase`
+y `@tag("mysql")`: los diez escenarios del encargo deben correr contra contenedores
+efímeros `mariadb:11` y `mysql:8.0`, cinco veces consecutivas por motor. El perdedor
+recibe el error de dominio; cualquier `IntegrityError` crudo o deadlock sin manejar
+hace fallar la prueba. Si falla el servicio, corregirlo con el cambio mínimo y documentarlo.
+
+## Alcance acordado
+
+Estadías, reservas, asignación y envío de relevamientos, fotos, correcciones de bitácora
+y turnos. Incluye la comprobación del archivo guardado para descartar fotos huérfanas.
+No incluye UI, roles, migraciones, traslados ni pase de guardia.
+
+## Decisiones tomadas
+
+- Se conservan las reglas del MVP: bloqueos de fila con `select_for_update()`, UNIQUE
+  comunes sobre columnas anulables y aislamiento `read committed`. No se agregan
+  constraints condicionales, que MySQL y MariaDB no implementan.
+- Cada exclusión exige un ganador, un error de dominio y estado final consistente.
+  Los reenvíos con el mismo UUID son idempotentes: ambos responden correctamente,
+  devuelven el mismo registro y dejan una sola escritura y una sola traza.
+- Se usa el patrón de `core/tests/candados.py` y
+  `programas/tests/test_candados_concurrencia.py`: conexiones independientes por hilo,
+  barrera de arranque, cierre de conexiones y fallo si un hilo no termina. SQLite
+  saltea las carreras reales; el contrato del orden de candados sí corre allí.
+- El reloj queda fijo en 07/09/2026 a las 10:00 de Argentina para todos los escenarios.
+  La bitácora tiene una guardia de 24 horas para que el horario de ejecución no cambie el resultado.
+- Los contenedores usan las migraciones reales, no syncdb, y las variables del job
+  «Motor real». MariaDB arranca con `MARIADB_INITDB_SKIP_TZINFO=1`, como ECOM.
+- La entrada queda con `290`, tanto en el encabezado como en el índice, para que la numere el juez.
+
+## Implementación
+
+La suite nueva ejecuta once pruebas para los diez escenarios: el envío de resultado se
+divide en UUID igual y UUID distinto. El estado final incluye el texto original de la
+bitácora, la plaza original del que perdió un cambio, las trazas únicas del resultado
+y de la foto, y la coincidencia entre el único archivo en media y el archivo de la fila.
+
+| Escenario | Garantía comprobada |
+|---|---|
+| Dos ingresos de personas distintas a la misma plaza | Una estadía activa; el otro ingreso recibe plaza ocupada |
+| La misma persona ingresa en dos dispositivos | Una estadía abierta en la red; el otro recibe `AlojamientoEnLaRed` |
+| Dos cambios hacia la misma plaza | Solo uno cambia; el perdedor permanece en su plaza original |
+| Ingreso y reserva sobre la misma plaza | Ocupada o reservada, nunca ambas |
+| Ingreso con reserva y liberación de esa reserva | Consumida con estadía o liberada sin estadía; el otro recibe reserva no vigente |
+| Dos inspecciones sobre el mismo edificio | Un relevamiento en curso; el otro recibe el error de dominio |
+| Dos correcciones de la misma entrada | Una versión nueva, sin bifurcar la cadena ni sobrescribir la original |
+| Dos resultados con UUID igual / distinto | Un resultado y una traza; reenvío idempotente / conflicto de dominio |
+| Dos fotos con el mismo UUID | La misma fila, una traza y exactamente su archivo, sin huérfanos |
+| Dos turnos superpuestos | Un turno activo; el otro recibe el error de superposición |
+
+**Corrección mínima de `liberar_reserva`.** Se agrega un bloqueo de la plaza antes del
+bloqueo de la reserva. El ingreso ya tomaba plaza y luego reserva, pero la liberación
+tomaba primero reserva. Al actualizar su estado, InnoDB puede volver a comprobar la
+FK mediante el índice `(plaza, estado)` y pedir un candado compartido sobre la plaza:
+esa espera completaba un ciclo con el ingreso. Ahora ambos caminos toman plaza y reserva
+en el mismo orden, sin JOIN que bloquee también el sector. El contrato del orden queda
+cubierto por dos pruebas y explicado en el servicio.
+
+## Archivos
+
+- `programas/tests/test_dispositivos_concurrencia.py` (nuevo).
+- `core/tests/candados.py`: registro del orden relativo entre varios managers.
+- `programas/services/estadias.py`: bloqueo de plaza previo a liberar una reserva.
+- `programas/tests/test_dispositivos_estadias.py`: contrato del orden en ingreso y liberación.
+- `.claude/design/dominio/becas.md`: explicita el contrato vigente del mapa de badges
+  que cita el servicio de estadías, sin cambios de UI.
+
+## Base de datos
+
+No requiere migración. Se agrega un `SELECT ... FOR UPDATE` dentro de una transacción existente.
+No cambia ningún esquema ni dato previo.
+
+## Validación
+
+- Python 3.12.12 y Django 5.2.17 del venv del proyecto.
+- Código final: **cinco corridas consecutivas contra MariaDB 11.8.9** (`mariadb:11`)
+  y **cinco contra MySQL 8.0.46** (`mysql:8.0`), cada una con once carreras y tres
+  pruebas del contrato del motor. Todas verdes. En MySQL se saltea únicamente el
+  contrato de ausencia de tablas de timezone, exclusivo de MariaDB; ninguna carrera se saltea.
+  Se ejecutó `manage.py test programas.tests.test_dispositivos_concurrencia
+  core.tests.test_motor_real.MotorDeclaradoTests --tag mysql --keepdb --noinput --verbosity=2`.
+  Los motores emiten los tres `models.W036` preexistentes de `Admision` y
+  `EsperaAdmision`; T1 no agrega constraints condicionales ni modifica ese legacy.
+- Se comprobó la regresión en ambos motores al quitar el bloqueo nuevo de plaza:
+  **el primer intento dio `OperationalError(1213)` en ambos**. `SHOW ENGINE INNODB STATUS`
+  confirmó el ciclo: ingreso con plaza en X esperando reserva; liberación con reserva en X
+  esperando plaza en S. El arreglo evita ese ciclo y deja el error de reserva no vigente.
+- Preparación local de MySQL: el DDL de `programas.0074` superó 10 segundos y dejó
+  `siis_tabla_intermedia` vacía sin registrar la migración. Se eliminó exclusivamente esa
+  tabla vacía del contenedor de test y se completaron las migraciones con timeouts de
+  instalación de 300 segundos. **Las carreras corrieron con los timeouts de 10 segundos**,
+  comprobados por `MotorDeclaradoTests`; no se modificó ninguna migración ni los settings.
+- Regresión, por módulo para limitar memoria: doce suites, **392 tests en verde**, con
+  trece skips esperados de pruebas que requieren motor real. Incluye arquitectura,
+  estadías, inspecciones, bitácora, movimientos, ocupación, alertas, auditoría, ingreso,
+  egreso y los candados existentes. El contrato de orden restaurado volvió a verde (2 tests).
+- `--tag performance programas`: **18 tests OK**. No se agregan lecturas públicas ni
+  presupuestos nuevos; `check_perf_budgets.py` confirma que ningún techo aumenta.
+- Gates: `manage.py check` OK; `makemigrations --check --dry-run` con
+  `DJANGO_SYNCDB_PROJECT_APPS=False`, sin cambios; `check_migraciones.py` sin migraciones
+  nuevas; 231 templates compilados, cero errores; ratchet contra `origin/development`
+  sin cambios de UI; siete goldens sin hallazgos; Tailwind sin diff; Ruff check y format
+  sobre `programas/`, `core/` y `users/`, OK; `requerimientos.py --check`, OK.
+- `check_design_agent.py --changed` y `--limites --base origin/development`, OK.
+  El segundo exigió sincronizar la ficha que cita `estadias.py` como evidencia canónica;
+  se documentaron sus textos y tonos vigentes y la separación respecto del estado de reserva.
+- `290` no lo reconoce el parser actual: se comprobó también índice y cuerpo sobre una
+  copia local numerada, sin asignar número definitivo, y que ninguna entrada anterior cambió.
+- Los contenedores efímeros se apagaron al terminar; también se retiraron los dos
+  contenedores de T1 que la sesión anterior había dejado encendidos.
+
+### Validación con mutaciones
+
+Doce mutaciones, restauradas desde copias byte a byte. Diez dieron rojo en su primer intento:
+
+| Mutación | Resultado observado |
+|---|---|
+| Quitar el bloqueo nuevo de plaza en `liberar_reserva` | Contrato de orden rojo en SQLite |
+| Invertir plaza y reserva en el ingreso | Contrato de orden rojo en SQLite |
+| Quitar el bloqueo nuevo, contra MariaDB / contra MySQL | Dos mutaciones: escenario 5 rojo por deadlock 1213 |
+| Quitar el bloqueo de `_bloquear_plaza` | Escenarios 1, 3 y 4 rojos: dos ganadores |
+| Dejar escapar el `IntegrityError` de la clave de alojamiento | Escenario 2 rojo por error crudo |
+| Quitar el bloqueo del edificio | Escenario 6 rojo: dos relevamientos en curso |
+| Quitar el bloqueo de inspección | UUID distinto, reenvío del mismo UUID y foto rojos; se detectó la doble traza |
+| Quitar el bloqueo del dispositivo al crear turno | Escenario 10 rojo: dos turnos superpuestos |
+| Quitar bloqueo y traducción del `IntegrityError` al corregir | Escenario 7 rojo por `IntegrityError` crudo |
+
+Las otras dos mutaciones —quitar solo el candado de la raíz o solo la traducción del
+`IntegrityError`— quedaron verdes: cada protección restante mantiene la regla. Quitar
+ambas confirmó que el test detecta la pérdida de las dos capas. Después de restaurar,
+se repitieron las cinco corridas por motor indicadas arriba.
+
+## Revisión
+
+El revisor independiente pidió cambios por un MAJOR: la barrera sincronizaba el
+arranque, pero permitía ejecutar las operaciones en serie. Sin el bloqueo de plaza,
+el escenario 1 todavía daba verde 6 de 20 veces. Las corridas iniciales de la sección
+anterior no alcanzaban para demostrar que los tests detectaban una protección rota.
+
+Se reemplazó la barrera por eventos sobre las consultas reales, mediante
+`connection.execute_wrapper` en cada hilo. A ejecuta el SELECT que toma el candado y
+se detiene con la transacción abierta. Recién entonces arranca B y anuncia su intento
+de ejecutar la consulta competidora. El coordinador exige que InnoDB muestre esa
+conexión en `LOCK WAIT`, comprueba con `Event.wait(timeout)` que B no termina y también
+que no atraviesa la consulta. Después libera A. Los eventos y joins tienen límite;
+el `finally` libera A y espera el cierre de las conexiones aunque falle la coordinación.
+No hay sleeps ni hooks en los servicios productivos.
+
+El hook reconoce tabla, operación SQL y función del servicio sin exigir que el SQL
+contenga `FOR UPDATE`. Así también intercepta la lectura mutada. Si B atraviesa esa
+lectura, la prueba falla aunque otro candado o UNIQUE lo detenga después. Se excluyen
+las consultas de permisos, la carga inicial de objetos y los JOIN. En `liberar_reserva`,
+el `LIMIT 1` identifica el bloqueo de plaza y lo distingue del `get` previo de la FK.
+Eliminar esa sentencia completa también hace fallar el test: B no alcanza el punto
+obligatorio, y el coordinador libera los hilos al vencer el límite.
+
+Los once tests fuerzan el solapamiento de los diez escenarios. Para el escenario 2,
+las plazas son distintas: A se detiene después del INSERT de la estadía, antes del
+commit, y B espera el UNIQUE de `clave_alojamiento` al insertar. Al liberar A, B recibe
+`AlojamientoEnLaRed`. En los demás casos A se detiene después de la lectura bloqueante
+de plaza, edificio, inspección, raíz de bitácora o dispositivo. Se conservan las
+comprobaciones del error de dominio, estado final, trazas y archivo de la foto.
+No quedó ningún escenario sin coordinación del punto crítico.
+
+La consulta de `INNODB_TRX` necesita el permiso `PROCESS`; los contenedores y el job
+«Motor real» usan root. Su snapshot tiene caché: entre consultas el coordinador espera
+el evento hasta 200 ms para permitir el refresco. Si B atraviesa la lectura, el evento
+despierta al coordinador. El orden entre operaciones lo fijan los eventos y la espera
+del motor, sin depender de ese intervalo.
+
+Validación de esta revisión: diez corridas consecutivas de las once carreras y los
+tres contratos de `MotorDeclaradoTests` por motor, con las migraciones reales,
+aislamiento `read committed` y timeouts de conexión de 10 segundos. MariaDB
+`11.8.9-MariaDB-ubu2404` (`mariadb:11`) arrancó sin tablas de zona horaria; MySQL fue
+`8.0.46` (`mysql:8.0`). Todas las carreras dieron verde 10/10 en ambos motores. MySQL
+solo salteó el contrato de ausencia de tablas de zona horaria; no salteó carreras.
+
+Las mutaciones se ejecutan por separado en procesos de validación: se recompila el
+servicio con la protección retirada en su namespace antes de cargar los tests, sin
+escribir los archivos productivos. La mutación del UNIQUE elimina el índice real
+`estadia_clave_alojamiento_unica` del contenedor y lo restaura en `finally`. Cada variante
+ejecuta diez instancias nuevas del test con fixtures y transacciones independientes.
+Se exige un fallo de aserción del escenario, sin errores de preparación ni skips.
+
+Cada celda cuenta las diez corridas del escenario; las variantes de una protección
+se ejecutaron por separado. Verde corresponde al servicio correcto y rojo a la
+mutación indicada.
+
+| Escenario | Mutación | MariaDB correcto | MariaDB mutado | MySQL correcto | MySQL mutado |
+|---|---|---|---|---|---|
+| 1. Dos ingresos a la misma plaza | Quitar FOR UPDATE de `_bloquear_plaza` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 2. Misma persona en dos dispositivos | Eliminar el UNIQUE de `clave_alojamiento` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 2. Misma persona en dos dispositivos | Quitar la traducción a `AlojamientoEnLaRed` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 3. Dos cambios a la misma plaza | Quitar FOR UPDATE de `_bloquear_plaza` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 4. Ingreso y reserva | Quitar FOR UPDATE de `_bloquear_plaza` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 5. Consumir y liberar reserva | Quitar FOR UPDATE de plaza en `liberar_reserva` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 5. Consumir y liberar reserva | Eliminar la sentencia completa de plaza en `liberar_reserva` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 6. Asignar dos inspecciones | Quitar FOR UPDATE de edificio | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 7. Dos correcciones de bitácora | Quitar solo FOR UPDATE de raíz | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 7. Dos correcciones de bitácora | Quitar FOR UPDATE de raíz y traducción de IntegrityError | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 8a. Resultado con UUID igual | Quitar FOR UPDATE de inspección | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 8b. Resultados con UUID distinto | Quitar FOR UPDATE de inspección | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 9. Foto con UUID igual | Quitar FOR UPDATE de inspección | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 10. Turnos superpuestos | Quitar FOR UPDATE de dispositivo | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+
+Quitar solo el candado de raíz ahora da rojo 10/10 aun conservando su UNIQUE y la
+traducción del error: el test rechaza que B atraviese la lectura, antes de depender de
+esas defensas posteriores. Quitar solo la traducción con el candado de raíz presente
+no genera una colisión de INSERT; esa defensa redundante sigue fuera de la carrera
+serializada. La tabla distingue quitar el candado de quitar ambas protecciones.
+
+Gates de cierre: `ruff check .` y formato del archivo de tests, OK; `manage.py check`,
+sin hallazgos; 188 tests de regresión de estadías, bitácora, inspecciones y candados,
+OK (dos skips de motor real); las once carreras se saltean en SQLite. Después de las
+mutaciones se repitió la suite correcta en ambos motores. `requerimientos.py --check`,
+OK; el contrato de esta entrada y su fila de índice se validó además sobre una copia
+temporal numerada, conservando `290` en el repo y sin modificar entradas anteriores.
+
+Entorno de esta revisión: venv propio del worktree, Python 3.12.12, Django 5.2.17 y
+Ruff 0.16.10. El pin mysqlclient 2.1.1 no tiene wheel para Python 3.12 en Windows y
+su compilación pidió Visual C++; se usó mysqlclient 2.2.8 solo en este venv, sin cambiar
+los requirements del repo. Los timeouts de 300 segundos se limitaron a preparar las
+migraciones; todas las corridas de la matriz y la restauración usaron 10 segundos,
+comprobados por `MotorDeclaradoTests`. Los dos contenedores se crearon con
+`docker run -d --rm` y se apagaron al terminar. La corrección productiva aprobada de `liberar_reserva`
+se conserva; esta revisión solo cambia los tests y esta sección.
+
+## Apartamientos del mockup
+
+No aplica: T1 no crea ni modifica pantallas ni assets de UI. Plan de pantalla: no requiere.
+
+## Puesta en marcha en el servidor
+
+No requiere pasos adicionales al deploy. Los tests entran por su etiqueta `mysql` al job «Motor real».
+
+## Pendientes / a definir
+
+- Numeración final de esta entrada a cargo del juez.
+- MariaDB 10.11 no se ejecuta manualmente en T1; lo cubre la matriz del CI.
+- Hacer obligatorio el job «Motor real» sigue a cargo de la configuración del repositorio.
+- Traslados y pase de guardia necesitarán sus propios escenarios cuando se implementen.
+- No se agrega un reintento general de deadlocks: se corrige el ciclo concreto del encargo.
+
+## Reversión
+
+Revertir los commits de código y documentación de T1. No hay migraciones que desaplicar
+ni datos que borrar. Quitar el bloqueo de plaza de `liberar_reserva` devuelve el riesgo de
+deadlock; quitar las pruebas elimina la cobertura real de estas carreras.
+
+## Historial
+
+Entrada nueva del encargo T1. Cierra el pendiente de concurrencia real del Cambio 262.
 
 ---
