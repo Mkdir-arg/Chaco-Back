@@ -38328,8 +38328,10 @@ se agrega un tope de peso y se retira la superficie pública con su configuraci�
 - **Formato del HTML guardado**: cada `src` de imagen alojada se reescribe, antes del saneo, a
   `cid:<nombre>@datanach` (el nombre publicado, único por campaña). `nh3` admite el esquema `cid`; después
   del saneo se le saca el `src` a todo `cid:` que no sea de una imagen del paquete, así un `cid:` en un
-  HTML suelto sigue sin llegar a nadie y sigue contando como «no visible». `data:` sigue prohibido en el
-  HTML del operador.
+  HTML suelto sigue sin llegar a nadie y sigue contando como «no visible». Cualquier otro atributo con
+  `cid:` (`href="cid:…"`) se quita siempre. La comparación es **sin distinguir mayúsculas** en el saneo y
+  en el armado del correo: un `CID:01-LOGO.PNG@DATANACH` escrito a mano recibe el mismo trato y el saneo
+  lo deja escrito con el nombre exacto. `data:` sigue prohibido en el HTML del operador.
 - **Árbol MIME**: `multipart/related [ multipart/alternative [text/plain, text/html], imagen1, … ]`
   (`EmailMultiAlternatives` con `mixed_subtype = "related"`). Cada imagen es una `MIMEImage` con
   `Content-ID: <nombre@datanach>`, `Content-Disposition: inline; filename=…` y su tipo real; una sola parte
@@ -38338,7 +38340,10 @@ se agrega un tope de peso y se retira la superficie pública con su configuraci�
   lo expone y los clientes no lo exigen).
 - **Una lectura por corrida**: el envío masivo arma las partes una vez y las reusa para todos los
   destinatarios (la imagen se lee del disco y se pasa a base64 una sola vez). La prueba usa el mismo
-  armado. Una imagen que falta en el disco no frena el correo: sale sin esa imagen y queda en el log.
+  armado. Una imagen que falta en el disco no frena el correo: sale sin esa imagen, queda en el log y
+  se avisa (revisión del juez, ronda 2): el envío masivo deja «Faltan en el servidor N imágenes: …; los
+  correos salen sin ellas» en `campana.mensaje` —acompaña cualquier desenlace y el detalle lo muestra
+  como «Aviso del envío» también en una campaña enviada— y la prueba lo suma al mensaje del toast.
 - **Vista previa**: el `iframe sandbox` es de origen opaco y no manda cookies, así que no puede pedir las
   imágenes a una ruta con login. La respuesta de la vista previa cambia cada `cid:` propio por un
   `data:` con la imagen (solo ahí, después del saneo; lo guardado sigue con `cid:`) y su CSP pasa a
@@ -38402,10 +38407,13 @@ como `cid:`.
   (forward con una campaña en el formato viejo: reescribe las propias y deja un token ajeno y una URL
   externa); el tope de 2 MB por servicio y por pantalla; el HTML suelto sigue como `alternative` sin
   partes. `core.tests.test_superficie_publica` y `test_media_protegida` en verde con los ratchets en 14 y 32.
-  **Suite completa**: 6.120 tests en verde (64 salteados), sobre `development` @ 986ab1b5..
+  **Suite completa**: 6.120 tests en verde (64 salteados), sobre `development` @ 986ab1b5. Ronda 2:
+  `notificaciones` + `test_superficie_publica` + `test_media_protegida`, 215 tests en verde (el merge
+  solo trajo `programas`, `.claude/` y `scripts/perf_budgets.json`)..
 - **Mutaciones, de a una, todas en rojo**: Content-ID distinto del `cid:` del HTML, Content-ID sin `<>`,
   `src` sin el dominio del Content-ID, sin `mixed_subtype = "related"`, partes armadas por destinatario,
-  vista previa sin `data:` y sin el tope de 2 MB (dos tests).
+  vista previa sin `data:` y sin el tope de 2 MB (dos tests). Ronda 2: sin el aviso en la campaña, sin el
+  aviso en la prueba, `href="cid:"` conservado, saneo e incrustadas distinguiendo mayúsculas.
 - **Prueba manual con el mailing real** (zip fuera del repo, base SQLite de prueba, alta por la
   pantalla): 14 imágenes incluidas (210 KB recodificadas), 0 faltantes, 0 no incluidas; el `.eml` de la
   prueba (locmem) pesa **305.956 bytes** (~299 KB), raíz `multipart/related`, 14 partes de imagen cuyos
@@ -38439,5 +38447,12 @@ como `cid:`.
 ## Historial
 
 **14/10/2026** — Entrada nueva (reservada al empezar la rama).
+
+**14/10/2026 — revisión del juez, ronda 2 (APPROVE con MINOR).** Se trajo `development` (conflicto solo
+en este archivo, resuelto a mano: el de `development` entero más esta fila, esta entrada y la nota del
+285; el 292 seguía libre). Entraron los tres MINOR: aviso visible de imágenes que faltan en el servidor
+(campaña y toast de la prueba), `cid:` fuera de todo atributo que no sea el `src` de una imagen del
+paquete, y `cid:` sin distinguir mayúsculas en saneo y armado. `enviar_prueba` devuelve ahora
+`(ok, error, aviso)`. La CSP de la vista previa no cambia.
 
 ---
