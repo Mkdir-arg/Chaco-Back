@@ -496,3 +496,92 @@ def estado_de_plazas(plazas, momento=None) -> dict[int, EstadoPlaza]:
             estado = ESTADO_DISPONIBLE
         derivados[plaza.pk] = EstadoPlaza(estado=estado, tono=_TONO_DE[estado], detalle=detalle)
     return derivados
+
+
+# ---------------------------------------------------------------------------------------
+# Cómo se lee la ocupación en una fila de listado
+# ---------------------------------------------------------------------------------------
+#
+# P2 (y P1) muestran la ocupación de cada institución como «ocupadas / operativas» con un
+# badge de color. El umbral y el tono se deciden **acá**, una sola vez, y no en cada
+# template: el mapeo de una cifra a un color es del dominio, no de la pantalla
+# (`.claude/design/componentes/tabla.md`). El vocabulario —normal, exigida, crítica— es el
+# del mockup, que nombra la situación y no el color.
+
+#: Desde este porcentaje de plazas operativas ocupadas la fila se lee como crítica.
+UMBRAL_CRITICA = 80
+#: Desde este porcentaje, exigida. Por debajo, normal.
+UMBRAL_EXIGIDA = 60
+
+NIVEL_SIN_PLAZAS = "sin_plazas"
+NIVEL_NORMAL = "normal"
+NIVEL_EXIGIDA = "exigida"
+NIVEL_CRITICA = "critica"
+
+_TENSION = {
+    NIVEL_SIN_PLAZAS: ("Sin plazas", "gray"),
+    NIVEL_NORMAL: ("Normal", "success"),
+    NIVEL_EXIGIDA: ("Exigida", "warning"),
+    NIVEL_CRITICA: ("Crítica", "danger"),
+}
+
+
+@dataclass(frozen=True)
+class Tension:
+    """La ocupación de un ámbito tal como la dibuja una fila de listado.
+
+    ``porcentaje`` es ``None`` cuando no hay nada sobre lo que calcularlo: sin plazas
+    operativas no hay un 0 % que informar —no es que esté vacío, es que no tiene plazas—,
+    y la fila dice «sin plazas» en vez de un número que invitaría a mandar gente ahí.
+    """
+
+    ocupadas: int | None
+    operativas: int
+    porcentaje: int | None
+    nivel: str
+
+    @property
+    def texto(self) -> str:
+        """Lo que va en la celda: «37 / 42», o el motivo por el que no hay cifra."""
+
+        if self.porcentaje is None:
+            return "sin plazas"
+        return f"{self.ocupadas} / {self.operativas}"
+
+    @property
+    def etiqueta(self) -> str:
+        """Cómo se nombra la situación («Crítica»), para el `aria-label` y las pantallas que no muestran el %."""
+
+        return _TENSION[self.nivel][0]
+
+    @property
+    def tono(self) -> str:
+        """Variante de badge de `nodo-badges.css` (`badge badge-{{ tono }}`)."""
+
+        return _TENSION[self.nivel][1]
+
+    @property
+    def hay_cifra(self) -> bool:
+        return self.porcentaje is not None
+
+
+def tension_de_ocupacion(conteo: Conteo) -> Tension:
+    """Cómo se lee el ``Conteo`` de un ámbito en una fila: cifras, porcentaje, nivel y tono.
+
+    Sin plazas operativas —o sin saber cuántas están ocupadas, que es el ``None`` que el
+    módulo se cuida de no confundir con cero— no hay porcentaje y el nivel es
+    ``sin_plazas``: una institución recién cargada no es una institución vacía.
+    """
+
+    operativas = conteo.operativas
+    ocupadas = conteo.ocupadas
+    if operativas <= 0 or ocupadas is None:
+        return Tension(ocupadas=ocupadas, operativas=max(operativas, 0), porcentaje=None, nivel=NIVEL_SIN_PLAZAS)
+    porcentaje = round(ocupadas * 100 / operativas)
+    if porcentaje >= UMBRAL_CRITICA:
+        nivel = NIVEL_CRITICA
+    elif porcentaje >= UMBRAL_EXIGIDA:
+        nivel = NIVEL_EXIGIDA
+    else:
+        nivel = NIVEL_NORMAL
+    return Tension(ocupadas=ocupadas, operativas=operativas, porcentaje=porcentaje, nivel=nivel)

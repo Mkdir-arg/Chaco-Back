@@ -1,60 +1,91 @@
 {% extends "includes/base.html" %}
-{% load dispositivos %}
-{% block title %}Dispositivos{% endblock %}
+{% load nodo_ui %}
+{% block title %}Dispositivos · Instituciones{% endblock %}
 
 {% block main-content %}
-<div class="mb-8">
-  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
-    <div>
-      <p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">Programa Dispositivos</p>
-      <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">Legajos de dispositivos</h1>
-      <p class="text-sm text-body-subtle mt-1.5">Instituciones, estado de validación e historial operativo.</p>
-    </div>
-    {% puede_en_programa_dispositivos request.user "dispositivo.crear" as puede_crear_dispositivos %}
-    <div class="flex flex-wrap gap-2">
-      <a href="{% url 'dispositivos:exportar' 'padron' 'csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Exportar padrón CSV</a>
-      <a href="{% url 'dispositivos:exportar' 'padron' 'xlsx' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-nodo btn-secondary btn-sm">Excel</a>
-      {% if puede_crear_dispositivos %}<a href="{% url 'dispositivos:crear' %}" class="btn-nodo btn-brand btn-base">Nuevo dispositivo</a>{% endif %}
-    </div>
-  </div>
+<div class="space-y-6">
 
-  <form method="get" data-dynamic-list-filters class="mb-5 grid gap-3 rounded-xl border border-base p-4 md:grid-cols-4" style="background:var(--bg-primary)">
-    <select name="tipo" class="nodo-field"><option value="">Todos los tipos</option>{% for tipo in tipos %}<option value="{{ tipo.pk }}" {% if request.GET.tipo == tipo.pk|stringformat:'s' %}selected{% endif %}>{{ tipo.nombre }}</option>{% endfor %}</select>
-    <select name="estado" class="nodo-field"><option value="">Todos los estados</option>{% for value, label in estados %}<option value="{{ value }}" {% if request.GET.estado == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-    <input name="localidad" value="{{ request.GET.localidad }}" class="nodo-field" placeholder="Localidad">
-    <button class="btn-nodo btn-secondary btn-base" type="submit">Filtrar</button>
+  {% page_header eyebrow="Programa Dispositivos" titulo="Instituciones" bajada="Legajo institucional de cada dispositivo: identidad, encuadre, plazas y estado de validación. Los merenderos tienen su propio listado." %}
+    <a href="{% url 'dispositivos:exportar' 'padron' 'csv' %}{% if exportar_qs %}?{{ exportar_qs }}{% endif %}" class="btn-nodo btn-tertiary btn-base">
+      <i class="fas fa-file-csv" aria-hidden="true"></i> Exportar CSV
+    </a>
+    <a href="{% url 'dispositivos:exportar' 'padron' 'xlsx' %}{% if exportar_qs %}?{{ exportar_qs }}{% endif %}" class="btn-nodo btn-tertiary btn-base">
+      <i class="fas fa-file-excel" aria-hidden="true"></i> Exportar Excel
+    </a>
+    {% if puede_crear %}
+      <a href="{% url 'dispositivos:crear' %}" class="btn-nodo btn-brand btn-base">
+        <i class="fas fa-plus" aria-hidden="true"></i> Nueva institución
+      </a>
+    {% endif %}
+  {% endpage_header %}
+
+  {% comment %}Filtros: el <form> va sin class y cada control con aria-label. Al montar,
+  dynamic_list_filters.js vacía el form y le pisa la clase, así que la tarjeta de filtros
+  del mockup la dibuja el JS: acá solo viajan los controles.{% endcomment %}
+  <form method="get" data-dynamic-list-filters>
+    <select name="tipo" aria-label="Tipo" class="nodo-field max-w-xs">
+      <option value="">Todos</option>
+      {% for tipo in tipos %}
+        <option value="{{ tipo.pk }}" {% if tipo.pk|stringformat:'s' == tipo_actual %}selected{% endif %}>{{ tipo.nombre }}</option>
+      {% endfor %}
+    </select>
+    <select name="estado" aria-label="Estado" class="nodo-field max-w-xs">
+      <option value="">Todos</option>
+      {% for value, label in estados %}
+        <option value="{{ value }}" {% if value == estado_actual %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <input type="search" name="localidad" value="{{ localidad_actual }}" aria-label="Localidad" class="nodo-field max-w-xs">
   </form>
 
-  <div class="overflow-hidden rounded-xl border border-base shadow-sm" style="background:var(--bg-primary)">
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     {% if dispositivos %}
-      <div class="overflow-x-auto">
-        <table class="w-full border-collapse">
-          <thead>
-            <tr class="nodo-thead-row">
-              <th class="nodo-th">Dispositivo</th>
-              <th class="nodo-th">Tipo</th>
-              <th class="nodo-th">Localidad</th>
-              <th class="nodo-th">Estado</th>
-              <th class="nodo-th">Infraestructura</th>
-              <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for dispositivo in dispositivos %}
-            <tr class="hover:bg-secondary transition">
-              <td class="nodo-td"><a href="{% url 'dispositivos:detalle' dispositivo.pk %}" class="font-semibold text-heading hover:text-fg-brand">{{ dispositivo.nombre }}</a><p class="font-mono text-xs text-body-subtle mt-1">{{ dispositivo.codigo }}</p></td>
-              <td class="nodo-td">{{ dispositivo.tipo.nombre }}</td>
-              <td class="nodo-td">{{ dispositivo.localidad|default:'—' }}</td>
-              <td class="nodo-td">{% include "programas/dispositivos/_estado_badge.html" %}</td>
-              <td class="nodo-td"><span class="badge badge-dot badge-{{ dispositivo.semaforo.tono }}">{{ dispositivo.semaforo.texto }}</span></td>
-              <td class="nodo-td text-right"><a href="{% url 'dispositivos:detalle' dispositivo.pk %}" class="btn-nodo btn-secondary btn-sm">Ver detalle</a></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Institución</th>
+            <th class="nodo-th">Tipo</th>
+            <th class="nodo-th">Plazas</th>
+            <th class="nodo-th">Estado</th>
+            <th class="nodo-th">Infraestructura</th>
+            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for dispositivo in dispositivos %}
+          <tr class="hover:bg-secondary">
+            <td class="nodo-td text-heading font-medium">
+              <a href="{% url 'dispositivos:detalle' dispositivo.pk %}" class="text-fg-brand hover:underline">{{ dispositivo.nombre }}</a>
+              <span class="block text-xs text-body-subtle">{{ dispositivo.codigo }}{% if dispositivo.localidad %} · {{ dispositivo.localidad }}{% endif %}</span>
+            </td>
+            <td class="nodo-td text-body">{{ dispositivo.tipo.nombre }}</td>
+            <td class="nodo-td text-body">
+              {% if dispositivo.plazas.hay_cifra %}
+                {{ dispositivo.plazas.texto }}
+                <span class="badge badge-{{ dispositivo.plazas.tono }} ml-1">{{ dispositivo.plazas.porcentaje }} %<span class="sr-only"> · ocupación {{ dispositivo.plazas.etiqueta }}</span></span>
+              {% else %}
+                <span class="text-body-subtle">{{ dispositivo.plazas.texto }}</span>
+              {% endif %}
+            </td>
+            <td class="nodo-td">{% include "programas/dispositivos/_estado_badge.html" %}</td>
+            <td class="nodo-td"><span class="badge badge-dot badge-{{ dispositivo.semaforo.tono }}">{{ dispositivo.semaforo.texto }}</span></td>
+            <td class="nodo-td text-right">
+              <a href="{% url 'dispositivos:detalle' dispositivo.pk %}?next={{ request.get_full_path|urlencode }}"
+                 class="nodo-icon-btn" aria-label="Ver institución {{ dispositivo.nombre }}">
+                <i class="fas fa-eye" aria-hidden="true"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "components/_paginacion.html" with page_obj=page_obj entidad="institución" entidad_plural="instituciones" %}
+    {% elif request.GET|hay_filtros %}
+      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún dispositivo coincide con los filtros" texto="Probá con otro tipo, estado o localidad." accion_url=url_sin_filtros %}
     {% else %}
-      <div class="px-6 py-14 text-center"><h2 class="font-bold text-heading">No hay dispositivos en tu alcance</h2><p class="text-sm text-body-subtle mt-1">Probá otros filtros o consultá una asignación de alcance.</p></div>
+      {% include "components/_estado_vacio.html" with icono="fa-building" titulo="No hay dispositivos en tu alcance" texto="Vas a ver acá las instituciones que te asignen, o las que des de alta." accion_url=url_crear accion_texto="Nueva institución" accion_icono="fa-plus" %}
     {% endif %}
   </div>
 </div>
