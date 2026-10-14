@@ -152,6 +152,7 @@ dárselo a menos gente que el armado.
 | RF-007-17 | Plantilla Excel descargable desde el formulario | Baja | |
 | RF-007-18 | **Enviar prueba**: popup que pide un correo y manda la campaña solo a esa dirección con «[PRUEBA] » en el asunto | Alta | Decidido 08/10 |
 | RF-007-19 | **Duplicar** una campaña en cualquier estado → copia en «A enviar» con «Copia de …» | Media | Decidido 08/10 |
+| RF-007-20 | El cuerpo se puede subir como **.zip con la carpeta** del mailing (`.html` + imágenes). El sistema publica las imágenes que el HTML nombra en una dirección pública de DATAÑACH y reescribe cada `src` a esa URL absoluta; la previsualización avisa las que faltan, las que no se publican y cuántas quedaron alojadas | Alta | Decidido 14/10 (PM, opción 1) — Cambio 285 |
 
 ### Requerimientos no funcionales
 
@@ -168,6 +169,8 @@ dárselo a menos gente que el armado.
 | RNF-007-09 | Se respeta `EMAIL_ASUNTO_PREFIJO`: en QA el asunto lleva `[QA] ` | Operación |
 | RNF-007-10 | Lectura del Excel con `openpyxl` en `read_only`, sobre el patrón de `parsear_padron` | Performance |
 | RNF-007-11 | Funciona igual en MySQL 8 y MariaDB (sin `Trunc*` sobre `DateTimeField`, sin `UUIDField` en `char(32)`) | Compatibilidad |
+| RNF-007-12 | Las imágenes del .zip se sirven en `/notificaciones/img/<token>/<nombre>` **sin login** (las pide el cliente de correo del destinatario). Única excepción a RNF-007-02, aceptada por el PM el 14/10: solo imágenes de campañas validadas con Pillow; se buscan por token (uno por paquete, `secrets.token_urlsafe`) y nombre en la base, nunca por ruta del disco; salen con el tipo real, `nosniff`, `inline`, CSP `default-src 'none'; sandbox` y caché pública de 30 días; borrar la campaña o reemplazar el cuerpo las da de baja (404) | Seguridad |
+| RNF-007-13 | La base de esas URLs sale de `NOTIF_URL_PUBLICA` (por defecto `https://<DOMINIO>`, `http://` si es local): el correo se arma en un hilo sin request | Operación |
 
 ---
 
@@ -182,7 +185,7 @@ dárselo a menos gente que el armado.
 | RN-007-05 | Tope de destinatarios por campaña: **5.000** correos válidos | Error en el campo del Excel |
 | RN-007-06 | Si no queda ningún correo válido, no se crea la campaña | Error en el campo |
 | RN-007-07 | El HTML es `.html`/`.htm`, hasta 1 MB, UTF-8 | Error en el campo |
-| RN-007-08 | Las imágenes del HTML tienen que ser URLs absolutas `https://`; no se adjuntan archivos | Aviso en la previsualización si detecta rutas relativas |
+| RN-007-08 | Las imágenes de un HTML suelto tienen que ser URLs absolutas `https://`; no se adjuntan archivos. Con un .zip, las relativas se resuelven contra el paquete (ver RN-007-18) | Aviso en la previsualización si detecta rutas relativas |
 | RN-007-09 | Asunto: obligatorio, hasta 150 caracteres. Nombre: obligatorio, hasta 120 | Error en el campo |
 | RN-007-10 | Solo «A enviar» se edita o elimina; solo «Enviando» se detiene; solo «Enviando» interrumpida se reanuda | Botón no visible y la vista responde error |
 | RN-007-11 | Un destinatario ya marcado como enviado nunca se vuelve a enviar (ni al reanudar) | — |
@@ -192,6 +195,10 @@ dárselo a menos gente que el armado.
 | RN-007-15 | El Excel trae **solo correos**: cualquier otra columna se ignora | — |
 | RN-007-16 | La prueba va a **una sola** dirección válida, lleva «[PRUEBA] » en el asunto, no cambia el estado y tiene un límite de 10 pruebas por usuario por hora | Error en el popup / aviso de límite |
 | RN-007-17 | Remitente único: `DEFAULT_FROM_EMAIL` (el `no-responder` actual), sin remitente propio por campaña | — |
+| RN-007-18 | El .zip: hasta 10 MB comprimido y 20 MB descomprimido, hasta 50 imágenes (5 MB cada una) y 500 archivos; sin rutas con `..`, absolutas ni enlaces simbólicos, sin cifrar. Se ignoran `__MACOSX/`, `.DS_Store`, `Thumbs.db` y los `._*`. Tiene que traer **un** `.html`/`.htm`; si trae varios, vale el `index.html` de la raíz de la carpeta | Error en el campo |
+| RN-007-19 | Cada `src` relativo se resuelve contra la carpeta del HTML (con `./`, `\`, `%20`, `?v=` y, si no aparece, sin distinguir mayúsculas). Solo se publican PNG, JPG, GIF y WEBP verificados por su contenido (no por la extensión); **SVG no** (puede llevar scripts) | Faltante o no publicada: aviso con el nombre en la previsualización; el resto del correo sigue |
+| RN-007-20 | Las imágenes del .zip que el HTML no nombra no se publican. Las de fondo por CSS (`url(…)`) o por el atributo `background` tampoco: el saneo las quita igual que en un HTML suelto | — |
+| RN-007-21 | Reemplazar el cuerpo publica el paquete nuevo con token nuevo y da de baja las imágenes anteriores; duplicar publica las de la copia con su propio token | — |
 
 ---
 
@@ -224,6 +231,10 @@ dárselo a menos gente que el armado.
 | Excel `.xls` o `.csv` | Rechazado; se pide `.xlsx` |
 | HTML con CSS en `<style>` del `<head>` | Se conserva (los clientes de correo lo admiten parcialmente); la vista previa lo muestra |
 | HTML con imágenes relativas o `cid:` | Aviso en la previsualización: «Hay N imágenes que no se van a ver» |
+| .zip con una imagen nombrada que no vino | Aviso «Imágenes que faltan en el .zip» con la ruta; el resto se publica |
+| .zip con un SVG o un archivo que no es imagen con extensión `.png` | No se publica; aviso «Imágenes del .zip que no se publicaron» con el motivo |
+| .zip con dos HTML y sin `index.html` en la raíz | Rechazado en el campo con los nombres |
+| .zip con `../` o una bomba de compresión | Rechazado en el campo |
 | SMTP caído al empezar | La campaña queda «Enviando» interrumpida con el error; se puede Reanudar |
 | Redeploy durante el envío | El latido vence (5 min) → interrumpida → Reanudar |
 | Dos usuarios aprietan Enviar a la vez | El candado deja pasar uno; el otro recibe aviso |
@@ -297,3 +308,4 @@ notificaciones/
 |---|---|---|
 | 2026-10-08 | Versión inicial + mock-ups | Pedido del PM |
 | 2026-10-08 | Cierre de las 9 preguntas: rol Comunicaciones, tope 5.000, prueba por popup, duplicar, sin desuscripción, solo correos, remitente no-responder | Respuestas del PM |
+| 2026-10-14 | RF-007-20, RNF-007-12/13 y RN-007-18 a 21: el cuerpo como .zip con la carpeta y las imágenes publicadas sin login (Cambio 285). **Decisión del PM (opción 1)**: las imágenes de campañas quedan públicas, como excepción explícita a «media detrás de login», solo para imágenes validadas | Los mailings llegan como carpeta con `img/` y rutas relativas: subido solo el HTML, no se veía ninguna imagen |
