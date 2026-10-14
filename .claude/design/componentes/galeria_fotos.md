@@ -8,6 +8,11 @@ evento que trae `fotos` (ficha `ficha_timeline.md`); a través de ella, la solap
 detalle de Dispositivos (`programas/templates/programas/dispositivos/legajo/detail.html`, mockup P19),
 una tanda por relevamiento.
 
+En P19, `fecha` es `InspeccionEdificio.realizada_en`, la misma del evento. Una foto de un
+relevamiento en curso omite fecha: no se rotula con la fecha de subida dentro de otra tanda.
+`_evento_de_relevamiento` adapta los dicts de `fotos_para_galeria` solo para P19; el informe
+del relevamiento conserva su fecha de carga.
+
 En esa solapa, cada tanda pertenece al edificio del relevamiento. El encabezado del inmueble
 ofrece editar y desvincular con `dispositivo.editar` sobre la institución; desvincular conserva
 las tandas y solo retira su acceso desde ese legajo. El vacío sin edificio enlaza a «Cargar

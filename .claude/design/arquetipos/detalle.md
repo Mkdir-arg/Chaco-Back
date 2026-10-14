@@ -124,9 +124,15 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   `programas/services/detalle_dispositivo.py` normaliza `?tab=` según las solapas disponibles
   y la vista pasa `tab` al `x-data`; una inexistente cae en la predeterminada.
 - Infraestructura de P4/P19: cada edificio muestra su domicilio normalizado junto a su
-  identidad. `infraestructura_del_dispositivo` entrega `domicilio` en el mismo queryset
-  de edificios, sin consultas por fila. Alta, edición y vínculo se abren en los modales
+  identidad y `_ubicacion.html` con las coordenadas del inmueble. El predio compartido
+  lista solo instituciones visibles, con tipo, estado y enlace al legajo; omite sector
+  porque `Sector` no se relaciona con `Edificio`. `infraestructura_del_dispositivo`
+  entrega domicilio y coordenadas sin consultas por fila. Alta, edición y vínculo se abren en los modales
   canónicos de esa solapa y exigen alcance de edición al dispositivo.
+- En P4, las acciones de estadía usan `menu_fila` y cada capacidad: ver (`ciudadano.ver`),
+  cambiar (`dispositivo.admitir`) y egresar (`dispositivo.egresar`). Cambio y egreso abren
+  un único modal por GET, como P21, y guardan por POST AJAX. Sin plazas libres, cambiar
+  muestra el motivo; las acciones sin capacidad o sobre estadías cerradas se omiten.
 - Estado vacío dentro de la tabla: `{% empty %}` con `<td colspan="n" class="p-0">`.
 - Acción de la fila que muta: `<button type="button">` con `data-*` + `<form method="post" class="hidden">`
   con `{% csrf_token %}`, y la confirmación por `data-confirm-url` (arquetipo Confirmación).

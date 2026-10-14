@@ -96,7 +96,8 @@ línea (mismo resultado visual): se migra al tocarla, no se copia.
 (el shell carga los dos últimos). Tests: `core/tests/test_nodo_ui_piezas.py` (`MenuFilaTest`).
 **Consumidores de referencia:** `programas/templates/programas/dispositivos/relevamientos/list.html`
 (P21: ítems con `url` y `motivo` preparados en la vista; las acciones con formulario abren su modal por
-parámetro GET). Lo van a usar también P4, P12, P20 y P22 de Dispositivos y Merenderos.
+parámetro GET). P4 (`dispositivos/legajo/detail.html`) reusa el mismo contrato para cambiar plaza
+y egresar: un modal por URL y capacidad, sin consultas por fila. Lo van a usar también P12, P20 y P22.
 
 ### Cuándo va cada forma
 
