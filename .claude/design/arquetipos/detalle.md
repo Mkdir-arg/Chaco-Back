@@ -129,6 +129,10 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   porque `Sector` no se relaciona con `Edificio`. `infraestructura_del_dispositivo`
   entrega domicilio y coordenadas sin consultas por fila. Alta, edición y vínculo se abren en los modales
   canónicos de esa solapa y exigen alcance de edición al dispositivo.
+  El semáforo de la solapa y de cada edificio muestra «Vencido» (`warning`) si hay
+  un relevamiento en curso vencido, con el selector que usa la alerta. Sin vencidos
+  conserva la criticidad de la última realizada o «Sin relevar»; sin inmuebles,
+  «Sin edificio cargado». P2 usa el mismo servicio, con lecturas por lote.
 - En P4, las acciones de estadía usan `menu_fila` y cada capacidad: ver (`ciudadano.ver`),
   cambiar (`dispositivo.admitir`) y egresar (`dispositivo.egresar`). Cambio y egreso abren
   un único modal por GET, como P21, y guardan por POST AJAX. Sin plazas libres, cambiar

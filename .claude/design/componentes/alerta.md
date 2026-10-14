@@ -18,7 +18,7 @@ raíz, junto al encabezado del caso; las secciones del detalle viven en `revisio
 | `tono` | `warning` (por defecto), `danger`, `success`, `info` |
 | `titulo` | Opcional, `strong text-heading` |
 | `texto` | Opcional, `p text-body mt-1` |
-| `contenido_template` | Opcional: template propio incluido después del texto y fuera de su párrafo. El consumidor controla el markup y sus selectores `data-*`; no inspecciona los internos de la alerta. Sin este parámetro se conserva el render habitual |
+| `contenido_template` | Opcional: template propio incluido después del texto y fuera de su párrafo. En `info` y en la rama con ícono/acción, es hijo del cuerpo `div.flex-1.min-w-0`, junto al texto; la acción es hermana del cuerpo. El consumidor controla el markup y sus selectores `data-*`; no inspecciona los internos de la alerta |
 | `role` | Por defecto `alert` en danger y warning, `status` en info y success. `role=""` no es válido: pasá el que corresponda |
 | `icono` | Opcional. Nombre Font Awesome sin prefijo (`triangle-exclamation`). Se dibuja a la izquierda a 18 px (`text-lg`), con `aria-hidden="true"` y el color del tono. En `info` reemplaza al `circle-info` |
 | `accion_url` + `accion_texto` | Opcionales y **van juntos**: link subrayado a la derecha dentro del bloque («Resolver», «Ver legajo»). Con solo uno de los dos no se dibuja el link y el render es el de siempre |
@@ -26,9 +26,11 @@ raíz, junto al encabezado del caso; las secciones del detalle viven en `revisio
 Render: `rounded-lg bg-{tono}-soft border border-{tono}-subtle p-4 text-sm`.
 
 Con `icono` o con acción completa el bloque pasa a `flex items-start gap-3` (ícono · cuerpo `flex-1` · link
-`shrink-0`); sin ellos el HTML es idéntico al anterior. El tono, el `role` y el escapado no cambian.
+`shrink-0`). `info` siempre agrupa texto y contenido en `div.flex-1.min-w-0`:
+el contenido adicional queda debajo del texto, en la misma columna. El tono, el `role`
+y el escapado no cambian.
 
-P3 (`programas/templates/programas/dispositivos/legajo/form.html`) usa contenido propio para el aviso de duplicados:
+P3 (`programas/templates/programas/dispositivos/legajo/form.html`) usa contenido propio en su panel lateral de duplicados:
 `_duplicados.html` contiene mensaje y contenedor de lista hermanos. La lista dinámica se inserta
 en un `div`, nunca dentro de un `p`; la alerta conserva tono y rol. El contenido recibe el
 contexto del include y conserva el autoescape.

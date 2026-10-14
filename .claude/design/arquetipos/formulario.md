@@ -47,6 +47,20 @@ desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los 
 
 ## Variantes permitidas
 
+- Formulario con asistencia lateral (P3): grilla exterior
+  `grid grid-cols-1 lg:grid-cols-3 gap-5`; contenedor del form
+  `lg:col-span-2 min-w-0`; `aside space-y-5 min-w-0` con surfaces canónicas,
+  encabezado `px-5 py-4 border-b border-light` y cuerpo `p-5`. Se apila en móvil.
+  Conserva el esqueleto de la golden, sus campos y errores. Los paneles muestran
+  información del dominio (duplicados y requisitos existentes), nunca reglas nuevas.
+  Estado mediante el parcial del módulo y pie `flex flex-wrap justify-end gap-3`.
+  Puede sumar «Enviar a validación» si existe la transición, con su capacidad y alcance,
+  guardando y enviando en una transacción del POST actual. En edición dice «Guardar cambios».
+  Cuando está disponible el envío, Guardar es `btn-secondary` y Enviar es `btn-brand`;
+  sin envío, Guardar conserva `btn-brand`. Campos en `sm:grid-cols-2`, nombre y textarea
+  de ancho completo mediante `wrapper_class="sm:col-span-2"` del campo canónico.
+  Evidencia: `programas/templates/programas/dispositivos/legajo/form.html` (P3).
+
 - Campos agrupados: varios `{% for %}` sobre subconjuntos del form dentro de bloques con
   `h2 text-heading font-bold` + `border-t border-light pt-4`.
 - Grilla de dos columnas: envolver los `{% include %}` de campo en
