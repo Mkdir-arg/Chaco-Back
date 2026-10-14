@@ -29,9 +29,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -63,11 +63,11 @@ jobs:
     steps:
       # `fetch-depth: 0` lo necesita `check_migraciones.py`: compara contra la base del PR
       # para revisar solo las migraciones **nuevas**.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -114,9 +114,9 @@ jobs:
     timeout-minutes: 25
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -231,9 +231,9 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -280,9 +280,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filtro
         with:
           filters: |
@@ -310,7 +310,7 @@ jobs:
             *) echo "::error::el filtro por rutas no resolvió (contrato='$CONTRATO'): el job no puede decidir si hay contratos que verificar"; exit 1 ;;
           esac
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.filtro.outputs.contrato == 'true' || github.event_name == 'push'
         with:
           python-version: "3.12"
