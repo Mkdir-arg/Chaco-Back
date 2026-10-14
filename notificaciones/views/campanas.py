@@ -5,9 +5,14 @@ armar, probar, duplicar y borrar, ``notificacion.enviar`` para enviar, detener y
 reanudar. Las pantallas (GET) sin la capacidad redirigen con aviso, como el resto del
 backoffice; las acciones (POST) responden **403**: el botón no se dibuja, así que un POST
 sin la capacidad es un pedido armado a mano.
+
+La excepción es :func:`imagen_publica` (Cambio 285): sirve **sin sesión** las imágenes del .zip
+de una campaña, porque las pide el cliente de correo del destinatario.
 """
 
 from __future__ import annotations
+
+import re
 
 from django.conf import settings
 from django.contrib import messages
@@ -15,12 +20,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST, require_safe
 from django.views.generic import ListView
 
 from core import rbac
@@ -28,7 +33,7 @@ from core.rbac import CapacidadRequeridaMixin, requiere
 from core.services.throttle import rate_limit_excedido
 from notificaciones import selectors
 from notificaciones.forms import CampanaForm, PruebaForm
-from notificaciones.models import Campana, Destinatario
+from notificaciones.models import Campana, Destinatario, ImagenCampana
 from notificaciones.services import campanas as servicio
 from notificaciones.services import envio
 from notificaciones.services.exportacion import plantilla_xlsx, resultado_xlsx
@@ -49,7 +54,14 @@ CUBETA_PRUEBAS = "notif_prueba"
 # Las directivas `*-src` se arman con el sufijo aparte: el literal «font-src» tiene forma
 # de utilidad de Tailwind y `CssCompiladoAlDiaTests` (que lee los `.py` de las apps) lo
 # tomaría por una clase usada que el build no tiene.
-_FUENTES_VISTA_PREVIA = {"default": "'none'", "img": "https:", "style": "'unsafe-inline'", "font": "https: data:"}
+# `img-src 'self'`: las imágenes del .zip se sirven desde el propio sitio (Cambio 285); en
+# dev con `http://localhost` no entrarían por `https:`.
+_FUENTES_VISTA_PREVIA = {
+    "default": "'none'",
+    "img": "'self' https:",
+    "style": "'unsafe-inline'",
+    "font": "https: data:",
+}
 _OTRAS_VISTA_PREVIA = {"frame-ancestors": "'self'", "base-uri": "'none'", "form-action": "'none'"}
 CSP_VISTA_PREVIA = "; ".join(
     [
@@ -58,6 +70,14 @@ CSP_VISTA_PREVIA = "; ".join(
     ]
 )
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+#: Las imágenes publicadas no cambian nunca bajo la misma URL: un cuerpo nuevo trae token
+#: nuevo. Treinta días de caché alcanzan para que el cliente de correo no las vuelva a pedir.
+CACHE_IMAGEN = "public, max-age=2592000"
+#: Una imagen servida como documento no puede hacer nada: ni scripts, ni pedidos, ni origen.
+CSP_IMAGEN = "default-src 'none'; sandbox"
+_TOKEN_VALIDO = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
+_NOMBRE_VALIDO = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 
 
 def _exigir(request, codigo):
@@ -267,11 +287,39 @@ def campana_detalle(request, pk):
             )
             + " El envío corre en segundo plano. Esta acción no se puede deshacer."
         ),
+        **_textos_imagenes(campana),
         "texto_confirmar_reanudar": (
             f"Se envía solo a los {_numero(pendientes)} pendientes: nadie recibe el correo dos veces."
         ),
     }
     return render(request, "notificaciones/campana_detail.html", ctx)
+
+
+def _textos_imagenes(campana):
+    """Los avisos de la vista previa sobre las imágenes del .zip (Cambio 285)."""
+    faltantes = campana.lista_imagenes_faltantes
+    rechazadas = campana.lista_imagenes_rechazadas
+    alojadas = campana.imagenes_alojadas
+    return {
+        "texto_imagenes_faltantes": (
+            f"El HTML las nombra y no vinieron en el .zip, así que no se van a ver: {', '.join(faltantes)}. "
+            "Agregalas a la carpeta y volvé a subir el .zip desde «Editar»."
+            if faltantes
+            else ""
+        ),
+        "texto_imagenes_rechazadas": (
+            f"Vinieron en el .zip pero no se publican: {', '.join(rechazadas)}. Se admiten PNG, JPG, GIF y WEBP."
+            if rechazadas
+            else ""
+        ),
+        "texto_imagenes_alojadas": (
+            f"Se {'alojó 1 imagen' if alojadas == 1 else f'alojaron {_numero(alojadas)} imágenes'} del .zip en "
+            "DATAÑACH. Se ven con una dirección pública, sin iniciar sesión, para que le lleguen a cada persona. "
+            "Las imágenes de fondo puestas por CSS no se publican."
+            if alojadas
+            else ""
+        ),
+    }
 
 
 @xframe_options_sameorigin
@@ -292,6 +340,39 @@ def vista_previa_html(request, pk):
     respuesta["X-Content-Type-Options"] = "nosniff"
     respuesta["Referrer-Policy"] = "no-referrer"
     respuesta["Cache-Control"] = "no-store, private"
+    return respuesta
+
+
+@require_safe
+def imagen_publica(request, token, nombre):
+    """Una imagen del .zip de una campaña, **sin login** (Cambio 285, decisión del PM 14/10/2026).
+
+    La pide el cliente de correo del destinatario, que no tiene sesión. Lo que la hace segura:
+
+    - se busca en la base por ``token`` + ``nombre``; nunca se arma una ruta del disco con lo
+      que trae el pedido, así que solo sale un archivo registrado como imagen de una campaña;
+    - el token es uno por paquete subido (``secrets.token_urlsafe``), no adivinable; borrar la
+      campaña o reemplazar el cuerpo borra las filas y la URL da 404;
+    - el archivo se validó con Pillow al subirlo (PNG, JPG, GIF o WEBP de verdad, nunca SVG) y
+      sale con el tipo de ese formato, ``nosniff``, ``inline`` y una CSP que no deja ejecutar
+      nada aunque alguien la abra como documento.
+    """
+    if not (_TOKEN_VALIDO.match(token) and _NOMBRE_VALIDO.match(nombre)):
+        raise Http404("Imagen inexistente.")
+    imagen = ImagenCampana.objects.filter(token=token, nombre=nombre).only("archivo", "content_type", "nombre").first()
+    if imagen is None:
+        raise Http404("Imagen inexistente.")
+    try:
+        contenido = imagen.archivo.open("rb")
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        raise Http404("Imagen inexistente.") from exc
+    respuesta = FileResponse(contenido, content_type=imagen.content_type)
+    respuesta["Content-Disposition"] = f'inline; filename="{imagen.nombre}"'
+    respuesta["X-Content-Type-Options"] = "nosniff"
+    respuesta["Content-Security-Policy"] = CSP_IMAGEN
+    respuesta["Cache-Control"] = CACHE_IMAGEN
+    # La pide un cliente de correo de otro origen (un webmail): que el navegador la deje cargar.
+    respuesta["Cross-Origin-Resource-Policy"] = "cross-origin"
     return respuesta
 
 

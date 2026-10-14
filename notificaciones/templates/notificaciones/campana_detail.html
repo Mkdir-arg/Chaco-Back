@@ -150,8 +150,17 @@
           </div>
         </dl>
 
+        {% if texto_imagenes_faltantes %}
+          {% include "components/_alerta.html" with tono="warning" role="status" titulo="Imágenes que faltan en el .zip" texto=texto_imagenes_faltantes %}
+        {% endif %}
+        {% if texto_imagenes_rechazadas %}
+          {% include "components/_alerta.html" with tono="warning" role="status" titulo="Imágenes del .zip que no se publicaron" texto=texto_imagenes_rechazadas %}
+        {% endif %}
         {% if campana.imagenes_no_visibles %}
-          {% include "components/_alerta.html" with tono="warning" role="status" titulo="Hay imágenes que no se van a ver" texto="Algunas imágenes del HTML usan una ruta relativa o «cid:». No se envían adjuntos: publicalas en una dirección https:// y reemplazá el HTML desde «Editar»." %}
+          {% include "components/_alerta.html" with tono="warning" role="status" titulo="Hay imágenes que no se van a ver" texto="Algunas imágenes del HTML usan una ruta relativa o «cid:». No se envían adjuntos: subí un .zip con la carpeta del correo o publicalas en una dirección https://, y reemplazá el cuerpo desde «Editar»." %}
+        {% endif %}
+        {% if texto_imagenes_alojadas %}
+          {% include "components/_alerta.html" with tono="info" texto=texto_imagenes_alojadas %}
         {% endif %}
         {% if campana.elementos_quitados %}
           {% include "components/_alerta.html" with tono="info" texto="Al subir el HTML se quitó contenido inseguro (scripts, formularios, contenido incrustado o eventos). Lo que ves es exactamente lo que se envía." %}

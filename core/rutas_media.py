@@ -102,5 +102,10 @@ def ruta_notificacion_html(instance, filename):
 
 
 def ruta_notificacion_imagen(instance, filename):
-    """Una imagen publicada de una campaña: carpeta por token del paquete, nombre opaco."""
-    return f"{PREFIJO_NOTIFICACIONES_IMAGENES}{instance.token}/{nombre_opaco(filename)}"
+    """Una imagen publicada de una campaña: carpeta por token del paquete, nombre opaco.
+
+    Sin token (``generate_filename(None, …)`` del test de cobertura de prefijos) queda en la
+    raíz del prefijo: el prefijo es lo que decide la regla de ``/media/``.
+    """
+    carpeta = f"{instance.token}/" if getattr(instance, "token", None) else ""
+    return f"{PREFIJO_NOTIFICACIONES_IMAGENES}{carpeta}{nombre_opaco(filename)}"
