@@ -1811,6 +1811,23 @@ class InspeccionEdificio(TimeStamped):
         verbose_name="Realizado por",
     )
     motivo_cancelacion = models.CharField(max_length=200, blank=True, verbose_name="Motivo de la cancelación")
+    # App sin conexión (task 39): el identificador que el celular generó para el envío del
+    # resultado. Reenviar el mismo es idempotente; otro sobre un relevamiento ya realizado es
+    # un conflicto. La columna es `char(36)` en MySQL/MariaDB (programas.0093).
+    uuid_resultado = models.UUIDField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Identificador del envío del resultado (app)",
+    )
+    # Quienes lo tuvieron asignado antes de una reasignación: a ellos la app les contesta
+    # «se reasignó» (409) en vez del 404 de lo ajeno, que no dice si existe.
+    agentes_anteriores = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name="+",
+        verbose_name="Agentes asignados antes",
+    )
 
     class Meta:
         verbose_name = "Relevamiento edilicio"
@@ -1901,6 +1918,16 @@ class FotoInspeccion(TimeStamped):
         on_delete=models.PROTECT,
         related_name="+",
         verbose_name="Cargada por",
+    )
+    # App sin conexión (task 39): el identificador que el celular generó para esta foto.
+    # Reenviarla devuelve la misma fila. Único sobre columna anulable (no un
+    # `UniqueConstraint` condicional, que MySQL/MariaDB no tienen); `char(36)` por MariaDB.
+    uuid_cliente = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        editable=False,
+        verbose_name="Identificador de la foto (app)",
     )
 
     objects = FotoInspeccionManager()

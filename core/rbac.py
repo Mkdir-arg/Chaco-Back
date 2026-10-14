@@ -839,8 +839,17 @@ def es_ciudadano_portal(user):
     return cache
 
 
+#: Las capacidades que solo se ejercen desde la app de campo (D-26/SEC-26): el territorial de
+#: Becas y el agente del relevamiento edilicio de Dispositivos (MVP v2, task 38). Quien tiene
+#: alguna de estas **y nada más** nunca pisa el backoffice: el login web lo rechaza, el alta le
+#: exige correo y la clave le llega como link de reseteo. Las dos son de módulos «de
+#: programa», pero el `CATALOGO` solo las deja otorgar en su programa (SEC-06), así que acá
+#: se preguntan sin alcance, como siempre se preguntó ``becas.campo``.
+CAPACIDADES_DE_CAMPO = frozenset({"becas.campo", "inspeccion.relevar"})
+
+
 def es_solo_campo(user):
-    """¿El usuario solo existe para la app de campo? (``becas.campo`` y nada más).
+    """¿El usuario solo existe para la app de campo? (:data:`CAPACIDADES_DE_CAMPO` y nada más).
 
     Es la misma pregunta que el login web responde para rechazarlo
     (``territorial_mobile_only``) y la que decide, en el alta, si las credenciales
@@ -849,9 +858,9 @@ def es_solo_campo(user):
     clave, porque nunca va a pisar una pantalla del backoffice. Estaba escrita en
     un solo lugar y ahora la consultan dos.
     """
-    if not puede(user, "becas.campo"):
+    if not puede_alguna(user, sorted(CAPACIDADES_DE_CAMPO)):
         return False
-    return not puede_alguna(user, [c for c in codigos_de_capacidad() if c != "becas.campo"])
+    return not puede_alguna(user, [c for c in codigos_de_capacidad() if c not in CAPACIDADES_DE_CAMPO])
 
 
 def roles_solo_campo(grupos):
@@ -870,9 +879,9 @@ def roles_solo_campo(grupos):
     if not grupos:
         return False
     codenames = set(Permission.objects.filter(group__in=grupos).values_list("codename", flat=True))
-    if codename_de("becas.campo") not in codenames:
+    if not codenames & {codename_de(c) for c in CAPACIDADES_DE_CAMPO}:
         return False
-    otras = {codename_de(c) for c in codigos_de_capacidad() if c != "becas.campo"}
+    otras = {codename_de(c) for c in codigos_de_capacidad() if c not in CAPACIDADES_DE_CAMPO}
     return not (codenames & otras)
 
 

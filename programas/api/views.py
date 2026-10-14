@@ -47,7 +47,9 @@ from programas.api.serializers import (
 from programas.models import Formulario, Relevamiento
 from programas.services import campo
 from programas.services.becas import formulario_por_client_uuid, resolver_ciudadano_offline
+from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.identidad import ORIGEN_PADRON, ORIGEN_PERSONAS, identificar
+from programas.services.inspecciones import CAP_RELEVAR
 from programas.services.padron import datos_de_fila, fila_padron, normalizar_dni, objetivo_con_identidad
 from programas.services.respuestas import sincronizar_desde_legacy
 
@@ -171,9 +173,14 @@ class ObtainCampoToken(ObtainAuthToken):
                     return self._demasiados_intentos()
             raise
         user = serializer.validated_data["user"]
-        if not puede(user, CAP):
+        # El mismo login sirve al agente del relevamiento edilicio (tasks 38 y 39). El token
+        # no abre nada por sí solo: cada recurso exige su capacidad (`CampoBecasPermission`,
+        # `CampoInspeccionPermission`), así que ninguna de las dos abre la otra.
+        if not (puede(user, CAP) or puede_en_programa_dispositivos(user, CAP_RELEVAR)):
             return Response(
-                {"detail": "El usuario no tiene acceso a la app de campo de Becas."},
+                # Sin nombrar Becas: este login también lo usa el agente del relevamiento
+                # edilicio, y el 403 es «ninguna de las dos superficies», no «Becas».
+                {"detail": "El usuario no tiene acceso a la app de campo."},
                 status=status.HTTP_403_FORBIDDEN,
             )
         token, _ = Token.objects.get_or_create(user=user)
