@@ -465,7 +465,7 @@ class EstadoPlaza:
         return self.estado == ESTADO_DISPONIBLE
 
 
-def estado_de_plazas(plazas, momento=None) -> dict[int, EstadoPlaza]:
+def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[int, EstadoPlaza]:
     """`{plaza_id: EstadoPlaza}` derivado de `Plaza.estado`, las estadías y las reservas.
 
     ``plazas`` son instancias de `Plaza` (hace falta `estado` y `motivo_fuera_servicio`).
@@ -474,13 +474,25 @@ def estado_de_plazas(plazas, momento=None) -> dict[int, EstadoPlaza]:
     disponible; las tres primeras son excluyentes por regla de negocio, no por constraint.
     Las consultas son las mismas que cuenta :func:`ocupacion_de_plazas`, así que la celda y
     el encabezado resuelven igual una plaza que tenga dos cosas a la vez.
+    Los nombres viajan en esas mismas consultas, nunca una por plaza. La vista resuelve
+    ``puede_ver_personas`` con ``ciudadano.ver``; por defecto no se exponen identidades.
     """
 
     plazas = list(plazas)
     ids = [plaza.pk for plaza in plazas]
     momento = momento or timezone.now()
-    ocupadas = set(_estadias_que_ocupan().filter(plaza_id__in=ids).values_list("plaza_id", flat=True))
-    reservas = dict(_reservas_que_cuentan(momento).filter(plaza_id__in=ids).values_list("plaza_id", "tipo"))
+    ocupadas = {
+        pk: (apellido, nombre)
+        for pk, apellido, nombre in _estadias_que_ocupan()
+        .filter(plaza_id__in=ids)
+        .values_list("plaza_id", "ciudadano__apellido", "ciudadano__nombre")
+    }
+    reservas = {
+        pk: (tipo, apellido, nombre, hasta)
+        for pk, tipo, apellido, nombre, hasta in _reservas_que_cuentan(momento)
+        .filter(plaza_id__in=ids)
+        .values_list("plaza_id", "tipo", "ciudadano__apellido", "ciudadano__nombre", "hasta")
+    }
 
     derivados = {}
     for plaza in plazas:
@@ -489,13 +501,25 @@ def estado_de_plazas(plazas, momento=None) -> dict[int, EstadoPlaza]:
             estado, detalle = ESTADO_FUERA_SERVICIO, plaza.motivo_fuera_servicio
         elif plaza.pk in ocupadas:
             estado = ESTADO_OCUPADA
+            detalle = _nombre_en_plaza(*ocupadas[plaza.pk]) if puede_ver_personas else ""
         elif plaza.pk in reservas:
-            prestada = reservas[plaza.pk] == ReservaPlaza.Tipo.PRESTAMO
+            tipo, apellido, nombre, hasta = reservas[plaza.pk]
+            prestada = tipo == ReservaPlaza.Tipo.PRESTAMO
             estado = ESTADO_PRESTADA if prestada else ESTADO_RESERVADA
+            persona = _nombre_en_plaza(apellido, nombre) if puede_ver_personas else ""
+            vencimiento = f"hasta {timezone.localtime(hasta):%d/%m %H:%M}" if hasta else "sin vencimiento"
+            detalle = f"{persona} · {vencimiento}" if persona else vencimiento
         else:
             estado = ESTADO_DISPONIBLE
         derivados[plaza.pk] = EstadoPlaza(estado=estado, tono=_TONO_DE[estado], detalle=detalle)
     return derivados
+
+
+def _nombre_en_plaza(apellido, nombre):
+    """Identidad abreviada del mapa, sin DNI ni otros datos del legajo."""
+
+    inicial = nombre.strip()[:1]
+    return f"{apellido}, {inicial}." if inicial else apellido
 
 
 # ---------------------------------------------------------------------------------------

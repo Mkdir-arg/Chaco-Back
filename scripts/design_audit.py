@@ -1479,6 +1479,12 @@ def arquetipo_mode(nombre: str, rutas: list[str]) -> int:
         posicion = 0
         marcadores = especificacion["marcadores"]
         etiqueta = nombre
+        sin_comentarios = re.sub(r"\{%\s*comment\s*%\}.*?\{%\s*endcomment\s*%\}|\{#.*?#\}", "", text, flags=re.S)
+        if nombre == "wizard" and re.search(r'\{%\s*include\s+"components/_mapa_plazas\.html"', sin_comentarios):
+            # Excepción ya documentada en wizard.md: un mapa es un control compuesto,
+            # no un BoundField. El include real reemplaza al marcador de _field;
+            # shell, resumen, errores y pie siguen siendo obligatorios y ordenados.
+            marcadores = [marcador for marcador in marcadores if marcador[0] != r"_field\.html"]
         declarada = VARIANTE_RE.search(text)
         if declarada and declarada.group(1) == nombre:
             variante = declarada.group(2)

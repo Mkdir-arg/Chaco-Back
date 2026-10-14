@@ -55,6 +55,9 @@ class MapaPlazasTest(SimpleTestCase):
         # el enlace lleva una clase bg-* (la regla global de enlaces no le pisa el color)
         enlace = re.search(r"<a [^>]*>", html).group(0)
         self.assertIn("bg-success-soft", enlace)
+        self.assertIn("cursor-pointer", enlace)
+        self.assertNotIn("aria-disabled", enlace)
+        self.assertIn('aria-disabled="true" class="cursor-not-allowed', html)
 
     def test_plaza_elegida_se_marca_con_texto_y_aria_current(self):
         html = render_to_string(MAPA, {"plazas": [_plaza(url="/x", seleccionada=True)]})

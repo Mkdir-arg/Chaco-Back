@@ -58,6 +58,7 @@ from programas.services.ocupacion import (
     LEYENDA_PLAZAS,
     estado_de_plazas,
     ocupacion_de_plazas,
+    tension_de_ocupacion,
 )
 
 # Tope por sector: el componente dibuja hasta 200 y avisa «Mostrando 200 de N»; la vista
@@ -147,6 +148,7 @@ def _resumen(conteo):
         "ocupadas": conteo.ocupadas,
         "reservadas": conteo.reservadas,
         "disponibles": conteo.disponibles,
+        "porcentaje": tension_de_ocupacion(conteo).porcentaje,
     }
 
 
@@ -201,7 +203,7 @@ def _reservas_abiertas_por_plaza(plazas):
     return dict(filas)
 
 
-def sectores_con_plazas(dispositivo, *, puede_liberar=False, puede_configurar_plazas=False):
+def sectores_con_plazas(dispositivo, *, puede_liberar=False, puede_configurar_plazas=False, puede_ver_personas=False):
     """Todo lo que la pantalla dibuja: sectores activos con su mapa acotado y los totales.
 
     Las cifras del encabezado y de cada sector salen de `ocupacion.ocupacion_de_plazas` y
@@ -223,7 +225,7 @@ def sectores_con_plazas(dispositivo, *, puede_liberar=False, puede_configurar_pl
 
     dibujadas = [plaza for item in ocupacion.sectores for plaza in por_sector.get(item.sector_id, ())]
     # Una sola vez para todo el dispositivo, no una por sector: son dos consultas fijas.
-    estados = estado_de_plazas(dibujadas, momento)
+    estados = estado_de_plazas(dibujadas, momento, puede_ver_personas=puede_ver_personas)
     reservas = _reservas_abiertas_por_plaza(dibujadas)
 
     armados = []

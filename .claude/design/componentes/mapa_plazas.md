@@ -36,8 +36,13 @@ sector (header con título y bajada, cuerpo con la grilla).
 
 - La grilla es una `ul` con `role="list"` y un `li` por plaza; el código se lee «Plaza A-01».
 - Una plaza con `url` es un `<a>` real: se llega con Tab, se activa con Enter y muestra el foco nativo.
-  Una plaza sin `url` es informativa y no entra en el orden de tabulación. La vista decide cuáles se
+  Usa `cursor-pointer`. Una plaza sin `url` usa `cursor-not-allowed` y `aria-disabled="true"`,
+  es informativa y no entra en el orden de tabulación. La vista decide cuáles se
   pueden elegir (p. ej. en el ingreso, solo las disponibles); el componente no lo infiere del estado.
+  El `detalle` trae apellido e inicial solo con `ciudadano.ver`; sin esa capacidad la plaza
+  ocupada no agrega detalle debajo de su estado. Reservas y préstamos agregan solo el
+  vencimiento sin esa capacidad (`hasta DD/MM HH:MM`, fecha y hora local, sin año),
+  o «sin vencimiento» en una reserva sin fecha; fuera de servicio conserva su motivo.
 - En P5, quien puede configurar ve «Editar plaza» dentro del modal de su acción. Si no puede
   liberar una reserva, la celda enlaza directamente a la edición de código y tipo; esa edición
   no cambia la ocupación. El sector vacío ofrece «Agregar plazas» desde la pantalla consumidora.

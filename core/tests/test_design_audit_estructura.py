@@ -273,6 +273,32 @@ class MarcadoresDeArquetipoTests(SimpleTestCase):
         codigo, _ = self.marcadores("no-existe-este-arquetipo", [])
         self.assertEqual(codigo, 1)
 
+    def test_wizard_con_mapa_real_reemplaza_campo_pero_exige_errores(self):
+        ruta = "programas/templates/programas/dispositivos/ingreso/paso_plaza.html"
+        texto = (design_audit.REPO / ruta).read_text(encoding="utf-8")
+        codigo, salida = self.marcadores("wizard", [ruta])
+        self.assertEqual(codigo, 0, salida)
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "paso.html"
+            p.write_text(texto.replace('{% include "components/_form_errores.html" %}', ""), encoding="utf-8")
+            codigo, salida = self.marcadores("wizard", [str(p)])
+            self.assertEqual(codigo, 1)
+            self.assertIn("errores no de campo", salida)
+
+    def test_wizard_no_acepta_un_mapa_comentado_como_control(self):
+        texto = (design_audit.REPO / "programas/templates/programas/dispositivos/ingreso/paso_plaza.html").read_text(
+            encoding="utf-8"
+        )
+        mapa = '{% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.total %}'
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "paso.html"
+            for comentario in ("{# " + mapa + " #}", "{% comment %}" + mapa + "{% endcomment %}"):
+                with self.subTest(comentario=comentario):
+                    p.write_text(texto.replace(mapa, comentario), encoding="utf-8")
+                    codigo, salida = self.marcadores("wizard", [str(p)])
+                    self.assertEqual(codigo, 1)
+                    self.assertIn("campos con el include _field.html", salida)
+
     def test_cada_arquetipo_declarado_tiene_su_ficha(self):
         # Sin lista escrita a mano: lo que importa es que ninguno entre al audit sin
         # su ficha, no cuantos hay. Asi el contrato sobrevive a cada arquetipo nuevo

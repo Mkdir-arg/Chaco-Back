@@ -2,7 +2,7 @@
 {% load nodo_ui %}
 {% block title %}Dispositivos · Ingresar persona — Paso {{ paso_actual }}{% endblock %}
 
-{% comment %}Paso de un wizard (arquetipo Wizard): el control no cabe en `_field.html` (mapa de plazas); conserva shell, indicador, surfaces y pie. Tocar una plaza la marca (no escribe nada); «Continuar» la guarda, y se toma recién al confirmar. Los ocultos `persona` y `plaza` dicen qué mostraba esta pantalla: la vista no guarda si otra pestaña cambió la persona.{% endcomment %}
+{% comment %}Paso de un wizard (arquetipo Wizard) con selección en el mapa. Tocar una plaza la marca (no escribe nada); «Continuar» la guarda, y se toma recién al confirmar. Los ocultos `persona` y `plaza` dicen qué mostraba esta pantalla: la vista no guarda si otra pestaña cambió la persona.{% endcomment %}
 
 {% block main-content %}
 <div class="space-y-5">
@@ -22,54 +22,60 @@
   {% include "components/_alerta.html" with tono="warning" icono="bed" titulo="No hay plazas disponibles" texto="Todas las plazas de este dispositivo están ocupadas, reservadas, prestadas o fuera de servicio." %}
   {% endif %}
 
-  {% if persona %}
-  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
-    <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-2">
-      <h2 class="text-heading font-bold">Persona</h2>
-      <span class="badge {% if persona.en_legajo %}badge-success{% else %}badge-info{% endif %}">{{ persona.origen }}</span>
-    </div>
-    <div class="p-5">
-      <dl class="space-y-1 text-sm text-body">
-        <div class="flex gap-2"><dt class="font-medium text-heading w-32">Nombre:</dt><dd>{{ persona.nombre }}</dd></div>
-        <div class="flex gap-2"><dt class="font-medium text-heading w-32">DNI:</dt><dd class="font-mono">{{ persona.dni }}</dd></div>
-        <div class="flex gap-2"><dt class="font-medium text-heading w-32">Nacimiento:</dt><dd>{{ persona.nacimiento|default:"Sin dato" }}</dd></div>
-        <div class="flex gap-2"><dt class="font-medium text-heading w-32">Género:</dt><dd>{{ persona.genero|default:"Sin dato" }}</dd></div>
-        <div class="flex gap-2"><dt class="font-medium text-heading w-32">Obra social:</dt><dd>{{ persona.obra_social|default:"Sin dato" }}</dd></div>
-        <div class="flex gap-2"><dt class="font-medium text-heading w-32">Domicilio:</dt><dd>{{ persona.domicilio|default:"Sin dato" }}</dd></div>
-        {% if persona.legajo_url %}
-        <div class="flex gap-2"><dt class="font-medium text-heading w-32">Legajo:</dt><dd><a href="{{ persona.legajo_url }}" class="text-fg-brand hover:underline">Ver legajo completo <i class="fas fa-arrow-right" aria-hidden="true"></i></a></dd></div>
-        {% endif %}
-      </dl>
-      <p class="mt-3 text-xs text-body-subtle">{{ persona.nota }}</p>
-    </div>
-  </div>
-  {% endif %}
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="lg:col-span-2 min-w-0 space-y-5">
+      {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
 
-  {% include "components/_leyenda_plazas.html" with leyenda=leyenda %}
+      {% for item in sectores %}
+      <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sector-{{ item.sector.pk }}-titulo">
+        <div class="px-5 py-4 border-b border-light">
+          <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %}</h2>
+          <p class="text-xs text-body-subtle mt-1">{{ item.disponibles }} disponible{{ item.disponibles|pluralize }} de {{ item.total }} plaza{{ item.total|pluralize }}</p>
+        </div>
+        <div class="p-5">
+          {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.total %}
+        </div>
+      </section>
+      {% empty %}
+      <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+        {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores y las plazas, se pueden elegir desde acá." %}
+      </div>
+      {% endfor %}
+    </div>
 
-  {% for item in sectores %}
-  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sector-{{ item.sector.pk }}-titulo">
-    <div class="px-5 py-4 border-b border-light">
-      <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %}</h2>
-      <p class="text-xs text-body-subtle mt-1">{{ item.disponibles }} disponible{{ item.disponibles|pluralize }} de {{ item.total }} plaza{{ item.total|pluralize }}</p>
+    {% if persona %}
+    <div class="min-w-0 self-start bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-2">
+        <h2 class="text-heading font-bold">Persona</h2>
+        <span class="badge {% if persona.en_legajo %}badge-success{% else %}badge-info{% endif %}">{{ persona.origen }}</span>
+      </div>
+      <div class="p-5">
+        <dl class="grid grid-cols-1 gap-5">
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Nombre</dt><dd class="mt-1 text-sm text-body">{{ persona.nombre }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">DNI</dt><dd class="mt-1 text-sm text-body font-mono">{{ persona.dni }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Nacimiento</dt><dd class="mt-1 text-sm text-body">{{ persona.nacimiento|default:"Sin dato" }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Género</dt><dd class="mt-1 text-sm text-body">{{ persona.genero|default:"Sin dato" }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Obra social</dt><dd class="mt-1 text-sm text-body">{{ persona.obra_social|default:"Sin dato" }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-sm text-body">{{ persona.domicilio|default:"Sin dato" }}</dd></div>
+          {% if persona.legajo_url %}
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Legajo</dt><dd class="mt-1 text-sm text-body"><a href="{{ persona.legajo_url }}" class="text-fg-brand hover:underline">Ver legajo completo <i class="fas fa-arrow-right" aria-hidden="true"></i></a></dd></div>
+          {% endif %}
+        </dl>
+        <p class="mt-3 text-xs text-body-subtle">{{ persona.nota }}</p>
+      </div>
     </div>
-    <div class="p-5">
-      {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.total %}
-    </div>
-  </section>
-  {% empty %}
-  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
-    {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores y las plazas, se pueden elegir desde acá." %}
+    {% endif %}
   </div>
-  {% endfor %}
 
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
+    {% include "components/_form_errores.html" %}
+    {# Control compuesto: el mapa anterior elige la plaza; este paso no tiene campos visibles. Variante intermedia documentada en la ficha Wizard. #}
     <input type="hidden" name="persona" value="{{ mostrado.persona }}">
     <input type="hidden" name="plaza" value="{{ mostrado.plaza }}">
-    <div class="flex justify-between gap-3">
+    <div class="flex flex-wrap justify-between gap-3">
       <a href="{{ urls.persona }}" class="btn-nodo btn-tertiary btn-base"><i class="fas fa-arrow-left" aria-hidden="true"></i> Anterior</a>
-      <div class="flex gap-3">
+      <div class="flex flex-wrap gap-3">
         {% if not plaza_obligatoria %}<button type="submit" name="sin_plaza" value="1" class="btn-nodo btn-secondary btn-base">Continuar sin plaza</button>{% endif %}
         <button type="submit" class="btn-nodo btn-brand btn-base">Continuar <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
       </div>

@@ -546,7 +546,10 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
 
         context.update(
             sectores_con_plazas(
-                dispositivo, puede_liberar=puede_liberar, puede_configurar_plazas=puede_configurar_plazas
+                dispositivo,
+                puede_liberar=puede_liberar,
+                puede_configurar_plazas=puede_configurar_plazas,
+                puede_ver_personas=puede(usuario, "ciudadano.ver"),
             )
         )
         context["migas"] = [
