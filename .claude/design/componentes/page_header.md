@@ -3,6 +3,7 @@
 **Clasificación:** Canónico reutilizable (todas las superficies del backoffice).
 **Evidencia:** `core/templatetags/nodo_ui.py`, `templates/components/_page_header.html`,
 `core/tests/test_page_header_tag.py`.
+**Contrato del estado opcional:** `core/tests/test_nodo_ui_piezas.py`.
 **Consumidores de referencia:** `programas/templates/programas/becas/revision/personas_list.html`
 (listado), `programas/templates/programas/becas/config/segmento_form.html` (form con título
 calculado), `programas/templates/programas/becas/cupo/segmento_detail.html` (detalle con migas).
@@ -29,6 +30,8 @@ calculado), `programas/templates/programas/becas/cupo/segmento_detail.html` (det
 | `volver_url` | url | Botón circular `btn-tertiary btn-back-circle` con `fa-arrow-left` (`aria-hidden`) |
 | `volver_label` | str | `aria-label="Volver a {volver_label}"` (por defecto «la pantalla anterior»). Nombra la pantalla de **origen** |
 | `migas` | lista de `{"label", "url"}` | Se muestran solo con **3 o más** elementos; la última sin enlace (`aria-current="page"`). En Becas la arma `{% becas_migas objeto [actual=…] as migas %}` (biblioteca `becas_extras`); en otros módulos se arma en la vista |
+| `estado_texto` | str | Estado escapado junto al H1, fuera de las acciones. Sin texto no se dibuja ni se agrega wrapper: el HTML previo se conserva carácter por carácter |
+| `estado_variante` | str | `gray`, `white`, `brand`, `success`, `danger`, `warning` o `info`; ausente/desconocida cae en `gray`. Dibuja `badge badge-dot badge-<variante>`; el consumidor obtiene el tono del módulo |
 
 Errores de compilación (`TemplateSyntaxError`): un argumento posicional, uno desconocido, falta
 `titulo`, o más de un `{% bajada %}`. Un `{% bajada %}` dentro de un `{% if %}` **no** se
@@ -42,12 +45,18 @@ flex-wrap text-xs text-body-subtle`, enlaces `text-fg-brand hover:underline`, se
 `flex items-start gap-3 min-w-0` con volver + (eyebrow + título + bajada), a la derecha el cuerpo en
 `flex items-center gap-2 flex-wrap`.
 
+Con `estado_texto`, solo el título se envuelve en `flex items-center gap-3 flex-wrap`:
+H1 y badge quedan alineados verticalmente y el badge baja de línea si falta ancho (390 px).
+Sin el parámetro, tampoco se hereda un estado del contexto de la pantalla.
+P4 (incluida Infraestructura/P19), P7 y el detalle de tipo P14 usan este slot.
+
 ## Acciones del cuerpo (regla observada en el código)
 
 - **Listados y formularios:** primaria `btn-nodo btn-brand btn-base` (+ ícono `fa-plus` en las
   altas); secundaria `btn-nodo btn-tertiary btn-base`.
 - **Detalles:** acciones `btn-nodo btn-secondary btn-sm`; los badges de estado
-  (`badge … badge-dot`) van antes de las acciones.
+  (`badge … badge-dot`) pueden usar `estado_texto` junto al H1; los consumidores que
+  ya los dibujan en el cuerpo conservan su contrato hasta que se migre ese bloque.
 - Lo que abre **otra pantalla** va acá, nunca como solapa.
 
 ## Patrones

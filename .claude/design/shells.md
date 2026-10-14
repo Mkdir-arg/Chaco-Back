@@ -13,6 +13,9 @@ Las cuatro superficies tienen herencia y assets distintos. **No se mezclan.**
 
 Se hereda; no se recrean el sidebar ni sus offsets.
 
+El enlace al listado del grupo Dispositivos se llama «Instituciones» (`dispositivos:lista`).
+El grupo de Becas conserva «Programas» y el enlace ciudadano conserva su texto y destino.
+
 - El sidebar es un **único panel responsivo**: overlay en móvil y fijo/colapsable en escritorio,
   con una sola inclusión de `templates/includes/sidebar/opciones.html`. Su control de cierre móvil
   queda fuera del panel y usa `x-show="sidebarOpen"` con `display: none` inicial, para no

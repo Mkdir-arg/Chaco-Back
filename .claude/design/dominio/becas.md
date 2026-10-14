@@ -27,8 +27,13 @@ los de Merenderos. El mapeo también puede vivir en el servicio o selector del m
 entrega texto y `tono` y el template dibuja `badge badge-dot badge-{{ tono }}` sin decidir nada:
 así lo hace la estadía de Dispositivos (`ESTADOS_VISIBLES` de `programas/services/estadias.py`,
 que leen el detalle del dispositivo, la solapa del legajo y el detalle de la estadía (P7)). De ese
-módulo, **solo** `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egreso, plazas) es dominio. **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
+módulo, `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egreso, plazas) es dominio. **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
 `badge-danger` ni en `text-fg-danger`.
+
+Para la institución, `TONOS_ESTADO` y `estado_de_dispositivo` de
+`programas/services/dispositivos.py` entregan el texto y tono del header P4/P19 y del
+parcial `_estado_badge.html`; `estado_de_tipo` conserva Activo/success e Inactivo/gray en P14.
+Los tags `estado_dispositivo` y `estado_tipo_dispositivo` solo presentan esos datos, sin consultas.
 
 En `ESTADOS_VISIBLES`, una estadía activa se presenta como «Alojada» (`info`) y una
 egresada como «Egresada» (`gray`); el motivo obligatorio del egreso no altera ese mapa.
