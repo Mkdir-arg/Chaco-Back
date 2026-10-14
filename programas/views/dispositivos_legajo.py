@@ -22,6 +22,7 @@ from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los i
 from programas.models import Dispositivo, Estadia, TipoDispositivo
 from programas.selectors.estadia_detalle import detalle_de_estadia
 from programas.services.detalle_dispositivo import (
+    alertas_del_dispositivo,
     aviso_sin_ingresos,
     contar_alojadas,
     estadias_del_dispositivo,
@@ -175,6 +176,8 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             {
                 "maneja_plazas": maneja_plazas(dispositivo),
                 "aviso_sin_ingresos": aviso_sin_ingresos(dispositivo),
+                # Avisan y no bloquean: ninguna decide si un botón aparece o una acción procede.
+                "alertas": alertas_del_dispositivo(dispositivo),
                 "indicadores": indicadores_de_plazas(ocupacion.conteo),
                 "sectores": sectores,
                 "n_plazas": ocupacion.conteo.operativas,

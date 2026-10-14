@@ -1922,6 +1922,85 @@ class FotoInspeccion(TimeStamped):
         raise ValidationError("Las fotos de un relevamiento no se eliminan.")
 
 
+class TrazaInspeccionQuerySet(models.QuerySet):
+    """Solo aditiva, como `TrazaDispositivoQuerySet`: lo que pasó con un relevamiento no se reescribe."""
+
+    def update(self, **kwargs):
+        raise ValidationError("Las trazas de un relevamiento son inmutables.")
+
+    def delete(self):
+        raise ValidationError("Las trazas de un relevamiento no se eliminan.")
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las trazas de un relevamiento son inmutables.")
+
+
+class TrazaInspeccionManager(models.Manager.from_queryset(TrazaInspeccionQuerySet)):
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError("Las trazas de un relevamiento son inmutables.")
+
+
+class TrazaInspeccion(models.Model):
+    """Qué pasó con un relevamiento edilicio, quién y cuándo (MVP v2, etapa 3 · #699).
+
+    `InspeccionEdificio` guarda el estado de hoy: reasignar pisa al agente anterior y
+    cancelar no dice quién lo hizo. Esta traza es la auditoría que faltaba, una fila por
+    cada acción de `programas.services.inspecciones` —asignar, reasignar, cancelar,
+    registrar el resultado y sumar una foto—, en la misma transacción que el cambio.
+
+    Cuelga del relevamiento y no del dispositivo: el relevamiento es del edificio, y el
+    historial de cada institución que lo ocupa la lee por `Edificio.dispositivos`. El
+    `detalle` se escribe legible al momento de la acción (edificio, agente, vencimiento,
+    criticidad), así que la línea no cambia si después se renombra algo.
+    """
+
+    class Accion(models.TextChoices):
+        ASIGNADA = "ASIGNADA", "Relevamiento edilicio asignado"
+        REASIGNADA = "REASIGNADA", "Relevamiento edilicio reasignado"
+        CANCELADA = "CANCELADA", "Relevamiento edilicio cancelado"
+        REALIZADA = "REALIZADA", "Resultado del relevamiento edilicio"
+        FOTO = "FOTO", "Foto sumada a un relevamiento edilicio"
+
+    inspeccion = models.ForeignKey(
+        InspeccionEdificio,
+        on_delete=models.PROTECT,
+        related_name="trazas",
+        verbose_name="Relevamiento",
+    )
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Usuario",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
+    accion = models.CharField(max_length=20, choices=Accion.choices, verbose_name="Acción")
+    detalle = models.TextField(blank=True, verbose_name="Detalle")
+
+    objects = TrazaInspeccionManager()
+
+    class Meta:
+        verbose_name = "Traza de relevamiento edilicio"
+        verbose_name_plural = "Trazas de relevamientos edilicios"
+        ordering = ["creado_en", "id"]
+        base_manager_name = "objects"
+        default_manager_name = "objects"
+        indexes = [models.Index(fields=["inspeccion", "creado_en"])]
+
+    def __str__(self):
+        return f"{self.get_accion_display()} · relevamiento {self.inspeccion_id}"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Las trazas de un relevamiento son inmutables.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Las trazas de un relevamiento no se eliminan.")
+
+
 class Cama(TimeStamped):
     """Unidad de capacidad identificable dentro de un dispositivo."""
 

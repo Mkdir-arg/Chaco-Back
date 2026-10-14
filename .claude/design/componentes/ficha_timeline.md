@@ -20,7 +20,10 @@ Riel de 2 px (`border-base`), punto de 10 px con borde tonal. El tono refuerza; 
 
 **La lista llega acotada.** El componente dibuja todos los eventos que recibe y una estadía larga trae
 cientos: **recortar es responsabilidad de la vista** (las últimas N, más un enlace «Ver todo» cuando
-hay más). El componente no pagina.
+hay más). El componente no pagina. Cuando el feed es largo de verdad —la solapa Historial de
+`programas/templates/programas/dispositivos/legajo/detail.html`, que junta en una sola lista la
+auditoría de cuatro fuentes— la página la arma la vista y el control va **debajo**, con
+`components/_paginacion.html`: la pieza sigue recibiendo solo los eventos de esa página.
 
 **Fotos dentro del evento (opcional).** Un evento puede traer `fotos` (lista de dicts con el
 contrato de `components/_galeria_fotos.html`: `url`, `alt`, `rotulo`, `fecha`) y `total_fotos`

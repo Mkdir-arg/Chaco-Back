@@ -40,7 +40,7 @@ from programas.models import (
     Subsegmento,
 )
 
-# Los 58 modelos de la app, con la tabla con la que viven hoy en la base. El mapa es
+# Los 59 modelos de la app, con la tabla con la que viven hoy en la base. El mapa es
 # literal a propósito: calcularlo desde `_meta` haría que el test se mueva solo y no
 # detectaría nada. `AltaIntermediaSIIS` es la única con `db_table` explícita.
 TABLAS = {
@@ -100,6 +100,7 @@ TABLAS = {
     "TipoDispositivo": "programas_tipodispositivo",
     "TracaFormulario": "programas_tracaformulario",
     "TrazaDispositivo": "programas_trazadispositivo",
+    "TrazaInspeccion": "programas_trazainspeccion",
     "Turno": "programas_turno",
     "ValidacionSIS": "programas_validacionsis",
 }
@@ -137,6 +138,8 @@ OTROS_NOMBRES_PUBLICOS = {
     "TipoCampo",
     "TrazaDispositivoManager",
     "TrazaDispositivoQuerySet",
+    "TrazaInspeccionManager",
+    "TrazaInspeccionQuerySet",
     "User",
     "VINCULOS_LEGAJO",
     "ValidationError",

@@ -49,7 +49,7 @@ from django.utils import timezone
 
 from core import rbac
 from core.archivos import anotar_archivo_escrito, archivos_atomicos
-from programas.models import AsignacionDispositivo, Edificio, FotoInspeccion, InspeccionEdificio
+from programas.models import AsignacionDispositivo, Edificio, FotoInspeccion, InspeccionEdificio, TrazaInspeccion
 from programas.services.dispositivos import (
     CAP_VER,
     dispositivos_en_alcance,
@@ -175,6 +175,19 @@ def _bloquear(inspeccion):
     return InspeccionEdificio.objects.select_for_update().get(pk=inspeccion.pk)
 
 
+def _nombre(usuario):
+    return (usuario.get_full_name() or usuario.get_username()) if usuario is not None else "—"
+
+
+def _trazar(inspeccion, usuario, accion, detalle):
+    """Una línea de auditoría por acción, en la misma transacción que el cambio (#699).
+
+    El detalle se escribe legible ahora: es lo que va a leer el historial del dispositivo.
+    """
+
+    TrazaInspeccion.objects.create(inspeccion=inspeccion, usuario=usuario, accion=accion, detalle=detalle)
+
+
 # --------------------------------------------------------------------------- #
 # Coordinador: crear, reasignar, cancelar
 # --------------------------------------------------------------------------- #
@@ -199,13 +212,20 @@ def crear_inspeccion(usuario, *, edificio, asignado_a, fecha_vencimiento, indica
     if edificio.inspecciones.filter(estado=InspeccionEdificio.Estado.ASIGNADA).exists():
         raise ValidationError({"edificio": "El edificio ya tiene un relevamiento en curso: reasignalo."})
     _validar_agente(asignado_a, edificio)
-    return InspeccionEdificio.objects.create(
+    inspeccion = InspeccionEdificio.objects.create(
         edificio=edificio,
         asignado_a=asignado_a,
         creado_por=usuario,
         fecha_vencimiento=fecha_vencimiento,
         indicaciones=indicaciones.strip(),
     )
+    _trazar(
+        inspeccion,
+        usuario,
+        TrazaInspeccion.Accion.ASIGNADA,
+        f"Edificio {edificio.nombre} · agente {_nombre(asignado_a)} · vence el {fecha_vencimiento:%d/%m/%Y}",
+    )
+    return inspeccion
 
 
 @transaction.atomic
@@ -219,8 +239,15 @@ def reasignar_inspeccion(usuario, inspeccion, asignado_a):
     if asignado_a is not None and asignado_a.pk == inspeccion.asignado_a_id:
         raise ValidationError({"asignado_a": "El relevamiento ya está asignado a ese agente."})
     _validar_agente(asignado_a, inspeccion.edificio)
+    anterior = inspeccion.asignado_a
     inspeccion.asignado_a = asignado_a
     inspeccion.save(update_fields=["asignado_a", "modificado"])
+    _trazar(
+        inspeccion,
+        usuario,
+        TrazaInspeccion.Accion.REASIGNADA,
+        f"Edificio {inspeccion.edificio.nombre} · de {_nombre(anterior)} a {_nombre(asignado_a)}",
+    )
     return inspeccion
 
 
@@ -236,6 +263,12 @@ def cancelar_inspeccion(usuario, inspeccion, motivo):
     inspeccion.estado = InspeccionEdificio.Estado.CANCELADA
     inspeccion.motivo_cancelacion = motivo[:200]
     inspeccion.save(update_fields=["estado", "motivo_cancelacion", "modificado"])
+    _trazar(
+        inspeccion,
+        usuario,
+        TrazaInspeccion.Accion.CANCELADA,
+        f"Edificio {inspeccion.edificio.nombre} · motivo: {inspeccion.motivo_cancelacion}",
+    )
     return inspeccion
 
 
@@ -285,9 +318,16 @@ def registrar_resultado(usuario, inspeccion, *, criticidad, observaciones="", fo
     inspeccion.save(
         update_fields=["estado", "criticidad", "observaciones", "realizada_en", "realizada_por", "modificado"]
     )
+    cantidad = 0
     for foto in fotos:
         archivo, descripcion = foto if isinstance(foto, tuple) else (foto, "")
         _guardar_foto(inspeccion, usuario, archivo, descripcion)
+        cantidad += 1
+    # Una sola línea para el resultado y sus fotos: es una acción, no una por archivo.
+    detalle = f"Edificio {inspeccion.edificio.nombre} · criticidad {inspeccion.get_criticidad_display()}"
+    if cantidad:
+        detalle += f" · {cantidad} foto{'s' if cantidad != 1 else ''}"
+    _trazar(inspeccion, usuario, TrazaInspeccion.Accion.REALIZADA, detalle)
     return inspeccion
 
 
@@ -303,7 +343,9 @@ def agregar_foto(usuario, inspeccion, archivo, descripcion=""):
     inspeccion = _bloquear_como_agente(usuario, inspeccion)
     if inspeccion.estado == InspeccionEdificio.Estado.CANCELADA:
         raise ValidationError("El relevamiento está cancelado.")
-    return _guardar_foto(inspeccion, usuario, archivo, descripcion)
+    foto = _guardar_foto(inspeccion, usuario, archivo, descripcion)
+    _trazar(inspeccion, usuario, TrazaInspeccion.Accion.FOTO, f"Edificio {inspeccion.edificio.nombre}")
+    return foto
 
 
 # --------------------------------------------------------------------------- #
@@ -431,6 +473,7 @@ def ultima_inspeccion(edificio):
 def subconsulta_ultima_realizada():
     """El id de la última realizada del edificio de la fila (``OuterRef("pk")``), para anotar.
 
+    Es la única definición de «la última»: la usan el semáforo y las alertas del dispositivo.
     Escalar con ``LIMIT 1`` en el ``SELECT``: MySQL no admite ``LIMIT`` dentro de un ``IN``.
     """
 
