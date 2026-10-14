@@ -237,6 +237,20 @@ def _archivo_de_campana(user, ruta):
     return rbac.puede(user, "notificacion.ver")
 
 
+def _imagen_de_campana(user, ruta):
+    """Una imagen del .zip de una campaña, por `/media/`: la mira quien ve las campañas.
+
+    El destinatario del correo no pasa por acá: la ve por ``notificaciones:imagen_publica``,
+    sin sesión, que la busca por token y nombre (Cambio 285). Esta regla existe porque el
+    contrato de la tabla es que todo `FileField` tenga dueño.
+    """
+    from notificaciones.models import ImagenCampana
+
+    if not ImagenCampana.objects.filter(archivo=ruta).exists():
+        return None
+    return rbac.puede(user, "notificacion.ver")
+
+
 def _adjunto_de_bitacora(user, ruta):
     """El acta de una novedad del turno: la ve quien ve **ese** dispositivo.
 
@@ -274,6 +288,7 @@ REGLAS = (
     (rutas.PREFIJO_F00, _archivo_de_f00),
     (rutas.PREFIJO_FOTO_INSPECCION, _foto_de_inspeccion),
     (rutas.PREFIJO_SOLICITUD_MERENDERO, _documentacion_de_merendero),
+    (rutas.PREFIJO_NOTIFICACIONES_IMAGENES, _imagen_de_campana),
     (rutas.PREFIJO_NOTIFICACIONES, _archivo_de_campana),
     (rutas.PREFIJO_ADJUNTO_BITACORA, _adjunto_de_bitacora),
 )

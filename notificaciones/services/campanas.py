@@ -10,6 +10,11 @@ Los archivos: el storage no tiene transacción, así que la escritura va decorad
 ``core.archivos.archivos_atomicos`` (si la base vuelve atrás, el archivo recién escrito
 se borra) y el archivo **reemplazado** se borra recién con ``on_commit`` (si se borrara
 antes y la base volviera atrás, la fila quedaría nombrando un archivo que ya no está).
+
+Las imágenes del .zip (Cambio 285) siguen la misma regla: se escriben como ``ImagenCampana``
+dentro de la transacción (anotadas para el rollback) y las del cuerpo reemplazado se borran
+con ``on_commit``. Duplicar vuelve a leer el .zip guardado, así que la copia publica sus
+propias imágenes con un token nuevo y su HTML apunta a ellas, no a las de la original.
 """
 
 from __future__ import annotations
@@ -22,7 +27,7 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 
 from core.archivos import anotar_archivo_escrito, archivos_atomicos
-from notificaciones.models import Campana, Descartado, Destinatario
+from notificaciones.models import Campana, Descartado, Destinatario, ImagenCampana
 from notificaciones.services import html as servicio_html
 from notificaciones.services.lectura_excel import parsear_destinatarios
 
@@ -77,9 +82,39 @@ def _guardar_lista(campana, lectura):
     campana.fallidos = 0
 
 
+#: Lo que devuelve ``html.procesar`` y no es un campo de la campaña.
+_CLAVES_NO_CAMPO = {"imagenes", "token_imagenes"}
+
+
 def _aplicar_html(campana, datos_html):
     for campo, valor in datos_html.items():
-        setattr(campana, campo, valor)
+        if campo not in _CLAVES_NO_CAMPO:
+            setattr(campana, campo, valor)
+
+
+def _publicar_imagenes(campana, datos_html):
+    """Escribe una ``ImagenCampana`` por imagen del .zip, con el token que ya lleva su URL."""
+    token = datos_html.get("token_imagenes")
+    for imagen in datos_html.get("imagenes") or []:
+        archivo = ContentFile(imagen.contenido, name=imagen.nombre)
+        fila = ImagenCampana(
+            campana=campana,
+            token=token,
+            nombre=imagen.nombre,
+            ruta_original=imagen.ruta_original,
+            content_type=imagen.content_type,
+            tamano=imagen.tamano,
+            archivo=archivo,
+        )
+        fila.save()
+        anotar_archivo_escrito(fila.archivo, asignado=archivo)
+
+
+def _borrar_imagenes(campana):
+    """Borra las filas de imágenes de la campaña y, al confirmar, sus archivos."""
+    for imagen in list(campana.imagenes.all()):
+        _borrar_tras_commit(imagen.archivo.storage, imagen.archivo.name)
+    campana.imagenes.all().delete()
 
 
 def _asignar_archivo(campana, campo, archivo):
@@ -109,6 +144,7 @@ def crear_campana(*, nombre, asunto, archivo_excel, archivo_html, lectura, datos
     _aplicar_html(campana, datos_html)
     campana.save()
     _anotar_escritos(campana, {"archivo_excel": archivo_excel, "archivo_html": archivo_html})
+    _publicar_imagenes(campana, datos_html)
     _guardar_lista(campana, lectura)
     campana.save(update_fields=["leidas", "total", "invalidos", "duplicados", "enviados", "fallidos", "modificado"])
     return campana
@@ -135,12 +171,17 @@ def editar_campana(campana, *, nombre, asunto, archivo_excel=None, archivo_html=
         asignados["archivo_excel"] = archivo_excel
     if archivo_html is not None:
         _borrar_tras_commit(actual.archivo_html.storage, actual.archivo_html.name)
+        # El cuerpo nuevo trae sus imágenes (o ninguna, si es un HTML suelto): las del
+        # anterior se van, y sus archivos recién cuando la base confirma.
+        _borrar_imagenes(actual)
         _asignar_archivo(actual, "archivo_html", archivo_html)
         actual.nombre_html = _nombre_original(archivo_html)
         _aplicar_html(actual, datos_html)
         asignados["archivo_html"] = archivo_html
     actual.save()
     _anotar_escritos(actual, asignados)
+    if archivo_html is not None:
+        _publicar_imagenes(actual, datos_html)
     if archivo_excel is not None:
         _guardar_lista(actual, lectura)
         actual.save(update_fields=["leidas", "total", "invalidos", "duplicados", "enviados", "fallidos", "modificado"])
@@ -156,6 +197,8 @@ def eliminar_campana(campana):
     for campo in ("archivo_excel", "archivo_html"):
         archivo = getattr(actual, campo)
         _borrar_tras_commit(archivo.storage, archivo.name)
+    # Las filas se van con la campaña (CASCADE) y con ellas la URL pública: 404 desde ya.
+    _borrar_imagenes(actual)
     actual.delete()
 
 
@@ -177,10 +220,14 @@ def duplicar_campana(campana, *, usuario):
 
     Se copian los **dos archivos** y se vuelve a leer el Excel y a sanear el HTML, igual
     que en el alta: una copia de una campaña vieja no hereda una lista calculada con
-    reglas que pudieron cambiar. La original no se toca.
+    reglas que pudieron cambiar. La original no se toca. Si el cuerpo es un .zip, la copia
+    publica sus imágenes con un token nuevo: borrar o editar una no rompe el correo de la otra.
     """
     excel = ContentFile(_copia_de(campana.archivo_excel), name=campana.nombre_excel or "destinatarios.xlsx")
-    html = ContentFile(_copia_de(campana.archivo_html), name=campana.nombre_html or "correo.html")
+    # El nombre decide si se procesa como HTML o como .zip: sin el original, la extensión
+    # del archivo guardado.
+    nombre_cuerpo = campana.nombre_html or f"correo{Path(campana.archivo_html.name).suffix.lower() or '.html'}"
+    html = ContentFile(_copia_de(campana.archivo_html), name=nombre_cuerpo)
     lectura = parsear_destinatarios(excel)
     datos_html = servicio_html.procesar(html)
     nombre = f"{PREFIJO_COPIA}{campana.nombre}"[: Campana._meta.get_field("nombre").max_length]
