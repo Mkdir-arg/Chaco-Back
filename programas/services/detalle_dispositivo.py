@@ -34,6 +34,7 @@ from core.services.vencimientos import avisos
 from programas.models import Dispositivo, Edificio, Estadia, FotoInspeccion, InspeccionEdificio, Sector
 from programas.selectors.auditoria_dispositivo import auditoria_del_dispositivo
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio
+from programas.selectors.inspecciones import tiene_relevamiento_vencido
 from programas.services.alertas_dispositivos import AMBITO, ICONOS, TONOS
 from programas.services.estadias import estado_visible
 from programas.services.inspecciones import (
@@ -442,7 +443,11 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
         Edificio.objects.filter(
             pk__in=Edificio.dispositivos.through.objects.filter(dispositivo=dispositivo).values("edificio_id")
         )
-        .annotate(ultima_id=subconsulta_ultima_realizada(), n_instituciones=Count("dispositivos", distinct=True))
+        .annotate(
+            ultima_id=subconsulta_ultima_realizada(),
+            n_instituciones=Count("dispositivos", distinct=True),
+            vencido=tiene_relevamiento_vencido(),
+        )
         # El domicilio normalizado viaja en la MISMA consulta: leerlo
         # después desde el objeto sería una consulta por edificio, porque `only()` los deja
         # diferidos (el N+1 que este `only` está puesto para evitar, no para provocar).
@@ -486,13 +491,16 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
                 "latitud": edificio.latitud,
                 "longitud": edificio.longitud,
                 "instituciones": instituciones.get(edificio.pk, []),
-                "semaforo": semaforo_de_inspeccion(ultima),
+                "semaforo": semaforo_de_inspeccion(ultima, vencido=edificio.vencido),
                 "ultima": ultima,
                 "relevo": _nombre(ultima.realizada_por) if ultima else "",
                 "otras_instituciones": edificio.n_instituciones - 1,
             }
         )
-    semaforo = semaforo_de_ultimas({fila["pk"]: fila["ultima"] for fila in filas})
+    semaforo = semaforo_de_ultimas(
+        {fila["pk"]: fila["ultima"] for fila in filas},
+        vencidos={edificio.pk for edificio in edificios if edificio.vencido},
+    )
 
     totales = InspeccionEdificio.objects.filter(edificio_id__in=[fila["pk"] for fila in filas]).aggregate(
         realizados=Count("pk", filter=Q(estado=_REALIZADA), distinct=True),

@@ -16,16 +16,21 @@ Contexto:
   accion_url    opcional, destino del link de acción.
   accion_texto  opcional, texto del link (subrayado, a la derecha).
                 El link solo se dibuja si vienen accion_url Y accion_texto.
-Sin icono ni acción el HTML es idéntico al de antes de ampliar la pieza.
+Sin icono ni acción warning/danger/success mantienen su HTML. Info agrupa texto y
+contenido_template dentro de flex-1 min-w-0, con la acción como hermana del cuerpo.
 Info no tiene par de tokens bg/border compilado: usa la nota informativa canónica
 (ALR-10, deuda de estilos en línea declarada, sin tokens nuevos).
 {% endcomment %}
 {% if tono == "info" %}
 <div class="flex items-center gap-2" style="padding:10px 12px; border-radius:10px; background:var(--bg-info-soft); border:1px solid var(--color-brand-200)" role="{{ role|default:'status' }}">
   <i class="fas fa-{% if icono %}{{ icono }} text-lg{% else %}circle-info{% endif %} flex-shrink-0" style="color:var(--text-fg-info)" aria-hidden="true"></i>
-  <span{% if accion_url and accion_texto %} class="flex-1 min-w-0"{% endif %} style="font-size:12.5px; color:var(--text-body)">{% if titulo %}<strong class="text-heading">{{ titulo }}</strong>{% if texto %} {% endif %}{% endif %}{{ texto }}</span>{% if accion_url and accion_texto %}
+  <div class="flex-1 min-w-0">
+    <span style="font-size:12.5px; color:var(--text-body)">{% if titulo %}<strong class="text-heading">{{ titulo }}</strong>{% if texto %} {% endif %}{% endif %}{{ texto }}</span>
+    {% if contenido_template %}{% include contenido_template %}{% endif %}
+  </div>
+  {% if accion_url and accion_texto %}
   <a href="{{ accion_url }}" class="flex-shrink-0 text-sm font-medium underline text-fg-info">{{ accion_texto }}</a>
-  {% endif %}{% if contenido_template %}{% include contenido_template %}{% endif %}
+  {% endif %}
 </div>
 {% elif icono or accion_url and accion_texto %}
 <div class="flex items-start gap-3 rounded-lg {% if tono == 'danger' %}bg-danger-soft border border-danger-subtle{% elif tono == 'success' %}bg-success-soft border border-success-subtle{% else %}bg-warning-soft border border-warning-subtle{% endif %} p-4 text-sm" role="{% if role %}{{ role }}{% elif tono == 'success' %}status{% else %}alert{% endif %}">

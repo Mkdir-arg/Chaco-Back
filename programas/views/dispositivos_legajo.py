@@ -57,9 +57,11 @@ from programas.services.dispositivos import (
     cerrar_dispositivo,
     dispositivos_visibles,
     enviar_a_validacion,
+    enviar_desde_formulario,
     inactivar_dispositivo,
     observar_dispositivo,
     puede_en_programa_dispositivos,
+    puede_enviar_desde_formulario,
     puede_operar_dispositivo,
     rechazar_dispositivo,
     registrar_alta_dispositivo,
@@ -151,7 +153,14 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         return context
 
 
-class DispositivoCreateView(DispositivoProgramaPermissionMixin, CreateView):
+class FormularioInstitucionMixin:
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["puede_enviar_validacion"] = puede_enviar_desde_formulario(self.request.user, context["form"].instance)
+        return context
+
+
+class DispositivoCreateView(FormularioInstitucionMixin, DispositivoProgramaPermissionMixin, CreateView):
     capacidad_requerida = "dispositivo.crear"
     model = Dispositivo
     form_class = DispositivoForm
@@ -162,10 +171,24 @@ class DispositivoCreateView(DispositivoProgramaPermissionMixin, CreateView):
             with transaction.atomic():
                 self.object = form.save()
                 registrar_alta_dispositivo(self.object, self.request.user)
+                if self.request.POST.get("accion") == "enviar_validacion":
+                    self.object = enviar_desde_formulario(self.object, self.request.user)
+        except ValidationError as error:
+            form.instance.pk = None
+            self.object = None
+            form.add_error(None, error)
+            return self.form_invalid(form)
         except IntegrityError:
+            form.instance.pk = None
+            self.object = None
             form.add_error("codigo", "Ya existe un dispositivo con este código institucional.")
             return self.form_invalid(form)
-        messages.success(self.request, "Dispositivo creado como borrador.")
+        messages.success(
+            self.request,
+            "Dispositivo enviado a validación."
+            if self.object.estado == Dispositivo.Estado.PENDIENTE_VALIDACION
+            else "Dispositivo creado como borrador.",
+        )
         return redirect(self.get_success_url())
 
     def get_success_url(self):
@@ -373,7 +396,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 context["url_edificio"] = reverse("dispositivos:edificio_editar", args=[dispositivo.pk, edificio.pk])
 
 
-class DispositivoUpdateView(DispositivoObjectPermissionMixin, UpdateView):
+class DispositivoUpdateView(FormularioInstitucionMixin, DispositivoObjectPermissionMixin, UpdateView):
     capacidad_requerida = "dispositivo.editar"
     model = Dispositivo
     form_class = DispositivoForm
@@ -387,20 +410,26 @@ class DispositivoUpdateView(DispositivoObjectPermissionMixin, UpdateView):
         return dispositivo
 
     def form_valid(self, form):
-        with transaction.atomic():
-            dispositivo = Dispositivo.objects.select_for_update().get(pk=self.object.pk)
-            if dispositivo.estado == Dispositivo.Estado.CERRADO:
-                raise PermissionDenied
-            cambios = {
-                field: {"anterior": getattr(dispositivo, field), "nuevo": form.cleaned_data[field]}
-                for field in form.changed_data
-            }
-            for field in form.changed_data:
-                setattr(dispositivo, field, form.cleaned_data[field])
-            if cambios:
-                dispositivo.save(update_fields=[*form.changed_data, "modificado"])
-                registrar_edicion_dispositivo(dispositivo, self.request.user, cambios)
-            self.object = dispositivo
+        try:
+            with transaction.atomic():
+                dispositivo = Dispositivo.objects.select_for_update().get(pk=self.object.pk)
+                if dispositivo.estado == Dispositivo.Estado.CERRADO:
+                    raise PermissionDenied
+                cambios = {
+                    field: {"anterior": getattr(dispositivo, field), "nuevo": form.cleaned_data[field]}
+                    for field in form.changed_data
+                }
+                for field in form.changed_data:
+                    setattr(dispositivo, field, form.cleaned_data[field])
+                if cambios:
+                    dispositivo.save(update_fields=[*form.changed_data, "modificado"])
+                    registrar_edicion_dispositivo(dispositivo, self.request.user, cambios)
+                self.object = dispositivo
+                if self.request.POST.get("accion") == "enviar_validacion":
+                    self.object = enviar_desde_formulario(dispositivo, self.request.user)
+        except ValidationError as error:
+            form.add_error(None, error)
+            return self.form_invalid(form)
         messages.success(self.request, "Dispositivo actualizado.")
         return redirect(self.get_success_url())
 

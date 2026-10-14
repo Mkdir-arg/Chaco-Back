@@ -179,8 +179,33 @@ def buscar_posibles_duplicados(*, codigo="", nombre="", localidad=""):
     }
 
 
+def campos_para_validacion():
+    """Campos del circuito existente, también usados por el resumen del formulario."""
+    return _CAMPOS_REQUERIDOS_VALIDACION
+
+
+def puede_enviar_desde_formulario(usuario, dispositivo):
+    """Una institución nueva todavía no tiene asignaciones: exige alcance total."""
+    from programas.models import Dispositivo
+
+    if dispositivo.estado not in (Dispositivo.Estado.BORRADOR, Dispositivo.Estado.OBSERVADO):
+        return False
+    if not dispositivo.pk:
+        return puede_configurar_dispositivos(usuario) and puede_en_programa_dispositivos(usuario, "dispositivo.editar")
+    return puede_operar_dispositivo(usuario, dispositivo, "dispositivo.editar")
+
+
+def enviar_desde_formulario(dispositivo, usuario):
+    """El mismo permiso de P4 antes de ejecutar su transición, dentro del guardado atómico."""
+    from django.core.exceptions import PermissionDenied
+
+    if not puede_operar_dispositivo(usuario, dispositivo, "dispositivo.editar"):
+        raise PermissionDenied
+    return enviar_a_validacion(dispositivo, usuario)
+
+
 def _exigir_campos_para_validacion(dispositivo):
-    faltantes = [campo for campo in _CAMPOS_REQUERIDOS_VALIDACION if not getattr(dispositivo, campo)]
+    faltantes = [campo for campo in campos_para_validacion() if not getattr(dispositivo, campo)]
     if faltantes:
         raise ValidationError("Completá los campos obligatorios antes de validar el dispositivo.")
 

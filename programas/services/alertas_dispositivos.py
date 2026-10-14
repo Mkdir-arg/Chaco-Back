@@ -219,12 +219,11 @@ def relevamientos_vencidos(dispositivo, momento=None, usuario=None):
     """
 
     hoy = timezone.localdate(momento) if momento else timezone.localdate()
+    from programas.selectors.inspecciones import relevamientos_vencidos as consulta_vencidos
+
     inspecciones = (
-        InspeccionEdificio.objects.filter(
-            edificio__dispositivos=dispositivo,
-            estado=InspeccionEdificio.Estado.ASIGNADA,
-            fecha_vencimiento__lt=hoy,
-        )
+        consulta_vencidos(hoy)
+        .filter(edificio__dispositivos=dispositivo)
         .select_related("edificio")
         .order_by("fecha_vencimiento", "id")
     )

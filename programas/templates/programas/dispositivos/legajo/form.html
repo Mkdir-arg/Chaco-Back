@@ -10,33 +10,86 @@
     {% bajada %}{% if form.instance.pk %}Actualizá los datos del legajo institucional.{% else %}Se guarda como borrador. El borrador admite completar los datos operativos más adelante.{% endif %}{% endbajada %}
   {% endpage_header %}
   {% endwith %}
-  {% if not form.instance.pk %}
-  <div id="duplicate-search" class="hidden">
-    {% include "components/_alerta.html" with tono="warning" contenido_template="programas/dispositivos/legajo/_duplicados.html" only %}
-  </div>
-  {% endif %}
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+  <div class="lg:col-span-2 min-w-0">
   <form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% csrf_token %}
     {% include "components/_form_errores.html" %}
-    <h2 class="text-heading font-bold mb-4">Identidad y encuadre</h2>
-    {% for field in form %}{% if field.name == 'tipo' or field.name == 'codigo' or field.name == 'nombre' %}{% include "components/_field.html" %}{% endif %}{% endfor %}
-    <div class="border-t border-light pt-4">
+    <div class="flex items-center justify-between gap-3 mb-4">
+      <h2 class="text-heading font-bold">Identidad y encuadre</h2>
+      {% include "programas/dispositivos/_estado_badge.html" with dispositivo=form.instance only %}
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {% include "components/_field.html" with field=form.codigo wrapper_class="" %}
+      {% include "components/_field.html" with field=form.tipo wrapper_class="" %}
+      {% include "components/_field.html" with field=form.nombre wrapper_class="sm:col-span-2" %}
+    </div>
+    <div class="border-t border-light mt-5 pt-4">
       <h2 class="text-heading font-bold mb-4">Ubicación</h2>
-      {% for field in form %}{% if field.name == 'localidad' or field.name == 'domicilio' or field.name == 'latitud' or field.name == 'longitud' %}{% include "components/_field.html" %}{% endif %}{% endfor %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {% for field in form %}{% if field.name == 'localidad' or field.name == 'domicilio' or field.name == 'latitud' or field.name == 'longitud' %}{% include "components/_field.html" with wrapper_class="" %}{% endif %}{% endfor %}
+      </div>
     </div>
-    <div class="border-t border-light pt-4">
+    <div class="border-t border-light mt-5 pt-4">
       <h2 class="text-heading font-bold mb-4">Responsable y contacto</h2>
-      {% for field in form %}{% if field.name == 'responsable_nombre' or field.name == 'responsable_documento' or field.name == 'contacto_telefono' or field.name == 'contacto_email' or field.name == 'horarios' %}{% include "components/_field.html" %}{% endif %}{% endfor %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {% for field in form %}{% if field.name == 'responsable_nombre' or field.name == 'responsable_documento' or field.name == 'contacto_telefono' or field.name == 'contacto_email' %}{% include "components/_field.html" with wrapper_class="" %}{% endif %}{% endfor %}
+        {% include "components/_field.html" with field=form.horarios wrapper_class="sm:col-span-2" %}
+      </div>
     </div>
-    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-light">
+    <div class="flex flex-wrap justify-end gap-3 mt-6 pt-4 border-t border-light">
       <a href="{% url 'dispositivos:lista' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
-      <button type="submit" class="btn-nodo btn-brand btn-base">Guardar borrador</button>
+      <button type="submit" class="btn-nodo {% if puede_enviar_validacion %}btn-secondary{% else %}btn-brand{% endif %} btn-base">{% if form.instance.pk %}Guardar cambios{% else %}Guardar borrador{% endif %}</button>
+      {% if puede_enviar_validacion %}<button type="submit" name="accion" value="enviar_validacion" class="btn-nodo btn-brand btn-base">Enviar a validación</button>{% endif %}
     </div>
   </form>
+  </div>
+  <aside class="space-y-5 min-w-0" aria-label="Ayuda del legajo institucional">
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="titulo-duplicados">
+      <div class="px-5 py-4 border-b border-light"><h2 id="titulo-duplicados" class="text-heading font-bold">Posibles duplicados</h2></div>
+      <div class="p-5">
+        {% if not form.instance.pk %}
+        <p id="duplicate-empty" class="text-sm text-body-subtle">No se encontraron coincidencias. Completá código, o nombre y localidad para buscar.</p>
+        <div id="duplicate-search" class="hidden">
+          {% include "components/_alerta.html" with tono="warning" contenido_template="programas/dispositivos/legajo/_duplicados.html" only %}
+        </div>
+        {% else %}<p class="text-sm text-body-subtle">La búsqueda de coincidencias se realiza durante el alta. El código se verifica al guardar.</p>{% endif %}
+      </div>
+    </section>
+    <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="titulo-faltantes">
+      <div class="px-5 py-4 border-b border-light"><h2 id="titulo-faltantes" class="text-heading font-bold">Qué falta para validar</h2></div>
+      <div class="p-5" aria-live="polite">
+        <ul class="list-disc pl-5 text-sm text-body" data-faltantes-validacion>
+          {% for field in form.requisitos_validacion %}<li data-requisito-campo="{{ field.id_for_label }}"{% if field not in form.faltantes_validacion %} class="hidden"{% endif %}>{{ field.label }}</li>{% endfor %}
+        </ul>
+        <p data-validacion-completa class="text-sm text-body-subtle{% if form.faltantes_validacion %} hidden{% endif %}">Los datos requeridos están completos. Se verifican al enviar a validación.</p>
+      </div>
+    </section>
+  </aside>
+  </div>
 </div>
 {% endblock %}
 
 {% block customJS %}
+<script>
+(function () {
+  const requisitos = Array.from(document.querySelectorAll('[data-requisito-campo]'));
+  function actualizarFaltantes() {
+    let faltantes = 0;
+    requisitos.forEach(function (fila) {
+      const campo = document.getElementById(fila.dataset.requisitoCampo);
+      const falta = !campo.value.trim();
+      fila.classList.toggle('hidden', !falta);
+      if (falta) faltantes++;
+    });
+    document.querySelector('[data-validacion-completa]').classList.toggle('hidden', faltantes > 0);
+  }
+  requisitos.forEach(function (fila) {
+    document.getElementById(fila.dataset.requisitoCampo).addEventListener('input', actualizarFaltantes);
+  });
+  actualizarFaltantes();
+}());
+</script>
 {% if not form.instance.pk %}
 <script src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
 <script>
@@ -45,12 +98,15 @@
   const nombre = document.getElementById('id_nombre');
   const localidad = document.getElementById('id_localidad');
   const aviso = document.getElementById('duplicate-search');
+  const vacio = document.getElementById('duplicate-empty');
   const formulario = codigo.closest('form');
   let controller;
   let enviando = false;
+  let accion;
 
   function mostrarCoincidencias(data) {
-    if (!data.coincidencias.length) { aviso.classList.add('hidden'); return; }
+    vacio.classList.toggle('hidden', data.codigo_duplicado || data.coincidencias.length > 0);
+    if (!data.codigo_duplicado && !data.coincidencias.length) { aviso.classList.add('hidden'); return; }
     const mensaje = aviso.querySelector('[data-duplicados-mensaje]');
     mensaje.textContent = data.codigo_duplicado ? 'El código ya está en uso. No se podrá guardar un duplicado.' : 'Posible coincidencia. Podés continuar si es una institución diferente.';
     const lista = document.createElement('ul');
@@ -67,6 +123,7 @@
   async function buscar() {
     if (!codigo.value.trim() && !(nombre.value.trim() && localidad.value.trim())) {
       aviso.classList.add('hidden');
+      vacio.classList.remove('hidden');
       return {codigo_duplicado: false, coincidencias: []};
     }
     if (controller) controller.abort();
@@ -80,16 +137,19 @@
   }
   [codigo, nombre, localidad].forEach(function (input) {
     input.addEventListener('blur', function () { buscar().catch(function (error) {
-      console.error('No se pudo verificar duplicados.', error);
-      aviso.classList.add('hidden');
+      if (error.name !== 'AbortError') {
+        console.error('No se pudo verificar duplicados.', error);
+        aviso.classList.add('hidden');
+      }
     }); });
   });
   formulario.addEventListener('submit', function (event) {
     if (enviando) return;
     event.preventDefault();
+    accion = event.submitter;
     buscar().then(function (data) {
       if (data.codigo_duplicado) return;
-      if (!data.coincidencias.length) { enviando = true; formulario.submit(); return; }
+      if (!data.coincidencias.length) { enviar(); return; }
       Swal.fire({
         title: '¿Confirmás el alta?',
         text: 'Hay una institución con nombre y localidad coincidentes.',
@@ -99,14 +159,19 @@
         cancelButtonText: 'Revisar datos',
       }).then(function (result) {
         if (!result.isConfirmed) return;
-        enviando = true;
-        formulario.submit();
+        enviar();
       });
     }).catch(function (error) {
-      console.error('No se pudo verificar duplicados.', error);
-      Swal.fire('No se pudo verificar duplicados', 'Reintentá antes de guardar.', 'error');
+      if (error.name !== 'AbortError') {
+        console.error('No se pudo verificar duplicados.', error);
+        Swal.fire('No se pudo verificar duplicados', 'Reintentá antes de guardar.', 'error');
+      }
     });
   });
+  function enviar() {
+    enviando = true;
+    formulario.requestSubmit(accion);
+  }
 }());
 </script>
 {% endif %}

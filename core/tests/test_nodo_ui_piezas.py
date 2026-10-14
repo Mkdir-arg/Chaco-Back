@@ -534,6 +534,25 @@ class EstadoVacioTest(SimpleTestCase):
 
 
 class AlertaTest(SimpleTestCase):
+    def test_info_incluye_el_contenido_dentro_del_cuerpo_de_texto(self):
+        contenido = render_to_string("programas/dispositivos/legajo/_duplicados.html")
+        for accion in ({}, {"accion_url": "/resolver/", "accion_texto": "Resolver"}):
+            with self.subTest(accion=accion):
+                html = render_to_string(
+                    ALERTA,
+                    {
+                        "tono": "info",
+                        "texto": "Texto previo",
+                        "contenido_template": "programas/dispositivos/legajo/_duplicados.html",
+                        **accion,
+                    },
+                )
+                self.assertInHTML(
+                    '<div class="flex-1 min-w-0"><span style="font-size:12.5px; color:var(--text-body)">'
+                    f"Texto previo</span>{contenido}</div>",
+                    html,
+                )
+
     def test_contenido_propio_va_fuera_del_parrafo_en_las_tres_ramas(self):
         contenido = render_to_string("programas/dispositivos/legajo/_duplicados.html")
         for extra in ({"tono": "warning"}, {"tono": "danger", "icono": "triangle-exclamation"}, {"tono": "info"}):
