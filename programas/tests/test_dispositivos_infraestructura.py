@@ -137,7 +137,7 @@ class SolapaVisibleTests(BaseInfraestructura):
     def test_la_solapa_se_abre_por_la_url(self):
         respuesta = self._detalle(self.operador_geriatrico, self.geriatrico, tab="infraestructura")
 
-        self.assertContains(respuesta, "get('tab') || 'estadias'")
+        self.assertContains(respuesta, "tab: 'infraestructura'")
         self.assertContains(respuesta, 'aria-controls="panel-infraestructura"')
 
 
@@ -387,7 +387,7 @@ class SemaforoTests(BaseInfraestructura):
         inicio = html.index('id="tab-infraestructura"')
         boton = html[inicio : html.index("</button>", inicio)]
 
-        self.assertIn("get('tab') || 'estadias'", html)
+        self.assertIn("tab: 'estadias'", html, "la pantalla abre en Estadías")
         self.assertIn('<span class="badge badge-dot badge-danger">Crítico</span>', boton)
 
     def test_el_boton_de_la_solapa_distingue_sin_relevar_de_sin_edificio(self):

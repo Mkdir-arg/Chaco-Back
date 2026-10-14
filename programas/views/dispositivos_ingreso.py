@@ -39,6 +39,7 @@ from core.rbac import puede
 from legajos.models import Ciudadano
 from programas.forms_ingreso import IngresoConfirmarForm, IngresoPersonaForm
 from programas.models import Dispositivo, Plaza
+from programas.services.bitacora import turno_vigente
 from programas.services.dispositivos import puede_operar_dispositivo
 from programas.services.estadias import CAP_ADMITIR, AlojamientoEnLaRed, verificar_alojamiento_en_red
 from programas.services.ingreso import (
@@ -153,6 +154,20 @@ class IngresoBaseView(LoginRequiredMixin, View):
             "dispositivo": reverse("dispositivos:detalle", args=[pk]),
         }
 
+    def eyebrow(self):
+        """«CIS N.º 3 · turno Tarde · 08/09/2026 16:48», como el eyebrow de P6.
+
+        El turno sale de `turno_vigente` —la única cuenta del turno del sistema— y de la
+        lista de turnos del dispositivo, en una consulta. Si el momento cae en un hueco
+        sin turno, o el dispositivo todavía no tiene turnos configurados, el eyebrow va
+        sin turno: no se inventa uno.
+        """
+
+        ahora = timezone.now()
+        situado = turno_vigente(self.dispositivo, ahora)
+        turno = f" · turno {situado.turno.nombre}" if situado is not None else ""
+        return f"{self.dispositivo.nombre}{turno} · {timezone.localtime(ahora):%d/%m/%Y %H:%M}"
+
     def contexto(self, paso_actual):
         urls = self.urls()
         pasos = [{"etiqueta": "Persona", "url": urls["persona"]}]
@@ -161,7 +176,7 @@ class IngresoBaseView(LoginRequiredMixin, View):
         pasos.append({"etiqueta": "Confirmar", "url": urls["confirmar"]})
         return {
             "dispositivo": self.dispositivo,
-            "eyebrow": f"{self.dispositivo.nombre} · {timezone.localtime():%d/%m/%Y %H:%M}",
+            "eyebrow": self.eyebrow(),
             "urls": urls,
             "pasos": pasos,
             "paso_actual": paso_actual,

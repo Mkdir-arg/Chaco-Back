@@ -25,8 +25,17 @@ from django.db import connection
 from django.test import tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils import timezone
 
-from programas.models import EntradaBitacora, MotivoEgreso, MovimientoEstadia, Plaza, TrazaDispositivo, TrazaInspeccion
+from programas.models import (
+    EntradaBitacora,
+    Estadia,
+    MotivoEgreso,
+    MovimientoEstadia,
+    Plaza,
+    TrazaDispositivo,
+    TrazaInspeccion,
+)
 from programas.selectors.auditoria_dispositivo import TITULOS_TRAZA, auditoria_del_dispositivo
 from programas.services.bitacora import corregir_entrada, crear_turno, editar_turno, registrar_entrada
 from programas.services.detalle_dispositivo import POR_PAGINA_HISTORIAL, eventos_de_historial
@@ -107,7 +116,10 @@ class NoSePierdenEventosTests(BaseAuditoria):
         self.assertUnaLinea(
             lambda: volver_plaza_a_servicio(plaza=self.plaza, usuario=self.operador_cis), "Plaza de nuevo en servicio"
         )
-        self.assertUnaLinea(lambda: egresar_persona(estadia=estadia, usuario=self.operador_cis), "Egreso de Gómez, Ana")
+        self.assertUnaLinea(
+            lambda: egresar_persona(estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta),
+            "Egreso de Gómez, Ana",
+        )
 
     def test_cada_accion_del_legajo_y_de_los_turnos_es_una_linea(self):
         turno = self.assertUnaLinea(
@@ -185,7 +197,7 @@ class NoSePierdenEventosTests(BaseAuditoria):
 
 class LegibleTests(BaseAuditoria):
     def test_quien_cuando_y_que_en_idioma_de_operador(self):
-        motivo = MotivoEgreso.objects.create(codigo="alta", nombre="Alta voluntaria")
+        motivo = MotivoEgreso.objects.create(codigo="alta-voluntaria", nombre="Alta voluntaria")
         estadia = ingresar_persona(
             ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza
         )
@@ -218,12 +230,29 @@ class LegibleTests(BaseAuditoria):
         self.assertNotIn("violencia", textos)
 
     def test_sin_motivo_de_catalogo_las_observaciones_libres_no_llegan_al_historial(self):
-        """El movimiento guarda el texto libre cuando no hay motivo del catálogo: no se muestra."""
+        """Los egresos **viejos**, de antes del catálogo, guardan el texto libre en el
+        movimiento: es lo que dejó la migración 0089, y no se muestra.
+
+        Desde el carril C3 el servicio exige el motivo del catálogo, así que esta forma ya
+        no se puede producir egresando: se arma la fila como quedó en la base.
+        """
 
         estadia = ingresar_persona(
             ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza
         )
-        egresar_persona(estadia=estadia, usuario=self.operador_cis, motivo="Refiere consumo problemático")
+        estadia.fecha_egreso = timezone.now()
+        estadia.estado = Estadia.Estado.EGRESADA
+        estadia.clave_alojamiento = None
+        estadia.save(update_fields=["fecha_egreso", "estado", "clave_alojamiento", "modificado"])
+        MovimientoEstadia.objects.create(
+            estadia=estadia,
+            dispositivo=self.cis,
+            tipo=MovimientoEstadia.Tipo.EGRESO,
+            momento=estadia.fecha_egreso,
+            responsable=self.operador_cis,
+            motivo="Refiere consumo problemático",
+            plaza_origen=self.plaza,
+        )
 
         egreso = next(e for e in _todo(self.cis) if e["titulo"] == "Egreso de Gómez, Ana")
         self.assertEqual(egreso["detalle"], "Liberó la plaza P1 (Varones)")
@@ -289,7 +318,7 @@ class OrdenYPaginasTests(BaseAuditoria):
             sacar_plaza_de_servicio(plaza=plaza, usuario=self.operador_cis, motivo=f"Obra {n}")
         inspeccion = self._relevamiento()
         registrar_resultado(self.agente, inspeccion, criticidad=Criticidad.BAJA)
-        egresar_persona(estadia=estadia, usuario=self.operador_cis)
+        egresar_persona(estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
 
     def test_de_lo_mas_nuevo_a_lo_mas_viejo_entre_todas_las_fuentes(self):
         self._historial_largo()
@@ -395,7 +424,7 @@ class AuditoriaPresupuestoTests(BaseAuditoria):
         persona = type(self.persona).objects.create(dni=f"5{sufijo:07d}", nombre=f"N{sufijo}", apellido=f"A{sufijo}")
         plaza = Plaza.objects.create(sector=self.sector, codigo=f"V{sufijo}")
         estadia = ingresar_persona(ciudadano=persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=plaza)
-        egresar_persona(estadia=estadia, usuario=self.operador_cis)
+        egresar_persona(estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
         sacar_plaza_de_servicio(plaza=plaza, usuario=self.operador_cis, motivo="Obra")
         entrada = registrar_entrada(
             dispositivo=self.cis, usuario=self.bitacorista, tipo=EntradaBitacora.Tipo.GENERAL, texto=f"Nota {sufijo}"

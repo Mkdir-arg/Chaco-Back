@@ -30,6 +30,9 @@ que leen el detalle del dispositivo, la solapa del legajo y el detalle de la est
 módulo, **solo** `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egreso, plazas) es dominio. **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
 `badge-danger` ni en `text-fg-danger`.
 
+En `ESTADOS_VISIBLES`, una estadía activa se presenta como «Alojada» (`info`) y una
+egresada como «Egresada» (`gray`); el motivo obligatorio del egreso no altera ese mapa.
+
 ---
 
 ## Identificadores de integración (programa y segmento)

@@ -83,6 +83,11 @@ Mismo esqueleto, con:
 
 Nada de `ModernModal` con input ni de un `Swal.fire` nuevo.
 
+Consumidor: Observar y Rechazar en P4
+(`programas/templates/programas/dispositivos/legajo/detail.html`) envían con `data-ajax`:
+éxito `{ok, redirect}`, error HTTP 400 `{ok:false, errors}` con `motivo` o `__all__`.
+Sin JS conservan el POST clásico con CSRF y mensajes al volver al detalle.
+
 ## Variantes permitidas
 
 - Campos en dos columnas: `<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">`.

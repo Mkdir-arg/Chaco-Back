@@ -12,6 +12,9 @@ sobrescribía. Acá viven tres cosas:
    vigente» deja de ser uno solo.
 3. **La bitácora**: cargar una novedad y corregirla. Corregir **agrega** una versión;
    la anterior sigue ahí. Ver el docstring de `programas.models.EntradaBitacora`.
+4. **Las novedades automáticas** (`anotar_en_bitacora`): el ingreso, el egreso y el
+   cambio de plaza dejan la suya, como en P10, en la misma transacción que el cambio y
+   colgadas del `MovimientoEstadia` que las generó, que es lo que impide duplicarlas.
 
 Hora local, siempre
 -------------------
@@ -26,7 +29,9 @@ Lo que no está acá
 
 El pase de guardia (abrir y cerrar el turno, quién entregó y quién recibió) y la
 regularización de días anteriores. Mientras la regularización no exista, una novedad
-solo se carga —y solo se corrige— **dentro del turno en curso**.
+solo se carga —y solo se corrige— **dentro del turno en curso**. Las automáticas son la
+excepción a esa ventana, y por el mismo motivo: no las escribe un operador, las escribe
+un hecho, y el hecho puede haber pasado en un turno anterior.
 """
 
 from dataclasses import dataclass
@@ -39,7 +44,15 @@ from django.utils import timezone
 
 from core.archivos import anotar_archivo_escrito, archivos_atomicos
 from core.validators import validar_adjunto
-from programas.models import AdjuntoBitacora, Dispositivo, EntradaBitacora, Estadia, TrazaDispositivo, Turno
+from programas.models import (
+    AdjuntoBitacora,
+    Dispositivo,
+    EntradaBitacora,
+    Estadia,
+    MovimientoEstadia,
+    TrazaDispositivo,
+    Turno,
+)
 from programas.services.dispositivos import puede_operar_dispositivo
 
 #: Cargar y corregir novedades del turno.
@@ -402,6 +415,98 @@ def _vincular(entrada, estadias, adjuntos):
             entrada.adjuntos.set(adjuntos)
     finally:
         entrada._relaciones_abiertas = False
+
+
+# --------------------------------------------------------------------------- #
+# Novedades automáticas (P10: «automática»)
+# --------------------------------------------------------------------------- #
+
+#: Qué novedad deja cada movimiento de la estadía. Los tipos ya estaban en el modelo
+#: desde el Cambio 274 y **ningún servicio los escribía**: P10 los muestra como entradas
+#: «automática» del turno (el ingreso, el egreso y el cambio de plaza), y de ahí salen.
+#: `CAMBIO_ESTADO` no está porque ningún servicio lo emite.
+NOVEDAD_POR_MOVIMIENTO = {
+    MovimientoEstadia.Tipo.INGRESO: EntradaBitacora.Tipo.INGRESO,
+    MovimientoEstadia.Tipo.EGRESO: EntradaBitacora.Tipo.EGRESO,
+    MovimientoEstadia.Tipo.CAMBIO_PLAZA: EntradaBitacora.Tipo.MOVIMIENTO,
+    MovimientoEstadia.Tipo.CAMBIO_SECTOR: EntradaBitacora.Tipo.MOVIMIENTO,
+}
+
+
+def _texto_automatico(movimiento) -> str:
+    """Qué dice la novedad, **sin el nombre de la persona**.
+
+    El mockup pone el nombre en negrita; acá va en `personas`, que es lo que la pantalla
+    muestra solo con `ciudadano.ver` (Cambio 271). Si el nombre estuviera en el texto, la
+    bitácora se lo contaría a cualquiera que tenga `dispositivo.ver`, que es menos.
+
+    Las plazas se nombran por su código y nunca por su sector: el movimiento trae la
+    plaza que el servicio ya tenía en la mano, y leerle el sector sería una consulta más
+    dentro de la transacción que aloja o egresa a alguien.
+    """
+
+    tipo = movimiento.tipo
+    if tipo == MovimientoEstadia.Tipo.INGRESO:
+        destino = movimiento.plaza_destino
+        texto = f"Ingreso · plaza {destino.codigo}" if destino is not None else "Ingreso · sin plaza asignada"
+    elif tipo == MovimientoEstadia.Tipo.EGRESO:
+        texto = "Egreso"
+    else:
+        origen = movimiento.plaza_origen
+        texto = (
+            f"{movimiento.get_tipo_display()} · "
+            f"{origen.codigo if origen is not None else 'sin plaza'} → {movimiento.plaza_destino.codigo}"
+        )
+    return f"{texto} · motivo: {movimiento.motivo}" if movimiento.motivo else texto
+
+
+def anotar_en_bitacora(movimiento):
+    """La novedad automática de un movimiento de estadía. Devuelve la entrada, o `None`.
+
+    La llaman `ingresar_persona`, `egresar_persona` y `cambiar_plaza` **en la misma
+    transacción** que el cambio: si el alta se deshace, la novedad también. No pide
+    capacidad ni mira el estado del dispositivo —quien llegó hasta acá ya pasó el control
+    del servicio que la genera, y lo que se registra es un hecho que el sistema aceptó—,
+    y no pasa por `_exigir_turno_en_curso`: un ingreso se puede cargar tarde, y su novedad
+    es del turno en el que **pasó**, no del que corre cuando se escribió.
+
+    `None` en dos casos, y ninguno inventa nada:
+
+    * **El momento cae en un hueco sin turno**, o el dispositivo no tiene turnos
+      configurados. Una entrada necesita turno y fecha operativa, y no hay de dónde
+      sacarlos; la alerta «dispositivo activo sin turnos activos» (Cambio 281) ya avisa.
+    * El movimiento no tiene responsable (solo los que reconstruyó `programas.0089`).
+
+    **No se duplica.** La entrada cuelga del movimiento con un uno a uno, y el movimiento
+    es nuevo en cada llamada: un reintento que vuelva a correr el servicio crea otro
+    movimiento o falla antes (la clave de alojamiento, la estadía ya cerrada, la plaza que
+    ya es la suya), y escribir dos novedades del **mismo** movimiento lo rechaza la base.
+    """
+
+    tipo = NOVEDAD_POR_MOVIMIENTO.get(movimiento.tipo)
+    if tipo is None or movimiento.responsable_id is None:
+        return None
+    situado = turno_vigente(movimiento.dispositivo_id, movimiento.momento)
+    if situado is None:
+        return None
+
+    entrada = EntradaBitacora(
+        dispositivo_id=movimiento.dispositivo_id,
+        turno=situado.turno,
+        fecha_operativa=situado.fecha_operativa,
+        momento=movimiento.momento,
+        responsable_id=movimiento.responsable_id,
+        tipo=tipo,
+        origen=EntradaBitacora.Origen.AUTOMATICA,
+        movimiento=movimiento,
+        texto=_texto_automatico(movimiento),
+    )
+    entrada.clean()
+    entrada.save()
+    # La persona involucrada es la estadía, como en cualquier novedad: su id alcanza, y
+    # deja la novedad colgando de la estadía para la solapa Novedades de P7.
+    _vincular(entrada, [movimiento.estadia_id], [])
+    return entrada
 
 
 CORRECCION_CONCURRENTE = (

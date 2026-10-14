@@ -32,6 +32,7 @@ from programas.models import (
     AsignacionDispositivo,
     Dispositivo,
     Estadia,
+    MotivoEgreso,
     Plaza,
     Programa,
     ReservaPlaza,
@@ -78,6 +79,9 @@ class BaseEstadias(TestCase):
         self.otra_plaza = Plaza.objects.create(sector=self.sector, codigo="P2")
         self.sector_parador = Sector.objects.create(dispositivo=self.parador, nombre="General", capacidad=2)
         self.plaza_parador = Plaza.objects.create(sector=self.sector_parador, codigo="G1")
+        # El egreso exige un motivo del catálogo, y lo exige el servicio: el terreno mínimo
+        # trae uno para que no haya que crearlo en cada test que egresa a alguien.
+        self.motivo_alta = MotivoEgreso.objects.create(codigo="alta", nombre="Alta", orden=1)
         self.persona = Ciudadano.objects.create(dni="30111222", nombre="Ana", apellido="Gómez")
         self.otra_persona = Ciudadano.objects.create(dni="30333444", nombre="Juan", apellido="Pérez")
         self.operador_cis = self._operador("Operador CIS", self.cis)
@@ -315,7 +319,7 @@ class EgresoTests(BaseEstadias):
         )
 
     def test_el_egreso_suelta_la_clave_y_devuelve_a_la_persona_a_la_red(self):
-        egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo="Alta")
+        egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
 
         self.estadia.refresh_from_db()
         self.assertEqual(self.estadia.estado, Estadia.Estado.EGRESADA)
@@ -331,7 +335,7 @@ class EgresoTests(BaseEstadias):
         self.assertTrue(nueva.activa)
 
     def test_el_egreso_libera_la_plaza_para_otra_persona(self):
-        egresar_persona(estadia=self.estadia, usuario=self.operador_cis)
+        egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
 
         otra = ingresar_persona(
             ciudadano=self.otra_persona,
@@ -347,6 +351,7 @@ class EgresoTests(BaseEstadias):
                 estadia=self.estadia,
                 usuario=self.operador_cis,
                 fecha_egreso=self.estadia.fecha_ingreso - timedelta(minutes=1),
+                motivo_egreso=self.motivo_alta,
             )
 
     def test_el_egreso_no_puede_ser_futuro(self):
@@ -355,24 +360,34 @@ class EgresoTests(BaseEstadias):
                 estadia=self.estadia,
                 usuario=self.operador_cis,
                 fecha_egreso=timezone.now() + timedelta(days=1),
+                motivo_egreso=self.motivo_alta,
             )
 
     def test_una_estadia_cerrada_no_se_egresa_dos_veces(self):
-        egresar_persona(estadia=self.estadia, usuario=self.operador_cis)
+        egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
 
         with self.assertRaises(ValidationError):
-            egresar_persona(estadia=self.estadia, usuario=self.operador_cis)
+            egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
 
-    def test_el_egreso_deja_traza(self):
-        egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo="Traslado")
+    def test_el_egreso_deja_traza_con_el_motivo_del_catalogo_y_sin_las_observaciones(self):
+        """La traza la lee todo el que opera el dispositivo: las observaciones son texto
+        libre de la persona y no entran, igual que en el movimiento."""
+
+        egresar_persona(
+            estadia=self.estadia,
+            usuario=self.operador_cis,
+            motivo="Refiere violencia en el domicilio",
+            motivo_egreso=self.motivo_alta,
+        )
 
         traza = TrazaDispositivo.objects.filter(dispositivo=self.cis, accion="ESTADIA_EGRESO").get()
         self.assertEqual(traza.estado_nuevo, Estadia.Estado.EGRESADA)
-        self.assertIn("Traslado", traza.detalle)
+        self.assertIn("motivo: Alta", traza.detalle)
+        self.assertNotIn("violencia", traza.detalle)
 
     def test_sin_alcance_no_se_egresa(self):
         with self.assertRaises(PermissionDenied):
-            egresar_persona(estadia=self.estadia, usuario=self.operador_parador)
+            egresar_persona(estadia=self.estadia, usuario=self.operador_parador, motivo_egreso=self.motivo_alta)
 
 
 class VerificacionEnLaRedTests(BaseEstadias):
@@ -680,7 +695,7 @@ class ContratoDeLaReservaTests(BaseEstadias):
             usuario=self.operador_cis,
             reserva=reserva,
         )
-        egresar_persona(estadia=estadia, usuario=self.operador_cis)
+        egresar_persona(estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
 
         with self.assertRaises(ValidationError):
             ingresar_persona(

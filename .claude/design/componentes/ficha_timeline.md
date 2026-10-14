@@ -18,6 +18,11 @@
 `badge_tono` (`warning` por defecto). Sin eventos dibuja `_estado_vacio` (`vacio_titulo`, `vacio_texto`).
 Riel de 2 px (`border-base`), punto de 10 px con borde tonal. El tono refuerza; lo que pasó va en el título.
 
+En P7 (`programas/templates/programas/dispositivos/estadia/detalle.html`), `cuando` llega como
+fecha · hora · turno · responsable. `programas/selectors/estadia_detalle.py` deriva el turno del
+momento sobre los turnos activos cargados una vez; si no hay turno vigente, omite ese tramo.
+El Historial de P4 conserva su metadato sin turno.
+
 **La lista llega acotada.** El componente dibuja todos los eventos que recibe y una estadía larga trae
 cientos: **recortar es responsabilidad de la vista** (las últimas N, más un enlace «Ver todo» cuando
 hay más). El componente no pagina. Cuando el feed es largo de verdad —la solapa Historial de
