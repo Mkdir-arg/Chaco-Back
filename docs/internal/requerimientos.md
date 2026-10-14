@@ -434,6 +434,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 304 | Relevamiento completado y revisado sin cambiar el estado operativo | Dispositivos · relevamientos P21/informe | `#relevamientos` `#rbac` `#ui` `#datos` `#performance` | PM / juez — carril FR, fidelidad del MVP presentado | 14/10/2026 | 🟢 **Hecho** | `programas.0095` |
 | 307 | Merge de las dos migraciones 0095 de programas | Programas · migraciones | `#datos` `#infra` | Juez — encargo urgente en sesión | 14/10/2026 | 🟢 **Hecho** | `programas.0096_merge_revision_y_adjunto` |
 | 308 | P3 en dos columnas y Vencido en Infraestructura | Dispositivos · P3/P2/P4/P19 | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` | PM / juez — carril FI | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 309 | Estado junto al título e Instituciones en el sidebar | Dispositivos · P4/P7/P19/P14 · shell transversal | `#ui` `#textos` | PM / juez — carril FH | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -40168,5 +40169,189 @@ migraciones. Regresan el formulario de una columna y el semáforo de criticidad.
 
 Entrada nueva y única de FI. Las decisiones anteriores de FF/FG se conservan en
 sus entradas; la columna y Vencido quedan autorizados por este encargo del PM.
+
+---
+
+---
+
+# Cambio 309 — Estado junto al título e Instituciones en el sidebar
+
+🟢 **HECHO — 14/10/2026** · Carril FH del MVP de Dispositivos
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle institucional P4/P19 · estadía P7 · tipo P14 · shell transversal |
+| **Etiquetas** | `#ui` `#textos` |
+| **Solicitante** | PM / juez — encargo directo del carril FH |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Épica #127 · carril FH, sin issue individual |
+| **Partes afectadas** | Backoffice: encabezado compartido, detalles de Dispositivos, sidebar y migas del listado |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Que se vea igual al mockup y mantenga la lógica»: badge de estado junto al H1 y
+«Instituciones» en el sidebar de Dispositivos. Las dos novedades fueron autorizadas
+expresamente por el PM. Referencia: `docs/client/mockups/dispositivos-v2.html`, P4, P7,
+P19 y P14.
+
+## Alcance acordado
+
+Agregar un slot opcional al header canónico, aplicarlo al detalle institucional y sus
+solapas (incluida Infraestructura), al detalle de estadía y al header propio del tipo.
+Renombrar únicamente el enlace del listado de instituciones en Dispositivos y sus migas
+/ etiqueta de volver. Verificar los consumidores de Becas, sin cambiar permisos, roles,
+modelos, acciones ni transiciones de estado.
+
+## Decisiones tomadas
+
+- **Badge junto al título: sí, autorizado por el PM.** `estado_texto` y
+  `estado_variante` son argumentos opcionales de `page_header`. El texto se escapa;
+  solo se aceptan las siete variantes de badge existentes y una variante desconocida
+  o ausente cae en `gray`. La fila usa utilidades existentes, alinea verticalmente el
+  H1 y el badge y permite envolver cuando no alcanza el ancho.
+- **Sin el parámetro no cambia el HTML.** El tag limpia explícitamente el estado del
+  contexto externo. Sin texto, tampoco hay wrapper ni badge; un snapshot del render
+  anterior verifica igualdad carácter por carácter, normalizando solo CRLF.
+- **El estado conserva su lógica y su tono.** P4/P19 y las filas del legajo comparten
+  `TONOS_ESTADO` en el servicio: el header conserva `estado_de_dispositivo`; el parcial
+  usa `tono_estado_dispositivo` y resuelve el texto en Django para admitir modelos y
+  diccionarios del predio compartido. P7 sigue leyendo el estado
+  visible de la estadía, no el institucional; P14 conserva Activo/success e
+  Inactivo/gray. Los tags de presentación no consultan la base.
+- **«Instituciones» en el sidebar: sí, autorizado por el PM.** Se cierra **Q3** de
+  `docs/internal/dispositivos-v2/mapeo-mockup.md` («Vocabulario: Instituciones o Legajos
+  de dispositivos») y el pendiente del **Cambio 286**. El grupo Dispositivos mantiene
+  su nombre; el grupo de Becas mantiene «Programas» y el acceso ciudadano mantiene
+  su texto y destino. Las migas de sectores, bitácora y estadía y el volver de P4
+  llaman «Instituciones» al listado.
+
+## Plan de pantalla
+
+Tipo **A** (ajuste de pantallas existentes) + **C** (extensión autorizada de pieza
+canónica). Arquetipo de P4/P19 y P7: **Detalle con solapas**; golden de referencia:
+`programas/templates/programas/becas/cupo/segmento_detail.html`. No hay pantalla nueva.
+
+| Bloque | Resolución |
+|---|---|
+| Header compartido | `page_header`: slot de texto/variante junto al H1 con `flex items-center gap-3 flex-wrap`; sin slot, HTML anterior exacto |
+| P4 / P19 | Nombre institucional + estado del dispositivo; se retira el estado de las acciones. Todas las solapas comparten el header |
+| P7 | Nombre de la persona + estado visible de la estadía; se retira el estado de las acciones; bajada, reingreso y botones existentes se conservan |
+| P14 | Se sustituye únicamente el header propio por `page_header`, eyebrow «Tipo de dispositivo» y el slot; se conservan código, descripción, umbrales, volver, edición y activación/desactivación |
+| Sidebar / migas | Texto del enlace a `dispositivos:lista`: Instituciones; mismas rutas y capacidades |
+
+Clasificación: header y shell **Canónico reutilizable**. Header propio de P14:
+**Legacy solo mantenimiento**, reemplazado solo en ese bloque por el canónico.
+Novedades autorizadas: slot de estado y vocabulario institucional. No hay CSS, JS,
+include ni variante visual nueva. Ficha `page_header`, ficha de shell, arquetipo de
+Detalle, contrato de estados de dominio y filas del inventario actualizados.
+
+## Apartamientos del mockup
+
+- El mockup pone el badge dentro del H1; el componente lo presenta como hermano del
+  H1 dentro de la misma fila. Conserva la jerarquía del título y la geometría canónica
+  del badge. A 390 px el estado de P7 envuelve debajo del nombre si falta ancho.
+- P7 conserva los textos reales «Alojada» / «Egresada» de `ESTADOS_VISIBLES`, y el
+  nombre calculado de la persona; no se copia el dato ilustrativo «Alojado» del mockup.
+  «Reingreso» conserva su posición existente: este carril mueve el estado principal.
+- P14 adopta la tipografía y separación del header canónico. Conserva los controles
+  existentes y el aviso de que el tipo no tiene formulario propio. Formularios,
+  duplicación de tipo y otros bloques ilustrativos sin servicio no se agregan.
+- No se agregan datos ni acciones ilustrativas de P4/P7/P19 fuera del encabezado.
+
+## Implementación
+
+El estado se reconoce al leer el título y no ocupa el primer lugar de las acciones.
+El listado, el volver, el menú y las migas usan el mismo nombre «Instituciones».
+La autorización y las operaciones disponibles siguen siendo las existentes.
+
+## Archivos
+
+- `core/templatetags/nodo_ui.py`, `templates/components/_page_header.html`.
+- `programas/services/dispositivos.py`, `programas/templatetags/dispositivos.py`,
+  `programas/templates/programas/dispositivos/_estado_badge.html`.
+- `programas/templates/programas/dispositivos/legajo/detail.html`,
+  `estadia/detalle.html`, `config/_tipo_detail_content.html` (en la misma raíz).
+- `templates/includes/sidebar/opciones.html`, `programas/views/dispositivos_legajo.py`,
+  `programas/views/dispositivos_bitacora.py` (solo textos de migas).
+- `core/tests/test_nodo_ui_piezas.py`,
+  `core/tests/snapshots/page_header_sin_estado.snapshot`,
+  `programas/tests/test_dispositivos_header.py`, `programas/tests/test_dispositivos_config.py`.
+- `.claude/agents/chaco-design-system.md`, `.claude/design/componentes/page_header.md`,
+  `.claude/design/shells.md`, `.claude/design/arquetipos/detalle.md`,
+  `.claude/design/dominio/becas.md`.
+
+## Base de datos
+
+No requiere. No se modifican modelos, migraciones ni datos existentes.
+
+## Validación
+
+- Python 3.12 / Django 5.2.17 del venv del proyecto: `manage.py check` OK;
+  `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`, sin cambios;
+  `check_migraciones.py`, ninguna migración nueva.
+- `compile_templates.py`: 233 templates, cero errores. Auditoría de arquetipo Detalle:
+  P4 y P7 OK. P14 conserva **10 marcadores faltantes** en el wrapper del detalle,
+  los mismos que antes: su contenido vive en un parcial y el resto sigue legacy.
+  Auditoría del parcial ejecutada; no se migran las superficies ajenas al header.
+  `design_audit.py --ratchet --base origin/development`: cero hallazgos nuevos;
+  `--goldens`: cero. Tailwind regenerado, sin diff de CSS. Ruff check y format de
+  `programas/ core/ users/` OK.
+- Suite principal: **312 tests**, OK, con una omisión prevista del test optativo de
+  Playwright. Incluye componentes, tag del header, arquitectura, P4, P7, FH,
+  configuración, badges y snapshots de Becas. Performance de Programas: **28 tests**,
+  OK; `check_perf_budgets.py`, ningún presupuesto sube.
+- Regresión de legajo institucional, bitácora y RBAC del sidebar: **129 tests**, OK.
+- Snapshots de Becas regenerados con `ACTUALIZAR_SNAPSHOTS_DETALLE=1`: **diff vacío**.
+  Sus usuarios de prueba no tienen acceso al grupo Dispositivos, por eso no aparece
+  ese ítem. Se verifica además Becas con una cuenta local que sí ve ese grupo.
+- Playwright / Chromium sobre SQLite temporal y `runserver` local en puerto libre:
+  P4, P7, P19 y P14 a **1440 y 390 px**, HTTP 200, ancho de scroll igual al viewport,
+  badge junto al H1 y fuera de acciones. Inspección de capturas en escritorio y móvil.
+  Becas a **1440 px**, sin badge nuevo en el H1; comparación de capturas anterior y
+  actual: diferencia limitada al texto del sidebar, rectángulo **(73, 793, 153, 807)**,
+  con contenido de página idéntico. Venv de Playwright, settings y SQLite fuera del repo.
+- Mutaciones verificadas (romper → rojo → restaurar desde copia → verde): **M1**
+  dibujar badge sin parámetro; **M2** aceptar variante inválida; **M3** quitar escape
+  del texto; **M4** duplicar estado en acciones de P4/P19; **M5** duplicarlo en P7;
+  **M6** volver a «Legajos» en el sidebar; **M7** cambiar el tono de Activo a danger;
+  **M8** quitar el slot de P14. Los ocho casos fallan por aserción con la mutación;
+  las pruebas afectadas pasan al restaurar las copias.
+- `requerimientos.py --check` OK para las entradas numeradas; la herramienta aún no
+  indexa el marcador 306. Verificación adicional del carril: una sola entrada 306,
+  una sola fila 306 al final del índice e histórico previo idéntico al de la base.
+- Revisión independiente: nuevo GET de P4 con edificio vinculado a dos instituciones,
+  verificando HTTP 200 y el badge de la otra institución en los siete estados. No hay
+  otros includes con diccionarios: el listado usa modelos, cubiertos por los tests FH.
+  Mutaciones verificadas: volver al helper Python → siete errores `AttributeError`;
+  quitar el eyebrow de P14 → dos fallos (tipo activo e inactivo). Templates restaurados
+  desde copias exactas y pruebas nuevamente en verde.
+  Suite solicitada (`core`, detalle, capacidad, infraestructura, listado, detalle de
+  estadía y arquitectura): **1601 tests OK, 37 omitidos**. Gates de Django, migraciones,
+  templates, ratchet, goldens y Ruff OK; Tailwind sin diff. Los diez desvíos de arquetipo
+  de P14 se verificaron idénticos a `HEAD`, sin ampliar el alcance de esta revisión.
+  FH/configuración: **19 tests OK**; performance de Programas: **28 tests OK**, sin
+  cambios en los presupuestos.
+
+## Puesta en marcha en el servidor
+
+No requiere pasos adicionales al deploy habitual.
+
+## Pendientes / a definir
+
+- **Q3 cerrado** por decisión del PM, como se explica en Decisiones tomadas.
+- P14 mantiene deuda legacy fuera del encabezado; queda fuera de este carril.
+- Numeración **306** pendiente del juez, tanto en el encabezado como en el índice,
+  según la instrucción de este encargo. No se renumeran otras entradas.
+
+## Reversión
+
+Revertir los commits del carril FH. El estado vuelve a las acciones, el sidebar al
+texto anterior y P14 a su header propio. No se pierden datos ni hay rollback de base.
+
+## Historial
+
+Entrada nueva del carril FH; las entradas anteriores se conservan.
+Revisión independiente (14/10/2026): corregido el 500 de P4 con predio compartido mediante el filtro sobre `TONOS_ESTADO` y lectura del texto en el template; agregado el eyebrow de P14, sin apartamientos nuevos.
 
 ---
