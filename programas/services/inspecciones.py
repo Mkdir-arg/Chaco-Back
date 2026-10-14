@@ -42,11 +42,11 @@ con otro envío) o :class:`InspeccionReasignada`, que la API traduce a 409 con u
 La consulta del semáforo
 ------------------------
 
-:func:`ultimas_inspecciones_por_edificio` y :func:`ultimas_inspecciones_de_dispositivos`
-son lo que va a leer el semáforo de la task 40. Devuelven ``None`` para el edificio **sin
-relevar** —que no es lo mismo que relevado y sano, una inspección con criticidad
-``BAJA``— y un diccionario vacío para el dispositivo que no tiene edificio cargado. Son
-consultas fijas: no crecen con la cantidad de edificios ni de dispositivos.
+El listado usa :func:`semaforos_de_dispositivos`: combina la criticidad de la última
+realizada con los relevamientos en curso vencidos, en consultas fijas por lote. Distingue
+**sin relevar** de relevado y sano y de **sin edificio cargado**.
+:func:`ultimas_inspecciones_por_edificio` trae los resultados completos para los
+consumidores que los necesitan, también con costo fijo.
 """
 
 import uuid
@@ -356,7 +356,7 @@ def cancelar_inspeccion(usuario, inspeccion, motivo):
 
 
 @transaction.atomic
-def marcar_revisado(inspeccion, usuario):
+def marcar_revisado(usuario, inspeccion):
     """La coordinación revisa una sola vez un resultado, sin cambiar REALIZADA."""
 
     inspeccion = _bloquear(inspeccion)
@@ -751,26 +751,6 @@ def ultimas_inspecciones_por_edificio(edificio_ids):
     )
     filas = InspeccionEdificio.objects.in_bulk([pk for pk in pares.values() if pk is not None])
     return {edificio_id: filas.get(ultima_id) for edificio_id, ultima_id in pares.items()}
-
-
-def ultimas_inspecciones_de_dispositivos(dispositivo_ids):
-    """``{dispositivo_id: {edificio_id: InspeccionEdificio | None}}`` en tres consultas.
-
-    Un dispositivo puede ocupar más de un edificio, así que cada uno trae las de todos los
-    suyos: qué color gana (el peor, el del edificio principal…) es decisión del semáforo.
-    Un dispositivo **sin edificio cargado** trae ``{}``, que no es lo mismo que un edificio
-    sin relevar.
-    """
-
-    ids = {pk for pk in dispositivo_ids if pk is not None}
-    vinculos = list(
-        _EdificioDispositivo.objects.filter(dispositivo_id__in=ids).values_list("dispositivo_id", "edificio_id")
-    )
-    por_edificio = ultimas_inspecciones_por_edificio({edificio_id for _d, edificio_id in vinculos})
-    resultado = {pk: {} for pk in ids}
-    for dispositivo_id, edificio_id in vinculos:
-        resultado[dispositivo_id][edificio_id] = por_edificio.get(edificio_id)
-    return resultado
 
 
 # --------------------------------------------------------------------------- #

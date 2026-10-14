@@ -77,6 +77,34 @@ class PageHeaderEstadoTests(SimpleTestCase):
 
 
 @skipUnless(os.environ.get("CHACO_PLAYWRIGHT") == "1", "Requiere Playwright y Chromium en el entorno de prueba")
+class BotonDeshabilitadoVisualTest(SimpleTestCase):
+    def test_submit_deshabilitado_usa_gris_y_habilitado_recupera_gradiente(self):
+        from playwright.sync_api import sync_playwright
+
+        raiz = Path(__file__).resolve().parents[2]
+        css = "\n".join(
+            (raiz / "static/custom/css" / nombre).read_text(encoding="utf-8")
+            for nombre in ("chaco-tokens.css", "nodo-brand.css", "nodo-buttons.css")
+        )
+        with sync_playwright() as motor:
+            navegador = motor.chromium.launch()
+            pagina = navegador.new_page()
+            pagina.set_content(
+                "<!DOCTYPE html><html><head><style>" + css + "</style></head><body>"
+                '<button type="submit" class="btn-nodo btn-brand btn-base" disabled>Enviar a validación</button>'
+                "</body></html>"
+            )
+            boton = pagina.locator("button")
+            boton.hover(force=True)
+            pagina.wait_for_timeout(300)  # Espera la transición canónica del botón.
+            self.assertEqual(boton.evaluate("e => getComputedStyle(e).backgroundImage"), "none")
+            self.assertNotEqual(boton.evaluate("e => getComputedStyle(e).color"), "rgb(255, 255, 255)")
+            boton.evaluate("e => e.disabled = false")
+            self.assertIn("linear-gradient", boton.evaluate("e => getComputedStyle(e).backgroundImage"))
+            navegador.close()
+
+
+@skipUnless(os.environ.get("CHACO_PLAYWRIGHT") == "1", "Requiere Playwright y Chromium en el entorno de prueba")
 class TablaResponsiveTest(SimpleTestCase):
     """Mide el overflow real, incluido el rótulo accesible absoluto de Acciones."""
 

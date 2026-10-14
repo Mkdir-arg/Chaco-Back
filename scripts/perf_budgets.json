@@ -217,8 +217,8 @@
     },
     "dispositivos_relevamientos_revisados": {
       "vista": "dispositivos:relevamientos",
-      "consultas_fijas": 17,
-      "motivo": "Carril FR: P21 con las cinco solapas pobladas y revisores. Una lectura adicional fija para la pagina Revisados; el contador se agrega al aggregate existente. select_related(edificio, asignado_a, revisado_por) evita consultas por fila. test_dispositivos_revision.RevisionPresupuestoTests mide con 2 y 20 revisados y exige el mismo costo. El presupuesto de listado sin revisados sigue en 16."
+      "consultas_fijas": 14,
+      "motivo": "Carril FJ: 14 consultas medidas en P21 con las cinco solapas pobladas y revisores. Una lectura adicional fija para la pagina Revisados; el contador se agrega al aggregate existente. select_related(edificio, asignado_a, revisado_por) evita consultas por fila. test_dispositivos_revision.RevisionPresupuestoTests mide con 2 y 20 revisados y exige el mismo costo. El presupuesto de listado sin revisados sigue en 16."
     },
     "dispositivos_relevamientos_listado": {
       "vista": "dispositivos:relevamientos",
