@@ -43,7 +43,7 @@ Costo
 **Consultas fijas, no una por sector** (lo que arrastraba el Cambio 272): las plazas de
 todos los sectores salen en una sola consulta y el tope por sector se aplica en Python,
 `estado_de_plazas` se llama **una vez** con todas las plazas dibujadas, y las reservas sin
-resolver son otra consulta sola —y solo si quien mira las puede liberar—. Antes eran tres
+resolver son otra consulta sola, la misma para cualquiera que mire. Antes eran tres
 por sector, así que un dispositivo con ocho pabellones costaba veinticuatro consultas
 nada más que para dibujarse.
 """
