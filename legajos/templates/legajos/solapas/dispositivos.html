@@ -29,6 +29,7 @@
             <th class="nodo-th">Egreso</th>
             <th class="nodo-th">Estado</th>
             <th class="nodo-th">Motivo de egreso</th>
+            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -43,10 +44,17 @@
             <td class="nodo-td whitespace-nowrap">{{ fila.egreso|date:"d/m/Y"|default:"—" }}</td>
             <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.tono }}">{{ fila.estado }}</span></td>
             <td class="nodo-td">{{ fila.motivo|default:"—" }}</td>
+            <td class="nodo-td text-right">
+              {% if fila.url_estadia %}
+              <a href="{{ fila.url_estadia }}" class="nodo-icon-btn" aria-label="Ver estadía en {{ fila.dispositivo }} del {{ fila.ingreso|date:'d/m/Y' }}">
+                <i class="fas fa-eye" aria-hidden="true"></i>
+              </a>
+              {% endif %}
+            </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="6" class="p-0">
+            <td colspan="7" class="p-0">
               {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Todavía no hay estadías registradas" texto="Cuando la persona ingrese a un dispositivo, su trayectoria aparece acá y se conserva aunque egrese." %}
             </td>
           </tr>
@@ -57,6 +65,6 @@
     {% include "components/_paginacion.html" with page_obj=page_obj entidad="estadía" param="estadias_page" %}
   </section>
 
-  <p class="text-xs text-body-subtle">Las secciones sensibles de cada ficha se muestran según tu rol. El historial se conserva aunque no haya estadía activa. Para operar sobre una estadía, entrá al programa.</p>
+  <p class="text-xs text-body-subtle">Las secciones sensibles de cada ficha se muestran según tu rol. El historial se conserva aunque no haya estadía activa.</p>
 </div>
 {% endblock %}

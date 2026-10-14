@@ -3,6 +3,7 @@ alerta inline, errores no de campo y el filtro ``hay_filtros``
 (W2-C9b, CMP-11/22/23, ALR-14/15, FE-08)."""
 
 import importlib.util
+import json
 import re
 from decimal import Decimal
 from io import StringIO
@@ -52,6 +53,53 @@ def _includes_de_stat_card():
 
 
 _INCLUDES_DE_STAT_CARD = _includes_de_stat_card()
+
+
+class EntradasBitacoraAccionTest(SimpleTestCase):
+    def setUp(self):
+        self.entradas = [
+            {
+                "hora": "16:10",
+                "categoria": "Incidente",
+                "tono": "danger",
+                "texto": "Acta <sin HTML>\nSegunda línea",
+                "autor": "Lucía Méndez",
+            },
+            {
+                "hora": "16:05",
+                "categoria": "Ingreso",
+                "tono": "success",
+                "automatica": True,
+                "autor": "Operador",
+                "version": 2,
+            },
+            {"hora": "16:00", "categoria": "General"},
+        ]
+
+    def _render(self):
+        return render_to_string("components/_entradas_bitacora.html", {"entradas": self.entradas})
+
+    def test_sin_accion_conserva_exactamente_el_html_anterior(self):
+        esperado = json.loads(
+            (RAIZ / "core/tests/snapshots/entradas_bitacora_sin_accion.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(self._render(), esperado)
+        for entrada in self.entradas:
+            entrada["url_corregir"] = ""
+        self.assertEqual(self._render(), esperado)
+
+    def test_accion_opcional_en_la_linea_de_autoria_y_texto_escapado(self):
+        sin_accion = self._render()
+        self.entradas[0]["url_corregir"] = "/bitacora/?turno=2&corregir=7"
+        html = self._render()
+        accion = ' · <a href="/bitacora/?turno=2&amp;corregir=7" class="text-fg-brand hover:underline">corregir</a> (crea versión)'
+        self.assertIn("Lucía Méndez" + accion + "</p>", html)
+        self.assertEqual(html.replace(accion, ""), sin_accion)
+        self.assertIn("Acta &lt;sin HTML&gt;<br>Segunda línea", html)
+
+    def test_accion_sin_autor_tambien_se_dibuja_sin_separador_suelto(self):
+        self.entradas[2]["url_corregir"] = "/bitacora/?corregir=8"
+        self.assertIn('<p class="mt-1 text-xs text-body-subtle"><a href="/bitacora/?corregir=8"', self._render())
 
 
 class PaginacionTest(SimpleTestCase):
