@@ -432,6 +432,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 302 | Segunda pasada de fidelidad del MVP: instituciones y tablas compartidas | Dispositivos · P2/P3/P4/P5 · tablas transversales | `#ui` `#textos` `#performance` | PM / juez — carril FF | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 303 | Separar reservas y préstamos y corregir el contenido de duplicados | Dispositivos · P3/P5 | `#ui` `#textos` `#performance` | PM / juez — carril FG | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 304 | Relevamiento completado y revisado sin cambiar el estado operativo | Dispositivos · relevamientos P21/informe | `#relevamientos` `#rbac` `#ui` `#datos` `#performance` | PM / juez — carril FR, fidelidad del MVP presentado | 14/10/2026 | 🟢 **Hecho** | `programas.0095` |
+| 307 | Merge de las dos migraciones 0095 de programas | Programas · migraciones | `#datos` `#infra` | Juez — encargo urgente en sesión | 14/10/2026 | 🟢 **Hecho** | `programas.0096_merge_revision_y_adjunto` |
 
 **Notas del índice**
 
@@ -39897,5 +39898,80 @@ como historial y el código viejo puede mostrar su código en lugar del rótulo;
 ## Historial
 
 Entrada nueva y única del carril FR. No se modifican las entradas anteriores.
+
+---
+
+---
+
+# Cambio 307 — Merge de las dos migraciones 0095 de programas
+
+🟢 **HECHO — 14/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Programas · migraciones |
+| **Etiquetas** | `#datos` `#infra` |
+| **Solicitante** | Juez — encargo urgente en sesión |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Sin issue · Épica #127 |
+| **Partes afectadas** | `programas/migrations/0096_merge_revision_y_adjunto.py` |
+| **Migración** | `programas.0096_merge_revision_y_adjunto` (merge, sin operaciones) |
+
+## Pedido original
+
+`development` quedó con dos hojas en el grafo de migraciones de `programas`:
+`programas.0095_adjunto_clave_campo_propio` (#869) y `programas.0095_inspeccion_revision`
+(#870, Cambio 304), las dos sobre `programas.0094`. Se mergearon con minutos de diferencia
+y cada PR estaba en verde por separado. `makemigrations --check` pide `--merge` y el
+`Migration Check` de todos los PRs abiertos sale rojo.
+
+## Alcance acordado
+
+Una migración de merge generada por Django. Fuera de alcance: renombrar o renumerar
+cualquiera de las dos `0095`, que ya están en `development`.
+
+## Decisiones tomadas
+
+- Merge (`makemigrations programas --merge`) y no renumerar: renombrar una migración ya
+  mergeada obliga a reescribir `django_migrations` en cada base que la haya aplicado.
+- Las dos `0095` tocan tablas distintas (adjuntos de campo e inspección edilicia), así que
+  el orden entre ellas no importa.
+
+### Apartamientos del mockup
+
+No aplica: sin cambios de pantalla.
+
+## Implementación
+
+`programas/migrations/0096_merge_revision_y_adjunto.py`: depende de las dos `0095` y no
+tiene operaciones.
+
+## Archivos
+
+- `programas/migrations/0096_merge_revision_y_adjunto.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+`programas.0096_merge_revision_y_adjunto` no ejecuta SQL: solo une las dos hojas
+`programas.0095_adjunto_clave_campo_propio` y `programas.0095_inspeccion_revision`.
+
+## Validación
+
+`makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`: «No changes
+detected» (antes pedía `--merge`). `scripts/check_migraciones.py`: sin problemas.
+
+## Puesta en marcha en el servidor
+
+Ninguna acción manual: `migrate` aplica las dos `0095` y el merge en el deploy.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+1. `migrate programas 0095_adjunto_clave_campo_propio` y `migrate programas 0095_inspeccion_revision` no hacen falta: el merge no tiene operaciones.
+2. Revertir el commit deja otra vez dos hojas; solo tiene sentido si también se revierte una de las dos `0095`. No se pierden datos.
 
 ---
