@@ -94,19 +94,19 @@ class UnSoloOrigenTests(BaseDetalle):
 
         respuesta = self.client.get(self.url)
 
-        self.assertEqual(respuesta.context["indicadores"], indicadores_de_plazas(conteo))
+        self.assertEqual(respuesta.context["indicadores"], indicadores_de_plazas(conteo, tipo=self.tipo))
         valores = {fila["etiqueta"]: fila["valor"] for fila in respuesta.context["indicadores"]}
         self.assertEqual(
             valores,
             {
+                "Ocupación": "50 %",
                 "Plazas operativas": conteo.operativas,
-                "Ocupadas": conteo.ocupadas,
                 "Reservadas o prestadas": conteo.reservadas,
                 "Disponibles": conteo.disponibles,
             },
         )
         # El escenario del test: 3 plazas, 1 fuera de servicio, 1 ocupada, 1 reservada, ninguna libre.
-        self.assertEqual(list(valores.values()), [2, 1, 1, 0])
+        self.assertEqual(list(valores.values()), ["50 %", 2, 1, 0])
 
     def test_el_desglose_por_sector_es_el_del_censo(self):
         ocupacion = ocupacion_de_plazas(self.cis).de(self.cis)
@@ -120,7 +120,7 @@ class UnSoloOrigenTests(BaseDetalle):
             self.assertEqual(fila["reservadas"], sector.conteo.reservadas)
             self.assertEqual(fila["disponibles"], sector.conteo.disponibles)
             self.assertEqual(fila["fuera_de_servicio"], sector.conteo.fuera_de_servicio)
-        self.assertEqual(respuesta.context["n_plazas"], ocupacion.conteo.operativas)
+        self.assertEqual(respuesta.context["n_plazas"], ocupacion.conteo.totales)
 
     def test_todas_las_cifras_de_plazas_salen_del_censo_y_de_ningun_otro_lado(self):
         """Con un censo inventado, la pantalla dibuja el censo inventado.
@@ -148,9 +148,14 @@ class UnSoloOrigenTests(BaseDetalle):
         valores = {fila["etiqueta"]: fila["valor"] for fila in respuesta.context["indicadores"]}
         self.assertEqual(
             valores,
-            {"Plazas operativas": 94, "Ocupadas": 41, "Reservadas o prestadas": 7, "Disponibles": 46},
+            {
+                "Ocupación": "44 %",
+                "Plazas operativas": 94,
+                "Reservadas o prestadas": 7,
+                "Disponibles": 46,
+            },
         )
-        self.assertEqual(respuesta.context["n_plazas"], 94)
+        self.assertEqual(respuesta.context["n_plazas"], 97)
         [fila] = respuesta.context["sectores"]
         self.assertEqual(
             (fila["nombre"], fila["totales"], fila["ocupadas"], fila["reservadas"], fila["disponibles"]),
@@ -165,7 +170,7 @@ class UnSoloOrigenTests(BaseDetalle):
         respuesta = self.client.get(self.url)
 
         valores = {fila["etiqueta"]: fila["valor"] for fila in respuesta.context["indicadores"]}
-        self.assertEqual(valores["Ocupadas"], 0)
+        self.assertEqual(valores["Ocupación"], "0 %")
         self.assertEqual(valores["Disponibles"], 1)
 
 

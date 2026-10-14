@@ -425,6 +425,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 292 | Notificaciones: las imágenes del .zip viajan incrustadas en cada correo y se retira la ruta pública | Transversal — notificaciones (armado del correo, vista previa, alta y edición) | `#correo` `#datos` `#ui` | PM — plan B del 14/10/2026: el WAF de ECOM bloquea la ruta pública del Cambio 285 | 14/10/2026 | 🟢 **Hecho** | `notificaciones.0004` |
 | 296 | Test del censo independiente de la hora del runner | Dispositivos · tests de bitácora y censo | `#datos` `#infra` | Juez — encargo urgente en sesión | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 297 | Fidelidad de bitácora, trayectoria e instituciones | Dispositivos · P10, P16 y P2 | `#ui` `#rbac` `#performance` | Juez — carril FC de fidelidad del MVP | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 298 | Fidelidad del detalle del dispositivo y su Infraestructura | Dispositivos · P2/P4/P19 | `#ui` `#rbac` `#gps` `#performance` | Juez — carril FB | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -38547,6 +38548,181 @@ sin enlaces por fila, y se restaura el contrato anterior de la pieza compartida.
 ## Historial
 
 Entrada nueva y única del carril FC; los registros anteriores se conservan.
+
+---
+
+---
+
+# Cambio 298 — Fidelidad del detalle del dispositivo y su Infraestructura
+
+🟢 **HECHO — 14/10/2026** · Carril FB · número definitivo a cargo del juez.
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · listado P2 · detalle P4 · Infraestructura P19 |
+| **Etiquetas** | `#ui` `#rbac` `#gps` `#performance` |
+| **Solicitante** | Juez — encargo directo del carril FB, revisión de fidelidad del MVP |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Sin issue nuevo · Épica #127 |
+| **Partes afectadas** | Backoffice: P2/P4/P19 · Servidor: ocupación, detalle y selector de instituciones del predio |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Corregir cinco diferencias con `docs/client/mockups/dispositivos-v2.html`, P4 y P19:
+ocupación porcentual con umbrales configurados; menú por estadía con cambio de plaza;
+ubicación canónica del edificio; identidad de las instituciones del predio compartido;
+contador de plazas, datos de contacto, tamaños de métricas y fechas de la galería.
+Aplicar también el semáforo en la columna de plazas de P2.
+
+## Alcance acordado
+
+Se ajustan las superficies existentes, conservando servicios de ocupación, formularios,
+capacidades, alcance, contrato AJAX, CSP y trazas. No se cambia ningún rol ni seed.
+Sin pantallas nuevas, migraciones, mapa embebido, plano ni funcionalidades de la v2 completa.
+
+## Decisiones tomadas
+
+- **Un solo Conteo.** P4 sigue llamando una sola vez a `ocupacion_de_plazas`. El porcentaje
+  es ocupadas / operativas, excluyendo fuera de servicio del denominador y reservas del
+  numerador. `tension_de_ocupacion(..., tipo=...)` usa amarillo/rojo del tipo, inclusive en
+  cada umbral, con texto Normal / Exigida / Crítica y tonos success / warning / danger.
+  P2 pasa el mismo tipo. Sin operativas o con ocupadas desconocidas no se inventa 0 %.
+  Para ámbitos sin tipo se conserva el corte general 60/80 del contrato anterior.
+- **Cuatro tarjetas.** Ocupación reemplaza la tarjeta redundante Ocupadas; su pie conserva
+  «X de Y operativas». Permanecen Plazas operativas, Reservadas o prestadas y Disponibles.
+  Ambas franjas de P4/P19 usan la variante chica existente, con acentos semánticos como
+  el mockup; tablero ignora tono. No se inventa una variante ni una grilla de cinco columnas.
+- **Menú por estadía.** Ver estadía exige ciudadano.ver; Cambiar plaza exige admitir con
+  alcance; Registrar egreso exige egresar con alcance. Sin capacidad no se ofrece una
+  acción. Cambiar requiere estadía activa con plaza; si no hay disponibles se explica
+  «No hay plazas libres en el dispositivo». En una egresada solo queda Ver.
+- **Modales por GET, como P21.** `?tab=estadias&cambio=id` y `&egreso=id` abren un único
+  formulario fresco. Reusan CambioPlazaForm / EgresoForm y el POST JSON existente.
+  Cambio usa las plazas libres del asistente de ingreso y las mismas partes de modal de
+  P7. `volver=dispositivo` es una clave, no una URL libre: el cambio iniciado en P4 vuelve
+  a P4, incluso si el operador no tiene ciudadano.ver. P7 conserva su retorno anterior.
+  Un id ajeno, inexistente o no ASCII devuelve el mismo 404; la capacidad se exige antes.
+- **Ubicación real.** Datos usa coordenadas del legajo e Infraestructura las del edificio,
+  con `_ubicacion.html`. Se cargan junto al domicilio; cero es una coordenada válida y
+  una pareja incompleta no enlaza. No se pasa plano ni se carga una librería de mapas.
+- **Predio con alcance mínimo.** La tabla muestra institución, tipo y estado de legajo,
+  con enlace a cada institución visible y «acá estás» en la actual. La lectura usa
+  `dispositivos_visibles(usuario)` por subconsulta: no se publican nombres, tipos, sectores
+  ni enlaces ajenos. No se cambia el contador agregado de instituciones que ya existía.
+  Capacidad y asignación deben provenir del mismo rol activo. Sin usuario, el selector
+  no devuelve identidades.
+- **Plazas y contacto.** El badge de Sectores y plazas usa totales del mismo Conteo que
+  la columna Plazas, incluidas las fuera de servicio. Datos agrega email, días y horarios
+  y coordenadas existentes. Cada foto usa la fecha del relevamiento realizado; en curso
+  no lleva fecha individual, para no confundirla con la fecha de subida.
+
+### Plan de pantalla
+
+```text
+Tipo: A, ajuste de superficies existentes.
+Arquetipos: Listado (P2), Detalle con solapas (P4/P19), Modal (cambio y egreso).
+Goldens de contrato: becas/revision/personas_list.html,
+                    becas/cupo/segmento_detail.html y becas/config/programa_list.html.
+Ruta: dispositivos:lista -> dispositivos/legajo/list.html;
+      dispositivos:detalle -> dispositivos/legajo/detail.html.
+Piezas: stat_card chica con tono, menu_fila + menu_fila_item, tabla nodo-th/nodo-td,
+        ubicacion, estado_badge del módulo, modal_header/modal_footer, galería/timeline.
+Clasificación: canónicas reutilizables; no se agregan piezas legacy ni duplicadas.
+Bloques: cuatro métricas, acciones por estadía, datos de contacto/ubicación,
+         ubicación y tabla del predio debajo de la identidad de cada edificio.
+Lecturas: selector del predio en lote; formularios y lectura de estadía solo con modal abierto.
+Assets: shell vigente, nodo-menu-fila.js, becas-modal.js y AJAX existentes; sin CSS/JS propio.
+Novedades: ninguna. Fichas de detalle, stat_card, tabla, ubicación y galería actualizadas.
+```
+
+### Apartamientos del mockup
+
+- **Sector que ocupa** se omite: Sector pertenece al dispositivo y no tiene relación con
+  Edificio; adjudicar sus sectores a cada inmueble sería inventar un dato, sobre todo
+  cuando la institución ocupa varios edificios. Tampoco se dibuja una columna vacía.
+- Instituciones fuera del alcance se omiten por completo. El mockup muestra el predio
+  completo para el administrador; ese usuario sí ve todas las instituciones autorizadas.
+- Se usa el bloque de coordenadas/enlace externo aprobado en C-14; no mapa embebido,
+  precisión, superficie, ajuste de punto ni plano sin dato/servicio del MVP.
+- P4 conserva cuatro métricas disponibles. No se agregan Bitácora «Al día» ni Fichas
+  completas: no hay un servicio que entregue esos estados para esta franja. La variante
+  chica conserva el tono semántico; no se extiende tablero con parámetros nuevos.
+- P19 mantiene sus tres indicadores reales: Estado edilicio, Relevamientos realizados y
+  Fotos. Tenencia, habitaciones, servicios, vigencia, exportación, comparación de fechas
+  y las acciones sin implementación permanecen fuera de alcance.
+
+## Implementación
+
+P2 y P4 expresan la ocupación con los umbrales anunciados por la configuración del tipo.
+Las filas de estadía ofrecen sus acciones en el menú canónico y mantienen el contexto de
+P4 al guardar. Cada inmueble muestra su ubicación y las instituciones que el lector está
+autorizado a consultar. Los contadores y las fechas coinciden con el dato que describen.
+
+## Archivos
+
+- `programas/services/ocupacion.py`, `services/detalle_dispositivo.py`.
+- `programas/selectors/capacidad_dispositivo.py`, `views/dispositivos_legajo.py`.
+- `programas/templates/programas/dispositivos/legajo/detail.html`.
+- `programas/tests/test_dispositivos_fidelidad_fb.py` y regresiones de detalle,
+  estadía, egreso e infraestructura.
+- `scripts/perf_budgets.json` y las cinco fichas de diseño indicadas en el plan.
+
+## Base de datos
+
+No requiere migración. Solo usa campos y vínculos existentes; las escrituras siguen pasando
+por los servicios de estadías y conservan sus bloqueos, validaciones y auditoría.
+
+## Validación
+
+- Django 5.2 / Python 3.12: **325 tests** de arquitectura, detalle, infraestructura,
+  listado, detalle de estadía, egreso, fidelidad FB, ocupación, movimientos y estadías
+  en verde después del rebase. Pase adicional de **70 tests** de fidelidad FB, informe
+  de relevamiento y auditoría en verde. **24 tests** de `--tag performance programas`
+  en verde sobre la base final.
+- Presupuesto nuevo `dispositivos_predio_instituciones`: **1 consulta**, medido con 2 y
+  22 instituciones y autorización caliente. Los presupuestos existentes no suben.
+- `check` OK; `makemigrations --check --dry-run` con syncdb False sin cambios;
+  `check_migraciones` sin migraciones nuevas; compilación de 232 templates sin errores
+  ni bloques sin destino;
+  arquetipos Detalle y Listado OK; ratchet contra origin/development sin hallazgos nuevos;
+  goldens en cero; contrato del agente y Ruff completo en verde. Tailwind reconstruido
+  sin diff final. `requerimientos --check` OK; el marcador 294 queda para el juez.
+- Revisión local en Chrome headless de HTML renderizado con fixtures: P4, P19, Datos,
+  cambio y egreso a 1440 px; P19 a 390 px sin desborde horizontal del documento.
+  Menú abre con foco en Ver estadía y Escape cierra; cada parámetro abre la solapa y
+  el modal esperado. Se inspeccionaron las capturas, sin modificar el shell.
+- **17 mutaciones**, cada una romper → rojo → restaurar desde copia, seguidas por la
+  regresión verde: ignorar umbrales del tipo; dividir por totales; quitar alcance del
+  predio; omitir capacidad de cambiar en la fila; omitir autorización del modal;
+  aceptar estadía ajena; aceptar id no ASCII; quitar motivo sin plazas; abrir estadía
+  cerrada; usar fecha de subida; badge de operativas en lugar de totales; permitir cambio
+  sin plaza; abrir formulario sin destinos libres; omitir capacidad de egreso; omitir
+  ciudadano.ver; enviar el retorno a P7; consultar identidades sin usuario.
+
+## Puesta en marcha en el servidor
+
+No requiere pasos adicionales al deploy habitual ni cambios de capacidades o roles.
+
+## Pendientes / a definir
+
+El juez asigna el número definitivo a 294. Los apartamientos por falta de modelo/servicio
+permanecen fuera de este carril. Sin decisiones funcionales abiertas.
+
+## Reversión
+
+Revertir los commits FB de código y registro, sin bajar migraciones. Se pierde el ajuste
+visual y los accesos directos desde P4; se conservan los cambios de plaza, egresos y trazas
+que se hayan registrado mediante los servicios existentes.
+
+## Historial
+
+Entrada nueva y única del carril FB, apilado sobre C5 (#858); no modifica entradas anteriores.
+Después del merge de #858 se rebasó sobre `origin/development`. Se conservan las guardas
+de C2 que ocultan al agente de un relevamiento en curso. P19 reusa `fotos_para_galeria`
+y ajusta la fecha de su evento sin alterar la fecha de carga que muestra el informe.
+La mutación de fecha de subida se repitió sobre esa integración y quedó roja; restaurada,
+el pase adicional de 70 tests volvió a verde.
 
 ---
 

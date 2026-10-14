@@ -6,7 +6,7 @@ Lo que se fija acá, y por qué:
    (``dispositivo.ver`` con alcance). Cada usuario que se rechaza tiene todo lo demás.
 2. **El registro fotográfico es histórico**: cada relevamiento y cada carga de fotos es una
    entrada nueva; ninguna pisa a la anterior.
-3. **Lo que no es del MVP no se dibuja**: tenencia, servicios, ubicación, habitaciones, plano y
+3. **Lo que no es del MVP no se dibuja**: tenencia, servicios, habitaciones, plano y
    vigencia no aparecen en el panel, ni siquiera vacíos.
 4. **Las fotos se sirven detrás de login a quien ve el dispositivo** (200) y no a otra
    institución (403).
@@ -49,10 +49,6 @@ Criticidad = InspeccionEdificio.Criticidad
 FUERA_DEL_MVP = (
     "Tenencia",
     "Servicios",
-    "Ubicación",
-    "geolocaliz",
-    "Coordenadas",
-    "Ver en el mapa",
     "Habitaciones",
     "Plano",
     "Vigencia",

@@ -2,8 +2,9 @@
 
 **Clasificación:** Canónico reutilizable. Pieza única, sin variantes.
 **Evidencia:** `templates/components/_ubicacion.html`, `core/tests/test_nodo_ui_piezas.py` (`UbicacionTest`).
-**Consumidores de referencia:** ninguno todavía; lo usará la solapa Infraestructura del detalle de
-Dispositivos.
+**Consumidor de referencia:** `programas/templates/programas/dispositivos/legajo/detail.html`:
+Datos recibe coordenadas del legajo; Infraestructura recibe las de cada edificio. En el MVP no
+se pasa plano. La lectura de coordenadas comparte el queryset del inmueble, sin N+1.
 
 ## Por qué no hay mapa
 
