@@ -300,6 +300,23 @@ class CicloDeVidaTests(ConMediaTemporal):
         self.assertIn("mailing/img/logo.svg (SVG no se admite)", detalle)
         self.assertIn("Se alojaron 2 imágenes del .zip", detalle)
 
+    def test_la_confirmacion_de_eliminar_avisa_que_las_imagenes_dejan_de_verse(self):
+        aviso = "Las imágenes alojadas dejan de verse en los correos ya enviados"
+        detalle = self.client.get(reverse("notificaciones:campana_detalle", args=[self.campana.pk])).content.decode()
+        self.assertIn(aviso, detalle)
+        sin_imagenes = servicio.crear_campana(
+            nombre="Sin imágenes",
+            asunto="x",
+            archivo_excel=xlsx(["email", "a@x.com"]),
+            archivo_html=html(),
+            lectura=parsear_destinatarios(xlsx(["email", "a@x.com"])),
+            datos_html=servicio_html.procesar(html()),
+            usuario=self.usuario,
+        )
+        otro = self.client.get(reverse("notificaciones:campana_detalle", args=[sin_imagenes.pk])).content.decode()
+        self.assertIn("Se borran la campaña «Sin imágenes»", otro)
+        self.assertNotIn(aviso, otro)
+
     def test_el_formulario_acepta_zip(self):
         contenido = self.client.get(reverse("notificaciones:campana_crear")).content.decode()
         self.assertIn('accept=".html,.htm,.zip"', contenido)

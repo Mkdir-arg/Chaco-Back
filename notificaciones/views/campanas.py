@@ -288,6 +288,17 @@ def campana_detalle(request, pk):
             + " El envío corre en segundo plano. Esta acción no se puede deshacer."
         ),
         **_textos_imagenes(campana),
+        "texto_confirmar_eliminar": (
+            f"Se borran la campaña «{campana.nombre}», su lista de destinatarios y sus archivos."
+            # Solo se elimina «A enviar» (RN-007-10): lo que ya salió con estas imágenes son las
+            # pruebas, y la URL pública deja de responder apenas se borra (Cambio 285).
+            + (
+                " Las imágenes alojadas dejan de verse en los correos ya enviados, incluidas las pruebas."
+                if campana.imagenes_alojadas
+                else ""
+            )
+            + " No se puede deshacer."
+        ),
         "texto_confirmar_reanudar": (
             f"Se envía solo a los {_numero(pendientes)} pendientes: nadie recibe el correo dos veces."
         ),

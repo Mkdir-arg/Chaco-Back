@@ -19,7 +19,7 @@
     <button type="button" class="btn-nodo btn-secondary btn-sm"
             data-confirm-url="{% url 'notificaciones:campana_eliminar' campana.pk %}"
             data-confirm-title="¿Eliminar la campaña?"
-            data-confirm-text="Se borran la campaña «{{ campana.nombre }}», su lista de destinatarios y sus archivos. No se puede deshacer."
+            data-confirm-text="{{ texto_confirmar_eliminar }}"
             data-confirm-ok="Sí, eliminar"
             data-confirm-danger="true">
       <i class="fas fa-trash" aria-hidden="true"></i> Eliminar
