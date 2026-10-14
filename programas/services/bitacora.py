@@ -39,7 +39,7 @@ from django.utils import timezone
 
 from core.archivos import anotar_archivo_escrito, archivos_atomicos
 from core.validators import validar_adjunto
-from programas.models import AdjuntoBitacora, Dispositivo, EntradaBitacora, Estadia, Turno
+from programas.models import AdjuntoBitacora, Dispositivo, EntradaBitacora, Estadia, TrazaDispositivo, Turno
 from programas.services.dispositivos import puede_operar_dispositivo
 
 #: Cargar y corregir novedades del turno.
@@ -182,6 +182,16 @@ def _bloquear_dispositivo(dispositivo):
     return Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
 
 
+def _horario(turno):
+    return f"{turno.nombre} · {turno.hora_desde:%H:%M}–{turno.hora_hasta:%H:%M}"
+
+
+def _trazar_turno(dispositivo, usuario, accion, detalle):
+    """La configuración de turnos deja rastro en el historial del dispositivo (#699)."""
+
+    TrazaDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, accion=accion, detalle=detalle)
+
+
 @transaction.atomic
 def crear_turno(*, dispositivo, usuario, nombre, hora_desde, hora_hasta, orden=0):
     """Da de alta un turno del dispositivo. Falla si se superpone con otro activo."""
@@ -196,13 +206,15 @@ def crear_turno(*, dispositivo, usuario, nombre, hora_desde, hora_hasta, orden=0
     if Turno.objects.filter(dispositivo=dispositivo, nombre=nombre).exists():
         raise ValidationError({"nombre": "Ya hay un turno con ese nombre en este dispositivo."})
     _exigir_sin_superposicion(dispositivo, nombre=nombre, hora_desde=hora_desde, hora_hasta=hora_hasta)
-    return Turno.objects.create(
+    turno = Turno.objects.create(
         dispositivo=dispositivo,
         nombre=nombre,
         hora_desde=hora_desde,
         hora_hasta=hora_hasta,
         orden=orden,
     )
+    _trazar_turno(dispositivo, usuario, "TURNO_CREADO", _horario(turno))
+    return turno
 
 
 @transaction.atomic
@@ -219,6 +231,8 @@ def editar_turno(*, turno, usuario, nombre=None, hora_desde=None, hora_hasta=Non
 
     dispositivo = _bloquear_dispositivo(turno.dispositivo)
     turno = Turno.objects.get(pk=turno.pk)
+    antes = _horario(turno)
+    estaba_activo = turno.activo
     if nombre is not None:
         nombre = nombre.strip()
         if not nombre:
@@ -239,6 +253,13 @@ def editar_turno(*, turno, usuario, nombre=None, hora_desde=None, hora_hasta=Non
             dispositivo, nombre=turno.nombre, hora_desde=turno.hora_desde, hora_hasta=turno.hora_hasta, excepto=turno
         )
     turno.save()
+    despues = _horario(turno)
+    detalle = despues if despues == antes else f"{antes} → {despues}"
+    if estaba_activo and not turno.activo:
+        detalle += " · dado de baja"
+    elif turno.activo and not estaba_activo:
+        detalle += " · reactivado"
+    _trazar_turno(dispositivo, usuario, "TURNO_EDITADO", detalle)
     return turno
 
 
