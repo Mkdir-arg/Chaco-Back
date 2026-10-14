@@ -25,7 +25,7 @@
     <h2 class="text-heading font-bold">Resumen del ingreso</h2>
     <dl class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-5">
       <div><dt class="text-xs font-semibold uppercase text-body-subtle">Persona</dt><dd class="mt-1 text-sm text-body">{{ resumen.persona.nombre }}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-body-subtle">DNI</dt><dd class="mt-1 text-sm text-body font-mono">{{ resumen.persona.dni }}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">DNI</dt><dd class="mt-1 text-sm text-body font-mono">{{ resumen.persona.dni|dni }}</dd></div>
       {% if resumen.persona.nacimiento %}
       <div><dt class="text-xs font-semibold uppercase text-body-subtle">Nacimiento</dt><dd class="mt-1 text-sm text-body">{{ resumen.persona.nacimiento }}</dd></div>
       {% endif %}

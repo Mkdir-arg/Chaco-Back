@@ -93,7 +93,7 @@ class AutorizacionTests(BaseDetalle):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertContains(respuesta, self.persona.nombre_completo)
-        self.assertContains(respuesta, "DNI 30111222")
+        self.assertContains(respuesta, "DNI 30.111.222")
 
     def test_sin_dispositivo_ver_no_entra_aunque_tenga_todo_lo_demas(self):
         usuario = self._operador("Sin ver", self.cis, _menos("dispositivo.ver"))

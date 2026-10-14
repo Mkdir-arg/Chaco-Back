@@ -52,7 +52,7 @@
       <div class="p-5">
         <dl class="grid grid-cols-1 gap-5">
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Nombre</dt><dd class="mt-1 text-sm text-body">{{ persona.nombre }}</dd></div>
-          <div><dt class="text-xs font-semibold uppercase text-body-subtle">DNI</dt><dd class="mt-1 text-sm text-body font-mono">{{ persona.dni }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">DNI</dt><dd class="mt-1 text-sm text-body font-mono">{{ persona.dni|dni }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Nacimiento</dt><dd class="mt-1 text-sm text-body">{{ persona.nacimiento|default:"Sin dato" }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Género</dt><dd class="mt-1 text-sm text-body">{{ persona.genero|default:"Sin dato" }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Obra social</dt><dd class="mt-1 text-sm text-body">{{ persona.obra_social|default:"Sin dato" }}</dd></div>

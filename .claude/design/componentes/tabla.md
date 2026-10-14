@@ -41,12 +41,24 @@ reusado por la solapa del legajo), `programas/templates/programas/becas/reportes
   `text-body`, `text-heading font-medium`). Peso, mayúsculas, tracking y bordes quedan en la clase.
 - Wrapper `overflow-x-auto`; tabla `w-full border-collapse`; filas `hover:bg-secondary`
   (opcionalmente `transition`); links de entidad `text-fg-brand hover:underline`.
+- `.nodo-th` establece `position: relative`: contiene el rótulo absoluto `sr-only`
+  de Acciones dentro del scroll de la tabla, sin ampliar el ancho de la página.
+  La verificación de navegador está en `core/tests/test_nodo_ui_piezas.py`
+  (`TablaResponsiveTest`, activada con `CHACO_PLAYWRIGHT=1`).
 - La columna de acciones **no lleva el `<th>` vacío**:
   `<th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>`, porque una columna
   sin nombre no se anuncia.
 - Iniciales de una persona en la fila:
   `w-8 h-8 rounded-full bg-brand-soft text-fg-brand flex items-center justify-center text-xs font-bold flex-shrink-0`
   con `aria-hidden="true"`. Nunca `var(--gradient-brand)`: un solo acento por bloque.
+
+## DNI visible
+
+`{% load nodo_ui %}` ofrece `{{ persona.dni|dni }}` para texto visible (por ejemplo,
+`12.345.678`). Conserva ceros iniciales; los valores vacíos o no numéricos se devuelven
+intactos y siguen escapándose. No se aplica a controles de formularios, atributos de
+datos, URLs ni búsquedas. Evidencia: `core/templatetags/nodo_ui.py` y
+`core/tests/test_dni_presentacion.py`; consumidores: P4, P6, P7 y la solapa P16.
 
 ## Acción de fila (`.nodo-icon-btn`)
 

@@ -102,7 +102,8 @@ orden son solapas de un Detalle, no un wizard.
   El mapa queda a la izquierda (`lg:col-span-2`) y Persona a la derecha, en la grilla
   `grid grid-cols-1 lg:grid-cols-3 gap-5`: distribución de la golden de Revisión con
   la separación de 5 pedida en el encargo (la golden usa 4). Los datos usan los
-  rótulos `text-xs font-semibold uppercase text-body-subtle` de P7, también en el resumen final.
+  rótulos `text-xs font-semibold uppercase text-body-subtle` de P7, también en el resumen final;
+  el DNI visible va con `|dni` (`nodo_ui`), como en P7.
 - Avisos de situación dentro de un paso (bloqueos, advertencias): `components/_alerta.html`.
 - Pie que no cabe en móvil: `flex flex-wrap justify-between gap-3`; si agrupa acciones,
   el grupo también usa `flex flex-wrap gap-3`. Conserva los tamaños canónicos de botón
