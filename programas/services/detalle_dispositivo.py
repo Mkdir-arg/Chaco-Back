@@ -26,6 +26,7 @@ from collections import defaultdict
 
 from django.core.paginator import Paginator
 from django.db.models import Count, F, Q
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
 
@@ -37,6 +38,9 @@ from programas.services.estadias import estado_visible
 from programas.services.inspecciones import (
     SEMAFOROS,
     SIN_EDIFICIO,
+    edificios_con_asignacion_visible,
+    edificios_de_dispositivo_con_asignacion_visible,
+    fotos_para_galeria,
     inspecciones_de_dispositivo,
     semaforo_de_inspeccion,
     semaforo_de_ultimas,
@@ -46,8 +50,6 @@ from programas.services.inspecciones import (
 POR_PAGINA_ESTADIAS = 25
 POR_PAGINA_HISTORIAL = 20
 POR_PAGINA_RELEVAMIENTOS = 10
-#: El tope que dibuja `components/_galeria_fotos.html`: la tanda se recorta acá, no en la pieza.
-FOTOS_POR_TANDA = 24
 
 #: Las solapas de P4, en el orden en que se dibujan. «Sectores y plazas» solo existe si el
 #: tipo del dispositivo maneja plazas: en los demás, `?tab=sectores` no lleva a ninguna parte.
@@ -278,14 +280,22 @@ def alertas_del_dispositivo(dispositivo, momento=None, usuario=None):
     return alertas
 
 
-def eventos_de_historial(dispositivo, pagina=1):
+def eventos_de_historial(dispositivo, pagina=1, usuario=None):
     """La página de la auditoría del dispositivo como eventos de la línea de tiempo (más nuevo primero).
 
     Junta las cuatro trazas —legajo, estadías, correcciones de bitácora y relevamientos
     edilicios— en una sola lista (``programas.selectors.auditoria_dispositivo``).
+
+    ``usuario`` decide una sola cosa: si las líneas de un relevamiento **sin realizar** nombran al
+    agente. El detalle de esas trazas se escribió legible con el nombre adentro, así que la
+    regla de `inspecciones.ve_la_asignacion` hay que volver a aplicarla acá; el alcance se
+    resuelve en **una** consulta para toda la página.
     """
 
-    pagina_de_eventos = Paginator(auditoria_del_dispositivo(dispositivo), POR_PAGINA_HISTORIAL).get_page(pagina)
+    con_asignacion = edificios_de_dispositivo_con_asignacion_visible(usuario, dispositivo)
+    usuario_id = usuario.pk if getattr(usuario, "is_authenticated", False) else None
+    feed = auditoria_del_dispositivo(dispositivo, con_asignacion, usuario_id=usuario_id)
+    pagina_de_eventos = Paginator(feed, POR_PAGINA_HISTORIAL).get_page(pagina)
     eventos = [
         {
             "cuando": f"{_fecha_legible(evento['fecha'])} · {evento['quien']}",
@@ -322,20 +332,32 @@ def _cantidad_de_fotos(cantidad):
     return f"{cantidad} foto{'s' if cantidad != 1 else ''}"
 
 
-def _evento_de_relevamiento(inspeccion, fotos, con_edificio):
+def _evento_de_relevamiento(inspeccion, fotos, con_edificio, *, ve_asignacion=False, enlace=""):
     """Una entrada de la línea de tiempo por relevamiento, con su tanda de fotos adentro.
 
     Lo que pasó va en el texto, no en el color. ``fotos`` y ``total_fotos`` son el opcional de
-    `components/_linea_tiempo.html` que dibuja la galería dentro del evento.
+    `components/_linea_tiempo.html` que dibuja la galería dentro del evento, y ``enlace`` el
+    que la convierte en el «Ver» del historial de relevamientos de P19.
+
+    ``ve_asignacion`` lo decide `programas.services.inspecciones.ve_la_asignacion`: **la
+    institución relevada no ve el nombre del agente** de un relevamiento en curso, solo que
+    está en curso.
     """
 
     edificio = f" · {inspeccion.edificio.nombre}" if con_edificio else ""
     rotulos = ", ".join(list(dict.fromkeys(foto.descripcion for foto in fotos if foto.descripcion))[:8])
-    galeria = {"pk": inspeccion.pk, "fotos": _fotos_de_la_tanda(inspeccion, fotos), "total_fotos": inspeccion.n_fotos}
+    galeria = {
+        "pk": inspeccion.pk,
+        "fotos": fotos_para_galeria(inspeccion, fotos),
+        "total_fotos": inspeccion.n_fotos,
+        "enlace": enlace,
+        "enlace_texto": "Ver informe",
+    }
     if inspeccion.estado != _REALIZADA:
         detalle = _cantidad_de_fotos(inspeccion.n_fotos).lower()
+        agente = f" · asignado a {_nombre(inspeccion.asignado_a)}" if ve_asignacion else ""
         return {
-            "cuando": f"en curso{edificio} · asignado a {_nombre(inspeccion.asignado_a)}",
+            "cuando": f"en curso{edificio}{agente}",
             "titulo": "Relevamiento en curso",
             "detalle": f"{detalle} · {rotulos}" if rotulos else detalle,
             **galeria,
@@ -352,31 +374,6 @@ def _evento_de_relevamiento(inspeccion, fotos, con_edificio):
     if semaforo.tono in _TONOS_CON_COLOR:
         evento["tono"] = semaforo.tono
     return evento
-
-
-#: Formatos que se aceptan al cargar (Cambio 275) y que un navegador no dibuja en un `<img>`.
-_SIN_VISTA_PREVIA = (".heic", ".heif")
-
-
-def _fotos_de_la_tanda(inspeccion, fotos):
-    """Los dicts que pide `_galeria_fotos.html`. La URL es la de `/media/`, que está detrás de login.
-
-    Una HEIC o HEIF va sin URL: la pieza dibuja la celda gris con cámara en vez de una imagen rota.
-    """
-
-    fecha = _fecha(inspeccion.realizada_en or inspeccion.creado)
-    galeria = []
-    for numero, foto in enumerate(fotos[:FOTOS_POR_TANDA], start=1):
-        rotulo = foto.descripcion or f"Foto {numero}"
-        galeria.append(
-            {
-                "url": "" if foto.archivo.name.lower().endswith(_SIN_VISTA_PREVIA) else foto.archivo.url,
-                "alt": f"{rotulo} · {inspeccion.edificio.nombre} · relevamiento del {fecha}",
-                "rotulo": rotulo,
-                "fecha": foto.creado,
-            }
-        )
-    return galeria
 
 
 def _indicadores_edilicios(semaforo, edificios, realizados, fotos):
@@ -414,7 +411,7 @@ def _indicadores_edilicios(semaforo, edificios, realizados, fotos):
     ]
 
 
-def infraestructura_del_dispositivo(dispositivo, pagina=1):
+def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
     """Lo que dibuja la solapa Infraestructura: criticidad, observaciones y registro fotográfico.
 
     El relevamiento **cuelga del edificio**: un predio compartido muestra los mismos en todas las
@@ -423,10 +420,15 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1):
 
     No trae tenencia, servicios, ubicación, habitaciones, plano ni vigencia: no son del MVP.
 
+    ``usuario`` decide **de quién** se muestra el relevamiento en curso: sin él —o con quien solo
+    opera la institución— el evento dice «en curso» y nada más
+    (`programas.services.inspecciones.ve_la_asignacion`).
+
     Costo fijo, sin importar cuántos relevamientos ni cuántas fotos: los edificios con su última
     realizada y la cantidad de instituciones (1), esas últimas con quien relevó (1), los totales
     de la franja (1), el ``COUNT`` y la página del registro fotográfico (2) y las fotos de la
-    página (1). Sin edificio, una sola.
+    página (1). Sin edificio, una sola. Una más —no una por fila— solo cuando la página trae algún
+    relevamiento en curso y el usuario podría coordinar el edificio.
     """
 
     edificios = list(
@@ -488,8 +490,20 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1):
             fotos_por_inspeccion[foto.inspeccion_id].append(foto)
 
     con_edificio = len(filas) > 1
+    # El alcance se resuelve para toda la página y solo si hay algo en curso que lo necesite:
+    # preguntarlo por fila sería un N+1 proporcional a la página.
+    en_curso = [inspeccion for inspeccion in relevamientos if inspeccion.estado != _REALIZADA]
+    propios = {inspeccion.pk for inspeccion in en_curso if inspeccion.asignado_a_id == getattr(usuario, "pk", None)}
+    coordinados = edificios_con_asignacion_visible(usuario, [i.edificio_id for i in en_curso]) if en_curso else set()
     eventos = [
-        _evento_de_relevamiento(inspeccion, fotos_por_inspeccion.get(inspeccion.pk, []), con_edificio)
+        _evento_de_relevamiento(
+            inspeccion,
+            fotos_por_inspeccion.get(inspeccion.pk, []),
+            con_edificio,
+            ve_asignacion=inspeccion.pk in propios or inspeccion.edificio_id in coordinados,
+            enlace=reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk])
+            + f"?dispositivo={dispositivo.pk}",
+        )
         for inspeccion in relevamientos
     ]
 

@@ -15,6 +15,11 @@ Contexto:
                           Se dibuja debajo del texto, dentro del evento. Sin `fotos` el HTML del
                           evento es idéntico al de antes de ampliar la pieza.
              total_fotos  opcional: cantidad real si la vista recortó la tanda (va como `total`).
+             enlace       opcional: URL interna de la pantalla que amplía el evento. La arma la
+                          vista con `reverse`; acá no se concatena nada. Se dibuja como un link
+                          al final de la línea del texto.
+             enlace_texto opcional: rótulo del link (por defecto «Ver»). El nombre accesible le
+                          suma el título del evento, para que no haya diez «Ver» iguales.
   vacio_titulo, vacio_texto  opcionales: textos del estado vacío cuando no hay eventos.
 El tono es un refuerzo visual del punto: lo que dice el evento va siempre en `titulo`.
 Es la única forma de meter contenido en un evento: `detalle` sigue siendo una línea escapada.
@@ -25,7 +30,7 @@ Es la única forma de meter contenido en un evento: `detalle` sigue siendo una l
   <li class="relative pl-5 text-sm">
     <span class="absolute -left-1.5 top-1 w-2.5 h-2.5 rounded-full bg-white border-2 {% if ev.tono == 'warning' %}border-warning{% elif ev.tono == 'danger' %}border-danger{% elif ev.tono == 'success' %}border-success{% else %}border-brand{% endif %}" aria-hidden="true"></span>
     <p class="text-xs text-body-subtle">{{ ev.cuando }}</p>
-    <p class="text-body"><strong class="text-heading">{{ ev.titulo }}</strong>{% if ev.detalle %} · {{ ev.detalle }}{% endif %}{% if ev.badge %} · <span class="badge badge-{{ ev.badge_tono|default:'warning' }}">{{ ev.badge }}</span>{% endif %}</p>{% if ev.fotos %}
+    <p class="text-body"><strong class="text-heading">{{ ev.titulo }}</strong>{% if ev.detalle %} · {{ ev.detalle }}{% endif %}{% if ev.badge %} · <span class="badge badge-{{ ev.badge_tono|default:'warning' }}">{{ ev.badge }}</span>{% endif %}{% if ev.enlace %} · <a href="{{ ev.enlace }}" class="text-fg-brand hover:underline font-medium">{{ ev.enlace_texto|default:"Ver" }}<span class="sr-only"> · {{ ev.cuando }}</span></a>{% endif %}</p>{% if ev.fotos %}
     <div class="mt-3">{% include "components/_galeria_fotos.html" with fotos=ev.fotos total=ev.total_fotos %}</div>{% endif %}
   </li>
   {% endfor %}

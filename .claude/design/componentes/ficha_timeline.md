@@ -30,6 +30,13 @@ hay más). El componente no pagina. Cuando el feed es largo de verdad —la sola
 auditoría de cuatro fuentes— la página la arma la vista y el control va **debajo**, con
 `components/_paginacion.html`: la pieza sigue recibiendo solo los eventos de esa página.
 
+**Enlace del evento (opcional).** Un evento puede traer `enlace` (URL interna, armada con `reverse`
+en la vista o el servicio) y `enlace_texto` (por defecto «Ver»): se dibuja como un link al final de
+la misma línea del texto, y su nombre accesible le suma el `cuando` del evento para que diez «Ver»
+no se llamen igual. Es lo que convierte la línea de tiempo en el «historial» con acción por fila que
+pide P19 (`programas/templates/programas/dispositivos/legajo/detail.html`, solapa Infraestructura →
+«Ver informe»). Sin `enlace` el HTML del evento es el de siempre, carácter por carácter.
+
 **Fotos dentro del evento (opcional).** Un evento puede traer `fotos` (lista de dicts con el
 contrato de `components/_galeria_fotos.html`: `url`, `alt`, `rotulo`, `fecha`) y `total_fotos`
 (la cantidad real si la vista recortó la tanda). La pieza dibuja la galería **dentro del `<li>`**,
@@ -41,7 +48,7 @@ siempre, carácter por carácter. Consumidor: la solapa Infraestructura de
 ## Límites actuales
 
 - **No lleva otro contenido rico.** `detalle` sigue siendo una línea escapada, no un slot. Las fotos
-  son la única ranura: otro contenido —una tabla, un formulario— **no se mete marcado en
+  y el `enlace` son las únicas ranuras: otro contenido —una tabla, un formulario— **no se mete marcado en
   `detalle`** (si se desactiva el escape se abre un agujero con texto que carga un usuario); se
   resuelve con otro opcional acá, en una task propia, y hasta entonces va en una card aparte debajo
   de la línea de tiempo.

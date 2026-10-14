@@ -1,0 +1,73 @@
+{# arquetipo: detalle + apilado #}{# Ver informe de un relevamiento edilicio (P21, menu de fila; P19, linea de tiempo). Un area sola -el resultado-, asi que la ficha arquetipos/detalle.md manda secciones apiladas en surfaces. Molde: golden de Detalle (becas/cupo/segmento_detail.html). Es SOLO LECTURA: no hay ninguna accion que mute. #}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Dispositivos · Relevamiento · {{ edificio.nombre }}{% endblock %}
+
+{% block main-content %}
+<div class="space-y-5">
+
+  {# ===== PageHeader ===== #}
+  {% page_header titulo="Informe del relevamiento" eyebrow=edificio.nombre volver_url=volver_url volver_label=volver_label %}
+    {% bajada %}{{ edificio.codigo }}{% if edificio.localidad %} · {{ edificio.localidad }}{% endif %}{% if realizada %} · relevado el {{ relevamiento.realizada_en|date:"d/m/Y" }} por {{ relevo }}{% else %} · vence el {{ relevamiento.fecha_vencimiento|date:"d/m/Y" }}{% endif %}{% endbajada %}
+    {% include "programas/dispositivos/_relevamiento_situacion_badge.html" with situacion=situacion texto=situacion_texto %}
+  {% endpage_header %}
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    {% for indicador in indicadores %}
+    {% include "components/_stat_card.html" with etiqueta=indicador.etiqueta valor=indicador.valor icono=indicador.icono tono=indicador.tono nota=indicador.nota %}
+    {% endfor %}
+  </div>
+
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="resultado-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="resultado-titulo" class="text-sm font-bold text-heading">Resultado del relevamiento</h2>
+      <p class="text-xs text-body-subtle mt-1">El relevamiento es del edificio: lo ven todas las instituciones que lo ocupan.</p>
+    </div>
+    <div class="p-5 space-y-4">
+      <dl class="grid gap-5 sm:grid-cols-3">
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Edificio</dt><dd class="mt-1 text-body">{{ edificio.nombre }}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Criticidad</dt>
+          <dd class="mt-1 text-body">{% if realizada %}{% include "programas/dispositivos/_relevamiento_criticidad_badge.html" with relevamiento=relevamiento %}{% else %}<span class="text-body-subtle">todavía sin resultado</span>{% endif %}</dd></div>
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">{% if realizada %}Relevó{% else %}Vence el{% endif %}</dt>
+          <dd class="mt-1 text-body">{% if realizada %}{{ relevo }}{% else %}{{ relevamiento.fecha_vencimiento|date:"d/m/Y" }}{% endif %}</dd></div>
+        {% if agente %}
+        {# El nombre del agente lo decide el servicio (`ve_la_asignacion`): a la institución relevada no se le pasa #}
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">Agente asignado</dt><dd class="mt-1 text-body">{{ agente }}</dd></div>
+        {% endif %}
+      </dl>
+      {% if relevamiento.observaciones %}
+      {% include "components/_alerta.html" with tono="warning" icono="screwdriver-wrench" titulo="Observaciones" texto=relevamiento.observaciones role="status" %}
+      {% elif realizada %}
+      <p class="text-sm text-body-subtle">El relevamiento no dejó observaciones.</p>
+      {% else %}
+      <p class="text-sm text-body-subtle">El agente todavía no cargó el resultado: cuando lo haga, acá aparecen la criticidad y las observaciones.</p>
+      {% endif %}
+      {% if relevamiento.motivo_cancelacion %}
+      {% include "components/_alerta.html" with tono="danger" icono="ban" titulo="Relevamiento cancelado:" texto=relevamiento.motivo_cancelacion role="status" %}
+      {% endif %}
+    </div>
+  </section>
+
+  {% if indicaciones %}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="indicaciones-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="indicaciones-titulo" class="text-sm font-bold text-heading">Indicaciones para el agente</h2>
+      <p class="text-xs text-body-subtle mt-1">Lo que la coordinación le pidió mirar en este relevamiento.</p>
+    </div>
+    <div class="p-5">
+      <p class="text-sm text-body whitespace-pre-line">{{ indicaciones }}</p>
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="fotos-titulo">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="fotos-titulo" class="text-sm font-bold text-heading">Registro fotográfico</h2>
+      <p class="text-xs text-body-subtle mt-1">La tanda de este relevamiento; cada foto se abre en una pestaña nueva.</p>
+    </div>
+    <div class="p-5">
+      {% include "components/_galeria_fotos.html" with fotos=fotos total=total_fotos %}
+    </div>
+  </section>
+</div>
+{% endblock %}

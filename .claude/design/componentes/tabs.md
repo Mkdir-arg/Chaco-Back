@@ -69,6 +69,9 @@ declarar el ARIA del contrato de arriba.
 - Solapa condicionada por permiso: el mismo `{% if %}` envuelve **el botón y el panel**.
 - Si una solapa tiene listado paginado, ver la limitación de `components/_paginacion.html` en su
   ficha: una sola lista paginada por pantalla.
+- Un `<form method="get">` dentro de una solapa —filtros en píldora, un buscador— lleva **su**
+  clave en el oculto `tab`, no la que resolvió el servidor: si no, filtrar desde cualquier solapa
+  que no sea la activa devuelve a la activa. Ver `componentes/filtros.md`.
 
 ## Prohibido
 

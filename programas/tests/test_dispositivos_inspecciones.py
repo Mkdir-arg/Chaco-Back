@@ -425,18 +425,36 @@ class ResultadoYFotosTests(BaseInspecciones):
         self.assertEqual(self.inspeccion.estado, Estado.ASIGNADA)
         self.assertFalse(FotoInspeccion.objects.exists())
 
-    def test_webp_y_heic_se_miran_por_su_firma(self):
+    def test_el_webp_se_mira_por_su_firma(self):
         """`FIRMAS` deja pasar sin mirar las extensiones que no conoce: la foto no."""
 
         agente = self._fresco(self.agente)
-        for nombre in ("x.webp", "x.heic", "x.heif"):
-            with self.subTest(nombre=nombre), self.assertRaises(ValidationError):
-                agregar_foto(agente, self.inspeccion, _foto(nombre, b"<html><script>no</script></html>"))
+        with self.assertRaises(ValidationError):
+            agregar_foto(agente, self.inspeccion, _foto("x.webp", b"<html><script>no</script></html>"))
         self.assertFalse(FotoInspeccion.objects.exists())
 
         agregar_foto(agente, self.inspeccion, _foto("ok.webp", b"RIFF\x24\x00\x00\x00WEBPVP8 " + b"0" * 16))
-        agregar_foto(agente, self.inspeccion, _foto("ok.heic", b"\x00\x00\x00\x18ftypheic" + b"0" * 16))
-        self.assertEqual(FotoInspeccion.objects.count(), 2)
+        self.assertEqual(FotoInspeccion.objects.count(), 1)
+
+    def test_una_heic_de_verdad_se_rechaza_con_el_mensaje_que_la_app_muestra(self):
+        """Decisión del juez: la conversión a JPEG es de la app, como la compresión.
+
+        El HEIC que el celular saca por defecto **no entra**, ni siquiera con su firma real:
+        ningún navegador lo dibuja en un `<img>` y la galería del backoffice quedaría con una
+        celda gris. El mensaje es el que la app le muestra al agente, así que dice qué hacer.
+        """
+
+        agente = self._fresco(self.agente)
+        heic = b"\x00\x00\x00\x18ftypheic" + b"0" * 16
+        for nombre, contenido in (("ok.heic", heic), ("ok.heif", b"\x00\x00\x00\x18ftypmif1" + b"0" * 16)):
+            with self.subTest(nombre=nombre), self.assertRaises(ValidationError) as error:
+                agregar_foto(agente, self.inspeccion, _foto(nombre, contenido))
+            self.assertIn("JPEG, PNG o WEBP", str(error.exception))
+
+        # Y tampoco disfrazada: el contenido no es un JPEG, que es lo que promete el nombre.
+        with self.assertRaises(ValidationError):
+            agregar_foto(agente, self.inspeccion, _foto("disfrazada.jpg", heic))
+        self.assertFalse(FotoInspeccion.objects.exists())
 
     def test_las_fotos_tampoco_se_tocan_por_queryset(self):
         foto = agregar_foto(self._fresco(self.agente), self.inspeccion, _foto())

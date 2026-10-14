@@ -99,6 +99,19 @@ que se tocan todo el tiempo (área, estado, sector). Va en una fila propia **fue
 - CSS: `.nodo-pildora` y `.nodo-pildora__control` en `static/custom/css/nodo-forms.css`.
 - Sin chevron propio: se ve la flecha nativa del `<select>`.
 
+**Con solapas, las píldoras van dentro de cada panel y el oculto `tab` es el del panel.** La solapa
+visible la cambia Alpine **en el navegador** y este form lo arma el **servidor**: un solo bloque de
+píldoras arriba con `ocultos=(("tab", solapa_actual),)` manda siempre la solapa que resolvió el
+servidor, así que filtrar parado en otra te devuelve a la primera. Cada panel dibuja su propio
+include con `ocultos=(("tab", <su clave>),)`, y la vista le arma a cada uno las píldoras que ahí
+**filtran algo**: una que no cambia nada en ese panel confunde más de lo que ayuda. Evidencia:
+`programas/templates/programas/dispositivos/relevamientos/list.html` (P21) y la solapa Estadías de
+`programas/templates/programas/dispositivos/legajo/detail.html` (P4).
+
+En P21, las opciones de «Asignado a» se limitan a relevamientos cuya asignación puede ver
+quien mira: coordina ese edificio o es el agente asignado. Leer el edificio por
+`dispositivo.ver` no habilita su nombre ni en la píldora ni en la fila (que muestra «—»).
+
 **Prohibido combinarlo con la tarjeta de filtros.** Son dos `<form method="get">` separados y
 `dynamic_list_filters.js` vacía y reconstruye el suyo sin arrastrar parámetros ajenos: cada form
 pisaría los filtros del otro, y `ocultos` solo protege a la píldora. Una pantalla usa **o** las

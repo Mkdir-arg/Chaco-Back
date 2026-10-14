@@ -62,6 +62,11 @@ urlpatterns = [
     # Relevamientos edilicios del coordinador (P21 · #701): en el código, `InspeccionEdificio`.
     path("relevamientos/", relevamientos.RelevamientoListView.as_view(), name="relevamientos"),
     path(
+        "relevamientos/<int:pk>/informe/",
+        relevamientos.RelevamientoInformeView.as_view(),
+        name="relevamiento_informe",
+    ),
+    path(
         "relevamientos/edificio/<int:edificio_pk>/asignar/",
         relevamientos.RelevamientoAsignarView.as_view(),
         name="relevamiento_asignar",

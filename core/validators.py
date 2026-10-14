@@ -127,30 +127,33 @@ def validar_adjunto(archivo, extensiones=ADJUNTO_EXTENSIONES, max_bytes=ADJUNTO_
 
 
 #: Las fotos del relevamiento edilicio (MVP v2, etapa 4): la lista blanca de los
-#: adjuntos **sin el PDF**. Son evidencia fotográfica que se muestra en una galería;
-#: un PDF ahí no se puede ver ni comparar con la tanda anterior.
-FOTO_EXTENSIONES = tuple(extension for extension in ADJUNTO_EXTENSIONES if extension != ".pdf")
-MENSAJE_FOTO_FORMATO = "Solo se aceptan fotos JPG, PNG, WEBP o HEIC."
-
-
-#: Marcas de la caja `ftyp` que declaran una imagen HEIC/HEIF.
-MARCAS_HEIF = (b"heic", b"heix", b"mif1", b"msf1")
+#: adjuntos **sin el PDF y sin HEIC/HEIF**. Son evidencia fotográfica que se muestra en
+#: una galería: un PDF ahí no se puede ver ni comparar con la tanda anterior, y un HEIC
+#: no lo dibuja ningún navegador en un ``<img>``.
+#:
+#: **HEIC/HEIF los rechaza el servidor** (decisión del juez, MVP v2 etapa 4): el celular
+#: saca HEIC por defecto y es la app la que convierte a JPEG antes de enviar, igual que ya
+#: comprime (Cambio 282). Convertir en el servidor pedía una dependencia nativa (`libheif`)
+#: para que la galería del backoffice no mostrara una celda gris; convertir en el teléfono
+#: es gratis y deja una sola forma de foto guardada. Angostar esta lista **es** un cambio
+#: con consecuencias en el teléfono —ante un 4xx la app no reintenta nunca—, así que va con
+#: el contrato móvil de la misma entrada.
+FOTO_EXTENSIONES = tuple(extension for extension in ADJUNTO_EXTENSIONES if extension not in (".pdf", ".heic", ".heif"))
+MENSAJE_FOTO_FORMATO = "La foto tiene que llegar en JPEG, PNG o WEBP."
 
 
 def _es_foto_de_verdad(archivo, extension):
-    """Firma de la foto, incluidos WEBP y HEIC, que :data:`FIRMAS` deja pasar sin mirar.
+    """Firma de la foto, incluido WEBP, que :data:`FIRMAS` deja pasar sin mirar.
 
     Vive acá y no en :data:`FIRMAS` porque esa tabla la comparten los adjuntos de Becas y
     la app de campo, donde angostarla tiene consecuencias en el teléfono (ver
-    :data:`ADJUNTO_EXTENSIONES`). Las dos firmas no son un prefijo: WEBP es `RIFF` en 0..4
-    y `WEBP` en 8..12; HEIC/HEIF, `ftyp` en 4..8 y la marca en 8..12.
+    :data:`ADJUNTO_EXTENSIONES`). La firma de WEBP no es un prefijo: es `RIFF` en 0..4 y
+    `WEBP` en 8..12. Un HEIC renombrado a `.jpg` no llega acá por la extensión: lo frena
+    el prefijo de JPEG, que no tiene.
     """
     if extension == ".webp":
         inicio = cabecera(archivo, 12)
         return inicio[:4] == b"RIFF" and inicio[8:12] == b"WEBP"
-    if extension in (".heic", ".heif"):
-        inicio = cabecera(archivo, 12)
-        return inicio[4:8] == b"ftyp" and inicio[8:12] in MARCAS_HEIF
     return firma_coincide(archivo, extension)
 
 
