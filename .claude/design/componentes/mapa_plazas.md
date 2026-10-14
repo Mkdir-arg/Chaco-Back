@@ -17,6 +17,10 @@ con sus acciones por plaza, y el selector de plaza del ingreso (P6).
 La leyenda va una vez por pantalla, encima de las cards de sector; el mapa va dentro de la card de cada
 sector (header con título y bajada, cuerpo con la grilla).
 
+En P5, el encabezado usa `eyebrow=dispositivo.nombre` y su bajada muestra las cifras.
+Los resúmenes de página y sector nombran `Conteo.reservadas` como «reservadas o prestadas»:
+el censo agrupa ambos estados; la celda y la leyenda conservan su distinción individual.
+
 | Parámetro | Efecto |
 |---|---|
 | `plazas` | Lista de dicts (no queryset) armada por la vista: `codigo`, `estado`, `tono`, y opcionales `detalle`, `detalle_completo`, `url`, `seleccionada` |
