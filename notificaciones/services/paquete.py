@@ -19,8 +19,16 @@ Lo que se rechaza con error (el .zip no se acepta):
 
 Lo que no se publica pero no frena (va a los avisos de la previsualización): una imagen que el
 HTML nombra y no vino (**faltante**) y una que vino pero no es PNG, JPG, GIF ni WEBP de verdad
-—SVG incluido, que puede llevar scripts— (**rechazada**). Las imágenes del paquete que el HTML
-no nombra se ignoran: no se publican.
+—SVG incluido, que puede llevar scripts— (**rechazada**), igual que una de más de
+:data:`MAX_PIXELES` píxeles. Las imágenes del paquete que el HTML no nombra se ignoran.
+
+Lo que se publica **no son los bytes que vinieron**: cada imagen se vuelve a codificar con Pillow
+en su mismo formato (:func:`_recodificar`). Así no sale a internet nada que no sea la imagen: ni
+el EXIF de la cámara (la ubicación GPS, el aparato, la fecha), ni XMP, ni los textos de un PNG o
+el comentario de un GIF, ni lo que un archivo políglota traiga pegado atrás. Se conserva el
+perfil de color ICC (no identifica a nadie y sin él los colores cambian), la transparencia y la
+animación de GIF y WEBP. JPEG se recodifica con calidad 90 y aplicando antes la orientación del
+EXIF, para que la foto no quede girada al perderlo.
 """
 
 from __future__ import annotations
@@ -31,6 +39,7 @@ import posixpath
 import re
 import secrets
 import stat
+import warnings
 import zipfile
 from dataclasses import dataclass, field
 from urllib.parse import unquote
@@ -38,12 +47,18 @@ from urllib.parse import unquote
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.urls import reverse
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 ZIP_MAX_BYTES = 10 * 1024 * 1024
 DESCOMPRIMIDO_MAX_BYTES = 20 * 1024 * 1024
 IMAGEN_MAX_BYTES = 5 * 1024 * 1024
 MAX_IMAGENES = 50
+#: Píxeles por imagen (ancho × alto). Un PNG de pocos KB puede declarar 100.000 × 100.000: se
+#: corta antes de decodificarlo. 25 millones es una foto de cámara de 25 MP, más que cualquier
+#: correo.
+MAX_PIXELES = 25_000_000
+#: Calidad de la recodificación de JPEG (y de WEBP con pérdida).
+CALIDAD = 90
 MAX_ENTRADAS = 500
 EXTENSIONES_ZIP = (".zip",)
 EXTENSIONES_HTML = (".html", ".htm")
@@ -66,6 +81,7 @@ _SEGMENTO_URL = re.compile(r"[^A-Za-z0-9_-]+")
 MOTIVO_SVG = "SVG no se admite"
 MOTIVO_NO_IMAGEN = "no es una imagen PNG, JPG, GIF o WEBP válida"
 MOTIVO_GRANDE = f"supera {IMAGEN_MAX_BYTES // (1024 * 1024)} MB"
+MOTIVO_PIXELES = f"supera {MAX_PIXELES // 1_000_000} millones de píxeles"
 
 
 @dataclass
@@ -251,19 +267,69 @@ def _buscar(destino, entradas, sin_mayusculas):
     return sin_mayusculas.get(destino.casefold())
 
 
-def _validar_imagen(nombre, datos):
-    """``(content_type, extensión)`` si es PNG/JPG/GIF/WEBP de verdad; si no, el motivo."""
+def _abrir(datos):
+    """La imagen abierta, con las alarmas de bomba de descompresión convertidas en error."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", Image.DecompressionBombWarning)
+        return Image.open(io.BytesIO(datos))
+
+
+def _recodificar(imagen, formato):
+    """Los bytes de la imagen vueltos a codificar, sin metadatos (ver el docstring del módulo)."""
+    animada = formato in ("GIF", "WEBP") and getattr(imagen, "is_animated", False)
+    opciones = {"format": formato}
+    icc = imagen.info.get("icc_profile")
+    if icc and formato != "GIF":
+        opciones["icc_profile"] = icc
+    if formato == "JPEG":
+        imagen = ImageOps.exif_transpose(imagen)
+        if imagen.mode not in ("RGB", "L", "CMYK"):
+            imagen = imagen.convert("RGB")
+        opciones.update(quality=CALIDAD, optimize=True)
+    elif formato == "PNG":
+        imagen = ImageOps.exif_transpose(imagen)
+        if "transparency" in imagen.info:
+            opciones["transparency"] = imagen.info["transparency"]
+        opciones["optimize"] = True
+    elif formato == "GIF":
+        opciones.update(save_all=animada, comment=b"")
+    elif formato == "WEBP":
+        opciones.update(save_all=animada, quality=CALIDAD, exif=b"", xmp=b"")
+    # Lo que Pillow leyó y podría volver a escribir por su cuenta.
+    for clave in ("exif", "xmp", "XML:com.adobe.xmp", "comment", "extension"):
+        imagen.info.pop(clave, None)
+    salida = io.BytesIO()
+    imagen.save(salida, **opciones)
+    return salida.getvalue()
+
+
+def _limpiar_imagen(nombre, datos):
+    """``(bytes recodificados, content_type, extensión), None`` si se publica; si no, ``None, motivo``.
+
+    PNG/JPG/GIF/WEBP de verdad (por contenido, no por extensión), hasta :data:`MAX_PIXELES`.
+    """
     if nombre.lower().endswith(".svg") or datos.lstrip()[:5].lower() in (b"<?xml", b"<svg ", b"<svg>"):
         return None, MOTIVO_SVG
     try:
-        with Image.open(io.BytesIO(datos)) as imagen:
+        with _abrir(datos) as imagen:
             formato = imagen.format
+            ancho, alto = imagen.size
+            if formato not in FORMATOS:
+                return None, MOTIVO_NO_IMAGEN
+            if ancho * alto > MAX_PIXELES:
+                return None, MOTIVO_PIXELES
             imagen.verify()
-    except (UnidentifiedImageError, OSError, SyntaxError, ValueError, Image.DecompressionBombError):
+        # ``verify`` deja la imagen inutilizable: se vuelve a abrir para recodificarla.
+        with _abrir(datos) as imagen:
+            limpia = _recodificar(imagen, formato)
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning):
+        return None, MOTIVO_PIXELES
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError, EOFError, TypeError):
         return None, MOTIVO_NO_IMAGEN
-    if formato not in FORMATOS:
-        return None, MOTIVO_NO_IMAGEN
-    return FORMATOS[formato], None
+    if len(limpia) > IMAGEN_MAX_BYTES:
+        return None, MOTIVO_GRANDE
+    content_type, extension = FORMATOS[formato]
+    return (limpia, content_type, extension), None
 
 
 def _nombre_publicado(orden, ruta, extension):
@@ -335,13 +401,13 @@ def _publicar(zf, info, ruta, paquete):
         # Una imagen grande o ilegible no tumba el paquete: no se publica y se avisa.
         paquete.rechazadas.append(f"{ruta} ({exc.messages[0]})")
         return None
-    tipo, motivo = _validar_imagen(ruta, datos)
-    if tipo is None:
+    limpia, motivo = _limpiar_imagen(ruta, datos)
+    if limpia is None:
         paquete.rechazadas.append(f"{ruta} ({motivo})")
         return None
-    content_type, extension = tipo
+    contenido, content_type, extension = limpia
     nombre = _nombre_publicado(len(paquete.imagenes) + 1, ruta, extension)
     paquete.imagenes.append(
-        ImagenExtraida(nombre=nombre, ruta_original=ruta[:255], contenido=datos, content_type=content_type)
+        ImagenExtraida(nombre=nombre, ruta_original=ruta[:255], contenido=contenido, content_type=content_type)
     )
     return url_publica(paquete.token, nombre)

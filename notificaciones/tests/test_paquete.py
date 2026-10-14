@@ -7,6 +7,7 @@ import re
 import stat
 import zipfile
 from io import BytesIO
+from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -174,6 +175,94 @@ class PaqueteValidoTests(SimpleTestCase):
         self.assertIsNone(datos["imagenes_faltantes"])
         self.assertEqual(datos["imagenes_no_visibles"], 1)
         self.assertIn('src="https://cdn.x/a.png"', datos["html_sanitizado"])
+
+
+def _exif_con_gps():
+    exif = Image.Exif()
+    exif[0x0110] = "CamaraDelDisenador"  # Model
+    exif[0x0112] = 6  # Orientation: girada 90°
+    exif[0x8825] = {1: "S", 2: (27.0, 27.0, 1.0), 3: "W", 4: (58.0, 59.0, 1.0)}  # GPSInfo
+    return exif
+
+
+@override_settings(NOTIF_URL_PUBLICA=BASE)
+class ImagenRecodificadaTests(SimpleTestCase):
+    """Lo que se publica es la imagen recodificada, sin metadatos (revisión del juez, ronda 2)."""
+
+    def _publicada(self, ruta, datos):
+        leido = paquete.leer_paquete(mailing(f'<img src="{ruta}">', extra={f"mailing/{ruta}": datos}))
+        self.assertEqual(leido.rechazadas, [])
+        return leido.imagenes[0].contenido
+
+    def test_jpeg_con_exif_gps_sale_sin_exif_y_derecha(self):
+        salida = BytesIO()
+        Image.new("RGB", (8, 4), (10, 120, 200)).save(salida, "JPEG", exif=_exif_con_gps(), icc_profile=b"perfil")
+        original = salida.getvalue()
+        self.assertIn(b"CamaraDelDisenador", original)
+        self.assertTrue(Image.open(BytesIO(original)).getexif().get_ifd(0x8825))
+
+        publicada = self._publicada("img/foto.jpg", original)
+
+        self.assertNotIn(b"CamaraDelDisenador", publicada)
+        self.assertNotIn(b"Exif", publicada)
+        limpia = Image.open(BytesIO(publicada))
+        self.assertEqual(limpia.format, "JPEG")
+        self.assertEqual(dict(limpia.getexif()), {})
+        self.assertEqual(limpia.size, (4, 8))  # se aplicó la orientación antes de perderla
+        self.assertEqual(limpia.info.get("icc_profile"), b"perfil")  # el perfil de color se conserva
+
+    def test_png_sale_sin_textos_ni_exif(self):
+        from PIL import PngImagePlugin
+
+        textos = PngImagePlugin.PngInfo()
+        textos.add_text("Author", "NombreDeLaDisenadora")
+        salida = BytesIO()
+        Image.new("RGBA", (4, 4), (0, 0, 0, 0)).save(salida, "PNG", pnginfo=textos, exif=_exif_con_gps())
+
+        publicada = self._publicada("img/logo.png", salida.getvalue())
+
+        self.assertNotIn(b"NombreDeLaDisenadora", publicada)
+        self.assertNotIn(b"CamaraDelDisenador", publicada)
+        limpia = Image.open(BytesIO(publicada))
+        self.assertEqual((limpia.format, limpia.mode), ("PNG", "RGBA"))
+        self.assertNotIn("Author", limpia.info)
+
+    def test_gif_animado_conserva_la_animacion_y_pierde_el_comentario(self):
+        cuadros = [Image.new("RGB", (4, 4), color) for color in ((255, 0, 0), (0, 255, 0), (0, 0, 255))]
+        salida = BytesIO()
+        cuadros[0].save(
+            salida, "GIF", save_all=True, append_images=cuadros[1:], comment=b"ComentarioPrivado", duration=120, loop=0
+        )
+
+        publicada = self._publicada("img/anim.gif", salida.getvalue())
+
+        self.assertNotIn(b"ComentarioPrivado", publicada)
+        limpia = Image.open(BytesIO(publicada))
+        self.assertTrue(limpia.is_animated)
+        self.assertEqual(limpia.n_frames, 3)
+
+    def test_lo_pegado_atras_de_la_imagen_no_se_publica(self):
+        poliglota = imagen("PNG") + b"<script>alert(1)</script>"
+        self.assertNotIn(b"<script>", self._publicada("img/x.png", poliglota))
+
+    def test_mas_de_25_millones_de_pixeles_no_se_publica(self):
+        salida = BytesIO()
+        Image.new("1", (5001, 5000)).save(salida, "PNG")  # pocos KB, 25.005.000 px
+        leido = paquete.leer_paquete(
+            mailing('<img src="img/enorme.png">', extra={"mailing/img/enorme.png": salida.getvalue()})
+        )
+        self.assertEqual(leido.imagenes, [])
+        self.assertEqual(leido.rechazadas, [f"mailing/img/enorme.png ({paquete.MOTIVO_PIXELES})"])
+
+    def test_la_alarma_de_bomba_de_pillow_tambien_rechaza(self):
+        # Con el umbral de Pillow bajado: 12×12 dispara el aviso y 20×20 el error.
+        for lado in (12, 20):
+            with self.subTest(lado=lado), patch.object(Image, "MAX_IMAGE_PIXELS", 100):
+                leido = paquete.leer_paquete(
+                    mailing('<img src="img/b.png">', extra={"mailing/img/b.png": imagen(tam=(lado, lado))})
+                )
+                self.assertEqual(leido.imagenes, [])
+                self.assertEqual(leido.rechazadas, [f"mailing/img/b.png ({paquete.MOTIVO_PIXELES})"])
 
 
 @override_settings(NOTIF_URL_PUBLICA=BASE)
