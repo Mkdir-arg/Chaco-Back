@@ -429,6 +429,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 299 | Fidelidad del mapa de plazas y del asistente de ingreso | Dispositivos · sectores, plazas e ingreso | `#ui` `#rbac` `#performance` | Juez — carril FA del MVP de Dispositivos | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 300 | P4 en celular y DNI con separador de miles | Dispositivos · P2/P4/P5/P6/P7/P10/P16/P21 | `#ui` `#textos` | Juez — carril FD | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 301 | Correcciones menores de fidelidad FA–FD | Dispositivos · P4/P5/P6/P7/P10/P16 | `#ui` `#rbac` `#performance` `#textos` | Juez — carril FE | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 302 | Segunda pasada de fidelidad del MVP: instituciones y tablas compartidas | Dispositivos · P2/P3/P4/P5 · tablas transversales | `#ui` `#textos` `#performance` | PM / juez — carril FF | 14/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -39426,5 +39427,177 @@ contratos y pruebas anteriores, incluida la medición sin usuario de Infraestruc
 ## Historial
 
 Entrada nueva y única del carril FE. Las entradas anteriores se conservan sin cambios.
+
+---
+
+---
+
+# Cambio 302 — Segunda pasada de fidelidad del MVP: instituciones y tablas compartidas
+
+🟢 **HECHO — 14/10/2026** · Carril FF · el juez asigna el número definitivo.
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · instituciones, detalle y sectores · tabla transversal |
+| **Etiquetas** | `#ui` `#textos` `#performance` |
+| **Solicitante** | PM / juez — encargo directo del carril FF en sesión de implementación |
+| **Fecha del pedido** | 14/10/2026 |
+| **Issue / épica** | Sin issue nuevo · Épica #127 · apilado sobre FE, PR #866 |
+| **Partes afectadas** | Backoffice: P2/P3/P4/P5, Tipos, tabla compartida, pruebas y presupuestos |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Que se vea igual al mockup y mantenga la lógica». Resolver los siete hallazgos de la
+segunda pasada: formulario institucional fuera del canon, desborde a 390 px, préstamo
+llamado reserva, Cerrar en rojo, nombre de la institución en la bajada de P5, lectura
+innecesaria de plazas elegibles en P4 y medición de Infraestructura inflada.
+
+## Alcance acordado
+
+Solo el worktree `mvp-ff`, rama `fix/mvp-fidelidad-ff`. Reutilizar piezas existentes,
+conservar campos, validaciones, URLs, POST, capacidades y confirmaciones. Sin roles,
+seeds, migraciones, piezas nuevas, pantallas ajenas ni PR. Una entrada con marcador 302.
+Código y documentación en commits separados; push y rebase sobre development si FE mergea.
+
+## Decisiones tomadas
+
+1. **P3, Formulario:** clonar la golden de Segmento. Encabezado con volver y eyebrow
+   «Legajo institucional»; títulos «Nueva institución» y «Editar institución». Una
+   surface de formulario con secciones y el pie Cancelar · Guardar borrador. No cambiar
+   las condiciones para guardar ni enviar a validación.
+2. **P3, duplicados:** alerta canónica warning en el flujo, sin columna lateral. El JS
+   actualiza título y contenido de la alerta, conservando sus clases y `role="alert"`.
+   Mantiene la búsqueda, bloqueo de código repetido y confirmación de coincidencia blanda.
+3. **Tabla:** el wrapper `overflow-x-auto` es el bloque contenedor mediante
+   `:where(.overflow-x-auto) { position: relative; }` en `nodo-tables.css`. El `th`
+   relativo de FE no alcanzaba con nombres largos. Se conserva su especificidad cero
+   y el soporte de `sticky`; no se agregan clases ni parches por pantalla.
+4. **P5:** `Conteo.reservadas` agrupa reservas y préstamos. Los dos resúmenes dicen
+   «reservadas o prestadas»; mapa y leyenda siguen distinguiendo cada estado. El
+   nombre de la institución pasa al eyebrow existente del encabezado.
+5. **P4:** Cerrar usa `btn-tertiary`; conserva `data-confirm-danger="true"` y la
+   confirmación destructiva. Inactivar permanece como secundaria, con su lógica actual.
+6. **P4, consultas:** memo perezoso por petición para `plazas_para_ingresar`. Se pide
+   solo para una fila activa con plaza o un modal válido de cambio, incluso si su fila
+   quedó fuera de la página por filtro. Menú y modal comparten una lectura. Una estadía
+   cerrada o activa sin plaza no la dispara. Se conserva la elegibilidad por tipo de FE.
+7. **Presupuestos:** techo nuevo `dispositivos_detalle_sin_estadias=25`. Medición real
+   con administrador, sectores y plazas, sin estadías ni edificios: 24 con caché fría
+   y 22 caliente; antes, 28 y 26. El ahorro es de cuatro en cada solapa; las cifras
+   29→25 del relevamiento del revisor pertenecen a otro fixture y no se presentan como
+   resultado local. Infraestructura baja a 7: usuario fresco y autorización RBAC se
+   preparan fuera de ambas capturas. El servicio cuesta 7 con 1 y 8 relevamientos;
+   incluir autorización fría cuesta 8 y recargar también el usuario cuesta 9.
+
+### Plan de pantalla
+
+```text
+Tipo: B (reconstrucción P3 como Formulario) + A (P4/P5) + C (tabla compartida autorizada)
+Golden P3: programas/templates/programas/becas/config/segmento_form.html
+Dominio: programas/forms.py:DispositivoForm y dispositivos/legajo/form.html
+Rutas: dispositivos:crear, dispositivos:editar, dispositivos:detalle, dispositivos:sectores
+Templates finales: dispositivos/legajo/form.html, legajo/detail.html, sectores/sectores.html
+Clasificación: header, field, form_errores, alerta, botones y tabla = Canónico reutilizable
+Bloques P3: page_header + alerta; form POST en surface; Identidad y encuadre,
+           Ubicación, Responsable y contacto; pie Cancelar / Guardar borrador
+P4/P5: cambio acotado de variante, rótulos y eyebrow; mismos includes y modales
+Assets: shell includes/base.html; nodo-tables.css; Tailwind compilado sin diff
+Novedades: ninguna; corrección del contenedor de la tabla expresamente autorizada
+Fichas: tabla.md, mapa_plazas.md y arquetipos/detalle.md con el contrato vigente
+```
+
+### Apartamientos del mockup
+
+- La columna lateral de posibles duplicados de P3 queda pendiente de decisión del PM.
+  Se usa el aviso dentro del flujo, como pide el encargo.
+- P3 conserva los campos reales. No dibuja categoría, área del Ministerio, titularidad,
+  dependencia, servicios, cercanía de domicilios, responsable por buscador, procedencia
+  del dato ni checklist lateral cuando no existe ese dato o servicio en el formulario.
+  Latitud, longitud, DNI/CUIT, email y horarios siguen disponibles.
+- En P3 no se agrega Enviar a validación, ni siquiera deshabilitado. Sigue siendo una
+  acción del detalle; el pie conserva Cancelar y Guardar borrador, con variantes del canon.
+- Inactivar, ausente del mockup P4, sigue como acción secundaria existente.
+- P5 usa la cifra agrupada «reservadas o prestadas», sin inventar dos conteos distintos.
+- No se introducen variantes, slots ni piezas nuevas para perseguir diferencias del mockup.
+
+## Implementación
+
+Alta y edición muestran Institución con el encabezado y los campos del sistema de diseño.
+El aviso de duplicados conserva la misma búsqueda y confirmación dentro de la alerta.
+Las tablas anchas desplazan su contenido dentro del wrapper a 390 px. Sectores identifica
+la institución en el eyebrow y nombra correctamente préstamos y reservas. El detalle
+mantiene sus acciones y deja de leer el mapa de ingreso cuando nadie puede cambiar plaza.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/legajo/{form,detail}.html`.
+- `programas/templates/programas/dispositivos/sectores/sectores.html`.
+- `static/custom/css/nodo-tables.css` y `programas/views/dispositivos_legajo.py`.
+- `programas/tests/test_dispositivos_fidelidad_ff.py`, `test_dispositivos_fidelidad_fd.py`,
+  `test_dispositivos_infraestructura.py`; `core/tests/test_nodo_ui_piezas.py`.
+- `scripts/perf_budgets.json`; fichas `tabla.md`, `mapa_plazas.md`, arquetipo `detalle.md`
+  y esta entrada.
+
+## Base de datos
+
+No requiere migraciones ni cambios de datos. Pruebas sobre SQLite en memoria con datos
+ficticios y reloj fijo al 14/10/2026. No se modifica ningún catálogo de roles.
+
+## Validación
+
+- P3: arquetipo Formulario OK; auditoría individual con 0 errores, 0 P1 y 0 warnings.
+  P4 y P5 pasan Detalle y Detalle apilado. Ratchet y siete goldens sin hallazgos nuevos;
+  232 templates compilan sin errores; Tailwind reconstruido sin diff.
+- Navegador con `CHACO_PLAYWRIGHT=1`: nombres de institución de más de 60 caracteres;
+  P2 y Tipos; las cinco solapas P4; P5/P7/P10/P21; revisión de Becas; Ciudadanos; listas
+  de Provincias, Municipios, Localidades, Secretarías, Subsecretarías y Programas.
+  A 390 px, scrollWidth de página=390 y scroll interno operativo.
+- Capturas a 1440 px con y sin el posicionamiento del wrapper: mismo contenido y
+  geometría. La comparación permite hasta dos niveles RGB de antialias del borde;
+  no oculta elementos ni ignora regiones de la captura.
+- Seis snapshots de Becas regenerados y revisados, sin diff.
+- Regresiones de arquitectura, legajo, detalle, fidelidad, infraestructura, plazas,
+  ingreso y piezas compartidas; suite de performance de programas; presupuestos;
+  check, migraciones con syncdb apagado, Ruff, registro y contrato del agente de diseño.
+  407 ejecuciones en verde en los lotes de regresión y verificación: 86 + 102 + 186,
+  27 de performance y 6 snapshots (incluyen una prueba visual temporal de P3/P5).
+
+**Mutaciones: romper → rojo → restaurar desde copia de bytes → verde.**
+
+1. Título de alta y título de edición, por separado.
+2. Omitir horarios y cambiar POST a GET.
+3. Sustituir la alerta canónica y destruir su estructura desde JS, por separado.
+4. Rótulo incorrecto del resumen de página y del resumen de sector, por separado.
+5. Quitar el eyebrow de P5; volver a pintar Cerrar como danger.
+6. Leer el mapa anticipadamente: fallan la guarda sin filas y el presupuesto del detalle.
+7. Quitar el memo: menú y modal hacen dos lecturas.
+8. Incluir filas cerradas o activas sin plaza en la lectura, por separado.
+9. Omitir la lectura del modal cuando su fila no figura en la página.
+10. Quitar la posición del wrapper: regresión real de navegador en P2/Tipos y otros
+    consumidores, más la guarda de posición de la pieza compartida.
+11. Recargar el usuario dentro de ambas capturas de Infraestructura; sumar una consulta
+    al servicio, por separado: el techo de 7 da rojo.
+
+## Puesta en marcha en el servidor
+
+No requiere pasos extra. Deploy habitual de código y CSS de la tabla compartida.
+
+## Pendientes / a definir
+
+- El juez asigna el número al encabezado 302 y a su fila; no se modifica el checker.
+- El PM decide la columna lateral de posibles duplicados de P3. Los datos y servicios
+  ausentes del mockup se conservan como apartamientos; no se inventan piezas para ellos.
+- FE #866 mergeó durante la tarea: FF se entrega rebasada sobre `origin/development`.
+  Sin PR y sin modificar otros worktrees ni el checkout principal.
+
+## Reversión
+
+Revertir los dos commits FF de código y documentación. No bajar migraciones ni modificar
+datos; regresan la presentación anterior y las consultas anticipadas del mapa de ingreso.
+
+## Historial
+
+Entrada nueva y única de FF. No se modifican entradas anteriores.
 
 ---

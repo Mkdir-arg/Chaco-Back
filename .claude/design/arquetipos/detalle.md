@@ -133,6 +133,12 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   cambiar (`dispositivo.admitir`) y egresar (`dispositivo.egresar`). Cambio y egreso abren
   un único modal por GET, como P21, y guardan por POST AJAX. Sin plazas libres, cambiar
   muestra el motivo; las acciones sin capacidad o sobre estadías cerradas se omiten.
+  La elegibilidad se lee de forma perezosa una sola vez por petición: una fila activa con
+  plaza o el modal válido de cambio la necesitan; menú y modal comparten el mismo mapa.
+  Un detalle sin esas filas ni modal no consulta las plazas elegibles para ingreso.
+- En el encabezado de P4, Cerrar usa `btn-nodo btn-tertiary btn-sm btn-fit` y conserva
+  su confirmación destructiva (`data-confirm-danger="true"`). Inactivar permanece como
+  acción secundaria existente, condicionada por capacidad y estado activo.
 - Estado vacío dentro de la tabla: `{% empty %}` con `<td colspan="n" class="p-0">`.
 - Acción de la fila que muta: `<button type="button">` con `data-*` + `<form method="post" class="hidden">`
   con `{% csrf_token %}`, y la confirmación por `data-confirm-url` (arquetipo Confirmación).

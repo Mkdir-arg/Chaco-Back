@@ -58,7 +58,7 @@
               data-confirm-danger="false" data-confirm-ok="Sí, inactivar">Inactivar</button>
       {% endif %}
       {% if puede_editar %}{% if dispositivo.estado == 'ACTIVO' or dispositivo.estado == 'INACTIVO' or dispositivo.estado == 'RECHAZADO' %}
-      <button type="button" class="btn-nodo btn-danger btn-sm btn-fit"
+      <button type="button" class="btn-nodo btn-tertiary btn-sm btn-fit"
               data-confirm-url="{% url 'dispositivos:cerrar' dispositivo.pk %}"
               data-confirm-title="¿Cerrar dispositivo?"
               data-confirm-text="La acción conserva el legajo e impide nuevas operaciones."

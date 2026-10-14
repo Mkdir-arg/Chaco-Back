@@ -41,12 +41,16 @@ reusado por la solapa del legajo), `programas/templates/programas/becas/reportes
   `text-body`, `text-heading font-medium`). Peso, mayúsculas, tracking y bordes quedan en la clase.
 - Wrapper `overflow-x-auto`; tabla `w-full border-collapse`; filas `hover:bg-secondary`
   (opcionalmente `transition`); links de entidad `text-fg-brand hover:underline`.
-- `:where(.nodo-th)` establece `position: relative`: contiene el rótulo absoluto `sr-only`
-  de Acciones dentro del scroll de la tabla, sin ampliar el ancho de la página ni pisar `sticky`.
+- `:where(.overflow-x-auto)` establece `position: relative` en el wrapper compartido:
+  contiene el rótulo absoluto `sr-only` de Acciones dentro del scroll, también en tablas
+  legacy. Un `th` relativo por sí solo no contiene el desborde con nombres largos:
+  evidencia en `dispositivos/legajo/list.html` y `dispositivos/config/tipo_list.html`.
+  `:where(.nodo-th)` mantiene su posición relativa sin pisar una utilidad `sticky`.
   La verificación de navegador está en `core/tests/test_nodo_ui_piezas.py`
   (`TablaResponsiveTest`, activada con `CHACO_PLAYWRIGHT=1`).
   `DispositivosResponsiveFDTests` exige wrapper para cada tabla visible cuyo contenido no entra,
-  compara el aspecto a 1440 px y mide ausencia de desborde a 390 px.
+  compara capturas con y sin la posición del wrapper a 1440 px y mide ausencia de desborde
+  a 390 px con nombres largos en P2, Tipos, Becas, Ciudadanos y Configuración.
 - La columna de acciones **no lleva el `<th>` vacío**:
   `<th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>`, porque una columna
   sin nombre no se anuncia.

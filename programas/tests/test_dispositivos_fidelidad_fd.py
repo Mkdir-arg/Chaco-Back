@@ -6,6 +6,7 @@ vivir en un venv temporal, expuesto mediante PYTHONPATH, sin dependencia product
 
 import os
 from datetime import datetime, time, timedelta, timezone
+from io import BytesIO
 from unittest import skipUnless
 from unittest.mock import patch
 
@@ -13,8 +14,22 @@ from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.template.loader import render_to_string
 from django.test import RequestFactory
 from django.urls import reverse
+from PIL import Image, ImageChops
 
-from programas.models import Edificio, InspeccionEdificio, Plaza, ReservaPlaza, Turno
+from core.models import Localidad, Municipio, Provincia, Secretaria, Subsecretaria
+from programas.models import (
+    Convocatoria,
+    Dispositivo,
+    Edificio,
+    Formulario,
+    InspeccionEdificio,
+    Plaza,
+    Programa,
+    Relevamiento,
+    ReservaPlaza,
+    Segmento,
+    Turno,
+)
 from programas.tests.test_dispositivos_detalle import BaseDetalle, _alojar
 from programas.tests.test_dispositivos_ingreso import BaseIngreso
 
@@ -98,6 +113,37 @@ class DispositivosResponsiveFDTests(StaticLiveServerTestCase):
         f.cis.contacto_email = "contacto.del.centro.integrador.territorial@example.test"
         f.cis.latitud, f.cis.longitud = "-27.451120", "-58.986340"
         f.cis.save()
+        nombre_largo = "Centro de Integración Social y Acompañamiento Comunitario de Resistencia"
+        self.assertGreaterEqual(len(nombre_largo), 60)
+        Dispositivo.objects.create(codigo="FF-LARGO", nombre=nombre_largo, tipo=f.tipo, localidad="Resistencia")
+        f.tipo.nombre = "Centro de Atención Integral y Acompañamiento a Personas en Situación de Vulnerabilidad"
+        f.tipo.save()
+        f.persona.nombre = "María de los Ángeles"
+        f.persona.apellido = "Fernández de la Comunidad"
+        f.persona.save()
+        provincia = Provincia.objects.create(nombre="Provincia del Chaco para la prueba de tablas con nombres largos")
+        municipio = Municipio.objects.create(
+            nombre="Municipalidad de Presidencia Roque Sáenz Peña", provincia=provincia
+        )
+        Localidad.objects.create(nombre="Localidad de Presidencia Roque Sáenz Peña", municipio=municipio)
+        secretaria = Secretaria.objects.create(nombre="Secretaría de Desarrollo Social y Acompañamiento Comunitario")
+        Subsecretaria.objects.create(
+            nombre="Subsecretaría de Abordaje Psicosocial y Atención Comunitaria", secretaria=secretaria
+        )
+        Programa.objects.create(codigo="BECAS", nombre="Programa de Becas para Acompañamiento Comunitario")
+        segmento = Segmento.objects.create(
+            nombre="Estudiantes en situación de vulnerabilidad socioeconómica", cupo_maximo=100
+        )
+        convocatoria = Convocatoria.objects.create(
+            nombre="Convocatoria de acompañamiento para estudiantes de la provincia del Chaco",
+            segmento=segmento,
+            fecha_inicio=AHORA.date(),
+            fecha_fin=AHORA.date() + timedelta(days=30),
+        )
+        relevamiento = Relevamiento.objects.create(
+            convocatoria=convocatoria, territorial=f.operador, fecha_asignada=AHORA, zona="Resistencia"
+        )
+        Formulario.objects.create(relevamiento=relevamiento, ciudadano=f.persona)
         edificio = Edificio.objects.create(
             codigo="ED-1", nombre="Predio central", latitud="-27.451120", longitud="-58.986340"
         )
@@ -118,7 +164,7 @@ class DispositivosResponsiveFDTests(StaticLiveServerTestCase):
             [{"name": "sessionid", "value": self.client.cookies["sessionid"].value, "url": self.live_server_url}]
         )
 
-    def test_p4_todas_las_solapas_y_p5_p7_p10_p21_p2_sin_scroll_de_pagina(self):
+    def test_p4_todas_las_solapas_y_listados_con_nombres_largos_sin_scroll_de_pagina(self):
         f = self.terreno
         urls = [
             (f"P4-{tab}", f"{f.url}?tab={tab}")
@@ -130,6 +176,13 @@ class DispositivosResponsiveFDTests(StaticLiveServerTestCase):
             ("P10", reverse("dispositivos:bitacora", args=[f.cis.pk])),
             ("P21", reverse("dispositivos:relevamientos")),
             ("P2", reverse("dispositivos:lista")),
+            ("Tipos", reverse("dispositivos:tipos")),
+            ("Becas-revision", reverse("becas:revision")),
+            ("Ciudadanos", reverse("legajos:ciudadanos")),
+        ]
+        urls += [
+            (f"Configuracion-{nombre}", reverse(f"configuracion:{nombre}"))
+            for nombre in ("provincias", "municipios", "localidades", "secretarias", "subsecretarias", "programas")
         ]
         for ancho in (390, 1440):
             self.pagina.set_viewport_size({"width": ancho, "height": 1000})
@@ -155,15 +208,23 @@ class DispositivosResponsiveFDTests(StaticLiveServerTestCase):
                             ),
                             "El email largo debe poder leerse completo dentro de Datos, sin recortarlo.",
                         )
-                    self.assertEqual(self.pagina.evaluate("document.documentElement.scrollWidth"), ancho)
+                    self.assertEqual(self.pagina.evaluate("document.documentElement.scrollWidth"), ancho, pantalla)
                     if ancho == 1440:
                         self.pagina.add_style_tag(
                             content="*, *::before, *::after { animation: none !important; transition: none !important; }"
                         )
-                        antes = self.pagina.screenshot()
-                        regla_anterior = self.pagina.add_style_tag(content=".nodo-th { position: relative; }")
-                        self.assertEqual(
-                            self.pagina.screenshot(), antes, f"{pantalla}: la tabla conserva su aspecto a 1440px"
+                        antes = self.pagina.screenshot(animations="disabled")
+                        regla_anterior = self.pagina.add_style_tag(content=".overflow-x-auto { position: static; }")
+                        diferencia = ImageChops.difference(
+                            Image.open(BytesIO(antes)).convert("RGB"),
+                            Image.open(BytesIO(self.pagina.screenshot(animations="disabled"))).convert("RGB"),
+                        )
+                        # Posicionar el wrapper puede cambiar el antialias del borde
+                        # redondeado en hasta dos niveles RGB, sin modificar contenido ni geometría.
+                        self.assertLessEqual(
+                            max(maximo for _, maximo in diferencia.getextrema()),
+                            2,
+                            f"{pantalla}: la tabla conserva su aspecto a 1440px",
                         )
                         regla_anterior.evaluate("e => e.remove()")
                     for tabla in self.pagina.locator("table:visible").all():
@@ -177,3 +238,18 @@ class DispositivosResponsiveFDTests(StaticLiveServerTestCase):
                             wrapper.evaluate("e => e.scrollLeft = e.scrollWidth")
                             self.assertGreater(wrapper.evaluate("e => e.scrollLeft"), 0)
                             self.assertEqual(self.pagina.evaluate("document.documentElement.scrollWidth"), ancho)
+
+    def test_p3_aviso_de_duplicados_actualiza_la_alerta_dentro_del_flujo(self):
+        self.pagina.goto(self.live_server_url + reverse("dispositivos:crear"))
+        aviso = self.pagina.locator("#duplicate-search")
+        self.assertFalse(aviso.is_visible())
+        self.pagina.locator("#id_codigo").fill(self.terreno.cis.codigo)
+        self.pagina.locator("#id_nombre").focus()
+        aviso.wait_for(state="visible")
+        self.assertEqual(aviso.locator('[role="alert"]').count(), 1)
+        self.assertEqual(aviso.locator(".bg-warning-soft.border-warning-subtle").count(), 1)
+        self.assertIn("El código ya está en uso", aviso.locator("strong").inner_text())
+        self.assertIn(self.terreno.cis.nombre, aviso.locator("li").inner_text())
+        self.pagina.locator("#id_codigo").fill("FF-SIN-COINCIDENCIAS")
+        self.pagina.locator("#id_nombre").focus()
+        aviso.wait_for(state="hidden")

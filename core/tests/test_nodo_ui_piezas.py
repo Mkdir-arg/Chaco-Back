@@ -50,6 +50,7 @@ class TablaResponsiveTest(SimpleTestCase):
             )
             self.assertEqual(pagina.evaluate("document.documentElement.scrollWidth"), 390)
             wrapper = pagina.locator(".overflow-x-auto")
+            self.assertEqual(wrapper.evaluate("e => getComputedStyle(e).position"), "relative")
             self.assertTrue(wrapper.evaluate("e => e.scrollWidth > e.clientWidth"))
             wrapper.evaluate("e => e.scrollLeft = e.scrollWidth")
             self.assertGreater(wrapper.evaluate("e => e.scrollLeft"), 0)
