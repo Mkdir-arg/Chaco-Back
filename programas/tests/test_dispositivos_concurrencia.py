@@ -22,9 +22,14 @@ Qué afirma cada caso, siempre lo mismo en tres partes:
    reciben el mismo registro y queda una sola escritura y una sola traza.
 2. **El otro recibe el error de dominio**, un `ValidationError` o un
    `InspeccionEnConflicto`, nunca un `IntegrityError` crudo, un `OperationalError` de
-   deadlock ni un 500. Quién de los dos gana **no** se afirma: depende del motor.
+   deadlock ni un 500. A toma primero el candado; B espera hasta su commit.
 3. **El estado final es consistente**: una estadía, una reserva resuelta de una sola
    manera, un archivo en `media/`.
+
+El solapamiento se fuerza con eventos sobre las consultas reales, sin sleeps. No alcanza
+con una barrera de arranque: B debe estar en LOCK WAIT en InnoDB mientras A conserva su
+transacción abierta, sin atravesar el punto crítico ni terminar. El caso de alojamiento
+entre dispositivos detiene A después del INSERT: el candado común es el UNIQUE.
 
 La capa de al lado —que el `select_for_update()` se pida, y desde dónde— es
 `core.tests.candados.candados_tomados`, que corre en todos los PRs sobre SQLite. Las dos
@@ -32,8 +37,10 @@ hacen falta: esta no se ejecuta en cada PR, y aquella no puede decir que el cand
 """
 
 import os
+import sys
 import tempfile
 import threading
+import time as reloj_monotonico
 import uuid
 from datetime import datetime, time, timedelta
 from pathlib import Path
@@ -119,26 +126,87 @@ def _foto(nombre="fachada.jpg"):
     return SimpleUploadedFile(nombre, JPEG, content_type="image/jpeg")
 
 
-def en_paralelo(*operaciones, timeout=60):
-    """Corre cada operación en su hilo; todas arrancan juntas en una barrera.
+def punto_critico(modelo, servicio, *, verbo="SELECT", limite=None):
+    """Identifica la consulta del servicio, incluso si se elimina su FOR UPDATE.
 
-    Devuelve ``(resultados, errores)`` —los dos en el orden en que terminaron, que es
-    justamente lo que no se puede predecir—. Las excepciones van a `errores` y **no** a
-    `resultados`: una excepción guardada entre los resultados dejaría el test en verde
-    mientras el hilo se murió.
-
-    Cada hilo cierra sus conexiones al terminar: en un `TransactionTestCase` las abre el
-    hilo, no el test, y sin esto la base de test no se puede borrar al final.
+    No intercepta la carga de fixtures ni las lecturas de permisos. El llamador inmediato
+    del dominio y la tabla identifican el punto; JOIN y SELECT 1 no son el lock de fila.
+    `liberar_reserva` además lee la plaza antes del lock: LIMIT 1 distingue su candado de
+    esa lectura (get usa LIMIT 21). No se agrega ningún hook al código productivo.
     """
 
-    barrera = threading.Barrier(len(operaciones), timeout=30)
+    tabla = modelo._meta.db_table
+
+    def coincide(sql):
+        if not sql.startswith(f"{verbo} ") or f"`{tabla}`" not in sql:
+            return False
+        if verbo == "SELECT" and (" JOIN " in sql or sql.startswith("SELECT %s AS")):
+            return False
+        if limite is not None and f" LIMIT {limite}" not in sql:
+            return False
+        frame = sys._getframe(1)
+        while frame is not None:
+            if frame.f_globals.get("__name__", "").startswith("programas.services."):
+                return frame.f_code.co_name == servicio
+            frame = frame.f_back
+        return False
+
+    return coincide
+
+
+PLAZA_BLOQUEADA = punto_critico(Plaza, "_bloquear_plaza")
+INSPECCION_BLOQUEADA = punto_critico(InspeccionEdificio, "_bloquear")
+
+
+def en_paralelo(primera, segunda, *, punto_a, punto_b=None, timeout=8):
+    """A mantiene su transacción abierta en el punto crítico y B compite por su lock.
+
+    Los execute_wrapper son hooks locales a cada conexión: ejecutan el SQL real. A se
+    detiene DESPUÉS del SELECT bloqueante (o INSERT con UNIQUE), antes de commitear.
+    B anuncia ANTES de ejecutar esa misma consulta. Se exige LOCK WAIT en INNODB_TRX,
+    además de que B no termine ni atraviese el punto mientras A está detenido. Esto
+    detecta también un lock eliminado si B se atasca más adelante en otra protección.
+
+    Todos los eventos tienen límite y A se libera en finally, incluso ante una mutación.
+    Los errores de dominio se devuelven separados; los de coordinación hacen fallar el
+    test. Cada hilo cierra su conexión antes del join y del flush de TransactionTestCase.
+    """
+
+    punto_b = punto_b or punto_a
+    a_detenido, liberar_a = threading.Event(), threading.Event()
+    b_intenta, b_atraviesa, b_termina = threading.Event(), threading.Event(), threading.Event()
     resultados, errores = [], []
     cerrojo = threading.Lock()
+    conexion_b = []
+    observados = [False, False]
+    consultas = [None, None]
 
-    def correr(operacion):
+    def correr(indice, operacion, punto):
+        def interceptar(execute, sql, params, many, context):
+            if observados[indice] or not punto(sql):
+                return execute(sql, params, many, context)
+            observados[indice] = True
+            consultas[indice] = sql
+            if indice == 1:
+                b_intenta.set()
+            try:
+                return execute(sql, params, many, context)
+            finally:
+                if indice == 0:
+                    a_detenido.set()
+                    if not liberar_a.wait(timeout * 2):
+                        raise AssertionError("A no fue liberado en su punto crítico")
+                else:
+                    b_atraviesa.set()
+
         try:
-            barrera.wait()
-            valor = operacion()
+            conexion = connections["default"]
+            if indice == 1:
+                with conexion.cursor() as cursor:
+                    cursor.execute("SELECT CONNECTION_ID()")
+                    conexion_b.append(cursor.fetchone()[0])
+            with conexion.execute_wrapper(interceptar):
+                valor = operacion()
             with cerrojo:
                 resultados.append(valor)
         except Exception as exc:
@@ -146,16 +214,52 @@ def en_paralelo(*operaciones, timeout=60):
                 errores.append(exc)
         finally:
             connections.close_all()
+            if indice == 1:
+                b_termina.set()
+                b_intenta.set()  # Despierta al coordinador también si B falla antes del punto.
 
-    hilos = [threading.Thread(target=correr, args=(operacion,)) for operacion in operaciones]
-    for hilo in hilos:
-        hilo.start()
-    for hilo in hilos:
-        hilo.join(timeout=timeout)
-
-    vivos = [hilo for hilo in hilos if hilo.is_alive()]
-    if vivos:
-        raise AssertionError(f"{len(vivos)} de {len(hilos)} hilos siguen corriendo: candados cruzados o deadlock")
+    hilos = [
+        threading.Thread(target=correr, args=(0, primera, punto_a)),
+        threading.Thread(target=correr, args=(1, segunda, punto_b)),
+    ]
+    hilos[0].start()
+    try:
+        if not a_detenido.wait(timeout):
+            raise AssertionError(f"A no alcanzó el punto crítico: {errores!r}")
+        hilos[1].start()
+        if not b_intenta.wait(timeout) or not observados[1]:
+            raise AssertionError(f"B no intentó el punto crítico: {errores!r}")
+        limite = reloj_monotonico.monotonic() + timeout
+        while True:
+            if b_atraviesa.is_set() or b_termina.is_set():
+                raise AssertionError(
+                    f"B atravesó el punto crítico mientras A estaba detenido: falta la protección. "
+                    f"Consultas: {consultas!r}; errores: {errores!r}"
+                )
+            with connections["default"].cursor() as cursor:
+                cursor.execute(
+                    "SELECT trx_state FROM information_schema.INNODB_TRX WHERE trx_mysql_thread_id = %s",
+                    [conexion_b[0]],
+                )
+                estado = cursor.fetchone()
+            if estado == ("LOCK WAIT",):
+                break
+            if reloj_monotonico.monotonic() >= limite:
+                raise AssertionError("El motor no confirmó que B esperaba el lock de A")
+            # INNODB_TRX cachea su snapshot: consultar más seguido que 100 ms puede
+            # mantener uno anterior al intento de B. El evento despierta de inmediato
+            # si falta el lock; el timeout permite refrescar la evidencia del motor.
+            b_atraviesa.wait(0.2)
+        if b_termina.wait(0.1) or b_atraviesa.is_set():
+            raise AssertionError("B dejó de esperar mientras A seguía detenido")
+    finally:
+        liberar_a.set()
+        for hilo in hilos:
+            if hilo.ident is not None:
+                hilo.join(timeout=timeout)
+        vivos = [hilo for hilo in hilos if hilo.is_alive()]
+        if vivos:
+            raise AssertionError(f"{len(vivos)} hilos siguen corriendo: candados cruzados o deadlock")
     return resultados, errores
 
 
@@ -259,6 +363,7 @@ class CarreraDePlazaTests(_BaseCarrera):
         resultados, errores = en_paralelo(
             self._ingresar(self.ana.pk, self.plaza.pk, self.cis.pk),
             self._ingresar(self.beto.pk, self.plaza.pk, self.cis.pk),
+            punto_a=PLAZA_BLOQUEADA,
         )
 
         self.assertEqual(len(resultados), 1, "las dos personas entraron a la misma plaza")
@@ -280,6 +385,7 @@ class CarreraDePlazaTests(_BaseCarrera):
         resultados, errores = en_paralelo(
             self._ingresar(self.ana.pk, self.plaza.pk, self.cis.pk),
             self._ingresar(self.ana.pk, self.plaza_parador.pk, self.parador.pk),
+            punto_a=punto_critico(Estadia, "ingresar_persona", verbo="INSERT"),
         )
 
         self.assertEqual(len(resultados), 1, "la misma persona quedó alojada en dos dispositivos")
@@ -314,7 +420,7 @@ class CarreraDePlazaTests(_BaseCarrera):
 
             return operacion
 
-        resultados, errores = en_paralelo(mover(primera.pk), mover(segunda.pk))
+        resultados, errores = en_paralelo(mover(primera.pk), mover(segunda.pk), punto_a=PLAZA_BLOQUEADA)
 
         self.assertEqual(len(resultados), 1, "las dos personas se mudaron a la misma plaza")
         error = self._un_error(errores)
@@ -339,7 +445,9 @@ class CarreraDePlazaTests(_BaseCarrera):
                 usuario=self._fresco(self.operador),
             )
 
-        resultados, errores = en_paralelo(self._ingresar(self.ana.pk, self.plaza.pk, self.cis.pk), reservar)
+        resultados, errores = en_paralelo(
+            self._ingresar(self.ana.pk, self.plaza.pk, self.cis.pk), reservar, punto_a=PLAZA_BLOQUEADA
+        )
 
         self.assertEqual(len(resultados), 1, "la plaza quedó ocupada y reservada a la vez")
         self._un_error(errores)
@@ -377,7 +485,14 @@ class CarreraDePlazaTests(_BaseCarrera):
                 motivo="La persona no se presentó",
             )
 
-        resultados, errores = en_paralelo(ingresar_con_la_reserva, liberar)
+        # También exigir que liberar espere la PLAZA, no un candado posterior de reserva:
+        # quitar solo el arreglo del deadlock debe fallar aunque la reserva siga protegida.
+        resultados, errores = en_paralelo(
+            ingresar_con_la_reserva,
+            liberar,
+            punto_a=PLAZA_BLOQUEADA,
+            punto_b=punto_critico(Plaza, "liberar_reserva", limite=1),
+        )
 
         self.assertEqual(len(resultados), 1, "la reserva se consumió y se liberó")
         error = self._un_error(errores)
@@ -440,6 +555,7 @@ class CarreraDeInspeccionTests(_BaseCarrera):
         resultados, errores = en_paralelo(
             lambda: self._crear(self.agente),
             lambda: self._crear(self.otro_agente),
+            punto_a=punto_critico(Edificio, "crear_inspeccion"),
         )
 
         self.assertEqual(len(resultados), 1, "el edificio quedó con dos relevamientos en curso")
@@ -472,7 +588,7 @@ class CarreraDeInspeccionTests(_BaseCarrera):
                 uuid_resultado=mismo,
             )
 
-        resultados, errores = en_paralelo(enviar, enviar)
+        resultados, errores = en_paralelo(enviar, enviar, punto_a=INSPECCION_BLOQUEADA)
 
         self.assertEqual([repr(error) for error in errores], [], "un reenvío idéntico no puede dar conflicto")
         self.assertEqual(len(resultados), 2)
@@ -513,6 +629,7 @@ class CarreraDeInspeccionTests(_BaseCarrera):
         resultados, errores = en_paralelo(
             enviar(InspeccionEdificio.Criticidad.ALTA),
             enviar(InspeccionEdificio.Criticidad.BAJA),
+            punto_a=INSPECCION_BLOQUEADA,
         )
 
         self.assertEqual(len(resultados), 1, "el relevamiento se cerró dos veces")
@@ -549,7 +666,7 @@ class CarreraDeInspeccionTests(_BaseCarrera):
                 uuid_cliente=mismo,
             )
 
-        resultados, errores = en_paralelo(enviar, enviar)
+        resultados, errores = en_paralelo(enviar, enviar, punto_a=INSPECCION_BLOQUEADA)
 
         self.assertEqual([repr(error) for error in errores], [], "un reenvío idéntico no puede dar conflicto")
         self.assertEqual(len(resultados), 2)
@@ -606,6 +723,7 @@ class CarreraDeBitacoraTests(_BaseCarrera):
         resultados, errores = en_paralelo(
             crear("Mañana", time(6), time(14)),
             crear("Mañana larga", time(12), time(20)),
+            punto_a=punto_critico(Dispositivo, "_bloquear_dispositivo"),
         )
 
         self.assertEqual(len(resultados), 1, "los dos turnos superpuestos entraron")
@@ -649,6 +767,7 @@ class CarreraDeBitacoraTests(_BaseCarrera):
         resultados, errores = en_paralelo(
             corregir("Se recibieron doce frazadas."),
             corregir("Se recibieron veinte frazadas."),
+            punto_a=punto_critico(EntradaBitacora, "corregir_entrada"),
         )
 
         self.assertEqual(len(resultados), 1, "la entrada se corrigió dos veces: la cadena se bifurcó")

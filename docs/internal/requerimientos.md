@@ -36548,6 +36548,101 @@ mockup.
 Ninguna clase, include, variante ni valor fuera del inventario: no hubo novedades que devolver
 al llamador. `--arquetipo listado` pasa de **6 desvíos a OK**.
 
+## Revisión
+
+El revisor independiente pidió cambios por un MAJOR: la barrera sincronizaba el
+arranque, pero permitía ejecutar las operaciones en serie. Sin el bloqueo de plaza,
+el escenario 1 todavía daba verde 6 de 20 veces. Las corridas iniciales de la sección
+anterior no alcanzaban para demostrar que los tests detectaban una protección rota.
+
+Se reemplazó la barrera por eventos sobre las consultas reales, mediante
+`connection.execute_wrapper` en cada hilo. A ejecuta el SELECT que toma el candado y
+se detiene con la transacción abierta. Recién entonces arranca B y anuncia su intento
+de ejecutar la consulta competidora. El coordinador exige que InnoDB muestre esa
+conexión en `LOCK WAIT`, comprueba con `Event.wait(timeout)` que B no termina y también
+que no atraviesa la consulta. Después libera A. Los eventos y joins tienen límite;
+el `finally` libera A y espera el cierre de las conexiones aunque falle la coordinación.
+No hay sleeps ni hooks en los servicios productivos.
+
+El hook reconoce tabla, operación SQL y función del servicio sin exigir que el SQL
+contenga `FOR UPDATE`. Así también intercepta la lectura mutada. Si B atraviesa esa
+lectura, la prueba falla aunque otro candado o UNIQUE lo detenga después. Se excluyen
+las consultas de permisos, la carga inicial de objetos y los JOIN. En `liberar_reserva`,
+el `LIMIT 1` identifica el bloqueo de plaza y lo distingue del `get` previo de la FK.
+Eliminar esa sentencia completa también hace fallar el test: B no alcanza el punto
+obligatorio, y el coordinador libera los hilos al vencer el límite.
+
+Los once tests fuerzan el solapamiento de los diez escenarios. Para el escenario 2,
+las plazas son distintas: A se detiene después del INSERT de la estadía, antes del
+commit, y B espera el UNIQUE de `clave_alojamiento` al insertar. Al liberar A, B recibe
+`AlojamientoEnLaRed`. En los demás casos A se detiene después de la lectura bloqueante
+de plaza, edificio, inspección, raíz de bitácora o dispositivo. Se conservan las
+comprobaciones del error de dominio, estado final, trazas y archivo de la foto.
+No quedó ningún escenario sin coordinación del punto crítico.
+
+La consulta de `INNODB_TRX` necesita el permiso `PROCESS`; los contenedores y el job
+«Motor real» usan root. Su snapshot tiene caché: entre consultas el coordinador espera
+el evento hasta 200 ms para permitir el refresco. Si B atraviesa la lectura, el evento
+despierta al coordinador. El orden entre operaciones lo fijan los eventos y la espera
+del motor, sin depender de ese intervalo.
+
+Validación de esta revisión: diez corridas consecutivas de las once carreras y los
+tres contratos de `MotorDeclaradoTests` por motor, con las migraciones reales,
+aislamiento `read committed` y timeouts de conexión de 10 segundos. MariaDB
+`11.8.9-MariaDB-ubu2404` (`mariadb:11`) arrancó sin tablas de zona horaria; MySQL fue
+`8.0.46` (`mysql:8.0`). Todas las carreras dieron verde 10/10 en ambos motores. MySQL
+solo salteó el contrato de ausencia de tablas de zona horaria; no salteó carreras.
+
+Las mutaciones se ejecutan por separado en procesos de validación: se recompila el
+servicio con la protección retirada en su namespace antes de cargar los tests, sin
+escribir los archivos productivos. La mutación del UNIQUE elimina el índice real
+`estadia_clave_alojamiento_unica` del contenedor y lo restaura en `finally`. Cada variante
+ejecuta diez instancias nuevas del test con fixtures y transacciones independientes.
+Se exige un fallo de aserción del escenario, sin errores de preparación ni skips.
+
+Cada celda cuenta las diez corridas del escenario; las variantes de una protección
+se ejecutaron por separado. Verde corresponde al servicio correcto y rojo a la
+mutación indicada.
+
+| Escenario | Mutación | MariaDB correcto | MariaDB mutado | MySQL correcto | MySQL mutado |
+|---|---|---|---|---|---|
+| 1. Dos ingresos a la misma plaza | Quitar FOR UPDATE de `_bloquear_plaza` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 2. Misma persona en dos dispositivos | Eliminar el UNIQUE de `clave_alojamiento` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 2. Misma persona en dos dispositivos | Quitar la traducción a `AlojamientoEnLaRed` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 3. Dos cambios a la misma plaza | Quitar FOR UPDATE de `_bloquear_plaza` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 4. Ingreso y reserva | Quitar FOR UPDATE de `_bloquear_plaza` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 5. Consumir y liberar reserva | Quitar FOR UPDATE de plaza en `liberar_reserva` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 5. Consumir y liberar reserva | Eliminar la sentencia completa de plaza en `liberar_reserva` | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 6. Asignar dos inspecciones | Quitar FOR UPDATE de edificio | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 7. Dos correcciones de bitácora | Quitar solo FOR UPDATE de raíz | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 7. Dos correcciones de bitácora | Quitar FOR UPDATE de raíz y traducción de IntegrityError | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 8a. Resultado con UUID igual | Quitar FOR UPDATE de inspección | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 8b. Resultados con UUID distinto | Quitar FOR UPDATE de inspección | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 9. Foto con UUID igual | Quitar FOR UPDATE de inspección | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+| 10. Turnos superpuestos | Quitar FOR UPDATE de dispositivo | 10/10 verde | 10/10 rojo | 10/10 verde | 10/10 rojo |
+
+Quitar solo el candado de raíz ahora da rojo 10/10 aun conservando su UNIQUE y la
+traducción del error: el test rechaza que B atraviese la lectura, antes de depender de
+esas defensas posteriores. Quitar solo la traducción con el candado de raíz presente
+no genera una colisión de INSERT; esa defensa redundante sigue fuera de la carrera
+serializada. La tabla distingue quitar el candado de quitar ambas protecciones.
+
+Gates de cierre: `ruff check .` y formato del archivo de tests, OK; `manage.py check`,
+sin hallazgos; 188 tests de regresión de estadías, bitácora, inspecciones y candados,
+OK (dos skips de motor real); las once carreras se saltean en SQLite. Después de las
+mutaciones se repitió la suite correcta en ambos motores. `requerimientos.py --check`,
+OK; el contrato de esta entrada y su fila de índice se validó además sobre una copia
+temporal numerada, conservando `NNN` en el repo y sin modificar entradas anteriores.
+
+Entorno de esta revisión: venv propio del worktree, Python 3.12.12, Django 5.2.17 y
+Ruff 0.16.10. El pin mysqlclient 2.1.1 no tiene wheel para Python 3.12 en Windows y
+su compilación pidió Visual C++; se usó mysqlclient 2.2.8 solo en este venv, sin cambiar
+los requirements del repo. Los timeouts de 300 segundos se limitaron a preparar las
+migraciones; todas las corridas de la matriz y la restauración usaron 10 segundos,
+comprobados por `MotorDeclaradoTests`. Los dos contenedores se crearon con
+`docker run -d --rm` y se apagaron al terminar. La corrección productiva aprobada de `liberar_reserva`
+se conserva; esta revisión solo cambia los tests y esta sección.
+
 ## Apartamientos del mockup
 
 Todo lo que el mockup P2 muestra y acá no se dibuja —ni deshabilitado—, con el motivo:
