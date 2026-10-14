@@ -162,7 +162,7 @@ class DatosViejosTests(_Base):
 
         self.assertEqual(
             set(definicion),
-            {"requiere_gps", "canal", "version", "items", "globales", "requisitos"},
+            {"requiere_gps", "acepta_respuestas", "canal", "version", "items", "globales", "requisitos"},
         )
         self.assertIsInstance(definicion["globales"], list)
         self.assertIsInstance(definicion["requisitos"], list)
