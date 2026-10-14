@@ -227,7 +227,7 @@ def procesar_texto(original, paquete=None):
         "imagenes_faltantes": None,
         "imagenes_rechazadas": None,
         "imagenes": [],
-        "token_imagenes": None,
+        "token_imagenes": None,  # nosec B105 - token público de las imágenes del .zip, no una credencial
     }
     if paquete is not None:
         datos.update(
