@@ -26,7 +26,8 @@ Un módulo nuevo arma **su propio** parcial de badges con el mismo patrón:
 los de Merenderos. El mapeo también puede vivir en el servicio o selector del módulo, que
 entrega texto y `tono` y el template dibuja `badge badge-dot badge-{{ tono }}` sin decidir nada:
 así lo hace la estadía de Dispositivos (`ESTADOS_VISIBLES` de `programas/services/estadias.py`,
-que leen el detalle del dispositivo, la solapa del legajo y el detalle de la estadía (P7)). **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
+que leen el detalle del dispositivo, la solapa del legajo y el detalle de la estadía (P7)). De ese
+módulo, **solo** `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egreso, plazas) es dominio. **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
 `badge-danger` ni en `text-fg-danger`.
 
 ---
