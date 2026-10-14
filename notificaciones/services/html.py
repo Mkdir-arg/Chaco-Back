@@ -10,8 +10,14 @@ se envía es siempre la copia saneada:
   se arma un correo (los clientes de correo los admiten parcialmente), pero al CSS se le
   sacan ``@import`` y toda declaración con ``url(…)``, ``expression(…)``, ``behavior`` o
   ``-moz-binding``: cargarían recursos o código de afuera;
-- las imágenes solo quedan con ``src`` ``http(s)://``: ``cid:``, rutas relativas y ``data:``
-  pierden el ``src`` y se cuentan para el aviso de la previsualización.
+- las imágenes con ``src`` ``cid:``, ``data:`` o una ruta relativa no le llegan a nadie y se
+  cuentan para el aviso de la previsualización (``data:`` pierde el ``src``; la relativa lo
+  conserva, pero no hay contra qué resolverla).
+
+El cuerpo también puede venir como **.zip** con la carpeta del mailing (Cambio 285): lo abre
+:mod:`notificaciones.services.paquete`, que publica las imágenes y reescribe sus ``src`` a URLs
+absolutas **antes** del saneo. Las imágenes de fondo por CSS (``url(…)``) y por atributo
+``background`` siguen sin publicarse: el saneo las quita igual que en un HTML suelto.
 
 La vista previa además va en un ``iframe`` con ``sandbox`` vacío y una CSP propia
 (``views.campanas.vista_previa_html``): el saneo no es la única barrera.
@@ -27,6 +33,7 @@ from django.core.exceptions import ValidationError
 
 HTML_MAX_BYTES = 1024 * 1024
 EXTENSIONES_HTML = (".html", ".htm")
+EXTENSIONES_CUERPO = (*EXTENSIONES_HTML, ".zip")
 
 ETIQUETAS = frozenset(nh3.ALLOWED_TAGS) | {
     "style",
@@ -98,7 +105,7 @@ def leer_html(archivo):
     """
     nombre = (getattr(archivo, "name", "") or "").lower()
     if not nombre.endswith(EXTENSIONES_HTML):
-        raise ValidationError("El cuerpo del correo tiene que ser un archivo .html.")
+        raise ValidationError("El cuerpo del correo tiene que ser un archivo .html o un .zip con la carpeta.")
     if (getattr(archivo, "size", 0) or 0) > HTML_MAX_BYTES:
         raise ValidationError("El archivo HTML no puede superar 1 MB.")
     archivo.seek(0)
@@ -199,15 +206,52 @@ def documento(html_sanitizado):
     )
 
 
-def procesar(archivo):
-    """Lee, valida y sanea el HTML subido. Devuelve el dict que se guarda en la campaña."""
-    original = leer_html(archivo)
+def procesar_texto(original, paquete=None):
+    """Sanea un HTML ya leído. Devuelve el dict que se guarda en la campaña.
+
+    Con ``paquete`` (el .zip ya leído), ``original`` trae los ``src`` reescritos a las URLs
+    públicas y el dict suma, en la clave ``imagenes``, lo que hay que publicar. Las faltantes y
+    las rechazadas se listan aparte y no se cuentan en ``imagenes_no_visibles``, que queda para
+    las demás (``cid:``, ``data:``, relativas en un HTML suelto).
+    """
     saneado = sanitizar(original)
     if not saneado:
         raise ValidationError("Después de quitar el contenido inseguro, el HTML quedó vacío.")
-    return {
+    no_visibles = contar_imagenes_no_visibles(original)
+    datos = {
         "html_sanitizado": saneado,
         "texto_plano": a_texto(saneado),
         "elementos_quitados": contar_quitados(original),
-        "imagenes_no_visibles": contar_imagenes_no_visibles(original),
+        "imagenes_no_visibles": no_visibles,
+        "imagenes_alojadas": 0,
+        "imagenes_faltantes": None,
+        "imagenes_rechazadas": None,
+        "imagenes": [],
+        "token_imagenes": None,  # nosec B105 - token público de las imágenes del .zip, no una credencial
     }
+    if paquete is not None:
+        datos.update(
+            {
+                "imagenes_no_visibles": max(0, no_visibles - paquete.referencias_sin_publicar),
+                "imagenes_alojadas": len(paquete.imagenes),
+                "imagenes_faltantes": "\n".join(paquete.faltantes) or None,
+                "imagenes_rechazadas": "\n".join(paquete.rechazadas) or None,
+                "imagenes": paquete.imagenes,
+                "token_imagenes": paquete.token,
+            }
+        )
+    return datos
+
+
+def procesar(archivo):
+    """Lee, valida y sanea el cuerpo subido (.html o .zip). Devuelve el dict que se guarda en la campaña.
+
+    La clave ``imagenes`` no es un campo de ``Campana``: son las imágenes del .zip que
+    ``services.campanas`` publica como ``ImagenCampana``.
+    """
+    from notificaciones.services import paquete as servicio_paquete
+
+    if servicio_paquete.es_zip(archivo):
+        leido = servicio_paquete.leer_paquete(archivo)
+        return procesar_texto(leido.html, leido)
+    return procesar_texto(leer_html(archivo))

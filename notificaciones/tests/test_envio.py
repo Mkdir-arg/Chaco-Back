@@ -223,6 +223,78 @@ class CorridasTests(ConMediaTemporal):
         envio.correr(envio.preparar_reanudacion(Campana.objects.get(pk=campana.pk)))
         self.assertEqual(self._por_destino(), {"a@x.com": 1, "b@x.com": 1})
 
+    def test_residuo_de_otra_corrida_no_deja_la_campana_enviando(self):
+        """MINOR a de #647: un EN_CURSO que dejó una corrida vieja ya no frena el cierre."""
+        campana = _enviando(crear_campana(emails=["a@x.com", "b@x.com", "c@x.com"]))
+        # El hilo viejo reclamó «b» después de que la reanudación devolviera sus reclamos, y murió.
+        campana.destinatarios.filter(email="b@x.com").update(estado=Destinatario.Estado.EN_CURSO, corrida="viejo")
+        # Uno sin firma, de antes del Cambio 285.
+        campana.destinatarios.filter(email="c@x.com").update(estado=Destinatario.Estado.EN_CURSO, corrida=None)
+        envio.correr(campana)
+
+        self.assertEqual(self._por_destino(), {"a@x.com": 1, "b@x.com": 1, "c@x.com": 1})
+        campana.refresh_from_db()
+        self.assertEqual(campana.estado, Campana.Estado.ENVIADA)
+        self.assertEqual(campana.enviados, 3)
+
+    def test_devolver_solo_toca_el_reclamo_de_su_corrida(self):
+        """MINOR c de #647: ``_devolver`` filtra por estado **y** por corrida."""
+        campana = _enviando(crear_campana(emails=["a@x.com"]))
+        destinatario = campana.destinatarios.get()
+        destinatario.estado, destinatario.corrida = Destinatario.Estado.EN_CURSO, "otra"
+        destinatario.save()
+
+        envio._devolver(destinatario.pk, "mia")
+        destinatario.refresh_from_db()
+        self.assertEqual(destinatario.estado, Destinatario.Estado.EN_CURSO)
+
+        envio._devolver(destinatario.pk, "otra")
+        destinatario.refresh_from_db()
+        self.assertEqual(destinatario.estado, Destinatario.Estado.PENDIENTE)
+
+    def test_el_reclamo_queda_firmado_con_la_corrida(self):
+        campana = _enviando(crear_campana(emails=["a@x.com"]))
+        destinatario = campana.destinatarios.get()
+        self.assertTrue(envio._reclamar(destinatario.pk, campana.corrida))
+        destinatario.refresh_from_db()
+        self.assertEqual(destinatario.corrida, campana.corrida)
+
+    @override_settings(EMAIL_BACKEND="notificaciones.tests.backends.DatosRechazadosParaAlgunos")
+    def test_falla_propia_de_una_direccion_queda_fallida_a_los_tres_intentos(self):
+        """MINOR b de #647: un 5xx al DATA de una dirección no frena el envío para siempre."""
+        campana = _enviando(crear_campana(emails=["a@x.com", "datos@x.com", "c@x.com"]))
+        envio.correr(campana)
+
+        campana.refresh_from_db()
+        self.assertEqual(campana.estado, Campana.Estado.ENVIADA_CON_ERRORES)
+        self.assertFalse(campana.interrumpida)
+        mala = campana.destinatarios.get(email="datos@x.com")
+        self.assertEqual(mala.estado, Destinatario.Estado.FALLIDO)
+        self.assertEqual(mala.intentos, envio.MAX_INTENTOS)
+        self.assertIn("SMTPDataError", mala.error)
+        self.assertEqual(self._por_destino(), {"a@x.com": 1, "c@x.com": 1})
+
+    @override_settings(EMAIL_BACKEND="notificaciones.tests.backends.VolumenTemporal")
+    def test_un_4xx_del_servidor_no_cuenta_intentos(self):
+        campana = _enviando(crear_campana(emails=[f"p{i}@x.com" for i in range(3)]))
+        envio.correr(campana)
+
+        campana.refresh_from_db()
+        self.assertTrue(campana.interrumpida)
+        self.assertIn("fallos seguidos", campana.mensaje)
+        self.assertEqual(campana.destinatarios.filter(estado=Destinatario.Estado.PENDIENTE).count(), 3)
+        self.assertFalse(campana.destinatarios.filter(intentos__gt=0).exists())
+
+    def test_que_falla_cuenta_como_propia(self):
+        import smtplib
+
+        self.assertTrue(envio._es_falla_propia(smtplib.SMTPDataError(550, b"no")))
+        self.assertTrue(envio._es_falla_propia(ValueError("direccion rara")))
+        self.assertFalse(envio._es_falla_propia(smtplib.SMTPDataError(451, b"later")))
+        self.assertFalse(envio._es_falla_propia(smtplib.SMTPServerDisconnected("x")))
+        self.assertFalse(envio._es_falla_propia(smtplib.SMTPSenderRefused(553, b"no", "a@b")))
+        self.assertFalse(envio._es_falla_propia(TimeoutError("timed out")))
+
     @override_settings(NOTIF_LOTE=10, EMAIL_BACKEND="notificaciones.tests.backends.CortaElSegundo")
     def test_conexion_cortada_a_mitad_de_lote_deja_pendiente_y_reabre(self):
         backends.CortaElSegundo.aperturas = 0

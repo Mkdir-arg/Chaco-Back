@@ -21,4 +21,6 @@ urlpatterns = [
     path("campanas/<int:pk>/detener/", campanas.campana_detener, name="campana_detener"),
     path("campanas/<int:pk>/reanudar/", campanas.campana_reanudar, name="campana_reanudar"),
     path("campanas/<int:pk>/resultado.xlsx", campanas.exportar_resultado, name="campana_exportar"),
+    # Pública, sin login: la pide el cliente de correo del destinatario (Cambio 285).
+    path("img/<str:token>/<str:nombre>", campanas.imagen_publica, name="imagen_publica"),
 ]

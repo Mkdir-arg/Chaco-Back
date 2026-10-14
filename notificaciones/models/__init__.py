@@ -16,7 +16,7 @@ from django.db import models
 from django.utils import timezone
 
 from core.models import TimeStamped
-from core.rutas_media import ruta_notificacion_excel, ruta_notificacion_html
+from core.rutas_media import ruta_notificacion_excel, ruta_notificacion_html, ruta_notificacion_imagen
 
 #: Tope de destinatarios válidos por campaña (RN-007-05, decidido por el PM).
 TOPE_DESTINATARIOS = 5000
@@ -56,6 +56,12 @@ class Campana(TimeStamped):
     # Avisos de la previsualización, calculados al subir el HTML.
     elementos_quitados = models.PositiveIntegerField(default=0, verbose_name="Elementos inseguros quitados")
     imagenes_no_visibles = models.PositiveIntegerField(default=0, verbose_name="Imágenes con ruta relativa o cid:")
+    # Cuerpo subido como .zip (Cambio 285): cuántas imágenes del paquete quedaron publicadas,
+    # cuáles nombra el HTML y no vinieron, y cuáles vinieron y no se publican (SVG, archivo que
+    # no es una imagen). Una por línea; en un HTML suelto quedan vacías.
+    imagenes_alojadas = models.PositiveIntegerField(default=0, db_default=0, verbose_name="Imágenes alojadas")
+    imagenes_faltantes = models.TextField(null=True, blank=True, verbose_name="Imágenes que faltan en el .zip")
+    imagenes_rechazadas = models.TextField(null=True, blank=True, verbose_name="Imágenes del .zip no publicadas")
 
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.A_ENVIAR, db_index=True)
     creada_por = models.ForeignKey(
@@ -102,6 +108,14 @@ class Campana(TimeStamped):
         return timezone.now() - referencia > self.LATIDO_VENCIDO
 
     @property
+    def lista_imagenes_faltantes(self):
+        return [linea for linea in (self.imagenes_faltantes or "").splitlines() if linea]
+
+    @property
+    def lista_imagenes_rechazadas(self):
+        return [linea for linea in (self.imagenes_rechazadas or "").splitlines() if linea]
+
+    @property
     def descartados_total(self):
         return self.invalidos + self.duplicados
 
@@ -132,6 +146,14 @@ class Destinatario(TimeStamped):
     estado = models.CharField(max_length=10, choices=Estado.choices, default=Estado.PENDIENTE)
     enviado_en = models.DateTimeField(null=True, blank=True)
     error = models.TextField(blank=True, default="")
+    # La corrida que lo reclamó (``Campana.corrida`` de ese momento). Con ella, una corrida
+    # solo devuelve a pendientes lo que reclamó ella, y la última sabe distinguir un EN_CURSO
+    # de otra corrida ya reemplazada (residuo) del suyo (Cambio 285, MINOR de #647).
+    corrida = models.CharField(max_length=32, null=True, blank=True, verbose_name="Corrida que lo reclamó")
+    # Fallas propias de esta dirección que no son el rechazo del RCPT (un 5xx al DATA, un
+    # error al armar el mensaje). A las ``envio.MAX_INTENTOS`` queda FALLIDO con el último
+    # error, en vez de frenar cada reanudación en la misma dirección.
+    intentos = models.PositiveSmallIntegerField(default=0, db_default=0, verbose_name="Intentos fallidos")
 
     class Meta:
         verbose_name = "Destinatario"
@@ -195,3 +217,35 @@ class PruebaEnviada(TimeStamped):
 
     def __str__(self):
         return f"{self.email} · {'ok' if self.ok else 'falló'}"
+
+
+class ImagenCampana(TimeStamped):
+    """Una imagen del .zip del cuerpo, publicada para que el correo la muestre (Cambio 285).
+
+    **Pública a propósito** (decisión del PM, 14/10/2026): el destinatario no tiene sesión, así
+    que la vista ``notificaciones:imagen_publica`` la sirve sin login, buscándola por ``token``
+    —uno por paquete subido, no adivinable— y ``nombre``. Es la única excepción a «`media/`
+    detrás de login» y alcanza solo a esto: imágenes validadas con Pillow, nunca otro archivo.
+    """
+
+    campana = models.ForeignKey(Campana, on_delete=models.CASCADE, related_name="imagenes")
+    # ``secrets.token_urlsafe``: 32 caracteres [A-Za-z0-9_-]. Cambia con cada paquete subido,
+    # así una imagen reemplazada nunca se sirve con la URL (y la caché) de la anterior.
+    token = models.CharField(max_length=64, db_index=True)
+    #: El nombre de la URL: ``NN-nombre.ext``, con la extensión del formato detectado.
+    nombre = models.CharField(max_length=100)
+    ruta_original = models.CharField(max_length=255, verbose_name="Ruta dentro del .zip")
+    archivo = models.FileField(upload_to=ruta_notificacion_imagen, max_length=255)
+    content_type = models.CharField(max_length=30)
+    tamano = models.PositiveIntegerField(verbose_name="Tamaño en bytes")
+
+    class Meta:
+        verbose_name = "Imagen de campaña"
+        verbose_name_plural = "Imágenes de campaña"
+        ordering = ["nombre"]
+        constraints = [
+            models.UniqueConstraint(fields=["token", "nombre"], name="notif_imagen_unica"),
+        ]
+
+    def __str__(self):
+        return self.nombre

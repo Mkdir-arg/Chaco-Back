@@ -159,6 +159,11 @@ ALLOWLIST_PUBLICA = {
     "/portal/inscripcion/00000000-0000-0000-0000-000000000000/": "Paso 1 del link público de inscripción.",
     "/portal/inscripcion/00000000-0000-0000-0000-000000000000/formulario/": "Paso 2 del link público.",
     "/portal/inscripcion/00000000-0000-0000-0000-000000000000/confirmacion/": "Confirmación del link público.",
+    # Cambio 285 (decisión del PM, 14/10/2026): las imágenes del .zip de una campaña de
+    # correo las pide el cliente de correo del destinatario, sin sesión. Contesta 404 con el
+    # token de juguete; solo sirve archivos registrados como imagen de una campaña, buscados
+    # por token + nombre en la base. Lo fija `notificaciones.tests.test_imagenes_publicas`.
+    "/notificaciones/img/x/x": "Imágenes publicadas de las campañas de correo (Cambio 285).",
 }
 
 #: Qué cuenta como «rebotar». **`404` y `405` no están**, y esa ausencia es el
@@ -244,8 +249,9 @@ class SuperficieAnonimaTests(TestCase):
         lista y actualizar este número en el mismo commit.
         """
         # +1: /health/ready/ (OPS-04, Cambio 153) · −4: las cuatro de
-        # `django.contrib.auth.urls`, que dejó de incluirse (SEC-26, Cambio 181).
-        self.assertEqual(len(ALLOWLIST_PUBLICA), 14)
+        # `django.contrib.auth.urls`, que dejó de incluirse (SEC-26, Cambio 181) · +1: las
+        # imágenes de las campañas de correo (Cambio 285).
+        self.assertEqual(len(ALLOWLIST_PUBLICA), 15)
 
     def test_la_allowlist_publica_no_tiene_entradas_muertas(self):
         """Una URL que ya no existe en el URLconf deja de justificar nada."""
@@ -476,10 +482,11 @@ class SuperficieSinRolTests(TestCase):
         `/configuracion/programas/`, que pasó a pedir capacidad (SEC-36), y entra
         `/sesion/latido/`, que es nueva (SEC-35). G1-01 fase 2 baja **−4**: las dos
         APIs de alertas de Conversaciones, montadas bajo dos prefijos, que ahora son
-        404 porque la app se apagó entera.
+        404 porque la app se apagó entera. El Cambio 285 suma **+1** pública (las imágenes
+        de las campañas de correo), que entra acá por la unión.
         """
         self.assertEqual(len(EXTRAS_SIN_ROL), 18)
-        self.assertEqual(len(ALLOWLIST_SIN_ROL), 32)
+        self.assertEqual(len(ALLOWLIST_SIN_ROL), 33)
 
     def test_la_allowlist_sin_rol_no_tiene_entradas_muertas(self):
         urls = {url for _, url in self.rutas}
