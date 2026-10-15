@@ -7,10 +7,11 @@
 | Organismo destinatario | Ministerio de Desarrollo Humano de la Provincia del Chaco |
 | Proponente | ICORE |
 | Fecha de actualización | 15 de octubre de 2026 |
-| Versión | 0.4 |
+| Versión | 0.5 |
 | Estado | Borrador de propuesta para revisión |
 | Objeto | Desarrollo de una aplicación web para la gestión de emergencias sociales |
 | Alternativas | Esencial, Operativa e Integral |
+| Servicio opcional | Mesa de ayuda funcional dedicada 24/7, contratable con cualquiera de las alternativas |
 | Estimación de la alternativa Integral | 6.000 a 6.500 horas totales de trabajo |
 | Contenido | Funcionalidades, entregables, equipo, horas y plazos, sin importes |
 
@@ -259,7 +260,34 @@ Estas ampliaciones no forman parte de las horas de ninguna de las tres alternati
 
 Si se contrata una alternativa y luego se decide avanzar a otra, se estimará el trabajo restante a partir de lo entregado y de los cambios solicitados. La diferencia entre los totales actuales no constituye una cotización automática de la ampliación.
 
-## 11. Condiciones para cerrar el alcance
+## 11. Servicio opcional: mesa de ayuda funcional 24/7
+
+ICORE propone una mesa de ayuda funcional dedicada, disponible todos los días, incluidos fines de semana y feriados. Puede contratarse junto con Esencial, Operativa o Integral y acompañará el uso de las funciones incluidas en la alternativa elegida.
+
+| Prestación | Alcance del servicio |
+|---|---|
+| Asistencia a usuarios | Orientación sobre pantallas, carga de información, consultas y circuitos de trabajo |
+| Recepción de consultas e incidencias | Registro de tickets con prioridad, contexto, responsable y estado de atención |
+| Diagnóstico funcional | Revisión del procedimiento seguido por el usuario y reproducción del caso cuando corresponda |
+| Acompañamiento de casos | Seguimiento del ticket, comunicación de avances y confirmación del cierre con el usuario |
+| Escalamiento | Derivación de defectos o consultas especializadas al responsable definido en el circuito de atención |
+| Continuidad entre turnos | Entrega de pendientes e historial de acciones para que el siguiente operador continúe la atención |
+| Base de conocimiento | Guías de uso, respuestas frecuentes y actualización de procedimientos funcionales |
+| Reportes de atención | Informe periódico de consultas, incidencias, tiempos de respuesta y necesidades de capacitación |
+
+### Cobertura y dotación de referencia
+
+Se propone una posición funcional activa por turno, con una dotación inicial de 5 a 6 personas para cubrir relevos, descansos y ausencias. La cantidad final se acordará según el volumen de consultas, los canales y la atención simultánea requerida.
+
+La cobertura continua de esa posición equivale a 168 horas semanales, aproximadamente 730 horas mensuales de atención disponible. Estas horas corresponden al servicio recurrente y se distinguen de las horas de trabajo necesarias para organizar turnos y reemplazos.
+
+### Modalidad de contratación
+
+La mesa de ayuda se contrata por separado. Sus horas y su equipo no están incluidos en los rangos de desarrollo de 3.000–3.500, 4.500–5.000 o 6.000–6.500 horas.
+
+Antes de iniciar el servicio se acordarán los canales, prioridades, tiempos de primera respuesta, fecha de inicio y preparación de los operadores. La cobertura 24/7 se refiere a la atención funcional. Las correcciones de software y la intervención de especialistas se canalizarán según el acuerdo de mantenimiento y escalamiento que se establezca.
+
+## 12. Condiciones para cerrar el alcance
 
 | Condición | Definición a acordar |
 |---|---|
@@ -270,5 +298,6 @@ Si se contrata una alternativa y luego se decide avanzar a otra, se estimará el
 | Rendimiento | Escenarios de uso y condiciones de medición de concurrencia y actualización en vivo |
 | Calendario | Inicio, disponibilidad de referentes y validación de entregas |
 | Entrega y conformidad | Casos de aceptación, manuales y capacitación incluidos en la alternativa |
+| Mesa de ayuda opcional | Contratación, canales, volumen de atención, turnos, tiempos de respuesta y circuito de escalamiento |
 
 El documento presenta tres opciones para decidir alcance. La versión contractual incorporará la alternativa elegida y las definiciones acordadas.
