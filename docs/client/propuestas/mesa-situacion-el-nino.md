@@ -7,7 +7,7 @@
 | Organismo destinatario | Ministerio de Desarrollo Humano de la Provincia del Chaco |
 | Proponente | ICORE |
 | Fecha de actualización | 15 de octubre de 2026 |
-| Versión | 0.6 |
+| Versión | 0.7 |
 | Estado | Borrador de propuesta para revisión |
 | Objeto | Desarrollo de una aplicación web para la gestión de emergencias sociales |
 | Alternativas | Esencial, Operativa e Integral |
@@ -22,6 +22,9 @@
     Se contrata una alternativa. Operativa incluye las funciones de Esencial e Integral incluye las de Operativa. Las horas de cada opción corresponden a su alcance completo: no se suman entre sí.
 
 El proyecto es independiente de Datañach. Su experiencia en relevamientos, legajos y gestión institucional se toma como referencia para el desarrollo.
+
+!!! tip "Planificación por alternativa"
+    Consultá el [anexo con los tres Gantt, hitos, equipos y horas por mes](planificacion-mesa-situacion-el-nino.md). Presenta escenarios de dedicación concentrada al inicio, calculados sobre las mismas horas de esta propuesta.
 
 ## 1. Objetivo
 
