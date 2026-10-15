@@ -40585,6 +40585,16 @@ del sistema queda igual.
   Sin canal masivo, siempre `DEFAULT_FROM_EMAIL`, aunque `NOTIF_DEFAULT_FROM_EMAIL` esté cargada: el SMTP
   común rechaza un From distinto del que autentica. El «De» de la vista previa y la línea del detalle
   muestran el del canal.
+- **Credenciales incompletas** (revisión del juez, ronda 2): con `NOTIF_EMAIL_HOST` cargada y sin
+  `NOTIF_EMAIL_HOST_USER` o `NOTIF_EMAIL_HOST_PASSWORD`, `conexion_masiva()` levanta `canal.CanalIncompleto`
+  («NOTIF_EMAIL_HOST está configurado pero faltan NOTIF_EMAIL_HOST_USER/PASSWORD: el servicio de correo
+  masivo no puede autenticarse.») en vez de intentar sin login, con cualquier backend (también en los tests).
+  La prueba lo devuelve tal cual en el toast (sin el nombre de la excepción) y lo registra en
+  `PruebaEnviada.error`; el envío masivo queda **interrumpido** con ese motivo y los destinatarios siguen
+  pendientes, para reanudar cuando estén cargadas.
+- **Variables vacías**: `NOTIF_EMAIL_PORT` y `NOTIF_EMAIL_TIMEOUT` se leen con `os.getenv(...) or default`:
+  una variable cargada vacía en el configmap (`NOTIF_EMAIL_PORT=`) toma el default en vez de romper el
+  arranque con un `ValueError`. `EMAIL_PORT` del común no se tocó.
 - **Timeout**: `NOTIF_EMAIL_TIMEOUT` 20 s por defecto, más holgado que los 5 s del común: el masivo corre en
   un hilo. La prueba sí corre en el request, así que se declaró en `core.integraciones.CADENAS`
   («notificaciones · enviar la prueba de una campaña» → `smtp.masivo`, 20 s con el canal masivo, el
@@ -40640,7 +40650,7 @@ No requiere.
 
 ## Validación
 
-- `notificaciones/tests/test_canal.py` (22 tests, sin red: `smtplib.SMTP` y `socket.create_connection`
+- `notificaciones/tests/test_canal.py` (27 tests, sin red: `smtplib.SMTP` y `socket.create_connection`
   parcheados para fallar donde corre un envío): selección con y sin `NOTIF_EMAIL_HOST` (`get_connection`
   parcheado: backend SMTP con host, puerto, usuario, TLS, `use_ssl=False` y timeout; sin host, la llamada
   común), el backend SMTP real creado **sin abrir** con sus atributos, `locmem` y sus derivados respetados,
@@ -40649,13 +40659,18 @@ No requiere.
   correo del sistema (`enviar_credenciales_usuario`) sigue por el común aunque el masivo esté configurado;
   el detalle muestra la línea y el «De» del canal; la cadena de la prueba en el presupuesto;
   `diagnosticar_correo --canal masivo` (configuración sin la clave, ritmo «~5.0 correos/s», conexión, envío
-  solo con `--destino`, credenciales rechazadas 535 contra el SMTP masivo, host vacío = falla). Las
-  credenciales de los tests son ficticias y el host es de un dominio de prueba.
+  solo con `--destino`, credenciales rechazadas 535 contra el SMTP masivo, host vacío = falla); ronda 2:
+  host sin usuario o sin clave no llama a `get_connection` (SMTP parcheado), la prueba por la vista devuelve
+  502 con el mensaje claro, el masivo queda interrumpido con el motivo y `NOTIF_EMAIL_PORT=` /
+  `NOTIF_EMAIL_TIMEOUT=` vacías arrancan Django (subproceso) con 587 y 20. Las credenciales de los tests son
+  ficticias y el host es de un dominio de prueba.
 - **Mutaciones, todas en rojo y restauradas desde copia**: `configurado()` siempre falso (9 fallas),
   `backend_masivo()` siempre SMTP (6) o siempre el común (1), `conexion_masiva()` sin los parámetros del
   masivo (5), `use_ssl` heredado (1), remitente siempre el común (6), el lote por `get_connection()` común
   (1), la prueba sin la conexión del canal (2), el diagnóstico con la conexión común (1) y el «De» del
-  detalle con el remitente común (1; la primera versión del test no lo veía y se reforzó).
+  detalle con el remitente común (1; la primera versión del test no lo veía y se reforzó); ronda 2: el
+  `or` de puerto y de timeout (1 cada uno), sin el control de credenciales (4), controlando solo el usuario
+  (2) y la prueba con el nombre de la excepción en el mensaje (1).
 - `manage.py test notificaciones users core programas.tests.test_llamadas_externas` en verde (Py 3.12 +
   Dj 5.2); `manage.py check` sin issues; `check --deploy` solo con los avisos preexistentes de un entorno
   local (y sin `core.E003` con el canal masivo configurado); `makemigrations --check --dry-run` (SYNCDB

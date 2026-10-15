@@ -32,6 +32,18 @@ MASIVO = "masivo"
 COMUN = "comun"
 
 
+class CanalIncompleto(Exception):
+    """``NOTIF_EMAIL_HOST`` está cargada pero faltan las credenciales: no se intenta sin login."""
+
+    MENSAJE = (
+        "NOTIF_EMAIL_HOST está configurado pero faltan NOTIF_EMAIL_HOST_USER/PASSWORD: "
+        "el servicio de correo masivo no puede autenticarse."
+    )
+
+    def __init__(self):
+        super().__init__(self.MENSAJE)
+
+
 def configurado() -> bool:
     """¿Las campañas tienen su propio SMTP? Lo decide la presencia de ``NOTIF_EMAIL_HOST``."""
     return bool(getattr(settings, "NOTIF_EMAIL_HOST", ""))
@@ -74,9 +86,16 @@ def backend_masivo() -> str:
 
 
 def conexion_masiva():
-    """Una conexión (sin abrir) por el canal de las campañas. Nunca silencia errores."""
+    """Una conexión (sin abrir) por el canal de las campañas. Nunca silencia errores.
+
+    Con ``NOTIF_EMAIL_HOST`` cargada y sin usuario o contraseña levanta :class:`CanalIncompleto`
+    —con cualquier backend, también en los tests—: sin login SES rechaza todo, y el mensaje claro
+    llega a la prueba (toast) y al envío masivo (motivo de la interrupción).
+    """
     if not configurado():
         return get_connection(fail_silently=False)
+    if not (settings.NOTIF_EMAIL_HOST_USER and settings.NOTIF_EMAIL_HOST_PASSWORD):
+        raise CanalIncompleto()
     return get_connection(backend_masivo(), fail_silently=False, **parametros())
 
 

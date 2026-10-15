@@ -5,18 +5,23 @@ parcheado o con un backend en memoria que anota los parámetros que recibió. La
 son de mentira y el host es de un dominio reservado para pruebas.
 """
 
+import json
+import os
 import smtplib
 import socket
+import subprocess
+import sys
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
+from django.conf import settings
 from django.core import mail
 from django.core.management import call_command
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 
 from core.integraciones import costo_de_cadena
-from notificaciones.models import Campana
+from notificaciones.models import Campana, Destinatario, PruebaEnviada
 from notificaciones.services import canal, envio
 from notificaciones.tests import backends
 from notificaciones.tests.utils import ConMediaTemporal, crear_campana, usuario_con
@@ -126,6 +131,20 @@ class SeleccionDeCanalTests(SimpleTestCase):
     def test_descripcion_con_canal_comun(self):
         self.assertEqual(canal.descripcion(), "Se envía por el correo del sistema (no-responder@sistema.test).")
 
+    def test_host_sin_usuario_o_sin_clave_no_intenta_conectar(self):
+        for faltante in ("NOTIF_EMAIL_HOST_USER", "NOTIF_EMAIL_HOST_PASSWORD"):
+            with self.subTest(faltante=faltante), override_settings(**{**MASIVO, faltante: ""}, EMAIL_BACKEND=SMTP):
+                with patch("notificaciones.services.canal.get_connection") as get_connection:
+                    with self.assertRaisesMessage(canal.CanalIncompleto, "faltan NOTIF_EMAIL_HOST_USER/PASSWORD"):
+                        canal.conexion_masiva()
+                get_connection.assert_not_called()
+
+    @override_settings(**{**SIN_MASIVO, "NOTIF_EMAIL_HOST_USER": "", "NOTIF_EMAIL_HOST_PASSWORD": ""})
+    def test_sin_host_las_credenciales_vacias_no_importan(self):
+        with patch("notificaciones.services.canal.get_connection") as get_connection:
+            canal.conexion_masiva()
+        get_connection.assert_called_once_with(fail_silently=False)
+
     def test_la_prueba_entra_en_el_presupuesto_de_llamadas_externas(self):
         cadena = "notificaciones · enviar la prueba de una campaña"
         with override_settings(**MASIVO, EMAIL_TIMEOUT=5):
@@ -189,6 +208,35 @@ class CanalEnElEnvioTests(ConMediaTemporal):
 
         self.assertEqual(mail.outbox[0].from_email, COMUN_FROM)
         self.assertEqual(self._hosts(), [None])
+
+    @override_settings(**{**MASIVO, "NOTIF_EMAIL_HOST_PASSWORD": ""})
+    def test_la_prueba_sin_credenciales_del_masivo_avisa_claro_y_no_envia(self):
+        self.client.force_login(usuario_con("notificacion.ver", "notificacion.gestionar", username="gestiona"))
+        campana = crear_campana()
+        with self.assertLogs("notificaciones.services.envio", "ERROR"):
+            respuesta = self.client.post(
+                reverse("notificaciones:campana_prueba", args=[campana.pk]), {"email": "yo@x.com"}
+            )
+
+        self.assertEqual(respuesta.status_code, 502)
+        mensaje = respuesta.json()["message"]
+        self.assertIn(canal.CanalIncompleto.MENSAJE, mensaje)
+        self.assertNotIn("CanalIncompleto", mensaje)
+        self.assertEqual(mail.outbox, [])
+        self.assertEqual(PruebaEnviada.objects.get().error, canal.CanalIncompleto.MENSAJE)
+
+    @override_settings(**{**MASIVO, "NOTIF_EMAIL_HOST_USER": ""})
+    def test_el_masivo_sin_credenciales_queda_interrumpido_con_el_motivo(self):
+        campana = crear_campana(emails=["a@x.com", "b@x.com"])
+        with self.assertLogs("notificaciones.services.envio", "ERROR"):
+            envio.correr(envio.iniciar_envio(campana, usuario=None))
+
+        self.assertEqual(mail.outbox, [])
+        campana.refresh_from_db()
+        self.assertEqual(campana.estado, Campana.Estado.ENVIANDO)
+        self.assertTrue(campana.interrumpida)
+        self.assertTrue(campana.mensaje.startswith(canal.CanalIncompleto.MENSAJE), campana.mensaje)
+        self.assertFalse(campana.destinatarios.exclude(estado=Destinatario.Estado.PENDIENTE).exists())
 
     @override_settings(**MASIVO)
     def test_el_detalle_dice_por_que_canal_sale(self):
@@ -259,3 +307,31 @@ class DiagnosticoCanalMasivoTests(SimpleTestCase):
         codigo, salida = self._correr()
         self.assertEqual(codigo, 1)
         self.assertIn("NOTIF_EMAIL_HOST vacía", salida)
+
+
+class SettingsDelCanalTests(SimpleTestCase):
+    """Una variable cargada vacía (``NOTIF_EMAIL_PORT=`` en un configmap) no rompe el arranque."""
+
+    def test_puerto_y_timeout_vacios_toman_el_default(self):
+        guion = (
+            "import json, django; django.setup(); from django.conf import settings as s; "
+            "print('<<<JSON>>>' + json.dumps([s.NOTIF_EMAIL_PORT, s.NOTIF_EMAIL_TIMEOUT]))"
+        )
+        ambiente = {
+            **os.environ,
+            "DJANGO_SECRET_KEY": "test-key",
+            "DJANGO_SETTINGS_MODULE": "config.settings",
+            "PYTHONIOENCODING": "utf-8",
+            "NOTIF_EMAIL_PORT": "",
+            "NOTIF_EMAIL_TIMEOUT": "",
+        }
+        corrida = subprocess.run(  # nosec B603 - el intérprete del propio test, sin shell
+            [sys.executable, "-c", guion],
+            cwd=str(settings.BASE_DIR),
+            env=ambiente,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        self.assertEqual(corrida.returncode, 0, corrida.stderr)
+        self.assertEqual(json.loads(corrida.stdout.rsplit("<<<JSON>>>", 1)[1]), [587, 20])

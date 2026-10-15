@@ -357,12 +357,13 @@ NOTIF_PAUSA_SEG = max(0.0, float(os.getenv("NOTIF_PAUSA_SEG", "10")))
 # canal común, como antes: dev, CI y los ambientes sin configurar siguen andando.
 # Las credenciales viven en el entorno; nunca en el repo.
 NOTIF_EMAIL_HOST = os.getenv("NOTIF_EMAIL_HOST", "")
-NOTIF_EMAIL_PORT = int(os.getenv("NOTIF_EMAIL_PORT", "587"))
+# `or`: una variable cargada VACÍA (`NOTIF_EMAIL_PORT=`) toma el default en vez de romper el arranque.
+NOTIF_EMAIL_PORT = int(os.getenv("NOTIF_EMAIL_PORT") or "587")
 NOTIF_EMAIL_HOST_USER = os.getenv("NOTIF_EMAIL_HOST_USER", "")
 NOTIF_EMAIL_HOST_PASSWORD = os.getenv("NOTIF_EMAIL_HOST_PASSWORD", "")
 NOTIF_EMAIL_USE_TLS = os.getenv("NOTIF_EMAIL_USE_TLS", "True").lower() == "true"
 # Más holgado que EMAIL_TIMEOUT: el masivo corre en un hilo, no hace esperar a nadie.
-NOTIF_EMAIL_TIMEOUT = int(os.getenv("NOTIF_EMAIL_TIMEOUT", "20"))
+NOTIF_EMAIL_TIMEOUT = int(os.getenv("NOTIF_EMAIL_TIMEOUT") or "20")
 # Vacía = DEFAULT_FROM_EMAIL. Con SES tiene que ser una identidad verificada en la cuenta.
 NOTIF_DEFAULT_FROM_EMAIL = os.getenv("NOTIF_DEFAULT_FROM_EMAIL", "")
 

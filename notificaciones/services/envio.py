@@ -109,9 +109,9 @@ def enviar_prueba(campana, email, *, usuario):
     """Manda la campaña **solo** a ``email`` con «[PRUEBA] » (RF-007-18). Nunca propaga.
 
     Sale por el mismo canal que el envío masivo (``canal.conexion_masiva``), así la prueba
-    verifica el camino real. No cambia el estado de la campaña ni toca sus destinatarios; queda registrada en
-    ``PruebaEnviada``. Devuelve ``(ok, error, aviso)``: ``aviso`` nombra las imágenes que faltan
-    en el servidor y no viajaron (Cambio 292), o ``""``.
+    verifica el camino real. No cambia el estado de la campaña ni toca sus destinatarios;
+    queda registrada en ``PruebaEnviada``. Devuelve ``(ok, error, aviso)``: ``aviso`` nombra
+    las imágenes que faltan en el servidor y no viajaron (Cambio 292), o ``""``.
     """
     if not campana.editable:
         raise TransicionInvalida("La prueba se manda solo mientras la campaña está «A enviar».")
@@ -123,7 +123,8 @@ def enviar_prueba(campana, email, *, usuario):
         armar_mensaje(campana, email, conexion=conexion, prueba=True, partes=partes).send(fail_silently=False)
     except Exception as exc:  # SMTP caído, rechazo, mal configurado…
         logger.exception("No se pudo enviar la prueba de la campaña %s a %s", campana.pk, email)
-        ok, error = False, _error_corto(exc)
+        # El canal sin credenciales se explica solo: va sin el nombre de la excepción.
+        ok, error = False, (str(exc) if isinstance(exc, canal.CanalIncompleto) else _error_corto(exc))
     PruebaEnviada.objects.create(campana=campana, enviada_por=usuario, email=email, ok=ok, error=error)
     return ok, error, aviso
 
@@ -484,7 +485,14 @@ def correr(campana, *, token=None, dormir=time.sleep):
                     continue
                 break
 
-            conexion = canal.conexion_masiva()
+            try:
+                conexion = canal.conexion_masiva()
+            except canal.CanalIncompleto as exc:
+                logger.error("Campaña %s: %s", campana.pk, exc)
+                _dejar_interrumpida(
+                    campana.pk, token, f"{exc} Cuando estén cargadas, reanudá: sigue con los pendientes."
+                )
+                return campana
             try:
                 conexion.open()
             except Exception as exc:
