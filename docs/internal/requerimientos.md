@@ -436,6 +436,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 308 | P3 en dos columnas y Vencido en Infraestructura | Dispositivos · P3/P2/P4/P19 | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` | PM / juez — carril FI | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 309 | Estado junto al título e Instituciones en el sidebar | Dispositivos · P4/P7/P19/P14 · shell transversal | `#ui` `#textos` | PM / juez — carril FH | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 310 | Correcciones menores de FR y FI y fidelidad de P3 | Dispositivos · P3 y relevamiento edilicio | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` | PM / juez — carril FJ | 14/10/2026 | 🟢 **Hecho** | No requiere |
+| 311 | Notificaciones: las campañas salen por un SMTP propio (Amazon SES), separado del correo del sistema | Transversal — notificaciones (envío masivo, prueba y detalle de la campaña) · diagnóstico de correo | `#correo` `#infra` | PM — pedido del 15/10/2026 | 15/10/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -40530,5 +40531,25 @@ Sin pendientes funcionales de los diez puntos del carril.
 Revertir los commits de código y documentación de FJ. No requiere cambios de
 base ni pierde datos. Retorna la firma anterior del servicio junto con todos
 sus consumidores y el comportamiento previo de P3.
+
+---
+
+# Cambio 311 — Notificaciones: las campañas salen por un SMTP propio (Amazon SES), separado del correo del sistema
+
+🟡 **EN CURSO — 15/10/2026** · análisis [007](analisis/007-notificaciones-campanas-email.md)
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — notificaciones (envío masivo, prueba y detalle de la campaña) · diagnóstico de correo |
+| **Etiquetas** | `#correo` `#infra` |
+| **Solicitante** | PM — pedido del 15/10/2026 |
+| **Fecha del pedido** | 15/10/2026 |
+| **Issue / épica** | sin issue (análisis 007) · rama `feature/notificaciones-smtp-masivo` |
+| **Partes afectadas** | Hilo de envío · Prueba de la campaña · Detalle de la campaña · `diagnosticar_correo` · Settings |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Número reservado; la entrada se completa en esta misma rama.
 
 ---
