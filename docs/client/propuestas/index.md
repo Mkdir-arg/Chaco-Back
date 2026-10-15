@@ -1,10 +1,10 @@
-# :material-file-document-outline: Propuestas
+﻿# :material-file-document-outline: Propuestas
 
-Documentos de alcance, implementación y operación para evaluar nuevos proyectos. Cada propuesta indica su estado y las condiciones que requieren acuerdo antes de la contratación.
+Documentos de alcance y desarrollo de aplicaciones para evaluar nuevos proyectos. Cada propuesta indica su estado y las condiciones que requieren acuerdo antes de la contratación.
 
-| Proyecto | Servicio propuesto | Estado | Documento |
+| Proyecto | Alternativas de desarrollo | Estado | Documento |
 |---|---|---|---|
-| Mesa de Situación del Fenómeno El Niño, Provincia del Chaco | Plataforma, infraestructura administrada y atención funcional y técnica dedicada 24/7 | Borrador para revisión, sin importes | [Ver propuesta](mesa-situacion-el-nino.md) |
+| Mesa de Situación del Fenómeno El Niño, Provincia del Chaco | Esencial: 3.000–3.500 h · Operativa: 4.500–5.000 h · Integral: 6.000–6.500 h | Borrador para revisión, sin importes | [Comparar las tres propuestas](mesa-situacion-el-nino.md) |
 
 !!! info "Proyecto independiente"
-    La Mesa de Situación es un proyecto independiente de Datañach. Su inclusión en este sitio permite revisar la propuesta y no modifica el alcance de los proyectos vigentes.
+    La Mesa de Situación es un proyecto independiente de Datañach. Su inclusión en este sitio permite revisar las alternativas de desarrollo y no modifica el alcance de los proyectos vigentes.

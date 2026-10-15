@@ -1,435 +1,274 @@
-# :material-map-marker-radius-outline: Mesa de Situación del Fenómeno El Niño
+﻿# :material-map-marker-radius-outline: Mesa de Situación del Fenómeno El Niño
 
-## Propuesta de implementación y operación para la Provincia del Chaco
+## Tres alternativas de desarrollo de aplicaciones
 
 | Campo | Detalle |
 |---|---|
 | Organismo destinatario | Ministerio de Desarrollo Humano de la Provincia del Chaco |
 | Proponente | ICORE |
-| Fecha | 14 de octubre de 2026 |
-| Versión | 0.3 |
+| Fecha de actualización | 15 de octubre de 2026 |
+| Versión | 0.4 |
 | Estado | Borrador de propuesta para revisión |
-| Modalidad | Desarrollo, infraestructura administrada y atención funcional y técnica dedicada 24/7 |
-| Plataforma de infraestructura propuesta | Amazon Web Services (AWS), con implementación y operación a cargo de ICORE, partner de AWS |
-| Horizonte inicial propuesto | 24 semanas de implementación, con entregas parciales |
-| Contenido | Alcance, tecnologías, equipo, dedicación y condiciones del servicio, sin importes |
+| Objeto | Desarrollo de una aplicación web para la gestión de emergencias sociales |
+| Alternativas | Esencial, Operativa e Integral |
+| Estimación de la alternativa Integral | 6.000 a 6.500 horas totales de trabajo |
+| Contenido | Funcionalidades, entregables, equipo, horas y plazos, sin importes |
 
 !!! abstract "La propuesta"
-    ICORE propone desarrollar y operar sobre Amazon Web Services (AWS) una plataforma provincial para monitorear la criticidad territorial y coordinar la respuesta social ante el fenómeno El Niño. El servicio reúne información de población afectada, albergues, incidentes, necesidades y asistencia, con un mapa central y actualización en vivo.
+    ICORE propone tres alternativas para desarrollar la Mesa de Situación. Cada una permite monitorear el territorio y registrar la respuesta social, con distinta profundidad en la gestión de asistencia, albergues, dispositivos y seguimiento. El Ministerio podrá elegir el alcance que mejor responda a sus prioridades.
 
-!!! info "Alcance de este documento"
-    Se trata de un proyecto independiente de Datañach. La experiencia de ese proyecto se toma como referencia de trabajo. Las tecnologías, las dedicaciones, el cronograma y los niveles de servicio de este documento son propuestas a confirmar antes de la contratación.
+!!! info "Cómo comparar las alternativas"
+    Se contrata una alternativa. Operativa incluye las funciones de Esencial e Integral incluye las de Operativa. Las horas y los plazos de cada opción corresponden a su alcance completo: no se suman entre sí.
 
-## 1. Objetivo y resultados esperados
+El proyecto es independiente de Datañach. Su experiencia en relevamientos, legajos y gestión institucional se toma como referencia para el desarrollo.
 
-La plataforma permitirá al Ministerio conocer dónde se concentra la demanda, qué población necesita atención, qué capacidad tienen los albergues y cómo avanzan las solicitudes de asistencia.
+## 1. Objetivo
 
-Cada equipo podrá registrar sus intervenciones y consultar información según su responsabilidad y territorio. La conducción dispondrá de una vista provincial para priorizar acciones y coordinar recursos.
+Contar con una aplicación que permita conocer la criticidad territorial y organizar la respuesta social y asistencial del Ministerio: población afectada, albergues, necesidades, recursos y acciones realizadas.
 
-El sistema acompañará las funciones sociales y asistenciales del Ministerio. Las competencias de Defensa Civil, Salud, Seguridad e Infraestructura permanecen en sus organismos; la plataforma registrará las derivaciones y su seguimiento.
+El mapa será la pantalla principal. Desde allí, los equipos podrán consultar la situación de cada zona y acceder a los registros que les correspondan por su función y territorio. Las competencias de Defensa Civil, Salud, Seguridad e Infraestructura permanecen en sus organismos; la aplicación permitirá registrar las derivaciones y su seguimiento.
 
-Los resultados esperados son:
+## 2. Comparación de las tres propuestas
 
-- Una vista territorial compartida de la situación y de la última actualización de los datos.
-- Seguimiento de personas y familias afectadas, sus necesidades y la asistencia registrada.
-- Información de capacidad y ocupación de albergues a partir de sus movimientos.
-- Trazabilidad de solicitudes, autorizaciones, despachos y recepciones.
-- Registro de responsables, acciones y pendientes entre equipos y cambios de guardia.
-- Continuidad del servicio con infraestructura administrada y atención dedicada 24/7.
-
-## 2. Alcance funcional inicial
-
-La interfaz tendrá el mapa como pantalla principal, filtros territoriales y accesos por rol. Se utilizará desde computadoras y dispositivos móviles con conexión a internet.
-
-### 01. Tablero y mapa de criticidad
-
-Mapa provincial con zonas críticas, alertas pluviales y fluviales registradas, filtros por departamento y localidad, y semáforos de situación. Mostrará resúmenes de población afectada, albergues, solicitudes e insumos, con acceso al detalle de cada registro.
-
-El alcance inicial contempla carga manual de las alertas y la identificación de su fuente y fecha. La conexión automática con fuentes climáticas se propone como ampliación.
-
-### 02. Población y relevamientos
-
-Registro y consulta de personas y grupos familiares, ubicación, condición de afectación, necesidades y alertas de vulnerabilidad. Permitirá consultar por territorio o dispositivo y conservar el historial de los relevamientos.
-
-Durante el análisis se acordará cómo representar las condiciones de evacuado, autoevacuado, albergado y anegado, incluyendo los cambios de situación y su relación con el alojamiento. La importación de padrones tendrá controles de duplicidad y validación previa a su incorporación.
-
-### 03. Incidentes y articulación, Mesa 1
-
-Carga de situaciones y pedidos, clasificación por prioridad, asignación de responsables y seguimiento de estados. Cada caso distinguirá las acciones propias del Ministerio de las derivaciones a otros organismos.
-
-El registro conservará las intervenciones realizadas, las fechas y los pendientes para facilitar el seguimiento entre equipos.
-
-### 04. Asistencia y logística, Mesa 2
-
-Gestión del circuito FUSE entendido como proceso de trabajo:
-
-**Solicitud → Validación → Autorización → Despacho y remito → Recepción.**
-
-Incluirá necesidades, solicitudes y movimientos de stock por depósito o albergue, con consulta de ingresos, egresos y faltantes. Los permisos distinguirán las responsabilidades de cada etapa.
-
-Las reglas de entregas parciales, reservas, devoluciones y anulaciones se acordarán durante el análisis. La presente propuesta no presupone conexión con un sistema externo llamado FUSE.
-
-### 05. Gestión de albergues, Mesa 3
-
-Ficha del albergue con ubicación, responsables, capacidad, ocupación y estado operativo. Registro de ingresos y egresos, composición familiar, necesidades, raciones, insumos y servicios disponibles.
-
-La ocupación se actualizará a partir de los movimientos registrados. Los equipos podrán consultar disponibilidad y necesidades para coordinar la atención.
-
-### 06. Dispositivos propios, Mesa 4
-
-Seguimiento del estado de residencias y dispositivos institucionales, sus necesidades, recursos e incidencias. Cada dispositivo contará con responsables y acciones registradas para sostener la continuidad de atención.
-
-### 07. Bitácora, alertas y reportes
-
-Registro de novedades, pendientes y cambios de guardia. Reportes por zona, albergue y fecha, con evolución de la demanda, recursos entregados y situaciones sin resolver.
-
-Incluye avisos visibles de estado, pendientes y faltantes. Las notificaciones automáticas por canales externos y los modelos predictivos se presentan como ampliaciones.
-
-### Funciones comunes
-
-| Función | Alcance propuesto |
-|---|---|
-| Acceso y permisos | Usuarios y roles con alcance por función, territorio e institución |
-| Trazabilidad | Historial de cambios y movimientos con usuario, fecha y hora |
-| Importación inicial | Plantillas acordadas, validación de archivos y reporte de registros rechazados |
-| Documentación adjunta | Archivos vinculados a registros, con acceso según permisos |
-| Exportaciones | Reportes y extracción de información autorizada en formatos acordados |
-| Actualización en vivo | Reflejo de cambios confirmados en las sesiones habilitadas |
-| Capacitación | Formación por perfil y materiales para la operación cotidiana |
-
-## 3. Capacidad y actualización en vivo
-
-La base solicitada contempla al menos 200 usuarios simultáneos y actualización de la información en dos segundos. Para verificar esos objetivos se propone el siguiente marco de aceptación:
-
-| Aspecto | Criterio propuesto |
-|---|---|
-| Usuarios concurrentes | Validar un mínimo de 200 usuarios activos con una mezcla acordada de consultas, cargas y vistas del mapa |
-| Propagación de cambios | Hasta dos segundos en al menos el 95% de las actualizaciones medidas, desde la confirmación del registro hasta su visualización en otra sesión conectada |
-| Condiciones de medición | Red, dispositivos, volumen de datos y frecuencia de operaciones acordados antes de las pruebas |
-| Crecimiento | Ensayo adicional de hasta 500 usuarios para identificar el margen de capacidad y las ampliaciones necesarias; no implica capacidad garantizada en esta versión |
-| Reconexión | Recuperación del estado vigente e indicación de pérdida de conexión o datos desactualizados |
-| Consistencia | Controles para evitar despachos duplicados, doble asignación de plazas y repetición de movimientos por reintentos |
-
-!!! note "Vigencia de la información"
-    El objetivo de dos segundos se aplica a cambios ya registrados en el sistema. La actualización de un relevamiento depende de su carga por el operador; la de una fuente climática depende de la frecuencia con la que esa fuente publique datos.
-
-El volumen histórico, la cantidad de adjuntos y los movimientos por minuto completarán el dimensionamiento durante la etapa inicial.
-
-## 4. Arquitectura y tecnologías propuestas
-
-Se propone una aplicación organizada por módulos de negocio sobre AWS, con una interfaz web independiente, una base de datos compartida para las operaciones y procesos separados para importaciones y reportes extensos. ICORE, como partner de AWS, estará a cargo del diseño, la implementación y la operación de la infraestructura propuesta.
-
-| Componente | Tecnología propuesta | Propósito |
-|---|---|---|
-| Interfaz web | React y TypeScript | Mapa, tablero y pantallas operativas adaptadas a computadoras y celulares |
-| Visualización geográfica | MapLibre GL JS | Capas, zonas, puntos y filtros territoriales |
-| Servicios de negocio | Python, Django y Django REST Framework | Reglas funcionales, permisos, validaciones y API |
-| Base de datos | Amazon RDS for PostgreSQL con PostGIS | Información operativa y consultas territoriales |
-| Comunicación en vivo | Django Channels, WebSockets y Amazon ElastiCache para Redis OSS | Distribución de cambios entre sesiones autorizadas |
-| Procesos en segundo plano | Celery y workers en Amazon ECS con AWS Fargate | Importaciones, exportaciones y tareas de mayor duración |
-| Archivos | Amazon S3 | Documentos, adjuntos y exportaciones |
-| Despliegue y operación | Amazon ECS, AWS Fargate, Amazon ECR y Amazon CloudWatch | Ejecución de contenedores, publicación de versiones, monitoreo y recuperación |
-
-### Arquitectura de referencia en AWS
-
-La interfaz web se distribuirá mediante Amazon CloudFront desde un bucket privado de S3. La API y las conexiones en vivo ingresarán por un Application Load Balancer hacia los servicios de aplicación. Los procesos de trabajo y los datos se ubicarán en subredes privadas de una Amazon VPC.
-
-```mermaid
-flowchart TD
-    U["Equipos del Ministerio"]
-    U -->|"Interfaz web HTTPS"| CF["Amazon CloudFront"]
-    CF --> WEB["Amazon S3: interfaz web"]
-    U -->|"API HTTPS y WebSockets seguros"| ALB["Application Load Balancer"]
-    subgraph PRIV["AWS: servicios en subredes privadas, dos zonas de disponibilidad"]
-        APP["ECS con Fargate: API y comunicación en vivo"]
-        DB["RDS PostgreSQL con PostGIS: Multi-AZ"]
-        REDIS["ElastiCache Redis OSS: réplica y conmutación"]
-        WORK["ECS con Fargate: procesos Celery"]
-        APP --> DB
-        APP <--> REDIS
-        WORK <--> REDIS
-        WORK --> DB
-    end
-    ALB --> APP
-    APP --> FILES["Amazon S3: documentos privados"]
-    WORK --> FILES
-```
-
-El esquema muestra los componentes principales. La configuración propuesta incorpora protección del acceso, monitoreo y backups, detallados en la sección de infraestructura. La distribución entre zonas se plantea dentro de una región de AWS; la recuperación ante una pérdida de la región se definirá con los objetivos de continuidad acordados.
-
-Cuando un operador confirma una operación, el sistema valida permisos y reglas, guarda el movimiento y distribuye el cambio a las sesiones autorizadas. Los reportes extensos y las importaciones se ejecutan en segundo plano para conservar la capacidad de atención de las pantallas operativas.
-
-Las sesiones que recuperen conexión consultarán el estado vigente. Los movimientos críticos deberán conservar consistencia aunque se interrumpa temporalmente la distribución de notificaciones.
-
-Referencias de las tecnologías propuestas: [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/), [PostGIS](https://www.postgis.net/docs/index.html), [Django Channels](https://channels.readthedocs.io/en/latest/topics/channel_layers.html) y [Celery](https://docs.celeryq.dev/en/stable/getting-started/introduction.html).
-
-## 5. Infraestructura administrada en AWS y almacenamiento
-
-ICORE propone prestar el servicio de infraestructura administrada sobre AWS, aprovechando su condición de partner para organizar la implementación y el acompañamiento al Ministerio. ICORE será responsable de configurar, monitorear y operar los ambientes, la capacidad y el almacenamiento incluidos en el servicio.
-
-### Qué infraestructura entregará ICORE
-
-El Ministerio recibirá una plataforma alojada y administrada, con los recursos necesarios para operar y con un equipo responsable de su mantenimiento. La provisión propuesta comprende:
-
-| Entregable | Qué recibe el Ministerio |
-|---|---|
-| Ambiente de producción | La plataforma publicada para el uso cotidiano, con aplicación redundante y acceso seguro |
-| Ambiente de pruebas y capacitación | Un espacio separado para validar versiones y practicar los circuitos con datos de prueba |
-| Ambiente de desarrollo | Un espacio de trabajo del equipo de implementación, separado de los datos productivos |
-| Capacidad de procesamiento | Recursos para las pantallas, la API, el mapa y las conexiones en vivo, más procesos separados para importaciones y reportes |
-| Base de datos administrada | Almacenamiento de personas, albergues, solicitudes, movimientos e información territorial, con réplica de contingencia |
-| Repositorio de documentos | Espacio privado para padrones, adjuntos, remitos y exportaciones, con permisos y políticas de conservación |
-| Dirección de acceso y certificado | Configuración del subdominio institucional provisto por el Ministerio, acceso HTTPS y gestión del certificado |
-| Red y protección del acceso | Separación de ambientes, reglas de acceso, protección web y administración de credenciales |
-| Copias de seguridad y recuperación | Backups de la base, protección y copias de documentos según la política acordada, procedimientos de restauración y ejercicios de recuperación |
-| Monitoreo y alarmas | Supervisión de disponibilidad, errores, tiempos de respuesta, almacenamiento y capacidad, integrada con la operación técnica 24/7 |
-| Publicación de versiones | Procedimiento controlado para probar, publicar y, cuando corresponda, revertir una versión |
-| Documentación y seguimiento | Inventario de recursos, procedimientos de operación, reporte mensual del servicio y procedimiento de entrega de datos |
-
-### Capacidad inicial propuesta
-
-Para hacer concreta la provisión, se plantea la siguiente base de infraestructura de producción. Las cantidades son una propuesta de dimensionamiento, a confirmar mediante pruebas de carga y con el volumen de datos del Ministerio.
-
-| Recurso | Provisión inicial propuesta | Uso |
-|---|---|---|
-| Aplicación web y API | 2 instancias de ejecución en Fargate, cada una con 2 vCPU y 4 GB de memoria, distribuidas en dos zonas | Atención de usuarios y conexiones en vivo |
-| Procesos de trabajo | 2 instancias de ejecución en Fargate, cada una con 1 vCPU y 2 GB de memoria | Importaciones, exportaciones y tareas diferidas |
-| Base de datos | RDS PostgreSQL con PostGIS, 4 vCPU y 16 GiB de memoria en el primario, más una réplica de contingencia de igual capacidad en otra zona | Operaciones y consultas geográficas |
-| Espacio de base de datos | 100 GiB de almacenamiento SSD en el primario, con almacenamiento equivalente en la réplica | Registros e índices, con crecimiento supervisado |
-| Comunicación en vivo y cola de tareas | 2 grupos de ElastiCache: uno para eventos y otro para tareas; cada uno con primario y réplica | Separar las conexiones en vivo del procesamiento diferido; la clase y memoria de los nodos se definirá en las pruebas |
-| Documentos en S3 | Referencia inicial de 500 GB entre documentos y sus versiones | Padrones, remitos, adjuntos y exportaciones |
-| Balanceo y distribución | Un balanceador de aplicación y una distribución CloudFront, con sus reglas de acceso | Distribuir solicitudes y entregar la interfaz web |
-| Backups de base de datos | Copias automáticas y recuperación a un momento determinado, con 35 días de retención propuestos | Recuperación ante pérdida o modificación de información |
-| Registros operativos | Retención inicial propuesta de 90 días para logs técnicos | Diagnóstico y seguimiento del servicio; la auditoría funcional tendrá su propia política de conservación |
-
-Las instancias de Fargate son recursos de ejecución administrados en la nube. Los ambientes de desarrollo y pruebas tendrán recursos separados de menor capacidad, definidos en el plan de implementación. El almacenamiento de backups se dimensionará aparte de los 100 GiB de datos y los 500 GB de documentos.
-
-La configuración es un punto de partida para validar los 200 usuarios concurrentes y la actualización en dos segundos. El ajuste final considerará también operaciones por minuto, consultas geográficas, adjuntos y volumen histórico. Se acordarán límites de escalado y avisos de consumo para ampliar capacidad de forma controlada.
-
-Las combinaciones de procesamiento y memoria se apoyan en las [configuraciones de Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html). La ventana de copias propuesta utiliza la [retención de backups de RDS](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_WorkingWithAutomatedBackups.BackupRetention.html).
-
-### Qué administrará ICORE durante el servicio
-
-| Actividad | Prestación propuesta |
-|---|---|
-| Supervisión 24/7 | Monitoreo continuo y atención de alarmas por el equipo técnico dedicado |
-| Incidentes de infraestructura | Diagnóstico, recuperación y escalamiento conforme a los niveles de servicio acordados |
-| Mantenimiento | Actualizaciones planificadas, revisión de configuraciones y gestión de certificados y credenciales |
-| Backups | Verificación diaria del resultado de las copias y atención de fallas |
-| Recuperación | Ejercicio de restauración previo a la salida y posteriormente con frecuencia trimestral propuesta |
-| Capacidad | Revisión mensual de uso y proyección de crecimiento, con avisos anticipados de ampliación |
-| Versiones | Despliegue de las versiones aprobadas y seguimiento de su funcionamiento |
-| Reporte de servicio | Informe mensual de disponibilidad, incidentes, uso de recursos, copias y acciones realizadas |
-
-La supervisión y atención de incidentes forman parte de la operación técnica 24/7 definida en la sección 8. El inventario final identificará capacidad de cómputo, almacenamiento, backups, transferencia y consumos de servicios externos incluidos, junto con el procedimiento para ampliarlos.
-
-### Servicios previstos
-
-| Necesidad | Servicio AWS propuesto | Aplicación en la plataforma |
-|---|---|---|
-| Distribución de la interfaz | Amazon CloudFront y Amazon S3 | Publicación del frontend con acceso restringido al origen S3 |
-| Balanceo y acceso a la aplicación | Application Load Balancer, AWS Certificate Manager y AWS WAF | Tráfico HTTPS, conexiones WebSocket seguras y reglas de protección del acceso |
-| Aplicación y procesos | Amazon ECS con AWS Fargate | Servicios de aplicación redundantes y workers con capacidad ajustable |
-| Imágenes de aplicación | Amazon ECR | Registro de las versiones de contenedores utilizadas en los despliegues |
-| Datos operativos y geográficos | Amazon RDS for PostgreSQL con PostGIS y Multi-AZ | Base de datos administrada y réplica de contingencia en otra zona |
-| Comunicación entre instancias | Amazon ElastiCache para Redis OSS con Multi-AZ | Distribución de eventos y cola de tareas, con separación de usos según el dimensionamiento |
-| Documentos y exportaciones | Amazon S3 | Buckets privados, cifrado, versionado y políticas de conservación |
-| Red y permisos de infraestructura | Amazon VPC, grupos de seguridad y AWS IAM | Separación de ambientes, acceso privado a datos y permisos por servicio |
-| Secretos y cifrado | AWS Secrets Manager y AWS KMS | Gestión de credenciales y claves de cifrado |
-| Monitoreo y trazabilidad de infraestructura | Amazon CloudWatch y AWS CloudTrail | Métricas, logs, alarmas y registro de acciones sobre los recursos AWS |
-| Copias y recuperación | Backups automáticos de RDS, snapshots y versionado de S3 | Recuperación conforme a los períodos de retención y objetivos acordados |
-
-La auditoría funcional de personas, solicitudes y movimientos se implementará en la aplicación. Los registros de infraestructura complementan esa trazabilidad.
-
-La operación comprenderá:
-
-- Ambientes separados de desarrollo, pruebas y producción.
-- Instancias de aplicación redundantes, balanceo de tráfico y distribución entre zonas de disponibilidad.
-- Base de datos con réplica de contingencia y mecanismos de conmutación ante fallas.
-- Redundancia de los servicios de comunicación y recuperación de conexiones.
-- Almacenamiento de documentos con control de acceso.
-- Backups, políticas de retención y pruebas periódicas de restauración.
-- Monitoreo de disponibilidad, errores, tiempos de respuesta, conexiones y capacidad.
-- Gestión de accesos administrativos, secretos y actualizaciones de seguridad.
-
-La región de AWS, la titularidad de la cuenta y el dimensionamiento de los servicios se acordarán con el Ministerio. La capacidad de la aplicación podrá ajustarse según métricas y demanda, conservando una base de recursos para la operación habitual. Las pruebas de carga verificarán el objetivo de concurrencia y actualización en vivo sobre la configuración elegida.
-
-Las capacidades de referencia están documentadas por AWS: [balanceo de servicios ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-load-balancing.html), [conexiones WebSocket en el balanceador](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-listeners.html), [PostGIS en RDS](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Appendix.PostgreSQL.CommonDBATasks.Extensions.html), [redundancia de ElastiCache](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/disaster-recovery-resiliency.html), [escalado de ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-auto-scaling.html) y [recuperación de RDS](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_PIT.html).
-
-| Condición del servicio | Tratamiento propuesto |
-|---|---|
-| Disponibilidad mensual | Objetivo inicial de 99,9%, a confirmar junto con el método de medición, exclusiones y condiciones de servicio |
-| Almacenamiento | Base propuesta de 100 GiB para datos y 500 GB para documentos y versiones; réplica, backups y ampliaciones identificados por separado |
-| Retención | Propuesta inicial de 35 días para backups de base y 90 días para logs técnicos; conservación de documentos y auditoría funcional a acordar |
-| Recuperación ante desastres | Acuerdo de pérdida máxima de datos y tiempo objetivo de recuperación, verificado mediante ejercicios |
-| Mapas y servicios externos | Proveedor, licencias y capacidad de uso definidos para producción |
-| Titularidad y salida | Datos del Ministerio, con procedimiento acordado de exportación y entrega al finalizar el servicio |
-
-El almacenamiento forma parte del servicio de infraestructura y tendrá una partida identificable en su contratación. Las capacidades y los períodos de retención quedan a confirmar durante el dimensionamiento.
-
-## 6. Equipo de implementación
-
-El equipo principal propuesto está compuesto por dos analistas, cuatro desarrolladores y un DevOps. QA, diseño y gestión acompañan las entregas con dedicación específica.
-
-| Perfil | Cantidad | Responsabilidad principal |
-|---|---:|---|
-| Analista funcional | 1 | Población, relevamientos, albergues y dispositivos |
-| Analista funcional | 1 | Incidentes, FUSE, logística, bitácora y coordinación de validaciones |
-| Desarrollador backend sénior y líder técnico | 1 | Arquitectura, reglas críticas y revisión técnica |
-| Desarrollador backend / full stack | 1 | Flujos de negocio, importaciones y servicios |
-| Desarrollador frontend | 1 | Mapa, tablero y actualización en vivo |
-| Desarrollador full stack | 1 | Pantallas operativas e integración de circuitos |
-| DevOps | 1 | Ambientes, automatización, monitoreo y recuperación |
-| QA | 1 con dedicación parcial | Pruebas funcionales, permisos, integración, carga y regresión |
-| UX/UI | Participación por etapas | Flujos y diseño de la experiencia de uso |
-| Gestión de proyecto | Dedicación parcial | Planificación, seguimiento y coordinación de entregas |
-
-### Dedicación de referencia
-
-El escenario de planificación considera 24 semanas y 40 horas semanales para cada integrante del equipo principal.
-
-| Perfil | Base de cálculo | Horas previstas |
-|---|---|---:|
-| Dos analistas | 2 personas × 40 h × 24 semanas | 1.920 |
-| Cuatro desarrolladores | 4 personas × 40 h × 24 semanas | 3.840 |
-| Un DevOps | 1 persona × 40 h × 24 semanas | 960 |
-| QA | 30 h × 24 semanas | 720 |
-| UX/UI | Participación por etapas | 240 |
-| Gestión de proyecto | 10 h × 24 semanas | 240 |
-| **Total del escenario de implementación** | | **7.920** |
-
-!!! info "Cómo interpretar las horas"
-    Las 7.920 horas expresan la capacidad planificada del equipo durante la implementación. Las 3.840 horas de desarrollo incluyen diseño técnico, programación, revisión, pruebas y correcciones. Son una base preliminar de planificación, a confirmar con el detalle funcional y la dedicación por etapa; no constituyen una medición definitiva del esfuerzo de cada módulo.
-
-Las actividades de análisis incluyen documentación funcional, criterios de aceptación y preparación de materiales de capacitación. La conformación y el entrenamiento del equipo de atención 24/7 requieren una planificación propia antes de la salida a producción y no están sumados a las 7.920 horas.
-
-### Distribución preliminar de las horas de desarrollo
-
-La siguiente distribución organiza la capacidad de los cuatro desarrolladores. Sus horas ya están contenidas en el total anterior y se ajustarán al cerrar la definición de cada módulo.
-
-| Componente | Horas asignadas |
-|---|---:|
-| Base de la plataforma, usuarios, permisos y auditoría | 320 |
-| Tablero y mapa de criticidad | 440 |
-| Población y relevamientos | 360 |
-| Incidentes y articulación | 280 |
-| Asistencia y logística FUSE | 600 |
-| Gestión de albergues | 400 |
-| Dispositivos propios | 240 |
-| Bitácora, avisos y reportes | 280 |
-| Comunicación en vivo y controles de concurrencia | 360 |
-| Importación de padrones | 160 |
-| Integración transversal, rendimiento y correcciones | 400 |
-| **Total de capacidad de desarrollo** | **3.840** |
-
-## 7. Plan de implementación y entregas
-
-Las etapas se superponen para permitir el trabajo en paralelo. Las semanas se cuentan desde el inicio acordado del proyecto.
-
-| Etapa | Período propuesto | Entrega |
-|---|---|---|
-| Definición y preparación | Semanas 1 a 4 | Reglas, diseño, arquitectura, ambientes y prototipo del mapa |
-| Primera versión operativa | Semanas 5 a 10 | Usuarios, población, incidentes y mapa inicial |
-| Gestión de la respuesta | Semanas 9 a 16 | Albergues, dispositivos y circuito de asistencia |
-| Integración de módulos | Semanas 15 a 20 | Logística completa, reportes, importaciones y actualización en vivo |
-| Piloto y puesta en marcha | Semanas 21 a 24 | Validación con operadores, pruebas de carga y recuperación, capacitación y salida |
-
-Cada entrega tendrá una demostración y criterios verificables de aceptación. El Ministerio designará referentes para aportar reglas, padrones y validaciones dentro de un calendario acordado.
-
-Antes de la puesta en marcha se prepararán el equipo de atención, los procedimientos de escalamiento y la base de conocimiento. La fecha de inicio del servicio 24/7 se acordará junto con el plan de salida.
-
-## 8. Mesa de ayuda y atención técnica dedicada 24/7
-
-La propuesta contempla cobertura todos los días, incluidos fines de semana y feriados, con una posición de atención funcional y una posición técnica activas en cada turno.
-
-| Servicio | Funciones | Dotación preliminar para cubrir turnos |
-|---|---|---:|
-| Mesa de ayuda funcional | Recibir consultas, asistir a operadores, registrar tickets, clasificar y seguir incidentes | 5 a 6 personas |
-| Operación técnica | Monitorear, diagnosticar, ejecutar procedimientos de recuperación y atender incidentes técnicos | 5 a 6 personas |
-| **Cobertura permanente** | **Una posición funcional y una técnica activas** | **10 a 12 personas** |
-
-Cada posición necesita 168 horas de cobertura semanal. La dotación contempla relevos y ausencias y debe confirmarse con el régimen de turnos. Las dos posiciones suman aproximadamente 1.460 horas mensuales de cobertura efectiva, distintas de las horas de personal necesarias para sostenerla.
-
-Se propone atención remota dedicada. La modalidad presencial, la atención simultánea de varias consultas y el refuerzo durante eventos de alta demanda quedan a confirmar.
-
-### Escalamiento y continuidad
-
-La mesa funcional registrará y acompañará cada caso. El equipo técnico ejecutará los procedimientos de diagnóstico y recuperación, y escalará a especialistas de aplicación, base de datos o infraestructura cuando corresponda.
-
-El servicio deberá contemplar disponibilidad de especialistas para incidentes críticos a cualquier hora. La dotación de 10 a 12 personas cubre las dos posiciones indicadas; el esquema de especialistas y sus reemplazos se definirá además de esa cobertura.
-
-Los cambios de turno conservarán el estado de cada incidente, las acciones realizadas y el próximo responsable. El Ministerio recibirá reportes periódicos de atención y funcionamiento del servicio.
-
-### Objetivos iniciales de atención
-
-| Prioridad | Situación | Primera respuesta propuesta | Tratamiento |
+| Aspecto | Propuesta 1: Esencial | Propuesta 2: Operativa | Propuesta 3: Integral |
 |---|---|---|---|
-| Crítica | Indisponibilidad general o circuito esencial bloqueado sin alternativa | 15 minutos, 24/7 | Atención continua y escalamiento inmediato |
-| Alta | Degradación importante o varios equipos afectados | 30 minutos, 24/7 | Diagnóstico y seguimiento según el impacto |
-| Normal | Consulta de uso o incidencia acotada | 4 horas corridas | Atención y resolución conforme al procedimiento del servicio |
+| Propósito | Conocer la situación y registrar la atención | Gestionar las cuatro mesas y el circuito de asistencia | Coordinar la respuesta completa y controlar movimientos y excepciones |
+| Horas totales estimadas | **3.000 a 3.500 h** | **4.500 a 5.000 h** | **6.000 a 6.500 h** |
+| Escenario central | 3.250 h | 4.750 h | 6.250 h |
+| Plazo orientativo | 16 a 18 semanas | 20 a 22 semanas | 24 a 26 semanas |
+| Aplicación | Web adaptable a computadoras y celulares | Web adaptable a computadoras y celulares | Web adaptable a computadoras y celulares |
+| Usuarios concurrentes | Base de validación: 200 usuarios activos | Base de validación: 200 usuarios activos | Base de validación: 200 usuarios activos |
+| Actualización en vivo | Mapa, incidentes y ocupación | Lo anterior, más solicitudes y stock | Lo anterior, más movimientos y tableros de seguimiento |
+| Objetivo de propagación | Hasta 2 segundos en el 95% de las actualizaciones medidas | Mismo objetivo | Mismo objetivo |
 
-!!! note "Niveles de servicio a confirmar"
-    Los tiempos son objetivos de primera respuesta, no plazos de solución definitiva. La contratación distinguirá respuesta, diagnóstico, recuperación y corrección, e indicará los canales de atención y los mecanismos de escalamiento.
+Los rangos son estimaciones preliminares de horas-persona. Incluyen análisis, desarrollo, diseño, QA, gestión y capacitación. El plazo depende de la dedicación indicada y de la disponibilidad de referentes para validar las entregas.
 
-## 9. Mantenimiento y seguimiento
+### Comparación funcional
 
-El servicio de operación incluirá seguimiento de capacidad, monitoreo y revisión de incidentes. El mantenimiento de la aplicación comprenderá correcciones, actualizaciones de seguridad, compatibilidad y publicaciones controladas.
+| Funcionalidad | Esencial | Operativa | Integral |
+|---|---|---|---|
+| Mapa provincial | Zonas, puntos, filtros y criticidad registrada | Agrega filtros por mesa, responsable y estado de atención | Agrega comparación entre períodos y consulta del historial territorial |
+| Alertas pluviales y fluviales | Registro manual con fuente y fecha | Igual que Esencial | Igual que Esencial |
+| Población y familias | Identificación, ubicación, condición y necesidades | Agrega seguimiento de asistencia y validación de relevamientos | Agrega revisión de posibles duplicados e historial consolidado de intervenciones |
+| Incidentes, Mesa 1 | Carga, prioridad, responsable, estado y derivación registrada | Agrega seguimiento de derivaciones, plazos y vínculo con solicitudes | Agrega escalamiento interno por reglas y seguimiento entre equipos |
+| Asistencia y logística, Mesa 2 | Registro de necesidad y asistencia realizada; sin circuito FUSE ni inventario | FUSE con una autorización, un despacho y una recepción por solicitud; stock básico por ubicación | Agrega reservas, entregas parciales, devoluciones, anulaciones controladas y transferencias entre ubicaciones |
+| Albergues, Mesa 3 | Ficha, capacidad, personas alojadas e ingresos/egresos | Agrega composición familiar, raciones, servicios y necesidades | Agrega traslados vinculados, seguimiento de capacidad y coordinación de abastecimiento |
+| Dispositivos propios, Mesa 4 | Sin módulo específico | Ficha, estado, necesidades e incidencias | Agrega planes de acción, responsables, vencimientos y seguimiento de continuidad |
+| Bitácora | Novedades y pendientes | Agrega pase de guardia y vinculación con casos | Agrega entrega y recepción de pendientes con trazabilidad |
+| Reportes | Resumen por territorio, fecha y albergue; exportación básica | Agrega asistencia, stock, solicitudes y actividad por mesa | Agrega evolución, comparaciones, demanda sin resolver y tableros por rol |
+| Avisos dentro de la aplicación | Indicadores de estado y pendientes | Agrega faltantes y vencimientos definidos | Agrega reglas configurables y escalamiento interno |
+| Importación de padrones | Una plantilla acordada y reporte de errores | Agrega revisión previa de lotes y trazabilidad de importaciones | Agrega conciliación de posibles duplicados y correcciones supervisadas |
+| Roles e historial | Permisos por función y territorio; autor y fecha de cambios | Agrega separación entre carga, validación y autorización | Agrega permisos más detallados para datos sensibles y consulta de auditoría |
 
-La contratación identificará las responsabilidades de infraestructura, atención funcional, operación técnica y mantenimiento de aplicación. Se acordarán la cobertura de garantía y la capacidad destinada a cambios evolutivos.
+## 3. Propuesta 1: aplicación Esencial
 
-Las nuevas funciones se incorporarán mediante un proceso de definición, estimación y aprobación de alcance, con sus propios criterios de aceptación.
+### Qué resuelve
 
-## 10. Experiencia y componentes reutilizables
+Permite iniciar el registro coordinado de la emergencia. Los equipos ven las zonas afectadas, identifican personas y familias, cargan incidentes y consultan la ocupación de los albergues.
 
-ICORE propone aprovechar la experiencia de Datañach en relevamientos, legajos, gestión institucional y permisos. El proyecto tendrá sus propios ambientes y un alcance independiente.
+### Funcionalidades incluidas
 
-| Área | Reutilización propuesta |
+- Mapa provincial con filtros por departamento y localidad, zonas críticas y semáforos registrados por los equipos.
+- Indicadores de población afectada, incidentes abiertos y personas alojadas.
+- Registro de personas y familias, ubicación, condición de afectación, necesidades y vulnerabilidades.
+- Historial básico de relevamientos y asistencia realizada.
+- Incidentes con prioridad, responsable, estado, acciones y derivación a otro organismo.
+- Ficha de albergue, capacidad, ingreso y egreso de personas y ocupación calculada a partir de movimientos.
+- Bitácora de novedades y pendientes.
+- Reportes básicos y exportación de información autorizada.
+- Usuarios, permisos, historial de cambios y carga inicial desde una plantilla de padrón.
+- Actualización en vivo de las pantallas incluidas.
+
+### Límite del alcance
+
+Las necesidades y la asistencia realizada se registran como información del caso. El proceso de solicitud, autorización y despacho FUSE, el inventario y la gestión específica de dispositivos se incorporan a partir de la propuesta Operativa.
+
+### Entregables
+
+Aplicación web con los módulos incluidos, documentación funcional, casos de prueba, manual de uso y capacitación de los perfiles que participan en la operación.
+
+**Estimación:** 3.000 a 3.500 horas totales. **Plazo orientativo:** 16 a 18 semanas.
+
+## 4. Propuesta 2: aplicación Operativa
+
+### Qué resuelve
+
+Incluye la propuesta Esencial y permite trabajar con las cuatro mesas. Incorpora el circuito de asistencia, el stock por ubicación y la gestión de dispositivos, con trazabilidad entre las áreas que solicitan, autorizan y entregan.
+
+### Funcionalidades que agrega
+
+- Seguimiento de necesidades de personas y familias, con validación de relevamientos y asistencia vinculada.
+- Derivaciones con responsable, plazos y seguimiento de respuesta.
+- Circuito FUSE: solicitud, validación, autorización, despacho con remito y recepción.
+- Un despacho y una recepción por solicitud, con historial de cada etapa.
+- Stock por depósito o albergue, ingresos, egresos y avisos de faltantes.
+- Albergues con composición familiar, raciones, necesidades, servicios y estado operativo.
+- Ficha de dispositivos propios, recursos necesarios, incidencias y acciones registradas.
+- Pase de guardia con pendientes vinculados a incidentes, solicitudes y albergues.
+- Reportes de asistencia, solicitudes, stock y actividad por mesa.
+- Revisión de padrones antes de confirmar su importación, con resultados por lote.
+- Separación de permisos entre quienes cargan, validan y autorizan.
+
+### Límite del alcance
+
+El circuito de asistencia contempla una entrega completa por solicitud. Las entregas parciales, reservas, devoluciones y transferencias de stock se incorporan en Integral. Las correcciones del circuito simple conservarán el historial y se definirán durante el análisis.
+
+### Entregables
+
+Aplicación web con las cuatro mesas, circuitos vinculados, reportes operativos, documentación, pruebas de los flujos completos y capacitación por rol.
+
+**Estimación:** 4.500 a 5.000 horas totales. **Plazo orientativo:** 20 a 22 semanas.
+
+## 5. Propuesta 3: aplicación Integral
+
+### Qué resuelve
+
+Incluye la propuesta Operativa y amplía el control de la respuesta social: entregas parciales, movimientos entre ubicaciones, traslados de personas, pendientes entre equipos y análisis de la evolución territorial.
+
+### Funcionalidades que agrega
+
+- Consulta de la evolución territorial y comparación entre períodos, a partir de los datos registrados.
+- Historial consolidado de relevamientos e intervenciones sobre personas y familias.
+- Revisión supervisada de posibles duplicados en registros e importaciones.
+- Reservas de insumos para solicitudes autorizadas.
+- Despachos y recepciones parciales, con cantidades pendientes y cierre del circuito.
+- Devoluciones, anulaciones y correcciones con motivo, permisos e historial.
+- Transferencias de insumos entre depósitos y albergues, con origen, destino y confirmación de recepción.
+- Traslados de personas entre albergues, conservando el vínculo entre egreso e ingreso.
+- Seguimiento de necesidades de abastecimiento y capacidad de alojamiento.
+- Planes de acción para dispositivos, con responsables, vencimientos y seguimiento.
+- Entrega y recepción de pendientes entre guardias y equipos.
+- Avisos y escalamiento dentro de la aplicación mediante reglas acordadas.
+- Tableros por rol, comparación de períodos, evolución de entregas y situaciones sin resolver.
+- Permisos detallados para información sensible y consulta de auditoría.
+
+### Límite del alcance
+
+Los avisos se generan con reglas acordadas sobre datos de la aplicación. La conexión automática con fuentes climáticas, las notificaciones por canales externos y las funciones predictivas se tratan como ampliaciones independientes.
+
+### Entregables
+
+Aplicación web con el alcance Integral, documentación de reglas y permisos, pruebas de concurrencia y de los circuitos con excepciones, manuales por rol y capacitación.
+
+**Estimación:** 6.000 a 6.500 horas totales. **Escenario central:** 6.250 horas. **Plazo orientativo:** 24 a 26 semanas.
+
+## 6. Horas de trabajo por alternativa
+
+### Distribución por disciplina
+
+La tabla muestra el escenario central de cada propuesta. Las horas se asignan al trabajo previsto; la dedicación de cada perfil varía según la etapa.
+
+| Disciplina | Esencial | Operativa | Integral |
+|---|---:|---:|---:|
+| Análisis funcional | 600 | 900 | 1.200 |
+| Desarrollo de la aplicación | 1.900 | 2.850 | 3.840 |
+| QA y pruebas de aceptación | 360 | 500 | 640 |
+| Diseño UX/UI | 120 | 160 | 200 |
+| Gestión del proyecto | 150 | 220 | 240 |
+| Manuales y capacitación | 120 | 120 | 130 |
+| **Total de horas-persona** | **3.250** | **4.750** | **6.250** |
+| **Rango de estimación** | **3.000–3.500** | **4.500–5.000** | **6.000–6.500** |
+
+El desarrollo incluye diseño técnico, programación, revisión y corrección de defectos. QA contempla validación funcional, permisos, regresión, concurrencia y pruebas de aceptación. Los rangos expresan incertidumbre de la estimación, no una bolsa adicional sumada al total.
+
+### Distribución de las horas de desarrollo por módulo
+
+Estas horas están incluidas en la fila Desarrollo de la aplicación de la tabla anterior.
+
+| Componente | Esencial | Operativa | Integral |
+|---|---:|---:|---:|
+| Base funcional, usuarios, permisos e historial | 240 | 260 | 320 |
+| Tablero y mapa de criticidad | 300 | 340 | 440 |
+| Población y relevamientos | 340 | 420 | 480 |
+| Incidentes y articulación | 240 | 300 | 360 |
+| Circuito FUSE y stock | 0 | 400 | 650 |
+| Albergues | 260 | 360 | 460 |
+| Dispositivos propios | 0 | 180 | 240 |
+| Bitácora, avisos y reportes | 180 | 220 | 300 |
+| Actualización en vivo y controles de concurrencia | 180 | 200 | 280 |
+| Importación de padrones | 80 | 90 | 150 |
+| Integración entre módulos y ajustes de rendimiento | 80 | 80 | 160 |
+| **Total de desarrollo** | **1.900** | **2.850** | **3.840** |
+
+En Esencial, el registro simple de asistencia está comprendido en Población e Incidentes. El valor cero de FUSE y stock indica que esa alternativa no incluye el circuito logístico.
+
+## 7. Equipo de desarrollo
+
+| Perfil | Esencial | Operativa | Integral |
+|---|---|---|---|
+| Analistas funcionales | 2 con dedicación parcial, según las 600 h previstas | 2 con dedicación parcial, según las 900 h previstas | 2 con dedicación parcial, según las 1.200 h previstas |
+| Desarrolladores | Hasta 3, con uno a cargo de la conducción técnica | Hasta 4, con uno a cargo de la conducción técnica | 4, con uno a cargo de la conducción técnica |
+| QA | 1 con dedicación por etapa | 1 con dedicación por etapa | 1 con dedicación por etapa |
+| UX/UI | Participación en diseño y validación | Participación en diseño y validación | Participación en diseño y validación |
+| Gestión | Dedicación parcial | Dedicación parcial | Dedicación parcial |
+
+Las horas de la sección 6 gobiernan la dedicación. La cantidad de personas expresa la composición del equipo y no implica que todos participen a tiempo completo durante todo el calendario. Los analistas se distribuyen los circuitos funcionales; uno de los cuatro desarrolladores de Integral asume la conducción técnica.
+
+## 8. Etapas y plazos
+
+| Etapa | Esencial | Operativa | Integral |
+|---|---|---|---|
+| Definición funcional y diseño | Semanas 1–3 | Semanas 1–4 | Semanas 1–4 |
+| Primera entrega: mapa, personas e incidentes | Semanas 4–9 | Semanas 5–10 | Semanas 5–10 |
+| Desarrollo del resto del alcance | Semanas 8–14 | Semanas 9–18 | Semanas 9–22 |
+| Validación con usuarios y capacitación | Semanas 15–18 | Semanas 19–22 | Semanas 23–26 |
+
+Las etapas se superponen. Cada entrega incluirá una demostración y criterios de aceptación. El cronograma detallado se acordará al elegir la alternativa y confirmar la disponibilidad de referentes y padrones.
+
+La aceptación de la aplicación requerirá completar los casos funcionales acordados, verificar permisos y trazabilidad, y ejecutar las pruebas de carga de las pantallas y circuitos incluidos.
+
+## 9. Criterios comunes de la aplicación
+
+### Uso y permisos
+
+La aplicación será web, adaptable a computadoras y dispositivos móviles con conexión a internet. Los permisos definirán qué puede consultar o modificar cada equipo según su función y territorio. El estado y los avisos se comunicarán con texto además de color.
+
+### Actualización en vivo
+
+Se conserva una base de validación de 200 usuarios activos simultáneamente y un objetivo de propagación de cambios de hasta dos segundos en al menos el 95% de las actualizaciones medidas.
+
+La medición comienza cuando se confirma el registro y termina cuando otra sesión conectada visualiza el cambio. Antes de la prueba se acordarán conectividad, dispositivos, volumen de datos y mezcla de consultas y cargas. Este objetivo no equivale al tiempo de elaboración de reportes o importaciones extensas.
+
+Cada pantalla informará la pérdida de conexión o la antigüedad de los datos y recuperará el estado vigente al reconectarse. La actualidad de un relevamiento depende de su carga por el operador; las alertas climáticas tendrán carga manual en las tres alternativas.
+
+### Consistencia de los movimientos
+
+Los circuitos incluidos deberán controlar operaciones simultáneas y reintentos. La ocupación se calculará a partir de ingresos y egresos; las alternativas con stock deberán conservar la relación entre solicitudes, entregas y movimientos.
+
+### Organización de la aplicación
+
+Se propone una interfaz web con módulos vinculados mediante una API y un modelo de datos común. React y TypeScript se plantean para la interfaz; Python y Django para las reglas de negocio; PostgreSQL con soporte geográfico para los registros territoriales y WebSockets para la actualización en vivo. Esta selección se confirmará durante el diseño técnico.
+
+### Importaciones y experiencia previa
+
+Cada alternativa incluye el tratamiento de padrones definido en su alcance. Las plantillas, los volúmenes, los campos obligatorios y los criterios de coincidencia se acordarán antes de importar. El Ministerio validará la información de origen y los resultados.
+
+La experiencia de Datañach se utilizará como referencia para personas, familias, permisos y gestión institucional. La reutilización de componentes dependerá de su compatibilidad y autorización; la estimación no presupone un ahorro de código aún no verificado.
+
+## 10. Ampliaciones independientes
+
+| Ampliación | Alcance a definir |
 |---|---|
-| Análisis y operación | Experiencia en circuitos sociales, validación con equipos y capacitación |
-| Personas y familias | Patrones de registro y vinculación, adaptados a situaciones de emergencia |
-| Albergues y dispositivos | Patrones de capacidad, ingresos, egresos y trazabilidad |
-| Usuarios e interfaz | Componentes y criterios existentes cuando sean compatibles y su uso esté autorizado |
-| Infraestructura | Procedimientos de despliegue, monitoreo y operación adaptados al nivel de servicio acordado |
+| Aplicación de relevamiento offline | Formularios sin conexión, GPS, adjuntos y sincronización con resolución de conflictos |
+| Integraciones con registros y sistemas existentes | Consulta o intercambio de datos mediante servicios acordados con cada organismo |
+| Fuentes climáticas automáticas | Incorporación de mediciones y alertas, con identificación de fuente y fecha |
+| Notificaciones por canales externos | Mensajes a destinatarios mediante canales acordados |
+| Funciones predictivas con IA | Evaluación de datos y objetivos, seguida de una propuesta específica de desarrollo |
 
-La reutilización concreta se confirmará durante la etapa inicial. Las horas propuestas no descuentan un ahorro de código aún no verificado. Las conexiones con Datañach u otros registros se consideran integraciones independientes.
+Estas ampliaciones no forman parte de las horas de ninguna de las tres alternativas. La propuesta Integral cubre la gestión funcional completa descrita en la sección 5.
 
-## 11. Opciones de ampliación
+Si se contrata una alternativa y luego se decide avanzar a otra, se estimará el trabajo restante a partir de lo entregado y de los cambios solicitados. La diferencia entre los totales actuales no constituye una cotización automática de la ampliación.
 
-| Opción | Alcance de referencia |
+## 11. Condiciones para cerrar el alcance
+
+| Condición | Definición a acordar |
 |---|---|
-| App de relevamiento offline | Captura sin conectividad, GPS, adjuntos y sincronización con resolución de conflictos |
-| Integraciones con registros existentes | Consulta o intercambio de datos mediante servicios acordados con cada organismo |
-| Fuentes climáticas | Incorporación automática de mediciones y alertas, con fuente y fecha de actualización |
-| Alertas automáticas | Reglas, destinatarios y notificaciones por canales acordados |
-| Funciones predictivas con IA | Estudio de viabilidad y posterior desarrollo según disponibilidad y calidad de datos |
-| Ampliación de capacidad | Más usuarios, almacenamiento, retención o posiciones de atención |
+| Alternativa elegida | Esencial, Operativa o Integral |
+| Reglas de negocio | Condiciones de afectación, estados, permisos y criterios de aceptación de los módulos incluidos |
+| Circuito FUSE | En las alternativas que lo incluyen, responsables de cada etapa y tratamiento de excepciones |
+| Datos iniciales | Padrones, formatos, volúmenes, cantidad de lotes y responsables de validación |
+| Rendimiento | Escenarios de uso y condiciones de medición de concurrencia y actualización en vivo |
+| Calendario | Inicio, disponibilidad de referentes y validación de entregas |
+| Entrega y conformidad | Casos de aceptación, manuales y capacitación incluidos en la alternativa |
 
-Cada opción tendrá su alcance, esfuerzo y plazo propios. Las funciones predictivas requieren una evaluación previa de datos y objetivos.
-
-## 12. Componentes de la contratación
-
-La propuesta se organiza en prestaciones identificables, sin importes en esta versión:
-
-| Prestación | Modalidad propuesta |
-|---|---|
-| Implementación inicial | Entregas por hitos y módulos con criterios de aceptación |
-| Infraestructura y almacenamiento en AWS | Servicio recurrente administrado por ICORE, con capacidad incluida y reglas de ampliación |
-| Mesa de ayuda dedicada 24/7 | Cobertura funcional por turnos |
-| Operación técnica dedicada 24/7 | Cobertura técnica por turnos y escalamiento especializado |
-| Mantenimiento de aplicación | Capacidad acordada para correcciones, actualizaciones y publicaciones |
-| Opciones de ampliación | Alcance y planificación independientes |
-
-### Condiciones a confirmar para la versión contractual
-
-| Condición | Definición prevista |
-|---|---|
-| Alcance detallado | Reglas de FUSE, permisos, estados y criterios de aceptación por módulo |
-| Datos de inicio | Padrones disponibles, calidad, formatos, cantidad de importaciones y responsables de validación |
-| Dimensionamiento | Volumen de registros, adjuntos, movimientos y demanda de atención |
-| Alojamiento en AWS | Región, titularidad de la cuenta, requisitos de residencia y retención de datos |
-| Niveles de servicio | Disponibilidad, medición, recuperación, escalamiento y tiempos de atención |
-| Dedicación y calendario | Asignación por etapa, disponibilidad de referentes y fecha de inicio |
-| Operación 24/7 | Modalidad de atención, turnos, reemplazos, especialistas y preparación previa |
-| Mantenimiento y garantía | Responsabilidades, capacidad incluida y procedimiento para cambios |
-
-La versión contractual incorporará estas definiciones y el calendario acordado de entregas y puesta en marcha.
+El documento presenta tres opciones para decidir alcance. La versión contractual incorporará la alternativa elegida y las definiciones acordadas.
