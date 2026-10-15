@@ -69,6 +69,9 @@ COSTOS = {
     # vez: el envío de un correo son varias operaciones, pero la que puede
     # colgarse contra un SMTP que no responde es la que abre la conexión.
     "smtp": lambda: settings.EMAIL_TIMEOUT,
+    # El canal de las campañas de Notificaciones (Cambio 311): su propio SMTP con su
+    # timeout si ``NOTIF_EMAIL_HOST`` está cargada; si no, sale por el común.
+    "smtp.masivo": lambda: settings.NOTIF_EMAIL_TIMEOUT if settings.NOTIF_EMAIL_HOST else settings.EMAIL_TIMEOUT,
 }
 
 #: Las cadenas de llamadas externas que vive un request. El token de SIIS se
@@ -130,6 +133,9 @@ CADENAS = {
     # del corte de nginx— y la cadena declarada, 30, no lo veía.)
     "legajos · consultar RENAPER": ("renaper.espera_token", "renaper.login", "renaper.consulta"),
     "usuarios · alta con clave provisoria": ("smtp",),
+    # La prueba de una campaña sale en el request y por el canal masivo; el envío
+    # masivo, no: corre en un hilo y no tiene request que cortar.
+    "notificaciones · enviar la prueba de una campaña": ("smtp.masivo",),
 }
 
 

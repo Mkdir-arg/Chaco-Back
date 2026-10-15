@@ -9,7 +9,6 @@ sin la capacidad es un pedido armado a mano.
 
 from __future__ import annotations
 
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -30,7 +29,7 @@ from notificaciones import selectors
 from notificaciones.forms import CampanaForm, PruebaForm
 from notificaciones.models import Campana, Destinatario
 from notificaciones.services import campanas as servicio
-from notificaciones.services import envio, incrustadas
+from notificaciones.services import canal, envio, incrustadas
 from notificaciones.services.exportacion import plantilla_xlsx, resultado_xlsx
 from notificaciones.services.html import documento
 
@@ -257,7 +256,8 @@ def campana_detalle(request, pk):
         "estado_destinatario_actual": estado_destinatario,
         "interrumpida": interrumpida,
         "en_curso": en_curso,
-        "remitente": settings.DEFAULT_FROM_EMAIL,
+        "remitente": canal.remitente_masivo(),
+        "texto_canal": canal.descripcion(),
         "asunto_final": envio.asunto_de(campana),
         "primer_destinatario": selectors.primer_destinatario(campana),
         "puede_gestionar": puede_gestionar and campana.editable,

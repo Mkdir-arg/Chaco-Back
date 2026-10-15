@@ -91,3 +91,13 @@ class VolumenTemporal(locmem.EmailBackend):
 
     def send_messages(self, messages):
         raise smtplib.SMTPDataError(451, b"4.7.0 Too many messages, try later")
+
+
+class Registra(locmem.EmailBackend):
+    """Anota con qué parámetros se creó cada conexión: así se ve qué canal eligió el código."""
+
+    parametros = []
+
+    def __init__(self, *args, **kwargs):
+        type(self).parametros.append(dict(kwargs))
+        super().__init__(*args, **kwargs)
