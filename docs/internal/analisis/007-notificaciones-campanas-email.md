@@ -162,7 +162,7 @@ dárselo a menos gente que el armado.
 | RNF-007-02 | Los archivos subidos se guardan en `media/notificaciones/` con nombre UUID y se sirven solo detrás de login | Seguridad |
 | RNF-007-03 | El HTML se sanitiza al subirlo (sin `<script>`, manejadores `on*`, `<iframe>`, `<form>`, `javascript:`); se agrega `nh3` a requirements | Seguridad |
 | RNF-007-04 | La vista previa nunca inyecta el HTML en la página del backoffice: va en `iframe` con `sandbox` vacío y `srcdoc` | Seguridad |
-| RNF-007-05 | El envío reutiliza una sola conexión SMTP por lote (`get_connection()`), en lotes con pausa configurables por entorno (`NOTIF_LOTE`, `NOTIF_PAUSA_SEG`). La cuota del SMTP de ECOM no se conoce y el PM decidió no esperarla: se arranca con valores conservadores (50 correos cada 10 s) y se ajustan por variable de entorno sin release | Performance |
+| RNF-007-05 | El envío reutiliza una sola conexión SMTP por lote (`canal.conexion_masiva()`, ver RNF-007-15), en lotes con pausa configurables por entorno (`NOTIF_LOTE`, `NOTIF_PAUSA_SEG`). La cuota del SMTP de ECOM no se conoce y el PM decidió no esperarla: se arranca con valores conservadores (50 correos cada 10 s, ~5 por segundo) y se ajustan por variable de entorno sin release. Con el canal masivo en Amazon SES, ese ritmo tiene que quedar **por debajo de la cuota de envíos por segundo de la cuenta SES** (Cambio 311) | Performance |
 | RNF-007-06 | El envío no corre en el request: hilo de fondo con latido, sobre el patrón de `programas/services/proceso_masivo.py` + `CorridaSiis` | Performance / Robustez |
 | RNF-007-07 | Un candado impide dos envíos simultáneos de la misma campaña | Robustez |
 | RNF-007-08 | Cada correo sale **individual** (un destinatario en `To`), nunca en CC/BCC masivo | Privacidad |
@@ -172,6 +172,7 @@ dárselo a menos gente que el armado.
 | RNF-007-12 | ~~Retirado por el Cambio 292: el WAF de ECOM bloquea esta ruta desde internet.~~ Las imágenes del .zip se servían en `/notificaciones/img/<token>/<nombre>` **sin login** (las pide el cliente de correo del destinatario). Única excepción a RNF-007-02, aceptada por el PM el 14/10: solo imágenes de campañas validadas con Pillow; se buscan por token (uno por paquete, `secrets.token_urlsafe`) y nombre en la base, nunca por ruta del disco; salen con el tipo real, `nosniff`, `inline`, CSP `default-src 'none'; sandbox` y caché pública de 30 días; borrar la campaña o reemplazar el cuerpo las da de baja (404) | Seguridad |
 | RNF-007-13 | ~~Retirado por el Cambio 292 (ya no hay URLs): la base salía de `NOTIF_URL_PUBLICA`.~~ | Operación |
 | RNF-007-14 | Las imágenes del .zip viajan **dentro de cada correo**: el HTML las nombra `cid:<nombre>@datanach` (sin `<>`) y el correo es `multipart/related [ multipart/alternative [texto, html], imagen… ]`, una parte por imagen con `Content-ID: <nombre@datanach>`, `Content-Disposition: inline` y su tipo real, armadas una vez por envío. La vista previa las muestra como `data:` (el `iframe sandbox` no manda cookies). Los archivos siguen en `media/` detrás de login (`notificacion.ver`); **no hay ninguna ruta pública** | Seguridad / Entregabilidad |
+| RNF-007-15 | Las campañas (envío masivo **y** prueba) salen por un **SMTP propio** —Amazon SES, sa-east-1, `NOTIF_EMAIL_*`—, separado del SMTP común de ECOM (`EMAIL_*`), para que la reputación y la cuota del masivo no afecten a los correos del sistema (credenciales, avisos de resolución, comprobantes), que siguen por el común. Un único punto decide el canal (`notificaciones/services/canal.py`). Con `NOTIF_EMAIL_HOST` vacía las campañas salen por el común, como antes. Las credenciales viven solo en el entorno. `diagnosticar_correo --canal masivo` verifica el canal desde el pod (Cambio 311) | Entregabilidad / Operación |
 
 ---
 
@@ -195,7 +196,7 @@ dárselo a menos gente que el armado.
 | RN-007-14 | Un fallo de un destinatario no frena la campaña: se registra el error y se sigue | — |
 | RN-007-15 | El Excel trae **solo correos**: cualquier otra columna se ignora | — |
 | RN-007-16 | La prueba va a **una sola** dirección válida, lleva «[PRUEBA] » en el asunto, no cambia el estado y tiene un límite de 10 pruebas por usuario por hora | Error en el popup / aviso de límite |
-| RN-007-17 | Remitente único: `DEFAULT_FROM_EMAIL` (el `no-responder` actual), sin remitente propio por campaña | — |
+| RN-007-17 | Remitente único, sin remitente propio por campaña: el del canal de las campañas. Con el canal masivo, `NOTIF_DEFAULT_FROM_EMAIL` (`DATAÑACH <datanach@chaco.gob.ar>`, identidad verificada en SES; vacía = `DEFAULT_FROM_EMAIL`); sin él, `DEFAULT_FROM_EMAIL` (Cambio 311) | — |
 | RN-007-18 | El .zip: hasta 10 MB comprimido y 20 MB descomprimido, hasta 50 imágenes (5 MB cada una) y 500 archivos; sin rutas con `..`, absolutas ni enlaces simbólicos, sin cifrar. Se ignoran `__MACOSX/`, `.DS_Store`, `Thumbs.db` y los `._*`. Tiene que traer **un** `.html`/`.htm`; si trae varios, vale el `index.html` de la raíz de la carpeta | Error en el campo |
 | RN-007-19 | Cada `src` relativo se resuelve contra la carpeta del HTML (con `./`, `\`, `%20`, `?v=` y, si no aparece, sin distinguir mayúsculas). Solo se publican PNG, JPG, GIF y WEBP verificados por su contenido (no por la extensión), de hasta 25 millones de píxeles, y **recodificados** sin metadatos (EXIF/GPS, XMP, textos, comentarios; se conservan perfil de color, transparencia y animación); **SVG no** (puede llevar scripts) | Faltante o no publicada: aviso con el nombre en la previsualización; el resto del correo sigue |
 | RN-007-20 | Las imágenes del .zip que el HTML no nombra no se publican. Las de fondo por CSS (`url(…)`) o por el atributo `background` tampoco: el saneo las quita igual que en un HTML suelto | — |
@@ -247,6 +248,7 @@ dárselo a menos gente que el armado.
 ## 8. Dependencias
 
 - SMTP de ECOM operativo (Cambio 50) y su política de cuota/ritmo (pregunta 3).
+- Desde el Cambio 311, el canal masivo en Amazon SES (sa-east-1): identidad `datanach@chaco.gob.ar` (o el dominio) verificada, cuenta fuera del sandbox, DKIM de SES publicado en el DNS de `chaco.gob.ar`, SPF/DMARC alineados y egreso al 587 de SES habilitado desde el clúster de ECOM.
 - `openpyxl` (ya está). `nh3` (nuevo) para sanitizar y para derivar el texto plano.
 - `core/rbac.py` + migración de `users` + `seed_rbac`.
 - Patrón de proceso en segundo plano de `programas/services/proceso_masivo.py`.
@@ -280,7 +282,7 @@ notificaciones/
 - Plantillas reutilizables o editor visual de HTML.
 - Adjuntos.
 - Métricas de apertura, clics y rebotes.
-- Enlace de desuscripción y lista de bajas (decidido 08/10: no hace falta).
+- Enlace de desuscripción y lista de bajas (decidido 08/10: no hace falta). **Riesgo registrado (Cambio 311)**: Gmail y Yahoo exigen `List-Unsubscribe` de un clic a quien manda más de 5.000 correos por día a sus casillas; superado ese volumen, las campañas pueden ir a spam o ser rechazadas. Queda como pendiente a decidir por el PM; no se implementa.
 - Remitente propio por campaña.
 - Columnas extra en el Excel (nombre u otros datos).
 - Elegir destinatarios desde ciudadanos/legajos del sistema en lugar de un Excel.
@@ -312,3 +314,4 @@ notificaciones/
 | 2026-10-08 | Cierre de las 9 preguntas: rol Comunicaciones, tope 5.000, prueba por popup, duplicar, sin desuscripción, solo correos, remitente no-responder | Respuestas del PM |
 | 2026-10-14 | RF-007-20, RNF-007-12/13 y RN-007-18 a 21: el cuerpo como .zip con la carpeta y las imágenes publicadas sin login (Cambio 285). **Decisión del PM (opción 1)**: las imágenes de campañas quedan públicas, como excepción explícita a «media detrás de login», solo para imágenes validadas | Los mailings llegan como carpeta con `img/` y rutas relativas: subido solo el HTML, no se veía ninguna imagen |
 | 2026-10-14 | **Plan B** (Cambio 292): RNF-007-14 y RN-007-22; RNF-007-12/13 retirados. Las imágenes viajan incrustadas en cada correo (`cid:`) y la exposición pública aprobada a la mañana **queda retirada** | En testing el correo llegó a Gmail con las 14 imágenes rotas: el WAF de ECOM (FortiWeb) bloquea `/notificaciones/img/` desde internet y PRD tiene el mismo WAF |
+| 2026-10-15 | RNF-007-15 (nuevo), RNF-007-05 y RN-007-17: las campañas salen por un SMTP propio (Amazon SES) separado del común, con su remitente; ritmo por debajo de la cuota de SES; riesgo de `List-Unsubscribe` registrado sin implementar (Cambio 311) | Pedido del PM: separar reputación y cuota del correo masivo del SMTP de ECOM |

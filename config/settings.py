@@ -343,11 +343,28 @@ EMAIL_SOPORTE = os.getenv("EMAIL_SOPORTE", "")
 EMAIL_PIE_DIRECCION = os.getenv("EMAIL_PIE_DIRECCION", "")
 
 # Campañas de Notificaciones (análisis 007, RNF-007-05): cuántos correos salen por
-# conexión SMTP y cuántos segundos se espera entre un lote y el siguiente. La cuota del
-# SMTP de ECOM no se conoce y el PM decidió no esperarla: se arranca conservador —50
-# cada 10 s, unos 18.000 por hora— y se ajusta por variable de entorno, sin release.
+# conexión SMTP y cuántos segundos se espera entre un lote y el siguiente. Se arranca
+# conservador —50 cada 10 s, ~5 por segundo, unos 18.000 por hora— y se ajusta por
+# variable de entorno, sin release. Con el canal masivo en Amazon SES, ese ritmo tiene
+# que quedar POR DEBAJO de la cuota de envíos por segundo de la cuenta SES.
 NOTIF_LOTE = max(1, int(os.getenv("NOTIF_LOTE", "50")))
 NOTIF_PAUSA_SEG = max(0.0, float(os.getenv("NOTIF_PAUSA_SEG", "10")))
+# Canal masivo de las campañas (Cambio 311, RNF-007-15): un SMTP propio —Amazon SES,
+# sa-east-1— separado del SMTP común de ECOM, para que la reputación y la cuota del
+# correo masivo no afecten a los correos del sistema (credenciales, avisos, comprobantes),
+# que siguen saliendo por EMAIL_*. Lo usan solo el envío y la prueba de las campañas
+# (`notificaciones.services.canal`). NOTIF_EMAIL_HOST vacía = las campañas salen por el
+# canal común, como antes: dev, CI y los ambientes sin configurar siguen andando.
+# Las credenciales viven en el entorno; nunca en el repo.
+NOTIF_EMAIL_HOST = os.getenv("NOTIF_EMAIL_HOST", "")
+NOTIF_EMAIL_PORT = int(os.getenv("NOTIF_EMAIL_PORT", "587"))
+NOTIF_EMAIL_HOST_USER = os.getenv("NOTIF_EMAIL_HOST_USER", "")
+NOTIF_EMAIL_HOST_PASSWORD = os.getenv("NOTIF_EMAIL_HOST_PASSWORD", "")
+NOTIF_EMAIL_USE_TLS = os.getenv("NOTIF_EMAIL_USE_TLS", "True").lower() == "true"
+# Más holgado que EMAIL_TIMEOUT: el masivo corre en un hilo, no hace esperar a nadie.
+NOTIF_EMAIL_TIMEOUT = int(os.getenv("NOTIF_EMAIL_TIMEOUT", "20"))
+# Vacía = DEFAULT_FROM_EMAIL. Con SES tiene que ser una identidad verificada en la cuenta.
+NOTIF_DEFAULT_FROM_EMAIL = os.getenv("NOTIF_DEFAULT_FROM_EMAIL", "")
 
 # Vencimiento del enlace de recupero. Los correos (backoffice y portal) prometen
 # 24 h; el default de Django son 3 días.

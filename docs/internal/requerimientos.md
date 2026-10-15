@@ -436,7 +436,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 308 | P3 en dos columnas y Vencido en Infraestructura | Dispositivos · P3/P2/P4/P19 | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` | PM / juez — carril FI | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 309 | Estado junto al título e Instituciones en el sidebar | Dispositivos · P4/P7/P19/P14 · shell transversal | `#ui` `#textos` | PM / juez — carril FH | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 310 | Correcciones menores de FR y FI y fidelidad de P3 | Dispositivos · P3 y relevamiento edilicio | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` | PM / juez — carril FJ | 14/10/2026 | 🟢 **Hecho** | No requiere |
-| 311 | Notificaciones: las campañas salen por un SMTP propio (Amazon SES), separado del correo del sistema | Transversal — notificaciones (envío masivo, prueba y detalle de la campaña) · diagnóstico de correo | `#correo` `#infra` | PM — pedido del 15/10/2026 | 15/10/2026 | 🟡 **En curso** | No requiere |
+| 311 | Notificaciones: las campañas salen por un SMTP propio (Amazon SES), separado del correo del sistema | Transversal — notificaciones (envío masivo, prueba y detalle de la campaña) · diagnóstico de correo | `#correo` `#infra` | PM — pedido del 15/10/2026 | 15/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -40536,7 +40536,7 @@ sus consumidores y el comportamiento previo de P3.
 
 # Cambio 311 — Notificaciones: las campañas salen por un SMTP propio (Amazon SES), separado del correo del sistema
 
-🟡 **EN CURSO — 15/10/2026** · análisis [007](analisis/007-notificaciones-campanas-email.md)
+🟢 **HECHO — 15/10/2026** · análisis [007](analisis/007-notificaciones-campanas-email.md) (RNF-007-15 nuevo, RNF-007-05 y RN-007-17) · falta cargar las variables en ECOM y verificar desde el pod
 
 | | |
 |---|---|
@@ -40545,11 +40545,172 @@ sus consumidores y el comportamiento previo de P3.
 | **Solicitante** | PM — pedido del 15/10/2026 |
 | **Fecha del pedido** | 15/10/2026 |
 | **Issue / épica** | sin issue (análisis 007) · rama `feature/notificaciones-smtp-masivo` |
-| **Partes afectadas** | Hilo de envío · Prueba de la campaña · Detalle de la campaña · `diagnosticar_correo` · Settings |
+| **Partes afectadas** | Hilo de envío · Prueba de la campaña · Detalle de la campaña · `diagnosticar_correo` · Settings · Presupuesto de llamadas externas |
 | **Migración** | No requiere |
 
 ## Pedido original
 
-Número reservado; la entrada se completa en esta misma rama.
+El envío masivo de campañas usa un servicio SMTP **propio**, distinto del SMTP «común» del sistema (el de
+ECOM, que siguen usando las credenciales de usuario, los avisos de resolución y los comprobantes). El
+servicio es **Amazon SES** (región `sa-east-1`, host `email-smtp.sa-east-1.amazonaws.com`, puerto 587,
+STARTTLS) con remitente `datanach@chaco.gob.ar`. Las credenciales SMTP ya se probaron (login 235 OK) pero
+**nunca van al repo**: ni en código, ni en tests, ni en los `.env` de ejemplo, ni en docs, ni en commits.
+
+## Alcance acordado
+
+Settings `NOTIF_EMAIL_*` por entorno; una función única que arma la conexión y el remitente del canal de
+las campañas; el envío masivo **y la prueba** salen por ella; `diagnosticar_correo --canal masivo`; una línea
+informativa en el detalle de la campaña; variables de ejemplo en `.env.qa.example`. Todo el resto del correo
+del sistema queda igual.
+
+## Decisiones tomadas
+
+- **Por qué un canal propio.** Separar la reputación y la cuota del correo masivo de las del SMTP de ECOM:
+  un pico de campañas (o un rebote masivo) no puede dejar sin salida a una clave provisoria o a un aviso de
+  resolución.
+- **Un solo punto decide el canal**: `notificaciones/services/canal.py` (`conexion_masiva()`,
+  `remitente_masivo()`, `canal()`, `descripcion()`). Lo usan solo el envío masivo (la conexión de cada lote)
+  y la prueba —que así verifica el camino real—. `users/services/correo.py`, `avisos_resolucion`,
+  `inscripcion_publica` y `diagnosticar_correo` sin `--canal` no cambian.
+- **Selección**: `NOTIF_EMAIL_HOST` cargada → backend SMTP con `host`, `port`, `username`, `password`,
+  `use_tls`, `use_ssl=False` (explícito: si no, el backend lo toma de `EMAIL_USE_SSL`, el del canal común) y
+  `timeout`; vacía → `get_connection()` común, el comportamiento de antes. Dev, CI y los ambientes sin
+  configurar siguen funcionando sin tocar nada.
+- **Ningún test puede llegar a SES**: si el backend común es `locmem` o un derivado (el runner de Django lo
+  fuerza en los tests, y los backends de `notificaciones/tests/backends.py` heredan de él), el canal masivo
+  usa **ese mismo backend** con los parámetros del masivo —que `locmem` acepta e ignora—. Así un test elige
+  el canal y ve qué parámetros recibió (`backends.Registra`) sin un camino hacia la red. La consola del dev
+  no cuenta como «en memoria»: cargar `NOTIF_EMAIL_HOST` a mano en dev es pedir el SMTP real.
+- **Remitente** (RN-007-17): con el canal masivo, `NOTIF_DEFAULT_FROM_EMAIL` (vacía = `DEFAULT_FROM_EMAIL`).
+  Sin canal masivo, siempre `DEFAULT_FROM_EMAIL`, aunque `NOTIF_DEFAULT_FROM_EMAIL` esté cargada: el SMTP
+  común rechaza un From distinto del que autentica. El «De» de la vista previa y la línea del detalle
+  muestran el del canal.
+- **Timeout**: `NOTIF_EMAIL_TIMEOUT` 20 s por defecto, más holgado que los 5 s del común: el masivo corre en
+  un hilo. La prueba sí corre en el request, así que se declaró en `core.integraciones.CADENAS`
+  («notificaciones · enviar la prueba de una campaña» → `smtp.masivo`, 20 s con el canal masivo, el
+  `EMAIL_TIMEOUT` si no): entra en los 55 s de `core.E003`.
+- **Ritmo**: siguen `NOTIF_LOTE` / `NOTIF_PAUSA_SEG` (50 cada 10 s ≈ 5 correos/s). Ese ritmo tiene que
+  quedar **por debajo de la cuota de envíos por segundo de la cuenta SES**; el diagnóstico lo calcula y lo
+  imprime.
+- **Diagnóstico**: `diagnosticar_correo --canal masivo` corre los mismos pasos contra `NOTIF_EMAIL_*`:
+  configuración (variables, DNS, TLS, timeout, remitente, ritmo, prefijo), conexión con login y, **solo con
+  `--destino` (o el destinatario posicional)**, un correo de texto por el canal masivo con su remitente. Las
+  plantillas de usuario no se arman: no viajan por ese canal. La contraseña nunca se imprime (solo su
+  largo). Con `NOTIF_EMAIL_HOST` vacía falla y dice que las campañas salen por el común. Sale con código 1
+  ante cualquier falla, como el común. El chequeo «From igual al usuario que autentica» no aplica a SES (el
+  usuario SMTP es una clave, no una casilla): en su lugar se recuerda que el remitente tiene que ser una
+  identidad verificada.
+- **UI**: en la solapa «Vista previa» del detalle, debajo de De/Para/Asunto, una alerta `info` existente
+  (`components/_alerta.html`) con «Se envía por el servicio de correo masivo (datanach@chaco.gob.ar).» o «Se
+  envía por el correo del sistema (…).». Sin clases, includes ni variantes nuevas. La nota del formulario
+  dejó de decir «casilla institucional de no responder» (con SES el remitente es `datanach@`): ahora dice
+  «la casilla institucional de DATAÑACH».
+- **`.env.qa.example`**: el host real (es público) y placeholders `<credencial SMTP de SES>` para usuario y
+  contraseña. `NOTIF_DEFAULT_FROM_EMAIL` va **sin comillas**, como el `DEFAULT_FROM_EMAIL` de al lado: en un
+  configmap de Kubernetes las comillas quedan literales y `"DATAÑACH <…>"` entero entre comillas es un nombre
+  sin dirección.
+- **Desuscripción**: sigue la decisión del PM del 08/10 (sin enlace de baja). Queda registrado como riesgo
+  en Pendientes; no se implementa.
+
+## Implementación
+
+- `config/settings.py`: `NOTIF_EMAIL_HOST`, `NOTIF_EMAIL_PORT` (587), `NOTIF_EMAIL_HOST_USER`,
+  `NOTIF_EMAIL_HOST_PASSWORD`, `NOTIF_EMAIL_USE_TLS` (`True`), `NOTIF_EMAIL_TIMEOUT` (20),
+  `NOTIF_DEFAULT_FROM_EMAIL` (vacía), con el porqué y la nota del ritmo contra la cuota de SES.
+- `notificaciones/services/canal.py` (nuevo): la selección del canal.
+- `notificaciones/services/envio.py`: `armar_mensaje` toma el remitente del canal; `correr` abre cada lote
+  con `canal.conexion_masiva()`; `enviar_prueba` manda por esa misma conexión.
+- `notificaciones/views/campanas.py` + `campana_detail.html`: `remitente` del canal y `texto_canal`.
+  `campana_form.html`: texto de la nota.
+- `users/management/commands/diagnosticar_correo.py`: `--canal {comun,masivo}` y `--destino`; los pasos leen
+  un perfil del canal en vez de `settings.EMAIL_*` directo (la salida del canal común no cambia).
+- `core/integraciones.py`: `smtp.masivo` y la cadena de la prueba.
+- `.env.qa.example`, `docs/internal/processes.md` (fila del grupo «Correo masivo»), análisis 007.
+
+## Archivos
+
+`config/settings.py`, `core/integraciones.py`, `notificaciones/{services/canal.py, services/envio.py,
+views/campanas.py, templates/notificaciones/campana_detail.html, templates/notificaciones/campana_form.html,
+tests/backends.py, tests/test_canal.py}`, `users/management/commands/diagnosticar_correo.py`,
+`.env.qa.example`, `docs/internal/processes.md`, `docs/internal/analisis/007-notificaciones-campanas-email.md`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `notificaciones/tests/test_canal.py` (22 tests, sin red: `smtplib.SMTP` y `socket.create_connection`
+  parcheados para fallar donde corre un envío): selección con y sin `NOTIF_EMAIL_HOST` (`get_connection`
+  parcheado: backend SMTP con host, puerto, usuario, TLS, `use_ssl=False` y timeout; sin host, la llamada
+  común), el backend SMTP real creado **sin abrir** con sus atributos, `locmem` y sus derivados respetados,
+  la consola no; remitente masivo vs común; el envío masivo y la prueba salen por el canal masivo
+  (`backends.Registra` ve el host) con su remitente; sin canal masivo salen por el común como antes; un
+  correo del sistema (`enviar_credenciales_usuario`) sigue por el común aunque el masivo esté configurado;
+  el detalle muestra la línea y el «De» del canal; la cadena de la prueba en el presupuesto;
+  `diagnosticar_correo --canal masivo` (configuración sin la clave, ritmo «~5.0 correos/s», conexión, envío
+  solo con `--destino`, credenciales rechazadas 535 contra el SMTP masivo, host vacío = falla). Las
+  credenciales de los tests son ficticias y el host es de un dominio de prueba.
+- **Mutaciones, todas en rojo y restauradas desde copia**: `configurado()` siempre falso (9 fallas),
+  `backend_masivo()` siempre SMTP (6) o siempre el común (1), `conexion_masiva()` sin los parámetros del
+  masivo (5), `use_ssl` heredado (1), remitente siempre el común (6), el lote por `get_connection()` común
+  (1), la prueba sin la conexión del canal (2), el diagnóstico con la conexión común (1) y el «De» del
+  detalle con el remitente común (1; la primera versión del test no lo veía y se reforzó).
+- `manage.py test notificaciones users core programas.tests.test_llamadas_externas` en verde (Py 3.12 +
+  Dj 5.2); `manage.py check` sin issues; `check --deploy` solo con los avisos preexistentes de un entorno
+  local (y sin `core.E003` con el canal masivo configurado); `makemigrations --check --dry-run` (SYNCDB
+  apagado): sin cambios; `ruff check . --select F` y E/W/I/format en lo tocado; `bandit -r . -c
+  pyproject.toml`: 0 issues; `design_audit --ratchet --base origin/development`: 0 nuevos;
+  `compile_templates`: 0 errores; `check_design_agent --changed`: OK; `git grep` de las credenciales reales:
+  vacío.
+
+## Configuración del ambiente
+
+Cargar en ECOM, **en testing y en PRD**, como variables del contenedor; usuario y contraseña **como
+secreto** (nunca en el configmap en claro ni en el repo):
+
+| Variable | Valor | Tipo |
+|---|---|---|
+| `NOTIF_EMAIL_HOST` | `email-smtp.sa-east-1.amazonaws.com` | configmap |
+| `NOTIF_EMAIL_PORT` | `587` | configmap (default) |
+| `NOTIF_EMAIL_USE_TLS` | `True` | configmap (default) |
+| `NOTIF_EMAIL_TIMEOUT` | `20` | configmap (default) |
+| `NOTIF_EMAIL_HOST_USER` | la credencial SMTP de SES (usuario) | **secreto** |
+| `NOTIF_EMAIL_HOST_PASSWORD` | la credencial SMTP de SES (contraseña) | **secreto** |
+| `NOTIF_DEFAULT_FROM_EMAIL` | `DATAÑACH <datanach@chaco.gob.ar>` (sin comillas) | configmap |
+
+`NOTIF_LOTE` / `NOTIF_PAUSA_SEG` quedan como están (50 / 10) salvo que la cuota de SES sea menor a 5
+correos por segundo. Después de cargarlas: reiniciar los pods y correr desde uno
+`python manage.py diagnosticar_correo --canal masivo` (y con `--destino <casilla>` para un envío real).
+
+Requisitos del lado de SES y del DNS:
+
+- Identidad `datanach@chaco.gob.ar` (o el dominio `chaco.gob.ar`) **verificada en SES `sa-east-1`**.
+- Cuenta **fuera del sandbox**: en sandbox SES solo entrega a direcciones verificadas y hasta 200 por día.
+- **DKIM de SES publicado** en el DNS de `chaco.gob.ar` (los registros CNAME que da SES para la identidad).
+- **SPF y DMARC alineados**: SPF que incluya a SES (`include:amazonses.com`, idealmente con un MAIL FROM
+  personalizado del dominio) y una política DMARC que acepte el DKIM de SES alineado con `chaco.gob.ar`.
+- **Egreso al puerto 587** de `email-smtp.sa-east-1.amazonaws.com` permitido desde el clúster de ECOM
+  (firewall/WAF). Si no, el diagnóstico corta en el paso 2 por timeout.
+
+## Puesta en marcha en el servidor
+
+Deploy habitual, sin migraciones ni comandos. Sin las variables, todo sigue como hoy (las campañas salen
+por el SMTP de ECOM). Con las variables, el siguiente lote de un envío en curso ya sale por SES.
+
+## Pendientes / a definir
+
+- Cargar las variables en ECOM (testing y PRD) y correr `diagnosticar_correo --canal masivo` desde un pod
+  de cada ambiente; después, una prueba de campaña en testing.
+- Confirmar con quien administre la cuenta SES la cuota de envíos por segundo y por día, y que la cuenta
+  salió del sandbox.
+- **Riesgo, no implementado**: Gmail y Yahoo exigen `List-Unsubscribe` de un clic a quien manda más de
+  5.000 correos por día a sus casillas. La decisión del PM del 08/10 es **sin desuscripción**; con campañas
+  grandes a esos proveedores los correos pueden ir a spam o rechazarse. Queda a decisión del PM.
+
+## Reversión
+
+Revertir los commits. Sin cambios de base. Sin las variables `NOTIF_EMAIL_*` el código nuevo ya se comporta
+como el anterior, así que vaciar `NOTIF_EMAIL_HOST` en el entorno es la reversión operativa sin release.
 
 ---

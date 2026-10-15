@@ -16,11 +16,13 @@ Patrón de ``programas.services.proceso_masivo`` + ``CorridaSiis``:
   nunca se le vuelve a mandar a un ENVIADO (RN-007-11). La garantía es **al menos una vez**:
   ver ``preparar_reanudacion``.
 
-Una sola conexión SMTP por lote (``get_connection()``), con el lote y la pausa leídos de
-``settings.NOTIF_LOTE`` y ``settings.NOTIF_PAUSA_SEG`` en cada vuelta: se ajustan por
-variable de entorno sin release. Cada correo lleva un solo destinatario en ``To``
-(RNF-007-08), sale de ``DEFAULT_FROM_EMAIL`` (RN-007-17) y con ``EMAIL_ASUNTO_PREFIJO``
-(RNF-007-09).
+Una sola conexión SMTP por lote, con el lote y la pausa leídos de ``settings.NOTIF_LOTE`` y
+``settings.NOTIF_PAUSA_SEG`` en cada vuelta: se ajustan por variable de entorno sin release.
+La conexión y el remitente son los del **canal de las campañas** (``canal.conexion_masiva`` y
+``canal.remitente_masivo``, Cambio 311): el SMTP propio de ``NOTIF_EMAIL_*`` si está
+configurado, el común si no; la prueba sale por el mismo canal. Cada correo lleva un solo
+destinatario en ``To`` (RNF-007-08), sale del remitente del canal (RN-007-17) y con
+``EMAIL_ASUNTO_PREFIJO`` (RNF-007-09).
 """
 
 from __future__ import annotations
@@ -33,13 +35,13 @@ import uuid
 from datetime import timedelta
 
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives, get_connection
+from django.core.mail import EmailMultiAlternatives
 from django.db import connection, transaction
 from django.db.models import Count, F
 from django.utils import timezone
 
 from notificaciones.models import Campana, Destinatario, PruebaEnviada
-from notificaciones.services import incrustadas
+from notificaciones.services import canal, incrustadas
 from notificaciones.services.campanas import TransicionInvalida
 from notificaciones.services.html import documento
 
@@ -83,7 +85,7 @@ def armar_mensaje(campana, email, *, conexion=None, prueba=False, partes=None):
     mensaje = EmailMultiAlternatives(
         subject=asunto_de(campana, prueba=prueba),
         body=campana.texto_plano,
-        from_email=settings.DEFAULT_FROM_EMAIL,
+        from_email=canal.remitente_masivo(),
         to=[email],
         connection=conexion,
     )
@@ -106,7 +108,8 @@ def _error_corto(exc):
 def enviar_prueba(campana, email, *, usuario):
     """Manda la campaña **solo** a ``email`` con «[PRUEBA] » (RF-007-18). Nunca propaga.
 
-    No cambia el estado de la campaña ni toca sus destinatarios; queda registrada en
+    Sale por el mismo canal que el envío masivo (``canal.conexion_masiva``), así la prueba
+    verifica el camino real. No cambia el estado de la campaña ni toca sus destinatarios; queda registrada en
     ``PruebaEnviada``. Devuelve ``(ok, error, aviso)``: ``aviso`` nombra las imágenes que faltan
     en el servidor y no viajaron (Cambio 292), o ``""``.
     """
@@ -116,7 +119,8 @@ def enviar_prueba(campana, email, *, usuario):
     try:
         partes = incrustadas.partes_mime(campana)
         aviso = partes.aviso
-        armar_mensaje(campana, email, prueba=True, partes=partes).send(fail_silently=False)
+        conexion = canal.conexion_masiva()
+        armar_mensaje(campana, email, conexion=conexion, prueba=True, partes=partes).send(fail_silently=False)
     except Exception as exc:  # SMTP caído, rechazo, mal configurado…
         logger.exception("No se pudo enviar la prueba de la campaña %s a %s", campana.pk, email)
         ok, error = False, _error_corto(exc)
@@ -480,7 +484,7 @@ def correr(campana, *, token=None, dormir=time.sleep):
                     continue
                 break
 
-            conexion = get_connection(fail_silently=False)
+            conexion = canal.conexion_masiva()
             try:
                 conexion.open()
             except Exception as exc:
