@@ -6,6 +6,7 @@ de la aplicación. Los SVG y PNG se publican como archivos estáticos de MkDocs.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -25,6 +26,7 @@ CAPACITY = DATA["capacity_per_person_month"]
 PLANS = DATA["plans"]
 COLORS = {"analisis": "#0f766e", "desarrollo": "#2563eb", "qa": "#7c3aed", "capacitacion": "#b45309"}
 LINE_COLORS = ["#0f766e", "#2563eb", "#7c3aed"]
+PUBLISHED_ASSETS = {}
 
 plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 10, "svg.fonttype": "none", "svg.hashsalt": "mesa-situacion-plan-v1", "axes.spines.top": False, "axes.spines.right": False, "axes.labelcolor": "#334155", "text.color": "#172554"})
 
@@ -77,8 +79,16 @@ def validate():
 def save(fig, stem):
     fig.savefig(ASSETS / f"{stem}.svg", bbox_inches="tight", facecolor="white", metadata={"Date": None})
     svg = ASSETS / f"{stem}.svg"
-    svg.write_text("\n".join(line.rstrip() for line in svg.read_text(encoding="utf-8").splitlines()) + "\n", encoding="utf-8")
+    svg.write_text("\n".join(line.rstrip() for line in svg.read_text(encoding="utf-8").splitlines()) + "\n", encoding="utf-8", newline="\n")
     fig.savefig(ASSETS / f"{stem}.png", bbox_inches="tight", facecolor="white", dpi=160)
+    # Una URL nueva por contenido evita reutilizar imágenes de una versión anterior.
+    for extension in ("svg", "png"):
+        original = f"{stem}.{extension}"
+        content = (ASSETS / original).read_bytes()
+        digest = hashlib.sha256(content).hexdigest()[:12]
+        versioned = f"{stem}-{digest}.{extension}"
+        (ASSETS / versioned).write_bytes(content)
+        PUBLISHED_ASSETS[original] = versioned
     plt.close(fig)
 
 
@@ -242,7 +252,10 @@ La planificación deberá ajustarse si cambia el alcance, la dedicación real o 
 
 Las tablas y los gráficos se generan con una única distribución de horas por perfil. Puede descargarse el [archivo de datos](assets/planificacion-mesa-horas.json) para revisar las asignaciones. Las sumas por disciplina coinciden con la [propuesta funcional](mesa-situacion-el-nino.md#6-horas-de-trabajo-por-alternativa).
 """)
-    (DOCS / "planificacion-mesa-situacion-el-nino.md").write_text("\n\n".join(sections).rstrip() + "\n", encoding="utf-8")
+    markdown = "\n\n".join(sections).rstrip() + "\n"
+    for original, versioned in PUBLISHED_ASSETS.items():
+        markdown = markdown.replace(f"assets/{original}", f"assets/{versioned}")
+    (DOCS / "planificacion-mesa-situacion-el-nino.md").write_text(markdown, encoding="utf-8")
 
 
 if __name__ == "__main__":

@@ -49,18 +49,18 @@ En Integral, los primeros dos meses concentran 4.880 horas, el 78,1% del total. 
 
 La mayor dotación inicial permite trabajar por frentes. Esencial distribuye el desarrollo entre mapa y población, atención y albergues, y funciones comunes. Operativa incorpora un frente de FUSE y dispositivos. Integral separa además logística avanzada y seguimiento. Un responsable técnico coordina contratos de datos, revisiones e integración dentro de las horas de Desarrollo.
 
-![Curvas mensuales y acumuladas de horas para las tres alternativas](assets/curva-esfuerzo.svg)
+![Curvas mensuales y acumuladas de horas para las tres alternativas](assets/curva-esfuerzo-df6cee400d8e.svg)
 
-[Abrir gráfico](assets/curva-esfuerzo.svg) · [Descargar PNG](assets/curva-esfuerzo.png)
+[Abrir gráfico](assets/curva-esfuerzo-df6cee400d8e.svg) · [Descargar PNG](assets/curva-esfuerzo-a4fe3ae61814.png)
 
 
 ## 3. Propuesta Esencial
 
 **Escenario:** 3.250 horas distribuidas en 3 meses de planificación.
 
-![Gantt de Esencial, con etapas y hitos](assets/gantt-esencial.svg)
+![Gantt de Esencial, con etapas y hitos](assets/gantt-esencial-8cba9319c7bc.svg)
 
-[Abrir Gantt](assets/gantt-esencial.svg) · [Descargar PNG](assets/gantt-esencial.png)
+[Abrir Gantt](assets/gantt-esencial-8cba9319c7bc.svg) · [Descargar PNG](assets/gantt-esencial-ebb4b21f4444.png)
 
 ### Etapas y entregables
 
@@ -131,9 +131,9 @@ Los porcentajes se redondean a un decimal. Las horas de las tablas mensuales son
 
 **Escenario:** 4.750 horas distribuidas en 3 meses de planificación.
 
-![Gantt de Operativa, con etapas y hitos](assets/gantt-operativa.svg)
+![Gantt de Operativa, con etapas y hitos](assets/gantt-operativa-6bfedd850280.svg)
 
-[Abrir Gantt](assets/gantt-operativa.svg) · [Descargar PNG](assets/gantt-operativa.png)
+[Abrir Gantt](assets/gantt-operativa-6bfedd850280.svg) · [Descargar PNG](assets/gantt-operativa-b44f4be13d80.png)
 
 ### Etapas y entregables
 
@@ -206,9 +206,9 @@ Los porcentajes se redondean a un decimal. Las horas de las tablas mensuales son
 
 **Escenario:** 6.250 horas distribuidas en 3 meses de planificación.
 
-![Gantt de Integral, con etapas y hitos](assets/gantt-integral.svg)
+![Gantt de Integral, con etapas y hitos](assets/gantt-integral-c03379fdb70c.svg)
 
-[Abrir Gantt](assets/gantt-integral.svg) · [Descargar PNG](assets/gantt-integral.png)
+[Abrir Gantt](assets/gantt-integral-c03379fdb70c.svg) · [Descargar PNG](assets/gantt-integral-91724a22641c.png)
 
 ### Etapas y entregables
 
