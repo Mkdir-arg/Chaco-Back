@@ -7,19 +7,19 @@
 | Organismo destinatario | Ministerio de Desarrollo Humano de la Provincia del Chaco |
 | Proponente | ICORE |
 | Fecha de actualización | 15 de octubre de 2026 |
-| Versión | 0.5 |
+| Versión | 0.6 |
 | Estado | Borrador de propuesta para revisión |
 | Objeto | Desarrollo de una aplicación web para la gestión de emergencias sociales |
 | Alternativas | Esencial, Operativa e Integral |
 | Servicio opcional | Mesa de ayuda funcional dedicada 24/7, contratable con cualquiera de las alternativas |
 | Estimación de la alternativa Integral | 6.000 a 6.500 horas totales de trabajo |
-| Contenido | Funcionalidades, entregables, equipo, horas y plazos, sin importes |
+| Contenido | Funcionalidades, entregables, equipo y estimación en horas, sin importes |
 
 !!! abstract "La propuesta"
     ICORE propone tres alternativas para desarrollar la Mesa de Situación. Cada una permite monitorear el territorio y registrar la respuesta social, con distinta profundidad en la gestión de asistencia, albergues, dispositivos y seguimiento. El Ministerio podrá elegir el alcance que mejor responda a sus prioridades.
 
 !!! info "Cómo comparar las alternativas"
-    Se contrata una alternativa. Operativa incluye las funciones de Esencial e Integral incluye las de Operativa. Las horas y los plazos de cada opción corresponden a su alcance completo: no se suman entre sí.
+    Se contrata una alternativa. Operativa incluye las funciones de Esencial e Integral incluye las de Operativa. Las horas de cada opción corresponden a su alcance completo: no se suman entre sí.
 
 El proyecto es independiente de Datañach. Su experiencia en relevamientos, legajos y gestión institucional se toma como referencia para el desarrollo.
 
@@ -36,13 +36,12 @@ El mapa será la pantalla principal. Desde allí, los equipos podrán consultar 
 | Propósito | Conocer la situación y registrar la atención | Gestionar las cuatro mesas y el circuito de asistencia | Coordinar la respuesta completa y controlar movimientos y excepciones |
 | Horas totales estimadas | **3.000 a 3.500 h** | **4.500 a 5.000 h** | **6.000 a 6.500 h** |
 | Escenario central | 3.250 h | 4.750 h | 6.250 h |
-| Plazo orientativo | 16 a 18 semanas | 20 a 22 semanas | 24 a 26 semanas |
 | Aplicación | Web adaptable a computadoras y celulares | Web adaptable a computadoras y celulares | Web adaptable a computadoras y celulares |
 | Usuarios concurrentes | Base de validación: 200 usuarios activos | Base de validación: 200 usuarios activos | Base de validación: 200 usuarios activos |
 | Actualización en vivo | Mapa, incidentes y ocupación | Lo anterior, más solicitudes y stock | Lo anterior, más movimientos y tableros de seguimiento |
 | Objetivo de propagación | Hasta 2 segundos en el 95% de las actualizaciones medidas | Mismo objetivo | Mismo objetivo |
 
-Los rangos son estimaciones preliminares de horas-persona. Incluyen análisis, desarrollo, diseño, QA, gestión y capacitación. El plazo depende de la dedicación indicada y de la disponibilidad de referentes para validar las entregas.
+Los rangos son estimaciones preliminares de horas-persona. Incluyen análisis, desarrollo, diseño, QA, gestión y capacitación. Expresan el esfuerzo total de trabajo para cada alternativa.
 
 ### Comparación funcional
 
@@ -88,7 +87,7 @@ Las necesidades y la asistencia realizada se registran como información del cas
 
 Aplicación web con los módulos incluidos, documentación funcional, casos de prueba, manual de uso y capacitación de los perfiles que participan en la operación.
 
-**Estimación:** 3.000 a 3.500 horas totales. **Plazo orientativo:** 16 a 18 semanas.
+**Estimación:** 3.000 a 3.500 horas totales.
 
 ## 4. Propuesta 2: aplicación Operativa
 
@@ -118,7 +117,7 @@ El circuito de asistencia contempla una entrega completa por solicitud. Las entr
 
 Aplicación web con las cuatro mesas, circuitos vinculados, reportes operativos, documentación, pruebas de los flujos completos y capacitación por rol.
 
-**Estimación:** 4.500 a 5.000 horas totales. **Plazo orientativo:** 20 a 22 semanas.
+**Estimación:** 4.500 a 5.000 horas totales.
 
 ## 5. Propuesta 3: aplicación Integral
 
@@ -151,7 +150,7 @@ Los avisos se generan con reglas acordadas sobre datos de la aplicación. La con
 
 Aplicación web con el alcance Integral, documentación de reglas y permisos, pruebas de concurrencia y de los circuitos con excepciones, manuales por rol y capacitación.
 
-**Estimación:** 6.000 a 6.500 horas totales. **Escenario central:** 6.250 horas. **Plazo orientativo:** 24 a 26 semanas.
+**Estimación:** 6.000 a 6.500 horas totales. **Escenario central:** 6.250 horas.
 
 ## 6. Horas de trabajo por alternativa
 
@@ -203,18 +202,11 @@ En Esencial, el registro simple de asistencia está comprendido en Población e 
 | UX/UI | Participación en diseño y validación | Participación en diseño y validación | Participación en diseño y validación |
 | Gestión | Dedicación parcial | Dedicación parcial | Dedicación parcial |
 
-Las horas de la sección 6 gobiernan la dedicación. La cantidad de personas expresa la composición del equipo y no implica que todos participen a tiempo completo durante todo el calendario. Los analistas se distribuyen los circuitos funcionales; uno de los cuatro desarrolladores de Integral asume la conducción técnica.
+Las horas de la sección 6 se distribuyen entre los perfiles del equipo según el trabajo de cada disciplina. Los analistas se distribuyen los circuitos funcionales; uno de los cuatro desarrolladores de Integral asume la conducción técnica.
 
-## 8. Etapas y plazos
+## 8. Entregas y aceptación
 
-| Etapa | Esencial | Operativa | Integral |
-|---|---|---|---|
-| Definición funcional y diseño | Semanas 1–3 | Semanas 1–4 | Semanas 1–4 |
-| Primera entrega: mapa, personas e incidentes | Semanas 4–9 | Semanas 5–10 | Semanas 5–10 |
-| Desarrollo del resto del alcance | Semanas 8–14 | Semanas 9–18 | Semanas 9–22 |
-| Validación con usuarios y capacitación | Semanas 15–18 | Semanas 19–22 | Semanas 23–26 |
-
-Las etapas se superponen. Cada entrega incluirá una demostración y criterios de aceptación. El cronograma detallado se acordará al elegir la alternativa y confirmar la disponibilidad de referentes y padrones.
+Cada entrega incluirá una demostración y criterios de aceptación correspondientes al alcance elegido.
 
 La aceptación de la aplicación requerirá completar los casos funcionales acordados, verificar permisos y trazabilidad, y ejecutar las pruebas de carga de las pantallas y circuitos incluidos.
 
@@ -279,8 +271,6 @@ ICORE propone una mesa de ayuda funcional dedicada, disponible todos los días, 
 
 Se propone una posición funcional activa por turno, con una dotación inicial de 5 a 6 personas para cubrir relevos, descansos y ausencias. La cantidad final se acordará según el volumen de consultas, los canales y la atención simultánea requerida.
 
-La cobertura continua de esa posición equivale a 168 horas semanales, aproximadamente 730 horas mensuales de atención disponible. Estas horas corresponden al servicio recurrente y se distinguen de las horas de trabajo necesarias para organizar turnos y reemplazos.
-
 ### Modalidad de contratación
 
 La mesa de ayuda se contrata por separado. Sus horas y su equipo no están incluidos en los rangos de desarrollo de 3.000–3.500, 4.500–5.000 o 6.000–6.500 horas.
@@ -296,7 +286,7 @@ Antes de iniciar el servicio se acordarán los canales, prioridades, tiempos de 
 | Circuito FUSE | En las alternativas que lo incluyen, responsables de cada etapa y tratamiento de excepciones |
 | Datos iniciales | Padrones, formatos, volúmenes, cantidad de lotes y responsables de validación |
 | Rendimiento | Escenarios de uso y condiciones de medición de concurrencia y actualización en vivo |
-| Calendario | Inicio, disponibilidad de referentes y validación de entregas |
+| Referentes | Responsables de definir reglas de negocio y validar las entregas |
 | Entrega y conformidad | Casos de aceptación, manuales y capacitación incluidos en la alternativa |
 | Mesa de ayuda opcional | Contratación, canales, volumen de atención, turnos, tiempos de respuesta y circuito de escalamiento |
 
