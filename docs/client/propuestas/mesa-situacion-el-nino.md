@@ -6,8 +6,8 @@
 |---|---|
 | Organismo destinatario | Ministerio de Desarrollo Humano de la Provincia del Chaco |
 | Proponente | ICORE |
-| Fecha de actualización | 15 de octubre de 2026 |
-| Versión | 0.7 |
+| Fecha de actualización | 16 de octubre de 2026 |
+| Versión | 0.8 |
 | Estado | Borrador de propuesta para revisión |
 | Objeto | Desarrollo de una aplicación web para la gestión de emergencias sociales |
 | Alternativas | Esencial, Operativa e Integral |
@@ -199,13 +199,13 @@ En Esencial, el registro simple de asistencia está comprendido en Población e 
 
 | Perfil | Esencial | Operativa | Integral |
 |---|---|---|---|
-| Analistas funcionales | 2 con dedicación parcial, según las 600 h previstas | 2 con dedicación parcial, según las 900 h previstas | 2 con dedicación parcial, según las 1.200 h previstas |
-| Desarrolladores | Hasta 3, con uno a cargo de la conducción técnica | Hasta 4, con uno a cargo de la conducción técnica | 4, con uno a cargo de la conducción técnica |
-| QA | 1 con dedicación por etapa | 1 con dedicación por etapa | 1 con dedicación por etapa |
+| Analistas funcionales | Hasta 3; 600 h de análisis | Hasta 4; 900 h de análisis | Hasta 5; 1.200 h de análisis |
+| Desarrolladores | Hasta 6, con uno a cargo de la conducción técnica | Hasta 9, con uno a cargo de la conducción técnica | Hasta 12, con uno a cargo de la conducción técnica |
+| QA | 1 con dedicación por etapa | Hasta 2 con dedicación por etapa | Hasta 2 con dedicación por etapa |
 | UX/UI | Participación en diseño y validación | Participación en diseño y validación | Participación en diseño y validación |
 | Gestión | Dedicación parcial | Dedicación parcial | Dedicación parcial |
 
-Las horas de la sección 6 se distribuyen entre los perfiles del equipo según el trabajo de cada disciplina. Los analistas se distribuyen los circuitos funcionales; uno de los cuatro desarrolladores de Integral asume la conducción técnica.
+Las horas de la sección 6 se distribuyen entre los perfiles según el trabajo de cada disciplina. Los analistas también se reparten las horas de manuales y capacitación. El equipo se amplía para desarrollar circuitos en paralelo y concentra su dedicación al comienzo. El [anexo de planificación](planificacion-mesa-situacion-el-nino.md) detalla la asignación y los hitos de cada alternativa. Estas dotaciones son propuestas sujetas a disponibilidad y validación del plan de trabajo.
 
 ## 8. Entregas y aceptación
 

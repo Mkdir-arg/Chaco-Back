@@ -2,91 +2,430 @@
   "capacity_per_person_month": 140,
   "plans": [
     {
-      "slug": "esencial", "name": "Esencial", "total": 3250, "months": 5, "max_developers": 3,
+      "slug": "esencial",
+      "name": "Esencial",
+      "total": 3250,
+      "months": 3,
+      "max_developers": 6,
       "hours": {
-        "Análisis funcional": [260, 200, 90, 40, 10],
-        "Desarrollo": [420, 420, 420, 380, 260],
-        "QA": [20, 60, 90, 110, 80],
-        "UX/UI": [80, 30, 10, 0, 0],
-        "Gestión": [40, 35, 30, 25, 20],
-        "Manuales y capacitación": [0, 10, 20, 40, 50]
+        "Análisis funcional": [
+          300,
+          200,
+          100
+        ],
+        "Desarrollo": [
+          840,
+          700,
+          360
+        ],
+        "QA": [
+          80,
+          140,
+          140
+        ],
+        "UX/UI": [
+          90,
+          30,
+          0
+        ],
+        "Gestión": [
+          60,
+          50,
+          40
+        ],
+        "Manuales y capacitación": [
+          10,
+          30,
+          80
+        ]
       },
       "phases": [
-        ["Reglas y prototipo", 0, 0.75, "analisis", "Reglas, permisos y prototipo de las pantallas principales."],
-        ["Base, usuarios y permisos", 0.25, 1.25, "desarrollo", "Acceso y modelo común para las funciones incluidas."],
-        ["Mapa y población", 0.5, 2, "desarrollo", "Mapa, personas, familias y relevamientos básicos."],
-        ["Incidentes y albergues", 1.5, 3, "desarrollo", "Seguimiento de incidentes, ingresos, egresos y ocupación."],
-        ["Bitácora, reportes y padrón", 2.5, 4, "desarrollo", "Pendientes, exportaciones e importación desde una plantilla."],
-        ["Pruebas por entrega", 0.75, 4.5, "qa", "Validación funcional, permisos, concurrencia y correcciones."],
-        ["Piloto y capacitación", 3.75, 5, "capacitacion", "Uso supervisado, manuales, capacitación y conformidad final."]
+        [
+          "Reglas y prototipo",
+          0,
+          0.5,
+          "analisis",
+          "Reglas, permisos y prototipo de las pantallas principales."
+        ],
+        [
+          "Base, usuarios y permisos",
+          0,
+          0.75,
+          "desarrollo",
+          "Acceso y modelo común para las funciones incluidas."
+        ],
+        [
+          "Mapa y población",
+          0.25,
+          1,
+          "desarrollo",
+          "Mapa, personas, familias y relevamientos básicos."
+        ],
+        [
+          "Incidentes y albergues",
+          0.5,
+          1.75,
+          "desarrollo",
+          "Seguimiento de incidentes, ingresos, egresos y ocupación."
+        ],
+        [
+          "Bitácora, reportes y padrón",
+          0.75,
+          2.5,
+          "desarrollo",
+          "Pendientes, exportaciones e importación desde una plantilla."
+        ],
+        [
+          "Pruebas por entrega",
+          0,
+          3,
+          "qa",
+          "Validación funcional, permisos, concurrencia y correcciones."
+        ],
+        [
+          "Piloto y capacitación",
+          2.25,
+          3,
+          "capacitacion",
+          "Uso supervisado, manuales, capacitación y conformidad final."
+        ]
       ],
       "milestones": [
-        ["H1", 1, "Alcance y prototipo", "Referentes validan campos, roles y recorrido de las pantallas principales."],
-        ["H2", 2, "Primera versión utilizable", "Usuarios habilitados registran personas y consultan su ubicación en el mapa."],
-        ["H3", 3, "Atención y alojamiento", "Se completa un incidente y un ingreso/egreso de albergue con ocupación consistente."],
-        ["H4", 4, "Alcance Esencial integrado", "Bitácora, reportes y padrón funcionan junto con los módulos anteriores."],
-        ["H5", 5, "Conformidad de Esencial", "Casos de aceptación y pruebas de carga acordadas aprobados; capacitación y manuales entregados."]
-      ]
+        [
+          "H1",
+          0.5,
+          "Alcance y prototipo",
+          "Referentes validan campos, roles y recorrido de las pantallas principales."
+        ],
+        [
+          "H2",
+          1,
+          "Primera versión utilizable",
+          "Usuarios habilitados registran personas y consultan su ubicación en el mapa."
+        ],
+        [
+          "H3",
+          1.75,
+          "Atención y alojamiento",
+          "Se completa un incidente y un ingreso/egreso de albergue con ocupación consistente."
+        ],
+        [
+          "H4",
+          2.5,
+          "Alcance Esencial integrado",
+          "Bitácora, reportes y padrón funcionan junto con los módulos anteriores."
+        ],
+        [
+          "H5",
+          3,
+          "Conformidad de Esencial",
+          "Casos de aceptación y pruebas de carga acordadas aprobados; capacitación y manuales entregados."
+        ]
+      ],
+      "staff_limits": {
+        "Análisis funcional": 3,
+        "Desarrollo": 6,
+        "QA": 1,
+        "UX/UI": 1,
+        "Gestión": 1
+      }
     },
     {
-      "slug": "operativa", "name": "Operativa", "total": 4750, "months": 6, "max_developers": 4,
+      "slug": "operativa",
+      "name": "Operativa",
+      "total": 4750,
+      "months": 3,
+      "max_developers": 9,
       "hours": {
-        "Análisis funcional": [270, 240, 180, 110, 60, 40],
-        "Desarrollo": [560, 560, 520, 480, 430, 300],
-        "QA": [30, 60, 90, 110, 120, 90],
-        "UX/UI": [100, 40, 20, 0, 0, 0],
-        "Gestión": [50, 45, 40, 35, 30, 20],
-        "Manuales y capacitación": [0, 0, 10, 20, 40, 50]
+        "Análisis funcional": [
+          420,
+          300,
+          180
+        ],
+        "Desarrollo": [
+          1260,
+          980,
+          610
+        ],
+        "QA": [
+          120,
+          200,
+          180
+        ],
+        "UX/UI": [
+          100,
+          60,
+          0
+        ],
+        "Gestión": [
+          90,
+          70,
+          60
+        ],
+        "Manuales y capacitación": [
+          10,
+          30,
+          80
+        ]
       },
       "phases": [
-        ["Reglas y prototipo", 0, 0.75, "analisis", "Reglas y permisos de las cuatro mesas, incluido FUSE simple."],
-        ["Base, usuarios y permisos", 0.25, 1.5, "desarrollo", "Acceso, historial y separación de carga, validación y autorización."],
-        ["Mapa y población", 0.5, 2, "desarrollo", "Mapa y seguimiento de personas y necesidades."],
-        ["Incidentes y albergues", 1.5, 3, "desarrollo", "Derivaciones y gestión operativa de albergues."],
-        ["FUSE simple y dispositivos", 2, 4, "desarrollo", "Una entrega por solicitud, stock básico y dispositivos propios."],
-        ["Bitácora, reportes y lotes", 3, 5, "desarrollo", "Pases de guardia, reportes por mesa y revisión de importaciones."],
-        ["Pruebas por entrega", 0.75, 5.5, "qa", "Validación de circuitos, permisos, concurrencia y correcciones."],
-        ["Piloto y capacitación", 4.75, 6, "capacitacion", "Validación con los equipos de las cuatro mesas y conformidad final."]
+        [
+          "Reglas y prototipo",
+          0,
+          0.5,
+          "analisis",
+          "Reglas y permisos de las cuatro mesas, incluido FUSE simple."
+        ],
+        [
+          "Base, usuarios y permisos",
+          0,
+          0.75,
+          "desarrollo",
+          "Acceso, historial y separación de carga, validación y autorización."
+        ],
+        [
+          "Mapa y población",
+          0.25,
+          1,
+          "desarrollo",
+          "Mapa y seguimiento de personas y necesidades."
+        ],
+        [
+          "Incidentes y albergues",
+          0.5,
+          1.5,
+          "desarrollo",
+          "Derivaciones y gestión operativa de albergues."
+        ],
+        [
+          "FUSE simple y dispositivos",
+          0.5,
+          2,
+          "desarrollo",
+          "Una entrega por solicitud, stock básico y dispositivos propios."
+        ],
+        [
+          "Bitácora, reportes y lotes",
+          0.75,
+          2.5,
+          "desarrollo",
+          "Pases de guardia, reportes por mesa y revisión de importaciones."
+        ],
+        [
+          "Pruebas por entrega",
+          0,
+          3,
+          "qa",
+          "Validación de circuitos, permisos, concurrencia y correcciones."
+        ],
+        [
+          "Piloto y capacitación",
+          2.25,
+          3,
+          "capacitacion",
+          "Validación con los equipos de las cuatro mesas y conformidad final."
+        ]
       ],
       "milestones": [
-        ["H1", 1, "Reglas y prototipo", "Se valida el alcance de las cuatro mesas y la separación de responsabilidades."],
-        ["H2", 2, "Primera versión utilizable", "Mapa y población permiten registrar y consultar situaciones territoriales."],
-        ["H3", 3, "Incidentes y albergues", "Un caso se deriva y sigue; la ocupación cambia a partir de ingresos y egresos."],
-        ["H4", 4, "Cuatro mesas operativas", "Una solicitud recorre FUSE hasta la recepción, actualiza stock y se consultan dispositivos."],
-        ["H5", 5, "Alcance Operativa integrado", "Bitácora, reportes e importaciones por lote funcionan con las cuatro mesas."],
-        ["H6", 6, "Conformidad de Operativa", "Casos de aceptación y pruebas de carga acordadas aprobados; capacitación y manuales entregados."]
-      ]
+        [
+          "H1",
+          0.5,
+          "Reglas y prototipo",
+          "Se valida el alcance de las cuatro mesas y la separación de responsabilidades."
+        ],
+        [
+          "H2",
+          1,
+          "Primera versión utilizable",
+          "Mapa y población permiten registrar y consultar situaciones territoriales."
+        ],
+        [
+          "H3",
+          1.5,
+          "Incidentes y albergues",
+          "Un caso se deriva y sigue; la ocupación cambia a partir de ingresos y egresos."
+        ],
+        [
+          "H4",
+          2,
+          "Cuatro mesas operativas",
+          "Una solicitud recorre FUSE hasta la recepción, actualiza stock y se consultan dispositivos."
+        ],
+        [
+          "H5",
+          2.5,
+          "Alcance Operativa integrado",
+          "Bitácora, reportes e importaciones por lote funcionan con las cuatro mesas."
+        ],
+        [
+          "H6",
+          3,
+          "Conformidad de Operativa",
+          "Casos de aceptación y pruebas de carga acordadas aprobados; capacitación y manuales entregados."
+        ]
+      ],
+      "staff_limits": {
+        "Análisis funcional": 4,
+        "Desarrollo": 9,
+        "QA": 2,
+        "UX/UI": 1,
+        "Gestión": 1
+      }
     },
     {
-      "slug": "integral", "name": "Integral", "total": 6250, "months": 8, "max_developers": 4,
+      "slug": "integral",
+      "name": "Integral",
+      "total": 6250,
+      "months": 3,
+      "max_developers": 12,
       "hours": {
-        "Análisis funcional": [280, 260, 220, 180, 120, 80, 40, 20],
-        "Desarrollo": [560, 560, 560, 560, 500, 440, 380, 280],
-        "QA": [30, 50, 80, 100, 110, 110, 100, 60],
-        "UX/UI": [100, 60, 40, 0, 0, 0, 0, 0],
-        "Gestión": [45, 40, 35, 30, 25, 25, 20, 20],
-        "Manuales y capacitación": [0, 0, 0, 10, 20, 25, 35, 40]
+        "Análisis funcional": [
+          560,
+          420,
+          220
+        ],
+        "Desarrollo": [
+          1680,
+          1400,
+          760
+        ],
+        "QA": [
+          160,
+          240,
+          240
+        ],
+        "UX/UI": [
+          140,
+          60,
+          0
+        ],
+        "Gestión": [
+          100,
+          80,
+          60
+        ],
+        "Manuales y capacitación": [
+          10,
+          30,
+          90
+        ]
       },
       "phases": [
-        ["Reglas y prototipo", 0, 1, "analisis", "Reglas comunes y definición inicial de los circuitos y sus excepciones."],
-        ["Base, usuarios y permisos", 0.25, 1.5, "desarrollo", "Acceso, historial y estructura común para las cuatro mesas."],
-        ["Mapa y población", 0.5, 2, "desarrollo", "Primera versión de mapa y relevamientos; el análisis histórico se amplía después."],
-        ["Incidentes y albergues", 1.5, 3, "desarrollo", "Versión operativa de atención, derivaciones e ingresos/egresos."],
-        ["FUSE simple y dispositivos", 2, 4, "desarrollo", "Cuatro mesas vinculadas con un circuito de entrega completa."],
-        ["Logística avanzada y traslados", 3, 5.5, "desarrollo", "Reservas, parciales, devoluciones, transferencias y traslados vinculados."],
-        ["Historial, tableros y reglas", 4, 6.5, "desarrollo", "Evolución territorial, duplicados, auditoría, avisos y pases de guardia completos."],
-        ["Pruebas por entrega", 0.75, 7.5, "qa", "Casos con excepciones, integración, concurrencia y correcciones."],
-        ["Piloto y capacitación", 6, 8, "capacitacion", "Validación Integral con usuarios, manuales y conformidad final."]
+        [
+          "Reglas y prototipo",
+          0,
+          0.5,
+          "analisis",
+          "Reglas comunes y definición inicial de los circuitos y sus excepciones."
+        ],
+        [
+          "Base, usuarios y permisos",
+          0,
+          0.75,
+          "desarrollo",
+          "Acceso, historial y estructura común para las cuatro mesas."
+        ],
+        [
+          "Mapa y población",
+          0.25,
+          1,
+          "desarrollo",
+          "Primera versión de mapa y relevamientos; el análisis histórico se amplía después."
+        ],
+        [
+          "Incidentes y albergues",
+          0.5,
+          1.5,
+          "desarrollo",
+          "Versión operativa de atención, derivaciones e ingresos/egresos."
+        ],
+        [
+          "FUSE simple y dispositivos",
+          0.5,
+          1.75,
+          "desarrollo",
+          "Cuatro mesas vinculadas con un circuito de entrega completa."
+        ],
+        [
+          "Logística avanzada y traslados",
+          1,
+          2.25,
+          "desarrollo",
+          "Reservas, parciales, devoluciones, transferencias y traslados vinculados."
+        ],
+        [
+          "Historial, tableros y reglas",
+          0.75,
+          2.5,
+          "desarrollo",
+          "Evolución territorial, duplicados, auditoría, avisos y pases de guardia completos."
+        ],
+        [
+          "Pruebas por entrega",
+          0,
+          3,
+          "qa",
+          "Casos con excepciones, integración, concurrencia y correcciones."
+        ],
+        [
+          "Piloto y capacitación",
+          2.25,
+          3,
+          "capacitacion",
+          "Validación Integral con usuarios, manuales y conformidad final."
+        ]
       ],
       "milestones": [
-        ["H1", 1, "Reglas y prototipo", "Se validan el recorrido inicial y los criterios para desarrollar los circuitos avanzados."],
-        ["H2", 2, "Primera versión utilizable", "Mapa y población permiten registrar y consultar situaciones territoriales."],
-        ["H3", 3, "Incidentes y albergues", "Los equipos completan los circuitos básicos de atención y alojamiento."],
-        ["H4", 4, "Cuatro mesas operativas", "Una solicitud completa FUSE simple y los equipos consultan stock y dispositivos."],
-        ["H5", 6, "Movimientos avanzados", "Se verifican una entrega parcial, una devolución, una transferencia y un traslado vinculado."],
-        ["H6", 7, "Alcance Integral integrado", "Reportes históricos, auditoría, avisos y revisión de duplicados completan los circuitos."],
-        ["H7", 8, "Conformidad de Integral", "Casos de aceptación y pruebas de carga acordadas aprobados; capacitación y manuales entregados."]
-      ]
+        [
+          "H1",
+          0.5,
+          "Reglas y prototipo",
+          "Se validan el recorrido inicial y los criterios para desarrollar los circuitos avanzados."
+        ],
+        [
+          "H2",
+          1,
+          "Primera versión utilizable",
+          "Mapa y población permiten registrar y consultar situaciones territoriales."
+        ],
+        [
+          "H3",
+          1.5,
+          "Incidentes y albergues",
+          "Los equipos completan los circuitos básicos de atención y alojamiento."
+        ],
+        [
+          "H4",
+          1.75,
+          "Cuatro mesas operativas",
+          "Una solicitud completa FUSE simple y los equipos consultan stock y dispositivos."
+        ],
+        [
+          "H5",
+          2.25,
+          "Movimientos avanzados",
+          "Se verifican una entrega parcial, una devolución, una transferencia y un traslado vinculado."
+        ],
+        [
+          "H6",
+          2.5,
+          "Alcance Integral integrado",
+          "Reportes históricos, auditoría, avisos y revisión de duplicados completan los circuitos."
+        ],
+        [
+          "H7",
+          3,
+          "Conformidad de Integral",
+          "Casos de aceptación y pruebas de carga acordadas aprobados; capacitación y manuales entregados."
+        ]
+      ],
+      "staff_limits": {
+        "Análisis funcional": 5,
+        "Desarrollo": 12,
+        "QA": 2,
+        "UX/UI": 1,
+        "Gestión": 1
+      }
     }
   ]
 }

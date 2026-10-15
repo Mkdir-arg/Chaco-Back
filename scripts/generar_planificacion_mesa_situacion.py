@@ -63,10 +63,10 @@ def validate():
         assert sum(monthly(plan)) == plan["total"] == sum(expected)
         assert all(len(v) == plan["months"] for v in plan["hours"].values())
         assert all(v >= 0 for values in plan["hours"].values() for v in values)
-        assert max(active_people(plan, "Desarrollo")) <= plan["max_developers"]
-        assert max(active_people(plan, "Análisis funcional")) <= 2
-        for role in ("QA", "UX/UI", "Gestión"):
-            assert max(active_people(plan, role)) <= 1
+        assert plan["months"] == 3
+        for role, limit in plan["staff_limits"].items():
+            assert max(active_people(plan, role)) <= limit
+        assert active_people(plan, "Desarrollo")[0] == plan["max_developers"]
         totals = monthly(plan)
         assert all(a >= b for a, b in zip(totals, totals[1:])), "La dedicación debe descender"
         assert all(0 <= start < end <= plan["months"] for _, start, end, _, _ in plan["phases"])
@@ -101,6 +101,8 @@ def gantt(plan):
     ax.set_xticks([i + 0.5 for i in range(plan["months"])], [f"Mes {i + 1}" for i in range(plan["months"])])
     ax.xaxis.tick_top()
     ax.tick_params(axis="x", length=0, pad=10)
+    ax.set_xticks([i / 4 + 0.125 for i in range(12)], [f"S{i + 1}" for i in range(12)], minor=True)
+    ax.tick_params(axis="x", which="minor", top=False, bottom=True, labelbottom=True, labeltop=False, length=0, pad=8)
     ax.set_xlim(0, plan["months"] + 0.12)
     ax.set_ylim(count + 1.15, -0.7)
     for edge in ax.spines.values():
@@ -128,12 +130,12 @@ def curves():
         axes[1].plot(range(plan["months"] + 1), cumulative, marker="o", linewidth=2.5, color=color)
     axes[0].set_title("Horas asignadas por mes", loc="left", pad=14, weight="bold")
     axes[1].set_title("Horas acumuladas (% del total)", loc="left", pad=14, weight="bold")
-    axes[0].set_ylim(0, 1150)
+    axes[0].set_ylim(0, max(max(monthly(p)) for p in PLANS) * 1.15)
     axes[1].set_ylim(0, 108)
     axes[0].set_ylabel("Horas-persona")
     axes[1].set_ylabel("Porcentaje de horas")
     for ax in axes:
-        ax.set_xticks(range(1, 9), [f"M{i}" for i in range(1, 9)])
+        ax.set_xticks(range(1, 4), [f"M{i}" for i in range(1, 4)])
         ax.set_xlabel("Mes desde el inicio acordado")
         ax.grid(axis="y", alpha=0.2)
     fig.suptitle("Distribución del esfuerzo: mayor dedicación en los primeros meses", x=0.04, ha="left", fontsize=17, weight="bold", y=0.97)
@@ -159,8 +161,9 @@ def document():
 | Campo | Detalle |
 |---|---|
 | Proyecto | Mesa de Situación del Fenómeno El Niño, Provincia del Chaco |
-| Fecha | 15 de octubre de 2026 |
+| Fecha | 16 de octubre de 2026 |
 | Estado | Escenarios propuestos para revisión; dedicaciones e hitos a confirmar |
+| Ventana acordada para planificar | Máximo tres meses desde el inicio acordado |
 | Criterio de planificación | Concentrar equipo y esfuerzo al comienzo para adelantar entregables utilizables |
 | Referencia | [Comparación funcional y estimación de las tres alternativas](mesa-situacion-el-nino.md) |
 
@@ -171,15 +174,19 @@ def document():
 
 Se propone incorporar desde el comienzo a los analistas y al equipo de desarrollo de la alternativa elegida. Diseño y QA acompañan las primeras entregas; el trabajo avanza por circuitos y la dedicación se reduce a medida que se completa el alcance.
 
-La primera versión utilizable de mapa y población se plantea al cierre del mes 2. Operativa e Integral incorporan las cuatro mesas en una versión operativa al cierre del mes 4. En Integral, los movimientos avanzados y el seguimiento completo se entregan después, según los hitos indicados.
+Las tres alternativas se organizan para completar su alcance dentro de tres meses desde el inicio acordado. La primera versión utilizable de mapa y población se plantea al cierre del primer mes. Operativa e Integral incorporan las cuatro mesas durante el segundo mes. El tercero completa las funciones restantes, el piloto y la aceptación.
+
+Para sostener esa ventana se propone un equipo inicial más amplio, con varios circuitos en desarrollo simultáneo. Las horas totales y el alcance de cada alternativa se conservan. El dimensionamiento expresa capacidad prevista; el plazo requiere validar las dependencias y disponer del equipo desde el inicio.
 
 ### Supuestos del escenario
 
-- M1 es el primer mes desde el inicio acordado. Para distribuir capacidad, cada mes representa un bloque de cuatro semanas; el calendario real se ajustará con la fecha de inicio y los días laborables.
+- M1, M2 y M3 son bloques de cuatro semanas: el Gantt comprende doce semanas dentro de una ventana máxima de tres meses. La fecha de cierre se calculará desde el inicio acordado; feriados y disponibilidad se contemplarán al fijar el calendario.
 - Se asignan hasta 140 horas de trabajo por persona y mes de planificación. La capacidad incluye las actividades de su disciplina, como revisión y correcciones en desarrollo. Es un supuesto de planificación a confirmar.
 - Los totales son los escenarios centrales: 3.250, 4.750 y 6.250 horas. Cada disciplina conserva exactamente sus horas de la propuesta base.
-- Los referentes validan cada entrega antes de los circuitos que dependen de ella. Las observaciones se incorporan al trabajo del período siguiente; una demora de validación requiere revisar los hitos.
-- Los módulos usan los formatos y reglas acordados. Las decisiones del primer mes habilitan el desarrollo paralelo; el análisis detallado continúa por circuito.
+- El equipo completo se encuentra disponible al inicio. El escenario no incluye un período previo de contratación o incorporación dentro de las doce semanas.
+- Se propone que los referentes respondan las validaciones en hasta dos días hábiles. Esta disponibilidad debe acordarse para sostener los hitos.
+- Durante las primeras dos semanas se acuerdan campos, permisos, formatos de intercambio y reglas comunes. El análisis detallado continúa por circuito y acompaña a los equipos que desarrollan en paralelo.
+- La primera semana permite revisar dependencias y reparto de módulos. La conducción técnica, la integración y las correcciones consumen horas del presupuesto existente. Si esa revisión exige trabajo adicional, se revisará la estimación antes de comprometer el cronograma.
 - La mesa de ayuda funcional opcional se contrata aparte y no forma parte de estas curvas. Las ampliaciones independientes tampoco están incluidas.
 
 La inversión se representa mediante horas asignadas. Para convertirla en importes se necesitan tarifas por perfil y condiciones de facturación. El porcentaje de horas acumuladas mide esfuerzo asignado, no porcentaje de funcionalidades aceptadas.
@@ -188,7 +195,9 @@ La inversión se representa mediante horas asignadas. Para convertirla en import
 """]
     sections.append(table(["Alternativa", "Horas", "Meses del escenario", "Desarrolladores al inicio", "Horas en M1–M2", "% del total en M1–M2"], [[p["name"], number(p["total"]), p["months"], p["max_developers"], number(sum(monthly(p)[:2])), pct(sum(monthly(p)[:2]), p["total"])] for p in PLANS]))
     sections.append("""
-En Integral, los primeros cuatro meses concentran 3.800 horas, el 60,8% del total, y culminan con las cuatro mesas en su versión operativa. El resto del esfuerzo completa los circuitos avanzados, las validaciones y la capacitación.
+En Integral, los primeros dos meses concentran 4.880 horas, el 78,1% del total. El tercer mes reúne 1.370 horas para completar los circuitos avanzados, validar el conjunto y capacitar a los equipos.
+
+La mayor dotación inicial permite trabajar por frentes. Esencial distribuye el desarrollo entre mapa y población, atención y albergues, y funciones comunes. Operativa incorpora un frente de FUSE y dispositivos. Integral separa además logística avanzada y seguimiento. Un responsable técnico coordina contratos de datos, revisiones e integración dentro de las horas de Desarrollo.
 
 ![Curvas mensuales y acumuladas de horas para las tres alternativas](assets/curva-esfuerzo.svg)
 
@@ -199,13 +208,15 @@ En Integral, los primeros cuatro meses concentran 3.800 horas, el 60,8% del tota
         sections.append(f"## {idx}. Propuesta {name}\n\n**Escenario:** {number(plan['total'])} horas distribuidas en {n} meses de planificación.\n\n![Gantt de {name}, con etapas y hitos](assets/gantt-{slug}.svg)\n\n[Abrir Gantt](assets/gantt-{slug}.svg) · [Descargar PNG](assets/gantt-{slug}.png)\n\n### Etapas y entregables\n")
         sections.append(table(["Etapa", "Ventana propuesta", "Resultado"], [[phase[0], month_span(phase[1], phase[2]), phase[4]] for phase in plan["phases"]]))
         sections.append("\nLa tabla indica los meses involucrados; las barras del Gantt muestran los solapamientos dentro de cada mes. Las horas de análisis y gestión continúan acompañando las entregas según la asignación mensual.\n\n### Hitos de aceptación\n")
-        sections.append(table(["Hito", "Cierre propuesto", "Entregable", "Cómo se verifica"], [[code, f"M{month}", title, criterion] for code, month, title, criterion in plan["milestones"]]))
-        sections.append("\nCada hito depende de la validación de los anteriores que alimentan su circuito. Los circuitos avanzados se validan sobre una versión operativa ya integrada.\n\n### Equipo propuesto por mes\n")
+        sections.append(table(["Hito", "Cierre propuesto", "Entregable", "Cómo se verifica"], [[code, f"Semana {int(month * 4)}", title, criterion] for code, month, title, criterion in plan["milestones"]]))
+        sections.append("\nCada hito depende de la validación de los anteriores que alimentan su circuito. Los frentes pueden construir en paralelo con contratos de datos acordados; la aceptación de las funciones avanzadas exige integrar primero sus circuitos base.\n\n### Equipo propuesto por mes\n")
         rows = []
         for role in ["Análisis funcional", "Desarrollo", "QA", "UX/UI", "Gestión"]:
             label = "Analistas (incluye manuales y capacitación)" if role == "Análisis funcional" else role
             rows.append([label] + active_people(plan, role))
         sections.append(table(["Perfil / personas participantes"] + [f"M{i}" for i in range(1, n + 1)], rows))
+        peak = max(sum(active_people(plan, role)[i] for role in plan["staff_limits"]) for i in range(n))
+        sections.append(f"Participación máxima en un mismo mes: **{peak} personas**, con dedicaciones según las horas siguientes. Incluye todos los perfiles del cuadro; una persona no se cuenta en dos roles.")
         sections.append(f"\nUn desarrollador asume la conducción técnica dentro de las horas de Desarrollo. Los {plan['max_developers']} desarrolladores iniciales cubren backend, frontend e integración. QA y diseño participan desde el arranque. Las cantidades indican personas participantes, con dedicación parcial cuando corresponda; las horas de la tabla siguiente son la asignación concreta. Manuales y capacitación se reparten entre los analistas, sin contar personal adicional.\n\n### Horas asignadas por perfil y mes\n")
         rows = [[role] + [number(v) for v in values] + [number(sum(values))] for role, values in plan["hours"].items()]
         values = monthly(plan)
