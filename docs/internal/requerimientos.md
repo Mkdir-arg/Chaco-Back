@@ -439,6 +439,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 311 | Notificaciones: las campañas salen por un SMTP propio (Amazon SES), separado del correo del sistema | Transversal — notificaciones (envío masivo, prueba y detalle de la campaña) · diagnóstico de correo | `#correo` `#infra` | PM — pedido del 15/10/2026 | 15/10/2026 | 🟢 **Hecho** | No requiere |
 | 312 | La tabla de horas del documento del MVP volvió a tener sus filas | Dispositivos · documento para el cliente | `#textos` `#gestion` | PM — en sesión | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 313 | Baja de los seis modelos de Dispositivos v1, release B | Dispositivos · modelos y migraciones | `#datos` `#infra` | PM — task #673, encargo de implementación | 16/10/2026 | 🟢 **Hecho** | `programas.0097_baja_dispositivos_v1` |
+| 315 | Testing de ECOM no da de alta personas en el SIIS de producción | Becas · alta en SIIS y proceso masivo | `#siis` `#infra` `#ui` | QA (Matías) — issue #569 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -41021,5 +41022,121 @@ pero `migrate programas 0096` recreaba las seis tablas vacías e informaba `OK` 
 Se agrega el aborto efectivo al final de las operaciones, se incorpora `0097` a D.4 y
 a los tests, y se aclaran el corte durante los `DROP` y los metadatos huérfanos.
 La corrección se entrega en un único commit `fix(dispositivos)`, según el encargo de revisión.
+
+---
+# Cambio 315 — Testing de ECOM no da de alta personas en el SIIS de producción
+
+🟢 **HECHO — 16/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta en SIIS (todos los caminos) y proceso masivo |
+| **Etiquetas** | `#siis` `#infra` `#ui` |
+| **Solicitante** | QA (Matías) — hallazgo en testing de ECOM |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | #569 |
+| **Partes afectadas** | `core/checks.py`, `programas/services/siis.py` (`cargar_beneficiario`), `programas/services/siis_envio.py` (`mensaje_envio`), `programas/views/proceso_masivo.py`, `proceso_masivo.html` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En testing de ECOM (`datanach.ecomdev.ar`, con datos copiados de PRD) `SIIS_API_URL` apunta a
+`siisapi.chaco.gob.ar`, el SIIS de **producción**. Aprobar un caso o correr el proceso masivo daba
+de alta personas reales en SIIS productivo, en una integración sin baja. La app no tenía ninguna
+guarda: el check `core.E002` solo mira el caso inverso (PRD apuntando a desarrollo) y depende de
+`DATANACH_ES_PRODUCCION`.
+
+## Alcance acordado
+
+Impedir la **escritura** en SIIS cuando el ambiente no es producción y `SIIS_API_URL` no es el
+SIIS de desarrollo, sin bloquear PRD. Las lecturas (compatibilidad, catálogos, token para un GET)
+siguen libres. Fuera de alcance: corregir la variable en testing, que es de ECOM.
+
+## Decisiones tomadas
+
+- **El ambiente se reconoce por `ALLOWED_HOSTS`, no por `DATANACH_ES_PRODUCCION`.**
+  `ambiente_no_productivo()` (nueva, `core/checks.py`) es verdadera si algún host es `ecomdev.ar`
+  o termina en `.ecomdev.ar` —testing `datanach.ecomdev.ar`, icore
+  `relevamiento-deshum.ecomdev.ar`—, o con `DEBUG` y `localhost` (desarrollo local). PRD
+  (`datanach.chaco.gob.ar`) nunca cumple. `DATANACH_ES_PRODUCCION` no sirve acá por lo mismo que
+  dice el Cambio 162: su ausencia no prueba nada, y no hay evidencia de que PRD la tenga; usarla
+  bloquearía producción. No contradice al Cambio 123: aquel disparador sigue mandando para el check
+  `core.E002`, que mira el caso opuesto.
+- **El dominio se compara entero**, como `es_host_de_desarrollo`: `ecomdev.ar.atacante.com` o
+  `noecomdev.ar` no cuentan. El punto inicial de una entrada tipo `.ecomdev.ar` se ignora.
+  `localhost` sin `DEBUG` no alcanza: el CI y el release-gate corren así.
+- **Predicado:** `escritura_siis_bloqueada()` = hay `SIIS_API_URL`, el ambiente no es producción
+  y la URL no es del SIIS de desarrollo. Sin URL no bloquea: ese caso ya falla solo por
+  configuración incompleta.
+- **Un único punto de corte:** el principio de `SiisAPIClient.cargar_beneficiario`, la única
+  escritura, por donde convergen los siete caminos del alta (aprobar, cupo, masivo, comandos y
+  drenaje, vía `siis_envio._mandar_a_siis`). Corta **antes del token**: no sale ninguna llamada,
+  ni siquiera con un token cacheado. Deja un `warning` en el log.
+- **Devuelve `NO_ENVIADO` con código `AMBIENTE_NO_PRD`, nunca `INCIERTO`**: nada salió, así que
+  el caso queda libre para mandarse cuando la variable se corrija. El toast del caso lo dice
+  (`mensaje_envio`) en vez del genérico «SIIS no respondió», que mandaría a revisar un servicio
+  que nadie consultó.
+- **El proceso masivo corta antes de crear la corrida** (`proceso_masivo_lanzar`), con un
+  `messages.error`: si no, la corrida aprobaría casos que después no se informan y cada uno
+  gastaría un reintento. La pantalla muestra una alerta `danger` (`components/_alerta.html`) bajo
+  el host de destino. El botón «Procesar» no se esconde: el corte del POST alcanza.
+
+## Implementación
+
+- `core/checks.py`: `_es_dominio_de_desarrollo`, `ambiente_no_productivo`,
+  `escritura_siis_bloqueada`; `es_host_de_desarrollo` reusa la comparación.
+- `programas/services/siis.py`: `CODIGO_AMBIENTE_NO_PRD`, `MENSAJE_AMBIENTE_NO_PRD` y la guarda al
+  principio de `cargar_beneficiario`.
+- `programas/services/siis_envio.py`: rama propia en `mensaje_envio`.
+- `programas/views/proceso_masivo.py`: `siis_bloqueado` en el contexto y corte en
+  `proceso_masivo_lanzar`.
+- `programas/templates/programas/becas/config/proceso_masivo.html`: la alerta.
+
+## Archivos
+
+- `core/checks.py`, `core/tests/test_checks_entorno.py`
+- `programas/services/siis.py`, `programas/services/siis_envio.py`
+- `programas/views/proceso_masivo.py`, `programas/templates/programas/becas/config/proceso_masivo.html`
+- `programas/tests/test_siis_service.py`, `programas/tests/test_proceso_masivo.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Tests nuevos: `AmbienteNoProductivoTests` y `EscrituraSiisBloqueadaTests` (core);
+  `GuardaAmbienteNoProductivoTests` (testing + SIIS PRD → `NO_ENVIADO`/`AMBIENTE_NO_PRD` y la sesión
+  HTTP mockeada sin ninguna llamada, ni de token; PRD + SIIS PRD → envía; testing + SIIS ecomdev →
+  envía; la compatibilidad sigue libre; el toast); tres tests de la pantalla del masivo (POST no
+  crea corrida, GET muestra el aviso, PRD lanza sin aviso).
+- **Mutación:** sin la guarda de `cargar_beneficiario`, los dos tests de testing + SIIS PRD se
+  ponen rojos; sin el corte de la vista, el de lanzar se pone rojo; con la comparación de dominio
+  por substring, se ponen rojos los de dominio entero.
+- `manage.py test core programas`, `check --deploy`, `design_audit --ratchet` (0 nuevos),
+  `compile_templates` (0).
+- En tests (`PYTEST_RUNNING`) `ALLOWED_HOSTS` no trae `ecomdev.ar` (el CI usa `localhost`), así que
+  los tests existentes con `siis.example`, `siis.chaco.gob.ar` o `siis.invalido.local` no la
+  disparan.
+
+## Puesta en marcha en el servidor
+
+Nada que hacer en el deploy. En testing de ECOM, mientras `SIIS_API_URL` siga apuntando a
+producción, ninguna alta sale y el masivo no lanza: es lo buscado.
+
+## Pendientes / a definir
+
+- **Pedirle a ECOM que corrija `SIIS_API_URL` en testing** a `https://siisapi.ecomdev.ar`. Es una
+  acción operativa del PM; esta guarda la vuelve inofensiva, no la reemplaza.
+- Reemplaza **parcialmente** el pendiente H-09 del Cambio 123: un testing apuntado a producción ya
+  no escribe. Sigue abierto confirmar que PRD define `SIIS_API_URL` con el host productivo y
+  `DATANACH_ES_PRODUCCION=1`.
+- Si un día testing o icore se sirven bajo un dominio que no sea `ecomdev.ar`, la guarda deja de
+  reconocerlos: hay que sumar ese dominio a `ambiente_no_productivo`.
+
+## Reversión
+
+Revertir el commit. No toca datos ni esquema.
 
 ---
