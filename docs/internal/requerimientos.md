@@ -437,6 +437,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 309 | Estado junto al título e Instituciones en el sidebar | Dispositivos · P4/P7/P19/P14 · shell transversal | `#ui` `#textos` | PM / juez — carril FH | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 310 | Correcciones menores de FR y FI y fidelidad de P3 | Dispositivos · P3 y relevamiento edilicio | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` | PM / juez — carril FJ | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 311 | Notificaciones: las campañas salen por un SMTP propio (Amazon SES), separado del correo del sistema | Transversal — notificaciones (envío masivo, prueba y detalle de la campaña) · diagnóstico de correo | `#correo` `#infra` | PM — pedido del 15/10/2026 | 15/10/2026 | 🟢 **Hecho** | No requiere |
+| 312 | La tabla de horas del documento del MVP volvió a tener sus filas | Dispositivos · documento para el cliente | `#textos` `#gestion` | PM — en sesión | 16/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -40727,5 +40728,76 @@ por el SMTP de ECOM). Con las variables, el siguiente lote de un envío en curso
 
 Revertir los commits. Sin cambios de base. Sin las variables `NOTIF_EMAIL_*` el código nuevo ya se comporta
 como el anterior, así que vaciar `NOTIF_EMAIL_HOST` en el entorno es la reversión operativa sin release.
+
+---
+
+---
+
+# Cambio 312 — La tabla de horas del documento del MVP volvió a tener sus filas
+
+🟢 **HECHO — 16/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · documento para el cliente |
+| **Etiquetas** | `#textos` `#gestion` |
+| **Solicitante** | PM — en sesión |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | Sin issue · Épica #127 |
+| **Partes afectadas** | `docs/client/funcionalidades/mvp-dispositivos-v2.md` §4 |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Al medir el avance del MVP se vio que la tabla «Esfuerzo y plazo» del documento publicado
+para el Ministerio mostraba solo el encabezado: las cuatro filas de bloques y el total se
+perdieron en una de las ediciones del Cambio 183 (commit `f1df85f3`), que quitó las
+definiciones pendientes y se llevó también el cuerpo de la tabla.
+
+## Alcance acordado
+
+Restaurar las filas tal como estaban antes de esa edición (`8d0fb8fd`). Fuera de alcance: las
+secciones que el Cambio 183 quitó a propósito («Sobre el orden», la nota de la reserva y las
+definiciones a cerrar).
+
+## Decisiones tomadas
+
+- Se restauran los cuatro bloques del Ministerio y el total: Aplicación, sectores y
+  criticidad 140 h · Ingresos y egresos 220 h · Circuito interno 240 h · Reserva 100 h ·
+  Total 700 h. Son los mismos números del encabezado del documento («700 horas»).
+- El separador vuelve a tener tres columnas, con las horas alineadas a la derecha.
+
+### Apartamientos del mockup
+
+No aplica: documento, sin pantallas.
+
+## Implementación
+
+Solo la tabla de la sección 4 del documento.
+
+## Archivos
+
+- `docs/client/funcionalidades/mvp-dispositivos-v2.md`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Comparado contra `8d0fb8fd`, la última versión con la tabla completa.
+
+## Puesta en marcha en el servidor
+
+Ninguna: se publica con GitHub Pages.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit.
 
 ---
