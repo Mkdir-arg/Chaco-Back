@@ -104,6 +104,7 @@ class BaseCenso(BaseEstadias):
     def _egresar(self, estadia, momento, usuario=None):
         with _reloj():
             return egresar_persona(
+                destino="Domicilio",
                 estadia=estadia,
                 usuario=usuario or self.operador_cis,
                 fecha_egreso=momento,

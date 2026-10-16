@@ -446,6 +446,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 318 | Testing de ECOM no da de alta personas en el SIIS de producción | Becas · alta en SIIS y proceso masivo | `#siis` `#infra` `#ui` | QA (Matías) — issue #569 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 319 | Constructor de formularios: prueba de punta a punta y cobertura que pedía QA (#350, #351) | Becas · constructor, link público y revisión (tests) | `#requisitos` `#rbac` `#performance` `#gestion` | QA — issues #350 y #351 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 320 | «Publish main» vuelve a publicar: los dos scripts de la propuesta pasan Ruff estilo | Transversal · CI y release | `#infra` `#gestion` | Bloqueo del release | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 321 | Personas y red: intervalos de alojamiento, destino obligatorio y alcance de admisión | Dispositivos · personas y red | `#datos` `#rbac` `#performance` | PM — auditoría independiente, carril G1 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -41758,3 +41759,151 @@ scripts compilan igual y no cambia su comportamiento.
 ## Reversión
 
 Revertir el commit.
+
+---
+
+# Cambio 321 — Personas y red: intervalos de alojamiento, destino obligatorio y alcance de admisión
+
+🟢 **HECHO — 17/10/2026** · Auditoría final independiente del MVP de Dispositivos v2 · carril G1
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · personas, estadías e ingreso |
+| **Etiquetas** | `#datos` `#rbac` `#performance` |
+| **Solicitante** | PM — decisiones del encargo G1 sobre la auditoría independiente del MVP |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | Épica #127 · auditoría final G1; sin issue nuevo |
+| **Partes afectadas** | Servidor: `programas/services/estadias.py`, `services/ingreso.py`; tests y presupuestos de consultas |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cerrar los cuatro hallazgos de Personas y red de la auditoría independiente: el alojamiento
+duplicado por fechas retroactivas, el destino de egreso opcional en el servicio, el sondeo
+autorizado por admitir pero recortado por ver y la materialización de legajos completos al
+buscar DNI históricos con separadores. El PM decidió que los cuatro ajustes son obligatorios.
+
+## Alcance acordado
+
+Servicios, sus pruebas y registro. Se preservan las capas y la configuración de roles del PM.
+El carril paralelo de P4 conserva sus templates. La app de campo no registra egresos.
+
+## Decisiones tomadas
+
+1. **Una persona no puede tener intervalos de alojamiento superpuestos en la red**, aunque
+   ambas estadías sean históricas, pertenezcan al mismo dispositivo o no tengan plaza.
+   El ingreso conserva el sondeo de estadía abierta y agrega el chequeo de fechas de todas
+   las estadías de la persona. Los intervalos son `[fecha_ingreso, fecha_egreso)`; el egreso
+   y un nuevo ingreso en el mismo instante son compatibles. Un ingreso y egreso simultáneos
+   tienen duración cero y no se superponen con otros intervalos. El egreso también comprueba
+   su intervalo final, excluyendo su propia estadía. No existe servicio de edición o
+   reapertura de estadías cerradas en este circuito: no se agrega uno.
+2. **La exclusión histórica se serializa por persona.** El ingreso bloquea su fila estable
+   después de la plaza y de la reserva, dentro de la misma transacción. Así, si el primer
+   operador ingresa y egresa antes de su commit, el segundo relee también ese historial
+   cerrado bajo READ COMMITTED. El UNIQUE común de la clave de alojamiento se conserva
+   como defensa del motor; no se agrega ningún constraint condicional. El egreso relee
+   su estadía bloqueada y solo acorta el intervalo abierto.
+3. **El mensaje de superposición identifica el problema de fechas**, sin exponer institución,
+   código, plaza, identificadores ni fechas ajenas. Remite a la coordinación del programa.
+4. **El destino de egreso es obligatorio también en el servicio**, junto al motivo vigente:
+   se rechazan omisión, `None`, vacío y espacios. El destino válido se guarda sin espacios
+   exteriores. La única vista llamadora ya entrega el destino validado por `EgresoForm`;
+   se actualizan las llamadas directas de los tests para conservar la condición que prueban.
+5. **El alcance del sondeo se resuelve con `dispositivo.admitir`.** Un operador con admitir
+   sin ver reconoce su institución asignada. Para una institución fuera de ese alcance
+   se conserva la respuesta opaca; no se modifican roles ni semillas.
+6. **El escaneo REGEXP de DNI lee solo `id` y `dni`** y carga el objeto ganador por PK.
+   La coincidencia exacta conserva prioridad y cuesta una consulta. La coincidencia con
+   separadores cuesta tres: búsqueda exacta sin resultado, escaneo de dos columnas e
+   hidratación del ganador; sin coincidencia cuesta dos. Se registran esos techos nuevos
+   y se verifica que ningún presupuesto existente aumenta. El test de materialización
+   usa 21 fichas históricas y exige que solo se instancie el ganador.
+
+## Implementación
+
+Ana ingresó al Parador seis días atrás y egresó hace dos: intentar ingresarla al CIS con
+fecha de hace cuatro días ahora falla sin agregar estadía, movimiento ni traza. Un egreso
+retroactivo cuyo intervalo final cruza otra estadía también falla y conserva su estado.
+Un egreso sin destino conserva la clave y la plaza; la validación devuelve un error del
+campo destino. El sondeo y la búsqueda de DNI conservan su contrato de retorno.
+
+## Apartamientos del mockup
+
+Ninguno. Este carril no modifica superficies renderizadas, templates, assets ni textos
+del mockup. No requiere Plan de pantalla ni snapshots de Becas. La ficha del mapa de estados
+canónico reutilizable se sincroniza porque cita `estadias.py` como evidencia: las nuevas
+validaciones son de dominio y no agregan estados visuales.
+
+## Archivos
+
+`programas/services/estadias.py` · `programas/services/ingreso.py` ·
+`programas/tests/test_dispositivos_personas_red.py` ·
+`programas/tests/test_dispositivos_concurrencia.py` · tests llamadores de egreso en
+estadías, movimientos, censo, auditoría, alertas, bitácora automática y header ·
+`scripts/perf_budgets.json` · `.claude/design/dominio/becas.md` · `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios de esquema ni migraciones. No se corrigen ni eliminan estadías históricas.
+La consulta de conflictos usa el índice existente por ciudadano.
+
+## Validación
+
+- **Suite `programas`**: 3.588 tests, 24 omisiones y cero fallos; 152 módulos en 19 lotes
+  de ocho módulos para limitar memoria,
+  con `.venv312`, `PYTEST_RUNNING=1` y `DJANGO_SYNCDB_PROJECT_APPS=True`.
+- **Performance**: 33 tests aprobados con `--tag performance programas`. Los dos techos
+  nuevos del buscador están en `scripts/perf_budgets.json`; `check_perf_budgets.py`
+  confirma que ningún presupuesto existente aumenta.
+- **Regresión focal**: 15 tests aprobados (14 de personas y red más la defensa del UNIQUE).
+- **Motor real**: 27 tests aprobados (13 de concurrencia y 14 de personas y red), en MariaDB 10.11 efímero, puerto 3371, sin tablas
+  de zona horaria y con las migraciones reales habilitadas.
+- **Gates estáticos**: `manage.py check`, `makemigrations --check --dry-run` con syncdb
+  desactivado, contrato de migraciones, ruff check y format de `programas/ core/ users/`,
+  compilación de 233 templates, ratchet contra `origin/development`, siete goldens,
+  build de Tailwind sin diff y coherencia del registro, aprobados.
+- **Contrato del agente de diseño**: `--changed` y `--limites --base origin/development` aprobados, luego de los commits.
+
+**Mutaciones verificadas (12/12)**: cada regla rota produjo el rojo esperado. Las nueve primeras
+se aplicaron sobre una copia de los bytes originales y se restauraron en `finally`;
+las tres restantes sustituyeron funciones en memoria con restauración comprobada.
+No se usó `git checkout` ni `stash`.
+
+| Mutación | Regresión que la detecta |
+|---|---|
+| Quitar historia del ingreso | Ana: Parador −6/−2, CIS −4, existencia del día −3 |
+| Quitar historia del egreso | Egreso retroactivo que cruza una estadía ajena |
+| Permitir destino vacío | Omisión, `None`, vacío y espacios; sin cierre ni traza |
+| Resolver alcance con ver | Operador con admitir y sin ver en su institución |
+| Materializar modelos en REGEXP | Solo se instancia el legajo ganador entre 21 fichas |
+| Quitar candado de persona | Orden plaza → reserva → persona en SQLite |
+| Hacer inclusivo el fin anterior | Reingreso exactamente al egresar la estadía anterior |
+| Hacer inclusivo el inicio posterior | Egreso exactamente al ingresar la estadía posterior |
+| No excluir la estadía propia | Egreso válido que debe ignorarse a sí mismo |
+| Contar historia de duración cero | Registro histórico vacío no ocupa un intervalo |
+| Contar un egreso de duración cero | Ingreso y egreso simultáneos no ocupan un intervalo |
+| Quitar candado en MariaDB | B atraviesa el punto crítico mientras A no confirmó; la carrera falla |
+
+## Puesta en marcha en el servidor
+
+Desplegar el código. No requiere parámetros, migraciones ni cambios de roles.
+
+## Pendientes / a definir
+
+Ninguno dentro del alcance G1. No se agrega edición o reapertura de estadías cerradas
+ni se limpian registros históricos: este encargo valida los ingresos y egresos nuevos.
+
+## Reversión
+
+Revertir los commits de código y documentación de G1. No hay cambios de esquema ni
+transformación de datos para deshacer. Los ingresos y egresos válidos conservan su historial.
+
+## Historial
+
+Entrada nueva por la auditoría independiente y las decisiones del PM del 16/10/2026.
+Complementa los Cambios 262, 269, 272 y 290; no reescribe sus entradas.
+
+**17/10/2026 — Corrección de revisión G1:** se reemplaza la regla y la mutación de solapamiento del egreso registradas arriba: egresar solo acorta el intervalo y debe liberar la clave aun con historia superpuesta; el control permanece en el ingreso (no hay operaciones que editen `fecha_ingreso`). `exclude(pk=excepto)` se aplica solo si `excepto is not None`. Regresión con filas creadas directamente: Parador `[d−10, d−2)` y CIS `[d−5, ∞)` → egreso hoy, clave liberada y nuevo ingreso permitido; mutación verificada: reponer el chequeo produce `ValidationError`, restaurar desde copia devuelve verde. Sin cambios de UI, apartamientos ni pendientes nuevos.
+
+---

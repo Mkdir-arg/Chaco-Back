@@ -90,7 +90,9 @@ class EgresoServicioTests(BaseEgreso):
         """`motivo` es texto libre de observaciones y no es una opción del catálogo."""
 
         with self.assertRaises(ValidationError):
-            egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo="Se fue por su cuenta")
+            egresar_persona(
+                destino="Domicilio", estadia=self.estadia, usuario=self.operador_cis, motivo="Se fue por su cuenta"
+            )
 
         self.estadia.refresh_from_db()
         self.assertTrue(self.estadia.activa)
@@ -116,6 +118,7 @@ class EgresoServicioTests(BaseEgreso):
     def test_el_egreso_no_puede_ser_anterior_al_ingreso(self):
         with self.assertRaises(ValidationError) as error:
             egresar_persona(
+                destino="Domicilio",
                 estadia=self.estadia,
                 usuario=self.operador_cis,
                 fecha_egreso=self.ingreso - timedelta(hours=1),

@@ -321,7 +321,9 @@ class EgresoTests(BaseEstadias):
         )
 
     def test_el_egreso_suelta_la_clave_y_devuelve_a_la_persona_a_la_red(self):
-        egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
+        egresar_persona(
+            destino="Domicilio", estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta
+        )
 
         self.estadia.refresh_from_db()
         self.assertEqual(self.estadia.estado, Estadia.Estado.EGRESADA)
@@ -337,7 +339,9 @@ class EgresoTests(BaseEstadias):
         self.assertTrue(nueva.activa)
 
     def test_el_egreso_libera_la_plaza_para_otra_persona(self):
-        egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
+        egresar_persona(
+            destino="Domicilio", estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta
+        )
 
         otra = ingresar_persona(
             ciudadano=self.otra_persona,
@@ -350,6 +354,7 @@ class EgresoTests(BaseEstadias):
     def test_el_egreso_no_puede_ser_anterior_al_ingreso(self):
         with self.assertRaises(ValidationError):
             egresar_persona(
+                destino="Domicilio",
                 estadia=self.estadia,
                 usuario=self.operador_cis,
                 fecha_egreso=self.estadia.fecha_ingreso - timedelta(minutes=1),
@@ -359,6 +364,7 @@ class EgresoTests(BaseEstadias):
     def test_el_egreso_no_puede_ser_futuro(self):
         with self.assertRaises(ValidationError):
             egresar_persona(
+                destino="Domicilio",
                 estadia=self.estadia,
                 usuario=self.operador_cis,
                 fecha_egreso=timezone.now() + timedelta(days=1),
@@ -366,16 +372,21 @@ class EgresoTests(BaseEstadias):
             )
 
     def test_una_estadia_cerrada_no_se_egresa_dos_veces(self):
-        egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
+        egresar_persona(
+            destino="Domicilio", estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta
+        )
 
         with self.assertRaises(ValidationError):
-            egresar_persona(estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
+            egresar_persona(
+                destino="Domicilio", estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta
+            )
 
     def test_el_egreso_deja_traza_con_el_motivo_del_catalogo_y_sin_las_observaciones(self):
         """La traza la lee todo el que opera el dispositivo: las observaciones son texto
         libre de la persona y no entran, igual que en el movimiento."""
 
         egresar_persona(
+            destino="Domicilio",
             estadia=self.estadia,
             usuario=self.operador_cis,
             motivo="Refiere violencia en el domicilio",
@@ -389,7 +400,9 @@ class EgresoTests(BaseEstadias):
 
     def test_sin_alcance_no_se_egresa(self):
         with self.assertRaises(PermissionDenied):
-            egresar_persona(estadia=self.estadia, usuario=self.operador_parador, motivo_egreso=self.motivo_alta)
+            egresar_persona(
+                destino="Domicilio", estadia=self.estadia, usuario=self.operador_parador, motivo_egreso=self.motivo_alta
+            )
 
 
 class VerificacionEnLaRedTests(BaseEstadias):
@@ -615,11 +628,11 @@ class CarreraEntreInstitucionesTests(BaseEstadias):
     """Lo que pasa cuando la verificacion no alcanza, que es el caso que importa."""
 
     def test_si_otro_gano_la_carrera_la_base_rechaza_igual_el_segundo_alojamiento(self):
-        """Entre la verificacion y el alta puede entrar otra institucion.
+        """El UNIQUE sigue siendo la defensa ante escrituras ajenas al protocolo de locks.
 
-        Se simula con la verificacion mintiendo —«no esta alojada»— mientras la estadia
-        ya existe: es exactamente lo que ve el segundo operador cuando el primero
-        confirma un milisegundo despues. El `UNIQUE` de `clave_alojamiento` lo frena, y
+        Se simulan lecturas desactualizadas en ambos chequeos mientras la estadia
+        ya existe. El ingreso normal ahora serializa por persona (G1); este test aísla
+        la defensa del motor. El `UNIQUE` de `clave_alojamiento` lo frena, y
         el servicio lo traduce al mismo error que habria dado la verificacion. Sin esa
         columna —con el `UniqueConstraint` condicional que MySQL ignora— los dos
         alojamientos entrarian.
@@ -633,9 +646,15 @@ class CarreraEntreInstitucionesTests(BaseEstadias):
         )
         libre = VerificacionAlojamiento(clave=Estadia.clave_para(self.persona))
 
-        with mock.patch(
-            "programas.services.estadias.verificar_alojamiento_en_red",
-            side_effect=[libre, verificar_alojamiento_en_red(self.persona, self._usuario(self.operador_parador.pk))],
+        with (
+            mock.patch(
+                "programas.services.estadias.verificar_alojamiento_en_red",
+                side_effect=[
+                    libre,
+                    verificar_alojamiento_en_red(self.persona, self._usuario(self.operador_parador.pk)),
+                ],
+            ),
+            mock.patch("programas.services.estadias._exigir_intervalo_sin_alojamiento"),
         ):
             with self.assertRaises(AlojamientoEnLaRed):
                 ingresar_persona(
@@ -697,7 +716,7 @@ class ContratoDeLaReservaTests(BaseEstadias):
             usuario=self.operador_cis,
             reserva=reserva,
         )
-        egresar_persona(estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
+        egresar_persona(destino="Domicilio", estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
 
         with self.assertRaises(ValidationError):
             ingresar_persona(

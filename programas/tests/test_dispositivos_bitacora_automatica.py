@@ -82,7 +82,7 @@ class CadaMovimientoDejaSuNovedadTests(BaseAutomaticas):
     def test_el_egreso_deja_su_novedad_con_el_motivo_del_catalogo(self):
         estadia = self._alojar(fecha_ingreso=timezone.now() - timedelta(days=1))
 
-        egresar_persona(estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
+        egresar_persona(destino="Domicilio", estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
 
         entrada = EntradaBitacora.objects.get(dispositivo=self.cis, tipo=Tipo.EGRESO)
         self.assertEqual(entrada.texto, "Egreso · motivo: Alta")
@@ -100,7 +100,7 @@ class CadaMovimientoDejaSuNovedadTests(BaseAutomaticas):
         """Va en `personas`, que la pantalla nombra solo con `ciudadano.ver` (Cambio 271)."""
 
         estadia = self._alojar()
-        egresar_persona(estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
+        egresar_persona(destino="Domicilio", estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
 
         for entrada in self._entradas():
             self.assertNotIn(self.persona.apellido, entrada.texto, entrada.texto)
@@ -110,6 +110,7 @@ class CadaMovimientoDejaSuNovedadTests(BaseAutomaticas):
         estadia = self._alojar()
 
         egresar_persona(
+            destino="Domicilio",
             estadia=estadia,
             usuario=self.operador_cis,
             motivo="Refiere violencia en el domicilio",
@@ -183,6 +184,7 @@ class NoRompeElCensoNiLaAuditoriaTests(BaseAutomaticas):
         egreso = ingreso.replace(hour=12)
         estadia = self._alojar(fecha_ingreso=ingreso)
         egresar_persona(
+            destino="Domicilio",
             estadia=estadia,
             usuario=self.operador_cis,
             fecha_egreso=egreso,

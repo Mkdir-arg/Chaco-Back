@@ -38,7 +38,9 @@ el template y obtiene el tono con el filtro `tono_estado_dispositivo`, que lee e
 Los tags `estado_dispositivo` y `estado_tipo_dispositivo` solo presentan esos datos, sin consultas.
 
 En `ESTADOS_VISIBLES`, una estadía activa se presenta como «Alojada» (`info`) y una
-egresada como «Egresada» (`gray`); el motivo obligatorio del egreso no altera ese mapa.
+egresada como «Egresada» (`gray`). El motivo y destino obligatorios del egreso y la
+exclusión de intervalos de alojamiento superpuestos en el ingreso son validaciones de dominio:
+no agregan estados ni alteran los textos y tonos de ese mapa.
 En el mapa de estadías, `ACTIVA` entrega «Alojada»/`info` y `EGRESADA`, «Egresada»/`gray`.
 Los estados de `ReservaPlaza` no alimentan ese badge: consumir o liberar una reserva
 no agrega estados visuales al alojamiento.

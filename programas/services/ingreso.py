@@ -60,9 +60,10 @@ def buscar_ciudadano_por_dni(dni):
     ciudadano = Ciudadano.objects.filter(dni=dni).first()
     if ciudadano is not None:
         return ciudadano
-    for candidato in Ciudadano.objects.exclude(dni=dni).filter(dni__regex=r"[^0-9]"):
-        if normalizar_dni(candidato.dni) == dni:
-            return candidato
+    candidatos = Ciudadano.objects.exclude(dni=dni).filter(dni__regex=r"[^0-9]").values_list("id", "dni")
+    for candidato_id, candidato_dni in candidatos:
+        if normalizar_dni(candidato_dni) == dni:
+            return Ciudadano.objects.get(pk=candidato_id)
     return None
 
 
