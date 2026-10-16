@@ -587,9 +587,15 @@
         for (var i = 0; i < this.cond.fuentes.length; i++) { if (this.cond.fuentes[i].clave === clave) { return this.cond.fuentes[i]; } }
         return null;
       },
-      operadoresDe: function (clave) {
+      // `actual`: el operador de la regla. Uno que el editor ya no ofrece pero el
+      // servidor acepta (fecha «vacía/completa», issue 341) se muestra solo ahí.
+      operadoresDe: function (clave, actual) {
         var fu = this.fuente(clave);
-        return fu ? (operadores.por_tipo[fu.tipo_campo] || []) : [];
+        if (!fu) { return []; }
+        var lista = operadores.por_tipo[fu.tipo_campo] || [];
+        var aceptados = (operadores.aceptados || {})[fu.tipo_campo] || [];
+        if (actual && lista.indexOf(actual) === -1 && aceptados.indexOf(actual) !== -1) { lista = lista.concat([actual]); }
+        return lista;
       },
       opcionesDe: function (clave) {
         var fu = this.fuente(clave);

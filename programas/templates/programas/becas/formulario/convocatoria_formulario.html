@@ -260,7 +260,7 @@
               </select>
               <select x-model="r.op" class="nodo-field" aria-label="Operador" :disabled="!r.fuente">
                 <option value="">Operador…</option>
-                <template x-for="op in operadoresDe(r.fuente)" :key="op"><option :value="op" :selected="op === r.op" x-text="etiquetaOp(op)"></option></template>
+                <template x-for="op in operadoresDe(r.fuente, r.op)" :key="op"><option :value="op" :selected="op === r.op" x-text="etiquetaOp(op)"></option></template>
               </select>
               <div>
                 <select x-show="necesitaValor(r) && opcionesDe(r.fuente).length && !conLista(r.op)" x-model="r.valor" class="nodo-field" aria-label="Valor">

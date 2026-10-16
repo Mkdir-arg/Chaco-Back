@@ -288,7 +288,13 @@ de ítems sobre `bg-tertiary`), derecha la vista previa `xl:sticky` con toggle d
   `mTexto`, `mPropio`, `mEtiqueta`, `mCondicion`) que lee `modal === '…'` y, al ponerse en `false`,
   llama a `cerrar()`; el título dinámico Nuevo/Editar usa `titulo_x_text`.
   El modal de condición no usa el pie canónico: tiene un tercer botón condicional («Quitar
-  condición») en `justify-between`, y repite manualmente las clases del pie.
+  condición») en `justify-between`, y repite manualmente las clases del pie. Sus selects ofrecen
+  solo fuentes que se piden en todos los canales del ítem (una ya guardada fuera de canal queda
+  marcada «(no se pide en este canal)») y los operadores ofrecidos (`por_tipo`); uno solo
+  aceptado (`aceptados`) aparece únicamente en la regla que ya lo usa.
+- El aviso «El catálogo cambió desde la última vez» (`bg-warning-soft`) es una lista con una línea
+  por clave de `reconciliar`: agregados, quitados, condiciones quitadas y fuentes borradas del
+  catálogo («X → A, B»).
 - **Guardado en vivo:** cada mutación responde `{ok, target, html, datos}`; en error el JS restaura
   el HTML anterior y avisa con `toast('error', …)` — **sin toast de éxito**: el indicador
   `aria-live` del encabezado ya informa el guardado.

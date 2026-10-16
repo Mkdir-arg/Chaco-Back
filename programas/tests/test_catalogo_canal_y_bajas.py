@@ -32,8 +32,10 @@ from programas.models import (
     Subsegmento,
     TipoCampo,
 )
+from programas.services.condiciones import validar_condicion
 from programas.services.diseno import clave_pregunta, clave_requisito, obtener_o_crear_diseno, reconciliar
 from programas.tests.test_constructor_confirmacion_y_autoguardado import _correr
+from programas.views.diseno import _operadores
 
 BADGE_APP = '<span class="badge badge-white">Solo app de campo</span>'
 BADGE_LINK = '<span class="badge badge-white">Solo link público</span>'
@@ -316,6 +318,57 @@ class FuentesPorCanalTests(SimpleTestCase):
             [("f-link", "F link (no se pide en este canal)"), ("f-ambos", "F ambos"), ("d-ambos", "D ambos")],
         )
 
+    def test_operadores_de_fecha_vacio_solo_si_la_regla_guardada_lo_usa(self):
+        """E5: el editor no ofrece «está vacío/completo» para una fecha, salvo que
+        la regla ya guardada lo use (si no, el `<select>` la perdería)."""
+        operadores = json.dumps(_operadores())
+        log = _correr(
+            "var __ge = document.getElementById;\n"
+            "document.getElementById = function (id) {\n"
+            "  if (id === 'constructor-operadores') { return {textContent: " + json.dumps(operadores) + "}; }\n"
+            "  return __ge(id);\n"
+            "};\n"
+            "window.NodoConstructor.datos().items = [\n"
+            "  {clave: 'g', tipo: 'grupo', canal: 'ambos', padre: null},\n"
+            "  {clave: 'nac', tipo: 'campo', canal: 'ambos', padre: 'g', tipo_campo: 'DATE'},\n"
+            "  {clave: 'x', tipo: 'campo', canal: 'ambos', padre: 'g'}\n"
+            "];\n"
+            "var __p = window.constructorPagina(1);\n"
+            "__p.abrir({modal: 'condicion', clave: 'x'});\n"
+            "__log.nuevo = __p.operadoresDe('nac', '');\n"
+            "__log.guardado = __p.operadoresDe('nac', 'vacio');\n"
+            "__log.ajeno = __p.operadoresDe('nac', 'es');"
+        )
+        self.assertNotIn("vacio", log["nuevo"])
+        self.assertNotIn("completo", log["nuevo"])
+        self.assertIn("edad_menor", log["nuevo"])
+        self.assertIn("vacio", log["guardado"])
+        self.assertNotIn("completo", log["guardado"])
+        self.assertNotIn("es", log["ajeno"])  # un operador que el servidor no acepta no se cuela
+
     def test_un_item_que_no_se_sirve_en_ningun_canal_ofrece_todo(self):
         claves = [c for c, _ in self._fuentes("d-imposible")]
         self.assertEqual(claves, ["f-app", "f-link", "f-ambos", "f-hijo", "d-ambos", "d-app", "d-guardada"])
+
+
+class OperadoresDeFechaTests(SimpleTestCase):
+    """E5 (#339, #341): para una fecha el editor ofrece edad y antes/después; el
+    servidor sigue **aceptando** «vacío/completo» para no congelar los diseños que
+    ya los tienen (`validar_coherencia` rechazaría cualquier mutación)."""
+
+    def test_el_editor_no_ofrece_vacio_ni_completo_para_fechas(self):
+        ofrecidos = _operadores()["por_tipo"][TipoCampo.DATE]
+        self.assertNotIn("vacio", ofrecidos)
+        self.assertNotIn("completo", ofrecidos)
+        self.assertIn("edad_menor", ofrecidos)
+        self.assertIn("anterior", ofrecidos)
+
+    def test_los_demas_tipos_siguen_ofreciendolos(self):
+        self.assertIn("vacio", _operadores()["por_tipo"][TipoCampo.STRING])
+        self.assertIn("completo", _operadores()["por_tipo"][TipoCampo.INT])
+
+    def test_el_servidor_sigue_aceptando_vacio_sobre_una_fecha(self):
+        self.assertIn("vacio", _operadores()["aceptados"][TipoCampo.DATE])
+        condicion = {"modo": "todas", "reglas": [{"fuente": "nac", "op": "vacio", "valor": None}]}
+        anteriores = {"nac": {"tipo": "campo", "tipo_campo": TipoCampo.DATE}}
+        self.assertEqual(validar_condicion(condicion, {"clave": "x"}, anteriores), [])
