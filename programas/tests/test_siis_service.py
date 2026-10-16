@@ -487,6 +487,15 @@ class GuardaAmbienteNoProductivoTests(SimpleTestCase):
         self.assertEqual(r["resultado"], "OK")
         self.assertEqual(post.call_args_list[-1].args[0], f"{SIIS_PRD}/api/v1/auth/tab-intermedia")
 
+    @override_settings(ALLOWED_HOSTS=HOSTS_PRD + ["datanach.ecomdev.ar"], SIIS_API_URL=SIIS_PRD)
+    def test_produccion_con_un_host_de_ecomdev_igual_envia(self):
+        """Falla hacia PRD: un host de ``chaco.gob.ar`` alcanza para no bloquear."""
+        with patch("programas.services.siis.sesion.post", side_effect=self._sesion_que_contesta_201()) as post:
+            r = SiisAPIClient().cargar_beneficiario({"dni": 1})
+
+        self.assertEqual(r["resultado"], "OK")
+        self.assertEqual(post.call_args_list[-1].args[0], f"{SIIS_PRD}/api/v1/auth/tab-intermedia")
+
     @override_settings(ALLOWED_HOSTS=HOSTS_TESTING, SIIS_API_URL=SIIS_DEV)
     def test_testing_contra_siis_de_desarrollo_envia(self):
         with patch("programas.services.siis.sesion.post", side_effect=self._sesion_que_contesta_201()) as post:

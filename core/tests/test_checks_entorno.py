@@ -248,6 +248,23 @@ class AmbienteNoProductivoTests(SimpleTestCase):
         with override_settings(ALLOWED_HOSTS=[PRD, "app", "web", "websocket"]):
             self.assertFalse(ambiente_no_productivo())
 
+    def test_un_host_de_chaco_gob_ar_gana_aunque_haya_uno_de_ecomdev(self):
+        """Falla hacia PRD: no sabemos qué hosts tiene PRD (puede compartir la
+        plantilla de env con testing, o tener un ingress interno bajo ecomdev).
+        Con un solo host de ``chaco.gob.ar`` el ambiente se trata como productivo."""
+        for hosts in ([PRD, TESTING], [TESTING, ".chaco.gob.ar"], [ICORE, "chaco.gob.ar"]):
+            with self.subTest(hosts=hosts), override_settings(ALLOWED_HOSTS=hosts):
+                self.assertFalse(ambiente_no_productivo())
+
+    def test_un_host_que_solo_contiene_chaco_gob_ar_no_es_produccion(self):
+        for host in ("chaco.gob.ar.atacante.com", "nochaco.gob.ar"):
+            with self.subTest(host=host), override_settings(ALLOWED_HOSTS=[TESTING, host]):
+                self.assertTrue(ambiente_no_productivo())
+
+    def test_debug_con_un_host_de_chaco_gob_ar_tampoco_bloquea(self):
+        with override_settings(DEBUG=True, ALLOWED_HOSTS=["localhost", PRD]):
+            self.assertFalse(ambiente_no_productivo())
+
     def test_el_dominio_se_compara_entero_y_no_por_substring(self):
         for host in ("ecomdev.ar.atacante.com", "noecomdev.ar", "datanach.ecomdev.ar.chaco.gob.ar"):
             with self.subTest(host=host), override_settings(ALLOWED_HOSTS=[host]):
@@ -275,6 +292,10 @@ class EscrituraSiisBloqueadaTests(SimpleTestCase):
 
     @override_settings(ALLOWED_HOSTS=[PRD], SIIS_API_URL=SIIS_PRD)
     def test_produccion_contra_el_siis_de_produccion_escribe(self):
+        self.assertFalse(escritura_siis_bloqueada())
+
+    @override_settings(ALLOWED_HOSTS=[PRD, TESTING], SIIS_API_URL=SIIS_PRD)
+    def test_produccion_con_un_host_de_ecomdev_escribe(self):
         self.assertFalse(escritura_siis_bloqueada())
 
     @override_settings(ALLOWED_HOSTS=[TESTING], SIIS_API_URL="")

@@ -29,6 +29,10 @@ from core.integraciones import PRESUPUESTO_SEGUNDOS, cadenas_fuera_de_presupuest
 #: Dominio del SIIS de **desarrollo** de ECOM.
 DOMINIO_SIIS_DESARROLLO = "ecomdev.ar"
 
+#: Dominio de producción (PRD es ``datanach.chaco.gob.ar``). Un host bajo este
+#: dominio hace que el ambiente se trate como productivo (#569).
+DOMINIO_PRODUCCION = "chaco.gob.ar"
+
 #: Variable que ECOM setea solo en producción.
 VARIABLE_PRODUCCION = "DATANACH_ES_PRODUCCION"
 
@@ -37,13 +41,14 @@ def es_produccion():
     return os.environ.get(VARIABLE_PRODUCCION, "").strip() == "1"
 
 
-def _es_dominio_de_desarrollo(host):
+def _bajo_dominio(host, dominio):
+    """``host`` es ``dominio`` o un subdominio suyo. Por dominio entero, no por substring."""
     host = (host or "").strip().lower().lstrip(".")
-    return host == DOMINIO_SIIS_DESARROLLO or host.endswith(f".{DOMINIO_SIIS_DESARROLLO}")
+    return host == dominio or host.endswith(f".{dominio}")
 
 
 def es_host_de_desarrollo(url):
-    return _es_dominio_de_desarrollo(urlparse(url).hostname)
+    return _bajo_dominio(urlparse(url).hostname, DOMINIO_SIIS_DESARROLLO)
 
 
 def ambiente_no_productivo():
@@ -56,9 +61,17 @@ def ambiente_no_productivo():
     se sirven bajo ``ecomdev.ar``, y PRD (``datanach.chaco.gob.ar``) nunca.
     ``DEBUG`` con ``localhost`` es el desarrollo local; ``localhost`` solo, sin
     ``DEBUG``, no dice nada (el CI y el release-gate corren así).
+
+    **Falla hacia PRD:** no hay en el repo evidencia de qué hosts tiene PRD
+    —puede compartir la plantilla de env con testing o tener un ingress interno
+    bajo ``ecomdev.ar`—, así que un solo host de ``chaco.gob.ar`` alcanza para
+    tratar el ambiente como productivo. Equivocarse para este lado deja a
+    testing escribiendo, que es lo que había; para el otro, deja a PRD sin altas.
     """
     hosts = list(getattr(settings, "ALLOWED_HOSTS", []) or [])
-    if any(_es_dominio_de_desarrollo(host) for host in hosts):
+    if any(_bajo_dominio(host, DOMINIO_PRODUCCION) for host in hosts):
+        return False
+    if any(_bajo_dominio(host, DOMINIO_SIIS_DESARROLLO) for host in hosts):
         return True
     return bool(settings.DEBUG) and "localhost" in hosts
 

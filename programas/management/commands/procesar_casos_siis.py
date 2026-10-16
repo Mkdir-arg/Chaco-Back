@@ -225,6 +225,9 @@ class Command(ComandoSiisBase):
         arranque = self._reloj()
 
         self.exigir_sin_corrida_viva(options)
+        # Con destino tabla no se llama a SIIS: el alta queda de este lado.
+        if options["destino"] != DESTINO_TABLA:
+            self.exigir_escritura_siis_permitida(options)
         self._avisar_ensayo(aplicar, "no valida, no aprueba y no envía. Agregá --aplicar.")
         # --solo-completos lee los catálogos de SIIS aunque sea un ensayo.
         if aplicar or options["solo_completos"]:
