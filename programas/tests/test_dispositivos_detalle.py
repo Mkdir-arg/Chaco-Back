@@ -14,7 +14,7 @@ Lo que se verifica, y por qué:
 
 import json
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest import mock
 
 from django.conf import settings
@@ -30,8 +30,8 @@ from programas.selectors.trayectoria import _fila
 from programas.services.detalle_dispositivo import (
     POR_PAGINA_ESTADIAS,
     estadias_del_dispositivo,
-    indicadores_de_plazas,
 )
+from programas.services.estadias import ingresar_persona
 from programas.services.ocupacion import Censo, Conteo, OcupacionDispositivo, OcupacionSector, ocupacion_de_plazas
 from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias
 
@@ -90,19 +90,33 @@ class UnSoloOrigenTests(BaseDetalle):
         )
 
     def test_la_franja_muestra_las_cifras_del_censo_y_ninguna_otra(self):
-        conteo = ocupacion_de_plazas(self.cis).de(self.cis).conteo
+        self.tipo.umbral_ocupacion_amarillo = 50
+        self.tipo.umbral_ocupacion_rojo = 90
+        self.tipo.save()
 
         respuesta = self.client.get(self.url)
 
-        self.assertEqual(respuesta.context["indicadores"], indicadores_de_plazas(conteo, tipo=self.tipo))
+        ocupacion = respuesta.context["indicadores"][0]
+        self.assertEqual((ocupacion["valor"], ocupacion["tono"]), ("50 %", "warning"))
+        self.assertContains(respuesta, "nodo-stat-tablero-valor", count=4)
+        self.assertContains(
+            respuesta,
+            "nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0 bg-warning-soft text-fg-warning",
+            count=1,
+        )
+        self.assertContains(
+            respuesta,
+            "nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0 bg-brand-soft text-fg-brand",
+            count=3,
+        )
         valores = {fila["etiqueta"]: fila["valor"] for fila in respuesta.context["indicadores"]}
         self.assertEqual(
             valores,
             {
                 "Ocupación": "50 %",
-                "Plazas operativas": conteo.operativas,
-                "Reservadas o prestadas": conteo.reservadas,
-                "Disponibles": conteo.disponibles,
+                "Plazas operativas": 2,
+                "Reservadas o prestadas": 1,
+                "Disponibles": 0,
             },
         )
         # El escenario del test: 3 plazas, 1 fuera de servicio, 1 ocupada, 1 reservada, ninguna libre.
@@ -394,6 +408,59 @@ class FiltrosDeEstadiasTests(BaseDetalle):
         Estadia.objects.filter(estado=Estadia.Estado.EGRESADA).delete()
         respuesta = self.client.get(self.url, {"estado": "EGRESADA"})
         self.assertContains(respuesta, "Ninguna estadía coincide con los filtros")
+
+
+class IdentidadDeEstadiasTests(BaseDetalle):
+    def setUp(self):
+        reloj = mock.patch("django.utils.timezone.now", return_value=timezone.make_aware(datetime(2026, 9, 8, 10)))
+        reloj.start()
+        self.addCleanup(reloj.stop)
+        super().setUp()
+        self.estadia = ingresar_persona(
+            dispositivo=self.cis, plaza=self.plaza, ciudadano=self.persona, usuario=self.operador_cis
+        )
+
+    def test_sin_ciudadano_ver_no_hay_identidad_en_la_fila_ni_en_los_modales(self):
+        # Tiene todas las capacidades operativas y asignación; solo falta ciudadano.ver.
+        self.client.force_login(self.operador_cis)
+        for parametro in (None, "egreso", "cambio"):
+            with self.subTest(modal=parametro):
+                datos = {"tab": "estadias"}
+                if parametro:
+                    datos[parametro] = self.estadia.pk
+                respuesta = self.client.get(self.url, datos)
+                self.assertContains(respuesta, "Persona alojada")
+                self.assertContains(respuesta, "Ingreso de Persona alojada")
+                for identidad in (self.persona.nombre, self.persona.apellido, self.persona.dni, "30.111.222"):
+                    self.assertNotContains(respuesta, identidad)
+                self.assertContains(respuesta, "Cambiar plaza")
+                self.assertContains(respuesta, "Registrar egreso")
+                self.assertNotContains(respuesta, "Ver estadía")
+                if parametro:
+                    self.assertContains(respuesta, f'aria-labelledby="modal-{parametro}-titulo"')
+
+    def test_con_ciudadano_ver_se_muestran_nombre_y_dni_sin_avatar(self):
+        for parametro in (None, "egreso", "cambio"):
+            with self.subTest(modal=parametro):
+                datos = {"tab": "estadias"}
+                if parametro:
+                    datos[parametro] = self.estadia.pk
+                respuesta = self.client.get(self.url, datos)
+                self.assertContains(respuesta, "Gómez, Ana")
+                self.assertContains(respuesta, "DNI 30.111.222")
+                self.assertContains(respuesta, "Acciones de estadía de Ana Gómez")
+                self.assertContains(respuesta, "Ingreso de Gómez, Ana")
+                if parametro == "egreso":
+                    self.assertContains(respuesta, "persona: 'Ana Gómez'")
+                if parametro == "cambio":
+                    self.assertContains(respuesta, self.persona.nombre_completo)
+                tabla = respuesta.content.decode().split('id="panel-estadias"', 1)[1].split("</table>", 1)[0]
+                self.assertNotIn("rounded-full", tabla)
+
+    def test_el_listado_conserva_el_metodo_de_permanencia_del_modelo(self):
+        [estadia] = estadias_del_dispositivo(self.cis)
+        self.assertTrue(callable(estadia.dias_de_permanencia))
+        self.assertEqual(estadia.dias_de_permanencia(), 0)
 
 
 class AccionesYAlcanceTests(BaseDetalle):

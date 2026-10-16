@@ -413,7 +413,9 @@ class AlcanceTests(BaseAuditoria):
         url = reverse("dispositivos:detalle", args=[self.cis.pk])
 
         self.client.force_login(self.operador_cis)
-        self.assertContains(self.client.get(url, {"tab": "historial"}), "Ingreso de Gómez, Ana")
+        respuesta = self.client.get(url, {"tab": "historial"})
+        self.assertContains(respuesta, "Ingreso de Persona alojada")
+        self.assertNotContains(respuesta, self.persona.apellido)
 
         self.client.force_login(self.operador_parador)
         self.assertEqual(self.client.get(url).status_code, 403)

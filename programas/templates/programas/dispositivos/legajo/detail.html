@@ -13,7 +13,7 @@
        modalCambio: {% if form_cambio %}true{% else %}false{% endif %},
        modalEdificio: {% if form_edificio %}true{% else %}false{% endif %},
        modalVincular: {% if form_vincular %}true{% else %}false{% endif %},
-       egreso: { url: '{{ url_egresar|escapejs }}', persona: '{{ estadia_egreso.ciudadano.nombre_completo|escapejs }}' }
+       egreso: { url: '{{ url_egresar|escapejs }}', persona: '{{ estadia_egreso.persona_visible|escapejs }}' }
      }"
      @becas-saved.window="modalEgreso=false; modalCambio=false; modalEdificio=false; modalVincular=false">
 
@@ -95,7 +95,7 @@
       </div>
       <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {% for indicador in indicadores %}
-        {% include "components/_stat_card.html" with etiqueta=indicador.etiqueta valor=indicador.valor icono=indicador.icono tono=indicador.tono nota=indicador.nota %}
+        {% include "components/_stat_card.html" with etiqueta=indicador.etiqueta valor=indicador.valor icono=indicador.icono tono=indicador.tono|default:"brand" nota=indicador.nota variante="tablero" %}
         {% endfor %}
       </div>
     </section>
@@ -224,19 +224,20 @@
               {% for estadia in estadias %}
               <tr class="hover:bg-secondary transition">
                 <td class="nodo-td">
-                  <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-full bg-brand-soft text-fg-brand flex items-center justify-center text-xs font-bold flex-shrink-0" aria-hidden="true">{{ estadia.ciudadano.nombre|slice:":1"|upper }}{{ estadia.ciudadano.apellido|slice:":1"|upper }}</div>
-                    <div class="min-w-0">
-                      <span class="font-medium text-heading">{{ estadia.ciudadano.apellido }}, {{ estadia.ciudadano.nombre }}</span>
-                      <span class="text-xs text-body-subtle block mt-px">DNI {{ estadia.ciudadano.dni|dni }}</span>
-                    </div>
+                  <div class="min-w-0">
+                    {% if puede_ver_ciudadano %}
+                    <span class="font-medium text-heading">{{ estadia.ciudadano.apellido }}, {{ estadia.ciudadano.nombre }}</span>
+                    <span class="text-xs text-body-subtle block mt-px">DNI {{ estadia.ciudadano.dni|dni }}</span>
+                    {% else %}
+                    <span class="font-medium text-heading">{{ estadia.persona_visible }}</span>
+                    {% endif %}
                   </div>
                 </td>
                 <td class="nodo-td whitespace-nowrap">{{ estadia.fecha_ingreso|date:"d/m/Y H:i" }}{% if estadia.fecha_egreso %}<span class="text-xs text-body-subtle block mt-px">Egreso {{ estadia.fecha_egreso|date:"d/m/Y H:i" }}</span>{% endif %}</td>
                 <td class="nodo-td">{% if estadia.plaza %}{{ estadia.plaza.sector.nombre }} · {{ estadia.plaza.codigo }}{% else %}<span class="text-body-subtle">Sin plaza</span>{% endif %}</td>
                 <td class="nodo-td"><span class="badge badge-dot badge-{{ estadia.tono }}">{{ estadia.estado_texto }}</span></td>
                 <td class="nodo-td text-right whitespace-nowrap">
-                  {% menu_fila id=estadia.pk etiqueta="Acciones de estadía de "|add:estadia.ciudadano.nombre_completo %}
+                  {% menu_fila id=estadia.pk etiqueta="Acciones de estadía de "|add:estadia.persona_visible %}
                     {% include "components/_menu_fila_item.html" with texto="Ver estadía" icono="fa-eye" url=estadia.url_ver only %}
                     {% if estadia.url_cambiar %}
                     {% include "components/_menu_fila_item.html" with texto="Cambiar plaza" icono="fa-right-left" url=estadia.url_cambiar motivo=estadia.motivo_cambiar only %}
@@ -285,7 +286,7 @@
         {% if infraestructura.edificios %}
         <div class="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
           {% for indicador in infraestructura.indicadores %}
-          {% include "components/_stat_card.html" with etiqueta=indicador.etiqueta valor=indicador.valor icono=indicador.icono tono=indicador.tono nota=indicador.nota %}
+          {% include "components/_stat_card.html" with etiqueta=indicador.etiqueta valor=indicador.valor icono=indicador.icono tono=indicador.tono|default:"brand" nota=indicador.nota variante="tablero" %}
           {% endfor %}
         </div>
 
@@ -438,7 +439,7 @@
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCambio=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-cambio-titulo">
-      {% include "programas/becas/_modal_header.html" with titulo="Cambiar de plaza" titulo_id="modal-cambio-titulo" subtitulo=estadia_cambio.ciudadano.nombre_completo icono="fa-right-left" cerrar="modalCambio=false" %}
+      {% include "programas/becas/_modal_header.html" with titulo="Cambiar de plaza" titulo_id="modal-cambio-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalCambio=false" %}
       <form method="post" action="{{ url_cambiar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="volver" value="dispositivo">
@@ -481,7 +482,7 @@
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
-            <p class="text-sm text-body-subtle">Ingreso {{ estadia_egreso.fecha_ingreso|date:'d/m/Y H:i' }}{% if estadia_egreso.plaza %} · plaza {{ estadia_egreso.plaza.codigo }}{% endif %} · {{ estadia_egreso.permanencia.days }} día{{ estadia_egreso.permanencia.days|pluralize }} de permanencia</p>
+            <p class="text-sm text-body-subtle">Ingreso {{ estadia_egreso.fecha_ingreso|date:'d/m/Y H:i' }}{% if estadia_egreso.plaza %} · plaza {{ estadia_egreso.plaza.codigo }}{% endif %} · {{ estadia_egreso.dias_de_permanencia }} día{{ estadia_egreso.dias_de_permanencia|pluralize }} de permanencia</p>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

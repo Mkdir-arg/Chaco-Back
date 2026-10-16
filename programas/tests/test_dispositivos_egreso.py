@@ -15,7 +15,7 @@ Lo que se verifica, y por qué:
 """
 
 import importlib
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest import mock
 
 from django.apps import apps
@@ -311,7 +311,7 @@ class EgresoPantallaTests(BaseEgreso):
     def test_la_solapa_estadias_ofrece_el_egreso_con_la_capacidad(self):
         respuesta = self._detalle(egreso=True)
 
-        self.assertContains(respuesta, "Acciones de estadía de Ana Gómez")
+        self.assertContains(respuesta, "Acciones de estadía de Persona alojada")
         self.assertContains(respuesta, 'aria-labelledby="modal-egreso-titulo"')
         self.assertContains(respuesta, self.url)
         self.assertContains(respuesta, "Alta")
@@ -343,9 +343,19 @@ class EgresoPantallaTests(BaseEgreso):
         self.assertNotContains(respuesta, self.url)
 
     def test_el_modal_muestra_la_permanencia_de_la_persona(self):
-        """Ingresó hace dos días (`BaseEgreso`): el modal lo dice antes de confirmar."""
+        """P4 y P7 cuentan cinco días de calendario aunque todavía no pasaron 120 horas."""
+        ingreso = timezone.make_aware(datetime(2026, 9, 3, 19, 40))
+        ahora = timezone.make_aware(datetime(2026, 9, 8, 10))
+        Estadia.objects.filter(pk=self.estadia.pk).update(fecha_ingreso=ingreso)
+        operador = self._operador(
+            "Con identidad", self.cis, ("dispositivo.ver", "dispositivo.egresar", "ciudadano.ver")
+        )
+        self.cliente.force_login(operador)
 
-        self.assertContains(self._detalle(egreso=True), "2 días de permanencia")
+        with mock.patch("django.utils.timezone.now", return_value=ahora):
+            self.assertContains(self._detalle(egreso=True), "5 días de permanencia")
+            p7 = self.cliente.get(reverse("dispositivos:estadia_detalle", args=[self.cis.pk, self.estadia.pk]))
+        self.assertContains(p7, "5 días de permanencia")
 
     def test_la_ruta_vieja_de_personas_alojadas_lleva_a_la_solapa(self):
         respuesta = self.cliente.get(reverse("dispositivos:estadias", args=[self.cis.pk]))
