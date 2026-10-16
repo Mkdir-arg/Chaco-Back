@@ -66,6 +66,8 @@ desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los 
   sin envío, Guardar conserva `btn-brand`. Campos en `sm:grid-cols-2`, nombre y textarea
   de ancho completo mediante `wrapper_class="sm:col-span-2"` del campo canónico.
   Evidencia: `programas/templates/programas/dispositivos/legajo/form.html` (P3).
+  Los asteriscos marcan requisitos para validar (`marca_requerido`, sin cambiar `required`); la bajada lo explica y el borrador admite incompletos.
+  La coincidencia de nombre/localidad confirma con `ModernModal` canónico (`warning`, botón de marca); un error de búsqueda avisa con `window.toast`.
 
 - Campos agrupados: varios `{% for %}` sobre subconjuntos del form dentro de bloques con
   `h2 text-heading font-bold` + `border-t border-light pt-4`.
@@ -104,10 +106,9 @@ desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los 
 - Resolver reglas de negocio o permisos en el template.
 - `{{ form.non_field_errors }}` escrito a mano: la pieza es `components/_form_errores.html`.
 
-## Deuda conocida de la golden
+## Alcance de la golden
 
-El include de campo todavía no emite `aria-describedby` / `aria-invalid` (FE-08 cerró la
-otra mitad: los errores generales ya salen de `components/_form_errores.html`).
+El include de campo emite `aria-describedby` / `aria-invalid` mediante `campo_control`; el handler AJAX mantiene ese contrato al recibir un 400.
 `user/_alta_rapida_modal.html` que la golden incluye es **de dominio**: no se copia.
 
 ## Checklist (la usa el revisor)

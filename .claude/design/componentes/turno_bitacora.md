@@ -33,6 +33,8 @@ con origen automático: la vista pasa `automatica=True` y no ofrece «Corregir»
 La pantalla lo prepara solo para entradas corregibles y con capacidad y alcance; abre
 el modal precargado con `?corregir=<id>` sin mutar nada. Sin el parámetro, el HTML es idéntico.
 En P10 la corrección vive en cada entrada, no en la tarjeta del turno.
+En P10 el hueco sin turno con ingresos, egresos o descuadre usa una tarjeta de solo lectura, ordenada por inicio, sin acciones y con badge neutro «Cerrado / En curso / Por venir»; sin turnos se conserva el aviso del día.
+El modal muestra «Activo» también al crear: `crear_turno(activo=True)` respeta el switch y solo exige no superponer turnos activos.
 
 ## Quién decide qué
 

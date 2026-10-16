@@ -379,7 +379,9 @@ class CorregirTests(BasePantalla):
 
 class TurnosTests(BasePantalla):
     def _datos(self, **extra):
-        datos = {"nombre": "Guardia", "hora_desde": "08:00", "hora_hasta": "08:00", "orden": "4"}
+        # `activo` va como lo manda el modal (el switch arranca tildado): desde que
+        # `crear_turno` lo honra, un alta sin el campo da de alta un turno dado de baja.
+        datos = {"nombre": "Guardia", "hora_desde": "08:00", "hora_hasta": "08:00", "orden": "4", "activo": "on"}
         datos.update(extra)
         return datos
 
@@ -407,6 +409,42 @@ class TurnosTests(BasePantalla):
         self.assertEqual(respuesta.status_code, 200, respuesta.content)
         self.noche.refresh_from_db()
         self.assertFalse(self.noche.activo, "Sin «activo» tildado, la edición lo da de baja")
+
+    def test_el_alta_respeta_el_interruptor_activo(self):
+        """El switch «Activo» lo honra también el alta, no solo la edición.
+
+        Hasta este cambio `crear_turno` no recibía `activo`: el modal mandaba el campo y
+        el servicio lo descartaba, así que no había forma de cargar la grilla de un turno
+        que todavía no rige. Un turno dado de baja tampoco tiene que respetar la regla de
+        superposición: la regla es sobre los activos.
+        """
+
+        sin_turnos = self._dispositivo("CIS-6", "CIS N.º 6")
+        usuario = self._usuario("Editor CIS 6", sin_turnos)
+        self.client.force_login(usuario)
+        with _reloj():
+            respuesta = self.client.post(
+                reverse("dispositivos:bitacora_turnos", args=[sin_turnos.pk]),
+                self._datos(activo=""),
+                **AJAX,
+            )
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertFalse(Turno.objects.get(dispositivo=sin_turnos, nombre="Guardia").activo)
+
+    def test_el_alta_tildada_sigue_creando_el_turno_activo(self):
+        """El otro lado del interruptor: lo que manda el modal por omisión."""
+
+        sin_turnos = self._dispositivo("CIS-7", "CIS N.º 7")
+        usuario = self._usuario("Editor CIS 7", sin_turnos)
+        self.client.force_login(usuario)
+        with _reloj():
+            respuesta = self.client.post(
+                reverse("dispositivos:bitacora_turnos", args=[sin_turnos.pk]), self._datos(), **AJAX
+            )
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertTrue(Turno.objects.get(dispositivo=sin_turnos, nombre="Guardia").activo)
 
     def test_la_superposicion_muestra_el_error_del_servicio(self):
         respuesta = self._post("bitacora_turnos", self._datos(hora_desde="12:00", hora_hasta="15:00"))
@@ -720,6 +758,82 @@ class TurnoDadoDeBajaTests(BasePantalla):
 
         self.assertIn("De la mañana.", html)
         self.assertIn("Turno Mañana · entradas · no es el turno en curso (ahora, Tarde)", html)
+
+
+class HuecoSinTurnoTests(BasePantalla):
+    """TC-696-09 · Un tramo del día que ningún turno cubre.
+
+    Con Mañana 06–12 y Tarde 14–22 el día operativo deja un hueco de 12:00 a 14:00. Un
+    ingreso a las 13:00 cae ahí: el censo lo cuenta —entra en «Ingresos del día»— y hasta
+    este cambio **ninguna tarjeta lo mostraba**, así que el total del día crecía sin que
+    nada dijera de dónde. La tarjeta del hueco es de solo lectura: no se le cargan
+    novedades (`anotar_en_bitacora` no escribe sin turno) y no se puede elegir.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.hueco_disp = self._dispositivo("CIS-8", "CIS N.º 8")
+        Turno.objects.create(dispositivo=self.hueco_disp, nombre="Mañana", hora_desde=time(6), hora_hasta=time(12))
+        Turno.objects.create(dispositivo=self.hueco_disp, nombre="Tarde", hora_desde=time(14), hora_hasta=time(22))
+        self.sector_hueco = Sector.objects.create(dispositivo=self.hueco_disp, nombre="Único", capacidad=2)
+        self.plaza_hueco = Plaza.objects.create(sector=self.sector_hueco, codigo="H-01")
+        self.usuario = self._usuario("Operador CIS 8", self.hueco_disp)
+        self.url_hueco = reverse("dispositivos:bitacora", args=[self.hueco_disp.pk])
+        # Una persona sin estadía previa: Ana y Juan ya están alojados en el CIS.
+        self.rosa = Ciudadano.objects.create(dni="30555666", nombre="Rosa", apellido="Díaz")
+
+    def _ingreso_en_el_hueco(self):
+        momento = _local(MIERCOLES, 13)
+        with _reloj(momento):
+            ingresar_persona(
+                ciudadano=self.rosa,
+                dispositivo=self.hueco_disp,
+                plaza=self.plaza_hueco,
+                usuario=self.usuario,
+                fecha_ingreso=momento,
+            )
+        # El movimiento del hueco no deja novedad: no hay turno al que colgarla.
+        self.assertFalse(EntradaBitacora.objects.filter(dispositivo=self.hueco_disp).exists())
+
+    def _tarjetas(self):
+        self.client.force_login(self.usuario)
+        with _reloj():
+            respuesta = self.client.get(self.url_hueco)
+        return respuesta, respuesta.context["tarjetas"]
+
+    def test_el_movimiento_del_hueco_se_ve_en_su_tarjeta_y_no_solo_en_el_total(self):
+        self._ingreso_en_el_hueco()
+
+        respuesta, tarjetas = self._tarjetas()
+
+        hueco = [t for t in tarjetas if t["nombre"] == "Sin turno"]
+        self.assertEqual(len(hueco), 1, [t["nombre"] for t in tarjetas])
+        self.assertEqual(hueco[0]["horario"], "12:00–14:00")
+        self.assertEqual(hueco[0]["estado"], "Cerrado")
+        self.assertEqual(hueco[0]["acciones"], [], "el hueco es de solo lectura")
+        # Su línea del censo: entró una persona, así que cierra con una más de las que abrió.
+        self.assertIn("0 al inicio · 1 al cierre", hueco[0]["detalle"])
+        self.assertIn("Ningún turno cubre este tramo", hueco[0]["detalle"])
+        # Y va en el orden del día, entre los dos turnos que lo dejaron.
+        self.assertEqual([t["nombre"] for t in tarjetas], ["Mañana", "Sin turno", "Tarde"])
+        self.assertContains(respuesta, "Ningún turno cubre este tramo")
+
+    def test_sin_movimientos_el_hueco_de_todos_los_dias_no_ensucia_la_grilla(self):
+        """El hueco vacío no agrega nada y taparía los turnos de verdad."""
+
+        _respuesta, tarjetas = self._tarjetas()
+
+        self.assertEqual([t["nombre"] for t in tarjetas], ["Mañana", "Tarde"])
+
+    def test_el_hueco_no_se_puede_elegir_ni_ofrece_cargar_novedades(self):
+        self._ingreso_en_el_hueco()
+        self.client.force_login(self.usuario)
+        with _reloj():
+            respuesta = self.client.get(self.url_hueco)
+
+        # Lo que se lista sigue siendo el turno en curso, y las acciones son suyas.
+        self.assertEqual(respuesta.context["turno"].nombre, "Tarde")
+        self.assertNotIn("Sin turno · entradas", self._html(respuesta))
 
 
 class FechaYEleccionTests(BasePantalla):

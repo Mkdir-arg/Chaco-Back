@@ -27,6 +27,7 @@ from programas.forms_dispositivos import (
     VincularEdificioForm,
 )
 from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los importan otras vistas)
+    DispositivoAltaPermissionMixin,
     DispositivoObjectPermissionMixin,
     DispositivoProgramaPermissionMixin,
 )
@@ -60,6 +61,7 @@ from programas.services.dispositivos import (
     enviar_desde_formulario,
     inactivar_dispositivo,
     observar_dispositivo,
+    puede_configurar_dispositivos,
     puede_en_programa_dispositivos,
     puede_enviar_desde_formulario,
     puede_operar_dispositivo,
@@ -130,10 +132,16 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         context["tipos"] = TipoDispositivo.objects.filter(activo=True).order_by("nombre")
         context["tipo_actual"] = filtros["tipo"]
         context["localidad_actual"] = filtros["localidad"]
-        puede_crear = puede_en_programa_dispositivos(self.request.user, "dispositivo.crear")
+        # El alta exige la capacidad **y** el alcance de admin del programa, igual que la
+        # vista de alta (`DispositivoAltaPermissionMixin`): una institución nueva no tiene
+        # asignaciones, así que quien no tiene alcance total guardaba el borrador y recibía
+        # 403 en su propio legajo. El botón no se ofrece a quien el servidor va a rechazar.
+        puede_crear = puede_en_programa_dispositivos(
+            self.request.user, "dispositivo.crear"
+        ) and puede_configurar_dispositivos(self.request.user)
         context["puede_crear"] = puede_crear
-        # Sin `dispositivo.crear` el estado vacío no ofrece el alta: el botón llevaría a un
-        # 403, y el alcance vacío de quien solo consulta no se resuelve dando de alta.
+        # Sin el alta el estado vacío no la ofrece: el botón llevaría a un 403, y el alcance
+        # vacío de quien solo consulta no se resuelve dando de alta.
         context["url_crear"] = reverse("dispositivos:crear") if puede_crear else ""
         context["url_sin_filtros"] = reverse("dispositivos:lista")
         # La exportación lleva los filtros y **no** la página: exporta el padrón filtrado
@@ -160,7 +168,7 @@ class FormularioInstitucionMixin:
         return context
 
 
-class DispositivoCreateView(FormularioInstitucionMixin, DispositivoProgramaPermissionMixin, CreateView):
+class DispositivoCreateView(FormularioInstitucionMixin, DispositivoAltaPermissionMixin, CreateView):
     capacidad_requerida = "dispositivo.crear"
     model = Dispositivo
     form_class = DispositivoForm
@@ -195,7 +203,10 @@ class DispositivoCreateView(FormularioInstitucionMixin, DispositivoProgramaPermi
         return reverse("dispositivos:detalle", args=[self.object.pk])
 
 
-class DispositivoDuplicateSearchView(DispositivoProgramaPermissionMixin, View):
+class DispositivoDuplicateSearchView(DispositivoAltaPermissionMixin, View):
+    """El anti-duplicado del alta (P3). Mismo alcance que el alta: solo la sirve a quien
+    puede dar de alta, para no dejar abierto un oráculo de códigos a quien no."""
+
     capacidad_requerida = "dispositivo.crear"
 
     def get(self, request):

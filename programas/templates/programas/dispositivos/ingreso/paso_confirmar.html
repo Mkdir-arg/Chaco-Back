@@ -36,7 +36,7 @@
       <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-sm text-body">{{ resumen.persona.domicilio }}</dd></div>
       {% endif %}
       <div><dt class="text-xs font-semibold uppercase text-body-subtle">Dispositivo</dt><dd class="mt-1 text-sm text-body">{{ dispositivo.nombre }}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Plaza</dt><dd class="mt-1 text-sm text-body">{% if resumen.plaza %}{{ resumen.plaza.codigo }} · {{ resumen.plaza.sector.nombre }}{% else %}Sin plaza asignada{% endif %}</dd></div>
+      <div><dt class="text-xs font-semibold uppercase text-body-subtle">Plaza</dt><dd class="mt-1 text-sm text-body">{% if resumen.plaza %}{{ resumen.plaza.sector.nombre }} · {{ resumen.plaza.codigo }}{% else %}Sin plaza asignada{% endif %}</dd></div>
     </dl>
     <p class="mt-3 text-xs text-body-subtle">Al confirmar se registra la estadía{% if not resumen.persona.en_legajo %} y se da de alta a la persona en el Legajo Ciudadano con los datos del Registro de Personas{% endif %}.</p>
   </div>

@@ -87,19 +87,89 @@
     estado.contenido.forEach(function (n) { principal.appendChild(n); });
   }
 
+  // Los controles del campo `nombre` dentro del form. Un grupo de radios o de
+  // checkboxes llega como RadioNodeList: son varios controles del mismo campo.
+  function controlesDe(form, campo) {
+    var nodos = form.elements ? form.elements[campo] : null;
+    if (!nodos) return [];
+    if (nodos.tagName) return [nodos];
+    return Array.prototype.slice.call(nodos);
+  }
+
+  // `aria-describedby` apunta a un id, así que el `<p>` del error necesita uno.
+  // `components/_field.html` ya lo escribe (`<auto_id>-error`); los modales que
+  // dibujan el campo a mano no, y ahí se deriva del control con la misma forma,
+  // para no tener que tocar cada pantalla.
+  function idDelError(box, controles) {
+    if (box.id) return box.id;
+    var base = controles[0] && controles[0].id;
+    if (!base) return '';
+    box.id = base + '-error';
+    return box.id;
+  }
+
+  // `aria-describedby` es una lista de ids: se agrega y se saca el del error sin
+  // pisar el de la ayuda del campo, que `components/_field.html` ya puso.
+  function describedby(control) {
+    return (control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+  }
+
+  function marcarInvalido(control, errorId) {
+    control.setAttribute('aria-invalid', 'true');
+    if (!errorId) return;
+    var ids = describedby(control);
+    if (ids.indexOf(errorId) !== -1) return;
+    ids.push(errorId);
+    control.setAttribute('aria-describedby', ids.join(' '));
+  }
+
+  function marcarValido(control, errorId) {
+    control.removeAttribute('aria-invalid');
+    var ids = describedby(control).filter(function (id) { return id !== errorId; });
+    if (ids.length) control.setAttribute('aria-describedby', ids.join(' '));
+    else control.removeAttribute('aria-describedby');
+  }
+
+  // Vacía un `<p data-error>` y desmarca sus controles. Es la misma operación al
+  // reenviar el formulario y al corregir el campo que falló.
+  function limpiarError(form, box) {
+    box.textContent = '';
+    box.classList.add('hidden');
+    controlesDe(form, box.getAttribute('data-error')).forEach(function (control) {
+      marcarValido(control, box.id);
+    });
+  }
+
+  function limpiarErrores(form) {
+    form.querySelectorAll('[data-error]').forEach(function (box) { limpiarError(form, box); });
+  }
+
   // 400: cada error bajo su campo y un solo aviso de resumen. Lo que no tiene
   // lugar inline en el form viaja en ese mismo aviso para no perderse.
+  // El contrato de accesibilidad es el de `components/_field.html`: el control
+  // lleva `aria-invalid="true"` y el id del `<p>` del error en `aria-describedby`,
+  // y el foco va al primer campo que falló, no al `<body>`.
   function mostrarErrores(form, errores) {
     var sueltos = [];
     Object.keys(errores).forEach(function (campo) {
       var texto = (errores[campo] || []).join(' ');
       var box = form.querySelector('[data-error="' + campo + '"]');
-      if (box) { box.textContent = texto; box.classList.remove('hidden'); }
-      else if (texto) sueltos.push(texto);
+      if (!box) { if (texto) sueltos.push(texto); return; }
+      box.textContent = texto;
+      box.classList.remove('hidden');
+      if (!texto) return;
+      var controles = controlesDe(form, campo);
+      var errorId = idDelError(box, controles);
+      controles.forEach(function (control) { marcarInvalido(control, errorId); });
     });
     aviso('error', sueltos.length
       ? 'Revisá los datos del formulario: ' + sueltos.join(' ')
       : 'Revisá los datos del formulario.');
+    // El primero en orden del documento, que es el que la persona lee primero. El
+    // error general (`__all__`) no tiene control: ahí no se mueve el foco y lo
+    // anuncia su `role="alert"`.
+    var primero = form.querySelector('[aria-invalid="true"]');
+    if (primero && typeof primero.focus === 'function') primero.focus();
   }
 
   // 409: otra asignación en las mismas fechas. Se reenvía con
@@ -141,9 +211,7 @@
     e.preventDefault();
     if (form.__becasAjax) return; // ya hay un envío en curso
     cerrarUltimoError();
-    form.querySelectorAll('[data-error]').forEach(function (el) {
-      el.textContent = ''; el.classList.add('hidden');
-    });
+    limpiarErrores(form);
     var body = new FormData(form);
     // La confirmación de solapamiento vale para un solo envío.
     var auto = form.querySelector('input[data-confirmacion-auto]');
@@ -194,6 +262,21 @@
       if (!navegando) liberar(form);
     });
   });
+
+  // Al corregir el campo, su error se va: el mensaje de un valor que ya se cambió
+  // miente, y el `aria-invalid` que queda puesto hace que el lector lo siga leyendo
+  // como inválido. Se escuchan los dos eventos porque `input` no lo emiten todos los
+  // `<select>` viejos ni los `<input type="file">`.
+  function limpiarAlCorregir(e) {
+    var control = e.target;
+    if (!control || !control.name || !control.form) return;
+    var form = control.form;
+    if (!form.hasAttribute('data-ajax')) return;
+    var box = form.querySelector('[data-error="' + control.name + '"]');
+    if (box && box.textContent) limpiarError(form, box);
+  }
+  document.addEventListener('input', limpiarAlCorregir);
+  document.addEventListener('change', limpiarAlCorregir);
 
   // Volver con «atrás» (bfcache) después de navegar: los botones como estaban.
   window.addEventListener('pageshow', function (e) {

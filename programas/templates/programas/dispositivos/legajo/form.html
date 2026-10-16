@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load static nodo_ui %}
+{% load nodo_ui %}
 {% block title %}Dispositivos · {% if form.instance.pk %}Editar institución{% else %}Nueva institución{% endif %}{% endblock %}
 
 {% block main-content %}
@@ -7,7 +7,7 @@
   {% if form.instance.pk %}{% url 'dispositivos:detalle' form.instance.pk as url_volver %}{% else %}{% url 'dispositivos:lista' as url_volver %}{% endif %}
   {% with titulo_pagina=form.instance.pk|yesno:"Editar institución,Nueva institución" %}
   {% page_header titulo=titulo_pagina eyebrow="Legajo institucional" volver_url=url_volver volver_label="Instituciones" %}
-    {% bajada %}{% if form.instance.pk %}Actualizá los datos del legajo institucional.{% else %}Se guarda como borrador. El borrador admite completar los datos operativos más adelante.{% endif %}{% endbajada %}
+    {% bajada %}{% if form.instance.pk %}Actualizá los datos del legajo institucional.{% else %}Se guarda como borrador.{% endif %} Para enviar a validación hacen falta los campos marcados con <span class="text-fg-danger">*</span>.{% endbajada %}
   {% endpage_header %}
   {% endwith %}
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -96,7 +96,7 @@
 }());
 </script>
 {% if not form.instance.pk %}
-<script src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
+{% comment %}La confirmación del duplicado va por el ModernModal del shell y el aviso de error por window.toast, como P4 y P5: ni Swal.fire propio ni SweetAlert cargado acá.{% endcomment %}
 <script>
 (function () {
   const codigo = document.getElementById('id_codigo');
@@ -162,24 +162,36 @@
         return;
       }
       if (!data.coincidencias.length) { enviar(); return; }
-      Swal.fire({
-        title: '¿Confirmás el alta?',
-        text: 'Hay una institución con nombre y localidad coincidentes.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, es diferente',
-        cancelButtonText: 'Revisar datos',
-      }).then(function (result) {
-        if (!result.isConfirmed) return;
-        enviar();
-      });
+      confirmarCoincidencias();
     }).catch(function (error) {
       if (error.name !== 'AbortError') {
         console.error('No se pudo verificar duplicados.', error);
-        Swal.fire('No se pudo verificar duplicados', 'Reintentá antes de guardar.', 'error');
+        if (typeof window.toast === 'function') {
+          window.toast('error', 'No se pudo verificar duplicados. Reintentá antes de guardar.');
+        }
       }
     });
   });
+
+  // Coincidencia blanda (nombre y localidad): avisa y deja seguir. No es destructiva,
+  // así que el modal va en `warning` con el botón de marca. Sin ModernModal —que el
+  // shell siempre carga— no se envía a ciegas: el aviso lateral ya muestra cuáles son.
+  function confirmarCoincidencias() {
+    if (!window.ModernModal || typeof window.ModernModal.show !== 'function') {
+      aviso.scrollIntoView({block: 'center'});
+      aviso.focus({preventScroll: true});
+      return;
+    }
+    window.ModernModal.show({
+      type: 'confirm',
+      icon: 'warning',
+      title: '¿Confirmás el alta?',
+      message: 'Hay una institución con nombre y localidad coincidentes.',
+      confirmText: 'Sí, es diferente',
+      cancelText: 'Revisar datos',
+      onConfirm: enviar,
+    });
+  }
   function enviar() {
     enviando = true;
     formulario.requestSubmit(accion);

@@ -719,6 +719,8 @@ class DispositivoForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        from programas.services.dispositivos import campos_para_validacion
+
         super().__init__(*args, **kwargs)
         tipos = TipoDispositivo.objects.all()
         if self.instance.pk and self.instance.tipo_id:
@@ -726,6 +728,12 @@ class DispositivoForm(forms.ModelForm):
         else:
             tipos = tipos.filter(activo=True)
         self.fields["tipo"].queryset = tipos.order_by("nombre")
+        # El asterisco de P3 marca lo que hace falta para **enviar a validación**, no para
+        # guardar: el borrador se guarda incompleto a propósito y la bajada lo dice. Se
+        # marca el campo sin tocar `required`, así que la validación no cambia (lo exige
+        # `enviar_a_validacion`, con la misma lista). Lo dibuja `components/_field.html`.
+        for nombre in campos_para_validacion():
+            self.fields[nombre].marca_requerido = True
 
     def clean_codigo(self):
         codigo = normalizar_codigo_institucional(self.cleaned_data["codigo"])

@@ -248,6 +248,7 @@ class TurnoGuardarView(_BitacoraPostView):
                 hora_desde=datos["hora_desde"],
                 hora_hasta=datos["hora_hasta"],
                 orden=orden,
+                activo=datos["activo"],
             )
             return
         editar_turno(

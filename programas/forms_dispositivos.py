@@ -446,6 +446,11 @@ class TurnoForm(forms.Form):
     activo = forms.BooleanField(
         label="Activo",
         required=False,
+        # Tildado de fábrica: el alta de un turno es, por abrumadora mayoría, un turno que
+        # empieza a regir. Lo pide el render sin JS —Alpine lo pisa al elegir un turno de la
+        # lista—, y desde que `crear_turno` honra el interruptor un alta sin el campo crearía
+        # un turno dado de baja sin que nadie lo haya pedido.
+        initial=True,
         widget=SwitchInput(attrs={"x-model": "turnoForm.activo"}),
     )
 

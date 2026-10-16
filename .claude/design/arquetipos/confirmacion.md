@@ -56,6 +56,8 @@ El token sale del `[name=csrfmiddlewaretoken]` de la página o de la cookie `csr
 - **400 `{ok:false, errors}`** → cada error va a su `<p data-error="campo">` (el general a
   `data-error="__all__"` si el form lo tiene) y se emite **un** aviso `error` «Revisá los datos
   del formulario.»; solo lo que no tiene lugar inline se suma al aviso.
+  El control lleva `aria-invalid` y el id del error en `aria-describedby` (derivado del control si el `<p>` no tiene id); foco al primer campo con error.
+  Al corregir (`input`/`change`) o reenviar se limpia el error y su ARIA, conservando la ayuda.
 - **409 `confirm_required`** → abre `ModernModal` `type:'confirm'`, `icon:'warning'`, título
   «¿Asignar igual?» y botón «Sí, asignar igual» (marca, no destructivo), y reenvía **una sola
   vez** con `confirmar_solapamiento=1` vía `requestSubmit()` (el campo se agrega para ese envío

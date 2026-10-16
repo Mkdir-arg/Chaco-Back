@@ -226,6 +226,68 @@ class EyebrowConElTurnoTests(BaseIngreso):
         )
 
 
+class AvisoDeOcupacionCriticaTests(BaseIngreso):
+    """Mockup #p6: «Ocupación crítica (88 %). El sistema no bloquea el ingreso.»
+
+    El nivel y el porcentaje salen de `services.ocupacion.tension_de_ocupacion` —la misma
+    fuente que P2 y P4— y con los umbrales **del tipo**, no con el corte general: dos tipos
+    de dispositivo con la misma ocupación no están igual de exigidos. El aviso no bloquea
+    nada: «Continuar» sigue ahí.
+    """
+
+    def _paso_dos(self):
+        self.client.post(self.url_persona, {"dni": self.persona.dni})
+        return self.client.get(self.url_plaza)
+
+    def test_con_la_ocupacion_por_encima_del_umbral_rojo_del_tipo_avisa_y_no_bloquea(self):
+        # Una de las dos plazas ocupada: 50 %. El tipo marca rojo desde 40 %.
+        self.tipo.umbral_ocupacion_amarillo = 30
+        self.tipo.umbral_ocupacion_rojo = 40
+        self.tipo.save()
+        ingresar_persona(
+            ciudadano=self.otra_persona, dispositivo=self.cis, plaza=self.otra_plaza, usuario=self.operador_cis
+        )
+
+        respuesta = self._paso_dos()
+
+        self.assertEqual(respuesta.context["aviso_ocupacion"], "Ocupación crítica (50 %).")
+        self.assertContains(respuesta, "Ocupación crítica (50 %).")
+        self.assertContains(respuesta, "El sistema no bloquea el ingreso.")
+        self.assertContains(respuesta, "Continuar")
+
+    def test_con_los_umbrales_de_fabrica_la_misma_ocupacion_no_avisa(self):
+        """El mismo 50 % con el corte de fábrica (rojo al 80 %) no es crítico."""
+
+        ingresar_persona(
+            ciudadano=self.otra_persona, dispositivo=self.cis, plaza=self.otra_plaza, usuario=self.operador_cis
+        )
+
+        respuesta = self._paso_dos()
+
+        self.assertEqual(respuesta.context["aviso_ocupacion"], "")
+        self.assertNotContains(respuesta, "El sistema no bloquea el ingreso.")
+
+    def test_un_dispositivo_sin_plazas_no_inventa_un_porcentaje(self):
+        Plaza.objects.filter(sector__dispositivo=self.cis).delete()
+
+        respuesta = self._paso_dos()
+
+        self.assertEqual(respuesta.context["aviso_ocupacion"], "")
+        self.assertNotContains(respuesta, "Ocupación")
+
+
+class ResumenDelPasoFinalTests(BaseIngreso):
+    def test_la_plaza_se_lee_de_lo_general_a_lo_particular_como_en_p4(self):
+        """«Pabellón B · B-03», no «B-03 · Pabellón B»: el orden del mockup y el de P4 y P5."""
+
+        self._hasta_la_plaza(self.persona, self.plaza)
+
+        respuesta = self.client.get(self.url_confirmar)
+
+        self.assertContains(respuesta, f"{self.sector.nombre} · {self.plaza.codigo}")
+        self.assertNotContains(respuesta, f"{self.plaza.codigo} · {self.sector.nombre}")
+
+
 class VerificacionEnLaRedTests(BaseIngreso):
     def test_fuera_del_alcance_solo_se_sabe_que_esta_alojada(self):
         # Un código que el token CSRF, aleatorio, no pueda reproducir por azar.

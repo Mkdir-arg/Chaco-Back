@@ -87,6 +87,8 @@ Consumidor: Observar y Rechazar en P4
 (`programas/templates/programas/dispositivos/legajo/detail.html`) envían con `data-ajax`:
 éxito `{ok, redirect}`, error HTTP 400 `{ok:false, errors}` con `motivo` o `__all__`.
 Sin JS conservan el POST clásico con CSRF y mensajes al volver al detalle.
+El 400 AJAX deja `aria-invalid`, suma el id del error a `aria-describedby` (derivado del control si el `<p>` no lo trae) y enfoca el primer campo con error.
+Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin quitar la ayuda.
 
 ## Variantes permitidas
 
