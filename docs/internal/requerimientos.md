@@ -447,6 +447,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 319 | Constructor de formularios: prueba de punta a punta y cobertura que pedía QA (#350, #351) | Becas · constructor, link público y revisión (tests) | `#requisitos` `#rbac` `#performance` `#gestion` | QA — issues #350 y #351 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 320 | «Publish main» vuelve a publicar: los dos scripts de la propuesta pasan Ruff estilo | Transversal · CI y release | `#infra` `#gestion` | Bloqueo del release | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 321 | Personas y red: intervalos de alojamiento, destino obligatorio y alcance de admisión | Dispositivos · personas y red | `#datos` `#rbac` `#performance` | PM — auditoría independiente, carril G1 | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 322 | Auditoría final del relevamiento edilicio | Dispositivos · P2/P4/P19/P21 y API de campo | `#relevamientos` `#ui` `#api` `#performance` | PM / juez — carril G3 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -41905,5 +41906,153 @@ Entrada nueva por la auditoría independiente y las decisiones del PM del 16/10/
 Complementa los Cambios 262, 269, 272 y 290; no reescribe sus entradas.
 
 **17/10/2026 — Corrección de revisión G1:** se reemplaza la regla y la mutación de solapamiento del egreso registradas arriba: egresar solo acorta el intervalo y debe liberar la clave aun con historia superpuesta; el control permanece en el ingreso (no hay operaciones que editen `fecha_ingreso`). `exclude(pk=excepto)` se aplica solo si `excepto is not None`. Regresión con filas creadas directamente: Parador `[d−10, d−2)` y CIS `[d−5, ∞)` → egreso hoy, clave liberada y nuevo ingreso permitido; mutación verificada: reponer el chequeo produce `ValidationError`, restaurar desde copia devuelve verde. Sin cambios de UI, apartamientos ni pendientes nuevos.
+
+---
+
+---
+
+# Cambio 322 — Auditoría final del relevamiento edilicio
+
+🟢 **HECHO — 17/10/2026** · Carril G3 del MVP de Dispositivos v2. Numeración reservada al juez.
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamientos edilicios · P2/P4/P19/P21 |
+| **Etiquetas** | `#relevamientos` `#ui` `#api` `#performance` |
+| **Solicitante** | PM / juez — encargo del carril G3 en sesión |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | Sin issue nuevo · Épica #127 |
+| **Partes afectadas** | Backoffice · Servidor/API de campo · gate de contratos del CI |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Que se vea igual al mockup y mantenga la lógica». Cerrar los ocho hallazgos menores de la
+última auditoría del relevamiento, conservando el contrato de campo y el alcance institucional.
+
+## Alcance acordado
+
+Gate de contrato de campo, fotos posteriores a revisión, informe de cancelados, marca de revisión
+en P19, guarda al desvincular el último dispositivo, prioridad de Crítico, fecha de fotos en curso
+y orden de campos de Asignar. Sin cambios de roles ni de `legajo/detail.html`, reservado a otro carril.
+
+## Decisiones tomadas
+
+1. El contrato `programas.tests.test_api_campo_inspecciones` integra el paso Tests de contrato
+   del job Contratos de API. Un test exige su presencia.
+2. **Decisión PM: rechazar** fotos nuevas si `revisado_en` está cargado: 409 `ESTADO_NO_ADMITE`,
+   mediante el conflicto de estado existente. El reenvío de la misma foto, agente y relevamiento
+   conserva su respuesta idempotente; se resuelve antes de la guarda y no agrega foto ni traza.
+3. Cancelados ofrece **Ver informe**, con el mismo alcance de `inspecciones_visibles` y el retorno
+   a la solapa. No habilita reasignar, cancelar ni revisar un cancelado.
+4. P19 recibe el badge **Revisado**, tono `success`, igual a P21. Como la línea de tiempo admite
+   un solo badge, la criticidad se conserva en el detalle y en el tono del punto; revisor y fecha/hora
+   se agregan al metadato. `select_related("revisado_por")` evita consultas por fila.
+5. Un edificio compartido puede perder un vínculo si conserva otro dispositivo. Si quedaría sin
+   dispositivos y tiene una inspección ASIGNADA, se rechaza con `ValidationError` en `__all__`:
+   «El edificio tiene un relevamiento en curso: no puede quedar sin dispositivos». La comprobación
+   y la desvinculación usan una transacción y el bloqueo de la fila del edificio.
+6. **Decisión PM: Crítico prevalece** si la última realizada es Alta, aun con relevamientos vencidos
+   del mismo edificio o de otro del dispositivo. Se muestra Crítico, tono `danger`. Vencido conserva
+   prioridad sobre Baja, Media y sin relevar. Esta decisión sustituye la precedencia de Vencido
+   registrada en el Cambio 308; se actualiza su test de fidelidad FI. P2, P4 y P19 comparten el servicio.
+7. Las fotos de una inspección en curso conservan su fecha de carga. Cuando hay realización se sigue
+   usando esa fecha para rotular la tanda de P19. Se actualiza también la expectativa anterior del
+   test de fidelidad FB y la ficha de galería, que exigían omitir la fecha en curso.
+8. El modal sigue el orden **Edificio → Agente territorial → Vence → Indicaciones**, con los mismos
+   campos, nombres, permisos y destino POST. No se incorporan controles sin datos o servicio.
+
+### Plan de pantalla
+
+```text
+Tipo: A · Ajustes de P21 existente y contexto de P19
+Arquetipos: Listado + Modal; Detalle con solapas (solo datos de la línea de tiempo)
+Goldens de referencia: becas/revision/personas_list.html · becas/config/programa_list.html · becas/cupo/segmento_detail.html
+Ruta: dispositivos:relevamientos → programas/dispositivos/relevamientos/list.html
+Bloques: menú de fila existente en Cancelados; campos de Asignar apilados en el orden del mockup #p21
+P19: _linea_tiempo.html consume badge, badge_tono, detalle y cuando; no se modifica legajo/detail.html
+Piezas: Canónico reutilizable (_menu_fila, partes del modal, campos y badges, _linea_tiempo)
+Assets cargados por shell/pantalla: nodo-menu-fila.css/js, nodo-forms.css, nodo-badges.css,
+  becas-modal.js y _ajax_js.html; sin cambios de assets ni shell
+Vista/servicio: inspecciones_visibles y contexto existente; revisor con select_related
+Novedades: ninguna
+Fichas sincronizadas: arquetipos/modal.md, arquetipos/detalle.md,
+  componentes/ficha_timeline.md y componentes/galeria_fotos.md
+```
+
+### Apartamientos del mockup
+
+Se mantienen los recortes del MVP: edificio en vez de dispositivo en la asignación; no se dibujan
+Periodicidad, Prioridad ni chips de personal no disponible porque no cuentan con dato/servicio en
+este flujo. Tampoco se agrega Exportar, cambiar vencimiento o marcar en obra. La solapa Cancelados
+y la revisión siguen el comportamiento vigente y las decisiones del PM. P19 conserva su línea de
+tiempo canónica con un badge; la criticidad revisada permanece explícita en el texto y el punto.
+
+## Implementación
+
+El coordinador puede consultar los informes cancelados y reconocer la revisión en Infraestructura.
+El resultado revisado queda cerrado a fotos nuevas sin romper los reenvíos de la app sin conexión.
+La última institución de un predio con trabajo en curso conserva el vínculo para poder gestionarlo.
+Un edificio crítico sigue rojo aunque exista una asignación vencida. Las fotos en curso muestran su
+fecha y Asignar presenta primero al agente y después el vencimiento.
+
+## Archivos
+
+- `.github/workflows/pr-backend.yml`, `core/tests/test_gates_ci.py`.
+- `programas/services/inspecciones.py`, `detalle_dispositivo.py`, `edificios.py`.
+- `programas/views/dispositivos_relevamientos.py`.
+- `programas/templates/programas/dispositivos/relevamientos/list.html`.
+- `programas/tests/test_api_campo_inspecciones.py`, `test_dispositivos_auditoria_g3.py`,
+  `test_dispositivos_relevamientos_listado.py`, `test_dispositivos_fidelidad_fi.py`, `test_dispositivos_fidelidad_fb.py`.
+- `.claude/design/arquetipos/modal.md`, `arquetipos/detalle.md`, `componentes/ficha_timeline.md`, `componentes/galeria_fotos.md`.
+
+## Base de datos
+
+No requiere cambios de esquema ni migraciones de datos. No se agregan constraints ni permisos.
+
+## Validación
+
+- Tanda inicial: 212 tests en verde, incluidos contratos de campo y CI, listado y fidelidad FI.
+- La suite completa encontró una expectativa anterior de FB que pedía omitir la fecha en curso:
+  se adaptó al punto 7 del encargo y se repitió todo `test_dispositivos_fidelidad_fb`: 22 tests OK.
+- Once mutaciones detectadas en rojo: sacar el contrato del gate; admitir foto nueva tras revisión;
+  bloquear también el reenvío; quitar informe cancelado; quitar Revisado; sacar el JOIN del revisor;
+  permitir desvincular el último dispositivo; volver a priorizar Vencido en el mismo edificio y en
+  el agregado; borrar la fecha de foto en curso; invertir Agente/Vence. Restauración desde copias
+  binarias, sin git checkout; luego repetición en verde.
+- Playwright contra datos ficticios aislados en puerto 8911: P21 Cancelados con Ver informe abierto
+  y modal Asignar a 1440 y 390 px. Cuatro respuestas 200, ancho del documento igual al viewport,
+  sin errores JavaScript. Capturas revisadas visualmente en
+  `C:/Users/mkdir/AppData/Local/Temp/chaco-g3/capturas/`; `resultado.json` registra la medición.
+- `manage.py check` OK; `makemigrations --check --dry-run` con
+  `DJANGO_SYNCDB_PROJECT_APPS=False` sin cambios; `check_migraciones.py` sin migraciones nuevas.
+- `compile_templates.py --bloques`: 233 templates, cero errores y cero bloques sin destino. Auditorías listado y modal de P21 OK;
+  `design_audit.py --ratchet --base origin/development`: cero hallazgos nuevos;
+  `--goldens`: cero hallazgos en siete goldens.
+- `check_design_agent.py --changed` y `--limites --base origin/development` OK después del commit.
+  Build Tailwind OK sin cambios de CSS. Ruff check y format OK en `programas/ core/ users/`.
+- `check_perf_budgets.py`: ningún techo sube. `requerimientos.py --check` OK; 322 queda reservado al juez.
+- Suite `programas core`: 242 módulos en 31 lotes, 4.983 tests contabilizados y 61 omitidos por el
+  runner. La expectativa FB anterior quedó corregida y sus 22 tests revalidados; no hay fallos pendientes.
+- `manage.py test --tag performance programas`: 30 tests OK. Consolidado de suite, revalidación,
+  mutaciones y capturas en `C:/Users/mkdir/AppData/Local/Temp/chaco-g3/suite/resumen.json`.
+
+## Puesta en marcha en el servidor
+
+No requiere acciones adicionales al deploy del código.
+
+## Pendientes / a definir
+
+- El juez asigna el número definitivo al marcador 322, como indica el encargo.
+- Sin pendientes funcionales dentro de los ocho puntos; los recortes del mockup anteriores siguen fuera de alcance.
+
+## Reversión
+
+Revertir los commits de código y documentación del carril G3. No hay migraciones que deshacer ni
+pérdida de datos. Volverían a admitirse fotos nuevas tras revisión y a prevalecer Vencido sobre Alta.
+
+## Historial
+
+Entrada nueva de la auditoría final G3. No modifica entradas anteriores.
 
 ---

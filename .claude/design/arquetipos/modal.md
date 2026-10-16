@@ -106,7 +106,8 @@ Sin JS conservan el POST clásico con CSRF y mensajes al volver al detalle.
   parámetro queda en la URL y un recargue lo reabre: se acepta, porque evita JS propio. Evidencia:
   `programas/templates/programas/dispositivos/relevamientos/list.html` (P21): asignar,
   reasignar y cancelar piden datos; marcar como revisado usa la confirmación sí/no
-  (`arquetipos/confirmacion.md`), sin formulario de datos adicional.
+  (`arquetipos/confirmacion.md`), sin formulario de datos adicional. El modal de asignación
+  presenta Edificio, Agente territorial, Vence e Indicaciones en ese orden, en bloques apilados.
 - **Paso previo de elección**: un modal con `<form method="get">` (sin `{% csrf_token %}` ni
   `data-ajax`, porque no muta) que elige el registro y reabre la pantalla con el modal del paso
   siguiente. Conserva la solapa y los filtros activos en `<input type="hidden">` armados en la

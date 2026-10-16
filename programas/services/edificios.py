@@ -30,7 +30,7 @@ instituciones que no comparte lo hace quien tiene alcance sobre las dos.
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
-from programas.models import Dispositivo, Edificio, TrazaDispositivo
+from programas.models import Dispositivo, Edificio, InspeccionEdificio, TrazaDispositivo
 from programas.selectors.capacidad_dispositivo import edificios_vinculables
 from programas.services.dispositivos import puede_operar_dispositivo
 
@@ -54,6 +54,7 @@ CAMPOS = (
 )
 
 DISPOSITIVO_CERRADO = "El dispositivo está cerrado: no se puede cambiar su edificio."
+RELEVAMIENTO_EN_CURSO = "El edificio tiene un relevamiento en curso: no puede quedar sin dispositivos."
 
 
 def _trazar(dispositivo, usuario, accion, *, detalle=""):
@@ -172,12 +173,20 @@ def desvincular_edificio(*, edificio, dispositivo, usuario):
 
     Lo que sí se pierde es que **esta** institución los vea, así que la solapa vuelve a su
     estado vacío. Si el edificio queda sin ninguna institución deja de verse en todas
-    partes, pero sigue entero: volver a vincularlo lo repone con su historia.
+    partes, pero sigue entero: volver a vincularlo lo repone con su historia. Con un
+    relevamiento en curso debe conservar al menos una institución para poder gestionarlo.
     """
 
     _exigir_alcance(dispositivo, usuario)
+    edificio = Edificio.objects.select_for_update().get(pk=edificio.pk)
     if not edificio.dispositivos.filter(pk=dispositivo.pk).exists():
         raise PermissionDenied("Ese edificio no es de este dispositivo.")
+
+    if (
+        not edificio.dispositivos.exclude(pk=dispositivo.pk).exists()
+        and InspeccionEdificio.objects.filter(edificio=edificio, estado=InspeccionEdificio.Estado.ASIGNADA).exists()
+    ):
+        raise ValidationError({"__all__": RELEVAMIENTO_EN_CURSO})
 
     dispositivo.edificios.remove(edificio)
     _trazar(dispositivo, usuario, "EDIFICIO_DESVINCULADO", detalle=f"Edificio {edificio.codigo} · {edificio.nombre}")

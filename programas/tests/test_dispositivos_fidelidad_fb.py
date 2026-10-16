@@ -245,16 +245,17 @@ class FidelidadInfraestructuraTests(BaseInfraestructura):
         fila = next(fila for fila in instituciones if fila["pk"] == self.parador.pk)
         self.assertEqual(fila["get_estado_display"], "DESCONOCIDO")
 
-    def test_relevamiento_en_curso_no_rotula_fotos_con_fecha_de_subida(self):
+    def test_relevamiento_en_curso_conserva_fecha_de_carga_en_las_fotos(self):
+        """Decisión PM G3: mientras no hay realización, se muestra la fecha de la foto."""
         from programas.services.inspecciones import agregar_foto
         from programas.tests.test_dispositivos_inspecciones import _foto
 
         inspeccion = self._crear()
-        agregar_foto(self._fresco(self.agente), inspeccion, archivo=_foto(), descripcion="fachada")
+        foto = agregar_foto(self._fresco(self.agente), inspeccion, archivo=_foto(), descripcion="fachada")
         respuesta = self._detalle(self.operador_geriatrico, self.geriatrico)
         [evento] = respuesta.context["infraestructura"]["eventos"]
-        self.assertIsNone(evento["fotos"][0]["fecha"])
-        self.assertNotIn("<time", _panel(respuesta.content.decode()))
+        self.assertEqual(evento["fotos"][0]["fecha"], foto.creado)
+        self.assertIn('datetime="2026-10-14"', _panel(respuesta.content.decode()))
 
     def test_fotos_rotulan_fecha_del_relevamiento_y_no_fecha_de_subida(self):
         inspeccion = self._relevar(self.predio, Criticidad.MEDIA, fotos=("fachada",), dias_atras=30)

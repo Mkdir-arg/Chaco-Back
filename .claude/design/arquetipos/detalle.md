@@ -132,8 +132,10 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   porque `Sector` no se relaciona con `Edificio`. `infraestructura_del_dispositivo`
   entrega domicilio y coordenadas sin consultas por fila. Alta, edición y vínculo se abren en los modales
   canónicos de esa solapa y exigen alcance de edición al dispositivo.
-  El semáforo de la solapa y de cada edificio muestra «Vencido» (`warning`) si hay
-  un relevamiento en curso vencido, con el selector que usa la alerta. Sin vencidos
+  El semáforo de la solapa y de cada edificio conserva «Crítico» (`danger`) si la última
+  realizada fue Alta, incluso con relevamientos vencidos en ese edificio u otro del dispositivo.
+  En los demás casos muestra «Vencido» (`warning`) si hay un relevamiento en curso vencido,
+  con el selector que usa la alerta. Sin vencidos
   conserva la criticidad de la última realizada o «Sin relevar»; sin inmuebles,
   «Sin edificio cargado». P2 usa el mismo servicio, con lecturas por lote.
 - En P4, las acciones de estadía usan `menu_fila` y cada capacidad: ver (`ciudadano.ver`),
@@ -156,6 +158,8 @@ incluidos los cancelados. La asignación la ven el coordinador del edificio y el
 (`programas.services.inspecciones.ve_la_asignacion`). El Historial rearma esas trazas sin
 nombres; una vez realizado, el resultado muestra quién relevó. Infraestructura enlaza cada
 evento con su informe de solo lectura y conserva el dispositivo de origen para volver.
+La revisión agrega badge verde, revisor y fecha/hora sin perder la criticidad, con el
+contrato de `componentes/ficha_timeline.md`. Las fotos en curso conservan su fecha de carga.
 
 ## Prohibido
 

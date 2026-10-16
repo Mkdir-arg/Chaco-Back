@@ -32,6 +32,10 @@ fecha · hora · turno · responsable. `programas/selectors/estadia_detalle.py` 
 momento sobre los turnos activos cargados una vez; si no hay turno vigente, omite ese tramo.
 El Historial de P4 conserva su metadato sin turno.
 
+En Infraestructura (P19), el evento revisado usa `badge="Revisado"` y `badge_tono="success"`;
+conserva la criticidad en `detalle` y el tono del punto, y agrega revisor y fecha/hora a `cuando`.
+El servicio carga `revisado_por` junto con la página de relevamientos.
+
 **La lista llega acotada.** El componente dibuja todos los eventos que recibe y una estadía larga trae
 cientos: **recortar es responsabilidad de la vista** (las últimas N, más un enlace «Ver todo» cuando
 hay más). El componente no pagina. Cuando el feed es largo de verdad —la solapa Historial de

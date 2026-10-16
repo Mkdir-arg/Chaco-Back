@@ -520,7 +520,7 @@ def agregar_foto(usuario, inspeccion, archivo, descripcion="", *, uuid_cliente=N
     """Una foto más, en curso o ya realizado: la app sin conexión puede mandarlas después.
 
     Cada carga es una fila nueva; ninguna pisa a otra. Un relevamiento cancelado no
-    recibe fotos (:data:`CONFLICTO_CANCELADA`).
+    recibe fotos (:data:`CONFLICTO_CANCELADA`), ni uno ya revisado admite fotos nuevas.
 
     Con ``uuid_cliente`` (task 39) es idempotente: si esa foto ya llegó —del mismo agente y
     al mismo relevamiento— se devuelve la fila que quedó, con ``ya_existia = True``, aunque
@@ -544,7 +544,9 @@ def agregar_foto(usuario, inspeccion, archivo, descripcion="", *, uuid_cliente=N
         raise _conflicto_cancelada(inspeccion)
     # Igual que en `registrar_resultado`: acá la lista blanca son dos estados —en curso y
     # realizado—, y cualquier otro se rechaza en vez de caer en el alta.
-    if not (inspeccion.en_curso or inspeccion.estado == InspeccionEdificio.Estado.REALIZADA):
+    if inspeccion.revisado_en is not None or not (
+        inspeccion.en_curso or inspeccion.estado == InspeccionEdificio.Estado.REALIZADA
+    ):
         raise _conflicto_estado()
     foto = _guardar_foto(inspeccion, usuario, archivo, descripcion, uuid_cliente)
     # La traza cuelga del alta, no de la llamada: el reenvío idempotente ya volvió arriba y no
@@ -792,8 +794,8 @@ SEMAFOROS = {
 #: de «Bueno» porque no saber cómo está un edificio no es lo mismo que saber que está sano: si
 #: ganara el sano, el edificio que nadie miró quedaría escondido detrás de él.
 _GRAVEDAD = {
-    VENCIDO: 4,
-    InspeccionEdificio.Criticidad.ALTA: 3,
+    InspeccionEdificio.Criticidad.ALTA: 4,
+    VENCIDO: 3,
     InspeccionEdificio.Criticidad.MEDIA: 2,
     SIN_RELEVAR: 1,
     InspeccionEdificio.Criticidad.BAJA: 0,
@@ -801,8 +803,10 @@ _GRAVEDAD = {
 
 
 def semaforo_de_inspeccion(inspeccion, *, vencido=False):
-    """Vencimiento en curso primero; luego la última realizada (``None`` = sin relevar)."""
+    """Crítico prevalece; luego vencimiento en curso y última realizada (``None`` = sin relevar)."""
 
+    if inspeccion is not None and inspeccion.criticidad == InspeccionEdificio.Criticidad.ALTA:
+        return SEMAFOROS[InspeccionEdificio.Criticidad.ALTA]
     if vencido:
         return SEMAFOROS[VENCIDO]
     if inspeccion is None:
@@ -1044,7 +1048,7 @@ def inspecciones_de_dispositivo(dispositivo, *, incluir_canceladas=False):
 
     qs = InspeccionEdificio.objects.filter(
         edificio_id__in=_EdificioDispositivo.objects.filter(dispositivo=dispositivo).values("edificio_id")
-    ).select_related("edificio", "asignado_a", "realizada_por")
+    ).select_related("edificio", "asignado_a", "realizada_por", "revisado_por")
     if not incluir_canceladas:
         qs = qs.exclude(estado=InspeccionEdificio.Estado.CANCELADA)
     return qs

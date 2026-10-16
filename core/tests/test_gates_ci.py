@@ -647,6 +647,11 @@ class ContratosDelRepoTests(SimpleTestCase):
 
     JOB = "Contratos del repo"
 
+    def test_el_gate_de_contratos_incluye_la_api_de_relevamientos_edilicios(self):
+        workflow = yaml.safe_load((WORKFLOWS / "pr-backend.yml").read_text(encoding="utf-8"))
+        paso = next(p for p in workflow["jobs"]["contratos-api"]["steps"] if p.get("name") == "Tests de contrato")
+        self.assertIn("programas.tests.test_api_campo_inspecciones", paso["run"].split())
+
     def setUp(self):
         self.flujo = _cargar("pr-quality.yml")
         clave = _nombres_de_jobs(self.flujo).get(self.JOB)
