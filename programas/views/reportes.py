@@ -28,8 +28,8 @@ def _respuesta(reporte, formato, nombre):
 class DispositivoExportView(DispositivoProgramaPermissionMixin, View):
     """Padrón de dispositivos.
 
-    Los reportes de **ocupación** y **movimientos** se fueron con `Cama` y
-    `Admision`: los repone el MVP v2 sobre `Plaza` y `Estadia`. Con ellos se fue
+    Los reportes de **ocupación** y **movimientos** se fueron con el circuito operativo
+    de la versión 1: los repone el MVP v2 sobre `Plaza` y `Estadia`. Con ellos se fue
     también el filtro por período, que acotaba por fecha de ingreso o de egreso de
     una estadía; el padrón se sigue filtrando por tipo, estado y localidad.
     """

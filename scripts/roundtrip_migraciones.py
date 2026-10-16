@@ -23,7 +23,7 @@ Este script corre la secuencia completa contra un motor de verdad:
    una tabla que la vuelta no pudo borrar —en MariaDB el DDL no es transaccional,
    RED-15— lo pasaría sin decir nada.
 
-**Las barreras de reversa no son un rojo.** Ocho migraciones abortan a propósito con
+**Las barreras de reversa no son un rojo.** Nueve migraciones abortan a propósito con
 `IrreversibleError` cuando se las desaplica (paso D.4 del runbook, Cambios 117 y 135):
 si el plan de vuelta cruza una, el script lo registra como *esperado* y sigue. Lo que sí
 es rojo es cualquier otro error, y que la ida posterior no deje el esquema al día.
@@ -53,7 +53,7 @@ BASE_POR_DEFECTO = "origin/development"
 # dependencias, así que el orden es prolijidad del log, no corrección.
 ORDEN_DE_APPS = ("programas", "legajos", "conversaciones", "portal", "dashboard", "users", "core", "configuracion")
 
-# El texto que las ocho barreras ponen en su `IrreversibleError` (Cambios 117 y 135).
+# El texto que las nueve barreras ponen en su `IrreversibleError` (Cambios 117 y 135).
 BARRERA = re.compile("barrera de reversa", re.IGNORECASE)
 
 # `0074_algo.py` -> `0074_algo`
