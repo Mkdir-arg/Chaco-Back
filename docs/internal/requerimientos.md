@@ -438,6 +438,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 310 | Correcciones menores de FR y FI y fidelidad de P3 | Dispositivos · P3 y relevamiento edilicio | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` | PM / juez — carril FJ | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 311 | Notificaciones: las campañas salen por un SMTP propio (Amazon SES), separado del correo del sistema | Transversal — notificaciones (envío masivo, prueba y detalle de la campaña) · diagnóstico de correo | `#correo` `#infra` | PM — pedido del 15/10/2026 | 15/10/2026 | 🟢 **Hecho** | No requiere |
 | 312 | La tabla de horas del documento del MVP volvió a tener sus filas | Dispositivos · documento para el cliente | `#textos` `#gestion` | PM — en sesión | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 313 | Baja de los seis modelos de Dispositivos v1, release B | Dispositivos · modelos y migraciones | `#datos` `#infra` | PM — task #673, encargo de implementación | 16/10/2026 | 🟢 **Hecho** | `programas.0097_baja_dispositivos_v1` |
 
 **Notas del índice**
 
@@ -40799,5 +40800,226 @@ Ninguno.
 ## Reversión
 
 Revertir el commit.
+
+---
+
+---
+
+# Cambio 313 — Baja de los seis modelos de Dispositivos v1, release B
+
+🟢 **HECHO — 16/10/2026** · Task #673 · Dispositivos MVP 02
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · modelos y migraciones |
+| **Etiquetas** | `#datos` `#infra` |
+| **Solicitante** | PM — task #673, encargo de implementación en sesión |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | #673 · Épica #127 · continuación de #672 / PR #748 (Cambio 202) |
+| **Partes afectadas** | Servidor: modelos de `programas`, contratos de tests y comentarios históricos · Infra/ECOM: baja de tablas |
+| **Migración** | `programas.0097_baja_dispositivos_v1` · contract, barrera de reversa de datos |
+
+## Pedido original
+
+«La release A ya está en producción y ninguna release viva lee esas tablas. Ahora va la baja:
+borrar las clases, generar la migración con su contrato y probar ida, vuelta y reaplicación en
+MariaDB; registrar que solo se vuelve con restore, D.4.»
+
+## Alcance acordado
+
+Se eliminan `Cama`, `Admision`, `ArchivoAdmision`, `RegistroDiario`, `EsperaAdmision` y
+`CampoTipoDispositivo`, identificados en el PR #748, el Cambio 202 y el plan del MVP.
+Se actualizan sus inventarios y ratchets y se quitan sus nombres de comentarios del código vigente.
+Se conservan el legajo institucional, Merenderos y todo el circuito de la versión 2.
+
+Fuera de alcance: roles y sus seeds, pantallas, archivos almacenados, migración de datos a la v2 y
+cambios de otras migraciones. No se usa `--fake` ni se toca otro worktree o el checkout principal.
+
+## Decisiones tomadas
+
+- **La baja se hace después de la release A.** #748 entró a `development` en `e41f1353` y
+  a `main` en `7a671a24`. El PM confirmó que ECOM PRD corre `ce6ad0d3` desde el 15/10/2026,
+  que contiene esa baja de lecturas, y que ninguna release viva usa las seis tablas.
+- **Se borran tablas completas, primero las dependientes.** Django generó siete `RemoveField`
+  y seis `DeleteModel`. El ensayo real encontró que el primer `RemoveField` falla en MariaDB
+  con `1072: Key column 'admision_id' doesn't exist in table` por la unicidad compuesta del
+  adjunto. Se reemplaza ese plan por seis `DeleteModel`: adjunto → espera → parte diario →
+  admisión → cama → campo configurable. No hay M2M. Así no se alteran columnas de tablas que
+  se van a borrar.
+- **Cada `DeleteModel` declara el contrato exacto de la release previa.** No quedan
+  `RemoveField`. La cabecera declara la barrera y la pérdida de datos. La última operación
+  es `RunPython(sin_cambios, bloquear_reversa)`: al desaplicar se ejecuta primero y aborta
+  con `IrreversibleError` antes de recrear una tabla. Recrear el esquema vacío no recuperaría
+  ninguna fila. Se sigue el patrón de `programas.0032`, válido en todos los motores.
+- **Se elige el arreglo recomendado por la revisión independiente.** `programas.0097`
+  integra la lista D.4 y los tests de barreras y del orquestador de ida y vuelta. Son nueve
+  barreras: cinco de UUID y cuatro de datos. El orquestador conserva su comportamiento:
+  reconoce el aborto como esperado y exige que el esquema final siga coherente.
+- **El F-00 histórico sigue denegado.** Se conserva `core.rutas_media.ruta_archivo_admision`
+  porque `programas.0083_sec09_upload_to_uuid` la importa. Borrarla rompería la reconstrucción
+  desde cero. El prefijo histórico conserva su resolver que responde 404 sin consultar modelos.
+- **Los ratchets bajan con la baja.** Salen las seis entradas de `TABLAS`, las tres excepciones
+  de `CONDICIONALES_CONOCIDOS` y el índice redundante de la admisión; quedan cero unicidades
+  condicionales en `programas` y 20 pares de índices redundantes conocidos en el proyecto.
+  `COLUMNAS_UUID_AMPLIADAS` ya no nombra ninguna de las seis tablas y no requiere cambios.
+- **Sin cambios de UI.** Plan de pantalla: no aplica. Apartamientos del mockup: ninguno.
+  Las vistas y rutas solo cambian comentarios; se mantiene su comportamiento.
+
+## Implementación
+
+El servidor deja de registrar los seis modelos antiguos y la migración elimina sus tablas.
+El circuito actual de instituciones, plazas, estadías, bitácora y Merenderos conserva sus datos
+y su funcionamiento. No se copian datos de la versión 1 a la versión 2.
+
+## Archivos
+
+- `programas/models/__init__.py` y `programas/migrations/0097_baja_dispositivos_v1.py`.
+- `programas/tests/test_models_contrato.py` y `core/tests/test_indices_redundantes.py`.
+- `core/tests/test_barreras_de_reversa.py`, `core/tests/test_roundtrip_migraciones.py`,
+  `scripts/roundtrip_migraciones.py`, `docs/internal/processes.md` y `CLAUDE.md`:
+  barrera ejecutable y lista de nueve barreras alineada con el runbook D.4.
+- Comentarios de `programas/{dispositivos_urls.py,services/reportes.py,views/reportes.py,
+  views/dispositivos_config.py}` y tests relacionados de `programas` y `core`.
+- `core/rutas_media.py`, `core/views/media.py` y `core/tests/test_media_protegida.py`:
+  explican la compatibilidad histórica del F-00 sin referencias al modelo eliminado.
+- Esta entrada y su única fila nueva del índice.
+
+## Base de datos
+
+`programas.0097_baja_dispositivos_v1`, dependiente de
+`programas.0096_merge_revision_y_adjunto`, elimina `programas_archivoadmision`,
+`programas_esperaadmision`, `programas_registrodiario`, `programas_admision`, `programas_cama`
+y `programas_campotipodispositivo`, en ese orden. No modifica tablas compartidas ni agrega campos.
+
+**Destructiva sobre datos existentes:** desaparecen todas sus filas, las respuestas F-00,
+los vínculos de los adjuntos, la espera, los partes y las referencias de traslados. Los blobs
+del almacenamiento no se borran ni se vuelven accesibles. Aunque el Cambio 202 registró tablas
+vacías, la baja se trata como contract con pérdida de datos y requiere el dump previo de D.0.
+
+## Validación
+
+- Python 3.12 / Django 5.2.17 de `.venv312`; ruff desde `.venv`.
+- `manage.py check`: sin incidencias. `makemigrations --check --dry-run` con
+  `DJANGO_SYNCDB_PROJECT_APPS=False`: `No changes detected`.
+- `check_migraciones.py` sobre `0097` y contra `origin/development` después del commit:
+  una migración, cero problemas.
+- Suite `programas` y `core`, con `PYTEST_RUNNING=1 DJANGO_SYNCDB_PROJECT_APPS=True`:
+  **4.905 tests, OK (61 omitidos)** en 24 lotes de diez módulos, sin paralelismo entre lotes
+  para acotar memoria. `programas`: 3.520 tests (23 omitidos); `core`: 1.385 (38 omitidos).
+- `manage.py test --tag performance programas`: 30 tests, OK (23,5 s).
+- `ruff check programas/ core/ users/`: limpio; `ruff format --check`: 508 archivos conformes.
+- `compile_templates.py`: 233 compilados, cero errores. `design_audit.py --ratchet --base
+  origin/development`: ningún archivo de UI cambiado; `--goldens`: cero hallazgos.
+- `npm run build:tailwind`: correcto, sin cambios en el CSS compilado.
+  `check_perf_budgets.py`: ningún presupuesto sube.
+- Búsqueda con `rg`, incluidos scripts, fixtures, admin, forms, servicios, selectors, templates,
+  tests y otras apps: sin imports, tablas o relaciones inversas de los modelos eliminados fuera
+  del historial de migraciones. Solo queda «Cama» como etiqueta de `Plaza.Tipo.CAMA` y como texto
+  de prueba («Cama rota»), no como referencia al modelo. Documentación histórica intacta.
+- **Mutaciones en un proceso aislado, con restauración desde copias:** reintroducir la clase
+  vieja pone en rojo el contrato de exports; agregar una unicidad condicional pone en rojo
+  su ratchet; quitar por separado cada una de las seis marcas `CONTRACT` genera un hallazgo.
+  En los tres casos, la copia restaurada vuelve a verde; no se modifica el árbol para la mutación.
+- `check_design_agent.py --changed` y `--limites --base origin/development`: OK después
+  del commit de código. `requerimientos.py --check`: OK. Como el parser reconoce números,
+  la entrada `313` se valida además en una copia temporal con número provisional,
+  fuera del repo: índice, secciones y reversión coherentes; el original conserva `313`.
+
+**Ensayo previo a la revisión independiente (la reversa permisiva quedó corregida):**
+contenedores Docker efímeros, puertos locales libres, bases temporales en
+el almacenamiento de Docker fuera del repo; mismos settings `settings_roundtrip` del CI,
+`STRICT_TRANS_TABLES` y sin tablas de zona horaria (`CONVERT_TZ` devuelve NULL).
+Se migra desde cero hasta `0096` y se siembran dos admisiones (una con origen de traslado),
+una fila en cada una de las otras cinco tablas, sus FKs y filas de modelos que se conservan,
+incluida una estadía v2. Se comparan tablas y cantidades de filas ajenas a la baja en cada paso.
+
+```text
+MariaDB 10.11.19 / MySQL 8.0.46
+Base 0096: seis tablas con datos; relaciones internas y con modelos vigentes sembradas.
+IDA 1: 0097 OK; seis tablas ausentes; resto de tablas y filas sin cambios.
+VUELTA: 0096 OK; seis tablas recreadas VACÍAS; datos de v1 perdidos; resto intacto.
+IDA 2: 0097 OK; seis tablas ausentes; resto de tablas y filas sin cambios.
+migrate --check: OK.
+Esquema coherente: 177 migraciones aplicadas, 0 sin aplicar, 99 tablas.
+verificar_esquema_migraciones --estricto: OK en ambos motores.
+```
+
+**Validación de la corrección (16/10/2026):**
+
+- `manage.py check`, `check_migraciones.py` (una migración, cero problemas) y
+  `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`: OK.
+- `manage.py test core.tests.test_barreras_de_reversa programas core.tests --parallel 4`
+  en `.venv312`: **4.905 tests, OK (61 omitidos)**, 519,9 s. Corrida final con código y tests
+  estables; se repitió completa después de una interrupción por renombrar un test durante
+  la primera ejecución, sin cambiar reglas ni relajar validaciones.
+- Tests de barreras y orquestador: 25 tests, OK. Mutación de `0097`: reemplazar el
+  `raise IrreversibleError` por `return` produce dos fallos (`IrreversibleError not raised`),
+  tanto en la prueba de aborto sin SQL como en la de todos los motores. Se restaura el
+  archivo desde una copia de sus bytes y los seis tests de barreras vuelven a verde.
+- `manage.py test --tag performance programas`: 30 tests, OK (39,5 s).
+- Ruff de `programas/ core/ users/` y del orquestador: sin incidencias, formato conforme.
+  Templates: 233 compilados, cero errores; ratchet sin UI modificada; goldens sin hallazgos;
+  build de Tailwind sin cambios de CSS; ningún presupuesto de performance sube.
+- `requerimientos.py --check`: OK; también se verifica la entrada `313` y su fila en una
+  copia temporal con número provisional, conservando el marcador original para el juez.
+- **MariaDB 10.11.19 efímero**, puerto local libre `60978`, almacenamiento fuera del repo,
+  `settings_roundtrip` del CI, modo estricto y sin tablas de timezone: el orquestador completo
+  pasa desde la base `54efa40a`, con `seed_perf --scale 50`. El árbol base es una extracción
+  temporal de Git fuera del repo; no se toca ningún otro worktree ni el checkout principal.
+
+```text
+Applying programas.0097_baja_dispositivos_v1... OK
+migrate programas 0096 --noinput: exit 1
+django.db.migrations.exceptions.IrreversibleError: programas.0097 es una barrera de reversa (RED-57): recrear las seis tablas de Dispositivos v1 no recupera sus filas, respuestas F-00 ni vínculos. Volver atrás se hace con restore del dump previo al deploy: runbook D.4 de docs/internal/processes.md. No reintentar ni usar --fake.
+Seis tablas ausentes; 0097 sigue aplicada; esquema y cantidades de filas de 100 tablas sin cambios.
+roundtrip: aborto esperado; ida posterior y migrate --check OK.
+Esquema coherente: 177 migraciones aplicadas, 0 sin aplicar, 100 tablas.
+Metadatos huérfanos: 6 content types y 24 permisos, verificados en la base efímera.
+```
+
+## Puesta en marcha en el servidor
+
+Antes del deploy, verificar que ninguna release viva lea las tablas y cumplir el dump D.0
+de `docs/internal/processes.md`. En ECOM, pedir por escrito el dump predeploy y esperar su
+confirmación. Avisar que esta release contiene **una barrera de reversa de datos**.
+Desplegar y aplicar las migraciones normalmente, sin `--fake`; verificar esquema e ingreso
+real en una pantalla del circuito vigente. Esta tarea no despliega ni accede a PRD.
+Si el deploy se corta en medio de los `DROP` (MariaDB no tiene DDL transaccional), **no reintentar**: ir al paso D.3 de `docs/internal/processes.md`.
+
+## Pendientes / a definir
+
+Sin pendientes de implementación ni gates locales. La numeración `313` queda para el juez.
+El despliegue y el dump productivo corresponden al PM/ECOM. Se entrega en la rama
+`feat/mvp-02-baja-v1`, sin PR; la corrección de revisión va en un único commit.
+Quedan 6 filas huérfanas en `django_content_type` y 24 en `auth_permission` (mismo precedente que `legajos.0005`); no afectan el RBAC.
+
+## Reversión
+
+**Solo con restore: D.4 de `docs/internal/processes.md`.** `git revert` por sí solo no recupera
+datos. La reversa de `programas.0097` aborta con `IrreversibleError` antes de tocar la base,
+también en bases efímeras; las seis tablas siguen ausentes y la migración continúa aplicada.
+
+1. Detener la aplicación y todos los procesos que escriben en la base (D.4.1).
+2. Verificar el dump predeploy de D.0. Borrar y recrear la base de destino y restaurar ese dump
+   completo; nunca restaurar encima, porque deja tablas ajenas a la release anterior.
+3. Si el dump procede de otro motor, ejecutar `manage.py normalizar_uuid_legajos` primero
+   en modo diagnóstico y después con `--aplicar`, como indica D.4.3.
+4. Desplegar la release anterior y comprobar que la última migración de `programas` aplicada
+   sea `0096_merge_revision_y_adjunto` y que el esquema corresponda a esa release.
+5. Levantar la aplicación y verificar con un alta real, además de `/health/ready/`.
+6. Registrar las escrituras perdidas entre la fecha del dump y el restore, y el incidente
+   según D.5. Se pierden todas las escrituras posteriores al dump en toda la base restaurada.
+
+Sin dump, las filas de las seis tablas no vuelven: camas, admisiones, traslados, espera,
+partes diarios, campos configurables y respuestas/vínculos de adjuntos F-00. Los archivos
+físicos que pudieran existir no reconstruyen esos registros.
+
+## Historial
+
+16/10/2026 — Revisión independiente sobre `1f68e5e6`: la marca declaraba una barrera,
+pero `migrate programas 0096` recreaba las seis tablas vacías e informaba `OK` (RED-57).
+Se agrega el aborto efectivo al final de las operaciones, se incorpora `0097` a D.4 y
+a los tests, y se aclaran el corte durante los `DROP` y los metadatos huérfanos.
+La corrección se entrega en un único commit `fix(dispositivos)`, según el encargo de revisión.
 
 ---
