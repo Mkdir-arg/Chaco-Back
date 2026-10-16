@@ -6,6 +6,8 @@
   sube la versión en el acto, anula las condiciones que lo usaban como fuente (el
   constructor ya no queda trabado con 400) y el próximo que abre el constructor ve
   qué se borró y qué condiciones cayeron por eso.
+- E4 (#339): el editor de condiciones solo ofrece como fuente un campo que se pide
+  en todos los canales en que se pide el ítem (la regla de `fuentes_fuera_del_canal`).
 """
 
 import json
@@ -14,9 +16,10 @@ from io import StringIO
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
+from core.tests.js_harness import requiere_node
 from programas.management.commands.seed_becas import ROL_ADMIN
 from programas.models import (
     CanalFormulario,
@@ -30,6 +33,7 @@ from programas.models import (
     TipoCampo,
 )
 from programas.services.diseno import clave_pregunta, clave_requisito, obtener_o_crear_diseno, reconciliar
+from programas.tests.test_constructor_confirmacion_y_autoguardado import _correr
 
 BADGE_APP = '<span class="badge badge-white">Solo app de campo</span>'
 BADGE_LINK = '<span class="badge badge-white">Solo link público</span>'
@@ -256,3 +260,62 @@ class ConstructorTrasElBorradoTests(_BaseBajas):
         resp = self.client.get(reverse("becas:convocatoria_formulario", args=[self.convocatoria.pk]))
 
         self.assertIn("Nivel educativo → Certificado de alumno regular", resp.content.decode())
+
+
+# Un diseño con fuentes en los tres canales, y destinos al final. `S(x)` = canales
+# donde se sirve x, con la cascada del padre (`items_planos`):
+#   f-app {app} · f-link {link} · f-ambos {app, link} · f-hijo {app} (grupo solo app)
+#   d-ambos {app, link} · d-app {app} · d-guardada {app, link} · d-imposible {} (app en grupo link)
+_ITEMS_CANAL = [
+    {"clave": "g-a", "tipo": "grupo", "canal": "ambos", "padre": None, "titulo": "A"},
+    {"clave": "f-app", "tipo": "campo", "canal": "app", "padre": "g-a", "titulo": "F app"},
+    {"clave": "f-link", "tipo": "campo", "canal": "link", "padre": "g-a", "titulo": "F link"},
+    {"clave": "f-ambos", "tipo": "campo", "canal": "ambos", "padre": "g-a", "titulo": "F ambos"},
+    {"clave": "g-app", "tipo": "grupo", "canal": "app", "padre": None, "titulo": "Solo app"},
+    {"clave": "f-hijo", "tipo": "campo", "canal": "ambos", "padre": "g-app", "titulo": "F hijo"},
+    {"clave": "g-z", "tipo": "grupo", "canal": "ambos", "padre": None, "titulo": "Z"},
+    {"clave": "d-ambos", "tipo": "campo", "canal": "ambos", "padre": "g-z", "titulo": "D ambos"},
+    {"clave": "d-app", "tipo": "campo", "canal": "app", "padre": "g-z", "titulo": "D app"},
+    {
+        "clave": "d-guardada",
+        "tipo": "campo",
+        "canal": "ambos",
+        "padre": "g-z",
+        "titulo": "D guardada",
+        "condicion": {"modo": "todas", "reglas": [{"fuente": "f-link", "op": "vacio", "valor": None}]},
+    },
+    {"clave": "g-link", "tipo": "grupo", "canal": "link", "padre": None, "titulo": "Solo link"},
+    {"clave": "d-imposible", "tipo": "campo", "canal": "app", "padre": "g-link", "titulo": "D imposible"},
+]
+
+
+@requiere_node
+class FuentesPorCanalTests(SimpleTestCase):
+    """E4: `fuentesPara` del constructor con la regla exacta del servidor (BEC-04):
+    la fuente f se ofrece para el ítem i si S(i) ⊆ S(f); con S(i) vacío, todas."""
+
+    def _fuentes(self, clave):
+        log = _correr(
+            "window.NodoConstructor.datos().items = " + json.dumps(_ITEMS_CANAL) + ";\n"
+            "var __p = window.constructorPagina(1);\n"
+            "__p.abrir({modal: 'condicion', clave: " + json.dumps(clave) + "});\n"
+            "__log.fuentes = __p.cond.fuentes.map(function (f) { return [f.clave, f.titulo]; });"
+        )
+        return [tuple(f) for f in log["fuentes"]]
+
+    def test_un_item_de_ambos_canales_solo_ofrece_fuentes_de_ambos(self):
+        self.assertEqual(self._fuentes("d-ambos"), [("f-ambos", "F ambos")])
+
+    def test_un_item_solo_app_ofrece_lo_que_se_pide_en_la_app(self):
+        claves = [c for c, _ in self._fuentes("d-app")]
+        self.assertEqual(claves, ["f-app", "f-ambos", "f-hijo", "d-ambos"])
+
+    def test_la_fuente_ya_guardada_fuera_de_canal_se_muestra_marcada(self):
+        self.assertEqual(
+            self._fuentes("d-guardada"),
+            [("f-link", "F link (no se pide en este canal)"), ("f-ambos", "F ambos"), ("d-ambos", "D ambos")],
+        )
+
+    def test_un_item_que_no_se_sirve_en_ningun_canal_ofrece_todo(self):
+        claves = [c for c, _ in self._fuentes("d-imposible")]
+        self.assertEqual(claves, ["f-app", "f-link", "f-ambos", "f-hijo", "d-ambos", "d-app", "d-guardada"])
