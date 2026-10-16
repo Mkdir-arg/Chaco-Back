@@ -30,6 +30,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
 
+from core.rbac import puede
 from core.services.vencimientos import avisos
 from programas.models import Dispositivo, Edificio, Estadia, FotoInspeccion, InspeccionEdificio, Sector
 from programas.selectors.auditoria_dispositivo import auditoria_del_dispositivo
@@ -197,16 +198,13 @@ def pildoras_de_estadias(estado, sector, sectores):
     return pildoras
 
 
-def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None, pagina=1, momento=None):
+def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None, pagina=1):
     """La página de estadías del dispositivo, lista para dibujar.
 
     Trae a la persona y a la plaza con su sector en la misma consulta y solo las columnas
     que la tabla muestra. A cada estadía de la página le deja ``estado_texto`` y ``tono`` (de
-    la tabla única de `programas.services.estadias`) y ``dias_de_permanencia`` (hasta el
-    egreso, o hasta ``momento`` si sigue alojada), para que el template no decida nada.
+    la tabla única de `programas.services.estadias`), para que el template no decida nada.
     """
-
-    momento = momento or timezone.now()
 
     consulta = (
         Estadia.objects.filter(dispositivo=dispositivo)
@@ -237,7 +235,6 @@ def estadias_del_dispositivo(dispositivo, *, estado=FILTRO_ALOJADAS, sector=None
     # Recorrer el `Page` lo materializa en una lista, así que los atributos llegan al template.
     for estadia in pagina_de_estadias:
         estadia.estado_texto, estadia.tono = estado_visible(estadia)
-        estadia.dias_de_permanencia = ((estadia.fecha_egreso or momento) - estadia.fecha_ingreso).days
     return pagina_de_estadias
 
 
@@ -290,15 +287,21 @@ def eventos_de_historial(dispositivo, pagina=1, usuario=None):
     Junta las cuatro trazas —legajo, estadías, correcciones de bitácora y relevamientos
     edilicios— en una sola lista (``programas.selectors.auditoria_dispositivo``).
 
-    ``usuario`` decide una sola cosa: si las líneas de un relevamiento **sin realizar** nombran al
+    ``usuario`` decide si se nombra a las personas (``ciudadano.ver``) y si un relevamiento **sin realizar** nombra al
     agente. El detalle de esas trazas se escribió legible con el nombre adentro, así que la
     regla de `inspecciones.ve_la_asignacion` hay que volver a aplicarla acá; el alcance se
     resuelve en **una** consulta para toda la página.
+    Sin usuario se conserva la lectura interna completa; la vista siempre pasa quién mira.
     """
 
     con_asignacion = edificios_de_dispositivo_con_asignacion_visible(usuario, dispositivo)
     usuario_id = usuario.pk if getattr(usuario, "is_authenticated", False) else None
-    feed = auditoria_del_dispositivo(dispositivo, con_asignacion, usuario_id=usuario_id)
+    feed = auditoria_del_dispositivo(
+        dispositivo,
+        con_asignacion,
+        usuario_id=usuario_id,
+        puede_ver_personas=usuario is None or puede(usuario, "ciudadano.ver"),
+    )
     pagina_de_eventos = Paginator(feed, POR_PAGINA_HISTORIAL).get_page(pagina)
     eventos = [
         {
@@ -405,7 +408,7 @@ def _indicadores_edilicios(semaforo, edificios, realizados, fotos):
             "etiqueta": "Estado edilicio",
             "valor": semaforo.texto,
             "icono": "fa-building",
-            # La stat card chica no tiene gris: sin color, va con el de marca y el texto manda.
+            # Sin color, va con el de marca y el texto manda.
             "tono": semaforo.tono if semaforo.tono in _TONOS_CON_COLOR else "brand",
             "nota": nota_estado,
         },

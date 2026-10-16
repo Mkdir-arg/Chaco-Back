@@ -138,6 +138,11 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   con el selector que usa la alerta. Sin vencidos
   conserva la criticidad de la última realizada o «Sin relevar»; sin inmuebles,
   «Sin edificio cargado». P2 usa el mismo servicio, con lecturas por lote.
+- En P4, la columna Persona muestra nombre y DNI sin avatar solo con `ciudadano.ver`.
+  Sin esa capacidad, fila, etiqueta del menú y modales de cambio/egreso muestran «Persona alojada»
+  sin identidad en texto ni atributos; tampoco los movimientos del Historial precargado nombran
+  a la persona. El modal de egreso cuenta días de calendario con
+  `Estadia.dias_de_permanencia()`, como P7.
 - En P4, las acciones de estadía usan `menu_fila` y cada capacidad: ver (`ciudadano.ver`),
   cambiar (`dispositivo.admitir`) y egresar (`dispositivo.egresar`). Cambio y egreso abren
   un único modal por GET, como P21, y guardan por POST AJAX. Sin plazas libres, cambiar

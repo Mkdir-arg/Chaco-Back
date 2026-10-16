@@ -276,6 +276,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         puede_cambiar = puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR)
         puede_ver_ciudadano = puede(user, "ciudadano.ver")
         for estadia in estadias:
+            estadia.persona_visible = estadia.ciudadano.nombre_completo if puede_ver_ciudadano else "Persona alojada"
             if puede_ver_ciudadano:
                 estadia.url_ver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
             if puede_cambiar and estadia.activa and estadia.plaza_id is not None:
@@ -343,6 +344,9 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             # Un id ajeno, inexistente o no ASCII tiene la misma respuesta.
             estadia_pk = int(pedido) if pedido.isascii() and pedido.isdecimal() else None
             estadia = _estadia_del_dispositivo(dispositivo, estadia_pk)
+            estadia.persona_visible = (
+                estadia.ciudadano.nombre_completo if context["puede_ver_ciudadano"] else "Persona alojada"
+            )
             if not estadia.activa:
                 messages.info(self.request, "La estadía ya está cerrada.")
                 continue

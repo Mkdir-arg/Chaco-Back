@@ -483,19 +483,42 @@ class StatCardTest(SimpleTestCase):
 
     def test_variante_tablero_es_la_franja_grande(self):
         """#582 / C-2: caja de 52 px con gradiente y valor de 32 px / 800 (reglas en nodo-stat-card.css)."""
-        html = render_to_string(
-            STAT, {"etiqueta": "Plazas", "valor": 40, "icono": "fa-bed", "tono": "danger", "variante": "tablero"}
-        )
+        html = render_to_string(STAT, {"etiqueta": "Plazas", "valor": 40, "icono": "fa-bed", "variante": "tablero"})
 
         self.assertIn('class="bg-white rounded-xl border border-base p-4 nodo-stat-tablero shadow-sm"', html)
         self.assertIn('class="nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0"', html)
         self.assertIn('<i class="fas fa-bed" aria-hidden="true"></i>', html)
         self.assertIn('class="text-2xl font-bold text-heading mt-2 nodo-stat-tablero-valor">40</p>', html)
         self.assertNotIn("w-8 h-8", html)
-        self.assertNotIn("bg-danger-soft", html)  # el tono no pinta la caja grande
+        self.assertNotIn("bg-danger-soft", html)
         css = (RAIZ / "static/custom/css/nodo-stat-card.css").read_text(encoding="utf-8")
         for regla in ("width: 52px", "height: 52px", "var(--gradient-brand)", "font-size: 32px", "font-weight: 800"):
             self.assertIn(regla, css)
+
+    def test_tablero_sin_tono_conserva_el_html_completo(self):
+        html = render_to_string(STAT, {"etiqueta": "Plazas", "valor": 40, "icono": "fa-bed", "variante": "tablero"})
+        self.assertEqual(
+            html,
+            "\n"
+            '<div class="bg-white rounded-xl border border-base p-4 nodo-stat-tablero shadow-sm">\n'
+            '  <div class="flex items-center justify-between gap-2">\n'
+            '    <p class="text-xs font-semibold text-body-subtle">Plazas</p>\n'
+            '    <div class="nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0">'
+            '<i class="fas fa-bed" aria-hidden="true"></i></div>\n'
+            "  </div>\n"
+            '  <p class="text-2xl font-bold text-heading mt-2 nodo-stat-tablero-valor">40</p>\n'
+            "</div>\n",
+        )
+
+    def test_tablero_respeta_el_tono_explicito_en_la_caja_del_icono(self):
+        for tono in ("brand", "success", "warning", "danger"):
+            with self.subTest(tono=tono):
+                html = render_to_string(STAT, {"valor": 40, "variante": "tablero", "tono": tono})
+                self.assertIn(
+                    'class="nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0 '
+                    f'bg-{tono}-soft text-fg-{tono}"',
+                    html,
+                )
 
     def test_una_variante_desconocida_es_la_chica(self):
         chica = render_to_string(STAT, {"etiqueta": "X", "valor": 1, "icono": "fa-users"})

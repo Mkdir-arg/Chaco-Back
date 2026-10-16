@@ -22,7 +22,7 @@
 | `etiqueta` | Rótulo corto, `text-xs font-semibold text-body-subtle` |
 | `valor` | Número o texto corto **ya formateado** |
 | `icono` | Font Awesome sin `fas`; por defecto `fa-chart-simple` |
-| `tono` | `brand` (por defecto), `success`, `warning`, `danger`: color de la caja del ícono, **según significado** (la variante tablero lo ignora) |
+| `tono` | `brand` (por defecto), `success`, `warning`, `danger`: color de la caja del ícono, **según significado**; en tablero es opcional: sin tono conserva el gradiente |
 | `variante` | `tablero` para la versión grande (ver *Variantes*). Sin ella, o con cualquier otro valor, es la chica |
 
 Opcionales, para los tableros cuyos números escribe un JS (`becas-dashboard.js`). **Sin
@@ -52,7 +52,7 @@ La pieza tiene **dos tamaños declarados**. No es decoración: cada uno tiene su
 | | Chica (por defecto) | Grande · `variante="tablero"` |
 |---|---|---|
 | Cuándo | listados, detalles y franjas dentro de un contenido | tableros y pantalla de inicio de programa: la franja de métricas que **encabeza** la pantalla. También la franja de indicadores operativos que encabeza un detalle de Dispositivos (decisión C-2 del PM: P1, P4, P12, P19, P21) |
-| Caja de ícono | `w-8 h-8 rounded-lg`, color por `tono` | 52 px, radio 12, ícono blanco sobre `var(--gradient-brand)` (el `tono` no aplica) |
+| Caja de ícono | `w-8 h-8 rounded-lg`, color por `tono` | 52 px, radio 12; con `tono`, `bg-{tono}-soft text-fg-{tono}`; sin tono, ícono blanco sobre `var(--gradient-brand)` |
 | Valor | `text-2xl font-bold` (24 px) | 32 px / peso 800 |
 | Sombra | ninguna | `shadow-sm` |
 | Reglas | utilidades de Tailwind | `static/custom/css/nodo-stat-card.css` (`.nodo-stat-tablero*`) |
@@ -61,10 +61,10 @@ Regla de uso: **una sola franja grande por pantalla**, y la grande nunca convive
 la misma franja. Los opcionales (`kpi_id`, `sufijo`, `nota`…) valen en las dos. El ícono se sigue
 pasando por nombre de Font Awesome.
 
-**P4/P19** (`programas/templates/programas/dispositivos/legajo/detail.html`) usan la chica en
-ambas franjas para conservar los acentos semánticos del mockup. Ocupación recibe texto y tono
+**P4/P19** (`programas/templates/programas/dispositivos/legajo/detail.html`) usan `variante="tablero"` en
+ambas franjas con `tono` explícito para conservar los acentos semánticos del mockup. Ocupación recibe texto y tono
 desde `tension_de_ocupacion(conteo, tipo=dispositivo.tipo)`, con los umbrales configurados del
-tipo. La grande ignora `tono`, por lo que no expresa ese semáforo. La franja conserva cuatro
+tipo. Sin `tono`, la grande conserva el HTML y el gradiente de P21 y Becas. La franja conserva cuatro
 tarjetas: Ocupación incluye «X de Y operativas» en su pie y reemplaza a Ocupadas, sin perder esa
 cifra. Sin plazas operativas el porcentaje es «—», nunca un cero inventado.
 

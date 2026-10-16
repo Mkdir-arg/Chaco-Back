@@ -7,9 +7,12 @@
     width: 52px;
     height: 52px;
     border-radius: 12px;
+    font-size: 20px;
+}
+
+.nodo-stat-tablero .nodo-stat-tablero-ico:not([class*="bg-"]) {
     background: var(--gradient-brand);
     color: var(--text-white);
-    font-size: 20px;
 }
 
 .nodo-stat-tablero .nodo-stat-tablero-valor {

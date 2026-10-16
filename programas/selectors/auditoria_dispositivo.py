@@ -196,9 +196,9 @@ def evento_de_traza(traza):
     }
 
 
-def evento_de_movimiento(movimiento):
+def evento_de_movimiento(movimiento, *, puede_ver_personas=True):
     tipo = MovimientoEstadia.Tipo
-    persona = _persona(movimiento.estadia)
+    persona = _persona(movimiento.estadia) if puede_ver_personas else "Persona alojada"
     if movimiento.tipo == tipo.INGRESO:
         titulo = f"Ingreso de {persona}"
         detalle = _mayuscula(_plaza(movimiento.plaza_destino))
@@ -299,7 +299,7 @@ class FeedAuditoria:
     ``detalle`` y ``tono``.
     """
 
-    def __init__(self, dispositivo, edificios_con_asignacion=frozenset(), *, usuario_id=None):
+    def __init__(self, dispositivo, edificios_con_asignacion=frozenset(), *, usuario_id=None, puede_ver_personas=True):
         # Los edificios de los que quien mira puede ver de quién es el relevamiento. Lo
         # resuelve el servicio y llega como un conjunto de ids: el selector no evalúa
         # capacidades ni alcance, solo decide qué texto arma con lo que le dieron.
@@ -324,7 +324,7 @@ class FeedAuditoria:
                     "plaza_destino__sector",
                 )
                 .order_by("-momento", "-id"),
-                evento_de_movimiento,
+                lambda movimiento: evento_de_movimiento(movimiento, puede_ver_personas=puede_ver_personas),
             ),
             (
                 _CORRECCION,
@@ -370,7 +370,11 @@ class FeedAuditoria:
         return [evento for _clave, evento in filas[desde:hasta]]
 
 
-def auditoria_del_dispositivo(dispositivo, edificios_con_asignacion=frozenset(), *, usuario_id=None):
+def auditoria_del_dispositivo(
+    dispositivo, edificios_con_asignacion=frozenset(), *, usuario_id=None, puede_ver_personas=True
+):
     """El feed de auditoría del dispositivo, para paginar. Ver :class:`FeedAuditoria`."""
 
-    return FeedAuditoria(dispositivo, edificios_con_asignacion, usuario_id=usuario_id)
+    return FeedAuditoria(
+        dispositivo, edificios_con_asignacion, usuario_id=usuario_id, puede_ver_personas=puede_ver_personas
+    )
