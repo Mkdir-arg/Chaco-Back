@@ -35,7 +35,7 @@ SETTINGS_CI = RAIZ / ".github" / "ci" / "settings_roundtrip.py"
 
 JOB = "Migrate ida y vuelta (${{ matrix.motor }})"
 
-# Las ocho del paso D.4 del runbook: su `IrreversibleError` tiene que caer del lado de
+# Las nueve del paso D.4 del runbook: su `IrreversibleError` tiene que caer del lado de
 # «esperado» cuando el plan de vuelta las cruce.
 BARRERAS = (
     "programas.migrations.0032_siis_segmento_en_subsegmento",
@@ -44,6 +44,7 @@ BARRERAS = (
     "programas.migrations.0056_padron_convocatoria_identidad",
     "programas.migrations.0069_identificadores_siis_por_nivel",
     "programas.migrations.0073_ampliar_relevamiento_token_publico",
+    "programas.migrations.0097_baja_dispositivos_v1",
     "legajos.migrations.0007_ampliar_uuid_legajos",
     "users.migrations.0023_ampliar_solicitud_cambio_email_token",
 )
@@ -103,7 +104,7 @@ class OrquestadorTests(SimpleTestCase):
             "desaplicar `core` antes que `programas` arrastra medio esquema sin explicarlo",
         )
 
-    def test_el_aborto_de_las_ocho_barreras_cuenta_como_esperado(self):
+    def test_el_aborto_de_las_nueve_barreras_cuenta_como_esperado(self):
         """El job tiene que **esperar** ese aborto, no tomarlo como rojo.
 
         Si el mensaje de una barrera cambia y deja de coincidir, el día que el plan de

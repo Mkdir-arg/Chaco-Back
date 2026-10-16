@@ -251,7 +251,7 @@ acordado con ECOM— y solo el bloque de migraciones del entrypoint los levanta,
   baja la release—; un `RemoveField`/`DeleteModel`/`RenameField`/`RenameModel` lleva
   `# CONTRACT: <dejó de leerse en la release X>` y va dos releases después de que nadie
   lo lea; y todo `RunPython`/`RunSQL` declara su reversa, con `# REVERSA-NOOP: <qué dato
-  queda inconsistente>` si no deshace nada. Las ocho migraciones por las que no se vuelve
+  queda inconsistente>` si no deshace nada. Las nueve migraciones por las que no se vuelve
   están en el paso D.4 de [`processes.md`](docs/internal/processes.md).
 - **`atomic = False` ⇒ cada paso idempotente** (RED-58). MySQL y MariaDB no tienen DDL
   transaccional: una migración cortada deja el esquema donde llegó y **sin** fila en
