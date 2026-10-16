@@ -28,8 +28,9 @@ Qué afirma cada caso, siempre lo mismo en tres partes:
 
 El solapamiento se fuerza con eventos sobre las consultas reales, sin sleeps. No alcanza
 con una barrera de arranque: B debe estar en LOCK WAIT en InnoDB mientras A conserva su
-transacción abierta, sin atravesar el punto crítico ni terminar. El caso de alojamiento
-entre dispositivos detiene A después del INSERT: el candado común es el UNIQUE.
+transacción abierta, sin atravesar el punto crítico ni terminar. Los casos de alojamiento
+entre dispositivos detienen A al bloquear la persona, incluso si el ingreso y el egreso
+del ganador ocurren dentro de una misma transacción y liberan su UNIQUE antes del commit.
 
 La capa de al lado —que el `select_for_update()` se pida, y desde dónde— es
 `core.tests.candados.candados_tomados`, que corre en todos los PRs sobre SQLite. Las dos
@@ -51,7 +52,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import connections
+from django.db import connections, transaction
 from django.test import TransactionTestCase, override_settings, tag
 from django.utils import timezone
 
@@ -66,6 +67,7 @@ from programas.models import (
     Estadia,
     FotoInspeccion,
     InspeccionEdificio,
+    MotivoEgreso,
     Plaza,
     Programa,
     ReservaPlaza,
@@ -83,6 +85,7 @@ from programas.services.bitacora import (
 from programas.services.estadias import (
     AlojamientoEnLaRed,
     cambiar_plaza,
+    egresar_persona,
     ingresar_persona,
     liberar_reserva,
     reservar_plaza,
@@ -374,25 +377,57 @@ class CarreraDePlazaTests(_BaseCarrera):
         self.assertEqual(Estadia.objects.count(), 1)
 
     def test_la_misma_persona_en_dos_dispositivos_deja_una_sola_estadia_abierta(self):
-        """Escenario 2: la clave de alojamiento, que es lo único que cruza instituciones.
-
-        Los dos hilos bloquean plazas **distintas**, de dispositivos distintos: no hay
-        ninguna fila común donde formarse. Lo que los serializa es el UNIQUE de
-        `clave_alojamiento`, y el servicio tiene que traducir ese `IntegrityError` a
-        `AlojamientoEnLaRed` —el mensaje que explica por qué se rechaza el ingreso—, no
-        dejarlo salir como 500.
-        """
+        """Escenario 2: plazas distintas, misma persona; la fila común serializa la red."""
 
         resultados, errores = en_paralelo(
             self._ingresar(self.ana.pk, self.plaza.pk, self.cis.pk),
             self._ingresar(self.ana.pk, self.plaza_parador.pk, self.parador.pk),
-            punto_a=punto_critico(Estadia, "ingresar_persona", verbo="INSERT"),
+            punto_a=punto_critico(Ciudadano, "ingresar_persona"),
         )
 
         self.assertEqual(len(resultados), 1, "la misma persona quedó alojada en dos dispositivos")
         self._un_error(errores, AlojamientoEnLaRed)
         self.assertEqual(Estadia.objects.activas().filter(ciudadano=self.ana).count(), 1)
         self.assertEqual(Estadia.objects.count(), 1)
+
+    def test_ingreso_y_egreso_en_una_transaccion_no_dejan_pasar_un_ingreso_solapado(self):
+        """El UNIQUE queda libre al commit de A; B debe releer su historia cerrada."""
+
+        motivo, _ = MotivoEgreso.objects.get_or_create(codigo="alta", defaults={"nombre": "Alta"})
+
+        def ingreso_y_egreso():
+            with transaction.atomic():
+                estadia = ingresar_persona(
+                    ciudadano=self.ana,
+                    dispositivo=self.parador,
+                    usuario=self._fresco(self.operador),
+                    fecha_ingreso=_RELOJ - timedelta(days=6),
+                )
+                return egresar_persona(
+                    estadia=estadia,
+                    usuario=self._fresco(self.operador),
+                    fecha_egreso=_RELOJ - timedelta(days=2),
+                    motivo_egreso=motivo,
+                    destino="Domicilio",
+                )
+
+        def segundo_ingreso():
+            return ingresar_persona(
+                ciudadano=self.ana,
+                dispositivo=self.cis,
+                usuario=self._fresco(self.operador),
+                fecha_ingreso=_RELOJ - timedelta(days=4),
+            )
+
+        resultados, errores = en_paralelo(
+            ingreso_y_egreso, segundo_ingreso, punto_a=punto_critico(Ciudadano, "ingresar_persona")
+        )
+        self.assertEqual(len(resultados), 1)
+        error = self._un_error(errores)
+        self.assertIn("fecha_ingreso", error.message_dict)
+        self.assertIn("se superpone", str(error))
+        self.assertEqual(Estadia.objects.count(), 1)
+        self.assertFalse(Estadia.objects.activas().exists())
 
     def test_dos_cambios_de_plaza_hacia_la_misma_plaza_libre_mueven_a_uno_solo(self):
         """Escenario 3: el cambio de plaza compite por lo mismo que el ingreso."""

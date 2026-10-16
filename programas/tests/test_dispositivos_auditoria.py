@@ -117,7 +117,9 @@ class NoSePierdenEventosTests(BaseAuditoria):
             lambda: volver_plaza_a_servicio(plaza=self.plaza, usuario=self.operador_cis), "Plaza de nuevo en servicio"
         )
         self.assertUnaLinea(
-            lambda: egresar_persona(estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta),
+            lambda: egresar_persona(
+                destino="Domicilio", estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta
+            ),
             "Egreso de Gómez, Ana",
         )
 
@@ -202,6 +204,7 @@ class LegibleTests(BaseAuditoria):
             ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza
         )
         egresar_persona(
+            destino="Domicilio",
             estadia=estadia,
             usuario=self.operador_cis,
             motivo="Refiere violencia en el domicilio",
@@ -322,7 +325,7 @@ class OrdenYPaginasTests(BaseAuditoria):
             sacar_plaza_de_servicio(plaza=plaza, usuario=self.operador_cis, motivo=f"Obra {n}")
         inspeccion = self._relevamiento()
         registrar_resultado(self.agente, inspeccion, criticidad=Criticidad.BAJA)
-        egresar_persona(estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
+        egresar_persona(destino="Domicilio", estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
 
     def test_de_lo_mas_nuevo_a_lo_mas_viejo_entre_todas_las_fuentes(self):
         self._historial_largo()
@@ -428,7 +431,7 @@ class AuditoriaPresupuestoTests(BaseAuditoria):
         persona = type(self.persona).objects.create(dni=f"5{sufijo:07d}", nombre=f"N{sufijo}", apellido=f"A{sufijo}")
         plaza = Plaza.objects.create(sector=self.sector, codigo=f"V{sufijo}")
         estadia = ingresar_persona(ciudadano=persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=plaza)
-        egresar_persona(estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
+        egresar_persona(destino="Domicilio", estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
         sacar_plaza_de_servicio(plaza=plaza, usuario=self.operador_cis, motivo="Obra")
         entrada = registrar_entrada(
             dispositivo=self.cis, usuario=self.bitacorista, tipo=EntradaBitacora.Tipo.GENERAL, texto=f"Nota {sufijo}"

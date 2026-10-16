@@ -55,7 +55,13 @@ class HeaderDispositivosTests(BaseEstadias):
         )
         url = reverse("dispositivos:estadia_detalle", args=[self.cis.pk, estadia.pk])
         self.assert_estado_header(self.client.get(url), "Alojada", "info")
-        egresar_persona(estadia=estadia, usuario=self.operador, motivo_egreso=self.motivo_alta, fecha_egreso=self.ahora)
+        egresar_persona(
+            destino="Domicilio",
+            estadia=estadia,
+            usuario=self.operador,
+            motivo_egreso=self.motivo_alta,
+            fecha_egreso=self.ahora,
+        )
         self.assert_estado_header(self.client.get(url), "Egresada", "gray")
 
     def test_sidebar_y_migas_del_listado_se_llaman_instituciones(self):

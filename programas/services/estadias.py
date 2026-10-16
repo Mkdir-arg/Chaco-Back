@@ -65,7 +65,7 @@ La verificación en toda la red
 del alcance de quien pregunta**. Por eso exige ella misma `dispositivo.admitir` en el
 programa —no confía en que la vista se acuerde— y su resultado está partido en dos:
 
-* **Dentro del alcance** (`dispositivos_visibles`, por capacidad y asignación, nunca por
+* **Dentro del alcance** (`dispositivos_en_alcance`, por capacidad y asignación, nunca por
   nombre de grupo): se devuelve todo —institución, plaza, desde cuándo y a quién
   reclamarle—.
 * **Fuera del alcance**: se devuelve **que existe** una estadía abierta y nada más. Ni
@@ -83,9 +83,10 @@ from datetime import datetime
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import F, Q
 from django.utils import timezone
 
+from legajos.models import Ciudadano
 from programas.models import (
     Dispositivo,
     Estadia,
@@ -97,7 +98,7 @@ from programas.models import (
 )
 from programas.services.bitacora import anotar_en_bitacora
 from programas.services.dispositivos import (
-    dispositivos_visibles,
+    dispositivos_en_alcance,
     puede_en_programa_dispositivos,
     puede_operar_dispositivo,
 )
@@ -192,7 +193,7 @@ def verificar_alojamiento_en_red(ciudadano, usuario=None):
     estadía que puede estar en B.
 
     Después, dos consultas: la estadía abierta por su clave, y si la institución está
-    dentro del alcance del usuario (`dispositivos_visibles`, por capacidad y asignación).
+    dentro del alcance de admisión del usuario (por capacidad y asignación).
     """
 
     if usuario is None or not puede_en_programa_dispositivos(usuario, CAP_ADMITIR):
@@ -203,7 +204,7 @@ def verificar_alojamiento_en_red(ciudadano, usuario=None):
     if estadia is None:
         return VerificacionAlojamiento(clave=clave)
 
-    dentro = dispositivos_visibles(usuario).filter(pk=estadia.dispositivo_id).exists()
+    dentro = dispositivos_en_alcance(usuario, CAP_ADMITIR).filter(pk=estadia.dispositivo_id).exists()
     if not dentro:
         # Nada de la institución cruza el límite: ni nombre, ni código, ni localidad, ni
         # fecha. El id tampoco, que enumerado contra el listado propio diría cuál es.
@@ -372,6 +373,32 @@ def _tomar_plaza(plaza, dispositivo, *, momento=None):
 
 #: El egreso sin motivo del catálogo: lo rechaza el servicio, no el formulario.
 EGRESO_SIN_MOTIVO = "El egreso exige un motivo del catálogo."
+EGRESO_SIN_DESTINO = "Indicá a dónde va la persona."
+
+ALOJAMIENTO_SOLAPADO = (
+    "La persona tiene otra estadía en la red que se superpone con esas fechas. "
+    "Revisá las fechas o pedí a la coordinación del Programa Dispositivos que revise su trayectoria."
+)
+
+
+def _exigir_intervalo_sin_alojamiento(ciudadano_id, *, desde, hasta=None, excepto=None, campo):
+    """Exclusión histórica de la persona, incluso sin plaza y en la misma institución.
+
+    Intervalos semiabiertos: egresar e ingresar en el mismo instante está permitido.
+    No se filtra por estado ni alcance: el historial cerrado también cuenta. Solo se
+    revela el conflicto, sin ids, nombres, plazas ni fechas de la institución ajena.
+    """
+
+    if hasta == desde:
+        return  # Un ingreso y egreso simultáneos no ocupan ningún intervalo.
+    otras = Estadia.objects.filter(ciudadano_id=ciudadano_id).exclude(pk=excepto)
+    otras = otras.exclude(fecha_egreso=F("fecha_ingreso"))
+    otras = otras.filter(Q(fecha_egreso__isnull=True) | Q(fecha_egreso__gt=desde))
+    if hasta is not None:
+        otras = otras.filter(fecha_ingreso__lt=hasta)
+    if otras.exists():
+        raise ValidationError({campo: ALOJAMIENTO_SOLAPADO})
+
 
 #: Una carga retroactiva sobre una plaza que otra persona usó en el medio.
 PLAZA_OCUPADA_EN_EL_MEDIO = (
@@ -414,7 +441,8 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
     """Aloja a una persona. Devuelve la `Estadia` abierta.
 
     Falla con `AlojamientoEnLaRed` si la persona ya tiene una estadía abierta en
-    cualquier dispositivo, y con `ValidationError` si la plaza no está en condiciones.
+    cualquier dispositivo, y con `ValidationError` si su historial se superpone o si
+    la plaza no está en condiciones.
     `reserva` es la reserva que este ingreso consume —la de la lista de espera—, y es la
     única que no bloquea su propia plaza.
     """
@@ -442,9 +470,14 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
     elif dispositivo.tipo.plaza_obligatoria_al_ingresar:
         raise ValidationError({"plaza": "Este tipo de dispositivo exige asignar una plaza al ingresar."})
 
+    # Después de plaza y reserva: sus escrituras también toman la FK de la persona.
+    # La fila estable serializa ingresos aun si el ganador egresa antes del commit
+    # y libera el UNIQUE. READ COMMITTED permite releer entonces su historial cerrado.
+    Ciudadano.objects.select_for_update().only("pk").get(pk=ciudadano.pk)
     verificacion = verificar_alojamiento_en_red(ciudadano, usuario)
     if verificacion.alojada:
         raise AlojamientoEnLaRed(verificacion)
+    _exigir_intervalo_sin_alojamiento(ciudadano.pk, desde=fecha_ingreso, campo="fecha_ingreso")
 
     estadia = Estadia(
         ciudadano=ciudadano,
@@ -461,9 +494,8 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
     # arriba; los constraints son la red de abajo, no un paso del camino feliz.
     estadia.clean()
     try:
-        # El punto en el que la garantía deja de ser una consulta: entre la verificación
-        # y este alta puede haber ganado otro operador, de otra institución, al que esta
-        # transacción no vio. El UNIQUE de `clave_alojamiento` lo rechaza igual.
+        # Defensa del motor ante escrituras que no siguen el bloqueo de persona:
+        # el UNIQUE de `clave_alojamiento` las rechaza aunque las lecturas no las vean.
         with transaction.atomic():
             estadia.save()
     except IntegrityError as error:
@@ -514,7 +546,7 @@ def egresar_persona(
 
     `motivo_egreso` es el `MotivoEgreso` del catálogo (#691), es **obligatorio** y tiene
     que estar activo; `motivo` sigue siendo el texto libre de observaciones, que es lo que
-    ya recibía.
+    ya recibía. El destino también es obligatorio y se guarda sin espacios exteriores.
 
     La obligatoriedad vive acá y no solo en `EgresoForm` (pendiente del Cambio 269): es la
     misma trampa que la revisión del Cambio 262 marcó en la verificación de alojamiento
@@ -549,12 +581,25 @@ def egresar_persona(
         raise ValidationError({"motivo": EGRESO_SIN_MOTIVO})
     if not MotivoEgreso.objects.filter(pk=motivo_egreso.pk, activo=True).exists():
         raise ValidationError({"motivo": "El motivo elegido ya no está disponible."})
+    destino = (destino or "").strip()
+    if not destino:
+        raise ValidationError({"destino": EGRESO_SIN_DESTINO})
+
+    # El egreso solo acorta el intervalo abierto, nunca lo extiende ni lo reabre.
+    # La estadía ya está bloqueada; se excluye a sí misma del chequeo histórico.
+    _exigir_intervalo_sin_alojamiento(
+        estadia.ciudadano_id,
+        desde=estadia.fecha_ingreso,
+        hasta=fecha_egreso,
+        excepto=estadia.pk,
+        campo="fecha_egreso",
+    )
 
     estadia.fecha_egreso = fecha_egreso
     estadia.estado = Estadia.Estado.EGRESADA
     estadia.motivo_egreso = motivo
     estadia.motivo = motivo_egreso
-    estadia.destino_egreso = (destino or "").strip()
+    estadia.destino_egreso = destino
     estadia.pertenencias_devueltas = bool(pertenencias_devueltas)
     estadia.egresada_por = usuario
     # La clave se suelta en el mismo `UPDATE` que cierra la estadía: el constraint de
