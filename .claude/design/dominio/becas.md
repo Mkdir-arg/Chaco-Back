@@ -173,6 +173,10 @@ modal de preguntas generales. **Sin campo «Orden»** (Cambio 264): el formulari
 el alta entra al final de su lista, la edición conserva la posición y el orden se cambia
 arrastrando (ver *Drag & drop*); la fila de Tipo y Obligatorio queda en `sm:grid-cols-2` y
 `openEdit` / `openReqEdit` ya no reciben el orden.
+**Canal en la fila:** la celda Tipo de las cuatro listas y de las heredadas de solo lectura
+(`segmento_detail.html`, `subsegmento_detail.html`) repite el par de `_pregunta_row.html`:
+`badge badge-white` con el tipo y, si el canal no es «ambos», otro con `get_canal_display`. Nunca
+en `.js-lista-texto`, que lee el anuncio del drag & drop.
 `requisitos_segmento.html` y `subsegmento_detail.html` ya usan el helper de modales y las partes
 de header y pie; `segmento_detail.html` y `programa_detail.html` siguen con marcado propio hasta
 su propia migración.

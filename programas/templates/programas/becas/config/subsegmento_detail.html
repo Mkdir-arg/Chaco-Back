@@ -61,6 +61,7 @@
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm text-body">{{ req.texto }}</span>
             <span class="badge badge-white">{{ req.get_tipo_display }}</span>
+            {% if req.canal != "ambos" %}<span class="badge badge-white">{{ req.get_canal_display }}</span>{% endif %}
           </div>
           <span class="badge badge-gray ml-3 flex-shrink-0">Heredado</span>
         </div>
