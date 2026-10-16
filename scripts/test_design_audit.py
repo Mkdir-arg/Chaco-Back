@@ -181,12 +181,19 @@ class ParticionesTests(unittest.TestCase):
     LINEA_NUEVA = '\n<p style="margin-top: 4px">nuevo</p>'
 
     def test_una_linea_nueva_en_un_pedazo_se_sigue_contando(self) -> None:
-        """El conjunto no es una amnistía: lo que agrega el PR se reporta igual."""
+        """El conjunto no es una amnistía: lo que agrega el PR se reporta igual.
+
+        Se mide contra el piso actual del conjunto (``archivos_en_la_base``), como la
+        auditoría real: si el piso fuera solo el origen entero, un PR que baja deuda
+        en un pedazo dejaría hueco y la línea nueva quedaría compensada.
+        """
         particion, archivos, origen_entero = self._particion()
         tocado, texto = archivos[0]
         mutados = [(tocado, texto + self.LINEA_NUEVA)] + archivos[1:]
 
-        hallazgos = design_audit.nuevos_de_particion(origen_entero, particion.origen, mutados)
+        hallazgos = design_audit.nuevos_de_particion(
+            origen_entero, particion.origen, mutados, archivos_en_la_base=archivos
+        )
 
         self.assertEqual([(f[0], f[3]) for f in hallazgos], [(tocado, "INLINESTYLE")])
 

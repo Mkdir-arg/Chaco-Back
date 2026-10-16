@@ -41277,6 +41277,7 @@ No requiere.
 - Mutación: forzar `pide_apoderado=True` pone en rojo dos tests de `ApoderadoSegunLaFotoTests`; llamar `form.save()`
   siempre pone en rojo `test_sin_cambios_no_toca_el_caso`; saltear la reparación pone en rojo los dos de reparación.
 - Snapshots del detalle (`test_becas_revision_detalle_html`, casos sin foto) pasan sin regenerar.
+- Ajuste del auto-test de particiones de design_audit: mide contra el piso actual del conjunto.
 - `manage.py test programas` (Python 3.12 / Django 5.2): 3.531 tests, solo 3 fallas preexistentes y ajenas
   (`test_reportes.ExportsDeConvocatoriaTests`, 403; fallan igual en la base `dc494794`).
   `core.tests.test_performance_budgets --tag performance`, `manage.py check --deploy`, ruff,
