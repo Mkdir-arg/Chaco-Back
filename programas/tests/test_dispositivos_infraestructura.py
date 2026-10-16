@@ -376,6 +376,11 @@ class SemaforoTests(BaseInfraestructura):
 
         self.assertEqual(infra["indicadores"][0]["etiqueta"], "Estado edilicio")
         self.assertEqual(infra["indicadores"][0]["valor"], "Regular")
+        self.assertEqual(panel.count("nodo-stat-tablero-valor"), 3)
+        self.assertIn(
+            "nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0 bg-warning-soft text-fg-warning",
+            panel,
+        )
         self.assertIn('<span class="badge badge-dot badge-warning">Regular</span>', panel)
         self.assertIn("Faltan dos duchas", panel)
 

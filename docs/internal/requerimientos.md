@@ -449,6 +449,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 321 | Personas y red: intervalos de alojamiento, destino obligatorio y alcance de admisión | Dispositivos · personas y red | `#datos` `#rbac` `#performance` | PM — auditoría independiente, carril G1 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 322 | Auditoría final del relevamiento edilicio | Dispositivos · P2/P4/P19/P21 y API de campo | `#relevamientos` `#ui` `#api` `#performance` | PM / juez — carril G3 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 323 | Auditoría final del MVP de Dispositivos: formularios y modales (carril G4) | Dispositivos · alta de institución, listado, asistente de ingreso, bitácora y modales AJAX | `#ui` `#rbac` `#textos` `#datos` | PM — auditoría final del MVP v2 | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 324 | P4: identidad protegida, permanencia de calendario e indicadores grandes | Dispositivos · detalle institucional | `#rbac` `#ui` `#datos` | PM — auditoría final MVP v2, carril G2 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -42266,5 +42267,158 @@ es lo que el hallazgo pedía— o el PM le agrega `programa.configurar` al rol.
 
 Revertir el commit. No toca datos ni esquema. El único efecto en caliente es que vuelven a poder
 dar de alta instituciones los roles con `dispositivo.crear` sin alcance de admin.
+
+---
+
+---
+
+# Cambio 324 — P4: identidad protegida, permanencia de calendario e indicadores grandes
+
+🟢 **HECHO — 17/10/2026** · Numeración pendiente del juez, según el encargo.
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle institucional P4 / Infraestructura P19 |
+| **Etiquetas** | `#rbac` `#ui` `#datos` |
+| **Solicitante** | PM — encargo directo, auditoría final del MVP de Dispositivos v2, carril G2 |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | Épica #127 · task 03 (#582) como referencia de métricas |
+| **Partes afectadas** | Backoffice: P4/P19 y componente stat card · Servidor: presentación del detalle e Historial |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Que se vea igual al mockup (P4 y P19) y mantenga la lógica.» Corregir la identidad sin
+`ciudadano.ver`, la permanencia del egreso, el atributo muerto, el tamaño de las métricas,
+el avatar ajeno al mockup y la prueba tautológica de los umbrales.
+
+## Alcance acordado
+
+Solo el worktree `mvp-g2`, rama `fix/mvp-auditoria-g2`. Ajustes sobre el detalle existente,
+la pieza compartida de métricas y sus pruebas. No incluye pantallas nuevas, cambios de roles,
+migraciones ni ampliación funcional del MVP. P21 y Becas conservan el HTML de sus métricas
+sin tono explícito.
+
+## Decisiones tomadas
+
+1. **Ocultar identidad sin `ciudadano.ver`.** La fila permanece y dice «Persona alojada»;
+   nombre y DNI se omiten también del menú, atributos, datos Alpine y modales precargados
+   de cambio y egreso. Las capacidades de operación conservan sus efectos.
+2. **Una sola regla de permanencia.** P4 llama `Estadia.dias_de_permanencia()`, igual que
+   P7: días de calendario en hora local (Cambio 273), no bloques completos de 24 horas.
+3. **Eliminar el atributo muerto.** El listado deja de asignar un entero a
+   `dias_de_permanencia`, que ocultaba el método; se elimina su documentación y el argumento
+   temporal que quedó sin uso, sin consumidores.
+4. **Métricas grandes con semáforo.** P4 y P19 usan `variante="tablero"`, valor de 32 px
+   e ícono de 52 px. El tono explícito usa los mismos pares `bg-*-soft text-fg-*` de la chica.
+   Sin tono se conserva exactamente el HTML y el gradiente de los consumidores actuales.
+   Los indicadores de P4 sin tono propio reciben `brand`, como en su render anterior.
+5. **Sin avatar.** La columna Persona conserva solo nombre y DNI para quien puede verlos.
+6. **Expectativas literales.** La prueba de la franja fija umbrales 50/90 y exige
+   `("50 %", "warning")`, 2 operativas, 1 reservada y 0 disponibles.
+7. **Cerrar la fuga del Historial precargado.** La inspección adicional encontró que
+   `selectors/auditoria_dispositivo.py:evento_de_movimiento` nombraba al ciudadano en el
+   Historial incluido en el mismo HTML de Estadías. El servicio resuelve `ciudadano.ver`
+   y el selector recibe el booleano para usar también «Persona alojada» en esos movimientos.
+   El test usa `ingresar_persona` para registrar el movimiento real, además de la estadía.
+
+## Plan de pantalla
+
+- **Tipo:** A, ajuste de pantalla existente; C, ampliación autorizada de pieza canónica.
+- **Ruta final:** `dispositivos:detalle` → `programas/dispositivos/legajo/detail.html`;
+  solapas Datos, Estadías e Infraestructura (P4/P19).
+- **Arquetipo:** Detalle con solapas; referencia canónica
+  `programas/templates/programas/becas/cupo/segmento_detail.html`. No se crea pantalla.
+- **Clasificación:** `_stat_card.html`, `nodo-stat-card.css`, menú de fila, tabla, partes
+  del modal y shell: Canónico reutilizable. No se reutiliza legacy ni piezas conflictivas.
+- **Assets efectivos:** shell `includes/base.html`, Tailwind compilado, tokens NODO,
+  `nodo-stat-card.css`, `nodo-menu-fila.css`, `nodo-tabs.js` y `becas-modal.js` existentes.
+- **Bloques:** métricas grandes en ambas franjas; tabla sin avatar con identidad condicionada;
+  menú y modales con rótulo seguro; egreso con permanencia del modelo.
+- **Novedad autorizada:** `tono` en tablero, con ficha `stat_card.md` y fila del inventario
+  actualizadas en el mismo cambio. La ficha de Detalle documenta también el permiso.
+
+## Apartamientos del mockup
+
+Se conservan los recortes funcionales del MVP: P4 muestra Ocupación, Plazas operativas,
+Reservadas o prestadas y Disponibles; no inventa «Bitácora al día» ni «Fichas completas».
+P19 usa los datos existentes de Estado edilicio, Relevamientos realizados y Fotos; no agrega
+Tenencia, Habitaciones ni una métrica de Vigencia sin su dato/servicio. La identidad genérica
+sin capacidad es el apartamiento expresamente decidido por el PM. No se dibujan acciones
+ni solapas de funciones ausentes.
+
+## Implementación
+
+Quien tiene alcance al dispositivo sigue viendo y operando sus estadías según sus capacidades,
+pero solo `ciudadano.ver` habilita nombre y DNI. El egreso del 03/09 a las 19:40 al 08/09
+10:00 informa 5 días tanto en P4 como en P7. Las franjas grandes mantienen el semáforo
+configurado por tipo y los colores de Infraestructura.
+
+## Archivos
+
+- `programas/views/dispositivos_legajo.py`, `services/detalle_dispositivo.py`,
+  `selectors/auditoria_dispositivo.py` y `templates/programas/dispositivos/legajo/detail.html`.
+- `templates/components/_stat_card.html`, `static/custom/css/nodo-stat-card.css`.
+- Tests de detalle, egreso, auditoría e infraestructura; `core/tests/test_nodo_ui_piezas.py`.
+- Inventario canónico, fichas de stat card y Detalle; esta entrada y su fila del índice.
+
+## Base de datos
+
+No requiere migración ni cambios de datos. El render usa una copia efímera del andamiaje
+`chaco-fid2`, en `%TEMP%/chaco-g2`, sincronizada al esquema vigente solo en esa copia.
+
+## Validación
+
+- Primera corrida focalizada: **230 tests OK**, 2 omitidos previstos.
+- Corrida focal final: **157 tests OK** (detalle, auditoría, egreso, fidelidad,
+  infraestructura y arquitectura). Reglas finales y componente: **20 tests OK**.
+- `manage.py check`, `makemigrations --check --dry-run` con syncdb desactivado,
+  `check_migraciones.py`, `compile_templates.py`: OK, 233 templates sin errores.
+- Auditorías Detalle P4, ratchet contra `origin/development` y goldens: OK, cero nuevos.
+- `npm run build:tailwind`: OK, sin diff del CSS generado.
+- Ruff check y format en `programas/ core/ users/`: OK.
+- Snapshots de Becas: 6 tests OK con `ACTUALIZAR_SNAPSHOTS_DETALLE=1`, sin diff.
+- Playwright en puerto **8901**: 20 vistas a **1440 y 390 px** (Datos, Estadías con/sin
+  identidad, Infraestructura y P21); cuatro capturas adicionales de modales sin identidad.
+  Sin desborde horizontal global; íconos de 52 px, tonos P4/P19 y gradiente P21 verificados.
+  Capturas y resultados locales en `%TEMP%/chaco-g2/capturas/` y `render.json`.
+- **Mutaciones:** doce detectadas en rojo. Se reintrodujo identidad en celda, menú,
+  datos Alpine del egreso y subtítulo del cambio; bloques de 24 h; umbrales ignorados;
+  método sombreado; tono ignorado en tablero; identidad en movimientos del Historial;
+  avatar de iniciales; variante chica en las franjas de P4 y P19.
+  Las ocho mutaciones de archivos se restauraron desde copias exactas; las otras cuatro
+  se aislaron en proceso y restauraron las referencias originales. La suite final prueba el código restaurado.
+- Performance: **30 tests OK**, sin aumentos de presupuestos (`check_perf_budgets.py` OK).
+- Después del commit de código `8c4856f5`: `check_design_agent.py --changed` y
+  `--limites --base origin/development` OK; Detalle, ratchet, goldens y compilación OK.
+- Suite completa `programas core` por módulos: **4.977 tests en 241 módulos**;
+  **4.913 aprobados, 61 omitidos y 3 fallos previos** de exportaciones de Becas.
+  Todos los módulos de `core` y los tests afectados por G2 pasaron. Los omitidos incluyen
+  pruebas del motor real que no corren contra SQLite. Resultados por módulo en
+  `%TEMP%/chaco-g2/suite/resultados.json` y logs en ese mismo directorio.
+- Fallos previos detectados en `programas.tests.test_reportes.ExportsDeConvocatoriaTests`:
+  los tests `test_el_export_de_beneficiarios_neutraliza_la_formula`,
+  `test_el_export_de_lista_de_espera_neutraliza_la_formula` y
+  `test_el_export_de_relevamientos_neutraliza_la_formula` reciben 403 en vez de 200.
+  Se reprodujeron los tres al sustituir en un proceso aislado los módulos Python de
+  runtime modificados por sus versiones de `origin/development`, sin editar archivos ni
+  usar otro checkout. Los endpoints de exportación y esos tests no tienen diff contra
+  la base. Evidencia: `%TEMP%/chaco-g2/baseline-reportes.log` (3 tests, 3 fallos idénticos).
+  No se alteran capacidades, roles ni exportaciones ajenas a G2 para esconderlos.
+
+## Puesta en marcha en el servidor
+
+No requiere tareas adicionales al despliegue normal del código y CSS versionado.
+
+## Pendientes / a definir
+
+No quedan puntos de implementación de G2 pendientes. Quedan fuera de este carril los tres
+tests previos de exportaciones de Becas descritos en Validación, para su corrección por
+el responsable de esa funcionalidad. El juez asigna el número definitivo de esta entrada 324.
+
+## Reversión
+
+Revertir el commit de código y el de documentación. No hay datos ni migraciones que revertir.
+La reversión restituye las fugas de identidad y la discrepancia de permanencia anteriores.
 
 ---
