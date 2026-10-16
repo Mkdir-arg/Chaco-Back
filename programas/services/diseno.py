@@ -321,7 +321,13 @@ def registrar_baja_del_catalogo(objeto, campo):
     Corre en el ``pre_delete`` (``programas.signals``): adentro del ``atomic`` del
     borrado, y solo si la recolección no frenó antes con un ``ProtectedError``.
     """
-    items = list(ItemDiseno.objects.filter(**{campo: objeto}).select_related("diseno", "padre"))
+    # Los candados se toman **en orden de id del diseño** y quedan hasta el COMMIT:
+    # dos borrados concurrentes que tocan los mismos diseños los piden en el mismo
+    # orden. Con el orden por defecto de `ItemDiseno` (`orden`, `id`) podían pedirlos
+    # cruzados, e InnoDB aborta uno por deadlock (un 500).
+    items = list(
+        ItemDiseno.objects.filter(**{campo: objeto}).select_related("diseno", "padre").order_by("diseno_id", "id")
+    )
     if not items:
         return
     with transaction.atomic():

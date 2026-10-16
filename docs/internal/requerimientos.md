@@ -41169,6 +41169,11 @@ están, porque son datos del diseño y no de esta columna.
 - **Borrado masivo de N filas del catálogo:** la señal agrega una consulta por fila borrada (y unas
   siete por diseño afectado). Es una operación de admin poco frecuente; no tiene presupuesto.
 - Matías re-prueba en testing TC-338-01 y TC-339-01/05/07 después del espejo.
+- Medir en testing el borrado de un requisito usado en muchas convocatorias: los candados de cada
+  diseño quedan hasta el COMMIT, contra el `read_timeout` de 10 s. Se toman en orden de id del
+  diseño, así que dos borrados concurrentes no se cruzan.
+- G1-16: ahora un borrado del catálogo sube la versión del diseño, así que las cargas de la app
+  capturadas antes van a mostrar la observación de versión. Es veraz: el formulario cambió.
 
 ## Historial
 

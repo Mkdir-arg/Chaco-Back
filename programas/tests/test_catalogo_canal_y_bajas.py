@@ -13,6 +13,7 @@
 import json
 from datetime import date
 from io import StringIO
+from unittest.mock import patch
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
@@ -32,6 +33,7 @@ from programas.models import (
     Subsegmento,
     TipoCampo,
 )
+from programas.services import diseno as servicio_diseno
 from programas.services.condiciones import validar_condicion
 from programas.services.diseno import clave_pregunta, clave_requisito, obtener_o_crear_diseno, reconciliar
 from programas.tests.test_constructor_confirmacion_y_autoguardado import _correr
@@ -218,6 +220,29 @@ class BorrarDelCatalogoTests(_BaseBajas):
         avisos = reconciliar(self.diseno)
         self.assertIn("Tenencia de la vivienda", avisos["quitados"])
         self.assertFalse(self.diseno.items.filter(pregunta__isnull=False).exists())
+
+    def test_los_disenos_se_bloquean_en_orden_de_id(self):
+        """Dos borrados concurrentes que tocan los mismos diseños toman los candados
+        en el mismo orden (por id del diseño): si no, InnoDB puede abortar uno por
+        deadlock y responder 500. `ItemDiseno` se ordena por `orden` por defecto, así
+        que acá el ítem del primer diseño va último a propósito."""
+        otra = Convocatoria.objects.create(
+            nombre="Becas 2026 bis",
+            segmento=self.segmento,
+            subsegmento=self.subsegmento,
+            fecha_inicio=date(2026, 1, 1),
+            fecha_fin=date(2026, 12, 31),
+        )
+        segundo, _ = obtener_o_crear_diseno(otra)
+        self.assertLess(self.diseno.pk, segundo.pk)
+        clave = clave_requisito(self.nivel)
+        self.diseno.items.filter(clave=clave).update(orden=99)
+        segundo.items.filter(clave=clave).update(orden=0)
+
+        with patch.object(servicio_diseno, "bloquear", wraps=servicio_diseno.bloquear) as espia:
+            self.nivel.delete()
+
+        self.assertEqual([c.args[0].pk for c in espia.call_args_list], [self.diseno.pk, segundo.pk])
 
     def test_borrado_desde_el_admin(self):
         cert = self._condicionar(clave_requisito(self.certificado), clave_requisito(self.nivel), "Secundario")
