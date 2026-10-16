@@ -442,6 +442,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 314 | «Guardar borrador» de la solicitud de merendero deja de pedir los campos obligatorios en el navegador | Merenderos · solicitud de merendero | `#ui` `#gestion` | QA — issue #564 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 315 | Excepción con vencimiento para el ReDoS de twisted en IMAP: «Pip Audit» vuelve a verde | Transversal · CI (`Pip Audit`, `security/excepciones.toml`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo en todos los PRs (16/10/2026) | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 316 | Constructor y catálogo: canal en las listas, borrado que avisa y editor de condiciones por canal | Becas · catálogo de requisitos y constructor de formularios | `#requisitos` `#convocatorias` `#ui` `#datos` | QA — issues #338 y #339 (y #341) | 16/10/2026 | 🟢 **Hecho** | `programas.0098_diseno_bajas_pendientes` |
+| 317 | Revisión del caso: el apoderado sigue a la foto, aviso de versión solo si cambió y «Guardar» sin cambios no reescribe | Becas · revisión del caso | `#relevamientos` `#ui` `#datos` | QA (Matías) — issue #347 (E6, E7, E8) | 16/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -41343,5 +41344,120 @@ están, porque son datos del diseño y no de esta columna.
 ## Historial
 
 - **16/10/2026** — Implementado (E2–E5), PR contra `development`.
+
+---
+
+# Cambio 317 — Revisión del caso: el apoderado sigue a la foto, el aviso de versión dice la verdad y «Guardar» sin cambios no reescribe
+
+🟢 **HECHO — 16/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · revisión del caso (detalle, datos de contacto y apoderado, respuestas) |
+| **Etiquetas** | `#relevamientos` `#ui` `#datos` |
+| **Solicitante** | QA (Matías) — pruebas del issue #347 en testing; plan de arreglos aprobado por el PM el 16/10/2026 (E6, E7, E8) |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | #347 (Cambio 58, fase 4) |
+| **Partes afectadas** | Backoffice (`formulario_detalle`, `FormularioRevisionForm`, `_contacto.html`, `_respuestas.html`) · Servidor/API (helper `alta_incompleta` compartido) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Tres hallazgos de QA sobre el detalle del caso en revisión:
+
+- **E6.** En un caso de la app de campo con un adulto, la revisión ofrece cargar el apoderado aunque el formulario no
+  se lo pidió. Al guardar se crea el legajo del apoderado.
+- **E7.** El badge «Formulario vN» dice siempre «El formulario cambió después», aunque no haya cambiado.
+- **E8.** «Guardar cambios» sin tocar nada reescribe el caso igual (sube `modificado`).
+
+## Alcance acordado
+
+Entra: la regla del apoderado en la revisión (vista, form y template), el aviso de versión y el guardado sin cambios.
+Queda afuera: la regla del link público (Cambio 67) y el volcado del contacto al legajo (RN-10), que no cambian.
+
+## Decisiones tomadas
+
+- **Precisión del Cambio 67.** «La revisión muestra siempre la sección del apoderado» vale para el link, cuyo grupo
+  Apoderado no tiene condición, y para los casos sin foto. **Con foto manda la foto**: si la condición del grupo ocultó
+  el apoderado (la app de campo lo oculta a los mayores con `edad_menor 18`, #637), la revisión no ofrece cargarlo y
+  muestra «No se pidió» con la leyenda «la condición del grupo no se cumplió».
+- **Se restaura la regla perdida.** Es la del Cambio 58 (D10, commit `2075842a`): `apoderado_pedido(bloques)` busca los
+  grupos con campos de origen `persona_vinculada` en la foto ya leída (sin consultas nuevas) y mira si alguno quedó
+  visible. Se perdió en el merge `99bb84bd` (development en `feature/constructor-formularios`, 11/09/2026, Cambios 59
+  a 71), que tomó el `mostrar_apoderado = True` del Cambio 67, y llegó a `development` con el merge `749544a` /
+  release `efd368da`. La diferencia con aquella versión: sin foto ya no cae a `es_menor` sino a `True` (Cambio 67).
+- **Un apoderado ya cargado se muestra igual**, aunque el grupo esté oculto: no se esconde un dato del caso y guardar
+  el contacto no lo borra.
+- **El form saca los cinco campos `apoderado_*`** cuando no se pide (`pide_apoderado=False`), no solo el template: si
+  quedaran, el POST llegaría sin ellos y el ModelForm vaciaría las columnas; y no se exige apoderado al menor en ese
+  caso. GET y POST usan el mismo valor, calculado antes de que `is_valid()` escriba el POST sobre la instancia.
+- **Aviso de versión solo si cambió.** El badge «Formulario vN» queda; el aviso «El formulario cambió después ·
+  vigente: vM» sale solo si el diseño de la convocatoria existe (`M > 0`) y su versión es distinta de la de la foto. El
+  diseño viaja en la consulta del caso (`select_related` de la relación inversa): 0 consultas más, el detalle sigue en
+  15.
+- **Sin cambios, «Guardar» no reescribe el caso** (ni `modificado`). Solo repara lo que haya quedado a medias: saca la
+  foto si el caso no la tenía, y resuelve el legajo si el alta quedó incompleta —mismo criterio que la API, ahora en
+  `services/becas.alta_incompleta`— o si hay un apoderado con DNI sin vincular. Con cambios, todo igual dentro de la
+  misma transacción (BEC-24).
+
+## Implementación
+
+- `programas/selectors/revision.py`: `apoderado_pedido(bloques, por_defecto=True)` y `version_vigente(formulario)`;
+  `contexto_respuestas` recibe los bloques ya leídos y agrega `version_vigente`.
+- `programas/views/revision.py`: `formulario_detalle` lee la foto una vez, decide `mostrar_apoderado` (pedido o con
+  datos) antes del form, compara solo los campos que el form tiene y saltea `form.save()` sin cambios.
+- `programas/forms.py`: `FormularioRevisionForm(pide_apoderado=...)`.
+- `programas/services/becas.py`: `alta_incompleta`, movido desde `programas/api/views.py` sin cambiar su
+  comportamiento en la API.
+- Templates: `_contacto.html` con la leyenda «No se pidió» cuando no se muestra el apoderado; `_respuestas.html` con el
+  aviso de versión condicional y los textos «No se pidió» con tilde (unificados con la leyenda nueva).
+
+## Archivos
+
+`programas/views/revision.py` · `programas/selectors/revision.py` · `programas/forms.py` · `programas/services/becas.py`
+· `programas/api/views.py` · `programas/services/campo.py` (comentarios) ·
+`programas/templates/programas/becas/revision/_detalle/_contacto.html` ·
+`programas/templates/programas/becas/revision/_detalle/_respuestas.html` · `.claude/design/componentes/field.md` ·
+`programas/tests/test_respuestas.py` · `programas/tests/test_becas_revision.py` · `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Tests nuevos en `programas/tests/test_respuestas.py`: `ApoderadoSegunLaFotoTests` (reescrito: app con adulto sin
+  inputs y con leyenda; link sin condición y caso sin foto con inputs; el POST no carga ni crea el legajo de un
+  apoderado no pedido; datos ya cargados con el grupo oculto se muestran y no se borran), `VersionDelFormularioTests`
+  (v5 con diseño v7 avisa; v7/v7 y sin diseño no) y `GuardarSinCambiosTests` (sin cambios `modificado` no se mueve;
+  alta incompleta se repara; caso sin foto la recibe; apoderado pendiente se vincula).
+- `ContextoDetalleTests` suma la clave `version_vigente`; `ConsultasDetalleTests` sigue en 15 consultas.
+- Mutación: forzar `pide_apoderado=True` pone en rojo dos tests de `ApoderadoSegunLaFotoTests`; llamar `form.save()`
+  siempre pone en rojo `test_sin_cambios_no_toca_el_caso`; saltear la reparación pone en rojo los dos de reparación.
+- Snapshots del detalle (`test_becas_revision_detalle_html`, casos sin foto) pasan sin regenerar.
+- Ajuste del auto-test de particiones de design_audit: mide contra el piso actual del conjunto.
+- `manage.py test programas` (Python 3.12 / Django 5.2): 3.531 tests, solo 3 fallas preexistentes y ajenas
+  (`test_reportes.ExportsDeConvocatoriaTests`, 403; fallan igual en la base `dc494794`).
+  `core.tests.test_performance_budgets --tag performance`, `manage.py check --deploy`, ruff,
+  `design_audit.py --ratchet` (0 nuevos), `--goldens`, `compile_templates.py` y `check_design_agent.py` en verde.
+
+## Puesta en marcha en el servidor
+
+No requiere: entra con el deploy.
+
+## Pendientes / a definir
+
+- Un caso **sin foto** que se guarda desde la revisión recibe la foto del formulario vigente (`sincronizar_desde_legacy`,
+  como antes); desde ese momento su apoderado sigue a esa foto. Si en la app es un adulto, la próxima vez no se ofrece.
+
+## Reversión
+
+Revertir el commit del PR. No hay datos que deshacer.
+
+## Historial
+
+Entrada nueva. Precisa el Cambio 67 (la regla «siempre visible» vale para el link sin condición y para los casos sin
+foto; con foto manda la foto) y restaura la regla D10 del Cambio 58 perdida en el merge `99bb84bd`, que llegó a
+`development` con la release `efd368da`.
 
 ---

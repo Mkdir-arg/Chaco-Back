@@ -1732,8 +1732,29 @@ class FormularioRevisionForm(forms.ModelForm):
             ),
         }
 
+    CAMPOS_APODERADO = (
+        "apoderado_nombre",
+        "apoderado_apellido",
+        "apoderado_dni",
+        "apoderado_genero",
+        "apoderado_fecha_nacimiento",
+    )
+
+    def __init__(self, *args, pide_apoderado=True, **kwargs):
+        """``pide_apoderado=False``: la foto del caso ocultó el grupo Apoderado
+        (#347). Los cinco campos salen del form —no solo de la pantalla—: si
+        quedaran, el POST llegaría sin ellos y el ModelForm vaciaría las
+        columnas; y un apoderado que no se pidió no se exige ni se carga."""
+        super().__init__(*args, **kwargs)
+        self.pide_apoderado = pide_apoderado
+        if not pide_apoderado:
+            for campo in self.CAMPOS_APODERADO:
+                self.fields.pop(campo, None)
+
     def clean(self):
         cleaned_data = super().clean()
+        if not self.pide_apoderado:
+            return cleaned_data
         fecha_nacimiento = None
         if self.instance.ciudadano_id:
             fecha_nacimiento = self.instance.ciudadano.fecha_nacimiento
@@ -1746,13 +1767,7 @@ class FormularioRevisionForm(forms.ModelForm):
                     fecha_nacimiento = None
 
         if es_menor(fecha_nacimiento):
-            for campo in (
-                "apoderado_nombre",
-                "apoderado_apellido",
-                "apoderado_dni",
-                "apoderado_genero",
-                "apoderado_fecha_nacimiento",
-            ):
+            for campo in self.CAMPOS_APODERADO:
                 if not cleaned_data.get(campo):
                     self.add_error(campo, "Este dato es obligatorio cuando la persona relevada es menor de edad.")
         return cleaned_data

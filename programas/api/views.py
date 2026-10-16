@@ -46,7 +46,7 @@ from programas.api.serializers import (
 )
 from programas.models import Formulario, Relevamiento
 from programas.services import campo
-from programas.services.becas import formulario_por_client_uuid, resolver_ciudadano_offline
+from programas.services.becas import alta_incompleta, formulario_por_client_uuid, resolver_ciudadano_offline
 from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.identidad import ORIGEN_PADRON, ORIGEN_PERSONAS, identificar
 from programas.services.inspecciones import CAP_RELEVAR
@@ -344,14 +344,6 @@ def _completar_alta(formulario, relevamiento, datos_identificacion, definicion=N
         campo.revisar_carga(formulario, relevamiento, identidad=datos_identificacion),
     )
     resolver_ciudadano_offline(formulario)
-
-
-def _alta_incompleta(formulario):
-    """¿Un envío anterior se cortó después de insertar el caso? Se nota en que
-    no tiene la foto de la definición o en que la identificación offline sigue
-    sin resolverse a un legajo."""
-    datos = formulario.datos_identificacion if isinstance(formulario.datos_identificacion, dict) else {}
-    return not formulario.definicion or (not formulario.ciudadano_id and bool(datos.get("dni")))
 
 
 def _formulario_fresco(pk):
@@ -672,7 +664,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
             # Doble envío o reintento de la app. Si el envío anterior se cortó
             # después del commit (sin respuestas por clave, sin legajo), se
             # completa acá en vez de devolverlo a medias.
-            if _alta_incompleta(existente):
+            if alta_incompleta(existente):
                 _completar_alta(existente, rel, datos_identificacion, serializer.context.get("foto_definicion"))
                 existente = _formulario_fresco(existente.pk)
             return Response(FormularioSerializer(existente).data, status=status.HTTP_200_OK)

@@ -43,6 +43,7 @@ from programas.models import (
     ValidacionSIS,
 )
 from programas.selectors.revision import (
+    apoderado_pedido,
     contexto_identidad,
     contexto_respuestas,
     contexto_siis,
@@ -57,7 +58,7 @@ from programas.services.autorizacion import (
     sin_formularios_publicos_si_no_puede,
 )
 from programas.services.avisos_resolucion import CAMPO_TRAZA_AVISO, enviar_aviso_resolucion, resultado_vigente
-from programas.services.becas import registrar_traza, resolver_ciudadano_offline
+from programas.services.becas import alta_incompleta, registrar_traza, resolver_ciudadano_offline
 from programas.services.cupo import (
     MENSAJE_CASO_EN_ESPERA,
     aprobar_o_poner_en_espera,
@@ -67,7 +68,7 @@ from programas.services.identidad import gran_base_activa
 from programas.services.listados import PaginadorConConteo
 from programas.services.padron import fila_padron
 from programas.services.personas import consultar_persona
-from programas.services.respuestas import sincronizar_desde_legacy
+from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
 from programas.services.siis import SiisCatalogError, catalogo, funciones_programa
 from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis, mensaje_envio, provincia_de
 from programas.services.validacion_siis import validar_formulario_en_siis
@@ -495,10 +496,12 @@ def formulario_detalle(request, pk):
     formulario = get_object_or_404(
         # ``programa`` lo lee ``motivo_bloqueo_aprobacion``; sin el va una consulta suelta.
         # ``subsegmento`` lo lee ``becas_migas`` para armar la ruta: es un LEFT JOIN
-        # más, no una consulta más.
+        # más, no una consulta más. ``diseno`` (relación inversa, otro LEFT JOIN)
+        # da la versión vigente del formulario para el aviso de «cambió» (#347).
         Formulario.objects.select_related(
             "relevamiento__convocatoria__segmento__programa",
             "relevamiento__convocatoria__subsegmento",
+            "relevamiento__convocatoria__diseno",
             "ciudadano",
         )
         # CMP-N1: la posición en la lista de espera viaja en la misma consulta.
@@ -520,15 +523,30 @@ def formulario_detalle(request, pk):
             conflicto_pendiente.duplicado_de if formulario.pk == conflicto_pendiente.pk else conflicto_pendiente
         )
 
+    # #347: la sección editable del apoderado sigue a la foto del caso. Con foto
+    # manda la condición del grupo Apoderado: la app de campo lo oculta a los
+    # adultos y `campo.aplicar_revision` borra las columnas, así que ofrecerlo
+    # acá volvía a cargar —y a crear el legajo de— un apoderado que el
+    # formulario no pidió. Sin foto, o por el link (cuyo grupo no tiene
+    # condición), se pide a todos (Cambio 67). Un apoderado ya cargado se muestra
+    # igual, para no esconder un dato del caso. Se decide **antes** de armar el
+    # form: el mismo valor vale para el GET y para el POST, y se lee antes de que
+    # `is_valid()` escriba el POST sobre la instancia.
+    bloques_completos = respuestas_legibles(formulario)
+    tiene_datos_apoderado = any(getattr(formulario, campo) for campo in FormularioRevisionForm.CAMPOS_APODERADO)
+    mostrar_apoderado = apoderado_pedido(bloques_completos) or tiene_datos_apoderado
+
     if request.method == "POST":
         if not puede_alguna(request.user, [CAP_REVISION_EDITAR]):
             raise PermissionDenied("No tiene permisos para editar este formulario.")
         # Edición de campos de contacto/apoderado con traza por cambio.
-        anteriores = {f: getattr(formulario, f) for f in FormularioRevisionForm.Meta.fields}
-        form = FormularioRevisionForm(request.POST, instance=formulario)
+        form = FormularioRevisionForm(request.POST, instance=formulario, pide_apoderado=mostrar_apoderado)
+        # Solo los campos que el form tiene: sin apoderado, sus columnas no se tocan.
+        editables = [campo for campo in FormularioRevisionForm.Meta.fields if campo in form.fields]
+        anteriores = {campo: getattr(formulario, campo) for campo in editables}
         if form.is_valid():
             cambios = []
-            for campo in FormularioRevisionForm.Meta.fields:
+            for campo in editables:
                 nuevo = form.cleaned_data[campo]
                 if anteriores[campo] != nuevo:
                     cambios.append((FormularioRevisionForm.LABELS[campo], anteriores[campo], nuevo))
@@ -538,9 +556,21 @@ def formulario_detalle(request, pk):
             # respuestas por clave a medio sincronizar y **sin** traza: el caso
             # quedaba con datos nuevos y el historial diciendo que no pasó nada.
             with transaction.atomic():
-                form.save()
-                sincronizar_desde_legacy(formulario)  # las respuestas por clave siguen a las columnas
-                resolver_ciudadano_offline(formulario)
+                if cambios:
+                    form.save()
+                    sincronizar_desde_legacy(formulario)  # las respuestas por clave siguen a las columnas
+                    resolver_ciudadano_offline(formulario)
+                else:
+                    # #347: sin cambios no se reescribe el caso (ni su `modificado`);
+                    # «Guardar» solo repara lo que haya quedado a medias: la foto
+                    # de un caso anterior, el legajo de un alta cortada o el del
+                    # apoderado que todavía no se vinculó.
+                    # Se mira antes de sacar la foto: sin foto, el alta está incompleta.
+                    incompleta = alta_incompleta(formulario)
+                    if not formulario.definicion:
+                        sincronizar_desde_legacy(formulario)
+                    if incompleta or (formulario.apoderado_dni and not formulario.apoderado_ciudadano_id):
+                        resolver_ciudadano_offline(formulario)
                 n = registrar_traza(formulario, request.user, cambios)
             if n:
                 messages.success(request, f"Caso actualizado ({n} cambio(s) registrado(s)).")
@@ -548,13 +578,8 @@ def formulario_detalle(request, pk):
                 messages.info(request, "No hubo cambios para guardar.")
             return redirect(_url_caso(request, formulario))
     else:
-        form = FormularioRevisionForm(instance=formulario)
+        form = FormularioRevisionForm(instance=formulario, pide_apoderado=mostrar_apoderado)
 
-    # Cambio 67: el apoderado se pide a toda persona que se inscribe, así que la
-    # sección editable se muestra siempre (también en los casos anteriores, que se
-    # pueden completar desde acá). Reemplaza la regla por condición de la foto del
-    # Cambio 58: ya no hay caso en que el apoderado no se pida.
-    mostrar_apoderado = True
     volver_url, volver_label, migas_origen = _origen_del_caso(request, formulario)
     # G1-14: el aviso al ciudadano es el único hecho del circuito que no dejaba
     # rastro. Se lee de las trazas **ya traídas** para la sección «Traza de
@@ -584,7 +609,7 @@ def formulario_detalle(request, pk):
             **contexto_identidad(formulario, request.user),
             # Cambio 58 (#347): con foto, un solo listado en el orden del formulario
             # que respondio; sin foto, las tres listas historicas por alcance.
-            **contexto_respuestas(formulario),
+            **contexto_respuestas(formulario, bloques_completos),
             **contexto_siis(formulario, request.user),
             "trazas": trazas,
             # G1-14: panel «Aviso al ciudadano». ``resultado_aviso`` vacío = el
