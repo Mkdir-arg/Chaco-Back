@@ -444,6 +444,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 316 | Constructor y catálogo: canal en las listas, borrado que avisa y editor de condiciones por canal | Becas · catálogo de requisitos y constructor de formularios | `#requisitos` `#convocatorias` `#ui` `#datos` | QA — issues #338 y #339 (y #341) | 16/10/2026 | 🟢 **Hecho** | `programas.0098_diseno_bajas_pendientes` |
 | 317 | Revisión del caso: el apoderado sigue a la foto, aviso de versión solo si cambió y «Guardar» sin cambios no reescribe | Becas · revisión del caso | `#relevamientos` `#ui` `#datos` | QA (Matías) — issue #347 (E6, E7, E8) | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 318 | Testing de ECOM no da de alta personas en el SIIS de producción | Becas · alta en SIIS y proceso masivo | `#siis` `#infra` `#ui` | QA (Matías) — issue #569 | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 319 | Constructor de formularios: prueba de punta a punta y cobertura que pedía QA (#350, #351) | Becas · constructor, link público y revisión (tests) | `#requisitos` `#rbac` `#performance` `#gestion` | QA — issues #350 y #351 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -41616,5 +41617,98 @@ producción, ninguna alta sale y el masivo no lanza: es lo buscado.
 ## Reversión
 
 Revertir el commit. No toca datos ni esquema.
+
+---
+
+# Cambio 319 — Constructor de formularios: prueba de punta a punta y cobertura que pedía QA (#350, #351)
+
+🟢 **HECHO — 16/10/2026** · solo tests
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · constructor de formularios, link público, revisión del caso, API de campo |
+| **Etiquetas** | `#requisitos` `#rbac` `#performance` `#gestion` |
+| **Solicitante** | QA (Matías) — FALLA en #350 (TC-350-01 a 04) y #351 (TC-351-02 a 05) sobre el PR #360 |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | #350, #351 · épica #69 · análisis #326 · Cambio 58 |
+| **Partes afectadas** | Solo tests (`programas/tests/`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+QA no pudo re-validar el Cambio 58: faltaban el test de punta a punta del flujo (armar el diseño →
+inscribirse por el link → revisar desde la foto → cambiar el diseño → el caso viejo no cambia), un
+presupuesto de consultas con pocos y muchos ítems, el test del payload viejo exacto de la app, un test por
+cada escenario adversarial y un informe por foco con veredicto, evidencia y test.
+
+## Alcance acordado
+
+Tests y el informe/mapa para los issues (borradores; los publica el juez). Sin código productivo.
+
+## Decisiones tomadas
+
+- **Un solo módulo nuevo, `programas/tests/test_constructor_e2e.py`**, con lo que no estaba cubierto en
+  ningún lado; lo que sí estaba se señala en el mapa de #351 en vez de duplicarlo.
+- **El E2E usa las vistas reales**: constructor por sus endpoints, link público en sus dos pasos (paso 1 con
+  la Base de Personas simulada, paso 2 con los adjuntos del catálogo) y el detalle de revisión. Dos
+  navegadores separados (backoffice y persona). De paso intenta pisar por POST la identidad que validó el
+  paso 1: nada lo probaba de punta a punta.
+- **La vista previa no tiene pedido propio**: se dibuja en el navegador con los datos de la misma pantalla
+  del constructor. Su presupuesto es el del constructor.
+- **El presupuesto fija el número exacto** (`assertNumQueries`) con 10 y con 40 ítems y una condición cada
+  dos: constructor 23 consultas, paso 2 (GET) 9. Va con `@tag("performance")`.
+- **«Definición propia» desde la app: descartado por diseño.** El serializer no acepta `definicion`; el
+  servidor guarda siempre la foto del diseño vigente y anota la versión que dice la app en
+  `version_capturada` (G1-16). El test del payload viejo lo deja explícito.
+- **Migración destructiva: descartada** (ya lo decía el Cambio 58): `programas.0060`–`0063` son aditivas y
+  `data` y las columnas fijas se siguen escribiendo como puente.
+
+## Implementación
+
+`programas/tests/test_constructor_e2e.py`, cuatro clases:
+
+- `ConstructorDePuntaAPuntaTests`: el recorrido de #351 completo; y que guardar el contacto de un caso viejo
+  desde la revisión no le cambia la foto ni le agrega el campo nuevo.
+- `PayloadViejoDeLaAppTests`: el payload exacto de la app instalada (columnas fijas + `data` por pk) queda con
+  respuestas por clave, foto del diseño vigente y apoderado vinculado a su legajo; y no se reinterpreta
+  después de cambiar el diseño.
+- `PresupuestoConDiezYCuarentaItemsTests` (`performance`): constructor y paso 2 cuestan lo mismo con 10 que
+  con 40 ítems.
+- `PermisosDelCatalogoYDelDisenoTests`: el coordinador del segmento arma el diseño pero recibe 403 al editar
+  texto y opciones del catálogo, al reordenarlo y al crear grupos; el de otro segmento no abre ni cambia el
+  diseño; el superusuario edita el catálogo.
+
+## Archivos
+
+- `programas/tests/test_constructor_e2e.py` (nuevo)
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `manage.py test programas.tests.test_constructor_e2e` (9 tests) en verde con Python 3.12 + Django 5.2.
+- **Mutación**, una por guarda, cada una en rojo y restaurada: la revisión lee el diseño vigente en vez de la
+  foto; la edición desde la revisión reescribe la foto; el alta pública no guarda la foto; el POST del
+  paso 2 pisa la identidad validada; el adaptador ignora `data` o las columnas fijas; una consulta por ítem
+  en el constructor y en el paso 2; `requisito_editar`, `preguntas_reordenar` y `grupo_crear` sin su
+  capacidad; el constructor sin filtro de alcance.
+- Las mutaciones de los focos ya cubiertos (condiciones del lado del servidor, descarte de ocultos,
+  coherencia RN-6, huella del paso 2, puente `data`) se corrieron contra sus tests existentes: el detalle,
+  foco por foco, está en el informe de #350.
+
+## Puesta en marcha en el servidor
+
+Ninguna.
+
+## Pendientes / a definir
+
+- Publicar el informe por foco en #350 / PR #360 y el mapa de cobertura en #351 (los publica el juez).
+
+## Reversión
+
+Revertir el commit.
 
 ---
