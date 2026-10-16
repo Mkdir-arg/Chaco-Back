@@ -41712,6 +41712,8 @@ Ninguna.
 
 Revertir el commit.
 
+**17/10/2026 — Corrección de revisión G1:** se reemplaza la regla y la mutación de solapamiento del egreso registradas arriba: egresar solo acorta el intervalo y debe liberar la clave aun con historia superpuesta; el control permanece en el ingreso (no hay operaciones que editen `fecha_ingreso`). `exclude(pk=excepto)` se aplica solo si `excepto is not None`. Regresión con filas creadas directamente: Parador `[d−10, d−2)` y CIS `[d−5, ∞)` → egreso hoy, clave liberada y nuevo ingreso permitido; mutación verificada: reponer el chequeo produce `ValidationError`, restaurar desde copia devuelve verde. Sin cambios de UI, apartamientos ni pendientes nuevos.
+
 ---
 # Cambio 320 — «Publish main» vuelve a publicar: los dos scripts de la propuesta pasan Ruff estilo
 

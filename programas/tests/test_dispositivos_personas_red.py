@@ -110,21 +110,36 @@ class PersonasRedTests(BaseEstadias):
         estadia.refresh_from_db()
         self.assertFalse(estadia.activa)
 
-    def test_egreso_retroactivo_no_confirma_un_intervalo_que_solapa_con_otro(self):
-        estadia = self._ingresar(-6)
-        self._cerrada(desde=-4, hasta=-2)
-        with self.assertRaisesMessage(ValidationError, ALOJAMIENTO_SOLAPADO) as error:
-            egresar_persona(
-                estadia=estadia,
-                usuario=self.operador_cis,
-                motivo_egreso=self.motivo_alta,
-                destino="Domicilio",
-                fecha_egreso=AHORA - timedelta(days=3),
-            )
-        self.assertIn("fecha_egreso", error.exception.message_dict)
+    def test_egreso_con_solapamiento_historico_libera_la_clave_y_permite_reingresar(self):
+        # Datos anteriores al control de ingreso: ambas filas saltean el servicio.
+        self._cerrada(desde=-10, hasta=-2)
+        estadia = Estadia.objects.create(
+            ciudadano=self.persona,
+            dispositivo=self.cis,
+            plaza=self.plaza,
+            fecha_ingreso=AHORA - timedelta(days=5),
+            estado=Estadia.Estado.ACTIVA,
+            clave_alojamiento=Estadia.clave_para(self.persona),
+        )
+        egresar_persona(
+            estadia=estadia,
+            usuario=self.operador_cis,
+            motivo_egreso=self.motivo_alta,
+            destino="Domicilio",
+        )
         estadia.refresh_from_db()
-        self.assertTrue(estadia.activa)
-        self.assertFalse(estadia.movimientos.filter(tipo="EGRESO").exists())
+        self.assertEqual(estadia.estado, Estadia.Estado.EGRESADA)
+        self.assertEqual(estadia.fecha_egreso, AHORA)
+        self.assertIsNone(estadia.clave_alojamiento)
+        self.assertEqual(estadia.movimientos.get(tipo="EGRESO").momento, AHORA)
+        nueva = ingresar_persona(
+            ciudadano=self.persona,
+            dispositivo=self.parador,
+            usuario=self.operador_parador,
+            plaza=self.plaza_parador,
+        )
+        self.assertTrue(nueva.activa)
+        self.assertEqual(nueva.clave_alojamiento, Estadia.clave_para(self.persona))
 
     def test_egreso_ignora_la_propia_estadia_y_el_historial_que_empieza_al_terminar(self):
         estadia = self._ingresar(-6)

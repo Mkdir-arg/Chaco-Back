@@ -391,7 +391,9 @@ def _exigir_intervalo_sin_alojamiento(ciudadano_id, *, desde, hasta=None, except
 
     if hasta == desde:
         return  # Un ingreso y egreso simultáneos no ocupan ningún intervalo.
-    otras = Estadia.objects.filter(ciudadano_id=ciudadano_id).exclude(pk=excepto)
+    otras = Estadia.objects.filter(ciudadano_id=ciudadano_id)
+    if excepto is not None:
+        otras = otras.exclude(pk=excepto)
     otras = otras.exclude(fecha_egreso=F("fecha_ingreso"))
     otras = otras.filter(Q(fecha_egreso__isnull=True) | Q(fecha_egreso__gt=desde))
     if hasta is not None:
@@ -585,16 +587,8 @@ def egresar_persona(
     if not destino:
         raise ValidationError({"destino": EGRESO_SIN_DESTINO})
 
-    # El egreso solo acorta el intervalo abierto, nunca lo extiende ni lo reabre.
-    # La estadía ya está bloqueada; se excluye a sí misma del chequeo histórico.
-    _exigir_intervalo_sin_alojamiento(
-        estadia.ciudadano_id,
-        desde=estadia.fecha_ingreso,
-        hasta=fecha_egreso,
-        excepto=estadia.pk,
-        campo="fecha_egreso",
-    )
-
+    # El egreso solo acorta el intervalo: un solapamiento histórico no debe impedir
+    # cerrar la estadía y liberar la clave. La exclusión se valida al ingresar.
     estadia.fecha_egreso = fecha_egreso
     estadia.estado = Estadia.Estado.EGRESADA
     estadia.motivo_egreso = motivo
