@@ -11,8 +11,8 @@ from programas.views import reportes
 app_name = "dispositivos"
 
 # Las rutas del circuito operativo —admisión, egreso, traslado, lista de espera,
-# parte diario y camas— se fueron con los modelos que leían (`Cama`, `Admision`,
-# `EsperaAdmision`, `RegistroDiario`). Las repone el MVP v2 con `Sector`/`Plaza`,
+# parte diario y camas— se fueron con los modelos de la versión 1.
+# Las repone el MVP v2 con `Sector`/`Plaza`,
 # `Estadia` y `Turno`; mientras tanto el legajo institucional del dispositivo y la
 # configuración de tipos siguen en pie.
 urlpatterns = [

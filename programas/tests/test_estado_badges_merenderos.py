@@ -11,7 +11,7 @@ El tercer bloque cubría el otro síntoma de la misma ficha: en el detalle del
 dispositivo, «Sin datos» —ausencia de información, no un problema— salía en el rojo de
 `text-fg-danger`, porque la cadena de `{% if %}` del semáforo terminaba en un `else`
 que lo atrapaba. **Se fue el 09-10-2026**: la franja de indicadores se dio de baja con
-`RegistroDiario` y `CampoTipoDispositivo` (MVP v2, release A). La regla que fijaba —que
+el parte diario y los campos configurables de la versión 1 (MVP v2, release A). La regla que fijaba —que
 la ausencia de dato no se pinta de peligro— vale igual para los indicadores de la v2, y
 vuelve con ellos.
 """

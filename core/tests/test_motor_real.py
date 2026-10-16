@@ -453,7 +453,7 @@ class FechaLocalEnElMotorRealTests(_BaseDispositivoTest):
     inesperado que diría lo contrario de lo que pasa en producción.
 
     Lo medía sobre `calcular_cantidades`, el parte diario F-01, que se fue con
-    `RegistroDiario` (MVP v2, release A). La lección es del motor, no de
+    el circuito de la versión 1 (MVP v2, release A). La lección es del motor, no de
     Dispositivos: se afirma sobre `creado`, el `DateTimeField` que `TimeStamped` le
     pone a **todos** los modelos del repo, y sobre `core.utils_fechas`, que es el
     reemplazo que usan hoy Conversaciones, los contactos del legajo y lo que venga.
@@ -487,7 +487,7 @@ class ConstraintCondicionalTests(_BaseDispositivoTest):
     def test_ninguna_restriccion_condicional_del_repo_existe_en_la_base(self):
         """**DIS-02** (v2), caracterizado: `supports_partial_indexes = False`.
 
-        Lo descubrió `Admision`, que declaraba
+        Lo descubrió la estadía de la versión 1, que declaraba
         `UniqueConstraint(fields=["cama"], condition=Q(estado="ALOJADO"))`: en SQLite la
         base la hace cumplir, así que la suite «probaba» una unicidad que en ECOM no
         existe —dos personas en la misma cama—. El test medía ese caso; ahora recorre

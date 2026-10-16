@@ -1,6 +1,6 @@
 """Configuración de tipos de dispositivo: formulario, ABM y alcance.
 
-El ABM de **campos** del tipo se fue con `CampoTipoDispositivo` (MVP v2, release A):
+El ABM de **campos** del tipo se dio de baja con la versión 1 (MVP v2, release A):
 el F-00 configurable muere con la admisión vieja, y lo que lo reemplace va sobre el
 motor de formularios. Lo que queda acá es el tipo en sí.
 """
@@ -43,7 +43,7 @@ def rol_configuracion(nombre, programa, *, activo=True):
 
 
 class TipoDispositivoFormTests(TestCase):
-    """Los dos venían de `test_dispositivos_camas.py`, que se fue con `Cama`."""
+    """Los dos venían de `test_dispositivos_camas.py`, que se fue con el modelo de camas de la versión 1."""
 
     def test_forma_de_tipo_conserva_umbrales_por_defecto_en_post_existente(self):
         tipo = TipoDispositivo.objects.create(codigo="FORM", nombre="Formulario", maneja_camas=True)

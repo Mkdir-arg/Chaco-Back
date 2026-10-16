@@ -1,6 +1,6 @@
 """Contratos del modelo base de Dispositivos y Merenderos (#173).
 
-Las relaciones de **estadía** —`Admision`, `Cama` y sus invariantes— se fueron con
+Las relaciones de **estadía** y sus invariantes de la versión 1 se fueron con
 los modelos que las sostenían (MVP v2, release A). Las repone la E1/E2 sobre
 `Sector`, `Plaza` y `Estadia`, con sus propios contratos.
 """
