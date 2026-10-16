@@ -445,6 +445,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 317 | Revisión del caso: el apoderado sigue a la foto, aviso de versión solo si cambió y «Guardar» sin cambios no reescribe | Becas · revisión del caso | `#relevamientos` `#ui` `#datos` | QA (Matías) — issue #347 (E6, E7, E8) | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 318 | Testing de ECOM no da de alta personas en el SIIS de producción | Becas · alta en SIIS y proceso masivo | `#siis` `#infra` `#ui` | QA (Matías) — issue #569 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 319 | Constructor de formularios: prueba de punta a punta y cobertura que pedía QA (#350, #351) | Becas · constructor, link público y revisión (tests) | `#requisitos` `#rbac` `#performance` `#gestion` | QA — issues #350 y #351 | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 320 | «Publish main» vuelve a publicar: los dos scripts de la propuesta pasan Ruff estilo | Transversal · CI y release | `#infra` `#gestion` | Bloqueo del release | 16/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -41712,3 +41713,48 @@ Ninguna.
 Revertir el commit.
 
 ---
+# Cambio 320 — «Publish main» vuelve a publicar: los dos scripts de la propuesta pasan Ruff estilo
+
+🟢 **HECHO — 16/10/2026** · Release trabado desde el merge del #879
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · CI y release |
+| **Etiquetas** | `#infra` `#gestion` |
+| **Solicitante** | PM — en sesión, al espejar a testing los arreglos de QA (Cambios 314 a 319) |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | Sin issue: bloqueo del release |
+| **Partes afectadas** | `scripts/generar_pdf_propuesta_emergencias.py`, `scripts/generar_planificacion_mesa_situacion.py` |
+| **Migración** | No requiere |
+
+## Decisiones tomadas
+
+**«Publish main» exige que todos los checks del PR estén en verde, también los que no bloquean el merge.**
+«Ruff estilo» es `continue-on-error` para el merge, pero `publish-main.yml` no publica un release de un
+PR con un check en rojo. Los dos scripts de la propuesta entraron sin formato (orden de imports `I001` y
+`ruff format`), así que desde el #879 todos los PRs salían con «Ruff estilo» rojo y `main` quedó
+congelado en el release del #882: los Cambios 313, 314 y 316 a 319 no llegaban a `main` ni, por lo
+tanto, a ECOM.
+
+**Se formatean con la versión del CI** (`ruff==0.16.10`, `requirements-ci.txt`), no con la del `.venv`
+local (0.15.20), para que el resultado sea exactamente el que mide el job. Es solo formato: los dos
+scripts compilan igual y no cambia su comportamiento.
+
+## Implementación
+
+`ruff check --select I --fix` y `ruff format` sobre los dos archivos.
+
+## Validación
+
+- `ruff check . --select E,W,I --ignore E501` y `ruff format --check .` (0.16.10): limpios en todo el repo.
+- `py_compile` de los dos scripts: OK.
+
+## Pendientes
+
+- Que `publish-main` no dependa de un check que el merge no exige es una asimetría: hoy un rojo «que no
+  bloquea» sí bloquea el release. Decidir si se alinea (o se hace obligatorio «Ruff estilo», o se excluye
+  en `publish-main`).
+
+## Reversión
+
+Revertir el commit.
