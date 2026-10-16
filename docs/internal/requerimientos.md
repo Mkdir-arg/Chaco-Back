@@ -448,6 +448,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 320 | «Publish main» vuelve a publicar: los dos scripts de la propuesta pasan Ruff estilo | Transversal · CI y release | `#infra` `#gestion` | Bloqueo del release | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 321 | Personas y red: intervalos de alojamiento, destino obligatorio y alcance de admisión | Dispositivos · personas y red | `#datos` `#rbac` `#performance` | PM — auditoría independiente, carril G1 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 322 | Auditoría final del relevamiento edilicio | Dispositivos · P2/P4/P19/P21 y API de campo | `#relevamientos` `#ui` `#api` `#performance` | PM / juez — carril G3 | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 323 | Auditoría final del MVP de Dispositivos: formularios y modales (carril G4) | Dispositivos · alta de institución, listado, asistente de ingreso, bitácora y modales AJAX | `#ui` `#rbac` `#textos` `#datos` | PM — auditoría final del MVP v2 | 17/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -42054,5 +42055,216 @@ pérdida de datos. Volverían a admitirse fotos nuevas tras revisión y a preval
 ## Historial
 
 Entrada nueva de la auditoría final G3. No modifica entradas anteriores.
+
+---
+
+---
+
+# Cambio 323 — Auditoría final del MVP de Dispositivos: formularios y modales (carril G4)
+
+🟢 **HECHO — 17/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alta de institución (P3), listado (P2), asistente de ingreso (P6), bitácora del turno (P10) y los modales AJAX compartidos |
+| **Etiquetas** | `#ui` `#rbac` `#textos` `#datos` |
+| **Solicitante** | PM — auditoría final del MVP de Dispositivos v2 (carril G4) |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | MVP Dispositivos v2 |
+| **Partes afectadas** | `programas/mixins_dispositivos.py`, `programas/views/dispositivos_legajo.py`, `programas/views/dispositivos_ingreso.py`, `programas/views/dispositivos_bitacora.py`, `programas/services/bitacora.py`, `programas/services/bitacora_pantalla.py`, `programas/forms.py`, `programas/forms_dispositivos.py`, `templates/components/_field.html`, `programas/templates/programas/becas/_ajax_js.html`, P3, P10 y los dos pasos del ingreso |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Nueve hallazgos de la auditoría final del MVP, agrupados por «formularios y modales». Dos
+MAJOR —un alta que deja al creador afuera de su propia institución, y los errores de los
+modales AJAX sin asociar al campo— y siete MINOR de fidelidad al mockup
+(`docs/client/mockups/dispositivos-v2.html`, secciones `#p2`, `#p3`, `#p6`, `#p10`).
+
+## Alcance acordado
+
+Los nueve puntos, con la consigna del PM: **que se vea igual al mockup y mantenga la lógica**.
+Fuera de alcance: `legajo/detail.html` (lo toca otro carril en paralelo), la opción
+«Excepcional» del paso 2 del ingreso (no está en el MVP), el pase de guardia y la
+configuración de roles.
+
+## Decisiones tomadas
+
+- **[PM] El alta de institución queda para quien administra el programa.** La causa del MAJOR
+  es estructural: una institución **recién creada no tiene asignaciones**, así que el alcance
+  fino de `puede_operar_dispositivo` no la incluye. Un rol con `dispositivo.ver/crear/editar`
+  asignado a una institución guardaba el borrador y el redirect a su propio legajo le
+  respondía 403, con la institución ya escrita y fuera de su vista. Se exige además el alcance
+  de admin del programa, `puede_configurar_dispositivos` —el mismo helper que ya usan
+  `puede_operar_dispositivo`, `dispositivos_en_alcance` y `puede_enviar_desde_formulario`—. **El
+  catálogo de `core/rbac.py` no cambia:** esto es alcance, no una capacidad nueva.
+- **La búsqueda de duplicados se cierra con la misma regla.** Solo sirve al formulario de alta;
+  dejarla abierta a quien no puede dar de alta es un oráculo de códigos institucionales sin
+  ningún consumidor legítimo.
+- **[PM] El asterisco de P3 marca los requisitos para validar, como el mockup**, no lo
+  obligatorio para guardar: el borrador se sigue guardando incompleto. Se aplica con el
+  mecanismo de `components/_field.html`, marcando el campo con `marca_requerido` en el
+  `__init__` del form y **sin tocar `required`**, así que ninguna validación cambia. La bajada
+  de la pantalla es la del mockup y dice para qué es el asterisco.
+- **La accesibilidad del 400 se arregla en el handler compartido, no pantalla por pantalla.**
+  `_ajax_js.html` lo usan los cuatro modales del MVP (egreso, nueva novedad, corrección, cambio
+  de plaza) y los de Becas. Los modales que dibujan el campo a mano escriben su `<p data-error>`
+  **sin `id`**, y sin id no hay `aria-describedby`: el handler lo deriva del control con la misma
+  forma que `_field.html` (`<id del control>-error`). Así la mejora llega también a los modales
+  de `legajo/detail.html`, que este carril no podía tocar.
+- **[PM] El hueco entre turnos de P10 se dibuja**, de solo lectura. Se dibuja **solo cuando el
+  censo le atribuye algo** —un ingreso, un egreso o un descuadre—: el hueco vacío de todos los
+  días no agrega nada y taparía los turnos de verdad. Un dispositivo **sin turnos** no lo dibuja:
+  su día entero es un tramo sin turno y eso ya lo dice su aviso.
+- **El badge del hueco va neutro y con vocabulario propio** («Cerrado / En curso / Por venir», no
+  «Abierto / Sin abrir»): «Abierto» prometería que se puede cargar, y en un hueco
+  `anotar_en_bitacora` no escribe (no hay turno al que colgar la novedad) y `registrar_entrada`
+  rechaza.
+- **El interruptor «Activo» del alta de turno se muestra también en el alta.** Esconderlo dejaba
+  un control que se enviaba y que el servicio descartaba. Un turno inactivo **no** valida
+  superposición: la regla es sobre los activos. El campo pasa a `initial=True` para que el render
+  sin JS siga creando un turno activo, que es lo que hacía antes.
+- **El aviso de ocupación crítica del paso 2 sale de la fuente única** (`tension_de_ocupacion`,
+  `services/ocupacion.py`) con los **umbrales del tipo**, no con el corte general, y el texto lo
+  arma la vista: el template no concatena cifras ni decide qué es «crítica».
+
+## Implementación
+
+- `programas/mixins_dispositivos.py`: `DispositivoAltaPermissionMixin`, sobre
+  `DispositivoProgramaPermissionMixin`. Lo usan `DispositivoCreateView` y
+  `DispositivoDuplicateSearchView`; `DispositivoListView` resuelve `puede_crear` con la misma
+  regla, así que el botón no se ofrece a quien el servidor va a rechazar.
+- `programas/templates/programas/becas/_ajax_js.html`: `controlesDe`, `idDelError`, `describedby`,
+  `marcarInvalido`, `marcarValido`, `limpiarError`, `limpiarErrores` y el listener de
+  `input`/`change`. `mostrarErrores` marca el control, cuelga el id del error en
+  `aria-describedby` sin pisar el de la ayuda y lleva el foco al primer campo con error en orden
+  del documento; el error general (`__all__`) no mueve el foco porque no tiene control.
+- `templates/components/_field.html`: el asterisco sale de `field.field.required` **o** de
+  `field.field.marca_requerido`. `programas/forms.py` marca los siete de
+  `campos_para_validacion()` en `DispositivoForm.__init__`.
+- `programas/templates/programas/dispositivos/legajo/form.html`: la confirmación de duplicado pasa
+  a `ModernModal` (`type: confirm`, icono `warning`, botón de marca) y el aviso de error a
+  `window.toast`; sale el `<script>` de SweetAlert2 de la pantalla. La bajada, la del mockup.
+- `programas/views/dispositivos_ingreso.py`: `IngresoPlazaView.tension()` y `aviso_ocupacion`;
+  `paso_plaza.html` dibuja `components/_alerta.html` en tono warning debajo del mapa.
+  `paso_confirmar.html` invierte el resumen de la plaza a «sector · plaza».
+- `programas/services/bitacora.py`: `crear_turno(..., activo=True)`; la vista le pasa
+  `datos["activo"]`. `forms_dispositivos.TurnoForm.activo` con `initial=True`.
+- `programas/services/bitacora_pantalla.py`: `ESTADO_HUECO`, `_tarjeta_de_hueco` y el armado
+  ordenado de las tarjetas por el inicio real del tramo.
+
+## Plan de pantalla
+
+Tipo: A (ajustes en pantallas que existen) en las cuatro. Arquetipos vigentes: P3 Formulario
+(variante «con asistencia lateral»), P6 Wizard, P10 Detalle apilado, P2 Listado.
+Bloques tocados: bajada y labels de P3 (`page_header` + `_field.html`); alerta nueva en el paso 2
+del ingreso (`components/_alerta.html`, tono warning, sin acción); una tarjeta más en la grilla de
+turnos de P10 (`components/_turno_tarjeta.html`, sin acciones); el switch del modal de turnos
+(`components/_field.html`). **Novedades: ninguna** — no entra ninguna clase, include, variante ni
+valor fuera del inventario. El único contrato que se amplía es el de `_field.html`
+(`marca_requerido`, opcional y sin efecto si no se declara), que es lo que el PM pidió para el
+asterisco.
+
+## Apartamientos del mockup
+
+- **«Excepcional» (paso 2, `#p6`)**: el mockup ofrece una plaza «sobre capacidad» con quién
+  autoriza y el motivo. No hay dato ni servicio: no se dibuja, ni deshabilitada. El aviso de
+  ocupación crítica queda con las dos primeras frases del mockup, sin la tercera.
+- **P3 (`#p3`)**: el mockup marca `*` en «Categoría», «Área del Ministerio» y usa un buscador de
+  persona por DNI para el responsable, y muestra un panel «Procedencia del dato» y chips de
+  «Servicios que brinda». Nada de eso existe en el modelo; los asteriscos se aplican a los siete
+  campos que sí son requisito de validación.
+- **P10 (`#p10`)**: sin pase de guardia (fuera del MVP), así que las tarjetas no dicen quién
+  entregó ni quién recibió y no hay «Cerrar turno».
+- **El hueco no está en el mockup**: el mockup dibuja tres turnos contiguos. La tarjeta del hueco
+  es la decisión del PM para que un movimiento que el censo cuenta no quede sin lugar donde verse.
+
+## Archivos
+
+- `programas/mixins_dispositivos.py`, `programas/views/dispositivos_legajo.py`,
+  `programas/views/dispositivos_ingreso.py`, `programas/views/dispositivos_bitacora.py`
+- `programas/services/bitacora.py`, `programas/services/bitacora_pantalla.py`
+- `programas/forms.py`, `programas/forms_dispositivos.py`
+- `templates/components/_field.html`, `programas/templates/programas/becas/_ajax_js.html`
+- `programas/templates/programas/dispositivos/legajo/form.html`,
+  `.../dispositivos/ingreso/paso_plaza.html`, `.../dispositivos/ingreso/paso_confirmar.html`,
+  `.../dispositivos/bitacora/bitacora.html`
+- `programas/tests/test_dispositivos_listado.py`, `test_dispositivos_legajo.py`,
+  `test_dispositivos_fidelidad_fi.py`, `test_dispositivos_ingreso.py`,
+  `test_dispositivos_bitacora_pantalla.py`, `test_becas_feedback_js.py`
+- `.claude/agents/chaco-design-system.md`, `.claude/design/componentes/field.md`,
+  `.claude/design/componentes/turno_bitacora.md`, `.claude/design/arquetipos/confirmacion.md`,
+  `.claude/design/arquetipos/modal.md`, `.claude/design/arquetipos/formulario.md`,
+  `.claude/design/arquetipos/wizard.md`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- **Tests nuevos.** `AccionDeAltaTests` (los dos perfiles: con alcance de admin el alta se ofrece
+  y anda; con `dispositivo.crear` asignado a una institución, 403 en el GET, en el POST —sin crear
+  nada— y en la búsqueda de duplicados); `FidelidadFITests` (el creador sin alcance sigue editando
+  y enviando lo suyo; el asterisco contra los siete campos y la bajada; latitud no lo lleva y
+  domicilio/responsable/teléfono siguen sin ser `required`); `EncabezadoTests` (el eyebrow de P2,
+  que no tenía aserción); `AvisoDeOcupacionCriticaTests` (umbral del tipo sí, umbral de fábrica no,
+  sin plazas no inventa porcentaje); `ResumenDelPasoFinalTests` (sector · plaza);
+  `HuecoSinTurnoTests` (TC-696-09: la tarjeta con su línea del censo y en el orden del día, sin
+  acciones; sin movimientos no se dibuja; no se puede elegir); dos de alta de turno con el
+  interruptor en cada posición; `AjaxJsAccesibilidadDeErroresTests` (siete casos con `node` sobre el
+  script real, incluido el modal que dibuja el campo a mano).
+- **Mutaciones (todas rojas al romper la regla, restauradas después desde una copia):** sin la
+  compuerta del mixin → 2 rojos; sin el eyebrow de P2 → 1; sin `marcarInvalido` → 3; sin la
+  limpieza al corregir → 1; sin `marca_requerido` en `_field.html` → 1; con el orden plaza·sector
+  → 1; con el aviso de ocupación siempre apagado → 1; con `crear_turno` forzando `activo=True` →
+  1; sin sumar los huecos a las tarjetas → 1.
+- **Render con Playwright** (1440 y 390 px, datos ficticios, servidor en 8921): P3 con los siete
+  asteriscos y la bajada del mockup; el modal de duplicado es el `ModernModal` y **SweetAlert no se
+  carga en P3** (`typeof window.Swal === "undefined"`, sin `.swal2-container`); paso 2 del ingreso
+  con «Ocupación crítica (85 %). El sistema no bloquea el ingreso.» debajo del mapa; paso 3 con
+  «Pabellon B · B-03»; P10 con la tarjeta «Sin turno · 12:00–14:00 · Cerrado · Ningún turno cubre
+  este tramo · 0 al inicio · 1 al cierre» entre Mañana y Tarde; modal de egreso con 400 real del
+  servidor: `motivo` y `destino` con `aria-invalid="true"` y `aria-describedby="id_<campo>-error"`,
+  y el foco en `SELECT[motivo]` (antes quedaba en `BODY`). Sin errores de consola.
+- `manage.py check`, `makemigrations --check` (sin cambios), `check_migraciones`,
+  `compile_templates --bloques` (0 y 0 bloques sin destino), `design_audit --arquetipo formulario`
+  y `--arquetipo wizard` (OK), `--ratchet --base origin/development` (0 nuevos), `--goldens` (0),
+  `npm run build:tailwind` (sin diff), `ruff check` y `ruff format`, suite `programas core` y
+  `--tag performance programas`.
+- **Cierre de fichas del carril:** sincronizados `field.md`, `confirmacion.md`, `modal.md`,
+  `formulario.md`, `turno_bitacora.md` y `wizard.md` con el diff contra `origin/development`,
+  y las filas de campos y bitácora del inventario canónico (celdas de hasta 450 caracteres).
+  La entrada conserva `323` en encabezado e índice para la numeración del juez.
+- **Snapshots de Becas:** los seis escenarios de `test_becas_revision_detalle_html` pasan
+  sin regenerar ni cambiar archivos. Tailwind recompila sin diff. Este cierre solo modifica
+  documentación: no agrega reglas ni guardas y no requiere nuevas mutaciones; se conservan
+  las mutaciones del carril registradas arriba.
+- **Suite completa del cierre:** `manage.py test --parallel 4`: **6473 tests, OK, 83 omitidos**,
+  en 1123,401 s, con `DJANGO_SYNCDB_PROJECT_APPS=True` y el venv `.venv312` del repo.
+- **Performance del cierre:** `manage.py test --tag performance programas`: **30 tests, OK**,
+  en 25,002 s; `check_perf_budgets.py` confirma que no sube ningún presupuesto.
+
+## Puesta en marcha en el servidor
+
+Nada que hacer en el deploy. **Atención del PM:** desde esta release, un rol con
+`dispositivo.crear` pero sin el alcance de admin del programa ya no ve ni puede usar «+ Nueva
+institución». Si en producción hay roles así, el alta la hace quien administra Dispositivos —que
+es lo que el hallazgo pedía— o el PM le agrega `programa.configurar` al rol.
+
+## Pendientes / a definir
+
+- Los modales de `legajo/detail.html` y `estadia/detalle.html` siguen dibujando el campo a mano en
+  vez de usar `components/_field.html`. Con el id derivado por el handler ya tienen el ARIA, pero
+  unificar la pieza es deuda abierta (y `legajo/detail.html` es de otro carril).
+- La opción «Excepcional» del paso 2 del mockup sigue fuera del MVP.
+- El paso 2 del ingreso paga tres consultas más por el censo. No hay presupuesto declarado para
+  esa pantalla; si se le pone uno, es el número a medir.
+
+## Reversión
+
+Revertir el commit. No toca datos ni esquema. El único efecto en caliente es que vuelven a poder
+dar de alta instituciones los roles con `dispositivo.crear` sin alcance de admin.
 
 ---
