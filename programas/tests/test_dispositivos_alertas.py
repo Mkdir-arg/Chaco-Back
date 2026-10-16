@@ -515,7 +515,7 @@ class NuncaBloqueaTests(BaseAlertas):
         cambiar_plaza(estadia=estadia, plaza=nueva, usuario=self.operador_cis, motivo="Pidió cambio")
         reserva = reservar_plaza(plaza=self.plaza, ciudadano=self.otra_persona, usuario=self.operador_cis)
         liberar_reserva(reserva=reserva, usuario=self.operador_cis)
-        egresar_persona(estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
+        egresar_persona(destino="Domicilio", estadia=estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta)
 
         estadia.refresh_from_db()
         self.assertFalse(estadia.activa)

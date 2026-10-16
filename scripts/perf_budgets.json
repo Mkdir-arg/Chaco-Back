@@ -265,6 +265,16 @@
       "consultas_fijas": 4,
       "motivo": "Carril FA (P6): sectores activos (1), plazas compatibles (1) y estado_de_plazas con identidad autorizada y vencimiento (2). El test mide con 1 y 13 sectores, estadias y reservas; exige cuatro consultas, independientemente del volumen. El tipo del dispositivo ya llega cargado por la vista."
     },
+    "dispositivos_buscar_dni_exacto": {
+      "servicio": "programas.services.ingreso.buscar_ciudadano_por_dni",
+      "consultas_fijas": 1,
+      "motivo": "Auditoria final G1: la coincidencia exacta conserva su lectura por DNI y tiene prioridad frente a fichas con separadores. El resultado llega completo sin consultas diferidas."
+    },
+    "dispositivos_buscar_dni_separadores": {
+      "servicio": "programas.services.ingreso.buscar_ciudadano_por_dni",
+      "consultas_fijas": 3,
+      "motivo": "Auditoria final G1: una busqueda exacta sin resultado, un escaneo REGEXP de solo id y dni y la hidratacion por PK del unico ganador. Sin coincidencia son dos. Se protege ademas con post_init que las otras fichas nunca se materializan como modelos. No se aumenta ningun presupuesto existente."
+    },
     "dispositivos_sectores_con_plazas": {
       "servicio": "programas.services.sectores_plazas.sectores_con_plazas",
       "consultas_fijas": 8,
