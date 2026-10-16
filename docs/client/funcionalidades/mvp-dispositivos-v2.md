@@ -141,4 +141,9 @@ Nada de esto se descarta: está definido y estimado en la [propuesta de la Versi
 El Ministerio organizó el presupuesto en cuatro bloques:
 
 | | Bloque | Horas |
-|---|---|
+|---|---|---:|
+| **1** | Aplicación, sectores y criticidad | 140 |
+| **2** | Ingresos y egresos | 220 |
+| **3** | Circuito interno | 240 |
+| **4** | Reserva | 100 |
+| | **Total** | **700** |
