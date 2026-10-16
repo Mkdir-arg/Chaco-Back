@@ -281,7 +281,7 @@ jobs:
   #   (b) **editar** una migración ya aplicada: `check_sqlmigrate.py` compara el SQL de
   #       ida de cada migración que el PR toca contra el árbol de la base.
   #
-  # Las ocho barreras de reversa (runbook D.4) abortan **a propósito**: el script las
+  # Las nueve barreras de reversa (runbook D.4) abortan **a propósito**: el script las
   # registra como esperadas y sigue. Eso no es un rojo.
   #
   # Sin `continue-on-error`, al revés de lo que proponía el Anexo B: las dos razones por

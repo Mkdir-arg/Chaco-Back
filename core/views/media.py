@@ -116,15 +116,10 @@ def _archivo_de_contacto(user, ruta):
 def _archivo_de_f00(user, ruta):
     """El F-00 ya no tiene dueño: 404 para todo `admisiones/f00/`.
 
-    La regla resolvía el archivo contra ``ArchivoAdmision`` y pedía la capacidad
-    sobre **ese** dispositivo. El modelo dejó de leerse con la baja de la admisión
-    vieja (MVP v2, release A) y su tabla está vacía, así que no hay fila que
-    autorice nada y el prefijo contesta lo mismo que un blob huérfano.
-
-    La regla **queda registrada** a propósito: ``PREFIJO_F00`` sigue siendo el
-    ``upload_to`` del campo mientras el modelo exista, y un prefijo declarado sin
-    regla es justo lo que ``CoberturaDePrefijosTests`` no deja pasar. El F-00 de la
-    v2 va a ser un adjunto del motor de formularios, con su propia regla.
+    El circuito de la versión 1 y sus tablas se dieron de baja. Se conserva la
+    denegación para los blobs históricos: no hay dueño que autorice su descarga.
+    El prefijo y su función ``upload_to`` siguen disponibles porque una migración
+    aplicada importa esa función al reconstruir el esquema desde cero.
     """
     return None
 

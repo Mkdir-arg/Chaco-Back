@@ -25,7 +25,7 @@ intercalaban sobre el mismo relevamiento.
 
 La otra era `admisiones.trasladar_admision`, que guardaba el F-00 del destino
 **antes** de cerrar el origen y dejaba el adjunto en `media/` sin fila que lo
-nombre cuando el cierre fallaba. El traslado se fue con `Admision` (MVP v2,
+nombre cuando el cierre fallaba. El traslado se fue con la estadía de la versión 1 (MVP v2,
 release A) y con él su clase de tests; lo que sigue vivo es el mecanismo que lo
 arreglaba, `core.archivos.archivos_atomicos`, hoy sobre el alta y la edición de
 una campaña de correo. Para que no quede sin dueño, la conducta se afirma igual:
@@ -410,7 +410,7 @@ class CampanaAtomicaTests(TestCase):
 
     El mecanismo —`core.archivos.archivos_atomicos`— lo descubrió el traslado de una
     admisión, que guardaba el F-00 del destino antes de cerrar el origen y dejaba el
-    adjunto en `media/` cuando el cierre fallaba. El traslado se fue con `Admision`
+    adjunto en `media/` cuando el cierre fallaba. El traslado se fue con la estadía de la versión 1
     (MVP v2, release A) y con él su test; el decorador sigue puesto en `crear_campana`
     y `editar_campana`, así que la conducta se afirma acá y no se queda sin dueño.
     """

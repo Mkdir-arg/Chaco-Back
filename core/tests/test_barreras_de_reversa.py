@@ -1,15 +1,15 @@
 """RED-15 y RED-57 · Barreras de reversa.
 
-Ocho migraciones por las que no se vuelve, por dos motivos distintos:
+Nueve migraciones por las que no se vuelve, por dos motivos distintos:
 
 - **RED-15 (UUID).** En MariaDB 10.7+ la reversa de las migraciones que achican un
   ``char(36)`` a ``char(32)`` falla a mitad de camino (errno 150 / «Data truncated») y
   deja tablas huérfanas y ``django_migrations`` a medias: un estado que no corresponde a
   ninguna release. Fuera de MySQL/MariaDB la ida ya era un no-op, así que la vuelta no
   tiene nada que romper y no se bloquea.
-- **RED-57 (pérdida de datos).** ``programas.0032``, ``0056`` y ``0069`` copian o borran
+- **RED-57 (pérdida de datos).** ``programas.0032``, ``0056``, ``0069`` y ``0097`` copian o borran
   datos y vuelven con ``RunPython.noop`` o con el ``AddField`` automático: ``migrate``
-  informa ``OK`` y la base queda incompleta. Eso no depende del motor, así que estas tres
+  informa ``OK`` y la base queda incompleta. Eso no depende del motor, así que estas cuatro
   bloquean en **todos**.
 
 Decisión D-RED-05: **barrera** — por debajo de esas migraciones solo se vuelve con
@@ -59,7 +59,7 @@ BARRERAS_UUID = (
     ),
 )
 
-# Las tres de RED-57: lo que se pierde al revertirlas son datos, no esquema.
+# Las cuatro de RED-57: lo que se pierde al revertirlas son datos, no esquema.
 BARRERAS_DATOS = (
     (
         "programas.migrations.0032_siis_segmento_en_subsegmento",
@@ -75,6 +75,11 @@ BARRERAS_DATOS = (
         "programas.migrations.0069_identificadores_siis_por_nivel",
         "programas/migrations/0069_identificadores_siis_por_nivel.py",
         "programas.0069",
+    ),
+    (
+        "programas.migrations.0097_baja_dispositivos_v1",
+        "programas/migrations/0097_baja_dispositivos_v1.py",
+        "programas.0097",
     ),
 )
 

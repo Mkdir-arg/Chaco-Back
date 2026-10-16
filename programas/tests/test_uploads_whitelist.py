@@ -8,9 +8,9 @@ que el XSS corría en el origen del sitio. Requiere un usuario interno
 (`merendero.crear`), por eso es MEDIA y no ALTA, pero el archivo lo mira después
 cualquiera.
 
-El campo ARCHIVO del **F-00** entraba por la misma puerta; se fue con
-`CampoTipoDispositivo` (MVP v2, release A). El adjunto de la v2 va a ser del motor
-de formularios, que tiene su propia cobertura de esta lista.
+El campo ARCHIVO del **F-00** entraba por la misma puerta; se dio de baja con los
+campos configurables de la versión 1 (MVP v2, release A). El adjunto de la v2 va a
+ser del motor de formularios, que tiene su propia cobertura de esta lista.
 
 La lista blanca es la que el repo ya usa para los adjuntos de la app de campo
 (Cambio 46), movida a `core/validators.py` para que haya una sola:

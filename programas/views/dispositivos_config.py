@@ -1,8 +1,8 @@
 """Configuración de tipos de dispositivo.
 
-Los **campos configurables** del tipo (el F-00 de la admisión) se fueron con
-``CampoTipoDispositivo``: el MVP v2 no tiene formularios por tipo y, cuando los
-tenga, van sobre el motor de formularios de Becas, no sobre una tabla propia.
+Los **campos configurables** del tipo (el F-00 de la admisión) se dieron de baja en
+la versión 1: el MVP v2 no tiene formularios por tipo y, cuando los tenga, van sobre
+el motor de formularios de Becas, no sobre una tabla propia.
 
 """
 

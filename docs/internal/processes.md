@@ -463,10 +463,10 @@ una operación, o hay dudas: D.4.
 
 **D.4 · Restore.** Es el camino obligatorio para *contract*, datos borrados y barreras de
 reversa. Son barreras de reversa, por pérdida de datos, `programas.0032`,
-`programas.0056` y `programas.0069`; y por los UUID de MariaDB, `programas.0047`,
-`programas.0048`, `programas.0073`, `legajos.0007` y `users.0023`. Las ocho abortan solas
+`programas.0056`, `programas.0069` y `programas.0097`; y por los UUID de MariaDB, `programas.0047`,
+`programas.0048`, `programas.0073`, `legajos.0007` y `users.0023`. Las nueve abortan solas
 con un mensaje que apunta acá si alguien intenta revertirlas: las cinco de UUID solo en
-MySQL/MariaDB (fuera de ahí su ida ya era un no-op) y las tres de datos en cualquier
+MySQL/MariaDB (fuera de ahí su ida ya era un no-op) y las cuatro de datos en cualquier
 motor.
 
 1. Bajar la app (`kubectl scale --replicas=0`, o `docker compose -f docker-compose.prod.yml stop web websocket`).
@@ -520,7 +520,7 @@ correspondiente con lo que pasó de verdad al revertir.
   el `migrate` quedó cortado, el camino es D.3; si fue durante una reversa, D.4.
 - **Las migraciones no se revierten en producción.** El camino de vuelta es el restore de
   D.4, y ahí está la lista completa de las que directamente no tienen reversa segura. Las
-  ocho llevan la marca `# BARRERA-DE-REVERSA:` en su archivo y abortan con un mensaje
+  nueve llevan la marca `# BARRERA-DE-REVERSA:` en su archivo y abortan con un mensaje
   explícito **antes** de tocar la base si alguien lo intenta.
 - **Toda migración de datos declara qué se pierde al revertirla.** Si su reversa no
   deshace nada, arriba va `# REVERSA-NOOP: <qué dato queda inconsistente>`; un

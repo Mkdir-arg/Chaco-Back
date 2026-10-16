@@ -33,7 +33,7 @@ PREFIJO_ADJUNTO_LEGAJO = "adjuntos/"
 PREFIJO_FOTO_CIUDADANO = "ciudadanos/fotos/"
 #: Grabación/foto/documento de un contacto (``legajos.HistorialContacto``).
 PREFIJO_CONTACTO = "contactos/"
-#: Campo ARCHIVO del F-00 de Dispositivos (``programas.ArchivoAdmision``).
+#: Prefijo histórico del F-00 de Dispositivos; solo lo usa el historial de migraciones.
 PREFIJO_F00 = "admisiones/f00/"
 #: Fotos de un relevamiento edilicio (``programas.FotoInspeccion``, MVP v2 · etapa 4).
 PREFIJO_FOTO_INSPECCION = "dispositivos/inspecciones/"
