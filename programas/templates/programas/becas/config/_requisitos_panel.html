@@ -26,7 +26,10 @@
           {% if req.destino_siis %}<span class="badge badge-info ml-1" title="Alimenta el alta de beneficiarios en SIIS">SIIS: {{ req.get_destino_siis_display }}</span>{% endif %}
         </td>
         <td class="nodo-td">
-          <span class="badge badge-white">{{ req.get_tipo_display }}</span>
+          <div class="flex flex-wrap gap-1">
+            <span class="badge badge-white">{{ req.get_tipo_display }}</span>
+            {% if req.canal != "ambos" %}<span class="badge badge-white">{{ req.get_canal_display }}</span>{% endif %}
+          </div>
         </td>
         <td class="nodo-td">
           {% if req.obligatorio %}

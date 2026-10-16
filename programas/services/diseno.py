@@ -17,6 +17,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from django.db import models, transaction
+from django.utils import timezone
 
 from programas.models import (
     CanalFormulario,
@@ -291,9 +292,66 @@ def bloquear(diseno):
     después sus ítems— y para que se vea en el registro de `RED-67` quién lo pide.
     En SQLite `select_for_update()` es un no-op: lo que vale en los tres motores
     es que todo el que escribe el diseño pase por acá.
+
+    De paso trae ``bajas_pendientes`` (#339) leída **bajo el candado**: la escriben
+    la señal de borrado del catálogo y ``reconciliar``, las dos con este mismo
+    candado, y la instancia que llega puede ser anterior al borrado. Es la misma
+    consulta que antes. Se sigue leyendo como instancia (``.first()``) y no con
+    ``values_list``: es la lectura singular que `zeal` reconoce, y sin ella los dos
+    ``items_ordenados`` de `_mutar` sobre el mismo diseño se reportan como N+1.
     """
-    DisenoFormulario.objects.select_for_update().filter(pk=diseno.pk).first()
+    fila = DisenoFormulario.objects.select_for_update().filter(pk=diseno.pk).only("pk", "bajas_pendientes").first()
+    diseno.bajas_pendientes = fila.bajas_pendientes if fila is not None else None
     return diseno
+
+
+def registrar_baja_del_catalogo(objeto, campo):
+    """Un requisito (``campo="requisito"``) o una pregunta (``campo="pregunta"``)
+    del catálogo se está borrando: cada diseño que lo usaba se entera **ahora** (#339).
+
+    El ítem del diseño se va con el CASCADE (DAT-01, se mantiene) antes de que
+    ``reconciliar`` llegue a verlo, así que sin esto: la versión no subía si nadie
+    dependía de él, el aviso no lo nombraba, y la condición que lo usaba de fuente
+    quedaba apuntando a una clave inexistente —y toda mutación del constructor
+    respondía 400 en ``validar_coherencia`` hasta que alguien lo reabría—.
+
+    Por cada diseño afectado, con su candado (BEC-16): anula las condiciones que
+    tenían una regla sobre esa clave, deja la baja en ``bajas_pendientes`` para el
+    aviso de ``reconciliar`` y sube la versión, porque cambió lo que se sirve.
+    Corre en el ``pre_delete`` (``programas.signals``): adentro del ``atomic`` del
+    borrado, y solo si la recolección no frenó antes con un ``ProtectedError``.
+    """
+    # Los candados se toman **en orden de id del diseño** y quedan hasta el COMMIT:
+    # dos borrados concurrentes que tocan los mismos diseños los piden en el mismo
+    # orden. Con el orden por defecto de `ItemDiseno` (`orden`, `id`) podían pedirlos
+    # cruzados, e InnoDB aborta uno por deadlock (un 500).
+    items = list(
+        ItemDiseno.objects.filter(**{campo: objeto}).select_related("diseno", "padre").order_by("diseno_id", "id")
+    )
+    if not items:
+        return
+    with transaction.atomic():
+        for item in items:
+            diseno = bloquear(item.diseno)
+            dependientes, anular = [], []
+            for otro in diseno.items.filter(condicion__isnull=False).select_related(
+                "pregunta", "requisito", "grupo_catalogo"
+            ):
+                reglas = (otro.condicion or {}).get("reglas") or []
+                if any(isinstance(regla, dict) and regla.get("fuente") == item.clave for regla in reglas):
+                    anular.append(otro.pk)
+                    dependientes.append(otro.titulo)
+            if anular:
+                ItemDiseno.objects.filter(pk__in=anular).update(condicion=None, modificado=timezone.now())
+            baja = {
+                "clave": item.clave,
+                "titulo": item.etiqueta or objeto.texto,
+                "padre": item.padre.clave if item.padre_id else None,
+                "dependientes": dependientes,
+            }
+            diseno.bajas_pendientes = [*(diseno.bajas_pendientes or []), baja]
+            DisenoFormulario.objects.filter(pk=diseno.pk).update(bajas_pendientes=diseno.bajas_pendientes)
+            diseno.tocar()
 
 
 @transaction.atomic
@@ -418,8 +476,17 @@ def reconciliar(diseno, usuario=None):
     un `IntegrityError` de `uniq_item_diseno_clave` —un 500 en un GET—. Se
     serializa por la fila del `DisenoFormulario`, que es el mismo candado que
     toma `_mutar`.
+
+    **Bajas del catálogo (#339).** Lo que se borró del catálogo ya no está en
+    ``items`` —se fue con el CASCADE— pero dejó su rastro en ``bajas_pendientes``
+    (`registrar_baja_del_catalogo`): acá se lo nombra en ``quitados`` y en la clave
+    ``fuentes_quitadas`` («X → A, B»: X se borró y A y B perdieron su condición por
+    eso), y su grupo automático, si quedó vacío, se limpia como cualquier otro
+    (RN-3). La versión **no** vuelve a subir por esas bajas: subió cuando se
+    borraron. Después se vacía, así que una segunda pasada no avisa nada.
     """
     bloquear(diseno)
+    bajas = [b for b in (diseno.bajas_pendientes or []) if isinstance(b, dict)]
     convocatoria = diseno.convocatoria
     items = list(diseno.items.select_related("pregunta", "requisito", "grupo_catalogo"))
     por_pregunta = {i.pregunta_id: i for i in items if i.pregunta_id}
@@ -439,6 +506,14 @@ def reconciliar(diseno, usuario=None):
             if item.padre_id:
                 padres_vaciados.add(item.padre_id)
             item.delete()
+    # Los padres de las bajas del catálogo también pueden haber quedado vacíos, pero
+    # borrar ese grupo no cambia lo servido (un grupo sin hijos no se emite): no
+    # cuenta para subir la versión.
+    padres_propios = set(padres_vaciados)
+    for baja in bajas:
+        grupo = grupos_por_clave.get(baja.get("padre"))
+        if grupo is not None:
+            padres_vaciados.add(grupo.pk)
 
     for pk, pregunta in esperadas.items():
         if pk in por_pregunta:
@@ -486,7 +561,9 @@ def reconciliar(diseno, usuario=None):
         grupo.delete()
 
     # Una condición cuya fuente ya no está en el diseño (quitada acá, o borrada
-    # del catálogo con CASCADE antes de llegar) se elimina con aviso.
+    # del catálogo por un camino que no dispara señales, como un DELETE a mano)
+    # se elimina con aviso. Lo borrado por el ORM ya lo anuló
+    # `registrar_baja_del_catalogo` y se avisa en `fuentes_quitadas`.
     condiciones_quitadas = []
     claves_existentes = set(diseno.items.values_list("clave", flat=True))
     for item in diseno.items.filter(condicion__isnull=False):
@@ -496,9 +573,23 @@ def reconciliar(diseno, usuario=None):
             item.condicion = None
             item.save(update_fields=["condicion", "modificado"])
 
-    if agregados or quitados or condiciones_quitadas or grupos_vacios:
+    if agregados or quitados or condiciones_quitadas or any(g.pk in padres_propios for g in grupos_vacios):
         diseno.tocar(usuario)
-    return {"agregados": agregados, "quitados": [t for _, t in quitados], "condiciones_quitadas": condiciones_quitadas}
+
+    fuentes_quitadas = []
+    for baja in bajas:
+        titulo = baja.get("titulo") or baja.get("clave") or ""
+        dependientes = baja.get("dependientes") or []
+        fuentes_quitadas.append(f"{titulo} → {', '.join(dependientes)}" if dependientes else titulo)
+    if bajas or diseno.bajas_pendientes is not None:
+        DisenoFormulario.objects.filter(pk=diseno.pk).update(bajas_pendientes=None)
+        diseno.bajas_pendientes = None
+    return {
+        "agregados": agregados,
+        "quitados": [t for _, t in quitados] + [b.get("titulo") or b.get("clave") or "" for b in bajas],
+        "condiciones_quitadas": condiciones_quitadas,
+        "fuentes_quitadas": fuentes_quitadas,
+    }
 
 
 def items_vigentes(diseno, catalogo=None):

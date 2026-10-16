@@ -441,6 +441,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 313 | Baja de los seis modelos de Dispositivos v1, release B | Dispositivos · modelos y migraciones | `#datos` `#infra` | PM — task #673, encargo de implementación | 16/10/2026 | 🟢 **Hecho** | `programas.0097_baja_dispositivos_v1` |
 | 314 | «Guardar borrador» de la solicitud de merendero deja de pedir los campos obligatorios en el navegador | Merenderos · solicitud de merendero | `#ui` `#gestion` | QA — issue #564 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 315 | Excepción con vencimiento para el ReDoS de twisted en IMAP: «Pip Audit» vuelve a verde | Transversal · CI (`Pip Audit`, `security/excepciones.toml`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo en todos los PRs (16/10/2026) | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 316 | Constructor y catálogo: canal en las listas, borrado que avisa y editor de condiciones por canal | Becas · catálogo de requisitos y constructor de formularios | `#requisitos` `#convocatorias` `#ui` `#datos` | QA — issues #338 y #339 (y #341) | 16/10/2026 | 🟢 **Hecho** | `programas.0098_diseno_bajas_pendientes` |
 
 **Notas del índice**
 
@@ -41185,3 +41186,162 @@ de la que se retiró en el Cambio 196.
 ## Historial
 
 Sin cambios posteriores.
+
+---
+
+# Cambio 316 — Constructor y catálogo de Becas: el canal en las listas, el borrado que avisa y el editor de condiciones que no ofrece lo imposible
+
+🟢 **HECHO — 16/10/2026** · Issues #338 y #339 (y #341) · Hallazgos de QA de Matías Abate, PR-2 del plan
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · catálogo de requisitos (programa, segmento, subsegmento, página de requisitos) y constructor de formularios de la convocatoria |
+| **Etiquetas** | `#requisitos` `#convocatorias` `#ui` `#datos` |
+| **Solicitante** | QA (Matías Abate) — hallazgos del 6 y 7/10/2026 en #338 y #339; plan aprobado por el PM el 16/10/2026 |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | #338, #339 (y #341 para los operadores de fecha) · Cambio 58 (constructor) |
+| **Partes afectadas** | Backoffice: listas de requisitos y constructor. Link público y app de campo: ninguna (lo servido no cambia, salvo que la condición que dependía de lo borrado ahora se anula en el acto) |
+| **Migración** | `programas.0098_diseno_bajas_pendientes` — aditiva, `JSONField(null=True)` |
+
+## Pedido original
+
+Hallazgos de QA de #338 y #339, clasificados como errores reales en el plan del PM (E2–E5):
+
+- **E2 (#338):** la lista de requisitos no muestra el canal («Solo app» / «Solo link»), hay que
+  abrir el modal para saberlo.
+- **E3 (#339):** al borrar un requisito o una pregunta del catálogo que estaba en un diseño, el
+  diseño no avisa, no sube la versión y el aviso no nombra lo borrado. Además, hasta reabrir el
+  constructor, cualquier cambio responde 400.
+- **E4 (#339):** el editor de condiciones ofrece fuentes que no se piden en el canal del ítem; el
+  servidor las rechaza recién al guardar (BEC-04).
+- **E5 (#339 / #341):** en un campo fecha el editor ofrece «está completo / está vacío», que el
+  #341 solo define para texto.
+
+## Alcance acordado
+
+Los cuatro, en un PR con un commit por hallazgo. Queda afuera: cambiar el CASCADE de `ItemDiseno`
+(DAT-01 lo mantiene), sacar operadores de `OPERADORES_POR_TIPO`, y cualquier cambio de lo que el
+servidor acepta o sirve.
+
+## Decisiones tomadas
+
+1. **El badge dice `get_canal_display`** («Solo app de campo» / «Solo link público»), igual que el
+   catálogo de preguntas, y va en la celda Tipo con el mismo par de badges de `_pregunta_row.html`.
+   No va en `.js-lista-texto`, que lee el anuncio de accesibilidad del drag & drop. «Ambos» no
+   lleva badge.
+2. **`ItemDiseno.requisito`/`pregunta` siguen en CASCADE (DAT-01).** Lo que se agrega es un
+   receptor `pre_delete` para `PreguntaGlobal` y `RequisitoNativo`, con el criterio de RED-80: cubre
+   la vista, el `/admin/`, el inline de requisitos y el `delete()` masivo. Corre adentro del
+   `atomic` del borrado y solo si la recolección no frenó con el `ProtectedError` de los adjuntos.
+3. **La condición que dependía de lo borrado se anula en el acto, no al reconciliar.** Esperar a
+   `reconciliar` es lo que dejaba el constructor en 400: `validar_coherencia` veía una fuente
+   inexistente en cada mutación. La versión sube con el borrado (cambió lo servido), con el
+   candado del diseño de BEC-16.
+4. **El aviso sale de `bajas_pendientes`.** El ítem ya no existe cuando `reconciliar` corre, así que
+   la señal deja `{clave, titulo, padre, dependientes}` en una columna nueva del diseño.
+   `reconciliar` lo suma a `quitados`, expone una clave **nueva** `fuentes_quitadas`
+   («X → A, B», o «X» si nada dependía de él), borra el grupo automático que quedó vacío (RN-3) y
+   vacía la columna. `condiciones_quitadas` no cambia de formato.
+5. **Reconciliar no vuelve a subir la versión por esas bajas** (TC-339-07): ya subió al borrar.
+   Tampoco la sube borrar el grupo automático vacío que dejaron, porque un grupo sin hijos no se
+   sirve.
+6. **E4 copia la regla exacta del servidor.** S(x) = canales donde se sirve x con la cascada del
+   padre (`items_planos`); la fuente f se ofrece para el ítem i si S(i) ⊆ S(f); con S(i) vacío se
+   ofrece todo. Una fuente incompatible que la condición guardada ya usa se mantiene en la lista,
+   marcada «(no se pide en este canal)», para no dejar el `<select>` vacío.
+7. **E5 separa lo ofrecido de lo aceptado.** `OPERADORES_POR_TIPO` no cambia: sacar
+   «vacío/completo» de las fechas congelaría los diseños y grupos que ya los usan. `_operadores()`
+   devuelve `por_tipo` (ofrecidos, sin `OPERADORES_NO_OFRECIDOS`) y `aceptados`; el editor del
+   constructor y el de grupos del catálogo muestran un operador no ofrecido solo en la regla que
+   ya lo usa.
+
+## Implementación
+
+- **E2:** las seis listas (`_requisitos_panel.html`, `_requisitos_page_table.html`,
+  `_requisitos_programa_panel.html`, `_requisitos_propios_panel.html` y las heredadas de
+  `segmento_detail.html` y `subsegmento_detail.html`) suman el badge de canal. Cero consultas y
+  cero clases nuevas.
+- **E3:** `DisenoFormulario.bajas_pendientes`; `diseno.registrar_baja_del_catalogo` (servicio) y
+  sus dos receptores en `programas/signals.py`; `bloquear` trae `bajas_pendientes` bajo el
+  candado en la misma consulta de siempre; `reconciliar` con `fuentes_quitadas`; una línea más en
+  el aviso de `convocatoria_formulario.html`.
+- **E4:** `canalesServidos` y `fuentesPara` en `static/custom/js/nodo-constructor.js`.
+- **E5:** `condiciones.OPERADORES_NO_OFRECIDOS`, `_operadores()` con `aceptados`, y
+  `operadoresDe(fuente, actual)` en `nodo-constructor.js` y en `pregunta_list.html`.
+
+**Cambio de conducta visible:** después de borrar algo del catálogo, la versión del diseño sube en
+el acto. El aviso del constructor nombra lo borrado y qué perdió su condición. El editor ya no
+ofrece fuentes que no se piden en el canal del ítem, ni «vacío/completo» en una fecha nueva.
+
+## Archivos
+
+- `programas/models/__init__.py`, `programas/migrations/0098_diseno_bajas_pendientes.py`.
+- `programas/services/diseno.py`, `programas/signals.py`, `programas/apps.py` (comentario).
+- `programas/services/condiciones.py`, `programas/views/diseno.py`.
+- `static/custom/js/nodo-constructor.js`.
+- `programas/templates/programas/becas/config/{_requisitos_panel,_requisitos_page_table,_requisitos_programa_panel,_requisitos_propios_panel,segmento_detail,subsegmento_detail,pregunta_list}.html`
+  y `programas/templates/programas/becas/formulario/convocatoria_formulario.html`.
+- `.claude/design/dominio/becas.md`: contrato del canal en la fila, del modal de condición y del
+  aviso del constructor.
+- Tests: `programas/tests/test_catalogo_canal_y_bajas.py` (nuevo) y
+  `programas/tests/test_diseno.py` (ajuste de
+  `test_quitar_la_fuente_elimina_la_condicion_con_aviso`: el aviso pasa de
+  `condiciones_quitadas` a `fuentes_quitadas` porque la condición ya la anula el borrado).
+
+## Base de datos
+
+`programas.0098_diseno_bajas_pendientes`, dependiente de `programas.0097_baja_dispositivos_v1`:
+`AddField` de `programas_disenoformulario.bajas_pendientes`, JSON y `NULL`. Aditiva y reversible;
+el código anterior la ignora.
+
+## Validación
+
+- Python 3.12 / Django 5.2.17 de `.venv312`; ruff desde `.venv` (check y format de los archivos tocados).
+- **TDD:** los tests de cada hallazgo se escribieron primero y se vieron en rojo: E2 4/4, E3 10/10
+  (incluido el 400 del POST de mutación), E4 3/4 (el caso «S(i) vacío» ya pasaba, es el que no
+  cambia), E5 3/4.
+- `manage.py test programas core --parallel 6`: **4.927 tests, OK (60 omitidos)**.
+- `manage.py test --tag performance programas`: 30 tests, OK. `bloquear` sigue siendo una sola
+  consulta (ahora `.only("pk", "bajas_pendientes")`); el constructor no suma consultas.
+- `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`: `No changes detected`.
+  `check_migraciones.py`: una migración, cero problemas. `manage.py check --deploy`: sin errores
+  (solo los avisos de la clave de prueba).
+- `design_audit.py --ratchet`: 0 hallazgos nuevos. `compile_templates.py`: 233, 0 errores.
+  `check_design_agent.py --changed` y `--limites`: OK.
+- **Mutaciones** (cada una restaurada desde copia y vuelta a verde): desconectar los dos receptores
+  `pre_delete` pone en rojo los 10 tests de E3 y el test ajustado de `test_diseno.py`; dejar que
+  `reconciliar` suba la versión por las bajas pone en rojo 3 (TC-339-07, grupo vacío, sin
+  dependientes); sacar la cascada del padre en `canalesServidos` pone en rojo 3 de E4; mostrar en
+  `operadoresDe` cualquier operador guardado (sin mirar `aceptados`) pone en rojo el de E5.
+- `test_pregunta_sin_adjuntos_se_borra_con_su_item_de_diseno` sigue verde: el CASCADE no cambió.
+- Gotcha encontrado: leer el candado con `values_list` en vez de `.first()` hacía que `zeal`
+  dejara de ver el diseño como lectura singular y reportara N+1 en los dos `items_ordenados` de
+  `_mutar`. Queda anotado en el docstring de `bloquear`.
+
+## Reversión
+
+**Reversible con `git revert` + `migrate programas 0097`**, sin restore. La migración solo agrega
+una columna anulable: el código anterior la ignora, así que también se puede bajar la release sin
+desaplicarla. Al desaplicar se pierden las bajas que todavía no se avisaron (el próximo que abra
+el constructor no ve qué se borró); las condiciones ya anuladas y la versión ya subida quedan como
+están, porque son datos del diseño y no de esta columna.
+
+## Pendientes
+
+- **Duplicación leve en el aviso:** lo borrado aparece en la línea «Ya no están en el catálogo…»
+  (`quitados`, como pedía el plan) y en «Se borraron del catálogo…» (`fuentes_quitadas`). Si el PM
+  prefiere una sola línea, alcanza con no sumar las bajas a `quitados`.
+- **Borrado masivo de N filas del catálogo:** la señal agrega una consulta por fila borrada (y unas
+  siete por diseño afectado). Es una operación de admin poco frecuente; no tiene presupuesto.
+- Matías re-prueba en testing TC-338-01 y TC-339-01/05/07 después del espejo.
+- Medir en testing el borrado de un requisito usado en muchas convocatorias: los candados de cada
+  diseño quedan hasta el COMMIT, contra el `read_timeout` de 10 s. Se toman en orden de id del
+  diseño, así que dos borrados concurrentes no se cruzan.
+- G1-16: ahora un borrado del catálogo sube la versión del diseño, así que las cargas de la app
+  capturadas antes van a mostrar la observación de versión. Es veraz: el formulario cambió.
+
+## Historial
+
+- **16/10/2026** — Implementado (E2–E5), PR contra `development`.
+
+---
