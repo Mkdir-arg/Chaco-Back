@@ -4,7 +4,7 @@ Documentos de alcance y desarrollo de aplicaciones para evaluar nuevos proyectos
 
 | Proyecto | Alternativas de desarrollo | Estado | Documento |
 |---|---|---|---|
-| Plataforma Provincial de Gestión Social ante Emergencias: propuesta ejecutiva | Objetivo, beneficios y tres alternativas en dos páginas | Sin fechas ni importes | [Descargar PDF](assets/propuesta-ejecutiva-icore-emergencias.pdf) · [Leer resumen](propuesta-ejecutiva-emergencias.md) |
+| Plataforma Provincial de Gestión Social ante Emergencias: propuesta ejecutiva | Objetivo, alternativas y equipo según las necesidades, en tres páginas | Sin fechas ni importes | [Descargar PDF](assets/propuesta-ejecutiva-icore-emergencias.pdf?v=equipo) · [Leer resumen](propuesta-ejecutiva-emergencias.md) |
 | Plataforma Provincial de Gestión Social ante Emergencias, Provincia del Chaco | Esencial: 3.000–3.500 h · Operativa: 4.500–5.000 h · Integral: 6.000–6.500 h | Borrador para revisión, sin importes | [Ver propuesta](mesa-situacion-el-nino.md) · [Qué versión elegir](mesa-situacion-el-nino.md#13-que-version-elegir) |
 | Mesa de Situación: planificación por alternativa | Tres Gantt de hasta tres meses desde el inicio, con hitos, equipos y curva de horas | Escenarios propuestos para revisión | [Ver planificación](planificacion-mesa-situacion-el-nino.md) |
 

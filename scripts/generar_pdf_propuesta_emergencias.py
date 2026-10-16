@@ -1,4 +1,4 @@
-"""Exporta la propuesta ejecutiva a dos páginas, con marca ICORE y sin fechas.
+"""Exporta la propuesta ejecutiva a tres páginas, con marca ICORE y sin fechas.
 
 Dependencias de exportación: reportlab, pymupdf y resvg-py. No son dependencias
 de la aplicación. Ejecutar con el venv del repositorio.
@@ -74,7 +74,7 @@ def header(page):
     c.line(MARGIN, 40, WIDTH - MARGIN, 40)
     c.setFont("Proposal", 8)
     c.drawString(MARGIN, 25, "ICORE  ·  Gestión social ante emergencias")
-    c.drawRightString(WIDTH - MARGIN, 25, f"{page} / 2")
+    c.drawRightString(WIDTH - MARGIN, 25, f"{page} / 3")
 
 
 def body_section(title, y):
@@ -133,6 +133,21 @@ for title in ("1. Esencial · Conocer y registrar", "2. Operativa · Organizar l
     y = card(title, y, recommended=title.startswith("3."))
 y = paragraph("Nuestra recomendación: Integral", MARGIN, y + 2, size=12, leading=16, bold=True, color=PURPLE) + 6
 y = paragraph(section("Nuestra recomendación"), MARGIN, y, size=10.5, leading=14) + 12
+c.showPage()
+
+header(3)
+y = paragraph("Un equipo según<br/>las necesidades.", MARGIN, 98, size=25, leading=30, bold=True)
+team_intro, team_table, team_scope = section("Equipo según las necesidades").split("\n\n")
+y = paragraph(team_intro, MARGIN, y + 14, size=11, leading=16, color=MUTED) + 20
+for row in team_table.splitlines()[2:]:
+    role, contribution = [cell.strip() for cell in row.strip("|").split("|")]
+    left_end = paragraph(role, MARGIN, y + 10, 148, size=10.5, leading=14, bold=True, color=PURPLE)
+    right_end = paragraph(contribution, MARGIN + 164, y + 10, CONTENT - 164, size=10.5, leading=14)
+    y = max(left_end, right_end) + 10
+    c.setStrokeColor(LINE)
+    c.setLineWidth(0.6)
+    c.line(MARGIN, HEIGHT - y, WIDTH - MARGIN, HEIGHT - y)
+y = paragraph(team_scope, MARGIN, y + 16, size=10.5, leading=15) + 16
 y = paragraph("<b>Acompañamiento opcional.</b> " + section("Acompañamiento opcional"), MARGIN, y,
               size=9.5, leading=13, color=MUTED) + 15
 c.setStrokeColor(LINE)
@@ -147,10 +162,12 @@ pdf = pymupdf.open(stream=buffer.getvalue(), filetype="pdf")
 pdf.set_metadata({"title": "Plataforma Provincial de Gestión Social ante Emergencias",
                   "author": "ICORE", "subject": "Propuesta ejecutiva", "creator": "ICORE",
                   "creationDate": "", "modDate": ""})
-assert len(pdf) == 2
+assert len(pdf) == 3
 plain = " ".join("\n".join(page.get_text() for page in pdf).split())
 assert "se ajustarán a las necesidades que demande la situación" in plain
 assert not re.search(r"\b20\d{2}\b|\b\d{1,2}/\d{1,2}/\d{2,4}\b", plain)
 assert all(word in plain for word in ("Esencial", "Operativa", "Integral", "6.500"))
+assert all(word in plain for word in ("PM / Gestión", "Analistas funcionales", "DevOps", "UX /", "frontend", "backend", "onsite"))
+assert "El equipo será conformado en función de las necesidades" in plain
 pdf.save(OUTPUT, garbage=4, deflate=True)
 print(f"PDF generado: {OUTPUT} | {len(pdf)} páginas | cierre en y={y:.1f}")

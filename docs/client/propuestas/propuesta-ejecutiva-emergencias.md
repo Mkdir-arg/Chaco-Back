@@ -2,7 +2,7 @@
 
 Propuesta ejecutiva de ICORE para el Ministerio de Desarrollo Humano de la Provincia del Chaco.
 
-[Descargar propuesta en PDF](assets/propuesta-ejecutiva-icore-emergencias.pdf)
+[Descargar propuesta en PDF](assets/propuesta-ejecutiva-icore-emergencias.pdf?v=equipo)
 
 ## Objetivo
 
@@ -47,6 +47,22 @@ Agrega entregas en distintas etapas, seguimiento de lo que falta, redistribució
 ## Nuestra recomendación
 
 Recomendamos Integral para contar con una visión completa de la respuesta social. Permite seguir cada necesidad más allá de la primera atención y mantener visibles las entregas pendientes, los responsables y los recursos disponibles para continuar la asistencia.
+
+## Equipo según las necesidades
+
+ICORE puede aportar los siguientes perfiles para acompañar el desarrollo y la operación de la plataforma.
+
+| Perfil | Aporte al proyecto |
+|---|---|
+| PM / Gestión del proyecto | Coordinar el trabajo, las prioridades y las entregas junto con los referentes del Ministerio. |
+| Analistas funcionales | Relevar necesidades, definir los circuitos de atención y validar que la solución responda al trabajo de los equipos. |
+| DevOps | Coordinar las publicaciones de la aplicación y acompañar su estabilidad operativa. |
+| UX / Experiencia de usuario | Diseñar pantallas y recorridos claros, adecuados al uso cotidiano de los equipos. |
+| Desarrollo frontend | Construir las pantallas y las funciones con las que interactúan los usuarios. |
+| Desarrollo backend | Desarrollar las reglas de funcionamiento, el tratamiento de los datos y la conexión entre los módulos. |
+| Operadores en sitio (onsite) | Acompañar presencialmente a los equipos en el uso de la plataforma, la carga de información y la atención de consultas operativas. |
+
+El equipo será conformado en función de las necesidades del proyecto y de la situación. La composición, la cantidad de personas, su dedicación y la modalidad de trabajo se definirán de manera conjunta con el Ministerio. La presencia de operadores en sitio y su cobertura se acordarán según las necesidades de atención en cada etapa.
 
 ## Acompañamiento opcional
 
