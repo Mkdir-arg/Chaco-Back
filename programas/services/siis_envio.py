@@ -21,6 +21,8 @@ from programas.services.dashboard_becas import respuesta_de
 from programas.services.padron import normalizar_dni
 from programas.services.respuestas import campos_de
 from programas.services.siis import (
+    CODIGO_AMBIENTE_NO_PRD,
+    MENSAJE_AMBIENTE_NO_PRD,
     RESULTADO_INCIERTO,
     RESULTADO_NO_ENVIADO,
     RESULTADO_OK,
@@ -1458,4 +1460,8 @@ def mensaje_envio(envio):
             "Faltan los catálogos de SIIS en la base: corré «sincronizar_programas_siis» o esperá al "
             "proceso de las 04:00, y reintentá. No se informó nada a SIIS.",
         )
+    if envio.codigo_error == CODIGO_AMBIENTE_NO_PRD:
+        # #569: tampoco se consultó a SIIS. Decir «no respondió» mandaría a revisar
+        # un servicio que nadie tocó; lo que está mal es la variable del ambiente.
+        return "error", MENSAJE_AMBIENTE_NO_PRD
     return "error", "SIIS no respondió correctamente; el envío quedó registrado para reintentar."

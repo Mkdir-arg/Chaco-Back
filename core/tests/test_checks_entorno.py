@@ -18,7 +18,12 @@ from django.core.checks import Warning as CheckWarning
 from django.core.checks.registry import registry
 from django.test import SimpleTestCase, override_settings
 
-from core.checks import entorno_de_integraciones, media_x_accel_necesita_el_location_interno
+from core.checks import (
+    ambiente_no_productivo,
+    entorno_de_integraciones,
+    escritura_siis_bloqueada,
+    media_x_accel_necesita_el_location_interno,
+)
 
 SIIS_PRD = "https://siisapi.chaco.gob.ar"
 SIIS_DEV = "https://siisapi.ecomdev.ar"
@@ -216,3 +221,88 @@ class MediaXAccelCheckTests(SimpleTestCase):
 
         self.assertIn("core.W004", texto)
         self.assertIn("location /protected-media/", texto)
+
+
+# ── #569: el testing de ECOM no escribe en el SIIS de producción ────────────
+TESTING = "datanach.ecomdev.ar"
+ICORE = "relevamiento-deshum.ecomdev.ar"
+PRD = "datanach.chaco.gob.ar"
+
+
+@override_settings(DEBUG=False)
+class AmbienteNoProductivoTests(SimpleTestCase):
+    """El ambiente se reconoce por los hosts que sirve, no por una variable.
+
+    ``DATANACH_ES_PRODUCCION`` dice «esto es PRD» y su ausencia no prueba nada
+    (Cambio 162): no hay evidencia de que PRD la tenga, y una guarda que la
+    exigiera bloquearía producción. ``ALLOWED_HOSTS`` sí es una afirmación del
+    ambiente: testing e icore se sirven bajo ``ecomdev.ar`` y PRD nunca.
+    """
+
+    def test_testing_e_icore_no_son_produccion(self):
+        for host in (TESTING, ICORE, ".ecomdev.ar", "ecomdev.ar", "DataNach.EcomDev.AR"):
+            with self.subTest(host=host), override_settings(ALLOWED_HOSTS=[host, "app", "web"]):
+                self.assertTrue(ambiente_no_productivo())
+
+    def test_produccion_nunca_cumple(self):
+        with override_settings(ALLOWED_HOSTS=[PRD, "app", "web", "websocket"]):
+            self.assertFalse(ambiente_no_productivo())
+
+    def test_un_host_de_chaco_gob_ar_gana_aunque_haya_uno_de_ecomdev(self):
+        """Falla hacia PRD: no sabemos qué hosts tiene PRD (puede compartir la
+        plantilla de env con testing, o tener un ingress interno bajo ecomdev).
+        Con un solo host de ``chaco.gob.ar`` el ambiente se trata como productivo."""
+        for hosts in ([PRD, TESTING], [TESTING, ".chaco.gob.ar"], [ICORE, "chaco.gob.ar"]):
+            with self.subTest(hosts=hosts), override_settings(ALLOWED_HOSTS=hosts):
+                self.assertFalse(ambiente_no_productivo())
+
+    def test_un_host_que_solo_contiene_chaco_gob_ar_no_es_produccion(self):
+        for host in ("chaco.gob.ar.atacante.com", "nochaco.gob.ar"):
+            with self.subTest(host=host), override_settings(ALLOWED_HOSTS=[TESTING, host]):
+                self.assertTrue(ambiente_no_productivo())
+
+    def test_debug_con_un_host_de_chaco_gob_ar_tampoco_bloquea(self):
+        with override_settings(DEBUG=True, ALLOWED_HOSTS=["localhost", PRD]):
+            self.assertFalse(ambiente_no_productivo())
+
+    def test_el_dominio_se_compara_entero_y_no_por_substring(self):
+        for host in ("ecomdev.ar.atacante.com", "noecomdev.ar", "datanach.ecomdev.ar.chaco.gob.ar"):
+            with self.subTest(host=host), override_settings(ALLOWED_HOSTS=[host]):
+                self.assertFalse(ambiente_no_productivo())
+
+    def test_desarrollo_local_con_debug_no_es_produccion(self):
+        with override_settings(DEBUG=True, ALLOWED_HOSTS=["localhost", "127.0.0.1", "*"]):
+            self.assertTrue(ambiente_no_productivo())
+
+    def test_localhost_sin_debug_no_alcanza(self):
+        """El CI y el release-gate corren con ``DEBUG=False`` y ``localhost``: eso no dice nada."""
+        with override_settings(ALLOWED_HOSTS=["localhost", "testserver"]):
+            self.assertFalse(ambiente_no_productivo())
+
+
+@override_settings(DEBUG=False)
+class EscrituraSiisBloqueadaTests(SimpleTestCase):
+    @override_settings(ALLOWED_HOSTS=[TESTING], SIIS_API_URL=SIIS_PRD)
+    def test_testing_contra_el_siis_de_produccion_se_bloquea(self):
+        self.assertTrue(escritura_siis_bloqueada())
+
+    @override_settings(ALLOWED_HOSTS=[TESTING], SIIS_API_URL=SIIS_DEV)
+    def test_testing_contra_el_siis_de_desarrollo_escribe(self):
+        self.assertFalse(escritura_siis_bloqueada())
+
+    @override_settings(ALLOWED_HOSTS=[PRD], SIIS_API_URL=SIIS_PRD)
+    def test_produccion_contra_el_siis_de_produccion_escribe(self):
+        self.assertFalse(escritura_siis_bloqueada())
+
+    @override_settings(ALLOWED_HOSTS=[PRD, TESTING], SIIS_API_URL=SIIS_PRD)
+    def test_produccion_con_un_host_de_ecomdev_escribe(self):
+        self.assertFalse(escritura_siis_bloqueada())
+
+    @override_settings(ALLOWED_HOSTS=[TESTING], SIIS_API_URL="")
+    def test_sin_url_no_hay_nada_que_bloquear(self):
+        """Sin host el alta ya falla sola (``_SiisConfigurationError``): no es esta guarda."""
+        self.assertFalse(escritura_siis_bloqueada())
+
+    @override_settings(ALLOWED_HOSTS=[TESTING], SIIS_API_URL="https://siisapi.ecomdev.ar.atacante.com")
+    def test_un_host_que_solo_contiene_ecomdev_se_bloquea(self):
+        self.assertTrue(escritura_siis_bloqueada())

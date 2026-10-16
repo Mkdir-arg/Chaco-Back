@@ -19,6 +19,11 @@
     {% if siis_host %}Se informa a <strong class="text-heading">{{ siis_host }}</strong>.{% else %}<strong class="text-heading">SIIS_API_URL no está configurada</strong>: no hay adónde informar.{% endif %}
   </p>
 
+  {% if siis_bloqueado %}
+  {# Issue 569: testing con datos de PRD apuntando al SIIS productivo. role=status por la relectura cada 5 s (ALR-13). #}
+  {% include "components/_alerta.html" with tono="danger" role="status" titulo="Este ambiente no es producción y SIIS_API_URL apunta al SIIS de producción" texto="No se informa nada a SIIS desde acá: lanzar está bloqueado y las altas no salen. Hay que apuntar SIIS_API_URL al SIIS de desarrollo." %}
+  {% endif %}
+
   {% if tabla_materias_faltante %}
   {% comment %}Cambio 90: sin la tabla que decide quién va a SIIS no se ofrece lanzar
   nada. Fallar cerrado: si mandara a todos, cometería el error que la tabla evita.{% endcomment %}

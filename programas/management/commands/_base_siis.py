@@ -29,8 +29,9 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 
-from core.checks import DOMINIO_SIIS_DESARROLLO, es_host_de_desarrollo
+from core.checks import DOMINIO_SIIS_DESARROLLO, es_host_de_desarrollo, escritura_siis_bloqueada
 from programas.services import proceso_masivo
+from programas.services.siis import MENSAJE_AMBIENTE_NO_PRD
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +207,16 @@ class ComandoSiisBase(BaseCommand):
             proceso_masivo.exigir_sin_corrida_viva()
         except proceso_masivo.CorridaEnCurso as exc:
             raise CommandError(str(exc)) from exc
+
+    def exigir_escritura_siis_permitida(self, options):
+        """Corta si el ambiente no es producción y apunta al SIIS productivo (#569).
+
+        El alta ya se niega en ``cargar_beneficiario``, pero cada caso dejaría un
+        ``ERROR`` y el circuito de ``procesar_casos_siis`` aprobaría casos que
+        después no se informan. Solo con ``--aplicar``: el ensayo no escribe.
+        """
+        if options.get("aplicar") and escritura_siis_bloqueada():
+            raise CommandError(MENSAJE_AMBIENTE_NO_PRD)
 
     # ── Salida ──────────────────────────────────────────────────────────────
 

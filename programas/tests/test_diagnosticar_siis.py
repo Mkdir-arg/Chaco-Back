@@ -182,7 +182,7 @@ class AltaDePruebaTests(SimpleTestCase):
     def setUp(self):
         cache.clear()
 
-    def correr(self, *args):
+    def correr(self, *args, resultado=None):
         """Corre ``--alta`` con la red mockeada.
 
         Devuelve ``(salida, mock_del_alta, error)``. El mock vuelve también
@@ -198,7 +198,7 @@ class AltaDePruebaTests(SimpleTestCase):
         ):
             post.return_value = _respuesta({"access_token": "abc", "expires_in": 3600})
             get.return_value = _respuesta({"programas": [{"id": 34, "nombre": "Chaco Joven", "estado": "ACTIVO"}]})
-            alta.return_value = {"success": True, "siis_id": 7, "data": {}}
+            alta.return_value = resultado or {"success": True, "siis_id": 7, "data": {}}
             try:
                 call_command("diagnosticar_siis", "--alta", *args, stdout=salida)
             except SystemExit:
@@ -240,6 +240,28 @@ class AltaDePruebaTests(SimpleTestCase):
         self.assertIsNone(error)
         alta.assert_called_once()
         self.assertEqual(alta.call_args.args[0]["dni"], 35111222)
+
+    @override_settings(**{**CREDENCIALES, "SIIS_API_URL": URL_DESARROLLO})
+    def test_un_alta_bloqueada_por_ambiente_no_se_presenta_como_reintentable(self):
+        """#569: no es «el problema es del servicio»: no se llamó a SIIS."""
+        from programas.services.siis import (
+            CODIGO_AMBIENTE_NO_PRD,
+            MENSAJE_AMBIENTE_NO_PRD,
+            RESULTADO_NO_ENVIADO,
+            _fallo,
+        )
+
+        salida, _, error = self.correr(
+            "--alta-dni",
+            "35111222",
+            resultado=_fallo(RESULTADO_NO_ENVIADO, CODIGO_AMBIENTE_NO_PRD, MENSAJE_AMBIENTE_NO_PRD),
+        )
+
+        self.assertIsNone(error)
+        self.assertIn(CODIGO_AMBIENTE_NO_PRD, salida)
+        self.assertNotIn("reintentable", salida)
+        self.assertNotIn("SIIS rechazó", salida)
+        self.assertIn("No se mandó el alta", salida)
 
     @override_settings(**{**CREDENCIALES, "SIIS_API_URL": URL_DESARROLLO})
     def test_sin_alta_dni_no_se_inventa_uno(self):
