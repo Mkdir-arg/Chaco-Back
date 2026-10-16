@@ -1,4 +1,4 @@
-﻿# :material-map-marker-radius-outline: Mesa de Situación del Fenómeno El Niño
+﻿# :material-map-marker-radius-outline: Plataforma Provincial de Gestión Social ante Emergencias
 
 ## Tres alternativas de desarrollo de aplicaciones
 

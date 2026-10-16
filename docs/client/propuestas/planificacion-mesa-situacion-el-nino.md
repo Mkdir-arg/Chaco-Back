@@ -4,7 +4,7 @@
 
 | Campo | Detalle |
 |---|---|
-| Proyecto | Mesa de Situación del Fenómeno El Niño, Provincia del Chaco |
+| Proyecto | Plataforma Provincial de Gestión Social ante Emergencias, Provincia del Chaco |
 | Fecha | 16 de octubre de 2026 |
 | Estado | Escenarios propuestos para revisión; dedicaciones e hitos a confirmar |
 | Ventana acordada para planificar | Máximo tres meses desde el inicio acordado |
