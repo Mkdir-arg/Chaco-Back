@@ -2,6 +2,8 @@
 
 ## Tres alternativas de desarrollo de aplicaciones
 
+[Descargar propuesta ejecutiva en PDF](assets/propuesta-ejecutiva-icore-emergencias.pdf): resumen del objetivo y las alternativas, con marca ICORE y sin fechas.
+
 | Campo | Detalle |
 |---|---|
 | Organismo destinatario | Ministerio de Desarrollo Humano de la Provincia del Chaco |
