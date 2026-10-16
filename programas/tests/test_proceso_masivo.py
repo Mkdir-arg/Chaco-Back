@@ -14,7 +14,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.management import call_command
 from django.db import connection
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -866,6 +866,41 @@ class PantallaProcesoMasivoTests(_BaseProcesoTest):
             self.client.post(self._url("proceso_masivo_lanzar"), {"total_pedido": "99999"})
             self.client.post(self._url("proceso_masivo_lanzar"), {"total_pedido": "abc"})
         self.assertFalse(CorridaSiis.objects.exists())
+
+    @override_settings(
+        DEBUG=False, ALLOWED_HOSTS=["datanach.ecomdev.ar", "testserver"], SIIS_API_URL="https://siisapi.chaco.gob.ar"
+    )
+    def test_testing_contra_siis_de_produccion_no_lanza(self):
+        """#569: cortar antes de crear la corrida. Si no, cada caso gasta un
+        reintento contra la guarda del alta y queda aprobado sin informar."""
+        self._caso()
+        with patch("programas.views.proceso_masivo.servicio.lanzar") as lanzar:
+            resp = self.client.post(self._url("proceso_masivo_lanzar"), {"total_pedido": "10"}, follow=True)
+        self.assertFalse(CorridaSiis.objects.exists())
+        lanzar.assert_not_called()
+        self.assertIn("no es producción", " ".join(str(m) for m in resp.context["messages"]))
+
+    @override_settings(
+        DEBUG=False, ALLOWED_HOSTS=["datanach.ecomdev.ar", "testserver"], SIIS_API_URL="https://siisapi.chaco.gob.ar"
+    )
+    def test_testing_contra_siis_de_produccion_avisa_en_la_pantalla(self):
+        self._caso()
+        resp = self.client.get(self._url())
+        self.assertTrue(resp.context["siis_bloqueado"])
+        self.assertContains(resp, "Este ambiente no es producción")
+
+    @override_settings(
+        DEBUG=False, ALLOWED_HOSTS=["datanach.chaco.gob.ar", "testserver"], SIIS_API_URL="https://siisapi.chaco.gob.ar"
+    )
+    def test_produccion_lanza_y_no_avisa(self):
+        self._caso()
+        resp = self.client.get(self._url())
+        self.assertFalse(resp.context["siis_bloqueado"])
+        self.assertNotContains(resp, "Este ambiente no es producción")
+        with patch("programas.views.proceso_masivo.servicio.lanzar") as lanzar:
+            self.client.post(self._url("proceso_masivo_lanzar"), {"total_pedido": "10"})
+        self.assertEqual(CorridaSiis.objects.count(), 1)
+        lanzar.assert_called_once()
 
     def test_frenar_marca_la_corrida(self):
         corrida = CorridaSiis.objects.create(programa=self.programa, total_pedido=10, latido=timezone.now())

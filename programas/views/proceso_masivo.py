@@ -19,6 +19,7 @@ from django.views.decorators.http import require_POST
 from django.views.generic.detail import DetailView
 
 from core import rbac
+from core.checks import escritura_siis_bloqueada
 from core.rbac import CapacidadRequeridaMixin, requiere
 from programas.models import CorridaSiis, ProgramaSiis
 
@@ -26,6 +27,7 @@ from programas.models import CorridaSiis, ProgramaSiis
 # ``proceso_masivo`` sería ambiguo para quien lo lea.
 from programas.services import proceso_masivo as servicio
 from programas.services.autorizacion import programa_becas
+from programas.services.siis import MENSAJE_AMBIENTE_NO_PRD
 
 CAP_PROCESO_MASIVO = "becas.programa.proceso_masivo"
 TOTAL_MAXIMO = 5000
@@ -82,6 +84,9 @@ class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView)
         # RED-61: el alta en SIIS no tiene baja, así que el destino se ve antes
         # de lanzar. El host sale de SIIS_API_URL, que ya no tiene default.
         ctx["siis_host"] = urlparse(settings.SIIS_API_URL).netloc or settings.SIIS_API_URL
+        # #569: testing de ECOM con el SIIS de producción. El alta se corta igual en
+        # ``cargar_beneficiario``; esto lo dice antes de que alguien lance.
+        ctx["siis_bloqueado"] = escritura_siis_bloqueada()
         # Cambio 90: sin la tabla que decide quién va, la pantalla no ofrece
         # lanzar nada. Se muestra el motivo en vez de un 500. La **existencia** se
         # pregunta al catálogo; leer los 15.531 DNI para enterarse era el primer
@@ -137,6 +142,12 @@ def proceso_masivo_lanzar(request, pk):
     # una»); el que decide es el del servicio, que corre con el candado tomado.
     if CorridaSiis.en_curso() is not None:
         messages.error(request, MENSAJE_EN_CURSO)
+        return destino
+    # #569: el alta ya se niega en ``cargar_beneficiario``, pero la corrida
+    # aprobaría casos que después no se informan y cada uno gastaría un reintento.
+    # Se corta antes de crearla.
+    if escritura_siis_bloqueada():
+        messages.error(request, MENSAJE_AMBIENTE_NO_PRD)
         return destino
     # Cambio 90: se comprueba antes de crear la corrida. Si faltara la tabla, el
     # hilo la detendría igual, pero mejor no dejar una corrida DETENIDA por algo

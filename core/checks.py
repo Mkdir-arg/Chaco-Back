@@ -37,9 +37,42 @@ def es_produccion():
     return os.environ.get(VARIABLE_PRODUCCION, "").strip() == "1"
 
 
-def es_host_de_desarrollo(url):
-    host = (urlparse(url).hostname or "").lower()
+def _es_dominio_de_desarrollo(host):
+    host = (host or "").strip().lower().lstrip(".")
     return host == DOMINIO_SIIS_DESARROLLO or host.endswith(f".{DOMINIO_SIIS_DESARROLLO}")
+
+
+def es_host_de_desarrollo(url):
+    return _es_dominio_de_desarrollo(urlparse(url).hostname)
+
+
+def ambiente_no_productivo():
+    """¿Este proceso sirve un ambiente que **seguro** no es producción? (#569)
+
+    Se mira ``ALLOWED_HOSTS`` y no ``DATANACH_ES_PRODUCCION``: esa variable dice
+    «esto es PRD» y su ausencia no prueba nada (no hay evidencia de que PRD la
+    tenga). Los hosts, en cambio, son una afirmación del ambiente: testing de
+    ECOM (``datanach.ecomdev.ar``) e icore (``relevamiento-deshum.ecomdev.ar``)
+    se sirven bajo ``ecomdev.ar``, y PRD (``datanach.chaco.gob.ar``) nunca.
+    ``DEBUG`` con ``localhost`` es el desarrollo local; ``localhost`` solo, sin
+    ``DEBUG``, no dice nada (el CI y el release-gate corren así).
+    """
+    hosts = list(getattr(settings, "ALLOWED_HOSTS", []) or [])
+    if any(_es_dominio_de_desarrollo(host) for host in hosts):
+        return True
+    return bool(settings.DEBUG) and "localhost" in hosts
+
+
+def escritura_siis_bloqueada():
+    """Un ambiente que no es producción apunta al SIIS que no es de desarrollo.
+
+    Testing de ECOM corre con datos copiados de PRD: con ``SIIS_API_URL`` en el
+    SIIS productivo, aprobar un caso daría de alta a una persona real en una
+    integración **sin baja**. Solo frena las altas; las lecturas siguen libres.
+    Sin URL no bloquea: ese caso ya falla solo, por configuración incompleta.
+    """
+    url = (getattr(settings, "SIIS_API_URL", "") or "").strip()
+    return bool(url) and ambiente_no_productivo() and not es_host_de_desarrollo(url)
 
 
 @register(Tags.compatibility, deploy=True)
