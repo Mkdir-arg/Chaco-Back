@@ -5,14 +5,17 @@
         <h2 class="text-heading font-bold" style="font-size:16px;">Respuestas</h2>
         <p class="text-xs text-body-subtle mt-0.5">En el orden del formulario que respondió esta persona. Identidad, contacto y apoderado están arriba.</p>
       </div>
-      {% if formulario.definicion.version %}<span class="badge badge-gray" title="El formulario cambio despues: este caso se lee con la version que respondio">Formulario v{{ formulario.definicion.version }}</span>{% endif %}
+      <div class="flex items-center gap-2 flex-wrap">
+        {% if formulario.definicion.version %}<span class="badge badge-gray" title="La versión del formulario que respondió esta persona">Formulario v{{ formulario.definicion.version }}</span>{% endif %}
+        {% if version_vigente and version_vigente != formulario.definicion.version %}<span class="badge badge-warning" title="Este caso se lee con la versión que respondió la persona, no con la vigente">El formulario cambió después · vigente: v{{ version_vigente }}</span>{% endif %}
+      </div>
     </div>
     <div class="p-6 space-y-6">
       {% for bloque in bloques %}
       <div{% if bloque.oculto %} class="opacity-60"{% endif %}>
         <div class="flex items-center gap-2 flex-wrap mb-3">
           <h3 class="text-heading font-semibold text-sm">{{ bloque.grupo.titulo|default:"Sin titulo" }}</h3>
-          {% if bloque.oculto %}<span class="badge badge-gray" title="Sus condiciones no se cumplieron: no se le pidio a la persona"><i class="fas fa-eye-slash" style="font-size:10px;"></i> No se pidio</span>{% endif %}
+          {% if bloque.oculto %}<span class="badge badge-gray" title="Sus condiciones no se cumplieron: no se le pidió a la persona"><i class="fas fa-eye-slash" aria-hidden="true"></i> No se pidió</span>{% endif %}
         </div>
         {% if bloque.grupo.subtitulo %}<p class="text-xs text-body-subtle -mt-2 mb-3">{{ bloque.grupo.subtitulo }}</p>{% endif %}
         <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
@@ -23,7 +26,7 @@
             <div{% if item.oculto and not bloque.oculto %} class="opacity-60"{% endif %}>
               <dt class="text-body-subtle text-xs uppercase tracking-wide font-semibold mb-1">
                 {{ item.label }}
-                {% if item.oculto and not bloque.oculto %}<span class="badge badge-gray ml-1" title="Sus condiciones no se cumplieron: no se le pidio a la persona">No se pidio</span>{% endif %}
+                {% if item.oculto and not bloque.oculto %}<span class="badge badge-gray ml-1" title="Sus condiciones no se cumplieron: no se le pidió a la persona">No se pidió</span>{% endif %}
               </dt>
               <dd class="text-heading text-sm">{% if item.oculto or not item.valor and not item.es_archivo %}<span class="text-body-subtle">—</span>{% else %}{% include "programas/becas/_respuesta_valor.html" %}{% endif %}</dd>
             </div>

@@ -19,7 +19,8 @@
       {% if object and object.estado == 'OBSERVADA' %}
         <button class="btn-nodo btn-brand btn-base">Corregir y reenviar</button>
       {% else %}
-        <button class="btn-nodo btn-secondary btn-base" name="accion" value="borrador">Guardar borrador</button>
+        {# formnovalidate: el borrador admite datos incompletos (issue 564); el servidor valida el envío. #}
+        <button class="btn-nodo btn-secondary btn-base" name="accion" value="borrador" formnovalidate>Guardar borrador</button>
         <button class="btn-nodo btn-brand btn-base">Enviar a revisión</button>
       {% endif %}
     </div>

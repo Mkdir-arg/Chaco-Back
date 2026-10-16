@@ -1858,6 +1858,9 @@ class ContextoDetalleTests(_BaseRevisionTest):
             "trazas",
             "ultimo_aviso",
             "validacion_sis",
+            # #347 (E7): la versión vigente del diseño, para avisar solo cuando
+            # la foto del caso es de otra versión.
+            "version_vigente",
             "volver_label",
             "volver_url",
         }

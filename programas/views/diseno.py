@@ -189,9 +189,18 @@ def _arbol(items):
 
 def _operadores():
     """Catálogo de operadores para el editor de condiciones (espejo de
-    ``services.condiciones``)."""
+    ``services.condiciones``). Lo alimenta también el editor de grupos del
+    catálogo (``pregunta_list.html``).
+
+    ``por_tipo`` es lo que se **ofrece** y ``aceptados`` lo que el servidor valida
+    (``OPERADORES_POR_TIPO``): la diferencia (``OPERADORES_NO_OFRECIDOS``, #341) se
+    muestra solo en la regla guardada que ya la usa."""
     return {
-        "por_tipo": {tipo: sorted(ops) for tipo, ops in cond.OPERADORES_POR_TIPO.items()},
+        "por_tipo": {
+            tipo: sorted(ops - cond.OPERADORES_NO_OFRECIDOS.get(tipo, set()))
+            for tipo, ops in cond.OPERADORES_POR_TIPO.items()
+        },
+        "aceptados": {tipo: sorted(ops) for tipo, ops in cond.OPERADORES_POR_TIPO.items()},
         "etiquetas": cond.ETIQUETAS_OPERADOR,
         "sin_valor": sorted(cond.SIN_VALOR),
         "con_lista": sorted(cond.CON_LISTA),

@@ -356,7 +356,7 @@
               {% for req in requisitos_programa %}
               <tr class="hover:bg-secondary">
                 <td class="nodo-td text-heading font-medium">{{ req.texto }}</td>
-                <td class="nodo-td"><span class="badge badge-white">{{ req.get_tipo_display }}</span></td>
+                <td class="nodo-td"><div class="flex flex-wrap gap-1"><span class="badge badge-white">{{ req.get_tipo_display }}</span>{% if req.canal != "ambos" %}<span class="badge badge-white">{{ req.get_canal_display }}</span>{% endif %}</div></td>
                 <td class="nodo-td">
                   {% if req.obligatorio %}<span class="badge badge-brand">Obligatorio</span>{% else %}<span class="badge badge-gray">Opcional</span>{% endif %}
                 </td>

@@ -11,12 +11,12 @@
 #   vence_el  fecha en la que vuelve a bloquear
 #   ticket    dónde se sigue (ficha de la auditoría o issue)
 
-# Hoy no hay ninguna excepción vigente, y eso es lo que tiene que pasar casi siempre.
+# Excepciones vigentes: una, la de twisted (Cambio 315). Lo normal es que no haya ninguna.
 #
-# La única que hubo, `PYSEC-2026-3447`, se retiró en el Cambio 196 (RED-85): era
-# setuptools 80.9.0 (CVE-2026-59890) y el pin subió a 83.0.0, la primera corregida. Se
-# verificó antes de sacarla que `pip-audit -r requirements.txt` da «No known
-# vulnerabilities found» **sin ningún** `--ignore-vuln`.
+# La anterior, `PYSEC-2026-3447`, se retiró en el Cambio 196 (RED-85): era setuptools
+# 80.9.0 (CVE-2026-59890) y el pin subió a 83.0.0, la primera corregida. Se verificó
+# antes de sacarla que `pip-audit -r requirements.txt` da «No known vulnerabilities
+# found» **sin ningún** `--ignore-vuln`. Lo mismo vale para retirar cualquiera de abajo.
 #
 # Cuando haga falta agregar una, va así —y `vence_el` sin comillas—:
 #
@@ -25,3 +25,14 @@
 #     motivo = "por qué se convive con ella hoy, en una frase"
 #     vence_el = 2027-01-02
 #     ticket = "FICHA o issue donde se sigue"
+
+# twisted 26.4.0 (GHSA-8pqf-f4m5-798g, PYSEC-2026-4304): ReDoS en `wildcardToRegexp()`
+# de `twisted/mail/imap4.py`, explotable por un cliente autenticado contra un servidor
+# IMAP de twisted. twisted no está pineado: lo trae `daphne` (que usa `twisted.internet`
+# y `twisted.web`, no `twisted.mail`). La OSV marca `last_affected: 26.4.0` sin versión
+# corregida. Se retira subiendo twisted apenas salga la corregida.
+[[pip_audit]]
+id = "CVE-2026-106454"
+motivo = "ni el repo ni daphne/channels usan twisted.mail ni levantan un servidor IMAP, y no hay release corregido de twisted"
+vence_el = 2027-01-15
+ticket = "Cambio 315"
