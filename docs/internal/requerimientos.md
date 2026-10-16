@@ -440,6 +440,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 312 | La tabla de horas del documento del MVP volvió a tener sus filas | Dispositivos · documento para el cliente | `#textos` `#gestion` | PM — en sesión | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 313 | Baja de los seis modelos de Dispositivos v1, release B | Dispositivos · modelos y migraciones | `#datos` `#infra` | PM — task #673, encargo de implementación | 16/10/2026 | 🟢 **Hecho** | `programas.0097_baja_dispositivos_v1` |
 | 314 | «Guardar borrador» de la solicitud de merendero deja de pedir los campos obligatorios en el navegador | Merenderos · solicitud de merendero | `#ui` `#gestion` | QA — issue #564 | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 315 | Excepción con vencimiento para el ReDoS de twisted en IMAP: «Pip Audit» vuelve a verde | Transversal · CI (`Pip Audit`, `security/excepciones.toml`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo en todos los PRs (16/10/2026) | 16/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -41024,7 +41025,6 @@ a los tests, y se aclaran el corte durante los `DROP` y los metadatos huérfanos
 La corrección se entrega en un único commit `fix(dispositivos)`, según el encargo de revisión.
 
 ---
-
 # Cambio 314 — «Guardar borrador» de la solicitud de merendero deja de pedir los campos obligatorios en el navegador
 
 🟢 **HECHO — 16/10/2026**
@@ -41100,3 +41100,88 @@ Ninguna.
 Revertir el commit.
 
 ---
+
+# Cambio 315 — Excepción con vencimiento para el ReDoS de twisted en IMAP: «Pip Audit» vuelve a verde
+
+🟢 **HECHO — 16/10/2026** · CI rojo en todos los PRs
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — gate «Pip Audit» (`pr-security.yml`), `security/excepciones.toml` |
+| **Etiquetas** | `#infra` `#gestion` |
+| **Solicitante** | Juez de la sesión — el check «Pip Audit» se puso rojo en todos los PRs abiertos el 16/10/2026 |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | sin registrar (sigue la regla de RED-63, Cambio 121) |
+| **Partes afectadas** | CI |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Pip Audit» rojo en todos los PRs desde hoy por `twisted 26.4.0  CVE-2026-106454` (alias
+GHSA-8pqf-f4m5-798g y PYSEC-2026-4304): ReDoS en `wildcardToRegexp()` de
+`twisted/mail/imap4.py`, explotable por un cliente autenticado con un patrón LIST/LSUB
+contra un servidor IMAP de twisted. La OSV la marca con `last_affected: 26.4.0` y «No fixed
+release is available». Verificar que no nos alcanza y agregar la excepción con vencimiento.
+
+## Alcance acordado
+
+**Entra:** una entrada `[[pip_audit]]` en `security/excepciones.toml` y el comentario del
+archivo, que decía «Hoy no hay ninguna excepción vigente».
+
+**Queda afuera:** subir twisted o pinearlo —no hay versión corregida— y tocar el workflow o
+el verificador, que ya hacen lo que hace falta.
+
+## Decisiones tomadas
+
+- **Se convive con la advisory porque el código vulnerable no se ejecuta.** `git grep`
+  no encuentra ningún `twisted` ni `imap` en el código del repo; twisted no está en ningún
+  `requirements*.txt`: entra transitivamente por `daphne==4.2.3` (`pip show twisted` →
+  *Required-by: daphne*), y ni `daphne`, ni `channels`, ni `autobahn` importan
+  `twisted.mail` o `imap4` (grep sobre su código instalado). Daphne usa `twisted.internet`
+  y `twisted.web`; nadie levanta un servidor IMAP.
+- **El id es el que imprime pip-audit, `CVE-2026-106454`.** El verificador lo pasa tal cual
+  a `--ignore-vuln` y el archivo pide «el identificador tal como lo nombra pip-audit».
+- **Vence el 15/01/2027, tres meses.** Corto, como pide RED-63: si para entonces no salió la
+  versión corregida, se renueva en un PR que lo vuelva a mirar.
+
+## Implementación
+
+`security/excepciones.toml`: la entrada con `id`, `motivo`, `vence_el` (fecha TOML) y
+`ticket`, más un bloque de comentario con el alias, el alcance de la vulnerabilidad y por qué
+no aplica. El comentario de cabecera pasa a decir que hay una vigente y conserva la historia
+de la que se retiró en el Cambio 196.
+
+## Archivos
+
+- `security/excepciones.toml`
+- `docs/internal/requerimientos.md`
+
+## Validación
+
+- `pip-audit -r requirements.txt` **sin** excepción (pip-audit 2.10.1, el pin de
+  `requirements-ci.txt`): «Found 1 known vulnerability in 1 package — twisted 26.4.0
+  CVE-2026-106454», exit 1.
+- Con las banderas que arma `scripts/check_excepciones_seguridad.py --ignore-args`
+  (`--ignore-vuln CVE-2026-106454`), como el workflow, sobre los tres archivos:
+  `requirements.txt` y `requirements-dev.txt` «No known vulnerabilities found, 1 ignored»,
+  `requirements-ci.txt` «No known vulnerabilities found»; los tres exit 0.
+- `scripts/check_excepciones_seguridad.py`: exit 0; con `--hoy 2027-01-16`, exit 1 «venció».
+- `manage.py test core.tests.test_gates_ci`: 97 tests OK. Mutación: con `vence_el` en el
+  pasado, `test_ninguna_excepcion_del_repo_esta_vencida` se pone rojo; con la fecha entre
+  comillas, también `test_cada_excepcion_declara_id_motivo_vencimiento_y_ticket`.
+
+## Pendientes / a definir
+
+- **Subir twisted cuando salga la versión corregida y retirar la excepción**, verificando
+  antes que `pip-audit -r requirements.txt` dé «No known vulnerabilities found» sin ningún
+  `--ignore-vuln` (como en el Cambio 196). Como twisted no está pineado, alcanza con que
+  daphne lo resuelva a la corregida; si no, pinearlo.
+- Si antes del 15/01/2027 no hay versión corregida, renovar `vence_el` en un PR.
+
+## Reversión
+
+`git revert` del commit. Vuelve el rojo de «Pip Audit» mientras la advisory siga publicada.
+
+## Historial
+
+Sin cambios posteriores.
