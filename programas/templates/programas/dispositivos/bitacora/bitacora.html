@@ -241,9 +241,8 @@
             {% include "components/_field.html" with field=form_turno.hora_hasta wrapper_class="" %}
           </div>
           {% include "components/_field.html" with field=form_turno.orden wrapper_class="" %}
-          <div x-show="turnoForm.turno">
-            {% include "components/_field.html" with field=form_turno.activo wrapper_class="" %}
-          </div>
+          {% comment %}También en el alta: el servicio lo honra (`crear_turno(activo=…)`), así que esconderlo dejaba un control que se enviaba y no hacía nada.{% endcomment %}
+          {% include "components/_field.html" with field=form_turno.activo wrapper_class="" %}
           {% include "components/_alerta.html" with tono="info" texto="Dos turnos activos no se pueden superponer. Un turno no se borra: se da de baja, y sus novedades quedan. Las novedades ya cargadas conservan su turno; el censo de días anteriores se recalcula con los horarios vigentes." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalTurnos=false" accion_texto="Guardar turno" %}

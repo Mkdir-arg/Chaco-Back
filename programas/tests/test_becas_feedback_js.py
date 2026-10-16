@@ -291,6 +291,149 @@ class AjaxJsFeedbackTests(SimpleTestCase):
             self.assertEqual(errores, [], template)
 
 
+# Un campo del form con su `<p data-error>`, como lo rinde `components/_field.html`: el
+# control lleva `name`, el párrafo lleva `id="<auto_id>-error"` y `data-error="<campo>"`.
+_CAMPO = r"""
+__log.focos = [];
+function __campo(nombre, describedby) {
+  var c = __nodo('input');
+  c.name = nombre;
+  c.attrs['name'] = nombre;
+  c.form = __form;
+  if (describedby) c.attrs['aria-describedby'] = describedby;
+  c.focus = function () { __log.focos.push(nombre); };
+  __form.appendChild(c);
+  __form.elements.push(c);
+  __form.elements[nombre] = c;
+  var p = __nodo('p');
+  p.attrs['data-error'] = nombre;
+  p.id = 'id_' + nombre + '-error';
+  __form.appendChild(p);
+  return c;
+}
+function __aria(c) { return [c.getAttribute('aria-invalid'), c.getAttribute('aria-describedby')]; }
+function __disparar(tipo, control) {
+  (__docHandlers[tipo] || []).forEach(function (fn) { fn({target: control}); });
+}
+"""
+
+
+@requiere_node
+class AjaxJsAccesibilidadDeErroresTests(SimpleTestCase):
+    """El 400 del guardado AJAX tiene que dejar el mismo ARIA que `components/_field.html`.
+
+    Antes el handler escribía el texto del error y nada más: el control quedaba sin
+    `aria-invalid`, el id del error no entraba en su `aria-describedby` y el foco se
+    quedaba en el `<body>`, así que con lector de pantalla el modal no decía ni qué
+    campo falló ni por qué. Es pieza transversal: la usan los modales de Dispositivos
+    (egreso, nueva novedad, corrección, cambio de plaza) y los de Becas.
+    """
+
+    def setUp(self):
+        self.script = script_con(_render(AJAX_JS), "data-ajax")
+
+    def _correr(self, acciones):
+        return correr_script(_DOM + _FORM + _CAMPO + self.script, acciones)
+
+    def test_el_control_queda_invalido_descrito_por_su_error_y_con_el_foco(self):
+        log = self._correr(
+            """
+            var __motivo = __campo('motivo');
+            __respuestas.push({status: 400, data: {ok: false, errors: {motivo: ['El motivo es obligatorio.']}}});
+            __enviar(__boton);
+            __log.aria = __aria(__motivo);
+            __log.inline = __errores();
+            """
+        )
+        self.assertEqual(log["inline"]["motivo"], "El motivo es obligatorio.")
+        self.assertEqual(log["aria"], ["true", "id_motivo-error"])
+        self.assertEqual(log["focos"], ["motivo"])
+
+    def test_el_describedby_de_la_ayuda_no_se_pisa(self):
+        log = self._correr(
+            """
+            var __motivo = __campo('motivo', 'id_motivo-ayuda');
+            __respuestas.push({status: 400, data: {ok: false, errors: {motivo: ['Obligatorio.']}}});
+            __enviar(__boton);
+            __log.aria = __aria(__motivo);
+            """
+        )
+        self.assertEqual(log["aria"], ["true", "id_motivo-ayuda id_motivo-error"])
+
+    def test_el_foco_va_al_primer_campo_con_error_en_orden_del_documento(self):
+        log = self._correr(
+            """
+            __campo('tipo'); __campo('motivo');
+            __respuestas.push({status: 400, data: {ok: false, errors: {
+              motivo: ['Obligatorio.'], tipo: ['Elegí uno.']}}});
+            __enviar(__boton);
+            """
+        )
+        self.assertEqual(log["focos"], ["tipo"])
+
+    def test_al_corregir_el_campo_se_limpia_su_error_y_su_aria(self):
+        log = self._correr(
+            """
+            var __motivo = __campo('motivo', 'id_motivo-ayuda');
+            __respuestas.push({status: 400, data: {ok: false, errors: {motivo: ['Obligatorio.']}}});
+            __enviar(__boton);
+            __motivo.value = 'Se fue por su cuenta.';
+            __disparar('input', __motivo);
+            __log.aria = __aria(__motivo);
+            __log.inline = __errores();
+            """
+        )
+        self.assertEqual(log["inline"]["motivo"], "")
+        self.assertEqual(log["aria"], [None, "id_motivo-ayuda"])
+
+    def test_el_reenvio_limpia_el_aria_del_intento_anterior(self):
+        log = self._correr(
+            """
+            var __motivo = __campo('motivo');
+            __respuestas.push({status: 400, data: {ok: false, errors: {motivo: ['Obligatorio.']}}});
+            __respuestas.push({status: 200, data: {ok: true, message: 'Guardado.'}});
+            __enviar(__boton);
+            __enviar(__boton);
+            __log.aria = __aria(__motivo);
+            """
+        )
+        self.assertEqual(log["aria"], [None, None])
+
+    def test_el_modal_que_dibuja_el_campo_a_mano_recibe_el_id_del_error(self):
+        """Los modales de P4 y P7 escriben `<p data-error>` sin `id`, y sin id no hay describedby.
+
+        El handler lo deriva del control con la misma forma que `components/_field.html`
+        (`<id del control>-error`), así que la mejora llega a esas pantallas sin tocarlas
+        una por una.
+        """
+
+        log = self._correr(
+            """
+            var __motivo = __campo('motivo');
+            __form.querySelector('[data-error="motivo"]').id = '';
+            __motivo.id = 'id_motivo';
+            __respuestas.push({status: 400, data: {ok: false, errors: {motivo: ['Obligatorio.']}}});
+            __enviar(__boton);
+            __log.aria = __aria(__motivo);
+            __log.idError = __form.querySelector('[data-error="motivo"]').id;
+            """
+        )
+        self.assertEqual(log["idError"], "id_motivo-error")
+        self.assertEqual(log["aria"], ["true", "id_motivo-error"])
+
+    def test_el_error_general_no_mueve_el_foco_ni_inventa_un_control(self):
+        log = self._correr(
+            """
+            __placeholder('__all__');
+            __respuestas.push({status: 400, data: {ok: false, errors: {__all__: ['La estadía ya está cerrada.']}}});
+            __enviar(__boton);
+            __log.inline = __errores();
+            """
+        )
+        self.assertEqual(log["inline"]["__all__"], "La estadía ya está cerrada.")
+        self.assertEqual(log["focos"], [])
+
+
 class SinToastLocalTests(SimpleTestCase):
     def test_no_queda_becas_toast_en_templates_ni_static(self):
         base = Path(settings.BASE_DIR)

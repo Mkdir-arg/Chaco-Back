@@ -273,6 +273,10 @@ class LegajoDispositivoViewsTests(TestCase):
             permiso("dispositivo.ver"),
             permiso("dispositivo.crear"),
             permiso("dispositivo.editar"),
+            # El alta exige además el alcance de admin del programa: una institución nueva
+            # no tiene asignaciones y quien la crea sin alcance total queda afuera de su
+            # propio legajo (`DispositivoAltaPermissionMixin`).
+            permiso("programa.configurar"),
         )
         self.operador = User.objects.create_user("operador-legajo", password="x")
         self.operador.groups.add(self.operador_rol)
@@ -346,7 +350,9 @@ class LegajoDispositivoViewsTests(TestCase):
             programa=self.programa,
             activo=True,
         )
-        rol_creacion.permissions.add(permiso("dispositivo.crear"))
+        # Alta sí (con su alcance de admin), lectura no: la capacidad `dispositivo.ver` es
+        # justo la que falta, y es la que decide si la respuesta nombra coincidencias.
+        rol_creacion.permissions.add(permiso("dispositivo.crear"), permiso("programa.configurar"))
         alta_sin_lectura = User.objects.create_user("alta-sin-lectura", password="x")
         alta_sin_lectura.groups.add(rol_creacion)
         self.client.force_login(alta_sin_lectura)

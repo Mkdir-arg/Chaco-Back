@@ -13,10 +13,15 @@ haya texto: es donde el guardado AJAX (`programas/becas/_ajax_js.html`) escribe
 el error del campo sin recargar la página. El control sale de `{% templatetag openblock %} campo_control {% templatetag closeblock %}`,
 que le cuelga `aria-describedby` hacia la ayuda y el error y `aria-invalid` con
 errores; la clase `nodo-field` sigue viniendo del widget del form.
+El asterisco sale de `field.field.required`. Un formulario cuyo requisito no es
+guardar sino otra transición —el legajo de Dispositivos: el borrador admite
+incompletos y lo que exige los campos es «Enviar a validación»— marca esos campos
+con `campo.marca_requerido = True` en el `__init__` del form, **sin** tocar
+`required`. La bajada de la pantalla tiene que decir para qué es el asterisco.
 {% endcomment %}{% load nodo_ui %}
 <div class="{% campo_wrapper_class %}">
   <label id="{{ field.auto_id }}-etiqueta" class="block text-sm font-medium text-heading mb-1"{% if field.id_for_label %} for="{{ field.id_for_label }}"{% endif %}>
-    {{ field.label }}{% if field.field.required %} <span class="text-fg-danger">*</span>{% endif %}
+    {{ field.label }}{% if field.field.required or field.field.marca_requerido %} <span class="text-fg-danger">*</span>{% endif %}
   </label>
   {% campo_control field %}
   {% if field.help_text %}<p id="{{ field.auto_id }}-ayuda" class="mt-1 text-xs text-body-subtle">{{ field.help_text }}</p>{% endif %}

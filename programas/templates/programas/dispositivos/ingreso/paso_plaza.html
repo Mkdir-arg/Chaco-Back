@@ -41,6 +41,11 @@
         {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores y las plazas, se pueden elegir desde acá." %}
       </div>
       {% endfor %}
+
+      {% if aviso_ocupacion %}
+      {% comment %}Mockup #p6: el aviso va debajo del mapa y no bloquea nada. El nivel, el porcentaje y el texto los decide la vista con los umbrales del tipo (`services.ocupacion`).{% endcomment %}
+      {% include "components/_alerta.html" with tono="warning" icono="chart-column" titulo=aviso_ocupacion texto="El sistema no bloquea el ingreso." %}
+      {% endif %}
     </div>
 
     {% if persona %}
