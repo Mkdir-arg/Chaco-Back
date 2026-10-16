@@ -72,6 +72,38 @@ class FidelidadFITests(BaseInfraestructura):
         self.assertNotContains(respuesta, "Editar institución")
         self.assertContains(respuesta, 'id="duplicate-search"')
 
+    def test_el_asterisco_marca_lo_que_hace_falta_para_validar_y_lo_dice_la_bajada(self):
+        """Mockup #p3: el `*` marca los requisitos de **enviar a validación**, no los de guardar.
+
+        Domicilio, Responsable institucional y Teléfono no son obligatorios para guardar
+        —el borrador se guarda incompleto— y el mockup los marca igual, porque sin ellos
+        no se puede enviar. Se aplica con el mecanismo de `components/_field.html`
+        (`marca_requerido`), sin tocar `required`: la validación no cambia.
+        """
+
+        form = DispositivoForm()
+        requeridos = {nombre for nombre, campo in form.fields.items() if getattr(campo, "marca_requerido", False)}
+
+        self.assertEqual(requeridos, set(campos_para_validacion()))
+        # Y ninguno de los tres que el mockup agrega pasó a ser obligatorio para guardar.
+        for nombre in ("domicilio", "responsable_nombre", "contacto_telefono"):
+            self.assertFalse(form.fields[nombre].required, nombre)
+
+        html = self.client.get(self.crear).content.decode()
+        for nombre in campos_para_validacion():
+            etiqueta = form[nombre].label
+            self.assertIn(
+                f'{etiqueta} <span class="text-fg-danger">*</span>',
+                html,
+                f"{nombre} tendría que llevar el asterisco",
+            )
+        # Latitud no es requisito de validación: no lo lleva.
+        self.assertNotIn('Latitud <span class="text-fg-danger">*</span>', html)
+        self.assertIn(
+            'Para enviar a validación hacen falta los campos marcados con <span class="text-fg-danger">*</span>.',
+            html,
+        )
+
     def test_guardar_borrador_sigue_admitiendo_datos_operativos_faltantes(self):
         respuesta = self.client.post(self.crear, {**self.datos, "responsable_nombre": "", "localidad": ""})
         self.assertEqual(respuesta.status_code, 302)
@@ -158,18 +190,50 @@ class FidelidadFITests(BaseInfraestructura):
         self.assertEqual(self.client.post(self.crear, {**self.datos, "accion": "enviar_validacion"}).status_code, 403)
         self.assertFalse(Dispositivo.objects.filter(codigo="FI-NUEVO").exists())
 
-    def test_creador_con_editar_sin_asignacion_no_puede_enviar_institucion_nueva(self):
+    def test_creador_sin_alcance_de_admin_no_entra_al_alta_y_sigue_editando_lo_suyo(self):
+        """El alta queda para quien administra el programa (decisión del PM).
+
+        Este usuario tiene `dispositivo.crear`, `editar` y `ver` y está asignado al CIS,
+        pero no tiene alcance total: la institución que diera de alta no tendría ninguna
+        asignación, así que guardaba el borrador y el redirect a su propio legajo le
+        respondía 403, con la institución ya escrita. Ahora las dos puertas del alta
+        responden 403 sin crear nada, y lo que sí puede —editar el CIS que tiene
+        asignado, y enviarlo a validación— no cambia.
+        """
+
         usuario = self._usuario(
             "creador_fi", ("dispositivo.crear", "dispositivo.editar", "dispositivo.ver"), [self.cis]
         )
         self.client.force_login(usuario)
-        self.assertNotContains(self.client.get(self.crear), 'name="accion"')
+
+        self.assertEqual(self.client.get(self.crear).status_code, 403)
         self.assertEqual(self.client.post(self.crear, {**self.datos, "accion": "enviar_validacion"}).status_code, 403)
+        self.assertEqual(self.client.post(self.crear, self.datos).status_code, 403)
         self.assertFalse(Dispositivo.objects.filter(codigo="FI-NUEVO").exists())
+        self.assertEqual(
+            self.client.get(reverse("dispositivos:buscar_duplicados"), {"codigo": "FI-NUEVO"}).status_code, 403
+        )
         self.assertContains(self.client.get(self.editar), 'name="accion"')
 
+    def test_con_alcance_de_admin_el_alta_sigue_abierta(self):
+        """El otro perfil: mismas capacidades más el alcance de admin del programa."""
+
+        usuario = self._usuario(
+            "creador_admin_fi",
+            ("dispositivo.crear", "dispositivo.editar", "dispositivo.ver", "programa.configurar"),
+        )
+        self.client.force_login(usuario)
+
+        self.assertEqual(self.client.get(self.crear).status_code, 200)
+        self.assertEqual(self.client.post(self.crear, self.datos).status_code, 302)
+        creada = Dispositivo.objects.get(codigo="FI-NUEVO")
+        # Y entra a su propio legajo, que es lo que el perfil de arriba no podía.
+        self.assertEqual(self.client.get(reverse("dispositivos:detalle", args=[creada.pk])).status_code, 200)
+
     def test_codigo_repetido_bloquea_aunque_la_coincidencia_este_fuera_del_alcance(self):
-        usuario = self._usuario("creador_fuera_fi", ("dispositivo.crear", "dispositivo.ver"), [self.cis])
+        # Alta sí, lectura no: sin `dispositivo.ver` la respuesta no nombra ninguna
+        # institución, pero el código sigue estando tomado y el alta igual se rechaza.
+        usuario = self._usuario("creador_fuera_fi", ("dispositivo.crear", "programa.configurar"), [self.cis])
         self.client.force_login(usuario)
         respuesta = self.client.get(reverse("dispositivos:buscar_duplicados"), {"codigo": self.parador.codigo})
         self.assertEqual(respuesta.json()["coincidencias"], [])

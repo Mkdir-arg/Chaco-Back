@@ -18,6 +18,10 @@ la bitácora ni del censo.
 * **Un turno dado de baja no esconde su historia.** El censo usa los turnos activos, pero
   las novedades guardan su turno: si una fecha tiene novedades de un turno que después se
   dio de baja, ese turno aparece igual, como tarjeta de solo lectura y sin censo propio.
+* **Un hueco de la grilla tampoco esconde sus movimientos.** Si los turnos no cubren el día
+  entero, lo que pase en el tramo descubierto entra igual en el censo del día. Ese tramo se
+  dibuja como tarjeta de solo lectura —no se abre, no se elige y no se le cargan novedades—
+  y **solo cuando el censo le atribuye algo**: un ingreso, un egreso o un descuadre.
 
 Privacidad
 ----------
@@ -65,6 +69,14 @@ ESTADO_TURNO = {
     censo_servicio.CERRADO: ("Cerrado", "success"),
     censo_servicio.EN_CURSO: ("Abierto", "info"),
     censo_servicio.POR_VENIR: ("Sin abrir", ""),
+}
+
+#: Lo mismo para un tramo **sin turno**. Vocabulario propio: «Abierto» y «Sin abrir»
+#: hablan de un turno que se recibe y se entrega, y en un hueco no hay ninguno.
+ESTADO_HUECO = {
+    censo_servicio.CERRADO: "Cerrado",
+    censo_servicio.EN_CURSO: "En curso",
+    censo_servicio.POR_VENIR: "Por venir",
 }
 
 #: Los tipos que carga el operador, en el orden del modelo.
@@ -180,6 +192,36 @@ def _del_turno(dispositivo, fecha, turno, tipo):
     if tipo:
         entradas = entradas.filter(tipo=tipo)
     return entradas
+
+
+def _tarjeta_de_hueco(tramo) -> dict:
+    """La tarjeta de un tramo del día que **ningún turno cubre**, de solo lectura.
+
+    Un hueco no es un turno: no se abre, no se elige y no se le cargan novedades —
+    ``anotar_en_bitacora`` no escribe sin turno y ``registrar_entrada`` lo rechaza—. Lo
+    que sí tiene es censo: sus ingresos y egresos entran en el total del día, y sin esta
+    tarjeta aparecían ahí sin que ninguna pantalla dijera de dónde salían. El badge va
+    neutro a propósito: «Abierto» prometería que se puede cargar.
+    """
+
+    detalle_por_estado = {
+        censo_servicio.POR_VENIR: f"Empieza a las {_hora(tramo.inicio)}.",
+        censo_servicio.EN_CURSO: f"{_plural(tramo.final, 'alojada', 'alojadas')} ahora",
+        censo_servicio.CERRADO: f"{tramo.inicial} al inicio · {tramo.final} al cierre",
+    }
+    detalle = f"Ningún turno cubre este tramo · {detalle_por_estado[tramo.estado]}"
+    if not tramo.cuadra:
+        detalle += " · el censo no cuadra"
+    return {
+        "nombre": tramo.nombre,
+        "horario": f"{_hora(tramo.inicio)}–{_hora(tramo.fin)}",
+        "estado": ESTADO_HUECO[tramo.estado],
+        "tono": "",
+        "detalle": detalle,
+        "activo": False,
+        "sin_abrir": tramo.estado == censo_servicio.POR_VENIR,
+        "acciones": [],
+    }
 
 
 def _tarjeta(turno, tramo, *, elegido, cantidad, url_ver, acciones_en_curso) -> dict:
@@ -481,8 +523,25 @@ def pantalla_bitacora(
         acciones_en_curso.append(
             {"texto": "+ Novedad", "variante": "brand", "url": url_de(fecha, en_curso.turno, "novedad=1")}
         )
+    # Las tarjetas del día, ordenadas por el inicio real del tramo: los turnos (activos y
+    # dados de baja) y, donde caen, los huecos que la grilla deja sin cubrir. El hueco se
+    # dibuja solo cuando el censo le atribuye algo —un ingreso, un egreso o un descuadre—:
+    # el hueco vacío de todos los días no agrega nada y taparía los turnos de verdad. Sin
+    # turnos configurados el día entero es un tramo sin turno, y eso ya lo dice su aviso.
+    ordenadas = [
+        (opcion_turno, opcion_tramo, opcion_turno.ventana(fecha)[0]) for opcion_turno, opcion_tramo in opciones
+    ]
+    if censo_dia.con_turnos:
+        ordenadas += [
+            (None, hueco, hueco.inicio)
+            for hueco in censo_dia.tramos
+            if hueco.turno is None and (hueco.ingresos or hueco.egresos or not hueco.cuadra)
+        ]
+    ordenadas.sort(key=lambda item: item[2])
     tarjetas = [
-        _tarjeta(
+        _tarjeta_de_hueco(opcion_tramo)
+        if opcion_turno is None
+        else _tarjeta(
             opcion_turno,
             opcion_tramo,
             elegido=turno is not None and opcion_turno.pk == turno.pk,
@@ -490,7 +549,7 @@ def pantalla_bitacora(
             url_ver=url_de(fecha, opcion_turno),
             acciones_en_curso=acciones_en_curso,
         )
-        for opcion_turno, opcion_tramo in opciones
+        for opcion_turno, opcion_tramo, _inicio in ordenadas
     ]
 
     anterior = fecha - timedelta(days=1) if fecha > PISO_FECHA else None

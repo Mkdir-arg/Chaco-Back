@@ -206,27 +206,38 @@ def _trazar_turno(dispositivo, usuario, accion, detalle):
 
 
 @transaction.atomic
-def crear_turno(*, dispositivo, usuario, nombre, hora_desde, hora_hasta, orden=0):
-    """Da de alta un turno del dispositivo. Falla si se superpone con otro activo."""
+def crear_turno(*, dispositivo, usuario, nombre, hora_desde, hora_hasta, orden=0, activo=True):
+    """Da de alta un turno del dispositivo. Falla si se superpone con otro activo.
+
+    `activo` lo decide el mismo interruptor «Activo» del modal que lee `editar_turno`:
+    hasta el Cambio de este carril el alta lo ignoraba y creaba siempre activo, así que
+    dar de alta un turno ya dado de baja —cargar la grilla antes de que empiece a
+    regir— no se podía. Un turno inactivo no rige, y por eso tampoco se le exige no
+    superponerse: la regla es sobre los activos.
+    """
 
     if not puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para configurar los turnos de este dispositivo.")
     nombre = (nombre or "").strip()
     if not nombre:
         raise ValidationError({"nombre": "El turno necesita un nombre."})
+    activo = bool(activo)
 
     dispositivo = _bloquear_dispositivo(dispositivo)
     if Turno.objects.filter(dispositivo=dispositivo, nombre=nombre).exists():
         raise ValidationError({"nombre": "Ya hay un turno con ese nombre en este dispositivo."})
-    _exigir_sin_superposicion(dispositivo, nombre=nombre, hora_desde=hora_desde, hora_hasta=hora_hasta)
+    if activo:
+        _exigir_sin_superposicion(dispositivo, nombre=nombre, hora_desde=hora_desde, hora_hasta=hora_hasta)
     turno = Turno.objects.create(
         dispositivo=dispositivo,
         nombre=nombre,
         hora_desde=hora_desde,
         hora_hasta=hora_hasta,
         orden=orden,
+        activo=activo,
     )
-    _trazar_turno(dispositivo, usuario, "TURNO_CREADO", _horario(turno))
+    detalle = _horario(turno) if activo else f"{_horario(turno)} · dado de baja"
+    _trazar_turno(dispositivo, usuario, "TURNO_CREADO", detalle)
     return turno
 
 

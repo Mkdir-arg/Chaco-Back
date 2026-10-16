@@ -261,13 +261,31 @@ class AlcanceTests(BaseListado):
         self.assertEqual(self._filas(respuesta), ["MIO-1"])
 
 
+class EncabezadoTests(BaseListado):
+    """El encabezado de P2 sale del mockup: eyebrow «Programa Dispositivos» sobre el H1.
+
+    P6 y P7 ya tenían su aserción; P2 no, y el eyebrow se podía borrar sin que nada
+    fallara. Va contra el HTML que rinde `{% page_header %}`, no contra el contexto:
+    lo que el mockup fija es lo que se ve arriba del título.
+    """
+
+    def test_el_encabezado_lleva_el_eyebrow_del_programa_sobre_el_titulo(self):
+        respuesta = self._cliente(self._admin("encabezado")).get(URL_LISTA)
+
+        self.assertContains(
+            respuesta,
+            '<p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">Programa Dispositivos</p>',
+            html=True,
+        )
+
+
 class AccionDeAltaTests(BaseListado):
     def setUp(self):
         super().setUp()
         self._dispositivo("INS-1", "Institución única", localidad="Resistencia")
 
-    def test_con_la_capacidad_de_crear_el_encabezado_ofrece_el_alta(self):
-        usuario = self._usuario("alta-si", ("dispositivo.ver", "dispositivo.crear"))
+    def test_con_la_capacidad_de_crear_y_alcance_de_admin_el_encabezado_ofrece_el_alta(self):
+        usuario = self._admin("alta-si", "dispositivo.crear")
 
         respuesta = self._cliente(usuario).get(URL_LISTA)
 
@@ -275,16 +293,48 @@ class AccionDeAltaTests(BaseListado):
         self.assertContains(respuesta, reverse("dispositivos:crear"))
         self.assertContains(respuesta, "Nueva institución")
 
-    def test_sin_la_capacidad_de_crear_no_se_dibuja_el_alta(self):
-        """Todo lo demás de Dispositivos menos `dispositivo.crear`."""
+    def test_con_la_capacidad_de_crear_pero_sin_alcance_de_admin_no_se_dibuja_el_alta(self):
+        """El perfil que rompía: `dispositivo.crear` asignado a una institución concreta.
 
-        usuario = self._usuario("alta-no", ("dispositivo.ver", "dispositivo.editar", "dispositivo.validar"))
+        Guardaba el borrador y el redirect a su propio legajo le daba 403, porque la
+        institución nueva no tiene asignaciones. El botón no se ofrece y la vista tampoco.
+        """
 
-        respuesta = self._cliente(usuario).get(URL_LISTA)
+        institucion = self._dispositivo("INS-2", "Institución asignada", localidad="Resistencia")
+        usuario = self._usuario(
+            "alta-sin-alcance",
+            ("dispositivo.ver", "dispositivo.crear", "dispositivo.editar"),
+            alcance=[institucion],
+        )
+        cliente = self._cliente(usuario)
+
+        respuesta = cliente.get(URL_LISTA)
 
         self.assertFalse(respuesta.context["puede_crear"])
         self.assertNotContains(respuesta, reverse("dispositivos:crear"))
         self.assertNotContains(respuesta, "Nueva institución")
+        # Y el servidor cierra las dos puertas del alta, sin crear nada.
+        self.assertEqual(cliente.get(reverse("dispositivos:crear")).status_code, 403)
+        self.assertEqual(
+            cliente.post(
+                reverse("dispositivos:crear"), {"tipo": self.tipo_hogar.pk, "codigo": "X-1", "nombre": "X"}
+            ).status_code,
+            403,
+        )
+        self.assertFalse(Dispositivo.objects.filter(codigo="X-1").exists())
+        self.assertEqual(cliente.get(reverse("dispositivos:buscar_duplicados"), {"codigo": "INS-1"}).status_code, 403)
+
+    def test_sin_la_capacidad_de_crear_no_se_dibuja_el_alta(self):
+        """Todo lo demás de Dispositivos —alcance de admin incluido— menos `dispositivo.crear`."""
+
+        cliente = self._cliente(self._admin("alta-no", "dispositivo.editar", "dispositivo.validar"))
+
+        respuesta = cliente.get(URL_LISTA)
+
+        self.assertFalse(respuesta.context["puede_crear"])
+        self.assertNotContains(respuesta, reverse("dispositivos:crear"))
+        self.assertNotContains(respuesta, "Nueva institución")
+        self.assertEqual(cliente.get(reverse("dispositivos:crear")).status_code, 403)
 
     def test_sin_la_capacidad_de_crear_el_estado_vacio_tampoco_la_ofrece(self):
         Dispositivo.objects.all().delete()

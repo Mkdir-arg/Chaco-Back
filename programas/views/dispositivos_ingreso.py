@@ -49,7 +49,12 @@ from programas.services.ingreso import (
     maneja_plazas,
     plazas_para_ingresar,
 )
-from programas.services.ocupacion import LEYENDA_PLAZAS
+from programas.services.ocupacion import (
+    LEYENDA_PLAZAS,
+    NIVEL_CRITICA,
+    ocupacion_de_plazas,
+    tension_de_ocupacion,
+)
 
 #: Una sola clave de sesión con un estado por dispositivo: `{"<pk>": {...}}`.
 CLAVE_SESION = "ingreso_asistente"
@@ -323,8 +328,23 @@ class IngresoPlazaView(IngresoBaseView):
             )
         return self._mapa
 
+    def tension(self):
+        """Cómo se lee la ocupación del dispositivo, de la fuente única (`services.ocupacion`).
+
+        El mockup avisa en el paso 2 cuando la ocupación es crítica, con los umbrales del
+        tipo. No bloquea nada: el ingreso sigue disponible y el aviso lo dice. Son las tres
+        consultas fijas del censo, una sola vez por petición —el mapa no las comparte:
+        `plazas_para_ingresar` filtra las plazas por el tipo y sus cifras no son el censo—.
+        """
+
+        if not hasattr(self, "_tension"):
+            conteo = ocupacion_de_plazas(self.dispositivo).de(self.dispositivo).conteo
+            self._tension = tension_de_ocupacion(conteo, tipo=self.dispositivo.tipo)
+        return self._tension
+
     def render_paso(self, request, estado, persona, elegida=None, error="", aviso=""):
         sectores, elegibles = self.mapa()
+        tension = self.tension()
         url_plaza = self.urls()["plaza"]
         for item in sectores:
             for plaza in item["plazas"]:
@@ -338,6 +358,13 @@ class IngresoPlazaView(IngresoBaseView):
                 "leyenda": LEYENDA_PLAZAS,
                 "hay_disponibles": bool(elegibles),
                 "plaza_obligatoria": self.dispositivo.tipo.plaza_obligatoria_al_ingresar,
+                # Solo cuando hay que avisar: qué es «crítica» lo decide el servicio con los
+                # umbrales del tipo, y el texto se arma acá —el template no concatena cifras—.
+                "aviso_ocupacion": (
+                    f"Ocupación {tension.etiqueta.lower()} ({tension.porcentaje} %)."
+                    if tension.nivel == NIVEL_CRITICA
+                    else ""
+                ),
                 "persona": persona,
                 "mostrado": self.mostrado(estado, elegida),
                 "error": error,
