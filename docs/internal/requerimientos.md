@@ -438,6 +438,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 310 | Correcciones menores de FR y FI y fidelidad de P3 | Dispositivos · P3 y relevamiento edilicio | `#ui` `#textos` `#rbac` `#relevamientos` `#performance` | PM / juez — carril FJ | 14/10/2026 | 🟢 **Hecho** | No requiere |
 | 311 | Notificaciones: las campañas salen por un SMTP propio (Amazon SES), separado del correo del sistema | Transversal — notificaciones (envío masivo, prueba y detalle de la campaña) · diagnóstico de correo | `#correo` `#infra` | PM — pedido del 15/10/2026 | 15/10/2026 | 🟢 **Hecho** | No requiere |
 | 312 | La tabla de horas del documento del MVP volvió a tener sus filas | Dispositivos · documento para el cliente | `#textos` `#gestion` | PM — en sesión | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 314 | «Guardar borrador» de la solicitud de merendero deja de pedir los campos obligatorios en el navegador | Merenderos · solicitud de merendero | `#ui` `#gestion` | QA — issue #564 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -40795,6 +40796,81 @@ Ninguna: se publica con GitHub Pages.
 ## Pendientes / a definir
 
 Ninguno.
+
+## Reversión
+
+Revertir el commit.
+
+---
+# Cambio 314 — «Guardar borrador» de la solicitud de merendero deja de pedir los campos obligatorios en el navegador
+
+🟢 **HECHO — 16/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Merenderos · solicitud de merendero (alta y edición) |
+| **Etiquetas** | `#ui` `#gestion` |
+| **Solicitante** | QA (Matías) — issue #564 |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | #564 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En `/merenderos/solicitudes/nueva/`, «Guardar borrador» no guardaba una solicitud incompleta: el
+navegador frenaba el envío pidiendo los campos obligatorios.
+
+## Alcance acordado
+
+Solo el botón «Guardar borrador» del formulario de solicitud (el mismo template sirve al alta y a la
+edición). Fuera de alcance: validar formato de DNI/CUIT/teléfono (queda a la espera de que QA diga qué
+campo probó) y los demás formularios con borrador.
+
+## Decisiones tomadas
+
+- El GET dibuja el form con `validar_completitud=True`, así que los siete campos de
+  `CAMPOS_INSTITUCIONALES_REQUERIDOS` salen con `required`. La vista ya resolvía el borrador del lado del
+  servidor (`accion=borrador` → `validar_completitud=False`), pero el navegador no llegaba a mandar el
+  POST. Se agrega `formnovalidate` **solo** a «Guardar borrador»: es la forma estándar de que un botón
+  saltee la validación del navegador sin tocar los demás.
+- «Enviar a revisión» y «Corregir y reenviar» conservan la validación del navegador, y el servidor sigue
+  validando completitud y documentación en el envío: no se relaja ninguna regla.
+- No se cambia el form ni la vista: el borrador ya admitía datos incompletos en el servidor (test
+  `test_borrador_puede_guardarse_incompleto…`).
+
+## Implementación
+
+«Guardar borrador» guarda la solicitud aunque falten datos, en alta y en edición de un borrador.
+Enviar y reenviar siguen exigiendo los campos obligatorios.
+
+## Archivos
+
+- `programas/templates/programas/merenderos/solicitud_form.html`
+- `programas/tests/test_merenderos.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Tests nuevos en `programas/tests/test_merenderos.py`: el GET del alta y de la edición de un borrador
+  trae «Guardar borrador» con `formnovalidate` y «Enviar a revisión» sin él (HTML parseado con
+  `HTMLParser`, no por texto); una observada muestra «Corregir y reenviar» sin `formnovalidate`.
+- Mutación: sin el atributo, el test del borrador da rojo; con el atributo puesto en «Enviar» o en
+  «Corregir y reenviar», también.
+- `manage.py test programas`, `check --deploy`, `design_audit.py --ratchet` (0 nuevos) y
+  `compile_templates.py` (0).
+
+## Puesta en marcha en el servidor
+
+Ninguna.
+
+## Pendientes / a definir
+
+- Validación de formato de `responsable_documento`/teléfono: pendiente de que QA indique qué campo probó.
 
 ## Reversión
 
