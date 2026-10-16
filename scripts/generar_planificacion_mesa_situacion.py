@@ -28,7 +28,18 @@ COLORS = {"analisis": "#0f766e", "desarrollo": "#2563eb", "qa": "#7c3aed", "capa
 LINE_COLORS = ["#0f766e", "#2563eb", "#7c3aed"]
 PUBLISHED_ASSETS = {}
 
-plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 10, "svg.fonttype": "none", "svg.hashsalt": "mesa-situacion-plan-v1", "axes.spines.top": False, "axes.spines.right": False, "axes.labelcolor": "#334155", "text.color": "#172554"})
+plt.rcParams.update(
+    {
+        "font.family": "DejaVu Sans",
+        "font.size": 10,
+        "svg.fonttype": "none",
+        "svg.hashsalt": "mesa-situacion-plan-v1",
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "axes.labelcolor": "#334155",
+        "text.color": "#172554",
+    }
+)
 
 
 def number(value):
@@ -73,13 +84,17 @@ def validate():
         assert all(a >= b for a, b in zip(totals, totals[1:])), "La dedicación debe descender"
         assert all(0 <= start < end <= plan["months"] for _, start, end, _, _ in plan["phases"])
         assert all(0 < month <= plan["months"] for _, month, _, _ in plan["milestones"])
-        print(f'{plan["name"]}: {totals} = {plan["total"]} h; capacidad por perfil OK')
+        print(f"{plan['name']}: {totals} = {plan['total']} h; capacidad por perfil OK")
 
 
 def save(fig, stem):
     fig.savefig(ASSETS / f"{stem}.svg", bbox_inches="tight", facecolor="white", metadata={"Date": None})
     svg = ASSETS / f"{stem}.svg"
-    svg.write_text("\n".join(line.rstrip() for line in svg.read_text(encoding="utf-8").splitlines()) + "\n", encoding="utf-8", newline="\n")
+    svg.write_text(
+        "\n".join(line.rstrip() for line in svg.read_text(encoding="utf-8").splitlines()) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     fig.savefig(ASSETS / f"{stem}.png", bbox_inches="tight", facecolor="white", dpi=160)
     # Una URL nueva por contenido evita reutilizar imágenes de una versión anterior.
     for extension in ("svg", "png"):
@@ -119,12 +134,25 @@ def gantt(plan):
         edge.set_visible(False)
     for month in range(plan["months"] + 1):
         ax.axvline(month, color="#cbd5e1", linewidth=0.6, zorder=1)
-    fig.suptitle(f'{plan["name"]} | Gantt por etapas', x=0.04, ha="left", fontsize=20, weight="bold", y=0.97)
-    fig.text(0.04, 0.88, f'{number(plan["total"])} horas totales · {plan["months"]} meses de planificación · mayor dedicación inicial', fontsize=11)
-    handles = [Patch(color=COLORS[k], label=t) for k, t in [("analisis", "Definición"), ("desarrollo", "Desarrollo"), ("qa", "Pruebas"), ("capacitacion", "Piloto y capacitación")]]
+    fig.suptitle(f"{plan['name']} | Gantt por etapas", x=0.04, ha="left", fontsize=20, weight="bold", y=0.97)
+    fig.text(
+        0.04,
+        0.88,
+        f"{number(plan['total'])} horas totales · {plan['months']} meses de planificación · mayor dedicación inicial",
+        fontsize=11,
+    )
+    handles = [
+        Patch(color=COLORS[k], label=t)
+        for k, t in [
+            ("analisis", "Definición"),
+            ("desarrollo", "Desarrollo"),
+            ("qa", "Pruebas"),
+            ("capacitacion", "Piloto y capacitación"),
+        ]
+    ]
     handles.append(Line2D([], [], color="#172554", marker="D", linestyle="", label="Hito"))
     fig.legend(handles=handles, loc="lower left", bbox_to_anchor=(0.03, 0.025), ncol=5, frameon=False)
-    save(fig, f'gantt-{plan["slug"]}')
+    save(fig, f"gantt-{plan['slug']}")
 
 
 def curves():
@@ -133,7 +161,9 @@ def curves():
     for plan, color in zip(PLANS, LINE_COLORS):
         values = monthly(plan)
         xs = list(range(1, plan["months"] + 1))
-        axes[0].plot(xs, values, marker="o", linewidth=2.5, color=color, label=f'{plan["name"]} ({number(plan["total"])} h)')
+        axes[0].plot(
+            xs, values, marker="o", linewidth=2.5, color=color, label=f"{plan['name']} ({number(plan['total'])} h)"
+        )
         cumulative = [0]
         for value in values:
             cumulative.append(cumulative[-1] + value / plan["total"] * 100)
@@ -148,8 +178,20 @@ def curves():
         ax.set_xticks(range(1, 4), [f"M{i}" for i in range(1, 4)])
         ax.set_xlabel("Mes desde el inicio acordado")
         ax.grid(axis="y", alpha=0.2)
-    fig.suptitle("Distribución del esfuerzo: mayor dedicación en los primeros meses", x=0.04, ha="left", fontsize=17, weight="bold", y=0.97)
-    fig.text(0.04, 0.87, "Referencia para planificar la inversión; los importes requieren tarifas por perfil y condiciones de facturación.", fontsize=10)
+    fig.suptitle(
+        "Distribución del esfuerzo: mayor dedicación en los primeros meses",
+        x=0.04,
+        ha="left",
+        fontsize=17,
+        weight="bold",
+        y=0.97,
+    )
+    fig.text(
+        0.04,
+        0.87,
+        "Referencia para planificar la inversión; los importes requieren tarifas por perfil y condiciones de facturación.",
+        fontsize=10,
+    )
     fig.legend(loc="lower center", bbox_to_anchor=(0.5, 0.0), ncol=3, frameon=False)
     save(fig, "curva-esfuerzo")
 
@@ -160,11 +202,15 @@ def month_span(start, end):
 
 
 def table(headers, rows):
-    return "\n".join(["| " + " | ".join(headers) + " |", "|" + "|".join("---" for _ in headers) + "|"] + ["| " + " | ".join(map(str, row)) + " |" for row in rows])
+    return "\n".join(
+        ["| " + " | ".join(headers) + " |", "|" + "|".join("---" for _ in headers) + "|"]
+        + ["| " + " | ".join(map(str, row)) + " |" for row in rows]
+    )
 
 
 def document():
-    sections = ["""# :material-chart-gantt: Planificación de las tres propuestas
+    sections = [
+        """# :material-chart-gantt: Planificación de las tres propuestas
 
 ## Gantt, entregables, equipo y distribución de horas
 
@@ -202,8 +248,31 @@ Para sostener esa ventana se propone un equipo inicial más amplio, con varios c
 La inversión se representa mediante horas asignadas. Para convertirla en importes se necesitan tarifas por perfil y condiciones de facturación. El porcentaje de horas acumuladas mide esfuerzo asignado, no porcentaje de funcionalidades aceptadas.
 
 ## 2. Comparación de escenarios
-"""]
-    sections.append(table(["Alternativa", "Horas", "Meses del escenario", "Desarrolladores al inicio", "Horas en M1–M2", "% del total en M1–M2"], [[p["name"], number(p["total"]), p["months"], p["max_developers"], number(sum(monthly(p)[:2])), pct(sum(monthly(p)[:2]), p["total"])] for p in PLANS]))
+"""
+    ]
+    sections.append(
+        table(
+            [
+                "Alternativa",
+                "Horas",
+                "Meses del escenario",
+                "Desarrolladores al inicio",
+                "Horas en M1–M2",
+                "% del total en M1–M2",
+            ],
+            [
+                [
+                    p["name"],
+                    number(p["total"]),
+                    p["months"],
+                    p["max_developers"],
+                    number(sum(monthly(p)[:2])),
+                    pct(sum(monthly(p)[:2]), p["total"]),
+                ]
+                for p in PLANS
+            ],
+        )
+    )
     sections.append("""
 En Integral, los primeros dos meses concentran 4.880 horas, el 78,1% del total. El tercer mes reúne 1.370 horas para completar los circuitos avanzados, validar el conjunto y capacitar a los equipos.
 
@@ -215,19 +284,42 @@ La mayor dotación inicial permite trabajar por frentes. Esencial distribuye el 
 """)
     for idx, plan in enumerate(PLANS, start=3):
         name, slug, n = plan["name"], plan["slug"], plan["months"]
-        sections.append(f"## {idx}. Propuesta {name}\n\n**Escenario:** {number(plan['total'])} horas distribuidas en {n} meses de planificación.\n\n![Gantt de {name}, con etapas y hitos](assets/gantt-{slug}.svg)\n\n[Abrir Gantt](assets/gantt-{slug}.svg) · [Descargar PNG](assets/gantt-{slug}.png)\n\n### Etapas y entregables\n")
-        sections.append(table(["Etapa", "Ventana propuesta", "Resultado"], [[phase[0], month_span(phase[1], phase[2]), phase[4]] for phase in plan["phases"]]))
-        sections.append("\nLa tabla indica los meses involucrados; las barras del Gantt muestran los solapamientos dentro de cada mes. Las horas de análisis y gestión continúan acompañando las entregas según la asignación mensual.\n\n### Hitos de aceptación\n")
-        sections.append(table(["Hito", "Cierre propuesto", "Entregable", "Cómo se verifica"], [[code, f"Semana {int(month * 4)}", title, criterion] for code, month, title, criterion in plan["milestones"]]))
-        sections.append("\nCada hito depende de la validación de los anteriores que alimentan su circuito. Los frentes pueden construir en paralelo con contratos de datos acordados; la aceptación de las funciones avanzadas exige integrar primero sus circuitos base.\n\n### Equipo propuesto por mes\n")
+        sections.append(
+            f"## {idx}. Propuesta {name}\n\n**Escenario:** {number(plan['total'])} horas distribuidas en {n} meses de planificación.\n\n![Gantt de {name}, con etapas y hitos](assets/gantt-{slug}.svg)\n\n[Abrir Gantt](assets/gantt-{slug}.svg) · [Descargar PNG](assets/gantt-{slug}.png)\n\n### Etapas y entregables\n"
+        )
+        sections.append(
+            table(
+                ["Etapa", "Ventana propuesta", "Resultado"],
+                [[phase[0], month_span(phase[1], phase[2]), phase[4]] for phase in plan["phases"]],
+            )
+        )
+        sections.append(
+            "\nLa tabla indica los meses involucrados; las barras del Gantt muestran los solapamientos dentro de cada mes. Las horas de análisis y gestión continúan acompañando las entregas según la asignación mensual.\n\n### Hitos de aceptación\n"
+        )
+        sections.append(
+            table(
+                ["Hito", "Cierre propuesto", "Entregable", "Cómo se verifica"],
+                [
+                    [code, f"Semana {int(month * 4)}", title, criterion]
+                    for code, month, title, criterion in plan["milestones"]
+                ],
+            )
+        )
+        sections.append(
+            "\nCada hito depende de la validación de los anteriores que alimentan su circuito. Los frentes pueden construir en paralelo con contratos de datos acordados; la aceptación de las funciones avanzadas exige integrar primero sus circuitos base.\n\n### Equipo propuesto por mes\n"
+        )
         rows = []
         for role in ["Análisis funcional", "Desarrollo", "QA", "UX/UI", "Gestión"]:
             label = "Analistas (incluye manuales y capacitación)" if role == "Análisis funcional" else role
             rows.append([label] + active_people(plan, role))
         sections.append(table(["Perfil / personas participantes"] + [f"M{i}" for i in range(1, n + 1)], rows))
         peak = max(sum(active_people(plan, role)[i] for role in plan["staff_limits"]) for i in range(n))
-        sections.append(f"Participación máxima en un mismo mes: **{peak} personas**, con dedicaciones según las horas siguientes. Incluye todos los perfiles del cuadro; una persona no se cuenta en dos roles.")
-        sections.append(f"\nUn desarrollador asume la conducción técnica dentro de las horas de Desarrollo. Los {plan['max_developers']} desarrolladores iniciales cubren backend, frontend e integración. QA y diseño participan desde el arranque. Las cantidades indican personas participantes, con dedicación parcial cuando corresponda; las horas de la tabla siguiente son la asignación concreta. Manuales y capacitación se reparten entre los analistas, sin contar personal adicional.\n\n### Horas asignadas por perfil y mes\n")
+        sections.append(
+            f"Participación máxima en un mismo mes: **{peak} personas**, con dedicaciones según las horas siguientes. Incluye todos los perfiles del cuadro; una persona no se cuenta en dos roles."
+        )
+        sections.append(
+            f"\nUn desarrollador asume la conducción técnica dentro de las horas de Desarrollo. Los {plan['max_developers']} desarrolladores iniciales cubren backend, frontend e integración. QA y diseño participan desde el arranque. Las cantidades indican personas participantes, con dedicación parcial cuando corresponda; las horas de la tabla siguiente son la asignación concreta. Manuales y capacitación se reparten entre los analistas, sin contar personal adicional.\n\n### Horas asignadas por perfil y mes\n"
+        )
         rows = [[role] + [number(v) for v in values] + [number(sum(values))] for role, values in plan["hours"].items()]
         values = monthly(plan)
         rows.append(["**Total mensual**"] + [f"**{number(v)}**" for v in values] + [f"**{number(sum(values))}**"])
@@ -239,7 +331,9 @@ La mayor dotación inicial permite trabajar por frentes. Esencial distribuye el 
             cumulative.append(number(current))
         rows.append(["Horas acumuladas"] + cumulative + [number(plan["total"])])
         sections.append(table(["Disciplina"] + [f"M{i}" for i in range(1, n + 1)] + ["Total"], rows))
-        sections.append("\nLos porcentajes se redondean a un decimal. Las horas de las tablas mensuales son las mismas del presupuesto de esfuerzo, distribuidas por período.\n")
+        sections.append(
+            "\nLos porcentajes se redondean a un decimal. Las horas de las tablas mensuales son las mismas del presupuesto de esfuerzo, distribuidas por período.\n"
+        )
     sections.append("""## 6. Qué se entrega y qué habilita el avance
 
 Cada entrega incluye una demostración con datos de prueba, casos verificables y registro de observaciones. Una versión utilizable permite probar el circuito incluido con usuarios habilitados; la conformidad final exige los casos de aceptación y las pruebas de concurrencia acordadas para la alternativa.

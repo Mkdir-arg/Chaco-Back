@@ -441,7 +441,7 @@ def quitar_observaciones(formulario, prefijo):
     en memoria. Devuelve ``True`` si cambió algo.
 
     Es lo que hace que una observación no sobreviva al reintento que la
-    desmintió: el alta que se completa en un segundo intento (``_alta_incompleta``)
+    desmintió: el alta que se completa en un segundo intento (``alta_incompleta``)
     vuelve a consultar la fuente, y si esta vez acreditó, la línea que decía que
     no se pudo acreditar ya no es cierta.
     """
@@ -479,7 +479,7 @@ def _observaciones_conservadas(formulario):
 
     ``aplicar_revision`` reescribe ``observaciones_carga`` entero, y el reintento
     del alta vuelve a pasar por ahí mientras el caso siga incompleto
-    (``_alta_incompleta``), que puede ser después de una subida. Se conservan
+    (``alta_incompleta``), que puede ser después de una subida. Se conservan
     para que la observación no desaparezca sin que nadie la lea.
     """
     return [

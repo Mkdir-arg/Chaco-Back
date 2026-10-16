@@ -42,6 +42,7 @@ from programas.management.commands._base_siis import ComandoSiisBase
 from programas.services.siis import (
     CATALOGO_CACHE_KEY,
     CATALOGOS_MAESTROS,
+    CODIGO_AMBIENTE_NO_PRD,
     ESTADO_ACTIVO,
     PROGRAMAS_CACHE_KEY,
     PROGRAMAS_TODOS_CACHE_KEY,
@@ -348,6 +349,11 @@ class Command(ComandoSiisBase):
             return
 
         codigo = resultado.get("codigo") or "SIN_CODIGO"
+        if codigo == CODIGO_AMBIENTE_NO_PRD:
+            # #569: no se llamó a SIIS. Ni «rechazó» ni «es reintentable»: lo que
+            # hay que corregir es la variable del ambiente, no el servicio ni los datos.
+            self._error(f"No se mandó el alta [{codigo}]: {resultado.get('error')}")
+            return
         self._error(f"SIIS rechazó el alta [{codigo}]: {resultado.get('error') or 'sin mensaje'}")
         for campo, mensajes in (resultado.get("detalles") or {}).items():
             texto = " ".join(str(m) for m in mensajes) if isinstance(mensajes, (list, tuple)) else str(mensajes)

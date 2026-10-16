@@ -3,9 +3,10 @@
 Dependencias de exportación: reportlab, pymupdf y resvg-py. No son dependencias
 de la aplicación. Ejecutar con el venv del repositorio.
 """
+
+import re
 from io import BytesIO
 from pathlib import Path
-import re
 
 import pymupdf
 import resvg_py
@@ -51,8 +52,14 @@ def markup(text):
 
 
 def paragraph(text, x, y, width=CONTENT, size=11, leading=16, color=INK, bold=False):
-    style = ParagraphStyle("body", fontName="ProposalBold" if bold else "Proposal",
-                           fontSize=size, leading=leading, textColor=color, alignment=TA_LEFT)
+    style = ParagraphStyle(
+        "body",
+        fontName="ProposalBold" if bold else "Proposal",
+        fontSize=size,
+        leading=leading,
+        textColor=color,
+        alignment=TA_LEFT,
+    )
     p = Paragraph(markup(text), style)
     _, height = p.wrap(width, HEIGHT)
     assert y + height < HEIGHT - 45, f"Texto fuera de página ({y + height:.1f}): {text[:55]}"
@@ -65,8 +72,7 @@ def label(text, y):
 
 
 def header(page):
-    c.drawImage(str(ASSETS / "icore/icore-logo.png"), MARGIN, HEIGHT - 72,
-                width=126, height=26.88, mask="auto")
+    c.drawImage(str(ASSETS / "icore/icore-logo.png"), MARGIN, HEIGHT - 72, width=126, height=26.88, mask="auto")
     c.setFillColor(MUTED)
     c.setFont("Proposal", 8)
     c.drawRightString(WIDTH - MARGIN, HEIGHT - 60, "PROPUESTA EJECUTIVA")
@@ -93,8 +99,9 @@ def card(title, y, recommended=False):
     c.setFillColor(PALE if recommended else colors.HexColor("#F7F8FB"))
     c.setStrokeColor(PURPLE if recommended else LINE)
     c.roundRect(MARGIN, HEIGHT - y - height, CONTENT, height, 9, fill=1, stroke=1)
-    paragraph(title, MARGIN + 16, y + 12, CONTENT - 32, size=12, leading=16, bold=True,
-              color=PURPLE if recommended else INK)
+    paragraph(
+        title, MARGIN + 16, y + 12, CONTENT - 32, size=12, leading=16, bold=True, color=PURPLE if recommended else INK
+    )
     paragraph(text, MARGIN + 16, y + 36, CONTENT - 32, size=10.5, leading=14)
     paragraph(hours, MARGIN + 16, y + 40 + ph, CONTENT - 32, size=9.5, leading=13, color=PURPLE)
     return y + height + 11
@@ -107,10 +114,12 @@ c = canvas.Canvas(buffer, pagesize=A4, pageCompression=1)
 c.setTitle("Plataforma Provincial de Gestión Social ante Emergencias | ICORE")
 c.setAuthor("ICORE")
 header(1)
-y = paragraph("Plataforma Provincial<br/>de Gestión Social<br/>ante Emergencias", MARGIN, 98,
-              size=29, leading=34, bold=True)
-y = paragraph("Ministerio de Desarrollo Humano<br/>Provincia del Chaco", MARGIN, y + 15,
-              size=11, leading=16, color=MUTED)
+y = paragraph(
+    "Plataforma Provincial<br/>de Gestión Social<br/>ante Emergencias", MARGIN, 98, size=29, leading=34, bold=True
+)
+y = paragraph(
+    "Ministerio de Desarrollo Humano<br/>Provincia del Chaco", MARGIN, y + 15, size=11, leading=16, color=MUTED
+)
 c.setStrokeColor(PURPLE)
 c.setLineWidth(3)
 c.line(MARGIN, HEIGHT - y - 17, MARGIN + 42, HEIGHT - y - 17)
@@ -126,10 +135,15 @@ c.showPage()
 
 header(2)
 y = paragraph("Tres alternativas.<br/>Un mismo objetivo.", MARGIN, 98, size=25, leading=30, bold=True)
-y = paragraph(section("Tres alternativas para un mismo objetivo"), MARGIN, y + 11,
-              size=10.5, leading=14, color=MUTED) + 17
-for title in ("1. Esencial · Conocer y registrar", "2. Operativa · Organizar la atención",
-              "3. Integral · Acompañar toda la respuesta"):
+y = (
+    paragraph(section("Tres alternativas para un mismo objetivo"), MARGIN, y + 11, size=10.5, leading=14, color=MUTED)
+    + 17
+)
+for title in (
+    "1. Esencial · Conocer y registrar",
+    "2. Operativa · Organizar la atención",
+    "3. Integral · Acompañar toda la respuesta",
+):
     y = card(title, y, recommended=title.startswith("3."))
 y = paragraph("Nuestra recomendación: Integral", MARGIN, y + 2, size=12, leading=16, bold=True, color=PURPLE) + 6
 y = paragraph(section("Nuestra recomendación"), MARGIN, y, size=10.5, leading=14) + 12
@@ -148,26 +162,44 @@ for row in team_table.splitlines()[2:]:
     c.setLineWidth(0.6)
     c.line(MARGIN, HEIGHT - y, WIDTH - MARGIN, HEIGHT - y)
 y = paragraph(team_scope, MARGIN, y + 16, size=10.5, leading=15) + 16
-y = paragraph("<b>Acompañamiento opcional.</b> " + section("Acompañamiento opcional"), MARGIN, y,
-              size=9.5, leading=13, color=MUTED) + 15
+y = (
+    paragraph(
+        "<b>Acompañamiento opcional.</b> " + section("Acompañamiento opcional"),
+        MARGIN,
+        y,
+        size=9.5,
+        leading=13,
+        color=MUTED,
+    )
+    + 15
+)
 c.setStrokeColor(LINE)
 c.setLineWidth(0.7)
 c.line(MARGIN, HEIGHT - y, WIDTH - MARGIN, HEIGHT - y)
-y = paragraph("Adaptación a las necesidades de la situación", MARGIN, y + 12,
-              size=11.5, leading=15, bold=True) + 6
+y = paragraph("Adaptación a las necesidades de la situación", MARGIN, y + 12, size=11.5, leading=15, bold=True) + 6
 y = paragraph(section("Adaptación a las necesidades de la situación"), MARGIN, y, size=10, leading=14)
 c.save()
 
 pdf = pymupdf.open(stream=buffer.getvalue(), filetype="pdf")
-pdf.set_metadata({"title": "Plataforma Provincial de Gestión Social ante Emergencias",
-                  "author": "ICORE", "subject": "Propuesta ejecutiva", "creator": "ICORE",
-                  "creationDate": "", "modDate": ""})
+pdf.set_metadata(
+    {
+        "title": "Plataforma Provincial de Gestión Social ante Emergencias",
+        "author": "ICORE",
+        "subject": "Propuesta ejecutiva",
+        "creator": "ICORE",
+        "creationDate": "",
+        "modDate": "",
+    }
+)
 assert len(pdf) == 3
 plain = " ".join("\n".join(page.get_text() for page in pdf).split())
 assert "se ajustarán a las necesidades que demande la situación" in plain
 assert not re.search(r"\b20\d{2}\b|\b\d{1,2}/\d{1,2}/\d{2,4}\b", plain)
 assert all(word in plain for word in ("Esencial", "Operativa", "Integral", "6.500"))
-assert all(word in plain for word in ("PM / Gestión", "Analistas funcionales", "DevOps", "UX /", "frontend", "backend", "onsite"))
+assert all(
+    word in plain
+    for word in ("PM / Gestión", "Analistas funcionales", "DevOps", "UX /", "frontend", "backend", "onsite")
+)
 assert "El equipo será conformado en función de las necesidades" in plain
 pdf.save(OUTPUT, garbage=4, deflate=True)
 print(f"PDF generado: {OUTPUT} | {len(pdf)} páginas | cierre en y={y:.1f}")

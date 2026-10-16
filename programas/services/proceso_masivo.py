@@ -28,6 +28,7 @@ from programas.models import (
 )
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.cupo import CasoEnListaEspera, aprobar_o_poner_en_espera
+from programas.services.siis import CODIGO_AMBIENTE_NO_PRD
 from programas.services.siis_envio import (
     DESTINO_SIIS,
     DESTINO_TABLA,
@@ -221,6 +222,10 @@ MAX_REINTENTOS = 5
 # Tope del listado que se trae a memoria para excluirlos. Si hubiera más, es que
 # SIIS está caído y el problema no son los casos.
 TOPE_AGOTADOS = 5000
+#: ``ERROR`` que no son un intento que falló, así que no suman al tope:
+#: los que liberó ``conciliar_envios_siis`` y los que la guarda de #569 no dejó
+#: salir (ambiente que no es producción apuntando al SIIS productivo).
+CODIGOS_QUE_NO_SON_INTENTOS = (EnvioSIIS.LIBERADO, CODIGO_AMBIENTE_NO_PRD)
 
 
 def casos_con_errores_agotados(tope=TOPE_AGOTADOS):
@@ -235,10 +240,14 @@ def casos_con_errores_agotados(tope=TOPE_AGOTADOS):
     cómo se guarda la decisión, no por un intento que falló. Si contaran, un caso
     con cuatro errores previos quedaría fuera para siempre justo después de que
     una persona confirmara con ECOM que hay que reenviarlo.
+
+    Tampoco los ``AMBIENTE_NO_PRD`` (#569): no salió nada. Si contaran, cinco
+    vueltas en testing con ``SIIS_API_URL`` mal puesta dejarían el caso afuera
+    para siempre, aunque después se corrija la variable.
     """
     return list(
         EnvioSIIS.objects.filter(estado=EnvioSIIS.Estado.ERROR)
-        .exclude(codigo_error=EnvioSIIS.LIBERADO)
+        .exclude(codigo_error__in=CODIGOS_QUE_NO_SON_INTENTOS)
         .values("formulario_id")
         .annotate(intentos=Count("id"))
         .filter(intentos__gte=MAX_REINTENTOS)

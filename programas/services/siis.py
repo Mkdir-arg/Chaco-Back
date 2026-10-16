@@ -1,11 +1,13 @@
 """Cliente de compatibilidad SIIS para Becas."""
 
 import logging
+from urllib.parse import urlparse
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
 
+from core.checks import escritura_siis_bloqueada
 from core.integraciones import Cortacircuito, sesion_http
 from core.performance.query_observability import instrument_external_call
 
@@ -85,6 +87,15 @@ MOTIVOS_RECHAZO = {
     "SUSPENDIDO_TEMPORAL": "Registra una suspensión vigente en otro beneficio.",
 }
 
+
+#: #569 · Un ambiente que no es producción apuntando al SIIS productivo. Es
+#: ``NO_ENVIADO`` y nunca ``INCIERTO``: nada salió, y el caso queda libre para
+#: mandarse cuando la variable se corrija.
+CODIGO_AMBIENTE_NO_PRD = "AMBIENTE_NO_PRD"
+MENSAJE_AMBIENTE_NO_PRD = (
+    "Este ambiente no es producción y SIIS_API_URL apunta al SIIS de producción: no se envió el alta. "
+    "Hay que apuntar SIIS_API_URL al SIIS de desarrollo (siisapi.ecomdev.ar)."
+)
 
 MENSAJE_INCIERTO = (
     "SIIS no contestó y el alta pudo haber quedado registrada de su lado: no se reenvía hasta verificarlo."
@@ -505,7 +516,16 @@ class SiisAPIClient:
         * ``INCIERTO`` — el POST pudo haber llegado (``ReadTimeout``, conexión
           cortada a mitad, 408/429, 500/502/504). **No se reintenta**: el alta no
           tiene baja. Se concilia con ECOM (``conciliar_envios_siis``).
+        * ``NO_ENVIADO`` con código ``AMBIENTE_NO_PRD`` — este ambiente no es
+          producción y ``SIIS_API_URL`` apunta a un SIIS que no es el de
+          desarrollo (#569). No se pide token ni sale nada.
         """
+        if escritura_siis_bloqueada():
+            logger.warning(
+                "Alta en SIIS bloqueada: el ambiente no es producción y SIIS_API_URL apunta a %s",
+                urlparse(self.base_url).hostname or self.base_url,
+            )
+            return _fallo(RESULTADO_NO_ENVIADO, CODIGO_AMBIENTE_NO_PRD, MENSAJE_AMBIENTE_NO_PRD)
         resultado = self._intentar_alta(payload)
         if resultado.get("codigo") == "UNAUTHORIZED":
             # El token pudo haber vencido antes de lo que dijo ``expires_in``. El

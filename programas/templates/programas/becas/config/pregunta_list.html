@@ -48,7 +48,14 @@
          for (var i = 0; i < this.grupoFuentes.length; i++) { if (this.grupoFuentes[i].clave === clave) { return this.grupoFuentes[i]; } }
          return null;
        },
-       operadoresDe(clave) { var fu = this.fuenteDe(clave); return fu ? (this.vocabOp().por_tipo[fu.tipo_campo] || []) : []; },
+       operadoresDe(clave, actual) {
+         var fu = this.fuenteDe(clave);
+         if (!fu) { return []; }
+         var lista = this.vocabOp().por_tipo[fu.tipo_campo] || [];
+         var aceptados = (this.vocabOp().aceptados || {})[fu.tipo_campo] || [];
+         if (actual && lista.indexOf(actual) === -1 && aceptados.indexOf(actual) !== -1) { lista = lista.concat([actual]); }
+         return lista;
+       },
        etiquetaOp(op) { return this.vocabOp().etiquetas[op] || op; },
        necesitaValor(r) { return !!r.op && this.vocabOp().sin_valor.indexOf(r.op) === -1; },
        conLista(op) { return this.vocabOp().con_lista.indexOf(op) !== -1; },
@@ -365,7 +372,7 @@
                   </select>
                   <select x-model="r.op" class="nodo-field" aria-label="Operador" :disabled="!r.fuente">
                     <option value="">Operador…</option>
-                    <template x-for="op in operadoresDe(r.fuente)" :key="op"><option :value="op" :selected="op === r.op" x-text="etiquetaOp(op)"></option></template>
+                    <template x-for="op in operadoresDe(r.fuente, r.op)" :key="op"><option :value="op" :selected="op === r.op" x-text="etiquetaOp(op)"></option></template>
                   </select>
                   <div>
                     <select x-show="necesitaValor(r) && opcionesDe(r.fuente).length && !conLista(r.op)" x-model="r.valor" class="nodo-field" aria-label="Valor">

@@ -801,6 +801,25 @@ class ComandoReenvioTests(_BaseEnvioTest):
         call_command("reenviar_siis_pendientes", "--aplicar", stdout=StringIO())
         self.enviar.assert_not_called()
 
+    TESTING_CON_SIIS_PRD = dict(
+        DEBUG=False, ALLOWED_HOSTS=["datanach.ecomdev.ar"], SIIS_API_URL="https://siisapi.chaco.gob.ar"
+    )
+
+    def test_en_testing_contra_siis_de_produccion_corta_antes_de_mandar(self):
+        """#569: sin esto, cada caso suma un ERROR por vuelta sin que salga nada."""
+        EnvioSIIS.objects.create(formulario=self.formulario, estado=EnvioSIIS.Estado.ERROR, documento="1")
+        with override_settings(**self.TESTING_CON_SIIS_PRD), self.assertRaises(CommandError) as ctx:
+            call_command("reenviar_siis_pendientes", "--aplicar", stdout=StringIO())
+        self.assertIn("no es producción", str(ctx.exception))
+        self.enviar.assert_not_called()
+
+    def test_en_testing_contra_siis_de_produccion_el_ensayo_sigue_andando(self):
+        EnvioSIIS.objects.create(formulario=self.formulario, estado=EnvioSIIS.Estado.ERROR, documento="1")
+        salida = StringIO()
+        with override_settings(**self.TESTING_CON_SIIS_PRD):
+            call_command("reenviar_siis_pendientes", stdout=salida)
+        self.assertIn("[ensayo]", salida.getvalue())
+
 
 @override_settings(SIIS_API_CLIENT_ID="id-de-prueba", SIIS_API_CLIENT_SECRET="secreto-de-prueba")
 class ComandoEnvioMasivoTests(_BaseEnvioTest):
@@ -831,6 +850,14 @@ class ComandoEnvioMasivoTests(_BaseEnvioTest):
         salida = self._correr()
         self.enviar.assert_not_called()
         self.assertIn("ENSAYO", salida)
+
+    @override_settings(DEBUG=False, ALLOWED_HOSTS=["datanach.ecomdev.ar"], SIIS_API_URL="https://siisapi.chaco.gob.ar")
+    def test_en_testing_contra_siis_de_produccion_no_envia(self):
+        """#569: cada caso sumaría un ERROR por vuelta sin que salga nada."""
+        with self.assertRaises(CommandError) as ctx:
+            self._correr("--aplicar")
+        self.assertIn("no es producción", str(ctx.exception))
+        self.enviar.assert_not_called()
 
     def test_por_defecto_solo_manda_aprobados(self):
         self._correr("--aplicar")
@@ -949,6 +976,22 @@ class ComandoCircuitoCompletoTests(_BaseEnvioTest):
         self.aprobar.assert_not_called()
         self.enviar.assert_not_called()
         self.assertIn("ENSAYO", salida)
+
+    @override_settings(DEBUG=False, ALLOWED_HOSTS=["datanach.ecomdev.ar"], SIIS_API_URL="https://siisapi.chaco.gob.ar")
+    def test_en_testing_contra_siis_de_produccion_no_procesa(self):
+        """#569: cortar antes de validar y aprobar; si no, aprueba casos que no se informan."""
+        with self.assertRaises(CommandError) as ctx:
+            self._correr("--aplicar")
+        self.assertIn("no es producción", str(ctx.exception))
+        self.validar.assert_not_called()
+        self.aprobar.assert_not_called()
+        self.enviar.assert_not_called()
+
+    @override_settings(DEBUG=False, ALLOWED_HOSTS=["datanach.ecomdev.ar"], SIIS_API_URL="https://siisapi.chaco.gob.ar")
+    def test_en_testing_con_destino_tabla_no_corta(self):
+        """La tabla intermedia es de este lado: no llama a SIIS."""
+        self._correr("--aplicar", "--destino", "tabla")
+        self.enviar.assert_not_called()
 
     def test_corre_los_tres_pasos_en_orden(self):
         self._correr("--aplicar", "--total", "1")

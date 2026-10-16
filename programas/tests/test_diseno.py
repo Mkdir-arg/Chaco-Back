@@ -183,10 +183,15 @@ class GenerarYReconciliarTests(_Base):
         }
         cert.save(update_fields=["condicion"])
         RequisitoNativo.objects.filter(pk=self.nivel.pk).delete()
-        avisos = reconciliar(diseno)
-        self.assertEqual(avisos["condiciones_quitadas"], ["Certificado de alumno regular"])
+        # #339: la condición se anula en el borrado mismo (señal `pre_delete`), no al
+        # reconciliar —si esperaba, el constructor respondía 400 hasta reabrirlo—, así
+        # que el aviso ya no sale en `condiciones_quitadas` sino en `fuentes_quitadas`,
+        # que además nombra lo borrado.
         cert.refresh_from_db()
         self.assertIsNone(cert.condicion)
+        avisos = reconciliar(diseno)
+        self.assertEqual(avisos["condiciones_quitadas"], [])
+        self.assertEqual(avisos["fuentes_quitadas"], ["Nivel educativo → Certificado de alumno regular"])
 
     def test_sin_cambios_no_sube_la_version(self):
         diseno, _ = obtener_o_crear_diseno(self.convocatoria)
