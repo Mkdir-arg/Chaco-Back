@@ -1,4 +1,5 @@
 from datetime import date
+from html.parser import HTMLParser
 from unittest.mock import patch
 from urllib.parse import urlparse
 
@@ -227,6 +228,40 @@ class SolicitudMerenderoFormTests(TestCase):
             self.assertIn(campo, form.errors)
 
 
+class _BotonesDelFormulario(HTMLParser):
+    """Junta los botones de envío del formulario con sus atributos, sin depender del orden ni del formato."""
+
+    def __init__(self):
+        super().__init__()
+        self.botones = []
+        self.campos_required = []
+        self._boton = None
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "button":
+            self._boton = {"attrs": attrs, "texto": ""}
+            self.botones.append(self._boton)
+        elif tag in ("input", "select", "textarea") and "required" in attrs:
+            self.campos_required.append(attrs.get("name"))
+
+    def handle_data(self, data):
+        if self._boton is not None:
+            self._boton["texto"] += data
+
+    def handle_endtag(self, tag):
+        if tag == "button":
+            self._boton = None
+
+
+def botones_del_formulario(html):
+    parser = _BotonesDelFormulario()
+    parser.feed(html)
+    for boton in parser.botones:
+        boton["texto"] = " ".join(boton["texto"].split())
+    return parser
+
+
 class MerenderosViewsTests(TestCase):
     def setUp(self):
         self.usuario = get_user_model().objects.create_superuser(username="admin-merenderos", password="test")
@@ -313,6 +348,39 @@ class MerenderosViewsTests(TestCase):
         self.assertEqual(solicitud.estado, SolicitudMerendero.Estado.EN_REVISION)
         self.assertEqual(solicitud.observaciones, "Corregir domicilio")
         self.assertEqual(solicitud.domicilio, "Calle 5 bis")
+
+    def test_guardar_borrador_saltea_la_validacion_del_navegador_y_enviar_no(self):
+        # Issue 564: el GET dibuja los campos institucionales con `required`, así que sin
+        # `formnovalidate` el navegador no dejaba guardar un borrador incompleto. El
+        # servidor sigue validando todo: «Enviar a revisión» no lo lleva.
+        borrador = SolicitudMerendero.objects.create(codigo="MER-BOR-01", estado=SolicitudMerendero.Estado.BORRADOR)
+        for url in (
+            reverse("merenderos:solicitud_crear"),
+            reverse("merenderos:solicitud_editar", args=[borrador.pk]),
+        ):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                html = botones_del_formulario(response.content.decode())
+                self.assertIn("codigo", html.campos_required)
+                botones = {boton["texto"]: boton["attrs"] for boton in html.botones}
+
+                self.assertEqual(botones["Guardar borrador"].get("value"), "borrador")
+                self.assertIn("formnovalidate", botones["Guardar borrador"])
+                self.assertNotIn("formnovalidate", botones["Enviar a revisión"])
+
+    def test_corregir_y_reenviar_una_observada_conserva_la_validacion_del_navegador(self):
+        observada = SolicitudMerendero.objects.create(
+            codigo="MER-OBS-02", estado=SolicitudMerendero.Estado.OBSERVADA, observaciones="Falta domicilio"
+        )
+
+        response = self.client.get(reverse("merenderos:solicitud_editar", args=[observada.pk]))
+
+        botones = {
+            boton["texto"]: boton["attrs"] for boton in botones_del_formulario(response.content.decode()).botones
+        }
+        self.assertNotIn("Guardar borrador", botones)
+        self.assertNotIn("formnovalidate", botones["Corregir y reenviar"])
 
     def test_post_prestacion_calcula_lineas_del_mes_y_no_acepta_total_manipulado(self):
         merendero = Merendero.objects.create(
