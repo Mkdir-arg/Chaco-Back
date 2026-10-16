@@ -8,8 +8,8 @@ más largo para las dos consultas. Lo que sí hace es costar en cada `INSERT`, `
 `information_schema.STATISTICS` en MariaDB 11.8 encontró cinco pares, los cinco
 declarados a mano en los modelos (la auditoría los verificó contra la base real).
 **Los cinco se fueron en la Ola 4 PR 9 (Cambio 194)**, con `legajos.0011` y
-`programas.0084`; el ratchet nació en 26 y queda en **21**, que es el mismo defecto en
-tablas chicas —deuda conocida, sin medir y sin ficha propia—.
+`programas.0084`; el ratchet nació en 26 y bajó a 21. La baja del circuito de
+Dispositivos v1 (`programas.0097`) lo deja en **20**: deuda conocida en tablas chicas.
 
 Lo que este test aporta es el **ratchet**: la lista de abajo fija lo que hay hoy y solo
 puede achicarse. Un par nuevo pone el test en rojo en el PR que lo agrega, que es donde
@@ -43,7 +43,7 @@ APPS_DEL_PROYECTO = (
 #
 # Los cinco que la auditoría midió contra la base —los de `programas_formulario` y
 # `legajos_ciudadano`, las dos tablas que miró— salieron de la lista en el Cambio 194,
-# con la migración que los borra. Los 21 que quedan son el mismo defecto en tablas
+# con la migración que los borra. Los 20 que quedan son el mismo defecto en tablas
 # chicas: deuda conocida, sin medir y sin ficha propia. Sacar cualquiera de ellos pide lo
 # mismo que pidió RED-83: `EXPLAIN` antes y después contra el banco, no solo leer el
 # modelo.
@@ -61,7 +61,6 @@ REDUNDANTES_CONOCIDOS = {
     "legajos.legajoatencion: (nivel_riesgo) dentro de (nivel_riesgo, fecha_admision)",
     "legajos.legajoatencion: (plan_vigente) dentro de (plan_vigente, estado)",
     "legajos.legajoatencion: (via_ingreso) dentro de (via_ingreso, fecha_admision)",
-    "programas.admision: (cama) dentro de (cama, estado)",
     "programas.derivacionprograma: (estado) dentro de (estado, urgencia)",
     "programas.dispositivo: (nombre) dentro de (nombre, estado)",
     "programas.dispositivo: (nombre) dentro de (nombre, localidad)",

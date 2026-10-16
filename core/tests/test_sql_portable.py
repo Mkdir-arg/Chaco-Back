@@ -232,7 +232,8 @@ class SqlPortableTests(SimpleTestCase):
     def test_el_recorrido_llega_a_los_servicios_que_filtran_por_fecha(self):
         """Si el recorrido dejara de ver archivos, el test de arriba quedaría verde solo.
 
-        Nombraba `registro_diario.py` —el parte F-01, que se fue con `RegistroDiario`
+        Nombraba `registro_diario.py` —el parte F-01, que se fue
+        con la versión 1
         en el MVP v2—; lo reemplaza `conversaciones/selectors/conversaciones.py`, que
         es hoy uno de los filtros por período vivos.
         """

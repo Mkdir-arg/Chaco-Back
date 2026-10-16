@@ -468,10 +468,10 @@ class FotoDelCiudadanoTests(MediaBaseTests):
 
 
 class F00SinDuenoTests(MediaBaseTests):
-    """El F-00 perdió su dueño con `ArchivoAdmision` (MVP v2, release A).
+    """El F-00 perdió su dueño con la baja de la versión 1 (MVP v2, release A).
 
-    La regla sigue registrada —el prefijo existe mientras exista el campo— pero ya
-    no resuelve ninguna fila, así que contesta 404 como cualquier blob huérfano.
+    El prefijo histórico sigue registrado para negar acceso a los blobs huérfanos.
+    No hay modelo ni consulta: siempre contesta 404.
     """
 
     def test_el_prefijo_del_f00_contesta_404_a_cualquiera(self):

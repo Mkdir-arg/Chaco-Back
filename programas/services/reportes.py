@@ -57,8 +57,8 @@ def filtrar_dispositivos(dispositivos, *, tipo=None, estado=None, localidad=None
     """Filtros del padrón institucional.
 
     El filtro por **período** —dispositivos con un ingreso o un egreso dentro del
-    rango— se fue con `Admision`. Vuelve en el MVP v2 contra `Estadia`, y con él
-    los reportes de ocupación y movimientos.
+    rango— se fue con la estadía de la versión 1. Vuelve en el MVP v2 contra `Estadia`,
+    y con él los reportes de ocupación y movimientos.
     """
     if tipo:
         dispositivos = dispositivos.filter(tipo_id=tipo)

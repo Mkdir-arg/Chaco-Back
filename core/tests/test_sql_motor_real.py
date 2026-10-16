@@ -232,7 +232,7 @@ class SinConvertTZTests(TestCase):
         """Pin invertido del test de abajo, con la forma que tenía el código hasta la Ola 5.
 
         Así filtraban el parte F-01 y los reportes de Dispositivos —que se fueron con
-        `Admision`— y así filtraban también los contactos del legajo y Conversaciones,
+        la estadía de la versión 1— y así filtraban también los contactos del legajo y Conversaciones,
         que siguen vivos. Mientras este test pase, el de abajo afirma algo: si Django
         dejara de emitir ``CONVERT_TZ`` para un ``__date``, el verde de allá no
         significaría nada.
