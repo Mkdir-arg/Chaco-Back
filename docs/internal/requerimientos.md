@@ -41035,7 +41035,7 @@ La corrección se entrega en un único commit `fix(dispositivos)`, según el enc
 | **Solicitante** | QA (Matías) — hallazgo en testing de ECOM |
 | **Fecha del pedido** | 16/10/2026 |
 | **Issue / épica** | #569 |
-| **Partes afectadas** | `core/checks.py`, `programas/services/siis.py` (`cargar_beneficiario`), `programas/services/siis_envio.py` (`mensaje_envio`), `programas/views/proceso_masivo.py`, `proceso_masivo.html` |
+| **Partes afectadas** | `core/checks.py`, `programas/services/siis.py` (`cargar_beneficiario`), `programas/services/siis_envio.py` (`mensaje_envio`), `programas/services/proceso_masivo.py` (`casos_con_errores_agotados`), `programas/views/proceso_masivo.py`, `proceso_masivo.html`, comandos `reenviar_siis_pendientes`, `enviar_casos_siis`, `procesar_casos_siis` y `diagnosticar_siis` |
 | **Migración** | No requiere |
 
 ## Pedido original
@@ -41062,8 +41062,14 @@ siguen libres. Fuera de alcance: corregir la variable en testing, que es de ECOM
   dice el Cambio 162: su ausencia no prueba nada, y no hay evidencia de que PRD la tenga; usarla
   bloquearía producción. No contradice al Cambio 123: aquel disparador sigue mandando para el check
   `core.E002`, que mira el caso opuesto.
+- **Falla hacia PRD: un solo host de `chaco.gob.ar` gana.** No hay en el repo evidencia de qué
+  hosts tiene PRD en `ALLOWED_HOSTS`: podría compartir la plantilla de env con testing o tener un
+  ingress interno bajo `ecomdev.ar`. Con la primera versión, eso dejaba a PRD sin altas en SIIS.
+  Ahora, si algún host es `chaco.gob.ar` o termina en `.chaco.gob.ar`, el ambiente es productivo
+  aunque también haya uno de `ecomdev.ar` (y aunque haya `DEBUG`). Equivocarse para este lado deja a
+  testing escribiendo, que es lo que había antes; para el otro, deja a producción sin altas.
 - **El dominio se compara entero**, como `es_host_de_desarrollo`: `ecomdev.ar.atacante.com` o
-  `noecomdev.ar` no cuentan. El punto inicial de una entrada tipo `.ecomdev.ar` se ignora.
+  `noecomdev.ar` no cuentan, y lo mismo con `chaco.gob.ar`. El punto inicial de una entrada tipo `.ecomdev.ar` se ignora.
   `localhost` sin `DEBUG` no alcanza: el CI y el release-gate corren así.
 - **Predicado:** `escritura_siis_bloqueada()` = hay `SIIS_API_URL`, el ambiente no es producción
   y la URL no es del SIIS de desarrollo. Sin URL no bloquea: ese caso ya falla solo por
@@ -41073,9 +41079,24 @@ siguen libres. Fuera de alcance: corregir la variable en testing, que es de ECOM
   drenaje, vía `siis_envio._mandar_a_siis`). Corta **antes del token**: no sale ninguna llamada,
   ni siquiera con un token cacheado. Deja un `warning` en el log.
 - **Devuelve `NO_ENVIADO` con código `AMBIENTE_NO_PRD`, nunca `INCIERTO`**: nada salió, así que
-  el caso queda libre para mandarse cuando la variable se corrija. El toast del caso lo dice
+  el envío queda en `ERROR` no vigente y el caso no queda tomado. El toast del caso lo dice
   (`mensaje_envio`) en vez del genérico «SIIS no respondió», que mandaría a revisar un servicio
   que nadie consultó.
+- **Esos `ERROR` no consumen reintentos.** `casos_con_errores_agotados` saca a un caso de los
+  candidatos con `MAX_REINTENTOS` (5) `ERROR`; contaba todos salvo los liberados por
+  `conciliar_envios_siis`. Ahora excluye también `AMBIENTE_NO_PRD`
+  (`proceso_masivo.CODIGOS_QUE_NO_SON_INTENTOS`): si no, cinco vueltas en testing con la variable
+  mal puesta dejaban el caso afuera para siempre. Con eso, cuando la variable se corrige, el caso lo
+  levanta el próximo `reenviar_siis_pendientes`, el drenaje (la fila de la tabla intermedia sigue sin
+  sincronizar) o una corrida del masivo.
+- **Los comandos que escriben cortan de entrada** con `--aplicar`, igual que la pantalla:
+  `ComandoSiisBase.exigir_escritura_siis_permitida` (regla de RED-53: una guarda nueva va en la
+  base), llamada desde `reenviar_siis_pendientes`, `enviar_casos_siis` y `procesar_casos_siis`
+  (este último salvo con `--destino tabla`, que no llama a SIIS). El ensayo sigue andando.
+  `procesar_casos_siis` corta antes de validar y aprobar: si no, aprobaría casos que no se
+  informan.
+- **`diagnosticar_siis --alta`** ante `AMBIENTE_NO_PRD` dice «No se mandó el alta» y no «SIIS
+  rechazó el alta… Es reintentable», que mandaba a esperar a un servicio que no se consultó.
 - **El proceso masivo corta antes de crear la corrida** (`proceso_masivo_lanzar`), con un
   `messages.error`: si no, la corrida aprobaría casos que después no se informan y cada uno
   gastaría un reintento. La pantalla muestra una alerta `danger` (`components/_alerta.html`) bajo
@@ -41083,11 +41104,16 @@ siguen libres. Fuera de alcance: corregir la variable en testing, que es de ECOM
 
 ## Implementación
 
-- `core/checks.py`: `_es_dominio_de_desarrollo`, `ambiente_no_productivo`,
+- `core/checks.py`: `DOMINIO_PRODUCCION`, `_bajo_dominio`, `ambiente_no_productivo`,
   `escritura_siis_bloqueada`; `es_host_de_desarrollo` reusa la comparación.
 - `programas/services/siis.py`: `CODIGO_AMBIENTE_NO_PRD`, `MENSAJE_AMBIENTE_NO_PRD` y la guarda al
   principio de `cargar_beneficiario`.
 - `programas/services/siis_envio.py`: rama propia en `mensaje_envio`.
+- `programas/services/proceso_masivo.py`: `CODIGOS_QUE_NO_SON_INTENTOS` en
+  `casos_con_errores_agotados`.
+- `programas/management/commands/_base_siis.py`: `exigir_escritura_siis_permitida`; la llaman
+  `reenviar_siis_pendientes`, `enviar_casos_siis` y `procesar_casos_siis`.
+- `programas/management/commands/diagnosticar_siis.py`: salida propia para `AMBIENTE_NO_PRD`.
 - `programas/views/proceso_masivo.py`: `siis_bloqueado` en el contexto y corte en
   `proceso_masivo_lanzar`.
 - `programas/templates/programas/becas/config/proceso_masivo.html`: la alerta.
@@ -41095,9 +41121,13 @@ siguen libres. Fuera de alcance: corregir la variable en testing, que es de ECOM
 ## Archivos
 
 - `core/checks.py`, `core/tests/test_checks_entorno.py`
-- `programas/services/siis.py`, `programas/services/siis_envio.py`
+- `programas/services/siis.py`, `programas/services/siis_envio.py`, `programas/services/proceso_masivo.py`
+- `programas/management/commands/_base_siis.py`, `diagnosticar_siis.py`, `enviar_casos_siis.py`,
+  `procesar_casos_siis.py`, `reenviar_siis_pendientes.py`
 - `programas/views/proceso_masivo.py`, `programas/templates/programas/becas/config/proceso_masivo.html`
-- `programas/tests/test_siis_service.py`, `programas/tests/test_proceso_masivo.py`
+- `programas/tests/test_siis_service.py`, `programas/tests/test_proceso_masivo.py`,
+  `programas/tests/test_siis_envio.py`, `programas/tests/test_siis_un_solo_envio.py`,
+  `programas/tests/test_diagnosticar_siis.py`
 - `docs/internal/requerimientos.md`
 
 ## Base de datos
@@ -41110,10 +41140,16 @@ No requiere.
   `GuardaAmbienteNoProductivoTests` (testing + SIIS PRD → `NO_ENVIADO`/`AMBIENTE_NO_PRD` y la sesión
   HTTP mockeada sin ninguna llamada, ni de token; PRD + SIIS PRD → envía; testing + SIIS ecomdev →
   envía; la compatibilidad sigue libre; el toast); tres tests de la pantalla del masivo (POST no
-  crea corrida, GET muestra el aviso, PRD lanza sin aviso).
+  crea corrida, GET muestra el aviso, PRD lanza sin aviso). Segunda ronda: PRD con un host de
+  `ecomdev.ar` además del suyo → envía; cinco `ERROR` `AMBIENTE_NO_PRD` (y cuatro errores de verdad
+  más) no dejan el caso agotado; los tres comandos cortan con `--aplicar` sin llamar a nada, el
+  ensayo y `--destino tabla` siguen andando; `diagnosticar_siis` no dice «reintentable».
 - **Mutación:** sin la guarda de `cargar_beneficiario`, los dos tests de testing + SIIS PRD se
   ponen rojos; sin el corte de la vista, el de lanzar se pone rojo; con la comparación de dominio
-  por substring, se ponen rojos los de dominio entero.
+  por substring, se ponen rojos los de dominio entero. Segunda ronda: sin la condición de
+  `chaco.gob.ar` se ponen rojos 6; sin `AMBIENTE_NO_PRD` en los códigos excluidos, el de agotados;
+  sin el corte de la base de comandos, los 3 de los comandos; sin la rama de `diagnosticar_siis`,
+  el suyo.
 - `manage.py test core programas`, `check --deploy`, `design_audit --ratchet` (0 nuevos),
   `compile_templates` (0).
 - En tests (`PYTEST_RUNNING`) `ALLOWED_HOSTS` no trae `ecomdev.ar` (el CI usa `localhost`), así que
@@ -41132,6 +41168,9 @@ producción, ninguna alta sale y el masivo no lanza: es lo buscado.
 - Reemplaza **parcialmente** el pendiente H-09 del Cambio 123: un testing apuntado a producción ya
   no escribe. Sigue abierto confirmar que PRD define `SIIS_API_URL` con el host productivo y
   `DATANACH_ES_PRODUCCION=1`.
+- **Confirmar con ECOM el `ALLOWED_HOSTS` (`DJANGO_ALLOWED_HOSTS`) de PRD.** La guarda falla
+  hacia PRD con cualquier host de `chaco.gob.ar`, pero si PRD se sirviera **solo** con hosts de
+  `ecomdev.ar` quedaría sin altas. Es del PM.
 - Si un día testing o icore se sirven bajo un dominio que no sea `ecomdev.ar`, la guarda deja de
   reconocerlos: hay que sumar ese dominio a `ambiente_no_productivo`.
 
