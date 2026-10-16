@@ -57,8 +57,10 @@ La pieza tiene **dos tamaños declarados**. No es decoración: cada uno tiene su
 | Sombra | ninguna | `shadow-sm` |
 | Reglas | utilidades de Tailwind | `static/custom/css/nodo-stat-card.css` (`.nodo-stat-tablero*`) |
 
-Regla de uso: **una sola franja grande por pantalla**, y la grande nunca convive con la chica en
-la misma franja. Los opcionales (`kpi_id`, `sufijo`, `nota`…) valen en las dos. El ícono se sigue
+Regla de uso: **una sola franja grande por pantalla**, salvo el detalle de Dispositivos
+P4/P19 autorizado por C-2: conserva la franja operativa del encabezado y la edilicia dentro de
+Infraestructura. La grande nunca convive con la chica en la misma franja.
+Los opcionales (`kpi_id`, `sufijo`, `nota`…) valen en las dos. El ícono se sigue
 pasando por nombre de Font Awesome.
 
 **P4/P19** (`programas/templates/programas/dispositivos/legajo/detail.html`) usan `variante="tablero"` en

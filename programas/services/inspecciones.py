@@ -279,8 +279,12 @@ def crear_inspeccion(usuario, *, edificio, asignado_a, fecha_vencimiento, indica
     sostiene el bloqueo de la fila del edificio.
     """
 
-    _exigir_alcance_coordinador(usuario, edificio)
     edificio = Edificio.objects.select_for_update().get(pk=edificio.pk)
+    # Comparte candado con la última desvinculación. El alcance se vuelve a leer
+    # después de esperar: antes del lock todavía podía existir el último vínculo.
+    _exigir_alcance_coordinador(usuario, edificio)
+    if not edificio.dispositivos.exists():
+        raise ValidationError({"edificio": "El edificio necesita al menos un dispositivo vinculado."})
     if not edificio.activo:
         raise ValidationError({"edificio": "El edificio está inactivo."})
     if fecha_vencimiento < timezone.localdate():

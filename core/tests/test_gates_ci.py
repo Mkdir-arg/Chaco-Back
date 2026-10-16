@@ -636,6 +636,13 @@ class DependabotTests(SimpleTestCase):
                 self.assertTrue((RAIZ / archivo).exists())
 
 
+class ContratosDeApiTests(SimpleTestCase):
+    def test_el_gate_de_contratos_incluye_la_api_de_relevamientos_edilicios(self):
+        workflow = yaml.safe_load((WORKFLOWS / "pr-backend.yml").read_text(encoding="utf-8"))
+        paso = next(p for p in workflow["jobs"]["contratos-api"]["steps"] if p.get("name") == "Tests de contrato")
+        self.assertIn("programas.tests.test_api_campo_inspecciones", paso["run"].split())
+
+
 class ContratosDelRepoTests(SimpleTestCase):
     """RED-24: las condiciones de cierre de `CLAUDE.md` dejan de correr solo en una máquina.
 
@@ -646,11 +653,6 @@ class ContratosDelRepoTests(SimpleTestCase):
     """
 
     JOB = "Contratos del repo"
-
-    def test_el_gate_de_contratos_incluye_la_api_de_relevamientos_edilicios(self):
-        workflow = yaml.safe_load((WORKFLOWS / "pr-backend.yml").read_text(encoding="utf-8"))
-        paso = next(p for p in workflow["jobs"]["contratos-api"]["steps"] if p.get("name") == "Tests de contrato")
-        self.assertIn("programas.tests.test_api_campo_inspecciones", paso["run"].split())
 
     def setUp(self):
         self.flujo = _cargar("pr-quality.yml")
