@@ -290,3 +290,36 @@ La planificación deberá ajustarse si cambia el alcance, la dedicación real o 
 ## 7. Datos de planificación
 
 Las tablas y los gráficos se generan con una única distribución de horas por perfil. Puede descargarse el [archivo de datos](assets/planificacion-mesa-horas.json) para revisar las asignaciones. Las sumas por disciplina coinciden con la [propuesta funcional](mesa-situacion-el-nino.md#6-horas-de-trabajo-por-alternativa).
+
+
+## 8. Qué versión elegir
+
+Las tres versiones permiten ver las zonas afectadas, registrar familias, atender situaciones y consultar albergues. Cada una suma herramientas para acompañar el trabajo de los equipos: Operativa incluye todo lo de Esencial e Integral incluye todo lo de Operativa.
+
+### Las diferencias en el trabajo diario
+
+| Necesidad del equipo | 1. Esencial | 2. Operativa | 3. Integral |
+|---|---|---|---|
+| Conocer la situación | Ver zonas afectadas, familias y necesidades | Sumar el estado de atención de cada mesa | Comparar cómo cambia la situación y dónde sigue faltando respuesta |
+| Organizar la ayuda | Registrar qué se necesita y qué asistencia se realizó | Seguir cada pedido desde la solicitud hasta su entrega completa y consultar insumos disponibles | Entregar en varias etapas, ver qué queda pendiente, reservar insumos y moverlos entre depósitos y albergues |
+| Acompañar a las familias | Registrar sus datos, necesidades y alojamiento | Seguir la asistencia recibida y revisar los relevamientos | Reunir el historial de atención y revisar posibles registros repetidos |
+| Gestionar albergues | Saber cuántas personas hay y cuántos lugares quedan | Sumar raciones, servicios y necesidades | Seguir traslados entre albergues y coordinar su abastecimiento |
+| Coordinar a los equipos | Asignar responsables y registrar novedades | Trabajar con las cuatro mesas y compartir pendientes entre turnos | Confirmar quién recibe los pendientes y seguir planes de acción con responsables y fechas |
+| Tomar decisiones | Consultar resúmenes de la situación | Ver pedidos, entregas e insumos por mesa | Comparar períodos, seguir la evolución de la ayuda e identificar necesidades sin resolver |
+
+### 1. Esencial: conocer y registrar
+
+Una opción para comenzar con una visión compartida de la emergencia. Reúne la información de familias, incidentes y albergues, y permite dejar constancia de la atención realizada. La organización de pedidos y el control de insumos se incorporan en la siguiente versión.
+
+### 2. Operativa: organizar la atención
+
+Suma las herramientas para que las cuatro mesas trabajen sobre los mismos pedidos. Permite solicitar, autorizar y entregar ayuda, consultar existencias y acompañar las necesidades de albergues y dispositivos propios. Cada pedido se resuelve con una entrega completa.
+
+### 3. Integral: acompañar la respuesta de principio a fin
+
+Suma el seguimiento que hace falta cuando la atención continúa durante varios días: entregas en distintas etapas, insumos que se redistribuyen, familias que cambian de albergue y tareas que pasan de un equipo a otro. Permite consultar qué se hizo, qué falta y quién debe continuar, junto con la evolución de cada zona.
+
+Por ejemplo, si un albergue solicita 100 bolsones y hoy recibe 60, Integral permite mantener los 40 restantes pendientes dentro del mismo pedido y completar la entrega después. También permite registrar el traslado de insumos desde otro depósito para cubrir esa necesidad.
+
+!!! tip "Integral: la opción recomendada por ICORE"
+    Para una Mesa de Situación que debe coordinar la respuesta durante toda la emergencia, recomendamos Integral. Reúne las herramientas de las otras dos versiones y permite acompañar los cambios de la atención diaria. Su valor está en contar con la información reunida para decidir a quién asistir, qué falta entregar y dónde reforzar los recursos.

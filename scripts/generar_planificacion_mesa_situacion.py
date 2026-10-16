@@ -252,6 +252,9 @@ La planificación deberá ajustarse si cambia el alcance, la dedicación real o 
 
 Las tablas y los gráficos se generan con una única distribución de horas por perfil. Puede descargarse el [archivo de datos](assets/planificacion-mesa-horas.json) para revisar las asignaciones. Las sumas por disciplina coinciden con la [propuesta funcional](mesa-situacion-el-nino.md#6-horas-de-trabajo-por-alternativa).
 """)
+    proposal = (DOCS / "mesa-situacion-el-nino.md").read_text(encoding="utf-8-sig")
+    comparison = proposal.split("## 13. Qué versión elegir\n", 1)[1].strip()
+    sections.append("## 8. Qué versión elegir\n\n" + comparison)
     markdown = "\n\n".join(sections).rstrip() + "\n"
     for original, versioned in PUBLISHED_ASSETS.items():
         markdown = markdown.replace(f"assets/{original}", f"assets/{versioned}")
