@@ -105,6 +105,7 @@ orden son solapas de un Detalle, no un wizard.
   rótulos `text-xs font-semibold uppercase text-body-subtle` de P7, también en el resumen final;
   el DNI visible va con `|dni` (`nodo_ui`), como en P7.
 - Avisos de situación dentro de un paso (bloqueos, advertencias): `components/_alerta.html`.
+  En el paso de plaza, la ocupación crítica usa tono `warning` debajo del mapa y dice «El sistema no bloquea el ingreso.»; la vista arma porcentaje y texto con los umbrales del tipo, desde `services.ocupacion`.
 - Pie que no cabe en móvil: `flex flex-wrap justify-between gap-3`; si agrupa acciones,
   el grupo también usa `flex flex-wrap gap-3`. Conserva los tamaños canónicos de botón
   y la fila de escritorio. Evidencia: `programas/templates/programas/dispositivos/ingreso/paso_plaza.html`.

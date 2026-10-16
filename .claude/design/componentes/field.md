@@ -33,7 +33,7 @@ Render de cada campo:
 </div>
 ```
 
-- El asterisco sale de `field.field.required`, no se escribe a mano.
+- El asterisco sale de `field.field.required` o `campo.marca_requerido`; esta marca no cambia `required` y la bajada explica la transición que exige esos datos.
 - La ayuda va en `text-body-subtle`; el rojo queda **solo** para el error.
 - **El `<p>` del error está siempre**, con `data-error="<campo>"` y oculto mientras no haya
   texto: es donde el guardado AJAX (`programas/templates/programas/becas/_ajax_js.html`) lo
@@ -42,6 +42,7 @@ Render de cada campo:
   (si no, cada campo se leería con una descripción vacía); con errores el control lleva
   además `aria-invalid="true"`. Lo pone `{% campo_control field %}`, porque una plantilla no
   puede llamar a `BoundField.as_widget(attrs=…)`.
+- En AJAX, el 400 suma ese ARIA (deriva `<id del control>-error` si falta), enfoca el primer campo con error y limpia al corregir/reenviar, conservando la ayuda.
 
 ## La clase del control la pone el widget
 
@@ -65,9 +66,9 @@ en su `__init__`), **no** `prefix`: `prefix` cambia también el `name` del POST 
 vista que lo procesa. Caso vivo: `VolverACampoForm` y `ReprogramarForm` comparten `fecha_hasta` en
 el detalle del relevamiento, y el primero declara `AUTO_ID = "id_volver_%s"`.
 
-De `programas/forms.py` la evidencia de diseño es **`INPUT_CLASS` y los `widget=…` que la usan**;
+De `programas/forms.py` la evidencia de diseño es **`INPUT_CLASS`, los `widget=…` que la usan y `marca_requerido`**;
 el resto del archivo es validación de dominio (`clean_*`, validaciones cruzadas) y no define nada
-visual. Un cambio ahí que no toque `INPUT_CLASS` ni un widget no mueve esta ficha.
+visual. Un cambio ahí que no toque `INPUT_CLASS`, un widget ni `marca_requerido` no mueve esta ficha.
 
 **Un campo que sale del form sale también de los modales que lo dibujan a mano.** Los modales de
 requisito escriben sus controles sin `{{ form.campo }}` en la edición; cuando `RequisitoNativoForm`
