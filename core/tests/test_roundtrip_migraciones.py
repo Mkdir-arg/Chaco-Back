@@ -10,7 +10,7 @@ murió en el deploy con `padron_archivo` NULL.
 Este módulo fija las dos mitades del arreglo:
 
 * el **orquestador** (`scripts/roundtrip_migraciones.py`): cómo elige el destino de la
-  vuelta y, sobre todo, que reconozca como *esperado* el aborto de las ocho barreras de
+  vuelta y, sobre todo, que reconozca como *esperado* el aborto de las nueve barreras de
   reversa (Cambios 117 y 135). Una barrera que el job tomara por rojo volvería el gate
   inútil el día que el plan de vuelta cruce una;
 * el **job** `Migrate ida y vuelta` de `pr-performance.yml`: que corra contra los dos
