@@ -439,6 +439,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 311 | Notificaciones: las campañas salen por un SMTP propio (Amazon SES), separado del correo del sistema | Transversal — notificaciones (envío masivo, prueba y detalle de la campaña) · diagnóstico de correo | `#correo` `#infra` | PM — pedido del 15/10/2026 | 15/10/2026 | 🟢 **Hecho** | No requiere |
 | 312 | La tabla de horas del documento del MVP volvió a tener sus filas | Dispositivos · documento para el cliente | `#textos` `#gestion` | PM — en sesión | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 313 | Baja de los seis modelos de Dispositivos v1, release B | Dispositivos · modelos y migraciones | `#datos` `#infra` | PM — task #673, encargo de implementación | 16/10/2026 | 🟢 **Hecho** | `programas.0097_baja_dispositivos_v1` |
+| 314 | «Guardar borrador» de la solicitud de merendero deja de pedir los campos obligatorios en el navegador | Merenderos · solicitud de merendero | `#ui` `#gestion` | QA — issue #564 | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 315 | Excepción con vencimiento para el ReDoS de twisted en IMAP: «Pip Audit» vuelve a verde | Transversal · CI (`Pip Audit`, `security/excepciones.toml`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo en todos los PRs (16/10/2026) | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 316 | Constructor y catálogo: canal en las listas, borrado que avisa y editor de condiciones por canal | Becas · catálogo de requisitos y constructor de formularios | `#requisitos` `#convocatorias` `#ui` `#datos` | QA — issues #338 y #339 (y #341) | 16/10/2026 | 🟢 **Hecho** | `programas.0098_diseno_bajas_pendientes` |
 
 **Notas del índice**
@@ -41024,6 +41026,169 @@ a los tests, y se aclaran el corte durante los `DROP` y los metadatos huérfanos
 La corrección se entrega en un único commit `fix(dispositivos)`, según el encargo de revisión.
 
 ---
+# Cambio 314 — «Guardar borrador» de la solicitud de merendero deja de pedir los campos obligatorios en el navegador
+
+🟢 **HECHO — 16/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Merenderos · solicitud de merendero (alta y edición) |
+| **Etiquetas** | `#ui` `#gestion` |
+| **Solicitante** | QA (Matías) — issue #564 |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | #564 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En `/merenderos/solicitudes/nueva/`, «Guardar borrador» no guardaba una solicitud incompleta: el
+navegador frenaba el envío pidiendo los campos obligatorios.
+
+## Alcance acordado
+
+Solo el botón «Guardar borrador» del formulario de solicitud (el mismo template sirve al alta y a la
+edición). Fuera de alcance: validar formato de DNI/CUIT/teléfono (queda a la espera de que QA diga qué
+campo probó) y los demás formularios con borrador.
+
+## Decisiones tomadas
+
+- El GET dibuja el form con `validar_completitud=True`, así que los siete campos de
+  `CAMPOS_INSTITUCIONALES_REQUERIDOS` salen con `required`. La vista ya resolvía el borrador del lado del
+  servidor (`accion=borrador` → `validar_completitud=False`), pero el navegador no llegaba a mandar el
+  POST. Se agrega `formnovalidate` **solo** a «Guardar borrador»: es la forma estándar de que un botón
+  saltee la validación del navegador sin tocar los demás.
+- «Enviar a revisión» y «Corregir y reenviar» conservan la validación del navegador, y el servidor sigue
+  validando completitud y documentación en el envío: no se relaja ninguna regla.
+- No se cambia el form ni la vista: el borrador ya admitía datos incompletos en el servidor (test
+  `test_borrador_puede_guardarse_incompleto…`).
+
+## Implementación
+
+«Guardar borrador» guarda la solicitud aunque falten datos, en alta y en edición de un borrador.
+Enviar y reenviar siguen exigiendo los campos obligatorios.
+
+## Archivos
+
+- `programas/templates/programas/merenderos/solicitud_form.html`
+- `programas/tests/test_merenderos.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Tests nuevos en `programas/tests/test_merenderos.py`: el GET del alta y de la edición de un borrador
+  trae «Guardar borrador» con `formnovalidate` y «Enviar a revisión» sin él (HTML parseado con
+  `HTMLParser`, no por texto); una observada muestra «Corregir y reenviar» sin `formnovalidate`.
+- Mutación: sin el atributo, el test del borrador da rojo; con el atributo puesto en «Enviar» o en
+  «Corregir y reenviar», también.
+- `manage.py test programas`, `check --deploy`, `design_audit.py --ratchet` (0 nuevos) y
+  `compile_templates.py` (0).
+
+## Puesta en marcha en el servidor
+
+Ninguna.
+
+## Pendientes / a definir
+
+- Validación de formato de `responsable_documento`/teléfono: pendiente de que QA indique qué campo probó.
+
+## Reversión
+
+Revertir el commit.
+
+---
+
+# Cambio 315 — Excepción con vencimiento para el ReDoS de twisted en IMAP: «Pip Audit» vuelve a verde
+
+🟢 **HECHO — 16/10/2026** · CI rojo en todos los PRs
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — gate «Pip Audit» (`pr-security.yml`), `security/excepciones.toml` |
+| **Etiquetas** | `#infra` `#gestion` |
+| **Solicitante** | Juez de la sesión — el check «Pip Audit» se puso rojo en todos los PRs abiertos el 16/10/2026 |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | sin registrar (sigue la regla de RED-63, Cambio 121) |
+| **Partes afectadas** | CI |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Pip Audit» rojo en todos los PRs desde hoy por `twisted 26.4.0  CVE-2026-106454` (alias
+GHSA-8pqf-f4m5-798g y PYSEC-2026-4304): ReDoS en `wildcardToRegexp()` de
+`twisted/mail/imap4.py`, explotable por un cliente autenticado con un patrón LIST/LSUB
+contra un servidor IMAP de twisted. La OSV la marca con `last_affected: 26.4.0` y «No fixed
+release is available». Verificar que no nos alcanza y agregar la excepción con vencimiento.
+
+## Alcance acordado
+
+**Entra:** una entrada `[[pip_audit]]` en `security/excepciones.toml` y el comentario del
+archivo, que decía «Hoy no hay ninguna excepción vigente».
+
+**Queda afuera:** subir twisted o pinearlo —no hay versión corregida— y tocar el workflow o
+el verificador, que ya hacen lo que hace falta.
+
+## Decisiones tomadas
+
+- **Se convive con la advisory porque el código vulnerable no se ejecuta.** `git grep`
+  no encuentra ningún `twisted` ni `imap` en el código del repo; twisted no está en ningún
+  `requirements*.txt`: entra transitivamente por `daphne==4.2.3` (`pip show twisted` →
+  *Required-by: daphne*), y ni `daphne`, ni `channels`, ni `autobahn` importan
+  `twisted.mail` o `imap4` (grep sobre su código instalado). Daphne usa `twisted.internet`
+  y `twisted.web`; nadie levanta un servidor IMAP.
+- **El id es el que imprime pip-audit, `CVE-2026-106454`.** El verificador lo pasa tal cual
+  a `--ignore-vuln` y el archivo pide «el identificador tal como lo nombra pip-audit».
+- **Vence el 15/01/2027, tres meses.** Corto, como pide RED-63: si para entonces no salió la
+  versión corregida, se renueva en un PR que lo vuelva a mirar.
+
+## Implementación
+
+`security/excepciones.toml`: la entrada con `id`, `motivo`, `vence_el` (fecha TOML) y
+`ticket`, más un bloque de comentario con el alias, el alcance de la vulnerabilidad y por qué
+no aplica. El comentario de cabecera pasa a decir que hay una vigente y conserva la historia
+de la que se retiró en el Cambio 196.
+
+## Archivos
+
+- `security/excepciones.toml`
+- `docs/internal/requerimientos.md`
+
+## Validación
+
+- `pip-audit -r requirements.txt` **sin** excepción (pip-audit 2.10.1, el pin de
+  `requirements-ci.txt`): «Found 1 known vulnerability in 1 package — twisted 26.4.0
+  CVE-2026-106454», exit 1.
+- Con las banderas que arma `scripts/check_excepciones_seguridad.py --ignore-args`
+  (`--ignore-vuln CVE-2026-106454`), como el workflow, sobre los tres archivos:
+  `requirements.txt` y `requirements-dev.txt` «No known vulnerabilities found, 1 ignored»,
+  `requirements-ci.txt` «No known vulnerabilities found»; los tres exit 0.
+- `scripts/check_excepciones_seguridad.py`: exit 0; con `--hoy 2027-01-16`, exit 1 «venció».
+- `manage.py test core.tests.test_gates_ci`: 97 tests OK. Mutación: con `vence_el` en el
+  pasado, `test_ninguna_excepcion_del_repo_esta_vencida` se pone rojo; con la fecha entre
+  comillas, también `test_cada_excepcion_declara_id_motivo_vencimiento_y_ticket`.
+
+## Pendientes / a definir
+
+- **Subir twisted cuando salga la versión corregida y retirar la excepción**, verificando
+  antes que `pip-audit -r requirements.txt` dé «No known vulnerabilities found» sin ningún
+  `--ignore-vuln` (como en el Cambio 196). Como twisted no está pineado, alcanza con que
+  daphne lo resuelva a la corregida; si no, pinearlo.
+- Si antes del 15/01/2027 no hay versión corregida, renovar `vence_el` en un PR.
+
+## Reversión
+
+`git revert` del commit. Vuelve el rojo de «Pip Audit» mientras la advisory siga publicada.
+
+## Historial
+
+Sin cambios posteriores.
+
+---
+
 # Cambio 316 — Constructor y catálogo de Becas: el canal en las listas, el borrado que avisa y el editor de condiciones que no ofrece lo imposible
 
 🟢 **HECHO — 16/10/2026** · Issues #338 y #339 (y #341) · Hallazgos de QA de Matías Abate, PR-2 del plan
@@ -41178,3 +41343,5 @@ están, porque son datos del diseño y no de esta columna.
 ## Historial
 
 - **16/10/2026** — Implementado (E2–E5), PR contra `development`.
+
+---
