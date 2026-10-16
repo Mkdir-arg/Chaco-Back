@@ -60,6 +60,7 @@ class Command(ComandoSiisBase):
     def handle(self, *args, **options):
         aplicar = options["aplicar"] and not options["dry_run"]
         self.exigir_sin_corrida_viva({**options, "aplicar": aplicar})
+        self.exigir_escritura_siis_permitida({**options, "aplicar": aplicar})
         casos, agotados = self._casos(options["limite"])
         if agotados:
             self._log(

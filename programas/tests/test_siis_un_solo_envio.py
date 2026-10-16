@@ -744,6 +744,25 @@ class CasosConErroresAgotadosTests(_BaseProcesoTest):
         self.assertEqual(proceso_masivo.casos_con_errores_agotados(), [caso.pk])
         self.assertNotIn(caso.pk, proceso_masivo.ids_de(proceso_masivo.candidatos(programa=self.programa)))
 
+    def test_los_bloqueados_por_ambiente_no_consumen_intentos(self):
+        """#569: ``AMBIENTE_NO_PRD`` no es un intento que falló: no salió nada.
+
+        Si contara, cinco corridas en testing con ``SIIS_API_URL`` mal puesta
+        dejarían el caso fuera para siempre, aunque después se corrija la variable.
+        """
+        caso = self._caso(Formulario.Estado.APROBADO)
+        for _ in range(proceso_masivo.MAX_REINTENTOS):
+            EnvioSIIS.objects.create(
+                formulario=caso, estado=EnvioSIIS.Estado.ERROR, documento="20301234", codigo_error="AMBIENTE_NO_PRD"
+            )
+        self.assertEqual(proceso_masivo.casos_con_errores_agotados(), [])
+
+        # Cuatro errores de verdad más los bloqueos siguen sin llegar al tope.
+        for _ in range(proceso_masivo.MAX_REINTENTOS - 1):
+            EnvioSIIS.objects.create(formulario=caso, estado=EnvioSIIS.Estado.ERROR, documento="20301234")
+        self.assertEqual(proceso_masivo.casos_con_errores_agotados(), [])
+        self.assertIn(caso.pk, proceso_masivo.ids_de(proceso_masivo.candidatos(programa=self.programa)))
+
     def test_reenviar_los_lista_y_no_los_toca(self):
         caso = self._caso(Formulario.Estado.APROBADO)
         for _ in range(proceso_masivo.MAX_REINTENTOS):

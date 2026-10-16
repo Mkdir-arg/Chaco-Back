@@ -35,13 +35,14 @@
     </button>
   {% endpage_header %}
 
-  {% if avisos.agregados or avisos.quitados or avisos.condiciones_quitadas %}
+  {% if avisos.agregados or avisos.quitados or avisos.condiciones_quitadas or avisos.fuentes_quitadas %}
   <div class="rounded-xl bg-warning-soft border border-warning-subtle px-5 py-4 text-sm" role="status">
     <p class="font-bold text-heading mb-1"><i class="fas fa-triangle-exclamation mr-1"></i> El catálogo cambió desde la última vez</p>
     <ul class="text-body space-y-0.5">
       {% if avisos.agregados %}<li>Se agregaron al final de su grupo: {{ avisos.agregados|join:", " }}.</li>{% endif %}
       {% if avisos.quitados %}<li>Ya no están en el catálogo y salieron del formulario: {{ avisos.quitados|join:", " }}.</li>{% endif %}
       {% if avisos.condiciones_quitadas %}<li>Perdieron su condición porque su fuente ya no existe: {{ avisos.condiciones_quitadas|join:", " }}.</li>{% endif %}
+      {% if avisos.fuentes_quitadas %}<li>Se borraron del catálogo (→ lo que perdió su condición por eso): {{ avisos.fuentes_quitadas|join:"; " }}.</li>{% endif %}
     </ul>
   </div>
   {% endif %}
@@ -259,7 +260,7 @@
               </select>
               <select x-model="r.op" class="nodo-field" aria-label="Operador" :disabled="!r.fuente">
                 <option value="">Operador…</option>
-                <template x-for="op in operadoresDe(r.fuente)" :key="op"><option :value="op" :selected="op === r.op" x-text="etiquetaOp(op)"></option></template>
+                <template x-for="op in operadoresDe(r.fuente, r.op)" :key="op"><option :value="op" :selected="op === r.op" x-text="etiquetaOp(op)"></option></template>
               </select>
               <div>
                 <select x-show="necesitaValor(r) && opcionesDe(r.fuente).length && !conLista(r.op)" x-model="r.valor" class="nodo-field" aria-label="Valor">

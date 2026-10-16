@@ -14,6 +14,7 @@ from legajos.models import Ciudadano
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_TERRITORIAL
 from programas.models import (
     Convocatoria,
+    DisenoFormulario,
     Formulario,
     GrupoRequisito,
     OrigenRequisito,
@@ -326,34 +327,200 @@ class VolcadoAlLegajoTests(_Base):
         self.assertEqual(existente.email, "maria@correo.com")  # se completa
 
 
-class ApoderadoSegunLaFotoTests(_Base):
-    def _detalle(self, formulario):
-        admin = User.objects.create_user(f"admin-apo-{formulario.pk}", password="x")
-        admin.groups.add(Group.objects.get(name=ROL_ADMIN))
-        self.client.force_login(admin)
-        return self.client.get(reverse("becas:formulario_detalle", args=[formulario.pk]))
+class _BaseDetalle(_Base):
+    """Casos con foto abiertos (y guardados) desde el detalle de revisión."""
 
-    def _caso_adulto(self):
+    def setUp(self):
+        super().setUp()
+        # Superusuario: el caso del link público exige además la capacidad de
+        # relevamientos públicos (RN-P13), que no es lo que se prueba acá.
+        self.admin = User.objects.create_superuser("admin-detalle", password="x")
+        self.client.force_login(self.admin)
+
+    def _url(self, formulario):
+        return reverse("becas:formulario_detalle", args=[formulario.pk])
+
+    def _detalle(self, formulario):
+        return self.client.get(self._url(formulario))
+
+    def _relevamiento_publico(self):
+        return Relevamiento.objects.create(
+            convocatoria=self.convocatoria, tipo=Relevamiento.Tipo.PUBLICO, fecha_asignada=timezone.now()
+        )
+
+    def _caso_adulto(self, relevamiento=None):
+        """Un adulto con su legajo. Sin ``relevamiento``, el de la app de campo:
+        su foto oculta el grupo Apoderado a los mayores (``edad_menor 18``)."""
+        relevamiento = relevamiento or self.relevamiento
         formulario = Formulario.objects.create(
-            relevamiento=self.relevamiento,
+            relevamiento=relevamiento,
             celular="3624123456",
+            email_contacto="maria@correo.com",
             datos_identificacion={"dni": "30123456", "nombre": "María", "apellido": "Gómez", "sexo": "F"},
         )
-        sincronizar_desde_legacy(formulario, self.relevamiento)
-        formulario.ciudadano = Ciudadano.objects.create(
-            dni="30123456", nombre="María", apellido="Gómez", fecha_nacimiento=date(1990, 1, 1)
-        )
+        sincronizar_desde_legacy(formulario, relevamiento)
+        formulario.ciudadano = Ciudadano.objects.get_or_create(
+            dni="30123456", defaults={"nombre": "María", "apellido": "Gómez", "fecha_nacimiento": date(1990, 1, 1)}
+        )[0]
         formulario.save(update_fields=["ciudadano"])
         formulario.respuestas[self._clave(OrigenRequisito.LEGAJO, "fecha_nacimiento")] = "1990-01-01"
         formulario.save(update_fields=["respuestas"])
         return formulario
 
-    def test_el_bloque_del_apoderado_se_muestra_siempre(self):
-        """Cambio 67: el apoderado se le pide a toda persona, así que el revisor
-        ve su bloque también en el caso de un adulto y en los casos anteriores."""
+    def _post_contacto(self, formulario, **extra):
+        datos = {"celular": formulario.celular, "email_contacto": formulario.email_contacto}
+        datos.update(extra)
+        return self.client.post(self._url(formulario), datos)
+
+
+class ApoderadoSegunLaFotoTests(_BaseDetalle):
+    """#347 (E6): la sección editable del apoderado sigue a la foto del caso.
+
+    La app de campo oculta el grupo Apoderado a los adultos y
+    ``campo.aplicar_revision`` borra lo que hubiera llegado; si la revisión lo
+    ofrecía igual, el revisor lo volvía a cargar y se creaba el legajo de un
+    apoderado que el formulario nunca pidió. El Cambio 67 (se pide a todos) vale
+    para el link, cuyo grupo no tiene condición: con foto manda la foto."""
+
+    def test_con_foto_de_la_app_y_un_adulto_no_se_ofrece_el_apoderado(self):
         resp = self._detalle(self._caso_adulto())
         self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.context["mostrar_apoderado"])
+        self.assertNotIn("apoderado_dni", resp.context["form"].fields)
+        self.assertNotContains(resp, 'name="apoderado_dni"')
+        self.assertContains(resp, "No se pidió")
+
+    def test_por_el_link_sin_condicion_el_apoderado_se_muestra(self):
+        """Cambio 67: por el link el grupo no tiene condición y se pide a todos."""
+        resp = self._detalle(self._caso_adulto(self._relevamiento_publico()))
+        self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.context["mostrar_apoderado"])
+        self.assertContains(resp, 'name="apoderado_dni"')
+
+    def test_sin_foto_el_apoderado_se_muestra(self):
+        """Caso anterior al Cambio 58: no hay condición que leer (Cambio 67)."""
+        formulario = Formulario.objects.create(relevamiento=self.relevamiento, celular="3624123456")
+        resp = self._detalle(formulario)
+        self.assertTrue(resp.context["mostrar_apoderado"])
+        self.assertContains(resp, 'name="apoderado_dni"')
+
+    def test_el_post_no_carga_un_apoderado_que_no_se_pidio(self):
+        formulario = self._caso_adulto()
+        resp = self._post_contacto(
+            formulario,
+            celular="3629999999",
+            apoderado_nombre="Ana",
+            apoderado_apellido="Pérez",
+            apoderado_dni="27111444",
+            apoderado_genero="F",
+            apoderado_fecha_nacimiento="1980-05-05",
+        )
+        self.assertEqual(resp.status_code, 302)
+        formulario.refresh_from_db()
+        self.assertEqual(formulario.celular, "3629999999")
+        self.assertEqual(formulario.apoderado_dni, "")
+        self.assertIsNone(formulario.apoderado_ciudadano_id)
+        self.assertFalse(Ciudadano.objects.filter(dni="27111444").exists())
+
+    def test_los_datos_ya_cargados_se_muestran_y_no_se_borran(self):
+        """Un caso con apoderado cargado y el grupo oculto (p. ej. cargado antes
+        de la regla): se muestra para no esconder un dato del caso, y guardar el
+        contacto no lo vacía."""
+        formulario = self._caso_adulto()
+        Formulario.objects.filter(pk=formulario.pk).update(
+            apoderado_nombre="Ana", apoderado_apellido="Pérez", apoderado_dni="27111444"
+        )
+        formulario.refresh_from_db()
+        resp = self._detalle(formulario)
+        self.assertTrue(resp.context["mostrar_apoderado"])
+        self.assertContains(resp, 'value="27111444"')
+        self._post_contacto(
+            formulario,
+            celular="3629999999",
+            apoderado_nombre="Ana",
+            apoderado_apellido="Pérez",
+            apoderado_dni="27111444",
+        )
+        formulario.refresh_from_db()
+        self.assertEqual(formulario.celular, "3629999999")
+        self.assertEqual(formulario.apoderado_dni, "27111444")
+        self.assertEqual(formulario.apoderado_nombre, "Ana")
+
+
+class VersionDelFormularioTests(_BaseDetalle):
+    """#347 (E7): el aviso de que el formulario cambió sale solo si cambió."""
+
+    def _caso_version(self, version_foto, version_vigente):
+        DisenoFormulario.objects.create(convocatoria=self.convocatoria, version=version_vigente)
+        formulario = self._caso_adulto()
+        formulario.definicion = {**formulario.definicion, "version": version_foto}
+        formulario.save(update_fields=["definicion"])
+        return formulario
+
+    def test_foto_vieja_avisa_la_version_vigente(self):
+        resp = self._detalle(self._caso_version(5, 7))
+        self.assertEqual(resp.context["version_vigente"], 7)
+        self.assertContains(resp, "Formulario v5")
+        self.assertContains(resp, "vigente: v7")
+
+    def test_foto_de_la_version_vigente_no_avisa(self):
+        resp = self._detalle(self._caso_version(7, 7))
+        self.assertContains(resp, "Formulario v7")
+        self.assertNotContains(resp, "vigente: v")
+
+    def test_sin_diseno_no_avisa(self):
+        formulario = self._caso_adulto()
+        formulario.definicion = {**formulario.definicion, "version": 3}
+        formulario.save(update_fields=["definicion"])
+        resp = self._detalle(formulario)
+        self.assertEqual(resp.context["version_vigente"], 0)
+        self.assertNotContains(resp, "vigente: v")
+
+
+class GuardarSinCambiosTests(_BaseDetalle):
+    """#347 (E8): «Guardar» sin cambios no reescribe el caso, pero sigue
+    reparando un alta que quedó a medias."""
+
+    def test_sin_cambios_no_toca_el_caso(self):
+        formulario = self._caso_adulto(self._relevamiento_publico())
+        antes = Formulario.objects.get(pk=formulario.pk).modificado
+        resp = self._post_contacto(
+            formulario,
+            apoderado_nombre="",
+            apoderado_apellido="",
+            apoderado_dni="",
+            apoderado_genero="",
+            apoderado_fecha_nacimiento="",
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Formulario.objects.get(pk=formulario.pk).modificado, antes)
+
+    def test_sin_cambios_repara_el_alta_incompleta(self):
+        formulario = self._caso_adulto(self._relevamiento_publico())
+        Formulario.objects.filter(pk=formulario.pk).update(ciudadano=None)
+        formulario.refresh_from_db()
+        self._post_contacto(formulario)
+        formulario.refresh_from_db()
+        self.assertIsNotNone(formulario.ciudadano_id)
+        self.assertEqual(formulario.ciudadano.dni, "30123456")
+
+    def test_sin_cambios_completa_la_foto_de_un_caso_anterior(self):
+        formulario = Formulario.objects.create(
+            relevamiento=self.relevamiento, celular="3624123456", email_contacto="a@b.com"
+        )
+        self._post_contacto(formulario)
+        formulario.refresh_from_db()
+        self.assertTrue(formulario.definicion)
+
+    def test_sin_cambios_vincula_al_apoderado_pendiente(self):
+        formulario = self._caso_adulto(self._relevamiento_publico())
+        Formulario.objects.filter(pk=formulario.pk).update(
+            apoderado_nombre="Ana", apoderado_apellido="Pérez", apoderado_dni="27111444"
+        )
+        formulario.refresh_from_db()
+        self._post_contacto(formulario, apoderado_nombre="Ana", apoderado_apellido="Pérez", apoderado_dni="27111444")
+        formulario.refresh_from_db()
+        self.assertEqual(formulario.apoderado_ciudadano.dni, "27111444")
 
 
 class PlaceholderArchivoTests(_Base):

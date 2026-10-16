@@ -23,7 +23,10 @@
           </p>
         </td>
         <td class="nodo-td">
-          <span class="badge badge-white">{{ req.get_tipo_display }}</span>
+          <div class="flex flex-wrap gap-1">
+            <span class="badge badge-white">{{ req.get_tipo_display }}</span>
+            {% if req.canal != "ambos" %}<span class="badge badge-white">{{ req.get_canal_display }}</span>{% endif %}
+          </div>
         </td>
         <td class="nodo-td">
           {% if req.obligatorio %}

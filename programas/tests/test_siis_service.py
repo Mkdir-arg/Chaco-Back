@@ -427,3 +427,101 @@ class ResultadoDelAltaTests(SimpleTestCase):
         post.assert_not_called()
         self.assertEqual(r["resultado"], "NO_ENVIADO")
         self.assertEqual(r["codigo"], "ERROR_TECNICO")
+
+
+# ── #569: el testing de ECOM no da de alta personas en el SIIS de producción ──
+SIIS_PRD = "https://siisapi.chaco.gob.ar"
+SIIS_DEV = "https://siisapi.ecomdev.ar"
+HOSTS_TESTING = ["datanach.ecomdev.ar", "app", "web", "websocket"]
+HOSTS_PRD = ["datanach.chaco.gob.ar", "app", "web", "websocket"]
+
+
+@override_settings(
+    DEBUG=False,
+    SIIS_API_CLIENT_ID="client",
+    SIIS_API_CLIENT_SECRET="secret",
+    SIIS_API_CONNECT_TIMEOUT=1,
+    SIIS_API_TIMEOUT=2,
+)
+class GuardaAmbienteNoProductivoTests(SimpleTestCase):
+    """Testing de ECOM corre con datos copiados de PRD: si su ``SIIS_API_URL``
+    apunta al SIIS productivo, aprobar un caso da de alta a una persona real, en
+    una integración sin baja. La guarda corta **antes del token**: nada sale."""
+
+    def setUp(self):
+        cache.clear()
+
+    def _sesion_que_contesta_201(self):
+        token = Mock(status_code=200)
+        token.json.return_value = {"access_token": "abc", "expires_in": 3600}
+        token.raise_for_status.return_value = None
+        alta = Mock(status_code=201)
+        alta.json.return_value = {"ids_generados": [26]}
+        return [token, alta]
+
+    @override_settings(ALLOWED_HOSTS=HOSTS_TESTING, SIIS_API_URL=SIIS_PRD)
+    def test_testing_contra_siis_de_produccion_no_manda_nada(self):
+        with patch("programas.services.siis.sesion") as sesion:
+            r = SiisAPIClient().cargar_beneficiario({"dni": 1})
+
+        self.assertEqual(sesion.mock_calls, [], "salió una llamada a SIIS desde testing")
+        self.assertFalse(r["success"])
+        self.assertEqual(r["resultado"], "NO_ENVIADO")
+        self.assertEqual(r["codigo"], "AMBIENTE_NO_PRD")
+        self.assertIn("no es producción", r["error"])
+
+    @override_settings(ALLOWED_HOSTS=HOSTS_TESTING, SIIS_API_URL=SIIS_PRD)
+    def test_tampoco_con_un_token_ya_cacheado(self):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        with patch("programas.services.siis.sesion") as sesion:
+            r = SiisAPIClient().cargar_beneficiario({"dni": 1})
+
+        self.assertEqual(sesion.mock_calls, [])
+        self.assertEqual(r["codigo"], "AMBIENTE_NO_PRD")
+
+    @override_settings(ALLOWED_HOSTS=HOSTS_PRD, SIIS_API_URL=SIIS_PRD)
+    def test_produccion_contra_siis_de_produccion_envia(self):
+        with patch("programas.services.siis.sesion.post", side_effect=self._sesion_que_contesta_201()) as post:
+            r = SiisAPIClient().cargar_beneficiario({"dni": 1})
+
+        self.assertEqual(r["resultado"], "OK")
+        self.assertEqual(post.call_args_list[-1].args[0], f"{SIIS_PRD}/api/v1/auth/tab-intermedia")
+
+    @override_settings(ALLOWED_HOSTS=HOSTS_PRD + ["datanach.ecomdev.ar"], SIIS_API_URL=SIIS_PRD)
+    def test_produccion_con_un_host_de_ecomdev_igual_envia(self):
+        """Falla hacia PRD: un host de ``chaco.gob.ar`` alcanza para no bloquear."""
+        with patch("programas.services.siis.sesion.post", side_effect=self._sesion_que_contesta_201()) as post:
+            r = SiisAPIClient().cargar_beneficiario({"dni": 1})
+
+        self.assertEqual(r["resultado"], "OK")
+        self.assertEqual(post.call_args_list[-1].args[0], f"{SIIS_PRD}/api/v1/auth/tab-intermedia")
+
+    @override_settings(ALLOWED_HOSTS=HOSTS_TESTING, SIIS_API_URL=SIIS_DEV)
+    def test_testing_contra_siis_de_desarrollo_envia(self):
+        with patch("programas.services.siis.sesion.post", side_effect=self._sesion_que_contesta_201()) as post:
+            r = SiisAPIClient().cargar_beneficiario({"dni": 1})
+
+        self.assertEqual(r["resultado"], "OK")
+        self.assertEqual(post.call_args_list[-1].args[0], f"{SIIS_DEV}/api/v1/auth/tab-intermedia")
+
+    @override_settings(ALLOWED_HOSTS=HOSTS_TESTING, SIIS_API_URL=SIIS_PRD)
+    def test_las_lecturas_siguen_libres(self):
+        """La compatibilidad no escribe nada del otro lado: no la toca la guarda."""
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+        respuesta = Mock(status_code=200)
+        respuesta.json.return_value = {"resultado": "OK", "apto": True}
+        with patch("programas.services.siis.sesion.post", return_value=respuesta) as post:
+            r = SiisAPIClient().validar_compatibilidad("21884116", 59)
+
+        post.assert_called_once()
+        self.assertTrue(r["success"])
+
+    def test_el_toast_dice_que_es_el_ambiente_y_no_que_siis_fallo(self):
+        from programas.models import EnvioSIIS
+        from programas.services.siis_envio import mensaje_envio
+
+        nivel, texto = mensaje_envio(EnvioSIIS(estado=EnvioSIIS.Estado.ERROR, codigo_error="AMBIENTE_NO_PRD"))
+
+        self.assertEqual(nivel, "error")
+        self.assertIn("no es producción", texto)
+        self.assertNotIn("SIIS no respondió", texto)

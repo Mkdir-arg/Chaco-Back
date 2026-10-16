@@ -5,12 +5,13 @@ legajo (`programas.models` importa `legajos.models`), nunca al revés.
 """
 
 from django.db import transaction
-from django.db.models.signals import post_delete, post_save, pre_save
+from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
 from django.dispatch import receiver
 
 from legajos.models import Ciudadano
 
-from .models import Formulario, Programa
+from .models import Formulario, PreguntaGlobal, Programa, RequisitoNativo
+from .services.diseno import registrar_baja_del_catalogo
 from .services.programa_cache import invalidar_programa
 
 
@@ -116,3 +117,25 @@ def invalidar_cache_de_programa(sender, instance, **kwargs):
 def invalidar_cache_de_programa_borrado(sender, instance, **kwargs):
     """Un programa borrado desde `/admin/` tiene que dejar de resolverse."""
     _invalidar_al_commitear(instance.codigo)
+
+
+# --------------------------------------------------------------------------- #
+# #339: borrar un requisito o una pregunta del catálogo avisa a cada diseño.
+#
+# Mismo criterio que RED-80: con la señal queda cubierta la vista de borrado, el
+# `/admin/` (y su inline de requisitos en el segmento), el `delete()` masivo —con
+# un receptor conectado Django deja de hacer el borrado rápido y manda la señal
+# por cada fila— y cualquier camino futuro. Va en `pre_delete` porque el ítem del
+# diseño todavía existe: la recolección ya terminó (si un adjunto PROTECT la
+# frenó, no se llega acá) y el CASCADE de `ItemDiseno` corre después.
+# --------------------------------------------------------------------------- #
+
+
+@receiver(pre_delete, sender=PreguntaGlobal, dispatch_uid="programas.baja_de_pregunta_en_disenos")
+def baja_de_pregunta_en_disenos(sender, instance, **kwargs):
+    registrar_baja_del_catalogo(instance, "pregunta")
+
+
+@receiver(pre_delete, sender=RequisitoNativo, dispatch_uid="programas.baja_de_requisito_en_disenos")
+def baja_de_requisito_en_disenos(sender, instance, **kwargs):
+    registrar_baja_del_catalogo(instance, "requisito")

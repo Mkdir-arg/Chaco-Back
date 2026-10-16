@@ -441,7 +441,10 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 313 | Baja de los seis modelos de Dispositivos v1, release B | Dispositivos · modelos y migraciones | `#datos` `#infra` | PM — task #673, encargo de implementación | 16/10/2026 | 🟢 **Hecho** | `programas.0097_baja_dispositivos_v1` |
 | 314 | «Guardar borrador» de la solicitud de merendero deja de pedir los campos obligatorios en el navegador | Merenderos · solicitud de merendero | `#ui` `#gestion` | QA — issue #564 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 315 | Excepción con vencimiento para el ReDoS de twisted en IMAP: «Pip Audit» vuelve a verde | Transversal · CI (`Pip Audit`, `security/excepciones.toml`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo en todos los PRs (16/10/2026) | 16/10/2026 | 🟢 **Hecho** | No requiere |
-| 317 | Constructor de formularios: prueba de punta a punta y cobertura que pedía QA (#350, #351) | Becas · constructor, link público y revisión (tests) | `#requisitos` `#rbac` `#performance` `#gestion` | QA — issues #350 y #351 | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 316 | Constructor y catálogo: canal en las listas, borrado que avisa y editor de condiciones por canal | Becas · catálogo de requisitos y constructor de formularios | `#requisitos` `#convocatorias` `#ui` `#datos` | QA — issues #338 y #339 (y #341) | 16/10/2026 | 🟢 **Hecho** | `programas.0098_diseno_bajas_pendientes` |
+| 317 | Revisión del caso: el apoderado sigue a la foto, aviso de versión solo si cambió y «Guardar» sin cambios no reescribe | Becas · revisión del caso | `#relevamientos` `#ui` `#datos` | QA (Matías) — issue #347 (E6, E7, E8) | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 318 | Testing de ECOM no da de alta personas en el SIIS de producción | Becas · alta en SIIS y proceso masivo | `#siis` `#infra` `#ui` | QA (Matías) — issue #569 | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 319 | Constructor de formularios: prueba de punta a punta y cobertura que pedía QA (#350, #351) | Becas · constructor, link público y revisión (tests) | `#requisitos` `#rbac` `#performance` `#gestion` | QA — issues #350 y #351 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -41186,7 +41189,438 @@ de la que se retiró en el Cambio 196.
 ## Historial
 
 Sin cambios posteriores.
-# Cambio 317 — Constructor de formularios: prueba de punta a punta y cobertura que pedía QA (#350, #351)
+
+---
+
+# Cambio 316 — Constructor y catálogo de Becas: el canal en las listas, el borrado que avisa y el editor de condiciones que no ofrece lo imposible
+
+🟢 **HECHO — 16/10/2026** · Issues #338 y #339 (y #341) · Hallazgos de QA de Matías Abate, PR-2 del plan
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · catálogo de requisitos (programa, segmento, subsegmento, página de requisitos) y constructor de formularios de la convocatoria |
+| **Etiquetas** | `#requisitos` `#convocatorias` `#ui` `#datos` |
+| **Solicitante** | QA (Matías Abate) — hallazgos del 6 y 7/10/2026 en #338 y #339; plan aprobado por el PM el 16/10/2026 |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | #338, #339 (y #341 para los operadores de fecha) · Cambio 58 (constructor) |
+| **Partes afectadas** | Backoffice: listas de requisitos y constructor. Link público y app de campo: ninguna (lo servido no cambia, salvo que la condición que dependía de lo borrado ahora se anula en el acto) |
+| **Migración** | `programas.0098_diseno_bajas_pendientes` — aditiva, `JSONField(null=True)` |
+
+## Pedido original
+
+Hallazgos de QA de #338 y #339, clasificados como errores reales en el plan del PM (E2–E5):
+
+- **E2 (#338):** la lista de requisitos no muestra el canal («Solo app» / «Solo link»), hay que
+  abrir el modal para saberlo.
+- **E3 (#339):** al borrar un requisito o una pregunta del catálogo que estaba en un diseño, el
+  diseño no avisa, no sube la versión y el aviso no nombra lo borrado. Además, hasta reabrir el
+  constructor, cualquier cambio responde 400.
+- **E4 (#339):** el editor de condiciones ofrece fuentes que no se piden en el canal del ítem; el
+  servidor las rechaza recién al guardar (BEC-04).
+- **E5 (#339 / #341):** en un campo fecha el editor ofrece «está completo / está vacío», que el
+  #341 solo define para texto.
+
+## Alcance acordado
+
+Los cuatro, en un PR con un commit por hallazgo. Queda afuera: cambiar el CASCADE de `ItemDiseno`
+(DAT-01 lo mantiene), sacar operadores de `OPERADORES_POR_TIPO`, y cualquier cambio de lo que el
+servidor acepta o sirve.
+
+## Decisiones tomadas
+
+1. **El badge dice `get_canal_display`** («Solo app de campo» / «Solo link público»), igual que el
+   catálogo de preguntas, y va en la celda Tipo con el mismo par de badges de `_pregunta_row.html`.
+   No va en `.js-lista-texto`, que lee el anuncio de accesibilidad del drag & drop. «Ambos» no
+   lleva badge.
+2. **`ItemDiseno.requisito`/`pregunta` siguen en CASCADE (DAT-01).** Lo que se agrega es un
+   receptor `pre_delete` para `PreguntaGlobal` y `RequisitoNativo`, con el criterio de RED-80: cubre
+   la vista, el `/admin/`, el inline de requisitos y el `delete()` masivo. Corre adentro del
+   `atomic` del borrado y solo si la recolección no frenó con el `ProtectedError` de los adjuntos.
+3. **La condición que dependía de lo borrado se anula en el acto, no al reconciliar.** Esperar a
+   `reconciliar` es lo que dejaba el constructor en 400: `validar_coherencia` veía una fuente
+   inexistente en cada mutación. La versión sube con el borrado (cambió lo servido), con el
+   candado del diseño de BEC-16.
+4. **El aviso sale de `bajas_pendientes`.** El ítem ya no existe cuando `reconciliar` corre, así que
+   la señal deja `{clave, titulo, padre, dependientes}` en una columna nueva del diseño.
+   `reconciliar` lo suma a `quitados`, expone una clave **nueva** `fuentes_quitadas`
+   («X → A, B», o «X» si nada dependía de él), borra el grupo automático que quedó vacío (RN-3) y
+   vacía la columna. `condiciones_quitadas` no cambia de formato.
+5. **Reconciliar no vuelve a subir la versión por esas bajas** (TC-339-07): ya subió al borrar.
+   Tampoco la sube borrar el grupo automático vacío que dejaron, porque un grupo sin hijos no se
+   sirve.
+6. **E4 copia la regla exacta del servidor.** S(x) = canales donde se sirve x con la cascada del
+   padre (`items_planos`); la fuente f se ofrece para el ítem i si S(i) ⊆ S(f); con S(i) vacío se
+   ofrece todo. Una fuente incompatible que la condición guardada ya usa se mantiene en la lista,
+   marcada «(no se pide en este canal)», para no dejar el `<select>` vacío.
+7. **E5 separa lo ofrecido de lo aceptado.** `OPERADORES_POR_TIPO` no cambia: sacar
+   «vacío/completo» de las fechas congelaría los diseños y grupos que ya los usan. `_operadores()`
+   devuelve `por_tipo` (ofrecidos, sin `OPERADORES_NO_OFRECIDOS`) y `aceptados`; el editor del
+   constructor y el de grupos del catálogo muestran un operador no ofrecido solo en la regla que
+   ya lo usa.
+
+## Implementación
+
+- **E2:** las seis listas (`_requisitos_panel.html`, `_requisitos_page_table.html`,
+  `_requisitos_programa_panel.html`, `_requisitos_propios_panel.html` y las heredadas de
+  `segmento_detail.html` y `subsegmento_detail.html`) suman el badge de canal. Cero consultas y
+  cero clases nuevas.
+- **E3:** `DisenoFormulario.bajas_pendientes`; `diseno.registrar_baja_del_catalogo` (servicio) y
+  sus dos receptores en `programas/signals.py`; `bloquear` trae `bajas_pendientes` bajo el
+  candado en la misma consulta de siempre; `reconciliar` con `fuentes_quitadas`; una línea más en
+  el aviso de `convocatoria_formulario.html`.
+- **E4:** `canalesServidos` y `fuentesPara` en `static/custom/js/nodo-constructor.js`.
+- **E5:** `condiciones.OPERADORES_NO_OFRECIDOS`, `_operadores()` con `aceptados`, y
+  `operadoresDe(fuente, actual)` en `nodo-constructor.js` y en `pregunta_list.html`.
+
+**Cambio de conducta visible:** después de borrar algo del catálogo, la versión del diseño sube en
+el acto. El aviso del constructor nombra lo borrado y qué perdió su condición. El editor ya no
+ofrece fuentes que no se piden en el canal del ítem, ni «vacío/completo» en una fecha nueva.
+
+## Archivos
+
+- `programas/models/__init__.py`, `programas/migrations/0098_diseno_bajas_pendientes.py`.
+- `programas/services/diseno.py`, `programas/signals.py`, `programas/apps.py` (comentario).
+- `programas/services/condiciones.py`, `programas/views/diseno.py`.
+- `static/custom/js/nodo-constructor.js`.
+- `programas/templates/programas/becas/config/{_requisitos_panel,_requisitos_page_table,_requisitos_programa_panel,_requisitos_propios_panel,segmento_detail,subsegmento_detail,pregunta_list}.html`
+  y `programas/templates/programas/becas/formulario/convocatoria_formulario.html`.
+- `.claude/design/dominio/becas.md`: contrato del canal en la fila, del modal de condición y del
+  aviso del constructor.
+- Tests: `programas/tests/test_catalogo_canal_y_bajas.py` (nuevo) y
+  `programas/tests/test_diseno.py` (ajuste de
+  `test_quitar_la_fuente_elimina_la_condicion_con_aviso`: el aviso pasa de
+  `condiciones_quitadas` a `fuentes_quitadas` porque la condición ya la anula el borrado).
+
+## Base de datos
+
+`programas.0098_diseno_bajas_pendientes`, dependiente de `programas.0097_baja_dispositivos_v1`:
+`AddField` de `programas_disenoformulario.bajas_pendientes`, JSON y `NULL`. Aditiva y reversible;
+el código anterior la ignora.
+
+## Validación
+
+- Python 3.12 / Django 5.2.17 de `.venv312`; ruff desde `.venv` (check y format de los archivos tocados).
+- **TDD:** los tests de cada hallazgo se escribieron primero y se vieron en rojo: E2 4/4, E3 10/10
+  (incluido el 400 del POST de mutación), E4 3/4 (el caso «S(i) vacío» ya pasaba, es el que no
+  cambia), E5 3/4.
+- `manage.py test programas core --parallel 6`: **4.927 tests, OK (60 omitidos)**.
+- `manage.py test --tag performance programas`: 30 tests, OK. `bloquear` sigue siendo una sola
+  consulta (ahora `.only("pk", "bajas_pendientes")`); el constructor no suma consultas.
+- `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`: `No changes detected`.
+  `check_migraciones.py`: una migración, cero problemas. `manage.py check --deploy`: sin errores
+  (solo los avisos de la clave de prueba).
+- `design_audit.py --ratchet`: 0 hallazgos nuevos. `compile_templates.py`: 233, 0 errores.
+  `check_design_agent.py --changed` y `--limites`: OK.
+- **Mutaciones** (cada una restaurada desde copia y vuelta a verde): desconectar los dos receptores
+  `pre_delete` pone en rojo los 10 tests de E3 y el test ajustado de `test_diseno.py`; dejar que
+  `reconciliar` suba la versión por las bajas pone en rojo 3 (TC-339-07, grupo vacío, sin
+  dependientes); sacar la cascada del padre en `canalesServidos` pone en rojo 3 de E4; mostrar en
+  `operadoresDe` cualquier operador guardado (sin mirar `aceptados`) pone en rojo el de E5.
+- `test_pregunta_sin_adjuntos_se_borra_con_su_item_de_diseno` sigue verde: el CASCADE no cambió.
+- Gotcha encontrado: leer el candado con `values_list` en vez de `.first()` hacía que `zeal`
+  dejara de ver el diseño como lectura singular y reportara N+1 en los dos `items_ordenados` de
+  `_mutar`. Queda anotado en el docstring de `bloquear`.
+
+## Reversión
+
+**Reversible con `git revert` + `migrate programas 0097`**, sin restore. La migración solo agrega
+una columna anulable: el código anterior la ignora, así que también se puede bajar la release sin
+desaplicarla. Al desaplicar se pierden las bajas que todavía no se avisaron (el próximo que abra
+el constructor no ve qué se borró); las condiciones ya anuladas y la versión ya subida quedan como
+están, porque son datos del diseño y no de esta columna.
+
+## Pendientes
+
+- **Duplicación leve en el aviso:** lo borrado aparece en la línea «Ya no están en el catálogo…»
+  (`quitados`, como pedía el plan) y en «Se borraron del catálogo…» (`fuentes_quitadas`). Si el PM
+  prefiere una sola línea, alcanza con no sumar las bajas a `quitados`.
+- **Borrado masivo de N filas del catálogo:** la señal agrega una consulta por fila borrada (y unas
+  siete por diseño afectado). Es una operación de admin poco frecuente; no tiene presupuesto.
+- Matías re-prueba en testing TC-338-01 y TC-339-01/05/07 después del espejo.
+- Medir en testing el borrado de un requisito usado en muchas convocatorias: los candados de cada
+  diseño quedan hasta el COMMIT, contra el `read_timeout` de 10 s. Se toman en orden de id del
+  diseño, así que dos borrados concurrentes no se cruzan.
+- G1-16: ahora un borrado del catálogo sube la versión del diseño, así que las cargas de la app
+  capturadas antes van a mostrar la observación de versión. Es veraz: el formulario cambió.
+
+## Historial
+
+- **16/10/2026** — Implementado (E2–E5), PR contra `development`.
+
+---
+
+# Cambio 317 — Revisión del caso: el apoderado sigue a la foto, el aviso de versión dice la verdad y «Guardar» sin cambios no reescribe
+
+🟢 **HECHO — 16/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · revisión del caso (detalle, datos de contacto y apoderado, respuestas) |
+| **Etiquetas** | `#relevamientos` `#ui` `#datos` |
+| **Solicitante** | QA (Matías) — pruebas del issue #347 en testing; plan de arreglos aprobado por el PM el 16/10/2026 (E6, E7, E8) |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | #347 (Cambio 58, fase 4) |
+| **Partes afectadas** | Backoffice (`formulario_detalle`, `FormularioRevisionForm`, `_contacto.html`, `_respuestas.html`) · Servidor/API (helper `alta_incompleta` compartido) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Tres hallazgos de QA sobre el detalle del caso en revisión:
+
+- **E6.** En un caso de la app de campo con un adulto, la revisión ofrece cargar el apoderado aunque el formulario no
+  se lo pidió. Al guardar se crea el legajo del apoderado.
+- **E7.** El badge «Formulario vN» dice siempre «El formulario cambió después», aunque no haya cambiado.
+- **E8.** «Guardar cambios» sin tocar nada reescribe el caso igual (sube `modificado`).
+
+## Alcance acordado
+
+Entra: la regla del apoderado en la revisión (vista, form y template), el aviso de versión y el guardado sin cambios.
+Queda afuera: la regla del link público (Cambio 67) y el volcado del contacto al legajo (RN-10), que no cambian.
+
+## Decisiones tomadas
+
+- **Precisión del Cambio 67.** «La revisión muestra siempre la sección del apoderado» vale para el link, cuyo grupo
+  Apoderado no tiene condición, y para los casos sin foto. **Con foto manda la foto**: si la condición del grupo ocultó
+  el apoderado (la app de campo lo oculta a los mayores con `edad_menor 18`, #637), la revisión no ofrece cargarlo y
+  muestra «No se pidió» con la leyenda «la condición del grupo no se cumplió».
+- **Se restaura la regla perdida.** Es la del Cambio 58 (D10, commit `2075842a`): `apoderado_pedido(bloques)` busca los
+  grupos con campos de origen `persona_vinculada` en la foto ya leída (sin consultas nuevas) y mira si alguno quedó
+  visible. Se perdió en el merge `99bb84bd` (development en `feature/constructor-formularios`, 11/09/2026, Cambios 59
+  a 71), que tomó el `mostrar_apoderado = True` del Cambio 67, y llegó a `development` con el merge `749544a` /
+  release `efd368da`. La diferencia con aquella versión: sin foto ya no cae a `es_menor` sino a `True` (Cambio 67).
+- **Un apoderado ya cargado se muestra igual**, aunque el grupo esté oculto: no se esconde un dato del caso y guardar
+  el contacto no lo borra.
+- **El form saca los cinco campos `apoderado_*`** cuando no se pide (`pide_apoderado=False`), no solo el template: si
+  quedaran, el POST llegaría sin ellos y el ModelForm vaciaría las columnas; y no se exige apoderado al menor en ese
+  caso. GET y POST usan el mismo valor, calculado antes de que `is_valid()` escriba el POST sobre la instancia.
+- **Aviso de versión solo si cambió.** El badge «Formulario vN» queda; el aviso «El formulario cambió después ·
+  vigente: vM» sale solo si el diseño de la convocatoria existe (`M > 0`) y su versión es distinta de la de la foto. El
+  diseño viaja en la consulta del caso (`select_related` de la relación inversa): 0 consultas más, el detalle sigue en
+  15.
+- **Sin cambios, «Guardar» no reescribe el caso** (ni `modificado`). Solo repara lo que haya quedado a medias: saca la
+  foto si el caso no la tenía, y resuelve el legajo si el alta quedó incompleta —mismo criterio que la API, ahora en
+  `services/becas.alta_incompleta`— o si hay un apoderado con DNI sin vincular. Con cambios, todo igual dentro de la
+  misma transacción (BEC-24).
+
+## Implementación
+
+- `programas/selectors/revision.py`: `apoderado_pedido(bloques, por_defecto=True)` y `version_vigente(formulario)`;
+  `contexto_respuestas` recibe los bloques ya leídos y agrega `version_vigente`.
+- `programas/views/revision.py`: `formulario_detalle` lee la foto una vez, decide `mostrar_apoderado` (pedido o con
+  datos) antes del form, compara solo los campos que el form tiene y saltea `form.save()` sin cambios.
+- `programas/forms.py`: `FormularioRevisionForm(pide_apoderado=...)`.
+- `programas/services/becas.py`: `alta_incompleta`, movido desde `programas/api/views.py` sin cambiar su
+  comportamiento en la API.
+- Templates: `_contacto.html` con la leyenda «No se pidió» cuando no se muestra el apoderado; `_respuestas.html` con el
+  aviso de versión condicional y los textos «No se pidió» con tilde (unificados con la leyenda nueva).
+
+## Archivos
+
+`programas/views/revision.py` · `programas/selectors/revision.py` · `programas/forms.py` · `programas/services/becas.py`
+· `programas/api/views.py` · `programas/services/campo.py` (comentarios) ·
+`programas/templates/programas/becas/revision/_detalle/_contacto.html` ·
+`programas/templates/programas/becas/revision/_detalle/_respuestas.html` · `.claude/design/componentes/field.md` ·
+`programas/tests/test_respuestas.py` · `programas/tests/test_becas_revision.py` · `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Tests nuevos en `programas/tests/test_respuestas.py`: `ApoderadoSegunLaFotoTests` (reescrito: app con adulto sin
+  inputs y con leyenda; link sin condición y caso sin foto con inputs; el POST no carga ni crea el legajo de un
+  apoderado no pedido; datos ya cargados con el grupo oculto se muestran y no se borran), `VersionDelFormularioTests`
+  (v5 con diseño v7 avisa; v7/v7 y sin diseño no) y `GuardarSinCambiosTests` (sin cambios `modificado` no se mueve;
+  alta incompleta se repara; caso sin foto la recibe; apoderado pendiente se vincula).
+- `ContextoDetalleTests` suma la clave `version_vigente`; `ConsultasDetalleTests` sigue en 15 consultas.
+- Mutación: forzar `pide_apoderado=True` pone en rojo dos tests de `ApoderadoSegunLaFotoTests`; llamar `form.save()`
+  siempre pone en rojo `test_sin_cambios_no_toca_el_caso`; saltear la reparación pone en rojo los dos de reparación.
+- Snapshots del detalle (`test_becas_revision_detalle_html`, casos sin foto) pasan sin regenerar.
+- Ajuste del auto-test de particiones de design_audit: mide contra el piso actual del conjunto.
+- `manage.py test programas` (Python 3.12 / Django 5.2): 3.531 tests, solo 3 fallas preexistentes y ajenas
+  (`test_reportes.ExportsDeConvocatoriaTests`, 403; fallan igual en la base `dc494794`).
+  `core.tests.test_performance_budgets --tag performance`, `manage.py check --deploy`, ruff,
+  `design_audit.py --ratchet` (0 nuevos), `--goldens`, `compile_templates.py` y `check_design_agent.py` en verde.
+
+## Puesta en marcha en el servidor
+
+No requiere: entra con el deploy.
+
+## Pendientes / a definir
+
+- Un caso **sin foto** que se guarda desde la revisión recibe la foto del formulario vigente (`sincronizar_desde_legacy`,
+  como antes); desde ese momento su apoderado sigue a esa foto. Si en la app es un adulto, la próxima vez no se ofrece.
+
+## Reversión
+
+Revertir el commit del PR. No hay datos que deshacer.
+
+## Historial
+
+Entrada nueva. Precisa el Cambio 67 (la regla «siempre visible» vale para el link sin condición y para los casos sin
+foto; con foto manda la foto) y restaura la regla D10 del Cambio 58 perdida en el merge `99bb84bd`, que llegó a
+`development` con la release `efd368da`.
+
+---
+
+# Cambio 318 — Testing de ECOM no da de alta personas en el SIIS de producción
+
+🟢 **HECHO — 16/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta en SIIS (todos los caminos) y proceso masivo |
+| **Etiquetas** | `#siis` `#infra` `#ui` |
+| **Solicitante** | QA (Matías) — hallazgo en testing de ECOM |
+| **Fecha del pedido** | 16/10/2026 |
+| **Issue / épica** | #569 |
+| **Partes afectadas** | `core/checks.py`, `programas/services/siis.py` (`cargar_beneficiario`), `programas/services/siis_envio.py` (`mensaje_envio`), `programas/services/proceso_masivo.py` (`casos_con_errores_agotados`), `programas/views/proceso_masivo.py`, `proceso_masivo.html`, comandos `reenviar_siis_pendientes`, `enviar_casos_siis`, `procesar_casos_siis` y `diagnosticar_siis` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En testing de ECOM (`datanach.ecomdev.ar`, con datos copiados de PRD) `SIIS_API_URL` apunta a
+`siisapi.chaco.gob.ar`, el SIIS de **producción**. Aprobar un caso o correr el proceso masivo daba
+de alta personas reales en SIIS productivo, en una integración sin baja. La app no tenía ninguna
+guarda: el check `core.E002` solo mira el caso inverso (PRD apuntando a desarrollo) y depende de
+`DATANACH_ES_PRODUCCION`.
+
+## Alcance acordado
+
+Impedir la **escritura** en SIIS cuando el ambiente no es producción y `SIIS_API_URL` no es el
+SIIS de desarrollo, sin bloquear PRD. Las lecturas (compatibilidad, catálogos, token para un GET)
+siguen libres. Fuera de alcance: corregir la variable en testing, que es de ECOM.
+
+## Decisiones tomadas
+
+- **El ambiente se reconoce por `ALLOWED_HOSTS`, no por `DATANACH_ES_PRODUCCION`.**
+  `ambiente_no_productivo()` (nueva, `core/checks.py`) es verdadera si algún host es `ecomdev.ar`
+  o termina en `.ecomdev.ar` —testing `datanach.ecomdev.ar`, icore
+  `relevamiento-deshum.ecomdev.ar`—, o con `DEBUG` y `localhost` (desarrollo local). PRD
+  (`datanach.chaco.gob.ar`) nunca cumple. `DATANACH_ES_PRODUCCION` no sirve acá por lo mismo que
+  dice el Cambio 162: su ausencia no prueba nada, y no hay evidencia de que PRD la tenga; usarla
+  bloquearía producción. No contradice al Cambio 123: aquel disparador sigue mandando para el check
+  `core.E002`, que mira el caso opuesto.
+- **Falla hacia PRD: un solo host de `chaco.gob.ar` gana.** No hay en el repo evidencia de qué
+  hosts tiene PRD en `ALLOWED_HOSTS`: podría compartir la plantilla de env con testing o tener un
+  ingress interno bajo `ecomdev.ar`. Con la primera versión, eso dejaba a PRD sin altas en SIIS.
+  Ahora, si algún host es `chaco.gob.ar` o termina en `.chaco.gob.ar`, el ambiente es productivo
+  aunque también haya uno de `ecomdev.ar` (y aunque haya `DEBUG`). Equivocarse para este lado deja a
+  testing escribiendo, que es lo que había antes; para el otro, deja a producción sin altas.
+- **El dominio se compara entero**, como `es_host_de_desarrollo`: `ecomdev.ar.atacante.com` o
+  `noecomdev.ar` no cuentan, y lo mismo con `chaco.gob.ar`. El punto inicial de una entrada tipo `.ecomdev.ar` se ignora.
+  `localhost` sin `DEBUG` no alcanza: el CI y el release-gate corren así.
+- **Predicado:** `escritura_siis_bloqueada()` = hay `SIIS_API_URL`, el ambiente no es producción
+  y la URL no es del SIIS de desarrollo. Sin URL no bloquea: ese caso ya falla solo por
+  configuración incompleta.
+- **Un único punto de corte:** el principio de `SiisAPIClient.cargar_beneficiario`, la única
+  escritura, por donde convergen los siete caminos del alta (aprobar, cupo, masivo, comandos y
+  drenaje, vía `siis_envio._mandar_a_siis`). Corta **antes del token**: no sale ninguna llamada,
+  ni siquiera con un token cacheado. Deja un `warning` en el log.
+- **Devuelve `NO_ENVIADO` con código `AMBIENTE_NO_PRD`, nunca `INCIERTO`**: nada salió, así que
+  el envío queda en `ERROR` no vigente y el caso no queda tomado. El toast del caso lo dice
+  (`mensaje_envio`) en vez del genérico «SIIS no respondió», que mandaría a revisar un servicio
+  que nadie consultó.
+- **Esos `ERROR` no consumen reintentos.** `casos_con_errores_agotados` saca a un caso de los
+  candidatos con `MAX_REINTENTOS` (5) `ERROR`; contaba todos salvo los liberados por
+  `conciliar_envios_siis`. Ahora excluye también `AMBIENTE_NO_PRD`
+  (`proceso_masivo.CODIGOS_QUE_NO_SON_INTENTOS`): si no, cinco vueltas en testing con la variable
+  mal puesta dejaban el caso afuera para siempre. Con eso, cuando la variable se corrige, el caso lo
+  levanta el próximo `reenviar_siis_pendientes`, el drenaje (la fila de la tabla intermedia sigue sin
+  sincronizar) o una corrida del masivo.
+- **Los comandos que escriben cortan de entrada** con `--aplicar`, igual que la pantalla:
+  `ComandoSiisBase.exigir_escritura_siis_permitida` (regla de RED-53: una guarda nueva va en la
+  base), llamada desde `reenviar_siis_pendientes`, `enviar_casos_siis` y `procesar_casos_siis`
+  (este último salvo con `--destino tabla`, que no llama a SIIS). El ensayo sigue andando.
+  `procesar_casos_siis` corta antes de validar y aprobar: si no, aprobaría casos que no se
+  informan.
+- **`diagnosticar_siis --alta`** ante `AMBIENTE_NO_PRD` dice «No se mandó el alta» y no «SIIS
+  rechazó el alta… Es reintentable», que mandaba a esperar a un servicio que no se consultó.
+- **El proceso masivo corta antes de crear la corrida** (`proceso_masivo_lanzar`), con un
+  `messages.error`: si no, la corrida aprobaría casos que después no se informan y cada uno
+  gastaría un reintento. La pantalla muestra una alerta `danger` (`components/_alerta.html`) bajo
+  el host de destino. El botón «Procesar» no se esconde: el corte del POST alcanza.
+
+## Implementación
+
+- `core/checks.py`: `DOMINIO_PRODUCCION`, `_bajo_dominio`, `ambiente_no_productivo`,
+  `escritura_siis_bloqueada`; `es_host_de_desarrollo` reusa la comparación.
+- `programas/services/siis.py`: `CODIGO_AMBIENTE_NO_PRD`, `MENSAJE_AMBIENTE_NO_PRD` y la guarda al
+  principio de `cargar_beneficiario`.
+- `programas/services/siis_envio.py`: rama propia en `mensaje_envio`.
+- `programas/services/proceso_masivo.py`: `CODIGOS_QUE_NO_SON_INTENTOS` en
+  `casos_con_errores_agotados`.
+- `programas/management/commands/_base_siis.py`: `exigir_escritura_siis_permitida`; la llaman
+  `reenviar_siis_pendientes`, `enviar_casos_siis` y `procesar_casos_siis`.
+- `programas/management/commands/diagnosticar_siis.py`: salida propia para `AMBIENTE_NO_PRD`.
+- `programas/views/proceso_masivo.py`: `siis_bloqueado` en el contexto y corte en
+  `proceso_masivo_lanzar`.
+- `programas/templates/programas/becas/config/proceso_masivo.html`: la alerta.
+
+## Archivos
+
+- `core/checks.py`, `core/tests/test_checks_entorno.py`
+- `programas/services/siis.py`, `programas/services/siis_envio.py`, `programas/services/proceso_masivo.py`
+- `programas/management/commands/_base_siis.py`, `diagnosticar_siis.py`, `enviar_casos_siis.py`,
+  `procesar_casos_siis.py`, `reenviar_siis_pendientes.py`
+- `programas/views/proceso_masivo.py`, `programas/templates/programas/becas/config/proceso_masivo.html`
+- `programas/tests/test_siis_service.py`, `programas/tests/test_proceso_masivo.py`,
+  `programas/tests/test_siis_envio.py`, `programas/tests/test_siis_un_solo_envio.py`,
+  `programas/tests/test_diagnosticar_siis.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Tests nuevos: `AmbienteNoProductivoTests` y `EscrituraSiisBloqueadaTests` (core);
+  `GuardaAmbienteNoProductivoTests` (testing + SIIS PRD → `NO_ENVIADO`/`AMBIENTE_NO_PRD` y la sesión
+  HTTP mockeada sin ninguna llamada, ni de token; PRD + SIIS PRD → envía; testing + SIIS ecomdev →
+  envía; la compatibilidad sigue libre; el toast); tres tests de la pantalla del masivo (POST no
+  crea corrida, GET muestra el aviso, PRD lanza sin aviso). Segunda ronda: PRD con un host de
+  `ecomdev.ar` además del suyo → envía; cinco `ERROR` `AMBIENTE_NO_PRD` (y cuatro errores de verdad
+  más) no dejan el caso agotado; los tres comandos cortan con `--aplicar` sin llamar a nada, el
+  ensayo y `--destino tabla` siguen andando; `diagnosticar_siis` no dice «reintentable».
+- **Mutación:** sin la guarda de `cargar_beneficiario`, los dos tests de testing + SIIS PRD se
+  ponen rojos; sin el corte de la vista, el de lanzar se pone rojo; con la comparación de dominio
+  por substring, se ponen rojos los de dominio entero. Segunda ronda: sin la condición de
+  `chaco.gob.ar` se ponen rojos 6; sin `AMBIENTE_NO_PRD` en los códigos excluidos, el de agotados;
+  sin el corte de la base de comandos, los 3 de los comandos; sin la rama de `diagnosticar_siis`,
+  el suyo.
+- `manage.py test core programas`, `check --deploy`, `design_audit --ratchet` (0 nuevos),
+  `compile_templates` (0).
+- En tests (`PYTEST_RUNNING`) `ALLOWED_HOSTS` no trae `ecomdev.ar` (el CI usa `localhost`), así que
+  los tests existentes con `siis.example`, `siis.chaco.gob.ar` o `siis.invalido.local` no la
+  disparan.
+
+## Puesta en marcha en el servidor
+
+Nada que hacer en el deploy. En testing de ECOM, mientras `SIIS_API_URL` siga apuntando a
+producción, ninguna alta sale y el masivo no lanza: es lo buscado.
+
+## Pendientes / a definir
+
+- **Pedirle a ECOM que corrija `SIIS_API_URL` en testing** a `https://siisapi.ecomdev.ar`. Es una
+  acción operativa del PM; esta guarda la vuelve inofensiva, no la reemplaza.
+- Reemplaza **parcialmente** el pendiente H-09 del Cambio 123: un testing apuntado a producción ya
+  no escribe. Sigue abierto confirmar que PRD define `SIIS_API_URL` con el host productivo y
+  `DATANACH_ES_PRODUCCION=1`.
+- **Confirmar con ECOM el `ALLOWED_HOSTS` (`DJANGO_ALLOWED_HOSTS`) de PRD.** La guarda falla
+  hacia PRD con cualquier host de `chaco.gob.ar`, pero si PRD se sirviera **solo** con hosts de
+  `ecomdev.ar` quedaría sin altas. Es del PM.
+- Si un día testing o icore se sirven bajo un dominio que no sea `ecomdev.ar`, la guarda deja de
+  reconocerlos: hay que sumar ese dominio a `ambiente_no_productivo`.
+
+## Reversión
+
+Revertir el commit. No toca datos ni esquema.
+
+---
+
+# Cambio 319 — Constructor de formularios: prueba de punta a punta y cobertura que pedía QA (#350, #351)
 
 🟢 **HECHO — 16/10/2026** · solo tests
 
@@ -41276,3 +41710,5 @@ Ninguna.
 ## Reversión
 
 Revertir el commit.
+
+---

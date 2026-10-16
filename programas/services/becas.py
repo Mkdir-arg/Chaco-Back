@@ -328,6 +328,17 @@ def _anotar_identidad_acreditada(formulario, ciudadano, datos):
     return True
 
 
+def alta_incompleta(formulario):
+    """¿Un envío anterior se cortó después de insertar el caso? Se nota en que
+    no tiene la foto de la definición o en que la identificación offline sigue
+    sin resolverse a un legajo.
+
+    Lo usan la API de la app (reintento de un alta) y la revisión, que con un
+    «Guardar» sin cambios solo repara lo que quedó a medias (#347)."""
+    datos = formulario.datos_identificacion if isinstance(formulario.datos_identificacion, dict) else {}
+    return not formulario.definicion or (not formulario.ciudadano_id and bool(datos.get("dni")))
+
+
 @transaction.atomic
 def resolver_ciudadano_offline(formulario):
     """Resuelve el ciudadano de un formulario que llegó por sync offline.

@@ -49,6 +49,15 @@ OPERADORES_POR_TIPO = {
     TipoCampo.ARCHIVO: {"adjuntado", "no_adjuntado"},
 }
 
+# Lo que el editor **no ofrece** aunque el motor lo acepte (#341: para una fecha,
+# edad y antes/después). No se saca de ``OPERADORES_POR_TIPO``: los diseños y los
+# grupos del catálogo que ya usan «vacío/completo» sobre una fecha quedarían
+# incoherentes y `validar_coherencia` les rechazaría cualquier edición. El editor
+# los vuelve a mostrar solo en la regla guardada que ya los usa.
+OPERADORES_NO_OFRECIDOS = {
+    TipoCampo.DATE: _COMUNES,
+}
+
 # Etiquetas para el editor de condiciones (misma clave que el operador).
 ETIQUETAS_OPERADOR = {
     "vacio": "está vacío",
