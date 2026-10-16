@@ -207,14 +207,18 @@ class ListadoTests(BaseListado):
         self.assertContains(respuesta, 'aria-label="Reasignar el relevamiento de Predio Resistencia"')
         self.assertNotContains(respuesta, 'aria-label="Reasignar el relevamiento de Edificio CIS"')
 
-    def test_lo_cancelado_no_tiene_ninguna_accion(self):
+    def test_lo_cancelado_solo_ofrece_ver_informe(self):
         inspeccion = self._crear()
         servicio.cancelar_inspeccion(self._fresco(self.coord), inspeccion, "Duplicado")
 
         respuesta = self._cliente(self.coord).get(URL_LISTA, {"tab": "cancelados"})
 
-        self.assertFalse(_filas(respuesta, "cancelados")[0].con_acciones)
-        self.assertNotContains(respuesta, f"menu-fila-relevamiento-{inspeccion.pk}")
+        self.assertTrue(_filas(respuesta, "cancelados")[0].con_acciones)
+        self.assertContains(respuesta, f"menu-fila-relevamiento-{inspeccion.pk}")
+        self.assertContains(respuesta, reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk]))
+        self.assertContains(respuesta, "Ver informe")
+        self.assertNotContains(respuesta, f"cancelar={inspeccion.pk}")
+        self.assertNotContains(respuesta, "Marcar como revisado")
         self.assertNotContains(respuesta, "Reasignar el relevamiento de")
 
     def test_lo_completado_solo_ofrece_ver_el_informe(self):

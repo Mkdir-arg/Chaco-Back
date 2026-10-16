@@ -246,13 +246,14 @@ class FidelidadFITests(BaseInfraestructura):
             esperado = "Bueno" if estado == InspeccionEdificio.Estado.REALIZADA else "Sin relevar"
             self.assertEqual(semaforos_de_dispositivos([self.parador.pk])[self.parador.pk].texto, esperado)
 
-    def test_vencido_prevalece_sobre_criticidad_y_sin_relevar_en_otro_edificio(self):
+    def test_critico_prevalece_sobre_vencido_y_sin_relevar_en_otro_edificio(self):
+        """Decisión PM (G3): la última realizada Alta conserva Crítico aun con vencidos."""
         self._relevar(self.predio, InspeccionEdificio.Criticidad.ALTA)
         self.edificio_cis.dispositivos.add(self.parador)
         inspeccion = self._crear()
         InspeccionEdificio.objects.filter(pk=inspeccion.pk).update(fecha_vencimiento=AHORA.date() - timedelta(days=1))
-        self.assertEqual(semaforos_de_dispositivos([self.parador.pk])[self.parador.pk].texto, "Vencido")
-        self.assertEqual(infraestructura_del_dispositivo(self.parador)["semaforo"].texto, "Vencido")
+        self.assertEqual(semaforos_de_dispositivos([self.parador.pk])[self.parador.pk].texto, "Crítico")
+        self.assertEqual(infraestructura_del_dispositivo(self.parador)["semaforo"].texto, "Crítico")
 
     @tag("performance")
     def test_vencidos_se_leen_en_lote_sin_aumentar_presupuestos(self):

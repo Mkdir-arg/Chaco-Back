@@ -15,6 +15,7 @@ Lo que se fija acá, y por qué:
 """
 
 import uuid
+from datetime import UTC, datetime
 from io import StringIO
 from unittest.mock import patch
 
@@ -34,6 +35,7 @@ from programas.services.inspecciones import (
     cancelar_inspeccion,
     crear_inspeccion,
     inspecciones_para_envio,
+    marcar_revisado,
     reasignar_inspeccion,
 )
 from programas.tests.test_dispositivos_inspecciones import JPEG, TODAS_DE_DISPOSITIVOS, BaseInspecciones, _foto
@@ -530,3 +532,39 @@ class EsquemaTests(BaseApiInspecciones):
             self.esquema["components"]["schemas"]["InspeccionEstadoEnum"]["enum"],
             ["ASIGNADA", "REALIZADA", "CANCELADA"],
         )
+
+
+class FotosRevisadasTests(BaseApiInspecciones):
+    def setUp(self):
+        reloj = patch("django.utils.timezone.now", return_value=datetime(2026, 10, 14, 12, tzinfo=UTC))
+        reloj.start()
+        self.addCleanup(reloj.stop)
+        super().setUp()
+
+    def test_foto_nueva_tras_revision_es_409_sin_mutar_datos(self):
+        self.assertEqual(self._enviar_resultado(self.agente, self.inspeccion.pk).status_code, 200)
+        marcar_revisado(self._fresco(self.coordinador), self.inspeccion)
+        trazas = TrazaInspeccion.objects.count()
+
+        respuesta = self._enviar_foto(self.agente, self.inspeccion.pk)
+
+        self.assertEqual(respuesta.status_code, 409)
+        self.assertEqual(respuesta.data["code"], "ESTADO_NO_ADMITE")
+        self.assertEqual(respuesta.data["estado"], InspeccionEdificio.Estado.REALIZADA)
+        self.assertFalse(FotoInspeccion.objects.exists())
+        self.assertEqual(TrazaInspeccion.objects.count(), trazas)
+
+    def test_foto_recibida_antes_de_revision_conserva_reenvio_idempotente(self):
+        envio = uuid.uuid4()
+        original = self._enviar_foto(self.agente, self.inspeccion.pk, envio)
+        self.assertEqual(original.status_code, 201)
+        self._enviar_resultado(self.agente, self.inspeccion.pk)
+        marcar_revisado(self._fresco(self.coordinador), self.inspeccion)
+        trazas = TrazaInspeccion.objects.count()
+
+        respuesta = self._enviar_foto(self.agente, self.inspeccion.pk, envio)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.data, original.data)
+        self.assertEqual(FotoInspeccion.objects.count(), 1)
+        self.assertEqual(TrazaInspeccion.objects.count(), trazas)

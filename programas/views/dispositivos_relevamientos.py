@@ -283,19 +283,20 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         """Lo que la fila muestra.
 
         Completado ofrece el informe y, para su coordinación, marcar como revisado.
-        Cancelado no dejó resultado, así que sigue sin menú.
+        Cancelado ofrece el informe con su motivo y las fotos que llegaron.
         """
 
         relevamiento.situacion = situacion_de(relevamiento, hoy)
         relevamiento.situacion_texto = Situacion.ETIQUETAS.get(relevamiento.situacion, relevamiento.situacion)
         realizado = relevamiento.estado == Estado.REALIZADA
-        relevamiento.con_acciones = relevamiento.en_curso or realizado
+        con_informe = realizado or relevamiento.estado == Estado.CANCELADA
+        relevamiento.con_acciones = relevamiento.en_curso or con_informe
         relevamiento.vence_relativo = (
             _vence_relativo(relevamiento.fecha_vencimiento, hoy) if relevamiento.en_curso else ""
         )
         relevamiento.menu_id = f"relevamiento-{relevamiento.pk}"
         relevamiento.menu_etiqueta = f"Más acciones del relevamiento de {relevamiento.edificio.nombre}"
-        if realizado:
+        if con_informe:
             consulta = vista.copy()
             consulta["tab"] = solapa
             relevamiento.url_informe = (

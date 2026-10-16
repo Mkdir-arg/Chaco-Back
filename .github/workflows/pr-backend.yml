@@ -354,6 +354,7 @@ jobs:
           core.tests.test_urls_del_front
           dashboard.tests.test_api_contrato
           programas.tests.test_becas_api_contrato
+          programas.tests.test_api_campo_inspecciones
           programas.tests.test_contratos_externos
           programas.tests.test_json_compatibilidad
           users.tests.test_rbac_contrato

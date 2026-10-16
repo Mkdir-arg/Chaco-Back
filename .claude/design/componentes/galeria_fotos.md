@@ -9,7 +9,7 @@ detalle de Dispositivos (`programas/templates/programas/dispositivos/legajo/deta
 una tanda por relevamiento.
 
 En P19, `fecha` es `InspeccionEdificio.realizada_en`, la misma del evento. Una foto de un
-relevamiento en curso omite fecha: no se rotula con la fecha de subida dentro de otra tanda.
+relevamiento en curso conserva su fecha de carga hasta que se registre la realización.
 `_evento_de_relevamiento` adapta los dicts de `fotos_para_galeria` solo para P19; el informe
 del relevamiento conserva su fecha de carga.
 

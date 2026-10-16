@@ -353,7 +353,10 @@ def _evento_de_relevamiento(inspeccion, fotos, con_edificio, *, ve_asignacion=Fa
     galeria = {
         "pk": inspeccion.pk,
         # P19 rotula la tanda por el relevamiento; el informe conserva su contrato propio.
-        "fotos": [{**foto, "fecha": inspeccion.realizada_en} for foto in fotos_para_galeria(inspeccion, fotos)],
+        "fotos": [
+            {**foto, "fecha": inspeccion.realizada_en or foto["fecha"]}
+            for foto in fotos_para_galeria(inspeccion, fotos)
+        ],
         "total_fotos": inspeccion.n_fotos,
         "enlace": enlace,
         "enlace_texto": "Ver informe",
@@ -378,6 +381,13 @@ def _evento_de_relevamiento(inspeccion, fotos, con_edificio, *, ve_asignacion=Fa
     }
     if semaforo.tono in _TONOS_CON_COLOR:
         evento["tono"] = semaforo.tono
+    if inspeccion.revisado_en is not None:
+        evento["badge"] = "Revisado"
+        evento["badge_tono"] = "success"
+        evento["detalle"] = " · ".join(parte for parte in (rotulos, semaforo.texto) if parte)
+        evento["cuando"] += (
+            f" · revisado por {_nombre(inspeccion.revisado_por)} el {_fecha_legible(inspeccion.revisado_en)}"
+        )
     return evento
 
 
