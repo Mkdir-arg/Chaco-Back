@@ -173,6 +173,10 @@ modal de preguntas generales. **Sin campo «Orden»** (Cambio 264): el formulari
 el alta entra al final de su lista, la edición conserva la posición y el orden se cambia
 arrastrando (ver *Drag & drop*); la fila de Tipo y Obligatorio queda en `sm:grid-cols-2` y
 `openEdit` / `openReqEdit` ya no reciben el orden.
+**Canal en la fila:** la celda Tipo de las cuatro listas y de las heredadas de solo lectura
+(`segmento_detail.html`, `subsegmento_detail.html`) repite el par de `_pregunta_row.html`:
+`badge badge-white` con el tipo y, si el canal no es «ambos», otro con `get_canal_display`. Nunca
+en `.js-lista-texto`, que lee el anuncio del drag & drop.
 `requisitos_segmento.html` y `subsegmento_detail.html` ya usan el helper de modales y las partes
 de header y pie; `segmento_detail.html` y `programa_detail.html` siguen con marcado propio hasta
 su propia migración.
@@ -284,7 +288,13 @@ de ítems sobre `bg-tertiary`), derecha la vista previa `xl:sticky` con toggle d
   `mTexto`, `mPropio`, `mEtiqueta`, `mCondicion`) que lee `modal === '…'` y, al ponerse en `false`,
   llama a `cerrar()`; el título dinámico Nuevo/Editar usa `titulo_x_text`.
   El modal de condición no usa el pie canónico: tiene un tercer botón condicional («Quitar
-  condición») en `justify-between`, y repite manualmente las clases del pie.
+  condición») en `justify-between`, y repite manualmente las clases del pie. Sus selects ofrecen
+  solo fuentes que se piden en todos los canales del ítem (una ya guardada fuera de canal queda
+  marcada «(no se pide en este canal)») y los operadores ofrecidos (`por_tipo`); uno solo
+  aceptado (`aceptados`) aparece únicamente en la regla que ya lo usa.
+- El aviso «El catálogo cambió desde la última vez» (`bg-warning-soft`) es una lista con una línea
+  por clave de `reconciliar`: agregados, quitados, condiciones quitadas y fuentes borradas del
+  catálogo («X → A, B»).
 - **Guardado en vivo:** cada mutación responde `{ok, target, html, datos}`; en error el JS restaura
   el HTML anterior y avisa con `toast('error', …)` — **sin toast de éxito**: el indicador
   `aria-live` del encabezado ya informa el guardado.

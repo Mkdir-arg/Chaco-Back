@@ -52,13 +52,46 @@
   }
   function grupos() { return datos.items.filter(function (i) { return i.tipo === 'grupo'; }); }
 
-  /** Campos anteriores a `clave` en el orden del formulario (RN-6). */
+  /** Canales donde se sirve `it`, con la cascada del padre: un campo «ambos»
+   *  dentro de un grupo solo-app no viaja al link. Espejo de `items_planos` del
+   *  servidor (mismo molde que `renderPreview`). */
+  function canalesServidos(it) {
+    var padre = it.padre ? itemPorClave(it.padre) : null;
+    var delPadre = padre ? canalesServidos(padre) : null;
+    var canal = it.canal || 'ambos';
+    return ['app', 'link'].filter(function (c) {
+      return (canal === 'ambos' || canal === c) && (!delPadre || delPadre.indexOf(c) !== -1);
+    });
+  }
+
+  /** Campos anteriores a `clave` en el orden del formulario (RN-6) que se piden
+   *  en **todos** los canales en que se pide el ítem: la regla de
+   *  `fuentes_fuera_del_canal` (BEC-04, issue 339); antes la rechazaba recién al guardar.
+   *  Un ítem que no se sirve en ningún canal no tiene con qué comparar: todo vale,
+   *  como en el servidor. Una fuente incompatible que la condición guardada ya usa
+   *  se mantiene, marcada, para no dejar su `<select>` vacío. */
   function fuentesPara(clave) {
+    var destino = itemPorClave(clave);
+    var servidos = destino ? canalesServidos(destino) : [];
+    var usadas = {};
+    ((destino && destino.condicion && destino.condicion.reglas) || []).forEach(function (r) {
+      if (r && r.fuente) { usadas[r.fuente] = true; }
+    });
     var fuentes = [];
     for (var i = 0; i < datos.items.length; i++) {
       var it = datos.items[i];
       if (it.clave === clave) { break; }
-      if (it.tipo === 'campo') { fuentes.push(it); }
+      if (it.tipo !== 'campo') { continue; }
+      var deLaFuente = canalesServidos(it);
+      var cubre = servidos.every(function (c) { return deLaFuente.indexOf(c) !== -1; });
+      if (cubre) {
+        fuentes.push(it);
+      } else if (usadas[it.clave]) {
+        var marcada = {};
+        for (var k in it) { if (Object.prototype.hasOwnProperty.call(it, k)) { marcada[k] = it[k]; } }
+        marcada.titulo = (it.titulo || it.clave) + ' (no se pide en este canal)';
+        fuentes.push(marcada);
+      }
     }
     return fuentes;
   }
@@ -554,9 +587,15 @@
         for (var i = 0; i < this.cond.fuentes.length; i++) { if (this.cond.fuentes[i].clave === clave) { return this.cond.fuentes[i]; } }
         return null;
       },
-      operadoresDe: function (clave) {
+      // `actual`: el operador de la regla. Uno que el editor ya no ofrece pero el
+      // servidor acepta (fecha «vacía/completa», issue 341) se muestra solo ahí.
+      operadoresDe: function (clave, actual) {
         var fu = this.fuente(clave);
-        return fu ? (operadores.por_tipo[fu.tipo_campo] || []) : [];
+        if (!fu) { return []; }
+        var lista = operadores.por_tipo[fu.tipo_campo] || [];
+        var aceptados = (operadores.aceptados || {})[fu.tipo_campo] || [];
+        if (actual && lista.indexOf(actual) === -1 && aceptados.indexOf(actual) !== -1) { lista = lista.concat([actual]); }
+        return lista;
       },
       opcionesDe: function (clave) {
         var fu = this.fuente(clave);

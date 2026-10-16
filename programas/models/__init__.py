@@ -4550,6 +4550,11 @@ class DisenoFormulario(TimeStamped):
         related_name="+",
         verbose_name="Actualizado por",
     )
+    # #339: lo que se borró del catálogo desde la última reconciliación. El ítem se va
+    # con CASCADE (DAT-01) antes de que `reconciliar` lo vea, así que la señal
+    # `pre_delete` deja acá qué era —{clave, titulo, padre, dependientes}— para que el
+    # aviso lo nombre y el grupo automático vacío se limpie. `reconciliar` lo vacía.
+    bajas_pendientes = models.JSONField(null=True, blank=True, verbose_name="Bajas del catálogo sin avisar")
 
     class Meta:
         verbose_name = "Diseño de formulario"
