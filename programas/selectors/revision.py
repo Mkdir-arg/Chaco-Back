@@ -281,15 +281,57 @@ def contexto_siis(formulario, user):
     }
 
 
-def contexto_respuestas(formulario):
+def apoderado_pedido(bloques, por_defecto=True):
+    """¿El formulario le pidió el apoderado a esta persona? (#347)
+
+    ``bloques`` son los de ``respuestas_legibles`` **completos**, antes de
+    ``sin_vinculados``: el grupo del apoderado es el que tiene los campos de
+    origen ``persona_vinculada``, y se pidió si alguno de esos grupos no quedó
+    oculto por su condición. Sin foto (o sin ese grupo en el diseño) vale
+    ``por_defecto``, que es ``True``: el Cambio 67 lo pide a todos por el link y
+    un caso anterior a la foto se puede completar desde la revisión.
+
+    Es la regla del Cambio 58 (D10) que se había perdido en el merge
+    ``efd368da``: la app de campo oculta el grupo a los adultos y
+    ``campo.aplicar_revision`` borra las columnas, así que ofrecerlo igual en la
+    revisión volvía a cargar un apoderado que nadie pidió.
+    """
+    if not bloques:
+        return por_defecto
+    con_apoderado = [b for b in bloques if any(i.get("origen") == "persona_vinculada" for i in b["items"])]
+    if not con_apoderado:
+        return por_defecto
+    return any(not b["oculto"] for b in con_apoderado)
+
+
+def version_vigente(formulario):
+    """La versión del diseño de la convocatoria hoy; 0 si no tiene diseño.
+
+    La vista trae el diseño en la consulta del caso (``select_related`` de la
+    relación inversa, un LEFT JOIN): leerlo acá no suma consultas. Sin diseño,
+    el acceso levanta ``RelatedObjectDoesNotExist``, que es un
+    ``AttributeError`` y ``getattr`` lo convierte en ``None``.
+    """
+    diseno = getattr(formulario.relevamiento.convocatoria, "diseno", None)
+    return diseno.version if diseno is not None else 0
+
+
+def contexto_respuestas(formulario, bloques_completos=None):
     """Lo que respondió la persona, en uno de los dos formatos que conviven.
 
     Cambio 58 (#347): un caso **con foto** del formulario se lee desde la foto y
     sale en un solo listado, en el orden en que se respondió; uno anterior a la
     foto sale en las tres listas históricas por alcance. Nunca los dos a la vez:
     el que no aplica viaja vacío.
+
+    ``bloques_completos``: los de ``respuestas_legibles`` si la vista ya los leyó
+    (para decidir el apoderado); así la foto se recorre una sola vez.
+    ``version_vigente`` deja avisar que el formulario cambió después de que la
+    persona respondió, solo cuando de verdad cambió.
     """
-    bloques = sin_vinculados(respuestas_legibles(formulario))
+    if bloques_completos is None:
+        bloques_completos = respuestas_legibles(formulario)
+    bloques = sin_vinculados(bloques_completos)
     if bloques is None:
         globales_list, requisitos_segmento, requisitos_subsegmento = respuestas_resueltas(formulario)
     else:
@@ -299,4 +341,5 @@ def contexto_respuestas(formulario):
         "globales_list": globales_list,
         "requisitos_segmento": requisitos_segmento,
         "requisitos_subsegmento": requisitos_subsegmento,
+        "version_vigente": version_vigente(formulario),
     }

@@ -96,6 +96,14 @@ renderizado con su valor y con `nodo-field`: esconderlo dejaría la pantalla sin
 que el operador necesita leer, y `disabled` además hace que Django ignore lo que venga en el
 POST, así que la regla no depende del navegador.
 
+**Un campo que el formulario no pidió sale del form, no se deshabilita.** Es el caso opuesto al
+congelado: no hay dato que leer. En la revisión de Becas, si la foto del caso ocultó el grupo
+Apoderado y el caso no trae apoderado, `FormularioRevisionForm(pide_apoderado=False)` saca los cinco
+`apoderado_*` y `_contacto.html` dibuja el badge «No se pidió» en su lugar. Sacarlo del form —no
+solo del template— es lo que evita que el POST, que llega sin esos campos, vacíe las columnas o
+exija el dato. Si el caso ya tiene un apoderado cargado, el form lo pide igual y el control se
+dibuja con su valor.
+
 ## Selector múltiple apilado
 
 El contenedor del campo lleva `.nodo-checks`: el widget de Django queda como grilla de filas
