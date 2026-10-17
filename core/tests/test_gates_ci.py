@@ -174,6 +174,9 @@ CHECKS_OBLIGATORIOS = {
     "Pip Audit",
     "Sin datos personales",
     "Ruff errores",
+    # Pendiente del Cambio 320: con `continue-on-error` el merge lo dejaba pasar en rojo,
+    # pero `publish-main.yml` no publicaba. Lo que frena el release frena el merge.
+    "Ruff estilo",
     "Validate inventory and authority",
     # RED-24, Cambio 128: la ficha de RED-20 ya lo anticipaba («los checks nuevos se
     # suman a la lista cuando existan»).
@@ -249,7 +252,7 @@ class RulesetsPropuestosTests(SimpleTestCase):
             [{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always"}],
         )
 
-    def test_el_ruleset_de_development_exige_exactamente_estos_diez_checks(self):
+    def test_el_ruleset_de_development_exige_exactamente_estos_checks(self):
         """Sacar un `context` del JSON no puede pasar en silencio.
 
         Todos los demás tests leen la lista del propio archivo, así que borrar
@@ -351,17 +354,26 @@ class RuffBloqueanteTests(SimpleTestCase):
         comandos = " ".join(paso.get("run", "") for paso in job["steps"])
         self.assertIn("--select F", comandos)
 
-    def test_el_job_de_estilo_sigue_sin_bloquear(self):
-        """Hoy da 0 y desde el Cambio 196 Ruff está pineado (`requirements-ci.txt`,
-        RED-85), que era la condición técnica que faltaba. Encenderlo —sacarle el
-        `continue-on-error` y sumarlo al ruleset— lo decide el PM, y mientras tanto este
-        test fija el estado que hay.
+    def test_el_job_de_estilo_bloquea_y_es_obligatorio(self):
+        """Pendiente del Cambio 320: lo que frena el release tiene que frenar el merge.
+
+        Con `continue-on-error` a nivel job el merge pasaba, pero el check-run quedaba en
+        `failure` y `publish-main.yml` no publica un release de un PR con un check rojo:
+        el 16/10 «Ruff estilo» estuvo rojo en todos los PRs desde el #879 y `main` quedó
+        congelada sin que nadie lo notara. Volver a ponerle `continue-on-error`, o
+        sacarlo del ruleset, reabre exactamente eso.
         """
         job = self._job("Ruff estilo")
 
-        self.assertTrue(job.get("continue-on-error"))
+        self.assertNotIn("continue-on-error", job)
+        for paso in job["steps"]:
+            with self.subTest(paso=paso.get("name") or paso.get("uses")):
+                self.assertNotIn("continue-on-error", paso)
+        self.assertIn("Ruff estilo", _contextos_obligatorios())
+        self.assertIn("Ruff estilo", CHECKS_OBLIGATORIOS)
         comandos = " ".join(paso.get("run", "") for paso in job["steps"])
         self.assertIn("E,W,I", comandos)
+        self.assertIn("ruff format --check", comandos)
 
     def test_el_job_de_estilo_no_reporta_las_lineas_largas_que_el_repo_ignora(self):
         """Un `--select` por línea de comandos pisa también el `ignore` de `pyproject.toml`.
@@ -1086,6 +1098,15 @@ class ReleaseGateTests(SimpleTestCase):
     def test_la_lista_vacia_de_obligatorios_tambien_frena_el_release_gate(self):
         self.assertRegex(self.texto, r'if \[ ! -s "\$RUNNER_TEMP/obligatorios\.txt" \]')
         self.assertIn("no declara ningún check obligatorio", self.texto)
+
+    def test_un_rojo_no_obligatorio_dice_que_el_merge_lo_dejo_pasar(self):
+        """Mismo mensaje que `publish-main.yml` (pendiente del Cambio 320)."""
+        self.assertIn("check NO obligatorio en rojo", self.texto)
+        self.assertIn("el merge lo permitió", self.texto)
+        self.assertLess(
+            self.texto.index('> "$RUNNER_TEMP/obligatorios.txt"'),
+            self.texto.index('done < "$RUNNER_TEMP/checks.tsv"'),
+        )
 
     def test_no_corre_en_pull_request(self):
         """Un check que corre en PRs y filtra por rutas queda «expected» para siempre.
