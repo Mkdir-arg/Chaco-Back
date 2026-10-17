@@ -42424,6 +42424,8 @@ La reversión restituye las fugas de identidad y la discrepancia de permanencia 
 
 ---
 
+---
+
 # Cambio 325 — Cierre GK: privacidad, concurrencia y matriz final del MVP
 
 🟢 **HECHO — 17/10/2026** · Carril GK. Número siguiente disponible, provisional hasta la numeración del juez.
