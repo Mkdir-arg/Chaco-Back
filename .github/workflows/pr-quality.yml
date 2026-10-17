@@ -52,16 +52,18 @@ jobs:
         if: steps.filtro.outputs.python == 'true'
         run: ruff check . --select F --output-format=github
 
-  # El estilo sigue sin bloquear, como pide RED-63. Hoy da 0 y desde el Cambio 196 la
-  # versión de Ruff está fija en `requirements-ci.txt` (RED-85), que era la condición que
-  # faltaba: un release con una regla E/W nueva ya no puede volver rojo un PR que no
-  # cambió nada. Encenderlo —sacarle el `continue-on-error` y sumarlo al ruleset— es una
-  # decisión del PM, no un cambio técnico, y no se toma acá.
+  # Bloquea desde el pendiente del Cambio 320 (decisión del PM, 17/10/2026). Nació no
+  # bloqueante (RED-63) y con `continue-on-error` a nivel job el merge pasaba, pero su
+  # check-run quedaba en `failure` y `publish-main.yml` no publica un release de un PR con
+  # un check en rojo: el 16/10 dos scripts sin formato lo dejaron rojo en todos los PRs
+  # desde el #879 y `main` quedó congelada sin que nadie lo notara. Lo que frena el
+  # release tiene que frenar el merge. La versión de Ruff está fija en
+  # `requirements-ci.txt` (RED-85, Cambio 196): una regla E/W nueva solo puede aparecer en
+  # el PR que sube el pin, no en uno que no cambió nada.
   ruff-estilo:
     name: Ruff estilo
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v7

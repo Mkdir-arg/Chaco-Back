@@ -95,14 +95,6 @@ jobs:
             exit 1
           fi
 
-          fail=0
-          while IFS=$'\t' read -r nombre conclusion; do
-            case "$conclusion" in
-              success|neutral|skipped) ;;
-              *) echo "::error::check no exitoso en el PR ($head): $nombre ($conclusion)"; fail=1 ;;
-            esac
-          done < "$RUNNER_TEMP/checks.tsv"
-
           # El ruleset se lee del **head del PR**, igual que en `publish-main.yml` y por el
           # mismo motivo: es el contrato que estaba vigente cuando ese PR corrió su CI.
           # Tampoco sirve el árbol donde estamos parados —el de `main`—, porque ahí el
@@ -118,16 +110,34 @@ jobs:
               echo "::error::el ruleset de $head no declara ningún check obligatorio: ¿cambió su formato?"
               exit 1
             fi
-            while IFS= read -r contexto; do
-              [ -n "$contexto" ] || continue
-              if ! cut -f1 "$RUNNER_TEMP/checks.tsv" | grep -Fxq "$contexto"; then
-                echo "::error::el PR ($head) no corrió el check obligatorio «$contexto»"
-                fail=1
-              fi
-            done < "$RUNNER_TEMP/obligatorios.txt"
           else
             echo "::warning::el head del PR ($head) no tiene ruleset versionado: solo se exige que no haya checks rojos"
+            : > "$RUNNER_TEMP/obligatorios.txt"
           fi
+
+          # Mismo criterio que `publish-main.yml`: todo check en rojo frena, también los
+          # que el merge no exige, y el mensaje dice cuál de los dos es (pendiente del
+          # Cambio 320).
+          fail=0
+          while IFS=$'\t' read -r nombre conclusion; do
+            case "$conclusion" in
+              success|neutral|skipped) continue ;;
+            esac
+            fail=1
+            if grep -Fxq -- "$nombre" "$RUNNER_TEMP/obligatorios.txt"; then
+              echo "::error::check obligatorio no exitoso en el PR ($head): $nombre ($conclusion)"
+            else
+              echo "::error::check NO obligatorio en rojo: $nombre ($conclusion, PR $head); el merge lo permitió pero el release no está verificado — arreglarlo en un PR y verificar el release que salga de ese merge"
+            fi
+          done < "$RUNNER_TEMP/checks.tsv"
+
+          while IFS= read -r contexto; do
+            [ -n "$contexto" ] || continue
+            if ! cut -f1 "$RUNNER_TEMP/checks.tsv" | grep -Fxq -- "$contexto"; then
+              echo "::error::el PR ($head) no corrió el check obligatorio «$contexto»"
+              fail=1
+            fi
+          done < "$RUNNER_TEMP/obligatorios.txt"
 
           [ "$fail" = "0" ] || exit 1
           echo "PR verde en $head ($(wc -l < "$RUNNER_TEMP/checks.tsv") checks)"

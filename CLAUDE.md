@@ -376,7 +376,8 @@ repo**; hasta entonces, no mergear en rojo es una regla del proceso, no un mecan
 - **Security** — `pip-audit` (`Pip Audit`), con las excepciones de
   `security/excepciones.toml`, que vencen.
 - **Datos** — `Sin datos personales`: ningún volcado de personas entra al repo.
-- **Code Quality** — `Ruff errores` (`ruff check . --select F`) y `Contratos del repo`: las condiciones de cierre de
+- **Code Quality** — `Ruff errores` (`ruff check . --select F`), `Ruff estilo` (E, W, I y `ruff format --check`, con
+  la versión de `requirements-ci.txt`) y `Contratos del repo`: las condiciones de cierre de
   este archivo, corridas en el CI (sintaxis de todos los templates, `requerimientos.py --check`, `collectstatic` con el
   almacenamiento con manifest y el ratchet de `design_audit` contra `.design-audit-ratchet`).
 - **Design Agent Contract** — `Validate inventory and authority`: contrato y límites del
@@ -387,9 +388,11 @@ Los dos últimos corren en **todos** los PRs: el filtro por rutas está adentro 
 así que cuando el PR no toca Python o UI el check termina en verde sin hacer nada. Un
 check con `paths:` en el trigger no puede ser obligatorio, porque no reporta nunca.
 
-No bloquean (`continue-on-error`): `Ruff estilo` (E, W, I y formato), `Tipos (mypy)`,
-`Orden y paralelo`, Bandit y dependency-review. Igual se dejan en verde salvo que el rojo
-sea preexistente y ajeno al cambio.
+No bloquean el merge (`continue-on-error`): `Tipos (mypy)`, `Orden y paralelo`, Bandit y
+dependency-review. **Pero un rojo que el merge deja pasar SÍ frena `Publish main`** (y el
+`Release gate`): Bandit y dependency-review son `continue-on-error` a nivel job, su check
+queda rojo y `main` no se publica —lo mismo con `Motor real` y `Migrate ida y vuelta`—;
+mypy y `Orden y paralelo` lo llevan en el paso y su check queda verde. Así que se dejan en verde.
 
 `Tipos (mypy)` (RED-76) corre **solo sobre el alcance declarado** en `files` de
 `[tool.mypy]` (`pyproject.toml`); fuera de esa lista mypy no mira nada. El alcance crece
