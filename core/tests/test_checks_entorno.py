@@ -274,6 +274,25 @@ class AmbienteNoProductivoTests(SimpleTestCase):
         with override_settings(DEBUG=True, ALLOWED_HOSTS=["localhost", "127.0.0.1", "*"]):
             self.assertTrue(ambiente_no_productivo())
 
+    def test_el_puerto_y_el_punto_final_no_esconden_a_produccion(self):
+        """Un host con puerto o con el punto final de FQDN sigue siendo PRD: si no
+        se normalizara, la guarda fallaría hacia el lado no seguro (PRD sin altas)."""
+        for host in (f"{PRD}:8000", f"{PRD}.", f"{PRD.upper()}.:443", " .chaco.gob.ar. "):
+            with self.subTest(host=host), override_settings(ALLOWED_HOSTS=[host, TESTING]):
+                self.assertFalse(ambiente_no_productivo())
+
+    def test_el_puerto_y_el_punto_final_no_esconden_a_testing(self):
+        for host in (f"{TESTING}:443", f"{TESTING}.", f"{ICORE}.:8000"):
+            with self.subTest(host=host), override_settings(ALLOWED_HOSTS=[host, "app"]):
+                self.assertTrue(ambiente_no_productivo())
+
+    def test_un_host_ipv6_no_rompe(self):
+        for host in ("[::1]", "[::1]:8000", "::1", "[", "[::1", ":", "."):
+            with self.subTest(host=host), override_settings(ALLOWED_HOSTS=[host]):
+                self.assertFalse(ambiente_no_productivo())
+            with self.subTest(host=host, con="testing"), override_settings(ALLOWED_HOSTS=[host, TESTING]):
+                self.assertTrue(ambiente_no_productivo())
+
     def test_localhost_sin_debug_no_alcanza(self):
         """El CI y el release-gate corren con ``DEBUG=False`` y ``localhost``: eso no dice nada."""
         with override_settings(ALLOWED_HOSTS=["localhost", "testserver"]):
@@ -306,3 +325,21 @@ class EscrituraSiisBloqueadaTests(SimpleTestCase):
     @override_settings(ALLOWED_HOSTS=[TESTING], SIIS_API_URL="https://siisapi.ecomdev.ar.atacante.com")
     def test_un_host_que_solo_contiene_ecomdev_se_bloquea(self):
         self.assertTrue(escritura_siis_bloqueada())
+
+    @override_settings(ALLOWED_HOSTS=[f"{PRD}:8000", TESTING], SIIS_API_URL=SIIS_PRD)
+    def test_produccion_con_puerto_en_el_host_escribe(self):
+        self.assertFalse(escritura_siis_bloqueada())
+
+    @override_settings(ALLOWED_HOSTS=[f"{PRD}.", TESTING], SIIS_API_URL=SIIS_PRD)
+    def test_produccion_con_punto_final_en_el_host_escribe(self):
+        self.assertFalse(escritura_siis_bloqueada())
+
+    @override_settings(ALLOWED_HOSTS=[f"{TESTING}:443"], SIIS_API_URL=f"{SIIS_PRD}:8443/api")
+    def test_testing_con_puerto_contra_el_siis_de_produccion_se_bloquea(self):
+        self.assertTrue(escritura_siis_bloqueada())
+
+    @override_settings(ALLOWED_HOSTS=[TESTING], SIIS_API_URL="https://SiisApi.EcomDev.ar.:443/api")
+    def test_el_siis_de_desarrollo_con_puerto_y_punto_final_escribe(self):
+        """``urlparse(...).hostname`` ya quita el puerto y pasa a minúsculas, pero
+        conserva el punto final de FQDN: lo saca la normalización."""
+        self.assertFalse(escritura_siis_bloqueada())

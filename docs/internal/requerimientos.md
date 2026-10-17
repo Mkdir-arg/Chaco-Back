@@ -454,6 +454,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 326 | Cierre GL: tres MINOR R3 de P4 y selección de edificios | Dispositivos · auditoría final | `#ui` `#rbac` `#relevamientos` `#performance` | PM — encargo directo, carril GL | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 327 | Cierre GM: «Apellido, Nombre» en P7 y en el resto del MVP | Dispositivos · auditoría final | `#ui` `#rbac` `#textos` | PM — encargo directo, carril GM | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 328 | «Ruff estilo» bloquea el merge y el release dice qué check no obligatorio lo frena | Transversal · CI y release | `#infra` `#gestion` | Pendiente del Cambio 320 | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 329 | Guarda de SIIS: el host se normaliza (puerto, punto final, IPv6) | Becas · alta en SIIS (guarda de ambiente) | `#siis` `#infra` | Revisor PR #883 — MINOR del Cambio 318 (issue #569) | 17/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -43001,3 +43002,81 @@ que bloquear (o al menos verse) en el merge.
 Revertir el commit. Si el ruleset ya se aplicó en GitHub, sacar también «Ruff estilo» con
 el `PUT` de `rulesets.md` §2, o el merge queda esperando un check que ya no es obligatorio
 (y sigue corriendo, así que no se traba).
+
+---
+
+# Cambio 329 — Guarda de SIIS: el host se normaliza (puerto, punto final, IPv6)
+
+🟢 **HECHO — 17/10/2026** · Precisión del Cambio 318.
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta en SIIS (guarda de ambiente) |
+| **Etiquetas** | `#siis` `#infra` |
+| **Solicitante** | Revisor del PR #883 (MINOR del Cambio 318) |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | #569 |
+| **Partes afectadas** | Servidor/API · Infra/ECOM |
+| **Migración** | No requiere |
+
+## Pedido original
+
+`_bajo_dominio` —la base de `ambiente_no_productivo`, `escritura_siis_bloqueada` y
+`es_host_de_desarrollo`— no sacaba el puerto ni el punto final de FQDN. Con
+`datanach.chaco.gob.ar:8000` o `datanach.chaco.gob.ar.` en `ALLOWED_HOSTS` junto a un host de
+`ecomdev.ar`, PRD no se reconocía y la guarda del Cambio 318 fallaba hacia el lado no seguro:
+producción sin altas en SIIS.
+
+## Alcance acordado
+
+Normalizar el host antes de comparar dominios. Sin cambios de comportamiento para los hosts
+que ya se reconocían.
+
+## Decisiones tomadas
+
+- **`_normalizar_host`**: minúsculas, sin puerto y `strip(".")` en los dos extremos (el punto
+  inicial es el comodín de subdominios de `ALLOWED_HOSTS`, que ya se ignoraba; el final, el FQDN
+  absoluto). Una IPv6 entre corchetes (`[::1]:8000`) queda en `::1`; sin corchetes no se toca,
+  porque sus `:` no son un puerto. Entradas rotas (`[`, `:`, `.`) dan cadena vacía, sin excepción.
+- **`SIIS_API_URL`** sigue por `urlparse(url).hostname`, que ya quita puerto y credenciales y
+  pasa a minúsculas (verificado), pero conserva el punto final: ahora también lo saca la
+  normalización, así que `https://siisapi.ecomdev.ar.:443` cuenta como desarrollo.
+- Lo demás del Cambio 318 queda igual (falla hacia PRD, dominio entero y no substring).
+
+## Implementación
+
+Antes de comparar dominios, el host se normaliza. PRD se reconoce aunque `ALLOWED_HOSTS` lo
+liste con puerto o con punto final, y la guarda deja de bloquear sus altas en ese caso. Los
+hosts que ya se reconocían se comportan igual.
+
+## Archivos
+
+- `core/checks.py` — `_normalizar_host` (nueva) y `_bajo_dominio`, que la usa.
+- `core/tests/test_checks_entorno.py` — casos de puerto, punto final e IPv6.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Tests nuevos en `core/tests/test_checks_entorno.py`: `datanach.chaco.gob.ar:8000`,
+  `datanach.chaco.gob.ar.`, mayúsculas con `.:443` y ` .chaco.gob.ar. ` cuentan como PRD aunque
+  haya un host de testing; `datanach.ecomdev.ar:443` y variantes cuentan como testing; IPv6 y
+  entradas rotas no rompen; `escritura_siis_bloqueada` con puerto y punto final de los dos lados.
+- **Mutación:** `_bajo_dominio` sin normalizar (la versión anterior) → 11 fallos; restaurado → verde.
+- `manage.py test core` y `manage.py check --deploy` en verde; Ruff sin hallazgos.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit. No hay datos que se pierdan.
+
+---
