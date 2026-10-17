@@ -456,6 +456,132 @@ def grupos_referentes_becas(programa=None):
     return _grupos_con_capacidad(CAP_REFERENTE, programa=programa)
 
 
+# ---------------------------------------------------------------------------
+# Roles de Becas que no se pisan (Cambio 333)
+#
+# Un usuario puede tener varios roles, pero de los cuatro que fijan un alcance en
+# Becas —Administrador, Referente, Coordinador Regional, Coordinador— a lo sumo uno:
+# las funciones de arriba los evalúan en órdenes distintos (``segmentos_visibles``
+# mira primero al Referente y ``convocatorias_visibles`` al Regional), así que dos a
+# la vez dejan a la persona con convocatorias que abre y relevamientos que le dan 403.
+# La clasificación es **por capacidad**, nunca por nombre de grupo, y con la misma
+# precedencia que esas funciones.
+# ---------------------------------------------------------------------------
+ALCANCE_ADMINISTRADOR = "administrador"
+ALCANCE_REFERENTE = "referente"
+ALCANCE_COORDINADOR_REGIONAL = "coordinador_regional"
+ALCANCE_COORDINADOR = "coordinador"
+
+MENSAJE_ROLES_SE_PISAN = (
+    "Los roles «{a}» y «{b}» no se pueden combinar: sus alcances en Becas se pisan. "
+    "Un usuario puede sumar Territorial o roles de otros programas, pero solo uno entre "
+    "Administrador, Coordinador, Coordinador Regional y Referente de Becas."
+)
+#: Variante para el operador no global cuando el otro rol queda fuera de su alcance:
+#: no lo ve en el selector, así que tampoco se le nombra.
+MENSAJE_ROL_SE_PISA_CON_OCULTO = (
+    "El rol «{a}» no se puede combinar con un rol que el usuario ya tiene fuera de tu alcance: "
+    "sus alcances en Becas se pisan. Un usuario puede sumar Territorial o roles de otros programas, "
+    "pero solo uno entre Administrador, Coordinador, Coordinador Regional y Referente de Becas."
+)
+
+
+def _alcance_de_capacidades(codigos):
+    """Tipo de alcance en Becas que fijan ``codigos``, o ``None``.
+
+    El orden es la precedencia de las funciones de alcance de este módulo, y no es
+    decorativo: el Administrador sembrado también tiene ``becas.referente`` y
+    ``becas.coordinador_regional``, y el Referente y el Regional también cuentan como
+    ``CAPS_GESTION``.
+    """
+    if CAP_ADMINISTRAR in codigos:
+        return ALCANCE_ADMINISTRADOR
+    if CAP_REFERENTE in codigos:
+        return ALCANCE_REFERENTE
+    if CAP_COORD_REGIONAL in codigos:
+        return ALCANCE_COORDINADOR_REGIONAL
+    if not codigos.isdisjoint(CAPS_GESTION):
+        return ALCANCE_COORDINADOR
+    return None
+
+
+def alcances_becas_de_roles(grupos, programa=None):
+    """``{pk del rol: tipo de alcance}`` de los roles que fijan un alcance en Becas.
+
+    Cuentan solo los roles **activos** del Programa Becas (``RolMeta.programa``): un
+    rol inactivo no otorga nada (``rbac.puede`` no lo mira) y un rol de otro programa
+    o global no evalúa alcance de Becas. Territorial (solo ``becas.campo``) no
+    aparece. Una sola consulta para todos los roles, sobre la tabla intermedia.
+    """
+    from django.contrib.auth.models import Group
+
+    ids = {getattr(g, "pk", g) for g in grupos} - {None}
+    if not ids:
+        return {}
+    programa = programa or programa_becas()  # sin ``user`` a mano: no hay memo por request
+    if programa is None:
+        return {}
+    por_codename = {rbac.codename_de(c): c for c in (CAP_ADMINISTRAR, *CAPS_GESTION)}
+    filas = Group.permissions.through.objects.filter(
+        group_id__in=ids,
+        group__meta__activo=True,
+        group__meta__programa=getattr(programa, "pk", programa),
+        permission__codename__in=list(por_codename),
+    ).values_list("group_id", "permission__codename")
+    capacidades = {}
+    for grupo_id, codename in filas:
+        capacidades.setdefault(grupo_id, set()).add(por_codename[codename])
+    alcances = {grupo_id: _alcance_de_capacidades(codigos) for grupo_id, codigos in capacidades.items()}
+    return {grupo_id: tipo for grupo_id, tipo in alcances.items() if tipo}
+
+
+def alcance_becas_de_rol(grupo, programa=None):
+    """Tipo de alcance en Becas de un rol (``administrador``, ``referente``,
+    ``coordinador_regional``, ``coordinador``) o ``None``."""
+    return alcances_becas_de_roles([grupo], programa=programa).get(grupo.pk)
+
+
+def roles_becas_que_se_pisan(grupos, programa=None):
+    """Pares ``(rol, rol)`` de ``grupos`` cuyos alcances en Becas se pisan.
+
+    Dos roles chocan si fijan tipos de alcance **distintos**; dos del mismo tipo se
+    suman sin problema, y los que no fijan ninguno (Territorial, otros programas,
+    globales) se combinan con cualquiera. Devuelve un par por cada combinación de
+    tipos, con los nombres en orden alfabético, para que el mensaje sea estable.
+    """
+    grupos = [g for g in grupos if getattr(g, "pk", None)]
+    alcances = alcances_becas_de_roles(grupos, programa=programa)
+    representante = {}
+    for grupo in sorted(grupos, key=lambda g: (g.name.casefold(), g.pk)):
+        tipo = alcances.get(grupo.pk)
+        if tipo and tipo not in representante:
+            representante[tipo] = grupo
+    elegidos = list(representante.values())
+    pares = []
+    for i, primero in enumerate(elegidos):
+        for segundo in elegidos[i + 1 :]:
+            pares.append(tuple(sorted((primero, segundo), key=lambda g: (g.name.casefold(), g.pk))))
+    return pares
+
+
+def errores_roles_becas_que_se_pisan(grupos, visibles=None, programa=None):
+    """Mensajes de error, uno por par de roles que se pisan (vacío si no hay).
+
+    ``visibles`` son los ids de rol que ve quien opera (``None`` = todos). Un par en
+    el que no ve ninguno de los dos no se le reporta: no lo puede resolver, y
+    bloquearle la edición entera por eso lo dejaría sin poder tocar ni el teléfono.
+    Si ve uno solo, el otro no se nombra.
+    """
+    errores = []
+    for primero, segundo in roles_becas_que_se_pisan(grupos, programa=programa):
+        if visibles is None or (primero.pk in visibles and segundo.pk in visibles):
+            errores.append(MENSAJE_ROLES_SE_PISAN.format(a=primero.name, b=segundo.name))
+        elif primero.pk in visibles or segundo.pk in visibles:
+            visible = primero if primero.pk in visibles else segundo
+            errores.append(MENSAJE_ROL_SE_PISA_CON_OCULTO.format(a=visible.name))
+    return errores
+
+
 class SegmentoScopedMixin:
     """Mixin para CBV de Becas: scoping por segmento.
 
