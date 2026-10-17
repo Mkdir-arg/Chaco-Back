@@ -80,7 +80,7 @@ for k in sorted(mes_h):
     print(f"  {k}: {hm(mes_h[k])} en filas")
 
 print("\n=== 2. Totales mensuales publicados vs filas ===")
-DECL = {"06": 499 + 12 / 60, "07": 500.0, "08": 803.5, "09": 839.0, "10": 371.0}
+DECL = {"06": 499 + 12 / 60, "07": 500.0, "08": 803.5, "09": 839.0, "10": 430.5}
 for k in sorted(DECL):
     ok(abs(mes_h.get(k, 0) - DECL[k]) < 0.02, f"{k}: publicado {hm(DECL[k])} vs filas {hm(mes_h.get(k, 0))}")
 
@@ -199,7 +199,8 @@ ok(hm(oct_t) in idx, f"índice: consumido de octubre {hm(oct_t)}")
 ok(hm(saldo) in idx, f"índice: saldo de octubre {hm(saldo)}")
 ok(f"({pct}%)" in idx, f"índice: porcentaje de octubre {pct}%")
 corto = hm(oct_t).replace(" h ", "h ").replace(" min", "min")
-ok(corto in port, f"portada: consumido de octubre «{corto}»")
+breve = f"{int(oct_t)}h" if not oct_t % 1 else corto  # en punto, la portada escribe «523h»
+ok(corto in port or breve in port, f"portada: consumido de octubre «{corto}» o «{breve}»")
 ok(f"({pct}%)" in port, f"portada: porcentaje de octubre {pct}%")
 ok("942 h 30 min" in leer(os.path.join(FIN, "mes-2026-09.md")) and "92 h 30 min" in leer(os.path.join(FIN, "mes-2026-10.md")), "cadena del traslado septiembre → octubre")
 
