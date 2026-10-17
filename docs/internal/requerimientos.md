@@ -450,6 +450,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 322 | Auditoría final del relevamiento edilicio | Dispositivos · P2/P4/P19/P21 y API de campo | `#relevamientos` `#ui` `#api` `#performance` | PM / juez — carril G3 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 323 | Auditoría final del MVP de Dispositivos: formularios y modales (carril G4) | Dispositivos · alta de institución, listado, asistente de ingreso, bitácora y modales AJAX | `#ui` `#rbac` `#textos` `#datos` | PM — auditoría final del MVP v2 | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 324 | P4: identidad protegida, permanencia de calendario e indicadores grandes | Dispositivos · detalle institucional | `#rbac` `#ui` `#datos` | PM — auditoría final MVP v2, carril G2 | 16/10/2026 | 🟢 **Hecho** | No requiere |
+| 325 | Cierre GK: privacidad, concurrencia y matriz final del MVP | Dispositivos · auditoría final | `#rbac` `#ui` `#relevamientos` `#gestion` | PM — encargo directo, carril GK | 17/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -42420,5 +42421,162 @@ el responsable de esa funcionalidad. El juez asigna el número definitivo de est
 
 Revertir el commit de código y el de documentación. No hay datos ni migraciones que revertir.
 La reversión restituye las fugas de identidad y la discrepancia de permanencia anteriores.
+
+---
+
+---
+
+# Cambio 325 — Cierre GK: privacidad, concurrencia y matriz final del MVP
+
+🟢 **HECHO — 17/10/2026** · Carril GK. Número siguiente disponible, provisional hasta la numeración del juez.
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P4 / auditoría / relevamientos |
+| **Etiquetas** | `#rbac` `#ui` `#relevamientos` `#gestion` |
+| **Solicitante** | PM — encargo directo de implementación, carril GK de la auditoría final |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | Épica #127; sin issue nuevo |
+| **Partes afectadas** | Backoffice P4 · Servidor/selectores · tests de CI y concurrencia · documentación interna |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cerrar los seis MINOR de las revisiones de G2/G3, probar las guardas con mutaciones y
+concurrencia real y consolidar la matriz final de los seis informes, comprobando el código
+integrado después de los Cambios 321–324. Trabajar únicamente en `mvp-gk`, sin PR.
+
+## Alcance acordado
+
+P4: rótulos accesibles distinguibles sin identidad y una sola fuente del nombre visible.
+Defaults de auditoría cerrados; ficha de stat card coherente; test del gate de API en su clase;
+asignación frente a última desvinculación. Matriz interna con evidencia, apartamientos y límites.
+No se modifican roles, seeds, piezas compartidas de UI, esquema ni otros worktrees.
+
+## Decisiones tomadas
+
+Las catorce decisiones del PM quedan ratificadas, con su implementación anterior o recorte:
+
+1. Identidad oculta en P4 sin `ciudadano.ver`, conservando la fila (324).
+2. Alta de institución solo por administrador del programa (323).
+3. Franja grande con tonos; P4/P19 conserva ambas franjas como excepción acotada (324/325).
+4. Destino obligatorio también en el servicio de egreso (321).
+5. Foto nueva tras revisión rechazada; reenvío previo idempotente conservado (322).
+6. Crítico prevalece sobre Vencido (322).
+7. Hueco de P10 dibujado sin acciones si tiene movimientos o descuadre (323).
+8. Asteriscos del mockup referidos a validación, sobre los siete campos reales (323).
+9. Sin avatar de persona en P4 (324).
+10. Reservada/Prestada, indicador y Liberar permanecen; sin alta nueva de reservas/préstamos.
+11. Cambios de estado de la estadía en el MVP son ingreso/egreso (regla de 273).
+12. Reactivación de institución fuera del MVP, §3 del alcance público.
+13. Avisos por cron fuera del MVP; Dispositivos los calcula al consultar P4.
+14. No rediseñar piezas compartidas de todo el sistema: header, filtros, footer y geometría
+    móvil conservan sus apartamientos. Se preservan los arreglos expresamente encargados
+    de AJAX (323) y stat card (324).
+
+Para GK, el menú sin identidad usa sector · plaza y, sin plaza, el ingreso visible. Con
+capacidad conserva la etiqueta nominal anterior. La celda usa siempre `persona_visible`;
+solo el DNI queda dentro de la condición. No se introduce una segunda regla de identidad.
+
+Los tres puntos de entrada del selector optan por `puede_ver_personas=False`. El servicio
+sin usuario no habilita nombres; la vista pasa el usuario explícito. Las pruebas que
+verifican el formato nominal solicitan el opt-in o pasan un lector con capacidad.
+
+**La inspección de código corrigió la premisa del punto A.6:** `crear_inspeccion` ya tenía
+`Edificio.objects.select_for_update()`, pero validaba alcance antes del lock. Se conserva
+el candado sin JOIN y se relee alcance después de esperar. Se rechaza también el edificio
+sin instituciones, incluso para admin: si la última desvinculación ganó, no se crea trabajo
+huérfano. Si ganó la asignación, la desvinculación recibe la guarda de 322.
+
+## Implementación
+
+Un operador sin acceso a identidad distingue los menús de las estadías por información de
+la fila, sin nombre ni DNI en el rótulo. Los lectores internos de historial tampoco exponen
+nombres si se omite el usuario o el opt-in. Asignar y desvincular se serializan sobre el mismo
+edificio y no dejan un relevamiento en curso sin institución vinculada.
+
+La [matriz final](dispositivos-v2/auditoria-mvp.md) consolida los seis informes: una fila por
+promesa del §2, P2–P21, los seis procesos, cada MAJOR/MINOR y su cierre, las catorce decisiones,
+checklist de roles y límites externos. Los ✅ de móvil se limitan al servidor; la APK y las
+pruebas entre repositorios siguen sin verificación. No se declara «100 %» global.
+
+## Plan de pantalla
+
+- **Tipo A:** ajuste de P4 existente; arquetipo Detalle con solapas, golden
+  `programas/templates/programas/becas/cupo/segmento_detail.html`. Sin pantalla nueva.
+- **Ruta/template final:** `dispositivos:detalle` → `programas/dispositivos/legajo/detail.html`.
+- **Bloque:** columna Persona y etiqueta de `menu_fila` en Estadías; contexto de vista existente.
+- **Clasificación:** tabla y menú canónicos reutilizables. Se conserva el shell `includes/base.html`,
+  `components/_menu_fila.html`, `_menu_fila_item.html`, Tailwind, tokens, `nodo-menu-fila.css/js`
+  y `nodo-tabs.js` ya cargados. No se modifica ningún include compartido ni asset.
+- **Mockup leído:** `docs/client/mockups/dispositivos-v2.html#p4`; misma fila y textos de acción.
+- **Novedades:** ninguna; textos y atributos de contexto, sin clases, variantes ni includes nuevos.
+- **Fichas:** Detalle documenta el rótulo sin identidad y fuente del nombre; stat card reconcilia
+  la excepción P4/P19 ya presente en el código.
+
+## Apartamientos del mockup
+
+Sin `ciudadano.ver`, «Persona alojada» y el rótulo con ubicación/ingreso son el apartamiento
+de privacidad decidido por el PM. Se conservan los recortes y apartamientos de 321–324, que
+la matriz detalla pantalla por pantalla; no se dibujan funciones sin datos o servicio.
+`docs_dir: docs/client` deja fuera `docs/internal`: no se agrega esta matriz a `mkdocs.yml`.
+
+## Archivos
+
+- `programas/views/dispositivos_legajo.py`, `templates/programas/dispositivos/legajo/detail.html`.
+- `programas/selectors/auditoria_dispositivo.py`, `services/detalle_dispositivo.py`, `services/inspecciones.py`.
+- `programas/tests/test_dispositivos_detalle.py`, `test_dispositivos_auditoria.py`,
+  `test_dispositivos_bitacora_automatica.py`, `test_dispositivos_inspecciones.py`,
+  `test_dispositivos_concurrencia.py`; `core/tests/test_gates_ci.py`.
+- `.claude/design/arquetipos/detalle.md`, `.claude/design/componentes/stat_card.md`.
+- `docs/internal/dispositivos-v2/auditoria-mvp.md` y esta entrada con su fila del índice.
+
+## Base de datos
+
+No requiere migraciones ni modificaciones de datos existentes. MariaDB 10.11 efímero en
+Docker, puerto 3391, con migraciones reales y sin tablas de zona horaria; contenedor eliminado
+al terminar las pruebas. Ninguna conexión productiva.
+
+## Validación
+
+- Nueve mutaciones detectadas en rojo y restauradas desde copias exactas en `finally`, sin
+  `git checkout` ni stash: rótulo genérico; doble fuente de celda; default abierto en cada uno
+  de los tres puntos del selector; servicio sin usuario abierto; asignar sin vínculo; quitar
+  candado de edificio; validar alcance antes del lock. Las dos últimas contra MariaDB real.
+- Regresión focal tras ajustar las expectativas de opt-in: ocho tests de identidad y paginación
+  aprobados; los restantes módulos focales se verifican también en la suite por lotes.
+- **Suite `programas core`** con `.venv312`, SQLite/syncdb: **244 módulos en 31 lotes de hasta
+  ocho módulos, 5.038 ejecuciones de tests; 4.974 aprobadas y 64 omitidas** tras resolver la
+  expectativa anterior de bitácora automática que leía nombres sin opt-in. Su módulo se repitió
+  en verde (14 tests) y después el lote completo afectado volvió a pasar (216 tests). Los otros
+  30 lotes terminaron sin fallos; no se alteraron los hashers ni otros settings de la suite.
+- MariaDB final restaurado: **18 tests OK**, concurrencia completa de Dispositivos y
+  `MotorDeclaradoTests`; incluye ambos órdenes de asignación/desvinculación, reenvíos, fotos,
+  revisión, plazas, persona, reservas y correcciones. Primera corrida de inspecciones: 7 OK.
+- Performance: **35 tests OK**, `--tag performance programas`; presupuestos sin incrementos.
+- `manage.py check`, `makemigrations --check --dry-run` con syncdb desactivado y contrato de
+  migraciones aprobados; 233 templates compilados, cero errores y bloques sin destino.
+- Detalle P4, ratchet contra `origin/development` y siete goldens: cero hallazgos nuevos.
+  Tailwind recompila sin diff. `check_docs_client.py`: cero hallazgos. Ruff check y format
+  sobre `programas/ core/ users/`: OK.
+- Después del commit de código `3435820d`, `check_design_agent.py --changed` y
+  `--limites --base origin/development`: OK.
+- Evidencia local de mutaciones, motor, performance y suite: `%TEMP%/chaco-gk/`.
+
+## Puesta en marcha en el servidor
+
+No requiere pasos adicionales al despliegue de código. La configuración de capacidades y
+asignaciones sigue a cargo del PM; checklist revisable en §6 de la matriz.
+
+## Pendientes / a definir
+
+El juez asigna la numeración definitiva. Verificación externa de app móvil e integración,
+instalación de cronjobs en ECOM y toda la suite en MySQL 8 pendientes según §7 de la matriz.
+No son funciones nuevas que se implementen en este carril.
+
+## Reversión
+
+Revertir los commits de código y documentación. No hay datos ni esquema que deshacer; vuelven
+los defaults abiertos, el rótulo genérico y la ventana de carrera en el alcance previo al lock.
 
 ---

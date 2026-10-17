@@ -62,7 +62,7 @@ JPEG = b"\xff\xd8\xff\xe0" + b"0" * 64
 
 
 def _todo(dispositivo):
-    feed = auditoria_del_dispositivo(dispositivo)
+    feed = auditoria_del_dispositivo(dispositivo, puede_ver_personas=True)
     return feed[0 : feed.count()]
 
 
@@ -215,7 +215,8 @@ class LegibleTests(BaseAuditoria):
         )
         sacar_plaza_de_servicio(plaza=self.otra_plaza, usuario=self.operador_cis, motivo="Cama rota")
 
-        _pagina, eventos = eventos_de_historial(self.cis)
+        lector = self._usuario("lector_identidad", ("dispositivo.ver", "ciudadano.ver"), [self.cis])
+        _pagina, eventos = eventos_de_historial(self.cis, usuario=lector)
         textos = " ".join(f"{e['cuando']} {e['titulo']} {e['detalle']}" for e in eventos)
 
         egreso = next(e for e in eventos if e["titulo"] == "Egreso de Gómez, Ana")
@@ -341,10 +342,11 @@ class OrdenYPaginasTests(BaseAuditoria):
         self.assertGreater(total, POR_PAGINA_HISTORIAL)
 
         vistos = []
-        pagina, eventos = eventos_de_historial(self.cis, 1)
+        lector = self._usuario("lector_paginas", ("dispositivo.ver", "ciudadano.ver"), [self.cis])
+        pagina, eventos = eventos_de_historial(self.cis, 1, usuario=lector)
         vistos += eventos
         while pagina.has_next():
-            pagina, eventos = eventos_de_historial(self.cis, pagina.next_page_number())
+            pagina, eventos = eventos_de_historial(self.cis, pagina.next_page_number(), usuario=lector)
             vistos += eventos
 
         self.assertEqual(len(vistos), total)

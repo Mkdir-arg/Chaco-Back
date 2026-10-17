@@ -196,7 +196,7 @@ def evento_de_traza(traza):
     }
 
 
-def evento_de_movimiento(movimiento, *, puede_ver_personas=True):
+def evento_de_movimiento(movimiento, *, puede_ver_personas=False):
     tipo = MovimientoEstadia.Tipo
     persona = _persona(movimiento.estadia) if puede_ver_personas else "Persona alojada"
     if movimiento.tipo == tipo.INGRESO:
@@ -299,7 +299,7 @@ class FeedAuditoria:
     ``detalle`` y ``tono``.
     """
 
-    def __init__(self, dispositivo, edificios_con_asignacion=frozenset(), *, usuario_id=None, puede_ver_personas=True):
+    def __init__(self, dispositivo, edificios_con_asignacion=frozenset(), *, usuario_id=None, puede_ver_personas=False):
         # Los edificios de los que quien mira puede ver de quién es el relevamiento. Lo
         # resuelve el servicio y llega como un conjunto de ids: el selector no evalúa
         # capacidades ni alcance, solo decide qué texto arma con lo que le dieron.
@@ -371,7 +371,7 @@ class FeedAuditoria:
 
 
 def auditoria_del_dispositivo(
-    dispositivo, edificios_con_asignacion=frozenset(), *, usuario_id=None, puede_ver_personas=True
+    dispositivo, edificios_con_asignacion=frozenset(), *, usuario_id=None, puede_ver_personas=False
 ):
     """El feed de auditoría del dispositivo, para paginar. Ver :class:`FeedAuditoria`."""
 

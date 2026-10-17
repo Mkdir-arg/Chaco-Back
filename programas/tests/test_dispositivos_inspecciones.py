@@ -247,6 +247,15 @@ class AsignacionTests(BaseInspecciones):
 
         self.assertEqual(inspeccion.edificio, self.edificio_cis)
 
+    def test_ni_el_admin_asigna_un_relevamiento_a_un_edificio_sin_instituciones(self):
+        admin = self._usuario("admin_sin_vinculo", ("programa.configurar", "inspeccion.asignar"))
+        self.edificio_cis.dispositivos.clear()
+
+        with self.assertRaisesMessage(ValidationError, "al menos un dispositivo vinculado"):
+            crear_inspeccion(admin, edificio=self.edificio_cis, asignado_a=self.agente, fecha_vencimiento=self.vence)
+
+        self.assertFalse(InspeccionEdificio.objects.filter(edificio=self.edificio_cis).exists())
+
     def test_el_agente_tiene_que_poder_relevar(self):
         sin_relevar = self._usuario("sin_relevar", [c for c in TODAS_DE_DISPOSITIVOS if c != "inspeccion.relevar"])
 

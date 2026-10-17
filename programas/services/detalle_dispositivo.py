@@ -291,7 +291,7 @@ def eventos_de_historial(dispositivo, pagina=1, usuario=None):
     agente. El detalle de esas trazas se escribió legible con el nombre adentro, así que la
     regla de `inspecciones.ve_la_asignacion` hay que volver a aplicarla acá; el alcance se
     resuelve en **una** consulta para toda la página.
-    Sin usuario se conserva la lectura interna completa; la vista siempre pasa quién mira.
+    Sin usuario no se expone la identidad de las personas; la vista siempre pasa quién mira.
     """
 
     con_asignacion = edificios_de_dispositivo_con_asignacion_visible(usuario, dispositivo)
@@ -300,7 +300,7 @@ def eventos_de_historial(dispositivo, pagina=1, usuario=None):
         dispositivo,
         con_asignacion,
         usuario_id=usuario_id,
-        puede_ver_personas=usuario is None or puede(usuario, "ciudadano.ver"),
+        puede_ver_personas=usuario is not None and puede(usuario, "ciudadano.ver"),
     )
     pagina_de_eventos = Paginator(feed, POR_PAGINA_HISTORIAL).get_page(pagina)
     eventos = [

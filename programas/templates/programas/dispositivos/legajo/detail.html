@@ -225,11 +225,9 @@
               <tr class="hover:bg-secondary transition">
                 <td class="nodo-td">
                   <div class="min-w-0">
-                    {% if puede_ver_ciudadano %}
-                    <span class="font-medium text-heading">{{ estadia.ciudadano.apellido }}, {{ estadia.ciudadano.nombre }}</span>
-                    <span class="text-xs text-body-subtle block mt-px">DNI {{ estadia.ciudadano.dni|dni }}</span>
-                    {% else %}
                     <span class="font-medium text-heading">{{ estadia.persona_visible }}</span>
+                    {% if puede_ver_ciudadano %}
+                    <span class="text-xs text-body-subtle block mt-px">DNI {{ estadia.ciudadano.dni|dni }}</span>
                     {% endif %}
                   </div>
                 </td>
@@ -237,7 +235,7 @@
                 <td class="nodo-td">{% if estadia.plaza %}{{ estadia.plaza.sector.nombre }} · {{ estadia.plaza.codigo }}{% else %}<span class="text-body-subtle">Sin plaza</span>{% endif %}</td>
                 <td class="nodo-td"><span class="badge badge-dot badge-{{ estadia.tono }}">{{ estadia.estado_texto }}</span></td>
                 <td class="nodo-td text-right whitespace-nowrap">
-                  {% menu_fila id=estadia.pk etiqueta="Acciones de estadía de "|add:estadia.persona_visible %}
+                  {% menu_fila id=estadia.pk etiqueta="Acciones de estadía de "|add:estadia.persona_del_menu %}
                     {% include "components/_menu_fila_item.html" with texto="Ver estadía" icono="fa-eye" url=estadia.url_ver only %}
                     {% if estadia.url_cambiar %}
                     {% include "components/_menu_fila_item.html" with texto="Cambiar plaza" icono="fa-right-left" url=estadia.url_cambiar motivo=estadia.motivo_cambiar only %}

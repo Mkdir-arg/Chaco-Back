@@ -26,10 +26,16 @@ from django.utils import timezone
 
 from legajos.models import Ciudadano
 from programas.models import Dispositivo, Estadia, Plaza, ReservaPlaza, Sector, TrazaDispositivo
+from programas.selectors.auditoria_dispositivo import (
+    FeedAuditoria,
+    auditoria_del_dispositivo,
+    evento_de_movimiento,
+)
 from programas.selectors.trayectoria import _fila
 from programas.services.detalle_dispositivo import (
     POR_PAGINA_ESTADIAS,
     estadias_del_dispositivo,
+    eventos_de_historial,
 )
 from programas.services.estadias import ingresar_persona
 from programas.services.ocupacion import Censo, Conteo, OcupacionDispositivo, OcupacionSector, ocupacion_de_plazas
@@ -419,6 +425,51 @@ class IdentidadDeEstadiasTests(BaseDetalle):
         self.estadia = ingresar_persona(
             dispositivo=self.cis, plaza=self.plaza, ciudadano=self.persona, usuario=self.operador_cis
         )
+
+    def test_los_menus_sin_identidad_distinguen_sector_plaza_o_ingreso(self):
+        segunda = _alojar(self.cis, self.otra_plaza, self.otra_persona)
+        tercera_persona, cuarta_persona = self._personas(2, desde=90)
+        tercera = _alojar(self.cis, None, tercera_persona, timezone.make_aware(datetime(2026, 9, 7, 11)))
+        cuarta = _alojar(self.cis, None, cuarta_persona, timezone.make_aware(datetime(2026, 9, 6, 12)))
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.get(self.url, {"tab": "estadias"})
+
+        etiquetas = re.findall(r'<button[^>]*aria-label="(Acciones de estadía de [^"]+)"', respuesta.content.decode())
+        self.assertEqual(len(etiquetas), 4)
+        self.assertEqual(len(set(etiquetas)), 4)
+        for estadia in (self.estadia, segunda):
+            self.assertIn(
+                f"Acciones de estadía de Persona alojada en {estadia.plaza.sector.nombre} · {estadia.plaza.codigo}",
+                etiquetas,
+            )
+        self.assertIn("Acciones de estadía de Persona alojada con ingreso 07/09/2026 11:00", etiquetas)
+        self.assertIn("Acciones de estadía de Persona alojada con ingreso 06/09/2026 12:00", etiquetas)
+        for estadia in (self.estadia, segunda, tercera, cuarta):
+            for identidad in (estadia.ciudadano.nombre, estadia.ciudadano.apellido, estadia.ciudadano.dni):
+                self.assertNotIn(identidad, " ".join(etiquetas))
+
+    def test_la_celda_usa_el_nombre_visible_preparado_por_la_vista(self):
+        respuesta = self.client.get(self.url, {"tab": "estadias"})
+        tabla = respuesta.content.decode().split('id="panel-estadias"', 1)[1].split("</table>", 1)[0]
+        self.assertIn(f">{self.persona.nombre_completo}</span>", tabla)
+
+    def test_el_historial_sin_usuario_o_sin_opt_in_no_expone_personas(self):
+        movimiento = self.estadia.movimientos.get()
+        feed = FeedAuditoria(self.cis)
+        publico = auditoria_del_dispositivo(self.cis)
+        _, eventos = eventos_de_historial(self.cis)
+        for origen in (
+            [evento_de_movimiento(movimiento)],
+            feed[: feed.count()],
+            publico[: publico.count()],
+            eventos,
+        ):
+            with self.subTest(origen=origen):
+                texto = json.dumps(origen, default=str, ensure_ascii=False)
+                self.assertIn("Ingreso de Persona alojada", texto)
+                for identidad in (self.persona.nombre, self.persona.apellido, self.persona.dni):
+                    self.assertNotIn(identidad, texto)
 
     def test_sin_ciudadano_ver_no_hay_identidad_en_la_fila_ni_en_los_modales(self):
         # Tiene todas las capacidades operativas y asignación; solo falta ciudadano.ver.
