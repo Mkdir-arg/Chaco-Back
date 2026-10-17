@@ -123,7 +123,8 @@ ROLES_BECAS = {
     ROL_COORDINADOR_REGIONAL: {
         "descripcion": (
             "Opera únicamente los subsegmentos que tiene a cargo: convocatorias, relevamientos y "
-            "territoriales. Ve el segmento como contexto, pero no lo configura."
+            "territoriales, y consulta sus casos sin aprobarlos. Ve el segmento como contexto, pero no "
+            "lo configura."
         ),
         "capacidades": [
             "becas.coordinador_regional",
@@ -136,6 +137,11 @@ ROLES_BECAS = {
             "becas.relevamiento.ver",
             "becas.relevamiento.crear",
             "becas.relevamiento.editar",
+            # Cambio 336: ve los casos de sus subsegmentos (bandeja, relevamiento y
+            # detalle), sin ``revision.editar``: no aprueba, no rechaza ni edita.
+            "becas.revision.ver",
+            # Ve los beneficiarios con nombre y DNI desde Cupo; sin ``beneficiario.ver``
+            # a propósito: con ella bajaría el CSV de convocatoria (Cambio 335).
             "becas.cupo.ver",
             "becas.reportes.ver",
             "becas.reportes.exportar",

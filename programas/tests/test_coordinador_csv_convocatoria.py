@@ -43,7 +43,7 @@ from programas.models import (
     Segmento,
     Subsegmento,
 )
-from programas.services.autorizacion import puede_exportar_convocatoria
+from programas.services.autorizacion import programa_becas, puede_exportar_convocatoria
 from users.models import Capacidad, RolMeta
 
 EXPORTS = (
@@ -248,3 +248,37 @@ class RolDeOtroProgramaTests(_Base):
         for nombre in EXPORTS:
             with self.subTest(export=nombre):
                 self.assertEqual(self._get(nombre, self.conv_a).status_code, 403)
+
+
+class RolAMedidaDeBecasTests(_Base):
+    """La regla no depende del rol sembrado: un rol armado a mano **del Programa Becas**
+    con ``beneficiario.ver`` y ``reportes.exportar``, más una asignación de coordinador,
+    baja los CSV de su segmento y no los de otro (MINOR del PR #903)."""
+
+    def setUp(self):
+        super().setUp()
+        grupo = Group.objects.create(name="Becas — Analista de exportaciones")
+        RolMeta.objects.create(grupo=grupo, categoria=rbac.CATEGORIA_PROGRAMA, programa=programa_becas(), activo=True)
+        ct = ContentType.objects.get_for_model(Capacidad)
+        for codigo in ("becas.beneficiario.ver", "becas.reportes.exportar"):
+            grupo.permissions.add(Permission.objects.get(codename=rbac.codename_de(codigo), content_type=ct))
+        self.a_medida = User.objects.create_user("a-medida-335", password="x")
+        self.a_medida.groups.add(grupo)
+        AsignacionCoordinador.objects.create(segmento=self.seg_a, coordinador=self.a_medida)
+
+    def test_la_regla_lo_deja_pasar(self):
+        self.assertTrue(puede_exportar_convocatoria(self.a_medida))
+
+    def test_baja_los_tres_csv_de_su_segmento(self):
+        self.client.force_login(self.a_medida)
+
+        for nombre in EXPORTS:
+            with self.subTest(export=nombre):
+                self.assertEqual(self._get(nombre, self.conv_a).status_code, 200)
+
+    def test_no_baja_los_de_otro_segmento(self):
+        self.client.force_login(self.a_medida)
+
+        for nombre in EXPORTS:
+            with self.subTest(export=nombre):
+                self.assertEqual(self._get(nombre, self.conv_b).status_code, 404)

@@ -461,6 +461,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 333 | Un usuario puede tener más de un rol, pero sus alcances de Becas no se pisan | Transversal · ABM de Usuarios (Becas) | `#rbac` `#usuarios` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 334 | El Coordinador de Becas corrige los requisitos de sus segmentos y valida identidades | Becas · roles (RBAC) · requisitos · revisión de casos | `#rbac` `#requisitos` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | `users.0038` |
 | 335 | El CSV de convocatoria también lo baja el Coordinador | Becas · roles (RBAC) · exports de convocatoria | `#rbac` `#convocatorias` `#datos` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | `users.0039` |
+| 336 | El Coordinador Regional consulta la revisión de sus casos, sin editarla | Becas · roles (RBAC) · revisión de casos · Cupo | `#rbac` `#cupos` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -1432,6 +1433,13 @@ Para recuperar el módulo no alcanza con revertir una sola migración: primero d
 ## Reversión
 
 Respaldar la base antes de intervenir. Primero desasignar o migrar los usuarios Regionales y restaurar capacidades/filtros anteriores. Luego retirar el código dependiente y revertir, en este orden, `programas.0039`, `programas.0038` y `users.0015`. Revertir `0039` elimina el historial de transferencias; revertir `0038` elimina Regiones, asignaciones y los campos de creador/responsable, por lo que el respaldo es obligatorio.
+
+## Historial
+
+- **17/10/2026 — revisión (Cambio 336).** «La Revisión de formularios quedó deliberadamente fuera» ya no vale:
+  por decisión del PM el rol suma `becas.revision.ver`, en modo **solo lectura**. Ve la bandeja, el listado
+  y el detalle de los casos de sus subsegmentos; no suma `revision.editar`, así que no aprueba, no rechaza ni
+  edita.
 
 # Cambio 19 — Territorial
 
@@ -43500,6 +43508,8 @@ Decisiones del PM, en orden de prioridad:
      Cambio 335; el Regional y el Referente siguen sin bajarlo.
 4. Coordinador: ¿suma `requisito.editar` o pierde `requisito.crear`?
 5. Regional: ¿suma `revision.ver`? ¿Ve beneficiarios con DNI desde Cupo?
+   - **Resuelta (PM, 17/10/2026): suma `revision.ver`, solo ver,** y sigue viendo los beneficiarios desde Cupo
+     sin `beneficiario.ver`. Lo implementa el Cambio 336.
 6. ¿Se prohíbe combinar Referente, Regional y Coordinador en un mismo usuario, o se define una precedencia única?
    - **El PM decidió además (17/10/2026):** «un usuario puede tener varios roles, pero los que se pisan en
      acciones no se combinan, con un popup que bloquea la selección». Va en el Cambio 333, en otro PR.
@@ -43531,6 +43541,12 @@ Revertir el commit. El comentario y los tests no cambian conducta: la semilla ya
 - **17/10/2026** — Cambio 335: la decisión 3 queda resuelta también en su parte del CSV (el Coordinador
   baja el CSV de convocatoria). Con eso queda atendido el hallazgo 2, incluida la etiqueta falsa de
   `convocatoria.ver`.
+- **17/10/2026** — Cambio 336: resuelta la decisión 5, en sus dos partes:
+  - el Regional **suma** `revision.ver` (solo ver, sin `revision.editar`), acotado a sus subsegmentos;
+  - sigue viendo los beneficiarios con nombre y DNI desde Cupo (`cupo.ver`), **sin** `beneficiario.ver`:
+    con ella bajaría el CSV de convocatoria (Cambio 335).
+  Con eso quedan atendidos el hallazgo 4 y el 5: el detalle ya no le muestra contacto ni duplicado a
+  quien solo tiene `revision.ver`.
 
 ---
 
@@ -43862,7 +43878,8 @@ huérfano y sin efecto, y la semilla del arranque siguiente les quita las dos ca
 
 ## Historial
 
-No aplica: entrada nueva.
+- **17/10/2026** — *Pendientes* nombra como abierta la decisión 3 del Cambio 332 (si el Coordinador baja el
+  CSV de convocatoria). Quedó resuelta en el Cambio 335: lo baja. La decisión 5 la resolvió el Cambio 336.
 
 ---
 
@@ -44005,6 +44022,164 @@ No requiere. El arranque corre `migrate` y `seed_rbac`, que actualiza la etiquet
 
 Revertir el commit. El Coordinador vuelve a recibir 403 en los CSV y a no ver los botones. La migración es solo de
 estado (`AlterModelOptions`): revertirla no toca datos, y la etiqueta vieja vuelve con el próximo `seed_rbac`.
+
+## Historial
+
+- **17/10/2026** — *Pendientes* nombra como abierta la decisión 5 del Cambio 332. La resolvió el
+  Cambio 336: el Regional suma `revision.ver` (solo ver) y sigue sin `beneficiario.ver`, así que tampoco baja
+  el CSV de convocatoria.
+
+---
+
+# Cambio 336 — El Coordinador Regional consulta la revisión de sus casos, sin editarla
+
+🟢 **HECHO — 17/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · roles (RBAC) · revisión de casos · Cupo |
+| **Etiquetas** | `#rbac` `#cupos` `#ui` |
+| **Solicitante** | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Decisión 5 del Cambio 332 («Regional: ¿suma `revision.ver`? ¿Ve beneficiarios con DNI desde Cupo?»):
+
+1. «Becas — Coordinador Regional» suma `becas.revision.ver` (solo ver, no `revision.editar`).
+2. El Regional sigue viendo los beneficiarios con nombre y DNI desde Cupo, como hoy (`becas.cupo.ver`), sin
+   sumar `becas.beneficiario.ver`.
+
+Se suman tres MINOR heredados del PR #903 (Cambio 335).
+
+## Alcance acordado
+
+- **Entra:**
+  - la semilla del Regional (`revision.ver`);
+  - el alcance de la revisión para el Regional, confirmado con tests: bandeja, listado de un relevamiento,
+    detalle y los links «Formulario N» de Cupo;
+  - los dos formularios del detalle que se le mostraban a quien solo ve (contacto y duplicado), alineados con la
+    puerta del POST para el Referente y el Regional (hallazgo 5 del Cambio 332);
+  - MINOR del PR #903: el caso positivo de un rol a medida en los tests del CSV de convocatoria, un docstring en
+    `ExportsDeConvocatoriaTests` y el historial del Cambio 334.
+- **Afuera:**
+  - `becas.beneficiario.ver` para el Regional (decisión 5, segunda parte);
+  - la decisión 2 del Cambio 332 (roles sembrados configurables desde Roles);
+  - el resto de los botones desalineados del Cambio 332 (hallazgos 14 a 17).
+
+## Decisiones tomadas
+
+1. **El Regional suma `becas.revision.ver` y no `revision.editar`.** Va en `ROLES_BECAS` (`seed_becas`), que
+   sincroniza en cada arranque: no hace falta migración. El Cambio 18 la había dejado afuera a propósito.
+2. **El alcance no cambia de código: ya estaba acotado.** Las vistas de revisión filtran con
+   `convocatorias_visibles` y `assert_alcance_relevamiento` / `assert_alcance_formulario`. Para el Regional,
+   `convocatorias_visibles` son las convocatorias de **sus** subsegmentos. Quedan afuera, con 403:
+   - los casos del subsegmento de un par del mismo segmento;
+   - los de una convocatoria del segmento entero (sin subsegmento);
+   - los de otro segmento.
+
+   Lo fijan tests y mutación.
+3. **No aprueba, no rechaza ni edita.** Todas las acciones del caso exigen `revision.editar` (o la capacidad de
+   identidad, que el Regional tampoco tiene): redirigen al inicio (403 en AJAX) y el caso no cambia.
+4. **El detalle dibuja contacto y duplicado con la misma puerta que el POST.** La vista calcula
+   `puede_editar_caso = puede(user, "becas.revision.editar")`, la misma pregunta que su POST de contacto y que
+   `@requiere` en `formulario_resolver_duplicado`. Sin ella:
+   - **datos de contacto:** la tarjeta se sigue viendo con los datos, en campos deshabilitados, sin `<form>` y
+     sin «Guardar cambios»;
+   - **duplicado:** el aviso y «Comparar con el caso N» quedan; «Conservar el otro», «Conservar este» y su
+     script de confirmación, no. El texto pierde «y decidí cuál conservar».
+
+   Vale para el Referente, que tenía el problema desde siempre, y para el Regional. Para quien edita, el HTML no
+   cambia: los snapshots del detalle siguen iguales.
+5. **El menú y los links aparecen solos.** «Revisión» del menú lateral, el acceso de `/becas/` y el link del
+   relevamiento ya miraban `revision.ver`. Los links «Formulario N» de Cupo, que le daban 403, ahora abren.
+6. **Beneficiarios desde Cupo, sin `beneficiario.ver` (decisión 5, segunda parte).** El Regional sigue viendo
+   nombre y DNI desde Cupo con `cupo.ver`. Con `beneficiario.ver` pasaría a bajar el CSV de convocatoria, cuya
+   regla es `beneficiario.ver` + `reportes.exportar` (Cambio 335). Solo se registra; un comentario en la semilla
+   lo explica.
+7. **La descripción del rol sembrado** suma «y consulta sus casos sin aprobarlos». La semilla la escribe solo al
+   crear la `RolMeta`: en una base existente la descripción la sigue mandando el ABM.
+
+## Implementación
+
+- `programas/management/commands/seed_becas.py`: el Regional suma `becas.revision.ver`, con su descripción.
+- `programas/views/revision.py`: `formulario_detalle` calcula `puede_editar_caso`; la usan la puerta del POST,
+  el contexto (`puede_editar_caso` y `puede_reenviar_aviso`) y el GET, que deshabilita los campos del form.
+- Templates: `_detalle/_contacto.html` (sin `<form>` ni botón para quien solo ve) y
+  `_detalle/_conflicto_duplicado.html` (sin los dos formularios ni su script).
+
+## Archivos
+
+- `programas/management/commands/seed_becas.py`
+- `programas/views/revision.py`
+- `programas/templates/programas/becas/revision/_detalle/_contacto.html`
+- `programas/templates/programas/becas/revision/_detalle/_conflicto_duplicado.html`
+- `programas/tests/test_coordinador_regional_revision.py` (nuevo)
+- `programas/tests/test_becas_rbac.py`, `test_becas_revision.py` (clave nueva del contexto),
+  `test_coordinador_regional.py` (docstring), `test_coordinador_csv_convocatoria.py` y `test_reportes.py`
+- `users/tests/test_seed_datos_base.py`
+- Esta entrada, su fila del índice y el historial de los Cambios 18, 332, 334 y 335.
+
+## Base de datos
+
+No requiere. La capacidad ya existía; la semilla la tilda en el arranque.
+
+## Validación
+
+Con `.venv312` (Python 3.12 + Django 5.2.17, igual que el CI):
+
+- `programas/tests/test_coordinador_regional_revision.py` (15 tests). El Regional, con el rol sembrado:
+  - ve la bandeja solo con los casos de sus subsegmentos;
+  - abre el listado de su relevamiento, sin «Terminar relevamiento»;
+  - abre el detalle de un caso suyo;
+  - recibe 403 en el listado y el detalle de un caso del par, del segmento entero y de otro segmento;
+  - no aprueba ni rechaza (redirige; 403 en AJAX), no edita el contacto por POST (403) y no resuelve el
+    duplicado (redirige); el caso no cambia;
+  - no ve «Guardar cambios» ni los botones de duplicado, y ve los datos en campos deshabilitados;
+  - ve «Revisión» en el menú, y los links a casos de Cupo abren;
+  - el Referente tampoco ve los dos formularios; el Coordinador y el Administrador los siguen viendo.
+- Matrices por rol: `test_seed_datos_base.test_revision_por_rol` y
+  `test_becas_rbac.test_regional_y_referente_ven_la_revision_sin_editarla`.
+- MINOR del PR #903: `RolAMedidaDeBecasTests`. Un rol a medida del Programa Becas con `beneficiario.ver`,
+  `reportes.exportar` y una `AsignacionCoordinador` baja los tres CSV de su segmento; los de otro segmento dan
+  404.
+- `test_becas_revision.ContextoDetalleTests`: suma la clave `puede_editar_caso`.
+- **Mutaciones** (cada una en rojo y restaurada):
+  - la semilla sin `revision.ver` en el Regional: 16 fallas en el archivo nuevo, más las dos matrices;
+  - la semilla con `revision.editar` en el Regional;
+  - la semilla con `beneficiario.ver` en el Regional: rojos los tests del CSV de convocatoria (Cambio 335);
+  - `convocatorias_visibles` del Regional ampliada al segmento entero: rojos la bandeja, el listado y el detalle
+    del par y del segmento;
+  - `_contacto.html` sin la puerta, `_conflicto_duplicado.html` sin la puerta y la vista con
+    `puede_editar_caso = True`: rojos los tests del Regional y del Referente;
+  - `puede_exportar_convocatoria` sin la rama de las dos capacidades: rojo `RolAMedidaDeBecasTests`.
+- Suites `test_coordinador_regional`, `test_becas_revision`, `test_becas_rbac`,
+  `test_coordinador_csv_convocatoria`, `test_reportes`, `test_becas_revision_detalle_html` (snapshots, sin
+  cambios), `test_coordinador_identidad_requisitos`, `test_referente_regional`, `test_sec06_alcance_becas`,
+  `test_becas_revision_listas`, `users.tests.test_seed_datos_base`, `test_rbac_contrato`,
+  `test_roles_becas_sin_pisarse`, `portal.tests.test_correcciones_review_2` y la nueva: OK.
+  Además, las apps `programas`, `users` y `portal` completas (4.442 tests, 33 omitidos): OK.
+- `manage.py check` OK; `makemigrations --check --dry-run` (SYNCDB=False): sin cambios.
+- `design_audit.py --ratchet`: 0 hallazgos nuevos. `compile_templates.py --bloques`: 0 errores.
+  `check_design_agent.py --changed`: OK. Ruff check y format sobre los `.py` tocados: OK.
+
+## Puesta en marcha en el servidor
+
+No requiere. El arranque corre `seed_becas`, que le tilda `revision.ver` al Regional.
+
+## Pendientes / a definir
+
+- Del Cambio 332 sigue abierta la decisión 2 (roles sembrados configurables desde Roles).
+- Si hay casos de QA escritos sobre «el Regional no ve la revisión» o «los links de Cupo le dan 403», hay que
+  actualizarlos.
+
+## Reversión
+
+Revertir el commit. En el arranque siguiente la semilla le quita `revision.ver` al Regional, y el Referente
+vuelve a ver los dos formularios que le contestan 403. No toca datos.
 
 ## Historial
 

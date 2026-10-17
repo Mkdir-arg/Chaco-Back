@@ -2,6 +2,9 @@
 
 El rol ve el segmento que contiene su subsegmento solo como contexto: no puede
 configurarlo ni asomarse a los subsegmentos de sus pares.
+
+Desde el Cambio 336 consulta la revisión de los casos de sus subsegmentos, sin
+editarla: eso se prueba en ``test_coordinador_regional_revision.py``.
 """
 
 import re
