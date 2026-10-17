@@ -42727,6 +42727,8 @@ la oferta de edificios huérfanos en P21.
 
 ---
 
+---
+
 # Cambio 327 — Cierre GM: «Apellido, Nombre» en P7 y en el resto del MVP
 
 🟢 **HECHO — 17/10/2026** · Número siguiente disponible, provisional hasta la numeración del juez.
