@@ -202,7 +202,7 @@ class NoRompeElCensoNiLaAuditoriaTests(BaseAutomaticas):
         from programas.selectors.auditoria_dispositivo import auditoria_del_dispositivo
 
         estadia = self._alojar()
-        feed = auditoria_del_dispositivo(self.cis)
+        feed = auditoria_del_dispositivo(self.cis, puede_ver_personas=True)
         titulos = [evento["titulo"] for evento in feed[0 : feed.count()]]
 
         self.assertEqual(titulos.count(f"Ingreso de {self.persona.apellido}, {self.persona.nombre}"), 1)

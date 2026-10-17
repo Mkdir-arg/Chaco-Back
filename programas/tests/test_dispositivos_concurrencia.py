@@ -50,7 +50,7 @@ from unittest import mock
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connections, transaction
 from django.test import TransactionTestCase, override_settings, tag
@@ -82,6 +82,7 @@ from programas.services.bitacora import (
     crear_turno,
     registrar_entrada,
 )
+from programas.services.edificios import desvincular_edificio
 from programas.services.estadias import (
     AlojamientoEnLaRed,
     cambiar_plaza,
@@ -579,6 +580,37 @@ class CarreraDeInspeccionTests(_BaseCarrera):
 
     def _archivos_en_media(self):
         return [Path(raiz) / nombre for raiz, _, nombres in os.walk(self.media) for nombre in nombres]
+
+    def _desvincular(self):
+        return desvincular_edificio(
+            edificio=Edificio.objects.get(pk=self.edificio.pk),
+            dispositivo=Dispositivo.objects.get(pk=self.cis.pk),
+            usuario=self._fresco(self.operador),
+        )
+
+    def test_asignar_primero_impide_la_ultima_desvinculacion_concurrente(self):
+        resultados, errores = en_paralelo(
+            self._crear,
+            self._desvincular,
+            punto_a=punto_critico(Edificio, "crear_inspeccion"),
+            punto_b=punto_critico(Edificio, "desvincular_edificio"),
+        )
+        self.assertEqual(len(resultados), 1)
+        self.assertIn("relevamiento en curso", str(self._un_error(errores)))
+        self.assertTrue(self.edificio.dispositivos.filter(pk=self.cis.pk).exists())
+        self.assertEqual(self.edificio.inspecciones.filter(estado=InspeccionEdificio.Estado.ASIGNADA).count(), 1)
+
+    def test_desvincular_primero_revalida_el_alcance_de_la_asignacion_concurrente(self):
+        resultados, errores = en_paralelo(
+            self._desvincular,
+            self._crear,
+            punto_a=punto_critico(Edificio, "desvincular_edificio"),
+            punto_b=punto_critico(Edificio, "crear_inspeccion"),
+        )
+        self.assertEqual(len(resultados), 1)
+        self._un_error(errores, PermissionDenied)
+        self.assertFalse(self.edificio.dispositivos.exists())
+        self.assertFalse(self.edificio.inspecciones.exists())
 
     def test_dos_revisiones_del_mismo_resultado_dejan_una_revision_y_una_traza(self):
         inspeccion = registrar_resultado(

@@ -9,6 +9,7 @@ from django.db.utils import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import urlencode
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
@@ -277,6 +278,14 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         puede_ver_ciudadano = puede(user, "ciudadano.ver")
         for estadia in estadias:
             estadia.persona_visible = estadia.ciudadano.nombre_completo if puede_ver_ciudadano else "Persona alojada"
+            estadia.persona_del_menu = estadia.persona_visible
+            if not puede_ver_ciudadano:
+                if estadia.plaza_id:
+                    ubicacion = f"{estadia.plaza.sector.nombre} · {estadia.plaza.codigo}"
+                    estadia.persona_del_menu += f" en {ubicacion}"
+                else:
+                    ingreso = timezone.localtime(estadia.fecha_ingreso).strftime("%d/%m/%Y %H:%M")
+                    estadia.persona_del_menu += f" con ingreso {ingreso}"
             if puede_ver_ciudadano:
                 estadia.url_ver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
             if puede_cambiar and estadia.activa and estadia.plaza_id is not None:
