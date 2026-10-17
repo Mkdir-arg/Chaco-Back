@@ -458,6 +458,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 330 | Paridad del motor de condiciones: navegador vs servidor | Becas · constructor de formularios → Portal (link público) | `#requisitos` `#relevamientos` `#ui` | QA — issue #895 (informe de #350 / mapa de #351) | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 331 | El selector «Relevamiento» del Dashboard de Becas deja de nombrar al del link público sin RN-P13 | Becas · dashboard del programa | `#rbac` `#relevamientos` | QA — casos de #374 (TC-374-18) | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 332 | Analizar la lógica de los roles de Becas y buscar incoherencias | Becas · roles y alcance (RBAC) · ABM de Usuarios y Roles | `#rbac` `#usuarios` `#convocatorias` `#cupos` | PM — en sesión | 17/10/2026 | 🟢 **Hecho** (diagnóstico; correcciones a decidir) | No requiere |
+| 333 | Un usuario puede tener más de un rol, pero sus alcances de Becas no se pisan | Transversal · ABM de Usuarios (Becas) | `#rbac` `#usuarios` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -43362,7 +43363,7 @@ No aplica: es un diagnóstico. Hallazgos, de mayor a menor gravedad:
 1. **Sobre los cinco roles sembrados, la pantalla de Roles no persiste nada salvo `becas.relevamiento.publico`.**
    - `seed_becas` corre en cada arranque y deja «base del código ∪ opt-in».
    - `becas.programa.proceso_masivo`:
-     - el catálogo (`rbac.py:132`) y el Cambio 88 dicen «no se siembra, se tilda a mano»;
+     - el catálogo (`rbac.py:132`, cita del comentario en el estado anterior al PR #900) y el Cambio 88 dicen «no se siembra, se tilda a mano»;
      - `_capacidades_admin_becas` se la da al Administrador en cada arranque;
      - tildada en otro rol sembrado, se borra en el próximo deploy.
    - El Cambio 18, el Cambio 177 y `test_coordinador_regional.py` asumen tildes a mano (`requisito.editar` y
@@ -43370,7 +43371,7 @@ No aplica: es un diagnóstico. Hallazgos, de mayor a menor gravedad:
 2. **Exportaciones con la política invertida.**
    - El CSV de convocatoria (nombre y DNI) es solo del Administrador (`relevamientos.py:96`).
    - El export por persona del dashboard (DNI, teléfono, email, GPS, respuestas) se abre con
-     `becas.reportes.exportar` (`dashboard_becas.py:56,195`), que tienen Coordinador, Regional y Referente.
+     `becas.reportes.exportar` (`programas/views/dashboard_becas.py:56,195`), que tienen Coordinador, Regional y Referente.
    - El Cambio 16 («reservadas al Administrador») nunca se actualizó.
    - El catálogo dice que `convocatoria.ver` «incluye exportar CSV»: es falso.
 3. **El Coordinador crea requisitos pero no los edita ni los borra.**
@@ -43499,5 +43500,157 @@ Revertir el commit. El comentario y los tests no cambian conducta: la semilla ya
 
 - **17/10/2026** — entrada nueva: el diagnóstico.
 - **17/10/2026** — el PM resolvió la decisión 1 y la parte del Referente de la 3; se fijan en el mismo PR.
+
+---
+
+# Cambio 333 — Un usuario puede tener más de un rol, pero sus alcances de Becas no se pisan
+
+🟢 **HECHO — 17/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — ABM de Usuarios (alta, edición, alta rápida), alta masiva por CSV y `/admin/` · Becas (alcance) |
+| **Etiquetas** | `#rbac` `#usuarios` `#ui` |
+| **Solicitante** | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Un usuario puede tener más de un rol, pero no se pueden pisar en acciones. Si pasa,
+muestra un pop-up de alerta y no lo deja seleccionar.»
+
+## Alcance acordado
+
+- La regla vale para los cuatro roles de Becas que fijan un alcance: **Administrador**,
+  **Referente**, **Coordinador Regional** y **Coordinador**. A lo sumo uno por usuario.
+- Se valida en el servidor en **todo** camino que asigna roles a un usuario, y el
+  selector de roles del alta y la edición lo frena en el momento con un aviso.
+- Afuera: la edición de un **rol** (cambiarle capacidades o programa, reactivarlo) que
+  puede crear el conflicto en usuarios que ya lo tienen. Queda en Pendientes.
+- Sin migración de datos: los usuarios que ya tienen el conflicto se marcan al
+  editarlos, hasta resolverlo.
+
+## Decisiones tomadas
+
+1. **El motivo es el del Cambio 332:** `programas/services/autorizacion.py` evalúa esos
+   roles en órdenes distintos —`segmentos_visibles` mira primero al Referente y
+   `convocatorias_visibles` al Regional—, así que dos a la vez dejan convocatorias que
+   se abren y relevamientos que dan 403, o un Coordinador que pierde sus segmentos.
+2. **Clasificación por capacidad, nunca por nombre de grupo**, con la precedencia de esas
+   funciones: `administrador` si tiene `becas.programa.administrar`; si no, `referente`
+   con `becas.referente`; si no, `coordinador_regional` con `becas.coordinador_regional`;
+   si no, `coordinador` con alguna de `CAPS_GESTION`. El orden importa: el Administrador
+   sembrado también tiene `becas.referente` y `becas.coordinador_regional`.
+3. **Solo cuentan los roles activos del Programa Becas** (`RolMeta.programa`): un rol
+   inactivo no otorga nada (`rbac.puede` no lo mira) y uno de otro programa o global no
+   evalúa alcance de Becas.
+4. **Default del juez, a confirmar con el PM:** los cuatro tipos son excluyentes entre
+   sí; dos roles del **mismo** tipo se suman; Territorial (solo `becas.campo`), los roles
+   de otros programas y los globales se combinan libremente.
+5. **Se valida el conjunto final**, calculado como lo guarda el servicio: un operador no
+   global no ve todos los roles del usuario y el guardado le conserva los que no ve, así
+   que combinar uno visible con uno oculto también se rechaza. En ese caso el error no
+   nombra el rol oculto («… con un rol que el usuario ya tiene fuera de tu alcance»).
+6. **Un conflicto entre dos roles que el operador no ve no le traba la edición:** no lo
+   puede resolver, y bloquearlo lo dejaría sin poder tocar ni el teléfono. Lo resuelve
+   quien administre esos roles.
+7. **El aviso del selector usa `ModernModal`** (tipo `warning`), el motor canónico del
+   shell, con el mismo texto que el error del servidor: la plantilla viaja en un
+   data-attribute del selector. Nunca `alert()`/`confirm()`.
+8. **El `/admin/` también valida.** A diferencia de `asegurar_admin_restante`, esta regla
+   no puede trabar el arreglo de un sistema roto: el conflicto se resuelve quitando un rol.
+
+## Implementación
+
+- `programas/services/autorizacion.py`: `alcances_becas_de_roles` (tipo por rol, una sola
+  consulta sobre la tabla intermedia rol–permiso), `alcance_becas_de_rol`,
+  `roles_becas_que_se_pisan` (un par por cada combinación de tipos distintos, nombres en
+  orden alfabético) y `errores_roles_becas_que_se_pisan` (mensajes, con la variante del
+  rol oculto). Texto del error:
+  «Los roles «A» y «B» no se pueden combinar: sus alcances en Becas se pisan. Un usuario
+  puede sumar Territorial o roles de otros programas, pero solo uno entre Administrador,
+  Coordinador, Coordinador Regional y Referente de Becas.»
+- `users/forms/__init__.py`: `_roles_resultantes` (el conjunto final, memoizado en el form;
+  ahora lo usa también `_validar_correo_de_entrega_al_editar`) y
+  `_validar_roles_becas_sin_pisarse`, en el `clean` del alta y de la edición. El alta
+  rápida de los modales de Becas pasa por el mismo `UserCreationForm`. El panel de roles
+  lleva `alcance_becas` por opción y el form expone la plantilla del mensaje.
+- `users/templates/user/user_form.html`: `data-alcance-becas` en cada checkbox con tipo y
+  `data-mensaje-roles-se-pisan` en `#roles-picker`; carga el JS en `customJS`.
+- `static/custom/js/usuarios-roles-alcance.js`: escucha `change` en captura sobre el
+  selector; si el rol tildado choca con otro, lo destilda antes de que el script de la
+  pantalla recalcule chips y contadores, y abre el aviso.
+- `users/management/commands/import_users_from_csv.py`: si los roles del usuario de
+  referencia ya se pisan, corta antes de planificar (también en el ensayo).
+- `users/admin.py`: `UsuarioAdminChangeForm.clean_groups` para el `UserAdmin`.
+
+## Archivos
+
+- `programas/services/autorizacion.py`
+- `users/forms/__init__.py`
+- `users/templates/user/user_form.html`
+- `static/custom/js/usuarios-roles-alcance.js` (nuevo)
+- `users/management/commands/import_users_from_csv.py`
+- `users/admin.py`
+- `users/tests/test_roles_becas_sin_pisarse.py` (nuevo)
+- `users/tests/js/roles_alcance.cjs` (nuevo)
+- Esta entrada y su fila del índice.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `users/tests/test_roles_becas_sin_pisarse.py` (23 tests): clasificación de los cinco
+  roles sembrados (el Administrador es `administrador`), por capacidad y no por nombre,
+  otros programas/globales/inactivos sin tipo, una sola consulta; el alta rechaza los seis
+  pares de tipos distintos y acepta Coordinador + Territorial, Becas + otro programa y dos
+  del mismo tipo; la edición de un usuario con conflicto queda bloqueada hasta resolverlo;
+  el operador no global no crea el conflicto con un rol oculto y no se traba por dos
+  ocultos; el template renderiza el data-attribute; CSV y `/admin/`; el JS en Node
+  (revierte, avisa con el texto del servidor y el selector ya ve el rol destildado).
+- **Mutaciones** (cada una en rojo y restaurada): prioridad Referente antes que
+  Administrador; sin la validación en la edición; sin la validación en el alta; conjunto
+  final sin los roles ocultos; sin el filtro por Programa Becas; mismo tipo cuenta como
+  choque; template sin `data-alcance-becas`; CSV sin chequeo; `/admin/` sin chequeo; JS que
+  no revierte; JS en burbuja en vez de captura; reportar pares que el operador no ve.
+- Suite `users` + `programas.tests.test_becas_rbac` + `programas.tests.test_coordinador_regional`
+  (+ `test_padron`, `core.tests.test_comandos_peligrosos`, `test_bajos_ola2`,
+  `test_modern_modal_contrato`) con `.venv312`: OK.
+- `manage.py check` OK; `makemigrations --check --dry-run` (SYNCDB=False): sin cambios.
+- `design_audit.py --ratchet`: 0 hallazgos nuevos. `compile_templates.py`: 0 errores.
+  `check_design_agent.py --changed`: OK. Ruff check/format sobre los `.py` tocados: OK.
+
+## Puesta en marcha en el servidor
+
+No requiere. El JS nuevo va con el despliegue (`collectstatic` con manifest).
+
+## Pendientes / a definir
+
+- **Confirmar con el PM el default** de la decisión 4: Territorial, roles de otros
+  programas y globales se combinan libremente con cualquiera de los cuatro, y dos roles
+  del mismo tipo se suman.
+- **El ABM de Roles no valida** (`users/services/roles.py`, MINOR del revisor): tildar
+  `becas.referente` o `becas.programa.administrar` en un rol, reactivarlo o moverlo a
+  Becas puede dejar en conflicto a usuarios que ya lo combinan con otro. Arreglo
+  propuesto: un chequeo al activar el rol o editar sus capacidades, en un PR siguiente.
+- **Usuarios que ya tienen el conflicto** (MINOR del revisor): quedan bloqueados para
+  editar cualquier dato (correo, teléfono) por un admin global hasta resolver sus roles.
+  Antes de desplegar conviene que el PM corra una consulta de usuarios en conflicto.
+- **Bloqueo de más por la exclusión de los cuatro tipos** (MINOR del revisor, a
+  confirmar con el PM): un rol armado a mano solo con capacidades `becas.*` sueltas
+  (por ejemplo, reportes) se clasifica como «coordinador» y no se combina con Referente,
+  aunque no haya choque real de alcance. Y un rol global con `becas.referente` no se
+  considera; el riesgo es bajo porque el catálogo restringe `becas.*` a roles de Becas.
+- Para el operador no global, el selector solo frena lo que ve: el choque con un rol que
+  el usuario tiene fuera de su alcance lo frena el servidor al guardar.
+
+## Reversión
+
+Revertir el commit. No hay datos que se pierdan: la regla solo valida.
 
 ---

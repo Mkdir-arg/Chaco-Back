@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.forms import UserChangeForm
 from django.contrib.auth.models import Group, User
+from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from core import rbac
@@ -38,6 +40,25 @@ class CandadoDeAdministracionMixin:
             super().delete_queryset(request, queryset)
 
 
+class UsuarioAdminChangeForm(UserChangeForm):
+    """Cambio 333: el `/admin/` tampoco deja combinar roles de Becas que se pisan.
+
+    A diferencia de `asegurar_admin_restante`, esta regla no puede trabar el arreglo de
+    un sistema roto: el conflicto se resuelve quitando un rol, que es lo que el
+    formulario sigue dejando hacer. Si quien entra no es superusuario, ``groups`` es de
+    solo lectura y este ``clean_groups`` no corre.
+    """
+
+    def clean_groups(self):
+        from programas.services.autorizacion import errores_roles_becas_que_se_pisan
+
+        grupos = self.cleaned_data.get("groups")
+        errores = errores_roles_becas_que_se_pisan(list(grupos or []))
+        if errores:
+            raise ValidationError(errores)
+        return grupos
+
+
 # Unregister the default User admin
 admin.site.unregister(User)
 
@@ -59,6 +80,7 @@ class OptimizedUserAdmin(CandadoDeAdministracionMixin, BaseUserAdmin):
     #: el superusuario y los roles son escalada de privilegio, y `is_staff` es la
     #: llave de esta misma pantalla.
     CAMPOS_DE_PRIVILEGIO = ("is_superuser", "is_staff", "groups", "user_permissions")
+    form = UsuarioAdminChangeForm
 
     def get_readonly_fields(self, request, obj=None):
         solo_lectura = tuple(super().get_readonly_fields(request, obj))
