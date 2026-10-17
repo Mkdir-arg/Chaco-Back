@@ -278,6 +278,37 @@ class CIVerdeAntesDelReleaseTests(SimpleTestCase):
         self.assertIn("required_status_checks", script)
         self.assertIn("no corrió el check obligatorio", script)
 
+    def test_un_rojo_no_obligatorio_dice_que_el_merge_lo_dejo_pasar(self):
+        """Pendiente del Cambio 320: el rojo que frena el release tiene que poder leerse.
+
+        `Bandit Security Scan` y `Dependency Review` son `continue-on-error` a nivel job:
+        el merge pasa, pero su check-run queda en `failure` y el release no sale. El 16/10
+        eso congeló `main` con «Ruff estilo» y nadie lo notó, porque el error decía lo
+        mismo que para un check obligatorio. Para poder distinguirlos, la lista de
+        obligatorios se lee **antes** de recorrer los checks.
+        """
+        script = _paso(self.PASO)["run"]
+
+        self.assertIn("check NO obligatorio en rojo", script)
+        self.assertIn("el merge lo permitió pero el release no se publica", script)
+        self.assertIn("check obligatorio no exitoso", script)
+        self.assertLess(
+            script.index('> "$RUNNER_TEMP/obligatorios.txt"'),
+            script.index('done < "$RUNNER_TEMP/checks.tsv"'),
+            "sin la lista leída antes, no se sabe si el check en rojo era obligatorio",
+        )
+        # Sin ruleset en el head la lista queda vacía, no ausente: todo rojo es «no obligatorio».
+        self.assertIn(': > "$RUNNER_TEMP/obligatorios.txt"', script)
+
+    def test_un_rojo_no_obligatorio_sigue_frenando_el_release(self):
+        """La decisión fue alinear el merge con el release, no aflojar el release."""
+        script = _paso(self.PASO)["run"]
+        bucle = script[script.index("while IFS=$'\\t' read -r nombre conclusion") :]
+        bucle = bucle[: bucle.index('done < "$RUNNER_TEMP/checks.tsv"')]
+
+        self.assertIn("success|neutral|skipped) continue", bucle)
+        self.assertIn("fail=1", bucle.split("if grep")[0], "el fallo se marca antes de clasificarlo")
+
     def test_los_contextos_del_ruleset_se_pueden_leer_con_el_jq_del_paso(self):
         """El `jq` del YAML tiene que devolver algo sobre el JSON de verdad.
 

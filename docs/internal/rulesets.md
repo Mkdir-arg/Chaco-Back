@@ -72,18 +72,18 @@ gh api repos/Mkdir-arg/Chaco-Back/rulesets/$ID -X PUT -f enforcement=active
 |---|---|---|
 | `deletion`, `non_fast_forward` | No se borra ni se reescribe la historia | `development` es la rama de trabajo y la base de todo PR |
 | `pull_request` con `required_approving_review_count: 0` | Todo cambio entra por PR | **A propósito en 0:** todo el equipo y los agentes publican con la misma cuenta y GitHub no deja aprobar el propio PR; exigir 1 aprobación bloquearía todos los merges. La revisión independiente sigue siendo el «Aprobado @ SHA» del proceso, no el botón |
-| `required_status_checks` con `strict` | Los diez checks de abajo tienen que estar verdes y la rama al día | Sin `strict`, un PR verde contra una base vieja mergea igual |
+| `required_status_checks` con `strict` | Los doce checks de abajo tienen que estar verdes y la rama al día | Sin `strict`, un PR verde contra una base vieja mergea igual |
 | `bypass_actors: []` | Nadie pasa por arriba | Si hiciera falta, se hace explícito y se revisa |
 
 Checks obligatorios y de dónde salen:
 
 | Check | Workflow |
 |---|---|
-| `Django System Check`, `Migration Check`, `Tests & Coverage` | `pr-backend.yml` |
+| `Django System Check`, `Migration Check`, `Tests & Coverage`, `Contratos de API` | `pr-backend.yml` |
 | `Query Budgets & Smoke Time`, `Ephemeral MySQL Redis Contract` | `pr-performance.yml` |
 | `Pip Audit` | `pr-security.yml` |
 | `Sin datos personales` | `pr-datos.yml` |
-| `Ruff errores`, `Contratos del repo` | `pr-quality.yml` |
+| `Ruff errores`, `Ruff estilo`, `Contratos del repo` | `pr-quality.yml` |
 | `Validate inventory and authority` | `design-agent-contract.yml` |
 
 `Contratos del repo` (RED-24, Cambio 128) corre las condiciones de cierre de `CLAUDE.md`:
@@ -92,9 +92,21 @@ almacenamiento con manifest —el que atrapa el «Missing staticfiles manifest e
 PRD— y el ratchet de `design_audit` contra `.design-audit-ratchet`. No filtra por rutas:
 casi cualquier archivo mueve alguna de las cuatro.
 
-No están `Ruff estilo`, `Bandit Security Scan` ni `Dependency Review`: los tres son
-`continue-on-error` y un check no bloqueante en la lista de obligatorios siempre
-reporta verde, o sea que no agrega nada.
+`Ruff estilo` entró a la lista con el pendiente del Cambio 320 (17/10/2026): era
+`continue-on-error`, el merge lo dejaba pasar en rojo y `publish-main.yml` no publicaba
+(ver abajo). Lo que frena el release tiene que frenar el merge.
+
+No están `Bandit Security Scan` ni `Dependency Review` (`continue-on-error` a nivel job)
+ni `Motor real (<motor>)` y `Migrate ida y vuelta (<motor>)` (todavía acumulando
+corridas). **Que no estén no significa que no frenen el release.** Con
+`continue-on-error` a nivel job el merge pasa, pero el check-run del job queda en
+`failure`; y `publish-main.yml` —igual que `release-gate.yml`— no publica un release de
+un PR con **cualquier** check en rojo, obligatorio o no. Cuando eso pasa, el error lo
+dice explícito («check NO obligatorio en rojo: …; el merge lo permitió pero el release
+no se publica»): se arregla en un PR —el próximo merge en verde publica todo lo
+acumulado— o se publica a mano con `workflow_dispatch` y motivo. Distinto es el
+`continue-on-error` **en un paso** (`Tipos (mypy)`, `Orden y paralelo`, el barrido
+informativo de `Sin datos personales`): ahí el job termina en `success` y no frena nada.
 
 **El único de la lista que puede ponerse rojo sin que nadie haya tocado nada es
 `Pip Audit`**, porque su base de advisories cambia sola y `pip-audit` todavía se
