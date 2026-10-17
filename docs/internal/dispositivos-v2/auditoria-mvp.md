@@ -1,6 +1,6 @@
 # Auditoría final del MVP de Dispositivos v2
 
-Documento interno · 17/10/2026 · consolidación del carril GK, Cambio 325.
+Documento interno · 17/10/2026 · consolidación GK (325) y cierre R3 del carril GL (326).
 
 ## 1. Contexto y método
 
@@ -10,7 +10,7 @@ el [mockup](../../client/mockups/dispositivos-v2.html), el
 [mapeo](mapeo-mockup.md), las tasks y el código. L1 revisó relevamiento; L2 ingreso/egreso;
 L3 operación diaria; D1 P2–P6; D2 P7–P21; P los procesos completos y los roles.
 Esta matriz vuelve a contrastar las promesas con el código integrado de los Cambios
-321 (G1), 322 (G3), 323 (G4), 324 (G2) y 325 (GK). No sustituye los issues ni certifica
+321 (G1), 322 (G3), 323 (G4), 324 (G2), 325 (GK) y 326 (GL). No sustituye los issues ni certifica
 una integración móvil que no se ejecutó.
 
 Fuentes externas leídas, sintetizadas sin incorporar sus logs ni datos de acceso:
@@ -47,6 +47,11 @@ la expectativa nominal de bitácora automática. Performance: 35 tests aprobados
 nueve mutaciones detectadas, incluidas las de candado y orden de alcance en MariaDB.
 Los comandos y resultados de los gates constan en el Cambio 325. Ver §7 para los límites.
 
+GL verifica los tres MINOR de R3 con cinco mutaciones detectadas y restauradas:
+nombre de fila, nombre del modal, desempate y filtro de cada selector de edificios.
+La regresión focal pasa 151 tests y performance pasa 36 sin subir presupuestos.
+La evidencia final de la suite `programas core` y los gates queda en el Cambio 326.
+
 Leyenda: **✅** comportamiento comprobado en el servidor actual; **🟦** apartamiento
 aprobado, con su Cambio; **❌** función excluida del MVP, con referencia al §3 público.
 Un ✅ no significa igualdad visual completa ni verificación de la app: la columna
@@ -61,7 +66,7 @@ son módulos de `programas.tests`. Las pantallas se identifican por el mockup.
 | Promesa | Task | Código actual | Test | Pantalla | Estado final |
 |---|---|---|---|---|---|
 | Aplicación conectada: autenticación, agenda e integración | 38 #703 | `api/views.py:ObtainCampoToken`, `api/views_inspecciones.py:InspeccionViewSet`, `api/serializers_inspecciones.py` | `test_api_campo_inspecciones` (autenticación, contrato, esquema y alcance); gate `contratos-api` | API de campo | ✅ servidor; app e integración entre repositorios no verificadas (§7) |
-| Coordinador crea y asigna; agente recibe solo lo asignado | 35 #700, 36 #701, 38 #703 | `services/inspecciones.py:crear_inspeccion`, `inspecciones_asignadas`, `_exigir_asignado`; `views/dispositivos_relevamientos.py` | `test_dispositivos_inspecciones.AsignacionTests`, `SoloLoAsignadoTests`; `test_api_campo_inspecciones`; `test_dispositivos_concurrencia.CarreraDeInspeccionTests` | P21 → API | ✅; candado común con última desvinculación y alcance releído bajo lock (325) |
+| Coordinador crea y asigna; agente recibe solo lo asignado | 35 #700, 36 #701, 38 #703 | `services/inspecciones.py:crear_inspeccion`, `edificios_para_asignar`, `edificios_sin_relevar`, `inspecciones_asignadas`, `_exigir_asignado`; `views/dispositivos_relevamientos.py` | `test_dispositivos_inspecciones.AsignacionTests`, `SoloLoAsignadoTests`; `test_dispositivos_relevamientos_listado.EdificiosElegiblesTests`, `ListadoPresupuestoTests`; `test_api_campo_inspecciones`; `test_dispositivos_concurrencia.CarreraDeInspeccionTests` | P21 → API | ✅; candado común y alcance bajo lock (325); combo y Sin relevar nunca excluyen huérfanos, sin consultas por fila ni duplicar predios compartidos (326) |
 | Elegir edificio; predio compartido se releva una sola vez y lo ven sus instituciones | 20 #685, 35 #700, 37 #702 | `models/Edificio.dispositivos`; `services/inspecciones.py:inspecciones_de_dispositivo`; `services/edificios.py` | `test_dispositivos_inspecciones.PredioCompartidoTests`, `test_dispositivos_capacidad` | P19/P21 | ✅; edificio N:M, sectores de cada dispositivo |
 | Cargar criticidad, observaciones y fotos | 35 #700, 38 #703 | `services/inspecciones.py:registrar_resultado`, `agregar_foto`; `core/validators.py`; `core/views/media.py` | `test_dispositivos_inspecciones.ResultadoYFotosTests`, `MediaDeFotosTests`; `test_api_campo_inspecciones` | API/informe/P19 | 🟦 Cambios 289/322: JPEG, PNG o WEBP; HEIC requiere conversión en app (no verificada); fotos nuevas rechazadas tras revisión, reenvíos previos idempotentes |
 | Responsable y fecha automáticos | 35 #700 | `services/inspecciones.py:registrar_resultado` asigna usuario y `timezone.now()` | `test_dispositivos_inspecciones.ResultadoYFotosTests` | informe/P19 | ✅; fecha mostrada en hora local |
@@ -95,7 +100,7 @@ son módulos de `programas.tests`. Las pantallas se identifican por el mockup.
 | Censo automático por turno; nadie tipea cifras | 31 #696 | `services/censo.py:censo_por_dia`, `fecha_operativa_de`; `services/ocupacion.py:alojada_en`; `services/bitacora_pantalla.py` | `test_dispositivos_censo`, `test_dispositivos_bitacora_pantalla.HuecoSinTurnoTests` | P10 | ✅; inicial + ingresos − egresos = final, noche/guardia y huecos; Cambio 323 dibuja hueco con movimientos o descuadre |
 | Seguimiento interno durante la estadía | 33 #698 | `selectors/estadia_detalle.py:detalle_de_estadia`, `novedades_de_estadia` | `test_dispositivos_estadia_detalle` | P7 | 🟦 Cambios 277/283: ficha mínima, movimientos y novedades; no formularios configurables (§3 «Formularios») |
 | Alertas por criticidad | 34 #699 | `services/alertas_dispositivos.py`; `core/services/vencimientos.py:AVISOS`; `selectors/vencimiento_inspecciones.py` | `test_dispositivos_alertas`, `test_dispositivos_auditoria_g3` | P4/P19 | ✅; cinco reglas al consultar, resolución en el origen, sin bloquear operaciones; cron proactivo fuera del MVP por decisión PM |
-| Situación: personas, sector y plazas disponibles | 27 #692 | `services/detalle_dispositivo.py:estadias_del_dispositivo`, `indicadores_de_plazas`; `services/ocupacion.py`; `views/dispositivos_legajo.py` | `test_dispositivos_detalle`, `test_dispositivos_fidelidad_fb`, tests `performance` | P4/P5 | 🟦 Cambios 298/324/325: cuatro indicadores reales, identidad solo con `ciudadano.ver`; sin capacidad «Persona alojada», con menú distinguido por ubicación/ingreso |
+| Situación: personas, sector y plazas disponibles | 27 #692 | `services/detalle_dispositivo.py:estadias_del_dispositivo`, `indicadores_de_plazas`; `services/ocupacion.py`; `views/dispositivos_legajo.py` | `test_dispositivos_detalle`, `test_dispositivos_fidelidad_fb`, tests `performance` | P4/P5 | 🟦 Cambios 298/324/325/326: cuatro indicadores reales; «Apellido, Nombre» en celda, menú y modales con `ciudadano.ver`; sin capacidad «Persona alojada», menú por ubicación o ingreso y número de estadía |
 | Auditoría básica de lo actuado | 34 #699 | `selectors/auditoria_dispositivo.py:FeedAuditoria`; `services/detalle_dispositivo.py:eventos_de_historial` | `test_dispositivos_auditoria`, `test_dispositivos_detalle.IdentidadDeEstadiasTests` | P4 Historial | ✅; cuatro fuentes paginadas sin duplicar ingreso; nombres de personas requieren opt-in/capacidad, defaults cerrados (325) |
 
 ## 3. Pantallas P2–P21
@@ -108,7 +113,7 @@ Los estados móviles sin diseño específico se comparan contra el canon product
 |---|---|---|
 | P2 Instituciones | `legajo/list.html`; `test_dispositivos_listado` | 🟦 Cambio 286: filtros canónicos, columnas reales, CSV/Excel separados, acción de ícono; sin Importar. Eyebrow protegido por 323. Header que envuelve y contador de filtros se conservan por decisión PM. |
 | P3 Alta | `legajo/form.html`; `test_dispositivos_fidelidad_fi`, `test_dispositivos_legajo` | 🟦 Cambios 308/323: dos columnas, panel de duplicados y validación; siete marcas para enviar, sin campos ni procedencia inexistentes; ModernModal. Alta solo admin del programa; borrador propio previo sigue editable. |
-| P4 Detalle | `legajo/detail.html`; `test_dispositivos_detalle`, `test_dispositivos_egreso` | 🟦 Cambios 298/324/325: cinco solapas reales, indicadores grandes con tono, sin avatar, menú canónico, sin identidad sin capacidad; rótulo accesible con ubicación/ingreso. Sin ficha configurable, permiso ni traslado. |
+| P4 Detalle | `legajo/detail.html`; `test_dispositivos_detalle`, `test_dispositivos_egreso` | 🟦 Cambios 298/324/325/326: cinco solapas reales, indicadores grandes con tono, sin avatar, menú canónico; nombre «Apellido, Nombre» como mockup en celda, menú y modales. Sin identidad sin capacidad; rótulo con ubicación o ingreso y número de estadía para desempatar el mismo minuto. Sin ficha configurable, permiso ni traslado. |
 | P5 Sectores/plazas | `legajo/sectores.html`; `test_dispositivos_sectores`, `test_dispositivos_fidelidad` | 🟦 Cambios 291/299: mapa canónico y leyenda con íconos, cinco estados; altas de reserva/préstamo ausentes. PM conserva Reservada/Prestada, indicador y Liberar. |
 | P6 Ingreso | `ingreso/paso_*.html`; `test_dispositivos_ingreso` | 🟦 Cambios 272/299/323: tres pasos, mapa completo, aviso crítico sin bloquear, resumen sector · plaza; sin ficha mínima configurable ni Excepcional. Mensaje de red opaco fuera del alcance. |
 | P7 Estadía | `estadia/detalle.html`; `test_dispositivos_estadia_detalle` | 🟦 Cambios 277/283/309: ficha mínima y tres solapas, timeline, otras estadías, cambio/egreso; sin permiso, traslado, formularios ni sensibilidad. Errores AJAX accesibles corregidos por 323. |
@@ -125,7 +130,7 @@ Los estados móviles sin diseño específico se comparan contra el canon product
 | P18 Sensibilidad | Sin superficie MVP | ❌ §3 «Permisos»: sin niveles médico/psicosocial/judicial. |
 | P19 Infraestructura | Solapa de `legajo/detail.html`; `test_dispositivos_infraestructura`, `test_dispositivos_auditoria_g3` | 🟦 Cambios 280/289/298/308/322/324/325: tres métricas grandes reales, edificios, domicilio, coordenadas si existen y enlace externo, predio compartido, timeline/fotos/informe; revisión y fecha en curso visibles. Sin tenencia, habitaciones, plano ni vigencia automática. Crítico prevalece. |
 | P20 Consumos/contratos | Sin superficie MVP | ❌ §3 «Lo demás»: sin pagos, avisos ni escalamiento de consumos. |
-| P21 Relevamientos | `relevamientos/list.html`, `informe.html`; `test_dispositivos_relevamientos_listado`, `test_dispositivos_revision` | 🟦 Cambios 279/289/304/322: cinco solapas, asignación en dos pasos Edificio → Agente → Vence → Indicaciones, informe también cancelado y revisión. Sin periodicidad, prioridad, exportar, chips no disponibles ni Relevar ya. Geometría móvil compartida conservada por PM. |
+| P21 Relevamientos | `relevamientos/list.html`, `informe.html`; `test_dispositivos_relevamientos_listado`, `test_dispositivos_revision` | 🟦 Cambios 279/289/304/322/326: cinco solapas, asignación en dos pasos Edificio → Agente → Vence → Indicaciones, informe también cancelado y revisión. Combo y Sin relevar nunca solo ofrecen edificios con dispositivos vinculados, también para admin. Sin periodicidad, prioridad, exportar, chips no disponibles ni Relevar ya. Geometría móvil compartida conservada por PM. |
 
 Los templates de esta tabla son relativos a
 `programas/templates/programas/dispositivos/`, excepto P16, relativo a
@@ -194,12 +199,15 @@ cada fila. No se arrastran los «difiere» originales como si el arreglo no exis
 | P MAJOR P-M2 / P-02 · creador delegado termina en 403 | **Decisión PM + 323 G4:** alta y buscador de duplicados solo admin del programa; botón y servidor con mismo mixin; pruebas sin `programa.configurar`. |
 | P diferencia · no hay reactivación | **Decisión PM:** fuera del MVP, §3 «Legajo de la institución»; no es defecto pendiente de implementación de este carril. |
 | P diferencia · cron no ejecuta AVISOS | **Decisión PM:** avisos al consultar; proactividad por cron fuera del MVP. Ver §7 sobre instalación ECOM. |
-| Revisión G2 MINOR · menús genéricos repetidos | **325 GK:** rótulo con sector/plaza o ingreso; test sin capacidad, cuatro filas y cuatro etiquetas sin nombres/DNI. |
+| Revisión G2 MINOR · menús genéricos repetidos | **325 GK + 326 GL:** rótulo con sector/plaza o ingreso y número de estadía; test sin capacidad, cuatro etiquetas distintas incluso con dos ingresos sin plaza en el mismo minuto, sin nombres/DNI. |
 | Revisión G2 MINOR · defaults exponen personas | **325 GK:** `evento_de_movimiento`, `FeedAuditoria`, `auditoria_del_dispositivo` optan por False; servicio sin usuario oculta identidad. Test de las cuatro entradas y cuatro mutaciones independientes. |
-| Revisión G2 MINOR · doble fuente del nombre en celda | **325 GK:** `persona_visible` también en celda; condición solo alrededor de DNI. Test del nombre preparado por la vista y mutación. |
+| Revisión G2 MINOR · doble fuente del nombre en celda | **325 GK + 326 GL:** `persona_visible` también en celda; condición solo alrededor de DNI. Formato «Apellido, Nombre» coherente con menú y modales; tests y mutaciones de ambos puntos de preparación. |
 | Revisión G2 MINOR · ficha de stat card contradictoria | **325 GK:** excepción acotada P4/P19; sin cambio de CSS, clases o componente compartido. |
 | Revisión G3 MINOR · test de gate en clase ajena | **325 GK:** clase independiente `ContratosDeApiTests(SimpleTestCase)` para `pr-backend.yml`. |
 | Revisión G3 MINOR · carrera asignación/desvinculación | **325 GK:** ambas toman Edificio sin JOIN dentro del FOR UPDATE; alcance después del lock y guarda sin vínculos. Tests reales en ambos órdenes y mutaciones de candado/orden/guarda. |
+| Revisión R3 MINOR · orden del nombre en P4 | **326 GL:** «Apellido, Nombre» con `ciudadano.ver` en celda, menú y modales; sin capacidad sigue «Persona alojada». `IdentidadDeEstadiasTests`; mutaciones de nombre en fila y modal detectadas. |
+| Revisión R3 MINOR · ingreso sin plaza en el mismo minuto | **326 GL:** sufijo «estadía N.º <pk>», sin identidad; cuatro menús distintos con dos ingresos sin plaza en el mismo minuto. Mutación sin sufijo detectada. |
+| Revisión R3 MINOR · selector ofrece edificios huérfanos | **326 GL:** `edificios_para_asignar` y `edificios_sin_relevar` filtran vínculos por subconsulta, sin JOIN multiplicador. `EdificiosElegiblesTests` con admin y P21; mutación independiente de cada filtro detectada; presupuesto existente sin incremento. |
 
 ### Las catorce decisiones del PM
 
@@ -267,12 +275,12 @@ El catálogo de motivos conserva su mantenimiento en Django Admin; P14 completa 
   a toda la matriz MariaDB 11/MySQL 8, ni a toda la suite sobre MariaDB.
 - **Servicios externos reales y entorno productivo:** sin RENAPER con personas reales,
   sin comprobar límite multipart del ingress ECOM. No hay datos personales en esta matriz.
-- **Revisión visual:** D1/D2 y los carriles entregaron capturas Chromium; GK modifica
-  textos accesibles y la fuente del nombre, sin rehacer esas capturas. No se certifican
+- **Revisión visual:** D1/D2 y los carriles entregaron capturas Chromium; GK y GL modifican
+  textos, fuente del nombre y elegibilidad, sin rehacer esas capturas. No se certifican
   Safari/Firefox, lectores de pantalla físicos, teclado virtual ni dark mode.
 - Las pruebas temporales de los revisores y sus capturas viven fuera del repo; se
   conservan aquí sus conclusiones y límites. Los tests versionados y las validaciones
-  de cierre de GK constan en el **Cambio 325** del registro. No se presenta un porcentaje
+  de cierre de GK/GL constan en los **Cambios 325/326** del registro. No se presenta un porcentaje
   global de «100 %»: apartamientos aprobados, recortes y verificación externa son distintos.
 
 `mkdocs.yml` publica solo `docs/client/` (`docs_dir`). Las otras páginas internas de
