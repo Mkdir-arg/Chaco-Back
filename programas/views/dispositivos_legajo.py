@@ -95,6 +95,12 @@ from programas.services.sectores_plazas import (
 )
 from programas.views.ajax_utils import ajax_redirect, is_ajax
 
+#: La capacidad que habilita **nombrar** a la persona. Sin ella las pantallas del programa
+#: muestran un rótulo opaco (decisión PM 1, Cambios 324/325), y con ella el nombre va
+#: siempre como «Apellido, Nombre» (`Ciudadano.apellido_nombre`). Se declara acá arriba
+#: porque la usan tanto el detalle del dispositivo (P4) como el egreso y P7.
+CAP_VER_CIUDADANO = "ciudadano.ver"
+
 
 class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
     """P2 · Listado de instituciones (MVP v2, etapa 4).
@@ -275,13 +281,9 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         estadias = estadias_del_dispositivo(dispositivo, estado=estado, sector=sector, pagina=get.get("estadias_page"))
         puede_egresar = puede_operar_dispositivo(user, dispositivo, CAP_EGRESAR)
         puede_cambiar = puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR)
-        puede_ver_ciudadano = puede(user, "ciudadano.ver")
+        puede_ver_ciudadano = puede(user, CAP_VER_CIUDADANO)
         for estadia in estadias:
-            estadia.persona_visible = (
-                f"{estadia.ciudadano.apellido}, {estadia.ciudadano.nombre}"
-                if puede_ver_ciudadano
-                else "Persona alojada"
-            )
+            estadia.persona_visible = estadia.ciudadano.apellido_nombre if puede_ver_ciudadano else "Persona alojada"
             estadia.persona_del_menu = estadia.persona_visible
             if not puede_ver_ciudadano:
                 if estadia.plaza_id:
@@ -358,9 +360,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             estadia_pk = int(pedido) if pedido.isascii() and pedido.isdecimal() else None
             estadia = _estadia_del_dispositivo(dispositivo, estadia_pk)
             estadia.persona_visible = (
-                f"{estadia.ciudadano.apellido}, {estadia.ciudadano.nombre}"
-                if context["puede_ver_ciudadano"]
-                else "Persona alojada"
+                estadia.ciudadano.apellido_nombre if context["puede_ver_ciudadano"] else "Persona alojada"
             )
             if not estadia.activa:
                 messages.info(self.request, "La estadía ya está cerrada.")
@@ -887,7 +887,11 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
         except ValidationError as error:
             return self._rechazar(request, self._errores_del_servicio(error, form), volver)
 
-        mensaje = f"Egreso registrado: {estadia.ciudadano.nombre_completo}."
+        # El mismo nombre que el modal que disparó el egreso: «Apellido, Nombre» con
+        # `ciudadano.ver` y el rótulo opaco sin la capacidad. El aviso sale de la misma
+        # acción que el modal, y quien no puede ver a la persona tampoco la lee acá.
+        persona = estadia.ciudadano.apellido_nombre if puede(request.user, CAP_VER_CIUDADANO) else "La persona alojada"
+        mensaje = f"Egreso registrado: {persona}."
         if is_ajax(request):
             return ajax_redirect(request, volver, mensaje)
         messages.success(request, mensaje)
@@ -928,7 +932,6 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
 
 # Detalle de la estadía (MVP v2, etapa 3 · #698 · P7). La persona alojada con su plaza, su
 # línea de tiempo y las dos acciones que la mueven: cambiar de plaza y egresar.
-CAP_VER_CIUDADANO = "ciudadano.ver"
 #: Movimientos por página en la solapa Movimientos.
 MOVIMIENTOS_POR_PAGINA = 25
 #: Los dos formularios de P7 tienen un campo `motivo`: con el `id_%s` de Django los dos

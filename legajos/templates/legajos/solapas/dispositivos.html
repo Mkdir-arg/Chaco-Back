@@ -1,13 +1,14 @@
 {# arquetipo: detalle + apilado #}{# un area sola (la trayectoria): la ficha del arquetipo dice que sin solapas van secciones apiladas en surfaces #}
 {% extends "includes/base.html" %}
 {% load nodo_ui %}
-{% block title %}Dispositivos · {{ ciudadano.nombre_completo }}{% endblock %}
+{% block title %}Dispositivos · {{ ciudadano.apellido_nombre }}{% endblock %}
 
 {% block main-content %}
 <div class="space-y-5">
 
   {# ===== PageHeader (solo lectura: sin acciones) ===== #}
-  {% page_header titulo=ciudadano.nombre_completo volver_url=url_legajo volver_label="legajo ciudadano" %}
+  {# «Apellido, Nombre» como el h1 del mockup (#p16) y como el del legajo del que cuelga #}
+  {% page_header titulo=ciudadano.apellido_nombre volver_url=url_legajo volver_label="legajo ciudadano" %}
     {% bajada %}Trayectoria en Dispositivos · DNI {{ ciudadano.dni|dni }}{% if ciudadano.edad is not None %} · {{ ciudadano.edad }} años{% endif %}{% endbajada %}
   {% endpage_header %}
 

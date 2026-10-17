@@ -267,6 +267,20 @@ class Ciudadano(TimeStamped):
         return f"{self.nombre} {self.apellido}"
 
     @property
+    def apellido_nombre(self):
+        """«Apellido, Nombre»: el orden con el que se **identifica** a la persona.
+
+        Es el que usan el mockup de Dispositivos (tablas de P4, título de P7, bitácora de
+        P10, legajo de P16) y el encabezado del legajo ciudadano. `nombre_completo` queda
+        para el orden natural de la prosa y para las pantallas que ya lo muestran así
+        (Becas, legajos, la ficha de identidad del ingreso de P6, donde el mockup escribe
+        «Jorge Daniel Ramírez»). Son dos formatos distintos a propósito: el de identificar
+        se escribe una sola vez, acá.
+        """
+
+        return f"{self.apellido}, {self.nombre}"
+
+    @property
     def edad(self):
         """Edad en años cumplidos hoy, en hora local (``None`` si no hay fecha).
 

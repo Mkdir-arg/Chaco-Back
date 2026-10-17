@@ -32,6 +32,11 @@ fecha · hora · turno · responsable. `programas/selectors/estadia_detalle.py` 
 momento sobre los turnos activos cargados una vez; si no hay turno vigente, omite ese tramo.
 El Historial de P4 conserva su metadato sin turno.
 
+Ese mismo selector prepara el `persona` del encabezado, y lo nombra **«Apellido, Nombre»**
+(`Ciudadano.apellido_nombre`): es el orden con el que la tabla desde la que se entró —la solapa
+Estadías de P4— lo escribe en la celda, en el menú y en los modales, y el título tiene que decir
+lo mismo que la fila. Contrato de la variable en `arquetipos/revision.md`.
+
 En Infraestructura (P19), el evento revisado usa `badge="Revisado"` y `badge_tono="success"`;
 conserva la criticidad en `detalle` y el tono del punto, y agrega revisor y fecha/hora a `cuando`.
 El servicio carga `revisado_por` junto con la página de relevamientos.

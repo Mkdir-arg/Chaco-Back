@@ -36,7 +36,7 @@ por capacidad; el template no evalúa permisos.
 
 | Variable | Qué es |
 |---|---|
-| `persona` | `nombre_completo`, `dni`, `edad`; el DNI visible usa `nodo_ui.dni` (`12.345.678`), sin transformar controles ni búsquedas |
+| `persona` | `nombre_completo`, `dni`, `edad`; el DNI visible usa `nodo_ui.dni` (`12.345.678`), sin transformar controles ni búsquedas. `nombre_completo` es **cómo se titula** a la persona, y en esta golden eso es «Apellido, Nombre» (`Ramírez, Jorge Daniel`): el productor lo llena con `Ciudadano.apellido_nombre` —no con la property homónima del modelo, que es el orden natural— para que el título coincida con la tabla desde la que se entró |
 | `ubicacion`, `estadia` | texto de ubicación; `estado`, `reingreso`, `ingreso`, `dias` |
 | `ficha` | `pendiente` (bool), `titulo`, `texto`, `url_completar` |
 | `secciones` | lista de dicts con las claves de `_ficha_seccion` (`codigo`, `titulo`, `avance`, `avance_tono`, `sensibilidad`, `sensibilidad_tono`, `bloqueada`, `motivo`, `completa`, `completar_url`, `campos`, `vacio_texto`); el productor marca el campo DNI con `formato: "dni"` |

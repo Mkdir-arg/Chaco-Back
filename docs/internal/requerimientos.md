@@ -452,6 +452,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 324 | P4: identidad protegida, permanencia de calendario e indicadores grandes | Dispositivos · detalle institucional | `#rbac` `#ui` `#datos` | PM — auditoría final MVP v2, carril G2 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 325 | Cierre GK: privacidad, concurrencia y matriz final del MVP | Dispositivos · auditoría final | `#rbac` `#ui` `#relevamientos` `#gestion` | PM — encargo directo, carril GK | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 326 | Cierre GL: tres MINOR R3 de P4 y selección de edificios | Dispositivos · auditoría final | `#ui` `#rbac` `#relevamientos` `#performance` | PM — encargo directo, carril GL | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 327 | Cierre GM: «Apellido, Nombre» en P7 y en el resto del MVP | Dispositivos · auditoría final | `#ui` `#rbac` `#textos` | PM — encargo directo, carril GM | 17/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -42723,5 +42724,180 @@ productivos. Ninguna función de esos carriles se incorpora a este encargo.
 Revertir los commits de código y documentación de GL. No hay datos ni esquema que
 deshacer; volverían el nombre en orden anterior, el rótulo ambiguo por minuto y
 la oferta de edificios huérfanos en P21.
+
+---
+
+---
+
+# Cambio 327 — Cierre GM: «Apellido, Nombre» en P7 y en el resto del MVP
+
+🟢 **HECHO — 17/10/2026** · Número siguiente disponible, provisional hasta la numeración del juez.
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P7 / P16 / egreso · auditoría final del MVP v2 |
+| **Etiquetas** | `#ui` `#rbac` `#textos` |
+| **Solicitante** | PM — encargo directo de implementación, carril GM, último MINOR visible |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | Épica #127; sin issue nuevo |
+| **Partes afectadas** | Backoffice P7, P16 y egreso · modelo `Ciudadano` · selectores y servicios · tests · documentación interna |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El Cambio 326 dejó P4 con «Apellido, Nombre» como el mockup, pero P7 siguió con el
+orden viejo: desde la fila «Gómez, Ana» se entraba a una pantalla titulada «Ana Gómez»,
+y el modal «Cambiar plaza» decía una cosa u otra según desde dónde se abriera. Resolverlo
+con un **helper único**, usarlo en los dos puntos de P4 y en P7, revisar el resto de las
+pantallas del MVP y alinear solo donde el mockup lo muestra así.
+
+## Alcance acordado
+
+Una property `Ciudadano.apellido_nombre` como fuente única del formato de identificación,
+los consumidores del MVP de Dispositivos (P4, P7, P10, P16 y el aviso del egreso) y los
+tests con sus mutaciones. Sin cambios de roles, seeds, modelos persistidos, migraciones,
+piezas compartidas ni otros worktrees. `nombre_completo` queda como está: lo leen Becas,
+legajos y la ficha de identidad del ingreso.
+
+## Decisiones tomadas
+
+1. **Un solo lugar escribe el formato.** `Ciudadano.apellido_nombre`
+   (`legajos/models/base.py`), al lado de `nombre_completo`, que **no** se toca. Los tres
+   sitios que lo armaban a mano —los dos puntos de preparación de P4 y `_persona` de la
+   bitácora— pasan a leerlo, y el h1 del legajo ciudadano también, que ya lo escribía
+   igual en el template.
+2. **Son dos formatos distintos a propósito.** «Apellido, Nombre» **identifica** (tablas,
+   títulos, menús, modales, bitácora); `nombre_completo` queda para la prosa y para la
+   ficha de identidad del ingreso, donde el mockup de P6 escribe «Jorge Daniel Ramírez».
+   La property lo dice en su docstring para que el próximo no tenga que deducirlo.
+3. **P7 cambia por el valor, no por la clave.** El selector `detalle_de_estadia` llena
+   `persona.nombre_completo` con `apellido_nombre`: la clave es la que pide el arquetipo
+   Revisión —la golden `revision_referencia.html` y su ficha— y su propio ejemplo ya es
+   «Ramírez, Jorge Daniel». Así el título, el `<title>`, la miga, el modal de cambio de
+   plaza y el de egreso de P7 quedan alineados sin tocar el template ni la golden.
+4. **El aviso del egreso se alinea y además deja de delatar.** Decía
+   «Egreso registrado: Ana Gómez» *sin pedir `ciudadano.ver`*: el operador de turno, que
+   en el modal lee «Persona alojada», recibía el nombre en el toast siguiente. Ahora es
+   «Apellido, Nombre» con la capacidad y «La persona alojada» sin ella, igual que el modal
+   que disparó la acción (decisión PM 1, Cambios 324/325). Hallazgo encontrado en la línea
+   que había que editar; se arregla acá y se deja constancia.
+5. **Se alinea solo donde el mockup lo muestra así**, pantalla por pantalla (ver
+   «Revisión de las pantallas del MVP»).
+6. `CAP_VER_CIUDADANO` sube al encabezado de `views/dispositivos_legajo.py`: la usan el
+   detalle (P4), el egreso y P7, y estaba declarada después de uno de ellos.
+
+## Revisión de las pantallas del MVP
+
+| Pantalla | Qué muestra hoy | Evidencia del mockup | Resultado |
+|---|---|---|---|
+| **P4** detalle del dispositivo | celda, menú y modales | `#p4` L812-813 «Gómez, Laura», «Ramírez, Jorge» | ya alineado en 326; ahora lee la property |
+| **P7** detalle de la estadía | título, `<title>`, miga, modal de cambio de plaza, modal de egreso | `#p7` L878 «Ramírez, Jorge Daniel» | **alineado** (el objeto de este cambio) |
+| **P7** «Otras estadías en la red» | institución, estado y fechas | `#p7` L901 | **sin cambio**: no nombra a la persona |
+| **P7** ficha · Datos personales | DNI, nacimiento, edad, género | `#p7` L886 | **sin cambio**: no repite el nombre |
+| **P6** paso 2, tarjeta «Persona» | «Nombre» con `nombre_completo` | `#p6` L865 `<dt>Nombre</dt><dd>Jorge Daniel Ramírez</dd>` | **sin cambio**: el mockup usa el orden natural en la ficha de identidad |
+| **P6** paso 3 (confirmar), fila «Persona» | el mismo resumen del paso 2 | el mockup no dibuja ese paso (solo la nota al pie) | **sin cambio**: coherente con el paso 2 |
+| **P6** aviso de estadía en otra institución | mensaje de red opaco, sin nombre | `#p6` L854 nombra a la persona | **sin cambio**: apartamiento ya registrado (Cambios 272/299/323) |
+| **P10** bitácora, personas de la novedad | «Personas: Gómez, Ana» | `#p10` L974 «Personas: Benítez, R. · Ojeda, F.» | ya alineado; ahora lee la property |
+| **P16** solapa Dispositivos del legajo | título y `<title>` | `#p16` L1116 `<h1>Ramírez, Jorge Daniel</h1>` | **alineado**: además coincide con el h1 del legajo del que cuelga |
+
+## Implementación
+
+`Ciudadano.apellido_nombre` devuelve «Apellido, Nombre». La consumen los dos puntos de
+preparación de P4, `_persona` de la bitácora (P10), el selector de P7, el título de P16,
+el h1 del legajo ciudadano y el aviso del egreso, que además resuelve `ciudadano.ver`
+antes de nombrar. Ningún template nuevo, ningún include ni asset tocado.
+
+## Plan de pantalla
+
+- **Tipo A:** ajuste de superficies existentes; no se crea pantalla. P7, arquetipo
+  **Revisión**, golden `programas/templates/programas/dispositivos/estadia/revision_referencia.html`.
+  P16, arquetipo **Detalle + apilado**. La estructura de los templates no cambia.
+- **Rutas/templates finales:** `dispositivos:estadia_detalle` →
+  `programas/dispositivos/estadia/detalle.html` (sin diff); `legajos:dispositivos_ciudadano`
+  → `legajos/solapas/dispositivos.html` (solo el título).
+- **Bloques:** encabezado de página, `<title>`, migas y subtítulo de los dos modales de P7;
+  encabezado de P16.
+- **Clasificación:** todo canónico reutilizable. Se conservan `includes/base.html`,
+  `page_header`, `_modal_header.html`, `_modal_footer.html` y los assets ya cargados.
+- **Mockup leído:** `docs/client/mockups/dispositivos-v2.html#p6`, `#p7`, `#p10` y `#p16`,
+  contrastados con `docs/internal/dispositivos-v2/mapeo-mockup.md`.
+- **Novedades:** ninguna. No se agrega clase, include, variante ni valor fuera del
+  inventario; no se toca ninguna golden ni ninguna ficha de `.claude/design/`.
+
+## Apartamientos del mockup
+
+- Los modales en prosa del mockup escriben el orden natural («Registrar egreso de Ana
+  Soto» en `#p9` L942, «Recibir a Laura Gómez» en `#p8` L924). El repo usa
+  «Apellido, Nombre» también ahí, porque es el texto que el Cambio 326 ya dejó en el
+  modal de egreso de P4 y el mismo modal se abre desde las dos pantallas: se prefiere la
+  coherencia entre P4 y P7 antes que la literalidad de dos títulos del mockup.
+- «La persona alojada» en el aviso del egreso sin `ciudadano.ver` es el apartamiento de
+  privacidad ya autorizado (decisión PM 1).
+- Los apartamientos de 321–326 se conservan tal cual; no hay cambios de geometría,
+  estilos ni piezas comunes.
+
+## Archivos
+
+- `legajos/models/base.py` (property nueva).
+- `programas/views/dispositivos_legajo.py`, `programas/selectors/estadia_detalle.py`,
+  `programas/services/bitacora_pantalla.py`.
+- `legajos/templates/legajos/solapas/dispositivos.html`,
+  `legajos/templates/legajos/ciudadano_detail.html`.
+- `programas/tests/test_dispositivos_estadia_detalle.py`, `test_dispositivos_egreso.py`,
+  `test_solapa_dispositivos.py`.
+- `docs/internal/dispositivos-v2/auditoria-mvp.md` y esta entrada con su fila del índice.
+
+## Base de datos
+
+No requiere migraciones ni modificaciones de datos. `apellido_nombre` es una property de
+Python sobre dos columnas existentes; no se consulta ni se ordena por ella.
+
+## Validación
+
+- Mutaciones, todas en rojo y restauradas desde copias exactas (sin `git checkout` ni
+  `stash`): (1) el selector de P7 vuelve a `nombre_completo` → 4 tests rojos, incluido el
+  del título y el del modal compartido; (2) los dos puntos de P4 vuelven al orden natural
+  → 6 rojos, entre ellos el modal visto desde las dos pantallas; (3) el aviso del egreso
+  pierde la guarda de `ciudadano.ver` → rojo; (4) el título de P16 vuelve atrás → rojo;
+  (5) `_persona` de la bitácora vuelve atrás → rojo (`PrivacidadTests`).
+- Tests nuevos: título de P7 («Gómez, Ana» en `<title>`, cuerpo y miga, y el orden natural
+  ausente de toda la pantalla), modal de cambio de plaza idéntico desde P4 y desde P7 —con
+  **un solo cliente**, porque el backoffice admite una sesión por usuario—, aviso del
+  egreso con y sin `ciudadano.ver`, y título de P16.
+- Suites con `.venv312` (SQLite/syncdb): `core` + `legajos` 1792 tests OK (42 omitidos);
+  `programas` completa OK; focales de arquitectura, detalle, bitácora e ingreso 160 OK.
+- `--tag performance programas` y `check_perf_budgets.py`: OK, sin presupuestos nuevos ni
+  incrementos (no se agrega ninguna consulta: la property no toca la base).
+- `manage.py check`, `makemigrations --check --dry-run` con
+  `DJANGO_SYNCDB_PROJECT_APPS=False` y `check_migraciones.py`: OK.
+- 233 templates compilados, 0 errores y 0 bloques sin destino. `design_audit.py --ratchet`
+  contra `origin/development`: 0 hallazgos nuevos; `--goldens`: 0 en 7; arquetipos de P7
+  (revisión) y P16 (detalle + apilado): OK.
+- Ruff `check` y `format --check` sobre `programas/ core/ users/`: OK. Tailwind sin diff.
+- `check_design_agent.py --changed` y `--limites --base origin/development` después del
+  commit de código: OK.
+- `requerimientos.py --check`: OK.
+
+## Puesta en marcha en el servidor
+
+No requiere pasos adicionales al despliegue de código. Roles y asignaciones siguen a
+cargo del PM.
+
+## Pendientes / a definir
+
+- El juez asigna la numeración definitiva.
+- El aviso del ingreso (`views/dispositivos_ingreso.py`) sigue con el orden natural y sin
+  guarda de `ciudadano.ver`. Es otra superficie —el operador acaba de tipear el documento
+  y de leer la ficha de identidad en P6— y el mockup no la dibuja: queda planteado, no
+  resuelto, para que lo decida el PM junto con el resto de P6.
+- Se mantienen los límites externos de §7 de la matriz: app móvil, integraciones reales y
+  validación en motores productivos.
+
+## Reversión
+
+Revertir los commits de código y documentación de GM. No hay datos ni esquema que
+deshacer; volvería el orden natural en P7, P16 y el aviso del egreso —y con él la
+diferencia entre lo que dice el modal abierto desde P4 y desde P7— y el nombre visible en
+el aviso del egreso sin `ciudadano.ver`.
 
 ---

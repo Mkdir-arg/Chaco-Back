@@ -26,10 +26,11 @@ from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 
+from core.rbac import puede
 from programas.models import Estadia, MotivoEgreso, TrazaDispositivo
 from programas.services.estadias import cambiar_plaza, egresar_persona, ingresar_persona
 from programas.services.ocupacion import ocupacion_de_plazas
-from programas.tests.test_dispositivos_estadias import BaseEstadias
+from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias
 
 FORMATO = "%Y-%m-%dT%H:%M"
 TOKEN_CSRF = "a" * 32
@@ -167,6 +168,32 @@ class EgresoPantallaTests(BaseEgreso):
         self.assertEqual(self.estadia.estado, Estadia.Estado.EGRESADA)
         self.assertEqual(self.estadia.egresada_por, self.operador_cis)
         self.assertEqual(ocupacion_de_plazas(self.cis).de(self.cis).conteo.ocupadas, 0)
+
+    def test_el_aviso_nombra_a_la_persona_como_el_modal_que_lo_disparo(self):
+        """«Apellido, Nombre», el mismo texto que el título del modal de egreso de P4 y P7."""
+
+        operador = self._operador("Egresa y ve", self.cis, (*CAPACIDADES_OPERATIVAS, "ciudadano.ver"))
+        cliente = Client(enforce_csrf_checks=True)
+        cliente.force_login(operador)
+
+        respuesta = self._post(cliente)
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json()["message"], "Egreso registrado: Gómez, Ana.")
+
+    def test_sin_ciudadano_ver_el_aviso_del_egreso_no_nombra_a_la_persona(self):
+        """El operador de turno egresa sin `ciudadano.ver`: el modal le dice «Persona
+        alojada» (decisión PM 1, Cambios 324/325) y el aviso posterior no puede delatar
+        el nombre que la pantalla le acaba de ocultar.
+        """
+
+        self.assertFalse(puede(self.operador_cis, "ciudadano.ver"), "el operador de turno no ve personas")
+
+        respuesta = self._post()
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json()["message"], "Egreso registrado: La persona alojada.")
+        self.assertNotIn(self.persona.apellido, respuesta.json()["message"])
 
     def test_un_get_no_muta_nada(self):
         respuesta = self.cliente.get(self.url)

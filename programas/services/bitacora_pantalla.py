@@ -124,8 +124,7 @@ def _autor(usuario) -> str:
 
 
 def _persona(estadia) -> str:
-    ciudadano = estadia.ciudadano
-    return f"{ciudadano.apellido}, {ciudadano.nombre}"
+    return estadia.ciudadano.apellido_nombre
 
 
 def _texto_de(entrada, *, nombrar_personas: bool) -> str:
