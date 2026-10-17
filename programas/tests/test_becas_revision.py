@@ -412,15 +412,33 @@ class RevalidacionRenaperTests(_BaseRevisionTest):
         self.assertFalse(TracaFormulario.objects.filter(formulario=self.form_a).exists())
 
     @patch("programas.views.revision.consultar_persona")
-    def test_coordinador_no_puede_revalidar(self, consultar):
+    def test_coordinador_revalida_un_caso_de_su_segmento(self, consultar):
+        # Cambio 334: el Coordinador sembrado tiene ``becas.revision.identidad``.
+        consultar.return_value = {
+            "success": True,
+            "data": {"nombre": "Nombre", "apellido": "Correcto", "fecha_nacimiento": "1990-02-03", "sexo": "F"},
+        }
         self.client.force_login(self.coord_a)
 
         resp = self.client.post(reverse("becas:formulario_revalidar_renaper", args=[self.form_a.pk]))
 
         self.assertEqual(resp.status_code, 302)
-        consultar.assert_not_called()
+        consultar.assert_called_once()
         self.form_a.refresh_from_db()
-        self.assertFalse(self.form_a.validado_renaper)
+        self.assertTrue(self.form_a.validado_renaper)
+
+    @patch("programas.views.revision.consultar_persona")
+    def test_coordinador_no_revalida_un_caso_de_otro_segmento(self, consultar):
+        self.form_b.ciudadano = self.ciudadano
+        self.form_b.save(update_fields=["ciudadano"])
+        self.client.force_login(self.coord_a)
+
+        resp = self.client.post(reverse("becas:formulario_revalidar_renaper", args=[self.form_b.pk]))
+
+        self.assertEqual(resp.status_code, 403)
+        consultar.assert_not_called()
+        self.form_b.refresh_from_db()
+        self.assertFalse(self.form_b.validado_renaper)
 
 
 class ReportesBecasTests(_BaseRevisionTest):

@@ -252,8 +252,9 @@ class RenaperPendientesTests(Base):
 
         respuesta = self.client.get(self.url)
 
-        self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(list(respuesta.context["formularios"]), [])
+        # Cambio 334: la puerta de la bandeja ahora evalúa con el alcance del Programa
+        # Becas, así que ni entra; antes entraba y el recorte de la consulta la vaciaba.
+        self.assertEqual(respuesta.status_code, 302)
 
     def test_el_admin_de_becas_los_ve(self):
         rol = _rol("Admin Becas Renaper", ["becas.programa.administrar"], programa=self.becas)

@@ -182,6 +182,12 @@ en `.js-lista-texto`, que lee el anuncio del drag & drop.
 `requisitos_segmento.html` y `subsegmento_detail.html` ya usan el helper de modales y las partes
 de header y pie; `segmento_detail.html` y `programa_detail.html` siguen con marcado propio hasta
 su propia migración.
+**Quién ve las acciones:** el alta y las acciones de fila (editar, eliminar) de un requisito **del
+programa** se dibujan con los flags que calcula la vista —`puede_crear_requisito_programa` y
+`puede_editar_requisito_programa`: la capacidad **y** administrar Becas, la misma puerta que
+`_assert_scope_requisito`—, nunca con `request.user|puede:"becas.requisito.*"` solo: el Coordinador
+tiene esas capacidades para sus segmentos y vería botones que le dan 403. La lista transversal
+(`_requisitos_page_table.html`) mezcla filas de segmento y de programa y aplica el flag a las segundas.
 
 ---
 

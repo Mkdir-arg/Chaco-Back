@@ -233,6 +233,12 @@ CATALOGO = [
         "capacidades": [
             ("becas.revision.ver", "Ver relevamientos en revisión y sus formularios"),
             ("becas.revision.editar", "Revisar formularios de Becas (iniciar, aprobar, rechazar, terminar)"),
+            # Cambio 334: aprobar exige identidad validada, así que quien revisa sin
+            # administrar el programa necesita esta salida (se siembra al Coordinador).
+            (
+                "becas.revision.identidad",
+                "Validar la identidad de un caso: revalidar RENAPER, forzar identidad, validar padrón y corregir género",
+            ),
         ],
     },
     {
