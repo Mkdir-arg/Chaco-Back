@@ -456,6 +456,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 328 | «Ruff estilo» bloquea el merge y el release dice qué check no obligatorio lo frena | Transversal · CI y release | `#infra` `#gestion` | Pendiente del Cambio 320 | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 329 | Guarda de SIIS: el host se normaliza (puerto, punto final, IPv6) | Becas · alta en SIIS (guarda de ambiente) | `#siis` `#infra` | Revisor PR #883 — MINOR del Cambio 318 (issue #569) | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 330 | Paridad del motor de condiciones: navegador vs servidor | Becas · constructor de formularios → Portal (link público) | `#requisitos` `#relevamientos` `#ui` | QA — issue #895 (informe de #350 / mapa de #351) | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 331 | Analizar la lógica de los roles de Becas y buscar incoherencias | Becas · roles y alcance (RBAC) · ABM de Usuarios y Roles | `#rbac` `#usuarios` `#convocatorias` `#cupos` | PM — en sesión | 17/10/2026 | 🟢 **Hecho** (diagnóstico; correcciones a decidir) | No requiere |
 
 **Notas del índice**
 
@@ -43190,5 +43191,177 @@ exige su caso en la tabla.
 
 Revertir los dos commits. El de JS devuelve las tres divergencias; el del test
 solo saca la red.
+
+---
+
+# Cambio 331 — Analizar la lógica de los roles de Becas y buscar incoherencias
+
+🟢 **HECHO — 17/10/2026** (diagnóstico entregado; las correcciones esperan siete decisiones del PM)
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · roles y alcance (RBAC) · ABM de Usuarios y Roles |
+| **Etiquetas** | `#rbac` `#usuarios` `#convocatorias` `#cupos` |
+| **Solicitante** | PM — en sesión: «entender, analizar, comprobar y ver la lógica de los roles; en Becas tenemos n cantidad de roles con una lógica específica; primero analizá la lógica y buscá incoherencias» |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API (solo diagnóstico, sin cambios de código) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Vos vas a ser la sesión que se encargue de entender, analizar, comprobar y ver la lógica de los roles en el
+> sistema; ejemplo, en Becas tenemos n cantidad de roles con una lógica específica. Quiero que arranques con eso:
+> primero analizá la lógica de los roles y buscá incoherencias.»
+
+## Alcance acordado
+
+- **Entra:** los cinco roles sembrados de Becas (Administrador, Coordinador, Coordinador Regional, Referente,
+  Territorial). Se cruzan contra:
+  - el catálogo (`core/rbac.py`);
+  - el alcance por fila (`programas/services/autorizacion.py`);
+  - la semilla (`seed_becas`);
+  - las puertas de cada URL de `/becas/` y `/api/becas/`, los botones de los templates y el ABM de Usuarios
+    (alta normal y alta rápida);
+  - las decisiones registradas en los Cambios 4, 16, 17, 18, 24, 34, 64, 65, 88, 104, 177 y 193.
+- **Afuera:** corregir. Ninguna línea de código cambió. Las correcciones esperan las decisiones de *Pendientes*.
+- Base del análisis: `development @ e4219283`.
+
+## Decisiones tomadas
+
+- **Lo que la auditoría de octubre ya cerró no se reporta como abierto:**
+  - otro programa ya no puede otorgar capacidades `becas.*` (SEC-06);
+  - los CSV de convocatoria y la lista de RENAPER pendientes respetan el alcance;
+  - Cupo y beneficiarios filtran por convocatorias visibles;
+  - los requisitos de un subsegmento se validan contra el subsegmento;
+  - el Coordinador Regional ya no configura el segmento (toggle, alta de subsegmento, coordinadores: SEC-30).
+- **Una tensión con una decisión registrada se informa como tensión, no como bug.** Caso: el Regional gestiona los
+  territoriales de todo el segmento padre (Cambio 18).
+
+## Implementación
+
+No aplica: es un diagnóstico. Hallazgos, de mayor a menor gravedad:
+
+### A. Semilla, pantalla de Roles y decisiones
+
+1. **Sobre los cinco roles sembrados, la pantalla de Roles no persiste nada salvo `becas.relevamiento.publico`.**
+   - `seed_becas` corre en cada arranque y deja «base del código ∪ opt-in».
+   - `becas.programa.proceso_masivo`:
+     - el catálogo (`rbac.py:132`) y el Cambio 88 dicen «no se siembra, se tilda a mano»;
+     - `_capacidades_admin_becas` se la da al Administrador en cada arranque;
+     - tildada en otro rol sembrado, se borra en el próximo deploy.
+   - El Cambio 18, el Cambio 177 y `test_coordinador_regional.py` asumen tildes a mano (`requisito.editar` y
+     `revision.ver` al Regional, `beneficiario.*`) que la semilla revierte.
+2. **Exportaciones con la política invertida.**
+   - El CSV de convocatoria (nombre y DNI) es solo del Administrador (`relevamientos.py:96`).
+   - El export por persona del dashboard (DNI, teléfono, email, GPS, respuestas) se abre con
+     `becas.reportes.exportar` (`dashboard_becas.py:56,195`), que tienen Coordinador, Regional y Referente.
+   - El Cambio 16 («reservadas al Administrador») nunca se actualizó.
+   - El catálogo dice que `convocatoria.ver` «incluye exportar CSV»: es falso.
+3. **El Coordinador crea requisitos pero no los edita ni los borra.**
+   - Tiene `requisito.crear` sin `requisito.editar`, desde el commit `c4c3da3a`, cuyo mensaje dice «al rol admin».
+   - Ve «Agregar requisito» del programa y recibe 403.
+4. **Coordinador Regional:**
+   - `cupo.ver` ya le muestra beneficiarios, espera y pendientes con nombre y DNI, lo que deja `beneficiario.ver`
+     redundante;
+   - los links «Formulario N» de Cupo le dan 403, porque no tiene `revision.*`.
+5. **Referente:** con solo `revision.ver` ve «Guardar contacto» y los botones de duplicado, y el POST le da 403.
+6. **Identidad.** Forzar o revalidar identidad es solo del Administrador, pero aprobar exige identidad validada:
+   el Coordinador con `revision.editar` queda sin salida en esos casos (reserva decidida en el Cambio 34; falta
+   confirmar la consecuencia).
+
+### B. Alcance (`programas/services/autorizacion.py`)
+
+7. **`CAPS_GESTION` es dinámica:** cualquier `becas.*` (reportes, proceso masivo, público, preguntas) convierte al
+   usuario en «Coordinador» y candidato a coordinador de segmento.
+8. **Las combinaciones de roles son contradictorias:**
+   - Referente + Regional: `segmentos_visibles` mira primero el referente y `convocatorias_visibles` mira primero el
+     regional. Resultado: abre la convocatoria y sus relevamientos le dan 403;
+   - Coordinador + Regional: pierde sus segmentos;
+   - nada impide asignar esas combinaciones.
+9. **El Referente hereda de un Coordinador desactivado o sin rol:** solo se mira `AsignacionCoordinador.activo`.
+10. **El Regional gestiona los territoriales de todo el segmento padre.**
+    - Es decisión del Cambio 18.
+    - Choca con el aislamiento entre pares y con la descripción del rol sembrado.
+11. **«Rol territorial» es cualquier rol con `becas.campo`.** Un Referente o un Regional puede asignar un rol hecho
+    a mano con `campo` más otras capacidades.
+12. **`es_gestor_territorial` evalúa sin programa:** si el Coordinador de Becas además administra usuarios de otro
+    programa, pierde la gestión de territoriales.
+13. **Un territorial movido de segmento** conserva en la app los relevamientos del segmento anterior.
+
+### C. Puertas y botones desalineados (impacto menor o latente)
+
+14. **`SegmentoUpdateView`** usa `puede_gestionar_segmento`, no `puede_configurar_segmento`.
+15. **`SegmentoCreateView`** no tiene alcance y asigna coordinador sin `coordinador.crear`.
+    - `ProgramaSiisCreateView` se abre con `segmento.crear`.
+16. **Modificar el cupo de un relevamiento** se gatea con `relevamiento.crear`.
+17. **«Nuevo subsegmento»** se le ve al Regional y da 403.
+    - `/becas/` no considera `reportes.ver`.
+    - El grupo del menú no considera `pregunta.ver`.
+18. **El alta rápida busca los roles por nombre**, no por `RolMeta.clave` (Cambio 193).
+19. **Los conteos de públicos no coinciden:** los reportes cuentan los relevamientos públicos y el dashboard no. El
+    Regional ve un cupo distinto en dos pantallas.
+
+### D. Nomenclatura y deuda
+
+20. **«Referente» significa dos cosas:**
+    - `Subsegmento.referente` es el Coordinador Regional;
+    - el rol «Becas — Referente» es el asistente del Coordinador (Cambio 6.1, sigue abierto).
+21. **El Administrador se siembra con `becas.referente` y `becas.coordinador_regional`.** No tienen efecto y obligan
+    a tres exclusiones escritas a mano.
+22. **Sin consumidor real:**
+    - `relevamiento.gestionar` (el test de contrato pasa en falso porque cuenta los tests como uso);
+    - `becas.coordinador.ver`;
+    - el filtro de Roles ofrece la categoría legacy «Becas» y repite «Programa».
+
+## Archivos
+
+Ninguno de código. Esta entrada.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Lectura de código sobre `development @ e4219283`. Cada hallazgo se verificó citando archivo y línea; no se corrió
+la suite. Antes de corregir, los hallazgos 1, 7 y 8 conviene fijarlos con tests de caracterización que se pongan
+en rojo.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+Decisiones del PM, en orden de prioridad:
+
+1. `proceso_masivo`: ¿opt-in de verdad o del Administrador por semilla?
+2. ¿Los roles sembrados se configuran desde Roles (con opt-in) o solo desde código?
+3. Exportaciones: ¿quién exporta qué? ¿El Referente baja DNI, teléfono y GPS por persona? ¿El Coordinador baja el
+   CSV de convocatoria?
+4. Coordinador: ¿suma `requisito.editar` o pierde `requisito.crear`?
+5. Regional: ¿suma `revision.ver`? ¿Ve beneficiarios con DNI desde Cupo?
+6. ¿Se prohíbe combinar Referente, Regional y Coordinador en un mismo usuario, o se define una precedencia única?
+7. ¿El Coordinador puede forzar o revalidar identidad?
+
+Correcciones propuestas, después de las decisiones (cada una en su PR):
+
+1. Semilla coherente: `CAPACIDADES_OPT_IN`, catálogo y tests.
+2. Cadena de alcance:
+   - `CAPS_GESTION` explícita;
+   - precedencia única o bloqueo de combinaciones;
+   - herencia del Referente solo desde un coordinador activo;
+   - rol territorial = solo `becas.campo`.
+3. Puertas y botones (hallazgos 3–5 y 14–17) y política de exportación.
+4. Alta rápida por `RolMeta.clave` y limpieza de nomenclatura y deuda.
+
+## Reversión
+
+No aplica: no hubo cambios de código.
+
+## Historial
+
+No aplica: entrada nueva.
 
 ---
