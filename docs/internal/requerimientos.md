@@ -462,6 +462,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 334 | El Coordinador de Becas corrige los requisitos de sus segmentos y valida identidades | Becas · roles (RBAC) · requisitos · revisión de casos | `#rbac` `#requisitos` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | `users.0038` |
 | 335 | El CSV de convocatoria también lo baja el Coordinador | Becas · roles (RBAC) · exports de convocatoria | `#rbac` `#convocatorias` `#datos` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | `users.0039` |
 | 336 | El Coordinador Regional consulta la revisión de sus casos, sin editarla | Becas · roles (RBAC) · revisión de casos · Cupo | `#rbac` `#cupos` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 337 | Sumar al proyecto las skills de ECC que sirvan para Chaco | Transversal · método de trabajo de los agentes | `#metodo` `#datos` `#performance` | PM — pedido en sesión, 17/10/2026: «suma las skill que creas útiles para el proyecto» | 17/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -44180,6 +44181,100 @@ No requiere. El arranque corre `seed_becas`, que le tilda `revision.ver` al Regi
 
 Revertir el commit. En el arranque siguiente la semilla le quita `revision.ver` al Regional, y el Referente
 vuelve a ver los dos formularios que le contestan 403. No toca datos.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 337 — Sumar al proyecto las skills de ECC que sirvan para Chaco
+
+🟢 **HECHO — 17/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · método de trabajo de los agentes |
+| **Etiquetas** | `#metodo` `#datos` `#performance` |
+| **Solicitante** | PM — pedido en sesión, 17/10/2026, después de revisar el repo ECC |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Ninguna del producto: `.claude/skills/` (no viaja en el release, `export-ignore`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«busca este repo que supuestamente dicen que es muy bueno para claude para el desarrollo de sw
+https://github.com/affaan-m/ECC.git» y, después del análisis: «bien suma las skill que creas utiles para el
+proyecto».
+
+## Alcance acordado
+
+Entran cuatro skills de proyecto, **adaptadas** a Chaco (no copiadas): se toma la estructura de la skill de ECC
+y se reemplaza lo genérico por las piezas, gates y trampas reales del repo.
+
+Queda afuera instalar el plugin `ecc@ecc` o sus hooks, y el resto de las 311 skills.
+
+## Decisiones tomadas
+
+- **Adaptar en vez de copiar.** Las skills de ECC son genéricas y en varios puntos contradicen al repo: `django-tdd`
+  y `django-verification` usan pytest, mypy y black (Chaco usa el runner de Django y ruff); `django-patterns`
+  parte los settings por archivo (Chaco tiene uno solo, ramificado por entorno); `django-security` modela RBAC con
+  un campo `role` en el usuario y propone `django-csp` (Chaco autoriza por capacidades de `core/rbac.py` y tiene su
+  propio `SecurityHeadersMiddleware`). Copiadas tal cual, empujarían a Claude contra `CLAUDE.md`.
+- **Las cuatro elegidas** y de dónde salen:
+  - `mysql-mariadb` ← `mysql-patterns` + la parte aplicable de `database-migrations`: suma las trampas que ya
+    cobraron en ECOM (UUID con guiones, `CONVERT_TZ`, `UniqueConstraint` condicional, `read_timeout` de 10 s,
+    `KeyTransform`, DDL no transaccional).
+  - `impacto-de-cambio` ← `change-impact`: los artefactos genéricos (ADR, MAP, STATUS) se cambian por este
+    registro, el `CATALOGO` de RBAC, los presupuestos de perf, los snapshots y el paso D.4 de `processes.md`.
+  - `auditoria-pre-release` ← `production-audit`: se sacan pagos y webhooks y entran los riesgos de espejar a
+    ECOM. Complementa al `release-gate`, no lo reemplaza.
+  - `seguridad-django` ← `django-security`: se quita lo que contradice al repo y se apunta a `@requiere`/`puede`,
+    `PortalCiudadanoMiddleware`, `media_protegida`, la inscripción por token y los datos personales.
+- **Descartadas** y por qué: `django-tdd`, `django-verification`, `python-testing` (pytest); `django-patterns`
+  (DRF y settings partidos); `verification-loop`, `tdd-workflow` (ya los cubren Superpowers y `/dev:cierre`);
+  `safety-guard`, `strategic-compact`, `context-budget` (dependen de los hooks del plugin); `accessibility` y
+  `frontend-a11y` (la UI la gobierna el agente canónico de diseño; una segunda fuente de reglas visuales choca con
+  esa regla); `redis-patterns` y `docker-patterns` (Redis acá es solo caché y sesiones; poco retorno).
+- Cada skill cita su origen y la licencia MIT de ECC en su encabezado.
+
+## Implementación
+
+Claude Code carga las skills de `.claude/skills/<nombre>/SKILL.md` del proyecto y las ofrece cuando el pedido
+coincide con su descripción, igual que las de Superpowers.
+
+## Archivos
+
+- `.claude/skills/mysql-mariadb/SKILL.md`
+- `.claude/skills/impacto-de-cambio/SKILL.md`
+- `.claude/skills/auditoria-pre-release/SKILL.md`
+- `.claude/skills/seguridad-django/SKILL.md`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Cada referencia al repo que nombran las skills (archivos, funciones, variables de settings, migración 0073,
+  scripts, workflows) se comprobó contra `origin/development` antes de escribirla.
+- `scripts/requerimientos.py --check`: OK.
+- No toca Python, templates ni UI: `manage.py check` y las auditorías de diseño no aplican.
+
+## Puesta en marcha en el servidor
+
+No requiere: `.claude/` no viaja en el release.
+
+## Pendientes / a definir
+
+- Las skills citan trampas y rutas que pueden cambiar. Si se corrige una trampa de raíz (por ejemplo, tablas de
+  timezone en ECOM), hay que actualizar `mysql-mariadb` y `auditoria-pre-release` en el mismo PR.
+- Queda sin probar AgentShield (el escáner de ECC) sobre `.claude/` y `.mcp.json`; se corre solo si el PM lo pide.
+
+## Reversión
+
+Borrar las cuatro carpetas de `.claude/skills/`. No toca datos.
 
 ## Historial
 
