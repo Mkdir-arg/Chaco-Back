@@ -43252,12 +43252,16 @@ No requiere.
 
 ## Validación
 
-- Tests nuevos (6): sin la capacidad el selector no lista el público ni aparece
+- Tests nuevos (7 con el del revisor): sin la capacidad el selector no lista el público ni aparece
   su nombre; con la capacidad sí; forzar su id da 400 sin nombre en el tablero y
   en XLSX/CSV; los exports sin filtro no lo nombran; con la capacidad el filtro
   aplica y el alcance lo nombra. Antes del arreglo: 4 en rojo.
 - **Mutación:** el filtro reemplazado por la identidad → los mismos 4 en rojo;
   restaurado.
+- **Mutación del revisor** (`programa_becas(user)` → `programa=None` en el form):
+  pasaba en verde. Se sumó un test con un rol de **otro** programa que tiene
+  `becas.relevamiento.publico` tildado: no ve el público de Becas ni puede
+  forzarlo. Con la mutación se pone en rojo; restaurado.
 - Consultas del endpoint del tablero: 23 antes y 23 después, con y sin la
   capacidad (`puede` cachea por request y `programa_becas` por proceso).
   `--tag performance`: 41 tests OK.

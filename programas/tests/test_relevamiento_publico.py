@@ -427,6 +427,29 @@ class RnP13SelectorDelDashboardTests(_BasePublicoTest):
         self.assertEqual(ids, {self.rel_territorial.pk})
         self.assertNotContains(respuesta, self.NOMBRE_PUBLICO)
 
+    def test_la_capacidad_de_otro_programa_no_alcanza_para_ver_el_publico_de_becas(self):
+        """RN-P13 se evalúa sobre el Programa Becas: un rol de **otro** programa con
+        `becas.relevamiento.publico` tildado no habilita el selector ni el filtro."""
+        from programas.models import Programa
+        from users.models import RolMeta
+
+        otro = Programa.objects.create(codigo="OTRO_RNP13", nombre="Otro programa RN-P13")
+        grupo_otro = Group.objects.create(name="Otro programa — con público")
+        RolMeta.objects.create(grupo=grupo_otro, programa=otro, activo=True)
+        _dar_capacidad_publico(grupo_otro)
+        self.admin.groups.add(grupo_otro)
+        self.client.force_login(self.admin)
+
+        respuesta = self._datos()
+        forzado = self._datos(relevamiento=self.rel_publico.pk)
+
+        self.assertEqual(respuesta.status_code, 200)
+        ids = {o["id"] for o in respuesta.json()["opciones"]["relevamientos"]}
+        self.assertEqual(ids, {self.rel_territorial.pk})
+        self.assertNotContains(respuesta, self.NOMBRE_PUBLICO)
+        self.assertEqual(forzado.status_code, 400)
+        self.assertNotContains(forzado, self.NOMBRE_PUBLICO, status_code=400)
+
     def test_con_la_capacidad_el_selector_lo_lista(self):
         self.client.force_login(self.admin_publico)
 
