@@ -332,6 +332,10 @@ class ExportsDeConvocatoriaTests(TestCase):
     relevamientos y lista de espera— se arman a mano con `csv.writer` y quedaron
     afuera. El dato peligroso es el que carga la persona desde el link público o la
     app de campo: nombre y apellido.
+
+    Prueba el **contenido** de los CSV con un superusuario, no el permiso: quién los
+    baja (Administrador, Coordinador, un rol a medida de Becas con las dos capacidades)
+    lo cubre ``test_coordinador_csv_convocatoria.py`` (Cambio 335).
     """
 
     def setUp(self):

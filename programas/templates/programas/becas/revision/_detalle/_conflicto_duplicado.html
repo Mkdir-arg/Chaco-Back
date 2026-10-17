@@ -6,11 +6,11 @@
         <h2 class="font-bold text-fg-warning">DNI cargado desde más de un dispositivo</h2>
         <p class="mt-1 text-sm text-fg-warning">
           Los casos {{ conflicto_pendiente.duplicado_de.numero }} y {{ conflicto_pendiente.numero }} corresponden al mismo DNI.
-          Revisá ambas cargas y decidí cuál conservar.
+          Revisá ambas cargas{% if puede_editar_caso %} y decidí cuál conservar{% endif %}.
         </p>
         <div class="mt-4 flex flex-wrap gap-2">
           <a href="{% url 'becas:formulario_detalle' formulario_comparacion.pk %}?next={{ request.get_full_path|urlencode }}" class="btn-nodo btn-tertiary btn-base">Comparar con el caso {{ formulario_comparacion.numero }}</a>
-          {# POP-5: los dos rechazan un caso sin vuelta atrás, así que se confirman. #}
+          {% if puede_editar_caso %}{# Cambio 336: la misma puerta que el POST (`revision.editar`). #}{# POP-5: los dos rechazan un caso sin vuelta atrás, así que se confirman. #}
           <form method="post" action="{% url 'becas:formulario_resolver_duplicado' conflicto_pendiente.pk %}{{ next_qs }}"
                 data-confirmar-duplicado data-conservar="{{ formulario_comparacion.numero }}" data-descartar="{{ formulario.numero }}">
             {% csrf_token %}
@@ -22,12 +22,12 @@
             {% csrf_token %}
             <input type="hidden" name="decision" value="{% if formulario.pk == conflicto_pendiente.pk %}conservar_actual{% else %}conservar_previo{% endif %}">
             <button class="btn-nodo btn-brand btn-base" type="submit">Conservar este</button>
-          </form>
+          </form>{% endif %}
         </div>
       </div>
     </div>
   </section>
-  <script>
+  {% if puede_editar_caso %}<script>
     // POP-5: confirmar antes de resolver el duplicado (form[data-confirmar-duplicado]).
     (function () {
       // Durante este lapso desde que abre, «Sí, …» no confirma: un doble clic o un segundo
@@ -77,5 +77,5 @@
         }, 50);
       });
     })();
-  </script>
+  </script>{% endif %}
   {% endif %}
