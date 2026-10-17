@@ -195,6 +195,18 @@ class PantallaTests(BaseSolapa):
         self.assertContains(respuesta, "alojada en CIS N.º 3 (Pabellón A · A-02)")
         self.assertEqual(respuesta.context["n_estadias"], 2)
 
+    def test_titula_a_la_persona_como_apellido_nombre(self):
+        """El h1 del mockup (#p16) es «Ramírez, Jorge Daniel», el mismo del legajo del que
+        cuelga esta pantalla y el mismo de P4 y P7: la trayectoria se abre desde ahí."""
+
+        self.estadia_activa(self.cis, self.plaza)
+        self.client.force_login(self.del_programa())
+
+        respuesta = self.client.get(self.url())
+
+        self.assertContains(respuesta, "Ramírez, Jorge")
+        self.assertNotContains(respuesta, "Jorge Ramírez")
+
     def test_sin_estadias_es_una_trayectoria_vacia_no_un_403(self):
         """Candado 2: antes tiraba `PermissionDenied` sin admisión alojada."""
         self.client.force_login(self.del_programa())
