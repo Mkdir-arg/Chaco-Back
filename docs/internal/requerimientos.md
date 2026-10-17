@@ -453,7 +453,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 325 | Cierre GK: privacidad, concurrencia y matriz final del MVP | Dispositivos · auditoría final | `#rbac` `#ui` `#relevamientos` `#gestion` | PM — encargo directo, carril GK | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 326 | Cierre GL: tres MINOR R3 de P4 y selección de edificios | Dispositivos · auditoría final | `#ui` `#rbac` `#relevamientos` `#performance` | PM — encargo directo, carril GL | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 327 | Cierre GM: «Apellido, Nombre» en P7 y en el resto del MVP | Dispositivos · auditoría final | `#ui` `#rbac` `#textos` | PM — encargo directo, carril GM | 17/10/2026 | 🟢 **Hecho** | No requiere |
-| 328 | Guarda de SIIS: el host se normaliza (puerto, punto final, IPv6) | Becas · alta en SIIS (guarda de ambiente) | `#siis` `#infra` | Revisor PR #883 — MINOR del Cambio 318 (issue #569) | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 328 | «Ruff estilo» bloquea el merge y el release dice qué check no obligatorio lo frena | Transversal · CI y release | `#infra` `#gestion` | Pendiente del Cambio 320 | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 329 | Guarda de SIIS: el host se normaliza (puerto, punto final, IPv6) | Becas · alta en SIIS (guarda de ambiente) | `#siis` `#infra` | Revisor PR #883 — MINOR del Cambio 318 (issue #569) | 17/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -42902,7 +42903,109 @@ diferencia entre lo que dice el modal abierto desde P4 y desde P7— y el nombre
 el aviso del egreso sin `ciudadano.ver`.
 
 ---
-# Cambio 328 — Guarda de SIIS: el host se normaliza (puerto, punto final, IPv6)
+# Cambio 328 — «Ruff estilo» pasa a bloquear el merge y el release dice qué check no obligatorio lo frena
+
+🟢 **HECHO — 17/10/2026** · Cierra el pendiente del Cambio 320
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · CI y release |
+| **Etiquetas** | `#infra` `#gestion` |
+| **Solicitante** | Juez, por delegación del PM — pendiente del Cambio 320 |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | Sin issue: pendiente del Cambio 320 |
+| **Partes afectadas** | `.github/workflows/pr-quality.yml`, `publish-main.yml`, `release-gate.yml`; `docs/internal/rulesets/ruleset-development.json` y `docs/internal/rulesets.md`; `CLAUDE.md` (Gates de CI); `requirements-ci.txt` (comentario); `core/tests/test_gates_ci.py`, `core/tests/test_publish_guard.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El Cambio 320 dejó anotada una asimetría: `publish-main.yml` no publica un release si
+**cualquier** check del PR de origen está en rojo, también los que el merge declara no
+bloqueantes. El 16/10 dos scripts sin formato dejaron «Ruff estilo» rojo en todos los PRs
+desde el #879: se mergeaba (rojo «no bloqueante») y `main` no se publicaba, sin que nadie
+lo notara. Había que decidir si se alinea haciendo obligatorio «Ruff estilo» o
+excluyéndolo en `publish-main`.
+
+## Alcance acordado
+
+Alinear **al revés**: no se relaja la guarda del release. Lo que bloquea el release tiene
+que bloquear (o al menos verse) en el merge.
+
+## Decisiones tomadas
+
+1. **No se relaja la guarda del release** (juez, por delegación del PM). `publish-main` y
+   `release-gate` siguen frenando ante cualquier check en rojo, obligatorio o no.
+2. **«Ruff estilo» pasa a ser obligatorio.** Sin `continue-on-error` en el job y sumado al
+   ruleset versionado de `development` (doce checks). Era la única condición técnica que
+   faltaba desde el Cambio 196: Ruff está pineado en `requirements-ci.txt` (0.16.10), así
+   que una regla nueva solo aparece en el PR que sube el pin. Con 0.16.10 el repo entero da
+   0 hoy (`ruff check . --select E,W,I --ignore E501` y `ruff format --check .`): no hizo
+   falta formatear nada.
+3. **Bandit y Dependency Review siguen sin bloquear el merge, pero el rojo se ve.** El
+   error del release distingue los dos casos: «check obligatorio no exitoso» y «check NO
+   obligatorio en rojo: <nombre>; el merge lo permitió pero el release no se publica —
+   arreglarlo en un PR (el próximo merge en verde publica todo lo acumulado) o publicar a
+   mano con workflow_dispatch y motivo». Para eso la lista de obligatorios se lee del head
+   del PR **antes** de recorrer los checks (sin ruleset en el head queda vacía y todo rojo
+   se informa como no obligatorio). Mismo cambio en `release-gate.yml`, que tiene el mismo
+   bucle copiado.
+4. **Qué frena el release sin frenar el merge**, escrito en `CLAUDE.md` y en
+   `rulesets.md`: el `continue-on-error` a nivel **job** (Bandit, dependency-review) deja
+   el check-run en `failure` y frena `Publish main`; los jobs sin `continue-on-error` que
+   todavía no están en el ruleset (`Motor real`, `Migrate ida y vuelta`) también. El
+   `continue-on-error` en un **paso** (`Tipos (mypy)`, `Orden y paralelo`, el barrido
+   informativo de `Sin datos personales`) deja el job en `success` y no frena nada.
+5. `rulesets.md` decía que un check `continue-on-error` en la lista de obligatorios
+   «siempre reporta verde»: el 16/10 mostró que a nivel job no es así. Se corrigió, y de
+   paso la tabla de obligatorios suma `Contratos de API`, que estaba en el JSON y no en la
+   tabla.
+
+## Implementación
+
+- `pr-quality.yml`: sale el `continue-on-error` del job `Ruff estilo`; el comentario cuenta por qué.
+- `ruleset-development.json`: `{ "context": "Ruff estilo" }`.
+- `publish-main.yml` y `release-gate.yml`: se lee la lista de obligatorios (o se deja
+  vacía) y después un solo bucle marca `fail=1` ante cualquier rojo y elige el mensaje con
+  `grep -Fxq` contra la lista; luego, como antes, se exige que estén todos los obligatorios.
+
+## Validación
+
+- Ruff 0.16.10 (venv temporal, versión de `requirements-ci.txt`): `check . --select E,W,I
+  --ignore E501`, `format --check .` y `check . --select F`, limpios en todo el repo.
+- `manage.py test core.tests.test_gates_ci core.tests.test_publish_guard`: verde.
+- Test nuevo `RuffBloqueanteTests.test_el_job_de_estilo_bloquea_y_es_obligatorio`
+  (reemplaza a `test_el_job_de_estilo_sigue_sin_bloquear`), más tres de mensaje en
+  `publish-main` y `release-gate`.
+- **Mutación:** con `continue-on-error: true` de vuelta en el job `Ruff estilo`, el test
+  nuevo y `test_ningun_job_obligatorio_puede_ponerse_en_verde_con_continue_on_error` se
+  ponen en rojo; restaurado, verde.
+- El script del paso, extraído del YAML y corrido con `gh`, `git` y `jq` de mentira: PR
+  verde → publica; Bandit rojo → «check NO obligatorio en rojo» y exit 1; Pip Audit rojo y
+  un obligatorio ausente → «check obligatorio no exitoso» + «no corrió el check
+  obligatorio» y exit 1; head sin ruleset con Dependency Review sin terminar → warning +
+  «NO obligatorio» y exit 1. Lo mismo para `release-gate`.
+
+## Pendientes
+
+- **El ruleset real de GitHub lo aplica el dueño del repo** (`docs/internal/rulesets.md`
+  §2, `PUT` por id): hasta entonces «Ruff estilo» sale rojo en el PR pero el botón de
+  merge no lo exige.
+- Si se quisiera publicar a pesar de un rojo no obligatorio sin pasar por
+  `workflow_dispatch`, la forma limpia sería una lista versionada de excepciones con
+  motivo y vencimiento, al estilo de `security/excepciones.toml`. No se implementa: hoy
+  no hay caso.
+- Un check no obligatorio todavía corriendo cuando se mergea frena el release igual
+  (`sin terminar`) y `Publish main` no se reintenta solo: lo publica el próximo merge.
+
+## Reversión
+
+Revertir el commit. Si el ruleset ya se aplicó en GitHub, sacar también «Ruff estilo» con
+el `PUT` de `rulesets.md` §2, o el merge queda esperando un check que ya no es obligatorio
+(y sigue corriendo, así que no se traba).
+
+---
+
+# Cambio 329 — Guarda de SIIS: el host se normaliza (puerto, punto final, IPv6)
 
 🟢 **HECHO — 17/10/2026** · Precisión del Cambio 318.
 
@@ -42975,3 +43078,5 @@ Ninguno.
 ## Reversión
 
 Revertir el commit. No hay datos que se pierdan.
+
+---

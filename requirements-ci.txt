@@ -26,9 +26,10 @@
 # `requirements-dev.txt` (local). Los jobs que corren la suite instalan `requirements.txt`
 # además de este archivo.
 
-# `Ruff errores` (bloqueante, `--select F`) y `Ruff estilo` (no bloqueante, E/W/I +
-# `ruff format --check`). El pin es lo que faltaba para poder hacer bloqueante el
-# segundo: hoy da 0 y una regla E/W nueva lo pondría en rojo sin que nadie toque nada.
+# `Ruff errores` (`--select F`) y `Ruff estilo` (E/W/I + `ruff format --check`), los dos
+# bloqueantes. El pin es lo que permitió hacer bloqueante el segundo (pendiente del
+# Cambio 320): sin él, una regla E/W nueva lo pondría en rojo sin que nadie toque nada.
+# Subir esta versión es el PR donde aparecen los hallazgos nuevos: se formatea ahí.
 ruff==0.16.10
 
 # `Tests & Coverage`: `coverage run manage.py test` + `coverage report` con
