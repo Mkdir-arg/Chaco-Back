@@ -1,6 +1,6 @@
-"""Cambio 332: un usuario puede tener varios roles, pero no dos que se pisen en Becas.
+"""Cambio 333: un usuario puede tener varios roles, pero no dos que se pisen en Becas.
 
-Decisión del PM (17/10/2026) sobre el diagnóstico del Cambio 331: Administrador,
+Decisión del PM (17/10/2026) sobre el diagnóstico del Cambio 332: Administrador,
 Referente, Coordinador Regional y Coordinador de Becas fijan alcances que las funciones
 de ``programas.services.autorizacion`` evalúan en órdenes distintos, así que a lo sumo
 uno por usuario. Territorial, los roles de otros programas y los globales se combinan

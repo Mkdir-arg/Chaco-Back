@@ -87,7 +87,7 @@ class Command(BaseCommand):
 
         grupos_referencia = list(referencia.groups.all())
         self.stdout.write(f"Grupos a replicar (de «{referencia.username}»): {len(grupos_referencia)}")
-        # Cambio 332: replicar los roles de una referencia que ya tiene el conflicto lo
+        # Cambio 333: replicar los roles de una referencia que ya tiene el conflicto lo
         # copiaría a cada fila del CSV. Corta antes de planificar, también en el ensayo.
         from programas.services.autorizacion import errores_roles_becas_que_se_pisan
 

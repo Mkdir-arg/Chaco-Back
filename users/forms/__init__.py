@@ -338,7 +338,7 @@ def _roles_resultantes(form):
 
 
 def _validar_roles_becas_sin_pisarse(form):
-    """Cambio 332: los roles de un usuario no se pisan en su alcance de Becas.
+    """Cambio 333: los roles de un usuario no se pisan en su alcance de Becas.
 
     Se valida el conjunto **final** —incluidos los roles que el operador no ve y que
     el guardado conserva—, así que combinar uno visible con uno oculto tampoco pasa.
@@ -478,7 +478,7 @@ class RolesPorAmbitoMixin:
     """
 
     def mensaje_roles_se_pisan(self):
-        """Texto del aviso del selector: el mismo que el error del servidor (Cambio 332)."""
+        """Texto del aviso del selector: el mismo que el error del servidor (Cambio 333)."""
         from programas.services.autorizacion import MENSAJE_ROLES_SE_PISAN
 
         return MENSAJE_ROLES_SE_PISAN
@@ -505,7 +505,7 @@ class RolesPorAmbitoMixin:
         seleccionados = self._roles_seleccionados_ids()
         territoriales = set(getattr(self, "grupos_territoriales_ids", []))
         roles = list(self.fields["groups"].queryset.select_related("meta", "meta__programa"))
-        # Cambio 332: el tipo de alcance en Becas viaja en la opción para que el
+        # Cambio 333: el tipo de alcance en Becas viaja en la opción para que el
         # selector frene en el momento la combinación que el servidor rechaza.
         alcances = alcances_becas_de_roles(roles)
 

@@ -41,7 +41,7 @@ class CandadoDeAdministracionMixin:
 
 
 class UsuarioAdminChangeForm(UserChangeForm):
-    """Cambio 332: el `/admin/` tampoco deja combinar roles de Becas que se pisan.
+    """Cambio 333: el `/admin/` tampoco deja combinar roles de Becas que se pisan.
 
     A diferencia de `asegurar_admin_restante`, esta regla no puede trabar el arreglo de
     un sistema roto: el conflicto se resuelve quitando un rol, que es lo que el

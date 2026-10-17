@@ -457,7 +457,7 @@ def grupos_referentes_becas(programa=None):
 
 
 # ---------------------------------------------------------------------------
-# Roles de Becas que no se pisan (Cambio 332)
+# Roles de Becas que no se pisan (Cambio 333)
 #
 # Un usuario puede tener varios roles, pero de los cuatro que fijan un alcance en
 # Becas —Administrador, Referente, Coordinador Regional, Coordinador— a lo sumo uno:

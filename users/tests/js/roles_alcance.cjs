@@ -1,4 +1,4 @@
-// Corre el aviso del selector de roles (Cambio 332) sobre un DOM mínimo.
+// Corre el aviso del selector de roles (Cambio 333) sobre un DOM mínimo.
 // Uso: node roles_alcance.cjs <usuarios-roles-alcance.js> <escenario.json>
 // El escenario trae la plantilla del mensaje, los roles ({id, nombre, alcance}) y la
 // secuencia de clics. Imprime {tildados, modales, vistos}: qué quedó tildado, qué

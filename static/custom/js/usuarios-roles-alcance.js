@@ -1,6 +1,6 @@
 /*
  * Selector de roles del ABM de Usuarios: frena la combinación de roles cuyo alcance
- * en Becas se pisa (Cambio 332).
+ * en Becas se pisa (Cambio 333).
  *
  * Contrato (users/templates/user/user_form.html):
  * - contenedor #roles-picker con data-mensaje-roles-se-pisan: el texto del error del
