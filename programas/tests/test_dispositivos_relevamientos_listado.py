@@ -353,6 +353,26 @@ class ListadoTests(BaseListado):
         self.assertEqual(filtrar_por_situacion(qs, Situacion.POR_VENCER, hoy).count(), 0)
 
 
+class EdificiosElegiblesTests(BaseListado):
+    def test_los_selectores_excluyen_huerfanos_sin_duplicar_predios_compartidos(self):
+        # Admin con asignar: el alcance por dispositivo no debe ocultar la falta del filtro.
+        admin = self._usuario("admin_edificios", ("programa.configurar", "inspeccion.asignar"))
+        Edificio.objects.create(codigo="HUERFANO", nombre="Edificio sin instituciones")
+        for selector in (servicio.edificios_para_asignar, servicio.edificios_sin_relevar):
+            with self.subTest(selector=selector.__name__):
+                self.assertCountEqual(list(selector(self._fresco(admin))), [self.predio, self.edificio_cis])
+
+    def test_p21_no_ofrece_huerfanos_en_el_combo_ni_en_sin_relevar(self):
+        admin = self._usuario("admin_p21", ("programa.configurar", "inspeccion.asignar"))
+        huerfano = Edificio.objects.create(codigo="HUERFANO", nombre="Edificio sin instituciones")
+        respuesta = self._cliente(admin).get(URL_LISTA, {"nuevo": "1", "tab": "sin_relevar"})
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertNotContains(respuesta, huerfano.nombre)
+        self.assertEqual(respuesta.context["sin_relevar"]["total"], 2)
+        self.assertContains(respuesta, self.predio.nombre)
+
+
 class SelectorDeAgentesTests(BaseListado):
     def _opciones(self, respuesta, form):
         return {u.pk for u in respuesta.context[form].fields["asignado_a"].queryset}
@@ -692,6 +712,7 @@ class ListadoPresupuestoTests(BaseListado):
         with CaptureQueriesContext(connection) as medida:
             respuesta = cliente.get(URL_LISTA)
         self.assertEqual(respuesta.status_code, 200)
+        self.assertNotContains(respuesta, "Edificio sin instituciones")
         return len(medida), len(_filas(respuesta))
 
     def _sembrar(self, desde, hasta):
@@ -705,8 +726,16 @@ class ListadoPresupuestoTests(BaseListado):
             )
 
     def test_el_listado_cuesta_lo_mismo_con_dos_que_con_veinte(self):
+        self._verificar_presupuesto(self.coord)
+
+    def test_el_admin_excluye_huerfanos_sin_consultas_por_fila(self):
+        admin = self._usuario("admin_presupuesto", ("programa.configurar", "inspeccion.asignar"))
+        self._verificar_presupuesto(admin)
+
+    def _verificar_presupuesto(self, usuario):
         techo = self._presupuesto()["consultas_fijas"]
-        cliente = self._cliente(self.coord)
+        cliente = self._cliente(usuario)
+        Edificio.objects.create(codigo="HUERFANO", nombre="Edificio sin instituciones")
         cliente.get(URL_LISTA)  # calienta la sesión y el cache del programa
         # Las tres solapas con filas: una página vacía no consulta, así que se mide el peor caso.
         completado = self._crear()
@@ -719,6 +748,9 @@ class ListadoPresupuestoTests(BaseListado):
         pocas, filas_pocas = self._medir(cliente)
         self._sembrar(2, 20)
         muchas, filas_muchas = self._medir(cliente)
+
+        respuesta = cliente.get(URL_LISTA, {"nuevo": "1", "tab": "sin_relevar"})
+        self.assertNotContains(respuesta, "Edificio sin instituciones")
 
         self.assertEqual((filas_pocas, filas_muchas), (2, 20))
         self.assertEqual(pocas, muchas, "El listado hace consultas por fila.")

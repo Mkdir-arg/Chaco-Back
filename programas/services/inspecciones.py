@@ -656,14 +656,14 @@ def resumen_listado(queryset, *, situacion="", asignado_a_id=None, hoy=None):
 
 
 def edificios_para_asignar(user):
-    """Donde el coordinador puede crear un relevamiento: su alcance, activos y **sin uno en curso**.
+    """En alcance, activos, con dispositivos vinculados y **sin uno en curso**.
 
     Es la misma regla que hace cumplir :func:`crear_inspeccion`; acá es la lista del selector.
     """
 
     return (
         edificios_en_alcance(user, CAP_ASIGNAR)
-        .filter(activo=True)
+        .filter(activo=True, pk__in=_EdificioDispositivo.objects.values("edificio_id"))
         .exclude(inspecciones__estado=InspeccionEdificio.Estado.ASIGNADA)
         .order_by("nombre", "pk")
     )
@@ -678,13 +678,13 @@ def edificios_sin_relevar(user):
     y uno cancelado tampoco —no dejó resultado—, así que el edificio sigue acá hasta que
     alguien cierre un relevamiento.
 
-    Solo los activos: un edificio inactivo no se puede relevar (`crear_inspeccion` lo
-    rechaza), y listarlo sería ofrecer una acción que no existe.
+    Solo los activos con dispositivos vinculados: `crear_inspeccion` rechaza los
+    inactivos y huérfanos, y listarlos sería ofrecer una acción que no existe.
     """
 
     return (
         edificios_en_alcance(user, CAP_ASIGNAR)
-        .filter(activo=True)
+        .filter(activo=True, pk__in=_EdificioDispositivo.objects.values("edificio_id"))
         .exclude(inspecciones__estado=InspeccionEdificio.Estado.REALIZADA)
         .order_by("nombre", "pk")
     )

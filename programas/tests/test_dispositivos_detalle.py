@@ -430,7 +430,7 @@ class IdentidadDeEstadiasTests(BaseDetalle):
         segunda = _alojar(self.cis, self.otra_plaza, self.otra_persona)
         tercera_persona, cuarta_persona = self._personas(2, desde=90)
         tercera = _alojar(self.cis, None, tercera_persona, timezone.make_aware(datetime(2026, 9, 7, 11)))
-        cuarta = _alojar(self.cis, None, cuarta_persona, timezone.make_aware(datetime(2026, 9, 6, 12)))
+        cuarta = _alojar(self.cis, None, cuarta_persona, timezone.make_aware(datetime(2026, 9, 7, 11, 0, 45)))
         self.client.force_login(self.operador_cis)
 
         respuesta = self.client.get(self.url, {"tab": "estadias"})
@@ -443,8 +443,11 @@ class IdentidadDeEstadiasTests(BaseDetalle):
                 f"Acciones de estadía de Persona alojada en {estadia.plaza.sector.nombre} · {estadia.plaza.codigo}",
                 etiquetas,
             )
-        self.assertIn("Acciones de estadía de Persona alojada con ingreso 07/09/2026 11:00", etiquetas)
-        self.assertIn("Acciones de estadía de Persona alojada con ingreso 06/09/2026 12:00", etiquetas)
+        for estadia in (tercera, cuarta):
+            self.assertIn(
+                f"Acciones de estadía de Persona alojada con ingreso 07/09/2026 11:00 · estadía N.º {estadia.pk}",
+                etiquetas,
+            )
         for estadia in (self.estadia, segunda, tercera, cuarta):
             for identidad in (estadia.ciudadano.nombre, estadia.ciudadano.apellido, estadia.ciudadano.dni):
                 self.assertNotIn(identidad, " ".join(etiquetas))
@@ -452,7 +455,9 @@ class IdentidadDeEstadiasTests(BaseDetalle):
     def test_la_celda_usa_el_nombre_visible_preparado_por_la_vista(self):
         respuesta = self.client.get(self.url, {"tab": "estadias"})
         tabla = respuesta.content.decode().split('id="panel-estadias"', 1)[1].split("</table>", 1)[0]
-        self.assertIn(f">{self.persona.nombre_completo}</span>", tabla)
+        [estadia] = respuesta.context["estadias"]
+        self.assertEqual(estadia.persona_visible, "Gómez, Ana")
+        self.assertIn(f">{estadia.persona_visible}</span>", tabla)
 
     def test_el_historial_sin_usuario_o_sin_opt_in_no_expone_personas(self):
         movimiento = self.estadia.movimientos.get()
@@ -499,12 +504,15 @@ class IdentidadDeEstadiasTests(BaseDetalle):
                 respuesta = self.client.get(self.url, datos)
                 self.assertContains(respuesta, "Gómez, Ana")
                 self.assertContains(respuesta, "DNI 30.111.222")
-                self.assertContains(respuesta, "Acciones de estadía de Ana Gómez")
+                self.assertContains(respuesta, "Acciones de estadía de Gómez, Ana")
                 self.assertContains(respuesta, "Ingreso de Gómez, Ana")
                 if parametro == "egreso":
-                    self.assertContains(respuesta, "persona: 'Ana Gómez'")
+                    self.assertContains(respuesta, "persona: 'Gómez, Ana'")
                 if parametro == "cambio":
-                    self.assertContains(respuesta, self.persona.nombre_completo)
+                    self.assertEqual(respuesta.context["estadia_cambio"].persona_visible, "Gómez, Ana")
+                    self.assertContains(
+                        respuesta, '<p class="text-xs text-body-subtle mt-0.5">Gómez, Ana</p>', html=True
+                    )
                 tabla = respuesta.content.decode().split('id="panel-estadias"', 1)[1].split("</table>", 1)[0]
                 self.assertNotIn("rounded-full", tabla)
 

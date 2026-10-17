@@ -451,6 +451,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 323 | Auditoría final del MVP de Dispositivos: formularios y modales (carril G4) | Dispositivos · alta de institución, listado, asistente de ingreso, bitácora y modales AJAX | `#ui` `#rbac` `#textos` `#datos` | PM — auditoría final del MVP v2 | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 324 | P4: identidad protegida, permanencia de calendario e indicadores grandes | Dispositivos · detalle institucional | `#rbac` `#ui` `#datos` | PM — auditoría final MVP v2, carril G2 | 16/10/2026 | 🟢 **Hecho** | No requiere |
 | 325 | Cierre GK: privacidad, concurrencia y matriz final del MVP | Dispositivos · auditoría final | `#rbac` `#ui` `#relevamientos` `#gestion` | PM — encargo directo, carril GK | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 326 | Cierre GL: tres MINOR R3 de P4 y selección de edificios | Dispositivos · auditoría final | `#ui` `#rbac` `#relevamientos` `#performance` | PM — encargo directo, carril GL | 17/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -42578,5 +42579,149 @@ No son funciones nuevas que se implementen en este carril.
 
 Revertir los commits de código y documentación. No hay datos ni esquema que deshacer; vuelven
 los defaults abiertos, el rótulo genérico y la ventana de carrera en el alcance previo al lock.
+
+---
+
+---
+
+# Cambio 326 — Cierre GL: tres MINOR R3 de P4 y selección de edificios
+
+🟢 **HECHO — 17/10/2026** · Número siguiente disponible, provisional hasta la numeración del juez.
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P4 / P21 / auditoría final del MVP v2 |
+| **Etiquetas** | `#ui` `#rbac` `#relevamientos` `#performance` |
+| **Solicitante** | PM — encargo directo de implementación, carril GL, revisión R3 |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | Épica #127; sin issue nuevo |
+| **Partes afectadas** | Backoffice P4 y P21 · Servidor/selectores · tests · documentación interna |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Resolver los tres MINOR R3: recuperar «Apellido, Nombre» en P4 como el mockup;
+distinguir menús de estadías sin plaza ingresadas en el mismo minuto sin revelar
+identidad; excluir edificios sin dispositivos del selector de asignación y de
+«Sin relevar nunca». Trabajar solo en `mvp-gl`, con tests, mutaciones y gates;
+commits separados de código y documentación, push sin PR.
+
+## Alcance acordado
+
+Formato del contexto de P4 (celda, menú y modales), rótulo accesible sin plaza y
+las dos lecturas de edificios elegibles de P21. Se actualizan las filas afectadas
+de la matriz, la ficha de Detalle y esta entrada. Sin cambios de roles, seeds,
+modelos, migraciones, piezas compartidas ni otros worktrees.
+
+## Decisiones tomadas
+
+1. Con `ciudadano.ver`, `persona_visible` usa «Apellido, Nombre», igual que P4 del
+   mockup y las tablas de Becas; sin capacidad conserva «Persona alojada». Se aplica
+   en los dos puntos de preparación: lista y estadía del modal solicitado por GET.
+2. Sin identidad ni plaza, el menú conserva la fecha de ingreso visible y agrega
+   «estadía N.º <pk>». El número de estadía desempata aun cuando el minuto coincide;
+   no se usan nombre, documento ni identificador del ciudadano.
+3. Tanto `edificios_para_asignar` como `edificios_sin_relevar` exigen al menos un
+   dispositivo vinculado, incluso para admin. La subconsulta de la tabla intermedia
+   evita consultas por fila y multiplicar los predios compartidos. La guarda de
+   `crear_inspeccion` sigue resolviendo los cambios concurrentes al enviar.
+4. Se conserva el presupuesto existente `dispositivos_relevamientos_listado`;
+   la prueba original de coordinador y la de admin verifican costo fijo de dos a
+   veinte filas, con edificio huérfano presente. No se sube ni crea presupuesto.
+5. Se mantiene el carril chico: no se incorporan acciones o datos excluidos del
+   MVP ni se rehacen pantallas ajenas. Numeración definitiva a cargo del juez.
+
+## Implementación
+
+P4 presenta el mismo nombre autorizado en celda, menú y modales de cambio/egreso.
+Los menús sin plaza e identidad se distinguen por ingreso y número de estadía.
+P21 omite edificios huérfanos tanto en el combo de Nuevo relevamiento como en
+«Sin relevar nunca» y su contador; los predios compartidos aparecen una sola vez.
+
+## Plan de pantalla
+
+- **Tipo A:** ajuste de superficies existentes. P4, arquetipo Detalle con solapas;
+  golden `programas/templates/programas/becas/cupo/segmento_detail.html`. P21,
+  arquetipo Listado; golden `programas/templates/programas/becas/revision/personas_list.html`.
+  No se crea pantalla ni se modifica estructura de templates.
+- **Rutas/templates finales:** `dispositivos:detalle` →
+  `programas/dispositivos/legajo/detail.html`; `dispositivos:relevamientos` →
+  `programas/dispositivos/relevamientos/list.html`.
+- **Bloques:** Persona, etiqueta de `menu_fila`, modales de cambio/egreso de P4;
+  selector de Nuevo relevamiento y listado/contador Sin relevar nunca de P21.
+- **Clasificación:** tabla, menú, campos y modales canónicos reutilizables.
+  Se conservan `includes/base.html`, `_menu_fila.html`, `_menu_fila_item.html`,
+  `_modal_header.html`, `_modal_footer.html`, `_field.html` y `_paginacion.html`;
+  Tailwind, tokens, `nodo-menu-fila.css/js`, `nodo-tabs.js`, `becas-modal.js` y AJAX
+  cargados por las superficies actuales. No se toca ningún include ni asset.
+- **Mockup leído:** `docs/client/mockups/dispositivos-v2.html#p4` y `#p21`,
+  contrastados con `docs/internal/dispositivos-v2/mapeo-mockup.md`.
+- **Novedades:** ninguna; cambios de textos/contexto y elegibilidad. Ficha de
+  Detalle sincronizada con el formato nominal y el desempate sin identidad.
+
+## Apartamientos del mockup
+
+«Persona alojada» y el desempate por número de estadía son el apartamiento de
+privacidad autorizado. No se agrega ninguna función sin dato o servicio. P21
+conserva el dominio por edificio y los recortes ya acordados; excluir huérfanos
+lo alinea con el servicio existente. Los restantes apartamientos de 321–325 se
+conservan en la matriz; no hay cambios de geometría, estilos ni piezas comunes.
+
+## Archivos
+
+- `programas/views/dispositivos_legajo.py`.
+- `programas/services/inspecciones.py`.
+- `programas/tests/test_dispositivos_detalle.py` y `test_dispositivos_relevamientos_listado.py`; expectativa de menú actualizada en
+  `programas/tests/test_dispositivos_estadia_detalle.py`.
+- `.claude/design/arquetipos/detalle.md`.
+- `docs/internal/dispositivos-v2/auditoria-mvp.md` y esta entrada con su fila del índice.
+
+## Base de datos
+
+No requiere migraciones ni modificaciones de datos existentes. La nueva condición
+es una subconsulta SQL sobre los vínculos actuales; compatible con MySQL/MariaDB.
+
+## Validación
+
+- Nueve tests focales aprobados antes de ampliar la cobertura de rendimiento.
+- Regresión focal de arquitectura, detalle, listado e inspecciones: 151 tests OK.
+- Cinco mutaciones detectadas en rojo: nombre de fila, nombre del modal, retiro del
+  desempate y retiro independiente del filtro de cada selector. Restauración desde
+  copias exactas en `finally`, sin `git checkout` ni stash; ocho tests restaurados OK.
+- Performance: 36 tests aprobados con `.venv312`, presupuesto sin incremento,
+  incluidos coordinador y admin. `check_perf_budgets.py`: OK.
+- `manage.py check`, `makemigrations --check --dry-run` con
+  `DJANGO_SYNCDB_PROJECT_APPS=False` y contrato de migraciones: OK.
+- 233 templates compilados, cero errores y bloques sin destino; arquetipos Detalle
+  P4 y Listado P21, ratchet contra `origin/development` y siete goldens: OK, cero
+  hallazgos nuevos. `check_docs_client.py`: cero hallazgos.
+- Ruff check y format sobre `programas/ core/ users/`: OK. Tailwind sin diff.
+- Código en `dcff1e25`: `check_design_agent.py --changed` y
+  `--limites --base origin/development` aprobados después del commit.
+- Suite `programas core` con `.venv312`, SQLite/syncdb: 244 módulos en 31 lotes,
+  **5041 tests, 64 omisiones, sin fallos pendientes**. El lote 21 detectó una
+  expectativa anterior del menú P4 → P7 en `test_dispositivos_estadia_detalle`;
+  se ajustó al formato del encargo y el lote completo se repitió en verde
+  (205 tests). Se conserva el log original junto al resultado final.
+- Rebase sobre `origin/development` tras el merge de #892 (`3654221f`);
+  árbol de código validado sin cambios.
+- Evidencia temporal local: `%TEMP%/chaco-gl/` (mutaciones, suite por lotes y performance).
+
+## Puesta en marcha en el servidor
+
+No requiere pasos adicionales al despliegue de código. Roles y asignaciones
+continúan a cargo del PM.
+
+## Pendientes / a definir
+
+El juez asigna la numeración definitiva. Se mantienen los límites externos de §7
+de la matriz: app móvil, integraciones reales y validación completa en motores
+productivos. Ninguna función de esos carriles se incorpora a este encargo.
+
+## Reversión
+
+Revertir los commits de código y documentación de GL. No hay datos ni esquema que
+deshacer; volverían el nombre en orden anterior, el rótulo ambiguo por minuto y
+la oferta de edificios huérfanos en P21.
 
 ---
