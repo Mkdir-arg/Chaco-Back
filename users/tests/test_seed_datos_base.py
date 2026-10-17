@@ -34,6 +34,7 @@ from programas.models import Programa
 from users.models import Capacidad, RolMeta
 
 PUBLICO = "becas.relevamiento.publico"
+PROCESO_MASIVO = "becas.programa.proceso_masivo"
 OPERADOR = "Operador de backoffice"
 
 
@@ -72,6 +73,29 @@ class SeedRolesBecasTests(TestCase):
         # RN-P13: la capacidad se enciende a mano desde Roles, nunca por seed.
         for nombre in seed_becas.ROLES_BECAS:
             self.assertNotIn(PUBLICO, _codigos(Group.objects.get(name=nombre)))
+
+    def test_el_proceso_masivo_es_solo_del_administrador(self):
+        # Decisión del PM del 17/10/2026 (Cambio 331): la semilla le da
+        # ``becas.programa.proceso_masivo`` al Administrador y a ningún otro rol.
+        admin = Group.objects.get(name=seed_becas.ROL_ADMIN)
+        self.assertIn(PROCESO_MASIVO, _codigos(admin))
+        self.assertTrue(admin.permissions.filter(codename="becas_programa_proceso_masivo").exists())
+        for nombre in (
+            seed_becas.ROL_COORDINADOR,
+            seed_becas.ROL_COORDINADOR_REGIONAL,
+            seed_becas.ROL_REFERENTE,
+            seed_becas.ROL_TERRITORIAL,
+        ):
+            self.assertNotIn(PROCESO_MASIVO, _codigos(Group.objects.get(name=nombre)), nombre)
+
+    def test_el_proceso_masivo_tildado_a_mano_en_otro_rol_se_revierte(self):
+        # No es opt-in: un tilde a mano fuera del Administrador dura hasta el arranque siguiente.
+        coordinador = Group.objects.get(name=seed_becas.ROL_COORDINADOR)
+        coordinador.permissions.add(_perm(PROCESO_MASIVO))
+
+        _correr()
+
+        self.assertNotIn(PROCESO_MASIVO, _codigos(coordinador))
 
     def test_una_capacidad_base_quitada_a_mano_vuelve(self):
         # Cambio 29: el seed mantiene los roles alineados con el código.

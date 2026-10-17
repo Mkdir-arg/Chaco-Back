@@ -129,8 +129,10 @@ CATALOGO = [
             ("becas.usuario.territorial", "Crear y administrar territoriales de los segmentos coordinados"),
             ("becas.referente", "Operar como Referente dentro del alcance de su Coordinador"),
             ("becas.coordinador_regional", "Operar como Coordinador Regional dentro de su subsegmento asignado"),
-            # No se asigna a ningún rol en el seed: se tilda a mano en el ABM de
-            # Roles. Aprueba casos en lote y los registra en SIIS sin vuelta atrás.
+            # La semilla se la da solo al rol «Becas — Administrador» (decisión del PM
+            # del 17/10/2026, Cambio 331). En los otros roles sembrados un tilde a mano
+            # se revierte en el próximo arranque. Aprueba casos en lote y los registra
+            # en SIIS sin vuelta atrás.
             (
                 "becas.programa.proceso_masivo",
                 "Ejecutar el proceso masivo a SIIS (aprueba e informa altas en lote)",

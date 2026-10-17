@@ -1241,6 +1241,14 @@ Retirar las acciones y bloqueos de pausa, los campos expuestos a Mobile y revert
 
 Retirar la capacidad `becas.usuario.territorial`, los alcances especiales del ABM, los cambios de menú y revertir `users.0014` de forma controlada.
 
+## Historial
+
+- **17/10/2026 — exportaciones.** Esta entrada decía «Las exportaciones continúan reservadas al Administrador».
+  Ya no vale:
+  - Coordinador, Coordinador Regional y Referente exportan con `becas.reportes.exportar` (dashboard y reportes);
+  - el CSV de convocatoria sigue siendo solo del Administrador;
+  - el PM confirmó al Referente el 17/10/2026. Ver el Cambio 331.
+
 # Cambio 17 — Referente
 
 🟢 **HECHO**
@@ -9974,6 +9982,14 @@ código. El comando sigue funcionando igual por su cuenta.
 
 Entrada nueva. Continúa el Cambio 84, que dejó el circuito en un comando, y depende del Cambio 86 para que la
 provincia y la localidad resuelvan.
+
+- **17/10/2026 — la capacidad es del Administrador por semilla.**
+  - Antes: *Decisiones tomadas* y *Pendientes* decían que «la capacidad no se asigna a ningún rol en el seed» y
+    que había que tildarla a mano en el ABM de Roles. El código nunca hizo eso: `_capacidades_admin_becas` se la
+    daba al rol «Becas — Administrador» en cada arranque.
+  - Ahora: el PM decidió conservar esa conducta. La semilla se la da solo al Administrador; en los otros roles
+    sembrados un tilde a mano se revierte en el próximo arranque. Se corrigió el comentario de `core/rbac.py` y
+    lo fija `users/tests/test_seed_datos_base.py`. Ver el Cambio 331.
 
 # Cambio 89 — El domicilio sin altura viaja a SIIS como aproximado
 
@@ -43316,7 +43332,10 @@ No aplica: es un diagnóstico. Hallazgos, de mayor a menor gravedad:
 
 ## Archivos
 
-Ninguno de código. Esta entrada.
+- Esta entrada y el historial de los Cambios 16 y 88.
+- `core/rbac.py` — comentario de `becas.programa.proceso_masivo` (decisión 1).
+- `users/tests/test_seed_datos_base.py` — `test_el_proceso_masivo_es_solo_del_administrador` y
+  `test_el_proceso_masivo_tildado_a_mano_en_otro_rol_se_revierte` (decisión 1).
 
 ## Base de datos
 
@@ -43328,6 +43347,15 @@ Lectura de código sobre `development @ e4219283`. Cada hallazgo se verificó ci
 la suite. Antes de corregir, los hallazgos 1, 7 y 8 conviene fijarlos con tests de caracterización que se pongan
 en rojo.
 
+Decisiones 1 y 3 (17/10/2026), con `.venv312` (Python 3.12 + Django 5.2.17, igual que el CI):
+
+- `manage.py check`: sin errores.
+- `manage.py test users.tests.test_seed_datos_base`: 28 tests OK.
+- Mutación sobre `seed_becas`, restaurada después:
+  - sacarle `proceso_masivo` al Administrador: rojo `test_el_proceso_masivo_es_solo_del_administrador`;
+  - agregársela al Coordinador: rojos los dos tests nuevos.
+- `ruff check` y `ruff format --check` sobre los dos `.py`: OK.
+
 ## Puesta en marcha en el servidor
 
 No requiere.
@@ -43337,12 +43365,20 @@ No requiere.
 Decisiones del PM, en orden de prioridad:
 
 1. `proceso_masivo`: ¿opt-in de verdad o del Administrador por semilla?
+   - **Resuelta (PM, 17/10/2026): del Administrador por semilla**, como ya hacía `_capacidades_admin_becas`.
+     En los otros roles sembrados un tilde a mano se revierte en el próximo arranque. Se corrigió el comentario
+     de `core/rbac.py`, lo fija un test y se sumó historial al Cambio 88.
 2. ¿Los roles sembrados se configuran desde Roles (con opt-in) o solo desde código?
 3. Exportaciones: ¿quién exporta qué? ¿El Referente baja DNI, teléfono y GPS por persona? ¿El Coordinador baja el
    CSV de convocatoria?
+   - **Resuelta en la parte del Referente (PM, 17/10/2026): sí exporta** (`becas.reportes.exportar`), igual que
+     el Coordinador y el Regional. El código ya lo permitía y no cambió. Se sumó historial al Cambio 16.
+   - Sigue abierto si el Coordinador baja el CSV de convocatoria.
 4. Coordinador: ¿suma `requisito.editar` o pierde `requisito.crear`?
 5. Regional: ¿suma `revision.ver`? ¿Ve beneficiarios con DNI desde Cupo?
 6. ¿Se prohíbe combinar Referente, Regional y Coordinador en un mismo usuario, o se define una precedencia única?
+   - **El PM decidió además (17/10/2026):** «un usuario puede tener varios roles, pero los que se pisan en
+     acciones no se combinan, con un popup que bloquea la selección». Va en el Cambio 332, en otro PR.
 7. ¿El Coordinador puede forzar o revalidar identidad?
 
 Correcciones propuestas, después de las decisiones (cada una en su PR):
@@ -43358,10 +43394,11 @@ Correcciones propuestas, después de las decisiones (cada una en su PR):
 
 ## Reversión
 
-No aplica: no hubo cambios de código.
+Revertir el commit. El comentario y los tests no cambian conducta: la semilla ya se comportaba así.
 
 ## Historial
 
-No aplica: entrada nueva.
+- **17/10/2026** — entrada nueva: el diagnóstico.
+- **17/10/2026** — el PM resolvió la decisión 1 y la parte del Referente de la 3; se fijan en el mismo PR.
 
 ---
