@@ -114,6 +114,42 @@ def puede_validar_identidad(user, programa=None):
     return rbac.puede_alguna(user, (CAP_ADMINISTRAR, CAP_IDENTIDAD), programa=programa)
 
 
+#: Cambio 335: las dos capacidades que, juntas, abren los CSV de convocatoria a quien no
+#: administra Becas. Ver :func:`puede_exportar_convocatoria`.
+CAPS_EXPORTAR_CONVOCATORIA = ("becas.beneficiario.ver", "becas.reportes.exportar")
+
+
+def puede_exportar_convocatoria(user, programa=None):
+    """¿Puede bajar los CSV de una convocatoria? (Cambio 335).
+
+    Es la regla única de los tres exports de convocatoria —beneficiarios aprobados,
+    relevamientos y lista de espera— y del flag ``puede_reportes`` que dibuja sus
+    botones, así que no queda un botón que conteste 403 ni un export sin botón.
+
+    Pasa:
+
+    - quien administra el programa Becas (``becas.programa.administrar``);
+    - o quien tiene **las dos** ``becas.beneficiario.ver`` **y** ``becas.reportes.exportar``.
+
+    La segunda rama es la decisión literal del PM del 17/10/2026 («el CSV de
+    convocatoria también lo baja el Coordinador»): el Coordinador sembrado tiene las
+    dos; el Coordinador Regional y el Referente exportan reportes pero no tienen
+    ``beneficiario.ver``, así que quedan afuera. Se piden las dos y no solo
+    ``reportes.exportar`` porque el CSV de beneficiarios y el de lista de espera
+    llevan nombre y DNI: es ver beneficiarios, pero en un archivo.
+
+    Todo se evalúa con ``programa=`` el Programa Becas: un rol de otro programa con
+    las dos tildadas no pasa (SEC-06). Es solo la capacidad: el alcance por fila lo
+    sigue poniendo la vista (``convocatorias_visibles`` y el filtro RN-P13 de los
+    públicos), y eso acota al Coordinador a las convocatorias de sus segmentos. Sin
+    Programa Becas sembrado falla cerrado (403), como :func:`es_admin_becas`.
+    """
+    programa = _programa_o_denegar(user, programa)
+    if rbac.puede(user, CAP_ADMINISTRAR, programa=programa):
+        return True
+    return all(rbac.puede(user, codigo, programa=programa) for codigo in CAPS_EXPORTAR_CONVOCATORIA)
+
+
 def es_coordinador_becas(user, programa=None):
     """¿El usuario puede gestionar/revisar Becas sin ser admin del programa?"""
     programa = _programa_o_denegar(user, programa)

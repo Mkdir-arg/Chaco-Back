@@ -14,6 +14,7 @@ Tres candados, y los tres tienen test acá:
 """
 
 from datetime import date
+from unittest.mock import patch
 
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
@@ -177,7 +178,12 @@ class ExportsDeConvocatoriaTests(Base):
         self.assertIn("27888999", respuesta.content.decode("utf-8", "ignore"))
 
     def test_un_coordinador_sin_la_paraguas_no_exporta(self):
-        """Contraste que ya traía la PoC: el agujero no era «cualquier coordinador»."""
+        """Contraste que ya traía la PoC: el agujero no era «cualquier coordinador».
+
+        Desde el Cambio 335 el Coordinador **sembrado** sí exporta (tiene
+        ``beneficiario.ver`` y ``reportes.exportar``); este rol hecho a mano no tiene
+        ninguna de las dos y sigue afuera.
+        """
         rol = _rol("Coord Becas", ["becas.segmento.ver", "becas.relevamiento.ver"], programa=self.becas)
         self.client.force_login(_usuario("coord-export", rol))
 
@@ -289,6 +295,10 @@ class BotonesDeExportEnLaPantallaTests(Base):
     regla vieja: para un Coordinador la solapa Reportes quedaba visible y sus tres CSV
     daban 403. Y el botón «Exportar beneficiarios (CSV)» de la solapa Beneficiarios no
     estaba bajo el flag, así que se lo veía hasta sin la solapa.
+
+    Cambio 335: el coordinador de acá es un rol hecho a mano **sin** ``beneficiario.ver``
+    ni ``reportes.exportar``, así que sigue sin exportar. El Coordinador sembrado sí
+    exporta: lo prueba ``test_coordinador_csv_convocatoria``.
     """
 
     def setUp(self):
@@ -345,3 +355,42 @@ class BotonesDeExportEnLaPantallaTests(Base):
         self.assertIn("Exportar beneficiarios (CSV)", cuerpo)
         for nombre in EXPORTS:
             self.assertIn(reverse(nombre, args=[self.convocatoria.pk]), cuerpo)
+
+
+class IdentidadDeOtroProgramaTests(Base):
+    """MINOR del PR #902: las cuatro acciones de identidad del caso (Cambio 334).
+
+    Un rol de **otro** programa con ``becas.revision.identidad`` tildada (inyectada a
+    mano: el ABM ya no la ofrece fuera de Becas) no corrige el sexo, ni revalida contra
+    la Base de Personas, ni valida padrón, ni fuerza la identidad. La negativa es por
+    **capacidad** —redirige al inicio, sin tocar el caso—: si ``puede_validar_identidad``
+    evaluara sin ``programa=``, la capacidad pasaría la puerta y la respuesta sería otra.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.caso.validado_renaper = False
+        self.caso.save(update_fields=["validado_renaper"])
+        rol = _rol("Identidad Dispositivos", ["becas.revision.identidad"], programa=self.dispositivos)
+        self.operador = _usuario("escalada-identidad", rol)
+
+    @patch("programas.views.revision.consultar_persona")
+    def test_no_entra_a_ninguna_de_las_cuatro_acciones(self, consultar):
+        self.assertTrue(rbac.puede(self.operador, "becas.revision.identidad"))  # sin alcance la tiene
+        self.client.force_login(self.operador)
+        acciones = (
+            ("becas:formulario_actualizar_genero", {"genero": "M"}),
+            ("becas:formulario_revalidar_renaper", {}),
+            ("becas:formulario_validar_padron", {}),
+            ("becas:formulario_forzar_identidad", {"motivo": "El DNI no figura en la Base de Personas"}),
+        )
+
+        for nombre, datos in acciones:
+            with self.subTest(accion=nombre):
+                respuesta = self.client.post(reverse(nombre, args=[self.caso.pk]), datos)
+                self.assertRedirects(respuesta, reverse("core:inicio"), fetch_redirect_response=False)
+
+        consultar.assert_not_called()
+        self.caso.refresh_from_db()
+        self.assertFalse(self.caso.validado_renaper)
+        self.assertEqual(self.caso.ciudadano.genero or "", "")

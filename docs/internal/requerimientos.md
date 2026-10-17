@@ -460,6 +460,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 332 | Analizar la lógica de los roles de Becas y buscar incoherencias | Becas · roles y alcance (RBAC) · ABM de Usuarios y Roles | `#rbac` `#usuarios` `#convocatorias` `#cupos` | PM — en sesión | 17/10/2026 | 🟢 **Hecho** (diagnóstico; correcciones a decidir) | No requiere |
 | 333 | Un usuario puede tener más de un rol, pero sus alcances de Becas no se pisan | Transversal · ABM de Usuarios (Becas) | `#rbac` `#usuarios` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 334 | El Coordinador de Becas corrige los requisitos de sus segmentos y valida identidades | Becas · roles (RBAC) · requisitos · revisión de casos | `#rbac` `#requisitos` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | `users.0038` |
+| 335 | El CSV de convocatoria también lo baja el Coordinador | Becas · roles (RBAC) · exports de convocatoria | `#rbac` `#convocatorias` `#datos` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | `users.0039` |
 
 **Notas del índice**
 
@@ -1251,6 +1252,10 @@ Retirar la capacidad `becas.usuario.territorial`, los alcances especiales del AB
   - Coordinador, Coordinador Regional y Referente exportan con `becas.reportes.exportar` (dashboard y reportes);
   - el CSV de convocatoria sigue siendo solo del Administrador;
   - el PM confirmó al Referente el 17/10/2026. Ver el Cambio 332.
+- **17/10/2026 — CSV de convocatoria (Cambio 335).** El ítem anterior decía que el CSV de convocatoria
+  seguía siendo solo del Administrador. Ya no vale: también lo baja el Coordinador, por decisión del PM.
+  La regla es `puede_exportar_convocatoria` (administrar Becas, o `beneficiario.ver` y `reportes.exportar`);
+  el Coordinador Regional y el Referente siguen sin bajarlo.
 
 # Cambio 17 — Referente
 
@@ -29355,6 +29360,14 @@ pierde.
   (`programas.0084`, columna nueva `NULL`), que escribe el alta. `merendero.ver` y
   `merendero.validar` siguen leyendo todas; una solicitud anterior a la columna queda en `NULL` y
   no la abre el alta.
+
+### 17/10/2026 — Cambio 335: los exports de convocatoria dejan de ser solo del Administrador
+
+- Esta entrada dice que los tres `convocatoria_export_*` «exigen `es_admin_becas`» y que el flag de los
+  botones usa `es_admin_becas`. Ya no vale: el gate y el flag usan `puede_exportar_convocatoria`
+  (administrar Becas, **o** `becas.beneficiario.ver` **y** `becas.reportes.exportar`, siempre con el
+  alcance del Programa Becas). Lo de SEC-06 se mantiene: un rol de otro programa no pasa y el objeto
+  sale de `convocatorias_visibles`.
 ---
 
 # Cambio 194 — La red de seguridad de la Ola 4: presupuestos que no se suben solos, los dos destinos que faltaban, el cache de la home por modelo y los índices que no servían
@@ -43483,7 +43496,8 @@ Decisiones del PM, en orden de prioridad:
    CSV de convocatoria?
    - **Resuelta en la parte del Referente (PM, 17/10/2026): sí exporta** (`becas.reportes.exportar`), igual que
      el Coordinador y el Regional. El código ya lo permitía y no cambió. Se sumó historial al Cambio 16.
-   - Sigue abierto si el Coordinador baja el CSV de convocatoria.
+   - **Resuelta en la parte del CSV (PM, 17/10/2026): el Coordinador también lo baja.** Lo implementa el
+     Cambio 335; el Regional y el Referente siguen sin bajarlo.
 4. Coordinador: ¿suma `requisito.editar` o pierde `requisito.crear`?
 5. Regional: ¿suma `revision.ver`? ¿Ve beneficiarios con DNI desde Cupo?
 6. ¿Se prohíbe combinar Referente, Regional y Coordinador en un mismo usuario, o se define una precedencia única?
@@ -43514,6 +43528,9 @@ Revertir el commit. El comentario y los tests no cambian conducta: la semilla ya
   los botones de requisitos del programa quedan solo para el Administrador) y la 7 (el Coordinador
   **puede** forzar y revalidar identidad, con la capacidad nueva `becas.revision.identidad`). Con eso
   quedan atendidos los hallazgos 3 y 6.
+- **17/10/2026** — Cambio 335: la decisión 3 queda resuelta también en su parte del CSV (el Coordinador
+  baja el CSV de convocatoria). Con eso queda atendido el hallazgo 2, incluida la etiqueta falsa de
+  `convocatoria.ver`.
 
 ---
 
@@ -43842,6 +43859,152 @@ No requiere. El arranque corre `migrate` y `seed_becas`, que tildan la capacidad
 
 Revertir el commit. La migración es solo de estado (`AlterModelOptions`): revertirla deja el `Permission`
 huérfano y sin efecto, y la semilla del arranque siguiente les quita las dos capacidades al Coordinador.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 335 — El CSV de convocatoria también lo baja el Coordinador
+
+🟢 **HECHO — 17/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · roles (RBAC) · exports de convocatoria |
+| **Etiquetas** | `#rbac` `#convocatorias` `#datos` |
+| **Solicitante** | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | `users.0039_etiqueta_becas_convocatoria_ver` |
+
+## Pedido original
+
+> «El CSV de convocatoria también lo baja el Coordinador», además del Administrador.
+
+Es la parte abierta de la decisión 3 del Cambio 332 (hallazgo 2: «exportaciones con la política invertida»).
+Se suman dos MINOR heredados del PR #902 (Cambio 334).
+
+## Alcance acordado
+
+- **Entra:**
+  - la regla de los tres CSV de convocatoria (beneficiarios aprobados, avance de relevamientos y lista de
+    espera) y la del flag que dibuja sus botones;
+  - la etiqueta de `becas.convocatoria.ver` en el catálogo, que decía «(incluye exportar CSV)»;
+  - MINOR del PR #902: un test de que un rol de otro programa no entra a las cuatro acciones de identidad, y un
+    comentario en los tests de requisitos «sin editar».
+- **Afuera:** el export por persona del dashboard y los reportes (siguen con `becas.reportes.exportar`, decisión
+  3 del Cambio 332 en la parte del Referente) y las decisiones 2 y 5 del Cambio 332.
+
+## Decisiones tomadas
+
+1. **Regla única: `puede_exportar_convocatoria(user, programa=None)`** en `programas/services/autorizacion.py`.
+   Pasa quien:
+   - administra el programa Becas (`becas.programa.administrar`), o
+   - tiene **las dos** `becas.beneficiario.ver` **y** `becas.reportes.exportar`.
+
+   Todo se evalúa con `programa=` el Programa Becas. Sin Programa Becas sembrado falla cerrado (403), como
+   `es_admin_becas`.
+2. **Por qué las dos capacidades y no solo `reportes.exportar`.** Es la decisión literal del PM: entra el
+   Coordinador sembrado, que tiene las dos. Quedan afuera el Coordinador Regional y el Referente, que exportan
+   reportes pero no tienen `beneficiario.ver`. Además, el CSV de beneficiarios y el de lista de espera llevan
+   nombre y DNI: bajarlos es ver beneficiarios, pero en un archivo.
+3. **La misma regla en el gate y en el botón.** `_convocatoria_para_export` (los tres exports) y
+   `_puede_exportar` (el flag `puede_reportes` del detalle de la convocatoria) llaman a la misma función. No
+   queda un botón visible que conteste 403 ni un export permitido sin botón. Los templates no cambiaron: los
+   cuatro links ya estaban bajo `{% if puede_reportes %}` desde el Cambio 193.
+4. **El alcance por fila no cambia.** La convocatoria sale de `convocatorias_visibles`, así que el Coordinador
+   solo baja las de sus segmentos. Una de otro segmento da **404**, no 403: para él no existe, igual que en el
+   detalle. Los casos del link público siguen filtrados por RN-P13: el Coordinador sembrado no tiene
+   `relevamiento.publico` y no los baja.
+5. **Etiqueta del catálogo:** `becas.convocatoria.ver` pasa a «Ver convocatorias». Ver una convocatoria no
+   habilita sus CSV. Cambiar la etiqueta exige un `AlterModelOptions` de `users.Capacidad` (`users.0039`).
+
+## Implementación
+
+- `programas/services/autorizacion.py`: `CAPS_EXPORTAR_CONVOCATORIA` y `puede_exportar_convocatoria`.
+- `programas/views/relevamientos.py`: `_convocatoria_para_export` y `_puede_exportar` usan la regla nueva
+  (antes `es_admin_becas`).
+- `core/rbac.py`: la etiqueta de `becas.convocatoria.ver`, con un comentario que apunta a la regla.
+- Tests (MINOR del PR #902): un rol de otro programa con `becas.revision.identidad` tildada no entra a ninguna
+  de las cuatro acciones de identidad; los casos «sin editar» de los tests de drag avisan que dependen de no
+  volver a correr la semilla.
+
+## Archivos
+
+- `programas/services/autorizacion.py`
+- `programas/views/relevamientos.py`
+- `core/rbac.py`
+- `users/migrations/0039_etiqueta_becas_convocatoria_ver.py` (nuevo)
+- `programas/tests/test_coordinador_csv_convocatoria.py` (nuevo)
+- `programas/tests/test_sec06_alcance_becas.py`, `test_becas_revision.py`, `test_reportes.py` y
+  `test_requisitos_orden_drag.py`
+- `portal/tests/test_correcciones_review_2.py`
+- Esta entrada, su fila del índice y el historial de los Cambios 16, 193 y 332.
+
+## Base de datos
+
+`users.0039`: `AlterModelOptions` de `users.Capacidad` (`managed = False`), solo la etiqueta. No toca el
+esquema. El `post_migrate` de `auth` no renombra un `Permission` que ya existe; el nombre nuevo lo escribe
+`seed_rbac` en el arranque. `scripts/check_migraciones.py`: 0 problemas.
+
+## Validación
+
+Con `.venv312` (Python 3.12 + Django 5.2.17, igual que el CI):
+
+- `programas/tests/test_coordinador_csv_convocatoria.py` (11 tests), con los roles sembrados:
+  - la matriz de la regla: Administrador y Coordinador sí, Regional y Referente no;
+  - el Coordinador baja los tres CSV de una convocatoria de su segmento y ve los botones; una de otro segmento
+    da 404; no baja los casos del link público;
+  - el Regional y el Referente reciben 403 en los tres CSV y no ven los botones, aunque ven la convocatoria;
+  - el Administrador baja los tres CSV de cualquier segmento;
+  - un rol de otro programa con `convocatoria.ver`, `beneficiario.ver` y `reportes.exportar` tildadas (y una
+    asignación de coordinador) recibe 403.
+- `test_sec06_alcance_becas.IdentidadDeOtroProgramaTests` (MINOR del PR #902): un rol de Dispositivos con
+  `becas.revision.identidad` es redirigido al inicio en las cuatro acciones y el caso no cambia.
+- Tests ajustados:
+  - `test_becas_revision.ReportesBecasTests`: `test_coordinador_no_puede_exportar` fijaba la regla vieja; pasa a
+    «exporta su convocatoria (200) y no la ajena (404)»;
+  - `test_reportes.ExportsDeConvocatoriaTests`: fallaba en local también en `development` (403). El test no
+    sembraba el Programa Becas y los exports fallan cerrado sin él. En la suite completa del CI pasaba con el
+    `Programa` que otro test había dejado en la cache (`programa_cache`, RED-80); corrido solo, o con su módulo,
+    daba 403. Ahora limpia la cache y crea el Programa Becas en el `setUp`;
+  - `portal.tests.test_correcciones_review_2`: parcheaba `es_admin_becas` en la vista; ahora parchea
+    `puede_exportar_convocatoria`.
+- **Mutaciones** (cada una en rojo y restaurada):
+  - la regla sin la rama de las dos capacidades (solo el Administrador, la regla vieja);
+  - la regla evaluada sin `programa=`;
+  - la regla solo con `reportes.exportar`;
+  - el flag del botón con `es_admin_becas`;
+  - `_convocatoria_para_export` sin `convocatorias_visibles`;
+  - `puede_validar_identidad` sin `programa=` (los cuatro subtests de identidad en rojo).
+- Suites `test_reportes`, `test_becas_rbac`, `test_becas_relevamientos`, `test_sec06_alcance_becas`,
+  `test_requisitos_orden_drag`, `test_relevamiento_publico`, `test_becas_revision`,
+  `test_coordinador_identidad_requisitos`, `test_coordinador_regional`, `test_referente_regional`,
+  `portal.tests.test_correcciones_review_2`, `users.tests.test_rbac_contrato`, `test_seed_datos_base`,
+  `test_rbac` y la nueva: OK. Además, las apps `programas`, `portal` y `users` completas (4.422 tests) y
+  `--tag performance` (41 tests): OK.
+- `manage.py check` OK; `makemigrations --check --dry-run` (SYNCDB=False): sin cambios.
+- `design_audit.py --ratchet`: 0 hallazgos nuevos. `compile_templates.py`: 0 errores.
+  `check_design_agent.py --changed`: OK. Ruff check y format sobre los `.py` tocados: OK.
+
+## Puesta en marcha en el servidor
+
+No requiere. El arranque corre `migrate` y `seed_rbac`, que actualiza la etiqueta.
+
+## Pendientes / a definir
+
+- Del Cambio 332 siguen abiertas las decisiones 2 (roles sembrados configurables desde Roles) y 5 (Regional con
+  `revision.ver` y beneficiarios desde Cupo).
+- Si hay casos de QA escritos sobre «el Coordinador no ve la solapa Reportes de la convocatoria», hay que
+  actualizarlos.
+
+## Reversión
+
+Revertir el commit. El Coordinador vuelve a recibir 403 en los CSV y a no ver los botones. La migración es solo de
+estado (`AlterModelOptions`): revertirla no toca datos, y la etiqueta vieja vuelve con el próximo `seed_rbac`.
 
 ## Historial
 

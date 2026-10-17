@@ -335,6 +335,12 @@ class ExportsDeConvocatoriaTests(TestCase):
     """
 
     def setUp(self):
+        # Los exports evalúan la regla contra el Programa Becas y fallan cerrado (403) si no
+        # está sembrado. Sin estas dos líneas el test pasaba o no según el orden de la
+        # suite: corrido solo daba 403, y en la suite completa pasaba con el ``Programa``
+        # que otro test había dejado en la cache (``programa_cache``, RED-80).
+        cache.clear()
+        Programa.objects.get_or_create(codigo="BECAS", defaults={"nombre": "Becas"})
         self.admin = get_user_model().objects.create_superuser(username="admin-exports", password="test")
         self.client.force_login(self.admin)
         self.segmento = Segmento.objects.create(nombre="Segmento export", cupo_maximo=10)

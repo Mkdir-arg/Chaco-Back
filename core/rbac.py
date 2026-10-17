@@ -206,7 +206,10 @@ CATALOGO = [
         "programas": ("BECAS",),  # SEC-06
         "alcance": "programa",
         "capacidades": [
-            ("becas.convocatoria.ver", "Ver convocatorias (incluye exportar CSV)"),
+            # Cambio 335: ver una convocatoria NO habilita sus CSV. Los baja quien administra
+            # Becas o tiene ``becas.beneficiario.ver`` y ``becas.reportes.exportar``
+            # (``programas.services.autorizacion.puede_exportar_convocatoria``).
+            ("becas.convocatoria.ver", "Ver convocatorias"),
             ("becas.convocatoria.crear", "Crear convocatorias"),
             ("becas.convocatoria.editar", "Editar convocatorias (incluye activar/desactivar)"),
         ],

@@ -495,21 +495,24 @@ class ReportesBecasTests(_BaseRevisionTest):
         self.assertEqual(rows[0], ["Posición", "Nombre", "DNI", "Segmento", "Fecha de ingreso"])
         self.assertEqual(rows[1][0:3], ["1", "Ana Pérez", "70700700"])
 
-    def test_coordinador_no_puede_exportar(self):
-        """SEC-06: el export pasa de rechazar con un redirect a hacerlo con **403**.
+    def test_coordinador_exporta_su_convocatoria_y_no_la_ajena(self):
+        """Cambio 335: el Coordinador sembrado baja el CSV de **su** convocatoria.
 
-        El gate dejó de ser ``@requiere`` —que evalúa la capacidad sin alcance y manda al
-        inicio con un mensaje— y pasó a ser ``es_admin_becas`` + ``convocatorias_visibles``,
-        que es el patrón del resto de los guards de alcance de Becas
-        (``assert_alcance_formulario``, ``programa_identificadores_siis``). Lo que no
-        cambia es quién baja el archivo.
+        Hasta acá el gate era ``es_admin_becas`` y este test fijaba el 403. El PM decidió
+        el 17/10/2026 que el CSV de convocatoria también lo baja el Coordinador
+        (``puede_exportar_convocatoria``: ``beneficiario.ver`` y ``reportes.exportar``).
+        El alcance no cambia: la convocatoria de otro segmento sigue sin existir para él.
         """
         self.client.force_login(self.coord_a)
 
-        response = self.client.get(reverse("becas:convocatoria_export_beneficiarios", args=[self.conv_a.pk]))
+        propia = self.client.get(reverse("becas:convocatoria_export_beneficiarios", args=[self.conv_a.pk]))
+        ajena = self.client.get(reverse("becas:convocatoria_export_beneficiarios", args=[self.conv_b.pk]))
 
-        self.assertEqual(response.status_code, 403)
-        self.assertNotIn("attachment", response.headers.get("Content-Disposition", ""))
+        self.assertEqual(propia.status_code, 200)
+        self.assertIn("attachment", propia.headers.get("Content-Disposition", ""))
+        self.assertEqual(self._csv(propia)[1][1], "70700700")
+        self.assertEqual(ajena.status_code, 404)
+        self.assertNotIn("attachment", ajena.headers.get("Content-Disposition", ""))
 
 
 class _BaseAprobacionTest(_BaseRevisionTest):
