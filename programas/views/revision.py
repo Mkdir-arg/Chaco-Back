@@ -10,6 +10,7 @@ por segmento. La validación SIIS conserva y presenta el detalle auditable de EC
 
 import logging
 from datetime import datetime, time, timedelta
+from functools import wraps
 from urllib.parse import urlencode, urlparse
 
 from django.contrib import messages
@@ -28,7 +29,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import ListView
 
-from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
+from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere, respuesta_sin_permiso
 from programas.forms import (
     CiudadanoGeneroRevisionForm,
     DatosSiisForm,
@@ -55,6 +56,7 @@ from programas.services.autorizacion import (
     es_admin_becas,
     programa_becas,
     puede_relevamiento_publico,
+    puede_validar_identidad,
     sin_formularios_publicos_si_no_puede,
 )
 from programas.services.avisos_resolucion import CAMPO_TRAZA_AVISO, enviar_aviso_resolucion, resultado_vigente
@@ -78,7 +80,6 @@ logger = logging.getLogger(__name__)
 
 CAP_REVISION_VER = "becas.revision.ver"
 CAP_REVISION_EDITAR = "becas.revision.editar"
-CAP_REVALIDAR_RENAPER = "becas.programa.administrar"
 #: Casos por página en la revisión de un relevamiento.
 CASOS_POR_PAGINA = 50
 # RED-54: `EXTENSIONES_IMAGEN` y las constantes de SIIS se fueron con sus
@@ -173,9 +174,11 @@ def _pendientes_de_renaper(user):
     """Casos sin validar contra RENAPER **del alcance del usuario** (SEC-06).
 
     La bandeja listaba ``Formulario.objects.filter(validado_renaper=False)`` sin más:
-    la capacidad de la pantalla es ``becas.programa.administrar``, que el mixin evalúa
+    la capacidad de la pantalla era ``becas.programa.administrar``, que el mixin evaluaba
     **sin alcance**, así que un rol de **otro** programa con esa capacidad tildada veía
-    —y revalidaba— los casos de todo Becas. Acá el alcance va en la consulta.
+    —y revalidaba— los casos de todo Becas. Acá el alcance va en la consulta. Desde el
+    Cambio 334 la pantalla también la abre ``becas.revision.identidad`` (el
+    Coordinador), y para él este recorte es el que la acota a sus segmentos.
 
     Para el admin del programa ``convocatorias_visibles`` son *todas*, así que filtrar
     no recorta nada y mete un ``IN`` con la tabla entera; para el resto el recorte sí
@@ -188,6 +191,25 @@ def _pendientes_de_renaper(user):
         return qs
     convocatorias = list(convocatorias_visibles(user).order_by().values_list("pk", flat=True))
     return qs.filter(relevamiento__convocatoria_id__in=convocatorias)
+
+
+def _requiere_identidad(view_func):
+    """Puerta de las acciones de identidad del caso (Cambio 334).
+
+    Era ``@requiere("becas.programa.administrar")``, evaluado sin programa. Ahora
+    es :func:`puede_validar_identidad`: administrar el programa **o**
+    ``becas.revision.identidad``, con el alcance del Programa Becas. El alcance
+    por fila lo sigue poniendo ``assert_alcance_formulario`` en cada vista, y la
+    respuesta sin permiso es la misma que la del decorador.
+    """
+
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not puede_validar_identidad(request.user):
+            return respuesta_sin_permiso(request, "core:inicio")
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
 
 
 def _informar_a_siis(formulario, user):
@@ -373,20 +395,28 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
         ctx = super().get_context_data(**kwargs)
         ctx["estados"] = Formulario.Estado.choices
         ctx["estado_actual"] = self.request.GET.get("estado", "")
-        ctx["puede_revalidar_renaper"] = puede(self.request.user, CAP_REVALIDAR_RENAPER)
+        # Cambio 334: la misma regla que la bandeja y las acciones de identidad.
+        ctx["puede_revalidar_renaper"] = puede_validar_identidad(self.request.user)
         # El contador vive dentro del mismo ``{% if %}`` de la plantilla: para quien no
-        # administra el programa, contarlo es un COUNT de toda la tabla al pedo.
+        # puede validar identidades, contarlo es un COUNT al pedo.
         if ctx["puede_revalidar_renaper"]:
             ctx["pendientes_renaper"] = _pendientes_de_renaper(self.request.user).count()
         return ctx
 
 
-class RenaperPendientesListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
-    capacidades_requeridas = CAP_REVALIDAR_RENAPER
+class RenaperPendientesListView(LoginRequiredMixin, ListView):
     template_name = "programas/becas/revision/renaper_pendientes.html"
     context_object_name = "formularios"
     paginate_by = 50
     orden = ("-creado", "-pk")
+
+    def dispatch(self, request, *args, **kwargs):
+        # Cambio 334: la misma puerta que las acciones de identidad. El anónimo sigue
+        # yendo al login (``LoginRequiredMixin``); el alcance por fila lo pone
+        # ``_pendientes_de_renaper``.
+        if request.user.is_authenticated and not puede_validar_identidad(request.user):
+            return respuesta_sin_permiso(request, "core:inicio")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         # Igual que la bandeja de personas: la página se elige sin joins de
@@ -810,7 +840,7 @@ def siis_funciones_json(request):
 
 
 @login_required
-@requiere(CAP_REVALIDAR_RENAPER)
+@_requiere_identidad
 def formulario_actualizar_genero(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
     assert_alcance_formulario(request.user, formulario)
@@ -1078,7 +1108,7 @@ def formulario_rechazar(request, pk):
 
 
 @login_required
-@requiere(CAP_REVALIDAR_RENAPER)
+@_requiere_identidad
 def formulario_revalidar_renaper(request, pk):
     formulario = get_object_or_404(Formulario.objects.select_related("ciudadano"), pk=pk)
     assert_alcance_formulario(request.user, formulario)
@@ -1145,7 +1175,7 @@ def formulario_revalidar_renaper(request, pk):
 
 
 @login_required
-@requiere(CAP_REVALIDAR_RENAPER)
+@_requiere_identidad
 def formulario_validar_padron(request, pk):
     """Valida la identidad de un caso pendiente contra el padrón de su
     convocatoria (Cambio 57). Es lo mismo que hace el cruce automático al
@@ -1197,7 +1227,7 @@ def formulario_validar_padron(request, pk):
 
 
 @login_required
-@requiere(CAP_REVALIDAR_RENAPER)
+@_requiere_identidad
 def formulario_forzar_identidad(request, pk):
     """Marca la identidad como validada a mano, con motivo y traza.
 

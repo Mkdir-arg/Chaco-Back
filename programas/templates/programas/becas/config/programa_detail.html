@@ -176,7 +176,7 @@
           <p class="text-sm text-body-subtle">Requisitos del programa. Se heredan en los formularios de todos sus segmentos y subsegmentos.{% if puede_ordenar %} Arrastrá desde la manija para ordenarlos; se guarda al soltar.{% endif %}</p>
           <span id="reqs-orden-estado" class="text-xs text-body-subtle" aria-hidden="true"></span>
         </div>
-        {% if request.user|puede:"becas.requisito.crear" %}
+        {% if puede_crear_requisito_programa %}
         <button type="button" @click="modalReq=true" class="btn-nodo btn-brand btn-base">
           <i class="fas fa-plus"></i> Nuevo requisito
         </button>

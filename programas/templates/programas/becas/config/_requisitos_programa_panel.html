@@ -1,4 +1,3 @@
-{% load rbac %}
 {% if requisitos %}
 <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
   <table class="w-full border-collapse">
@@ -40,7 +39,7 @@
         </td>
         <td class="nodo-td text-right">
           <div class="flex items-center justify-end gap-2">
-            {% if request.user|puede:"becas.requisito.editar" %}
+            {% if puede_editar_requisito_programa %}
             <button type="button" class="nodo-icon-btn" title="Editar" aria-label="Editar requisito {{ req.texto }}"
               @click="openReqEdit(
                 '{% url 'becas:requisito_editar' req.pk %}',
