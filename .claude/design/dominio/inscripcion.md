@@ -22,7 +22,10 @@ Contrato del JS: cada ítem lleva `data-item` con su clave y los ítems planos v
 
 **Sin JavaScript el formulario se muestra completo y se envía igual:** el servidor vuelve a
 evaluar las condiciones y es la autoridad. El espejo de condiciones del cliente es una comodidad,
-nunca una validación.
+nunca una validación. Que el espejo decida lo mismo que el servidor lo fija
+`programas/tests/test_condiciones_paridad.py` sobre la tabla compartida
+`programas/tests/condiciones_paridad.json`: un cambio de semántica en `nodo-condiciones.js` va con
+su caso en esa tabla.
 
 Mantiene el shell de inscripción, el buscador con píldoras (`static/custom/js/nodo-buscador.js`)
 para los selectores largos y los tokens del portal. Light-only.

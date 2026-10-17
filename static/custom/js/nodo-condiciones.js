@@ -23,21 +23,38 @@
     if (valor instanceof Date) { return isNaN(valor.getTime()) ? null : valor; }
     if (typeof valor !== 'string') { return null; }
     var t = valor.trim();
-    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
-    if (m) { return new Date(+m[1], +m[2] - 1, +m[3]); }
-    m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(t);
-    if (m) { return new Date(+m[3], +m[2] - 1, +m[1]); }
-    return null;
+    var anio, mes, dia;
+    // Los dos formatos de `fecha_o_none` (servidor), que como `strptime` aceptan
+    // el mes y el día sin el cero: «2010-3-14», «1/5/2010».
+    var m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t);
+    if (m) {
+      anio = +m[1]; mes = +m[2]; dia = +m[3];
+    } else {
+      m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);
+      if (!m) { return null; }
+      anio = +m[3]; mes = +m[2]; dia = +m[1];
+    }
+    // `new Date` corre el desborde («31/02/2010» pasaba a ser el 3 de marzo) y lee
+    // los años de dos cifras como 19xx; el servidor devuelve None. Una fecha
+    // imposible no tiene edad (issue 895).
+    var fecha = new Date(2000, 0, 1);
+    fecha.setFullYear(anio, mes - 1, dia);
+    if (anio < 1 || fecha.getFullYear() !== anio || fecha.getMonth() !== mes - 1 || fecha.getDate() !== dia) {
+      return null;
+    }
+    return fecha;
   }
 
   function aNumero(valor) {
     if (typeof valor === 'boolean') { return null; }
     if (typeof valor === 'number') { return isNaN(valor) ? null : valor; }
-    if (valor === null || valor === undefined) { return null; }
-    var t = String(valor).trim().replace(',', '.');
-    if (t === '') { return null; }
-    var n = Number(t);
-    return isNaN(n) ? null : n;
+    if (valor === null || typeof valor !== 'string') { return null; }
+    // Como `_numero` del servidor: un entero, o un decimal si lleva punto (o
+    // coma). `Number()` leía «1e3», «0x10» o «Infinity» como números y el
+    // servidor no (issue 895).
+    var t = valor.trim().replace(/,/g, '.');
+    var patron = t.indexOf('.') === -1 ? /^[+-]?\d+$/ : /^[+-]?(\d+\.\d*|\.\d+)([eE][+-]?\d+)?$/;
+    return patron.test(t) ? Number(t) : null;
   }
 
   function aLista(valor) {

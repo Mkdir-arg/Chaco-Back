@@ -455,6 +455,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 327 | Cierre GM: «Apellido, Nombre» en P7 y en el resto del MVP | Dispositivos · auditoría final | `#ui` `#rbac` `#textos` | PM — encargo directo, carril GM | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 328 | «Ruff estilo» bloquea el merge y el release dice qué check no obligatorio lo frena | Transversal · CI y release | `#infra` `#gestion` | Pendiente del Cambio 320 | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 329 | Guarda de SIIS: el host se normaliza (puerto, punto final, IPv6) | Becas · alta en SIIS (guarda de ambiente) | `#siis` `#infra` | Revisor PR #883 — MINOR del Cambio 318 (issue #569) | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 330 | Paridad del motor de condiciones: navegador vs servidor | Becas · constructor de formularios → Portal (link público) | `#requisitos` `#relevamientos` `#ui` | QA — issue #895 (informe de #350 / mapa de #351) | 17/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -43078,5 +43079,116 @@ Ninguno.
 ## Reversión
 
 Revertir el commit. No hay datos que se pierdan.
+
+---
+
+# Cambio 330 — Paridad del motor de condiciones: navegador vs servidor
+
+🟢 **HECHO — 17/10/2026** · Issue #895 · Origen: informe de QA de #350 / mapa de #351, foco sin cobertura
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · constructor de formularios (vista previa) → Portal (paso 2 del link público) |
+| **Etiquetas** | `#requisitos` `#relevamientos` `#ui` |
+| **Solicitante** | QA — issue #895 (épica #69, análisis #326) |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | #895 · épica #69 · Cambio 58 (constructor), Cambio 172 (BEC-03/BEC-04), Cambio 316 (#341) |
+| **Partes afectadas** | Tests de `programas` · `static/custom/js/nodo-condiciones.js` · ficha `.claude/design/dominio/inscripcion.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Un test que garantice que el motor de condiciones del navegador
+(`nodo-condiciones.js`, paso 2 del link y vista previa del constructor) decide lo
+mismo que el del servidor (`programas/services/condiciones.py`) sobre una tabla de
+casos compartida, con fecha de referencia fija, cubriendo todos los operadores de
+`OPERADORES_POR_TIPO`, los modos `todas`/`alguna`, la fuente ausente u oculta y la
+cascada de grupos. Si Node no está, se saltea como los otros tests JS.
+
+## Alcance acordado
+
+Tabla JSON + runner de Node + test de Django. El JS se toca solo si aparece una
+divergencia real, y se corrige hacia lo que decide el servidor, que es el que manda.
+
+## Decisiones tomadas
+
+1. **La tabla fija también lo que decide el servidor** (`ocultos` por variante), no
+   solo la igualdad entre motores: si los dos cambian juntos en la misma dirección,
+   el test lo ve igual. Cambiar la semántica del motor obliga a tocar la tabla.
+2. **Fecha de referencia fija: 28/08/2026**, la misma de `test_condiciones.py`.
+   En JS se arma en hora local, como en el navegador.
+3. **La cobertura se verifica, no se promete:** un test recorre la tabla y exige
+   que cada par (tipo de campo, operador) de `OPERADORES_POR_TIPO` y los dos modos
+   tengan caso. Agregar un operador sin caso pone el test en rojo.
+4. **Los diseños de la tabla pasan `validar_coherencia`**, salvo el caso marcado
+   `fuera_del_diseno` (la fuente que no se sirve en el canal, BEC-04), que es
+   incoherente a propósito.
+5. **Divergencias encontradas — se corrigió el navegador** (commit aparte), porque
+   el servidor manda:
+   - Números: `Number()` leía «1e3», «0x10» e «Infinity» como números; `_numero`
+     del servidor no (`int()` falla). Un `<input type="number">` deja escribir
+     «1e3», así que la pantalla mostraba preguntas que el servidor no exigía.
+   - Fechas imposibles: `new Date` corría el desborde («31/02/2010» → 3 de marzo)
+     e inventaba una edad; `fecha_o_none` devuelve `None` («nunca una edad
+     inventada», Cambio 172).
+   - Mes y día sin cero («2010-3-14», «1/5/2010»): `strptime` los lee y el
+     navegador no.
+6. No se alinean diferencias que ninguna pantalla produce: dígitos no ASCII o
+   guiones bajos en números (`int('1_000')`), espacios Unicode raros en `strip` vs
+   `trim`, y `str(True)`/`str(1.0)` contra `String()` en `es`: los valores de
+   selector viajan siempre como texto.
+
+## Implementación
+
+- `programas/tests/condiciones_paridad.json`: diez diseños con 60 variantes
+  (STRING, INT, SELECTOR, SELECTOR_MULTIPLE, DATE, ARCHIVO, modos, fuente oculta
+  en cadena, fuente fuera del diseño, cascada de grupos con texto e hijo cuya
+  condición se cumple pero el grupo está oculto).
+- `programas/tests/js/paridad_condiciones.cjs`: carga el motor del navegador en
+  Node y devuelve visibles/ocultos por variante.
+- `programas/tests/test_condiciones_paridad.py`: cobertura de la tabla, coherencia
+  de sus diseños, servidor contra la tabla y navegador contra servidor, clave por
+  clave (`requiere_node` de `core/tests/js_harness.py`).
+- `static/custom/js/nodo-condiciones.js`: `aNumero` acepta solo entero, o decimal
+  si lleva punto/coma, como `_numero`; `aFecha` acepta mes/día de una cifra y
+  devuelve `null` para la fecha imposible, como `fecha_o_none`.
+
+## Archivos
+
+- `programas/tests/condiciones_paridad.json` (nuevo).
+- `programas/tests/js/paridad_condiciones.cjs` (nuevo).
+- `programas/tests/test_condiciones_paridad.py` (nuevo).
+- `static/custom/js/nodo-condiciones.js`.
+- `.claude/design/dominio/inscripcion.md` (el test de paridad como contrato del espejo).
+- Esta entrada y su fila del índice.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Antes del arreglo: 7 variantes rojas en el navegador (las tres divergencias de
+  arriba), servidor contra la tabla en verde.
+- Después: `test_condiciones_paridad` + `test_condiciones`, 31 tests OK.
+- **Mutación:** `edad_menor` con `<=` en el JS → rojo en «cumple 18 justo hoy»;
+  restaurado.
+- Suite `programas` + `portal.tests.test_inscripcion_envio` con `.venv312`: 3696 tests OK (26 omitidos).
+- `design_audit.py --ratchet`: 0 hallazgos nuevos. `check_design_agent.py --changed`: OK.
+- Ruff check/format sobre el test: OK. `manage.py check --deploy`: OK.
+
+## Puesta en marcha en el servidor
+
+No requiere. El JS cambia con el despliegue (`collectstatic` con manifest).
+
+## Pendientes / a definir
+
+Ninguno. Si se agrega un operador a `OPERADORES_POR_TIPO`, el test de cobertura
+exige su caso en la tabla.
+
+## Reversión
+
+Revertir los dos commits. El de JS devuelve las tres divergencias; el del test
+solo saca la red.
 
 ---
