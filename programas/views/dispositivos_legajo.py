@@ -277,7 +277,11 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         puede_cambiar = puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR)
         puede_ver_ciudadano = puede(user, "ciudadano.ver")
         for estadia in estadias:
-            estadia.persona_visible = estadia.ciudadano.nombre_completo if puede_ver_ciudadano else "Persona alojada"
+            estadia.persona_visible = (
+                f"{estadia.ciudadano.apellido}, {estadia.ciudadano.nombre}"
+                if puede_ver_ciudadano
+                else "Persona alojada"
+            )
             estadia.persona_del_menu = estadia.persona_visible
             if not puede_ver_ciudadano:
                 if estadia.plaza_id:
@@ -285,7 +289,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                     estadia.persona_del_menu += f" en {ubicacion}"
                 else:
                     ingreso = timezone.localtime(estadia.fecha_ingreso).strftime("%d/%m/%Y %H:%M")
-                    estadia.persona_del_menu += f" con ingreso {ingreso}"
+                    estadia.persona_del_menu += f" con ingreso {ingreso} · estadía N.º {estadia.pk}"
             if puede_ver_ciudadano:
                 estadia.url_ver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
             if puede_cambiar and estadia.activa and estadia.plaza_id is not None:
@@ -354,7 +358,9 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             estadia_pk = int(pedido) if pedido.isascii() and pedido.isdecimal() else None
             estadia = _estadia_del_dispositivo(dispositivo, estadia_pk)
             estadia.persona_visible = (
-                estadia.ciudadano.nombre_completo if context["puede_ver_ciudadano"] else "Persona alojada"
+                f"{estadia.ciudadano.apellido}, {estadia.ciudadano.nombre}"
+                if context["puede_ver_ciudadano"]
+                else "Persona alojada"
             )
             if not estadia.activa:
                 messages.info(self.request, "La estadía ya está cerrada.")
