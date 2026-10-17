@@ -130,7 +130,7 @@ CATALOGO = [
             ("becas.referente", "Operar como Referente dentro del alcance de su Coordinador"),
             ("becas.coordinador_regional", "Operar como Coordinador Regional dentro de su subsegmento asignado"),
             # La semilla se la da solo al rol «Becas — Administrador» (decisión del PM
-            # del 17/10/2026, Cambio 331). En los otros roles sembrados un tilde a mano
+            # del 17/10/2026, Cambio 332). En los otros roles sembrados un tilde a mano
             # se revierte en el próximo arranque. Aprueba casos en lote y los registra
             # en SIIS sin vuelta atrás.
             (

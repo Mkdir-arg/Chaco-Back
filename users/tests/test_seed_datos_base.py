@@ -75,7 +75,7 @@ class SeedRolesBecasTests(TestCase):
             self.assertNotIn(PUBLICO, _codigos(Group.objects.get(name=nombre)))
 
     def test_el_proceso_masivo_es_solo_del_administrador(self):
-        # Decisión del PM del 17/10/2026 (Cambio 331): la semilla le da
+        # Decisión del PM del 17/10/2026 (Cambio 332): la semilla le da
         # ``becas.programa.proceso_masivo`` al Administrador y a ningún otro rol.
         admin = Group.objects.get(name=seed_becas.ROL_ADMIN)
         self.assertIn(PROCESO_MASIVO, _codigos(admin))

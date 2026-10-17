@@ -456,7 +456,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 328 | «Ruff estilo» bloquea el merge y el release dice qué check no obligatorio lo frena | Transversal · CI y release | `#infra` `#gestion` | Pendiente del Cambio 320 | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 329 | Guarda de SIIS: el host se normaliza (puerto, punto final, IPv6) | Becas · alta en SIIS (guarda de ambiente) | `#siis` `#infra` | Revisor PR #883 — MINOR del Cambio 318 (issue #569) | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 330 | Paridad del motor de condiciones: navegador vs servidor | Becas · constructor de formularios → Portal (link público) | `#requisitos` `#relevamientos` `#ui` | QA — issue #895 (informe de #350 / mapa de #351) | 17/10/2026 | 🟢 **Hecho** | No requiere |
-| 331 | Analizar la lógica de los roles de Becas y buscar incoherencias | Becas · roles y alcance (RBAC) · ABM de Usuarios y Roles | `#rbac` `#usuarios` `#convocatorias` `#cupos` | PM — en sesión | 17/10/2026 | 🟢 **Hecho** (diagnóstico; correcciones a decidir) | No requiere |
+| 331 | El selector «Relevamiento» del Dashboard de Becas deja de nombrar al del link público sin RN-P13 | Becas · dashboard del programa | `#rbac` `#relevamientos` | QA — casos de #374 (TC-374-18) | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 332 | Analizar la lógica de los roles de Becas y buscar incoherencias | Becas · roles y alcance (RBAC) · ABM de Usuarios y Roles | `#rbac` `#usuarios` `#convocatorias` `#cupos` | PM — en sesión | 17/10/2026 | 🟢 **Hecho** (diagnóstico; correcciones a decidir) | No requiere |
 
 **Notas del índice**
 
@@ -1247,7 +1248,7 @@ Retirar la capacidad `becas.usuario.territorial`, los alcances especiales del AB
   Ya no vale:
   - Coordinador, Coordinador Regional y Referente exportan con `becas.reportes.exportar` (dashboard y reportes);
   - el CSV de convocatoria sigue siendo solo del Administrador;
-  - el PM confirmó al Referente el 17/10/2026. Ver el Cambio 331.
+  - el PM confirmó al Referente el 17/10/2026. Ver el Cambio 332.
 
 # Cambio 17 — Referente
 
@@ -9989,7 +9990,7 @@ provincia y la localidad resuelvan.
     daba al rol «Becas — Administrador» en cada arranque.
   - Ahora: el PM decidió conservar esa conducta. La semilla se la da solo al Administrador; en los otros roles
     sembrados un tilde a mano se revierte en el próximo arranque. Se corrigió el comentario de `core/rbac.py` y
-    lo fija `users/tests/test_seed_datos_base.py`. Ver el Cambio 331.
+    lo fija `users/tests/test_seed_datos_base.py`. Ver el Cambio 332.
 
 # Cambio 89 — El domicilio sin altura viaja a SIIS como aproximado
 
@@ -43209,8 +43210,106 @@ Revertir los dos commits. El de JS devuelve las tres divergencias; el del test
 solo saca la red.
 
 ---
+# Cambio 331 — El selector «Relevamiento» del Dashboard de Becas deja de nombrar al del link público sin RN-P13
 
-# Cambio 331 — Analizar la lógica de los roles de Becas y buscar incoherencias
+🟢 **HECHO — 17/10/2026** · Detectado por QA al escribir los casos de #374 (TC-374-18 / Asunción 7)
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · Dashboard del programa (`/becas/config/programas/<pk>/?tab=dash`) y sus exportaciones |
+| **Etiquetas** | `#rbac` `#relevamientos` |
+| **Solicitante** | QA — casos de prueba de #374 (TC-374-18, Asunción 7) |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | #374 · antecedentes: Cambio 41 (RN-P13), Cambio 64 (dashboard), Cambio 177 (SEC-22 / D-22) |
+| **Partes afectadas** | `DashboardBecasFiltroForm` (`programas/forms_reportes.py`): opciones del selector «Relevamiento» que devuelve el JSON del tablero y validación del filtro en el tablero y en las exportaciones XLSX/CSV |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Por RN-P13 quien no tiene `becas.relevamiento.publico` no ve los relevamientos de
+link público. En el Dashboard del programa los números ya salían en cero
+(`resolver_alcance` los excluye desde el Cambio 177), pero el selector
+«Relevamiento» —que arma `DashboardBecasFiltroForm.relevamientos_de`— listaba el
+relevamiento público **con su nombre**. Y forzando su id por GET el formulario lo
+aceptaba: el tablero respondía 200 con «Relevamiento sin acceso» en el alcance.
+
+## Alcance acordado
+
+Aplicar el mismo filtro de RN-P13 al queryset del campo `relevamiento` del
+formulario del dashboard, del que salen las opciones del selector y la
+validación del id. No se toca el servicio: sus agregados ya filtraban.
+
+## Decisiones tomadas
+
+- **Se reusa `sin_relevamientos_publicos_si_no_puede`** (`services/autorizacion.py`,
+  la pieza única de RN-P13 desde el Cambio 177), evaluada con `programa_becas(user)`
+  igual que `resolver_alcance`. No hay criterio nuevo.
+- **Forzar el id se rechaza, no se ignora:** 400 con el mensaje genérico de
+  Django («Seleccione una opción válida»), que no repite el nombre. Es el mismo
+  trato que ya tenía una convocatoria fuera de alcance, y vale igual para el
+  tablero y para `export/xlsx` y `export/csv`.
+- **El selector «Canal» sigue ofreciendo «Link público»** a quien no tiene la
+  capacidad: es una etiqueta fija, no un dato, y elegirlo devuelve el tablero
+  vacío. Ocultarlo es un cambio de UI que nadie pidió.
+
+## Implementación
+
+- `programas/forms_reportes.py`: el queryset de `relevamiento` pasa por
+  `sin_relevamientos_publicos_si_no_puede(..., programa=programa_becas(user))`.
+
+## Archivos
+
+- `programas/forms_reportes.py`.
+- `programas/tests/test_relevamiento_publico.py` (clase `RnP13SelectorDelDashboardTests`).
+- Esta entrada y su fila del índice.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Tests nuevos (7 con el del revisor): sin la capacidad el selector no lista el público ni aparece
+  su nombre; con la capacidad sí; forzar su id da 400 sin nombre en el tablero y
+  en XLSX/CSV; los exports sin filtro no lo nombran; con la capacidad el filtro
+  aplica y el alcance lo nombra. Antes del arreglo: 4 en rojo.
+- **Mutación:** el filtro reemplazado por la identidad → los mismos 4 en rojo;
+  restaurado.
+- **Mutación del revisor** (`programa_becas(user)` → `programa=None` en el form):
+  pasaba en verde. Se sumó un test con un rol de **otro** programa que tiene
+  `becas.relevamiento.publico` tildado: no ve el público de Becas ni puede
+  forzarlo. Con la mutación se pone en rojo; restaurado.
+- Consultas del endpoint del tablero: 23 antes y 23 después, con y sin la
+  capacidad (`puede` cachea por request y `programa_becas` por proceso).
+  `--tag performance`: 41 tests OK.
+- `test_relevamiento_publico`, `test_dashboard_becas`, `test_dashboard_exports`:
+  102 tests OK. Suite `programas` con `.venv312`: 3656 tests OK (26 omitidos).
+- Ruff check/format: OK. `manage.py check --deploy`: sin errores.
+
+## Otros lugares revisados
+
+Con el mismo patrón —listar relevamientos por nombre a partir de las
+convocatorias visibles— se revisaron la pantalla de Cupo, el listado de Revisión,
+las pantallas de relevamientos de la convocatoria y el hub de Reportes
+(`ReporteBecasFiltroForm`, que no tiene selector de relevamiento): todos ya
+pasaban por el filtro de RN-P13. El único que no lo hacía era este selector.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit del formulario: vuelve a listarse el nombre del público en el
+selector (los números siguen filtrados por `resolver_alcance`).
+
+---
+
+# Cambio 332 — Analizar la lógica de los roles de Becas y buscar incoherencias
 
 🟢 **HECHO — 17/10/2026** (diagnóstico entregado; las correcciones esperan siete decisiones del PM)
 
@@ -43378,7 +43477,7 @@ Decisiones del PM, en orden de prioridad:
 5. Regional: ¿suma `revision.ver`? ¿Ve beneficiarios con DNI desde Cupo?
 6. ¿Se prohíbe combinar Referente, Regional y Coordinador en un mismo usuario, o se define una precedencia única?
    - **El PM decidió además (17/10/2026):** «un usuario puede tener varios roles, pero los que se pisan en
-     acciones no se combinan, con un popup que bloquea la selección». Va en el Cambio 332, en otro PR.
+     acciones no se combinan, con un popup que bloquea la selección». Va en el Cambio 333, en otro PR.
 7. ¿El Coordinador puede forzar o revalidar identidad?
 
 Correcciones propuestas, después de las decisiones (cada una en su PR):
