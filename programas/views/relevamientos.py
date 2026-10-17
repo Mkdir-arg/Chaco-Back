@@ -36,8 +36,8 @@ from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento
 from programas.services.autorizacion import (
     assert_alcance_relevamiento,
     convocatorias_visibles,
-    es_admin_becas,
     programa_becas,
+    puede_exportar_convocatoria,
     puede_gestionar_segmento,
     puede_relevamiento_publico,
     segmentos_visibles,
@@ -63,38 +63,36 @@ CAP_RELEVAMIENTO_EDITAR = "becas.relevamiento.editar"
 # SEC-06: los tres exports pedían esta capacidad con ``@requiere``, que evalúa **sin
 # alcance**, y bajaban la convocatoria por ``pk`` suelto. Un rol de **otro** programa con
 # ``becas.programa.administrar`` tildada se llevaba el CSV con DNI de cualquier
-# convocatoria. Desde este cambio la capacidad va por ``es_admin_becas`` —que la evalúa
-# contra el Programa Becas— y el objeto sale de ``convocatorias_visibles``; el flag
-# ``puede_reportes`` que decide qué muestra la pantalla usa **la misma regla**, para que
-# la UI no ofrezca un botón que va a contestar 403.
+# convocatoria. Desde SEC-06 la capacidad se evalúa contra el Programa Becas y el objeto
+# sale de ``convocatorias_visibles``; el flag ``puede_reportes`` que decide qué muestra la
+# pantalla usa **la misma regla**, para que la UI no ofrezca un botón que va a contestar
+# 403. Cambio 335: la regla dejó de ser «solo el Administrador» y pasó a
+# ``puede_exportar_convocatoria`` (también el Coordinador, por decisión del PM).
 
 
 def _puede_exportar(user):
     """El flag de UI de los CSV de convocatoria: **la misma regla que el gate**.
 
-    Era ``puede(user, "becas.programa.administrar")`` sin alcance, o sea lo que SEC-06
-    acaba de dejar de aceptar en ``_convocatoria_para_export``: la pantalla seguía
-    ofreciendo los botones a quien el export contesta 403. Falla en ``False`` —y no en
-    403— si el Programa Becas no está configurado: esto decide qué se dibuja, no quién
-    entra.
+    Falla en ``False`` —y no en 403— si el Programa Becas no está configurado: esto
+    decide qué se dibuja, no quién entra.
     """
     try:
-        return es_admin_becas(user)
+        return puede_exportar_convocatoria(user)
     except PermissionDenied:
         return False
 
 
 def _convocatoria_para_export(request, pk, queryset=None):
-    """La convocatoria del export, o 403 (SEC-06).
+    """La convocatoria del export, o 403 (SEC-06, Cambio 335).
 
-    Dos candados, no uno: ``es_admin_becas`` exige la capacidad **en el Programa
-    Becas** (un rol de Dispositivos con la paraguas tildada deja de pasar) y
-    ``convocatorias_visibles`` acota el objeto al alcance fino del usuario, que para un
-    Coordinador Regional son sus subsegmentos. El primero solo no alcanza: ``puede``
-    sin alcance era justo el agujero.
+    Dos candados, no uno: ``puede_exportar_convocatoria`` exige las capacidades **en el
+    Programa Becas** (un rol de Dispositivos con ellas tildadas no pasa) y
+    ``convocatorias_visibles`` acota el objeto al alcance fino del usuario: sus
+    segmentos para el Coordinador. El primero solo no alcanza: ``puede`` sin alcance
+    era justo el agujero.
     """
-    if not es_admin_becas(request.user):
-        raise PermissionDenied("No administra el programa Becas.")
+    if not puede_exportar_convocatoria(request.user):
+        raise PermissionDenied("No puede exportar los CSV de convocatoria.")
     base = convocatorias_visibles(request.user) if queryset is None else queryset
     return get_object_or_404(base, pk=pk)
 

@@ -152,7 +152,8 @@ class PermisosTests(_Base):
         user.groups.add(grupo)
         if not con_editar:
             # Desde el Cambio 334 el Coordinador sembrado edita requisitos: el caso
-            # «sin la capacidad» es un rol al que se la sacaron.
+            # «sin la capacidad» es un rol al que se la sacaron. Depende de que la semilla
+            # no se vuelva a correr después: ``seed_becas`` se la devuelve al Coordinador.
             grupo.permissions.remove(_capacidad("becas.requisito.editar"))
         AsignacionCoordinador.objects.create(segmento=segmento, coordinador=user)
         cache.clear()
@@ -238,6 +239,8 @@ class RenderTests(_Base):
     def test_sin_capacidad_de_editar_no_hay_manijas(self):
         coord = User.objects.create_user("coord-lector", password="x")
         grupo = Group.objects.get(name=ROL_COORDINADOR)
+        # Depende de que la semilla no se vuelva a correr: ``seed_becas`` le devuelve
+        # ``requisito.editar`` al Coordinador (Cambio 334).
         grupo.permissions.remove(_capacidad("becas.requisito.editar"))
         coord.groups.add(grupo)
         AsignacionCoordinador.objects.create(segmento=self.seg, coordinador=coord)
