@@ -1106,11 +1106,13 @@
 
 ### :material-package-variant-closed: Consumo del 9 al 17 de octubre — por entregable
 
-!!! note "Período del MVP del Programa Dispositivos y del cierre de la auditoría"
-    El grueso del período se fue en el **MVP del Programa Dispositivos**: admisiones, camas, registro
-    diario, bajas y concurrencia, con una revisión de fidelidad pantalla por pantalla contra el diseño
-    aprobado y una auditoría final. En paralelo se cerró la **última ola de la auditoría del sistema**,
-    se puso en marcha el **envío de notificaciones por campaña** y se publicó la versión en el ambiente
+!!! note "Período del MVP del Programa Dispositivos y del cierre de la auditoría del sistema"
+    El grueso del período se fue en el **MVP del Programa Dispositivos**, que **está en desarrollo**:
+    se construyeron admisiones, camas, registro diario, bajas y el trabajo simultáneo de dos personas,
+    con una revisión de fidelidad pantalla por pantalla contra el diseño aprobado y una revisión interna
+    de lo construido. **Todavía no se publicó para probar ni se presentó al Ministerio**: son 82 h de las
+    700 del alcance acordado. En paralelo sí se cerró la **última ola de la auditoría del sistema**, se
+    puso en marcha el **envío de notificaciones por campaña** y se publicó la versión en el ambiente
     productivo del organismo.
 
 | Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
@@ -1146,7 +1148,7 @@
 | 12/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo y puesta al día del tablero. | 1 h | — |
 | 12/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
 | 12/10 | Matías Fariña | Dispositivos | Redacción de las tareas del MVP y su seguimiento | Alta y encuadre de los frentes del MVP, con su criterio de cierre. | 2 h | — |
-| 12/10 | Pablo Cao | Dispositivos | Pantallas del MVP: admisiones, camas y registro diario | Las pantallas centrales del programa quedan operables desde el backoffice. | 5 h | 10 h |
+| 12/10 | Pablo Cao | Dispositivos | Pantallas del MVP: admisiones, camas y registro diario | Construcción de las pantallas centrales del programa en el ambiente de desarrollo. | 5 h | 10 h |
 | 12/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 12/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
 | 12/10 | Juani Portilla | Transversal | La exportación pesada sale del pedido del usuario | Los informes grandes se arman aparte y no dejan la pantalla esperando. | 2,5 h | 5 h |
@@ -1178,19 +1180,19 @@
 | 13/10 | Nahuel De Francesco | Dispositivos | Documentación funcional del MVP | Registro de lo entregado y de las decisiones tomadas. | 2 h | — |
 | 13/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 13/10 | Nahuel De Francesco | Dispositivos | Documentación de las decisiones del MVP | Registro de lo acordado en cada frente, para que la decisión no se pierda. | 2 h | — |
-| 14/10 | Matías Fariña | Dispositivos | Cierre del MVP de Dispositivos y revisión de fidelidad | Verificación pantalla por pantalla contra el diseño aprobado y cierre de los frentes. | 4 h | — |
+| 14/10 | Matías Fariña | Dispositivos | Integración de los frentes del MVP y revisión de fidelidad | Verificación pantalla por pantalla contra el diseño aprobado e integración de lo construido en el período. | 4 h | — |
 | 14/10 | Matías Fariña | Becas | Definición de las notificaciones con imágenes y adjuntos | Qué puede llevar una notificación y cómo se envía. | 2 h | — |
 | 14/10 | Matías Fariña | Transversal | Coordinación del día y revisión de lo publicado | Seguimiento de los frentes cerrados y revisión funcional de lo que quedó publicado. | 1,5 h | — |
 | 14/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
 | 14/10 | Matías Fariña | Transversal | Informe de avance y registro de lo entregado | Qué quedó terminado en el período y en qué estado está cada frente. | 2 h | — |
-| 14/10 | Pablo Cao | Dispositivos | Las pantallas del MVP quedan fieles al diseño aprobado | Repaso de cada pantalla contra el diseño, con sus correcciones. | 5 h | 10 h |
+| 14/10 | Pablo Cao | Dispositivos | Las pantallas construidas se alinean al diseño aprobado | Repaso de cada pantalla contra el diseño, con sus correcciones. | 5 h | 10 h |
 | 14/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 14/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
-| 14/10 | Juani Portilla | Dispositivos | El MVP soporta dos personas operando a la vez | Dos agentes trabajando sobre la misma institución no se pisan ni duplican registros. | 3 h | 6 h |
+| 14/10 | Juani Portilla | Dispositivos | Dos personas pueden operar a la vez sobre la misma institución | Dos agentes trabajando al mismo tiempo no se pisan ni duplican registros. | 3 h | 6 h |
 | 14/10 | Juani Portilla | Transversal | Actualización de dependencias del sistema | Puesta al día de las librerías del backend, del frontend y del pipeline. | 2 h | 4 h |
 | 14/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 14/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
-| 14/10 | Matías Abate | Dispositivos | Pruebas de cierre del MVP y de fidelidad | Recorrido completo del programa contra el diseño y los criterios acordados. | 5 h | — |
+| 14/10 | Matías Abate | Dispositivos | Pruebas de los frentes integrados y de fidelidad | Recorrido de lo construido contra el diseño y los criterios acordados. | 5 h | — |
 | 14/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 14/10 | Matías Abate | Dispositivos | Redacción de los casos de prueba del MVP | Qué se prueba en cada tarea y con qué resultado esperado, escrito antes de desarrollar. | 2 h | — |
 | 14/10 | Nahuel De Francesco | Becas | Las notificaciones admiten imágenes y adjuntos comprimidos | Una campaña puede llevar imágenes incrustadas y archivos adjuntos. | 3 h | 6 h |
@@ -1231,10 +1233,10 @@
 | 16/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | 16/10 | Nahuel De Francesco | Dispositivos | Documentación de las decisiones del MVP | Registro de lo acordado en cada frente, para que la decisión no se pierda. | 1 h | — |
 | 16/10 | Nahuel De Francesco | Transversal | Seguimiento de las tareas del período | Puesta al día del estado de cada tarea. | 1 h | — |
-| 17/10 | Matías Fariña | Dispositivos | Auditoría final del MVP de Dispositivos | Revisión completa del programa contra lo acordado, con su matriz de resultados. | 3 h | — |
+| 17/10 | Matías Fariña | Dispositivos | Revisión interna de lo construido del MVP | Repaso de lo desarrollado hasta ahora contra lo acordado, con su matriz de resultados. | 3 h | — |
 | 17/10 | Matías Fariña | Becas | Análisis de los roles de Becas y del coordinador | Qué administra cada rol del programa y dónde se superponían. | 3 h | — |
 | 17/10 | Matías Fariña | Transversal | Coordinación del trabajo de fin de semana | Reparto del trabajo y seguimiento de los frentes abiertos. | 2 h | — |
-| 17/10 | Matías Fariña | Dispositivos | Registro de la auditoría del MVP y su matriz de resultados | Qué se revisó, qué se observó y cómo quedó cada punto. | 1 h | — |
+| 17/10 | Matías Fariña | Dispositivos | Registro de la revisión interna del MVP y su matriz de resultados | Qué se revisó, qué se observó y cómo quedó cada punto. | 1 h | — |
 | 17/10 | Matías Fariña | Transversal | Gestión del tablero y cierre del período | Puesta al día del tablero y encuadre de lo que sigue. | 1 h | — |
 | 17/10 | Pablo Cao | Becas | Los roles de Becas dejan de pisarse entre sí | Cada rol administra lo suyo sin invadir el alcance de otro. | 3 h | 6 h |
 | 17/10 | Pablo Cao | Becas | El coordinador administra los requisitos de identidad | El coordinador puede configurar qué se exige para identificar a la persona. | 2 h | 4 h |
@@ -1242,7 +1244,7 @@
 | 17/10 | Juani Portilla | Transversal | El motor de condiciones responde igual en los dos motores de base | Las reglas del formulario se comportan igual en desarrollo y en el ambiente del organismo. | 3 h | 6 h |
 | 17/10 | Juani Portilla | Transversal | Los controles de publicación quedan alineados | El circuito que publica exige los mismos controles que el de los cambios. | 2 h | 4 h |
 | 17/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1,5 h | — |
-| 17/10 | Matías Abate | Dispositivos | Pruebas de la auditoría final del MVP | Recorrido de los puntos observados y verificación de cada corrección. | 4 h | — |
+| 17/10 | Matías Abate | Dispositivos | Pruebas de la revisión interna del MVP | Recorrido de los puntos observados y verificación de cada corrección. | 4 h | — |
 | 17/10 | Matías Abate | Becas | Redacción de los casos de prueba de las tareas de Becas | Qué se prueba en cada tarea y con qué resultado esperado, escrito antes de desarrollar. | 2 h | — |
 | | | | **Total 9 al 17/10** | | **254,5 h** | **136 h** |
 

@@ -6,10 +6,10 @@
 | | |
 |---|---|
 | **Programa** | Dispositivos |
-| **Estado** | Alcance definido por el Ministerio · a confirmar fecha de inicio |
+| **Estado** | **En desarrollo** desde el 10/10/2026 · 82 h de 700 ejecutadas (12 %) · todavía no disponible para probar |
 | **Esfuerzo** | 700 h · aproximadamente 14 semanas |
 | **Relación con la Versión 2** | Primer tramo de la [propuesta funcional completa](propuesta-dispositivos-v2.md); no la reemplaza, la ordena en el tiempo |
-| **Última actualización** | 2026-10-08 |
+| **Última actualización** | 2026-10-17 |
 
 !!! warning "Para qué sirve este documento"
     El alcance que definió el Ministerio está escrito en cuatro párrafos breves. Acá se abre en detalle **qué se entrega y qué no**, para que no haya sorpresas al momento de la entrega. Si algo de lo que figura acá no coincide con lo que el Ministerio tenía en mente, **es el momento de corregirlo**: una vez acordado, esto es lo que se construye.
