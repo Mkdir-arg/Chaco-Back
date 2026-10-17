@@ -42582,6 +42582,8 @@ los defaults abiertos, el rótulo genérico y la ventana de carrera en el alcanc
 
 ---
 
+---
+
 # Cambio 326 — Cierre GL: tres MINOR R3 de P4 y selección de edificios
 
 🟢 **HECHO — 17/10/2026** · Número siguiente disponible, provisional hasta la numeración del juez.
