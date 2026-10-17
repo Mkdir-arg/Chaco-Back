@@ -1,0 +1,212 @@
+{
+  "_leeme": [
+    "Tabla de casos compartida del motor de condiciones (#895).",
+    "La evalúan los dos motores: programas/services/condiciones.py (servidor, el que manda) y",
+    "static/custom/js/nodo-condiciones.js (navegador: paso 2 del link y vista previa del constructor).",
+    "Cada caso es un diseño (items, en orden) con una o más variantes de respuestas; 'ocultos' es lo",
+    "que tiene que quedar oculto según el servidor; todo lo demás, visible.",
+    "'hoy' es la fecha de referencia FIJA de las reglas de edad: nunca la fecha del runner.",
+    "'fuera_del_diseno': la regla apunta a una fuente que no está en el diseño servido (BEC-04),",
+    "así que el diseño no pasa validar_coherencia a propósito."
+  ],
+  "hoy": "2026-08-28",
+  "casos": [
+    {
+      "caso": "STRING: vacío y completo",
+      "items": [
+        {"clave": "t", "tipo": "campo", "tipo_campo": "STRING"},
+        {"clave": "x_vacio", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "t", "op": "vacio"}]}},
+        {"clave": "x_completo", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "t", "op": "completo"}]}}
+      ],
+      "variantes": [
+        {"respuestas": {"t": "hola"}, "ocultos": ["x_vacio"]},
+        {"respuestas": {"t": ""}, "ocultos": ["x_completo"]},
+        {"nota": "solo espacios cuenta como vacío", "respuestas": {"t": "   "}, "ocultos": ["x_completo"]},
+        {"nota": "fuente sin responder", "respuestas": {}, "ocultos": ["x_completo"]}
+      ]
+    },
+    {
+      "caso": "INT: comparaciones contra 3",
+      "items": [
+        {"clave": "n", "tipo": "campo", "tipo_campo": "INT"},
+        {"clave": "x_eq", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "n", "op": "eq", "valor": 3}]}},
+        {"clave": "x_ne", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "n", "op": "ne", "valor": 3}]}},
+        {"clave": "x_lt", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "n", "op": "lt", "valor": 3}]}},
+        {"clave": "x_gt", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "n", "op": "gt", "valor": 3}]}},
+        {"clave": "x_le", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "n", "op": "le", "valor": "3"}]}},
+        {"clave": "x_ge", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "n", "op": "ge", "valor": "3"}]}},
+        {"clave": "x_vacio", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "n", "op": "vacio"}]}},
+        {"clave": "x_completo", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "n", "op": "completo"}]}}
+      ],
+      "variantes": [
+        {"respuestas": {"n": "3"}, "ocultos": ["x_ne", "x_lt", "x_gt", "x_vacio"]},
+        {"respuestas": {"n": "2"}, "ocultos": ["x_eq", "x_gt", "x_ge", "x_vacio"]},
+        {"respuestas": {"n": "4"}, "ocultos": ["x_eq", "x_lt", "x_le", "x_vacio"]},
+        {"respuestas": {"n": "-1"}, "ocultos": ["x_eq", "x_gt", "x_ge", "x_vacio"]},
+        {"nota": "número JSON (lo que manda la app), no texto", "respuestas": {"n": 3}, "ocultos": ["x_ne", "x_lt", "x_gt", "x_vacio"]},
+        {"nota": "coma decimal", "respuestas": {"n": "2,5"}, "ocultos": ["x_eq", "x_gt", "x_ge", "x_vacio"]},
+        {"respuestas": {"n": "3.0"}, "ocultos": ["x_ne", "x_lt", "x_gt", "x_vacio"]},
+        {"respuestas": {"n": " 4 "}, "ocultos": ["x_eq", "x_lt", "x_le", "x_vacio"]},
+        {"nota": "no es un número: no cumple ninguna comparación, tampoco «distinto de»", "respuestas": {"n": "tres"}, "ocultos": ["x_eq", "x_ne", "x_lt", "x_gt", "x_le", "x_ge", "x_vacio"]},
+        {"nota": "notación científica: el servidor no la lee como número (int('1e3') falla)", "respuestas": {"n": "1e3"}, "ocultos": ["x_eq", "x_ne", "x_lt", "x_gt", "x_le", "x_ge", "x_vacio"]},
+        {"nota": "hexadecimal: el servidor no la lee como número", "respuestas": {"n": "0x10"}, "ocultos": ["x_eq", "x_ne", "x_lt", "x_gt", "x_le", "x_ge", "x_vacio"]},
+        {"respuestas": {"n": "Infinity"}, "ocultos": ["x_eq", "x_ne", "x_lt", "x_gt", "x_le", "x_ge", "x_vacio"]},
+        {"respuestas": {}, "ocultos": ["x_eq", "x_ne", "x_lt", "x_gt", "x_le", "x_ge", "x_completo"]}
+      ]
+    },
+    {
+      "caso": "SELECTOR: es, no es, es alguno",
+      "items": [
+        {"clave": "s", "tipo": "campo", "tipo_campo": "SELECTOR"},
+        {"clave": "x_es", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "s", "op": "es", "valor": "secundario"}]}},
+        {"clave": "x_no_es", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "s", "op": "no_es", "valor": "secundario"}]}},
+        {"clave": "x_es_alguno", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "s", "op": "es_alguno", "valor": ["secundario", "terciario"]}]}},
+        {"clave": "x_vacio", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "s", "op": "vacio"}]}},
+        {"clave": "x_completo", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "s", "op": "completo"}]}}
+      ],
+      "variantes": [
+        {"respuestas": {"s": "secundario"}, "ocultos": ["x_no_es", "x_vacio"]},
+        {"respuestas": {"s": "terciario"}, "ocultos": ["x_es", "x_vacio"]},
+        {"respuestas": {"s": "primario"}, "ocultos": ["x_es", "x_es_alguno", "x_vacio"]},
+        {"nota": "mayúsculas distintas no son la misma opción", "respuestas": {"s": "Secundario"}, "ocultos": ["x_es", "x_es_alguno", "x_vacio"]},
+        {"nota": "sin responder tampoco cumple «no es»", "respuestas": {}, "ocultos": ["x_es", "x_no_es", "x_es_alguno", "x_completo"]}
+      ]
+    },
+    {
+      "caso": "SELECTOR_MULTIPLE: incluye, no incluye, incluye alguno",
+      "items": [
+        {"clave": "m", "tipo": "campo", "tipo_campo": "SELECTOR_MULTIPLE"},
+        {"clave": "x_incluye", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "m", "op": "incluye", "valor": "AUH"}]}},
+        {"clave": "x_no_incluye", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "m", "op": "no_incluye", "valor": "AUH"}]}},
+        {"clave": "x_incluye_alguno", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "m", "op": "incluye_alguno", "valor": ["AUH", "Tarjeta"]}]}},
+        {"clave": "x_vacio", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "m", "op": "vacio"}]}},
+        {"clave": "x_completo", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "m", "op": "completo"}]}}
+      ],
+      "variantes": [
+        {"respuestas": {"m": ["AUH", "Pensión"]}, "ocultos": ["x_no_incluye", "x_vacio"]},
+        {"respuestas": {"m": ["Tarjeta"]}, "ocultos": ["x_incluye", "x_vacio"]},
+        {"respuestas": {"m": ["Pensión"]}, "ocultos": ["x_incluye", "x_incluye_alguno", "x_vacio"]},
+        {"nota": "una sola opción suelta, sin lista", "respuestas": {"m": "AUH"}, "ocultos": ["x_no_incluye", "x_vacio"]},
+        {"nota": "lista vacía = sin responder", "respuestas": {"m": []}, "ocultos": ["x_incluye", "x_no_incluye", "x_incluye_alguno", "x_completo"]},
+        {"respuestas": {}, "ocultos": ["x_incluye", "x_no_incluye", "x_incluye_alguno", "x_completo"]}
+      ]
+    },
+    {
+      "caso": "DATE: edad y antes/después, al 28/08/2026",
+      "items": [
+        {"clave": "f", "tipo": "campo", "tipo_campo": "DATE"},
+        {"clave": "x_menor", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "f", "op": "edad_menor", "valor": 18}]}},
+        {"clave": "x_mayor", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "f", "op": "edad_mayor", "valor": 18}]}},
+        {"clave": "x_igual", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "f", "op": "edad_igual", "valor": "16"}]}},
+        {"clave": "x_entre", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "f", "op": "edad_entre", "valor": [12, 17]}]}},
+        {"clave": "x_entre_invertido", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "f", "op": "edad_entre", "valor": ["17", "12"]}]}},
+        {"clave": "x_anterior", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "f", "op": "anterior", "valor": "2011-01-01"}]}},
+        {"clave": "x_posterior", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "f", "op": "posterior", "valor": "01/01/2009"}]}},
+        {"clave": "x_vacio", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "f", "op": "vacio"}]}},
+        {"clave": "x_completo", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "f", "op": "completo"}]}}
+      ],
+      "variantes": [
+        {"nota": "16 años", "respuestas": {"f": "2010-03-14"}, "ocultos": ["x_mayor", "x_vacio"]},
+        {"nota": "la misma fecha en dd/mm/aaaa", "respuestas": {"f": "14/03/2010"}, "ocultos": ["x_mayor", "x_vacio"]},
+        {"nota": "el ejemplo del issue: 16 años", "respuestas": {"f": "2010-05-01"}, "ocultos": ["x_mayor", "x_vacio"]},
+        {"nota": "cumple 18 justo hoy: ya no es menor ni todavía mayor", "respuestas": {"f": "2008-08-28"}, "ocultos": ["x_menor", "x_mayor", "x_igual", "x_entre", "x_entre_invertido", "x_posterior", "x_vacio"]},
+        {"nota": "cumple 18 mañana: todavía 17", "respuestas": {"f": "2008-08-29"}, "ocultos": ["x_mayor", "x_igual", "x_posterior", "x_vacio"]},
+        {"nota": "26 años", "respuestas": {"f": "2000-01-01"}, "ocultos": ["x_menor", "x_igual", "x_entre", "x_entre_invertido", "x_posterior", "x_vacio"]},
+        {"nota": "cumple 12 hoy: borde inferior del rango", "respuestas": {"f": "2014-08-28"}, "ocultos": ["x_mayor", "x_igual", "x_anterior", "x_vacio"]},
+        {"nota": "igual al tope de «anterior»: no es anterior", "respuestas": {"f": "2011-01-01"}, "ocultos": ["x_mayor", "x_igual", "x_anterior", "x_vacio"]},
+        {"nota": "igual al tope de «posterior»: no es posterior", "respuestas": {"f": "2009-01-01"}, "ocultos": ["x_mayor", "x_igual", "x_posterior", "x_vacio"]},
+        {"nota": "no es una fecha: no hay edad", "respuestas": {"f": "no es fecha"}, "ocultos": ["x_menor", "x_mayor", "x_igual", "x_entre", "x_entre_invertido", "x_anterior", "x_posterior", "x_vacio"]},
+        {"nota": "fecha imposible: el servidor no la acepta, nunca una edad inventada", "respuestas": {"f": "31/02/2010"}, "ocultos": ["x_menor", "x_mayor", "x_igual", "x_entre", "x_entre_invertido", "x_anterior", "x_posterior", "x_vacio"]},
+        {"nota": "fecha imposible en ISO", "respuestas": {"f": "2010-02-30"}, "ocultos": ["x_menor", "x_mayor", "x_igual", "x_entre", "x_entre_invertido", "x_anterior", "x_posterior", "x_vacio"]},
+        {"nota": "mes y día sin el cero: el servidor (strptime) la lee", "respuestas": {"f": "2010-3-14"}, "ocultos": ["x_mayor", "x_vacio"]},
+        {"nota": "dd/mm sin el cero", "respuestas": {"f": "1/5/2010"}, "ocultos": ["x_mayor", "x_vacio"]},
+        {"respuestas": {}, "ocultos": ["x_menor", "x_mayor", "x_igual", "x_entre", "x_entre_invertido", "x_anterior", "x_posterior", "x_completo"]}
+      ]
+    },
+    {
+      "caso": "ARCHIVO: adjuntado y no adjuntado",
+      "items": [
+        {"clave": "a", "tipo": "campo", "tipo_campo": "ARCHIVO"},
+        {"clave": "x_adjuntado", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "a", "op": "adjuntado"}]}},
+        {"clave": "x_no_adjuntado", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "a", "op": "no_adjuntado"}]}}
+      ],
+      "variantes": [
+        {"respuestas": {"a": "certificado.pdf"}, "ocultos": ["x_no_adjuntado"]},
+        {"respuestas": {"a": ""}, "ocultos": ["x_adjuntado"]},
+        {"respuestas": {}, "ocultos": ["x_adjuntado"]}
+      ]
+    },
+    {
+      "caso": "Modos «todas» y «alguna»",
+      "items": [
+        {"clave": "s", "tipo": "campo", "tipo_campo": "SELECTOR"},
+        {"clave": "n", "tipo": "campo", "tipo_campo": "INT"},
+        {"clave": "x_todas", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "s", "op": "es", "valor": "secundario"}, {"fuente": "n", "op": "gt", "valor": 3}]}},
+        {"clave": "x_alguna", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "alguna", "reglas": [{"fuente": "s", "op": "es", "valor": "secundario"}, {"fuente": "n", "op": "gt", "valor": 3}]}},
+        {"clave": "x_sin_modo", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"reglas": [{"fuente": "s", "op": "es", "valor": "secundario"}, {"fuente": "n", "op": "gt", "valor": 3}]}},
+        {"clave": "x_alguna_vacio", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "alguna", "reglas": [{"fuente": "s", "op": "vacio"}, {"fuente": "n", "op": "vacio"}]}},
+        {"clave": "x_sin_reglas", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "alguna", "reglas": []}},
+        {"clave": "x_sin_condicion", "tipo": "campo", "tipo_campo": "STRING", "condicion": null}
+      ],
+      "variantes": [
+        {"nota": "se cumplen las dos", "respuestas": {"s": "secundario", "n": "5"}, "ocultos": ["x_alguna_vacio"]},
+        {"nota": "se cumple una", "respuestas": {"s": "secundario", "n": "1"}, "ocultos": ["x_todas", "x_sin_modo", "x_alguna_vacio"]},
+        {"nota": "se cumple la otra", "respuestas": {"s": "primario", "n": "9"}, "ocultos": ["x_todas", "x_sin_modo", "x_alguna_vacio"]},
+        {"nota": "no se cumple ninguna", "respuestas": {"s": "primario", "n": "1"}, "ocultos": ["x_todas", "x_alguna", "x_sin_modo", "x_alguna_vacio"]},
+        {"nota": "una sola respondida", "respuestas": {"n": "9"}, "ocultos": ["x_todas", "x_sin_modo"]},
+        {"nota": "nada respondido", "respuestas": {}, "ocultos": ["x_todas", "x_alguna", "x_sin_modo"]}
+      ]
+    },
+    {
+      "caso": "Fuente oculta: cuenta como vacía, en cadena",
+      "items": [
+        {"clave": "s", "tipo": "campo", "tipo_campo": "SELECTOR"},
+        {"clave": "d", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "s", "op": "es", "valor": "si"}]}},
+        {"clave": "x_vacio", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "d", "op": "vacio"}]}},
+        {"clave": "x_completo", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "d", "op": "completo"}]}},
+        {"clave": "x_cadena", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "x_completo", "op": "vacio"}]}},
+        {"clave": "aviso", "tipo": "texto", "condicion": {"modo": "todas", "reglas": [{"fuente": "d", "op": "completo"}]}}
+      ],
+      "variantes": [
+        {"nota": "d está respondida pero oculta: para lo que depende de ella está vacía", "respuestas": {"s": "no", "d": "algo", "x_completo": "dato"}, "ocultos": ["d", "x_completo", "aviso"]},
+        {"respuestas": {"s": "si", "d": "algo", "x_completo": "dato"}, "ocultos": ["x_vacio", "x_cadena"]},
+        {"nota": "d visible pero sin responder", "respuestas": {"s": "si", "x_completo": "dato"}, "ocultos": ["x_completo", "aviso"]}
+      ]
+    },
+    {
+      "caso": "Fuente fuera del diseño servido (BEC-04): llega vacía",
+      "fuera_del_diseno": true,
+      "items": [
+        {"clave": "s", "tipo": "campo", "tipo_campo": "SELECTOR"},
+        {"clave": "x_es", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "fantasma", "op": "es", "valor": "A"}]}},
+        {"clave": "x_no_es", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "fantasma", "op": "no_es", "valor": "A"}]}},
+        {"clave": "x_vacio", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "fantasma", "op": "vacio"}]}},
+        {"clave": "x_alguna", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "alguna", "reglas": [{"fuente": "fantasma", "op": "es", "valor": "A"}, {"fuente": "s", "op": "es", "valor": "A"}]}}
+      ],
+      "variantes": [
+        {"nota": "la respuesta viaja pero el ítem no está: no cuenta", "respuestas": {"fantasma": "A", "s": "B"}, "ocultos": ["x_es", "x_no_es", "x_alguna"]},
+        {"respuestas": {"s": "A"}, "ocultos": ["x_es", "x_no_es"]}
+      ]
+    },
+    {
+      "caso": "Cascada de grupos: el hijo de un grupo oculto está oculto",
+      "items": [
+        {"clave": "s", "tipo": "campo", "tipo_campo": "SELECTOR"},
+        {"clave": "g", "tipo": "grupo", "condicion": {"modo": "todas", "reglas": [{"fuente": "s", "op": "es", "valor": "si"}]}},
+        {"clave": "g_a", "tipo": "campo", "tipo_campo": "STRING", "padre": "g"},
+        {"clave": "g_b", "tipo": "campo", "tipo_campo": "STRING", "padre": "g", "condicion": {"modo": "todas", "reglas": [{"fuente": "s", "op": "completo"}]}},
+        {"clave": "g_t", "tipo": "texto", "padre": "g"},
+        {"clave": "y_completo", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "g_a", "op": "completo"}]}},
+        {"clave": "y_vacio", "tipo": "campo", "tipo_campo": "STRING", "condicion": {"modo": "todas", "reglas": [{"fuente": "g_b", "op": "vacio"}]}},
+        {"clave": "h", "tipo": "grupo"},
+        {"clave": "h_a", "tipo": "campo", "tipo_campo": "STRING", "padre": "h", "condicion": {"modo": "todas", "reglas": [{"fuente": "s", "op": "es", "valor": "si"}]}},
+        {"clave": "h_b", "tipo": "campo", "tipo_campo": "STRING", "padre": "h"}
+      ],
+      "variantes": [
+        {"nota": "g oculto: sus hijos se ocultan aunque su propia condición se cumpla", "respuestas": {"s": "no", "g_a": "dato", "g_b": "dato", "h_b": "x"}, "ocultos": ["g", "g_a", "g_b", "g_t", "y_completo", "h_a"]},
+        {"respuestas": {"s": "si", "g_a": "dato", "g_b": "dato", "h_b": "x"}, "ocultos": ["y_vacio"]},
+        {"nota": "un grupo no tiene respuesta propia aunque llegue una", "respuestas": {"s": "si", "g": "x"}, "ocultos": ["y_completo"]}
+      ]
+    }
+  ]
+}
