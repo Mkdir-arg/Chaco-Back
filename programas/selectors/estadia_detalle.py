@@ -360,7 +360,12 @@ def detalle_de_estadia(estadia, momento=None):
         resumen = f"{resumen} · plaza {estadia.plaza.codigo}"
     resumen = f"{resumen} · {dias} día{'s' if dias != 1 else ''} de permanencia"
     return {
-        "persona": {"nombre_completo": ciudadano.nombre_completo, "dni": ciudadano.dni, "edad": ciudadano.edad},
+        # El nombre va como «Apellido, Nombre» (`apellido_nombre`): el mockup titula P7
+        # «Ramírez, Jorge Daniel» y es el mismo texto con el que P4 nombra la fila, el menú
+        # y el modal de cambio de plaza, que se abre desde las dos pantallas. La clave sigue
+        # siendo `nombre_completo` porque es la que pide el arquetipo Revisión (la golden
+        # `revision_referencia.html` y su ficha), y ahí ya se ejemplifica con ese orden.
+        "persona": {"nombre_completo": ciudadano.apellido_nombre, "dni": ciudadano.dni, "edad": ciudadano.edad},
         "ubicacion": ubicacion,
         "estadia": {
             "estado": estado,

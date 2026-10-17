@@ -31,6 +31,7 @@ from django.test import Client, tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
 
 from programas.models import Estadia, MovimientoEstadia, Plaza, Sector
 from programas.selectors import estadia_detalle
@@ -52,6 +53,20 @@ Tipo = MovimientoEstadia.Tipo
 
 def _menos(*quitar):
     return tuple(c for c in TODO if c not in quitar)
+
+
+#: La persona va en el subtítulo del encabezado canónico del modal (`_modal_header.html`).
+_SUBTITULO_CAMBIO = re.compile(
+    r'id="modal-cambio-titulo".*?<p class="text-xs text-body-subtle mt-0\.5">([^<]*)</p>', re.S
+)
+
+
+def _subtitulo_del_modal(respuesta):
+    """Lo que el modal de cambio de plaza dice de la persona, venga de P4 o de P7."""
+
+    encontrado = _SUBTITULO_CAMBIO.search(respuesta.content.decode())
+    assert encontrado is not None, "la pantalla no trae el modal de cambio de plaza"
+    return encontrado.group(1).strip()
 
 
 class BaseDetalle(BaseEstadias):
@@ -92,7 +107,7 @@ class AutorizacionTests(BaseDetalle):
         respuesta = self._get()
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertContains(respuesta, self.persona.nombre_completo)
+        self.assertContains(respuesta, self.persona.apellido_nombre)
         self.assertContains(respuesta, "DNI 30.111.222")
 
     def test_sin_dispositivo_ver_no_entra_aunque_tenga_todo_lo_demas(self):
@@ -543,9 +558,25 @@ class PantallaTests(BaseDetalle):
         respuesta = self._get()
 
         self.assertContains(respuesta, "Centro integrador · Varones · plaza P1")
-        self.assertContains(respuesta, f"Registrar egreso de {self.persona.nombre_completo}")
+        self.assertContains(respuesta, f"Registrar egreso de {self.persona.apellido_nombre}")
         self.assertContains(respuesta, "Ingreso ")
         self.assertContains(respuesta, " · plaza P1 · 3 días de permanencia")
+
+    def test_la_pantalla_titula_a_la_persona_como_apellido_nombre(self):
+        """El mockup titula P7 «Ramírez, Jorge Daniel», el mismo orden con el que P4 la
+        nombra en la fila, en el menú y en los dos modales (Cambio 326). Se llega acá desde
+        la fila «Gómez, Ana»: la pantalla no puede titularse «Ana Gómez».
+
+        El orden natural no aparece **en ninguna parte** de P7 —la ficha de datos personales
+        no repite el nombre—, así que basta con que no esté para cazar cualquier recaída.
+        """
+
+        respuesta = self._get()
+
+        self.assertContains(respuesta, "<title>DATAÑACH - Dispositivos · Estadía · Gómez, Ana</title>", html=False)
+        self.assertContains(respuesta, "Gómez, Ana")
+        self.assertNotContains(respuesta, "Ana Gómez")
+        self.assertEqual(respuesta.context["migas"][3], {"label": "Gómez, Ana", "url": ""})
 
     def test_sin_plazas_libres_no_se_ofrece_cambiar_plaza(self):
         ingresar_persona(
@@ -721,6 +752,23 @@ class IntegracionConElDetalleDelDispositivoTests(BaseDetalle):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertNotContains(respuesta, f'href="{self.url}"')
+
+    def test_el_modal_de_cambio_de_plaza_dice_lo_mismo_desde_p4_y_desde_p7(self):
+        """Es el mismo modal y la misma persona: abrirlo de un lado o del otro no puede
+        cambiarle el nombre. Hasta el Cambio 326 P4 decía «Gómez, Ana» y P7 «Ana Gómez».
+        """
+
+        # Un solo cliente para las dos pantallas: el backoffice admite una sesión por
+        # usuario (`BackofficeSingleSessionMiddleware`) y volver a entrar corta la anterior.
+        cliente = self._cliente()
+        p4 = reverse("dispositivos:detalle", args=[self.cis.pk])
+
+        desde_p7 = cliente.get(self.url)
+        desde_p4 = cliente.get(f"{p4}?{urlencode({'tab': 'estadias', 'cambio': self.estadia.pk})}")
+
+        self.assertEqual(desde_p4.status_code, 200)
+        self.assertEqual(_subtitulo_del_modal(desde_p7), "Gómez, Ana")
+        self.assertEqual(_subtitulo_del_modal(desde_p4), _subtitulo_del_modal(desde_p7))
 
     def test_p7_vuelve_a_la_solapa_estadias(self):
         respuesta = self._get()
