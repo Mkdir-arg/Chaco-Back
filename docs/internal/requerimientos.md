@@ -459,6 +459,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 331 | El selector «Relevamiento» del Dashboard de Becas deja de nombrar al del link público sin RN-P13 | Becas · dashboard del programa | `#rbac` `#relevamientos` | QA — casos de #374 (TC-374-18) | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 332 | Analizar la lógica de los roles de Becas y buscar incoherencias | Becas · roles y alcance (RBAC) · ABM de Usuarios y Roles | `#rbac` `#usuarios` `#convocatorias` `#cupos` | PM — en sesión | 17/10/2026 | 🟢 **Hecho** (diagnóstico; correcciones a decidir) | No requiere |
 | 333 | Un usuario puede tener más de un rol, pero sus alcances de Becas no se pisan | Transversal · ABM de Usuarios (Becas) | `#rbac` `#usuarios` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 334 | El Coordinador de Becas corrige los requisitos de sus segmentos y valida identidades | Becas · roles (RBAC) · requisitos · revisión de casos | `#rbac` `#requisitos` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | `users.0038` |
 
 **Notas del índice**
 
@@ -2831,6 +2832,10 @@ Lo que eso cambia respecto de lo cerrado más arriba:
 Nuevos tests: lista bajo clave desconocida, cuerpo recortado y claves de primer nivel en el catálogo vacío. Suite: **19 tests OK**. `manage.py check` limpio y `design_audit --changed` en 0/0.
 
 Lo que decía antes y ya no vale: en *Pendientes* figuraba «verificar los pasos 3 y 4 contra el servicio real». El paso 3 quedó verificado. El **paso 4 (compatibilidad) sigue sin ejercitarse**: necesita un DNI real y un `id_programa` del catálogo, y el catálogo está vacío.
+
+**17/10/2026 — Cambio 334.** «La revalidación de identidad sigue reservada a
+`becas.programa.administrar`» ya no vale: el PM decidió que el Coordinador también valida la
+identidad de los casos de sus segmentos, con la capacidad nueva `becas.revision.identidad`.
 
 # Cambio 35 — El login del backoffice muestra la contraseña con un botón ojo
 
@@ -5915,6 +5920,11 @@ el autor quedan igual en la traza, que es aditiva.
 ## Historial
 
 No aplica: entrada nueva.
+
+- **17/10/2026** — Cambio 334: la decisión «la capacidad es `becas.programa.administrar`» ya no
+  vale sola. Forzar, revalidar, validar contra el padrón y corregir el sexo pasan a
+  `becas.programa.administrar` **o** `becas.revision.identidad` (sembrada al Administrador y al
+  Coordinador), evaluadas con el alcance del Programa Becas. `CAP_REVALIDAR_RENAPER` se borró.
 
 ---
 
@@ -43500,6 +43510,10 @@ Revertir el commit. El comentario y los tests no cambian conducta: la semilla ya
 
 - **17/10/2026** — entrada nueva: el diagnóstico.
 - **17/10/2026** — el PM resolvió la decisión 1 y la parte del Referente de la 3; se fijan en el mismo PR.
+- **17/10/2026** — Cambio 334: resueltas la decisión 4 (el Coordinador **suma** `requisito.editar`;
+  los botones de requisitos del programa quedan solo para el Administrador) y la 7 (el Coordinador
+  **puede** forzar y revalidar identidad, con la capacidad nueva `becas.revision.identidad`). Con eso
+  quedan atendidos los hallazgos 3 y 6.
 
 ---
 
@@ -43652,5 +43666,185 @@ No requiere. El JS nuevo va con el despliegue (`collectstatic` con manifest).
 ## Reversión
 
 Revertir el commit. No hay datos que se pierdan: la regla solo valida.
+
+## Historial
+
+- **17/10/2026** — el PM confirmó el default de la decisión 4 (Cambio 334): Administrador,
+  Coordinador, Coordinador Regional y Referente de Becas son excluyentes; Territorial y los roles
+  de otros programas se combinan. El primer ítem de *Pendientes* («confirmar con el PM el default»)
+  queda **confirmado por el PM el 17/10/2026**; el código no cambia.
+
+---
+
+# Cambio 334 — El Coordinador de Becas corrige los requisitos de sus segmentos y valida identidades
+
+🟢 **HECHO — 17/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · roles y alcance (RBAC) · requisitos · revisión de casos |
+| **Etiquetas** | `#rbac` `#requisitos` `#ui` |
+| **Solicitante** | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | `users.0038_capacidad_becas_revision_identidad` |
+
+## Pedido original
+
+Decisiones 4 y 7 del Cambio 332:
+
+- «El rol Becas — Coordinador suma `becas.requisito.editar`»: hoy crea requisitos de sus segmentos pero no
+  puede corregirlos, reordenarlos ni borrarlos.
+- «El Coordinador puede forzar y revalidar identidad»: aprobar exige identidad validada y el Coordinador con
+  `revision.editar` quedaba trabado.
+- Además: confirmar el default del Cambio 333 sobre qué roles de Becas se combinan.
+
+## Alcance acordado
+
+- **Entra:**
+  - la semilla del Coordinador (`requisito.editar` y la capacidad nueva de identidad);
+  - una capacidad nueva `becas.revision.identidad` con su migración;
+  - la puerta de las cuatro acciones de identidad, de la bandeja «Pendientes de validación» y de sus botones;
+  - los botones de requisitos de nivel programa, alineados con la puerta de la vista.
+- **Afuera:** el resto de las decisiones abiertas del Cambio 332 (la 2, la 3 en la parte del CSV y la 5).
+
+## Decisiones tomadas
+
+1. **El Coordinador sembrado suma `becas.requisito.editar`.** La semilla sincroniza en cada arranque, así que no
+   hace falta migración de datos. El alcance ya estaba bien acotado en `_assert_scope_requisito`:
+   - segmento o subsegmento propio: sí;
+   - segmento ajeno: 403;
+   - nivel programa: solo el Administrador.
+2. **Los botones de requisitos del programa siguen la puerta de la vista, no `|puede`.** Con la capacidad nueva
+   el Coordinador habría visto «Nuevo requisito», «Editar» y «Eliminar» sobre los requisitos del programa y
+   recibido 403. Se calculan en la vista (`_puede_requisito_programa`: la capacidad **y** `es_admin_becas`):
+   - `puede_crear_requisito_programa` en el detalle del programa;
+   - `puede_editar_requisito_programa` en el panel del programa y en la lista transversal de requisitos, que
+     también muestra los del programa.
+3. **Capacidad nueva `becas.revision.identidad`** en el módulo `becas_revision` del `CATALOGO` (programa BECAS):
+   «Validar la identidad de un caso: revalidar RENAPER, forzar identidad, validar padrón y corregir género».
+   Se prefirió a tildarle `becas.programa.administrar` al Coordinador, que es la paraguas con bypass total.
+4. **Se siembra en el Administrador y el Coordinador.** Al Administrador le entra sola por
+   `_capacidades_admin_becas` (todas las `becas.*` salvo `campo` y las opt-in). No va al Coordinador Regional ni
+   al Referente.
+5. **Puerta única: `puede_validar_identidad`** (`programas/services/autorizacion.py`) =
+   `becas.programa.administrar` **o** `becas.revision.identidad`, evaluadas con `programa=programa_becas(...)`.
+   - Ningún rol a medida que hoy administra el programa pierde la acción.
+   - Antes la puerta evaluaba **sin programa**. Ahora un rol de otro programa con la capacidad inyectada ni
+     entra a la bandeja: antes entraba y el recorte de la consulta la dejaba vacía (SEC-06).
+   - La usan las cuatro acciones (`_requiere_identidad`), la bandeja (`dispatch`), el link y el contador de
+     `RevisionPersonasListView` y los botones del caso (`contexto_identidad`). Todas miran la misma función,
+     así que no queda un botón con 403 ni una acción sin botón.
+6. **El alcance por fila no cambia:** `assert_alcance_formulario` en las acciones y `_pendientes_de_renaper` en
+   la bandeja, que para quien no administra filtra por `convocatorias_visibles`. Para el Coordinador ese
+   recorte es el que la acota a sus segmentos.
+7. **Cambio 333, default confirmado por el PM (17/10/2026):** Administrador, Coordinador, Coordinador Regional
+   y Referente de Becas son excluyentes; Territorial y los roles de otros programas se combinan. Queda como
+   historial en esa entrada.
+
+## Implementación
+
+- `core/rbac.py`: `becas.revision.identidad` en el `CATALOGO`.
+- `programas/management/commands/seed_becas.py`: el Coordinador suma `becas.requisito.editar` y
+  `becas.revision.identidad`.
+- `programas/services/autorizacion.py`: `CAP_IDENTIDAD` y `puede_validar_identidad`.
+- `programas/views/revision.py`:
+  - `_requiere_identidad` reemplaza a `@requiere(CAP_REVALIDAR_RENAPER)` en `formulario_actualizar_genero`,
+    `formulario_revalidar_renaper`, `formulario_validar_padron` y `formulario_forzar_identidad`;
+  - `RenaperPendientesListView` deja `CapacidadRequeridaMixin` por un `dispatch` con la misma regla;
+  - el contexto `puede_revalidar_renaper` de la bandeja de casos usa la regla nueva;
+  - se borró la constante `CAP_REVALIDAR_RENAPER` (acá y en el selector).
+- `programas/selectors/revision.py`: `contexto_identidad` usa `puede_validar_identidad`.
+- `programas/views/configuracion.py`: `_puede_requisito_programa` y los flags de contexto del detalle del
+  programa, su parcial AJAX y la lista transversal.
+- Templates: `programa_detail.html` («Nuevo requisito»), `_requisitos_programa_panel.html` (editar y eliminar)
+  y `_requisitos_page_table.html` (editar y eliminar en las filas de segmento; en las del programa, solo el
+  Administrador). Los templates de identidad no cambiaron: ya leían `puede_revalidar_renaper`.
+
+## Archivos
+
+- `core/rbac.py`
+- `users/migrations/0038_capacidad_becas_revision_identidad.py` (nuevo)
+- `programas/management/commands/seed_becas.py`
+- `programas/services/autorizacion.py`
+- `programas/views/revision.py`
+- `programas/selectors/revision.py`
+- `programas/views/configuracion.py`
+- `programas/templates/programas/becas/config/programa_detail.html`
+- `programas/templates/programas/becas/config/_requisitos_programa_panel.html`
+- `programas/templates/programas/becas/config/_requisitos_page_table.html`
+- `programas/tests/test_coordinador_identidad_requisitos.py` (nuevo)
+- `programas/tests/test_becas_revision.py`, `test_requisitos_orden_drag.py`, `test_sec06_alcance_becas.py`,
+  `test_constructor_e2e.py` y `users/tests/test_seed_datos_base.py`
+- `.claude/design/dominio/becas.md` (quién ve las acciones de los requisitos del programa)
+- Esta entrada, su fila del índice y el historial de los Cambios 34, 55, 332 y 333.
+
+## Base de datos
+
+`users.0038`: `AlterModelOptions` de `users.Capacidad` (`managed = False`). No toca el esquema; el
+`post_migrate` de `auth` crea el `Permission` y `seed_becas` lo tilda en el arranque. Es segura sobre datos
+existentes y `scripts/check_migraciones.py` la da sin problemas.
+
+## Validación
+
+Con `.venv312` (Python 3.12 + Django 5.2.17, igual que el CI):
+
+- `programas/tests/test_coordinador_identidad_requisitos.py` (21 tests):
+  - identidad: el Coordinador fuerza, revalida y corrige el sexo de un caso de su segmento; en otro segmento,
+    403; validar padrón pasa la puerta solo en su segmento; Regional y Referente no fuerzan ni revalidan (la
+    negativa es por capacidad: redirige al inicio); el Admin sigue pudiendo;
+  - bandeja: la del Coordinador muestra solo su alcance, la del Admin todo, Regional y Referente no entran;
+    el link y el contador de la bandeja de casos y los botones del caso siguen la misma regla;
+  - requisitos: el Coordinador edita, reordena y borra los de su segmento (y su subsegmento); no toca los de
+    otro segmento ni los del programa (editar, reordenar, borrar, crear); no ve las acciones del programa en el
+    detalle ni en la lista transversal; el Admin sí.
+- `users.tests.test_seed_datos_base.SeedRolesBecasTests.test_requisitos_e_identidad_por_rol`: la matriz de los
+  cinco roles sembrados.
+- Tests ajustados a la matriz nueva:
+  - `test_becas_revision`: `test_coordinador_no_puede_revalidar` pasa a «revalida un caso de su segmento» y
+    «no revalida uno de otro segmento»;
+  - `test_requisitos_orden_drag`: el caso «sin la capacidad de editar» ahora le saca la capacidad al rol;
+  - `test_sec06_alcance_becas`: el rol de otro programa ya no entra a la bandeja (302);
+  - `test_constructor_e2e` (TC-351-05): el Coordinador edita el requisito de su segmento; la pregunta general
+    sigue siendo 403.
+- **Mutaciones** (cada una en rojo y restaurada):
+  - la regla solo con `programa.administrar`;
+  - la regla sin `programa=`;
+  - forzar sin `assert_alcance_formulario`;
+  - la bandeja sin el recorte por `convocatorias_visibles`;
+  - los botones del caso, el link de la bandeja y la puerta de la bandeja con la regla vieja (tres mutaciones);
+  - la semilla sin `requisito.editar`, y con la identidad en el Referente;
+  - `_puede_requisito_programa` sin `es_admin_becas`;
+  - la lista transversal y «Nuevo requisito» con el `|puede` viejo.
+- Suites `test_becas_rbac`, `test_becas_revision`, `test_coordinador_regional`, `test_referente_regional`,
+  `test_becas_config`, `test_requisitos_orden_drag`, `test_sec06_alcance_becas`, `test_becas_revision_listas`,
+  `test_renaper_pendientes_paginacion`, `test_caso_origen_y_avisos`, `test_constructor_e2e`,
+  `users.tests.test_seed_datos_base`, `test_rbac_contrato`, `test_rbac`, `test_roles_ola2_pr1`,
+  `test_roles_becas_sin_pisarse`, `test_migracion_becas`, `test_credenciales_ola2_pr2` y la nueva: OK.
+- `manage.py check` OK; `makemigrations --check --dry-run` (SYNCDB=False): sin cambios.
+- `design_audit.py --ratchet`: 0 hallazgos nuevos. `compile_templates.py`: 0 errores.
+  `check_design_agent.py --changed`: OK. Ruff check y format sobre los `.py` tocados: OK.
+
+## Puesta en marcha en el servidor
+
+No requiere. El arranque corre `migrate` y `seed_becas`, que tildan la capacidad nueva y `requisito.editar`.
+
+## Pendientes / a definir
+
+- Del Cambio 332 siguen abiertas las decisiones 2 (roles sembrados configurables desde Roles), 3 (si el
+  Coordinador baja el CSV de convocatoria) y 5 (Regional con `revision.ver` y beneficiarios desde Cupo).
+- TC-351-05 (constructor) decía que el texto de los requisitos del segmento era del administrador; con esta
+  decisión lo corrige también el Coordinador de ese segmento. Si hay casos de QA escritos sobre eso, hay que
+  actualizarlos.
+
+## Reversión
+
+Revertir el commit. La migración es solo de estado (`AlterModelOptions`): revertirla deja el `Permission`
+huérfano y sin efecto, y la semilla del arranque siguiente les quita las dos capacidades al Coordinador.
+
+## Historial
+
+No aplica: entrada nueva.
 
 ---

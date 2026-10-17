@@ -150,8 +150,10 @@ class PermisosTests(_Base):
         user = User.objects.create_user(username, password="x")
         grupo = Group.objects.get(name=ROL_COORDINADOR)
         user.groups.add(grupo)
-        if con_editar:
-            grupo.permissions.add(_capacidad("becas.requisito.editar"))
+        if not con_editar:
+            # Desde el Cambio 334 el Coordinador sembrado edita requisitos: el caso
+            # «sin la capacidad» es un rol al que se la sacaron.
+            grupo.permissions.remove(_capacidad("becas.requisito.editar"))
         AsignacionCoordinador.objects.create(segmento=segmento, coordinador=user)
         cache.clear()
         return user
@@ -162,7 +164,7 @@ class PermisosTests(_Base):
         self.assertEqual(self._ordenes(self.s1, self.s2, self.s3), [1, 5, 9])
 
     def test_sin_la_capacidad_de_editar_es_403(self):
-        # El Coordinador sembrado ve y crea requisitos, pero no los edita.
+        # Un rol de coordinación que ve y crea requisitos, pero no los edita.
         self.client.force_login(self._coordinador("coord-sin-editar", self.seg, con_editar=False))
         resp = self._reordenar("segmento", self.seg.pk, [self.s3.pk, self.s1.pk, self.s2.pk])
         self.assertEqual(resp.status_code, 403)
@@ -235,7 +237,9 @@ class RenderTests(_Base):
 
     def test_sin_capacidad_de_editar_no_hay_manijas(self):
         coord = User.objects.create_user("coord-lector", password="x")
-        coord.groups.add(Group.objects.get(name=ROL_COORDINADOR))
+        grupo = Group.objects.get(name=ROL_COORDINADOR)
+        grupo.permissions.remove(_capacidad("becas.requisito.editar"))
+        coord.groups.add(grupo)
         AsignacionCoordinador.objects.create(segmento=self.seg, coordinador=coord)
         self.client.force_login(coord)
         resp = self.client.get(reverse("becas:segmento_detalle", args=[self.seg.pk]))

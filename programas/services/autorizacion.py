@@ -31,6 +31,9 @@ CAP_COORD_REGIONAL = "becas.coordinador_regional"
 # listados, ni en los reportes, ni por URL directa. Vivía en
 # ``programas/views/relevamientos.py`` y la importaban otras dos vistas (RED-79).
 CAP_RELEVAMIENTO_PUBLICO = "becas.relevamiento.publico"
+#: Cambio 334: revalidar RENAPER, forzar identidad, validar padrón y corregir género.
+#: Hasta entonces era solo de ``CAP_ADMINISTRAR``; ver :func:`puede_validar_identidad`.
+CAP_IDENTIDAD = "becas.revision.identidad"
 
 
 def _caps_gestion():
@@ -89,6 +92,26 @@ def es_admin_becas(user, programa=None):
     """¿El usuario administra el programa Becas (capacidad ``becas.programa.administrar``)?"""
     programa = _programa_o_denegar(user, programa)
     return rbac.puede(user, CAP_ADMINISTRAR, programa=programa)
+
+
+def puede_validar_identidad(user, programa=None):
+    """¿Puede validar la identidad de un caso? (Cambio 334).
+
+    Es la puerta única de las cuatro acciones de identidad del caso —corregir el
+    sexo, revalidar contra la Base de Personas, validar contra el padrón y forzar
+    a mano—, de la bandeja «Pendientes de validación» y de sus botones. Pasa quien
+    administra el programa **o** tiene ``becas.revision.identidad``, las dos
+    evaluadas con el alcance del Programa Becas: así ningún rol a medida que hoy
+    administra pierde la acción y ningún rol de otro programa la gana.
+
+    Es solo la capacidad: el alcance por fila lo sigue poniendo cada vista
+    (``assert_alcance_formulario`` en las acciones, ``convocatorias_visibles`` en la
+    bandeja). Sin Programa Becas sembrado falla cerrado, como el resto del RBAC.
+    """
+    programa = programa or programa_becas(user)
+    if programa is None:
+        return False
+    return rbac.puede_alguna(user, (CAP_ADMINISTRAR, CAP_IDENTIDAD), programa=programa)
 
 
 def es_coordinador_becas(user, programa=None):

@@ -97,6 +97,23 @@ class SeedRolesBecasTests(TestCase):
 
         self.assertNotIn(PROCESO_MASIVO, _codigos(coordinador))
 
+    def test_requisitos_e_identidad_por_rol(self):
+        # Decisiones del PM del 17/10/2026 (Cambio 334): el Coordinador corrige los
+        # requisitos de sus segmentos y valida identidades; el Administrador también
+        # (la identidad le entra por ``_capacidades_admin_becas``). Regional y Referente, no.
+        matriz = {
+            seed_becas.ROL_ADMIN: {"becas.requisito.editar": True, "becas.revision.identidad": True},
+            seed_becas.ROL_COORDINADOR: {"becas.requisito.editar": True, "becas.revision.identidad": True},
+            seed_becas.ROL_COORDINADOR_REGIONAL: {"becas.requisito.editar": False, "becas.revision.identidad": False},
+            seed_becas.ROL_REFERENTE: {"becas.requisito.editar": False, "becas.revision.identidad": False},
+            seed_becas.ROL_TERRITORIAL: {"becas.requisito.editar": False, "becas.revision.identidad": False},
+        }
+        for nombre, esperado in matriz.items():
+            codigos = _codigos(Group.objects.get(name=nombre))
+            for codigo, tiene in esperado.items():
+                with self.subTest(rol=nombre, capacidad=codigo):
+                    self.assertEqual(codigo in codigos, tiene)
+
     def test_una_capacidad_base_quitada_a_mano_vuelve(self):
         # Cambio 29: el seed mantiene los roles alineados con el código.
         self.referente.permissions.remove(_perm("becas.revision.ver"))

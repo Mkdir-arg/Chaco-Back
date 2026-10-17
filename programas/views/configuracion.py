@@ -145,15 +145,23 @@ def _requisitos_de_lista(nivel, ancla):
     return RequisitoNativo.objects.filter(subsegmento=ancla)
 
 
+def _puede_requisito_programa(user, capacidad):
+    """¿Ve la acción sobre los requisitos **del programa**? La capacidad **y** ser su
+    Administrador, que es lo que exigen ``requisito_programa_crear`` y
+    ``_assert_scope_requisito`` (Cambio 334: el Coordinador tiene ``requisito.crear``
+    y ``requisito.editar`` para sus segmentos y veía botones que le daban 403)."""
+    return puede(user, capacidad) and es_admin_becas(user)
+
+
 def _puede_ordenar_requisitos(user, nivel, ancla):
     """¿Ve las manijas de arrastre? La capacidad de editar requisitos **y** el
     mismo alcance que la edición (``_assert_scope_requisito``): el programa solo
     su Administrador, el segmento quien lo configura y el subsegmento quien lo
     opera."""
+    if nivel == "programa":
+        return _puede_requisito_programa(user, CAP_REQUISITO_EDITAR)
     if not puede(user, CAP_REQUISITO_EDITAR):
         return False
-    if nivel == "programa":
-        return es_admin_becas(user)
     if nivel == "segmento":
         return puede_configurar_segmento(user, ancla)
     return puede_operar_subsegmento(user, ancla)
@@ -182,6 +190,7 @@ def _requisitos_programa_ajax(request, programa, message="Requisito guardado."):
             "requisitos": _requisitos_de_lista("programa", programa).order_by("orden", "id"),
             "programa": programa,
             "puede_ordenar": _puede_ordenar_requisitos(request.user, "programa", programa),
+            "puede_editar_requisito_programa": _puede_requisito_programa(request.user, CAP_REQUISITO_EDITAR),
         },
         message=message,
     )
@@ -222,7 +231,10 @@ def _requisitos_reqseg_ajax(request, message="Guardado."):
         request,
         target="#reqseg-table",
         partial="programas/becas/config/_requisitos_page_table.html",
-        context={"requisitos": _requisitos_reqseg_qs(request.user, seg, sub)},
+        context={
+            "requisitos": _requisitos_reqseg_qs(request.user, seg, sub),
+            "puede_editar_requisito_programa": _puede_requisito_programa(request.user, CAP_REQUISITO_EDITAR),
+        },
         message=message,
     )
 
@@ -296,6 +308,8 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["segmentos"] = segmentos
         ctx["requisitos"] = _requisitos_de_lista("programa", programa).order_by("orden", "id")
         ctx["puede_ordenar"] = _puede_ordenar_requisitos(self.request.user, "programa", programa)
+        ctx["puede_crear_requisito_programa"] = _puede_requisito_programa(self.request.user, CAP_REQUISITO_CREAR)
+        ctx["puede_editar_requisito_programa"] = _puede_requisito_programa(self.request.user, CAP_REQUISITO_EDITAR)
         ctx["form_segmento"] = SegmentoCreateForm(initial={"programa": programa.pk})
         ctx["form_requisito"] = RequisitoNativoForm(programa=programa)
         ctx["presentacion_choices"] = PresentacionCampo.choices
@@ -901,6 +915,7 @@ class RequisitosSegmentoView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
         ctx["canal_choices"] = CanalFormulario.choices
         ctx["destino_siis_choices"] = PreguntaGlobal.DestinoSiis.choices
         ctx["form_requisito"] = RequisitoNativoForm()
+        ctx["puede_editar_requisito_programa"] = _puede_requisito_programa(self.request.user, CAP_REQUISITO_EDITAR)
         return ctx
 
 

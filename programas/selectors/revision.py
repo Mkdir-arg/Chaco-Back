@@ -32,6 +32,7 @@ from urllib.parse import urlencode
 from core.rbac import puede
 from programas.forms import CiudadanoGeneroRevisionForm, DatosSiisForm, ForzarIdentidadForm
 from programas.models import Formulario, PreguntaGlobal, RequisitoNativo, TipoCampo
+from programas.services.autorizacion import puede_validar_identidad
 from programas.services.cupo import advertencia_aprobacion, motivo_bloqueo_aprobacion
 from programas.services.identidad import gran_base_activa
 from programas.services.padron import padron_de
@@ -41,7 +42,6 @@ from programas.services.respuestas import respuestas_legibles
 #: `views/revision.py` para no invertir la dependencia (las vistas importan
 #: selectores, nunca al revés).
 CAP_REVISION_EDITAR = "becas.revision.editar"
-CAP_REVALIDAR_RENAPER = "becas.programa.administrar"
 
 EXTENSIONES_IMAGEN = {".avif", ".gif", ".jpeg", ".jpg", ".png", ".webp"}
 
@@ -226,7 +226,8 @@ def contexto_identidad(formulario, user):
             initial={"genero": formulario.ciudadano.genero if formulario.ciudadano else ""}
         ),
         "mapa": mapa_de_la_toma(formulario),
-        "puede_revalidar_renaper": puede(user, CAP_REVALIDAR_RENAPER),
+        # Cambio 334: la misma regla que las cuatro acciones de identidad.
+        "puede_revalidar_renaper": puede_validar_identidad(user),
         "gran_base_activa": gran_base_activa(),
         "convocatoria_tiene_padron": padron_de(formulario.relevamiento).exists(),
         "forzar_identidad_form": ForzarIdentidadForm(),

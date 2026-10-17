@@ -525,7 +525,12 @@ class PermisosDelCatalogoYDelDisenoTests(TestCase):
     """TC-351-05: el coordinador del segmento arma el formulario de su
     convocatoria (orden, etiquetas, condiciones), pero el texto y las opciones
     del catálogo son del administrador: editarlos le da 403. El superusuario
-    pasa."""
+    pasa.
+
+    Cambio 334 (decisión del PM, 17/10/2026): el Coordinador sembrado suma
+    ``becas.requisito.editar``, así que los requisitos **de su segmento** ya los
+    corrige él. Siguen siendo del administrador las preguntas generales y los
+    requisitos del programa."""
 
     def setUp(self):
         call_command("seed_becas", stdout=StringIO())
@@ -577,15 +582,13 @@ class PermisosDelCatalogoYDelDisenoTests(TestCase):
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
         self.assertEqual(resp.status_code, 200, resp.content)
-        # El catálogo, no: ni el requisito de su segmento ni la pregunta general.
-        self.assertEqual(self._editar_requisito().status_code, 403)
-        self.assertEqual(self._editar_pregunta().status_code, 403)
+        # El requisito de su segmento, sí (Cambio 334).
+        self.assertEqual(self._editar_requisito().status_code, 200)
         self.nivel.refresh_from_db()
+        self.assertEqual((self.nivel.texto, self.nivel.opciones), ("Otro texto", ["A", "B"]))
+        # La pregunta general del catálogo, no.
+        self.assertEqual(self._editar_pregunta().status_code, 403)
         self.tenencia.refresh_from_db()
-        self.assertEqual(
-            (self.nivel.texto, self.nivel.tipo, self.nivel.opciones),
-            ("Nivel educativo", "SELECTOR", ["Primario", "Secundario"]),
-        )
         self.assertEqual(
             (self.tenencia.texto, self.tenencia.opciones), ("Tenencia de la vivienda", ["Propia", "Alquilada"])
         )

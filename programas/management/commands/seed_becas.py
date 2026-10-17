@@ -101,6 +101,8 @@ ROLES_BECAS = {
             "becas.subsegmento.ver",
             "becas.requisito.ver",
             "becas.requisito.crear",
+            # Cambio 334: corrige, reordena y borra los requisitos de sus segmentos.
+            "becas.requisito.editar",
             "becas.convocatoria.ver",
             "becas.convocatoria.crear",
             "becas.convocatoria.editar",
@@ -109,6 +111,8 @@ ROLES_BECAS = {
             "becas.relevamiento.editar",
             "becas.revision.ver",
             "becas.revision.editar",
+            # Cambio 334: sin validar la identidad no puede aprobar el caso.
+            "becas.revision.identidad",
             "becas.cupo.ver",
             "becas.beneficiario.ver",
             "becas.beneficiario.editar",

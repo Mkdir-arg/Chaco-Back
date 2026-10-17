@@ -37,7 +37,8 @@
         </td>
         <td class="nodo-td text-right">
           <div class="flex items-center justify-end gap-2">
-            {% if request.user|puede:"becas.requisito.editar" %}
+            {# Cambio 334: los del programa son solo del Administrador (``_assert_scope_requisito``). #}
+            {% if req.segmento_id and request.user|puede:"becas.requisito.editar" or puede_editar_requisito_programa %}
             <button type="button" class="nodo-icon-btn" aria-label="Editar requisito: {{ req.texto }}"
               @click="openEdit(
                 '{% url 'becas:requisito_editar' req.pk %}',
