@@ -41,9 +41,27 @@ def es_produccion():
     return os.environ.get(VARIABLE_PRODUCCION, "").strip() == "1"
 
 
+def _normalizar_host(host):
+    """Minúsculas, sin puerto y sin puntos en los extremos.
+
+    El punto inicial es el comodín de subdominios de ``ALLOWED_HOSTS``
+    (``.chaco.gob.ar``); el final, el FQDN absoluto (``datanach.chaco.gob.ar.``).
+    Sin esto, ``datanach.chaco.gob.ar:8000`` no se reconocería como PRD y la
+    guarda fallaría hacia el lado no seguro. Una IPv6 entre corchetes
+    (``[::1]:8000``) queda en ``::1``; sin corchetes no se le toca el puerto,
+    porque los ``:`` son parte de la dirección.
+    """
+    host = (host or "").strip().lower()
+    if host.startswith("["):
+        host = host[1:].split("]", 1)[0]
+    elif host.count(":") == 1:
+        host = host.split(":", 1)[0]
+    return host.strip(".")
+
+
 def _bajo_dominio(host, dominio):
     """``host`` es ``dominio`` o un subdominio suyo. Por dominio entero, no por substring."""
-    host = (host or "").strip().lower().lstrip(".")
+    host = _normalizar_host(host)
     return host == dominio or host.endswith(f".{dominio}")
 
 
