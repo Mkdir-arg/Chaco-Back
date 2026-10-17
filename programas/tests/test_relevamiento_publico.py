@@ -378,6 +378,131 @@ class RnP13FueraDeLaPantallaTests(_BasePublicoTest):
         self.assertEqual(datos["datos"]["indicadores"]["relevamientos_publicos"], 1)
 
 
+class RnP13SelectorDelDashboardTests(_BasePublicoTest):
+    """TC-374-18 (QA, #374): el selector «Relevamiento» del dashboard listaba el
+    relevamiento del link público —con su nombre— a quien no tiene RN-P13, aunque los
+    números ya salían en cero. Y forzando su id por GET el formulario lo aceptaba.
+
+    Mismo escenario que :class:`RnP13FueraDeLaPantallaTests`.
+    """
+
+    NOMBRE_PUBLICO = "Inscripcion abierta por link RNP13"
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()  # el tablero se cachea por proceso (ver RnP13FueraDeLaPantallaTests)
+        self.programa_siis = ProgramaSiis.objects.create(nombre="Becas RN-P13 selector", siis_programa_id=9502)
+        self.segmento.programa = self.programa_siis
+        self.segmento.save(update_fields=["programa", "modificado"])
+        self.rel_publico = self._crear_publico()
+        self.rel_territorial = Relevamiento.objects.create(
+            convocatoria=self.convocatoria,
+            territorial=self.territorial,
+            fecha_asignada=date(2026, 6, 1),
+            fecha_hasta=date(2026, 6, 30),
+            zona="Zona T",
+        )
+        # El nombre se genera solo; uno inconfundible para buscarlo en las respuestas.
+        Relevamiento.objects.filter(pk=self.rel_publico.pk).update(nombre=self.NOMBRE_PUBLICO)
+
+    def _datos(self, **params):
+        return self.client.get(
+            reverse("becas:programa_dashboard_datos", args=[self.programa_siis.pk]),
+            {"convocatoria": self.convocatoria.pk, **params},
+        )
+
+    def _exportar(self, formato, **params):
+        return self.client.get(
+            reverse("becas:programa_dashboard_exportar", args=[self.programa_siis.pk, formato]),
+            {"periodo": "todo", "convocatoria": self.convocatoria.pk, **params},
+        )
+
+    def test_sin_la_capacidad_el_selector_no_lista_el_publico(self):
+        self.client.force_login(self.admin)
+
+        respuesta = self._datos()
+
+        self.assertEqual(respuesta.status_code, 200)
+        ids = {o["id"] for o in respuesta.json()["opciones"]["relevamientos"]}
+        self.assertEqual(ids, {self.rel_territorial.pk})
+        self.assertNotContains(respuesta, self.NOMBRE_PUBLICO)
+
+    def test_la_capacidad_de_otro_programa_no_alcanza_para_ver_el_publico_de_becas(self):
+        """RN-P13 se evalúa sobre el Programa Becas: un rol de **otro** programa con
+        `becas.relevamiento.publico` tildado no habilita el selector ni el filtro."""
+        from programas.models import Programa
+        from users.models import RolMeta
+
+        otro = Programa.objects.create(codigo="OTRO_RNP13", nombre="Otro programa RN-P13")
+        grupo_otro = Group.objects.create(name="Otro programa — con público")
+        RolMeta.objects.create(grupo=grupo_otro, programa=otro, activo=True)
+        _dar_capacidad_publico(grupo_otro)
+        self.admin.groups.add(grupo_otro)
+        self.client.force_login(self.admin)
+
+        respuesta = self._datos()
+        forzado = self._datos(relevamiento=self.rel_publico.pk)
+
+        self.assertEqual(respuesta.status_code, 200)
+        ids = {o["id"] for o in respuesta.json()["opciones"]["relevamientos"]}
+        self.assertEqual(ids, {self.rel_territorial.pk})
+        self.assertNotContains(respuesta, self.NOMBRE_PUBLICO)
+        self.assertEqual(forzado.status_code, 400)
+        self.assertNotContains(forzado, self.NOMBRE_PUBLICO, status_code=400)
+
+    def test_con_la_capacidad_el_selector_lo_lista(self):
+        self.client.force_login(self.admin_publico)
+
+        respuesta = self._datos()
+
+        ids = {o["id"] for o in respuesta.json()["opciones"]["relevamientos"]}
+        self.assertEqual(ids, {self.rel_territorial.pk, self.rel_publico.pk})
+        self.assertContains(respuesta, self.NOMBRE_PUBLICO)
+
+    def test_sin_la_capacidad_forzar_el_id_del_publico_se_rechaza(self):
+        """Mismo trato que una convocatoria fuera de alcance: 400, sin nombre ni datos."""
+        self.client.force_login(self.admin)
+
+        respuesta = self._datos(relevamiento=self.rel_publico.pk)
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertNotIn("datos", respuesta.json())
+        self.assertNotContains(respuesta, self.NOMBRE_PUBLICO, status_code=400)
+
+    def test_sin_la_capacidad_las_exportaciones_rechazan_el_id_del_publico(self):
+        self.client.force_login(self.admin)
+
+        for formato, extra in (("xlsx", {}), ("csv", {"bloque": "relevamientos"})):
+            with self.subTest(formato=formato):
+                respuesta = self._exportar(formato, relevamiento=self.rel_publico.pk, **extra)
+
+                self.assertEqual(respuesta.status_code, 400)
+                self.assertNotIn(self.NOMBRE_PUBLICO, respuesta.content.decode("utf-8", errors="replace"))
+
+    def test_sin_la_capacidad_las_exportaciones_no_nombran_al_publico(self):
+        self.client.force_login(self.admin)
+
+        libro = self._exportar("xlsx")
+        planilla = self._exportar("csv", bloque="relevamientos")
+
+        self.assertEqual(libro.status_code, 200)
+        self.assertNotIn(self.NOMBRE_PUBLICO, _celdas_del_xlsx(libro.content))
+        self.assertEqual(planilla.status_code, 200)
+        self.assertNotIn(self.NOMBRE_PUBLICO, planilla.content.decode("utf-8-sig"))
+
+    def test_con_la_capacidad_el_id_del_publico_filtra_y_se_nombra_en_el_alcance(self):
+        self.client.force_login(self.admin_publico)
+
+        respuesta = self._datos(relevamiento=self.rel_publico.pk)
+        libro = self._exportar("xlsx", relevamiento=self.rel_publico.pk)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()["filtros_aplicados"]["relevamiento"], self.rel_publico.pk)
+        self.assertIn(self.NOMBRE_PUBLICO, respuesta.json()["datos"]["alcance"])
+        self.assertEqual(libro.status_code, 200)
+        self.assertTrue(any(self.NOMBRE_PUBLICO in celda for celda in _celdas_del_xlsx(libro.content)))
+
+
 class CupoYReporteCuentanLaCapacidadTests(_BasePublicoTest):
     """D-22 oculta **personas**, no descuenta capacidad (revisión de la ronda 1 del #626).
 

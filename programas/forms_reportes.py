@@ -9,7 +9,9 @@ from django.utils import timezone
 from programas.models import Convocatoria, Relevamiento, Segmento
 from programas.services.autorizacion import (
     convocatorias_visibles,
+    programa_becas,
     segmentos_visibles,
+    sin_relevamientos_publicos_si_no_puede,
     usuarios_territoriales_becas,
 )
 from programas.services.dashboard_becas import Filtros, preguntas_graficables
@@ -142,9 +144,14 @@ class DashboardBecasFiltroForm(forms.Form):
         self.fields["convocatoria"].queryset = convocatorias.select_related("segmento").order_by(
             "-fecha_inicio", "nombre"
         )
-        self.fields["relevamiento"].queryset = Relevamiento.objects.filter(convocatoria__in=convocatorias).order_by(
-            "numero"
+        # RN-P13 (TC-374-18, #374): sin la capacidad, el relevamiento del link público no
+        # existe para el usuario. Ni en las opciones del selector (que salen de este
+        # queryset) ni forzando su id por GET, que da 400 igual que una convocatoria
+        # fuera de alcance. Misma capacidad y mismo Programa que ``resolver_alcance``.
+        relevamientos = sin_relevamientos_publicos_si_no_puede(
+            Relevamiento.objects.filter(convocatoria__in=convocatorias), user, programa=programa_becas(user)
         )
+        self.fields["relevamiento"].queryset = relevamientos.order_by("numero")
         self.preguntas = preguntas_graficables(user, programa)
 
     def clean(self):
