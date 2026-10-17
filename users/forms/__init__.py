@@ -305,16 +305,52 @@ def _validar_correo_de_entrega_al_editar(form):
     actuales = list(instancia.groups.all())
     if not instancia.email and rbac.roles_solo_campo(actuales):
         return  # ya estaba así: la edición no empeora nada y tiene que poder guardarse
+    resultantes, _alcance = _roles_resultantes(form)
+    _validar_correo_de_entrega(form, exigir_clave=False, grupos=resultantes)
+
+
+def _roles_resultantes(form):
+    """``(roles con los que la cuenta queda al guardar, alcance del operador)``.
+
+    Se calculan como los calcula el guardado (`UsuariosAdminService._sync_related_data`):
+    un operador no global solo toca los roles de su alcance, y los demás que el usuario
+    ya tenía se conservan aunque no los vea. ``alcance`` es ``None`` para el admin
+    global (o sin operador), que reemplaza el conjunto entero. Se memoiza en el form:
+    lo piden dos validaciones y ``alcance_roles_ids`` consulta.
+    """
+    if hasattr(form, "_roles_resultantes_memo"):
+        return form._roles_resultantes_memo
     from users.selectors.usuarios import alcance_roles_ids
 
     operador = getattr(form, "operador", None)
     alcance = alcance_roles_ids(operador) if operador is not None else None
     seleccionados = list(form.cleaned_data.get("groups") or [])
+    instancia = form.instance
     if alcance is None:
         resultantes = seleccionados
-    else:
+    elif instancia is not None and instancia.pk:
+        actuales = list(instancia.groups.all())
         resultantes = [g for g in actuales if g.id not in alcance] + [g for g in seleccionados if g.id in alcance]
-    _validar_correo_de_entrega(form, exigir_clave=False, grupos=resultantes)
+    else:
+        resultantes = [g for g in seleccionados if g.id in alcance]
+    form._roles_resultantes_memo = (resultantes, alcance)
+    return form._roles_resultantes_memo
+
+
+def _validar_roles_becas_sin_pisarse(form):
+    """Cambio 332: los roles de un usuario no se pisan en su alcance de Becas.
+
+    Se valida el conjunto **final** —incluidos los roles que el operador no ve y que
+    el guardado conserva—, así que combinar uno visible con uno oculto tampoco pasa.
+    Un usuario que ya tenía el conflicto queda marcado al editarlo hasta resolverlo.
+    """
+    from programas.services.autorizacion import errores_roles_becas_que_se_pisan
+
+    if "groups" in form.errors:
+        return
+    resultantes, alcance = _roles_resultantes(form)
+    for error in errores_roles_becas_que_se_pisan(resultantes, visibles=alcance):
+        form.add_error("groups", error)
 
 
 def _validar_al_menos_un_rol(form):
@@ -441,6 +477,12 @@ class RolesPorAmbitoMixin:
     inválido y no pagar la query cuando el form no se muestra.
     """
 
+    def mensaje_roles_se_pisan(self):
+        """Texto del aviso del selector: el mismo que el error del servidor (Cambio 332)."""
+        from programas.services.autorizacion import MENSAJE_ROLES_SE_PISAN
+
+        return MENSAJE_ROLES_SE_PISAN
+
     def _roles_seleccionados_ids(self):
         """Ids (str) tildados: del POST si está bound, del initial si no."""
         valor = self["groups"].value() or []
@@ -458,9 +500,14 @@ class RolesPorAmbitoMixin:
         :func:`_ambito_de`). Cada solapa trae su lista plana de roles ordenada por
         nombre.
         """
+        from programas.services.autorizacion import alcances_becas_de_roles
+
         seleccionados = self._roles_seleccionados_ids()
         territoriales = set(getattr(self, "grupos_territoriales_ids", []))
-        roles = self.fields["groups"].queryset.select_related("meta", "meta__programa")
+        roles = list(self.fields["groups"].queryset.select_related("meta", "meta__programa"))
+        # Cambio 332: el tipo de alcance en Becas viaja en la opción para que el
+        # selector frene en el momento la combinación que el servidor rechaza.
+        alcances = alcances_becas_de_roles(roles)
 
         por_ambito = {}
         for grupo in sorted(roles, key=lambda g: g.name.lower()):
@@ -474,6 +521,7 @@ class RolesPorAmbitoMixin:
                     "checked": str(grupo.pk) in seleccionados,
                     "inactivo": meta is not None and not meta.activo,
                     "territorial": str(grupo.pk) in territoriales,
+                    "alcance_becas": alcances.get(grupo.pk, ""),
                 }
             )
 
@@ -572,6 +620,7 @@ class UserCreationForm(RolesPorAmbitoMixin, forms.ModelForm):
         _validar_segmento_territorial(self)
         _validar_clave_tipeada(self)
         _validar_al_menos_un_rol(self)
+        _validar_roles_becas_sin_pisarse(self)
         _validar_correo_de_entrega(self)
         return _validar_jerarquia_becas(self)
 
@@ -683,5 +732,6 @@ class CustomUserChangeForm(RolesPorAmbitoMixin, forms.ModelForm):
         _validar_segmento_territorial(self)
         _validar_clave_tipeada(self)
         _validar_al_menos_un_rol(self)
+        _validar_roles_becas_sin_pisarse(self)
         _validar_correo_de_entrega_al_editar(self)
         return _validar_jerarquia_becas(self)
