@@ -1865,6 +1865,9 @@ class ContextoDetalleTests(_BaseRevisionTest):
             # ya armado en una sola cadena para la alerta inline.
             "observaciones_carga",
             "posicion_espera",
+            # Cambio 336: la puerta del POST (``revision.editar``) para contacto y
+            # duplicado; quien solo tiene ``revision.ver`` ve el caso sin esos formularios.
+            "puede_editar_caso",
             "puede_enviar_siis",
             "puede_reenviar_aviso",
             "puede_revalidar_renaper",

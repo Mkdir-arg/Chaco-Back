@@ -1,5 +1,5 @@
-{% load static rbac nodo_ui becas_extras %}  <form method="post" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
-    {% csrf_token %}
+{% load static rbac nodo_ui becas_extras %}  {% if puede_editar_caso %}<form method="post" class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+    {% csrf_token %}{% else %}{# Cambio 336: solo `revision.ver` = la tarjeta sin formulario ni «Guardar cambios»; la vista deshabilita los campos. #}<div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">{% endif %}
     <div class="px-5 py-4 border-b border-light">
       <h2 class="text-heading font-bold" style="font-size:16px;">Datos de contacto</h2>
     </div>
@@ -37,7 +37,7 @@
       {% endif %}
       <p class="text-xs text-body-subtle mt-2"><i class="fas fa-history mr-1"></i> Cada cambio queda registrado en la traza.</p>
     </div>
-    <div class="flex justify-end px-6 py-4 border-t border-light bg-secondary">
+    {% if puede_editar_caso %}<div class="flex justify-end px-6 py-4 border-t border-light bg-secondary">
       <button type="submit" class="btn-nodo btn-brand btn-base">Guardar cambios</button>
     </div>
-  </form>
+  </form>{% else %}</div>{% endif %}

@@ -565,9 +565,13 @@ def formulario_detalle(request, pk):
     bloques_completos = respuestas_legibles(formulario)
     tiene_datos_apoderado = any(getattr(formulario, campo) for campo in FormularioRevisionForm.CAMPOS_APODERADO)
     mostrar_apoderado = apoderado_pedido(bloques_completos) or tiene_datos_apoderado
+    # Cambio 336: la misma pregunta que la puerta del POST. Quien solo tiene
+    # ``revision.ver`` (Referente, Coordinador Regional) ve el caso sin los
+    # formularios que le contestarían 403: contacto y duplicado.
+    puede_editar_caso = puede(request.user, CAP_REVISION_EDITAR)
 
     if request.method == "POST":
-        if not puede_alguna(request.user, [CAP_REVISION_EDITAR]):
+        if not puede_editar_caso:
             raise PermissionDenied("No tiene permisos para editar este formulario.")
         # Edición de campos de contacto/apoderado con traza por cambio.
         form = FormularioRevisionForm(request.POST, instance=formulario, pide_apoderado=mostrar_apoderado)
@@ -609,6 +613,10 @@ def formulario_detalle(request, pk):
             return redirect(_url_caso(request, formulario))
     else:
         form = FormularioRevisionForm(instance=formulario, pide_apoderado=mostrar_apoderado)
+        if not puede_editar_caso:
+            # Los datos de contacto se siguen viendo, pero sin campos que se puedan tocar.
+            for campo in form.fields.values():
+                campo.disabled = True
 
     volver_url, volver_label, migas_origen = _origen_del_caso(request, formulario)
     # G1-14: el aviso al ciudadano es el único hecho del circuito que no dejaba
@@ -647,7 +655,8 @@ def formulario_detalle(request, pk):
             "resultado_aviso": resultado_aviso,
             "ultimo_aviso": ultimo_aviso,
             "aviso_por_correo_activo": formulario.relevamiento.confirmar_por_email,
-            "puede_reenviar_aviso": puede(request.user, CAP_REVISION_EDITAR),
+            "puede_reenviar_aviso": puede_editar_caso,
+            "puede_editar_caso": puede_editar_caso,
             # ``conflicto_pendiente`` ya resolvio esta misma pregunta unas lineas arriba.
             "tiene_conflicto_duplicado_pendiente": conflicto_pendiente is not None,
             "conflicto_pendiente": conflicto_pendiente,

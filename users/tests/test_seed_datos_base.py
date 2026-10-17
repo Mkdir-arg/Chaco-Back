@@ -114,6 +114,27 @@ class SeedRolesBecasTests(TestCase):
                 with self.subTest(rol=nombre, capacidad=codigo):
                     self.assertEqual(codigo in codigos, tiene)
 
+    def test_revision_por_rol(self):
+        # Decisión del PM del 17/10/2026 (Cambio 336): el Coordinador Regional suma
+        # ``revision.ver`` (solo ver). Editar sigue siendo del Administrador y el
+        # Coordinador; el Regional tampoco suma ``beneficiario.ver`` (Cambio 335).
+        matriz = {
+            seed_becas.ROL_ADMIN: {"becas.revision.ver": True, "becas.revision.editar": True},
+            seed_becas.ROL_COORDINADOR: {"becas.revision.ver": True, "becas.revision.editar": True},
+            seed_becas.ROL_COORDINADOR_REGIONAL: {
+                "becas.revision.ver": True,
+                "becas.revision.editar": False,
+                "becas.beneficiario.ver": False,
+            },
+            seed_becas.ROL_REFERENTE: {"becas.revision.ver": True, "becas.revision.editar": False},
+            seed_becas.ROL_TERRITORIAL: {"becas.revision.ver": False, "becas.revision.editar": False},
+        }
+        for nombre, esperado in matriz.items():
+            codigos = _codigos(Group.objects.get(name=nombre))
+            for codigo, tiene in esperado.items():
+                with self.subTest(rol=nombre, capacidad=codigo):
+                    self.assertEqual(codigo in codigos, tiene)
+
     def test_una_capacidad_base_quitada_a_mano_vuelve(self):
         # Cambio 29: el seed mantiene los roles alineados con el código.
         self.referente.permissions.remove(_perm("becas.revision.ver"))

@@ -13,6 +13,8 @@ from core import rbac
 from programas.management.commands.seed_becas import (
     ROL_ADMIN,
     ROL_COORDINADOR,
+    ROL_COORDINADOR_REGIONAL,
+    ROL_REFERENTE,
     ROL_TERRITORIAL,
 )
 from programas.models import (
@@ -99,6 +101,16 @@ class RbacBecasTests(TestCase):
         self.assertTrue(rbac.puede(self.territorial, "becas.campo", programa=self.becas))
         self.assertFalse(rbac.puede(self.territorial, "becas.revision.editar", programa=self.becas))
         self.assertFalse(rbac.puede(self.territorial, "becas.reportes.ver", programa=self.becas))
+
+    def test_regional_y_referente_ven_la_revision_sin_editarla(self):
+        """Cambio 336: el Coordinador Regional suma ``revision.ver``, como el Referente.
+        Ninguno de los dos aprueba, rechaza ni edita un caso."""
+        for rol in (ROL_COORDINADOR_REGIONAL, ROL_REFERENTE):
+            with self.subTest(rol=rol):
+                usuario = User.objects.create_user(f"rbac-{rol}")
+                usuario.groups.add(Group.objects.get(name=rol))
+                self.assertTrue(rbac.puede(usuario, "becas.revision.ver", programa=self.becas))
+                self.assertFalse(rbac.puede(usuario, "becas.revision.editar", programa=self.becas))
 
     def test_admin_recibe_el_alcance_de_los_abm_del_programa(self):
         """El seed le da las dos capacidades transversales explícitamente.
