@@ -1107,13 +1107,13 @@
 ### :material-package-variant-closed: Consumo del 9 al 17 de octubre — por entregable
 
 !!! note "Período del MVP del Programa Dispositivos y del cierre de la auditoría del sistema"
-    El grueso del período se fue en el **MVP del Programa Dispositivos**, que **está en desarrollo**:
-    se construyeron admisiones, camas, registro diario, bajas y el trabajo simultáneo de dos personas,
-    con una revisión de fidelidad pantalla por pantalla contra el diseño aprobado y una revisión interna
-    de lo construido. **Todavía no se publicó para probar ni se presentó al Ministerio**: son 82 h de las
-    700 del alcance acordado. En paralelo sí se cerró la **última ola de la auditoría del sistema**, se
-    puso en marcha el **envío de notificaciones por campaña** y se publicó la versión en el ambiente
-    productivo del organismo.
+    El grueso del período se fue en el **MVP del Programa Dispositivos**, que **está en construcción**:
+    se trabajó en el circuito de admisiones, camas, registro diario y bajas, en el trabajo simultáneo de
+    dos personas y en la revisión de cada pantalla contra el diseño aprobado. **Todavía no se presentó al
+    Ministerio**: se proyecta cerrar octubre con entre el 40 % y el 50 % de las etapas completadas, y la
+    entrega está prevista para el **viernes 13 de noviembre de 2026**. En paralelo sí se cerró la **última
+    ola de la auditoría del sistema**, se puso en marcha el **envío de notificaciones por campaña** y se
+    publicó la versión en el ambiente productivo del organismo.
 
 | Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
 |---|---|---|---|---|---:|---:|
