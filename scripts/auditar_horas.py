@@ -80,7 +80,7 @@ for k in sorted(mes_h):
     print(f"  {k}: {hm(mes_h[k])} en filas")
 
 print("\n=== 2. Totales mensuales publicados vs filas ===")
-DECL = {"06": 499 + 12 / 60, "07": 500.0, "08": 803.5, "09": 839.0, "10": 176.0}
+DECL = {"06": 499 + 12 / 60, "07": 500.0, "08": 803.5, "09": 839.0, "10": 371.0}
 for k in sorted(DECL):
     ok(abs(mes_h.get(k, 0) - DECL[k]) < 0.02, f"{k}: publicado {hm(DECL[k])} vs filas {hm(mes_h.get(k, 0))}")
 
