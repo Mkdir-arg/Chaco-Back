@@ -44250,6 +44250,8 @@ coincide con su descripción, igual que las de Superpowers.
 - `.claude/skills/impacto-de-cambio/SKILL.md`
 - `.claude/skills/auditoria-pre-release/SKILL.md`
 - `.claude/skills/seguridad-django/SKILL.md`
+- `.claude/skills/gates-ci/SKILL.md` (18/10)
+- `CLAUDE.md`, `.claude/agents/pm-assistant.md`, `.claude/agents/qa-analyst.md` (18/10)
 
 ## Base de datos
 
@@ -44260,6 +44262,8 @@ No requiere.
 - Cada referencia al repo que nombran las skills (archivos, funciones, variables de settings, migración 0073,
   scripts, workflows) se comprobó contra `origin/development` antes de escribirla.
 - `scripts/requerimientos.py --check`: OK.
+- 18/10: `check_design_agent.py` OK; `core.tests.test_un_solo_migrador` y `core.tests.test_gates_ci` (leen
+  `CLAUDE.md`) en verde.
 - No toca Python, templates ni UI: `manage.py check` y las auditorías de diseño no aplican.
 
 ## Puesta en marcha en el servidor
@@ -44278,6 +44282,12 @@ Borrar las cuatro carpetas de `.claude/skills/`. No toca datos.
 
 ## Historial
 
-No aplica: entrada nueva.
+- **18/10/2026 — menos contexto fijo por sesión.** Pedido del PM: «Como puedo mejorar mi proceso de desarrollo
+  para que sea mejor y consuma menos». `CLAUDE.md` se carga entero en cada sesión, así que se achica de ~29,5k a
+  ~24,2k caracteres: sale el *Mapa de URLs a apps* (se deriva de `config/urls.py`) y el detalle de *Gates de CI*
+  pasa a la skill `gates-ci`, que se carga solo cuando se trabaja sobre el CI. En `CLAUDE.md` quedan las reglas
+  que no se pueden deducir: PRs contra `development`, no mergear en rojo, un rojo «no bloqueante» igual frena
+  `Publish main` y el `Release gate`, y el test de contrato del front. `pm-assistant` y `qa-analyst` declaran
+  `model: sonnet`: hacen lectura y redacción, y heredaban Opus.
 
 ---
