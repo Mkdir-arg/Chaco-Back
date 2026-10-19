@@ -1898,3 +1898,45 @@ class ItemCampoPropioForm(forms.Form):
             "obligatorio": bool(cleaned.get("obligatorio")),
         }
         return cleaned
+
+
+class RevisionPersonasFiltroForm(forms.Form):
+    """Filtros por persona de la bandeja de revisión (``/becas/revision/``).
+
+    Llegan por GET y son opcionales: un valor inválido (fecha mal escrita, DNI sin
+    dígitos) se ignora en vez de romper la pantalla. ``filtros_ciudadano`` entrega los
+    criterios listos para ``Ciudadano.objects.filter``: DNI exacto, apellido y nombre
+    «empieza con» (para que los índices sirvan) y fecha de nacimiento exacta.
+    """
+
+    nombre = forms.CharField(required=False, max_length=100)
+    apellido = forms.CharField(required=False, max_length=100)
+    dni = forms.CharField(required=False, max_length=30)
+    fecha_nacimiento = forms.DateField(required=False)
+
+    def clean_nombre(self):
+        return (self.cleaned_data.get("nombre") or "").strip()
+
+    def clean_apellido(self):
+        return (self.cleaned_data.get("apellido") or "").strip()
+
+    def clean_dni(self):
+        # Puntos, espacios y guiones se descartan: «30.123.456» busca 30123456.
+        return normalizar_dni(self.cleaned_data.get("dni") or "")
+
+    def filtros_ciudadano(self):
+        """``dict`` de lookups sobre ``Ciudadano``; vacío si no hay filtro de persona."""
+        datos = getattr(self, "cleaned_data", None) or {}
+        if not hasattr(self, "cleaned_data"):
+            self.is_valid()
+            datos = self.cleaned_data
+        filtros = {}
+        if datos.get("dni"):
+            filtros["dni"] = datos["dni"]
+        if datos.get("apellido"):
+            filtros["apellido__istartswith"] = datos["apellido"]
+        if datos.get("nombre"):
+            filtros["nombre__istartswith"] = datos["nombre"]
+        if datos.get("fecha_nacimiento"):
+            filtros["fecha_nacimiento"] = datos["fecha_nacimiento"]
+        return filtros

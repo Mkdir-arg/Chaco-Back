@@ -462,8 +462,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 334 | El Coordinador de Becas corrige los requisitos de sus segmentos y valida identidades | Becas · roles (RBAC) · requisitos · revisión de casos | `#rbac` `#requisitos` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | `users.0038` |
 | 335 | El CSV de convocatoria también lo baja el Coordinador | Becas · roles (RBAC) · exports de convocatoria | `#rbac` `#convocatorias` `#datos` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | `users.0039` |
 | 336 | El Coordinador Regional consulta la revisión de sus casos, sin editarla | Becas · roles (RBAC) · revisión de casos · Cupo | `#rbac` `#cupos` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | No requiere |
-| 337 | SIIS que no contesta a tiempo ya no se muestra como «No se pudo conectar» | Becas · validación de compatibilidad contra SIIS | `#siis` `#relevamientos` | PM — hallazgo en PRD (ReadTimeout del token), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
-| 340 | El login de SIIS deja de pagarse dentro del clic: corre en segundo plano y el request espera el token | Becas · alta en SIIS (token, «Aprobar», proceso masivo) · comandos de diagnóstico | `#siis` `#infra` `#performance` | Proveedor SIIS — pedido del 19/10/2026 (PRD 07:23) | 19/10/2026 | 🟢 **Hecho** | No requiere |
+| 337 | La bandeja de revisión se filtra por nombre, apellido, DNI y fecha de nacimiento | Becas · revisión de casos | `#ui` `#performance` | Usuario — pedido en sesión, 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
+| 338 | SIIS que no contesta a tiempo ya no se muestra como «No se pudo conectar» | Becas · validación de compatibilidad contra SIIS | `#siis` `#relevamientos` | PM — hallazgo en PRD (ReadTimeout del token), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
+| 339 | El login de SIIS deja de pagarse dentro del clic: corre en segundo plano y el request espera el token | Becas · alta en SIIS (token, «Aprobar», proceso masivo) · comandos de diagnóstico | `#siis` `#infra` `#performance` | Proveedor SIIS — pedido del 19/10/2026 (PRD 07:23) | 19/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -44189,7 +44190,79 @@ No aplica: entrada nueva.
 
 ---
 
-# Cambio 337 — SIIS que no contesta a tiempo ya no se muestra como «No se pudo conectar»
+# Cambio 337 — La bandeja de revisión se filtra por nombre, apellido, DNI y fecha de nacimiento
+
+🟢 **HECHO — 19/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · revisión de casos |
+| **Etiquetas** | `#ui` `#performance` |
+| **Solicitante** | Usuario — pedido en sesión, 19/10/2026 |
+| **Fecha del pedido** | 19/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En `/becas/revision/` poder filtrar por nombre, apellido, DNI y fecha de nacimiento. Hasta ahora solo filtraba por estado.
+
+## Alcance acordado
+
+- **Entra:** cuatro filtros nuevos en la bandeja de personas (`RevisionPersonasListView`), combinables entre sí y con `estado` (AND), conservados al paginar y visibles cargados en el formulario.
+- **No entra:** búsqueda libre en un solo campo, coincidencia aproximada de DNI, rangos de fecha, filtros en la bandeja de casos de un relevamiento ni en pendientes de RENAPER.
+
+## Decisiones tomadas
+
+- **DNI:** coincidencia exacta, normalizado sin puntos, espacios ni guiones (`core.dni.normalizar_dni`). Exacta para usar el índice único.
+- **Apellido y nombre:** «empieza con», sin distinguir mayúsculas (`istartswith`), para que el índice de `Ciudadano` sirva; un «contiene» obligaría a escanear la tabla.
+- **Fecha de nacimiento:** igualdad exacta con `<input type="date">`; un valor inválido se ignora, no da 500.
+- **Performance (MariaDB, `read_timeout` 10 s, ~40k casos):** la consulta mantiene el patrón de pk + hidratación y evita joins. Con filtros de persona suma `ciudadano_id IN (subquery de Ciudadano filtrado)`; sin ellos la consulta queda idéntica a la de antes. No se materializa una lista de ids.
+- **Alcance de visibilidad:** los filtros se aplican encima de los relevamientos visibles, así que un DNI de un caso fuera de alcance no lo muestra.
+- **Validación de entrada** con `RevisionPersonasFiltroForm` (Django Form). Los controles los dibuja la plantilla dentro de `data-dynamic-list-filters`, sin clases ni valores nuevos.
+
+## Implementación
+
+La bandeja ofrece cuatro controles nuevos junto al de estado: Nombre, Apellido, DNI y Fecha de nacimiento. Al aplicar, se listan solo los casos cuya persona coincide con todos los filtros cargados.
+
+## Archivos
+
+- `programas/forms.py` (`RevisionPersonasFiltroForm`)
+- `programas/views/revision.py` (`RevisionPersonasListView`)
+- `programas/templates/programas/becas/revision/personas_list.html`
+- `programas/tests/test_becas_revision_filtros_persona.py`
+- `.claude/design/arquetipos/listado.md`, `.claude/design/componentes/filtros.md`, `.claude/design/componentes/field.md` (la golden de listado cambió)
+
+## Base de datos
+
+No requiere migración. Usa índices existentes de `legajos.Ciudadano` (dni, nombre, apellido+nombre, fecha_nacimiento).
+
+## Validación
+
+- `manage.py test programas.tests.test_becas_revision_filtros_persona`: 12 tests (cada filtro, combinación, DNI con puntos, fecha inválida, paginación, alcance). Mutación (apellido a `icontains` y DNI sin normalizar): 2 tests en rojo.
+- Módulos de revisión de Becas: 180 tests OK; `--tag performance programas`: 36 OK.
+- `manage.py check`, `ruff`, `design_audit --ratchet` (0 nuevos), `--goldens` (0), `compile_templates` (0 errores) y `check_design_agent --changed` OK.
+
+## Puesta en marcha en el servidor
+
+No requiere más que el deploy.
+
+## Pendientes / a definir
+
+Ninguno. Si el padrón crece mucho, una búsqueda por «contiene» pediría un índice de texto completo.
+
+## Reversión
+
+Revertir el commit. No hay datos que se pierdan.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 338 — SIIS que no contesta a tiempo ya no se muestra como «No se pudo conectar»
 
 🟢 **HECHO — 19/10/2026**
 
@@ -44264,7 +44337,7 @@ No aplica: entrada nueva.
 
 ---
 
-# Cambio 340 — El login de SIIS deja de pagarse dentro del clic: corre en segundo plano y el request espera el token
+# Cambio 339 — El login de SIIS deja de pagarse dentro del clic: corre en segundo plano y el request espera el token
 
 🟢 **HECHO — 19/10/2026** · Precisa el Cambio 154 (SIIS-09).
 
@@ -44362,7 +44435,7 @@ No requiere.
 
 ## Ronda 2 de la revisión (PR #914)
 
-- **Se integró #913** (Cambio 337: «SIIS no respondió a tiempo.» para `ReadTimeout`). Los conflictos del índice y de las entradas se resolvieron a mano: quedan las dos entradas, la 337 y esta.
+- **Se integró #913** (Cambio 338: «SIIS no respondió a tiempo.» para `ReadTimeout`). Los conflictos del índice y de las entradas se resolvieron a mano: quedan las dos entradas, la 337 y esta.
 - **`expires_in` corto ya no paga un login por request.** La ventana de renovación es `min(10 min, ttl // 2)`: nunca pasa de la mitad de la vida del token. Antes, con `expires_in` ≤ 660 el token nacía dentro de la ventana y cada `_token()` relanzaba el login (10 llamadas = 10 POST con `expires_in=600`; con `expires_in=60`, el masivo pasaba el tope de 20/min). La clave auxiliar pasó a guardar «renovar desde» (`siis_api:access_token:renovar_desde`, epoch) y no el vencimiento. El warning avisa con `expires_in < 2 × 10 min + 60 = 1260`, que es justo cuando la ventana se achica; con el valor real (3600) todo sigue igual.
 - **La pausa conserva el tipo de falla** (`timeout`, `connect`, `http:<status>`, `red`, `config`, `otro`) y quien cae en ella recibe la excepción equivalente: `ReadTimeout`, `ConnectTimeout`, `HTTPError` con un `response.status_code` (así `_cargar_catalogo` distingue 401/403/5xx), `ConnectionError`, `_SiisConfigurationError`. Con #913, un login colgado da «SIIS no respondió a tiempo.» también a los requests que caen en la pausa.
 - **Candado con nonce:** el valor es único y el `finally` borra solo si sigue siendo el propio (get + compare + delete). Ventana residual entre el `get` y el `delete`: la caché no tiene compare-and-delete; el costo es un login de más.
