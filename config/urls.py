@@ -106,3 +106,6 @@ urlpatterns += [
 ]
 
 handler500 = "config.views.server_error"
+handler400 = "config.views.bad_request"
+handler403 = "config.views.permission_denied"
+handler404 = "config.views.page_not_found"
