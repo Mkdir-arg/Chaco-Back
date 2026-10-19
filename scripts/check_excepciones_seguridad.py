@@ -30,9 +30,8 @@ está cubierto por su propia regla.
 import argparse
 import datetime
 import sys
-from pathlib import Path
-
 import tomllib
+from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 ARCHIVO = RAIZ / "security" / "excepciones.toml"
