@@ -462,6 +462,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 334 | El Coordinador de Becas corrige los requisitos de sus segmentos y valida identidades | Becas · roles (RBAC) · requisitos · revisión de casos | `#rbac` `#requisitos` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | `users.0038` |
 | 335 | El CSV de convocatoria también lo baja el Coordinador | Becas · roles (RBAC) · exports de convocatoria | `#rbac` `#convocatorias` `#datos` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | `users.0039` |
 | 336 | El Coordinador Regional consulta la revisión de sus casos, sin editarla | Becas · roles (RBAC) · revisión de casos · Cupo | `#rbac` `#cupos` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 337 | SIIS que no contesta a tiempo ya no se muestra como «No se pudo conectar» | Becas · validación de compatibilidad contra SIIS | `#siis` `#relevamientos` | PM — hallazgo en PRD (ReadTimeout del token), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 340 | El login de SIIS deja de pagarse dentro del clic: corre en segundo plano y el request espera el token | Becas · alta en SIIS (token, «Aprobar», proceso masivo) · comandos de diagnóstico | `#siis` `#infra` `#performance` | Proveedor SIIS — pedido del 19/10/2026 (PRD 07:23) | 19/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -44181,6 +44182,81 @@ No requiere. El arranque corre `seed_becas`, que le tilda `revision.ver` al Regi
 
 Revertir el commit. En el arranque siguiente la semilla le quita `revision.ver` al Regional, y el Referente
 vuelve a ver los dos formularios que le contestan 403. No toca datos.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 337 — SIIS que no contesta a tiempo ya no se muestra como «No se pudo conectar»
+
+🟢 **HECHO — 19/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · validación de compatibilidad contra SIIS |
+| **Etiquetas** | `#siis` `#relevamientos` |
+| **Solicitante** | PM — hallazgo en PRD, 19/10/2026 |
+| **Fecha del pedido** | 19/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En PRD, al validar un caso contra SIIS, el POST del token dio `ReadTimeout` (la conexión se abrió pero SIIS no
+contestó en 5 s) y la pantalla mostró «Motivo: No se pudo conectar con SIIS.», que es inexacto.
+
+## Alcance acordado
+
+- **Entra:** `SiisAPIClient.validar_compatibilidad`: un `requests.ReadTimeout`, en el token o en la consulta,
+  devuelve `error = "SIIS no respondió a tiempo."`.
+- **Afuera:** `ConnectionError`, `ConnectTimeout`, el corte del cortacircuito y la configuración incompleta
+  conservan «No se pudo conectar con SIIS.»; el alta (`cargar_beneficiario`) y los catálogos no se tocan.
+
+## Decisiones tomadas
+
+1. **Solo `ReadTimeout`.** `ConnectTimeout` hereda de `ConnectionError` y de `Timeout` pero no de `ReadTimeout`:
+   ahí sí no se pudo conectar y el texto no cambia.
+2. **El cortacircuito sigue igual.** El `ReadTimeout` cuenta como falla como hasta ahora; solo cambia el texto.
+3. **Nadie compara el texto.** Se buscó «No se pudo conectar con SIIS» en todo el repo: ningún código lo usa para
+   decidir estado, reintento ni tooltip. `validacion_siis.py` lo copia tal cual como `motivo` del intento y
+   `diagnosticar_siis` lo imprime; el mensaje nuevo recibe el mismo tratamiento. Los demás hallazgos son tests que
+   lo usan como dato de un mock.
+
+## Implementación
+
+`validar_compatibilidad` captura la excepción y, si es `ReadTimeout`, devuelve el mensaje nuevo; mismas claves del
+dict, mismo logging.
+
+## Archivos
+
+- `programas/services/siis.py`
+- `programas/tests/test_siis_service.py`
+- Esta entrada y su fila del índice.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Cuatro tests nuevos en `SiisClientTests`: `ReadTimeout` en el token, `ReadTimeout` en la consulta,
+`ConnectTimeout` y `ConnectionError`. Mutación (cambio revertido en `siis.py`): fallan los dos de `ReadTimeout`;
+los otros dos pasan. Resultado de las suites y de `check`/ruff en el PR.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- Si el timeout del token (5 s) es corto para PRD es una decisión de infraestructura, no de este cambio.
+
+## Reversión
+
+Revertir el commit. No toca datos.
 
 ## Historial
 
