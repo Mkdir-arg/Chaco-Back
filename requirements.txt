@@ -80,7 +80,7 @@ daphne==4.2.3
 # `from zeal import zeal_ignore` al importar. Todo job que corre la suite instala este
 # archivo; moverlo obligaría a instalar otro en cada uno. En producción no se carga
 # nunca, porque `PYTEST_RUNNING` no está definida.
-django-zeal==2.2.1
+django-zeal==2.3.0
 
 # System Monitoring
 # `core/views/performance.py` lo importa para la métrica de memoria del proceso.
