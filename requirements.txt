@@ -84,7 +84,7 @@ django-zeal==2.2.1
 
 # System Monitoring
 # `core/views/performance.py` lo importa para la métrica de memoria del proceso.
-psutil==5.9.8
+psutil==7.2.2
 
 # API Documentation
 drf-spectacular==0.27.0
