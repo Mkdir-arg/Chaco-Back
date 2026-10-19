@@ -49,6 +49,7 @@ Por eso el `aria-label` tiene que leerse bien **como chip**: «Estado», no «Es
 ## Variantes permitidas
 
 - Filtro de texto, select, fecha (`type="date"`) y checkbox, todos dentro del mismo `<form>`.
+  La golden los combina: `type="search"` (nombre, apellido, DNI), `type="date"` (fecha de nacimiento) y el `<select>` de estado, cada uno con su `aria-label`.
 - `max-w-xs` en el control para que no ocupe todo el ancho antes de que monte el JS.
 - Filtros avanzados: `{% include "components/list_filters.html" with advanced=True allow_or=True reset_url=reset_url %}`
   renderiza la barra sin pasar por el `<template>` del shell. Único consumidor:

@@ -1,7 +1,7 @@
 # Arquetipo · Listado con filtros
 
 **Golden (la única que se clona):** `programas/templates/programas/becas/revision/personas_list.html`
-(97 líneas). Una pantalla hermana del módulo **nunca** es molde: de ella se toma solo dominio.
+(103 líneas). Una pantalla hermana del módulo **nunca** es molde: de ella se toma solo dominio.
 **Marcadores:** `scripts/design_audit.py --arquetipo listado <archivo>`.
 **Componentes:** page_header · filtros · tabla · estado_vacio · paginacion · botones_badges.
 
