@@ -187,6 +187,38 @@ class SiisClientTests(SimpleTestCase):
     def test_motivos_de_rechazo_tolera_una_respuesta_sin_validaciones(self):
         self.assertEqual(motivos_de_rechazo(None), [])
 
+    @patch("programas.services.siis.sesion.post", side_effect=requests.ReadTimeout)
+    def test_read_timeout_en_el_token_dice_que_siis_no_respondio(self, _post):
+        resultado = SiisAPIClient().validar_compatibilidad("21884116", 999)
+
+        self.assertFalse(resultado["success"])
+        self.assertEqual(resultado["error"], "SIIS no respondió a tiempo.")
+
+    @patch("programas.services.siis.sesion.post", side_effect=requests.ReadTimeout)
+    def test_read_timeout_en_la_consulta_dice_que_siis_no_respondio(self, _post):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+
+        resultado = SiisAPIClient().validar_compatibilidad("21884116", 999)
+
+        self.assertEqual(resultado["error"], "SIIS no respondió a tiempo.")
+        self.assertNotIn("cortado", resultado)
+
+    @patch("programas.services.siis.sesion.post", side_effect=requests.ConnectTimeout)
+    def test_connect_timeout_sigue_diciendo_que_no_se_pudo_conectar(self, _post):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+
+        resultado = SiisAPIClient().validar_compatibilidad("21884116", 999)
+
+        self.assertEqual(resultado["error"], "No se pudo conectar con SIIS.")
+
+    @patch("programas.services.siis.sesion.post", side_effect=requests.ConnectionError)
+    def test_connection_error_sigue_diciendo_que_no_se_pudo_conectar(self, _post):
+        cache.set(TOKEN_CACHE_KEY, "abc", 60)
+
+        resultado = SiisAPIClient().validar_compatibilidad("21884116", 999)
+
+        self.assertEqual(resultado["error"], "No se pudo conectar con SIIS.")
+
     @patch("programas.services.siis.sesion.get", side_effect=requests.Timeout)
     def test_timeout_del_catalogo_muestra_un_mensaje_util(self, _get):
         cache.set(TOKEN_CACHE_KEY, "abc", 60)

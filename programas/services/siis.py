@@ -417,9 +417,14 @@ class SiisAPIClient:
             else:
                 logger.exception("SIIS no devolvió un token usable al validar compatibilidad: %s", exc)
             return {"success": False, "error": "No se pudo conectar con SIIS.", "data": {}}
-        except (requests.RequestException, TypeError, ValueError):
+        except (requests.RequestException, TypeError, ValueError) as exc:
             logger.exception("Error técnico al validar compatibilidad en SIIS")
             cortacircuito_consultas.registrar_falla()
+            # ReadTimeout: la conexión se abrió y SIIS no contestó a tiempo; decir
+            # «no se pudo conectar» mandaba a mirar la red. ConnectTimeout hereda de
+            # Timeout y de ConnectionError pero NO es ReadTimeout: conserva el texto.
+            if isinstance(exc, requests.ReadTimeout):
+                return {"success": False, "error": "SIIS no respondió a tiempo.", "data": {}}
             return {"success": False, "error": "No se pudo conectar con SIIS.", "data": {}}
 
     # ------------------------------------------------------------------
