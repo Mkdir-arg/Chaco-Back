@@ -30,7 +30,7 @@
 # bloqueantes. El pin es lo que permitió hacer bloqueante el segundo (pendiente del
 # Cambio 320): sin él, una regla E/W nueva lo pondría en rojo sin que nadie toque nada.
 # Subir esta versión es el PR donde aparecen los hallazgos nuevos: se formatea ahí.
-ruff==0.16.10
+ruff==0.17.1
 
 # `Tests & Coverage`: `coverage run manage.py test` + `coverage report` con
 # `fail_under = 79` y el piso por módulo crítico (TST-03). Un cambio en cómo mide ramas

@@ -260,8 +260,7 @@
 | Becas | 142 h 58 min |
 | Dispositivos (incluye Merenderos) | 283 h 15 min |
 | Transversal | 73 h 47 min |
-
-| **Total julio 2026 (mes completo)** | **500 h 0 min** |
+| **Total julio 2026 (mes completo)** | **500 h 00 min** |
 
 ---
 
@@ -992,38 +991,306 @@
 | Becas | 704 h 00 min |
 | Transversal | 204 h 30 min |
 | Dispositivos | 34 h 00 min |
-| **Esfuerzo real de septiembre 2026 (mes cerrado)** | **942 h 30 min** |
-| *Imputado a septiembre (100% del presupuesto)* | *850 h 00 min* |
-| *Remanente trasladado a octubre* | *92 h 30 min* |
+| **Esfuerzo real de septiembre 2026** | **942 h 30 min** |
+
+!!! abstract "Imputación de septiembre"
+    Septiembre se **imputa por 850 h** (el 100% de su presupuesto) y las **92 h 30 min** restantes se
+    **trasladan a octubre 2026**. Las horas de arriba son el esfuerzo real ejecutado: el traslado es de
+    imputación, no de registro.
 
 !!! note "Qué incluye"
-    Las horas de Becas incluyen las **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está
-    en las secciones de ese mes. El trabajo propio de septiembre es de **839 h**: sumadas las
-    103 h 30 min que llegaron de agosto, el esfuerzo real del mes es de **942 h 30 min**, de las que
-    se imputan **850 h** y **92 h 30 min** pasan a octubre.
+    El trabajo propio de septiembre es de **839 h**. Las horas de Becas incluyen además las
+    **103 h 30 min trasladadas de agosto**, cuyo detalle día por día está en las secciones de ese mes:
+    839 h + 103 h 30 min = **942 h 30 min**.
+
+### :material-package-variant-closed: Consumo del 1 al 8 de octubre — por entregable
+
+!!! note "Semana de la auditoría integral y del cierre del envío a SIIS"
+    El período estuvo dominado por la **auditoría integral del sistema**: se relevó todo el producto,
+    se organizó la remediación por olas y se cerraron los frentes de acceso, red de seguridad y
+    controles automáticos de publicación. En paralelo se terminó el **envío de beneficiarios a SIIS**
+    (sin duplicados, con exclusiones y herramientas de operación), se migraron pantallas de Becas al
+    sistema de diseño y se definió la **Versión 2 del Programa Dispositivos**.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 01/10 | Matías Fariña | Becas | Conducción de la corrida de alta en SIIS sobre la lista de aprobados | Ejecución del alta con el listado que entregó el organismo y seguimiento de lo informado. | 2,5 h | — |
+| 01/10 | Matías Fariña | Transversal | Dirección de la auditoría integral del sistema | Relevamiento completo del sistema y plan de remediación organizado por olas de trabajo. | 3,5 h | — |
+| 01/10 | Matías Fariña | Becas | Registro y publicación de los cambios del día | Qué se publicó, en qué ambiente y con qué resultado. | 1,5 h | — |
+| 01/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 01/10 | Pablo Cao | Becas | El destino del beneficiario llega completo a SIIS | El dato de destino viaja a la tabla intermedia del organismo y alcanza a los candidatos. | 2 h | 4 h |
+| 01/10 | Pablo Cao | Becas | El link público abre en la base del organismo | El identificador del link se guarda y se busca en el formato que usa la base del organismo. | 2 h | 4 h |
+| 01/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 01/10 | Juani Portilla | Transversal | Las consultas del sistema dejan de responder sin sesión | La capa de consultas, el padrón de personas y las conversaciones exigen usuario identificado. | 2 h | 4 h |
+| 01/10 | Juani Portilla | Transversal | El arranque del sistema deja de crear datos de ejemplo | Un ambiente nuevo arranca limpio, sin usuarios ni datos de prueba. | 2 h | 4 h |
+| 01/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 01/10 | Matías Abate | Transversal | Pruebas de los accesos sin sesión | Recorrido de toda la superficie que se podía ver sin estar identificado. | 2 h | — |
+| 01/10 | Matías Abate | Becas | Verificación de la corrida de alta en SIIS | Control de los beneficiarios informados contra el listado de aprobados. | 2 h | — |
+| 01/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 01/10 | Nahuel De Francesco | Transversal | Los nombres y textos de administración dejan de inyectarse en la página | Revisión y corrección del armado de los nombres de rol y textos relacionados. | 2 h | 4 h |
+| 01/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 02/10 | Matías Fariña | Transversal | Relevamiento del sistema para la auditoría integral | Recorrido completo del producto, módulo por módulo, para levantar el estado real de cada frente. | 3,5 h | — |
+| 02/10 | Matías Fariña | Transversal | Organización de la remediación por olas de trabajo | Agrupamiento de lo relevado en olas, con su orden y su criterio de cierre. | 2 h | — |
+| 02/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo del fin de semana y puesta al día del tablero. | 1 h | — |
+| 02/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 02/10 | Pablo Cao | Becas | Cupo y lista de espera dejan de descontar dos veces | Un caso en espera no vuelve a ocupar lugar cuando se resuelve. | 2,5 h | 5 h |
+| 02/10 | Pablo Cao | Transversal | Los legajos sin responsable asignado dejan de verse | El acceso a un legajo exige que la persona tenga rol sobre él. | 2,5 h | 5 h |
+| 02/10 | Juani Portilla | Transversal | Control automático de datos personales en el repositorio | Ningún volcado con datos de personas puede entrar al código del sistema. | 2,5 h | 5 h |
+| 02/10 | Juani Portilla | Transversal | Pruebas de humo sobre toda la superficie del sistema | Recorrido automático que comprueba que cada pantalla responde antes de publicar. | 2,5 h | 5 h |
+| 02/10 | Matías Abate | Transversal | Pruebas de la red de seguridad y de los estados | Verificación de los controles nuevos y de las transiciones de estado. | 3 h | — |
+| 03/10 | Matías Fariña | Transversal | Cierre de la primera ola de la auditoría | Verificación de lo remediado y registro del estado de cada hallazgo. | 4,5 h | — |
+| 03/10 | Matías Fariña | Transversal | Coordinación del trabajo de fin de semana | Reparto del trabajo, seguimiento de los frentes abiertos y revisión de lo resuelto. | 3,5 h | — |
+| 03/10 | Pablo Cao | Transversal | Las consultas de ciudadanos y de usuarios piden sesión | La capa de consultas del sistema queda cerrada a usuarios identificados. | 3 h | 6 h |
+| 03/10 | Juani Portilla | Transversal | Los documentos del ciudadano y las rutas de diagnóstico quedan cerrados | El contenido cargado por el ciudadano deja de ser accesible sin sesión y se cierran las rutas de diagnóstico. | 3 h | 6 h |
+| 03/10 | Matías Abate | Transversal | Pruebas de los accesos cerrados en la primera ola | Comprobación pantalla por pantalla de lo remediado. | 2 h | — |
+| 04/10 | Matías Fariña | Transversal | Dirección de la red de seguridad del sistema | Definición de los controles automáticos que corren en cada cambio para que una regresión no llegue a producción. | 3,5 h | — |
+| 04/10 | Matías Fariña | Transversal | Procedimiento de vuelta atrás de una publicación | Paso a paso para revertir una publicación sin perder datos. | 2,5 h | — |
+| 04/10 | Matías Fariña | Transversal | Coordinación y registro del día | Seguimiento de los frentes y registro de lo resuelto. | 2 h | — |
+| 05/10 | Matías Fariña | Transversal | Definición de las pantallas de referencia del sistema de diseño | Qué pantalla es el molde de cada tipo y qué tiene que copiar una pantalla nueva. | 3,5 h | — |
+| 05/10 | Matías Fariña | Transversal | Gestión del tablero y atención de consultas del organismo | Seguimiento del trabajo, revisión funcional de lo publicado y respuesta a las consultas del equipo del organismo. | 4 h | — |
+| 05/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 05/10 | Pablo Cao | Transversal | Pantallas de referencia del sistema de diseño | Las pantallas molde quedan construidas y sirven de base para las nuevas. | 3 h | 6 h |
+| 05/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 05/10 | Juani Portilla | Transversal | Controles automáticos de la publicación de versiones | Una versión no se publica si no pasó todos los controles de calidad. | 3 h | 6 h |
+| 05/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 05/10 | Matías Abate | Transversal | Pruebas de las pantallas de referencia | Recorrido de las pantallas molde y de lo que heredan. | 3 h | — |
+| 05/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 05/10 | Nahuel De Francesco | Transversal | Documentación de las herramientas de diseño | Cómo se usa cada pieza común al construir una pantalla. | 1 h | — |
+| 05/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 06/10 | Matías Fariña | Dispositivos | Mapeo y decisiones de la Versión 2 de Dispositivos | Relevamiento módulo por módulo y quince definiciones acordadas sobre el alcance. | 3 h | — |
+| 06/10 | Matías Fariña | Becas | Definiciones del envío a SIIS sin duplicados | Qué pasa cuando un beneficiario ya fue informado y cómo se excluye a alguien del envío. | 2,5 h | — |
+| 06/10 | Matías Fariña | Transversal | Coordinación y gestión del período | Seguimiento de los frentes abiertos y del tablero. | 2 h | — |
+| 06/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 06/10 | Pablo Cao | Becas | El envío a SIIS no repite un beneficiario ya informado | Si el proceso se vuelve a correr, no duplica altas en el organismo. | 2,5 h | 5 h |
+| 06/10 | Pablo Cao | Becas | Exclusión de beneficiarios del envío | Se puede dejar a una persona fuera del envío sin sacarla del programa. | 1,5 h | 3 h |
+| 06/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 06/10 | Juani Portilla | Transversal | El contrato de las migraciones se verifica en cada cambio | Un cambio de base no puede romper la versión anterior del sistema. | 2,5 h | 5 h |
+| 06/10 | Juani Portilla | Transversal | Las migraciones se prueban de ida y de vuelta contra el motor real | Cada cambio de base se aplica y se revierte sobre el mismo motor que usa el organismo. | 1,5 h | 3 h |
+| 06/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 06/10 | Matías Abate | Becas | Pruebas del envío a SIIS y del catálogo | Recorrido del envío, del catálogo del organismo y de las exclusiones. | 2,5 h | — |
+| 06/10 | Matías Abate | Transversal | Pruebas de configuración, fechas y legajos | Verificación de las pantallas de configuración y del manejo de fechas. | 1,5 h | — |
+| 06/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 06/10 | Nahuel De Francesco | Transversal | El vaciado de listas pide confirmación y avanza por páginas | Las operaciones masivas confirman antes de ejecutar y no traen todo de una vez. | 2 h | 4 h |
+| 06/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 07/10 | Matías Fariña | Transversal | Dirección del cierre de la red de seguridad | Los controles de seguridad, cobertura y arquitectura quedan corriendo en cada cambio. | 3 h | — |
+| 07/10 | Matías Fariña | Becas | Definiciones del envío a SIIS y de los reportes | Formato del envío, herramientas de operación y qué muestra cada reporte. | 2,5 h | — |
+| 07/10 | Matías Fariña | Transversal | Coordinación del día y revisión de lo publicado | Seguimiento de los frentes cerrados y revisión funcional de lo que quedó publicado. | 2 h | — |
+| 07/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 07/10 | Pablo Cao | Becas | Pantallas de Becas migradas al sistema de diseño | Las pantallas del programa pasan a las piezas comunes y dejan de resolver cada una a su manera. | 2,5 h | 5 h |
+| 07/10 | Pablo Cao | Becas | Herramientas de envío a SIIS y formato del envío | Operación del envío desde el backoffice y los datos en el formato que el servicio acepta. | 1,5 h | 3 h |
+| 07/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 07/10 | Juani Portilla | Transversal | Cobertura y contratos verificados en cada cambio | El sistema no acepta un cambio que baje la cobertura de pruebas o rompa un contrato. | 2,5 h | 5 h |
+| 07/10 | Juani Portilla | Transversal | Controles de arquitectura y de operación del despliegue | Verificación automática de la estructura del sistema y del procedimiento de publicación. | 1,5 h | 3 h |
+| 07/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 07/10 | Matías Abate | Becas | Pruebas de las pantallas migradas y del envío a SIIS | Recorrido de las pantallas nuevas y del circuito de envío completo. | 2,5 h | — |
+| 07/10 | Matías Abate | Transversal | Revisión de la documentación navegable del sistema | Comprobación de que la documentación técnica refleja lo que el sistema expone. | 1,5 h | — |
+| 07/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 07/10 | Nahuel De Francesco | Becas | Comandos y datos de operación del programa | Herramientas de línea de comandos para operar el programa y corregir datos. | 2,5 h | 5 h |
+| 07/10 | Nahuel De Francesco | Transversal | Pruebas de regresión del backoffice | Recorrido de las pantallas afectadas por los cambios del día. | 1,5 h | — |
+| 07/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 08/10 | Matías Fariña | Becas | Definiciones de las reglas del programa y de los reportes | Qué valida el programa en cada paso y qué tiene que mostrar cada reporte. | 3 h | — |
+| 08/10 | Matías Fariña | Transversal | Conteo del consumo del período y gestión | Reconstrucción y carga del consumo del 1 al 8 de octubre. | 3 h | — |
+| 08/10 | Matías Fariña | Becas | Revisión funcional de lo publicado | Recorrido de lo que quedó en el ambiente de pruebas del organismo. | 1,5 h | — |
+| 08/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 08/10 | Pablo Cao | Becas | El link público y las reglas del programa | Correcciones del link de inscripción y de las validaciones del programa. | 2,5 h | 5 h |
+| 08/10 | Pablo Cao | Becas | Reportes del programa | Los reportes muestran los datos que el programa necesita para decidir. | 1,5 h | 3 h |
+| 08/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 08/10 | Juani Portilla | Becas | Contrato de la app de campo e integraciones externas | Lo que la app de campo espera del sistema y la respuesta de los servicios externos quedan verificados. | 2,5 h | 5 h |
+| 08/10 | Juani Portilla | Transversal | Verificación del circuito de publicación | Comprobación de que la cadena completa de publicación queda en verde. | 1,5 h | 3 h |
+| 08/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 08/10 | Matías Abate | Becas | Pruebas de la app de campo, del link público y de los reportes | Recorrido completo de los tres frentes del día. | 3 h | — |
+| 08/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 08/10 | Nahuel De Francesco | Transversal | Documentación funcional del período | Registro de lo resuelto y de las decisiones tomadas. | 1 h | — |
+| 08/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| | | | **Total 1 al 8/10** | | **176 h** | **121 h** |
+
+### :material-package-variant-closed: Consumo del 9 al 17 de octubre — por entregable
+
+!!! note "Período del MVP del Programa Dispositivos y del cierre de la auditoría del sistema"
+    El grueso del período se fue en el **MVP del Programa Dispositivos**, que **está en construcción**:
+    se trabajó en el circuito de admisiones, camas, registro diario y bajas, en el trabajo simultáneo de
+    dos personas y en la revisión de cada pantalla contra el diseño aprobado. **Todavía no se presentó al
+    Ministerio**: se proyecta cerrar octubre con entre el 40 % y el 50 % de las etapas completadas, y la
+    entrega está prevista para el **viernes 13 de noviembre de 2026**. En paralelo sí se cerró la **última
+    ola de la auditoría del sistema**, se puso en marcha el **envío de notificaciones por campaña** y se
+    publicó la versión en el ambiente productivo del organismo.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 09/10 | Matías Fariña | Transversal | Dirección del cierre de la auditoría — última ola | Qué entra y qué queda afuera de la última tanda de remediación del sistema. | 3 h | — |
+| 09/10 | Matías Fariña | Becas | Definición del envío de notificaciones por campaña | Cómo se arma una campaña, a quién llega y con qué contenido. | 2,5 h | — |
+| 09/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo y puesta al día del tablero. | 2 h | — |
+| 09/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 09/10 | Matías Fariña | Transversal | Gestión del tablero: redacción y seguimiento de las tareas | Alta de las tareas del período, su encuadre y el seguimiento de los frentes abiertos. | 2 h | — |
+| 09/10 | Pablo Cao | Becas | Envío de notificaciones por campaña a los ciudadanos | El programa puede comunicarse con un grupo de personas desde el backoffice. | 4 h | 8 h |
+| 09/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 09/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 09/10 | Juani Portilla | Transversal | Se apaga lo que el sistema no usa y se saca el código muerto | Las superficies sin uso dejan de estar disponibles y el sistema queda más chico de mantener. | 2,5 h | 5 h |
+| 09/10 | Juani Portilla | Transversal | Actualización de dependencias y rendimiento de las consultas | Puesta al día de las librerías y menos lecturas repetidas en las pantallas más usadas. | 1,5 h | 3 h |
+| 09/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 09/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 09/10 | Matías Abate | Transversal | Pruebas del catálogo de roles y de lo que se apagó | Verificación de que nada en uso quedó deshabilitado por error. | 3 h | — |
+| 09/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 09/10 | Matías Abate | Becas | Redacción de los casos de prueba de las tareas de Becas | Qué se prueba en cada tarea y con qué resultado esperado, escrito antes de desarrollar. | 2 h | — |
+| 09/10 | Nahuel De Francesco | Transversal | Pruebas de regresión del backoffice | Recorrido de las pantallas afectadas por los cambios del día. | 2 h | — |
+| 09/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 09/10 | Nahuel De Francesco | Transversal | Seguimiento de las tareas y documentación del período | Puesta al día del estado de cada tarea y registro de lo resuelto. | 2 h | — |
+| 10/10 | Matías Fariña | Dispositivos | Dirección del MVP del Programa Dispositivos | Alcance y orden de los frentes del MVP, pantalla por pantalla. | 2,5 h | — |
+| 10/10 | Matías Fariña | Transversal | Coordinación del trabajo de fin de semana | Reparto del trabajo y seguimiento de los frentes abiertos. | 1,5 h | — |
+| 10/10 | Matías Fariña | Transversal | Seguimiento del trabajo del fin de semana | Control de lo que avanzó y reencuadre de lo que quedó trabado. | 1 h | — |
+| 10/10 | Pablo Cao | Dispositivos | Piezas de interfaz del MVP: tarjeta de tablero y alerta con ícono | Variantes nuevas de las piezas comunes para las pantallas del programa. | 3 h | 6 h |
+| 10/10 | Juani Portilla | Transversal | Botón compacto para encabezados densos | Variante de botón que no fuerza un ancho mínimo, con su área táctil cuidada. | 2 h | 4 h |
+| 11/10 | Matías Fariña | Becas | Definición de las respuestas por clave y del apoderado condicionado | Cómo se identifican las respuestas del formulario y cuándo se exige apoderado. | 2 h | — |
+| 11/10 | Matías Fariña | Transversal | Seguimiento del trabajo del fin de semana | Control de lo que avanzó y reencuadre de lo que quedó trabado. | 1 h | — |
+| 11/10 | Pablo Cao | Becas | El formulario acepta respuestas por clave y el apoderado queda condicionado | Las respuestas se guardan por clave estable y el apoderado se pide solo cuando corresponde. | 2 h | 4 h |
+| 12/10 | Matías Fariña | Dispositivos | Conducción del MVP de Dispositivos — once frentes en paralelo | Seguimiento y decisión sobre once frentes del MVP trabajados a la vez. | 4 h | — |
+| 12/10 | Matías Fariña | Transversal | Cierre de la red de seguridad y sus seguimientos | Qué quedó pendiente de la red de controles y cómo se cierra cada punto. | 2,5 h | — |
+| 12/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo y puesta al día del tablero. | 1 h | — |
+| 12/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 12/10 | Matías Fariña | Dispositivos | Redacción de las tareas del MVP y su seguimiento | Alta y encuadre de los frentes del MVP, con su criterio de cierre. | 2 h | — |
+| 12/10 | Pablo Cao | Dispositivos | Pantallas del MVP: admisiones, camas y registro diario | Construcción de las pantallas centrales del programa en el ambiente de desarrollo. | 5 h | 10 h |
+| 12/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 12/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 12/10 | Juani Portilla | Transversal | La exportación pesada sale del pedido del usuario | Los informes grandes se arman aparte y no dejan la pantalla esperando. | 2,5 h | 5 h |
+| 12/10 | Juani Portilla | Transversal | Controles de calidad del circuito de publicación | El circuito verifica la calidad del cambio antes de dejarlo pasar. | 2,5 h | 5 h |
+| 12/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 12/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 12/10 | Matías Abate | Dispositivos | Pruebas de los frentes del MVP | Recorrido de las pantallas y circuitos entregados en el día. | 4 h | — |
+| 12/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 12/10 | Matías Abate | Dispositivos | Redacción de los casos de prueba del MVP | Qué se prueba en cada tarea y con qué resultado esperado, escrito antes de desarrollar. | 3 h | — |
+| 12/10 | Nahuel De Francesco | Dispositivos | Documentación funcional del MVP | Registro de lo entregado y de las decisiones tomadas. | 3 h | — |
+| 12/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 12/10 | Nahuel De Francesco | Dispositivos | Documentación de las decisiones del MVP | Registro de lo acordado en cada frente, para que la decisión no se pierda. | 2 h | — |
+| 13/10 | Matías Fariña | Dispositivos | Conducción del MVP de Dispositivos — siete frentes | Seguimiento y decisión sobre los frentes del día. | 3,5 h | — |
+| 13/10 | Matías Fariña | Becas | Definición del orden de requisitos y del correo compartido | Cómo se ordenan los requisitos y qué pasa cuando dos usuarios comparten correo. | 2,5 h | — |
+| 13/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo y puesta al día del tablero. | 1,5 h | — |
+| 13/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 13/10 | Matías Fariña | Dispositivos | Redacción de las tareas del MVP y su seguimiento | Alta y encuadre de los frentes del MVP, con su criterio de cierre. | 2 h | — |
+| 13/10 | Pablo Cao | Becas | Los requisitos se ordenan arrastrando | El orden de los requisitos se cambia con el mouse y se puede revertir. | 2,5 h | 5 h |
+| 13/10 | Pablo Cao | Becas | Varios usuarios pueden compartir el mismo correo | El sistema deja de exigir un correo distinto por persona. | 1,5 h | 3 h |
+| 13/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 13/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 13/10 | Juani Portilla | Transversal | El circuito de publicación verifica sus propias dependencias | Una versión no sale si sus librerías no son las esperadas. | 2,5 h | 5 h |
+| 13/10 | Juani Portilla | Transversal | La hoja de estilos compilada deja de quedar vieja | El sistema avisa si el diseño publicado no corresponde al código. | 1,5 h | 3 h |
+| 13/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 13/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 13/10 | Matías Abate | Dispositivos | Pruebas del MVP y del orden de requisitos | Recorrido de los frentes del día y del arrastrar para ordenar. | 4 h | — |
+| 13/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 13/10 | Matías Abate | Dispositivos | Redacción de los casos de prueba del MVP | Qué se prueba en cada tarea y con qué resultado esperado, escrito antes de desarrollar. | 3 h | — |
+| 13/10 | Nahuel De Francesco | Dispositivos | Documentación funcional del MVP | Registro de lo entregado y de las decisiones tomadas. | 2 h | — |
+| 13/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 13/10 | Nahuel De Francesco | Dispositivos | Documentación de las decisiones del MVP | Registro de lo acordado en cada frente, para que la decisión no se pierda. | 2 h | — |
+| 14/10 | Matías Fariña | Dispositivos | Integración de los frentes del MVP y revisión de fidelidad | Verificación pantalla por pantalla contra el diseño aprobado e integración de lo construido en el período. | 4 h | — |
+| 14/10 | Matías Fariña | Becas | Definición de las notificaciones con imágenes y adjuntos | Qué puede llevar una notificación y cómo se envía. | 2 h | — |
+| 14/10 | Matías Fariña | Transversal | Coordinación del día y revisión de lo publicado | Seguimiento de los frentes cerrados y revisión funcional de lo que quedó publicado. | 1,5 h | — |
+| 14/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 14/10 | Matías Fariña | Transversal | Informe de avance y registro de lo entregado | Qué quedó terminado en el período y en qué estado está cada frente. | 2 h | — |
+| 14/10 | Pablo Cao | Dispositivos | Las pantallas construidas se alinean al diseño aprobado | Repaso de cada pantalla contra el diseño, con sus correcciones. | 5 h | 10 h |
+| 14/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 14/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 14/10 | Juani Portilla | Dispositivos | Dos personas pueden operar a la vez sobre la misma institución | Dos agentes trabajando al mismo tiempo no se pisan ni duplican registros. | 3 h | 6 h |
+| 14/10 | Juani Portilla | Transversal | Actualización de dependencias del sistema | Puesta al día de las librerías del backend, del frontend y del pipeline. | 2 h | 4 h |
+| 14/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 14/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 14/10 | Matías Abate | Dispositivos | Pruebas de los frentes integrados y de fidelidad | Recorrido de lo construido contra el diseño y los criterios acordados. | 5 h | — |
+| 14/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 14/10 | Matías Abate | Dispositivos | Redacción de los casos de prueba del MVP | Qué se prueba en cada tarea y con qué resultado esperado, escrito antes de desarrollar. | 2 h | — |
+| 14/10 | Nahuel De Francesco | Becas | Las notificaciones admiten imágenes y adjuntos comprimidos | Una campaña puede llevar imágenes incrustadas y archivos adjuntos. | 3 h | 6 h |
+| 14/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 14/10 | Nahuel De Francesco | Dispositivos | Documentación de las decisiones del MVP | Registro de lo acordado en cada frente, para que la decisión no se pierda. | 2 h | — |
+| 15/10 | Matías Fariña | Transversal | Publicación a producción del organismo | Preparación, verificación y publicación de la versión en el ambiente productivo. | 4 h | — |
+| 15/10 | Matías Fariña | Becas | Verificación del envío masivo de notificaciones | Comprobación del envío real contra el servicio de correo, con sus registros de entrega. | 2 h | — |
+| 15/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo y puesta al día del tablero. | 1,5 h | — |
+| 15/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 15/10 | Matías Fariña | Transversal | Coordinación con el equipo técnico del organismo | Acuerdos de publicación y respuesta a las consultas del organismo. | 1 h | — |
+| 15/10 | Pablo Cao | Becas | Envío masivo de notificaciones por correo | Las campañas salen por el servicio de correo con control de volumen. | 2 h | 4 h |
+| 15/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 15/10 | Juani Portilla | Transversal | Acompañamiento de la publicación a producción | Seguimiento de la publicación y verificación del sistema en marcha. | 2 h | — |
+| 15/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 15/10 | Matías Abate | Transversal | Pruebas en el ambiente del organismo | Recorrido de lo publicado sobre el ambiente productivo. | 2 h | — |
+| 15/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 15/10 | Matías Abate | Becas | Redacción de los casos de prueba de las tareas de Becas | Qué se prueba en cada tarea y con qué resultado esperado, escrito antes de desarrollar. | 2 h | — |
+| 15/10 | Nahuel De Francesco | Transversal | Documentación funcional del período | Registro de lo entregado y de las decisiones tomadas. | 1 h | — |
+| 15/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 15/10 | Nahuel De Francesco | Transversal | Seguimiento de las tareas y documentación del período | Puesta al día del estado de cada tarea y registro de lo resuelto. | 2 h | — |
+| 16/10 | Matías Fariña | Dispositivos | Definición de la baja de instituciones y registro del MVP | Cómo se da de baja una institución y qué horas consumió cada frente del MVP. | 3 h | — |
+| 16/10 | Matías Fariña | Becas | Definición de las bajas del constructor y del caso con apoderado | Qué pasa al dar de baja una pregunta del catálogo y cómo se guarda el caso con apoderado. | 2,5 h | — |
+| 16/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo y puesta al día del tablero. | 2 h | — |
+| 16/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 16/10 | Matías Fariña | Transversal | Registro del consumo de horas y gestión del tablero | Reconstrucción del consumo del período y puesta al día del tablero. | 2 h | — |
+| 16/10 | Pablo Cao | Becas | Las bajas del constructor respetan el catálogo y el canal | Dar de baja una pregunta no rompe los formularios que ya la usan. | 2,5 h | 5 h |
+| 16/10 | Pablo Cao | Becas | El borrador del merendero se guarda sin trabas del navegador | Un borrador incompleto se puede guardar igual, sin que el navegador lo impida. | 1,5 h | 3 h |
+| 16/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 16/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 16/10 | Juani Portilla | Becas | Prueba de punta a punta del constructor de formularios | Recorrido automático que arma un formulario y lo completa como lo haría una persona. | 2,5 h | 5 h |
+| 16/10 | Juani Portilla | Becas | El envío a SIIS no apunta a producción por error | El sistema guarda contra qué ambiente del organismo trabaja y avisa si no corresponde. | 1,5 h | 3 h |
+| 16/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 16/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 16/10 | Matías Abate | Becas | Pruebas del caso con apoderado y de las bajas | Verificación del guardado del caso y del comportamiento de las bajas. | 3 h | — |
+| 16/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 16/10 | Matías Abate | Dispositivos | Redacción de los casos de prueba del MVP | Qué se prueba en cada tarea y con qué resultado esperado, escrito antes de desarrollar. | 2 h | — |
+| 16/10 | Nahuel De Francesco | Dispositivos | Baja de instituciones | Una institución se puede dar de baja conservando su historia. | 2 h | 4 h |
+| 16/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 16/10 | Nahuel De Francesco | Dispositivos | Documentación de las decisiones del MVP | Registro de lo acordado en cada frente, para que la decisión no se pierda. | 1 h | — |
+| 16/10 | Nahuel De Francesco | Transversal | Seguimiento de las tareas del período | Puesta al día del estado de cada tarea. | 1 h | — |
+| 17/10 | Matías Fariña | Dispositivos | Revisión interna de lo construido del MVP | Repaso de lo desarrollado hasta ahora contra lo acordado, con su matriz de resultados. | 3 h | — |
+| 17/10 | Matías Fariña | Becas | Análisis de los roles de Becas y del coordinador | Qué administra cada rol del programa y dónde se superponían. | 3 h | — |
+| 17/10 | Matías Fariña | Transversal | Coordinación del trabajo de fin de semana | Reparto del trabajo y seguimiento de los frentes abiertos. | 2 h | — |
+| 17/10 | Matías Fariña | Dispositivos | Registro de la revisión interna del MVP y su matriz de resultados | Qué se revisó, qué se observó y cómo quedó cada punto. | 1 h | — |
+| 17/10 | Matías Fariña | Transversal | Gestión del tablero y cierre del período | Puesta al día del tablero y encuadre de lo que sigue. | 1 h | — |
+| 17/10 | Pablo Cao | Becas | Los roles de Becas dejan de pisarse entre sí | Cada rol administra lo suyo sin invadir el alcance de otro. | 3 h | 6 h |
+| 17/10 | Pablo Cao | Becas | El coordinador administra los requisitos de identidad | El coordinador puede configurar qué se exige para identificar a la persona. | 2 h | 4 h |
+| 17/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 17/10 | Juani Portilla | Transversal | El motor de condiciones responde igual en los dos motores de base | Las reglas del formulario se comportan igual en desarrollo y en el ambiente del organismo. | 3 h | 6 h |
+| 17/10 | Juani Portilla | Transversal | Los controles de publicación quedan alineados | El circuito que publica exige los mismos controles que el de los cambios. | 2 h | 4 h |
+| 17/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1,5 h | — |
+| 17/10 | Matías Abate | Dispositivos | Pruebas de la revisión interna del MVP | Recorrido de los puntos observados y verificación de cada corrección. | 4 h | — |
+| 17/10 | Matías Abate | Becas | Redacción de los casos de prueba de las tareas de Becas | Qué se prueba en cada tarea y con qué resultado esperado, escrito antes de desarrollar. | 2 h | — |
+| | | | **Total 9 al 17/10** | | **254,5 h** | **136 h** |
+
+### :material-briefcase-outline: Consumo de octubre por programa
+
+| Programa | Horas octubre |
+|---|---:|
+| Becas | 193 h 00 min |
+| Transversal | 245 h 00 min |
+| Dispositivos | 85 h 00 min |
+| **Total octubre 2026 (al 17/10)** | **523 h 00 min** |
+
+!!! note "Qué incluye"
+    El trabajo propio de octubre al 17/10 es de **430 h 30 min**. Las horas de Becas incluyen además las
+    **92 h 30 min trasladadas de septiembre**, cuyo detalle día por día está en las secciones de ese
+    mes: 430 h 30 min + 92 h 30 min = **523 h 00 min**. El mes está en curso, así que todavía no hay
+    imputación de cierre.
 
 ---
 
 ## :material-account-group: Consumo por persona — acumulado del proyecto
 
-| Persona | Rol | Junio | Julio | Agosto | Septiembre | **Total** |
-|---|---|---:|---:|---:|---:|---:|
-| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,8 | 197,0 | 196,5 | **770 h 43 min** |
-| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 229,5 | **718 h 01 min** |
-| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,3 | 219,0 | 197,5 | **552 h 47 min** |
-| Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 177,0 | **384 h 30 min** |
-| Nahuel De Francesco | Adaptación al proyecto *(desde el 09/09)* | — | — | — | 38,5 | **38 h 30 min** |
-| Agostina Coppola | Análisis funcional y testing *(hasta agosto)* | 112,3 | — | — | — | **112 h 17 min** |
-| Equipo UX | Mockups del programa *(junio)* | 65,0 | — | — | — | **65 h 00 min** |
-| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **839 h 00 min** | **2.641 h 42 min** |
+| Persona | Rol | Junio | Julio | Agosto | Septiembre | Octubre *(al 17/10)* | **Total** |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,75 | 197,0 | 196,5 | 77,5 | **848 h 10 min** |
+| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 229,5 | 152,0 | **870 h 01 min** |
+| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,25 | 219,0 | 197,5 | 80,0 | **632 h 44 min** |
+| Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 177,0 | 75,0 | **459 h 30 min** |
+| Nahuel De Francesco | Desarrollo, documentación y pruebas *(desde el 09/09)* | — | — | — | 38,5 | 46,0 | **84 h 30 min** |
+| Agostina Coppola | Análisis funcional y testing *(hasta agosto)* | 112,3 | — | — | — | — | **112 h 17 min** |
+| Equipo UX | Mockups del programa *(junio)* | 65,0 | — | — | — | — | **65 h 00 min** |
+| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **839 h 00 min** | **430 h 30 min** | **3.072 h 12 min** |
 
 !!! note "Cómo leer esta tabla"
     Las columnas mensuales van en horas decimales, tal como las publica la página de cada mes; los totales
-    por persona van en horas y minutos. La suma por persona difiere en **6 minutos** del total del proyecto
-    por el redondeo del registro de julio. Agosto es **esfuerzo real** (803 h 30 min): al cliente se le
-    imputaron 700 h y el resto se trasladó a septiembre. Septiembre también es **esfuerzo real**
-    (839 h propias + 103 h 30 min de agosto = 942 h 30 min): se imputaron 850 h y 92 h 30 min
-    pasaron a octubre.
+    por persona van en horas y minutos. **Las columnas suman exactamente el total de cada mes y los totales
+    por persona suman el contador del proyecto.**
+
+    Dos aclaraciones para cuadrar la tabla contra el registro día por día: en agosto hay filas de
+    **«Equipo (4 personas)»** por 8 h de reuniones, que acá figuran repartidas a razón de 2 h por
+    integrante; y del 1 al 14 de agosto el registro es día por día, sin columna de programa, por lo que
+    la apertura por programa de ese mes se arma sobre el total y no fila por fila.
+
+    Agosto y septiembre son **esfuerzo real**, no imputación: agosto 803 h 30 min (se imputaron 700 h y
+    103 h 30 min pasaron a septiembre) y septiembre 942 h 30 min (se imputaron 850 h y 92 h 30 min
+    pasaron a octubre).
 
 ### :material-clipboard-text-outline: En qué trabajó cada uno en septiembre
 
@@ -1049,7 +1316,7 @@
 
 | Programa | Horas junio |
 |---|---:|
-| Becas | 499 h 12 min (100%) |
+| Becas | 499 h 12 min |
 | **Total junio 2026** | **499 h 12 min** |
 
 ---
@@ -1058,15 +1325,16 @@
 
 !!! success "Contador total"
 
+    **184.332 minutos** (3.072 h 12 min)
 
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 839 h 00 min + octubre 430 h 30 min (al 17/10).
 
-    **158.502 minutos** (2.641 h 42 min)
+    Es el **esfuerzo real ejecutado**, no la imputación. A efectos de imputación, agosto cerró por 700 h con
+    103 h 30 min trasladadas a septiembre, y septiembre cerró por 850 h con 92 h 30 min trasladadas a octubre.
+    Cada traslado se registra en el mes en que se trabajó y se imputa en el siguiente, así que el contador
+    no lo cuenta dos veces.
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 839 h 00 min.
-    (El contador anterior decía 1.939 h 42 min: no sumaba bien los cuatro meses; se corrigió al recalcularlo.)
-
-    Es el **esfuerzo real ejecutado**. A efectos de imputación, agosto cierra por 700 h y sus 103 h 30 min de
-    excedente quedan imputadas a septiembre 2026.
+    *El contador se recalculó el 19/08/2026: la versión anterior no sumaba bien los meses y decía 1.939 h 42 min.*
 
 
 

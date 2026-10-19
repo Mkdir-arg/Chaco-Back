@@ -69,6 +69,7 @@ el detalle del relevamiento, y el primero declara `AUTO_ID = "id_volver_%s"`.
 De `programas/forms.py` la evidencia de diseño es **`INPUT_CLASS`, los `widget=…` que la usan y `marca_requerido`**;
 el resto del archivo es validación de dominio (`clean_*`, validaciones cruzadas) y no define nada
 visual. Un cambio ahí que no toque `INPUT_CLASS`, un widget ni `marca_requerido` no mueve esta ficha.
+Caso: `RevisionPersonasFiltroForm` (filtros GET de la bandeja de revisión) solo valida la entrada; sus controles los escribe la plantilla del listado dentro de `data-dynamic-list-filters` y no usan `INPUT_CLASS`.
 
 **Un campo que sale del form sale también de los modales que lo dibujan a mano.** Los modales de
 requisito escriben sus controles sin `{{ form.campo }}` en la edición; cuando `RequisitoNativoForm`
