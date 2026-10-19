@@ -208,7 +208,9 @@ class Command(ComandoSiisBase):
     def _paso_token(self, cliente):
         self._titulo("2. Autenticación (POST /api/v1/auth/token)")
         try:
-            token = cliente._token()
+            # Login sincrónico con el timeout de login: mide la latencia verdadera,
+            # que el camino de los requests esconde detrás de un hilo.
+            token = cliente._login()
         except Exception as exc:  # noqa: BLE001 — el diagnóstico informa cualquier falla, no la propaga
             self._error(f"No se pudo obtener el token: {type(exc).__name__}: {exc}")
             respuesta = getattr(exc, "response", None)

@@ -51,6 +51,10 @@ MARGEN_ESPERA_LOGIN = 1
 #: Cuánto puede tardar, como mucho, cada tipo de llamada externa. Son
 #: ``connect + read``: el peor caso de ``requests`` es agotar los dos.
 COSTOS = {
+    # Lo que el request **espera** por el token, no lo que tarda el login: el POST
+    # real corre en un hilo (``SiisAPIClient._token``) con ``SIIS_API_TIMEOUT_LOGIN``
+    # y no es tiempo del request. Pasada la espera el request falla y el hilo
+    # deja el token para el siguiente.
     "siis.token": lambda: settings.SIIS_API_CONNECT_TIMEOUT + settings.SIIS_API_TIMEOUT_TOKEN,
     "siis.consulta": lambda: settings.SIIS_API_CONNECT_TIMEOUT + settings.SIIS_API_TIMEOUT_CONSULTA,
     "siis.alta": lambda: settings.SIIS_API_CONNECT_TIMEOUT + settings.SIIS_API_TIMEOUT,
