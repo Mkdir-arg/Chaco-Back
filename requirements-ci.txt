@@ -72,6 +72,6 @@ mkdocs-material==9.7.7
 # es de la época de Django 5.1 y hoy ni siquiera resuelve (`pip` da `ResolutionImpossible`:
 # drf-stubs 3.17 pide django-stubs 6). Estas son las versiones compatibles con el par que
 # corre el CI, Django 5.2.17 + DRF 3.17.2. Las sube dependabot con el resto.
-mypy==2.1.0
+mypy==2.4.0
 django-stubs[compatible-mypy]==6.1.2
 djangorestframework-stubs[compatible-mypy]==3.17.0
