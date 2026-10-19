@@ -463,6 +463,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 335 | El CSV de convocatoria también lo baja el Coordinador | Becas · roles (RBAC) · exports de convocatoria | `#rbac` `#convocatorias` `#datos` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | `users.0039` |
 | 336 | El Coordinador Regional consulta la revisión de sus casos, sin editarla | Becas · roles (RBAC) · revisión de casos · Cupo | `#rbac` `#cupos` `#ui` | PM — decisión en sesión, 17/10/2026, sobre el diagnóstico del Cambio 332 | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 337 | La bandeja de revisión se filtra por nombre, apellido, DNI y fecha de nacimiento | Becas · revisión de casos | `#ui` `#performance` | Usuario — pedido en sesión, 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
+| 338 | SIIS que no contesta a tiempo ya no se muestra como «No se pudo conectar» | Becas · validación de compatibilidad contra SIIS | `#siis` `#relevamientos` | PM — hallazgo en PRD (ReadTimeout del token), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
+| 339 | El login de SIIS deja de pagarse dentro del clic: corre en segundo plano y el request espera el token | Becas · alta en SIIS (token, «Aprobar», proceso masivo) · comandos de diagnóstico | `#siis` `#infra` `#performance` | Proveedor SIIS — pedido del 19/10/2026 (PRD 07:23) | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 340 | Sumar al proyecto las skills de ECC que sirvan para Chaco | Transversal · método de trabajo de los agentes | `#metodo` `#datos` `#performance` | PM — pedido en sesión, 17/10/2026: «suma las skill que creas útiles para el proyecto» | 17/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -44260,6 +44262,214 @@ Revertir el commit. No hay datos que se pierdan.
 No aplica: entrada nueva.
 ---
 
+# Cambio 338 — SIIS que no contesta a tiempo ya no se muestra como «No se pudo conectar»
+
+🟢 **HECHO — 19/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · validación de compatibilidad contra SIIS |
+| **Etiquetas** | `#siis` `#relevamientos` |
+| **Solicitante** | PM — hallazgo en PRD, 19/10/2026 |
+| **Fecha del pedido** | 19/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En PRD, al validar un caso contra SIIS, el POST del token dio `ReadTimeout` (la conexión se abrió pero SIIS no
+contestó en 5 s) y la pantalla mostró «Motivo: No se pudo conectar con SIIS.», que es inexacto.
+
+## Alcance acordado
+
+- **Entra:** `SiisAPIClient.validar_compatibilidad`: un `requests.ReadTimeout`, en el token o en la consulta,
+  devuelve `error = "SIIS no respondió a tiempo."`.
+- **Afuera:** `ConnectionError`, `ConnectTimeout`, el corte del cortacircuito y la configuración incompleta
+  conservan «No se pudo conectar con SIIS.»; el alta (`cargar_beneficiario`) y los catálogos no se tocan.
+
+## Decisiones tomadas
+
+1. **Solo `ReadTimeout`.** `ConnectTimeout` hereda de `ConnectionError` y de `Timeout` pero no de `ReadTimeout`:
+   ahí sí no se pudo conectar y el texto no cambia.
+2. **El cortacircuito sigue igual.** El `ReadTimeout` cuenta como falla como hasta ahora; solo cambia el texto.
+3. **Nadie compara el texto.** Se buscó «No se pudo conectar con SIIS» en todo el repo: ningún código lo usa para
+   decidir estado, reintento ni tooltip. `validacion_siis.py` lo copia tal cual como `motivo` del intento y
+   `diagnosticar_siis` lo imprime; el mensaje nuevo recibe el mismo tratamiento. Los demás hallazgos son tests que
+   lo usan como dato de un mock.
+
+## Implementación
+
+`validar_compatibilidad` captura la excepción y, si es `ReadTimeout`, devuelve el mensaje nuevo; mismas claves del
+dict, mismo logging.
+
+## Archivos
+
+- `programas/services/siis.py`
+- `programas/tests/test_siis_service.py`
+- Esta entrada y su fila del índice.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Cuatro tests nuevos en `SiisClientTests`: `ReadTimeout` en el token, `ReadTimeout` en la consulta,
+`ConnectTimeout` y `ConnectionError`. Mutación (cambio revertido en `siis.py`): fallan los dos de `ReadTimeout`;
+los otros dos pasan. Resultado de las suites y de `check`/ruff en el PR.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- Si el timeout del token (5 s) es corto para PRD es una decisión de infraestructura, no de este cambio.
+
+## Reversión
+
+Revertir el commit. No toca datos.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+# Cambio 339 — El login de SIIS deja de pagarse dentro del clic: corre en segundo plano y el request espera el token
+
+🟢 **HECHO — 19/10/2026** · Precisa el Cambio 154 (SIIS-09).
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · alta en SIIS (token, «Aprobar», proceso masivo) · comandos de diagnóstico |
+| **Etiquetas** | `#siis` `#infra` `#performance` |
+| **Solicitante** | Proveedor de SIIS — pedido del 19/10/2026, a raíz del incidente de PRD de las 07:23 |
+| **Fecha del pedido** | 19/10/2026 |
+| **Issue / épica** | No aplica |
+| **Partes afectadas** | Servidor/API · Infra/ECOM |
+| **Migración** | No requiere |
+
+## Pedido original
+
+`SiisAPIClient._token()` hacía el `POST /api/v1/auth/token` dentro del request del operador con
+timeout `(5, 5)`. SIIS informó que el login tarda «unos segundos» (genera un hash), admite 20
+logins por minuto, el token dura 60 minutos y pide al menos 15 s de timeout. Con 5 s el
+`ReadTimeout` tiraba un login que SIIS sí completaba: no quedaba token y el clic siguiente volvía a
+pagar el login.
+
+## Alcance acordado
+
+Subir el timeout del login a 15 s **sin** tocar el presupuesto de 55 s del Cambio 154 (`core.E003`):
+«aprobar un caso» ya gastaba los 55 exactos con `siis.token` en 10 s.
+
+## Decisiones tomadas
+
+- **El login real sale del request.** Corre en un hilo daemon (`lanzar_en_segundo_plano`) con
+  `SIIS_API_TIMEOUT_LOGIN` (15 s, variable nueva). `SIIS_API_TIMEOUT_TOKEN` pasa a significar cuánto
+  *espera* un request por un token: el request espera como máximo `CONNECT + TOKEN` (10 s) sondeando la
+  caché cada 0,25 s, y si no aparece levanta `requests.ReadTimeout`, que los `except` actuales ya
+  trataban. `COSTOS["siis.token"]` no cambia, así que el presupuesto tampoco.
+- **Si el login tarda más que la espera, no se pierde:** el hilo termina y deja el token en la caché
+  compartida; el clic siguiente lo usa sin volver a pagar el login.
+- **Candado entre pods** (`cache.add` sobre `siis_api:login:lock`, vida `CONNECT + LOGIN + 5`): solo quien
+  lo gana lanza el login; se libera en `finally`. Los demás esperan el token en la caché.
+- **Pausa tras un login fallido** (`siis_api:login:pausa`, 10 s, con el motivo `red`/`config`): impide
+  relanzar y hace que la siguiente llamada sin token falle enseguida, sin POST ni espera. Techo de 6
+  logins por minuto aunque SIIS esté caído (el límite de SIIS es 20). Un cuerpo sin `access_token`
+  sigue siendo `_SiisConfigurationError(falta_configuracion=False)`, no un error de red.
+- **Renovación anticipada:** con el token a menos de 10 min de vencer, el request devuelve el actual al
+  instante y dispara una renovación en segundo plano. El vencimiento va en una clave aparte
+  (`siis_api:access_token:vence`) y **no** dentro del valor de `TOKEN_CACHE_KEY`, que sigue siendo el string
+  del token: en un rolling deploy un pod viejo leería un dict y mandaría `Bearer {...}`. Sin la clave de
+  vencimiento el token se usa igual, solo que sin renovación anticipada.
+- **`expires_in` < 300 s** deja un `logger.warning` con el valor (sospecha de minutos) y no se reinterpreta.
+- **Diagnóstico:** `diagnosticar_siis` llama a `SiisAPIClient._login()`, un login sincrónico con el timeout
+  de 15 s y el mismo guardado, para medir la latencia real. `diagnosticar_integraciones` solo verifica la
+  configuración de SIIS (el `_token()` que usa es el de Personas).
+- **Base de datos en el hilo:** `instrument_external_call` no toca la base (es un `ContextVar` que el hilo no
+  hereda) y el login solo usa la caché. Igual el hilo cierra su conexión (`connection.close()`) al terminar,
+  por el «MySQL server has gone away» de PRD con hilos viejos. El cierre está en el envoltorio del hilo y no
+  en el cuerpo, para que los tests con el lanzador sincrónico no cierren la conexión de la prueba.
+- **No se instala un CronJob nuevo en ECOM.** La renovación anticipada sale del tráfico mismo (el primer
+  request dentro de la ventana de 10 min); no hace falta un proceso aparte que renueve el token.
+- Se mira `legajos/services/consulta_renaper.py` (espera del login ajeno con límite compartido) y se copia
+  su espíritu —quien no gana el login espera, con tope, el resultado del que sí lo hizo—; no se modifica.
+
+## Implementación
+
+El clic ya no paga el login: el POST de 15 s lo hace un hilo y el request espera el token hasta 10 s. Si SIIS
+tarda más, ese clic falla como antes por timeout, pero el token queda guardado para el siguiente.
+
+## Archivos
+
+- `programas/services/siis.py` — `_token()`, `_login()`, `_login_de_fondo()`, `_lanzar_login()`,
+  `lanzar_en_segundo_plano()` y las claves nuevas.
+- `config/settings.py`, `.env.local.example`, `.env.qa.example`, `docker-compose.yml` —
+  `SIIS_API_TIMEOUT_LOGIN`.
+- `core/integraciones.py` — comentario de `siis.token` (cuenta la espera, no el login).
+- `programas/management/commands/diagnosticar_siis.py` — usa `_login()`.
+- `docs/internal/temas/siis-api.md` — variable nueva.
+- `programas/tests/test_siis_token.py` (nuevo) y `programas/tests/test_llamadas_externas.py`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- `test_siis_token.py` (15 casos en la primera ronda, 27 con la segunda, sin sleeps: lanzador y reloj sustituidos): caché fría con login rápido (un
+  solo POST, con timeout `(5, 15)`); login más lento que la espera (falla a los 10 s y el token queda para la
+  llamada siguiente sin nuevo POST); ventana de renovación; token lejos de vencer; token de un pod viejo sin
+  clave de vencimiento; candado tomado por otro (0 POST, usa el token cuando aparece, y vence si no aparece);
+  login fallido con pausa (la segunda llamada falla sin POST ni espera); cuerpo sin token; configuración
+  incompleta; `expires_in` chico; `_login()` del diagnóstico; `validar_compatibilidad` y el alta con login
+  lento; y `core.E003` sin errores con los defaults.
+- `test_llamadas_externas`: el POST de login usa `(5, 15)` y lo que se declara y suma al presupuesto es la
+  espera; la cadena de «aprobar» sigue entrando en 55 s.
+- **Mutaciones** (cada una en rojo y restaurada): sin el candado (`cache.add` siempre verdadero): 2 rojos;
+  sin el límite de espera: 4 rojos.
+- `manage.py check` OK; `check --deploy` sin `core.E003` (el único error es `SIIS_API_URL` sin definir en
+  el entorno de prueba); Ruff check y format (0.16.10) OK.
+
+## Ronda 2 de la revisión (PR #914)
+
+- **Se integró #913** (Cambio 338: «SIIS no respondió a tiempo.» para `ReadTimeout`). Los conflictos del índice y de las entradas se resolvieron a mano: quedan las dos entradas, la 337 y esta.
+- **`expires_in` corto ya no paga un login por request.** La ventana de renovación es `min(10 min, ttl // 2)`: nunca pasa de la mitad de la vida del token. Antes, con `expires_in` ≤ 660 el token nacía dentro de la ventana y cada `_token()` relanzaba el login (10 llamadas = 10 POST con `expires_in=600`; con `expires_in=60`, el masivo pasaba el tope de 20/min). La clave auxiliar pasó a guardar «renovar desde» (`siis_api:access_token:renovar_desde`, epoch) y no el vencimiento. El warning avisa con `expires_in < 2 × 10 min + 60 = 1260`, que es justo cuando la ventana se achica; con el valor real (3600) todo sigue igual.
+- **La pausa conserva el tipo de falla** (`timeout`, `connect`, `http:<status>`, `red`, `config`, `otro`) y quien cae en ella recibe la excepción equivalente: `ReadTimeout`, `ConnectTimeout`, `HTTPError` con un `response.status_code` (así `_cargar_catalogo` distingue 401/403/5xx), `ConnectionError`, `_SiisConfigurationError`. Con #913, un login colgado da «SIIS no respondió a tiempo.» también a los requests que caen en la pausa.
+- **Candado con nonce:** el valor es único y el `finally` borra solo si sigue siendo el propio (get + compare + delete). Ventana residual entre el `get` y el `delete`: la caché no tiene compare-and-delete; el costo es un login de más.
+- **El hilo vuelve a chequear** después de tomar el candado si hace falta el login (otro pudo renovar) y sale sin POST si no.
+- **En tests el lanzador es sincrónico en forma global** (`PYTEST_RUNNING` y no `SIIS_LOGIN_HILO_REAL`): ningún test de SIIS levanta un hilo real con sleeps reales salvo el que prueba el hilo. Medido contando `Thread.start` de los hilos `siis-login` en la corrida de las suites de SIIS y `core.tests` (1685 tests): 1 hilo, el del test explícito.
+- Tests nuevos: renovación con el candado ajeno (no relanza, devuelve el actual), `expires_in` 600 y 60 con 10 llamadas (1 login) y una renovación por ventana, tipo y status conservados en la pausa, 401 en el catálogo vía la pausa, login colgado con #913, candado ajeno no borrado, recheck en el hilo.
+- **Mutaciones de la ronda** (rojo y restaurado): ventana fija de 10 min → 3 rojos; pausa que guarda siempre «red» → 1 falla y 7 errores.
+
+## Puesta en marcha en el servidor
+
+Opcional: `SIIS_API_TIMEOUT_LOGIN` (default 15). Sin setearla el comportamiento es el descrito.
+Rolling deploy: un pod viejo sigue pidiendo el token dentro del request con `SIIS_API_TIMEOUT_TOKEN`; los
+dos tipos de pod comparten la clave del token (un string) y se entienden. Los pods viejos ignoran el candado,
+la pausa y la clave de vencimiento, así que durante el deploy el límite de 20 logins por minuto lo cuida
+solo la caché, no el candado.
+
+## Pendientes / a definir
+
+- Si el login supera los 10 s de espera en PRD, ese clic falla igual (el siguiente anda). Subir la espera
+  no es posible sin pasar el presupuesto de 55 s.
+
+## Reversión
+
+Revertir el commit. El token vuelve a pedirse dentro del request con `(5, 5)`; las claves nuevas de la caché
+expiran solas.
+
+## Historial
+
+No aplica: entrada nueva.
+
+---
+
+---
+
 # Cambio 340 — Sumar al proyecto las skills de ECC que sirvan para Chaco
 
 🟢 **HECHO — 17/10/2026**
@@ -44362,4 +44572,3 @@ Borrar las cuatro carpetas de `.claude/skills/`. No toca datos.
   `Publish main` y el `Release gate`, y el test de contrato del front. `pm-assistant` y `qa-analyst` declaran
   `model: sonnet`: hacen lectura y redacción, y heredaban Opus.
 
----

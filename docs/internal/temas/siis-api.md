@@ -147,7 +147,9 @@ código ya consume la versión vigente:
   falta, no se manda nada en vez de mandarlo al SIIS de desarrollo),
   `SIIS_API_CLIENT_ID`, `SIIS_API_CLIENT_SECRET`, `SIIS_API_CONNECT_TIMEOUT` (5)
   y un timeout de lectura por tipo de llamada desde SIIS-09:
-  `SIIS_API_TIMEOUT_TOKEN` (5), `SIIS_API_TIMEOUT_CONSULTA` (10, compatibilidad
+  `SIIS_API_TIMEOUT_LOGIN` (15, el POST del login, que corre en un hilo fuera
+  del request), `SIIS_API_TIMEOUT_TOKEN` (5, cuánto espera un request por el
+  token), `SIIS_API_TIMEOUT_CONSULTA` (10, compatibilidad
   y catálogos) y `SIIS_API_TIMEOUT` (20, solo el alta en la tabla intermedia).
   La suma de las llamadas externas de un request tiene que entrar en los 55 s
   que declara `core.integraciones.CADENAS` —nginx corta a los 60—, y eso lo
