@@ -1,7 +1,7 @@
 import functools
 import logging
 
-from django.db import close_old_connections
+from django.db import connections
 from django.http import HttpResponseServerError
 from django.shortcuts import render
 from django.views import defaults
@@ -20,6 +20,20 @@ HTML_500_MINIMO = (
 )
 
 
+def cerrar_conexiones_viejas():
+    """Como `close_old_connections()`, pero sin tocar una conexión dentro de un atomic.
+
+    `close_if_unusable_or_obsolete()` (Django 5.2.17) no mira `in_atomic_block`: dentro de
+    un `atomic()` el autocommit está apagado, difiere del configurado y la conexión se
+    cierra (queda `closed_in_transaction`). Hoy no pasa en producción, pero sí pasaría con
+    un `TestCase` contra el motor real que pida un 404/500, así que esas conexiones se
+    saltean a propósito.
+    """
+    for conexion in connections.all(initialized_only=True):
+        if not conexion.in_atomic_block:
+            conexion.close_if_unusable_or_obsolete()
+
+
 def _con_conexiones_frescas(vista):
     """Corre una vista de error sin heredar una conexión muerta del hilo.
 
@@ -31,19 +45,20 @@ def _con_conexiones_frescas(vista):
     inactividad, y el render de `404.html`/`500.html` (que consulta permisos en
     el context processor y en templatetags) muere con `OperationalError 2006`.
 
-    Se usa `close_old_connections()` y no `connections.close_all()`: cierra solo
-    la conexión inutilizable o vencida. Con `CONN_MAX_AGE=0` (daphne) eso es
-    siempre; con `CONN_MAX_AGE=60` (gunicorn) una conexión viva de un request
-    sync en curso se conserva.
+    Se cierra con `cerrar_conexiones_viejas()` y no con `connections.close_all()`: solo
+    las conexiones vencidas (`CONN_MAX_AGE`), con errores o inutilizables. Con
+    `CONN_MAX_AGE=0` (daphne) una conexión ya usada siempre cuenta como vencida; con
+    `CONN_MAX_AGE=60` (gunicorn en icore) se cierra si pasó el minuto o tuvo errores, y
+    si no se conserva. Dentro de un atomic no se cierra nada.
     """
 
     @functools.wraps(vista)
     def envuelta(request, *args, **kwargs):
-        close_old_connections()
+        cerrar_conexiones_viejas()
         try:
             return vista(request, *args, **kwargs)
         finally:
-            close_old_connections()
+            cerrar_conexiones_viejas()
 
     return envuelta
 

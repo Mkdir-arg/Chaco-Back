@@ -8,18 +8,18 @@ MariaDB cerró por inactividad el render de `404.html`/`500.html` moría con
 
 No se puede reproducir la conexión muerta de verdad en SQLite en memoria (no hay
 servidor que la cierre ni hilo del pool con conexión propia), así que se simula con un
-render que falla mientras nadie haya llamado a `close_old_connections` en esa petición.
+render que falla mientras nadie haya llamado a `cerrar_conexiones_viejas` en esa petición.
 """
 
 from unittest import mock
 
 from django.contrib.auth.models import AnonymousUser
-from django.db import OperationalError
+from django.db import OperationalError, connection
 from django.test import RequestFactory, TestCase, override_settings
 
 from config import views
 
-CLOSE = "config.views.close_old_connections"
+CLOSE = "config.views.cerrar_conexiones_viejas"
 
 
 def _request():
@@ -120,3 +120,22 @@ class UrlsRegistranLosHandlersTest(TestCase):
         self.assertEqual(urls.handler404, "config.views.page_not_found")
         self.assertEqual(urls.handler500, "config.views.server_error")
         self.assertEqual(settings.CSRF_FAILURE_VIEW, "config.views.csrf_failure")
+
+
+class DentroDeUnAtomicNoCierraTest(TestCase):
+    """`TestCase` ya corre dentro de un atomic: el handler no puede cerrar esa conexión."""
+
+    def test_dentro_de_un_atomic_no_se_cierra_la_conexion(self):
+        self.assertTrue(connection.in_atomic_block)
+        with mock.patch.object(connection, "close_if_unusable_or_obsolete") as cerrar:
+            r = views.page_not_found(_request(), Exception("x"))
+        self.assertEqual(r.status_code, 404)
+        cerrar.assert_not_called()
+
+    def test_fuera_de_un_atomic_si_se_evalua_la_conexion(self):
+        with (
+            mock.patch.object(connection, "in_atomic_block", False),
+            mock.patch.object(connection, "close_if_unusable_or_obsolete") as cerrar,
+        ):
+            views.cerrar_conexiones_viejas()
+        cerrar.assert_called_once()
