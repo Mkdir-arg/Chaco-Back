@@ -3,6 +3,7 @@
 import logging
 import threading
 import time
+import uuid
 from urllib.parse import urlparse
 
 import requests
@@ -43,6 +44,13 @@ def lanzar_en_segundo_plano(funcion):
     away»). Hoy el login no toca la base, así que es una guarda barata.
     """
 
+    if getattr(settings, "PYTEST_RUNNING", False) and not getattr(settings, "SIIS_LOGIN_HILO_REAL", False):
+        # En los tests el login corre en el acto: un hilo real con sleeps reales
+        # vuelve lentos y frágiles a todos los que llegan a pedir el token. Un test
+        # que quiere el hilo lo pide con ``SIIS_LOGIN_HILO_REAL=True``.
+        funcion()
+        return
+
     def _correr():
         try:
             funcion()
@@ -63,11 +71,12 @@ cortacircuito_consultas = Cortacircuito("siis.consulta")
 #: contestó. Un error de un proxy puede ser una página HTML entera.
 LARGO_CRUDO = 500
 TOKEN_CACHE_KEY = "siis_api:access_token"  # nosec B105
-# Cuándo vence el token de arriba (epoch). Va en una clave aparte y no dentro del
-# valor de ``TOKEN_CACHE_KEY``: durante un rolling deploy los pods viejos leen esa
-# clave esperando un string y mandarían ``Bearer {...}``. Sin esta clave el token
-# se usa igual, solo que no se renueva por anticipado.
-TOKEN_VENCE_KEY = "siis_api:access_token:vence"  # nosec B105
+# Desde cuándo conviene renovar el token de arriba (epoch: vencimiento menos la
+# ventana). Va en una clave aparte y no dentro del valor de ``TOKEN_CACHE_KEY``:
+# durante un rolling deploy los pods viejos leen esa clave esperando un string y
+# mandarían ``Bearer {...}``. Sin esta clave el token se usa igual, solo que no
+# se renueva por anticipado.
+TOKEN_RENOVAR_KEY = "siis_api:access_token:renovar_desde"  # nosec B105
 LOGIN_LOCK_KEY = "siis_api:login:lock"
 LOGIN_PAUSA_KEY = "siis_api:login:pausa"
 #: Con el token a menos de esto de vencer, el próximo request dispara la renovación
@@ -80,8 +89,10 @@ PAUSA_LOGIN_FALLIDO = 10
 INTERVALO_ESPERA_TOKEN = 0.25
 #: Margen del candado sobre el peor caso del login.
 MARGEN_LOCK_LOGIN = 5
-#: ``expires_in`` por debajo de esto hace sospechar que SIIS lo mande en minutos.
-EXPIRES_IN_SOSPECHOSO = 300
+#: ``expires_in`` por debajo de esto achica la ventana de renovación (ver
+#: ``_login``): es lo que hace sospechar que SIIS lo mande en minutos. Con el valor
+#: real (3600) la ventana es la entera.
+EXPIRES_IN_SOSPECHOSO = 2 * RENOVAR_ANTES + 60
 PROGRAMAS_CACHE_KEY = "siis_api:programas:activos"
 PROGRAMAS_TODOS_CACHE_KEY = "siis_api:programas:todos"
 CATALOGO_CACHE_SECONDS = 300
@@ -285,21 +296,51 @@ class SiisAPIClient:
                 "SIIS informó expires_in=%s: es muy corto, puede venir en minutos y no en segundos", expires_in
             )
         ttl = max(expires_in - 60, 60)
+        # La ventana de renovación nunca pasa de la mitad de la vida del token: con
+        # un token corto (p. ej. ``expires_in`` en minutos) una ventana fija de 10
+        # min lo hacía nacer ya «por renovar» y cada request pagaba un login nuevo.
+        ventana = min(RENOVAR_ANTES, ttl // 2)
         cache.set(TOKEN_CACHE_KEY, token, ttl)
-        cache.set(TOKEN_VENCE_KEY, _ahora() + ttl, ttl)
+        cache.set(TOKEN_RENOVAR_KEY, _ahora() + ttl - ventana, ttl)
         return token
 
-    def _login_de_fondo(self):
+    @staticmethod
+    def _motivo_de_pausa(exc):
+        """Qué clase de falla fue, para que quien cae en la pausa vea la misma y no «no se pudo conectar»."""
+        if isinstance(exc, _SiisConfigurationError):
+            return "config"
+        if isinstance(exc, requests.ReadTimeout):
+            return "timeout"
+        if isinstance(exc, requests.ConnectTimeout):
+            return "connect"
+        if isinstance(exc, requests.HTTPError) and getattr(exc.response, "status_code", None):
+            return f"http:{exc.response.status_code}"
+        if isinstance(exc, requests.ConnectionError):
+            return "red"
+        return "otro"
+
+    def _login_de_fondo(self, nonce):
         """Cuerpo del hilo: el login, la pausa si falla y el candado liberado siempre."""
         try:
+            if not self._hace_falta_login():
+                # Entre que se decidió lanzar y que se tomó el candado otro pudo
+                # renovar: no se gasta uno de los 20 logins por minuto de SIIS.
+                return
             self._login()
         except Exception as exc:  # noqa: BLE001 — en un hilo no hay a quién propagarle nada
-            config = isinstance(exc, _SiisConfigurationError)
             # Sin traceback: el de requests arrastra el cuerpo del pedido con las credenciales.
             logger.error("Falló el login de SIIS en segundo plano (%s: %s)", type(exc).__name__, exc)
-            cache.set(LOGIN_PAUSA_KEY, "config" if config else "red", PAUSA_LOGIN_FALLIDO)
+            cache.set(LOGIN_PAUSA_KEY, self._motivo_de_pausa(exc), PAUSA_LOGIN_FALLIDO)
         finally:
-            cache.delete(LOGIN_LOCK_KEY)
+            # Solo se borra el candado propio: si el login pasó de la vida del
+            # candado y otro lo tomó, borrarlo dejaría pasar a un tercero. Queda una
+            # ventana residual entre el ``get`` y el ``delete`` (la caché no tiene
+            # compare-and-delete); es de microsegundos y el costo es un login de más.
+            if cache.get(LOGIN_LOCK_KEY) == nonce:
+                cache.delete(LOGIN_LOCK_KEY)
+
+    def _hace_falta_login(self):
+        return not cache.get(TOKEN_CACHE_KEY) or self._por_renovar()
 
     def _lanzar_login(self):
         """Arranca el login en segundo plano si nadie más (de ningún pod) lo está haciendo.
@@ -309,25 +350,39 @@ class SiisAPIClient:
         if cache.get(LOGIN_PAUSA_KEY):
             return False
         lock = settings.SIIS_API_CONNECT_TIMEOUT + settings.SIIS_API_TIMEOUT_LOGIN + MARGEN_LOCK_LOGIN
-        if not cache.add(LOGIN_LOCK_KEY, "1", lock):
+        nonce = uuid.uuid4().hex
+        if not cache.add(LOGIN_LOCK_KEY, nonce, lock):
             return False
         try:
-            lanzar_en_segundo_plano(self._login_de_fondo)
+            lanzar_en_segundo_plano(lambda: self._login_de_fondo(nonce))
         except Exception:
-            cache.delete(LOGIN_LOCK_KEY)
+            if cache.get(LOGIN_LOCK_KEY) == nonce:
+                cache.delete(LOGIN_LOCK_KEY)
             logger.exception("No se pudo lanzar el login de SIIS en segundo plano")
             return False
         return True
 
     def _por_renovar(self):
-        vence = cache.get(TOKEN_VENCE_KEY)
-        return bool(vence) and _ahora() >= float(vence) - RENOVAR_ANTES
+        desde = cache.get(TOKEN_RENOVAR_KEY)
+        return bool(desde) and _ahora() >= float(desde)
 
     @staticmethod
     def _error_de_pausa(motivo):
+        """La excepción equivalente a la que levantó el login, para que cada ``except`` la trate como siempre."""
+        mensaje = "El último login contra SIIS falló; se reintenta en unos segundos."
         if motivo == "config":
             return _SiisConfigurationError("SIIS no devolvió un token usable.", falta_configuracion=False)
-        return requests.ConnectionError("El último login contra SIIS falló; se reintenta en unos segundos.")
+        if motivo == "timeout":
+            return requests.ReadTimeout(mensaje)
+        if motivo == "connect":
+            return requests.ConnectTimeout(mensaje)
+        if str(motivo).startswith("http:"):
+            respuesta = requests.Response()
+            respuesta.status_code = int(str(motivo).split(":", 1)[1])
+            return requests.HTTPError(mensaje, response=respuesta)
+        if motivo == "otro":
+            return ValueError(mensaje)
+        return requests.ConnectionError(mensaje)
 
     def _token(self):
         """El token, sin pagar el login dentro del request.

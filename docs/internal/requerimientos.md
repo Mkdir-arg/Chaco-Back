@@ -44346,7 +44346,7 @@ No requiere.
 
 ## Validación
 
-- `test_siis_token.py` (15 casos, sin sleeps: lanzador y reloj sustituidos): caché fría con login rápido (un
+- `test_siis_token.py` (15 casos en la primera ronda, 27 con la segunda, sin sleeps: lanzador y reloj sustituidos): caché fría con login rápido (un
   solo POST, con timeout `(5, 15)`); login más lento que la espera (falla a los 10 s y el token queda para la
   llamada siguiente sin nuevo POST); ventana de renovación; token lejos de vencer; token de un pod viejo sin
   clave de vencimiento; candado tomado por otro (0 POST, usa el token cuando aparece, y vence si no aparece);
@@ -44359,6 +44359,17 @@ No requiere.
   sin el límite de espera: 4 rojos.
 - `manage.py check` OK; `check --deploy` sin `core.E003` (el único error es `SIIS_API_URL` sin definir en
   el entorno de prueba); Ruff check y format (0.16.10) OK.
+
+## Ronda 2 de la revisión (PR #914)
+
+- **Se integró #913** (Cambio 337: «SIIS no respondió a tiempo.» para `ReadTimeout`). Los conflictos del índice y de las entradas se resolvieron a mano: quedan las dos entradas, la 337 y esta.
+- **`expires_in` corto ya no paga un login por request.** La ventana de renovación es `min(10 min, ttl // 2)`: nunca pasa de la mitad de la vida del token. Antes, con `expires_in` ≤ 660 el token nacía dentro de la ventana y cada `_token()` relanzaba el login (10 llamadas = 10 POST con `expires_in=600`; con `expires_in=60`, el masivo pasaba el tope de 20/min). La clave auxiliar pasó a guardar «renovar desde» (`siis_api:access_token:renovar_desde`, epoch) y no el vencimiento. El warning avisa con `expires_in < 2 × 10 min + 60 = 1260`, que es justo cuando la ventana se achica; con el valor real (3600) todo sigue igual.
+- **La pausa conserva el tipo de falla** (`timeout`, `connect`, `http:<status>`, `red`, `config`, `otro`) y quien cae en ella recibe la excepción equivalente: `ReadTimeout`, `ConnectTimeout`, `HTTPError` con un `response.status_code` (así `_cargar_catalogo` distingue 401/403/5xx), `ConnectionError`, `_SiisConfigurationError`. Con #913, un login colgado da «SIIS no respondió a tiempo.» también a los requests que caen en la pausa.
+- **Candado con nonce:** el valor es único y el `finally` borra solo si sigue siendo el propio (get + compare + delete). Ventana residual entre el `get` y el `delete`: la caché no tiene compare-and-delete; el costo es un login de más.
+- **El hilo vuelve a chequear** después de tomar el candado si hace falta el login (otro pudo renovar) y sale sin POST si no.
+- **En tests el lanzador es sincrónico en forma global** (`PYTEST_RUNNING` y no `SIIS_LOGIN_HILO_REAL`): ningún test de SIIS levanta un hilo real con sleeps reales salvo el que prueba el hilo. Medido contando `Thread.start` de los hilos `siis-login` en la corrida de las suites de SIIS y `core.tests` (1685 tests): 1 hilo, el del test explícito.
+- Tests nuevos: renovación con el candado ajeno (no relanza, devuelve el actual), `expires_in` 600 y 60 con 10 llamadas (1 login) y una renovación por ventana, tipo y status conservados en la pausa, 401 en el catálogo vía la pausa, login colgado con #913, candado ajeno no borrado, recheck en el hilo.
+- **Mutaciones de la ronda** (rojo y restaurado): ventana fija de 10 min → 3 rojos; pausa que guarda siempre «red» → 1 falla y 7 errores.
 
 ## Puesta en marcha en el servidor
 

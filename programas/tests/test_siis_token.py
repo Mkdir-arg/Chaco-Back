@@ -6,6 +6,7 @@ y el reloj por uno falso, así que ninguno duerme de verdad.
 """
 
 import logging
+import threading
 from unittest.mock import Mock, patch
 
 import requests
@@ -18,7 +19,7 @@ from programas.services.siis import (
     LOGIN_LOCK_KEY,
     LOGIN_PAUSA_KEY,
     TOKEN_CACHE_KEY,
-    TOKEN_VENCE_KEY,
+    TOKEN_RENOVAR_KEY,
     SiisAPIClient,
     _SiisConfigurationError,
 )
@@ -122,7 +123,7 @@ class TokenFueraDelRequestTests(SimpleTestCase):
         self._lanzador_sincronico()
         post = self._post(return_value=_respuesta_login("tok-nuevo"))
         cache.set(TOKEN_CACHE_KEY, "tok-viejo", 3000)
-        cache.set(TOKEN_VENCE_KEY, siis._ahora() + 120, 3000)  # vence en 2 min < 10
+        cache.set(TOKEN_RENOVAR_KEY, siis._ahora() - 1, 3000)  # ya dentro de la ventana
 
         # El que llama recibe el actual sin esperar...
         self.assertEqual(SiisAPIClient()._token(), "tok-viejo")
@@ -135,7 +136,7 @@ class TokenFueraDelRequestTests(SimpleTestCase):
         self._lanzador_sincronico()
         post = self._post(return_value=_respuesta_login())
         cache.set(TOKEN_CACHE_KEY, "tok", 3000)
-        cache.set(TOKEN_VENCE_KEY, siis._ahora() + 3000, 3000)
+        cache.set(TOKEN_RENOVAR_KEY, siis._ahora() + 2400, 3000)
 
         self.assertEqual(SiisAPIClient()._token(), "tok")
         self.assertEqual(post.call_count, 0)
@@ -175,14 +176,14 @@ class TokenFueraDelRequestTests(SimpleTestCase):
         self._lanzador_sincronico()
         post = self._post(side_effect=requests.ReadTimeout("lento"))
 
-        with self.assertRaises(requests.ConnectionError):
+        with self.assertRaises(requests.ReadTimeout):
             SiisAPIClient()._token()
         self.assertEqual(post.call_count, 1)
         self.assertTrue(cache.get(LOGIN_PAUSA_KEY))
         self.assertIsNone(cache.get(LOGIN_LOCK_KEY), "el candado se libera aunque falle")
 
         dormidas = self.reloj.dormidas
-        with self.assertRaises(requests.ConnectionError):
+        with self.assertRaises(requests.ReadTimeout):
             SiisAPIClient()._token()
         self.assertEqual(post.call_count, 1, "en pausa no se vuelve a pegar")
         self.assertEqual(self.reloj.dormidas, dormidas, "y no espera")
@@ -245,3 +246,175 @@ class TokenFueraDelRequestTests(SimpleTestCase):
 
     def test_el_presupuesto_de_llamadas_externas_sigue_sin_errores_con_los_defaults(self):
         self.assertEqual(presupuesto_de_llamadas_externas(None), [])
+
+    # ── Ronda 2 ─────────────────────────────────────────────────────────────
+
+    def test_renovacion_con_el_candado_tomado_por_otro_no_relanza_y_devuelve_el_actual(self):
+        self._lanzador_sincronico()
+        post = self._post(return_value=_respuesta_login("tok-nuevo"))
+        cache.set(TOKEN_CACHE_KEY, "tok-viejo", 3000)
+        cache.set(TOKEN_RENOVAR_KEY, siis._ahora() - 1, 3000)
+        cache.set(LOGIN_LOCK_KEY, "otro-pod", 30)
+
+        self.assertEqual(SiisAPIClient()._token(), "tok-viejo")
+        self.assertEqual(post.call_count, 0)
+        self.assertEqual(cache.get(LOGIN_LOCK_KEY), "otro-pod", "no se pisa el candado ajeno")
+
+    def test_expires_in_corto_no_hace_un_login_por_request(self):
+        """Con una ventana fija de 10 min, ``expires_in`` <= 660 nacía «por renovar»: un login por request."""
+        self._lanzador_sincronico()
+        post = self._post()
+        for expires_in in (600, 60):
+            with self.subTest(expires_in=expires_in):
+                cache.clear()
+                post.reset_mock(side_effect=True, return_value=True)
+                post.configure_mock(return_value=_respuesta_login(expires_in=expires_in))
+                cliente = SiisAPIClient()
+                with self.assertLogs("programas.services.siis", level=logging.WARNING):
+                    for _ in range(10):
+                        self.assertEqual(cliente._token(), "tok-1")
+                self.assertEqual(post.call_count, 1)
+
+    def test_expires_in_corto_renueva_una_vez_por_ventana(self):
+        self._lanzador_sincronico()
+        post = self._post(return_value=_respuesta_login(expires_in=60))  # ttl 60, ventana 30
+        reloj = {"t": 5000.0}
+        p = patch("programas.services.siis._ahora", lambda: reloj["t"])
+        p.start()
+        self.addCleanup(p.stop)
+        cliente = SiisAPIClient()
+
+        with self.assertLogs("programas.services.siis", level=logging.WARNING):
+            cliente._token()
+            reloj["t"] += 29
+            cliente._token()
+            self.assertEqual(post.call_count, 1)
+            reloj["t"] += 2  # pasó la mitad de la vida del token
+            cliente._token()
+        self.assertEqual(post.call_count, 2)
+
+    def test_la_ventana_con_el_expires_in_real_sigue_siendo_de_diez_minutos(self):
+        self._lanzador_sincronico()
+        self._post(return_value=_respuesta_login(expires_in=3600))
+        SiisAPIClient()._token()
+        faltan = cache.get(TOKEN_RENOVAR_KEY) - siis._ahora()
+        self.assertAlmostEqual(faltan, 3540 - siis.RENOVAR_ANTES, delta=5)
+
+    def _login_que_falla(self, motivo):
+        if motivo == "timeout":
+            return {"side_effect": requests.ReadTimeout("lento")}
+        if motivo == "connect":
+            return {"side_effect": requests.ConnectTimeout("no abre")}
+        if motivo == "red":
+            return {"side_effect": requests.ConnectionError("caída")}
+        status = int(motivo.split(":")[1])
+        respuesta = Mock(status_code=status)
+        respuesta.raise_for_status.side_effect = requests.HTTPError("http", response=respuesta)
+        return {"return_value": respuesta}
+
+    def test_la_pausa_conserva_el_tipo_de_falla_del_login(self):
+        esperadas = {
+            "timeout": requests.ReadTimeout,
+            "connect": requests.ConnectTimeout,
+            "red": requests.ConnectionError,
+        }
+        self._lanzador_sincronico()
+        post = self._post()
+        for motivo, clase in esperadas.items():
+            with self.subTest(motivo=motivo):
+                cache.clear()
+                post.reset_mock(side_effect=True, return_value=True)
+                post.configure_mock(**self._login_que_falla(motivo))
+                with self.assertRaises(clase) as primera:
+                    SiisAPIClient()._token()
+                with self.assertRaises(clase) as segunda:  # ya en pausa
+                    SiisAPIClient()._token()
+                self.assertIs(type(primera.exception), type(segunda.exception))
+
+    def test_la_pausa_conserva_el_status_http_del_login(self):
+        self._lanzador_sincronico()
+        post = self._post()
+        for status in (401, 429, 503):
+            with self.subTest(status=status):
+                cache.clear()
+                post.reset_mock(side_effect=True, return_value=True)
+                post.configure_mock(**self._login_que_falla(f"http:{status}"))
+                with self.assertRaises(requests.HTTPError):
+                    SiisAPIClient()._token()
+                with self.assertRaises(requests.HTTPError) as pausa:
+                    SiisAPIClient()._token()
+                self.assertEqual(pausa.exception.response.status_code, status)
+                self.assertEqual(post.call_count, 1)
+
+    def test_catalogo_distingue_el_401_aunque_caiga_en_la_pausa(self):
+        self._lanzador_sincronico()
+        self._post(**self._login_que_falla("http:401"))
+        cliente = SiisAPIClient()
+        with self.assertRaises(requests.HTTPError):
+            cliente._token()
+        with self.assertLogs("programas.services.siis"), self.assertRaises(siis.SiisCatalogError) as ctx:
+            cliente._cargar_catalogo("/api/v1/x", "no encontrado")
+        self.assertNotIn("tardó", str(ctx.exception))
+
+    def test_login_colgado_dice_que_siis_no_respondio_a_tiempo_tambien_en_la_pausa(self):
+        self._lanzador_sincronico()
+        self._post(side_effect=requests.ReadTimeout("colgado"))
+        for _ in range(2):  # la 1.ª paga el login; la 2.ª cae en la pausa
+            resultado = SiisAPIClient().validar_compatibilidad("21884116", 59)
+            self.assertFalse(resultado["success"])
+            self.assertEqual(resultado["error"], "SIIS no respondió a tiempo.")
+
+    def test_el_candado_ajeno_no_se_borra_si_el_login_pasa_de_su_vida(self):
+        self._lanzador_sincronico()
+
+        def login_lento_y_otro_toma_el_candado(*args, **kwargs):
+            cache.set(LOGIN_LOCK_KEY, "otro-pod", 30)  # el propio venció y otro lo tomó
+            return _respuesta_login()
+
+        self._post(side_effect=login_lento_y_otro_toma_el_candado)
+        SiisAPIClient()._token()
+        self.assertEqual(cache.get(LOGIN_LOCK_KEY), "otro-pod")
+
+    def test_el_hilo_no_hace_login_si_otro_renovo_antes_de_que_arrancara(self):
+        self._lanzador_diferido()
+        post = self._post(return_value=_respuesta_login())
+        cache.set(TOKEN_CACHE_KEY, "tok-viejo", 3000)
+        cache.set(TOKEN_RENOVAR_KEY, siis._ahora() - 1, 3000)
+
+        SiisAPIClient()._token()  # lanza la renovación (diferida)
+        self.assertEqual(len(self.pendientes), 1)
+        cache.set(TOKEN_CACHE_KEY, "tok-de-otro", 3000)  # otro pod renovó mientras tanto
+        cache.set(TOKEN_RENOVAR_KEY, siis._ahora() + 2400, 3000)
+        self.pendientes.pop()()
+
+        self.assertEqual(post.call_count, 0)
+        self.assertIsNone(cache.get(LOGIN_LOCK_KEY))
+
+
+@override_settings(
+    SIIS_API_URL="https://siis.example",
+    SIIS_API_CLIENT_ID="client",
+    SIIS_API_CLIENT_SECRET="secret",
+    SIIS_API_CONNECT_TIMEOUT=5,
+    SIIS_API_TIMEOUT_TOKEN=5,
+    SIIS_API_TIMEOUT_LOGIN=15,
+)
+class HiloRealTests(SimpleTestCase):
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+
+    def test_por_defecto_en_tests_el_login_corre_en_el_acto_sin_hilo(self):
+        hilos = []
+        with patch("programas.services.siis.sesion.post") as post:
+            post.side_effect = lambda *a, **k: hilos.append(threading.current_thread().name) or _respuesta_login()
+            SiisAPIClient()._token()
+        self.assertEqual(hilos, [threading.current_thread().name])
+
+    @override_settings(SIIS_LOGIN_HILO_REAL=True)
+    def test_el_unico_test_con_hilo_real_corre_el_login_en_el_hilo_de_fondo(self):
+        hilos = []
+        with patch("programas.services.siis.sesion.post") as post:
+            post.side_effect = lambda *a, **k: hilos.append(threading.current_thread().name) or _respuesta_login()
+            self.assertEqual(SiisAPIClient()._token(), "tok-1")
+        self.assertEqual(hilos, ["siis-login"])
