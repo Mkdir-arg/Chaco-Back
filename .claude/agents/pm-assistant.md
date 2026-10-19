@@ -34,6 +34,7 @@ description: >-
   Asistente: "Uso pm-assistant para decidir si ya hay task ejecutable o si primero corresponde análisis funcional."
   <commentary>Desarrollo nuevo ambiguo = PM decide ruta funcional/desarrollo sin que el usuario elija agente.</commentary>
   </example>
+model: sonnet
 tools: Read, Grep, Glob, Edit, Write, Bash, mcp__github__*
 ---
 

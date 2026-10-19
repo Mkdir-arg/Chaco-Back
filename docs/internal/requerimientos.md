@@ -465,6 +465,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 337 | La bandeja de revisión se filtra por nombre, apellido, DNI y fecha de nacimiento | Becas · revisión de casos | `#ui` `#performance` | Usuario — pedido en sesión, 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 338 | SIIS que no contesta a tiempo ya no se muestra como «No se pudo conectar» | Becas · validación de compatibilidad contra SIIS | `#siis` `#relevamientos` | PM — hallazgo en PRD (ReadTimeout del token), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 339 | El login de SIIS deja de pagarse dentro del clic: corre en segundo plano y el request espera el token | Becas · alta en SIIS (token, «Aprobar», proceso masivo) · comandos de diagnóstico | `#siis` `#infra` `#performance` | Proveedor SIIS — pedido del 19/10/2026 (PRD 07:23) | 19/10/2026 | 🟢 **Hecho** | No requiere |
+| 340 | Sumar al proyecto las skills de ECC que sirvan para Chaco | Transversal · método de trabajo de los agentes | `#metodo` `#datos` `#performance` | PM — pedido en sesión, 17/10/2026: «suma las skill que creas útiles para el proyecto» | 17/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -44259,7 +44260,6 @@ Revertir el commit. No hay datos que se pierdan.
 ## Historial
 
 No aplica: entrada nueva.
-
 ---
 
 # Cambio 338 — SIIS que no contesta a tiempo ya no se muestra como «No se pudo conectar»
@@ -44467,3 +44467,108 @@ expiran solas.
 No aplica: entrada nueva.
 
 ---
+
+---
+
+# Cambio 340 — Sumar al proyecto las skills de ECC que sirvan para Chaco
+
+🟢 **HECHO — 17/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · método de trabajo de los agentes |
+| **Etiquetas** | `#metodo` `#datos` `#performance` |
+| **Solicitante** | PM — pedido en sesión, 17/10/2026, después de revisar el repo ECC |
+| **Fecha del pedido** | 17/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Ninguna del producto: `.claude/skills/` (no viaja en el release, `export-ignore`) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«busca este repo que supuestamente dicen que es muy bueno para claude para el desarrollo de sw
+https://github.com/affaan-m/ECC.git» y, después del análisis: «bien suma las skill que creas utiles para el
+proyecto».
+
+## Alcance acordado
+
+Entran cuatro skills de proyecto, **adaptadas** a Chaco (no copiadas): se toma la estructura de la skill de ECC
+y se reemplaza lo genérico por las piezas, gates y trampas reales del repo.
+
+Queda afuera instalar el plugin `ecc@ecc` o sus hooks, y el resto de las 311 skills.
+
+## Decisiones tomadas
+
+- **Adaptar en vez de copiar.** Las skills de ECC son genéricas y en varios puntos contradicen al repo: `django-tdd`
+  y `django-verification` usan pytest, mypy y black (Chaco usa el runner de Django y ruff); `django-patterns`
+  parte los settings por archivo (Chaco tiene uno solo, ramificado por entorno); `django-security` modela RBAC con
+  un campo `role` en el usuario y propone `django-csp` (Chaco autoriza por capacidades de `core/rbac.py` y tiene su
+  propio `SecurityHeadersMiddleware`). Copiadas tal cual, empujarían a Claude contra `CLAUDE.md`.
+- **Las cuatro elegidas** y de dónde salen:
+  - `mysql-mariadb` ← `mysql-patterns` + la parte aplicable de `database-migrations`: suma las trampas que ya
+    cobraron en ECOM (UUID con guiones, `CONVERT_TZ`, `UniqueConstraint` condicional, `read_timeout` de 10 s,
+    `KeyTransform`, DDL no transaccional).
+  - `impacto-de-cambio` ← `change-impact`: los artefactos genéricos (ADR, MAP, STATUS) se cambian por este
+    registro, el `CATALOGO` de RBAC, los presupuestos de perf, los snapshots y el paso D.4 de `processes.md`.
+  - `auditoria-pre-release` ← `production-audit`: se sacan pagos y webhooks y entran los riesgos de espejar a
+    ECOM. Complementa al `release-gate`, no lo reemplaza.
+  - `seguridad-django` ← `django-security`: se quita lo que contradice al repo y se apunta a `@requiere`/`puede`,
+    `PortalCiudadanoMiddleware`, `media_protegida`, la inscripción por token y los datos personales.
+- **Descartadas** y por qué: `django-tdd`, `django-verification`, `python-testing` (pytest); `django-patterns`
+  (DRF y settings partidos); `verification-loop`, `tdd-workflow` (ya los cubren Superpowers y `/dev:cierre`);
+  `safety-guard`, `strategic-compact`, `context-budget` (dependen de los hooks del plugin); `accessibility` y
+  `frontend-a11y` (la UI la gobierna el agente canónico de diseño; una segunda fuente de reglas visuales choca con
+  esa regla); `redis-patterns` y `docker-patterns` (Redis acá es solo caché y sesiones; poco retorno).
+- Cada skill cita su origen y la licencia MIT de ECC en su encabezado.
+
+## Implementación
+
+Claude Code carga las skills de `.claude/skills/<nombre>/SKILL.md` del proyecto y las ofrece cuando el pedido
+coincide con su descripción, igual que las de Superpowers.
+
+## Archivos
+
+- `.claude/skills/mysql-mariadb/SKILL.md`
+- `.claude/skills/impacto-de-cambio/SKILL.md`
+- `.claude/skills/auditoria-pre-release/SKILL.md`
+- `.claude/skills/seguridad-django/SKILL.md`
+- `.claude/skills/gates-ci/SKILL.md` (18/10)
+- `CLAUDE.md`, `.claude/agents/pm-assistant.md`, `.claude/agents/qa-analyst.md` (18/10)
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Cada referencia al repo que nombran las skills (archivos, funciones, variables de settings, migración 0073,
+  scripts, workflows) se comprobó contra `origin/development` antes de escribirla.
+- `scripts/requerimientos.py --check`: OK.
+- 18/10: `check_design_agent.py` OK; `core.tests.test_un_solo_migrador` y `core.tests.test_gates_ci` (leen
+  `CLAUDE.md`) en verde.
+- No toca Python, templates ni UI: `manage.py check` y las auditorías de diseño no aplican.
+
+## Puesta en marcha en el servidor
+
+No requiere: `.claude/` no viaja en el release.
+
+## Pendientes / a definir
+
+- Las skills citan trampas y rutas que pueden cambiar. Si se corrige una trampa de raíz (por ejemplo, tablas de
+  timezone en ECOM), hay que actualizar `mysql-mariadb` y `auditoria-pre-release` en el mismo PR.
+- Queda sin probar AgentShield (el escáner de ECC) sobre `.claude/` y `.mcp.json`; se corre solo si el PM lo pide.
+
+## Reversión
+
+Borrar las cuatro carpetas de `.claude/skills/`. No toca datos.
+
+## Historial
+
+- **18/10/2026 — menos contexto fijo por sesión.** Pedido del PM: «Como puedo mejorar mi proceso de desarrollo
+  para que sea mejor y consuma menos». `CLAUDE.md` se carga entero en cada sesión, así que se achica de ~29,5k a
+  ~24,2k caracteres: sale el *Mapa de URLs a apps* (se deriva de `config/urls.py`) y el detalle de *Gates de CI*
+  pasa a la skill `gates-ci`, que se carga solo cuando se trabaja sobre el CI. En `CLAUDE.md` quedan las reglas
+  que no se pueden deducir: PRs contra `development`, no mergear en rojo, un rojo «no bloqueante» igual frena
+  `Publish main` y el `Release gate`, y el test de contrato del front. `pm-assistant` y `qa-analyst` declaran
+  `model: sonnet`: hacen lectura y redacción, y heredaban Opus.
+
