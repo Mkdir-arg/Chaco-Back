@@ -467,6 +467,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 339 | El login de SIIS deja de pagarse dentro del clic: corre en segundo plano y el request espera el token | Becas · alta en SIIS (token, «Aprobar», proceso masivo) · comandos de diagnóstico | `#siis` `#infra` `#performance` | Proveedor SIIS — pedido del 19/10/2026 (PRD 07:23) | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 340 | Sumar al proyecto las skills de ECC que sirvan para Chaco | Transversal · método de trabajo de los agentes | `#metodo` `#datos` `#performance` | PM — pedido en sesión, 17/10/2026: «suma las skill que creas útiles para el proyecto» | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 341 | Los adjuntos y padrones de Becas vuelven a bajar: `/media/` daba 500 por un `select_related` sobre una propiedad | Becas · descarga protegida de archivos (`/media/`) | `#rbac` `#datos` | PM — hallazgo en PRD (500 al abrir adjuntos de un caso), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
+| 342 | Las páginas de error (404/403/400/500) no heredan una conexión de MariaDB muerta | Transversal · infraestructura | `#infra` `#performance` | PM — logs de PRD (/meta.json y /media/...), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -44647,3 +44648,71 @@ Revertir el commit. No toca datos.
 ## Historial
 
 No aplica: entrada nueva.
+
+---
+
+# Cambio 342 — Las páginas de error no heredan una conexión de MariaDB muerta
+
+🟢 **HECHO — 19/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · infraestructura |
+| **Etiquetas** | `#infra` `#performance` |
+| **Solicitante** | PM — logs de PRD (`/meta.json` pedido por un bot y un `FieldError` en `/media/...`) |
+| **Fecha del pedido** | 19/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | `config/views.py`, `config/urls.py`, `config/tests/test_paginas_error.py` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En PRD (daphne, MariaDB, `CONN_MAX_AGE=0`) un 404 de un bot terminaba en 500 y el 500 también rompía con
+`OperationalError (2006, 'Server has gone away')`.
+
+## Causa
+
+Django 5.2 en modo async arma la respuesta de error con
+`sync_to_async(response_for_exception, thread_sensitive=False)` (`django/core/handlers/exception.py:44`). Corre en
+un hilo del pool que no es donde corren `close_old_connections` (señales `request_started/finished`). Ese hilo
+guarda la conexión de un error anterior, MariaDB la cerró por inactividad, y el render de `404.html`/`500.html`
+(context processor `identidad_usuario` y templatetags que consultan permisos) falla.
+
+## Decisiones tomadas
+
+- `config.views` define `bad_request`, `permission_denied`, `page_not_found` y `server_error`, registrados como
+  `handler400/403/404/500`. Reutilizan `django.views.defaults` con las mismas plantillas: el usuario ve lo mismo.
+- Cada uno llama a `cerrar_conexiones_viejas()` al entrar y en `finally`: recorre las conexiones abiertas y llama
+  a `close_if_unusable_or_obsolete()` en las que no estén dentro de un atomic. Se eligió sobre
+  `connections.close_all()` porque solo cierra la conexión vencida, con errores o inutilizable: con
+  `CONN_MAX_AGE=0` (daphne) una conexión ya usada cuenta siempre como vencida; con `CONN_MAX_AGE=60` (gunicorn en
+  icore) se cierra si pasó el minuto o tuvo errores, y si no se conserva. La guarda de atomic existe porque en
+  Django 5.2.17 `close_if_unusable_or_obsolete` no mira `in_atomic_block` y cerraría la conexión de una
+  transacción (latente: un `TestCase` contra el motor real que pida un 404/500).
+- `server_error`: si el render falla devuelve un 500 mínimo en HTML plano, sin base de datos.
+- `csrf_failure` no se toca.
+
+## Validación
+
+- `config/tests/test_paginas_error.py`: cierre antes del render en los cuatro handlers, una conexión dentro de un atomic no se cierra, 404/500 con su template y
+  status, 500 mínimo ante `OperationalError`, una vista normal no ejecuta nada de esto. La conexión muerta real no
+  se reproduce en SQLite en memoria (no hay servidor que la cierre ni hilo del pool): se simula con un render que
+  falla mientras no se haya llamado a `close_old_connections`.
+- Mutaciones: sin el cierre al entrar, 7 tests en rojo; sin el cierre en el `finally`, 6 en rojo; sin el fallback
+  del 500, 1 en rojo; sin la guarda de atomic, el test nuevo de atomic en rojo.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- Un 400 no tiene `400.html`: Django devuelve su texto por defecto.
+
+## Reversión
+
+Revertir el commit. No toca datos.
+
+## Historial
+
+- **19/10/2026 — alta del cambio.**
