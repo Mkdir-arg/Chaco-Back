@@ -176,7 +176,9 @@ def _adjunto_de_becas(user, ruta):
     from programas.services.autorizacion import assert_alcance_formulario
 
     adjunto = (
-        AdjuntoFormulario.objects.select_related("formulario__relevamiento__segmento").filter(archivo=ruta).first()
+        AdjuntoFormulario.objects.select_related("formulario__relevamiento__convocatoria__segmento")
+        .filter(archivo=ruta)
+        .first()
     )
     if adjunto is None:
         return None
@@ -204,9 +206,7 @@ def _padron_de_becas(user, ruta):
             return convocatorias_visibles(user).filter(pk=convocatoria.pk).exists()
         except PermissionDenied:
             return False
-    relevamiento = (
-        Relevamiento.objects.select_related("convocatoria__segmento", "segmento").filter(padron_archivo=ruta).first()
-    )
+    relevamiento = Relevamiento.objects.select_related("convocatoria__segmento").filter(padron_archivo=ruta).first()
     if relevamiento is None:
         return None
     try:
