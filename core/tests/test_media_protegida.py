@@ -352,6 +352,54 @@ class AlcanceBecasTests(MediaBaseTests):
     def test_un_usuario_de_otro_programa_no_baja_el_padron(self):
         self.assertEqual(self._cliente(usuario_con("ciudadano.ver")).get(self.ruta_padron).status_code, 403)
 
+    def _relevamiento_con_adjunto(self):
+        """Un caso con foto, colgado de ``conv_a``: ejercita ``_adjunto_de_becas`` entero.
+
+        ``Relevamiento.segmento`` es una propiedad (``convocatoria.segmento``), no una FK:
+        el ``select_related`` de la vista tiene que ir por la convocatoria. Con el camino
+        viejo la consulta levantaba ``FieldError`` y devolvía 500 a cualquiera.
+        """
+        from datetime import date
+
+        from programas.models import AdjuntoFormulario, Formulario, Relevamiento
+
+        relevamiento = Relevamiento.objects.create(
+            convocatoria=self.conv_a,
+            territorial=self.coord_a,
+            fecha_asignada=date(2026, 6, 1),
+            zona="A",
+            padron_archivo=SimpleUploadedFile("padron-rel.xlsx", b"PK\x03\x04padron"),
+        )
+        formulario = Formulario.objects.create(relevamiento=relevamiento)
+        adjunto = AdjuntoFormulario.objects.create(
+            formulario=formulario, clave="cp-foto", archivo=SimpleUploadedFile("foto.jpg", b"\xff\xd8\xff jpeg")
+        )
+        return relevamiento, self._url(adjunto.archivo.name)
+
+    def test_el_admin_baja_el_adjunto_de_un_caso(self):
+        _, ruta = self._relevamiento_con_adjunto()
+        self.assertEqual(self._cliente(self.admin).get(ruta).status_code, 200)
+
+    def test_el_coordinador_del_segmento_baja_el_adjunto_de_su_caso(self):
+        _, ruta = self._relevamiento_con_adjunto()
+        self.assertEqual(self._cliente(self.coord_a).get(ruta).status_code, 200)
+
+    def test_el_coordinador_del_segmento_de_al_lado_no_baja_el_adjunto(self):
+        _, ruta = self._relevamiento_con_adjunto()
+        self.assertEqual(self._cliente(self.coord_b).get(ruta).status_code, 403)
+
+    def test_un_usuario_de_otro_programa_no_baja_el_adjunto(self):
+        _, ruta = self._relevamiento_con_adjunto()
+        self.assertEqual(self._cliente(usuario_con("ciudadano.ver")).get(ruta).status_code, 403)
+
+    def test_el_padron_propio_de_un_relevamiento_respeta_el_alcance(self):
+        """Misma consulta rota en ``_padron_de_becas`` (rama del relevamiento)."""
+        relevamiento, _ = self._relevamiento_con_adjunto()
+        ruta = self._url(relevamiento.padron_archivo.name)
+
+        self.assertEqual(self._cliente(self.coord_a).get(ruta).status_code, 200)
+        self.assertEqual(self._cliente(self.coord_b).get(ruta).status_code, 403)
+
 
 class AlcanceMerenderosTests(MediaBaseTests):
     """La documentación respaldatoria: `merendero.ver` y `merendero.validar` leen

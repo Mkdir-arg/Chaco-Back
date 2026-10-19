@@ -466,6 +466,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 338 | SIIS que no contesta a tiempo ya no se muestra como «No se pudo conectar» | Becas · validación de compatibilidad contra SIIS | `#siis` `#relevamientos` | PM — hallazgo en PRD (ReadTimeout del token), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 339 | El login de SIIS deja de pagarse dentro del clic: corre en segundo plano y el request espera el token | Becas · alta en SIIS (token, «Aprobar», proceso masivo) · comandos de diagnóstico | `#siis` `#infra` `#performance` | Proveedor SIIS — pedido del 19/10/2026 (PRD 07:23) | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 340 | Sumar al proyecto las skills de ECC que sirvan para Chaco | Transversal · método de trabajo de los agentes | `#metodo` `#datos` `#performance` | PM — pedido en sesión, 17/10/2026: «suma las skill que creas útiles para el proyecto» | 17/10/2026 | 🟢 **Hecho** | No requiere |
+| 341 | Los adjuntos y padrones de Becas vuelven a bajar: `/media/` daba 500 por un `select_related` sobre una propiedad | Becas · descarga protegida de archivos (`/media/`) | `#rbac` `#datos` | PM — hallazgo en PRD (500 al abrir adjuntos de un caso), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -44572,3 +44573,77 @@ Borrar las cuatro carpetas de `.claude/skills/`. No toca datos.
   `Publish main` y el `Release gate`, y el test de contrato del front. `pm-assistant` y `qa-analyst` declaran
   `model: sonnet`: hacen lectura y redacción, y heredaban Opus.
 
+---
+
+# Cambio 341 — Los adjuntos y padrones de Becas vuelven a bajar: `/media/` daba 500 por un `select_related` sobre una propiedad
+
+🟢 **HECHO — 19/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · descarga protegida de archivos (`core/views/media.py`) |
+| **Etiquetas** | `#rbac` `#datos` |
+| **Solicitante** | PM — hallazgo en PRD, 19/10/2026 |
+| **Fecha del pedido** | 19/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En PRD, abrir un adjunto de un caso de Becas (`/media/becas/adjuntos/...`) devolvía error 500.
+
+## Alcance acordado
+
+Corregir la consulta que rompía. Queda afuera cualquier cambio en las reglas de autorización: quién puede o no
+bajar un archivo sigue igual.
+
+## Decisiones tomadas
+
+- **Causa:** `_adjunto_de_becas` hacía `select_related("formulario__relevamiento__segmento")` y `_padron_de_becas`
+  hacía `select_related("convocatoria__segmento", "segmento")` sobre `Relevamiento`. Pero `Relevamiento.segmento`
+  no es una relación: es una propiedad (`self.convocatoria.segmento`). Django levanta `FieldError` y la vista
+  responde 500. El segmento se alcanza por `convocatoria__segmento`.
+- **Solo cambia la consulta.** `assert_alcance_formulario` y `assert_alcance_relevamiento` no se tocaron.
+- Se revisó el resto del repo por el mismo patrón (`relevamiento__segmento`, `"segmento"` sobre `Relevamiento`):
+  no hay otros usos rotos. Los `"segmento"` restantes son de `ListaEspera`, que sí tiene FK `segmento`.
+
+## Implementación
+
+Los dos `select_related` apuntan a `convocatoria__segmento`. Los adjuntos y padrones de Becas se vuelven a
+descargar según el alcance de cada usuario.
+
+## Archivos
+
+- `core/views/media.py`
+- `core/tests/test_media_protegida.py`
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+- Cinco tests nuevos en `AlcanceBecasTests`: admin baja el adjunto, coordinador del segmento baja el adjunto,
+  coordinador del segmento de al lado recibe 403, usuario de otro programa recibe 403, y el padrón propio de un
+  relevamiento respeta el alcance. `core.tests.test_media_protegida`: 47 tests en verde con `.venv312`.
+- Mutación: con el `select_related` viejo en `_adjunto_de_becas` fallan con `FieldError` los tests de adjuntos;
+  con `"segmento"` de vuelta en `_padron_de_becas` falla el del padrón; con la autorización anulada fallan el del
+  coordinador de al lado y el del usuario de otro programa. Todo restaurado.
+- `manage.py check`, ruff y `scripts/requerimientos.py --check`: OK.
+
+## Puesta en marcha en el servidor
+
+No requiere más que el deploy.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit. No toca datos.
+
+## Historial
+
+No aplica: entrada nueva.
