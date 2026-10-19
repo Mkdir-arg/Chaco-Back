@@ -10,7 +10,7 @@ por segmento. La validación SIIS conserva y presenta el detalle auditable de EC
 
 import logging
 from datetime import datetime, time, timedelta
-from functools import wraps
+from functools import cached_property, wraps
 from urllib.parse import urlencode, urlparse
 
 from django.contrib import messages
@@ -30,11 +30,13 @@ from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import ListView
 
 from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere, respuesta_sin_permiso
+from legajos.models import Ciudadano
 from programas.forms import (
     CiudadanoGeneroRevisionForm,
     DatosSiisForm,
     FormularioRevisionForm,
     ForzarIdentidadForm,
+    RevisionPersonasFiltroForm,
 )
 from programas.models import (
     Formulario,
@@ -385,7 +387,19 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
         estado = self.request.GET.get("estado")
         if estado:
             qs = qs.filter(estado=estado)
+        # Filtros por persona: subquery sobre ``Ciudadano`` (indexado por dni, nombre,
+        # apellido y fecha de nacimiento), no un join ni una lista de ids. Sin ellos la
+        # consulta queda exactamente como antes.
+        filtros_persona = self.filtro_persona.filtros_ciudadano()
+        if filtros_persona:
+            qs = qs.filter(ciudadano_id__in=Ciudadano.objects.filter(**filtros_persona).values("pk"))
         return qs
+
+    @cached_property
+    def filtro_persona(self):
+        form = RevisionPersonasFiltroForm(self.request.GET)
+        form.is_valid()  # los campos inválidos quedan fuera de ``cleaned_data``
+        return form
 
     def paginate_queryset(self, queryset, page_size):
         paginator, page, object_list, is_paginated = super().paginate_queryset(queryset, page_size)
@@ -395,6 +409,12 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
         ctx = super().get_context_data(**kwargs)
         ctx["estados"] = Formulario.Estado.choices
         ctx["estado_actual"] = self.request.GET.get("estado", "")
+        ctx["filtro_nombre"] = self.request.GET.get("nombre", "")
+        ctx["filtro_apellido"] = self.request.GET.get("apellido", "")
+        ctx["filtro_dni"] = self.request.GET.get("dni", "")
+        # Solo si es una fecha válida: el ``<input type="date">`` descarta el resto.
+        fecha = self.filtro_persona.cleaned_data.get("fecha_nacimiento")
+        ctx["filtro_fecha_nacimiento"] = fecha.isoformat() if fecha else ""
         # Cambio 334: la misma regla que la bandeja y las acciones de identidad.
         ctx["puede_revalidar_renaper"] = puede_validar_identidad(self.request.user)
         # El contador vive dentro del mismo ``{% if %}`` de la plantilla: para quien no
