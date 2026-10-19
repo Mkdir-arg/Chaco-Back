@@ -738,7 +738,12 @@ SIIS_API_CLIENT_SECRET = os.getenv("SIIS_API_CLIENT_SECRET", "")
 # suma entre en el presupuesto lo verifica
 # ``core.checks.presupuesto_de_llamadas_externas`` (``check --deploy``).
 SIIS_API_CONNECT_TIMEOUT = int(os.getenv("SIIS_API_CONNECT_TIMEOUT", "5"))
-# El token es autenticación contra el mismo host: o contesta rápido o está roto.
+# El login de SIIS tarda «unos segundos» (genera un hash), admite 20 por minuto y
+# el token dura 60 min; el proveedor pide al menos 15 s de timeout (pedido del
+# 19/10). Por eso el login corre en un hilo, fuera del request, con
+# ``SIIS_API_TIMEOUT_LOGIN`` de lectura. ``SIIS_API_TIMEOUT_TOKEN`` pasa a ser
+# cuánto *espera un request* por un token: es lo que cuenta en el presupuesto.
+SIIS_API_TIMEOUT_LOGIN = int(os.getenv("SIIS_API_TIMEOUT_LOGIN", "15"))
 SIIS_API_TIMEOUT_TOKEN = int(os.getenv("SIIS_API_TIMEOUT_TOKEN", "5"))
 # Compatibilidad y catálogos: lecturas.
 SIIS_API_TIMEOUT_CONSULTA = int(os.getenv("SIIS_API_TIMEOUT_CONSULTA", "10"))

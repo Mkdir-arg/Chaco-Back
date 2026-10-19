@@ -23,6 +23,7 @@ Dos frentes acá:
 from email.message import Message as HTTPMessage
 from unittest.mock import Mock, patch
 
+from django.conf import settings
 from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase, override_settings
 
@@ -140,12 +141,18 @@ class TimeoutsQueSalenALaRedTests(TestCase):
                 return _respuesta({"access_token": "t", "expires_in": 3600})
             return _respuesta({"resultado": "OK", "apto": True})
 
-        with patch.object(siis_mod.sesion, "post", side_effect=post):
+        with (
+            patch.object(siis_mod, "lanzar_en_segundo_plano", side_effect=lambda f: f()),
+            patch.object(siis_mod.sesion, "post", side_effect=post),
+        ):
             siis_mod.validar_compatibilidad("30111222", 7)
             siis_mod.cargar_beneficiario({"dni": "30111222"})
 
         usados = dict((url.rsplit("/", 1)[-1], timeout) for url, timeout in pedidos)
-        self.assertEqual(sum(usados["token"]), costo("siis.token"))
+        # El login corre fuera del request con su propio timeout; lo que el
+        # request paga (y declara ``siis.token``) es la espera, no el POST.
+        self.assertEqual(sum(usados["token"]), settings.SIIS_API_CONNECT_TIMEOUT + settings.SIIS_API_TIMEOUT_LOGIN)
+        self.assertEqual(costo("siis.token"), settings.SIIS_API_CONNECT_TIMEOUT + settings.SIIS_API_TIMEOUT_TOKEN)
         self.assertEqual(sum(usados["compatibilidad"]), costo("siis.consulta"))
         self.assertEqual(sum(usados["tab-intermedia"]), costo("siis.alta"))
 
@@ -155,22 +162,27 @@ class TimeoutsQueSalenALaRedTests(TestCase):
         El token se cuenta una vez aunque lo pidan las dos llamadas: queda en
         caché con el TTL que informa SIIS.
         """
-        from django.conf import settings
-
         pedidos = []
+        logins = []
 
         def post(url, **kwargs):
-            pedidos.append(sum(kwargs["timeout"]))
             if url.endswith("/auth/token"):
+                logins.append(sum(kwargs["timeout"]))
                 return _respuesta({"access_token": "t", "expires_in": 3600})
+            pedidos.append(sum(kwargs["timeout"]))
             return _respuesta({"resultado": "OK", "apto": True})
 
-        with patch.object(siis_mod.sesion, "post", side_effect=post):
+        with (
+            patch.object(siis_mod, "lanzar_en_segundo_plano", side_effect=lambda f: f()),
+            patch.object(siis_mod.sesion, "post", side_effect=post),
+        ):
             siis_mod.validar_compatibilidad("30111222", 7)
             siis_mod.cargar_beneficiario({"dni": "30111222"})
 
-        self.assertEqual(len(pedidos), 3, "el token se pidió más de una vez")
-        self.assertLessEqual(sum(pedidos) + settings.EMAIL_TIMEOUT, PRESUPUESTO_SEGUNDOS)
+        self.assertEqual(len(logins), 1, "el token se pidió más de una vez")
+        self.assertEqual(len(pedidos), 2)
+        # El login va fuera del request: al presupuesto entra lo que el request espera.
+        self.assertLessEqual(sum(pedidos) + costo("siis.token") + settings.EMAIL_TIMEOUT, PRESUPUESTO_SEGUNDOS)
 
     def test_la_consulta_a_personas_usa_el_timeout_de_consulta(self):
         pedidos = []
