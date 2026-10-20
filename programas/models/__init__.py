@@ -571,6 +571,45 @@ class Dispositivo(TimeStamped):
         return f"{self.codigo} · {self.nombre}"
 
 
+class HorarioDispositivo(TimeStamped):
+    """Una franja de atención del dispositivo: un día de la semana, desde y hasta (P3).
+
+    Un día puede tener varias franjas («lunes 9 a 12 y 13 a 18»). Que no se superpongan y
+    que el inicio sea anterior al fin **no** lo dice el esquema: lo sostiene
+    `programas.services.horarios_dispositivo`, que reemplaza el conjunto entero dentro del
+    guardado del legajo. `Dispositivo.horarios` queda como el resumen en texto de estas
+    franjas, que es lo que leen P4 y el padrón.
+    """
+
+    class Dia(models.IntegerChoices):
+        LUNES = 1, "Lunes"
+        MARTES = 2, "Martes"
+        MIERCOLES = 3, "Miércoles"
+        JUEVES = 4, "Jueves"
+        VIERNES = 5, "Viernes"
+        SABADO = 6, "Sábado"
+        DOMINGO = 7, "Domingo"
+
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.CASCADE,
+        related_name="franjas_horarias",
+        verbose_name="Dispositivo",
+    )
+    dia = models.PositiveSmallIntegerField(choices=Dia.choices, verbose_name="Día")
+    hora_desde = models.TimeField(verbose_name="Desde")
+    hora_hasta = models.TimeField(verbose_name="Hasta")
+
+    class Meta:
+        verbose_name = "Franja horaria del dispositivo"
+        verbose_name_plural = "Franjas horarias del dispositivo"
+        # Por `dispositivo_id`: ver el comentario del ordering de Sector.
+        ordering = ["dispositivo_id", "dia", "hora_desde"]
+
+    def __str__(self):
+        return f"{self.get_dia_display()} {self.hora_desde:%H:%M}–{self.hora_hasta:%H:%M}"
+
+
 class AsignacionDispositivo(TimeStamped):
     """Alcance fino de un rol sobre un dispositivo concreto."""
 

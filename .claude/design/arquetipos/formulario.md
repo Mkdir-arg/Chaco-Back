@@ -68,6 +68,13 @@ desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los 
   Evidencia: `programas/templates/programas/dispositivos/legajo/form.html` (P3).
   Los asteriscos marcan requisitos para validar (`marca_requerido`, sin cambiar `required`); la bajada lo explica y el borrador admite incompletos.
   La coincidencia de nombre/localidad confirma con `ModernModal` canónico (`warning`, botón de marca); un error de búsqueda avisa con `window.toast`.
+  La localidad es un `Select` común del campo canónico (el buscador `nodo-buscador.js` solo
+  está cargado en el portal); un valor heredado fuera del catálogo se ofrece primero como
+  «<valor> (cargado antes)». Días y horarios: las franjas guardadas van en la tabla canónica
+  (`table w-full border-collapse` con `nodo-thead-row`/`nodo-th`, dentro de `overflow-x-auto`) con los campos ocultos del formset, y «Quitar»
+  es `btn-tertiary btn-sm btn-fit`; la fila de carga usa el campo canónico en
+  `sm:grid-cols-3` y «Agregar» es `btn-secondary btn-sm`, visible solo con JS. Sin JS,
+  «Quitar» es el checkbox `DELETE` del formset. Un error que cruza filas va en la celda de su fila.
 
 - Campos agrupados: varios `{% for %}` sobre subconjuntos del form dentro de bloques con
   `h2 text-heading font-bold` + `border-t border-light pt-4`.

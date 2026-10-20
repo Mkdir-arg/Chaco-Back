@@ -82,6 +82,7 @@ from programas.services.estadias import (
     sacar_plaza_de_servicio,
     volver_plaza_a_servicio,
 )
+from programas.services.horarios_dispositivo import reemplazar_franjas
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import semaforos_de_dispositivos
 from programas.services.ocupacion import ocupacion_de_plazas, tension_de_ocupacion
@@ -185,6 +186,7 @@ class DispositivoCreateView(FormularioInstitucionMixin, DispositivoAltaPermissio
         try:
             with transaction.atomic():
                 self.object = form.save()
+                reemplazar_franjas(self.object, form.franjas_horarias())
                 registrar_alta_dispositivo(self.object, self.request.user)
                 if self.request.POST.get("accion") == "enviar_validacion":
                     self.object = enviar_desde_formulario(self.object, self.request.user)
@@ -453,6 +455,10 @@ class DispositivoUpdateView(FormularioInstitucionMixin, DispositivoObjectPermiss
                     setattr(dispositivo, field, form.cleaned_data[field])
                 if cambios:
                     dispositivo.save(update_fields=[*form.changed_data, "modificado"])
+                cambio_horarios = reemplazar_franjas(dispositivo, form.franjas_horarias())
+                if cambio_horarios:
+                    cambios["horarios"] = cambio_horarios
+                if cambios:
                     registrar_edicion_dispositivo(dispositivo, self.request.user, cambios)
                 self.object = dispositivo
                 if self.request.POST.get("accion") == "enviar_validacion":

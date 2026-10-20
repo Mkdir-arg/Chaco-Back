@@ -23,6 +23,7 @@ from programas.services.detalle_dispositivo import infraestructura_del_dispositi
 from programas.services.dispositivos import campos_para_validacion
 from programas.services.inspecciones import SEMAFOROS, SIN_RELEVAR, VENCIDO, semaforos_de_dispositivos
 from programas.tests.test_dispositivos_fidelidad_fd import AHORA
+from programas.tests.test_dispositivos_horarios_localidad import catalogo_chaco
 from programas.tests.test_dispositivos_infraestructura import BaseInfraestructura
 
 
@@ -32,6 +33,7 @@ class FidelidadFITests(BaseInfraestructura):
         reloj.start()
         self.addCleanup(reloj.stop)
         super().setUp()
+        catalogo_chaco()
         self.client.force_login(self.admin)
         self.crear = reverse("dispositivos:crear")
         self.cis.estado = Dispositivo.Estado.BORRADOR

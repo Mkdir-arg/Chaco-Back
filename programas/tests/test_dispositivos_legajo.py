@@ -20,6 +20,7 @@ from programas.services.dispositivos import (
     puede_operar_dispositivo,
     validar_dispositivo,
 )
+from programas.tests.test_dispositivos_horarios_localidad import catalogo_chaco
 from programas.views.dispositivos_legajo import DispositivoUpdateView
 from users.models import Capacidad, RolMeta
 
@@ -118,6 +119,7 @@ class AlcanceDispositivosTests(TestCase):
 
 class DispositivoFormTests(TestCase):
     def setUp(self):
+        catalogo_chaco()
         self.tipo = TipoDispositivo.objects.create(codigo="AM", nombre="Adulto Mayor")
         Dispositivo.objects.create(
             codigo="HOGAR-01",
@@ -240,6 +242,7 @@ class ValidacionDispositivoTests(TestCase):
 
 class LegajoDispositivoViewsTests(TestCase):
     def setUp(self):
+        catalogo_chaco()
         self.programa, _ = Programa.objects.get_or_create(
             codigo="DISPOSITIVOS",
             defaults={

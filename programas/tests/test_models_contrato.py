@@ -67,6 +67,7 @@ TABLAS = {
     "FotoInspeccion": "programas_fotoinspeccion",
     "Formulario": "programas_formulario",
     "GrupoRequisito": "programas_gruporequisito",
+    "HorarioDispositivo": "programas_horariodispositivo",
     "InscripcionPrograma": "programas_inscripcionprograma",
     "InspeccionEdificio": "programas_inspeccionedificio",
     "ItemDiseno": "programas_itemdiseno",
