@@ -276,6 +276,13 @@ listas) no arrastra.
 `static/custom/js/nodo-constructor.js`, `static/custom/js/nodo-condiciones.js` (espejo del motor
 del servidor) y `static/custom/css/nodo-constructor.css`.
 
+`_constructor_cuerpo.html` (grid, vista previa y los cinco modales) lo incluyen el constructor de
+la convocatoria y el editor P17 de Dispositivos (`dispositivos/config/formulario_editor.html`).
+Cada uno pone su `#constructor` con los `data-url-*` y el encabezado. Parámetros: `sin_canal`
+(oculta «Se pide en» y el toggle de la vista previa; manda `canal=ambos` oculto) y, en
+`_constructor_items.html`, `vacio_texto`. El editor de Dispositivos no tiene «Restablecer» porque
+no hay catálogo. La inclusión en Becas va sin espacios: su HTML no cambió.
+
 Patrón: encabezado por `{% page_header %}` con las migas de Becas, badge de versión y estado
 «Guardando… / Guardado en vivo» (`aria-live`) como acciones; grid `grid-cols-1 xl:grid-cols-2` con
 dos surfaces —izquierda el diseño (toolbar `btn-secondary` / `btn-brand` en `btn-sm` + contenedor

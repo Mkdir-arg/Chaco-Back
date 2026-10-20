@@ -44,6 +44,9 @@ Modal. Si el usuario carga muchas filas de lo mismo, no es este arquetipo: fren�
 Vista: `CreateView`/`UpdateView` (o función) con un Django Form o ModelForm. **La validación
 vive en el form y en los servicios**, nunca en el template. Los widgets ya traen `nodo-field`
 desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los controles.
+Lo mismo vale para los forms chicos que viven en un modal, como `FormularioTipoNuevoForm`
+(P17, «Nuevo formulario» del detalle del tipo): el select llega con `INPUT_CLASS` y el modal
+solo pone etiqueta y error.
 
 ## Variantes permitidas
 
