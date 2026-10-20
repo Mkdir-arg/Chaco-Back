@@ -52,7 +52,7 @@ def formulario_vigente(tipo_id, momento=MomentoFormulario.CREAR_DISPOSITIVO, tip
     consulta): un tipo fuera de ellos no pide nada."""
     if tipo_id is None:
         return None
-    disenos = DisenoFormulario.objects.filter(
+    disenos = DisenoFormulario.objects.select_related("tipo_dispositivo").filter(
         tipo_dispositivo_id=tipo_id, momento=momento, dado_de_baja_en__isnull=True
     )
     if tipos is not None:

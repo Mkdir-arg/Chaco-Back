@@ -1,9 +1,8 @@
 {% comment %}
-Formulario «Crear dispositivo» del tipo elegido (P17, carril 2), debajo de «Responsable y
-contacto» en el alta y la edición (P3). Lo arma `programas.forms_dinamicos.RespuestasDisenoForm`
-desde la foto vigente del diseño: una sección por grupo, sus textos y sus campos, nombrados
+Formulario «Crear dispositivo» del tipo elegido (P17, carril 2), en su propia tarjeta, después de la de datos y «Días y horarios», en el alta y la edición (P3). Lo arma `programas.forms_dinamicos.RespuestasDisenoForm`
+desde la foto vigente del diseño: la tarjeta lleva un encabezado y una sección por grupo, sus textos y sus campos, nombrados
 por clave con el prefijo `formulario-`. La misma pieza la devuelve
-`dispositivos:formulario_tipo_seccion` cuando cambia el tipo; sin formulario sale vacía.
+`dispositivos:formulario_tipo_seccion` cuando cambia el tipo; sin formulario sale vacía (no queda ni la tarjeta).
 
 `data-item` y `formulario-tipo-items` son lo que lee el JS de la pantalla para evaluar las
 condiciones con `nodo-condiciones.js` (el servidor las vuelve a evaluar al guardar).
@@ -13,9 +12,15 @@ El asterisco marca lo que exige «Enviar a validación», no el guardado.
 {% if formulario_tipo %}
 <input type="hidden" name="formulario_tipo_diseno" value="{{ formulario_tipo.diseno.pk }}">
 {{ formulario_tipo.planos|json_script:"formulario-tipo-items" }}
+<section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden mt-5" aria-labelledby="titulo-formulario-tipo">
+  <div class="px-5 py-4 border-b border-light">
+    <h2 id="titulo-formulario-tipo" class="text-heading font-bold">Formulario de ingreso</h2>
+    <p class="mt-1 text-xs text-body-subtle">Lo pide el tipo «{{ formulario_tipo.diseno.tipo_dispositivo.nombre }}». Los campos con * hacen falta para enviar a validación.</p>
+  </div>
+  <div class="p-5">
 {% for grupo in formulario_tipo.grupos %}
-<div class="border-t border-light mt-5 pt-4" data-item="{{ grupo.clave }}">
-  <h2 class="text-heading font-bold{% if grupo.subtitulo %} mb-1{% else %} mb-4{% endif %}">{{ grupo.titulo }}</h2>
+<div{% if not forloop.first %} class="border-t border-light mt-5 pt-4"{% endif %} data-item="{{ grupo.clave }}">
+  <h3 class="text-heading font-bold{% if grupo.subtitulo %} mb-1{% else %} mb-4{% endif %}">{{ grupo.titulo }}</h3>
   {% if grupo.subtitulo %}<p class="mb-4 text-xs text-body-subtle">{{ grupo.subtitulo }}</p>{% endif %}
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     {% for fila in grupo.items %}
@@ -31,4 +36,6 @@ El asterisco marca lo que exige «Enviar a validación», no el guardado.
   </div>
 </div>
 {% endfor %}
+  </div>
+</section>
 {% endif %}

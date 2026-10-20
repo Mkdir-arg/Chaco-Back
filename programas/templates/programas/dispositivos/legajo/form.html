@@ -12,8 +12,9 @@
   {% endwith %}
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
   <div class="lg:col-span-2 min-w-0">
-  <form method="post" enctype="multipart/form-data" class="bg-white rounded-xl border border-base shadow-sm p-6">
+  <form method="post" enctype="multipart/form-data" class="space-y-5">
     {% csrf_token %}
+    <div class="bg-white rounded-xl border border-base shadow-sm p-6">
     {% include "components/_form_errores.html" %}
     <div class="flex items-center justify-between gap-3 mb-4">
       <h2 class="text-heading font-bold">Identidad y encuadre</h2>
@@ -35,10 +36,6 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {% for field in form %}{% if field.name == 'responsable_nombre' or field.name == 'responsable_documento' or field.name == 'contacto_telefono' or field.name == 'contacto_email' %}{% include "components/_field.html" with wrapper_class="" %}{% endif %}{% endfor %}
       </div>
-    </div>
-    {% comment %}P17: las preguntas del formulario «Crear dispositivo» del tipo elegido. El JS reemplaza la sección al cambiar el tipo; sin JS, guardar con un tipo nuevo vuelve con la sección dibujada.{% endcomment %}
-    <div data-formulario-tipo data-url="{% url 'dispositivos:formulario_tipo_seccion' %}"{% if form.instance.pk %} data-dispositivo="{{ form.instance.pk }}"{% endif %}>
-      {% include "programas/dispositivos/legajo/_formulario_tipo.html" %}
     </div>
     {% comment %}Días y horarios: un formset de franjas (día, desde, hasta). Las filas con datos van a la tabla, con sus valores en campos ocultos; las vacías son el bloque para agregar. Sin JS se completa una fila por franja y se quita marcando «Quitar»; con JS la primera fila vacía es el control de «Agregar» y «Quitar» saca la fila. Las reglas (superposición, desde < hasta, tope por día) las valida el servidor.{% endcomment %}
     <div class="border-t border-light mt-5 pt-4" data-franjas data-prefijo="{{ form.franjas.prefix }}">
@@ -91,7 +88,12 @@
         </div>
       </div>
     </div>
-    <div class="flex flex-wrap justify-end gap-3 mt-6 pt-4 border-t border-light">
+    </div>
+    {% comment %}P17: el formulario «Crear dispositivo» del tipo elegido va en su propia tarjeta, después de la de datos. El wrapper es `contents` (no cuenta en el espaciado) y el JS reemplaza la tarjeta entera al cambiar el tipo; sin JS, guardar con un tipo nuevo vuelve con la sección dibujada.{% endcomment %}
+    <div class="contents" data-formulario-tipo data-url="{% url 'dispositivos:formulario_tipo_seccion' %}"{% if form.instance.pk %} data-dispositivo="{{ form.instance.pk }}"{% endif %}>
+      {% include "programas/dispositivos/legajo/_formulario_tipo.html" %}
+    </div>
+    <div class="flex flex-wrap justify-end gap-3">
       <a href="{% url 'dispositivos:lista' %}" class="btn-nodo btn-tertiary btn-base">Cancelar</a>
       <button type="submit" class="btn-nodo {% if puede_enviar_validacion %}btn-secondary{% else %}btn-brand{% endif %} btn-base">{% if form.instance.pk %}Guardar cambios{% else %}Guardar borrador{% endif %}</button>
       {% if puede_enviar_validacion %}<button type="submit" name="accion" value="enviar_validacion" class="btn-nodo btn-brand btn-base">Enviar a validación</button>{% endif %}
