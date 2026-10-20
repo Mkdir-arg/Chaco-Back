@@ -47,7 +47,7 @@ class Argon2AjustadoTests(TestCase):
 
     def test_un_hash_con_los_defaults_de_django_sigue_autenticando_y_se_rehashea(self):
         user = User.objects.create_user("stock", password="provisoria")
-        user.password = Argon2PasswordHasher().encode("clave-correcta-123", "salsalsalsalsal")
+        user.password = Argon2PasswordHasher().encode("clave-correcta-123", Argon2PasswordHasher().salt())
         user.save(update_fields=["password"])
         self.assertIn("m=102400,t=2,p=8", user.password)
 

@@ -45388,7 +45388,13 @@ CSRF a un cliente de sesión es correcto) y cualquier migración de hashes.
   `algorithm = "argon2"` y el dict por algoritmo se queda con el último. Se hereda el `algorithm` para
   no cambiar el prefijo del hash.
 - **Costo asumido**: un ataque offline contra un hash robado paga menos memoria por intento; 19 MiB es
-  el piso que recomienda OWASP.
+  el piso que recomienda OWASP. Que «el pod no tiene cores para `parallelism=8`» es una inferencia
+  coherente con la medición de QA, no una medición directa.
+- **Costo asumido, transitorio**: mientras un usuario conserve un hash con los defaults viejos, con clave
+  mala responde más lento que un usuario inexistente (el `set_password` de relleno de `ModelBackend` usa
+  el hasher nuevo y `harden_runtime` de Argon2 no hace nada en Django): esa diferencia de tiempo permite
+  enumerar usuarios. Se cierra cuando cada usuario entra una vez, ya existía con PBKDF2 y la acota la
+  cubeta por IP.
 - **Sin migración**: los parámetros viajan en el hash; los hashes con los defaults viejos se siguen
   verificando y Django los re-hashea en el siguiente login (`must_update` compara parámetros).
 - **`authentication_classes = ()` en `ObtainCampoToken`**: el login no se autentica con nada previo. El
