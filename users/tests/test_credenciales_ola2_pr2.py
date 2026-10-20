@@ -11,7 +11,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.contenttypes.models import ContentType
 from django.core import mail
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import Resolver404, resolve, reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -829,3 +829,21 @@ class AltaDelAgenteDeInspeccionTests(_SinCubetas):
         self.assertEqual(respuesta.status_code, 302)
         self.assertTrue(User.objects.filter(username="nuevo-agente").exists())
         self.assertIn("/establecer-contrasena/", mail.outbox[0].body)
+
+
+class LoginDeLaAppConSesionDeBackofficeTests(_SinCubetas):
+    def test_el_login_de_la_app_no_exige_csrf_aunque_el_navegador_tenga_sesion(self):
+        """Con la cookie de sesión del backoffice, DRF autenticaba por sesión y
+        exigía CSRF: el login moría con 403 antes de mirar usuario y clave."""
+        becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        _user("terri-sesion", _rol("Terr sesion", ["becas.campo"], becas))
+        navegador = Client(enforce_csrf_checks=True)
+        navegador.force_login(_user("operador-web", _rol("Operador web", [])))
+
+        respuesta = navegador.post(
+            reverse("becas_api:token"),
+            {"username": "terri-sesion", "password": CLAVE},
+        )
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("token", respuesta.json())

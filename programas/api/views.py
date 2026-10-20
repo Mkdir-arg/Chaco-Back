@@ -137,6 +137,13 @@ class ObtainCampoToken(ObtainAuthToken):
     En las dos, solo cuentan los intentos fallidos.
     """
 
+    # El login no se autentica con nada previo. Heredaba SessionAuthentication
+    # (default de DRF): con la cookie de sesión del backoffice en el navegador,
+    # DRF autenticaba por sesión, exigía CSRF y el login moría con 403 «CSRF
+    # Failed» antes de mirar usuario y clave. El token viaja en el cuerpo, no en
+    # una cookie, así que no hay login-CSRF que proteger.
+    authentication_classes = ()
+
     TOKEN_VENTANA_SEGUNDOS = 600
     TOKEN_MAX_POR_USUARIO = 10
 
