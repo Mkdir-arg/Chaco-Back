@@ -229,7 +229,27 @@ def _exigir_campos_para_validacion(dispositivo):
         raise ValidationError("Completá los campos obligatorios antes de validar el dispositivo.")
 
 
-def _transicionar(dispositivo, usuario, *, origenes, destino, accion, detalle="", exige_datos=False):
+def _exigir_formulario_del_tipo(dispositivo):
+    """Los obligatorios visibles del formulario «Crear dispositivo» de su tipo (P17).
+
+    Se exigen al **enviar** a validación, como los datos del legajo: el borrador los
+    guarda incompletos. Contra el formulario vigente del tipo y lo ya guardado.
+    """
+    from programas.services.respuestas_dispositivo import faltantes_formulario_alta
+
+    faltantes = faltantes_formulario_alta(dispositivo)
+    if faltantes:
+        raise ValidationError(
+            "Completá las preguntas obligatorias del formulario del tipo antes de enviar a validación: "
+            + ", ".join(faltantes)
+            + ".",
+            code="formulario_tipo_incompleto",
+        )
+
+
+def _transicionar(
+    dispositivo, usuario, *, origenes, destino, accion, detalle="", exige_datos=False, exige_formulario=False
+):
     from programas.models import Dispositivo
 
     with transaction.atomic():
@@ -238,6 +258,8 @@ def _transicionar(dispositivo, usuario, *, origenes, destino, accion, detalle=""
             raise ValidationError("La transición de estado solicitada no está permitida.")
         if exige_datos:
             _exigir_campos_para_validacion(dispositivo)
+        if exige_formulario:
+            _exigir_formulario_del_tipo(dispositivo)
 
         anterior = dispositivo.estado
         dispositivo.estado = destino
@@ -256,6 +278,7 @@ def enviar_a_validacion(dispositivo, usuario):
         destino=Dispositivo.Estado.PENDIENTE_VALIDACION,
         accion="ENVIADO_VALIDACION",
         exige_datos=True,
+        exige_formulario=True,
     )
 
 

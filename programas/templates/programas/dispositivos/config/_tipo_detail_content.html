@@ -47,7 +47,10 @@
           {% for formulario in formularios %}
           {% url 'dispositivos:formulario_editor' tipo.pk formulario.momento as url_editor %}
           <tr class="hover:bg-secondary transition">
-            <td class="nodo-td"><a href="{{ url_editor }}" class="font-medium text-fg-brand hover:underline">{{ formulario.get_momento_display }}</a></td>
+            <td class="nodo-td">
+              <a href="{{ url_editor }}" class="font-medium text-fg-brand hover:underline">{{ formulario.get_momento_display }}</a>
+              {% if formulario.de_baja %}<span class="badge badge-dot badge-gray ml-2">De baja</span>{% endif %}
+            </td>
             <td class="nodo-td{% if formulario.momento == 'propio' %} text-body-subtle{% endif %}">{{ formulario.se_completa_en }}</td>
             <td class="nodo-td text-center">{{ formulario.n_secciones }}</td>
             <td class="nodo-td text-center">{{ formulario.n_campos }}</td>
@@ -56,15 +59,37 @@
               <a href="{{ url_editor }}" class="nodo-icon-btn" aria-label="Editar el formulario {{ formulario.get_momento_display }}">
                 <i class="fas fa-pen" aria-hidden="true"></i>
               </a>
+              {% if formulario.de_baja %}
+              <button type="button"
+                      class="nodo-icon-btn"
+                      aria-label="Reactivar el formulario {{ formulario.get_momento_display }}"
+                      data-confirm-url="{% url 'dispositivos:formulario_reactivar' tipo.pk formulario.momento %}"
+                      data-confirm-title="Reactivar formulario"
+                      data-confirm-text="«{{ formulario.get_momento_display }}» se vuelve a pedir con sus secciones, campos y su versión {{ formulario.version }}."
+                      data-confirm-ok="Sí, reactivar">
+                <i class="fas fa-rotate-left" aria-hidden="true"></i>
+              </button>
+              {% elif formulario.tiene_respuestas %}
+              <button type="button"
+                      class="nodo-icon-btn nodo-icon-btn--danger"
+                      aria-label="Dar de baja el formulario {{ formulario.get_momento_display }}"
+                      data-confirm-url="{% url 'dispositivos:formulario_eliminar' tipo.pk formulario.momento %}"
+                      data-confirm-title="Dar de baja el formulario"
+                      data-confirm-text="«{{ formulario.get_momento_display }}» ya tiene respuestas: no se borra, se da de baja. Deja de pedirse, lo respondido se sigue viendo en cada dispositivo y lo podés reactivar."
+                      data-confirm-ok="Sí, dar de baja">
+                <i class="fas fa-trash" aria-hidden="true"></i>
+              </button>
+              {% else %}
               <button type="button"
                       class="nodo-icon-btn nodo-icon-btn--danger"
                       aria-label="Eliminar el formulario {{ formulario.get_momento_display }}"
                       data-confirm-url="{% url 'dispositivos:formulario_eliminar' tipo.pk formulario.momento %}"
                       data-confirm-title="Eliminar formulario"
-                      data-confirm-text="Se borra «{{ formulario.get_momento_display }}» con sus secciones y campos. El momento queda libre para crearlo de nuevo."
+                      data-confirm-text="Se borra «{{ formulario.get_momento_display }}» con sus secciones y campos. Nadie lo respondió todavía. El momento queda libre para crearlo de nuevo."
                       data-confirm-ok="Sí, eliminar">
                 <i class="fas fa-trash" aria-hidden="true"></i>
               </button>
+              {% endif %}
             </td>
           </tr>
           {% empty %}

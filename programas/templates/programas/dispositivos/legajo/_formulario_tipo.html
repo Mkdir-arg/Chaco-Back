@@ -1,0 +1,34 @@
+{% comment %}
+Formulario «Crear dispositivo» del tipo elegido (P17, carril 2), debajo de «Responsable y
+contacto» en el alta y la edición (P3). Lo arma `programas.forms_dinamicos.RespuestasDisenoForm`
+desde la foto vigente del diseño: una sección por grupo, sus textos y sus campos, nombrados
+por clave con el prefijo `formulario-`. La misma pieza la devuelve
+`dispositivos:formulario_tipo_seccion` cuando cambia el tipo; sin formulario sale vacía.
+
+`data-item` y `formulario-tipo-items` son lo que lee el JS de la pantalla para evaluar las
+condiciones con `nodo-condiciones.js` (el servidor las vuelve a evaluar al guardar).
+`data-valor` lleva el archivo ya guardado: cuenta como respondido aunque no se suba otro.
+El asterisco marca lo que exige «Enviar a validación», no el guardado.
+{% endcomment %}
+{% if formulario_tipo %}
+<input type="hidden" name="formulario_tipo_diseno" value="{{ formulario_tipo.diseno.pk }}">
+{{ formulario_tipo.planos|json_script:"formulario-tipo-items" }}
+{% for grupo in formulario_tipo.grupos %}
+<div class="border-t border-light mt-5 pt-4" data-item="{{ grupo.clave }}">
+  <h2 class="text-heading font-bold{% if grupo.subtitulo %} mb-1{% else %} mb-4{% endif %}">{{ grupo.titulo }}</h2>
+  {% if grupo.subtitulo %}<p class="mb-4 text-xs text-body-subtle">{{ grupo.subtitulo }}</p>{% endif %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    {% for fila in grupo.items %}
+    {% if fila.tipo == "texto" %}
+    <p class="text-sm text-body sm:col-span-2" data-item="{{ fila.clave }}">{{ fila.texto|urlize }}</p>
+    {% else %}
+    <div data-item="{{ fila.clave }}" data-campo{% if fila.obligatorio %} data-obligatorio data-texto="{{ fila.bound.label }}"{% endif %}{% if fila.archivo_guardado %} data-valor="{{ fila.archivo_guardado }}"{% endif %} class="{% if fila.es_checks %}nodo-checks sm:col-span-2{% endif %}">
+      {% include "components/_field.html" with field=fila.bound wrapper_class="" %}
+      {% if fila.archivo_guardado %}<p class="mt-1 text-xs text-body-subtle">Ya cargado: {{ fila.archivo_guardado }}. Subí otro solo si lo querés reemplazar.</p>{% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+{% endif %}
