@@ -20,7 +20,7 @@ El asterisco marca lo que exige «Enviar a validación», no el guardado.
   <div class="p-5">
 {% for grupo in formulario_tipo.grupos %}
 <div{% if not forloop.first %} class="border-t border-light mt-5 pt-4"{% endif %} data-item="{{ grupo.clave }}">
-  <h3 class="text-heading font-bold{% if grupo.subtitulo %} mb-1{% else %} mb-4{% endif %}">{{ grupo.titulo }}</h2>
+  <h3 class="text-heading font-bold{% if grupo.subtitulo %} mb-1{% else %} mb-4{% endif %}">{{ grupo.titulo }}</h3>
   {% if grupo.subtitulo %}<p class="mb-4 text-xs text-body-subtle">{{ grupo.subtitulo }}</p>{% endif %}
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     {% for fila in grupo.items %}
