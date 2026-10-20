@@ -472,6 +472,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 344 | Formularios por tipo de dispositivo: uno por momento, con el constructor de Becas (P17, carril 1) | Dispositivos · configuración de tipos · constructor de formularios | `#ui` `#datos` `#rbac` `#performance` | PM — mockup P17 | 20/10/2026 | 🟢 **Hecho** | `programas.0100` |
 | 345 | P3 pide el formulario «Crear dispositivo» del tipo y P4 muestra lo respondido (P17, carril 2) | Dispositivos · alta y edición de institución (P3) · detalle (P4) · formularios por tipo (P17) | `#ui` `#datos` `#rbac` `#performance` | PM — mockup P17, vía el juez del carril | 20/10/2026 | 🟢 **Hecho** | `programas.0101` |
 | 346 | El login de la app de campo tarda 0,75 s de Argon2 y muere con 403 CSRF si el navegador tiene sesión | Transversal · login de la app de campo (`/api/becas/auth/token/`) | `#sesion` `#api` `#performance` | PM — medición en QA, vía el juez | 20/10/2026 | 🟢 **Hecho** | No requiere |
+| 347 | El test de capacidad concurrente usa un usuario por hilo (sesión única del backoffice) | Dispositivos · tests de concurrencia en motor real | `#sesion` | Juez del carril — rojo intermitente en «Motor real (mariadb:11)» | 20/10/2026 | 🟢 **Hecho** | — |
 
 **Notas del índice**
 
@@ -45433,6 +45434,77 @@ Medir en QA el tiempo del POST tras el despliegue. No se tocó el aviso de SEC-2
 
 Revertir los dos commits. Los hashes ya re-hasheados con `p=1` se siguen verificando con el hasher de
 Django (los parámetros viajan en el hash); no se pierden datos.
+
+## Historial
+
+- **20/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 347 — El test de capacidad concurrente usa un usuario por hilo (sesión única del backoffice)
+
+🟢 **HECHO — 20/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · `programas/tests/test_dispositivos_capacidad_concurrencia.py` |
+| **Etiquetas** | `#sesion` |
+| **Solicitante** | Juez del carril — rojo intermitente en el job «Motor real (mariadb:11)» |
+| **Fecha del pedido** | 20/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Solo el test; el middleware no cambia |
+| **Migración** | No |
+
+## Pedido original
+
+`CapacidadConcurrenteTests` fallaba a veces con un hilo en 302 (`[200, 302]`).
+
+## Alcance acordado
+
+Solo el test. Afuera: `users/middleware.py`.
+
+## Decisiones tomadas
+
+**Causa.** Cada hilo hacía `Client()` + `force_login` del mismo usuario. `BackofficeSingleSessionMiddleware`
+registra perezosamente la primera `session_key` en `profile.backoffice_session_key` y, al segundo request con
+otra clave, desloguea y redirige al login. La `Barrier` está después del `force_login`, así que cuál sesión
+quedaba registrada era una carrera.
+
+**Arreglo.** Un superuser por hilo (`capacidad_concurrente_1/2`); `_post_simultaneos` empareja usuarios y
+pedidos. Los superusers siguen con bypass de RBAC: el alcance y los candados que mide el test no cambian.
+
+**Otros tests con hilos.** Revisados `core/tests/test_motor_real.py`, `test_dispositivos_concurrencia.py`,
+`test_candados_concurrencia.py`, `test_inscripciones_reactivacion.py`, `users/tests/test_ola7_pr3.py` y
+`legajos/tests/test_renaper_concurrencia.py`: llaman servicios o ORM en los hilos, sin login HTTP. No tienen el patrón.
+
+## Implementación
+
+`setUp` crea `self.usuarios`; `post(usuario, url, datos)` hace el `force_login` de su propio usuario.
+
+## Archivos
+
+- `programas/tests/test_dispositivos_capacidad_concurrencia.py`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Los tres tests llevan `@tag("mysql")` y se saltean en SQLite local (corren solo con `DJANGO_TEST_MOTOR` + `DATABASE_*`,
+en el job de motor real). Localmente: ruff check/format, `manage.py check` y `requerimientos.py --check` en verde.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+`git revert` del merge.
 
 ## Historial
 

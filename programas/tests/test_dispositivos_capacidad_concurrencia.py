@@ -20,7 +20,11 @@ class CapacidadConcurrenteTests(MotorRealMixin, TransactionTestCase):
             codigo="DISPOSITIVOS",
             defaults={"nombre": "Dispositivos", "tipo": Programa.TipoPrograma.DISPOSITIVOS},
         )
-        self.usuario = User.objects.create_superuser(username="capacidad_concurrente", password="x")
+        # Un usuario por hilo: BackofficeSingleSessionMiddleware deja una sola sesión por usuario y
+        # desloguea (302) a la que llega segunda; con un único usuario el 302 dependía de la carrera.
+        self.usuarios = [
+            User.objects.create_superuser(username=f"capacidad_concurrente_{i}", password="x") for i in (1, 2)
+        ]
         tipo = TipoDispositivo.objects.create(codigo="C5", nombre="Albergue C5")
         self.dispositivo = Dispositivo.objects.create(
             tipo=tipo,
@@ -35,10 +39,10 @@ class CapacidadConcurrenteTests(MotorRealMixin, TransactionTestCase):
         barrera = threading.Barrier(2, timeout=15)
         respuestas, errores = [], []
 
-        def post(url, datos):
+        def post(usuario, url, datos):
             try:
                 client = Client()
-                client.force_login(User.objects.get(pk=self.usuario.pk))
+                client.force_login(User.objects.get(pk=usuario.pk))
                 barrera.wait()
                 respuestas.append(client.post(url, datos, HTTP_X_REQUESTED_WITH="XMLHttpRequest"))
             except Exception as error:
@@ -47,7 +51,9 @@ class CapacidadConcurrenteTests(MotorRealMixin, TransactionTestCase):
             finally:
                 connections.close_all()
 
-        hilos = [threading.Thread(target=post, args=pedido) for pedido in pedidos]
+        hilos = [
+            threading.Thread(target=post, args=(usuario, *pedido)) for usuario, pedido in zip(self.usuarios, pedidos)
+        ]
         for hilo in hilos:
             hilo.start()
         for hilo in hilos:
