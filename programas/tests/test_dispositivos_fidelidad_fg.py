@@ -124,6 +124,10 @@ class FidelidadFGTests(BaseDetalle):
     def test_ambos_fallos_de_busqueda_se_registran_en_consola(self):
         html = self.client.get(reverse("dispositivos:crear")).content.decode()
         capturas = re.findall(r"\.catch\(function \(error\) \{(.*?)\}\);", html, re.S)
-        self.assertEqual(len(capturas), 2)
-        for captura in capturas:
+        # La tercera es la carga del formulario del tipo (P17): también deja rastro en consola.
+        duplicados = [captura for captura in capturas if "verificar duplicados" in captura]
+        self.assertEqual(len(duplicados), 2)
+        for captura in duplicados:
             self.assertIn("console.error('No se pudo verificar duplicados.', error);", captura)
+        for captura in capturas:
+            self.assertIn("console.error(", captura)
