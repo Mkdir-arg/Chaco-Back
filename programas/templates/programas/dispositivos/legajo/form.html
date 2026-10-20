@@ -34,7 +34,57 @@
       <h2 class="text-heading font-bold mb-4">Responsable y contacto</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {% for field in form %}{% if field.name == 'responsable_nombre' or field.name == 'responsable_documento' or field.name == 'contacto_telefono' or field.name == 'contacto_email' %}{% include "components/_field.html" with wrapper_class="" %}{% endif %}{% endfor %}
-        {% include "components/_field.html" with field=form.horarios wrapper_class="sm:col-span-2" %}
+      </div>
+    </div>
+    {% comment %}Días y horarios: un formset de franjas (día, desde, hasta). Las filas con datos van a la tabla, con sus valores en campos ocultos; las vacías son el bloque para agregar. Sin JS se completa una fila por franja y se quita marcando «Quitar»; con JS la primera fila vacía es el control de «Agregar» y «Quitar» saca la fila. Las reglas (superposición, desde < hasta, tope por día) las valida el servidor.{% endcomment %}
+    <div class="border-t border-light mt-5 pt-4" data-franjas data-prefijo="{{ form.franjas.prefix }}">
+      <h2 class="text-heading font-bold mb-4">Días y horarios</h2>
+      {{ form.franjas.management_form }}
+      {% if form.horario_heredado %}
+      <div class="mb-4 text-sm">
+        <p class="text-body"><span class="font-medium text-heading">Horario cargado antes:</span> <span class="whitespace-pre-line">{{ form.horario_heredado }}</span></p>
+        <p class="mt-1 text-xs text-body-subtle">Se conserva hasta que cargues la primera franja; al guardar, lo reemplaza el resumen de las franjas.</p>
+      </div>
+      {% endif %}
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <caption class="sr-only">Franjas de atención</caption>
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">Día</th>
+              <th class="nodo-th">Desde</th>
+              <th class="nodo-th">Hasta</th>
+              <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody data-franjas-filas>
+            {% for franja in form.franjas.filas_cargadas %}
+            <tr class="hover:bg-secondary" data-franja data-dia="{{ franja.dia.value|default:'' }}" data-desde="{{ franja.texto_desde }}" data-hasta="{{ franja.texto_hasta }}">
+              <td class="nodo-td text-heading font-medium">{{ franja.texto_dia }}{{ franja.dia.as_hidden }}{{ franja.hora_desde.as_hidden }}{{ franja.hora_hasta.as_hidden }}{% if franja.dia.errors %}<p class="mt-1 text-xs text-fg-danger">{{ franja.dia.errors|join:" " }}</p>{% endif %}</td>
+              <td class="nodo-td">{{ franja.texto_desde }}{% if franja.hora_desde.errors %}<p class="mt-1 text-xs text-fg-danger">{{ franja.hora_desde.errors|join:" " }}</p>{% endif %}</td>
+              <td class="nodo-td">{{ franja.texto_hasta }}{% if franja.hora_hasta.errors %}<p class="mt-1 text-xs text-fg-danger">{{ franja.hora_hasta.errors|join:" " }}</p>{% endif %}</td>
+              <td class="nodo-td text-right">
+                <label class="inline-flex items-center gap-2 text-sm text-body" data-quitar-sin-js>{{ franja.DELETE }} Quitar</label>
+                <button type="button" class="btn-nodo btn-tertiary btn-sm btn-fit hidden" data-quitar aria-label="Quitar la franja del {{ franja.texto_dia|lower }} de {{ franja.texto_desde }} a {{ franja.texto_hasta }}">Quitar</button>
+              </td>
+            </tr>
+            {% endfor %}
+            <tr data-franjas-vacio{% if form.franjas.filas_cargadas %} class="hidden"{% endif %}><td colspan="4" class="nodo-td text-body-subtle">Todavía no hay franjas cargadas.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-4">
+        <p class="mb-3 text-xs text-body-subtle" data-ayuda-sin-js>Completá una fila por franja con el día, desde y hasta. Para quitar una franja, marcá «Quitar» y guardá.</p>
+        {% for franja in form.franjas.filas_vacias %}
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4" data-franja-vacia>
+          {% include "components/_field.html" with field=franja.dia wrapper_class="" %}
+          {% include "components/_field.html" with field=franja.hora_desde wrapper_class="" %}
+          {% include "components/_field.html" with field=franja.hora_hasta wrapper_class="" %}
+        </div>
+        {% endfor %}
+        <div class="flex justify-end">
+          <button type="button" class="btn-nodo btn-secondary btn-sm hidden" data-franja-agregar><i class="fas fa-plus" aria-hidden="true"></i> Agregar</button>
+        </div>
       </div>
     </div>
     <div class="flex flex-wrap justify-end gap-3 mt-6 pt-4 border-t border-light">
@@ -93,6 +143,118 @@
     document.getElementById(fila.dataset.requisitoCampo).addEventListener('input', actualizarFaltantes);
   });
   actualizarFaltantes();
+}());
+</script>
+<script>
+(function () {
+  // Días y horarios: «Agregar» pasa la primera fila vacía a la tabla como una fila nueva
+  // del formset, y «Quitar» la marca para borrar y la oculta. Las mismas reglas que acá
+  // avisan al lado del control las vuelve a exigir el servidor al guardar.
+  const bloque = document.querySelector('[data-franjas]');
+  if (!bloque) return;
+  const prefijo = bloque.dataset.prefijo;
+  const total = document.getElementById('id_' + prefijo + '-TOTAL_FORMS');
+  const filas = bloque.querySelector('[data-franjas-filas]');
+  const vacio = bloque.querySelector('[data-franjas-vacio]');
+  const vacias = Array.from(bloque.querySelectorAll('[data-franja-vacia]'));
+  const agregar = bloque.querySelector('[data-franja-agregar]');
+  const MAX_POR_DIA = 4;
+  if (!vacias.length) return;
+  const control = vacias[0];
+  vacias.slice(1).forEach(function (fila) { fila.classList.add('hidden'); });
+  bloque.querySelector('[data-ayuda-sin-js]').classList.add('hidden');
+  agregar.classList.remove('hidden');
+  const dia = control.querySelector('select');
+  const [desde, hasta] = control.querySelectorAll('input[type="time"]');
+
+  function visibles() {
+    return Array.from(filas.querySelectorAll('[data-franja]:not(.hidden)'));
+  }
+  function actualizarVacio() {
+    vacio.classList.toggle('hidden', visibles().length > 0);
+  }
+  function quitar(fila) {
+    const marca = fila.querySelector('input[type="checkbox"]');
+    if (marca) { marca.checked = true; fila.classList.add('hidden'); } else { fila.remove(); }
+    actualizarVacio();
+  }
+  function prepararQuitar(fila) {
+    const sinJs = fila.querySelector('[data-quitar-sin-js]');
+    if (sinJs) sinJs.classList.add('hidden');
+    const boton = fila.querySelector('[data-quitar]');
+    boton.classList.remove('hidden');
+    boton.addEventListener('click', function () { quitar(fila); });
+  }
+  function error(campo, mensaje) {
+    const p = document.getElementById(campo.id + '-error');
+    p.textContent = mensaje || '';
+    p.classList.toggle('hidden', !mensaje);
+    if (mensaje) campo.setAttribute('aria-invalid', 'true'); else campo.removeAttribute('aria-invalid');
+  }
+  function oculto(nombre, valor) {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = prefijo + '-' + total.value + '-' + nombre;
+    input.value = valor;
+    return input;
+  }
+  function celda(texto) {
+    const td = document.createElement('td');
+    td.className = 'nodo-td';
+    td.textContent = texto;
+    return td;
+  }
+
+  visibles().forEach(prepararQuitar);
+  agregar.addEventListener('click', function () {
+    [dia, desde, hasta].forEach(function (campo) { error(campo, ''); });
+    let valido = true;
+    if (!dia.value) { error(dia, 'Elegí el día.'); valido = false; }
+    if (!desde.value) { error(desde, 'Indicá desde qué hora.'); valido = false; }
+    if (!hasta.value) { error(hasta, 'Indicá hasta qué hora.'); valido = false; }
+    if (!valido) return;
+    if (desde.value >= hasta.value) { error(hasta, 'La hora «Hasta» tiene que ser posterior a «Desde».'); return; }
+    const delDia = visibles().filter(function (fila) { return fila.dataset.dia === dia.value; });
+    const pisada = delDia.find(function (fila) { return desde.value < fila.dataset.hasta && fila.dataset.desde < hasta.value; });
+    const nombreDia = dia.options[dia.selectedIndex].text;
+    if (pisada) {
+      error(desde, 'Se superpone con la franja del ' + nombreDia.toLowerCase() + ' de ' + pisada.dataset.desde + ' a ' + pisada.dataset.hasta + '.');
+      return;
+    }
+    if (delDia.length >= MAX_POR_DIA) { error(dia, 'Un día admite hasta ' + MAX_POR_DIA + ' franjas.'); return; }
+
+    const fila = document.createElement('tr');
+    fila.className = 'hover:bg-secondary';
+    fila.dataset.franja = '';
+    fila.dataset.dia = dia.value;
+    fila.dataset.desde = desde.value;
+    fila.dataset.hasta = hasta.value;
+    const primera = celda(nombreDia);
+    primera.classList.add('text-heading', 'font-medium');
+    primera.append(oculto('dia', dia.value), oculto('hora_desde', desde.value), oculto('hora_hasta', hasta.value));
+    const acciones = document.createElement('td');
+    acciones.className = 'nodo-td text-right';
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'btn-nodo btn-tertiary btn-sm btn-fit';
+    boton.dataset.quitar = '';
+    boton.textContent = 'Quitar';
+    boton.setAttribute('aria-label', 'Quitar la franja del ' + nombreDia.toLowerCase() + ' de ' + desde.value + ' a ' + hasta.value);
+    acciones.append(boton);
+    fila.append(primera, celda(desde.value), celda(hasta.value), acciones);
+    total.value = Number(total.value) + 1;
+    // En orden de día y hora, como queda al guardar.
+    const despues = visibles().find(function (otra) {
+      return Number(otra.dataset.dia) > Number(dia.value) || (otra.dataset.dia === dia.value && otra.dataset.desde > desde.value);
+    });
+    filas.insertBefore(fila, despues || vacio);
+    prepararQuitar(fila);
+    dia.value = '';
+    desde.value = '';
+    hasta.value = '';
+    actualizarVacio();
+    dia.focus();
+  });
 }());
 </script>
 {% if not form.instance.pk %}
