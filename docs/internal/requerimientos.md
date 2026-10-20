@@ -45279,7 +45279,7 @@ borra: se da de baja y se puede reactivar.
 - `programas/services/respuestas_dispositivo.py` (nuevo), `programas/services/formularios_tipo.py`, `programas/services/dispositivos.py`, `programas/selectors/formularios_tipo.py`
 - `programas/views/dispositivos_legajo.py`, `programas/views/dispositivos_formularios.py`, `programas/dispositivos_urls.py`, `core/views/media.py`
 - Templates: `dispositivos/legajo/form.html`, `legajo/_formulario_tipo.html` (nuevo), `legajo/detail.html`, `config/_tipo_detail_content.html`
-- Tests: `programas/tests/test_dispositivos_formulario_alta.py` (nuevo, 30), `programas/tests/js/franjas_quitar_fa.cjs` (nuevo), `programas/tests/js/faltantes_fi.cjs`
+- Tests: `programas/tests/test_dispositivos_formulario_alta.py` (nuevo, 30), `programas/tests/js/franjas_quitar_fa.cjs` (nuevo), `programas/tests/js/faltantes_fi.cjs`; contratos ajustados: `test_models_contrato.py` (los tres nombres nuevos), `test_dispositivos_fidelidad_ff.py` (`enctype` multipart) y `test_dispositivos_fidelidad_fg.py` (la carga de la sección es la tercera captura `.catch` y también loguea)
 - `scripts/perf_budgets.json` (`dispositivos_formulario_tipo_p3`: 3, `dispositivos_formularios_respondidos`: 2)
 
 ## Base de datos
@@ -45301,6 +45301,8 @@ formulario con respuestas no se puede borrar por debajo del servicio.
   `test_dispositivos_detalle`, `test_dispositivos_config`, `test_arquitectura`,
   `core.tests.test_media_protegida` (incluye `CoberturaDePrefijosTests`), `portal` completo,
   `test_respuestas`, `test_json_compatibilidad`, `test_becas_api_contrato` y `--tag performance`.
+- Suite completa (6783 tests): los únicos rojos fueron esos tres contratos (5 fallos), corregidos
+  en el mismo PR y vueltos a correr en verde.
 - Presupuestos: la sección de P3 cuesta 2 consultas en el alta y 3 en la edición, con 4 o 12
   campos; `formularios_respondidos` 2 con 4 o 12 campos; las pantallas de edición y detalle no
   crecen al sumar 8 campos.
