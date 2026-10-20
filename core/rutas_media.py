@@ -52,6 +52,8 @@ PREFIJO_NOTIFICACIONES_IMAGENES = "notificaciones/imagenes/"
 PREFIJO_NOTIFICACIONES = "notificaciones/"
 #: Adjuntos de una entrada de la bitácora de turno (``programas.AdjuntoBitacora``).
 PREFIJO_ADJUNTO_BITACORA = "dispositivos/bitacora/"
+#: Archivos respondidos en el formulario de un tipo de dispositivo (``programas.AdjuntoRespuestaAlta``, P17).
+PREFIJO_FORMULARIO_DISPOSITIVO = "dispositivos/formularios/"
 
 
 def nombre_opaco(filename):
@@ -88,6 +90,11 @@ def ruta_solicitud_merendero(instance, filename):
 def ruta_adjunto_bitacora(instance, filename):
     """El acta o la foto de una novedad del turno: `%Y/%m` porque cada turno suma archivos."""
     return f"{PREFIJO_ADJUNTO_BITACORA}{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
+
+
+def ruta_formulario_dispositivo(instance, filename):
+    """Un archivo respondido en el formulario de un tipo: `%Y/%m`, como la bitácora."""
+    return f"{PREFIJO_FORMULARIO_DISPOSITIVO}{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
 
 
 def ruta_notificacion_excel(instance, filename):

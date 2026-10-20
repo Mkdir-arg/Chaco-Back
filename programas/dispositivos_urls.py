@@ -21,6 +21,8 @@ urlpatterns = [
     path("export/<str:reporte>/<str:formato>/", reportes.DispositivoExportView.as_view(), name="exportar"),
     path("nuevo/", legajo.DispositivoCreateView.as_view(), name="crear"),
     path("buscar-duplicados/", legajo.DispositivoDuplicateSearchView.as_view(), name="buscar_duplicados"),
+    # La sección «Crear dispositivo» del tipo elegido en el alta y la edición (P3 · P17).
+    path("formulario-tipo/", legajo.DispositivoFormularioTipoView.as_view(), name="formulario_tipo_seccion"),
     path("<int:pk>/enviar-validacion/", legajo.DispositivoEnviarValidacionView.as_view(), name="enviar_validacion"),
     path("<int:pk>/validar/", legajo.DispositivoValidarView.as_view(), name="validar"),
     path("<int:pk>/observar/", legajo.DispositivoObservarView.as_view(), name="observar"),
@@ -128,6 +130,11 @@ urlpatterns = [
         "config/<int:pk>/formularios/<slug:momento>/eliminar/",
         frm.FormularioTipoEliminarView.as_view(),
         name="formulario_eliminar",
+    ),
+    path(
+        "config/<int:pk>/formularios/<slug:momento>/reactivar/",
+        frm.FormularioTipoReactivarView.as_view(),
+        name="formulario_reactivar",
     ),
     path(
         "config/<int:pk>/formularios/<slug:momento>/mover/",

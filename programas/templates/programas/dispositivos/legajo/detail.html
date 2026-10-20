@@ -158,6 +158,25 @@
         <div class="mt-5">
           {% include "components/_ubicacion.html" with latitud=dispositivo.latitud longitud=dispositivo.longitud only %}
         </div>
+        {# P17: lo respondido en el formulario «Crear dispositivo» del tipo, con la foto de la versión respondida; solo lo visible por sus condiciones. #}
+        {% for respondido in formularios_respondidos %}
+        <section class="border-t border-light mt-6 pt-5" aria-labelledby="formulario-respondido-{{ forloop.counter }}">
+          <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+            <h2 id="formulario-respondido-{{ forloop.counter }}" class="text-heading font-bold">{{ respondido.titulo }}</h2>
+            <span class="badge badge-gray">{% if not respondido.del_tipo_actual %}Tipo anterior: {{ respondido.tipo }} · {% endif %}Versión {{ respondido.version }}</span>
+          </div>
+          {% for seccion in respondido.secciones %}
+          <h3 class="text-sm font-semibold text-heading mb-3{% if not forloop.first %} mt-5{% endif %}">{{ seccion.titulo }}</h3>
+          <dl class="grid gap-5 sm:grid-cols-2 break-words">
+            {% for campo in seccion.campos %}
+            <div><dt class="text-xs font-semibold uppercase text-body-subtle">{{ campo.label }}</dt><dd class="mt-1 text-body">{% if campo.adjunto %}<a href="{{ campo.adjunto.archivo.url }}" target="_blank" rel="noopener" class="text-fg-brand hover:underline"><i class="fas fa-paperclip" aria-hidden="true"></i> {{ campo.valor|default:"Archivo" }}</a>{% elif campo.es_multiple %}{{ campo.valor|join:", " }}{% else %}{{ campo.valor|default:"—" }}{% endif %}</dd></div>
+            {% endfor %}
+          </dl>
+          {% empty %}
+          <p class="text-sm text-body-subtle">Todavía no tiene respuestas.</p>
+          {% endfor %}
+        </section>
+        {% endfor %}
       </div>
 
       {# ===== TAB: Sectores y plazas (el mapa completo es la pantalla «Sectores y plazas») ===== #}

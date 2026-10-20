@@ -261,6 +261,23 @@ def _adjunto_de_bitacora(user, ruta):
     return puede_operar_dispositivo(user, adjunto.dispositivo, "dispositivo.ver")
 
 
+def _archivo_de_formulario_dispositivo(user, ruta):
+    """Un archivo respondido en el formulario «Crear dispositivo» del tipo (P17).
+
+    Lo enlaza la solapa Datos del detalle (P4), así que pide lo mismo que ese detalle:
+    `dispositivo.ver` sobre **ese** dispositivo, con su alcance. Al de otra institución
+    se le contesta como si el archivo no existiera (404): ni la ruta confirma que hay
+    un dispositivo con ese archivo.
+    """
+    from programas.models import AdjuntoRespuestaAlta
+    from programas.services.dispositivos import puede_operar_dispositivo
+
+    adjunto = AdjuntoRespuestaAlta.objects.select_related("respuestas__dispositivo").filter(archivo=ruta).first()
+    if adjunto is None:
+        return None
+    return True if puede_operar_dispositivo(user, adjunto.respuestas.dispositivo, "dispositivo.ver") else None
+
+
 #: Prefijo -> resolver, uno por cada prefijo de :mod:`core.rutas_media`. El orden
 #: importa: gana el primero que matchea, así que los más largos van primero. Un
 #: `FileField` nuevo entra acá o su archivo no se puede bajar (lo fija
@@ -285,6 +302,7 @@ REGLAS = (
     (rutas.PREFIJO_NOTIFICACIONES_IMAGENES, _imagen_de_campana),
     (rutas.PREFIJO_NOTIFICACIONES, _archivo_de_campana),
     (rutas.PREFIJO_ADJUNTO_BITACORA, _adjunto_de_bitacora),
+    (rutas.PREFIJO_FORMULARIO_DISPOSITIVO, _archivo_de_formulario_dispositivo),
 )
 
 

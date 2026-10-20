@@ -33,10 +33,12 @@ from programas.models import CanalFormulario, DisenoFormulario, PresentacionCamp
 from programas.services import constructor
 from programas.services.diseno import items_ordenados
 from programas.services.formularios_tipo import (
+    DADO_DE_BAJA,
     SE_COMPLETA_EN,
     crear_formulario,
     eliminar_formulario,
     momentos_libres,
+    reactivar_formulario,
 )
 from programas.validadores import validar_condicion_json
 from programas.views.ajax_utils import ajax_errors
@@ -144,11 +146,26 @@ class FormularioTipoEliminarView(ConfigurarDispositivosMixin, View):
         formulario = _formulario(pk, momento)
         nombre = formulario.get_momento_display()
         try:
-            eliminar_formulario(formulario)
+            resultado = eliminar_formulario(formulario)
         except DjangoValidationError as error:
             messages.error(request, " ".join(error.messages))
         else:
-            messages.success(request, f"Formulario «{nombre}» eliminado.")
+            if resultado == DADO_DE_BAJA:
+                messages.success(request, f"Formulario «{nombre}» dado de baja: ya tenía respuestas.")
+            else:
+                messages.success(request, f"Formulario «{nombre}» eliminado.")
+        return redirect("dispositivos:tipo_detalle", pk=pk)
+
+
+class FormularioTipoReactivarView(ConfigurarDispositivosMixin, View):
+    """Vuelve a pedir un formulario dado de baja, con sus preguntas y su versión."""
+
+    http_method_names = ["post"]
+
+    def post(self, request, pk, momento):
+        formulario = _formulario(pk, momento)
+        reactivar_formulario(formulario)
+        messages.success(request, f"Formulario «{formulario.get_momento_display()}» reactivado.")
         return redirect("dispositivos:tipo_detalle", pk=pk)
 
 
@@ -236,7 +253,7 @@ class FormularioTipoTextoView(_MutacionView):
 
 class FormularioTipoPropioView(_MutacionView):
     def mutacion(self, request, formulario, clave):
-        form = ItemCampoPropioForm(request.POST)
+        form = ItemCampoPropioForm(request.POST, permite_archivo=True)
         padre = constructor.padre_para_nuevo(formulario, request.POST.get("padre") or "")
         if padre is None:
             form.add_error(None, "Elegí el grupo donde va el campo.")
@@ -259,7 +276,7 @@ class FormularioTipoItemEditarView(_MutacionView):
         elif item.es_texto:
             form = ItemTextoForm(request.POST)
         elif item.es_propio:
-            form = ItemCampoPropioForm(request.POST)
+            form = ItemCampoPropioForm(request.POST, permite_archivo=True)
         else:
             form = ItemEtiquetaForm(request.POST)
         if not form.is_valid():

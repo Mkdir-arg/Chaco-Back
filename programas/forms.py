@@ -781,9 +781,9 @@ class BaseFranjaHorariaFormSet(forms.BaseFormSet):
     def clean(self):
         from programas.services.horarios_dispositivo import errores_de_franjas
 
-        if any(self.errors):
-            return
-        filas = self._filas_con_franja()
+        # Solo las filas válidas: que una tenga un error no puede tapar una superposición
+        # entre otras dos, o la persona corrige la primera y recién ahí se entera de la otra.
+        filas = [form for form in self._filas_con_franja() if not form.errors]
         for posicion, campo, mensaje in errores_de_franjas([form.franja() for form in filas]):
             filas[posicion].add_error(campo, mensaje)
 
@@ -818,6 +818,40 @@ def _opciones_de_localidad(heredada=""):
         etiqueta = nombre if len(de_municipios) == 1 else f"{nombre} ({' / '.join(sorted(de_municipios))})"
         opciones.append((nombre, etiqueta))
     return opciones
+
+
+def tipos_para_dispositivo(dispositivo=None):
+    """Los tipos que se pueden elegir en P3: los activos y, en la edición, el que el
+    dispositivo ya tiene aunque se haya desactivado."""
+    tipos = TipoDispositivo.objects.all()
+    if dispositivo is not None and dispositivo.pk and dispositivo.tipo_id:
+        return tipos.filter(Q(activo=True) | Q(pk=dispositivo.tipo_id))
+    return tipos.filter(activo=True)
+
+
+def formulario_tipo_para(tipo_id, dispositivo=None, data=None, files=None):
+    """La sección «Crear dispositivo» del tipo para P3, o ``None``: un tipo que no se
+    puede elegir, que no tiene ese formulario o que lo dio de baja no pide nada.
+
+    Se arma desde la foto **vigente** y, en la edición, precarga lo que el dispositivo ya
+    respondió en ese mismo formulario (por clave). Prefijo ``formulario``: sus campos no
+    chocan con los del legajo.
+    """
+    from programas.forms_dinamicos import RespuestasDisenoForm
+    from programas.services.respuestas_dispositivo import formulario_vigente, foto_vigente, respuestas_guardadas
+
+    diseno = formulario_vigente(tipo_id, tipos=tipos_para_dispositivo(dispositivo))
+    if diseno is None:
+        return None
+    formulario = RespuestasDisenoForm(
+        data,
+        files,
+        foto=foto_vigente(diseno),
+        guardadas=respuestas_guardadas(dispositivo, diseno),
+        prefix="formulario",
+    )
+    formulario.diseno = diseno
+    return formulario
 
 
 class DispositivoForm(forms.ModelForm):
@@ -883,12 +917,13 @@ class DispositivoForm(forms.ModelForm):
         # Un horario escrito antes de las franjas se muestra, sin editar, hasta que se
         # cargue la primera: al guardar con franjas el servicio lo reemplaza por su resumen.
         self.horario_heredado = "" if guardadas else self.instance.horarios
-        tipos = TipoDispositivo.objects.all()
-        if self.instance.pk and self.instance.tipo_id:
-            tipos = tipos.filter(Q(activo=True) | Q(pk=self.instance.tipo_id))
-        else:
-            tipos = tipos.filter(activo=True)
-        self.fields["tipo"].queryset = tipos.order_by("nombre")
+        self.fields["tipo"].queryset = tipos_para_dispositivo(self.instance).order_by("nombre")
+        self.formulario_tipo = formulario_tipo_para(
+            self._tipo_elegido(),
+            self.instance,
+            data=self.data if self.is_bound else None,
+            files=self.files if self.is_bound else None,
+        )
         # El asterisco de P3 marca lo que hace falta para **enviar a validación**, no para
         # guardar: el borrador se guarda incompleto a propósito y la bajada lo dice. Se
         # marca el campo sin tocar `required`, así que la validación no cambia (lo exige
@@ -905,18 +940,43 @@ class DispositivoForm(forms.ModelForm):
             raise forms.ValidationError("Ya existe un dispositivo con este código institucional.")
         return codigo
 
+    def _tipo_elegido(self):
+        """El tipo cuya sección «Crear dispositivo» se muestra: el del POST si vino (con
+        errores vuelve con lo elegido), si no el guardado. Un valor que no es un id de un
+        tipo elegible no arma sección: el campo ``tipo`` ya lo rechaza."""
+        if not self.is_bound:
+            return self.instance.tipo_id
+        valor = str(self.data.get(self.add_prefix("tipo")) or "")
+        if not (valor.isascii() and valor.isdecimal()):
+            return None
+        return int(valor)
+
+    def _formulario_tipo_valido(self):
+        """La sección del tipo, si la hay. Sin la marca del diseño en el POST la página
+        no la mostraba (sin JS, recién elegido el tipo): no se guarda nada y vuelve con la
+        sección dibujada para completarla."""
+        formulario = self.formulario_tipo
+        if formulario is None:
+            return True
+        if str(self.data.get("formulario_tipo_diseno") or "") != str(formulario.diseno.pk):
+            self.formulario_tipo = formulario_tipo_para(formulario.diseno.tipo_dispositivo_id, self.instance)
+            self.add_error(None, "El tipo elegido tiene preguntas propias: completalas abajo y volvé a guardar.")
+            return False
+        return formulario.is_valid()
+
     def is_valid(self):
-        # Las dos validaciones corren siempre, para que vuelvan juntos los errores del
-        # legajo y los de las franjas.
+        # Las validaciones corren siempre, para que vuelvan juntos los errores del legajo,
+        # los de las franjas y los del formulario del tipo.
         legajo_valido = super().is_valid()
+        formulario_valido = self._formulario_tipo_valido()
         if not self.franjas_enviadas:
-            return legajo_valido
+            return legajo_valido and formulario_valido
         franjas_validas = self.franjas.is_valid()
         # Lo que el formset rechaza entero (un POST con más filas que el tope) no tiene
         # fila donde pintarse: va arriba, con los errores generales del form.
         for error in self.franjas.non_form_errors():
             self.add_error(None, error)
-        return legajo_valido and franjas_validas
+        return legajo_valido and franjas_validas and formulario_valido
 
     def franjas_horarias(self):
         """Las franjas limpias para `reemplazar_franjas`, o `None` si el POST no las trajo."""
@@ -931,6 +991,18 @@ class DispositivoForm(forms.ModelForm):
     @property
     def faltantes_validacion(self):
         return [campo for campo in self.requisitos_validacion if not str(campo.value() or "").strip()]
+
+    @property
+    def faltantes_formulario_tipo(self):
+        """Los textos de los obligatorios visibles del formulario del tipo sin responder:
+        también los exige «Enviar a validación» y van al mismo resumen."""
+        if self.formulario_tipo is None:
+            return []
+        return [campo.get("texto", "") for campo in self.formulario_tipo.faltantes()]
+
+    @property
+    def hay_faltantes(self):
+        return bool(self.faltantes_validacion or self.faltantes_formulario_tipo)
 
 
 class BusquedaCiudadanoDNIForm(forms.Form):
@@ -2053,12 +2125,18 @@ class ItemCampoPropioForm(forms.Form):
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
 
+    def __init__(self, *args, permite_archivo=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.permite_archivo = permite_archivo
+
     def clean(self):
         cleaned = super().clean()
         tipo = cleaned.get("tipo")
-        if tipo == TipoCampo.ARCHIVO:
+        if tipo == TipoCampo.ARCHIVO and not self.permite_archivo:
             # Los adjuntos del caso referencian una pregunta global o un
             # requisito nativo; un archivo tiene que ser un requisito del catálogo.
+            # El formulario de un tipo de dispositivo (P17) no tiene catálogo: guarda
+            # sus archivos por clave (`AdjuntoRespuestaAlta`) y sí lo permite.
             self.add_error("tipo", "Un campo propio no puede ser un archivo: cargalo como requisito del catálogo.")
         texto = (cleaned.get("opciones_texto") or "").strip()
         opciones = []
