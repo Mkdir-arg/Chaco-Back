@@ -776,12 +776,22 @@ if LOG_TO_FILES:
 LOGGING = construir_logging(log_dir=LOG_DIR, debug=DEBUG, log_to_files=LOG_TO_FILES)
 
 # Argon2 primero: verificar una contraseña con el PBKDF2 por defecto de Django 5.2
-# (1.000.000 de iteraciones) cuesta ~1 s de CPU por login, con el GIL tomado;
-# Argon2id ronda los 90 ms con seguridad equivalente. PBKDF2 se conserva para
-# leer los hashes ya guardados: Django los re-hashea a Argon2 en el siguiente
-# login exitoso, sin migración ni reseteo de claves.
+# (1.000.000 de iteraciones) cuesta ~1 s de CPU por login, con el GIL tomado.
+# `users.hashers.Argon2Ajustado` usa la configuración Argon2id que recomienda OWASP
+# (memory_cost=19456 KiB = 19 MiB, time_cost=2, parallelism=1) en lugar de los
+# defaults de Django (102400 / 2 / 8). Medido en QA: con los defaults el POST a
+# /api/becas/auth/token/ gastaba ~0,75 s en Argon2; los «90 ms» que decía este
+# comentario eran de una máquina de desarrollo y en el pod no se cumplen. El pod
+# no tiene cores para parallelism=8, y parallelism=1 no baja el trabajo total: la
+# ganancia de tiempo sale de bajar memory_cost. Costo asumido: un ataque offline
+# contra un hash robado paga menos memoria por intento; 19 MiB es el piso que
+# OWASP recomienda. Reemplaza al hasher de Django (no conviven: comparten
+# `algorithm = "argon2"` y el dict por algoritmo se queda con el último).
+# Los parámetros viajan dentro del hash: los hashes con los defaults viejos se
+# siguen verificando, y Django los re-hashea en el siguiente login exitoso
+# (`must_update` compara parámetros), igual que los PBKDF2. Sin migración ni reseteo.
 PASSWORD_HASHERS = [
-    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "users.hashers.Argon2Ajustado",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
 ]
