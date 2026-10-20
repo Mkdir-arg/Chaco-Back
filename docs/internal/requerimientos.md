@@ -468,6 +468,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 340 | Sumar al proyecto las skills de ECC que sirvan para Chaco | Transversal · método de trabajo de los agentes | `#metodo` `#datos` `#performance` | PM — pedido en sesión, 17/10/2026: «suma las skill que creas útiles para el proyecto» | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 341 | Los adjuntos y padrones de Becas vuelven a bajar: `/media/` daba 500 por un `select_related` sobre una propiedad | Becas · descarga protegida de archivos (`/media/`) | `#rbac` `#datos` | PM — hallazgo en PRD (500 al abrir adjuntos de un caso), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 342 | Las páginas de error (404/403/400/500) no heredan una conexión de MariaDB muerta | Transversal · infraestructura | `#infra` `#performance` | PM — logs de PRD (/meta.json y /media/...), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
+| NNN | P3: la localidad se elige del catálogo y los días y horarios se cargan por franjas | Dispositivos · alta y edición de institución (P3) | `#ui` `#datos` | PM — pedido directo sobre P3, vía el juez del carril, 20/10/2026 | 20/10/2026 | 🟢 **Hecho** | `programas.0099` |
 
 **Notas del índice**
 
@@ -44716,3 +44717,167 @@ Revertir el commit. No toca datos.
 ## Historial
 
 - **19/10/2026 — alta del cambio.**
+
+---
+
+# Cambio NNN — P3: la localidad se elige del catálogo y los días y horarios se cargan por franjas
+
+🟢 **HECHO — 20/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alta y edición de institución (P3) |
+| **Etiquetas** | `#ui` `#datos` |
+| **Solicitante** | PM — pedido directo sobre P3 (`/dispositivos/nuevo/` y su edición), vía el juez del carril, 20/10/2026 |
+| **Fecha del pedido** | 20/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 (MVP de Dispositivos) |
+| **Partes afectadas** | Backoffice: `dispositivos/legajo/form.html`, `programas/forms.py` (`DispositivoForm`, `FranjaHorariaForm`), `views/dispositivos_legajo.py` · Servidor: `services/horarios_dispositivo.py` (nuevo), `models/__init__.py` (`HorarioDispositivo`) |
+| **Migración** | `programas.0099` — tabla `HorarioDispositivo` (expand) |
+
+## Pedido original
+
+1. «Localidad como selector»: hoy es texto libre; pasa a elegirse de las localidades de Chaco.
+2. «Días y horarios estructurados»: elegir un **día** de un selector (lunes a domingo), **Desde** y
+   **Hasta**, botón **Agregar**, y con eso se arma una **tabla de franjas** con «Quitar». Tiene que poder
+   expresar «lunes 9 a 18» o «lunes 9 a 12 y 13 a 18, martes 15 a 16».
+
+## Alcance acordado
+
+Entra: el selector de localidad en alta y edición, el modelo de franjas, el formset con «Agregar» y
+«Quitar», el resumen derivado en `Dispositivo.horarios` y la traza de su cambio.
+
+Queda afuera: el detalle (P4) y el import del padrón no cambian —siguen leyendo y escribiendo
+`horarios` como texto—; no hay vista nueva, ni roles, ni seeds.
+
+## Decisiones tomadas
+
+Del juez (pedido del PM):
+
+- **Localidad sin migración.** Se sigue guardando el **nombre** en el mismo `CharField` (los filtros, la
+  búsqueda de duplicados y el padrón lo leen como texto). El form la declara como `ChoiceField` con las
+  opciones de `core.selectors.geografia.localidades_operativas()`: un POST con otra cosa —inventada o de
+  otra provincia— vuelve con «Elegí una localidad del listado.».
+- **Valor heredado fuera del catálogo** (padrón importado, texto libre de antes): en **su** legajo se ofrece
+  primero y marcado, «<valor> (cargado antes)», así editar otro campo no lo borra. Se puede reemplazar; una
+  vez guardado otro valor, deja de ofrecerse. No vale para otro legajo ni para un alta.
+- Opción vacía «Elegí una localidad»; el asterisco sigue saliendo de `campos_para_validacion()` y la
+  validación de envío no cambia.
+- `HorarioDispositivo(TimeStamped)`: `dispositivo` FK `CASCADE` (`franjas_horarias`), `dia` 1–7 con choices,
+  `hora_desde`, `hora_hasta`; orden `(dispositivo_id, dia, hora_desde)`.
+- **Las reglas viven en el servicio** (`programas/services/horarios_dispositivo.py`): `desde < hasta`; dos
+  franjas del mismo día no se superponen (las contiguas 12:00/12:00 sí); tope de **4 por día**. El form las
+  usa desde el formset para pintar el error en la celda de la fila, y `reemplazar_franjas` las vuelve a
+  exigir antes de escribir.
+- **Guardado atómico**: alta y edición llaman a `reemplazar_franjas` dentro de la misma transacción del
+  legajo (en la edición, con la fila del dispositivo ya bloqueada). Reemplaza el conjunto entero.
+- **`horarios` pasa a ser derivado**: con franjas, el resumen («Lunes 09:00–12:00 y 13:00–18:00 · Martes
+  15:00–16:00»). Sin franjas y con texto viejo, se muestra «Horario cargado antes: …» de solo lectura y
+  **se conserva**; se reemplaza cuando se carga la primera franja.
+
+Propias (dentro de lo delegado):
+
+- **Un nombre repetido entre municipios va una sola vez**, con los municipios en la etiqueta
+  («Barranqueras (Puerto Tirol / Resistencia)»). Como lo que se guarda es el nombre, dos opciones con el
+  mismo valor harían que al volver a mostrar el form se marque siempre la primera, eligiera lo que eligiera
+  la persona. Para validar no hay ambigüedad: vale el nombre.
+- **El valor heredado se compara exacto**, sin normalizar mayúsculas ni acentos: «resistencia» del padrón
+  aparece como «(cargado antes)» en vez de convertirse en silencio a «Resistencia» y dejar una traza que
+  nadie pidió (ver Pendientes).
+- **Formset y no JSON oculto**: sin JS el formulario sigue siendo usable (tres filas vacías, una franja por
+  fila; «Quitar» es el checkbox `DELETE` del formset). Con JS, la primera fila vacía es el control de
+  «Agregar» (las otras se ocultan), la franja agregada pasa a la tabla como una fila nueva del formset con
+  campos ocultos, y «Quitar» marca `DELETE` y oculta la fila. Los avisos de JS repiten los textos del
+  servidor.
+- **Un POST sin el bloque de franjas no las toca** (`franjas_enviadas`): no es «borralas todas», es que no
+  vinieron (un cliente viejo o un POST armado). Con el bloque, sin franjas y con franjas guardadas, el
+  resumen queda vacío.
+- **El formset ligado no recibe `initial`**: con `initial` Django saltea la fila extra que «no cambió», y si
+  las franjas guardadas cambiaron entre el GET y el POST una fila igual a una guardada se perdía en silencio.
+- **Si el conjunto no cambió, no se escribe**: no hay borrado y alta de las mismas franjas en cada guardado.
+- Sin `CheckConstraint` en la base: como `Turno`, las reglas de intervalos las sostiene el servicio.
+- La traza de edición suma `horarios` con anterior/nuevo cuando el resumen cambia.
+
+**Plan de pantalla.** Arquetipo **Formulario**, variante con asistencia lateral de P3 (la pantalla ya
+existía; no se clona nada nuevo). Localidad: `Select` común del form por `components/_field.html` (el
+buscador con píldoras `nodo-buscador.js` solo está cargado en el portal, no en el backoffice). «Días y
+horarios»: bloque agrupado con `h2 text-heading font-bold` y `border-t border-light pt-4`; tabla canónica
+(`overflow-x-auto` + `nodo-thead-row`/`nodo-th`/`nodo-td`, `sr-only` en Acciones), acción de fila
+`btn-nodo btn-tertiary btn-sm btn-fit` «Quitar» (`btn-fit` es la variante de botones en celdas), filas
+vacías con `_field.html` en `grid grid-cols-1 sm:grid-cols-3 gap-4`, «Agregar» `btn-nodo btn-secondary
+btn-sm` con ícono `fa-plus`. Ninguna clase, include ni valor nuevo: el build de Tailwind no cambia.
+
+**Apartamientos del mockup.** El mockup de P3 (`#p3`) no tiene localidad ni días y horarios: es un pedido
+directo del PM sobre campos que la pantalla ya tenía. Nada del mockup se dibuja de más.
+
+## Implementación
+
+En el alta y la edición de una institución, «Localidad» es un desplegable con las localidades de Chaco. Si
+el legajo traía una localidad que no está en el catálogo, aparece marcada como «(cargado antes)» y se
+conserva al guardar. «Días y horarios» es una sección propia: se elige el día, desde y hasta, y «Agregar»
+suma la franja a la tabla, ordenada por día y hora; «Quitar» la saca. Al guardar, el servidor rechaza
+franjas superpuestas, un «Hasta» que no es posterior a «Desde» o más de cuatro franjas en un día, con el
+mensaje en la fila. El detalle sigue mostrando el horario como texto, ahora armado desde las franjas.
+
+## Archivos
+
+- `programas/models/__init__.py` — `HorarioDispositivo`.
+- `programas/migrations/0099_horario_dispositivo.py` — nueva.
+- `programas/services/horarios_dispositivo.py` — nuevo: `Franja`, `errores_de_franjas`, `validar_franjas`,
+  `resumen_de_franjas`, `franjas_del_dispositivo`, `reemplazar_franjas`.
+- `programas/forms.py` — `FranjaHorariaForm`, `BaseFranjaHorariaFormSet`, `FranjaHorariaFormSet`,
+  `_opciones_de_localidad`; `DispositivoForm` sin `horarios` editable, con `localidad` del catálogo y el
+  formset.
+- `programas/views/dispositivos_legajo.py` — alta y edición llaman a `reemplazar_franjas` en su transacción.
+- `programas/templates/programas/dispositivos/legajo/form.html` — sección «Días y horarios» y su JS.
+- `programas/tests/test_dispositivos_horarios_localidad.py` — nuevo.
+- `programas/tests/test_dispositivos_legajo.py`, `test_dispositivos_fidelidad_fi.py` — siembran el catálogo
+  de Chaco (postean «Resistencia», que ahora tiene que existir).
+
+## Base de datos
+
+`programas.0099`: `CreateModel` de `programas_horariodispositivo` (tabla nueva, índice por la FK). Es
+*expand* puro: el código viejo no la lee y la columna `horarios` no cambia. La reversa borra la tabla
+(se pierden las franjas; el resumen en `horarios` queda).
+
+## Validación
+
+- `manage.py check` OK · `makemigrations --check` (con `DJANGO_SYNCDB_PROJECT_APPS=False`) sin cambios ·
+  `check_migraciones.py` OK · `compile_templates.py` 0 errores · `design_audit.py --arquetipo formulario`
+  OK · `--ratchet --base origin/development` 0 nuevos · `--goldens` 0 · `npm run build:tailwind` sin
+  cambios · ruff check/format OK en lo tocado.
+- Tests: `test_dispositivos_horarios_localidad` (25) + toda la suite de Dispositivos y arquitectura: 1089
+  OK (20 skip); `--tag performance programas`: 37 OK; `check_perf_budgets.py`: ningún presupuesto sube.
+  P3 no tenía presupuesto en `perf_budgets.json`; el test `@tag("performance")` nuevo exige el mismo número
+  de consultas en la edición con 1 y con 8 franjas (9 consultas con la caché caliente).
+- Mutaciones (romper → rojo → restaurar desde copia): sin la regla de superposición, 2 rojos; el servicio
+  sin `validar_franjas`, 1; sin la opción heredada, 2; formset ligado con `initial`, 1; sin conservar el
+  texto viejo, 2; localidad como `CharField` (sin catálogo), 1; sin tope por día, 1.
+- Visual (Chromium, HTML renderizado por el test client con los estáticos del repo): alta, edición con
+  localidad y horario heredados, edición con franjas y vuelta con errores, a 1440 y 390 px: sin desborde de
+  página y sin errores de consola. A 390 la tabla hace scroll dentro de su `overflow-x-auto` por la regla
+  responsive canónica de tablas (`min-width: max(512px, 100%)`). JS probado: una franja superpuesta avisa
+  en «Desde» sin agregar; una válida suma la fila con índice `TOTAL_FORMS` y la ordena; «Quitar» marca
+  `DELETE` y la oculta.
+
+## Puesta en marcha en el servidor
+
+No requiere (la migración corre con el deploy).
+
+## Pendientes / a definir
+
+- **Ficha del arquetipo.** `.claude/design/arquetipos/formulario.md` cita este template como evidencia de la
+  variante de P3; el implementador no tuvo permiso para editar `.claude/` y no sumó la descripción del
+  bloque de filas repetibles (formset en tabla + «Agregar»). Si `check_design_agent.py` lo exige, lo
+  completa el juez.
+- **Localidades heredadas que difieren solo en mayúsculas o acentos** del catálogo («resistencia»): hoy se
+  muestran como «(cargado antes)». Normalizarlas al nombre del catálogo es una limpieza de datos aparte.
+- A 390 px un mensaje de error largo en una celda ensancha la tabla (scroll interno, sin desborde de página).
+
+## Reversión
+
+Revertir el commit de código (vuelve el texto libre) y desaplicar `programas.0099`
+(`migrate programas 0098`): se pierden las franjas cargadas; `horarios` conserva el último resumen.
+
+## Historial
+
+- **20/10/2026 — alta del cambio.**
