@@ -17,14 +17,21 @@ restore (runbook D.4 de ``docs/internal/processes.md``).
 
 Estos tests fijan las dos mitades de la barrera: la marca legible en el archivo y
 que la reversa aborte **antes** de tocar la base.
+
+Aparte van las **reversas condicionadas** (``programas.0099``): no son barreras, se
+vuelve por ellas mientras no haya filas que la vuelta no pueda conservar; si las hay,
+abortan igual de temprano y apuntan al mismo D.4.
 """
 
 import importlib
+from datetime import date
 from pathlib import Path
 
+from django.apps import apps
+from django.db import IntegrityError, connection, transaction
 from django.db.migrations import RunPython
 from django.db.migrations.exceptions import IrreversibleError
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
 RAIZ = Path(__file__).resolve().parents[2]
 
@@ -85,6 +92,18 @@ BARRERAS_DATOS = (
 
 # La lista completa del paso D.4 del runbook.
 BARRERAS = BARRERAS_UUID + BARRERAS_DATOS
+
+MARCA_CONDICIONADA = "# REVERSA-CONDICIONADA:"
+
+# Reversas condicionadas: no son barreras, abortan solo si hay filas que la vuelta no
+# puede conservar. Sin la guarda, MariaDB deja el esquema a medias (RED-58).
+REVERSAS_CONDICIONADAS = (
+    (
+        "programas.migrations.0099_diseno_por_tipo_dispositivo",
+        "programas/migrations/0099_diseno_por_tipo_dispositivo.py",
+        "programas.0099",
+    ),
+)
 
 
 class _ConexionEspia:
@@ -158,3 +177,81 @@ class BarrerasDeReversaTests(SimpleTestCase):
                 with self.assertRaises(IrreversibleError):
                     self._barrera(modulo).reverse_code(None, espia)
                 self.assertEqual(espia.ejecutado, [])
+
+
+class ReversasCondicionadasTests(SimpleTestCase):
+    def test_declaran_su_marca_y_no_la_de_barrera(self):
+        for _, ruta, etiqueta in REVERSAS_CONDICIONADAS:
+            with self.subTest(migracion=etiqueta):
+                contenido = (RAIZ / ruta).read_text(encoding="utf-8")
+                self.assertIn(MARCA_CONDICIONADA, contenido)
+                self.assertNotIn(MARCA, contenido)
+
+    def test_la_guarda_es_la_ultima_operacion_y_no_hace_nada_hacia_adelante(self):
+        for modulo, _, etiqueta in REVERSAS_CONDICIONADAS:
+            with self.subTest(migracion=etiqueta):
+                operacion = importlib.import_module(modulo).Migration.operations[-1]
+                self.assertIsInstance(operacion, RunPython)
+                self.assertNotEqual(operacion.reverse_code.__name__, "bloquear_reversa")
+                espia = _SchemaEditorEspia()
+                operacion.code(None, espia)
+                self.assertEqual(espia.ejecutado, [])
+
+    def test_el_mensaje_apunta_al_runbook_y_prohibe_fake(self):
+        for modulo, _, etiqueta in REVERSAS_CONDICIONADAS:
+            with self.subTest(migracion=etiqueta):
+                mensaje = importlib.import_module(modulo).MENSAJE_REVERSA
+                self.assertIn(etiqueta, mensaje)
+                self.assertIn("D.4", mensaje)
+                self.assertIn("No usar --fake", mensaje)
+
+
+class ReversaDisenoPorTipoTests(TestCase):
+    """``programas.0099``: con un formulario de tipo de dispositivo la vuelta deja
+    ``convocatoria_id`` NULL en una columna NOT NULL. En MariaDB eso muere con 1265
+    **después** de haber borrado el CHECK, el UNIQUE y la FK; la guarda aborta antes."""
+
+    MODULO = "programas.migrations.0099_diseno_por_tipo_dispositivo"
+    TABLA = "programas_disenoformulario"
+
+    @classmethod
+    def setUpTestData(cls):
+        from programas.models import Convocatoria, DisenoFormulario, Segmento, TipoDispositivo
+
+        segmento = Segmento.objects.create(nombre="Educación", cupo_maximo=10)
+        convocatoria = Convocatoria.objects.create(
+            nombre="Becas", segmento=segmento, fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31)
+        )
+        DisenoFormulario.objects.create(convocatoria=convocatoria)
+        cls.tipo = TipoDispositivo.objects.create(codigo="CIS-R", nombre="Centro reversa")
+
+    def _guarda(self):
+        return importlib.import_module(self.MODULO).Migration.operations[-1]
+
+    def _restricciones(self):
+        with connection.cursor() as cursor:
+            return set(connection.introspection.get_constraints(cursor, self.TABLA))
+
+    def test_sin_formularios_de_tipo_la_vuelta_sigue(self):
+        """Solo diseños de Becas: la guarda no frena ni ejecuta nada."""
+        espia = _SchemaEditorEspia()
+        self._guarda().reverse_code(apps, espia)
+        self.assertEqual(espia.ejecutado, [])
+
+    def test_con_un_formulario_de_tipo_aborta_antes_de_tocar_el_esquema(self):
+        """Mutación: si la guarda no cuenta los diseños de tipo, la vuelta sigue al DDL."""
+        from programas.models import DisenoFormulario
+
+        DisenoFormulario.objects.create(tipo_dispositivo=self.tipo, momento="ingreso")
+        antes = self._restricciones()
+        self.assertTrue({"diseno_un_solo_dueno", "uniq_diseno_tipo_momento"} <= antes)
+
+        espia = _SchemaEditorEspia()
+        with self.assertRaises(IrreversibleError) as capturado:
+            self._guarda().reverse_code(apps, espia)
+        self.assertEqual(espia.ejecutado, [], "la guarda ejecutó SQL antes de abortar")
+        self.assertIn("1 formulario(s)", str(capturado.exception))
+        self.assertEqual(self._restricciones(), antes)
+        # Y siguen mordiendo: el UNIQUE rechaza el mismo momento para el mismo tipo.
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            DisenoFormulario.objects.create(tipo_dispositivo=self.tipo, momento="ingreso")

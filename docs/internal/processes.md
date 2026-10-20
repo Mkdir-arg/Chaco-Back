@@ -469,6 +469,13 @@ con un mensaje que apunta acá si alguien intenta revertirlas: las cinco de UUID
 MySQL/MariaDB (fuera de ahí su ida ya era un no-op) y las cuatro de datos en cualquier
 motor.
 
+`programas.0099` es una **reversa condicionada**, no una barrera: se revierte sola
+mientras no haya formularios por tipo de dispositivo (`DisenoFormulario` con
+`tipo_dispositivo`). Si los hay, aborta antes de tocar el esquema —la vuelta vuelve
+`convocatoria_id` NOT NULL y en MariaDB moría con `1265` después de borrar el CHECK, el
+UNIQUE y la FK (RED-58)—. Para volver: restore, o, solo si esos formularios se pueden
+perder, borrarlos (sus ítems caen en cascada) y reintentar. Nunca `--fake`.
+
 1. Bajar la app (`kubectl scale --replicas=0`, o `docker compose -f docker-compose.prod.yml stop web websocket`).
 2. `DROP DATABASE` + `CREATE DATABASE` + restore del dump de D.0. **Nunca restaurar
    encima:** deja tablas huérfanas de la release nueva y el deploy siguiente muere con

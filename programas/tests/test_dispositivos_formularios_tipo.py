@@ -8,15 +8,18 @@ aislamiento con Becas y los presupuestos de consultas.
 
 import json
 from datetime import date
+from io import StringIO
 from pathlib import Path
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
 from django.db import IntegrityError, connection, transaction
 from django.test import TestCase, tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from programas.management.commands.seed_becas import ROL_ADMIN
 from programas.models import (
     CanalFormulario,
     Convocatoria,
@@ -445,6 +448,73 @@ class AislamientoBecasTests(_Base):
         self.assertEqual(list(DisenoFormulario.objects.filter(convocatoria=convocatoria)), [diseno_becas])
         # Y al revés: la convocatoria no es un formulario del tipo.
         self.assertEqual([f.pk for f in formularios_del_tipo(self.tipo)], [formulario.pk])
+
+    def _dos_duenos(self):
+        """Un formulario de tipo y un diseño de Becas, cada uno con un grupo y un campo."""
+        formulario = crear_formulario(self.tipo, "ingreso")
+        segmento = Segmento.objects.create(nombre="Educación", cupo_maximo=10)
+        convocatoria = Convocatoria.objects.create(
+            nombre="Becas", segmento=segmento, fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31)
+        )
+        diseno_becas, _ = obtener_o_crear_diseno(convocatoria)
+        for diseno, sufijo in ((formulario, "dis"), (diseno_becas, "bec")):
+            grupo = ItemDiseno.objects.create(
+                diseno=diseno, tipo=ItemDiseno.Tipo.GRUPO, clave=f"g-{sufijo}", etiqueta=sufijo, orden=99
+            )
+            ItemDiseno.objects.create(
+                diseno=diseno,
+                tipo=ItemDiseno.Tipo.CAMPO,
+                clave=f"cp-{sufijo}",
+                padre=grupo,
+                propio={"texto": f"Campo {sufijo}", "tipo": "STRING"},
+            )
+        return formulario, convocatoria, diseno_becas
+
+    def _foto(self, *disenos):
+        return [
+            (
+                DisenoFormulario.objects.get(pk=d.pk).version,
+                sorted(ItemDiseno.objects.filter(diseno=d).values_list("clave", "padre__clave", "orden", "etiqueta")),
+            )
+            for d in disenos
+        ]
+
+    def test_una_clave_del_otro_dueno_no_se_usa_ni_se_toca(self):
+        """Mutación: `padre_para_nuevo` o `item_por_clave` con `ItemDiseno.objects` en vez
+        de `diseno.items` cuelgan un ítem del grupo del otro dueño (texto, campo, mover);
+        los `_item` de las vistas, lo mismo con editar y eliminar."""
+        formulario, convocatoria, diseno_becas = self._dos_duenos()
+        call_command("seed_becas", stdout=StringIO())
+        self.admin.groups.add(Group.objects.get(name=ROL_ADMIN))  # admin de los dos dueños
+        foto = self._foto(formulario, diseno_becas)
+
+        def de_dispositivos(nombre, *args):
+            return reverse(f"dispositivos:{nombre}", args=[self.tipo.pk, "ingreso", *args])
+
+        def de_becas(nombre, *args):
+            return reverse(f"becas:{nombre}", args=[convocatoria.pk, *args])
+
+        casos = []
+        for url, propia, ajena in ((de_dispositivos, "dis", "bec"), (de_becas, "bec", "dis")):
+            casos += [
+                ("form", url("formulario_texto_crear"), {"padre": f"g-{ajena}", "texto": "X", "canal": "ambos"}),
+                (
+                    "form",
+                    url("formulario_propio_crear"),
+                    {"padre": f"g-{ajena}", "texto": "X", "tipo": "STRING", "canal": "ambos"},
+                ),
+                ("json", url("formulario_mover"), {"clave": f"cp-{propia}", "padre": f"g-{ajena}", "posicion": 0}),
+                ("form", url("formulario_item_editar", f"g-{ajena}"), {"etiqueta": "Hackeado", "canal": "ambos"}),
+                ("form", url("formulario_item_eliminar", f"cp-{ajena}"), {}),
+            ]
+        for modo, url, datos in casos:
+            with self.subTest(url=url):
+                if modo == "json":
+                    resp = self.client.post(url, data=json.dumps(datos), content_type="application/json", **AJAX)
+                else:
+                    resp = self.client.post(url, datos, **AJAX)
+                self.assertIn(resp.status_code, (400, 404), resp.content)
+                self.assertEqual(self._foto(formulario, diseno_becas), foto)
 
     def test_el_catalogo_de_becas_no_entra_al_formulario_de_un_tipo(self):
         """Fuente de catálogo por dueño. Mutación: sin la guarda de
