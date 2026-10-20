@@ -1,14 +1,13 @@
 """Configuración de tipos de dispositivo.
 
 Los **campos configurables** del tipo (el F-00 de la admisión) se dieron de baja en
-la versión 1: el MVP v2 no tiene formularios por tipo y, cuando los tenga, van sobre
-el motor de formularios de Becas, no sobre una tabla propia.
+la versión 1. Los formularios por tipo y por momento (P17) van sobre el motor de
+formularios de Becas: viven en `programas.views.dispositivos_formularios`, y acá el
+detalle del tipo solo los lista.
 
 """
 
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import render_to_string
@@ -16,10 +15,23 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
-from programas.forms import TipoDispositivoForm
+from programas.forms import FormularioTipoNuevoForm, TipoDispositivoForm
+from programas.mixins_dispositivos import ConfigurarDispositivosMixin
 from programas.models import TipoDispositivo
-from programas.services.dispositivos import puede_configurar_dispositivos
+from programas.selectors.formularios_tipo import formularios_del_tipo
+from programas.services.formularios_tipo import momentos_libres
 from programas.views.ajax_utils import ajax_errors, ajax_ok, is_ajax
+
+
+def _contexto_formularios(tipo):
+    """La lista de formularios del detalle (P17) y el form de «Nuevo formulario»
+    con los momentos libres (``None`` si no queda ninguno)."""
+    formularios = formularios_del_tipo(tipo)
+    libres = momentos_libres(f.momento for f in formularios)
+    return {
+        "formularios": formularios,
+        "form_nuevo_formulario": FormularioTipoNuevoForm(momentos=libres) if libres else None,
+    }
 
 
 def _detalle_ajax(request, tipo, message):
@@ -28,7 +40,7 @@ def _detalle_ajax(request, tipo, message):
         request,
         target="#dispositivos-detail-content",
         partial="programas/dispositivos/config/_tipo_detail_content.html",
-        context={"tipo": tipo},
+        context={"tipo": tipo, **_contexto_formularios(tipo)},
         message=message,
     )
 
@@ -40,30 +52,6 @@ def _modal_ajax(request, context):
         request=request,
     )
     return JsonResponse({"ok": True, "html": html})
-
-
-class ConfigurarDispositivosMixin(LoginRequiredMixin):
-    def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            if is_ajax(request):
-                login_response = self.handle_no_permission()
-                return JsonResponse(
-                    {
-                        "ok": False,
-                        "message": "Tu sesión venció. Volvé a iniciar sesión.",
-                        "redirect": login_response.url,
-                    },
-                    status=401,
-                )
-            return self.handle_no_permission()
-        if not puede_configurar_dispositivos(request.user):
-            if is_ajax(request):
-                return JsonResponse(
-                    {"ok": False, "message": "No tiene permisos para realizar esta acción."},
-                    status=403,
-                )
-            raise PermissionDenied
-        return super().dispatch(request, *args, **kwargs)
 
 
 class TipoDispositivoListView(ConfigurarDispositivosMixin, ListView):
@@ -90,6 +78,8 @@ class TipoDispositivoUpdateView(ConfigurarDispositivosMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        if not is_ajax(self.request):
+            context.update(_contexto_formularios(self.object))
         context["modal_edicion"] = "tipo"
         context["modal_action"] = reverse("dispositivos:tipo_editar", args=[self.object.pk])
         return context
@@ -121,6 +111,11 @@ class TipoDispositivoDetailView(ConfigurarDispositivosMixin, DetailView):
     model = TipoDispositivo
     template_name = "programas/dispositivos/config/tipo_detail.html"
     context_object_name = "tipo"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(_contexto_formularios(self.object))
+        return context
 
 
 class TipoDispositivoToggleView(ConfigurarDispositivosMixin, View):

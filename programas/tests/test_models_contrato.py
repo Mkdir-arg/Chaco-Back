@@ -120,6 +120,7 @@ OTROS_NOMBRES_PUBLICOS = {
     "Group",
     "MaxValueValidator",
     "MinValueValidator",
+    "MomentoFormulario",
     "MovimientoEstadiaManager",
     "MovimientoEstadiaQuerySet",
     "OrigenRequisito",

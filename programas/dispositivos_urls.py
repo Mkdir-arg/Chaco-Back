@@ -3,6 +3,7 @@ from django.urls import path
 from programas.views import dispositivos_bitacora as bitacora
 from programas.views import dispositivos_capacidad as capacidad
 from programas.views import dispositivos_config as cfg
+from programas.views import dispositivos_formularios as frm
 from programas.views import dispositivos_ingreso as ingreso
 from programas.views import dispositivos_legajo as legajo
 from programas.views import dispositivos_relevamientos as relevamientos
@@ -116,4 +117,51 @@ urlpatterns = [
     path("config/<int:pk>/", cfg.TipoDispositivoDetailView.as_view(), name="tipo_detalle"),
     path("config/<int:pk>/editar/", cfg.TipoDispositivoUpdateView.as_view(), name="tipo_editar"),
     path("config/<int:pk>/toggle/", cfg.TipoDispositivoToggleView.as_view(), name="tipo_toggle"),
+    # Formularios del tipo, uno por momento (P17): el constructor de Becas con otro dueño.
+    path("config/<int:pk>/formularios/nuevo/", frm.FormularioTipoCrearView.as_view(), name="formulario_crear"),
+    path(
+        "config/<int:pk>/formularios/<slug:momento>/",
+        frm.FormularioTipoEditorView.as_view(),
+        name="formulario_editor",
+    ),
+    path(
+        "config/<int:pk>/formularios/<slug:momento>/eliminar/",
+        frm.FormularioTipoEliminarView.as_view(),
+        name="formulario_eliminar",
+    ),
+    path(
+        "config/<int:pk>/formularios/<slug:momento>/mover/",
+        frm.FormularioTipoMoverView.as_view(),
+        name="formulario_mover",
+    ),
+    path(
+        "config/<int:pk>/formularios/<slug:momento>/grupo/",
+        frm.FormularioTipoGrupoView.as_view(),
+        name="formulario_grupo_crear",
+    ),
+    path(
+        "config/<int:pk>/formularios/<slug:momento>/texto/",
+        frm.FormularioTipoTextoView.as_view(),
+        name="formulario_texto_crear",
+    ),
+    path(
+        "config/<int:pk>/formularios/<slug:momento>/campo-propio/",
+        frm.FormularioTipoPropioView.as_view(),
+        name="formulario_propio_crear",
+    ),
+    path(
+        "config/<int:pk>/formularios/<slug:momento>/item/<str:clave>/editar/",
+        frm.FormularioTipoItemEditarView.as_view(),
+        name="formulario_item_editar",
+    ),
+    path(
+        "config/<int:pk>/formularios/<slug:momento>/item/<str:clave>/condicion/",
+        frm.FormularioTipoCondicionView.as_view(),
+        name="formulario_condicion",
+    ),
+    path(
+        "config/<int:pk>/formularios/<slug:momento>/item/<str:clave>/eliminar/",
+        frm.FormularioTipoItemEliminarView.as_view(),
+        name="formulario_item_eliminar",
+    ),
 ]

@@ -77,3 +77,31 @@ class DispositivoObjectPermissionMixin(DispositivoProgramaPermissionMixin):
         if not puede_operar_dispositivo(self.request.user, dispositivo, self.capacidad_requerida):
             raise PermissionDenied
         return dispositivo
+
+
+class ConfigurarDispositivosMixin(LoginRequiredMixin):
+    """Configuración de Dispositivos (tipos y sus formularios): exige
+    `puede_configurar_dispositivos`. Lo usan `dispositivos_config` y
+    `dispositivos_formularios`."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            if is_ajax(request):
+                login_response = self.handle_no_permission()
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "message": "Tu sesión venció. Volvé a iniciar sesión.",
+                        "redirect": login_response.url,
+                    },
+                    status=401,
+                )
+            return self.handle_no_permission()
+        if not puede_configurar_dispositivos(request.user):
+            if is_ajax(request):
+                return JsonResponse(
+                    {"ok": False, "message": "No tiene permisos para realizar esta acción."},
+                    status=403,
+                )
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)

@@ -279,6 +279,16 @@
       "servicio": "programas.services.sectores_plazas.sectores_con_plazas",
       "consultas_fijas": 8,
       "motivo": "Presupuesto nuevo (MVP v2, carril C1: acciones del mapa de plazas, P5). Es la pantalla entera: las tres de ocupacion_de_plazas (el techo propio de ese servicio, que no se vuelve a contar aca), los sectores activos con su perfil y su capacidad declarada (1), TODAS las plazas de esos sectores en una sola consulta -el tope de 200 por sector se recorta en Python- (1), estado_de_plazas llamado UNA vez con todas las plazas dibujadas (2: las estadias activas y las reservas vigentes de ese conjunto) y las reservas sin liberar, que son las que deciden si la plaza se puede liberar (1). Ocho fijas: no crecen con los sectores ni con las plazas. Hasta este cambio la pantalla hacia tres consultas POR SECTOR -las plazas del sector, y las dos de estado_de_plazas-, asi que un dispositivo con ocho pabellones costaba veinticuatro consultas nada mas que para dibujarse (pendiente del Cambio 272). Un LIMIT por sector en el SQL es justamente esa consulta por sector; el recorte va en Python sobre un conjunto acotado por la capacidad instalada real. El test mide con 1 y con 8 sectores y exige el mismo numero. Lo corre programas/tests/test_dispositivos_plazas_acciones.py con --tag performance."
+    },
+    "dispositivos_formularios_del_tipo": {
+      "servicio": "programas.selectors.formularios_tipo.formularios_del_tipo",
+      "consultas_fijas": 1,
+      "motivo": "Presupuesto nuevo (P17, formularios por tipo de dispositivo). La tabla de formularios del detalle del tipo: UNA consulta con los formularios del tipo y sus conteos de secciones y campos como COUNT filtrados agrupados por formulario; el orden por momento y el texto de 'Se completa en' se resuelven en Python. No crece con los formularios (1 o 7) ni con sus items. Lo corre programas/tests/test_dispositivos_formularios_tipo.py con --tag performance."
+    },
+    "dispositivos_formulario_editor": {
+      "servicio": "programas.views.dispositivos_formularios.FormularioTipoEditorView",
+      "consultas_fijas": 7,
+      "motivo": "Presupuesto nuevo (P17, formularios por tipo de dispositivo). La pantalla entera del editor con sesion ya caliente: sesion, usuario, grupos, perfil y capacidades (5, las del shell del backoffice), el formulario con su tipo por select_related (1) y TODOS los items del formulario con su padre y su catalogo en una sola consulta (1). Siete fijas: el test mide con 1 y con 6 campos por grupo y exige el mismo numero. Lo corre programas/tests/test_dispositivos_formularios_tipo.py con --tag performance."
     }
   }
 }
