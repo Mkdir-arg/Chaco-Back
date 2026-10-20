@@ -471,6 +471,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 343 | P3: la localidad se elige del catálogo y los días y horarios se cargan por franjas | Dispositivos · alta y edición de institución (P3) | `#ui` `#datos` | PM — pedido directo sobre P3, vía el juez del carril, 20/10/2026 | 20/10/2026 | 🟢 **Hecho** | `programas.0099` |
 | 344 | Formularios por tipo de dispositivo: uno por momento, con el constructor de Becas (P17, carril 1) | Dispositivos · configuración de tipos · constructor de formularios | `#ui` `#datos` `#rbac` `#performance` | PM — mockup P17 | 20/10/2026 | 🟢 **Hecho** | `programas.0100` |
 | 345 | P3 pide el formulario «Crear dispositivo» del tipo y P4 muestra lo respondido (P17, carril 2) | Dispositivos · alta y edición de institución (P3) · detalle (P4) · formularios por tipo (P17) | `#ui` `#datos` `#rbac` `#performance` | PM — mockup P17, vía el juez del carril | 20/10/2026 | 🟢 **Hecho** | `programas.0101` |
+| 346 | El login de la app de campo tarda 0,75 s de Argon2 y muere con 403 CSRF si el navegador tiene sesión | Transversal · login de la app de campo (`/api/becas/auth/token/`) | `#sesion` `#api` `#performance` | PM — medición en QA, vía el juez | 20/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -45344,6 +45345,88 @@ No requiere: la migración agrega una columna anulable y dos tablas; no hay dato
 
 1. `git revert` del merge y `migrate programas 0100`: borra las dos tablas y la columna; se pierden las respuestas y los adjuntos cargados desde el deploy (los archivos quedan en `media/dispositivos/formularios/` sin referencia).
 2. Los formularios dados de baja vuelven a pedirse (la columna deja de existir). Nunca `--fake`.
+
+## Historial
+
+- **20/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 346 — El login de la app de campo tarda 0,75 s de Argon2 y muere con 403 CSRF si el navegador tiene sesión
+
+🟢 **HECHO — 20/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal — login de la app de campo (`POST /api/becas/auth/token/`) y hasher de contraseñas |
+| **Etiquetas** | `#sesion` `#api` `#performance` |
+| **Solicitante** | PM — medición en QA, vía el juez |
+| **Fecha del pedido** | 20/10/2026 |
+| **Issue / épica** | sin issue. Ajusta el Cambio 63 (Argon2) y toca el contrato de SEC-01 / SEC-26 |
+| **Partes afectadas** | Servidor/API · Backoffice (login web, por el hasher) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Medido en QA: el POST a `/api/becas/auth/token/` tarda ~0,75 s extra por Argon2 con los defaults de
+Django. Y: `ObtainCampoToken` hereda `SessionAuthentication`; si el navegador manda la cookie de sesión
+del backoffice, el login muere con 403 «CSRF Failed» antes de mirar usuario y clave.
+
+## Alcance acordado
+
+Dos cambios con commit propio: (1) Argon2 con parámetros OWASP; (2) el login de la app no se autentica
+por sesión. Queda afuera: las vistas que declaran `[TokenAuthentication, SessionAuthentication]` (exigir
+CSRF a un cliente de sesión es correcto) y cualquier migración de hashes.
+
+## Decisiones tomadas
+
+- **`users.hashers.Argon2Ajustado`**: `memory_cost=19456` (19 MiB), `time_cost=2`, `parallelism=1`, la
+  configuración Argon2id recomendada por OWASP. Los defaults de Django son 102400 / 2 / 8. El pod no
+  tiene cores para `parallelism=8` y `parallelism=1` no baja el trabajo total: la ganancia sale de
+  `memory_cost`. El «~90 ms» del Cambio 63 era una medición en máquina de desarrollo.
+- **Reemplaza, no suma**, al hasher de Django en `PASSWORD_HASHERS`: los dos comparten
+  `algorithm = "argon2"` y el dict por algoritmo se queda con el último. Se hereda el `algorithm` para
+  no cambiar el prefijo del hash.
+- **Costo asumido**: un ataque offline contra un hash robado paga menos memoria por intento; 19 MiB es
+  el piso que recomienda OWASP.
+- **Sin migración**: los parámetros viajan en el hash; los hashes con los defaults viejos se siguen
+  verificando y Django los re-hashea en el siguiente login (`must_update` compara parámetros).
+- **`authentication_classes = ()` en `ObtainCampoToken`**: el login no se autentica con nada previo. El
+  token va en el cuerpo, no en una cookie, así que no hay login-CSRF que proteger.
+
+## Implementación
+
+Una clave nueva sale con `m=19456,t=2,p=1`. El login de la app responde 200 con token aunque el
+navegador tenga abierta una sesión de backoffice y se exija CSRF.
+
+## Archivos
+
+`users/hashers.py` (nuevo) · `config/settings.py` (`PASSWORD_HASHERS` y comentarios de Argon2 y de
+`REST_FRAMEWORK`) · `programas/api/views.py` (`ObtainCampoToken`) ·
+`users/tests/test_password_hashers.py` · `users/tests/test_credenciales_ola2_pr2.py`
+
+## Base de datos
+
+No requiere migración.
+
+## Validación
+
+- Pruebas nuevas: `Argon2AjustadoTests` (clave nueva con `m=19456,t=2,p=1`; hash con defaults de Django
+  sigue autenticando y el login lo re-hashea) y `LoginDeLaAppConSesionDeBackofficeTests`
+  (`Client(enforce_csrf_checks=True)` con `force_login` hace POST al token → 200).
+- **Mutación**: con el hasher de Django en `PASSWORD_HASHERS` las dos pruebas de `Argon2AjustadoTests`
+  quedan rojas; sin `authentication_classes = ()` la de sesión da `403 != 200`.
+- `manage.py check`, `makemigrations --check --dry-run`, ruff y las suites de `users` y de la API de
+  campo: ver el PR.
+
+## Pendientes / a definir
+
+Medir en QA el tiempo del POST tras el despliegue. No se tocó el aviso de SEC-26 sobre el throttling.
+
+## Reversión
+
+Revertir los dos commits. Los hashes ya re-hasheados con `p=1` se siguen verificando con el hasher de
+Django (los parámetros viajan en el hash); no se pierden datos.
 
 ## Historial
 
