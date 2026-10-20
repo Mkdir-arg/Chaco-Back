@@ -18,7 +18,7 @@ restore (runbook D.4 de ``docs/internal/processes.md``).
 Estos tests fijan las dos mitades de la barrera: la marca legible en el archivo y
 que la reversa aborte **antes** de tocar la base.
 
-Aparte van las **reversas condicionadas** (``programas.0099``): no son barreras, se
+Aparte van las **reversas condicionadas** (``programas.0100``): no son barreras, se
 vuelve por ellas mientras no haya filas que la vuelta no pueda conservar; si las hay,
 abortan igual de temprano y apuntan al mismo D.4.
 """
@@ -99,9 +99,9 @@ MARCA_CONDICIONADA = "# REVERSA-CONDICIONADA:"
 # puede conservar. Sin la guarda, MariaDB deja el esquema a medias (RED-58).
 REVERSAS_CONDICIONADAS = (
     (
-        "programas.migrations.0099_diseno_por_tipo_dispositivo",
-        "programas/migrations/0099_diseno_por_tipo_dispositivo.py",
-        "programas.0099",
+        "programas.migrations.0100_diseno_por_tipo_dispositivo",
+        "programas/migrations/0100_diseno_por_tipo_dispositivo.py",
+        "programas.0100",
     ),
 )
 
@@ -207,11 +207,11 @@ class ReversasCondicionadasTests(SimpleTestCase):
 
 
 class ReversaDisenoPorTipoTests(TestCase):
-    """``programas.0099``: con un formulario de tipo de dispositivo la vuelta deja
+    """``programas.0100``: con un formulario de tipo de dispositivo la vuelta deja
     ``convocatoria_id`` NULL en una columna NOT NULL. En MariaDB eso muere con 1265
     **después** de haber borrado el CHECK, el UNIQUE y la FK; la guarda aborta antes."""
 
-    MODULO = "programas.migrations.0099_diseno_por_tipo_dispositivo"
+    MODULO = "programas.migrations.0100_diseno_por_tipo_dispositivo"
     TABLA = "programas_disenoformulario"
 
     @classmethod

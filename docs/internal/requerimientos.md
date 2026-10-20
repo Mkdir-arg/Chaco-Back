@@ -469,6 +469,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 341 | Los adjuntos y padrones de Becas vuelven a bajar: `/media/` daba 500 por un `select_related` sobre una propiedad | Becas · descarga protegida de archivos (`/media/`) | `#rbac` `#datos` | PM — hallazgo en PRD (500 al abrir adjuntos de un caso), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 342 | Las páginas de error (404/403/400/500) no heredan una conexión de MariaDB muerta | Transversal · infraestructura | `#infra` `#performance` | PM — logs de PRD (/meta.json y /media/...), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 343 | P3: la localidad se elige del catálogo y los días y horarios se cargan por franjas | Dispositivos · alta y edición de institución (P3) | `#ui` `#datos` | PM — pedido directo sobre P3, vía el juez del carril, 20/10/2026 | 20/10/2026 | 🟢 **Hecho** | `programas.0099` |
+| 344 | Formularios por tipo de dispositivo: uno por momento, con el constructor de Becas (P17, carril 1) | Dispositivos · configuración de tipos · constructor de formularios | `#ui` `#datos` `#rbac` `#performance` | PM — mockup P17 | 20/10/2026 | 🟢 **Hecho** | `programas.0100` |
 
 **Notas del índice**
 
@@ -44881,5 +44882,248 @@ Revertir el commit de código (vuelve el texto libre) y desaplicar `programas.00
 ## Historial
 
 - **20/10/2026 — alta del cambio.**
+
+---
+
+---
+
+# Cambio 344 — Formularios por tipo de dispositivo: uno por momento, con el constructor de Becas (P17, carril 1)
+
+🟢 **HECHO — 20/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · configuración de tipos (`/dispositivos/config/<pk>/`) · constructor de formularios |
+| **Etiquetas** | `#ui` `#datos` `#rbac` `#performance` |
+| **Solicitante** | PM — formularios por tipo de dispositivo (mockup P17, `docs/client/mockups/dispositivos-v2.html#p17`) |
+| **Fecha del pedido** | 20/10/2026 |
+| **Issue / épica** | sin issue · carril 1 de 2 (el 2 guarda las respuestas) |
+| **Partes afectadas** | Backoffice: `dispositivos/config/_tipo_detail_content.html`, `tipo_detail.html`, `formulario_editor.html` (nuevo), `becas/formulario/_constructor_cuerpo.html` (nuevo, extraído), `convocatoria_formulario.html`, `_constructor_items.html` · Servidor: `models/__init__.py`, `services/constructor.py` (nuevo), `services/formularios_tipo.py` (nuevo), `selectors/formularios_tipo.py` (nuevo), `services/diseno.py`, `views/diseno.py`, `views/dispositivos_formularios.py` (nuevo), `views/dispositivos_config.py`, `mixins_dispositivos.py`, `forms.py`, `dispositivos_urls.py` · Gates: `scripts/design_audit.py` (partición), `scripts/perf_budgets.json` |
+| **Migración** | `programas.0100` — `DisenoFormulario.tipo_dispositivo` y `momento`, `convocatoria` anulable, dos restricciones |
+
+## Pedido original
+
+Un formulario por momento por tipo de dispositivo —Crear dispositivo, Ingreso de persona,
+Asignación de plaza, Novedades del turno, Egreso, Traslado y uno Propio—, que se crea, se edita y se
+elimina desde el detalle del tipo. Las versiones se editan después de crear. Las preguntas se
+configuran en el mismo constructor (campos propios, sin catálogo). Mismo diseño, funcionalidad y
+lógica que el constructor de Becas.
+
+## Alcance acordado
+
+Entra: el constructor acepta un tipo de dispositivo como dueño, y la gestión de esos formularios en
+`/dispositivos/config/<pk>/` (tabla, alta por modal, editor, baja). Queda afuera, para el carril 2:
+el formulario «Crear dispositivo» dentro de `/dispositivos/nuevo/` y guardar respuestas. Tampoco
+se toca `DispositivoForm` ni `legajo/form.html` (carril paralelo de localidad y horarios).
+
+## Decisiones tomadas
+
+**Un motor, dos dueños.** `DisenoFormulario` suma `tipo_dispositivo` (FK anulable, `PROTECT`,
+`related_name="formularios"`) y `momento` (`MomentoFormulario`, en blanco por defecto con
+`db_default=""`); `convocatoria` pasa a anulable. Dos restricciones:
+
+- `diseno_un_solo_dueno` (CHECK): exactamente un dueño, y `momento` lleno **si y solo si** el dueño
+  es el tipo.
+- `uniq_diseno_tipo_momento` (UNIQUE sobre `tipo_dispositivo, momento`), **sin** `condition=`: en
+  MySQL/MariaDB los NULL no chocan, así que los diseños de Becas (tipo NULL) conviven sin una regla
+  condicional, que en esos motores no existe.
+
+Ninguna lectura de Becas lista diseños de un tipo: todas filtran por convocatoria o por FK de
+catálogo (`obtener_o_crear_diseno`, `dashboard_becas`, `registrar_baja_del_catalogo`,
+`configuracion`); `verificar_json_guardado` los recorre a todos pero solo usa la convocatoria en la
+etiqueta del hallazgo.
+
+**Catálogo vacío para el tipo (fuente de catálogo por dueño).** Sin convocatoria,
+`plan_por_defecto` devuelve `[]` y `_catalogo_esperado` devuelve `({}, {})`: el formulario nace
+vacío, `reconciliar` e `items_vigentes` no le agregan ni le quitan nada, y no hay preguntas
+globales, requisitos, SIIS ni GPS. Tampoco hay canal app/link: todo ítem se guarda en «ambos» (la
+vista lo fuerza, venga lo que venga en el POST) y el control no se muestra.
+
+**Las mutaciones se mudaron a un servicio compartido.** La lógica que vivía en `views/diseno.py`
+(candado BEC-16, errores por canal de antes, coherencia de condiciones, `tocar()`, mover, crear
+grupo/texto/campo, editar, condición, motivo para no eliminar) pasó tal cual a
+`programas/services/constructor.py`. Becas y Dispositivos la llaman desde sus vistas; ninguna vista
+importa de otra. `views/diseno.py` conserva los alias `DisenoInvalido` y `_operadores` que
+importan `configuracion.py` y un test, así que la arista conocida `configuracion → diseno` de
+`test_arquitectura` no cambia.
+
+**Vistas y URLs propias** en `dispositivos:` bajo `config/<pk>/formularios/…`: `formulario_crear`,
+`formulario_editor`, `formulario_eliminar` y las siete mutaciones (`mover`, `grupo`, `texto`,
+`campo-propio`, `item/<clave>/editar|condicion|eliminar`). Todas con `ConfigurarDispositivosMixin`
+(movido a `mixins_dispositivos.py` para que lo compartan las dos vistas sin importarse): ni
+capacidades de Becas, ni roles, ni seeds. Tipo inexistente, momento inválido y momento de otro
+tipo responden el mismo 404 (`get_object_or_404` por `tipo_dispositivo_id` y `momento` juntos).
+
+**Alta.** «Nuevo formulario» abre un modal con un select de los momentos **libres**; si no queda
+ninguno, el botón no se dibuja. El servicio `crear_formulario` rechaza un momento inválido o
+tomado con `ValidationError`, y si dos altas llegan a la vez la segunda choca con la restricción
+única y recibe el mismo error. Al crear, se va directo al editor.
+
+**Versiones.** Cada guardado del editor llama a `tocar()` (como Becas): la versión sube y se ve en
+la tabla y en el encabezado del editor.
+
+**Baja.** Confirmación por SweetAlert2 (el manejador `data-confirm-url` que la página ya tenía),
+nunca `confirm()`. Borra el diseño y sus ítems y libera el momento. El punto único
+`puede_eliminar_formulario(diseno)` hoy siempre permite: lo endurece el carril 2 cuando haya
+respuestas guardadas con la foto de una versión.
+
+**Tipos de campo.** Un campo propio admite los mismos tipos que en Becas; ninguno nuevo.
+
+**Plan de pantalla.**
+
+```
+Detalle del tipo
+Tipo: A (ajuste de P14 existente) · Arquetipo: Detalle · Golden: programas/templates/programas/becas/cupo/segmento_detail.html
+Bloques: botón «Nuevo formulario» (btn-tertiary btn-base) entre las acciones del page_header ·
+         section surface con tabla (nodo-thead-row / nodo-th / nodo-td, nodo-icon-btn y --danger)
+         y {% empty %} con _estado_vacio.html · modal según la golden de Modal (x-becas-modal,
+         _modal_header, _modal_footer, _alerta info)
+Vista: formularios_del_tipo (selector) y momentos_libres (servicio); la vista no decide nada
+Novedades: ninguna
+
+Editor del formulario
+Tipo: B (pantalla nueva) · Arquetipo: el constructor de Becas, reusado por decisión del juez
+Bloques: page_header con eyebrow del tipo, badge de versión e indicador «Guardado en vivo» ·
+         _constructor_cuerpo.html con sin_canal=True
+Novedades: el parámetro sin_canal del cuerpo y vacio_texto de _constructor_items.html
+```
+
+**Extracción del cuerpo del constructor.** La grilla, la vista previa y los cinco modales salieron
+de `convocatoria_formulario.html` a `_constructor_cuerpo.html`. El HTML que sirve Becas no cambió:
+se comparó la página renderizada antes y después y solo difiere el token CSRF. La deuda de diseño
+que viajó con el markup (íconos sin `aria-hidden`, `style=` del ejemplo de condición) se declara
+como partición en `scripts/design_audit.py` (`PARTICIONES`, ref `fb6427cc`, retiro a más tardar el
+30/04/2027), así el ratchet la mide de a conjunto y da 0 nuevos.
+
+**Apartamientos del mockup P17.**
+
+- Sin las solapas de P14/P17 («Formularios · N», etc.): el detalle del tipo no tiene solapas hoy;
+  la tabla va como sección propia. Por eso `--arquetipo detalle` marca los ocho marcadores de
+  solapas ausentes: es un ajuste (A) de una pantalla existente.
+- Sin la marca Base/Propio, la sensibilidad por sección, los campos protegidos, el panel de
+  secciones y el de reglas: no hay servicio detrás.
+- Sin botón «Guardar cambios»: el constructor guarda en vivo, como en Becas.
+- Sin «Restablecer» en el editor: no hay catálogo del que regenerar.
+- «Nuevo formulario» es un POST común (no `data-ajax`): crea y redirige al editor.
+- El editor no tiene migas: vuelve al tipo con el «volver» del `page_header`.
+- `--arquetipo modal` sobre el parcial marca «becas-modal.js cargado en customJS»: el script se
+  carga en `tipo_detail.html`, que es quien incluye el parcial.
+
+## Implementación
+
+El detalle de un tipo de dispositivo muestra sus formularios —uno por momento— con dónde se
+completa cada uno, cuántas secciones y campos tiene y su versión. Desde ahí se crea uno nuevo
+(eligiendo un momento libre), se abre el editor —el mismo constructor de Becas: grupos, textos,
+campos propios, condiciones y arrastrar para ordenar, todo guardado en vivo— y se elimina con
+confirmación, lo que libera el momento.
+
+## Archivos
+
+- `programas/models/__init__.py` (`MomentoFormulario`, campos y restricciones), `programas/migrations/0100_diseno_por_tipo_dispositivo.py`
+- `programas/services/constructor.py` (nuevo), `programas/services/formularios_tipo.py` (nuevo), `programas/selectors/formularios_tipo.py` (nuevo), `programas/services/diseno.py`
+- `programas/views/diseno.py`, `programas/views/dispositivos_formularios.py` (nuevo), `programas/views/dispositivos_config.py`, `programas/mixins_dispositivos.py`, `programas/forms.py`, `programas/dispositivos_urls.py`
+- Templates: `dispositivos/config/_tipo_detail_content.html`, `tipo_detail.html`, `formulario_editor.html` (nuevo); `becas/formulario/_constructor_cuerpo.html` (nuevo), `convocatoria_formulario.html`, `_constructor_items.html`
+- `programas/tests/test_dispositivos_formularios_tipo.py` (nuevo, 28), `test_dispositivos_config.py`, `test_models_contrato.py`
+- `core/tests/test_barreras_de_reversa.py` (registro `REVERSAS_CONDICIONADAS`), `core/tests/test_runbook_rollback.py`, `docs/internal/processes.md` (D.4)
+- `scripts/design_audit.py` (partición), `scripts/perf_budgets.json` (`dispositivos_formularios_del_tipo`: 1 y `dispositivos_formulario_editor`: 7)
+
+## Base de datos
+
+`programas.0100`, expand puro: `momento` nace `NOT NULL` con `DEFAULT ''` en la base
+(`db_default`), `tipo_dispositivo_id` nace anulable, `convocatoria_id` pasa a anulable, y se
+agregan el CHECK y el UNIQUE. Los diseños de Becas existentes cumplen el CHECK (convocatoria, sin
+tipo, momento vacío). `check_migraciones.py`: 0 problemas. Se renumeró de `0099` a `0100` al entrar
+antes la `programas.0099` del Cambio 343 (franjas horarias), de la que ahora depende.
+
+**Reversa condicionada** (marca `# REVERSA-CONDICIONADA:`, paso D.4 de `processes.md`): la última
+operación es un `RunPython(sin_cambios, reversa_sin_disenos_de_tipo)`, que es la primera en correr al
+revertir. Si hay algún diseño con `tipo_dispositivo`, aborta con `IrreversibleError` antes de tocar el
+esquema; si no hay ninguno, no hace nada y la vuelta sigue sola. Sin ella, en MariaDB 10.11 la vuelta
+borraba el CHECK, el UNIQUE y la FK de `convocatoria_id` y recién después moría con `1265 Data
+truncated` al volverla `NOT NULL`, con la `0100` todavía en `django_migrations` (RED-58).
+
+## Validación
+
+- `manage.py check` OK · `makemigrations --check` (con `DJANGO_SYNCDB_PROJECT_APPS=False`) sin
+  cambios · `check_migraciones.py` 0 problemas · `check_perf_budgets.py` ningún techo sube.
+- `compile_templates.py --bloques` 0 errores y 0 bloques sin destino · `design_audit.py --ratchet
+  --base origin/development` 0 nuevos · `--goldens` 0 · `scripts/test_design_audit.py` OK · build
+  de Tailwind sin diff · ruff OK sobre lo tocado.
+- Tests (Py 3.12 + Dj 5.2): `test_dispositivos_formularios_tipo` (28, nuevo), `test_dispositivos_config`,
+  `test_arquitectura`, `test_diseno`, `test_constructor`, `test_constructor_confirmacion_y_autoguardado`,
+  `test_constructor_e2e`, `test_becas_convocatorias_diseno`, `test_catalogo_canal_y_bajas`,
+  `test_becas_api_contrato`, `test_json_compatibilidad`, `core.tests.test_api_schema_contrato`,
+  `test_condiciones_paridad`, `test_becas_revision_detalle_html`, `test_models_contrato`,
+  `test_becas_config`, `test_app_de_campo`, `test_respuestas`, `test_dashboard_campos_propios`,
+  `test_preguntas_diseno`, `test_catalogo_drag`, `test_export_respuestas_*`,
+  `core.tests.test_contrato_errores_ajax` y `--tag performance programas` en verde. Los
+  presupuestos de Becas no se tocaron.
+- Mutaciones (romper → rojo → restaurar desde una copia → verde):
+  - **M1** sin `uniq_diseno_tipo_momento` → la segunda alta del mismo momento entra: rojo.
+  - **M2** el CHECK aceptando cualquier diseño con convocatoria → «dos dueños» entra: rojo.
+  - **M3** el servicio sin la consulta previa **y** sin convertir el `IntegrityError` → rojo
+    (con una sola de las dos capas sigue verde, a propósito).
+  - **M4** `momentos_libres` devolviendo todos → tabla, modal y orden rojos.
+  - **M5** `_MutacionView` sin `ConfigurarDispositivosMixin` → 16 subtests de acceso rojos.
+  - **M6** `_formulario` sin filtrar por tipo → «momento de otro tipo» deja de dar 404: rojo.
+  - **M7** sin forzar el canal a «ambos» → rojo.
+  - **M8** `puede_eliminar_formulario` en `False` → baja rojo.
+  - **M9** `_catalogo_esperado` sin la guarda de dueño → `items_vigentes` del tipo trae el
+    catálogo de Becas: rojo.
+  - **M10** `padre_para_nuevo` con `ItemDiseno.objects` en vez de `diseno.items` → texto y campo
+    propio se cuelgan del grupo del otro dueño, en las dos direcciones: rojo.
+  - **M11** `item_por_clave` con `ItemDiseno.objects` → mover suelta un campo en el grupo del otro
+    dueño: rojo.
+  - **M12/M13** el `_item` de `views/dispositivos_formularios.py` o de `views/diseno.py` sin acotar al
+    diseño → editar y eliminar tocan un ítem del otro dueño: rojo.
+  - **M14** la guarda de la `0100` sin contar los diseños de tipo → la reversa sigue: rojo.
+- Pertenencia entre dueños (`AislamientoBecasTests.test_una_clave_del_otro_dueno_no_se_usa_ni_se_toca`):
+  desde las URLs de Dispositivos con claves de una convocatoria de Becas y al revés —texto, campo
+  propio, mover, editar, eliminar— cada POST da 400/404 y los dos diseños quedan intactos (ítems y
+  `version`).
+- Reversa de la `0100`: `core.tests.test_barreras_de_reversa` (`ReversasCondicionadasTests`,
+  `ReversaDisenoPorTipoTests`) y `core.tests.test_runbook_rollback` (D.4 la nombra).
+
+## Puesta en marcha en el servidor
+
+No requiere: la migración agrega columnas y restricciones; no hay datos que migrar.
+
+## Pendientes / a definir
+
+- **Carril 2:** el formulario «Crear dispositivo» dentro de `/dispositivos/nuevo/`, guardar las
+  respuestas con la foto de la versión y endurecer `puede_eliminar_formulario` (con respuestas, baja
+  lógica en vez de borrar).
+- **Ficha de diseño del constructor** (`.claude/design/dominio/becas.md`, sección «Constructor de
+  formularios»): sumar `_constructor_cuerpo.html`, sus dos consumidores y los parámetros
+  `sin_canal` y `vacio_texto`. La edición de archivos bajo `.claude/` está bloqueada para el
+  implementador; la aplica el juez.
+- **Retiro de la partición** del constructor en `design_audit.py`: con la próxima limpieza de diseño
+  del constructor, a más tardar el 30/04/2027.
+- Lo que el mockup dibuja sin servicio detrás (Base/Propio, sensibilidad, campos protegidos,
+  reglas del configurador) queda para cuando exista.
+
+## Reversión
+
+`git revert` del merge y `migrate programas 0098`. Se pierden los formularios por tipo creados
+desde el deploy. Si quedó alguno, la `0100` **aborta antes de tocar el esquema** (reversa
+condicionada, D.4): o restore del dump previo, o —solo si esos formularios se pueden perder—
+`DisenoFormulario.objects.filter(tipo_dispositivo__isnull=False).delete()` (los ítems caen en
+cascada) y reintentar. Nunca `--fake`.
+
+## Historial
+
+- **20/10/2026 — alta del cambio.**
+- **20/10/2026 — corrección de la revisión independiente.** MAJOR: la reversa de la `0100` se
+  cortaba a la mitad en MariaDB con un formulario de tipo cargado; ahora es una reversa
+  condicionada que aborta antes de tocar el esquema. MINOR: tests de pertenencia entre los dos
+  dueños para `padre_para_nuevo`, `item_por_clave` y los `_item` de las vistas.
+
+**Notas del índice**
+
+- Los requerimientos 1 a 19 son la normalización del documento «Cambios en DataÑach (1).docx», enviado por el cliente el 7 de agosto de 2026, en su orden de aparición. Los puntos 7 y 8 separan dos pedidos que el DOCX trae en un mismo párrafo.
+- Del 20 en adelante son pedidos posteriores a ese documento. Los requerimientos 20 y 22 **no tienen solicitante ni fecha de pedido registrados en su origen**; quedan como «sin registrar» hasta confirmarlos. Ese hueco es exactamente lo que la regla de oro viene a cerrar.
+- El requerimiento 22 se apoya en el 8 (Incorporar programas), que es la integración con el catálogo de ECOM. El 24 completa y corrige el criterio del 20.
+- Las entradas 1 a 24 son anteriores a la plantilla: su programa, solicitante, fecha y etiquetas viven en esta tabla y no repetidos en cada entrada. **Las nuevas llevan la plantilla completa**, con las mismas etiquetas en la entrada y en el índice.
+- Las etiquetas se asignaron leyendo cada entrada, no por su título. `scripts/requerimientos.py --check` verifica que ninguna quede fuera del vocabulario y que no falte ni sobre ninguna fila.
 
 ---

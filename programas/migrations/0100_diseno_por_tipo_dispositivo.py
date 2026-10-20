@@ -10,7 +10,7 @@ from django.db import migrations, models
 from django.db.migrations.exceptions import IrreversibleError
 
 MENSAJE_REVERSA = (
-    "programas.0099 no se puede revertir con {cantidad} formulario(s) por tipo de dispositivo "
+    "programas.0100 no se puede revertir con {cantidad} formulario(s) por tipo de dispositivo "
     "cargados: la columna convocatoria_id vuelve a ser NOT NULL y esas filas no tienen "
     "convocatoria. Volver atrás se hace con restore del dump previo al deploy (runbook D.4 de "
     "docs/internal/processes.md); solo si esos formularios se pueden perder, borrarlos "
@@ -34,7 +34,7 @@ def reversa_sin_disenos_de_tipo(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("programas", "0098_diseno_bajas_pendientes"),
+        ("programas", "0099_horario_dispositivo"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
