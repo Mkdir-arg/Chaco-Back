@@ -1,19 +1,23 @@
 """Formularios de la inscripción pública de Becas (#293 paso 1, #294 paso 2)."""
 
-from pathlib import Path
-
 from django import forms
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
-from core.validators import validar_firma
+
+# La traducción campo → field vive en `programas.forms_dinamicos` desde que la usa también
+# el formulario de un tipo de dispositivo (P17). Se re-exporta: la importan los tests.
+from programas.forms_dinamicos import (  # noqa: F401
+    ARCHIVO_EXTENSIONES,
+    ARCHIVO_MAX_BYTES,
+    _attrs_buscador,
+    _es_buscador,
+    _field_para_campo,
+    _validar_archivo,
+)
 from programas.services.personas import fecha_iso
 from programas.services.respuestas import aplicar, foto_definicion, legible, planos_de
 
 INPUT_CLASS = "nodo-field w-full"
-
-# Archivos del formulario público: upload anónimo, límites duros (análisis #289).
-ARCHIVO_EXTENSIONES = (".jpg", ".jpeg", ".png", ".pdf")
-ARCHIVO_MAX_BYTES = 5 * 1024 * 1024
 
 
 class InscripcionPaso1Form(forms.Form):
@@ -51,79 +55,6 @@ class InscripcionPaso1Form(forms.Form):
         if sexo not in ("F", "M"):
             raise forms.ValidationError("Seleccioná una opción.")
         return sexo
-
-
-def _validar_archivo(archivo):
-    nombre = (archivo.name or "").lower()
-    if not nombre.endswith(ARCHIVO_EXTENSIONES):
-        raise forms.ValidationError("Solo se aceptan archivos JPG, PNG o PDF.")
-    if archivo.size > ARCHIVO_MAX_BYTES:
-        raise forms.ValidationError("El archivo no puede superar los 5 MB.")
-    # SIIS-16: la extensión la elige quien sube el archivo, y acá el upload es
-    # **anónimo**. Sin mirar el contenido, un `.pdf` con HTML adentro quedaba en
-    # `media/` y después lo abría un coordinador desde el backoffice. La firma
-    # de los primeros bytes es del archivo, no de su nombre.
-    validar_firma(archivo, Path(nombre).suffix, "El archivo no es un JPG, PNG o PDF válido.")
-
-
-def _es_buscador(campo):
-    """¿El campo se configuró para elegir con buscador y píldoras? (Cambio 56).
-
-    La presentación llega en la misma definición que consume la app. Un campo
-    guardado antes del cambio no la trae: se lee como lista, que es como se veía.
-    """
-    return campo.get("presentacion") == "BUSCADOR"
-
-
-# Atributos que enganchan el control de búsqueda con píldoras sobre el <select>
-# nativo. El JS (static/custom/js/nodo-buscador.js) lo monta al cargar; si no
-# corre, queda el desplegable del navegador y el formulario funciona igual.
-def _attrs_buscador(placeholder):
-    return {"class": INPUT_CLASS, "data-buscador": "1", "data-buscador-placeholder": placeholder}
-
-
-def _field_para_campo(campo):
-    """Traduce un campo de ``definicion_formulario`` (la misma definición que
-    consume la app, RN-P12) a un field de Django. Tipos: ``TipoCampo``."""
-    etiqueta = campo["texto"]
-    requerido = bool(campo["obligatorio"])
-    tipo = campo["tipo"]
-    if tipo == "INT":
-        return forms.IntegerField(
-            label=etiqueta,
-            required=requerido,
-            widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "inputmode": "numeric"}),
-        )
-    if tipo == "SELECTOR":
-        opciones = [("", "Elegí una opción")] + [(o, o) for o in campo["opciones"]]
-        if _es_buscador(campo):
-            widget = forms.Select(attrs=_attrs_buscador("Buscá una opción"))
-        else:
-            widget = forms.Select(attrs={"class": INPUT_CLASS})
-        return forms.ChoiceField(label=etiqueta, required=requerido, choices=opciones, widget=widget)
-    if tipo == "SELECTOR_MULTIPLE":
-        opciones = [(o, o) for o in campo["opciones"]]
-        if _es_buscador(campo):
-            widget = forms.SelectMultiple(attrs=_attrs_buscador("Buscá y elegí una o varias"))
-        else:
-            widget = forms.CheckboxSelectMultiple()
-        return forms.MultipleChoiceField(label=etiqueta, required=requerido, choices=opciones, widget=widget)
-    if tipo == "DATE":
-        return forms.DateField(
-            label=etiqueta,
-            required=requerido,
-            widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
-        )
-    if tipo == "ARCHIVO":
-        return forms.FileField(
-            label=etiqueta,
-            required=requerido,
-            validators=[_validar_archivo],
-            widget=forms.ClearableFileInput(attrs={"class": INPUT_CLASS, "accept": ".jpg,.jpeg,.png,.pdf"}),
-        )
-    return forms.CharField(
-        label=etiqueta, required=requerido, max_length=500, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
-    )
 
 
 class InscripcionPaso2Form(forms.Form):

@@ -470,6 +470,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 342 | Las páginas de error (404/403/400/500) no heredan una conexión de MariaDB muerta | Transversal · infraestructura | `#infra` `#performance` | PM — logs de PRD (/meta.json y /media/...), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 343 | P3: la localidad se elige del catálogo y los días y horarios se cargan por franjas | Dispositivos · alta y edición de institución (P3) | `#ui` `#datos` | PM — pedido directo sobre P3, vía el juez del carril, 20/10/2026 | 20/10/2026 | 🟢 **Hecho** | `programas.0099` |
 | 344 | Formularios por tipo de dispositivo: uno por momento, con el constructor de Becas (P17, carril 1) | Dispositivos · configuración de tipos · constructor de formularios | `#ui` `#datos` `#rbac` `#performance` | PM — mockup P17 | 20/10/2026 | 🟢 **Hecho** | `programas.0100` |
+| 345 | P3 pide el formulario «Crear dispositivo» del tipo y P4 muestra lo respondido (P17, carril 2) | Dispositivos · alta y edición de institución (P3) · detalle (P4) · formularios por tipo (P17) | `#ui` `#datos` `#rbac` `#performance` | PM — mockup P17, vía el juez del carril | 20/10/2026 | 🟢 **Hecho** | `programas.0101` |
 
 **Notas del índice**
 
@@ -45125,5 +45126,227 @@ cascada) y reintentar. Nunca `--fake`.
 - El requerimiento 22 se apoya en el 8 (Incorporar programas), que es la integración con el catálogo de ECOM. El 24 completa y corrige el criterio del 20.
 - Las entradas 1 a 24 son anteriores a la plantilla: su programa, solicitante, fecha y etiquetas viven en esta tabla y no repetidos en cada entrada. **Las nuevas llevan la plantilla completa**, con las mismas etiquetas en la entrada y en el índice.
 - Las etiquetas se asignaron leyendo cada entrada, no por su título. `scripts/requerimientos.py --check` verifica que ninguna quede fuera del vocabulario y que no falte ni sobre ninguna fila.
+
+---
+
+---
+
+# Cambio 345 — P3 pide el formulario «Crear dispositivo» del tipo y P4 muestra lo respondido (P17, carril 2)
+
+🟢 **HECHO — 20/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alta y edición de institución (P3) · detalle (P4, solapa Datos) · formularios por tipo (P17) |
+| **Etiquetas** | `#ui` `#datos` `#rbac` `#performance` |
+| **Solicitante** | PM — formularios por tipo de dispositivo (mockup P17), vía el juez del carril |
+| **Fecha del pedido** | 20/10/2026 |
+| **Issue / épica** | sin issue · carril 2 de 2 (el 1 es el Cambio 344) |
+| **Partes afectadas** | Backoffice: `dispositivos/legajo/form.html`, `_formulario_tipo.html` (nuevo), `legajo/detail.html`, `config/_tipo_detail_content.html` · Servidor: `models/__init__.py`, `forms.py`, `forms_dinamicos.py` (nuevo), `services/respuestas_dispositivo.py` (nuevo), `services/formularios_tipo.py`, `services/dispositivos.py`, `selectors/formularios_tipo.py`, `views/dispositivos_legajo.py`, `views/dispositivos_formularios.py`, `dispositivos_urls.py`, `core/rutas_media.py`, `core/views/media.py` · Portal: `portal/forms/inscripcion.py` (solo reexporta) · Gates: `scripts/perf_budgets.json` |
+| **Migración** | `programas.0101` — `DisenoFormulario.dado_de_baja_en`, `RespuestasAltaDispositivo` y `AdjuntoRespuestaAlta` |
+
+## Pedido original
+
+En `/dispositivos/nuevo/`, al elegir el «Tipo de dispositivo», debajo de «Responsable y contacto»
+aparece una sección con las preguntas que el constructor tiene configuradas para ese tipo en el
+formulario «Crear dispositivo». La misma lógica que Becas.
+
+## Alcance acordado
+
+Entra: la sección en el alta y en la edición (P3), guardar las respuestas con la foto y la versión
+del formulario, los archivos, la lectura en la solapa Datos (P4), la baja del formulario que ya
+tiene respuestas y los dos MINOR que dejó la revisión del Cambio 343 (franjas). Afuera: los otros
+seis momentos (el modelo queda listo para sumarlos), roles y seeds, y la traza de lo que cambia en
+las respuestas.
+
+## Decisiones tomadas
+
+**Sección por fetch, con el mismo intérprete.** Al cambiar el tipo, `form.html` pide
+`dispositivos:formulario_tipo_seccion` (`?tipo=<id>[&dispositivo=<id>]`), que devuelve el parcial
+`_formulario_tipo.html` armado en el servidor. Los campos salen del mismo intérprete del portal:
+`diseno.items_vigentes`/`serializar` para la foto, `programas.services.condiciones` para las
+condiciones y `_field_para_campo` para cada control. `_field_para_campo` y sus validadores se
+mudaron de `portal/forms/inscripcion.py` a `programas/forms_dinamicos.py`; el portal los reexporta
+y su comportamiento no cambia (`portal.tests.test_inscripcion_envio`, `test_respuestas`,
+`test_json_compatibilidad`, `test_becas_api_contrato` en verde). En el navegador las condiciones
+las aplica `nodo-condiciones.js`; el servidor las vuelve a evaluar siempre (`RespuestasDisenoForm.clean`):
+lo oculto se descarta aunque llegue en el POST, con su archivo, y su error no frena.
+
+**Permisos del endpoint.** Sin `dispositivo`: lo mismo que el alta (`dispositivo.crear` en el
+programa **y** alcance de admin), si no 403. Con `dispositivo`: se resuelve dentro de
+`dispositivos_en_alcance(user, "dispositivo.editar")` sin los cerrados; ajeno, inexistente o mal
+escrito dan el mismo 404. Un tipo inexistente, inactivo, sin formulario o con el formulario dado de
+baja devuelve la sección vacía con 200 (sin oráculo). Los ids pasan por `isascii() and isdecimal()`.
+
+**Sin JS.** El parcial lleva un oculto `formulario_tipo_diseno`. Si se guarda con un tipo cuyo
+formulario no llegó en el POST (no se pidió la sección), el alta vuelve con la sección dibujada y el
+error «El tipo elegido tiene preguntas propias: completalas abajo y volvé a guardar.», sin guardar.
+
+**Tipo de valor siempre, obligatorio solo al enviar.** Los campos del formulario son
+`required=False` (con la marca visual de obligatorio): un número mal escrito se rechaza también en
+el borrador; los obligatorios **visibles** se exigen en `enviar_a_validacion`
+(`_exigir_formulario_del_tipo`, `ValidationError` con código `formulario_tipo_incompleto`), que la
+vista pinta en cada campo («Este dato es obligatorio.»). `validar` no los vuelve a exigir. Los
+faltantes del formulario entran al panel lateral de requisitos (`data-faltante-formulario`) y
+frenan «Enviar a validación» también en el navegador.
+
+**Persistencia extensible a otros momentos.** Una base abstracta `RespuestasDeFormulario`
+(`TimeStamped`: `diseno`, `definicion` = la foto, `version`, `respuestas`, `anteriores`,
+`actualizado_por`) y un modelo concreto **por momento**: hoy `RespuestasAltaDispositivo`
+(`dispositivo`, `UniqueConstraint(fields=["dispositivo", "diseno"])`, sin `condition=`). Se eligió
+un modelo por momento y no una tabla genérica porque cada momento tiene otro dueño (el ingreso y el
+egreso cuelgan de la estadía, las novedades del turno del dispositivo y la fecha): con su FK real
+hay `CASCADE`, unicidad y alcance sin claves polimórficas. `services/respuestas_dispositivo.py`
+recorre `MODELOS_DE_RESPUESTAS` para saber si un diseño tiene respuestas: sumar un momento es
+sumar su modelo a esa tupla. Se guarda en la misma transacción que el dispositivo, en el alta y en
+la edición, y los archivos escritos se borran si la transacción cae (`archivos_atomicos`). Sin nada
+respondido no se crea fila (el formulario se sigue pudiendo borrar).
+
+**Edición.** Muestra el formulario **vigente**, precargado por clave. Al guardar, la foto y la
+versión pasan a las vigentes. Una clave que el diseño ya no tiene se conserva en `respuestas` y su
+definición vieja queda en `anteriores` (`{clave: {campo, version}}`). Guardar sin cambios no
+reescribe la fila. Cambiar de tipo deja la fila del tipo anterior y crea la del nuevo; P4 muestra
+las dos (la anterior con «Tipo anterior: …»).
+
+**Archivos.** Los `ARCHIVO` suben en el mismo POST (`enctype="multipart/form-data"`), con los
+validadores de Becas (JPG/PNG/PDF, 5 MB, firma del contenido), a `dispositivos/formularios/%Y/%m/`
+con nombre opaco (`AdjuntoRespuestaAlta`, uno por clave y subida; la respuesta guarda el nombre
+original). Regla propia en `core/views/media.py` (`_archivo_de_formulario_dispositivo`): lo baja
+quien ve **ese** dispositivo (`puede_operar_dispositivo(…, "dispositivo.ver")`, con alcance); al
+resto, 404. El campo propio `ARCHIVO`, que `ItemCampoPropioForm` rechazaba, se permite solo en el
+editor del tipo (`permite_archivo=True`); Becas sigue igual.
+
+**P4, solapa Datos.** Debajo de la ubicación, una sección por formulario respondido: título,
+versión respondida y, por grupo de la foto, los campos **visibles** según sus condiciones evaluadas
+con lo respondido (lo oculto no se muestra ni vacío); los archivos como enlace.
+
+**Eliminar con respuestas = baja.** `DisenoFormulario.dado_de_baja_en` (anulable).
+`puede_eliminar_formulario` da `False` con respuestas y `eliminar_formulario` devuelve `borrado` o
+`baja` (también cae en baja si el borrado choca con un `PROTECT`). Dado de baja no se pide en P3 y
+se sigue leyendo en P4; la tabla del tipo muestra «De baja» y un «Reactivar» con confirmación.
+La confirmación de «Eliminar» dice cuál de las dos cosas va a pasar.
+
+**MINOR del Cambio 343.** `prepararQuitar` oculta la franja que vuelve del servidor con su DELETE
+tildado (no cuenta para la superposición del navegador), y `BaseFranjaHorariaFormSet.clean` informa
+la superposición entre las filas válidas aunque otra tenga error.
+
+**Plan de pantalla.**
+
+```
+Alta y edición de institución (P3)
+Tipo: A (ajuste) · Arquetipo: Formulario · Golden: la del arquetipo en .claude/agents/chaco-design-system.md
+Bloques: sección del tipo como las otras secciones del form (border-t + h2 + grilla de _field.html),
+         texto del diseño como párrafo, grupo de opciones con .nodo-checks, nota «Ya cargado»
+         en text-body-subtle; faltantes del formulario en el panel lateral existente
+Vista: formulario_tipo_para (forms.py) + DispositivoFormularioTipoView (parcial)
+Novedades: ninguna (clases e includes existentes)
+
+Detalle (P4) — solapa Datos
+Tipo: A (ajuste) · Arquetipo: Detalle
+Bloques: section con border-t, h2, badge badge-gray con la versión, h3 por grupo y dl en grilla
+Novedades: ninguna
+
+Detalle del tipo (P14) — tabla de formularios
+Tipo: A (ajuste) · Bloques: badge «De baja» (badge-dot badge-gray), nodo-icon-btn «Reactivar»
+con data-confirm-url, textos de confirmación según el resultado
+Novedades: ninguna
+```
+
+**Apartamientos.**
+
+- La presentación «Buscador con píldoras» cae a un select nativo en el backoffice:
+  `nodo-buscador.js` no se carga en P3.
+- La columna Estado y los badges del mockup P17 no se dibujan; solo «De baja».
+- La lectura de los controles del formulario para `NodoCondiciones` está en un script inline de
+  `form.html` y no en `nodo-formulario.js` (canónico, bajo `.claude/`): ver pendientes.
+- Si el guardado vuelve con error, el archivo elegido hay que volver a elegirlo (el navegador no lo
+  conserva); lo ya guardado se informa con «Ya cargado: …».
+- La edición de una institución ajena sigue dando 403 (comportamiento previo de la UpdateView); el
+  endpoint nuevo y `/media/` dan 404.
+
+## Implementación
+
+Al elegir el tipo en el alta de una institución aparece, debajo de «Responsable y contacto», el
+formulario que el tipo tiene configurado: sus secciones, textos y preguntas, que se muestran u
+ocultan según las respuestas. Se puede guardar como borrador con lo que haya; para enviar a
+validación hay que completar las obligatorias (el panel de la derecha las lista). En la edición se
+ve precargado y, si el formulario cambió, se responde la versión nueva sin perder lo anterior. El
+detalle muestra lo respondido en la solapa Datos. Un formulario que ya tiene respuestas no se
+borra: se da de baja y se puede reactivar.
+
+## Archivos
+
+- `programas/models/__init__.py`, `programas/migrations/0101_respuestas_alta_dispositivo.py`, `core/rutas_media.py`
+- `programas/forms_dinamicos.py` (nuevo), `portal/forms/inscripcion.py`, `programas/forms.py`
+- `programas/services/respuestas_dispositivo.py` (nuevo), `programas/services/formularios_tipo.py`, `programas/services/dispositivos.py`, `programas/selectors/formularios_tipo.py`
+- `programas/views/dispositivos_legajo.py`, `programas/views/dispositivos_formularios.py`, `programas/dispositivos_urls.py`, `core/views/media.py`
+- Templates: `dispositivos/legajo/form.html`, `legajo/_formulario_tipo.html` (nuevo), `legajo/detail.html`, `config/_tipo_detail_content.html`
+- Tests: `programas/tests/test_dispositivos_formulario_alta.py` (nuevo, 30), `programas/tests/js/franjas_quitar_fa.cjs` (nuevo), `programas/tests/js/faltantes_fi.cjs`; contratos ajustados: `test_models_contrato.py` (los tres nombres nuevos), `test_dispositivos_fidelidad_ff.py` (`enctype` multipart) y `test_dispositivos_fidelidad_fg.py` (la carga de la sección es la tercera captura `.catch` y también loguea)
+- `scripts/perf_budgets.json` (`dispositivos_formulario_tipo_p3`: 3, `dispositivos_formularios_respondidos`: 2)
+
+## Base de datos
+
+`programas.0101`, expand puro: `DisenoFormulario.dado_de_baja_en` nace anulable; tablas nuevas
+`RespuestasAltaDispositivo` (UNIQUE `uniq_respuestas_alta_dispositivo_diseno` sobre
+`dispositivo, diseno`, sin condición) y `AdjuntoRespuestaAlta`. `diseno` es `PROTECT`: un
+formulario con respuestas no se puede borrar por debajo del servicio.
+
+## Validación
+
+- Gates: `manage.py check` OK · `makemigrations --check --dry-run` (con
+  `DJANGO_SYNCDB_PROJECT_APPS=False`) sin cambios · `check_migraciones.py` · `compile_templates.py
+  --bloques` 0 errores · `design_audit.py --arquetipo formulario` (form.html) y `--arquetipo detalle`
+  (detail.html) OK · `--ratchet --base origin/development` 0 nuevos · `--goldens` 0 · build de
+  Tailwind sin diff · `check_perf_budgets.py` ningún techo sube · ruff sin hallazgos nuevos.
+- Tests (Py 3.12 + Dj 5.2): `test_dispositivos_formulario_alta` (30, nuevo), `test_dispositivos_formularios_tipo`,
+  `test_dispositivos_fidelidad_fi`, `test_dispositivos_horarios_localidad`, `test_dispositivos_legajo`,
+  `test_dispositivos_detalle`, `test_dispositivos_config`, `test_arquitectura`,
+  `core.tests.test_media_protegida` (incluye `CoberturaDePrefijosTests`), `portal` completo,
+  `test_respuestas`, `test_json_compatibilidad`, `test_becas_api_contrato` y `--tag performance`.
+- Suite completa (6783 tests): los únicos rojos fueron esos tres contratos (5 fallos), corregidos
+  en el mismo PR y vueltos a correr en verde.
+- Presupuestos: la sección de P3 cuesta 2 consultas en el alta y 3 en la edición, con 4 o 12
+  campos; `formularios_respondidos` 2 con 4 o 12 campos; las pantallas de edición y detalle no
+  crecen al sumar 8 campos.
+- Mutaciones (romper desde una copia → rojo → restaurar):
+  - **M1** los campos con `required` (sin apagarlo) → el borrador incompleto no guarda: rojo.
+  - **M2** `enviar_a_validacion` sin `exige_formulario` → se envía sin los obligatorios: rojo.
+  - **M3** el servidor sin evaluar las condiciones (`ocultos` vacío) → el archivo de una pregunta
+    oculta se guarda desde un POST armado: rojo.
+  - **M4** sin conservar las claves que el diseño quitó → «Observaciones» se pierde al editar: rojo.
+  - **M5** `/media/` con la capacidad suelta en vez del alcance → el operador de otra institución
+    baja el archivo: rojo.
+  - **M6** `puede_eliminar_formulario` siempre `True` → el formulario con respuestas se borra: rojo.
+  - **M7** el endpoint de edición sin `dispositivos_en_alcance` → la sección de un ajeno da 200: rojo.
+  - **M8** el endpoint del alta sin el alcance de admin → 200 en vez de 403: rojo.
+  - **M9** `BaseFranjaHorariaFormSet.clean` con el `if any(self.errors): return` de antes → la
+    superposición no se informa: rojo.
+  - **M10** `prepararQuitar` sin ocultar la fila marcada → la franja nueva del mismo horario se
+    rechaza en el navegador: rojo.
+
+## Puesta en marcha en el servidor
+
+No requiere: la migración agrega una columna anulable y dos tablas; no hay datos que migrar.
+
+## Pendientes / a definir
+
+- **Unificar la lectura de controles** del script inline de `form.html` con `nodo-formulario.js`
+  (bajo `.claude/`, lo aplica el juez) para que el backoffice y el portal compartan un solo lector.
+- **Ficha de diseño** del arquetipo Formulario / dominio Dispositivos: registrar la sección del tipo
+  en P3 y la lectura en P4 (`.claude/` bloqueado para el implementador; la aplica el juez).
+- **Buscador con píldoras** en el backoffice: cargar `nodo-buscador.js` en P3 si el PM lo quiere.
+- **Traza** de los cambios en las respuestas (quién cambió qué y cuándo): hoy solo `actualizado_por`
+  y `modificado`.
+- Los otros seis momentos: cada uno suma su modelo concreto sobre `RespuestasDeFormulario` y su
+  entrada en `MODELOS_DE_RESPUESTAS`.
+
+## Reversión
+
+1. `git revert` del merge y `migrate programas 0100`: borra las dos tablas y la columna; se pierden las respuestas y los adjuntos cargados desde el deploy (los archivos quedan en `media/dispositivos/formularios/` sin referencia).
+2. Los formularios dados de baja vuelven a pedirse (la columna deja de existir). Nunca `--fake`.
+
+## Historial
+
+- **20/10/2026 — alta del cambio.**
 
 ---

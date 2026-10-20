@@ -11,8 +11,11 @@ from __future__ import annotations
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import ProtectedError
+from django.utils import timezone
 
 from programas.models import DisenoFormulario, MomentoFormulario
+from programas.services.respuestas_dispositivo import tiene_respuestas
 
 #: Dónde se completa cada formulario, como lo nombra la columna «Se completa en».
 SE_COMPLETA_EN = {
@@ -58,18 +61,51 @@ def crear_formulario(tipo, momento, usuario=None):
         raise _ya_existe(momento) from exc
 
 
-def puede_eliminar_formulario(diseno):
-    """Punto único para decidir si un formulario del tipo se puede eliminar.
+#: Lo que hizo :func:`eliminar_formulario`.
+BORRADO = "borrado"
+DADO_DE_BAJA = "baja"
 
-    Hoy nadie lo responde todavía, así que siempre se puede. Cuando haya
-    respuestas guardadas con la foto de una versión, acá se endurece: con
-    respuestas, el formulario se da de baja y no se borra.
+
+def puede_eliminar_formulario(diseno, respondido=None):
+    """Punto único para decidir si un formulario del tipo se puede **borrar**.
+
+    Con respuestas guardadas no: cada una lleva la foto de su versión y su fila apunta
+    al diseño, así que el formulario se da de baja (:func:`eliminar_formulario`).
+    ``respondido`` acepta el dato ya anotado (``anotar_tiene_respuestas``) para no
+    consultar de nuevo.
     """
-    return diseno.tipo_dispositivo_id is not None
+    if diseno.tipo_dispositivo_id is None:
+        return False
+    if respondido is None:
+        respondido = tiene_respuestas(diseno)
+    return not respondido
 
 
+@transaction.atomic
 def eliminar_formulario(diseno):
-    """Borra el formulario y sus ítems; el momento queda libre para volver a crearlo."""
-    if not puede_eliminar_formulario(diseno):
+    """«Eliminar» de la tabla del tipo: borra el formulario sin respuestas y da de baja
+    el que ya tiene. Dado de baja deja de pedirse en el alta de la institución, se sigue
+    leyendo en el detalle y se puede reactivar. Devuelve :data:`BORRADO` o
+    :data:`DADO_DE_BAJA`."""
+    if diseno.tipo_dispositivo_id is None:
         raise ValidationError("Este formulario no se puede eliminar.", code="no_eliminable")
-    diseno.delete()
+    diseno = DisenoFormulario.objects.select_for_update().get(pk=diseno.pk)
+    if puede_eliminar_formulario(diseno):
+        try:
+            with transaction.atomic():
+                diseno.delete()
+            return BORRADO
+        except ProtectedError:
+            pass  # alguien respondió entre la lectura y el borrado: se da de baja igual
+    if diseno.dado_de_baja_en is None:
+        diseno.dado_de_baja_en = timezone.now()
+        diseno.save(update_fields=["dado_de_baja_en", "modificado"])
+    return DADO_DE_BAJA
+
+
+def reactivar_formulario(diseno):
+    """Vuelve a pedir un formulario dado de baja, con sus ítems y su versión."""
+    if diseno.dado_de_baja_en is None:
+        return
+    diseno.dado_de_baja_en = None
+    diseno.save(update_fields=["dado_de_baja_en", "modificado"])

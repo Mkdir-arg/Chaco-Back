@@ -6,16 +6,17 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.utils import IntegrityError
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.http import Http404, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import urlencode
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from core.archivos import archivos_atomicos
 from core.rbac import puede
-from programas.forms import DispositivoForm
+from programas.forms import DispositivoForm, formulario_tipo_para
 from programas.forms_dispositivos import (
     AgregarPlazasForm,
     CambioPlazaForm,
@@ -57,6 +58,7 @@ from programas.services.detalle_dispositivo import (
 from programas.services.dispositivos import (
     buscar_posibles_duplicados,
     cerrar_dispositivo,
+    dispositivos_en_alcance,
     dispositivos_visibles,
     enviar_a_validacion,
     enviar_desde_formulario,
@@ -87,6 +89,7 @@ from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import semaforos_de_dispositivos
 from programas.services.ocupacion import ocupacion_de_plazas, tension_de_ocupacion
 from programas.services.reportes import filtrar_dispositivos
+from programas.services.respuestas_dispositivo import formularios_respondidos, guardar_respuestas_alta
 from programas.services.sectores_plazas import (
     ACCION_FUERA_SERVICIO,
     ACCION_LIBERAR,
@@ -173,7 +176,28 @@ class FormularioInstitucionMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["puede_enviar_validacion"] = puede_enviar_desde_formulario(self.request.user, context["form"].instance)
+        context["formulario_tipo"] = context["form"].formulario_tipo
         return context
+
+    def _guardar_formulario_tipo(self, form, dispositivo):
+        """Lo respondido en el formulario del tipo, en la transacción del legajo."""
+        formulario = form.formulario_tipo
+        if formulario is None:
+            return
+        guardar_respuestas_alta(
+            dispositivo,
+            formulario.diseno,
+            formulario.foto,
+            formulario.respuestas(),
+            formulario.archivos(),
+            self.request.user,
+        )
+
+    def _marcar_formulario_tipo(self, form, error):
+        """Si «Enviar a validación» se rechazó por el formulario del tipo, marca cada
+        obligatorio que falta en su campo."""
+        if form.formulario_tipo is not None and getattr(error, "code", None) == "formulario_tipo_incompleto":
+            form.formulario_tipo.marcar_faltantes()
 
 
 class DispositivoCreateView(FormularioInstitucionMixin, DispositivoAltaPermissionMixin, CreateView):
@@ -182,18 +206,26 @@ class DispositivoCreateView(FormularioInstitucionMixin, DispositivoAltaPermissio
     form_class = DispositivoForm
     template_name = "programas/dispositivos/legajo/form.html"
 
+    @archivos_atomicos
+    def _guardar(self, form):
+        # `archivos_atomicos` por afuera: si algo falla, el archivo del formulario del
+        # tipo que ya se escribió se borra junto con el rollback.
+        with transaction.atomic():
+            self.object = form.save()
+            reemplazar_franjas(self.object, form.franjas_horarias())
+            self._guardar_formulario_tipo(form, self.object)
+            registrar_alta_dispositivo(self.object, self.request.user)
+            if self.request.POST.get("accion") == "enviar_validacion":
+                self.object = enviar_desde_formulario(self.object, self.request.user)
+
     def form_valid(self, form):
         try:
-            with transaction.atomic():
-                self.object = form.save()
-                reemplazar_franjas(self.object, form.franjas_horarias())
-                registrar_alta_dispositivo(self.object, self.request.user)
-                if self.request.POST.get("accion") == "enviar_validacion":
-                    self.object = enviar_desde_formulario(self.object, self.request.user)
+            self._guardar(form)
         except ValidationError as error:
             form.instance.pk = None
             self.object = None
             form.add_error(None, error)
+            self._marcar_formulario_tipo(form, error)
             return self.form_invalid(form)
         except IntegrityError:
             form.instance.pk = None
@@ -244,6 +276,46 @@ class DispositivoDuplicateSearchView(DispositivoAltaPermissionMixin, View):
                     for dispositivo in coincidencias
                 ],
             }
+        )
+
+
+class DispositivoFormularioTipoView(LoginRequiredMixin, View):
+    """La sección «Crear dispositivo» del tipo elegido en P3 (P17), para reemplazarla
+    sin recargar cuando cambia el tipo: ``?tipo=<id>`` y, en la edición,
+    ``&dispositivo=<id>`` para precargar lo ya respondido.
+
+    Pide lo mismo que la pantalla que la usa. En el alta, ``dispositivo.crear`` con el
+    alcance de admin del programa (``DispositivoAltaPermissionMixin``). Con
+    ``dispositivo``, ``dispositivo.editar`` sobre esa institución: una ajena, cerrada o
+    inexistente da el mismo 404. Un tipo inexistente, inactivo o sin formulario devuelve
+    la sección vacía, sin decir cuál de los tres es.
+    """
+
+    def get(self, request):
+        usuario = request.user
+        dispositivo = None
+        pedido = request.GET.get("dispositivo", "")
+        if pedido:
+            pk = _entero(pedido)
+            if pk is not None:
+                dispositivo = (
+                    dispositivos_en_alcance(usuario, "dispositivo.editar")
+                    .exclude(estado=Dispositivo.Estado.CERRADO)
+                    .filter(pk=pk)
+                    .first()
+                )
+            if dispositivo is None:
+                raise Http404
+        elif not (
+            puede_en_programa_dispositivos(usuario, "dispositivo.crear") and puede_configurar_dispositivos(usuario)
+        ):
+            raise PermissionDenied
+        tipo = _entero(request.GET.get("tipo", ""))
+        formulario = formulario_tipo_para(tipo, dispositivo) if tipo is not None else None
+        return render(
+            request,
+            "programas/dispositivos/legajo/_formulario_tipo.html",
+            {"formulario_tipo": formulario},
         )
 
 
@@ -336,6 +408,9 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "infraestructura": infraestructura_del_dispositivo(
                     dispositivo, get.get("relevamientos_page"), usuario=user
                 ),
+                # Lo respondido en el formulario «Crear dispositivo» de su tipo (P17), leído
+                # con la foto de la versión respondida.
+                "formularios_respondidos": formularios_respondidos(dispositivo),
                 "puede_editar": puede_operar_dispositivo(user, dispositivo, "dispositivo.editar"),
                 "puede_validar": puede_operar_dispositivo(user, dispositivo, "dispositivo.validar"),
                 "puede_admitir": puede_operar_dispositivo(user, dispositivo, "dispositivo.admitir"),
@@ -441,30 +516,36 @@ class DispositivoUpdateView(FormularioInstitucionMixin, DispositivoObjectPermiss
             raise PermissionDenied
         return dispositivo
 
+    @archivos_atomicos
+    def _guardar(self, form):
+        with transaction.atomic():
+            dispositivo = Dispositivo.objects.select_for_update().get(pk=self.object.pk)
+            if dispositivo.estado == Dispositivo.Estado.CERRADO:
+                raise PermissionDenied
+            cambios = {
+                field: {"anterior": getattr(dispositivo, field), "nuevo": form.cleaned_data[field]}
+                for field in form.changed_data
+            }
+            for field in form.changed_data:
+                setattr(dispositivo, field, form.cleaned_data[field])
+            if cambios:
+                dispositivo.save(update_fields=[*form.changed_data, "modificado"])
+            cambio_horarios = reemplazar_franjas(dispositivo, form.franjas_horarias())
+            if cambio_horarios:
+                cambios["horarios"] = cambio_horarios
+            self._guardar_formulario_tipo(form, dispositivo)
+            if cambios:
+                registrar_edicion_dispositivo(dispositivo, self.request.user, cambios)
+            self.object = dispositivo
+            if self.request.POST.get("accion") == "enviar_validacion":
+                self.object = enviar_desde_formulario(dispositivo, self.request.user)
+
     def form_valid(self, form):
         try:
-            with transaction.atomic():
-                dispositivo = Dispositivo.objects.select_for_update().get(pk=self.object.pk)
-                if dispositivo.estado == Dispositivo.Estado.CERRADO:
-                    raise PermissionDenied
-                cambios = {
-                    field: {"anterior": getattr(dispositivo, field), "nuevo": form.cleaned_data[field]}
-                    for field in form.changed_data
-                }
-                for field in form.changed_data:
-                    setattr(dispositivo, field, form.cleaned_data[field])
-                if cambios:
-                    dispositivo.save(update_fields=[*form.changed_data, "modificado"])
-                cambio_horarios = reemplazar_franjas(dispositivo, form.franjas_horarias())
-                if cambio_horarios:
-                    cambios["horarios"] = cambio_horarios
-                if cambios:
-                    registrar_edicion_dispositivo(dispositivo, self.request.user, cambios)
-                self.object = dispositivo
-                if self.request.POST.get("accion") == "enviar_validacion":
-                    self.object = enviar_desde_formulario(dispositivo, self.request.user)
+            self._guardar(form)
         except ValidationError as error:
             form.add_error(None, error)
+            self._marcar_formulario_tipo(form, error)
             return self.form_invalid(form)
         messages.success(
             self.request,

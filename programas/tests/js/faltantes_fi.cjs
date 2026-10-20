@@ -10,11 +10,15 @@ const clase = () => ({ hidden: false, toggle(_, value) { this.hidden = value; } 
 const filas = Object.keys(inputs).map(id => ({ dataset: { requisitoCampo: id }, classList: clase() }));
 const completo = { classList: clase() };
 const enviar = { disabled: false };
+// Los obligatorios del formulario del tipo (P17) los agrega su propio script a la lista.
+let faltantesFormulario = [];
+const oyentes = {};
 Object.values(inputs).forEach(campo => { campo.addEventListener = (_, callback) => { campo.actualizar = callback; }; });
 global.document = {
-  querySelectorAll: () => filas,
+  querySelectorAll: selector => selector === '[data-faltante-formulario]' ? faltantesFormulario : filas,
   getElementById: id => inputs[id],
   querySelector: selector => selector.startsWith('button') ? enviar : completo,
+  addEventListener: (evento, callback) => { oyentes[evento] = callback; },
 };
 eval(script);
 assert.equal(filas[0].classList.hidden, true, 'El código cargado no está pendiente');
@@ -26,6 +30,14 @@ inputs.id_responsable_nombre.actualizar();
 assert.equal(filas[1].classList.hidden, true);
 assert.equal(completo.classList.hidden, false);
 assert.equal(enviar.disabled, false, 'Completar todos los requisitos habilita Enviar');
+// Una pregunta obligatoria del formulario del tipo sin responder también frena el envío.
+faltantesFormulario = [{}];
+oyentes['formulario-tipo:faltantes']();
+assert.equal(completo.classList.hidden, true, 'Un obligatorio del formulario del tipo impide anunciar completos');
+assert.equal(enviar.disabled, true, 'Un obligatorio del formulario del tipo deshabilita Enviar');
+faltantesFormulario = [];
+oyentes['formulario-tipo:faltantes']();
+assert.equal(enviar.disabled, false, 'Respondido el formulario del tipo, Enviar vuelve');
 inputs.id_responsable_nombre.value = '   ';
 inputs.id_responsable_nombre.actualizar();
 assert.equal(filas[1].classList.hidden, false, 'Espacios no completan un requisito');

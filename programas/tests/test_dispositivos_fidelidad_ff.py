@@ -45,7 +45,8 @@ class FidelidadFFTests(BaseDetalle):
                 self.assertContains(respuesta, "Legajo institucional")
                 self.assertContains(respuesta, f'href="{volver}"')
                 self.assertContains(
-                    respuesta, '<form method="post" class="bg-white rounded-xl border border-base shadow-sm p-6">'
+                    respuesta,
+                    '<form method="post" enctype="multipart/form-data" class="bg-white rounded-xl border border-base shadow-sm p-6">',
                 )
                 self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
                 for nombre in respuesta.context["form"].fields:

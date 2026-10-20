@@ -19,6 +19,7 @@ from core.rutas_media import (
 from core.rutas_media import (
     nombre_opaco,
     ruta_adjunto_bitacora,
+    ruta_formulario_dispositivo,
     ruta_foto_inspeccion,
     ruta_solicitud_merendero,
 )
@@ -4629,6 +4630,9 @@ class DisenoFormulario(TimeStamped):
     # `pre_delete` deja acá qué era —{clave, titulo, padre, dependientes}— para que el
     # aviso lo nombre y el grupo automático vacío se limpie. `reconciliar` lo vacía.
     bajas_pendientes = models.JSONField(null=True, blank=True, verbose_name="Bajas del catálogo sin avisar")
+    # Solo los formularios de un tipo (P17): uno con respuestas no se borra, se da de baja.
+    # Deja de pedirse, lo respondido se sigue mostrando y «Reactivar» lo vuelve tal cual.
+    dado_de_baja_en = models.DateTimeField(null=True, blank=True, verbose_name="Dado de baja el")
 
     class Meta:
         verbose_name = "Diseño de formulario"
@@ -4797,6 +4801,92 @@ class ItemDiseno(TimeStamped):
         if not canal:
             return True
         return self.canal_efectivo in (CanalFormulario.AMBOS, canal)
+
+
+class RespuestasDeFormulario(TimeStamped):
+    """Lo que se respondió en un formulario de un tipo de dispositivo (P17), con la
+    **foto** de la definición que se tenía delante y su ``version``, como
+    ``Formulario.definicion``/``respuestas`` de Becas: lo respondido nunca se
+    reinterpreta con un diseño posterior.
+
+    Abstracta: cada momento tiene su modelo concreto con **su** dueño y su restricción
+    única (el alta, por dispositivo; el ingreso, por estadía…). Una sola tabla con una
+    FK anulable por momento no podría decir «una por dispositivo» para el alta: en
+    MySQL/MariaDB los NULL no chocan en un UNIQUE y la restricción condicional no
+    existe. El servicio (`programas.services.respuestas_dispositivo`) trabaja sobre
+    cualquiera de ellas.
+
+    ``respuestas`` es ``{clave: valor}``. Al guardar con un diseño nuevo, una clave que
+    el diseño ya no tiene **no se borra**: queda en ``respuestas`` y su definición en
+    ``anteriores`` (``{clave: {"campo": …, "version": n}}``), para poder leerla.
+    """
+
+    diseno = models.ForeignKey(
+        DisenoFormulario,
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="Formulario",
+    )
+    definicion = models.JSONField(default=dict, verbose_name="Foto de la definición")
+    version = models.PositiveIntegerField(default=1, verbose_name="Versión respondida")
+    respuestas = models.JSONField(default=dict, blank=True, verbose_name="Respuestas")
+    anteriores = models.JSONField(default=dict, blank=True, verbose_name="Campos de versiones anteriores")
+    actualizado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Actualizado por",
+    )
+
+    class Meta:
+        abstract = True
+
+
+class RespuestasAltaDispositivo(RespuestasDeFormulario):
+    """Las respuestas del formulario «Crear dispositivo» de un dispositivo: una fila
+    por (dispositivo, formulario). Cambiar el tipo del dispositivo deja la fila del
+    tipo anterior como estaba y abre otra."""
+
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.CASCADE,
+        related_name="respuestas_alta",
+        verbose_name="Dispositivo",
+    )
+
+    class Meta:
+        verbose_name = "Respuestas del alta de un dispositivo"
+        verbose_name_plural = "Respuestas del alta de dispositivos"
+        constraints = [
+            models.UniqueConstraint(fields=["dispositivo", "diseno"], name="uniq_respuestas_alta_dispositivo_diseno"),
+        ]
+
+    def __str__(self):
+        return f"Alta de {self.dispositivo_id} · v{self.version}"
+
+
+class AdjuntoRespuestaAlta(TimeStamped):
+    """Un archivo respondido en un campo ARCHIVO del formulario «Crear dispositivo».
+    Con varias filas para la misma clave vale la más nueva."""
+
+    respuestas = models.ForeignKey(
+        RespuestasAltaDispositivo,
+        on_delete=models.CASCADE,
+        related_name="adjuntos",
+        verbose_name="Respuestas",
+    )
+    clave = models.CharField(max_length=60, verbose_name="Clave del campo")
+    archivo = models.FileField(upload_to=ruta_formulario_dispositivo, verbose_name="Archivo")
+
+    class Meta:
+        verbose_name = "Archivo del alta de un dispositivo"
+        verbose_name_plural = "Archivos del alta de dispositivos"
+        ordering = ["-creado", "-id"]
+
+    def __str__(self):
+        return f"{self.clave} de {self.respuestas_id}"
 
 
 class CorridaSiis(TimeStamped):

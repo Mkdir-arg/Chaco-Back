@@ -46,6 +46,7 @@ from programas.models import (
 TABLAS = {
     "AdjuntoBitacora": "programas_adjuntobitacora",
     "AdjuntoFormulario": "programas_adjuntoformulario",
+    "AdjuntoRespuestaAlta": "programas_adjuntorespuestaalta",
     "AliasLocalidadSiis": "programas_aliaslocalidadsiis",
     "AltaIntermediaSIIS": "siis_tabla_intermedia",
     "AsignacionCoordinador": "programas_asignacioncoordinador",
@@ -88,6 +89,7 @@ TABLAS = {
     "Relevamiento": "programas_relevamiento",
     "RequisitoNativo": "programas_requisitonativo",
     "ReservaPlaza": "programas_reservaplaza",
+    "RespuestasAltaDispositivo": "programas_respuestasaltadispositivo",
     "Sector": "programas_sector",
     "Segmento": "programas_segmento",
     "SolicitudMerendero": "programas_solicitudmerendero",
@@ -129,6 +131,7 @@ OTROS_NOMBRES_PUBLICOS = {
     "PausableMixin",
     "PresentacionCampo",
     "ReservaPlazaQuerySet",
+    "RespuestasDeFormulario",
     "SIN_TEXTO_REGEX",
     "TimeStamped",
     "TipoCampo",

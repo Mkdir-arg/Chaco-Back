@@ -44,6 +44,13 @@ Modal. Si el usuario carga muchas filas de lo mismo, no es este arquetipo: fren�
 Vista: `CreateView`/`UpdateView` (o función) con un Django Form o ModelForm. **La validación
 vive en el form y en los servicios**, nunca en el template. Los widgets ya traen `nodo-field`
 desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los controles.
+Un formulario armado por el constructor (P17) también: en P3, debajo de «Responsable y
+contacto», `_formulario_tipo.html` dibuja el formulario «Crear dispositivo» del tipo con
+`programas.forms_dinamicos.RespuestasDisenoForm` (una sección `border-t border-light mt-5 pt-4`
+por grupo, `h2` + bajada `text-xs`, campos con el campo canónico en `sm:grid-cols-2`). Lo
+reemplaza `dispositivos:formulario_tipo_seccion` al cambiar el tipo; las condiciones las evalúa
+`nodo-condiciones.js` y las repite el servidor. El form pasa a `multipart/form-data` por los
+campos de archivo; el asterisco marca lo que exige «Enviar a validación».
 Lo mismo vale para los forms chicos que viven en un modal, como `FormularioTipoNuevoForm`
 (P17, «Nuevo formulario» del detalle del tipo): el select llega con `INPUT_CLASS` y el modal
 solo pone etiqueta y error.

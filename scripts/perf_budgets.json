@@ -289,6 +289,16 @@
       "servicio": "programas.views.dispositivos_formularios.FormularioTipoEditorView",
       "consultas_fijas": 7,
       "motivo": "Presupuesto nuevo (P17, formularios por tipo de dispositivo). La pantalla entera del editor con sesion ya caliente: sesion, usuario, grupos, perfil y capacidades (5, las del shell del backoffice), el formulario con su tipo por select_related (1) y TODOS los items del formulario con su padre y su catalogo en una sola consulta (1). Siete fijas: el test mide con 1 y con 6 campos por grupo y exige el mismo numero. Lo corre programas/tests/test_dispositivos_formularios_tipo.py con --tag performance."
+    },
+    "dispositivos_formulario_tipo_p3": {
+      "servicio": "programas.forms.formulario_tipo_para",
+      "consultas_fijas": 3,
+      "motivo": "Presupuesto nuevo (P17, carril 2: formulario 'Crear dispositivo' en P3). La seccion del tipo en el alta y la edicion: el formulario vigente del tipo (1), TODOS sus items en una sola consulta para la foto (1) y la fila de respuestas de esa institucion para precargar (1). No crece con los campos (4 u 12 campos). Lo corre programas/tests/test_dispositivos_formulario_alta.py con --tag performance."
+    },
+    "dispositivos_formularios_respondidos": {
+      "servicio": "programas.services.respuestas_dispositivo.formularios_respondidos",
+      "consultas_fijas": 2,
+      "motivo": "Presupuesto nuevo (P17, carril 2: lectura en la solapa Datos de P4). Las filas de respuestas de la institucion con su formulario y su tipo por select_related (1) y sus adjuntos por prefetch (1); las secciones y las condiciones salen de la foto guardada, sin leer los items. No crece con los campos (4 u 12 campos). Lo corre programas/tests/test_dispositivos_formulario_alta.py con --tag performance."
     }
   }
 }
