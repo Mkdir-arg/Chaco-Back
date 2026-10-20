@@ -126,6 +126,11 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   (`programas/templates/programas/dispositivos/legajo/detail.html`),
   `programas/services/detalle_dispositivo.py` normaliza `?tab=` según las solapas disponibles
   y la vista pasa `tab` al `x-data`; una inexistente cae en la predeterminada.
+- Respuestas de un formulario del constructor en la solapa Datos de P4: una `section`
+  `border-t border-light mt-6 pt-5` por formulario respondido, con `h2` y `badge badge-gray`
+  «Versión N» (más «Tipo anterior: …» si es de otro tipo), `h3` por sección y la misma `dl`
+  `grid gap-5 sm:grid-cols-2` de los datos; el archivo es un enlace con `fa-paperclip`. Solo
+  lo visible según las condiciones de la foto respondida.
 - Infraestructura de P4/P19: cada edificio muestra su domicilio normalizado junto a su
   identidad y `_ubicacion.html` con las coordenadas del inmueble. El predio compartido
   lista solo instituciones visibles, con tipo, estado y enlace al legajo; omite sector
