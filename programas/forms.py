@@ -25,6 +25,7 @@ from programas.models import (
     EntregaMercaderia,
     Formulario,
     GrupoRequisito,
+    HorarioDispositivo,
     PreguntaGlobal,
     PresentacionCampo,
     PrestacionDiaria,
@@ -684,8 +685,152 @@ class TipoDispositivoForm(forms.ModelForm):
         return cleaned
 
 
+class FranjaHorariaForm(forms.Form):
+    """Una franja del legajo: día, desde y hasta (P3).
+
+    Los tres campos son opcionales para el form porque una fila vacía no es un error: es
+    la fila de «agregar» que no se usó. Una fila a medias sí lo es. Lo que cruza franjas
+    —superposición, inicio posterior al fin, tope por día— lo dice el servicio, desde el
+    formset.
+    """
+
+    dia = forms.TypedChoiceField(
+        label="Día",
+        choices=[("", "Elegí el día"), *HorarioDispositivo.Dia.choices],
+        coerce=int,
+        empty_value=None,
+        required=False,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+    hora_desde = forms.TimeField(
+        label="Desde",
+        required=False,
+        widget=forms.TimeInput(format="%H:%M", attrs={"class": INPUT_CLASS, "type": "time"}),
+    )
+    hora_hasta = forms.TimeField(
+        label="Hasta",
+        required=False,
+        widget=forms.TimeInput(format="%H:%M", attrs={"class": INPUT_CLASS, "type": "time"}),
+    )
+
+    _MENSAJES_FALTA = {
+        "dia": "Elegí el día.",
+        "hora_desde": "Indicá desde qué hora.",
+        "hora_hasta": "Indicá hasta qué hora.",
+    }
+
+    def clean(self):
+        datos = super().clean()
+        if self.errors or all(datos.get(campo) is None for campo in self._MENSAJES_FALTA):
+            return datos
+        for campo, mensaje in self._MENSAJES_FALTA.items():
+            if datos.get(campo) is None:
+                self.add_error(campo, mensaje)
+        return datos
+
+    @property
+    def tiene_datos(self):
+        """Si la fila trae algo: va a la tabla de franjas y no al bloque de agregar."""
+        return any(str(self[campo].value() or "").strip() for campo in self._MENSAJES_FALTA)
+
+    @property
+    def texto_dia(self):
+        etiquetas = {str(valor): etiqueta for valor, etiqueta in HorarioDispositivo.Dia.choices}
+        return etiquetas.get(str(self["dia"].value() or ""), "—")
+
+    def _texto_hora(self, campo):
+        valor = self[campo].value()
+        if isinstance(valor, time):
+            return f"{valor:%H:%M}"
+        return str(valor or "")[:5] or "—"
+
+    @property
+    def texto_desde(self):
+        return self._texto_hora("hora_desde")
+
+    @property
+    def texto_hasta(self):
+        return self._texto_hora("hora_hasta")
+
+    def franja(self):
+        from programas.services.horarios_dispositivo import Franja
+
+        datos = getattr(self, "cleaned_data", {})
+        if any(datos.get(campo) is None for campo in self._MENSAJES_FALTA):
+            return None
+        return Franja(datos["dia"], datos["hora_desde"], datos["hora_hasta"])
+
+
+class BaseFranjaHorariaFormSet(forms.BaseFormSet):
+    def add_fields(self, form, index):
+        super().add_fields(form, index)
+        form.fields["DELETE"].label = "Quitar"
+        form.fields["DELETE"].widget.attrs["class"] = CHECKBOX_CLASS
+
+    def filas_cargadas(self):
+        """Las filas con algún dato: la tabla de franjas."""
+        return [form for form in self.forms if form.tiene_datos]
+
+    def filas_vacias(self):
+        """Las filas sin datos: el bloque para agregar (sin JS, una franja por fila)."""
+        return [form for form in self.forms if not form.tiene_datos]
+
+    def _filas_con_franja(self):
+        return [form for form in self.forms if not self._should_delete_form(form) and form.franja() is not None]
+
+    def clean(self):
+        from programas.services.horarios_dispositivo import errores_de_franjas
+
+        if any(self.errors):
+            return
+        filas = self._filas_con_franja()
+        for posicion, campo, mensaje in errores_de_franjas([form.franja() for form in filas]):
+            filas[posicion].add_error(campo, mensaje)
+
+    def franjas(self):
+        return [form.franja() for form in self._filas_con_franja()]
+
+
+# `max_num`/`absolute_max` acotan lo que un POST armado a mano puede pedir que se instancie; el tope
+# de negocio (franjas por día) lo pone el servicio.
+FRANJAS_PREFIJO = "franjas"
+FranjaHorariaFormSet = forms.formset_factory(
+    FranjaHorariaForm, formset=BaseFranjaHorariaFormSet, extra=3, can_delete=True, max_num=60, absolute_max=60
+)
+
+
+def _opciones_de_localidad(heredada=""):
+    """Las localidades de la provincia, una opción por nombre, que es lo que se guarda.
+
+    Un nombre que existe en más de un municipio va una sola vez con los municipios en la
+    etiqueta: dos opciones con el mismo valor harían que al volver a mostrar el form se
+    marque siempre la primera, diga lo que diga la persona. Un valor guardado que no está
+    en el catálogo (padrón importado, texto libre de antes) se ofrece primero, marcado,
+    para que editar otro campo no lo borre.
+    """
+    municipios = {}
+    for localidad in localidades_operativas():
+        municipios.setdefault(localidad.nombre, set()).add(localidad.municipio.nombre)
+    opciones = [("", "Elegí una localidad")]
+    if heredada and heredada not in municipios:
+        opciones.append((heredada, f"{heredada} (cargado antes)"))
+    for nombre, de_municipios in municipios.items():
+        etiqueta = nombre if len(de_municipios) == 1 else f"{nombre} ({' / '.join(sorted(de_municipios))})"
+        opciones.append((nombre, etiqueta))
+    return opciones
+
+
 class DispositivoForm(forms.ModelForm):
     """Alta y edición del legajo institucional de un dispositivo."""
+
+    # Se guarda el nombre en el mismo CharField (los filtros y el padrón lo leen como
+    # texto); el catálogo es la lista de opciones y lo que un POST puede mandar.
+    localidad = forms.ChoiceField(
+        label="Localidad",
+        required=False,
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        error_messages={"invalid_choice": "Elegí una localidad del listado."},
+    )
 
     class Meta:
         model = Dispositivo
@@ -701,13 +846,11 @@ class DispositivoForm(forms.ModelForm):
             "responsable_documento",
             "contacto_telefono",
             "contacto_email",
-            "horarios",
         ]
         widgets = {
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
             "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "localidad": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "domicilio": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "latitud": forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.000001"}),
             "longitud": forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.000001"}),
@@ -715,13 +858,31 @@ class DispositivoForm(forms.ModelForm):
             "responsable_documento": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "contacto_telefono": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "contacto_email": forms.EmailInput(attrs={"class": INPUT_CLASS}),
-            "horarios": _text_widget(rows=3),
         }
 
     def __init__(self, *args, **kwargs):
         from programas.services.dispositivos import campos_para_validacion
+        from programas.services.horarios_dispositivo import franjas_del_dispositivo
 
         super().__init__(*args, **kwargs)
+        self.fields["localidad"].choices = _opciones_de_localidad(self.instance.localidad if self.instance.pk else "")
+        guardadas = franjas_del_dispositivo(self.instance)
+        # Un POST sin el bloque de franjas (sin su management form) no las toca: no es
+        # «borralas todas», es que no vinieron.
+        self.franjas_enviadas = self.is_bound and f"{FRANJAS_PREFIJO}-TOTAL_FORMS" in self.data
+        # Con datos, sin `initial`: el formset saltea la fila extra que «no cambió» respecto
+        # de su inicial, y si las franjas guardadas cambiaron entre el GET y el POST una
+        # fila agregada igual a una guardada se perdería en silencio.
+        self.franjas = FranjaHorariaFormSet(
+            self.data if self.franjas_enviadas else None,
+            prefix=FRANJAS_PREFIJO,
+            initial=None
+            if self.franjas_enviadas
+            else [{"dia": f.dia, "hora_desde": f.desde, "hora_hasta": f.hasta} for f in guardadas],
+        )
+        # Un horario escrito antes de las franjas se muestra, sin editar, hasta que se
+        # cargue la primera: al guardar con franjas el servicio lo reemplaza por su resumen.
+        self.horario_heredado = "" if guardadas else self.instance.horarios
         tipos = TipoDispositivo.objects.all()
         if self.instance.pk and self.instance.tipo_id:
             tipos = tipos.filter(Q(activo=True) | Q(pk=self.instance.tipo_id))
@@ -743,6 +904,23 @@ class DispositivoForm(forms.ModelForm):
         if duplicado.exists():
             raise forms.ValidationError("Ya existe un dispositivo con este código institucional.")
         return codigo
+
+    def is_valid(self):
+        # Las dos validaciones corren siempre, para que vuelvan juntos los errores del
+        # legajo y los de las franjas.
+        legajo_valido = super().is_valid()
+        if not self.franjas_enviadas:
+            return legajo_valido
+        franjas_validas = self.franjas.is_valid()
+        # Lo que el formset rechaza entero (un POST con más filas que el tope) no tiene
+        # fila donde pintarse: va arriba, con los errores generales del form.
+        for error in self.franjas.non_form_errors():
+            self.add_error(None, error)
+        return legajo_valido and franjas_validas
+
+    def franjas_horarias(self):
+        """Las franjas limpias para `reemplazar_franjas`, o `None` si el POST no las trajo."""
+        return self.franjas.franjas() if self.franjas_enviadas else None
 
     @property
     def requisitos_validacion(self):
