@@ -468,7 +468,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 340 | Sumar al proyecto las skills de ECC que sirvan para Chaco | Transversal · método de trabajo de los agentes | `#metodo` `#datos` `#performance` | PM — pedido en sesión, 17/10/2026: «suma las skill que creas útiles para el proyecto» | 17/10/2026 | 🟢 **Hecho** | No requiere |
 | 341 | Los adjuntos y padrones de Becas vuelven a bajar: `/media/` daba 500 por un `select_related` sobre una propiedad | Becas · descarga protegida de archivos (`/media/`) | `#rbac` `#datos` | PM — hallazgo en PRD (500 al abrir adjuntos de un caso), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 342 | Las páginas de error (404/403/400/500) no heredan una conexión de MariaDB muerta | Transversal · infraestructura | `#infra` `#performance` | PM — logs de PRD (/meta.json y /media/...), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
-| NNN | P3: la localidad se elige del catálogo y los días y horarios se cargan por franjas | Dispositivos · alta y edición de institución (P3) | `#ui` `#datos` | PM — pedido directo sobre P3, vía el juez del carril, 20/10/2026 | 20/10/2026 | 🟢 **Hecho** | `programas.0099` |
+| 343 | P3: la localidad se elige del catálogo y los días y horarios se cargan por franjas | Dispositivos · alta y edición de institución (P3) | `#ui` `#datos` | PM — pedido directo sobre P3, vía el juez del carril, 20/10/2026 | 20/10/2026 | 🟢 **Hecho** | `programas.0099` |
 
 **Notas del índice**
 
@@ -44720,7 +44720,7 @@ Revertir el commit. No toca datos.
 
 ---
 
-# Cambio NNN — P3: la localidad se elige del catálogo y los días y horarios se cargan por franjas
+# Cambio 343 — P3: la localidad se elige del catálogo y los días y horarios se cargan por franjas
 
 🟢 **HECHO — 20/10/2026**
 
@@ -44881,3 +44881,5 @@ Revertir el commit de código (vuelve el texto libre) y desaplicar `programas.00
 ## Historial
 
 - **20/10/2026 — alta del cambio.**
+
+---
