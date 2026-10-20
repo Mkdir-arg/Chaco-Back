@@ -2078,6 +2078,17 @@ class ItemCampoPropioForm(forms.Form):
         return cleaned
 
 
+class FormularioTipoNuevoForm(forms.Form):
+    """«Nuevo formulario» de un tipo de dispositivo (P17): solo los momentos que
+    el tipo todavía no usa."""
+
+    momento = forms.ChoiceField(label="Formulario", widget=forms.Select(attrs={"class": INPUT_CLASS}))
+
+    def __init__(self, *args, momentos=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["momento"].choices = list(momentos)
+
+
 class RevisionPersonasFiltroForm(forms.Form):
     """Filtros por persona de la bandeja de revisión (``/becas/revision/``).
 

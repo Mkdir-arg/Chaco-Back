@@ -123,11 +123,13 @@ class ConfiguracionDispositivosViewsTests(TestCase):
         self.tipo.refresh_from_db()
         self.assertTrue(self.tipo.activo)
 
-    def test_el_detalle_del_tipo_ya_no_ofrece_formulario_propio(self):
+    def test_el_detalle_del_tipo_ya_no_ofrece_el_abm_de_campos_del_f00(self):
+        """Los campos del F-00 no vuelven: lo que hay ahora son los formularios por
+        momento (P17), que se prueban en `test_dispositivos_formularios_tipo.py`."""
         vacio = TipoDispositivo.objects.create(codigo="VACIO", nombre="Vacío")
         self.client.force_login(self.admin)
         respuesta = self.client.get(reverse("dispositivos:tipo_detalle", args=[vacio.pk]))
-        self.assertContains(respuesta, "no tiene formulario propio")
+        self.assertContains(respuesta, "Este tipo todavía no tiene formularios")
         self.assertNotContains(respuesta, "Agregar campo")
 
     def test_ediciones_renderizan_modal_sobre_detalle_y_altas_siguen_como_pagina(self):

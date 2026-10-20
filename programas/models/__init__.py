@@ -4563,6 +4563,19 @@ class ListaEspera(TimeStamped):
 # ---------------------------------------------------------------------------
 
 
+class MomentoFormulario(models.TextChoices):
+    """En qué momento de la operación de un dispositivo se completa un formulario
+    de su tipo (P17). Un tipo tiene a lo sumo uno por momento."""
+
+    CREAR_DISPOSITIVO = "crear_dispositivo", "Crear dispositivo"
+    INGRESO = "ingreso", "Ingreso de persona"
+    ASIGNACION_PLAZA = "asignacion_plaza", "Asignación de plaza"
+    NOVEDADES_TURNO = "novedades_turno", "Novedades del turno"
+    EGRESO = "egreso", "Egreso"
+    TRASLADO = "traslado", "Traslado"
+    PROPIO = "propio", "Propio"
+
+
 class DisenoFormulario(TimeStamped):
     """El formulario que ve la persona en una convocatoria: un **orden sobre el
     catálogo vivo** (RN-1) con grupos, textos, condiciones y campos propios.
@@ -4572,13 +4585,35 @@ class DisenoFormulario(TimeStamped):
     vez que se sirve (``programas.services.diseno``). Cada guardado sube
     ``version``; cada caso guarda la foto de la definición que respondió (D3),
     así un caso viejo nunca se reinterpreta con un diseño posterior.
+
+    **Dos dueños, un motor.** El dueño es la convocatoria (Becas) **o** un tipo de
+    dispositivo con su ``momento`` (P17), nunca los dos. El de un tipo no hereda
+    catálogo: nace vacío y se arma con grupos, textos, campos propios y condiciones.
     """
 
     convocatoria = models.OneToOneField(
         Convocatoria,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="diseno",
         verbose_name="Convocatoria",
+    )
+    tipo_dispositivo = models.ForeignKey(
+        TipoDispositivo,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="formularios",
+        verbose_name="Tipo de dispositivo",
+    )
+    momento = models.CharField(
+        max_length=30,
+        choices=MomentoFormulario.choices,
+        blank=True,
+        default="",
+        db_default="",
+        verbose_name="Momento",
     )
     version = models.PositiveIntegerField(default=1, verbose_name="Versión")
     actualizado_por = models.ForeignKey(
@@ -4598,8 +4633,23 @@ class DisenoFormulario(TimeStamped):
     class Meta:
         verbose_name = "Diseño de formulario"
         verbose_name_plural = "Diseños de formulario"
+        constraints = [
+            # Exactamente un dueño; el momento va lleno si y solo si el dueño es el tipo.
+            models.CheckConstraint(
+                condition=(
+                    models.Q(convocatoria__isnull=False, tipo_dispositivo__isnull=True, momento="")
+                    | (models.Q(convocatoria__isnull=True, tipo_dispositivo__isnull=False) & ~models.Q(momento=""))
+                ),
+                name="diseno_un_solo_dueno",
+            ),
+            # Sin `condition=`, a propósito (no existe en MySQL/MariaDB): los diseños de
+            # convocatoria llevan `tipo_dispositivo` NULL y los NULL no chocan entre sí.
+            models.UniqueConstraint(fields=["tipo_dispositivo", "momento"], name="uniq_diseno_tipo_momento"),
+        ]
 
     def __str__(self):
+        if self.tipo_dispositivo_id:
+            return f"{self.get_momento_display()} de {self.tipo_dispositivo} · v{self.version}"
         return f"Formulario de {self.convocatoria} · v{self.version}"
 
     def tocar(self, usuario=None):

@@ -1,4 +1,4 @@
-{# Columna izquierda del constructor (Cambio 58, task 342): el diseño, grupo por grupo. Lo reemplaza cada guardado. #}
+{# Columna izquierda del constructor (Cambio 58, task 342): el diseño, grupo por grupo. Lo reemplaza cada guardado. `vacio_texto` cambia el texto del vacío (P17). #}
 {{ datos|json_script:"constructor-datos" }}
 <div data-constructor-root class="space-y-3">
   {% for grupo, hijos in arbol %}
@@ -85,7 +85,7 @@
   <div class="py-12 px-6 text-center flex flex-col items-center gap-3 rounded-xl border border-base bg-white">
     <div class="text-fg-brand"><i class="fas fa-clipboard-list text-5xl"></i></div>
     <p class="text-[17px] font-bold text-heading">El formulario está vacío</p>
-    <p class="text-sm text-body max-w-xs">No hay requisitos activos en el catálogo ni en los niveles de esta convocatoria. Agregá un grupo para empezar.</p>
+    <p class="text-sm text-body max-w-xs">{{ vacio_texto|default:"No hay requisitos activos en el catálogo ni en los niveles de esta convocatoria. Agregá un grupo para empezar." }}</p>
   </div>
   {% endfor %}
 </div>

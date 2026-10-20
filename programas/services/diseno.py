@@ -219,7 +219,12 @@ def plan_por_defecto(convocatoria, diseno=None, catalogo=None):
     ``catalogo`` (de ``catalogo_convocatoria``) evita volver a leer preguntas,
     grupos y requisitos: los grupos salen de las preguntas, que ya traen el
     suyo —un grupo sin preguntas activas no se muestra de todos modos (RN-3)—.
+
+    Sin convocatoria (el diseño de un tipo de dispositivo, P17) no hay catálogo
+    que heredar: el plan es vacío y el formulario se arma a mano.
     """
+    if convocatoria is None:
+        return []
     items = []
     orden = 0
     if catalogo is None:
@@ -404,7 +409,13 @@ def _catalogo_esperado(convocatoria, catalogo=None):
     """Lo que el catálogo dice que tiene que estar en el diseño (RN-1):
     ``(esperadas, esperados)`` como ``{pk: PreguntaGlobal}`` (activas) y
     ``{pk: (nivel, nombre, RequisitoNativo)}`` (herencia de la convocatoria).
-    Con ``catalogo`` (de ``catalogo_convocatoria``) no vuelve a la base."""
+    Con ``catalogo`` (de ``catalogo_convocatoria``) no vuelve a la base.
+
+    Es la **fuente de catálogo por dueño**: un diseño sin convocatoria (el de un
+    tipo de dispositivo, P17) no espera nada del catálogo, así que ni
+    ``reconciliar`` ni ``items_vigentes`` le agregan o le quitan ítems."""
+    if convocatoria is None:
+        return {}, {}
     preguntas, requisitos = catalogo if catalogo is not None else (_preguntas_activas(), None)
     esperadas = {p.pk: p for p in preguntas}
     esperados = {}
@@ -729,7 +740,7 @@ def _condicion_en_canal(condicion, claves_del_canal):
     del diseño: sin condición evaluable, el ítem se pide. Pedir de más es
     recuperable; no pedir nunca un requisito obligatorio, no.
 
-    El constructor rechaza estos diseños al editarlos (``_asegurar_coherencia``),
+    El constructor rechaza estos diseños al editarlos (``constructor.asegurar_coherencia``),
     pero los que ya están guardados se siguen sirviendo y tienen que servirse bien.
     """
     reglas = (condicion or {}).get("reglas") or []

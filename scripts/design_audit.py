@@ -1056,6 +1056,27 @@ PARTICIONES: dict[str, Particion] = {
         origen="programas/templates/programas/becas/revision/formulario_detalle.html",
         retiro="con la ficha de los 32 P1 del detalle de revisión; a más tardar el 30/04/2027",
     ),
+    # P17 (formularios por tipo de dispositivo): el cuerpo del constructor —grilla,
+    # vista previa y modales— salió de `convocatoria_formulario.html` a
+    # `_constructor_cuerpo.html` para que lo incluya también el editor de
+    # Dispositivos. El HTML de Becas no cambió (verificado byte a byte), así que la
+    # deuda tampoco: solo viajó (íconos sin `aria-hidden` y `style=` del ejemplo
+    # de condición).
+    #
+    # `fb6427cc` es el último commit de `development` con el archivo entero.
+    #
+    # Retiro: en la próxima limpieza de diseño del constructor, y a más tardar el
+    # 30/04/2027.
+    "programas/templates/programas/becas/formulario/_constructor_cuerpo.html": Particion(
+        ref="fb6427cc7310151d97dd948ea8dea9b95250d67b",
+        origen="programas/templates/programas/becas/formulario/convocatoria_formulario.html",
+        retiro="con la próxima limpieza de diseño del constructor; a más tardar el 30/04/2027",
+    ),
+    "programas/templates/programas/becas/formulario/convocatoria_formulario.html": Particion(
+        ref="fb6427cc7310151d97dd948ea8dea9b95250d67b",
+        origen="programas/templates/programas/becas/formulario/convocatoria_formulario.html",
+        retiro="con la próxima limpieza de diseño del constructor; a más tardar el 30/04/2027",
+    ),
 }
 
 
