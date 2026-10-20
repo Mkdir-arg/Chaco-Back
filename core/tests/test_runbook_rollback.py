@@ -13,7 +13,7 @@ from pathlib import Path
 
 from django.test import SimpleTestCase
 
-from core.tests.test_barreras_de_reversa import BARRERAS, MARCA
+from core.tests.test_barreras_de_reversa import BARRERAS, MARCA, REVERSAS_CONDICIONADAS
 
 RAIZ = Path(__file__).resolve().parents[2]
 PROCESOS = RAIZ / "docs" / "internal" / "processes.md"
@@ -67,5 +67,13 @@ class RunbookRollbackTests(SimpleTestCase):
         marcadas = [etiqueta for _, ruta, etiqueta in BARRERAS if MARCA in (RAIZ / ruta).read_text(encoding="utf-8")]
         self.assertEqual(len(marcadas), len(BARRERAS))
         for etiqueta in marcadas:
+            with self.subTest(migracion=etiqueta):
+                self.assertIn(etiqueta, d4)
+
+    def test_el_paso_d4_nombra_las_reversas_condicionadas(self):
+        """Abortan solo con ciertos datos: el operador tiene que saber cuándo y por qué."""
+        d4 = self.texto.split("**D.4 ")[1].split("**D.5 ")[0]
+        self.assertIn("reversa condicionada", d4)
+        for _, _, etiqueta in REVERSAS_CONDICIONADAS:
             with self.subTest(migracion=etiqueta):
                 self.assertIn(etiqueta, d4)

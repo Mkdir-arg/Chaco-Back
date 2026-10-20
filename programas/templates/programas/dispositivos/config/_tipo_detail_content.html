@@ -1,10 +1,15 @@
 {% load nodo_ui dispositivos %}
-<div class="mb-8">
+<div class="mb-8" x-data="{ modalNuevoFormulario: false }">
   <div class="mb-6">
     {% url 'dispositivos:tipos' as url_volver %}
     {% estado_tipo_dispositivo tipo as estado_header %}
     {% page_header titulo=tipo.nombre eyebrow="Tipo de dispositivo" volver_url=url_volver volver_label="tipos de dispositivo" estado_texto=estado_header.texto estado_variante=estado_header.tono %}
-      {% bajada %}{{ tipo.codigo }}{% if tipo.descripcion %} · {{ tipo.descripcion }}{% endif %}{% if tipo.maneja_camas %}<br>Semáforo de ocupación: amarillo desde {{ tipo.umbral_ocupacion_amarillo }}% · rojo desde {{ tipo.umbral_ocupacion_rojo }}%.{% endif %}{% endbajada %}
+      {% bajada %}{{ tipo.codigo }} · {{ formularios|length }} formulario{{ formularios|length|pluralize }}{% if tipo.descripcion %} · {{ tipo.descripcion }}{% endif %}{% if tipo.maneja_camas %}<br>Semáforo de ocupación: amarillo desde {{ tipo.umbral_ocupacion_amarillo }}% · rojo desde {{ tipo.umbral_ocupacion_rojo }}%.{% endif %}{% endbajada %}
+      {% if form_nuevo_formulario %}
+      <button type="button" class="btn-nodo btn-tertiary btn-base" @click="modalNuevoFormulario=true">
+        <i class="fas fa-plus" aria-hidden="true"></i> Nuevo formulario
+      </button>
+      {% endif %}
       <a href="{% url 'dispositivos:tipo_editar' tipo.pk %}"
          class="btn-nodo btn-secondary btn-base"
          data-edit-url="{% url 'dispositivos:tipo_editar' tipo.pk %}">Editar tipo</a>
@@ -20,8 +25,80 @@
   </div>
 
   <form class="hidden">{% csrf_token %}</form>
-  <div class="rounded-xl border border-base p-12 text-center" style="background:var(--bg-primary)">
-    <h2 class="font-bold text-heading">Este tipo no tiene formulario propio</h2>
-    <p class="text-sm text-body-subtle mt-1">Los campos configurables del F-00 se dieron de baja con la admisión vieja; la v2 los rehace sobre el motor de formularios.</p>
+  {# P17: los formularios del tipo, uno por momento. Se editan con el constructor de Becas. #}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="titulo-formularios">
+    <div class="px-5 py-4 border-b border-light">
+      <h2 id="titulo-formularios" class="text-heading font-bold">Formularios</h2>
+      <p class="text-xs text-body-subtle">Uno por momento. Cada guardado en el editor es una versión nueva.</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Formulario</th>
+            <th class="nodo-th">Se completa en</th>
+            <th class="nodo-th text-center">Secciones</th>
+            <th class="nodo-th text-center">Campos</th>
+            <th class="nodo-th text-center">Versión</th>
+            <th class="nodo-th text-right w-28"><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for formulario in formularios %}
+          {% url 'dispositivos:formulario_editor' tipo.pk formulario.momento as url_editor %}
+          <tr class="hover:bg-secondary transition">
+            <td class="nodo-td"><a href="{{ url_editor }}" class="font-medium text-fg-brand hover:underline">{{ formulario.get_momento_display }}</a></td>
+            <td class="nodo-td{% if formulario.momento == 'propio' %} text-body-subtle{% endif %}">{{ formulario.se_completa_en }}</td>
+            <td class="nodo-td text-center">{{ formulario.n_secciones }}</td>
+            <td class="nodo-td text-center">{{ formulario.n_campos }}</td>
+            <td class="nodo-td text-center">{{ formulario.version }}</td>
+            <td class="nodo-td text-right whitespace-nowrap">
+              <a href="{{ url_editor }}" class="nodo-icon-btn" aria-label="Editar el formulario {{ formulario.get_momento_display }}">
+                <i class="fas fa-pen" aria-hidden="true"></i>
+              </a>
+              <button type="button"
+                      class="nodo-icon-btn nodo-icon-btn--danger"
+                      aria-label="Eliminar el formulario {{ formulario.get_momento_display }}"
+                      data-confirm-url="{% url 'dispositivos:formulario_eliminar' tipo.pk formulario.momento %}"
+                      data-confirm-title="Eliminar formulario"
+                      data-confirm-text="Se borra «{{ formulario.get_momento_display }}» con sus secciones y campos. El momento queda libre para crearlo de nuevo."
+                      data-confirm-ok="Sí, eliminar">
+                <i class="fas fa-trash" aria-hidden="true"></i>
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="p-0">
+              {% include "components/_estado_vacio.html" with icono="fa-clipboard-list" titulo="Este tipo todavía no tiene formularios" texto="Creá uno por momento —alta de la institución, ingreso, plaza, turno, egreso, traslado o uno propio— con «Nuevo formulario»." %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if form_nuevo_formulario %}
+  {# Modal «Nuevo formulario»: x-becas-modal da foco, Tab atrapado, Escape y bloqueo del scroll del fondo #}
+  <div x-show="modalNuevoFormulario" x-cloak x-becas-modal="modalNuevoFormulario" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalNuevoFormulario=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-nuevo-formulario-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Nuevo formulario" titulo_id="modal-nuevo-formulario-titulo" icono="fa-clipboard-list" cerrar="modalNuevoFormulario=false" %}
+      <form method="post" action="{% url 'dispositivos:formulario_crear' tipo.pk %}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <label for="{{ form_nuevo_formulario.momento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Formulario <span class="text-fg-danger">*</span></label>
+            {{ form_nuevo_formulario.momento }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="momento"></p>
+          </div>
+          {% include "components/_alerta.html" with tono="info" texto="Un formulario por momento. Nace vacío: lo armás en el editor con secciones, textos, campos propios y condiciones." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalNuevoFormulario=false" accion_texto="Crear y configurar" %}
+      </form>
+    </div>
   </div>
+  {% endif %}
 </div>

@@ -21,7 +21,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import transaction
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.views import View
@@ -30,29 +29,16 @@ from django.views.decorators.http import require_POST
 from core.http import error_json, ok_json
 from core.rbac import CapacidadRequeridaMixin, requiere
 from programas.forms import ItemCampoPropioForm, ItemEtiquetaForm, ItemGrupoForm, ItemTextoForm
-from programas.models import CanalFormulario, ItemDiseno, PresentacionCampo, TipoCampo
-from programas.services import condiciones as cond
+from programas.models import CanalFormulario, PresentacionCampo, TipoCampo
+from programas.services import constructor
 from programas.services.autorizacion import convocatorias_visibles, puede_gestionar_segmento
-from programas.services.diseno import (
-    bloquear,
-    campo_dict,
-    generar_por_defecto,
-    items_ordenados,
-    items_planos,
-    nueva_clave,
-    obtener_o_crear_diseno,
-)
+from programas.services.diseno import generar_por_defecto, items_ordenados, obtener_o_crear_diseno
 from programas.validadores import validar_condicion_json
 from programas.views.ajax_utils import ajax_errors
 
 CAP_CONVOCATORIA_EDITAR = "becas.convocatoria.editar"
 TARGET = "#constructor-items"
 PARTIAL = "programas/becas/formulario/_constructor_items.html"
-
-GRUPO = ItemDiseno.Tipo.GRUPO
-CAMPO = ItemDiseno.Tipo.CAMPO
-TEXTO = ItemDiseno.Tipo.TEXTO
-
 
 # ── Acceso ───────────────────────────────────────────────────────────────────
 
@@ -99,112 +85,12 @@ def _json(request):
     return datos if isinstance(datos, dict) else None
 
 
-class DisenoInvalido(Exception):
-    """Una mutación deja el diseño incoherente: se deshace y se explica."""
-
-    def __init__(self, errores):
-        super().__init__("Diseño inválido")
-        self.errores = errores  # {clave: [mensajes]}
-
-
 # ── Datos para la pantalla ───────────────────────────────────────────────────
 
-
-def _datos(diseno, items):
-    """Lo que consume la vista previa y los modales: cada ítem en orden con lo
-    que el catálogo o el diseño saben de él. Es también el mapa de qué se puede
-    hacer con cada ítem (`eliminable`, `canal_editable`...)."""
-    hijos_por_padre = {}
-    for item in items:
-        if item.padre_id:
-            hijos_por_padre[item.padre_id] = hijos_por_padre.get(item.padre_id, 0) + 1
-
-    lista = []
-    for item in items:
-        dato = {
-            "clave": item.clave,
-            "tipo": item.tipo,
-            "padre": item.padre.clave if item.padre_id else None,
-            "titulo": item.titulo,
-            "etiqueta": item.etiqueta,
-            "subtitulo": item.subtitulo,
-            "texto": item.texto,
-            "condicion": item.condicion,
-            "canal": item.canal_efectivo,
-        }
-        if item.es_grupo:
-            dato.update(
-                {
-                    "catalogo": bool(item.grupo_catalogo_id),
-                    "protegido": bool(item.grupo_catalogo_id and item.grupo_catalogo.protegido),
-                    "hijos": hijos_por_padre.get(item.pk, 0),
-                    "eliminable": hijos_por_padre.get(item.pk, 0) == 0,
-                    "canal_editable": True,
-                }
-            )
-        elif item.es_texto:
-            dato.update({"eliminable": True, "canal_editable": True})
-        else:
-            campo = campo_dict(item)
-            objeto = item.objeto_catalogo
-            dato.update(
-                {
-                    "tipo_campo": campo["tipo"],
-                    "opciones": campo.get("opciones") or [],
-                    "presentacion": campo.get("presentacion") or PresentacionCampo.LISTA,
-                    "obligatorio": bool(campo.get("obligatorio")),
-                    "alcance": campo.get("alcance"),
-                    "origen": campo.get("origen"),
-                    "vinculo": campo.get("vinculo") or "",
-                    "texto_catalogo": objeto.texto if objeto is not None else (item.propio or {}).get("texto", ""),
-                    "protegido": bool(item.pregunta_id and item.pregunta.protegido),
-                    "propio": item.es_propio,
-                    "eliminable": item.es_propio,
-                    "canal_editable": item.es_propio,
-                }
-            )
-        item.ui = dato  # lo usa el parcial para los badges sin recalcular
-        lista.append(dato)
-    return {"version": diseno.version, "items": lista}
-
-
-def _arbol(items):
-    """``[(grupo, [hijos])]`` para el parcial; los sueltos (no debería haber)
-    van bajo ``None``."""
-    arbol = []
-    indice = {}
-    sueltos = []
-    for item in items:
-        if item.es_grupo:
-            indice[item.pk] = []
-            arbol.append((item, indice[item.pk]))
-        elif item.padre_id in indice:
-            indice[item.padre_id].append(item)
-        else:
-            sueltos.append(item)
-    if sueltos:
-        arbol.append((None, sueltos))
-    return arbol
-
-
-def _operadores():
-    """Catálogo de operadores para el editor de condiciones (espejo de
-    ``services.condiciones``). Lo alimenta también el editor de grupos del
-    catálogo (``pregunta_list.html``).
-
-    ``por_tipo`` es lo que se **ofrece** y ``aceptados`` lo que el servidor valida
-    (``OPERADORES_POR_TIPO``): la diferencia (``OPERADORES_NO_OFRECIDOS``, #341) se
-    muestra solo en la regla guardada que ya la usa."""
-    return {
-        "por_tipo": {
-            tipo: sorted(ops - cond.OPERADORES_NO_OFRECIDOS.get(tipo, set()))
-            for tipo, ops in cond.OPERADORES_POR_TIPO.items()
-        },
-        "aceptados": {tipo: sorted(ops) for tipo, ops in cond.OPERADORES_POR_TIPO.items()},
-        "etiquetas": cond.ETIQUETAS_OPERADOR,
-        "sin_valor": sorted(cond.SIN_VALOR),
-        "con_lista": sorted(cond.CON_LISTA),
-    }
+# Viven en `programas.services.constructor`, que comparten los dos dueños del
+# diseño; los nombres de acá quedan porque otros módulos los leen.
+DisenoInvalido = constructor.DisenoInvalido
+_operadores = constructor.operadores
 
 
 def _contexto(request, diseno, avisos=None, items=None):
@@ -214,8 +100,8 @@ def _contexto(request, diseno, avisos=None, items=None):
         "convocatoria": diseno.convocatoria,
         "diseno": diseno,
         "items": items,
-        "arbol": _arbol(items),
-        "datos": _datos(diseno, items),
+        "arbol": constructor.arbol(items),
+        "datos": constructor.datos(diseno, items),
         "avisos": avisos or {},
     }
 
@@ -226,109 +112,15 @@ def _respuesta(request, diseno, mensaje, avisos=None, items=None):
     return ok_json(target=TARGET, html=html, message=mensaje, datos=ctx["datos"], avisos=ctx["avisos"])
 
 
-def _mensaje(errores, titulos=None):
-    """El motivo del rechazo para el operador: con el nombre de los ítems, no
-    sus claves («Fecha de nacimiento», no «pg-9»)."""
-    titulos = titulos or {}
-    partes = []
-    for clave, mensajes in errores.items():
-        for mensaje in mensajes:
-            for otra, titulo in titulos.items():
-                mensaje = mensaje.replace(f"«{otra}»", f"«{titulo}»")
-            partes.append(f"{titulos.get(clave, clave)}: {mensaje}")
-    return " ".join(partes) if partes else "El diseño quedó incoherente."
-
-
-#: Los canales que se sirven de verdad, con el nombre que entiende el operador.
-#: ``AMBOS`` no se valida aparte: es la unión de estos dos.
-CANALES_SERVIDOS = (
-    (CanalFormulario.APP, "la app de campo"),
-    (CanalFormulario.LINK, "el link público"),
-)
-
-
-def _errores_por_canal(items):
-    """``{clave: [errores]}`` de las condiciones imposibles en algún canal (BEC-04).
-
-    Mirado entero el diseño puede estar bien —la fuente existe y está antes— y aun
-    así dejar un ítem imposible en uno de los dos canales, porque ahí su fuente no
-    se pregunta. Se junta todo en un solo mapa para poder **comparar** dos estados
-    del diseño, que es lo que necesita `_mutar`.
-    """
-    errores = {}
-    for canal, etiqueta in CANALES_SERVIDOS:
-        for clave, mensajes in cond.fuentes_fuera_del_canal(items_planos(items, canal), etiqueta).items():
-            errores.setdefault(clave, []).extend(mensajes)
-    return errores
-
-
-def _solo_lo_nuevo(errores, previos):
-    """Los errores que **no** estaban antes de la mutación.
-
-    Un diseño guardado antes de BEC-04 puede traer una condición imposible desde
-    siempre. Rechazar toda mutación por eso dejaría el formulario congelado —no se
-    podría ni renombrar un grupo— hasta que alguien borre la condición ofensora, y
-    el operador no tendría por qué saber cuál es. Mientras tanto la pantalla se
-    sirve bien igual: `serializar` anula esa condición. Así que se bloquea lo que
-    esta edición **agrega**, no lo que encontró.
-    """
-    nuevos = {}
-    for clave, mensajes in errores.items():
-        faltantes = [m for m in mensajes if m not in previos.get(clave, [])]
-        if faltantes:
-            nuevos[clave] = faltantes
-    return nuevos
-
-
-def _asegurar_coherencia(diseno, errores_previos=None):
-    """Valida las condiciones sobre el diseño resultante y devuelve los ítems
-    ya cargados (se reutilizan en la respuesta: una sola lectura).
-
-    ``errores_previos`` es la foto por canal de **antes** de la mutación: con ella,
-    los incumplimientos de BEC-04 que ya venían de antes no bloquean la edición
-    (ver `_solo_lo_nuevo`). Sin ella se exige el diseño entero coherente, que es lo
-    que corresponde cuando no hay un «antes» con el que comparar.
-    """
-    items = items_ordenados(diseno)
-    errores = cond.validar_coherencia(items_planos(items))
-    if errores:
-        raise DisenoInvalido(errores)
-    por_canal = _errores_por_canal(items)
-    if errores_previos is not None:
-        por_canal = _solo_lo_nuevo(por_canal, errores_previos)
-    if por_canal:
-        raise DisenoInvalido(por_canal)
-    return items
-
-
 def _mutar(request, diseno, mensaje, operacion):
-    """Corre ``operacion`` dentro de una transacción, valida el diseño
-    resultante y sube la versión; si no cierra, deshace todo y responde 400.
-
-    **Candado del diseño (BEC-16).** La fila del `DisenoFormulario` se bloquea
-    antes de tocar nada: dos operadores guardando a la vez leían cada uno el
-    diseño anterior y el segundo dejaba, por ejemplo, la fuente de una condición
-    después de su destino —RN-6 rota— sin que ninguna de las dos validaciones se
-    diera cuenta, porque cada una vio un diseño coherente.
-    """
+    """Corre ``operacion`` con el candado, la validación y la versión del
+    constructor (`programas.services.constructor.mutar`); si no cierra, responde
+    400 con el motivo."""
     try:
-        with transaction.atomic():
-            bloquear(diseno)
-            # La foto de BEC-04 **antes** de tocar nada, con el candado ya tomado:
-            # lo que esta edición no rompió no es asunto de esta edición.
-            errores_previos = _errores_por_canal(items_ordenados(diseno))
-            operacion()
-            items = _asegurar_coherencia(diseno, errores_previos)
-            diseno.tocar(request.user)
+        items = constructor.mutar(diseno, request.user, operacion)
     except DisenoInvalido as exc:
-        titulos = {i.clave: i.titulo or i.get_tipo_display() for i in items_ordenados(diseno)}
-        return error_json(_mensaje(exc.errores, titulos), errores=exc.errores)
+        return error_json(exc.mensaje, errores=exc.errores)
     return _respuesta(request, diseno, mensaje, items=items)
-
-
-def _siguiente_orden(diseno, padre):
-    ultimo = diseno.items.filter(padre=padre).order_by("-orden").values_list("orden", flat=True).first()
-    return 0 if ultimo is None else ultimo + 1
 
 
 # ── Pantalla ─────────────────────────────────────────────────────────────────
@@ -379,30 +171,7 @@ def formulario_mover(request, pk):
     except (TypeError, ValueError):
         return error_json("Posición inválida.")
 
-    def operacion():
-        if item.es_grupo:
-            if clave_padre:
-                raise DisenoInvalido({item.clave: ["Un grupo no puede ir dentro de otro grupo."]})
-            hermanos = [g for g in diseno.items.filter(tipo=GRUPO).order_by("orden", "id") if g.pk != item.pk]
-            item.padre = None
-        else:
-            if not clave_padre:
-                raise DisenoInvalido({item.clave: ["Un campo o un texto tiene que estar dentro de un grupo."]})
-            padre = _item(diseno, clave_padre)
-            if not padre.es_grupo:
-                raise DisenoInvalido({item.clave: ["Solo se puede soltar dentro de un grupo."]})
-            item.padre = padre
-            hermanos = [h for h in padre.hijos.order_by("orden", "id") if h.pk != item.pk]
-        destino = max(0, min(posicion, len(hermanos)))
-        hermanos.insert(destino, item)
-        for orden, hermano in enumerate(hermanos):
-            if hermano.pk == item.pk:
-                item.orden = orden
-                item.save(update_fields=["padre", "orden", "modificado"])
-            elif hermano.orden != orden:
-                ItemDiseno.objects.filter(pk=hermano.pk).update(orden=orden)
-
-    return _mutar(request, diseno, "Orden guardado.", operacion)
+    return _mutar(request, diseno, "Orden guardado.", lambda: constructor.mover(diseno, item, clave_padre, posicion))
 
 
 @login_required
@@ -414,26 +183,12 @@ def formulario_grupo_crear(request, pk):
     if not form.is_valid():
         return ajax_errors(form)
 
-    def operacion():
-        ItemDiseno.objects.create(
-            diseno=diseno,
-            tipo=GRUPO,
-            clave=nueva_clave("g"),
-            orden=_siguiente_orden(diseno, None),
-            etiqueta=form.cleaned_data["etiqueta"],
-            subtitulo=form.cleaned_data["subtitulo"],
-            canal=form.cleaned_data["canal"],
-        )
-
-    return _mutar(request, diseno, "Grupo agregado al final del formulario.", operacion)
-
-
-def _padre_para_nuevo(diseno, request):
-    clave_padre = request.POST.get("padre") or ""
-    if not clave_padre:
-        return None
-    padre = diseno.items.filter(clave=clave_padre, tipo=GRUPO).first()
-    return padre
+    return _mutar(
+        request,
+        diseno,
+        "Grupo agregado al final del formulario.",
+        lambda: constructor.crear_grupo(diseno, form.cleaned_data),
+    )
 
 
 @login_required
@@ -442,24 +197,13 @@ def _padre_para_nuevo(diseno, request):
 def formulario_texto_crear(request, pk):
     diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
     form = ItemTextoForm(request.POST)
-    padre = _padre_para_nuevo(diseno, request)
+    padre = constructor.padre_para_nuevo(diseno, request.POST.get("padre") or "")
     if padre is None:
         form.add_error(None, "Elegí el grupo donde va el texto.")
     if not form.is_valid() or padre is None:
         return ajax_errors(form)
 
-    def operacion():
-        ItemDiseno.objects.create(
-            diseno=diseno,
-            tipo=TEXTO,
-            clave=nueva_clave("t"),
-            padre=padre,
-            orden=_siguiente_orden(diseno, padre),
-            texto=form.cleaned_data["texto"],
-            canal=form.cleaned_data["canal"],
-        )
-
-    return _mutar(request, diseno, "Texto agregado.", operacion)
+    return _mutar(request, diseno, "Texto agregado.", lambda: constructor.crear_texto(diseno, padre, form.cleaned_data))
 
 
 @login_required
@@ -468,24 +212,15 @@ def formulario_texto_crear(request, pk):
 def formulario_propio_crear(request, pk):
     diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
     form = ItemCampoPropioForm(request.POST)
-    padre = _padre_para_nuevo(diseno, request)
+    padre = constructor.padre_para_nuevo(diseno, request.POST.get("padre") or "")
     if padre is None:
         form.add_error(None, "Elegí el grupo donde va el campo.")
     if not form.is_valid() or padre is None:
         return ajax_errors(form)
 
-    def operacion():
-        ItemDiseno.objects.create(
-            diseno=diseno,
-            tipo=CAMPO,
-            clave=nueva_clave("cp"),
-            padre=padre,
-            orden=_siguiente_orden(diseno, padre),
-            propio=form.cleaned_data["propio"],
-            canal=form.cleaned_data["canal"],
-        )
-
-    return _mutar(request, diseno, "Campo propio agregado.", operacion)
+    return _mutar(
+        request, diseno, "Campo propio agregado.", lambda: constructor.crear_propio(diseno, padre, form.cleaned_data)
+    )
 
 
 @login_required
@@ -508,22 +243,7 @@ def formulario_item_editar(request, pk, clave):
     if not form.is_valid():
         return ajax_errors(form)
 
-    def operacion():
-        datos = form.cleaned_data
-        if item.es_grupo:
-            item.etiqueta, item.subtitulo, item.canal = datos["etiqueta"], datos["subtitulo"], datos["canal"]
-            item.save(update_fields=["etiqueta", "subtitulo", "canal", "modificado"])
-        elif item.es_texto:
-            item.texto, item.canal = datos["texto"], datos["canal"]
-            item.save(update_fields=["texto", "canal", "modificado"])
-        elif item.es_propio:
-            item.propio, item.canal = datos["propio"], datos["canal"]
-            item.save(update_fields=["propio", "canal", "modificado"])
-        else:
-            item.etiqueta = datos["etiqueta"]
-            item.save(update_fields=["etiqueta", "modificado"])
-
-    return _mutar(request, diseno, "Cambios guardados.", operacion)
+    return _mutar(request, diseno, "Cambios guardados.", lambda: constructor.editar(item, form.cleaned_data))
 
 
 @login_required
@@ -551,12 +271,8 @@ def formulario_condicion(request, pk, clave):
     except DjangoValidationError as error:
         return error_json(" ".join(error.messages))
 
-    def operacion():
-        item.condicion = condicion
-        item.save(update_fields=["condicion", "modificado"])
-
     mensaje = "Condición guardada." if condicion else "Condición quitada: el ítem se muestra siempre."
-    return _mutar(request, diseno, mensaje, operacion)
+    return _mutar(request, diseno, mensaje, lambda: constructor.poner_condicion(item, condicion))
 
 
 @login_required
@@ -568,19 +284,12 @@ def formulario_item_eliminar(request, pk, clave):
     catálogo."""
     diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
     item = _item(diseno, clave)
-    if item.es_campo and not item.es_propio:
-        return error_json(
-            "Los requisitos del catálogo no se quitan del formulario: movelos de grupo o desactivalos en el catálogo."
-        )
-    if item.es_grupo and item.hijos.exists():
-        return error_json("El grupo tiene ítems adentro: movelos antes de eliminarlo.")
+    motivo = constructor.motivo_para_no_eliminar(item)
+    if motivo:
+        return error_json(motivo)
 
     titulo = item.titulo or item.get_tipo_display()
-
-    def operacion():
-        item.delete()
-
-    return _mutar(request, diseno, f"«{titulo}» eliminado.", operacion)
+    return _mutar(request, diseno, f"«{titulo}» eliminado.", item.delete)
 
 
 @login_required
@@ -591,7 +300,6 @@ def formulario_restablecer(request, pk):
     requisitos). Borra textos, campos propios, condiciones y etiquetas."""
     diseno, _ = _diseno(request, pk, reconciliar_con_catalogo=False)
 
-    def operacion():
-        generar_por_defecto(diseno)
-
-    return _mutar(request, diseno, "Formulario restablecido al orden del catálogo.", operacion)
+    return _mutar(
+        request, diseno, "Formulario restablecido al orden del catálogo.", lambda: generar_por_defecto(diseno)
+    )

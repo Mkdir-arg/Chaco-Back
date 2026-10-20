@@ -1,0 +1,43 @@
+{% extends "includes/base.html" %}
+{% load static nodo_ui %}
+{% block title %}Dispositivos · {{ tipo.nombre }} · {{ diseno.get_momento_display }}{% endblock %}
+
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-constructor.css' %}">{% endblock %}
+
+{% block main-content %}
+{{ operadores|json_script:"constructor-operadores" }}
+{# P17: el constructor de Becas sobre el formulario de un momento del tipo. Mismos parciales, mismo JS. #}
+<div id="constructor" class="space-y-5"
+     x-data="constructorPagina({{ diseno.version }})"
+     data-url-mover="{% url 'dispositivos:formulario_mover' tipo.pk diseno.momento %}"
+     data-url-editar="{% url 'dispositivos:formulario_item_editar' tipo.pk diseno.momento '__clave__' %}"
+     data-url-condicion="{% url 'dispositivos:formulario_condicion' tipo.pk diseno.momento '__clave__' %}"
+     data-url-eliminar="{% url 'dispositivos:formulario_item_eliminar' tipo.pk diseno.momento '__clave__' %}"
+     data-url-grupo="{% url 'dispositivos:formulario_grupo_crear' tipo.pk diseno.momento %}"
+     data-url-texto="{% url 'dispositivos:formulario_texto_crear' tipo.pk diseno.momento %}"
+     data-url-propio="{% url 'dispositivos:formulario_propio_crear' tipo.pk diseno.momento %}"
+     @constructor-abrir.window="abrir($event.detail)"
+     @constructor-datos.window="version = $event.detail.version"
+     @becas-saved.window="cerrar()">
+
+  {% url 'dispositivos:tipo_detalle' tipo.pk as url_tipo %}
+  {% page_header titulo=diseno.get_momento_display eyebrow=tipo.nombre volver_url=url_tipo volver_label=tipo.nombre %}
+    {% bajada %}Formulario del tipo de dispositivo · se completa en: {{ se_completa_en }}{% endbajada %}
+    <span class="badge badge-gray" title="Cada guardado es una versión nueva">Versión <span x-text="version">{{ diseno.version }}</span></span>
+    <span class="text-xs text-body-subtle flex items-center gap-1" aria-live="polite">
+      <i class="fas" :class="guardando ? 'fa-circle-notch fa-spin' : 'fa-check text-fg-success'" aria-hidden="true"></i>
+      <span x-text="guardando ? 'Guardando…' : 'Guardado en vivo'"></span>
+    </span>
+  {% endpage_header %}
+
+{% include "programas/becas/formulario/_constructor_cuerpo.html" with sin_canal=True %}
+</div>
+{% endblock %}
+
+{% block customJS %}
+{% include "programas/becas/_ajax_js.html" %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
+<script src="{% static 'vendor/sortablejs/Sortable.min.js' %}"></script>
+<script src="{% static 'custom/js/nodo-condiciones.js' %}"></script>
+<script src="{% static 'custom/js/nodo-constructor.js' %}"></script>
+{% endblock %}
