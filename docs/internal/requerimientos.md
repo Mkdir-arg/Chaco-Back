@@ -470,7 +470,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 342 | Las páginas de error (404/403/400/500) no heredan una conexión de MariaDB muerta | Transversal · infraestructura | `#infra` `#performance` | PM — logs de PRD (/meta.json y /media/...), 19/10/2026 | 19/10/2026 | 🟢 **Hecho** | No requiere |
 | 343 | P3: la localidad se elige del catálogo y los días y horarios se cargan por franjas | Dispositivos · alta y edición de institución (P3) | `#ui` `#datos` | PM — pedido directo sobre P3, vía el juez del carril, 20/10/2026 | 20/10/2026 | 🟢 **Hecho** | `programas.0099` |
 | 344 | Formularios por tipo de dispositivo: uno por momento, con el constructor de Becas (P17, carril 1) | Dispositivos · configuración de tipos · constructor de formularios | `#ui` `#datos` `#rbac` `#performance` | PM — mockup P17 | 20/10/2026 | 🟢 **Hecho** | `programas.0100` |
-| NNN | P3 pide el formulario «Crear dispositivo» del tipo y P4 muestra lo respondido (P17, carril 2) | Dispositivos · alta y edición de institución (P3) · detalle (P4) · formularios por tipo (P17) | `#ui` `#datos` `#rbac` `#performance` | PM — mockup P17, vía el juez del carril | 20/10/2026 | 🟢 **Hecho** | `programas.0101` |
+| 345 | P3 pide el formulario «Crear dispositivo» del tipo y P4 muestra lo respondido (P17, carril 2) | Dispositivos · alta y edición de institución (P3) · detalle (P4) · formularios por tipo (P17) | `#ui` `#datos` `#rbac` `#performance` | PM — mockup P17, vía el juez del carril | 20/10/2026 | 🟢 **Hecho** | `programas.0101` |
 
 **Notas del índice**
 
@@ -45129,7 +45129,9 @@ cascada) y reintentar. Nunca `--fake`.
 
 ---
 
-# Cambio NNN — P3 pide el formulario «Crear dispositivo» del tipo y P4 muestra lo respondido (P17, carril 2)
+---
+
+# Cambio 345 — P3 pide el formulario «Crear dispositivo» del tipo y P4 muestra lo respondido (P17, carril 2)
 
 🟢 **HECHO — 20/10/2026**
 

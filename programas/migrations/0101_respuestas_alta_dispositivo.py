@@ -10,55 +10,96 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('programas', '0100_diseno_por_tipo_dispositivo'),
+        ("programas", "0100_diseno_por_tipo_dispositivo"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='disenoformulario',
-            name='dado_de_baja_en',
-            field=models.DateTimeField(blank=True, null=True, verbose_name='Dado de baja el'),
+            model_name="disenoformulario",
+            name="dado_de_baja_en",
+            field=models.DateTimeField(blank=True, null=True, verbose_name="Dado de baja el"),
         ),
         migrations.CreateModel(
-            name='RespuestasAltaDispositivo',
+            name="RespuestasAltaDispositivo",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('creado', models.DateTimeField(auto_now_add=True)),
-                ('modificado', models.DateTimeField(auto_now=True)),
-                ('definicion', models.JSONField(default=dict, verbose_name='Foto de la definición')),
-                ('version', models.PositiveIntegerField(default=1, verbose_name='Versión respondida')),
-                ('respuestas', models.JSONField(blank=True, default=dict, verbose_name='Respuestas')),
-                ('anteriores', models.JSONField(blank=True, default=dict, verbose_name='Campos de versiones anteriores')),
-                ('actualizado_por', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL, verbose_name='Actualizado por')),
-                ('diseno', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to='programas.disenoformulario', verbose_name='Formulario')),
-                ('dispositivo', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='respuestas_alta', to='programas.dispositivo', verbose_name='Dispositivo')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("creado", models.DateTimeField(auto_now_add=True)),
+                ("modificado", models.DateTimeField(auto_now=True)),
+                ("definicion", models.JSONField(default=dict, verbose_name="Foto de la definición")),
+                ("version", models.PositiveIntegerField(default=1, verbose_name="Versión respondida")),
+                ("respuestas", models.JSONField(blank=True, default=dict, verbose_name="Respuestas")),
+                (
+                    "anteriores",
+                    models.JSONField(blank=True, default=dict, verbose_name="Campos de versiones anteriores"),
+                ),
+                (
+                    "actualizado_por",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="Actualizado por",
+                    ),
+                ),
+                (
+                    "diseno",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to="programas.disenoformulario",
+                        verbose_name="Formulario",
+                    ),
+                ),
+                (
+                    "dispositivo",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="respuestas_alta",
+                        to="programas.dispositivo",
+                        verbose_name="Dispositivo",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Respuestas del alta de un dispositivo',
-                'verbose_name_plural': 'Respuestas del alta de dispositivos',
+                "verbose_name": "Respuestas del alta de un dispositivo",
+                "verbose_name_plural": "Respuestas del alta de dispositivos",
             },
         ),
         migrations.CreateModel(
-            name='AdjuntoRespuestaAlta',
+            name="AdjuntoRespuestaAlta",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('creado', models.DateTimeField(auto_now_add=True)),
-                ('modificado', models.DateTimeField(auto_now=True)),
-                ('clave', models.CharField(max_length=60, verbose_name='Clave del campo')),
-                ('archivo', models.FileField(upload_to=core.rutas_media.ruta_formulario_dispositivo, verbose_name='Archivo')),
-                ('respuestas', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='adjuntos', to='programas.respuestasaltadispositivo', verbose_name='Respuestas')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("creado", models.DateTimeField(auto_now_add=True)),
+                ("modificado", models.DateTimeField(auto_now=True)),
+                ("clave", models.CharField(max_length=60, verbose_name="Clave del campo")),
+                (
+                    "archivo",
+                    models.FileField(upload_to=core.rutas_media.ruta_formulario_dispositivo, verbose_name="Archivo"),
+                ),
+                (
+                    "respuestas",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="adjuntos",
+                        to="programas.respuestasaltadispositivo",
+                        verbose_name="Respuestas",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Archivo del alta de un dispositivo',
-                'verbose_name_plural': 'Archivos del alta de dispositivos',
-                'ordering': ['-creado', '-id'],
+                "verbose_name": "Archivo del alta de un dispositivo",
+                "verbose_name_plural": "Archivos del alta de dispositivos",
+                "ordering": ["-creado", "-id"],
             },
         ),
         migrations.AddConstraint(
-            model_name='respuestasaltadispositivo',
-            constraint=models.UniqueConstraint(fields=('dispositivo', 'diseno'), name='uniq_respuestas_alta_dispositivo_diseno'),
+            model_name="respuestasaltadispositivo",
+            constraint=models.UniqueConstraint(
+                fields=("dispositivo", "diseno"), name="uniq_respuestas_alta_dispositivo_diseno"
+            ),
         ),
     ]
