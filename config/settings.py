@@ -582,7 +582,8 @@ REST_FRAMEWORK = {
     # backoffice y el cambio de clave provisoria—, porque los middlewares eximen
     # `/api/` a propósito (SEC-01, auditoría oct-2026). La app de campo de Becas
     # no se ve afectada: declara `TokenAuthentication` en sus propias vistas
-    # (`programas/api/views.py`) y su login hereda `permission_classes = ()`.
+    # (`programas/api/views.py`); su login declara `authentication_classes = ()`
+    # y `permission_classes = ()` (no se autentica por la sesión del navegador).
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"],
     # Default de DRF era `AllowAny`: una vista nueva nacía pública salvo que se
     # acordara de declarar permisos. Se invierte el default.
