@@ -473,6 +473,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 345 | P3 pide el formulario «Crear dispositivo» del tipo y P4 muestra lo respondido (P17, carril 2) | Dispositivos · alta y edición de institución (P3) · detalle (P4) · formularios por tipo (P17) | `#ui` `#datos` `#rbac` `#performance` | PM — mockup P17, vía el juez del carril | 20/10/2026 | 🟢 **Hecho** | `programas.0101` |
 | 346 | El login de la app de campo tarda 0,75 s de Argon2 y muere con 403 CSRF si el navegador tiene sesión | Transversal · login de la app de campo (`/api/becas/auth/token/`) | `#sesion` `#api` `#performance` | PM — medición en QA, vía el juez | 20/10/2026 | 🟢 **Hecho** | No requiere |
 | 347 | El test de capacidad concurrente usa un usuario por hilo (sesión única del backoffice) | Dispositivos · tests de concurrencia en motor real | `#sesion` | Juez del carril — rojo intermitente en «Motor real (mariadb:11)» | 20/10/2026 | 🟢 **Hecho** | — |
+| 348 | P3: el formulario del tipo va en su propia tarjeta | Dispositivos · alta y edición de institución (P3) | `#ui` | PM — prueba en testing de P3 | 20/10/2026 | 🟢 **Hecho** | no |
 
 **Notas del índice**
 
@@ -45505,6 +45506,95 @@ Ninguno.
 ## Reversión
 
 `git revert` del merge.
+
+## Historial
+
+- **20/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 348 — P3: el formulario del tipo va en su propia tarjeta
+
+🟢 **HECHO — 20/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alta y edición de institución (P3) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — prueba en testing de P3 (`/dispositivos/nuevo/`), 20/10/2026 |
+| **Fecha del pedido** | 20/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 (MVP de Dispositivos) |
+| **Partes afectadas** | Backoffice: `dispositivos/legajo/form.html`, `dispositivos/legajo/_formulario_tipo.html` · Servidor: `services/respuestas_dispositivo.py` (`formulario_vigente`, solo `select_related`) |
+| **Migración** | no |
+
+## Pedido original
+
+«El formulario se mezcla»: las preguntas del formulario «Crear dispositivo» del tipo (Cambio 345) salían
+como secciones más dentro de la misma tarjeta que «Identidad y encuadre», «Ubicación» y «Responsable y
+contacto». Tiene que ser un bloque distinto —otra tarjeta o sección, «formulario de ingreso»—; el cómo
+queda a criterio del juez.
+
+## Alcance acordado
+
+Entra: la presentación del formulario del tipo en P3 (alta y edición). Queda afuera: la lógica de
+respuestas, la validación, P4 y el constructor; no hay cambios de modelos, roles ni seeds.
+
+## Decisiones tomadas
+
+Del juez (delegado por el PM):
+
+- **Dos tarjetas hermanas.** El `<form>` pasa a ser un contenedor `space-y-5`: la tarjeta 1 lleva los datos
+  fijos (Identidad y encuadre, Ubicación, Responsable y contacto, **Días y horarios**); la tarjeta 2,
+  «Formulario de ingreso», solo existe si el tipo tiene formulario «Crear dispositivo» vigente.
+- **Cambia el orden respecto del Cambio 345**: el formulario deja de estar entre «Responsable y contacto» y
+  «Días y horarios» y pasa debajo de esta última, para que los datos de la institución queden juntos.
+- Encabezado de la tarjeta 2 con el patrón de los paneles del aside (`px-5 py-4 border-b border-light`):
+  `h2` «Formulario de ingreso» y la bajada «Lo pide el tipo «<tipo>». Los campos con * hacen falta para
+  enviar a validación.». Los grupos del diseño pasan a `h3`; el primero sin separador.
+- La tarjeta la emite el parcial, así el reemplazo por `fetch` al cambiar el tipo la hace aparecer o
+  desaparecer entera. El wrapper `data-formulario-tipo` es `contents` para no sumar hueco cuando está vacío.
+- Pie de acciones fuera de las tarjetas, después de la última (`flex flex-wrap justify-end gap-3`).
+
+## Implementación
+
+Template y parcial, sin JS nuevo ni clases nuevas. `formulario_vigente` suma
+`select_related("tipo_dispositivo")` para que el nombre del tipo en la bajada no cueste una consulta.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/legajo/form.html`
+- `programas/templates/programas/dispositivos/legajo/_formulario_tipo.html`
+- `programas/services/respuestas_dispositivo.py`
+- `programas/tests/test_dispositivos_formulario_alta.py` (orden nuevo, bajada con el tipo, sin formulario no sale la tarjeta)
+- `programas/tests/test_dispositivos_fidelidad_ff.py` (el form como contenedor y la tarjeta de datos como primer hijo)
+- `.claude/design/arquetipos/formulario.md` (párrafo P17/P3 y variante «asistencia lateral»)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `test_dispositivos_formulario_alta`, `test_dispositivos_fidelidad_ff`, `test_dispositivos_legajo`: 61 OK.
+- `--tag performance programas`: 42 OK.
+- `design_audit.py --ratchet`: 0 nuevos · `compile_templates.py --bloques`: 0 · `check_design_agent.py --limites`: OK.
+- `design_audit.py --arquetipo formulario` sobre P3 da 1 desvío esperado («surface del formulario»: el
+  marcador pide que el `<form>` sea la tarjeta). P3 no es golden y la variante con dos tarjetas queda
+  registrada en la ficha; no se tocó el script.
+- Capturas a 1440 y 390 px con y sin formulario del tipo (andamiaje local, datos ficticios).
+
+## Puesta en marcha en el servidor
+
+Nada: se despliega con el release.
+
+## Pendientes / a definir
+
+- Si el marcador de arquetipo tiene que aceptar la variante «form contenedor + tarjeta», se amplía en
+  `scripts/design_audit.py` en un PR aparte.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
 
 ## Historial
 

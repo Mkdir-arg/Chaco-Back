@@ -44,11 +44,13 @@ Modal. Si el usuario carga muchas filas de lo mismo, no es este arquetipo: fren�
 Vista: `CreateView`/`UpdateView` (o función) con un Django Form o ModelForm. **La validación
 vive en el form y en los servicios**, nunca en el template. Los widgets ya traen `nodo-field`
 desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los controles.
-Un formulario armado por el constructor (P17) también: en P3, debajo de «Responsable y
-contacto», `_formulario_tipo.html` dibuja el formulario «Crear dispositivo» del tipo con
-`programas.forms_dinamicos.RespuestasDisenoForm` (una sección `border-t border-light mt-5 pt-4`
-por grupo, `h2` + bajada `text-xs`, campos con el campo canónico en `sm:grid-cols-2`). Lo
-reemplaza `dispositivos:formulario_tipo_seccion` al cambiar el tipo; las condiciones las evalúa
+Un formulario armado por el constructor (P17) también: en P3, `_formulario_tipo.html` dibuja
+el formulario «Crear dispositivo» del tipo con `programas.forms_dinamicos.RespuestasDisenoForm`
+en **su propia tarjeta**, después de «Días y horarios» (surface canónica con encabezado
+`px-5 py-4 border-b border-light`: `h2` «Formulario de ingreso» + bajada `text-xs`, y cuerpo
+`p-5` con un bloque por grupo —`h3` + bajada `text-xs`, `border-t border-light mt-5 pt-4` desde
+el segundo—, campos con el campo canónico en `sm:grid-cols-2`). Sin formulario del tipo no sale
+ni la tarjeta (el wrapper `data-formulario-tipo` es `contents`). Lo reemplaza `dispositivos:formulario_tipo_seccion` al cambiar el tipo; las condiciones las evalúa
 `nodo-condiciones.js` y las repite el servidor. El form pasa a `multipart/form-data` por los
 campos de archivo; el asterisco marca lo que exige «Enviar a validación».
 Lo mismo vale para los forms chicos que viven en un modal, como `FormularioTipoNuevoForm`
@@ -63,6 +65,9 @@ solo pone etiqueta y error.
   encabezado `px-5 py-4 border-b border-light` y cuerpo `p-5`. Se apila en móvil.
   Conserva el esqueleto de la golden, sus campos y errores. Los paneles muestran
   información del dominio (duplicados y requisitos existentes), nunca reglas nuevas.
+  El `<form>` es un contenedor `space-y-5` y no la tarjeta: la tarjeta de datos (errores,
+  identidad con el estado, ubicación, responsable, días y horarios) y la del formulario del tipo
+  son hermanas, y el pie queda **fuera** de ellas, después de la última.
   Estado mediante el parcial del módulo y pie `flex flex-wrap justify-end gap-3`.
   Puede sumar «Enviar a validación» si existe la transición, con su capacidad y alcance,
   guardando y enviando en una transacción del POST actual. En edición dice «Guardar cambios».
