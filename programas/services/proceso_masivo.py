@@ -515,6 +515,17 @@ def clave_conteos(programa_id):
     return f"masivo_conteos_{programa_id}"
 
 
+def clave_excluidos(programa_id):
+    """Clave de caché del aviso de excluidos, **aparte** de los conteos.
+
+    Va separada a propósito: los conteos conservan su forma de dos números, que es la que
+    lee también la release vieja durante el rolling (la caché es compartida entre pods), y
+    el cero de los pendientes sigue sin cachearse. El aviso, en cambio, es informativo y
+    se cachea siempre.
+    """
+    return f"masivo_excluidos_v2_{programa_id}"
+
+
 def invalidar_conteos(programa_id):
     """Tira los conteos cacheados de un programa.
 
@@ -524,6 +535,7 @@ def invalidar_conteos(programa_id):
     cero, que es el valor que decide si se muestra el formulario.
     """
     cache.delete(clave_conteos(programa_id))
+    cache.delete(clave_excluidos(programa_id))
 
 
 def conteos_de_la_pantalla(programa):
@@ -537,7 +549,6 @@ def conteos_de_la_pantalla(programa):
     return (
         candidatos(programa=programa, insumos=insumos).count(),
         candidatos(programa=programa, solo_incompatibles=True, insumos=insumos).count(),
-        excluidos_por_pausa(programa=programa, insumos=insumos),
     )
 
 

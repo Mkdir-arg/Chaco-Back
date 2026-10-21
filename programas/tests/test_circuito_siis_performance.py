@@ -428,7 +428,7 @@ class PantallaDelMasivoTests(TestCase):
         """Lo que vacía los pendientes de golpe es la corrida, y termina en un hilo que
         no pasa por ninguna vista: si no invalida, la pantalla muestra el número de
         antes de lanzarla."""
-        cache.set(proceso_masivo.clave_conteos(self.programa.pk), (7, 0, {"siis": 0, "pausados": 0}), 60)
+        cache.set(proceso_masivo.clave_conteos(self.programa.pk), (7, 0), 60)
         corrida = CorridaSiis.objects.create(
             programa=self.programa,
             solicitada_por=self.admin,

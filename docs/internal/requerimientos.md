@@ -476,6 +476,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 348 | P3: el formulario del tipo va en su propia tarjeta | Dispositivos · alta y edición de institución (P3) | `#ui` | PM — prueba en testing de P3 | 20/10/2026 | 🟢 **Hecho** | no |
 | 349 | El estado INACTIVO/DESCONOCIDO en SIIS deja de pausar Becas | Becas · programas, segmentos, convocatorias, relevamientos, reporte de cupos | `#siis` `#relevamientos` `#ui` | PM — decisión del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 | 350 | Pillow 13.0.0: «Pip Audit» vuelve a verde por las 8 CVEs de pillow 12.3.0 | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (21/10/2026) | 21/10/2026 | 🟢 **Hecho** | No requiere |
+| 354 | La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué | Becas · proceso masivo a SIIS (pantalla) | `#siis` `#ui` | Juez — casos excluidos sin aviso | 21/10/2026 | 🟢 **Hecho** | no |
 
 **Notas del índice**
 
@@ -19455,7 +19456,6 @@ orquesta `scripts/roundtrip_migraciones.py`:
 | 5 | comparación de columnas obligatorias contra la foto | el del PR |
 | 6 | vuelta app por app hasta la base (barreras toleradas) | el del PR |
 | 7 | `migrate` de nuevo y `migrate --check` | el del PR |
-| Cambio NNN | La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué | Becas · proceso masivo a SIIS (pantalla) | `#siis` `#ui` | Juez — casos excluidos sin aviso | 21/10/2026 | 🟢 **Hecho** | no |
 
 **El agujero (a).** `manage.py verificar_columnas_obligatorias --guardar|--comparar` marca toda columna que quede
 `NOT NULL`, sin `DEFAULT` en la base y sin llenarla el motor, **y que antes no estuviera así**: nueva, o antes nullable,
@@ -45757,7 +45757,7 @@ Volver el pin a `Pillow==12.3.0`; no hay datos ni migración (el check de «Pip 
 
 ---
 
-# Cambio NNN — La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué
+# Cambio 354 — La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué
 
 🟢 **HECHO — 21/10/2026**
 
@@ -45783,8 +45783,11 @@ o por programa INACTIVO/DESCONOCIDO en SIIS, ni por qué.
   universo (no se duplica el queryset) y cuenta en **una** consulta con `Count(filter=...)`.
 - Los motivos son excluyentes: un caso de programa bloqueado en SIIS cuenta como «SIIS» aunque además esté
   pausado. Las pausas no se parten por nivel (no es barato ni cambia qué hacer).
-- El resultado viaja en el mismo cacheo de PERF-07 (tupla de tres); un valor cacheado con la forma vieja se
-  recalcula. El aviso es una alerta `info` con link a la ficha del programa; sin excluidos no hay aviso.
+- El aviso se cachea **aparte** (`clave_excluidos`, `masivo_excluidos_v2_<id>`, misma vigencia, también el
+  cero): los conteos conservan su clave y su forma de dos números, que lee también la release vieja durante el
+  rolling (caché compartida entre pods), y el cero de los pendientes sigue sin cachearse. La corrida invalida
+  las dos claves. El aviso es una alerta `info` sin link (el header ya enlaza la ficha del programa); sin
+  excluidos no hay aviso.
 
 ## Archivos
 

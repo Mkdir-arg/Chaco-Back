@@ -113,7 +113,7 @@
   {% if aviso_excluidos %}
   {% comment %}Los excluye el masivo a propósito (BEC-21): programa INACTIVO/DESCONOCIDO en SIIS o
   pausa manual en algún nivel. Se dice cuántos y por qué; no se cambia la regla.{% endcomment %}
-  {% include "components/_alerta.html" with tono="info" role="status" texto=aviso_excluidos accion_url=url_programa accion_texto="Ver el programa" %}
+  {% include "components/_alerta.html" with tono="info" role="status" texto=aviso_excluidos %}
   {% endif %}
 
   {# Sin corrida: el formulario #}

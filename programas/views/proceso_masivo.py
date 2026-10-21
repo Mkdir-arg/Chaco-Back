@@ -107,7 +107,8 @@ class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView)
         # corrida los vuelve a consultar en cada vuelta—, pero tienen que verse: son
         # casos esperando que alguien decida, no casos resueltos. Los dos salen del
         # mismo cálculo porque comparten los insumos.
-        ctx["pendientes"], ctx["incompatibles"], excluidos = _conteos(self.object)
+        ctx["pendientes"], ctx["incompatibles"] = _conteos(self.object)
+        excluidos = _excluidos(self.object)
         # Los que el masivo deja afuera por pausa o por SIIS: se avisa el motivo para que
         # «pendientes» no parezca que se los olvidó. Es informativo, no cambia la regla.
         ctx["aviso_excluidos"] = _aviso_excluidos(self.object, excluidos)
@@ -130,6 +131,16 @@ def _aviso_excluidos(programa, excluidos):
     return f"{sujeto}: {' y '.join(motivos)}."
 
 
+def _excluidos(programa):
+    """Casos que el masivo deja afuera, cacheados (informativo: vale también el cero)."""
+    clave = servicio.clave_excluidos(programa.pk)
+    cacheado = cache.get(clave)
+    if cacheado is None:
+        cacheado = servicio.excluidos_por_pausa(programa=programa)
+        cache.set(clave, cacheado, VIGENCIA_CONTEOS)
+    return cacheado
+
+
 def _conteos(programa):
     """Los números de la pantalla, cacheados **salvo cuando el primero es cero**.
 
@@ -140,8 +151,7 @@ def _conteos(programa):
     """
     clave = servicio.clave_conteos(programa.pk)
     cacheado = cache.get(clave)
-    # Un valor de la forma vieja (dos números, de antes del deploy) se recalcula.
-    if cacheado is not None and len(cacheado) == 3:
+    if cacheado is not None:
         return cacheado
     conteos = servicio.conteos_de_la_pantalla(programa)
     if conteos[0]:
