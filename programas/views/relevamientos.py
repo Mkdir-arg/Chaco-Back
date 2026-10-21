@@ -35,6 +35,7 @@ from programas.forms import (
 from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento, q_con_identidad
 from programas.services.autorizacion import (
     assert_alcance_relevamiento,
+    aviso_sin_segmentos_becas,
     convocatorias_visibles,
     programa_becas,
     puede_exportar_convocatoria,
@@ -48,6 +49,7 @@ from programas.services.autorizacion import (
 )
 from programas.services.exportacion_reportes import celda_segura
 from programas.services.listados import PaginadorConConteo, hidratar_pagina
+from programas.services.vencimientos import contar_cerrados_automaticamente
 from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
 
 CAP_CONVOCATORIA_VER = "becas.convocatoria.ver"
@@ -160,6 +162,7 @@ def _contexto_convocatorias(request):
         "page_obj": pagina,
         "paginator": pagina.paginator,
         "is_paginated": pagina.has_other_pages(),
+        "aviso_sin_segmentos": aviso_sin_segmentos_becas(request.user),
     }
 
 
@@ -245,7 +248,36 @@ class ConvocatoriaListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
         )
         form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
         ctx["form_convocatoria"] = form
+        ctx["aviso_sin_segmentos"] = aviso_sin_segmentos_becas(self.request.user)
         return ctx
+
+
+def motivo_sin_alta_de_relevamientos(conv):
+    """Por qué no se pueden crear relevamientos en ``conv`` (o ``""`` si se puede).
+
+    ``RelevamientoForm`` deja fuera del select las convocatorias pausadas (en cualquier
+    nivel) y las cerradas: este motivo se muestra en vez de ofrecer un alta que fallaría
+    con el genérico «Seleccione una opción válida». Solo avisa, no cambia ninguna regla.
+    """
+    pausa = conv.pausa_efectiva
+    if pausa is not None:
+        quien = {
+            "Programa": "El programa de la convocatoria",
+            "Segmento": "El segmento de la convocatoria",
+            "Subsegmento": "El subsegmento de la convocatoria",
+        }.get(type(pausa).__name__)
+        detalle = f": {pausa.pausa_motivo}" if pausa.pausa_motivo else "."
+        if quien:
+            return f"{quien} está pausado{detalle}"
+        return f"La convocatoria está pausada{detalle}"
+    if not conv.activo:
+        if conv.esta_vencida:
+            return (
+                f"La convocatoria está cerrada (venció el {conv.fecha_fin:%d/%m/%Y}). "
+                "Para crear relevamientos, extendé la fecha de fin y reactivala."
+            )
+        return "La convocatoria está cerrada. Para crear relevamientos, reactivala."
+    return ""
 
 
 class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
@@ -315,18 +347,39 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         ctx["form_convocatoria"] = form
         # Modal "Nuevo relevamiento" con esta convocatoria preseleccionada.
         ctx["puede_publico"] = _puede_publico(self.request.user)
-        ctx["form_crear"] = RelevamientoForm(
-            initial={"convocatoria": conv},
-            segmentos_permitidos=segmentos,
-            convocatorias_permitidas=convocatorias_visibles(self.request.user),
-            territoriales_permitidos=usuarios_territoriales_becas().filter(
-                asignacion_territorial__segmento__in=segmentos
-            ),
-            operador=self.request.user,
-            puede_publico=ctx["puede_publico"],
+        # Si la convocatoria no admite altas (pausada o cerrada) no se ofrece el modal:
+        # se muestra el motivo en su lugar.
+        convocatorias_alta = convocatorias_visibles(self.request.user)
+        motivo = motivo_sin_alta_de_relevamientos(conv)
+        if not motivo and not convocatorias_alta.filter(pk=conv.pk).exists():
+            motivo = "La convocatoria no está entre las que podés usar para crear relevamientos."
+        ctx["motivo_sin_alta"] = motivo
+        ctx["accion_sin_alta_url"] = (
+            reverse("becas:convocatoria_editar", args=[conv.pk])
+            if motivo and not conv.activo and puede(self.request.user, CAP_CONVOCATORIA_EDITAR)
+            else ""
         )
-        # Fija: un disabled no viaja en el POST; el valor lo aporta el hidden del template.
-        ctx["form_crear"].fields["convocatoria"].widget.attrs["disabled"] = True
+        ctx["form_crear"] = None
+        if not motivo:
+            form_crear = RelevamientoForm(
+                initial={"convocatoria": conv},
+                segmentos_permitidos=segmentos,
+                convocatorias_permitidas=convocatorias_alta,
+                territoriales_permitidos=usuarios_territoriales_becas().filter(
+                    asignacion_territorial__segmento__in=segmentos
+                ),
+                operador=self.request.user,
+                puede_publico=ctx["puede_publico"],
+            )
+            # Fija: un disabled no viaja en el POST; el valor lo aporta el hidden del template.
+            form_crear.fields["convocatoria"].widget.attrs["disabled"] = True
+            ctx["form_crear"] = form_crear
+            # Server-side (funciona sin JS): el segmento no tiene ningún territorial elegible.
+            ctx["segmento_sin_territoriales"] = (
+                not form_crear.fields["territorial"]
+                .queryset.filter(asignacion_territorial__segmento_id=conv.segmento_id)
+                .exists()
+            )
         # Padrón de habilitados (Cambio 57; herencia por relevamiento, Cambio 74):
         # acá se administra el de la convocatoria, que heredan los relevamientos
         # sin padrón propio. Un solo aggregate trae los dos niveles.
@@ -403,7 +456,22 @@ class ConvocatoriaUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, Update
 
     def form_valid(self, form):
         messages.success(self.request, "Convocatoria actualizada.")
-        return super().form_valid(form)
+        respuesta = super().form_valid(form)
+        if self.object.activo and ({"fecha_fin", "activo"} & set(form.changed_data)):
+            _avisar_cerrados_automaticamente(self.request, self.object)
+        return respuesta
+
+
+def _avisar_cerrados_automaticamente(request, convocatoria):
+    """Extender o reactivar una convocatoria no devuelve a campo los relevamientos que
+    el cierre por vencimiento mandó a revisión: avisa cuántos son, sin reabrir nada."""
+    n = contar_cerrados_automaticamente(convocatoria)
+    if n:
+        messages.info(
+            request,
+            f"La convocatoria tiene {n} relevamiento{'s' if n != 1 else ''} cerrado{'s' if n != 1 else ''} "
+            "automáticamente por vencimiento. Si tienen que volver a campo, usá «Volver a campo» en cada uno.",
+        )
 
 
 @login_required
@@ -452,6 +520,7 @@ def convocatoria_reactivar(request, pk):
         conv.cerrada_el = None
         conv.save(update_fields=["fecha_fin", "activo", "cerrada_automaticamente", "cerrada_el", "modificado"])
         messages.success(request, f"Convocatoria reactivada hasta el {nueva_fecha.strftime('%d/%m/%Y')}.")
+        _avisar_cerrados_automaticamente(request, conv)
     return redirect(destino)
 
 
@@ -655,6 +724,7 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
         territoriales = usuarios_territoriales_becas().filter(asignacion_territorial__segmento__in=segmentos)
         ctx["estados"] = Relevamiento.Estado.choices
         ctx["segmentos"] = segmentos
+        ctx["aviso_sin_segmentos"] = aviso_sin_segmentos_becas(self.request.user)
         ctx["filtros"] = {
             "q": self.request.GET.get("q", ""),
             "estado": self.request.GET.get("estado", ""),
@@ -763,6 +833,18 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
         return str(self.success_url)
 
 
+def _aviso_cierre_automatico(rel, puede_volver_a_campo):
+    """Texto del aviso del detalle cuando el cron dejó el relevamiento en revisión por
+    fecha (None si no corresponde). La acción solo se nombra a quien puede usarla."""
+    if rel.estado != Relevamiento.Estado.EN_REVISION or not rel.cerrado_automaticamente_en:
+        return None
+    cuando = timezone.localtime(rel.cerrado_automaticamente_en)
+    texto = f"Cerrado automáticamente el {cuando:%d/%m/%Y %H:%M} porque venció su período."
+    if puede_volver_a_campo:
+        texto += " Para seguir cargando, usá «Volver a campo»."
+    return texto
+
+
 class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
     model = Relevamiento
     # El template y el guard de alcance recorren convocatoria/segmento/territorial.
@@ -810,6 +892,9 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         )
         ctx["form_cupo"] = CupoRelevamientoForm(instance=rel)
         ctx["form_volver_a_campo"] = VolverACampoForm(convocatoria=rel.convocatoria)
+        ctx["aviso_cierre_automatico"] = _aviso_cierre_automatico(
+            rel, puede(self.request.user, CAP_RELEVAMIENTO_EDITAR)
+        )
         # La tabla de personas relevadas no muestra las respuestas: ``datos_identificacion``
         # sí se usa (casos sin legajo); ``data``, ``respuestas``, ``datos_siis`` y la foto
         # del formulario (``definicion``, ~7 KB por caso) no.
@@ -898,7 +983,8 @@ def relevamiento_reabrir(request, pk):
     rel.estado = Relevamiento.Estado.EN_CURSO
     rel.fecha_finalizado = None
     rel.fecha_hasta = fecha_hasta
-    rel.save(update_fields=["estado", "fecha_finalizado", "fecha_hasta", "modificado"])
+    rel.cerrado_automaticamente_en = None
+    rel.save(update_fields=["estado", "fecha_finalizado", "fecha_hasta", "cerrado_automaticamente_en", "modificado"])
     # El relevamiento no tiene traza propia (a diferencia de los casos y los
     # dispositivos): hasta que exista, la reapertura queda en el log.
     logger.info(

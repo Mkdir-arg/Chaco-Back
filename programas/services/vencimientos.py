@@ -124,7 +124,8 @@ def pasar_relevamientos_a_revision(qs: QuerySet) -> int:
 
     abiertos = Relevamiento.objects.filter(estado__in=ESTADOS_RELEVAMIENTO_ABIERTOS)
     cerrados_ahora = set()
-    for pks, extra in ((ids_sin_fecha, {"fecha_finalizado": now}), (ids_con_fecha, {})):
+    sella = {"cerrado_automaticamente_en": now}
+    for pks, extra in ((ids_sin_fecha, {"fecha_finalizado": now, **sella}), (ids_con_fecha, sella)):
         for pk in pks:
             if abiertos.filter(pk=pk).update(estado=Relevamiento.Estado.EN_REVISION, modificado=now, **extra):
                 cerrados_ahora.add(pk)
@@ -145,6 +146,16 @@ def pasar_relevamientos_a_revision(qs: QuerySet) -> int:
             salteados,
         )
     return cerrados
+
+
+def contar_cerrados_automaticamente(convocatoria) -> int:
+    """Relevamientos de la convocatoria que el cron dejó en EN_REVISION por fecha y
+    que nadie volvió a campo ni terminó. Alimenta el aviso al extender o reactivar."""
+    return Relevamiento.objects.filter(
+        convocatoria=convocatoria,
+        estado=Relevamiento.Estado.EN_REVISION,
+        cerrado_automaticamente_en__isnull=False,
+    ).count()
 
 
 def registrar_reglas() -> None:

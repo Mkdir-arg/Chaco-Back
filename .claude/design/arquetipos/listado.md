@@ -90,6 +90,7 @@ los objetos de `page_obj.object_list`, `estados` (choices), `estado_actual`, `pu
 ## Variantes permitidas
 
 - Sin filtros: se omite el `<form>` entero (y el estado vacío con filtros).
+- Vacío por alcance: si el usuario no ve datos porque no tiene asignación (Becas, `personas_list.html`), una rama `{% elif aviso_sin_segmentos %}` con el mismo `_estado_vacio.html` va antes de la de filtros (ver `dominio/becas.md`).
 - Sin acción de alta: el `page_header` sin cuerpo. Acción secundaria: `btn-nodo btn-tertiary btn-base`.
   Cada acción del encabezado, también la secundaria, se dibuja solo si la vista resolvió su capacidad (p. ej. «Exportar
   CSV» con `ciudadano.exportar` en `legajos/templates/legajos/ciudadano_list.html`, SEC-20).

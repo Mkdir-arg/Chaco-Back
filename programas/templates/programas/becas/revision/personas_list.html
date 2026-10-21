@@ -92,6 +92,8 @@
       </table>
     </div>
     {% include "components/_paginacion.html" with page_obj=page_obj entidad="caso" %}
+    {% elif aviso_sin_segmentos %}
+      {% include "components/_estado_vacio.html" with icono="fa-user-lock" titulo="Tu usuario no tiene segmentos asignados en Becas" texto=aviso_sin_segmentos %}
     {% elif request.GET|hay_filtros %}
       {% url 'becas:revision' as url_sin_filtros %}
       {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún caso coincide con el filtro" texto="Probá con otros filtros." accion_url=url_sin_filtros %}

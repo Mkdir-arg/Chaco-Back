@@ -12,6 +12,9 @@
 - `programas/templates/programas/becas/relevamientos/convocatoria_detail.html`: **solo** las
   migas y las acciones del encabezado (con `aria-hidden` en sus íconos). **Nunca sus solapas**:
   no tienen ARIA.
+  Y el bloque del alta de relevamiento: si la convocatoria no admite altas (pausada o cerrada), el botón
+  y el modal se reemplazan por `_alerta.html` (`tono="danger"`) con el motivo que calcula la vista
+  (`motivo_sin_alta`); no se oculta sin explicar.
 
 ## Cuándo
 
