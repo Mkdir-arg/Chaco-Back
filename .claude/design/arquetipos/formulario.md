@@ -105,6 +105,13 @@ solo pone etiqueta y error.
   `programas/templates/programas/becas/relevamientos/`): el toggle de avisos por correo vale para
   territoriales y públicos y por eso quedó fuera del `fieldset` de tipo público, que conserva
   cupo y padrón.
+- **Alta que no se puede hacer: se avisa, no se esconde.** Si el select de una referencia queda vacío
+  (convocatoria pausada o cerrada, nadie asignable), el formulario o el modal se reemplaza o se acompaña con
+  `{% include "components/_alerta.html" with tono="danger" … %}` que dice el motivo y qué hacer (con
+  `accion_url` solo si el usuario tiene la capacidad del destino). El motivo se calcula en la vista, nunca en
+  el template. Evidencia: `convocatoria_detail.html` (motivo de la vista), `relevamiento_form.html` y
+  `relevamiento_list.html` (`form.sin_convocatorias`); la ayuda del select dependiente vive en el script de
+  `_filtro_territorial.html`.
 - Confirmación de borrado: misma estructura, con el texto del riesgo en
   `{% include "components/_alerta.html" with tono="danger" … %}` y la acción `btn-nodo btn-danger btn-base`.
 - **Confirmación de borrado** (ya listada arriba): **no** pasa `--arquetipo formulario`, y está bien.
