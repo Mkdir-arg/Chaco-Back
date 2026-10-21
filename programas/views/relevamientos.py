@@ -49,6 +49,7 @@ from programas.services.autorizacion import (
 )
 from programas.services.exportacion_reportes import celda_segura
 from programas.services.listados import PaginadorConConteo, hidratar_pagina
+from programas.services.vencimientos import contar_cerrados_automaticamente
 from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
 
 CAP_CONVOCATORIA_VER = "becas.convocatoria.ver"
@@ -455,7 +456,22 @@ class ConvocatoriaUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, Update
 
     def form_valid(self, form):
         messages.success(self.request, "Convocatoria actualizada.")
-        return super().form_valid(form)
+        respuesta = super().form_valid(form)
+        if self.object.activo and ({"fecha_fin", "activo"} & set(form.changed_data)):
+            _avisar_cerrados_automaticamente(self.request, self.object)
+        return respuesta
+
+
+def _avisar_cerrados_automaticamente(request, convocatoria):
+    """Extender o reactivar una convocatoria no devuelve a campo los relevamientos que
+    el cierre por vencimiento mandó a revisión: avisa cuántos son, sin reabrir nada."""
+    n = contar_cerrados_automaticamente(convocatoria)
+    if n:
+        messages.info(
+            request,
+            f"La convocatoria tiene {n} relevamiento{'s' if n != 1 else ''} cerrado{'s' if n != 1 else ''} "
+            "automáticamente por vencimiento. Si tienen que volver a campo, usá «Volver a campo» en cada uno.",
+        )
 
 
 @login_required
@@ -504,6 +520,7 @@ def convocatoria_reactivar(request, pk):
         conv.cerrada_el = None
         conv.save(update_fields=["fecha_fin", "activo", "cerrada_automaticamente", "cerrada_el", "modificado"])
         messages.success(request, f"Convocatoria reactivada hasta el {nueva_fecha.strftime('%d/%m/%Y')}.")
+        _avisar_cerrados_automaticamente(request, conv)
     return redirect(destino)
 
 
@@ -816,6 +833,18 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
         return str(self.success_url)
 
 
+def _aviso_cierre_automatico(rel, puede_volver_a_campo):
+    """Texto del aviso del detalle cuando el cron dejó el relevamiento en revisión por
+    fecha (None si no corresponde). La acción solo se nombra a quien puede usarla."""
+    if rel.estado != Relevamiento.Estado.EN_REVISION or not rel.cerrado_automaticamente_en:
+        return None
+    cuando = timezone.localtime(rel.cerrado_automaticamente_en)
+    texto = f"Cerrado automáticamente el {cuando:%d/%m/%Y %H:%M} porque venció su período."
+    if puede_volver_a_campo:
+        texto += " Para seguir cargando, usá «Volver a campo»."
+    return texto
+
+
 class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView):
     model = Relevamiento
     # El template y el guard de alcance recorren convocatoria/segmento/territorial.
@@ -863,6 +892,9 @@ class RelevamientoDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         )
         ctx["form_cupo"] = CupoRelevamientoForm(instance=rel)
         ctx["form_volver_a_campo"] = VolverACampoForm(convocatoria=rel.convocatoria)
+        ctx["aviso_cierre_automatico"] = _aviso_cierre_automatico(
+            rel, puede(self.request.user, CAP_RELEVAMIENTO_EDITAR)
+        )
         # La tabla de personas relevadas no muestra las respuestas: ``datos_identificacion``
         # sí se usa (casos sin legajo); ``data``, ``respuestas``, ``datos_siis`` y la foto
         # del formulario (``definicion``, ~7 KB por caso) no.
@@ -951,7 +983,8 @@ def relevamiento_reabrir(request, pk):
     rel.estado = Relevamiento.Estado.EN_CURSO
     rel.fecha_finalizado = None
     rel.fecha_hasta = fecha_hasta
-    rel.save(update_fields=["estado", "fecha_finalizado", "fecha_hasta", "modificado"])
+    rel.cerrado_automaticamente_en = None
+    rel.save(update_fields=["estado", "fecha_finalizado", "fecha_hasta", "cerrado_automaticamente_en", "modificado"])
     # El relevamiento no tiene traza propia (a diferencia de los casos y los
     # dispositivos): hasta que exista, la reapertura queda en el log.
     logger.info(

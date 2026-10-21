@@ -3152,6 +3152,14 @@ class Relevamiento(PausableMixin, TimeStamped):
         verbose_name="Estado",
     )
     fecha_finalizado = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de finalización")
+    # Traza del cierre por vencimiento (procesar_vencimientos, regla becas.relevamiento):
+    # solo la sella el cron al pasarlo a EN_REVISION por fecha; cualquier salida de ese
+    # estado (volver a campo, terminar) la limpia. Equivale a `Convocatoria.cerrada_el`.
+    cerrado_automaticamente_en = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Cierre automático por vencimiento",
+    )
 
     class Meta:
         verbose_name = "Relevamiento"

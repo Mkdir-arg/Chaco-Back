@@ -478,6 +478,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 350 | Pillow 13.0.0: «Pip Audit» vuelve a verde por las 8 CVEs de pillow 12.3.0 | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (21/10/2026) | 21/10/2026 | 🟢 **Hecho** | No requiere |
 | 351 | Becas: aviso cuando el usuario con rol acotado no tiene segmentos asignados | Becas · listados de convocatorias, relevamientos y revisión | `#ui` `#rbac` | Juez del carril — pedido de aviso, 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 | 352 | «Nuevo relevamiento» avisa por qué no se puede crear o a quién asignar | Becas · detalle de convocatoria, alta de relevamiento | `#relevamientos` `#ui` `#pausas` | PM — prueba en testing del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
+| 353 | El cierre automático por vencimiento deja traza en el relevamiento y avisa al extender | Becas · relevamientos y convocatorias | `#relevamientos` `#ui` | Juez — auditoría de Becas (carril D) | 21/10/2026 | 🟢 **Hecho** | sí (`programas.0102`) |
 
 **Notas del índice**
 
@@ -45883,6 +45884,84 @@ Ninguno.
 ## Reversión
 
 Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **21/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 353 — El cierre automático por vencimiento deja traza en el relevamiento y avisa al extender
+
+🟢 **HECHO — 21/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · detalle del relevamiento · edición y reactivación de convocatorias · cron `procesar_vencimientos` |
+| **Etiquetas** | `#relevamientos` `#ui` |
+| **Solicitante** | Juez — auditoría de Becas (carril D) |
+| **Fecha del pedido** | 21/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | `Relevamiento.cerrado_automaticamente_en` · `pasar_relevamientos_a_revision` · `relevamiento_reabrir` · terminar relevamiento · `RelevamientoDetailView` · `ConvocatoriaUpdateView` y `convocatoria_reactivar` |
+| **Migración** | sí — `programas.0102` (columna `null=True`, expand puro) |
+
+## Pedido original
+
+El cron de las 03:10 pasa los relevamientos vencidos a EN_REVISION sin dejar traza: para el usuario el
+relevamiento «desaparece» de la app y nadie ve por qué, y extender `fecha_fin` de la convocatoria no los devuelve
+a campo.
+
+## Decisiones tomadas
+
+- **No se cambia ninguna regla**: EN_REVISION sigue entrándose solo por fecha (Cambio 54), la gracia de 24 h
+  sigue igual (Cambio 175) y no se reabre nada automáticamente; «Volver a campo» sigue siendo manual.
+- Marca `Relevamiento.cerrado_automaticamente_en` (datetime anulable), análoga a `Convocatoria.cerrada_el`
+  (que va con un booleano aparte; acá el datetime alcanza porque el estado ya distingue el resto).
+- La sella el cron en el mismo `UPDATE` por id que hace la transición (ya era por id por BEC-22, así que no suma
+  consultas); solo a los que esa corrida transicionó. La limpian volver a campo y terminar el relevamiento.
+- Detalle del relevamiento: alerta informativa «Cerrado automáticamente el dd/mm/aaaa hh:mm porque venció su
+  período.», con «Para seguir cargando, usá «Volver a campo».» solo si el usuario tiene
+  `becas.relevamiento.editar`.
+- Al guardar la edición de una convocatoria activa que cambió `fecha_fin` o `activo`, y también al reactivarla por
+  el pop-up de la tabla, `messages.info` (toast) con el conteo de relevamientos en EN_REVISION con la marca.
+
+## Qué se cambió y qué se mantuvo
+
+- Cambió: lo anterior. Se mantuvo: todas las transiciones, plazos y permisos.
+- **No hecho**: la fila del listado (el badge de estado es una pieza compartida y los snapshots de Becas congelan
+  el shell) y el link al listado filtrado (el listado no tiene filtro por convocatoria).
+- Los relevamientos que el cron ya cerró antes de este cambio no tienen marca: no muestran el aviso.
+
+## Archivos
+
+- `programas/models/__init__.py`, `programas/migrations/0102_relevamiento_cierre_automatico_en.py`,
+  `programas/services/vencimientos.py`, `programas/views/relevamientos.py`, `programas/views/revision.py`
+- `programas/templates/programas/becas/relevamientos/relevamiento_detail.html`
+- Tests: `programas/tests/test_becas_cierre_automatico_visible.py`
+
+## Base de datos
+
+Migración `programas.0102`: columna nueva `programas_relevamiento.cerrado_automaticamente_en` `NULL` (expand puro); la reversa borra la columna.
+
+## Validación
+
+- Mutación: sin sellar la marca en el cron, sin limpiarla al volver a campo, sin el aviso de la convocatoria y
+  sin el aviso del detalle, cada una deja tests en rojo; revertido.
+- `makemigrations --check --dry-run` (sin SYNCDB): sin cambios.
+
+## Puesta en marcha en el servidor
+
+Migración `0102` con el release.
+
+## Pendientes / a definir
+
+Fila del listado y filtro por convocatoria, si el PM los quiere.
+
+## Reversión
+
+1. Bajar la release (el código viejo no lee la columna: no hay prisa ni orden entre código y base).
+2. Si hace falta, `manage.py migrate programas 0101`: borra `cerrado_automaticamente_en`.
+3. Datos que se pierden: solo la marca de cuándo cerró el cron cada relevamiento; los estados, fechas y casos no se tocan.
 
 ## Historial
 
