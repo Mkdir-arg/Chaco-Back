@@ -474,6 +474,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 346 | El login de la app de campo tarda 0,75 s de Argon2 y muere con 403 CSRF si el navegador tiene sesión | Transversal · login de la app de campo (`/api/becas/auth/token/`) | `#sesion` `#api` `#performance` | PM — medición en QA, vía el juez | 20/10/2026 | 🟢 **Hecho** | No requiere |
 | 347 | El test de capacidad concurrente usa un usuario por hilo (sesión única del backoffice) | Dispositivos · tests de concurrencia en motor real | `#sesion` | Juez del carril — rojo intermitente en «Motor real (mariadb:11)» | 20/10/2026 | 🟢 **Hecho** | — |
 | 348 | P3: el formulario del tipo va en su propia tarjeta | Dispositivos · alta y edición de institución (P3) | `#ui` | PM — prueba en testing de P3 | 20/10/2026 | 🟢 **Hecho** | no |
+| 349 | El estado INACTIVO/DESCONOCIDO en SIIS deja de pausar Becas | Becas · programas, segmentos, convocatorias, relevamientos, reporte de cupos | `#siis` `#relevamientos` `#ui` | PM — decisión del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 
 **Notas del índice**
 
@@ -45599,5 +45600,87 @@ Revertir el commit; no hay datos ni migración.
 ## Historial
 
 - **20/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 349 — El estado INACTIVO/DESCONOCIDO en SIIS deja de pausar Becas
+
+🟢 **HECHO — 21/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · programas, segmentos, convocatorias y relevamientos · selector de «Nuevo relevamiento» · reporte de cupos |
+| **Etiquetas** | `#siis` `#relevamientos` `#ui` |
+| **Solicitante** | PM — decisión del 21/10/2026, a partir de la prueba en testing (convocatoria 8, «Nuevo relevamiento») |
+| **Fecha del pedido** | 21/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | `ProgramaSiis.pausa_efectiva` · `RelevamientoForm` · reporte de cupos · textos informativos de la configuración de programas y segmentos · docstrings de `siis_sync` y del comando `sincronizar_programas_siis` |
+| **Migración** | no |
+
+## Pedido original
+
+Que un programa INACTIVO/DESCONOCIDO en SIIS deje de pausar el programa, sus segmentos, convocatorias y
+relevamientos: se pueden crear convocatorias y relevamientos, capturar desde la app y operar normalmente.
+Síntoma: en testing, desde `/becas/convocatorias/8/` → «Nuevo relevamiento», el select de convocatoria salía
+vacío (el form excluía las convocatorias de programas con estado bloqueante) y por eso el script del filtro
+territorial ocultaba todos los territoriales.
+
+## Decisiones tomadas
+
+- **Revierte en parte lo decidido en la ola SIIS** (pausa por SIIS en cascada programa → segmento →
+  subsegmento → convocatoria → relevamiento, Cambios 136/151 y SIIS-06), por decisión del PM del 21/10/2026.
+- **El freno del proceso masivo (BEC-21, Cambio 151) se mantiene**: `_sin_pausa_vigente` ya filtraba por la
+  columna `siis_programa_estado` y no por `pausa_efectiva`, así que no cambió; sus tests siguen igual.
+- **Se mantienen los avisos informativos** «SIIS inactivo» y `ProgramaSiis.siis_bloqueado` /
+  `siis_motivo_bloqueo`; solo se reescribieron los textos que decían «bloqueado para operar» para que digan lo
+  que realmente queda frenado: el alta en SIIS desde el proceso masivo.
+- `pausa_efectiva` del programa devuelve únicamente la pausa manual; la clase `BloqueoSiis` quedó sin uso y se
+  borró.
+- `RelevamientoForm` ya no excluye convocatorias por estado en SIIS (sigue excluyendo por pausa manual).
+- Reporte de cupos: el estado «Bloqueado por SIIS» pasa a «SIIS inactivo», informativo; `solo_activos` ya no
+  oculta esos segmentos (sí los pausados a mano).
+
+## Qué se cambió y qué se mantuvo
+
+- Cambió: `ProgramaSiis.pausa_efectiva` (cascada a segmento, subsegmento, convocatoria y relevamiento, y con
+  ella la API de campo, el portal público y los badges «Pausada/Pausado», que leen esa propiedad); filtro del
+  selector en `RelevamientoForm`; etiqueta del reporte de cupos.
+- Se mantuvo: exclusión del proceso masivo; badges y avisos «SIIS inactivo»; el comando de sincronización y su
+  guarda de ausencia masiva (SIIS-06), que siguen marcando el estado.
+
+## Archivos
+
+- `programas/models/__init__.py`, `programas/forms.py`, `programas/services/reportes_becas.py`,
+  `programas/services/siis_sync.py`, `programas/services/proceso_masivo.py` (solo docstring),
+  `programas/management/commands/sincronizar_programas_siis.py`
+- Templates de `becas/config/`: `_programas_table`, `_segmentos_table`, `_siis_programa_modal`,
+  `programa_detail`, `segmento_detail` (solo textos)
+- Tests: `test_siis_vigencia_programa.py` (reescritos para la conducta nueva + regresión del síntoma),
+  `test_estado_badges.py`, `test_reportes_becas.py`, `test_proceso_masivo.py` (docstring)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Mutación: reponiendo `BloqueoSiis` en `pausa_efectiva` y el filtro del form, 7 tests pasan a rojo; revertido.
+- `manage.py check`, `makemigrations --check --dry-run` (sin SYNCDB): sin cambios.
+
+## Puesta en marcha en el servidor
+
+Nada: se despliega con el release.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **21/10/2026 — alta del cambio.**
 
 ---
