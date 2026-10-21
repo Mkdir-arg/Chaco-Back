@@ -269,6 +269,9 @@ listas) no arrastra.
 - Los huecos vacíos llevan una fila `.sortable-placeholder` (filtrada del arrastre) para que se
   pueda soltar adentro. Sin `confirm()` ni recarga de página.
 - El vendor se carga en `{% block customJS %}` **antes** del JS propio.
+- Cada guardado toma primero el valor del campo `csrfmiddlewaretoken` del DOM,
+  compatible con cookies `HttpOnly`; si no hay valor, usa la cookie como fallback.
+  Ambas variantes releen el token al guardar (`JsOrdenCsrfTests`).
 - **Gotcha del CSRF:** la cookie se lee con `document.cookie.match('(^|;)\\s*' + name + …)` con
   **doble barra** (o con `new RegExp`); con una sola, `\s` es la letra «s» y el token solo se
   encuentra si `csrftoken` es la primera cookie: el POST del reordenamiento vuelve 403. Hay un test

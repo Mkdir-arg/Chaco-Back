@@ -33,6 +33,12 @@
     return m ? decodeURIComponent(m.pop()) : '';
   }
 
+  function getCsrfToken() {
+    // La cookie puede ser HttpOnly: Django también publica el token en los formularios.
+    var input = document.querySelector('[name="csrfmiddlewaretoken"]');
+    return (input && input.value) || getCookie('csrftoken');
+  }
+
   // Solo los errores van por toast (DA-2): un autoguardado exitoso no debe
   // apilar un aviso por cada soltada; su confirmación es el indicador de la página.
   function aviso(mensaje, tipo) {
@@ -137,7 +143,7 @@
         headers: {
           'Content-Type': 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRFToken': getCookie('csrftoken')
+          'X-CSRFToken': getCsrfToken()
         },
         body: JSON.stringify(recolectar(root))
       }).then(function (resp) {
@@ -319,7 +325,7 @@
         headers: {
           'Content-Type': 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRFToken': getCookie('csrftoken')
+          'X-CSRFToken': getCsrfToken()
         },
         body: JSON.stringify({
           ids: filasDe(lista).map(function (tr) { return parseInt(tr.getAttribute('data-item-id'), 10); })
