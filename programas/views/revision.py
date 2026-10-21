@@ -1344,6 +1344,7 @@ def relevamiento_terminar(request, pk):
                 messages.error(request, f"Quedan {pendientes} caso(s) sin revisar{aclaracion}.")
             else:
                 rel.estado = Relevamiento.Estado.TERMINADO
-                rel.save(update_fields=["estado", "modificado"])
+                rel.cerrado_automaticamente_en = None
+                rel.save(update_fields=["estado", "cerrado_automaticamente_en", "modificado"])
                 messages.success(request, "Relevamiento terminado.")
     return redirect("becas:revision_formularios", relevamiento_pk=rel.pk)
