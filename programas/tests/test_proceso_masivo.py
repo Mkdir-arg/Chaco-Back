@@ -820,6 +820,106 @@ class PantallaProcesoMasivoTests(_BaseProcesoTest):
         self.assertEqual(resp.context["incompatibles"], 1)
         self.assertContains(resp, "Incompatibles según SIIS")
 
+    def test_avisa_los_casos_que_deja_afuera_un_programa_inactivo_en_siis(self):
+        """BEC-21 no cambia: el masivo no los toma. Lo nuevo es que la pantalla lo dice."""
+        cache.clear()
+        self._caso()
+        self._caso()
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(siis_programa_estado=ProgramaSiis.EstadoSiis.INACTIVO)
+
+        resp = self.client.get(self._url())
+
+        self.assertEqual(resp.context["pendientes"], 0)
+        self.assertContains(resp, "2 casos no se procesan")
+        self.assertContains(resp, f"2 porque el programa «{self.programa.nombre}» figura INACTIVO en SIIS")
+        self.assertNotContains(resp, "porque están pausados")
+
+    def test_avisa_los_casos_pausados(self):
+        cache.clear()
+        self._caso()
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(pausado=True)
+
+        resp = self.client.get(self._url())
+
+        self.assertEqual(resp.context["pendientes"], 0)
+        self.assertContains(resp, "1 caso no se procesa: 1 porque están pausados.")
+        self.assertNotContains(resp, "porque el programa")
+
+    def test_un_caso_de_programa_inactivo_y_pausado_se_cuenta_una_sola_vez(self):
+        cache.clear()
+        self._caso()
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(
+            pausado=True, siis_programa_estado=ProgramaSiis.EstadoSiis.DESCONOCIDO
+        )
+
+        resp = self.client.get(self._url())
+
+        self.assertContains(resp, "1 caso no se procesa: 1 porque el programa")
+
+    def test_caso_mixto_un_siis_y_un_pausado_se_cuentan_por_separado(self):
+        """Los motivos son excluyentes: con el programa inactivo ambos son «siis»; sin eso, «pausados».
+
+        En la pantalla no puede haber las dos partidas a la vez (el estado de SIIS es del
+        programa, y la pantalla es de un programa), así que el texto mixto se prueba contra
+        ``_aviso_excluidos`` directamente en el test de abajo.
+        """
+        cache.clear()
+        self._caso()
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(siis_programa_estado=ProgramaSiis.EstadoSiis.INACTIVO)
+        otro = self._caso()
+        relevamiento = otro.relevamiento
+        type(relevamiento).objects.filter(pk=relevamiento.pk).update(pausado=True)
+
+        excluidos = proceso_masivo.excluidos_por_pausa(programa=self.programa)
+
+        # Mismo programa inactivo: ambos caen en «siis» (excluyentes, SIIS gana).
+        self.assertEqual(excluidos, {"siis": 2, "pausados": 0})
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(siis_programa_estado="")
+        self.assertEqual(proceso_masivo.excluidos_por_pausa(programa=self.programa), {"siis": 0, "pausados": 2})
+
+    def test_el_texto_mixto_parte_los_dos_motivos(self):
+        from programas.views.proceso_masivo import _aviso_excluidos
+
+        self.programa.siis_programa_estado = ProgramaSiis.EstadoSiis.INACTIVO
+        texto = _aviso_excluidos(self.programa, {"siis": 1, "pausados": 1})
+        self.assertEqual(
+            texto,
+            f"2 casos no se procesan: 1 porque el programa «{self.programa.nombre}» figura INACTIVO en SIIS"
+            " y 1 porque están pausados.",
+        )
+
+    def test_la_clave_vieja_de_dos_conteos_sigue_valiendo_y_el_aviso_va_aparte(self):
+        """Rolling deploy: la release vieja desempaqueta dos números de esta clave."""
+        cache.clear()
+        cache.set(proceso_masivo.clave_conteos(self.programa.pk), (7, 0), 60)
+        self.assertNotEqual(
+            proceso_masivo.clave_conteos(self.programa.pk), proceso_masivo.clave_excluidos(self.programa.pk)
+        )
+
+        resp = self.client.get(self._url())
+
+        self.assertEqual((resp.context["pendientes"], resp.context["incompatibles"]), (7, 0))
+        self.assertEqual(len(cache.get(proceso_masivo.clave_conteos(self.programa.pk))), 2)
+
+    def test_el_aviso_de_excluidos_se_cachea_aunque_no_haya_pendientes(self):
+        cache.clear()
+        self._caso()
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(siis_programa_estado=ProgramaSiis.EstadoSiis.INACTIVO)
+        self.client.get(self._url())
+        with patch("programas.views.proceso_masivo.servicio.excluidos_por_pausa") as calculo:
+            resp = self.client.get(self._url())
+        calculo.assert_not_called()
+        self.assertContains(resp, "1 caso no se procesa")
+
+    def test_sin_exclusiones_no_hay_aviso(self):
+        cache.clear()
+        self._caso()
+
+        resp = self.client.get(self._url())
+
+        self.assertEqual(resp.context["pendientes"], 1)
+        self.assertNotContains(resp, "no se procesa")
+
     def test_sin_la_capacidad_no_entra(self):
         """Un usuario sin la capacidad no llega, aunque sepa la URL."""
         otro = User.objects.create_user("sin_capacidad", password="x")
@@ -968,7 +1068,13 @@ class ConfirmacionProcesoMasivoTests(_BaseProcesoTest):
 
     def test_los_pendientes_viajan_sin_separador_de_miles(self):
         """El JS hace la cuenta con el número crudo; el formato va en el modal."""
-        with patch("programas.views.proceso_masivo.servicio.candidatos") as candidatos:
+        with (
+            patch("programas.views.proceso_masivo.servicio.candidatos") as candidatos,
+            patch(
+                "programas.views.proceso_masivo.servicio.excluidos_por_pausa",
+                return_value={"siis": 0, "pausados": 0},
+            ),
+        ):
             candidatos.return_value.count.return_value = 3482
             html = self.client.get(self.url).content.decode()
         self.assertIn('data-pendientes="3482"', html)

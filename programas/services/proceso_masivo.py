@@ -384,6 +384,22 @@ def _solo_los_aprobables(casos):
     )
 
 
+#: Pausa manual en cualquier nivel de la cadena. Se compara la columna ``pausado`` de
+#: cada nivel (ya unida por los ``select_related``) y no ``pausa_efectiva``, que es una
+#: propiedad de Python.
+_Q_PAUSADO = (
+    Q(relevamiento__pausado=True)
+    | Q(relevamiento__convocatoria__pausado=True)
+    | Q(relevamiento__convocatoria__segmento__pausado=True)
+    | Q(relevamiento__convocatoria__subsegmento__pausado=True)
+    | Q(relevamiento__convocatoria__segmento__programa__pausado=True)
+)
+#: Programa que SIIS declara inactivo o que no figura en su catálogo.
+_Q_SIIS_BLOQUEADO = Q(
+    relevamiento__convocatoria__segmento__programa__siis_programa_estado__in=ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES
+)
+
+
 def _sin_pausa_vigente(casos):
     """Saca los casos cuya cadena está pausada o cuyo programa está bloqueado en SIIS.
 
@@ -401,18 +417,7 @@ def _sin_pausa_vigente(casos):
     recién vinculado tiene el estado en ``""``, que no bloquea: nadie preguntó
     todavía.
     """
-    return casos.exclude(
-        Q(relevamiento__pausado=True)
-        | Q(relevamiento__convocatoria__pausado=True)
-        | Q(relevamiento__convocatoria__segmento__pausado=True)
-        | Q(relevamiento__convocatoria__subsegmento__pausado=True)
-        | Q(relevamiento__convocatoria__segmento__programa__pausado=True)
-        | Q(
-            relevamiento__convocatoria__segmento__programa__siis_programa_estado__in=(
-                ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES
-            )
-        )
-    )
+    return casos.exclude(_Q_PAUSADO | _Q_SIIS_BLOQUEADO)
 
 
 def _por_incompatibilidad(casos, *, solo_incompatibles):
@@ -510,6 +515,17 @@ def clave_conteos(programa_id):
     return f"masivo_conteos_{programa_id}"
 
 
+def clave_excluidos(programa_id):
+    """Clave de caché del aviso de excluidos, **aparte** de los conteos.
+
+    Va separada a propósito: los conteos conservan su forma de dos números, que es la que
+    lee también la release vieja durante el rolling (la caché es compartida entre pods), y
+    el cero de los pendientes sigue sin cachearse. El aviso, en cambio, es informativo y
+    se cachea siempre.
+    """
+    return f"masivo_excluidos_v2_{programa_id}"
+
+
 def invalidar_conteos(programa_id):
     """Tira los conteos cacheados de un programa.
 
@@ -519,19 +535,41 @@ def invalidar_conteos(programa_id):
     cero, que es el valor que decide si se muestra el formulario.
     """
     cache.delete(clave_conteos(programa_id))
+    cache.delete(clave_excluidos(programa_id))
 
 
-def conteos_de_la_pantalla(programa):
+def conteos_de_la_pantalla(programa, insumos=None):
     """``(pendientes, incompatibles)`` del proceso masivo, con los insumos leídos una vez.
 
     Los dos números de la pantalla (PERF-07). Van juntos porque comparten
     :class:`Insumos`: pedidos por separado, cada uno volvía a leer la planilla entera de
     DNI habilitados.
     """
-    insumos = Insumos()
+    insumos = insumos or Insumos()
     return (
         candidatos(programa=programa, insumos=insumos).count(),
         candidatos(programa=programa, solo_incompatibles=True, insumos=insumos).count(),
+    )
+
+
+def excluidos_por_pausa(*, programa, insumos=None):
+    """Casos que serían candidatos salvo por :func:`_sin_pausa_vigente`, partidos por motivo.
+
+    Devuelve ``{"siis": N, "pausados": M}``. Es el mismo universo que
+    :func:`candidatos` (``sin_pausa=False`` apaga solo esa exclusión), así que lo que
+    se avisa en la pantalla es exactamente lo que el masivo deja afuera. Los dos motivos
+    son excluyentes: un caso de un programa bloqueado en SIIS cuenta como ``siis`` aunque
+    además esté pausado. Una sola consulta, con los dos conteos como ``FILTER``.
+
+    Este aviso es informativo: la exclusión es decisión registrada (BEC-21) y no se toca.
+    """
+    return (
+        candidatos(programa=programa, insumos=insumos, sin_pausa=False)
+        .filter(_Q_PAUSADO | _Q_SIIS_BLOQUEADO)
+        .aggregate(
+            siis=Count("pk", filter=_Q_SIIS_BLOQUEADO),
+            pausados=Count("pk", filter=_Q_PAUSADO & ~_Q_SIIS_BLOQUEADO),
+        )
     )
 
 
@@ -547,6 +585,7 @@ def candidatos(
     excluir_no_enviar=True,
     solo_incompatibles=False,
     insumos=None,
+    sin_pausa=True,
 ):
     """Casos que todavía no se informaron a SIIS.
 
@@ -635,9 +674,10 @@ def candidatos(
     casos = casos.exclude(Q(conflicto_duplicado=True) & Q(conflicto_resuelto=False)).exclude(
         cargas_en_conflicto__conflicto_resuelto=False
     )
-    casos = _por_incompatibilidad(
-        _sin_pausa_vigente(_solo_los_aprobables(casos)), solo_incompatibles=solo_incompatibles
-    )
+    casos = _solo_los_aprobables(casos)
+    if sin_pausa:
+        casos = _sin_pausa_vigente(casos)
+    casos = _por_incompatibilidad(casos, solo_incompatibles=solo_incompatibles)
     # Solo el ENVIADO: un APROBADO con una fila de espera colgando (datos previos
     # a la regla) igual tiene que informarse a SIIS.
     casos = casos.exclude(estado=Formulario.Estado.ENVIADO, lista_espera__promovido=False)
