@@ -7,11 +7,10 @@ y avisar, al extender la convocatoria, que no vuelven solos a campo.
 
 from datetime import timedelta
 
+from django.contrib.auth.models import Group, User
 from django.contrib.messages import get_messages
 from django.urls import reverse
 from django.utils import timezone
-
-from django.contrib.auth.models import Group, User
 
 from programas.management.commands.seed_becas import ROL_COORDINADOR, ROL_REFERENTE
 from programas.models import AsignacionCoordinador, AsignacionReferente, Relevamiento
