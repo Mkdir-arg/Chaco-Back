@@ -54,6 +54,7 @@ from programas.selectors.revision import (
 from programas.services.autorizacion import (
     assert_alcance_formulario,
     assert_alcance_relevamiento,
+    aviso_sin_segmentos_becas,
     convocatorias_visibles,
     es_admin_becas,
     programa_becas,
@@ -408,6 +409,7 @@ class RevisionPersonasListView(CapacidadRequeridaMixin, LoginRequiredMixin, List
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["estados"] = Formulario.Estado.choices
+        ctx["aviso_sin_segmentos"] = aviso_sin_segmentos_becas(self.request.user)
         ctx["estado_actual"] = self.request.GET.get("estado", "")
         ctx["filtro_nombre"] = self.request.GET.get("nombre", "")
         ctx["filtro_apellido"] = self.request.GET.get("apellido", "")
