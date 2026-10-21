@@ -328,6 +328,49 @@ document.cookie = '';
 
 
 @requiere_node
+class JsOrdenCsrfTests(SimpleTestCase):
+    def test_envia_token_del_formulario_con_cookie_httponly_y_relee_al_guardar(self):
+        self._comprobar_tokens("", "token-dom", ["token-dom", "token-renovado"])
+
+    def test_prioriza_formulario_sobre_cookie(self):
+        self._comprobar_tokens("csrftoken=token-cookie", "token-dom", ["token-dom", "token-renovado"])
+
+    def test_conserva_fallback_a_cookie_sin_campo_oculto(self):
+        self._comprobar_tokens("sessionid=x; csrftoken=token-cookie", None, ["token-cookie", "token-cookie"])
+
+    def _comprobar_tokens(self, cookie, token, esperados):
+        script = (Path(settings.BASE_DIR) / "static/custom/js/nodo-catalogo-grupos.js").read_text(encoding="utf-8")
+        for agrupado in (True, False):
+            with self.subTest(agrupado=agrupado):
+                acciones = (
+                    _DOM_FALSO
+                    + f"""
+document.cookie = {json.dumps(cookie)};
+var __token = {json.dumps(None if token is None else {"value": token})};
+var __lista = __contenedor({{'data-puede-ordenar': '1', 'data-url-reordenar': '/orden/'}}, []);
+__lista.querySelectorAll = function () {{ return []; }};
+document.querySelector = function (sel) {{
+  if (sel === '[name="csrfmiddlewaretoken"]') return __token;
+  return sel === '[data-sortable-grupos]' && {json.dumps(agrupado)} ? __lista : null;
+}};
+document.querySelectorAll = function (sel) {{
+  return sel === '[data-sortable-lista]' && !{json.dumps(agrupado)} ? [__lista] : [];
+}};
+__log.tokens = [];
+fetch = function (url, opciones) {{
+  __log.tokens.push(opciones.headers['X-CSRFToken']);
+  return new Promise(function () {{}});
+}};
+__disparar('document', 'DOMContentLoaded');
+__ops[0].onEnd({{oldIndex: 0, newIndex: 1}});
+if (__token) __token.value = 'token-renovado';
+__ops[0].onEnd({{oldIndex: 1, newIndex: 0}});
+"""
+                )
+                self.assertEqual(correr_script_pagina(script, acciones)["tokens"], esperados)
+
+
+@requiere_node
 class JsListaRevierteSiFallaTests(SimpleTestCase):
     """Si el guardado falla, la pantalla vuelve al orden que vino del servidor
     (hallazgo del revisor del PR #822): no queda mostrando un orden no guardado."""
