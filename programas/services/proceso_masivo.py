@@ -538,14 +538,14 @@ def invalidar_conteos(programa_id):
     cache.delete(clave_excluidos(programa_id))
 
 
-def conteos_de_la_pantalla(programa):
+def conteos_de_la_pantalla(programa, insumos=None):
     """``(pendientes, incompatibles)`` del proceso masivo, con los insumos leídos una vez.
 
     Los dos números de la pantalla (PERF-07). Van juntos porque comparten
     :class:`Insumos`: pedidos por separado, cada uno volvía a leer la planilla entera de
     DNI habilitados.
     """
-    insumos = Insumos()
+    insumos = insumos or Insumos()
     return (
         candidatos(programa=programa, insumos=insumos).count(),
         candidatos(programa=programa, solo_incompatibles=True, insumos=insumos).count(),
