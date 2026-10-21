@@ -18,6 +18,10 @@
     {% endif %}
   {% endpage_header %}
 
+  {% if aviso_cierre_automatico %}
+  {% include "components/_alerta.html" with tono="info" icono="clock" texto=aviso_cierre_automatico %}
+  {% endif %}
+
   {# Pestañas #}
   <div class="bg-white rounded-xl border border-base shadow-sm">
     <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones del relevamiento">
