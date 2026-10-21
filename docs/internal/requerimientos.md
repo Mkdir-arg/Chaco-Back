@@ -476,6 +476,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 348 | P3: el formulario del tipo va en su propia tarjeta | Dispositivos · alta y edición de institución (P3) | `#ui` | PM — prueba en testing de P3 | 20/10/2026 | 🟢 **Hecho** | no |
 | 349 | El estado INACTIVO/DESCONOCIDO en SIIS deja de pausar Becas | Becas · programas, segmentos, convocatorias, relevamientos, reporte de cupos | `#siis` `#relevamientos` `#ui` | PM — decisión del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 | 350 | Pillow 13.0.0: «Pip Audit» vuelve a verde por las 8 CVEs de pillow 12.3.0 | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (21/10/2026) | 21/10/2026 | 🟢 **Hecho** | No requiere |
+| 351 | Becas: aviso cuando el usuario con rol acotado no tiene segmentos asignados | Becas · listados de convocatorias, relevamientos y revisión | `#ui` `#rbac` | Juez del carril — pedido de aviso, 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 | 352 | «Nuevo relevamiento» avisa por qué no se puede crear o a quién asignar | Becas · detalle de convocatoria, alta de relevamiento | `#relevamientos` `#ui` `#pausas` | PM — prueba en testing del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 
 **Notas del índice**
@@ -45748,6 +45749,69 @@ Ninguno.
 ## Reversión
 
 Volver el pin a `Pillow==12.3.0`; no hay datos ni migración (el check de «Pip Audit» vuelve a rojo).
+
+## Historial
+
+- **21/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 351 — Becas avisa cuando el usuario con rol acotado no tiene segmentos asignados
+
+🟢 **HECHO — 21/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · listados de convocatorias, relevamientos y revisión de casos |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | Juez del carril — pedido de aviso, 21/10/2026 |
+| **Fecha del pedido** | 21/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | `programas/services/autorizacion.py` (`aviso_sin_segmentos_becas`) · `ConvocatoriaListView` · `RelevamientoListView` · `RevisionPersonasListView` y sus templates |
+| **Migración** | no |
+
+## Pedido original
+
+Coordinador, referente y coordinador regional sin asignación vigente (`AsignacionCoordinador` inexistente o
+inactiva, referente sin coordinador, regional sin `Subsegmento.referente`) veían todos los listados de Becas
+vacíos, sin saber por qué. Solo había que avisar.
+
+## Decisiones tomadas
+
+- El helper `aviso_sin_segmentos_becas(user)` reusa `segmentos_visibles`: devuelve el texto (motivo + acción según el
+  rol: coordinador → asignarlo en el segmento; regional → designarlo referente del subsegmento; referente →
+  asignarle coordinador o segmentos al suyo) o `""` para admin, superusuario, usuarios sin rol de gestión y quienes sí tienen segmentos.
+- Se muestra con el componente `_estado_vacio.html` existente, antes de la variante «con filtros» (con filtros
+  o sin ellos, la causa es la misma). Sin include ni clase nuevos.
+- **No cambia ningún alcance ni los 403** de acceso a un segmento ajeno. No toca la visibilidad del regional
+  (Cambios 18 y 26) ni los roles que no se combinan (Cambio 333).
+
+## Archivos
+
+- `programas/services/autorizacion.py`, `programas/views/relevamientos.py`, `programas/views/revision.py`
+- Templates: `relevamientos/_convocatorias_table.html`, `relevamientos/relevamiento_list.html`,
+  `revision/personas_list.html`
+- Test: `programas/tests/test_becas_aviso_sin_segmentos.py`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Mutación: con el aviso fuera del template y con el helper siempre vacío los tests pasan a rojo; revertido.
+
+## Puesta en marcha en el servidor
+
+Nada: se despliega con el release.
+
+## Pendientes / a definir
+
+Los listados de configuración (segmentos) y los casos de un relevamiento puntual no llevan el aviso.
+
+## Reversión
+
+Revertir el commit.
 
 ## Historial
 

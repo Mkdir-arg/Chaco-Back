@@ -404,3 +404,15 @@ conteos globales, sin gate de capacidad, y cada una cuenta lo que dice su rótul
 activos» agrega `LegajoAtencion` con la regla de `legajos.selectors.legajos`, la misma que usa
 `/legajos/reportes/`. Siguen armadas a mano —`_stat_card.html` no tiene pie de tarjeta—, y
 migrarlas necesita OK: es la misma novedad que frena los KPIs del dashboard de Becas.
+
+## Listados sin segmentos asignados
+
+Coordinador, referente y coordinador regional sin asignación vigente ven los listados vacíos por el alcance, no
+porque no haya datos. Convocatorias, relevamientos y la bandeja de revisión (`personas_list.html`, golden del
+Listado) agregan **una rama** al estado vacío, antes de la variante con filtros:
+`{% elif aviso_sin_segmentos %}` → `_estado_vacio.html` con `icono="fa-user-lock"`, el título «Tu usuario no tiene
+segmentos asignados en Becas» y `texto=aviso_sin_segmentos`. El texto sale de
+`autorizacion.aviso_sin_segmentos_becas(user)`, que reusa `segmentos_visibles` y devuelve `""` para admin,
+superusuario y quien sí tiene segmentos. El texto nombra la acción según el rol (coordinador: «Asignar coordinador» en el
+segmento; regional: «Referente asignado» del subsegmento; referente: «Coordinador del Referente» en el usuario, o
+segmentos para su coordinador). Es informativo: no cambia el alcance ni los 403.
