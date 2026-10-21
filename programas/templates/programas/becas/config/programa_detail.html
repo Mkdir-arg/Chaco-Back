@@ -65,8 +65,8 @@
   <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="alert">
     <strong class="text-heading">Cambio informado por SIIS</strong>
     <p class="text-body mt-1">
-      {{ programa.siis_motivo_bloqueo }} El programa y todos sus segmentos quedaron bloqueados para operar:
-      no se pueden cargar ni editar relevamientos, y sus convocatorias desaparecen del selector.
+      {{ programa.siis_motivo_bloqueo }} Sus casos no se aprueban ni se dan de alta en SIIS
+      desde el proceso masivo. El programa sigue operando con normalidad.
     </p>
     {% if programa.siis_verificado_en %}
     <p class="text-body-subtle mt-1">Detectado el {{ programa.siis_verificado_en|date:"d/m/Y H:i" }}.</p>

@@ -5,9 +5,9 @@ La corre ``manage.py sincronizar_programas_siis``. Contrasta el
 de SIIS: con ``estado=ACTIVO`` un programa dado de baja simplemente desaparece
 de la respuesta y no se distingue de una lista incompleta.
 
-Cuando un programa deja de estar vigente queda bloqueado para operar y el
-bloqueo cascadea a todos sus segmentos (ver ``ProgramaSiis.pausa_efectiva``);
-la baja se informa en pantalla.
+Cuando un programa deja de estar vigente la baja se informa en pantalla y se
+frena el alta en SIIS / el proceso masivo; ya no pausa el programa, sus
+segmentos, convocatorias ni relevamientos (decisión del PM, 21-oct-2026).
 
 Esa ambigüedad —baja y error del servicio se ven igual— es lo que obliga a la
 guarda de SIIS-06: el catálogo vacío no se escribe nunca, y una ausencia que

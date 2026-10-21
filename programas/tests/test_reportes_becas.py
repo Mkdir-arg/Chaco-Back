@@ -120,13 +120,14 @@ class ReportesBecasTests(TestCase):
         usuario.groups.add(grupo)
         return usuario
 
-    def test_solo_activos_excluye_pausados_y_bloqueados_por_siis(self):
+    def test_solo_activos_excluye_pausados_pero_no_los_de_siis_inactivo(self):
         reporte = reporte_cupos(self.admin, solo_activos=True)
-        nombres = {fila[0] for fila in reporte.filas}
+        estados = {fila[0]: fila[-1] for fila in reporte.filas}
 
-        self.assertIn(self.segmento.nombre, nombres)
-        self.assertNotIn(self.segmento_pausado.nombre, nombres)
-        self.assertNotIn(self.segmento_bloqueado.nombre, nombres)
+        self.assertEqual(estados[self.segmento.nombre], "Activo")
+        self.assertNotIn(self.segmento_pausado.nombre, estados)
+        # SIIS inactivo ya no pausa: el segmento sigue en el reporte, con estado informativo.
+        self.assertEqual(estados[self.segmento_bloqueado.nombre], "SIIS inactivo")
 
     def test_regional_no_contabiliza_cupo_ni_personas_del_subsegmento_ajeno(self):
         propios = [self._formulario(self.rel_propio, Formulario.Estado.APROBADO) for _ in range(2)]

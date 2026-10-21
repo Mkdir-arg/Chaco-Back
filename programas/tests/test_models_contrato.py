@@ -103,14 +103,12 @@ TABLAS = {
 }
 
 # Lo que el paquete expone además de los modelos: mixins, querysets, managers, enums,
-# constantes del dominio y `BloqueoSiis`, que es una clase plana (duck-type de
-# `PausableMixin`, no un modelo). `Ciudadano`, `Group`, `User`, `Path`, `TimeStamped`,
+# constantes del dominio. `Ciudadano`, `Group`, `User`, `Path`, `TimeStamped`,
 # `ValidationError` y los dos validadores son **imports que se filtran** al namespace;
 # hoy nadie los importa desde acá (se verificó sobre los 320 `from … import` del repo),
 # así que un corte puede dejarlos afuera a propósito. Si este test se pone rojo por uno
 # de ellos, la pregunta es si fue deliberado, no si hay que agregarlo de vuelta.
 OTROS_NOMBRES_PUBLICOS = {
-    "BloqueoSiis",
     "CARACTERES_SIN_TEXTO",
     "CanalFormulario",
     "Ciudadano",

@@ -1,13 +1,13 @@
 {% load becas_extras %}
 {% load rbac %}
 {% if programas_bloqueados_siis %}
-{# SIIS dio de baja estos programas: ellos y todos sus segmentos quedan bloqueados. #}
+{# SIIS dio de baja estos programas: el proceso masivo no da de alta sus casos. #}
 <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" style="margin:16px" role="alert">
   <strong class="text-heading">Cambio informado por SIIS</strong>
   <p class="text-body mt-1">
     {{ programas_bloqueados_siis|length }} programa{{ programas_bloqueados_siis|length|pluralize }} dejó de estar
-    vigente en SIIS. El programa y todos sus segmentos quedan bloqueados para operar: no se pueden cargar ni editar
-    relevamientos hasta que SIIS lo reactive.
+    vigente en SIIS. No se aprueban ni se dan de alta sus casos en SIIS desde el proceso masivo hasta que SIIS lo
+    reactive. Los programas siguen operando con normalidad.
   </p>
   <ul class="mt-2 space-y-1">
     {% for p in programas_bloqueados_siis %}

@@ -68,25 +68,6 @@ class PausableMixin(models.Model):
         return self if self.pausado else None
 
 
-class BloqueoSiis:
-    """Bloqueo derivado del estado del programa en SIIS.
-
-    Duck-type de :class:`PausableMixin`: los consumidores de ``pausa_efectiva``
-    solo leen ``pausa_motivo``, así que el bloqueo por SIIS viaja por la misma
-    cadena (segmento → subsegmento → convocatoria → relevamiento, backoffice y
-    app de campo) sin tocar el campo ``pausado``, que es una acción manual con
-    autor y trazabilidad propia.
-    """
-
-    pausado = True
-
-    def __init__(self, motivo):
-        self.pausa_motivo = motivo
-
-    def __str__(self):
-        return self.pausa_motivo
-
-
 class RegistroPausa(TimeStamped):
     class Accion(models.TextChoices):
         PAUSAR = "PAUSAR", "Pausar"
@@ -2707,12 +2688,13 @@ class ProgramaSiis(PausableMixin, TimeStamped):
 
     @property
     def pausa_efectiva(self):
-        """Pausa manual o, si no, bloqueo automático por el estado en SIIS."""
-        if self.pausado:
-            return self
-        if self.siis_bloqueado:
-            return BloqueoSiis(self.siis_motivo_bloqueo)
-        return None
+        """Solo la pausa manual.
+
+        El estado en SIIS (``siis_bloqueado``) ya no pausa nada: es informativo y
+        frena únicamente el alta en SIIS / el proceso masivo (decisión del PM,
+        21-oct-2026).
+        """
+        return self if self.pausado else None
 
 
 class Segmento(PausableMixin, TimeStamped):
