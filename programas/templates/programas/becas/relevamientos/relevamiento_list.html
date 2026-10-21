@@ -122,6 +122,8 @@
       </table>
     </div>
     {% include "components/_paginacion.html" with page_obj=page_obj entidad="relevamiento" %}
+    {% elif aviso_sin_segmentos %}
+    {% include "components/_estado_vacio.html" with icono="fa-user-lock" titulo="Tu usuario no tiene segmentos asignados en Becas" texto=aviso_sin_segmentos %}
     {% elif request.GET|hay_filtros %}
     {% url 'becas:relevamientos' as url_limpiar %}
     {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún relevamiento coincide con los filtros" texto="Probá con otro estado, segmento o territorial, o limpiá los filtros para ver todos." accion_url=url_limpiar %}

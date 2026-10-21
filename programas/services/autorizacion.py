@@ -276,6 +276,41 @@ def segmentos_visibles(user, programa=None):
     return Segmento.objects.none()
 
 
+def aviso_sin_segmentos_becas(user, programa=None):
+    """Por qué un usuario con rol acotado de Becas no ve datos, o ``""`` si no aplica.
+
+    Coordinador, referente y coordinador regional ven Becas a través de
+    :func:`segmentos_visibles`. Con el rol pero sin asignación vigente esa lista es vacía y
+    todos los listados salen en blanco, sin explicar por qué. Devuelve el texto para el estado
+    vacío (motivo + qué hacer); ``""`` para el admin, el superusuario, quien no tiene rol de
+    gestión de Becas y quien sí tiene segmentos. Solo avisa: no cambia ningún alcance.
+    """
+    if user is None or not getattr(user, "is_authenticated", False):
+        return ""
+    programa = programa or programa_becas(user)
+    if programa is None or es_admin_becas(user, programa=programa):
+        return ""
+    if es_referente_becas(user, programa=programa):
+        try:
+            user.asignacion_referente
+        except ObjectDoesNotExist:
+            motivo = "sos referente y no tenés un coordinador asignado"
+        else:
+            motivo = "sos referente y el coordinador al que respondés no tiene segmentos asignados"
+    elif es_coordinador_regional_becas(user, programa=programa):
+        motivo = "sos coordinador regional y no tenés ningún subsegmento a tu cargo"
+    elif rbac.puede_alguna(user, CAPS_GESTION, programa=programa):
+        motivo = "sos coordinador y no tenés ningún segmento asignado"
+    else:
+        return ""
+    if segmentos_visibles(user, programa=programa).exists():
+        return ""
+    return (
+        f"No ves datos porque {motivo}. "
+        "Pedile al administrador que te asigne uno (Usuarios → tu usuario → segmento)."
+    )
+
+
 def subsegmentos_visibles(user, programa=None):
     """Queryset de ``Subsegmento`` cuyo segmento el usuario puede gestionar/revisar.
 

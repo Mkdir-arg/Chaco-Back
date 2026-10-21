@@ -35,6 +35,7 @@ from programas.forms import (
 from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento, q_con_identidad
 from programas.services.autorizacion import (
     assert_alcance_relevamiento,
+    aviso_sin_segmentos_becas,
     convocatorias_visibles,
     programa_becas,
     puede_exportar_convocatoria,
@@ -160,6 +161,7 @@ def _contexto_convocatorias(request):
         "page_obj": pagina,
         "paginator": pagina.paginator,
         "is_paginated": pagina.has_other_pages(),
+        "aviso_sin_segmentos": aviso_sin_segmentos_becas(request.user),
     }
 
 
@@ -245,6 +247,7 @@ class ConvocatoriaListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
         )
         form.fields["segmento"].queryset = segmentos_visibles(self.request.user)
         ctx["form_convocatoria"] = form
+        ctx["aviso_sin_segmentos"] = aviso_sin_segmentos_becas(self.request.user)
         return ctx
 
 
@@ -655,6 +658,7 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
         territoriales = usuarios_territoriales_becas().filter(asignacion_territorial__segmento__in=segmentos)
         ctx["estados"] = Relevamiento.Estado.choices
         ctx["segmentos"] = segmentos
+        ctx["aviso_sin_segmentos"] = aviso_sin_segmentos_becas(self.request.user)
         ctx["filtros"] = {
             "q": self.request.GET.get("q", ""),
             "estado": self.request.GET.get("estado", ""),
