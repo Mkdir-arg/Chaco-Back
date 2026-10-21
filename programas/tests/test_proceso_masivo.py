@@ -825,9 +825,7 @@ class PantallaProcesoMasivoTests(_BaseProcesoTest):
         cache.clear()
         self._caso()
         self._caso()
-        ProgramaSiis.objects.filter(pk=self.programa.pk).update(
-            siis_programa_estado=ProgramaSiis.EstadoSiis.INACTIVO
-        )
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(siis_programa_estado=ProgramaSiis.EstadoSiis.INACTIVO)
 
         resp = self.client.get(self._url())
 
