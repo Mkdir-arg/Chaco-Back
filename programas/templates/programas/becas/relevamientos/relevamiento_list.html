@@ -157,6 +157,14 @@
             <span x-show="tipoRel==='PUBLICO'" x-cloak>Se generará un link público al guardar. El relevamiento queda <strong>En curso</strong> hasta su fecha de fin y no requiere territorial ni municipio/localidad.</span>
             {% endif %}
           </div>
+          {% if form_crear.sin_convocatorias %}
+            {% if request.user|puede:"becas.convocatoria.ver" %}
+            {% url 'becas:convocatorias' as url_convocatorias %}
+            {% include "components/_alerta.html" with tono="danger" titulo="No hay convocatorias abiertas" texto="No hay convocatorias abiertas para crear relevamientos: revisá si están pausadas o vencidas." accion_url=url_convocatorias accion_texto="Ver convocatorias" %}
+            {% else %}
+            {% include "components/_alerta.html" with tono="danger" titulo="No hay convocatorias abiertas" texto="No hay convocatorias abiertas para crear relevamientos: revisá si están pausadas o vencidas." %}
+            {% endif %}
+          {% endif %}
           {% if form_crear.non_field_errors %}
             <div class="rounded-lg bg-danger-soft border border-danger-subtle p-4 text-sm text-fg-danger" role="alert">{{ form_crear.non_field_errors }}</div>
           {% endif %}
