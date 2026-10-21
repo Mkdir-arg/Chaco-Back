@@ -82,14 +82,14 @@ def reporte_cupos(user, *, segmento_id=None, solo_activos=False):
         distribuido = distribuido_por_segmento.get(segmento.pk, 0)
         ocupado = ocupado_por_segmento.get(segmento.pk, 0)
         espera = espera_por_segmento.get(segmento.pk, 0)
-        programa_estado = (segmento.programa.siis_programa_estado or "").upper() if segmento.programa_id else ""
-        if programa_estado and programa_estado != "ACTIVO":
-            estado = "Bloqueado por SIIS"
-        elif segmento.pausa_efectiva:
+        if segmento.pausa_efectiva:
             estado = "Pausado"
+        elif segmento.programa_id and segmento.programa.siis_bloqueado:
+            # Informativo: SIIS ya no pausa, pero el proceso masivo no da de alta sus casos.
+            estado = "SIIS inactivo"
         else:
             estado = "Activo"
-        if solo_activos and estado != "Activo":
+        if solo_activos and estado == "Pausado":
             continue
         cupo_maximo = distribuido if alcance_regional else segmento.cupo_maximo
         filas.append(

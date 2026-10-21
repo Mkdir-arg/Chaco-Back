@@ -1,9 +1,9 @@
 """Vigencia del programa SIIS (Programa → Segmento → Subsegmento).
 
 Cubre el ciclo completo: se congela el detalle al vincular el programa, la
-sincronización detecta la baja en SIIS y el programa —con todos sus
-segmentos— queda bloqueado para operar. También la pausa manual del programa,
-que cascadea igual.
+sincronización detecta la baja en SIIS (informativo: ya NO pausa nada, decisión
+del PM del 21-oct-2026; solo frena el alta en SIIS / el proceso masivo). La
+pausa manual del programa sí cascada.
 """
 
 import json
@@ -225,22 +225,35 @@ class BloqueoPorSiisTests(TestCase):
         self.assertIsNone(self.segmento.pausa_efectiva)
         self.assertTrue(self.relevamiento.habilitado_en(date(2026, 8, 7)))
 
-    def test_programa_inactivo_bloquea_y_explica_el_motivo(self):
+    def test_programa_inactivo_no_pausa_pero_el_motivo_informativo_sigue(self):
         self._marcar_inactivo()
 
-        pausa = self.segmento.pausa_efectiva
-        self.assertIsNotNone(pausa)
-        self.assertIn("Fuego y Barro", pausa.pausa_motivo)
-        self.assertIn("INACTIVO", pausa.pausa_motivo)
+        self.assertIsNone(self.programa.pausa_efectiva)
+        self.assertIsNone(self.segmento.pausa_efectiva)
+        self.assertIsNone(self.subsegmento.pausa_efectiva)
+        self.assertTrue(self.programa.siis_bloqueado)
+        self.assertIn("Fuego y Barro", self.programa.siis_motivo_bloqueo)
+        self.assertIn("INACTIVO", self.programa.siis_motivo_bloqueo)
 
-    def test_el_bloqueo_cascadea_hasta_el_relevamiento(self):
+    def test_programa_desconocido_tampoco_pausa(self):
+        self.programa.siis_programa_estado = ProgramaSiis.EstadoSiis.DESCONOCIDO
+        self.programa.save(update_fields=["siis_programa_estado", "modificado"])
+
+        self.assertIsNone(self.segmento.pausa_efectiva)
+        self.assertTrue(self.programa.siis_bloqueado)
+
+    def test_programa_inactivo_no_pausa_convocatoria_ni_relevamiento(self):
         self._marcar_inactivo()
+        convocatoria = Convocatoria.objects.select_related("segmento__programa", "subsegmento").get(
+            pk=self.convocatoria.pk
+        )
         relevamiento = Relevamiento.objects.select_related("convocatoria__segmento__programa").get(
             pk=self.relevamiento.pk
         )
 
-        self.assertIsNotNone(relevamiento.pausa_efectiva)
-        self.assertFalse(relevamiento.habilitado_en(date(2026, 8, 7)))
+        self.assertIsNone(convocatoria.pausa_efectiva)
+        self.assertIsNone(relevamiento.pausa_efectiva)
+        self.assertTrue(relevamiento.habilitado_en(date(2026, 8, 7)))
 
     def test_la_pausa_manual_del_programa_cascadea_a_los_segmentos(self):
         self.programa.pausado = True
@@ -263,14 +276,14 @@ class BloqueoPorSiisTests(TestCase):
         historico = Segmento.objects.create(nombre="Histórico", cupo_maximo=10)
         self.assertIsNone(historico.pausa_efectiva)
 
-    def test_la_convocatoria_sale_del_selector_de_relevamientos(self):
-        form = RelevamientoForm()
-        self.assertIn(self.convocatoria, form.fields["convocatoria"].queryset)
+    def test_la_convocatoria_sigue_en_el_selector_de_relevamientos_con_programa_inactivo(self):
+        for estado in ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES:
+            with self.subTest(estado=estado):
+                self.programa.siis_programa_estado = estado
+                self.programa.save(update_fields=["siis_programa_estado", "modificado"])
 
-        self._marcar_inactivo()
-
-        form = RelevamientoForm()
-        self.assertNotIn(self.convocatoria, form.fields["convocatoria"].queryset)
+                form = RelevamientoForm()
+                self.assertIn(self.convocatoria, form.fields["convocatoria"].queryset)
 
     def test_la_pausa_manual_del_programa_tambien_saca_la_convocatoria(self):
         self.programa.pausado = True
@@ -278,6 +291,38 @@ class BloqueoPorSiisTests(TestCase):
 
         form = RelevamientoForm()
         self.assertNotIn(self.convocatoria, form.fields["convocatoria"].queryset)
+
+
+class NuevoRelevamientoConProgramaInactivoTests(TestCase):
+    """Síntoma del 21-oct-2026: con el programa INACTIVO en SIIS, «Nuevo relevamiento»
+    desde el detalle de la convocatoria traía el select de convocatoria vacío."""
+
+    def test_el_form_del_detalle_incluye_la_convocatoria_y_el_territorial(self):
+        from django.contrib.auth.models import Group
+        from django.core.cache import cache
+        from django.urls import reverse
+
+        from programas.management.commands.seed_becas import ROL_TERRITORIAL
+        from programas.models import AsignacionTerritorial
+
+        cache.clear()
+        call_command("seed_becas", stdout=StringIO())
+        programa = crear_programa(siis_programa_estado=ProgramaSiis.EstadoSiis.INACTIVO)
+        segmento = Segmento.objects.create(programa=programa, nombre="Seg inactivo", cupo_maximo=100)
+        convocatoria = Convocatoria.objects.create(
+            nombre="Conv inactivo", segmento=segmento, fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31)
+        )
+        territorial = User.objects.create_user("terri-siis-inactivo", password="x")
+        territorial.groups.add(Group.objects.get(name=ROL_TERRITORIAL))
+        AsignacionTerritorial.objects.create(segmento=segmento, territorial=territorial)
+        self.client.force_login(User.objects.create_superuser("super-siis-inactivo", password="x"))
+
+        response = self.client.get(reverse("becas:convocatoria_detalle", args=[convocatoria.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        form = response.context["form_crear"]
+        self.assertIn(convocatoria, form.fields["convocatoria"].queryset)
+        self.assertIn(territorial, form.fields["territorial"].queryset)
 
 
 class ListadoDeProgramasTests(TestCase):

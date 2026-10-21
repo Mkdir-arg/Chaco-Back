@@ -246,9 +246,10 @@ class CandidatosTests(_BaseProcesoTest):
     def test_no_toma_casos_de_un_programa_bloqueado_en_siis(self):
         """BEC-21, la parte que esperaba a SIIS-06.
 
-        ``INACTIVO`` y ``DESCONOCIDO`` bloquean el programa en toda la pantalla
-        (``ProgramaSiis.pausa_efectiva``) y el masivo era el único camino que
-        seguía aprobando e informando. No se podía cerrar antes porque un
+        ``INACTIVO`` y ``DESCONOCIDO`` frenan el alta en SIIS: el masivo no aprueba
+        ni informa esos casos. Desde el 21-oct-2026 el estado en SIIS ya no pausa
+        la pantalla (``ProgramaSiis.pausa_efectiva`` solo mira la pausa manual),
+        así que esta exclusión mira el estado explícitamente. No se podía cerrar antes porque un
         catálogo vacío dejaba **todos** los programas en ``DESCONOCIDO`` y esta
         exclusión habría frenado el masivo entero por un error de SIIS; con
         SIIS-06 cerrado, un ``DESCONOCIDO`` vuelve a significar lo que dice.

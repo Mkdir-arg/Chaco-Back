@@ -77,8 +77,8 @@
   <div class="rounded-lg bg-warning-soft border border-warning-subtle p-4 text-sm" role="alert">
     <strong class="text-heading">Cambio informado por SIIS</strong>
     <p class="text-body mt-1">
-      {{ segmento.programa.siis_motivo_bloqueo }} El segmento quedó bloqueado para operar: no se pueden cargar ni
-      editar relevamientos, y tampoco aparece en el selector de convocatorias.
+      {{ segmento.programa.siis_motivo_bloqueo }} Los casos de este segmento no se aprueban ni se dan de alta en
+      SIIS desde el proceso masivo. El segmento sigue operando con normalidad.
     </p>
     {% if segmento.programa.siis_verificado_en %}
     <p class="text-body-subtle mt-1">Detectado el {{ segmento.programa.siis_verificado_en|date:"d/m/Y H:i" }}.</p>

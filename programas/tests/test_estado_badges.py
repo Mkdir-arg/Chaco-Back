@@ -180,9 +180,8 @@ class PausableEstadoBadgeTests(SimpleTestCase):
         self.assertEqual(self.render(programa), [("warning", "Pausado", True)])
         self.assertEqual(self.render(programa, solo_manual=True), [("warning", "Pausado", True)])
 
-    def test_programa_bloqueado_por_siis_depende_de_solo_manual(self):
+    def test_programa_inactivo_en_siis_no_se_marca_pausado(self):
         programa = ProgramaSiis(nombre="P", siis_programa_id=1, siis_programa_estado="INACTIVO")
-        # pausa_efectiva incluye el bloqueo por SIIS...
-        self.assertEqual(self.render(programa), [("warning", "Pausado", True)])
-        # ...pero las pantallas de programa lo muestran aparte: solo_manual mira solo `pausado`.
+        # El estado en SIIS ya no pausa (21-oct-2026): ni pausa_efectiva ni solo_manual lo marcan.
+        self.assertEqual(self.render(programa), [("success", "Activo", True)])
         self.assertEqual(self.render(programa, solo_manual=True), [("success", "Activo", True)])

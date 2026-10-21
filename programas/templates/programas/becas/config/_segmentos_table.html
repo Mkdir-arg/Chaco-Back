@@ -56,7 +56,7 @@
             con la pausa efectiva, un programa bloqueado marcaría dos veces lo mismo.
             `programa` viene con select_related (_segmentos_qs), así que no consulta por fila.{% endcomment %}
             {% include "programas/becas/_pausable_estado_badge.html" with objeto=s solo_manual=True %}
-            {# El bloqueo por SIIS baja del programa: otra dimensión que el activo local. #}
+            {# El estado en SIIS baja del programa: informativo, no pausa. #}
             {% if s.programa.siis_bloqueado %}
               <span class="badge badge-warning badge-dot" title="{{ s.programa.siis_motivo_bloqueo }}">SIIS inactivo</span>
             {% endif %}

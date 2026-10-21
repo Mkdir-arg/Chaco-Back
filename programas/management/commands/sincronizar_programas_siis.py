@@ -91,7 +91,9 @@ class Command(BaseCommand):
                 f"{prefijo}{programa.nombre} (programa SIIS #{programa.siis_programa_id}): {anterior or '—'} → {nuevo}"
             )
             if nuevo in ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES:
-                self.stdout.write(self.style.WARNING(f"{linea} — el programa y sus segmentos quedan bloqueados."))
+                self.stdout.write(
+                    self.style.WARNING(f"{linea} — no se dan de alta sus casos en SIIS (proceso masivo).")
+                )
             else:
                 self.stdout.write(self.style.SUCCESS(linea))
 

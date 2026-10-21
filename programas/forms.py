@@ -1653,17 +1653,11 @@ class RelevamientoForm(forms.ModelForm):
                 pausado=False,
                 segmento__pausado=False,
             )
-            # El bloqueo baja del programa (pausa manual o vigencia en SIIS).
+            # La pausa baja del programa (solo manual: el estado en SIIS no pausa).
             # Es una property en el modelo; acá se filtra por columnas porque
             # esto es un queryset. El Q por isnull conserva los segmentos
             # históricos sin programa.
-            .filter(
-                models.Q(segmento__programa__isnull=True)
-                | (
-                    models.Q(segmento__programa__pausado=False)
-                    & ~models.Q(segmento__programa__siis_programa_estado__in=ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES)
-                )
-            )
+            .filter(models.Q(segmento__programa__isnull=True) | models.Q(segmento__programa__pausado=False))
             .filter(models.Q(subsegmento__isnull=True) | models.Q(subsegmento__pausado=False))
         )
         if segmentos_permitidos is not None:
