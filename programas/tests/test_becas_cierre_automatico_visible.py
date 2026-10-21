@@ -11,7 +11,10 @@ from django.contrib.messages import get_messages
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Relevamiento
+from django.contrib.auth.models import Group, User
+
+from programas.management.commands.seed_becas import ROL_COORDINADOR, ROL_REFERENTE
+from programas.models import AsignacionCoordinador, AsignacionReferente, Relevamiento
 from programas.tests.test_becas_vencimientos import _Base, _correr
 
 EN_REVISION = Relevamiento.Estado.EN_REVISION
@@ -97,6 +100,29 @@ class DetalleYVolverACampoTests(_Base):
         self.assertIsNone(self.rel.cerrado_automaticamente_en)
         resp = self.client.get(reverse("becas:relevamiento_detalle", args=[self.rel.pk]))
         self.assertNotContains(resp, "Cerrado automáticamente")
+
+    def test_sin_capacidad_de_editar_ve_el_motivo_pero_no_la_accion(self):
+        coordinador = User.objects.create_user("coord_cierre", password="x")
+        coordinador.groups.add(Group.objects.get(name=ROL_COORDINADOR))
+        AsignacionCoordinador.objects.create(segmento=self.seg, coordinador=coordinador)
+        referente = User.objects.create_user("ref_cierre", password="x")
+        referente.groups.add(Group.objects.get(name=ROL_REFERENTE))
+        AsignacionReferente.objects.create(referente=referente, coordinador=coordinador)
+        self.client.force_login(referente)
+
+        resp = self.client.get(reverse("becas:relevamiento_detalle", args=[self.rel.pk]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "porque venció su período.")
+        self.assertNotContains(resp, "Para seguir cargando, usá «Volver a campo».")
+
+    def test_terminar_limpia_la_marca(self):
+        resp = self.client.post(reverse("becas:revision_terminar", args=[self.rel.pk]))
+
+        self.assertEqual(resp.status_code, 302)
+        self.rel.refresh_from_db()
+        self.assertEqual(self.rel.estado, Relevamiento.Estado.TERMINADO)
+        self.assertIsNone(self.rel.cerrado_automaticamente_en)
 
 
 class AvisoAlExtenderConvocatoriaTests(_Base):
