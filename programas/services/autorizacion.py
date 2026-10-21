@@ -306,8 +306,7 @@ def aviso_sin_segmentos_becas(user, programa=None):
     if segmentos_visibles(user, programa=programa).exists():
         return ""
     return (
-        f"No ves datos porque {motivo}. "
-        "Pedile al administrador que te asigne uno (Usuarios → tu usuario → segmento)."
+        f"No ves datos porque {motivo}. Pedile al administrador que te asigne uno (Usuarios → tu usuario → segmento)."
     )
 
 
