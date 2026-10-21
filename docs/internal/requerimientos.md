@@ -19455,6 +19455,7 @@ orquesta `scripts/roundtrip_migraciones.py`:
 | 5 | comparación de columnas obligatorias contra la foto | el del PR |
 | 6 | vuelta app por app hasta la base (barreras toleradas) | el del PR |
 | 7 | `migrate` de nuevo y `migrate --check` | el del PR |
+| Cambio NNN | La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué | Becas · proceso masivo a SIIS (pantalla) | `#siis` `#ui` | Juez — casos excluidos sin aviso | 21/10/2026 | 🟢 **Hecho** | no |
 
 **El agujero (a).** `manage.py verificar_columnas_obligatorias --guardar|--comparar` marca toda columna que quede
 `NOT NULL`, sin `DEFAULT` en la base y sin llenarla el motor, **y que antes no estuviera así**: nueva, o antes nullable,
@@ -45747,6 +45748,70 @@ Ninguno.
 ## Reversión
 
 Volver el pin a `Pillow==12.3.0`; no hay datos ni migración (el check de «Pip Audit» vuelve a rojo).
+
+## Historial
+
+- **21/10/2026 — alta del cambio.**
+
+---
+
+---
+
+# Cambio NNN — La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué
+
+🟢 **HECHO — 21/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · proceso masivo a SIIS (pantalla y servicio) |
+| **Etiquetas** | `#siis` `#ui` |
+| **Solicitante** | Juez — los casos excluidos del masivo no se veían en la pantalla |
+| **Fecha del pedido** | 21/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | `programas/services/proceso_masivo.py` · `programas/views/proceso_masivo.py` · `proceso_masivo.html` |
+| **Migración** | no |
+
+## Pedido original
+
+La pantalla mostraba «Pendientes de informar N» sin decir que había casos que el masivo deja afuera por pausa
+o por programa INACTIVO/DESCONOCIDO en SIIS, ni por qué.
+
+## Decisiones tomadas
+
+- **No cambia la regla**: la exclusión es BEC-21 (Cambio 151) y el Cambio 349 la mantuvo. Solo se avisa.
+- `candidatos(sin_pausa=False)` apaga únicamente `_sin_pausa_vigente`; `excluidos_por_pausa` usa ese mismo
+  universo (no se duplica el queryset) y cuenta en **una** consulta con `Count(filter=...)`.
+- Los motivos son excluyentes: un caso de programa bloqueado en SIIS cuenta como «SIIS» aunque además esté
+  pausado. Las pausas no se parten por nivel (no es barato ni cambia qué hacer).
+- El resultado viaja en el mismo cacheo de PERF-07 (tupla de tres); un valor cacheado con la forma vieja se
+  recalcula. El aviso es una alerta `info` con link a la ficha del programa; sin excluidos no hay aviso.
+
+## Archivos
+
+- `programas/services/proceso_masivo.py`, `programas/views/proceso_masivo.py`,
+  `programas/templates/programas/becas/config/proceso_masivo.html`
+- Tests: `test_proceso_masivo.py` (programa inactivo, pausados, solapamiento, sin aviso),
+  `test_circuito_siis_performance.py` (forma del valor cacheado)
+
+## Base de datos
+
+Sin cambios. Una consulta agregada más por render sin corrida (cacheada).
+
+## Validación
+
+- Mutación: conteo de SIIS roto → 2 tests en rojo; aviso sacado del template → 3 en rojo; revertidas.
+
+## Puesta en marcha en el servidor
+
+Nada: se despliega con el release.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit.
 
 ## Historial
 
