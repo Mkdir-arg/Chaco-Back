@@ -107,12 +107,31 @@ class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView)
         # corrida los vuelve a consultar en cada vuelta—, pero tienen que verse: son
         # casos esperando que alguien decida, no casos resueltos. Los dos salen del
         # mismo cálculo porque comparten los insumos.
-        ctx["pendientes"], ctx["incompatibles"] = _conteos(self.object)
+        ctx["pendientes"], ctx["incompatibles"], excluidos = _conteos(self.object)
+        # Los que el masivo deja afuera por pausa o por SIIS: se avisa el motivo para que
+        # «pendientes» no parezca que se los olvidó. Es informativo, no cambia la regla.
+        ctx["aviso_excluidos"] = _aviso_excluidos(self.object, excluidos)
         return ctx
 
 
+def _aviso_excluidos(programa, excluidos):
+    """Texto del aviso de casos que el masivo deja afuera, o ``""`` si no hay ninguno."""
+    siis, pausados = excluidos["siis"], excluidos["pausados"]
+    if not (siis or pausados):
+        return ""
+    motivos = []
+    if siis:
+        estado = programa.siis_programa_estado
+        motivos.append(f"{siis} porque el programa «{programa.nombre}» figura {estado} en SIIS")
+    if pausados:
+        motivos.append(f"{pausados} porque están pausados")
+    total = siis + pausados
+    sujeto = "1 caso no se procesa" if total == 1 else f"{total} casos no se procesan"
+    return f"{sujeto}: {' y '.join(motivos)}."
+
+
 def _conteos(programa):
-    """Los dos números de la pantalla, cacheados **salvo cuando el primero es cero**.
+    """Los números de la pantalla, cacheados **salvo cuando el primero es cero**.
 
     `cache.get_or_set` no sirve acá: guarda lo que devuelva el callable, y guardar el
     cero es justo lo que deja el formulario escondido un minuto después de que entre
@@ -121,7 +140,8 @@ def _conteos(programa):
     """
     clave = servicio.clave_conteos(programa.pk)
     cacheado = cache.get(clave)
-    if cacheado is not None:
+    # Un valor de la forma vieja (dos números, de antes del deploy) se recalcula.
+    if cacheado is not None and len(cacheado) == 3:
         return cacheado
     conteos = servicio.conteos_de_la_pantalla(programa)
     if conteos[0]:

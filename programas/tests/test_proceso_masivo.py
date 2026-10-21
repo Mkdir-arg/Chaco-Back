@@ -820,6 +820,53 @@ class PantallaProcesoMasivoTests(_BaseProcesoTest):
         self.assertEqual(resp.context["incompatibles"], 1)
         self.assertContains(resp, "Incompatibles según SIIS")
 
+    def test_avisa_los_casos_que_deja_afuera_un_programa_inactivo_en_siis(self):
+        """BEC-21 no cambia: el masivo no los toma. Lo nuevo es que la pantalla lo dice."""
+        cache.clear()
+        self._caso()
+        self._caso()
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(
+            siis_programa_estado=ProgramaSiis.EstadoSiis.INACTIVO
+        )
+
+        resp = self.client.get(self._url())
+
+        self.assertEqual(resp.context["pendientes"], 0)
+        self.assertContains(resp, "2 casos no se procesan")
+        self.assertContains(resp, f"2 porque el programa «{self.programa.nombre}» figura INACTIVO en SIIS")
+        self.assertNotContains(resp, "porque están pausados")
+
+    def test_avisa_los_casos_pausados(self):
+        cache.clear()
+        self._caso()
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(pausado=True)
+
+        resp = self.client.get(self._url())
+
+        self.assertEqual(resp.context["pendientes"], 0)
+        self.assertContains(resp, "1 caso no se procesa: 1 porque están pausados.")
+        self.assertNotContains(resp, "porque el programa")
+
+    def test_un_caso_de_programa_inactivo_y_pausado_se_cuenta_una_sola_vez(self):
+        cache.clear()
+        self._caso()
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(
+            pausado=True, siis_programa_estado=ProgramaSiis.EstadoSiis.DESCONOCIDO
+        )
+
+        resp = self.client.get(self._url())
+
+        self.assertContains(resp, "1 caso no se procesa: 1 porque el programa")
+
+    def test_sin_exclusiones_no_hay_aviso(self):
+        cache.clear()
+        self._caso()
+
+        resp = self.client.get(self._url())
+
+        self.assertEqual(resp.context["pendientes"], 1)
+        self.assertNotContains(resp, "no se procesa")
+
     def test_sin_la_capacidad_no_entra(self):
         """Un usuario sin la capacidad no llega, aunque sepa la URL."""
         otro = User.objects.create_user("sin_capacidad", password="x")
@@ -968,7 +1015,13 @@ class ConfirmacionProcesoMasivoTests(_BaseProcesoTest):
 
     def test_los_pendientes_viajan_sin_separador_de_miles(self):
         """El JS hace la cuenta con el número crudo; el formato va en el modal."""
-        with patch("programas.views.proceso_masivo.servicio.candidatos") as candidatos:
+        with (
+            patch("programas.views.proceso_masivo.servicio.candidatos") as candidatos,
+            patch(
+                "programas.views.proceso_masivo.servicio.excluidos_por_pausa",
+                return_value={"siis": 0, "pausados": 0},
+            ),
+        ):
             candidatos.return_value.count.return_value = 3482
             html = self.client.get(self.url).content.decode()
         self.assertIn('data-pendientes="3482"', html)
