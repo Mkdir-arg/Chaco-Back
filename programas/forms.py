@@ -11,6 +11,7 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.utils.functional import cached_property
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.edad import es_menor
@@ -1690,6 +1691,12 @@ class RelevamientoForm(forms.ModelForm):
             for campo in ("territorial", "municipio", "zona"):
                 self.fields[campo].required = False
         self._preparar_localidad()
+
+    @cached_property
+    def sin_convocatorias(self):
+        """No queda ninguna convocatoria abierta para el alta (pausadas, cerradas o fuera
+        del alcance del operador): la pantalla avisa en vez de mostrar un select vacío."""
+        return not self.fields["convocatoria"].queryset.exists()
 
     def _tipo_elegido(self):
         """Tipo efectivo del alta: lo elegido en el POST (si la capacidad lo

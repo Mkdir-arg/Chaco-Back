@@ -477,6 +477,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 349 | El estado INACTIVO/DESCONOCIDO en SIIS deja de pausar Becas | Becas · programas, segmentos, convocatorias, relevamientos, reporte de cupos | `#siis` `#relevamientos` `#ui` | PM — decisión del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 | 350 | Pillow 13.0.0: «Pip Audit» vuelve a verde por las 8 CVEs de pillow 12.3.0 | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (21/10/2026) | 21/10/2026 | 🟢 **Hecho** | No requiere |
 | 351 | Becas: aviso cuando el usuario con rol acotado no tiene segmentos asignados | Becas · listados de convocatorias, relevamientos y revisión | `#ui` `#rbac` | Juez del carril — pedido de aviso, 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
+| 352 | «Nuevo relevamiento» avisa por qué no se puede crear o a quién asignar | Becas · detalle de convocatoria, alta de relevamiento | `#relevamientos` `#ui` `#pausas` | PM — prueba en testing del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 
 **Notas del índice**
 
@@ -45811,6 +45812,77 @@ Los listados de configuración (segmentos) y los casos de un relevamiento puntua
 ## Reversión
 
 Revertir el commit.
+
+## Historial
+
+- **21/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 352 — «Nuevo relevamiento» avisa por qué no se puede crear o a quién asignar
+
+🟢 **HECHO — 21/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · detalle de convocatoria, listado de relevamientos y alta de relevamiento |
+| **Etiquetas** | `#relevamientos` `#ui` `#pausas` |
+| **Solicitante** | PM — prueba en testing del 21/10/2026 («no aparece ningún territorial») |
+| **Fecha del pedido** | 21/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | `ConvocatoriaDetailView` · `RelevamientoForm.sin_convocatorias` · `convocatoria_detail.html`, `relevamiento_list.html`, `relevamiento_form.html` · `_filtro_territorial.html` |
+| **Migración** | no |
+
+## Pedido original
+
+Una convocatoria pausada o cerrada (p. ej. por el cron de vencimientos) queda fuera del selector del alta: el
+modal salía con el select vacío, los territoriales ocultos y, al guardar, el genérico «Seleccione una opción
+válida». Y si el segmento no tenía territoriales con rol y asignación, la lista salía vacía sin explicación.
+Pedido: **avisar, no relajar ninguna regla**.
+
+## Decisiones tomadas
+
+- No se toca ninguna regla: la convocatoria pausada o cerrada sigue fuera del queryset del form.
+- Detalle de convocatoria: si no admite altas se reemplaza el botón y el modal por una alerta con el motivo
+  (pausa propia, del segmento, del subsegmento o del programa, con su motivo; cerrada con la fecha de
+  vencimiento o cerrada a mano). Con permiso para editar, la alerta enlaza a «Editar convocatoria». El motivo
+  se calcula en la vista (`motivo_sin_alta_de_relevamientos`).
+- Form de alta (modal del listado y página propia): alerta «No hay convocatorias abiertas…» cuando el queryset
+  queda vacío (`RelevamientoForm.sin_convocatorias`, una consulta `EXISTS` solo si la pantalla lo pregunta);
+  enlaza al listado de convocatorias con `becas.convocatoria.ver`.
+- Territoriales: el script del filtro dice «Elegí primero una convocatoria» sin convocatoria elegida y «Este
+  segmento no tiene territoriales asignados…» si el segmento no tiene ninguno; el enlace a Usuarios solo con
+  `puede_abm_usuarios`. El detalle de convocatoria además lo renderiza desde el servidor (sin JS).
+- Sin componentes, clases ni JS nuevos: `_alerta.html` (tono `danger`, bloqueo) y el script existente.
+
+## Archivos
+
+- `programas/views/relevamientos.py`, `programas/forms.py`
+- `programas/templates/programas/becas/relevamientos/`: `convocatoria_detail.html`, `relevamiento_list.html`,
+  `relevamiento_form.html`, `_filtro_territorial.html`
+- Tests: `programas/tests/test_aviso_nuevo_relevamiento.py`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Mutación: sacando la rama de cerrada, la de pausa, el aviso server-side de territoriales y los dos avisos de
+  «sin convocatorias», cada aviso pasa a rojo; revertido.
+- `NuevoRelevamientoConProgramaInactivoTests` (Cambio 349) sigue verde.
+
+## Puesta en marcha en el servidor
+
+Nada: se despliega con el release.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
 
 ## Historial
 

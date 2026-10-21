@@ -4,6 +4,7 @@ Las opciones de ambos selects llevan data-segmento (widget _SelectConSegmento):
 al elegir convocatoria se ocultan los territoriales de otros segmentos.
 La regla dura vive en RelevamientoForm.clean(); esto es solo UX.
 {% endcomment %}
+{% load rbac %}
 <script>
   (function () {
     const convocatoria = document.getElementById('id_convocatoria');
@@ -12,16 +13,56 @@ La regla dura vive en RelevamientoForm.clean(); esto es solo UX.
     const fechaHasta = document.getElementById('id_fecha_hasta');
     if (!convocatoria || !territorial) return;
 
+    // Avisos de ayuda bajo el select (mejora progresiva: el detalle de convocatoria
+    // ya trae el de «segmento sin territoriales» renderizado desde el servidor).
+    const URL_USUARIOS = {% if request.user|puede_abm_usuarios %}"{% url 'users:usuarios' %}"{% else %}""{% endif %};
+    const opcionVacia = Array.from(territorial.options).find((opt) => !opt.value);
+    const textoVacio = opcionVacia ? opcionVacia.textContent : '';
+    const campoTerritorial = territorial.closest('form') || document;
+    let aviso = campoTerritorial.querySelector('[data-aviso-territorial]');
+    if (!aviso) {
+      aviso = document.createElement('p');
+      aviso.className = 'text-xs text-fg-warning mt-1';
+      aviso.setAttribute('role', 'status');
+      aviso.setAttribute('data-aviso-territorial', '');
+      aviso.hidden = true;
+      const ancla = territorial.parentElement.querySelector('[data-quick-user]') || territorial;
+      ancla.insertAdjacentElement('afterend', aviso);
+    }
+    const avisar = (sinConvocatoria, sinTerritoriales) => {
+      if (opcionVacia) opcionVacia.textContent = sinConvocatoria ? 'Elegí primero una convocatoria' : textoVacio;
+      aviso.textContent = '';
+      aviso.hidden = !(sinConvocatoria || sinTerritoriales);
+      if (sinConvocatoria) {
+        aviso.textContent = 'Elegí primero una convocatoria.';
+      } else if (sinTerritoriales) {
+        aviso.append('Este segmento no tiene territoriales asignados. Asignalos desde ');
+        if (URL_USUARIOS) {
+          const link = document.createElement('a');
+          link.href = URL_USUARIOS;
+          link.className = 'underline';
+          link.textContent = 'Usuarios';
+          aviso.append(link);
+        } else {
+          aviso.append('Usuarios');
+        }
+        aviso.append(' (rol Territorial + segmento).');
+      }
+    };
+
     const filtrar = () => {
       const opcion = convocatoria.selectedOptions[0];
       const segmento = opcion ? (opcion.dataset.segmento || '') : '';
+      let visibles = 0;
       Array.from(territorial.options).forEach((opt) => {
         if (!opt.value) return;
         const visible = Boolean(segmento) && opt.dataset.segmento === segmento;
         opt.hidden = !visible;
         opt.disabled = !visible;
         if (!visible && opt.selected) opt.selected = false;
+        if (visible) visibles += 1;
       });
+      avisar(!segmento, Boolean(segmento) && visibles === 0);
       if (fechaAsignada) {
         fechaAsignada.min = opcion && opcion.dataset.fechaInicio ? `${opcion.dataset.fechaInicio}T00:00` : '';
         fechaAsignada.max = opcion && opcion.dataset.fechaFin ? `${opcion.dataset.fechaFin}T23:59` : '';
