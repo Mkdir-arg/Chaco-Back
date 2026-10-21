@@ -475,6 +475,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 347 | El test de capacidad concurrente usa un usuario por hilo (sesión única del backoffice) | Dispositivos · tests de concurrencia en motor real | `#sesion` | Juez del carril — rojo intermitente en «Motor real (mariadb:11)» | 20/10/2026 | 🟢 **Hecho** | — |
 | 348 | P3: el formulario del tipo va en su propia tarjeta | Dispositivos · alta y edición de institución (P3) | `#ui` | PM — prueba en testing de P3 | 20/10/2026 | 🟢 **Hecho** | no |
 | 349 | El estado INACTIVO/DESCONOCIDO en SIIS deja de pausar Becas | Becas · programas, segmentos, convocatorias, relevamientos, reporte de cupos | `#siis` `#relevamientos` `#ui` | PM — decisión del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
+| 350 | Pillow 13.0.0: «Pip Audit» vuelve a verde por las 8 CVEs de pillow 12.3.0 | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (21/10/2026) | 21/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -45678,6 +45679,74 @@ Ninguno.
 ## Reversión
 
 Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **21/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 350 — Pillow 13.0.0: «Pip Audit» vuelve a verde por las 8 CVEs de pillow 12.3.0
+
+🟢 **HECHO — 21/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · dependencias (`requirements.txt`) · CI (`Pip Audit`) |
+| **Etiquetas** | `#infra` `#gestion` |
+| **Solicitante** | Juez — check «Pip Audit» rojo en los PRs (21/10/2026) |
+| **Fecha del pedido** | 21/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API · Infra/ECOM (imagen de producción) · CI |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Subir pillow a la versión que arregle las CVEs reportadas por `pip-audit` (CVE-2026-112895 y otras; arreglo en 13.0.0), sin romper nada.
+
+## Alcance acordado
+
+**Entra:** `Pillow==12.3.0` → `Pillow==13.0.0` en `requirements.txt`.
+
+**Queda afuera:** agregar excepciones en `security/excepciones.toml` (se arregla con la versión) y tocar código de imágenes.
+
+## Decisiones tomadas
+
+- **13.0.0 es la única versión que arregla las ocho advisories** (CVE-2026-112895, -112400, -112397, -112896, -112897, -112395, -112404, -112899: todas «Fix Versions 13.0.0»), así que no hay una intermedia posible.
+- **Sin ignores.** La única excepción vigente sigue siendo la de twisted (Cambio 315).
+- **No hizo falta tocar código.** Los usos de PIL son `notificaciones/services/paquete.py` (`Image.open`, `ImageOps.exif_transpose`, `convert`, `save`, `verify`, `Image.DecompressionBomb*`, `imagen.info`) y el `ImageField` de `legajos.models.base.Legajo.foto`; todas esas APIs siguen en 13. Los tests con PIL están en `notificaciones` y `programas.tests.test_dispositivos_fidelidad_fd`.
+
+## Implementación
+
+Un solo cambio de pin. `requirements-dev.txt` arrastra `requirements.txt` con `-r`, por eso se arregla en los dos auditados.
+
+## Archivos
+
+- `requirements.txt`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Venv aparte con Python 3.12 y Django 5.2.17: `pip install -r requirements-dev.txt` resuelve sin conflictos y deja pillow 13.0.0.
+- `pip-audit` con las banderas de `scripts/check_excepciones_seguridad.py --ignore-args`: `requirements.txt` y `requirements-dev.txt` «No known vulnerabilities found, 1 ignored» (la de twisted), `requirements-ci.txt` «No known vulnerabilities found».
+- `manage.py check`: sin problemas. Tests de imágenes (`notificaciones.tests.test_paquete`, `test_imagenes_incrustadas`, `programas.tests.test_dispositivos_fidelidad_fd`): 68 OK, 2 saltados.
+- Suite completa: 6789 tests, una sola falla, `core.tests.test_dependencias.TblibEnElCiTests` (tblib instalado a mitad de la corrida en el venv local); re-corrido el módulo con tblib: 18 OK.
+
+## Puesta en marcha en el servidor
+
+Nada más que el deploy: la imagen se reconstruye con la dependencia nueva. En testing conviene probar a mano la subida de fotos desde la app de campo y de documentos del ciudadano, y el paquete de imágenes de notificaciones.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Volver el pin a `Pillow==12.3.0`; no hay datos ni migración (el check de «Pip Audit» vuelve a rojo).
 
 ## Historial
 
