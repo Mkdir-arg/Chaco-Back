@@ -475,7 +475,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 347 | El test de capacidad concurrente usa un usuario por hilo (sesión única del backoffice) | Dispositivos · tests de concurrencia en motor real | `#sesion` | Juez del carril — rojo intermitente en «Motor real (mariadb:11)» | 20/10/2026 | 🟢 **Hecho** | — |
 | 348 | P3: el formulario del tipo va en su propia tarjeta | Dispositivos · alta y edición de institución (P3) | `#ui` | PM — prueba en testing de P3 | 20/10/2026 | 🟢 **Hecho** | no |
 | 349 | El estado INACTIVO/DESCONOCIDO en SIIS deja de pausar Becas | Becas · programas, segmentos, convocatorias, relevamientos, reporte de cupos | `#siis` `#relevamientos` `#ui` | PM — decisión del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
-| Cambio NNN | La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué | Becas · proceso masivo a SIIS (pantalla) | `#siis` `#ui` | Juez — casos excluidos sin aviso | 21/10/2026 | 🟢 **Hecho** | no |
+| 350 | Pillow 13.0.0: «Pip Audit» vuelve a verde por las 8 CVEs de pillow 12.3.0 | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (21/10/2026) | 21/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -45686,55 +45686,59 @@ Revertir el commit; no hay datos ni migración.
 
 ---
 
----
-
-# Cambio NNN — La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué
+# Cambio 350 — Pillow 13.0.0: «Pip Audit» vuelve a verde por las 8 CVEs de pillow 12.3.0
 
 🟢 **HECHO — 21/10/2026**
 
 | | |
 |---|---|
-| **Programa / módulo** | Becas · proceso masivo a SIIS (pantalla y servicio) |
-| **Etiquetas** | `#siis` `#ui` |
-| **Solicitante** | Juez — los casos excluidos del masivo no se veían en la pantalla |
+| **Programa / módulo** | Transversal · dependencias (`requirements.txt`) · CI (`Pip Audit`) |
+| **Etiquetas** | `#infra` `#gestion` |
+| **Solicitante** | Juez — check «Pip Audit» rojo en los PRs (21/10/2026) |
 | **Fecha del pedido** | 21/10/2026 |
 | **Issue / épica** | sin issue |
-| **Partes afectadas** | `programas/services/proceso_masivo.py` · `programas/views/proceso_masivo.py` · `proceso_masivo.html` |
-| **Migración** | no |
+| **Partes afectadas** | Servidor/API · Infra/ECOM (imagen de producción) · CI |
+| **Migración** | No requiere |
 
 ## Pedido original
 
-La pantalla mostraba «Pendientes de informar N» sin decir que había casos que el masivo deja afuera por pausa
-o por programa INACTIVO/DESCONOCIDO en SIIS, ni por qué.
+Subir pillow a la versión que arregle las CVEs reportadas por `pip-audit` (CVE-2026-112895 y otras; arreglo en 13.0.0), sin romper nada.
+
+## Alcance acordado
+
+**Entra:** `Pillow==12.3.0` → `Pillow==13.0.0` en `requirements.txt`.
+
+**Queda afuera:** agregar excepciones en `security/excepciones.toml` (se arregla con la versión) y tocar código de imágenes.
 
 ## Decisiones tomadas
 
-- **No cambia la regla**: la exclusión es BEC-21 (Cambio 151) y el Cambio 349 la mantuvo. Solo se avisa.
-- `candidatos(sin_pausa=False)` apaga únicamente `_sin_pausa_vigente`; `excluidos_por_pausa` usa ese mismo
-  universo (no se duplica el queryset) y cuenta en **una** consulta con `Count(filter=...)`.
-- Los motivos son excluyentes: un caso de programa bloqueado en SIIS cuenta como «SIIS» aunque además esté
-  pausado. Las pausas no se parten por nivel (no es barato ni cambia qué hacer).
-- El resultado viaja en el mismo cacheo de PERF-07 (tupla de tres); un valor cacheado con la forma vieja se
-  recalcula. El aviso es una alerta `info` con link a la ficha del programa; sin excluidos no hay aviso.
+- **13.0.0 es la única versión que arregla las ocho advisories** (CVE-2026-112895, -112400, -112397, -112896, -112897, -112395, -112404, -112899: todas «Fix Versions 13.0.0»), así que no hay una intermedia posible.
+- **Sin ignores.** La única excepción vigente sigue siendo la de twisted (Cambio 315).
+- **No hizo falta tocar código.** Los usos de PIL son `notificaciones/services/paquete.py` (`Image.open`, `ImageOps.exif_transpose`, `convert`, `save`, `verify`, `Image.DecompressionBomb*`, `imagen.info`) y el `ImageField` de `legajos.models.base.Legajo.foto`; todas esas APIs siguen en 13. Los tests con PIL están en `notificaciones` y `programas.tests.test_dispositivos_fidelidad_fd`.
+
+## Implementación
+
+Un solo cambio de pin. `requirements-dev.txt` arrastra `requirements.txt` con `-r`, por eso se arregla en los dos auditados.
 
 ## Archivos
 
-- `programas/services/proceso_masivo.py`, `programas/views/proceso_masivo.py`,
-  `programas/templates/programas/becas/config/proceso_masivo.html`
-- Tests: `test_proceso_masivo.py` (programa inactivo, pausados, solapamiento, sin aviso),
-  `test_circuito_siis_performance.py` (forma del valor cacheado)
+- `requirements.txt`
+- `docs/internal/requerimientos.md`
 
 ## Base de datos
 
-Sin cambios. Una consulta agregada más por render sin corrida (cacheada).
+Sin cambios.
 
 ## Validación
 
-- Mutación: conteo de SIIS roto → 2 tests en rojo; aviso sacado del template → 3 en rojo; revertidas.
+- Venv aparte con Python 3.12 y Django 5.2.17: `pip install -r requirements-dev.txt` resuelve sin conflictos y deja pillow 13.0.0.
+- `pip-audit` con las banderas de `scripts/check_excepciones_seguridad.py --ignore-args`: `requirements.txt` y `requirements-dev.txt` «No known vulnerabilities found, 1 ignored» (la de twisted), `requirements-ci.txt` «No known vulnerabilities found».
+- `manage.py check`: sin problemas. Tests de imágenes (`notificaciones.tests.test_paquete`, `test_imagenes_incrustadas`, `programas.tests.test_dispositivos_fidelidad_fd`): 68 OK, 2 saltados.
+- Suite completa: 6789 tests, una sola falla, `core.tests.test_dependencias.TblibEnElCiTests` (tblib instalado a mitad de la corrida en el venv local); re-corrido el módulo con tblib: 18 OK.
 
 ## Puesta en marcha en el servidor
 
-Nada: se despliega con el release.
+Nada más que el deploy: la imagen se reconstruye con la dependencia nueva. En testing conviene probar a mano la subida de fotos desde la app de campo y de documentos del ciudadano, y el paquete de imágenes de notificaciones.
 
 ## Pendientes / a definir
 
@@ -45742,7 +45746,7 @@ Ninguno.
 
 ## Reversión
 
-Revertir el commit.
+Volver el pin a `Pillow==12.3.0`; no hay datos ni migración (el check de «Pip Audit» vuelve a rojo).
 
 ## Historial
 
