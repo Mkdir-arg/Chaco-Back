@@ -393,10 +393,9 @@ def _sin_pausa_vigente(casos):
 
     Se comparan las columnas ``pausado`` de la cadena, que ya viene unida por los
     ``select_related``, y no ``pausa_efectiva``, que es una propiedad de Python.
-    El estado del programa en SIIS se mira igual —es la otra mitad de
-    ``ProgramaSiis.pausa_efectiva``— y por la misma razón: ``INACTIVO`` o
-    ``DESCONOCIDO`` bloquean el programa en toda la pantalla, y el masivo era el
-    único camino que seguía aprobando. No se podía cerrar antes de SIIS-06: un
+    El estado del programa en SIIS se mira aparte y explícito: ``INACTIVO`` o
+    ``DESCONOCIDO`` ya no pausan el programa (decisión del PM, 21-oct-2026), pero
+    el masivo no aprueba ni informa altas a SIIS de esos casos (BEC-21). No se podía cerrar antes de SIIS-06: un
     catálogo vacío dejaba **todos** los programas en ``DESCONOCIDO``, y esta
     exclusión habría frenado el masivo entero por un error de SIIS. Un programa
     recién vinculado tiene el estado en ``""``, que no bloquea: nadie preguntó
