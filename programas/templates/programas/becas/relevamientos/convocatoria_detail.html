@@ -174,10 +174,13 @@
     <div x-show="tab==='rel'" x-cloak role="tabpanel" id="panel-rel" aria-labelledby="tab-rel" class="p-6 space-y-4">
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <p class="text-sm text-body-subtle">Relevamientos asignados a esta convocatoria.</p>
-        {% if request.user|puede:"becas.relevamiento.crear" %}
+        {% if form_crear and request.user|puede:"becas.relevamiento.crear" %}
         <button type="button" @click="modalRel=true" class="btn-nodo btn-brand btn-sm"><i class="fas fa-plus"></i> Nuevo relevamiento</button>
         {% endif %}
       </div>
+      {% if motivo_sin_alta and request.user|puede:"becas.relevamiento.crear" %}
+        {% include "components/_alerta.html" with tono="danger" titulo="No se pueden crear relevamientos" texto=motivo_sin_alta accion_url=accion_sin_alta_url accion_texto="Editar convocatoria" %}
+      {% endif %}
       <div id="relevamientos-table">
         {% include "programas/becas/relevamientos/_relevamientos_tab_table.html" %}
       </div>
@@ -255,6 +258,7 @@
     </div>{% endif %}
   </div>
 
+  {% if form_crear %}
   {# ============ Modal: Nuevo relevamiento (convocatoria preseleccionada) ============ #}
   <div x-show="modalRel" x-cloak x-becas-modal="modalRel" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0" style="background:rgba(0,0,0,.5);backdrop-filter:blur(4px)" @click="modalRel=false"></div>
@@ -302,6 +306,9 @@
               {{ form_crear.territorial }}
               {% if request.user|puede:"becas.usuario.territorial" %}<button type="button" data-quick-user="territorial" data-user-select="#{{ form_crear.territorial.id_for_label }}" data-segment-id="{{ convocatoria.segmento_id }}" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus"></i> Crear territorial</button>{% endif %}
               <p class="text-xs text-body-subtle mt-1">Solo se listan los territoriales del segmento de la convocatoria elegida.</p>
+              {% if segmento_sin_territoriales %}
+              <p class="text-xs text-fg-warning mt-1" role="status" data-aviso-territorial>Este segmento no tiene territoriales asignados. Asignalos desde {% if request.user|puede_abm_usuarios %}<a href="{% url 'users:usuarios' %}" class="underline">Usuarios</a>{% else %}Usuarios{% endif %} (rol Territorial + segmento).</p>
+              {% endif %}
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="territorial"></p>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -359,10 +366,13 @@
       </form>
     </div>
   </div>
+  {% endif %}
 </div>
+{% if form_crear %}
 {% include "programas/becas/relevamientos/_filtro_territorial.html" %}
 {% include "programas/becas/relevamientos/_cascada_localidad.html" %}
 {% include "user/_alta_rapida_modal.html" %}
+{% endif %}
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_ajax_js.html" %}
