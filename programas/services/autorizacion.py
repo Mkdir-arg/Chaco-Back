@@ -295,19 +295,29 @@ def aviso_sin_segmentos_becas(user, programa=None):
             user.asignacion_referente
         except ObjectDoesNotExist:
             motivo = "sos referente y no tenés un coordinador asignado"
+            accion = "que te asigne un coordinador (Usuarios → tu usuario → Coordinador del Referente)"
         else:
             motivo = "sos referente y el coordinador al que respondés no tiene segmentos asignados"
+            accion = (
+                "que asigne segmentos a tu coordinador (Segmentos y subsegmentos → el segmento → Asignar coordinador)"
+            )
     elif es_coordinador_regional_becas(user, programa=programa):
         motivo = "sos coordinador regional y no tenés ningún subsegmento a tu cargo"
+        accion = (
+            "que te designe referente de un subsegmento "
+            "(Segmentos y subsegmentos → el segmento → editar el subsegmento → Referente asignado)"
+        )
     elif rbac.puede_alguna(user, CAPS_GESTION, programa=programa):
         motivo = "sos coordinador y no tenés ningún segmento asignado"
+        accion = (
+            "que te asigne como coordinador de un segmento "
+            "(Segmentos y subsegmentos → el segmento → Asignar coordinador)"
+        )
     else:
         return ""
     if segmentos_visibles(user, programa=programa).exists():
         return ""
-    return (
-        f"No ves datos porque {motivo}. Pedile al administrador que te asigne uno (Usuarios → tu usuario → segmento)."
-    )
+    return f"No ves datos porque {motivo}. Pedile al administrador {accion}."
 
 
 def subsegmentos_visibles(user, programa=None):

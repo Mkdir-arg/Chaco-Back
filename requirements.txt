@@ -51,7 +51,7 @@ setuptools==83.0.0
 
 # Utilities básicas
 requests==2.34.2
-Pillow==12.3.0
+Pillow==13.0.0
 django-filter==23.5
 python-dateutil==2.9.0.post0
 openpyxl==3.1.5
