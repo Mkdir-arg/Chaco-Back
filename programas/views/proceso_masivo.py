@@ -107,12 +107,44 @@ class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView)
         # corrida los vuelve a consultar en cada vuelta—, pero tienen que verse: son
         # casos esperando que alguien decida, no casos resueltos. Los dos salen del
         # mismo cálculo porque comparten los insumos.
-        ctx["pendientes"], ctx["incompatibles"] = _conteos(self.object)
+        # Los dos cálculos comparten los insumos (PERF-07): si ninguno está en caché se leen una vez.
+        insumos = servicio.Insumos()
+        ctx["pendientes"], ctx["incompatibles"] = _conteos(self.object, insumos)
+        excluidos = _excluidos(self.object, insumos)
+        # Los que el masivo deja afuera por pausa o por SIIS: se avisa el motivo para que
+        # «pendientes» no parezca que se los olvidó. Es informativo, no cambia la regla.
+        ctx["aviso_excluidos"] = _aviso_excluidos(self.object, excluidos)
         return ctx
 
 
-def _conteos(programa):
-    """Los dos números de la pantalla, cacheados **salvo cuando el primero es cero**.
+def _aviso_excluidos(programa, excluidos):
+    """Texto del aviso de casos que el masivo deja afuera, o ``""`` si no hay ninguno."""
+    siis, pausados = excluidos["siis"], excluidos["pausados"]
+    if not (siis or pausados):
+        return ""
+    motivos = []
+    if siis:
+        estado = programa.siis_programa_estado
+        motivos.append(f"{siis} porque el programa «{programa.nombre}» figura {estado} en SIIS")
+    if pausados:
+        motivos.append(f"{pausados} porque están pausados")
+    total = siis + pausados
+    sujeto = "1 caso no se procesa" if total == 1 else f"{total} casos no se procesan"
+    return f"{sujeto}: {' y '.join(motivos)}."
+
+
+def _excluidos(programa, insumos=None):
+    """Casos que el masivo deja afuera, cacheados (informativo: vale también el cero)."""
+    clave = servicio.clave_excluidos(programa.pk)
+    cacheado = cache.get(clave)
+    if cacheado is None:
+        cacheado = servicio.excluidos_por_pausa(programa=programa, insumos=insumos)
+        cache.set(clave, cacheado, VIGENCIA_CONTEOS)
+    return cacheado
+
+
+def _conteos(programa, insumos=None):
+    """Los números de la pantalla, cacheados **salvo cuando el primero es cero**.
 
     `cache.get_or_set` no sirve acá: guarda lo que devuelva el callable, y guardar el
     cero es justo lo que deja el formulario escondido un minuto después de que entre
@@ -123,7 +155,7 @@ def _conteos(programa):
     cacheado = cache.get(clave)
     if cacheado is not None:
         return cacheado
-    conteos = servicio.conteos_de_la_pantalla(programa)
+    conteos = servicio.conteos_de_la_pantalla(programa, insumos)
     if conteos[0]:
         cache.set(clave, conteos, VIGENCIA_CONTEOS)
     return conteos

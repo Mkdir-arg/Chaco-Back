@@ -110,6 +110,12 @@
   </div>
   {% endif %}
 
+  {% if aviso_excluidos %}
+  {% comment %}Los excluye el masivo a propósito (BEC-21): programa INACTIVO/DESCONOCIDO en SIIS o
+  pausa manual en algún nivel. Se dice cuántos y por qué; no se cambia la regla.{% endcomment %}
+  {% include "components/_alerta.html" with tono="info" role="status" texto=aviso_excluidos %}
+  {% endif %}
+
   {# Sin corrida: el formulario #}
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
     {% include "components/_stat_card.html" with etiqueta="Pendientes de informar" valor=pendientes icono="fa-hourglass-half" tono="warning" %}

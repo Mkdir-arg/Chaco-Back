@@ -479,6 +479,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 351 | Becas: aviso cuando el usuario con rol acotado no tiene segmentos asignados | Becas · listados de convocatorias, relevamientos y revisión | `#ui` `#rbac` | Juez del carril — pedido de aviso, 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 | 352 | «Nuevo relevamiento» avisa por qué no se puede crear o a quién asignar | Becas · detalle de convocatoria, alta de relevamiento | `#relevamientos` `#ui` `#pausas` | PM — prueba en testing del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 | 353 | El cierre automático por vencimiento deja traza en el relevamiento y avisa al extender | Becas · relevamientos y convocatorias | `#relevamientos` `#ui` | Juez — auditoría de Becas (carril D) | 21/10/2026 | 🟢 **Hecho** | sí (`programas.0102`) |
+| 354 | La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué | Becas · proceso masivo a SIIS (pantalla) | `#siis` `#ui` | Juez — casos excluidos sin aviso | 21/10/2026 | 🟢 **Hecho** | no |
 
 **Notas del índice**
 
@@ -45962,6 +45963,73 @@ Fila del listado y filtro por convocatoria, si el PM los quiere.
 1. Bajar la release (el código viejo no lee la columna: no hay prisa ni orden entre código y base).
 2. Si hace falta, `manage.py migrate programas 0101`: borra `cerrado_automaticamente_en`.
 3. Datos que se pierden: solo la marca de cuándo cerró el cron cada relevamiento; los estados, fechas y casos no se tocan.
+
+## Historial
+
+- **21/10/2026 — alta del cambio.**
+
+---
+
+---
+
+# Cambio 354 — La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué
+
+🟢 **HECHO — 21/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · proceso masivo a SIIS (pantalla y servicio) |
+| **Etiquetas** | `#siis` `#ui` |
+| **Solicitante** | Juez — los casos excluidos del masivo no se veían en la pantalla |
+| **Fecha del pedido** | 21/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | `programas/services/proceso_masivo.py` · `programas/views/proceso_masivo.py` · `proceso_masivo.html` |
+| **Migración** | no |
+
+## Pedido original
+
+La pantalla mostraba «Pendientes de informar N» sin decir que había casos que el masivo deja afuera por pausa
+o por programa INACTIVO/DESCONOCIDO en SIIS, ni por qué.
+
+## Decisiones tomadas
+
+- **No cambia la regla**: la exclusión es BEC-21 (Cambio 151) y el Cambio 349 la mantuvo. Solo se avisa.
+- `candidatos(sin_pausa=False)` apaga únicamente `_sin_pausa_vigente`; `excluidos_por_pausa` usa ese mismo
+  universo (no se duplica el queryset) y cuenta en **una** consulta con `Count(filter=...)`.
+- Los motivos son excluyentes: un caso de programa bloqueado en SIIS cuenta como «SIIS» aunque además esté
+  pausado. Las pausas no se parten por nivel (no es barato ni cambia qué hacer).
+- El aviso se cachea **aparte** (`clave_excluidos`, `masivo_excluidos_v2_<id>`, misma vigencia, también el
+  cero): los conteos conservan su clave y su forma de dos números, que lee también la release vieja durante el
+  rolling (caché compartida entre pods), y el cero de los pendientes sigue sin cachearse. La corrida invalida
+  las dos claves. El aviso es una alerta `info` sin link (el header ya enlaza la ficha del programa); sin
+  excluidos no hay aviso.
+
+## Archivos
+
+- `programas/services/proceso_masivo.py`, `programas/views/proceso_masivo.py`,
+  `programas/templates/programas/becas/config/proceso_masivo.html`
+- Tests: `test_proceso_masivo.py` (programa inactivo, pausados, solapamiento, sin aviso),
+  `test_circuito_siis_performance.py` (forma del valor cacheado)
+
+## Base de datos
+
+Sin cambios. Una consulta agregada más por render sin corrida (cacheada).
+
+## Validación
+
+- Mutación: conteo de SIIS roto → 2 tests en rojo; aviso sacado del template → 3 en rojo; revertidas.
+
+## Puesta en marcha en el servidor
+
+Nada: se despliega con el release.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit.
 
 ## Historial
 
