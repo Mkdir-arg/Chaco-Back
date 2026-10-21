@@ -475,7 +475,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 347 | El test de capacidad concurrente usa un usuario por hilo (sesión única del backoffice) | Dispositivos · tests de concurrencia en motor real | `#sesion` | Juez del carril — rojo intermitente en «Motor real (mariadb:11)» | 20/10/2026 | 🟢 **Hecho** | — |
 | 348 | P3: el formulario del tipo va en su propia tarjeta | Dispositivos · alta y edición de institución (P3) | `#ui` | PM — prueba en testing de P3 | 20/10/2026 | 🟢 **Hecho** | no |
 | 349 | El estado INACTIVO/DESCONOCIDO en SIIS deja de pausar Becas | Becas · programas, segmentos, convocatorias, relevamientos, reporte de cupos | `#siis` `#relevamientos` `#ui` | PM — decisión del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
-| Cambio NNN | El cierre automático por vencimiento deja traza en el relevamiento y avisa al extender | Becas · relevamientos y convocatorias | `#relevamientos` `#ui` | Juez — auditoría de Becas (carril D) | 21/10/2026 | 🟢 **Hecho** | sí (`programas.0102`) |
+| 350 | Pillow 13.0.0: «Pip Audit» vuelve a verde por las 8 CVEs de pillow 12.3.0 | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (21/10/2026) | 21/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -45686,75 +45686,67 @@ Revertir el commit; no hay datos ni migración.
 
 ---
 
-# Cambio NNN — El cierre automático por vencimiento deja traza en el relevamiento y avisa al extender
+# Cambio 350 — Pillow 13.0.0: «Pip Audit» vuelve a verde por las 8 CVEs de pillow 12.3.0
 
 🟢 **HECHO — 21/10/2026**
 
 | | |
 |---|---|
-| **Programa / módulo** | Becas · detalle del relevamiento · edición y reactivación de convocatorias · cron `procesar_vencimientos` |
-| **Etiquetas** | `#relevamientos` `#ui` |
-| **Solicitante** | Juez — auditoría de Becas (carril D) |
+| **Programa / módulo** | Transversal · dependencias (`requirements.txt`) · CI (`Pip Audit`) |
+| **Etiquetas** | `#infra` `#gestion` |
+| **Solicitante** | Juez — check «Pip Audit» rojo en los PRs (21/10/2026) |
 | **Fecha del pedido** | 21/10/2026 |
 | **Issue / épica** | sin issue |
-| **Partes afectadas** | `Relevamiento.cerrado_automaticamente_en` · `pasar_relevamientos_a_revision` · `relevamiento_reabrir` · terminar relevamiento · `RelevamientoDetailView` · `ConvocatoriaUpdateView` y `convocatoria_reactivar` |
-| **Migración** | sí — `programas.0102` (columna `null=True`, expand puro) |
+| **Partes afectadas** | Servidor/API · Infra/ECOM (imagen de producción) · CI |
+| **Migración** | No requiere |
 
 ## Pedido original
 
-El cron de las 03:10 pasa los relevamientos vencidos a EN_REVISION sin dejar traza: para el usuario el
-relevamiento «desaparece» de la app y nadie ve por qué, y extender `fecha_fin` de la convocatoria no los devuelve
-a campo.
+Subir pillow a la versión que arregle las CVEs reportadas por `pip-audit` (CVE-2026-112895 y otras; arreglo en 13.0.0), sin romper nada.
+
+## Alcance acordado
+
+**Entra:** `Pillow==12.3.0` → `Pillow==13.0.0` en `requirements.txt`.
+
+**Queda afuera:** agregar excepciones en `security/excepciones.toml` (se arregla con la versión) y tocar código de imágenes.
 
 ## Decisiones tomadas
 
-- **No se cambia ninguna regla**: EN_REVISION sigue entrándose solo por fecha (Cambio 54), la gracia de 24 h
-  sigue igual (Cambio 175) y no se reabre nada automáticamente; «Volver a campo» sigue siendo manual.
-- Marca `Relevamiento.cerrado_automaticamente_en` (datetime anulable), análoga a `Convocatoria.cerrada_el`
-  (que va con un booleano aparte; acá el datetime alcanza porque el estado ya distingue el resto).
-- La sella el cron en el mismo `UPDATE` por id que hace la transición (ya era por id por BEC-22, así que no suma
-  consultas); solo a los que esa corrida transicionó. La limpian volver a campo y terminar el relevamiento.
-- Detalle del relevamiento: alerta informativa «Cerrado automáticamente el dd/mm/aaaa hh:mm porque venció su
-  período.», con «Para seguir cargando, usá «Volver a campo».» solo si el usuario tiene
-  `becas.relevamiento.editar`.
-- Al guardar la edición de una convocatoria activa que cambió `fecha_fin` o `activo`, y también al reactivarla por
-  el pop-up de la tabla, `messages.info` (toast) con el conteo de relevamientos en EN_REVISION con la marca.
+- **13.0.0 es la única versión que arregla las ocho advisories** (CVE-2026-112895, -112400, -112397, -112896, -112897, -112395, -112404, -112899: todas «Fix Versions 13.0.0»), así que no hay una intermedia posible.
+- **Sin ignores.** La única excepción vigente sigue siendo la de twisted (Cambio 315).
+- **No hizo falta tocar código.** Los usos de PIL son `notificaciones/services/paquete.py` (`Image.open`, `ImageOps.exif_transpose`, `convert`, `save`, `verify`, `Image.DecompressionBomb*`, `imagen.info`) y el `ImageField` de `legajos.models.base.Legajo.foto`; todas esas APIs siguen en 13. Los tests con PIL están en `notificaciones` y `programas.tests.test_dispositivos_fidelidad_fd`.
 
-## Qué se cambió y qué se mantuvo
+## Implementación
 
-- Cambió: lo anterior. Se mantuvo: todas las transiciones, plazos y permisos.
-- **No hecho**: la fila del listado (el badge de estado es una pieza compartida y los snapshots de Becas congelan
-  el shell) y el link al listado filtrado (el listado no tiene filtro por convocatoria).
-- Los relevamientos que el cron ya cerró antes de este cambio no tienen marca: no muestran el aviso.
+Un solo cambio de pin. `requirements-dev.txt` arrastra `requirements.txt` con `-r`, por eso se arregla en los dos auditados.
 
 ## Archivos
 
-- `programas/models/__init__.py`, `programas/migrations/0102_relevamiento_cierre_automatico_en.py`,
-  `programas/services/vencimientos.py`, `programas/views/relevamientos.py`, `programas/views/revision.py`
-- `programas/templates/programas/becas/relevamientos/relevamiento_detail.html`
-- Tests: `programas/tests/test_becas_cierre_automatico_visible.py`
+- `requirements.txt`
+- `docs/internal/requerimientos.md`
 
 ## Base de datos
 
-Columna nueva `programas_relevamiento.cerrado_automaticamente_en` `NULL`; reversa borra la columna.
+Sin cambios.
 
 ## Validación
 
-- Mutación: sin sellar la marca en el cron, sin limpiarla al volver a campo, sin el aviso de la convocatoria y
-  sin el aviso del detalle, cada una deja tests en rojo; revertido.
-- `makemigrations --check --dry-run` (sin SYNCDB): sin cambios.
+- Venv aparte con Python 3.12 y Django 5.2.17: `pip install -r requirements-dev.txt` resuelve sin conflictos y deja pillow 13.0.0.
+- `pip-audit` con las banderas de `scripts/check_excepciones_seguridad.py --ignore-args`: `requirements.txt` y `requirements-dev.txt` «No known vulnerabilities found, 1 ignored» (la de twisted), `requirements-ci.txt` «No known vulnerabilities found».
+- `manage.py check`: sin problemas. Tests de imágenes (`notificaciones.tests.test_paquete`, `test_imagenes_incrustadas`, `programas.tests.test_dispositivos_fidelidad_fd`): 68 OK, 2 saltados.
+- Suite completa: 6789 tests, una sola falla, `core.tests.test_dependencias.TblibEnElCiTests` (tblib instalado a mitad de la corrida en el venv local); re-corrido el módulo con tblib: 18 OK.
 
 ## Puesta en marcha en el servidor
 
-Migración `0102` con el release.
+Nada más que el deploy: la imagen se reconstruye con la dependencia nueva. En testing conviene probar a mano la subida de fotos desde la app de campo y de documentos del ciudadano, y el paquete de imágenes de notificaciones.
 
 ## Pendientes / a definir
 
-Fila del listado y filtro por convocatoria, si el PM los quiere.
+Ninguno.
 
 ## Reversión
 
-Revertir el commit y la migración; solo se pierde la marca.
+Volver el pin a `Pillow==12.3.0`; no hay datos ni migración (el check de «Pip Audit» vuelve a rojo).
 
 ## Historial
 
