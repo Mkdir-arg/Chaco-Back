@@ -324,6 +324,25 @@ class SegmentoCrudTests(_BaseConfigTest):
         self.assertEqual(seg.cupo_maximo, 200)
         self.assertEqual(seg.programa, self.programa)
 
+    def test_crear_segmento_de_programa_sin_siis_descarta_los_ids_de_siis(self):
+        sin_siis = ProgramaSiis.objects.create(nombre="Propio")
+        resp = self.client.post(
+            reverse("becas:segmento_crear"),
+            {
+                "programa": sin_siis.pk,
+                "nombre": "Seg propio",
+                "descripcion": "x",
+                "cupo_maximo": 5,
+                "coordinador": self.coord.pk,
+                "siis_jurid": 7,
+                "siis_id_fun_x_plan": 3,
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        seg = Segmento.objects.get(nombre="Seg propio")
+        self.assertIsNone(seg.siis_jurid)
+        self.assertIsNone(seg.siis_id_fun_x_plan)
+
     def test_crear_segmento_sin_programa_falla(self):
         resp = self.client.post(
             reverse("becas:segmento_crear"),

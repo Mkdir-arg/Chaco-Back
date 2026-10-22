@@ -756,6 +756,16 @@ class EnviarBeneficiarioTests(ArmarPayloadTests):
         with self.assertRaises(ValueError):
             enviar_beneficiario_a_siis(self.formulario, self.user, catalogos=self.cat)
 
+    def test_programa_sin_siis_no_reserva_ni_llama(self):
+        """Un programa que no valida con SIIS no tiene qué informar: ``ValueError`` antes de
+        reservar. Un mutante sin la guarda lo manda con ``id_programa=None``."""
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(siis_programa_id=None)
+        self.formulario.refresh_from_db()
+        with self.assertRaisesMessage(ValueError, "no valida con SIIS"):
+            enviar_beneficiario_a_siis(self.formulario, self.user, catalogos=self.cat)
+        self.assertFalse(self.formulario.envios_sis.exists())
+        self.cargar.assert_not_called()
+
 
 class ComandoReenvioTests(_BaseEnvioTest):
     def setUp(self):
@@ -781,6 +791,15 @@ class ComandoReenvioTests(_BaseEnvioTest):
         self.assertEqual(self.enviar.call_count, 1)
         self.assertEqual(self.enviar.call_args.args[0].pk, self.formulario.pk)
         self.assertIn("1 reintentado", salida.getvalue())
+
+    def test_no_toma_casos_de_programas_sin_siis(self):
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(siis_programa_id=None)
+        EnvioSIIS.objects.create(
+            formulario=self.formulario, estado=EnvioSIIS.Estado.ERROR, documento="1", codigo_error="ERROR_BD_LEGACY"
+        )
+        salida = StringIO()
+        call_command("reenviar_siis_pendientes", "--aplicar", stdout=salida)
+        self.enviar.assert_not_called()
 
     def test_sin_aplicar_es_un_ensayo(self):
         """Cambio 127 (RED-53): el ensayo pasa a ser el default, como en los otros tres."""

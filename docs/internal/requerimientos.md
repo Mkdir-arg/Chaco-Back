@@ -46054,11 +46054,9 @@ Revertir el commit.
 
 ## Pedido original
 
-Sin registrar el texto literal; en las palabras de la sesión: poder crear programas que **no validan con
-SIIS** y no copian nada de SIIS. Al dar el alta se pregunta si el programa valida con SIIS: si valida, se elige
-del catálogo como hasta ahora; si no, se escribe el nombre a mano. Los casos de esos programas se revisan sin
-la consulta de compatibilidad a SIIS. Segmentos, subsegmentos, cupos, requisitos, convocatorias y relevamientos
-funcionan igual.
+> vamos agregarle un cambio a vecas , actualemnte toddos los programas que se crean son a partir de siis , es decir busca en la api de siis , quiero poder crear programas que no esten integraddos a siis y por ende no herede nada, la idea es cuando se crea un programa te pregfunte si valida con siis , si es asi te muestra el selctor de programas de siis si no valida podes ingresar el nombre y cuanddo haces la validacion de relevcamiento no valida compatibilidadd con siis , analiza cambnios , impacto , la ideda es crear programas con sus segmentos y sus sug eso se mantiene
+
+Lectura: «sus sug» = sus subsegmentos; «validación de relevamiento» = la revisión de los casos.
 
 ## Alcance acordado
 
@@ -46092,6 +46090,11 @@ desacoplados de SIIS por el Cambio 349), cupo, permisos, API móvil e inscripci�
 - Masivo y comandos: `Q_PROGRAMA_VALIDA_SIIS` en `candidatos()`, `validar_casos_siis` y `enviar_casos_siis`;
   `correr_alta_siis` recorre solo programas con SIIS; la pantalla del masivo, lanzar y los identificadores
   dan 404. La sincronización nocturna y su guarda de ausencia masiva solo cuentan programas con SIIS.
+- Envío y reenvío: `enviar_beneficiario_a_siis` lanza `ValueError("Este programa no valida con SIIS.")` antes de
+  reservar nada, y `reenviar_siis_pendientes` filtra con `Q_PROGRAMA_VALIDA_SIIS`; los llamadores ya toleran el
+  `ValueError` (lo cuentan, no se cae).
+- El alta de segmento (`SegmentoCreateForm`) deja `siis_jurid` y `siis_id_fun_x_plan` en `None` si el programa
+  elegido no valida con SIIS, aunque el POST los traiga.
 - Pantallas: sin «#None», sin «Detalle SIIS», sin identificadores SIIS; el alta global de segmento oculta
   «Identificadores para SIIS» (`programas_sin_siis_ids`) y `SegmentoForm` los descarta.
 
@@ -46124,6 +46127,9 @@ Nada más que el deploy (corre la migración).
 
 - `reporte_embudo` no filtra por programa y sigue mostrando la etapa SIIS.
 - `requisitos_segmento.html` y `pregunta_list.html` siguen mostrando `destino_siis`.
+- La unicidad del nombre de un programa sin SIIS se valida solo en el formulario (`nombre__iexact`), sin
+  constraint en la base: dos altas simultáneas podrían duplicarlo. Tampoco se contrasta con los nombres que
+  vienen del catálogo de SIIS.
 
 ## Reversión
 
@@ -46134,6 +46140,9 @@ Nada más que el deploy (corre la migración).
 - Con el código viejo y programas sin SIIS cargados: la sincronización los marca DESCONOCIDO (informativo), la
   aprobación de sus casos se bloquea pidiendo la consulta, «Validar con SIIS» da 500 (`int(None)`) y las
   pantallas muestran «#None».
+- Con el código viejo y un programa sin SIIS cargado, el masivo y los comandos lo tomarían como candidato y
+  enviarían `id_programa=None`, sujeto a las guardas de escritura de SIIS. La ventana es corta: los programas sin
+  SIIS no existen hasta después del deploy.
 
 ## Historial
 
