@@ -420,5 +420,5 @@ una verificación humana en el medio**: `/pushGitLabecomTEST` (corre el `release
 espeja `test`) y, después de que alguien pruebe testing, `/pushGitLabecomPRD` (exige el
 mismo árbol en `ecom/test`, el gate en verde y una segunda confirmación escribiendo
 `PRODUCCION`). El procedimiento normativo está en
-[`docs/internal/espejo-ecom.md`](docs/internal/espejo-ecom.md). La app móvil va aparte
-con `/pushGitLabecomMOBILE`.
+[`docs/internal/espejo-ecom.md`](docs/internal/espejo-ecom.md). La app móvil/PWA va aparte, con el mismo corte:
+`/pushGitLabecomMOBILETEST` (→ `ecom/test`) y `/pushGitLabecomMOBILEPRD` (→ `ecom/main`).

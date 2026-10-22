@@ -483,6 +483,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 355 | Un territorial puede tener varios segmentos | Becas · asignación de territoriales · ABM de usuarios | `#rbac` `#usuarios` `#relevamientos` | PM — territorial en más de un segmento | 22/10/2026 | 🟢 **Hecho** | `programas.0103` |
 | 356 | Programas de Becas que no validan con SIIS | Becas · programas y revisión de casos | `#siis` `#ui` `#relevamientos` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | sí (`programas.0104`) |
 | 357 | La API de campo de Becas aguanta lo que el teléfono manda: `code` en los errores, reloj adelantado, `client_uuid` en colisión, GPS redondeado, login con módulos y vectores de condiciones | Becas · API de campo | `#api` `#mobile` `#relevamientos` `#gps` | Juez — cruce back ↔ app (Parte 5.1, K1–K8) | 22/10/2026 | 🟢 **Hecho** | No requiere |
+| 358 | La app móvil/PWA se espeja a ECOM en dos comandos, test y producción | Transversal · espejo a ECOM de la app (`Chaco-mobile`) | `#infra` `#mobile` `#metodo` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -46444,5 +46445,86 @@ Revertir el commit. Es aditivo: la app instalada no depende de ninguna clave nue
 
 - **22/10/2026 — alta del cambio.** Revisa el criterio de **G1-04** (Cambio 175) para el `capturado_en` del futuro.
 - **22/10/2026 — Ronda 2.** El test de contrato del login de Dispositivos fija `modulos`/`app`; tests de K4 para caso viejo sin DNI y alta incompleta con otro DNI.
+
+---
+
+# Cambio 358 — La app móvil/PWA se espeja a ECOM en dos comandos, test y producción
+
+🟢 **HECHO — 22/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · espejo a ECOM de la app (`Chaco-mobile`) |
+| **Etiquetas** | `#infra` `#mobile` `#metodo` |
+| **Solicitante** | PM — pedido en sesión |
+| **Fecha del pedido** | 22/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Comandos de `.claude/commands/`, `CLAUDE.md`, `docs/internal/espejo-ecom.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+`/pushGitLabecomMOBILE` espejaba `origin/main` de `Chaco-mobile` a `ecom/main` con la URL vieja del
+proyecto. ECOM renombró el repo (`datanach-app.git`) y desde el 22/10/2026 la app es una PWA cuyo flujo
+real es PR → rama `test` de GitHub → `ecom/test` (https://datanach-app.ecomdev.ar). Había que partir el
+comando en dos, como el del back (RED-23, Cambio 128).
+
+## Alcance acordado
+
+- **`/pushGitLabecomMOBILETEST`:** `origin/test` → `ecom/test`. Revisa commits de ECOM antes de pisar,
+  avance directo o commit de alineación (árbol verificado antes de pushear), confirmación «sí», verifica
+  con `ls-remote` e informa SHA y árbol espejados.
+- **`/pushGitLabecomMOBILEPRD`:** `origin/main` → `ecom/main`, tratada como producción. Frena si el árbol
+  de `origin/main` no es idéntico al de `ecom/test`; doble confirmación (`sí` y `PRODUCCION`); no se
+  encadena con el de test.
+- **`/pushGitLabecomMOBILE`:** pasa a puntero, sin permisos de push.
+
+## Decisiones tomadas
+
+- **Qué despliega cada rama.** El `.gitlab-ci.yml` de la app es idéntico en `test` y `main`: un job `build`
+  que construye el `Dockerfile` y sube `<registry>/<namespace>/<proyecto>/<rama>:latest`. Quién despliega
+  esa imagen **no consta en el repo: no verificado**. `main` se trata como producción igual.
+- No hay `release-gate` para la app: la única verificación previa a producción es la prueba humana de testing
+  y la igualdad de árboles `ecom/test` = `origin/main`.
+- Reglas comunes: HTTPS con PAT por Git Credential Manager, nunca tocar `origin`, nunca forzar (ni
+  `--force-with-lease`), sin tags, push fallido sin reintento a ciegas.
+
+## Implementación
+
+Tres archivos de comando (dos nuevos y el viejo convertido en puntero), una línea en `CLAUDE.md`, la
+mención en el puntero `pushGitLabecom.md` y una sección nueva en `docs/internal/espejo-ecom.md`.
+
+## Archivos
+
+`.claude/commands/pushGitLabecomMOBILETEST.md`, `.claude/commands/pushGitLabecomMOBILEPRD.md`,
+`.claude/commands/pushGitLabecomMOBILE.md`, `.claude/commands/pushGitLabecom.md`, `CLAUDE.md`,
+`docs/internal/espejo-ecom.md`.
+
+## Base de datos
+
+No toca la base.
+
+## Validación
+
+Los comandos no se ejecutaron (no se pushea a ECOM). Se leyó `.gitlab-ci.yml` de `origin/test` y
+`origin/main` de `Chaco-mobile` con `git show`, sin tocar ese repo. `scripts/requerimientos.py --check` en OK.
+
+## Puesta en marcha en el servidor
+
+Nada que desplegar. Primera corrida: `/pushGitLabecomMOBILETEST` (hoy `origin/test` = `ecom/test` = `c6ef280`,
+así que debería informar «al día»); `ecom/main` (`afdd446`) difiere del árbol de `test`, así que el de
+producción frenará hasta que `test` pase a `main` en GitHub.
+
+## Pendientes / a definir
+
+- Confirmar con ECOM qué despliega `main` de la app y con qué pase.
+
+## Reversión
+
+Revertir el commit.
+
+## Historial
+
+- **22/10/2026 — alta del cambio.**
 
 ---

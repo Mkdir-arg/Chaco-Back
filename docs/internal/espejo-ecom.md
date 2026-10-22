@@ -199,6 +199,28 @@ Recibe el **SHA verificado en testing** y, antes de tocar nada, comprueba:
 Si el release trae migraciones, antes del paso 2 corresponde el runbook de rollback
 (Anexo D de [`processes.md`](processes.md)) y el pedido del dump previo a ECOM.
 
+## La app móvil/PWA: el mismo corte, otro repo
+
+La app (`Mkdir-arg/Chaco-mobile`) se espeja a
+`https://git.ecom.com.ar/externos/relevamiento-becas-des-hum/datanach-app.git` (la URL
+vieja, `relevamiento-becas-admin-app.git`, redirige con aviso). Desde el 22/10/2026 es una
+PWA y el flujo es PR → rama `test` de GitHub → `ecom/test` (testing,
+`https://datanach-app.ecomdev.ar`). Mismo principio que el back, dos comandos y dos
+sesiones:
+
+- **`/pushGitLabecomMOBILETEST`:** `origin/test` → `ecom/test`. Mira antes si ECOM puso
+  commits propios (`.gitlab-ci.yml`, `argocd`), avanza directo o con commit de alineación,
+  nunca fuerza, e informa el SHA y el árbol espejados.
+- **`/pushGitLabecomMOBILEPRD`:** `origin/main` → `ecom/main`, que se trata como
+  **producción**. Frena si el árbol de `origin/main` no es idéntico al de `ecom/test`
+  (primero hay que pasar `test` → `main` en GitHub y probarlo), y pide `PRODUCCION`.
+- `/pushGitLabecomMOBILE` quedó como puntero y no pushea nada.
+
+El `.gitlab-ci.yml` de la app es igual en `test` y `main`: un job `build` que construye el
+`Dockerfile` y sube la imagen `<rama>:latest`. Quién la despliega y con qué pase **no
+consta en el repo (no verificado)**; por eso `main` se trata como producción. No hay
+`release-gate` para la app: lo único que verifica es la prueba humana de testing.
+
 ## Lo que ninguno de los dos pasos hace
 
 - No fuerza nunca (ni `--force`, ni `--force-with-lease`, ni borrar y recrear una rama).

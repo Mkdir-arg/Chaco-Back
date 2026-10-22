@@ -19,7 +19,7 @@ Explicale al usuario cuál le corresponde y terminá:
   verificado, el `release-gate` en verde y una confirmación escribiendo `PRODUCCION`.
 
 El procedimiento normativo está en `docs/internal/espejo-ecom.md`; el mecanismo de ramas, en
-`docs/internal/branching.md`. La app móvil va aparte, con `/pushGitLabecomMOBILE`.
+`docs/internal/branching.md`. La app móvil/PWA va aparte, con `/pushGitLabecomMOBILETEST` y `/pushGitLabecomMOBILEPRD`.
 
 Si querés, mostrale el estado actual sin tocar nada: `git fetch origin main:main`,
 `git rev-parse main` y `git ls-remote --heads ecom`.
