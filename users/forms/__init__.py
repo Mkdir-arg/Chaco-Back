@@ -93,6 +93,22 @@ def _agregar_campos_perfil_usuario(form):
                 form.fields[campo].initial = getattr(perfil, campo, "") or ""
 
 
+CAMPOS_PERFIL = ("dni", "telefono", "institucion", "observacion")
+
+
+def _segmento_inicial_territorial(form):
+    """pk que precarga el select: el segmento en alcance del operador, si no el dueño.
+
+    Con el select simple (un segmento por vez) un territorial con varios muestra
+    el más antiguo que el operador puede elegir.
+    """
+    segmentos = list(form.instance.segmentos_territoriales.order_by("pk").values_list("segmento_id", flat=True))
+    if not segmentos:
+        return None
+    en_alcance = set(form.fields["segmento_territorial"].queryset.values_list("pk", flat=True))
+    return next((pk for pk in segmentos if pk in en_alcance), segmentos[0])
+
+
 def _dni_guardado_del_perfil(instancia):
     """El DNI que la fila ya tiene, o ``None`` si es un alta o no hay perfil.
 
@@ -137,21 +153,14 @@ def _agregar_campo_segmento_territorial(form, operador=None):
     """Suma el campo ``segmento_territorial`` (Becas) al form del ABM.
 
     Es obligatorio cuando el usuario tiene tildado un rol que otorga
-    ``becas.campo`` (un territorial → un segmento). Se agrega en runtime para
-    no importar ``programas`` al cargar el módulo.
+    ``becas.campo``. Se agrega en runtime para no importar ``programas`` al cargar
+    el módulo. El alcance lo fija ``segmentos_asignables_territorial``: un gestor
+    elige entre los segmentos que gestiona; un admin de programa, entre todos los
+    activos.
     """
-    from programas.models import Segmento
-    from programas.services.autorizacion import grupos_territoriales_becas
-    from users.selectors.usuarios import es_gestor_territorial
+    from programas.services.autorizacion import grupos_territoriales_becas, segmentos_asignables_territorial
 
-    segmentos = Segmento.objects.filter(activo=True).order_by("nombre")
-    # Solo se acota a quien gestiona territoriales de SUS segmentos; un admin de
-    # programa elige entre todos los segmentos activos (los suyos son el programa
-    # entero, y acotarlo por coordinación le dejaría el combo vacío).
-    if operador is not None and es_gestor_territorial(operador):
-        from programas.services.autorizacion import segmentos_para_gestion_territoriales
-
-        segmentos = segmentos_para_gestion_territoriales(operador).filter(activo=True).order_by("nombre")
+    segmentos = segmentos_asignables_territorial(operador)
     form.fields["segmento_territorial"] = forms.ModelChoiceField(
         queryset=segmentos,
         required=False,
@@ -164,22 +173,35 @@ def _agregar_campo_segmento_territorial(form, operador=None):
 
 
 def _validar_segmento_territorial(form):
-    """Regla del ABM: rol territorial tildado → segmento obligatorio.
+    """Regla del ABM: rol territorial tildado → al menos un segmento.
 
-    Sin rol territorial el campo se descarta (el servicio conserva la
-    asignación existente solo si el usuario mantiene el rol por fuera del
+    Se calcula sobre el conjunto FINAL: las asignaciones que quedan fuera del
+    alcance del operador (otros gestores, segmentos inactivos) se conservan, más
+    lo que elige. Sin rol territorial el campo se descarta (el servicio conserva
+    la asignación existente solo si el usuario mantiene el rol por fuera del
     alcance del operador; si lo pierde, la borra).
     """
     cleaned = form.cleaned_data
     ids = set(getattr(form, "grupos_territoriales_ids", []))
     es_territorial = any(str(g.id) in ids for g in (cleaned.get("groups") or []))
-    if es_territorial and not cleaned.get("segmento_territorial"):
+    conservadas = False
+    if es_territorial and form.instance and form.instance.pk and "segmento_territorial" in form.fields:
+        conservadas = form.instance.segmentos_territoriales.exclude(
+            segmento__in=form.fields["segmento_territorial"].queryset.values("pk")
+        ).exists()
+    if es_territorial and not cleaned.get("segmento_territorial") and not conservadas:
         form.add_error(
             "segmento_territorial",
             "Seleccioná el segmento asignado: es obligatorio para el rol territorial.",
         )
     if not es_territorial:
         cleaned["segmento_territorial"] = None
+    # Lo que le pasa el form al escritor: ``None`` = no tocar las asignaciones (el
+    # operador no ve el rol territorial: un admin de otro programa); lista, aunque
+    # sea vacía = el operador decidió, y el escritor aplica la diferencia sobre SU
+    # alcance (vaciar la lista con asignaciones ajenas conservadas quita solo las suyas).
+    segmento = cleaned.get("segmento_territorial")
+    cleaned["segmentos_territoriales_elegidos"] = None if not es_territorial else ([segmento] if segmento else [])
     return cleaned
 
 
@@ -717,9 +739,18 @@ class CustomUserChangeForm(RolesPorAmbitoMixin, forms.ModelForm):
         _agregar_campo_segmento_territorial(self, operador)
         _agregar_campos_jerarquia_becas(self)
         if self.instance and self.instance.pk:
-            asignacion = getattr(self.instance, "asignacion_territorial", None)
-            if asignacion is not None:
-                self.fields["segmento_territorial"].initial = asignacion.segmento_id
+            self.fields["segmento_territorial"].initial = _segmento_inicial_territorial(self)
+            # Territorial compartido cuyo dueño es de otro gestor: solo edita SUS
+            # segmentos. El servicio lo hace valer igual (no depende de este form);
+            # deshabilitar los campos evita que el POST los pise y los muestra fijos.
+            from users.selectors.usuarios import solo_gestiona_segmentos
+
+            self.solo_segmentos = solo_gestiona_segmentos(operador, self.instance)
+            if self.solo_segmentos:
+                aviso = "Solo lo administra quien gestiona el segmento dueño de este territorial."
+                for nombre in ("username", "email", "password", "first_name", "last_name", "groups") + CAMPOS_PERFIL:
+                    self.fields[nombre].disabled = True
+                    self.fields[nombre].help_text = aviso
             try:
                 referente = self.instance.asignacion_referente
                 self.fields["coordinador_referente"].initial = referente.coordinador_id

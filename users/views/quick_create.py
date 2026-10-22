@@ -13,7 +13,11 @@ from programas.management.commands.seed_becas import (
     ROL_TERRITORIAL,
 )
 from programas.models import Segmento
-from programas.services.autorizacion import es_admin_becas, puede_gestionar_segmento
+from programas.services.autorizacion import (
+    es_admin_becas,
+    puede_gestionar_segmento,
+    segmentos_asignables_territorial,
+)
 from users.forms import UserCreationForm
 from users.selectors.usuarios import alcance_roles_ids
 from users.services.admin import UsuariosAdminService
@@ -96,7 +100,13 @@ def usuario_alta_rapida(request):
     if tipo == "territorial":
         rol = Group.objects.filter(name=ROL_TERRITORIAL).first()
         segmento = Segmento.objects.filter(pk=request.POST.get("segmento_id"), activo=True).first()
-        if not segmento or not puede_gestionar_segmento(request.user, segmento):
+        # El destino tiene que estar en el mismo alcance que el selector del ABM y el
+        # escritor (`segmentos_asignables_territorial`), además de ser gestionable.
+        if (
+            not segmento
+            or not segmentos_asignables_territorial(request.user).filter(pk=segmento.pk).exists()
+            or not puede_gestionar_segmento(request.user, segmento)
+        ):
             return JsonResponse({"ok": False, "message": "Seleccioná un segmento permitido."}, status=403)
     else:
         nombre_rol, plural = ROLES_BACKOFFICE[tipo]

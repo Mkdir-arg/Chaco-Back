@@ -329,10 +329,10 @@ def asegurar_territorial(username, segmento=None):
     if group:
         territorial.groups.add(group)
     if segmento is not None:
-        # Un territorial → un segmento (obligatorio con el rol); el demo usa el principal.
+        # Segmento obligatorio con el rol; el demo usa el principal.
         from programas.models import AsignacionTerritorial
 
-        AsignacionTerritorial.objects.update_or_create(territorial=territorial, defaults={"segmento": segmento})
+        AsignacionTerritorial.objects.get_or_create(territorial=territorial, segmento=segmento)
     return territorial
 
 
