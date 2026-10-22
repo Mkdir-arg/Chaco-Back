@@ -30,11 +30,16 @@ Procedimiento general: `docs/internal/espejo-ecom.md`; ramas: `docs/internal/bra
 
 ## Comprobaciones previas (todas, antes de tocar nada)
 
-1. `git -C ../Chaco-mobile fetch origin` y `git -C ../Chaco-mobile ls-remote --heads ecom`
-   (SHAs de `test` y `main` de ECOM).
+1. **Fijá los SHAs al empezar** y trabajá solo con ellos hasta el push:
+   `git -C ../Chaco-mobile fetch origin` (el **único** fetch de la corrida), después
+   `$src = git -C ../Chaco-mobile rev-parse origin/main` y, de
+   `git -C ../Chaco-mobile ls-remote --heads ecom`, `$ecomTest` (SHA de `refs/heads/test`)
+   y `$ecomMain` (SHA de `refs/heads/main`). Mostralos. Todas las comprobaciones, la
+   confirmación y el push usan **estos SHAs, no las refs**: entre la comprobación y el push
+   no se hace ningún `fetch` nuevo, así que lo verificado es lo que se pushea.
 2. **Que sea lo que se probó.** Árbol de `ecom/test` (con clon superficial si el objeto no
    está en el clon: `git clone --depth=5 --branch test <url-ecom> $tmp` y
-   `git -C $tmp rev-parse HEAD^{tree}`) contra `git -C ../Chaco-mobile rev-parse origin/main^{tree}`.
+   `git -C $tmp rev-parse HEAD^{tree}`) contra `git -C ../Chaco-mobile rev-parse ${src}^{tree}`.
    **Tienen que ser idénticos.**
    - Si **no** lo son: **FRENÁ**. Explicá que primero hay que pasar `test` → `main` en
      GitHub (PR) y que testing tenga ese mismo árbol (`/pushGitLabecomMOBILETEST`, y que
@@ -71,11 +76,32 @@ Después pedí la **segunda confirmación**: el usuario tiene que escribir exact
 
 Sin forzar, comando limpio:
 
-- **Avance directo:** `git -C ../Chaco-mobile push ecom origin/main:refs/heads/main`
-- **Alineación** (si `ecom/main` diverge por código nuestro):
-  `$merge = git -C ../Chaco-mobile commit-tree <tree-de-origin/main> -p origin/main -p <sha-ecom-main> -m "merge: alinear main con origin/main <sha>"`,
-  verificar que `${merge}^{tree}` sea el árbol de `origin/main` **antes** de pushear y
-  después `git -C ../Chaco-mobile push ecom ${merge}:refs/heads/main`.
+**Justo antes de pushear**, releé `git -C ../Chaco-mobile ls-remote ecom refs/heads/main`:
+si el SHA cambió respecto de `$ecomMain`, **FRENÁ** (alguien pusheó en el medio) y volvé a
+empezar desde las comprobaciones. Se pushea por SHA, nunca por ref:
+
+- **Avance directo** (`$ecomMain` es ancestro de `$src`), desde el repo de la app:
+  `git -C ../Chaco-mobile push ecom ${src}:refs/heads/main`
+- **Alineación** (si `ecom/main` diverge por código nuestro). El commit se construye sobre
+  `$src`. Si `$ecomMain` está en el clon de la app, todo se hace ahí:
+  `$tree = git -C ../Chaco-mobile rev-parse ${src}^{tree}`,
+  `$merge = git -C ../Chaco-mobile commit-tree $tree -p $src -p $ecomMain -m "merge: alinear main con origin/main $src"`,
+  verificar que `${merge}^{tree}` sea igual a `$tree` **antes** de pushear y
+  `git -C ../Chaco-mobile push ecom ${merge}:refs/heads/main`.
+  Si `$ecomMain` **no** está en el clon, se hace en el clon superficial `$tmp`
+  (en `$tmp` el remoto `origin` **es ECOM**):
+
+  ```powershell
+  git -C $tmp fetch <ruta absoluta de ../Chaco-mobile> $src   # local, sin red
+  $tree  = git -C $tmp rev-parse ${src}^{tree}
+  $merge = git -C $tmp commit-tree $tree -p $src -p $ecomMain -m "merge: alinear main con origin/main $src"
+  git -C $tmp rev-parse "${merge}^{tree}"   # igual a $tree ANTES de pushear
+  git -C $tmp push origin ${merge}:refs/heads/main   # en $tmp, `origin` ES ECOM
+  ```
+
+  Ese `fetch` es por ruta absoluta del disco, no toca la red ni GitHub, así que no rompe la
+  regla del fetch único. Un solo `push` por corrida: el de `../Chaco-mobile` **o** el de
+  `$tmp`, según dónde esté `$ecomMain`.
 
 Si el clasificador bloquea el push en Bash, por PowerShell o que lo corra el PM.
 

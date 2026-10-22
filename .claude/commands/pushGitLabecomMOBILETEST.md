@@ -42,8 +42,10 @@ si este archivo los contradice, mandan ellos.
      arriba; si existe con otra (la vieja), `git -C ../Chaco-mobile remote set-url ecom <url-nueva>`.
 
 2. **Fuente y destino.**
-   - SHA fuente: `git -C ../Chaco-mobile rev-parse origin/test`. Mostralo.
-   - SHA remoto: `git -C ../Chaco-mobile ls-remote ecom refs/heads/test`. Mostralo.
+   - **Fijá los SHAs** (después del único `fetch` de la corrida; no se vuelve a hacer otro
+     hasta el push): `$src = git -C ../Chaco-mobile rev-parse origin/test` y `$ecomTest` =
+     SHA de `git -C ../Chaco-mobile ls-remote ecom refs/heads/test`. Mostralos. De acá en
+     adelante todo (comprobación, confirmación, push) usa **estos SHAs, no las refs**.
    - Si son **iguales**: informá «`ecom/test` ya está al día» y **terminá sin pushear**.
 
 3. **ANTES DE PISAR `test`: revisá si tiene cambios de ellos.** ECOM edita `.gitlab-ci.yml`
@@ -78,19 +80,31 @@ si este archivo los contradice, mandan ellos.
    Sin un «sí» explícito no hacés nada.
 
 5. **Push sin forzar.** Comando limpio, sin token en la URL.
+   - **Antes de cualquier push (5a o 5b)**, releé
+     `git -C ../Chaco-mobile ls-remote ecom refs/heads/test`. Si el SHA **no coincide** con
+     `$ecomTest`, **PARÁ y no pushees** (alguien pusheó en el medio) y volvé al paso 2.
    - **5a. Avance directo** (el remoto es ancestro de la fuente):
-     `git -C ../Chaco-mobile push ecom origin/test:refs/heads/test`
+     `git -C ../Chaco-mobile push ecom ${src}:refs/heads/test`
    - **5b. Commit de alineación** (el remoto tiene commits solo nuestros que divergen):
 
      ```powershell
-     $tree  = git -C ../Chaco-mobile rev-parse origin/test^{tree}
-     $merge = git -C ../Chaco-mobile commit-tree $tree -p origin/test -p <sha-remoto> -m "merge: alinear test con origin/test <sha>"
+     $tree  = git -C ../Chaco-mobile rev-parse ${src}^{tree}
+     $merge = git -C ../Chaco-mobile commit-tree $tree -p $src -p $ecomTest -m "merge: alinear test con origin/test $src"
      git -C ../Chaco-mobile rev-parse "${merge}^{tree}"   # igual a $tree ANTES de pushear
      git -C ../Chaco-mobile push ecom ${merge}:refs/heads/test
      ```
 
-     Si el objeto remoto no está en el clon, hacer el `commit-tree` en el clon superficial
-     del paso 3, trayendo `origin/test` por filesystem.
+     Si `$ecomTest` no está en el clon, hacer lo mismo en el clon superficial del paso 3
+     (`$tmp`), trayendo la fuente por ruta absoluta, sin red:
+
+     ```powershell
+     git -C $tmp fetch <ruta absoluta de ../Chaco-mobile> $src
+     $tree  = git -C $tmp rev-parse ${src}^{tree}
+     $merge = git -C $tmp commit-tree $tree -p $src -p $ecomTest -m "merge: alinear test con origin/test $src"
+     git -C $tmp rev-parse "${merge}^{tree}"   # igual a $tree ANTES de pushear
+     git -C $tmp push origin ${merge}:refs/heads/test   # en $tmp, `origin` ES ECOM
+     ```
+
    - Si el clasificador bloquea el push en Bash, correlo por PowerShell o que lo corra el PM.
 
 6. **Verificá e informá.**
