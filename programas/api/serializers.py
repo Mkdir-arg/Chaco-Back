@@ -1,5 +1,7 @@
 """Serializers de la API de campo de Becas (#82)."""
 
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+
 from django.utils.dateparse import parse_date
 from rest_framework import serializers
 from rest_framework.settings import api_settings
@@ -37,6 +39,27 @@ def rechazo_legible(detalle, mensaje):
     donde estaba.
     """
     return serializers.ValidationError({**detalle, api_settings.NON_FIELD_ERRORS_KEY: [mensaje]})
+
+
+class CoordenadaField(serializers.DecimalField):
+    """Latitud/longitud con 6 decimales: lo de más se **redondea**, no da 400 (K5).
+
+    Un GPS de teléfono trae 7 o más decimales y el ``DecimalField`` de DRF rechaza
+    lo que excede ``decimal_places`` sin redondear: el alta entera moría con 400 por
+    una precisión que sobra. Se redondea (ROUND_HALF_UP) antes de validar.
+    """
+
+    UNIDAD = Decimal("0.000001")
+
+    def to_internal_value(self, data):
+        if isinstance(data, (str, int, float)) and not isinstance(data, bool):
+            try:
+                valor = Decimal(str(data).strip())
+                if valor.is_finite():
+                    data = valor.quantize(self.UNIDAD, rounding=ROUND_HALF_UP)
+            except InvalidOperation:
+                pass  # lo que no se puede leer lo rechaza la validación de siempre
+        return super().to_internal_value(data)
 
 
 class RelevamientoListSerializer(serializers.ModelSerializer):
@@ -115,6 +138,8 @@ class FormularioSerializer(serializers.ModelSerializer):
     version_capturada = serializers.IntegerField(required=False, allow_null=True, min_value=0, max_value=2_147_483_647)
 
     respuestas = serializers.DictField(required=False)
+    gps_lat = CoordenadaField(max_digits=9, decimal_places=6, required=False, allow_null=True)
+    gps_lng = CoordenadaField(max_digits=9, decimal_places=6, required=False, allow_null=True)
 
     class Meta:
         model = Formulario
@@ -190,6 +215,13 @@ class FormularioSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         relevamiento = self.context.get("relevamiento") or (self.instance.relevamiento if self.instance else None)
         foto = None
+        # K2 · un `capturado_en` del futuro (reloj del teléfono adelantado) se
+        # recorta a «ahora». El valor recibido y el adelanto viajan por el contexto
+        # para que la vista deje la observación al guardar el caso.
+        capturado, adelanto = servicio_campo.acotar_capturado_en(attrs.get("capturado_en"))
+        if adelanto is not None:
+            self.context["reloj_adelantado"] = (attrs["capturado_en"], adelanto)
+            attrs["capturado_en"] = capturado
         hoy = fecha_local(attrs.get("capturado_en"))
         if relevamiento is not None:
             foto = respuestas_servicio.foto_definicion(relevamiento)

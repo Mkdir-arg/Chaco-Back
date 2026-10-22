@@ -482,6 +482,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 354 | La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué | Becas · proceso masivo a SIIS (pantalla) | `#siis` `#ui` | Juez — casos excluidos sin aviso | 21/10/2026 | 🟢 **Hecho** | no |
 | 355 | Un territorial puede tener varios segmentos (PR 1: modelo y lectores) | Becas · asignación de territoriales · ABM de usuarios | `#rbac` `#usuarios` `#relevamientos` | PM — territorial en más de un segmento | 22/10/2026 | 🟡 **Parcial — falta el PR 2 (UI y buscador)** | `programas.0103` |
 | 356 | Programas de Becas que no validan con SIIS | Becas · programas y revisión de casos | `#siis` `#ui` `#relevamientos` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | sí (`programas.0104`) |
+| 357 | La API de campo de Becas aguanta lo que el teléfono manda: `code` en los errores, reloj adelantado, `client_uuid` en colisión, GPS redondeado, login con módulos y vectores de condiciones | Becas · API de campo | `#api` `#mobile` `#relevamientos` `#gps` | Juez — cruce back ↔ app (Parte 5.1, K1–K8) | 22/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -46276,5 +46277,116 @@ Nada más que el deploy (corre la migración).
   es solo el selector del catálogo) y el **Cambio 81** (la consulta a SIIS es obligatoria para aprobar): los dos
   valen ahora solo para los programas que validan con SIIS. Relacionado con el **Cambio 349** (el estado de SIIS
   dejó de pausar programas).
+
+---
+
+# Cambio 357 — La API de campo de Becas aguanta lo que el teléfono manda: `code` en los errores, reloj adelantado, `client_uuid` en colisión, GPS redondeado, login con módulos y vectores de condiciones
+
+🟢 **HECHO — 22/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · API de campo (`/api/becas/`) |
+| **Etiquetas** | `#api` `#mobile` `#relevamientos` `#gps` |
+| **Solicitante** | Juez — cruce back ↔ app Chaco-mobile e47e00d contra el back fc1a7489 (contrato «definición de la app de Becas», Parte 5.1, K1–K8), 22/10/2026 |
+| **Fecha del pedido** | 22/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API · Mobile (la app instalada no cambia; la nueva lee las claves nuevas) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El cruce de la app móvil contra el back encontró que una carga pausada contestaba 400 «fuera del período» sin
+`pausado` (la app la deja como error permanente), que un teléfono con el reloj adelantado fallaba **cada** alta,
+que un `client_uuid` repetido en otro relevamiento podía devolver el caso de otra persona (o un 500 por el UNIQUE),
+que un GPS con más de 6 decimales daba 400, y que la app solo distinguía los 409 por regex sobre el texto. Todo
+cambio tenía que ser **aditivo**: la APK y el back no se despliegan juntos y las rutas nuevas las bloquea el WAF de ECOM.
+
+## Alcance acordado
+
+- **K1.** Alta con el relevamiento pausado (con o sin `capturado_en`): `409 {"detail": "El relevamiento está pausado:
+  <motivo>", "pausado": true, "code": "PAUSADO"}`. La pausa se evalúa antes que el período, también bajo el lock
+  (`campo.evaluar_captura`).
+- **K2.** Un `capturado_en` a más de 5 min en el futuro ya no da 400: se usa `ahora` y se agrega a
+  `observaciones_carga` «Reloj del teléfono adelantado N min (capturado_en recibido: <iso>).».
+- **K3.** `code` en los 4xx de `/api/becas/` (`FUERA_DE_PERIODO`, `RELEVAMIENTO_NO_EN_CURSO`, `GRACIA_VENCIDA`,
+  `PAUSADO`, `CUPO_RELEVAMIENTO_COMPLETO`, `CASO_RESUELTO`, `RELEVAMIENTO_NO_ASIGNADO`, `RELEVAMIENTO_NO_FINALIZADO`,
+  `CAPTURADO_EN_INVALIDO`, `VALIDACION`). Ningún `detail` cambia.
+- **K4.** El `client_uuid` se busca en toda la base. Mismo relevamiento y mismo DNI: 200 (reintento). Otro
+  relevamiento, o el mismo con otro DNI: `409 CLIENT_UUID_EN_USO`.
+- **K5.** `gps_lat` y `gps_lng` se redondean (ROUND_HALF_UP) a 6 decimales antes de validar.
+- **K6.** `ApiCorsMiddleware` agrega `Access-Control-Expose-Headers: Date, Retry-After` con el origen permitido.
+- **K7.** El login suma `modulos` (`becas` si `becas.campo`; `dispositivos` si `inspeccion.relevar` con alcance
+  a Dispositivos) y `app: {version_minima}` (variable `APP_CAMPO_VERSION_MINIMA`, `null` si está vacía).
+- **K8.** El test de contrato fija el login, los cuerpos de K1–K4, las claves de cada tipo de ítem y los enums en
+  minúscula; y `programas/tests/fixtures/condiciones_vectores.json` (97 casos) que la app copia a sus tests.
+
+Afuera: rutas nuevas, cambios de modelo, y cualquier texto de `detail`.
+
+## Decisiones tomadas
+
+- **K2 contradice G1-04** (Cambio 175: «una captura del futuro no es una sincronización tardía», se rechazaba con
+  400). **Decidido por el juez por delegación del PM, 22/10/2026.** Motivo: con el reloj adelantado, «Corregir» en la
+  app reenvía el mismo `capturado_en` y el teléfono no podía dar de alta a nadie; la captura existe y rechazarla es
+  perder trabajo de campo. El período se evalúa con `ahora`, así que un relevamiento ya cerrado sigue rechazando.
+- El recorte rige también en `iniciar`/`finalizar` (mismo reloj, mismo síntoma). Sin observación ahí: no hay caso.
+- La línea de reloj adelantado entra en `PREFIJOS_CONSERVADOS`: `aplicar_revision` reescribe `observaciones_carga`
+  entero y sin eso la perdería.
+- `finalizar` sobre un relevamiento que no está en curso sigue siendo **400** (hoy lo es y la app lo lee así) y suma
+  `code: RELEVAMIENTO_NO_EN_CURSO`; solo el alta lo devuelve como 409.
+- El 400 de validación mantiene su forma `{campo: [...], "non_field_errors": [...]}` y suma `"code": "VALIDACION"`.
+  El 400 de `personas/consultar` **no** lleva `code`: su cuerpo `{success, error}` está fijado por test y no figura
+  en el contrato.
+- La búsqueda global del `client_uuid` está en `formulario_por_client_uuid_global` (usa `q_uuid_en_texto`, índice
+  UNIQUE). Si el caso viejo no permite saber su DNI, se confía en el relevamiento (comportamiento anterior).
+- Sobre K1: el alta ya cortaba la pausa antes del serializer (409 con `pausado`); el 400 sin `pausado` quedaba para la
+  evaluación bajo el lock (pausa puesta en el medio). Ahora las dos rutas dan el mismo 409 con `code`.
+
+## Implementación
+
+`programas/services/campo.py` (`Decision` con `code`/`pausado`, `mensaje_pausa`, `acotar_capturado_en`, constantes de
+`code`), `programas/api/views.py` (`_error`, `_error_validacion`, alta, login, `_es_el_mismo_alta`),
+`programas/api/serializers.py` (`CoordenadaField`; recorte del reloj en `validate`), `programas/services/becas.py`
+(`formulario_por_client_uuid_global`), `core/middleware.py`, `config/settings.py` (`APP_CAMPO_VERSION_MINIMA`).
+
+## Archivos
+
+- Código: los de arriba.
+- Tests: `programas/tests/test_becas_api_contrato.py` (`ContratoDeErroresYLoginTests`),
+  `programas/tests/test_api_campo_robustez.py`, `core/tests/test_cors_api.py`.
+- Vectores: `programas/tests/fixtures/condiciones_vectores.json`, generado por
+  `scripts/generar_vectores_condiciones.py` con el motor real (`programas/services/condiciones.py`).
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Suites `test_becas_api_contrato`, `test_api_campo_robustez`, `test_app_de_campo`, `test_becas_api` y
+  `core.tests.test_cors_api` en verde; `manage.py check` y `makemigrations --check` sin cambios.
+- Mutación: sin la pausa del alta (vista y servicio) el test de K1 pasa a rojo; con `_es_el_mismo_alta` siempre
+  verdadero los de K4 pasan a rojo; sin el recorte del reloj los de K2 pasan a rojo. Restaurado cada uno.
+- Vectores: el valor de `visibles` lo dicta el motor. Resultados que sorprenden y quedan fijados: `edad_entre` con el
+  rango invertido ordena los límites (cumple); `edad_entre` con un solo límite no cumple; una fecha `15/03/2010` sí
+  da edad (el parseo la acepta) y `2000-02-30` no; un operador desconocido o ausente deja el ítem oculto; `eq` sobre
+  un selector compara números en texto; una fuente posterior en el orden cuenta como vacía (`vacio` se cumple).
+
+## Puesta en marcha en el servidor
+
+Opcional: `APP_CAMPO_VERSION_MINIMA` (semver) cuando una versión de la app deba bloquearse. Vacía = sin chequeo.
+
+## Pendientes / a definir
+
+- La app tiene que copiar `condiciones_vectores.json` a sus tests y leer `code`, `modulos` y `app.version_minima`.
+- Los 401/403/404 de DRF y el login 403/429 no llevan `code` (no figuran en el contrato).
+
+## Reversión
+
+Revertir el commit. Es aditivo: la app instalada no depende de ninguna clave nueva.
+
+## Historial
+
+- **22/10/2026 — alta del cambio.** Revisa el criterio de **G1-04** (Cambio 175) para el `capturado_en` del futuro.
 
 ---

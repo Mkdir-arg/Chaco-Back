@@ -1,0 +1,4551 @@
+[
+  {
+    "nombre": "string · vacio con la fuente sin responder",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "vacio",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "string · vacio con texto en blanco",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "vacio",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "   "
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "string · vacio con texto",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "vacio",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "hola"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "string · completo con texto",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "hola"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "string · completo con la fuente sin responder",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "string · completo con texto en blanco",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "  "
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "int · eq cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "eq",
+                  "valor": 5
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 5
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "int · eq no cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "eq",
+                  "valor": 5
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 6
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "int · eq con valor en texto",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "eq",
+                  "valor": 5
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "5"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "int · ne cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "ne",
+                  "valor": 5
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 6
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "int · ne no cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "ne",
+                  "valor": 5
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 5
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "int · ne con la fuente sin responder",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "ne",
+                  "valor": 5
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "int · lt cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "lt",
+                  "valor": 10
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 3
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "int · lt en el límite",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "lt",
+                  "valor": 10
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 10
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "int · gt cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "gt",
+                  "valor": 10
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 11
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "int · gt en el límite",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "gt",
+                  "valor": 10
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 10
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "int · le en el límite",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "le",
+                  "valor": 10
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 10
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "int · le no cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "le",
+                  "valor": 10
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 11
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "int · ge en el límite",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "ge",
+                  "valor": 10
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 10
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "int · ge no cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "ge",
+                  "valor": 10
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 9
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "int · coma decimal en la respuesta",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "gt",
+                  "valor": 2
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2,5"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "int · coma decimal en el valor de la regla",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "lt",
+                  "valor": "2,5"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 2
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "int · respuesta no numérica",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "eq",
+                  "valor": 5
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "cinco"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "int · valor de la regla no numérico",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "eq",
+                  "valor": "x"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 5
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "int · cero cuenta como respondido",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "eq",
+                  "valor": 0
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 0
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "int · vacio con cero",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "INT",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "vacio",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": 0
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "selector · es cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "es",
+                  "valor": "Sí"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "Sí"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "selector · es no cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "es",
+                  "valor": "Sí"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "No"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "selector · es compara como texto",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "es",
+                  "valor": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "1"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "selector · es distingue mayúsculas",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "es",
+                  "valor": "Sí"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "sí"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "selector · no_es cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "no_es",
+                  "valor": "Sí"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "No"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "selector · no_es no cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "no_es",
+                  "valor": "Sí"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "Sí"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "selector · no_es con la fuente sin responder",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "no_es",
+                  "valor": "Sí"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "selector · es_alguno cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "es_alguno",
+                  "valor": [
+                    "A",
+                    "B"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "B"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "selector · es_alguno no cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "es_alguno",
+                  "valor": [
+                    "A",
+                    "B"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "C"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "selector · es_alguno con un valor suelto en la regla",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "es_alguno",
+                  "valor": "A"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "A"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "multiple · incluye cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR_MULTIPLE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "incluye",
+                  "valor": "A"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": [
+        "A",
+        "B"
+      ]
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "multiple · incluye no cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR_MULTIPLE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "incluye",
+                  "valor": "C"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": [
+        "A",
+        "B"
+      ]
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "multiple · incluye con la lista vacía",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR_MULTIPLE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "incluye",
+                  "valor": "A"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": []
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "multiple · no_incluye cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR_MULTIPLE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "no_incluye",
+                  "valor": "C"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": [
+        "A",
+        "B"
+      ]
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "multiple · no_incluye no cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR_MULTIPLE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "no_incluye",
+                  "valor": "A"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": [
+        "A",
+        "B"
+      ]
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "multiple · no_incluye con la lista vacía",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR_MULTIPLE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "no_incluye",
+                  "valor": "A"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": []
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "multiple · incluye_alguno cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR_MULTIPLE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "incluye_alguno",
+                  "valor": [
+                    "B",
+                    "Z"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": [
+        "A",
+        "B"
+      ]
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "multiple · incluye_alguno no cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR_MULTIPLE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "incluye_alguno",
+                  "valor": [
+                    "Y",
+                    "Z"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": [
+        "A",
+        "B"
+      ]
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "multiple · vacio con la lista vacía",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR_MULTIPLE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "vacio",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": []
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "multiple · completo con una opción",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR_MULTIPLE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": [
+        "A"
+      ]
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · edad_menor cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_menor",
+                  "valor": 18
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2010-03-15"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · edad_menor el día que cumple 18",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_menor",
+                  "valor": 18
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2008-10-22"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "fecha · edad_menor el día antes de cumplir 18",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_menor",
+                  "valor": 18
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2008-10-23"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · edad_mayor cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_mayor",
+                  "valor": 60
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "1950-01-01"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · edad_mayor en el límite",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_mayor",
+                  "valor": 60
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "1966-10-22"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "fecha · edad_igual cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_igual",
+                  "valor": 16
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2010-03-15"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · edad_igual no cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_igual",
+                  "valor": 17
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2010-03-15"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "fecha · edad_entre dentro del rango",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_entre",
+                  "valor": [
+                    10,
+                    18
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2010-03-15"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · edad_entre en el borde inferior",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_entre",
+                  "valor": [
+                    16,
+                    18
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2010-03-15"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · edad_entre fuera del rango",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_entre",
+                  "valor": [
+                    20,
+                    30
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2010-03-15"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "fecha · edad_entre con el rango invertido",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_entre",
+                  "valor": [
+                    18,
+                    10
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2010-03-15"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · edad_entre con un solo límite",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_entre",
+                  "valor": [
+                    18
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2010-03-15"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "fecha · edad con otra fecha de referencia",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_menor",
+                  "valor": 18
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2008-10-22"
+    },
+    "fecha_referencia": "2026-10-21",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · edad con una fecha imposible",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_menor",
+                  "valor": 18
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2000-02-30"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "fecha · edad con una fecha en formato argentino",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_menor",
+                  "valor": 18
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "15/03/2010"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · anterior cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "anterior",
+                  "valor": "2000-01-01"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "1999-12-31"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · anterior el mismo día",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "anterior",
+                  "valor": "2000-01-01"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2000-01-01"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "fecha · posterior cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "posterior",
+                  "valor": "2000-01-01"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2000-01-02"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · posterior el mismo día",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "posterior",
+                  "valor": "2000-01-01"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2000-01-01"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "fecha · posterior con el tope inválido",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "posterior",
+                  "valor": "no-es-fecha"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "2000-01-02"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "fecha · vacio sin responder",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "vacio",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "fecha · edad con la fuente sin responder",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "DATE",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "edad_menor",
+                  "valor": 18
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "archivo · adjuntado con archivo",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "ARCHIVO",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "adjuntado",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "foto.jpg"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "archivo · adjuntado sin archivo",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "ARCHIVO",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "adjuntado",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "archivo · no_adjuntado sin archivo",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "ARCHIVO",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "no_adjuntado",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "archivo · no_adjuntado con archivo",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "ARCHIVO",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "no_adjuntado",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "foto.jpg"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "operador desconocido",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "empieza_con",
+                  "valor": "ho"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "hola"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "operador desconocido con la fuente sin responder",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "empieza_con",
+                  "valor": "ho"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "operador de otro tipo sobre la fuente (eq sobre un selector)",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "eq",
+                  "valor": "5"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "5"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "operador ausente",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": null,
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "hola"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "condicion null · siempre visible",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": null
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "condicion sin reglas · siempre visible",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": []
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b"
+    ]
+  },
+  {
+    "nombre": "condicion sin modo · vale todas",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "c",
+            "tipo": "STRING",
+            "texto": "c",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "completo",
+                  "valor": null
+                },
+                {
+                  "fuente": "c",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "x"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "c"
+    ]
+  },
+  {
+    "nombre": "modo todas · las dos reglas cumplen",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "c",
+            "tipo": "STRING",
+            "texto": "c",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "completo",
+                  "valor": null
+                },
+                {
+                  "fuente": "c",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "x",
+      "c": "y"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "c",
+      "b"
+    ]
+  },
+  {
+    "nombre": "modo todas · cumple una sola",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "c",
+            "tipo": "STRING",
+            "texto": "c",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "completo",
+                  "valor": null
+                },
+                {
+                  "fuente": "c",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "x"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "c"
+    ]
+  },
+  {
+    "nombre": "modo alguna · cumple una",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "c",
+            "tipo": "STRING",
+            "texto": "c",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "alguna",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "completo",
+                  "valor": null
+                },
+                {
+                  "fuente": "c",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "x"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "c",
+      "b"
+    ]
+  },
+  {
+    "nombre": "modo alguna · no cumple ninguna",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "c",
+            "tipo": "STRING",
+            "texto": "c",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "alguna",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "completo",
+                  "valor": null
+                },
+                {
+                  "fuente": "c",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "c"
+    ]
+  },
+  {
+    "nombre": "oculto cuenta como vacío para sus dependientes",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "c",
+            "tipo": "STRING",
+            "texto": "c",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "b",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "d",
+            "tipo": "STRING",
+            "texto": "d",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "b",
+                  "op": "vacio",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "b": "respondió aunque estaba oculto",
+      "c": "x"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "d"
+    ]
+  },
+  {
+    "nombre": "grupo oculto oculta a sus hijos aunque su propia condición cumpla",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          }
+        ]
+      },
+      {
+        "tipo": "grupo",
+        "clave": "g2",
+        "titulo": "g2",
+        "condicion": {
+          "modo": "todas",
+          "reglas": [
+            {
+              "fuente": "a",
+              "op": "completo",
+              "valor": null
+            }
+          ]
+        },
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "c",
+            "tipo": "STRING",
+            "texto": "c",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "vacio",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "grupo visible con un hijo condicionado",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          }
+        ]
+      },
+      {
+        "tipo": "grupo",
+        "clave": "g2",
+        "titulo": "g2",
+        "condicion": {
+          "modo": "todas",
+          "reglas": [
+            {
+              "fuente": "a",
+              "op": "completo",
+              "valor": null
+            }
+          ]
+        },
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "c",
+            "tipo": "STRING",
+            "texto": "c",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "x"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "g2",
+      "b",
+      "c"
+    ]
+  },
+  {
+    "nombre": "el hijo de un grupo oculto no sirve de fuente",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          }
+        ]
+      },
+      {
+        "tipo": "grupo",
+        "clave": "g2",
+        "titulo": "g2",
+        "condicion": {
+          "modo": "todas",
+          "reglas": [
+            {
+              "fuente": "a",
+              "op": "completo",
+              "valor": null
+            }
+          ]
+        },
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": null
+          }
+        ]
+      },
+      {
+        "tipo": "grupo",
+        "clave": "g3",
+        "titulo": "g3",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "c",
+            "tipo": "STRING",
+            "texto": "c",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "b",
+                  "op": "vacio",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "b": "x"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "g3",
+      "c"
+    ]
+  },
+  {
+    "nombre": "texto informativo condicionado",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo": "texto",
+            "clave": "t1",
+            "texto": "t1",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "es",
+                  "valor": "Sí"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "Sí"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "t1"
+    ]
+  },
+  {
+    "nombre": "texto informativo oculto",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo": "texto",
+            "clave": "t1",
+            "texto": "t1",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "es",
+                  "valor": "Sí"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "No"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "fuente posterior en el orden · no cuenta como respondida",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "x"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "fuente posterior en el orden · vacio se cumple",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "vacio",
+                  "valor": null
+                }
+              ]
+            }
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "x"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "b",
+      "a"
+    ]
+  },
+  {
+    "nombre": "fuente que no existe en el formulario",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "zzz",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "c",
+            "tipo": "STRING",
+            "texto": "c",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "zzz",
+                  "op": "vacio",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "c"
+    ]
+  },
+  {
+    "nombre": "respuesta a una clave que el formulario no tiene",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "STRING",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "STRING",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "x",
+                  "op": "completo",
+                  "valor": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "x": "algo"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a"
+    ]
+  },
+  {
+    "nombre": "cadena de condiciones de tres pasos",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g1",
+        "titulo": "g1",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "a",
+            "tipo": "SELECTOR",
+            "texto": "a",
+            "condicion": null
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "b",
+            "tipo": "SELECTOR",
+            "texto": "b",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "a",
+                  "op": "es",
+                  "valor": "Sí"
+                }
+              ]
+            }
+          },
+          {
+            "tipo_item": "campo",
+            "clave": "c",
+            "tipo": "STRING",
+            "texto": "c",
+            "condicion": {
+              "modo": "todas",
+              "reglas": [
+                {
+                  "fuente": "b",
+                  "op": "es",
+                  "valor": "Sí"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "a": "Sí",
+      "b": "Sí"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g1",
+      "a",
+      "b",
+      "c"
+    ]
+  },
+  {
+    "nombre": "apoderado: grupo condicionado a edad_menor 18 (menor)",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g-datos",
+        "titulo": "g-datos",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "pg-1",
+            "tipo": "DATE",
+            "texto": "pg-1",
+            "condicion": null
+          }
+        ]
+      },
+      {
+        "tipo": "grupo",
+        "clave": "g-apoderado",
+        "titulo": "g-apoderado",
+        "condicion": {
+          "modo": "todas",
+          "reglas": [
+            {
+              "fuente": "pg-1",
+              "op": "edad_menor",
+              "valor": 18
+            }
+          ]
+        },
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "pg-2",
+            "tipo": "STRING",
+            "texto": "pg-2",
+            "condicion": null
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "pg-1": "2012-05-01"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g-datos",
+      "pg-1",
+      "g-apoderado",
+      "pg-2"
+    ]
+  },
+  {
+    "nombre": "apoderado: grupo condicionado a edad_menor 18 (mayor)",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g-datos",
+        "titulo": "g-datos",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "pg-1",
+            "tipo": "DATE",
+            "texto": "pg-1",
+            "condicion": null
+          }
+        ]
+      },
+      {
+        "tipo": "grupo",
+        "clave": "g-apoderado",
+        "titulo": "g-apoderado",
+        "condicion": {
+          "modo": "todas",
+          "reglas": [
+            {
+              "fuente": "pg-1",
+              "op": "edad_menor",
+              "valor": 18
+            }
+          ]
+        },
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "pg-2",
+            "tipo": "STRING",
+            "texto": "pg-2",
+            "condicion": null
+          }
+        ]
+      }
+    ],
+    "respuestas": {
+      "pg-1": "1990-05-01"
+    },
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g-datos",
+      "pg-1"
+    ]
+  },
+  {
+    "nombre": "apoderado: sin la fecha de nacimiento el grupo no aparece",
+    "items": [
+      {
+        "tipo": "grupo",
+        "clave": "g-datos",
+        "titulo": "g-datos",
+        "condicion": null,
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "pg-1",
+            "tipo": "DATE",
+            "texto": "pg-1",
+            "condicion": null
+          }
+        ]
+      },
+      {
+        "tipo": "grupo",
+        "clave": "g-apoderado",
+        "titulo": "g-apoderado",
+        "condicion": {
+          "modo": "todas",
+          "reglas": [
+            {
+              "fuente": "pg-1",
+              "op": "edad_menor",
+              "valor": 18
+            }
+          ]
+        },
+        "items": [
+          {
+            "tipo_item": "campo",
+            "clave": "pg-2",
+            "tipo": "STRING",
+            "texto": "pg-2",
+            "condicion": null
+          }
+        ]
+      }
+    ],
+    "respuestas": {},
+    "fecha_referencia": "2026-10-22",
+    "visibles": [
+      "g-datos",
+      "pg-1"
+    ]
+  }
+]

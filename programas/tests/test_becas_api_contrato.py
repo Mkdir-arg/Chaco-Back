@@ -622,3 +622,403 @@ class ContratoAppDeCampoTests(_BaseApiTest):
         self.assertEqual(segunda.status_code, 200, segunda.data)
         self.assertEqual(segunda.json()["id"], primera.json()["id"])
         self.assertEqual(Formulario.objects.filter(relevamiento=self.rel).count(), 1)
+
+
+# ── Robustez de la API de campo (K1–K8, 22-oct-2026) ─────────────────────────
+#
+# Las claves y los `code` de abajo son lo que la app **nueva** lee primero. Los
+# `detail` siguen siendo los de siempre —la app instalada los reconoce por
+# regex—, y por eso cada test los fija también.
+
+CLAVES_LOGIN = ["token", "user_id", "username", "modulos", "app"]
+CLAVES_ITEM_GRUPO = {"tipo", "clave", "titulo", "subtitulo", "condicion", "canal", "items"}
+CLAVES_ITEM_TEXTO = {"tipo", "clave", "texto", "condicion"}
+CLAVES_ITEM_CAMPO = {
+    "tipo_item",
+    "condicion",
+    "id",
+    "texto",
+    "tipo",
+    "opciones",
+    "presentacion",
+    "obligatorio",
+    "orden",
+    "alcance",
+    "subsegmento_id",
+    "canal",
+    "origen",
+    "vinculo",
+    "grupo",
+    "clave",
+}
+#: Opcional: solo viaja cuando el campo tiene destino en SIIS.
+CLAVES_ITEM_CAMPO_OPCIONALES = {"destino_siis"}
+
+
+class ContratoDeErroresYLoginTests(_BaseApiTest):
+    def setUp(self):
+        super().setUp()
+        self.autenticar(self.terri)
+        self.url_alta = reverse("becas_api:relevamiento-formularios", args=[self.rel.pk])
+
+    def _cuerpo(self, **extra):
+        cuerpo = {
+            "client_uuid": "7d1c0b4e-9b2a-4c0d-8b4e-1a2b3c4d5e6f",
+            "capturado_en": timezone.now().isoformat(),
+            "celular": "3624111222",
+            "datos_identificacion": {"dni": "40400400", "nombre": "Juan", "apellido": "Perez", "origen": "manual"},
+            "data": {"globales": {}, "requisitos": {}},
+        }
+        cuerpo.update(extra)
+        return cuerpo
+
+    def _en_curso(self):
+        self.rel.estado = Relevamiento.Estado.EN_CURSO
+        self.rel.save(update_fields=["estado", "modificado"])
+
+    def _pausar(self):
+        self.conv.pausado = True
+        self.conv.pausa_motivo = "Revisión de padrón"
+        self.conv.save(update_fields=["pausado", "pausa_motivo"])
+
+    def _login(self):
+        return self.client.post(
+            reverse("becas_api:token"), {"username": "terri", "password": "secret123"}, format="json"
+        )
+
+    # K7
+
+    def test_el_login_trae_modulos_y_version_minima_sin_tocar_lo_de_siempre(self):
+        resp = self._login()
+
+        self.assertEqual(resp.status_code, 200)
+        cuerpo = resp.json()
+        self.assertEqual(sorted(cuerpo), sorted(CLAVES_LOGIN))
+        self.assertEqual(cuerpo["username"], "terri")
+        self.assertIsInstance(cuerpo["user_id"], int)
+        self.assertEqual(cuerpo["modulos"], ["becas"])
+        self.assertEqual(cuerpo["app"], {"version_minima": None})
+
+    def test_la_version_minima_sale_de_la_configuracion(self):
+        with self.settings(APP_CAMPO_VERSION_MINIMA="1.4.0"):
+            resp = self._login()
+
+        self.assertEqual(resp.json()["app"], {"version_minima": "1.4.0"})
+
+    def test_modulos_sin_becas_campo_es_solo_dispositivos(self):
+        with (
+            patch("programas.api.views.puede", side_effect=lambda user, codigo, *a, **k: codigo != "becas.campo"),
+            patch("programas.api.views.puede_en_programa_dispositivos", return_value=True),
+        ):
+            resp = self._login()
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["modulos"], ["dispositivos"])
+
+    def test_modulos_con_las_dos_capacidades_van_ordenados(self):
+        with patch("programas.api.views.puede_en_programa_dispositivos", return_value=True):
+            resp = self._login()
+
+        self.assertEqual(resp.json()["modulos"], ["becas", "dispositivos"])
+
+    # K1
+
+    def test_el_alta_pausada_es_409_pausado_con_o_sin_capturado_en(self):
+        self._en_curso()
+        self._pausar()
+        sin_captura = {k: v for k, v in self._cuerpo().items() if k != "capturado_en"}
+
+        for nombre, cuerpo in (("con capturado_en", self._cuerpo()), ("sin capturado_en", sin_captura)):
+            with self.subTest(nombre):
+                resp = self.client.post(self.url_alta, cuerpo, format="json")
+                self.assertEqual(resp.status_code, 409, resp.content)
+                self.assertEqual(
+                    resp.json(),
+                    {
+                        "detail": "El relevamiento está pausado: Revisión de padrón",
+                        "pausado": True,
+                        "code": "PAUSADO",
+                    },
+                )
+        self.assertEqual(Formulario.objects.count(), 0)
+
+    def test_toda_respuesta_de_pausa_lleva_el_mismo_cuerpo(self):
+        """iniciar, finalizar y reabrir: el mismo 409 con `pausado` y `code`."""
+        self._pausar()
+        esperado = {"detail": "El relevamiento está pausado: Revisión de padrón", "pausado": True, "code": "PAUSADO"}
+
+        for accion in ("iniciar", "finalizar", "reabrir"):
+            with self.subTest(accion):
+                resp = self.client.post(reverse(f"becas_api:relevamiento-{accion}", args=[self.rel.pk]), {})
+                self.assertEqual(resp.status_code, 409)
+                self.assertEqual(resp.json(), esperado)
+
+    def test_el_adjunto_pausado_lleva_code(self):
+        self._en_curso()
+        formulario = Formulario.objects.create(relevamiento=self.rel, celular="111", email_contacto="a@b.com")
+        self._pausar()
+
+        resp = self.client.post(
+            reverse("becas_api:formulario-adjuntos", args=[formulario.pk]),
+            {"clave": "pg-1", "archivo": SimpleUploadedFile("a.jpg", b"x")},
+            format="multipart",
+        )
+
+        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(resp.json()["code"], "PAUSADO")
+        self.assertIs(resp.json()["pausado"], True)
+
+    # K3
+
+    def test_el_alta_en_un_relevamiento_que_no_esta_en_curso_lleva_code(self):
+        resp = self.client.post(self.url_alta, self._cuerpo(), format="json")
+
+        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(
+            resp.json(),
+            {
+                "detail": "Solo se pueden cargar personas en un relevamiento en curso.",
+                "code": "RELEVAMIENTO_NO_EN_CURSO",
+            },
+        )
+
+    def test_fuera_de_periodo_y_gracia_vencida_llevan_code(self):
+        fin = timezone.now() - timedelta(hours=2)
+        Relevamiento.objects.filter(pk=self.rel.pk).update(
+            fecha_asignada=fin - timedelta(days=1), fecha_hasta=fin, estado=Relevamiento.Estado.EN_CURSO
+        )
+
+        # Captura posterior al período: fuera de período (400).
+        posterior = self.client.post(
+            self.url_alta, self._cuerpo(capturado_en=(fin + timedelta(minutes=30)).isoformat()), format="json"
+        )
+        self.assertEqual(posterior.status_code, 400)
+        self.assertEqual(
+            posterior.json(),
+            {"detail": "La captura se realizó fuera del período asignado.", "code": "FUERA_DE_PERIODO"},
+        )
+
+        # Cerrado hace más de 24 h: gracia vencida (409).
+        lejos = timezone.now() - timedelta(hours=30)
+        Relevamiento.objects.filter(pk=self.rel.pk).update(
+            fecha_asignada=lejos - timedelta(days=1), fecha_hasta=lejos, estado=Relevamiento.Estado.EN_REVISION
+        )
+        vencida = self.client.post(
+            self.url_alta, self._cuerpo(capturado_en=(lejos - timedelta(hours=1)).isoformat()), format="json"
+        )
+        self.assertEqual(vencida.status_code, 409)
+        cuerpo = vencida.json()
+        self.assertEqual(cuerpo["code"], "GRACIA_VENCIDA")
+        self.assertTrue(cuerpo["detail"].startswith("El relevamiento cerró hace más de 24 horas"))
+        self.assertNotIn("pausado", cuerpo)
+
+    def test_el_cupo_completo_conserva_su_cuerpo(self):
+        self._en_curso()
+        Relevamiento.objects.filter(pk=self.rel.pk).update(cupo_maximo=0)
+
+        resp = self.client.post(self.url_alta, self._cuerpo(), format="json")
+
+        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(
+            resp.json(),
+            {
+                "detail": "Se alcanzó el cupo del relevamiento. No se pueden cargar nuevas personas.",
+                "code": "CUPO_RELEVAMIENTO_COMPLETO",
+                "cupo_maximo": 0,
+            },
+        )
+
+    def test_iniciar_finalizar_y_reabrir_llevan_code(self):
+        fecha_invalida = (
+            {"capturado_en": "no-es-una-fecha"},
+            {"capturado_en": "La fecha de captura no es válida.", "code": "CAPTURADO_EN_INVALIDO"},
+        )
+        casos = [
+            ("iniciar", *fecha_invalida),
+            ("finalizar", *fecha_invalida),
+            (
+                "finalizar",
+                {},
+                {"detail": "El relevamiento no está en curso.", "code": "RELEVAMIENTO_NO_EN_CURSO"},
+            ),
+            (
+                "reabrir",
+                {},
+                {"detail": "Solo se puede reabrir un relevamiento finalizado.", "code": "RELEVAMIENTO_NO_FINALIZADO"},
+            ),
+        ]
+        for accion, cuerpo, esperado in casos:
+            with self.subTest(accion=accion, cuerpo=cuerpo):
+                resp = self.client.post(reverse(f"becas_api:relevamiento-{accion}", args=[self.rel.pk]), cuerpo)
+                self.assertEqual(resp.status_code, 400, resp.content)
+                self.assertEqual(resp.json(), esperado)
+
+    def test_iniciar_un_relevamiento_ya_cerrado_dice_que_no_esta_asignado(self):
+        Relevamiento.objects.filter(pk=self.rel.pk).update(estado=Relevamiento.Estado.FINALIZADO)
+
+        resp = self.client.post(reverse("becas_api:relevamiento-iniciar", args=[self.rel.pk]), {})
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(
+            resp.json(),
+            {"detail": "Solo se puede iniciar un relevamiento asignado.", "code": "RELEVAMIENTO_NO_ASIGNADO"},
+        )
+
+    def test_fuera_de_periodo_en_iniciar_lleva_code(self):
+        Relevamiento.objects.filter(pk=self.rel.pk).update(
+            fecha_asignada=timezone.now() + timedelta(days=2), fecha_hasta=timezone.now() + timedelta(days=5)
+        )
+
+        resp = self.client.post(reverse("becas_api:relevamiento-iniciar", args=[self.rel.pk]), {})
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(
+            resp.json(),
+            {"detail": "Solo se puede relevar dentro del período asignado.", "code": "FUERA_DE_PERIODO"},
+        )
+
+    def test_la_validacion_del_alta_mantiene_su_forma_y_suma_code(self):
+        self._en_curso()
+
+        resp = self.client.post(self.url_alta, {"celular": "1", "datos_identificacion": {"dni": "12"}}, format="json")
+
+        self.assertEqual(resp.status_code, 400)
+        cuerpo = resp.json()
+        self.assertEqual(cuerpo["code"], "VALIDACION")
+        self.assertIn("datos_identificacion", cuerpo)
+        self.assertIsInstance(cuerpo["non_field_errors"][0], str)
+
+    def test_la_validacion_del_adjunto_suma_code(self):
+        self._en_curso()
+        formulario = Formulario.objects.create(relevamiento=self.rel, celular="111", email_contacto="a@b.com")
+
+        resp = self.client.post(
+            reverse("becas_api:formulario-adjuntos", args=[formulario.pk]),
+            {"archivo": SimpleUploadedFile("a.jpg", b"x")},
+            format="multipart",
+        )
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["code"], "VALIDACION")
+        self.assertIn("non_field_errors", resp.json())
+
+    def test_el_dni_existe_sin_dni_suma_code(self):
+        resp = self.client.get(reverse("becas_api:relevamiento-dni-existe", args=[self.rel.pk]))
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json(), {"dni": "El DNI es requerido.", "code": "VALIDACION"})
+
+    # K4
+
+    def test_el_client_uuid_de_otro_relevamiento_es_409_client_uuid_en_uso(self):
+        self._en_curso()
+        otro = Relevamiento.objects.create(
+            convocatoria=self.conv, territorial=self.terri, fecha_asignada=timezone.localdate(), zona="Otra zona"
+        )
+        otro.estado = Relevamiento.Estado.EN_CURSO
+        otro.save(update_fields=["estado", "modificado"])
+        primero = self.client.post(
+            reverse("becas_api:relevamiento-formularios", args=[otro.pk]), self._cuerpo(), format="json"
+        )
+        self.assertEqual(primero.status_code, 201, primero.content)
+
+        resp = self.client.post(self.url_alta, self._cuerpo(), format="json")
+
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertEqual(
+            resp.json(),
+            {
+                "detail": "El identificador de la carga ya está en uso. La app tiene que generar uno nuevo.",
+                "code": "CLIENT_UUID_EN_USO",
+            },
+        )
+        self.assertEqual(Formulario.objects.count(), 1)
+
+    def test_el_mismo_client_uuid_con_otro_dni_en_el_mismo_relevamiento_es_409(self):
+        self._en_curso()
+        primero = self.client.post(self.url_alta, self._cuerpo(), format="json")
+        self.assertEqual(primero.status_code, 201, primero.content)
+        otra_persona = self._cuerpo(
+            datos_identificacion={"dni": "30300300", "nombre": "Ana", "apellido": "Gomez", "origen": "manual"}
+        )
+
+        resp = self.client.post(self.url_alta, otra_persona, format="json")
+
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertEqual(resp.json()["code"], "CLIENT_UUID_EN_USO")
+        self.assertEqual(Formulario.objects.count(), 1)
+
+    def test_el_reintento_del_mismo_alta_sigue_siendo_200(self):
+        self._en_curso()
+        primero = self.client.post(self.url_alta, self._cuerpo(), format="json")
+
+        reintento = self.client.post(self.url_alta, self._cuerpo(), format="json")
+
+        self.assertEqual(primero.status_code, 201)
+        self.assertEqual(reintento.status_code, 200)
+        self.assertEqual(reintento.json()["id"], primero.json()["id"])
+
+    # K8 · la forma de los ítems y los enums
+
+    def _definicion_con_texto_y_campo_propio(self):
+        from programas.models import CanalFormulario, ItemDiseno
+        from programas.services.diseno import obtener_o_crear_diseno
+
+        diseno, _ = obtener_o_crear_diseno(self.conv)
+        grupo = diseno.items.filter(tipo=ItemDiseno.Tipo.GRUPO).order_by("orden").first()
+        ItemDiseno.objects.create(
+            diseno=diseno,
+            tipo=ItemDiseno.Tipo.TEXTO,
+            clave="t-contrato",
+            padre=grupo,
+            orden=998,
+            texto="Adjuntá el certificado.",
+            canal=CanalFormulario.AMBOS,
+        )
+        ItemDiseno.objects.create(
+            diseno=diseno,
+            tipo=ItemDiseno.Tipo.CAMPO,
+            clave="cp-contrato",
+            padre=grupo,
+            orden=999,
+            canal=CanalFormulario.APP,
+            propio={"texto": "Propio", "tipo": "STRING"},
+        )
+        resp = self.client.get(reverse("becas_api:relevamiento-detail", args=[self.rel.pk]))
+        self.assertEqual(resp.status_code, 200)
+        return resp.json()["definicion_formulario"]
+
+    def test_las_claves_de_cada_tipo_de_item(self):
+        definicion = self._definicion_con_texto_y_campo_propio()
+        grupos = definicion["items"]
+        self.assertTrue(grupos)
+        textos, campos = [], []
+        for grupo in grupos:
+            self.assertEqual(set(grupo), CLAVES_ITEM_GRUPO, grupo["clave"])
+            self.assertEqual(grupo["tipo"], "grupo")
+            for hijo in grupo["items"]:
+                (campos if hijo.get("tipo_item") == "campo" else textos).append(hijo)
+        self.assertTrue(textos, "el diseño de prueba tiene un texto")
+        self.assertTrue(campos, "el diseño de prueba tiene campos")
+        for texto in textos:
+            self.assertEqual(set(texto), CLAVES_ITEM_TEXTO, texto["clave"])
+            self.assertEqual(texto["tipo"], "texto")
+        for campo in campos:
+            claves = set(campo)
+            self.assertTrue(CLAVES_ITEM_CAMPO <= claves, (campo["clave"], CLAVES_ITEM_CAMPO - claves))
+            self.assertTrue(claves <= CLAVES_ITEM_CAMPO | CLAVES_ITEM_CAMPO_OPCIONALES, (campo["clave"], claves))
+
+    def test_los_enums_van_en_minuscula(self):
+        definicion = self._definicion_con_texto_y_campo_propio()
+
+        self.assertIn(definicion["canal"], {"app", "link"})
+        campos = [hijo for g in definicion["items"] for hijo in g["items"] if hijo.get("tipo_item") == "campo"]
+        for campo in campos:
+            with self.subTest(clave=campo["clave"]):
+                self.assertIn(campo["canal"], {"app", "link", "ambos"})
+                self.assertIn(campo["origen"], {"pregunta", "legajo", "persona_vinculada"})
+                self.assertIn(campo["alcance"], {"global", "programa", "segmento", "subsegmento", "propio"})
+                self.assertIn(campo["tipo"], {"STRING", "INT", "SELECTOR", "SELECTOR_MULTIPLE", "DATE", "ARCHIVO"})
+        for grupo in definicion["items"]:
+            self.assertIn(grupo["canal"], {"app", "link", "ambos"})
+        self.assertIn("legajo", {campo["origen"] for campo in campos})
