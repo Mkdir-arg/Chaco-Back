@@ -230,7 +230,7 @@ funcionando sin ese script.
     li.appendChild(cuerpo);
     const accionesFila = nodo('div', 'flex flex-col items-end gap-1.5 flex-shrink-0');
     if (!fila.activo) {
-      accionesFila.appendChild(nodo('span', 'badge badge-danger badge-sm', 'Inactivo'));
+      accionesFila.appendChild(nodo('span', 'badge badge-gray badge-sm', 'Inactivo'));
       cuerpo.appendChild(nodo('p', 'mt-1 text-xs text-body-subtle', 'Lo reactiva el administrador del programa.'));
     } else if (fila.ya_asignado) {
       accionesFila.appendChild(nodo('span', 'badge badge-success badge-sm', 'Ya est\u00e1 en este segmento'));
