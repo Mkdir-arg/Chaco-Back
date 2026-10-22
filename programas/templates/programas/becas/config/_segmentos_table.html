@@ -74,7 +74,8 @@
                 {{ s.activo|yesno:'true,false' }},
                 '{% url 'becas:segmento_editar' s.pk %}',
                 '{{ s.siis_jurid|default_if_none:"" }}',
-                '{{ s.siis_id_fun_x_plan|default_if_none:"" }}'
+                '{{ s.siis_id_fun_x_plan|default_if_none:"" }}',
+                {{ s.programa_id|default_if_none:"null" }}
               )">
               <i class="fas fa-pen-to-square" aria-hidden="true"></i>
             </button>

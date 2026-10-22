@@ -42,17 +42,19 @@
   {# Encabezado: pieza común de página #}
   {% url 'becas:programas' as url_programas %}
   {% page_header titulo=programa.nombre volver_url=url_programas volver_label="programas" %}
-    {% bajada %}Programa SIIS #{{ programa.siis_programa_id }}{% endbajada %}
+    {% bajada %}{% if programa.valida_siis %}Programa SIIS #{{ programa.siis_programa_id }}{% else %}No valida con SIIS{% endif %}{% endbajada %}
     {% include "programas/becas/_pausable_estado_badge.html" with objeto=programa solo_manual=True %}
     {% if programa.siis_bloqueado %}<span class="badge badge-warning badge-dot">SIIS inactivo</span>{% endif %}
     {% comment %}El aviso vive dentro del pop up, así que acá queda la señal de que hay
     algo para completar: sin la función el alta de beneficiarios viaja incompleta.{% endcomment %}
+    {% if programa.valida_siis %}
     {% if not programa.siis_funcion_id %}<span class="badge badge-warning badge-dot">Falta la función SIIS</span>{% endif %}
     <button type="button" @click="openInfo({{ programa|siis_info }})"
             class="btn-nodo btn-secondary btn-sm flex items-center gap-1.5"
             aria-label="Ver detalle del programa SIIS">
       <i class="fas fa-info-circle" aria-hidden="true"></i> Detalle SIIS
     </button>
+    {% endif %}
     {% if request.user|puede:"becas.programa.administrar" %}
     <a href="{% url 'becas:gestionar_pausa' 'programa' programa.pk %}"
        class="btn-nodo {% if programa.pausado %}btn-brand{% else %}btn-danger{% endif %} btn-sm flex items-center gap-1.5">
@@ -292,6 +294,7 @@
             <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="canal"></p>
           </div>
+          {% if programa.valida_siis %}
           <div>
             <label class="block text-sm font-medium text-heading mb-1">Este dato alimenta a SIIS como</label>
             <select name="destino_siis" class="nodo-field">
@@ -301,6 +304,7 @@
             <p class="text-xs text-body-subtle mt-1">Campo del alta de beneficiarios en SIIS que toma esta respuesta. Un requisito por destino en el programa.</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="destino_siis"></p>
           </div>
+          {% endif %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalReq=false" accion_texto="Crear requisito" %}
       </form>
@@ -359,6 +363,7 @@
             </select>
             <p class="text-xs text-body-subtle mt-1">Ambos canales, solo la app de campo o solo el link público.</p>
           </div>
+          {% if programa.valida_siis %}
           <div>
             <label class="block text-sm font-medium text-heading mb-1">Este dato alimenta a SIIS como</label>
             <select name="destino_siis" x-model="editReqDestino" class="nodo-field">
@@ -368,13 +373,14 @@
             <p class="text-xs text-body-subtle mt-1">Campo del alta de beneficiarios en SIIS que toma esta respuesta. Un requisito por destino en el programa.</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="destino_siis"></p>
           </div>
+          {% endif %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalReqEdit=false" accion_texto="Guardar cambios" accion_icono="fa-check" %}
       </form>
     </div>
   </div>
 
-  {% include "programas/becas/config/_siis_programa_modal.html" with identificadores_programa=programa %}
+  {% if programa.valida_siis %}{% include "programas/becas/config/_siis_programa_modal.html" with identificadores_programa=programa %}{% endif %}
 </div>
 {% include "user/_alta_rapida_modal.html" %}
 {% endblock %}

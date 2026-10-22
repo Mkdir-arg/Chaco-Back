@@ -257,7 +257,8 @@ class Command(BaseCommand):
         # Los identificadores se exigen sobre los programas que tienen casos
         # esperando, no sobre todos: un programa viejo sin configurar no puede
         # frenar el alta de otro que sí está listo.
-        programas = ProgramaSiis.objects.all()
+        # Los que no validan con SIIS no se mandan nunca: no cuentan acá.
+        programas = ProgramaSiis.objects.filter(siis_programa_id__isnull=False)
         if not programas:
             faltan.append("No hay ningún programa SIIS configurado.")
         else:

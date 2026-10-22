@@ -72,9 +72,11 @@ claves que pone `formulario_detalle` llegan igual que antes (las fija
 {% include "programas/becas/revision/_detalle/_respuestas.html" %}
 
   {# 6. Resultado SIIS #}
+{% if siis_aplica %}
 {% include "programas/becas/revision/_detalle/_siis_resultado.html" %}
 
 {% include "programas/becas/revision/_detalle/_siis_envio.html" %}
+{% endif %}
 
   {% comment %}G1-14: el aviso al ciudadano es el único hecho del circuito que no dejaba rastro
   —el retorno de `enviar_aviso_resolucion` se descartaba en los cuatro llamadores—, así que

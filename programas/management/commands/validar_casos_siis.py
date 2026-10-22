@@ -92,6 +92,7 @@ class Command(ComandoSiisBase):
         casos = (
             Formulario.objects.select_related("ciudadano", "relevamiento__convocatoria__segmento__programa")
             .annotate(ultima_validacion=Coalesce(Subquery(ultima), Value(SIN_VALIDACION)))
+            .filter(proceso_masivo.Q_PROGRAMA_VALIDA_SIIS)
             .order_by("pk")
         )
         if options["convocatoria"]:

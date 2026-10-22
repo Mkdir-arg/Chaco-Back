@@ -468,18 +468,18 @@ def _siis_ok(formularios):
     )
 
 
-def _embudo(formularios, total, aprobados, rechazados, lista_espera, identidad):
+def _embudo(formularios, total, aprobados, rechazados, lista_espera, identidad, con_siis=True):
     """Etapas ordenadas del circuito; «Beneficiarios» no se repite porque es el mismo
-    número que «Aprobados» (inconsistencia 2 del análisis)."""
-    siis_ok = _siis_ok(formularios) if total else 0
-    etapas = (
+    número que «Aprobados» (inconsistencia 2 del análisis). Con ``con_siis=False``
+    —el programa mirado no valida con SIIS— la etapa de SIIS no existe."""
+    etapas = [
         ("Formularios recibidos", total),
         ("Identidad validada", identidad),
         ("Aprobados", aprobados),
-        ("Validación SIIS OK", siis_ok),
-        ("En lista de espera", lista_espera),
-        ("Rechazados", rechazados),
-    )
+    ]
+    if con_siis:
+        etapas.append(("Validación SIIS OK", _siis_ok(formularios) if total else 0))
+    etapas += [("En lista de espera", lista_espera), ("Rechazados", rechazados)]
     return [{"etapa": etapa, "total": cantidad, "pct": _pct(cantidad, total)} for etapa, cantidad in etapas]
 
 
@@ -627,7 +627,15 @@ def metricas(user, programa, filtros, alcance=None):
         canales=_con_choices(por_canal, Relevamiento.Tipo.choices),
         convocatorias=_tabla_convocatorias(alcance, forms_por_conv, cupos, convocatorias),
         relevamientos_por_estado=_con_choices(rel_por_estado, Relevamiento.Estado.choices),
-        embudo=_embudo(formularios, total, aprobados, rechazados, lista_espera, identidad),
+        embudo=_embudo(
+            formularios,
+            total,
+            aprobados,
+            rechazados,
+            lista_espera,
+            identidad,
+            con_siis=getattr(programa, "valida_siis", True),
+        ),
         territoriales=_territoriales(alcance, forms_por_rel),
         localidades=_localidades(formularios, total) if total else {"top": [], "detalle": []},
     )

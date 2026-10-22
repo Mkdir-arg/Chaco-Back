@@ -329,7 +329,7 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
         # (``id_plan_soc``, ``jurid``, ``id_fun_x_plan``) los configura el
         # administrador del programa; el resto solo los ve.
         ctx["puede_administrar_programa"] = puede(self.request.user, CAP_PROGRAMA_ADMINISTRAR)
-        if ctx["puede_administrar_programa"]:
+        if ctx["puede_administrar_programa"] and programa.valida_siis:
             ctx["form_identificadores_siis"] = ProgramaSiisIdentificadoresForm(instance=programa)
         return ctx
 
@@ -339,7 +339,8 @@ class ProgramaSiisDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
 @require_POST
 def programa_identificadores_siis(request, pk):
     """Guarda los identificadores del alta de beneficiarios en SIIS (Cambio 82)."""
-    programa = get_object_or_404(ProgramaSiis, pk=pk)
+    # Un programa que no valida con SIIS no tiene identificadores que guardar.
+    programa = get_object_or_404(ProgramaSiis, pk=pk, siis_programa_id__isnull=False)
     if not programas_siis_visibles(request.user).filter(pk=programa.pk).exists():
         raise PermissionDenied("No tiene acceso a este programa.")
     form = ProgramaSiisIdentificadoresForm(request.POST, instance=programa)
@@ -373,6 +374,10 @@ class SegmentoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["form_segmento"] = SegmentoCreateForm()
+        # El alta global oculta los identificadores SIIS si el programa elegido no valida.
+        ctx["programas_sin_siis_ids"] = list(
+            ProgramaSiis.objects.filter(siis_programa_id__isnull=True).values_list("pk", flat=True)
+        )
         return ctx
 
 

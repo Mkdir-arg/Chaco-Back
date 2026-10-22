@@ -245,7 +245,29 @@ def contexto_siis(formulario, user):
     El alta del beneficiario solo tiene sentido en un caso aprobado: en
     cualquier otro estado las cuatro claves del envío salen vacías y el template
     no dibuja la sección.
+
+    ``siis_aplica`` es falso solo cuando el segmento tiene programa y ese
+    programa no valida con SIIS: ahí no se lee nada y el template no dibuja
+    ninguna tarjeta de SIIS. Un segmento sin programa (dato histórico) sigue
+    como siempre.
     """
+    programa = formulario.relevamiento.convocatoria.segmento.programa
+    if programa is not None and not programa.valida_siis:
+        return {
+            "siis_aplica": False,
+            "puede_validar_siis": False,
+            "validacion_sis": None,
+            "detalle_siis": None,
+            "historial_validaciones_sis": [],
+            "motivo_bloqueo_aprobacion": None,
+            "advertencia_aprobacion": None,
+            "envio_siis": None,
+            "envio_siis_activo": None,
+            "historial_envios_sis": [],
+            "datos_siis_form": None,
+            "puede_enviar_siis": False,
+            "detalles_envio_siis": [],
+        }
     validaciones_sis = list(formulario.validaciones_sis.select_related("solicitado_por"))
     validacion_sis = validaciones_sis[0] if validaciones_sis else None
 
@@ -263,6 +285,7 @@ def contexto_siis(formulario, user):
             datos_siis_form = DatosSiisForm(initial=correcciones, actuales=correcciones)
 
     return {
+        "siis_aplica": True,
         "puede_validar_siis": puede(user, CAP_REVISION_EDITAR),
         "validacion_sis": validacion_sis,
         "detalle_siis": detalle_validacion_siis(validacion_sis),

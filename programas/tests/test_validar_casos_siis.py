@@ -21,6 +21,7 @@ referencia que el comando ya tiene: con ese target los tests pasarían saliendo 
 la red de verdad, que es exactamente lo que no se quiere.
 """
 
+from datetime import date
 from io import StringIO
 from unittest.mock import patch
 
@@ -29,12 +30,27 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import override_settings
 
-from programas.models import Formulario, ValidacionSIS
+from programas.models import Convocatoria, Formulario, ProgramaSiis, Relevamiento, Segmento, ValidacionSIS
 from programas.tests.test_siis_envio import _BaseEnvioTest
 
 OBJETIVO = "programas.management.commands.validar_casos_siis.validar_formulario_en_siis"
 
 CREDENCIALES = dict(SIIS_API_CLIENT_ID="client", SIIS_API_CLIENT_SECRET="secret")
+
+
+def caso_de_programa_sin_siis(base, estado):
+    """Un caso del mismo ciudadano en un programa que no valida con SIIS."""
+    programa = ProgramaSiis.objects.create(nombre="Propio")
+    segmento = Segmento.objects.create(nombre="Seg propio", cupo_maximo=10, programa=programa)
+    convocatoria = Convocatoria.objects.create(
+        nombre="Conv propia", segmento=segmento, fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31)
+    )
+    relevamiento = Relevamiento.objects.create(
+        convocatoria=convocatoria, territorial=base.user, fecha_asignada=date(2026, 6, 1), zona="B"
+    )
+    return Formulario.objects.create(
+        relevamiento=relevamiento, ciudadano=base.ciudadano, estado=estado, validado_renaper=True
+    )
 
 
 @override_settings(**CREDENCIALES)
@@ -88,6 +104,15 @@ class ValidarCasosSiisTests(_BaseEnvioTest):
         _, validar, _ = self.correr()
 
         self.assertEqual(self.casos_consultados(validar), [sin_validar.pk])
+
+    def test_los_casos_de_programas_sin_siis_quedan_afuera(self):
+        sin_siis = caso_de_programa_sin_siis(self, Formulario.Estado.ENVIADO)
+
+        salida, validar, _ = self.correr("--todos")
+
+        self.assertEqual(self.casos_consultados(validar), [self.formulario.pk])
+        self.assertNotIn(sin_siis.pk, self.casos_consultados(validar))
+        self.assertFalse(sin_siis.validaciones_sis.exists())
 
     def test_reintentar_errores_suma_los_que_quedaron_en_error(self):
         """«En ERROR» es el **último** intento, no «tuvo alguno»: un caso que

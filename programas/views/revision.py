@@ -215,6 +215,16 @@ def _requiere_identidad(view_func):
     return _wrapped
 
 
+MENSAJE_PROGRAMA_SIN_SIIS = "Este programa no valida con SIIS."
+
+
+def _programa_sin_siis(formulario):
+    """¿El programa del caso no valida con SIIS? Un segmento sin programa (dato
+    histórico) no cuenta: sigue el camino de siempre y el gate lo bloquea."""
+    programa = formulario.relevamiento.convocatoria.segmento.programa
+    return programa is not None and not programa.valida_siis
+
+
 def _informar_a_siis(formulario, user):
     """Alta del beneficiario en SIIS tras la aprobación.
 
@@ -707,6 +717,9 @@ def formulario_validar_sis(request, pk):
     assert_alcance_formulario(request.user, formulario)
     if request.method != "POST":
         return redirect(_url_caso(request, formulario))
+    if _programa_sin_siis(formulario):
+        messages.error(request, MENSAJE_PROGRAMA_SIN_SIIS)
+        return redirect(_url_caso(request, formulario))
 
     try:
         validacion = validar_formulario_en_siis(formulario, request.user)
@@ -769,7 +782,9 @@ def formulario_enviar_siis(request, pk):
         Formulario.objects.select_related("relevamiento__convocatoria__segmento__programa", "ciudadano"), pk=pk
     )
     assert_alcance_formulario(request.user, formulario)
-    if formulario.estado != Formulario.Estado.APROBADO:
+    if _programa_sin_siis(formulario):
+        messages.error(request, MENSAJE_PROGRAMA_SIN_SIIS)
+    elif formulario.estado != Formulario.Estado.APROBADO:
         messages.error(request, "Solo se informan a SIIS los casos aprobados.")
     else:
         _, nivel, texto = _informar_a_siis(formulario, request.user)
@@ -783,8 +798,13 @@ def formulario_enviar_siis(request, pk):
 def formulario_datos_siis(request, pk):
     """Guarda las correcciones para SIIS en ``datos_siis`` con traza. **No envía**:
     el coordinador revisa el resultado y después reenvía."""
-    formulario = get_object_or_404(Formulario, pk=pk)
+    formulario = get_object_or_404(
+        Formulario.objects.select_related("relevamiento__convocatoria__segmento__programa"), pk=pk
+    )
     assert_alcance_formulario(request.user, formulario)
+    if _programa_sin_siis(formulario):
+        messages.error(request, MENSAJE_PROGRAMA_SIN_SIIS)
+        return redirect(_url_caso(request, formulario))
     form = DatosSiisForm(request.POST, actuales=formulario.datos_siis)
     if not form.is_valid():
         # ALR-8: era un aviso flotante por cada campo con error, encimados. Va uno
@@ -914,7 +934,9 @@ def formulario_actualizar_genero(request, pk):
 @login_required
 @requiere(CAP_REVISION_EDITAR)
 def formulario_aprobar(request, pk):
-    formulario = get_object_or_404(Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk)
+    formulario = get_object_or_404(
+        Formulario.objects.select_related("relevamiento__convocatoria__segmento__programa"), pk=pk
+    )
     assert_alcance_formulario(request.user, formulario)
     if request.method == "POST":
         if _tiene_conflicto_duplicado_pendiente(formulario):
@@ -936,8 +958,10 @@ def formulario_aprobar(request, pk):
         if estado_actual != Formulario.Estado.ENVIADO:
             messages.error(request, "El caso ya fue resuelto por otra operación: recargá la pantalla.")
             return redirect(_url_caso(request, formulario))
+        # Programa que no valida con SIIS: ni consulta ni alta ni avisos de SIIS.
+        con_siis = not _programa_sin_siis(formulario)
         try:
-            validacion = validar_formulario_en_siis(formulario, request.user)
+            validacion = validar_formulario_en_siis(formulario, request.user) if con_siis else None
             resultado = aprobar_o_poner_en_espera(formulario, request.user)
         except (ValidationError, ValueError) as error:
             messages.error(request, getattr(error, "message", str(error)))
@@ -956,7 +980,9 @@ def formulario_aprobar(request, pk):
                 )
             # Cambio 81: el veredicto de SIIS no frena la aprobación, pero queda
             # dicho en pantalla para que el revisor sepa con qué aprobó.
-            if validacion.estado == ValidacionSIS.Estado.RECHAZADO:
+            if validacion is None:
+                pass
+            elif validacion.estado == ValidacionSIS.Estado.RECHAZADO:
                 partes.append(
                     (
                         "warning",
@@ -968,7 +994,7 @@ def formulario_aprobar(request, pk):
                 partes.append(
                     ("warning", "SIIS no respondió y la consulta quedó sin veredicto; el intento quedó registrado.")
                 )
-            if resultado == "aprobado":
+            if resultado == "aprobado" and con_siis:
                 # Alta del beneficiario en SIIS: solo quien quedó APROBADO con cupo.
                 # Quien cae en lista de espera todavía no es beneficiario.
                 partes.append(_informar_a_siis(formulario, request.user)[1:])
@@ -1059,7 +1085,9 @@ def formulario_resolver_duplicado(request, pk):
 @login_required
 @requiere(CAP_REVISION_EDITAR)
 def formulario_rechazar(request, pk):
-    formulario = get_object_or_404(Formulario.objects.select_related("relevamiento__convocatoria__segmento"), pk=pk)
+    formulario = get_object_or_404(
+        Formulario.objects.select_related("relevamiento__convocatoria__segmento__programa"), pk=pk
+    )
     assert_alcance_formulario(request.user, formulario)
     if request.method == "POST":
         if _tiene_conflicto_duplicado_pendiente(formulario):
@@ -1085,10 +1113,12 @@ def formulario_rechazar(request, pk):
         # local, que es lo único que el rechazo registra.
         validacion = None
         motivo_sin_consulta = ""
-        try:
-            validacion = validar_formulario_en_siis(formulario, request.user)
-        except ValueError as error:
-            motivo_sin_consulta = str(error)
+        # Programa que no valida con SIIS: no se consulta y no queda traza de SIIS.
+        if not _programa_sin_siis(formulario):
+            try:
+                validacion = validar_formulario_en_siis(formulario, request.user)
+            except ValueError as error:
+                motivo_sin_consulta = str(error)
         estado_anterior = formulario.estado
         with transaction.atomic():
             # La guarda de arriba mira un caso leído antes de consultar a SIIS:

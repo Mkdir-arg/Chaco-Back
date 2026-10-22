@@ -412,6 +412,16 @@ class SincronizarProgramasSiisTests(TestCase):
         self.programa.refresh_from_db()
         self.assertEqual(self.programa.siis_programa_estado, ProgramaSiis.EstadoSiis.ACTIVO)
 
+    def test_los_programas_sin_siis_no_se_marcan_ni_piden_forzar(self):
+        sin_siis = [ProgramaSiis.objects.create(nombre=f"Propio {n}") for n in (1, 2)]
+
+        salida = self.correr([{"id": 79, "nombre": "Ñachec", "estado": "ACTIVO"}])
+
+        self.assertIn("Sin cambios", salida)
+        for programa in sin_siis:
+            programa.refresh_from_db()
+            self.assertEqual(programa.siis_programa_estado, "")
+
     def test_catalogo_vacio_no_escribe_nada(self):
         """La Ola 1 decidió al revés que la caracterización (SIIS-06).
 
