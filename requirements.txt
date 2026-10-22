@@ -24,7 +24,7 @@
 
 # Django Core
 Django==5.2.17
-djangorestframework==3.17.2
+djangorestframework==3.18.2
 # Hash de contraseñas del login (PASSWORD_HASHERS): Argon2id cuesta ~90 ms por
 # verificación contra ~1 s del PBKDF2 por defecto de Django 5.2.
 argon2-cffi==25.1.0
