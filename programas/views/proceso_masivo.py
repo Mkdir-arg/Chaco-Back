@@ -67,6 +67,10 @@ class ProcesoMasivoView(CapacidadRequeridaMixin, LoginRequiredMixin, DetailView)
     template_name = "programas/becas/config/proceso_masivo.html"
     context_object_name = "programa"
 
+    def get_queryset(self):
+        # Un programa que no valida con SIIS no tiene proceso masivo: 404.
+        return super().get_queryset().filter(siis_programa_id__isnull=False)
+
     def get(self, request, *args, **kwargs):
         _asegurar_alcance(request.user)
         return super().get(request, *args, **kwargs)
@@ -167,7 +171,7 @@ def _conteos(programa, insumos=None):
 def proceso_masivo_lanzar(request, pk):
     """Crea la corrida y devuelve enseguida: el trabajo sigue en un hilo."""
     _asegurar_alcance(request.user)
-    programa = get_object_or_404(ProgramaSiis, pk=pk)
+    programa = get_object_or_404(ProgramaSiis, pk=pk, siis_programa_id__isnull=False)
     destino = redirect("becas:proceso_masivo", pk=programa.pk)
 
     # Chequeo barato para no tomar el candado global en el caso común («ya hay

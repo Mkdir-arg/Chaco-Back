@@ -19,6 +19,7 @@ El archivo son 88 líneas que solo declaran el **orden** de las secciones; cada 
 `_siis_resultado`, `_siis_envio`, `_aviso_ciudadano`, `_trazas`, `_acciones`, `_modales`…). Que
 esté partida **no la convierte en molde**: los includes son secciones de este dominio, no piezas
 reutilizables, y no se incluyen desde ninguna otra pantalla.
+`_siis_resultado` y `_siis_envio` se incluyen solo con `siis_aplica` (programa que valida con SIIS).
 
 ## Dashboard
 

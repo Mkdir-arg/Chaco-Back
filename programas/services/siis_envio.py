@@ -1203,7 +1203,13 @@ def enviar_beneficiario_a_siis(
 
     **No llamarla dentro de una transacción**: el ``EN_PROCESO`` tiene que estar
     commiteado antes del POST para que el segundo candidato lo vea.
+
+    ``ValueError`` también si el programa del caso no valida con SIIS: no tiene
+    qué informar y no se reserva nada. Un segmento sin programa no entra acá.
     """
+    programa = formulario.relevamiento.convocatoria.segmento.programa
+    if programa is not None and not programa.valida_siis:
+        raise ValueError("Este programa no valida con SIIS.")
     vigente = formulario.envios_sis.filter(vigente=True).first()
     if vigente is not None:
         # Atajo barato: evita armar el payload (6-8 consultas) de un caso que ya

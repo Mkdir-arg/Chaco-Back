@@ -2575,6 +2575,10 @@ class ProgramaSiis(PausableMixin, TimeStamped):
     catálogo y el detalle se congela al vincular: es la referencia contra la
     que se compara el estado que después informa SIIS. Un programa que deja de
     estar vigente —o se pausa a mano— bloquea en cascada todos sus segmentos.
+
+    Un programa puede no validar con SIIS (``siis_programa_id`` nulo, ver
+    ``valida_siis``): el nombre es el que se escribió a mano, no se copia nada
+    de SIIS y sus casos se revisan sin la consulta de compatibilidad.
     """
 
     class EstadoSiis(models.TextChoices):
@@ -2586,7 +2590,11 @@ class ProgramaSiis(PausableMixin, TimeStamped):
     ESTADOS_SIIS_BLOQUEANTES = (EstadoSiis.INACTIVO, EstadoSiis.DESCONOCIDO)
 
     nombre = models.CharField(max_length=200, verbose_name="Nombre")
-    siis_programa_id = models.PositiveIntegerField(unique=True, verbose_name="ID de programa SIIS")
+    # Nulo = el programa no valida con SIIS. UNIQUE admite varios NULL en MySQL,
+    # MariaDB y SQLite.
+    siis_programa_id = models.PositiveIntegerField(
+        unique=True, null=True, blank=True, verbose_name="ID de programa SIIS"
+    )
     # Foto del programa al momento de vincularlo: es la referencia contra la que
     # se compara después, y lo que muestra el detalle informativo.
     siis_programa_datos = models.JSONField(default=dict, blank=True, verbose_name="Detalle del programa SIIS")
@@ -2645,6 +2653,11 @@ class ProgramaSiis(PausableMixin, TimeStamped):
         return self.nombre
 
     @property
+    def valida_siis(self):
+        """¿El programa se vincula con SIIS? Única fuente de la regla."""
+        return self.siis_programa_id is not None
+
+    @property
     def siis_programa_nombre(self):
         return (self.siis_programa_datos or {}).get("nombre") or self.nombre
 
@@ -2675,11 +2688,13 @@ class ProgramaSiis(PausableMixin, TimeStamped):
     @property
     def siis_bloqueado(self):
         """¿SIIS dejó de tener vigente el programa?"""
+        if not self.valida_siis:
+            return False
         return self.siis_programa_estado in self.ESTADOS_SIIS_BLOQUEANTES
 
     @property
     def siis_motivo_bloqueo(self):
-        if not self.siis_bloqueado:
+        if not self.valida_siis or not self.siis_bloqueado:
             return ""
         referencia = self.siis_programa_nombre or f"#{self.siis_programa_id}"
         if self.siis_programa_estado == self.EstadoSiis.INACTIVO:

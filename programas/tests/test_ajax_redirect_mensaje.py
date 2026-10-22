@@ -116,7 +116,7 @@ class ConfiguracionAjaxRedirectTests(_AjaxRedirectMensajeBase):
             "programas.forms.listar_programas",
             return_value=[{"id": 41, "nombre": "Turismo", "estado": "ACTIVO"}],
         ):
-            payload = self._post_ajax(reverse("becas:programa_crear"), {"siis_programa_id": 41})
+            payload = self._post_ajax(reverse("becas:programa_crear"), {"valida_siis": "on", "siis_programa_id": 41})
         programa = ProgramaSiis.objects.get(siis_programa_id=41)
         self.assertEqual(payload["redirect"], reverse("becas:programa_detalle", args=[programa.pk]))
         self._assert_llega_una_vez(payload, "Programa vinculado — agregá sus segmentos.", messages.SUCCESS)

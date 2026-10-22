@@ -49,6 +49,8 @@ class Command(ComandoSiisBase):
             .filter(ultimo_estado=EnvioSIIS.Estado.ERROR)
             # SIIS-01: nada con envío vigente vuelve a salir, por ninguna vía.
             .filter(~Exists(vigente))
+            # Un programa que no valida con SIIS no informa altas.
+            .filter(proceso_masivo.Q_PROGRAMA_VALIDA_SIIS)
             .select_related("ciudadano", "relevamiento__convocatoria__segmento__programa")
             .order_by("pk")
         )

@@ -290,6 +290,25 @@ class MetricasTests(DashboardBecasBase):
         canales = {c["clave"]: c["total"] for c in datos.canales}
         self.assertEqual(canales, {"TERRITORIAL": 3, "PUBLICO": 2})
 
+    def test_embudo_de_un_programa_sin_siis_omite_la_etapa_de_siis(self):
+        dentro = HOY - timedelta(days=1)
+        self._formulario(self.rel_propio, Formulario.Estado.APROBADO, creado=dentro, validado_renaper=True)
+        self._formulario(self.rel_propio, Formulario.Estado.RECHAZADO, creado=dentro)
+        # Con SIIS la etapa está; sin SIIS, el resto del embudo no cambia.
+        con_siis = [f["etapa"] for f in svc.metricas(self.admin, self.programa, VENTANA).embudo]
+        self.assertIn("Validación SIIS OK", con_siis)
+        ProgramaSiis.objects.filter(pk=self.programa.pk).update(siis_programa_id=None)
+        self.programa.refresh_from_db()
+
+        datos = svc.metricas(self.admin, self.programa, VENTANA)
+
+        etapas = [f["etapa"] for f in datos.embudo]
+        self.assertEqual(etapas, [e for e in con_siis if e != "Validación SIIS OK"])
+        self.assertEqual({f["etapa"]: f["total"] for f in datos.embudo}["Aprobados"], 1)
+        # Otro programa que sí valida sigue mostrándola.
+        otro = [f["etapa"] for f in svc.metricas(self.admin, self.otro_programa, VENTANA).embudo]
+        self.assertIn("Validación SIIS OK", otro)
+
     def test_filtros_de_canal_y_relevamiento(self):
         dentro = HOY - timedelta(days=1)
         self._formulario(self.rel_propio, creado=dentro)

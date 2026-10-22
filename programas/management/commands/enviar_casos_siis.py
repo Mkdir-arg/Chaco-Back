@@ -148,6 +148,8 @@ class Command(ComandoSiisBase):
             # SIIS-01: un caso con envío vigente (informado, en vuelo o incierto)
             # no vuelve a salir por ninguna vía.
             .filter(~Exists(vigente))
+            # Un programa que no valida con SIIS no informa altas.
+            .filter(proceso_masivo.Q_PROGRAMA_VALIDA_SIIS)
             .order_by("pk")
         )
         if options["convocatoria"]:

@@ -254,7 +254,7 @@ def promover_lista_espera_view(request, pk):
         # La convocatoria y el segmento del relevamiento los necesita el aviso
         # de resolución (Cambio 44) para el asunto y el cuerpo del correo.
         ListaEspera.objects.select_related(
-            "formulario__ciudadano", "formulario__relevamiento__convocatoria__segmento", "segmento"
+            "formulario__ciudadano", "formulario__relevamiento__convocatoria__segmento", "segmento__programa"
         ),
         pk=pk,
     )
@@ -273,7 +273,10 @@ def promover_lista_espera_view(request, pk):
             # ``promover_lista_espera``, que es ``@transaction.atomic``, y afuera
             # del ``try``, para no confundir una falla del correo con una
             # promoción rechazada.
-            _informar_a_siis(request, lista.formulario)
+            # Un programa que no valida con SIIS no informa el alta.
+            programa = lista.segmento.programa
+            if programa is None or programa.valida_siis:
+                _informar_a_siis(request, lista.formulario)
             enviar_aviso_resolucion(
                 lista.formulario,
                 "promovido",
