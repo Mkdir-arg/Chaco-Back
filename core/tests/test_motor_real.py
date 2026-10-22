@@ -1067,8 +1067,9 @@ class CandadoConLaConexionMuertaTests(MotorRealMixin, TransactionTestCase):
         self.assertNotIn("liberado", salida.getvalue())
 
         # Y el candado quedó libre: el servidor lo soltó al cerrar la conexión.
+        # Espera acotada: tras un KILL el servidor libera el lock de forma asíncrona.
         with testigo.cursor() as cursor:
-            cursor.execute("SELECT GET_LOCK(%s, 0)", [self.NOMBRE])
+            cursor.execute("SELECT GET_LOCK(%s, 5)", [self.NOMBRE])
             self.assertEqual(cursor.fetchone()[0], 1)
             cursor.execute("SELECT RELEASE_LOCK(%s)", [self.NOMBRE])
 
