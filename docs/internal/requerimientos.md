@@ -486,6 +486,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 358 | La app móvil/PWA se espeja a ECOM en dos comandos, test y producción | Transversal · espejo a ECOM de la app (`Chaco-mobile`) | `#infra` `#mobile` `#metodo` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 359 | Detalle del segmento: solapa «Convocatorias» con las del segmento y las de sus subsegmentos | Becas · detalle del segmento | `#convocatorias` `#ui` `#rbac` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 360 | DRF 3.18.2: «Pip Audit» vuelve a verde por las 3 CVEs de djangorestframework 3.17.2 | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (22/10/2026) | 22/10/2026 | 🟢 **Hecho** | No requiere |
+| 361 | Entrar después de un logout por inactividad ya no termina en un 405 | Transversal / sesión | `#sesion` | PM — reportó el 405 en `https://datanach.ecomdev.ar/logout` | 22/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -46658,6 +46659,57 @@ Volver el pin a `djangorestframework==3.17.2`; no hay datos ni migración (el ch
 
 ## Historial
 
+- **22/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 361 — Entrar después de un logout por inactividad ya no termina en un 405
+
+🟢 **HECHO — 22/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal / sesión |
+| **Etiquetas** | `#sesion` |
+| **Solicitante** | PM — reportó el 405 en `https://datanach.ecomdev.ar/logout` |
+| **Fecha del pedido** | 22/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+«Cuando te deslogueás y querés ingresar, te dice HTTP ERROR 405.»
+
+## Alcance acordado
+Backoffice. **Afuera:** el portal (`CiudadanoLogoutView`) y `static/custom/js/idle-logout.js`.
+
+## Decisiones tomadas
+1. **Causa.** `LogoutView` acepta solo POST desde Django 5.0 (Cambio 38). Con la sesión vencida, `ExpiracionPorInactividadMiddleware` (SEC-35, Cambio 185) interceptaba también el POST a `/logout`, hacía `logout()` y redirigía con `redirect_to_login(request.get_full_path())`, o sea a `/?next=/logout`. Al ingresar, el login redirigía por GET a `/logout` y daba 405. El caso típico es `idle-logout.js`: el navegador frena los timers de una pestaña en segundo plano y el POST llega después del vencimiento del servidor.
+2. **Defensa A, en el middleware.** Si el pedido es el de `users:logout`, cierra la sesión y redirige a `LOGOUT_REDIRECT_URL` sin `next`. `/api/` sigue con 401 y el resto de las rutas sigue llevando `next`.
+3. **Defensa B, en el login.** `UsuariosLoginView.get_success_url` devuelve `LOGIN_REDIRECT_URL` si el destino resuelve al path del logout. Cubre `?next=/logout` viejos y a un usuario ya logueado con `redirect_authenticated_user`. Se apoya en `LoginView`, que ya valida el host seguro.
+
+## Implementación
+Al ingresar después de un cierre por inactividad el usuario llega a la pantalla de inicio y no a un error 405.
+
+## Archivos
+- `core/middleware.py`; `users/views/auth.py`; `users/tests/test_logout.py` (`LogoutNoDejaNextAlLoginTests`, 5 casos).
+
+## Base de datos
+No requiere.
+
+## Validación
+`users.tests.test_logout` 8/8. Mutación: sin A se pone rojo el test del POST con sesión vencida; sin B, los de login con `next=/logout` y el de usuario logueado. Ambas restauradas.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Revertir el PR; no hay datos.
+
+## Historial
 - **22/10/2026 — alta del cambio.**
 
 ---
