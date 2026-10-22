@@ -545,10 +545,6 @@ class SegmentoCreateForm(forms.ModelForm):
         programa, nombre = cleaned.get("programa"), cleaned.get("nombre")
         if programa and nombre and Segmento.objects.filter(programa=programa, nombre=nombre).exists():
             self.add_error("nombre", "Ya existe un segmento con ese nombre en este programa.")
-        # En el alta la instancia todavía no tiene programa: se mira el elegido.
-        if programa is not None and not programa.valida_siis:
-            self.instance.siis_jurid = None
-            self.instance.siis_id_fun_x_plan = None
         return cleaned
 
 

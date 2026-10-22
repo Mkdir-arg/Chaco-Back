@@ -325,6 +325,7 @@ class SegmentoCrudTests(_BaseConfigTest):
         self.assertEqual(seg.programa, self.programa)
 
     def test_crear_segmento_de_programa_sin_siis_descarta_los_ids_de_siis(self):
+        """El alta global no acepta ids de SIIS: no son campos del form."""
         sin_siis = ProgramaSiis.objects.create(nombre="Propio")
         resp = self.client.post(
             reverse("becas:segmento_crear"),

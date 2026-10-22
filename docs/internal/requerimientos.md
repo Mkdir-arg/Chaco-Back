@@ -46093,8 +46093,8 @@ desacoplados de SIIS por el Cambio 349), cupo, permisos, API móvil e inscripci�
 - Envío y reenvío: `enviar_beneficiario_a_siis` lanza `ValueError("Este programa no valida con SIIS.")` antes de
   reservar nada, y `reenviar_siis_pendientes` filtra con `Q_PROGRAMA_VALIDA_SIIS`; los llamadores ya toleran el
   `ValueError` (lo cuentan, no se cae).
-- El alta de segmento (`SegmentoCreateForm`) deja `siis_jurid` y `siis_id_fun_x_plan` en `None` si el programa
-  elegido no valida con SIIS, aunque el POST los traiga.
+- El alta global de segmento (`SegmentoCreateForm`) no acepta `siis_jurid` ni `siis_id_fun_x_plan`: no están en
+  los campos del form, y lo cubre un test con un POST manual.
 - Pantallas: sin «#None», sin «Detalle SIIS», sin identificadores SIIS; el alta global de segmento oculta
   «Identificadores para SIIS» (`programas_sin_siis_ids`) y `SegmentoForm` los descarta.
 
