@@ -662,6 +662,10 @@ TRUSTED_PROXY_NETS = [
 # la única cubeta que frena antes de verificar la clave, y puede serlo porque la
 # paga la IP que ataca y no la cuenta atacada.
 AUTH_FALLIDOS_MAX_POR_IP = int(os.getenv("AUTH_FALLIDOS_MAX_POR_IP", "300"))
+
+# Versión mínima de la app de campo (semver). El login la informa en `app.version_minima`
+# y la app que la entiende se bloquea por debajo de ella. Vacía = sin chequeo.
+APP_CAMPO_VERSION_MINIMA = os.getenv("APP_CAMPO_VERSION_MINIMA", "").strip() or None
 AUTH_FALLIDOS_VENTANA_SEGUNDOS = int(os.getenv("AUTH_FALLIDOS_VENTANA_SEGUNDOS", "600"))
 
 # Techos de carga. **Ojo con lo que cada uno limita de verdad** (SIIS-16: el

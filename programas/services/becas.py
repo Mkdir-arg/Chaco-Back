@@ -15,6 +15,7 @@ from legajos.models import Ciudadano
 from programas.models import (
     AsignacionCoordinador,
     CanalFormulario,
+    Formulario,
     OrigenRequisito,
     PreguntaGlobal,
     Relevamiento,
@@ -180,6 +181,23 @@ def formulario_por_client_uuid(relevamiento, client_uuid):
     if not client_uuid:
         return None
     return relevamiento.formularios.filter(q_uuid_en_texto("client_uuid", client_uuid)).order_by("pk").first()
+
+
+def formulario_por_client_uuid_global(client_uuid):
+    """La clave idempotente en **toda** la base (``client_uuid`` es UNIQUE global).
+
+    Misma comparación como texto que :func:`formulario_por_client_uuid`, sin el
+    filtro por relevamiento: la API de campo la usa para distinguir el reintento
+    del mismo alta de una colisión con el caso de otro relevamiento u otra persona.
+    """
+    if not client_uuid:
+        return None
+    return (
+        Formulario.objects.filter(q_uuid_en_texto("client_uuid", client_uuid))
+        .select_related("ciudadano")
+        .order_by("pk")
+        .first()
+    )
 
 
 def relevamiento_publico_por_token(token, queryset=None):

@@ -137,7 +137,9 @@ class AutenticacionTests(BaseApiInspecciones):
         respuesta = self.api.post(reverse("becas_api:token"), {"username": "agente", "password": "x"}, format="json")
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(set(respuesta.data), {"token", "user_id", "username"})
+        self.assertEqual(set(respuesta.data), {"token", "user_id", "username", "modulos", "app"})
+        # K7: un agente con solo `inspeccion.relevar` en Dispositivos no abre Becas.
+        self.assertEqual(respuesta.data["modulos"], ["dispositivos"])
 
     def test_sin_inspeccion_relevar_no_saca_token_aunque_tenga_lo_demas_de_dispositivos(self):
         sin_relevar = tuple(c for c in TODAS_DE_DISPOSITIVOS if c != "inspeccion.relevar")

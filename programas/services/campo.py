@@ -75,6 +75,48 @@ GRACIA_VENCIDA = (
     "Avisá al coordinador para que las cargue desde el backoffice."
 )
 
+# ``code`` estables de los 4xx de la API de campo. La app instalada reconoce los
+# ``detail`` por regex y esos textos no cambian; el ``code`` es la clave nueva y
+# aditiva que la app nueva lee primero.
+CODE_PAUSADO = "PAUSADO"
+CODE_FUERA_DE_PERIODO = "FUERA_DE_PERIODO"
+CODE_NO_EN_CURSO = "RELEVAMIENTO_NO_EN_CURSO"
+CODE_GRACIA_VENCIDA = "GRACIA_VENCIDA"
+
+# K2 · el reloj del teléfono estaba adelantado: se usa ``ahora`` y queda dicho.
+# El prefijo es lo que reconoce la línea en ``observaciones_carga`` (ver
+# ``PREFIJOS_CONSERVADOS``): los dos se mueven juntos.
+PREFIJO_RELOJ_ADELANTADO = "Reloj del teléfono adelantado "
+RELOJ_ADELANTADO = PREFIJO_RELOJ_ADELANTADO + "{minutos} min (capturado_en recibido: {recibido})."
+
+
+def mensaje_pausa(relevamiento):
+    """El texto de la pausa de ``iniciar``/``finalizar``/alta, o ``None``."""
+    pausa = relevamiento.pausa_efectiva
+    if not pausa:
+        return None
+    return f"El relevamiento está pausado: {pausa.pausa_motivo}"
+
+
+def acotar_capturado_en(capturado_en, ahora=None):
+    """Un ``capturado_en`` del futuro se recorta a ``ahora`` (K2).
+
+    Devuelve ``(valor, adelanto)``: ``adelanto`` es un ``timedelta`` cuando hubo
+    que recortar, y ``None`` si el valor estaba dentro de la tolerancia. Un reloj
+    de teléfono adelantado no es una carga inválida: rechazarla dejaba cada alta
+    del dispositivo en 400 hasta que alguien le arreglara la hora.
+    """
+    if capturado_en is None:
+        return None, None
+    ahora = ahora or timezone.now()
+    if capturado_en > ahora + ADELANTO_TOLERADO:
+        return ahora, capturado_en - ahora
+    return capturado_en, None
+
+
+def observacion_reloj_adelantado(recibido, adelanto):
+    return RELOJ_ADELANTADO.format(minutos=int(adelanto.total_seconds() // 60), recibido=recibido.isoformat())
+
 
 @dataclass(frozen=True)
 class Decision:
@@ -85,6 +127,8 @@ class Decision:
     tardia: bool = False
     detalle: str = ""
     status: int = 400
+    code: str = ""
+    pausado: bool = False
 
     @property
     def rechaza(self):
@@ -101,29 +145,36 @@ def evaluar_captura(relevamiento, capturado_en, ahora=None):
     """
     ahora = ahora or timezone.now()
 
+    # K1 · la pausa va **antes** que el período: un relevamiento pausado no
+    # habilita ninguna fecha, y contestar «fuera del período» (400) dejaba la
+    # carga como error permanente en el teléfono, que no la reintenta. Con 409 +
+    # ``pausado`` la app la reintenta más tarde.
+    mensaje = mensaje_pausa(relevamiento)
+    if mensaje:
+        return Decision(acepta=False, detalle=mensaje, status=409, code=CODE_PAUSADO, pausado=True)
+
     if capturado_en is None:
         if relevamiento.estado != Relevamiento.Estado.EN_CURSO:
-            return Decision(acepta=False, detalle=NO_EN_CURSO, status=409)
+            return Decision(acepta=False, detalle=NO_EN_CURSO, status=409, code=CODE_NO_EN_CURSO)
         if not relevamiento.habilitado_en(ahora):
-            return Decision(acepta=False, detalle=FUERA_DE_PERIODO, status=400)
+            return Decision(acepta=False, detalle=FUERA_DE_PERIODO, status=400, code=CODE_FUERA_DE_PERIODO)
         return Decision(acepta=True)
 
-    # Una captura del futuro no es una sincronización tardía: o el reloj del
-    # teléfono está mal o el cuerpo viene armado a mano.
-    if capturado_en > ahora + ADELANTO_TOLERADO:
-        return Decision(acepta=False, detalle=FUERA_DE_PERIODO, status=400)
+    # K2 · una captura del futuro (reloj del teléfono adelantado) ya no se
+    # rechaza: se evalúa como hecha ahora. Quien guarda el caso deja la
+    # observación (``acotar_capturado_en``).
+    capturado_en, _adelanto = acotar_capturado_en(capturado_en, ahora)
     if not relevamiento.habilitado_en(capturado_en):
-        # Incluye la pausa: un relevamiento pausado no habilita ninguna fecha.
-        return Decision(acepta=False, detalle=FUERA_DE_PERIODO, status=400)
+        return Decision(acepta=False, detalle=FUERA_DE_PERIODO, status=400, code=CODE_FUERA_DE_PERIODO)
 
     if relevamiento.estado == Relevamiento.Estado.EN_CURSO:
         return Decision(acepta=True)
     if relevamiento.estado not in ESTADOS_CON_GRACIA:
         # ASIGNADO (todavía no arrancó) y TERMINADO (ya se informó).
-        return Decision(acepta=False, detalle=NO_EN_CURSO, status=409)
+        return Decision(acepta=False, detalle=NO_EN_CURSO, status=409, code=CODE_NO_EN_CURSO)
     if en_gracia(relevamiento, ahora):
         return Decision(acepta=True, tardia=True)
-    return Decision(acepta=False, detalle=GRACIA_VENCIDA, status=409)
+    return Decision(acepta=False, detalle=GRACIA_VENCIDA, status=409, code=CODE_GRACIA_VENCIDA)
 
 
 def en_gracia(relevamiento, ahora=None):
@@ -316,6 +367,7 @@ IDENTIDAD_FUENTE_SIN_RESPUESTA = (
 #: por eso tiene que arrastrar cuando ``aplicar_revision`` reescribe la columna
 #: entera. Cada prefijo viaja con su plantilla.
 PREFIJOS_CONSERVADOS = (
+    PREFIJO_RELOJ_ADELANTADO,
     PREFIJO_ADJUNTO_OBSERVADO,
     PREFIJO_ADJUNTO_TARDIO,
     PREFIJO_IDENTIDAD_SIN_ACREDITAR,

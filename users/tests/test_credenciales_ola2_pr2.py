@@ -299,7 +299,8 @@ class TokenDeCampoYClaveDelTerritorialTests(_SinCubetas):
         respuesta = self._token("Nueva-Clave-2026")
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(set(respuesta.data), {"token", "user_id", "username"})
+        # K7 sumo `modulos` y `app` (aditivo): las tres claves de siempre siguen ahi.
+        self.assertEqual(set(respuesta.data), {"token", "user_id", "username", "modulos", "app"})
 
     def test_el_login_de_la_app_frena_tras_diez_intentos_fallidos(self):
         for _ in range(9):
