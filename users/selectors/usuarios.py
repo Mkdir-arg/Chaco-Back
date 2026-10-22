@@ -1,25 +1,13 @@
 from django.contrib.auth.models import User
 
 from core import rbac
-from users.selectors.roles import programas_administrables_usuarios
+from users.selectors.roles import es_gestor_territorial, programas_administrables_usuarios  # noqa: F401
 
 
 def get_usuarios_queryset():
     # Solo se prefetchea lo que el listado consume (nombres de grupos); el
     # filtrado por groups__meta se hace en SQL y no necesita prefetch.
     return User.objects.select_related("profile").prefetch_related("groups").order_by("-id")
-
-
-def es_gestor_territorial(user):
-    """¿El operador está acotado a los territoriales de los segmentos que coordina?
-
-    Es el alcance del Coordinador y del Referente de Becas. Un **administrador de
-    programa** queda afuera aunque tenga ``becas.usuario.territorial``: su alcance
-    es el programa entero, que ya incluye a esos territoriales. Sin esta guarda la
-    rama territorial lo interceptaría y le devolvería 0 usuarios, porque un admin
-    no coordina ningún segmento.
-    """
-    return rbac.puede(user, "becas.usuario.territorial") and not programas_administrables_usuarios(user).exists()
 
 
 def es_admin_global_usuarios(user):
@@ -55,7 +43,7 @@ def usuarios_visibles_para(user):
         visibles = (
             qs.filter(
                 groups__in=roles_territoriales,
-                asignacion_territorial__segmento__in=segmentos_para_gestion_territoriales(user),
+                segmentos_territoriales__segmento__in=segmentos_para_gestion_territoriales(user),
             )
             .exclude(groups__in=roles_no_territoriales)
             .distinct()
@@ -106,11 +94,14 @@ def puede_gestionar_usuario(operador, target):
         roles = set(target.groups.values_list("pk", flat=True))
         roles_territoriales = set(grupos_territoriales_becas().values_list("pk", flat=True))
         es_solo_territorial = bool(roles) and roles.issubset(roles_territoriales)
-        asignacion = getattr(target, "asignacion_territorial", None)
+        # «Alguno» para ver y editar sus segmentos: el territorial compartido lo ve
+        # cualquier gestor que tenga uno de sus segmentos. La cuenta es del dueño
+        # (`puede_gestionar_credenciales`).
         permitido = bool(
             es_solo_territorial
-            and asignacion
-            and segmentos_para_gestion_territoriales(operador).filter(pk=asignacion.segmento_id).exists()
+            and target.segmentos_territoriales.filter(
+                segmento__in=segmentos_para_gestion_territoriales(operador)
+            ).exists()
         )
         return permitido
     programas = set(programas_administrables_usuarios(operador).values_list("pk", flat=True))
@@ -124,6 +115,29 @@ def puede_gestionar_usuario(operador, target):
     ):
         return False
     return target.groups.filter(meta__programa__in=programas, meta__activo=True).exists()
+
+
+def es_dueno_en_alcance(operador, target):
+    """¿El segmento dueño de ``target`` (asignación más antigua) está en el alcance del gestor?"""
+    from programas.services.autorizacion import segmento_dueno_id, segmentos_para_gestion_territoriales
+
+    dueno = segmento_dueno_id(target)
+    return dueno is not None and segmentos_para_gestion_territoriales(operador).filter(pk=dueno).exists()
+
+
+def solo_gestiona_segmentos(operador, target):
+    """¿``operador`` solo puede tocar SUS segmentos de ``target``, y no la cuenta?
+
+    Pasa cuando es un gestor acotado y el segmento dueño del territorial no es de
+    él: ve al territorial y agrega o quita los segmentos propios, pero no cambia
+    credenciales, datos personales ni roles (Cambio 355). Se evalúa en el servicio
+    del ABM, no solo en el form.
+    """
+    if operador is None or not getattr(target, "pk", None) or not es_gestor_territorial(operador):
+        return False
+    if not target.segmentos_territoriales.exists():
+        return False
+    return not es_dueno_en_alcance(operador, target)
 
 
 def puede_gestionar_credenciales(operador, target):
@@ -142,6 +156,9 @@ def puede_gestionar_credenciales(operador, target):
     alcance = alcance_roles_ids_credenciales(operador)
     if alcance is None:  # admin global
         return True
+    # Territorial compartido: la cuenta es del gestor del segmento dueño.
+    if solo_gestiona_segmentos(operador, target):
+        return False
     return not target.groups.exclude(pk__in=alcance).exists()
 
 
@@ -217,25 +234,24 @@ def anotar_acciones_del_listado(operador, usuarios):
     alcance_credenciales = alcance_roles_ids_credenciales(operador)
 
     if es_gestor_territorial(operador):
-        from programas.models import AsignacionTerritorial
         from programas.services.autorizacion import (
             grupos_territoriales_becas,
+            segmentos_de_territoriales_en_lote,
             segmentos_para_gestion_territoriales,
         )
 
         territoriales = set(grupos_territoriales_becas().values_list("pk", flat=True))
         segmentos = set(segmentos_para_gestion_territoriales(operador).values_list("pk", flat=True))
-        asignado = dict(
-            AsignacionTerritorial.objects.filter(territorial__in=[u.pk for u in usuarios]).values_list(
-                "territorial_id", "segmento_id"
-            )
-        )
+        # Una consulta: {territorial: [segmentos por antigüedad]}; el primero es el dueño.
+        asignado = segmentos_de_territoriales_en_lote([u.pk for u in usuarios])
         for usuario in usuarios:
             roles = roles_por_usuario[usuario.pk]
+            suyos = asignado.get(usuario.pk, [])
             usuario.gestionable = bool(
-                not usuario.is_superuser and roles and roles <= territoriales and asignado.get(usuario.pk) in segmentos
+                not usuario.is_superuser and roles and roles <= territoriales and segmentos.intersection(suyos)
             )
-            usuario.credenciales_editables = usuario.gestionable and not (roles - alcance_credenciales)
+            es_dueno = bool(suyos) and suyos[0] in segmentos
+            usuario.credenciales_editables = usuario.gestionable and es_dueno and not (roles - alcance_credenciales)
         return usuarios
 
     programas = set(programas_administrables_usuarios(operador).values_list("pk", flat=True))

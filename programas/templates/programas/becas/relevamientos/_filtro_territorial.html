@@ -1,6 +1,7 @@
 {% comment %}
 Filtro dependiente convocatoria → territorial del alta de relevamiento.
-Las opciones de ambos selects llevan data-segmento (widget _SelectConSegmento):
+Las opciones de la convocatoria llevan data-segmento y las del territorial data-segmentos
+(ids separados por espacio; widget _SelectConSegmento):
 al elegir convocatoria se ocultan los territoriales de otros segmentos.
 La regla dura vive en RelevamientoForm.clean(); esto es solo UX.
 {% endcomment %}
@@ -56,7 +57,7 @@ La regla dura vive en RelevamientoForm.clean(); esto es solo UX.
       let visibles = 0;
       Array.from(territorial.options).forEach((opt) => {
         if (!opt.value) return;
-        const visible = Boolean(segmento) && opt.dataset.segmento === segmento;
+        const visible = Boolean(segmento) && (opt.dataset.segmentos || '').split(' ').includes(segmento);
         opt.hidden = !visible;
         opt.disabled = !visible;
         if (!visible && opt.selected) opt.selected = false;

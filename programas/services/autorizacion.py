@@ -440,6 +440,65 @@ def segmentos_para_gestion_territoriales(user):
     return get_segmentos_coordinador(user)
 
 
+def segmentos_asignables_territorial(operador):
+    """Segmentos activos que ``operador`` puede ofrecer a un territorial.
+
+    Es el queryset exacto del selector del ABM de Usuarios: un gestor acotado
+    (Coordinador, Referente, Coord. Regional con ``becas.usuario.territorial``)
+    elige entre los segmentos que gestiona; el admin global o de programa, entre
+    todos los activos. El escritor del ABM, el alta rápida y el form usan este mismo
+    alcance para que no diverjan. Sin operador, todos los activos.
+    """
+    from programas.models import Segmento
+    from users.selectors.roles import es_gestor_territorial
+
+    if operador is not None and es_gestor_territorial(operador):
+        return segmentos_para_gestion_territoriales(operador).filter(activo=True).order_by("nombre")
+    return Segmento.objects.filter(activo=True).order_by("nombre")
+
+
+def segmento_dueno_id(territorial):
+    """pk del segmento dueño del territorial (asignación de menor pk), o ``None``."""
+    from programas.models import AsignacionTerritorial
+
+    return (
+        AsignacionTerritorial.objects.filter(territorial=territorial)
+        .order_by("pk")
+        .values_list("segmento_id", flat=True)
+        .first()
+    )
+
+
+def segmentos_duenos_en_lote(territoriales_ids):
+    """``{territorial_id: segmento_id dueño}`` en una consulta, para el listado."""
+    from programas.models import AsignacionTerritorial
+
+    duenos = {}
+    filas = (
+        AsignacionTerritorial.objects.filter(territorial_id__in=list(territoriales_ids))
+        .order_by("pk")
+        .values_list("territorial_id", "segmento_id")
+    )
+    for territorial_id, segmento_id in filas:
+        duenos.setdefault(territorial_id, segmento_id)
+    return duenos
+
+
+def segmentos_de_territoriales_en_lote(territoriales_ids):
+    """``{territorial_id: [segmento_id, ...]}`` (por antigüedad) en una consulta."""
+    from programas.models import AsignacionTerritorial
+
+    por_territorial = {}
+    filas = (
+        AsignacionTerritorial.objects.filter(territorial_id__in=list(territoriales_ids))
+        .order_by("pk")
+        .values_list("territorial_id", "segmento_id")
+    )
+    for territorial_id, segmento_id in filas:
+        por_territorial.setdefault(territorial_id, []).append(segmento_id)
+    return por_territorial
+
+
 def requisitos_visibles(user, programa=None):
     """Queryset de ``RequisitoNativo`` que el usuario puede gestionar/revisar.
 
@@ -514,12 +573,12 @@ def usuarios_territoriales_becas(programa=None, segmento=None):
     """Usuarios activos con capacidad de campo (``CAP_CAMPO``), candidatos a
     ser asignados como territorial de un relevamiento.
 
-    Con ``segmento`` se acota a los territoriales asignados a ese segmento
-    (``AsignacionTerritorial``: un territorial → un segmento).
+    Con ``segmento`` se acota a los territoriales que tienen ese segmento entre
+    los suyos (``AsignacionTerritorial``: un territorial puede tener varios).
     """
     qs = _usuarios_con_capacidad_en_programa([CAP_CAMPO], programa=programa)
     if segmento is not None:
-        qs = qs.filter(asignacion_territorial__segmento=segmento)
+        qs = qs.filter(segmentos_territoriales__segmento=segmento).distinct()
     return qs
 
 

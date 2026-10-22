@@ -366,7 +366,7 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
                 segmentos_permitidos=segmentos,
                 convocatorias_permitidas=convocatorias_alta,
                 territoriales_permitidos=usuarios_territoriales_becas().filter(
-                    asignacion_territorial__segmento__in=segmentos
+                    segmentos_territoriales__segmento__in=segmentos
                 ),
                 operador=self.request.user,
                 puede_publico=ctx["puede_publico"],
@@ -377,7 +377,7 @@ class ConvocatoriaDetailView(CapacidadRequeridaMixin, LoginRequiredMixin, Detail
             # Server-side (funciona sin JS): el segmento no tiene ningún territorial elegible.
             ctx["segmento_sin_territoriales"] = (
                 not form_crear.fields["territorial"]
-                .queryset.filter(asignacion_territorial__segmento_id=conv.segmento_id)
+                .queryset.filter(segmentos_territoriales__segmento_id=conv.segmento_id)
                 .exists()
             )
         # Padrón de habilitados (Cambio 57; herencia por relevamiento, Cambio 74):
@@ -721,7 +721,7 @@ class RelevamientoListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListView
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         segmentos = segmentos_visibles(self.request.user).order_by("nombre")
-        territoriales = usuarios_territoriales_becas().filter(asignacion_territorial__segmento__in=segmentos)
+        territoriales = usuarios_territoriales_becas().filter(segmentos_territoriales__segmento__in=segmentos)
         ctx["estados"] = Relevamiento.Estado.choices
         ctx["segmentos"] = segmentos
         ctx["aviso_sin_segmentos"] = aviso_sin_segmentos_becas(self.request.user)
@@ -766,7 +766,7 @@ class RelevamientoCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Create
         kwargs["segmentos_permitidos"] = segmentos_visibles(self.request.user)
         kwargs["convocatorias_permitidas"] = convocatorias_visibles(self.request.user)
         kwargs["territoriales_permitidos"] = usuarios_territoriales_becas().filter(
-            asignacion_territorial__segmento__in=segmentos_visibles(self.request.user)
+            segmentos_territoriales__segmento__in=segmentos_visibles(self.request.user)
         )
         kwargs["operador"] = self.request.user
         kwargs["puede_publico"] = _puede_publico(self.request.user)
