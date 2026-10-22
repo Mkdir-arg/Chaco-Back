@@ -46527,5 +46527,6 @@ Revertir el commit.
 
 - **22/10/2026 — alta del cambio.**
 - **22/10/2026 — Seguimiento:** los comandos fijan los SHAs al inicio, re-chequean el remoto antes del push y pushean por SHA; el paso de alineación lleva el comando exacto.
+- **22/10/2026 — Seguimiento:** `/pushGitLabecomMOBILEPRD` alinea `main` desde un clon superficial de `main` (`$tmpMain`) y verifica que su `HEAD` sea `$ecomMain`; antes usaba `$tmp`, que es un clon de `test` y no contiene esa punta.
 
 ---
