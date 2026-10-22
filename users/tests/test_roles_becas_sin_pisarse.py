@@ -156,7 +156,7 @@ class AltaTests(Base):
         self.assertEqual(form.errors["groups"], [esperado])
 
     def test_acepta_coordinador_mas_territorial(self):
-        form = self._form([self.coordinador, self.territorial], segmento_territorial=str(self.segmento.pk))
+        form = self._form([self.coordinador, self.territorial], segmentos_territoriales=[str(self.segmento.pk)])
         self.assertTrue(form.is_valid(), form.errors)
 
     def test_acepta_un_rol_de_becas_mas_uno_de_otro_programa(self):
@@ -263,7 +263,7 @@ class OperadorNoGlobalTests(Base):
                 [self.territorial],
                 username="objetivo",
                 email="objetivo@x.test",
-                segmento_territorial=str(self.segmento.pk),
+                segmentos_territoriales=[str(self.segmento.pk)],
             ),
             instance=self.objetivo,
             operador=self.operador,

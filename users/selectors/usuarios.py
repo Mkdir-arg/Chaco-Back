@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 
 from core import rbac
-from users.selectors.roles import es_gestor_territorial, programas_administrables_usuarios  # noqa: F401
+from users.selectors.roles import es_gestor_territorial, programas_administrables_usuarios
 
 
 def get_usuarios_queryset():

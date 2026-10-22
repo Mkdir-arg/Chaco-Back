@@ -420,7 +420,7 @@ class TokenDeCampoYClaveDelTerritorialTests(_SinCubetas):
             "adm-becas",
             _rol(
                 "AdmBecas",
-                ["becas.programa.administrar", "programa.usuario.administrar"],
+                ["becas.programa.administrar", "programa.usuario.administrar", "becas.usuario.territorial"],
                 self.becas,
             ),
         )
@@ -607,7 +607,7 @@ class AltaDeUsuarioDeCampoTests(_SinCubetas):
             "first_name": "",
             "last_name": "",
             "groups": [str(self.rol_terr.pk)],
-            "segmento_territorial": str(self.segmento.pk),
+            "segmentos_territoriales": [str(self.segmento.pk)],
         }
         datos.update(extra)
         return self.client.post(reverse("users:usuario_crear"), datos)
@@ -685,7 +685,7 @@ class EdicionHaciaUsuarioDeCampoTests(_SinCubetas):
             "first_name": usuario.first_name,
             "last_name": usuario.last_name,
             "groups": [str(g.pk) for g in usuario.groups.all()],
-            "segmento_territorial": str(self.segmento.pk),
+            "segmentos_territoriales": [str(self.segmento.pk)],
         }
         datos.update(extra)
         return self.client.post(reverse("users:usuario_editar", args=[usuario.pk]), datos)

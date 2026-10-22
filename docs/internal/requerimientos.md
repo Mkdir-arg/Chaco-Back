@@ -480,7 +480,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 352 | «Nuevo relevamiento» avisa por qué no se puede crear o a quién asignar | Becas · detalle de convocatoria, alta de relevamiento | `#relevamientos` `#ui` `#pausas` | PM — prueba en testing del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 | 353 | El cierre automático por vencimiento deja traza en el relevamiento y avisa al extender | Becas · relevamientos y convocatorias | `#relevamientos` `#ui` | Juez — auditoría de Becas (carril D) | 21/10/2026 | 🟢 **Hecho** | sí (`programas.0102`) |
 | 354 | La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué | Becas · proceso masivo a SIIS (pantalla) | `#siis` `#ui` | Juez — casos excluidos sin aviso | 21/10/2026 | 🟢 **Hecho** | no |
-| 355 | Un territorial puede tener varios segmentos (PR 1: modelo y lectores) | Becas · asignación de territoriales · ABM de usuarios | `#rbac` `#usuarios` `#relevamientos` | PM — territorial en más de un segmento | 22/10/2026 | 🟡 **Parcial — falta el PR 2 (UI y buscador)** | `programas.0103` |
+| 355 | Un territorial puede tener varios segmentos | Becas · asignación de territoriales · ABM de usuarios | `#rbac` `#usuarios` `#relevamientos` | PM — territorial en más de un segmento | 22/10/2026 | 🟢 **Hecho** | `programas.0103` |
 | 356 | Programas de Becas que no validan con SIIS | Becas · programas y revisión de casos | `#siis` `#ui` `#relevamientos` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | sí (`programas.0104`) |
 
 **Notas del índice**
@@ -46039,9 +46039,9 @@ Revertir el commit.
 
 ---
 
-# Cambio 355 — Un territorial puede tener varios segmentos (PR 1: modelo y lectores)
+# Cambio 355 — Un territorial puede tener varios segmentos
 
-🟡 **PARCIAL — 22/10/2026** (PR 1 de 2: el ABM sigue ofreciendo un solo segmento; el multiselect y el buscador van en el PR 2)
+🟢 **HECHO — 22/10/2026** (PR 1: modelo y lectores · PR 2: selector múltiple, buscador y endpoints; salen en releases de ECOM separadas)
 
 | | |
 |---|---|
@@ -46050,7 +46050,7 @@ Revertir el commit.
 | **Solicitante** | PM — que un territorial pueda trabajar en más de un segmento |
 | **Fecha del pedido** | 22/10/2026 |
 | **Issue / épica** | sin issue |
-| **Partes afectadas** | Backoffice · Servidor/API (la API móvil no lee la asignación: no cambia) |
+| **Partes afectadas** | Backoffice (ABM de Usuarios y modal de alta rápida) · Servidor/API (la API móvil no lee la asignación: no cambia) |
 | **Migración** | `programas.0103` |
 
 ## Pedido original
@@ -46064,7 +46064,8 @@ escritores y guardas tolerando N filas. No contradice ninguna decisión registra
 
 Entra: modelo, migración, helpers de alcance, lectores (listado, alcance del gestor, alta y reasignación de
 relevamientos, filtro JS, seeds, admin de Django), escritor por diferencia y la regla dueño/alguno en el servicio.
-Afuera (PR 2): multiselect en el ABM, aviso visual del bloqueo, buscador y endpoints de «Asignar».
+PR 2 (UI y buscador): selector múltiple en el ABM, aviso visual del bloqueo, buscador en «Crear territorial» y los
+endpoints de buscar y asignar.
 
 ## Decisiones tomadas
 
@@ -46095,8 +46096,30 @@ Las cinco primeras son las del plan que el PM aprobó **sin responder** las preg
    crear un ciclo de imports.
 9. «≥ 1 segmento con rol territorial» se valida sobre el **conjunto final** (filas fuera de alcance que se conservan
    más lo elegido): un gestor puede quitar su segmento si el territorial conserva otro.
-10. Pre-carga del select con un territorial de varios segmentos: el más antiguo que esté en el alcance del operador;
-    si no hay ninguno, el dueño.
+10. *(PR 1, reemplazada por la 11.)* Pre-carga del select simple: el más antiguo en el alcance del operador.
+11. **El campo pasa a `segmentos_territoriales`** (`ModelMultipleChoiceField` + `CheckboxSelectMultiple`, `.nodo-checks`
+    en caja `max-h-64`). `initial` = los segmentos del territorial dentro del alcance; `form.segmentos_ajenos` = los que
+    quedan fuera (de otro gestor, o inactivos), que se muestran como badges de solo lectura y el escritor conserva.
+    Con el select múltiple un admin que guarda ya no borra los segmentos que no ve.
+12. **Buscador** (`usuarios/alta-rapida/territorial/buscar/`, GET): universo = usuarios con un rol activo de Becas que
+    otorga `becas.campo`, activos e inactivos, sin superusuarios; un gestor acotado solo ve territoriales **puros**. Nombre
+    y apellido por palabra con `icontains`; DNI (solo dígitos, con o sin puntos) y correo (lleva `@`) **solo exactos**.
+    Mínimo 3 caracteres, tope 10 (pide 11 para `hay_mas`). A quien no tiene ningún segmento del operador se le enmascaran
+    DNI (`12.***.678`) y correo (`c***@dominio`); el admin nunca enmascara. El nombre vacío sale «(sin nombre)»: nunca
+    el `username`.
+13. **Asignar** (`.../territorial/asignar/`, POST): el target tiene que estar en el mismo universo, estar activo (si no,
+    409 «lo reactiva el administrador del programa») y el destino ser asignable y gestionable por el operador. Todo se
+    lee **con el candado de administración tomado**. Idempotente (`get_or_create` con `asignado_por`).
+14. Los dos endpoints exigen la capacidad `becas.usuario.territorial` de forma explícita (403), llevan throttle por
+    operador sin IP (30 búsquedas y 20 asignaciones por minuto → 429) y responden con el sobre de `core/http.py`. El alta
+    rápida del territorial también pide la capacidad (antes no la pedía), devuelve `segmentos` y, si el DNI ya es de otro
+    usuario, manda a buscarlo; el error genérico del ABM no cambia.
+15. **Modal**: para tipo territorial abre en el buscador (paso 1) y «Crear territorial nuevo» pasa al formulario de
+    siempre, precargado con lo tipeado (DNI de 7-8 dígitos, correo o apellido) y con «Volver a buscar». Coordinador y
+    referente abren directo en el formulario, sin cambios visibles. Asignar, Seleccionar y Crear actualizan la opción del
+    `<select>` si ya existe (suman segmentos a `dataset.segmentos`) y la agregan si no.
+16. Los endpoints cuelgan del prefijo `usuarios/alta-rapida/`: el WAF de ECOM bloquea rutas nuevas fuera de prefijos
+    conocidos, y hay que **probar en testing** que no las frene.
 
 ## Implementación
 
@@ -46111,13 +46134,32 @@ Las cinco primeras son las del plan que el PM aprobó **sin responder** las preg
   widget) y el `AttributeError` de `RelevamientoForm.clean` (500) se cambiaron uno por uno.
 - Seeds y admin de Django a `get_or_create(territorial, segmento)`; `seed_perf.py` corrige su comentario.
 
+## Implementación (PR 2)
+
+- `users/services/territoriales.py` (nuevo): `universo_territoriales`, `buscar_territoriales` (tres consultas, sin N+1),
+  `asignar_segmento` (candado + universo + activo), máscaras y `nombre_para_mostrar`.
+- `users/views/quick_create.py`: `usuario_buscar_territorial`, `usuario_asignar_territorial` y `_segmento_destino`
+  (también lo usa el alta rápida; un `segmento_id` no numérico daba 500 y ahora es 403). Rutas en `users/urls.py`.
+- `users/forms/__init__.py`: `segmentos_territoriales`, `segmentos_ajenos`, `aviso_no_dueno` y `MENSAJE_DNI_DUPLICADO`;
+  el help_text repetido de los diez campos deshabilitados se quitó (queda solo el aviso).
+- `users/services/admin.py`: el escritor da de alta lo que falta con una consulta + `bulk_create(ignore_conflicts=True)` en
+  vez de un `get_or_create` por segmento (zeal marcaba N+1 con tres segmentos).
+- `user_form.html`: selector `.nodo-checks`, aviso `_alerta.html` y el JS del picker de roles: «Limpiar» y la «x» del chip
+  ya no destildan roles `disabled` (bug de PR 1: un no dueño veía sus roles destildados en pantalla), y «Limpiar» queda
+  deshabilitado si no es dueño.
+- `_alta_rapida_modal.html`: paso de búsqueda, filas por `createElement`/`textContent`, «Volver a buscar».
+- MINOR del PR 1: se quitó el reexport `es_gestor_territorial  # noqa: F401` de `users/selectors/usuarios.py`.
+
 ## Archivos
 
 `programas/models/__init__.py`, `programas/migrations/0103_asignacion_territorial_multisegmento.py`,
 `programas/services/autorizacion.py`, `programas/forms.py`, `programas/views/relevamientos.py`, `programas/admin.py`,
 `users/selectors/usuarios.py`, `users/selectors/roles.py`, `users/forms/__init__.py`, `users/services/admin.py`,
 `users/views/quick_create.py`, `_filtro_territorial.html`, `_alta_rapida_modal.html`, tres seeds, ficha
-`.claude/design/dominio/becas.md`. Tests: `users/tests/test_territorial_multisegmento.py`,
+`.claude/design/dominio/becas.md`. PR 2: `users/services/territoriales.py`, `users/views/quick_create.py`, `users/urls.py`, `users/forms/__init__.py`,
+`users/services/admin.py`, `user_form.html`, `_alta_rapida_modal.html` y las fichas `modal.md`, `field.md`,
+`estado_vacio.md` y `dominio/becas.md`. Tests PR 2: `users/tests/test_territorial_buscador.py`,
+`users/tests/test_alta_rapida_modal.py`. Tests PR 1: `users/tests/test_territorial_multisegmento.py`,
 `programas/tests/test_territorial_multisegmento.py`, `programas/tests/test_migracion_territorial_multisegmento.py`
 y los que afirmaban singularidad.
 
@@ -46139,28 +46181,41 @@ de ida y vuelta siembra una fila por territorial y no ejercita el dedup: lo prue
   en el servicio → 1 en rojo (el que arma el form con otro operador); (b) escritor que borra también fuera de
   alcance → 8 en rojo. Revertidas.
 
+## Validación (PR 2)
+
+- `manage.py check`: sin problemas. `manage.py test users programas` (4502 tests): verde salvo un fallo propio, corregido
+  (badge de «Inactivo» del buscador en rojo; DC-2 pide gris) y re-verificado con los tests de segmentos, del modal y del buscador.
+- Tests nuevos: `test_territorial_buscador.py` (47: buscar, asignar, alta rápida, selector múltiple del ABM) y 4 en `test_alta_rapida_modal.py`.
+- Mutaciones (se rompe la regla y el test se pone rojo, uno por vez): quitar la capacidad de buscar, de asignar y del alta
+  rápida del territorial; en cada caso falla exactamente el test de «sin capacidad → 403».
+- `design_audit --ratchet`: 0 nuevos; `compile_templates --bloques`, `check_design_agent --changed` y ruff de lo tocado: sin hallazgos;
+  CSS de Tailwind recompilado (solo suma `mr-auto`).
+
 ## Puesta en marcha en el servidor
 
-Solo el deploy (migración `programas.0103`). **PR 1 y PR 2 salen en releases de ECOM distintas**: con el PR 1 solo,
+Solo el deploy (migración `programas.0103`). **PR 1 y PR 2 salen en releases de ECOM distintas, primero el PR 1** (el PR 2 no tiene migraciones): con el PR 1 solo,
 nadie crea filas múltiples y el código anterior sigue andando; si salen juntos y hay que volver, el código viejo da
-500 en el ABM para los territoriales compartidos.
+500 en el ABM para los territoriales compartidos. Después del PR 2, **probar en testing** (datanach.ecomdev.ar) que el
+WAF no bloquee `usuarios/alta-rapida/territorial/buscar/` ni `.../asignar/`, y que la búsqueda por DNI y el «Asignar» anden.
 
 ## Pendientes / a definir
 
-- **PR 2:** multiselect con `.nodo-checks` (segmentos ajenos de solo lectura, aviso visual de por qué la cuenta está
-  bloqueada), buscador en «Crear territorial», endpoints de buscar/asignar con throttle y capacidad, y
-  `usuario_alta_rapida` con `setlist` y derivación al admin cuando el DNI es de un usuario no territorial.
 - Confirmar con el PM las decisiones 1 a 4 (aprobadas sin respuesta explícita).
+- Probar en testing el flujo completo y que el WAF deje pasar las dos rutas nuevas (ver «Puesta en marcha»).
+- Un territorial **inactivo** que se encuentra en el buscador solo se reactiva desde el ABM por el administrador del
+  programa; si el pedido es que el coordinador también pueda, es otra decisión.
 
 ## Reversión
 
-Orden: primero el PR 2 (si ya salió), después este. `migrate programas 0102` ejecuta `dedup_reversa`: deja **una**
+Orden: primero el PR 2 (si ya salió), después el PR 1. El PR 2 se revierte sin tocar datos: las rutas y el
+formulario vuelven al select simple (con filas múltiples ya cargadas el código del PR 1 las tolera). `migrate programas 0102` ejecuta `dedup_reversa`: deja **una**
 fila por territorial, la más antigua (el segmento dueño), y recrea el UNIQUE del OneToOne. Se pierden los segmentos
 agregados y `asignado_por`. Código y migración se revierten juntos.
 
 ## Historial
 
 - **22/10/2026 — alta del cambio (PR 1).**
+- **22/10/2026 — PR 2: selector múltiple en el ABM, buscador y «Asignar» en el modal; pasa a hecho.**
 
 ---
 

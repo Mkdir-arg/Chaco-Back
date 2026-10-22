@@ -700,13 +700,13 @@ class SegmentoTerritorialABMTests(TestCase):
     def test_rol_territorial_sin_segmento_es_invalido(self):
         form = UserCreationForm(self._data_alta())
         self.assertFalse(form.is_valid())
-        self.assertIn("segmento_territorial", form.errors)
+        self.assertIn("segmentos_territoriales", form.errors)
 
     def test_alta_con_segmento_persiste_asignacion(self):
         from programas.models import AsignacionTerritorial
 
         resp = self.client.post(
-            reverse("users:usuario_crear"), self._data_alta(segmento_territorial=str(self.segmento.pk))
+            reverse("users:usuario_crear"), self._data_alta(segmentos_territoriales=[str(self.segmento.pk)])
         )
         self.assertEqual(resp.status_code, 302)
         user = User.objects.get(username="terri_abm")
@@ -721,7 +721,7 @@ class SegmentoTerritorialABMTests(TestCase):
         RolMeta.objects.create(grupo=otro_rol, categoria="Backoffice", activo=True)
         resp = self.client.post(
             reverse("users:usuario_crear"),
-            self._data_alta(groups=[str(otro_rol.pk)], segmento_territorial=str(self.segmento.pk)),
+            self._data_alta(groups=[str(otro_rol.pk)], segmentos_territoriales=[str(self.segmento.pk)]),
         )
         self.assertEqual(resp.status_code, 302)
         user = User.objects.get(username="terri_abm")
@@ -730,7 +730,9 @@ class SegmentoTerritorialABMTests(TestCase):
     def test_quitar_rol_territorial_borra_asignacion(self):
         from programas.models import AsignacionTerritorial
 
-        self.client.post(reverse("users:usuario_crear"), self._data_alta(segmento_territorial=str(self.segmento.pk)))
+        self.client.post(
+            reverse("users:usuario_crear"), self._data_alta(segmentos_territoriales=[str(self.segmento.pk)])
+        )
         user = User.objects.get(username="terri_abm")
         otro_rol = Group.objects.create(name="Rol comun")
         RolMeta.objects.create(grupo=otro_rol, categoria="Backoffice", activo=True)
@@ -751,12 +753,14 @@ class SegmentoTerritorialABMTests(TestCase):
     def test_editar_cambia_segmento(self):
         from programas.models import AsignacionTerritorial, Segmento
 
-        self.client.post(reverse("users:usuario_crear"), self._data_alta(segmento_territorial=str(self.segmento.pk)))
+        self.client.post(
+            reverse("users:usuario_crear"), self._data_alta(segmentos_territoriales=[str(self.segmento.pk)])
+        )
         user = User.objects.get(username="terri_abm")
         otro_seg = Segmento.objects.create(nombre="Seg ABM 2", cupo_maximo=5)
         resp = self.client.post(
             reverse("users:usuario_editar", args=[user.pk]),
-            self._data_alta(password="", segmento_territorial=str(otro_seg.pk)),
+            self._data_alta(password="", segmentos_territoriales=[str(otro_seg.pk)]),
         )
         self.assertEqual(resp.status_code, 302)
         asignacion = AsignacionTerritorial.objects.get(territorial=user)

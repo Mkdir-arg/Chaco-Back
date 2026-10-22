@@ -125,6 +125,14 @@ El bloque de checks **no** lleva recorrido de `.errors` cuando su form no se re-
 así que ese markup sería muerto y simularía una validación inline que no existe. Donde el form sí vuelve
 renderizado —un formulario de pantalla completa—, el error va como en el resto de `_field.html`.
 
+**Caja con scroll para listas largas.** Cuando las opciones pueden ser decenas, el contenedor
+`.nodo-checks` va además con `max-h-64 overflow-y-auto rounded-lg border border-base p-3`
+(`max-h-96` no está compilada) y `role="group"` + `aria-labelledby` apuntando al `<p>` del título.
+Consumidor: «Segmentos asignados (Becas)» del ABM de Usuarios (`users/templates/user/user_form.html`),
+con un `ModelMultipleChoiceField` + `forms.CheckboxSelectMultiple`. Lo que el operador ve pero no puede
+elegir (segmentos de otro coordinador o inactivos) **no es una opción**: va debajo como badges
+`badge badge-gray badge-sm` con candado, texto «Solo lectura…» y el servidor lo conserva al guardar.
+
 ## Chips de selección múltiple y switch
 
 Dos presentaciones de controles que **ya existen** en Django, con widget propio en

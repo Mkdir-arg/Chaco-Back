@@ -8,6 +8,12 @@ El cierre (X, Cancelar, backdrop, Escape) lo resuelve este mismo script con
 para el foco inicial y la trampa de Tab (no para cerrar). Contrato: POST a
 users:usuario_alta_rapida, respuesta data.user.
 
+Para tipo=territorial el modal abre en un paso previo de búsqueda (users:usuario_buscar_territorial):
+si la persona ya tiene cuenta se le suma el segmento (users:usuario_asignar_territorial) en vez de
+crear otra; si no está, "Crear territorial nuevo" pasa al formulario de siempre, precargado con lo
+tipeado. Coordinador y referente abren directo en el formulario. Un solo role=dialog con dos
+paneles; el paso se alterna con la CLASE hidden (un contenedor .flex le gana al atributo [hidden]).
+
 No reutiliza programas/becas/_modal_header.html ni _modal_footer.html: esos parciales
 cierran solo vía data-becas-modal-cerrar (dependencia dura de becas-modal.js) y viven
 en la app programas, mientras este modal es de la app users y necesita seguir
@@ -18,9 +24,35 @@ funcionando sin ese script.
   <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="quick-user-titulo">
     <div class="flex items-center gap-3 px-6 py-5 border-b border-light flex-shrink-0">
       <div class="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0 text-lg bg-brand-soft text-fg-brand"><i class="fas fa-user-plus" aria-hidden="true"></i></div>
-      <h3 id="quick-user-titulo" class="text-lg font-bold text-heading flex-1 min-w-0">Crear <span data-quick-user-title>usuario</span></h3>
+      <h3 id="quick-user-titulo" class="text-lg font-bold text-heading flex-1 min-w-0"><span data-quick-user-accion>Crear</span> <span data-quick-user-title>usuario</span></h3>
       <button type="button" data-becas-modal-cerrar data-quick-user-close aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors flex-shrink-0"><i class="fas fa-xmark text-base" aria-hidden="true"></i></button>
     </div>
+    <form id="quick-user-buscar" role="search" action="{% url 'users:usuario_buscar_territorial' %}" class="flex flex-col min-h-0 flex-1 hidden">
+      <div class="overflow-y-auto flex-1 p-6 space-y-4">
+        <p class="text-sm text-body">Buscá si la persona ya tiene cuenta antes de crear una nueva.</p>
+        <div>
+          <label for="quick-user-q" class="block text-sm font-medium text-heading mb-1">Nombre, apellido, DNI o correo</label>
+          <div class="flex gap-3">
+            <input id="quick-user-q" name="q" type="search" class="nodo-field" minlength="3" autocomplete="off" aria-describedby="quick-user-q-ayuda quick-user-q-error">
+            <button type="submit" data-quick-user-buscar-submit class="btn-nodo btn-brand btn-base"><i class="fas fa-magnifying-glass" aria-hidden="true"></i> Buscar</button>
+          </div>
+          <p id="quick-user-q-ayuda" class="mt-1 text-xs text-body-subtle">Mínimo 3 caracteres. El DNI y el correo, completos.</p>
+          <p id="quick-user-q-error" class="mt-1 text-xs text-fg-danger" role="alert"></p>
+        </div>
+        <div aria-live="polite" data-quick-user-resultados>
+          <p class="text-sm text-body-subtle" role="status" data-quick-user-estado></p>
+          <ul class="divide-y divide-light" data-quick-user-lista></ul>
+          <div class="hidden" data-quick-user-vacio>
+            {% include "components/_estado_vacio.html" with icono="fa-user-slash" titulo="No encontramos territoriales con esos datos" texto="Probá con otro dato o creá uno nuevo." %}
+            <div class="text-center"><button type="button" data-quick-user-crear-nuevo class="btn-nodo btn-brand btn-base">Crear territorial nuevo</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary flex-shrink-0">
+        <button type="button" data-becas-modal-cerrar data-quick-user-close class="btn-nodo btn-tertiary btn-base">Cancelar</button>
+        <button type="button" data-quick-user-crear-nuevo class="btn-nodo btn-secondary btn-base">Crear territorial nuevo</button>
+      </div>
+    </form>
     <form id="quick-user-form" action="{% url 'users:usuario_alta_rapida' %}" class="flex flex-col min-h-0 flex-1">
       {% csrf_token %}<input type="hidden" name="tipo"><input type="hidden" name="segmento_id">
       <div class="overflow-y-auto flex-1 p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -36,6 +68,7 @@ funcionando sin ese script.
         <div id="quick-user-error" class="md:col-span-2 text-sm text-fg-danger" role="alert" tabindex="-1"></div>
       </div>
       <div class="flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary flex-shrink-0">
+        <button type="button" data-quick-user-volver class="btn-nodo btn-tertiary btn-base mr-auto hidden">Volver a buscar</button>
         <button type="button" data-becas-modal-cerrar data-quick-user-close class="btn-nodo btn-tertiary btn-base">Cancelar</button>
         <button type="submit" data-quick-user-submit class="btn-nodo btn-brand btn-base">Crear y seleccionar</button>
       </div>
@@ -59,6 +92,34 @@ funcionando sin ese script.
   const error = document.getElementById('quick-user-error');
   const asteriscoEmail = modal.querySelector('[data-quick-user-email-obligatorio]');
   const ayudaClave = modal.querySelector('[data-quick-user-password-ayuda]');
+  const buscar = document.getElementById('quick-user-buscar');
+  const campoQ = document.getElementById('quick-user-q');
+  const errorQ = document.getElementById('quick-user-q-error');
+  const submitBuscar = buscar.querySelector('[data-quick-user-buscar-submit]');
+  const estado = buscar.querySelector('[data-quick-user-estado]');
+  const lista = buscar.querySelector('[data-quick-user-lista]');
+  const vacio = buscar.querySelector('[data-quick-user-vacio]');
+  const volver = form.querySelector('[data-quick-user-volver]');
+  const accion = modal.querySelector('[data-quick-user-accion]');
+  const MIN_Q = 3;
+  // Paso 1 (buscar) o paso 2 (formulario). Solo el territorial pasa por el 1.
+  const mostrarPaso = (paso, tipo) => {
+    const enBusqueda = paso === 'buscar';
+    buscar.classList.toggle('hidden', !enBusqueda);
+    form.classList.toggle('hidden', enBusqueda);
+    volver.classList.toggle('hidden', tipo !== 'territorial');
+    accion.textContent = enBusqueda ? 'Buscar' : 'Crear';
+  };
+  const limpiarResultados = () => {
+    lista.replaceChildren(); estado.replaceChildren(); vacio.classList.add('hidden'); errorQ.textContent = '';
+  };
+  // Un elemento con texto: los datos del servidor entran siempre por textContent.
+  const nodo = (tag, clase, texto) => {
+    const e = document.createElement(tag);
+    if (clase) e.className = clase;
+    if (texto !== undefined) e.textContent = texto;
+    return e;
+  };
   const sincronizarTipo = tipo => {
     const deCampo = tipo === 'territorial';
     form.elements.email.required = deCampo;
@@ -128,8 +189,127 @@ funcionando sin ese script.
     form.reset(); form.elements.tipo.value = tipo; form.elements.segmento_id.value = segmento;
     sincronizarTipo(tipo);
     modal.querySelector('[data-quick-user-title]').textContent = tipo; error.textContent = '';
+    buscar.reset(); limpiarResultados();
+    mostrarPaso(tipo === 'territorial' ? 'buscar' : 'crear', tipo);
     modal.style.display = 'flex';
+    if (tipo === 'territorial') campoQ.focus();
   }));
+  // Deja el <select> destino con el usuario elegido: si la opción ya existe se actualiza
+  // (suma los segmentos), si no se agrega. Lo comparten Asignar, Seleccionar y Crear.
+  const aplicarUsuario = (usuario, mensaje) => {
+    if (target) {
+      const nuevos = (usuario.segmentos && usuario.segmentos.length ? usuario.segmentos : [usuario.segmento_id])
+        .map(id => String(id || '')).filter(Boolean);
+      let option = Array.from(target.options).find((opt) => opt.value === String(usuario.id));
+      if (option) {
+        const segmentos = (option.dataset.segmentos || '').split(' ').filter(Boolean);
+        nuevos.forEach(id => { if (!segmentos.includes(id)) segmentos.push(id); });
+        option.dataset.segmentos = segmentos.join(' ');
+        option.selected = true;
+      } else {
+        option = new Option(usuario.label, usuario.id, true, true);
+        option.dataset.segmentos = nuevos.join(' ');
+        target.add(option);
+      }
+      target.dispatchEvent(new Event('change', {bubbles:true}));
+    }
+    close();
+    if (mensaje) window.toast('success', mensaje);
+  };
+  const filaDeResultado = (fila) => {
+    const li = nodo('li', 'flex items-start justify-between gap-3 py-3');
+    const cuerpo = nodo('div', 'min-w-0 flex-1');
+    cuerpo.appendChild(nodo('p', 'text-sm font-semibold text-heading', fila.nombre));
+    const contacto = [fila.dni ? 'DNI ' + fila.dni : '', fila.email].filter(Boolean).join(' \u00b7 ');
+    if (contacto) cuerpo.appendChild(nodo('p', 'text-xs text-body-subtle', contacto));
+    if (fila.segmentos.length) {
+      const badges = nodo('ul', 'mt-1 flex flex-wrap gap-1.5');
+      fila.segmentos.forEach(nombre => badges.appendChild(nodo('li', 'badge badge-gray badge-sm', nombre)));
+      cuerpo.appendChild(badges);
+    }
+    li.appendChild(cuerpo);
+    const accionesFila = nodo('div', 'flex flex-col items-end gap-1.5 flex-shrink-0');
+    if (!fila.activo) {
+      accionesFila.appendChild(nodo('span', 'badge badge-gray badge-sm', 'Inactivo'));
+      cuerpo.appendChild(nodo('p', 'mt-1 text-xs text-body-subtle', 'Lo reactiva el administrador del programa.'));
+    } else if (fila.ya_asignado) {
+      accionesFila.appendChild(nodo('span', 'badge badge-success badge-sm', 'Ya est\u00e1 en este segmento'));
+      const seleccionar = nodo('button', 'btn-nodo btn-secondary btn-sm', 'Seleccionar');
+      seleccionar.type = 'button';
+      seleccionar.setAttribute('aria-label', 'Seleccionar a ' + fila.nombre);
+      seleccionar.addEventListener('click', () => aplicarUsuario(
+        {id: fila.id, label: fila.nombre, segmento_id: form.elements.segmento_id.value},
+        fila.nombre + ' queda seleccionado.'));
+      accionesFila.appendChild(seleccionar);
+    } else {
+      const asignar = nodo('button', 'btn-nodo btn-brand btn-sm', 'Asignar a este segmento');
+      asignar.type = 'button';
+      asignar.setAttribute('aria-label', 'Asignar a ' + fila.nombre + ' a este segmento');
+      asignar.addEventListener('click', () => asignarUsuario(fila, asignar));
+      accionesFila.appendChild(asignar);
+    }
+    li.appendChild(accionesFila);
+    return li;
+  };
+  const asignarUsuario = async (fila, boton) => {
+    if (boton.disabled) return;
+    boton.disabled = true;
+    try {
+      const datos = new FormData();
+      datos.append('csrfmiddlewaretoken', form.elements.csrfmiddlewaretoken.value);
+      datos.append('user_id', fila.id);
+      datos.append('segmento_id', form.elements.segmento_id.value);
+      const response = await fetch("{% url 'users:usuario_asignar_territorial' %}", {method:'POST', body:datos, headers:{'X-Requested-With':'XMLHttpRequest'}});
+      let data;
+      try { data = await response.json(); } catch (e) {
+        window.toast('error', 'No pudimos asignar al territorial (respuesta inesperada del servidor). Prob\u00e1 de nuevo.'); return;
+      }
+      if (!response.ok || !data.ok) { window.toast('error', data.message || 'No pudimos asignar al territorial.'); return; }
+      aplicarUsuario(data.user, data.message);
+    } catch (e) {
+      window.toast('error', 'No pudimos conectar con el servidor. Revis\u00e1 tu conexi\u00f3n.');
+    } finally { boton.disabled = false; }
+  };
+  buscar.addEventListener('submit', async event => {
+    event.preventDefault(); limpiarResultados();
+    if (submitBuscar.disabled) return;
+    const texto = campoQ.value.trim();
+    if (texto.length < MIN_Q) { errorQ.textContent = 'Escrib\u00ed al menos ' + MIN_Q + ' caracteres.'; campoQ.focus(); return; }
+    submitBuscar.disabled = true;
+    const buscando = nodo('i', 'fas fa-spinner fa-spin'); buscando.setAttribute('aria-hidden', 'true');
+    estado.append(buscando, ' Buscando\u2026');
+    try {
+      const params = new URLSearchParams({q: texto, segmento_id: form.elements.segmento_id.value});
+      const response = await fetch(buscar.action + '?' + params.toString(), {headers:{'X-Requested-With':'XMLHttpRequest'}});
+      let data;
+      try { data = await response.json(); } catch (e) {
+        estado.replaceChildren(); window.toast('error', 'No pudimos buscar (respuesta inesperada del servidor). Prob\u00e1 de nuevo.'); return;
+      }
+      estado.replaceChildren();
+      if (!response.ok || !data.ok) { window.toast('error', data.message || 'No pudimos buscar.'); return; }
+      if (!data.resultados.length) { vacio.classList.remove('hidden'); return; }
+      data.resultados.forEach(fila => lista.appendChild(filaDeResultado(fila)));
+      estado.textContent = data.resultados.length === 1 ? '1 resultado' : data.resultados.length + ' resultados';
+      if (data.hay_mas) estado.textContent += '. Hay m\u00e1s resultados: escrib\u00ed m\u00e1s datos.';
+    } catch (e) {
+      estado.replaceChildren(); window.toast('error', 'No pudimos conectar con el servidor. Revis\u00e1 tu conexi\u00f3n.');
+    } finally { submitBuscar.disabled = false; }
+  });
+  // "Crear territorial nuevo": pasa al formulario con lo tipeado en el campo que corresponde.
+  buscar.addEventListener('click', event => {
+    const boton = event.target.closest && event.target.closest('[data-quick-user-crear-nuevo]');
+    if (!boton || !buscar.contains(boton)) return;
+    const texto = campoQ.value.trim();
+    const digitos = texto.replace(/[.\s]/g, '');
+    form.elements.dni.value = ''; form.elements.email.value = ''; form.elements.last_name.value = '';
+    if (/^\d{7,8}$/.test(digitos)) form.elements.dni.value = digitos;
+    else if (texto.includes('@')) form.elements.email.value = texto;
+    else form.elements.last_name.value = texto;
+    error.textContent = '';
+    mostrarPaso('crear', 'territorial');
+    document.getElementById('quick-user-username').focus();
+  });
+  volver.addEventListener('click', () => { error.textContent = ''; mostrarPaso('buscar', 'territorial'); campoQ.focus(); });
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.textContent = '';
     if (submit.disabled) return;
@@ -149,23 +329,7 @@ funcionando sin ese script.
         (campo || error).focus();
         return;
       }
-      if (target) {
-        const segmento = String(data.user.segmento_id || '');
-        // Si la opción ya existe (otro segmento del mismo territorial) se actualiza: no se duplica.
-        let option = Array.from(target.options).find((opt) => opt.value === String(data.user.id));
-        if (option) {
-          const segmentos = (option.dataset.segmentos || '').split(' ').filter(Boolean);
-          if (segmento && !segmentos.includes(segmento)) segmentos.push(segmento);
-          option.dataset.segmentos = segmentos.join(' ');
-          option.selected = true;
-        } else {
-          option = new Option(data.user.label, data.user.id, true, true);
-          option.dataset.segmentos = segmento;
-          target.add(option);
-        }
-        target.dispatchEvent(new Event('change', {bubbles:true}));
-      }
-      close();
+      aplicarUsuario(data.user, data.message || 'Usuario creado y seleccionado.');
     } catch (e) {
       window.toast('error', 'No pudimos conectar con el servidor. Revisá tu conexión.');
     } finally { submit.disabled = false; }

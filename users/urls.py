@@ -20,6 +20,8 @@ from users.views import (
     UserUpdateView,
     UsuariosLoginView,
     usuario_alta_rapida,
+    usuario_asignar_territorial,
+    usuario_buscar_territorial,
 )
 
 app_name = "users"
@@ -71,6 +73,9 @@ urlpatterns = [
     path("usuarios/", UserListView.as_view(), name="usuarios"),
     path("usuarios/crear/", UserCreateView.as_view(), name="usuario_crear"),
     path("usuarios/alta-rapida/", usuario_alta_rapida, name="usuario_alta_rapida"),
+    # Colgadas del prefijo conocido: el WAF de ECOM bloquea rutas nuevas fuera de ellos.
+    path("usuarios/alta-rapida/territorial/buscar/", usuario_buscar_territorial, name="usuario_buscar_territorial"),
+    path("usuarios/alta-rapida/territorial/asignar/", usuario_asignar_territorial, name="usuario_asignar_territorial"),
     path("usuarios/editar/<int:pk>/", UserUpdateView.as_view(), name="usuario_editar"),
     path("usuarios/<int:pk>/toggle/", UserToggleActivoView.as_view(), name="usuario_toggle"),
     # SEC-26: revocación **explícita** del token de la app de campo. Cambiar la

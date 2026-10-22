@@ -54,6 +54,13 @@ Dentro de una tabla con solapas, va en el `{% empty %}` del `{% for %}`:
 parámetro no excluido trae valor; por defecto excluye `page`, y acepta una lista propia:
 `request.GET|hay_filtros:"page,tab"`.
 
+## Dentro de un modal
+
+Un modal de búsqueda sin resultados usa la pieza **sin** `accion_url`: la salida («Crear territorial
+nuevo») es un botón del propio modal, que sigue el flujo del formulario. Va oculto con la clase `hidden`
+hasta que una búsqueda vuelve vacía. Evidencia: `users/templates/user/_alta_rapida_modal.html`
+(`icono="fa-user-slash"`).
+
 ## Prohibido
 
 - El bloque a mano (`py-14 px-6 text-center` escrito en la pantalla).
