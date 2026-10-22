@@ -100,6 +100,16 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
 - Modal sin Alpine: `window.becasModal.bind(overlay, {onClose})` observa la clase `hidden` del
   overlay; Escape y cualquier `[data-becas-modal-cerrar]` llaman a `onClose`.
 - Modal anidado sobre otro: el de arriba atrapa Tab y Escape; el de abajo no se cierra.
+- **Modal sin Alpine de dos pasos (buscar → alta)**: un solo `role="dialog"` con dos paneles
+  —`<form role="search">` GET sin `{% csrf_token %}` (no muta) y el form de alta de siempre—, en el
+  que el paso se alterna con la **clase** `hidden`: en un contenedor `.flex` el atributo `[hidden]`
+  pierde contra `display:flex`. El paso 1 trae campo de búsqueda, resultados en `aria-live="polite"`
+  (`role="status"` para «Buscando…» y el conteo), filas armadas con `createElement`/`textContent`
+  (nunca `innerHTML` con datos del servidor), estado vacío con `_estado_vacio.html` sin `accion_url`
+  (la acción es el botón «Crear … nuevo» del propio modal) y un tope visible («Hay más resultados»).
+  El paso 2 suma «Volver a buscar» (`btn-tertiary mr-auto`) y se precarga con lo tipeado. Los tipos
+  que no buscan abren directo en el paso 2, sin «Volver a buscar». Evidencia:
+  `users/templates/user/_alta_rapida_modal.html` (territorial de Becas).
 - **Modal abierto por parámetro GET y armado por el servidor**: cuando el contenido depende del
   registro (un selector acotado por el edificio de la fila) y lo dispara un menú de fila, que solo
   navega. La vista lee `?<accion>=<id>`, valida que el registro siga siendo gestionable, arma el

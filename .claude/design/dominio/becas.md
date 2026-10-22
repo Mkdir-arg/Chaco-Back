@@ -422,3 +422,16 @@ segmentos asignados en Becas» y `texto=aviso_sin_segmentos`. El texto sale de
 superusuario y quien sí tiene segmentos. El texto nombra la acción según el rol (coordinador: «Asignar coordinador» en el
 segmento; regional: «Referente asignado» del subsegmento; referente: «Coordinador del Referente» en el usuario, o
 segmentos para su coordinador). Es informativo: no cambia el alcance ni los 403.
+
+## Territorial: buscar antes de crear, y segmentos múltiples
+
+Un territorial puede trabajar en varios segmentos (Cambio 355). El botón «Crear territorial» de los
+formularios de relevamiento abre `_alta_rapida_modal.html` en un **buscador** (nombre, apellido, DNI o
+correo): si la persona ya tiene cuenta, «Asignar a este segmento» le suma el segmento destino
+(`users:usuario_asignar_territorial`) y «Seleccionar» la elige si ya estaba; si no está, «Crear
+territorial nuevo» pasa al formulario de siempre, precargado. El `<select>` destino actualiza la opción si
+existe (suma segmentos en `dataset.segmentos`) y la agrega si no. Los inactivos aparecen sin botón: los
+reactiva el administrador del programa. A quien no tiene ningún segmento del operador se le enmascaran DNI
+y correo. En el ABM de Usuarios el segmento es un selector múltiple (`.nodo-checks`); quien no es dueño de
+la cuenta —el segmento de la asignación más antigua— ve el aviso «Datos de la cuenta bloqueados» y edita
+solo sus segmentos. Coordinador y referente se crean sin buscador.
