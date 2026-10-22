@@ -18,6 +18,7 @@ from core.edad import es_menor
 from core.models import Localidad, Municipio
 from core.selectors.geografia import localidades_operativas, municipios_operativos
 from core.validators import ACCEPT_ADJUNTO
+from core.widgets import SwitchInput
 from programas.models import (
     AsignacionCoordinador,
     CanalFormulario,
@@ -93,22 +94,28 @@ def _id_siis_widget(placeholder):
 
 
 class ProgramaSiisCreateForm(forms.ModelForm):
-    """Alta de programa — el programa se elige del catálogo de SIIS y no se
-    inventa nada: el nombre y el detalle se congelan tal cual los informa el
-    servicio.
+    """Alta de programa. Si valida con SIIS el programa se elige del catálogo y no
+    se inventa nada: el nombre y el detalle se congelan tal cual los informa el
+    servicio. Si no valida, se escribe el nombre a mano y no se copia nada de SIIS
+    (``siis_programa_id`` queda vacío).
 
     La jurisdicción y la función son opcionales acá (Cambio 82): quien ya las
     sabe las deja cargadas de entrada y se ahorra volver al detalle. Vacías,
     salen de la foto del catálogo.
     """
 
-    siis_programa_id = forms.ChoiceField(
-        label="Programa SIIS", choices=(), widget=forms.Select(attrs={"class": INPUT_CLASS})
+    valida_siis = forms.BooleanField(label="Valida con SIIS", required=False, initial=True, widget=SwitchInput())
+    nombre = forms.CharField(
+        label="Nombre", required=False, max_length=200, widget=forms.TextInput(attrs={"class": INPUT_CLASS})
     )
+    siis_programa_id = forms.ChoiceField(
+        label="Programa SIIS", required=False, choices=(), widget=forms.Select(attrs={"class": INPUT_CLASS})
+    )
+    field_order = ["valida_siis", "nombre", "siis_programa_id", "siis_jurid", "siis_funcion_id"]
 
     class Meta:
         model = ProgramaSiis
-        fields = ["siis_programa_id", "siis_jurid", "siis_funcion_id"]
+        fields = ["nombre", "siis_programa_id", "siis_jurid", "siis_funcion_id"]
         widgets = {
             "siis_jurid": _id_siis_widget("La que informe SIIS"),
             "siis_funcion_id": _id_siis_widget("Opcional"),
@@ -124,14 +131,45 @@ class ProgramaSiisCreateForm(forms.ModelForm):
         self.fields["siis_jurid"].required = False
         self.fields["siis_funcion_id"].required = False
 
-    def clean_siis_programa_id(self):
-        programa_id = int(self.cleaned_data["siis_programa_id"])
-        if ProgramaSiis.objects.filter(siis_programa_id=programa_id).exists():
-            raise forms.ValidationError("Ese programa SIIS ya está vinculado.")
-        return programa_id
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("valida_siis"):
+            valor = cleaned.get("siis_programa_id")
+            if not valor:
+                if "siis_programa_id" not in self.errors:
+                    self.add_error("siis_programa_id", "Elegí el programa del catálogo de SIIS.")
+            elif ProgramaSiis.objects.filter(siis_programa_id=int(valor)).exists():
+                self.add_error("siis_programa_id", "Ese programa SIIS ya está vinculado.")
+            else:
+                cleaned["siis_programa_id"] = int(valor)
+            # El nombre sale del catálogo: lo que se haya escrito se ignora.
+            cleaned["nombre"] = ""
+        else:
+            nombre = (cleaned.get("nombre") or "").strip()
+            if not nombre:
+                self.add_error("nombre", "Escribí el nombre del programa.")
+            elif ProgramaSiis.objects.filter(nombre__iexact=nombre).exists():
+                self.add_error("nombre", "Ya existe un programa con ese nombre.")
+            cleaned["nombre"] = nombre
+            # Sin SIIS no se guarda nada de SIIS, aunque el POST lo traiga.
+            cleaned["siis_programa_id"] = None
+            cleaned["siis_jurid"] = None
+            cleaned["siis_funcion_id"] = None
+        return cleaned
 
     def save(self, commit=True):
         instance = super().save(commit=False)
+        if not self.cleaned_data.get("valida_siis"):
+            instance.siis_programa_id = None
+            instance.siis_jurid = None
+            instance.siis_funcion_id = None
+            instance.siis_programa_datos = {}
+            instance.siis_programa_estado = ""
+            instance.siis_vinculado_en = None
+            instance.siis_verificado_en = None
+            if commit:
+                instance.save()
+            return instance
         programa = self._programas_siis.get(instance.siis_programa_id)
         if programa:
             _congelar_programa_siis(instance, programa)
@@ -426,6 +464,17 @@ class SegmentoForm(forms.ModelForm):
                 attrs={"class": INPUT_CLASS, "min": 1, "placeholder": "Del programa"}
             ),
         }
+
+    def _sin_siis(self):
+        programa = self.instance.programa if self.instance.programa_id else None
+        return programa is not None and not programa.valida_siis
+
+    def clean_siis_jurid(self):
+        # En un programa que no valida con SIIS estos identificadores no existen.
+        return None if self._sin_siis() else self.cleaned_data.get("siis_jurid")
+
+    def clean_siis_id_fun_x_plan(self):
+        return None if self._sin_siis() else self.cleaned_data.get("siis_id_fun_x_plan")
 
     def clean_nombre(self):
         nombre = self.cleaned_data["nombre"]

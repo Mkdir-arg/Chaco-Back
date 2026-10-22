@@ -398,6 +398,10 @@ _Q_PAUSADO = (
 _Q_SIIS_BLOQUEADO = Q(
     relevamiento__convocatoria__segmento__programa__siis_programa_estado__in=ProgramaSiis.ESTADOS_SIIS_BLOQUEANTES
 )
+#: El programa del caso valida con SIIS. Los que no (``siis_programa_id`` nulo) no
+#: se consultan ni se informan: ni el masivo ni los comandos los tocan. Pública:
+#: la usan también ``validar_casos_siis`` y ``enviar_casos_siis``.
+Q_PROGRAMA_VALIDA_SIIS = Q(relevamiento__convocatoria__segmento__programa__siis_programa_id__isnull=False)
 
 
 def _sin_pausa_vigente(casos):
@@ -662,7 +666,7 @@ def candidatos(
     estados = [Formulario.Estado.APROBADO]
     if not solo_enviar:
         estados.append(Formulario.Estado.ENVIADO)
-    casos = casos.filter(estado__in=estados)
+    casos = casos.filter(estado__in=estados).filter(Q_PROGRAMA_VALIDA_SIIS)
     if programa is not None:
         casos = casos.filter(relevamiento__convocatoria__segmento__programa=programa)
     if convocatoria is not None:

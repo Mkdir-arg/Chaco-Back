@@ -61,6 +61,12 @@ Estado en SIIS: el aviso «SIIS inactivo» (badge y alerta `bg-warning-soft` de 
 pausa el programa ni sus hijos, y solo frena el alta en SIIS desde el proceso masivo. El selector de
 convocatoria de `RelevamientoForm` (`programas/forms.py`) excluye por pausa manual, no por SIIS.
 
+Programa que no valida con SIIS (`programa.valida_siis` falso, sin `siis_programa_id`): las pantallas de
+configuración y la revisión del caso ocultan todo lo de SIIS —columna «ID SIIS» en «—», botón y modal
+«Detalle SIIS», identificadores, `destino_siis` del requisito y las tarjetas de resultado y alta
+(`siis_aplica`)—, sin cambiar el resto. En `segmento_list.html` el bloque de identificadores se esconde con
+`programas_sin_siis_ids` (`json_script`) y el programa de la fila.
+
 Contrato: los identificadores que viajan a un sistema externo se editan como `input type="number"`
 con `nodo-field`, agrupados en una grilla (`sm:grid-cols-3` en el programa, `sm:grid-cols-2` en el
 segmento, que no repite los que son únicos por programa) y **siempre dentro del pop up del

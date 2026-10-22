@@ -887,6 +887,16 @@ class ComandoEnvioMasivoTests(_BaseEnvioTest):
         self.assertIn("PENDIENTE", str(ctx.exception))
         self.enviar.assert_not_called()
 
+    def test_los_casos_de_programas_sin_siis_no_se_informan(self):
+        from programas.tests.test_validar_casos_siis import caso_de_programa_sin_siis
+
+        sin_siis = caso_de_programa_sin_siis(self, Formulario.Estado.APROBADO)
+
+        self._correr("--aplicar")
+
+        self.assertEqual([c.args[0].pk for c in self.enviar.call_args_list], [self.formulario.pk])
+        self.assertFalse(sin_siis.envios_sis.exists())
+
     def test_no_repite_un_caso_ya_enviado(self):
         EnvioSIIS.objects.create(formulario=self.formulario, estado=EnvioSIIS.Estado.ENVIADO, documento="1")
         salida = self._correr("--aplicar")

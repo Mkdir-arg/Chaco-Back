@@ -136,11 +136,79 @@ class ProgramaSiisConfigTests(_BaseConfigTest):
         self.assertEqual(resp.status_code, 200)
 
     def test_crear_programa_desde_el_catalogo(self):
-        resp = self.client.post(reverse("becas:programa_crear"), {"siis_programa_id": 38})
+        resp = self.client.post(reverse("becas:programa_crear"), {"valida_siis": "on", "siis_programa_id": 38})
         self.assertEqual(resp.status_code, 302)
         programa = ProgramaSiis.objects.get(siis_programa_id=38)
         # El nombre se toma tal cual del catálogo.
         self.assertEqual(programa.nombre, "Producción")
+        self.assertTrue(programa.valida_siis)
+        self.assertEqual(programa.siis_programa_estado, "ACTIVO")
+
+    def test_valida_siis_sin_elegir_programa_se_rechaza(self):
+        resp = self.client.post(
+            reverse("becas:programa_crear"), {"valida_siis": "on"}, headers={"X-Requested-With": "XMLHttpRequest"}
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("siis_programa_id", resp.json()["errors"])
+        self.assertFalse(ProgramaSiis.objects.exists())
+
+    def test_valida_siis_rechaza_el_doble_vinculo(self):
+        ProgramaSiis.objects.create(nombre="Producción", siis_programa_id=38)
+        resp = self.client.post(
+            reverse("becas:programa_crear"),
+            {"valida_siis": "on", "siis_programa_id": 38},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        self.assertIn("siis_programa_id", resp.json()["errors"])
+        self.assertEqual(ProgramaSiis.objects.count(), 1)
+
+    def test_crear_programa_sin_siis_con_nombre_a_mano(self):
+        resp = self.client.post(
+            reverse("becas:programa_crear"),
+            # Aunque el POST traiga datos de SIIS, sin el switch no se guarda nada de eso.
+            {"nombre": "  Programa propio  ", "siis_programa_id": 38, "siis_jurid": 5, "siis_funcion_id": 3},
+        )
+        self.assertEqual(resp.status_code, 302)
+        programa = ProgramaSiis.objects.get()
+        self.assertEqual(programa.nombre, "Programa propio")
+        self.assertIsNone(programa.siis_programa_id)
+        self.assertIsNone(programa.siis_jurid)
+        self.assertIsNone(programa.siis_funcion_id)
+        self.assertFalse(programa.valida_siis)
+        self.assertEqual(programa.siis_programa_datos, {})
+        self.assertEqual(programa.siis_programa_estado, "")
+        self.assertIsNone(programa.siis_vinculado_en)
+        self.assertIsNone(programa.siis_verificado_en)
+        self.assertFalse(programa.siis_bloqueado)
+        self.assertEqual(programa.siis_motivo_bloqueo, "")
+
+    def test_programa_sin_siis_exige_nombre(self):
+        resp = self.client.post(
+            reverse("becas:programa_crear"), {"nombre": "   "}, headers={"X-Requested-With": "XMLHttpRequest"}
+        )
+        self.assertIn("nombre", resp.json()["errors"])
+        self.assertFalse(ProgramaSiis.objects.exists())
+
+    def test_programa_sin_siis_rechaza_nombre_repetido_sin_distinguir_mayusculas(self):
+        ProgramaSiis.objects.create(nombre="Producción", siis_programa_id=38)
+        resp = self.client.post(
+            reverse("becas:programa_crear"), {"nombre": "producción"}, headers={"X-Requested-With": "XMLHttpRequest"}
+        )
+        self.assertIn("nombre", resp.json()["errors"])
+        self.assertEqual(ProgramaSiis.objects.count(), 1)
+
+    def test_se_pueden_crear_varios_programas_sin_siis(self):
+        for nombre in ("Uno", "Dos"):
+            self.assertEqual(self.client.post(reverse("becas:programa_crear"), {"nombre": nombre}).status_code, 302)
+        self.assertEqual(ProgramaSiis.objects.filter(siis_programa_id__isnull=True).count(), 2)
+
+    def test_programa_sin_siis_se_crea_con_el_catalogo_de_siis_caido(self):
+        self.programas_siis.stop()
+        self.addCleanup(self.programas_siis.start)
+        with patch("programas.forms.listar_programas", side_effect=Exception("caído")):
+            resp = self.client.post(reverse("becas:programa_crear"), {"nombre": "Sin catálogo"})
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(ProgramaSiis.objects.filter(nombre="Sin catálogo", siis_programa_id__isnull=True).exists())
 
     def test_modal_nuevo_programa_ordena_catalogo_alfabeticamente(self):
         self.programas_siis.stop()
@@ -175,6 +243,63 @@ class ProgramaSiisConfigTests(_BaseConfigTest):
         req = RequisitoNativo.objects.get(texto="Constancia")
         self.assertEqual(req.programa, programa)
         self.assertIsNone(req.segmento)
+
+
+class ProgramaSinSiisConfigTests(_BaseConfigTest):
+    """Programa que no valida con SIIS: las pantallas no muestran nada de SIIS."""
+
+    def setUp(self):
+        super().setUp()
+        self.programa = ProgramaSiis.objects.create(nombre="Programa propio")
+        self.segmento = Segmento.objects.create(programa=self.programa, nombre="Seg A", cupo_maximo=10)
+        self.client.force_login(self.admin)
+
+    def test_listado_no_muestra_id_none_ni_detalle_siis(self):
+        resp = self.client.get(reverse("becas:programas"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Programa propio")
+        self.assertNotContains(resp, "#None")
+        self.assertNotContains(resp, "Detalle SIIS")
+
+    def test_detalle_no_muestra_id_none_ni_detalle_siis(self):
+        resp = self.client.get(reverse("becas:programa_detalle", args=[self.programa.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "#None")
+        self.assertNotContains(resp, "Detalle SIIS")
+        self.assertNotContains(resp, "Falta la función SIIS")
+
+    def test_detalle_del_segmento_no_muestra_detalle_siis(self):
+        resp = self.client.get(reverse("becas:segmento_detalle", args=[self.segmento.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "#None")
+        self.assertNotContains(resp, "Detalle SIIS")
+
+    def test_identificadores_siis_devuelve_404(self):
+        resp = self.client.post(reverse("becas:programa_identificadores_siis", args=[self.programa.pk]), {})
+        self.assertEqual(resp.status_code, 404)
+
+    def test_listado_de_segmentos_informa_los_programas_sin_siis(self):
+        con_siis = ProgramaSiis.objects.create(nombre="Con SIIS", siis_programa_id=38)
+        resp = self.client.get(reverse("becas:segmentos"))
+        self.assertEqual(resp.context["programas_sin_siis_ids"], [self.programa.pk])
+        self.assertNotIn(con_siis.pk, resp.context["programas_sin_siis_ids"])
+
+    def test_editar_segmento_de_programa_sin_siis_descarta_los_identificadores(self):
+        resp = self.client.post(
+            reverse("becas:segmento_editar", args=[self.segmento.pk]),
+            {
+                "nombre": "Seg A",
+                "descripcion": "x",
+                "cupo_maximo": 10,
+                "activo": "on",
+                "siis_jurid": 7,
+                "siis_id_fun_x_plan": 3,
+            },
+        )
+        self.assertIn(resp.status_code, (200, 302))
+        self.segmento.refresh_from_db()
+        self.assertIsNone(self.segmento.siis_jurid)
+        self.assertIsNone(self.segmento.siis_id_fun_x_plan)
 
 
 class SegmentoCrudTests(_BaseConfigTest):

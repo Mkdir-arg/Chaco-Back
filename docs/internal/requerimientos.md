@@ -480,6 +480,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 352 | «Nuevo relevamiento» avisa por qué no se puede crear o a quién asignar | Becas · detalle de convocatoria, alta de relevamiento | `#relevamientos` `#ui` `#pausas` | PM — prueba en testing del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 | 353 | El cierre automático por vencimiento deja traza en el relevamiento y avisa al extender | Becas · relevamientos y convocatorias | `#relevamientos` `#ui` | Juez — auditoría de Becas (carril D) | 21/10/2026 | 🟢 **Hecho** | sí (`programas.0102`) |
 | 354 | La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué | Becas · proceso masivo a SIIS (pantalla) | `#siis` `#ui` | Juez — casos excluidos sin aviso | 21/10/2026 | 🟢 **Hecho** | no |
+| 355 | Programas de Becas que no validan con SIIS | Becas · programas y revisión de casos | `#siis` `#ui` `#relevamientos` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | sí (`programas.0103`) |
 
 **Notas del índice**
 
@@ -46034,5 +46035,111 @@ Revertir el commit.
 ## Historial
 
 - **21/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 355 — Programas de Becas que no validan con SIIS
+
+🟢 **HECHO — 22/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · programas, revisión de casos, proceso masivo a SIIS |
+| **Etiquetas** | `#siis` `#ui` `#relevamientos` |
+| **Solicitante** | PM — pedido en sesión del 22/10/2026 |
+| **Fecha del pedido** | 22/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API |
+| **Migración** | `programas.0103` (expand) |
+
+## Pedido original
+
+Sin registrar el texto literal; en las palabras de la sesión: poder crear programas que **no validan con
+SIIS** y no copian nada de SIIS. Al dar el alta se pregunta si el programa valida con SIIS: si valida, se elige
+del catálogo como hasta ahora; si no, se escribe el nombre a mano. Los casos de esos programas se revisan sin
+la consulta de compatibilidad a SIIS. Segmentos, subsegmentos, cupos, requisitos, convocatorias y relevamientos
+funcionan igual.
+
+## Alcance acordado
+
+Entra: alta con switch «Valida con SIIS», revisión del caso (aprobar, rechazar, promover desde la lista de
+espera) sin consulta ni alta en SIIS, exclusión del masivo y de los comandos, sincronización nocturna,
+pantallas de configuración sin «SIIS #None», embudo del dashboard. Queda afuera: pausas y vencimientos (ya
+desacoplados de SIIS por el Cambio 349), cupo, permisos, API móvil e inscripción pública.
+
+## Decisiones tomadas
+
+- **`valida_siis` se deriva de `siis_programa_id`** (`is not None`), sin columna nueva: no pueden quedar dos
+  datos que se contradigan y no hace falta un DEFAULT en la base. La clave sigue `unique` (varios NULL).
+- **Un programa sin SIIS no es lo mismo que un segmento sin programa.** El segmento histórico con
+  `programa = NULL` sigue bloqueando la aprobación.
+- **La elección es fija al crear.** Vincular más tarde a SIIS un programa sin SIIS dejaría casos aprobados sin
+  consulta.
+- **El nombre de un programa sin SIIS no se edita desde la UI**; un error de tipeo se corrige por admin.
+- **El switch arranca encendido**, como funcionaba hasta ahora. Un POST sin el campo cuenta como «no valida».
+- **La etapa «Validación SIIS OK» del embudo del dashboard se omite** para un programa sin SIIS (el dashboard
+  siempre mira un solo programa).
+- Sin SIIS el alta no copia nada (`siis_programa_datos={}`, estado vacío, fechas nulas) y funciona con el
+  catálogo de SIIS caído; el nombre no puede repetir el de otro programa (`nombre__iexact`).
+
+## Implementación
+
+- Alta: `valida_siis` (switch) + `nombre`; la regla vive en `ProgramaSiisCreateForm.clean()`.
+- Revisión: `motivo_bloqueo_aprobacion` devuelve `None` sin SIIS; aprobar no consulta ni informa; rechazar no
+  consulta ni deja traza de SIIS; validar, enviar y datos SIIS avisan «Este programa no valida con SIIS.»;
+  promover desde espera no informa. `contexto_siis` devuelve `siis_aplica=False` sin consultar nada y el
+  detalle no dibuja las tarjetas de SIIS.
+- Masivo y comandos: `Q_PROGRAMA_VALIDA_SIIS` en `candidatos()`, `validar_casos_siis` y `enviar_casos_siis`;
+  `correr_alta_siis` recorre solo programas con SIIS; la pantalla del masivo, lanzar y los identificadores
+  dan 404. La sincronización nocturna y su guarda de ausencia masiva solo cuentan programas con SIIS.
+- Pantallas: sin «#None», sin «Detalle SIIS», sin identificadores SIIS; el alta global de segmento oculta
+  «Identificadores para SIIS» (`programas_sin_siis_ids`) y `SegmentoForm` los descarta.
+
+## Archivos
+
+- `programas/models/__init__.py`, `forms.py`, `selectors/revision.py`, `services/{cupo,proceso_masivo,siis_sync,validacion_siis,dashboard_becas}.py`,
+  `views/{revision,cupo,proceso_masivo,configuracion}.py`, comandos `validar_casos_siis`, `enviar_casos_siis`, `correr_alta_siis`
+- Templates de `becas/config/` y `becas/revision/formulario_detalle.html`; fichas `.claude/design/` (modal, pendientes, alerta, becas)
+- Tests: `test_becas_config`, `test_becas_revision` (`ProgramaSinSiisTests`), `test_siis_vigencia_programa`,
+  `test_comandos_siis_caracterizacion`, `test_proceso_masivo`, `test_validar_casos_siis`, `test_siis_envio`, `test_dashboard_becas`
+
+## Base de datos
+
+`programas.0103`: `AlterField` de `siis_programa_id` de NOT NULL a NULL, sobre una tabla de pocas filas. Es
+*expand*; corre igual en MySQL 8 y MariaDB.
+
+## Validación
+
+- Suites de los módulos tocados, snapshots del detalle, contrato de la API y `--tag performance` en verde.
+- Mutación de cuatro guardas, cada una en rojo y revertida: el `return None` de `motivo_bloqueo_aprobacion`,
+  el filtro de `siis_sync`, la Q de `candidatos()` y que aprobar no consulte a SIIS.
+- `manage.py check`, `makemigrations --check` (SYNCDB=False), `check_migraciones.py`, ruff, `design_audit --ratchet`
+  (0 nuevos), `compile_templates --bloques` (0) y `check_design_agent --changed` en OK.
+
+## Puesta en marcha en el servidor
+
+Nada más que el deploy (corre la migración).
+
+## Pendientes / a definir
+
+- `reporte_embudo` no filtra por programa y sigue mostrando la etapa SIIS.
+- `requisitos_segmento.html` y `pregunta_list.html` siguen mostrando `destino_siis`.
+
+## Reversión
+
+- Alcanza con revertir el código; la migración puede quedar aplicada (una columna nullable no molesta al
+  código viejo).
+- Para `migrate programas 0102` antes hay que borrar o vincular a SIIS los programas sin SIIS; si no, el
+  `ALTER … NOT NULL` falla.
+- Con el código viejo y programas sin SIIS cargados: la sincronización los marca DESCONOCIDO (informativo), la
+  aprobación de sus casos se bloquea pidiendo la consulta, «Validar con SIIS» da 500 (`int(None)`) y las
+  pantallas muestran «#None».
+
+## Historial
+
+- **22/10/2026 — alta del cambio.** Modifica el **Cambio 32** (el nombre del programa se toma de SIIS y el alta
+  es solo el selector del catálogo) y el **Cambio 81** (la consulta a SIIS es obligatoria para aprobar): los dos
+  valen ahora solo para los programas que validan con SIIS. Relacionado con el **Cambio 349** (el estado de SIIS
+  dejó de pausar programas).
 
 ---

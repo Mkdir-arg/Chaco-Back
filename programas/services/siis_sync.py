@@ -61,10 +61,12 @@ def sincronizar_estado_programas(dry_run=False, forzar=False, motivo="", usuario
 
     ahora = timezone.now()
     cambios = []
-    # Se recorre entero y recién después se escribe: la guarda necesita el total,
-    # y lo que decide es «cuántos quedarían bloqueados», no «cuántos vi hasta acá».
+    # Solo los programas que validan con SIIS: los demás no tienen qué sincronizar ni
+    # cuentan para la guarda de ausencia. Se recorre entero y recién después se
+    # escribe: la guarda necesita el total, y lo que decide es «cuántos quedarían
+    # bloqueados», no «cuántos vi hasta acá».
     veredictos = []
-    for programa in ProgramaSiis.objects.iterator():
+    for programa in ProgramaSiis.objects.filter(siis_programa_id__isnull=False).iterator():
         remoto = catalogo.get(programa.siis_programa_id)
         nuevo = remoto["estado"] if remoto else ESTADO_DESCONOCIDO
         anterior = programa.siis_programa_estado or ""

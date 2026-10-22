@@ -156,6 +156,32 @@ class CandidatosTests(_BaseProcesoTest):
         encontrados = set(proceso_masivo.candidatos(programa=self.programa).values_list("pk", flat=True))
         self.assertEqual(encontrados, {enviado.pk, aprobado.pk})
 
+    def _caso_de_programa_sin_siis(self):
+        """Un caso aprobable de un programa que no valida con SIIS."""
+        sin_siis = ProgramaSiis.objects.create(nombre="Propio")
+        segmento = Segmento.objects.create(nombre="Seg propio", cupo_maximo=100, programa=sin_siis)
+        convocatoria = Convocatoria.objects.create(
+            nombre="Conv propia", segmento=segmento, fecha_inicio=date(2026, 1, 1), fecha_fin=date(2026, 12, 31)
+        )
+        relevamiento = Relevamiento.objects.create(
+            convocatoria=convocatoria, territorial=self.user, fecha_asignada=date(2026, 6, 1), zona="B"
+        )
+        caso = Formulario.objects.create(
+            relevamiento=relevamiento, ciudadano=self.ciudadano, estado=Formulario.Estado.ENVIADO, validado_renaper=True
+        )
+        return sin_siis, caso
+
+    def test_deja_afuera_los_casos_de_programas_que_no_validan_con_siis(self):
+        con_siis = self._caso()
+        sin_siis, caso_sin_siis = self._caso_de_programa_sin_siis()
+
+        todos = set(proceso_masivo.candidatos().values_list("pk", flat=True))
+        solo_ese = proceso_masivo.candidatos(programa=sin_siis)
+
+        self.assertEqual(todos, {con_siis.pk})
+        self.assertNotIn(caso_sin_siis.pk, todos)
+        self.assertFalse(solo_ese.exists())
+
     def test_saltea_el_que_ya_tiene_alta(self):
         caso = self._caso(Formulario.Estado.APROBADO)
         EnvioSIIS.objects.create(formulario=caso, estado=EnvioSIIS.Estado.ENVIADO, documento="1")
@@ -805,6 +831,16 @@ class PantallaProcesoMasivoTests(_BaseProcesoTest):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Proceso masivo")
         self.assertEqual(resp.context["pendientes"], 1)
+
+    def test_la_pantalla_de_un_programa_sin_siis_da_404(self):
+        sin_siis = ProgramaSiis.objects.create(nombre="Propio")
+        self.assertEqual(self.client.get(reverse("becas:proceso_masivo", args=[sin_siis.pk])).status_code, 404)
+
+    def test_lanzar_un_programa_sin_siis_da_404_y_no_crea_corrida(self):
+        sin_siis = ProgramaSiis.objects.create(nombre="Propio")
+        resp = self.client.post(reverse("becas:proceso_masivo_lanzar", args=[sin_siis.pk]), {"total_pedido": 1})
+        self.assertEqual(resp.status_code, 404)
+        self.assertFalse(CorridaSiis.objects.filter(programa=sin_siis).exists())
 
     def test_la_pantalla_cuenta_los_incompatibles_aparte(self):
         """BEC-11: salen de la corrida, no de la pantalla: alguien los tiene que resolver."""

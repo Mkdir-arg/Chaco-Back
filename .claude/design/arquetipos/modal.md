@@ -99,6 +99,9 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
 - Título dinámico Nuevo/Editar: `titulo_x_text` (expresión Alpine) en `_modal_header.html`.
 - Modal sin Alpine: `window.becasModal.bind(overlay, {onClose})` observa la clase `hidden` del
   overlay; Escape y cualquier `[data-becas-modal-cerrar]` llaman a `onClose`.
+- **Bloques alternativos por un switch**: un `SwitchInput` arriba (`<label class="inline-flex items-center gap-2 text-sm text-body" @change="flag = $event.target.checked">`)
+  y los bloques con `x-show="flag"` / `x-show="!flag"`; el estado inicial sale del `value` del form en el `x-data` de la
+  pantalla. Los campos ocultos viajan vacíos y el servidor decide. Consumidor: «Valida con SIIS» en `programa_list.html`.
 - Modal anidado sobre otro: el de arriba atrapa Tab y Escape; el de abajo no se cierra.
 - **Modal abierto por parámetro GET y armado por el servidor**: cuando el contenido depende del
   registro (un selector acotado por el edificio de la fila) y lo dispara un menú de fila, que solo

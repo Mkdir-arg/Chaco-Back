@@ -49,7 +49,7 @@ def crear_programa(**kwargs):
 class SnapshotDelProgramaTests(TestCase):
     @patch("programas.forms.listar_programas", return_value=[PROGRAMA_ACTIVO])
     def test_el_alta_congela_el_detalle_y_toma_el_nombre_del_catalogo(self, _catalogo):
-        form = ProgramaSiisCreateForm({"siis_programa_id": 38})
+        form = ProgramaSiisCreateForm({"valida_siis": True, "siis_programa_id": 38})
         self.assertTrue(form.is_valid(), form.errors)
         programa = form.save()
 
@@ -62,7 +62,7 @@ class SnapshotDelProgramaTests(TestCase):
     @patch("programas.forms.listar_programas", return_value=[PROGRAMA_ACTIVO])
     def test_un_programa_no_puede_vincularse_dos_veces(self, _catalogo):
         crear_programa()
-        form = ProgramaSiisCreateForm({"siis_programa_id": 38})
+        form = ProgramaSiisCreateForm({"valida_siis": True, "siis_programa_id": 38})
         self.assertFalse(form.is_valid())
         self.assertIn("ya está vinculado", str(form.errors["siis_programa_id"]))
 
@@ -193,6 +193,25 @@ class SincronizacionDeEstadoTests(TestCase):
 
         self.programa.refresh_from_db()
         self.assertEqual(self.programa.siis_programa_datos["nombre"], "Fuego y Barro")
+
+    def test_no_toca_a_los_programas_que_no_validan_con_siis(self):
+        sin_siis = ProgramaSiis.objects.create(nombre="Propio")
+
+        cambios = self._sincronizar([PROGRAMA_ACTIVO])
+
+        sin_siis.refresh_from_db()
+        self.assertEqual(sin_siis.siis_programa_estado, "")
+        self.assertIsNone(sin_siis.siis_verificado_en)
+        self.assertFalse(sin_siis.siis_bloqueado)
+        self.assertEqual(cambios, [])
+
+    def test_los_programas_sin_siis_no_cuentan_para_la_guarda_de_ausencia_masiva(self):
+        # Con uno que valida (presente en el catálogo) y dos que no, contarlos
+        # sumaba 2 de 3 «desconocidos» y la corrida pedía ``--forzar`` cada día.
+        ProgramaSiis.objects.create(nombre="Propio 1")
+        ProgramaSiis.objects.create(nombre="Propio 2")
+
+        self.assertEqual(self._sincronizar([PROGRAMA_ACTIVO]), [])
 
 
 class BloqueoPorSiisTests(TestCase):
