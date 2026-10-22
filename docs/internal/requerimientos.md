@@ -46526,5 +46526,6 @@ Revertir el commit.
 ## Historial
 
 - **22/10/2026 — alta del cambio.**
+- **22/10/2026 — Seguimiento:** los comandos fijan los SHAs al inicio, re-chequean el remoto antes del push y pushean por SHA; el paso de alineación lleva el comando exacto.
 
 ---
