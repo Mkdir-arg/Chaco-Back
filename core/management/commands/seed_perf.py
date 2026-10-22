@@ -53,8 +53,8 @@ PERF_SIIS_PROGRAMA_ID = 9900
 # leen el segmento 000.
 PERF_SEGMENTO_ESCRITURAS = "PERF Segmento escrituras"
 PERF_CONVOCATORIA_ESCRITURAS = "PERF Convocatoria escrituras"
-#: Territorial propio: `AsignacionTerritorial` es uno a uno, así que no se le puede
-#: pedir prestado el suyo a ninguno de los `perf_territorial_NNN`.
+#: Territorial propio: la escritura de la API móvil no debe compartir cuenta ni
+#: asignaciones con ninguno de los `perf_territorial_NNN`.
 PERF_TERRITORIAL_API_USERNAME = "perf_territorial_api"
 #: Desde dónde numera los DNI sintéticos del link público. El bloque sembrado acá son
 #: `scale` DNI consecutivos desde `PERF_FIRST_DNI` (80.000.000), así que 70.000.000 queda
@@ -227,10 +227,7 @@ class Command(BaseCommand):
             last_name="Performance",
         )
         _set_groups(territorial, ROL_TERRITORIAL)
-        AsignacionTerritorial.objects.update_or_create(
-            territorial=territorial,
-            defaults={"segmento": segmento},
-        )
+        AsignacionTerritorial.objects.get_or_create(territorial=territorial, segmento=segmento)
 
         # Las fechas son absolutas y no relativas a `now()` para que el seed siga siendo
         # determinista; el período tiene que estar abierto, que es lo que mira
@@ -377,10 +374,7 @@ class Command(BaseCommand):
                 coordinador=coordinator,
                 defaults={"activo": True},
             )
-            AsignacionTerritorial.objects.update_or_create(
-                territorial=territorial,
-                defaults={"segmento": segmento},
-            )
+            AsignacionTerritorial.objects.get_or_create(territorial=territorial, segmento=segmento)
             convocatoria, _ = Convocatoria.objects.update_or_create(
                 nombre=f"PERF Convocatoria {index:03d}",
                 segmento=segmento,

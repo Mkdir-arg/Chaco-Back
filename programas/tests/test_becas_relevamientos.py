@@ -417,11 +417,11 @@ class CrearReasignarReprogramarTests(_BaseRelevTest):
         self.assertIn("territorial", form.errors)
 
     def test_widgets_llevan_data_segmento(self):
-        """El filtro dependiente del template depende de data-segmento por opción."""
+        """El filtro dependiente usa data-segmento (convocatorias) y data-segmentos (territoriales)."""
         from programas.forms import RelevamientoForm
 
         html = str(RelevamientoForm()["territorial"])
-        self.assertIn(f'data-segmento="{self.seg_a.pk}"', html)
+        self.assertIn(f'data-segmentos="{self.seg_a.pk}"', html)
         html_conv = str(RelevamientoForm()["convocatoria"])
         self.assertIn(f'data-segmento="{self.seg_a.pk}"', html_conv)
         self.assertIn(f'data-segmento="{self.seg_b.pk}"', html_conv)

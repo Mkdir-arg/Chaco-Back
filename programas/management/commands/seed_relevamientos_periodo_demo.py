@@ -56,7 +56,7 @@ class Command(BaseCommand):
         grupo = Group.objects.filter(name__icontains="Becas").filter(name__icontains="Territorial").first()
         if grupo:
             territorial.groups.add(grupo)
-        AsignacionTerritorial.objects.update_or_create(territorial=territorial, defaults={"segmento": segmento})
+        AsignacionTerritorial.objects.get_or_create(territorial=territorial, segmento=segmento)
 
         ejemplos = (
             ("Zona Centro — operativo de varios días", hoy - timedelta(days=1), hoy + timedelta(days=2)),

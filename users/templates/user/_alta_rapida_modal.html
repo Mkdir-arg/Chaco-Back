@@ -149,7 +149,22 @@ funcionando sin ese script.
         (campo || error).focus();
         return;
       }
-      if (target) { const option = new Option(data.user.label, data.user.id, true, true); option.dataset.segmento = data.user.segmento_id || ''; target.add(option); target.dispatchEvent(new Event('change', {bubbles:true})); }
+      if (target) {
+        const segmento = String(data.user.segmento_id || '');
+        // Si la opción ya existe (otro segmento del mismo territorial) se actualiza: no se duplica.
+        let option = Array.from(target.options).find((opt) => opt.value === String(data.user.id));
+        if (option) {
+          const segmentos = (option.dataset.segmentos || '').split(' ').filter(Boolean);
+          if (segmento && !segmentos.includes(segmento)) segmentos.push(segmento);
+          option.dataset.segmentos = segmentos.join(' ');
+          option.selected = true;
+        } else {
+          option = new Option(data.user.label, data.user.id, true, true);
+          option.dataset.segmentos = segmento;
+          target.add(option);
+        }
+        target.dispatchEvent(new Event('change', {bubbles:true}));
+      }
       close();
     } catch (e) {
       window.toast('error', 'No pudimos conectar con el servidor. Revisá tu conexión.');

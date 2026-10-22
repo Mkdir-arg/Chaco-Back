@@ -3787,12 +3787,17 @@ class AsignacionReferente(TimeStamped):
 
 
 class AsignacionTerritorial(TimeStamped):
-    """Asignación de un territorial a un segmento (un territorial → un segmento).
+    """Asignación de un territorial a un segmento (un territorial puede tener varios).
 
-    Se crea/edita únicamente desde el ABM de Usuarios (obligatoria al asignar
-    un rol con capacidad ``becas.campo``); el detalle del segmento solo la
-    muestra. Acota qué territoriales pueden recibir relevamientos de cada
-    convocatoria (el relevamiento hereda el segmento de su convocatoria).
+    Se crea/edita desde el ABM de Usuarios (obligatoria al asignar un rol con
+    capacidad ``becas.campo``); el detalle del segmento solo la muestra. Acota
+    qué territoriales pueden recibir relevamientos de cada convocatoria (el
+    relevamiento hereda el segmento de su convocatoria).
+
+    Segmento dueño: de los segmentos de un territorial, el de la asignación más
+    antigua (menor pk). Solo el gestor del segmento dueño administra la cuenta
+    (credenciales, datos personales, roles); cualquier gestor con alguno de sus
+    segmentos lo ve y agrega o quita los suyos.
     """
 
     segmento = models.ForeignKey(
@@ -3801,11 +3806,19 @@ class AsignacionTerritorial(TimeStamped):
         related_name="asignaciones_territorial",
         verbose_name="Segmento",
     )
-    territorial = models.OneToOneField(
+    territorial = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="asignacion_territorial",
+        related_name="segmentos_territoriales",
         verbose_name="Territorial",
+    )
+    asignado_por = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="Asignado por",
     )
     fecha_asignacion = models.DateField(default=timezone.localdate, editable=False, verbose_name="Fecha de asignación")
 
@@ -3813,6 +3826,9 @@ class AsignacionTerritorial(TimeStamped):
         verbose_name = "Asignación de territorial"
         verbose_name_plural = "Asignaciones de territoriales"
         ordering = ["segmento", "territorial"]
+        constraints = [
+            models.UniqueConstraint(fields=["segmento", "territorial"], name="uniq_asignacion_territorial_segmento"),
+        ]
 
     def __str__(self):
         return f"{self.territorial} → {self.segmento.nombre}"

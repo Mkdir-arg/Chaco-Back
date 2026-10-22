@@ -251,3 +251,15 @@ def roles_por_categoria():
     if sin_categoria:
         resultado.append(("Sin categoría", sin_categoria))
     return resultado
+
+
+def es_gestor_territorial(user):
+    """¿El operador está acotado a los territoriales de los segmentos que coordina?
+
+    Es el alcance del Coordinador y del Referente de Becas. Un **administrador de
+    programa** queda afuera aunque tenga ``becas.usuario.territorial``: su alcance
+    es el programa entero, que ya incluye a esos territoriales. Sin esta guarda la
+    rama territorial lo interceptaría y le devolvería 0 usuarios, porque un admin
+    no coordina ningún segmento.
+    """
+    return rbac.puede(user, "becas.usuario.territorial") and not programas_administrables_usuarios(user).exists()

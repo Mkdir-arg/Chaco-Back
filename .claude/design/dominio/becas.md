@@ -60,6 +60,9 @@ Estado en SIIS: el aviso «SIIS inactivo» (badge y alerta `bg-warning-soft` de 
 `segmento_detail.html`, `_segmentos_table.html` y `_siis_programa_modal.html`) es **informativo**: no
 pausa el programa ni sus hijos, y solo frena el alta en SIIS desde el proceso masivo. El selector de
 convocatoria de `RelevamientoForm` (`programas/forms.py`) excluye por pausa manual, no por SIIS.
+Las opciones del selector de convocatoria llevan `data-segmento` y las del de territorial `data-segmentos`
+(ids separados por espacio: un territorial puede tener varios segmentos); el filtro dependiente de
+`_filtro_territorial.html` compara por pertenencia, no por igualdad.
 
 Contrato: los identificadores que viajan a un sistema externo se editan como `input type="number"`
 con `nodo-field`, agrupados en una grilla (`sm:grid-cols-3` en el programa, `sm:grid-cols-2` en el
