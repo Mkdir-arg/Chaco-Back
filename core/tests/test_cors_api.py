@@ -73,6 +73,16 @@ class ApiCorsTests(SimpleTestCase):
         self.assertEqual(permitida["Vary"], "Origin")
         self.assertNotIn("Access-Control-Allow-Origin", rechazada)
 
+    def test_un_origen_permitido_expone_date_y_retry_after(self):
+        """K6 · la app corrige el desfase de su reloj con el `Date` del servidor y
+        respeta el `Retry-After` del 429; sin esta cabecera un navegador/PWA no se
+        los deja leer a JS. Solo se expone con el origen permitido."""
+        permitida = self._respuesta(origenes=ORIGEN_PROPIO, origin=ORIGEN_PROPIO)
+        rechazada = self._respuesta(origenes=ORIGEN_PROPIO, origin=ORIGEN_AJENO)
+
+        self.assertEqual(permitida["Access-Control-Expose-Headers"], "Date, Retry-After")
+        self.assertNotIn("Access-Control-Expose-Headers", rechazada)
+
     @override_settings(DEBUG=False)
     def test_con_debug_false_un_host_privado_no_pasa(self):
         for origen in (f"http://10.0.0.5:{8000}", "https://10.atacante.com", "http://localhost:3000"):

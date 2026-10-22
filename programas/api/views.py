@@ -6,6 +6,7 @@ y formularios. Capacidad requerida: ``becas.campo``.
 
 import logging
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
@@ -46,7 +47,11 @@ from programas.api.serializers import (
 )
 from programas.models import Formulario, Relevamiento
 from programas.services import campo
-from programas.services.becas import alta_incompleta, formulario_por_client_uuid, resolver_ciudadano_offline
+from programas.services.becas import (
+    alta_incompleta,
+    formulario_por_client_uuid_global,
+    resolver_ciudadano_offline,
+)
 from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.identidad import ORIGEN_PADRON, ORIGEN_PERSONAS, identificar
 from programas.services.inspecciones import CAP_RELEVAR
@@ -80,29 +85,62 @@ def _formulario_dni_existe(relevamiento, dni):
     return _formulario_por_dni(relevamiento, dni) is not None
 
 
-_formulario_por_client_uuid = formulario_por_client_uuid
+CLIENT_UUID_EN_USO_MENSAJE = "El identificador de la carga ya está en uso. La app tiene que generar uno nuevo."
+
+
+def _formulario_por_client_uuid(client_uuid):
+    """El caso con esa clave idempotente en **toda** la base (K4)."""
+    return formulario_por_client_uuid_global(client_uuid)
+
+
+def _es_el_mismo_alta(existente, relevamiento, dni):
+    """¿Es un reintento del mismo alta? Mismo relevamiento y misma persona.
+
+    Si el caso viejo no permite saber su DNI (ni columna, ni legajo, ni
+    identificación), se confía en el relevamiento: es lo que hacía antes.
+    """
+    if existente.relevamiento_id != relevamiento.pk:
+        return False
+    dni_existente = normalizar_dni(
+        existente.dni_titular
+        or (existente.ciudadano.dni if existente.ciudadano_id else "")
+        or (existente.datos_identificacion or {}).get("dni")
+    )
+    return not dni_existente or dni_existente == dni
 
 
 def _captura_habilitada(relevamiento, capturado_en=None):
     """Permite operar hoy o sincronizar después una captura hecha en fecha."""
     if capturado_en is None:
         return relevamiento.habilitado_en(timezone.now())
-    if capturado_en > timezone.now() + campo.ADELANTO_TOLERADO:
-        return False
+    # K2: un ``capturado_en`` adelantado se evalúa como «ahora», no se rechaza.
+    capturado_en, _ = campo.acotar_capturado_en(capturado_en)
     return relevamiento.habilitado_en(capturado_en)
 
 
 def _mensaje_pausa(relevamiento):
-    pausa = relevamiento.pausa_efectiva
-    if not pausa:
-        return None
-    return f"El relevamiento está pausado: {pausa.pausa_motivo}"
+    return campo.mensaje_pausa(relevamiento)
+
+
+def _error(detail, code, http_status=status.HTTP_400_BAD_REQUEST, **extra):
+    """Un 4xx de la API de campo: el ``detail`` de siempre más un ``code`` estable.
+
+    El ``detail`` es el que la app instalada reconoce por regex y **no se toca**;
+    el ``code`` es la clave nueva y aditiva que lee la app que sigue.
+    """
+    return Response({"detail": detail, "code": code, **extra}, status=http_status)
+
+
+def _error_validacion(serializer):
+    """El 400 de un serializer con su forma de siempre (``{campo: [...],
+    "non_field_errors": [...]}``) más ``code: VALIDACION``."""
+    return Response({**serializer.errors, "code": "VALIDACION"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 def _respuesta_pausa(relevamiento):
     mensaje = _mensaje_pausa(relevamiento)
     if mensaje:
-        return Response({"detail": mensaje, "pausado": True}, status=status.HTTP_409_CONFLICT)
+        return _error(mensaje, campo.CODE_PAUSADO, status.HTTP_409_CONFLICT, pausado=True)
     return None
 
 
@@ -191,7 +229,22 @@ class ObtainCampoToken(ObtainAuthToken):
                 status=status.HTTP_403_FORBIDDEN,
             )
         token, _ = Token.objects.get_or_create(user=user)
-        return Response({"token": token.key, "user_id": user.pk, "username": user.username})
+        # K7 · claves nuevas y aditivas: qué superficies abre este usuario y desde
+        # qué versión de la app se puede entrar (``null`` = sin chequeo).
+        modulos = []
+        if puede(user, CAP):
+            modulos.append("becas")
+        if puede_en_programa_dispositivos(user, CAP_RELEVAR):
+            modulos.append("dispositivos")
+        return Response(
+            {
+                "token": token.key,
+                "user_id": user.pk,
+                "username": user.username,
+                "modulos": modulos,
+                "app": {"version_minima": getattr(settings, "APP_CAMPO_VERSION_MINIMA", None) or None},
+            }
+        )
 
 
 def _pisar_identidad_acreditada(formulario, acreditada):
@@ -530,18 +583,15 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
                 capturado_en = serializers.DateTimeField().to_internal_value(capturado_en)
             except serializers.ValidationError:
                 return Response(
-                    {"capturado_en": "La fecha de captura no es válida."},
+                    {"capturado_en": "La fecha de captura no es válida.", "code": "CAPTURADO_EN_INVALIDO"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         if not _captura_habilitada(rel, capturado_en):
-            return Response(
-                {"detail": "Solo se puede relevar dentro del período asignado."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _error("Solo se puede relevar dentro del período asignado.", campo.CODE_FUERA_DE_PERIODO)
         if rel.estado == Relevamiento.Estado.EN_CURSO:
             return Response(RelevamientoListSerializer(rel).data)
         if rel.estado != Relevamiento.Estado.ASIGNADO:
-            return Response({"detail": "Solo se puede iniciar un relevamiento asignado."}, status=400)
+            return _error("Solo se puede iniciar un relevamiento asignado.", "RELEVAMIENTO_NO_ASIGNADO")
         rel.estado = Relevamiento.Estado.EN_CURSO
         rel.save(update_fields=["estado", "modificado"])
         return Response(RelevamientoListSerializer(rel).data)
@@ -557,14 +607,11 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
                 capturado_en = serializers.DateTimeField().to_internal_value(capturado_en)
             except serializers.ValidationError:
                 return Response(
-                    {"capturado_en": "La fecha de captura no es válida."},
+                    {"capturado_en": "La fecha de captura no es válida.", "code": "CAPTURADO_EN_INVALIDO"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         if not _captura_habilitada(rel, capturado_en):
-            return Response(
-                {"detail": "Solo se puede relevar dentro del período asignado."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _error("Solo se puede relevar dentro del período asignado.", campo.CODE_FUERA_DE_PERIODO)
         ya_cerrado = (Relevamiento.Estado.FINALIZADO, Relevamiento.Estado.EN_REVISION)
         if rel.estado in ya_cerrado and campo.en_gracia(rel):
             # G1-04: la cola offline sube primero las personas y después el
@@ -576,7 +623,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
             # a `FINALIZADO`, que es el camino normal.
             return Response(RelevamientoListSerializer(rel).data)
         if rel.estado not in (Relevamiento.Estado.EN_CURSO, Relevamiento.Estado.FINALIZANDO):
-            return Response({"detail": "El relevamiento no está en curso."}, status=400)
+            return _error("El relevamiento no está en curso.", campo.CODE_NO_EN_CURSO)
         rel.estado = Relevamiento.Estado.FINALIZADO
         rel.fecha_finalizado = timezone.now()
         rel.save(update_fields=["estado", "fecha_finalizado", "modificado"])
@@ -588,12 +635,9 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
         if respuesta := _respuesta_pausa(rel):
             return respuesta
         if not rel.habilitado_en(timezone.now()):
-            return Response(
-                {"detail": "Solo se puede relevar dentro del período asignado."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _error("Solo se puede relevar dentro del período asignado.", campo.CODE_FUERA_DE_PERIODO)
         if rel.estado != Relevamiento.Estado.FINALIZADO:
-            return Response({"detail": "Solo se puede reabrir un relevamiento finalizado."}, status=400)
+            return _error("Solo se puede reabrir un relevamiento finalizado.", "RELEVAMIENTO_NO_FINALIZADO")
         rel.estado = Relevamiento.Estado.EN_CURSO
         rel.fecha_finalizado = None
         rel.save(update_fields=["estado", "fecha_finalizado", "modificado"])
@@ -620,12 +664,14 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
             return respuesta
 
         serializer = FormularioSerializer(data=request.data, context={"relevamiento": rel})
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return _error_validacion(serializer)
         capturado_en = serializer.validated_data.get("capturado_en")
         client_uuid = serializer.validated_data.get("client_uuid")
         datos_identificacion = serializer.validated_data.get("datos_identificacion") or {}
         dni = normalizar_dni(datos_identificacion.get("dni"))
         datos_identificacion["dni"] = dni
+        adelanto_reloj = serializer.context.get("reloj_adelantado")
         # Con el lock del relevamiento tomado queda solo lo que el lock protege:
         # estado y período de la fila fresca, idempotencia por client_uuid,
         # cupo, duplicado y el insert. La identidad, las respuestas y el legajo
@@ -647,8 +693,15 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
             # aceptar: fuera del período, del futuro, o con la gracia vencida.
             decision = campo.evaluar_captura(bloqueado, capturado_en)
             if decision.rechaza:
-                return Response({"detail": decision.detalle}, status=decision.status)
-            existente = _formulario_por_client_uuid(bloqueado, client_uuid) if client_uuid else None
+                extra = {"pausado": True} if decision.pausado else {}
+                return _error(decision.detalle, decision.code, decision.status, **extra)
+            # K4 · la clave idempotente es única en **toda** la base, no por
+            # relevamiento: si ya está en otro relevamiento, o en este con otra
+            # persona, no es un reintento y devolver ese caso (o romper con un
+            # 500 por el UNIQUE) perdía la carga en silencio.
+            existente = _formulario_por_client_uuid(client_uuid) if client_uuid else None
+            if existente is not None and not _es_el_mismo_alta(existente, bloqueado, dni):
+                return _error(CLIENT_UUID_EN_USO_MENSAJE, "CLIENT_UUID_EN_USO", status.HTTP_409_CONFLICT)
             if existente is None:
                 if bloqueado.formularios.count() >= bloqueado.cupo_maximo:
                     return Response(
@@ -660,12 +713,18 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
                         status=status.HTTP_409_CONFLICT,
                     )
                 formulario_existente = _formulario_por_dni(bloqueado, dni)
+                extras = {}
+                # K2 · el reloj del teléfono estaba adelantado: se guardó `ahora`
+                # y queda la línea para el revisor.
+                if adelanto_reloj:
+                    extras["observaciones_carga"] = campo.observacion_reloj_adelantado(*adelanto_reloj)
                 formulario = serializer.save(
                     relevamiento=bloqueado,
                     created_by=request.user,
                     conflicto_duplicado=formulario_existente is not None,
                     duplicado_de=formulario_existente,
                     sincronizado_tarde=decision.tardia,
+                    **extras,
                 )
         if existente is not None:
             # Doble envío o reintento de la app. Si el envío anterior se cortó
@@ -683,7 +742,7 @@ class RelevamientoViewSet(viewsets.ReadOnlyModelViewSet):
         rel = self.get_object()
         dni = normalizar_dni(request.query_params.get("dni"))
         if not dni:
-            return Response({"dni": "El DNI es requerido."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"dni": "El DNI es requerido.", "code": "VALIDACION"}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"existe": _formulario_dni_existe(rel, dni)})
 
 
@@ -740,13 +799,11 @@ class FormularioViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
             return respuesta
 
         if not _captura_habilitada(formulario.relevamiento, formulario.capturado_en):
-            return Response(
-                {"detail": "El relevamiento está fuera de su período asignado."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return _error("El relevamiento está fuera de su período asignado.", campo.CODE_FUERA_DE_PERIODO)
 
         serializer = AdjuntoFormularioSerializer(data=request.data, context={"formulario": formulario})
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return _error_validacion(serializer)
         pregunta_global = serializer.validated_data.get("pregunta_global")
         requisito_nativo = serializer.validated_data.get("requisito_nativo")
         clave = serializer.validated_data.get("clave") or ""
