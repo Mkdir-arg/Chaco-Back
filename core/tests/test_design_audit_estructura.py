@@ -487,7 +487,7 @@ class GoldensSaneadasTests(SimpleTestCase):
         modal = self.contenido(dict(design_audit.GOLDENS)["modal"])
 
         self.assertEqual(modal.count("text-[13px]"), 0, "labels con valor arbitrario")
-        self.assertEqual(modal.count('class="block text-sm font-medium text-heading mb-1"'), 3)
+        self.assertEqual(modal.count('class="block text-sm font-medium text-heading mb-1"'), 4)
         self.assertEqual(modal.count("bg-black/50 backdrop-blur-sm"), 1, "backdrop por clase, no por style=")
         self.assertEqual(modal.count('components/_alerta.html" with tono="info"'), 1, "la nota es _alerta")
         self.assertEqual(modal.count("<svg"), 0, "D3: Font Awesome en el contenido, no SVG inline")
