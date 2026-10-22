@@ -46388,5 +46388,6 @@ Revertir el commit. Es aditivo: la app instalada no depende de ninguna clave nue
 ## Historial
 
 - **22/10/2026 — alta del cambio.** Revisa el criterio de **G1-04** (Cambio 175) para el `capturado_en` del futuro.
+- **22/10/2026 — Ronda 2.** El test de contrato del login de Dispositivos fija `modulos`/`app`; tests de K4 para caso viejo sin DNI y alta incompleta con otro DNI.
 
 ---

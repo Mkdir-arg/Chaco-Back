@@ -221,3 +221,48 @@ class VectoresDeCondicionesTests(SimpleTestCase):
         ):
             with self.subTest(fragmento):
                 self.assertIn(fragmento, nombres)
+
+
+class ClientUuidTests(_AltaBase):
+    """K4: la clave idempotente en los casos que `_es_el_mismo_alta` tiene que decidir."""
+
+    def test_un_caso_viejo_sin_dni_en_ningun_lado_se_trata_como_el_mismo_alta(self):
+        cuerpo = self._cuerpo()
+        primero = self.client.post(self.url, cuerpo, format="json")
+        self.assertEqual(primero.status_code, 201, primero.content)
+        # Un caso anterior a que se guardara el DNI: ni columna, ni ciudadano, ni identificación.
+        Formulario.objects.filter(pk=primero.json()["id"]).update(
+            dni_titular="", ciudadano=None, datos_identificacion={}
+        )
+
+        reintento = self.client.post(self.url, cuerpo, format="json")
+
+        self.assertEqual(reintento.status_code, 200, reintento.content)
+        self.assertEqual(reintento.json()["id"], primero.json()["id"])
+        self.assertEqual(Formulario.objects.count(), 1)
+
+    def test_un_alta_incompleta_no_se_completa_con_los_datos_de_otra_persona(self):
+        cuerpo = self._cuerpo()
+        primero = self.client.post(self.url, cuerpo, format="json")
+        self.assertEqual(primero.status_code, 201, primero.content)
+        # El envío anterior se cortó después del commit: sin foto de la definición.
+        Formulario.objects.filter(pk=primero.json()["id"]).update(definicion=None)
+        otra_persona = self._cuerpo(
+            client_uuid=cuerpo["client_uuid"],
+            datos_identificacion={"dni": "30300300", "nombre": "Ana", "apellido": "Gomez", "origen": "manual"},
+        )
+
+        resp = self.client.post(self.url, otra_persona, format="json")
+
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertEqual(
+            resp.json(),
+            {
+                "detail": "El identificador de la carga ya está en uso. La app tiene que generar uno nuevo.",
+                "code": "CLIENT_UUID_EN_USO",
+            },
+        )
+        self.assertNotIn("40400400", resp.content.decode())
+        formulario = Formulario.objects.get()
+        self.assertEqual(formulario.dni_titular, "40400400")
+        self.assertFalse(formulario.definicion)
