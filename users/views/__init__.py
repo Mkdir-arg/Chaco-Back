@@ -15,7 +15,7 @@ from .auth import (  # noqa: F401
     RecuperarContrasenaView,
     UsuariosLoginView,
 )
-from .quick_create import usuario_alta_rapida  # noqa: F401
+from .quick_create import usuario_alta_rapida, usuario_asignar_territorial, usuario_buscar_territorial  # noqa: F401
 from .roles import (  # noqa: F401
     RolCreateView,
     RolDeleteView,

@@ -5,23 +5,34 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.db import IntegrityError
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
+from core import rbac
+from core.http import error_json, ok_json
+from core.services.throttle import rate_limit_excedido
 from programas.management.commands.seed_becas import (
     ROL_COORDINADOR,
     ROL_COORDINADOR_REGIONAL,
     ROL_TERRITORIAL,
 )
-from programas.models import Segmento
+from programas.models import AsignacionTerritorial, Segmento
 from programas.services.autorizacion import (
     es_admin_becas,
     puede_gestionar_segmento,
     segmentos_asignables_territorial,
 )
-from users.forms import UserCreationForm
+from users.forms import MENSAJE_DNI_DUPLICADO, UserCreationForm
 from users.selectors.usuarios import alcance_roles_ids
 from users.services.admin import UsuariosAdminService
 from users.services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
+from users.services.territoriales import (
+    MIN_CARACTERES,
+    TerritorialFueraDeAlcance,
+    TerritorialInactivo,
+    asignar_segmento,
+    buscar_territoriales,
+    nombre_para_mostrar,
+)
 
 # Atajos de alta de los modales de Becas: tipo del botón → (rol que otorga, plural
 # para el mensaje de error). Son roles de backoffice y no llevan segmento: los da
@@ -90,6 +101,98 @@ def _campo_en_colision(error):
     return "__all__"
 
 
+CAP_TERRITORIAL = "becas.usuario.territorial"
+
+#: Cubetas por operador (sin IP: detrás del NAT de una repartición comparten dirección).
+CUBETA_BUSCAR_TERRITORIAL = "usuario_buscar_territorial"
+CUBETA_ASIGNAR_TERRITORIAL = "usuario_asignar_territorial"
+BUSQUEDAS_POR_MINUTO = 30
+ASIGNACIONES_POR_MINUTO = 20
+
+MENSAJE_DNI_TERRITORIAL = (
+    "Ese DNI ya es de un usuario del sistema: buscalo en el paso anterior, "
+    "o pedile al administrador del programa que le sume el rol Territorial."
+)
+
+
+def _segmento_destino(request, valor):
+    """El segmento activo que el operador puede ofrecer y gestionar, o ``None``.
+
+    Es el mismo criterio que el selector del ABM y el escritor
+    (`segmentos_asignables_territorial`), más ``puede_gestionar_segmento``.
+    """
+    try:
+        pk = int(valor)
+    except (TypeError, ValueError):
+        return None
+    segmento = Segmento.objects.filter(pk=pk, activo=True).first()
+    if (
+        segmento is None
+        or not segmentos_asignables_territorial(request.user).filter(pk=segmento.pk).exists()
+        or not puede_gestionar_segmento(request.user, segmento)
+    ):
+        return None
+    return segmento
+
+
+@login_required
+@require_GET
+def usuario_buscar_territorial(request):
+    """Busca territoriales que ya tienen cuenta, para sumarles el segmento destino."""
+    if not rbac.puede(request.user, CAP_TERRITORIAL):
+        return error_json("No tiene permiso para buscar territoriales.", status=403)
+    segmento = _segmento_destino(request, request.GET.get("segmento_id"))
+    if segmento is None:
+        return error_json("Seleccioná un segmento permitido.", status=403)
+    if rate_limit_excedido(
+        request,
+        CUBETA_BUSCAR_TERRITORIAL,
+        BUSQUEDAS_POR_MINUTO,
+        sufijo=str(request.user.pk),
+        incluir_ip=False,
+    ):
+        return error_json("Hiciste muchas búsquedas seguidas. Esperá un minuto y probá de nuevo.", status=429)
+    texto = (request.GET.get("q") or "").strip()
+    if len(texto) < MIN_CARACTERES:
+        return error_json(f"Escribí al menos {MIN_CARACTERES} caracteres.", status=400)
+    resultados, hay_mas = buscar_territoriales(request.user, texto, segmento)
+    return ok_json(resultados=resultados, hay_mas=hay_mas)
+
+
+@login_required
+@require_POST
+def usuario_asignar_territorial(request):
+    """Suma el segmento destino a un territorial que ya existe."""
+    if not rbac.puede(request.user, CAP_TERRITORIAL):
+        return error_json("No tiene permiso para asignar territoriales.", status=403)
+    segmento = _segmento_destino(request, request.POST.get("segmento_id"))
+    if segmento is None:
+        return error_json("Seleccioná un segmento permitido.", status=403)
+    if rate_limit_excedido(
+        request,
+        CUBETA_ASIGNAR_TERRITORIAL,
+        ASIGNACIONES_POR_MINUTO,
+        sufijo=str(request.user.pk),
+        incluir_ip=False,
+    ):
+        return error_json("Hiciste muchas asignaciones seguidas. Esperá un minuto y probá de nuevo.", status=429)
+    try:
+        usuario, segmentos = asignar_segmento(request.user, request.POST.get("user_id"), segmento)
+    except TerritorialFueraDeAlcance:
+        return error_json("No podés asignar a este usuario.", status=403)
+    except TerritorialInactivo:
+        return error_json("Está inactivo: lo reactiva el administrador del programa.", status=409)
+    return ok_json(
+        message="Se asignó el territorial al segmento.",
+        user={
+            "id": usuario.pk,
+            "label": nombre_para_mostrar(usuario),
+            "segmento_id": segmento.pk,
+            "segmentos": segmentos,
+        },
+    )
+
+
 @login_required
 @require_POST
 def usuario_alta_rapida(request):
@@ -98,15 +201,11 @@ def usuario_alta_rapida(request):
         return JsonResponse({"ok": False, "message": "Tipo de usuario inválido."}, status=400)
 
     if tipo == "territorial":
+        if not rbac.puede(request.user, CAP_TERRITORIAL):
+            return JsonResponse({"ok": False, "message": "No tiene permiso para crear territoriales."}, status=403)
         rol = Group.objects.filter(name=ROL_TERRITORIAL).first()
-        segmento = Segmento.objects.filter(pk=request.POST.get("segmento_id"), activo=True).first()
-        # El destino tiene que estar en el mismo alcance que el selector del ABM y el
-        # escritor (`segmentos_asignables_territorial`), además de ser gestionable.
-        if (
-            not segmento
-            or not segmentos_asignables_territorial(request.user).filter(pk=segmento.pk).exists()
-            or not puede_gestionar_segmento(request.user, segmento)
-        ):
+        segmento = _segmento_destino(request, request.POST.get("segmento_id"))
+        if segmento is None:
             return JsonResponse({"ok": False, "message": "Seleccioná un segmento permitido."}, status=403)
     else:
         nombre_rol, plural = ROLES_BACKOFFICE[tipo]
@@ -121,10 +220,14 @@ def usuario_alta_rapida(request):
     data = request.POST.copy()
     data.setlist("groups", [str(rol.pk)])
     if segmento:
-        data["segmento_territorial"] = str(segmento.pk)
+        data.setlist("segmentos_territoriales", [str(segmento.pk)])
     form = UserCreationForm(data=data, operador=request.user)
     if not form.is_valid():
         errores = {campo: [str(error) for error in lista] for campo, lista in form.errors.items()}
+        if tipo == "territorial" and MENSAJE_DNI_DUPLICADO in errores.get("dni", []):
+            # La persona ya existe: hay que buscarla, no duplicarla. El texto del ABM no cambia.
+            errores["dni"] = [MENSAJE_DNI_TERRITORIAL if e == MENSAJE_DNI_DUPLICADO else e for e in errores["dni"]]
+            return JsonResponse({"ok": False, "message": MENSAJE_DNI_TERRITORIAL, "errors": errores}, status=400)
         return JsonResponse({"ok": False, "errors": errores}, status=400)
 
     try:
@@ -173,6 +276,13 @@ def usuario_alta_rapida(request):
     else:
         aviso = "Sin correo: entregale la contraseña provisoria por otra vía."
 
+    segmentos = []
+    if segmento:
+        segmentos = list(
+            AsignacionTerritorial.objects.filter(territorial=usuario)
+            .order_by("pk")
+            .values_list("segmento_id", flat=True)
+        )
     return JsonResponse(
         {
             "ok": True,
@@ -181,6 +291,7 @@ def usuario_alta_rapida(request):
                 "id": usuario.pk,
                 "label": usuario.get_full_name() or usuario.username,
                 "segmento_id": segmento.pk if segmento else None,
+                "segmentos": segmentos,
             },
         }
     )
