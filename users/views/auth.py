@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
@@ -9,8 +11,8 @@ from django.contrib.auth.views import (
     PasswordResetView,
 )
 from django.db import transaction
-from django.shortcuts import redirect
-from django.urls import reverse_lazy
+from django.shortcuts import redirect, resolve_url
+from django.urls import reverse, reverse_lazy
 
 from core.services.throttle import rate_limit_excedido
 from users.forms.auth import UsuariosAuthenticationForm
@@ -49,7 +51,12 @@ class UsuariosLoginView(LoginView):
         return response
 
     def get_success_url(self):
-        return super().get_success_url()
+        url = super().get_success_url()
+        # `/logout` solo acepta POST: como destino del login da 405. Pasa con un
+        # `?next=/logout` viejo o con un usuario ya logueado que abre ese link.
+        if urlparse(url).path == reverse("users:logout"):
+            return resolve_url(settings.LOGIN_REDIRECT_URL)
+        return url
 
 
 class CambioContrasenaObligatorioView(LoginRequiredMixin, PasswordChangeView):

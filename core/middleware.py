@@ -10,6 +10,7 @@ from django.contrib.auth.views import redirect_to_login
 from django.dispatch import receiver
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
+from django.urls import reverse
 
 from core import rbac
 from core.services.throttle import ip_cliente
@@ -239,6 +240,10 @@ class ExpiracionPorInactividadMiddleware:
             logout(request)
             if request.path.startswith("/api/"):
                 return JsonResponse({"detail": "Sesión cerrada por inactividad."}, status=401)
+            if request.path == reverse("users:logout"):
+                # El logout es POST-only: un `next=/logout` haría que, al ingresar,
+                # el login redirija por GET a una ruta que contesta 405.
+                return redirect(settings.LOGOUT_REDIRECT_URL)
             return redirect_to_login(request.get_full_path())
 
         if _marca_actividad(request.path):
