@@ -17,7 +17,8 @@ from programas.management.commands.seed_becas import (
 from programas.models import AsignacionCoordinador, AsignacionTerritorial, Segmento
 from programas.services.autorizacion import usuarios_coordinadores_regionales_becas
 from users.forms import UserCreationForm
-from users.selectors.usuarios import es_gestor_territorial, usuarios_visibles_para
+from users.selectors.roles import es_gestor_territorial
+from users.selectors.usuarios import usuarios_visibles_para
 
 
 class CoordinadorGestionTerritorialesTests(TestCase):
@@ -36,7 +37,7 @@ class CoordinadorGestionTerritorialesTests(TestCase):
         form = UserCreationForm(operador=self.coordinador)
 
         self.assertEqual(list(form.fields["groups"].queryset), [self.rol_territorial])
-        self.assertEqual(list(form.fields["segmento_territorial"].queryset), [self.segmento])
+        self.assertEqual(list(form.fields["segmentos_territoriales"].queryset), [self.segmento])
 
     def test_crea_territorial_en_su_segmento(self):
         response = self.client.post(
@@ -48,7 +49,7 @@ class CoordinadorGestionTerritorialesTests(TestCase):
                 "first_name": "Territorial",
                 "last_name": "Nuevo",
                 "groups": [self.rol_territorial.pk],
-                "segmento_territorial": self.segmento.pk,
+                "segmentos_territoriales": [str(self.segmento.pk)],
             },
         )
 
@@ -67,13 +68,13 @@ class CoordinadorGestionTerritorialesTests(TestCase):
                 "first_name": "Territorial",
                 "last_name": "Ajeno",
                 "groups": [self.rol_territorial.pk],
-                "segmento_territorial": self.otro_segmento.pk,
+                "segmentos_territoriales": [str(self.otro_segmento.pk)],
             },
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(User.objects.filter(username="territorial-ajeno").exists())
-        self.assertIn("segmento_territorial", response.context["form"].errors)
+        self.assertIn("segmentos_territoriales", response.context["form"].errors)
 
     def test_alta_rapida_crea_y_asigna_territorial(self):
         response = self.client.post(
@@ -223,7 +224,7 @@ class AdminBecasAlcanceProgramaTests(TestCase):
     def test_el_combo_de_segmentos_no_queda_vacio(self):
         form = UserCreationForm(operador=self.admin)
 
-        self.assertIn(self.segmento, list(form.fields["segmento_territorial"].queryset))
+        self.assertIn(self.segmento, list(form.fields["segmentos_territoriales"].queryset))
 
     def test_puede_asignar_los_roles_operativos_de_su_programa(self):
         """No solo el Territorial: antes la rama territorial le recortaba el combo
