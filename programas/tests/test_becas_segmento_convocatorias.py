@@ -50,7 +50,13 @@ class SolapaConvocatoriasSegmentoTests(_BaseRegional):
         self.assertEqual(resp.context["puede_ver_convocatorias"], True)
         self.assertCountEqual(resp.context["convocatorias"], [self.entera, self.de_ana, self.de_beto])
         html = resp.content.decode()
-        self.assertRegex(html, r"Convocatorias\s*<span class=\"badge badge-gray ml-0\.5\">3</span>")
+        self.assertRegex(
+            html,
+            r"Convocatorias\s*<span class=\"badge ml-0\.5\" :class=\"tab==='convs' \? 'badge-info' : 'badge-gray'\">3</span>",
+        )
+        # ARIA: el botón apunta a un panel que existe.
+        self.assertIn('aria-controls="panel-convs"', html)
+        self.assertIn('id="panel-convs" aria-labelledby="tab-convs"', html)
         for nombre in ("Del segmento entero", "De Ladrillo", "De Carbón"):
             self.assertIn(nombre, html)
         # La convocatoria a nivel segmento lo dice; las de subsegmento, su nombre.

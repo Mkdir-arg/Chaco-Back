@@ -182,7 +182,7 @@ Relevamientos y Estado (`_convocatoria_estado_badge.html`); sin acciones de acti
 ni reactivar, que viven en el listado y el detalle de convocatorias. La solapa decide por la
 capacidad `becas.convocatoria.ver` (flag `puede_ver_convocatorias`, resuelto en la vista), no por
 rol ni por `solo_sus_subsegmentos`; las filas se acotan con `convocatorias_visibles`, así que el
-Coordinador Regional ve solo las de su subsegmento. Vacío: `_estado_vacio.html`.
+Coordinador Regional ve solo las de su subsegmento. Vacío: `_estado_vacio.html`. Las cuatro solapas de la pantalla llevan el ARIA completo de `componentes/tabs.md` (el `{% if %}` de cada una envuelve botón y panel) y contadores `badge-info` / `badge-gray`.
 
 ---
 
