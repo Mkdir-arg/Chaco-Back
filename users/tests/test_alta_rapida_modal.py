@@ -56,8 +56,9 @@ class AltaRapidaModalTests(SimpleTestCase):
         # RONDA 2, hallazgo MAJOR #1: X, Cancelar y backdrop llevan data-quick-user-close
         # y el modal escucha esos clics y Escape por su cuenta, sin pasar por
         # window.becasModal (que puede no llegar a cargar).
-        # 3 controles con el atributo (backdrop, X, Cancelar) + 1 uso en el selector JS.
-        self.assertEqual(self.html.count("data-quick-user-close"), 4)
+        # 4 controles con el atributo (backdrop, X, Cancelar del paso 2 y Cancelar del
+        # paso 1, el buscador del territorial) + 1 uso en el selector JS.
+        self.assertEqual(self.html.count("data-quick-user-close"), 5)
         self.assertIn("modal.addEventListener('click'", self.html)
         self.assertIn("[data-quick-user-close]", self.html)
         self.assertIn("document.addEventListener('keydown'", self.html)
@@ -75,3 +76,28 @@ class AltaRapidaModalTests(SimpleTestCase):
         # src=…becas-modal.js…>, no se inyecta una segunda copia.
         self.assertIn("document.querySelector('script[src*=\"becas-modal.js\"]')", self.html)
         self.assertIn("s.dataset.quickUserAutoload", self.html)
+
+    def test_el_territorial_abre_en_un_buscador_y_el_resto_en_el_formulario(self):
+        # Paso 1 (solo territorial): form GET de búsqueda, sin csrf, que arranca oculto con la
+        # CLASE hidden (un contenedor .flex le gana al atributo [hidden]).
+        self.assertIn('id="quick-user-buscar" role="search"', self.html)
+        self.assertRegex(self.html, r'id="quick-user-buscar"[^>]*class="[^"]* hidden"')
+        self.assertIn("usuarios/alta-rapida/territorial/buscar/", self.html)
+        self.assertIn("usuarios/alta-rapida/territorial/asignar/", self.html)
+        self.assertIn("mostrarPaso(tipo === 'territorial' ? 'buscar' : 'crear', tipo)", self.html)
+        self.assertIn("data-quick-user-volver", self.html)
+        self.assertIn("Crear territorial nuevo", self.html)
+
+    def test_los_resultados_no_se_inyectan_como_html(self):
+        # Nombre, DNI y segmentos vienen del servidor: entran por textContent, nunca innerHTML.
+        self.assertNotIn("innerHTML", self.html)
+        self.assertIn("textContent", self.html)
+
+    def test_buscar_exige_tres_caracteres_antes_de_pedir_al_servidor(self):
+        self.assertIn("const MIN_Q = 3", self.html)
+        self.assertIn("texto.length < MIN_Q", self.html)
+        self.assertIn('minlength="3"', self.html)
+
+    def test_el_select_destino_actualiza_la_opcion_existente(self):
+        self.assertIn("segmentos.includes(id)", self.html)
+        self.assertIn("option.selected = true", self.html)

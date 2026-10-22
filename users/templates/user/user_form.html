@@ -144,6 +144,9 @@
 
 <form method="post">
     {% csrf_token %}
+    {% if form.solo_segmentos %}
+    {% include "components/_alerta.html" with tono="info" role="status" icono="lock" titulo="Datos de la cuenta bloqueados" texto=form.aviso_no_dueno %}
+    {% endif %}
     {% if form.non_field_errors %}
     <div class="mb-4 rounded-lg border border-danger-subtle bg-danger-soft p-3 text-sm text-fg-danger">{{ form.non_field_errors }}</div>
     {% endif %}
@@ -232,7 +235,7 @@
             </div>
             <div class="flex items-center gap-3">
                 <span class="text-sm text-body-subtle"><span id="roles-total">{{ form.groups.value|length }}</span> seleccionado(s)</span>
-                <button type="button" id="roles-limpiar" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;">Limpiar</button>
+                <button type="button" id="roles-limpiar" class="btn-nodo btn-tertiary btn-sm" style="min-width:0;"{% if form.solo_segmentos %} disabled{% endif %}>Limpiar</button>
             </div>
         </div>
 
@@ -312,15 +315,24 @@
 
         {# Segmento (Becas): solo con un rol territorial tildado #}
         {% comment %}Con error de validación se muestra desde el server: el JS lo re-evalúa igual al cargar.{% endcomment %}
-        <div id="segmento-territorial-field" class="border-t border-light px-5 py-4"{% if not form.segmento_territorial.errors %} hidden{% endif %}>
-            <div class="max-w-sm">
-                <label for="id_segmento_territorial" class="mb-1.5 block text-sm font-semibold text-heading">
-                    {{ form.segmento_territorial.label }} <span class="text-fg-danger">*</span>
-                </label>
-                {{ form.segmento_territorial }}
-                <p class="mt-1 text-xs text-body-subtle">{{ form.segmento_territorial.help_text }}</p>
-                {% for error in form.segmento_territorial.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
+        <div id="segmento-territorial-field" class="border-t border-light px-5 py-4"{% if not form.segmentos_territoriales.errors %} hidden{% endif %}>
+            <p id="segmentos-etiqueta" class="mb-1.5 block text-sm font-semibold text-heading">
+                {{ form.segmentos_territoriales.label }} <span class="text-fg-danger">*</span>
+            </p>
+            <div class="nodo-checks max-h-64 overflow-y-auto rounded-lg border border-base p-3" role="group" aria-labelledby="segmentos-etiqueta" aria-describedby="segmentos-ayuda">
+                {{ form.segmentos_territoriales }}
             </div>
+            <p id="segmentos-ayuda" class="mt-1 text-xs text-body-subtle">{{ form.segmentos_territoriales.help_text }}</p>
+            {% if form.segmentos_ajenos %}
+            <h3 class="mt-4 mb-2 text-sm font-bold text-heading">Otros segmentos del territorial</h3>
+            <ul class="flex flex-wrap gap-2">
+                {% for s in form.segmentos_ajenos %}
+                <li class="badge badge-gray badge-sm"><i class="fas fa-lock" aria-hidden="true"></i> {{ s.nombre }}<span class="sr-only"> (solo lectura: inactivo o de otro coordinador)</span></li>
+                {% endfor %}
+            </ul>
+            <p class="mt-1 text-xs text-body-subtle">Solo lectura: segmentos inactivos o que gestiona otro coordinador.</p>
+            {% endif %}
+            {% for error in form.segmentos_territoriales.errors %}<p class="mt-1 text-xs text-fg-danger">{{ error }}</p>{% endfor %}
         </div>
 
         <div class="border-t border-light px-5 py-4">
@@ -466,6 +478,8 @@
             chip.appendChild(texto);
             chip.appendChild(cruz);
             chip.addEventListener('click', function () {
+                // Un rol bloqueado (no es el dueño del territorial) no se destilda.
+                if (check.disabled) return;
                 check.checked = false;
                 refrescar();
             });
@@ -504,7 +518,7 @@
 
         if (limpiarBtn) {
             limpiarBtn.addEventListener('click', function () {
-                checks.forEach(function (c) { c.checked = false; });
+                checks.forEach(function (c) { if (!c.disabled) c.checked = false; });
                 refrescar();
             });
         }
