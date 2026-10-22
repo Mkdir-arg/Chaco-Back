@@ -80,14 +80,28 @@ Sin forzar, comando limpio:
 si el SHA cambió respecto de `$ecomMain`, **FRENÁ** (alguien pusheó en el medio) y volvé a
 empezar desde las comprobaciones. Se pushea por SHA, nunca por ref:
 
-- **Avance directo:** `git -C ../Chaco-mobile push ecom ${src}:refs/heads/main`
-- **Alineación** (si `ecom/main` diverge por código nuestro; el commit se construye sobre
-  `$src`, y si `$ecomMain` no está en el clon se hace en el clon superficial, trayendo
-  `$src` con `git -C $tmp fetch <ruta absoluta de ../Chaco-mobile> $src`):
+- **Avance directo** (`$ecomMain` es ancestro de `$src`), desde el repo de la app:
+  `git -C ../Chaco-mobile push ecom ${src}:refs/heads/main`
+- **Alineación** (si `ecom/main` diverge por código nuestro). El commit se construye sobre
+  `$src`. Si `$ecomMain` está en el clon de la app, todo se hace ahí:
   `$tree = git -C ../Chaco-mobile rev-parse ${src}^{tree}`,
   `$merge = git -C ../Chaco-mobile commit-tree $tree -p $src -p $ecomMain -m "merge: alinear main con origin/main $src"`,
   verificar que `${merge}^{tree}` sea igual a `$tree` **antes** de pushear y
-  después `git -C ../Chaco-mobile push ecom ${merge}:refs/heads/main`.
+  `git -C ../Chaco-mobile push ecom ${merge}:refs/heads/main`.
+  Si `$ecomMain` **no** está en el clon, se hace en el clon superficial `$tmp`
+  (en `$tmp` el remoto `origin` **es ECOM**):
+
+  ```powershell
+  git -C $tmp fetch <ruta absoluta de ../Chaco-mobile> $src   # local, sin red
+  $tree  = git -C $tmp rev-parse ${src}^{tree}
+  $merge = git -C $tmp commit-tree $tree -p $src -p $ecomMain -m "merge: alinear main con origin/main $src"
+  git -C $tmp rev-parse "${merge}^{tree}"   # igual a $tree ANTES de pushear
+  git -C $tmp push origin ${merge}:refs/heads/main   # en $tmp, `origin` ES ECOM
+  ```
+
+  Ese `fetch` es por ruta absoluta del disco, no toca la red ni GitHub, así que no rompe la
+  regla del fetch único. Un solo `push` por corrida: el de `../Chaco-mobile` **o** el de
+  `$tmp`, según dónde esté `$ecomMain`.
 
 Si el clasificador bloquea el push en Bash, por PowerShell o que lo corra el PM.
 

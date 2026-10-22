@@ -80,6 +80,9 @@ si este archivo los contradice, mandan ellos.
    Sin un «sí» explícito no hacés nada.
 
 5. **Push sin forzar.** Comando limpio, sin token en la URL.
+   - **Antes de cualquier push (5a o 5b)**, releé
+     `git -C ../Chaco-mobile ls-remote ecom refs/heads/test`. Si el SHA **no coincide** con
+     `$ecomTest`, **PARÁ y no pushees** (alguien pusheó en el medio) y volvé al paso 2.
    - **5a. Avance directo** (el remoto es ancestro de la fuente):
      `git -C ../Chaco-mobile push ecom ${src}:refs/heads/test`
    - **5b. Commit de alineación** (el remoto tiene commits solo nuestros que divergen):
@@ -102,9 +105,6 @@ si este archivo los contradice, mandan ellos.
      git -C $tmp push origin ${merge}:refs/heads/test   # en $tmp, `origin` ES ECOM
      ```
 
-   - **Justo antes de pushear**, releé `git -C ../Chaco-mobile ls-remote ecom refs/heads/test`:
-     si el SHA cambió respecto de `$ecomTest`, **FRENÁ** (alguien pusheó en el medio) y
-     volvé al paso 2.
    - Si el clasificador bloquea el push en Bash, correlo por PowerShell o que lo corra el PM.
 
 6. **Verificá e informá.**
