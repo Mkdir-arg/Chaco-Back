@@ -23690,12 +23690,12 @@ se revierte, hay que volver las cuatro líneas del `crontab` a su forma anterior
   **no se puede entrar**: `django.contrib.auth.login()` emite `user_logged_in` y el
   receptor de `conversaciones` registra la presencia en el caché
   (`conversaciones/presencia.py:30`) sin atrapar nada, así que el POST de login responde
+  500 y el ambiente queda inaccesible.
+
 - **22/10/2026** (carrera en un test, sin Cambio nuevo) — `test_un_kill_de_la_conexion_del_candado_no_cambia_el_exit_code`
   falló una vez en `Motor real (mariadb:10.11)` (`0 != 1`): tras el `KILL` el servidor suelta el
   `GET_LOCK` de forma asíncrona y el testigo, con `GET_LOCK(…, 0)`, a veces llegaba antes. Se
   cambió a `GET_LOCK(…, 5)`: si el candado no se liberara el test sigue fallando, a los 5 s.
-
-  500 y el ambiente queda inaccesible.
 
 ---
 
