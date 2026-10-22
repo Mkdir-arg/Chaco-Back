@@ -485,6 +485,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 357 | La API de campo de Becas aguanta lo que el teléfono manda: `code` en los errores, reloj adelantado, `client_uuid` en colisión, GPS redondeado, login con módulos y vectores de condiciones | Becas · API de campo | `#api` `#mobile` `#relevamientos` `#gps` | Juez — cruce back ↔ app (Parte 5.1, K1–K8) | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 358 | La app móvil/PWA se espeja a ECOM en dos comandos, test y producción | Transversal · espejo a ECOM de la app (`Chaco-mobile`) | `#infra` `#mobile` `#metodo` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 359 | Detalle del segmento: solapa «Convocatorias» con las del segmento y las de sus subsegmentos | Becas · detalle del segmento | `#convocatorias` `#ui` `#rbac` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | No requiere |
+| 360 | DRF 3.18.2: «Pip Audit» vuelve a verde por las 3 CVEs de djangorestframework 3.17.2 | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (22/10/2026) | 22/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -46589,6 +46590,74 @@ La solapa de otros detalles (subsegmento) no se pidió.
 Revertir el PR; no hay datos.
 
 ## Historial
+- **22/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 360 — DRF 3.18.2: «Pip Audit» vuelve a verde por las 3 CVEs de djangorestframework 3.17.2
+
+🟢 **HECHO — 22/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · dependencias (`requirements.txt`) · CI (`Pip Audit`) |
+| **Etiquetas** | `#infra` `#gestion` |
+| **Solicitante** | Juez — check «Pip Audit» rojo en los PRs (22/10/2026) |
+| **Fecha del pedido** | 22/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API · Infra/ECOM (imagen de producción) · CI |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Subir djangorestframework a la versión que arregle CVE-2026-114136, CVE-2026-114137 y CVE-2026-114138 (arreglo en 3.18.2), porque con «Pip Audit» rojo «Publish main» no publica.
+
+## Alcance acordado
+
+**Entra:** `djangorestframework==3.17.2` → `==3.18.2` en `requirements.txt` y la mención en `docs/internal/venv-setup.md`.
+
+**Queda afuera:** excepciones en `security/excepciones.toml` (se arregla con la versión) y tocar código de la API.
+
+## Decisiones tomadas
+
+- **3.18.2 es la versión con el arreglo** de las tres CVEs; sin ignores. La única excepción vigente sigue siendo la de twisted (Cambio 315).
+- **Cambios incompatibles de 3.18.0 a 3.18.2 revisados, ninguno obliga a tocar código:** se dejó el soporte de Django 4.2/5.0/5.1 (Chaco está en 5.2); los errores de un serializer `many=True` pasan a formato dict (la API de campo no depende de ese formato: los tests de contrato siguen en verde) y 3.18.1 trae un ajuste de compatibilidad para el formato anterior; `FloatField` rechaza `nan`/`inf`; 3.18.2 endurece la negociación de contenido, rechaza charsets que no son de texto y corrige el borrado de `TokenProxy` (GHSA-xw6w-gcfp-cf8m). `DecimalField` y paginación sin cambios relevantes.
+- **Existe 3.18.3** (revierte un cambio no intencional de `order_by_precedence` introducido en 3.18.2, API interna que Chaco no usa). Se queda en 3.18.2, que es lo que arregla las CVEs.
+
+## Implementación
+
+Un solo cambio de pin. `requirements-dev.txt` arrastra `requirements.txt` con `-r`.
+
+## Archivos
+
+- `requirements.txt`
+- `docs/internal/venv-setup.md`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Venv aparte con Python 3.12 y Django 5.2.17: `pip install -r requirements-dev.txt` resuelve y deja DRF 3.18.2.
+- `pip-audit` con las banderas de `scripts/check_excepciones_seguridad.py --ignore-args`: `requirements.txt` y `requirements-dev.txt` «No known vulnerabilities found, 1 ignored» (twisted), `requirements-ci.txt` «No known vulnerabilities found».
+- `manage.py check`: sin problemas. Tests de contrato y de la API de campo (`programas.tests.test_api_campo_*`, `test_becas_api*`, `test_contratos_externos`, `core.tests.test_api_schema_contrato`, `test_contrato_*`): 272 OK.
+
+## Puesta en marcha en el servidor
+
+Nada más que el deploy: la imagen se reconstruye con la dependencia nueva. En testing conviene probar a mano el login por token y una sincronización de la app de campo.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Volver el pin a `djangorestframework==3.17.2`; no hay datos ni migración (el check de «Pip Audit» vuelve a rojo).
+
+## Historial
+
 - **22/10/2026 — alta del cambio.**
 
 ---
