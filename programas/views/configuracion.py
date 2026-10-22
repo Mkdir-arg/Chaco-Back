@@ -63,7 +63,6 @@ from programas.services.autorizacion import (
     subsegmentos_visibles,
 )
 from programas.views.ajax_utils import ajax_errors, ajax_ok, ajax_redirect, is_ajax
-from programas.views.relevamientos import CAP_CONVOCATORIA_VER
 
 CAP_PROGRAMA_ADMINISTRAR = "becas.programa.administrar"
 CAP_SEGMENTO_VER = "becas.segmento.ver"
@@ -75,6 +74,7 @@ CAP_SUBSEGMENTO_EDITAR = "becas.subsegmento.editar"
 CAP_REQUISITO_VER = "becas.requisito.ver"
 CAP_REQUISITO_CREAR = "becas.requisito.crear"
 CAP_REQUISITO_EDITAR = "becas.requisito.editar"
+CAP_CONVOCATORIA_VER = "becas.convocatoria.ver"
 CAP_PREGUNTA_VER = "becas.pregunta.ver"
 CAP_PREGUNTA_CREAR = "becas.pregunta.crear"
 CAP_PREGUNTA_EDITAR = "becas.pregunta.editar"
