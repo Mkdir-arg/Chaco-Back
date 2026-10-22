@@ -78,7 +78,7 @@ def enmascarar_dni(dni):
     """``12345678`` → ``12.***.678``."""
     if not dni:
         return ""
-    if len(dni) < 6:
+    if len(dni) < 6:  # regla-dni: ok solo decide el enmascarado, no valida
         return "***"
     return f"{dni[:2]}.***.{dni[-3:]}"
 
