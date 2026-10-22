@@ -50,6 +50,7 @@ from programas.models import (
     Subsegmento,
     TipoCampo,
 )
+from programas.selectors.convocatorias import convocatorias_de_segmento
 from programas.services.autorizacion import (
     SegmentoScopedMixin,
     es_admin_becas,
@@ -73,6 +74,7 @@ CAP_SUBSEGMENTO_EDITAR = "becas.subsegmento.editar"
 CAP_REQUISITO_VER = "becas.requisito.ver"
 CAP_REQUISITO_CREAR = "becas.requisito.crear"
 CAP_REQUISITO_EDITAR = "becas.requisito.editar"
+CAP_CONVOCATORIA_VER = "becas.convocatoria.ver"
 CAP_PREGUNTA_VER = "becas.pregunta.ver"
 CAP_PREGUNTA_CREAR = "becas.pregunta.crear"
 CAP_PREGUNTA_EDITAR = "becas.pregunta.editar"
@@ -478,6 +480,14 @@ class SegmentoDetailView(SegmentoScopedMixin, CapacidadRequeridaMixin, LoginRequ
         # Heredados del programa: solo lectura acá, se editan en el detalle del programa.
         ctx["requisitos_programa"] = (
             seg.programa.requisitos.order_by("orden", "id") if seg.programa_id else RequisitoNativo.objects.none()
+        )
+        # Solapa Convocatorias: la capacidad la decide acá y no el rol. Las filas se acotan
+        # con ``convocatorias_visibles`` (dentro del selector): el Coordinador Regional
+        # recibe solo las de su subsegmento, sin esconderle la solapa.
+        puede_ver_convocatorias = puede(self.request.user, CAP_CONVOCATORIA_VER)
+        ctx["puede_ver_convocatorias"] = puede_ver_convocatorias
+        ctx["convocatorias"] = (
+            list(convocatorias_de_segmento(self.request.user, seg)) if puede_ver_convocatorias else []
         )
         ctx["form_segmento"] = SegmentoForm(instance=seg)
         # Las opciones se congelan a lista, como en ``RelevamientoListView``: al renderizar

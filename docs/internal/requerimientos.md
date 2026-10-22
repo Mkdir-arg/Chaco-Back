@@ -484,6 +484,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 356 | Programas de Becas que no validan con SIIS | Becas · programas y revisión de casos | `#siis` `#ui` `#relevamientos` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | sí (`programas.0104`) |
 | 357 | La API de campo de Becas aguanta lo que el teléfono manda: `code` en los errores, reloj adelantado, `client_uuid` en colisión, GPS redondeado, login con módulos y vectores de condiciones | Becas · API de campo | `#api` `#mobile` `#relevamientos` `#gps` | Juez — cruce back ↔ app (Parte 5.1, K1–K8) | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 358 | La app móvil/PWA se espeja a ECOM en dos comandos, test y producción | Transversal · espejo a ECOM de la app (`Chaco-mobile`) | `#infra` `#mobile` `#metodo` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | No requiere |
+| 359 | Detalle del segmento: solapa «Convocatorias» con las del segmento y las de sus subsegmentos | Becas · detalle del segmento | `#convocatorias` `#ui` `#rbac` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -46533,5 +46534,61 @@ Revertir el commit.
 - **22/10/2026 — alta del cambio.**
 - **22/10/2026 — Seguimiento:** los comandos fijan los SHAs al inicio, re-chequean el remoto antes del push y pushean por SHA; el paso de alineación lleva el comando exacto.
 - **22/10/2026 — Seguimiento:** `/pushGitLabecomMOBILEPRD` alinea `main` desde un clon superficial de `main` (`$tmpMain`) y verifica que su `HEAD` sea `$ecomMain`; antes usaba `$tmp`, que es un clon de `test` y no contiene esa punta.
+
+---
+
+# Cambio 359 — Detalle del segmento: solapa «Convocatorias»
+
+🟢 **HECHO — 22/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · detalle del segmento |
+| **Etiquetas** | `#convocatorias` `#ui` `#rbac` |
+| **Solicitante** | PM — pedido en sesión |
+| **Fecha del pedido** | 22/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+«En /becas/config/segmentos/7/, al lado de la solapa Requisitos del segmento, tengamos una solapa de Convocatorias. Cuando entrás ves una tabla con las convocatorias del segmento o del subsegmento, y podés ingresar e ir a su detalle.»
+
+## Alcance acordado
+Solapa de solo lectura en el detalle del segmento. Sin rutas, modelos ni migraciones nuevas. Afuera: activar, desactivar y reactivar (viven en el listado y el detalle de convocatorias) y paginación.
+
+## Decisiones tomadas
+1. **Solapa «Convocatorias»** inmediatamente después de «Requisitos del segmento», con el mismo patrón Alpine (`@click="tab='convs'"`, mismas clases, `x-show` + `x-cloak` en el panel), ícono `fa-bullhorn` (el del vacío del listado de convocatorias; el menú usa un megáfono) y badge con la cantidad.
+2. **Contenido:** todas las convocatorias cuyo `segmento` es este, las del segmento entero (`subsegmento` nulo, que dicen «Todo el segmento») y las de sus subsegmentos. Columnas: Nombre (enlace a `becas:convocatoria_detalle`), Subsegmento, Período, Relevamientos y Estado (`_convocatoria_estado_badge.html`). Sin acciones. Mismo orden que el listado (`-fecha_inicio`, `nombre`). Vacío con `_estado_vacio.html`: «Este segmento todavía no tiene convocatorias.» No se reutilizó `_convocatorias_table.html`: está atada a la paginación, a la columna Segmento, a las acciones y a un vacío con el alta, y parametrizarla obligaba a una variante nueva de una pieza compartida.
+3. **Quién la ve:** por capacidad, nunca por rol. La solapa sale solo con `puede(user, "becas.convocatoria.ver")`, resuelto en la vista (`puede_ver_convocatorias`). Las filas se acotan con `convocatorias_visibles(user)` intersectado con el segmento: el Coordinador Regional ve solo las de su subsegmento. No se esconde con `solo_sus_subsegmentos`: a ese rol se le ocultan Información y Requisitos porque no tiene esas capacidades, y acá decide la capacidad.
+4. **Datos:** la lectura vive en `programas/selectors/convocatorias.py` (`convocatorias_listado_qs`, que ahora comparte el listado de convocatorias, y `convocatorias_de_segmento`), con `select_related` de segmento y subsegmento hasta el programa (lo que mira `pausa_efectiva`) y `annotate` del conteo de relevamientos. Sin N+1 (un test fija que más filas no suman consultas). Sin paginación. Sin consulta si el usuario no tiene la capacidad.
+5. **Solo lectura:** sin rutas, modelos ni migraciones.
+6. **ARIA completo en las 4 solapas de la pantalla** (Información general, Subsegmentos, Requisitos del segmento y Convocatorias), según `componentes/tabs.md`: `tablist` con `aria-label`, `tab` con `aria-controls` y `:aria-selected`, `tabpanel` con `aria-labelledby`; cada `{% if %}` envuelve botón y panel, así que ningún `aria-controls` apunta a un id inexistente. El teclado lo da `nodo-tabs.js` disparando el `click()` de la solapa, sin manejo propio. Los contadores usan `badge-info` en la solapa activa y `badge-gray` en las demás.
+
+## Implementación
+El detalle del segmento tiene la solapa «Convocatorias» con una tabla de las convocatorias del segmento y sus subsegmentos; cada nombre lleva al detalle de la convocatoria.
+
+## Archivos
+- `programas/selectors/convocatorias.py` (nuevo); `programas/views/relevamientos.py` (`_convocatorias_qs` delega en el selector); `programas/views/configuracion.py` (`SegmentoDetailView`).
+- `programas/templates/programas/becas/config/segmento_detail.html`; ficha `.claude/design/dominio/becas.md`.
+- `programas/tests/test_becas_segmento_convocatorias.py` (nuevo).
+
+## Base de datos
+No requiere.
+
+## Validación
+`manage.py check`; `test_becas_segmento_convocatorias` (8 casos), `test_becas_segmentos_diseno`, `test_becas_config`, `test_coordinador_regional`, `test_requisitos_orden_drag`, `test_paginacion_solapas_ola5_pr6b` y `--tag performance` en verde; `design_audit --ratchet` 0 nuevos; `compile_templates --bloques` 0. Mutación: sin `convocatorias_visibles` se pone rojo el test del Coordinador Regional; sin el filtro por segmento, el de «otro segmento» (y otros dos). Ambas revertidas.
+
+## Puesta en marcha en el servidor
+No requiere.
+
+## Pendientes / a definir
+La solapa de otros detalles (subsegmento) no se pidió.
+
+## Reversión
+Revertir el PR; no hay datos.
+
+## Historial
+- **22/10/2026 — alta del cambio.**
 
 ---

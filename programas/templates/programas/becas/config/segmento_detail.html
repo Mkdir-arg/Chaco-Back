@@ -88,33 +88,45 @@
 
   {# Pestañas #}
   <div class="bg-white rounded-xl border border-base shadow-sm">
-    <div class="border-b border-base flex gap-1 px-2">
+    <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones del segmento">
       {% if not solo_sus_subsegmentos %}
       <button @click="tab='info'" type="button"
+              role="tab" id="tab-info" aria-controls="panel-info" :aria-selected="tab==='info'"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='info' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-id-card"></i> Información general
       </button>
       {% endif %}
       <button @click="tab='subs'" type="button"
+              role="tab" id="tab-subs" aria-controls="panel-subs" :aria-selected="tab==='subs'"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='subs' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-list"></i> Subsegmentos
-        <span class="badge badge-gray ml-0.5">{{ subsegmentos|length }}</span>
+        <span class="badge ml-0.5" :class="tab==='subs' ? 'badge-info' : 'badge-gray'">{{ subsegmentos|length }}</span>
       </button>
       {% if not solo_sus_subsegmentos %}
       <button @click="tab='reqs'" type="button"
+              role="tab" id="tab-reqs" aria-controls="panel-reqs" :aria-selected="tab==='reqs'"
               class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
               :class="tab==='reqs' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
         <i class="fas fa-clipboard-list"></i> Requisitos del segmento
-        <span class="badge badge-gray ml-0.5">{{ requisitos|length }}</span>
+        <span class="badge ml-0.5" :class="tab==='reqs' ? 'badge-info' : 'badge-gray'">{{ requisitos|length }}</span>
+      </button>
+      {% endif %}
+      {% if puede_ver_convocatorias %}
+      <button @click="tab='convs'" type="button"
+              role="tab" id="tab-convs" aria-controls="panel-convs" :aria-selected="tab==='convs'"
+              class="px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition flex items-center gap-1.5"
+              :class="tab==='convs' ? 'text-fg-brand border-brand' : 'text-body-subtle border-transparent hover:text-body'">
+        <i class="fas fa-bullhorn" aria-hidden="true"></i> Convocatorias
+        <span class="badge ml-0.5" :class="tab==='convs' ? 'badge-info' : 'badge-gray'">{{ convocatorias|length }}</span>
       </button>
       {% endif %}
     </div>
 
     {# ============ TAB: Información general ============ #}
     {% if not solo_sus_subsegmentos %}
-    <div x-show="tab==='info'" class="p-6 space-y-6">
+    <div role="tabpanel" id="panel-info" aria-labelledby="tab-info" x-show="tab==='info'" x-cloak class="p-6 space-y-6">
 
       {# Stat cards de cupo #}
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -326,7 +338,7 @@
     {% endif %}
 
     {# ============ TAB: Subsegmentos ============ #}
-    <div x-show="tab==='subs'" x-cloak class="p-6 space-y-4">
+    <div role="tabpanel" id="panel-subs" aria-labelledby="tab-subs" x-show="tab==='subs'" x-cloak class="p-6 space-y-4">
       <div class="flex items-start justify-between gap-4 flex-wrap">
         <p class="text-sm text-body-subtle">Cada subsegmento tiene su propio cupo (debe caber dentro del cupo del segmento).</p>
         {% if request.user|puede:"becas.subsegmento.crear" %}
@@ -342,7 +354,7 @@
 
     {# ============ TAB: Requisitos del segmento ============ #}
     {% if not solo_sus_subsegmentos %}
-    <div x-show="tab==='reqs'" x-cloak class="p-6 space-y-4">
+    <div role="tabpanel" id="panel-reqs" aria-labelledby="tab-reqs" x-show="tab==='reqs'" x-cloak class="p-6 space-y-4">
       {% if requisitos_programa %}
       {# Heredados del programa: solo lectura, se editan en el detalle del programa. #}
       <div class="space-y-2">
@@ -383,6 +395,47 @@
       <div id="reqs-panel">
         {% include "programas/becas/config/_requisitos_panel.html" %}
       </div>
+    </div>
+    {% endif %}
+
+    {# ============ TAB: Convocatorias (solo lectura) ============ #}
+    {% if puede_ver_convocatorias %}
+    <div role="tabpanel" id="panel-convs" aria-labelledby="tab-convs" x-show="tab==='convs'" x-cloak class="p-6 space-y-4">
+      <p class="text-sm text-body-subtle">Convocatorias de este segmento y de sus subsegmentos. Para activarlas, desactivarlas o editarlas, entrá a su detalle.</p>
+      {% if convocatorias %}
+      <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Nombre</th>
+                <th class="nodo-th">Subsegmento</th>
+                <th class="nodo-th">Período</th>
+                <th class="nodo-th text-right">Relevamientos</th>
+                <th class="nodo-th text-center">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in convocatorias %}
+              <tr class="hover:bg-secondary">
+                <td class="nodo-td font-semibold text-heading">
+                  <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-fg-brand hover:underline">{{ c.nombre }}</a>
+                </td>
+                <td class="nodo-td text-body">{{ c.subsegmento.nombre|default:"Todo el segmento" }}</td>
+                <td class="nodo-td text-body">{{ c.fecha_inicio|date:"d/m/Y" }} → {{ c.fecha_fin|date:"d/m/Y" }}</td>
+                <td class="nodo-td text-body text-right">{{ c.n_relevamientos }} relevamiento{{ c.n_relevamientos|pluralize }}</td>
+                <td class="nodo-td text-center">
+                  {% include "programas/becas/_convocatoria_estado_badge.html" with convocatoria=c %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      {% include "components/_estado_vacio.html" with icono="fa-bullhorn" titulo="Este segmento todavía no tiene convocatorias." %}
+      {% endif %}
     </div>
     {% endif %}
   </div>
