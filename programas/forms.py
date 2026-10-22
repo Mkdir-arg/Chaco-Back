@@ -6,7 +6,6 @@ from datetime import datetime, time
 
 from django import forms
 from django.contrib.auth.models import User
-from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -1570,22 +1569,25 @@ class ConvocatoriaForm(forms.ModelForm):
 
 
 class _SelectConSegmento(forms.Select):
-    """Select cuyas opciones llevan ``data-segmento``.
+    """Select cuyas opciones llevan ``data-segmento`` (convocatorias) o
+    ``data-segmentos`` (territoriales: ids separados por espacio).
 
     Lo usa el filtro dependiente convocatoria → territorial del alta de
     relevamiento (el JS del template oculta los territoriales que no
-    pertenecen al segmento de la convocatoria elegida).
+    pertenecen al segmento de la convocatoria elegida). Un territorial puede
+    tener varios segmentos; se leen del prefetch de ``segmentos_territoriales``.
     """
 
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
         option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
         instance = getattr(value, "instance", None)
         segmento_id = getattr(instance, "segmento_id", None)
-        if segmento_id is None:
-            asignacion = getattr(instance, "asignacion_territorial", None)
-            segmento_id = getattr(asignacion, "segmento_id", None)
         if segmento_id:
             option["attrs"]["data-segmento"] = segmento_id
+        elif hasattr(instance, "segmentos_territoriales"):
+            ids = [str(asignacion.segmento_id) for asignacion in instance.segmentos_territoriales.all()]
+            if ids:
+                option["attrs"]["data-segmentos"] = " ".join(ids)
         fecha_inicio = getattr(instance, "fecha_inicio", None)
         fecha_fin = getattr(instance, "fecha_fin", None)
         if fecha_inicio and fecha_fin:
@@ -1695,7 +1697,7 @@ class RelevamientoForm(forms.ModelForm):
             self.fields["tipo"].required = False
         from programas.services.autorizacion import usuarios_territoriales_becas
 
-        terr_qs = usuarios_territoriales_becas().select_related("asignacion_territorial", "profile")
+        terr_qs = usuarios_territoriales_becas().select_related("profile").prefetch_related("segmentos_territoriales")
         conv_qs = (
             Convocatoria.objects.select_related("segmento", "subsegmento")
             .filter(
@@ -1813,11 +1815,7 @@ class RelevamientoForm(forms.ModelForm):
         convocatoria = cleaned.get("convocatoria")
         territorial = cleaned.get("territorial")
         if convocatoria and territorial:
-            try:
-                asignacion = territorial.asignacion_territorial
-            except ObjectDoesNotExist:
-                asignacion = None
-            if asignacion is None or asignacion.segmento_id != convocatoria.segmento_id:
+            if not territorial.segmentos_territoriales.filter(segmento_id=convocatoria.segmento_id).exists():
                 self.add_error("territorial", "El territorial no pertenece al segmento de la convocatoria.")
         fecha_desde = cleaned.get("fecha_asignada")
         fecha_hasta = cleaned.get("fecha_hasta")

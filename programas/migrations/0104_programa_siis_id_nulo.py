@@ -3,7 +3,7 @@
 """Programas de Becas que no validan con SIIS: ``siis_programa_id`` pasa a nullable.
 
 Expand puro (NOT NULL -> NULL, la clave sigue UNIQUE: MySQL, MariaDB y SQLite aceptan
-varios NULL). Reversa: ``migrate programas 0102`` falla si hay programas sin SIIS;
+varios NULL). Reversa: ``migrate programas 0103`` falla si hay programas sin SIIS;
 antes hay que borrarlos o vincularlos a un programa del catalogo.
 """
 
@@ -12,7 +12,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("programas", "0102_relevamiento_cierre_automatico_en"),
+        ("programas", "0103_asignacion_territorial_multisegmento"),
     ]
 
     operations = [

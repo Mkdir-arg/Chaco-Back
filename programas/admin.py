@@ -346,8 +346,9 @@ class AsignacionDispositivoAdmin(admin.ModelAdmin):
 
 @admin.register(AsignacionTerritorial)
 class AsignacionTerritorialAdmin(admin.ModelAdmin):
-    list_display = ("territorial", "segmento", "fecha_asignacion")
+    list_display = ("territorial", "segmento", "asignado_por", "fecha_asignacion")
     list_filter = ("segmento",)
+    raw_id_fields = ("territorial", "asignado_por")
     search_fields = ("territorial__username", "segmento__nombre")
 
 

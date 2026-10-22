@@ -54,7 +54,7 @@ class CoordinadorGestionTerritorialesTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         creado = User.objects.get(username="territorial-nuevo")
-        self.assertEqual(creado.asignacion_territorial.segmento, self.segmento)
+        self.assertEqual(creado.segmentos_territoriales.get().segmento, self.segmento)
         self.assertEqual(list(creado.groups.all()), [self.rol_territorial])
 
     def test_no_puede_asignar_segmento_ajeno(self):
@@ -92,7 +92,7 @@ class CoordinadorGestionTerritorialesTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         creado = User.objects.get(username="territorial-modal")
-        self.assertEqual(creado.asignacion_territorial.segmento, self.segmento)
+        self.assertEqual(creado.segmentos_territoriales.get().segmento, self.segmento)
         self.assertEqual(response.json()["user"]["id"], creado.pk)
 
     def test_coordinador_no_puede_crear_otro_coordinador(self):

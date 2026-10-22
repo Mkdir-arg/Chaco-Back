@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 
 from core import rbac
+from users.selectors.usuarios import solo_gestiona_segmentos
 
 
 class UsuariosAdminService:
@@ -27,11 +28,18 @@ class UsuariosAdminService:
         # Programas que el usuario administraba ANTES del cambio: si la edición le
         # quita el rol de administración de alguno, no puede dejarlo huérfano (RN-8).
         programas_previos = UsuariosAdminService._programas_que_administra(user)
+        operador = getattr(form, "operador", None)
+        # Territorial compartido cuyo dueño es de otro gestor: este operador solo
+        # puede tocar SUS segmentos. Se decide acá, con el candado tomado, y no se
+        # confía en cómo se armó el form: un POST a mano no llega a la cuenta.
+        if solo_gestiona_segmentos(operador, user):
+            UsuariosAdminService._sync_asignacion_territorial(
+                user, UsuariosAdminService._segmentos_elegidos(form.cleaned_data), operador=operador
+            )
+            return user
         clave_tipeada = UsuariosAdminService._apply_user_data(form, user)
         user.save()
-        UsuariosAdminService._sync_related_data(
-            user, form.cleaned_data, alcance_group_ids, operador=getattr(form, "operador", None)
-        )
+        UsuariosAdminService._sync_related_data(user, form.cleaned_data, alcance_group_ids, operador=operador)
         UsuariosAdminService._marcar_cambio_obligatorio(form, user, clave_tipeada)
         # Si la edición quitó la última capacidad de administración del sistema
         # (p. ej. el admin se sacó su propio rol), revierte la transacción.
@@ -113,7 +121,9 @@ class UsuariosAdminService:
             en_alcance_seleccionados = [g for g in seleccionados if g.id in alcance_group_ids]
             user.groups.set(fuera_de_alcance + en_alcance_seleccionados)
         UsuariosAdminService._sync_profile(user, cleaned_data)
-        UsuariosAdminService._sync_asignacion_territorial(user, cleaned_data, operador=operador)
+        UsuariosAdminService._sync_asignacion_territorial(
+            user, UsuariosAdminService._segmentos_elegidos(cleaned_data), operador=operador
+        )
         UsuariosAdminService._sync_jerarquia_becas(user, cleaned_data)
 
     @staticmethod
@@ -131,25 +141,47 @@ class UsuariosAdminService:
         user._state.fields_cache["profile"] = perfil
 
     @staticmethod
-    def _sync_asignacion_territorial(user, cleaned_data, operador=None):
-        """Mantiene la asignación de segmento del territorial de Becas.
+    def _segmentos_elegidos(cleaned_data):
+        """Segmentos que eligió el operador (hoy un select simple), o ``None`` si no decidió.
 
-        Regla: un territorial → un segmento, obligatorio mientras tenga un rol
-        con ``becas.campo``. Se decide sobre los grupos FINALES del usuario
-        (post-sync): si perdió el rol se borra la asignación; si lo tiene y el
-        form trajo segmento se crea/actualiza; si lo tiene pero el form no
-        trajo segmento (p. ej. un admin de otro programa que no ve el campo),
-        se conserva la existente.
+        ``None`` conserva las asignaciones: el form no vio el rol territorial.
+        """
+        return cleaned_data.get("segmentos_territoriales_elegidos")
+
+    @staticmethod
+    def _sync_asignacion_territorial(user, segmentos, operador=None):
+        """Mantiene los segmentos del territorial de Becas, por diferencia.
+
+        Se decide sobre los grupos FINALES del usuario (post-sync): si perdió el rol
+        territorial se borran todas sus asignaciones; si lo tiene y vinieron
+        ``segmentos``, se borran las del alcance del operador que ya no están y se
+        crean las que faltan (con ``asignado_por``). Las asignaciones fuera del
+        alcance (de otros gestores, o de segmentos inactivos) no se tocan nunca.
+        Con ``segmentos=None`` (p. ej. un admin de otro programa que no ve el campo)
+        se conserva todo.
+
+        Tolera N filas: nunca ``update_or_create(territorial=...)``.
         """
         from programas.models import AsignacionTerritorial
-        from programas.services.autorizacion import grupos_territoriales_becas
+        from programas.services.autorizacion import grupos_territoriales_becas, segmentos_asignables_territorial
 
+        # Mismo candado que el guardado del usuario: dos altas o ediciones
+        # simultáneas del mismo territorial no se pisan (ya está tomado en la
+        # edición; acá cubre cualquier otro llamador).
+        rbac.tomar_candado_de_administracion()
         es_territorial = user.groups.filter(id__in=grupos_territoriales_becas()).exists()
-        segmento = cleaned_data.get("segmento_territorial")
         if not es_territorial:
             AsignacionTerritorial.objects.filter(territorial=user).delete()
-        elif segmento is not None:
-            AsignacionTerritorial.objects.update_or_create(territorial=user, defaults={"segmento": segmento})
+            return
+        if segmentos is None:
+            return
+        alcance = set(segmentos_asignables_territorial(operador).values_list("pk", flat=True))
+        elegidos = {segmento.pk for segmento in segmentos if segmento.pk in alcance}
+        AsignacionTerritorial.objects.filter(territorial=user, segmento_id__in=alcance - elegidos).delete()
+        for segmento_id in sorted(elegidos):
+            AsignacionTerritorial.objects.get_or_create(
+                territorial=user, segmento_id=segmento_id, defaults={"asignado_por": operador}
+            )
 
     @staticmethod
     def _sync_jerarquia_becas(user, cleaned_data):

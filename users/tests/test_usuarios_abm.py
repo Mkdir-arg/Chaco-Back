@@ -710,7 +710,7 @@ class SegmentoTerritorialABMTests(TestCase):
         )
         self.assertEqual(resp.status_code, 302)
         user = User.objects.get(username="terri_abm")
-        self.assertEqual(user.asignacion_territorial.segmento, self.segmento)
+        self.assertEqual(user.segmentos_territoriales.get().segmento, self.segmento)
         self.assertEqual(AsignacionTerritorial.objects.filter(territorial=user).count(), 1)
 
     def test_rol_sin_capacidad_campo_ignora_segmento(self):

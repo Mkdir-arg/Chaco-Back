@@ -60,6 +60,9 @@ Estado en SIIS: el aviso «SIIS inactivo» (badge y alerta `bg-warning-soft` de 
 `segmento_detail.html`, `_segmentos_table.html` y `_siis_programa_modal.html`) es **informativo**: no
 pausa el programa ni sus hijos, y solo frena el alta en SIIS desde el proceso masivo. El selector de
 convocatoria de `RelevamientoForm` (`programas/forms.py`) excluye por pausa manual, no por SIIS.
+Las opciones del selector de convocatoria llevan `data-segmento` y las del de territorial `data-segmentos`
+(ids separados por espacio: un territorial puede tener varios segmentos); el filtro dependiente de
+`_filtro_territorial.html` compara por pertenencia, no por igualdad.
 
 Programa que no valida con SIIS (`programa.valida_siis` falso, sin `siis_programa_id`): las pantallas de
 configuración y la revisión del caso ocultan todo lo de SIIS —columna «ID SIIS» en «—», botón y modal

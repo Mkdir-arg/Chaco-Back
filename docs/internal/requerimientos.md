@@ -480,7 +480,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 352 | «Nuevo relevamiento» avisa por qué no se puede crear o a quién asignar | Becas · detalle de convocatoria, alta de relevamiento | `#relevamientos` `#ui` `#pausas` | PM — prueba en testing del 21/10/2026 | 21/10/2026 | 🟢 **Hecho** | no |
 | 353 | El cierre automático por vencimiento deja traza en el relevamiento y avisa al extender | Becas · relevamientos y convocatorias | `#relevamientos` `#ui` | Juez — auditoría de Becas (carril D) | 21/10/2026 | 🟢 **Hecho** | sí (`programas.0102`) |
 | 354 | La pantalla del proceso masivo avisa cuántos casos deja afuera y por qué | Becas · proceso masivo a SIIS (pantalla) | `#siis` `#ui` | Juez — casos excluidos sin aviso | 21/10/2026 | 🟢 **Hecho** | no |
-| 355 | Programas de Becas que no validan con SIIS | Becas · programas y revisión de casos | `#siis` `#ui` `#relevamientos` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | sí (`programas.0103`) |
+| 355 | Un territorial puede tener varios segmentos (PR 1: modelo y lectores) | Becas · asignación de territoriales · ABM de usuarios | `#rbac` `#usuarios` `#relevamientos` | PM — territorial en más de un segmento | 22/10/2026 | 🟡 **Parcial — falta el PR 2 (UI y buscador)** | `programas.0103` |
+| 356 | Programas de Becas que no validan con SIIS | Becas · programas y revisión de casos | `#siis` `#ui` `#relevamientos` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | sí (`programas.0104`) |
 
 **Notas del índice**
 
@@ -46038,7 +46039,132 @@ Revertir el commit.
 
 ---
 
-# Cambio 355 — Programas de Becas que no validan con SIIS
+# Cambio 355 — Un territorial puede tener varios segmentos (PR 1: modelo y lectores)
+
+🟡 **PARCIAL — 22/10/2026** (PR 1 de 2: el ABM sigue ofreciendo un solo segmento; el multiselect y el buscador van en el PR 2)
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · asignación de territoriales a segmentos · ABM de usuarios |
+| **Etiquetas** | `#rbac` `#usuarios` `#relevamientos` |
+| **Solicitante** | PM — que un territorial pueda trabajar en más de un segmento |
+| **Fecha del pedido** | 22/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API (la API móvil no lee la asignación: no cambia) |
+| **Migración** | `programas.0103` |
+
+## Pedido original
+
+Hoy un territorial tiene un solo segmento (`AsignacionTerritorial.territorial` era OneToOne). Se pidió que pueda tener
+varios, asignados desde el ABM de usuarios (selector múltiple) y desde el botón «Crear territorial» (buscador de
+territoriales existentes antes del alta). Este PR es la mitad *expand*: modelo, migración y todos los lectores,
+escritores y guardas tolerando N filas. No contradice ninguna decisión registrada (cf. Cambios 16, 263 y 332).
+
+## Alcance acordado
+
+Entra: modelo, migración, helpers de alcance, lectores (listado, alcance del gestor, alta y reasignación de
+relevamientos, filtro JS, seeds, admin de Django), escritor por diferencia y la regla dueño/alguno en el servicio.
+Afuera (PR 2): multiselect en el ABM, aviso visual del bloqueo, buscador y endpoints de «Asignar».
+
+## Decisiones tomadas
+
+Las cinco primeras son las del plan que el PM aprobó **sin responder** las preguntas: quedan como default.
+
+1. **DECISIÓN CLIENTE: dueño.** La cuenta del territorial compartido (usuario, correo, clave, activar/desactivar,
+   «cerrar sesión de la app», datos personales y **sacar o cambiar roles**) la administra el gestor del **segmento
+   dueño** (la asignación de menor pk) o el admin del programa. Cualquier gestor con **algún** segmento lo ve y
+   agrega o quita los suyos. Si el dueño quita su segmento, pasa a ser dueño el siguiente más antiguo.
+2. **DECISIÓN CLIENTE: buscador** con nombre parcial y DNI/correo solo exactos, ajenos enmascarados (PR 2).
+3. **DECISIÓN CLIENTE: inactivos** aparecen en el buscador sin «Asignar»; los reactiva el admin (PR 2).
+4. **DECISIÓN CLIENTE: quitar un segmento con relevamientos abiertos** se permite como hoy y los relevamientos siguen
+   asignados (no se bloquea).
+5. **DECISIÓN CLIENTE: dos PR, espejados a ECOM por separado.**
+6. La regla se hace valer **en el servicio** (`UsuariosAdminService.update_user_from_form`), con el candado de
+   administración ya tomado, y no solo en el form: para un gestor no dueño el guardado solo toca sus segmentos (ni
+   cuenta, ni perfil, ni grupos, ni jerarquía). El form deshabilita esos campos como mejora de UX; un POST armado a
+   mano no los pisa.
+7. **Escritor por diferencia** (`_sync_asignacion_territorial`): borra las filas del usuario con segmento en el
+   alcance del operador y fuera de lo elegido, y hace `get_or_create` de lo elegido en alcance (con `asignado_por`).
+   Las filas fuera del alcance (de otros gestores, de segmentos inactivos) no se tocan nunca. Nada de
+   `update_or_create(territorial=...)`: con dos filas daría `MultipleObjectsReturned`. El form pasa `None` (no tocar)
+   cuando el operador no vio el rol territorial (admin de otro programa) y una lista —aunque vacía— cuando decidió.
+8. **Un solo alcance** (`segmentos_asignables_territorial`): el selector del ABM, el escritor y el alta rápida usan el
+   mismo queryset (gestor acotado → `segmentos_para_gestion_territoriales` activos; resto → todos los activos). El
+   alta rápida mantiene además `puede_gestionar_segmento`. `es_gestor_territorial` se mudó a `users/selectors/roles.py`
+   (se sigue importando desde `users.selectors.usuarios`) para que `programas.services.autorizacion` lo use sin
+   crear un ciclo de imports.
+9. «≥ 1 segmento con rol territorial» se valida sobre el **conjunto final** (filas fuera de alcance que se conservan
+   más lo elegido): un gestor puede quitar su segmento si el territorial conserva otro.
+10. Pre-carga del select con un territorial de varios segmentos: el más antiguo que esté en el alcance del operador;
+    si no hay ninguno, el dueño.
+
+## Implementación
+
+- `AsignacionTerritorial.territorial` es `ForeignKey(related_name="segmentos_territoriales")`, con
+  `UniqueConstraint(segmento, territorial)` (no condicional, existe en MySQL y MariaDB) y `asignado_por` (FK nula).
+- Lectores: `puede_gestionar_usuario` y `usuarios_visibles_para` con «alguno»; `puede_gestionar_credenciales` y
+  `anotar_acciones_del_listado` (`credenciales_editables`) con «dueño» (una consulta para todo el listado);
+  `RelevamientoForm.clean` por pertenencia; las opciones de territorial llevan `data-segmentos="3 7"` (las de
+  convocatoria siguen con `data-segmento`) y los dos JS (`_filtro_territorial.html`, `_alta_rapida_modal.html`)
+  comparan por pertenencia; el modal actualiza la opción si ya existe en vez de duplicarla.
+- Los `getattr(..., "asignacion_territorial", None)` que fallaban en silencio (`puede_gestionar_usuario`, edit form,
+  widget) y el `AttributeError` de `RelevamientoForm.clean` (500) se cambiaron uno por uno.
+- Seeds y admin de Django a `get_or_create(territorial, segmento)`; `seed_perf.py` corrige su comentario.
+
+## Archivos
+
+`programas/models/__init__.py`, `programas/migrations/0103_asignacion_territorial_multisegmento.py`,
+`programas/services/autorizacion.py`, `programas/forms.py`, `programas/views/relevamientos.py`, `programas/admin.py`,
+`users/selectors/usuarios.py`, `users/selectors/roles.py`, `users/forms/__init__.py`, `users/services/admin.py`,
+`users/views/quick_create.py`, `_filtro_territorial.html`, `_alta_rapida_modal.html`, tres seeds, ficha
+`.claude/design/dominio/becas.md`. Tests: `users/tests/test_territorial_multisegmento.py`,
+`programas/tests/test_territorial_multisegmento.py`, `programas/tests/test_migracion_territorial_multisegmento.py`
+y los que afirmaban singularidad.
+
+## Base de datos
+
+`programas.0103`: `AlterField` (OneToOne → FK), `AddConstraint` y `AddField(asignado_por)`, más un `RunPython(noop,
+dedup_reversa)` al final. Son cuatro DDL sobre una tabla chica (cientos de filas); `AddField` nace `null=True`. Sin
+`atomic=False`: si se corta a mitad, el reintento falla con 1061/1091 y se recupera a mano (el comentario de la
+migración trae la receta: mirar `information_schema`, quitar lo que quedó a medias y recién ahí reintentar). El job
+de ida y vuelta siembra una fila por territorial y no ejercita el dedup: lo prueba
+`test_migracion_territorial_multisegmento.py` con el registro histórico de la migración.
+
+## Validación
+
+- `manage.py check` y `makemigrations --check --dry-run` (SYNCDB=False) sin cambios; `check_migraciones.py` 0
+  problemas; `design_audit.py --ratchet` 0 nuevos; `compile_templates.py --bloques` 0; `--tag performance` OK
+  (47 tests, `carga_relevamiento` sin tocar el presupuesto).
+- Mutación: (a) sacar la guarda de dueño de `puede_gestionar_credenciales` → 2 tests en rojo; saltear la guarda
+  en el servicio → 1 en rojo (el que arma el form con otro operador); (b) escritor que borra también fuera de
+  alcance → 8 en rojo. Revertidas.
+
+## Puesta en marcha en el servidor
+
+Solo el deploy (migración `programas.0103`). **PR 1 y PR 2 salen en releases de ECOM distintas**: con el PR 1 solo,
+nadie crea filas múltiples y el código anterior sigue andando; si salen juntos y hay que volver, el código viejo da
+500 en el ABM para los territoriales compartidos.
+
+## Pendientes / a definir
+
+- **PR 2:** multiselect con `.nodo-checks` (segmentos ajenos de solo lectura, aviso visual de por qué la cuenta está
+  bloqueada), buscador en «Crear territorial», endpoints de buscar/asignar con throttle y capacidad, y
+  `usuario_alta_rapida` con `setlist` y derivación al admin cuando el DNI es de un usuario no territorial.
+- Confirmar con el PM las decisiones 1 a 4 (aprobadas sin respuesta explícita).
+
+## Reversión
+
+Orden: primero el PR 2 (si ya salió), después este. `migrate programas 0102` ejecuta `dedup_reversa`: deja **una**
+fila por territorial, la más antigua (el segmento dueño), y recrea el UNIQUE del OneToOne. Se pierden los segmentos
+agregados y `asignado_por`. Código y migración se revierten juntos.
+
+## Historial
+
+- **22/10/2026 — alta del cambio (PR 1).**
+
+---
+
+# Cambio 356 — Programas de Becas que no validan con SIIS
 
 🟢 **HECHO — 22/10/2026**
 
@@ -46050,7 +46176,7 @@ Revertir el commit.
 | **Fecha del pedido** | 22/10/2026 |
 | **Issue / épica** | sin issue |
 | **Partes afectadas** | Backoffice · Servidor/API |
-| **Migración** | `programas.0103` (expand) |
+| **Migración** | `programas.0104` (expand) |
 
 ## Pedido original
 
@@ -46108,7 +46234,7 @@ desacoplados de SIIS por el Cambio 349), cupo, permisos, API móvil e inscripci�
 
 ## Base de datos
 
-`programas.0103`: `AlterField` de `siis_programa_id` de NOT NULL a NULL, sobre una tabla de pocas filas. Es
+`programas.0104`: `AlterField` de `siis_programa_id` de NOT NULL a NULL, sobre una tabla de pocas filas. Es
 *expand*; corre igual en MySQL 8 y MariaDB.
 
 ## Validación
@@ -46135,7 +46261,7 @@ Nada más que el deploy (corre la migración).
 
 - Alcanza con revertir el código; la migración puede quedar aplicada (una columna nullable no molesta al
   código viejo).
-- Para `migrate programas 0102` antes hay que borrar o vincular a SIIS los programas sin SIIS; si no, el
+- Para `migrate programas 0103` antes hay que borrar o vincular a SIIS los programas sin SIIS; si no, el
   `ALTER … NOT NULL` falla.
 - Con el código viejo y programas sin SIIS cargados: la sincronización los marca DESCONOCIDO (informativo), la
   aprobación de sus casos se bloquea pidiendo la consulta, «Validar con SIIS» da 500 (`int(None)`) y las
