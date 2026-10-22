@@ -142,7 +142,7 @@ class UsuariosAdminService:
 
     @staticmethod
     def _segmentos_elegidos(cleaned_data):
-        """Segmentos que eligió el operador (hoy un select simple), o ``None`` si no decidió.
+        """Segmentos que eligió el operador (selector múltiple), o ``None`` si no decidió.
 
         ``None`` conserva las asignaciones: el form no vio el rol territorial.
         """
@@ -178,10 +178,20 @@ class UsuariosAdminService:
         alcance = set(segmentos_asignables_territorial(operador).values_list("pk", flat=True))
         elegidos = {segmento.pk for segmento in segmentos if segmento.pk in alcance}
         AsignacionTerritorial.objects.filter(territorial=user, segmento_id__in=alcance - elegidos).delete()
-        for segmento_id in sorted(elegidos):
-            AsignacionTerritorial.objects.get_or_create(
-                territorial=user, segmento_id=segmento_id, defaults={"asignado_por": operador}
+        # Una consulta por las que ya están y un alta por las que faltan (con el candado
+        # tomado nadie las crea en el medio; el unique cubre cualquier otro llamador).
+        existentes = set(
+            AsignacionTerritorial.objects.filter(territorial=user, segmento_id__in=elegidos).values_list(
+                "segmento_id", flat=True
             )
+        )
+        AsignacionTerritorial.objects.bulk_create(
+            [
+                AsignacionTerritorial(territorial=user, segmento_id=segmento_id, asignado_por=operador)
+                for segmento_id in sorted(elegidos - existentes)
+            ],
+            ignore_conflicts=True,
+        )
 
     @staticmethod
     def _sync_jerarquia_becas(user, cleaned_data):

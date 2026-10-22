@@ -139,14 +139,14 @@ class GuardadoDelNoDuenoTests(_Base):
 
     def test_el_no_dueno_no_toca_la_cuenta_con_un_post_armado(self):
         antes = self._snapshot()
-        resp = self._editar(self.coord_b, segmento_territorial=str(self.seg_b.pk))
+        resp = self._editar(self.coord_b, segmentos_territoriales=[str(self.seg_b.pk)])
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(self._snapshot(), antes)
         self.assertEqual(self._segmentos_del_territorial(), {self.seg_a.pk, self.seg_b.pk})
 
     def test_el_no_dueno_no_saca_el_rol_territorial(self):
         antes = self._snapshot()
-        resp = self._editar(self.coord_b, groups=[], segmento_territorial=str(self.seg_b.pk))
+        resp = self._editar(self.coord_b, groups=[], segmentos_territoriales=[str(self.seg_b.pk)])
         self.assertIn(resp.status_code, (200, 302))
         self.assertEqual(self._snapshot(), antes)
         self.assertTrue(self.territorial.groups.filter(pk=self.rol_territorial.pk).exists())
@@ -156,7 +156,7 @@ class GuardadoDelNoDuenoTests(_Base):
         """El form del admin deja todo editable; el que guarda es el no dueño y el servicio decide solo."""
         antes = self._snapshot()
         form = CustomUserChangeForm(
-            self._data(segmento_territorial=str(self.seg_b.pk)),
+            self._data(segmentos_territoriales=[str(self.seg_b.pk)]),
             instance=self.territorial,
             operador=self.admin,  # el form del admin: todos los campos editables y válidos
         )
@@ -168,12 +168,12 @@ class GuardadoDelNoDuenoTests(_Base):
         self.assertEqual(self._segmentos_del_territorial(), {self.seg_a.pk, self.seg_b.pk})
 
     def test_el_no_dueno_quita_su_segmento_sin_borrar_el_del_dueno(self):
-        resp = self._editar(self.coord_b, segmento_territorial="")
+        resp = self._editar(self.coord_b, segmentos_territoriales=[])
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(self._segmentos_del_territorial(), {self.seg_a.pk})
 
     def test_el_dueno_edita_la_cuenta_y_conserva_la_fila_ajena(self):
-        resp = self._editar(self.coord_a, username="renombrado", segmento_territorial=str(self.seg_a.pk))
+        resp = self._editar(self.coord_a, username="renombrado", segmentos_territoriales=[str(self.seg_a.pk)])
         self.assertEqual(resp.status_code, 302, resp.context["form"].errors if resp.context else None)
         self.territorial.refresh_from_db()
         self.assertEqual(self.territorial.username, "renombrado")
@@ -182,7 +182,7 @@ class GuardadoDelNoDuenoTests(_Base):
 
     def test_el_dueno_que_quita_su_segmento_deja_al_siguiente_como_dueno(self):
         # El set final no queda vacío: la fila de B queda fuera de su alcance y se conserva.
-        resp = self._editar(self.coord_a, segmento_territorial="")
+        resp = self._editar(self.coord_a, segmentos_territoriales=[])
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(self._segmentos_del_territorial(), {self.seg_b.pk})
         self.assertTrue(puede_gestionar_credenciales(self.coord_b, self.territorial))
@@ -190,7 +190,7 @@ class GuardadoDelNoDuenoTests(_Base):
     def test_agregar_un_segmento_no_borra_los_ajenos_y_registra_quien_asigno(self):
         coord_ac = self._coordinador("coord_ac", self.seg_a)
         AsignacionCoordinador.objects.create(segmento=self.seg_c, coordinador=coord_ac)
-        resp = self._editar(coord_ac, segmento_territorial=str(self.seg_c.pk))
+        resp = self._editar(coord_ac, segmentos_territoriales=[str(self.seg_c.pk)])
         self.assertEqual(resp.status_code, 302, resp.context["form"].errors if resp.context else None)
         # A salió (era de su alcance y no lo eligió), B (ajeno) se conserva, C entró.
         self.assertEqual(self._segmentos_del_territorial(), {self.seg_b.pk, self.seg_c.pk})
@@ -208,24 +208,24 @@ class EscritorYFormTests(_Base):
                 username="terri_ms",
                 email="terri@example.com",
                 password="",
-                segmento_territorial=str(self.seg_c.pk),
+                segmentos_territoriales=[str(self.seg_c.pk)],
             ),
         )
         self.assertEqual(resp.status_code, 302, resp.context["form"].errors if resp.context else None)
         self.assertEqual(self._segmentos_del_territorial(), {self.seg_b.pk, self.seg_c.pk})  # A reemplazado
         self.assertEqual(AsignacionTerritorial.objects.get(segmento=self.seg_c).asignado_por, self.admin)
 
-    def test_el_form_precarga_el_segmento_en_alcance_o_el_dueno(self):
+    def test_el_form_precarga_los_segmentos_del_alcance_del_operador(self):
         form = CustomUserChangeForm(instance=self.territorial, operador=self.coord_b)
-        self.assertEqual(form.fields["segmento_territorial"].initial, self.seg_b.pk)
+        self.assertEqual(form.fields["segmentos_territoriales"].initial, [self.seg_b.pk])
         form = CustomUserChangeForm(instance=self.territorial, operador=self.admin)
-        self.assertEqual(form.fields["segmento_territorial"].initial, self.seg_a.pk)
+        self.assertEqual(form.fields["segmentos_territoriales"].initial, [self.seg_a.pk, self.seg_b.pk])
 
     def test_el_form_del_no_dueno_deshabilita_cuenta_perfil_y_roles(self):
         form = CustomUserChangeForm(instance=self.territorial, operador=self.coord_b)
         for nombre in ("username", "email", "password", "first_name", "last_name", "groups", "dni", "telefono"):
             self.assertTrue(form.fields[nombre].disabled, nombre)
-        self.assertFalse(form.fields["segmento_territorial"].disabled)
+        self.assertFalse(form.fields["segmentos_territoriales"].disabled)
         form = CustomUserChangeForm(instance=self.territorial, operador=self.coord_a)
         self.assertFalse(form.fields["username"].disabled)
 
