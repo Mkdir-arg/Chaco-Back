@@ -33,6 +33,7 @@ from programas.forms import (
     VolverACampoForm,
 )
 from programas.models import Convocatoria, Formulario, ListaEspera, Relevamiento, q_con_identidad
+from programas.selectors.convocatorias import convocatorias_listado_qs
 from programas.services.autorizacion import (
     assert_alcance_relevamiento,
     aviso_sin_segmentos_becas,
@@ -123,19 +124,7 @@ def _puede_publico(user):
 
 
 def _convocatorias_qs(request):
-    # El badge de estado de cada fila mira ``pausa_efectiva``, que sube por
-    # segmento → programa y por subsegmento → segmento → programa: sin estas
-    # relaciones precargadas el listado hace tres consultas por convocatoria.
-    return (
-        Convocatoria.objects.select_related(
-            "segmento__programa",
-            "subsegmento__segmento__programa",
-        )
-        .defer("descripcion", "segmento__descripcion", "subsegmento__descripcion")
-        .annotate(n_relevamientos=Count("relevamientos", distinct=True))
-        .filter(pk__in=convocatorias_visibles(request.user))
-        .order_by("-fecha_inicio", "nombre")
-    )
+    return convocatorias_listado_qs(request.user)
 
 
 def _pagina_de_convocatorias(request):

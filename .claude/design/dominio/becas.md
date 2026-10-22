@@ -171,6 +171,21 @@ decide mirarlo. Las coordenadas como texto y el enlace «Abrir mapa» siguen vis
 
 ---
 
+## Solapa «Convocatorias» del detalle del segmento
+
+Evidencia: `programas/templates/programas/becas/config/segmento_detail.html`,
+`programas/selectors/convocatorias.py` (`convocatorias_de_segmento`).
+
+Solo lectura, al lado de «Requisitos del segmento». Tabla canónica con Nombre (enlace a
+`becas:convocatoria_detalle`), Subsegmento («Todo el segmento» si es nulo), Período,
+Relevamientos y Estado (`_convocatoria_estado_badge.html`); sin acciones de activar, desactivar
+ni reactivar, que viven en el listado y el detalle de convocatorias. La solapa decide por la
+capacidad `becas.convocatoria.ver` (flag `puede_ver_convocatorias`, resuelto en la vista), no por
+rol ni por `solo_sus_subsegmentos`; las filas se acotan con `convocatorias_visibles`, así que el
+Coordinador Regional ve solo las de su subsegmento. Vacío: `_estado_vacio.html`.
+
+---
+
 ## Modal de requisito (alta / edición)
 
 Evidencia: `programas/templates/programas/becas/config/requisitos_segmento.html`,
