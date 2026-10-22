@@ -49,7 +49,8 @@ Procedimiento general: `docs/internal/espejo-ecom.md`; ramas: `docs/internal/bra
 4. **Commits de ECOM en `ecom/main` que no tenemos** (ellos editan `.gitlab-ci.yml` y
    `argocd` commitea ahí). Con `merge-base --is-ancestor <ecom/main> origin/main`:
    - OK → avance directo.
-   - No → clon superficial (`git clone --depth=5 --branch main`), `log` y `diff` de lo suyo.
+   - No → clon superficial de `main` en un directorio aparte (`$tmpMain`; `$tmp` es de `test`):
+     `git clone --depth=5 --branch main --quiet <url-ecom> $tmpMain`, `log` y `diff` de lo suyo.
      Si hay cambios de ellos que no tenemos, **PARÁ** (traerlos primero a GitHub). Si
      tocaron `.gitlab-ci.yml`, nuestra copia queda byte a byte igual.
      Si solo diverge por código nuestro, commit de alineación (ver Push).
@@ -88,20 +89,23 @@ empezar desde las comprobaciones. Se pushea por SHA, nunca por ref:
   `$merge = git -C ../Chaco-mobile commit-tree $tree -p $src -p $ecomMain -m "merge: alinear main con origin/main $src"`,
   verificar que `${merge}^{tree}` sea igual a `$tree` **antes** de pushear y
   `git -C ../Chaco-mobile push ecom ${merge}:refs/heads/main`.
-  Si `$ecomMain` **no** está en el clon, se hace en el clon superficial `$tmp`
-  (en `$tmp` el remoto `origin` **es ECOM**):
+  Si `$ecomMain` **no** está en el clon, se hace en un clon superficial **de `main`** (`$tmpMain`;
+  el `$tmp` del paso 2 es de `test` y no contiene `$ecomMain`). Es el de la comprobación 4, o se
+  lo crea acá (`git clone --depth=5 --branch main --quiet <url-ecom> $tmpMain`). En `$tmpMain`
+  el remoto `origin` **es ECOM**. Antes de `commit-tree`, `git -C $tmpMain rev-parse HEAD` tiene
+  que ser igual a `$ecomMain`: si no coincide, **PARÁ**:
 
   ```powershell
-  git -C $tmp fetch <ruta absoluta de ../Chaco-mobile> $src   # local, sin red
-  $tree  = git -C $tmp rev-parse ${src}^{tree}
-  $merge = git -C $tmp commit-tree $tree -p $src -p $ecomMain -m "merge: alinear main con origin/main $src"
-  git -C $tmp rev-parse "${merge}^{tree}"   # igual a $tree ANTES de pushear
-  git -C $tmp push origin ${merge}:refs/heads/main   # en $tmp, `origin` ES ECOM
+  git -C $tmpMain fetch <ruta absoluta de ../Chaco-mobile> $src   # local, sin red
+  $tree  = git -C $tmpMain rev-parse ${src}^{tree}
+  $merge = git -C $tmpMain commit-tree $tree -p $src -p $ecomMain -m "merge: alinear main con origin/main $src"
+  git -C $tmpMain rev-parse "${merge}^{tree}"   # igual a $tree ANTES de pushear
+  git -C $tmpMain push origin ${merge}:refs/heads/main   # en $tmpMain, `origin` ES ECOM
   ```
 
   Ese `fetch` es por ruta absoluta del disco, no toca la red ni GitHub, así que no rompe la
   regla del fetch único. Un solo `push` por corrida: el de `../Chaco-mobile` **o** el de
-  `$tmp`, según dónde esté `$ecomMain`.
+  `$tmpMain`, según dónde esté `$ecomMain`.
 
 Si el clasificador bloquea el push en Bash, por PowerShell o que lo corra el PM.
 
