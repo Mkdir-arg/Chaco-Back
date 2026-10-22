@@ -145,6 +145,9 @@ def motivo_bloqueo_aprobacion(formulario, validacion=_VALIDACION_SIN_BUSCAR):
     programa = segmento.programa
     if programa is None:
         return "El segmento no tiene un programa SIIS configurado."
+    # Un programa que no valida con SIIS no consulta ni exige consulta.
+    if not programa.valida_siis:
+        return None
 
     if validacion is _VALIDACION_SIN_BUSCAR:
         validacion = formulario.validaciones_sis.order_by("-creado").first()
@@ -164,6 +167,9 @@ def advertencia_aprobacion(formulario, validacion=_VALIDACION_SIN_BUSCAR):
     hay un motivo de bloqueo, que ya se informa por su cuenta.
     """
     if motivo_bloqueo_aprobacion(formulario, validacion) is not None:
+        return None
+    programa = formulario.relevamiento.convocatoria.segmento.programa
+    if programa is not None and not programa.valida_siis:
         return None
     if validacion is _VALIDACION_SIN_BUSCAR:
         validacion = formulario.validaciones_sis.order_by("-creado").first()

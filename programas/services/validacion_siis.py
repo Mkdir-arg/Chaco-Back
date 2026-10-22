@@ -30,6 +30,8 @@ def validar_formulario_en_siis(formulario, solicitado_por):
     ciudadano = formulario.ciudadano
     if programa is None:
         raise ValueError("El segmento no tiene configurado el programa correspondiente de SIIS.")
+    if not programa.valida_siis:
+        raise ValueError("Este programa no valida con SIIS.")
     if ciudadano is None or not ciudadano.dni:
         raise ValueError("El formulario no tiene un ciudadano con DNI vinculado.")
 

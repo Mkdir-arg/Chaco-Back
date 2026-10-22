@@ -1278,6 +1278,7 @@
   
 
   
+
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     <div class="px-N py-N border-b border-light flex items-center gap-N">
       <i class="fas fa-plug text-fg-brand"></i>
@@ -1420,6 +1421,7 @@
     </div>
   </section>
   
+
 
   
   

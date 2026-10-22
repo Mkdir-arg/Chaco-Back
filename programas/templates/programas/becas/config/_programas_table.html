@@ -37,7 +37,7 @@
       {% for p in programas %}
       <tr class="hover:bg-tertiary">
         <td class="nodo-td font-semibold text-heading">{{ p.nombre }}</td>
-        <td class="nodo-td text-body text-right">#{{ p.siis_programa_id }}</td>
+        <td class="nodo-td text-body text-right">{% if p.valida_siis %}#{{ p.siis_programa_id }}{% else %}—{% endif %}</td>
         <td class="nodo-td text-body text-right">
           {% if p.n_segmentos %}{{ p.n_segmentos }} segmento{{ p.n_segmentos|pluralize }}{% else %}—{% endif %}
         </td>
@@ -55,11 +55,13 @@
         </td>
         <td class="nodo-td text-right">
           <div class="flex items-center justify-end gap-2">
+            {% if p.valida_siis %}
             <button type="button" aria-label="Ver detalle SIIS de {{ p.nombre }}"
               class="nodo-icon-btn"{% if p.siis_bloqueado %} style="--nodo-icon-btn-color: var(--text-fg-warning)"{% endif %}
               @click="openInfo({{ p|siis_info }})">
               <i class="fas fa-info-circle" aria-hidden="true"></i>
             </button>
+            {% endif %}
             <a href="{% url 'becas:programa_detalle' p.pk %}" class="nodo-icon-btn" aria-label="Ver programa {{ p.nombre }}">
               <i class="fas fa-eye" aria-hidden="true"></i>
             </a>
@@ -83,7 +85,7 @@
     </svg>
   </div>
   <p class="text-[17px] font-bold text-heading">No hay programas vinculados</p>
-  <p class="text-sm text-body" style="max-width:360px">Vinculá el primer programa desde el catálogo de SIIS.</p>
+  <p class="text-sm text-body" style="max-width:360px">Creá el primer programa, con o sin validación en SIIS.</p>
   {% if request.user|puede:"becas.segmento.crear" %}
   <button type="button" @click="modalCrear=true" class="btn-nodo btn-brand btn-base mt-2">
     <i class="fas fa-plus" aria-hidden="true"></i>

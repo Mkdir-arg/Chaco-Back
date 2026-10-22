@@ -13,8 +13,10 @@ from django.core import mail
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
+from django.db import connection
 from django.template import TemplateDoesNotExist
 from django.test import RequestFactory, TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from core import rbac
@@ -1876,6 +1878,8 @@ class ContextoDetalleTests(_BaseRevisionTest):
             "relevamiento",
             "requisitos_segmento",
             "requisitos_subsegmento",
+            # Falso solo si el programa del caso no valida con SIIS: sin tarjetas de SIIS.
+            "siis_aplica",
             "resultado_aviso",
             "tiene_conflicto_duplicado_pendiente",
             "titulo_caso",
@@ -2170,3 +2174,118 @@ class MapaDelCasoTests(_BaseRevisionTest):
         self.form_a.save(update_fields=["gps_lat", "gps_lng"])
 
         self.assertContains(self._detalle(), "no tiene coordenadas GPS")
+
+
+class ProgramaSinSiisTests(_BaseAprobacionTest):
+    """Un programa que no valida con SIIS: los casos se revisan sin la consulta de
+    compatibilidad ni el alta. Un segmento sin programa (dato histórico) no es lo mismo
+    y sigue bloqueando (``AprobarRechazarTests``)."""
+
+    def setUp(self):
+        super().setUp()
+        self.programa.siis_programa_id = None
+        self.programa.siis_programa_datos = {}
+        self.programa.siis_programa_estado = ""
+        self.programa.save()
+        self.validacion.delete()
+        self.enviar = patch("programas.views.revision.enviar_beneficiario_a_siis").start()
+        self.enviar_cupo = patch("programas.views.cupo.enviar_beneficiario_a_siis").start()
+        self.addCleanup(patch.stopall)
+
+    def _traza_siis(self):
+        return TracaFormulario.objects.filter(formulario=self.form_a, campo__icontains="SIIS")
+
+    def test_se_aprueba_sin_consultar_ni_informar_a_siis(self):
+        resp = self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]), follow=True)
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.validar_compatibilidad.assert_not_called()
+        self.enviar.assert_not_called()
+        self.assertFalse(self.form_a.validaciones_sis.exists())
+        self.assertFalse(self.form_a.envios_sis.exists())
+        textos = " ".join(str(m) for m in resp.context["messages"])
+        self.assertIn("Caso aprobado.", textos)
+        self.assertNotIn("SIIS", textos)
+
+    def test_el_motivo_de_bloqueo_no_pide_la_consulta(self):
+        from programas.services.cupo import advertencia_aprobacion, motivo_bloqueo_aprobacion
+
+        self.assertIsNone(motivo_bloqueo_aprobacion(self.form_a))
+        self.assertIsNone(advertencia_aprobacion(self.form_a))
+
+    def test_se_rechaza_sin_traza_ni_avisos_de_siis(self):
+        resp = self.client.post(
+            reverse("becas:formulario_rechazar", args=[self.form_a.pk]), {"motivo": "No cumple"}, follow=True
+        )
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.RECHAZADO)
+        self.validar_compatibilidad.assert_not_called()
+        self.assertFalse(self._traza_siis().exists())
+        self.assertFalse(self.form_a.validaciones_sis.exists())
+        textos = " ".join(str(m) for m in resp.context["messages"])
+        self.assertNotIn("SIIS", textos)
+
+    def test_los_endpoints_de_siis_rechazan_la_operacion(self):
+        self.form_a.estado = Formulario.Estado.APROBADO
+        self.form_a.save(update_fields=["estado"])
+        for nombre in ("formulario_validar_sis", "formulario_enviar_siis", "formulario_datos_siis"):
+            with self.subTest(nombre):
+                resp = self.client.post(reverse(f"becas:{nombre}", args=[self.form_a.pk]), follow=True)
+                self.assertEqual(resp.status_code, 200)
+                textos = [str(m) for m in resp.context["messages"]]
+                self.assertIn("Este programa no valida con SIIS.", textos)
+        self.validar_compatibilidad.assert_not_called()
+        self.enviar.assert_not_called()
+        self.assertFalse(self.form_a.validaciones_sis.exists())
+        self.assertFalse(self.form_a.envios_sis.exists())
+
+    def test_el_detalle_no_muestra_las_tarjetas_de_siis(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.context["siis_aplica"])
+        self.assertContains(resp, "Aprobar")
+        self.assertNotContains(resp, "Resultado SIIS")
+        self.assertNotContains(resp, "Alta en SIIS")
+        self.assertNotContains(resp, "#None")
+
+    def test_el_detalle_de_un_programa_con_siis_si_aplica(self):
+        self.programa.siis_programa_id = 41
+        self.programa.save()
+        resp = self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+        self.assertTrue(resp.context["siis_aplica"])
+
+    def test_el_detalle_sin_siis_no_lee_validaciones_ni_envios(self):
+        self.client.force_login(self.admin)
+        with CaptureQueriesContext(connection) as consultas:
+            self.client.get(reverse("becas:formulario_detalle", args=[self.form_a.pk]))
+        tablas = " ".join(q["sql"] for q in consultas.captured_queries)
+        self.assertNotIn("programas_validacionsis", tablas)
+        self.assertNotIn("programas_enviosiis", tablas)
+
+    def test_promover_desde_la_lista_de_espera_no_informa_a_siis(self):
+        self.seg_a.cupo_maximo = 0
+        self.seg_a.save(update_fields=["cupo_maximo"])
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+        lista = ListaEspera.objects.get(formulario=self.form_a)
+        self.seg_a.cupo_maximo = 10
+        self.seg_a.save(update_fields=["cupo_maximo"])
+        self.client.force_login(self.admin)
+
+        self.client.post(reverse("becas:lista_espera_promover", args=[lista.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.enviar_cupo.assert_not_called()
+        self.validar_compatibilidad.assert_not_called()
+
+    def test_un_segmento_sin_programa_sigue_bloqueando(self):
+        self.seg_a.programa = None
+        self.seg_a.save(update_fields=["programa"])
+
+        self.client.post(reverse("becas:formulario_aprobar", args=[self.form_a.pk]))
+
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.ENVIADO)
