@@ -7,17 +7,30 @@ repetirlo». No implementa nada; los arreglos salen después, por olas, con apro
 Comandos de Git Bash. `<scratchpad>` es el directorio temporal de la sesión, escrito con barras
 `/`. `AAAA-MM` es el año y mes de la auditoría.
 
+**Las variables no sobreviven entre llamadas a Bash.** Después del paso 1, cada bloque empieza con
+el prólogo, con el `SHA` **literal**:
+
+```bash
+SHA=<40 hex>
+RAIZ=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")  # checkout principal: venv y worktrees
+CHECKOUT=$(git rev-parse --show-toplevel)                                   # de acá se leen las rúbricas
+W="$RAIZ/.claude/worktrees/auditoria-${SHA:0:8}"
+PY="$RAIZ/.venv312/Scripts/python.exe"                                      # Python 3.12 + Django 5.2, igual al CI
+PYRUFF="$RAIZ/.venv/Scripts/python.exe"                                     # el que tiene ruff
+export PYTHONIOENCODING=utf-8
+```
+
 ## 1. Worktree del SHA auditado
 
 ```bash
-git fetch origin development
-SHA=$(git rev-parse origin/development)
-RAIZ=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")  # checkout principal: venv y worktrees
-W="$RAIZ/.claude/worktrees/auditoria-${SHA:0:8}"
+git fetch origin development && git rev-parse origin/development     # este es el SHA del prólogo
+```
+
+Con el prólogo:
+
+```bash
+git worktree remove --force "$W" 2>/dev/null; git worktree prune     # restos de una corrida cortada
 git worktree add --detach "$W" "$SHA"
-PY="$RAIZ/.venv312/Scripts/python.exe"                                     # Python 3.12 + Django 5.2, igual al CI
-RUFF="$RAIZ/.venv/Scripts/python.exe"                                      # el que tiene ruff
-export PYTHONIOENCODING=utf-8
 ```
 
 Anotá `SHA`: todas las líneas que se citen son de ese commit. El worktree va en
@@ -26,11 +39,11 @@ tan larga que el checkout falla con `Filename too long`.
 
 ## 2. Línea de base mecánica
 
-A `<scratchpad>/linea-base/`, no al repo. Se le pasa a los auditores.
+A `<scratchpad>/linea-base/`, no al repo. Se le pasa a los auditores. Con el prólogo:
 
 ```bash
 L=<scratchpad>/linea-base; mkdir -p "$L"
-"$RUFF" -m ruff check "$W" --statistics > "$L/ruff.txt"
+"$PYRUFF" -m ruff check "$W" --statistics > "$L/ruff.txt"
 git -C "$W" ls-files -z '*.py' '*.html' '*.js' | sed -z "s|^|$W/|" | xargs -0 wc -l | grep -v ' total$' \
   | awk '$1>1000' | sort -rn > "$L/archivos-grandes.txt"   # -z: hay nombres con espacios
 "$PY" "$W/scripts/perf_audit.py" --output "$L/perf.json" > "$L/perf.txt"
@@ -60,15 +73,15 @@ uno queda acotado a esa app y a lo que la consume.
 | Front (calidad, sin estética) | `FE` | `codigo-limpio.md` (Front) + skill `seguridad-django` §4 XSS | JS de `static/custom/`, lógica en templates; `design.txt` solo como señal |
 | Tests y red de seguridad | `TST` | `codigo-limpio.md` | caminos críticos sin test; tests que pasan por el motivo equivocado (si rompés la guarda, ¿se pone rojo?) |
 
-Prompt de cada uno (rutas de las rúbricas: `<checkout>/.claude/skills/auditoria/rubricas/`, con
-`<checkout>` = `git rev-parse --show-toplevel` del juez):
+Prompt de cada uno, con las rutas ya resueltas (rúbricas en
+`<CHECKOUT>/.claude/skills/auditoria/rubricas/`):
 
 ```
 Modo: completa. Eje: <eje> (prefijo <PREFIJO>). Alcance: <todo el repo | la app <módulo> y sus consumidores>.
 Worktree: <W> (SHA <SHA>; citá líneas de ese commit). Nada se escribe en el worktree.
 Línea de base: <scratchpad>/linea-base/ (<los archivos que sirven a este eje>).
-Rúbricas, leelas enteras con Read: <…>. Ficha: <checkout>/.claude/skills/auditoria/plantillas/ficha.md
-No repitas lo que corre el CI: leé .claude/skills/gates-ci/SKILL.md.
+Rúbricas, leelas enteras con Read: <…>. Ficha: <CHECKOUT>/.claude/skills/auditoria/plantillas/ficha.md
+No repitas lo que corre el CI: leé <CHECKOUT>/.claude/skills/gates-ci/SKILL.md.
 No reportes lo que la auditoría anterior ya descartó: docs/internal/auditoria-2026-10/README.md, sección «0.4 Qué NO hacer».
 Devolvé fichas completas. En esta pasada, el estado es CONFIRMADO (lectura) o PLAUSIBLE.
 ```
@@ -76,7 +89,8 @@ Devolvé fichas completas. En esta pasada, el estado es CONFIRMADO (lectura) o P
 ## 4. Pasada 2 — reproducir lo grave
 
 Por cada ficha CRÍTICA o ALTA, un `Agent(subagent_type="general-purpose", model="sonnet")`,
-de a cuatro en paralelo como mucho. Cada uno recibe la ficha y:
+de a cuatro en paralelo como mucho. Cada uno recibe la ficha y, con las rutas ya resueltas (no
+tiene el prólogo):
 
 - escribe la PoC en `$W/docs/internal/auditoria-AAAA-MM/poc/test_repro_<id>.py`. Como en
   octubre (`docs/internal/auditoria-2026-10/poc/README.md`), el test **afirma el defecto
@@ -124,6 +138,11 @@ En `.gitattributes`, debajo de la línea de `auditoria-2026-10`, agregá
 `docs/internal/auditoria-AAAA-MM/**/*.md text eol=lf`. Con finales de línea mezclados, un
 resolvedor por unión duplicó el README entero de octubre (07-oct).
 
+Antes del commit, `git -C "$W" status --porcelain` tiene que mostrar solo
+`docs/internal/auditoria-AAAA-MM/`, `.gitattributes` y `docs/internal/requerimientos.md`. Si
+aparece una copia de PoC en `<app>/tests/`, borrala: no se commitea.
+
 Entrega: un PR solo de documentación contra `development` (`--repo Mkdir-arg/Chaco-Back`), con su
 entrada en `docs/internal/requerimientos.md`. Pasa por `/auditoria pr <N>` como cualquier PR.
-**Nada se implementa sin aprobación.** Después del merge, `git worktree remove "$W"`.
+**Nada se implementa sin aprobación.** Después del merge, con el prólogo:
+`git worktree remove --force "$W"; git worktree prune`.
