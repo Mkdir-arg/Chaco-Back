@@ -18,8 +18,11 @@ from dataclasses import dataclass
 REPO = "mkdir-arg/chaco-back"
 BASE = "development"
 MARCADOR = re.compile(r"<!--\s*auditoria-chaco\s+veredicto=(APPROVE|CHANGES_NEEDED)\s+sha=([0-9a-f]{40})\s*-->")
-_MERGE = re.compile(r"\bgh\s+pr\s+merge\b")
-_SEPARADORES = re.compile(r"&&|\|\||[;|\n]")
+# Solo en posición de comando: nombrarlo en un `grep` o en un `git commit -m` no consulta GitHub.
+_GH = r"""(?:"(?:[^"]*[\\/])?gh(?:\.exe)?"|'(?:[^']*[\\/])?gh(?:\.exe)?'|(?:[^\s"']*[\\/])?gh(?:\.exe)?)"""
+_MERGE = re.compile(rf"^\s*(?:\w+=\S*\s+)*{_GH}\s+pr\s+merge\b", re.IGNORECASE)
+_SEPARADORES = re.compile(r"&&|\|\||[;|&\n]")  # `&` también: fondo en bash, operador de llamada en PowerShell
+_CONTINUACION = re.compile(r"[\\`]\r?\n")
 _FLAGS_CON_VALOR = {
     "-R",
     "--repo",
@@ -44,7 +47,7 @@ class Merge:
 
 def extraer_merges(comando: str) -> list[Merge]:
     merges = []
-    for tramo in _SEPARADORES.split(comando):
+    for tramo in _SEPARADORES.split(_CONTINUACION.sub(" ", comando)):
         encontrado = _MERGE.search(tramo)
         if not encontrado:
             continue
@@ -62,6 +65,8 @@ def extraer_merges(comando: str) -> list[Merge]:
             elif token in _FLAGS_CON_VALOR:
                 flag, valor = token, tokens[i + 1] if i + 1 < len(tokens) else ""
                 i += 1
+            elif token[:2] in _FLAGS_CON_VALOR:  # corto con el valor pegado: -RMkdir-arg/Chaco-Back, -R=…
+                flag, valor = token[:2], token[2:].removeprefix("=")
             elif token.startswith("-"):
                 flag, valor = token, ""
             else:
@@ -69,7 +74,7 @@ def extraer_merges(comando: str) -> list[Merge]:
             if flag in ("-R", "--repo"):
                 merge.repo = valor
             elif flag == "--match-head-commit":
-                merge.match_head = valor.lower()
+                merge.match_head = valor
             elif not flag and merge.selector is None:
                 merge.selector = valor
             i += 1
@@ -87,8 +92,11 @@ def evaluar(merge: Merge, pr: dict) -> str | None:
         return None
     head = pr["headRefOid"].lower()
     numero = pr.get("number")
-    if merge.match_head and not head.startswith(merge.match_head):
-        return f"--match-head-commit {merge.match_head} no es el head actual del PR #{numero} ({head[:8]})."
+    if merge.match_head and not head.startswith(merge.match_head.lower()):
+        motivo = f"--match-head-commit {merge.match_head} no es el head actual del PR #{numero} ({head[:8]})."
+        if merge.match_head.startswith("$"):
+            motivo += " El hook no expande variables: escribí el SHA literal."
+        return motivo
     veredicto = None
     for comentario in pr.get("comments") or []:
         for valor, sha in MARCADOR.findall(comentario.get("body") or ""):
@@ -133,6 +141,7 @@ def main(stdin: str, consultar=consultar_pr) -> tuple[int, str]:
 
 
 if __name__ == "__main__":
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # en Windows sale en cp1252: «auditor�a»
     codigo, mensaje = main(sys.stdin.buffer.read().decode("utf-8", "replace"))
     if mensaje:
         print(mensaje, file=sys.stderr)

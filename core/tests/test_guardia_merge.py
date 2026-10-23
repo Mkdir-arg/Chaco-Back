@@ -48,6 +48,7 @@ class GuardiaMergeTests(SimpleTestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.guardia = _cargar()
+        cls.addClassCleanup(sys.modules.pop, "guardia_merge", None)
 
     def _correr(self, comando, pr=None, error=None):
         llamadas = []
@@ -127,3 +128,58 @@ class GuardiaMergeTests(SimpleTestCase):
     def test_merge_sin_selector_usa_la_rama_actual(self):
         (merge,) = self.guardia.extraer_merges("gh pr merge --merge --delete-branch")
         self.assertIsNone(merge.selector)
+
+    def test_mencionar_el_comando_sin_ejecutarlo_no_consulta_github(self):
+        for comando in (
+            'grep -n "gh pr merge" docs/internal/requerimientos.md',
+            'git commit -m "docs: antes de gh pr merge se audita"',
+            "echo gh pr merge 940",
+        ):
+            with self.subTest(comando=comando):
+                codigo, _, llamadas = self._correr(comando)
+                self.assertEqual((codigo, llamadas), (0, []))
+
+    def test_reconoce_gh_exe_con_ruta_y_variables_de_entorno(self):
+        for comando in (
+            "gh.exe pr merge 940 --merge",
+            '& "C:\\Program Files\\GitHub CLI\\gh.exe" pr merge 940 --merge',
+            "GH_PROMPT_DISABLED=1 gh pr merge 940 --merge",
+        ):
+            with self.subTest(comando=comando):
+                (merge,) = self.guardia.extraer_merges(comando)
+                self.assertEqual(merge.selector, "940")
+
+    def test_repo_pegado_al_flag(self):
+        for comando in ("gh pr merge 940 -RMkdir-arg/Chaco-Back --merge", "gh pr merge 940 -R=Mkdir-arg/Chaco-Back"):
+            with self.subTest(comando=comando):
+                (merge,) = self.guardia.extraer_merges(comando)
+                self.assertEqual(merge.repo, "Mkdir-arg/Chaco-Back")
+
+    def test_comando_partido_en_varias_lineas(self):
+        for corte in ("\\\n", "`\r\n"):
+            with self.subTest(corte=repr(corte)):
+                (merge,) = self.guardia.extraer_merges(f"gh pr merge 940 --merge {corte}  --match-head-commit abc1234")
+                self.assertEqual((merge.selector, merge.match_head), ("940", "abc1234"))
+
+    def test_selector_por_url_o_por_rama(self):
+        url = "https://github.com/Mkdir-arg/Chaco-Back/pull/940"
+        self.assertEqual(self.guardia.extraer_merges(f"gh pr merge {url} --merge")[0].selector, url)
+        self.assertEqual(self.guardia.extraer_merges("gh pr merge feature/x --merge")[0].selector, "feature/x")
+
+    def test_dos_merges_encadenados_se_evaluan_los_dos(self):
+        aprobados = {"1": _pr([_marca("APPROVE", HEAD)]), "2": _pr()}
+        llamadas = []
+
+        def consultar(merge, cwd):
+            llamadas.append(merge.selector)
+            return aprobados[merge.selector]
+
+        stdin = json.dumps({"tool_input": {"command": "gh pr merge 1 --merge && gh pr merge 2 --merge"}})
+        codigo, _ = self.guardia.main(stdin, consultar=consultar)
+        self.assertEqual((codigo, llamadas), (2, ["1", "2"]))
+
+    def test_match_head_con_variable_avisa_que_no_se_expande(self):
+        comando = 'gh pr merge 940 --merge --match-head-commit "$HEAD_SHA"'
+        codigo, mensaje, _ = self._correr(comando, _pr([_marca("APPROVE", HEAD)]))
+        self.assertEqual(codigo, 2)
+        self.assertIn("no expande variables", mensaje)
