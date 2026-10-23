@@ -9,6 +9,22 @@
     ]
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "-c",
+              "import os,runpy;p=os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','hooks','guardia_merge.py');os.path.isfile(p) and runpy.run_path(p,run_name='__main__')"
+            ],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
