@@ -46780,9 +46780,13 @@ check en el CI; cubrir el merge desde la web de GitHub o por `gh api`.
    código del PR. Se compara el diff propio del PR (contra su merge-base) con
    `git patch-id --stable`, sin `requerimientos.md`: si es igual, se re-sella sin volver a auditar.
 8. **El SHA del merge va literal.** El hook lee el texto del comando antes de que el shell lo
-   expanda: `--match-head-commit "$HEAD_SHA"` se frena aunque el APPROVE esté publicado.
+   expanda: `--match-head-commit "$HEAD_SHA"` se frena aunque el APPROVE esté publicado, y el
+   mensaje del hook lo dice.
 9. **Los worktrees de la skill van en `.claude/worktrees/`.** Con la ruta del scratchpad, en Windows
    el checkout falla con «Filename too long».
+10. **El hook mira `gh pr merge` solo en posición de comando.** Nombrarlo en un `grep` o en un
+    mensaje de commit no consulta GitHub ni frena; a cambio, un merge envuelto en `bash -c` o en
+    `$( )` no pasa por la guarda.
 
 ## Implementación
 Antes de mergear un PR, el juez corre `/auditoria pr <N>`. Dos auditores de solo lectura revisan el
@@ -46808,14 +46812,19 @@ alto. Entrega un informe con fichas, plan por olas, reglas propuestas y descarta
 No requiere.
 
 ## Validación
-- `core.tests.test_guardia_merge`: 13 casos (sin merge, stdin inválido, sin comentario, SHA viejo,
-  CHANGES_NEEDED, último veredicto gana, APPROVE, `--match-head-commit` distinto y abreviado, otra
-  base u otro repo, `gh` caído, comando compuesto, merge sin selector). Mutación: sin la
-  comparación de SHA, el test se pone rojo.
+- `core.tests.test_guardia_merge`: 20 casos. De la guarda: sin merge, stdin inválido, sin
+  comentario, SHA viejo, CHANGES_NEEDED, último veredicto gana, APPROVE, `--match-head-commit`
+  distinto, abreviado o con una variable, otra base u otro repo, `gh` caído, dos merges
+  encadenados. Del lector del comando: comando compuesto, merge sin selector, nombrado en un `grep`
+  o en un commit sin ejecutarlo, `gh.exe` con ruta o con variables de entorno, `-R` con el valor
+  pegado, selector por URL o por rama, comando partido en varias líneas. Mutación: sin la
+  comparación de SHA, sin el ancla de posición, sin `gh.exe`, sin `&` como separador, sin `-R`
+  pegado, sin el aviso de la variable o sin las continuaciones de línea, el test se pone rojo.
 - `core.tests.test_gates_ci`, `test_motor_real`, `test_roundtrip_migraciones`,
-  `test_un_solo_migrador` y `test_guardia_merge` con `.venv312`: 171 OK (33 se saltean por motor
+  `test_un_solo_migrador` y `test_guardia_merge` con `.venv312`: 178 OK (33 se saltean por motor
   real).
-- Lanzador del hook: comando común → 0; sin el archivo del hook → 0; `gh pr merge` sin marcador → 2.
+- Lanzador del hook: comando común → 0; un `grep` que nombra `gh pr merge` → 0; sin el archivo del
+  hook → 0; `gh pr merge` sin marcador → 2; el mensaje sale en UTF-8.
 - Ensayo en seco de los dos modos: `gh pr view` y fetch del ref `pull/N/head`; re-sello con un
   `development` simulado que avanza (iguales → re-sello; con un cambio propio → auditar); línea de
   base completa del modo completo sobre un worktree de `8f7c8d80`.
@@ -46828,7 +46837,8 @@ estándar).
 
 ## Pendientes / a definir
 - La primera auditoría completa con el modo nuevo.
-- El hook no cubre el merge desde la web de GitHub ni `gh api …/merge`.
+- El hook no cubre el merge desde la web de GitHub, por `gh api …/merge` ni envuelto en `bash -c`
+  o en `$( )`.
 
 ## Reversión
 Borrar `.claude/skills/auditoria/`, `.claude/agents/chaco-auditor.md`,
