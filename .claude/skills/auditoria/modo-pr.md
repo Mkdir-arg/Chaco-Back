@@ -45,17 +45,18 @@ tail -1 <scratchpad>/marcadores-$N.txt | sed -E 's/.*veredicto=([A-Z_]+) sha=([0
 ## 3. Re-sello, sin agentes
 
 El juez suele traer `development` al PR o renumerar el Cambio antes de mergear: el SHA cambia,
-pero el código propio del PR no. Se compara el diff propio (contra su merge-base) en los dos SHAs.
+pero el código propio del PR no. Se compara el diff propio (contra su merge-base) en los dos SHAs,
+con `--verbatim`: `--stable` ignora los espacios, y en Python la indentación es código.
 Prólogo, más `OLD=<sha del último APPROVE>`:
 
 ```bash
 git cat-file -e "$OLD^{commit}" 2>/dev/null || git fetch origin "$OLD"
 MB_OLD=$(git merge-base origin/development "$OLD")
 EXCL=':(exclude)docs/internal/requerimientos.md'
-P_OLD=$(git diff "$MB_OLD" "$OLD" -- . "$EXCL" | git patch-id --stable | cut -d' ' -f1)
-P_NEW=$(git diff "$MB" "$HEAD_SHA" -- . "$EXCL" | git patch-id --stable | cut -d' ' -f1)
-R_OLD=$(git diff "$MB_OLD" "$OLD" -- docs/internal/requerimientos.md | git patch-id --stable | cut -d' ' -f1)
-R_NEW=$(git diff "$MB" "$HEAD_SHA" -- docs/internal/requerimientos.md | git patch-id --stable | cut -d' ' -f1)
+P_OLD=$(git diff "$MB_OLD" "$OLD" -- . "$EXCL" | git patch-id --verbatim | cut -d' ' -f1)
+P_NEW=$(git diff "$MB" "$HEAD_SHA" -- . "$EXCL" | git patch-id --verbatim | cut -d' ' -f1)
+R_OLD=$(git diff "$MB_OLD" "$OLD" -- docs/internal/requerimientos.md | git patch-id --verbatim | cut -d' ' -f1)
+R_NEW=$(git diff "$MB" "$HEAD_SHA" -- docs/internal/requerimientos.md | git patch-id --verbatim | cut -d' ' -f1)
 echo "P_OLD=$P_OLD P_NEW=$P_NEW R_OLD=$R_OLD R_NEW=$R_NEW"
 ```
 

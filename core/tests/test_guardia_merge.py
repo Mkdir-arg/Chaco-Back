@@ -7,7 +7,6 @@ y corre en el CI de `development`, igual que los de `design_audit.py` en `test_g
 
 import importlib.util
 import json
-import sys
 import unittest
 from pathlib import Path
 
@@ -23,7 +22,6 @@ VIEJO = "b" * 40
 def _cargar():
     spec = importlib.util.spec_from_file_location("guardia_merge", HOOK)
     modulo = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = modulo  # @dataclass con `from __future__ import annotations` lo busca acá
     spec.loader.exec_module(modulo)
     return modulo
 
@@ -48,7 +46,6 @@ class GuardiaMergeTests(SimpleTestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.guardia = _cargar()
-        cls.addClassCleanup(sys.modules.pop, "guardia_merge", None)
 
     def _correr(self, comando, pr=None, error=None):
         llamadas = []
@@ -134,10 +131,47 @@ class GuardiaMergeTests(SimpleTestCase):
             'grep -n "gh pr merge" docs/internal/requerimientos.md',
             'git commit -m "docs: antes de gh pr merge se audita"',
             "echo gh pr merge 940",
+            'grep -rnE "auditoria|gh pr merge" .claude/',
+            'echo "a; gh pr merge 943"',
+            'git commit -m "docs: x\n\ngh pr merge 940 --merge"',
+            "git commit -q -F - <<'EOF'\nfix: algo\n\ngh pr merge ahora exige auditoria\nEOF",
+            "git commit -m \"$(cat <<'EOF'\nfix: algo\n\ngh pr merge 943 se frena sin APPROVE\nEOF\n)\"",
+            "gh pr create --body \"$(cat <<'EOF'\n```\ngh pr merge <N> --repo Mkdir-arg/Chaco-Back\n```\nEOF\n)\"",
+            "git commit -m @'\nfeat: guardia\n\ngh pr merge ahora exige auditoria\n'@",
+            "git commit -m @'\nfeat: guard, it's on\n\ngh pr merge ahora exige auditoria\n'@",  # apóstrofo impar
         ):
             with self.subTest(comando=comando):
                 codigo, _, llamadas = self._correr(comando)
                 self.assertEqual((codigo, llamadas), (0, []))
+
+    def test_merge_dentro_de_un_bloque(self):
+        for comando in (
+            "gh pr checks 943; if ($?) { gh pr merge 943 --merge --match-head-commit abc1234 }",
+            "if gh pr checks 943; then gh pr merge 943 --merge; fi",
+            "(gh pr merge 943 --merge)",
+            "echo $(gh pr merge 943 --merge)",
+        ):
+            with self.subTest(comando=comando):
+                self.assertEqual([m.selector for m in self.guardia.extraer_merges(comando)], ["943"])
+
+    def test_merge_despues_de_un_heredoc_o_un_here_string(self):
+        for comando in (
+            "cat > f.md <<'EOF'\ngh pr merge 1 --merge\nEOF\ngh pr merge 943 --merge",
+            "Set-Content f.md @'\ngh pr merge 1 --merge\n'@\ngh pr merge 943 --merge",
+            "cat <<EOF > f.md && gh pr merge 943 --merge\ncuerpo\nEOF",
+        ):
+            with self.subTest(comando=comando):
+                self.assertEqual([m.selector for m in self.guardia.extraer_merges(comando)], ["943"])
+
+    def test_una_redireccion_no_es_el_selector(self):
+        for comando, selector in (
+            ("gh pr merge --merge 2>&1", None),
+            ("gh pr merge --merge > salida.txt", None),
+            ("gh pr merge 943 --merge 2>/dev/null", "943"),
+        ):
+            with self.subTest(comando=comando):
+                (merge,) = self.guardia.extraer_merges(comando)
+                self.assertEqual(merge.selector, selector)
 
     def test_reconoce_gh_exe_con_ruta_y_variables_de_entorno(self):
         for comando in (

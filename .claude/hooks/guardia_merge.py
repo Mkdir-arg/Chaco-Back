@@ -11,18 +11,22 @@ from __future__ import annotations
 import json
 import re
 import shlex
-import subprocess
 import sys
-from dataclasses import dataclass
 
 REPO = "mkdir-arg/chaco-back"
 BASE = "development"
 MARCADOR = re.compile(r"<!--\s*auditoria-chaco\s+veredicto=(APPROVE|CHANGES_NEEDED)\s+sha=([0-9a-f]{40})\s*-->")
 # Solo en posición de comando: nombrarlo en un `grep` o en un `git commit -m` no consulta GitHub.
 _GH = r"""(?:"(?:[^"]*[\\/])?gh(?:\.exe)?"|'(?:[^']*[\\/])?gh(?:\.exe)?'|(?:[^\s"']*[\\/])?gh(?:\.exe)?)"""
-_MERGE = re.compile(rf"^\s*(?:\w+=\S*\s+)*{_GH}\s+pr\s+merge\b", re.IGNORECASE)
-_SEPARADORES = re.compile(r"&&|\|\||[;|&\n]")  # `&` también: fondo en bash, operador de llamada en PowerShell
+_PALABRAS = r"(?:(?:if|then|elif|else|do|while|until|time|!)\s+)*"
+_MERGE = re.compile(rf"^\s*{_PALABRAS}(?:\w+=\S*\s+)*{_GH}\s+pr\s+merge\b", re.IGNORECASE)
+# `&` también es fin de comando (fondo en bash, llamada en PowerShell); `{ } ( )` abren y cierran bloques.
+_SEPARADORES = set(";|&\n{}()")
+# Cuerpos de texto que no son comandos: here-string de PowerShell y heredoc de bash (queda la línea que lo abre).
+_HERE_STRING = re.compile(r"@(['\"])[ \t]*\r?\n.*?^\1@", re.S | re.M)
+_HEREDOC = re.compile(r"((?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_]\w*)\2[^\n]*\n).*?(?:^\t*\3\r?$|\Z)", re.S | re.M)
 _CONTINUACION = re.compile(r"[\\`]\r?\n")
+_REDIRECCION = re.compile(r"\d*(?:>>?|<)")
 _FLAGS_CON_VALOR = {
     "-R",
     "--repo",
@@ -38,16 +42,39 @@ _FLAGS_CON_VALOR = {
 }
 
 
-@dataclass
-class Merge:
-    selector: str | None = None
-    repo: str | None = None
-    match_head: str | None = None
+class Merge:  # clase simple y no @dataclass: el hook corre en cada Bash y `dataclasses` tarda en importar
+    def __init__(self, selector: str | None = None, repo: str | None = None, match_head: str | None = None):
+        self.selector, self.repo, self.match_head = selector, repo, match_head
+
+
+def _tramos(comando: str) -> list[str]:
+    """Corta en los separadores que están fuera de comillas: lo citado sigue siendo un argumento."""
+    texto = _CONTINUACION.sub(" ", _HEREDOC.sub(r"\1", _HERE_STRING.sub(r"\1\1", comando)))
+    tramos, actual, comilla, i = [], [], None, 0
+    while i < len(texto):
+        caracter = texto[i]
+        if caracter in "\\`" and comilla != "'" and i + 1 < len(texto):  # escape: el siguiente no corta ni cierra
+            actual.append(texto[i : i + 2])
+            i += 2
+            continue
+        if comilla:
+            comilla = None if caracter == comilla else comilla
+        elif caracter in "'\"":
+            comilla = caracter
+        elif caracter in _SEPARADORES:
+            tramos.append("".join(actual))
+            actual = []
+            i += 1
+            continue
+        actual.append(caracter)
+        i += 1
+    tramos.append("".join(actual))
+    return tramos
 
 
 def extraer_merges(comando: str) -> list[Merge]:
     merges = []
-    for tramo in _SEPARADORES.split(_CONTINUACION.sub(" ", comando)):
+    for tramo in _tramos(comando):
         encontrado = _MERGE.search(tramo)
         if not encontrado:
             continue
@@ -60,6 +87,9 @@ def extraer_merges(comando: str) -> list[Merge]:
         i = 0
         while i < len(tokens):
             token = tokens[i]
+            if _REDIRECCION.match(token):  # `2>`, `> salida.txt`, `2>/dev/null`: ni selector ni flag
+                i += 2 if _REDIRECCION.fullmatch(token) else 1
+                continue
             if token.startswith("--") and "=" in token:
                 flag, valor = token.split("=", 1)
             elif token in _FLAGS_CON_VALOR:
@@ -109,6 +139,8 @@ def evaluar(merge: Merge, pr: dict) -> str | None:
 
 
 def consultar_pr(merge: Merge, cwd: str | None) -> dict:
+    import subprocess  # solo un merge lo necesita: no se paga en cada Bash
+
     comando = ["gh", "pr", "view"]
     if merge.selector:
         comando.append(merge.selector)

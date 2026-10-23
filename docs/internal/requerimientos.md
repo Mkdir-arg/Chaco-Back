@@ -46778,15 +46778,19 @@ check en el CI; cubrir el merge desde la web de GitHub o por `gh api`.
    comentario.
 7. **Re-sello sin agentes.** Traer `development` al PR o renumerar el Cambio cambia el SHA pero no el
    código del PR. Se compara el diff propio del PR (contra su merge-base) con
-   `git patch-id --stable`, sin `requerimientos.md`: si es igual, se re-sella sin volver a auditar.
+   `git patch-id --verbatim`, sin `requerimientos.md`: si es igual, se re-sella sin volver a auditar.
+   `--verbatim` y no `--stable`: el segundo ignora los espacios, y en Python la indentación es código.
 8. **El SHA del merge va literal.** El hook lee el texto del comando antes de que el shell lo
    expanda: `--match-head-commit "$HEAD_SHA"` se frena aunque el APPROVE esté publicado, y el
    mensaje del hook lo dice.
 9. **Los worktrees de la skill van en `.claude/worktrees/`.** Con la ruta del scratchpad, en Windows
    el checkout falla con «Filename too long».
-10. **El hook mira `gh pr merge` solo en posición de comando.** Nombrarlo en un `grep` o en un
-    mensaje de commit no consulta GitHub ni frena; a cambio, un merge envuelto en `bash -c` o en
-    `$( )` no pasa por la guarda.
+10. **El hook mira `gh pr merge` solo en posición de comando, y lee el comando como un shell.**
+    Corta en `; | & { } ( )` y en los saltos de línea que están fuera de comillas, ignora el cuerpo
+    de los heredocs y here-strings y acepta `if`, `then`, `else` o `do` delante. Nombrarlo en un
+    `grep`, en un mensaje de commit o en el cuerpo de un PR no consulta GitHub ni frena; un merge
+    dentro de `if ($?) { … }` sí se controla. A cambio, uno dentro de comillas (`bash -c "…"`,
+    `"$(…)"`) no pasa por la guarda.
 
 ## Implementación
 Antes de mergear un PR, el juez corre `/auditoria pr <N>`. Dos auditores de solo lectura revisan el
@@ -46812,16 +46816,18 @@ alto. Entrega un informe con fichas, plan por olas, reglas propuestas y descarta
 No requiere.
 
 ## Validación
-- `core.tests.test_guardia_merge`: 20 casos. De la guarda: sin merge, stdin inválido, sin
+- `core.tests.test_guardia_merge`: 23 casos. De la guarda: sin merge, stdin inválido, sin
   comentario, SHA viejo, CHANGES_NEEDED, último veredicto gana, APPROVE, `--match-head-commit`
   distinto, abreviado o con una variable, otra base u otro repo, `gh` caído, dos merges
-  encadenados. Del lector del comando: comando compuesto, merge sin selector, nombrado en un `grep`
-  o en un commit sin ejecutarlo, `gh.exe` con ruta o con variables de entorno, `-R` con el valor
-  pegado, selector por URL o por rama, comando partido en varias líneas. Mutación: sin la
-  comparación de SHA, sin el ancla de posición, sin `gh.exe`, sin `&` como separador, sin `-R`
-  pegado, sin el aviso de la variable o sin las continuaciones de línea, el test se pone rojo.
+  encadenados. Del lector del comando: comando compuesto, merge sin selector, nombrado sin
+  ejecutarlo (`grep`, commit en una línea, con heredoc o con here-string, cuerpo de PR), merge
+  dentro de un bloque, merge después de un heredoc, redirección que no es selector, `gh.exe` con
+  ruta o con variables de entorno, `-R` con el valor pegado, selector por URL o por rama, comando
+  partido en varias líneas. Mutación: sacar cualquiera de las trece reglas (comparación de SHA,
+  ancla, `gh.exe`, `&`, `-R` pegado, aviso de la variable, continuaciones, comillas, heredoc,
+  here-string, llaves y paréntesis, palabras clave, redirección) pone el test en rojo.
 - `core.tests.test_gates_ci`, `test_motor_real`, `test_roundtrip_migraciones`,
-  `test_un_solo_migrador` y `test_guardia_merge` con `.venv312`: 178 OK (33 se saltean por motor
+  `test_un_solo_migrador` y `test_guardia_merge` con `.venv312`: 181 OK (33 se saltean por motor
   real).
 - Lanzador del hook: comando común → 0; un `grep` que nombra `gh pr merge` → 0; sin el archivo del
   hook → 0; `gh pr merge` sin marcador → 2; el mensaje sale en UTF-8.
@@ -46829,7 +46835,11 @@ No requiere.
   `development` simulado que avanza (iguales → re-sello; con un cambio propio → auditar); línea de
   base completa del modo completo sobre un worktree de `8f7c8d80`.
 - `scripts/check_design_agent.py --changed`: OK. Cada task revisada por un subagente independiente.
-- Punta a punta: este mismo PR es el primero que pasa por `/auditoria pr` y por el hook.
+- Punta a punta: este mismo PR es el primero que pasa por `/auditoria pr` y por el hook. El hook
+  frenó el merge sin auditoría y con CHANGES_NEEDED. La primera ronda dio CHANGES NEEDED con dos
+  MAJOR del propio hook: un merge dentro de `if ($?) { … }` pasaba sin consultar, y los
+  separadores cortaban dentro de comillas y heredocs y frenaban commits. Se corrigieron en la misma
+  rama; la re-auditoría queda en el PR.
 
 ## Puesta en marcha en el servidor
 No requiere. El hook corre en la máquina de quien mergea, con `python` en el PATH (solo biblioteca
@@ -46837,8 +46847,12 @@ estándar).
 
 ## Pendientes / a definir
 - La primera auditoría completa con el modo nuevo.
-- El hook no cubre el merge desde la web de GitHub, por `gh api …/merge` ni envuelto en `bash -c`
-  o en `$( )`.
+- El hook no cubre el merge desde la web de GitHub, por `gh api …/merge` ni dentro de comillas
+  (`bash -c "…"`, `"$(…)"`).
+- Para el próximo PR del carril (MINOR de la auditoría): las rúbricas remiten a
+  `chaco-dev-reviewer`, `mysql-mariadb` y `CLAUDE.md` en vez de copiarlos; los pasos 2 y 7 de
+  `modo-pr.md` buscan el marcador con la misma expresión que el hook; «Severidad» en
+  `codigo-limpio.md`. Va junto con el escalado por riesgo de los auditores, ya aprobado.
 
 ## Reversión
 Borrar `.claude/skills/auditoria/`, `.claude/agents/chaco-auditor.md`,
@@ -46847,5 +46861,8 @@ Borrar `.claude/skills/auditoria/`, `.claude/agents/chaco-auditor.md`,
 
 ## Historial
 - **23/10/2026 — alta del cambio.**
+- **23/10/2026 — ronda de `/auditoria pr 943`:** el hook lee el comando como un shell (bloques,
+  comillas, heredocs, here-strings, redirecciones), el re-sello usa `--verbatim` y el hook importa
+  `subprocess` solo cuando hay un merge.
 
 ---

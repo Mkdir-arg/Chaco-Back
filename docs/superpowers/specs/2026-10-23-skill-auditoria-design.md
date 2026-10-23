@@ -149,7 +149,7 @@ alcance. Lee la rúbrica como archivo (no la invoca como skill). Todo `.claude/`
 Antes de mergear, el juez suele traer `development` al PR (update-branch) o renumerar el
 Cambio: el SHA cambia y el hook volvería a frenar. Si el PR ya tiene un APPROVE para un SHA
 anterior, el modo B compara **el diff propio del PR** (contra su merge-base) en los dos SHAs
-con `git patch-id --stable`:
+con `git patch-id --verbatim`:
 
 - **Iguales** → el cambio vino solo de la base: publica un comentario de re-sello con el
   marcador para el SHA nuevo, sin lanzar agentes.
