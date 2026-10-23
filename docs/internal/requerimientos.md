@@ -487,6 +487,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 359 | Detalle del segmento: solapa «Convocatorias» con las del segmento y las de sus subsegmentos | Becas · detalle del segmento | `#convocatorias` `#ui` `#rbac` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 360 | DRF 3.18.2: «Pip Audit» vuelve a verde por las 3 CVEs de djangorestframework 3.17.2 | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (22/10/2026) | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 361 | Entrar después de un logout por inactividad ya no termina en un 405 | Transversal / sesión | `#sesion` | PM — reportó el 405 en `https://datanach.ecomdev.ar/logout` | 22/10/2026 | 🟢 **Hecho** | No requiere |
+| 362 | Skill `/auditoria`: auditoría completa de development y control antes de mergear cada PR | Transversal · método de trabajo de los agentes | `#metodo` `#performance` | PM — pedido en sesión | 23/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -46711,5 +46712,130 @@ Revertir el PR; no hay datos.
 
 ## Historial
 - **22/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 362 — Skill `/auditoria`: auditoría completa de development y control antes de mergear cada PR
+
+🟢 **HECHO — 23/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · método de trabajo de los agentes |
+| **Etiquetas** | `#metodo` `#performance` |
+| **Solicitante** | PM — pedido en sesión |
+| **Fecha del pedido** | 23/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | No aplica: herramienta de desarrollo (`.claude/` no viaja al release ni a ECOM) |
+| **Migración** | No requiere |
+
+## Pedido original
+«Me gustaría crear una skill que junte todas estas cosas, tanto de Thermos como las que usamos de
+Chaco, para lanzar un proceso de auditoría completo: desde performance del código, errores,
+mejoras y todo lo que sea para mejorar cómo funciona el código, sin cambiar lógica ni estética.»
+«Siempre auditamos la rama development y es todo el código. Aparte, por cada PR que se arme, me
+gustaría que esta skill se corra siempre antes de mergear el PR a development, para analizar si el
+código es limpio y óptimo. Son dos cosas las que te pido.» Sobre el revisor independiente: «Lo
+reemplaza». Sobre el entregable de la auditoría completa: «Solo el informe, y dentro del informe
+cuál es la solución al error, y también reglas que se pueden sumar a las skills o al modelo para
+no volver a repetir el error al momento de codificar».
+
+## Alcance acordado
+Una skill de proyecto con dos modos, un agente auditor y un hook local:
+- `/auditoria pr <N>` — corre antes de mergear cualquier PR a `development` y **es** la revisión
+  independiente. Publica el veredicto en el PR con un marcador que lee el hook.
+- `/auditoria completa [módulo]` — audita `origin/development` entera (o una app) y entrega solo un
+  informe en `docs/internal/auditoria-AAAA-MM/`. Cada hallazgo trae su solución y la regla para no
+  repetirlo.
+- Hook `PreToolUse` que frena `gh pr merge` a `development` sin un APPROVE para el head actual.
+
+**Afuera:** implementar lo que encuentre la auditoría completa (va por olas, con aprobación); un
+check en el CI; cubrir el merge desde la web de GitHub o por `gh api`.
+
+## Decisiones tomadas
+1. **Una skill, dos modos.** Comparten rúbricas, agente y plantillas; cambia el alcance: todo
+   `development` en un caso, lo que el PR agrega o modifica en el otro.
+2. **El modo `pr` reemplaza al revisor, no se suma.** Sumar un paso por PR vuelve al ciclo lento
+   que se dejó atrás el 08-oct. Absorbe el checklist del revisor liviano y le suma las rúbricas de
+   Thermos. Sigue el «Aprobado @ SHA» y el ciclo acelerado: APPROVE con solo MINOR se mergea y los
+   MINOR pasan al próximo PR del carril.
+3. **Las rúbricas se adaptan, no se copian** (mismo criterio que el Cambio 340). La de calidad de
+   Thermos pide reestructurar «con ambición»: en un PR bloquea solo lo que el PR **empeora**
+   (archivo que cruza las 1000 líneas, condición especial en un flujo ajeno, helper duplicado,
+   lógica en la capa equivocada); la deuda previa queda para el modo completo. Cada rúbrica cita su
+   origen (`cursor/plugins` @ `8b3326d`, MIT) y la skill no depende de que Thermos esté instalado.
+4. **«Sin cambiar lógica ni estética» rige cada propuesta.** La auditoría nunca edita código del
+   producto. Si la única solución cambia una regla de negocio o el diseño, el hallazgo va como
+   `DECISIÓN CLIENTE: <propuesta por defecto>` y no bloquea.
+5. **El modo completo entrega solo el informe, con la regla para no repetir el error.** Si una
+   herramienta puede detectarlo, la regla es un control (chequeo de `design_audit`, regla de ruff,
+   test, presupuesto de consultas), no un párrafo. La prosa va a la skill o al agente del tema, y a
+   `CLAUDE.md` solo si aplica a toda sesión.
+6. **La obligatoriedad es un hook local, no un check del CI.** Un check con Claude necesita una API
+   key como secret, cuesta en cada push y un rojo más frena `Publish main`. Hoy mergea el juez con
+   `gh pr merge --match-head-commit`: el hook cubre ese camino exacto y exige que el SHA auditado sea
+   el que se mergea. Es una guarda del proceso, no de seguridad: no mira quién escribió el
+   comentario.
+7. **Re-sello sin agentes.** Traer `development` al PR o renumerar el Cambio cambia el SHA pero no el
+   código del PR. Se compara el diff propio del PR (contra su merge-base) con
+   `git patch-id --stable`, sin `requerimientos.md`: si es igual, se re-sella sin volver a auditar.
+8. **El SHA del merge va literal.** El hook lee el texto del comando antes de que el shell lo
+   expanda: `--match-head-commit "$HEAD_SHA"` se frena aunque el APPROVE esté publicado.
+9. **Los worktrees de la skill van en `.claude/worktrees/`.** Con la ruta del scratchpad, en Windows
+   el checkout falla con «Filename too long».
+
+## Implementación
+Antes de mergear un PR, el juez corre `/auditoria pr <N>`. Dos auditores de solo lectura revisan el
+diff en paralelo —uno corrección, seguridad, datos y contratos; otro código limpio y rendimiento—
+sin repetir lo que ya mide el CI. El juez verifica lo grave, decide el veredicto y lo publica en el
+PR. Si después se pide mergear, el hook deja pasar el merge solo si hay un APPROVE para ese mismo
+head. Para la auditoría completa, `/auditoria completa` arma un worktree del SHA, una línea de base
+mecánica, siete auditores por eje y una segunda pasada que reproduce con un test lo crítico y lo
+alto. Entrega un informe con fichas, plan por olas, reglas propuestas y descartados.
+
+## Archivos
+- `.claude/skills/auditoria/SKILL.md`, `modo-pr.md`, `modo-completa.md`.
+- `.claude/skills/auditoria/rubricas/correccion-seguridad.md`, `codigo-limpio.md`, `rendimiento.md`.
+- `.claude/skills/auditoria/plantillas/ficha.md`, `comentario-pr.md`.
+- `.claude/agents/chaco-auditor.md` (opus, solo lectura).
+- `.claude/hooks/guardia_merge.py` y su registro `PreToolUse` en `.claude/settings.json`.
+- `core/tests/test_guardia_merge.py` (se saltea si el hook no existe, como en el snapshot de `main`).
+- `CLAUDE.md` §Gates de CI: una línea.
+- `docs/superpowers/specs/2026-10-23-skill-auditoria-design.md` y
+  `docs/superpowers/plans/2026-10-23-skill-auditoria.md`.
+
+## Base de datos
+No requiere.
+
+## Validación
+- `core.tests.test_guardia_merge`: 13 casos (sin merge, stdin inválido, sin comentario, SHA viejo,
+  CHANGES_NEEDED, último veredicto gana, APPROVE, `--match-head-commit` distinto y abreviado, otra
+  base u otro repo, `gh` caído, comando compuesto, merge sin selector). Mutación: sin la
+  comparación de SHA, el test se pone rojo.
+- `core.tests.test_gates_ci`, `test_motor_real`, `test_roundtrip_migraciones`,
+  `test_un_solo_migrador` y `test_guardia_merge` con `.venv312`: 171 OK (33 se saltean por motor
+  real).
+- Lanzador del hook: comando común → 0; sin el archivo del hook → 0; `gh pr merge` sin marcador → 2.
+- Ensayo en seco de los dos modos: `gh pr view` y fetch del ref `pull/N/head`; re-sello con un
+  `development` simulado que avanza (iguales → re-sello; con un cambio propio → auditar); línea de
+  base completa del modo completo sobre un worktree de `8f7c8d80`.
+- `scripts/check_design_agent.py --changed`: OK. Cada task revisada por un subagente independiente.
+- Punta a punta: este mismo PR es el primero que pasa por `/auditoria pr` y por el hook.
+
+## Puesta en marcha en el servidor
+No requiere. El hook corre en la máquina de quien mergea, con `python` en el PATH (solo biblioteca
+estándar).
+
+## Pendientes / a definir
+- La primera auditoría completa con el modo nuevo.
+- El hook no cubre el merge desde la web de GitHub ni `gh api …/merge`.
+
+## Reversión
+Borrar `.claude/skills/auditoria/`, `.claude/agents/chaco-auditor.md`,
+`.claude/hooks/guardia_merge.py`, `core/tests/test_guardia_merge.py`, el bloque `PreToolUse` de
+`.claude/settings.json` y la línea de `CLAUDE.md`. No toca datos ni producto.
+
+## Historial
+- **23/10/2026 — alta del cambio.**
 
 ---
