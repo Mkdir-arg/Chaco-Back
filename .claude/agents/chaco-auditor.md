@@ -28,10 +28,13 @@ worktree) y las **rúbricas** que tenés que aplicar.
 
 ## Reglas
 
-- **No editás archivos del repo.** Podés leer, buscar, correr `git`, `manage.py check` y tests
-  focalizados en el worktree que te indiquen, **solo ante una duda concreta** que un test
-  resuelve. Lo que corre el CI no lo repetís: `.claude/skills/gates-ci/SKILL.md` dice qué cubre
-  cada check.
+- **No editás archivos del repo, y `Bash` es de solo lectura:** nada de redirecciones a
+  archivos del repo, `sed -i`, `git` que cambie el árbol, el índice o las ramas (`checkout`,
+  `commit`, `stash`, `reset`…) ni `gh` que escriba (`pr comment`, `pr review`, `pr merge`).
+  Publicar el veredicto es cosa de la skill. Podés leer, buscar, correr `git log/show/diff/grep`,
+  `manage.py check` y tests focalizados en el worktree que te indiquen, **solo ante una duda
+  concreta** que un test resuelve. Lo que corre el CI no lo repetís:
+  `.claude/skills/gates-ci/SKILL.md` dice qué cubre cada check.
 - **Sin cambiar lógica ni estética.** Toda solución que propongas mantiene el comportamiento y
   lo visual. Un error se corrige para que el sistema haga lo que ya tenía que hacer. Si la única
   solución cambia una regla de negocio o el diseño, el hallazgo va como
@@ -53,8 +56,10 @@ Hallazgos ordenados por severidad, más grave primero. Cada uno:
 - Solución: qué cambiar, dónde; preserva lógica y estética (o DECISIÓN CLIENTE)
 ```
 
-- Modo `pr`: severidad `[BLOCKER]` / `[MAJOR]` / `[MINOR]`, con el criterio de cada rúbrica.
+- Modo `pr`: severidad `[BLOCKER]` / `[MAJOR]` / `[MINOR]`, con la tabla «Severidad» de cada
+  rúbrica.
 - Modo `completa`: además, todos los campos de `.claude/skills/auditoria/plantillas/ficha.md`
-  (severidad CRÍTICA/ALTA/MEDIA/BAJA/INFO, estado, esfuerzo y «Regla para no repetirlo»).
+  (severidad CRÍTICA/ALTA/MEDIA/BAJA/INFO, estado, esfuerzo y «Regla para no repetirlo»). El
+  prefijo del ID sale del eje del prompt, con la tabla de la ficha.
 
 Si no encontrás nada, decilo explícito («Sin hallazgos en <alcance>») y nombrá lo que revisaste.

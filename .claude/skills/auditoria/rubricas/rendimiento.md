@@ -69,8 +69,8 @@ llamadas externas adentro, bloqueos en distinto orden.
 | `scripts/perf_audit.py --scale 200 --output <archivo>` | consultas y tiempos de las superficies clave sobre SQLite, sin base | no: sirve como línea de base del modo `completa` |
 | Banco MySQL `scripts/perf_mysql/` (`bench_mysql.py`, `perfil_ruta.py`; receta en su `README.md`) | tiempos reales con 20.000 casos y las `OPTIONS` de producción; `EXPLAIN ANALYZE` | no: pedirlo cuando un hallazgo depende del plan de ejecución |
 
-Los conteos del CI (SQLite, usuario no superusuario) difieren de los del banco (MySQL, RBAC suma
-consultas): un presupuesto en verde no prueba que la consulta escale.
+Los conteos del CI (SQLite, pocos datos) y los tiempos del banco (MySQL, volumen real) miden cosas
+distintas: un presupuesto en verde dice cuántas consultas hay, no que cada una escale.
 
 ## Qué devolver
 

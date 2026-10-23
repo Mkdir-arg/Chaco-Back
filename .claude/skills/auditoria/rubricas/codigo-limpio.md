@@ -8,20 +8,22 @@ y sus helpers canónicos.
 
 ## Calibración para Chaco (leer primero)
 
-**Modo `pr` — bloquea solo lo que el PR empeora:**
+**Modo `pr` — bloquea solo lo que el PR empeora.** En modo `completa`, la misma situación sobre
+el código existente:
 
-| Situación | Severidad |
-|---|---|
-| El PR lleva un archivo de menos de 1000 líneas a más de 1000 sin una razón estructural fuerte | `[MAJOR]` |
-| El PR mete condiciones especiales (`if` de un caso puntual) en un flujo ajeno o compartido | `[MAJOR]` |
-| El PR escribe un helper que ya existe en su forma canónica (tabla de abajo) | `[MAJOR]` |
-| El PR pone lógica de negocio en la capa equivocada (en una vista, un template o un selector) | `[MAJOR]` |
-| Lo anterior, y además contradice una regla escrita de `CLAUDE.md` | `[BLOCKER]` |
-| Una simplificación posible de código que el PR tocó, sin empeorarlo | `[MINOR]` |
-| Reestructurar código que ya existía y el PR no empeoró | no se reporta en el PR: va como «propuesta para la auditoría completa» |
+| Situación | Modo `pr` | Modo `completa` |
+|---|---|---|
+| Un archivo pasa de menos de 1000 líneas a más de 1000 sin una razón estructural fuerte | `[MAJOR]` | MEDIA |
+| Un archivo que ya pasaba las 1000 líneas crece de forma notable | `[MINOR]`; `[MAJOR]` si lo que suma es lógica que debería vivir en otro módulo | MEDIA |
+| Condiciones especiales (`if` de un caso puntual) en un flujo ajeno o compartido | `[MAJOR]` | MEDIA |
+| Un helper que ya existe en su forma canónica (tabla de abajo), escrito de nuevo | `[MAJOR]` | MEDIA |
+| Lógica de negocio en la capa equivocada (en una vista, un template o un selector) | `[MAJOR]` | MEDIA |
+| Cualquiera de las anteriores que además contradice una regla escrita de `CLAUDE.md` | `[BLOCKER]` | ALTA |
+| Una simplificación posible, sin que el código haya empeorado | `[MINOR]` | BAJA |
+| Reestructurar código que ya existía y el PR no empeoró | no se reporta en el PR: va como «propuesta para la auditoría completa» | MEDIA si traba cambios frecuentes; si no, BAJA |
 
 **Modo `completa`:** la ambición de abajo aplica entera, pero cada propuesta lleva esfuerzo
-(S/M/L) y **no cambia comportamiento ni lo visual**.
+(S/S-M/M/L) y **no cambia comportamiento ni lo visual**.
 
 **Capas del repo** (cada app de dominio):
 
@@ -56,6 +58,10 @@ ese alcance no exijas anotaciones; adentro, sí.
 template, scripts repetidos). Nada visual: eso lo gobierna `.claude/agents/chaco-design-system.md`.
 
 ## Consigna
+
+En modo `pr`, la consigna, las reglas y «Qué escalar» aplican solo a lo que el PR agrega o
+empeora, con la severidad de la tabla de arriba; lo preexistente va como propuesta para la
+auditoría completa.
 
 > Auditá a fondo la calidad del código. Repensá cómo estructurar o implementar el cambio para
 > mejorar de verdad la calidad **sin cambiar el comportamiento**. Mejorá abstracciones y
@@ -102,6 +108,8 @@ template, scripts repetidos). Nada visual: eso lo gobierna `.claude/agents/chaco
 - ¿Esta abstracción se gana su lugar o es solo un envoltorio?
 
 ## Qué escalar
+
+(En modo `pr`, solo si lo trae el PR; ver la Consigna.)
 
 - Una implementación complicada donde un replanteo borraría categorías enteras de complejidad.
 - Refactors que mueven código de lugar sin reducir lo que el lector tiene que tener en la cabeza.

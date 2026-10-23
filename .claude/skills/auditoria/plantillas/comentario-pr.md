@@ -10,7 +10,7 @@ marcador— es la que lee el hook `guardia_merge`: sin ella, o con otro SHA, el 
 ## Auditoría · PR #<N> · `<sha corto>`
 
 **Veredicto:** APPROVE | CHANGES NEEDED
-**Alcance:** <n> archivos · rúbricas: corrección y seguridad, código limpio, rendimiento
+**Alcance:** <n> archivos · rúbricas aplicadas: <las que corrieron de verdad: corrección y seguridad, código limpio, rendimiento>
 
 ### Hallazgos
 - [BLOCKER|MAJOR|MINOR] `archivo:línea` — problema → escenario → solución (preserva lógica y estética).

@@ -16,15 +16,27 @@ queda una sola y la otra figura en «Origen».
 - **Lo que NO hay que hacer:** el arreglo tentador que rompe otra cosa (si aplica)
 - **Tests a agregar:** nombres (`<app>/tests/test_<x>.py::<Clase>.<test>`)
 - **Verificación:** cómo se comprueba que quedó resuelto (test, `perf_budgets.json`, banco MySQL)
-- **Regla para no repetirlo:** **tipo** · **destino** · texto o chequeo propuesto
+- **Regla para no repetirlo:** **control mecánico | skill | agente | CLAUDE.md** · **destino** · texto o chequeo propuesto
 ```
 
 ## IDs
 
-Prefijo del eje + número de dos dígitos: `SEG-01`, `ERR-03`, `PERF-02`, `LIM-05`, `DAT-01`,
-`FE-04`, `TST-02`.
+Prefijo del eje + número de dos dígitos (`SEG-01`, `PERF-02`…):
+
+| Eje | Prefijo |
+|---|---|
+| Seguridad y RBAC | `SEG` |
+| Errores y corrección | `ERR` |
+| Rendimiento y base | `PERF` |
+| Código limpio y arquitectura | `LIM` |
+| Datos, migraciones y operación | `DAT` |
+| Front (calidad, sin estética) | `FE` |
+| Tests y red de seguridad | `TST` |
 
 ## Estados
+
+En la pasada 1 el auditor solo usa `CONFIRMADO (lectura)` o `PLAUSIBLE`; `CONFIRMADO con test` y
+`REFUTADO` los asigna la pasada 2, que escribe y corre la PoC.
 
 - **CONFIRMADO con test:** hay una PoC en `poc/` que lo reproduce.
 - **CONFIRMADO (lectura):** verificado leyendo el código citado.
@@ -46,9 +58,10 @@ Elegí el primero que aplique:
    `pyproject.toml`, un test que falle si reaparece (ratchet), una entrada en
    `scripts/perf_budgets.json`, una regla de `scripts/check_migraciones.py`. Escribí el chequeo
    propuesto (patrón, condición, mensaje).
-2. **Skill o agente del tema** — lo que ninguna herramienta ve, escrito donde se lee en el momento
-   justo: `.claude/skills/mysql-mariadb/` (base), `.claude/skills/seguridad-django/` (seguridad),
-   `.claude/skills/auditoria/rubricas/*.md` (lo que la próxima auditoría tiene que mirar),
-   `.claude/agents/chaco-frontend.md` (front). Escribí el texto tal como quedaría.
+2. **Skill** o **agente** del tema — lo que ninguna herramienta ve, escrito donde se lee en el
+   momento justo. Skill: `.claude/skills/mysql-mariadb/` (base), `.claude/skills/seguridad-django/`
+   (seguridad), `.claude/skills/auditoria/rubricas/*.md` (lo que la próxima auditoría tiene que
+   mirar). Agente: `.claude/agents/chaco-frontend.md` (front), `.claude/agents/chaco-auditor.md`.
+   Escribí el texto tal como quedaría.
 3. **`CLAUDE.md`** — solo si aplica a **toda** sesión de trabajo en el repo. Se carga entero en
    cada sesión: cada línea ahí cuesta en todas.
