@@ -24,11 +24,10 @@ _MERGE = re.compile(rf"^\s*{_PALABRAS}(?:\w+=\S*\s+)*{_GH}\s+pr\s+merge\b", re.I
 _SEPARADORES = ";|&\n{}()"
 _CORTE_SIN_COMILLAS = re.compile(f"[{re.escape(_SEPARADORES)}]")
 _ANTES_DE_COMENTARIO = " \t\n;&|"  # `#` después de esto abre un comentario; en `${#x}` no
-# Cuerpos de texto que no son comandos: here-string de PowerShell y heredoc de bash (queda la línea que lo abre).
-# Sin su línea de cierre no se tocan: un `<<` dentro de un string no borra lo que sigue.
+# Cuerpos de texto que no son comandos: here-string de PowerShell (queda `@''@`) y heredoc de bash, que lo
+# reconoce el lector solo fuera de comillas. Sin su línea de cierre no se tocan.
 _HERE_STRING = re.compile(r"@(['\"])[ \t]*\r?\n.*?^\1@", re.S | re.M)
-_HEREDOC = re.compile(r"((?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_]\w*)\2[^\n]*\n).*?^\t*\3\r?$", re.S | re.M)
-_CONTINUACION = re.compile(r"[\\`]\r?\n")
+_HEREDOC_ABRE = re.compile(r"<<-?[ \t]*(['\"]?)([A-Za-z_]\w*)\1")
 _REDIRECCION = re.compile(r"(?:\d*|\*)(?:>>?|<)")
 _FLAGS_CON_VALOR = {
     "-R",
@@ -53,16 +52,30 @@ class Merge:  # clase simple y no @dataclass: el hook corre en cada Bash y `data
 def _tramos(comando: str, escape: str) -> list[str]:
     """Corta en los separadores que están fuera de comillas: lo citado sigue siendo un argumento.
 
-    Si al final queda una comilla abierta, el lector perdió la cuenta y suma el corte sin comillas:
-    ante la duda ve un merge de más, nunca uno de menos (falla cerrado, como la consulta a GitHub).
+    Si al final queda una comilla o un `$(` abierto, el lector perdió la cuenta y suma el corte sin
+    comillas: ante la duda ve un merge de más, nunca uno de menos (falla cerrado, como la consulta a GitHub).
     """
-    texto = _CONTINUACION.sub(" ", _HEREDOC.sub(r"\1", _HERE_STRING.sub(r"\1\1", comando)))
+    bash = escape == "\\"
+    texto = comando if bash else _HERE_STRING.sub(r"\1\1", comando)
     tramos, actual, comilla, previo, i = [], [], None, "\n", 0
+    pila, pendientes = [], []  # comilla de afuera de cada `(` abierto; terminadores de heredoc de la línea
     while i < len(texto):
         caracter = texto[i]
         if caracter == escape and comilla != "'" and i + 1 < len(texto):  # el siguiente no corta ni cierra
+            salto = re.match(r"\r?\n", texto[i + 1 : i + 3])
+            if salto:  # continuación de línea, solo con el escape del shell y fuera de comentarios
+                actual.append(" ")
+                previo, i = " ", i + 1 + salto.end()
+                continue
             actual.append(texto[i : i + 2])
-            previo = texto[i + 1]
+            previo = escape  # lo escapado es parte de la palabra: un `#` pegado no abre comentario
+            i += 2
+            continue
+        if comilla == '"' and texto.startswith("$(", i):  # sustitución dentro de comillas dobles
+            pila.append(comilla)
+            comilla = None
+            tramos.append("".join(actual) + "$")
+            actual, previo = [], "("
             i += 2
             continue
         if comilla:
@@ -73,16 +86,32 @@ def _tramos(comando: str, escape: str) -> list[str]:
             fin = texto.find("\n", i)
             i = len(texto) if fin == -1 else fin
             continue
+        elif bash and caracter == "<" and (abre := _HEREDOC_ABRE.match(texto, i)) and texto[i - 1 : i] != "<":
+            pendientes.append(abre.group(2))
+            actual.append(abre.group(0))
+            previo, i = abre.group(0)[-1], abre.end()
+            continue
         elif caracter in _SEPARADORES:
             tramos.append("".join(actual))
             actual, previo = [], caracter
+            if caracter == "(" and pila:
+                pila.append(None)
+            elif caracter == ")" and pila:
+                comilla = pila.pop()
             i += 1
+            if caracter == "\n":
+                for palabra in pendientes:  # salta el cuerpo solo si encuentra su línea de cierre
+                    cierre = re.compile(rf"^\t*{re.escape(palabra)}\r?$", re.M).search(texto, i)
+                    if not cierre:
+                        break
+                    i = cierre.end()
+                pendientes = []
             continue
         actual.append(caracter)
         previo = caracter
         i += 1
     tramos.append("".join(actual))
-    if comilla:
+    if comilla or pila:
         tramos += _CORTE_SIN_COMILLAS.split(texto)
     return tramos
 

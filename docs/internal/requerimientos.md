@@ -46790,10 +46790,13 @@ check en el CI; cubrir el merge desde la web de GitHub o por `gh api`.
     de los heredocs y here-strings y acepta `if`, `then`, `else` o `do` delante. Nombrarlo en un
     `grep`, en un mensaje de commit o en el cuerpo de un PR no consulta GitHub ni frena; un merge
     dentro de `if ($?) { … }` sí se controla. A cambio, uno dentro de comillas (`bash -c "…"`,
-    `"$(…)"`) no pasa por la guarda. Un `#` al comienzo de una palabra abre un comentario, y el
-    escape es `\` en Bash y el backtick en PowerShell. Si al final queda una comilla abierta, el
-    lector perdió la cuenta y corta además sin comillas: ante la duda ve un merge de más, nunca uno
-    de menos (falla cerrado, como cuando no puede consultar GitHub).
+    `"$(…)"`) no pasa por la guarda. Todo lo que depende del shell se resuelve en el mismo lector,
+    sin pasadas previas sobre el texto: el escape y la continuación de línea (`\` en Bash, backtick
+    en PowerShell), los comentarios (`#` al comienzo de una palabra), el heredoc (solo Bash y fuera
+    de comillas), el here-string (solo PowerShell) y las comillas que se vuelven a abrir dentro de
+    `"$(…)"`. Si al final queda una comilla o un `$(` abierto, el lector perdió la cuenta y corta
+    además sin comillas: ante la duda ve un merge de más, nunca uno de menos (falla cerrado, como
+    cuando no puede consultar GitHub).
 
 ## Implementación
 Antes de mergear un PR, el juez corre `/auditoria pr <N>`. Dos auditores de solo lectura revisan el
@@ -46819,22 +46822,26 @@ alto. Entrega un informe con fichas, plan por olas, reglas propuestas y descarta
 No requiere.
 
 ## Validación
-- `core.tests.test_guardia_merge`: 25 casos. De la guarda: sin merge, stdin inválido, sin
+- `core.tests.test_guardia_merge`: 26 casos. De la guarda: sin merge, stdin inválido, sin
   comentario, SHA viejo, CHANGES_NEEDED, último veredicto gana, APPROVE, `--match-head-commit`
   distinto, abreviado o con una variable, otra base u otro repo, `gh` caído, dos merges
   encadenados. Del lector del comando: comando compuesto, merge sin selector, nombrado sin
   ejecutarlo (`grep`, commit en una línea, con heredoc o con here-string, cuerpo de PR), merge
-  dentro de un bloque, merge después de un heredoc o de un `<<<`, comentario con una comilla
-  impar, comilla sin cerrar, heredoc sin terminador, escape distinto en Bash y en PowerShell,
-  redirección que no es selector (también `*>`), `gh.exe` con ruta o con variables de entorno,
-  `-R` con el valor pegado, selector por URL o por rama, comando partido en varias líneas.
-  Mutación: sacar o invertir cualquiera de las veintiuna reglas (comparación de SHA, ancla,
-  `gh.exe`, `&`, `-R` pegado, aviso de la variable, continuaciones, comillas, heredoc,
-  here-string, llaves y paréntesis, palabras clave, redirección, comentario, `#` solo al comienzo
-  de una palabra, falla cerrado, escape según el shell, heredoc solo con su terminador, `<<<`,
-  `*>`, una consulta por merge) pone el test en rojo.
+  dentro de un bloque o de `"$( (…); …)"`, merge después de un heredoc o de un `<<<`, comentario
+  con una comilla impar, comilla o `$(` sin cerrar, heredoc sin terminador o nombrado dentro de un
+  string, `@'` en Bash, `<<` en PowerShell, escape y continuación distintos en Bash y en
+  PowerShell, continuación al final de un comentario, `#` pegado a un escape, redirección que no
+  es selector (también `*>`), `gh.exe` con ruta o con variables de entorno, `-R` con el valor
+  pegado, selector por URL o por rama, comando partido en varias líneas. Mutación: sacar o
+  invertir cualquiera de las veintiocho reglas pone el test en rojo. De la guarda: comparación de
+  SHA, ancla, aviso de la variable, una consulta por merge. Del lector: `&`, llaves y paréntesis,
+  palabras clave, comillas, `"$(…)"`, paréntesis anidados, falla cerrado con comilla y con `$(`,
+  escape y continuación según el shell, continuación sin pasada previa, lo escapado es parte de
+  la palabra, comentario, `#` solo al comienzo de una palabra, heredoc en el lector, heredoc sin
+  cierre no se saltea, heredoc solo en Bash, here-string, here-string solo en PowerShell, `<<<`,
+  redirección, `*>`, `gh.exe`, `-R` pegado.
 - `core.tests.test_gates_ci`, `test_motor_real`, `test_roundtrip_migraciones`,
-  `test_un_solo_migrador` y `test_guardia_merge` con `.venv312`: 183 OK (33 se saltean por motor
+  `test_un_solo_migrador` y `test_guardia_merge` con `.venv312`: 184 OK (33 se saltean por motor
   real).
 - Lanzador del hook: comando común → 0; un `grep` que nombra `gh pr merge` → 0; sin el archivo del
   hook → 0; `gh pr merge` sin marcador → 2; el mensaje sale en UTF-8.
@@ -46848,7 +46855,10 @@ No requiere.
   separadores cortaban dentro de comillas y heredocs y frenaban commits. La segunda dio CHANGES
   NEEDED con un MAJOR: si el lector perdía la cuenta de las comillas (un comentario con un
   apóstrofo, la barra en PowerShell, el backtick en Bash, un `<<` sin terminador), el merge pasaba
-  sin consultar. Las dos se corrigieron en la misma rama; la re-auditoría queda en el PR.
+  sin consultar. La tercera dio CHANGES NEEDED con dos MAJOR de la misma raíz: la continuación
+  de línea y el heredoc se resolvían con una regex sobre el texto crudo, sin saber el shell ni
+  dónde había un comentario, y la regla del comentario se activaba dentro de `"$(…)"`. Las tres
+  se corrigieron en la misma rama; la re-auditoría queda en el PR.
 
 ## Puesta en marcha en el servidor
 No requiere. El hook corre en la máquina de quien mergea, con `python` en el PATH (solo biblioteca
@@ -46876,5 +46886,8 @@ Borrar `.claude/skills/auditoria/`, `.claude/agents/chaco-auditor.md`,
 - **24/10/2026 — segunda ronda de `/auditoria pr 943`:** el lector falla cerrado si pierde la cuenta
   de las comillas, reconoce los comentarios, toma el escape según el shell, borra un heredoc solo
   con su línea de cierre y entiende `*>` como redirección.
+- **24/10/2026 — tercera ronda de `/auditoria pr 943`:** la continuación, el heredoc y el
+  here-string pasan adentro del lector, cada uno solo en su shell; `"$(…)"` vuelve a abrir
+  comillas y un `$(` sin cerrar también corta sin comillas.
 
 ---
