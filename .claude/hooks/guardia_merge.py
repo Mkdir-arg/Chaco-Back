@@ -21,12 +21,15 @@ _GH = r"""(?:"(?:[^"]*[\\/])?gh(?:\.exe)?"|'(?:[^']*[\\/])?gh(?:\.exe)?'|(?:[^\s
 _PALABRAS = r"(?:(?:if|then|elif|else|do|while|until|time|!)\s+)*"
 _MERGE = re.compile(rf"^\s*{_PALABRAS}(?:\w+=\S*\s+)*{_GH}\s+pr\s+merge\b", re.IGNORECASE)
 # `&` también es fin de comando (fondo en bash, llamada en PowerShell); `{ } ( )` abren y cierran bloques.
-_SEPARADORES = set(";|&\n{}()")
+_SEPARADORES = ";|&\n{}()"
+_CORTE_SIN_COMILLAS = re.compile(f"[{re.escape(_SEPARADORES)}]")
+_ANTES_DE_COMENTARIO = " \t\n;&|"  # `#` después de esto abre un comentario; en `${#x}` no
 # Cuerpos de texto que no son comandos: here-string de PowerShell y heredoc de bash (queda la línea que lo abre).
+# Sin su línea de cierre no se tocan: un `<<` dentro de un string no borra lo que sigue.
 _HERE_STRING = re.compile(r"@(['\"])[ \t]*\r?\n.*?^\1@", re.S | re.M)
-_HEREDOC = re.compile(r"((?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_]\w*)\2[^\n]*\n).*?(?:^\t*\3\r?$|\Z)", re.S | re.M)
+_HEREDOC = re.compile(r"((?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_]\w*)\2[^\n]*\n).*?^\t*\3\r?$", re.S | re.M)
 _CONTINUACION = re.compile(r"[\\`]\r?\n")
-_REDIRECCION = re.compile(r"\d*(?:>>?|<)")
+_REDIRECCION = re.compile(r"(?:\d*|\*)(?:>>?|<)")
 _FLAGS_CON_VALOR = {
     "-R",
     "--repo",
@@ -47,34 +50,47 @@ class Merge:  # clase simple y no @dataclass: el hook corre en cada Bash y `data
         self.selector, self.repo, self.match_head = selector, repo, match_head
 
 
-def _tramos(comando: str) -> list[str]:
-    """Corta en los separadores que están fuera de comillas: lo citado sigue siendo un argumento."""
+def _tramos(comando: str, escape: str) -> list[str]:
+    """Corta en los separadores que están fuera de comillas: lo citado sigue siendo un argumento.
+
+    Si al final queda una comilla abierta, el lector perdió la cuenta y suma el corte sin comillas:
+    ante la duda ve un merge de más, nunca uno de menos (falla cerrado, como la consulta a GitHub).
+    """
     texto = _CONTINUACION.sub(" ", _HEREDOC.sub(r"\1", _HERE_STRING.sub(r"\1\1", comando)))
-    tramos, actual, comilla, i = [], [], None, 0
+    tramos, actual, comilla, previo, i = [], [], None, "\n", 0
     while i < len(texto):
         caracter = texto[i]
-        if caracter in "\\`" and comilla != "'" and i + 1 < len(texto):  # escape: el siguiente no corta ni cierra
+        if caracter == escape and comilla != "'" and i + 1 < len(texto):  # el siguiente no corta ni cierra
             actual.append(texto[i : i + 2])
+            previo = texto[i + 1]
             i += 2
             continue
         if comilla:
             comilla = None if caracter == comilla else comilla
         elif caracter in "'\"":
             comilla = caracter
+        elif caracter == "#" and previo in _ANTES_DE_COMENTARIO:  # comentario hasta el fin de la línea
+            fin = texto.find("\n", i)
+            i = len(texto) if fin == -1 else fin
+            continue
         elif caracter in _SEPARADORES:
             tramos.append("".join(actual))
-            actual = []
+            actual, previo = [], caracter
             i += 1
             continue
         actual.append(caracter)
+        previo = caracter
         i += 1
     tramos.append("".join(actual))
+    if comilla:
+        tramos += _CORTE_SIN_COMILLAS.split(texto)
     return tramos
 
 
-def extraer_merges(comando: str) -> list[Merge]:
-    merges = []
-    for tramo in _tramos(comando):
+def extraer_merges(comando: str, escape: str = "\\") -> list[Merge]:
+    """`escape` es `\\` en bash y el backtick en PowerShell."""
+    merges, vistos = [], set()
+    for tramo in _tramos(comando, escape):
         encontrado = _MERGE.search(tramo)
         if not encontrado:
             continue
@@ -108,7 +124,10 @@ def extraer_merges(comando: str) -> list[Merge]:
             elif not flag and merge.selector is None:
                 merge.selector = valor
             i += 1
-        merges.append(merge)
+        clave = (merge.selector, merge.repo, merge.match_head)
+        if clave not in vistos:  # el corte sin comillas puede repetir uno: se consulta una vez
+            vistos.add(clave)
+            merges.append(merge)
     return merges
 
 
@@ -161,7 +180,8 @@ def main(stdin: str, consultar=consultar_pr) -> tuple[int, str]:
     if not isinstance(datos, dict):
         return 0, ""
     comando = (datos.get("tool_input") or {}).get("command") or ""
-    for merge in extraer_merges(comando):
+    escape = "`" if datos.get("tool_name") == "PowerShell" else "\\"
+    for merge in extraer_merges(comando, escape):
         try:
             pr = consultar(merge, datos.get("cwd"))
         except Exception as exc:  # gh caído, sin red, JSON roto: sin consulta no se mergea

@@ -47,7 +47,7 @@ class GuardiaMergeTests(SimpleTestCase):
         super().setUpClass()
         cls.guardia = _cargar()
 
-    def _correr(self, comando, pr=None, error=None):
+    def _correr(self, comando, pr=None, error=None, herramienta="Bash"):
         llamadas = []
 
         def consultar(merge, cwd):
@@ -56,7 +56,7 @@ class GuardiaMergeTests(SimpleTestCase):
                 raise error
             return pr
 
-        stdin = json.dumps({"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": "."})
+        stdin = json.dumps({"tool_name": herramienta, "tool_input": {"command": comando}, "cwd": "."})
         codigo, mensaje = self.guardia.main(stdin, consultar=consultar)
         return codigo, mensaje, llamadas
 
@@ -139,6 +139,8 @@ class GuardiaMergeTests(SimpleTestCase):
             "gh pr create --body \"$(cat <<'EOF'\n```\ngh pr merge <N> --repo Mkdir-arg/Chaco-Back\n```\nEOF\n)\"",
             "git commit -m @'\nfeat: guardia\n\ngh pr merge ahora exige auditoria\n'@",
             "git commit -m @'\nfeat: guard, it's on\n\ngh pr merge ahora exige auditoria\n'@",  # apóstrofo impar
+            "# antes (gh pr merge 943) se audita\ngit status",
+            "echo hola  # nota: gh pr merge 943",
         ):
             with self.subTest(comando=comando):
                 codigo, _, llamadas = self._correr(comando)
@@ -159,13 +161,36 @@ class GuardiaMergeTests(SimpleTestCase):
             "cat > f.md <<'EOF'\ngh pr merge 1 --merge\nEOF\ngh pr merge 943 --merge",
             "Set-Content f.md @'\ngh pr merge 1 --merge\n'@\ngh pr merge 943 --merge",
             "cat <<EOF > f.md && gh pr merge 943 --merge\ncuerpo\nEOF",
+            "git commit -m \"docs: usar <<'EOF' en commits\"\ngh pr merge 943 --merge",  # sin terminador
+            'cat <<< "x"\ngh pr merge 943 --merge\nx',  # `<<<` no abre un heredoc
         ):
             with self.subTest(comando=comando):
                 self.assertEqual([m.selector for m in self.guardia.extraer_merges(comando)], ["943"])
 
+    def test_falla_cerrado_si_pierde_la_cuenta_de_las_comillas(self):
+        for comando in (
+            "# check the PR's head\ngh pr merge 943 --merge",
+            'echo "sin cerrar\ngh pr merge 943 --merge',
+            "n=${#x}; gh pr merge 943 --merge",  # `#` pegado a `{` no es comentario
+            'gh pr merge 943 --merge; echo "sin cerrar',  # lo ven las dos pasadas: se consulta una vez
+        ):
+            with self.subTest(comando=comando):
+                self.assertEqual([m.selector for m in self.guardia.extraer_merges(comando)], ["943"])
+
+    def test_el_escape_depende_del_shell(self):
+        bash = "S=`git rev-parse HEAD`; gh pr merge 943 --merge"  # en bash el backtick no escapa
+        powershell = "cd C:\\tmp\\; gh pr merge 943 --merge"  # en PowerShell la barra no escapa
+        self.assertEqual([m.selector for m in self.guardia.extraer_merges(bash)], ["943"])
+        self.assertEqual([m.selector for m in self.guardia.extraer_merges(powershell, escape="`")], ["943"])
+        for comando, herramienta in ((bash, "Bash"), (powershell, "PowerShell")):
+            with self.subTest(herramienta=herramienta):
+                codigo, _, llamadas = self._correr(comando, _pr(), herramienta=herramienta)
+                self.assertEqual((codigo, len(llamadas)), (2, 1))
+
     def test_una_redireccion_no_es_el_selector(self):
         for comando, selector in (
             ("gh pr merge --merge 2>&1", None),
+            ("gh pr merge --merge *>&1", None),
             ("gh pr merge --merge > salida.txt", None),
             ("gh pr merge 943 --merge 2>/dev/null", "943"),
         ):
