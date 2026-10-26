@@ -242,6 +242,56 @@ class SeccionTests(_Base):
 # ── Guardado, condiciones y obligatoriedad ───────────────────────────────────
 
 
+class AvisoPlazasTests(_Base):
+    """P3 avisa que las camas no se cargan acá, solo si el tipo maneja plazas."""
+
+    ALTA = "Las camas se cargan después de guardar"
+    EDICION = "Las camas no se cargan acá"
+
+    def _con_plazas(self, valor):
+        self.tipo.plaza_obligatoria_al_ingresar = valor
+        self.tipo.tipos_plaza_admitidos = []
+        self.tipo.save()
+
+    def test_alta_con_tipo_que_maneja_plazas_muestra_el_aviso(self):
+        self._con_plazas(True)
+        respuesta = self.client.get(self.seccion, {"tipo": self.tipo.pk})
+        self.assertContains(respuesta, self.ALTA)
+        self.assertContains(respuesta, "Nuevo sector")
+        self.assertNotContains(respuesta, self.EDICION)
+
+    def test_alta_con_tipo_sin_plazas_no_muestra_el_aviso(self):
+        self._con_plazas(False)
+        respuesta = self.client.get(self.seccion, {"tipo": self.tipo.pk})
+        self.assertNotContains(respuesta, self.ALTA)
+
+    def test_alta_sin_tipo_elegido_no_muestra_el_aviso(self):
+        self._con_plazas(True)
+        self.assertNotContains(self.client.get(self.crear), self.ALTA)
+
+    def test_alta_que_vuelve_con_errores_conserva_el_aviso_del_tipo_elegido(self):
+        self._con_plazas(True)
+        datos = self._datos()
+        datos["codigo"] = ""
+        self.assertContains(self.client.post(self.crear, datos), self.ALTA)
+
+    def test_edicion_con_tipo_que_maneja_plazas_muestra_el_texto_de_edicion_con_enlace(self):
+        self._con_plazas(True)
+        self._alta()
+        dispositivo = Dispositivo.objects.get(codigo="FA-1")
+        respuesta = self.client.get(reverse("dispositivos:editar", args=[dispositivo.pk]))
+        self.assertContains(respuesta, self.EDICION)
+        self.assertContains(respuesta, reverse("dispositivos:sectores", args=[dispositivo.pk]))
+        self.assertNotContains(respuesta, self.ALTA)
+
+    def test_edicion_con_tipo_sin_plazas_no_muestra_el_aviso(self):
+        self._con_plazas(False)
+        self._alta()
+        dispositivo = Dispositivo.objects.get(codigo="FA-1")
+        respuesta = self.client.get(reverse("dispositivos:editar", args=[dispositivo.pk]))
+        self.assertNotContains(respuesta, self.EDICION)
+
+
 class GuardadoTests(_Base):
     def test_el_alta_guarda_la_foto_la_version_y_las_respuestas_tipadas(self):
         respuesta = self._alta(respuestas=self._completo())

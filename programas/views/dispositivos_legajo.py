@@ -16,7 +16,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.archivos import archivos_atomicos
 from core.rbac import puede
-from programas.forms import DispositivoForm, formulario_tipo_para
+from programas.forms import DispositivoForm, formulario_tipo_para, tipos_para_dispositivo
 from programas.forms_dispositivos import (
     AgregarPlazasForm,
     CambioPlazaForm,
@@ -172,11 +172,25 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         return context
 
 
+def tipo_maneja_plazas(tipo_id, dispositivo=None):
+    """¿El tipo elegido en P3 maneja sectores y plazas? Sin tipo elegido, ``False``: el
+    aviso de que las camas se cargan en «Sectores y plazas» no se muestra."""
+    if tipo_id is None:
+        return False
+    tipo = tipos_para_dispositivo(dispositivo).filter(pk=tipo_id).first()
+    return bool(tipo and tipo.maneja_plazas)
+
+
 class FormularioInstitucionMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["puede_enviar_validacion"] = puede_enviar_desde_formulario(self.request.user, context["form"].instance)
         context["formulario_tipo"] = context["form"].formulario_tipo
+        # El aviso de «las camas se cargan en Sectores y plazas» sigue al tipo elegido: el del
+        # POST si vino, si no el guardado. En la edición enlaza a los sectores de la institución.
+        form = context["form"]
+        context["aviso_plazas"] = tipo_maneja_plazas(form._tipo_elegido(), form.instance)
+        context["url_sectores"] = reverse("dispositivos:sectores", args=[form.instance.pk]) if form.instance.pk else ""
         return context
 
     def _guardar_formulario_tipo(self, form, dispositivo):
@@ -315,7 +329,11 @@ class DispositivoFormularioTipoView(LoginRequiredMixin, View):
         return render(
             request,
             "programas/dispositivos/legajo/_formulario_tipo.html",
-            {"formulario_tipo": formulario},
+            {
+                "formulario_tipo": formulario,
+                "aviso_plazas": tipo_maneja_plazas(tipo, dispositivo),
+                "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]) if dispositivo else "",
+            },
         )
 
 

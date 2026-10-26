@@ -3,6 +3,8 @@ Formulario «Crear dispositivo» del tipo elegido (P17, carril 2), en su propia 
 desde la foto vigente del diseño: la tarjeta lleva un encabezado y una sección por grupo, sus textos y sus campos, nombrados
 por clave con el prefijo `formulario-`. La misma pieza la devuelve
 `dispositivos:formulario_tipo_seccion` cuando cambia el tipo; sin formulario sale vacía (no queda ni la tarjeta).
+Al final lleva el aviso informativo de que las camas no se cargan en P3 sino en «Sectores y plazas»
+(`aviso_plazas`, solo si el tipo elegido maneja plazas; `url_sectores` lo enlaza en la edición).
 
 `data-item` y `formulario-tipo-items` son lo que lee el JS de la pantalla para evaluar las
 condiciones con `nodo-condiciones.js` (el servidor las vuelve a evaluar al guardar).
@@ -38,4 +40,13 @@ El asterisco marca lo que exige «Enviar a validación», no el guardado.
 {% endfor %}
   </div>
 </section>
+{% endif %}
+{% if aviso_plazas %}
+<div class="mt-5">
+{% if url_sectores %}
+  {% include "components/_alerta.html" with tono="info" titulo="Las camas no se cargan acá" texto="Se cargan en el detalle de la institución, solapa «Sectores y plazas»." accion_url=url_sectores accion_texto="Ir a Sectores y plazas" only %}
+{% else %}
+  {% include "components/_alerta.html" with tono="info" titulo="Las camas se cargan después de guardar" texto="En el detalle de la institución, solapa «Sectores y plazas»: primero «Nuevo sector» y después «Agregar plazas»." only %}
+{% endif %}
+</div>
 {% endif %}
