@@ -307,6 +307,54 @@
           {% endfor %}
         </div>
 
+        {% if infraestructura.en_tabla %}
+        {# Con 2 o más edificios: una fila por edificio; «Ver» abre uno solo con su registro fotográfico #}
+        <div class="overflow-x-auto border-t border-light">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Edificio</th>
+                <th class="nodo-th">Domicilio</th>
+                <th class="nodo-th">Estado</th>
+                <th class="nodo-th">Último relevamiento</th>
+                <th class="nodo-th text-right">Instituciones en el predio</th>
+                <th class="nodo-th text-right w-28"><span class="sr-only">Acciones</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for edificio in infraestructura.edificios %}
+              {% with pk_texto=edificio.pk|stringformat:"s" %}
+              <tr class="hover:bg-secondary transition">
+                <td class="nodo-td">
+                  <a href="{{ url_detalle }}?tab=infraestructura&amp;ver_edificio={{ edificio.pk }}" class="font-medium text-fg-brand hover:underline">{{ edificio.nombre }}</a>
+                  <span class="text-xs text-body-subtle block mt-px">{{ edificio.codigo }}</span>
+                </td>
+                <td class="nodo-td">{{ edificio.domicilio|default:'—' }}</td>
+                <td class="nodo-td"><span class="badge badge-dot badge-{{ edificio.semaforo.tono }}">{{ edificio.semaforo.texto }}</span></td>
+                <td class="nodo-td whitespace-nowrap">{% if edificio.ultima %}{{ edificio.ultima.realizada_en|date:"d/m/Y" }}{% else %}<span class="text-body-subtle">Sin relevar</span>{% endif %}</td>
+                <td class="nodo-td text-right">{{ edificio.otras_instituciones|add:1 }}</td>
+                <td class="nodo-td text-right whitespace-nowrap">
+                  {% menu_fila id="edificio-"|add:pk_texto etiqueta="Acciones del edificio "|add:edificio.nombre %}
+                    {% include "components/_menu_fila_item.html" with texto="Ver" icono="fa-eye" url=url_detalle|add:"?tab=infraestructura&ver_edificio="|add:pk_texto only %}
+                    {% if puede_editar %}
+                    {% include "components/_menu_fila_item.html" with texto="Editar edificio" icono="fa-pen" url=url_detalle|add:"?tab=infraestructura&edificio="|add:pk_texto only %}
+                    {% url 'dispositivos:edificio_desvincular' dispositivo.pk edificio.pk as url_desvincular %}
+                    {% include "components/_menu_fila_item.html" with texto="Desvincular" icono="fa-link-slash" peligro=True confirm_url=url_desvincular confirm_title="¿Desvincular el edificio?" confirm_text="Esta institución deja de ver su estado edilicio y sus relevamientos. El edificio no se borra: volver a vincularlo lo repone con su historia." confirm_ok="Sí, desvincular" only %}
+                    {% endif %}
+                  {% endmenu_fila %}
+                </td>
+              </tr>
+              {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        {% if infraestructura.viendo %}
+        <div class="px-5 pt-4 border-t border-light">
+          <a href="{{ url_detalle }}?tab=infraestructura" class="text-sm text-fg-brand hover:underline"><i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a los edificios</a>
+        </div>
+        {% endif %}
         {% for edificio in infraestructura.edificios %}
         <section class="border-t border-light" aria-labelledby="edificio-{{ edificio.pk }}-titulo">
           <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-3 flex-wrap">
@@ -379,8 +427,15 @@
           <div class="p-5">
             {% include "components/_linea_tiempo.html" with eventos=infraestructura.eventos vacio_titulo="Todavía no hay relevamientos" vacio_texto="Cuando se releve el edificio, cada relevamiento aparece acá con sus fotos." %}
           </div>
+          {% if infraestructura.viendo %}
+          {% with pk_texto=infraestructura.viendo.pk|stringformat:"s" %}
+          {% include "components/_paginacion.html" with page_obj=infraestructura.relevamientos entidad="relevamiento" param="relevamientos_page" extra_qs="tab=infraestructura&ver_edificio="|add:pk_texto %}
+          {% endwith %}
+          {% else %}
           {% include "components/_paginacion.html" with page_obj=infraestructura.relevamientos entidad="relevamiento" param="relevamientos_page" extra_qs="tab=infraestructura" %}
+          {% endif %}
         </section>
+        {% endif %}
         {% else %}
         {% if puede_editar %}
         {% url 'dispositivos:detalle' dispositivo.pk as url_base_edificio %}

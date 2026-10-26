@@ -424,7 +424,10 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 # `user` y no solo el dispositivo: el nombre del agente de un relevamiento en
                 # curso no lo ve la institución relevada (`inspecciones.ve_la_asignacion`).
                 "infraestructura": infraestructura_del_dispositivo(
-                    dispositivo, get.get("relevamientos_page"), usuario=user
+                    dispositivo,
+                    get.get("relevamientos_page"),
+                    usuario=user,
+                    edificio_id=get.get("ver_edificio"),
                 ),
                 # Lo respondido en el formulario «Crear dispositivo» de su tipo (P17), leído
                 # con la foto de la versión respondida.
