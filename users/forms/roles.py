@@ -209,6 +209,16 @@ class RolForm(forms.Form):
             permitidas |= rbac.capacidades_delegables(programa)
         return permitidas
 
+    def _programa_etiquetas(self):
+        """Código del programa del rol para ajustar etiquetas (no filtra módulos).
+
+        Cubre alta con programa fijo, edición y re-render tras un POST. Un admin global que
+        elige el programa en el navegador en un alta nueva no lo tiene hasta guardar.
+        """
+        if getattr(self, "muestra_alcance_dispositivos", False):
+            return rbac.CODIGO_PROGRAMA_DISPOSITIVOS
+        return getattr(self.programa_fijo, "codigo", None)
+
     def arbol_capacidades(self):
         """Árbol plano por módulo (retrocompatibilidad)."""
         return rbac.arbol_capacidades(
@@ -216,6 +226,7 @@ class RolForm(forms.Form):
             solo_programa=not self.es_admin_global,
             programa=self.programa_fijo,
             permitidas=self._permitidas(),
+            programa_etiquetas=self._programa_etiquetas(),
         )
 
     def arbol_por_tabs(self):
@@ -225,4 +236,5 @@ class RolForm(forms.Form):
             solo_programa=not self.es_admin_global,
             programa=self.programa_fijo,
             permitidas=self._permitidas(),
+            programa_etiquetas=self._programa_etiquetas(),
         )
