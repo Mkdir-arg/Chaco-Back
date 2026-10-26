@@ -129,6 +129,7 @@ def respuestas_por_persona_referencia(convocatoria, *, incluir_publicos):
             f["ciudadano_id"] or "",
             dni,
             nombre,
+            svc._fecha_nacimiento(f),
             "Sí" if (f["validado_renaper"] or f["identidad_forzada"]) else "No",
             f["celular"] or "",
             f["email_contacto"] or "",

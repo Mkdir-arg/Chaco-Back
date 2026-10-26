@@ -1320,6 +1320,7 @@ COLUMNAS_FIJAS = (
     "ID ciudadano",
     "DNI",
     "Apellido y nombre",
+    "Fecha de nacimiento",
     "Identidad validada",
     "Celular",
     "Correo electrónico",
@@ -1343,6 +1344,25 @@ def _identificacion(f):
         return f["ciudadano__dni"], f"{f['ciudadano__apellido']}, {f['ciudadano__nombre']}".strip(", ")
     ident = f["datos_identificacion"] if isinstance(f["datos_identificacion"], dict) else {}
     return str(ident.get("dni") or ""), f"{ident.get('apellido') or ''}, {ident.get('nombre') or ''}".strip(", ")
+
+
+def _fecha_nacimiento(f):
+    """Fecha de nacimiento del titular del caso (no del apoderado) en dd/mm/aaaa: la del
+    legajo si hay ciudadano (vacía si no la tiene); sin legajo, la de los datos de
+    identificación offline. Mismo criterio que :func:`_identificacion`."""
+    if f["ciudadano_id"]:
+        fecha = f["ciudadano__fecha_nacimiento"]
+    else:
+        ident = f["datos_identificacion"] if isinstance(f["datos_identificacion"], dict) else {}
+        fecha = ident.get("fecha_nacimiento")
+    if not fecha:
+        return ""
+    try:
+        return _texto_legible({"tipo": "DATE"}, fecha)
+    except ValueError:
+        # Una fecha ISO imposible («2000-02-30», guardada antes de G1-06 / #624) no puede
+        # tumbar la planilla entera: queda tal cual.
+        return str(fecha)
 
 
 def _apoderado(f):
@@ -1399,6 +1419,7 @@ _COLUMNAS_CASO = (
     "ciudadano__dni",
     "ciudadano__apellido",
     "ciudadano__nombre",
+    "ciudadano__fecha_nacimiento",
     "datos_identificacion",
     "validado_renaper",
     "identidad_forzada",
@@ -1587,6 +1608,7 @@ def _filas_por_persona(pks, relevamientos, claves, campos_vigentes, planos, conv
                 f["ciudadano_id"] or "",
                 dni,
                 nombre,
+                _fecha_nacimiento(f),
                 "Sí" if (f["validado_renaper"] or f["identidad_forzada"]) else "No",
                 f["celular"] or "",
                 f["email_contacto"] or "",
