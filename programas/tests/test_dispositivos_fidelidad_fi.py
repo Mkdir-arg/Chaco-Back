@@ -155,7 +155,10 @@ class FidelidadFITests(BaseInfraestructura):
         self.assertEqual(dispositivo.titularidad_inmueble, "PARTICULAR")
         self.assertEqual(dispositivo.dependencia_gestion, "ONG")
 
-        respuesta = self.client.post(self.editar, {**datos, "categoria": "PRIVADO", "dependencia_gestion": ""})
+        respuesta = self.client.post(
+            self.editar,
+            {**datos, "codigo": self.cis.codigo, "categoria": "PRIVADO", "dependencia_gestion": ""},
+        )
         self.assertEqual(respuesta.status_code, 302)
         self.cis.refresh_from_db()
         self.assertEqual(self.cis.categoria, "PRIVADO")

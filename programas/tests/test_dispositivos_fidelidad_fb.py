@@ -106,11 +106,26 @@ class FidelidadDetalleTests(BaseDetalle):
 
     def test_egresada_y_sin_plaza_no_ofrecen_cambiar_plaza(self):
         Estadia.objects.filter(pk=self.estadia.pk).update(plaza=None)
-        self.assertNotContains(self.client.get(self.url), ">Cambiar plaza<")
+        # Activa sin plaza en un tipo que maneja plazas: no «Cambiar plaza», sí «Asignar plaza» (Cambio 374).
+        respuesta = self.client.get(self.url)
+        self.assertNotContains(respuesta, ">Cambiar plaza<")
+        self.assertContains(respuesta, "Asignar plaza")
+        self.assertIn("form_cambio", self.client.get(self.url, {"cambio": self.estadia.pk}).context)
+        # Si el tipo no maneja plazas no hay a dónde asignar: la fila no ofrece ninguna de las dos.
+        self.tipo.plaza_obligatoria_al_ingresar = False
+        self.tipo.tipos_plaza_admitidos = []
+        self.tipo.save()
+        respuesta = self.client.get(self.url)
+        self.assertNotContains(respuesta, ">Cambiar plaza<")
+        self.assertNotContains(respuesta, "Asignar plaza")
         self.assertNotIn("form_cambio", self.client.get(self.url, {"cambio": self.estadia.pk}).context)
+        # Egresada: no ofrece cambiar, asignar ni egresar, aunque el tipo maneje plazas.
+        self.tipo.plaza_obligatoria_al_ingresar = True
+        self.tipo.save()
         _egresar(self.estadia)
         respuesta = self.client.get(self.url, {"estado": "TODAS"})
         self.assertNotContains(respuesta, ">Cambiar plaza<")
+        self.assertNotContains(respuesta, "Asignar plaza")
         self.assertNotContains(respuesta, ">Registrar egreso<")
         self.assertNotIn("form_cambio", self.client.get(self.url, {"cambio": self.estadia.pk}).context)
         self.assertNotIn("estadia_egreso", self.client.get(self.url, {"egreso": self.estadia.pk}).context)
