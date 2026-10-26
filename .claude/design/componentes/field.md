@@ -64,7 +64,9 @@ el error equivocado.
 Se resuelve dándole `auto_id` propio a uno de los dos (`kwargs.setdefault("auto_id", "id_<algo>_%s")`
 en su `__init__`), **no** `prefix`: `prefix` cambia también el `name` del POST y obliga a tocar la
 vista que lo procesa. Caso vivo: `VolverACampoForm` y `ReprogramarForm` comparten `fecha_hasta` en
-el detalle del relevamiento, y el primero declara `AUTO_ID = "id_volver_%s"`.
+el detalle del relevamiento, y el primero declara `AUTO_ID = "id_volver_%s"`. Lo mismo hace
+`IngresoAltaMinimaForm` (`programas/forms_ingreso.py`) con `id_alta_%s`: convive con `IngresoPersonaForm`,
+que también tiene `dni`, en el paso 1 del ingreso a un dispositivo (Cambio 375).
 
 De `programas/forms.py` la evidencia de diseño es **`INPUT_CLASS`, los `widget=…` que la usan y `marca_requerido`**;
 el resto del archivo es validación de dominio (`clean_*`, validaciones cruzadas) y no define nada

@@ -696,7 +696,7 @@ class AltaMinimaTests(BaseIngreso):
         self.assertContains(pagina, self.DNI)
         # Los dos formularios conviven: cada id aparece una sola vez.
         self.assertContains(pagina, 'id="id_dni"', count=1)
-        self.assertContains(pagina, 'id="alta_dni"', count=1)
+        self.assertContains(pagina, 'id="id_alta_dni"', count=1)
 
     def test_un_fallecido_despues_de_un_no_encontrada_descarta_el_alta_minima(self):
         self._consultar(sexo="F")
