@@ -489,6 +489,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 361 | Entrar después de un logout por inactividad ya no termina en un 405 | Transversal / sesión | `#sesion` | PM — reportó el 405 en `https://datanach.ecomdev.ar/logout` | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 362 | Skill `/auditoria`: auditoría completa de development y control antes de mergear cada PR | Transversal · método de trabajo de los agentes | `#metodo` `#performance` | PM — pedido en sesión | 23/10/2026 | 🟢 **Hecho** | No requiere |
 | 363 | setuptools 84.1.0 y cinco excepciones de twisted: «Pip Audit» vuelve a verde | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (24/10/2026) | 24/10/2026 | 🟢 **Hecho** | No requiere |
+| 367 | Roles: en un rol de Dispositivos, «Configurar programas» dice qué habilita | Usuarios · ABM de Roles | `#rbac` `#ui` | QA — #816 · PM — elige la etiqueta | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -47003,3 +47004,81 @@ hay datos ni migración. El check de «Pip Audit» vuelve a rojo.
   diciendo «backend de build». Los tres se corrigieron en la misma rama.
 
 ---
+
+---
+
+# Cambio 367 — Roles: en un rol de Dispositivos, «Configurar programas» dice qué habilita
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Usuarios · ABM de Roles (alta, edición y detalle de un rol de Dispositivos) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | QA (Matías Abate) — #816, «no hay una sección dentro de roles asociada a la configuración de dispositivos»; PM — elige la etiqueta (26/10/2026) |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | #816 · Épica #127 |
+| **Partes afectadas** | Servidor: `core/rbac.py` (`arbol_capacidades`, `arbol_por_tabs`), `users/forms/roles.py` (`RolForm`), `users/views/roles.py` (`RolDetailView`) |
+| **Migración** | no |
+
+## Pedido original
+
+En un rol de Dispositivos no hay ninguna casilla de «configuración». Lo que configura Dispositivos (tipos,
+formularios por tipo y alcance total sobre las instituciones) cuelga de «Configurar programas», en la
+sección Programas, y su nombre no lo dice.
+
+## Alcance acordado
+
+Entra: el texto de la casilla en el árbol de capacidades de un rol de Dispositivos (alta con programa
+fijo, edición, re-render tras un POST y detalle). Queda afuera: la capacidad en sí, que no cambia, y los
+badges del listado de roles (`users/templates/rol/rol_list.html`).
+
+## Decisiones tomadas
+
+- **Solo texto, sin capacidad nueva.** Una `dispositivo.configurar` obligaría a mover los `CAPS_ADMIN_*`
+  en sus cuatro lugares; no se justifica para un problema de nombre.
+- **No se toca `CATALOGO`.** El `AlterModelOptions` de `users.Capacidad` declara el nombre de cada
+  permiso: cambiarlo ahí genera migración y cambia el texto en todos los programas. La etiqueta se ajusta
+  solo al renderizar, con `ETIQUETAS_POR_PROGRAMA`.
+- Texto: «Configurar programas (en Dispositivos: tipos, formularios y alcance total sobre las
+  instituciones)». Sectores y plazas **no** van: cuelgan de «Editar dispositivos».
+- `programa_etiquetas` va separado de `programa` porque `programa` además filtra módulos, y un admin
+  global que ve todos los módulos igual edita un rol de un programa.
+
+## Implementación
+
+`ETIQUETAS_POR_PROGRAMA` y `_etiqueta_para_programa` en `core/rbac.py`. `arbol_capacidades` y
+`arbol_por_tabs` reciben el kwarg opcional `programa_etiquetas` (por defecto, el `programa`).
+`RolForm._programa_etiquetas()` y `RolDetailView` le pasan el programa del rol.
+
+## Archivos
+
+- `core/rbac.py`, `users/forms/roles.py`, `users/views/roles.py`
+- `users/tests/test_roles_abm.py` (`EtiquetaConfigurarPorProgramaTests`)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check` (sin migración) y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Alta de un rol nuevo por un admin global: el programa se elige en el navegador y la etiqueta recién
+  aparece al guardar. Cubrirlo pide JS nuevo; sin pedido.
+- Los badges del listado de roles siguen con el nombre corto.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
