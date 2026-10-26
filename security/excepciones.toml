@@ -11,7 +11,8 @@
 #   vence_el  fecha en la que vuelve a bloquear
 #   ticket    dónde se sigue (ficha de la auditoría o issue)
 
-# Excepciones vigentes: una, la de twisted (Cambio 315). Lo normal es que no haya ninguna.
+# Excepciones vigentes: seis, todas de twisted (Cambios 315 y 363). Lo normal es que no
+# haya ninguna.
 #
 # La anterior, `PYSEC-2026-3447`, se retiró en el Cambio 196 (RED-85): era setuptools
 # 80.9.0 (CVE-2026-59890) y el pin subió a 83.0.0, la primera corregida. Se verificó
@@ -36,3 +37,56 @@ id = "CVE-2026-106454"
 motivo = "ni el repo ni daphne/channels usan twisted.mail ni levantan un servidor IMAP, y no hay release corregido de twisted"
 vence_el = 2027-01-15
 ticket = "Cambio 315"
+
+# twisted 26.4.0, cuatro advisories más (Cambio 363), las cuatro en módulos que no se
+# cargan. Importar `daphne.server`, `daphne.http_protocol`, `daphne.ws_protocol` y
+# `channels.layers` trae de twisted solo `application`, `cred`, `internet`, `logger`,
+# `persisted`, `plugin`, `protocols`, `python` y `web`; el repo no importa twisted, y lo
+# único de autobahn que nombra `twisted.conch` es `autobahn/twisted/cryptosign.py`, dentro
+# de una función que daphne no llama. La corregida es 26.10.0rc1. twisted no está
+# pineado, así que cuando salga la 26.10.0 final `pip-audit` y la imagen la toman solas:
+# ese día se retiran.
+#
+#   CVE-2026-115778 (GHSA-cwm5-jh59-mwxr)  memoria sin límite en la subnegociación telnet de `twisted.conch`
+#   CVE-2026-115774 (GHSA-2qrf-pqgx-qh9v)  bucle infinito en el servidor IMAP de `twisted.mail`
+#   CVE-2026-115775 (GHSA-3476-c5c2-fr73)  memoria sin límite en el stream XML de `twisted.words.xish` (XMPP)
+#   CVE-2026-115776 (GHSA-53xc-49m8-p798)  memoria sin límite en el servidor IRC de `twisted.words`
+[[pip_audit]]
+id = "CVE-2026-115778"
+motivo = "es del telnet de twisted.conch, que ni el repo ni daphne/channels cargan, y no hay release final corregido"
+vence_el = 2026-12-15
+ticket = "Cambio 363"
+
+[[pip_audit]]
+id = "CVE-2026-115774"
+motivo = "es del servidor IMAP de twisted.mail, que ni el repo ni daphne/channels cargan, y no hay release final corregido"
+vence_el = 2026-12-15
+ticket = "Cambio 363"
+
+[[pip_audit]]
+id = "CVE-2026-115775"
+motivo = "es del stream XML de twisted.words, que ni el repo ni daphne/channels cargan, y no hay release final corregido"
+vence_el = 2026-12-15
+ticket = "Cambio 363"
+
+[[pip_audit]]
+id = "CVE-2026-115776"
+motivo = "es del servidor IRC de twisted.words, que ni el repo ni daphne/channels cargan, y no hay release final corregido"
+vence_el = 2026-12-15
+ticket = "Cambio 363"
+
+# twisted 26.4.0, CVE-2026-115877 (GHSA-q7qq-6mhp-9rc4): request smuggling en
+# `twisted.web.http.HTTPChannel.headerReceived`, que acepta un CR o un LF suelto dentro del
+# valor de un header. Este módulo **sí** se usa: con `APP_RUNTIME=daphne`, daphne sirve todo
+# el HTTP. El ataque necesita que los bytes del header lleguen a daphne tal como los mandó
+# el cliente, y daphne nunca está expuesto directo: en icore lo tiene delante el
+# `nginx.conf` del repo, y en ECOM, el ingress. nginx corta la línea en el LF suelto,
+# rechaza el CR suelto con un 400 y arma la petición de nuevo, con CRLF, antes de
+# reenviarla, así que daphne recibe un header más y no una petición escondida. El ingress
+# de ECOM es de otro equipo y no se puede verificar desde el repo. Por eso vence en 30
+# días y no en 90: si la 26.10.0 final no salió para entonces, se decide de nuevo.
+[[pip_audit]]
+id = "CVE-2026-115877"
+motivo = "daphne siempre está detrás de un proxy que rearma la petición (nginx en icore, el ingress en ECOM), y no hay release final corregido"
+vence_el = 2026-11-25
+ticket = "Cambio 363"

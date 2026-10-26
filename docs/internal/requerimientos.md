@@ -487,6 +487,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 359 | Detalle del segmento: solapa «Convocatorias» con las del segmento y las de sus subsegmentos | Becas · detalle del segmento | `#convocatorias` `#ui` `#rbac` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 360 | DRF 3.18.2: «Pip Audit» vuelve a verde por las 3 CVEs de djangorestframework 3.17.2 | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (22/10/2026) | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 361 | Entrar después de un logout por inactividad ya no termina en un 405 | Transversal / sesión | `#sesion` | PM — reportó el 405 en `https://datanach.ecomdev.ar/logout` | 22/10/2026 | 🟢 **Hecho** | No requiere |
+| 363 | setuptools 84.1.0 y cinco excepciones de twisted: «Pip Audit» vuelve a verde | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (24/10/2026) | 24/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -46711,5 +46712,108 @@ Revertir el PR; no hay datos.
 
 ## Historial
 - **22/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 363 — setuptools 84.1.0 y cinco excepciones de twisted: «Pip Audit» vuelve a verde
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · dependencias (`requirements.txt`, `security/excepciones.toml`) · CI (`Pip Audit`) |
+| **Etiquetas** | `#infra` `#gestion` |
+| **Solicitante** | Juez — check «Pip Audit» rojo en todos los PRs desde el 24/10/2026 |
+| **Fecha del pedido** | 24/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servidor/API · Infra/ECOM (imagen de producción) · CI |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Pip Audit» se puso rojo en todos los PRs —el #943 y los de Dependabot, #944 a #948— por seis
+advisories nuevas: setuptools 83.0.0 (GHSA-xmj3-9gf7-h52w, corregida en 84.1.0) y cinco de
+twisted 26.4.0 (CVE-2026-115774, 115775, 115776, 115778 y 115877), corregidas solo en
+26.10.0rc1. El PM eligió subir setuptools y agregar excepciones con vencimiento para twisted,
+como en el Cambio 315. Con el check rojo, además, «Publish main» no publica.
+
+## Alcance acordado
+
+**Entra:** `setuptools==83.0.0` → `==84.1.0` en `requirements.txt`, y cinco entradas nuevas en
+`security/excepciones.toml`, cada una con su análisis en el comentario.
+
+**Queda afuera:** pinear twisted, y cualquier cambio en daphne, en nginx o en el ingress.
+
+## Decisiones tomadas
+
+- **setuptools 84.1.0 es la primera corregida** de GHSA-xmj3-9gf7-h52w: en Windows, un wheel con
+  un `namespace_packages.txt` malicioso escribía un `__init__.py` fuera del destino. Solo lo
+  alcanza el `setup_requires` viejo. Existe la 84.2.1, pero el pin queda en 84.1.0, que es la
+  que corrige. Lo que cambió en 84.0.0 es interno de los compiladores de C de distutils y no
+  toca la imagen: el `Dockerfile` instala con aislamiento de build, así que cada sdist se
+  compila con su propio setuptools, y `pkg_resources` ya no venía en 83.0.0.
+- **Cuatro excepciones por módulos que no se cargan, con vencimiento el 15/12/2026:**
+  CVE-2026-115778 (telnet de `twisted.conch`), 115774 (IMAP de `twisted.mail`), 115775 (stream
+  XML de `twisted.words.xish`) y 115776 (IRC de `twisted.words`). Lo verificado: importar
+  `daphne.server`, `daphne.http_protocol`, `daphne.ws_protocol` y `channels.layers` carga de
+  twisted solo `application`, `cred`, `internet`, `logger`, `persisted`, `plugin`,
+  `protocols`, `python` y `web`; el repo no importa twisted; y lo único de autobahn que nombra
+  `twisted.conch` está en `autobahn/twisted/cryptosign.py`, dentro de una función que daphne
+  no llama.
+- **CVE-2026-115877 sí toca código que corre:** es *request smuggling* en
+  `twisted.web.http.HTTPChannel.headerReceived` (acepta un CR o un LF suelto dentro del valor
+  de un header), y con `APP_RUNTIME=daphne` todo el HTTP pasa por ahí. La excepción vence en 30
+  días (25/11/2026) y se apoya en que daphne nunca queda expuesto directo. En icore lo tiene
+  delante el `nginx.conf` del repo: nginx corta la línea en el LF suelto, rechaza el CR suelto
+  y arma la petición de nuevo con CRLF, así que daphne recibe un header más y no una petición
+  escondida. En ECOM lo tiene delante el ingress, que es de otro equipo: **eso no se puede
+  verificar desde el repo.**
+- **No se pinea `twisted==26.10.0rc1`.** Sería un *release candidate* en la imagen de
+  producción, y no hace falta: twisted no está pineado, así que la 26.10.0 final entra sola en
+  `pip-audit` y en la próxima imagen el día que salga.
+
+## Implementación
+
+Un cambio de pin y cinco bloques `[[pip_audit]]` que siguen el formato del archivo. El
+comentario de cabecera pasa a decir que hay seis excepciones vigentes, todas de twisted.
+
+## Archivos
+
+- `requirements.txt`
+- `security/excepciones.toml`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `scripts/check_excepciones_seguridad.py`: las seis excepciones vigentes y bien formadas.
+- `pip-audit` con las banderas de `--ignore-args`: en `requirements.txt` y en
+  `requirements-dev.txt`, «No known vulnerabilities found, 6 ignored»; en `requirements-ci.txt`,
+  «No known vulnerabilities found».
+- `manage.py check`: sin problemas. `core.tests.test_gates_ci`: 99 OK.
+
+## Puesta en marcha en el servidor
+
+Nada más que el deploy: la imagen se reconstruye con setuptools 84.1.0.
+
+## Pendientes / a definir
+
+- **Retirar las cinco excepciones cuando salga twisted 26.10.0 final.** Antes de sacarlas,
+  verificar que `pip-audit -r requirements.txt` da «No known vulnerabilities found» sin esos
+  `--ignore-vuln`.
+- **Confirmar con ECOM que el ingress rearma la petición** y no reenvía un CR o un LF suelto
+  dentro de un header. Si no lo hace, la excepción de CVE-2026-115877 no se sostiene.
+
+## Reversión
+
+Volver el pin a `setuptools==83.0.0` y borrar las cinco entradas con `ticket = "Cambio 363"`. No
+hay datos ni migración. El check de «Pip Audit» vuelve a rojo.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
 
 ---
