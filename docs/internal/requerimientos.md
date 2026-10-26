@@ -42540,8 +42540,8 @@ La reversión restituye las fugas de identidad y la discrepancia de permanencia 
 
 ## Historial
 
-- **26/10/2026 — Cambio 377:** P21 pasa a llevar `tono` en sus cuatro métricas, el mismo que el badge de
-  estado de su tabla. Lo de «P21 conserva el HTML de sus métricas sin tono» describía el alcance de este
+- **26/10/2026 — Cambio 377:** P21 pasa a llevar `tono` en sus cuatro métricas, alineadas con el badge de
+  situación de su tabla. Lo de «P21 conserva el HTML de sus métricas sin tono» describía el alcance de este
   PR, no una decisión de diseño, y queda superado.
 
 ---
@@ -47983,8 +47983,9 @@ cambian datos, vistas, contextos ni URLs.
   servicio de ocupación, que le da el tono a cada plaza. Lo decidió el juez por delegación del PM (26/10/2026).
 - **Listado de dispositivos:** el badge de porcentaje de ocupación lleva `badge-dot`, como los de estado e
   infraestructura de la misma tabla.
-- **P21:** las cuatro métricas llevan `tono`, el mismo que el badge de estado de su tabla: Asignados `brand`,
-  Al día `success`, Por vencer `warning` y Vencidos `danger`. Esto reemplaza lo que dejó el Cambio 324 («P21
+- **P21:** las cuatro métricas llevan `tono`. Al día `success`, Por vencer `warning` y Vencidos `danger` son
+  los mismos tonos que el badge de situación de su tabla (`_relevamiento_situacion_badge.html`). Asignados va
+  en `brand`, el tono por defecto de la pieza, porque la tabla no tiene un estado «asignado». Esto reemplaza lo que dejó el Cambio 324 («P21
   conserva el HTML de sus métricas sin tono»), que era el alcance de ese PR, no una decisión de diseño. Ahora
   P21 se ve como P4 y P19.
 
@@ -48003,6 +48004,10 @@ cambian datos, vistas, contextos ni URLs.
 - `programas/templates/programas/dispositivos/relevamientos/list.html`
 - `core/tests/test_nodo_ui_lote_b.py` (`LeyendaPlazasTest`: pastilla y mismo ícono que el mapa por tono, y el
   tono desconocido)
+- `programas/tests/test_dispositivos_sectores.py`: las aserciones de estado se acotan a la celda del mapa
+  (`block font-semibold">…`). La leyenda ahora tiene el mismo `</i> Ocupada`, y el test de «nada ocupado»
+  fallaba. El de «aparece ocupada» pasaba siempre: medía la leyenda, no la celda.
+- `programas/tests/test_dispositivos_listado.py` (badge de ocupación con `badge-dot`)
 - `.claude/design/componentes/mapa_plazas.md`, `stat_card.md`, `tabla.md`
 - `docs/internal/requerimientos.md`: este cambio; la causa del Cambio 376 corregida; el separador entre 375
   y 376; Historial en 214 y 324.
@@ -48015,7 +48020,12 @@ Sin cambios.
 
 - `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
   `check_design_agent --changed` y ruff: en verde.
-- Tests adaptados y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+- La primera versión del PR no adaptó dos tests: el de sectores y el del listado. Los encontró la auditoría
+  del PR (`/auditoria pr 974`). Se arreglaron y se corrieron solo esos módulos (`test_dispositivos_sectores`,
+  `test_dispositivos_listado` y `core.tests.test_nodo_ui_lote_b`: 57 OK). El juez autorizó esa excepción
+  puntual al pedido del PM de no correr la suite en local; la suite completa la corre el CI.
+- Mutación: con `fa-user` cambiado en `_mapa_plazas.html`, el test «aparece ocupada» da rojo. La guarda vuelve
+  a medir la celda.
 
 ## Puesta en marcha en el servidor
 
