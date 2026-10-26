@@ -752,12 +752,18 @@ class TipoDispositivoForm(forms.ModelForm):
             self.fields[nombre].required = False
             self.fields[nombre].initial = getattr(self.instance, nombre, default) or default
         self.fields["plaza_obligatoria_al_ingresar"].label = "Exige asignar una plaza al ingresar"
+        ayuda_exigir = "Destildala en los tipos que atienden sin cama (por ejemplo, un comedor o un centro de día)."
+        self.fields["plaza_obligatoria_al_ingresar"].help_text = ayuda_exigir
+        # Tipo nuevo: viene tildada. Es solo el valor inicial: un POST sin la casilla guarda False.
+        self.fields["plaza_obligatoria_al_ingresar"].initial = True
         if self.instance.pk:
             # Un tipo de la v1 (solo `maneja_camas`) se arregla abriéndolo y guardándolo:
             # la casilla viene tildada y con «Cama», sin migración de datos.
             tipos = self.instance.tipos_de_plaza
             if self.instance.maneja_camas and not tipos:
                 tipos = [Plaza.Tipo.CAMA]
+                if not self.instance.plaza_obligatoria_al_ingresar:
+                    self.initial["plaza_obligatoria_al_ingresar"] = True
             self.fields["maneja_sectores_plazas"].initial = self.instance.maneja_plazas or self.instance.maneja_camas
             self.fields["tipos_plaza_admitidos"].initial = tipos
 

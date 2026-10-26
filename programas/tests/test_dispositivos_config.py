@@ -130,6 +130,38 @@ class TipoDispositivoSectoresYPlazasTests(TestCase):
         self.assertTrue(form["maneja_sectores_plazas"].value())
         self.assertEqual(form["tipos_plaza_admitidos"].value(), ["CAMA"])
 
+    def test_exigir_plaza_viene_tildada_en_el_alta(self):
+        form = TipoDispositivoForm()
+
+        self.assertTrue(form["plaza_obligatoria_al_ingresar"].value())
+
+    def test_exigir_plaza_viene_tildada_en_un_tipo_de_la_v1_sin_configurar(self):
+        tipo = TipoDispositivo.objects.create(codigo="MUN", nombre="Municipal", maneja_camas=True)
+
+        form = TipoDispositivoForm(instance=tipo)
+
+        self.assertTrue(form["plaza_obligatoria_al_ingresar"].value())
+
+    def test_exigir_plaza_respeta_lo_guardado_en_un_tipo_de_la_v2(self):
+        tipo = TipoDispositivo.objects.create(
+            codigo="CDD",
+            nombre="Centro de día",
+            tipos_plaza_admitidos=["CUPO"],
+            plaza_obligatoria_al_ingresar=False,
+        )
+
+        form = TipoDispositivoForm(instance=tipo)
+
+        self.assertFalse(form["plaza_obligatoria_al_ingresar"].value())
+
+    def test_alta_sin_enviar_la_casilla_de_exigir_plaza_guarda_false(self):
+        form = self._form({"maneja_sectores_plazas": "on", "tipos_plaza_admitidos": ["CAMA"]})
+
+        self.assertTrue(form.is_valid(), form.errors)
+        tipo = form.save()
+        tipo.refresh_from_db()
+        self.assertFalse(tipo.plaza_obligatoria_al_ingresar)
+
     def test_guardar_el_tipo_de_la_v1_le_da_la_solapa_al_detalle_de_la_institucion(self):
         programa, _ = Programa.objects.get_or_create(
             codigo="DISPOSITIVOS",
