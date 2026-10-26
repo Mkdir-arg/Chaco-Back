@@ -1431,6 +1431,72 @@ class MenuFilaTest(SimpleTestCase):
             with self.subTest(argumentos=argumentos), self.assertRaises(template.TemplateSyntaxError):
                 self._render("x", argumentos=argumentos)
 
+    def test_abre_modal_dibuja_un_boton_que_abre_la_variable_alpine(self):
+        html = self._render(self.ITEM + 'texto="Observar" icono="fa-eye" abre_modal="modalObservar" only %}')
+
+        self.assertIn(
+            '<button type="button" role="menuitem" class="nodo-menu-fila__item" @click="modalObservar=true">', html
+        )
+        self.assertNotIn("data-confirm-url", html)
+
+    def test_abre_modal_con_peligro_pinta_el_item_en_rojo(self):
+        html = self._render(self.ITEM + 'texto="Rechazar" abre_modal="modalRechazar" peligro=True only %}')
+
+        self.assertIn("nodo-menu-fila__item nodo-menu-fila__item--danger", html)
+        self.assertIn('@click="modalRechazar=true"', html)
+
+    def test_abre_modal_que_no_es_un_identificador_no_dibuja_el_click(self):
+        for valor in ("a=1;alert(1)", "x.y", "a b", "1abc", '"><script>', "", "modal()"):
+            with self.subTest(valor=valor):
+                html = self._render(self.ITEM + 'texto="Observar" abre_modal=valor only %}', valor=valor)
+
+                self.assertNotIn("@click", html)
+                self.assertEqual(html.strip(), "")
+
+    def test_abre_modal_cede_ante_motivo_confirm_url_y_url(self):
+        con_motivo = self._render(self.ITEM + 'texto="X" abre_modal="m" motivo="No hoy" only %}')
+        con_url = self._render(self.ITEM + 'texto="X" abre_modal="m" url="/x/" only %}')
+
+        self.assertNotIn("@click", con_motivo)
+        self.assertIn('aria-disabled="true"', con_motivo)
+        self.assertNotIn("@click", con_url)
+        self.assertIn('href="/x/"', con_url)
+
+    def test_con_texto_el_disparador_es_un_boton_con_texto_y_caret(self):
+        html = self._render(
+            self.ITEM + 'texto="Ver" url="/x/" only %}',
+            argumentos='id="acc" etiqueta="Más acciones de X" texto="Más acciones"',
+        )
+
+        self.assertIn(
+            '<button type="button" class="btn-nodo btn-secondary btn-sm btn-fit" data-menu-fila-trigger '
+            'aria-haspopup="menu" aria-expanded="false" aria-controls="menu-fila-acc">'
+            'Más acciones <i class="fas fa-chevron-down" aria-hidden="true"></i></button>',
+            html,
+        )
+        self.assertNotIn("fa-ellipsis-vertical", html)
+        self.assertIn('id="menu-fila-acc" role="menu" aria-label="Más acciones de X" hidden>', html)
+
+    def test_sin_texto_el_html_del_menu_de_siempre_no_cambia(self):
+        html = self._render(self.ITEM + 'texto="Ver ficha" icono="fa-eye" url="/ficha/" only %}')
+
+        self.assertEqual(
+            html,
+            '\n<div class="nodo-menu-fila" data-menu-fila>\n'
+            '  <button type="button" class="nodo-icon-btn nodo-menu-fila__trigger" data-menu-fila-trigger\n'
+            '          aria-label="Acciones de CIS N.º 3" aria-haspopup="menu" aria-expanded="false" '
+            'aria-controls="menu-fila-cis-3">\n'
+            '    <i class="fas fa-ellipsis-vertical" aria-hidden="true"></i>\n'
+            "  </button>\n"
+            '  <div class="nodo-menu-fila__menu" id="menu-fila-cis-3" role="menu" '
+            'aria-label="Acciones de CIS N.º 3" hidden>\n'
+            '    <a href="/ficha/" role="menuitem" class="nodo-menu-fila__item">'
+            '<i class="fas fa-eye nodo-menu-fila__icono" aria-hidden="true"></i>'
+            '<span class="nodo-menu-fila__texto">Ver ficha</span></a>\n\n'
+            "  </div>\n"
+            "</div>\n",
+        )
+
     def test_el_shell_carga_la_hoja_y_el_script(self):
         base = (RAIZ / "templates/includes/base.html").read_text(encoding="utf-8")
 

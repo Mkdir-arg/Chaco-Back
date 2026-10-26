@@ -22,6 +22,9 @@
 
     {# ===== PageHeader ===== #}
     {% url 'dispositivos:lista' as url_volver %}
+    {% url 'dispositivos:editar' dispositivo.pk as url_editar_dispositivo %}
+    {% url 'dispositivos:inactivar' dispositivo.pk as url_inactivar %}
+    {% url 'dispositivos:cerrar' dispositivo.pk as url_cerrar %}
     {% estado_dispositivo dispositivo as estado_header %}
     {% page_header titulo=dispositivo.nombre volver_url=url_volver volver_label="Instituciones" estado_texto=estado_header.texto estado_variante=estado_header.tono %}
       {% bajada %}{{ dispositivo.codigo }} · {{ dispositivo.tipo.nombre }}{% if dispositivo.domicilio %} · {{ dispositivo.domicilio }}{% if dispositivo.localidad %}, {{ dispositivo.localidad }}{% endif %}{% elif dispositivo.localidad %} · {{ dispositivo.localidad }}{% endif %}{% if dispositivo.responsable_nombre %} · responsable {{ dispositivo.responsable_nombre }}{% endif %}{% endbajada %}
@@ -29,11 +32,6 @@
       <a href="{% url 'dispositivos:bitacora' dispositivo.pk %}" class="btn-nodo btn-secondary btn-sm btn-fit">
         <i class="fas fa-clock" aria-hidden="true"></i> Bitácora del turno
       </a>
-      {% if puede_editar and dispositivo.estado != 'CERRADO' %}
-      <a href="{% url 'dispositivos:editar' dispositivo.pk %}" class="btn-nodo btn-secondary btn-sm btn-fit">
-        <i class="fas fa-pen" aria-hidden="true"></i> Editar
-      </a>
-      {% endif %}
       {% if puede_editar and dispositivo.estado == 'BORRADOR' or puede_editar and dispositivo.estado == 'OBSERVADO' %}
       <button type="button" class="btn-nodo btn-brand btn-sm btn-fit"
               data-confirm-url="{% url 'dispositivos:enviar_validacion' dispositivo.pk %}"
@@ -47,28 +45,28 @@
               data-confirm-title="¿Validar dispositivo?"
               data-confirm-text="Quedará habilitado para admitir personas."
               data-confirm-danger="false" data-confirm-ok="Sí, validar">Validar</button>
-      <button type="button" @click="modalObservar=true" class="btn-nodo btn-secondary btn-sm btn-fit">Observar</button>
-      <button type="button" @click="modalRechazar=true" class="btn-nodo btn-danger btn-sm btn-fit">Rechazar</button>
       {% endif %}
-      {% if puede_editar and dispositivo.estado == 'ACTIVO' %}
-      <button type="button" class="btn-nodo btn-secondary btn-sm btn-fit"
-              data-confirm-url="{% url 'dispositivos:inactivar' dispositivo.pk %}"
-              data-confirm-title="¿Inactivar dispositivo?"
-              data-confirm-text="Dejará de estar operativo, sin borrar su historial."
-              data-confirm-danger="false" data-confirm-ok="Sí, inactivar">Inactivar</button>
-      {% endif %}
-      {% if puede_editar %}{% if dispositivo.estado == 'ACTIVO' or dispositivo.estado == 'INACTIVO' or dispositivo.estado == 'RECHAZADO' %}
-      <button type="button" class="btn-nodo btn-tertiary btn-sm btn-fit"
-              data-confirm-url="{% url 'dispositivos:cerrar' dispositivo.pk %}"
-              data-confirm-title="¿Cerrar dispositivo?"
-              data-confirm-text="La acción conserva el legajo e impide nuevas operaciones."
-              data-confirm-danger="true" data-confirm-ok="Sí, cerrar">Cerrar</button>
-      {% endif %}{% endif %}
       {% if puede_admitir and dispositivo.estado == 'ACTIVO' %}
       <a href="{{ url_ingreso }}" class="btn-nodo btn-brand btn-sm btn-fit">
         <i class="fas fa-plus" aria-hidden="true"></i> Ingresar persona
       </a>
       {% endif %}
+      {# Las acciones secundarias van al menú; si ninguna corresponde al estado o a la capacidad, el menú no se dibuja #}
+      {% menu_fila id="acciones-dispositivo" etiqueta="Más acciones del dispositivo "|add:dispositivo.nombre texto="Más acciones" %}
+        {% if puede_editar and dispositivo.estado != 'CERRADO' %}
+        {% include "components/_menu_fila_item.html" with texto="Editar" icono="fa-pen" url=url_editar_dispositivo only %}
+        {% endif %}
+        {% if puede_validar and dispositivo.estado == 'PENDIENTE_VALIDACION' %}
+        {% include "components/_menu_fila_item.html" with texto="Observar" icono="fa-eye" abre_modal="modalObservar" only %}
+        {% include "components/_menu_fila_item.html" with texto="Rechazar" icono="fa-ban" abre_modal="modalRechazar" peligro=True only %}
+        {% endif %}
+        {% if puede_editar and dispositivo.estado == 'ACTIVO' %}
+        {% include "components/_menu_fila_item.html" with texto="Inactivar" icono="fa-pause" confirm_url=url_inactivar confirm_title="¿Inactivar dispositivo?" confirm_text="Dejará de estar operativo, sin borrar su historial." confirm_ok="Sí, inactivar" only %}
+        {% endif %}
+        {% if puede_editar %}{% if dispositivo.estado == 'ACTIVO' or dispositivo.estado == 'INACTIVO' or dispositivo.estado == 'RECHAZADO' %}
+        {% include "components/_menu_fila_item.html" with texto="Cerrar" icono="fa-lock" peligro=True confirm_url=url_cerrar confirm_title="¿Cerrar dispositivo?" confirm_text="La acción conserva el legajo e impide nuevas operaciones." confirm_ok="Sí, cerrar" only %}
+        {% endif %}{% endif %}
+      {% endmenu_fila %}
     {% endpage_header %}
 
     {% if aviso_sin_ingresos %}
