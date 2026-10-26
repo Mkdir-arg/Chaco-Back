@@ -67,8 +67,9 @@ pasando por nombre de Font Awesome.
 ambas franjas con `tono` explícito para conservar los acentos semánticos del mockup. Ocupación recibe texto y tono
 desde `tension_de_ocupacion(conteo, tipo=dispositivo.tipo)`, con los umbrales configurados del
 tipo. Sin `tono`, la grande conserva el HTML y el gradiente de Becas. P21
-(`relevamientos/list.html`) pasa `tono` igual al de los badges de estado de su tabla: Asignados `brand`,
-Al día `success`, Por vencer `warning`, Vencidos `danger`. La franja conserva cuatro
+(`relevamientos/list.html`) pasa `tono` en sus cuatro cards: Al día `success`, Por vencer `warning` y Vencidos `danger`
+coinciden con `_relevamiento_situacion_badge.html`; Asignados usa `brand`, el tono por defecto de la
+card, porque la tabla no tiene un estado «asignado». La franja conserva cuatro
 tarjetas: Ocupación incluye «X de Y operativas» en su pie y reemplaza a Ocupadas, sin perder esa
 cifra. Sin plazas operativas el porcentaje es «—», nunca un cero inventado.
 
