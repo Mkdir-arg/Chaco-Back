@@ -106,6 +106,9 @@ orden son solapas de un Detalle, no un wizard.
   la separación de 5 pedida en el encargo (la golden usa 4). Los datos usan los
   rótulos `text-xs font-semibold uppercase text-body-subtle` de P7, también en el resumen final;
   el DNI visible va con `|dni` (`nodo_ui`), como en P7.
+  El pie va en su propia card `<form>` debajo de la grilla y sin `border-t`: el contenido del
+  paso son varias cards (mapa por sector y Persona) y un separador arriba de una card que solo
+  tiene el pie deja una franja vacía.
 - Avisos de situación dentro de un paso (bloqueos, advertencias): `components/_alerta.html`.
   En el paso de plaza, la ocupación crítica usa tono `warning` debajo del mapa y dice «El sistema no bloquea el ingreso.»; la vista arma porcentaje y texto con los umbrales del tipo, desde `services.ocupacion`.
 - Alta mínima dentro de un paso (paso 1 de Dispositivos, cuando la persona no está en el legajo ni en el Registro de Personas): `components/_alerta.html` tono `warning` y, debajo, una segunda tarjeta-formulario con `_field.html`, su propio `csrf_token`, un oculto `accion` y un oculto `persona` con lo que la pantalla mostraba. No es una pieza nueva.
