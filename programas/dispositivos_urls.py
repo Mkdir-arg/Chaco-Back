@@ -32,8 +32,8 @@ urlpatterns = [
     path("<int:pk>/", legajo.DispositivoDetailView.as_view(), name="detalle"),
     path("<int:pk>/editar/", legajo.DispositivoUpdateView.as_view(), name="editar"),
     path("<int:pk>/sectores/", legajo.DispositivoSectoresView.as_view(), name="sectores"),
-    # Capacidad instalada (carril C5). Mutan: solo POST. Los modales que las disparan se
-    # abren con `?sector=nuevo`, `?sector=<id>` y `?plazas=1` sobre `sectores`.
+    # Capacidad instalada (carril C5). Mutan: solo POST. Los modales de las dos altas llegan
+    # con `sectores` y los abre el botón; el de la edición, `?sector=<id>` sobre esa pantalla.
     path("<int:pk>/sectores/nuevo/", capacidad.SectorCrearView.as_view(), name="sector_crear"),
     path(
         "<int:pk>/sectores/<int:sector_pk>/editar/",

@@ -94,7 +94,9 @@ from programas.services.respuestas_dispositivo import formularios_respondidos, g
 from programas.services.sectores_plazas import (
     ACCION_FUERA_SERVICIO,
     ACCION_LIBERAR,
+    ACCION_REUBICAR,
     ACCION_VOLVER,
+    MOTIVO_SIN_PLAZAS_LIBRES,
     plaza_para_accion,
     sectores_con_plazas,
 )
@@ -810,6 +812,10 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             return
         plaza = accion["plaza"]
         context["plaza_accion"] = accion
+        if accion["accion"] == ACCION_REUBICAR:
+            # Su destino es el de la estadía (`url_cambiar_plaza`), no una acción de plaza.
+            self._preparar_reubicar(context, dispositivo, accion)
+            return
         context["url_plaza_accion"] = reverse(URL_DE_ACCION[accion["accion"]], args=[dispositivo.pk, plaza.pk])
         if accion["bloqueo"]:
             return
@@ -817,6 +823,37 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             context["form_plaza"] = LiberarPlazaForm()
         elif accion["accion"] == ACCION_FUERA_SERVICIO:
             context["form_plaza"] = SacarPlazaDeServicioForm()
+
+    def _preparar_reubicar(self, context, dispositivo, accion):
+        """Reubicar a quien ocupa la plaza: el formulario del cambio de plaza de P7, dentro del mapa.
+
+        Se arma **solo** con el modal abierto (el mapa cerrado conserva sus consultas
+        fijas). El POST va a `dispositivos:cambiar_plaza`, que es quien aplica la regla.
+        Sin plazas libres el modal avisa y no trae formulario.
+        """
+
+        estadia = (
+            Estadia.objects.activas()
+            .filter(plaza=accion["plaza"])
+            .select_related("ciudadano", "dispositivo", "plaza__sector")
+            .first()
+        )
+        if estadia is None:
+            # La persona se fue entre el dibujo del mapa y el clic: no hay a quién mover.
+            context.pop("plaza_accion")
+            messages.warning(self.request, "Esa plaza ya no se puede gestionar desde acá.")
+            return
+        estadia.persona_visible = (
+            estadia.ciudadano.apellido_nombre if puede(self.request.user, CAP_VER_CIUDADANO) else "Persona alojada"
+        )
+        sectores, _elegibles = plazas_para_ingresar(dispositivo)
+        form = CambioPlazaForm(estadia=estadia, sectores=sectores, auto_id=AUTO_ID_CAMBIO)
+        context["estadia_cambio"] = estadia
+        if not form.hay_plazas_libres:
+            accion["bloqueo"] = MOTIVO_SIN_PLAZAS_LIBRES
+            return
+        context["form_cambio"] = form
+        context["url_cambiar_plaza"] = reverse("dispositivos:cambiar_plaza", args=[dispositivo.pk, estadia.pk])
 
 
 # Acciones sobre una plaza del mapa (P5). Mutan: solo POST con CSRF. Las reglas —que la
@@ -1168,11 +1205,13 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
         if not puede_operar_dispositivo(request.user, dispositivo, CAP_ADMITIR):
             raise PermissionDenied
         estadia = _estadia_del_dispositivo(dispositivo, estadia_pk)
-        volver = (
-            url_solapa_estadias(dispositivo.pk)
-            if request.POST.get("volver") == "dispositivo"
-            else reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
-        )
+        destino = request.POST.get("volver")
+        if destino == "dispositivo":
+            volver = url_solapa_estadias(dispositivo.pk)
+        elif destino == "sectores":
+            volver = reverse("dispositivos:sectores", args=[dispositivo.pk])
+        else:
+            volver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
 
         form = CambioPlazaForm(
             request.POST, estadia=estadia, sectores=_sectores_para_cambio(estadia), auto_id=AUTO_ID_CAMBIO

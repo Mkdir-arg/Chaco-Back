@@ -88,9 +88,42 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
       {% if plaza_accion.bloqueo %}
         {% include "programas/becas/_modal_header.html" with titulo="Plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-plaza-titulo" subtitulo=plaza_accion.plaza.sector.nombre icono="fa-bed" cerrar="modalPlaza=false" %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% if plaza_accion.accion == "reubicar" %}
+          {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se puede reubicar a la persona" texto=plaza_accion.bloqueo %}
+          <p class="text-sm text-body">La plaza está <strong class="text-heading">{{ plaza_accion.estado.estado|lower }}</strong>. Cuando se libere otra plaza del dispositivo, desde acá se mueve a la persona.</p>
+          {% else %}
           {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se puede sacar de servicio" texto=plaza_accion.bloqueo %}
           <p class="text-sm text-body">La plaza está <strong class="text-heading">{{ plaza_accion.estado.estado|lower }}</strong>. Sacar de servicio una plaza tomada dejaría a la persona en una plaza que el mapa cuenta como no operativa, así que primero se la reubica desde su estadía.</p>
+          {% endif %}
         </div>
+      {% elif plaza_accion.accion == "reubicar" %}
+        {% include "programas/becas/_modal_header.html" with titulo="Cambiar de plaza" titulo_id="modal-plaza-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalPlaza=false" %}
+        <form method="post" action="{{ url_cambiar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
+          {% csrf_token %}
+          <input type="hidden" name="volver" value="sectores">
+          <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+            <div>
+              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+              <label for="{{ form_cambio.plaza.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.plaza.label }} <span class="text-fg-danger">*</span></label>
+              {{ form_cambio.plaza }}
+              <p class="mt-1 text-xs text-body-subtle">Solo las plazas libres del dispositivo. Ahora: {{ plaza_accion.plaza.sector.nombre }} · {{ plaza_accion.plaza.codigo }}.</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="plaza"></p>
+            </div>
+            <div>
+              <label for="{{ form_cambio.momento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.momento.label }} <span class="text-fg-danger">*</span></label>
+              {{ form_cambio.momento }}
+              {% if form_cambio.momento.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ form_cambio.momento.help_text }}</p>{% endif %}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="momento"></p>
+            </div>
+            <div>
+              <label for="{{ form_cambio.motivo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.motivo.label }} <span class="text-fg-danger">*</span></label>
+              {{ form_cambio.motivo }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="motivo"></p>
+            </div>
+            {% include "components/_alerta.html" with tono="info" texto="La plaza de ahora queda libre en el acto. El cambio queda en la línea de tiempo con su motivo y quién lo registró." %}
+          </div>
+          {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Confirmar cambio" %}
+        </form>
       {% elif plaza_accion.accion == "liberar" %}
         {% include "programas/becas/_modal_header.html" with titulo="Liberar la plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-plaza-titulo" subtitulo="Suelta la reserva o el préstamo: la plaza vuelve a estar disponible." icono="fa-unlock" cerrar="modalPlaza=false" %}
         <form method="post" action="{{ url_plaza_accion }}" data-ajax class="flex flex-col flex-1 min-h-0">
