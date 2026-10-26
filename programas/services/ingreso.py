@@ -94,21 +94,6 @@ def buscar_en_registro_de_personas(dni, sexo):
     return RespuestaRegistro(datos, "", False)
 
 
-def consultar_registro_de_personas(dni, sexo):
-    """Pide los datos a RENAPER por el servicio que ya usa Legajos.
-
-    Devuelve `(datos, error)`: `datos` es el recorte que viaja por la sesión, y `error` el
-    texto para la persona que opera. Nunca los dos.
-    """
-
-    datos, motivo, fallecido = buscar_en_registro_de_personas(dni, sexo)
-    if datos is not None:
-        return datos, ""
-    if fallecido:
-        return None, motivo
-    return None, f"No se encontraron datos en el Registro de Personas: {motivo}."
-
-
 def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False):
     """El mapa del paso 2: sectores activos con cada plaza y su estado, sin bloquear nada.
 

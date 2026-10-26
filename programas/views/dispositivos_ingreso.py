@@ -329,6 +329,13 @@ class IngresoPersonaView(IngresoBaseView):
             return self.render_paso(request, form, verificacion)
         return self._guardar_y_seguir({"ciudadano_id": ciudadano.pk})
 
+    def _descartar_alta_minima(self):
+        """Una búsqueda nueva invalida la anterior: si corta con error no queda `sin_registro`."""
+
+        estado = self.estado()
+        if estado.pop("sin_registro", None) is not None:
+            self.guardar(estado)
+
     def _guardar_y_seguir(self, nuevo):
         # El paso se guarda recién ahora, con el form válido; lo que dependía de la persona
         # anterior (la plaza) se descarta.
@@ -338,6 +345,9 @@ class IngresoPersonaView(IngresoBaseView):
     def post(self, request, pk):
         if request.POST.get("accion") == "alta_minima":
             return self._post_alta_minima(request)
+        # Cada consulta reemplaza a la anterior: DNI inválido, sin sexo, fallecida o ya
+        # alojada cortan con error sin tocar la sesión, y la alta mínima vieja no puede volver.
+        self._descartar_alta_minima()
         form = IngresoPersonaForm(request.POST)
         if not form.is_valid():
             return self.render_paso(request, form)
@@ -377,15 +387,15 @@ class IngresoPersonaView(IngresoBaseView):
         sexo = sin_registro.get("sexo") or ""
         buscar = IngresoPersonaForm(initial={"dni": dni, "sexo": sexo})
 
-        # Alguien pudo cargarla mientras tanto: se sigue con esa persona, sin duplicar.
-        ciudadano = buscar_ciudadano_por_dni(dni)
-        if ciudadano is not None:
-            return self._seguir_con(request, ciudadano, buscar)
-
         if request.POST.get("persona") != self.huella_sin_registro(sin_registro):
             # Otra pestaña cambió a quién se está dando de alta: no se guarda nada.
             messages.warning(request, AVISO_OTRA_PESTANA)
             return self.render_paso(request, buscar, alta=self._alta_minima_form(sin_registro))
+
+        # Alguien pudo cargarla mientras tanto: se sigue con esa persona, sin duplicar.
+        ciudadano = buscar_ciudadano_por_dni(dni)
+        if ciudadano is not None:
+            return self._seguir_con(request, ciudadano, buscar)
         alta = self._alta_minima_form(sin_registro, request.POST)
         if not alta.is_valid():
             return self.render_paso(request, buscar, alta=alta)
@@ -588,6 +598,9 @@ class IngresoConfirmarView(IngresoBaseView):
         persona = self.resumen_persona(estado)
         if persona is None:
             return self.volver_al_inicio("La persona elegida ya no está en el Legajo Ciudadano. Buscala de nuevo.")
+        if estado.get("manual") and not puede(request.user, CAP_CREAR_CIUDADANO):
+            # El alta se escribe recién acá: la capacidad se vuelve a comprobar.
+            raise PermissionDenied
         form = IngresoConfirmarForm(request.POST)
         if not self._es_lo_mostrado(estado):
             # Otra pestaña cambió la persona o la plaza: no se escribe nada y se vuelve a

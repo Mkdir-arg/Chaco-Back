@@ -791,8 +791,8 @@ class TipoDispositivoForm(forms.ModelForm):
             if cargadas:
                 self.add_error(
                     "maneja_sectores_plazas",
-                    f"Hay {cargadas} plazas cargadas en instituciones de este tipo: "
-                    "no se puede dejar de manejar plazas mientras existan.",
+                    ("Hay 1 plaza cargada" if cargadas == 1 else f"Hay {cargadas} plazas cargadas")
+                    + " en instituciones de este tipo: no se puede dejar de manejar plazas mientras existan.",
                 )
         amarillo = cleaned.get("umbral_ocupacion_amarillo")
         rojo = cleaned.get("umbral_ocupacion_rojo")

@@ -16,8 +16,7 @@ from legajos.models import Ciudadano
 from programas.models import AsignacionDispositivo, Estadia, Plaza, ReservaPlaza
 from programas.services.bitacora import crear_turno
 from programas.services.estadias import ingresar_persona, reservar_plaza
-from programas.services.ingreso import consultar_registro_de_personas
-from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias
+from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias, _permiso
 from programas.views.dispositivos_ingreso import IngresoBaseView
 
 CAPACIDADES_INGRESO = (*CAPACIDADES_OPERATIVAS, "ciudadano.ver", "ciudadano.crear")
@@ -669,7 +668,7 @@ class AltaMinimaTests(BaseIngreso):
         return self.client.post(self.url_persona, {**ocultos, **(datos or self.DATOS_FORM)})
 
     def _sesion(self):
-        return self.client.session["ingreso_asistente"].get(str(self.cis.pk), {})
+        return self.client.session.get("ingreso_asistente", {}).get(str(self.cis.pk), {})
 
     def test_aparece_el_formulario_chico_y_la_sesion_recuerda_la_consulta(self):
         respuesta = self._consultar()
@@ -695,6 +694,20 @@ class AltaMinimaTests(BaseIngreso):
         self.assertContains(pagina, "No encontramos a la persona")
         self.assertContains(pagina, "Alta de la persona")
         self.assertContains(pagina, self.DNI)
+        # Los dos formularios conviven: cada id aparece una sola vez.
+        self.assertContains(pagina, 'id="id_dni"', count=1)
+        self.assertContains(pagina, 'id="alta_dni"', count=1)
+
+    def test_un_fallecido_despues_de_un_no_encontrada_descarta_el_alta_minima(self):
+        self._consultar(sexo="F")
+        self.assertEqual(self._sesion(), {"sin_registro": {"dni": self.DNI, "sexo": "F"}})
+
+        respuesta = self._consultar(sexo="M", resultado={"success": False, "fallecido": True})
+
+        self.assertContains(respuesta, "figura como fallecida")
+        self.assertNotIn("sin_registro", self._sesion())
+        pagina = self.client.get(self.url_persona)
+        self.assertNotContains(pagina, "Alta de la persona")
 
     def test_buscar_otro_dni_descarta_el_alta_minima(self):
         self._consultar()
@@ -732,7 +745,6 @@ class AltaMinimaTests(BaseIngreso):
 
         self.assertRedirects(respuesta, self.url_confirmar)
         pagina = self.client.get(self.url_confirmar)
-        self.assertContains(pagina, "Carga manual")
         self.assertContains(pagina, "cargados a mano, sin validar")
 
     def test_confirmar_crea_el_ciudadano_sin_estado_renaper_y_la_estadia(self):
@@ -847,7 +859,7 @@ class AltaMinimaTests(BaseIngreso):
                 respuesta = self._enviar_alta({**self.DATOS_FORM, faltante: ""})
                 self.assertEqual(respuesta.status_code, 200)
                 self.assertContains(respuesta, "Alta de la persona")
-                self.assertContains(respuesta, f'data-error="{faltante}">Este campo es obligatorio.')
+                self.assertContains(respuesta, f'data-error="{faltante}">Este campo es requerido.')
                 self.assertNotIn("manual", self._sesion())
 
     def test_la_fecha_de_nacimiento_futura_se_rechaza(self):
@@ -878,6 +890,32 @@ class AltaMinimaTests(BaseIngreso):
         self.assertNotIn("manual", self._sesion())
         self.assertFalse(Ciudadano.objects.filter(dni__in=[self.DNI, "30999888"]).exists())
 
+    def test_otra_pestana_rehace_el_alta_del_mismo_dni_y_no_se_da_de_alta_la_que_no_se_mostro(self):
+        self._consultar()
+        self._enviar_alta()
+        self._elegir_plaza(self.plaza)
+        mostrado_a = self._campos_ocultos(self.client.get(self.url_confirmar))
+        self._consultar()
+        self._enviar_alta({**self.DATOS_FORM, "nombre": "Otra"})
+        self._elegir_plaza(self.plaza)
+
+        respuesta = self.client.post(self.url_confirmar, mostrado_a)
+
+        self.assertFalse(Ciudadano.objects.filter(dni=self.DNI).exists())
+        self.assertContains(respuesta, "cambió en otra pestaña")
+
+    def test_confirmar_una_alta_manual_exige_ciudadano_crear(self):
+        self._consultar()
+        self._enviar_alta()
+        self._elegir_plaza(self.plaza)
+        ocultos = self._campos_ocultos(self.client.get(self.url_confirmar))
+        self.operador_cis.groups.first().permissions.remove(_permiso("ciudadano.crear"))
+
+        respuesta = self.client.post(self.url_confirmar, ocultos)
+
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertFalse(Ciudadano.objects.filter(dni=self.DNI).exists())
+
     def test_la_huella_de_una_persona_manual_y_una_del_registro_difiere(self):
         manual = {"dni": self.DNI, "nombre": "Marta", "apellido": "Ruiz", "fecha_nacimiento": None, "genero": "F"}
         huella_manual = IngresoBaseView.huella_persona({"manual": manual, "sexo": "F"})
@@ -885,14 +923,3 @@ class AltaMinimaTests(BaseIngreso):
 
         self.assertTrue(huella_manual.startswith(f"manual:{self.DNI}:F:"))
         self.assertNotEqual(huella_manual, huella_registro)
-
-    def test_el_mensaje_del_servicio_sigue_igual_para_quien_lo_usaba(self):
-        with mock.patch(
-            "programas.services.ingreso.CiudadanosService.consultar_renaper", return_value=self.SIN_REGISTRO
-        ):
-            datos, error = consultar_registro_de_personas(self.DNI, "F")
-
-        self.assertIsNone(datos)
-        self.assertEqual(
-            error, "No se encontraron datos en el Registro de Personas: Configuracion RENAPER incompleta (URL)."
-        )

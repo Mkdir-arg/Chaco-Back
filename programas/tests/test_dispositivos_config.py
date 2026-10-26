@@ -125,6 +125,25 @@ class TipoDispositivoSectoresYPlazasTests(TestCase):
         tipo.refresh_from_db()
         self.assertTrue(tipo.maneja_plazas)
 
+    def test_destildar_con_una_sola_plaza_cargada_concuerda_en_singular(self):
+        tipo = TipoDispositivo.objects.create(
+            codigo="SP1", nombre="Con una plaza", maneja_camas=True, tipos_plaza_admitidos=["CAMA"]
+        )
+        dispositivo = Dispositivo.objects.create(tipo=tipo, codigo="SP1-1", nombre="Institución")
+        sector = Sector.objects.create(dispositivo=dispositivo, nombre="Pabellón", capacidad=1)
+        Plaza.objects.create(sector=sector, codigo="P-1")
+
+        form = self._form(instance=tipo)
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["maneja_sectores_plazas"],
+            [
+                "Hay 1 plaza cargada en instituciones de este tipo: "
+                "no se puede dejar de manejar plazas mientras existan."
+            ],
+        )
+
     def test_tipo_de_la_v1_con_maneja_camas_viene_tildado_con_cama(self):
         tipo = TipoDispositivo.objects.create(codigo="MUN", nombre="Municipal", maneja_camas=True)
 

@@ -76,6 +76,8 @@ class IngresoAltaMinimaForm(forms.Form):
 
     def __init__(self, *args, dni, sexo="", **kwargs):
         kwargs["initial"] = {"dni": dni, "genero": sexo}
+        # Convive con IngresoPersonaForm en la misma página: sin prefijo se repetirían id_dni & co.
+        kwargs.setdefault("auto_id", "alta_%s")
         super().__init__(*args, **kwargs)
 
     def clean_fecha_nacimiento(self):

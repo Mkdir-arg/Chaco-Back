@@ -47555,7 +47555,7 @@ PM: después).
 - **«Exige asignar una plaza» viene tildada** en un tipo nuevo y en uno de la v1 sin configurar (decisión del
   PM). La ayuda dice que se destilda en los tipos que atienden sin cama.
 - Destildada: lista vacía y no exige. **No se puede destildar** si hay plazas cargadas en instituciones de ese
-  tipo («Hay N plazas cargadas… Sacalas antes de dejar de manejar plazas.»).
+  tipo («Hay N plazas cargadas en instituciones de este tipo: no se puede dejar de manejar plazas mientras existan.», y «Hay 1 plaza cargada…» con una sola).
 - **Sin migración de datos**: un tipo de la v1 (`maneja_camas` y lista vacía) abre tildado, con Cama y con
   «Exige» marcados; guardarlo una vez lo deja configurado.
 - `maneja_camas` se sincroniza al guardar, para la release anterior y lo que todavía lo lea.
@@ -47804,7 +47804,7 @@ la «Ficha mínima» por tipo (pendiente del Cambio 272).
 - **Se da de alta recién al confirmar**, en la misma transacción que la estadía (regla 2 de
   `services/ingreso.py`). Si el ingreso falla, no queda el legajo.
 - El legajo nace con **`estado_renaper` vacío**, como la carga manual de Legajos, y pasa por su mismo formulario
-  (`CiudadanoManualForm`). En Confirmar se ve como «Carga manual».
+  (`CiudadanoManualForm`). En Plaza se ve como «Carga manual» y en Confirmar, con los datos cargados a mano, sin validar.
 - Si la persona aparece en el legajo entre pasos, se sigue con esa y no se duplica.
 - **Sin cambios**: el fallecido sigue bloqueando (no se aloja a quien figura fallecido); sin `ciudadano.crear` y
   sin sexo siguen los errores de hoy; la persona encontrada en el Registro sigue igual.
@@ -47812,7 +47812,7 @@ la «Ficha mínima» por tipo (pendiente del Cambio 272).
 ## Implementación
 
 `buscar_en_registro_de_personas` devuelve datos, motivo y fallecido por separado.
-`consultar_registro_de_personas` queda como envoltorio con el mismo contrato. La sesión guarda `sin_registro`
+La sesión guarda `sin_registro`
 (lo consultado) y, con el alta válida, `manual`. `confirmar_ingreso` recibe `datos_manual`, y el alta del
 Registro y la manual comparten `_crear_legajo`, que tolera la carrera por el DNI.
 
@@ -47831,7 +47831,7 @@ Sin cambios.
 
 - `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
   `check_design_agent` y ruff: en verde.
-- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+- `AltaMinimaTests` corrida en local con `.venv312`: en verde. La suite completa la corre el CI.
 
 ## Puesta en marcha en el servidor
 
