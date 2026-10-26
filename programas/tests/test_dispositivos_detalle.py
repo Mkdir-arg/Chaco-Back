@@ -700,6 +700,7 @@ class AsignarPlazaEnLaSolapaTests(BaseDetalle):
                 self.client.get(self.url, {"tab": "estadias"})
             return len(captura)
 
+        consultas(1, 50)  # calienta caches de permisos y de contenido antes de medir
         self.assertEqual(consultas(2, 100), consultas(6, 200))
 
 

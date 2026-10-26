@@ -53,6 +53,11 @@ class DocumentoResponsableTests(SimpleTestCase):
                 normalizar_documento_responsable(crudo)
             self.assertEqual(ctx.exception.messages, [MENSAJE_DOCUMENTO_INVALIDO])
 
+    def test_digitos_que_no_son_ascii_dan_error_de_campo_y_no_excepcion(self):
+        for valor in ("²0123456789", "١٢٣٤٥٦٧"):
+            with self.subTest(valor=valor), self.assertRaises(ValidationError):
+                normalizar_documento_responsable(valor)
+
     def test_cuit_con_verificador_incorrecto(self):
         for crudo in ("20123456780", "20-12345678-0", "99123456786"):
             with self.subTest(crudo=crudo), self.assertRaises(ValidationError) as ctx:
@@ -78,6 +83,13 @@ class TelefonoResponsableTests(SimpleTestCase):
             with self.subTest(crudo=crudo), self.assertRaises(ValidationError) as ctx:
                 normalizar_telefono(crudo)
             self.assertEqual(ctx.exception.messages, [MENSAJE_TELEFONO_INVALIDO])
+
+
+class TelefonoNoAsciiTests(SimpleTestCase):
+    def test_digitos_arabes_o_superindices_no_son_un_telefono(self):
+        for valor in ("١٢٣٤٥٦٧", "²0123456789"):
+            with self.subTest(valor=valor), self.assertRaises(ValidationError):
+                normalizar_telefono(valor)
 
 
 class NombreResponsableTests(SimpleTestCase):
