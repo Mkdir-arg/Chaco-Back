@@ -510,6 +510,27 @@ class Dispositivo(TimeStamped):
         INACTIVO = "INACTIVO", "Inactivo"
         CERRADO = "CERRADO", "Cerrado"
 
+    class Categoria(models.TextChoices):
+        PUBLICO_ESTATAL = "PUBLICO_ESTATAL", "Público / Estatal"
+        PRIVADO = "PRIVADO", "Privado"
+        ONG = "ONG", "ONG"
+        RELIGIOSO = "RELIGIOSO", "Religioso"
+
+    class TitularidadInmueble(models.TextChoices):
+        ESTADO_PROVINCIAL = "ESTADO_PROVINCIAL", "Estado provincial"
+        MUNICIPIO = "MUNICIPIO", "Municipio"
+        RELIGIOSA = "RELIGIOSA", "Iglesia o congregación religiosa"
+        ONG = "ONG", "ONG o asociación civil"
+        PARTICULAR = "PARTICULAR", "Particular (alquiler o préstamo)"
+        OTRO = "OTRO", "Otro"
+
+    class DependenciaGestion(models.TextChoices):
+        MINISTERIO = "MINISTERIO", "Ministerio"
+        MUNICIPIO = "MUNICIPIO", "Municipio"
+        ONG = "ONG", "ONG o asociación civil"
+        RELIGIOSA = "RELIGIOSA", "Iglesia o congregación religiosa"
+        OTRO = "OTRO", "Otro"
+
     tipo = models.ForeignKey(
         TipoDispositivo,
         on_delete=models.PROTECT,
@@ -518,6 +539,34 @@ class Dispositivo(TimeStamped):
     )
     codigo = models.CharField(max_length=100, unique=True, db_index=True, verbose_name="Código institucional")
     nombre = models.CharField(max_length=200, db_index=True, verbose_name="Nombre")
+    # Encuadre (P3). Las columnas nacen nullable (contrato de migraciones: el código de la
+    # release anterior no las conoce); `null=True` en un CharField es a propósito, para
+    # distinguir «sin dato» de un valor, y la vista lo trata igual que el vacío.
+    categoria = models.CharField(
+        max_length=20, choices=Categoria.choices, null=True, blank=True, verbose_name="Categoría"
+    )
+    area_ministerio = models.ForeignKey(
+        "core.Subsecretaria",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="dispositivos",
+        verbose_name="Área del Ministerio",
+    )
+    titularidad_inmueble = models.CharField(
+        max_length=20,
+        choices=TitularidadInmueble.choices,
+        null=True,
+        blank=True,
+        verbose_name="Titularidad del inmueble",
+    )
+    dependencia_gestion = models.CharField(
+        max_length=20,
+        choices=DependenciaGestion.choices,
+        null=True,
+        blank=True,
+        verbose_name="Dependencia de la gestión",
+    )
     domicilio = models.CharField(max_length=240, blank=True, verbose_name="Domicilio")
     localidad = models.CharField(max_length=120, blank=True, db_index=True, verbose_name="Localidad")
     latitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)

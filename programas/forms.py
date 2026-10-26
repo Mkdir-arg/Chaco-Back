@@ -14,7 +14,7 @@ from django.utils.functional import cached_property
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.edad import es_menor
-from core.models import Localidad, Municipio
+from core.models import Localidad, Municipio, Subsecretaria
 from core.selectors.geografia import localidades_operativas, municipios_operativos
 from core.validators import ACCEPT_ADJUNTO
 from core.widgets import SwitchInput
@@ -921,6 +921,10 @@ class DispositivoForm(forms.ModelForm):
             "tipo",
             "codigo",
             "nombre",
+            "categoria",
+            "area_ministerio",
+            "titularidad_inmueble",
+            "dependencia_gestion",
             "localidad",
             "domicilio",
             "latitud",
@@ -934,6 +938,10 @@ class DispositivoForm(forms.ModelForm):
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
             "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "categoria": forms.Select(attrs={"class": INPUT_CLASS}),
+            "area_ministerio": forms.Select(attrs={"class": INPUT_CLASS}),
+            "titularidad_inmueble": forms.Select(attrs={"class": INPUT_CLASS}),
+            "dependencia_gestion": forms.Select(attrs={"class": INPUT_CLASS}),
             "domicilio": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "latitud": forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.000001"}),
             "longitud": forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.000001"}),
@@ -967,6 +975,14 @@ class DispositivoForm(forms.ModelForm):
         # cargue la primera: al guardar con franjas el servicio lo reemplaza por su resumen.
         self.horario_heredado = "" if guardadas else self.instance.horarios
         self.fields["tipo"].queryset = tipos_para_dispositivo(self.instance).order_by("nombre")
+        # Área del Ministerio = subsecretaría (decisión del PM, 09/09/2026): las activas, y
+        # la ya guardada aunque se haya dado de baja, para no perderla al editar.
+        areas = Q(activo=True)
+        if self.instance.area_ministerio_id:
+            areas |= Q(pk=self.instance.area_ministerio_id)
+        self.fields["area_ministerio"].queryset = (
+            Subsecretaria.objects.filter(areas).select_related("secretaria").order_by("nombre")
+        )
         self.formulario_tipo = formulario_tipo_para(
             self._tipo_elegido(),
             self.instance,
