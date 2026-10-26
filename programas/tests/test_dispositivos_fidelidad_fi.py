@@ -457,9 +457,16 @@ class FidelidadFITests(BaseInfraestructura):
             self.assertLessEqual(len(consultas), presupuestos["dispositivos_semaforo_edilicio"]["consultas_fijas"])
             self.assertTrue(all(s.nivel == VENCIDO for s in semaforos.values()))
             total_semaforo = len(consultas)
+            # Con 9 edificios la solapa pasa a tabla (Cambio 373): se compara el mismo modo, el
+            # predio abierto con su registro, y la tabla se mide aparte.
             with CaptureQueriesContext(connection) as consultas:
-                datos = infraestructura_del_dispositivo(self.parador)
+                datos = infraestructura_del_dispositivo(self.parador, edificio_id=self.predio.pk)
             self.assertLessEqual(len(consultas), presupuestos["dispositivos_infraestructura"]["consultas_fijas"])
             self.assertEqual(datos["semaforo"].nivel, VENCIDO)
             medidas.append((total_semaforo, len(consultas)))
         self.assertEqual(medidas[0], medidas[1])
+        with CaptureQueriesContext(connection) as consultas:
+            tabla = infraestructura_del_dispositivo(self.parador)
+        self.assertTrue(tabla["en_tabla"])
+        self.assertEqual(tabla["semaforo"].nivel, VENCIDO)
+        self.assertLessEqual(len(consultas), medidas[1][1])
