@@ -157,8 +157,10 @@ class DashboardBecasBase(TestCase):
             formulario.refresh_from_db()
         return formulario
 
-    def _ciudadano(self, dni, localidad=None):
-        return Ciudadano.objects.create(dni=dni, nombre="Ana", apellido="Pérez", localidad=localidad)
+    def _ciudadano(self, dni, localidad=None, fecha_nacimiento=None):
+        return Ciudadano.objects.create(
+            dni=dni, nombre="Ana", apellido="Pérez", localidad=localidad, fecha_nacimiento=fecha_nacimiento
+        )
 
     def _usuario_sin_reportes(self):
         """Ve el programa (coordina el segmento) pero no tiene ``becas.reportes.ver``."""
@@ -806,6 +808,36 @@ class RespuestasPorPersonaTests(DashboardBecasBase):
         )
         self._formulario(self.rel_ajeno, creado=HOY - timedelta(days=1))  # otra convocatoria: no entra
         return f1, f2, q_archivo, borrada
+
+    def test_fecha_de_nacimiento_del_titular_va_despues_del_nombre(self):
+        cab = list(svc.COLUMNAS_FIJAS)
+        self.assertEqual(cab[cab.index("Apellido y nombre") + 1], "Fecha de nacimiento")
+
+        def fechas():
+            reporte, _ = svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
+            enc = list(reporte.encabezados)
+            return {fila[enc.index("ID caso")]: fila[enc.index("Fecha de nacimiento")] for fila in reporte.filas}
+
+        con_legajo = self._formulario(
+            self.rel_propio, ciudadano=self._ciudadano("30111222", fecha_nacimiento=date(1990, 7, 5))
+        )
+        sin_legajo = self._formulario(
+            self.rel_publico,
+            datos_identificacion={"dni": "40999888", "fecha_nacimiento": "2005-03-14"},
+        )
+        legajo_sin_fecha = self._formulario(self.rel_propio, ciudadano=self._ciudadano("30111223"))
+        imposible = self._formulario(
+            self.rel_publico,
+            datos_identificacion={"dni": "40999887", "fecha_nacimiento": "2000-02-30"},
+        )
+        sin_ninguna = self._formulario(self.rel_publico, datos_identificacion={"dni": "40999889"})
+
+        por_caso = fechas()
+        self.assertEqual(por_caso[con_legajo.pk], "05/07/1990")
+        self.assertEqual(por_caso[sin_legajo.pk], "14/03/2005")
+        self.assertEqual(por_caso[legajo_sin_fecha.pk], "")
+        self.assertEqual(por_caso[imposible.pk], "2000-02-30")
+        self.assertEqual(por_caso[sin_ninguna.pk], "")
 
     def test_un_registro_por_caso_y_una_columna_por_pregunta(self):
         f1, f2, q_archivo, borrada = self._armar_casos()
