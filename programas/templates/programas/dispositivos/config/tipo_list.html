@@ -1,5 +1,5 @@
 {% extends "includes/base.html" %}
-{% load nodo_ui %}
+{% load nodo_ui dispositivos %}
 {% block title %}Dispositivos · Configuración{% endblock %}
 
 {% block main-content %}
@@ -34,9 +34,7 @@
             <td class="nodo-td text-body">{{ tipo.codigo }}</td>
             <td class="nodo-td text-body">{% if tipo.maneja_plazas %}Sí{% else %}No{% endif %}</td>
             <td class="nodo-td">
-              <span class="badge badge-dot {% if tipo.activo %}badge-success{% else %}badge-gray{% endif %}">
-                {% if tipo.activo %}Activo{% else %}Inactivo{% endif %}
-              </span>
+              {% estado_tipo_dispositivo tipo as estado %}<span class="badge badge-dot badge-{{ estado.tono }}">{{ estado.texto }}</span>
             </td>
             <td class="nodo-td text-right">
               <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}" class="nodo-icon-btn"
