@@ -500,6 +500,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 374 | «Asignar plaza» a una persona alojada sin plaza | Dispositivos · P4 · P7 | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 375 | Ingreso: alta mínima de la persona que no está en el legajo ni en el Registro de Personas | Dispositivos · P6 · paso Persona | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 376 | El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro | Dispositivos · Configuración → Tipos | `#ui` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 378 | Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle | Dispositivos · Configuración → Tipos | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -47916,6 +47917,104 @@ Ninguno.
 ## Reversión
 
 Revertir el commit (vuelve el modal que se reabre con cada clic).
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 378 — Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (listado, alta/edición y detalle) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/config/tipo_list.html`, `tipo_form.html`, `_tipo_detail_content.html` |
+| **Migración** | no |
+
+## Pedido original
+
+Es el segundo lote de la revisión de diseño de Dispositivos (ver el Cambio 377). El relevamiento marcó tres cosas
+en la configuración de tipos:
+
+- El listado tiene el título armado a mano, un SVG en «Nuevo tipo», la tabla sin `nodo-th`/`nodo-td` y el estado
+  vacío suelto.
+- El formulario tiene un «← Volver» de texto, un `<h1>` propio y un ancho angosto centrado.
+- El detalle tiene los botones del encabezado en tamaño de página.
+
+## Alcance acordado
+
+Entran las tres pantallas, sin cambiar comportamiento: mismos datos, URLs, formularios, `data-*` y JS. Quedan
+afuera:
+
+- el modal del tipo (`_edit_modal.html`);
+- los campos de `_tipo_form_fields.html`;
+- el JS de `tipo_detail.html`.
+
+Van en el PR del modal (ver Pendientes).
+
+## Decisiones tomadas
+
+- **Listado → arquetipo Listado** (golden `becas/revision/personas_list.html`):
+  - `page_header` con eyebrow y bajada, y «Nuevo tipo» con `fa-plus`;
+  - la tabla con `nodo-thead-row`/`nodo-th`/`nodo-td`;
+  - el estado vacío con `_estado_vacio.html`, que ahora ofrece «Nuevo tipo». La pantalla no condiciona ese
+    botón por capacidad, igual que el del encabezado.
+  - La acción de fila «Configurar», que era un botón con texto, pasa a `nodo-icon-btn` (`fa-gear`) con
+    `aria-label="Configurar el tipo …"`, como pide la ficha de tabla.
+- **Formulario → arquetipo Formulario** (golden `becas/config/segmento_form.html`):
+  - `page_header` con `volver_url`: al detalle del tipo cuando se edita, al listado cuando se crea;
+  - surface `bg-white` a todo el ancho, como la golden;
+  - el pie con `mt-6 pt-4 border-t`. El espaciado entre campos no cambia.
+- **Detalle:** los tres botones del encabezado pasan de `btn-base` a `btn-sm btn-fit`, el tamaño de los
+  detalles. El relevamiento había marcado «Activar» con dos variantes a la vez, pero no era así: es un `{% if %}`
+  que pone una sola, `btn-tertiary` para desactivar y `btn-secondary` para activar. Queda igual.
+
+## Implementación
+
+Solo templates. Las URLs de volver salen de `{% url … as … %}` en el template, así que no se tocó ninguna vista.
+No hay clases nuevas ni hizo falta recompilar Tailwind.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/config/tipo_list.html`
+- `programas/templates/programas/dispositivos/config/tipo_form.html`
+- `programas/templates/programas/dispositivos/config/_tipo_detail_content.html`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y
+  `check_design_agent --changed`: en verde.
+- `design_audit --arquetipo listado tipo_list.html`: OK.
+- `design_audit --arquetipo formulario tipo_form.html`: 2 desvíos, los dos por la misma causa. Faltan los
+  marcadores `_form_errores.html` y `_field.html`, porque los campos viven en `_tipo_form_fields.html`, que
+  comparte el modal. Escribir los includes en `tipo_form.html` sin usarlos solo engañaría al auditor. Se
+  resuelve cuando ese parcial pase a `_field.html` (Pendientes).
+- Ningún test afirma el markup que cambió (grep en `programas/tests/` y `core/tests/`). Por pedido del PM
+  (26/10/2026) no se corrió la suite en local: la corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada. Recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+- Migrar `_tipo_form_fields.html` a `_field.html` y `_form_errores.html` en el PR del modal del tipo (lote D del
+  Cambio 377). Ahí `tipo_form.html` pasa los marcadores del arquetipo Formulario.
+
+## Reversión
+
+Revertir el commit. No hay datos que revertir.
 
 ## Historial
 
