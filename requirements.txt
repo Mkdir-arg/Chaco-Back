@@ -44,10 +44,11 @@ whitenoise[brotli]==6.8.2
 # Environment & Config
 python-dotenv==1.2.2
 gunicorn==23.0.0
-# Backend de build de varias dependencias que no traen wheel para 3.12. 80.9.0 arrastraba
-# PYSEC-2026-3447 (CVE-2026-59890) con excepción vigente en `security/excepciones.toml`;
-# 83.0.0 es la primera corregida y la excepción se retiró en el mismo PR (RED-85).
-setuptools==83.0.0
+# Queda instalado en la imagen y pip-audit lo audita; no es el backend de build de las sdist,
+# que pip compila con aislamiento y su propio setuptools (Cambio 363). 80.9.0 arrastraba
+# PYSEC-2026-3447 (CVE-2026-59890) y 83.0.0 la corrigió (RED-85); 84.1.0 es la primera
+# corregida de GHSA-xmj3-9gf7-h52w (Cambio 363).
+setuptools==84.1.0
 
 # Utilities básicas
 requests==2.34.2
