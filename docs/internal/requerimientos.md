@@ -489,6 +489,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 361 | Entrar después de un logout por inactividad ya no termina en un 405 | Transversal / sesión | `#sesion` | PM — reportó el 405 en `https://datanach.ecomdev.ar/logout` | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 362 | Skill `/auditoria`: auditoría completa de development y control antes de mergear cada PR | Transversal · método de trabajo de los agentes | `#metodo` `#performance` | PM — pedido en sesión | 23/10/2026 | 🟢 **Hecho** | No requiere |
 | 363 | setuptools 84.1.0 y cinco excepciones de twisted: «Pip Audit» vuelve a verde | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (24/10/2026) | 24/10/2026 | 🟢 **Hecho** | No requiere |
+| 365 | P3: categoría, área del Ministerio, titularidad del inmueble y dependencia de la gestión | Dispositivos · alta y edición de institución (P3) | `#datos` `#ui` | PM — prueba en testing de P3 | 26/10/2026 | 🟢 **Hecho** | `programas.0105` |
+| 366 | DNI/CUIT, teléfono y nombre del responsable se validan en la solicitud de merendero y en el alta de dispositivo | Merenderos · solicitud · Dispositivos · P3 | `#datos` `#ui` | QA — #564 · PM — amplía a P3 | 06/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -39708,6 +39710,8 @@ datos; regresan la presentación anterior y las consultas anticipadas del mapa d
 
 Entrada nueva y única de FF. No se modifican entradas anteriores.
 
+- **26/10/2026** — categoría, área, titularidad y dependencia ya existen en el modelo y se dibujan en P3 y en P4 (Cambio 365): ese apartamiento deja de valer.
+
 ---
 
 ---
@@ -40273,6 +40277,8 @@ migraciones. Regresan el formulario de una columna y el semáforo de criticidad.
 Entrada nueva y única de FI. Las decisiones anteriores de FF/FG se conservan en
 sus entradas; la columna y Vencido quedan autorizados por este encargo del PM.
 
+- **26/10/2026** — categoría, área, titularidad y dependencia ya existen en el modelo y se dibujan en P3 y en P4 (Cambio 365): ese apartamiento deja de valer.
+
 ---
 
 ---
@@ -40632,6 +40638,10 @@ Sin pendientes funcionales de los diez puntos del carril.
 Revertir los commits de código y documentación de FJ. No requiere cambios de
 base ni pierde datos. Retorna la firma anterior del servicio junto con todos
 sus consumidores y el comportamiento previo de P3.
+
+## Historial
+
+- **26/10/2026** — categoría, área, titularidad y dependencia ya existen en el modelo y se dibujan en P3 y en P4 (Cambio 365): ese apartamiento deja de valer.
 
 ---
 
@@ -47003,3 +47013,174 @@ hay datos ni migración. El check de «Pip Audit» vuelve a rojo.
   diciendo «backend de build». Los tres se corrigieron en la misma rama.
 
 ---
+
+---
+
+# Cambio 365 — P3: categoría, área del Ministerio, titularidad del inmueble y dependencia de la gestión
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alta y edición de institución (P3) y detalle (P4, solapa Datos) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | PM — prueba en testing de `/dispositivos/nuevo/`, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 (MVP de Dispositivos) |
+| **Partes afectadas** | Servidor: `programas.models.Dispositivo`, `DispositivoForm`, `services/dispositivos.py` (`_CAMPOS_REQUERIDOS_VALIDACION`), vista de detalle · Backoffice: `dispositivos/legajo/form.html`, `dispositivos/legajo/detail.html` |
+| **Migración** | `programas.0105_dispositivo_encuadre` — 4 columnas nullable (expand puro) |
+
+## Pedido original
+
+En P3 faltan los selectores del mockup #p3 dentro de «Identidad y encuadre»: **Categoría** *, **Área del
+Ministerio** *, **Titularidad del inmueble** y **Dependencia de la gestión**.
+
+## Alcance acordado
+
+Entra: los cuatro campos en el modelo, en P3 (después de Nombre, en la grilla de dos columnas) y en la
+solapa Datos de P4. Queda afuera: el listado (P2) con las columnas «Tipo · área» y «Categoría», la API, el
+import del padrón y los exports.
+
+## Decisiones tomadas
+
+- **Cambia los apartamientos de los Cambios 302, 308 y 310**, que no dibujaban estos campos porque el
+  modelo no los tenía. No era una decisión contra los campos: ahora existen.
+- **Categoría**: Público / Estatal, Privado, ONG, Religioso (análisis 006 §Encuadre jurídico, minuta del
+  26/06/2026).
+- **Área del Ministerio = la subsecretaría** (`core.Subsecretaria`, decisión del PM del 09/09/2026; mismo
+  patrón que `Programa.subsecretaria`). El select ofrece las activas y conserva la guardada aunque se haya
+  desactivado.
+- **Titularidad del inmueble** (Estado provincial, Municipio, Iglesia o congregación religiosa, ONG o
+  asociación civil, Particular (alquiler o préstamo), Otro) y **Dependencia de la gestión** (Ministerio,
+  Municipio, ONG o asociación civil, Iglesia o congregación religiosa, Otro): **listas propuestas por el
+  juez**, a confirmar por el PM. Son `TextChoices`: cambiarlas es solo Python.
+- Categoría y Área llevan el asterisco: se exigen **para enviar a validación**, no para guardar el
+  borrador. Titularidad y Dependencia son opcionales.
+- P4 los muestra en la solapa Datos, con «—» si faltan.
+
+## Implementación
+
+Tres `TextChoices` en `Dispositivo` y un FK `PROTECT` a `core.Subsecretaria`. `null=True` en los
+`CharField` a propósito: la columna nace nullable por el contrato de migraciones. El detalle suma
+`select_related("area_ministerio__secretaria")`.
+
+## Archivos
+
+- `programas/models/__init__.py`, `programas/migrations/0105_dispositivo_encuadre.py`
+- `programas/forms.py` (`DispositivoForm`: `Meta` y `__init__`), `programas/services/dispositivos.py`
+- `programas/views/dispositivos_legajo.py`
+- `programas/templates/programas/dispositivos/legajo/form.html`, `.../legajo/detail.html`
+- `programas/tests/test_dispositivos_fidelidad_fi.py`, `test_dispositivos_legajo.py`, `test_dispositivos_formulario_alta.py`
+
+## Base de datos
+
+`programas.0105`: `area_ministerio_id bigint NULL` con FK a `core_subsecretaria` e índice, y `categoria`,
+`titularidad_inmueble` y `dependencia_gestion` `varchar(20) NULL`. Expand puro: la release anterior
+sigue dando de alta.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check`, `check_migraciones.py` (0 problemas), `design_audit
+  --ratchet` (0 nuevos), `compile_templates --bloques` (0) y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada: la migración corre con el release.
+
+## Pendientes / a definir
+
+- El PM confirma las listas de Titularidad y Dependencia.
+- Las instituciones ya cargadas quedan sin Categoría ni Área: se les piden al reenviarlas a validación.
+- Columnas en el listado (P2) y en exports: sin pedido.
+
+## Reversión
+
+1. Backup de `programas_dispositivo` (solo si ya se cargaron datos y se quieren conservar).
+2. `manage.py migrate programas 0104` con el código de esta release (desaplica `programas.0105`).
+3. Revertir el commit y desplegar.
+
+Se pierde: la Categoría, el Área del Ministerio, la Titularidad y la Dependencia cargadas en cada
+institución. Nada más depende de esas columnas. La release anterior no las lee, así que también puede
+volverse solo con el código y dejar las columnas (expand puro).
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 366 — DNI/CUIT, teléfono y nombre del responsable se validan en la solicitud de merendero y en el alta de dispositivo
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Merenderos · solicitud de alta · Dispositivos · alta y edición de institución (P3) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | QA (Matías Abate) — #564, `3e1312321` aceptado como DNI/CUIT; PM — amplía a P3 (26/10/2026) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | #628 · Épica #127 |
+| **Partes afectadas** | Servidor: `programas/validacion_contacto.py` (nuevo), `programas/forms.py` (`SolicitudMerenderoForm`, `DispositivoForm`) |
+| **Migración** | no |
+
+## Pedido original
+
+La solicitud de merendero guardaba como DNI/CUIT lo que llegara (`3e1312321`), y lo mismo el teléfono y el
+nombre del responsable. El alta de dispositivo tenía el mismo hueco.
+
+## Alcance acordado
+
+Entra: formato de DNI/CUIT, teléfono y nombre del responsable en los dos formularios. Queda afuera: la
+documentación respaldatoria (ya la valida el Cambio 188, `validar_adjunto`) y el import del padrón, que
+escribe sin pasar por el formulario.
+
+## Decisiones tomadas
+
+- **DNI/CUIT**: se quitan puntos, guiones y espacios; 7 u 8 dígitos con la regla única de `core/dni.py`
+  (RED-48); 11 con `cuil_valido` de `services/siis_envio.py`, sin duplicar el algoritmo. Se guarda solo con
+  dígitos. Ayuda: «DNI de 7 u 8 dígitos o CUIT de 11».
+- **Teléfono**: dígitos, espacios, `+ - ( )`, de 8 a 15 dígitos; se guarda solo con dígitos y el `+`
+  inicial si lo tenía.
+- **Nombre**: al menos una letra.
+- Un campo vacío no se valida (borrador). Un registro viejo inválido se **ve** sin error; al guardarlo se
+  pide corregir.
+
+## Implementación
+
+Funciones puras en `programas/validacion_contacto.py`, llamadas desde `clean_*` de cada formulario. Vive
+aparte de `programas/validadores.py` porque ese módulo lo importa `programas.models` y este importa
+`siis_envio`, que importa los modelos.
+
+## Archivos
+
+- `programas/validacion_contacto.py` (nuevo), `programas/forms.py`
+- `programas/tests/test_validacion_contacto.py` (nuevo), `programas/tests/test_merenderos.py`
+- `programas/tests/test_dispositivos_fidelidad_fi.py` y `test_dispositivos_formulario_alta.py` (usaban un
+  teléfono de 6 dígitos)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check`, ruff y una prueba manual del helper con la tabla de #628
+  (incluido `3e1312321`): en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- El import del padrón de dispositivos sigue sin validar estos campos.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
