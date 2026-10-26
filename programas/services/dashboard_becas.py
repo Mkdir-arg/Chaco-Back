@@ -1357,12 +1357,7 @@ def _fecha_nacimiento(f):
         fecha = ident.get("fecha_nacimiento")
     if not fecha:
         return ""
-    try:
-        return _texto_legible({"tipo": "DATE"}, fecha)
-    except ValueError:
-        # Una fecha ISO imposible («2000-02-30», guardada antes de G1-06 / #624) no puede
-        # tumbar la planilla entera: queda tal cual.
-        return str(fecha)
+    return _texto_legible({"tipo": "DATE"}, fecha)
 
 
 def _apoderado(f):
