@@ -500,6 +500,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 374 | «Asignar plaza» a una persona alojada sin plaza | Dispositivos · P4 · P7 | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 375 | Ingreso: alta mínima de la persona que no está en el legajo ni en el Registro de Personas | Dispositivos · P6 · paso Persona | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 376 | El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro | Dispositivos · Configuración → Tipos | `#ui` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 377 | Dispositivos: la leyenda del mapa de plazas pasa a pastillas, y los tonos del listado y de P21 se alinean | Dispositivos · leyenda del mapa (P5, P6) · listado · P21 | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -31881,6 +31882,10 @@ No requiere.
 
 Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
 
+- **26/10/2026 — Cambio 377:** la leyenda pasa a pastillas `badge badge-{tono}` con el ícono y el texto
+  adentro. Siguen las dos reglas de esta entrada: el color nunca va solo y cada tono lleva el mismo ícono en
+  la leyenda y en el mapa.
+
 ---
 
 ---
@@ -42533,7 +42538,11 @@ el responsable de esa funcionalidad. El juez asigna el número definitivo de est
 Revertir el commit de código y el de documentación. No hay datos ni migraciones que revertir.
 La reversión restituye las fugas de identidad y la discrepancia de permanencia anteriores.
 
----
+## Historial
+
+- **26/10/2026 — Cambio 377:** P21 pasa a llevar `tono` en sus cuatro métricas, el mismo que el badge de
+  estado de su tabla. Lo de «P21 conserva el HTML de sus métricas sin tono» describía el alcance de este
+  PR, no una decisión de diseño, y queda superado.
 
 ---
 
@@ -47850,6 +47859,9 @@ Revertir el commit. Los legajos creados quedan como cargas manuales comunes.
 ## Historial
 
 - **26/10/2026 — alta del cambio.**
+
+---
+
 # Cambio 376 — El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro
 
 🟢 **HECHO — 26/10/2026**
@@ -47877,9 +47889,11 @@ Entra: que un clic dentro del modal no lo vuelva a abrir. Queda afuera todo lo d
 
 - **Causa**: el script de la página abre el modal con cualquier clic dentro de un elemento con
   `data-edit-url`, y el contenedor del modal (`_edit_modal.html`) también lleva ese atributo, que usa para
-  devolverle el foco al botón al cerrar. Así, cada clic adentro cancelaba la acción (la casilla no se
-  tildaba), ponía el modal en `opacity-60` y lo volvía a pedir al servidor. Estaba así desde julio (PR #196);
-  no lo trajo el Cambio 372, pero recién ahí hizo falta tildar algo en el modal.
+  devolverle el foco al botón al cerrar. Así, cada clic adentro cancelaba la acción, ponía el modal en
+  `opacity-60` y lo volvía a pedir al servidor. Estaba así desde julio (PR #196), también en PRD, y afectaba
+  a **todo** lo que se hacía dentro del modal: «Guardar» (y Enter, que dispara el clic del botón de envío),
+  «Cerrar», «Cancelar», el clic en el fondo y las casillas. No lo trajo el Cambio 372; recién ahí se notó,
+  porque hizo falta tildar algo en el modal. (Precisado en el Cambio 377.)
 - El clic que abre el modal se busca **solo en un enlace** (`a[data-edit-url]`), que es lo que es el botón
   «Editar tipo». El atributo del contenedor queda como está.
 
@@ -47916,6 +47930,114 @@ Ninguno.
 ## Reversión
 
 Revertir el commit (vuelve el modal que se reabre con cada clic).
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+- **26/10/2026 — Cambio 377:** la causa se precisa con lo que encontró la auditoría del PR #973. No era solo
+  la casilla: desde julio ningún clic dentro del modal andaba, también en PRD. Queda pendiente un MINOR de
+  esa auditoría: arrastrar desde un campo y soltar sobre el fondo cierra el modal y pierde lo escrito
+  (`tipo_detail.html`). Se arregla en el PR del modal del tipo.
+
+---
+
+# Cambio 377 — Dispositivos: la leyenda del mapa de plazas pasa a pastillas, y los tonos del listado y de P21 se alinean
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · leyenda del mapa de plazas (P5 y P6) · listado de dispositivos · relevamientos (P21) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 («la leyenda Disponible / Ocupada / Reservada / Prestada no encaja con el diseño») |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `templates/components/_leyenda_plazas.html`, `dispositivos/legajo/list.html`, `dispositivos/relevamientos/list.html` · Fichas: `mapa_plazas.md`, `stat_card.md`, `tabla.md` |
+| **Migración** | no |
+
+## Pedido original
+
+El PM siente desvíos de diseño en Dispositivos y da un ejemplo: la leyenda del mapa de plazas «no encaja con el
+diseño». Pide corregir los desvíos sin cambiar comportamiento, en PRs chicos. Un relevamiento de solo lectura
+(`chaco-design-reviewer`, 26/10) encontró 11 desvíos. Este cambio es el primer lote: la leyenda y dos chips
+de tono.
+
+## Alcance acordado
+
+Entra: la leyenda de estados de plaza, el badge de ocupación del listado de dispositivos y las cuatro métricas
+de P21. Queda afuera el resto del relevamiento, que va en los PRs siguientes del lote (ver Pendientes). No
+cambian datos, vistas, contextos ni URLs.
+
+## Decisiones tomadas
+
+- **La leyenda es una fila de pastillas `badge badge-{tono}`**, con el ícono y el texto adentro, en vez del
+  cuadradito de 20 px con el texto suelto en gris. Las pastillas son la pieza que el sistema ya usa para un
+  estado con tono (`nodo-badges.css`), así que no hace falta CSS nuevo. Se mantienen las dos reglas del
+  Cambio 214: el color nunca va solo (ícono y texto) y cada tono lleva **el mismo ícono en la leyenda y en el
+  mapa**. Un tono desconocido da `badge-gray` con `fa-circle`. El ícono va con un espacio antes del texto,
+  como en el resto de los badges del repo, porque `.badge` ya trae su `gap`.
+- **Sin rótulo «Estado de las plazas».** Ninguna ficha prevé un rótulo para un grupo de badges. Sumarlo sería
+  una novedad, y el `aria-label` de la lista ya lo dice.
+- **Ocupada (`info`, violeta) y Prestada (`brand`, rosa) conservan su tono.** En pastilla se distinguen por
+  el color, el ícono (`fa-user` / `fa-right-left`) y el texto. Cambiar un tono obligaría a tocar el mapa y el
+  servicio de ocupación, que le da el tono a cada plaza. Lo decidió el juez por delegación del PM (26/10/2026).
+- **Listado de dispositivos:** el badge de porcentaje de ocupación lleva `badge-dot`, como los de estado e
+  infraestructura de la misma tabla.
+- **P21:** las cuatro métricas llevan `tono`, el mismo que el badge de estado de su tabla: Asignados `brand`,
+  Al día `success`, Por vencer `warning` y Vencidos `danger`. Esto reemplaza lo que dejó el Cambio 324 («P21
+  conserva el HTML de sus métricas sin tono»), que era el alcance de ese PR, no una decisión de diseño. Ahora
+  P21 se ve como P4 y P19.
+
+## Implementación
+
+- `_leyenda_plazas.html`: un `li` por estado con
+  `<span class="badge badge-{tono}"><i class="fas {ícono}" aria-hidden="true"></i> {estado}</span>`. El
+  contrato de la include (`leyenda`, lista de `estado` + `tono`) y sus consumidores no cambian.
+- `legajo/list.html`: suma `badge-dot`. `relevamientos/list.html`: suma `tono=` en las cuatro `_stat_card`.
+- Las fichas `mapa_plazas.md`, `stat_card.md` y `tabla.md` se actualizan en el mismo diff.
+
+## Archivos
+
+- `templates/components/_leyenda_plazas.html`
+- `programas/templates/programas/dispositivos/legajo/list.html`
+- `programas/templates/programas/dispositivos/relevamientos/list.html`
+- `core/tests/test_nodo_ui_lote_b.py` (`LeyendaPlazasTest`: pastilla y mismo ícono que el mapa por tono, y el
+  tono desconocido)
+- `.claude/design/componentes/mapa_plazas.md`, `stat_card.md`, `tabla.md`
+- `docs/internal/requerimientos.md`: este cambio; la causa del Cambio 376 corregida; el separador entre 375
+  y 376; Historial en 214 y 324.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent --changed` y ruff: en verde.
+- Tests adaptados y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada. Recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+El resto del relevamiento de diseño va en PRs aparte, con las decisiones que el PM tomó el 26/10/2026
+(«sigo tus recomendaciones»):
+
+1. Configuración de tipos: listado, formulario y botones del detalle a los arquetipos.
+2. Asistente de ingreso: «Continuar» es el único verbo de avance. En el paso 1 el botón de la izquierda sigue
+   siendo «Cancelar». El pie de Plaza va dentro de la card, como en Persona y Confirmar.
+3. Modal del tipo y campos de los modales de Sectores, con el arreglo del arrastre del Cambio 376 (abajo). El
+   SweetAlert2 propio de `tipo_detail.html` se reemplaza por el modal estándar.
+4. P4: las acciones secundarias del encabezado se agrupan en un menú «Más acciones».
+5. Los tipos de la v1 con `maneja_camas` se convierten solos al modelo de sectores y plazas, también en PRD,
+   sin que haya que guardar cada tipo a mano.
+
+## Reversión
+
+Revertir el commit: vuelven el cuadradito de la leyenda y los chips sin tono. No hay datos que revertir.
 
 ## Historial
 
