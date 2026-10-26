@@ -356,6 +356,14 @@ class QueryCountMiddlewareTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(report["metrics_source"], "unavailable")
 
+    def test_first_redis_warning_is_emitted_even_if_monotonic_clock_is_young(self):
+        middleware = QueryCountMiddleware(lambda _request: HttpResponse("ok"))
+
+        with patch("core.performance.query_observability.time.monotonic", return_value=5.0):
+            with self.assertLogs("core.performance.query_observability", level="WARNING"):
+                with patch.object(QueryObservabilityStore, "_redis", return_value=StaleRedis()):
+                    middleware(RequestFactory().get("/inicio/"))
+
     @override_settings(PERFORMANCE_REDIS_RECOVERY_SECONDS=60)
     def test_failed_redis_write_opens_circuit_until_recovery_window(self):
         store = QueryObservabilityStore()
