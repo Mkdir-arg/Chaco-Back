@@ -485,6 +485,12 @@ class TipoDispositivo(TimeStamped):
             return []
         return [valor for valor in valores if isinstance(valor, str)]
 
+    @property
+    def maneja_plazas(self):
+        """¿Las instituciones de este tipo tienen sectores y plazas, y el ingreso asigna una?"""
+
+        return bool(self.plaza_obligatoria_al_ingresar or self.tipos_de_plaza)
+
     def admite_tipo_de_plaza(self, tipo):
         tipos = self.tipos_de_plaza
         return not tipos or tipo in tipos

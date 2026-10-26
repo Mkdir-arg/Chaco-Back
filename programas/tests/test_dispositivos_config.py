@@ -14,7 +14,7 @@ from django.urls import reverse
 
 from core import rbac
 from programas.forms import DispositivoForm, TipoDispositivoForm
-from programas.models import Programa, TipoDispositivo
+from programas.models import Dispositivo, Plaza, Programa, Sector, TipoDispositivo
 from users.models import Capacidad, RolMeta
 
 
@@ -59,6 +59,110 @@ class TipoDispositivoFormTests(TestCase):
         self.assertNotIn("camas_totales", DispositivoForm.base_fields)
 
 
+class TipoDispositivoSectoresYPlazasTests(TestCase):
+    """«Sectores y plazas» reemplaza a «Maneja camas» en el modal del tipo."""
+
+    def _form(self, datos=None, instance=None):
+        base = {"codigo": "SP", "nombre": "Con plazas", "descripcion": "", "activo": "on"}
+        return TipoDispositivoForm({**base, **(datos or {})}, instance=instance)
+
+    def test_tildada_sin_tipos_de_plaza_es_error(self):
+        form = self._form({"maneja_sectores_plazas": "on"})
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors["tipos_plaza_admitidos"], ["Elegí al menos un tipo de plaza."])
+
+    def test_tildada_con_cama_maneja_plazas_y_sincroniza_maneja_camas(self):
+        form = self._form({"maneja_sectores_plazas": "on", "tipos_plaza_admitidos": ["CAMA"]})
+
+        self.assertTrue(form.is_valid(), form.errors)
+        tipo = form.save()
+        tipo.refresh_from_db()
+        self.assertEqual(tipo.tipos_plaza_admitidos, ["CAMA"])
+        self.assertTrue(tipo.maneja_plazas)
+        self.assertTrue(tipo.maneja_camas)
+
+    def test_destildada_vacia_los_tipos_y_la_obligatoriedad(self):
+        tipo = TipoDispositivo.objects.create(
+            codigo="SP",
+            nombre="Con plazas",
+            maneja_camas=True,
+            tipos_plaza_admitidos=["CAMA", "CUPO"],
+            plaza_obligatoria_al_ingresar=True,
+        )
+        form = self._form(
+            {"tipos_plaza_admitidos": ["CAMA"], "plaza_obligatoria_al_ingresar": "on"},
+            instance=tipo,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        tipo.refresh_from_db()
+        self.assertEqual(tipo.tipos_plaza_admitidos, [])
+        self.assertFalse(tipo.plaza_obligatoria_al_ingresar)
+        self.assertFalse(tipo.maneja_plazas)
+        self.assertFalse(tipo.maneja_camas)
+
+    def test_destildar_con_plazas_cargadas_no_deja(self):
+        tipo = TipoDispositivo.objects.create(
+            codigo="SP", nombre="Con plazas", maneja_camas=True, tipos_plaza_admitidos=["CAMA"]
+        )
+        dispositivo = Dispositivo.objects.create(tipo=tipo, codigo="SP-1", nombre="Institución")
+        sector = Sector.objects.create(dispositivo=dispositivo, nombre="Pabellón", capacidad=2)
+        Plaza.objects.create(sector=sector, codigo="P-1")
+        Plaza.objects.create(sector=sector, codigo="P-2")
+
+        form = self._form(instance=tipo)
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["maneja_sectores_plazas"],
+            ["Hay 2 plazas cargadas en instituciones de este tipo. Sacalas antes de dejar de manejar plazas."],
+        )
+        tipo.refresh_from_db()
+        self.assertTrue(tipo.maneja_plazas)
+
+    def test_tipo_de_la_v1_con_maneja_camas_viene_tildado_con_cama(self):
+        tipo = TipoDispositivo.objects.create(codigo="MUN", nombre="Municipal", maneja_camas=True)
+
+        form = TipoDispositivoForm(instance=tipo)
+
+        self.assertTrue(form["maneja_sectores_plazas"].value())
+        self.assertEqual(form["tipos_plaza_admitidos"].value(), ["CAMA"])
+
+    def test_guardar_el_tipo_de_la_v1_le_da_la_solapa_al_detalle_de_la_institucion(self):
+        programa, _ = Programa.objects.get_or_create(
+            codigo="DISPOSITIVOS",
+            defaults={"nombre": "Dispositivos", "tipo": Programa.TipoPrograma.DISPOSITIVOS},
+        )
+        rol = Group.objects.create(name="Lector plazas test")
+        RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=programa, activo=True)
+        rol.permissions.add(permiso("dispositivo.ver"), permiso("programa.configurar"))
+        usuario = User.objects.create_user("lector-plazas", password="x")
+        usuario.groups.add(rol)
+        tipo = TipoDispositivo.objects.create(codigo="MUN", nombre="Municipal", maneja_camas=True)
+        dispositivo = Dispositivo.objects.create(tipo=tipo, codigo="MUN-1", nombre="Municipal 1")
+        url = reverse("dispositivos:detalle", args=[dispositivo.pk])
+        self.client.force_login(usuario)
+        self.assertNotContains(self.client.get(url), "Sectores y plazas")
+
+        form = TipoDispositivoForm(
+            {
+                "codigo": "MUN",
+                "nombre": "Municipal",
+                "descripcion": "",
+                "maneja_sectores_plazas": "on",
+                "tipos_plaza_admitidos": ["CAMA"],
+                "activo": "on",
+            },
+            instance=tipo,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        self.assertContains(self.client.get(url), "Sectores y plazas")
+
+
 class ConfiguracionDispositivosViewsTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -94,7 +198,8 @@ class ConfiguracionDispositivosViewsTests(TestCase):
                 "codigo": "NUEVO",
                 "nombre": "Nuevo tipo",
                 "descripcion": "Demo",
-                "maneja_camas": "on",
+                "maneja_sectores_plazas": "on",
+                "tipos_plaza_admitidos": ["CAMA"],
                 "activo": "on",
             },
         )

@@ -149,6 +149,8 @@ servicios = forms.MultipleChoiceField(choices=SERVICIOS, widget=ChipsSelectMulti
 autoriza = forms.BooleanField(widget=SwitchInput, required=False)
 ```
 
+- **Casilla que muestra otros campos** (`TipoDispositivoForm`, «Maneja sectores y plazas»): el widget lleva `x-model` sobre un `x-data` del template y los campos dependientes `x-show`, sin `x-cloak`: sin JS se ven siempre y el servidor decide en `clean()`.
+
 - **Accesibilidad de los chips:** el contenedor es `role="group"` con `aria-labelledby` hacia el
   label de `_field.html` (que ahora lleva `id="<auto_id>-etiqueta"` y omite `for` cuando el widget
   no tiene un único control). La ayuda y el error cuelgan del grupo, no de cada chip. La clase

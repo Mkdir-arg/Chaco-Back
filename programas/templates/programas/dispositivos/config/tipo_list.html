@@ -25,7 +25,7 @@
             <tr class="text-left text-body-subtle">
               <th class="px-5 py-3 font-semibold">Tipo</th>
               <th class="px-5 py-3 font-semibold">Código</th>
-              <th class="px-5 py-3 font-semibold">Maneja camas</th>
+              <th class="px-5 py-3 font-semibold">Sectores y plazas</th>
               <th class="px-5 py-3 font-semibold">Estado</th>
               <th class="px-5 py-3 text-right"><span class="sr-only">Acciones</span></th>
             </tr>
@@ -38,7 +38,7 @@
                   {% if tipo.descripcion %}<p class="text-xs text-body-subtle mt-1">{{ tipo.descripcion|truncatechars:90 }}</p>{% endif %}
                 </td>
                 <td class="px-5 py-4 font-mono text-xs text-body">{{ tipo.codigo }}</td>
-                <td class="px-5 py-4 text-body">{% if tipo.maneja_camas %}Sí{% else %}No{% endif %}</td>
+                <td class="px-5 py-4 text-body">{% if tipo.maneja_plazas %}Sí{% else %}No{% endif %}</td>
                 <td class="px-5 py-4">
                   <span class="badge badge-dot {% if tipo.activo %}badge-success{% else %}badge-gray{% endif %}">
                     {% if tipo.activo %}Activo{% else %}Inactivo{% endif %}
