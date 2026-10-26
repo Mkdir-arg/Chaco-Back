@@ -20,7 +20,9 @@ Situación de la plaza                  Acción               Capacidad
 =====================================  ===================  ==========================
 Fuera de servicio                      volver a servicio    ``dispositivo.editar``
 Con una reserva o préstamo sin liberar liberar              ``dispositivo.admitir``
-Ocupada                                sacar de servicio,   ``dispositivo.editar``
+Ocupada                                reubicar a la        ``dispositivo.admitir``
+                                       persona
+Ocupada, sin ``dispositivo.admitir``   sacar de servicio,   ``dispositivo.editar``
                                        **bloqueada**
 Disponible                             sacar de servicio    ``dispositivo.editar``
 =====================================  ===================  ==========================
@@ -32,9 +34,10 @@ mapa, esa alerta no se podría resolver desde acá. El estado dibujado sigue sal
 `estado_de_plazas` y de ningún otro lado; lo que se suma es un segundo hecho, no un
 segundo estado.
 
-La plaza ocupada **no esconde** la acción: la ofrece deshabilitada con su motivo, porque
-`sacar_plaza_de_servicio` la rechaza y el operador tiene que saber por qué y qué hacer
-(reubicar). Las capacidades las resuelve la vista y llegan acá como dos booleanos: el
+La plaza ocupada ofrece **reubicar** a quien puede admitir (Cambio 377, que revierte en
+parte el 287): el modal mueve a la persona a otra plaza libre con `estadias.cambiar_plaza`.
+A quien solo puede editar le sigue ofreciendo «sacar de servicio» deshabilitada con su
+motivo, porque `sacar_plaza_de_servicio` la rechaza y tiene que saber por qué. Las capacidades las resuelve la vista y llegan acá como dos booleanos: el
 servicio recibe hechos, no usuarios.
 
 Costo
@@ -69,24 +72,31 @@ TOPE_PLAZAS_POR_SECTOR = 200
 ACCION_LIBERAR = "liberar"
 ACCION_FUERA_SERVICIO = "fuera_servicio"
 ACCION_VOLVER = "volver"
+ACCION_REUBICAR = "reubicar"
+
+#: El aviso del modal de una plaza ocupada cuando no hay a dónde mover a la persona.
+MOTIVO_SIN_PLAZAS_LIBRES = "No hay plazas libres en el dispositivo para moverla."
 
 #: Por qué una plaza ocupada no se saca de servicio. Lo mismo que rechaza
 #: `estadias.sacar_plaza_de_servicio`, dicho antes de intentarlo.
 MOTIVO_PLAZA_OCUPADA = "Tiene una estadía activa: reubicá a la persona antes de sacarla de servicio."
 
 
-def accion_de_plaza(estado, con_reserva_abierta):
+def accion_de_plaza(estado, con_reserva_abierta, puede_reubicar=False):
     """La acción que admite una plaza, por su estado del mapa y su reserva sin resolver.
 
     Fuera de servicio gana: es la misma precedencia que dibuja `estado_de_plazas`, y una
     plaza fuera de servicio con una reserva abierta —que el servicio de estadías no deja
-    escribir— se repone antes de nada.
+    escribir— se repone antes de nada. La ocupada se reubica si quien mira puede admitir
+    (`puede_reubicar`); si no, sigue siendo «sacar de servicio», bloqueada con su motivo.
     """
 
     if estado.estado == ESTADO_FUERA_SERVICIO:
         return ACCION_VOLVER
     if con_reserva_abierta:
         return ACCION_LIBERAR
+    if estado.estado == ESTADO_OCUPADA and puede_reubicar:
+        return ACCION_REUBICAR
     return ACCION_FUERA_SERVICIO
 
 
@@ -99,7 +109,8 @@ def bloqueo_de_plaza(estado, accion):
 
 
 def _habilitada(accion, *, puede_liberar, puede_configurar_plazas):
-    return puede_liberar if accion == ACCION_LIBERAR else puede_configurar_plazas
+    # `puede_liberar` es `dispositivo.admitir`: la misma capacidad que exige `cambiar_plaza`.
+    return puede_liberar if accion in (ACCION_LIBERAR, ACCION_REUBICAR) else puede_configurar_plazas
 
 
 def plaza_para_accion(dispositivo, plaza_pk, *, puede_liberar=False, puede_configurar_plazas=False):
@@ -123,7 +134,7 @@ def plaza_para_accion(dispositivo, plaza_pk, *, puede_liberar=False, puede_confi
         return None
     estado = estado_de_plazas([plaza])[plaza.pk]
     reserva = reserva_abierta_de(plaza)
-    accion = accion_de_plaza(estado, reserva is not None)
+    accion = accion_de_plaza(estado, reserva is not None, puede_reubicar=puede_liberar)
     if not _habilitada(accion, puede_liberar=puede_liberar, puede_configurar_plazas=puede_configurar_plazas):
         return None
     return {
@@ -212,7 +223,7 @@ def sectores_con_plazas(dispositivo, *, puede_liberar=False, puede_configurar_pl
     los estados de las celdas de `ocupacion.estado_de_plazas`: las dos son el mismo
     servicio, así que el encabezado y el mapa no pueden decir cosas distintas.
 
-    `puede_liberar` (`dispositivo.admitir`) y `puede_configurar_plazas`
+    `puede_liberar` (`dispositivo.admitir`; también habilita reubicar) y `puede_configurar_plazas`
     (`dispositivo.editar`) los resuelve la vista con alcance al dispositivo. Una plaza
     cuya acción el usuario no puede ejercer llega sin `url`, salvo que pueda editar su
     identidad: en ese caso enlaza al modal de edición, sin liberar ni cambiar el estado.
@@ -237,7 +248,7 @@ def sectores_con_plazas(dispositivo, *, puede_liberar=False, puede_configurar_pl
         celdas = []
         for plaza in plazas:
             estado = estados[plaza.pk]
-            accion = accion_de_plaza(estado, plaza.pk in reservas)
+            accion = accion_de_plaza(estado, plaza.pk in reservas, puede_reubicar=puede_liberar)
             habilitada = _habilitada(
                 accion, puede_liberar=puede_liberar, puede_configurar_plazas=puede_configurar_plazas
             )
