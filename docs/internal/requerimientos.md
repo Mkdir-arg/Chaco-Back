@@ -47968,10 +47968,14 @@ Van en el PR del modal (ver Pendientes).
     botón por capacidad, igual que el del encabezado.
   - La acción de fila «Configurar», que era un botón con texto, pasa a `nodo-icon-btn` (`fa-gear`) con
     `aria-label="Configurar el tipo …"`, como pide la ficha de tabla.
+  - El badge de estado sale del helper canónico `estado_tipo_dispositivo`, el mismo que usa el detalle, y no
+    de un `{% if %}` en el template. El HTML que se dibuja es el mismo.
 - **Formulario → arquetipo Formulario** (golden `becas/config/segmento_form.html`):
-  - `page_header` con `volver_url`: al detalle del tipo cuando se edita, al listado cuando se crea;
+  - `page_header` con `volver_url` al listado. Este template solo dibuja el alta, porque la edición va en el
+    modal sobre el detalle (`TipoDispositivoUpdateView`);
   - surface `bg-white` a todo el ancho, como la golden;
-  - el pie con `mt-6 pt-4 border-t`. El espaciado entre campos no cambia.
+  - el pie con `mt-6 pt-4 border-t`, y «Guardar tipo» con `fa-check`, como el esqueleto. El espaciado entre
+    campos no cambia.
 - **Detalle:** los tres botones del encabezado pasan de `btn-base` a `btn-sm btn-fit`, el tamaño de los
   detalles. El relevamiento había marcado «Activar» con dos variantes a la vez, pero no era así: es un `{% if %}`
   que pone una sola, `btn-tertiary` para desactivar y `btn-secondary` para activar. Queda igual.
@@ -47979,13 +47983,16 @@ Van en el PR del modal (ver Pendientes).
 ## Implementación
 
 Solo templates. Las URLs de volver salen de `{% url … as … %}` en el template, así que no se tocó ninguna vista.
-No hay clases nuevas ni hizo falta recompilar Tailwind.
+Hubo que recompilar Tailwind aunque no se agregó ninguna clase: «← Volver» y el nombre del tipo eran los
+últimos usos de `hover:text-fg-brand`, y el CSS commiteado conservaba esa regla. Sacar una clase también obliga
+a recompilar.
 
 ## Archivos
 
 - `programas/templates/programas/dispositivos/config/tipo_list.html`
 - `programas/templates/programas/dispositivos/config/tipo_form.html`
 - `programas/templates/programas/dispositivos/config/_tipo_detail_content.html`
+- `static/custom/css/tailwind.css`
 
 ## Base de datos
 
