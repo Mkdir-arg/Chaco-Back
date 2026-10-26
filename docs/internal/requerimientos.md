@@ -47035,11 +47035,12 @@ XLSX y en el CSV de «Respuestas por persona».
 
 - **Es la fecha del titular del caso**, la misma persona de «DNI» y «Apellido y nombre»; no la
   del apoderado.
-- **El legajo primero, `datos_identificacion` de respaldo:** si el caso tiene ciudadano y este
-  tiene fecha, esa; si no, la `fecha_nacimiento` de los datos de identificación offline. Así
-  quedan cubiertos el caso sin legajo y el legajo sin fecha. Sin fecha en ningún lado, celda vacía.
+- **Mismo criterio que «DNI» y «Apellido y nombre»:** con legajo, la fecha sale solo del legajo
+  (si no la tiene, celda vacía; DECISIÓN CLIENTE: dejar la celda vacía, completar el legajo con
+  la fecha de la app sería otra regla); sin legajo, de `datos_identificacion`.
 - **Texto dd/mm/aaaa**, igual que «Fecha de envío» y que las fechas de las respuestas
-  (`legible` con tipo `DATE`); un texto que no se puede leer como fecha queda tal cual.
+  (`legible` con tipo `DATE`); una fecha ilegible o imposible («2000-02-30») queda tal cual y
+  no tumba la planilla.
 
 ## Implementación
 
@@ -47082,5 +47083,8 @@ Revertir el commit. No hay datos ni migración.
 ## Historial
 
 - **26/10/2026 — alta del cambio.**
+- **26/10/2026 — `/auditoria pr 950`, primera ronda:** CHANGES NEEDED. Una fecha ISO imposible
+  hacía 500 en toda la exportación (MAJOR) y el respaldo legajo → `datos_identificacion` era
+  inalcanzable (MINOR). Se envolvió la conversión y se alineó con `_identificacion`.
 
 ---

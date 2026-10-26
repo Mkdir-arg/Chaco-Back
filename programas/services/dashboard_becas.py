@@ -1348,12 +1348,21 @@ def _identificacion(f):
 
 def _fecha_nacimiento(f):
     """Fecha de nacimiento del titular del caso (no del apoderado) en dd/mm/aaaa: la del
-    legajo si la tiene; si no, la de los datos de identificación offline."""
-    fecha = f["ciudadano__fecha_nacimiento"] if f["ciudadano_id"] else None
-    if not fecha:
+    legajo si hay ciudadano (vacía si no la tiene); sin legajo, la de los datos de
+    identificación offline. Mismo criterio que :func:`_identificacion`."""
+    if f["ciudadano_id"]:
+        fecha = f["ciudadano__fecha_nacimiento"]
+    else:
         ident = f["datos_identificacion"] if isinstance(f["datos_identificacion"], dict) else {}
         fecha = ident.get("fecha_nacimiento")
-    return _texto_legible({"tipo": "DATE"}, fecha) if fecha else ""
+    if not fecha:
+        return ""
+    try:
+        return _texto_legible({"tipo": "DATE"}, fecha)
+    except ValueError:
+        # Una fecha ISO imposible («2000-02-30», guardada antes de G1-06 / #624) no puede
+        # tumbar la planilla entera: queda tal cual.
+        return str(fecha)
 
 
 def _apoderado(f):

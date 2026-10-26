@@ -825,17 +825,18 @@ class RespuestasPorPersonaTests(DashboardBecasBase):
             self.rel_publico,
             datos_identificacion={"dni": "40999888", "fecha_nacimiento": "2005-03-14"},
         )
-        legajo_sin_fecha = self._formulario(
-            self.rel_propio,
-            ciudadano=self._ciudadano("30111223"),
-            datos_identificacion={"fecha_nacimiento": "2001-12-31"},
+        legajo_sin_fecha = self._formulario(self.rel_propio, ciudadano=self._ciudadano("30111223"))
+        imposible = self._formulario(
+            self.rel_publico,
+            datos_identificacion={"dni": "40999887", "fecha_nacimiento": "2000-02-30"},
         )
         sin_ninguna = self._formulario(self.rel_publico, datos_identificacion={"dni": "40999889"})
 
         por_caso = fechas()
         self.assertEqual(por_caso[con_legajo.pk], "05/07/1990")
         self.assertEqual(por_caso[sin_legajo.pk], "14/03/2005")
-        self.assertEqual(por_caso[legajo_sin_fecha.pk], "31/12/2001")
+        self.assertEqual(por_caso[legajo_sin_fecha.pk], "")
+        self.assertEqual(por_caso[imposible.pk], "2000-02-30")
         self.assertEqual(por_caso[sin_ninguna.pk], "")
 
     def test_un_registro_por_caso_y_una_columna_por_pregunta(self):
