@@ -626,6 +626,29 @@ class EstadoVacioTest(SimpleTestCase):
         self.assertIn("Limpiar filtros", html)
         self.assertNotIn("btn-brand", html)
 
+    def test_accion_click_abre_un_modal_de_la_pantalla_sin_navegar(self):
+        """Con `accion_click` la acción es un botón de Alpine, y gana sobre `accion_url`."""
+
+        for extra in ({}, {"accion_url": "/nuevo/"}):
+            with self.subTest(extra=extra):
+                html = render_to_string(
+                    VACIO,
+                    {
+                        "titulo": "Sin sectores",
+                        "accion_click": "modalSectorNuevo=true",
+                        "accion_texto": "Nuevo sector",
+                        "accion_icono": "fa-plus",
+                        **extra,
+                    },
+                )
+
+                self.assertIn(
+                    '<button type="button" @click="modalSectorNuevo=true" class="btn-nodo btn-brand btn-base mt-2">'
+                    '<i class="fas fa-plus" aria-hidden="true"></i> Nuevo sector</button>',
+                    html,
+                )
+                self.assertNotIn("<a ", html)
+
     def test_sin_accion_ni_texto(self):
         html = render_to_string(VACIO, {"titulo": "Vacío"})
 

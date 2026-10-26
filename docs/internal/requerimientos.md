@@ -500,7 +500,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 374 | «Asignar plaza» a una persona alojada sin plaza | Dispositivos · P4 · P7 | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 375 | Ingreso: alta mínima de la persona que no está en el legajo ni en el Registro de Personas | Dispositivos · P6 · paso Persona | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 376 | El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro | Dispositivos · Configuración → Tipos | `#ui` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
-| 377 | «Agregar plazas» recargaba la pantalla antes de abrir el modal | Dispositivos · P5 Sectores y plazas | `#ui` `#performance` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 377 | «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal | Dispositivos · P5 Sectores y plazas | `#ui` `#performance` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -38417,10 +38417,10 @@ Entrada nueva y única de C5. Retoma el commit `c2e82f24`, completa edición de 
 y corrige unicidad entre sectores y respuestas de alcance. Rebasado únicamente C5 sobre
 `origin/development` después del merge de #853; la entrada 287 de C1 se conserva desde la base.
 
-- **26/10/2026 — Cambio 377.** «+ Agregar plazas» deja la variante GET: decía `GET: … plazas=id` y
-  «formas y consultas adicionales solo al abrir el modal». El lote no depende de un registro, así que
-  su formulario ahora llega con P5 y lo abre el botón, sin recargar. Nuevo sector, Editar sector y
-  Editar plaza siguen por GET.
+- **26/10/2026 — Cambio 377.** «+ Agregar plazas» y «Nuevo sector» dejan la variante GET: decía
+  `GET: … plazas=id` y «formas y consultas adicionales solo al abrir el modal». Las dos altas no
+  dependen de un registro, así que sus formularios ahora llegan con P5 y los abre el botón, sin
+  recargar. Editar sector, Editar plaza y las acciones del mapa siguen por GET.
 
 ---
 
@@ -47929,31 +47929,32 @@ Revertir el commit (vuelve el modal que se reabre con cada clic).
 
 ---
 
-# Cambio 377 — «Agregar plazas» recargaba la pantalla antes de abrir el modal
+# Cambio 377 — «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal
 
 🟢 **HECHO — 26/10/2026**
 
 | | |
 |---|---|
-| **Programa / módulo** | Dispositivos · P5 Sectores y plazas (modal «Agregar plazas») |
+| **Programa / módulo** | Dispositivos · P5 Sectores y plazas (modales «Agregar plazas» y «Nuevo sector») |
 | **Etiquetas** | `#ui` `#performance` |
-| **Solicitante** | PM — prueba en testing, 26/10/2026 («hace como un F5 antes de abrir») |
+| **Solicitante** | PM — prueba en testing, 26/10/2026 («hace como un F5 antes de abrir»; después: «arreglalo en este PR» para «Nuevo sector») |
 | **Fecha del pedido** | 26/10/2026 |
 | **Issue / épica** | sin issue · Épica #127 |
-| **Partes afectadas** | Backoffice: `sectores/sectores.html`, `DispositivoSectoresView`, `AgregarPlazasForm` |
+| **Partes afectadas** | Backoffice: `sectores/sectores.html`, `sectores/_modal_sector.html` (nuevo), `DispositivoSectoresView`, `AgregarPlazasForm`, la pieza canónica `components/_estado_vacio.html` |
 | **Migración** | No requiere |
 
 ## Pedido original
 
 En `https://datanach.ecomdev.ar/dispositivos/2/sectores/?plazas=1`, al tocar «Agregar plazas» se abre el
 modal «Agregar plazas · Un lote con el código autogenerado. Nacen operativas.», pero antes hace como un F5.
-Buscar por qué es y arreglarlo.
+Buscar por qué es y arreglarlo. Después, en el mismo PR: «Nuevo sector» tenía el mismo F5.
 
 ## Alcance acordado
 
-Entra: los dos botones «Agregar plazas» de P5, el del encabezado y el de cada sector vacío. Quedan como
-están «Nuevo sector», «Editar sector», «Editar plaza» y las acciones de una plaza del mapa: siguen
-abriéndose por parámetro GET (variante del arquetipo Modal, ver Pendientes).
+Entra: los dos botones «Agregar plazas» de P5, el del encabezado y el de cada sector vacío, y los dos de
+«Nuevo sector», el del encabezado y el del estado vacío de un dispositivo sin sectores. Quedan como están
+«Editar sector», «Editar plaza» y las acciones de una plaza del mapa: dependen de un registro y siguen
+abriéndose por parámetro GET (variante del arquetipo Modal).
 
 ## Decisiones tomadas
 
@@ -47973,19 +47974,36 @@ abriéndose por parámetro GET (variante del arquetipo Modal, ver Pendientes).
   1 en la institución que lo tuviera.
 - **`auto_id="id_plazas_%s"`** en `AgregarPlazasForm`: ahora convive en el HTML con `SectorForm` y
   `PlazaForm`, que también tienen `tipo`, y sin prefijo se repetía `id_tipo`. El `name` del POST no cambia.
+- **«Nuevo sector» tiene su propio modal**, separado del de «Editar sector». Los dos comparten el mismo
+  formulario y por eso salen de una sola plantilla, `sectores/_modal_sector.html`, con su variable de
+  Alpine y su id de título como parámetros. El alta llega siempre con la página para quien configura las
+  plazas, y la edición se sigue armando con `?sector=<id>`, así que pueden estar las dos a la vez. Por eso el
+  alta usa `auto_id="id_nuevo_%s"`.
+- **`?sector=nuevo` se ignora en silencio**: era el enlace del alta y puede seguir en un marcador o en el
+  historial. Ya no es un id, y sin esa excepción la pantalla avisaría que «ese sector no se puede editar».
+- **`accion_click` en la pieza canónica del estado vacío**: el botón del vacío pasa a ser
+  `<button type="button" @click>` cuando la acción abre un modal de la pantalla, en vez de un enlace que
+  recarga. Gana sobre `accion_url`. Los seis usos que ya existían producen el mismo HTML, byte por byte.
+  La ficha `estado_vacio.md` suma el parámetro y la sección «Alta que abre un modal de la pantalla».
 
 ## Implementación
 
 «Agregar plazas» abre el modal sin recargar. El del encabezado lo abre sin sector elegido; el de un
-sector vacío, con ese sector ya elegido. Guardar sigue igual (POST AJAX, toast y vuelta al mapa).
+sector vacío, con ese sector ya elegido. «Nuevo sector» también abre su modal sin recargar, desde el
+encabezado o desde el estado vacío, y llega con el formulario limpio aunque la edición de otro sector esté
+abierta. Guardar sigue igual (POST AJAX, toast y vuelta al mapa).
 
 ## Archivos
 
 - `programas/templates/programas/dispositivos/sectores/sectores.html`
-- `programas/views/dispositivos_legajo.py` (`_preparar_modales_de_configuracion`)
+- `programas/templates/programas/dispositivos/sectores/_modal_sector.html` (nuevo: el modal del sector,
+  para el alta y la edición)
+- `programas/views/dispositivos_legajo.py` (`_preparar_modales_de_configuracion`, docstring de la vista)
 - `programas/views/dispositivos_capacidad.py` (docstring)
 - `programas/forms_dispositivos.py` (`AgregarPlazasForm`)
-- `programas/tests/test_dispositivos_capacidad.py` (`LoteSinRecargaTests` y el test del estado vacío)
+- `templates/components/_estado_vacio.html` y `.claude/design/componentes/estado_vacio.md` (`accion_click`)
+- `programas/tests/test_dispositivos_capacidad.py` (`AltasSinRecargaTests` y el test del estado vacío)
+- `core/tests/test_nodo_ui_piezas.py` (`accion_click` del estado vacío)
 
 ## Base de datos
 
@@ -47999,6 +48017,15 @@ Sin cambios.
 - Chromium (Playwright) contra un servidor local: el encabezado abre el modal sin navegar (ninguna
   navegación, una marca en `window` sobrevive, el select queda vacío); el sector vacío lo abre con su
   sector elegido; el lote se guarda y aparecen M-01 a M-03; sin errores de consola ni HTTP ≥ 400.
+- «Nuevo sector»: tests en rojo antes y en verde después. Mutación: sin el `auto_id` del alta,
+  `test_la_pantalla_no_repite_ids_con_otro_modal_abierto` falla con ids repetidos frente al modal de
+  edición y al de la plaza. 2640 tests OK con `.venv312`: dispositivos, `core` y el snapshot de Becas, que
+  congela el shell. El HTML de los seis usos previos de `_estado_vacio.html` es idéntico al de antes
+  (mismo hash).
+- Chromium, «Nuevo sector»: `?sector=<id>` abre la edición al cargar. Cerrada con Escape, el botón del
+  encabezado abre el alta sin navegar y con el nombre vacío, y guardar crea el sector. En un dispositivo sin
+  sectores, el botón del estado vacío abre el modal sin navegar. «Agregar plazas» sigue abriendo sin
+  navegar. Sin errores de consola ni HTTP ≥ 400.
 - `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `--arquetipo modal` y `detalle` OK,
   `--goldens` 0, `compile_templates --bloques` 0 y `check_design_agent --changed` OK.
 
@@ -48008,16 +48035,19 @@ Nada. En testing, recargar con Ctrl+F5 después del deploy.
 
 ## Pendientes / a definir
 
-- «Nuevo sector» tiene el mismo F5 y tampoco depende de un registro. No entró porque comparte el modal
-  con «Editar sector»: pasarlo exige un modal propio. «Editar sector», «Editar plaza» y las acciones del
-  mapa sí dependen del registro y siguen por GET, como manda la ficha del arquetipo.
+- Nada de este cambio. «Editar sector», «Editar plaza» y las acciones del mapa siguen por GET porque
+  dependen del registro, como manda la ficha del arquetipo.
 
 ## Reversión
 
-Revertir el commit (vuelve el enlace a `?plazas=` y la recarga).
+Revertir los dos commits: vuelven los enlaces a `?plazas=` y `?sector=nuevo`, y con ellos la recarga.
+Revertir solo el segundo devuelve «Nuevo sector» al enlace y saca `accion_click` de la pieza del estado
+vacío. Ningún otro uso de la pieza lo emplea.
 
 ## Historial
 
 - **26/10/2026 — alta del cambio.**
+- **26/10/2026 — «Nuevo sector» entra en el mismo PR (#975)**, a pedido del PM. Sale de Pendientes y pasa
+  a Alcance, Decisiones e Implementación.
 
 ---
