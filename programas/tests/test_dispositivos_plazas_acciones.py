@@ -27,15 +27,17 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Plaza, ReservaPlaza, Sector
+from programas.models import MovimientoEstadia, Plaza, ReservaPlaza, Sector
 from programas.services.detalle_dispositivo import alertas_del_dispositivo
 from programas.services.estadias import ingresar_persona, reservar_plaza, sacar_plaza_de_servicio
 from programas.services.ocupacion import ESTADO_DISPONIBLE, ESTADO_FUERA_SERVICIO, ESTADO_OCUPADA
 from programas.services.sectores_plazas import (
     ACCION_FUERA_SERVICIO,
     ACCION_LIBERAR,
+    ACCION_REUBICAR,
     ACCION_VOLVER,
     MOTIVO_PLAZA_OCUPADA,
+    MOTIVO_SIN_PLAZAS_LIBRES,
     sectores_con_plazas,
 )
 from programas.tests.test_dispositivos_estadias import BaseEstadias
@@ -135,13 +137,16 @@ class AccionPorPlazaTests(BaseMapa):
         self.assertEqual(respuesta.context["plaza_accion"]["accion"], ACCION_LIBERAR)
 
     def test_una_plaza_ocupada_explica_por_que_no_se_puede_sacar_de_servicio(self):
+        """Quien solo configura plazas (sin admitir) sigue viendo el aviso: no puede reubicar."""
+
         ingresar_persona(ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza)
 
-        respuesta = self._pantalla(plaza=self.plaza.pk)
+        respuesta = self._pantalla(self.sin_admitir, plaza=self.plaza.pk)
 
         self.assertEqual(self._celdas(respuesta)["P1"]["estado"], ESTADO_OCUPADA)
         self.assertEqual(respuesta.context["plaza_accion"]["bloqueo"], MOTIVO_PLAZA_OCUPADA)
         self.assertNotIn("form_plaza", respuesta.context)
+        self.assertNotIn("form_cambio", respuesta.context)
         self.assertContains(respuesta, "No se puede sacar de servicio")
 
     def test_un_sector_dado_de_baja_no_aporta_plazas_ni_acciones(self):
@@ -151,6 +156,115 @@ class AccionPorPlazaTests(BaseMapa):
 
         self.assertEqual(self._celdas(respuesta), {})
         self.assertNotIn("plaza_accion", respuesta.context)
+
+
+class ReubicarDesdeElMapaTests(BaseMapa):
+    """La plaza ocupada ofrece reubicar a quien puede admitir (Cambio 377, revierte en parte el 287)."""
+
+    def setUp(self):
+        super().setUp()
+        self.estadia = ingresar_persona(
+            ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza
+        )
+        self.con_ciudadano = self._operador(
+            "Con ciudadano CIS", self.cis, ("dispositivo.ver", "dispositivo.admitir", "ciudadano.ver")
+        )
+
+    def _post_cambio(self, usuario=None, **datos):
+        self.client.force_login(usuario or self.operador_cis)
+        cuerpo = {
+            "plaza": self.otra_plaza.pk,
+            "momento": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+            "motivo": "Convivencia",
+            "volver": "sectores",
+        }
+        cuerpo.update(datos)
+        return self.client.post(reverse("dispositivos:cambiar_plaza", args=[self.cis.pk, self.estadia.pk]), cuerpo)
+
+    def test_con_admitir_la_plaza_ocupada_ofrece_reubicar_con_solo_las_libres(self):
+        respuesta = self._pantalla(plaza=self.plaza.pk)
+
+        celda = self._celdas(respuesta)["P1"]
+        self.assertEqual(celda["estado"], ESTADO_OCUPADA)
+        self.assertEqual(celda["url"], f"?plaza={self.plaza.pk}")
+        self.assertEqual(respuesta.context["plaza_accion"]["accion"], ACCION_REUBICAR)
+        self.assertEqual(respuesta.context["plaza_accion"]["bloqueo"], "")
+        form = respuesta.context["form_cambio"]
+        grupos = form.fields["plaza"].choices[1:]
+        self.assertEqual([pk for _sector, libres in grupos for pk, _codigo in libres], [self.otra_plaza.pk])
+        url = reverse("dispositivos:cambiar_plaza", args=[self.cis.pk, self.estadia.pk])
+        self.assertEqual(respuesta.context["url_cambiar_plaza"], url)
+        self.assertContains(respuesta, f'action="{url}"')
+        self.assertContains(respuesta, '<input type="hidden" name="volver" value="sectores">')
+        self.assertContains(respuesta, "Confirmar cambio")
+
+    def test_admitir_sin_editar_tambien_reubica(self):
+        respuesta = self._pantalla(self.sin_editar, plaza=self.plaza.pk)
+
+        self.assertEqual(respuesta.context["plaza_accion"]["accion"], ACCION_REUBICAR)
+        self.assertIn("form_cambio", respuesta.context)
+
+    def test_sin_plazas_libres_avisa_y_no_trae_formulario(self):
+        ingresar_persona(
+            ciudadano=self.otra_persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.otra_plaza
+        )
+
+        respuesta = self._pantalla(plaza=self.plaza.pk)
+
+        self.assertEqual(respuesta.context["plaza_accion"]["bloqueo"], MOTIVO_SIN_PLAZAS_LIBRES)
+        self.assertNotIn("form_cambio", respuesta.context)
+        self.assertContains(respuesta, MOTIVO_SIN_PLAZAS_LIBRES)
+        self.assertNotContains(respuesta, "Confirmar cambio")
+
+    def test_con_editar_sin_admitir_sigue_el_aviso_de_hoy(self):
+        respuesta = self._pantalla(self.sin_admitir, plaza=self.plaza.pk)
+
+        self.assertEqual(respuesta.context["plaza_accion"]["accion"], ACCION_FUERA_SERVICIO)
+        self.assertEqual(respuesta.context["plaza_accion"]["bloqueo"], MOTIVO_PLAZA_OCUPADA)
+        self.assertNotIn("form_cambio", respuesta.context)
+
+    def test_sin_admitir_ni_editar_la_plaza_ocupada_no_es_enlace(self):
+        respuesta = self._pantalla(self.solo_lectura, plaza=self.plaza.pk)
+
+        self.assertEqual(self._celdas(respuesta)["P1"]["url"], "")
+        self.assertNotIn("plaza_accion", respuesta.context)
+        self.assertNotIn("form_cambio", respuesta.context)
+
+    def test_el_nombre_de_la_persona_solo_lo_ve_quien_puede_ver_ciudadanos(self):
+        sin_nombre = self._pantalla(plaza=self.plaza.pk)
+        self.assertEqual(sin_nombre.context["estadia_cambio"].persona_visible, "Persona alojada")
+        self.assertNotContains(sin_nombre, "Gómez")
+
+        con_nombre = self._pantalla(self.con_ciudadano, plaza=self.plaza.pk)
+        self.assertContains(con_nombre, "Gómez")
+
+    def test_confirmar_vuelve_al_mapa_libera_la_plaza_y_registra_el_movimiento(self):
+        respuesta = self._post_cambio()
+
+        self.assertRedirects(respuesta, self.url)
+        self.estadia.refresh_from_db()
+        self.assertEqual(self.estadia.plaza, self.otra_plaza)
+        celdas = self._celdas(self._pantalla())
+        self.assertEqual(celdas["P1"]["estado"], ESTADO_DISPONIBLE)
+        self.assertEqual(celdas["P2"]["estado"], ESTADO_OCUPADA)
+        movimiento = MovimientoEstadia.objects.filter(estadia=self.estadia).order_by("-id").first()
+        self.assertEqual(movimiento.plaza_destino, self.otra_plaza)
+        self.assertEqual(movimiento.motivo, "Convivencia")
+
+    def test_sin_volver_el_post_sigue_yendo_a_la_estadia(self):
+        respuesta = self._post_cambio(volver="")
+
+        self.assertRedirects(
+            respuesta,
+            reverse("dispositivos:estadia_detalle", args=[self.cis.pk, self.estadia.pk]),
+            fetch_redirect_response=False,
+        )
+
+    def test_el_mapa_cerrado_no_arma_el_formulario(self):
+        respuesta = self._pantalla()
+
+        self.assertNotIn("form_cambio", respuesta.context)
+        self.assertNotIn("estadia_cambio", respuesta.context)
 
 
 class CapacidadDelMapaTests(BaseMapa):
