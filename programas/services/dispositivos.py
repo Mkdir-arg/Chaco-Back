@@ -21,6 +21,8 @@ _CAMPOS_REQUERIDOS_VALIDACION = (
     "tipo",
     "codigo",
     "nombre",
+    "categoria",
+    "area_ministerio",
     "localidad",
     "domicilio",
     "responsable_nombre",

@@ -25,6 +25,7 @@ from programas.services.inspecciones import SEMAFOROS, SIN_RELEVAR, VENCIDO, sem
 from programas.tests.test_dispositivos_fidelidad_fd import AHORA
 from programas.tests.test_dispositivos_horarios_localidad import catalogo_chaco
 from programas.tests.test_dispositivos_infraestructura import BaseInfraestructura
+from programas.tests.test_dispositivos_legajo import area_de_prueba
 
 
 class FidelidadFITests(BaseInfraestructura):
@@ -43,10 +44,12 @@ class FidelidadFITests(BaseInfraestructura):
             "tipo": self.tipo.pk,
             "codigo": "FI-NUEVO",
             "nombre": "Institución FI",
+            "categoria": Dispositivo.Categoria.PRIVADO,
+            "area_ministerio": area_de_prueba().pk,
             "localidad": "Resistencia",
             "domicilio": "Calle 123",
             "responsable_nombre": "Responsable FI",
-            "contacto_telefono": "123456",
+            "contacto_telefono": "3624123456",
         }
 
     def test_alta_y_edicion_tienen_dos_columnas_y_paneles(self):
@@ -105,6 +108,109 @@ class FidelidadFITests(BaseInfraestructura):
             'Para enviar a validación hacen falta los campos marcados con <span class="text-fg-danger">*</span>.',
             html,
         )
+
+    def test_p3_dibuja_categoria_area_titularidad_y_dependencia_despues_de_nombre(self):
+        """Mockup #p3: los cuatro selectores van en «Identidad y encuadre», después de Nombre."""
+        for url in (self.crear, self.editar):
+            with self.subTest(url=url):
+                html = self.client.get(url).content.decode()
+                orden = [
+                    html.index(f'name="{nombre}"')
+                    for nombre in (
+                        "nombre",
+                        "categoria",
+                        "area_ministerio",
+                        "titularidad_inmueble",
+                        "dependencia_gestion",
+                    )
+                ]
+                self.assertEqual(orden, sorted(orden))
+                # Todo el encuadre queda antes de la tarjeta de Ubicación.
+                self.assertLess(orden[-1], html.index('name="localidad"'))
+                for nombre in ("categoria", "area_ministerio", "titularidad_inmueble", "dependencia_gestion"):
+                    self.assertRegex(html, rf'<select[^>]*name="{nombre}"')
+                self.assertContains(self.client.get(url), "Público / Estatal")
+                self.assertContains(self.client.get(url), "Particular (alquiler o préstamo)")
+
+    def test_categoria_y_area_llevan_asterisco_y_titularidad_y_dependencia_no(self):
+        html = self.client.get(self.crear).content.decode()
+        self.assertIn('Categoría <span class="text-fg-danger">*</span>', html)
+        self.assertIn('Área del Ministerio <span class="text-fg-danger">*</span>', html)
+        self.assertNotIn('Titularidad del inmueble <span class="text-fg-danger">*</span>', html)
+        self.assertNotIn('Dependencia de la gestión <span class="text-fg-danger">*</span>', html)
+
+    def test_guardar_conserva_los_cuatro_valores_de_encuadre(self):
+        area = area_de_prueba()
+        datos = {
+            **self.datos,
+            "categoria": Dispositivo.Categoria.RELIGIOSO,
+            "area_ministerio": area.pk,
+            "titularidad_inmueble": Dispositivo.TitularidadInmueble.PARTICULAR,
+            "dependencia_gestion": Dispositivo.DependenciaGestion.ONG,
+        }
+        self.assertEqual(self.client.post(self.crear, datos).status_code, 302)
+        dispositivo = Dispositivo.objects.get(codigo=self.datos["codigo"])
+        self.assertEqual(dispositivo.categoria, "RELIGIOSO")
+        self.assertEqual(dispositivo.area_ministerio, area)
+        self.assertEqual(dispositivo.titularidad_inmueble, "PARTICULAR")
+        self.assertEqual(dispositivo.dependencia_gestion, "ONG")
+
+        respuesta = self.client.post(self.editar, {**datos, "categoria": "PRIVADO", "dependencia_gestion": ""})
+        self.assertEqual(respuesta.status_code, 302)
+        self.cis.refresh_from_db()
+        self.assertEqual(self.cis.categoria, "PRIVADO")
+        self.assertIsNone(self.cis.dependencia_gestion)
+
+    def test_valores_fuera_de_catalogo_se_rechazan(self):
+        respuesta = self.client.post(self.crear, {**self.datos, "categoria": "INVENTADA", "area_ministerio": 999999})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertFalse(Dispositivo.objects.filter(codigo=self.datos["codigo"]).exists())
+
+    def test_borrador_sin_encuadre_se_guarda_pero_no_se_envia(self):
+        sin_encuadre = {**self.datos, "categoria": "", "area_ministerio": ""}
+        respuesta = self.client.post(self.crear, sin_encuadre)
+        self.assertEqual(respuesta.status_code, 302)
+        dispositivo = Dispositivo.objects.get(codigo=self.datos["codigo"])
+        self.assertEqual(dispositivo.estado, Dispositivo.Estado.BORRADOR)
+        self.assertFalse(dispositivo.categoria)
+        self.assertIsNone(dispositivo.area_ministerio)
+
+        for faltante in ("categoria", "area_ministerio"):
+            with self.subTest(faltante=faltante):
+                datos = {**self.datos, faltante: "", "accion": "enviar_validacion", "codigo": f"FI-{faltante}"}
+                respuesta = self.client.post(self.crear, datos)
+                self.assertContains(respuesta, "Completá los campos obligatorios")
+                self.assertContains(respuesta, f'data-requisito-campo="id_{faltante}"')
+                self.assertFalse(Dispositivo.objects.filter(codigo=f"FI-{faltante}").exists())
+
+    def test_el_area_ofrece_las_activas_y_conserva_la_guardada_aunque_este_inactiva(self):
+        activa = area_de_prueba()
+        inactiva = area_de_prueba("Subsecretaría dada de baja", activo=False)
+        self.assertEqual(list(DispositivoForm().fields["area_ministerio"].queryset), [activa])
+
+        self.cis.area_ministerio = inactiva
+        self.cis.save()
+        opciones = DispositivoForm(instance=self.cis).fields["area_ministerio"].queryset
+        self.assertCountEqual(opciones, [activa, inactiva])
+
+    def test_p4_muestra_el_encuadre_y_un_guion_si_falta(self):
+        detalle = reverse("dispositivos:detalle", args=[self.cis.pk])
+        vacio = self.client.get(detalle).content.decode()
+        for rotulo in ("Categoría", "Área del Ministerio", "Titularidad del inmueble", "Dependencia de la gestión"):
+            self.assertRegex(vacio, rf"{rotulo}</dt><dd[^>]*>—</dd>")
+
+        area = area_de_prueba()
+        Dispositivo.objects.filter(pk=self.cis.pk).update(
+            categoria="ONG",
+            area_ministerio=area,
+            titularidad_inmueble="MUNICIPIO",
+            dependencia_gestion="RELIGIOSA",
+        )
+        respuesta = self.client.get(detalle)
+        self.assertContains(respuesta, "ONG</dd>")
+        self.assertContains(respuesta, str(area))
+        self.assertContains(respuesta, "Municipio</dd>")
+        self.assertContains(respuesta, "Iglesia o congregación religiosa</dd>")
 
     def test_guardar_borrador_sigue_admitiendo_datos_operativos_faltantes(self):
         respuesta = self.client.post(self.crear, {**self.datos, "responsable_nombre": "", "localidad": ""})

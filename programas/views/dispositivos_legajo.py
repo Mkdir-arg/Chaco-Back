@@ -351,7 +351,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
     context_object_name = "dispositivo"
 
     def get_queryset(self):
-        return Dispositivo.objects.select_related("tipo")
+        return Dispositivo.objects.select_related("tipo", "area_ministerio__secretaria")
 
     def _mapa_de_ingreso(self):
         """Plazas elegibles, solo cuando una acción de cambio las necesita."""

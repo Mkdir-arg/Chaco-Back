@@ -147,6 +147,10 @@
       <div x-show="tab==='datos'" x-cloak role="tabpanel" id="panel-datos" aria-labelledby="tab-datos" class="p-6">
         <dl class="grid gap-5 sm:grid-cols-2 break-words">
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Tipo</dt><dd class="mt-1 text-body">{{ dispositivo.tipo.nombre }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Categoría</dt><dd class="mt-1 text-body">{{ dispositivo.get_categoria_display|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Área del Ministerio</dt><dd class="mt-1 text-body">{{ dispositivo.area_ministerio|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Titularidad del inmueble</dt><dd class="mt-1 text-body">{{ dispositivo.get_titularidad_inmueble_display|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Dependencia de la gestión</dt><dd class="mt-1 text-body">{{ dispositivo.get_dependencia_gestion_display|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Localidad</dt><dd class="mt-1 text-body">{{ dispositivo.localidad|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ dispositivo.domicilio|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Responsable</dt><dd class="mt-1 text-body">{{ dispositivo.responsable_nombre|default:'—' }}</dd></div>

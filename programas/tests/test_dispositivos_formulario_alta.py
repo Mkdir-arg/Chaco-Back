@@ -38,6 +38,7 @@ from programas.services.respuestas_dispositivo import formularios_respondidos
 from programas.tests.test_dispositivos_fidelidad_fd import AHORA
 from programas.tests.test_dispositivos_horarios_localidad import LUNES, _post_franjas, catalogo_chaco
 from programas.tests.test_dispositivos_inspecciones import TODAS_DE_DISPOSITIVOS, BaseInspecciones
+from programas.tests.test_dispositivos_legajo import area_de_prueba
 
 PDF = b"%PDF-1.4\n%prueba\n"
 
@@ -123,10 +124,12 @@ class _Base(BaseInspecciones):
             "tipo": (tipo or self.tipo).pk,
             "codigo": codigo,
             "nombre": f"Institución {codigo}",
+            "categoria": Dispositivo.Categoria.PRIVADO,
+            "area_ministerio": area_de_prueba().pk,
             "localidad": "Resistencia",
             "domicilio": "Calle 123",
             "responsable_nombre": "Responsable",
-            "contacto_telefono": "123456",
+            "contacto_telefono": "3624123456",
         }
         if diseno is not False:
             datos["formulario_tipo_diseno"] = (diseno or self.diseno).pk
