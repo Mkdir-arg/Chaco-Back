@@ -1,62 +1,57 @@
 {% extends "includes/base.html" %}
+{% load nodo_ui %}
 {% block title %}Dispositivos · Configuración{% endblock %}
 
 {% block main-content %}
-<div class="mb-8">
-  <div class="flex items-end justify-between gap-4 flex-wrap mb-6">
-    <div>
-      <p class="text-xs font-semibold uppercase tracking-wide text-fg-brand mb-1">Programa Dispositivos</p>
-      <h1 class="font-extrabold text-heading" style="font-size:28px; letter-spacing:-0.5px">Tipos de dispositivo</h1>
-      <p class="text-sm text-body-subtle mt-1.5">Configurá cada modalidad del programa.</p>
-    </div>
-    <a href="{% url 'dispositivos:tipo_crear' %}" class="btn-nodo btn-brand btn-base">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-        <path stroke-linecap="round" d="M12 4.5v15m7.5-7.5h-15"/>
-      </svg>
-      Nuevo tipo
-    </a>
-  </div>
+<div class="space-y-6">
 
-  <div class="rounded-xl border border-base shadow-sm overflow-hidden" style="background:var(--bg-primary)">
+  {% page_header titulo="Tipos de dispositivo" eyebrow="Programa Dispositivos" bajada="Configurá cada modalidad del programa." %}
+    <a href="{% url 'dispositivos:tipo_crear' %}" class="btn-nodo btn-brand btn-base">
+      <i class="fas fa-plus" aria-hidden="true"></i> Nuevo tipo
+    </a>
+  {% endpage_header %}
+
+  <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
     {% if tipos %}
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead style="background:var(--bg-secondary)">
-            <tr class="text-left text-body-subtle">
-              <th class="px-5 py-3 font-semibold">Tipo</th>
-              <th class="px-5 py-3 font-semibold">Código</th>
-              <th class="px-5 py-3 font-semibold">Sectores y plazas</th>
-              <th class="px-5 py-3 font-semibold">Estado</th>
-              <th class="px-5 py-3 text-right"><span class="sr-only">Acciones</span></th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-light">
-            {% for tipo in tipos %}
-              <tr>
-                <td class="px-5 py-4">
-                  <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}" class="font-semibold text-heading hover:text-fg-brand">{{ tipo.nombre }}</a>
-                  {% if tipo.descripcion %}<p class="text-xs text-body-subtle mt-1">{{ tipo.descripcion|truncatechars:90 }}</p>{% endif %}
-                </td>
-                <td class="px-5 py-4 font-mono text-xs text-body">{{ tipo.codigo }}</td>
-                <td class="px-5 py-4 text-body">{% if tipo.maneja_plazas %}Sí{% else %}No{% endif %}</td>
-                <td class="px-5 py-4">
-                  <span class="badge badge-dot {% if tipo.activo %}badge-success{% else %}badge-gray{% endif %}">
-                    {% if tipo.activo %}Activo{% else %}Inactivo{% endif %}
-                  </span>
-                </td>
-                <td class="px-5 py-4 text-right">
-                  <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}" class="btn-nodo btn-secondary btn-sm">Configurar</a>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="nodo-thead-row">
+            <th class="nodo-th">Tipo</th>
+            <th class="nodo-th">Código</th>
+            <th class="nodo-th">Sectores y plazas</th>
+            <th class="nodo-th">Estado</th>
+            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tipo in tipos %}
+          <tr class="hover:bg-secondary">
+            <td class="nodo-td text-heading font-medium">
+              <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}" class="text-fg-brand hover:underline">{{ tipo.nombre }}</a>
+              {% if tipo.descripcion %}<span class="block text-xs text-body-subtle font-normal">{{ tipo.descripcion|truncatechars:90 }}</span>{% endif %}
+            </td>
+            <td class="nodo-td text-body">{{ tipo.codigo }}</td>
+            <td class="nodo-td text-body">{% if tipo.maneja_plazas %}Sí{% else %}No{% endif %}</td>
+            <td class="nodo-td">
+              <span class="badge badge-dot {% if tipo.activo %}badge-success{% else %}badge-gray{% endif %}">
+                {% if tipo.activo %}Activo{% else %}Inactivo{% endif %}
+              </span>
+            </td>
+            <td class="nodo-td text-right">
+              <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}" class="nodo-icon-btn"
+                 aria-label="Configurar el tipo {{ tipo.nombre }}">
+                <i class="fas fa-gear" aria-hidden="true"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% else %}
-      <div class="px-6 py-14 text-center">
-        <h2 class="font-bold text-heading">Todavía no hay tipos configurados</h2>
-        <p class="text-sm text-body-subtle mt-1">Creá el primero para empezar a dar de alta dispositivos.</p>
-      </div>
+      {% url 'dispositivos:tipo_crear' as url_crear %}
+      {% include "components/_estado_vacio.html" with icono="fa-layer-group" titulo="Todavía no hay tipos configurados" texto="Creá el primero para empezar a dar de alta dispositivos." accion_url=url_crear accion_texto="Nuevo tipo" accion_icono="fa-plus" %}
     {% endif %}
   </div>
 </div>
