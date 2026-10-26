@@ -500,6 +500,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 374 | «Asignar plaza» a una persona alojada sin plaza | Dispositivos · P4 · P7 | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 375 | Ingreso: alta mínima de la persona que no está en el legajo ni en el Registro de Personas | Dispositivos · P6 · paso Persona | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 376 | El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro | Dispositivos · Configuración → Tipos | `#ui` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 379 | Ingreso a un dispositivo: el asistente avanza siempre con «Continuar» | Dispositivos · asistente de ingreso (P6) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -47916,6 +47917,86 @@ Ninguno.
 ## Reversión
 
 Revertir el commit (vuelve el modal que se reabre con cada clic).
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 379 — Ingreso a un dispositivo: el asistente avanza siempre con «Continuar»
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · asistente de ingreso (P6) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/ingreso/paso_persona.html` · Ficha: `.claude/design/arquetipos/wizard.md` |
+| **Migración** | no |
+
+## Pedido original
+
+Es el tercer lote de la revisión de diseño de Dispositivos (ver el Cambio 377). El asistente de ingreso
+usaba tres verbos distintos para avanzar: «Siguiente» en Persona, «Continuar» en Plaza y «Confirmar ingreso»
+en Confirmar. El relevamiento marcó además que el pie de Plaza no lleva el separador que sí tienen Persona y
+Confirmar.
+
+## Alcance acordado
+
+Entra el texto del botón de avance. Quedan afuera los forms, los campos ocultos, los `name`/`value` de los
+envíos y la lógica de los pasos.
+
+## Decisiones tomadas
+
+- **«Continuar» es el único verbo de avance.** Lo decidió el PM el 26/10/2026 («sigo tus recomendaciones»).
+  En el paso 1 el botón de la izquierda sigue siendo «Cancelar», porque ahí todavía no hay paso anterior. La
+  acción final sigue siendo «Confirmar ingreso», y la del alta mínima, «Dar de alta y seguir», es otra acción.
+  La golden de Configuración de Becas conserva «Siguiente», así que la ficha registra esto como propio del
+  ingreso de Dispositivos.
+- **El pie de Plaza queda sin separador. El relevamiento se había equivocado.** En Persona y Confirmar el
+  separador divide el contenido de los botones dentro de una misma card. En Plaza el contenido es una grilla de
+  varias cards (el mapa por sector y Persona), y el pie va en su propia card `<form>`, que solo tiene los
+  ocultos y los botones. Un `border-t` ahí deja una franja vacía de unos 48 px sobre la línea. Se probó, se
+  revirtió, y la ficha de Wizard explica por qué.
+
+## Implementación
+
+- `paso_persona.html`: «Siguiente» pasa a «Continuar», con el mismo ícono `fa-arrow-right`.
+- `wizard.md`: la variante del paso intermedio registra el verbo del ingreso de Dispositivos, y el bullet del
+  paso de plaza explica que su pie va en una card propia y sin separador.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/ingreso/paso_persona.html`
+- `.claude/design/arquetipos/wizard.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y
+  `check_design_agent --changed`: en verde.
+- Ningún test afirma el «Siguiente» de Dispositivos. Los que buscan «Continuar» en `test_dispositivos_ingreso.py`
+  siguen siendo coherentes. Por pedido del PM (26/10/2026) no se corrió la suite en local: la corre el CI del
+  PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit.
 
 ## Historial
 
