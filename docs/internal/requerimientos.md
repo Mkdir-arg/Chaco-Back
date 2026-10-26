@@ -490,6 +490,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 362 | Skill `/auditoria`: auditoría completa de development y control antes de mergear cada PR | Transversal · método de trabajo de los agentes | `#metodo` `#performance` | PM — pedido en sesión | 23/10/2026 | 🟢 **Hecho** | No requiere |
 | 363 | setuptools 84.1.0 y cinco excepciones de twisted: «Pip Audit» vuelve a verde | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (24/10/2026) | 24/10/2026 | 🟢 **Hecho** | No requiere |
 | 364 | El Excel de respuestas por persona suma la fecha de nacimiento del titular | Becas · detalle del programa → Dashboard → Exportar «Respuestas por persona» | `#datos` `#convocatorias` | PM — en sesión (26/10/2026) | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 365 | Una fecha imposible guardada en una respuesta ya no tumba el export ni la revisión | Becas · exportación «Respuestas por persona» y pantalla de revisión | `#datos` `#convocatorias` | PM — en sesión: «hacé todos los pendientes» (26/10/2026) | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -47036,7 +47037,7 @@ XLSX y en el CSV de «Respuestas por persona».
 - **Es la fecha del titular del caso**, la misma persona de «DNI» y «Apellido y nombre»; no la
   del apoderado.
 - **Mismo criterio que «DNI» y «Apellido y nombre»:** con legajo, la fecha sale solo del legajo
-  (si no la tiene, celda vacía; DECISIÓN CLIENTE: dejar la celda vacía, completar el legajo con
+  (si no la tiene, celda vacía; confirmado por el PM el 26/10/2026: celda vacía, completar el legajo con
   la fecha de la app sería otra regla); sin legajo, de `datos_identificacion`.
 - **Texto dd/mm/aaaa**, igual que «Fecha de envío» y que las fechas de las respuestas
   (`legible` con tipo `DATE`); una fecha ilegible o imposible («2000-02-30») queda tal cual y
@@ -47067,8 +47068,8 @@ que ajustarla.
 
 ## Validación
 
-- Tests nuevos del legajo con fecha, del caso sin legajo, del legajo sin fecha con respaldo y del
-  caso sin fecha, más el encabezado en su lugar. Mutación: con `_fecha_nacimiento` devolviendo
+- Tests nuevos del legajo con fecha, del caso sin legajo, del legajo sin fecha (celda vacía), de la
+  fecha imposible (queda tal cual) y del caso sin fecha, más el encabezado en su lugar. Mutación: con `_fecha_nacimiento` devolviendo
   `""` el test nuevo se pone rojo.
 - `manage.py check`, ruff y `scripts/requerimientos.py --check`.
 
@@ -47086,5 +47087,81 @@ Revertir el commit. No hay datos ni migración.
 - **26/10/2026 — `/auditoria pr 950`, primera ronda:** CHANGES NEEDED. Una fecha ISO imposible
   hacía 500 en toda la exportación (MAJOR) y el respaldo legajo → `datos_identificacion` era
   inalcanzable (MINOR). Se envolvió la conversión y se alineó con `_identificacion`.
+- **26/10/2026 — el envoltorio pasó a `legible` (Cambio 365):** `_fecha_nacimiento` ya no lleva su
+  propio `try/except`.
+
+---
+
+# Cambio 365 — Una fecha imposible guardada en una respuesta ya no tumba el export ni la revisión
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · exportación «Respuestas por persona» y pantalla de revisión del caso (`programas/services/respuestas.py`) |
+| **Etiquetas** | `#datos` `#convocatorias` |
+| **Solicitante** | PM — en sesión: «hacé todos los pendientes» |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | Sin issue propio: hallazgo de la auditoría del PR #950 (Cambio 364) |
+| **Partes afectadas** | Backoffice (servicio de respuestas) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+La auditoría del #950 encontró que `legible` (`respuestas.py`) levanta `ValueError` con una fecha ISO
+bien formada pero imposible («2000-02-30», «1990-13-01»), porque `parse_date` la rechaza así. Con un
+solo caso así el export por persona (`_celdas_de_las_respuestas`) y la pantalla de revisión
+(`respuestas_legibles`) dan 500. El #950 lo tapó solo para la fecha de nacimiento; esto lo resuelve
+en el origen.
+
+## Alcance acordado
+
+**Entra:** atrapar el `ValueError` dentro de `legible` y devolver el texto tal cual, igual que ya
+hacía con un texto que no se puede leer como fecha; sacar el `try/except` que el #950 había puesto en
+`_fecha_nacimiento`, que queda redundante.
+
+**Queda afuera:** corregir o validar el dato guardado.
+
+## Decisiones tomadas
+
+- **Queda tal cual, sin avisar:** una celda con «2000-02-30» es más útil que un 500 y deja ver el dato
+  malo. Los demás llamadores de `legible` (inscripción del portal, respuestas de dispositivo) no
+  dependían de la excepción.
+
+## Implementación
+
+`try/except ValueError` alrededor de `parse_date` en `legible`; `_fecha_nacimiento` vuelve a
+llamar directo a `_texto_legible`.
+
+## Archivos
+
+- `programas/services/respuestas.py`
+- `programas/services/dashboard_becas.py`
+- `programas/tests/test_respuestas.py`
+- `programas/tests/test_dashboard_campos_propios.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Unitario de `legible` (fecha válida, imposible, mes 13 y otro formato) y caso de integración del
+  export con una respuesta DATE imposible. Mutación: sin el `try` de `legible` los tests nuevos y el
+  de «2000-02-30» del #950 se ponen rojos.
+- `manage.py check`, ruff y `scripts/requerimientos.py --check`.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit. No hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
 
 ---
