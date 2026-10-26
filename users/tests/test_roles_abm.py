@@ -45,6 +45,50 @@ class RolFormTests(TestCase):
         self.assertEqual(marcadas, {"ciudadano.ver"})
 
 
+class EtiquetaConfigurarPorProgramaTests(TestCase):
+    """`programa.configurar` se lee distinto en un rol de Dispositivos, sin tocar el catálogo."""
+
+    ORIGINAL = "Configurar programas"
+
+    @staticmethod
+    def _label(arbol):
+        modulos = arbol if arbol and "capacidades" in arbol[0] else [m for t in arbol for m in t["modulos"]]
+        return next(c["label"] for m in modulos for c in m["capacidades"] if c["codigo"] == "programa.configurar")
+
+    def test_dispositivos_amplia_la_etiqueta(self):
+        for programa in ("DISPOSITIVOS", Programa(codigo="DISPOSITIVOS", nombre="Dispositivos")):
+            with self.subTest(programa=programa):
+                label = self._label(rbac.arbol_capacidades(programa_etiquetas=programa))
+                self.assertTrue(label.startswith(self.ORIGINAL + " (en Dispositivos:"), label)
+                label = self._label(rbac.arbol_por_tabs(programa_etiquetas=programa))
+                self.assertIn("en Dispositivos", label)
+
+    def test_programa_que_filtra_modulos_tambien_amplia(self):
+        label = self._label(rbac.arbol_capacidades(solo_programa=True, programa="DISPOSITIVOS"))
+        self.assertIn("en Dispositivos", label)
+
+    def test_becas_y_sin_programa_conservan_la_original(self):
+        self.assertEqual(self._label(rbac.arbol_capacidades(programa_etiquetas="BECAS")), self.ORIGINAL)
+        self.assertEqual(self._label(rbac.arbol_capacidades()), self.ORIGINAL)
+        self.assertEqual(self._label(rbac.arbol_por_tabs()), self.ORIGINAL)
+
+    def test_el_catalogo_no_cambia(self):
+        etiquetas = dict(next(m for m in rbac.CATALOGO if m["modulo"] == "programas")["capacidades"])
+        self.assertEqual(etiquetas["programa.configurar"], self.ORIGINAL)
+
+    def test_form_de_rol_de_dispositivos_en_edicion(self):
+        dispositivos = Programa.objects.create(codigo="DISPOSITIVOS", nombre="Dispositivos")
+        g = Group.objects.create(name="Coordinador Dispositivos")
+        RolMeta.objects.create(grupo=g, categoria="Programa", programa=dispositivos, activo=True)
+        self.assertIn("en Dispositivos", self._label(RolForm(instance=g).arbol_por_tabs()))
+
+    def test_form_de_rol_de_becas_en_edicion(self):
+        becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        g = Group.objects.create(name="Coordinador Becas")
+        RolMeta.objects.create(grupo=g, categoria="Programa", programa=becas, activo=True)
+        self.assertEqual(self._label(RolForm(instance=g).arbol_por_tabs()), self.ORIGINAL)
+
+
 class RolesServiceTests(TestCase):
     def test_crear_rol_con_capacidades(self):
         form = RolForm(
