@@ -94,6 +94,9 @@ _TONO_MOVIMIENTO = {
 
 SIN_DATO = "—"
 
+#: Un `CAMBIO_PLAZA` sin plaza de origen es la asignación a quien estaba sin plaza (`asignar_plaza`).
+TITULO_ASIGNACION = "Asignación de plaza"
+
 
 def _fecha_hora(momento):
     return timezone.localtime(momento).strftime("%d/%m/%Y %H:%M") if momento else SIN_DATO
@@ -148,6 +151,12 @@ def _motivo_del_movimiento(movimiento, estadia):
     return movimiento.motivo
 
 
+def _titulo_del_movimiento(movimiento):
+    if movimiento.tipo == Tipo.CAMBIO_PLAZA and movimiento.plaza_origen_id is None:
+        return TITULO_ASIGNACION
+    return movimiento.get_tipo_display()
+
+
 def _detalle_del_movimiento(movimiento, estadia):
     """La línea que sigue al título: de qué plaza a cuál y por qué."""
 
@@ -157,6 +166,8 @@ def _detalle_del_movimiento(movimiento, estadia):
     elif movimiento.tipo == Tipo.CAMBIO_SECTOR:
         origen = _plaza(movimiento.plaza_origen, con_sector=True)
         partes.append(f"{origen} → {_plaza(movimiento.plaza_destino, con_sector=True)}")
+    elif movimiento.tipo == Tipo.CAMBIO_PLAZA and movimiento.plaza_origen_id is None:
+        partes.append(f"Se asignó la plaza {_plaza(movimiento.plaza_destino, con_sector=True)}")
     elif movimiento.tipo == Tipo.CAMBIO_PLAZA:
         partes.append(f"{_plaza(movimiento.plaza_origen)} → {_plaza(movimiento.plaza_destino)}")
     motivo = _motivo_del_movimiento(movimiento, estadia)
@@ -182,7 +193,7 @@ def _evento(movimiento, estadia, turno=""):
         partes.append(responsable)
     return {
         "cuando": " · ".join(partes),
-        "titulo": movimiento.get_tipo_display(),
+        "titulo": _titulo_del_movimiento(movimiento),
         "detalle": _detalle_del_movimiento(movimiento, estadia),
         "tono": _TONO_MOVIMIENTO.get(movimiento.tipo, ""),
     }
@@ -195,6 +206,8 @@ def _fila_de_movimiento(movimiento, estadia, turno=""):
         plaza = (
             f"{_plaza(movimiento.plaza_origen, con_sector=True)} → {_plaza(movimiento.plaza_destino, con_sector=True)}"
         )
+    elif movimiento.tipo == Tipo.CAMBIO_PLAZA and movimiento.plaza_origen_id is None:
+        plaza = f"sin plaza → {_plaza(movimiento.plaza_destino, con_sector=True)}"
     elif movimiento.tipo == Tipo.CAMBIO_PLAZA:
         # Dentro del mismo sector, como en la línea de tiempo: el sector no cambió.
         plaza = f"{_plaza(movimiento.plaza_origen)} → {_plaza(movimiento.plaza_destino)}"
@@ -205,7 +218,7 @@ def _fila_de_movimiento(movimiento, estadia, turno=""):
     return {
         "cuando": _fecha_hora(movimiento.momento),
         "turno": turno or SIN_DATO,
-        "tipo": movimiento.get_tipo_display(),
+        "tipo": _titulo_del_movimiento(movimiento),
         "plaza": plaza,
         "motivo": _motivo_del_movimiento(movimiento, estadia) or SIN_DATO,
         "responsable": _nombre_de(movimiento.responsable) or SIN_DATO,

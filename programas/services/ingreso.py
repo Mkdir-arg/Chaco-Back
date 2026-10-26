@@ -43,8 +43,7 @@ def maneja_plazas(dispositivo):
     plazas identificables y el asistente se acorta un paso.
     """
 
-    tipo = dispositivo.tipo
-    return bool(tipo.plaza_obligatoria_al_ingresar or tipo.tipos_de_plaza)
+    return dispositivo.tipo.maneja_plazas
 
 
 def buscar_ciudadano_por_dni(dni):

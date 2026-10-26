@@ -617,6 +617,93 @@ class AccionesYAlcanceTests(BaseDetalle):
                 self.assertContains(self.client.get(self.url), texto)
 
 
+class AsignarPlazaEnLaSolapaTests(BaseDetalle):
+    """P4: «Asignar plaza» solo en filas sin plaza y «Cambiar plaza» solo en filas con plaza."""
+
+    def _alojar_sin_plaza(self):
+        return _alojar(self.cis, None, self.otra_persona)
+
+    def test_la_fila_sin_plaza_ofrece_asignar_y_no_cambiar(self):
+        self._alojar_sin_plaza()
+
+        respuesta = self.client.get(self.url, {"tab": "estadias"})
+
+        self.assertContains(respuesta, "Asignar plaza")
+        self.assertNotContains(respuesta, "Cambiar plaza")
+
+    def test_la_fila_con_plaza_ofrece_cambiar_y_no_asignar(self):
+        _alojar(self.cis, self.plaza, self.persona)
+
+        respuesta = self.client.get(self.url, {"tab": "estadias"})
+
+        self.assertContains(respuesta, "Cambiar plaza")
+        self.assertNotContains(respuesta, "Asignar plaza")
+
+    def test_con_las_dos_filas_cada_una_ofrece_lo_suyo(self):
+        _alojar(self.cis, self.plaza, self.persona)
+        self._alojar_sin_plaza()
+
+        respuesta = self.client.get(self.url, {"tab": "estadias"})
+
+        self.assertContains(respuesta, "Asignar plaza", count=1)
+        self.assertContains(respuesta, "Cambiar plaza", count=1)
+
+    def test_sin_plazas_libres_el_item_sale_deshabilitado_con_el_motivo(self):
+        self._alojar_sin_plaza()
+        for plaza in (self.plaza, self.otra_plaza):
+            Plaza.objects.filter(pk=plaza.pk).update(
+                estado=Plaza.Estado.FUERA_SERVICIO, motivo_fuera_servicio="Mantenimiento"
+            )
+
+        respuesta = self.client.get(self.url, {"tab": "estadias"})
+
+        self.assertContains(respuesta, "Asignar plaza")
+        self.assertContains(respuesta, "No hay plazas libres en el dispositivo.")
+        self.assertContains(respuesta, 'aria-disabled="true"')
+
+    def test_sin_admitir_no_se_ofrece(self):
+        self._alojar_sin_plaza()
+        consulta = self._operador("Consulta", self.cis, ("dispositivo.ver", "dispositivo.egresar"))
+        self.client.force_login(consulta)
+
+        self.assertNotContains(self.client.get(self.url, {"tab": "estadias"}), "Asignar plaza")
+
+    def test_el_modal_asigna_con_motivo_opcional_y_el_post_asigna(self):
+        estadia = self._alojar_sin_plaza()
+
+        modal = self.client.get(self.url, {"tab": "estadias", "cambio": estadia.pk})
+        self.assertContains(modal, "Confirmar asignación")
+        self.assertContains(modal, f'action="{reverse("dispositivos:cambiar_plaza", args=[self.cis.pk, estadia.pk])}"')
+
+        respuesta = self.client.post(
+            reverse("dispositivos:cambiar_plaza", args=[self.cis.pk, estadia.pk]),
+            {"plaza": self.plaza.pk, "momento": timezone.localtime().strftime("%Y-%m-%dT%H:%M"), "motivo": ""},
+        )
+
+        self.assertEqual(respuesta.status_code, 302)
+        estadia.refresh_from_db()
+        self.assertEqual(estadia.plaza, self.plaza)
+
+    def test_un_tipo_sin_plazas_no_ofrece_asignar(self):
+        self._alojar_sin_plaza()
+        self.tipo.plaza_obligatoria_al_ingresar = False
+        self.tipo.save()
+
+        self.assertNotContains(self.client.get(self.url, {"tab": "estadias"}), "Asignar plaza")
+
+    def test_asignar_no_suma_consultas_por_fila(self):
+        def consultas(n, desde):
+            Estadia.objects.all().delete()
+            for persona in self._personas(n, desde=desde):
+                _alojar(self.cis, None, persona)
+            with CaptureQueriesContext(connection) as captura:
+                self.client.get(self.url, {"tab": "estadias"})
+            return len(captura)
+
+        consultas(1, 50)  # calienta caches de permisos y de contenido antes de medir
+        self.assertEqual(consultas(2, 100), consultas(6, 200))
+
+
 class SinPlazasTests(BaseDetalle):
     def test_un_tipo_sin_plazas_no_muestra_franja_ni_solapa_de_sectores(self):
         con_plazas = self.client.get(self.url)

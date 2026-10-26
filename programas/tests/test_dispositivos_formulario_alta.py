@@ -38,6 +38,7 @@ from programas.services.respuestas_dispositivo import formularios_respondidos
 from programas.tests.test_dispositivos_fidelidad_fd import AHORA
 from programas.tests.test_dispositivos_horarios_localidad import LUNES, _post_franjas, catalogo_chaco
 from programas.tests.test_dispositivos_inspecciones import TODAS_DE_DISPOSITIVOS, BaseInspecciones
+from programas.tests.test_dispositivos_legajo import area_de_prueba
 
 PDF = b"%PDF-1.4\n%prueba\n"
 
@@ -123,10 +124,12 @@ class _Base(BaseInspecciones):
             "tipo": (tipo or self.tipo).pk,
             "codigo": codigo,
             "nombre": f"Institución {codigo}",
+            "categoria": Dispositivo.Categoria.PRIVADO,
+            "area_ministerio": area_de_prueba().pk,
             "localidad": "Resistencia",
             "domicilio": "Calle 123",
             "responsable_nombre": "Responsable",
-            "contacto_telefono": "123456",
+            "contacto_telefono": "3624123456",
         }
         if diseno is not False:
             datos["formulario_tipo_diseno"] = (diseno or self.diseno).pk
@@ -159,9 +162,9 @@ class SeccionTests(_Base):
         respuesta = self.client.post(self.crear, self._datos(diseno=False))
         html = respuesta.content.decode()
         self.assertIn(f'name="formulario_tipo_diseno" value="{self.diseno.pk}"', html)
-        # Tarjeta propia: Días y horarios cierra la de datos y el formulario del tipo va después.
-        self.assertLess(html.index("Responsable y contacto"), html.index("Días y horarios"))
-        self.assertLess(html.index("Días y horarios"), html.index("Formulario de ingreso"))
+        # Tarjeta propia: Horario de atención cierra la de datos y el formulario del tipo va después.
+        self.assertLess(html.index("Responsable y contacto"), html.index("Horario de atención"))
+        self.assertLess(html.index("Horario de atención"), html.index("Formulario de ingreso"))
         self.assertLess(html.index("Formulario de ingreso"), html.index("Datos del edificio"))
         self.assertIn(f"Lo pide el tipo «{self.tipo.nombre}»", html)
         for item in (self.camas, self.cocina, self.habilitacion, self.observaciones):
@@ -174,7 +177,7 @@ class SeccionTests(_Base):
         sin_formulario = TipoDispositivo.objects.create(codigo="HOGAR", nombre="Hogar")
         html = self.client.get(self.crear, {"tipo": sin_formulario.pk}).content.decode()
         self.assertNotIn("Formulario de ingreso", html)
-        self.assertIn("Días y horarios", html)
+        self.assertIn("Horario de atención", html)
         self.assertEqual(self.client.get(self.seccion, {"tipo": sin_formulario.pk}).content.strip(), b"")
         self.assertContains(self.client.get(self.seccion, {"tipo": self.tipo.pk}), "Formulario de ingreso")
 
@@ -240,6 +243,56 @@ class SeccionTests(_Base):
 
 
 # ── Guardado, condiciones y obligatoriedad ───────────────────────────────────
+
+
+class AvisoPlazasTests(_Base):
+    """P3 avisa que las camas no se cargan acá, solo si el tipo maneja plazas."""
+
+    ALTA = "Las camas se cargan después de guardar"
+    EDICION = "Las camas no se cargan acá"
+
+    def _con_plazas(self, valor):
+        self.tipo.plaza_obligatoria_al_ingresar = valor
+        self.tipo.tipos_plaza_admitidos = []
+        self.tipo.save()
+
+    def test_alta_con_tipo_que_maneja_plazas_muestra_el_aviso(self):
+        self._con_plazas(True)
+        respuesta = self.client.get(self.seccion, {"tipo": self.tipo.pk})
+        self.assertContains(respuesta, self.ALTA)
+        self.assertContains(respuesta, "Nuevo sector")
+        self.assertNotContains(respuesta, self.EDICION)
+
+    def test_alta_con_tipo_sin_plazas_no_muestra_el_aviso(self):
+        self._con_plazas(False)
+        respuesta = self.client.get(self.seccion, {"tipo": self.tipo.pk})
+        self.assertNotContains(respuesta, self.ALTA)
+
+    def test_alta_sin_tipo_elegido_no_muestra_el_aviso(self):
+        self._con_plazas(True)
+        self.assertNotContains(self.client.get(self.crear), self.ALTA)
+
+    def test_alta_que_vuelve_con_errores_conserva_el_aviso_del_tipo_elegido(self):
+        self._con_plazas(True)
+        datos = self._datos()
+        datos["codigo"] = ""
+        self.assertContains(self.client.post(self.crear, datos), self.ALTA)
+
+    def test_edicion_con_tipo_que_maneja_plazas_muestra_el_texto_de_edicion_con_enlace(self):
+        self._con_plazas(True)
+        self._alta()
+        dispositivo = Dispositivo.objects.get(codigo="FA-1")
+        respuesta = self.client.get(reverse("dispositivos:editar", args=[dispositivo.pk]))
+        self.assertContains(respuesta, self.EDICION)
+        self.assertContains(respuesta, reverse("dispositivos:sectores", args=[dispositivo.pk]))
+        self.assertNotContains(respuesta, self.ALTA)
+
+    def test_edicion_con_tipo_sin_plazas_no_muestra_el_aviso(self):
+        self._con_plazas(False)
+        self._alta()
+        dispositivo = Dispositivo.objects.get(codigo="FA-1")
+        respuesta = self.client.get(reverse("dispositivos:editar", args=[dispositivo.pk]))
+        self.assertNotContains(respuesta, self.EDICION)
 
 
 class GuardadoTests(_Base):
