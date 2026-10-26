@@ -500,6 +500,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 374 | «Asignar plaza» a una persona alojada sin plaza | Dispositivos · P4 · P7 | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 375 | Ingreso: alta mínima de la persona que no está en el legajo ni en el Registro de Personas | Dispositivos · P6 · paso Persona | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 376 | El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro | Dispositivos · Configuración → Tipos | `#ui` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 377 | Sectores y plazas: reubicar a la persona desde la plaza ocupada | Dispositivos · P5 · Sectores y plazas | `#ui` `#rbac` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -47920,5 +47921,78 @@ Revertir el commit (vuelve el modal que se reabre con cada clic).
 ## Historial
 
 - **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 377 — Sectores y plazas: reubicar a la persona desde la plaza ocupada
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Sectores y plazas (P5) · modal de la plaza ocupada |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | PM — prueba en testing, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/sectores/sectores.html` · Servidor: `services/sectores_plazas.py`, `views/dispositivos_legajo.py` |
+| **Migración** | no |
+
+## Pedido original
+
+En «Sectores y plazas», al tocar una plaza **ocupada** se abre un modal sin salida («No se puede sacar de
+servicio… reubicá a la persona») que manda a la estadía. El PM quiere moverla a otra plaza libre ahí mismo.
+
+## Alcance acordado
+
+Entra: la acción **reubicar** en la plaza ocupada, con el formulario del cambio de plaza de P7 dentro del modal
+del mapa. Queda afuera: tocar `estadias.cambiar_plaza` y el modal de P7.
+
+## Decisiones tomadas
+
+- **Revierte en parte el Cambio 287**, que dejó afuera «reubicar» y explicaba la plaza ocupada con un modal sin
+  formulario («La plaza ocupada no esconde la acción: la explica»). Cambia por pedido del PM, 26/10/2026: el
+  aviso sin salida obligaba a ir a la estadía para hacer lo que el operador ya estaba haciendo en el mapa.
+- **Capacidad**: reubicar lo hace quien tiene `dispositivo.admitir` sobre el dispositivo, la misma que ya exige
+  `cambiar_plaza`. El PM la configura por rol.
+- **Precedencia por plaza**: fuera de servicio → volver; reserva abierta → liberar; ocupada → reubicar si puede
+  admitir, si no (y puede editar) el aviso de hoy `MOTIVO_PLAZA_OCUPADA`; resto → sacar de servicio. El mapa y
+  `plaza_para_accion` deciden igual (`accion_de_plaza`).
+- **Sin plazas libres**: el modal avisa «No hay plazas libres en el dispositivo para moverla.» y no trae formulario.
+- **Al confirmar se vuelve al mapa** (`volver=sectores` en `EstadiaCambiarPlazaView`), no a la estadía.
+- El formulario y la estadía se arman **solo con el modal abierto**: el mapa cerrado conserva sus consultas fijas.
+- El nombre de la persona se ve solo con `ciudadano.ver`; si no, «Persona alojada» (como la solapa de estadías).
+
+## Archivos
+
+- `programas/services/sectores_plazas.py`
+- `programas/views/dispositivos_legajo.py`
+- `programas/templates/programas/dispositivos/sectores/sectores.html`
+- `programas/tests/test_dispositivos_plazas_acciones.py`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `test_dispositivos_plazas_acciones` y los módulos afines de Dispositivos: en verde. Mutación: con la guarda de
+  `admitir` fuera, tres tests se ponen rojos.
+
+## Puesta en marcha en el servidor
+
+Nada. Los roles que deban reubicar necesitan `dispositivo.admitir`.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit (vuelve el aviso sin salida de la plaza ocupada).
+
+## Historial
+
+- **26/10/2026 — alta del cambio.** Revierte parcialmente la decisión del Cambio 287.
 
 ---
