@@ -106,6 +106,7 @@ orden son solapas de un Detalle, no un wizard.
   el DNI visible va con `|dni` (`nodo_ui`), como en P7.
 - Avisos de situación dentro de un paso (bloqueos, advertencias): `components/_alerta.html`.
   En el paso de plaza, la ocupación crítica usa tono `warning` debajo del mapa y dice «El sistema no bloquea el ingreso.»; la vista arma porcentaje y texto con los umbrales del tipo, desde `services.ocupacion`.
+- Alta mínima dentro de un paso (paso 1 de Dispositivos, cuando la persona no está en el legajo ni en el Registro de Personas): `components/_alerta.html` tono `warning` y, debajo, una segunda tarjeta-formulario con `_field.html`, su propio `csrf_token`, un oculto `accion` y un oculto `persona` con lo que la pantalla mostraba. No es una pieza nueva.
 - Pie que no cabe en móvil: `flex flex-wrap justify-between gap-3`; si agrupa acciones,
   el grupo también usa `flex flex-wrap gap-3`. Conserva los tamaños canónicos de botón
   y la fila de escritorio. Evidencia: `programas/templates/programas/dispositivos/ingreso/paso_plaza.html`.

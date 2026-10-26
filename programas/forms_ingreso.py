@@ -5,8 +5,10 @@ evidencia de la pieza canónica de campos (`INPUT_CLASS`), y estos forms solo la
 """
 
 from django import forms
+from django.utils import timezone
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
+from legajos.models import Ciudadano
 from programas.forms import INPUT_CLASS
 
 
@@ -36,6 +38,51 @@ class IngresoPersonaForm(forms.Form):
         if not dni_valido(dni):
             raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
+
+
+class IngresoAltaMinimaForm(forms.Form):
+    """Alta mínima de la persona que no está en el legajo ni en el Registro de Personas.
+
+    El DNI se muestra y no se edita: la vista lo toma de la sesión, nunca del POST.
+    Los largos son los del modelo `Ciudadano`.
+    """
+
+    dni = forms.CharField(
+        label="DNI",
+        disabled=True,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "inputmode": "numeric"}),
+    )
+    nombre = forms.CharField(
+        label="Nombre",
+        max_length=Ciudadano._meta.get_field("nombre").max_length,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
+    )
+    apellido = forms.CharField(
+        label="Apellido",
+        max_length=Ciudadano._meta.get_field("apellido").max_length,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS}),
+    )
+    fecha_nacimiento = forms.DateField(
+        label="Fecha de nacimiento",
+        required=False,
+        widget=forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}, format="%Y-%m-%d"),
+    )
+    genero = forms.ChoiceField(
+        label="Género",
+        required=False,
+        choices=[("", "Seleccionar..."), *Ciudadano.Genero.choices],
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+    )
+
+    def __init__(self, *args, dni, sexo="", **kwargs):
+        kwargs["initial"] = {"dni": dni, "genero": sexo}
+        super().__init__(*args, **kwargs)
+
+    def clean_fecha_nacimiento(self):
+        fecha = self.cleaned_data.get("fecha_nacimiento")
+        if fecha and fecha > timezone.localdate():
+            raise forms.ValidationError("La fecha de nacimiento no puede ser futura.")
+        return fecha
 
 
 class IngresoConfirmarForm(forms.Form):

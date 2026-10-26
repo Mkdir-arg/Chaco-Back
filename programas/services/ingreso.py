@@ -17,11 +17,13 @@ Dos reglas que no se pueden perder:
    no queda un legajo huérfano.
 """
 
+from typing import NamedTuple
+
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
 from core.dni import normalizar_dni
-from legajos.forms import CiudadanoConfirmarForm
+from legajos.forms import CiudadanoConfirmarForm, CiudadanoManualForm
 from legajos.models import Ciudadano
 from legajos.services import CiudadanosService
 from programas.models import Plaza, Sector
@@ -66,6 +68,32 @@ def buscar_ciudadano_por_dni(dni):
     return None
 
 
+class RespuestaRegistro(NamedTuple):
+    """Lo que respondió el Registro de Personas, con el motivo de la falla por separado."""
+
+    datos: dict | None
+    motivo: str
+    fallecido: bool
+
+
+def buscar_en_registro_de_personas(dni, sexo):
+    """Pide los datos a RENAPER y devuelve `RespuestaRegistro(datos, motivo, fallecido)`.
+
+    `motivo` es el texto de la falla, sin prefijo ni punto final (vacío si hubo datos);
+    `fallecido` distingue a la persona que figura fallecida, que nunca se aloja.
+    """
+
+    resultado = CiudadanosService.consultar_renaper(dni, sexo)
+    if resultado.get("fallecido"):
+        return RespuestaRegistro(None, "La persona consultada figura como fallecida en el Registro de Personas.", True)
+    if not resultado.get("success"):
+        motivo = str(resultado.get("error") or "error desconocido").strip().rstrip(".")
+        return RespuestaRegistro(None, motivo, False)
+    datos = {campo: resultado["data"].get(campo) for campo in CAMPOS_RENAPER}
+    datos["dni"] = normalizar_dni(datos["dni"] or dni)
+    return RespuestaRegistro(datos, "", False)
+
+
 def consultar_registro_de_personas(dni, sexo):
     """Pide los datos a RENAPER por el servicio que ya usa Legajos.
 
@@ -73,17 +101,12 @@ def consultar_registro_de_personas(dni, sexo):
     texto para la persona que opera. Nunca los dos.
     """
 
-    resultado = CiudadanosService.consultar_renaper(dni, sexo)
-    if resultado.get("fallecido"):
-        return None, "La persona consultada figura como fallecida en el Registro de Personas."
-    if not resultado.get("success"):
-        return (
-            None,
-            f"No se encontraron datos en el Registro de Personas: {resultado.get('error', 'error desconocido')}.",
-        )
-    datos = {campo: resultado["data"].get(campo) for campo in CAMPOS_RENAPER}
-    datos["dni"] = normalizar_dni(datos["dni"] or dni)
-    return datos, ""
+    datos, motivo, fallecido = buscar_en_registro_de_personas(dni, sexo)
+    if datos is not None:
+        return datos, ""
+    if fallecido:
+        return None, motivo
+    return None, f"No se encontraron datos en el Registro de Personas: {motivo}."
 
 
 def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False):
@@ -134,7 +157,9 @@ def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False):
     return armados, elegibles
 
 
-def confirmar_ingreso(*, dispositivo, usuario, ciudadano_id, datos_renaper, plaza_id, fecha_ingreso=None):
+def confirmar_ingreso(
+    *, dispositivo, usuario, ciudadano_id, datos_renaper, plaza_id, fecha_ingreso=None, datos_manual=None
+):
     """El paso final: alta de la persona si hace falta y estadía, en una sola transacción.
 
     La plaza se **revalida y se toma** dentro de `ingresar_persona` (bloqueando su fila).
@@ -142,11 +167,16 @@ def confirmar_ingreso(*, dispositivo, usuario, ciudadano_id, datos_renaper, plaz
     transacción entera —incluida el alta del legajo— se deshace. Si el legajo o la plaza
     se borraron entre pasos, deja pasar `Ciudadano.DoesNotExist` o `Plaza.DoesNotExist`:
     la vista decide a qué paso se vuelve.
+
+    Si no hay legajo, la persona sale de `datos_renaper` (lo que respondió el Registro de
+    Personas) o de `datos_manual` (el alta mínima, cuando el Registro no la encontró).
     """
 
     with transaction.atomic():
         if ciudadano_id:
             ciudadano = Ciudadano.objects.get(pk=ciudadano_id)
+        elif datos_manual:
+            ciudadano = _alta_manual(datos_manual)
         else:
             ciudadano = _alta_desde_registro(datos_renaper)
         plaza = Plaza.objects.get(pk=plaza_id) if plaza_id else None
@@ -162,18 +192,43 @@ def confirmar_ingreso(*, dispositivo, usuario, ciudadano_id, datos_renaper, plaz
 def _alta_desde_registro(datos):
     """Crea el legajo con lo que respondió el Registro de Personas, como lo hace Legajos."""
 
-    existente = buscar_ciudadano_por_dni(datos["dni"])
+    return _crear_legajo(
+        datos["dni"],
+        CiudadanoConfirmarForm(data=datos, initial=datos),
+        Ciudadano.EstadoRenaper.REGISTRADO,
+        "Los datos del Registro de Personas no alcanzan para dar de alta a la persona.",
+    )
+
+
+def _alta_manual(datos):
+    """Crea el legajo con el alta mínima, como la carga manual de Legajos.
+
+    `estado_renaper` queda vacío: los datos no se validaron contra el Registro de Personas.
+    """
+
+    return _crear_legajo(
+        datos["dni"],
+        CiudadanoManualForm(data=datos),
+        "",
+        "Los datos cargados no alcanzan para dar de alta a la persona.",
+    )
+
+
+def _crear_legajo(dni, form, estado_renaper, mensaje_invalido):
+    """El alta del legajo dentro de la transacción del ingreso, tolerante a la carrera por el DNI."""
+
+    existente = buscar_ciudadano_por_dni(dni)
     if existente is not None:
         return existente  # lo dio de alta otro mientras tanto: es la misma persona
-    form = CiudadanoConfirmarForm(data=datos, initial=datos)
     if not form.is_valid():
-        raise ValidationError("Los datos del Registro de Personas no alcanzan para dar de alta a la persona.")
-    form.instance.estado_renaper = Ciudadano.EstadoRenaper.REGISTRADO
+        raise ValidationError(mensaje_invalido)
+    if estado_renaper:
+        form.instance.estado_renaper = estado_renaper
     try:
         with transaction.atomic():
             ciudadano = form.save()
     except IntegrityError:
-        existente = buscar_ciudadano_por_dni(datos["dni"])
+        existente = buscar_ciudadano_por_dni(dni)
         if existente is None:
             raise
         return existente
