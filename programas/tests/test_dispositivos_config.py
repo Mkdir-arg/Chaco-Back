@@ -117,7 +117,10 @@ class TipoDispositivoSectoresYPlazasTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertEqual(
             form.errors["maneja_sectores_plazas"],
-            ["Hay 2 plazas cargadas en instituciones de este tipo. Sacalas antes de dejar de manejar plazas."],
+            [
+                "Hay 2 plazas cargadas en instituciones de este tipo: "
+                "no se puede dejar de manejar plazas mientras existan."
+            ],
         )
         tipo.refresh_from_db()
         self.assertTrue(tipo.maneja_plazas)

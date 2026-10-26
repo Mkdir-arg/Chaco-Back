@@ -30,13 +30,13 @@ LARGOS_TELEFONO = (8, 15)
 
 # Lo único que se tolera entre los dígitos de un documento.
 _SEPARADORES_DOCUMENTO = re.compile(r"[.\-\s]")
-_TELEFONO_PERMITIDO = re.compile(r"[\d\s+\-()]+")
+_TELEFONO_PERMITIDO = re.compile(r"[0-9\s+\-()]+")
 
 
 def normalizar_documento_responsable(valor):
     """DNI (7-8 dígitos) o CUIT (11) del responsable, solo con dígitos."""
     texto = _SEPARADORES_DOCUMENTO.sub("", str(valor or ""))
-    if not texto.isdigit():
+    if not (texto.isascii() and texto.isdigit()):
         raise ValidationError(MENSAJE_DOCUMENTO_INVALIDO)
     digitos = normalizar_dni(texto)
     if len(digitos) == LARGO_CUIT:
@@ -55,7 +55,7 @@ def normalizar_telefono(valor):
     texto = str(valor or "").strip()
     if not _TELEFONO_PERMITIDO.fullmatch(texto):
         raise ValidationError(MENSAJE_TELEFONO_INVALIDO)
-    digitos = "".join(ch for ch in texto if ch.isdigit())
+    digitos = "".join(ch for ch in texto if ch.isascii() and ch.isdigit())
     if not LARGOS_TELEFONO[0] <= len(digitos) <= LARGOS_TELEFONO[1]:
         raise ValidationError(MENSAJE_TELEFONO_INVALIDO)
     return ("+" if texto.startswith("+") else "") + digitos
