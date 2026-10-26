@@ -10,12 +10,13 @@ enlace solo si la vista le puso `url`, y esa url abre acá el modal de su acció
 variante «abierto por parámetro GET y armado por el servidor» de P21: el cuerpo depende del
 estado de la plaza y la celda solo sabe navegar.
 
-Las tres acciones de configuración del mockup —«Nuevo sector» y «+ Agregar plazas» en el
-encabezado, «Editar sector» en el de cada sector— usan la misma variante, con `?sector=`
-y `?plazas=`.{% endcomment %}
+«Nuevo sector» en el encabezado y «Editar sector» en el de cada sector usan la misma
+variante, con `?sector=`. «+ Agregar plazas» no depende de un registro: su modal llega con
+la página y lo abre el botón, como el de la golden; el de un sector vacío además lo elige
+en el select (`sectorPlazas`).{% endcomment %}
 <div x-data="{ modalPlaza: {% if plaza_accion %}true{% else %}false{% endif %},
                modalSector: {% if form_sector %}true{% else %}false{% endif %},
-               modalPlazas: {% if form_plazas %}true{% else %}false{% endif %},
+               modalPlazas: false, sectorPlazas: '',
                modalEditarPlaza: {% if form_editar_plaza %}true{% else %}false{% endif %} }"
      @becas-saved.window="modalPlaza=false; modalSector=false; modalPlazas=false; modalEditarPlaza=false">
 
@@ -27,15 +28,15 @@ y `?plazas=`.{% endcomment %}
     {% page_header titulo="Sectores y plazas" eyebrow=dispositivo.nombre volver_url=url_volver volver_label=dispositivo.nombre migas=migas %}
       {% bajada %}{{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio · {{ totales.ocupadas }} ocupada{{ totales.ocupadas|pluralize }} · {{ totales.reservadas }} reservada{{ totales.reservadas|pluralize }} · {{ totales.prestadas }} prestada{{ totales.prestadas|pluralize }} · {{ totales.disponibles }} disponible{{ totales.disponibles|pluralize }}{% endbajada %}
       {% if puede_configurar_plazas %}
-      {# Enlaces y no botones: el modal lo arma el servidor con el parámetro GET, como los de P21 #}
+      {# Enlace y no botón: el modal lo arma el servidor con el parámetro GET, como los de P21 #}
       <a href="?sector=nuevo" class="btn-nodo btn-tertiary btn-sm btn-fit">
         <i class="fas fa-layer-group" aria-hidden="true"></i> Nuevo sector
       </a>
       {% if sectores %}
       {# Sin sectores activos no hay a qué agregarle plazas: el estado vacío manda al alta del sector #}
-      <a href="?plazas=1" class="btn-nodo btn-brand btn-sm btn-fit">
+      <button type="button" @click="sectorPlazas=''; modalPlazas=true" class="btn-nodo btn-brand btn-sm btn-fit">
         <i class="fas fa-plus" aria-hidden="true"></i> Agregar plazas
-      </a>
+      </button>
       {% endif %}
       {% endif %}
     {% endpage_header %}
@@ -62,9 +63,9 @@ y `?plazas=`.{% endcomment %}
       <div class="p-5">
         {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.resumen.total %}
         {% if not item.plazas and puede_configurar_plazas %}
-        <a href="?plazas={{ item.sector.pk }}" class="btn-nodo btn-brand btn-sm mt-3">
+        <button type="button" @click="sectorPlazas='{{ item.sector.pk }}'; modalPlazas=true" class="btn-nodo btn-brand btn-sm mt-3">
           <i class="fas fa-plus" aria-hidden="true"></i> Agregar plazas
-        </a>
+        </button>
         {% endif %}
       </div>
     </section>
@@ -236,7 +237,7 @@ y `?plazas=`.{% endcomment %}
   {% endif %}
 
   {% if form_plazas %}
-  {# Modal: Agregar plazas (lote). El sector se elige acá: el botón vive en el encabezado de la pantalla #}
+  {# Modal: Agregar plazas (lote). Llega cerrado con la página; el sector se elige acá o lo trae el botón del sector vacío #}
   <div x-show="modalPlazas" x-cloak x-becas-modal="modalPlazas" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalPlazas=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop

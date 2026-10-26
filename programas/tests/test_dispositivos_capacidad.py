@@ -18,6 +18,8 @@ Lo que se fija acá, y por qué:
 """
 
 import json
+import re
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -603,7 +605,7 @@ class GuardasDeCapacidadTests(BaseCapacidad):
         self.assertContains(respuesta, "Este dispositivo no tiene sectores")
         self.assertContains(respuesta, "?sector=nuevo")
         sector = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
-        self.assertContains(self.client.get(url), f"?plazas={sector.pk}")
+        self.assertContains(self.client.get(url), f"sectorPlazas='{sector.pk}'; modalPlazas=true")
         respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]), {"tab": "infraestructura"})
         self.assertContains(respuesta, "Este dispositivo no tiene edificio cargado")
         self.assertContains(respuesta, "edificio=nuevo")
@@ -742,6 +744,47 @@ class GuardasDeCapacidadTests(BaseCapacidad):
         self.assertIn("activo", admin.site._registry[Sector].get_readonly_fields(request, self.sector))
         self.assertIn("dispositivo", admin.site._registry[Sector].get_readonly_fields(request, self.sector))
         self.assertIn("sector", admin.site._registry[Plaza].get_readonly_fields(request, self.plaza))
+
+
+class LoteSinRecargaTests(BaseCapacidad):
+    """«Agregar plazas» abre su modal en el navegador, como el de la golden.
+
+    Era un enlace a `?plazas=1`: el clic recargaba la pantalla entera para que el servidor la
+    devolviera con el modal abierto, y en QA se veía como un F5 antes del modal. El lote no
+    depende de un registro —el sector se elige adentro—, así que el formulario llega con la
+    página y el botón solo lo muestra.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.url = reverse("dispositivos:sectores", args=[self.cis.pk])
+
+    def test_el_boton_del_encabezado_abre_el_lote_sin_navegar(self):
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.get(self.url)
+
+        self.assertIn("form_plazas", respuesta.context)
+        self.assertNotContains(respuesta, 'href="?plazas=')
+        self.assertContains(respuesta, "sectorPlazas=''; modalPlazas=true")
+
+    def test_el_lote_no_se_arma_para_quien_no_puede_ni_sin_sectores(self):
+        self.client.force_login(self.sin_editar)
+        self.assertNotIn("form_plazas", self.client.get(self.url).context)
+
+        Sector.objects.filter(dispositivo=self.cis).update(activo=False)
+        self.client.force_login(self.operador_cis)
+        self.assertNotIn("form_plazas", self.client.get(self.url).context)
+
+    def test_la_pantalla_no_repite_ids_con_otro_modal_abierto(self):
+        """El lote, el sector y la plaza tienen un campo `tipo`, y ahora conviven en el HTML."""
+
+        self.client.force_login(self.operador_cis)
+        for parametros in ({}, {"sector": "nuevo"}, {"sector": self.sector.pk}, {"editar_plaza": self.plaza.pk}):
+            with self.subTest(parametros=parametros):
+                html = self.client.get(self.url, parametros).content.decode()
+                repetidos = [i for i, n in Counter(re.findall(r'\sid="([^"]+)"', html)).items() if n > 1]
+                self.assertEqual(repetidos, [])
 
 
 @tag("performance")

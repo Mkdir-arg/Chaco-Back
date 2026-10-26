@@ -4,7 +4,8 @@ Las acciones que P5 ofrece en su encabezado («Nuevo sector», «+ Agregar plaza
 de cada sector («Editar sector»), más el edificio de la solapa Infraestructura de P4/P19.
 Todas mutan, así que son **solo POST con CSRF**; los modales que las disparan los abre un
 parámetro GET sobre la pantalla que ya existe y los arma el servidor, que es la variante
-del arquetipo Modal que P21 sentó y P5 ya usa para las acciones de una plaza.
+del arquetipo Modal que P21 sentó y P5 ya usa para las acciones de una plaza. El del lote
+es la excepción: no depende de un registro, llega con P5 y lo abre el botón.
 
 Reparto de responsabilidades: la capacidad en el programa la exige el mixin; el alcance al
 dispositivo, una compuerta acá, **antes** de mirar el sector, el edificio o el formulario
