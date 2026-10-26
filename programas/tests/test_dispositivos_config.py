@@ -451,9 +451,11 @@ class ConfiguracionDispositivosViewsTests(TestCase):
 
     def test_p14_estado_junto_al_titulo_conserva_textos_y_acciones(self):
         self.client.force_login(self.admin)
+        # El semáforo se muestra si el tipo maneja plazas (Cambio 372), no por `maneja_camas`.
+        self.tipo.tipos_plaza_admitidos = ["CAMA"]
         for activo, texto, tono in ((True, "Activo", "success"), (False, "Inactivo", "gray")):
             self.tipo.activo = activo
-            self.tipo.save(update_fields=["activo"])
+            self.tipo.save(update_fields=["activo", "tipos_plaza_admitidos"])
             with self.subTest(activo=activo):
                 respuesta = self.client.get(reverse("dispositivos:tipo_detalle", args=[self.tipo.pk]))
                 self.assertContains(

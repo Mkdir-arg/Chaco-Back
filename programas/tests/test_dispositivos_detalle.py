@@ -651,7 +651,9 @@ class AsignarPlazaEnLaSolapaTests(BaseDetalle):
     def test_sin_plazas_libres_el_item_sale_deshabilitado_con_el_motivo(self):
         self._alojar_sin_plaza()
         for plaza in (self.plaza, self.otra_plaza):
-            Plaza.objects.filter(pk=plaza.pk).update(estado=Plaza.Estado.FUERA_SERVICIO)
+            Plaza.objects.filter(pk=plaza.pk).update(
+                estado=Plaza.Estado.FUERA_SERVICIO, motivo_fuera_servicio="Mantenimiento"
+            )
 
         respuesta = self.client.get(self.url, {"tab": "estadias"})
 
