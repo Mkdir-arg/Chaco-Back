@@ -87,7 +87,7 @@ class TelefonoResponsableTests(SimpleTestCase):
 
 class TelefonoNoAsciiTests(SimpleTestCase):
     def test_digitos_arabes_o_superindices_no_son_un_telefono(self):
-        for valor in ("١٢٣٤٥٦٧", "²0123456789"):
+        for valor in ("١٢٣٤٥٦٧", "²0123456789", "١٢٣٤٥٦٧٨", "３６２４１２３４５６"):
             with self.subTest(valor=valor), self.assertRaises(ValidationError):
                 normalizar_telefono(valor)
 
