@@ -49,7 +49,7 @@ class FidelidadFITests(BaseInfraestructura):
             "localidad": "Resistencia",
             "domicilio": "Calle 123",
             "responsable_nombre": "Responsable FI",
-            "contacto_telefono": "123456",
+            "contacto_telefono": "3624123456",
         }
 
     def test_alta_y_edicion_tienen_dos_columnas_y_paneles(self):

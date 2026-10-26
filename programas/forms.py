@@ -42,6 +42,12 @@ from programas.models import (
 from programas.services.dispositivos import normalizar_codigo_institucional
 from programas.services.siis import SiisCatalogError, catalogo, funciones_programa, listar_programas
 from programas.services.siis_envio import provincia_de
+from programas.validacion_contacto import (
+    AYUDA_DOCUMENTO_RESPONSABLE,
+    normalizar_documento_responsable,
+    normalizar_telefono,
+    validar_nombre_responsable,
+)
 from users.presentation import etiqueta_usuario
 
 # Clase reutilizable del design system para inputs/selects/textareas.
@@ -950,6 +956,7 @@ class DispositivoForm(forms.ModelForm):
             "contacto_telefono": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "contacto_email": forms.EmailInput(attrs={"class": INPUT_CLASS}),
         }
+        help_texts = {"responsable_documento": AYUDA_DOCUMENTO_RESPONSABLE}
 
     def __init__(self, *args, **kwargs):
         from programas.services.dispositivos import campos_para_validacion
@@ -1004,6 +1011,18 @@ class DispositivoForm(forms.ModelForm):
         if duplicado.exists():
             raise forms.ValidationError("Ya existe un dispositivo con este código institucional.")
         return codigo
+
+    def clean_responsable_documento(self):
+        valor = self.cleaned_data.get("responsable_documento")
+        return normalizar_documento_responsable(valor) if valor and valor.strip() else valor
+
+    def clean_contacto_telefono(self):
+        valor = self.cleaned_data.get("contacto_telefono")
+        return normalizar_telefono(valor) if valor and valor.strip() else valor
+
+    def clean_responsable_nombre(self):
+        valor = self.cleaned_data.get("responsable_nombre")
+        return validar_nombre_responsable(valor) if valor and valor.strip() else valor
 
     def _tipo_elegido(self):
         """El tipo cuya sección «Crear dispositivo» se muestra: el del POST si vino (con
@@ -1120,9 +1139,22 @@ class SolicitudMerenderoForm(forms.ModelForm):
             "telefono": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "documentacion": forms.ClearableFileInput(attrs={"class": INPUT_CLASS, "accept": ACCEPT_ADJUNTO}),
         }
+        help_texts = {"responsable_documento": AYUDA_DOCUMENTO_RESPONSABLE}
 
     def clean_codigo(self):
         return normalizar_codigo_institucional(self.cleaned_data["codigo"])
+
+    def clean_responsable_documento(self):
+        valor = self.cleaned_data.get("responsable_documento")
+        return normalizar_documento_responsable(valor) if valor and valor.strip() else valor
+
+    def clean_telefono(self):
+        valor = self.cleaned_data.get("telefono")
+        return normalizar_telefono(valor) if valor and valor.strip() else valor
+
+    def clean_responsable_nombre(self):
+        valor = self.cleaned_data.get("responsable_nombre")
+        return validar_nombre_responsable(valor) if valor and valor.strip() else valor
 
     def __init__(self, *args, validar_completitud=True, **kwargs):
         super().__init__(*args, **kwargs)

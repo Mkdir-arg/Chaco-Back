@@ -129,7 +129,7 @@ class _Base(BaseInspecciones):
             "localidad": "Resistencia",
             "domicilio": "Calle 123",
             "responsable_nombre": "Responsable",
-            "contacto_telefono": "123456",
+            "contacto_telefono": "3624123456",
         }
         if diseno is not False:
             datos["formulario_tipo_diseno"] = (diseno or self.diseno).pk
