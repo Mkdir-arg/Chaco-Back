@@ -27,7 +27,7 @@ los de Merenderos. El mapeo también puede vivir en el servicio o selector del m
 entrega texto y `tono` y el template dibuja `badge badge-dot badge-{{ tono }}` sin decidir nada:
 así lo hace la estadía de Dispositivos (`ESTADOS_VISIBLES` de `programas/services/estadias.py`,
 que leen el detalle del dispositivo, la solapa del legajo y el detalle de la estadía (P7)). De ese
-módulo, `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egreso, plazas) es dominio. **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
+módulo, `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egreso, asignación y cambio de plaza) es dominio. **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
 `badge-danger` ni en `text-fg-danger`.
 
 Para la institución, `TONOS_ESTADO` y `estado_de_dispositivo` de

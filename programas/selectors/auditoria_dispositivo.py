@@ -45,7 +45,7 @@ from programas.models import (
 )
 
 #: Trazas del dispositivo que ya cuenta un `MovimientoEstadia`: se omiten para no duplicar.
-ACCIONES_DE_ESTADIA = ("ESTADIA_INGRESO", "ESTADIA_EGRESO", "ESTADIA_CAMBIO_PLAZA")
+ACCIONES_DE_ESTADIA = ("ESTADIA_INGRESO", "ESTADIA_EGRESO", "ESTADIA_CAMBIO_PLAZA", "ESTADIA_ASIGNACION_PLAZA")
 
 #: Qué pasó, en idioma de operador, por cada acción de `TrazaDispositivo`.
 TITULOS_TRAZA = {
@@ -205,8 +205,12 @@ def evento_de_movimiento(movimiento, *, puede_ver_personas=False):
         tono = "success"
     elif movimiento.tipo in MovimientoEstadia.TIPOS_DE_CAMBIO_DE_PLAZA:
         que = "sector" if movimiento.tipo == tipo.CAMBIO_SECTOR else "plaza"
-        titulo = f"Cambio de {que} de {persona}"
-        detalle = f"De {_plaza(movimiento.plaza_origen)} a {_plaza(movimiento.plaza_destino)}"
+        if movimiento.plaza_origen_id is None:
+            titulo = f"Asignación de plaza de {persona}"
+            detalle = f"Se asignó la {_plaza(movimiento.plaza_destino)}"
+        else:
+            titulo = f"Cambio de {que} de {persona}"
+            detalle = f"De {_plaza(movimiento.plaza_origen)} a {_plaza(movimiento.plaza_destino)}"
         if movimiento.motivo:
             detalle = f"{detalle} · Motivo: {movimiento.motivo}"
         tono = ""

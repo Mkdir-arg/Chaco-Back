@@ -116,7 +116,7 @@ línea (mismo resultado visual): se migra al tocarla, no se copia.
 (P21: ítems con `url`, `motivo` y `confirm_url` preparados en la vista; revisión sin datos con
 `_confirm_js.html` y ModernModal; las acciones con formulario abren su modal por
 parámetro GET). P4 (`dispositivos/legajo/detail.html`) reusa el mismo contrato para cambiar plaza
-y egresar: un modal por URL y capacidad, sin consultas por fila. Lo van a usar también P12, P20 y P22.
+(o asignarla, si la estadía no tiene: ítem «Asignar plaza», mismo modal) y egresar: un modal por URL y capacidad, sin consultas por fila. Lo van a usar también P12, P20 y P22.
 
 ### Cuándo va cada forma
 
