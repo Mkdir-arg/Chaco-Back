@@ -499,6 +499,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 373 | Infraestructura con varios edificios: tabla y cada edificio por separado dentro de la solapa | Dispositivos · P4 · Infraestructura | `#ui` `#performance` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 374 | «Asignar plaza» a una persona alojada sin plaza | Dispositivos · P4 · P7 | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 375 | Ingreso: alta mínima de la persona que no está en el legajo ni en el Registro de Personas | Dispositivos · P6 · paso Persona | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 376 | El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro | Dispositivos · Configuración → Tipos | `#ui` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -47849,3 +47850,75 @@ Revertir el commit. Los legajos creados quedan como cargas manuales comunes.
 ## Historial
 
 - **26/10/2026 — alta del cambio.**
+# Cambio 376 — El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (detalle del tipo, modal de edición) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — prueba en testing del Cambio 372, 26/10/2026 («cuando toco se pone en gris y se recarga») |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/config/tipo_detail.html` (script del modal) |
+| **Migración** | no |
+
+## Pedido original
+
+En `/dispositivos/config/<n>/`, dentro del modal «Editar tipo de dispositivo», cualquier clic lo pone gris y
+lo recarga. La casilla «Maneja sectores y plazas» (Cambio 372) no se puede tildar.
+
+## Alcance acordado
+
+Entra: que un clic dentro del modal no lo vuelva a abrir. Queda afuera todo lo demás del modal.
+
+## Decisiones tomadas
+
+- **Causa**: el script de la página abre el modal con cualquier clic dentro de un elemento con
+  `data-edit-url`, y el contenedor del modal (`_edit_modal.html`) también lleva ese atributo, que usa para
+  devolverle el foco al botón al cerrar. Así, cada clic adentro cancelaba la acción (la casilla no se
+  tildaba), ponía el modal en `opacity-60` y lo volvía a pedir al servidor. Estaba así desde julio (PR #196);
+  no lo trajo el Cambio 372, pero recién ahí hizo falta tildar algo en el modal.
+- El clic que abre el modal se busca **solo en un enlace** (`a[data-edit-url]`), que es lo que es el botón
+  «Editar tipo». El atributo del contenedor queda como está.
+
+## Implementación
+
+Una línea en el script de `tipo_detail.html`: `closest('[data-edit-url]')` → `closest('a[data-edit-url]')`.
+Reproducido antes y después en Chromium headless con el script real: antes la casilla no se tilda, el modal
+queda `pointer-events-none opacity-60` y sale un `GET` del modal; después la casilla se tilda, no hay pedido,
+«Editar tipo» sigue abriendo el modal y, con Alpine, tildar muestra «Tipos de plaza que admite».
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/config/tipo_detail.html`
+- `programas/tests/test_dispositivos_config.py` (`test_un_clic_dentro_del_modal_no_lo_vuelve_a_abrir`)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- ruff, `design_audit --ratchet` (0 nuevos) y `check_design_agent --changed`: en verde.
+- Test escrito y **no corrido en local por pedido del PM** (26/10/2026): lo corre el CI del PR. El repo no
+  tiene tests de JS; el test fija el selector en la página renderizada.
+
+## Puesta en marcha en el servidor
+
+Nada. En testing, recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit (vuelve el modal que se reabre con cada clic).
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---

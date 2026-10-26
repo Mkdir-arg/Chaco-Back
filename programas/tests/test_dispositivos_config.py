@@ -310,6 +310,16 @@ class ConfiguracionDispositivosViewsTests(TestCase):
         nuevo_tipo = self.client.get(reverse("dispositivos:tipo_crear"))
         self.assertNotContains(nuevo_tipo, "data-edit-modal")
 
+    def test_un_clic_dentro_del_modal_no_lo_vuelve_a_abrir(self):
+        """El modal también lleva `data-edit-url`: si el clic lo busca sin `a`, cada clic adentro lo
+        pone gris y lo vuelve a pedir, y la casilla no se tilda."""
+        self.client.force_login(self.admin)
+
+        editar_tipo = self.client.get(reverse("dispositivos:tipo_editar", args=[self.tipo.pk]))
+
+        self.assertContains(editar_tipo, "closest('a[data-edit-url]')")
+        self.assertNotContains(editar_tipo, "closest('[data-edit-url]')")
+
     def test_get_ajax_de_ediciones_devuelve_solo_el_modal(self):
         self.client.force_login(self.admin)
 

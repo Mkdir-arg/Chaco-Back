@@ -100,7 +100,8 @@
   }
 
   document.addEventListener('click', function (event) {
-    const editLink = event.target.closest('[data-edit-url]');
+    // Solo el enlace: el modal también lleva data-edit-url, y un clic adentro lo volvía a abrir.
+    const editLink = event.target.closest('a[data-edit-url]');
     if (editLink) {
       event.preventDefault();
       openModal(editLink);
