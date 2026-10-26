@@ -12,7 +12,7 @@ Sin leyenda no dibuja nada.
 {% if leyenda %}
 <ul class="flex flex-wrap gap-2" role="list" aria-label="Leyenda de estados de plaza">
   {% for item in leyenda %}
-  <li><span class="badge badge-{% if item.tono == 'success' or item.tono == 'info' or item.tono == 'warning' or item.tono == 'brand' or item.tono == 'danger' %}{{ item.tono }}{% else %}gray{% endif %}"><i class="fas {% if item.tono == 'success' %}fa-circle-check{% elif item.tono == 'info' %}fa-user{% elif item.tono == 'warning' %}fa-clock{% elif item.tono == 'brand' %}fa-right-left{% elif item.tono == 'danger' %}fa-ban{% else %}fa-circle{% endif %} mr-1" aria-hidden="true"></i>{{ item.estado }}</span></li>
+  <li><span class="badge badge-{% if item.tono == 'success' or item.tono == 'info' or item.tono == 'warning' or item.tono == 'brand' or item.tono == 'danger' %}{{ item.tono }}{% else %}gray{% endif %}"><i class="fas {% if item.tono == 'success' %}fa-circle-check{% elif item.tono == 'info' %}fa-user{% elif item.tono == 'warning' %}fa-clock{% elif item.tono == 'brand' %}fa-right-left{% elif item.tono == 'danger' %}fa-ban{% else %}fa-circle{% endif %}" aria-hidden="true"></i> {{ item.estado }}</span></li>
   {% endfor %}
 </ul>
 {% endif %}

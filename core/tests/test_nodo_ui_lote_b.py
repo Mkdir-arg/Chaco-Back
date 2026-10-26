@@ -135,7 +135,7 @@ class LeyendaPlazasTest(SimpleTestCase):
             self.assertIn(item["estado"], html)
             self.assertIn(f'class="badge badge-{item["tono"]}"', html)
             self.assertIn(
-                f'<i class="fas {ICONOS[item["tono"]]} mr-1" aria-hidden="true"></i>{item["estado"]}</span>', html
+                f'<i class="fas {ICONOS[item["tono"]]}" aria-hidden="true"></i> {item["estado"]}</span>', html
             )
         self.assertEqual(html.count("aria-hidden"), 5)
 
@@ -155,8 +155,8 @@ class LeyendaPlazasTest(SimpleTestCase):
     def test_tono_desconocido_dibuja_pastilla_gris_con_circulo(self):
         html = render_to_string(LEYENDA, {"leyenda": [{"estado": "E", "tono": "otro"}]})
 
-        self.assertIn("badge-gray", html)
-        self.assertIn("fa-circle", html)
+        self.assertIn('class="badge badge-gray"', html)
+        self.assertIn('<i class="fas fa-circle" aria-hidden="true">', html)
 
 
 class GaleriaFotosTest(SimpleTestCase):
