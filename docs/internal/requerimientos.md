@@ -489,6 +489,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 361 | Entrar después de un logout por inactividad ya no termina en un 405 | Transversal / sesión | `#sesion` | PM — reportó el 405 en `https://datanach.ecomdev.ar/logout` | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 362 | Skill `/auditoria`: auditoría completa de development y control antes de mergear cada PR | Transversal · método de trabajo de los agentes | `#metodo` `#performance` | PM — pedido en sesión | 23/10/2026 | 🟢 **Hecho** | No requiere |
 | 363 | setuptools 84.1.0 y cinco excepciones de twisted: «Pip Audit» vuelve a verde | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (24/10/2026) | 24/10/2026 | 🟢 **Hecho** | No requiere |
+| 364 | El Excel de respuestas por persona suma la fecha de nacimiento del titular | Becas · detalle del programa → Dashboard → Exportar «Respuestas por persona» | `#datos` `#convocatorias` | PM — en sesión (26/10/2026) | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -47001,5 +47002,85 @@ hay datos ni migración. El check de «Pip Audit» vuelve a rojo.
   CVE-2026-115877, que es lo que imprime el CI, daba por verificado el ingress de ECOM
   (MAJOR). Además había dos criterios de retiro distintos, y el comentario del pin seguía
   diciendo «backend de build». Los tres se corrigieron en la misma rama.
+
+---
+
+# Cambio 364 — El Excel de respuestas por persona suma la fecha de nacimiento del titular
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · configuración → detalle del programa → solapa Dashboard → Exportar → «Respuestas por persona» |
+| **Etiquetas** | `#datos` `#convocatorias` |
+| **Solicitante** | PM — en sesión: «vamos a agregar al excel el valor fecha de nacimiento del ciudadano que respondió» |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | Sin issue propio: extiende el Cambio 65 |
+| **Partes afectadas** | Backoffice (servicio de exportación) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Vamos a agregar al Excel el valor fecha de nacimiento del ciudadano que respondió.»
+
+## Alcance acordado
+
+**Entra:** una columna fija «Fecha de nacimiento», justo después de «Apellido y nombre», en el
+XLSX y en el CSV de «Respuestas por persona».
+
+**Queda afuera:** la vista, el template y `programas/services/respuestas.py` (su
+`COLUMNAS_FIJAS` es otro símbolo y lo usa la API).
+
+## Decisiones tomadas
+
+- **Es la fecha del titular del caso**, la misma persona de «DNI» y «Apellido y nombre»; no la
+  del apoderado.
+- **El legajo primero, `datos_identificacion` de respaldo:** si el caso tiene ciudadano y este
+  tiene fecha, esa; si no, la `fecha_nacimiento` de los datos de identificación offline. Así
+  quedan cubiertos el caso sin legajo y el legajo sin fecha. Sin fecha en ningún lado, celda vacía.
+- **Texto dd/mm/aaaa**, igual que «Fecha de envío» y que las fechas de las respuestas
+  (`legible` con tipo `DATE`); un texto que no se puede leer como fecha queda tal cual.
+
+## Implementación
+
+`programas/services/dashboard_becas.py`: columna en `COLUMNAS_FIJAS`, `ciudadano__fecha_nacimiento`
+en `_COLUMNAS_CASO` (reusa el LEFT JOIN de `ciudadano__dni`), helper `_fecha_nacimiento` junto a
+`_identificacion` y su valor en `_filas_por_persona`.
+
+## Archivos
+
+- `programas/services/dashboard_becas.py`
+- `programas/tests/test_dashboard_becas.py`
+- `programas/tests/test_export_respuestas_streaming.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios. Sin consultas nuevas: el presupuesto `becas_respuestas_por_persona` no cambia.
+
+## Impacto
+
+Mismos permisos (`becas.reportes.exportar`, alcance y SEC-22). **Las columnas siguientes a
+«Apellido y nombre» se corren un lugar:** quien procese la planilla por letra de columna tiene
+que ajustarla.
+
+## Validación
+
+- Tests nuevos del legajo con fecha, del caso sin legajo, del legajo sin fecha con respaldo y del
+  caso sin fecha, más el encabezado en su lugar. Mutación: con `_fecha_nacimiento` devolviendo
+  `""` el test nuevo se pone rojo.
+- `manage.py check`, ruff y `scripts/requerimientos.py --check`.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit. No hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
 
 ---
