@@ -5,6 +5,8 @@ el F-00 configurable muere con la admisión vieja, y lo que lo reemplace va sobr
 motor de formularios. Lo que queda acá es el tipo en sí.
 """
 
+from importlib import import_module
+
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
@@ -505,3 +507,75 @@ class ConfiguracionDispositivosViewsTests(TestCase):
                 self.assertContains(respuesta, "Editar tipo")
                 self.assertContains(respuesta, "Desactivar" if activo else "Activar")
                 self.assertContains(respuesta, "Semáforo de ocupación: amarillo desde")
+
+
+class ConvertirTiposV1MigracionTests(TestCase):
+    """La 0106 deja un tipo de la v1 igual que abrirlo en el modal y guardarlo sin tocar nada."""
+
+    def setUp(self):
+        self.migracion = import_module("programas.migrations.0106_convertir_tipos_dispositivo_v1")
+
+    def _estado(self, tipo):
+        tipo.refresh_from_db()
+        return (tipo.tipos_plaza_admitidos, tipo.plaza_obligatoria_al_ingresar, tipo.maneja_camas)
+
+    def _convertir(self):
+        return self.migracion.convertir_tipos_v1(TipoDispositivo)
+
+    def _guardado_con_el_form(self, tipo):
+        """Lo que queda al abrir el modal y guardar: el POST trae lo que el form mostró tildado."""
+
+        form = TipoDispositivoForm(instance=tipo)
+        datos = {"codigo": tipo.codigo, "nombre": tipo.nombre, "descripcion": "", "activo": "on"}
+        if form.fields["maneja_sectores_plazas"].initial:
+            datos["maneja_sectores_plazas"] = "on"
+        datos["tipos_plaza_admitidos"] = list(form.fields["tipos_plaza_admitidos"].initial)
+        if form.initial.get("plaza_obligatoria_al_ingresar", tipo.plaza_obligatoria_al_ingresar):
+            datos["plaza_obligatoria_al_ingresar"] = "on"
+        guardado = TipoDispositivoForm(datos, instance=tipo)
+        self.assertTrue(guardado.is_valid(), guardado.errors)
+        guardado.save()
+
+    def test_tipo_v1_queda_igual_que_guardandolo_con_el_form(self):
+        for lista in ([], None):
+            with self.subTest(lista=lista):
+                con_form = TipoDispositivo.objects.create(
+                    codigo=f"F{lista}", nombre=f"Con form {lista}", maneja_camas=True, tipos_plaza_admitidos=lista
+                )
+                con_migracion = TipoDispositivo.objects.create(
+                    codigo=f"M{lista}",
+                    nombre=f"Con migración {lista}",
+                    maneja_camas=True,
+                    tipos_plaza_admitidos=lista,
+                )
+                self._guardado_con_el_form(con_form)
+                self._convertir()
+
+                self.assertEqual(self._estado(con_migracion), self._estado(con_form))
+                self.assertEqual(self._estado(con_migracion), ([Plaza.Tipo.CAMA], True, True))
+
+    def test_tipo_ya_configurado_no_cambia(self):
+        tipo = TipoDispositivo.objects.create(
+            codigo="CFG",
+            nombre="Configurado",
+            maneja_camas=True,
+            tipos_plaza_admitidos=[Plaza.Tipo.CUPO],
+            plaza_obligatoria_al_ingresar=False,
+        )
+
+        self.assertEqual(self._convertir(), 0)
+        self.assertEqual(self._estado(tipo), ([Plaza.Tipo.CUPO], False, True))
+
+    def test_tipo_sin_camas_no_cambia(self):
+        tipo = TipoDispositivo.objects.create(codigo="SC", nombre="Sin camas", maneja_camas=False)
+
+        self.assertEqual(self._convertir(), 0)
+        self.assertEqual(self._estado(tipo), ([], False, False))
+
+    def test_correrla_dos_veces_da_lo_mismo(self):
+        v1 = TipoDispositivo.objects.create(codigo="V1", nombre="V1", maneja_camas=True)
+        self.assertEqual(self._convertir(), 1)
+        primero = self._estado(v1)
+
+        self.assertEqual(self._convertir(), 0)
+        self.assertEqual(self._estado(v1), primero)
