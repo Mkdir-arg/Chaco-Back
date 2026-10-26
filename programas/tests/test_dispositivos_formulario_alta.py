@@ -159,9 +159,9 @@ class SeccionTests(_Base):
         respuesta = self.client.post(self.crear, self._datos(diseno=False))
         html = respuesta.content.decode()
         self.assertIn(f'name="formulario_tipo_diseno" value="{self.diseno.pk}"', html)
-        # Tarjeta propia: Días y horarios cierra la de datos y el formulario del tipo va después.
-        self.assertLess(html.index("Responsable y contacto"), html.index("Días y horarios"))
-        self.assertLess(html.index("Días y horarios"), html.index("Formulario de ingreso"))
+        # Tarjeta propia: Horario de atención cierra la de datos y el formulario del tipo va después.
+        self.assertLess(html.index("Responsable y contacto"), html.index("Horario de atención"))
+        self.assertLess(html.index("Horario de atención"), html.index("Formulario de ingreso"))
         self.assertLess(html.index("Formulario de ingreso"), html.index("Datos del edificio"))
         self.assertIn(f"Lo pide el tipo «{self.tipo.nombre}»", html)
         for item in (self.camas, self.cocina, self.habilitacion, self.observaciones):
@@ -174,7 +174,7 @@ class SeccionTests(_Base):
         sin_formulario = TipoDispositivo.objects.create(codigo="HOGAR", nombre="Hogar")
         html = self.client.get(self.crear, {"tipo": sin_formulario.pk}).content.decode()
         self.assertNotIn("Formulario de ingreso", html)
-        self.assertIn("Días y horarios", html)
+        self.assertIn("Horario de atención", html)
         self.assertEqual(self.client.get(self.seccion, {"tipo": sin_formulario.pk}).content.strip(), b"")
         self.assertContains(self.client.get(self.seccion, {"tipo": self.tipo.pk}), "Formulario de ingreso")
 

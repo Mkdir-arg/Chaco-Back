@@ -37,9 +37,10 @@
         {% for field in form %}{% if field.name == 'responsable_nombre' or field.name == 'responsable_documento' or field.name == 'contacto_telefono' or field.name == 'contacto_email' %}{% include "components/_field.html" with wrapper_class="" %}{% endif %}{% endfor %}
       </div>
     </div>
-    {% comment %}Días y horarios: un formset de franjas (día, desde, hasta). Las filas con datos van a la tabla, con sus valores en campos ocultos; las vacías son el bloque para agregar. Sin JS se completa una fila por franja y se quita marcando «Quitar»; con JS la primera fila vacía es el control de «Agregar» y «Quitar» saca la fila. Las reglas (superposición, desde < hasta, tope por día) las valida el servidor.{% endcomment %}
+    {% comment %}Horario de atención: un formset de franjas (día, desde, hasta). Las filas con datos van a la tabla, con sus valores en campos ocultos; las vacías son el bloque para agregar. Sin JS se completa una fila por franja y se quita marcando «Quitar»; con JS la primera fila vacía es el control de «Agregar» y «Quitar» saca la fila. Las reglas (superposición, desde < hasta, tope por día) las valida el servidor.{% endcomment %}
     <div class="border-t border-light mt-5 pt-4" data-franjas data-prefijo="{{ form.franjas.prefix }}">
-      <h2 class="text-heading font-bold mb-4">Días y horarios</h2>
+      <h2 class="text-heading font-bold">Horario de atención</h2>
+      <p class="mt-1 mb-4 text-xs text-body-subtle">Solo informativo. Los turnos del personal se configuran en la Bitácora del turno.</p>
       {{ form.franjas.management_form }}
       {% if form.horario_heredado %}
       <div class="mb-4 text-sm">
@@ -252,7 +253,7 @@
 </script>
 <script>
 (function () {
-  // Días y horarios: «Agregar» pasa la primera fila vacía a la tabla como una fila nueva
+  // Horario de atención: «Agregar» pasa la primera fila vacía a la tabla como una fila nueva
   // del formset, y «Quitar» la marca para borrar y la oculta. Las mismas reglas que acá
   // avisan al lado del control las vuelve a exigir el servidor al guardar.
   const bloque = document.querySelector('[data-franjas]');

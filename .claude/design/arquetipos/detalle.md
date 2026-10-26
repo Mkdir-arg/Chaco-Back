@@ -129,6 +129,7 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   (`programas/templates/programas/dispositivos/legajo/detail.html`),
   `programas/services/detalle_dispositivo.py` normaliza `?tab=` según las solapas disponibles
   y la vista pasa `tab` al `x-data`; una inexistente cae en la predeterminada.
+  La `dl` de datos de la solapa Datos rotula las franjas de P3 como «Horario de atención» (solo informativo; no son los turnos de la Bitácora).
 - Respuestas de un formulario del constructor en la solapa Datos de P4: una `section`
   `border-t border-light mt-6 pt-5` por formulario respondido, con `h2` y `badge badge-gray`
   «Versión N» (más «Tipo anterior: …» si es de otro tipo), `h3` por sección y la misma `dl`

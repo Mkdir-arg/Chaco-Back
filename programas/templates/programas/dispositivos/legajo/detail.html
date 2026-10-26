@@ -152,7 +152,7 @@
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Responsable</dt><dd class="mt-1 text-body">{{ dispositivo.responsable_nombre|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Contacto</dt><dd class="mt-1 text-body">{{ dispositivo.contacto_telefono|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Email</dt><dd class="mt-1 text-body">{{ dispositivo.contacto_email|default:'—' }}</dd></div>
-          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Días y horarios</dt><dd class="mt-1 text-body whitespace-pre-line">{{ dispositivo.horarios|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Horario de atención</dt><dd class="mt-1 text-body whitespace-pre-line">{{ dispositivo.horarios|default:'—' }}</dd></div>
           {% if dispositivo.fuente_padron %}<div><dt class="text-xs font-semibold uppercase text-body-subtle">Procedencia del padrón</dt><dd class="mt-1 text-body">{{ dispositivo.fuente_padron }} · {{ dispositivo.fecha_padron|date:'d/m/Y'|default:'Sin fecha' }} · {{ dispositivo.responsable_padron|default:'Sin responsable' }}</dd></div>{% endif %}
         </dl>
         <div class="mt-5">
