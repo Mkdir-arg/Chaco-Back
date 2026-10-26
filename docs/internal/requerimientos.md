@@ -498,6 +498,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 372 | El tipo de dispositivo configura «Sectores y plazas» en lugar de «Maneja camas» | Dispositivos · Configuración · Tipos | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 373 | Infraestructura con varios edificios: tabla y cada edificio por separado dentro de la solapa | Dispositivos · P4 · Infraestructura | `#ui` `#performance` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 374 | «Asignar plaza» a una persona alojada sin plaza | Dispositivos · P4 · P7 | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 375 | Ingreso: alta mínima de la persona que no está en el legajo ni en el Registro de Personas | Dispositivos · P6 · paso Persona | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -34429,6 +34430,7 @@ No requiere.
 ## Historial
 
 Entrada nueva. Etapa 2 del plan del Cambio 191.
+- **26/10/2026** — el paso 1 ofrece el alta mínima (DNI, nombre, apellido, nacimiento y género) cuando la persona no está en el legajo ni en el Registro de Personas, como pedía el mockup (Cambio 375).
 
 ---
 
@@ -47553,7 +47555,7 @@ PM: después).
 - **«Exige asignar una plaza» viene tildada** en un tipo nuevo y en uno de la v1 sin configurar (decisión del
   PM). La ayuda dice que se destilda en los tipos que atienden sin cama.
 - Destildada: lista vacía y no exige. **No se puede destildar** si hay plazas cargadas en instituciones de ese
-  tipo («Hay N plazas cargadas… Sacalas antes de dejar de manejar plazas.»).
+  tipo («Hay N plazas cargadas en instituciones de este tipo: no se puede dejar de manejar plazas mientras existan.», y «Hay 1 plaza cargada…» con una sola).
 - **Sin migración de datos**: un tipo de la v1 (`maneja_camas` y lista vacía) abre tildado, con Cama y con
   «Exige» marcados; guardarlo una vez lo deja configurado.
 - `maneja_camas` se sincroniza al guardar, para la release anterior y lo que todavía lo lea.
@@ -47757,6 +47759,92 @@ Nada.
 
 Revertir el commit. Las asignaciones hechas quedan como movimientos de cambio de plaza sin origen, que la
 release anterior muestra como un cambio de plaza común.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 375 — Ingreso: alta mínima de la persona que no está en el legajo ni en el Registro de Personas
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · asistente de ingreso (P6), paso 1 «Persona» |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | PM — recorrida del MVP v2 en testing, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `services/ingreso.py` (`buscar_en_registro_de_personas`, `_alta_manual`, `_crear_legajo`), `views/dispositivos_ingreso.py`, `forms_ingreso.py` (`IngresoAltaMinimaForm`) · Backoffice: `dispositivos/ingreso/paso_persona.html`, `paso_confirmar.html` |
+| **Migración** | no |
+
+## Pedido original
+
+En `/dispositivos/1/ingresar/` sale «No se encontraron datos en el Registro de Personas: Configuracion RENAPER
+incompleta (URL).» y no hay forma de seguir. «Si no encuentra a la persona en la base de datos o en RENAPER, te
+muestra el formulario chico de crear ciudadano.» El mockup de la v2 ya lo pedía (P6, paso 1: «alta mínima si no
+existe»); el Cambio 272 no lo implementó.
+
+## Alcance acordado
+
+Entra: el alta mínima dentro del paso 1. Queda afuera: hacer opcional el sexo (el Registro lo sigue pidiendo) y
+la «Ficha mínima» por tipo (pendiente del Cambio 272).
+
+## Decisiones tomadas
+
+- **Cuándo aparece**: la persona no está en el legajo, quien opera tiene `ciudadano.crear`, indicó el sexo y el
+  Registro de Personas no la devolvió (no encontrada, caído o mal configurado). Se ve un aviso «No encontramos a
+  la persona», con el motivo, y la tarjeta «Alta de la persona».
+- **El formulario chico**: DNI (fijo), Nombre\*, Apellido\*, Fecha de nacimiento (opcional, no futura) y Género
+  (viene con el sexo consultado).
+- **El DNI sale de la sesión**, nunca del POST. El envío exige `ciudadano.crear` y que la consulta fallida esté en
+  la sesión. Un oculto con lo que la pantalla mostraba frena el cambio desde otra pestaña.
+- **Se da de alta recién al confirmar**, en la misma transacción que la estadía (regla 2 de
+  `services/ingreso.py`). Si el ingreso falla, no queda el legajo.
+- El legajo nace con **`estado_renaper` vacío**, como la carga manual de Legajos, y pasa por su mismo formulario
+  (`CiudadanoManualForm`). En Plaza se ve como «Carga manual» y en Confirmar, con los datos cargados a mano, sin validar.
+- Si la persona aparece en el legajo entre pasos, se sigue con esa y no se duplica.
+- **Sin cambios**: el fallecido sigue bloqueando (no se aloja a quien figura fallecido); sin `ciudadano.crear` y
+  sin sexo siguen los errores de hoy; la persona encontrada en el Registro sigue igual.
+
+## Implementación
+
+`buscar_en_registro_de_personas` devuelve datos, motivo y fallecido por separado.
+La sesión guarda `sin_registro`
+(lo consultado) y, con el alta válida, `manual`. `confirmar_ingreso` recibe `datos_manual`, y el alta del
+Registro y la manual comparten `_crear_legajo`, que tolera la carrera por el DNI.
+
+## Archivos
+
+- `programas/services/ingreso.py`, `programas/views/dispositivos_ingreso.py`, `programas/forms_ingreso.py`
+- `programas/templates/programas/dispositivos/ingreso/paso_persona.html`, `paso_confirmar.html`
+- `programas/tests/test_dispositivos_ingreso.py` (`AltaMinimaTests`)
+- `.claude/design/arquetipos/wizard.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent` y ruff: en verde.
+- `AltaMinimaTests` corrida en local con `.venv312`: en verde. La suite completa la corre el CI.
+
+## Puesta en marcha en el servidor
+
+Nada. En testing el Registro de Personas no está configurado, así que toda persona fuera del legajo pasa por el
+alta mínima.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el commit. Los legajos creados quedan como cargas manuales comunes.
 
 ## Historial
 

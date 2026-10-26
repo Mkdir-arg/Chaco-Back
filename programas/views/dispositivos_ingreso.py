@@ -3,7 +3,8 @@
 Una URL por paso, con el estado en sesión (arquetipo Wizard):
 
 1. **Persona** — búsqueda por DNI en el Legajo Ciudadano; si no está, se consulta el
-   Registro de Personas (RENAPER). Acá se avisa si ya está alojada en la red.
+   Registro de Personas (RENAPER). Acá se avisa si ya está alojada en la red. Si no está
+   en ninguno de los dos, se ofrece el alta mínima (nombre, apellido, nacimiento y género).
 2. **Plaza** — solo si el tipo del dispositivo maneja plazas. Tocar una plaza en el mapa
    la marca; recién «Continuar» la guarda.
 3. **Confirmar** — resumen y escritura.
@@ -37,15 +38,15 @@ from django.views import View
 from core.edad import edad_en_anios, fecha_o_none
 from core.rbac import puede
 from legajos.models import Ciudadano
-from programas.forms_ingreso import IngresoConfirmarForm, IngresoPersonaForm
+from programas.forms_ingreso import IngresoAltaMinimaForm, IngresoConfirmarForm, IngresoPersonaForm
 from programas.models import Dispositivo, Plaza
 from programas.services.bitacora import turno_vigente
 from programas.services.dispositivos import puede_operar_dispositivo
 from programas.services.estadias import CAP_ADMITIR, AlojamientoEnLaRed, verificar_alojamiento_en_red
 from programas.services.ingreso import (
     buscar_ciudadano_por_dni,
+    buscar_en_registro_de_personas,
     confirmar_ingreso,
-    consultar_registro_de_personas,
     maneja_plazas,
     plazas_para_ingresar,
 )
@@ -135,7 +136,25 @@ class IngresoBaseView(LoginRequiredMixin, View):
         if datos:
             resumen = hashlib.sha256(json.dumps(datos, sort_keys=True, default=str).encode()).hexdigest()[:16]
             return f"registro:{datos.get('dni') or ''}:{estado.get('sexo') or ''}:{resumen}"
+        manual = estado.get("manual")
+        if manual:
+            # Prefijo propio: una persona cargada a mano y una del Registro con el mismo
+            # DNI no son la misma persona para la pantalla.
+            resumen = hashlib.sha256(json.dumps(manual, sort_keys=True, default=str).encode()).hexdigest()[:16]
+            return f"manual:{manual.get('dni') or ''}:{estado.get('sexo') or ''}:{resumen}"
         return ""
+
+    @staticmethod
+    def hay_persona(estado):
+        """¿El asistente ya tiene a quién alojar? `sin_registro` todavía no es una persona."""
+
+        return bool(estado.get("ciudadano_id") or estado.get("renaper") or estado.get("manual"))
+
+    @staticmethod
+    def huella_sin_registro(sin_registro):
+        """Qué alta mínima mostraba la pantalla: el DNI y el sexo que se consultaron."""
+
+        return f"sin_registro:{sin_registro.get('dni') or ''}:{sin_registro.get('sexo') or ''}"
 
     def mostrado(self, estado, plaza_id=None):
         """Los ocultos de un form: la persona y la plaza que la pantalla está mostrando."""
@@ -226,6 +245,21 @@ class IngresoBaseView(LoginRequiredMixin, View):
                 "legajo_url": "",
                 "nota": "Estos datos vienen del Registro de Personas. Al confirmar, la persona se da de alta en el Legajo Ciudadano.",
             }
+        manual = estado.get("manual")
+        if manual:
+            return {
+                "nombre": f"{manual.get('nombre') or ''} {manual.get('apellido') or ''}".strip(),
+                "dni": manual["dni"],
+                "nacimiento": _nacimiento(manual.get("fecha_nacimiento")),
+                "genero": dict(IngresoPersonaForm.GENERO_CHOICES).get(manual.get("genero") or "", ""),
+                "obra_social": "",
+                "domicilio": "",
+                "origen": "Carga manual",
+                "en_legajo": False,
+                "manual": True,
+                "legajo_url": "",
+                "nota": "La persona no está en el Registro de Personas, o no se pudo consultar. Al confirmar, se da de alta en el Legajo Ciudadano con estos datos, sin validar.",
+            }
         return None
 
     def volver_al_inicio(self, mensaje):
@@ -252,18 +286,68 @@ class IngresoPersonaView(IngresoBaseView):
     template_name = "programas/dispositivos/ingreso/paso_persona.html"
     paso = 1
 
-    def render_paso(self, request, form, verificacion=None):
+    def render_paso(self, request, form, verificacion=None, alta=None, motivo=""):
+        """`alta` es el `IngresoAltaMinimaForm` cuando el paso ofrece el alta mínima."""
+
         contexto = self.contexto(1)
         contexto.update({"form": form, "verificacion": verificacion})
+        if alta is not None:
+            sin_registro = self.estado().get("sin_registro") or {}
+            contexto.update(
+                {
+                    "alta_form": alta,
+                    "alta_aviso": (
+                        "No está en el Legajo Ciudadano ni en el Registro de Personas"
+                        + (f" ({motivo})" if motivo else "")
+                        + ". Cargá sus datos para seguir con el ingreso."
+                    ),
+                    "alta_persona": self.huella_sin_registro(sin_registro),
+                }
+            )
         return render(request, self.template_name, contexto)
+
+    def _alta_minima_form(self, sin_registro, data=None):
+        return IngresoAltaMinimaForm(data, dni=sin_registro["dni"], sexo=sin_registro.get("sexo") or "")
 
     def get(self, request, pk):
         estado = self.estado()
+        sin_registro = estado.get("sin_registro")
+        if sin_registro and puede(request.user, CAP_CREAR_CIUDADANO):
+            form = IngresoPersonaForm(initial={"dni": sin_registro["dni"], "sexo": sin_registro.get("sexo") or ""})
+            return self.render_paso(request, form, alta=self._alta_minima_form(sin_registro))
         persona = self.resumen_persona(estado)
         form = IngresoPersonaForm(initial={"dni": persona["dni"]} if persona else None)
         return self.render_paso(request, form)
 
+    def _seguir_con(self, request, ciudadano, form):
+        """La persona está en el legajo: aviso de la red o paso siguiente, como siempre."""
+
+        verificacion = verificar_alojamiento_en_red(ciudadano, request.user)
+        if verificacion.alojada:
+            # El aviso llega antes de confirmar: la persona no avanza hasta que se
+            # resuelva el egreso o el traslado. Fuera de alcance, solo se sabe que existe.
+            return self.render_paso(request, form, verificacion)
+        return self._guardar_y_seguir({"ciudadano_id": ciudadano.pk})
+
+    def _descartar_alta_minima(self):
+        """Una búsqueda nueva invalida la anterior: si corta con error no queda `sin_registro`."""
+
+        estado = self.estado()
+        if estado.pop("sin_registro", None) is not None:
+            self.guardar(estado)
+
+    def _guardar_y_seguir(self, nuevo):
+        # El paso se guarda recién ahora, con el form válido; lo que dependía de la persona
+        # anterior (la plaza) se descarta.
+        self.guardar(nuevo)
+        return redirect(self.urls()["plaza"] if self.usa_plazas else self.urls()["confirmar"])
+
     def post(self, request, pk):
+        if request.POST.get("accion") == "alta_minima":
+            return self._post_alta_minima(request)
+        # Cada consulta reemplaza a la anterior: DNI inválido, sin sexo, fallecida o ya
+        # alojada cortan con error sin tocar la sesión, y la alta mínima vieja no puede volver.
+        self._descartar_alta_minima()
         form = IngresoPersonaForm(request.POST)
         if not form.is_valid():
             return self.render_paso(request, form)
@@ -272,31 +356,59 @@ class IngresoPersonaView(IngresoBaseView):
 
         ciudadano = buscar_ciudadano_por_dni(dni)
         if ciudadano is not None:
-            verificacion = verificar_alojamiento_en_red(ciudadano, request.user)
-            if verificacion.alojada:
-                # El aviso llega antes de confirmar: la persona no avanza hasta que se
-                # resuelva el egreso o el traslado. Fuera de alcance, solo se sabe que existe.
-                return self.render_paso(request, form, verificacion)
-            nuevo = {"ciudadano_id": ciudadano.pk}
-        else:
-            if not puede(request.user, CAP_CREAR_CIUDADANO):
-                form.add_error(
-                    "dni", "La persona no está en el Legajo Ciudadano y no tenés permiso para darla de alta."
-                )
-                return self.render_paso(request, form)
-            if not sexo:
-                form.add_error("sexo", "Indicá el sexo para consultar el Registro de Personas.")
-                return self.render_paso(request, form)
-            datos, error = consultar_registro_de_personas(dni, sexo)
-            if error:
-                form.add_error("dni", error)
-                return self.render_paso(request, form)
-            nuevo = {"ciudadano_id": None, "renaper": datos, "sexo": sexo}
+            return self._seguir_con(request, ciudadano, form)
+        if not puede(request.user, CAP_CREAR_CIUDADANO):
+            form.add_error("dni", "La persona no está en el Legajo Ciudadano y no tenés permiso para darla de alta.")
+            return self.render_paso(request, form)
+        if not sexo:
+            form.add_error("sexo", "Indicá el sexo para consultar el Registro de Personas.")
+            return self.render_paso(request, form)
+        datos, motivo, fallecido = buscar_en_registro_de_personas(dni, sexo)
+        if fallecido:
+            form.add_error("dni", motivo)
+            return self.render_paso(request, form)
+        if datos is None:
+            # Ni el legajo ni el Registro la tienen: se ofrece el alta mínima. La sesión
+            # solo recuerda qué se consultó; no hay persona elegida ni se escribe nada.
+            sin_registro = {"dni": dni, "sexo": sexo}
+            self.guardar({"sin_registro": sin_registro})
+            return self.render_paso(request, form, alta=self._alta_minima_form(sin_registro), motivo=motivo)
+        return self._guardar_y_seguir({"ciudadano_id": None, "renaper": datos, "sexo": sexo})
 
-        # El paso se guarda recién ahora, con el form válido; lo que dependía de la persona
-        # anterior (la plaza) se descarta.
-        self.guardar(nuevo)
-        return redirect(self.urls()["plaza"] if self.usa_plazas else self.urls()["confirmar"])
+    def _post_alta_minima(self, request):
+        """Envío del formulario chico: el DNI y el sexo salen de la sesión, no del POST."""
+
+        if not puede(request.user, CAP_CREAR_CIUDADANO):
+            raise PermissionDenied
+        sin_registro = self.estado().get("sin_registro")
+        if not sin_registro:
+            return redirect(self.urls()["persona"])
+        dni = sin_registro["dni"]
+        sexo = sin_registro.get("sexo") or ""
+        buscar = IngresoPersonaForm(initial={"dni": dni, "sexo": sexo})
+
+        if request.POST.get("persona") != self.huella_sin_registro(sin_registro):
+            # Otra pestaña cambió a quién se está dando de alta: no se guarda nada.
+            messages.warning(request, AVISO_OTRA_PESTANA)
+            return self.render_paso(request, buscar, alta=self._alta_minima_form(sin_registro))
+
+        # Alguien pudo cargarla mientras tanto: se sigue con esa persona, sin duplicar.
+        ciudadano = buscar_ciudadano_por_dni(dni)
+        if ciudadano is not None:
+            return self._seguir_con(request, ciudadano, buscar)
+        alta = self._alta_minima_form(sin_registro, request.POST)
+        if not alta.is_valid():
+            return self.render_paso(request, buscar, alta=alta)
+        datos = alta.cleaned_data
+        fecha = datos["fecha_nacimiento"]
+        manual = {
+            "dni": dni,
+            "nombre": datos["nombre"],
+            "apellido": datos["apellido"],
+            "fecha_nacimiento": fecha.isoformat() if fecha else None,
+            "genero": datos["genero"],
+        }
+        return self._guardar_y_seguir({"ciudadano_id": None, "manual": manual, "sexo": sexo})
 
 
 class IngresoPlazaView(IngresoBaseView):
@@ -313,7 +425,7 @@ class IngresoPlazaView(IngresoBaseView):
     def _previo(self, estado):
         """Redirige al paso anterior si falta la persona, o al final si no hay plazas."""
 
-        if not (estado.get("ciudadano_id") or estado.get("renaper")):
+        if not self.hay_persona(estado):
             return redirect(self.urls()["persona"])
         if not self.usa_plazas:
             return redirect(self.urls()["confirmar"])
@@ -434,7 +546,7 @@ class IngresoConfirmarView(IngresoBaseView):
     template_name = "programas/dispositivos/ingreso/paso_confirmar.html"
 
     def _previo(self, estado):
-        if not (estado.get("ciudadano_id") or estado.get("renaper")):
+        if not self.hay_persona(estado):
             return redirect(self.urls()["persona"])
         if self.usa_plazas and not estado.get("plaza_decidida"):
             return redirect(self.urls()["plaza"])
@@ -486,6 +598,9 @@ class IngresoConfirmarView(IngresoBaseView):
         persona = self.resumen_persona(estado)
         if persona is None:
             return self.volver_al_inicio("La persona elegida ya no está en el Legajo Ciudadano. Buscala de nuevo.")
+        if estado.get("manual") and not puede(request.user, CAP_CREAR_CIUDADANO):
+            # El alta se escribe recién acá: la capacidad se vuelve a comprobar.
+            raise PermissionDenied
         form = IngresoConfirmarForm(request.POST)
         if not self._es_lo_mostrado(estado):
             # Otra pestaña cambió la persona o la plaza: no se escribe nada y se vuelve a
@@ -500,6 +615,7 @@ class IngresoConfirmarView(IngresoBaseView):
                 usuario=request.user,
                 ciudadano_id=estado.get("ciudadano_id"),
                 datos_renaper=estado.get("renaper"),
+                datos_manual=estado.get("manual"),
                 plaza_id=estado.get("plaza_id"),
                 fecha_ingreso=form.cleaned_data["fecha_ingreso"],
             )
