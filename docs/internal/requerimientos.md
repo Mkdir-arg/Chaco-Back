@@ -46775,7 +46775,9 @@ como en el Cambio 315. Con el check rojo, además, «Publish main» no publica.
 ## Implementación
 
 Un cambio de pin y cinco bloques `[[pip_audit]]` que siguen el formato del archivo. El
-comentario de cabecera pasa a decir que hay seis excepciones vigentes, todas de twisted.
+comentario de cabecera pasa a decir que hay seis excepciones vigentes, todas de twisted, y
+deja un solo criterio de retiro para todas. El comentario del pin de setuptools deja de
+llamarlo «backend de build».
 
 ## Archivos
 
@@ -46801,11 +46803,13 @@ Nada más que el deploy: la imagen se reconstruye con setuptools 84.1.0.
 
 ## Pendientes / a definir
 
-- **Retirar las cinco excepciones cuando salga twisted 26.10.0 final.** Antes de sacarlas,
-  verificar que `pip-audit -r requirements.txt` da «No known vulnerabilities found» sin esos
-  `--ignore-vuln`.
+- **Cuando salga twisted 26.10.0 final, revisar juntas las seis excepciones de twisted:** las
+  cinco de este Cambio y la del 315 (CVE-2026-106454). Se corre `pip-audit -r requirements.txt`
+  sin ningún `--ignore-vuln` y se borra toda entrada cuyo id ya no aparezca: es el criterio de
+  la cabecera de `security/excepciones.toml`.
 - **Confirmar con ECOM que el ingress rearma la petición** y no reenvía un CR o un LF suelto
-  dentro de un header. Si no lo hace, la excepción de CVE-2026-115877 no se sostiene.
+  dentro de un header. Si no lo hace, la excepción de CVE-2026-115877 no se sostiene, y sin
+  esa confirmación el 25/11 no se renueva la fecha: se decide de nuevo.
 
 ## Reversión
 
@@ -46815,5 +46819,9 @@ hay datos ni migración. El check de «Pip Audit» vuelve a rojo.
 ## Historial
 
 - **26/10/2026 — alta del cambio.**
+- **26/10/2026 — `/auditoria pr 949`, primera ronda:** CHANGES NEEDED. El `motivo` de
+  CVE-2026-115877, que es lo que imprime el CI, daba por verificado el ingress de ECOM
+  (MAJOR). Además había dos criterios de retiro distintos, y el comentario del pin seguía
+  diciendo «backend de build». Los tres se corrigieron en la misma rama.
 
 ---

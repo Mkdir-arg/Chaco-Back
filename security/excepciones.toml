@@ -17,7 +17,9 @@
 # La anterior, `PYSEC-2026-3447`, se retiró en el Cambio 196 (RED-85): era setuptools
 # 80.9.0 (CVE-2026-59890) y el pin subió a 83.0.0, la primera corregida. Se verificó
 # antes de sacarla que `pip-audit -r requirements.txt` da «No known vulnerabilities
-# found» **sin ningún** `--ignore-vuln`. Lo mismo vale para retirar cualquiera de abajo.
+# found» **sin ningún** `--ignore-vuln`. Así se retira cualquiera de abajo: cuando sale la
+# versión corregida, se corre `pip-audit -r requirements.txt` sin ningún `--ignore-vuln` y se
+# borran todas las entradas cuyo id ya no aparece en la salida, no solo las del mismo ticket.
 #
 # Cuando haga falta agregar una, va así —y `vence_el` sin comillas—:
 #
@@ -45,7 +47,9 @@ ticket = "Cambio 315"
 # único de autobahn que nombra `twisted.conch` es `autobahn/twisted/cryptosign.py`, dentro
 # de una función que daphne no llama. La corregida es 26.10.0rc1. twisted no está
 # pineado, así que cuando salga la 26.10.0 final `pip-audit` y la imagen la toman solas:
-# ese día se retiran.
+# ese día se revisan juntas las seis de twisted, incluida la del Cambio 315, con el
+# criterio de la cabecera. Vencen el 15/12/2026, siete semanas después del rc del 22/10:
+# margen para que salga la final sin dejarlas abiertas tres meses.
 #
 #   CVE-2026-115778 (GHSA-cwm5-jh59-mwxr)  memoria sin límite en la subnegociación telnet de `twisted.conch`
 #   CVE-2026-115774 (GHSA-2qrf-pqgx-qh9v)  bucle infinito en el servidor IMAP de `twisted.mail`
@@ -84,9 +88,10 @@ ticket = "Cambio 363"
 # rechaza el CR suelto con un 400 y arma la petición de nuevo, con CRLF, antes de
 # reenviarla, así que daphne recibe un header más y no una petición escondida. El ingress
 # de ECOM es de otro equipo y no se puede verificar desde el repo. Por eso vence en 30
-# días y no en 90: si la 26.10.0 final no salió para entonces, se decide de nuevo.
+# días, antes que las otras cuatro: si para entonces no salió la 26.10.0 final ni hay
+# confirmación de ECOM, se decide de nuevo, no se renueva la fecha.
 [[pip_audit]]
 id = "CVE-2026-115877"
-motivo = "daphne siempre está detrás de un proxy que rearma la petición (nginx en icore, el ingress en ECOM), y no hay release final corregido"
+motivo = "nginx en icore rearma la petición (verificado); el ingress de ECOM, sin confirmar (pendiente del Cambio 363); no hay release final corregido"
 vence_el = 2026-11-25
 ticket = "Cambio 363"
