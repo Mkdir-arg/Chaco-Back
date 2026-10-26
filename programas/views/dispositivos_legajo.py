@@ -16,7 +16,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.archivos import archivos_atomicos
 from core.rbac import puede
-from programas.forms import DispositivoForm, formulario_tipo_para
+from programas.forms import DispositivoForm, formulario_tipo_para, tipos_para_dispositivo
 from programas.forms_dispositivos import (
     AgregarPlazasForm,
     CambioPlazaForm,
@@ -77,6 +77,7 @@ from programas.services.estadias import (
     CAP_ADMITIR,
     CAP_EDITAR,
     CAP_EGRESAR,
+    asignar_plaza,
     cambiar_plaza,
     egresar_persona,
     liberar_reserva,
@@ -172,11 +173,25 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         return context
 
 
+def tipo_maneja_plazas(tipo_id, dispositivo=None):
+    """¿El tipo elegido en P3 maneja sectores y plazas? Sin tipo elegido, ``False``: el
+    aviso de que las camas se cargan en «Sectores y plazas» no se muestra."""
+    if tipo_id is None:
+        return False
+    tipo = tipos_para_dispositivo(dispositivo).filter(pk=tipo_id).first()
+    return bool(tipo and tipo.maneja_plazas)
+
+
 class FormularioInstitucionMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["puede_enviar_validacion"] = puede_enviar_desde_formulario(self.request.user, context["form"].instance)
         context["formulario_tipo"] = context["form"].formulario_tipo
+        # El aviso de «las camas se cargan en Sectores y plazas» sigue al tipo elegido: el del
+        # POST si vino, si no el guardado. En la edición enlaza a los sectores de la institución.
+        form = context["form"]
+        context["aviso_plazas"] = tipo_maneja_plazas(form._tipo_elegido(), form.instance)
+        context["url_sectores"] = reverse("dispositivos:sectores", args=[form.instance.pk]) if form.instance.pk else ""
         return context
 
     def _guardar_formulario_tipo(self, form, dispositivo):
@@ -315,7 +330,11 @@ class DispositivoFormularioTipoView(LoginRequiredMixin, View):
         return render(
             request,
             "programas/dispositivos/legajo/_formulario_tipo.html",
-            {"formulario_tipo": formulario},
+            {
+                "formulario_tipo": formulario,
+                "aviso_plazas": tipo_maneja_plazas(tipo, dispositivo),
+                "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]) if dispositivo else "",
+            },
         )
 
 
@@ -332,7 +351,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
     context_object_name = "dispositivo"
 
     def get_queryset(self):
-        return Dispositivo.objects.select_related("tipo")
+        return Dispositivo.objects.select_related("tipo", "area_ministerio__secretaria")
 
     def _mapa_de_ingreso(self):
         """Plazas elegibles, solo cuando una acción de cambio las necesita."""
@@ -356,6 +375,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         puede_egresar = puede_operar_dispositivo(user, dispositivo, CAP_EGRESAR)
         puede_cambiar = puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR)
         puede_ver_ciudadano = puede(user, CAP_VER_CIUDADANO)
+        con_plazas = maneja_plazas(dispositivo)
         for estadia in estadias:
             estadia.persona_visible = estadia.ciudadano.apellido_nombre if puede_ver_ciudadano else "Persona alojada"
             estadia.persona_del_menu = estadia.persona_visible
@@ -368,7 +388,10 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                     estadia.persona_del_menu += f" con ingreso {ingreso} · estadía N.º {estadia.pk}"
             if puede_ver_ciudadano:
                 estadia.url_ver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
-            if puede_cambiar and estadia.activa and estadia.plaza_id is not None:
+            # Con plaza se ofrece «Cambiar plaza»; sin plaza, «Asignar plaza» (solo si el tipo
+            # maneja plazas: si no, no hay a dónde asignar). El mapa se calcula una vez.
+            estadia.asigna_plaza = estadia.plaza_id is None
+            if puede_cambiar and estadia.activa and (not estadia.asigna_plaza or con_plazas):
                 _, plazas_elegibles = self._mapa_de_ingreso()
                 estadia.url_cambiar = f"{self.request.path}?{urlencode({'tab': 'estadias', 'cambio': estadia.pk})}"
                 estadia.motivo_cambiar = "No hay plazas libres en el dispositivo." if not plazas_elegibles else ""
@@ -380,7 +403,6 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                         f"{self.request.path}?{urlencode({'tab': 'estadias', 'egreso': estadia.pk})}"
                     )
 
-        con_plazas = maneja_plazas(dispositivo)
         context.update(
             {
                 "maneja_plazas": con_plazas,
@@ -406,7 +428,10 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 # `user` y no solo el dispositivo: el nombre del agente de un relevamiento en
                 # curso no lo ve la institución relevada (`inspecciones.ve_la_asignacion`).
                 "infraestructura": infraestructura_del_dispositivo(
-                    dispositivo, get.get("relevamientos_page"), usuario=user
+                    dispositivo,
+                    get.get("relevamientos_page"),
+                    usuario=user,
+                    edificio_id=get.get("ver_edificio"),
                 ),
                 # Lo respondido en el formulario «Crear dispositivo» de su tipo (P17), leído
                 # con la foto de la versión respondida.
@@ -443,7 +468,8 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 messages.info(self.request, "La estadía ya está cerrada.")
                 continue
             if parametro == "cambio":
-                if estadia.plaza_id is None:
+                # Sin plaza es «Asignar plaza»: el mismo modal, con el motivo opcional.
+                if estadia.plaza_id is None and not maneja_plazas(dispositivo):
                     continue
                 sectores_ingreso, _ = self._mapa_de_ingreso()
                 form = CambioPlazaForm(estadia=estadia, sectores=sectores_ingreso, auto_id=AUTO_ID_CAMBIO)
@@ -453,6 +479,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 context["form_cambio"] = form
                 context["url_cambiar_plaza"] = reverse("dispositivos:cambiar_plaza", args=[dispositivo.pk, estadia.pk])
                 context["estadia_cambio"] = estadia
+                context["es_asignacion"] = form.asigna
             else:
                 context["estadia_egreso"] = estadia
                 context["form_egreso"] = EgresoForm(estadia=estadia)
@@ -1097,11 +1124,14 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         ]
 
         # Las acciones solo sobre una estadía abierta, y cada una con la capacidad que exige
-        # su servicio: el botón no se ofrece a quien el servicio va a rechazar. Cambiar de
-        # plaza supone tener una: una estadía sin plaza (tipo que no las identifica) no la ofrece.
+        # su servicio: el botón no se ofrece a quien el servicio va a rechazar. Con plaza se
+        # ofrece «Cambiar plaza»; sin plaza, «Asignar plaza» (solo si el tipo maneja plazas).
         abierta = estadia.activa
+        context["es_asignacion"] = estadia.plaza_id is None
         context["puede_cambiar_plaza"] = (
-            abierta and estadia.plaza_id is not None and puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
+            abierta
+            and (estadia.plaza_id is not None or maneja_plazas(dispositivo))
+            and puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
         )
         context["puede_egresar"] = abierta and puede_operar_dispositivo(usuario, dispositivo, CAP_EGRESAR)
         if context["puede_cambiar_plaza"]:
@@ -1119,8 +1149,9 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
 
 
 class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
-    """Mueve a la persona a otra plaza del dispositivo. Solo POST, con CSRF.
+    """Mueve a la persona a otra plaza del dispositivo, o le asigna una si no tenía. Solo POST, con CSRF.
 
+    Una estadía sin plaza va a `asignar_plaza` (motivo opcional); con plaza, a `cambiar_plaza`.
     La regla vive en `programas.services.estadias.cambiar_plaza`, que exige
     `dispositivo.admitir` con alcance, bloquea la plaza y la estadía y registra el
     movimiento. La vista valida lo que el operador puede corregir sin salir del modal y
@@ -1148,8 +1179,9 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
             return EstadiaEgresarView._rechazar(request, form.errors, volver)
 
         datos = form.cleaned_data
+        mover = asignar_plaza if form.asigna else cambiar_plaza
         try:
-            movimiento = cambiar_plaza(
+            movimiento = mover(
                 estadia=estadia,
                 plaza=datos["plaza"],
                 usuario=request.user,
@@ -1159,7 +1191,8 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
         except ValidationError as error:
             return EstadiaEgresarView._rechazar(request, EstadiaEgresarView._errores_del_servicio(error, form), volver)
 
-        mensaje = f"Cambio de plaza registrado: {movimiento.plaza_destino.codigo}."
+        codigo = movimiento.plaza_destino.codigo
+        mensaje = f"Plaza asignada: {codigo}." if form.asigna else f"Cambio de plaza registrado: {codigo}."
         if is_ajax(request):
             return ajax_redirect(request, volver, mensaje)
         messages.success(request, mensaje)

@@ -147,12 +147,16 @@
       <div x-show="tab==='datos'" x-cloak role="tabpanel" id="panel-datos" aria-labelledby="tab-datos" class="p-6">
         <dl class="grid gap-5 sm:grid-cols-2 break-words">
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Tipo</dt><dd class="mt-1 text-body">{{ dispositivo.tipo.nombre }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Categoría</dt><dd class="mt-1 text-body">{{ dispositivo.get_categoria_display|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Área del Ministerio</dt><dd class="mt-1 text-body">{{ dispositivo.area_ministerio|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Titularidad del inmueble</dt><dd class="mt-1 text-body">{{ dispositivo.get_titularidad_inmueble_display|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Dependencia de la gestión</dt><dd class="mt-1 text-body">{{ dispositivo.get_dependencia_gestion_display|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Localidad</dt><dd class="mt-1 text-body">{{ dispositivo.localidad|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ dispositivo.domicilio|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Responsable</dt><dd class="mt-1 text-body">{{ dispositivo.responsable_nombre|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Contacto</dt><dd class="mt-1 text-body">{{ dispositivo.contacto_telefono|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Email</dt><dd class="mt-1 text-body">{{ dispositivo.contacto_email|default:'—' }}</dd></div>
-          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Días y horarios</dt><dd class="mt-1 text-body whitespace-pre-line">{{ dispositivo.horarios|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Horario de atención</dt><dd class="mt-1 text-body whitespace-pre-line">{{ dispositivo.horarios|default:'—' }}</dd></div>
           {% if dispositivo.fuente_padron %}<div><dt class="text-xs font-semibold uppercase text-body-subtle">Procedencia del padrón</dt><dd class="mt-1 text-body">{{ dispositivo.fuente_padron }} · {{ dispositivo.fecha_padron|date:'d/m/Y'|default:'Sin fecha' }} · {{ dispositivo.responsable_padron|default:'Sin responsable' }}</dd></div>{% endif %}
         </dl>
         <div class="mt-5">
@@ -257,7 +261,11 @@
                   {% menu_fila id=estadia.pk etiqueta="Acciones de estadía de "|add:estadia.persona_del_menu %}
                     {% include "components/_menu_fila_item.html" with texto="Ver estadía" icono="fa-eye" url=estadia.url_ver only %}
                     {% if estadia.url_cambiar %}
+                    {% if estadia.asigna_plaza %}
+                    {% include "components/_menu_fila_item.html" with texto="Asignar plaza" icono="fa-right-left" url=estadia.url_cambiar motivo=estadia.motivo_cambiar only %}
+                    {% else %}
                     {% include "components/_menu_fila_item.html" with texto="Cambiar plaza" icono="fa-right-left" url=estadia.url_cambiar motivo=estadia.motivo_cambiar only %}
+                    {% endif %}
                     {% endif %}
                     {% if estadia.url_egresar %}
                     {% include "components/_menu_fila_item.html" with texto="Registrar egreso" icono="fa-right-from-bracket" url=estadia.url_modal_egreso peligro=True only %}
@@ -307,6 +315,54 @@
           {% endfor %}
         </div>
 
+        {% if infraestructura.en_tabla %}
+        {# Con 2 o más edificios: una fila por edificio; «Ver» abre uno solo con su registro fotográfico #}
+        <div class="overflow-x-auto border-t border-light">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Edificio</th>
+                <th class="nodo-th">Domicilio</th>
+                <th class="nodo-th">Estado</th>
+                <th class="nodo-th">Último relevamiento</th>
+                <th class="nodo-th text-right">Instituciones en el predio</th>
+                <th class="nodo-th text-right w-28"><span class="sr-only">Acciones</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for edificio in infraestructura.edificios %}
+              {% with pk_texto=edificio.pk|stringformat:"s" %}
+              <tr class="hover:bg-secondary transition">
+                <td class="nodo-td">
+                  <a href="{{ url_detalle }}?tab=infraestructura&amp;ver_edificio={{ edificio.pk }}" class="font-medium text-fg-brand hover:underline">{{ edificio.nombre }}</a>
+                  <span class="text-xs text-body-subtle block mt-px">{{ edificio.codigo }}</span>
+                </td>
+                <td class="nodo-td">{{ edificio.domicilio|default:'—' }}</td>
+                <td class="nodo-td"><span class="badge badge-dot badge-{{ edificio.semaforo.tono }}">{{ edificio.semaforo.texto }}</span></td>
+                <td class="nodo-td whitespace-nowrap">{% if edificio.ultima %}{{ edificio.ultima.realizada_en|date:"d/m/Y" }}{% else %}<span class="text-body-subtle">Sin relevar</span>{% endif %}</td>
+                <td class="nodo-td text-right">{{ edificio.otras_instituciones|add:1 }}</td>
+                <td class="nodo-td text-right whitespace-nowrap">
+                  {% menu_fila id="edificio-"|add:pk_texto etiqueta="Acciones del edificio "|add:edificio.nombre %}
+                    {% include "components/_menu_fila_item.html" with texto="Ver" icono="fa-eye" url=url_detalle|add:"?tab=infraestructura&ver_edificio="|add:pk_texto only %}
+                    {% if puede_editar %}
+                    {% include "components/_menu_fila_item.html" with texto="Editar edificio" icono="fa-pen" url=url_detalle|add:"?tab=infraestructura&edificio="|add:pk_texto only %}
+                    {% url 'dispositivos:edificio_desvincular' dispositivo.pk edificio.pk as url_desvincular %}
+                    {% include "components/_menu_fila_item.html" with texto="Desvincular" icono="fa-link-slash" peligro=True confirm_url=url_desvincular confirm_title="¿Desvincular el edificio?" confirm_text="Esta institución deja de ver su estado edilicio y sus relevamientos. El edificio no se borra: volver a vincularlo lo repone con su historia." confirm_ok="Sí, desvincular" only %}
+                    {% endif %}
+                  {% endmenu_fila %}
+                </td>
+              </tr>
+              {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        {% if infraestructura.viendo %}
+        <div class="px-5 pt-4 border-t border-light">
+          <a href="{{ url_detalle }}?tab=infraestructura" class="text-sm text-fg-brand hover:underline"><i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a los edificios</a>
+        </div>
+        {% endif %}
         {% for edificio in infraestructura.edificios %}
         <section class="border-t border-light" aria-labelledby="edificio-{{ edificio.pk }}-titulo">
           <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-3 flex-wrap">
@@ -379,8 +435,15 @@
           <div class="p-5">
             {% include "components/_linea_tiempo.html" with eventos=infraestructura.eventos vacio_titulo="Todavía no hay relevamientos" vacio_texto="Cuando se releve el edificio, cada relevamiento aparece acá con sus fotos." %}
           </div>
+          {% if infraestructura.viendo %}
+          {% with pk_texto=infraestructura.viendo.pk|stringformat:"s" %}
+          {% include "components/_paginacion.html" with page_obj=infraestructura.relevamientos entidad="relevamiento" param="relevamientos_page" extra_qs="tab=infraestructura&ver_edificio="|add:pk_texto %}
+          {% endwith %}
+          {% else %}
           {% include "components/_paginacion.html" with page_obj=infraestructura.relevamientos entidad="relevamiento" param="relevamientos_page" extra_qs="tab=infraestructura" %}
+          {% endif %}
         </section>
+        {% endif %}
         {% else %}
         {% if puede_editar %}
         {% url 'dispositivos:detalle' dispositivo.pk as url_base_edificio %}
@@ -451,12 +514,16 @@
   {% endif %}
 
   {% if form_cambio %}
-  {# Modal: Cambiar de plaza — x-becas-modal: foco, Tab atrapado, Escape y scroll del fondo (becas-modal.js) #}
+  {# Modal: Cambiar o asignar plaza (sin plaza, el motivo es opcional) — x-becas-modal: foco, Tab atrapado, Escape y scroll del fondo (becas-modal.js) #}
   <div x-show="modalCambio" x-cloak x-becas-modal="modalCambio" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCambio=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-cambio-titulo">
+      {% if es_asignacion %}
+      {% include "programas/becas/_modal_header.html" with titulo="Asignar plaza" titulo_id="modal-cambio-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalCambio=false" %}
+      {% else %}
       {% include "programas/becas/_modal_header.html" with titulo="Cambiar de plaza" titulo_id="modal-cambio-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalCambio=false" %}
+      {% endif %}
       <form method="post" action="{{ url_cambiar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="volver" value="dispositivo">
@@ -465,7 +532,7 @@
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
             <label for="{{ form_cambio.plaza.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.plaza.label }} <span class="text-fg-danger">*</span></label>
             {{ form_cambio.plaza }}
-            <p class="mt-1 text-xs text-body-subtle">Solo las plazas libres del dispositivo. Ahora: {{ estadia_cambio.plaza.sector.nombre }} · {{ estadia_cambio.plaza.codigo }}.</p>
+            <p class="mt-1 text-xs text-body-subtle">Solo las plazas libres del dispositivo.{% if not es_asignacion %} Ahora: {{ estadia_cambio.plaza.sector.nombre }} · {{ estadia_cambio.plaza.codigo }}.{% endif %}</p>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="plaza"></p>
           </div>
           <div>
@@ -475,13 +542,21 @@
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="momento"></p>
           </div>
           <div>
-            <label for="{{ form_cambio.motivo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.motivo.label }} <span class="text-fg-danger">*</span></label>
+            <label for="{{ form_cambio.motivo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.motivo.label }}{% if not es_asignacion %} <span class="text-fg-danger">*</span>{% endif %}</label>
             {{ form_cambio.motivo }}
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="motivo"></p>
           </div>
+          {% if es_asignacion %}
+          {% include "components/_alerta.html" with tono="info" texto="La persona pasa a la plaza desde la fecha indicada. La asignación queda en la línea de tiempo y en la bitácora del turno." %}
+          {% else %}
           {% include "components/_alerta.html" with tono="info" texto="La plaza de ahora queda libre en el acto. El cambio queda en la línea de tiempo con su motivo y quién lo registró." %}
+          {% endif %}
         </div>
+        {% if es_asignacion %}
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCambio=false" accion_texto="Confirmar asignación" %}
+        {% else %}
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCambio=false" accion_texto="Confirmar cambio" %}
+        {% endif %}
       </form>
     </div>
   </div>

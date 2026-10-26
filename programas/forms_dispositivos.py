@@ -85,6 +85,9 @@ class CambioPlazaForm(forms.Form):
     formulario no decide qué es una plaza tomada. La regla de fondo —plaza del dispositivo,
     libre con su fila bloqueada, motivo, momento ni futuro ni anterior al último
     movimiento— la sostiene `programas.services.estadias.cambiar_plaza`.
+
+    Con una estadía **sin plaza** el mismo formulario es el de «Asignar plaza»
+    (`asignar_plaza`): el motivo pasa a ser opcional y los textos dicen asignar.
     """
 
     plaza = forms.TypedChoiceField(
@@ -121,20 +124,29 @@ class CambioPlazaForm(forms.Form):
             if libres:
                 grupos.append((item["sector"].nombre, libres))
         self.hay_plazas_libres = bool(grupos)
+        self.asigna = estadia is not None and estadia.plaza_id is None
+        if self.asigna:
+            self.fields["plaza"].label = "Plaza"
+            self.fields["plaza"].error_messages["required"] = "Elegí la plaza que se le asigna a la persona."
+            self.fields["momento"].help_text = "No puede ser anterior al último movimiento de la estadía."
+            self.fields["motivo"].required = False
+            self.fields["motivo"].widget.attrs["placeholder"] = "Opcional: se liberó una plaza, pedido de la persona…"
         self.fields["plaza"].choices = [("", "Elegí una plaza libre"), *grupos]
         if not self.is_bound:
             self.fields["momento"].initial = timezone.localtime().replace(second=0, microsecond=0)
 
     def clean_motivo(self):
         motivo = self.cleaned_data["motivo"].strip()
-        if not motivo:
+        if not motivo and not self.asigna:
             raise forms.ValidationError("El cambio de plaza exige un motivo.")
         return motivo
 
     def clean_momento(self):
         momento = self.cleaned_data["momento"]
         if momento > timezone.now():
-            raise forms.ValidationError("El cambio no puede ser futuro.")
+            raise forms.ValidationError(
+                "La asignación no puede ser futura." if self.asigna else "El cambio no puede ser futuro."
+            )
         if self.estadia is not None:
             ultimo = ultimo_momento(self.estadia)
             # Como en `EgresoForm`: el `datetime-local` no trae segundos y el
@@ -142,7 +154,11 @@ class CambioPlazaForm(forms.Form):
             # quedaría «anterior» por los segundos; se compara al minuto y, dentro de ese
             # minuto, el cambio va en el instante del último movimiento.
             if momento < ultimo.replace(second=0, microsecond=0):
-                raise forms.ValidationError("El cambio no puede ser anterior al último movimiento de la estadía.")
+                raise forms.ValidationError(
+                    "La asignación no puede ser anterior al último movimiento de la estadía."
+                    if self.asigna
+                    else "El cambio no puede ser anterior al último movimiento de la estadía."
+                )
             momento = max(momento, ultimo)
         return momento
 

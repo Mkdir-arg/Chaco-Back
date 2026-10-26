@@ -311,6 +311,9 @@ def _plaza_tomada_por(plaza, *, excepto_reserva=None, momento=None):
     return ""
 
 
+#: La estadía que ya tiene plaza no se asigna: se cambia.
+YA_TIENE_PLAZA = "Esta persona ya tiene plaza: usá «Cambiar plaza»."
+
 #: El mismo para una plaza que no existe y para una de otra institución: dos mensajes
 #: distintos serían un oráculo para enumerar los ids de las plazas ajenas.
 PLAZA_FUERA_DEL_DISPOSITIVO = "La plaza no es de este dispositivo."
@@ -717,6 +720,71 @@ def cambiar_plaza(*, estadia, plaza, usuario, motivo, momento=None):
             f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · "
             f"plaza {origen.codigo if origen else '—'} → {plaza.codigo}"
         ),
+    )
+    return movimiento
+
+
+@transaction.atomic
+def asignar_plaza(*, estadia, plaza, usuario, motivo="", momento=None):
+    """Da plaza a una persona alojada **sin plaza** (el ingreso «Sin plaza»).
+
+    Función propia y no un `cambiar_plaza` que acepte origen vacío: las reglas se
+    parecen en la plaza de destino —y por eso se reusan las mismas piezas: `_bloquear_plaza`,
+    `_exigir_plaza_libre` y `_exigir_plaza_libre_desde`, con el mismo orden de bloqueo plaza
+    y después estadía— pero la pregunta es la inversa: acá la estadía **no** puede tener plaza
+    (si la tiene, el camino es «Cambiar plaza»), el motivo es **opcional** y el tipo de
+    dispositivo tiene que manejar plazas. Mezclarlas obligaba a `cambiar_plaza` a bifurcar
+    la validación, el texto y la traza en cada línea.
+
+    Deja un `MovimientoEstadia` de tipo `CAMBIO_PLAZA` con `plaza_origen` vacío: el modelo ya
+    admite origen nulo, y las lecturas (`tramos_por_plaza`, línea de tiempo, bitácora)
+    lo tratan como «de sin plaza a X». No hace falta un tipo nuevo ni una migración.
+    La persona cuenta en la plaza **desde `momento`**: antes de eso su tramo es el de sin plaza.
+    Lo autoriza `dispositivo.admitir`, como el ingreso y el cambio.
+    """
+
+    dispositivo = estadia.dispositivo
+    if not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+        raise PermissionDenied("No tenés alcance para asignar plaza a personas de este dispositivo.")
+    if not dispositivo.tipo.maneja_plazas:
+        raise ValidationError({"plaza": "Este tipo de dispositivo no maneja plazas."})
+
+    ahora = timezone.now()
+    momento = momento or ahora
+    if momento > ahora:
+        raise ValidationError({"momento": "La asignación no puede ser futura."})
+
+    # Mismo orden que `cambiar_plaza`: primero la plaza y después la estadía.
+    plaza = _bloquear_plaza(plaza, dispositivo)
+    estadia = Estadia.objects.select_for_update().get(pk=estadia.pk)
+    if not estadia.activa:
+        raise ValidationError({"estado": "La estadía ya está cerrada."})
+    if estadia.plaza_id is not None:
+        raise ValidationError({"plaza": YA_TIENE_PLAZA})
+    if momento < ultimo_momento(estadia):
+        raise ValidationError({"momento": "La asignación no puede ser anterior al último movimiento de la estadía."})
+    _exigir_plaza_libre(plaza, momento=ahora)
+    _exigir_plaza_libre_desde(plaza, desde=momento, ahora=ahora, campo="momento")
+
+    estadia.plaza = plaza
+    estadia.save(update_fields=["plaza", "modificado"])
+
+    movimiento = registrar_movimiento(
+        estadia=estadia,
+        tipo=MovimientoEstadia.Tipo.CAMBIO_PLAZA,
+        momento=momento,
+        responsable=usuario,
+        motivo=motivo,
+        plaza_origen=None,
+        plaza_destino=plaza,
+    )
+    anotar_en_bitacora(movimiento)
+
+    _trazar(
+        dispositivo,
+        usuario,
+        "ESTADIA_ASIGNACION_PLAZA",
+        detalle=f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · plaza {plaza.codigo}",
     )
     return movimiento
 

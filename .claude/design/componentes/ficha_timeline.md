@@ -30,7 +30,8 @@ Riel de 2 px (`border-base`), punto de 10 px con borde tonal. El tono refuerza; 
 En P7 (`programas/templates/programas/dispositivos/estadia/detalle.html`), `cuando` llega como
 fecha · hora · turno · responsable. `programas/selectors/estadia_detalle.py` deriva el turno del
 momento sobre los turnos activos cargados una vez; si no hay turno vigente, omite ese tramo.
-El Historial de P4 conserva su metadato sin turno.
+El Historial de P4 conserva su metadato sin turno. Un `CAMBIO_PLAZA` sin plaza de origen se
+dibuja como «Asignación de plaza» («Se asignó la plaza sector · código»).
 
 Ese mismo selector prepara el `persona` del encabezado, y lo nombra **«Apellido, Nombre»**
 (`Ciudadano.apellido_nombre`): es el orden con el que la tabla desde la que se entró —la solapa

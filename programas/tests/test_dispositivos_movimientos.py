@@ -36,6 +36,8 @@ from programas.models import (
 from programas.services.estadias import (
     PLAZA_FUERA_DEL_DISPOSITIVO,
     PLAZA_OCUPADA_EN_EL_MEDIO,
+    YA_TIENE_PLAZA,
+    asignar_plaza,
     cambiar_plaza,
     egresar_persona,
     ingresar_persona,
@@ -306,6 +308,157 @@ class AutorizacionDelCambioTests(BaseMovimientos):
         with self.assertRaises(PermissionDenied):
             self._cambiar(self.otra_plaza, usuario=self.operador_parador)
         self._sin_cambios()
+
+
+class AsignarPlazaTests(BaseEstadias):
+    """«Asignar plaza» a quien ingresó sin plaza: mismas reglas de plaza que el cambio, motivo opcional."""
+
+    def setUp(self):
+        super().setUp()
+        self.ingreso = timezone.now() - timedelta(days=2)
+        # El tipo de la base no maneja plazas ni la exige: el ingreso «Sin plaza» es válido.
+        self.estadia = ingresar_persona(
+            ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, fecha_ingreso=self.ingreso
+        )
+        self.assertIsNone(self.estadia.plaza_id)
+        self.tipo.plaza_obligatoria_al_ingresar = True
+        self.tipo.save()
+
+    def _asignar(self, plaza, **kwargs):
+        kwargs.setdefault("usuario", self.operador_cis)
+        return asignar_plaza(estadia=self.estadia, plaza=plaza, **kwargs)
+
+    def _sin_cambios(self):
+        self.estadia.refresh_from_db()
+        self.assertIsNone(self.estadia.plaza_id)
+        self.assertEqual(list(self.estadia.movimientos.values_list("tipo", flat=True)), [Tipo.INGRESO])
+
+    def test_asigna_la_plaza_y_deja_movimiento_traza_y_motivo_opcional(self):
+        momento = timezone.now() - timedelta(hours=3)
+        movimiento = self._asignar(self.plaza, momento=momento)
+
+        self.estadia.refresh_from_db()
+        self.assertEqual(self.estadia.plaza, self.plaza)
+        self.assertEqual(movimiento.tipo, Tipo.CAMBIO_PLAZA)
+        self.assertIsNone(movimiento.plaza_origen)
+        self.assertEqual(movimiento.plaza_destino, self.plaza)
+        self.assertEqual(movimiento.momento, momento)
+        self.assertEqual(movimiento.responsable, self.operador_cis)
+        self.assertEqual(movimiento.motivo, "")
+        self.assertTrue(
+            TrazaDispositivo.objects.filter(dispositivo=self.cis, accion="ESTADIA_ASIGNACION_PLAZA").exists()
+        )
+
+    def test_la_novedad_automatica_dice_que_se_asigno_la_plaza(self):
+        from programas.services.bitacora import _texto_automatico
+
+        movimiento = self._asignar(self.plaza)
+
+        self.assertEqual(_texto_automatico(movimiento), f"Se asignó la plaza {self.plaza.codigo}")
+
+    def test_la_persona_cuenta_en_la_plaza_desde_el_momento_asignado(self):
+        momento = timezone.now() - timedelta(hours=5)
+        self._asignar(self.plaza, momento=momento)
+
+        tramos = tramos_por_plaza(self.estadia)
+        self.assertEqual([(t.plaza_id, t.desde) for t in tramos], [(None, self.ingreso), (self.plaza.pk, momento)])
+        self.assertEqual(ocupacion_de_plazas(self.cis).de(self.cis).conteo.ocupadas, 1)
+
+    def test_con_motivo_queda_en_el_movimiento(self):
+        movimiento = self._asignar(self.plaza, motivo="  Se liberó una plaza  ")
+
+        self.assertEqual(movimiento.motivo, "Se liberó una plaza")
+
+    def test_una_estadia_con_plaza_se_cambia_no_se_asigna(self):
+        self._asignar(self.plaza)
+
+        with self.assertRaises(ValidationError) as error:
+            self._asignar(self.otra_plaza)
+
+        self.assertEqual(error.exception.message_dict["plaza"], [YA_TIENE_PLAZA])
+        self.estadia.refresh_from_db()
+        self.assertEqual(self.estadia.plaza, self.plaza)
+
+    def test_una_plaza_ocupada_no_se_asigna(self):
+        ingresar_persona(ciudadano=self.otra_persona, dispositivo=self.cis, plaza=self.plaza, usuario=self.operador_cis)
+
+        with self.assertRaises(ValidationError):
+            self._asignar(self.plaza)
+        self._sin_cambios()
+
+    def test_una_plaza_de_otro_dispositivo_no_se_asigna(self):
+        with self.assertRaises(ValidationError) as error:
+            self._asignar(self.plaza_parador)
+
+        self.assertEqual(error.exception.message_dict["plaza"], [PLAZA_FUERA_DEL_DISPOSITIVO])
+        self._sin_cambios()
+
+    def test_el_momento_no_puede_ser_futuro_ni_anterior_al_ingreso(self):
+        for momento in (timezone.now() + timedelta(hours=1), self.ingreso - timedelta(hours=1)):
+            with self.subTest(momento=momento), self.assertRaises(ValidationError) as error:
+                self._asignar(self.plaza, momento=momento)
+            self.assertIn("momento", error.exception.message_dict)
+        self._sin_cambios()
+
+    def test_la_plaza_tiene_que_haber_estado_libre_desde_el_momento(self):
+        ocupante = ingresar_persona(
+            ciudadano=self.otra_persona,
+            dispositivo=self.cis,
+            plaza=self.plaza,
+            usuario=self.operador_cis,
+            fecha_ingreso=self.ingreso,
+        )
+        cambiar_plaza(
+            estadia=ocupante,
+            plaza=self.otra_plaza,
+            usuario=self.operador_cis,
+            motivo="x",
+            momento=timezone.now() - timedelta(hours=1),
+        )
+
+        with self.assertRaises(ValidationError) as error:
+            self._asignar(self.plaza, momento=timezone.now() - timedelta(hours=5))
+
+        self.assertEqual(error.exception.message_dict["momento"], [PLAZA_OCUPADA_EN_EL_MEDIO])
+        self._sin_cambios()
+
+    def test_un_tipo_que_no_maneja_plazas_no_asigna(self):
+        self.tipo.plaza_obligatoria_al_ingresar = False
+        self.tipo.save()
+        self.estadia.dispositivo.tipo.refresh_from_db()
+
+        with self.assertRaises(ValidationError):
+            self._asignar(self.plaza)
+        self._sin_cambios()
+
+    def test_una_estadia_cerrada_no_se_asigna(self):
+        egresar_persona(
+            destino="Domicilio", estadia=self.estadia, usuario=self.operador_cis, motivo_egreso=self.motivo_alta
+        )
+
+        with self.assertRaises(ValidationError):
+            self._asignar(self.plaza)
+
+    def test_sin_admitir_o_en_otra_institucion_es_permission_denied(self):
+        sin_admitir = self._operador("Sin admitir", self.cis, capacidades=("dispositivo.ver", "dispositivo.egresar"))
+
+        for usuario in (sin_admitir, self.operador_parador):
+            with self.subTest(usuario=usuario.username), self.assertRaises(PermissionDenied):
+                self._asignar(self.plaza, usuario=usuario)
+        self._sin_cambios()
+
+    def test_bloquea_primero_la_plaza_y_despues_la_estadia(self):
+        bloqueados = []
+        original = QuerySet.select_for_update
+
+        def registrar(queryset, *args, **kwargs):
+            bloqueados.append(queryset.model)
+            return original(queryset, *args, **kwargs)
+
+        with mock.patch.object(QuerySet, "select_for_update", autospec=True, side_effect=registrar):
+            self._asignar(self.plaza)
+
+        self.assertEqual(bloqueados, [Plaza, Estadia])
 
 
 class PermanenciaTests(BaseMovimientos):

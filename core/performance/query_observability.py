@@ -20,7 +20,8 @@ _REDIS_STATE_LOCK = Lock()
 _REDIS_DEGRADED = False
 _REDIS_DEGRADED_UNTIL = 0.0
 _REDIS_RECOVERY_PROBE_IN_PROGRESS = False
-_REDIS_LAST_WARNING = 0.0
+# -inf = nunca se avisó: time.monotonic() puede valer menos de 60 s recién arrancada la máquina.
+_REDIS_LAST_WARNING = float("-inf")
 _REDIS_WARNING_INTERVAL_SECONDS = 60.0
 _UPDATE_MAXIMA_SCRIPT = """
 for index = 1, #ARGV, 2 do
@@ -44,7 +45,7 @@ def reset_local_metrics_for_tests():
         _REDIS_DEGRADED = False
         _REDIS_DEGRADED_UNTIL = 0.0
         _REDIS_RECOVERY_PROBE_IN_PROGRESS = False
-        _REDIS_LAST_WARNING = 0.0
+        _REDIS_LAST_WARNING = float("-inf")
 
 
 def _mark_redis_degraded(operation, error):

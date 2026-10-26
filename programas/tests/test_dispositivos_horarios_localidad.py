@@ -1,4 +1,4 @@
-"""P3: la localidad sale del catálogo y los días y horarios son franjas estructuradas.
+"""P3: la localidad sale del catálogo y el horario de atención son franjas estructuradas.
 
 Lo que se fija acá, y por qué:
 
@@ -332,7 +332,10 @@ class PantallaDeHorariosTests(BaseInfraestructura):
 
         respuesta = self.client.get(self.editar)
 
-        self.assertContains(respuesta, "Días y horarios")
+        self.assertContains(respuesta, "Horario de atención")
+        self.assertContains(
+            respuesta, "Solo informativo. Los turnos del personal se configuran en la Bitácora del turno."
+        )
         self.assertContains(respuesta, 'data-dia="1" data-desde="09:00" data-hasta="12:00"')
         self.assertContains(respuesta, 'name="franjas-0-DELETE"')
         self.assertContains(respuesta, 'name="franjas-TOTAL_FORMS" value="4"')

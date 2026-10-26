@@ -462,6 +462,9 @@ def _texto_automatico(movimiento) -> str:
         texto = f"Ingreso · plaza {destino.codigo}" if destino is not None else "Ingreso · sin plaza asignada"
     elif tipo == MovimientoEstadia.Tipo.EGRESO:
         texto = "Egreso"
+    elif tipo == MovimientoEstadia.Tipo.CAMBIO_PLAZA and movimiento.plaza_origen_id is None:
+        # Sin origen: la persona estaba sin plaza y se le asignó una (`asignar_plaza`).
+        texto = f"Se asignó la plaza {movimiento.plaza_destino.codigo}"
     else:
         origen = movimiento.plaza_origen
         texto = (
@@ -474,7 +477,7 @@ def _texto_automatico(movimiento) -> str:
 def anotar_en_bitacora(movimiento):
     """La novedad automática de un movimiento de estadía. Devuelve la entrada, o `None`.
 
-    La llaman `ingresar_persona`, `egresar_persona` y `cambiar_plaza` **en la misma
+    La llaman `ingresar_persona`, `egresar_persona`, `cambiar_plaza` y `asignar_plaza` **en la misma
     transacción** que el cambio: si el alta se deshace, la novedad también. No pide
     capacidad ni mira el estado del dispositivo —quien llegó hasta acá ya pasó el control
     del servicio que la genera, y lo que se registra es un hecho que el sistema aceptó—,

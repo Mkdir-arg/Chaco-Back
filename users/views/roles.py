@@ -80,7 +80,10 @@ class RolDetailView(_RolesPermMixin, View):
             {
                 "group": group,
                 "meta": getattr(group, "meta", None),
-                "arbol": rbac.arbol_capacidades(rbac.capacidades_de_grupo(group)),
+                "arbol": rbac.arbol_capacidades(
+                    rbac.capacidades_de_grupo(group),
+                    programa_etiquetas=getattr(getattr(getattr(group, "meta", None), "programa", None), "codigo", None),
+                ),
                 "num_usuarios": group.user_set.count(),
                 # Ver no es editar (G1b-02): el admin de programa abre la ficha de su
                 # propio rol pero no puede guardarlo. El listado ya escondía el botón

@@ -11,6 +11,7 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from core import rbac
+from core.models import Secretaria, Subsecretaria
 from programas.forms import DispositivoForm
 from programas.models import AsignacionDispositivo, Dispositivo, Programa, TipoDispositivo, TrazaDispositivo
 from programas.services.dispositivos import (
@@ -28,6 +29,19 @@ from users.models import Capacidad, RolMeta
 def permiso(codigo):
     content_type = ContentType.objects.get_for_model(Capacidad)
     return Permission.objects.get(codename=rbac.codename_de(codigo), content_type=content_type)
+
+
+def area_de_prueba(nombre="Subsecretaría de Desarrollo Social", *, activo=True):
+    """Un «Área del Ministerio» (una subsecretaría) para completar el encuadre del legajo."""
+    secretaria, _ = Secretaria.objects.get_or_create(nombre="Secretaría de Prueba")
+    area, _ = Subsecretaria.objects.get_or_create(secretaria=secretaria, nombre=nombre, defaults={"activo": activo})
+    return area
+
+
+def completar_encuadre(dispositivo):
+    """Categoría y área: los dos datos del encuadre que exige enviar a validación."""
+    dispositivo.categoria = Dispositivo.Categoria.PUBLICO_ESTATAL
+    dispositivo.area_ministerio = area_de_prueba()
 
 
 class ProgramaDispositivosCacheTests(TestCase):
@@ -181,11 +195,35 @@ class ValidacionDispositivoTests(TestCase):
         self.dispositivo.refresh_from_db()
         self.assertEqual(self.dispositivo.estado, Dispositivo.Estado.BORRADOR)
 
+    def test_sin_categoria_o_sin_area_no_pasa_a_validacion(self):
+        """El encuadre (categoría y área) se exige al enviar, no al guardar el borrador."""
+        for campo in ("categoria", "area_ministerio"):
+            with self.subTest(campo=campo):
+                dispositivo = Dispositivo.objects.create(
+                    codigo=f"ENC-{campo}",
+                    nombre="Hogar Encuadre",
+                    tipo=self.tipo,
+                    localidad="Resistencia",
+                    domicilio="Av. Sarmiento 100",
+                    responsable_nombre="Laura Pérez",
+                    contacto_telefono="3624000000",
+                )
+                completar_encuadre(dispositivo)
+                setattr(dispositivo, campo, None)
+                dispositivo.save()
+
+                with self.assertRaisesMessage(ValidationError, "Completá los campos obligatorios antes de validar"):
+                    enviar_a_validacion(dispositivo, self.supervisor)
+
+                dispositivo.refresh_from_db()
+                self.assertEqual(dispositivo.estado, Dispositivo.Estado.BORRADOR)
+
     def test_supervisor_valida_y_queda_traza_de_la_transicion(self):
         self.dispositivo.localidad = "Resistencia"
         self.dispositivo.domicilio = "Av. Sarmiento 100"
         self.dispositivo.responsable_nombre = "Laura Pérez"
         self.dispositivo.contacto_telefono = "3624000000"
+        completar_encuadre(self.dispositivo)
         self.dispositivo.save()
 
         enviar_a_validacion(self.dispositivo, self.supervisor)
@@ -203,6 +241,7 @@ class ValidacionDispositivoTests(TestCase):
         self.dispositivo.domicilio = "Av. Sarmiento 100"
         self.dispositivo.responsable_nombre = "Laura Pérez"
         self.dispositivo.contacto_telefono = "3624000000"
+        completar_encuadre(self.dispositivo)
         self.dispositivo.save()
 
         with patch("programas.services.dispositivos._registrar_traza", side_effect=RuntimeError("falló auditoría")):
@@ -401,6 +440,7 @@ class LegajoDispositivoViewsTests(TestCase):
         self.dispositivo_a.domicilio = "Av. Sarmiento 100"
         self.dispositivo_a.responsable_nombre = "Laura Pérez"
         self.dispositivo_a.contacto_telefono = "3624000000"
+        completar_encuadre(self.dispositivo_a)
         self.dispositivo_a.save()
         enviar_a_validacion(self.dispositivo_a, self.operador)
 
@@ -415,6 +455,7 @@ class LegajoDispositivoViewsTests(TestCase):
         self.dispositivo_a.domicilio = "Av. Sarmiento 100"
         self.dispositivo_a.responsable_nombre = "Laura Pérez"
         self.dispositivo_a.contacto_telefono = "3624000000"
+        completar_encuadre(self.dispositivo_a)
         self.dispositivo_a.save()
         enviar_a_validacion(self.dispositivo_a, self.operador)
         self.client.force_login(self.operador)
@@ -439,6 +480,7 @@ class LegajoDispositivoViewsTests(TestCase):
         self.dispositivo_a.domicilio = "Av. Sarmiento 100"
         self.dispositivo_a.responsable_nombre = "Laura Pérez"
         self.dispositivo_a.contacto_telefono = "3624000000"
+        completar_encuadre(self.dispositivo_a)
         self.dispositivo_a.save()
         enviar_a_validacion(self.dispositivo_a, self.operador)
         self.client.force_login(self.supervisor)

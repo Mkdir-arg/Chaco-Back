@@ -14,10 +14,10 @@ from django.utils.functional import cached_property
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.edad import es_menor
-from core.models import Localidad, Municipio
+from core.models import Localidad, Municipio, Subsecretaria
 from core.selectors.geografia import localidades_operativas, municipios_operativos
 from core.validators import ACCEPT_ADJUNTO
-from core.widgets import SwitchInput
+from core.widgets import ChipsSelectMultiple, SwitchInput
 from programas.models import (
     AsignacionCoordinador,
     CanalFormulario,
@@ -27,6 +27,7 @@ from programas.models import (
     Formulario,
     GrupoRequisito,
     HorarioDispositivo,
+    Plaza,
     PreguntaGlobal,
     PresentacionCampo,
     PrestacionDiaria,
@@ -42,6 +43,12 @@ from programas.models import (
 from programas.services.dispositivos import normalizar_codigo_institucional
 from programas.services.siis import SiisCatalogError, catalogo, funciones_programa, listar_programas
 from programas.services.siis_envio import provincia_de
+from programas.validacion_contacto import (
+    AYUDA_DOCUMENTO_RESPONSABLE,
+    normalizar_documento_responsable,
+    normalizar_telefono,
+    validar_nombre_responsable,
+)
 from users.presentation import etiqueta_usuario
 
 # Clase reutilizable del design system para inputs/selects/textareas.
@@ -689,13 +696,45 @@ class _OrdenUnicoMixin:
 
 
 class TipoDispositivoForm(forms.ModelForm):
+    """Tipo de institución. «Sectores y plazas» reemplaza a la casilla vieja «Maneja camas».
+
+    La casilla principal no es un campo del modelo: lo que decide si la institución tiene
+    sectores y plazas es `TipoDispositivo.maneja_plazas` (tipos admitidos o plaza obligatoria).
+    `maneja_camas` queda sincronizado al guardar para lo que todavía lo lea.
+    """
+
+    maneja_sectores_plazas = forms.BooleanField(
+        label="Maneja sectores y plazas",
+        required=False,
+        widget=forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS, "x-model": "plazas"}),
+        help_text="Las instituciones de este tipo cargan sectores y plazas, y el ingreso asigna una plaza.",
+    )
+    tipos_plaza_admitidos = forms.MultipleChoiceField(
+        label="Tipos de plaza que admite",
+        required=False,
+        choices=Plaza.Tipo.choices,
+        widget=ChipsSelectMultiple,
+    )
+
+    field_order = [
+        "codigo",
+        "nombre",
+        "descripcion",
+        "maneja_sectores_plazas",
+        "tipos_plaza_admitidos",
+        "plaza_obligatoria_al_ingresar",
+        "umbral_ocupacion_amarillo",
+        "umbral_ocupacion_rojo",
+        "activo",
+    ]
+
     class Meta:
         model = TipoDispositivo
         fields = [
             "codigo",
             "nombre",
             "descripcion",
-            "maneja_camas",
+            "plaza_obligatoria_al_ingresar",
             "umbral_ocupacion_amarillo",
             "umbral_ocupacion_rojo",
             "activo",
@@ -704,7 +743,7 @@ class TipoDispositivoForm(forms.ModelForm):
             "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "descripcion": _text_widget(rows=3),
-            "maneja_camas": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
+            "plaza_obligatoria_al_ingresar": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
             "umbral_ocupacion_amarillo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
             "umbral_ocupacion_rojo": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": 100}),
             "activo": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
@@ -718,9 +757,43 @@ class TipoDispositivoForm(forms.ModelForm):
         ):
             self.fields[nombre].required = False
             self.fields[nombre].initial = getattr(self.instance, nombre, default) or default
+        self.fields["plaza_obligatoria_al_ingresar"].label = "Exige asignar una plaza al ingresar"
+        ayuda_exigir = "Destildala en los tipos que atienden sin cama (por ejemplo, un comedor o un centro de día)."
+        self.fields["plaza_obligatoria_al_ingresar"].help_text = ayuda_exigir
+        # Tipo nuevo: viene tildada. Es solo el valor inicial: un POST sin la casilla guarda False.
+        self.fields["plaza_obligatoria_al_ingresar"].initial = True
+        if self.instance.pk:
+            # Un tipo de la v1 (solo `maneja_camas`) se arregla abriéndolo y guardándolo:
+            # la casilla viene tildada y con «Cama», sin migración de datos.
+            tipos = self.instance.tipos_de_plaza
+            if self.instance.maneja_camas and not tipos:
+                tipos = [Plaza.Tipo.CAMA]
+                if not self.instance.plaza_obligatoria_al_ingresar:
+                    self.initial["plaza_obligatoria_al_ingresar"] = True
+            self.fields["maneja_sectores_plazas"].initial = self.instance.maneja_plazas or self.instance.maneja_camas
+            self.fields["tipos_plaza_admitidos"].initial = tipos
+
+    def _plazas_cargadas(self):
+        if not self.instance.pk:
+            return 0
+        return Plaza.objects.filter(sector__dispositivo__tipo=self.instance).count()
 
     def clean(self):
         cleaned = super().clean()
+        if cleaned.get("maneja_sectores_plazas"):
+            if not cleaned.get("tipos_plaza_admitidos"):
+                self.add_error("tipos_plaza_admitidos", "Elegí al menos un tipo de plaza.")
+        else:
+            cleaned["tipos_plaza_admitidos"] = []
+            cleaned["plaza_obligatoria_al_ingresar"] = False
+            ya_manejaba = self.instance.pk and (self.instance.maneja_plazas or self.instance.maneja_camas)
+            cargadas = self._plazas_cargadas() if ya_manejaba else 0
+            if cargadas:
+                self.add_error(
+                    "maneja_sectores_plazas",
+                    f"Hay {cargadas} plazas cargadas en instituciones de este tipo: "
+                    "no se puede dejar de manejar plazas mientras existan.",
+                )
         amarillo = cleaned.get("umbral_ocupacion_amarillo")
         rojo = cleaned.get("umbral_ocupacion_rojo")
         cleaned["umbral_ocupacion_amarillo"] = (
@@ -732,6 +805,14 @@ class TipoDispositivoForm(forms.ModelForm):
         if cleaned["umbral_ocupacion_amarillo"] >= cleaned["umbral_ocupacion_rojo"]:
             self.add_error("umbral_ocupacion_rojo", "El umbral rojo debe ser mayor que el amarillo.")
         return cleaned
+
+    def save(self, commit=True):
+        tipo = super().save(commit=False)
+        tipo.tipos_plaza_admitidos = list(self.cleaned_data.get("tipos_plaza_admitidos") or [])
+        tipo.maneja_camas = bool(self.cleaned_data.get("maneja_sectores_plazas"))
+        if commit:
+            tipo.save()
+        return tipo
 
 
 class FranjaHorariaForm(forms.Form):
@@ -921,6 +1002,10 @@ class DispositivoForm(forms.ModelForm):
             "tipo",
             "codigo",
             "nombre",
+            "categoria",
+            "area_ministerio",
+            "titularidad_inmueble",
+            "dependencia_gestion",
             "localidad",
             "domicilio",
             "latitud",
@@ -934,6 +1019,10 @@ class DispositivoForm(forms.ModelForm):
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
             "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
+            "categoria": forms.Select(attrs={"class": INPUT_CLASS}),
+            "area_ministerio": forms.Select(attrs={"class": INPUT_CLASS}),
+            "titularidad_inmueble": forms.Select(attrs={"class": INPUT_CLASS}),
+            "dependencia_gestion": forms.Select(attrs={"class": INPUT_CLASS}),
             "domicilio": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "latitud": forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.000001"}),
             "longitud": forms.NumberInput(attrs={"class": INPUT_CLASS, "step": "0.000001"}),
@@ -942,6 +1031,7 @@ class DispositivoForm(forms.ModelForm):
             "contacto_telefono": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "contacto_email": forms.EmailInput(attrs={"class": INPUT_CLASS}),
         }
+        help_texts = {"responsable_documento": AYUDA_DOCUMENTO_RESPONSABLE}
 
     def __init__(self, *args, **kwargs):
         from programas.services.dispositivos import campos_para_validacion
@@ -967,6 +1057,14 @@ class DispositivoForm(forms.ModelForm):
         # cargue la primera: al guardar con franjas el servicio lo reemplaza por su resumen.
         self.horario_heredado = "" if guardadas else self.instance.horarios
         self.fields["tipo"].queryset = tipos_para_dispositivo(self.instance).order_by("nombre")
+        # Área del Ministerio = subsecretaría (decisión del PM, 09/09/2026): las activas, y
+        # la ya guardada aunque se haya dado de baja, para no perderla al editar.
+        areas = Q(activo=True)
+        if self.instance.area_ministerio_id:
+            areas |= Q(pk=self.instance.area_ministerio_id)
+        self.fields["area_ministerio"].queryset = (
+            Subsecretaria.objects.filter(areas).select_related("secretaria").order_by("nombre")
+        )
         self.formulario_tipo = formulario_tipo_para(
             self._tipo_elegido(),
             self.instance,
@@ -988,6 +1086,18 @@ class DispositivoForm(forms.ModelForm):
         if duplicado.exists():
             raise forms.ValidationError("Ya existe un dispositivo con este código institucional.")
         return codigo
+
+    def clean_responsable_documento(self):
+        valor = self.cleaned_data.get("responsable_documento")
+        return normalizar_documento_responsable(valor) if valor and valor.strip() else valor
+
+    def clean_contacto_telefono(self):
+        valor = self.cleaned_data.get("contacto_telefono")
+        return normalizar_telefono(valor) if valor and valor.strip() else valor
+
+    def clean_responsable_nombre(self):
+        valor = self.cleaned_data.get("responsable_nombre")
+        return validar_nombre_responsable(valor) if valor and valor.strip() else valor
 
     def _tipo_elegido(self):
         """El tipo cuya sección «Crear dispositivo» se muestra: el del POST si vino (con
@@ -1104,9 +1214,22 @@ class SolicitudMerenderoForm(forms.ModelForm):
             "telefono": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "documentacion": forms.ClearableFileInput(attrs={"class": INPUT_CLASS, "accept": ACCEPT_ADJUNTO}),
         }
+        help_texts = {"responsable_documento": AYUDA_DOCUMENTO_RESPONSABLE}
 
     def clean_codigo(self):
         return normalizar_codigo_institucional(self.cleaned_data["codigo"])
+
+    def clean_responsable_documento(self):
+        valor = self.cleaned_data.get("responsable_documento")
+        return normalizar_documento_responsable(valor) if valor and valor.strip() else valor
+
+    def clean_telefono(self):
+        valor = self.cleaned_data.get("telefono")
+        return normalizar_telefono(valor) if valor and valor.strip() else valor
+
+    def clean_responsable_nombre(self):
+        valor = self.cleaned_data.get("responsable_nombre")
+        return validar_nombre_responsable(valor) if valor and valor.strip() else valor
 
     def __init__(self, *args, validar_completitud=True, **kwargs):
         super().__init__(*args, **kwargs)

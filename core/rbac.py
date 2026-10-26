@@ -518,7 +518,25 @@ def _modulo_asignable_en_programa(modulo, programa):
     return not codigos_programa or programa is None or getattr(programa, "codigo", programa) in codigos_programa
 
 
-def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None, permitidas=None):
+#: Etiquetas ampliadas que se dibujan **solo al renderizar** el árbol, por programa del rol.
+#: No tocan ``CATALOGO``: el ``AlterModelOptions`` de ``users.Capacidad`` declara el nombre de
+#: cada permiso, así que cambiarlo ahí genera migración y cambia el texto para todos.
+ETIQUETAS_POR_PROGRAMA = {
+    CODIGO_PROGRAMA_DISPOSITIVOS: {
+        "programa.configurar": (
+            "Configurar programas (en Dispositivos: tipos, formularios y alcance total sobre las instituciones)"
+        ),
+    },
+}
+
+
+def _etiqueta_para_programa(codigo, etiqueta, programa):
+    """La etiqueta de ``codigo`` tal como se muestra en un rol de ``programa`` (o la original)."""
+    codigo_programa = getattr(programa, "codigo", programa)
+    return ETIQUETAS_POR_PROGRAMA.get(codigo_programa, {}).get(codigo, etiqueta)
+
+
+def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None, permitidas=None, programa_etiquetas=None):
     """Catálogo agrupado por módulo, marcando las capacidades activas.
 
     Estructura lista para renderizar el árbol del ABM de Roles::
@@ -531,8 +549,13 @@ def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None, pe
     conjunto de códigos concreto (lo que el operador puede delegar: ver
     :func:`capacidades_delegables`) y deja afuera los módulos que quedan vacíos. El
     default es retrocompatible: devuelve el catálogo completo.
+
+    Las etiquetas se ajustan al programa del rol (:data:`ETIQUETAS_POR_PROGRAMA`): el de
+    ``programa_etiquetas`` o, si no viene, el de ``programa``. Se separan porque ``programa``
+    además **filtra módulos** y un admin global, que ve todos, igual edita un rol de un programa.
     """
     activos = set(codigos_activos)
+    programa_etiquetas = programa if programa_etiquetas is None else programa_etiquetas
     modulos = []
     for modulo in CATALOGO:
         if solo_programa and modulo.get("alcance") != "programa":
@@ -540,7 +563,11 @@ def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None, pe
         if not _modulo_asignable_en_programa(modulo, programa):
             continue
         capacidades = [
-            {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
+            {
+                "codigo": codigo,
+                "label": _etiqueta_para_programa(codigo, etiqueta, programa_etiquetas),
+                "checked": codigo in activos,
+            }
             for (codigo, etiqueta) in modulo["capacidades"]
             if permitidas is None or codigo in permitidas
         ]
@@ -645,7 +672,7 @@ def puede_asignar_capacidades(programa, codigos):
     return not (set(codigos) & capacidades_no_delegables(programa))
 
 
-def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None, permitidas=None):
+def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None, permitidas=None, programa_etiquetas=None):
     """Catálogo agrupado por tab para el panel de capacidades del ABM de Roles.
 
     Devuelve la lista de tabs definida en :data:`TABS_CAPACIDADES`, cada una con
@@ -654,9 +681,10 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None, permi
 
     Con ``solo_programa=True`` solo incluye módulos con ``alcance == "programa"``.
     ``programa`` aplica la misma restricción de módulos especializados que
-    :func:`arbol_capacidades`.
+    :func:`arbol_capacidades` (y ``programa_etiquetas``, igual que ahí).
     """
     activos = set(codigos_activos)
+    programa_etiquetas = programa if programa_etiquetas is None else programa_etiquetas
     tabs = {t["id"]: {"id": t["id"], "label": t["label"], "icon": t["icon"], "modulos": []} for t in TABS_CAPACIDADES}
     for modulo in CATALOGO:
         if solo_programa and modulo.get("alcance") != "programa":
@@ -667,7 +695,11 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None, permi
         if tab_id not in tabs:
             continue
         capacidades = [
-            {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
+            {
+                "codigo": codigo,
+                "label": _etiqueta_para_programa(codigo, etiqueta, programa_etiquetas),
+                "checked": codigo in activos,
+            }
             for (codigo, etiqueta) in modulo["capacidades"]
             if permitidas is None or codigo in permitidas
         ]

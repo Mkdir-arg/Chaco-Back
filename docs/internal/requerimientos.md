@@ -491,6 +491,13 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 363 | setuptools 84.1.0 y cinco excepciones de twisted: «Pip Audit» vuelve a verde | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (24/10/2026) | 24/10/2026 | 🟢 **Hecho** | No requiere |
 | 364 | El Excel de respuestas por persona suma la fecha de nacimiento del titular | Becas · detalle del programa → Dashboard → Exportar «Respuestas por persona» | `#datos` `#convocatorias` | PM — en sesión (26/10/2026) | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 365 | Una fecha imposible guardada en una respuesta ya no tumba el export ni la revisión | Becas · exportación «Respuestas por persona» y pantalla de revisión | `#datos` `#convocatorias` | PM — en sesión: «hacé todos los pendientes» (26/10/2026) | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 368 | P3: categoría, área del Ministerio, titularidad del inmueble y dependencia de la gestión | Dispositivos · alta y edición de institución (P3) | `#datos` `#ui` | PM — prueba en testing de P3 | 26/10/2026 | 🟢 **Hecho** | `programas.0105` |
+| 369 | DNI/CUIT, teléfono y nombre del responsable se validan en la solicitud de merendero y en el alta de dispositivo | Merenderos · solicitud · Dispositivos · P3 | `#datos` `#ui` | QA — #564 · PM — amplía a P3 | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 370 | Roles: en un rol de Dispositivos, «Configurar programas» dice qué habilita | Usuarios · ABM de Roles | `#rbac` `#ui` | QA — #816 · PM — elige la etiqueta | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 371 | P3: «Horario de atención» separado de los turnos, y aviso de que las camas se cargan en Sectores y plazas | Dispositivos · P3 · P4 | `#ui` `#textos` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 372 | El tipo de dispositivo configura «Sectores y plazas» en lugar de «Maneja camas» | Dispositivos · Configuración · Tipos | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 373 | Infraestructura con varios edificios: tabla y cada edificio por separado dentro de la solapa | Dispositivos · P4 · Infraestructura | `#ui` `#performance` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 374 | «Asignar plaza» a una persona alojada sin plaza | Dispositivos · P4 · P7 | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -32451,6 +32458,10 @@ falso —un shell, un fixture o un script las pueblan—, así que la regla es: 
 bajar esta migración deja de ser gratis y pasa a ser una decisión explícita**. De la 0087 en
 adelante, cuando el circuito de la etapa 2 exista, directamente no lo va a ser.
 
+## Historial
+
+- **26/10/2026** — el modal del tipo deja de ofrecer «Maneja camas» y configura «Sectores y plazas» (`tipos_plaza_admitidos` y `plaza_obligatoria_al_ingresar`, Cambio 372). `maneja_camas` sigue en el modelo, sincronizado al guardar el tipo: el *contract* del pendiente sigue abierto.
+
 ---
 
 ---
@@ -39710,6 +39721,8 @@ datos; regresan la presentación anterior y las consultas anticipadas del mapa d
 
 Entrada nueva y única de FF. No se modifican entradas anteriores.
 
+- **26/10/2026** — categoría, área, titularidad y dependencia ya existen en el modelo y se dibujan en P3 y en P4 (Cambio 368): ese apartamiento deja de valer.
+
 ---
 
 ---
@@ -40275,6 +40288,8 @@ migraciones. Regresan el formulario de una columna y el semáforo de criticidad.
 Entrada nueva y única de FI. Las decisiones anteriores de FF/FG se conservan en
 sus entradas; la columna y Vencido quedan autorizados por este encargo del PM.
 
+- **26/10/2026** — categoría, área, titularidad y dependencia ya existen en el modelo y se dibujan en P3 y en P4 (Cambio 368): ese apartamiento deja de valer.
+
 ---
 
 ---
@@ -40634,6 +40649,10 @@ Sin pendientes funcionales de los diez puntos del carril.
 Revertir los commits de código y documentación de FJ. No requiere cambios de
 base ni pierde datos. Retorna la firma anterior del servicio junto con todos
 sus consumidores y el comportamiento previo de P3.
+
+## Historial
+
+- **26/10/2026** — categoría, área, titularidad y dependencia ya existen en el modelo y se dibujan en P3 y en P4 (Cambio 368): ese apartamiento deja de valer.
 
 ---
 
@@ -44908,6 +44927,7 @@ Revertir el commit de código (vuelve el texto libre) y desaplicar `programas.00
 ## Historial
 
 - **20/10/2026 — alta del cambio.**
+- **26/10/2026** — la tarjeta «Días y horarios» se llama «Horario de atención» en P3 y en P4, con la ayuda de que es solo informativo y que los turnos del personal se configuran en la Bitácora (Cambio 371). Las franjas y el modelo no cambian.
 
 ---
 
@@ -47165,3 +47185,579 @@ Revertir el commit. No hay datos ni migración.
 - **26/10/2026 — alta del cambio.**
 
 ---
+
+---
+
+# Cambio 368 — P3: categoría, área del Ministerio, titularidad del inmueble y dependencia de la gestión
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alta y edición de institución (P3) y detalle (P4, solapa Datos) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | PM — prueba en testing de `/dispositivos/nuevo/`, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 (MVP de Dispositivos) |
+| **Partes afectadas** | Servidor: `programas.models.Dispositivo`, `DispositivoForm`, `services/dispositivos.py` (`_CAMPOS_REQUERIDOS_VALIDACION`), vista de detalle · Backoffice: `dispositivos/legajo/form.html`, `dispositivos/legajo/detail.html` |
+| **Migración** | `programas.0105_dispositivo_encuadre` — 4 columnas nullable (expand puro) |
+
+## Pedido original
+
+En P3 faltan los selectores del mockup #p3 dentro de «Identidad y encuadre»: **Categoría** *, **Área del
+Ministerio** *, **Titularidad del inmueble** y **Dependencia de la gestión**.
+
+## Alcance acordado
+
+Entra: los cuatro campos en el modelo, en P3 (después de Nombre, en la grilla de dos columnas) y en la
+solapa Datos de P4. Queda afuera: el listado (P2) con las columnas «Tipo · área» y «Categoría», la API, el
+import del padrón y los exports.
+
+## Decisiones tomadas
+
+- **Cambia los apartamientos de los Cambios 302, 308 y 310**, que no dibujaban estos campos porque el
+  modelo no los tenía. No era una decisión contra los campos: ahora existen.
+- **Categoría**: Público / Estatal, Privado, ONG, Religioso (análisis 006 §Encuadre jurídico, minuta del
+  26/06/2026).
+- **Área del Ministerio = la subsecretaría** (`core.Subsecretaria`, decisión del PM del 09/09/2026; mismo
+  patrón que `Programa.subsecretaria`). El select ofrece las activas y conserva la guardada aunque se haya
+  desactivado.
+- **Titularidad del inmueble** (Estado provincial, Municipio, Iglesia o congregación religiosa, ONG o
+  asociación civil, Particular (alquiler o préstamo), Otro) y **Dependencia de la gestión** (Ministerio,
+  Municipio, ONG o asociación civil, Iglesia o congregación religiosa, Otro): **listas propuestas por el
+  juez**, a confirmar por el PM. Son `TextChoices`: cambiarlas es solo Python.
+- Categoría y Área llevan el asterisco: se exigen **para enviar a validación**, no para guardar el
+  borrador. Titularidad y Dependencia son opcionales.
+- P4 los muestra en la solapa Datos, con «—» si faltan.
+
+## Implementación
+
+Tres `TextChoices` en `Dispositivo` y un FK `PROTECT` a `core.Subsecretaria`. `null=True` en los
+`CharField` a propósito: la columna nace nullable por el contrato de migraciones. El detalle suma
+`select_related("area_ministerio__secretaria")`.
+
+## Archivos
+
+- `programas/models/__init__.py`, `programas/migrations/0105_dispositivo_encuadre.py`
+- `programas/forms.py` (`DispositivoForm`: `Meta` y `__init__`), `programas/services/dispositivos.py`
+- `programas/views/dispositivos_legajo.py`
+- `programas/templates/programas/dispositivos/legajo/form.html`, `.../legajo/detail.html`
+- `programas/tests/test_dispositivos_fidelidad_fi.py`, `test_dispositivos_legajo.py`, `test_dispositivos_formulario_alta.py`
+
+## Base de datos
+
+`programas.0105`: `area_ministerio_id bigint NULL` con FK a `core_subsecretaria` e índice, y `categoria`,
+`titularidad_inmueble` y `dependencia_gestion` `varchar(20) NULL`. Expand puro: la release anterior
+sigue dando de alta.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check`, `check_migraciones.py` (0 problemas), `design_audit
+  --ratchet` (0 nuevos), `compile_templates --bloques` (0) y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada: la migración corre con el release.
+
+## Pendientes / a definir
+
+- El PM confirma las listas de Titularidad y Dependencia.
+- Las instituciones ya cargadas quedan sin Categoría ni Área: se les piden al reenviarlas a validación.
+- Columnas en el listado (P2) y en exports: sin pedido.
+
+## Reversión
+
+1. Backup de `programas_dispositivo` (solo si ya se cargaron datos y se quieren conservar).
+2. `manage.py migrate programas 0104` con el código de esta release (desaplica `programas.0105`).
+3. Revertir el commit y desplegar.
+
+Se pierde: la Categoría, el Área del Ministerio, la Titularidad y la Dependencia cargadas en cada
+institución. Nada más depende de esas columnas. La release anterior no las lee, así que también puede
+volverse solo con el código y dejar las columnas (expand puro).
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 369 — DNI/CUIT, teléfono y nombre del responsable se validan en la solicitud de merendero y en el alta de dispositivo
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Merenderos · solicitud de alta · Dispositivos · alta y edición de institución (P3) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | QA (Matías Abate) — #564, `3e1312321` aceptado como DNI/CUIT; PM — amplía a P3 (26/10/2026) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | #628 · Épica #127 |
+| **Partes afectadas** | Servidor: `programas/validacion_contacto.py` (nuevo), `programas/forms.py` (`SolicitudMerenderoForm`, `DispositivoForm`) |
+| **Migración** | no |
+
+## Pedido original
+
+La solicitud de merendero guardaba como DNI/CUIT lo que llegara (`3e1312321`), y lo mismo el teléfono y el
+nombre del responsable. El alta de dispositivo tenía el mismo hueco.
+
+## Alcance acordado
+
+Entra: formato de DNI/CUIT, teléfono y nombre del responsable en los dos formularios. Queda afuera: la
+documentación respaldatoria (ya la valida el Cambio 188, `validar_adjunto`) y el import del padrón, que
+escribe sin pasar por el formulario.
+
+## Decisiones tomadas
+
+- **DNI/CUIT**: se quitan puntos, guiones y espacios; 7 u 8 dígitos con la regla única de `core/dni.py`
+  (RED-48); 11 con `cuil_valido` de `services/siis_envio.py`, sin duplicar el algoritmo. Se guarda solo con
+  dígitos. Ayuda: «DNI de 7 u 8 dígitos o CUIT de 11».
+- **Teléfono**: dígitos, espacios, `+ - ( )`, de 8 a 15 dígitos; se guarda solo con dígitos y el `+`
+  inicial si lo tenía.
+- **Nombre**: al menos una letra.
+- Un campo vacío no se valida (borrador). Un registro viejo inválido se **ve** sin error; al guardarlo se
+  pide corregir.
+
+## Implementación
+
+Funciones puras en `programas/validacion_contacto.py`, llamadas desde `clean_*` de cada formulario. Vive
+aparte de `programas/validadores.py` porque ese módulo lo importa `programas.models` y este importa
+`siis_envio`, que importa los modelos.
+
+## Archivos
+
+- `programas/validacion_contacto.py` (nuevo), `programas/forms.py`
+- `programas/tests/test_validacion_contacto.py` (nuevo), `programas/tests/test_merenderos.py`
+- `programas/tests/test_dispositivos_fidelidad_fi.py` y `test_dispositivos_formulario_alta.py` (usaban un
+  teléfono de 6 dígitos)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check`, ruff y una prueba manual del helper con la tabla de #628
+  (incluido `3e1312321`): en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- El import del padrón de dispositivos sigue sin validar estos campos.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 370 — Roles: en un rol de Dispositivos, «Configurar programas» dice qué habilita
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Usuarios · ABM de Roles (alta, edición y detalle de un rol de Dispositivos) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | QA (Matías Abate) — #816, «no hay una sección dentro de roles asociada a la configuración de dispositivos»; PM — elige la etiqueta (26/10/2026) |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | #816 · Épica #127 |
+| **Partes afectadas** | Servidor: `core/rbac.py` (`arbol_capacidades`, `arbol_por_tabs`), `users/forms/roles.py` (`RolForm`), `users/views/roles.py` (`RolDetailView`) |
+| **Migración** | no |
+
+## Pedido original
+
+En un rol de Dispositivos no hay ninguna casilla de «configuración». Lo que configura Dispositivos (tipos,
+formularios por tipo y alcance total sobre las instituciones) cuelga de «Configurar programas», en la
+sección Programas, y su nombre no lo dice.
+
+## Alcance acordado
+
+Entra: el texto de la casilla en el árbol de capacidades de un rol de Dispositivos (alta con programa
+fijo, edición, re-render tras un POST y detalle). Queda afuera: la capacidad en sí, que no cambia, y los
+badges del listado de roles (`users/templates/rol/rol_list.html`).
+
+## Decisiones tomadas
+
+- **Solo texto, sin capacidad nueva.** Una `dispositivo.configurar` obligaría a mover los `CAPS_ADMIN_*`
+  en sus cuatro lugares; no se justifica para un problema de nombre.
+- **No se toca `CATALOGO`.** El `AlterModelOptions` de `users.Capacidad` declara el nombre de cada
+  permiso: cambiarlo ahí genera migración y cambia el texto en todos los programas. La etiqueta se ajusta
+  solo al renderizar, con `ETIQUETAS_POR_PROGRAMA`.
+- Texto: «Configurar programas (en Dispositivos: tipos, formularios y alcance total sobre las
+  instituciones)». Sectores y plazas **no** van: cuelgan de «Editar dispositivos».
+- `programa_etiquetas` va separado de `programa` porque `programa` además filtra módulos, y un admin
+  global que ve todos los módulos igual edita un rol de un programa.
+
+## Implementación
+
+`ETIQUETAS_POR_PROGRAMA` y `_etiqueta_para_programa` en `core/rbac.py`. `arbol_capacidades` y
+`arbol_por_tabs` reciben el kwarg opcional `programa_etiquetas` (por defecto, el `programa`).
+`RolForm._programa_etiquetas()` y `RolDetailView` le pasan el programa del rol.
+
+## Archivos
+
+- `core/rbac.py`, `users/forms/roles.py`, `users/views/roles.py`
+- `users/tests/test_roles_abm.py` (`EtiquetaConfigurarPorProgramaTests`)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check` (sin migración) y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Alta de un rol nuevo por un admin global: el programa se elige en el navegador y la etiqueta recién
+  aparece al guardar. Cubrirlo pide JS nuevo; sin pedido.
+- Los badges del listado de roles siguen con el nombre corto.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 371 — P3: «Horario de atención» separado de los turnos, y aviso de que las camas se cargan en Sectores y plazas
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alta y edición de institución (P3) y detalle (P4, solapa Datos) |
+| **Etiquetas** | `#ui` `#textos` |
+| **Solicitante** | PM — recorrida del MVP v2 en testing, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/legajo/form.html`, `legajo/_formulario_tipo.html`, `legajo/detail.html` · Servidor: `views/dispositivos_legajo.py` (`aviso_plazas`, `url_sectores`) |
+| **Migración** | no |
+
+## Pedido original
+
+1. «¿Para qué pido Días y horarios si lo que maneja el ingreso es Configurar turnos de la bitácora?»
+2. «Creé una institución que maneja camas: ¿dónde configuro la cantidad?» Nada en P3 lo dice.
+
+## Alcance acordado
+
+Entra: el rótulo y una ayuda en P3 y P4, y un aviso en P3. Queda afuera: unir horario y turnos (son datos
+distintos) y ocultar el horario por tipo.
+
+## Decisiones tomadas
+
+- **Son dos cosas distintas y ninguna frena el ingreso.** Las franjas de P3 (`HorarioDispositivo`) son el
+  horario de **atención** de la institución, solo informativo (P4 y padrón). Los `Turno` de la bitácora son
+  los turnos del **personal** (bitácora, censo, alerta «sin turnos», eyebrow del ingreso).
+- La tarjeta «Días y horarios» pasa a **«Horario de atención»**, con la ayuda «Solo informativo. Los turnos
+  del personal se configuran en la Bitácora del turno.». P4 usa el mismo rótulo. Opción 1 de 4 elegida por el
+  PM; se descartaron ocultarlo en tipos de 24 h (pedía un campo nuevo), sacarlo (contradice el Cambio 343) y
+  derivar uno del otro.
+- **Aviso de camas**, solo si el tipo maneja plazas (`TipoDispositivo.maneja_plazas`):
+  - alta: «Las camas se cargan después de guardar», con el camino Sectores y plazas → «Nuevo sector» →
+    «Agregar plazas»;
+  - edición: «Las camas no se cargan acá», con el enlace «Ir a Sectores y plazas».
+- El aviso vive en el parcial que se recarga al elegir el tipo, así aparece y desaparece sin JS nuevo.
+- No cambian el `verbose_name` del modelo (pedía migración) ni la columna `dias_horarios` del padrón
+  (contrato de archivo).
+
+## Implementación
+
+Textos en los templates. `tipo_maneja_plazas(tipo_id, dispositivo)` en la vista calcula el aviso para el
+alta, la edición, el POST con errores y el endpoint de la sección del tipo.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/legajo/form.html`, `_formulario_tipo.html`, `detail.html`
+- `programas/views/dispositivos_legajo.py`, `programas/services/horarios_dispositivo.py` (docstring)
+- `programas/tests/test_dispositivos_formulario_alta.py` (`AvisoPlazasTests`), `test_dispositivos_horarios_localidad.py`
+- `.claude/design/arquetipos/formulario.md`, `detalle.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent` y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 372 — El tipo de dispositivo configura «Sectores y plazas» en lugar de «Maneja camas»
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (alta, edición, listado y detalle del tipo) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | PM — recorrida del MVP v2 en testing, 26/10/2026 («al configurar un tipo no veo Sectores y plazas») |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `programas/forms.py` (`TipoDispositivoForm`), `models.TipoDispositivo` (property `maneja_plazas`), `services/ingreso.py`, `seed_aceptacion_reportes` · Backoffice: `dispositivos/config/_tipo_form_fields.html`, `tipo_list.html`, `_tipo_detail_content.html` |
+| **Migración** | no |
+
+## Pedido original
+
+El modal del tipo muestra «Maneja camas» y no hay forma de decir que el tipo tiene sectores y plazas. Un
+tipo con «Maneja camas» tildado no muestra la solapa «Sectores y plazas» y deja ingresar sin cama.
+
+## Alcance acordado
+
+Entra: reemplazar la casilla por la configuración real de la v2. Queda afuera: borrar la columna
+`maneja_camas` (contract de una release posterior, Cambio 239), sobrecupo y lista de espera (decisión del
+PM: después).
+
+## Decisiones tomadas
+
+- **Era un hueco**: `maneja_camas` es de la v1 y en la v2 solo la leían el listado y el texto del semáforo.
+  La solapa, el paso «Plaza» del ingreso y la exigencia dependen de `tipos_plaza_admitidos` y
+  `plaza_obligatoria_al_ingresar`, que no tenían pantalla.
+- El modal ofrece **«Maneja sectores y plazas»** y, tildada, **«Tipos de plaza que admite»** (Cama / Cupo /
+  Turno, al menos uno) y **«Exige asignar una plaza al ingresar»**.
+- **«Exige asignar una plaza» viene tildada** en un tipo nuevo y en uno de la v1 sin configurar (decisión del
+  PM). La ayuda dice que se destilda en los tipos que atienden sin cama.
+- Destildada: lista vacía y no exige. **No se puede destildar** si hay plazas cargadas en instituciones de ese
+  tipo («Hay N plazas cargadas… Sacalas antes de dejar de manejar plazas.»).
+- **Sin migración de datos**: un tipo de la v1 (`maneja_camas` y lista vacía) abre tildado, con Cama y con
+  «Exige» marcados; guardarlo una vez lo deja configurado.
+- `maneja_camas` se sincroniza al guardar, para la release anterior y lo que todavía lo lea.
+- Una sola regla: `TipoDispositivo.maneja_plazas`, que ahora usa también `services/ingreso.maneja_plazas`.
+  El listado dice «Sectores y plazas» (Sí/No).
+
+## Implementación
+
+`TipoDispositivoForm` con un campo de form (`maneja_sectores_plazas`), un `MultipleChoiceField` con chips
+sobre `tipos_plaza_admitidos` y `plaza_obligatoria_al_ingresar` en `Meta.fields`. `clean()` aplica las
+reglas y `save()` escribe la lista y sincroniza `maneja_camas`. Los campos dependientes se muestran con
+Alpine (`x-show`); sin JS se ven siempre y decide el servidor.
+
+## Archivos
+
+- `programas/forms.py`, `programas/models/__init__.py`, `programas/services/ingreso.py`
+- `programas/templates/programas/dispositivos/config/_tipo_form_fields.html`, `tipo_list.html`, `_tipo_detail_content.html`
+- `programas/management/commands/seed_aceptacion_reportes.py` (el tipo sembrado lleva `["CAMA"]`)
+- `programas/tests/test_dispositivos_config.py` (`TipoDispositivoSectoresYPlazasTests`)
+- `.claude/design/componentes/field.md`
+
+## Base de datos
+
+Sin cambios de esquema: los campos existen desde `programas.0086`.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check` (sin cambios), `design_audit --ratchet` (0 nuevos),
+  `compile_templates --bloques` (0), `check_design_agent` y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Abrir y guardar cada tipo que tenga que manejar camas (en testing, «Municipal»). Hasta entonces sus
+instituciones no muestran la solapa.
+
+## Pendientes / a definir
+
+- Sobrecupo («Excepcional / sobre capacidad») y lista de espera: después (PM, 26/10/2026).
+- Borrar `maneja_camas`: contract en una release posterior.
+
+## Reversión
+
+Revertir el commit. Lo guardado en `tipos_plaza_admitidos` y `plaza_obligatoria_al_ingresar` queda y la
+release anterior lo lee igual; `maneja_camas` quedó sincronizado.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 373 — Infraestructura con varios edificios: tabla y cada edificio por separado dentro de la solapa
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle de institución (P4), solapa Infraestructura |
+| **Etiquetas** | `#ui` `#performance` |
+| **Solicitante** | PM — recorrida del MVP v2 en testing, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `services/detalle_dispositivo.py` (`infraestructura_del_dispositivo`), `views/dispositivos_legajo.py` · Backoffice: `dispositivos/legajo/detail.html` |
+| **Migración** | no |
+
+## Pedido original
+
+«Si tengo varios edificios creados quiero verlos en forma de tabla y poder ingresar, porque con más de uno es
+confuso.» Ingreso: «adentro de la misma solapa».
+
+## Alcance acordado
+
+Entra: la tabla con 2 o más edificios y la vista de un edificio dentro de la solapa. Queda afuera: cambiar la
+pantalla del edificio (`/infraestructura/<pk>/`) y la solapa con un solo edificio.
+
+## Decisiones tomadas
+
+- **1 edificio: igual que hoy** (la ficha y su registro, sin tabla en el medio). Es el caso común.
+- **2 o más: tabla** con Edificio (código), Domicilio, Estado, Último relevamiento, Instituciones en el
+  predio y ⋮ (Ver, Editar edificio, Desvincular).
+- «Ver» abre el edificio **en la misma solapa** (`?tab=infraestructura&ver_edificio=<pk>`), con
+  «← Volver a los edificios», su registro y su paginación. Un `ver_edificio` que no es de esta institución
+  vuelve a la tabla, sin 404.
+- **Presupuesto**: la tabla cuesta 4 consultas; un edificio, 7, lo mismo que la solapa de un edificio hoy.
+
+## Implementación
+
+`infraestructura_del_dispositivo(..., edificio_id=None)` devuelve `en_tabla` y `viendo`; la vista lee
+`ver_edificio` del querystring. La tabla usa el componente de tabla del canon (sin piezas nuevas).
+
+## Archivos
+
+- `programas/services/detalle_dispositivo.py`, `programas/views/dispositivos_legajo.py`
+- `programas/templates/programas/dispositivos/legajo/detail.html`
+- `programas/tests/test_dispositivos_infraestructura.py` (`VariosEdificiosTests`; el presupuesto de la
+  solapa ahora mide con `edificio_id`, y se suma el de la tabla)
+- `.claude/design/arquetipos/detalle.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent` y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 374 — «Asignar plaza» a una persona alojada sin plaza
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle de institución (P4, persona alojada) y detalle de estadía (P7) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | PM — recorrida del MVP v2 en testing, 26/10/2026 («puede que la plaza quede libre en un rato») |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `services/estadias.py` (`asignar_plaza`), `forms_dispositivos.py` (`CambioPlazaForm`), `views/dispositivos_legajo.py`, `selectors/estadia_detalle.py`, `selectors/auditoria_dispositivo.py`, `services/bitacora.py` · Backoffice: `dispositivos/legajo/detail.html`, `estadia/detalle.html` |
+| **Migración** | no |
+
+## Pedido original
+
+Un ingreso sin plaza (tipo que no la exige, o «Continuar sin plaza») no tenía cómo recibir una plaza
+después: «Cambiar plaza» pedía tener una.
+
+## Alcance acordado
+
+Entra: asignar una plaza libre a una estadía activa sin plaza, desde P4 y P7. Queda afuera: sobrecupo y lista
+de espera (después, PM 26/10/2026).
+
+## Decisiones tomadas
+
+- **Mismo permiso y alcance que el ingreso** (`puede_operar_dispositivo` con la capacidad de admitir). Solo
+  si el tipo maneja plazas, la estadía está activa y todavía no tiene plaza.
+- **Motivo opcional** (en «Cambiar plaza» sigue obligatorio).
+- Se rechaza una plaza ocupada, una plaza de otra institución, un momento futuro y uno anterior al último
+  movimiento.
+- **Concurrencia**: bloquea la plaza y después la estadía, el mismo orden que «Cambiar plaza», para no
+  cruzar bloqueos. Reusa `_bloquear_plaza`, `_exigir_plaza_libre` y `_exigir_plaza_libre_desde`.
+- Queda registrado como `MovimientoEstadia` de cambio de plaza con **origen vacío**, traza
+  `ESTADIA_ASIGNACION_PLAZA` y bitácora «Se asignó la plaza X». La línea de tiempo lo muestra como
+  asignación, no como cambio.
+- Reusa la URL, la vista y el modal de «Cambiar plaza»: el modal cambia el título y el motivo según la
+  estadía tenga plaza o no.
+
+## Implementación
+
+`asignar_plaza(*, estadia, plaza, usuario, motivo="", momento=None)` en `services/estadias.py`. La vista de
+cambio de plaza deriva al servicio que corresponde. El ⋮ de la persona en P4 y la acción de P7 dicen
+«Asignar plaza» cuando la estadía no tiene plaza.
+
+## Archivos
+
+- `programas/services/estadias.py`, `programas/services/bitacora.py`, `programas/forms_dispositivos.py`
+- `programas/views/dispositivos_legajo.py`, `programas/selectors/estadia_detalle.py`, `programas/selectors/auditoria_dispositivo.py`
+- `programas/templates/programas/dispositivos/legajo/detail.html`, `estadia/detalle.html`
+- `programas/tests/test_dispositivos_movimientos.py` (`AsignarPlazaTests`), `test_dispositivos_detalle.py` (`AsignarPlazaEnLaSolapaTests`)
+- `.claude/design/arquetipos/revision.md`, `.claude/design/componentes/tabla.md`, `ficha_timeline.md`,
+  `turno_bitacora.md`, `.claude/design/dominio/becas.md`
+
+## Base de datos
+
+Sin cambios de esquema: `MovimientoEstadia.plaza_origen` ya es anulable.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check` (sin cambios), `design_audit --ratchet` (0 nuevos),
+  `compile_templates --bloques` (0), `check_design_agent` y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Sobrecupo y lista de espera: después (PM, 26/10/2026).
+
+## Reversión
+
+Revertir el commit. Las asignaciones hechas quedan como movimientos de cambio de plaza sin origen, que la
+release anterior muestra como un cambio de plaza común.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
