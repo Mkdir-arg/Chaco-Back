@@ -307,7 +307,12 @@ def legible(item, valor):
         return list(valor)
     texto = str(valor)
     if item.get("tipo") == "DATE":
-        fecha = parse_date(texto[:10])
+        try:
+            fecha = parse_date(texto[:10])
+        except ValueError:
+            # ISO bien formada pero imposible («2000-02-30», guardada antes de G1-06 /
+            # #624): no puede tumbar la planilla ni la revisión, queda tal cual.
+            return texto
         return fecha.strftime("%d/%m/%Y") if fecha else texto
     if (item.get("vinculo") or "") == "genero" or item.get("opciones") == ["F", "M"]:
         return SEXO_LEGIBLE.get(texto.upper(), texto)

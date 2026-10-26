@@ -489,7 +489,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 361 | Entrar después de un logout por inactividad ya no termina en un 405 | Transversal / sesión | `#sesion` | PM — reportó el 405 en `https://datanach.ecomdev.ar/logout` | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 362 | Skill `/auditoria`: auditoría completa de development y control antes de mergear cada PR | Transversal · método de trabajo de los agentes | `#metodo` `#performance` | PM — pedido en sesión | 23/10/2026 | 🟢 **Hecho** | No requiere |
 | 363 | setuptools 84.1.0 y cinco excepciones de twisted: «Pip Audit» vuelve a verde | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (24/10/2026) | 24/10/2026 | 🟢 **Hecho** | No requiere |
-| 367 | Roles: en un rol de Dispositivos, «Configurar programas» dice qué habilita | Usuarios · ABM de Roles | `#rbac` `#ui` | QA — #816 · PM — elige la etiqueta | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 364 | El Excel de respuestas por persona suma la fecha de nacimiento del titular | Becas · detalle del programa → Dashboard → Exportar «Respuestas por persona» | `#datos` `#convocatorias` | PM — en sesión (26/10/2026) | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 365 | Una fecha imposible guardada en una respuesta ya no tumba el export ni la revisión | Becas · exportación «Respuestas por persona» y pantalla de revisión | `#datos` `#convocatorias` | PM — en sesión: «hacé todos los pendientes» (26/10/2026) | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -47005,56 +47006,140 @@ hay datos ni migración. El check de «Pip Audit» vuelve a rojo.
 
 ---
 
----
-
-# Cambio 367 — Roles: en un rol de Dispositivos, «Configurar programas» dice qué habilita
+# Cambio 364 — El Excel de respuestas por persona suma la fecha de nacimiento del titular
 
 🟢 **HECHO — 26/10/2026**
 
 | | |
 |---|---|
-| **Programa / módulo** | Usuarios · ABM de Roles (alta, edición y detalle de un rol de Dispositivos) |
-| **Etiquetas** | `#rbac` `#ui` |
-| **Solicitante** | QA (Matías Abate) — #816, «no hay una sección dentro de roles asociada a la configuración de dispositivos»; PM — elige la etiqueta (26/10/2026) |
+| **Programa / módulo** | Becas · configuración → detalle del programa → solapa Dashboard → Exportar → «Respuestas por persona» |
+| **Etiquetas** | `#datos` `#convocatorias` |
+| **Solicitante** | PM — en sesión: «vamos a agregar al excel el valor fecha de nacimiento del ciudadano que respondió» |
 | **Fecha del pedido** | 26/10/2026 |
-| **Issue / épica** | #816 · Épica #127 |
-| **Partes afectadas** | Servidor: `core/rbac.py` (`arbol_capacidades`, `arbol_por_tabs`), `users/forms/roles.py` (`RolForm`), `users/views/roles.py` (`RolDetailView`) |
-| **Migración** | no |
+| **Issue / épica** | Sin issue propio: extiende el Cambio 65 |
+| **Partes afectadas** | Backoffice (servicio de exportación) |
+| **Migración** | No requiere |
 
 ## Pedido original
 
-En un rol de Dispositivos no hay ninguna casilla de «configuración». Lo que configura Dispositivos (tipos,
-formularios por tipo y alcance total sobre las instituciones) cuelga de «Configurar programas», en la
-sección Programas, y su nombre no lo dice.
+> «Vamos a agregar al Excel el valor fecha de nacimiento del ciudadano que respondió.»
 
 ## Alcance acordado
 
-Entra: el texto de la casilla en el árbol de capacidades de un rol de Dispositivos (alta con programa
-fijo, edición, re-render tras un POST y detalle). Queda afuera: la capacidad en sí, que no cambia, y los
-badges del listado de roles (`users/templates/rol/rol_list.html`).
+**Entra:** una columna fija «Fecha de nacimiento», justo después de «Apellido y nombre», en el
+XLSX y en el CSV de «Respuestas por persona».
+
+**Queda afuera:** la vista, el template y `programas/services/respuestas.py` (su
+`COLUMNAS_FIJAS` es otro símbolo y lo usa la API).
 
 ## Decisiones tomadas
 
-- **Solo texto, sin capacidad nueva.** Una `dispositivo.configurar` obligaría a mover los `CAPS_ADMIN_*`
-  en sus cuatro lugares; no se justifica para un problema de nombre.
-- **No se toca `CATALOGO`.** El `AlterModelOptions` de `users.Capacidad` declara el nombre de cada
-  permiso: cambiarlo ahí genera migración y cambia el texto en todos los programas. La etiqueta se ajusta
-  solo al renderizar, con `ETIQUETAS_POR_PROGRAMA`.
-- Texto: «Configurar programas (en Dispositivos: tipos, formularios y alcance total sobre las
-  instituciones)». Sectores y plazas **no** van: cuelgan de «Editar dispositivos».
-- `programa_etiquetas` va separado de `programa` porque `programa` además filtra módulos, y un admin
-  global que ve todos los módulos igual edita un rol de un programa.
+- **Es la fecha del titular del caso**, la misma persona de «DNI» y «Apellido y nombre»; no la
+  del apoderado.
+- **Mismo criterio que «DNI» y «Apellido y nombre»:** con legajo, la fecha sale solo del legajo
+  (si no la tiene, celda vacía; confirmado por el PM el 26/10/2026: celda vacía, completar el legajo con
+  la fecha de la app sería otra regla); sin legajo, de `datos_identificacion`.
+- **Texto dd/mm/aaaa**, igual que «Fecha de envío» y que las fechas de las respuestas
+  (`legible` con tipo `DATE`); una fecha ilegible o imposible («2000-02-30») queda tal cual y
+  no tumba la planilla.
 
 ## Implementación
 
-`ETIQUETAS_POR_PROGRAMA` y `_etiqueta_para_programa` en `core/rbac.py`. `arbol_capacidades` y
-`arbol_por_tabs` reciben el kwarg opcional `programa_etiquetas` (por defecto, el `programa`).
-`RolForm._programa_etiquetas()` y `RolDetailView` le pasan el programa del rol.
+`programas/services/dashboard_becas.py`: columna en `COLUMNAS_FIJAS`, `ciudadano__fecha_nacimiento`
+en `_COLUMNAS_CASO` (reusa el LEFT JOIN de `ciudadano__dni`), helper `_fecha_nacimiento` junto a
+`_identificacion` y su valor en `_filas_por_persona`.
 
 ## Archivos
 
-- `core/rbac.py`, `users/forms/roles.py`, `users/views/roles.py`
-- `users/tests/test_roles_abm.py` (`EtiquetaConfigurarPorProgramaTests`)
+- `programas/services/dashboard_becas.py`
+- `programas/tests/test_dashboard_becas.py`
+- `programas/tests/test_export_respuestas_streaming.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios. Sin consultas nuevas: el presupuesto `becas_respuestas_por_persona` no cambia.
+
+## Impacto
+
+Mismos permisos (`becas.reportes.exportar`, alcance y SEC-22). **Las columnas siguientes a
+«Apellido y nombre» se corren un lugar:** quien procese la planilla por letra de columna tiene
+que ajustarla.
+
+## Validación
+
+- Tests nuevos del legajo con fecha, del caso sin legajo, del legajo sin fecha (celda vacía), de la
+  fecha imposible (queda tal cual) y del caso sin fecha, más el encabezado en su lugar. Mutación: con `_fecha_nacimiento` devolviendo
+  `""` el test nuevo se pone rojo.
+- `manage.py check`, ruff y `scripts/requerimientos.py --check`.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit. No hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+- **26/10/2026 — `/auditoria pr 950`, primera ronda:** CHANGES NEEDED. Una fecha ISO imposible
+  hacía 500 en toda la exportación (MAJOR) y el respaldo legajo → `datos_identificacion` era
+  inalcanzable (MINOR). Se envolvió la conversión y se alineó con `_identificacion`.
+- **26/10/2026 — el envoltorio pasó a `legible` (Cambio 365):** `_fecha_nacimiento` ya no lleva su
+  propio `try/except`.
+
+---
+
+# Cambio 365 — Una fecha imposible guardada en una respuesta ya no tumba el export ni la revisión
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · exportación «Respuestas por persona» y pantalla de revisión del caso (`programas/services/respuestas.py`) |
+| **Etiquetas** | `#datos` `#convocatorias` |
+| **Solicitante** | PM — en sesión: «hacé todos los pendientes» |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | Sin issue propio: hallazgo de la auditoría del PR #950 (Cambio 364) |
+| **Partes afectadas** | Backoffice (servicio de respuestas) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+La auditoría del #950 encontró que `legible` (`respuestas.py`) levanta `ValueError` con una fecha ISO
+bien formada pero imposible («2000-02-30», «1990-13-01»), porque `parse_date` la rechaza así. Con un
+solo caso así el export por persona (`_celdas_de_las_respuestas`) y la pantalla de revisión
+(`respuestas_legibles`) dan 500. El #950 lo tapó solo para la fecha de nacimiento; esto lo resuelve
+en el origen.
+
+## Alcance acordado
+
+**Entra:** atrapar el `ValueError` dentro de `legible` y devolver el texto tal cual, igual que ya
+hacía con un texto que no se puede leer como fecha; sacar el `try/except` que el #950 había puesto en
+`_fecha_nacimiento`, que queda redundante.
+
+**Queda afuera:** corregir o validar el dato guardado.
+
+## Decisiones tomadas
+
+- **Queda tal cual, sin avisar:** una celda con «2000-02-30» es más útil que un 500 y deja ver el dato
+  malo. Los demás llamadores de `legible` (inscripción del portal, respuestas de dispositivo) no
+  dependían de la excepción.
+
+## Implementación
+
+`try/except ValueError` alrededor de `parse_date` en `legible`; `_fecha_nacimiento` vuelve a
+llamar directo a `_texto_legible`.
+
+## Archivos
+
+- `programas/services/respuestas.py`
+- `programas/services/dashboard_becas.py`
+- `programas/tests/test_respuestas.py`
+- `programas/tests/test_dashboard_campos_propios.py`
+- `docs/internal/requerimientos.md`
 
 ## Base de datos
 
@@ -47062,23 +47147,21 @@ Sin cambios.
 
 ## Validación
 
-- `manage.py check`, `makemigrations --check` (sin migración) y ruff: en verde.
-- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
-
-## Puesta en marcha en el servidor
-
-Nada.
+- Unitario de `legible` (fecha válida, imposible, mes 13 y otro formato) y caso de integración del
+  export con una respuesta DATE imposible. Mutación: sin el `try` de `legible` los tests nuevos y el
+  de «2000-02-30» del #950 se ponen rojos.
+- `manage.py check`, ruff y `scripts/requerimientos.py --check`.
 
 ## Pendientes / a definir
 
-- Alta de un rol nuevo por un admin global: el programa se elige en el navegador y la etiqueta recién
-  aparece al guardar. Cubrirlo pide JS nuevo; sin pedido.
-- Los badges del listado de roles siguen con el nombre corto.
+Ninguno.
 
 ## Reversión
 
-Revertir el commit; no hay datos ni migración.
+Revertir el commit. No hay datos ni migración.
 
 ## Historial
 
 - **26/10/2026 — alta del cambio.**
+
+---
