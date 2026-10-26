@@ -92,7 +92,9 @@ orden son solapas de un Detalle, no un wizard.
 
 - **Paso intermedio:** igual, sin la surface de resumen y con «Siguiente» (`fa-arrow-right`) en
   lugar de «Confirmar». Primer paso: el pie lleva «Cancelar» (`btn-tertiary`) a la izquierda de
-  «Siguiente», sin «Anterior» (ver `programa_wizard_paso1.html`).
+  «Siguiente», sin «Anterior» (ver `programa_wizard_paso1.html`). En el ingreso de
+  Dispositivos el verbo de avance es «Continuar» en todos los pasos (en el paso de plaza,
+  «Continuar sin plaza» es la acción secundaria) y la acción final es «Confirmar ingreso».
 - **Último paso que solo confirma:** el `<form>` lleva solo el `csrf_token`, `_form_errores` y el pie.
 - **Control que no cabe en `_field.html`** (grupo de radios con descripción por opción): conserva
   shell, indicador, surface, `_form_errores` y pie; no pasa los marcadores del arquetipo Formulario
