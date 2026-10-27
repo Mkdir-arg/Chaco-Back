@@ -710,11 +710,12 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
     la plaza no se puede gestionar —ajena, inexistente, de un sector dado de baja o sin la
     capacidad— el modal no se abre y el aviso es el mismo para los cuatro casos.
 
-    Los tres modales de configuración del carril C5 —«Nuevo sector», «Editar sector» y
-    «+ Agregar plazas»— se abren igual, con `?sector=nuevo`, `?sector=<id>` y `?plazas=1`,
-    y **solo** si quien mira puede configurar las plazas: sin eso, el formulario llegaría
-    armado a quien la acción va a rechazar. Lo que cuestan se paga únicamente con el modal
-    abierto; el mapa cerrado sigue en las consultas fijas de su presupuesto.
+    «Editar sector» se abre igual, con `?sector=<id>`. «Nuevo sector» y «+ Agregar plazas» no:
+    no dependen de un registro, así que sus formularios llegan con la página y los abre el
+    botón, como el modal de la golden. Los tres se arman **solo** si quien mira puede
+    configurar las plazas: sin eso, el formulario llegaría armado a quien la acción va a
+    rechazar. El mapa sigue en las consultas fijas de su presupuesto, y el selector del lote
+    en las del suyo; el alta del sector no consulta.
     """
 
     capacidad_requerida = "dispositivo.ver"
@@ -758,11 +759,15 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
 
         if not puede_configurar_plazas:
             return
+        # Las altas no dependen de un registro: llegan con la página y las abre el botón, sin el
+        # viaje al servidor que se veía como un F5. El alta del sector lleva su propio auto_id
+        # porque convive con «Editar sector», que es el mismo formulario.
+        context["form_sector_nuevo"] = SectorForm(auto_id="id_nuevo_%s")
+        context["url_sector_nuevo"] = reverse("dispositivos:sector_crear", args=[dispositivo.pk])
         pedido = self.request.GET.get("sector", "")
-        if pedido == "nuevo":
-            context["form_sector"] = SectorForm()
-            context["url_sector"] = reverse("dispositivos:sector_crear", args=[dispositivo.pk])
-        elif pedido:
+        # `?sector=nuevo` es el enlace de antes al alta: se ignora en vez de avisar que ese
+        # sector no se puede editar.
+        if pedido and pedido != "nuevo":
             pk = _entero(pedido)
             sector = Sector.objects.filter(pk=pk, dispositivo=dispositivo).first() if pk is not None else None
             if sector is None:
@@ -772,15 +777,12 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
                 context["form_sector"] = SectorForm(sector=sector)
                 context["url_sector"] = reverse("dispositivos:sector_editar", args=[dispositivo.pk, sector.pk])
 
-        if self.request.GET.get("plazas"):
+        if context["sectores"]:
             context["form_plazas"] = AgregarPlazasForm(
                 dispositivo=dispositivo,
                 sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True),
             )
             context["url_plazas"] = reverse("dispositivos:plazas_agregar", args=[dispositivo.pk])
-            pk = _entero(self.request.GET.get("plazas", ""))
-            if pk is not None:
-                context["form_plazas"].initial["sector"] = pk
 
         pedido = self.request.GET.get("editar_plaza", "")
         if pedido:
