@@ -49400,3 +49400,24 @@ normales de `ReservaPlaza`, y se liberan desde el mapa.
   tono copiada tres veces en `_mapa_plazas.html`.
 
 ---
+
+# Seguridad — excepción temporal de DNS de Twisted (PR #988)
+
+**27/10/2026.** Pip Audit bloquea el PR de localidades por CVE-2026-83813
+(GHSA-jj36-9pvh-vj5r), sin cambios de dependencias en ese PR. El aviso afecta a
+`twisted.names.dns.DNSDatagramProtocol`: no verifica el origen de las respuestas UDP.
+Fuente: https://github.com/twisted/twisted/security/advisories/GHSA-jj36-9pvh-vj5r.
+
+Se verificó en el contenedor local con Daphne 4.2.3 y Twisted 26.4.0 que importar
+`daphne.server`, sus protocolos HTTP/WebSocket y `channels.layers` instala
+`GAIResolver` y resuelve con `socket.getaddrinfo`; no carga `twisted.names`.
+La búsqueda en el código del proyecto no encontró un resolver alternativo de Twisted.
+`core/tests/test_twisted_dns.py` verifica esa precondición en un proceso aislado.
+Esto sustenta una excepción por componente no utilizado, no una corrección del paquete.
+
+PyPI todavía ofrece 26.4.0 como última final; las corregidas 26.10.0rc1/rc2 son
+preliminares. Se registra la excepción en `security/excepciones.toml` hasta el
+**26/11/2026**. No se cambia Daphne, Twisted ni el workflow de auditoría. Retirar
+la excepción al disponer de una final corregida y auditar sin ella; si se cambia
+el resolver DNS, reevaluarla antes de desplegar. La aceptación es temporal y no
+elimina la vulnerabilidad de Twisted instalado.
