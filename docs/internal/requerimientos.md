@@ -510,6 +510,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 384 | «Crear relevamiento» desde la solapa Infraestructura de la institución | Dispositivos · P4 · Infraestructura | `#ui` `#relevamientos` `#rbac` | PM — pedido en sesión | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 385 | Los tipos de dispositivo de la v1 pasan solos a «Sectores y plazas», sin exigir plaza al ingresar | Dispositivos · Configuración · Tipos | `#datos` | PM — decisión sobre la conversión de los tipos v1 | 26/10/2026 | 🟢 **Hecho** | `programas.0106` |
 | 386 | Dispositivos: los modales del tipo y de sectores y plazas pasan al modal y al campo estándar | Dispositivos · Configuración → Tipos, P5 Sectores y plazas, cambio de plaza (P4, estadía) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 387 | Dispositivos: limpieza de los MINOR de las auditorías de #979, #980, #982 y #983 y del carril de diseño | Dispositivos · P4, P21, configuración de tipos, ingreso; `core/dni`, `nodo_ui`, fichas de diseño | `#ui` `#relevamientos` | Juez del carril (auditorías) | 27/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -48985,6 +48986,106 @@ Nada. Recargar con Ctrl+F5 después del deploy.
 ## Reversión
 
 Revertir los commits del PR: vuelven el modal anterior, el SweetAlert2 y las tres copias del cambio de plaza.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 387 — Dispositivos: limpieza de los MINOR de las auditorías de #979, #980, #982 y #983 y del carril de diseño
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P4 (detalle), P21 (relevamientos), configuración de tipos, ingreso · `core/dni.py` · `core/templatetags/nodo_ui.py` · fichas de diseño |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | Juez del carril de Dispositivos: MINOR de `/auditoria` de #979, #980, #982 y #983 y los acumulados del carril de diseño (Cambios 378–386) |
+| **Fecha del pedido** | 27/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `legajo/detail.html`, `relevamientos/list.html`, parcial nueva `relevamientos/_campos_asignar.html`, `config/_edit_modal.html` (comentario) · Servidor: `views/dispositivos_legajo.py`, `views/dispositivos_relevamientos.py`, `views/dispositivos_ingreso.py`, `services/inspecciones.py`, `forms_dispositivos.py`, `programas/forms.py` (comentario), `core/dni.py`, `core/templatetags/nodo_ui.py` · Fichas: `page_header.md`, `detalle.md`, `tabla.md`, `wizard.md`, `modal.md`, `field.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Las auditorías del carril dejaron hallazgos MINOR para «el próximo PR del carril». El PM pidió terminar el carril
+sin consultas, así que este cambio los junta en un solo PR.
+
+## Alcance acordado
+
+Sin cambio de comportamiento visible, salvo `normalizar_dni`, que deja de aceptar dígitos que no son ASCII.
+
+## Decisiones tomadas
+
+- **P4, validación pendiente**: la vista calcula `validacion_pendiente` una sola vez. Antes la condición estaba
+  repetida en tres `{% if %}`: el botón, el menú y los modales.
+- **Modal de asignar relevamiento**: P4 y P21 usan la parcial `_campos_asignar.html`, con `components/_field.html`.
+  - El aviso «nunca se asigna al personal de la institución» va bajo `{% if agente_externo %}` en los dos. Antes,
+    en P4 se mostraba siempre.
+  - El edificio conserva el asterisco con `marca_requerido`, porque el campo es `required=False` para poder
+    heredarlo.
+  - El aspecto no cambia. Sí cambia el marcado del campo (ids, `aria-describedby` y error por campo).
+- **Relevamientos**: el final de `post` (toast, respuesta AJAX, redirección) es un helper común
+  (`_creado`). «Personal del edificio» se define en un solo lugar (`_personal_de_edificios`). No había un
+  `.order_by()` de más en `agentes_asignables_para`, así que no se tocó.
+- **`nodo_ui`**: constante `ARGUMENTOS_MENU_FILA_ADMITIDOS`; `nombre_alpine` ya no tiene el alias sin uso.
+- **`normalizar_dni`**: solo acepta 0-9 ASCII. Ningún llamador dependía de los otros dígitos: todos normalizan para
+  guardar o para comparar.
+- **Ingreso**: en `huella_persona`, las ramas «registro» y «manual» comparten un bucle. La huella no cambia.
+- **Fichas**:
+  - `page_header.md` y `detalle.md` remiten a la regla «Más acciones» de `tabla.md`.
+  - `tabla.md` corrige el tono de las stat cards: Asignados va en `brand`.
+  - `wizard.md` aclara que «Dar de alta y seguir» no es un verbo de avance.
+  - `modal.md` y `field.md` documentan la parcial nueva.
+- **Comentarios desactualizados**: `programas/forms.py` cita programas.0106, y `_edit_modal.html` describe el
+  `bind`.
+- **Decisión del juez**: queda afuera el `icono` en `LEYENDA_PLAZAS`/`EstadoPlaza`. Ponerlo agrega un parámetro
+  al contrato de dos piezas canónicas, y el HTML de quien hoy pasa solo `tono` no quedaría idéntico. Queda
+  pendiente.
+
+## Implementación
+
+Commit `69542b91`, más el merge de development si hace falta.
+
+## Archivos
+
+Los de «Partes afectadas», más los tests:
+- `core/tests/test_nodo_ui_piezas.py`: caso `confirm_url`;
+- `programas/tests/test_dispositivos_crear_relevamiento_p4.py`: tres tests reforzados y el aviso del agente externo;
+- `programas/tests/test_dispositivos_formulario_alta.py`: rechazo de un diseño ajeno;
+- `programas/tests/test_dispositivos_ingreso.py`: prefijo de la huella;
+- `programas/tests/test_padron.py`: dígitos que no son ASCII.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Tests focalizados: 1507 tests de nodo_ui, DNI, padrón y todos los `test_dispositivos_*`, OK. También
+  `--tag performance programas` (45): OK.
+- Mutaciones en rojo: el enlace viejo, `disabled` del edificio, el costo sin capacidad, `isdigit()` en
+  `normalizar_dni`, `confirm_url`, el diseño ajeno y el prefijo de la huella.
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `--goldens` (0), `compile_templates --bloques` (0),
+  `check_design_agent --changed` y ruff: OK.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- `icono` en `LEYENDA_PLAZAS`/`EstadoPlaza`, para que el mapeo de tono a ícono viva en un solo lugar. Hace falta
+  decidir el contrato de las piezas.
+- Las ramas de edición sin uso de `tipo_form.html`, para la auditoría completa.
+- P4 no muestra las respuestas de versiones anteriores del formulario del tipo. Es un cambio de comportamiento:
+  hace falta un pedido.
+
+## Reversión
+
+Revertir el commit. Vuelven las copias y los comentarios anteriores, y `normalizar_dni` vuelve a aceptar
+dígitos que no son ASCII.
 
 ## Historial
 
