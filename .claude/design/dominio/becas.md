@@ -317,6 +317,11 @@ Cada uno pone su `#constructor` con los `data-url-*` y el encabezado. Parámetro
 `_constructor_items.html`, `vacio_texto`. El editor de Dispositivos no tiene «Restablecer» porque
 no hay catálogo. La inclusión en Becas va sin espacios: su HTML no cambió.
 
+Los guardados JSON del JS compartido envían `X-CSRFToken` desde el input oculto
+`csrfmiddlewaretoken` dentro de `#constructor`, renderizado por `{% csrf_token %}`
+en los modales del cuerpo. No requieren leer cookies desde JavaScript: funcionan
+también con la cookie CSRF `HttpOnly`.
+
 Patrón: encabezado por `{% page_header %}` con las migas de Becas, badge de versión y estado
 «Guardando… / Guardado en vivo» (`aria-live`) como acciones; grid `grid-cols-1 xl:grid-cols-2` con
 dos surfaces —izquierda el diseño (toolbar `btn-secondary` / `btn-brand` en `btn-sm` + contenedor
