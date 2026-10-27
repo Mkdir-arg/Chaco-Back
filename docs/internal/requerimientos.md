@@ -504,6 +504,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 378 | Dispositivos: la leyenda del mapa de plazas pasa a pastillas, y los tonos del listado y de P21 se alinean | Dispositivos · leyenda del mapa (P5, P6) · listado · P21 | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 379 | «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal | Dispositivos · P5 Sectores y plazas | `#ui` `#performance` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 380 | Ingreso a un dispositivo: el asistente avanza siempre con «Continuar» | Dispositivos · asistente de ingreso (P6) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 381 | Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle | Dispositivos · Configuración → Tipos | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 383 | «Soy el administrador y no veo Relevamientos»: el rol protegido Administrador recibe `inspeccion.asignar` por migración | Transversal · RBAC (rol Administrador) · Dispositivos → Relevamientos (P21) | `#rbac` `#datos` `#relevamientos` | PM — prueba en testing (ECOM) | 26/10/2026 | 🟢 **Hecho** | `users.0040` |
 
 **Notas del índice**
@@ -48458,6 +48459,111 @@ Ninguno.
 ## Reversión
 
 Revertir el commit.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 381 — Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (listado, alta/edición y detalle) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/config/tipo_list.html`, `tipo_form.html`, `_tipo_detail_content.html` |
+| **Migración** | no |
+
+## Pedido original
+
+Es el segundo lote de la revisión de diseño de Dispositivos (ver el Cambio 378). El relevamiento marcó tres cosas
+en la configuración de tipos:
+
+- El listado tiene el título armado a mano, un SVG en «Nuevo tipo», la tabla sin `nodo-th`/`nodo-td` y el estado
+  vacío suelto.
+- El formulario tiene un «← Volver» de texto, un `<h1>` propio y un ancho angosto centrado.
+- El detalle tiene los botones del encabezado en tamaño de página.
+
+## Alcance acordado
+
+Entran las tres pantallas, sin cambiar comportamiento: mismos datos, URLs, formularios, `data-*` y JS. Quedan
+afuera:
+
+- el modal del tipo (`_edit_modal.html`);
+- los campos de `_tipo_form_fields.html`;
+- el JS de `tipo_detail.html`.
+
+Van en el PR del modal (ver Pendientes).
+
+## Decisiones tomadas
+
+- **Listado → arquetipo Listado** (golden `becas/revision/personas_list.html`):
+  - `page_header` con eyebrow y bajada, y «Nuevo tipo» con `fa-plus`;
+  - la tabla con `nodo-thead-row`/`nodo-th`/`nodo-td`;
+  - el estado vacío con `_estado_vacio.html`, que ahora ofrece «Nuevo tipo». La pantalla no condiciona ese
+    botón por capacidad, igual que el del encabezado.
+  - La acción de fila «Configurar», que era un botón con texto, pasa a `nodo-icon-btn` (`fa-gear`) con
+    `aria-label="Configurar el tipo …"`, como pide la ficha de tabla.
+  - El badge de estado sale del helper canónico `estado_tipo_dispositivo`, el mismo que usa el detalle, y no
+    de un `{% if %}` en el template. El HTML que se dibuja es el mismo.
+- **Formulario → arquetipo Formulario** (golden `becas/config/segmento_form.html`):
+  - `page_header` con `volver_url` al listado. Este template solo dibuja el alta, porque la edición va en el
+    modal sobre el detalle (`TipoDispositivoUpdateView`);
+  - surface `bg-white` a todo el ancho, como la golden;
+  - el pie con `mt-6 pt-4 border-t`, y «Guardar tipo» con `fa-check`, como el esqueleto. El espaciado entre
+    campos no cambia.
+- **Detalle:** los tres botones del encabezado pasan de `btn-base` a `btn-sm btn-fit`, el tamaño de los
+  detalles. El relevamiento había marcado «Activar» con dos variantes a la vez, pero no era así: es un `{% if %}`
+  que pone una sola, `btn-tertiary` para desactivar y `btn-secondary` para activar. Queda igual.
+
+## Implementación
+
+Solo templates. Las URLs de volver salen de `{% url … as … %}` en el template, así que no se tocó ninguna vista.
+Hubo que recompilar Tailwind aunque no se agregó ninguna clase: «← Volver» y el nombre del tipo eran los
+últimos usos de `hover:text-fg-brand`, y el CSS commiteado conservaba esa regla. Sacar una clase también obliga
+a recompilar.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/config/tipo_list.html`
+- `programas/templates/programas/dispositivos/config/tipo_form.html`
+- `programas/templates/programas/dispositivos/config/_tipo_detail_content.html`
+- `static/custom/css/tailwind.css`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y
+  `check_design_agent --changed`: en verde.
+- `design_audit --arquetipo listado tipo_list.html`: OK.
+- `design_audit --arquetipo formulario tipo_form.html`: 2 desvíos, los dos por la misma causa. Faltan los
+  marcadores `_form_errores.html` y `_field.html`, porque los campos viven en `_tipo_form_fields.html`, que
+  comparte el modal. Escribir los includes en `tipo_form.html` sin usarlos solo engañaría al auditor. Se
+  resuelve cuando ese parcial pase a `_field.html` (Pendientes).
+- Ningún test afirma el markup que cambió (grep en `programas/tests/` y `core/tests/`). Por pedido del PM
+  (26/10/2026) no se corrió la suite en local: la corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada. Recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+- Migrar `_tipo_form_fields.html` a `_field.html` y `_form_errores.html` en el PR del modal del tipo (lote D del
+  Cambio 378). Ahí `tipo_form.html` pasa los marcadores del arquetipo Formulario.
+
+## Reversión
+
+Revertir el commit. No hay datos que revertir.
 
 ## Historial
 
