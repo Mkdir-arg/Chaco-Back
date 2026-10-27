@@ -84,9 +84,7 @@ class PantallaTests(_Base):
         respuesta = cliente.get(self._url("convocatoria_formulario"))
         self.assertEqual(respuesta.status_code, 200)
         self.assertTrue(cliente.cookies["csrftoken"]["httponly"])
-        token = re.search(
-            r'name="csrfmiddlewaretoken" value="([^"]+)"', respuesta.content.decode()
-        ).group(1)
+        token = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', respuesta.content.decode()).group(1)
         url = self._url("formulario_condicion", clave_requisito(self.certificado))
         condicion = {
             "modo": "todas",
@@ -96,7 +94,10 @@ class PantallaTests(_Base):
         rechazada = cliente.post(url, datos, content_type="application/json")
         self.assertEqual(rechazada.status_code, 403)
         guardada = cliente.post(
-            url, datos, content_type="application/json", HTTP_X_CSRFTOKEN=token,
+            url,
+            datos,
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN=token,
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
         self.assertEqual(guardada.status_code, 200)
