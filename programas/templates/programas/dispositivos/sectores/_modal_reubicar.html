@@ -1,0 +1,28 @@
+{% comment %}Cuerpo del modal «Cambiar de plaza» de P5 (la reubicación de una plaza ocupada). Una sola fuente para
+los dos caminos: el fragmento que el mapa pide al tocar la celda (`?plaza=<id>&fragmento=reubicar`, por
+AJAX) y `?plaza=<id>` sin JS, que `sectores.html` incluye ya armado. Va dentro del panel `role="dialog"`
+de `modalReubicar`, que lo nombra con `aria-labelledby="modal-reubicar-titulo"`.
+Contexto: plaza_accion (con `bloqueo`), estadia_cambio, form_cambio y url_cambiar_plaza (sin plazas libres
+no hay form: el bloqueo lo explica), puede_configurar_plazas.{% endcomment %}
+{% if plaza_accion.bloqueo %}
+  {% include "programas/becas/_modal_header.html" with titulo="Plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-reubicar-titulo" subtitulo=plaza_accion.plaza.sector.nombre icono="fa-bed" cerrar="modalReubicar=false" %}
+  <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+    {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se puede reubicar a la persona" texto=plaza_accion.bloqueo %}
+    <p class="text-sm text-body">La plaza está <strong class="text-heading">{{ plaza_accion.estado.estado|lower }}</strong>. Cuando se libere otra plaza del dispositivo, desde acá se mueve a la persona.</p>
+  </div>
+{% else %}
+  {% include "programas/becas/_modal_header.html" with titulo="Cambiar de plaza" titulo_id="modal-reubicar-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalReubicar=false" %}
+  <form method="post" action="{{ url_cambiar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
+    {% csrf_token %}
+    <input type="hidden" name="volver" value="sectores">
+    {% include "programas/dispositivos/_form_cambio_plaza.html" %}
+    {% include "programas/becas/_modal_footer.html" with cancelar="modalReubicar=false" cancelar_texto="Volver" accion_texto="Confirmar cambio" %}
+  </form>
+{% endif %}
+{% if puede_configurar_plazas %}
+<div class="px-6 py-4 border-t border-light bg-secondary flex justify-end">
+  <a href="?editar_plaza={{ plaza_accion.plaza.pk }}" class="btn-nodo btn-secondary btn-sm">
+    <i class="fas fa-pen" aria-hidden="true"></i> Editar plaza
+  </a>
+</div>
+{% endif %}

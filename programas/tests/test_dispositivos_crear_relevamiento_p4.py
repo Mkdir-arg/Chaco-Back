@@ -190,6 +190,21 @@ class ModalTests(BaseCrearRelevamiento):
         self.assertCountEqual(valores[1:], [str(libre.pk), str(self.predio.pk)])
         self.assertNotIn(str(ocupado.pk), valores)
 
+    def test_la_ayuda_del_selector_es_del_campo_y_va_antes_del_error(self):
+        self._edificio_extra("ED-AYUDA")
+        respuesta = self._detalle(self.coordinador)
+        ayuda = "Solo los edificios de la institución que no tienen un relevamiento en curso."
+
+        self.assertEqual(respuesta.context["form_relevamiento"].fields["edificio"].help_text, ayuda)
+        html = respuesta.content.decode()
+        self.assertLess(html.index('id="relev_edificio-ayuda"'), html.index('id="relev_edificio-error"'))
+
+    def test_con_el_edificio_fijo_no_hay_ayuda_del_selector(self):
+        form = self._detalle(self.coordinador).context["form_relevamiento"]
+
+        self.assertTrue(form.edificio_fijo)
+        self.assertEqual(form.fields["edificio"].help_text, "")
+
     def test_el_aviso_del_personal_sale_solo_si_el_agente_debe_ser_externo(self):
         aviso = "Nunca se asigna al personal de la institución relevada."
         self.assertContains(self._detalle(self.coordinador), aviso)

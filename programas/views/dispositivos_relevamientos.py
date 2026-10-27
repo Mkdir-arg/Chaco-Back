@@ -339,6 +339,7 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
                 agentes=agentes_asignables(edificio),
                 tipos_formularios=tipos,
                 aviso_formulario=aviso_de_tipos(tipos),
+                agente_externo=AGENTE_DEBE_SER_EXTERNO,
             )
 
         gestionables = InspeccionEdificio.objects.filter(

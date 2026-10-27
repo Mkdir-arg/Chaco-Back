@@ -2,7 +2,7 @@
 
 Lo que se fija acá, y por qué:
 
-1. **Cada plaza ofrece una sola acción, la que su situación admite**, y la decide el
+1. **Cada plaza ofrece las acciones que su situación admite** (la disponible, tres), y las decide el
    estado que dibuja `ocupacion.estado_de_plazas` —la fuente única— más un segundo hecho:
    si queda una reserva **sin liberar**. Sin ese segundo hecho, la plaza de la alerta
    «Préstamo vencido sin liberar» sale Disponible y la única acción que ofrecería sería
@@ -34,13 +34,15 @@ from programas.services.ocupacion import ESTADO_DISPONIBLE, ESTADO_FUERA_SERVICI
 from programas.services.sectores_plazas import (
     ACCION_FUERA_SERVICIO,
     ACCION_LIBERAR,
+    ACCION_PRESTAR,
+    ACCION_RESERVAR,
     ACCION_REUBICAR,
     ACCION_VOLVER,
     MOTIVO_PLAZA_OCUPADA,
     MOTIVO_SIN_PLAZAS_LIBRES,
     sectores_con_plazas,
 )
-from programas.tests.test_dispositivos_estadias import BaseEstadias
+from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias
 
 PRESUPUESTOS = settings.BASE_DIR / "scripts" / "perf_budgets.json"
 CLAVE_PRESUPUESTO = "dispositivos_sectores_con_plazas"
@@ -61,6 +63,14 @@ class BaseMapa(BaseEstadias):
         )
         self.sin_admitir = self._operador(
             "Sin admitir CIS", self.cis, ("dispositivo.ver", "dispositivo.editar", "dispositivo.egresar")
+        )
+        # Reservar y prestar buscan a la persona en el padrón: piden `ciudadano.ver` además de `admitir`.
+        # `operador_cis` y `sin_editar` admiten pero no ven personas; estos dos sí.
+        self.con_personas = self._operador("Con personas CIS", self.cis, (*CAPACIDADES_OPERATIVAS, "ciudadano.ver"))
+        self.sin_editar_con_personas = self._operador(
+            "Sin editar con personas CIS",
+            self.cis,
+            ("dispositivo.ver", "dispositivo.admitir", "dispositivo.egresar", "ciudadano.ver"),
         )
 
     def _celdas(self, respuesta):
@@ -96,14 +106,17 @@ class BaseMapa(BaseEstadias):
 class AccionPorPlazaTests(BaseMapa):
     """Qué acción ofrece cada plaza, según su situación."""
 
-    def test_una_plaza_disponible_se_puede_sacar_de_servicio(self):
+    def test_una_plaza_disponible_ofrece_reservar_prestar_y_sacar_de_servicio(self):
         respuesta = self._pantalla()
 
         celda = self._celdas(respuesta)["P1"]
 
         self.assertEqual(celda["estado"], ESTADO_DISPONIBLE)
         self.assertEqual(celda["url"], f"?plaza={self.plaza.pk}")
-        self.assertEqual(self._pantalla(plaza=self.plaza.pk).context["plaza_accion"]["accion"], ACCION_FUERA_SERVICIO)
+        self.assertEqual(
+            self._pantalla(self.con_personas, plaza=self.plaza.pk).context["plaza_accion"]["acciones"],
+            [ACCION_RESERVAR, ACCION_PRESTAR, ACCION_FUERA_SERVICIO],
+        )
 
     def test_una_plaza_fuera_de_servicio_se_puede_volver_a_servicio(self):
         sacar_plaza_de_servicio(plaza=self.plaza, usuario=self.operador_cis, motivo="Colchón roto")
@@ -289,14 +302,17 @@ class CapacidadDelMapaTests(BaseMapa):
         self.addCleanup(reloj.stop)
         super().setUp()
 
-    def test_sin_dispositivo_editar_la_plaza_disponible_no_es_enlace(self):
-        respuesta = self._pantalla(self.sin_editar)
-        self.assertEqual(self._celdas(respuesta)["P1"]["url"], "")
+    def test_sin_dispositivo_editar_la_plaza_disponible_solo_ofrece_reservar_y_prestar(self):
+        respuesta = self._pantalla(self.sin_editar_con_personas)
+        self.assertEqual(self._celdas(respuesta)["P1"]["url"], f"?plaza={self.plaza.pk}")
+        self.assertEqual(
+            respuesta.context["plazas_modal"][self.plaza.pk]["acciones"], [ACCION_RESERVAR, ACCION_PRESTAR]
+        )
 
-    def test_sin_dispositivo_editar_tampoco_se_abre_el_modal(self):
-        respuesta = self._pantalla(self.sin_editar, plaza=self.plaza.pk)
-        self.assertNotIn("plaza_accion", respuesta.context)
-        self.assertContains(respuesta, AVISO_NO_GESTIONABLE)
+    def test_sin_dispositivo_editar_el_modal_no_ofrece_sacar_de_servicio(self):
+        respuesta = self._pantalla(self.sin_editar_con_personas, plaza=self.plaza.pk)
+        self.assertEqual(respuesta.context["plaza_accion"]["acciones"], [ACCION_RESERVAR, ACCION_PRESTAR])
+        self.assertNotIn(ACCION_FUERA_SERVICIO, respuesta.context["plazas_modal"][self.plaza.pk]["acciones"])
 
     def test_sin_dispositivo_admitir_la_plaza_reservada_no_se_puede_liberar(self):
         reservar_plaza(plaza=self.plaza, ciudadano=self.otra_persona, usuario=self.operador_cis)
@@ -482,13 +498,301 @@ class LaAlertaSeResuelveDesdeLaPantallaTests(BaseMapa):
         self.assertEqual(self._alertas(regla), [])
 
 
+class PlazaDisponibleSinRecargaTests(BaseMapa):
+    """La plaza libre ofrece reservar, prestar y sacar de servicio, y la celda abre el modal sin recargar."""
+
+    def _opciones(self, usuario):
+        return self._pantalla(usuario).context["plazas_modal"][self.plaza.pk]["acciones"]
+
+    def test_la_disponible_ofrece_cada_opcion_segun_la_capacidad(self):
+        self.assertEqual(self._opciones(self.con_personas), [ACCION_RESERVAR, ACCION_PRESTAR, ACCION_FUERA_SERVICIO])
+        self.assertEqual(self._opciones(self.sin_editar_con_personas), [ACCION_RESERVAR, ACCION_PRESTAR])
+        self.assertEqual(self._opciones(self.sin_admitir), [ACCION_FUERA_SERVICIO])
+
+    def test_sin_ciudadano_ver_no_se_ofrece_reservar_ni_prestar(self):
+        """Buscar a la persona por DNI es mirar el padrón: `admitir` solo no alcanza, como en el ingreso."""
+
+        # Admite y edita, pero no ve personas: le queda sacar de servicio.
+        self.assertEqual(self._opciones(self.operador_cis), [ACCION_FUERA_SERVICIO])
+        # Admite y no ve personas ni edita: la plaza disponible no tiene nada que ofrecerle.
+        respuesta = self._pantalla(self.sin_editar)
+        self.assertEqual(respuesta.context["plazas_modal"], {})
+        celda = self._celdas(respuesta)["P1"]
+        self.assertEqual((celda["url"], celda["click"]), ("", ""))
+
+    def test_sin_ninguna_capacidad_la_plaza_no_es_clickeable(self):
+        respuesta = self._pantalla(self.solo_lectura)
+
+        celda = self._celdas(respuesta)["P1"]
+        self.assertEqual((celda["url"], celda["click"]), ("", ""))
+        self.assertEqual(respuesta.context["plazas_modal"], {})
+        self.assertNotContains(respuesta, '@click="abrirPlaza(')
+
+    def test_el_modal_unico_se_limpia_al_abrir_otra_plaza_y_al_volver(self):
+        """Un único modal sirve a todas las plazas: lo tipeado y los errores de la anterior no pueden quedar."""
+
+        html = self._pantalla(self.con_personas).content.decode()
+
+        self.assertIn('x-ref="panelPlaza"', html)
+        self.assertIn("limpiarModalPlaza()", html)
+        self.assertIn("abrirPlaza(pk) { this.limpiarModalPlaza();", html)
+        al_volver = html.split("volverOCerrar() {")[1].split("urlDe(")[0]
+        self.assertIn("this.limpiarModalPlaza();", al_volver)
+        self.assertIn("f.reset()", html)
+        self.assertIn("removeAttribute('aria-invalid')", html)
+
+    def test_la_celda_es_un_boton_y_no_un_enlace(self):
+        respuesta = self._pantalla(self.con_personas)
+
+        self.assertContains(respuesta, f'<button type="button" @click="abrirPlaza({self.plaza.pk})"')
+        self.assertNotContains(respuesta, f'<a href="?plaza={self.plaza.pk}"')
+        # El enlace directo sigue existiendo como dato: `?plaza=` abre el mismo modal.
+        self.assertEqual(self._celdas(respuesta)["P1"]["url"], f"?plaza={self.plaza.pk}")
+
+    def test_los_datos_del_modal_viajan_en_la_pagina(self):
+        respuesta = self._pantalla(self.con_personas)
+
+        self.assertContains(respuesta, 'id="plazas-modal-datos"')
+        self.assertEqual(
+            set(respuesta.context["urls_plaza"]), {"reservar", "prestar", "liberar", "fuera_servicio", "volver"}
+        )
+        self.assertIn("/plazas/__pk__/reservar/", respuesta.context["urls_plaza"]["reservar"])
+
+    def test_la_plaza_ocupada_tambien_es_un_boton_que_pide_su_modal_al_tocar(self):
+        ingresar_persona(ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza)
+
+        respuesta = self._pantalla()
+
+        celda = self._celdas(respuesta)["P1"]
+        self.assertEqual(celda["url"], f"?plaza={self.plaza.pk}")
+        self.assertEqual(celda["click"], f"abrirReubicar({self.plaza.pk})")
+        self.assertContains(respuesta, f'<button type="button" @click="abrirReubicar({self.plaza.pk})"')
+        # Lo que depende de la estadía no viaja en la página: ni form ni estadía.
+        self.assertNotIn(self.plaza.pk, respuesta.context["plazas_modal"])
+        self.assertNotIn("form_cambio", respuesta.context)
+
+    def test_con_plaza_en_la_url_el_modal_llega_abierto_en_esa_plaza(self):
+        respuesta = self._pantalla(self.con_personas, plaza=self.plaza.pk)
+
+        self.assertEqual(respuesta.context["plaza_inicial"], self.plaza.pk)
+        self.assertContains(respuesta, f"plazaSel: {self.plaza.pk}")
+
+
+class ReservarYPrestarTests(BaseMapa):
+    """Reservar y prestar desde el mapa: DNI de una persona del Legajo, `dispositivo.admitir`."""
+
+    AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+    def _post(self, accion, datos, usuario=None, plaza=None, **extra):
+        self.client.force_login(usuario or self.con_personas)
+        url = reverse(f"dispositivos:plaza_{accion}", args=[self.cis.pk, (plaza or self.plaza).pk])
+        return self.client.post(url, datos, **extra)
+
+    def _hasta(self, horas=12):
+        return (timezone.localtime() + timedelta(hours=horas)).strftime("%Y-%m-%dT%H:%M")
+
+    def test_reservar_crea_la_reserva_y_la_plaza_queda_reservada(self):
+        respuesta = self._post("reservar", {"dni": self.otra_persona.dni, "motivo": "Viene del hospital"})
+
+        self.assertRedirects(respuesta, self.url)
+        [reserva] = ReservaPlaza.objects.filter(plaza=self.plaza)
+        self.assertEqual(reserva.tipo, ReservaPlaza.Tipo.RESERVA)
+        self.assertEqual(reserva.ciudadano, self.otra_persona)
+        self.assertEqual(reserva.motivo, "Viene del hospital")
+        self.assertIsNone(reserva.hasta)
+        self.assertEqual(self._celdas(self._pantalla())["P1"]["estado"], "Reservada")
+
+    def test_el_dni_con_puntos_encuentra_a_la_persona(self):
+        self._post("reservar", {"dni": "30.333.444"})
+
+        self.assertEqual(ReservaPlaza.objects.get(plaza=self.plaza).ciudadano, self.otra_persona)
+
+    def test_prestar_crea_el_prestamo_con_su_vencimiento(self):
+        self._post("prestar", {"dni": self.otra_persona.dni, "hasta": self._hasta(12)})
+
+        reserva = ReservaPlaza.objects.get(plaza=self.plaza)
+        self.assertEqual(reserva.tipo, ReservaPlaza.Tipo.PRESTAMO)
+        self.assertIsNotNone(reserva.hasta)
+        self.assertEqual(self._celdas(self._pantalla())["P1"]["estado"], "Prestada")
+
+    def test_prestar_sin_hasta_es_un_error_del_campo_y_no_crea_nada(self):
+        respuesta = self._post("prestar", {"dni": self.otra_persona.dni}, **self.AJAX)
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("hasta", respuesta.json()["errors"])
+        self.assertFalse(ReservaPlaza.objects.exists())
+
+    def test_prestar_con_un_vencimiento_pasado_lo_rechaza_el_servicio_en_el_campo(self):
+        respuesta = self._post("prestar", {"dni": self.otra_persona.dni, "hasta": self._hasta(-3)}, **self.AJAX)
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("hasta", respuesta.json()["errors"])
+        self.assertFalse(ReservaPlaza.objects.exists())
+
+    def test_un_dni_que_no_esta_en_el_legajo_es_un_error_del_campo_dni(self):
+        respuesta = self._post("reservar", {"dni": "20999888"}, **self.AJAX)
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(
+            respuesta.json()["errors"]["dni"],
+            ["No encontramos a nadie con ese DNI: dala de alta desde Ingresar persona."],
+        )
+        self.assertFalse(ReservaPlaza.objects.exists())
+
+    def test_un_dni_mal_escrito_dice_que_no_es_valido(self):
+        respuesta = self._post("reservar", {"dni": "abc"}, **self.AJAX)
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("dni", respuesta.json()["errors"])
+        self.assertFalse(ReservaPlaza.objects.exists())
+
+    def test_sin_admitir_no_se_puede_reservar_ni_prestar(self):
+        for accion, datos in (
+            ("reservar", {"dni": self.otra_persona.dni}),
+            ("prestar", {"dni": self.otra_persona.dni, "hasta": self._hasta()}),
+        ):
+            with self.subTest(accion=accion):
+                respuesta = self._post(accion, datos, usuario=self.sin_admitir)
+                self.assertEqual(respuesta.status_code, 403)
+        self.assertFalse(ReservaPlaza.objects.exists())
+
+    def test_sin_ciudadano_ver_reservar_y_prestar_dan_403_sin_crear_nada(self):
+        """Buscar por DNI es mirar el padrón: sin `ciudadano.ver` ni el error de «no encontramos» se puede ver."""
+
+        for usuario in (self.operador_cis, self.sin_editar):
+            for accion in ("reservar", "prestar"):
+                for datos in (
+                    {"dni": self.otra_persona.dni, "hasta": self._hasta()},
+                    {"dni": "20999888", "hasta": self._hasta()},  # con un DNI que no existe: tampoco se sondea
+                    {"dni": "abc"},  # ni con un form inválido: el gate va antes de validar
+                ):
+                    with self.subTest(usuario=usuario.username, accion=accion, dni=datos["dni"]):
+                        comun = self._post(accion, datos, usuario=usuario)
+                        ajax = self._post(accion, datos, usuario=usuario, **self.AJAX)
+                        self.assertEqual(comun.status_code, 403)
+                        self.assertEqual(ajax.status_code, 403)
+                        self.assertNotIn("errors", ajax.json())
+        self.assertFalse(ReservaPlaza.objects.exists())
+
+    def test_con_admitir_sin_editar_se_puede_reservar_y_prestar(self):
+        """La capacidad de reservar es `admitir`: exigir `editar` dejaría afuera a quien admite."""
+
+        self._post("reservar", {"dni": self.otra_persona.dni}, usuario=self.sin_editar_con_personas)
+        self.assertEqual(ReservaPlaza.objects.get(plaza=self.plaza).tipo, ReservaPlaza.Tipo.RESERVA)
+
+        ReservaPlaza.objects.all().delete()
+        self._post(
+            "prestar",
+            {"dni": self.otra_persona.dni, "hasta": self._hasta()},
+            usuario=self.sin_editar_con_personas,
+        )
+        self.assertEqual(ReservaPlaza.objects.get(plaza=self.plaza).tipo, ReservaPlaza.Tipo.PRESTAMO)
+
+    def test_la_plaza_de_otra_institucion_da_404_y_no_se_reserva(self):
+        respuesta = self._post("reservar", {"dni": self.otra_persona.dni}, plaza=self.plaza_parador)
+
+        self.assertEqual(respuesta.status_code, 404)
+        self.assertFalse(ReservaPlaza.objects.exists())
+
+    def test_quien_no_opera_el_dispositivo_recibe_403_aunque_la_plaza_exista(self):
+        respuesta = self._post("reservar", {"dni": self.otra_persona.dni}, usuario=self.operador_parador)
+
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertFalse(ReservaPlaza.objects.exists())
+
+    def test_una_plaza_tomada_no_se_reserva(self):
+        ingresar_persona(ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza)
+
+        respuesta = self._post("reservar", {"dni": self.otra_persona.dni}, **self.AJAX)
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertFalse(ReservaPlaza.objects.exists())
+
+    def test_un_get_no_muta_nada(self):
+        self.client.force_login(self.operador_cis)
+
+        for accion in ("reservar", "prestar"):
+            respuesta = self.client.get(reverse(f"dispositivos:plaza_{accion}", args=[self.cis.pk, self.plaza.pk]))
+            self.assertEqual(respuesta.status_code, 405)
+
+
+class FragmentoReubicarTests(BaseMapa):
+    """«Cambiar de plaza» se abre sin recargar: el servidor da solo el cuerpo del modal al tocar la celda."""
+
+    AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+    def setUp(self):
+        super().setUp()
+        self.estadia = ingresar_persona(
+            ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza
+        )
+
+    def _fragmento(self, usuario=None, plaza=None, **extra):
+        self.client.force_login(usuario or self.operador_cis)
+        pk = self.plaza.pk if plaza is None else plaza
+        return self.client.get(self.url, {"plaza": pk, "fragmento": "reubicar"}, **{**self.AJAX, **extra})
+
+    def test_devuelve_solo_el_modal_con_el_form_que_se_envia_por_ajax(self):
+        respuesta = self._fragmento()
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTemplateUsed(respuesta, "programas/dispositivos/sectores/_modal_reubicar.html")
+        self.assertTemplateNotUsed(respuesta, "includes/base.html")
+        self.assertNotContains(respuesta, "<html")
+        self.assertContains(respuesta, "Cambiar de plaza")
+        self.assertContains(respuesta, "data-ajax")
+        self.assertContains(respuesta, reverse("dispositivos:cambiar_plaza", args=[self.cis.pk, self.estadia.pk]))
+        self.assertContains(respuesta, "csrfmiddlewaretoken")
+
+    def test_sin_plazas_libres_el_bloqueo_viaja_en_el_fragmento(self):
+        ingresar_persona(
+            ciudadano=self.otra_persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.otra_plaza
+        )
+
+        respuesta = self._fragmento()
+
+        self.assertContains(respuesta, MOTIVO_SIN_PLAZAS_LIBRES)
+        self.assertNotContains(respuesta, "Confirmar cambio")
+
+    def test_ajena_inexistente_y_no_reubicable_dan_404(self):
+        # Libre (no hay quién mover), de otra institución y que no existe: lo mismo para las tres.
+        for plaza in (self.otra_plaza.pk, self.plaza_parador.pk, 99999, "٣", "x"):
+            with self.subTest(plaza=plaza):
+                self.assertEqual(self._fragmento(plaza=plaza).status_code, 404)
+
+    def test_sin_admitir_da_404_aunque_pueda_editar(self):
+        self.assertEqual(self._fragmento(self.sin_admitir).status_code, 404)
+        self.assertEqual(self._fragmento(self.solo_lectura).status_code, 404)
+
+    def test_sin_el_encabezado_ajax_se_arma_la_pagina_entera(self):
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.get(self.url, {"plaza": self.plaza.pk, "fragmento": "reubicar"})
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTemplateUsed(respuesta, "programas/dispositivos/sectores/sectores.html")
+        self.assertContains(respuesta, "Cambiar de plaza")
+
+    def test_cuesta_pocas_consultas_y_no_arma_el_mapa(self):
+        self.client.force_login(self.operador_cis)
+        with CaptureQueriesContext(connection) as fragmento:
+            self.client.get(self.url, {"plaza": self.plaza.pk, "fragmento": "reubicar"}, **self.AJAX)
+        with CaptureQueriesContext(connection) as pagina:
+            self.client.get(self.url, {"plaza": self.plaza.pk})
+
+        self.assertLess(len(fragmento), len(pagina))
+        self.assertLessEqual(len(fragmento), 20)
+
+
 @tag("performance")
 class MapaPresupuestoTests(BaseMapa):
     """El mapa cuesta lo mismo con un sector que con ocho (el N+1 del Cambio 272)."""
 
     def _medir(self):
         with CaptureQueriesContext(connection) as medida:
-            datos = sectores_con_plazas(self.cis, puede_liberar=True, puede_configurar_plazas=True)
+            datos = sectores_con_plazas(
+                self.cis, puede_liberar=True, puede_configurar_plazas=True, puede_ver_personas=True
+            )
         return len(medida), datos
 
     def test_el_mapa_respeta_el_presupuesto_y_no_crece_con_los_sectores(self):
