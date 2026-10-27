@@ -510,7 +510,7 @@ class ConfiguracionDispositivosViewsTests(TestCase):
 
 
 class ConvertirTiposV1MigracionTests(TestCase):
-    """La 0106 deja un tipo de la v1 igual que abrirlo en el modal y guardarlo sin tocar nada."""
+    """La 0106 deja un tipo de la v1 con Cama y «Exige asignar una plaza» destildada."""
 
     def setUp(self):
         self.migracion = import_module("programas.migrations.0106_convertir_tipos_dispositivo_v1")
@@ -536,23 +536,38 @@ class ConvertirTiposV1MigracionTests(TestCase):
         self.assertTrue(guardado.is_valid(), guardado.errors)
         guardado.save()
 
-    def test_tipo_v1_queda_igual_que_guardandolo_con_el_form(self):
-        for lista in ([], None):
-            with self.subTest(lista=lista):
-                con_form = TipoDispositivo.objects.create(
-                    codigo=f"F{lista}", nombre=f"Con form {lista}", maneja_camas=True, tipos_plaza_admitidos=lista
-                )
-                con_migracion = TipoDispositivo.objects.create(
-                    codigo=f"M{lista}",
-                    nombre=f"Con migración {lista}",
+    def test_tipo_v1_queda_con_cama_y_sin_exigir_plaza(self):
+        casos = (
+            ("V1A", "lista vacía", [], False),
+            ("V1B", "lista nula", None, False),
+            ("V1C", "v1 con plaza obligatoria", [], True),
+        )
+        for codigo, nombre, lista, obligatoria in casos:
+            with self.subTest(caso=nombre):
+                tipo = TipoDispositivo.objects.create(
+                    codigo=codigo,
+                    nombre=nombre,
                     maneja_camas=True,
                     tipos_plaza_admitidos=lista,
+                    plaza_obligatoria_al_ingresar=obligatoria,
                 )
-                self._guardado_con_el_form(con_form)
                 self._convertir()
 
-                self.assertEqual(self._estado(con_migracion), self._estado(con_form))
-                self.assertEqual(self._estado(con_migracion), ([Plaza.Tipo.CAMA], True, True))
+                self.assertEqual(self._estado(tipo), ([Plaza.Tipo.CAMA], False, True))
+
+    def test_tipo_convertido_maneja_plazas_y_el_form_lo_abre_sin_exigir_plaza(self):
+        tipo = TipoDispositivo.objects.create(codigo="CONV", nombre="Convertido", maneja_camas=True)
+        self._convertir()
+        tipo.refresh_from_db()
+
+        self.assertTrue(tipo.maneja_plazas)
+        form = TipoDispositivoForm(instance=tipo)
+        self.assertTrue(form.fields["maneja_sectores_plazas"].initial)
+        self.assertEqual(list(form.fields["tipos_plaza_admitidos"].initial), [Plaza.Tipo.CAMA])
+        self.assertFalse(form["plaza_obligatoria_al_ingresar"].value())
+
+        self._guardado_con_el_form(tipo)
+        self.assertEqual(self._estado(tipo), ([Plaza.Tipo.CAMA], False, True))
 
     def test_tipo_ya_configurado_no_cambia(self):
         tipo = TipoDispositivo.objects.create(

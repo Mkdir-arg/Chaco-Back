@@ -6,12 +6,14 @@ CAMA = "CAMA"
 
 
 def convertir_tipos_v1(TipoDispositivo):
-    """Deja cada tipo de la v1 sin configurar como si alguien abriera el modal y guardara.
+    """Deja cada tipo de la v1 sin configurar con sectores y plazas, sin exigir plaza al ingresar.
 
     Un tipo de la v1 es `maneja_camas=True` con `tipos_plaza_admitidos` vacío (`[]` o nulo).
-    `TipoDispositivoForm` lo abre con «Cama» y «Exige asignar una plaza» tildados y, al
-    guardar, escribe `tipos_plaza_admitidos=["CAMA"]`, `plaza_obligatoria_al_ingresar=True`
-    y deja `maneja_camas=True`. Es exactamente lo que hace esta función (Cambio 372).
+    Queda con `tipos_plaza_admitidos=["CAMA"]`, `maneja_camas=True` y
+    `plaza_obligatoria_al_ingresar=False`: es lo que deja `TipoDispositivoForm` con «Exige
+    asignar una plaza» destildada (decisión del PM, 27/10/2026), para no frenar los ingresos de
+    las instituciones que todavía no cargaron plazas. Quien quiera exigirla la tilda después
+    desde Configuración → Tipos (Cambio 372).
 
     Idempotente: filtra por el estado de origen, así que un reintento no toca lo convertido.
     La lista vacía se mira en Python (pocas filas): el lookup JSON difiere entre MySQL y MariaDB.
@@ -23,7 +25,7 @@ def convertir_tipos_v1(TipoDispositivo):
             continue
         TipoDispositivo.objects.filter(pk=tipo.pk).update(
             tipos_plaza_admitidos=[CAMA],
-            plaza_obligatoria_al_ingresar=True,
+            plaza_obligatoria_al_ingresar=False,
             maneja_camas=True,
         )
         convertidos += 1
@@ -41,7 +43,7 @@ class Migration(migrations.Migration):
 
     operations = [
         # REVERSA-NOOP: no se distingue un tipo convertido de uno que alguien guardó a mano, y lo
-        # convertido (lista ["CAMA"] + plaza obligatoria + maneja_camas=True) es lo que la
+        # convertido (lista ["CAMA"] + sin exigir plaza + maneja_camas=True) es lo que la
         # release anterior ya sabe leer (Cambio 372, Reversión): no queda nada inconsistente.
         migrations.RunPython(convertir, migrations.RunPython.noop),
     ]
