@@ -500,7 +500,12 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 374 | «Asignar plaza» a una persona alojada sin plaza | Dispositivos · P4 · P7 | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 375 | Ingreso: alta mínima de la persona que no está en el legajo ni en el Registro de Personas | Dispositivos · P6 · paso Persona | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 376 | El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro | Dispositivos · Configuración → Tipos | `#ui` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
-| 378 | Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle | Dispositivos · Configuración → Tipos | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 377 | Sectores y plazas: reubicar a la persona desde la plaza ocupada | Dispositivos · P5 · Sectores y plazas | `#ui` `#rbac` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 378 | Dispositivos: la leyenda del mapa de plazas pasa a pastillas, y los tonos del listado y de P21 se alinean | Dispositivos · leyenda del mapa (P5, P6) · listado · P21 | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 379 | «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal | Dispositivos · P5 Sectores y plazas | `#ui` `#performance` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 380 | Ingreso a un dispositivo: el asistente avanza siempre con «Continuar» | Dispositivos · asistente de ingreso (P6) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 381 | Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle | Dispositivos · Configuración → Tipos | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 383 | «Soy el administrador y no veo Relevamientos»: el rol protegido Administrador recibe `inspeccion.asignar` por migración | Transversal · RBAC (rol Administrador) · Dispositivos → Relevamientos (P21) | `#rbac` `#datos` `#relevamientos` | PM — prueba en testing (ECOM) | 26/10/2026 | 🟢 **Hecho** | `users.0040` |
 
 **Notas del índice**
 
@@ -31882,6 +31887,10 @@ No requiere.
 
 Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
 
+- **26/10/2026 — Cambio 378:** la leyenda pasa a pastillas `badge badge-{tono}` con el ícono y el texto
+  adentro. Siguen las dos reglas de esta entrada: el color nunca va solo y cada tono lleva el mismo ícono en
+  la leyenda y en el mapa.
+
 ---
 
 ---
@@ -38417,6 +38426,11 @@ Entrada nueva y única de C5. Retoma el commit `c2e82f24`, completa edición de 
 y corrige unicidad entre sectores y respuestas de alcance. Rebasado únicamente C5 sobre
 `origin/development` después del merge de #853; la entrada 287 de C1 se conserva desde la base.
 
+- **26/10/2026 — Cambio 379.** «+ Agregar plazas» y «Nuevo sector» dejan la variante GET: decía
+  `GET: … plazas=id` y «formas y consultas adicionales solo al abrir el modal». Las dos altas no
+  dependen de un registro, así que sus formularios ahora llegan con P5 y los abre el botón, sin
+  recargar. Editar sector, Editar plaza y las acciones del mapa siguen por GET.
+
 ---
 
 ---
@@ -42534,7 +42548,11 @@ el responsable de esa funcionalidad. El juez asigna el número definitivo de est
 Revertir el commit de código y el de documentación. No hay datos ni migraciones que revertir.
 La reversión restituye las fugas de identidad y la discrepancia de permanencia anteriores.
 
----
+## Historial
+
+- **26/10/2026 — Cambio 378:** P21 pasa a llevar `tono` en sus cuatro métricas, alineadas con el badge de
+  situación de su tabla. Lo de «P21 conserva el HTML de sus métricas sin tono» describía el alcance de este
+  PR, no una decisión de diseño, y queda superado.
 
 ---
 
@@ -47851,6 +47869,9 @@ Revertir el commit. Los legajos creados quedan como cargas manuales comunes.
 ## Historial
 
 - **26/10/2026 — alta del cambio.**
+
+---
+
 # Cambio 376 — El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro
 
 🟢 **HECHO — 26/10/2026**
@@ -47878,9 +47899,11 @@ Entra: que un clic dentro del modal no lo vuelva a abrir. Queda afuera todo lo d
 
 - **Causa**: el script de la página abre el modal con cualquier clic dentro de un elemento con
   `data-edit-url`, y el contenedor del modal (`_edit_modal.html`) también lleva ese atributo, que usa para
-  devolverle el foco al botón al cerrar. Así, cada clic adentro cancelaba la acción (la casilla no se
-  tildaba), ponía el modal en `opacity-60` y lo volvía a pedir al servidor. Estaba así desde julio (PR #196);
-  no lo trajo el Cambio 372, pero recién ahí hizo falta tildar algo en el modal.
+  devolverle el foco al botón al cerrar. Así, cada clic adentro cancelaba la acción, ponía el modal en
+  `opacity-60` y lo volvía a pedir al servidor. Estaba así desde julio (PR #196), también en PRD, y afectaba
+  a **todo** lo que se hacía dentro del modal: «Guardar» (y Enter, que dispara el clic del botón de envío),
+  «Cerrar», «Cancelar», el clic en el fondo y las casillas. No lo trajo el Cambio 372; recién ahí se notó,
+  porque hizo falta tildar algo en el modal. (Precisado en el Cambio 378.)
 - El clic que abre el modal se busca **solo en un enlace** (`a[data-edit-url]`), que es lo que es el botón
   «Editar tipo». El atributo del contenedor queda como está.
 
@@ -47921,10 +47944,529 @@ Revertir el commit (vuelve el modal que se reabre con cada clic).
 ## Historial
 
 - **26/10/2026 — alta del cambio.**
+- **26/10/2026 — Cambio 378:** la causa se precisa con lo que encontró la auditoría del PR #973. No era solo
+  la casilla: desde julio ningún clic dentro del modal andaba, también en PRD. Queda pendiente un MINOR de
+  esa auditoría: arrastrar desde un campo y soltar sobre el fondo cierra el modal y pierde lo escrito
+  (`tipo_detail.html`). Se arregla en el PR del modal del tipo.
 
 ---
 
-# Cambio 378 — Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle
+# Cambio 377 — Sectores y plazas: reubicar a la persona desde la plaza ocupada
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Sectores y plazas (P5) · modal de la plaza ocupada |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | PM — prueba en testing, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/sectores/sectores.html` · Servidor: `services/sectores_plazas.py`, `views/dispositivos_legajo.py` |
+| **Migración** | no |
+
+## Pedido original
+
+En «Sectores y plazas», al tocar una plaza **ocupada** se abre un modal sin salida («No se puede sacar de
+servicio… reubicá a la persona») que manda a la estadía. El PM quiere moverla a otra plaza libre ahí mismo.
+
+## Alcance acordado
+
+Entra: la acción **reubicar** en la plaza ocupada, con el formulario del cambio de plaza de P7 dentro del modal
+del mapa. Queda afuera: tocar `estadias.cambiar_plaza` y el modal de P7.
+
+## Decisiones tomadas
+
+- **Revierte en parte el Cambio 287**, que dejó afuera «reubicar» y explicaba la plaza ocupada con un modal sin
+  formulario («La plaza ocupada no esconde la acción: la explica»). Cambia por pedido del PM, 26/10/2026: el
+  aviso sin salida obligaba a ir a la estadía para hacer lo que el operador ya estaba haciendo en el mapa.
+- **Capacidad**: reubicar lo hace quien tiene `dispositivo.admitir` sobre el dispositivo, la misma que ya exige
+  `cambiar_plaza`. El PM la configura por rol.
+- **Precedencia por plaza**: fuera de servicio → volver; reserva abierta → liberar; ocupada → reubicar si puede
+  admitir, si no (y puede editar) el aviso de hoy `MOTIVO_PLAZA_OCUPADA`; resto → sacar de servicio. El mapa y
+  `plaza_para_accion` deciden igual (`accion_de_plaza`).
+- **Sin plazas libres**: el modal avisa «No hay plazas libres en el dispositivo para moverla.» y no trae formulario.
+- **Al confirmar se vuelve al mapa** (`volver=sectores` en `EstadiaCambiarPlazaView`), no a la estadía.
+- El formulario y la estadía se arman **solo con el modal abierto**: el mapa cerrado conserva sus consultas fijas.
+- El nombre de la persona se ve solo con `ciudadano.ver`; si no, «Persona alojada» (como la solapa de estadías).
+
+## Archivos
+
+- `programas/services/sectores_plazas.py`
+- `programas/views/dispositivos_legajo.py`
+- `programas/templates/programas/dispositivos/sectores/sectores.html`
+- `programas/tests/test_dispositivos_plazas_acciones.py`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `test_dispositivos_plazas_acciones` y los módulos afines de Dispositivos: en verde. Mutación: con la guarda de
+  `admitir` fuera, tres tests se ponen rojos.
+
+## Puesta en marcha en el servidor
+
+Nada. Los roles que deban reubicar necesitan `dispositivo.admitir`.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit (vuelve el aviso sin salida de la plaza ocupada).
+
+## Historial
+
+- **26/10/2026 — alta del cambio.** Revierte parcialmente la decisión del Cambio 287.
+
+---
+
+# Cambio 378 — Dispositivos: la leyenda del mapa de plazas pasa a pastillas, y los tonos del listado y de P21 se alinean
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · leyenda del mapa de plazas (P5 y P6) · listado de dispositivos · relevamientos (P21) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 («la leyenda Disponible / Ocupada / Reservada / Prestada no encaja con el diseño») |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `templates/components/_leyenda_plazas.html`, `dispositivos/legajo/list.html`, `dispositivos/relevamientos/list.html` · Fichas: `mapa_plazas.md`, `stat_card.md`, `tabla.md` |
+| **Migración** | no |
+
+## Pedido original
+
+El PM siente desvíos de diseño en Dispositivos y da un ejemplo: la leyenda del mapa de plazas «no encaja con el
+diseño». Pide corregir los desvíos sin cambiar comportamiento, en PRs chicos. Un relevamiento de solo lectura
+(`chaco-design-reviewer`, 26/10) encontró 11 desvíos. Este cambio es el primer lote: la leyenda y dos chips
+de tono.
+
+## Alcance acordado
+
+Entra: la leyenda de estados de plaza, el badge de ocupación del listado de dispositivos y las cuatro métricas
+de P21. Queda afuera el resto del relevamiento, que va en los PRs siguientes del lote (ver Pendientes). No
+cambian datos, vistas, contextos ni URLs.
+
+## Decisiones tomadas
+
+- **La leyenda es una fila de pastillas `badge badge-{tono}`**, con el ícono y el texto adentro, en vez del
+  cuadradito de 20 px con el texto suelto en gris. Las pastillas son la pieza que el sistema ya usa para un
+  estado con tono (`nodo-badges.css`), así que no hace falta CSS nuevo. Se mantienen las dos reglas del
+  Cambio 214: el color nunca va solo (ícono y texto) y cada tono lleva **el mismo ícono en la leyenda y en el
+  mapa**. Un tono desconocido da `badge-gray` con `fa-circle`. El ícono va con un espacio antes del texto,
+  como en el resto de los badges del repo, porque `.badge` ya trae su `gap`.
+- **Sin rótulo «Estado de las plazas».** Ninguna ficha prevé un rótulo para un grupo de badges. Sumarlo sería
+  una novedad, y el `aria-label` de la lista ya lo dice.
+- **Ocupada (`info`, violeta) y Prestada (`brand`, rosa) conservan su tono.** En pastilla se distinguen por
+  el color, el ícono (`fa-user` / `fa-right-left`) y el texto. Cambiar un tono obligaría a tocar el mapa y el
+  servicio de ocupación, que le da el tono a cada plaza. Lo decidió el juez por delegación del PM (26/10/2026).
+- **Listado de dispositivos:** el badge de porcentaje de ocupación lleva `badge-dot`, como los de estado e
+  infraestructura de la misma tabla.
+- **P21:** las cuatro métricas llevan `tono`. Al día `success`, Por vencer `warning` y Vencidos `danger` son
+  los mismos tonos que el badge de situación de su tabla (`_relevamiento_situacion_badge.html`). Asignados va
+  en `brand`, el tono por defecto de la pieza, porque la tabla no tiene un estado «asignado». Esto reemplaza lo que dejó el Cambio 324 («P21
+  conserva el HTML de sus métricas sin tono»), que era el alcance de ese PR, no una decisión de diseño. Ahora
+  P21 se ve como P4 y P19.
+
+## Implementación
+
+- `_leyenda_plazas.html`: un `li` por estado con
+  `<span class="badge badge-{tono}"><i class="fas {ícono}" aria-hidden="true"></i> {estado}</span>`. El
+  contrato de la include (`leyenda`, lista de `estado` + `tono`) y sus consumidores no cambian.
+- `legajo/list.html`: suma `badge-dot`. `relevamientos/list.html`: suma `tono=` en las cuatro `_stat_card`.
+- Las fichas `mapa_plazas.md`, `stat_card.md` y `tabla.md` se actualizan en el mismo diff.
+
+## Archivos
+
+- `templates/components/_leyenda_plazas.html`
+- `programas/templates/programas/dispositivos/legajo/list.html`
+- `programas/templates/programas/dispositivos/relevamientos/list.html`
+- `core/tests/test_nodo_ui_lote_b.py` (`LeyendaPlazasTest`: pastilla y mismo ícono que el mapa por tono, y el
+  tono desconocido)
+- `programas/tests/test_dispositivos_sectores.py`: las aserciones de estado se acotan a la celda del mapa
+  (`block font-semibold">…`). La leyenda ahora tiene el mismo `</i> Ocupada`, y el test de «nada ocupado»
+  fallaba. El de «aparece ocupada» pasaba siempre: medía la leyenda, no la celda.
+- `programas/tests/test_dispositivos_listado.py` (badge de ocupación con `badge-dot`)
+- `.claude/design/componentes/mapa_plazas.md`, `stat_card.md`, `tabla.md`
+- `docs/internal/requerimientos.md`: este cambio; la causa del Cambio 376 corregida; el separador entre 375
+  y 376; Historial en 214 y 324.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent --changed` y ruff: en verde.
+- La primera versión del PR no adaptó dos tests: el de sectores y el del listado. Los encontró la auditoría
+  del PR (`/auditoria pr 974`). Se arreglaron y se corrieron solo esos módulos (`test_dispositivos_sectores`,
+  `test_dispositivos_listado` y `core.tests.test_nodo_ui_lote_b`: 57 OK). El juez autorizó esa excepción
+  puntual al pedido del PM de no correr la suite en local; la suite completa la corre el CI.
+- Mutación: con `fa-user` cambiado en `_mapa_plazas.html`, el test «aparece ocupada» da rojo. La guarda vuelve
+  a medir la celda.
+
+## Puesta en marcha en el servidor
+
+Nada. Recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+El resto del relevamiento de diseño va en PRs aparte, con las decisiones que el PM tomó el 26/10/2026
+(«sigo tus recomendaciones»):
+
+1. Configuración de tipos: listado, formulario y botones del detalle a los arquetipos.
+2. Asistente de ingreso: «Continuar» es el único verbo de avance. En el paso 1 el botón de la izquierda sigue
+   siendo «Cancelar». El pie de Plaza va dentro de la card, como en Persona y Confirmar.
+3. Modal del tipo y campos de los modales de Sectores, con el arreglo del arrastre del Cambio 376 (abajo). El
+   SweetAlert2 propio de `tipo_detail.html` se reemplaza por el modal estándar.
+4. P4: las acciones secundarias del encabezado se agrupan en un menú «Más acciones».
+5. Los tipos de la v1 con `maneja_camas` se convierten solos al modelo de sectores y plazas, también en PRD,
+   sin que haya que guardar cada tipo a mano.
+
+## Reversión
+
+Revertir el commit: vuelven el cuadradito de la leyenda y los chips sin tono. No hay datos que revertir.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 379 — «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P5 Sectores y plazas (modales «Agregar plazas» y «Nuevo sector») |
+| **Etiquetas** | `#ui` `#performance` |
+| **Solicitante** | PM — prueba en testing, 26/10/2026 («hace como un F5 antes de abrir»; después: «arreglalo en este PR» para «Nuevo sector») |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `sectores/sectores.html`, `sectores/_modal_sector.html` (nuevo), `DispositivoSectoresView`, `AgregarPlazasForm`, la pieza canónica `components/_estado_vacio.html` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En `https://datanach.ecomdev.ar/dispositivos/2/sectores/?plazas=1`, al tocar «Agregar plazas» se abre el
+modal «Agregar plazas · Un lote con el código autogenerado. Nacen operativas.», pero antes hace como un F5.
+Buscar por qué es y arreglarlo. Después, en el mismo PR: «Nuevo sector» tenía el mismo F5.
+
+## Alcance acordado
+
+Entra: los dos botones «Agregar plazas» de P5, el del encabezado y el de cada sector vacío, y los dos de
+«Nuevo sector», el del encabezado y el del estado vacío de un dispositivo sin sectores. Quedan como están
+«Editar sector», «Editar plaza» y las acciones de una plaza del mapa: dependen de un registro y siguen
+abriéndose por parámetro GET (variante del arquetipo Modal).
+
+## Decisiones tomadas
+
+- **Causa**: el botón era un enlace a `?plazas=1`. El navegador pedía la pantalla entera de nuevo y el
+  servidor la devolvía con el modal abierto: eso era el F5. Estaba así desde el Cambio 291, que abría los
+  modales de configuración de P5 por GET y armaba sus formularios «solo al abrir el modal».
+- **El lote deja la variante GET y vuelve al esqueleto de la golden de Modal** (`<button type="button"
+  @click>`): esa variante es para cuando el contenido depende del registro, y el lote no depende de
+  ninguno, porque el sector se elige adentro. El formulario llega con la página, cerrado, y solo para quien
+  puede configurar las plazas y con al menos un sector activo, como ya pasaba con el botón.
+- **Costo aceptado**: P5 suma las consultas del selector del lote a cada carga para quien configura (las
+  del presupuesto `dispositivos_selector_lote_plazas`). El del mapa (`dispositivos_sectores_con_plazas`) no
+  cambia.
+- **El botón de un sector vacío elige su sector en el navegador**: `x-model="sectorPlazas"` en el select y
+  `sectorPlazas='<id>'` en el botón; el del encabezado lo deja vacío. Ya no hay `?plazas=` que leer, y con
+  eso desaparece otro error: el `?plazas=1` del encabezado se leía como id de sector y preelegía el sector
+  1 en la institución que lo tuviera.
+- **`auto_id="id_plazas_%s"`** en `AgregarPlazasForm`: ahora convive en el HTML con `SectorForm` y
+  `PlazaForm`, que también tienen `tipo`, y sin prefijo se repetía `id_tipo`. El `name` del POST no cambia.
+- **«Nuevo sector» tiene su propio modal**, separado del de «Editar sector». Los dos comparten el mismo
+  formulario y por eso salen de una sola plantilla, `sectores/_modal_sector.html`, con su variable de
+  Alpine y su id de título como parámetros. El alta llega siempre con la página para quien configura las
+  plazas, y la edición se sigue armando con `?sector=<id>`, así que pueden estar las dos a la vez. Por eso el
+  alta usa `auto_id="id_nuevo_%s"`.
+- **`?sector=nuevo` se ignora en silencio**: era el enlace del alta y puede seguir en un marcador o en el
+  historial. Ya no es un id, y sin esa excepción la pantalla avisaría que «ese sector no se puede editar».
+- **`accion_click` en la pieza canónica del estado vacío**: el botón del vacío pasa a ser
+  `<button type="button" @click>` cuando la acción abre un modal de la pantalla, en vez de un enlace que
+  recarga. Gana sobre `accion_url`. Los seis usos que ya existían producen el mismo HTML, byte por byte.
+  La ficha `estado_vacio.md` suma el parámetro y la sección «Alta que abre un modal de la pantalla».
+
+## Implementación
+
+«Agregar plazas» abre el modal sin recargar. El del encabezado lo abre sin sector elegido; el de un
+sector vacío, con ese sector ya elegido. «Nuevo sector» también abre su modal sin recargar, desde el
+encabezado o desde el estado vacío, y llega con el formulario limpio aunque la edición de otro sector esté
+abierta. Guardar sigue igual (POST AJAX, toast y vuelta al mapa).
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/sectores/sectores.html`
+- `programas/templates/programas/dispositivos/sectores/_modal_sector.html` (nuevo: el modal del sector,
+  para el alta y la edición)
+- `programas/views/dispositivos_legajo.py` (`_preparar_modales_de_configuracion`, docstring de la vista)
+- `programas/views/dispositivos_capacidad.py` (docstring) y `programas/dispositivos_urls.py` (comentario)
+- `programas/forms_dispositivos.py` (`AgregarPlazasForm`)
+- `templates/components/_estado_vacio.html` y `.claude/design/componentes/estado_vacio.md` (`accion_click`)
+- `programas/tests/test_dispositivos_capacidad.py` (`AltasSinRecargaTests` y el test del estado vacío)
+- `core/tests/test_nodo_ui_piezas.py` (`accion_click` del estado vacío)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Tests nuevos en rojo antes del arreglo (2 de 4 por la causa esperada) y en verde después. Mutación: sin
+  el `auto_id`, `test_la_pantalla_no_repite_ids_con_otro_modal_abierto` falla con `id_tipo` repetido.
+- Los 1179 tests de `programas.tests.test_dispositivos*` con `.venv312` (Django 5.2): OK.
+- Chromium (Playwright) contra un servidor local: el encabezado abre el modal sin navegar (ninguna
+  navegación, una marca en `window` sobrevive, el select queda vacío); el sector vacío lo abre con su
+  sector elegido; el lote se guarda y aparecen M-01 a M-03; sin errores de consola ni HTTP ≥ 400.
+- «Nuevo sector»: tests en rojo antes y en verde después. Mutación: sin el `auto_id` del alta,
+  `test_la_pantalla_no_repite_ids_con_otro_modal_abierto` falla con ids repetidos frente al modal de
+  edición y al de la plaza. 2640 tests OK con `.venv312`: dispositivos, `core` y el snapshot de Becas, que
+  congela el shell. El HTML de los seis usos previos de `_estado_vacio.html` es idéntico al de antes
+  (mismo hash).
+- Chromium, «Nuevo sector»: `?sector=<id>` abre la edición al cargar. Cerrada con Escape, el botón del
+  encabezado abre el alta sin navegar y con el nombre vacío, y guardar crea el sector. En un dispositivo sin
+  sectores, el botón del estado vacío abre el modal sin navegar. «Agregar plazas» sigue abriendo sin
+  navegar. Sin errores de consola ni HTTP ≥ 400.
+- `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `--arquetipo modal` y `detalle` OK,
+  `--goldens` 0, `compile_templates --bloques` 0 y `check_design_agent --changed` OK.
+
+## Puesta en marcha en el servidor
+
+Nada. En testing, recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+- Nada de este cambio. «Editar sector», «Editar plaza» y las acciones del mapa siguen por GET porque
+  dependen del registro, como manda la ficha del arquetipo.
+
+## Reversión
+
+Revertir los dos commits: vuelven los enlaces a `?plazas=` y `?sector=nuevo`, y con ellos la recarga.
+Revertir solo el segundo devuelve «Nuevo sector» al enlace y saca `accion_click` de la pieza del estado
+vacío. Ningún otro uso de la pieza lo emplea.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+- **26/10/2026 — «Nuevo sector» entra en el mismo PR (#975)**, a pedido del PM. Sale de Pendientes y pasa
+  a Alcance, Decisiones e Implementación.
+
+---
+
+# Cambio 383 — «Soy el administrador y no veo Relevamientos»: el rol protegido Administrador recibe `inspeccion.asignar` por migración
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · RBAC (rol protegido «Administrador») · Dispositivos → Relevamientos (P21) |
+| **Etiquetas** | `#rbac` `#datos` `#relevamientos` |
+| **Solicitante** | PM — prueba en testing (ECOM), 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: migración de datos sobre `auth_group_permissions` (solo el rol Administrador) |
+| **Migración** | `users.0040` |
+
+## Pedido original
+
+«Soy el super admin y no veo Relevamientos en el menú: agregale ese permiso al super admin del sistema.»
+En https://datanach.ecomdev.ar el PM entra con el rol protegido «Administrador» y en Programas → Dispositivos
+no aparece «Relevamientos».
+
+## Alcance acordado
+
+Entra: una migración de datos que le da al rol del sistema «Administrador» (`RolMeta.clave =
+"sistema.administrador"`, global) las capacidades `inspeccion.asignar` y `becas.revision.identidad` si le
+faltan. Queda afuera: `inspeccion.relevar`, realinear el rol con todo el catálogo, cualquier otro rol (los
+configura el PM) y tocar `seed_rbac`.
+
+## Decisiones tomadas
+
+- **Causa.** El link del sidebar (`templates/includes/sidebar/opciones.html`) y `RelevamientoListView` exigen
+  `inspeccion.asignar` con alcance a Dispositivos; un rol global con la capacidad cuenta
+  (`_capacidades_activas_en_programa`). `users.0037` declaró la capacidad **sin sembrar roles** y la `0038`
+  dejó `becas.revision.identidad` al seed del arranque. En ECOM el `seed_rbac` —que le da todo el catálogo al
+  Administrador— no corre, y el rol es protegido: el ABM de Roles no lo deja editar. La migración es la única
+  vía, como en `users.0025` y `users.0035`. No es `is_superuser`: el superusuario tiene bypass y lo vería.
+- **Decidido sin el diagnóstico del pod.** El PM no lo va a correr y delegó la decisión al juez (27/10/2026:
+  «resolver las dudas solos»). Por eso el alcance es el que se puede justificar sin saber qué más le falta al
+  rol en ECOM.
+- **Alcance: dos capacidades, nombradas.** Se evaluaron tres opciones:
+  1. *Realinear con todo el catálogo* (lo que hace `seed_rbac`). **Descartada.** La migración corre también en
+     PRD, y entre `users.0002` y `0039` hubo varias tandas de capacidades declaradas sin sembrarle al
+     Administrador (0006, 0011, 0015, 0021, 0026 con `becas.programa.proceso_masivo`…): sin diagnóstico, le daría en
+     producción un conjunto que nadie listó. Además no tendría reversa real —no se puede saber qué agregó—, y
+     congelaría en una migración una lista que el seed mantiene con `set`. Ninguna migración del repo realinea
+     al Administrador: el patrón (0025, 0035) es darle por nombre lo de cada funcionalidad.
+  2. *Todo lo de la 0037* (`asignar` + `relevar`). **`inspeccion.relevar` descartada.** Es capacidad de la app de
+     campo (`rbac.CAPACIDADES_DE_CAMPO`). Al Administrador global nunca se le asigna un relevamiento, porque el
+     selector (`agentes_asignables`) solo ofrece roles **del programa** Dispositivos. Lo único que le sumaría es
+     poder sacar token de la app de campo (`programas/api/views.py`). Es el mismo criterio que `seed_becas`
+     aplica con `becas.campo` al Administrador de Becas.
+  3. **Elegida:** `inspeccion.asignar` (lo pedido) + `becas.revision.identidad` (0038, mismo motivo). La segunda
+     hoy es redundante si el rol tiene `becas.programa.administrar`, porque `puede_validar_identidad` acepta
+     cualquiera de las dos. Igual completa lo que la 0038 dio por hecho, y no abre ninguna superficie nueva.
+- **Cómo encuentra el rol:** por la clave `sistema.administrador`. Si ninguna RolMeta la tiene, lo busca por
+  el nombre canónico «Administrador», igual que `users.0035`. En una base nueva no hay rol y no hace nada:
+  lo crea `seed_rbac` con todo.
+- **Idempotente y atómica:** `permissions.add` solo de las que faltan. `get_or_create` de las `Permission`,
+  porque en una base que migra de corrido el `post_migrate` todavía no las materializó. Es solo datos, sin
+  DDL, así que la transacción la cubre entera. Deja en el log de la migración qué sumó y qué ya tenía.
+- **Reversa real:** saca las dos **solo** del Administrador. No borra las `Permission` (son de la 0037/0038) ni
+  toca otros roles. Lo que no distingue: en una base donde `seed_rbac` ya se las había dado, revertir se las
+  saca hasta el próximo arranque con seed. En ECOM, donde no corre, vuelve exactamente al estado anterior.
+
+## Implementación
+
+Con el deploy, `migrate` aplica `users.0040`. El Administrador queda con «Crear, asignar, reasignar y
+cancelar relevamientos edilicios» y «Validar la identidad de un caso», y ve Programas → Dispositivos →
+Relevamientos (`/dispositivos/relevamientos/`). Los demás roles quedan igual.
+
+## Archivos
+
+- `users/migrations/0040_administrador_inspeccion_e_identidad.py` (nuevo)
+- `users/tests/test_migracion_administrador_inspeccion.py` (nuevo)
+
+## Base de datos
+
+`users.0040`: `RunPython` con reversa. Agrega a lo sumo dos filas en `auth_group_permissions`, del grupo del
+Administrador. No toca el esquema y es segura sobre datos existentes.
+
+## Validación
+
+- `users.tests.test_migracion_administrador_inspeccion`: 13 tests OK, contra los modelos históricos
+  (`estado_historico`, RED-17). Cubren catálogo, clave y nombre, otros roles intactos, sin
+  `inspeccion.relevar`, idempotencia, base nueva, `Permission` faltantes y reversa. El de punta a punta usa
+  un usuario cuyo único rol es el Administrador global con `dispositivo.ver` y `programa.configurar`. Antes
+  de la migración, `puede_en_programa_dispositivos` da False, `/dispositivos/relevamientos/` da 403 y el
+  sidebar no trae el link. Después da True, la pantalla da 200 y el link aparece.
+- **Mutación:** las siete mutaciones ponen al menos un test en rojo. Son: sacar `becas_revision_identidad`,
+  sembrar a todos los grupos, buscar solo por nombre, sumar `inspeccion_relevar`, que la reversa quite de
+  todos, reversa vacía y siembra vacía.
+- RBAC afines (`test_migracion_dispositivo_bitacora`, `test_migracion_administrador_publico`,
+  `notificaciones.tests.test_rbac`, `test_menu_rbac`, `test_seed_datos_base`): 69 OK.
+- `manage.py check` sin observaciones. `makemigrations --check --dry-run` (con
+  `DJANGO_SYNCDB_PROJECT_APPS=False`) da «No changes». `scripts/check_migraciones.py` da 0 problemas, y ruff
+  pasa.
+
+## Puesta en marcha en el servidor
+
+Nada manual: la aplica el `migrate` del deploy. Después del espejo a testing, el PM **recarga la página**
+(las capacidades se calculan por request; si no aparece, cerrar sesión y volver a entrar). En el log del
+deploy, la línea «Administrador «…»: sumó …; ya tenía …» dice qué cambió.
+
+## Pendientes / a definir
+
+- **Si después del deploy el log dice «sumó ninguna» y el PM sigue sin ver Relevamientos,** su usuario no
+  tiene el rol del sistema sino otro. Hace falta el diagnóstico de solo lectura del traspaso (grupos del
+  usuario y `rbac.codigos_de_capacidad()` que le faltan al rol).
+- **Lo mismo puede faltarle a otros roles en ECOM.** Si el arranque no corre `seed_becas`, al «Becas —
+  Coordinador» le falta `becas.revision.identidad` (Cambio 334). Esos roles sí se editan en la pantalla de
+  Roles: el PM puede verificar «Validar la identidad de un caso» y tildarla.
+- **Causa de fondo, a confirmar con ECOM:** si el pod de testing/PRD arranca con `LOCAL_BOOTSTRAP_COMMANDS=false`
+  o con un comando propio, ningún seed corre. Hasta que se confirme, toda capacidad nueva que el Administrador
+  deba tener va con su migración de siembra, como la 0025, la 0035 y esta.
+
+## Reversión
+
+`migrate users 0039`: la reversa le saca las dos al Administrador y no toca nada más. Después, revertir el
+commit.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.** Lo decidió el juez por delegación del PM, sin el diagnóstico del pod.
+
+---
+
+# Cambio 380 — Ingreso a un dispositivo: el asistente avanza siempre con «Continuar»
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · asistente de ingreso (P6) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/ingreso/paso_persona.html` · Ficha: `.claude/design/arquetipos/wizard.md` |
+| **Migración** | no |
+
+## Pedido original
+
+Es el tercer lote de la revisión de diseño de Dispositivos (ver el Cambio 378). El asistente de ingreso
+usaba tres verbos distintos para avanzar: «Siguiente» en Persona, «Continuar» en Plaza y «Confirmar ingreso»
+en Confirmar. El relevamiento marcó además que el pie de Plaza no lleva el separador que sí tienen Persona y
+Confirmar.
+
+## Alcance acordado
+
+Entra el texto del botón de avance. Quedan afuera los forms, los campos ocultos, los `name`/`value` de los
+envíos y la lógica de los pasos.
+
+## Decisiones tomadas
+
+- **«Continuar» es el único verbo de avance.** Lo decidió el PM el 26/10/2026 («sigo tus recomendaciones»).
+  En el paso 1 el botón de la izquierda sigue siendo «Cancelar», porque ahí todavía no hay paso anterior. La
+  acción final sigue siendo «Confirmar ingreso», y la del alta mínima, «Dar de alta y seguir», es otra acción.
+  La golden de Configuración de Becas conserva «Siguiente», así que la ficha registra esto como propio del
+  ingreso de Dispositivos.
+- **El pie de Plaza queda sin separador. El relevamiento se había equivocado.** En Persona y Confirmar el
+  separador divide el contenido de los botones dentro de una misma card. En Plaza el contenido es una grilla de
+  varias cards (el mapa por sector y Persona), y el pie va en su propia card `<form>`, que solo tiene los
+  ocultos y los botones. Un `border-t` ahí deja una franja vacía de unos 48 px sobre la línea. Se probó, se
+  revirtió, y la ficha de Wizard explica por qué.
+
+## Implementación
+
+- `paso_persona.html`: «Siguiente» pasa a «Continuar», con el mismo ícono `fa-arrow-right`.
+- `wizard.md`: la variante del paso intermedio registra el verbo del ingreso de Dispositivos, y el bullet del
+  paso de plaza explica que su pie va en una card propia y sin separador.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/ingreso/paso_persona.html`
+- `.claude/design/arquetipos/wizard.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y
+  `check_design_agent --changed`: en verde.
+- Ningún test afirma el «Siguiente» de Dispositivos. Los que buscan «Continuar» en `test_dispositivos_ingreso.py`
+  siguen siendo coherentes. Por pedido del PM (26/10/2026) no se corrió la suite en local: la corre el CI del
+  PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 381 — Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle
 
 🟢 **HECHO — 26/10/2026**
 
@@ -47940,7 +48482,7 @@ Revertir el commit (vuelve el modal que se reabre con cada clic).
 
 ## Pedido original
 
-Es el segundo lote de la revisión de diseño de Dispositivos (ver el Cambio 377). El relevamiento marcó tres cosas
+Es el segundo lote de la revisión de diseño de Dispositivos (ver el Cambio 378). El relevamiento marcó tres cosas
 en la configuración de tipos:
 
 - El listado tiene el título armado a mano, un SVG en «Nuevo tipo», la tabla sin `nodo-th`/`nodo-td` y el estado
@@ -48017,7 +48559,7 @@ Nada. Recargar con Ctrl+F5 después del deploy.
 ## Pendientes / a definir
 
 - Migrar `_tipo_form_fields.html` a `_field.html` y `_form_errores.html` en el PR del modal del tipo (lote D del
-  Cambio 377). Ahí `tipo_form.html` pasa los marcadores del arquetipo Formulario.
+  Cambio 378). Ahí `tipo_form.html` pasa los marcadores del arquetipo Formulario.
 
 ## Reversión
 

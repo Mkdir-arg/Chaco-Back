@@ -10,14 +10,15 @@ enlace solo si la vista le puso `url`, y esa url abre acá el modal de su acció
 variante «abierto por parámetro GET y armado por el servidor» de P21: el cuerpo depende del
 estado de la plaza y la celda solo sabe navegar.
 
-Las tres acciones de configuración del mockup —«Nuevo sector» y «+ Agregar plazas» en el
-encabezado, «Editar sector» en el de cada sector— usan la misma variante, con `?sector=`
-y `?plazas=`.{% endcomment %}
+«Editar sector», en el encabezado de cada sector, usa la misma variante, con `?sector=<id>`.
+«Nuevo sector» y «+ Agregar plazas» no dependen de un registro: sus modales llegan con la
+página y los abre el botón, como el de la golden; el «Agregar plazas» de un sector vacío
+además lo elige en el select (`sectorPlazas`).{% endcomment %}
 <div x-data="{ modalPlaza: {% if plaza_accion %}true{% else %}false{% endif %},
                modalSector: {% if form_sector %}true{% else %}false{% endif %},
-               modalPlazas: {% if form_plazas %}true{% else %}false{% endif %},
+               modalSectorNuevo: false, modalPlazas: false, sectorPlazas: '',
                modalEditarPlaza: {% if form_editar_plaza %}true{% else %}false{% endif %} }"
-     @becas-saved.window="modalPlaza=false; modalSector=false; modalPlazas=false; modalEditarPlaza=false">
+     @becas-saved.window="modalPlaza=false; modalSector=false; modalSectorNuevo=false; modalPlazas=false; modalEditarPlaza=false">
 
   {# Los overlays fixed van FUERA del space-y-*: el margin-top los corre y el clic en esa franja no cierra #}
   <div class="space-y-5">
@@ -27,15 +28,14 @@ y `?plazas=`.{% endcomment %}
     {% page_header titulo="Sectores y plazas" eyebrow=dispositivo.nombre volver_url=url_volver volver_label=dispositivo.nombre migas=migas %}
       {% bajada %}{{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio · {{ totales.ocupadas }} ocupada{{ totales.ocupadas|pluralize }} · {{ totales.reservadas }} reservada{{ totales.reservadas|pluralize }} · {{ totales.prestadas }} prestada{{ totales.prestadas|pluralize }} · {{ totales.disponibles }} disponible{{ totales.disponibles|pluralize }}{% endbajada %}
       {% if puede_configurar_plazas %}
-      {# Enlaces y no botones: el modal lo arma el servidor con el parámetro GET, como los de P21 #}
-      <a href="?sector=nuevo" class="btn-nodo btn-tertiary btn-sm btn-fit">
+      <button type="button" @click="modalSectorNuevo=true" class="btn-nodo btn-tertiary btn-sm btn-fit">
         <i class="fas fa-layer-group" aria-hidden="true"></i> Nuevo sector
-      </a>
+      </button>
       {% if sectores %}
       {# Sin sectores activos no hay a qué agregarle plazas: el estado vacío manda al alta del sector #}
-      <a href="?plazas=1" class="btn-nodo btn-brand btn-sm btn-fit">
+      <button type="button" @click="sectorPlazas=''; modalPlazas=true" class="btn-nodo btn-brand btn-sm btn-fit">
         <i class="fas fa-plus" aria-hidden="true"></i> Agregar plazas
-      </a>
+      </button>
       {% endif %}
       {% endif %}
     {% endpage_header %}
@@ -62,16 +62,16 @@ y `?plazas=`.{% endcomment %}
       <div class="p-5">
         {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.resumen.total %}
         {% if not item.plazas and puede_configurar_plazas %}
-        <a href="?plazas={{ item.sector.pk }}" class="btn-nodo btn-brand btn-sm mt-3">
+        <button type="button" @click="sectorPlazas='{{ item.sector.pk }}'; modalPlazas=true" class="btn-nodo btn-brand btn-sm mt-3">
           <i class="fas fa-plus" aria-hidden="true"></i> Agregar plazas
-        </a>
+        </button>
         {% endif %}
       </div>
     </section>
     {% empty %}
     <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
       {% if puede_configurar_plazas %}
-      {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Un sector es cómo la institución ordena su capacidad: una habitación, un pabellón, un servicio o un turno. Las plazas se agregan adentro de uno." accion_url="?sector=nuevo" accion_texto="Nuevo sector" accion_icono="fa-plus" %}
+      {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Un sector es cómo la institución ordena su capacidad: una habitación, un pabellón, un servicio o un turno. Las plazas se agregan adentro de uno." accion_click="modalSectorNuevo=true" accion_texto="Nuevo sector" accion_icono="fa-plus" %}
       {% else %}
       {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores, cada uno aparece acá con su mapa de plazas." %}
       {% endif %}
@@ -88,9 +88,42 @@ y `?plazas=`.{% endcomment %}
       {% if plaza_accion.bloqueo %}
         {% include "programas/becas/_modal_header.html" with titulo="Plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-plaza-titulo" subtitulo=plaza_accion.plaza.sector.nombre icono="fa-bed" cerrar="modalPlaza=false" %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% if plaza_accion.accion == "reubicar" %}
+          {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se puede reubicar a la persona" texto=plaza_accion.bloqueo %}
+          <p class="text-sm text-body">La plaza está <strong class="text-heading">{{ plaza_accion.estado.estado|lower }}</strong>. Cuando se libere otra plaza del dispositivo, desde acá se mueve a la persona.</p>
+          {% else %}
           {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se puede sacar de servicio" texto=plaza_accion.bloqueo %}
           <p class="text-sm text-body">La plaza está <strong class="text-heading">{{ plaza_accion.estado.estado|lower }}</strong>. Sacar de servicio una plaza tomada dejaría a la persona en una plaza que el mapa cuenta como no operativa, así que primero se la reubica desde su estadía.</p>
+          {% endif %}
         </div>
+      {% elif plaza_accion.accion == "reubicar" %}
+        {% include "programas/becas/_modal_header.html" with titulo="Cambiar de plaza" titulo_id="modal-plaza-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalPlaza=false" %}
+        <form method="post" action="{{ url_cambiar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
+          {% csrf_token %}
+          <input type="hidden" name="volver" value="sectores">
+          <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+            <div>
+              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+              <label for="{{ form_cambio.plaza.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.plaza.label }} <span class="text-fg-danger">*</span></label>
+              {{ form_cambio.plaza }}
+              <p class="mt-1 text-xs text-body-subtle">Solo las plazas libres del dispositivo. Ahora: {{ plaza_accion.plaza.sector.nombre }} · {{ plaza_accion.plaza.codigo }}.</p>
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="plaza"></p>
+            </div>
+            <div>
+              <label for="{{ form_cambio.momento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.momento.label }} <span class="text-fg-danger">*</span></label>
+              {{ form_cambio.momento }}
+              {% if form_cambio.momento.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ form_cambio.momento.help_text }}</p>{% endif %}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="momento"></p>
+            </div>
+            <div>
+              <label for="{{ form_cambio.motivo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.motivo.label }} <span class="text-fg-danger">*</span></label>
+              {{ form_cambio.motivo }}
+              <p class="mt-1 text-xs text-fg-danger hidden" data-error="motivo"></p>
+            </div>
+            {% include "components/_alerta.html" with tono="info" texto="La plaza de ahora queda libre en el acto. El cambio queda en la línea de tiempo con su motivo y quién lo registró." %}
+          </div>
+          {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Confirmar cambio" %}
+        </form>
       {% elif plaza_accion.accion == "liberar" %}
         {% include "programas/becas/_modal_header.html" with titulo="Liberar la plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-plaza-titulo" subtitulo="Suelta la reserva o el préstamo: la plaza vuelve a estar disponible." icono="fa-unlock" cerrar="modalPlaza=false" %}
         <form method="post" action="{{ url_plaza_accion }}" data-ajax class="flex flex-col flex-1 min-h-0">
@@ -173,70 +206,16 @@ y `?plazas=`.{% endcomment %}
   </div>
   {% endif %}
 
+  {# Modales: Nuevo sector (llega con la página) y Editar sector (lo abre `?sector=<id>`) #}
+  {% if form_sector_nuevo %}
+  {% include "programas/dispositivos/sectores/_modal_sector.html" with form=form_sector_nuevo url=url_sector_nuevo abierto="modalSectorNuevo" titulo_id="modal-sector-nuevo-titulo" sector=None %}
+  {% endif %}
   {% if form_sector %}
-  {# Modal: Nuevo sector / Editar sector. Mismo formulario; la baja es el switch «Sector activo» #}
-  <div x-show="modalSector" x-cloak x-becas-modal="modalSector" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalSector=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" @click.stop
-         role="dialog" aria-modal="true" aria-labelledby="modal-sector-titulo">
-      {% if sector_en_edicion %}
-        {% include "programas/becas/_modal_header.html" with titulo="Editar sector" titulo_id="modal-sector-titulo" subtitulo=sector_en_edicion.nombre icono="fa-layer-group" cerrar="modalSector=false" %}
-      {% else %}
-        {% include "programas/becas/_modal_header.html" with titulo="Nuevo sector" titulo_id="modal-sector-titulo" subtitulo="Cómo la institución ordena su capacidad adentro del edificio." icono="fa-layer-group" cerrar="modalSector=false" %}
-      {% endif %}
-      <form method="post" action="{{ url_sector }}" data-ajax class="flex flex-col flex-1 min-h-0">
-        {% csrf_token %}
-        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              {# El error general va ADENTRO del bloque: como hijo directo de space-y-5 suma un hueco de 20px aunque esté oculto #}
-              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
-              <label for="{{ form_sector.nombre.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Nombre <span class="text-fg-danger">*</span></label>
-              {{ form_sector.nombre }}
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
-            </div>
-            <div>
-              <label for="{{ form_sector.tipo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Tipo de sector <span class="text-fg-danger">*</span></label>
-              {{ form_sector.tipo }}
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="tipo"></p>
-            </div>
-            <div>
-              <label for="{{ form_sector.perfil.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Perfil de la población</label>
-              {{ form_sector.perfil }}
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="perfil"></p>
-            </div>
-            <div>
-              <label for="{{ form_sector.capacidad.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Capacidad declarada <span class="text-fg-danger">*</span></label>
-              {{ form_sector.capacidad }}
-              <p class="mt-1 text-xs text-body-subtle">{{ form_sector.capacidad.help_text }}</p>
-              <p class="mt-1 text-xs text-fg-danger hidden" data-error="capacidad"></p>
-            </div>
-          </div>
-          <div>
-            <label for="{{ form_sector.condiciones_uso.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Condiciones de uso</label>
-            {{ form_sector.condiciones_uso }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="condiciones_uso"></p>
-          </div>
-          {% if form_sector.activo %}
-          <div>
-            <label for="{{ form_sector.activo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Sector activo</label>
-            {{ form_sector.activo }}
-            <p class="mt-1 text-xs text-body-subtle">{{ form_sector.activo.help_text }}</p>
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="activo"></p>
-          </div>
-          {% include "components/_alerta.html" with tono="warning" texto="No se da de baja un sector con plazas tomadas: primero se reubica a esas personas o se liberan sus reservas. Las plazas no se borran, siguen colgando de la historia que ya tienen." %}
-          {% else %}
-          {% include "components/_alerta.html" with tono="info" texto="El sector nace vacío: las plazas se agregan después, con «Agregar plazas». La capacidad operativa se cuenta desde ellas, no desde la cifra declarada." %}
-          {% endif %}
-        </div>
-        {% include "programas/becas/_modal_footer.html" with cancelar="modalSector=false" accion_texto="Guardar sector" %}
-      </form>
-    </div>
-  </div>
+  {% include "programas/dispositivos/sectores/_modal_sector.html" with form=form_sector url=url_sector abierto="modalSector" titulo_id="modal-sector-titulo" sector=sector_en_edicion %}
   {% endif %}
 
   {% if form_plazas %}
-  {# Modal: Agregar plazas (lote). El sector se elige acá: el botón vive en el encabezado de la pantalla #}
+  {# Modal: Agregar plazas (lote). Llega cerrado con la página; el sector se elige acá o lo trae el botón del sector vacío #}
   <div x-show="modalPlazas" x-cloak x-becas-modal="modalPlazas" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalPlazas=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop

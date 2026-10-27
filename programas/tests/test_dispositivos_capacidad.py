@@ -18,6 +18,8 @@ Lo que se fija acá, y por qué:
 """
 
 import json
+import re
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -601,9 +603,9 @@ class GuardasDeCapacidadTests(BaseCapacidad):
         url = reverse("dispositivos:sectores", args=[self.cis.pk])
         respuesta = self.client.get(url)
         self.assertContains(respuesta, "Este dispositivo no tiene sectores")
-        self.assertContains(respuesta, "?sector=nuevo")
+        self.assertContains(respuesta, '<button type="button" @click="modalSectorNuevo=true"', count=2)
         sector = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
-        self.assertContains(self.client.get(url), f"?plazas={sector.pk}")
+        self.assertContains(self.client.get(url), f"sectorPlazas='{sector.pk}'; modalPlazas=true")
         respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]), {"tab": "infraestructura"})
         self.assertContains(respuesta, "Este dispositivo no tiene edificio cargado")
         self.assertContains(respuesta, "edificio=nuevo")
@@ -742,6 +744,82 @@ class GuardasDeCapacidadTests(BaseCapacidad):
         self.assertIn("activo", admin.site._registry[Sector].get_readonly_fields(request, self.sector))
         self.assertIn("dispositivo", admin.site._registry[Sector].get_readonly_fields(request, self.sector))
         self.assertIn("sector", admin.site._registry[Plaza].get_readonly_fields(request, self.plaza))
+
+
+class AltasSinRecargaTests(BaseCapacidad):
+    """«Agregar plazas» y «Nuevo sector» abren su modal en el navegador, como el de la golden.
+
+    Eran enlaces a `?plazas=1` y `?sector=nuevo`: el clic recargaba la pantalla entera para que
+    el servidor la devolviera con el modal abierto, y en QA se veía como un F5 antes del modal.
+    Ninguna de las dos altas depende de un registro, así que los formularios llegan con la
+    página y el botón solo los muestra. «Editar sector» sí depende del suyo y sigue por GET.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.url = reverse("dispositivos:sectores", args=[self.cis.pk])
+
+    def test_el_boton_del_encabezado_abre_el_lote_sin_navegar(self):
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.get(self.url)
+
+        self.assertIn("form_plazas", respuesta.context)
+        self.assertNotContains(respuesta, 'href="?plazas=')
+        self.assertContains(respuesta, "sectorPlazas=''; modalPlazas=true")
+
+    def test_nuevo_sector_abre_su_modal_sin_navegar(self):
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.get(self.url)
+
+        self.assertFalse(respuesta.context["form_sector_nuevo"].is_bound)
+        self.assertNotIn("form_sector", respuesta.context)
+        self.assertNotContains(respuesta, 'href="?sector=nuevo"')
+        self.assertContains(respuesta, '<button type="button" @click="modalSectorNuevo=true"')
+
+    def test_la_edicion_de_un_sector_no_pisa_el_alta(self):
+        """Con `?sector=<id>` están los dos modales: cada uno con su formulario y su título."""
+
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.get(self.url, {"sector": self.sector.pk})
+
+        self.assertEqual(respuesta.context["form_sector"].initial["nombre"], self.sector.nombre)
+        self.assertNotIn("nombre", respuesta.context["form_sector_nuevo"].initial)
+        self.assertContains(respuesta, 'aria-labelledby="modal-sector-titulo"')
+        self.assertContains(respuesta, 'aria-labelledby="modal-sector-nuevo-titulo"')
+
+    def test_un_enlace_viejo_al_alta_no_avisa_que_el_sector_no_se_edita(self):
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.get(self.url, {"sector": "nuevo"})
+
+        self.assertEqual(list(respuesta.context["messages"]), [])
+        self.assertNotIn("form_sector", respuesta.context)
+
+    def test_las_altas_no_se_arman_para_quien_no_puede_ni_el_lote_sin_sectores(self):
+        self.client.force_login(self.sin_editar)
+        contexto = self.client.get(self.url).context
+        self.assertNotIn("form_plazas", contexto)
+        self.assertNotIn("form_sector_nuevo", contexto)
+
+        Sector.objects.filter(dispositivo=self.cis).update(activo=False)
+        self.client.force_login(self.operador_cis)
+        contexto = self.client.get(self.url).context
+        self.assertNotIn("form_plazas", contexto)
+        self.assertIn("form_sector_nuevo", contexto)
+
+    def test_la_pantalla_no_repite_ids_con_otro_modal_abierto(self):
+        """El lote, el sector y la plaza tienen un campo `tipo`, y el alta y la edición del sector
+        son el mismo formulario: ahora conviven en el HTML."""
+
+        self.client.force_login(self.operador_cis)
+        for parametros in ({}, {"sector": "nuevo"}, {"sector": self.sector.pk}, {"editar_plaza": self.plaza.pk}):
+            with self.subTest(parametros=parametros):
+                html = self.client.get(self.url, parametros).content.decode()
+                repetidos = [i for i, n in Counter(re.findall(r'\sid="([^"]+)"', html)).items() if n > 1]
+                self.assertEqual(repetidos, [])
 
 
 @tag("performance")

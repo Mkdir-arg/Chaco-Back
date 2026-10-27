@@ -568,7 +568,8 @@ class AgregarPlazasForm(forms.Form):
         label="Sector",
         queryset=None,
         empty_label="Elegí el sector",
-        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        # P5 abre el modal sin recargar: el botón de cada sector vacío elige el suyo acá.
+        widget=forms.Select(attrs={"class": INPUT_CLASS, "x-model": "sectorPlazas"}),
         error_messages={"required": "Elegí a qué sector agregar las plazas."},
     )
     cantidad = forms.IntegerField(
@@ -593,6 +594,9 @@ class AgregarPlazasForm(forms.Form):
     )
 
     def __init__(self, *args, dispositivo, sectores, **kwargs):
+        # Llega con P5 aunque se abra otro modal, y SectorForm y PlazaForm también tienen
+        # `tipo`: sin prefijo se repetiría id_tipo.
+        kwargs.setdefault("auto_id", "id_plazas_%s")
         super().__init__(*args, **kwargs)
         self.dispositivo = dispositivo
         # El label de Sector usa el código del dispositivo; cargarlo una vez evita
