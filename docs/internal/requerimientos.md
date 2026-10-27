@@ -511,6 +511,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 385 | Los tipos de dispositivo de la v1 pasan solos a «Sectores y plazas», sin exigir plaza al ingresar | Dispositivos · Configuración · Tipos | `#datos` | PM — decisión sobre la conversión de los tipos v1 | 26/10/2026 | 🟢 **Hecho** | `programas.0106` |
 | 386 | Dispositivos: los modales del tipo y de sectores y plazas pasan al modal y al campo estándar | Dispositivos · Configuración → Tipos, P5 Sectores y plazas, cambio de plaza (P4, estadía) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 387 | Dispositivos: limpieza de los MINOR de las auditorías de #979, #980, #982 y #983 y del carril de diseño | Dispositivos · P4, P21, configuración de tipos, ingreso; `core/dni`, `nodo_ui`, fichas de diseño | `#ui` `#relevamientos` | Juez del carril (auditorías) | 27/10/2026 | 🟢 **Hecho** | No requiere |
+| 388 | Sectores y plazas: la plaza libre se reserva, se presta o se saca de servicio, y tocar una plaza no recarga la página | Dispositivos · P5 Sectores y plazas · modal de asignar relevamiento (P4, P21) | `#ui` `#rbac` `#performance` `#relevamientos` | PM — prueba en testing | 27/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -37035,6 +37036,10 @@ existían y dejan su `TrazaDispositivo`, que es aditiva.
 Entrada nueva. Cierra los pendientes de enlaces del Cambio 281, el N+1 del Cambio 272 y la
 contención del Cambio 262.
 
+- **27/10/2026 — Cambio 388:** reservar y prestar desde el mapa, que este cambio dejó afuera, entran ahora: la
+  persona se elige por DNI, y además de `dispositivo.admitir` piden `ciudadano.ver`. La plaza disponible ofrece las
+  tres opciones, y la regla «una acción por plaza» pasa a ser una lista (`acciones_de_plaza`).
+
 ---
 
 ---
@@ -42713,6 +42718,11 @@ No son funciones nuevas que se implementen en este carril.
 
 Revertir los commits de código y documentación. No hay datos ni esquema que deshacer; vuelven
 los defaults abiertos, el rótulo genérico y la ventana de carrera en el alcance previo al lock.
+
+## Historial
+
+- **27/10/2026 — Cambio 388:** la decisión 10 («sin alta nueva de reservas/préstamos») se revierte a pedido del PM:
+  la plaza disponible del mapa se reserva o se presta, con la persona elegida por DNI.
 
 ---
 
@@ -49090,5 +49100,173 @@ dígitos que no son ASCII.
 ## Historial
 
 - **27/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 388 — Sectores y plazas: la plaza libre se reserva, se presta o se saca de servicio, y tocar una plaza no recarga la página
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P5 Sectores y plazas · modal «Crear relevamiento» (P4) y «Asignar relevamiento» (P21) |
+| **Etiquetas** | `#ui` `#rbac` `#performance` `#relevamientos` |
+| **Solicitante** | PM — prueba en testing (27/10/2026), plan aprobado; más un MINOR de la auditoría de #984 |
+| **Fecha del pedido** | 27/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/sectores/sectores.html`, parcial nueva `sectores/_modal_reubicar.html`, pieza canónica `components/_mapa_plazas.html`, `relevamientos/_campos_asignar.html`, `legajo/detail.html`, `relevamientos/list.html` · Servidor: `services/sectores_plazas.py`, `views/dispositivos_legajo.py`, `views/dispositivos_relevamientos.py`, `forms_dispositivos.py`, `dispositivos_urls.py` · Fichas: `.claude/design/componentes/mapa_plazas.md`, fila de la pieza en `.claude/agents/chaco-design-system.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En `/dispositivos/<id>/sectores/`, el PM pidió dos cosas:
+
+1. Al tocar una plaza **disponible**, que el modal ofrezca **Reservar, Prestar y Sacar de servicio**. Hasta ahora
+   solo ofrecía «Sacar de servicio».
+2. Que tocar una plaza **no recargue la página**. La celda era un enlace `?plaza=<id>` y hacía una navegación
+   completa.
+
+Además se suma el MINOR que dejó la auditoría de #984: en el modal de asignar relevamiento, cuando un campo vuelve
+con error, la ayuda del campo quedaba debajo del error.
+
+## Alcance acordado
+
+- **Revierte una decisión registrada.** Los Cambios 287, 291 y 325 (punto 10) dejaron fuera «reservar y prestar
+  desde el mapa» porque la reserva necesita elegir a la persona. Ahora entra: la persona se elige por DNI. Queda
+  anotado en el Historial de 287 y 325.
+- Las otras ramas del modal no cambian. Una plaza ocupada ofrece «Cambiar de plaza» (Cambio 377), una con reserva
+  abierta ofrece «Liberar» y una fuera de servicio ofrece «Volver a servicio».
+- Sin alta de personas desde el mapa: el alta sigue siendo «Ingresar persona».
+
+## Decisiones tomadas
+
+**Reservar y prestar** (plan aprobado por el PM):
+- **Reservar** pide el **DNI** y un motivo opcional.
+  - El servidor busca a la persona con el mismo servicio del asistente de ingreso (`ingreso.buscar_ciudadano_por_dni`),
+    con el DNI normalizado por `core/dni`.
+  - Si no la encuentra, el campo muestra «No encontramos a nadie con ese DNI: dala de alta desde Ingresar persona.»
+- **Prestar** pide lo mismo y además **«Hasta»**, que es obligatorio. Los botones **12 h / 24 h** lo completan, y
+  también se puede escribir una fecha y hora.
+- Las dos usan el servicio que ya existía, `estadias.reservar_plaza`, que deja la traza `PLAZA_RESERVADA`. Las vistas
+  son hijas de `_PlazaAccionView`: mismo gate de alcance, mismo CSRF, mismo 404 para la plaza ajena, inexistente o de
+  un sector dado de baja.
+- **Sacar de servicio** no cambia: motivo obligatorio y capacidad `dispositivo.editar`.
+
+**Decisión del juez: reservar y prestar exigen además `ciudadano.ver`.** El plan decía solo `dispositivo.admitir`,
+pero buscar una persona por DNI es consultar el padrón. Sin `ciudadano.ver`, la diferencia entre «no encontramos» y
+el éxito sería un oráculo para saber quién está en el Legajo. El asistente de ingreso ya exige las dos capacidades
+(`dispositivos_ingreso.py`), y esta regla queda alineada con él.
+- Si falta una de las dos, la opción no aparece.
+- El POST se rechaza **antes** de validar el formulario, con la misma respuesta que la falta de alcance: 403 si es
+  AJAX y `PermissionDenied` si no.
+- Si quien mira no puede ninguna opción, la plaza no es clickeable, como antes.
+
+**Qué ofrece cada plaza según la capacidad** (`acciones_de_plaza`, que reemplaza a `accion_de_plaza` y `_habilitada`):
+
+| Situación | Acciones | Capacidad |
+|---|---|---|
+| Fuera de servicio | volver a servicio | `dispositivo.editar` |
+| Con reserva o préstamo sin liberar | liberar | `dispositivo.admitir` |
+| Ocupada | reubicar | `dispositivo.admitir` |
+| Ocupada, sin `admitir` | sacar de servicio, **bloqueada** con su motivo | `dispositivo.editar` |
+| Disponible | reservar y prestar | `dispositivo.admitir` + `ciudadano.ver` |
+| Disponible | sacar de servicio | `dispositivo.editar` |
+
+**El mapa no recarga:**
+- La celda con acción pasa a ser un `<button type="button" @click>`. Para eso, la pieza canónica `_mapa_plazas.html`
+  suma un campo opcional, `click`, que tiene prioridad sobre `url`. Los demás usos de la pieza (asistente de ingreso,
+  cambio de plaza) siguen con `url` o sin acción, y su HTML no cambia.
+- Reservar, prestar, sacar de servicio, liberar y volver a servicio se resuelven en un **único modal Alpine** con sus
+  formularios armados una vez en la página, cada uno con su propio `auto_id`.
+  - Los datos de cada plaza (código, estado, acciones y bloqueo) viajan en un `json_script` (`plazas_modal`) y salen
+    de lo que el mapa ya calculaba.
+  - El `action` de cada formulario se arma con una URL por acción, con `__pk__` en el lugar del id.
+  - El presupuesto `dispositivos_sectores_con_plazas` **no sube**: siguen siendo 8 consultas fijas.
+- **Cambiar de plaza** (plaza ocupada) depende de la estadía y de las plazas libres, y el mapa no puede traerlas
+  plaza por plaza sin pasarse del presupuesto.
+  - **Decisión del juez:** la celda pide el cuerpo del modal por AJAX (`?plaza=<id>&fragmento=reubicar`). La vista
+    corta antes de armar el mapa, con el mismo gate y el mismo 404.
+  - El cuerpo sale de la parcial nueva `_modal_reubicar.html`, que es la misma que usa el camino `?plaza=<id>` sin JS.
+  - El formulario inyectado envía por el handler delegado de `data-ajax`, y Alpine se inicializa con `initTree`.
+  - Si el pedido falla, navega a `?plaza=<id>`.
+- `?plaza=<id>` sigue abriendo el modal ya elegido, como enlace directo.
+- **Decisión del juez: el guardado exitoso sí recarga**, con el `redirect` del JSON de siempre, para redibujar el mapa
+  y las cifras. Lo que dejó de recargar es abrir el modal y equivocarse. Los errores de validación quedan en el modal
+  abierto, por AJAX.
+- **Decisión del juez:** «Editar plaza» (`?editar_plaza=<id>`) sigue siendo un enlace. No entró en el pedido y su
+  modal lo arma el servidor.
+- **Decisión del juez:** el modal genérico usa un solo encabezado («Reservar la plaza P2», «Liberar la plaza P2»…).
+  Pierde el subtítulo y el tono por acción que tenía antes, porque `_modal_header.html` no los acepta dinámicos y
+  tocar la pieza quedaba fuera de alcance. Queda pendiente.
+
+**MINOR de #984**:
+- Las dos ayudas de la parcial `_campos_asignar.html` pasan a ser el `help_text` de su campo, así que
+  `components/_field.html` las dibuja **antes** del error y las enlaza por `aria-describedby`.
+  - La ayuda del edificio (P4) solo se muestra cuando el edificio no es fijo.
+  - La ayuda del agente externo (P21) va con `format_html`: el nombre del edificio es dato de usuario y la
+    `<strong>` se conserva.
+- La parcial ya no recibe `ayuda_edificio` ni `edificio_nombre`.
+
+## Implementación
+
+Commits `f2beffa2` y `1b6a9312` de la rama `feat/dispositivos-plaza-libre-acciones`.
+
+## Archivos
+
+Los de «Partes afectadas», más los tests:
+- `programas/tests/test_dispositivos_plazas_acciones.py`: opciones según la capacidad, reservar y prestar (éxito, DNI
+  inexistente, préstamo sin «hasta», sin `admitir`, sin `ciudadano.ver`, plaza ajena), celda `<button>` y fragmento de
+  reubicar (solo el modal, 404 para la plaza ajena, libre o sin capacidad, techo de consultas);
+- `core/tests/test_nodo_ui_lote_b.py`: botón o enlace de la pieza;
+- `programas/tests/test_dispositivos_crear_relevamiento_p4.py` y `test_dispositivos_relevamientos_listado.py`: la
+  ayuda va antes del error.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Tests de todos los módulos `programas/tests/test_dispositivos*.py`: 1257 OK. También `core.tests.test_nodo_ui_*`
+  y `--tag performance programas` (45, sin subir presupuestos).
+- Mutaciones en rojo:
+  - las vistas con `dispositivo.editar` en lugar de `admitir`;
+  - la lista de acciones sin el filtro de `admitir`;
+  - «sacar de servicio» ofrecido con `admitir`;
+  - la vista sin el chequeo de `ciudadano.ver` (13 subtests caen, el juez lo repitió);
+  - el servicio sin el filtro de `ciudadano.ver`.
+- Navegador (Playwright sobre SQLite) en P5. Ninguna apertura de modal navegó (se marcó `window` y se siguió el
+  `framenavigated`):
+  - plaza libre: modal con las tres opciones;
+  - DNI inexistente: error en el campo;
+  - reservar: «Reservada», y la plaza ofrece «Liberar»;
+  - prestar con 12 h: «Prestada hasta…»;
+  - sacar de servicio: «Fuera de serv.»;
+  - plaza ocupada: «Cambiar de plaza» por fragmento, con los errores del formulario sin recargar, y el cambio
+    aplicado;
+  - `?plaza=<id>`: abre el modal.
+- `manage.py check`, `makemigrations --check --dry-run` (sin syncdb), ruff, `design_audit --ratchet` (0 nuevos),
+  `compile_templates --bloques` (0) y `check_design_agent --changed`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada. Para reservar y prestar desde el mapa, el rol necesita `dispositivo.admitir` y `ciudadano.ver`. Los roles los
+configura el PM.
+
+## Pendientes / a definir
+
+- El subtítulo y el tono del encabezado por acción en el modal genérico. Requiere que `_modal_header.html` acepte
+  esos valores dinámicos.
+- Sin JS, un error de reservar o prestar vuelve a la pantalla con un aviso y sin el modal abierto, igual que las
+  demás acciones de `_PlazaAccionView`.
+
+## Reversión
+
+Revertir el merge. No hay esquema ni datos que deshacer: las reservas y los préstamos creados quedan como registros
+normales de `ReservaPlaza`, y se liberan desde el mapa.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.** Revierte el «queda afuera» de reservar y prestar de los Cambios 287, 291 y 325.
 
 ---
