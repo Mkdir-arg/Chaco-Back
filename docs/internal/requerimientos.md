@@ -48412,14 +48412,22 @@ MINOR de las auditorías de #978 y #975.
 
 ## Decisiones tomadas
 
-- **Modal del tipo** (`_edit_modal.html`): esqueleto de la golden (`_modal_header`/`_modal_footer`), con los
-  atributos y el JS inline que ya tenía (abre por `fetch`, foco atrapado, Escape). No lleva `x-becas-modal` ni
-  `becas-modal.js` porque llega por `fetch`, fuera de Alpine: queda documentado en `modal.md` como «Modal
-  inyectado por fetch» (los desvíos de `--arquetipo modal` bajan de 5 a 2 y son esos dos).
+- **Modal del tipo** (`_edit_modal.html`): esqueleto de la golden (`_modal_header`/`_modal_footer`). Llega por
+  `fetch`, fuera de Alpine, así que no lleva `x-becas-modal`: `tipo_detail.html` lo engancha con
+  `window.becasModal.bind` (foco atrapado, Escape, X y Cancelar) y se borra el JS propio que lo duplicaba. Queda
+  en la variante de `bind` de `modal.md`. Los desvíos de `--arquetipo modal` sobre el parcial bajan de 5 a 2: el
+  atributo y el script los pone la página que lo inyecta.
 - **Arrastrar no cierra**: el modal se cierra con un clic en el fondo solo si el `pointerdown` también fue en el
   fondo. Antes, seleccionar texto de un campo y soltar afuera cerraba el modal y se perdía lo escrito.
-- **Confirmación**: el SweetAlert2 de Activar/Desactivar el tipo pasa a la confirmación estándar
-  (`_confirm_js.html`, ModernModal). Mismos textos.
+- **Confirmación**: el SweetAlert2 del detalle del tipo pasa a la confirmación estándar (`_confirm_js.html`,
+  ModernModal), con los mismos textos. Atendía todos los botones con `data-confirm-url`, así que el cambio cubre
+  Activar/Desactivar el tipo y también Reactivar, Dar de baja y Eliminar de los formularios por momento. El tono
+  sigue el de la acción: rojo para desactivar, dar de baja y eliminar; el del sistema para activar y reactivar
+  (`data-confirm-danger="false"`).
+- **Texto de ayuda de P7** (decisión del juez): queda el texto unificado «Ahora: Sector · CÓDIGO», el mismo en
+  P4, P5 y la estadía, porque ahora sale de una sola parcial.
+- **Reubicar desde el mapa sin consulta de más**: `_sectores_para_cambio` recibe el dispositivo que ya cargó la
+  vista, con su tipo, en vez de `estadia.dispositivo`. Lo cubre un test que cuenta las consultas al tipo.
 - **Campos**: los de los modales de sector, plaza, agregar plazas, liberar, fuera de servicio y cambio de plaza,
   los del tipo y el de «Nuevo formulario» pasan a `components/_field.html` (`wrapper_class=""` en los modales).
   Los textos de ayuda que estaban en el HTML pasan al `help_text` del form, con el mismo texto. Las casillas
