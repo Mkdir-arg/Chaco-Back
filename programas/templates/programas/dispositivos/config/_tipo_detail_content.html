@@ -6,15 +6,15 @@
     {% page_header titulo=tipo.nombre eyebrow="Tipo de dispositivo" volver_url=url_volver volver_label="tipos de dispositivo" estado_texto=estado_header.texto estado_variante=estado_header.tono %}
       {% bajada %}{{ tipo.codigo }} · {{ formularios|length }} formulario{{ formularios|length|pluralize }}{% if tipo.descripcion %} · {{ tipo.descripcion }}{% endif %}{% if tipo.maneja_plazas %}<br>Semáforo de ocupación: amarillo desde {{ tipo.umbral_ocupacion_amarillo }}% · rojo desde {{ tipo.umbral_ocupacion_rojo }}%.{% endif %}{% endbajada %}
       {% if form_nuevo_formulario %}
-      <button type="button" class="btn-nodo btn-tertiary btn-base" @click="modalNuevoFormulario=true">
+      <button type="button" class="btn-nodo btn-tertiary btn-sm btn-fit" @click="modalNuevoFormulario=true">
         <i class="fas fa-plus" aria-hidden="true"></i> Nuevo formulario
       </button>
       {% endif %}
       <a href="{% url 'dispositivos:tipo_editar' tipo.pk %}"
-         class="btn-nodo btn-secondary btn-base"
+         class="btn-nodo btn-secondary btn-sm btn-fit"
          data-edit-url="{% url 'dispositivos:tipo_editar' tipo.pk %}">Editar tipo</a>
       <button type="button"
-              class="btn-nodo {% if tipo.activo %}btn-tertiary{% else %}btn-secondary{% endif %} btn-base"
+              class="btn-nodo {% if tipo.activo %}btn-tertiary{% else %}btn-secondary{% endif %} btn-sm btn-fit"
               data-confirm-url="{% url 'dispositivos:tipo_toggle' tipo.pk %}"
               data-confirm-title="{% if tipo.activo %}Desactivar tipo{% else %}Activar tipo{% endif %}"
               data-confirm-text="{% if tipo.activo %}El tipo dejará de estar disponible para nuevas operaciones.{% else %}El tipo volverá a estar disponible.{% endif %}"

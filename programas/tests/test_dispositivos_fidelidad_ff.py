@@ -77,15 +77,15 @@ class FidelidadFFTests(BaseDetalle):
             self.client.get(reverse("dispositivos:editar", args=[self.cis.pk])), 'id="duplicate-search"'
         )
 
-    def test_cerrar_es_terciario_y_conserva_confirmacion_destructiva(self):
+    def test_cerrar_va_al_menu_de_mas_acciones_y_conserva_confirmacion_destructiva(self):
         html = self.client.get(self.url).content.decode()
         boton = re.search(
             r'<button[^>]+data-confirm-url="'
             + re.escape(reverse("dispositivos:cerrar", args=[self.cis.pk]))
-            + r'"[^>]*>Cerrar</button>',
+            + r'"[^>]*>.*?Cerrar</span></button>',
             html,
         ).group()
-        self.assertIn('class="btn-nodo btn-tertiary btn-sm btn-fit"', boton)
+        self.assertIn("nodo-menu-fila__item--danger", boton)
         self.assertIn('data-confirm-danger="true"', boton)
         self.assertIn('data-confirm-ok="Sí, cerrar"', boton)
         self.assertIn('data-confirm-url="' + reverse("dispositivos:inactivar", args=[self.cis.pk]) + '"', html)

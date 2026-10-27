@@ -556,6 +556,9 @@ class AccionesYAlcanceTests(BaseDetalle):
         self.assertEqual(respuesta.status_code, 200)
         for url in acciones:
             self.assertNotContains(respuesta, url)
+        # Sin ninguna acción secundaria, el menú del encabezado no se dibuja.
+        self.assertContains(con_permisos, 'id="menu-fila-acciones-dispositivo"')
+        self.assertNotContains(respuesta, 'id="menu-fila-acciones-dispositivo"')
 
     def test_la_fila_ofrece_la_estadia_solo_con_ciudadano_ver(self):
         """El ojo abre el detalle de la estadía (P7, #698), que a su vez enlaza al legajo."""
@@ -592,6 +595,23 @@ class AccionesYAlcanceTests(BaseDetalle):
         self.assertContains(respuesta, f'action="{reverse("dispositivos:rechazar", args=[self.cis.pk])}"')
         self.assertContains(respuesta, 'name="motivo"', count=2)
         self.assertContains(respuesta, f'data-confirm-url="{reverse("dispositivos:validar", args=[self.cis.pk])}"')
+        # Observar y Rechazar son ítems del menú «Más acciones» y abren su modal desde ahí.
+        self.assertContains(respuesta, 'role="menuitem" class="nodo-menu-fila__item" @click="modalObservar=true"')
+        self.assertContains(
+            respuesta,
+            'role="menuitem" class="nodo-menu-fila__item nodo-menu-fila__item--danger" @click="modalRechazar=true"',
+        )
+        self.assertContains(respuesta, "Más acciones <i")
+
+    def test_pendiente_de_validacion_sin_dispositivo_validar_no_ofrece_observar_ni_rechazar(self):
+        editor = self._operador("Editor", self.cis, ("dispositivo.ver", "dispositivo.editar"))
+        Dispositivo.objects.filter(pk=self.cis.pk).update(estado=Dispositivo.Estado.PENDIENTE_VALIDACION)
+        self.client.force_login(editor)
+
+        respuesta = self.client.get(self.url)
+
+        self.assertNotContains(respuesta, "modalObservar=true")
+        self.assertNotContains(respuesta, "modalRechazar=true")
 
     def test_un_dispositivo_inactivo_explica_por_que_no_se_puede_ingresar(self):
         Dispositivo.objects.filter(pk=self.cis.pk).update(estado=Dispositivo.Estado.INACTIVO)
