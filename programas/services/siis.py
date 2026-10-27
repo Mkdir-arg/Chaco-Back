@@ -844,6 +844,30 @@ def catalogo(nombre):
     return SiisAPIClient().catalogo(nombre)
 
 
+def catalogo_geografico(nombre):
+    """Geografía verificada del organismo, con los mismos IDs que usa el alta.
+
+    El ID de localidad se repite entre provincias. No se mezcla este padrón
+    con el catálogo de la API, que puede devolver posiciones en vez de IDs.
+    """
+    from programas.models import LocalidadSiis, ProvinciaSiis
+
+    if nombre == "provincias":
+        items = [{"id": p.siis_id, "nombre": p.nombre} for p in ProvinciaSiis.objects.all()]
+    elif nombre == "localidades":
+        items = [
+            {"id": localidad.siis_id, "nombre": localidad.nombre, "id_provincia": localidad.provincia.siis_id}
+            for localidad in LocalidadSiis.objects.select_related("provincia").all()
+        ]
+    else:
+        raise ValueError(f"Catálogo geográfico SIIS desconocido: {nombre}")
+    if not items:
+        raise SiisCatalogError(
+            "El padrón geográfico de SIIS no está cargado. Solicitá al administrador ejecutar seed_catalogo_siis."
+        )
+    return items
+
+
 def funciones_programa(id_programa):
     return SiisAPIClient().funciones_programa(id_programa)
 

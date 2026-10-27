@@ -62,8 +62,9 @@ class LocalidadesDelSelectTests(_BaseAprobacionTest):
 
     def setUp(self):
         super().setUp()
-        patch("programas.views.revision.catalogo", side_effect=_catalogo).start()
+        patch("programas.views.revision.catalogo_geografico", side_effect=_catalogo).start()
         patch("programas.forms.catalogo", side_effect=_catalogo).start()
+        patch("programas.forms.catalogo_geografico", side_effect=_catalogo).start()
         self.addCleanup(patch.stopall)
 
     def _ids(self, provincia):
@@ -103,6 +104,7 @@ class LocalidadCruzadaConLaProvinciaTests(_BaseAprobacionTest):
     def setUp(self):
         super().setUp()
         patch("programas.forms.catalogo", side_effect=_catalogo).start()
+        patch("programas.forms.catalogo_geografico", side_effect=_catalogo).start()
         patch("programas.forms.listar_programas", return_value=[{"id": 79, "nombre": "Ñachec"}]).start()
         self.addCleanup(patch.stopall)
 
@@ -129,3 +131,84 @@ class LocalidadCruzadaConLaProvinciaTests(_BaseAprobacionTest):
         form = self._form({"prov_actual": "22", "loc_actual": "5"})
 
         self.assertTrue(form.is_valid(), form.errors)
+
+
+class PadronGeograficoRevisionTests(_BaseAprobacionTest):
+    """El modal usa el padrón verificado, no la lista incompleta de la API."""
+
+    def setUp(self):
+        super().setUp()
+        from programas.models import LocalidadSiis, ProvinciaSiis
+
+        self.chaco = ProvinciaSiis.objects.create(siis_id=1, nombre="CHACO", clave="chaco")
+        self.bsas = ProvinciaSiis.objects.create(siis_id=21, nombre="BUENOS AIRES", clave="buenos aires")
+        LocalidadSiis.objects.create(provincia=self.chaco, siis_id=1, nombre="RESISTENCIA", clave="resistencia")
+        LocalidadSiis.objects.create(provincia=self.bsas, siis_id=1, nombre="LA PLATA", clave="la plata")
+        self.api = patch(
+            "programas.services.siis.SiisAPIClient.catalogo", side_effect=AssertionError("No usar API")
+        ).start()
+        patch("programas.forms.catalogo", side_effect=_catalogo).start()
+        patch("programas.forms.listar_programas", return_value=[]).start()
+        self.addCleanup(patch.stopall)
+
+    def test_endpoint_ofrece_localidades_de_buenos_aires(self):
+        respuesta = self.client.get(reverse("becas:siis_localidades"), {"provincia": 21})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json(), {"localidades": [{"id": 1, "nombre": "LA PLATA"}]})
+        self.api.assert_not_called()
+
+    def test_formulario_ofrece_ids_de_provincia_del_padron(self):
+        from programas.forms import DatosSiisForm
+
+        form = DatosSiisForm()
+        for campo in ("prov_actual", "prov_nacim"):
+            self.assertIn(("21", "BUENOS AIRES"), form.fields[campo].choices)
+            self.assertIn(("1", "CHACO"), form.fields[campo].choices)
+
+    def test_ids_repetidos_se_validan_por_provincia_en_ambos_campos(self):
+        from programas.forms import DatosSiisForm
+
+        for provincia in (1, 21):
+            with self.subTest(provincia=provincia):
+                form = DatosSiisForm(
+                    {
+                        "prov_actual": str(provincia),
+                        "loc_actual": "1",
+                        "prov_nacim": str(provincia),
+                        "loc_nacim": "1",
+                    }
+                )
+                self.assertTrue(form.is_valid(), form.errors)
+                self.assertEqual(form.como_datos_siis()["prov_actual"], provincia)
+
+    def test_localidad_no_se_resuelve_sin_provincia_si_el_id_se_repite(self):
+        from programas.forms import DatosSiisForm
+
+        form = DatosSiisForm({"loc_actual": "1", "loc_nacim": "1"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("prov_actual", form.errors)
+        self.assertIn("prov_nacim", form.errors)
+
+    def test_localidad_de_otra_provincia_se_rechaza_en_ambos_campos(self):
+        from programas.forms import DatosSiisForm
+        from programas.models import LocalidadSiis
+
+        LocalidadSiis.objects.create(provincia=self.chaco, siis_id=64, nombre="CASTELLI", clave="castelli")
+        form = DatosSiisForm({"prov_actual": "21", "loc_actual": "64", "prov_nacim": "21", "loc_nacim": "64"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("no pertenece a la provincia", str(form.errors["loc_actual"]))
+        self.assertIn("no pertenece a la provincia", str(form.errors["loc_nacim"]))
+
+    def test_valida_localidades_con_provincias_ya_guardadas(self):
+        from programas.forms import DatosSiisForm
+
+        form = DatosSiisForm({"loc_actual": "1", "loc_nacim": "1"}, actuales={"prov_actual": 21, "prov_nacim": 1})
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_endpoint_sin_padron_informa_como_cargarlo(self):
+        from programas.models import LocalidadSiis
+
+        LocalidadSiis.objects.all().delete()
+        respuesta = self.client.get(reverse("becas:siis_localidades"), {"provincia": 21})
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertIn("seed_catalogo_siis", respuesta.json()["error"])
