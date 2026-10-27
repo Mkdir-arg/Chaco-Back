@@ -502,6 +502,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 376 | El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro | Dispositivos · Configuración → Tipos | `#ui` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 377 | Sectores y plazas: reubicar a la persona desde la plaza ocupada | Dispositivos · P5 · Sectores y plazas | `#ui` `#rbac` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 380 | Detalle de una institución (P4): las acciones secundarias del encabezado van al menú «Más acciones» | Dispositivos · detalle de la institución (P4) · menú de fila | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 384 | «Crear relevamiento» desde la solapa Infraestructura de la institución | Dispositivos · P4 · Infraestructura | `#ui` `#relevamientos` `#rbac` | PM — pedido en sesión | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -48108,5 +48109,110 @@ Revertir el commit.
 ## Historial
 
 - **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 384 — «Crear relevamiento» desde la solapa Infraestructura de la institución
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P4 (detalle de la institución) · solapa Infraestructura |
+| **Etiquetas** | `#ui` `#relevamientos` `#rbac` |
+| **Solicitante** | PM — pedido en sesión, 26/10/2026 («un botón Crear relevamiento al lado de Vincular un edificio»); las tres preguntas, respondidas «sí a las 3» el 27/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `legajo/detail.html` (botón y modal), `DispositivoDetailView._preparar_relevamiento`, vista nueva `DispositivoRelevamientoAsignarView` (ruta `dispositivos:relevamiento_asignar_dispositivo`), `AsignarRelevamientoDispositivoForm`, `services/inspecciones.py` (`agentes_asignables_para`, `edificios_para_asignar_del_dispositivo`), ficha `.claude/design/arquetipos/modal.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En `/dispositivos/<id>/?tab=infraestructura`, al lado de «Vincular un edificio», un botón «Crear relevamiento»
+para asignar el relevamiento edilicio sin ir a la pantalla de Relevamientos (P21).
+
+## Alcance acordado
+
+Respuestas del PM («sí a las 3»):
+
+1. Los mismos cuatro campos del modal de P21: edificio, agente territorial, vence (obligatorio) e indicaciones.
+2. Con varios edificios, un selector con los que **no** tienen un relevamiento en curso; con uno solo, fijo.
+3. El territorial es un usuario con un rol activo del programa Dispositivos que tenga «Cargar el resultado de
+   los relevamientos edilicios asignados» (`inspeccion.relevar`): por capacidad, nunca por nombre de grupo.
+
+Se mantienen las reglas de P21: el botón aparece solo con `inspeccion.asignar` y alcance sobre el edificio, y
+no aparece si ningún edificio de la institución admite uno nuevo.
+
+## Decisiones tomadas
+
+- **Mismo circuito que P21**: el alta la hace `crear_inspeccion`, que vuelve a validar capacidad, alcance,
+  edificio sin uno en curso y agente. No se duplica ninguna regla.
+- **La ruta cuelga de la institución** (`<pk>/relevamiento/asignar/`) y el edificio viaja en el POST: el
+  formulario lo acota a los elegibles de esa institución. Un edificio ajeno, fuera del alcance o con uno en
+  curso da el mismo error en el campo, sin decir cuál de los tres es.
+- **Con un solo edificio elegible** el campo va deshabilitado: Django usa el inicial e ignora lo que llegue.
+- **Territorial con varios edificios** (decisión del juez): el selector ofrece la unión de los agentes válidos
+  para cada edificio, sin el personal que lo es de **todos**. Un agente válido para uno y personal del otro
+  pasa el selector y lo rechaza el servicio al elegir el edificio que no corresponde (`_validar_agente`, error
+  en «Agente territorial»). La regla del agente externo (`AGENTE_DEBE_SER_EXTERNO`) queda solo en el servicio.
+- **Abre sin recargar** (decisión del juez): botón `@click` y formulario con la página, como las altas de P5
+  del Cambio 379, porque el PM rechazó la recarga. La variante GET del arquetipo Modal queda para lo que
+  depende de un registro. Costo aceptado: para quien puede asignar y tiene edificios elegibles, P4 suma una
+  consulta de edificios y hasta dos del selector de agentes; nadie más paga nada. Ningún presupuesto vigente
+  cambia.
+- `auto_id="relev_%s"`: la página ya trae el campo `edificio` del modal de vincular.
+- La barra de la solapa se dibuja también para quien solo puede asignar: ve «Crear relevamiento» y no los
+  botones de edificio.
+- Al guardar, toast y vuelta a la solapa Infraestructura.
+
+## Implementación
+
+Botón «Crear relevamiento» en la barra de la solapa Infraestructura. El modal sigue el esqueleto de la golden
+(`_modal_header`/`_modal_footer`, POST AJAX con `data-ajax`) y avisa que nunca se asigna al personal de la
+institución relevada. Si no queda ningún edificio elegible, el botón no aparece.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/legajo/detail.html`
+- `programas/views/dispositivos_legajo.py` (`_preparar_relevamiento`)
+- `programas/views/dispositivos_relevamientos.py` (`DispositivoRelevamientoAsignarView`)
+- `programas/dispositivos_urls.py` (`relevamiento_asignar_dispositivo`)
+- `programas/forms_dispositivos.py` (`AsignarRelevamientoDispositivoForm`, `AUTO_ID_RELEVAMIENTO`; el edificio
+  de `AsignarRelevamientoForm` pasa a opcional para poder heredarlo, sin cambio para P21)
+- `programas/services/inspecciones.py` (`agentes_asignables_para`, `edificios_para_asignar_del_dispositivo`)
+- `programas/tests/test_dispositivos_crear_relevamiento_p4.py` (nuevo, 26 tests)
+- `.claude/design/arquetipos/modal.md` (consumidor «Alta que elige el registro adentro»)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 26 tests nuevos: botón con y sin capacidad, sin elegibles, edificio fijo y selector, POST que crea y que
+  rechaza (sin capacidad, edificio ajeno, edificio con uno en curso, agente que es personal del edificio,
+  vencimiento vacío), formulario solo para quien puede, enlace viejo ignorado y sin ids repetidos en P4.
+- Mutación: sin el filtro por institución de `edificios_para_asignar_del_dispositivo`, fallan 2 tests.
+- 305 tests de P4, infraestructura, inspecciones y relevamientos y `--tag performance programas` (44): OK.
+- `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y
+  `check_design_agent --changed`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada. Quien asigna necesita `inspeccion.asignar` en un rol del programa (el Administrador la recibe con el
+Cambio 383) y tiene que haber territoriales con `inspeccion.relevar`; los roles los configura el PM.
+
+## Pendientes / a definir
+
+- Nada de este cambio.
+
+## Reversión
+
+Revertir el commit: desaparecen el botón, el modal y la ruta nueva. Los relevamientos creados desde P4 son
+relevamientos comunes de P21 y siguen ahí.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.**
 
 ---
