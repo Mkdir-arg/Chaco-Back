@@ -207,7 +207,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
         {% csrf_token %}
         <input type="hidden" name="volver" value="{{ volver_qs }}">
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          {% include "programas/dispositivos/relevamientos/_campos_asignar.html" with form=form_asignar agente_externo=agente_externo edificio_nombre=edificio_asignar.nombre only %}
+          {% include "programas/dispositivos/relevamientos/_campos_asignar.html" with form=form_asignar agente_externo=agente_externo only %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalAsignar=false" accion_texto="Asignar relevamiento" %}
       </form>

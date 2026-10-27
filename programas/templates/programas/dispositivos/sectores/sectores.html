@@ -4,21 +4,49 @@
 {% block title %}Dispositivos · Sectores y plazas · {{ dispositivo.nombre }}{% endblock %}
 
 {% block main-content %}
-{% comment %}P5 · Sectores y plazas. El mapa es `components/_mapa_plazas.html`: cada celda es
-enlace solo si la vista le puso `url`, y esa url abre acá el modal de su acción con
-`?plaza=<id>`. El modal sigue la golden de Modal (becas/config/programa_list.html) con la
-variante «abierto por parámetro GET y armado por el servidor» de P21: el cuerpo depende del
-estado de la plaza y la celda solo sabe navegar.
+{% comment %}P5 · Sectores y plazas. El mapa es `components/_mapa_plazas.html`: la celda con `click`
+es un botón que abre sin recargar el modal de la plaza (`abrirPlaza(<id>)`), armado una vez
+en la página con los datos que el mapa ya calculó (`plazas_modal`, `json_script`) y el
+`action` de cada formulario completado con la URL de la plaza elegida. `?plaza=<id>` sigue
+abriéndolo (enlace directo). Solo la reubicación de una plaza ocupada es enlace: su formulario
+depende de la estadía y lo arma el servidor, con la variante «abierto por parámetro GET» de P21.
+El modal sigue la golden de Modal (becas/config/programa_list.html).
 
 «Editar sector», en el encabezado de cada sector, usa la misma variante, con `?sector=<id>`.
 «Nuevo sector» y «+ Agregar plazas» no dependen de un registro: sus modales llegan con la
 página y los abre el botón, como el de la golden; el «Agregar plazas» de un sector vacío
 además lo elige en el select (`sectorPlazas`).{% endcomment %}
-<div x-data="{ modalPlaza: {% if plaza_accion %}true{% else %}false{% endif %},
+<div x-data="{ modalPlaza: {% if plaza_inicial %}true{% else %}false{% endif %},
+               plazaSel: {% if plaza_inicial %}{{ plaza_inicial }}{% else %}null{% endif %}, opcion: '',
+               plazasModal: JSON.parse(document.getElementById('plazas-modal-datos').textContent),
+               urlsPlaza: JSON.parse(document.getElementById('urls-plaza-datos').textContent) || {},
+               modalReubicar: {% if plaza_accion and plaza_accion.accion == 'reubicar' %}true{% else %}false{% endif %},
                modalSector: {% if form_sector %}true{% else %}false{% endif %},
                modalSectorNuevo: false, modalPlazas: false, sectorPlazas: '',
-               modalEditarPlaza: {% if form_editar_plaza %}true{% else %}false{% endif %} }"
-     @becas-saved.window="modalPlaza=false; modalSector=false; modalSectorNuevo=false; modalPlazas=false; modalEditarPlaza=false">
+               modalEditarPlaza: {% if form_editar_plaza %}true{% else %}false{% endif %},
+               get accion() {
+                 const p = this.plazasModal[this.plazaSel];
+                 return this.opcion || (p && p.acciones.length === 1 ? p.acciones[0] : '');
+               },
+               abrirPlaza(pk) { this.plazaSel = pk; this.opcion = ''; this.modalPlaza = true; },
+               volverOCerrar() {
+                 const p = this.plazasModal[this.plazaSel];
+                 if (p && p.acciones.length > 1) { this.opcion = ''; } else { this.modalPlaza = false; }
+               },
+               urlDe(accion) { return (this.urlsPlaza[accion] || '').replace('__pk__', this.plazaSel); },
+               tituloPlaza() {
+                 const p = this.plazasModal[this.plazaSel];
+                 const t = { reservar: 'Reservar la plaza ', prestar: 'Prestar la plaza ', fuera_servicio: 'Sacar de servicio la plaza ', liberar: 'Liberar la plaza ', volver: 'Volver a servicio la plaza ' }[this.accion];
+                 return p ? (t || 'Plaza ') + p.codigo : 'Plaza';
+               },
+               hastaEn(horas) {
+                 const d = new Date(Date.now() + horas * 3600000);
+                 const z = (n) => String(n).padStart(2, '0');
+                 const campo = document.getElementById('prestar_hasta');
+                 campo.value = d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes());
+                 campo.dispatchEvent(new Event('input', { bubbles: true }));
+               } }"
+     @becas-saved.window="modalPlaza=false; modalReubicar=false; modalSector=false; modalSectorNuevo=false; modalPlazas=false; modalEditarPlaza=false">
 
   {# Los overlays fixed van FUERA del space-y-*: el margin-top los corre y el clic en esa franja no cierra #}
   <div class="space-y-5">
@@ -79,72 +107,143 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
     {% endfor %}
   </div>
 
-  {% if plaza_accion %}
-  {# Modal: la acción de una plaza. x-becas-modal da foco, Tab atrapado, Escape y bloqueo del scroll del fondo #}
+  {# Modal de una plaza (reservar, prestar, sacar de servicio, liberar, volver a servicio): se abre sin recargar con `abrirPlaza(<id>)`, o ya elegido con `?plaza=<id>` #}
+  {{ plazas_modal|json_script:"plazas-modal-datos" }}
+  {{ urls_plaza|json_script:"urls-plaza-datos" }}
   <div x-show="modalPlaza" x-cloak x-becas-modal="modalPlaza" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalPlaza=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-plaza-titulo">
-      {% if plaza_accion.bloqueo %}
-        {% include "programas/becas/_modal_header.html" with titulo="Plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-plaza-titulo" subtitulo=plaza_accion.plaza.sector.nombre icono="fa-bed" cerrar="modalPlaza=false" %}
+      {% include "programas/becas/_modal_header.html" with titulo="Plaza" titulo_x_text="tituloPlaza()" titulo_id="modal-plaza-titulo" icono="fa-bed" cerrar="modalPlaza=false" %}
+
+      {# Elegir qué hacer con la plaza disponible: solo las opciones que quien mira puede ejercer #}
+      <div x-show="!accion" class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+        <p class="text-sm text-body"><strong class="text-heading" x-text="plazasModal[plazaSel]?.codigo"></strong> · <span x-text="plazasModal[plazaSel]?.estado"></span>. ¿Qué querés hacer con esta plaza?</p>
+        <div class="flex flex-col gap-3">
+          <button type="button" x-show="plazasModal[plazaSel]?.acciones.includes('reservar')" @click="opcion='reservar'" class="btn-nodo btn-secondary btn-base">
+            <i class="fas fa-bookmark" aria-hidden="true"></i> Reservar
+          </button>
+          <button type="button" x-show="plazasModal[plazaSel]?.acciones.includes('prestar')" @click="opcion='prestar'" class="btn-nodo btn-secondary btn-base">
+            <i class="fas fa-right-left" aria-hidden="true"></i> Prestar
+          </button>
+          <button type="button" x-show="plazasModal[plazaSel]?.acciones.includes('fuera_servicio')" @click="opcion='fuera_servicio'" class="btn-nodo btn-secondary btn-base">
+            <i class="fas fa-ban" aria-hidden="true"></i> Sacar de servicio
+          </button>
+        </div>
+      </div>
+
+      {% if form_reservar %}
+      <form method="post" :action="urlDe('reservar')" data-ajax x-show="accion === 'reservar'" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          {% if plaza_accion.accion == "reubicar" %}
+          <div>
+            {# El error general va ADENTRO del bloque: como hijo directo de space-y-5 suma un hueco de 20px aunque esté oculto #}
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            {% include "components/_field.html" with field=form_reservar.dni wrapper_class="" %}
+          </div>
+          {% include "components/_field.html" with field=form_reservar.motivo wrapper_class="" %}
+          {% include "components/_alerta.html" with tono="info" texto="La plaza queda reservada, sin vencimiento, hasta que se libere o la persona ingrese. La persona tiene que estar en el Legajo Ciudadano." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="volverOCerrar()" cancelar_texto="Volver" accion_texto="Reservar la plaza" %}
+      </form>
+      {% endif %}
+
+      {% if form_prestar %}
+      <form method="post" :action="urlDe('prestar')" data-ajax x-show="accion === 'prestar'" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            {% include "components/_field.html" with field=form_prestar.dni wrapper_class="" %}
+          </div>
+          <div>
+            {% include "components/_field.html" with field=form_prestar.hasta wrapper_class="" %}
+            <div class="mt-2 flex gap-2">
+              <button type="button" @click="hastaEn(12)" class="btn-nodo btn-tertiary btn-sm btn-fit">12 h</button>
+              <button type="button" @click="hastaEn(24)" class="btn-nodo btn-tertiary btn-sm btn-fit">24 h</button>
+            </div>
+          </div>
+          {% include "components/_field.html" with field=form_prestar.motivo wrapper_class="" %}
+          {% include "components/_alerta.html" with tono="info" texto="La plaza queda prestada hasta ese momento; pasada la hora vuelve a estar disponible. La persona tiene que estar en el Legajo Ciudadano." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="volverOCerrar()" cancelar_texto="Volver" accion_texto="Prestar la plaza" %}
+      </form>
+      {% endif %}
+
+      {% if form_sacar %}
+      {# Una plaza tomada no se saca de servicio: el aviso reemplaza al formulario #}
+      <div x-show="accion === 'fuera_servicio' && plazasModal[plazaSel]?.bloqueo" class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+        {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se puede sacar de servicio" texto=motivo_plaza_ocupada %}
+        <p class="text-sm text-body">Sacar de servicio una plaza tomada dejaría a la persona en una plaza que el mapa cuenta como no operativa, así que primero se la reubica desde su estadía.</p>
+      </div>
+      <form method="post" :action="urlDe('fuera_servicio')" data-ajax x-show="accion === 'fuera_servicio' && !plazasModal[plazaSel]?.bloqueo" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            {% include "components/_field.html" with field=form_sacar.motivo wrapper_class="" %}
+          </div>
+          {% include "components/_alerta.html" with tono="warning" texto="No se puede sacar de servicio una plaza con alguien alojado, reservada o prestada: primero se reubica o se libera." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="volverOCerrar()" cancelar_texto="Volver" accion_texto="Sí, sacar de servicio" accion_tono="danger" %}
+      </form>
+      {% endif %}
+
+      {% if form_liberar %}
+      <form method="post" :action="urlDe('liberar')" data-ajax x-show="accion === 'liberar'" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <p class="text-sm text-body">Suelta la reserva o el préstamo: la plaza vuelve a estar disponible.</p>
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            {% include "components/_field.html" with field=form_liberar.motivo wrapper_class="" %}
+          </div>
+          {% include "components/_alerta.html" with tono="warning" texto="La reserva queda registrada como liberada y la plaza vuelve a contar como disponible. La persona que la tenía reservada no queda alojada." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Sí, liberar" %}
+      </form>
+      <form method="post" :action="urlDe('volver')" data-ajax x-show="accion === 'volver'" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            <p x-show="plazasModal[plazaSel]?.detalle" class="text-sm text-body"><strong class="text-heading">Salió de servicio por:</strong> <span x-text="plazasModal[plazaSel]?.detalle"></span></p>
+          </div>
+          {% include "components/_alerta.html" with tono="warning" texto="El motivo del fuera de servicio se borra. Si el arreglo no está hecho, dejala como está." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Sí, volver a servicio" %}
+      </form>
+      {% endif %}
+
+      {% if puede_configurar_plazas %}
+      <div x-show="plazaSel !== null" class="px-6 py-4 border-t border-light bg-secondary flex justify-end">
+        <a :href="'?editar_plaza=' + plazaSel" class="btn-nodo btn-secondary btn-sm">
+          <i class="fas fa-pen" aria-hidden="true"></i> Editar plaza
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if plaza_accion and plaza_accion.accion == "reubicar" %}
+  {# Modal de la reubicación: lo arma el servidor con `?plaza=<id>` porque depende de la estadía de la plaza ocupada #}
+  <div x-show="modalReubicar" x-cloak x-becas-modal="modalReubicar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalReubicar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-reubicar-titulo">
+      {% if plaza_accion.bloqueo %}
+        {% include "programas/becas/_modal_header.html" with titulo="Plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-reubicar-titulo" subtitulo=plaza_accion.plaza.sector.nombre icono="fa-bed" cerrar="modalReubicar=false" %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se puede reubicar a la persona" texto=plaza_accion.bloqueo %}
           <p class="text-sm text-body">La plaza está <strong class="text-heading">{{ plaza_accion.estado.estado|lower }}</strong>. Cuando se libere otra plaza del dispositivo, desde acá se mueve a la persona.</p>
-          {% else %}
-          {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se puede sacar de servicio" texto=plaza_accion.bloqueo %}
-          <p class="text-sm text-body">La plaza está <strong class="text-heading">{{ plaza_accion.estado.estado|lower }}</strong>. Sacar de servicio una plaza tomada dejaría a la persona en una plaza que el mapa cuenta como no operativa, así que primero se la reubica desde su estadía.</p>
-          {% endif %}
         </div>
-      {% elif plaza_accion.accion == "reubicar" %}
-        {% include "programas/becas/_modal_header.html" with titulo="Cambiar de plaza" titulo_id="modal-plaza-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalPlaza=false" %}
+      {% else %}
+        {% include "programas/becas/_modal_header.html" with titulo="Cambiar de plaza" titulo_id="modal-reubicar-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalReubicar=false" %}
         <form method="post" action="{{ url_cambiar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
           {% csrf_token %}
           <input type="hidden" name="volver" value="sectores">
           {% include "programas/dispositivos/_form_cambio_plaza.html" %}
-          {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Confirmar cambio" %}
-        </form>
-      {% elif plaza_accion.accion == "liberar" %}
-        {% include "programas/becas/_modal_header.html" with titulo="Liberar la plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-plaza-titulo" subtitulo="Suelta la reserva o el préstamo: la plaza vuelve a estar disponible." icono="fa-unlock" cerrar="modalPlaza=false" %}
-        <form method="post" action="{{ url_plaza_accion }}" data-ajax class="flex flex-col flex-1 min-h-0">
-          {% csrf_token %}
-          <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-            <div>
-              {# El error general va ADENTRO del bloque: como hijo directo de space-y-5 suma un hueco de 20px aunque esté oculto #}
-              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
-              {% include "components/_field.html" with field=form_plaza.motivo wrapper_class="" %}
-            </div>
-            {% include "components/_alerta.html" with tono="warning" texto="La reserva queda registrada como liberada y la plaza vuelve a contar como disponible. La persona que la tenía reservada no queda alojada." %}
-          </div>
-          {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Sí, liberar" %}
-        </form>
-      {% elif plaza_accion.accion == "fuera_servicio" %}
-        {% include "programas/becas/_modal_header.html" with titulo="Sacar de servicio la plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-plaza-titulo" subtitulo="Deja de contar como capacidad operativa hasta que vuelva a servicio." icono="fa-ban" tono="danger" cerrar="modalPlaza=false" %}
-        <form method="post" action="{{ url_plaza_accion }}" data-ajax class="flex flex-col flex-1 min-h-0">
-          {% csrf_token %}
-          <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-            <div>
-              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
-              {% include "components/_field.html" with field=form_plaza.motivo wrapper_class="" %}
-            </div>
-            {% include "components/_alerta.html" with tono="warning" texto="No se puede sacar de servicio una plaza con alguien alojado, reservada o prestada: primero se reubica o se libera." %}
-          </div>
-          {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Sí, sacar de servicio" accion_tono="danger" %}
-        </form>
-      {% else %}
-        {% include "programas/becas/_modal_header.html" with titulo="Volver a servicio la plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-plaza-titulo" subtitulo="Vuelve a contar como capacidad operativa y se puede alojar en ella." icono="fa-rotate-left" tono="success" cerrar="modalPlaza=false" %}
-        <form method="post" action="{{ url_plaza_accion }}" data-ajax class="flex flex-col flex-1 min-h-0">
-          {% csrf_token %}
-          <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-            <div>
-              <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
-              {% if plaza_accion.estado.detalle %}
-                {% include "components/_alerta.html" with tono="info" titulo="Salió de servicio por:" texto=plaza_accion.estado.detalle %}
-              {% endif %}
-            </div>
-            {% include "components/_alerta.html" with tono="warning" texto="El motivo del fuera de servicio se borra. Si el arreglo no está hecho, dejala como está." %}
-          </div>
-          {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Sí, volver a servicio" %}
+          {% include "programas/becas/_modal_footer.html" with cancelar="modalReubicar=false" cancelar_texto="Volver" accion_texto="Confirmar cambio" %}
         </form>
       {% endif %}
       {% if puede_configurar_plazas %}

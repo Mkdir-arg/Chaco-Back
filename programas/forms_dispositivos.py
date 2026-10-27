@@ -6,13 +6,16 @@ Aparte de `programas/forms.py` a propósito: ese archivo es evidencia del campo 
 
 from django import forms
 from django.utils import timezone
+from django.utils.html import format_html
 
+from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.validators import ACCEPT_ADJUNTO
 from core.widgets import ChipsSelectMultiple, SwitchInput
 from programas.forms import INPUT_CLASS
 from programas.models import EntradaBitacora, MotivoEgreso, Plaza, Sector, Turno
 from programas.services.bitacora_pantalla import TIPOS_MANUALES
 from programas.services.edificios import CAMPOS as CAMPOS_EDIFICIO
+from programas.services.ingreso import buscar_ciudadano_por_dni
 from programas.services.movimientos import ultimo_momento
 from programas.services.plazas import TOPE_POR_LOTE
 
@@ -211,6 +214,70 @@ class LiberarPlazaForm(forms.Form):
     )
 
 
+#: Los cuatro formularios del modal de una plaza conviven en la misma página, todos con
+#: un campo `motivo`: cada uno lleva su prefijo de id para no repetir `id_motivo`.
+AUTO_ID_PLAZA_RESERVAR = "reservar_%s"
+AUTO_ID_PLAZA_PRESTAR = "prestar_%s"
+AUTO_ID_PLAZA_SACAR = "sacar_%s"
+AUTO_ID_PLAZA_LIBERAR = "liberar_%s"
+
+MENSAJE_DNI_SIN_PERSONA = "No encontramos a nadie con ese DNI: dala de alta desde Ingresar persona."
+
+
+class ReservarPlazaForm(forms.Form):
+    """Reservar una plaza disponible para una persona del Legajo, que se busca por DNI.
+
+    La búsqueda es la del asistente de ingreso (`ingreso.buscar_ciudadano_por_dni`): sin
+    alta de personas desde acá. Las reglas de fondo —plaza libre con su fila bloqueada,
+    alcance, vigencia— son de `estadias.reservar_plaza`.
+    """
+
+    dni = forms.CharField(
+        label="DNI de la persona",
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "Ej.: 30123456", "inputmode": "numeric"}),
+        error_messages={"required": "Indicá el DNI de la persona para quien se guarda la plaza."},
+    )
+    motivo = forms.CharField(
+        label="Motivo",
+        max_length=200,
+        required=False,
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional"}),
+    )
+
+    def clean_dni(self):
+        dni = normalizar_dni(self.cleaned_data.get("dni"))
+        if not dni_valido(dni):
+            raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
+        self.ciudadano = buscar_ciudadano_por_dni(dni)
+        if self.ciudadano is None:
+            raise forms.ValidationError(MENSAJE_DNI_SIN_PERSONA)
+        return dni
+
+    def clean(self):
+        datos = super().clean()
+        if not self.errors:
+            datos["ciudadano"] = self.ciudadano
+        return datos
+
+
+class PrestarPlazaForm(ReservarPlazaForm):
+    """Prestar una plaza: lo mismo que reservarla, con el vencimiento obligatorio.
+
+    El préstamo es «por 12 o 24 h» a partir de ahora: el modal ofrece los dos atajos y
+    deja la fecha y hora libres. Que sea posterior a este momento lo exige el servicio.
+    """
+
+    hasta = forms.DateTimeField(
+        label="Hasta",
+        input_formats=["%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"],
+        widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"class": INPUT_CLASS, "type": "datetime-local"}),
+        help_text="Cuándo vence el préstamo. Pasada esa hora, la plaza vuelve a estar disponible.",
+        error_messages={"required": "Un préstamo exige indicar hasta cuándo."},
+    )
+
+    field_order = ["dni", "hasta", "motivo"]
+
+
 # --------------------------------------------------------------------------- #
 # Relevamientos edilicios (P21 · #701)
 # --------------------------------------------------------------------------- #
@@ -270,10 +337,16 @@ class AsignarRelevamientoForm(forms.Form):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional"}),
     )
 
-    def __init__(self, *args, edificio=None, agentes, **kwargs):
+    def __init__(self, *args, edificio=None, agentes, agente_externo=False, **kwargs):
         super().__init__(*args, **kwargs)
         if edificio is not None:
             self.fields["edificio"].initial = f"{edificio.nombre} · {edificio.codigo}"
+            if agente_externo:
+                # La ayuda es del campo, no de la pantalla: así `_field.html` la dibuja antes del
+                # error y la enlaza con `aria-describedby`. El nombre es dato de usuario: `format_html`.
+                self.fields["asignado_a"].help_text = format_html(
+                    "La lista solo trae agentes <strong>externos a {}</strong>.", edificio.nombre
+                )
         # Deshabilitado y sin `required`, pero es un dato obligatorio de la asignación: lleva el asterisco.
         self.fields["edificio"].marca_requerido = True
         self.fields["asignado_a"].queryset = agentes
@@ -317,6 +390,7 @@ class AsignarRelevamientoDispositivoForm(AsignarRelevamientoForm):
             campo.disabled = True
         else:
             campo.choices = [("", "Elegí un edificio"), *opciones]
+            campo.help_text = "Solo los edificios de la institución que no tienen un relevamiento en curso."
 
     @property
     def edificio_fijo(self):

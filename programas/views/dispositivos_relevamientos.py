@@ -332,7 +332,9 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         edificio = self._pedido(params, "asignar", edificios_libres)
         if edificio is not None:
             context["edificio_asignar"] = edificio
-            context["form_asignar"] = AsignarRelevamientoForm(edificio=edificio, agentes=agentes_asignables(edificio))
+            context["form_asignar"] = AsignarRelevamientoForm(
+                edificio=edificio, agentes=agentes_asignables(edificio), agente_externo=AGENTE_DEBE_SER_EXTERNO
+            )
 
         gestionables = InspeccionEdificio.objects.filter(
             estado=Estado.ASIGNADA,
