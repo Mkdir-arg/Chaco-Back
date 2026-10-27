@@ -21,6 +21,7 @@
   let triggerUrl = null;
   let aperturaActiva = 0;
   let presionoAfuera = false;
+  let controlModal = null;
 
   function getCookie(name) {
     const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
@@ -51,19 +52,17 @@
     if (!modal) return;
 
     triggerUrl = modal.dataset.editUrl || triggerUrl;
-    document.body.style.overflow = 'hidden';
-    const firstControl = modal.querySelector(
-      '[aria-invalid="true"], input:not([type="hidden"]):not([type="checkbox"]), textarea, select'
-    );
-    if (firstControl) firstControl.focus();
+    // becas-modal.js da foco, Tab atrapado, Escape, scroll del fondo y los [data-becas-modal-cerrar].
+    controlModal = window.becasModal.bind(modal, { onClose: closeModal });
   }
 
   function closeModal() {
     const modal = modalRoot.querySelector('[data-edit-modal]');
     if (!modal) return;
     const cancelUrl = modal.dataset.cancelUrl;
+    if (controlModal) controlModal.destruir();
+    controlModal = null;
     modalRoot.replaceChildren();
-    document.body.style.overflow = '';
     if (cancelUrl && window.location.pathname !== cancelUrl) {
       window.history.replaceState({}, '', cancelUrl);
     }
@@ -109,13 +108,6 @@
       return;
     }
 
-    const closeButton = event.target.closest('[data-modal-close], [data-edit-modal] [data-becas-modal-cerrar]');
-    if (closeButton) {
-      event.preventDefault();
-      closeModal();
-      return;
-    }
-
     // Cierra solo si el gesto entero fue afuera del panel: arrastrar desde un campo y soltar
     // sobre el fondo también dispara un `click` con el fondo como destino y perdía lo escrito.
     const modal = event.target.closest('[data-edit-modal]');
@@ -124,38 +116,6 @@
 
   document.addEventListener('pointerdown', function (event) {
     presionoAfuera = !!event.target.closest('[data-edit-modal]') && !event.target.closest('[data-edit-modal-panel]');
-  });
-
-  document.addEventListener('keydown', function (event) {
-    const modal = modalRoot.querySelector('[data-edit-modal]');
-    if (!modal) return;
-    if (event.key === 'Escape') {
-      closeModal();
-      return;
-    }
-    if (event.key !== 'Tab') return;
-
-    const focusable = Array.from(modal.querySelectorAll(
-      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    )).filter(function (element) {
-      return !element.hidden && element.offsetParent !== null;
-    });
-    if (!focusable.length) {
-      event.preventDefault();
-      return;
-    }
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (!modal.contains(document.activeElement)) {
-      event.preventDefault();
-      first.focus();
-    } else if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
   });
 
   document.addEventListener('submit', function (event) {

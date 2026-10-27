@@ -846,7 +846,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         estadia.persona_visible = (
             estadia.ciudadano.apellido_nombre if puede(self.request.user, CAP_VER_CIUDADANO) else "Persona alojada"
         )
-        form, url = _form_de_cambio_de_plaza(dispositivo, estadia, _sectores_para_cambio(estadia))
+        form, url = _form_de_cambio_de_plaza(dispositivo, estadia, _sectores_para_cambio(dispositivo))
         context["estadia_cambio"] = estadia
         accion["bloqueo"] = bloqueo_de_plaza(
             accion["estado"], ACCION_REUBICAR, hay_plazas_libres=form.hay_plazas_libres
@@ -1105,13 +1105,13 @@ def _estadia_del_dispositivo(dispositivo, estadia_pk):
     )
 
 
-def _sectores_para_cambio(estadia):
+def _sectores_para_cambio(dispositivo):
     """Las plazas del dispositivo con su estado, de `ocupacion.estado_de_plazas` (vía el asistente de ingreso).
 
     Es la misma fuente que el mapa y que el ingreso: acá no se decide qué es una plaza libre.
     """
 
-    sectores, _elegibles = plazas_para_ingresar(estadia.dispositivo)
+    sectores, _elegibles = plazas_para_ingresar(dispositivo)
     return sectores
 
 
@@ -1187,7 +1187,7 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         )
         context["puede_egresar"] = abierta and puede_operar_dispositivo(usuario, dispositivo, CAP_EGRESAR)
         if context["puede_cambiar_plaza"]:
-            form_cambio, url_cambio = _form_de_cambio_de_plaza(dispositivo, estadia, _sectores_para_cambio(estadia))
+            form_cambio, url_cambio = _form_de_cambio_de_plaza(dispositivo, estadia, _sectores_para_cambio(dispositivo))
             # Sin plazas libres no se ofrece: el modal no tendría a dónde mover a nadie.
             context["puede_cambiar_plaza"] = form_cambio.hay_plazas_libres
             context["form_cambio"] = form_cambio
@@ -1225,7 +1225,7 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
             volver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
 
         form = CambioPlazaForm(
-            request.POST, estadia=estadia, sectores=_sectores_para_cambio(estadia), auto_id=AUTO_ID_CAMBIO
+            request.POST, estadia=estadia, sectores=_sectores_para_cambio(dispositivo), auto_id=AUTO_ID_CAMBIO
         )
         if not form.is_valid():
             return EstadiaEgresarView._rechazar(request, form.errors, volver)

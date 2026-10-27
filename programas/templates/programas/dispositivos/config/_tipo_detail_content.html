@@ -18,7 +18,8 @@
               data-confirm-url="{% url 'dispositivos:tipo_toggle' tipo.pk %}"
               data-confirm-title="{% if tipo.activo %}Desactivar tipo{% else %}Activar tipo{% endif %}"
               data-confirm-text="{% if tipo.activo %}El tipo dejará de estar disponible para nuevas operaciones.{% else %}El tipo volverá a estar disponible.{% endif %}"
-              data-confirm-ok="{% if tipo.activo %}Sí, desactivar{% else %}Sí, activar{% endif %}">
+              data-confirm-ok="{% if tipo.activo %}Sí, desactivar{% else %}Sí, activar{% endif %}"
+              data-confirm-danger="{% if tipo.activo %}true{% else %}false{% endif %}">
         {% if tipo.activo %}Desactivar{% else %}Activar{% endif %}
       </button>
     {% endpage_header %}
@@ -66,7 +67,8 @@
                       data-confirm-url="{% url 'dispositivos:formulario_reactivar' tipo.pk formulario.momento %}"
                       data-confirm-title="Reactivar formulario"
                       data-confirm-text="«{{ formulario.get_momento_display }}» se vuelve a pedir con sus secciones, campos y su versión {{ formulario.version }}."
-                      data-confirm-ok="Sí, reactivar">
+                      data-confirm-ok="Sí, reactivar"
+                      data-confirm-danger="false">
                 <i class="fas fa-rotate-left" aria-hidden="true"></i>
               </button>
               {% elif formulario.tiene_respuestas %}
