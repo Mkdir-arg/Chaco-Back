@@ -31,10 +31,11 @@ Disponible                             reservar, prestar    ``dispositivo.admiti
 
 De la plaza disponible se ofrece cada opción a quien puede ejercerla: reservar y prestar
 (revierten lo que dejaron fuera los Cambios 287, 291 y 325) piden `admitir`, y sacar de
-servicio pide `editar`. La plaza ocupada se reubica con el formulario del cambio de plaza,
-que necesita la estadía y el mapa de plazas libres: ese modal se arma en el servidor con
-`?plaza=<id>` (la celda es enlace, no botón), porque servirlo sin recarga costaría consultas
-por encima del presupuesto del mapa.
+servicio pide `editar`. Reservar y prestar buscan a la persona por DNI en el padrón, así que
+piden además `ciudadano.ver`, como el asistente de ingreso. La plaza ocupada se reubica con el
+formulario del cambio de plaza, que necesita la estadía y el mapa de plazas libres: cargarlos
+por plaza pasaría el presupuesto del mapa, así que ese modal se pide **al tocar la celda**
+(`?plaza=<id>&fragmento=reubicar`) y la celda lleva `abrirReubicar(<id>)`.
 
 «Con una reserva sin liberar» no es «reservada en el mapa»: la reserva vencida que nadie
 liberó deja la plaza **Disponible** y sigue abierta (`estadias.reservas_abiertas`). Es
@@ -93,7 +94,9 @@ MOTIVO_SIN_PLAZAS_LIBRES = "No hay plazas libres en el dispositivo para moverla.
 MOTIVO_PLAZA_OCUPADA = "Tiene una estadía activa: reubicá a la persona antes de sacarla de servicio."
 
 
-def acciones_de_plaza(estado, con_reserva_abierta, *, puede_admitir=False, puede_editar=False):
+def acciones_de_plaza(
+    estado, con_reserva_abierta, *, puede_admitir=False, puede_editar=False, puede_buscar_personas=False
+):
     """Las acciones que admite una plaza y que quien mira puede ejercer, en el orden del modal.
 
     Fuera de servicio gana: es la misma precedencia que dibuja `estado_de_plazas`, y una
@@ -101,7 +104,8 @@ def acciones_de_plaza(estado, con_reserva_abierta, *, puede_admitir=False, puede
     escribir— se repone antes de nada. Una reserva abierta se libera (`admitir`). La ocupada
     se reubica si quien mira puede admitir; si no, sigue siendo «sacar de servicio»,
     bloqueada con su motivo. La disponible ofrece reservar y prestar (`admitir`) y sacar de
-    servicio (`editar`). Lista vacía: la plaza no es accionable para este usuario.
+    servicio (`editar`). Reservar y prestar buscan a la persona por DNI en el padrón, así que
+    piden además `ciudadano.ver` (`puede_buscar_personas`), como el asistente de ingreso. Lista vacía: la plaza no es accionable para este usuario.
     """
 
     if estado.estado == ESTADO_FUERA_SERVICIO:
@@ -112,7 +116,7 @@ def acciones_de_plaza(estado, con_reserva_abierta, *, puede_admitir=False, puede
         if puede_admitir:
             return [ACCION_REUBICAR]
         return [ACCION_FUERA_SERVICIO] if puede_editar else []
-    acciones = [ACCION_RESERVAR, ACCION_PRESTAR] if puede_admitir else []
+    acciones = [ACCION_RESERVAR, ACCION_PRESTAR] if puede_admitir and puede_buscar_personas else []
     if puede_editar:
         acciones.append(ACCION_FUERA_SERVICIO)
     return acciones
@@ -132,7 +136,9 @@ def bloqueo_de_plaza(estado, accion, hay_plazas_libres=True):
     return ""
 
 
-def plaza_para_accion(dispositivo, plaza_pk, *, puede_liberar=False, puede_configurar_plazas=False):
+def plaza_para_accion(
+    dispositivo, plaza_pk, *, puede_liberar=False, puede_configurar_plazas=False, puede_ver_personas=False
+):
     """La plaza que pide `?plaza=<id>`, con su acción resuelta, o ``None``.
 
     ``None`` para la plaza inexistente, la de otra institución, la de un sector dado de
@@ -155,7 +161,11 @@ def plaza_para_accion(dispositivo, plaza_pk, *, puede_liberar=False, puede_confi
     reserva = reserva_abierta_de(plaza)
     # `puede_liberar` es `dispositivo.admitir`: liberar, reubicar, reservar y prestar.
     acciones = acciones_de_plaza(
-        estado, reserva is not None, puede_admitir=puede_liberar, puede_editar=puede_configurar_plazas
+        estado,
+        reserva is not None,
+        puede_admitir=puede_liberar,
+        puede_editar=puede_configurar_plazas,
+        puede_buscar_personas=puede_ver_personas,
     )
     if not acciones:
         return None
@@ -272,7 +282,8 @@ def sectores_con_plazas(dispositivo, *, puede_liberar=False, puede_configurar_pl
     La que sí tiene acción trae `url` (`?plaza=<id>`, el enlace directo) y, si su modal se
     arma en el cliente, `click` (`abrirPlaza(<id>)`): el mapa dibuja un botón y no recarga.
     `plazas_modal` es `{id: datos}` de esas plazas, para el `json_script` de la página. La
-    reubicación queda como enlace: su formulario depende de la estadía.
+    reubicación es un botón también (`abrirReubicar(<id>)`), pero su modal no viaja en la
+    página: lo pide la pantalla al tocar, porque depende de la estadía.
     """
 
     # Un solo instante para las dos: la vigencia de una reserva es por tiempo, y con dos
@@ -296,11 +307,17 @@ def sectores_con_plazas(dispositivo, *, puede_liberar=False, puede_configurar_pl
         for plaza in plazas:
             estado = estados[plaza.pk]
             acciones = acciones_de_plaza(
-                estado, plaza.pk in reservas, puede_admitir=puede_liberar, puede_editar=puede_configurar_plazas
+                estado,
+                plaza.pk in reservas,
+                puede_admitir=puede_liberar,
+                puede_editar=puede_configurar_plazas,
+                puede_buscar_personas=puede_ver_personas,
             )
             url = f"?plaza={plaza.pk}" if acciones else ""
             click = ""
-            if acciones and ACCION_REUBICAR not in acciones:
+            if ACCION_REUBICAR in acciones:
+                click = f"abrirReubicar({plaza.pk})"
+            elif acciones:
                 click = f"abrirPlaza({plaza.pk})"
                 plazas_modal[plaza.pk] = datos_para_el_modal(
                     plaza, estado, acciones, bloqueo_de_plaza(estado, acciones[0])

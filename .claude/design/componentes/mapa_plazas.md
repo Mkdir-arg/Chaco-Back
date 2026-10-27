@@ -47,8 +47,10 @@ sale de la misma consulta de reservas y no aumenta el presupuesto del censo.
   `<button type="button" @click aria-haspopup="dialog">` y **gana sobre `url`**: abre el modal de la
   pantalla sin recargar. La pantalla que lo usa declara esa función en su `x-data`; `url` puede seguir
   viniendo como enlace directo (`?plaza=<id>`) para quien llegue por la barra de direcciones. Es
-  opcional y la pieza no lo infiere: lo decide la vista (en P5, toda plaza accionable salvo la
-  ocupada que se reubica, cuyo formulario depende de la estadía y se arma en el servidor). Una plaza sin `url` usa `cursor-not-allowed` y `aria-disabled="true"`,
+  opcional y la pieza no lo infiere: lo decide la vista (en P5, toda plaza accionable: la disponible
+  abre un modal ya cargado en la página con `abrirPlaza(<id>)`, y la ocupada que se reubica pide su
+  cuerpo al servidor con `abrirReubicar(<id>)`, porque depende de la estadía; si ese pedido falla, la
+  pantalla navega al `url`). Una plaza sin `url` usa `cursor-not-allowed` y `aria-disabled="true"`,
   es informativa y no entra en el orden de tabulación. La vista decide cuáles se
   pueden elegir (p. ej. en el ingreso, solo las disponibles); el componente no lo infiere del estado.
   El `detalle` trae apellido e inicial solo con `ciudadano.ver`; sin esa capacidad la plaza

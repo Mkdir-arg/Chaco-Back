@@ -768,6 +768,48 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
     template_name = "programas/dispositivos/sectores/sectores.html"
     context_object_name = "dispositivo"
 
+    def get(self, request, *args, **kwargs):
+        if request.GET.get("fragmento") == FRAGMENTO_REUBICAR and is_ajax(request):
+            return self._fragmento_reubicar(request)
+        return super().get(request, *args, **kwargs)
+
+    def _fragmento_reubicar(self, request):
+        """Solo el cuerpo del modal «Cambiar de plaza», para abrirlo sin recargar la página.
+
+        Corta **antes** de armar el mapa: resuelve únicamente la plaza pedida, con el mismo
+        gate de alcance y de capacidades que `?plaza=<id>`, y el mismo 404 para la ajena, la
+        inexistente, la que no se reubica y la que el usuario no puede gestionar. Es lo que
+        el mapa no puede traer por plaza sin pasarse de su presupuesto: la estadía y las
+        plazas libres. Lo dibuja la misma parcial que el camino `?plaza=<id>` sin JS.
+        """
+
+        dispositivo = self.object = self.get_object()
+        usuario = request.user
+        puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
+        puede_configurar_plazas = puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR)
+        pk = _entero(request.GET.get("plaza", ""))
+        accion = (
+            plaza_para_accion(
+                dispositivo,
+                pk,
+                puede_liberar=puede_liberar,
+                puede_configurar_plazas=puede_configurar_plazas,
+                puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
+            )
+            if pk is not None
+            else None
+        )
+        if accion is None or accion["accion"] != ACCION_REUBICAR:
+            raise Http404
+        context = {
+            "dispositivo": dispositivo,
+            "plaza_accion": accion,
+            "puede_configurar_plazas": puede_configurar_plazas,
+        }
+        if not self._preparar_reubicar(context, dispositivo, accion):
+            raise Http404
+        return render(request, "programas/dispositivos/sectores/_modal_reubicar.html", context)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         dispositivo = self.object
@@ -780,9 +822,10 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
                 dispositivo,
                 puede_liberar=puede_liberar,
                 puede_configurar_plazas=puede_configurar_plazas,
-                puede_ver_personas=puede(usuario, "ciudadano.ver"),
+                puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
             )
         )
+        context["puede_reubicar"] = puede_liberar
         context["migas"] = [
             {"label": "Instituciones", "url": reverse("dispositivos:lista")},
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
@@ -876,7 +919,11 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         pk = _entero(pedida)
         accion = (
             plaza_para_accion(
-                dispositivo, pk, puede_liberar=puede_liberar, puede_configurar_plazas=puede_configurar_plazas
+                dispositivo,
+                pk,
+                puede_liberar=puede_liberar,
+                puede_configurar_plazas=puede_configurar_plazas,
+                puede_ver_personas=puede(self.request.user, CAP_VER_CIUDADANO),
             )
             if pk is not None
             else None
@@ -888,7 +935,9 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         context["plaza_accion"] = accion
         if accion["accion"] == ACCION_REUBICAR:
             # Su destino es el de la estadía (`url_cambiar_plaza`), no una acción de plaza.
-            self._preparar_reubicar(context, dispositivo, accion)
+            if not self._preparar_reubicar(context, dispositivo, accion):
+                context.pop("plaza_accion")
+                messages.warning(self.request, "Esa plaza ya no se puede gestionar desde acá.")
             return
         # Una plaza más allá del tope de la grilla no está en `plazas_modal`: se suma acá.
         context["plazas_modal"].setdefault(
@@ -901,7 +950,8 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
 
         Se arma **solo** con el modal abierto (el mapa cerrado conserva sus consultas
         fijas). El POST va a `dispositivos:cambiar_plaza`, que es quien aplica la regla.
-        Sin plazas libres el modal avisa y no trae formulario.
+        Sin plazas libres el modal avisa y no trae formulario. Devuelve `False` si la persona
+        ya no está en la plaza (no hay a quién mover); quien llama decide cómo avisarlo.
         """
 
         estadia = (
@@ -912,9 +962,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         )
         if estadia is None:
             # La persona se fue entre el dibujo del mapa y el clic: no hay a quién mover.
-            context.pop("plaza_accion")
-            messages.warning(self.request, "Esa plaza ya no se puede gestionar desde acá.")
-            return
+            return False
         estadia.persona_visible = (
             estadia.ciudadano.apellido_nombre if puede(self.request.user, CAP_VER_CIUDADANO) else "Persona alojada"
         )
@@ -923,16 +971,19 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         accion["bloqueo"] = bloqueo_de_plaza(
             accion["estado"], ACCION_REUBICAR, hay_plazas_libres=form.hay_plazas_libres
         )
-        if accion["bloqueo"]:
-            return
-        context["form_cambio"] = form
-        context["url_cambiar_plaza"] = url
+        if not accion["bloqueo"]:
+            context["form_cambio"] = form
+            context["url_cambiar_plaza"] = url
+        return True
 
 
 # Acciones sobre una plaza del mapa (P5). Mutan: solo POST con CSRF. Las reglas —que la
 # plaza no esté tomada, que la reserva siga abierta, el bloqueo de la fila— viven en
 # `programas.services.estadias`; acá se resuelve el alcance y se traduce lo que el
 # servicio rechaza a lo que el modal sabe mostrar.
+
+#: Valor de `?fragmento=` con el que el mapa pide, por AJAX, solo el cuerpo del modal de reubicar.
+FRAGMENTO_REUBICAR = "reubicar"
 
 #: Adónde manda el modal de cada acción. La vista lo resuelve con `reverse`: el template
 #: no arma URLs y el parámetro `?plaza=` nunca se usa como destino.
@@ -957,11 +1008,17 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
     http_method_names = ["post"]
     form_class = None
     mensaje_exito = ""
+    #: Reservar y prestar buscan a la persona por DNI en el padrón: piden también `ciudadano.ver`.
+    requiere_ver_ciudadanos = False
 
     def post(self, request, pk, plaza_pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
         volver = reverse("dispositivos:sectores", args=[dispositivo.pk])
-        if not puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida):
+        # Antes de mirar la plaza y de validar el form: con el DNI en la mano, la diferencia
+        # entre «no encontramos» y el éxito sería un oráculo del padrón para quien no lo puede ver.
+        if not puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida) or (
+            self.requiere_ver_ciudadanos and not puede(request.user, CAP_VER_CIUDADANO)
+        ):
             if is_ajax(request):
                 return JsonResponse({"ok": False, "message": "No tenés alcance sobre este dispositivo."}, status=403)
             raise PermissionDenied
@@ -1024,6 +1081,7 @@ class PlazaReservarView(_PlazaAccionView):
     """Guarda la plaza para una persona del Legajo, buscada por DNI. Sin vencimiento."""
 
     capacidad_requerida = CAP_ADMITIR
+    requiere_ver_ciudadanos = True
     form_class = ReservarPlazaForm
     mensaje_exito = "Plaza {plaza} reservada."
     tipo = ReservaPlaza.Tipo.RESERVA

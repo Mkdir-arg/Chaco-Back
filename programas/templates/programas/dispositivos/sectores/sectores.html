@@ -8,8 +8,10 @@
 es un botón que abre sin recargar el modal de la plaza (`abrirPlaza(<id>)`), armado una vez
 en la página con los datos que el mapa ya calculó (`plazas_modal`, `json_script`) y el
 `action` de cada formulario completado con la URL de la plaza elegida. `?plaza=<id>` sigue
-abriéndolo (enlace directo). Solo la reubicación de una plaza ocupada es enlace: su formulario
-depende de la estadía y lo arma el servidor, con la variante «abierto por parámetro GET» de P21.
+abriéndolo (enlace directo). La reubicación de una plaza ocupada depende de la estadía y de las plazas
+libres, que el mapa no puede traer por plaza: su celda es un botón `abrirReubicar(<id>)` que pide el cuerpo
+del modal (`_modal_reubicar.html`) a `?plaza=<id>&fragmento=reubicar` y lo inyecta; si el pedido falla,
+navega a `?plaza=<id>`, que arma el mismo modal en el servidor (variante «abierto por parámetro GET» de P21).
 El modal sigue la golden de Modal (becas/config/programa_list.html).
 
 «Editar sector», en el encabezado de cada sector, usa la misma variante, con `?sector=<id>`.
@@ -20,7 +22,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
                plazaSel: {% if plaza_inicial %}{{ plaza_inicial }}{% else %}null{% endif %}, opcion: '',
                plazasModal: JSON.parse(document.getElementById('plazas-modal-datos').textContent),
                urlsPlaza: JSON.parse(document.getElementById('urls-plaza-datos').textContent) || {},
-               modalReubicar: {% if plaza_accion and plaza_accion.accion == 'reubicar' %}true{% else %}false{% endif %},
+               modalReubicar: {% if plaza_accion and plaza_accion.accion == 'reubicar' %}true{% else %}false{% endif %}, reubicarCargando: false,
                modalSector: {% if form_sector %}true{% else %}false{% endif %},
                modalSectorNuevo: false, modalPlazas: false, sectorPlazas: '',
                modalEditarPlaza: {% if form_editar_plaza %}true{% else %}false{% endif %},
@@ -38,6 +40,23 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
                  const p = this.plazasModal[this.plazaSel];
                  const t = { reservar: 'Reservar la plaza ', prestar: 'Prestar la plaza ', fuera_servicio: 'Sacar de servicio la plaza ', liberar: 'Liberar la plaza ', volver: 'Volver a servicio la plaza ' }[this.accion];
                  return p ? (t || 'Plaza ') + p.codigo : 'Plaza';
+               },
+               abrirReubicar(pk) {
+                 const contenido = document.getElementById('reubicar-contenido');
+                 const irAlEnlace = () => { window.location.href = '?plaza=' + pk; };
+                 contenido.innerHTML = '';
+                 this.reubicarCargando = true;
+                 this.modalReubicar = true;
+                 fetch('?plaza=' + pk + '&fragmento=reubicar', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                   .then((r) => { if (!r.ok) { throw new Error(r.status); } return r.text(); })
+                   .then((html) => {
+                     contenido.innerHTML = html;
+                     if (window.Alpine) { window.Alpine.initTree(contenido); }
+                     this.reubicarCargando = false;
+                     const campo = contenido.querySelector('select, input:not([type=hidden]), textarea');
+                     if (campo) { campo.focus(); }
+                   })
+                   .catch(irAlEnlace);
                },
                hastaEn(horas) {
                  const d = new Date(Date.now() + horas * 3600000);
@@ -225,34 +244,16 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
     </div>
   </div>
 
-  {% if plaza_accion and plaza_accion.accion == "reubicar" %}
-  {# Modal de la reubicación: lo arma el servidor con `?plaza=<id>` porque depende de la estadía de la plaza ocupada #}
+  {% if puede_reubicar %}
+  {# Modal de la reubicación: su cuerpo depende de la estadía, así que no viaja con la página. `abrirReubicar(<id>)` lo pide al tocar la celda; con `?plaza=<id>` (sin JS) llega ya armado #}
   <div x-show="modalReubicar" x-cloak x-becas-modal="modalReubicar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalReubicar=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-reubicar-titulo">
-      {% if plaza_accion.bloqueo %}
-        {% include "programas/becas/_modal_header.html" with titulo="Plaza "|add:plaza_accion.plaza.codigo titulo_id="modal-reubicar-titulo" subtitulo=plaza_accion.plaza.sector.nombre icono="fa-bed" cerrar="modalReubicar=false" %}
-        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          {% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo="No se puede reubicar a la persona" texto=plaza_accion.bloqueo %}
-          <p class="text-sm text-body">La plaza está <strong class="text-heading">{{ plaza_accion.estado.estado|lower }}</strong>. Cuando se libere otra plaza del dispositivo, desde acá se mueve a la persona.</p>
-        </div>
-      {% else %}
-        {% include "programas/becas/_modal_header.html" with titulo="Cambiar de plaza" titulo_id="modal-reubicar-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalReubicar=false" %}
-        <form method="post" action="{{ url_cambiar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
-          {% csrf_token %}
-          <input type="hidden" name="volver" value="sectores">
-          {% include "programas/dispositivos/_form_cambio_plaza.html" %}
-          {% include "programas/becas/_modal_footer.html" with cancelar="modalReubicar=false" cancelar_texto="Volver" accion_texto="Confirmar cambio" %}
-        </form>
-      {% endif %}
-      {% if puede_configurar_plazas %}
-      <div class="px-6 py-4 border-t border-light bg-secondary flex justify-end">
-        <a href="?editar_plaza={{ plaza_accion.plaza.pk }}" class="btn-nodo btn-secondary btn-sm">
-          <i class="fas fa-pen" aria-hidden="true"></i> Editar plaza
-        </a>
+      <div x-show="reubicarCargando" class="px-6 py-10 text-center text-sm text-body-subtle" role="status">
+        <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Cargando la plaza…
       </div>
-      {% endif %}
+      <div id="reubicar-contenido" class="flex flex-col flex-1 min-h-0">{% if plaza_accion and plaza_accion.accion == "reubicar" %}{% include "programas/dispositivos/sectores/_modal_reubicar.html" %}{% endif %}</div>
     </div>
   </div>
   {% endif %}
