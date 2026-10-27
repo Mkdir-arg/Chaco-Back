@@ -49199,6 +49199,10 @@ el éxito sería un oráculo para saber quién está en el Legajo. El asistente 
   Pierde el subtítulo y el tono por acción que tenía antes, porque `_modal_header.html` no los acepta dinámicos y
   tocar la pieza quedaba fuera de alcance. Queda pendiente.
 
+**El modal único se limpia al abrir otra plaza y al volver al menú de opciones**: `form.reset()`, errores y
+`aria-invalid` del panel. Sin eso, el DNI tipeado en una plaza quedaba escrito al abrir otra y bastaba un clic para
+reservarla a nombre de esa persona; con el render por plaza de antes no pasaba.
+
 **MINOR de #984**:
 - Las dos ayudas de la parcial `_campos_asignar.html` pasan a ser el `help_text` de su campo, así que
   `components/_field.html` las dibuja **antes** del error y las enlaza por `aria-describedby`.
@@ -49209,7 +49213,8 @@ el éxito sería un oráculo para saber quién está en el Legajo. El asistente 
 
 ## Implementación
 
-Commits `f2beffa2` y `1b6a9312` de la rama `feat/dispositivos-plaza-libre-acciones`.
+Commits `f2beffa2`, `1b6a9312` y `8a7ed7fb` de la rama `feat/dispositivos-plaza-libre-acciones`. El último sale de la
+auditoría de #986 (ver Historial).
 
 ## Archivos
 
@@ -49244,7 +49249,8 @@ Sin cambios.
   - sacar de servicio: «Fuera de serv.»;
   - plaza ocupada: «Cambiar de plaza» por fragmento, con los errores del formulario sin recargar, y el cambio
     aplicado;
-  - `?plaza=<id>`: abre el modal.
+  - `?plaza=<id>`: abre el modal;
+  - cerrar con un DNI y un error a la vista y abrir otra plaza: el formulario llega vacío y sin error.
 - `manage.py check`, `makemigrations --check --dry-run` (sin syncdb), ruff, `design_audit --ratchet` (0 nuevos),
   `compile_templates --bloques` (0) y `check_design_agent --changed`: OK.
 
@@ -49255,6 +49261,7 @@ configura el PM.
 
 ## Pendientes / a definir
 
+- Los dos MINOR de la auditoría de #986 (ver Historial).
 - El subtítulo y el tono del encabezado por acción en el modal genérico. Requiere que `_modal_header.html` acepte
   esos valores dinámicos.
 - Sin JS, un error de reservar o prestar vuelve a la pantalla con un aviso y sin el modal abierto, igual que las
@@ -49268,5 +49275,9 @@ normales de `ReservaPlaza`, y se liberan desde el mapa.
 ## Historial
 
 - **27/10/2026 — alta del cambio.** Revierte el «queda afuera» de reservar y prestar de los Cambios 287, 291 y 325.
+- **27/10/2026 — auditoría de #986 (CHANGES NEEDED):** un MAJOR, el modal único arrastraba el DNI y los errores de
+  la plaza anterior. Se corrigió en `8a7ed7fb`. Quedan dos MINOR para el próximo PR del carril: las tres copias de la
+  resolución de capacidades + plaza en `dispositivos_legajo.py` (que pasa las 1400 líneas) y la cadena de clases por
+  tono copiada tres veces en `_mapa_plazas.html`.
 
 ---
