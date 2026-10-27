@@ -87,6 +87,7 @@ from programas.services.estadias import (
     sacar_plaza_de_servicio,
     volver_plaza_a_servicio,
 )
+from programas.services.formularios_tipo import aviso_sin_formulario
 from programas.services.horarios_dispositivo import reemplazar_franjas
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import (
@@ -561,7 +562,10 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         context["puede_crear_relevamiento"] = True
         context["agente_externo"] = AGENTE_DEBE_SER_EXTERNO
         context["form_relevamiento"] = AsignarRelevamientoDispositivoForm(
-            edificios=elegibles, agentes=agentes_asignables_para(elegibles), auto_id=AUTO_ID_RELEVAMIENTO
+            edificios=elegibles,
+            agentes=agentes_asignables_para(elegibles),
+            auto_id=AUTO_ID_RELEVAMIENTO,
+            aviso_formulario=aviso_sin_formulario(dispositivo.tipo),
         )
         context["url_relevamiento"] = reverse("dispositivos:relevamiento_asignar_dispositivo", args=[dispositivo.pk])
 

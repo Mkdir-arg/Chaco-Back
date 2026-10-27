@@ -269,13 +269,19 @@ def _archivo_de_formulario_dispositivo(user, ruta):
     se le contesta como si el archivo no existiera (404): ni la ruta confirma que hay
     un dispositivo con ese archivo.
     """
-    from programas.models import AdjuntoRespuestaAlta
+    from programas.models import AdjuntoRespuestaAlta, AdjuntoRespuestaRelevamiento
     from programas.services.dispositivos import puede_operar_dispositivo
+    from programas.services.inspecciones import inspecciones_visibles
 
     adjunto = AdjuntoRespuestaAlta.objects.select_related("respuestas__dispositivo").filter(archivo=ruta).first()
-    if adjunto is None:
+    if adjunto is not None:
+        return True if puede_operar_dispositivo(user, adjunto.respuestas.dispositivo, "dispositivo.ver") else None
+    # El archivo de un campo del formulario «Relevamiento»: lo ve quien ve el relevamiento
+    # (`inspecciones_visibles`, la misma regla que las fotos).
+    del_relevamiento = AdjuntoRespuestaRelevamiento.objects.filter(archivo=ruta).only("pk", "inspeccion_id").first()
+    if del_relevamiento is None:
         return None
-    return True if puede_operar_dispositivo(user, adjunto.respuestas.dispositivo, "dispositivo.ver") else None
+    return True if inspecciones_visibles(user).filter(pk=del_relevamiento.inspeccion_id).exists() else None
 
 
 #: Prefijo -> resolver, uno por cada prefijo de :mod:`core.rutas_media`. El orden

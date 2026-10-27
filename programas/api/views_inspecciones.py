@@ -30,6 +30,8 @@ from rest_framework.response import Response
 from rest_framework.routers import APIRootView
 
 from programas.api.serializers_inspecciones import (
+    AdjuntoFormularioCampoSerializer,
+    AdjuntoFormularioEnvioSerializer,
     FotoInspeccionCampoSerializer,
     FotoInspeccionEnvioSerializer,
     InspeccionCampoDetailSerializer,
@@ -42,6 +44,8 @@ from programas.services.inspecciones import (
     CAP_RELEVAR,
     InspeccionEnConflicto,
     InspeccionReasignada,
+    RespuestasInvalidas,
+    agregar_adjunto_formulario,
     agregar_foto,
     inspecciones_asignadas,
     inspecciones_del_agente,
@@ -50,6 +54,7 @@ from programas.services.inspecciones import (
 )
 
 MENSAJE_SIN_ACCESO = "El usuario no tiene acceso al relevamiento edilicio."
+CODIGO_SIN_MODULO = "SIN_MODULO"
 
 _RESPUESTAS_DE_ENVIO = {
     400: OpenApiResponse(
@@ -76,7 +81,8 @@ _RESPUESTAS_DE_ENVIO = {
 class CampoInspeccionPermission(BasePermission):
     """Exige ``inspeccion.relevar`` con alcance al programa Dispositivos (el agente)."""
 
-    message = MENSAJE_SIN_ACCESO
+    # `code` además de `detail` (A4b): la app distingue «este usuario no tiene el módulo».
+    message = {"detail": MENSAJE_SIN_ACCESO, "code": CODIGO_SIN_MODULO}
 
     def has_permission(self, request, view):
         user = request.user
@@ -125,6 +131,10 @@ def _ejecutar(operacion, inspeccion):
     except PermissionDenied:
         # Lo que el servicio no le deja tocar es, para la app, algo que no existe.
         raise NotFound() from None
+    except RespuestasInvalidas as error:
+        respuesta = _respuesta_400(error.message_dict)
+        respuesta.data["claves"] = error.por_clave
+        return None, respuesta
     except ValidationError as error:
         return None, _respuesta_400(error.message_dict if hasattr(error, "error_dict") else error.messages)
 
@@ -159,10 +169,10 @@ class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if self.action == "list":
-            return inspecciones_asignadas(user).order_by("fecha_vencimiento", "pk")
-        if self.action in ("resultado", "fotos"):
+            return inspecciones_asignadas(user).select_related("diseno").order_by("fecha_vencimiento", "pk")
+        if self.action in ("resultado", "fotos", "adjuntos"):
             return inspecciones_para_envio(user)
-        return inspecciones_del_agente(user).select_related("edificio").prefetch_related("fotos")
+        return inspecciones_del_agente(user).select_related("edificio", "diseno").prefetch_related("fotos")
 
     def get_object(self):
         """El 404 de DRF arrastra el mensaje de Django («No InspeccionEdificio matches…»):
@@ -179,15 +189,21 @@ class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
         return InspeccionCampoDetailSerializer
 
     def _detalle(self, inspeccion):
-        fresca = InspeccionEdificio.objects.select_related("edificio").prefetch_related("fotos").get(pk=inspeccion.pk)
+        fresca = (
+            InspeccionEdificio.objects.select_related("edificio", "diseno")
+            .prefetch_related("fotos")
+            .get(pk=inspeccion.pk)
+        )
         return InspeccionCampoDetailSerializer(fresca).data
 
     @extend_schema(
         request=ResultadoInspeccionSerializer,
         responses={200: InspeccionCampoDetailSerializer, **_RESPUESTAS_DE_ENVIO},
         description=(
-            "Registra la criticidad y las observaciones y deja el relevamiento realizado. Idempotente por "
-            "`uuid_cliente`: el reenvío del mismo devuelve 200 con el relevamiento como quedó."
+            "Registra la criticidad y las observaciones y deja el relevamiento realizado. Si tiene formulario, "
+            "`respuestas` se valida contra su definición vigente (obligatorios, condiciones y tipos; los campos "
+            "de archivo no se exigen acá). Idempotente por `uuid_cliente`: el reenvío del mismo devuelve 200 con "
+            "el relevamiento como quedó."
         ),
     )
     @action(detail=True, methods=["post"], parser_classes=[JSONParser])
@@ -204,6 +220,8 @@ class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
                 criticidad=datos["criticidad"],
                 observaciones=datos["observaciones"],
                 uuid_resultado=datos["uuid_cliente"],
+                respuestas=datos["respuestas"],
+                version_capturada=datos["version_capturada"],
             ),
             inspeccion,
         )
@@ -245,3 +263,40 @@ class InspeccionViewSet(viewsets.ReadOnlyModelViewSet):
             return respuesta
         codigo = status.HTTP_200_OK if foto.ya_existia else status.HTTP_201_CREATED
         return Response(FotoInspeccionCampoSerializer(foto).data, status=codigo)
+
+    @extend_schema(
+        request={"multipart/form-data": AdjuntoFormularioEnvioSerializer},
+        responses={
+            201: AdjuntoFormularioCampoSerializer,
+            200: OpenApiResponse(
+                response=AdjuntoFormularioCampoSerializer,
+                description="Reenvío: ese archivo (`uuid_cliente`) ya había llegado y se devuelve el mismo.",
+            ),
+            **_RESPUESTAS_DE_ENVIO,
+        },
+        description=(
+            "Suma el archivo de un campo ARCHIVO del formulario del relevamiento, en curso o ya realizado (la "
+            "app sin conexión lo manda después del resultado). Uno por request. Idempotente por `uuid_cliente`."
+        ),
+    )
+    @action(detail=True, methods=["post"], parser_classes=[MultiPartParser, FormParser])
+    def adjuntos(self, request, pk=None):
+        inspeccion = self.get_object()
+        entrada = AdjuntoFormularioEnvioSerializer(data=request.data)
+        if not entrada.is_valid():
+            return _respuesta_400(entrada.errors)
+        datos = entrada.validated_data
+        adjunto, respuesta = _ejecutar(
+            lambda: agregar_adjunto_formulario(
+                request.user,
+                inspeccion,
+                datos["clave"],
+                datos["archivo"],
+                uuid_cliente=datos["uuid_cliente"],
+            ),
+            inspeccion,
+        )
+        if respuesta is not None:
+            return respuesta
+        codigo = status.HTTP_200_OK if adjunto.ya_existia else status.HTTP_201_CREATED
+        return Response(AdjuntoFormularioCampoSerializer(adjunto).data, status=codigo)

@@ -1934,6 +1934,17 @@ class InspeccionEdificio(TimeStamped):
         editable=False,
         verbose_name="Identificador del envío del resultado (app)",
     )
+    # El formulario «Relevamiento» del tipo que se fijó al asignar (D1). Dice **cuál** formulario
+    # corresponde y no congela la versión: se sirve siempre la vigente y la foto de la definición
+    # se saca al recibir el resultado (D4). Nulo si el tipo no tiene ese formulario (D3).
+    diseno = models.ForeignKey(
+        "DisenoFormulario",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Formulario del relevamiento",
+    )
     # Quienes lo tuvieron asignado antes de una reasignación: a ellos la app les contesta
     # «se reasignó» (409) en vez del 404 de lo ajeno, que no dice si existe.
     agentes_anteriores = models.ManyToManyField(
@@ -2101,6 +2112,7 @@ class TrazaInspeccion(models.Model):
         CANCELADA = "CANCELADA", "Relevamiento edilicio cancelado"
         REALIZADA = "REALIZADA", "Resultado del relevamiento edilicio"
         FOTO = "FOTO", "Foto sumada a un relevamiento edilicio"
+        ADJUNTO = "ADJUNTO", "Archivo del formulario sumado a un relevamiento edilicio"
         REVISADA = "REVISADA", "Relevamiento edilicio revisado"
 
     inspeccion = models.ForeignKey(
@@ -4650,6 +4662,8 @@ class MomentoFormulario(models.TextChoices):
     NOVEDADES_TURNO = "novedades_turno", "Novedades del turno"
     EGRESO = "egreso", "Egreso"
     TRASLADO = "traslado", "Traslado"
+    # El relevamiento edilicio que el territorial completa en la app de campo (Cambio 385).
+    RELEVAMIENTO = "relevamiento", "Relevamiento"
     PROPIO = "propio", "Propio"
 
 
@@ -4963,6 +4977,80 @@ class AdjuntoRespuestaAlta(TimeStamped):
 
     def __str__(self):
         return f"{self.clave} de {self.respuestas_id}"
+
+
+class RespuestasRelevamiento(RespuestasDeFormulario):
+    """Lo que el territorial respondió en el formulario «Relevamiento» del tipo (Cambio 385).
+
+    Una fila por relevamiento edilicio, creada **al recibir el resultado** con la foto de la
+    definición vigente en ese momento (D4). Complementa —no reemplaza— criticidad,
+    observaciones y fotos de `InspeccionEdificio`.
+
+    ``version_capturada`` es la versión con la que la app dice haber capturado (opcional); si
+    difiere de ``version`` el diseño cambió en el medio y se acepta con una línea en
+    ``observaciones_carga`` (como G1-16 de Becas).
+    """
+
+    inspeccion = models.OneToOneField(
+        InspeccionEdificio,
+        on_delete=models.CASCADE,
+        related_name="respuestas_formulario",
+        verbose_name="Relevamiento",
+    )
+    version_capturada = models.PositiveIntegerField(null=True, blank=True, verbose_name="Versión capturada por la app")
+    observaciones_carga = models.TextField(blank=True, default="", verbose_name="Observaciones de la carga")
+
+    class Meta:
+        verbose_name = "Respuestas de un relevamiento edilicio"
+        verbose_name_plural = "Respuestas de relevamientos edilicios"
+
+    def __str__(self):
+        return f"Relevamiento {self.inspeccion_id} · v{self.version}"
+
+
+class AdjuntoRespuestaRelevamiento(TimeStamped):
+    """Un archivo respondido en un campo ARCHIVO del formulario «Relevamiento».
+
+    Cuelga del **relevamiento** y no de ``RespuestasRelevamiento``: la app sin conexión puede
+    mandar el archivo antes que el resultado, y la fila de respuestas todavía no existe. Con
+    varias filas para la misma clave vale la más nueva. ``uuid_cliente`` hace idempotente el
+    reenvío; es un ``unique`` sobre una columna anulable (no un ``UniqueConstraint``
+    condicional, que MySQL/MariaDB no tienen).
+    """
+
+    inspeccion = models.ForeignKey(
+        InspeccionEdificio,
+        on_delete=models.CASCADE,
+        related_name="adjuntos_formulario",
+        verbose_name="Relevamiento",
+    )
+    clave = models.CharField(max_length=60, verbose_name="Clave del campo")
+    archivo = models.FileField(
+        upload_to=ruta_formulario_dispositivo, validators=[validar_adjunto], verbose_name="Archivo"
+    )
+    cargado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Cargado por",
+    )
+    uuid_cliente = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        editable=False,
+        verbose_name="Identificador del archivo (app)",
+    )
+
+    class Meta:
+        verbose_name = "Archivo de un relevamiento edilicio"
+        verbose_name_plural = "Archivos de relevamientos edilicios"
+        ordering = ["-creado", "-id"]
+
+    def __str__(self):
+        return f"{self.clave} de {self.inspeccion_id}"
 
 
 class CorridaSiis(TimeStamped):

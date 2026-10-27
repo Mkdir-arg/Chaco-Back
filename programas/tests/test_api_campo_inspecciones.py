@@ -43,11 +43,12 @@ from programas.tests.test_dispositivos_inspecciones import JPEG, TODAS_DE_DISPOS
 Criticidad = InspeccionEdificio.Criticidad
 Estado = InspeccionEdificio.Estado
 
-CLAVES_LISTADO = ["edificio", "estado", "fecha_vencimiento", "id", "indicaciones", "vencida"]
+CLAVES_LISTADO = ["edificio", "estado", "fecha_vencimiento", "formulario_version", "id", "indicaciones", "vencida"]
 CLAVES_DETALLE = sorted(
     [
         *CLAVES_LISTADO,
         "criticidad",
+        "formulario",
         "fotos",
         "motivo_cancelacion",
         "observaciones",
@@ -164,6 +165,7 @@ class AutenticacionTests(BaseApiInspecciones):
 
         self.assertEqual([r.status_code for r in respuestas], [403] * 4)
         self.assertEqual(respuestas[0].data["detail"], "El usuario no tiene acceso al relevamiento edilicio.")
+        self.assertEqual(respuestas[0].data["code"], "SIN_MODULO")
 
     def test_el_territorial_de_becas_no_entra_al_relevamiento_edilicio(self):
         call_command("seed_becas", stdout=StringIO())
