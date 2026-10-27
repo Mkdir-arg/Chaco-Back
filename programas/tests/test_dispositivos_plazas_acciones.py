@@ -528,6 +528,19 @@ class PlazaDisponibleSinRecargaTests(BaseMapa):
         self.assertEqual(respuesta.context["plazas_modal"], {})
         self.assertNotContains(respuesta, '@click="abrirPlaza(')
 
+    def test_el_modal_unico_se_limpia_al_abrir_otra_plaza_y_al_volver(self):
+        """Un único modal sirve a todas las plazas: lo tipeado y los errores de la anterior no pueden quedar."""
+
+        html = self._pantalla(self.con_personas).content.decode()
+
+        self.assertIn('x-ref="panelPlaza"', html)
+        self.assertIn("limpiarModalPlaza()", html)
+        self.assertIn("abrirPlaza(pk) { this.limpiarModalPlaza();", html)
+        al_volver = html.split("volverOCerrar() {")[1].split("urlDe(")[0]
+        self.assertIn("this.limpiarModalPlaza();", al_volver)
+        self.assertIn("f.reset()", html)
+        self.assertIn("removeAttribute('aria-invalid')", html)
+
     def test_la_celda_es_un_boton_y_no_un_enlace(self):
         respuesta = self._pantalla(self.con_personas)
 

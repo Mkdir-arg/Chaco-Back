@@ -30,9 +30,17 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
                  const p = this.plazasModal[this.plazaSel];
                  return this.opcion || (p && p.acciones.length === 1 ? p.acciones[0] : '');
                },
-               abrirPlaza(pk) { this.plazaSel = pk; this.opcion = ''; this.modalPlaza = true; },
+               limpiarModalPlaza() {
+                 const panel = this.$refs.panelPlaza;
+                 if (!panel) { return; }
+                 panel.querySelectorAll('form').forEach((f) => f.reset());
+                 panel.querySelectorAll('[data-error]').forEach((box) => { box.textContent = ''; box.classList.add('hidden'); });
+                 panel.querySelectorAll('[aria-invalid]').forEach((c) => c.removeAttribute('aria-invalid'));
+               },
+               abrirPlaza(pk) { this.limpiarModalPlaza(); this.plazaSel = pk; this.opcion = ''; this.modalPlaza = true; },
                volverOCerrar() {
                  const p = this.plazasModal[this.plazaSel];
+                 this.limpiarModalPlaza();
                  if (p && p.acciones.length > 1) { this.opcion = ''; } else { this.modalPlaza = false; }
                },
                urlDe(accion) { return (this.urlsPlaza[accion] || '').replace('__pk__', this.plazaSel); },
@@ -131,7 +139,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
   {{ urls_plaza|json_script:"urls-plaza-datos" }}
   <div x-show="modalPlaza" x-cloak x-becas-modal="modalPlaza" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalPlaza=false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop x-ref="panelPlaza"
          role="dialog" aria-modal="true" aria-labelledby="modal-plaza-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Plaza" titulo_x_text="tituloPlaza()" titulo_id="modal-plaza-titulo" icono="fa-bed" cerrar="modalPlaza=false" %}
 
