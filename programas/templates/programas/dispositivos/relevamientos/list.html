@@ -207,32 +207,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
         {% csrf_token %}
         <input type="hidden" name="volver" value="{{ volver_qs }}">
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          <div>
-            {# El error general va ADENTRO del bloque: como hijo directo de space-y-5 suma un hueco de 20px aunque esté oculto #}
-            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
-            <label for="{{ form_asignar.edificio.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Edificio <span class="text-fg-danger">*</span></label>
-            {{ form_asignar.edificio }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="edificio"></p>
-          </div>
-          <div>
-            <label for="{{ form_asignar.asignado_a.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Agente territorial <span class="text-fg-danger">*</span></label>
-            {{ form_asignar.asignado_a }}
-            {% if agente_externo %}<p class="mt-1 text-xs text-body-subtle">La lista solo trae agentes <strong>externos a {{ edificio_asignar.nombre }}</strong>.</p>{% endif %}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="asignado_a"></p>
-          </div>
-          <div>
-            <label for="{{ form_asignar.fecha_vencimiento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Vence <span class="text-fg-danger">*</span></label>
-            {{ form_asignar.fecha_vencimiento }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_vencimiento"></p>
-          </div>
-          <div>
-            <label for="{{ form_asignar.indicaciones.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Indicaciones para el territorial</label>
-            {{ form_asignar.indicaciones }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="indicaciones"></p>
-          </div>
-          {% if agente_externo %}
-            {% include "components/_alerta.html" with tono="warning" icono="users" titulo="Nunca se asigna al personal de la institución relevada." texto="El relevamiento lo hace un agente externo para que no se omitan irregularidades." %}
-          {% endif %}
+          {% include "programas/dispositivos/relevamientos/_campos_asignar.html" with form=form_asignar agente_externo=agente_externo edificio_nombre=edificio_asignar.nombre only %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalAsignar=false" accion_texto="Asignar relevamiento" %}
       </form>

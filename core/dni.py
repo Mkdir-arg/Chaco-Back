@@ -24,6 +24,9 @@ from decimal import Decimal
 #: Largos que el sistema acepta como DNI.
 LARGOS_DNI_VALIDOS = (7, 8)
 
+#: Los únicos caracteres que cuentan como dígito de un DNI.
+DIGITOS_ASCII = "0123456789"
+
 #: El texto exacto que ve la persona cuando el DNI no pasa. Lo comparten las puertas
 #: para que el mismo rechazo no se explique de ocho maneras distintas.
 MENSAJE_DNI_INVALIDO = "Ingresá un DNI válido de 7 u 8 dígitos, sin puntos."
@@ -44,7 +47,9 @@ def normalizar_dni(valor):
             entero = None
         if entero is not None and valor == entero:
             valor = entero
-    return "".join(ch for ch in str(valor or "") if ch.isdigit())
+    # Solo 0-9 ASCII: `str.isdigit()` acepta también dígitos árabes, superíndices y otros
+    # alfabetos, que ni el padrón ni SIIS reconocen como un DNI.
+    return "".join(ch for ch in str(valor or "") if ch in DIGITOS_ASCII)
 
 
 def dni_valido(valor):

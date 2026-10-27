@@ -14,6 +14,7 @@ Lo que se fija acá, y por qué:
 
 import re
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.db import connection
 from django.test import Client, tag
@@ -132,10 +133,19 @@ class BotonTests(BaseCrearRelevamiento):
         self.assertNotContains(sin_elegibles, 'x-show="modalRelevamiento"')
 
     def test_un_enlace_viejo_con_el_parametro_se_ignora_en_silencio(self):
-        respuesta = self._detalle(self.coordinador, relevamiento="nuevo")
+        """`?relevamiento=nuevo` ya no abre nada: la página sale igual que sin el parámetro."""
+        patron = re.compile(r"(modal\w+): (true|false)")
+        sin = self._detalle(self.coordinador)
+        con = self._detalle(self.coordinador, relevamiento="nuevo")
 
-        self.assertEqual(respuesta.status_code, 200)
-        self.assertContains(respuesta, "modalRelevamiento: false")
+        self.assertEqual(con.status_code, 200)
+        estado_con = patron.findall(con.content.decode())
+        # Hay modales en el x-data y ninguno arranca abierto; el estado es el de la página sin el parámetro.
+        self.assertIn(("modalRelevamiento", "false"), estado_con)
+        self.assertEqual({abierto for _, abierto in estado_con}, {"false"})
+        self.assertEqual(estado_con, patron.findall(sin.content.decode()))
+        self.assertEqual(con.context["puede_crear_relevamiento"], sin.context["puede_crear_relevamiento"])
+        self.assertEqual(set(con.context["form_relevamiento"].fields), set(sin.context["form_relevamiento"].fields))
 
     def test_la_pantalla_no_repite_ids_con_el_modal_y_el_de_vincular_abiertos(self):
         self._edificio_extra()
@@ -149,6 +159,12 @@ class BotonTests(BaseCrearRelevamiento):
 
 
 class ModalTests(BaseCrearRelevamiento):
+    def _select_edificio(self, respuesta):
+        """La etiqueta de apertura del <select> del edificio del modal de P4."""
+        etiqueta = re.search(r'<select [^>]*id="relev_edificio"[^>]*>', respuesta.content.decode())
+        self.assertIsNotNone(etiqueta)
+        return etiqueta.group(0)
+
     def test_con_un_solo_edificio_elegible_va_fijo_y_de_solo_lectura(self):
         respuesta = self._detalle(self.coordinador)
 
@@ -156,7 +172,8 @@ class ModalTests(BaseCrearRelevamiento):
         self.assertTrue(form.edificio_fijo)
         self.assertEqual([valor for valor, _ in form.fields["edificio"].choices], [str(self.predio.pk)])
         self.assertContains(respuesta, 'id="relev_edificio"')
-        self.assertContains(respuesta, "disabled")
+        # El «disabled» es del <select> del edificio: otro campo o modal deshabilitado no lo cumple.
+        self.assertIn("disabled", self._select_edificio(respuesta))
         self.assertContains(respuesta, self.url_post)
 
     def test_con_varios_el_selector_lista_solo_los_que_no_tienen_uno_en_curso(self):
@@ -167,10 +184,18 @@ class ModalTests(BaseCrearRelevamiento):
         form = self._detalle(self.coordinador).context["form_relevamiento"]
 
         self.assertFalse(form.edificio_fijo)
+        self.assertNotIn("disabled", self._select_edificio(self._detalle(self.coordinador)))
         valores = [valor for valor, _ in form.fields["edificio"].choices]
         self.assertEqual(valores[0], "")
         self.assertCountEqual(valores[1:], [str(libre.pk), str(self.predio.pk)])
         self.assertNotIn(str(ocupado.pk), valores)
+
+    def test_el_aviso_del_personal_sale_solo_si_el_agente_debe_ser_externo(self):
+        aviso = "Nunca se asigna al personal de la institución relevada."
+        self.assertContains(self._detalle(self.coordinador), aviso)
+
+        with patch("programas.views.dispositivos_legajo.AGENTE_DEBE_SER_EXTERNO", False):
+            self.assertNotContains(self._detalle(self.coordinador), aviso)
 
     def test_el_selector_de_agentes_es_por_capacidad_y_sin_el_personal(self):
         agentes = self._agentes_del_selector()
@@ -317,10 +342,11 @@ class PostTests(BaseCrearRelevamiento):
 
 @tag("performance")
 class CostoTests(BaseCrearRelevamiento):
-    def _consultas(self, **parametros):
-        self._detalle(self.coordinador, **parametros)  # calienta caches
+    def _consultas(self, usuario=None, **parametros):
+        usuario = usuario or self.coordinador
+        self._detalle(usuario, **parametros)  # calienta caches
         with CaptureQueriesContext(connection) as captura:
-            self.assertEqual(self._detalle(self.coordinador, **parametros).status_code, 200)
+            self.assertEqual(self._detalle(usuario, **parametros).status_code, 200)
         return len(captura)
 
     def test_el_costo_no_crece_con_los_edificios(self):
@@ -330,3 +356,27 @@ class CostoTests(BaseCrearRelevamiento):
             self._edificio_extra(f"ED-M{n}")
 
         self.assertEqual(self._consultas(), pocos)
+
+    def test_quien_no_puede_asignar_no_paga_el_modal(self):
+        """Mismo alcance y mismo dispositivo: la capacidad de asignar es lo único que cambia el costo."""
+        base = ("dispositivo.ver", "dispositivo.editar")
+        sin = self._usuario("sin_asignar_costo", base, [self.parador])
+        con = self._usuario("con_asignar_costo", (*base, "inspeccion.asignar"), [self.parador])
+        self._edificio_extra("ED-A")
+
+        consultas_sin = self._consultas(sin)
+        consultas_con = self._consultas(con)
+
+        self.assertLess(consultas_sin, consultas_con)
+        # La causa, no solo el efecto: sin la capacidad ni se pregunta cuáles son los elegibles.
+        with patch(
+            "programas.views.dispositivos_legajo.edificios_para_asignar_del_dispositivo", return_value=[]
+        ) as elegibles:
+            self._detalle(sin)
+            self.assertFalse(elegibles.called)
+            self._detalle(con)
+            self.assertTrue(elegibles.called)
+        # Y no crece con los edificios: el modal que no se dibuja no consulta nada.
+        for n in range(4):
+            self._edificio_extra(f"ED-B{n}")
+        self.assertEqual(self._consultas(sin), consultas_sin)

@@ -199,6 +199,7 @@ def do_page_header(parser, token):
 TEMPLATE_MENU_FILA = "components/_menu_fila.html"
 ARGUMENTOS_MENU_FILA = ("id", "etiqueta")
 ARGUMENTOS_MENU_FILA_OPCIONALES = ("texto",)
+ARGUMENTOS_MENU_FILA_ADMITIDOS = ARGUMENTOS_MENU_FILA + ARGUMENTOS_MENU_FILA_OPCIONALES
 IDENTIFICADOR_ALPINE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 ID_NO_VALIDO = re.compile(r"[^\w-]+")
 
@@ -222,15 +223,6 @@ class MenuFilaNode(template.Node):
             return plantilla.render(context)
 
 
-@register.filter
-def nombre_alpine(valor):
-    """El nombre de una variable Alpine si es un identificador simple, o ``""``: nunca una expresión."""
-    if not isinstance(valor, str):
-        return ""
-    texto = valor
-    return texto if IDENTIFICADOR_ALPINE.fullmatch(texto) else ""
-
-
 @register.tag("menu_fila")
 def do_menu_fila(parser, token):
     bits = token.split_contents()
@@ -239,10 +231,10 @@ def do_menu_fila(parser, token):
     kwargs = token_kwargs(restantes, parser)
     if restantes:
         raise template.TemplateSyntaxError(
-            f"'{nombre_tag}' solo acepta argumentos con nombre ({', '.join(ARGUMENTOS_MENU_FILA + ARGUMENTOS_MENU_FILA_OPCIONALES)}); "
+            f"'{nombre_tag}' solo acepta argumentos con nombre ({', '.join(ARGUMENTOS_MENU_FILA_ADMITIDOS)}); "
             f"sobra: {restantes[0]!r}"
         )
-    desconocidos = set(kwargs) - set(ARGUMENTOS_MENU_FILA) - set(ARGUMENTOS_MENU_FILA_OPCIONALES)
+    desconocidos = set(kwargs) - set(ARGUMENTOS_MENU_FILA_ADMITIDOS)
     if desconocidos:
         raise template.TemplateSyntaxError(f"'{nombre_tag}' no acepta: {', '.join(sorted(desconocidos))}")
     for obligatorio in ARGUMENTOS_MENU_FILA:
@@ -251,6 +243,14 @@ def do_menu_fila(parser, token):
     items = parser.parse(("endmenu_fila",))
     parser.delete_first_token()
     return MenuFilaNode(kwargs, items)
+
+
+@register.filter
+def nombre_alpine(valor):
+    """El nombre de una variable Alpine si es un identificador simple, o ``""``: nunca una expresión."""
+    if not isinstance(valor, str):
+        return ""
+    return valor if IDENTIFICADOR_ALPINE.fullmatch(valor) else ""
 
 
 @register.filter

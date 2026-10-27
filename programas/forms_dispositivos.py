@@ -274,6 +274,8 @@ class AsignarRelevamientoForm(forms.Form):
         super().__init__(*args, **kwargs)
         if edificio is not None:
             self.fields["edificio"].initial = f"{edificio.nombre} · {edificio.codigo}"
+        # Deshabilitado y sin `required`, pero es un dato obligatorio de la asignación: lleva el asterisco.
+        self.fields["edificio"].marca_requerido = True
         self.fields["asignado_a"].queryset = agentes
 
 

@@ -189,6 +189,20 @@ class SeccionTests(_Base):
         self.assertContains(respuesta, f'name="{self._nombre(self.camas)}"')
         self.assertFalse(Dispositivo.objects.filter(codigo="FA-1").exists())
 
+    def test_la_marca_de_un_diseno_ajeno_no_guarda_y_vuelve_con_la_seccion_del_tipo_elegido(self):
+        """Un POST con la marca del formulario de OTRO tipo no cuenta como la del tipo elegido."""
+        hogar = TipoDispositivo.objects.create(codigo="HOGAR", nombre="Hogar")
+        ajeno = crear_formulario(hogar, MomentoFormulario.CREAR_DISPOSITIVO, self.admin)
+
+        respuesta = self._alta(diseno=ajeno, respuestas=self._completo())
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "El tipo elegido tiene preguntas propias")
+        # Vuelve con la sección del tipo elegido y con SU marca, no con la ajena.
+        self.assertContains(respuesta, f'name="formulario_tipo_diseno" value="{self.diseno.pk}"')
+        self.assertFalse(Dispositivo.objects.filter(codigo="FA-1").exists())
+        self.assertFalse(RespuestasAltaDispositivo.objects.exists())
+
     def test_el_endpoint_cambia_la_seccion_segun_el_tipo(self):
         sin_formulario = TipoDispositivo.objects.create(codigo="HOGAR", nombre="Hogar")
         inactivo = TipoDispositivo.objects.create(codigo="INAC", nombre="Inactivo", activo=False)

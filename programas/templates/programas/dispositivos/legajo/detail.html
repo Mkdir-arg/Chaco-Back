@@ -40,7 +40,7 @@
               data-confirm-text="Se verificará que estén completos los datos requeridos."
               data-confirm-danger="false" data-confirm-ok="Sí, enviar">Enviar a validación</button>
       {% endif %}
-      {% if puede_validar and dispositivo.estado == 'PENDIENTE_VALIDACION' %}
+      {% if validacion_pendiente %}
       <button type="button" class="btn-nodo btn-brand btn-sm btn-fit"
               data-confirm-url="{% url 'dispositivos:validar' dispositivo.pk %}"
               data-confirm-title="¿Validar dispositivo?"
@@ -57,7 +57,7 @@
         {% if puede_editar and dispositivo.estado != 'CERRADO' %}
         {% include "components/_menu_fila_item.html" with texto="Editar" icono="fa-pen" url=url_editar_dispositivo only %}
         {% endif %}
-        {% if puede_validar and dispositivo.estado == 'PENDIENTE_VALIDACION' %}
+        {% if validacion_pendiente %}
         {% include "components/_menu_fila_item.html" with texto="Observar" icono="fa-eye" abre_modal="modalObservar" only %}
         {% include "components/_menu_fila_item.html" with texto="Rechazar" icono="fa-ban" abre_modal="modalRechazar" peligro=True only %}
         {% endif %}
@@ -471,7 +471,7 @@
     </div>
   </div>
 
-  {% if puede_validar and dispositivo.estado == 'PENDIENTE_VALIDACION' %}
+  {% if validacion_pendiente %}
   {# Modal: Observar — confirmación con motivo (arquetipo Modal) #}
   <div x-show="modalObservar" x-cloak x-becas-modal="modalObservar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalObservar=false"></div>
@@ -694,29 +694,7 @@
       <form method="post" action="{{ url_relevamiento }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          <div>
-            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
-            <label for="{{ form_relevamiento.edificio.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Edificio <span class="text-fg-danger">*</span></label>
-            {{ form_relevamiento.edificio }}
-            {% if not form_relevamiento.edificio_fijo %}<p class="mt-1 text-xs text-body-subtle">Solo los edificios de la institución que no tienen un relevamiento en curso.</p>{% endif %}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="edificio"></p>
-          </div>
-          <div>
-            <label for="{{ form_relevamiento.asignado_a.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Agente territorial <span class="text-fg-danger">*</span></label>
-            {{ form_relevamiento.asignado_a }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="asignado_a"></p>
-          </div>
-          <div>
-            <label for="{{ form_relevamiento.fecha_vencimiento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Vence <span class="text-fg-danger">*</span></label>
-            {{ form_relevamiento.fecha_vencimiento }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_vencimiento"></p>
-          </div>
-          <div>
-            <label for="{{ form_relevamiento.indicaciones.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Indicaciones para el territorial</label>
-            {{ form_relevamiento.indicaciones }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="indicaciones"></p>
-          </div>
-          {% include "components/_alerta.html" with tono="warning" icono="users" titulo="Nunca se asigna al personal de la institución relevada." texto="El relevamiento lo hace un agente externo para que no se omitan irregularidades." %}
+          {% include "programas/dispositivos/relevamientos/_campos_asignar.html" with form=form_relevamiento agente_externo=agente_externo ayuda_edificio="Solo los edificios de la institución que no tienen un relevamiento en curso." only %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalRelevamiento=false" accion_texto="Asignar relevamiento" %}
       </form>

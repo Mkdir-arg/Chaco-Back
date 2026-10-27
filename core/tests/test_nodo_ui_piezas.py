@@ -1478,10 +1478,13 @@ class MenuFilaTest(SimpleTestCase):
 
     def test_abre_modal_cede_ante_motivo_confirm_url_y_url(self):
         con_motivo = self._render(self.ITEM + 'texto="X" abre_modal="m" motivo="No hoy" only %}')
+        con_confirm = self._render(self.ITEM + 'texto="X" abre_modal="m" confirm_url="/c/" only %}')
         con_url = self._render(self.ITEM + 'texto="X" abre_modal="m" url="/x/" only %}')
 
         self.assertNotIn("@click", con_motivo)
         self.assertIn('aria-disabled="true"', con_motivo)
+        self.assertNotIn("@click", con_confirm)
+        self.assertIn('data-confirm-url="/c/"', con_confirm)
         self.assertNotIn("@click", con_url)
         self.assertIn('href="/x/"', con_url)
 

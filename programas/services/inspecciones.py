@@ -200,14 +200,23 @@ def inspecciones_para_envio(user):
     return InspeccionEdificio.objects.filter(Q(asignado_a=user) | Q(pk__in=tuvo))
 
 
+def _personal_de_edificios(edificio_ids):
+    """Asignaciones de personal (rol activo, asignación activa) a instituciones de esos edificios.
+
+    Es **la** definición de «personal del edificio»: la usan el selector de un edificio
+    (:func:`_personal_del_edificio`), el de varios (:func:`agentes_asignables_para`) y la validación
+    del servicio. Un dispositivo en dos de los edificios aparece una vez por cada uno.
+    """
+
+    return AsignacionDispositivo.objects.filter(
+        dispositivo__edificios__in=edificio_ids, activo=True, rol__meta__activo=True
+    )
+
+
 def _personal_del_edificio(edificio):
     """Ids de usuario con un rol activo asignado a alguna institución del edificio."""
 
-    return AsignacionDispositivo.objects.filter(
-        dispositivo_id__in=_EdificioDispositivo.objects.filter(edificio=edificio).values("dispositivo_id"),
-        activo=True,
-        rol__meta__activo=True,
-    ).values("rol__user")
+    return _personal_de_edificios([edificio.pk]).values("rol__user")
 
 
 def _candidatos_a_relevar():
@@ -250,9 +259,7 @@ def agentes_asignables_para(edificios):
     ids = [edificio.pk for edificio in edificios]
     candidatos = _candidatos_a_relevar()
     if AGENTE_DEBE_SER_EXTERNO and ids:
-        pares = AsignacionDispositivo.objects.filter(
-            dispositivo__edificios__in=ids, activo=True, rol__meta__activo=True
-        ).values_list("dispositivo__edificios", "rol__user")
+        pares = _personal_de_edificios(ids).values_list("dispositivo__edificios", "rol__user")
         personal = {pk: set() for pk in ids}
         for edificio_id, usuario_id in pares:
             personal[edificio_id].add(usuario_id)
