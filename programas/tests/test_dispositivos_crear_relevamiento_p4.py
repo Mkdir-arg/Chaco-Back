@@ -12,6 +12,7 @@ Lo que se fija acá, y por qué:
 5. **El costo de P4 no crece con los edificios.**
 """
 
+import re
 from datetime import timedelta
 
 from django.db import connection
@@ -24,7 +25,7 @@ from programas.models import Edificio, InspeccionEdificio
 from programas.tests.test_dispositivos_inspecciones import BaseInspecciones
 
 AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
-BOTON = "relevamiento=nuevo"
+BOTON = '@click="modalRelevamiento=true"'
 
 
 class BaseCrearRelevamiento(BaseInspecciones):
@@ -34,6 +35,10 @@ class BaseCrearRelevamiento(BaseInspecciones):
         self.url_parador = reverse("dispositivos:detalle", args=[self.parador.pk])
         self.url_post = reverse("dispositivos:relevamiento_asignar_dispositivo", args=[self.parador.pk])
         self.personal_geriatrico = self._usuario("personal_geriatrico", ("inspeccion.relevar",), [self.geriatrico])
+        # Quien además puede vincular (el edificio del CIS es vinculable): la página trae los dos modales.
+        self.admin_p4 = self._usuario(
+            "admin_p4", ("inspeccion.asignar", "dispositivo.ver", "dispositivo.editar"), [self.parador, self.cis]
+        )
 
     def _cliente(self, usuario):
         # Uno por usuario: el backoffice admite una sola sesión, y un segundo login invalida el primero.
@@ -74,7 +79,7 @@ class BaseCrearRelevamiento(BaseInspecciones):
         )
 
     def _agentes_del_selector(self, **parametros):
-        form = self._detalle(self.coordinador, relevamiento="nuevo", **parametros).context["form_relevamiento"]
+        form = self._detalle(self.coordinador, **parametros).context["form_relevamiento"]
         return set(form.fields["asignado_a"].queryset)
 
 
@@ -110,18 +115,42 @@ class BotonTests(BaseCrearRelevamiento):
         self.assertFalse(respuesta.context["puede_crear_relevamiento"])
         self.assertNotContains(respuesta, BOTON)
 
-    def test_pedir_el_modal_sin_nada_para_asignar_avisa_y_no_lo_abre(self):
-        self._en_curso(self.predio)
+    def test_el_formulario_llega_con_la_pagina_solo_a_quien_puede_y_hay_elegibles(self):
+        con = self._detalle(self.coordinador)
+        self.assertIn("form_relevamiento", con.context)
+        self.assertContains(con, 'x-show="modalRelevamiento"')
+        self.assertContains(con, "modalRelevamiento: false")
 
+        operador = self._usuario("operador_sin_asignar", ("dispositivo.ver", "dispositivo.editar"), [self.parador])
+        sin_capacidad = self._detalle(operador)
+        self.assertNotIn("form_relevamiento", sin_capacidad.context)
+        self.assertNotContains(sin_capacidad, 'x-show="modalRelevamiento"')
+
+        self._en_curso(self.predio)
+        sin_elegibles = self._detalle(self.coordinador)
+        self.assertNotIn("form_relevamiento", sin_elegibles.context)
+        self.assertNotContains(sin_elegibles, 'x-show="modalRelevamiento"')
+
+    def test_un_enlace_viejo_con_el_parametro_se_ignora_en_silencio(self):
         respuesta = self._detalle(self.coordinador, relevamiento="nuevo")
 
-        self.assertNotIn("form_relevamiento", respuesta.context)
-        self.assertContains(respuesta, "admite un relevamiento nuevo")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "modalRelevamiento: false")
+
+    def test_la_pantalla_no_repite_ids_con_el_modal_y_el_de_vincular_abiertos(self):
+        self._edificio_extra()
+        html = self._detalle(self.admin_p4, edificio="vincular").content.decode()
+
+        ids = re.findall(r'id="([^"]+)"', html)
+        repetidos = sorted({i for i in ids if ids.count(i) > 1})
+        self.assertIn('id="relev_edificio"', html)
+        self.assertIn('id="id_edificio"', html)
+        self.assertEqual(repetidos, [])
 
 
 class ModalTests(BaseCrearRelevamiento):
     def test_con_un_solo_edificio_elegible_va_fijo_y_de_solo_lectura(self):
-        respuesta = self._detalle(self.coordinador, relevamiento="nuevo")
+        respuesta = self._detalle(self.coordinador)
 
         form = respuesta.context["form_relevamiento"]
         self.assertTrue(form.edificio_fijo)
@@ -135,7 +164,7 @@ class ModalTests(BaseCrearRelevamiento):
         ocupado = self._edificio_extra("ED-OCUPADO")
         self._en_curso(ocupado)
 
-        form = self._detalle(self.coordinador, relevamiento="nuevo").context["form_relevamiento"]
+        form = self._detalle(self.coordinador).context["form_relevamiento"]
 
         self.assertFalse(form.edificio_fijo)
         valores = [valor for valor, _ in form.fields["edificio"].choices]
@@ -294,12 +323,10 @@ class CostoTests(BaseCrearRelevamiento):
             self.assertEqual(self._detalle(self.coordinador, **parametros).status_code, 200)
         return len(captura)
 
-    def test_el_costo_no_crece_con_los_edificios_ni_con_el_modal_cerrado_ni_abierto(self):
+    def test_el_costo_no_crece_con_los_edificios(self):
         self._edificio_extra("ED-A")
-        cerrado = self._consultas()
-        abierto = self._consultas(relevamiento="nuevo")
+        pocos = self._consultas()
         for n in range(6):
             self._edificio_extra(f"ED-M{n}")
 
-        self.assertEqual(self._consultas(), cerrado)
-        self.assertEqual(self._consultas(relevamiento="nuevo"), abierto)
+        self.assertEqual(self._consultas(), pocos)

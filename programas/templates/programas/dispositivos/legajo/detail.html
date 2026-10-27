@@ -13,7 +13,7 @@
        modalCambio: {% if form_cambio %}true{% else %}false{% endif %},
        modalEdificio: {% if form_edificio %}true{% else %}false{% endif %},
        modalVincular: {% if form_vincular %}true{% else %}false{% endif %},
-       modalRelevamiento: {% if form_relevamiento %}true{% else %}false{% endif %},
+       modalRelevamiento: false,
        egreso: { url: '{{ url_egresar|escapejs }}', persona: '{{ estadia_egreso.persona_visible|escapejs }}' }
      }"
      @becas-saved.window="modalEgreso=false; modalCambio=false; modalEdificio=false; modalVincular=false; modalRelevamiento=false">
@@ -294,14 +294,14 @@
       {# ===== TAB: Infraestructura (P19 del MVP: criticidad, observaciones y registro fotográfico del edificio) ===== #}
       <div x-show="tab==='infraestructura'" x-cloak role="tabpanel" id="panel-infraestructura" aria-labelledby="tab-infraestructura">
         {% if puede_editar or puede_crear_relevamiento %}
-        {# El alta, la vinculación y el relevamiento abren su modal con un parámetro GET, como los de P21 #}
+        {# El alta y la vinculación abren su modal con un parámetro GET, como los de P21; «Crear relevamiento» lo abre Alpine #}
         <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-4 border-b border-light">
           <p class="text-xs text-body-subtle">El edificio es el inmueble: un predio compartido se releva una vez y el resultado lo ven todas las instituciones que lo ocupan.</p>
           <div class="flex gap-2 flex-wrap">
             {% if puede_crear_relevamiento %}
-            <a href="{{ url_detalle }}?tab=infraestructura&amp;relevamiento=nuevo" class="btn-nodo btn-secondary btn-sm btn-fit">
+            <button type="button" @click="modalRelevamiento=true" class="btn-nodo btn-secondary btn-sm btn-fit">
               <i class="fas fa-clipboard-list" aria-hidden="true"></i> Crear relevamiento
-            </a>
+            </button>
             {% endif %}
             {% if puede_editar %}
             <a href="{{ url_detalle }}?tab=infraestructura&amp;edificio=vincular" class="btn-nodo btn-tertiary btn-sm btn-fit">

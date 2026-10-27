@@ -540,13 +540,12 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 context["url_edificio"] = reverse("dispositivos:edificio_editar", args=[dispositivo.pk, edificio.pk])
 
     def _preparar_relevamiento(self, context, dispositivo):
-        """«Crear relevamiento» de la solapa Infraestructura: el botón y, pedido, su modal.
+        """«Crear relevamiento» de la solapa Infraestructura: el botón y su modal, ya armado.
 
-        Solo lo calcula quien puede asignar y solo si el dispositivo tiene edificios: para el
-        resto el detalle no paga ni una consulta más. Los edificios elegibles se leen una
-        vez (el botón, el selector y el POST usan la misma regla); el selector de agentes,
-        que cuesta dos más, se arma **solo** con el modal abierto por
-        ``?tab=infraestructura&relevamiento=nuevo``, igual que los modales del edificio.
+        El modal abre con Alpine, sin recargar: el formulario y el selector de agentes llegan
+        con la página. Solo los paga quien puede asignar y solo si el dispositivo tiene algún
+        edificio elegible; para el resto el detalle no cuesta ni una consulta más. Los
+        elegibles se leen una vez (el botón, el selector y el POST usan la misma regla).
         """
 
         user = self.request.user
@@ -554,21 +553,13 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         if not context["infraestructura"]["edificios"] or not puede_en_programa_dispositivos(user, CAP_ASIGNAR):
             return
         elegibles = edificios_para_asignar_del_dispositivo(user, dispositivo)
-        context["puede_crear_relevamiento"] = bool(elegibles)
-        if self.request.GET.get("relevamiento") != "nuevo":
-            return
         if not elegibles:
-            messages.info(
-                self.request,
-                "Ningún edificio de esta institución admite un relevamiento nuevo: o ya tienen uno en curso "
-                "o están fuera de tu alcance.",
-            )
             return
+        context["puede_crear_relevamiento"] = True
         context["form_relevamiento"] = AsignarRelevamientoDispositivoForm(
             edificios=elegibles, agentes=agentes_asignables_para(elegibles), auto_id=AUTO_ID_RELEVAMIENTO
         )
         context["url_relevamiento"] = reverse("dispositivos:relevamiento_asignar_dispositivo", args=[dispositivo.pk])
-        context["tab"] = "infraestructura"
 
 
 class DispositivoUpdateView(FormularioInstitucionMixin, DispositivoObjectPermissionMixin, UpdateView):

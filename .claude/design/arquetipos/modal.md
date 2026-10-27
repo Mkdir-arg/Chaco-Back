@@ -127,14 +127,12 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   `data-ajax`, porque no muta) que elige el registro y reabre la pantalla con el modal del paso
   siguiente. Conserva la solapa y los filtros activos en `<input type="hidden">` armados en la
   vista, así el guardado vuelve a donde estaba. Evidencia: «Nuevo relevamiento» de P21.
-- **Modal armado por el servidor que elige el registro adentro**: el mismo parámetro GET
-  (`?tab=infraestructura&relevamiento=nuevo`), pero el registro (el edificio) es un campo del
-  form y no parte de la URL, así que el POST cuelga del padre (el dispositivo). Con un solo
-  candidato el campo va fijo y deshabilitado (usa el inicial, ignora el POST); con varios es un
-  `<select>`. El botón solo existe si hay candidatos y el modal se arma, con su selector de
-  agentes, **solo** abierto. Los ids llevan `auto_id` propio (`relev_%s`) porque la página
-  ya trae otro campo `edificio`. Evidencia: «Crear relevamiento» en la solapa Infraestructura
-  de P4 (`programas/templates/programas/dispositivos/legajo/detail.html`).
+- **Alta que elige el registro adentro**: el esqueleto de la golden tal cual (botón `<button type="button" @click>` y modal
+  con `x-show`, formulario con la página, sin parámetro GET: el GET es solo para lo que depende de un registro). El campo
+  que elige el registro es un `<select>`, o va fijo y deshabilitado (usa el inicial e ignora el POST) con un solo candidato,
+  y el POST cuelga del padre. Los ids llevan `auto_id` propio (`relev_%s`): la página ya trae otro campo `edificio`.
+  Evidencia: «Crear relevamiento» en la solapa Infraestructura de P4
+  (`programas/templates/programas/dispositivos/legajo/detail.html`).
 
 ## Prohibido
 
