@@ -20,9 +20,10 @@
   var respuestas = {};
   var canalActual = 'link';
 
-  function getCookie(name) {
-    var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return m ? decodeURIComponent(m.pop()) : '';
+  function csrfToken() {
+    // Django renderiza el token aun cuando la cookie es HttpOnly.
+    var input = document.querySelector('#constructor [name="csrfmiddlewaretoken"]');
+    return input ? input.value : '';
   }
   function aviso(mensaje, tipo) {
     if (typeof window.toast === 'function') { window.toast(tipo || 'success', mensaje); }
@@ -149,7 +150,7 @@
       headers: {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': getCookie('csrftoken')
+        'X-CSRFToken': csrfToken()
       },
       body: JSON.stringify(payload || {})
     }).then(function (resp) {
