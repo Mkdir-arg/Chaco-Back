@@ -132,16 +132,13 @@ class IngresoBaseView(LoginRequiredMixin, View):
 
         if estado.get("ciudadano_id"):
             return f"legajo:{estado['ciudadano_id']}"
-        datos = estado.get("renaper")
-        if datos:
-            resumen = hashlib.sha256(json.dumps(datos, sort_keys=True, default=str).encode()).hexdigest()[:16]
-            return f"registro:{datos.get('dni') or ''}:{estado.get('sexo') or ''}:{resumen}"
-        manual = estado.get("manual")
-        if manual:
-            # Prefijo propio: una persona cargada a mano y una del Registro con el mismo
-            # DNI no son la misma persona para la pantalla.
-            resumen = hashlib.sha256(json.dumps(manual, sort_keys=True, default=str).encode()).hexdigest()[:16]
-            return f"manual:{manual.get('dni') or ''}:{estado.get('sexo') or ''}:{resumen}"
+        # Prefijo propio por origen: una persona cargada a mano y una del Registro con el mismo
+        # DNI no son la misma persona para la pantalla.
+        for origen, prefijo in (("renaper", "registro"), ("manual", "manual")):
+            datos = estado.get(origen)
+            if datos:
+                resumen = hashlib.sha256(json.dumps(datos, sort_keys=True, default=str).encode()).hexdigest()[:16]
+                return f"{prefijo}:{datos.get('dni') or ''}:{estado.get('sexo') or ''}:{resumen}"
         return ""
 
     @staticmethod

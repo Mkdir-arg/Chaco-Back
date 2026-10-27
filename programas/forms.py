@@ -764,7 +764,8 @@ class TipoDispositivoForm(forms.ModelForm):
         self.fields["plaza_obligatoria_al_ingresar"].initial = True
         if self.instance.pk:
             # Un tipo de la v1 (solo `maneja_camas`) se arregla abriéndolo y guardándolo:
-            # la casilla viene tildada y con «Cama», sin migración de datos.
+            # la casilla viene tildada y con «Cama». La migración programas.0106
+            # (convertir_tipos_dispositivo_v1) convierte los tipos existentes; esto cubre al que quede sin convertir.
             tipos = self.instance.tipos_de_plaza
             if self.instance.maneja_camas and not tipos:
                 tipos = [Plaza.Tipo.CAMA]

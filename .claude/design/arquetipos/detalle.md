@@ -120,6 +120,7 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
 - Estado junto al H1: P4/P19 y P7 pasan `estado_texto` y `estado_variante` a `page_header`;
   el estado se omite del cuerpo de acciones. El resto de los detalles conserva su header.
 
+- Encabezado con más de una acción secundaria: el menú `texto="Más acciones"` (ver la «Variante de encabezado» de `componentes/tabla.md`).
 - Sin métricas: se omite la grilla de stat cards.
 - Secciones apiladas en vez de solapas cuando hay un área sola.
 - Solapa con carga diferida: `@click="tab='x'; $dispatch('<evento>')"` y el JS escucha ese

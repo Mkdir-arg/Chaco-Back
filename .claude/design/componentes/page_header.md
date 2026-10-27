@@ -59,6 +59,7 @@ P14 identifica el contexto con `eyebrow="Tipo de dispositivo"` sobre el título 
   (`badge … badge-dot`) pueden usar `estado_texto` junto al H1; los consumidores que
   ya los dibujan en el cuerpo conservan su contrato hasta que se migre ese bloque.
 - Lo que abre **otra pantalla** va acá, nunca como solapa.
+- Más de una acción secundaria: van al menú con `texto="Más acciones"` (regla de la «Variante de encabezado» de `tabla.md`).
 
 ## Patrones
 
