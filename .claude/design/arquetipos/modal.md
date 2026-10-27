@@ -102,6 +102,13 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
 - **Bloques alternativos por un switch**: un `SwitchInput` arriba (`<label class="inline-flex items-center gap-2 text-sm text-body" @change="flag = $event.target.checked">`)
   y los bloques con `x-show="flag"` / `x-show="!flag"`; el estado inicial sale del `value` del form en el `x-data` de la
   pantalla. Los campos ocultos viajan vacíos y el servidor decide. Consumidor: «Valida con SIIS» en `programa_list.html`.
+- **Modal inyectado por `fetch`, sin Alpine**: el panel ya llega abierto (`data-edit-modal` en el
+  overlay y `data-edit-modal-panel` en el panel, con el esqueleto de la golden: `_modal_header`,
+  `_modal_footer`, `max-w-2xl`) y el JS de la pantalla pone foco, Tab atrapado, Escape y el cierre
+  afuera, así que no lleva `x-becas-modal`. El fondo cierra solo si el `pointerdown` **también** fue
+  afuera del panel: arrastrar desde un campo y soltar sobre el fondo no debe perder lo escrito.
+  Los botones `[data-becas-modal-cerrar]` del encabezado y del pie cierran vía ese JS. Evidencia:
+  `programas/templates/programas/dispositivos/config/_edit_modal.html` y `tipo_detail.html` (P14).
 - Modal anidado sobre otro: el de arriba atrapa Tab y Escape; el de abajo no se cierra.
 - **Modal sin Alpine de dos pasos (buscar → alta)**: un solo `role="dialog"` con dos paneles
   —`<form role="search">` GET sin `{% csrf_token %}` (no muta) y el form de alta de siempre—, en el
