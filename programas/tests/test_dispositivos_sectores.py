@@ -73,9 +73,13 @@ class SectoresYPlazasPantallaTests(TestCase):
             self._estados(respuesta),
             {"A-01": "Disponible", "A-02": "Disponible", "A-03": "Fuera de serv."},
         )
-        # Las celdas del mapa (`</i> Estado`), no la leyenda, que nombra todos los estados.
+        # Solo las celdas del mapa (`block font-semibold"><i …></i> Estado`): la leyenda también
+        # dibuja `</i> Estado` para todos los estados, pero nunca lleva `block font-semibold">`.
         for estado in ("Ocupada", "Reservada", "Prestada"):
-            self.assertNotContains(respuesta, f"</i> {estado}")
+            self.assertNotRegex(
+                respuesta.content.decode(),
+                rf'block font-semibold"><i class="fas [\w-]+" aria-hidden="true"></i> {estado}',
+            )
         self.assertNotContains(respuesta, "Todavía no se ve la ocupación")
 
     def test_con_una_estadia_activa_la_plaza_aparece_ocupada(self):
@@ -91,7 +95,7 @@ class SectoresYPlazasPantallaTests(TestCase):
         self.client.force_login(self.lector)
         respuesta = self.client.get(self.url)
         self.assertEqual(self._estados(respuesta)["A-01"], "Ocupada")
-        self.assertContains(respuesta, "</i> Ocupada")
+        self.assertContains(respuesta, 'block font-semibold"><i class="fas fa-user" aria-hidden="true"></i> Ocupada')
         self.assertEqual(self._estados(respuesta)["A-02"], "Disponible")
 
     def test_cada_sector_se_acota_al_tope_y_avisa(self):
