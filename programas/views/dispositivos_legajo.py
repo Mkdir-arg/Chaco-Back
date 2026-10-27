@@ -93,6 +93,7 @@ from programas.services.inspecciones import (
     AGENTE_DEBE_SER_EXTERNO,
     CAP_ASIGNAR,
     agentes_asignables_para,
+    aviso_sin_formulario,
     edificios_para_asignar_del_dispositivo,
     semaforos_de_dispositivos,
 )
@@ -561,7 +562,10 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         context["puede_crear_relevamiento"] = True
         context["agente_externo"] = AGENTE_DEBE_SER_EXTERNO
         context["form_relevamiento"] = AsignarRelevamientoDispositivoForm(
-            edificios=elegibles, agentes=agentes_asignables_para(elegibles), auto_id=AUTO_ID_RELEVAMIENTO
+            edificios=elegibles,
+            agentes=agentes_asignables_para(elegibles),
+            auto_id=AUTO_ID_RELEVAMIENTO,
+            aviso_formulario=aviso_sin_formulario(dispositivo.tipo),
         )
         context["url_relevamiento"] = reverse("dispositivos:relevamiento_asignar_dispositivo", args=[dispositivo.pk])
 

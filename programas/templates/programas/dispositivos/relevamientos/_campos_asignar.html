@@ -4,6 +4,8 @@ P21 (relevamientos/list.html, edificio ya elegido) y P4 (legajo/detail.html, el 
 en el modal). Va dentro del `<div class="px-6 py-6 space-y-5 ...">` del modal.
 Contexto (se incluye con `only`):
   form             AsignarRelevamientoForm o AsignarRelevamientoDispositivoForm (obligatorio).
+  El formulario «Relevamiento» (D1/D3): si el edificio aloja a más de un tipo, `form.tipo` lo elige;
+  `form.aviso_formulario` avisa cuando el tipo no tiene uno.
   agente_externo   regla AGENTE_DEBE_SER_EXTERNO: sin ella no se dibuja ningún aviso del personal.
   edificio_nombre  opcional: el edificio fijo; completa la ayuda del agente.
   ayuda_edificio   opcional: ayuda del selector; no se muestra con el edificio fijo.
@@ -14,12 +16,18 @@ Contexto (se incluye con `only`):
   {% with field=form.edificio %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
   {% if ayuda_edificio and not form.edificio_fijo %}<p class="mt-1 text-xs text-body-subtle">{{ ayuda_edificio }}</p>{% endif %}
 </div>
+{% if form.tipo %}
+<div>{% with field=form.tipo %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+{% endif %}
 <div>
   {% with field=form.asignado_a %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
   {% if agente_externo and edificio_nombre %}<p class="mt-1 text-xs text-body-subtle">La lista solo trae agentes <strong>externos a {{ edificio_nombre }}</strong>.</p>{% endif %}
 </div>
 <div>{% with field=form.fecha_vencimiento %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
 <div>{% with field=form.indicaciones %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+{% if form.aviso_formulario %}
+  {% include "components/_alerta.html" with tono="warning" icono="clipboard-list" titulo="Sin formulario de relevamiento." texto=form.aviso_formulario %}
+{% endif %}
 {% if agente_externo %}
   {% include "components/_alerta.html" with tono="warning" icono="users" titulo="Nunca se asigna al personal de la institución relevada." texto="El relevamiento lo hace un agente externo para que no se omitan irregularidades." %}
 {% endif %}
