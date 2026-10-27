@@ -504,6 +504,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 378 | Dispositivos: la leyenda del mapa de plazas pasa a pastillas, y los tonos del listado y de P21 se alinean | Dispositivos · leyenda del mapa (P5, P6) · listado · P21 | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 379 | «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal | Dispositivos · P5 Sectores y plazas | `#ui` `#performance` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 383 | «Soy el administrador y no veo Relevamientos»: el rol protegido Administrador recibe `inspeccion.asignar` por migración | Transversal · RBAC (rol Administrador) · Dispositivos → Relevamientos (P21) | `#rbac` `#datos` `#relevamientos` | PM — prueba en testing (ECOM) | 26/10/2026 | 🟢 **Hecho** | `users.0040` |
+| 386 | Dispositivos: los modales del tipo y de sectores y plazas pasan al modal y al campo estándar | Dispositivos · Configuración → Tipos, P5 Sectores y plazas, cambio de plaza (P4, estadía) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -48381,5 +48382,98 @@ commit.
 ## Historial
 
 - **27/10/2026 — alta del cambio.** Lo decidió el juez por delegación del PM, sin el diagnóstico del pod.
+
+---
+
+# Cambio 386 — Dispositivos: los modales del tipo y de sectores y plazas pasan al modal y al campo estándar
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (detalle, edición y alta del tipo) · P5 Sectores y plazas · «Cambiar de plaza» en P4, P5 y la estadía |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 (lote D del Cambio 378) |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `config/_edit_modal.html`, `tipo_detail.html`, `_tipo_detail_content.html`, `_tipo_form_fields.html`, `tipo_form.html`, `sectores/sectores.html`, `sectores/_modal_sector.html`, `estadia/detalle.html`, `legajo/detail.html`, parcial nueva `dispositivos/_form_cambio_plaza.html` · Servidor: `views/dispositivos_legajo.py`, `services/sectores_plazas.py`, `forms_dispositivos.py` (textos de ayuda) · Fichas: `arquetipos/modal.md`, `componentes/field.md`, `estado_vacio.md`, `ficha_timeline.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cuarto lote de la revisión de diseño de Dispositivos (ver el Cambio 378): el modal de edición del tipo, la
+confirmación con SweetAlert2 y los campos escritos a mano en los modales de P5 y del tipo no seguían el
+sistema de diseño. El PM decidió (26/10/2026) que el SweetAlert2 del detalle del tipo pase al modal estándar.
+
+## Alcance acordado
+
+Sin cambio de comportamiento: estructura y piezas canónicas. Entran también un error del modal del tipo y los
+MINOR de las auditorías de #978 y #975.
+
+## Decisiones tomadas
+
+- **Modal del tipo** (`_edit_modal.html`): esqueleto de la golden (`_modal_header`/`_modal_footer`), con los
+  atributos y el JS inline que ya tenía (abre por `fetch`, foco atrapado, Escape). No lleva `x-becas-modal` ni
+  `becas-modal.js` porque llega por `fetch`, fuera de Alpine: queda documentado en `modal.md` como «Modal
+  inyectado por fetch» (los desvíos de `--arquetipo modal` bajan de 5 a 2 y son esos dos).
+- **Arrastrar no cierra**: el modal se cierra con un clic en el fondo solo si el `pointerdown` también fue en el
+  fondo. Antes, seleccionar texto de un campo y soltar afuera cerraba el modal y se perdía lo escrito.
+- **Confirmación**: el SweetAlert2 de Activar/Desactivar el tipo pasa a la confirmación estándar
+  (`_confirm_js.html`, ModernModal). Mismos textos.
+- **Campos**: los de los modales de sector, plaza, agregar plazas, liberar, fuera de servicio y cambio de plaza,
+  los del tipo y el de «Nuevo formulario» pasan a `components/_field.html` (`wrapper_class=""` en los modales).
+  Los textos de ayuda que estaban en el HTML pasan al `help_text` del form, con el mismo texto. Las casillas
+  del tipo conservan el label al costado (patrón que documenta la ficha de `_field`). `tipo_form.html` pasa el
+  arquetipo Formulario (de 2 desvíos a 0).
+- **«Cambiar de plaza» en un solo lugar**: el cuerpo del formulario estaba copiado en P4, P5 y la estadía; ahora
+  es la parcial `dispositivos/_form_cambio_plaza.html`, y el armado del form en la vista es un helper
+  (`_form_de_cambio_de_plaza`). El aviso «No hay plazas libres en el dispositivo para moverla.» lo devuelve
+  `bloqueo_de_plaza`.
+- Se pierden los enlaces `href` de Cerrar y Cancelar del modal del tipo, que solo servían sin JS (el modal
+  mismo llega por JS).
+
+## Implementación
+
+Mismo comportamiento y mismos textos. El modal del tipo no se cierra al soltar un arrastre afuera.
+
+## Archivos
+
+Los de «Partes afectadas», más `programas/tests/test_dispositivos_config.py` (la aserción de los enlaces del
+modal pasa a mirar `aria-labelledby` y `data-cancel-url`) y `programas/tests/test_dispositivos_capacidad.py`
+(MINOR de #975: el test de «Editar sector» sin permiso pide `?sector=<id>` y suma `assertNotIn` del alta y del
+lote).
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 441 tests de configuración, capacidad, sectores, acciones de plaza, detalle, estadía y piezas de `core`, y
+  `--tag performance programas`: OK con `.venv312`.
+- Mutación del test de #975: sin la guarda de `puede_configurar_plazas`, rojo.
+- `design_audit --ratchet` (0 nuevos), `--goldens` (0), `--arquetipo formulario` sobre `tipo_form.html` (0),
+  `compile_templates --bloques` (0), `check_design_agent --changed` y ruff: OK.
+- Chromium (Playwright, SQLite local): editar el tipo, arrastrar desde un campo hasta el fondo **no** cierra y
+  conserva el texto; clic en el fondo, Escape, la X y Cancelar cierran; el foco queda atrapado; los errores del
+  servidor se pintan en el campo; guardar edita. Activar/Desactivar con la confirmación estándar. En P5, «Agregar
+  plazas», «Nuevo sector», «Editar sector», «Editar plaza», «Sacar de servicio» y «Cambiar de plaza» pintan sus
+  errores; el cambio de plaza desde P4 y desde la estadía abre y guarda. Sin errores de consola.
+
+## Puesta en marcha en el servidor
+
+Nada. Recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+- Nada de este cambio.
+
+## Reversión
+
+Revertir los commits del PR: vuelven el modal anterior, el SweetAlert2 y las tres copias del cambio de plaza.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.**
 
 ---
