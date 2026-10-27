@@ -503,7 +503,12 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 377 | Sectores y plazas: reubicar a la persona desde la plaza ocupada | Dispositivos · P5 · Sectores y plazas | `#ui` `#rbac` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 378 | Dispositivos: la leyenda del mapa de plazas pasa a pastillas, y los tonos del listado y de P21 se alinean | Dispositivos · leyenda del mapa (P5, P6) · listado · P21 | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 379 | «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal | Dispositivos · P5 Sectores y plazas | `#ui` `#performance` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 380 | Ingreso a un dispositivo: el asistente avanza siempre con «Continuar» | Dispositivos · asistente de ingreso (P6) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 381 | Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle | Dispositivos · Configuración → Tipos | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 382 | Detalle de una institución (P4): las acciones secundarias del encabezado van al menú «Más acciones» | Dispositivos · detalle de la institución (P4) · menú de fila | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 383 | «Soy el administrador y no veo Relevamientos»: el rol protegido Administrador recibe `inspeccion.asignar` por migración | Transversal · RBAC (rol Administrador) · Dispositivos → Relevamientos (P21) | `#rbac` `#datos` `#relevamientos` | PM — prueba en testing (ECOM) | 26/10/2026 | 🟢 **Hecho** | `users.0040` |
+| 384 | «Crear relevamiento» desde la solapa Infraestructura de la institución | Dispositivos · P4 · Infraestructura | `#ui` `#relevamientos` `#rbac` | PM — pedido en sesión | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 385 | Los tipos de dispositivo de la v1 pasan solos a «Sectores y plazas», sin exigir plaza al ingresar | Dispositivos · Configuración · Tipos | `#datos` | PM — decisión sobre la conversión de los tipos v1 | 26/10/2026 | 🟢 **Hecho** | `programas.0106` |
 | 386 | Dispositivos: los modales del tipo y de sectores y plazas pasan al modal y al campo estándar | Dispositivos · Configuración → Tipos, P5 Sectores y plazas, cambio de plaza (P4, estadía) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
@@ -47624,6 +47629,10 @@ release anterior lo lee igual; `maneja_camas` quedó sincronizado.
 ## Historial
 
 - **26/10/2026 — alta del cambio.**
+- **27/10/2026 — Cambio 385.** «Sin migración de datos» queda superado: la migración `programas.0106`
+  convierte sola cada tipo de la v1 (`maneja_camas` con la lista vacía) a Cama, **sin** exigir plaza al
+  ingresar. La puesta en marcha ya no pide abrir y guardar cada tipo. Un tipo nuevo sigue naciendo con
+  «Exige asignar una plaza» tildada.
 
 ---
 
@@ -48382,6 +48391,503 @@ commit.
 ## Historial
 
 - **27/10/2026 — alta del cambio.** Lo decidió el juez por delegación del PM, sin el diagnóstico del pod.
+
+---
+
+# Cambio 380 — Ingreso a un dispositivo: el asistente avanza siempre con «Continuar»
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · asistente de ingreso (P6) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/ingreso/paso_persona.html` · Ficha: `.claude/design/arquetipos/wizard.md` |
+| **Migración** | no |
+
+## Pedido original
+
+Es el tercer lote de la revisión de diseño de Dispositivos (ver el Cambio 378). El asistente de ingreso
+usaba tres verbos distintos para avanzar: «Siguiente» en Persona, «Continuar» en Plaza y «Confirmar ingreso»
+en Confirmar. El relevamiento marcó además que el pie de Plaza no lleva el separador que sí tienen Persona y
+Confirmar.
+
+## Alcance acordado
+
+Entra el texto del botón de avance. Quedan afuera los forms, los campos ocultos, los `name`/`value` de los
+envíos y la lógica de los pasos.
+
+## Decisiones tomadas
+
+- **«Continuar» es el único verbo de avance.** Lo decidió el PM el 26/10/2026 («sigo tus recomendaciones»).
+  En el paso 1 el botón de la izquierda sigue siendo «Cancelar», porque ahí todavía no hay paso anterior. La
+  acción final sigue siendo «Confirmar ingreso», y la del alta mínima, «Dar de alta y seguir», es otra acción.
+  La golden de Configuración de Becas conserva «Siguiente», así que la ficha registra esto como propio del
+  ingreso de Dispositivos.
+- **El pie de Plaza queda sin separador. El relevamiento se había equivocado.** En Persona y Confirmar el
+  separador divide el contenido de los botones dentro de una misma card. En Plaza el contenido es una grilla de
+  varias cards (el mapa por sector y Persona), y el pie va en su propia card `<form>`, que solo tiene los
+  ocultos y los botones. Un `border-t` ahí deja una franja vacía de unos 48 px sobre la línea. Se probó, se
+  revirtió, y la ficha de Wizard explica por qué.
+
+## Implementación
+
+- `paso_persona.html`: «Siguiente» pasa a «Continuar», con el mismo ícono `fa-arrow-right`.
+- `wizard.md`: la variante del paso intermedio registra el verbo del ingreso de Dispositivos, y el bullet del
+  paso de plaza explica que su pie va en una card propia y sin separador.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/ingreso/paso_persona.html`
+- `.claude/design/arquetipos/wizard.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y
+  `check_design_agent --changed`: en verde.
+- Ningún test afirma el «Siguiente» de Dispositivos. Los que buscan «Continuar» en `test_dispositivos_ingreso.py`
+  siguen siendo coherentes. Por pedido del PM (26/10/2026) no se corrió la suite en local: la corre el CI del
+  PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 381 — Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (listado, alta/edición y detalle) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/config/tipo_list.html`, `tipo_form.html`, `_tipo_detail_content.html` |
+| **Migración** | no |
+
+## Pedido original
+
+Es el segundo lote de la revisión de diseño de Dispositivos (ver el Cambio 378). El relevamiento marcó tres cosas
+en la configuración de tipos:
+
+- El listado tiene el título armado a mano, un SVG en «Nuevo tipo», la tabla sin `nodo-th`/`nodo-td` y el estado
+  vacío suelto.
+- El formulario tiene un «← Volver» de texto, un `<h1>` propio y un ancho angosto centrado.
+- El detalle tiene los botones del encabezado en tamaño de página.
+
+## Alcance acordado
+
+Entran las tres pantallas, sin cambiar comportamiento: mismos datos, URLs, formularios, `data-*` y JS. Quedan
+afuera:
+
+- el modal del tipo (`_edit_modal.html`);
+- los campos de `_tipo_form_fields.html`;
+- el JS de `tipo_detail.html`.
+
+Van en el PR del modal (ver Pendientes).
+
+## Decisiones tomadas
+
+- **Listado → arquetipo Listado** (golden `becas/revision/personas_list.html`):
+  - `page_header` con eyebrow y bajada, y «Nuevo tipo» con `fa-plus`;
+  - la tabla con `nodo-thead-row`/`nodo-th`/`nodo-td`;
+  - el estado vacío con `_estado_vacio.html`, que ahora ofrece «Nuevo tipo». La pantalla no condiciona ese
+    botón por capacidad, igual que el del encabezado.
+  - La acción de fila «Configurar», que era un botón con texto, pasa a `nodo-icon-btn` (`fa-gear`) con
+    `aria-label="Configurar el tipo …"`, como pide la ficha de tabla.
+  - El badge de estado sale del helper canónico `estado_tipo_dispositivo`, el mismo que usa el detalle, y no
+    de un `{% if %}` en el template. El HTML que se dibuja es el mismo.
+- **Formulario → arquetipo Formulario** (golden `becas/config/segmento_form.html`):
+  - `page_header` con `volver_url` al listado. Este template solo dibuja el alta, porque la edición va en el
+    modal sobre el detalle (`TipoDispositivoUpdateView`);
+  - surface `bg-white` a todo el ancho, como la golden;
+  - el pie con `mt-6 pt-4 border-t`, y «Guardar tipo» con `fa-check`, como el esqueleto. El espaciado entre
+    campos no cambia.
+- **Detalle:** los tres botones del encabezado pasan de `btn-base` a `btn-sm btn-fit`, el tamaño de los
+  detalles. El relevamiento había marcado «Activar» con dos variantes a la vez, pero no era así: es un `{% if %}`
+  que pone una sola, `btn-tertiary` para desactivar y `btn-secondary` para activar. Queda igual.
+
+## Implementación
+
+Solo templates. Las URLs de volver salen de `{% url … as … %}` en el template, así que no se tocó ninguna vista.
+Hubo que recompilar Tailwind aunque no se agregó ninguna clase: «← Volver» y el nombre del tipo eran los
+últimos usos de `hover:text-fg-brand`, y el CSS commiteado conservaba esa regla. Sacar una clase también obliga
+a recompilar.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/config/tipo_list.html`
+- `programas/templates/programas/dispositivos/config/tipo_form.html`
+- `programas/templates/programas/dispositivos/config/_tipo_detail_content.html`
+- `static/custom/css/tailwind.css`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y
+  `check_design_agent --changed`: en verde.
+- `design_audit --arquetipo listado tipo_list.html`: OK.
+- `design_audit --arquetipo formulario tipo_form.html`: 2 desvíos, los dos por la misma causa. Faltan los
+  marcadores `_form_errores.html` y `_field.html`, porque los campos viven en `_tipo_form_fields.html`, que
+  comparte el modal. Escribir los includes en `tipo_form.html` sin usarlos solo engañaría al auditor. Se
+  resuelve cuando ese parcial pase a `_field.html` (Pendientes).
+- Ningún test afirma el markup que cambió (grep en `programas/tests/` y `core/tests/`). Por pedido del PM
+  (26/10/2026) no se corrió la suite en local: la corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada. Recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+- Migrar `_tipo_form_fields.html` a `_field.html` y `_form_errores.html` en el PR del modal del tipo (lote D del
+  Cambio 378). Ahí `tipo_form.html` pasa los marcadores del arquetipo Formulario.
+
+## Reversión
+
+Revertir el commit. No hay datos que revertir.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 382 — Detalle de una institución (P4): las acciones secundarias del encabezado van al menú «Más acciones»
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle de la institución (P4) · menú de fila |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/legajo/detail.html` · Piezas: `{% menu_fila %}` (`texto=`), `components/_menu_fila_item.html` (`abre_modal=`), filtro `nombre_alpine` · Fichas: `.claude/design/componentes/tabla.md`, inventario de `.claude/agents/chaco-design-system.md` |
+| **Migración** | no |
+
+## Pedido original
+
+Es el cuarto lote de la revisión de diseño de Dispositivos (ver el Cambio 378). El encabezado del detalle de una
+institución puede llegar a mostrar nueve botones en una fila, según el estado y la capacidad: Bitácora del turno,
+Editar, Enviar a validación, Validar, Observar, Rechazar, Inactivar, Cerrar e Ingresar persona. Ninguna otra
+pantalla del sistema tiene un encabezado así.
+
+## Alcance acordado
+
+Entra dónde se dibujan las acciones. Quedan afuera:
+- qué acción aparece en cada estado y con qué capacidad;
+- las URLs, los contratos de confirmación (`data-confirm-*`) y los modales Observar y Rechazar.
+
+## Decisiones tomadas
+
+- **Las acciones secundarias van a un menú «Más acciones».** Lo decidió el PM el 26/10/2026 («sigo tus
+  recomendaciones»).
+  - Quedan visibles «Bitácora del turno» y la primaria del estado: Enviar a validación, Validar o Ingresar persona.
+  - Van al menú, en este orden: Editar, Observar, Rechazar, Inactivar y Cerrar. Rechazar y Cerrar en rojo.
+  - Cada ítem conserva su condición de estado y de capacidad. Si ninguno aplica, el menú no se dibuja.
+  - El orden visual cambia: Editar ya no queda entre la bitácora y la primaria. El menú va último.
+- **Es una variante del menú de fila, no una pieza nueva.** Lo decidió el juez. Así se reusan el teclado, el foco,
+  el cierre con Escape o con un clic afuera, y el posicionamiento de `nodo-menu-fila.js`.
+  - `texto="Más acciones"` cambia el disparador ⋮ por un botón `btn-secondary btn-sm btn-fit` con el texto y un caret.
+  - Sin `texto`, el HTML de los consumidores que ya existían no cambia: hay un test que lo compara byte a byte.
+- **`abre_modal` acepta solo el nombre de una variable Alpine.** Observar y Rechazar abren modales de la pantalla. El
+  ítem dibuja `@click="<variable>=true"`, y el filtro `nombre_alpine` descarta todo lo que no sea un identificador.
+  Así un valor no puede meter una expresión. Si no pasa el filtro, el ítem no se dibuja. El menú no se mueve del DOM
+  (es `position: fixed`), así que el `@click` sigue dentro del `x-data` de la pantalla.
+
+## Implementación
+
+- `_menu_fila.html` y `{% menu_fila %}`: suman el parámetro opcional `texto`.
+- `_menu_fila_item.html`: suma `abre_modal`.
+  - Va después de `motivo`, `confirm_url` y `url`, que le ganan.
+  - Acepta `peligro=True`.
+- `core/templatetags/nodo_ui.py`: el filtro `nombre_alpine`.
+- `legajo/detail.html`: el encabezado se reordena con `{% menu_fila id="acciones-dispositivo" … texto="Más acciones" %}`.
+- `tabla.md` suma la subsección «Variante de encabezado (`texto=`) y ítem que abre un modal (`abre_modal=`)», con la
+  regla de cuándo usarla. El inventario del agente canónico se actualiza.
+- No hay CSS ni JS nuevos.
+
+## Archivos
+
+- `templates/components/_menu_fila.html`
+- `templates/components/_menu_fila_item.html`
+- `core/templatetags/nodo_ui.py`
+- `programas/templates/programas/dispositivos/legajo/detail.html`
+- `core/tests/test_nodo_ui_piezas.py`
+- `programas/tests/test_dispositivos_detalle.py`
+- `programas/tests/test_dispositivos_fidelidad_ff.py`
+- `.claude/design/componentes/tabla.md`
+- `.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0), `check_design_agent
+  --changed` y ruff: en verde.
+- Tests de los módulos tocados: `core.tests.test_nodo_ui_piezas`, `programas.tests.test_dispositivos_detalle` y
+  `programas.tests.test_dispositivos_fidelidad_ff`. Dieron 207 OK y 2 salteados. La suite completa la corre el CI.
+  - `MenuFilaTest` cubre:
+    - `abre_modal` válido, con `peligro`, y con siete valores inválidos (en ninguno sale `@click`);
+    - que cede ante `motivo` y `url`;
+    - el disparador con texto;
+    - el HTML sin `texto`, idéntico byte a byte al anterior.
+  - El detalle verifica tres cosas:
+    - quien solo ve la institución no tiene menú;
+    - el validador recibe Observar y Rechazar con su `@click`;
+    - sin `dispositivo.validar` no aparecen.
+  - Mutación: con `puede_validar` fuera de la condición, el test de «sin `dispositivo.validar`» se pone rojo.
+- En el navegador, a 1440 y a 390 px:
+  - el menú abre y cierra con Escape y con un clic afuera, y el foco vuelve al disparador;
+  - Observar y Rechazar abren su modal;
+  - Inactivar y Cerrar abren su confirmación;
+  - a 390 px el menú queda dentro del viewport, sin scroll horizontal;
+  - la consola no muestra errores.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 384 — «Crear relevamiento» desde la solapa Infraestructura de la institución
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P4 (detalle de la institución) · solapa Infraestructura |
+| **Etiquetas** | `#ui` `#relevamientos` `#rbac` |
+| **Solicitante** | PM — pedido en sesión, 26/10/2026 («un botón Crear relevamiento al lado de Vincular un edificio»); las tres preguntas, respondidas «sí a las 3» el 27/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `legajo/detail.html` (botón y modal), `DispositivoDetailView._preparar_relevamiento`, vista nueva `DispositivoRelevamientoAsignarView` (ruta `dispositivos:relevamiento_asignar_dispositivo`), `AsignarRelevamientoDispositivoForm`, `services/inspecciones.py` (`agentes_asignables_para`, `edificios_para_asignar_del_dispositivo`), ficha `.claude/design/arquetipos/modal.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En `/dispositivos/<id>/?tab=infraestructura`, al lado de «Vincular un edificio», un botón «Crear relevamiento»
+para asignar el relevamiento edilicio sin ir a la pantalla de Relevamientos (P21).
+
+## Alcance acordado
+
+Respuestas del PM («sí a las 3»):
+
+1. Los mismos cuatro campos del modal de P21: edificio, agente territorial, vence (obligatorio) e indicaciones.
+2. Con varios edificios, un selector con los que **no** tienen un relevamiento en curso; con uno solo, fijo.
+3. El territorial es un usuario con un rol activo del programa Dispositivos que tenga «Cargar el resultado de
+   los relevamientos edilicios asignados» (`inspeccion.relevar`): por capacidad, nunca por nombre de grupo.
+
+Se mantienen las reglas de P21: el botón aparece solo con `inspeccion.asignar` y alcance sobre el edificio, y
+no aparece si ningún edificio de la institución admite uno nuevo.
+
+## Decisiones tomadas
+
+- **Mismo circuito que P21**: el alta la hace `crear_inspeccion`, que vuelve a validar capacidad, alcance,
+  edificio sin uno en curso y agente. No se duplica ninguna regla.
+- **La ruta cuelga de la institución** (`<pk>/relevamiento/asignar/`) y el edificio viaja en el POST: el
+  formulario lo acota a los elegibles de esa institución. Un edificio ajeno, fuera del alcance o con uno en
+  curso da el mismo error en el campo, sin decir cuál de los tres es.
+- **Con un solo edificio elegible** el campo va deshabilitado: Django usa el inicial e ignora lo que llegue.
+- **Territorial con varios edificios** (decisión del juez): el selector ofrece la unión de los agentes válidos
+  para cada edificio, sin el personal que lo es de **todos**. Un agente válido para uno y personal del otro
+  pasa el selector y lo rechaza el servicio al elegir el edificio que no corresponde (`_validar_agente`, error
+  en «Agente territorial»). La regla del agente externo (`AGENTE_DEBE_SER_EXTERNO`) queda solo en el servicio.
+- **Abre sin recargar** (decisión del juez): botón `@click` y formulario con la página, como las altas de P5
+  del Cambio 379, porque el PM rechazó la recarga. La variante GET del arquetipo Modal queda para lo que
+  depende de un registro. Costo aceptado: para quien puede asignar y tiene edificios elegibles, P4 suma una
+  consulta de edificios y hasta dos del selector de agentes; nadie más paga nada. Ningún presupuesto vigente
+  cambia.
+- `auto_id="relev_%s"`: la página ya trae el campo `edificio` del modal de vincular.
+- La barra de la solapa se dibuja también para quien solo puede asignar: ve «Crear relevamiento» y no los
+  botones de edificio.
+- Al guardar, toast y vuelta a la solapa Infraestructura.
+
+## Implementación
+
+Botón «Crear relevamiento» en la barra de la solapa Infraestructura. El modal sigue el esqueleto de la golden
+(`_modal_header`/`_modal_footer`, POST AJAX con `data-ajax`) y avisa que nunca se asigna al personal de la
+institución relevada. Si no queda ningún edificio elegible, el botón no aparece.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/legajo/detail.html`
+- `programas/views/dispositivos_legajo.py` (`_preparar_relevamiento`)
+- `programas/views/dispositivos_relevamientos.py` (`DispositivoRelevamientoAsignarView`)
+- `programas/dispositivos_urls.py` (`relevamiento_asignar_dispositivo`)
+- `programas/forms_dispositivos.py` (`AsignarRelevamientoDispositivoForm`, `AUTO_ID_RELEVAMIENTO`; el edificio
+  de `AsignarRelevamientoForm` pasa a opcional para poder heredarlo, sin cambio para P21)
+- `programas/services/inspecciones.py` (`agentes_asignables_para`, `edificios_para_asignar_del_dispositivo`)
+- `programas/tests/test_dispositivos_crear_relevamiento_p4.py` (nuevo, 26 tests)
+- `.claude/design/arquetipos/modal.md` (consumidor «Alta que elige el registro adentro»)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 26 tests nuevos: botón con y sin capacidad, sin elegibles, edificio fijo y selector, POST que crea y que
+  rechaza (sin capacidad, edificio ajeno, edificio con uno en curso, agente que es personal del edificio,
+  vencimiento vacío), formulario solo para quien puede, enlace viejo ignorado y sin ids repetidos en P4.
+- Mutación: sin el filtro por institución de `edificios_para_asignar_del_dispositivo`, fallan 2 tests.
+- 305 tests de P4, infraestructura, inspecciones y relevamientos y `--tag performance programas` (44): OK.
+- `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y
+  `check_design_agent --changed`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada. Quien asigna necesita `inspeccion.asignar` en un rol del programa (el Administrador la recibe con el
+Cambio 383) y tiene que haber territoriales con `inspeccion.relevar`; los roles los configura el PM.
+
+## Pendientes / a definir
+
+- Nada de este cambio.
+
+## Reversión
+
+Revertir el commit: desaparecen el botón, el modal y la ruta nueva. Los relevamientos creados desde P4 son
+relevamientos comunes de P21 y siguen ahí.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 385 — Los tipos de dispositivo de la v1 pasan solos a «Sectores y plazas», sin exigir plaza al ingresar
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (y, por arrastre, la solapa «Sectores y plazas» y el ingreso de las instituciones de esos tipos) |
+| **Etiquetas** | `#datos` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 (los tipos de la v1 se convierten solos, también en PRD); casilla resuelta por el PM el 27/10/2026 (opción 1: destildada) |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: migración de datos `programas/migrations/0106_convertir_tipos_dispositivo_v1.py` · Tests: `programas/tests/test_dispositivos_config.py` (`ConvertirTiposV1MigracionTests`) |
+| **Migración** | `programas.0106` (datos, sin cambios de esquema) |
+
+## Pedido original
+
+El Cambio 372 dejó a los tipos de la v1 (`maneja_camas` tildado y sin tipos de plaza) esperando que alguien
+los abra y los guarde una vez: hasta entonces sus instituciones no muestran la solapa «Sectores y plazas».
+El PM pidió que se conviertan solos, también en PRD, sin depender de que alguien se acuerde de guardarlos.
+
+## Alcance acordado
+
+Entra: cada tipo con `maneja_camas=True` y `tipos_plaza_admitidos` vacío o nulo. Queda afuera: los tipos ya
+configurados (tienen al menos un tipo de plaza) y los que no manejan camas, que no se tocan; borrar
+`maneja_camas` sigue siendo el contract de una release posterior (Cambio 239).
+
+## Decisiones tomadas
+
+- **«Exige asignar una plaza al ingresar» queda destildada** (decisión del PM, 27/10/2026, opción 1 de dos).
+  Tildada, toda institución de esos tipos que todavía no cargó plazas dejaba de poder registrar ingresos en
+  PRD: lo rechazan `programas/services/estadias.py` y `programas/views/dispositivos_ingreso.py`. Quien quiera
+  exigir la plaza la tilda después desde Configuración → Tipos.
+- Por eso la conversión **no** es idéntica a abrir el tipo en el modal y guardarlo: el modal lo abre con la
+  casilla tildada (Cambio 372). Lo demás sí coincide: `tipos_plaza_admitidos=["CAMA"]` y `maneja_camas=True`.
+- La casilla se escribe en `False` de forma explícita, también si un tipo de la v1 la tuviera en `True` con
+  la lista vacía.
+- Un tipo nuevo sigue naciendo con la casilla tildada: eso es del form y no cambia.
+- Un tipo de la v1 que alguien ya guardó a mano (en testing, «Municipal», si se hizo la puesta en marcha del
+  Cambio 372) ya tiene la lista y no se toca: conserva lo que eligió quien lo guardó.
+
+## Implementación
+
+`RunPython` que recorre los tipos con `maneja_camas=True`, saltea los que tienen lista, y a los demás les
+escribe `["CAMA"]`, `plaza_obligatoria_al_ingresar=False` y `maneja_camas=True` con un `update` por fila. La
+lista vacía se mira en Python (son pocas filas y el lookup JSON difiere entre MySQL y MariaDB). Es
+idempotente: filtra por el estado de origen, así que un reintento no toca lo ya convertido. `CAMA` va
+escrito a mano para no depender de las `TextChoices` de hoy.
+
+## Archivos
+
+- `programas/migrations/0106_convertir_tipos_dispositivo_v1.py` (nuevo)
+- `programas/tests/test_dispositivos_config.py` (`ConvertirTiposV1MigracionTests`)
+
+## Base de datos
+
+`programas.0106_convertir_tipos_dispositivo_v1`: migración de **datos** sobre `TipoDispositivo`, sin cambios
+de esquema. Depende de `programas.0105`. Toca solo las filas de tipos de la v1 (en testing, las que sigan sin
+configurar); una tabla de catálogo de pocas filas, sin riesgo de `read_timeout`.
+
+## Validación
+
+- `ConvertirTiposV1MigracionTests` y `TipoDispositivoSectoresYPlazasTests` con `.venv312` (Django 5.2): 16
+  tests OK. Casos: lista vacía, lista nula, v1 con la casilla en `True`, ya configurado, sin camas, correrla
+  dos veces, y que el form abra el tipo convertido con «Maneja sectores y plazas», Cama y la casilla
+  destildada, y que guardarlo así no lo cambie.
+- Mutación: con la casilla en `True` en la migración, fallan 4 comprobaciones de la clase; con `False`, pasan.
+- `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`: «No changes detected».
+- `scripts/check_migraciones.py`: 0 problemas. Ruff: OK.
+- La suite completa y la ida y vuelta contra MariaDB y MySQL las corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada: la corre el `migrate` del deploy. Ya no hace falta abrir y guardar cada tipo (lo que pedía el Cambio
+372). Después del deploy, las instituciones de esos tipos muestran la solapa «Sectores y plazas» y siguen
+ingresando personas sin plaza hasta que alguien tilde la casilla en su tipo.
+
+## Pendientes / a definir
+
+- Nada de este cambio.
+
+## Reversión
+
+1. `python manage.py migrate programas 0105`: la reversa es un no-op (`# REVERSA-NOOP`), no deshace nada.
+2. Revertir el commit.
+3. Los tipos convertidos quedan con `["CAMA"]`, sin exigir plaza y con `maneja_camas=True`, que la release
+   anterior ya lee (Cambio 372, Reversión). No se pierde ningún dato. No se distingue un tipo convertido de
+   uno guardado a mano, por eso no se intenta volver a la lista vacía.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.**
 
 ---
 

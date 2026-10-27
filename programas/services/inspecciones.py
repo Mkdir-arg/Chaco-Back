@@ -210,6 +210,20 @@ def _personal_del_edificio(edificio):
     ).values("rol__user")
 
 
+def _candidatos_a_relevar():
+    """Usuarios activos con un rol activo del programa que tenga ``inspeccion.relevar``."""
+
+    programa = programa_dispositivos()
+    if programa is None:
+        return get_user_model().objects.none()
+    return get_user_model().objects.filter(
+        is_active=True,
+        groups__meta__activo=True,
+        groups__meta__programa=programa,
+        groups__permissions__codename=rbac.codename_de(CAP_RELEVAR),
+    )
+
+
 def agentes_asignables(edificio):
     """Candidatos para el selector de P21: usuarios activos que pueden relevar en Dispositivos.
 
@@ -217,17 +231,33 @@ def agentes_asignables(edificio):
     nombre de grupo. Con :data:`AGENTE_DEBE_SER_EXTERNO`, sin el personal del edificio.
     """
 
-    programa = programa_dispositivos()
-    if programa is None:
-        return get_user_model().objects.none()
-    candidatos = get_user_model().objects.filter(
-        is_active=True,
-        groups__meta__activo=True,
-        groups__meta__programa=programa,
-        groups__permissions__codename=rbac.codename_de(CAP_RELEVAR),
-    )
+    candidatos = _candidatos_a_relevar()
     if AGENTE_DEBE_SER_EXTERNO:
         candidatos = candidatos.exclude(pk__in=_personal_del_edificio(edificio))
+    return candidatos.distinct().order_by("first_name", "last_name", "username")
+
+
+def agentes_asignables_para(edificios):
+    """El selector de agentes cuando el edificio se elige en el mismo modal (P4).
+
+    Es la unión de :func:`agentes_asignables` sobre ``edificios``: queda afuera solo quien es
+    personal de **todos** (cada edificio con su propio personal, en una consulta y no una por
+    edificio). Con uno solo es exactamente ``agentes_asignables(edificio)``. El agente que
+    resulta válido para un edificio y no para otro lo rechaza el servicio al crear
+    (:func:`_validar_agente`), con el edificio ya elegido: la regla vive ahí, no acá.
+    """
+
+    ids = [edificio.pk for edificio in edificios]
+    candidatos = _candidatos_a_relevar()
+    if AGENTE_DEBE_SER_EXTERNO and ids:
+        pares = AsignacionDispositivo.objects.filter(
+            dispositivo__edificios__in=ids, activo=True, rol__meta__activo=True
+        ).values_list("dispositivo__edificios", "rol__user")
+        personal = {pk: set() for pk in ids}
+        for edificio_id, usuario_id in pares:
+            personal[edificio_id].add(usuario_id)
+        en_todos = set.intersection(*personal.values())
+        candidatos = candidatos.exclude(pk__in=en_todos)
     return candidatos.distinct().order_by("first_name", "last_name", "username")
 
 
@@ -667,6 +697,17 @@ def edificios_para_asignar(user):
         .exclude(inspecciones__estado=InspeccionEdificio.Estado.ASIGNADA)
         .order_by("nombre", "pk")
     )
+
+
+def edificios_para_asignar_del_dispositivo(user, dispositivo):
+    """Los edificios de ``dispositivo`` que ``user`` puede asignar ahora: lo que ofrece P4.
+
+    Es :func:`edificios_para_asignar` acotada al dispositivo, en una sola consulta y ya como
+    lista (el botón, el selector y el POST miran la misma). Sin ``inspeccion.asignar`` o sin
+    alcance sobre el edificio no hay ninguno; uno con relevamiento en curso tampoco.
+    """
+
+    return list(edificios_para_asignar(user).filter(dispositivos=dispositivo))
 
 
 def edificios_sin_relevar(user):
