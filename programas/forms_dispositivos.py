@@ -270,7 +270,7 @@ class AsignarRelevamientoForm(forms.Form):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional"}),
     )
 
-    def __init__(self, *args, edificio=None, agentes, tipos_formularios=(), **kwargs):
+    def __init__(self, *args, edificio=None, agentes, tipos_formularios=(), aviso_formulario="", **kwargs):
         super().__init__(*args, **kwargs)
         if edificio is not None:
             self.fields["edificio"].initial = f"{edificio.nombre} · {edificio.codigo}"
@@ -278,7 +278,8 @@ class AsignarRelevamientoForm(forms.Form):
         self.fields["edificio"].marca_requerido = True
         self.fields["asignado_a"].queryset = agentes
         self._tipos = {}
-        self.aviso_formulario = ""
+        # D3: el aviso de «sin formulario» lo calcula la vista (``aviso_de_tipos``).
+        self.aviso_formulario = aviso_formulario
         # D1: el formulario sale del tipo de la institución. Solo si el edificio aloja a más de un
         # tipo hay que elegir; con uno, lo resuelve el servicio.
         tipos_formularios = list(tipos_formularios)
@@ -305,11 +306,6 @@ class AsignarRelevamientoForm(forms.Form):
             )
             self.fields["tipo"].marca_requerido = True
             self.order_fields(["edificio", "tipo", "asignado_a", "fecha_vencimiento", "indicaciones"])
-        elif tipos_formularios and tipos_formularios[0][1] is None:
-            self.aviso_formulario = (
-                f"El tipo «{tipos_formularios[0][0].nombre}» no tiene un formulario «Relevamiento»: el territorial "
-                "va a cargar solo la criticidad, las observaciones y las fotos."
-            )
 
     def clean_tipo(self):
         return self._tipos[self.cleaned_data["tipo"]]

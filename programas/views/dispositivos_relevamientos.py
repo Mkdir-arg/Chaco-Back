@@ -48,6 +48,7 @@ from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
 from programas.models import Dispositivo, InspeccionEdificio
 from programas.selectors.inspecciones import relevamiento_para_revision
 from programas.services.dispositivos import CAP_VER, puede_en_programa_dispositivos, puede_operar_dispositivo
+from programas.services.formularios_tipo import aviso_de_tipos, formularios_de_los_tipos
 from programas.services.inspecciones import (
     AGENTE_DEBE_SER_EXTERNO,
     CAP_ASIGNAR,
@@ -61,7 +62,6 @@ from programas.services.inspecciones import (
     edificios_para_asignar_del_dispositivo,
     edificios_sin_relevar,
     filtrar_por_situacion,
-    formularios_de_los_tipos,
     informe_de_relevamiento,
     inspecciones_en_curso_por_edificio,
     inspecciones_visibles,
@@ -333,10 +333,12 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         edificio = self._pedido(params, "asignar", edificios_libres)
         if edificio is not None:
             context["edificio_asignar"] = edificio
+            tipos = formularios_de_los_tipos(edificio)
             context["form_asignar"] = AsignarRelevamientoForm(
                 edificio=edificio,
                 agentes=agentes_asignables(edificio),
-                tipos_formularios=formularios_de_los_tipos(edificio),
+                tipos_formularios=tipos,
+                aviso_formulario=aviso_de_tipos(tipos),
             )
 
         gestionables = InspeccionEdificio.objects.filter(

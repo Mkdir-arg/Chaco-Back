@@ -121,7 +121,7 @@ Formato del valor de cada tipo de campo:
 | `SELECTOR` | una de las `opciones`, como string |
 | `SELECTOR_MULTIPLE` | lista de strings, todos de las `opciones` |
 | `DATE` | string `AAAA-MM-DD` |
-| `ARCHIVO` | **no va acá**: se manda a `adjuntos/` (lo que venga se ignora) |
+| `ARCHIVO` | el archivo **no va acá**: se manda a `adjuntos/`. Si el agente adjuntó, la app manda en la clave el marcador `{"archivo_adjunto": true, "nombre": "plano.pdf"}` (como en Becas); **cualquier valor no vacío cuenta como adjuntado** para las condiciones `adjuntado` / `no_adjuntado`. No se valida su forma ni se exige |
 
 Reglas:
 
@@ -129,6 +129,11 @@ Reglas:
 - Con formulario, `respuestas` se valida contra la definición **vigente**: obligatorios, condiciones y
   tipos. Un obligatorio **oculto por su condición no se exige**. **Un ARCHIVO obligatorio no bloquea**
   el resultado: llega después por `adjuntos/` y el backoffice marca si falta.
+- Las condiciones cuya fuente es un campo ARCHIVO se evalúan con ese marcador: sin él, el archivo se
+  considera **no adjuntado** (se exige lo que dependa de `no_adjuntado` y se descarta lo que dependa de
+  `adjuntado`). El informe del backoffice suma además los archivos efectivamente recibidos.
+- Los valores se validan con el mismo motor que el alta de la institución: selector y selector múltiple solo
+  aceptan opciones del formulario, la fecha es `AAAA-MM-DD` (queda guardada en ISO) y el texto admite hasta 500.
 - Una clave que la definición vigente ya no tiene **no se rechaza**: se conserva aparte y el informe lo
   anota. `version_capturada` distinta de la vigente tampoco se rechaza: se acepta y el informe marca la
   diferencia.
@@ -224,6 +229,10 @@ Los dos namespaces de campo contestan 403 con el mismo cuerpo:
   idéntico en los dos casos. Un relevamiento que el agente tuvo y se reasignó es 409 `REASIGNADA`.
 
 ## 8. Límites y reglas a recordar
+
+- **Orden del release:** la app instalada hoy manda `resultado/` sin `respuestas`. Con un formulario «Relevamiento»
+  que tenga obligatorios recibiría un 400 que no puede resolver. No se crean formularios con obligatorios hasta
+  que la app nueva esté en el ambiente, o se sube `APP_CAMPO_VERSION_MINIMA` al publicarla.
 
 - Fotos: JPEG, PNG, WEBP, hasta 5 MB. Adjuntos: JPG, PNG, WEBP, HEIC, PDF, hasta 5 MB. Firma del archivo
   validada (un `.pdf` que no es PDF se rechaza).

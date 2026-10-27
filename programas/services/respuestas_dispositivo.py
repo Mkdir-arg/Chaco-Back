@@ -21,12 +21,10 @@ Las reglas:
 
 from __future__ import annotations
 
-from datetime import date
 from pathlib import Path
 
 from django.db.models import Exists, OuterRef, Prefetch
 from django.utils import timezone
-from django.utils.dateparse import parse_date
 
 from core.archivos import anotar_archivo_escrito
 from core.utils_fechas import fecha_local
@@ -73,6 +71,13 @@ def foto_vigente(diseno):
     canal ni hereda catálogo."""
     definicion = {"version": diseno.version, "canal": None, "items": serializar(items_vigentes(diseno))}
     return foto_definicion(None, definicion)
+
+
+def diseno_vigente_de(inspeccion):
+    """El formulario «Relevamiento» que hoy pide el relevamiento, o ``None`` (sin formulario o dado de
+    baja). Es la única definición de «diseño vigente»; conviene traer ``diseno`` con ``select_related``."""
+    diseno = inspeccion.diseno if inspeccion.diseno_id is not None else None
+    return diseno if diseno is not None and diseno.dado_de_baja_en is None else None
 
 
 def tiene_respuestas(diseno):
@@ -202,7 +207,7 @@ def _secciones(foto, respuestas, adjuntos, hoy):
             campos.append(
                 {
                     "label": item.get("texto", ""),
-                    "valor": legible(item, valor),
+                    "valor": "" if isinstance(valor, dict) else legible(item, valor),
                     "es_multiple": isinstance(valor, list),
                     "adjunto": adjunto,
                     "es_imagen": bool(
@@ -256,83 +261,6 @@ def formularios_respondidos(dispositivo):
 
 # ── El formulario «Relevamiento» (app de campo, Cambio 385) ──────────────────
 
-#: El máximo de un campo de texto: el mismo de ``RespuestasDisenoForm`` (``_field_para_campo``).
-MAX_TEXTO = 500
-
-
-def _problema_de_valor(campo, valor):
-    """El texto del error si ``valor`` no es válido para ``campo``, o ``None``. Los mismos tipos
-    que arma ``programas.forms_dinamicos._field_para_campo`` para el alta de la institución."""
-    tipo = campo.get("tipo")
-    etiqueta = campo.get("texto") or campo["clave"]
-    opciones = [str(o) for o in campo.get("opciones") or []]
-    if tipo == "INT":
-        if isinstance(valor, bool) or not (isinstance(valor, int) or (isinstance(valor, str) and _es_entero(valor))):
-            return f"«{etiqueta}» tiene que ser un número entero."
-    elif tipo == "SELECTOR":
-        if not isinstance(valor, str) or (opciones and valor not in opciones):
-            return f"«{etiqueta}»: elegí una de las opciones del formulario."
-    elif tipo == "SELECTOR_MULTIPLE":
-        if not isinstance(valor, list) or any(not isinstance(v, str) for v in valor):
-            return f"«{etiqueta}» tiene que ser una lista de opciones."
-        if opciones and any(v not in opciones for v in valor):
-            return f"«{etiqueta}»: elegí solo opciones del formulario."
-    elif tipo == "DATE":
-        try:
-            fecha = parse_date(valor) if isinstance(valor, str) else None
-        except ValueError:
-            fecha = None
-        if not isinstance(fecha, date):
-            return f"«{etiqueta}» tiene que ser una fecha válida (AAAA-MM-DD)."
-    elif not isinstance(valor, str) or len(valor) > MAX_TEXTO:
-        return f"«{etiqueta}» tiene que ser un texto de hasta {MAX_TEXTO} caracteres."
-    return None
-
-
-def _es_entero(texto):
-    try:
-        int(texto.strip())
-    except ValueError:
-        return False
-    return True
-
-
-def validar_respuestas_de_campo(foto, respuestas, hoy=None):
-    """Valida lo que mandó la app contra la foto vigente, con el mismo motor que el alta.
-
-    Devuelve ``(efectivas, errores)``: ``efectivas`` son las respuestas visibles según las
-    condiciones (RN-6: lo oculto se descarta y no se exige) y ``errores``, ``{clave: texto}``
-    de los valores de tipo inválido y de los **obligatorios** que quedaron sin responder.
-
-    Los campos ARCHIVO **no se exigen ni se leen acá**: el archivo llega después, por el
-    endpoint de adjuntos, y lo que venga en ``respuestas`` para esa clave se descarta. Una clave
-    que la foto no conoce no es un error: el diseño pudo cambiar entre la sincronización y el
-    envío; se conserva (ver :func:`guardar_respuestas_relevamiento`).
-    """
-    respuestas = dict(respuestas or {})
-    campos = {campo["clave"]: campo for campo in campos_de(foto)}
-    for clave, campo in campos.items():
-        if campo.get("tipo") == "ARCHIVO":
-            respuestas.pop(clave, None)
-    errores = {}
-    _, ocultos, _ = aplicar(foto, respuestas, hoy)
-    for clave, valor in respuestas.items():
-        campo = campos.get(clave)
-        if campo is None or clave in ocultos or esta_vacio(valor):
-            continue
-        problema = _problema_de_valor(campo, valor)
-        if problema:
-            errores[clave] = problema
-    for campo in faltantes_de(foto, respuestas, hoy):
-        if campo.get("tipo") != "ARCHIVO" and campo["clave"] not in errores:
-            errores[campo["clave"]] = f"«{campo.get('texto') or campo['clave']}» es obligatorio."
-    efectivas = {
-        clave: valor
-        for clave, valor in respuestas.items()
-        if clave not in ocultos and not esta_vacio(valor) and clave not in errores
-    }
-    return efectivas, errores
-
 
 def _observacion_de_version(version_capturada, version):
     """G1-16: la app capturó con otra versión que la que se guardó (``version_capturada`` es
@@ -348,7 +276,7 @@ def _observacion_de_version(version_capturada, version):
 def guardar_respuestas_relevamiento(inspeccion, diseno, foto, respuestas, usuario=None, version_capturada=None):
     """Crea las respuestas del relevamiento con la foto de la definición **vigente** y su versión
     (D4). Va dentro de la transacción de ``registrar_resultado``; ``respuestas`` ya pasó por
-    :func:`validar_respuestas_de_campo`.
+    ``validacion_relevamiento.validar_respuestas_de_campo``.
 
     Las claves que la foto vigente ya no tiene **no se descartan**: se guardan y su entrada en
     ``anteriores`` dice que dejaron de estar (como ``RespuestasDeFormulario``), y la observación
@@ -378,8 +306,8 @@ def clave_de_archivo_valida(inspeccion, clave):
     vigente y, si ya se respondió, la que quedó guardada: el archivo de un campo que existía
     cuando el territorial capturó entra aunque el diseño haya cambiado después."""
     fotos = []
-    diseno = inspeccion.diseno
-    if diseno is not None and diseno.dado_de_baja_en is None:
+    diseno = diseno_vigente_de(inspeccion)
+    if diseno is not None:
         fotos.append(foto_vigente(diseno))
     guardadas = RespuestasRelevamiento.objects.filter(inspeccion=inspeccion).only("definicion").first()
     if guardadas is not None:
@@ -404,10 +332,13 @@ def formulario_del_relevamiento(inspeccion):
     fila = RespuestasRelevamiento.objects.filter(inspeccion=inspeccion).select_related("diseno").first()
     if fila is None:
         return None
+    adjuntos = adjuntos_del_relevamiento(inspeccion)
+    # Un archivo recibido cuenta como «adjuntado» para las condiciones, aunque la app no haya mandado el marcador.
+    respuestas = {**{clave: {"archivo_adjunto": True} for clave in adjuntos}, **(fila.respuestas or {})}
     secciones = _secciones(
         fila.definicion or {},
-        fila.respuestas or {},
-        adjuntos_del_relevamiento(inspeccion),
+        respuestas,
+        adjuntos,
         fecha_local(fila.creado) or timezone.localdate(),
     )
     return {

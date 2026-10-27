@@ -71,8 +71,6 @@ from programas.models import (
     Edificio,
     FotoInspeccion,
     InspeccionEdificio,
-    MomentoFormulario,
-    TipoDispositivo,
     TrazaInspeccion,
 )
 from programas.services.dispositivos import (
@@ -82,14 +80,15 @@ from programas.services.dispositivos import (
     puede_configurar_dispositivos,
     puede_en_programa_dispositivos,
 )
+from programas.services.formularios_tipo import diseno_para_asignar
 from programas.services.respuestas_dispositivo import (
     clave_de_archivo_valida,
+    diseno_vigente_de,
     formulario_del_relevamiento,
-    formulario_vigente,
     foto_vigente,
     guardar_respuestas_relevamiento,
-    validar_respuestas_de_campo,
 )
+from programas.services.validacion_relevamiento import validar_respuestas_de_campo
 
 CAP_ASIGNAR = "inspeccion.asignar"
 CAP_RELEVAR = "inspeccion.relevar"
@@ -332,55 +331,6 @@ def _trazar(inspeccion, usuario, accion, detalle):
 # --------------------------------------------------------------------------- #
 
 
-def tipos_del_edificio(edificio):
-    """Los tipos de las instituciones que ocupan el edificio, sin repetir y por nombre."""
-
-    return list(TipoDispositivo.objects.filter(dispositivos__edificios=edificio).distinct().order_by("nombre", "pk"))
-
-
-def formulario_de_tipo(tipo):
-    """El formulario «Relevamiento» vigente del tipo, o ``None`` (sin formulario o dado de baja)."""
-
-    return formulario_vigente(tipo.pk, MomentoFormulario.RELEVAMIENTO) if tipo is not None else None
-
-
-def formularios_de_los_tipos(edificio):
-    """``[(tipo, formulario | None)]`` de los tipos del edificio: lo que el modal de asignar
-    muestra para elegir el formulario (D1) y para avisar cuando un tipo no tiene (D3)."""
-
-    return [(tipo, formulario_de_tipo(tipo)) for tipo in tipos_del_edificio(edificio)]
-
-
-def aviso_sin_formulario(tipo):
-    """El texto del modal cuando el tipo no tiene formulario «Relevamiento» (D3), o ``""``."""
-
-    if tipo is None or formulario_de_tipo(tipo) is not None:
-        return ""
-    return (
-        f"El tipo «{tipo.nombre}» no tiene un formulario «Relevamiento»: el territorial va a cargar solo la "
-        "criticidad, las observaciones y las fotos."
-    )
-
-
-def _diseno_para_asignar(edificio, tipo):
-    """D1 y D3: el formulario que se fija al asignar.
-
-    Con ``tipo`` explícito tiene que ser de alguna institución del edificio. Sin él, vale el
-    único tipo del edificio; con varios hay que elegir. Un tipo sin formulario «Relevamiento»
-    (o dado de baja) no impide asignar: el diseño queda en ``None`` y el territorial carga solo
-    el resultado fijo.
-    """
-
-    tipos = tipos_del_edificio(edificio)
-    if tipo is None:
-        if len(tipos) > 1:
-            raise ValidationError({"tipo": "El edificio aloja instituciones de distintos tipos: elegí el formulario."})
-        tipo = tipos[0] if tipos else None
-    elif tipo.pk not in {candidato.pk for candidato in tipos}:
-        raise ValidationError({"tipo": "Ese tipo no corresponde a ninguna institución del edificio."})
-    return formulario_de_tipo(tipo)
-
-
 @transaction.atomic
 def crear_inspeccion(usuario, *, edificio, asignado_a, fecha_vencimiento, indicaciones="", tipo=None):
     """El coordinador crea la tarea y se la asigna a un agente.
@@ -407,7 +357,7 @@ def crear_inspeccion(usuario, *, edificio, asignado_a, fecha_vencimiento, indica
     if edificio.inspecciones.filter(estado=InspeccionEdificio.Estado.ASIGNADA).exists():
         raise ValidationError({"edificio": "El edificio ya tiene un relevamiento en curso: reasignalo."})
     _validar_agente(asignado_a, edificio)
-    diseno = _diseno_para_asignar(edificio, tipo)
+    diseno = diseno_para_asignar(edificio, tipo)
     inspeccion = InspeccionEdificio.objects.create(
         edificio=edificio,
         diseno=diseno,
@@ -622,9 +572,7 @@ def registrar_resultado(
         raise _conflicto_estado()
     if criticidad not in InspeccionEdificio.Criticidad.values:
         raise ValidationError({"criticidad": "Elegí una criticidad válida."})
-    diseno = inspeccion.diseno if inspeccion.diseno_id is not None else None
-    if diseno is not None and diseno.dado_de_baja_en is not None:
-        diseno = None
+    diseno = diseno_vigente_de(inspeccion)
     foto = efectivas = None
     if diseno is not None:
         foto = foto_vigente(diseno)
@@ -663,6 +611,40 @@ def registrar_resultado(
     return inspeccion
 
 
+def _admitir_carga(usuario, inspeccion, modelo, campo_autor, uuid_cliente):
+    """El prólogo común de recibir una foto o un adjunto del formulario: capacidad, bloqueo, idempotencia
+    por ``uuid_cliente``, «solo lo asignado» y el estado que admite la carga.
+
+    Devuelve ``(inspeccion, previa)``: si ``previa`` no es ``None`` es la fila que ya había llegado
+    (``ya_existia = True``) y la operación termina ahí, aunque el relevamiento se haya cancelado o
+    reasignado después. Los conflictos salen como excepciones."""
+
+    uuid_cliente = _como_uuid(uuid_cliente)
+    _exigir_capacidad_de_agente(usuario)
+    inspeccion = _bloquear(inspeccion)
+    previa = None
+    if uuid_cliente is not None:
+        previa = modelo.objects.filter(q_uuid_en_texto("uuid_cliente", uuid_cliente)).first()
+        if (
+            previa is not None
+            and previa.inspeccion_id == inspeccion.pk
+            and getattr(previa, f"{campo_autor}_id") == usuario.pk
+        ):
+            previa.ya_existia = True
+            return inspeccion, previa
+    _exigir_asignado(usuario, inspeccion)
+    if previa is not None:
+        raise _conflicto_uuid_en_uso()
+    if inspeccion.estado == InspeccionEdificio.Estado.CANCELADA:
+        raise _conflicto_cancelada(inspeccion)
+    # Lista blanca: en curso y realizado; cualquier otro estado (o ya revisado) se rechaza.
+    if inspeccion.revisado_en is not None or not (
+        inspeccion.en_curso or inspeccion.estado == InspeccionEdificio.Estado.REALIZADA
+    ):
+        raise _conflicto_estado()
+    return inspeccion, None
+
+
 @archivos_atomicos
 @transaction.atomic
 def agregar_foto(usuario, inspeccion, archivo, descripcion="", *, uuid_cliente=None):
@@ -677,26 +659,10 @@ def agregar_foto(usuario, inspeccion, archivo, descripcion="", *, uuid_cliente=N
     mismo identificador en otra foto es :data:`CONFLICTO_UUID_EN_USO`.
     """
 
-    uuid_cliente = _como_uuid(uuid_cliente)
-    _exigir_capacidad_de_agente(usuario)
-    inspeccion = _bloquear(inspeccion)
-    previa = None
-    if uuid_cliente is not None:
-        previa = FotoInspeccion.objects.filter(q_uuid_en_texto("uuid_cliente", uuid_cliente)).first()
-        if previa is not None and previa.inspeccion_id == inspeccion.pk and previa.cargada_por_id == usuario.pk:
-            previa.ya_existia = True
-            return previa
-    _exigir_asignado(usuario, inspeccion)
+    inspeccion, previa = _admitir_carga(usuario, inspeccion, FotoInspeccion, "cargada_por", uuid_cliente)
     if previa is not None:
-        raise _conflicto_uuid_en_uso()
-    if inspeccion.estado == InspeccionEdificio.Estado.CANCELADA:
-        raise _conflicto_cancelada(inspeccion)
-    # Igual que en `registrar_resultado`: acá la lista blanca son dos estados —en curso y
-    # realizado—, y cualquier otro se rechaza en vez de caer en el alta.
-    if inspeccion.revisado_en is not None or not (
-        inspeccion.en_curso or inspeccion.estado == InspeccionEdificio.Estado.REALIZADA
-    ):
-        raise _conflicto_estado()
+        return previa
+    uuid_cliente = _como_uuid(uuid_cliente)
     foto = _guardar_foto(inspeccion, usuario, archivo, descripcion, uuid_cliente)
     # La traza cuelga del alta, no de la llamada: el reenvío idempotente ya volvió arriba y no
     # deja una segunda línea de auditoría por la misma foto.
@@ -725,22 +691,11 @@ def agregar_adjunto_formulario(usuario, inspeccion, clave, archivo, *, uuid_clie
     formulario es un 400: el archivo no se guarda.
     """
 
-    uuid_cliente = _como_uuid(uuid_cliente)
-    _exigir_capacidad_de_agente(usuario)
-    inspeccion = _bloquear(inspeccion)
-    previa = AdjuntoRespuestaRelevamiento.objects.filter(q_uuid_en_texto("uuid_cliente", uuid_cliente)).first()
-    if previa is not None and previa.inspeccion_id == inspeccion.pk and previa.cargado_por_id == usuario.pk:
-        previa.ya_existia = True
-        return previa
-    _exigir_asignado(usuario, inspeccion)
+    inspeccion, previa = _admitir_carga(
+        usuario, inspeccion, AdjuntoRespuestaRelevamiento, "cargado_por", _como_uuid(uuid_cliente)
+    )
     if previa is not None:
-        raise _conflicto_uuid_en_uso()
-    if inspeccion.estado == InspeccionEdificio.Estado.CANCELADA:
-        raise _conflicto_cancelada(inspeccion)
-    if inspeccion.revisado_en is not None or not (
-        inspeccion.en_curso or inspeccion.estado == InspeccionEdificio.Estado.REALIZADA
-    ):
-        raise _conflicto_estado()
+        return previa
     if not clave_de_archivo_valida(inspeccion, clave):
         raise _conflicto_clave_de_archivo()
     adjunto = AdjuntoRespuestaRelevamiento(
@@ -755,6 +710,8 @@ def agregar_adjunto_formulario(usuario, inspeccion, clave, archivo, *, uuid_clie
         raise _conflicto_uuid_en_uso() from None
     anotar_archivo_escrito(adjunto.archivo, asignado=archivo)
     adjunto.ya_existia = False
+    # Como la foto: la traza cuelga del alta, el reenvío idempotente ya volvió arriba.
+    _trazar(inspeccion, usuario, TrazaInspeccion.Accion.ADJUNTO, f"Edificio {inspeccion.edificio.nombre} · {clave}")
     return adjunto
 
 

@@ -8,7 +8,7 @@ seguro; renombrarla o sacarla es un release coordinado de la app (mismo criterio
 from rest_framework import serializers
 
 from programas.models import AdjuntoRespuestaRelevamiento, Edificio, FotoInspeccion, InspeccionEdificio
-from programas.services.respuestas_dispositivo import foto_vigente
+from programas.services.respuestas_dispositivo import diseno_vigente_de, foto_vigente
 
 
 class EdificioCampoSerializer(serializers.ModelSerializer):
@@ -50,13 +50,6 @@ class AdjuntoFormularioCampoSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-def _diseno_vigente(inspeccion):
-    """El formulario «Relevamiento» que hoy pide este relevamiento, o ``None`` (sin formulario
-    o dado de baja). Hay que traer ``diseno`` con ``select_related``."""
-    diseno = inspeccion.diseno if inspeccion.diseno_id is not None else None
-    return diseno if diseno is not None and diseno.dado_de_baja_en is None else None
-
-
 class InspeccionCampoListSerializer(serializers.ModelSerializer):
     edificio = EdificioCampoSerializer(read_only=True)
     vencida = serializers.BooleanField(read_only=True, help_text="En curso y con el vencimiento pasado.")
@@ -70,7 +63,7 @@ class InspeccionCampoListSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_formulario_version(self, inspeccion) -> int | None:
-        diseno = _diseno_vigente(inspeccion)
+        diseno = diseno_vigente_de(inspeccion)
         return diseno.version if diseno is not None else None
 
 
@@ -97,7 +90,7 @@ class InspeccionCampoDetailSerializer(InspeccionCampoListSerializer):
         read_only_fields = fields
 
     def get_formulario(self, inspeccion) -> dict | None:
-        diseno = _diseno_vigente(inspeccion)
+        diseno = diseno_vigente_de(inspeccion)
         if diseno is None:
             return None
         return {"definicion": foto_vigente(diseno), "version": diseno.version}

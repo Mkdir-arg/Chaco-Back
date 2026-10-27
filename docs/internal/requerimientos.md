@@ -49106,7 +49106,7 @@ dígitos que no son ASCII.
 | **Fecha del pedido** | 27/10/2026 |
 | **Issue / épica** | sin issue · Épica #127 |
 | **Partes afectadas** | Servidor: `programas/models/__init__.py`, `services/inspecciones.py`, `services/respuestas_dispositivo.py`, `services/formularios_tipo.py`, `api/serializers_inspecciones.py`, `api/views_inspecciones.py`, `api/views.py`, `forms_dispositivos.py`, `views/dispositivos_relevamientos.py`, `views/dispositivos_legajo.py`, `core/views/media.py` · Backoffice: `_campos_asignar.html`, `informe.html` · Documento: `docs/internal/contrato-app-dispositivos.md` |
-| **Migración** | Sí: `programas.0107` (momento, `diseno`, dos modelos) y `programas.0108` (`uuid_cliente` a `char(36)` en MySQL y MariaDB). Expand puro. |
+| **Migración** | Sí: `programas.0107` (momento, `diseno`, dos modelos) y `programas.0108` (`uuid_cliente` a `char(36)` en MySQL y MariaDB) y `programas.0109` (solo choices de la traza). Expand puro. |
 
 ## Pedido original
 
@@ -49144,6 +49144,12 @@ P17 y entregado al territorial en la misma app de Becas, con los módulos aislad
   módulo» de una sesión caída.
 - **UI**: se reusaron las piezas existentes (select con `_field.html`, `_alerta` warning). El selector de tipo solo
   aparece si el edificio aloja a más de un tipo.
+- **Condiciones sobre ARCHIVO** (ronda 2): cualquier valor no vacío en la clave ARCHIVO (la app manda
+  `{"archivo_adjunto": true, "nombre": ...}`) cuenta como adjuntado; el informe suma los adjuntos recibidos.
+- **Ronda 2, código**: la validación por tipo reusa `forms_dinamicos._field_para_campo`; «qué formulario
+  corresponde» vive en `formularios_tipo.py`; `diseno_vigente_de` es la única definición de «diseño vigente»;
+  `agregar_adjunto_formulario` comparte guardas con `agregar_foto` y deja traza (`TrazaInspeccion.Accion.ADJUNTO`,
+  migración `programas.0109`, solo choices).
 - **Contrato para la app**: `docs/internal/contrato-app-dispositivos.md`, con JSON real generado desde los tests.
 
 ## Implementación
@@ -49180,6 +49186,10 @@ Los de «Partes afectadas», más las migraciones y los tests:
   nuevos), `compile_templates --bloques` (0), `check_design_agent --changed` y ruff: OK.
 
 ## Puesta en marcha en el servidor
+
+**Orden del release:** la app instalada hoy manda `resultado/` sin `respuestas`; con un formulario «Relevamiento»
+con obligatorios recibiría un 400 sin salida. No se crean formularios con obligatorios hasta que la app nueva
+esté en el ambiente, o se sube `APP_CAMPO_VERSION_MINIMA` al publicarla.
 
 Las migraciones corren en el deploy. Para que un tipo use el formulario hay que crear el momento «Relevamiento» en
 su pantalla de formularios.

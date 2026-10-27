@@ -34,12 +34,15 @@ from programas.models import (
     TipoDispositivo,
 )
 from programas.services import constructor
-from programas.services.formularios_tipo import crear_formulario, eliminar_formulario
-from programas.services.inspecciones import (
+from programas.services.formularios_tipo import (
     aviso_sin_formulario,
+    crear_formulario,
+    eliminar_formulario,
+    formularios_de_los_tipos,
+)
+from programas.services.inspecciones import (
     cancelar_inspeccion,
     crear_inspeccion,
-    formularios_de_los_tipos,
     reasignar_inspeccion,
 )
 from programas.services.respuestas_dispositivo import foto_vigente
@@ -430,11 +433,12 @@ class ResultadoConRespuestasTests(BaseFormulario):
         # Lo oculto por su condición se descarta.
         self.assertNotIn(self.detalle_dano.clave, RespuestasRelevamiento.objects.get().respuestas)
 
-    def test_el_archivo_obligatorio_no_bloquea_el_resultado_y_su_clave_en_respuestas_se_ignora(self):
+    def test_el_archivo_obligatorio_no_bloquea_el_resultado_y_su_valor_no_se_valida(self):
         respuesta = self._resultado_con(self._completas(**{self.plano.clave: "plano.pdf"}))
 
         self.assertEqual(respuesta.status_code, 200, respuesta.data)
-        self.assertNotIn(self.plano.clave, RespuestasRelevamiento.objects.get().respuestas)
+        # Solo cuenta como «adjuntado» para las condiciones: no se valida su forma.
+        self.assertEqual(RespuestasRelevamiento.objects.get().respuestas[self.plano.clave], "plano.pdf")
 
 
 class SinFormularioTests(BaseApiInspecciones):
@@ -743,3 +747,101 @@ class BajaDelFormularioTests(BaseFormulario):
         formulario = crear_formulario(libre, MomentoFormulario.RELEVAMIENTO, self.admin)
 
         self.assertEqual(eliminar_formulario(formulario), "borrado")
+
+
+# ── condiciones sobre un campo ARCHIVO (adjuntado / no_adjuntado) ────────────
+
+MARCADOR = {"archivo_adjunto": True, "nombre": "plano.pdf"}
+
+
+class CondicionesDeArchivoTests(BaseFormulario):
+    """El plano es ARCHIVO; «Detalle del plano» se ve si fue adjuntado y «Motivo sin plano» es
+    obligatorio si no. La presencia del archivo cuenta aunque el archivo llegue después."""
+
+    def setUp(self):
+        super().setUp()
+        self.detalle_plano = self._campo("Detalle del plano", "STRING")
+        self._mutar(
+            lambda: constructor.poner_condicion(
+                self.detalle_plano,
+                {"modo": "todas", "reglas": [{"fuente": self.plano.clave, "op": "adjuntado"}]},
+            )
+        )
+        self.motivo = self._campo("Motivo sin plano", "STRING", obligatorio=True)
+        self._mutar(
+            lambda: constructor.poner_condicion(
+                self.motivo,
+                {"modo": "todas", "reglas": [{"fuente": self.plano.clave, "op": "no_adjuntado"}]},
+            )
+        )
+
+    def test_con_el_marcador_el_detalle_se_ve_y_el_motivo_no_se_exige(self):
+        respuesta = self._resultado_con(
+            self._completas(**{self.plano.clave: MARCADOR, self.detalle_plano.clave: "Escala 1:50"})
+        )
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.data)
+        guardadas = RespuestasRelevamiento.objects.get().respuestas
+        self.assertEqual(guardadas[self.detalle_plano.clave], "Escala 1:50")
+        self.assertEqual(guardadas[self.plano.clave], MARCADOR)
+
+    def test_cualquier_valor_no_vacio_cuenta_como_adjuntado(self):
+        respuesta = self._resultado_con(self._completas(**{self.plano.clave: "plano.pdf"}))
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.data)
+
+    def test_sin_el_marcador_se_exige_el_motivo_y_el_detalle_se_descarta(self):
+        sin_motivo = self._resultado_con(self._completas())
+        self.assertEqual(sin_motivo.status_code, 400)
+        self.assertEqual(set(sin_motivo.data["claves"]), {self.motivo.clave})
+
+        con_motivo = self._resultado_con(
+            self._completas(**{self.motivo.clave: "No hay plano", self.detalle_plano.clave: "Oculto"})
+        )
+        self.assertEqual(con_motivo.status_code, 200, con_motivo.data)
+        guardadas = RespuestasRelevamiento.objects.get().respuestas
+        self.assertEqual(guardadas[self.motivo.clave], "No hay plano")
+        self.assertNotIn(self.detalle_plano.clave, guardadas)
+
+    def test_el_informe_evalua_las_condiciones_con_los_adjuntos_recibidos(self):
+        self._resultado_con(self._completas(**{self.motivo.clave: "Todavía no hay plano"}))
+        self.client.force_login(self.coordinador)
+        url = reverse("dispositivos:relevamiento_informe", args=[self.inspeccion.pk])
+
+        antes = self.client.get(url)
+        self.assertContains(antes, "Motivo sin plano")
+        self.assertNotContains(antes, "Detalle del plano")
+
+        self._enviar_adjunto(self.agente, self.inspeccion.pk)
+        despues = self.client.get(url)
+        self.assertContains(despues, "Detalle del plano")
+        self.assertNotContains(despues, "Motivo sin plano")
+
+
+class TrazaDeAdjuntoTests(BaseFormulario):
+    def test_el_adjunto_deja_una_traza_y_el_reenvio_no_duplica(self):
+        from programas.models import TrazaInspeccion
+
+        identificador = uuid.uuid4()
+        self._enviar_adjunto(self.agente, self.inspeccion.pk, uuid_cliente=identificador)
+        self._enviar_adjunto(self.agente, self.inspeccion.pk, uuid_cliente=identificador)
+
+        trazas = TrazaInspeccion.objects.filter(inspeccion=self.inspeccion, accion=TrazaInspeccion.Accion.ADJUNTO)
+        self.assertEqual(trazas.count(), 1)
+        self.assertIn(self.plano.clave, trazas.get().detalle)
+
+
+class BajaPosteriorALaAsignacionTests(BaseFormulario):
+    def test_si_el_formulario_se_da_de_baja_despues_de_asignar_se_trata_como_sin_formulario(self):
+        eliminar_formulario(self.diseno)  # asignado: se da de baja, no se borra
+        self.diseno.refresh_from_db()
+        self.assertIsNotNone(self.diseno.dado_de_baja_en)
+
+        detalle = self._como(self.agente).get(_detalle(self.inspeccion.pk)).data
+        self.assertIsNone(detalle["formulario"])
+        self.assertIsNone(detalle["formulario_version"])
+
+        respuesta = self._resultado_con({"cualquiera": "valor"})
+        self.assertEqual(respuesta.status_code, 200, respuesta.data)
+        self.assertFalse(RespuestasRelevamiento.objects.exists())
+        self.assertEqual(self._enviar_adjunto(self.agente, self.inspeccion.pk).status_code, 400)

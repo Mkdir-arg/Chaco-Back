@@ -87,13 +87,13 @@ from programas.services.estadias import (
     sacar_plaza_de_servicio,
     volver_plaza_a_servicio,
 )
+from programas.services.formularios_tipo import aviso_sin_formulario
 from programas.services.horarios_dispositivo import reemplazar_franjas
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import (
     AGENTE_DEBE_SER_EXTERNO,
     CAP_ASIGNAR,
     agentes_asignables_para,
-    aviso_sin_formulario,
     edificios_para_asignar_del_dispositivo,
     semaforos_de_dispositivos,
 )

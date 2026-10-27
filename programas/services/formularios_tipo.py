@@ -14,8 +14,8 @@ from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from django.utils import timezone
 
-from programas.models import DisenoFormulario, MomentoFormulario
-from programas.services.respuestas_dispositivo import tiene_respuestas
+from programas.models import DisenoFormulario, MomentoFormulario, TipoDispositivo
+from programas.services.respuestas_dispositivo import formulario_vigente, tiene_respuestas
 
 #: Dónde se completa cada formulario, como lo nombra la columna «Se completa en».
 SE_COMPLETA_EN = {
@@ -110,3 +110,65 @@ def reactivar_formulario(diseno):
         return
     diseno.dado_de_baja_en = None
     diseno.save(update_fields=["dado_de_baja_en", "modificado"])
+
+
+# ── Qué formulario «Relevamiento» corresponde a un edificio (D1/D3) ─────────
+
+
+def tipos_del_edificio(edificio):
+    """Los tipos de las instituciones que ocupan el edificio, sin repetir y por nombre."""
+
+    return list(TipoDispositivo.objects.filter(dispositivos__edificios=edificio).distinct().order_by("nombre", "pk"))
+
+
+def formulario_de_tipo(tipo):
+    """El formulario «Relevamiento» vigente del tipo, o ``None`` (sin formulario o dado de baja)."""
+
+    return formulario_vigente(tipo.pk, MomentoFormulario.RELEVAMIENTO) if tipo is not None else None
+
+
+def formularios_de_los_tipos(edificio):
+    """``[(tipo, formulario | None)]`` de los tipos del edificio: lo que el modal de asignar
+    muestra para elegir el formulario (D1) y para avisar cuando un tipo no tiene (D3)."""
+
+    return [(tipo, formulario_de_tipo(tipo)) for tipo in tipos_del_edificio(edificio)]
+
+
+def aviso_de_tipos(tipos_formularios):
+    """El aviso del modal cuando el edificio aloja a **un solo** tipo y ese tipo no tiene formulario
+    (con varios tipos, el selector ya marca «sin formulario»). ``tipos_formularios`` es
+    :func:`formularios_de_los_tipos`."""
+
+    if len(tipos_formularios) == 1 and tipos_formularios[0][1] is None:
+        return aviso_sin_formulario(tipos_formularios[0][0])
+    return ""
+
+
+def aviso_sin_formulario(tipo):
+    """El texto del modal cuando el tipo no tiene formulario «Relevamiento» (D3), o ``""``."""
+
+    if tipo is None or formulario_de_tipo(tipo) is not None:
+        return ""
+    return (
+        f"El tipo «{tipo.nombre}» no tiene un formulario «Relevamiento»: el territorial va a cargar solo la "
+        "criticidad, las observaciones y las fotos."
+    )
+
+
+def diseno_para_asignar(edificio, tipo):
+    """D1 y D3: el formulario que se fija al asignar.
+
+    Con ``tipo`` explícito tiene que ser de alguna institución del edificio. Sin él, vale el
+    único tipo del edificio; con varios hay que elegir. Un tipo sin formulario «Relevamiento»
+    (o dado de baja) no impide asignar: el diseño queda en ``None`` y el territorial carga solo
+    el resultado fijo.
+    """
+
+    tipos = tipos_del_edificio(edificio)
+    if tipo is None:
+        if len(tipos) > 1:
+            raise ValidationError({"tipo": "El edificio aloja instituciones de distintos tipos: elegí el formulario."})
+        tipo = tipos[0] if tipos else None
+    elif tipo.pk not in {candidato.pk for candidato in tipos}:
+        raise ValidationError({"tipo": "Ese tipo no corresponde a ninguna institución del edificio."})
+    return formulario_de_tipo(tipo)

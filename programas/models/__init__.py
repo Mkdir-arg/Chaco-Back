@@ -2112,6 +2112,7 @@ class TrazaInspeccion(models.Model):
         CANCELADA = "CANCELADA", "Relevamiento edilicio cancelado"
         REALIZADA = "REALIZADA", "Resultado del relevamiento edilicio"
         FOTO = "FOTO", "Foto sumada a un relevamiento edilicio"
+        ADJUNTO = "ADJUNTO", "Archivo del formulario sumado a un relevamiento edilicio"
         REVISADA = "REVISADA", "Relevamiento edilicio revisado"
 
     inspeccion = models.ForeignKey(
