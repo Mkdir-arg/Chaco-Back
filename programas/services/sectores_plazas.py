@@ -37,8 +37,8 @@ segundo estado.
 La plaza ocupada ofrece **reubicar** a quien puede admitir (Cambio 377, que revierte en
 parte el 287): el modal mueve a la persona a otra plaza libre con `estadias.cambiar_plaza`.
 A quien solo puede editar le sigue ofreciendo «sacar de servicio» deshabilitada con su
-motivo, porque `sacar_plaza_de_servicio` la rechaza y tiene que saber por qué. Las capacidades las resuelve la vista y llegan acá como dos booleanos: el
-servicio recibe hechos, no usuarios.
+motivo, porque `sacar_plaza_de_servicio` la rechaza y tiene que saber por qué. Las capacidades las resuelve la vista y llegan acá como dos
+booleanos: el servicio recibe hechos, no usuarios.
 
 Costo
 -----
@@ -68,7 +68,7 @@ from programas.services.ocupacion import (
 # acota cada sector para no mandar un dispositivo entero en una sola grilla.
 TOPE_PLAZAS_POR_SECTOR = 200
 
-#: Las tres acciones de P5. Cada una tiene su servicio en `programas.services.estadias`.
+#: Las cuatro acciones de P5. Cada una tiene su servicio en `programas.services.estadias`.
 ACCION_LIBERAR = "liberar"
 ACCION_FUERA_SERVICIO = "fuera_servicio"
 ACCION_VOLVER = "volver"
@@ -100,11 +100,17 @@ def accion_de_plaza(estado, con_reserva_abierta, puede_reubicar=False):
     return ACCION_FUERA_SERVICIO
 
 
-def bloqueo_de_plaza(estado, accion):
-    """El motivo por el que la acción no va a proceder, o cadena vacía."""
+def bloqueo_de_plaza(estado, accion, hay_plazas_libres=True):
+    """El motivo por el que la acción no va a proceder, o cadena vacía.
+
+    `hay_plazas_libres` solo lo mira la reubicación y lo trae quien armó el formulario del
+    cambio de plaza: saberlo cuesta el mapa de ingreso, que no se arma si la acción es otra.
+    """
 
     if accion == ACCION_FUERA_SERVICIO and estado.estado == ESTADO_OCUPADA:
         return MOTIVO_PLAZA_OCUPADA
+    if accion == ACCION_REUBICAR and not hay_plazas_libres:
+        return MOTIVO_SIN_PLAZAS_LIBRES
     return ""
 
 

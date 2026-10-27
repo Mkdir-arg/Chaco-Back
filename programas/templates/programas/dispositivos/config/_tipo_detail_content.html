@@ -18,7 +18,8 @@
               data-confirm-url="{% url 'dispositivos:tipo_toggle' tipo.pk %}"
               data-confirm-title="{% if tipo.activo %}Desactivar tipo{% else %}Activar tipo{% endif %}"
               data-confirm-text="{% if tipo.activo %}El tipo dejará de estar disponible para nuevas operaciones.{% else %}El tipo volverá a estar disponible.{% endif %}"
-              data-confirm-ok="{% if tipo.activo %}Sí, desactivar{% else %}Sí, activar{% endif %}">
+              data-confirm-ok="{% if tipo.activo %}Sí, desactivar{% else %}Sí, activar{% endif %}"
+              data-confirm-danger="{% if tipo.activo %}true{% else %}false{% endif %}">
         {% if tipo.activo %}Desactivar{% else %}Activar{% endif %}
       </button>
     {% endpage_header %}
@@ -66,7 +67,8 @@
                       data-confirm-url="{% url 'dispositivos:formulario_reactivar' tipo.pk formulario.momento %}"
                       data-confirm-title="Reactivar formulario"
                       data-confirm-text="«{{ formulario.get_momento_display }}» se vuelve a pedir con sus secciones, campos y su versión {{ formulario.version }}."
-                      data-confirm-ok="Sí, reactivar">
+                      data-confirm-ok="Sí, reactivar"
+                      data-confirm-danger="false">
                 <i class="fas fa-rotate-left" aria-hidden="true"></i>
               </button>
               {% elif formulario.tiene_respuestas %}
@@ -114,11 +116,7 @@
       <form method="post" action="{% url 'dispositivos:formulario_crear' tipo.pk %}" class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          <div>
-            <label for="{{ form_nuevo_formulario.momento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Formulario <span class="text-fg-danger">*</span></label>
-            {{ form_nuevo_formulario.momento }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="momento"></p>
-          </div>
+          {% include "components/_field.html" with field=form_nuevo_formulario.momento wrapper_class="" %}
           {% include "components/_alerta.html" with tono="info" texto="Un formulario por momento. Nace vacío: lo armás en el editor con secciones, textos, campos propios y condiciones." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalNuevoFormulario=false" accion_texto="Crear y configurar" %}
