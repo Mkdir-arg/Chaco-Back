@@ -98,7 +98,12 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   apuntándole con `form_id` de `_modal_footer.html`.
 - Título dinámico Nuevo/Editar: `titulo_x_text` (expresión Alpine) en `_modal_header.html`.
 - Modal sin Alpine: `window.becasModal.bind(overlay, {onClose})` observa la clase `hidden` del
-  overlay; Escape y cualquier `[data-becas-modal-cerrar]` llaman a `onClose`.
+  overlay; Escape y cualquier `[data-becas-modal-cerrar]` llaman a `onClose`. Si el panel llega
+  por `fetch` ya abierto (`data-edit-modal` en el overlay, `data-edit-modal-panel` en el panel), se
+  hace `bind(modal, {onClose})` al inyectarlo y `destruir()` al cerrarlo. El fondo cierra solo si el
+  `pointerdown` **también** fue afuera del panel: arrastrar desde un campo y soltar sobre el fondo
+  no debe perder lo escrito. Evidencia: `programas/templates/programas/dispositivos/config/_edit_modal.html`
+  y `tipo_detail.html` (P14).
 - **Bloques alternativos por un switch**: un `SwitchInput` arriba (`<label class="inline-flex items-center gap-2 text-sm text-body" @change="flag = $event.target.checked">`)
   y los bloques con `x-show="flag"` / `x-show="!flag"`; el estado inicial sale del `value` del form en el `x-data` de la
   pantalla. Los campos ocultos viajan vacíos y el servidor decide. Consumidor: «Valida con SIIS» en `programa_list.html`.

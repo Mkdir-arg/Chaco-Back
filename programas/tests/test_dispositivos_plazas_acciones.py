@@ -198,6 +198,19 @@ class ReubicarDesdeElMapaTests(BaseMapa):
         self.assertContains(respuesta, '<input type="hidden" name="volver" value="sectores">')
         self.assertContains(respuesta, "Confirmar cambio")
 
+    def test_reubicar_arma_los_sectores_con_el_dispositivo_de_la_vista(self):
+        """El mapa de ingreso sale del `dispositivo` ya cargado: con `estadia.dispositivo` (sin su tipo)
+        se volvía a leer el tipo de dispositivo, una consulta más que el modal de las otras acciones."""
+
+        self.client.force_login(self.operador_cis)
+        consultas = {}
+        for nombre, plaza in (("reubicar", self.plaza), ("otra", self.otra_plaza)):
+            with CaptureQueriesContext(connection) as capturadas:
+                self.client.get(self.url, {"plaza": plaza.pk})
+            consultas[nombre] = sum("programas_tipodispositivo" in q["sql"] for q in capturadas)
+
+        self.assertEqual(consultas["reubicar"], consultas["otra"])
+
     def test_admitir_sin_editar_tambien_reubica(self):
         respuesta = self._pantalla(self.sin_editar, plaza=self.plaza.pk)
 

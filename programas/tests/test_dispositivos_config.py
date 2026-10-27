@@ -303,10 +303,15 @@ class ConfiguracionDispositivosViewsTests(TestCase):
         self.assertContains(editar_tipo, "data-edit-modal")
         self.assertContains(editar_tipo, "Editar tipo de dispositivo")
         self.assertContains(editar_tipo, 'value="Tipo test"')
+        # Modal estándar: se cierra con la X y «Cancelar» (`data-becas-modal-cerrar`) y a dónde
+        # vuelve lo dice `data-cancel-url`, que lee el JS de la pantalla.
+        self.assertContains(editar_tipo, 'aria-labelledby="dispositivos-edit-title"')
+        # La X del encabezado y Cancelar del pie del esqueleto estándar, dentro del panel del modal.
+        panel = editar_tipo.content.decode().split("data-edit-modal-panel", 1)[1].split("</form>", 1)[0]
+        self.assertEqual(panel.count("data-becas-modal-cerrar"), 2)
         self.assertContains(
             editar_tipo,
-            f'href="{reverse("dispositivos:tipo_detalle", args=[self.tipo.pk])}"',
-            count=2,
+            f'data-cancel-url="{reverse("dispositivos:tipo_detalle", args=[self.tipo.pk])}"',
         )
 
         nuevo_tipo = self.client.get(reverse("dispositivos:tipo_crear"))

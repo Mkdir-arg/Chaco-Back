@@ -24,39 +24,15 @@ con `?sector=<id>`—, así que cada uno trae su variable de Alpine y su id de t
           <div>
             {# El error general va ADENTRO del bloque: como hijo directo de space-y-5 suma un hueco de 20px aunque esté oculto #}
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
-            <label for="{{ form.nombre.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Nombre <span class="text-fg-danger">*</span></label>
-            {{ form.nombre }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="nombre"></p>
+            {% include "components/_field.html" with field=form.nombre wrapper_class="" %}
           </div>
-          <div>
-            <label for="{{ form.tipo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Tipo de sector <span class="text-fg-danger">*</span></label>
-            {{ form.tipo }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="tipo"></p>
-          </div>
-          <div>
-            <label for="{{ form.perfil.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Perfil de la población</label>
-            {{ form.perfil }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="perfil"></p>
-          </div>
-          <div>
-            <label for="{{ form.capacidad.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Capacidad declarada <span class="text-fg-danger">*</span></label>
-            {{ form.capacidad }}
-            <p class="mt-1 text-xs text-body-subtle">{{ form.capacidad.help_text }}</p>
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="capacidad"></p>
-          </div>
+          {% include "components/_field.html" with field=form.tipo wrapper_class="" %}
+          {% include "components/_field.html" with field=form.perfil wrapper_class="" %}
+          {% include "components/_field.html" with field=form.capacidad wrapper_class="" %}
         </div>
-        <div>
-          <label for="{{ form.condiciones_uso.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Condiciones de uso</label>
-          {{ form.condiciones_uso }}
-          <p class="mt-1 text-xs text-fg-danger hidden" data-error="condiciones_uso"></p>
-        </div>
+        {% include "components/_field.html" with field=form.condiciones_uso wrapper_class="" %}
         {% if form.activo %}
-        <div>
-          <label for="{{ form.activo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Sector activo</label>
-          {{ form.activo }}
-          <p class="mt-1 text-xs text-body-subtle">{{ form.activo.help_text }}</p>
-          <p class="mt-1 text-xs text-fg-danger hidden" data-error="activo"></p>
-        </div>
+        {% include "components/_field.html" with field=form.activo wrapper_class="" %}
         {% include "components/_alerta.html" with tono="warning" texto="No se da de baja un sector con plazas tomadas: primero se reubica a esas personas o se liberan sus reservas. Las plazas no se borran, siguen colgando de la historia que ya tienen." %}
         {% else %}
         {% include "components/_alerta.html" with tono="info" texto="El sector nace vacío: las plazas se agregan después, con «Agregar plazas». La capacidad operativa se cuenta desde ellas, no desde la cifra declarada." %}

@@ -178,7 +178,15 @@ autoriza = forms.BooleanField(widget=SwitchInput, required=False)
 
 ## Campos dentro de un modal
 
-En un modal con guardado AJAX el campo se escribe a mano para poder enganchar el error inline:
+En un modal con guardado AJAX el campo va con `_field.html` y `wrapper_class=""`: el cuerpo
+`space-y-5` (o la grilla `gap-4`) ya separa, y el `<p data-error="<campo>">` del include es donde
+el guardado AJAX escribe el error inline. Pantallas que lo usan: la bitácora (P10), «Sectores y
+plazas» (P5) y el cuerpo compartido `programas/templates/programas/dispositivos/_form_cambio_plaza.html`
+(P4, P5 y P7). El error general (`data-error="__all__"`) va adentro del primer bloque, no como hijo
+directo del cuerpo. Un texto de ayuda propio del modal va en el `help_text` del form, no en el template.
+
+La golden del arquetipo Modal (`programa_list.html`) conserva el campo escrito a mano, que es
+equivalente y por eso no se migra:
 
 ```django
 <label for="{{ form.campo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Etiqueta <span class="text-fg-danger">*</span></label>
