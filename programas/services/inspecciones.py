@@ -65,7 +65,14 @@ from django.utils.formats import date_format
 from core import rbac
 from core.archivos import anotar_archivo_escrito, archivos_atomicos
 from core.db import q_uuid_en_texto
-from programas.models import AsignacionDispositivo, Edificio, FotoInspeccion, InspeccionEdificio, TrazaInspeccion
+from programas.models import (
+    AdjuntoRespuestaRelevamiento,
+    AsignacionDispositivo,
+    Edificio,
+    FotoInspeccion,
+    InspeccionEdificio,
+    TrazaInspeccion,
+)
 from programas.services.dispositivos import (
     CAP_VER,
     dispositivos_en_alcance,
@@ -73,6 +80,15 @@ from programas.services.dispositivos import (
     puede_configurar_dispositivos,
     puede_en_programa_dispositivos,
 )
+from programas.services.formularios_tipo import diseno_para_asignar
+from programas.services.respuestas_dispositivo import (
+    clave_de_archivo_valida,
+    diseno_vigente_de,
+    formulario_del_relevamiento,
+    foto_vigente,
+    guardar_respuestas_relevamiento,
+)
+from programas.services.validacion_relevamiento import validar_respuestas_de_campo
 
 CAP_ASIGNAR = "inspeccion.asignar"
 CAP_RELEVAR = "inspeccion.relevar"
@@ -106,6 +122,15 @@ class InspeccionEnConflicto(ValidationError):
     def __init__(self, codigo, mensaje):
         super().__init__(mensaje, code=codigo)
         self.codigo = codigo
+
+
+class RespuestasInvalidas(ValidationError):
+    """Las respuestas del formulario «Relevamiento» no pasan el motor: tipo inválido u
+    obligatorio sin responder. ``por_clave`` es ``{clave: texto}``; la API lo devuelve aparte."""
+
+    def __init__(self, por_clave):
+        super().__init__({"respuestas": list(por_clave.values())})
+        self.por_clave = dict(por_clave)
 
 
 class InspeccionReasignada(PermissionDenied):
@@ -307,8 +332,11 @@ def _trazar(inspeccion, usuario, accion, detalle):
 
 
 @transaction.atomic
-def crear_inspeccion(usuario, *, edificio, asignado_a, fecha_vencimiento, indicaciones=""):
+def crear_inspeccion(usuario, *, edificio, asignado_a, fecha_vencimiento, indicaciones="", tipo=None):
     """El coordinador crea la tarea y se la asigna a un agente.
+
+    ``tipo`` elige de qué tipo de institución es el formulario «Relevamiento» (D1): desde P4 es
+    el de la institución; desde P21 solo hace falta si el edificio aloja a más de un tipo.
 
     Un edificio tiene **un solo relevamiento en curso**: el segundo se rechaza y lo que
     corresponde es reasignar el que está. Como MySQL y MariaDB no tienen índices parciales
@@ -329,8 +357,10 @@ def crear_inspeccion(usuario, *, edificio, asignado_a, fecha_vencimiento, indica
     if edificio.inspecciones.filter(estado=InspeccionEdificio.Estado.ASIGNADA).exists():
         raise ValidationError({"edificio": "El edificio ya tiene un relevamiento en curso: reasignalo."})
     _validar_agente(asignado_a, edificio)
+    diseno = diseno_para_asignar(edificio, tipo)
     inspeccion = InspeccionEdificio.objects.create(
         edificio=edificio,
+        diseno=diseno,
         asignado_a=asignado_a,
         creado_por=usuario,
         fecha_vencimiento=fecha_vencimiento,
@@ -499,7 +529,17 @@ def _guardar_foto(inspeccion, usuario, archivo, descripcion="", uuid_cliente=Non
 
 @archivos_atomicos
 @transaction.atomic
-def registrar_resultado(usuario, inspeccion, *, criticidad, observaciones="", fotos=(), uuid_resultado=None):
+def registrar_resultado(
+    usuario,
+    inspeccion,
+    *,
+    criticidad,
+    observaciones="",
+    fotos=(),
+    uuid_resultado=None,
+    respuestas=None,
+    version_capturada=None,
+):
     """El agente asignado cierra el relevamiento: criticidad, observaciones y fotos.
 
     ``fotos`` es una lista de archivos o de pares ``(archivo, descripcion)``. Si algo
@@ -509,6 +549,13 @@ def registrar_resultado(usuario, inspeccion, *, criticidad, observaciones="", fo
     sobre un relevamiento ya realizado devuelve el relevamiento como quedó, sin tocarlo;
     cualquier otro envío sobre uno realizado es :data:`CONFLICTO_YA_REALIZADA`, y sobre uno
     cancelado, :data:`CONFLICTO_CANCELADA`.
+
+    **El formulario «Relevamiento» complementa el resultado fijo** (D2). Si el relevamiento
+    tiene un formulario vigente (``diseno`` sin baja), ``respuestas`` se valida contra su
+    definición **de ahora** —obligatorios, condiciones y tipos, salvo los ARCHIVO, que llegan
+    después— y se guarda con la foto y la versión vigentes (D4). ``version_capturada`` es la
+    versión con la que la app dice haber capturado: si difiere se acepta y se marca. Con el
+    formulario dado de baja, las respuestas se ignoran.
     """
 
     uuid_resultado = _como_uuid(uuid_resultado)
@@ -525,6 +572,13 @@ def registrar_resultado(usuario, inspeccion, *, criticidad, observaciones="", fo
         raise _conflicto_estado()
     if criticidad not in InspeccionEdificio.Criticidad.values:
         raise ValidationError({"criticidad": "Elegí una criticidad válida."})
+    diseno = diseno_vigente_de(inspeccion)
+    foto = efectivas = None
+    if diseno is not None:
+        foto = foto_vigente(diseno)
+        efectivas, errores = validar_respuestas_de_campo(foto, respuestas)
+        if errores:
+            raise RespuestasInvalidas(errores)
     inspeccion.estado = InspeccionEdificio.Estado.REALIZADA
     inspeccion.criticidad = criticidad
     inspeccion.observaciones = (observaciones or "").strip()
@@ -542,9 +596,11 @@ def registrar_resultado(usuario, inspeccion, *, criticidad, observaciones="", fo
             "modificado",
         ]
     )
+    if diseno is not None:
+        guardar_respuestas_relevamiento(inspeccion, diseno, foto, efectivas, usuario, version_capturada)
     cantidad = 0
-    for foto in fotos:
-        archivo, descripcion = foto if isinstance(foto, tuple) else (foto, "")
+    for una_foto in fotos:
+        archivo, descripcion = una_foto if isinstance(una_foto, tuple) else (una_foto, "")
         _guardar_foto(inspeccion, usuario, archivo, descripcion)
         cantidad += 1
     # Una sola línea para el resultado y sus fotos: es una acción, no una por archivo.
@@ -553,6 +609,40 @@ def registrar_resultado(usuario, inspeccion, *, criticidad, observaciones="", fo
         detalle += f" · {cantidad} foto{'s' if cantidad != 1 else ''}"
     _trazar(inspeccion, usuario, TrazaInspeccion.Accion.REALIZADA, detalle)
     return inspeccion
+
+
+def _admitir_carga(usuario, inspeccion, modelo, campo_autor, uuid_cliente):
+    """El prólogo común de recibir una foto o un adjunto del formulario: capacidad, bloqueo, idempotencia
+    por ``uuid_cliente``, «solo lo asignado» y el estado que admite la carga.
+
+    Devuelve ``(inspeccion, previa)``: si ``previa`` no es ``None`` es la fila que ya había llegado
+    (``ya_existia = True``) y la operación termina ahí, aunque el relevamiento se haya cancelado o
+    reasignado después. Los conflictos salen como excepciones."""
+
+    uuid_cliente = _como_uuid(uuid_cliente)
+    _exigir_capacidad_de_agente(usuario)
+    inspeccion = _bloquear(inspeccion)
+    previa = None
+    if uuid_cliente is not None:
+        previa = modelo.objects.filter(q_uuid_en_texto("uuid_cliente", uuid_cliente)).first()
+        if (
+            previa is not None
+            and previa.inspeccion_id == inspeccion.pk
+            and getattr(previa, f"{campo_autor}_id") == usuario.pk
+        ):
+            previa.ya_existia = True
+            return inspeccion, previa
+    _exigir_asignado(usuario, inspeccion)
+    if previa is not None:
+        raise _conflicto_uuid_en_uso()
+    if inspeccion.estado == InspeccionEdificio.Estado.CANCELADA:
+        raise _conflicto_cancelada(inspeccion)
+    # Lista blanca: en curso y realizado; cualquier otro estado (o ya revisado) se rechaza.
+    if inspeccion.revisado_en is not None or not (
+        inspeccion.en_curso or inspeccion.estado == InspeccionEdificio.Estado.REALIZADA
+    ):
+        raise _conflicto_estado()
+    return inspeccion, None
 
 
 @archivos_atomicos
@@ -569,31 +659,60 @@ def agregar_foto(usuario, inspeccion, archivo, descripcion="", *, uuid_cliente=N
     mismo identificador en otra foto es :data:`CONFLICTO_UUID_EN_USO`.
     """
 
-    uuid_cliente = _como_uuid(uuid_cliente)
-    _exigir_capacidad_de_agente(usuario)
-    inspeccion = _bloquear(inspeccion)
-    previa = None
-    if uuid_cliente is not None:
-        previa = FotoInspeccion.objects.filter(q_uuid_en_texto("uuid_cliente", uuid_cliente)).first()
-        if previa is not None and previa.inspeccion_id == inspeccion.pk and previa.cargada_por_id == usuario.pk:
-            previa.ya_existia = True
-            return previa
-    _exigir_asignado(usuario, inspeccion)
+    inspeccion, previa = _admitir_carga(usuario, inspeccion, FotoInspeccion, "cargada_por", uuid_cliente)
     if previa is not None:
-        raise _conflicto_uuid_en_uso()
-    if inspeccion.estado == InspeccionEdificio.Estado.CANCELADA:
-        raise _conflicto_cancelada(inspeccion)
-    # Igual que en `registrar_resultado`: acá la lista blanca son dos estados —en curso y
-    # realizado—, y cualquier otro se rechaza en vez de caer en el alta.
-    if inspeccion.revisado_en is not None or not (
-        inspeccion.en_curso or inspeccion.estado == InspeccionEdificio.Estado.REALIZADA
-    ):
-        raise _conflicto_estado()
+        return previa
+    uuid_cliente = _como_uuid(uuid_cliente)
     foto = _guardar_foto(inspeccion, usuario, archivo, descripcion, uuid_cliente)
     # La traza cuelga del alta, no de la llamada: el reenvío idempotente ya volvió arriba y no
     # deja una segunda línea de auditoría por la misma foto.
     _trazar(inspeccion, usuario, TrazaInspeccion.Accion.FOTO, f"Edificio {inspeccion.edificio.nombre}")
     return foto
+
+
+def _conflicto_clave_de_archivo():
+    return ValidationError({"clave": MENSAJE_CLAVE_NO_ES_ARCHIVO})
+
+
+MENSAJE_CLAVE_NO_ES_ARCHIVO = "Esa clave no es un campo de archivo del formulario de este relevamiento."
+
+
+@archivos_atomicos
+@transaction.atomic
+def agregar_adjunto_formulario(usuario, inspeccion, clave, archivo, *, uuid_cliente):
+    """El archivo de un campo ARCHIVO del formulario «Relevamiento»: en curso o ya realizado,
+    porque la app sin conexión lo manda después del resultado.
+
+    Idempotente por ``uuid_cliente``: el reenvío del mismo archivo —mismo agente, mismo
+    relevamiento— devuelve la fila que quedó con ``ya_existia = True`` aunque después se haya
+    cancelado o reasignado. El mismo identificador en otro adjunto es
+    :data:`CONFLICTO_UUID_EN_USO`. Extensiones y tamaño son los de los adjuntos de Becas
+    (``core.validators.validar_adjunto``). Una ``clave`` que no es un campo ARCHIVO del
+    formulario es un 400: el archivo no se guarda.
+    """
+
+    inspeccion, previa = _admitir_carga(
+        usuario, inspeccion, AdjuntoRespuestaRelevamiento, "cargado_por", _como_uuid(uuid_cliente)
+    )
+    if previa is not None:
+        return previa
+    if not clave_de_archivo_valida(inspeccion, clave):
+        raise _conflicto_clave_de_archivo()
+    adjunto = AdjuntoRespuestaRelevamiento(
+        inspeccion=inspeccion, clave=clave, archivo=archivo, cargado_por=usuario, uuid_cliente=uuid_cliente
+    )
+    adjunto.full_clean(validate_unique=False)
+    try:
+        with transaction.atomic():
+            adjunto.save()
+    except IntegrityError:
+        anotar_archivo_escrito(adjunto.archivo, asignado=archivo)
+        raise _conflicto_uuid_en_uso() from None
+    anotar_archivo_escrito(adjunto.archivo, asignado=archivo)
+    adjunto.ya_existia = False
+    # Como la foto: la traza cuelga del alta, el reenvío idempotente ya volvió arriba.
+    _trazar(inspeccion, usuario, TrazaInspeccion.Accion.ADJUNTO, f"Edificio {inspeccion.edificio.nombre} · {clave}")
+    return adjunto
 
 
 # --------------------------------------------------------------------------- #
@@ -1087,6 +1206,8 @@ def informe_de_relevamiento(usuario, inspeccion, *, hoy=None):
         "indicaciones": inspeccion.indicaciones if ve_asignacion else "",
         "fotos": fotos_para_galeria(inspeccion, fotos),
         "total_fotos": total_fotos,
+        # Lo que el territorial respondió en el formulario «Relevamiento»; `None` si no hubo.
+        "formulario": formulario_del_relevamiento(inspeccion) if realizada else None,
         "indicadores": _indicadores_del_informe(inspeccion, semaforo, situacion_texto, total_fotos, hoy),
     }
 
