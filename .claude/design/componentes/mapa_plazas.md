@@ -36,7 +36,8 @@ sale de la misma consulta de reservas y no aumenta el presupuesto del censo.
   servicio). Un tono desconocido dibuja la celda neutra. No hay reglas de dominio en el template.
 - **El color no es el único portador.** Cada celda lleva el código, el texto del estado y un ícono por
   tono (`fa-circle-check`, `fa-user`, `fa-clock`, `fa-right-left`, `fa-ban`), todos `aria-hidden`; la leyenda
-  repite muestra, ícono y texto. Una plaza elegida suma el texto «Elegida» y `aria-current`.
+  es una fila de pastillas `badge badge-{tono}` con el mismo ícono por tono y el texto adentro (`<i> Texto`, sin margen propio: el badge ya trae `gap`) (tono
+  desconocido: `badge-gray` con `fa-circle`; sin rótulo propio). Una plaza elegida suma el texto «Elegida» y `aria-current`.
 
 ## Accesibilidad y teclado
 
