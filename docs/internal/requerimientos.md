@@ -505,6 +505,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 379 | «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal | Dispositivos · P5 Sectores y plazas | `#ui` `#performance` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 380 | Ingreso a un dispositivo: el asistente avanza siempre con «Continuar» | Dispositivos · asistente de ingreso (P6) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 381 | Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle | Dispositivos · Configuración → Tipos | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 382 | Detalle de una institución (P4): las acciones secundarias del encabezado van al menú «Más acciones» | Dispositivos · detalle de la institución (P4) · menú de fila | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 383 | «Soy el administrador y no veo Relevamientos»: el rol protegido Administrador recibe `inspeccion.asignar` por migración | Transversal · RBAC (rol Administrador) · Dispositivos → Relevamientos (P21) | `#rbac` `#datos` `#relevamientos` | PM — prueba en testing (ECOM) | 26/10/2026 | 🟢 **Hecho** | `users.0040` |
 
 **Notas del índice**
@@ -48564,6 +48565,119 @@ Nada. Recargar con Ctrl+F5 después del deploy.
 ## Reversión
 
 Revertir el commit. No hay datos que revertir.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 382 — Detalle de una institución (P4): las acciones secundarias del encabezado van al menú «Más acciones»
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle de la institución (P4) · menú de fila |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/legajo/detail.html` · Piezas: `{% menu_fila %}` (`texto=`), `components/_menu_fila_item.html` (`abre_modal=`), filtro `nombre_alpine` · Fichas: `.claude/design/componentes/tabla.md`, inventario de `.claude/agents/chaco-design-system.md` |
+| **Migración** | no |
+
+## Pedido original
+
+Es el cuarto lote de la revisión de diseño de Dispositivos (ver el Cambio 378). El encabezado del detalle de una
+institución puede llegar a mostrar nueve botones en una fila, según el estado y la capacidad: Bitácora del turno,
+Editar, Enviar a validación, Validar, Observar, Rechazar, Inactivar, Cerrar e Ingresar persona. Ninguna otra
+pantalla del sistema tiene un encabezado así.
+
+## Alcance acordado
+
+Entra dónde se dibujan las acciones. Quedan afuera:
+- qué acción aparece en cada estado y con qué capacidad;
+- las URLs, los contratos de confirmación (`data-confirm-*`) y los modales Observar y Rechazar.
+
+## Decisiones tomadas
+
+- **Las acciones secundarias van a un menú «Más acciones».** Lo decidió el PM el 26/10/2026 («sigo tus
+  recomendaciones»).
+  - Quedan visibles «Bitácora del turno» y la primaria del estado: Enviar a validación, Validar o Ingresar persona.
+  - Van al menú, en este orden: Editar, Observar, Rechazar, Inactivar y Cerrar. Rechazar y Cerrar en rojo.
+  - Cada ítem conserva su condición de estado y de capacidad. Si ninguno aplica, el menú no se dibuja.
+  - El orden visual cambia: Editar ya no queda entre la bitácora y la primaria. El menú va último.
+- **Es una variante del menú de fila, no una pieza nueva.** Lo decidió el juez. Así se reusan el teclado, el foco,
+  el cierre con Escape o con un clic afuera, y el posicionamiento de `nodo-menu-fila.js`.
+  - `texto="Más acciones"` cambia el disparador ⋮ por un botón `btn-secondary btn-sm btn-fit` con el texto y un caret.
+  - Sin `texto`, el HTML de los consumidores que ya existían no cambia: hay un test que lo compara byte a byte.
+- **`abre_modal` acepta solo el nombre de una variable Alpine.** Observar y Rechazar abren modales de la pantalla. El
+  ítem dibuja `@click="<variable>=true"`, y el filtro `nombre_alpine` descarta todo lo que no sea un identificador.
+  Así un valor no puede meter una expresión. Si no pasa el filtro, el ítem no se dibuja. El menú no se mueve del DOM
+  (es `position: fixed`), así que el `@click` sigue dentro del `x-data` de la pantalla.
+
+## Implementación
+
+- `_menu_fila.html` y `{% menu_fila %}`: suman el parámetro opcional `texto`.
+- `_menu_fila_item.html`: suma `abre_modal`.
+  - Va después de `motivo`, `confirm_url` y `url`, que le ganan.
+  - Acepta `peligro=True`.
+- `core/templatetags/nodo_ui.py`: el filtro `nombre_alpine`.
+- `legajo/detail.html`: el encabezado se reordena con `{% menu_fila id="acciones-dispositivo" … texto="Más acciones" %}`.
+- `tabla.md` suma la subsección «Variante de encabezado (`texto=`) y ítem que abre un modal (`abre_modal=`)», con la
+  regla de cuándo usarla. El inventario del agente canónico se actualiza.
+- No hay CSS ni JS nuevos.
+
+## Archivos
+
+- `templates/components/_menu_fila.html`
+- `templates/components/_menu_fila_item.html`
+- `core/templatetags/nodo_ui.py`
+- `programas/templates/programas/dispositivos/legajo/detail.html`
+- `core/tests/test_nodo_ui_piezas.py`
+- `programas/tests/test_dispositivos_detalle.py`
+- `programas/tests/test_dispositivos_fidelidad_ff.py`
+- `.claude/design/componentes/tabla.md`
+- `.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0), `check_design_agent
+  --changed` y ruff: en verde.
+- Tests de los módulos tocados: `core.tests.test_nodo_ui_piezas`, `programas.tests.test_dispositivos_detalle` y
+  `programas.tests.test_dispositivos_fidelidad_ff`. Dieron 207 OK y 2 salteados. La suite completa la corre el CI.
+  - `MenuFilaTest` cubre:
+    - `abre_modal` válido, con `peligro`, y con siete valores inválidos (en ninguno sale `@click`);
+    - que cede ante `motivo` y `url`;
+    - el disparador con texto;
+    - el HTML sin `texto`, idéntico byte a byte al anterior.
+  - El detalle verifica tres cosas:
+    - quien solo ve la institución no tiene menú;
+    - el validador recibe Observar y Rechazar con su `@click`;
+    - sin `dispositivo.validar` no aparecen.
+  - Mutación: con `puede_validar` fuera de la condición, el test de «sin `dispositivo.validar`» se pone rojo.
+- En el navegador, a 1440 y a 390 px:
+  - el menú abre y cierra con Escape y con un clic afuera, y el foco vuelve al disparador;
+  - Observar y Rechazar abren su modal;
+  - Inactivar y Cerrar abren su confirmación;
+  - a 390 px el menú queda dentro del viewport, sin scroll horizontal;
+  - la consola no muestra errores.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit.
 
 ## Historial
 
