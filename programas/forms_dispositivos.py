@@ -264,10 +264,58 @@ class AsignarRelevamientoForm(forms.Form):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional"}),
     )
 
-    def __init__(self, *args, edificio, agentes, **kwargs):
+    def __init__(self, *args, edificio=None, agentes, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["edificio"].initial = f"{edificio.nombre} · {edificio.codigo}"
+        if edificio is not None:
+            self.fields["edificio"].initial = f"{edificio.nombre} · {edificio.codigo}"
         self.fields["asignado_a"].queryset = agentes
+
+
+#: Prefijo de los ids del modal «Crear relevamiento» de P4: comparte página con otros
+#: formularios que tienen un campo `edificio`, y dos `id_edificio` en el mismo documento
+#: rompen el `for` de los labels.
+AUTO_ID_RELEVAMIENTO = "relev_%s"
+
+
+class AsignarRelevamientoDispositivoForm(AsignarRelevamientoForm):
+    """«Crear relevamiento» desde la solapa Infraestructura de P4: el edificio se elige acá.
+
+    Mismos cuatro campos que :class:`AsignarRelevamientoForm`; cambia solo el de edificio,
+    que es un selector de los ``edificios`` que el servicio ya dejó elegibles (en alcance, sin
+    un relevamiento en curso, de este dispositivo). Con uno solo va fijo y de solo lectura:
+    un campo deshabilitado ignora lo que llegue por POST y usa el inicial, así que no se
+    puede cambiar. El agente lo acota la vista (``agentes_asignables_para``) y lo decide el
+    servicio contra el edificio elegido.
+    """
+
+    edificio = forms.ChoiceField(
+        label="Edificio",
+        choices=(),
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        error_messages={
+            "required": "Elegí el edificio que se va a relevar.",
+            "invalid_choice": "Ese edificio no está disponible para asignarle un relevamiento.",
+        },
+    )
+
+    def __init__(self, *args, edificios, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._edificios = {str(edificio.pk): edificio for edificio in edificios}
+        campo = self.fields["edificio"]
+        opciones = [(pk, f"{e.nombre} · {e.codigo}") for pk, e in self._edificios.items()]
+        if len(opciones) == 1:
+            campo.choices = opciones
+            campo.initial = opciones[0][0]
+            campo.disabled = True
+        else:
+            campo.choices = [("", "Elegí un edificio"), *opciones]
+
+    @property
+    def edificio_fijo(self):
+        return self.fields["edificio"].disabled
+
+    def clean_edificio(self):
+        return self._edificios[self.cleaned_data["edificio"]]
 
 
 class ReasignarRelevamientoForm(forms.Form):
