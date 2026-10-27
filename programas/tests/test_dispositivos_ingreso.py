@@ -923,3 +923,6 @@ class AltaMinimaTests(BaseIngreso):
 
         self.assertTrue(huella_manual.startswith(f"manual:{self.DNI}:F:"))
         self.assertNotEqual(huella_manual, huella_registro)
+        self.assertTrue(huella_registro.startswith(f"registro:{self.DNI}:F:"))
+        self.assertEqual(IngresoBaseView.huella_persona({"ciudadano_id": 7, "renaper": manual}), "legajo:7")
+        self.assertEqual(IngresoBaseView.huella_persona({"sexo": "F"}), "")

@@ -33,7 +33,7 @@ Render de cada campo:
 </div>
 ```
 
-- El asterisco sale de `field.field.required` o `campo.marca_requerido`; esta marca no cambia `required` y la bajada explica la transición que exige esos datos.
+- El asterisco sale de `field.field.required` o `campo.marca_requerido`; esta marca no cambia `required` y la bajada explica la transición que exige esos datos. También la usa el edificio deshabilitado (`required=False`) de `AsignarRelevamientoForm` (`programas/forms_dispositivos.py`), que es un dato obligatorio de la asignación.
 - La ayuda va en `text-body-subtle`; el rojo queda **solo** para el error.
 - **El `<p>` del error está siempre**, con `data-error="<campo>"` y oculto mientras no haya
   texto: es donde el guardado AJAX (`programas/templates/programas/becas/_ajax_js.html`) lo

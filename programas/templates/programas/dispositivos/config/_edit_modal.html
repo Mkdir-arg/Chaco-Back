@@ -1,6 +1,7 @@
-{% comment %}Modal de edición del tipo (golden: becas/config/programa_list.html). Llega por fetch y lo
-maneja el JS de `tipo_detail.html` (foco, Tab atrapado, Escape y cierre afuera), por eso lleva
-`data-edit-modal` y no `x-becas-modal`: el modal se inyecta ya abierto, sin scope de Alpine.{% endcomment %}
+{% comment %}Modal de edición del tipo (golden: becas/config/programa_list.html). Llega por fetch y se
+inyecta ya abierto, sin scope de Alpine, por eso lleva `data-edit-modal` y no `x-becas-modal`. El JS de
+`tipo_detail.html` lo engancha con `window.becasModal.bind` (becas-modal.js: foco, Tab atrapado y
+Escape) y conserva solo el cierre al tocar el fondo, con `pointerdown`.{% endcomment %}
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4"
      data-edit-modal
      data-edit-url="{{ modal_action }}"

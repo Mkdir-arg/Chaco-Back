@@ -90,6 +90,7 @@ from programas.services.estadias import (
 from programas.services.horarios_dispositivo import reemplazar_franjas
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import (
+    AGENTE_DEBE_SER_EXTERNO,
     CAP_ASIGNAR,
     agentes_asignables_para,
     edificios_para_asignar_del_dispositivo,
@@ -384,6 +385,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         puede_egresar = puede_operar_dispositivo(user, dispositivo, CAP_EGRESAR)
         puede_cambiar = puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR)
         puede_ver_ciudadano = puede(user, CAP_VER_CIUDADANO)
+        puede_validar = puede_operar_dispositivo(user, dispositivo, "dispositivo.validar")
         con_plazas = maneja_plazas(dispositivo)
         for estadia in estadias:
             estadia.persona_visible = estadia.ciudadano.apellido_nombre if puede_ver_ciudadano else "Persona alojada"
@@ -446,7 +448,8 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 # con la foto de la versión respondida.
                 "formularios_respondidos": formularios_respondidos(dispositivo),
                 "puede_editar": puede_operar_dispositivo(user, dispositivo, "dispositivo.editar"),
-                "puede_validar": puede_operar_dispositivo(user, dispositivo, "dispositivo.validar"),
+                "puede_validar": puede_validar,
+                "validacion_pendiente": puede_validar and dispositivo.estado == Dispositivo.Estado.PENDIENTE_VALIDACION,
                 "puede_admitir": puede_operar_dispositivo(user, dispositivo, "dispositivo.admitir"),
                 "puede_ver_ciudadano": puede_ver_ciudadano,
                 "puede_egresar": puede_egresar,
@@ -556,6 +559,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         if not elegibles:
             return
         context["puede_crear_relevamiento"] = True
+        context["agente_externo"] = AGENTE_DEBE_SER_EXTERNO
         context["form_relevamiento"] = AsignarRelevamientoDispositivoForm(
             edificios=elegibles, agentes=agentes_asignables_para(elegibles), auto_id=AUTO_ID_RELEVAMIENTO
         )

@@ -424,6 +424,9 @@ class _RelevamientoAccionView(DispositivoProgramaPermissionMixin, View):
         messages.success(self.request, mensaje)
         return redirect(self._volver())
 
+    def _creado(self, edificio, agente):
+        return self._ok(f"Relevamiento de {edificio.nombre} asignado a {_nombre(agente)}.")
+
     def _errores_del_servicio(self, error, form):
         if not hasattr(error, "error_dict"):
             return {"__all__": list(error.messages)}
@@ -503,7 +506,7 @@ class RelevamientoAsignarView(_RelevamientoAccionView):
             return self._prohibido(error)
         except ValidationError as error:
             return self._rechazar(self._errores_del_servicio(error, form))
-        return self._ok(f"Relevamiento de {edificio.nombre} asignado a {_nombre(datos['asignado_a'])}.")
+        return self._creado(edificio, datos["asignado_a"])
 
 
 class DispositivoRelevamientoAsignarView(_RelevamientoAccionView):
@@ -542,7 +545,7 @@ class DispositivoRelevamientoAsignarView(_RelevamientoAccionView):
             return self._prohibido(error)
         except ValidationError as error:
             return self._rechazar(self._errores_del_servicio(error, form))
-        return self._ok(f"Relevamiento de {edificio.nombre} asignado a {_nombre(datos['asignado_a'])}.")
+        return self._creado(edificio, datos["asignado_a"])
 
 
 class RelevamientoReasignarView(_RelevamientoAccionView):
