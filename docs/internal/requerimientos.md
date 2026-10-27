@@ -503,6 +503,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 377 | Sectores y plazas: reubicar a la persona desde la plaza ocupada | Dispositivos · P5 · Sectores y plazas | `#ui` `#rbac` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 378 | Dispositivos: la leyenda del mapa de plazas pasa a pastillas, y los tonos del listado y de P21 se alinean | Dispositivos · leyenda del mapa (P5, P6) · listado · P21 | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 379 | «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal | Dispositivos · P5 Sectores y plazas | `#ui` `#performance` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 383 | «Soy el administrador y no veo Relevamientos»: el rol protegido Administrador recibe `inspeccion.asignar` por migración | Transversal · RBAC (rol Administrador) · Dispositivos → Relevamientos (P21) | `#rbac` `#datos` `#relevamientos` | PM — prueba en testing (ECOM) | 26/10/2026 | 🟢 **Hecho** | `users.0040` |
 
 **Notas del índice**
 
@@ -48255,5 +48256,130 @@ vacío. Ningún otro uso de la pieza lo emplea.
 - **26/10/2026 — alta del cambio.**
 - **26/10/2026 — «Nuevo sector» entra en el mismo PR (#975)**, a pedido del PM. Sale de Pendientes y pasa
   a Alcance, Decisiones e Implementación.
+
+---
+
+# Cambio 383 — «Soy el administrador y no veo Relevamientos»: el rol protegido Administrador recibe `inspeccion.asignar` por migración
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · RBAC (rol protegido «Administrador») · Dispositivos → Relevamientos (P21) |
+| **Etiquetas** | `#rbac` `#datos` `#relevamientos` |
+| **Solicitante** | PM — prueba en testing (ECOM), 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: migración de datos sobre `auth_group_permissions` (solo el rol Administrador) |
+| **Migración** | `users.0040` |
+
+## Pedido original
+
+«Soy el super admin y no veo Relevamientos en el menú: agregale ese permiso al super admin del sistema.»
+En https://datanach.ecomdev.ar el PM entra con el rol protegido «Administrador» y en Programas → Dispositivos
+no aparece «Relevamientos».
+
+## Alcance acordado
+
+Entra: una migración de datos que le da al rol del sistema «Administrador» (`RolMeta.clave =
+"sistema.administrador"`, global) las capacidades `inspeccion.asignar` y `becas.revision.identidad` si le
+faltan. Queda afuera: `inspeccion.relevar`, realinear el rol con todo el catálogo, cualquier otro rol (los
+configura el PM) y tocar `seed_rbac`.
+
+## Decisiones tomadas
+
+- **Causa.** El link del sidebar (`templates/includes/sidebar/opciones.html`) y `RelevamientoListView` exigen
+  `inspeccion.asignar` con alcance a Dispositivos; un rol global con la capacidad cuenta
+  (`_capacidades_activas_en_programa`). `users.0037` declaró la capacidad **sin sembrar roles** y la `0038`
+  dejó `becas.revision.identidad` al seed del arranque. En ECOM el `seed_rbac` —que le da todo el catálogo al
+  Administrador— no corre, y el rol es protegido: el ABM de Roles no lo deja editar. La migración es la única
+  vía, como en `users.0025` y `users.0035`. No es `is_superuser`: el superusuario tiene bypass y lo vería.
+- **Decidido sin el diagnóstico del pod.** El PM no lo va a correr y delegó la decisión al juez (27/10/2026:
+  «resolver las dudas solos»). Por eso el alcance es el que se puede justificar sin saber qué más le falta al
+  rol en ECOM.
+- **Alcance: dos capacidades, nombradas.** Se evaluaron tres opciones:
+  1. *Realinear con todo el catálogo* (lo que hace `seed_rbac`). **Descartada.** La migración corre también en
+     PRD, y entre `users.0002` y `0039` hubo varias tandas de capacidades declaradas sin sembrarle al
+     Administrador (0006, 0011, 0015, 0021, 0026 con `becas.programa.proceso_masivo`…): sin diagnóstico, le daría en
+     producción un conjunto que nadie listó. Además no tendría reversa real —no se puede saber qué agregó—, y
+     congelaría en una migración una lista que el seed mantiene con `set`. Ninguna migración del repo realinea
+     al Administrador: el patrón (0025, 0035) es darle por nombre lo de cada funcionalidad.
+  2. *Todo lo de la 0037* (`asignar` + `relevar`). **`inspeccion.relevar` descartada.** Es capacidad de la app de
+     campo (`rbac.CAPACIDADES_DE_CAMPO`). Al Administrador global nunca se le asigna un relevamiento, porque el
+     selector (`agentes_asignables`) solo ofrece roles **del programa** Dispositivos. Lo único que le sumaría es
+     poder sacar token de la app de campo (`programas/api/views.py`). Es el mismo criterio que `seed_becas`
+     aplica con `becas.campo` al Administrador de Becas.
+  3. **Elegida:** `inspeccion.asignar` (lo pedido) + `becas.revision.identidad` (0038, mismo motivo). La segunda
+     hoy es redundante si el rol tiene `becas.programa.administrar`, porque `puede_validar_identidad` acepta
+     cualquiera de las dos. Igual completa lo que la 0038 dio por hecho, y no abre ninguna superficie nueva.
+- **Cómo encuentra el rol:** por la clave `sistema.administrador`. Si ninguna RolMeta la tiene, lo busca por
+  el nombre canónico «Administrador», igual que `users.0035`. En una base nueva no hay rol y no hace nada:
+  lo crea `seed_rbac` con todo.
+- **Idempotente y atómica:** `permissions.add` solo de las que faltan. `get_or_create` de las `Permission`,
+  porque en una base que migra de corrido el `post_migrate` todavía no las materializó. Es solo datos, sin
+  DDL, así que la transacción la cubre entera. Deja en el log de la migración qué sumó y qué ya tenía.
+- **Reversa real:** saca las dos **solo** del Administrador. No borra las `Permission` (son de la 0037/0038) ni
+  toca otros roles. Lo que no distingue: en una base donde `seed_rbac` ya se las había dado, revertir se las
+  saca hasta el próximo arranque con seed. En ECOM, donde no corre, vuelve exactamente al estado anterior.
+
+## Implementación
+
+Con el deploy, `migrate` aplica `users.0040`. El Administrador queda con «Crear, asignar, reasignar y
+cancelar relevamientos edilicios» y «Validar la identidad de un caso», y ve Programas → Dispositivos →
+Relevamientos (`/dispositivos/relevamientos/`). Los demás roles quedan igual.
+
+## Archivos
+
+- `users/migrations/0040_administrador_inspeccion_e_identidad.py` (nuevo)
+- `users/tests/test_migracion_administrador_inspeccion.py` (nuevo)
+
+## Base de datos
+
+`users.0040`: `RunPython` con reversa. Agrega a lo sumo dos filas en `auth_group_permissions`, del grupo del
+Administrador. No toca el esquema y es segura sobre datos existentes.
+
+## Validación
+
+- `users.tests.test_migracion_administrador_inspeccion`: 13 tests OK, contra los modelos históricos
+  (`estado_historico`, RED-17). Cubren catálogo, clave y nombre, otros roles intactos, sin
+  `inspeccion.relevar`, idempotencia, base nueva, `Permission` faltantes y reversa. El de punta a punta usa
+  un usuario cuyo único rol es el Administrador global con `dispositivo.ver` y `programa.configurar`. Antes
+  de la migración, `puede_en_programa_dispositivos` da False, `/dispositivos/relevamientos/` da 403 y el
+  sidebar no trae el link. Después da True, la pantalla da 200 y el link aparece.
+- **Mutación:** las siete mutaciones ponen al menos un test en rojo. Son: sacar `becas_revision_identidad`,
+  sembrar a todos los grupos, buscar solo por nombre, sumar `inspeccion_relevar`, que la reversa quite de
+  todos, reversa vacía y siembra vacía.
+- RBAC afines (`test_migracion_dispositivo_bitacora`, `test_migracion_administrador_publico`,
+  `notificaciones.tests.test_rbac`, `test_menu_rbac`, `test_seed_datos_base`): 69 OK.
+- `manage.py check` sin observaciones. `makemigrations --check --dry-run` (con
+  `DJANGO_SYNCDB_PROJECT_APPS=False`) da «No changes». `scripts/check_migraciones.py` da 0 problemas, y ruff
+  pasa.
+
+## Puesta en marcha en el servidor
+
+Nada manual: la aplica el `migrate` del deploy. Después del espejo a testing, el PM **recarga la página**
+(las capacidades se calculan por request; si no aparece, cerrar sesión y volver a entrar). En el log del
+deploy, la línea «Administrador «…»: sumó …; ya tenía …» dice qué cambió.
+
+## Pendientes / a definir
+
+- **Si después del deploy el log dice «sumó ninguna» y el PM sigue sin ver Relevamientos,** su usuario no
+  tiene el rol del sistema sino otro. Hace falta el diagnóstico de solo lectura del traspaso (grupos del
+  usuario y `rbac.codigos_de_capacidad()` que le faltan al rol).
+- **Lo mismo puede faltarle a otros roles en ECOM.** Si el arranque no corre `seed_becas`, al «Becas —
+  Coordinador» le falta `becas.revision.identidad` (Cambio 334). Esos roles sí se editan en la pantalla de
+  Roles: el PM puede verificar «Validar la identidad de un caso» y tildarla.
+- **Causa de fondo, a confirmar con ECOM:** si el pod de testing/PRD arranca con `LOCAL_BOOTSTRAP_COMMANDS=false`
+  o con un comando propio, ningún seed corre. Hasta que se confirme, toda capacidad nueva que el Administrador
+  deba tener va con su migración de siembra, como la 0025, la 0035 y esta.
+
+## Reversión
+
+`migrate users 0039`: la reversa le saca las dos al Administrador y no toca nada más. Después, revertir el
+commit.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.** Lo decidió el juez por delegación del PM, sin el diagnóstico del pod.
 
 ---
