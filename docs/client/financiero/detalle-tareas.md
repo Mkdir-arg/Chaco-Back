@@ -1248,35 +1248,193 @@
 | 17/10 | Matías Abate | Becas | Redacción de los casos de prueba de las tareas de Becas | Qué se prueba en cada tarea y con qué resultado esperado, escrito antes de desarrollar. | 2 h | — |
 | | | | **Total 9 al 17/10** | | **254,5 h** | **136 h** |
 
+### :material-package-variant-closed: Consumo del 18 al 26 de octubre — por entregable
+
+!!! note "Período de la Versión 2 de Dispositivos, los cambios de alcance de Becas y la app de campo web"
+    El período sumó **trabajo que no estaba planificado**: los **programas que no validan con SIIS**, el
+    **territorial con varios segmentos** y que el estado en SIIS **deje de pausar** el programa. En
+    Dispositivos se avanzó con la **Versión 2** —formularios por tipo, localidad y franjas horarias— y con
+    los **ajustes de la recorrida del MVP**, que **sigue en construcción**. La **app de campo** pasó a
+    funcionar desde el navegador en el ambiente del organismo, con varias jornadas de soporte junto a su
+    equipo de infraestructura. Por estos cambios, **un par de entregas planificadas para octubre pasan a
+    noviembre**. Hubo publicaciones en producción el 19 y el 26 de octubre.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 18/10 | Matías Fariña | Transversal | Actualización de la documentación pública con el estado informado al Ministerio | La documentación del sitio refleja el estado del MVP enviado el 18/10. | 2 h | — |
+| 19/10 | Matías Fariña | Becas | Definición de la búsqueda en la bandeja de revisión y del manejo de las demoras de SIIS | Por qué datos se busca a una persona y qué ve el operador cuando SIIS tarda. | 2 h | — |
+| 19/10 | Matías Fariña | Becas | Soporte en producción: falla al validar personas contra SIIS | Diagnóstico junto al organismo y a infraestructura, y mensaje con los hallazgos. | 2,5 h | — |
+| 19/10 | Matías Fariña | Transversal | Integración de los cambios pendientes y publicación en testing y en producción | Revisión de lo que estaba listo, publicación en los dos ambientes del organismo y verificación. | 3 h | — |
+| 19/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo y puesta al día del tablero. | 1 h | — |
+| 19/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 19/10 | Pablo Cao | Becas | La bandeja de revisión se filtra por nombre, apellido, DNI y fecha de nacimiento | El operador encuentra un caso sin recorrer páginas. | 3,5 h | 7 h |
+| 19/10 | Pablo Cao | Becas | Los adjuntos y padrones de Becas vuelven a descargarse | Los documentos de la convocatoria se bajan sin error. | 1,5 h | 3 h |
+| 19/10 | Pablo Cao | Becas | Reproducción en testing de la falla de validación con SIIS | Se repite el caso de producción en el ambiente de pruebas para aislar la causa. | 1 h | — |
+| 19/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 19/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 19/10 | Juani Portilla | Becas | El ingreso a SIIS no frena al operador y avisa claro cuando SIIS no responde | La conexión con SIIS se prepara por detrás y el mensaje distingue una demora de una caída. | 3,5 h | 7 h |
+| 19/10 | Juani Portilla | Becas | Diagnóstico de SIIS en el servidor del organismo | Prueba de la configuración y de la conexión con SIIS desde el ambiente real. | 1 h | — |
+| 19/10 | Juani Portilla | Transversal | Las páginas de error se muestran siempre | Ante una falla, la pantalla de error ya no queda colgada. | 1,5 h | 3 h |
+| 19/10 | Juani Portilla | Transversal | Actualización de dependencias y formato del código | Puesta al día de las librerías y del formato que exigen los controles. | 1 h | 2 h |
+| 19/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 19/10 | Matías Abate | Becas | Pruebas de la bandeja de revisión y del ingreso a SIIS | Verificación de la búsqueda y de los mensajes ante demoras de SIIS. | 4 h | — |
+| 19/10 | Matías Abate | Becas | Redacción de los casos de prueba de las tareas de Becas | Qué se prueba en cada tarea y con qué resultado esperado. | 2 h | — |
+| 19/10 | Matías Abate | Transversal | Verificación de lo publicado en el día | Recorrido de lo publicado en el ambiente de pruebas del organismo. | 1 h | — |
+| 19/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 19/10 | Nahuel De Francesco | Becas | Pruebas de regresión de las descargas de Becas | Verificación de que adjuntos y padrones se bajan en todos los casos. | 2 h | — |
+| 19/10 | Nahuel De Francesco | Transversal | Seguimiento de las tareas y documentación del período | Puesta al día del estado de cada tarea y registro de lo resuelto. | 2 h | — |
+| 19/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 20/10 | Matías Fariña | Dispositivos | Definición de la Versión 2 de Dispositivos: localidad, franjas horarias y formularios por tipo | Localidad del catálogo, días y horarios por franjas y un formulario propio por cada momento de la estadía. | 3 h | — |
+| 20/10 | Matías Fariña | Dispositivos | Revisión funcional en testing de lo construido de Dispositivos | Recorrido de la configuración de tipos y del alta, con los ajustes de presentación del formulario. | 2 h | — |
+| 20/10 | Matías Fariña | Transversal | Puesta en marcha de la app de campo web en el ambiente del organismo | Pedido de configuración a infraestructura, reglas de seguridad del navegador, firewall y pruebas desde celular y tablet. | 3 h | — |
+| 20/10 | Matías Fariña | Transversal | Publicaciones en testing del sistema y de la app | Publicación y verificación en el ambiente de pruebas del organismo. | 1 h | — |
+| 20/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo y puesta al día del tablero. | 0,5 h | — |
+| 20/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 20/10 | Pablo Cao | Dispositivos | Formularios por tipo de dispositivo, con el constructor de Becas | Cada tipo de dispositivo arma sus propios formularios con la misma herramienta que Becas. | 4 h | 8 h |
+| 20/10 | Pablo Cao | Dispositivos | Alta del dispositivo con localidad del catálogo y horarios por franjas | La localidad se elige de una lista y los horarios se cargan por día y franja. | 2 h | 4 h |
+| 20/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 20/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 20/10 | Juani Portilla | Transversal | Versión web de la app de campo para el ambiente de pruebas | La app funciona desde el navegador, sin conexión, y se publica comprimida. | 3 h | 6 h |
+| 20/10 | Juani Portilla | Transversal | Ingreso al sistema más liviano y app sin rechazos de seguridad | El ingreso consume menos del servidor y la app entra sin rechazos. | 2 h | 4 h |
+| 20/10 | Juani Portilla | Transversal | Ajuste con infraestructura de la seguridad del navegador para la app | Pruebas y correcciones hasta que la app ingresa desde la computadora, el celular y la tablet. | 2 h | — |
+| 20/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 20/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 20/10 | Matías Abate | Dispositivos | Pruebas del alta del dispositivo con localidad y franjas | Verificación de la carga de localidad y horarios en el alta. | 4 h | — |
+| 20/10 | Matías Abate | Dispositivos | Revisión de la cobertura de casos de prueba de la Versión 2 | Qué tareas de la Versión 2 tienen casos y cuáles faltan. | 2 h | — |
+| 20/10 | Matías Abate | Becas | Pruebas de regresión de Becas | Verificación de que lo publicado no rompió lo existente. | 1 h | — |
+| 20/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 20/10 | Nahuel De Francesco | Dispositivos | El formulario «Crear dispositivo» en el alta y su lectura en el detalle | Lo respondido al crear el dispositivo queda visible en su ficha. | 2,5 h | 5 h |
+| 20/10 | Nahuel De Francesco | Dispositivos | Documentación de las decisiones de la Versión 2 | Registro de lo acordado en cada frente, para que la decisión no se pierda. | 1,5 h | — |
+| 20/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 21/10 | Matías Fariña | Becas | Definición de los avisos al operador y de que el estado en SIIS no pause el programa | Qué se le explica al operador en cada caso y qué deja de bloquear SIIS. | 2,5 h | — |
+| 21/10 | Matías Fariña | Becas | Análisis de otras reglas que trababan la operación de Becas | Revisión de los bloqueos que dependían de datos externos. | 1 h | — |
+| 21/10 | Matías Fariña | Transversal | Soporte de la app: permisos de cámara, ubicación y archivos | Gestión con infraestructura de los permisos que el ambiente le negaba a la app. | 1,5 h | — |
+| 21/10 | Matías Fariña | Transversal | Publicaciones en testing y verificación del despliegue | Publicación en el ambiente de pruebas y control de que la versión nueva quedó arriba. | 1 h | — |
+| 21/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo y puesta al día del tablero. | 1,5 h | — |
+| 21/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 21/10 | Pablo Cao | Becas | El estado inactivo en SIIS deja de pausar el programa | Segmentos, convocatorias y relevamientos siguen operando; el reporte de cupos lo muestra como dato. | 2,5 h | 5 h |
+| 21/10 | Pablo Cao | Becas | Avisos claros al operador | Sin segmentos asignados, envío masivo con los casos que deja afuera y «Nuevo relevamiento» explican el porqué. | 3,5 h | 7 h |
+| 21/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 21/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 21/10 | Juani Portilla | Becas | El cierre automático por vencimiento deja marca y avisa al operador | Se sabe qué cerró el sistema y por qué. | 2 h | 4 h |
+| 21/10 | Juani Portilla | Transversal | Actualización de la librería de imágenes y arreglo del orden de requisitos | Se cierran vulnerabilidades conocidas y reordenar requisitos vuelve a guardar. | 1,5 h | 3 h |
+| 21/10 | Juani Portilla | Transversal | La app de campo en el navegador: adjuntos, fechas, ubicación y fotos grandes | Los adjuntos se guardan y suben, y la ubicación y las fotos pesadas no traban la carga. | 2,5 h | 5 h |
+| 21/10 | Juani Portilla | Transversal | Revisión con infraestructura de los permisos del ambiente | Qué puede configurar el equipo y qué debe pedirse al organismo. | 1 h | — |
+| 21/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 21/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 21/10 | Matías Abate | Becas | Pruebas de los avisos y del estado en SIIS | Verificación de cada aviso y de que SIIS inactivo ya no pausa. | 4 h | — |
+| 21/10 | Matías Abate | Transversal | Pruebas de la app de campo en el navegador | Carga de adjuntos, fotos y ubicación desde el navegador. | 2 h | — |
+| 21/10 | Matías Abate | Transversal | Verificación de lo publicado en el día | Recorrido de lo publicado en el ambiente de pruebas del organismo. | 1 h | — |
+| 21/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 21/10 | Nahuel De Francesco | Becas | Pruebas de regresión del cierre automático | Verificación de la marca y del aviso al operador. | 2 h | — |
+| 21/10 | Nahuel De Francesco | Transversal | Seguimiento de las tareas y documentación del período | Puesta al día del estado de cada tarea y registro de lo resuelto. | 2 h | — |
+| 21/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 22/10 | Matías Fariña | Becas | Definición del territorial con varios segmentos, programas sin SIIS y solapa Convocatorias | Cómo se asignan varios segmentos, qué cambia en un programa que no valida con SIIS y qué muestra el segmento. | 3 h | — |
+| 22/10 | Matías Fariña | Becas | Pruebas funcionales en testing de los territoriales | Asignación de varios segmentos desde la administración de usuarios. | 1 h | — |
+| 22/10 | Matías Fariña | Transversal | Gestión con infraestructura: firewall y configuración de los ambientes | Desbloqueo del acceso de la oficina y pedido formal de la configuración vigente de cada ambiente. | 1,5 h | — |
+| 22/10 | Matías Fariña | Transversal | Soporte de la app en tablet | Fallas de ingreso y errores de sincronización informados desde el campo. | 1,5 h | — |
+| 22/10 | Matías Fariña | Transversal | Publicación del sistema y de la app en testing | Circuito de publicación de la app en dos pasos, pruebas y producción. | 1,5 h | — |
+| 22/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo y puesta al día del tablero. | 1 h | — |
+| 22/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 22/10 | Pablo Cao | Becas | El territorial puede tener varios segmentos | Se busca al territorial existente y se le asignan uno o más segmentos. | 5 h | 10 h |
+| 22/10 | Pablo Cao | Becas | Solapa Convocatorias en el detalle del segmento | Desde el segmento se ven sus convocatorias. | 2 h | 4 h |
+| 22/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 22/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 22/10 | Juani Portilla | Transversal | La app de campo sigue el contrato nuevo del sistema | Respuestas estables ante errores, cola que no pierde cargas, fotos del iPhone, DNI del apoderado y sincronización manual. | 4 h | 8 h |
+| 22/10 | Juani Portilla | Becas | Programas que no validan con SIIS | Un programa puede crearse y operar sin depender de SIIS. | 1,5 h | 3 h |
+| 22/10 | Juani Portilla | Transversal | Seguridad: actualización de una librería y salida por inactividad sin error | Se cierran vulnerabilidades y volver a entrar tras una sesión vencida funciona. | 1,5 h | 3 h |
+| 22/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 22/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 22/10 | Matías Abate | Becas | Pruebas del territorial con varios segmentos y de la solapa Convocatorias | Verificación de la asignación y de lo que muestra el segmento. | 4 h | — |
+| 22/10 | Matías Abate | Transversal | Pruebas de la app de campo en tablet | Ingreso, carga y sincronización desde la tablet. | 3 h | — |
+| 22/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 22/10 | Nahuel De Francesco | Becas | Pruebas de regresión de los territoriales | Verificación de que los territoriales existentes siguen operando. | 2 h | — |
+| 22/10 | Nahuel De Francesco | Transversal | Seguimiento de las tareas y documentación del período | Puesta al día del estado de cada tarea y registro de lo resuelto. | 2 h | — |
+| 22/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 23/10 | Matías Fariña | Transversal | Diseño de un control independiente antes de integrar cada cambio | Cada cambio pasa una revisión propia antes de sumarse al sistema. | 3 h | — |
+| 23/10 | Matías Fariña | Transversal | Cierre de la semana y revisión funcional | Repaso de lo publicado en la semana y encuadre de lo que sigue. | 2 h | — |
+| 23/10 | Matías Fariña | Transversal | Coordinación del equipo y gestión del tablero | Reparto del trabajo y puesta al día del tablero. | 2 h | — |
+| 23/10 | Matías Fariña | Transversal | Seguimiento con infraestructura de los pendientes de la app | Estado de los pedidos de configuración del ambiente de la app. | 0,5 h | — |
+| 23/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 23/10 | Juani Portilla | Transversal | Control independiente antes de integrar cada cambio | La integración se frena si el cambio no tiene su revisión aprobada. | 5 h | 10 h |
+| 23/10 | Juani Portilla | Transversal | Seguimiento del ambiente de la app con infraestructura | Verificación de lo configurado por el organismo. | 1 h | — |
+| 23/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 23/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 23/10 | Pablo Cao | Transversal | Soporte de la app de campo a quienes relevan | Ingreso desde tablet, sincronización forzada y permisos del dispositivo. | 3 h | — |
+| 23/10 | Pablo Cao | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 2 h | — |
+| 23/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 23/10 | Matías Abate | Becas | Pruebas de regresión de Becas de la semana | Recorrido de lo publicado en la semana en el ambiente de pruebas. | 4 h | — |
+| 23/10 | Matías Abate | Transversal | Pruebas de la app de campo en tablet | Ingreso, carga y sincronización desde la tablet. | 2 h | — |
+| 23/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 23/10 | Nahuel De Francesco | Transversal | Seguimiento de las tareas y documentación del período | Puesta al día del estado de cada tarea y registro de lo resuelto. | 2 h | — |
+| 23/10 | Nahuel De Francesco | Transversal | Documentación de los cambios de la semana | Registro de lo resuelto en cada frente. | 2 h | — |
+| 23/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 24/10 | Matías Fariña | Transversal | Revisión del control antes de integrar | Repaso de las correcciones del control. | 1 h | — |
+| 24/10 | Matías Fariña | Dispositivos | Preparación de la recorrida del MVP de Dispositivos | Lectura de la propuesta y lista de puntos a revisar en testing. | 3 h | — |
+| 24/10 | Matías Fariña | Becas | Revisión en testing de los cambios de Becas de la semana | Programas sin SIIS, territoriales y avisos al operador. | 2 h | — |
+| 24/10 | Matías Fariña | Transversal | Planificación del cierre de octubre | Qué se termina en octubre y qué pasa a noviembre por los cambios de alcance. | 2 h | — |
+| 24/10 | Pablo Cao | Dispositivos | Adelanto de los ajustes de sectores, plazas e ingreso | Trabajo previo a la recorrida, integrado el lunes. | 4 h | 8 h |
+| 24/10 | Pablo Cao | Becas | Ajustes de los programas que no validan con SIIS | Correcciones surgidas de las pruebas de la semana. | 3 h | 6 h |
+| 24/10 | Juani Portilla | Transversal | Ajustes del control antes de integrar | Dos rondas de corrección del control. | 2 h | 4 h |
+| 24/10 | Juani Portilla | Becas | Pruebas automatizadas de los programas sin SIIS y del territorial con varios segmentos | Recorridos automáticos que cuidan los dos cambios de la semana. | 3 h | 6 h |
+| 24/10 | Juani Portilla | Transversal | Adelanto de la versión visible y la bandeja de avisos de la app | Trabajo previo, integrado el lunes. | 3 h | 6 h |
+| 24/10 | Matías Abate | Dispositivos | Pruebas del MVP de Dispositivos en testing y registro de observaciones | Las observaciones quedan en cada tarea para su corrección. | 5 h | — |
+| 24/10 | Nahuel De Francesco | Dispositivos | Pantallas del MVP al sistema de diseño: relevamiento y primeras correcciones | Qué pantallas se apartan de las piezas comunes. | 3 h | 6 h |
+| 24/10 | Nahuel De Francesco | Becas | Documentación de los cambios de Becas de la semana | Registro de lo resuelto en cada frente. | 2 h | — |
+| 26/10 | Matías Fariña | Dispositivos | Recorrida del MVP de Dispositivos y definición de los ajustes | Revisión pantalla por pantalla en testing y decisión de cada cambio. | 3 h | — |
+| 26/10 | Matías Fariña | Dispositivos | Análisis de las observaciones de QA sobre Dispositivos | Lectura de lo observado en cada tarea y prioridad de las correcciones. | 1,5 h | — |
+| 26/10 | Matías Fariña | Dispositivos | Pruebas funcionales en testing de camas, sectores e ingreso | Recorrido de los ajustes a medida que se publicaban. | 1,5 h | — |
+| 26/10 | Matías Fariña | Transversal | Publicación en producción con respaldo previo, y en testing | Respaldo de la base, publicación en los dos ambientes del organismo y verificación. | 1,5 h | — |
+| 26/10 | Matías Fariña | Becas | Definición del dato nuevo del Excel de respuestas y de los avisos dentro de la app | Qué se agrega a la exportación y qué avisos ve quien releva. | 1 h | — |
+| 26/10 | Matías Fariña | Transversal | Coordinación de los frentes en paralelo | Reparto y seguimiento de los arreglos del día. | 1 h | — |
+| 26/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 26/10 | Pablo Cao | Dispositivos | Ajustes de la recorrida del MVP | Encuadre del alta, horario de atención, sectores y plazas, varios edificios y asignar plaza. | 4 h | 8 h |
+| 26/10 | Pablo Cao | Dispositivos | Alta mínima de la persona en el ingreso | Si la persona no está en el sistema, se la da de alta en el mismo ingreso. | 2 h | 4 h |
+| 26/10 | Pablo Cao | Dispositivos | Reubicar desde el mapa y conversión de los tipos anteriores | Cambiar a alguien de plaza desde el mapa y llevar los tipos viejos a sectores y plazas. | 2 h | 4 h |
+| 26/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 26/10 | Juani Portilla | Becas | El Excel de respuestas suma la fecha de nacimiento | Y una fecha imposible ya no rompe la exportación ni la revisión. | 2,5 h | 5 h |
+| 26/10 | Juani Portilla | Transversal | App de campo: versión visible, teclado y bandeja de avisos | Quien releva ve la versión, el teclado no se cierra y recibe avisos dentro de la app. | 2,5 h | 5 h |
+| 26/10 | Juani Portilla | Transversal | Dependencias y aviso temprano de degradación | Puesta al día de librerías con sus excepciones documentadas y aviso cuando la caché se degrada. | 2 h | 4 h |
+| 26/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 26/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 26/10 | Matías Abate | Dispositivos | Casos de prueba de las etapas 25 a 40 del MVP y de punta a punta | Diecisiete fichas de prueba escritas para su ejecución. | 5 h | — |
+| 26/10 | Matías Abate | Dispositivos | Pruebas de los ajustes de la recorrida | Verificación de cada ajuste publicado en el día. | 2 h | — |
+| 26/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 26/10 | Nahuel De Francesco | Dispositivos | Pantallas del MVP al sistema de diseño | Configuración de tipos, leyenda de plazas, asistente de ingreso y ventanas sin recargar. | 3 h | 6 h |
+| 26/10 | Nahuel De Francesco | Dispositivos | Datos de prueba en testing | Catálogo de áreas del Ministerio cargado para probar el alta. | 1 h | — |
+| 26/10 | Nahuel De Francesco | Transversal | Validación de DNI/CUIT y teléfono en merendero y dispositivo | Los datos de contacto se cargan con un formato válido. | 1 h | 2 h |
+| 26/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| | | | **Total 18 al 26/10** | | **274 h** | **185 h** |
+
 ### :material-briefcase-outline: Consumo de octubre por programa
 
 | Programa | Horas octubre |
 |---|---:|
-| Becas | 193 h 00 min |
-| Transversal | 245 h 00 min |
-| Dispositivos | 85 h 00 min |
-| **Total octubre 2026 (al 17/10)** | **523 h 00 min** |
+| Becas | 270 h 30 min |
+| Transversal | 380 h 30 min |
+| Dispositivos | 146 h 00 min |
+| **Total octubre 2026 (al 26/10)** | **797 h 00 min** |
 
 !!! note "Qué incluye"
-    El trabajo propio de octubre al 17/10 es de **430 h 30 min**. Las horas de Becas incluyen además las
+    El trabajo propio de octubre al 26/10 es de **704 h 30 min**. Las horas de Becas incluyen además las
     **92 h 30 min trasladadas de septiembre**, cuyo detalle día por día está en las secciones de ese
-    mes: 430 h 30 min + 92 h 30 min = **523 h 00 min**. El mes está en curso, así que todavía no hay
+    mes: 704 h 30 min + 92 h 30 min = **797 h 00 min**. El mes está en curso, así que todavía no hay
     imputación de cierre.
 
 ---
 
 ## :material-account-group: Consumo por persona — acumulado del proyecto
 
-| Persona | Rol | Junio | Julio | Agosto | Septiembre | Octubre *(al 17/10)* | **Total** |
+| Persona | Rol | Junio | Julio | Agosto | Septiembre | Octubre *(al 26/10)* | **Total** |
 |---|---|---:|---:|---:|---:|---:|---:|
-| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,75 | 197,0 | 196,5 | 77,5 | **848 h 10 min** |
-| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 229,5 | 152,0 | **870 h 01 min** |
-| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,25 | 219,0 | 197,5 | 80,0 | **632 h 44 min** |
-| Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 177,0 | 75,0 | **459 h 30 min** |
-| Nahuel De Francesco | Desarrollo, documentación y pruebas *(desde el 09/09)* | — | — | — | 38,5 | 46,0 | **84 h 30 min** |
+| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,75 | 197,0 | 196,5 | 137,5 | **908 h 10 min** |
+| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 229,5 | 223,0 | **941 h 01 min** |
+| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,25 | 219,0 | 197,5 | 135,0 | **687 h 44 min** |
+| Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 177,0 | 127,0 | **511 h 30 min** |
+| Nahuel De Francesco | Desarrollo, documentación y pruebas *(desde el 09/09)* | — | — | — | 38,5 | 82,0 | **120 h 30 min** |
 | Agostina Coppola | Análisis funcional y testing *(hasta agosto)* | 112,3 | — | — | — | — | **112 h 17 min** |
 | Equipo UX | Mockups del programa *(junio)* | 65,0 | — | — | — | — | **65 h 00 min** |
-| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **839 h 00 min** | **430 h 30 min** | **3.072 h 12 min** |
+| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **839 h 00 min** | **704 h 30 min** | **3.346 h 12 min** |
 
 !!! note "Cómo leer esta tabla"
     Las columnas mensuales van en horas decimales, tal como las publica la página de cada mes; los totales
@@ -1325,9 +1483,9 @@
 
 !!! success "Contador total"
 
-    **184.332 minutos** (3.072 h 12 min)
+    **200.772 minutos** (3.346 h 12 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 839 h 00 min + octubre 430 h 30 min (al 17/10).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 839 h 00 min + octubre 704 h 30 min (al 26/10).
 
     Es el **esfuerzo real ejecutado**, no la imputación. A efectos de imputación, agosto cerró por 700 h con
     103 h 30 min trasladadas a septiembre, y septiembre cerró por 850 h con 92 h 30 min trasladadas a octubre.
