@@ -25,10 +25,10 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
     {% endpage_header %}
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {% include "components/_stat_card.html" with variante="tablero" etiqueta="Asignados" valor=resumen.asignados icono="fa-clipboard-list" nota="relevamientos en curso" %}
-      {% include "components/_stat_card.html" with variante="tablero" etiqueta="Al día" valor=resumen.al_dia icono="fa-circle-check" nota="vencen en más de 30 días" %}
-      {% include "components/_stat_card.html" with variante="tablero" etiqueta="Por vencer" valor=resumen.por_vencer icono="fa-clock" nota="vencen en los próximos 30 días" %}
-      {% include "components/_stat_card.html" with variante="tablero" etiqueta="Vencidos" valor=resumen.vencidos icono="fa-bell" nota="en curso con el vencimiento pasado" %}
+      {% include "components/_stat_card.html" with variante="tablero" etiqueta="Asignados" tono="brand" valor=resumen.asignados icono="fa-clipboard-list" nota="relevamientos en curso" %}
+      {% include "components/_stat_card.html" with variante="tablero" etiqueta="Al día" tono="success" valor=resumen.al_dia icono="fa-circle-check" nota="vencen en más de 30 días" %}
+      {% include "components/_stat_card.html" with variante="tablero" etiqueta="Por vencer" tono="warning" valor=resumen.por_vencer icono="fa-clock" nota="vencen en los próximos 30 días" %}
+      {% include "components/_stat_card.html" with variante="tablero" etiqueta="Vencidos" tono="danger" valor=resumen.vencidos icono="fa-bell" nota="en curso con el vencimiento pasado" %}
     </div>
 
     <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
