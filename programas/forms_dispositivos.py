@@ -131,6 +131,10 @@ class CambioPlazaForm(forms.Form):
             self.fields["momento"].help_text = "No puede ser anterior al último movimiento de la estadía."
             self.fields["motivo"].required = False
             self.fields["motivo"].widget.attrs["placeholder"] = "Opcional: se liberó una plaza, pedido de la persona…"
+        ayuda = "Solo las plazas libres del dispositivo."
+        if estadia is not None and estadia.plaza_id is not None:
+            ayuda += f" Ahora: {estadia.plaza.sector.nombre} · {estadia.plaza.codigo}."
+        self.fields["plaza"].help_text = ayuda
         self.fields["plaza"].choices = [("", "Elegí una plaza libre"), *grupos]
         if not self.is_bound:
             self.fields["momento"].initial = timezone.localtime().replace(second=0, microsecond=0)
@@ -183,6 +187,7 @@ class SacarPlazaDeServicioForm(forms.Form):
         label="Motivo",
         max_length=200,
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Colchón roto, reparación…"}),
+        help_text="Se ve en el mapa y en la alerta del dispositivo mientras la plaza esté fuera de servicio.",
         error_messages={"required": "Sacar una plaza de servicio exige un motivo."},
     )
 
@@ -202,6 +207,7 @@ class LiberarPlazaForm(forms.Form):
         widget=forms.Textarea(
             attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional: reemplaza el motivo de la reserva"}
         ),
+        help_text="Opcional. Si se escribe, reemplaza el motivo con el que se tomó la plaza.",
     )
 
 

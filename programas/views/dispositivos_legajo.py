@@ -96,7 +96,7 @@ from programas.services.sectores_plazas import (
     ACCION_LIBERAR,
     ACCION_REUBICAR,
     ACCION_VOLVER,
-    MOTIVO_SIN_PLAZAS_LIBRES,
+    bloqueo_de_plaza,
     plaza_para_accion,
     sectores_con_plazas,
 )
@@ -474,12 +474,12 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 if estadia.plaza_id is None and not maneja_plazas(dispositivo):
                     continue
                 sectores_ingreso, _ = self._mapa_de_ingreso()
-                form = CambioPlazaForm(estadia=estadia, sectores=sectores_ingreso, auto_id=AUTO_ID_CAMBIO)
+                form, url = _form_de_cambio_de_plaza(dispositivo, estadia, sectores_ingreso)
                 if not form.hay_plazas_libres:
                     messages.info(self.request, "No hay plazas libres en el dispositivo.")
                     continue
                 context["form_cambio"] = form
-                context["url_cambiar_plaza"] = reverse("dispositivos:cambiar_plaza", args=[dispositivo.pk, estadia.pk])
+                context["url_cambiar_plaza"] = url
                 context["estadia_cambio"] = estadia
                 context["es_asignacion"] = form.asigna
             else:
@@ -846,14 +846,15 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         estadia.persona_visible = (
             estadia.ciudadano.apellido_nombre if puede(self.request.user, CAP_VER_CIUDADANO) else "Persona alojada"
         )
-        sectores, _elegibles = plazas_para_ingresar(dispositivo)
-        form = CambioPlazaForm(estadia=estadia, sectores=sectores, auto_id=AUTO_ID_CAMBIO)
+        form, url = _form_de_cambio_de_plaza(dispositivo, estadia, _sectores_para_cambio(estadia))
         context["estadia_cambio"] = estadia
-        if not form.hay_plazas_libres:
-            accion["bloqueo"] = MOTIVO_SIN_PLAZAS_LIBRES
+        accion["bloqueo"] = bloqueo_de_plaza(
+            accion["estado"], ACCION_REUBICAR, hay_plazas_libres=form.hay_plazas_libres
+        )
+        if accion["bloqueo"]:
             return
         context["form_cambio"] = form
-        context["url_cambiar_plaza"] = reverse("dispositivos:cambiar_plaza", args=[dispositivo.pk, estadia.pk])
+        context["url_cambiar_plaza"] = url
 
 
 # Acciones sobre una plaza del mapa (P5). Mutan: solo POST con CSRF. Las reglas —que la
@@ -1114,6 +1115,18 @@ def _sectores_para_cambio(estadia):
     return sectores
 
 
+def _form_de_cambio_de_plaza(dispositivo, estadia, sectores):
+    """El formulario del modal «Cambiar de plaza» (o «Asignar plaza») y adónde envía.
+
+    Lo arman el detalle del dispositivo (P4), el mapa de plazas (P5) y la estadía (P7): cada uno
+    decide qué hace si no hay plazas libres (`form.hay_plazas_libres`); el POST es siempre
+    `dispositivos:cambiar_plaza`, que es quien aplica la regla.
+    """
+
+    form = CambioPlazaForm(estadia=estadia, sectores=sectores, auto_id=AUTO_ID_CAMBIO)
+    return form, reverse("dispositivos:cambiar_plaza", args=[dispositivo.pk, estadia.pk])
+
+
 class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
     """La estadía de una persona (P7): identidad, plaza, línea de tiempo y acciones.
 
@@ -1174,13 +1187,11 @@ class EstadiaDetalleView(DispositivoObjectPermissionMixin, DetailView):
         )
         context["puede_egresar"] = abierta and puede_operar_dispositivo(usuario, dispositivo, CAP_EGRESAR)
         if context["puede_cambiar_plaza"]:
-            form_cambio = CambioPlazaForm(
-                estadia=estadia, sectores=_sectores_para_cambio(estadia), auto_id=AUTO_ID_CAMBIO
-            )
+            form_cambio, url_cambio = _form_de_cambio_de_plaza(dispositivo, estadia, _sectores_para_cambio(estadia))
             # Sin plazas libres no se ofrece: el modal no tendría a dónde mover a nadie.
             context["puede_cambiar_plaza"] = form_cambio.hay_plazas_libres
             context["form_cambio"] = form_cambio
-            context["url_cambiar_plaza"] = reverse("dispositivos:cambiar_plaza", args=[dispositivo.pk, estadia.pk])
+            context["url_cambiar_plaza"] = url_cambio
         if context["puede_egresar"]:
             context["form_egreso"] = EgresoForm(estadia=estadia)
             context["url_egresar"] = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])

@@ -337,9 +337,11 @@ class AlcanceDeLaConfiguracionTests(BaseCapacidad):
     def test_el_modal_de_configuracion_no_se_arma_para_quien_no_puede(self):
         self.client.force_login(self.sin_editar)
 
-        respuesta = self.client.get(reverse("dispositivos:sectores", args=[self.cis.pk]), {"sector": "nuevo"})
+        respuesta = self.client.get(reverse("dispositivos:sectores", args=[self.cis.pk]), {"sector": self.sector.pk})
 
         self.assertNotIn("form_sector", respuesta.context)
+        self.assertNotIn("form_sector_nuevo", respuesta.context)
+        self.assertNotIn("form_plazas", respuesta.context)
         self.assertFalse(respuesta.context["puede_configurar_plazas"])
 
     def test_el_modal_de_un_sector_ajeno_no_se_abre(self):

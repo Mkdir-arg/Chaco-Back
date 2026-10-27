@@ -527,31 +527,7 @@
       <form method="post" action="{{ url_cambiar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="volver" value="dispositivo">
-        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          <div>
-            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
-            <label for="{{ form_cambio.plaza.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.plaza.label }} <span class="text-fg-danger">*</span></label>
-            {{ form_cambio.plaza }}
-            <p class="mt-1 text-xs text-body-subtle">Solo las plazas libres del dispositivo.{% if not es_asignacion %} Ahora: {{ estadia_cambio.plaza.sector.nombre }} · {{ estadia_cambio.plaza.codigo }}.{% endif %}</p>
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="plaza"></p>
-          </div>
-          <div>
-            <label for="{{ form_cambio.momento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.momento.label }} <span class="text-fg-danger">*</span></label>
-            {{ form_cambio.momento }}
-            {% if form_cambio.momento.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ form_cambio.momento.help_text }}</p>{% endif %}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="momento"></p>
-          </div>
-          <div>
-            <label for="{{ form_cambio.motivo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.motivo.label }}{% if not es_asignacion %} <span class="text-fg-danger">*</span>{% endif %}</label>
-            {{ form_cambio.motivo }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="motivo"></p>
-          </div>
-          {% if es_asignacion %}
-          {% include "components/_alerta.html" with tono="info" texto="La persona pasa a la plaza desde la fecha indicada. La asignación queda en la línea de tiempo y en la bitácora del turno." %}
-          {% else %}
-          {% include "components/_alerta.html" with tono="info" texto="La plaza de ahora queda libre en el acto. El cambio queda en la línea de tiempo con su motivo y quién lo registró." %}
-          {% endif %}
-        </div>
+        {% include "programas/dispositivos/_form_cambio_plaza.html" %}
         {% if es_asignacion %}
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCambio=false" accion_texto="Confirmar asignación" %}
         {% else %}
