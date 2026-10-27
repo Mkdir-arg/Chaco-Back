@@ -59,6 +59,22 @@ class MapaPlazasTest(SimpleTestCase):
         self.assertNotIn("aria-disabled", enlace)
         self.assertIn('aria-disabled="true" class="cursor-not-allowed', html)
 
+    def test_plaza_con_click_es_un_boton_que_gana_sobre_url(self):
+        html = render_to_string(
+            MAPA, {"plazas": [_plaza("A-01", url="?plaza=1", click="abrirPlaza(1)"), _plaza("A-02", url="/x")]}
+        )
+
+        boton = re.search(r"<button [^>]*>", html).group(0)
+        self.assertIn('type="button"', boton)
+        self.assertIn('@click="abrirPlaza(1)"', boton)
+        self.assertIn("bg-success-soft", boton)
+        self.assertIn("cursor-pointer", boton)
+        self.assertEqual(html.count("<button "), 1)
+        self.assertEqual(html.count("</button>"), 1)
+        # Solo la celda sin `click` sigue siendo enlace: con `click` el `url` no se dibuja.
+        self.assertEqual(html.count("<a "), 1)
+        self.assertNotIn("?plaza=1", html)
+
     def test_plaza_elegida_se_marca_con_texto_y_aria_current(self):
         html = render_to_string(MAPA, {"plazas": [_plaza(url="/x", seleccionada=True)]})
 

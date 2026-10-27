@@ -385,6 +385,20 @@ class SelectorDeAgentesTests(BaseListado):
         self.assertNotIn(self.personal_parador.pk, opciones)
         self.assertNotContains(respuesta, f'value="{self.personal_parador.pk}"')
 
+    def test_la_ayuda_del_agente_es_del_campo_y_escapa_el_nombre_del_edificio(self):
+        Edificio.objects.filter(pk=self.predio.pk).update(nombre="Torre <b>Norte</b>")
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA, {"asignar": self.predio.pk})
+
+        campo = respuesta.context["form_asignar"].fields["asignado_a"]
+        self.assertEqual(
+            str(campo.help_text),
+            "La lista solo trae agentes <strong>externos a Torre &lt;b&gt;Norte&lt;/b&gt;</strong>.",
+        )
+        html = respuesta.content.decode()
+        self.assertLess(html.index('id="id_asignado_a-ayuda"'), html.index('data-error="asignado_a"'))
+        self.assertNotContains(respuesta, "externos a Torre <b>")
+
     def test_el_personal_del_edificio_no_aparece_al_reasignar(self):
         inspeccion = self._crear()
         respuesta = self._cliente(self.coord).get(URL_LISTA, {"reasignar": inspeccion.pk})

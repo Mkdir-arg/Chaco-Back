@@ -25,7 +25,7 @@ sale de la misma consulta de reservas y no aumenta el presupuesto del censo.
 
 | Parámetro | Efecto |
 |---|---|
-| `plazas` | Lista de dicts (no queryset) armada por la vista: `codigo`, `estado`, `tono`, y opcionales `detalle`, `detalle_completo`, `url`, `seleccionada` |
+| `plazas` | Lista de dicts (no queryset) armada por la vista: `codigo`, `estado`, `tono`, y opcionales `detalle`, `detalle_completo`, `url`, `click`, `seleccionada` |
 | `total` | Opcional: cantidad real si la vista mandó menos de las que hay |
 | `leyenda` | Lista de dicts `estado` + `tono`, los mismos estados con que la vista da el tono a las plazas |
 
@@ -43,7 +43,15 @@ sale de la misma consulta de reservas y no aumenta el presupuesto del censo.
 
 - La grilla es una `ul` con `role="list"` y un `li` por plaza; el código se lee «Plaza A-01».
 - Una plaza con `url` es un `<a>` real: se llega con Tab, se activa con Enter y muestra el foco nativo.
-  Usa `cursor-pointer`. Una plaza sin `url` usa `cursor-not-allowed` y `aria-disabled="true"`,
+  Usa `cursor-pointer`. Con `click` (expresión Alpine, p. ej. `abrirPlaza(12)`) es en cambio un
+  `<button type="button" @click aria-haspopup="dialog">` y **gana sobre `url`**: abre el modal de la
+  pantalla sin recargar. La pantalla que lo usa declara esa función en su `x-data`; `url` puede seguir
+  viniendo como enlace directo (`?plaza=<id>`) para quien llegue por la barra de direcciones. Es
+  opcional y la pieza no lo infiere: lo decide la vista (en P5, toda plaza accionable: la disponible
+  abre un modal ya cargado en la página con `abrirPlaza(<id>)`, y la ocupada que se reubica pide su
+  cuerpo al servidor con `abrirReubicar(<id>)`, porque depende de la estadía; si ese pedido falla, la
+  pantalla navega al `url`). Como el modal es único, la pantalla lo limpia (`reset` de los forms,
+  errores y `aria-invalid`) al abrir otra plaza y al volver al menú de opciones. Una plaza sin `url` usa `cursor-not-allowed` y `aria-disabled="true"`,
   es informativa y no entra en el orden de tabulación. La vista decide cuáles se
   pueden elegir (p. ej. en el ingreso, solo las disponibles); el componente no lo infiere del estado.
   El `detalle` trae apellido e inicial solo con `ciudadano.ver`; sin esa capacidad la plaza
@@ -81,5 +89,5 @@ pagina en la vista. Una lista vacía muestra el estado vacío canónico.
 ## Prohibido
 
 - Resolver el estado o el tono en el template, o mandar un queryset en `plazas`.
-- Dibujar plazas con `<div>` clicables o con JS propio: lo accionable es un enlace.
+- Dibujar plazas con `<div>` clicables o con JS propio: lo accionable es un enlace o, con `click`, un botón.
 - Mapa de plazas sin leyenda en la misma pantalla.

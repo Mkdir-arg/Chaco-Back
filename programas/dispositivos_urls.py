@@ -58,6 +58,16 @@ urlpatterns = [
     ),
     # Acciones del mapa de plazas (P5). El modal las abre con `?plaza=<id>` sobre `sectores`.
     path(
+        "<int:pk>/plazas/<int:plaza_pk>/reservar/",
+        legajo.PlazaReservarView.as_view(),
+        name="plaza_reservar",
+    ),
+    path(
+        "<int:pk>/plazas/<int:plaza_pk>/prestar/",
+        legajo.PlazaPrestarView.as_view(),
+        name="plaza_prestar",
+    ),
+    path(
         "<int:pk>/plazas/<int:plaza_pk>/liberar/",
         legajo.PlazaLiberarView.as_view(),
         name="plaza_liberar",
