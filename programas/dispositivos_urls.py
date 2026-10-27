@@ -100,6 +100,11 @@ urlpatterns = [
         name="relevamiento_asignar",
     ),
     path(
+        "<int:pk>/relevamiento/asignar/",
+        relevamientos.DispositivoRelevamientoAsignarView.as_view(),
+        name="relevamiento_asignar_dispositivo",
+    ),
+    path(
         "relevamientos/<int:pk>/reasignar/",
         relevamientos.RelevamientoReasignarView.as_view(),
         name="relevamiento_reasignar",

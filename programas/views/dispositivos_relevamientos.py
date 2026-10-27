@@ -38,6 +38,7 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from programas.forms_dispositivos import (
+    AsignarRelevamientoDispositivoForm,
     AsignarRelevamientoForm,
     CancelarRelevamientoForm,
     ElegirEdificioForm,
@@ -52,10 +53,12 @@ from programas.services.inspecciones import (
     CAP_ASIGNAR,
     Situacion,
     agentes_asignables,
+    agentes_asignables_para,
     cancelar_inspeccion,
     crear_inspeccion,
     edificios_en_alcance,
     edificios_para_asignar,
+    edificios_para_asignar_del_dispositivo,
     edificios_sin_relevar,
     filtrar_por_situacion,
     informe_de_relevamiento,
@@ -488,6 +491,45 @@ class RelevamientoAsignarView(_RelevamientoAccionView):
         if not form.is_valid():
             return self._rechazar(form.errors)
         datos = form.cleaned_data
+        try:
+            crear_inspeccion(
+                request.user,
+                edificio=edificio,
+                asignado_a=datos["asignado_a"],
+                fecha_vencimiento=datos["fecha_vencimiento"],
+                indicaciones=datos["indicaciones"],
+            )
+        except PermissionDenied as error:
+            return self._prohibido(error)
+        except ValidationError as error:
+            return self._rechazar(self._errores_del_servicio(error, form))
+        return self._ok(f"Relevamiento de {edificio.nombre} asignado a {_nombre(datos['asignado_a'])}.")
+
+
+class DispositivoRelevamientoAsignarView(_RelevamientoAccionView):
+    """«Crear relevamiento» desde P4: el edificio se elige en el modal, no en la URL.
+
+    La ruta cuelga del **dispositivo** y el edificio viaja en el POST, que el formulario acota
+    a los elegibles de ese dispositivo (:func:`edificios_para_asignar_del_dispositivo`): uno
+    ajeno, fuera del alcance de quien asigna, o con un relevamiento en curso es un error del
+    campo, con el mismo mensaje para los tres —no dice cuál de ellos es—. La capacidad la exige
+    el mixin y la creación la hace el mismo servicio que P21, que vuelve a validar alcance,
+    edificio libre y agente.
+    """
+
+    def _volver(self):
+        return f"{reverse('dispositivos:detalle', args=[self.kwargs['pk']])}?tab=infraestructura"
+
+    def post(self, request, pk):
+        dispositivo = get_object_or_404(Dispositivo, pk=pk)
+        elegibles = edificios_para_asignar_del_dispositivo(request.user, dispositivo)
+        form = AsignarRelevamientoDispositivoForm(
+            request.POST, edificios=elegibles, agentes=agentes_asignables_para(elegibles)
+        )
+        if not form.is_valid():
+            return self._rechazar(form.errors)
+        datos = form.cleaned_data
+        edificio = datos["edificio"]
         try:
             crear_inspeccion(
                 request.user,

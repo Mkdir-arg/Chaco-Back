@@ -13,9 +13,10 @@
        modalCambio: {% if form_cambio %}true{% else %}false{% endif %},
        modalEdificio: {% if form_edificio %}true{% else %}false{% endif %},
        modalVincular: {% if form_vincular %}true{% else %}false{% endif %},
+       modalRelevamiento: {% if form_relevamiento %}true{% else %}false{% endif %},
        egreso: { url: '{{ url_egresar|escapejs }}', persona: '{{ estadia_egreso.persona_visible|escapejs }}' }
      }"
-     @becas-saved.window="modalEgreso=false; modalCambio=false; modalEdificio=false; modalVincular=false">
+     @becas-saved.window="modalEgreso=false; modalCambio=false; modalEdificio=false; modalVincular=false; modalRelevamiento=false">
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corría y el clic en esa franja no cerraba el modal #}
   <div class="space-y-5">
@@ -292,17 +293,24 @@
 
       {# ===== TAB: Infraestructura (P19 del MVP: criticidad, observaciones y registro fotográfico del edificio) ===== #}
       <div x-show="tab==='infraestructura'" x-cloak role="tabpanel" id="panel-infraestructura" aria-labelledby="tab-infraestructura">
-        {% if puede_editar %}
-        {# El alta y la vinculación abren su modal con un parámetro GET, como los de P21 #}
+        {% if puede_editar or puede_crear_relevamiento %}
+        {# El alta, la vinculación y el relevamiento abren su modal con un parámetro GET, como los de P21 #}
         <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-4 border-b border-light">
           <p class="text-xs text-body-subtle">El edificio es el inmueble: un predio compartido se releva una vez y el resultado lo ven todas las instituciones que lo ocupan.</p>
           <div class="flex gap-2 flex-wrap">
+            {% if puede_crear_relevamiento %}
+            <a href="{{ url_detalle }}?tab=infraestructura&amp;relevamiento=nuevo" class="btn-nodo btn-secondary btn-sm btn-fit">
+              <i class="fas fa-clipboard-list" aria-hidden="true"></i> Crear relevamiento
+            </a>
+            {% endif %}
+            {% if puede_editar %}
             <a href="{{ url_detalle }}?tab=infraestructura&amp;edificio=vincular" class="btn-nodo btn-tertiary btn-sm btn-fit">
               <i class="fas fa-link" aria-hidden="true"></i> Vincular un edificio
             </a>
             <a href="{{ url_detalle }}?tab=infraestructura&amp;edificio=nuevo" class="btn-nodo btn-brand btn-sm btn-fit">
               <i class="fas fa-plus" aria-hidden="true"></i> Cargar edificio
             </a>
+            {% endif %}
           </div>
         </div>
         {% endif %}
@@ -695,6 +703,46 @@
           {% include "components/_alerta.html" with tono="info" texto="A partir de acá el relevamiento edilicio es uno solo y lo ven las dos instituciones. Cada una mantiene su propio legajo, sus sectores y sus plazas." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalVincular=false" accion_texto="Vincular edificio" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if form_relevamiento %}
+  {# Modal: Crear relevamiento (asignar a un territorial el relevamiento de un edificio de la institución) #}
+  <div x-show="modalRelevamiento" x-cloak x-becas-modal="modalRelevamiento" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalRelevamiento=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-relevamiento-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Crear relevamiento" titulo_id="modal-relevamiento-titulo" subtitulo="Se le crea la tarea al agente territorial; la institución relevada no la puede completar." icono="fa-clipboard-list" cerrar="modalRelevamiento=false" %}
+      <form method="post" action="{{ url_relevamiento }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            <label for="{{ form_relevamiento.edificio.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Edificio <span class="text-fg-danger">*</span></label>
+            {{ form_relevamiento.edificio }}
+            {% if not form_relevamiento.edificio_fijo %}<p class="mt-1 text-xs text-body-subtle">Solo los edificios de la institución que no tienen un relevamiento en curso.</p>{% endif %}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="edificio"></p>
+          </div>
+          <div>
+            <label for="{{ form_relevamiento.asignado_a.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Agente territorial <span class="text-fg-danger">*</span></label>
+            {{ form_relevamiento.asignado_a }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="asignado_a"></p>
+          </div>
+          <div>
+            <label for="{{ form_relevamiento.fecha_vencimiento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Vence <span class="text-fg-danger">*</span></label>
+            {{ form_relevamiento.fecha_vencimiento }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="fecha_vencimiento"></p>
+          </div>
+          <div>
+            <label for="{{ form_relevamiento.indicaciones.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Indicaciones para el territorial</label>
+            {{ form_relevamiento.indicaciones }}
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="indicaciones"></p>
+          </div>
+          {% include "components/_alerta.html" with tono="warning" icono="users" titulo="Nunca se asigna al personal de la institución relevada." texto="El relevamiento lo hace un agente externo para que no se omitan irregularidades." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalRelevamiento=false" accion_texto="Asignar relevamiento" %}
       </form>
     </div>
   </div>

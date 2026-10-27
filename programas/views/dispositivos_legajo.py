@@ -18,7 +18,9 @@ from core.archivos import archivos_atomicos
 from core.rbac import puede
 from programas.forms import DispositivoForm, formulario_tipo_para, tipos_para_dispositivo
 from programas.forms_dispositivos import (
+    AUTO_ID_RELEVAMIENTO,
     AgregarPlazasForm,
+    AsignarRelevamientoDispositivoForm,
     CambioPlazaForm,
     EdificioForm,
     EgresoForm,
@@ -87,7 +89,12 @@ from programas.services.estadias import (
 )
 from programas.services.horarios_dispositivo import reemplazar_franjas
 from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
-from programas.services.inspecciones import semaforos_de_dispositivos
+from programas.services.inspecciones import (
+    CAP_ASIGNAR,
+    agentes_asignables_para,
+    edificios_para_asignar_del_dispositivo,
+    semaforos_de_dispositivos,
+)
 from programas.services.ocupacion import ocupacion_de_plazas, tension_de_ocupacion
 from programas.services.reportes import filtrar_dispositivos
 from programas.services.respuestas_dispositivo import formularios_respondidos, guardar_respuestas_alta
@@ -449,6 +456,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         )
         self._preparar_modales_de_estadia(context, dispositivo, puede_cambiar, puede_egresar)
         self._preparar_modales_de_edificio(context, dispositivo, context["puede_editar"])
+        self._preparar_relevamiento(context, dispositivo)
         return context
 
     def _preparar_modales_de_estadia(self, context, dispositivo, puede_cambiar, puede_egresar):
@@ -530,6 +538,37 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 context["edificio_en_edicion"] = edificio
                 context["form_edificio"] = EdificioForm(edificio=edificio)
                 context["url_edificio"] = reverse("dispositivos:edificio_editar", args=[dispositivo.pk, edificio.pk])
+
+    def _preparar_relevamiento(self, context, dispositivo):
+        """«Crear relevamiento» de la solapa Infraestructura: el botón y, pedido, su modal.
+
+        Solo lo calcula quien puede asignar y solo si el dispositivo tiene edificios: para el
+        resto el detalle no paga ni una consulta más. Los edificios elegibles se leen una
+        vez (el botón, el selector y el POST usan la misma regla); el selector de agentes,
+        que cuesta dos más, se arma **solo** con el modal abierto por
+        ``?tab=infraestructura&relevamiento=nuevo``, igual que los modales del edificio.
+        """
+
+        user = self.request.user
+        context["puede_crear_relevamiento"] = False
+        if not context["infraestructura"]["edificios"] or not puede_en_programa_dispositivos(user, CAP_ASIGNAR):
+            return
+        elegibles = edificios_para_asignar_del_dispositivo(user, dispositivo)
+        context["puede_crear_relevamiento"] = bool(elegibles)
+        if self.request.GET.get("relevamiento") != "nuevo":
+            return
+        if not elegibles:
+            messages.info(
+                self.request,
+                "Ningún edificio de esta institución admite un relevamiento nuevo: o ya tienen uno en curso "
+                "o están fuera de tu alcance.",
+            )
+            return
+        context["form_relevamiento"] = AsignarRelevamientoDispositivoForm(
+            edificios=elegibles, agentes=agentes_asignables_para(elegibles), auto_id=AUTO_ID_RELEVAMIENTO
+        )
+        context["url_relevamiento"] = reverse("dispositivos:relevamiento_asignar_dispositivo", args=[dispositivo.pk])
+        context["tab"] = "infraestructura"
 
 
 class DispositivoUpdateView(FormularioInstitucionMixin, DispositivoObjectPermissionMixin, UpdateView):
