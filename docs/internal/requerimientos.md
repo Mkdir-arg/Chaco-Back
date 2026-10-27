@@ -511,6 +511,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 385 | Los tipos de dispositivo de la v1 pasan solos a «Sectores y plazas», sin exigir plaza al ingresar | Dispositivos · Configuración · Tipos | `#datos` | PM — decisión sobre la conversión de los tipos v1 | 26/10/2026 | 🟢 **Hecho** | `programas.0106` |
 | 386 | Dispositivos: los modales del tipo y de sectores y plazas pasan al modal y al campo estándar | Dispositivos · Configuración → Tipos, P5 Sectores y plazas, cambio de plaza (P4, estadía) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 387 | Dispositivos: limpieza de los MINOR de las auditorías de #979, #980, #982 y #983 y del carril de diseño | Dispositivos · P4, P21, configuración de tipos, ingreso; `core/dni`, `nodo_ui`, fichas de diseño | `#ui` `#relevamientos` | Juez del carril (auditorías) | 27/10/2026 | 🟢 **Hecho** | No requiere |
+| 388 | Dispositivos: el formulario «Relevamiento» por tipo llega al territorial por la API de campo | Dispositivos · tipos (P17), relevamientos (P4, P21, informe), API de campo | `#relevamientos` `#api` `#mobile` `#datos` | PM — pedido del 27/10/2026 | 27/10/2026 | 🟢 **Hecho** | Migración 0107 y 0108 (expand) |
 
 **Notas del índice**
 
@@ -49086,6 +49087,115 @@ Nada.
 
 Revertir el commit. Vuelven las copias y los comentarios anteriores, y `normalizar_dni` vuelve a aceptar
 dígitos que no son ASCII.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 388 — Dispositivos: el formulario «Relevamiento» por tipo llega al territorial por la API de campo
+
+🟢 **HECHO — 27/10/2026** · PR pendiente de revisión (`/auditoria pr`)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · configuración de tipos (P17), relevamientos (P4, P21, informe del coordinador) · API de campo `/api/dispositivos/inspecciones/` · `/api/becas/` (solo el cuerpo del 403) |
+| **Etiquetas** | `#relevamientos` `#api` `#mobile` `#datos` |
+| **Solicitante** | PM — pedido del 27/10/2026 (D1 a D4 cerradas) |
+| **Fecha del pedido** | 27/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `programas/models/__init__.py`, `services/inspecciones.py`, `services/respuestas_dispositivo.py`, `services/formularios_tipo.py`, `api/serializers_inspecciones.py`, `api/views_inspecciones.py`, `api/views.py`, `forms_dispositivos.py`, `views/dispositivos_relevamientos.py`, `views/dispositivos_legajo.py`, `core/views/media.py` · Backoffice: `_campos_asignar.html`, `informe.html` · Documento: `docs/internal/contrato-app-dispositivos.md` |
+| **Migración** | Sí: `programas.0107` (momento, `diseno`, dos modelos) y `programas.0108` (`uuid_cliente` a `char(36)` en MySQL y MariaDB). Expand puro. |
+
+## Pedido original
+
+Que el relevamiento edilicio de Dispositivos tenga un formulario propio, armado por tipo con el constructor de
+P17 y entregado al territorial en la misma app de Becas, con los módulos aislados entre sí.
+
+## Alcance acordado
+
+- **D1**: el formulario sale del tipo de la institución. Desde P4 es el tipo de esa institución. Desde el listado
+  P21 es el único tipo del edificio o, si hay varios, el que se elige en el modal. El diseño elegido queda en
+  `InspeccionEdificio.diseno`.
+- **D2**: el formulario complementa el resultado fijo (criticidad, observaciones, fotos).
+- **D3**: sin formulario «Relevamiento», o dado de baja, se asigna igual con `diseno=None` y el modal avisa.
+- **D4**: siempre la versión **vigente**. La foto de la definición y la versión se toman al recibir el resultado.
+  La app puede mandar `version_capturada`: si difiere se acepta y se marca, como en Becas G1-16. Las claves que ya
+  no están en el diseño van a `anteriores`.
+
+## Decisiones tomadas
+
+- **Momento nuevo** `MomentoFormulario.RELEVAMIENTO`, visible en el alta de formularios del tipo.
+- **Modelos**: `RespuestasRelevamiento` (OneToOne con la inspección, sobre `RespuestasDeFormulario`) y
+  `AdjuntoRespuestaRelevamiento`, que cuelga de la **inspección** y no de las respuestas, para que un archivo pueda
+  llegar antes que el resultado. `uuid_cliente` es único; no hay `UniqueConstraint` condicional.
+- **Las respuestas se crean al recibir el resultado** siempre que haya un diseño vigente, aunque vengan vacías. Así
+  el informe puede marcar un ARCHIVO obligatorio que no llegó.
+- **Un ARCHIVO obligatorio no bloquea el resultado**: llega después por `adjuntos/`. Un obligatorio oculto por su
+  condición no se exige.
+- **`adjuntos/`**: multipart, un archivo por request, idempotente por `uuid_cliente` (201 la primera vez, 200 el
+  reenvío). Se acepta con el relevamiento en curso o realizado, no revisado. Mismos límites que los adjuntos de
+  Becas (`validar_adjunto`).
+- **Un diseño asignado no se borra**: la FK es PROTECT, así que «eliminar» lo da de baja. El borrado cuenta las
+  respuestas del relevamiento y los relevamientos que lo traen.
+- **`/media/`**: el archivo lo baja quien ve el relevamiento (`inspecciones_visibles`), la misma regla que las fotos.
+- **403 `SIN_MODULO`** en los dos namespaces de campo, conservando `detail`: la app distingue «no tiene este
+  módulo» de una sesión caída.
+- **UI**: se reusaron las piezas existentes (select con `_field.html`, `_alerta` warning). El selector de tipo solo
+  aparece si el edificio aloja a más de un tipo.
+- **Contrato para la app**: `docs/internal/contrato-app-dispositivos.md`, con JSON real generado desde los tests.
+
+## Implementación
+
+Rama `feat/dispositivos-relevamiento-formulario-app`. Ver el PR.
+
+## Archivos
+
+Los de «Partes afectadas», más las migraciones y los tests:
+- `programas/tests/test_api_campo_relevamiento_formulario.py` (nuevo, 54 casos);
+- `programas/tests/test_api_campo_inspecciones.py`: claves nuevas del listado y el detalle, `code` del 403;
+- `programas/tests/test_becas_api_contrato.py`: `code` del 403;
+- `core/tests/test_uuid_mariadb.py`: comentario;
+- `programas/tests/test_becas_models.py`, `test_models_contrato.py` y `test_dispositivos_formularios_tipo.py`: el modelo y el momento nuevos;
+- fichas `modal.md` y `field.md`.
+
+## Base de datos
+
+- `programas.0107`: `InspeccionEdificio.diseno` (FK nula, PROTECT), el momento «relevamiento» y las tablas de
+  respuestas y adjuntos.
+- `programas.0108`: ensancha `uuid_cliente` a `char(36)` en MySQL y MariaDB (patrón de `programas.0073`), con
+  `atomic = False` y pasos idempotentes. Las búsquedas usan `q_uuid_en_texto`.
+
+## Validación
+
+- Suite de `programas` y `core` (5643 tests): los 5 contratos que fallaban por los modelos y el momento nuevos
+  (ratchet de UUID, registro de tablas, momentos libres del tipo) se ajustaron y pasan; los nuevos son 54 en
+  `test_api_campo_relevamiento_formulario`.
+- Mutaciones en rojo: `_exigir_asignado`, `code` de `CampoInspeccionPermission`, `has_permission` de ese permiso,
+  `code` de `CampoBecasPermission`, `clave_de_archivo_valida`, la regla de `/media/`, el tipo ajeno al edificio y
+  los obligatorios del resultado. `inspecciones_para_envio` ensanchado **no** rompe nada: `_exigir_asignado` sigue
+  devolviendo el 404 (doble guarda).
+- `manage.py check`, `makemigrations --check` (SYNCDB=False), `check_migraciones`, `design_audit --ratchet` (0
+  nuevos), `compile_templates --bloques` (0), `check_design_agent --changed` y ruff: OK.
+
+## Puesta en marcha en el servidor
+
+Las migraciones corren en el deploy. Para que un tipo use el formulario hay que crear el momento «Relevamiento» en
+su pantalla de formularios.
+
+## Pendientes / a definir
+
+- **DECISIÓN CLIENTE: la clave de idempotencia de los adjuntos es `uuid_cliente`, con el mismo mensaje
+  «Ese identificador ya se usó para otra foto»** (el `code` `UUID_EN_USO` es el que vale). Propuesta por defecto:
+  dejarlo así.
+- La app todavía no consume la API de Dispositivos: el contrato va a la sesión de la app.
+- El detalle de la API no devuelve lo ya respondido ni los adjuntos; la app conserva lo que envió.
+
+## Reversión
+
+Revertir el PR. Las migraciones son de expand: se puede bajar la release sin tocar los datos. Las tablas nuevas
+quedan vacías de uso.
 
 ## Historial
 

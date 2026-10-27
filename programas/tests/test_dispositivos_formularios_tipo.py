@@ -156,7 +156,7 @@ class ServicioTests(_Base):
         libres = momentos_libres(["ingreso", "propio"])
         self.assertEqual(
             [valor for valor, _ in libres],
-            ["crear_dispositivo", "asignacion_plaza", "novedades_turno", "egreso", "traslado"],
+            ["crear_dispositivo", "asignacion_plaza", "novedades_turno", "egreso", "traslado", "relevamiento"],
         )
         self.assertEqual(libres[0][1], "Crear dispositivo")
 
@@ -215,7 +215,7 @@ class DetalleTipoTests(_Base):
         opciones = [valor for valor, _ in resp.context["form_nuevo_formulario"].fields["momento"].choices]
         self.assertNotIn("ingreso", opciones)
         self.assertNotIn("propio", opciones)
-        self.assertEqual(len(opciones), 5)
+        self.assertEqual(len(opciones), 6)
 
     def test_con_todos_los_momentos_ocupados_no_se_ofrece_nuevo_formulario(self):
         for momento in MomentoFormulario.values:
