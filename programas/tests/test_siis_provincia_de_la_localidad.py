@@ -16,8 +16,10 @@ Lo que pasaba con las otras dos formas:
 Esa localidad va a SIIS adentro del alta, que no tiene baja.
 """
 
+from io import StringIO
 from unittest.mock import patch
 
+from django.core.management import call_command
 from django.test import SimpleTestCase
 from django.urls import reverse
 
@@ -212,3 +214,27 @@ class PadronGeograficoRevisionTests(_BaseAprobacionTest):
         respuesta = self.client.get(reverse("becas:siis_localidades"), {"provincia": 21})
         self.assertEqual(respuesta.status_code, 503)
         self.assertIn("seed_catalogo_siis", respuesta.json()["error"])
+
+    def test_lectura_repetida_del_padron_no_agrega_consultas(self):
+        from programas.services.siis import catalogo_geografico
+
+        for nombre in ("provincias", "localidades"):
+            with self.subTest(catalogo=nombre):
+                inicial = catalogo_geografico(nombre)
+                with self.assertNumQueries(0):
+                    self.assertEqual(catalogo_geografico(nombre), inicial)
+
+    def test_seed_invalida_el_padron_ausente_cacheado(self):
+        from programas.models import ProvinciaSiis
+        from programas.services.siis import SiisCatalogError, catalogo_geografico
+
+        ProvinciaSiis.objects.all().delete()
+        for nombre in ("provincias", "localidades"):
+            with self.assertRaises(SiisCatalogError):
+                catalogo_geografico(nombre)
+            with self.assertNumQueries(0), self.assertRaises(SiisCatalogError):
+                catalogo_geografico(nombre)
+        with self.captureOnCommitCallbacks(execute=True):
+            call_command("seed_catalogo_siis", stdout=StringIO())
+        self.assertIn({"id": 21, "nombre": "BUENOS AIRES"}, catalogo_geografico("provincias"))
+        self.assertIn({"id": 1, "nombre": "LA PLATA", "id_provincia": 21}, catalogo_geografico("localidades"))
