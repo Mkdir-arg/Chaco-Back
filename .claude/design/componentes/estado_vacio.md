@@ -23,6 +23,7 @@
 | `texto` | Descripción opcional, `p text-sm text-body max-w-xs` |
 | `icono` | Font Awesome sin `fas`. Por defecto `fa-inbox`; con `con_filtros`, `fa-magnifying-glass` |
 | `accion_url` | Sin ella no hay botón |
+| `accion_click` | Expresión de Alpine: la acción es `<button type="button" @click>` y abre un modal de la pantalla en vez de navegar. Gana sobre `accion_url`; siempre `btn-brand` (es un alta) |
 | `accion_texto` | Texto del botón; con `con_filtros`, por defecto «Limpiar filtros» |
 | `accion_icono` | Ícono opcional del botón |
 | `con_filtros` | Variante «los filtros no traen nada»: la acción pasa a `btn-tertiary` (limpiar), no a la primaria de alta |
@@ -53,6 +54,13 @@ Dentro de una tabla con solapas, va en el `{% empty %}` del `{% for %}`:
 `request.GET|hay_filtros` (filtro de `core/templatetags/nodo_ui.py`) devuelve `True` si algún
 parámetro no excluido trae valor; por defecto excluye `page`, y acepta una lista propia:
 `request.GET|hay_filtros:"page,tab"`.
+
+## Alta que abre un modal de la pantalla
+
+Cuando el alta es un modal que ya llega con la página (el esqueleto de la golden de Modal, sin
+parámetro GET), el vacío lo abre con `accion_click` en vez de mandar a una URL que recarga.
+Evidencia: «Nuevo sector» de P5 (`programas/templates/programas/dispositivos/sectores/sectores.html`,
+`accion_click="modalSectorNuevo=true"`).
 
 ## Dentro de un modal
 
