@@ -63,7 +63,7 @@
             <td class="nodo-td text-body">
               {% if dispositivo.plazas.hay_cifra %}
                 {{ dispositivo.plazas.texto }}
-                <span class="badge badge-{{ dispositivo.plazas.tono }} ml-1">{{ dispositivo.plazas.porcentaje }} %<span class="sr-only"> · ocupación {{ dispositivo.plazas.etiqueta }}</span></span>
+                <span class="badge badge-dot badge-{{ dispositivo.plazas.tono }} ml-1">{{ dispositivo.plazas.porcentaje }} %<span class="sr-only"> · ocupación {{ dispositivo.plazas.etiqueta }}</span></span>
               {% else %}
                 <span class="text-body-subtle">{{ dispositivo.plazas.texto }}</span>
               {% endif %}
