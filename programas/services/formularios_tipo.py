@@ -25,6 +25,7 @@ SE_COMPLETA_EN = {
     MomentoFormulario.NOVEDADES_TURNO: "Bitácora y cierre de turno",
     MomentoFormulario.EGRESO: "Egresar",
     MomentoFormulario.TRASLADO: "Trasladar",
+    MomentoFormulario.RELEVAMIENTO: "Relevamiento edilicio (app de campo)",
     MomentoFormulario.PROPIO: "Sin asignar",
 }
 
