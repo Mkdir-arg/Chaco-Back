@@ -106,7 +106,7 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   y `tipo_detail.html` (P14): el JS de la pantalla solo conserva el cierre por fondo con `pointerdown`;
   foco, Tab atrapado y Escape los maneja `becas-modal.js` vía `bind`.
   El cuerpo del modal «asignar relevamiento», compartido por P4 y P21, es el include
-  `programas/templates/programas/dispositivos/relevamientos/_campos_asignar.html` (campos con `_field.html`, `wrapper_class=""`).
+  `programas/templates/programas/dispositivos/relevamientos/_campos_asignar.html` (campos con `_field.html`, `wrapper_class=""`); suma el selector «Formulario del relevamiento» (`form.tipo`, solo si el edificio aloja a más de un tipo) y una `_alerta` `warning` cuando el tipo no tiene formulario).
 - **Bloques alternativos por un switch**: un `SwitchInput` arriba (`<label class="inline-flex items-center gap-2 text-sm text-body" @change="flag = $event.target.checked">`)
   y los bloques con `x-show="flag"` / `x-show="!flag"`; el estado inicial sale del `value` del form en el `x-data` de la
   pantalla. Los campos ocultos viajan vacíos y el servidor decide. Consumidor: «Valida con SIIS» en `programa_list.html`.

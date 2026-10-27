@@ -337,7 +337,9 @@ class AsignarRelevamientoForm(forms.Form):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional"}),
     )
 
-    def __init__(self, *args, edificio=None, agentes, agente_externo=False, **kwargs):
+    def __init__(
+        self, *args, edificio=None, agentes, agente_externo=False, tipos_formularios=(), aviso_formulario="", **kwargs
+    ):
         super().__init__(*args, **kwargs)
         if edificio is not None:
             self.fields["edificio"].initial = f"{edificio.nombre} · {edificio.codigo}"
@@ -350,6 +352,38 @@ class AsignarRelevamientoForm(forms.Form):
         # Deshabilitado y sin `required`, pero es un dato obligatorio de la asignación: lleva el asterisco.
         self.fields["edificio"].marca_requerido = True
         self.fields["asignado_a"].queryset = agentes
+        self._tipos = {}
+        # D3: el aviso de «sin formulario» lo calcula la vista (``aviso_de_tipos``).
+        self.aviso_formulario = aviso_formulario
+        # D1: el formulario sale del tipo de la institución. Solo si el edificio aloja a más de un
+        # tipo hay que elegir; con uno, lo resuelve el servicio.
+        tipos_formularios = list(tipos_formularios)
+        if len(tipos_formularios) > 1:
+            self._tipos = {str(tipo.pk): tipo for tipo, _formulario in tipos_formularios}
+            self.fields["tipo"] = forms.ChoiceField(
+                label="Formulario del relevamiento",
+                choices=[
+                    ("", "Elegí el tipo de institución"),
+                    *[
+                        (str(tipo.pk), tipo.nombre if formulario is not None else f"{tipo.nombre} · sin formulario")
+                        for tipo, formulario in tipos_formularios
+                    ],
+                ],
+                widget=forms.Select(attrs={"class": INPUT_CLASS}),
+                help_text=(
+                    "El edificio aloja instituciones de distintos tipos: el territorial completa el formulario "
+                    "del tipo que elijas."
+                ),
+                error_messages={
+                    "required": "Elegí de qué tipo de institución es el formulario.",
+                    "invalid_choice": "Ese tipo no corresponde a ninguna institución del edificio.",
+                },
+            )
+            self.fields["tipo"].marca_requerido = True
+            self.order_fields(["edificio", "tipo", "asignado_a", "fecha_vencimiento", "indicaciones"])
+
+    def clean_tipo(self):
+        return self._tipos[self.cleaned_data["tipo"]]
 
 
 #: Prefijo de los ids del modal «Crear relevamiento» de P4: comparte página con otros
@@ -379,8 +413,10 @@ class AsignarRelevamientoDispositivoForm(AsignarRelevamientoForm):
         },
     )
 
-    def __init__(self, *args, edificios, **kwargs):
+    def __init__(self, *args, edificios, aviso_formulario="", **kwargs):
         super().__init__(*args, **kwargs)
+        # D3: el tipo de la institución no tiene formulario «Relevamiento» (lo decide la vista).
+        self.aviso_formulario = aviso_formulario
         self._edificios = {str(edificio.pk): edificio for edificio in edificios}
         campo = self.fields["edificio"]
         opciones = [(pk, f"{e.nombre} · {e.codigo}") for pk, e in self._edificios.items()]

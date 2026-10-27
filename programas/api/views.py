@@ -147,7 +147,9 @@ def _respuesta_pausa(relevamiento):
 class CampoBecasPermission(BasePermission):
     """Exige la capacidad ``becas.campo`` (territorial / app de campo)."""
 
-    message = "El usuario no tiene acceso a la app de campo de Becas."
+    # `code` además de `detail` (A4b): la app distingue «este usuario no tiene el módulo» de
+    # cualquier otro 403. `detail` no cambia.
+    message = {"detail": "El usuario no tiene acceso a la app de campo de Becas.", "code": "SIN_MODULO"}
 
     def has_permission(self, request, view):
         user = request.user

@@ -60,6 +60,36 @@
     </div>
   </section>
 
+  {% if formulario %}
+  <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="formulario-titulo">
+    <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-3 flex-wrap">
+      <div>
+        <h2 id="formulario-titulo" class="text-sm font-bold text-heading">Formulario del relevamiento</h2>
+        <p class="text-xs text-body-subtle mt-1">Lo que el territorial respondió; complementa la criticidad y las observaciones.</p>
+      </div>
+      <span class="badge badge-gray">Versión {{ formulario.version }}</span>
+    </div>
+    <div class="p-5 space-y-4">
+      {% for linea in formulario.observaciones %}
+      {% include "components/_alerta.html" with tono="warning" icono="clipboard-list" texto=linea role="status" %}
+      {% endfor %}
+      {% if formulario.faltantes %}
+      {% include "components/_alerta.html" with tono="warning" icono="paperclip" titulo="Falta un archivo obligatorio:" texto=formulario.faltantes|join:", " role="status" %}
+      {% endif %}
+      {% for seccion in formulario.secciones %}
+      <h3 class="text-sm font-semibold text-heading{% if not forloop.first %} mt-5{% endif %}">{{ seccion.titulo }}</h3>
+      <dl class="grid gap-5 sm:grid-cols-2 break-words">
+        {% for campo in seccion.campos %}
+        <div><dt class="text-xs font-semibold uppercase text-body-subtle">{{ campo.label }}</dt><dd class="mt-1 text-body">{% if campo.adjunto %}<a href="{{ campo.adjunto.archivo.url }}" target="_blank" rel="noopener" class="text-fg-brand hover:underline"><i class="fas fa-paperclip" aria-hidden="true"></i> Ver archivo</a>{% elif campo.falta %}<span class="badge badge-warning">Falta el archivo</span>{% elif campo.es_multiple %}{{ campo.valor|join:", " }}{% else %}{{ campo.valor|default:"—" }}{% endif %}</dd></div>
+        {% endfor %}
+      </dl>
+      {% empty %}
+      <p class="text-sm text-body-subtle">El formulario no tiene respuestas visibles.</p>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   {% if indicaciones %}
   <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="indicaciones-titulo">
     <div class="px-5 py-4 border-b border-light">
