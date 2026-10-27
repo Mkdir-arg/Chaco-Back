@@ -503,6 +503,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 377 | Sectores y plazas: reubicar a la persona desde la plaza ocupada | Dispositivos · P5 · Sectores y plazas | `#ui` `#rbac` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 378 | Dispositivos: la leyenda del mapa de plazas pasa a pastillas, y los tonos del listado y de P21 se alinean | Dispositivos · leyenda del mapa (P5, P6) · listado · P21 | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 379 | «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal | Dispositivos · P5 Sectores y plazas | `#ui` `#performance` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 384 | Los tipos de dispositivo de la v1 pasan solos a «Sectores y plazas», sin exigir plaza al ingresar | Dispositivos · Configuración · Tipos | `#datos` | PM — decisión sobre la conversión de los tipos v1 | 26/10/2026 | 🟢 **Hecho** | `programas.0106` |
 
 **Notas del índice**
 
@@ -47622,6 +47623,10 @@ release anterior lo lee igual; `maneja_camas` quedó sincronizado.
 ## Historial
 
 - **26/10/2026 — alta del cambio.**
+- **27/10/2026 — Cambio 384.** «Sin migración de datos» queda superado: la migración `programas.0106`
+  convierte sola cada tipo de la v1 (`maneja_camas` con la lista vacía) a Cama, **sin** exigir plaza al
+  ingresar. La puesta en marcha ya no pide abrir y guardar cada tipo. Un tipo nuevo sigue naciendo con
+  «Exige asignar una plaza» tildada.
 
 ---
 
@@ -48255,5 +48260,99 @@ vacío. Ningún otro uso de la pieza lo emplea.
 - **26/10/2026 — alta del cambio.**
 - **26/10/2026 — «Nuevo sector» entra en el mismo PR (#975)**, a pedido del PM. Sale de Pendientes y pasa
   a Alcance, Decisiones e Implementación.
+
+---
+
+# Cambio 384 — Los tipos de dispositivo de la v1 pasan solos a «Sectores y plazas», sin exigir plaza al ingresar
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (y, por arrastre, la solapa «Sectores y plazas» y el ingreso de las instituciones de esos tipos) |
+| **Etiquetas** | `#datos` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 (los tipos de la v1 se convierten solos, también en PRD); casilla resuelta por el PM el 27/10/2026 (opción 1: destildada) |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: migración de datos `programas/migrations/0106_convertir_tipos_dispositivo_v1.py` · Tests: `programas/tests/test_dispositivos_config.py` (`ConvertirTiposV1MigracionTests`) |
+| **Migración** | `programas.0106` (datos, sin cambios de esquema) |
+
+## Pedido original
+
+El Cambio 372 dejó a los tipos de la v1 (`maneja_camas` tildado y sin tipos de plaza) esperando que alguien
+los abra y los guarde una vez: hasta entonces sus instituciones no muestran la solapa «Sectores y plazas».
+El PM pidió que se conviertan solos, también en PRD, sin depender de que alguien se acuerde de guardarlos.
+
+## Alcance acordado
+
+Entra: cada tipo con `maneja_camas=True` y `tipos_plaza_admitidos` vacío o nulo. Queda afuera: los tipos ya
+configurados (tienen al menos un tipo de plaza) y los que no manejan camas, que no se tocan; borrar
+`maneja_camas` sigue siendo el contract de una release posterior (Cambio 239).
+
+## Decisiones tomadas
+
+- **«Exige asignar una plaza al ingresar» queda destildada** (decisión del PM, 27/10/2026, opción 1 de dos).
+  Tildada, toda institución de esos tipos que todavía no cargó plazas dejaba de poder registrar ingresos en
+  PRD: lo rechazan `programas/services/estadias.py` y `programas/views/dispositivos_ingreso.py`. Quien quiera
+  exigir la plaza la tilda después desde Configuración → Tipos.
+- Por eso la conversión **no** es idéntica a abrir el tipo en el modal y guardarlo: el modal lo abre con la
+  casilla tildada (Cambio 372). Lo demás sí coincide: `tipos_plaza_admitidos=["CAMA"]` y `maneja_camas=True`.
+- La casilla se escribe en `False` de forma explícita, también si un tipo de la v1 la tuviera en `True` con
+  la lista vacía.
+- Un tipo nuevo sigue naciendo con la casilla tildada: eso es del form y no cambia.
+- Un tipo de la v1 que alguien ya guardó a mano (en testing, «Municipal», si se hizo la puesta en marcha del
+  Cambio 372) ya tiene la lista y no se toca: conserva lo que eligió quien lo guardó.
+
+## Implementación
+
+`RunPython` que recorre los tipos con `maneja_camas=True`, saltea los que tienen lista, y a los demás les
+escribe `["CAMA"]`, `plaza_obligatoria_al_ingresar=False` y `maneja_camas=True` con un `update` por fila. La
+lista vacía se mira en Python (son pocas filas y el lookup JSON difiere entre MySQL y MariaDB). Es
+idempotente: filtra por el estado de origen, así que un reintento no toca lo ya convertido. `CAMA` va
+escrito a mano para no depender de las `TextChoices` de hoy.
+
+## Archivos
+
+- `programas/migrations/0106_convertir_tipos_dispositivo_v1.py` (nuevo)
+- `programas/tests/test_dispositivos_config.py` (`ConvertirTiposV1MigracionTests`)
+
+## Base de datos
+
+`programas.0106_convertir_tipos_dispositivo_v1`: migración de **datos** sobre `TipoDispositivo`, sin cambios
+de esquema. Depende de `programas.0105`. Toca solo las filas de tipos de la v1 (en testing, las que sigan sin
+configurar); una tabla de catálogo de pocas filas, sin riesgo de `read_timeout`.
+
+## Validación
+
+- `ConvertirTiposV1MigracionTests` y `TipoDispositivoSectoresYPlazasTests` con `.venv312` (Django 5.2): 16
+  tests OK. Casos: lista vacía, lista nula, v1 con la casilla en `True`, ya configurado, sin camas, correrla
+  dos veces, y que el form abra el tipo convertido con «Maneja sectores y plazas», Cama y la casilla
+  destildada, y que guardarlo así no lo cambie.
+- Mutación: con la casilla en `True` en la migración, fallan 4 comprobaciones de la clase; con `False`, pasan.
+- `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`: «No changes detected».
+- `scripts/check_migraciones.py`: 0 problemas. Ruff: OK.
+- La suite completa y la ida y vuelta contra MariaDB y MySQL las corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada: la corre el `migrate` del deploy. Ya no hace falta abrir y guardar cada tipo (lo que pedía el Cambio
+372). Después del deploy, las instituciones de esos tipos muestran la solapa «Sectores y plazas» y siguen
+ingresando personas sin plaza hasta que alguien tilde la casilla en su tipo.
+
+## Pendientes / a definir
+
+- Nada de este cambio.
+
+## Reversión
+
+1. `python manage.py migrate programas 0105`: la reversa es un no-op (`# REVERSA-NOOP`), no deshace nada.
+2. Revertir el commit.
+3. Los tipos convertidos quedan con `["CAMA"]`, sin exigir plaza y con `maneja_camas=True`, que la release
+   anterior ya lee (Cambio 372, Reversión). No se pierde ningún dato. No se distingue un tipo convertido de
+   uno guardado a mano, por eso no se intenta volver a la lista vacía.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.**
 
 ---
