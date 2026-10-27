@@ -503,6 +503,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 377 | Sectores y plazas: reubicar a la persona desde la plaza ocupada | Dispositivos · P5 · Sectores y plazas | `#ui` `#rbac` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 378 | Dispositivos: la leyenda del mapa de plazas pasa a pastillas, y los tonos del listado y de P21 se alinean | Dispositivos · leyenda del mapa (P5, P6) · listado · P21 | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 379 | «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal | Dispositivos · P5 Sectores y plazas | `#ui` `#performance` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 380 | Ingreso a un dispositivo: el asistente avanza siempre con «Continuar» | Dispositivos · asistente de ingreso (P6) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
 | 383 | «Soy el administrador y no veo Relevamientos»: el rol protegido Administrador recibe `inspeccion.asignar` por migración | Transversal · RBAC (rol Administrador) · Dispositivos → Relevamientos (P21) | `#rbac` `#datos` `#relevamientos` | PM — prueba en testing (ECOM) | 26/10/2026 | 🟢 **Hecho** | `users.0040` |
 
 **Notas del índice**
@@ -48381,5 +48382,85 @@ commit.
 ## Historial
 
 - **27/10/2026 — alta del cambio.** Lo decidió el juez por delegación del PM, sin el diagnóstico del pod.
+
+---
+
+# Cambio 380 — Ingreso a un dispositivo: el asistente avanza siempre con «Continuar»
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · asistente de ingreso (P6) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/ingreso/paso_persona.html` · Ficha: `.claude/design/arquetipos/wizard.md` |
+| **Migración** | no |
+
+## Pedido original
+
+Es el tercer lote de la revisión de diseño de Dispositivos (ver el Cambio 378). El asistente de ingreso
+usaba tres verbos distintos para avanzar: «Siguiente» en Persona, «Continuar» en Plaza y «Confirmar ingreso»
+en Confirmar. El relevamiento marcó además que el pie de Plaza no lleva el separador que sí tienen Persona y
+Confirmar.
+
+## Alcance acordado
+
+Entra el texto del botón de avance. Quedan afuera los forms, los campos ocultos, los `name`/`value` de los
+envíos y la lógica de los pasos.
+
+## Decisiones tomadas
+
+- **«Continuar» es el único verbo de avance.** Lo decidió el PM el 26/10/2026 («sigo tus recomendaciones»).
+  En el paso 1 el botón de la izquierda sigue siendo «Cancelar», porque ahí todavía no hay paso anterior. La
+  acción final sigue siendo «Confirmar ingreso», y la del alta mínima, «Dar de alta y seguir», es otra acción.
+  La golden de Configuración de Becas conserva «Siguiente», así que la ficha registra esto como propio del
+  ingreso de Dispositivos.
+- **El pie de Plaza queda sin separador. El relevamiento se había equivocado.** En Persona y Confirmar el
+  separador divide el contenido de los botones dentro de una misma card. En Plaza el contenido es una grilla de
+  varias cards (el mapa por sector y Persona), y el pie va en su propia card `<form>`, que solo tiene los
+  ocultos y los botones. Un `border-t` ahí deja una franja vacía de unos 48 px sobre la línea. Se probó, se
+  revirtió, y la ficha de Wizard explica por qué.
+
+## Implementación
+
+- `paso_persona.html`: «Siguiente» pasa a «Continuar», con el mismo ícono `fa-arrow-right`.
+- `wizard.md`: la variante del paso intermedio registra el verbo del ingreso de Dispositivos, y el bullet del
+  paso de plaza explica que su pie va en una card propia y sin separador.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/ingreso/paso_persona.html`
+- `.claude/design/arquetipos/wizard.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y
+  `check_design_agent --changed`: en verde.
+- Ningún test afirma el «Siguiente» de Dispositivos. Los que buscan «Continuar» en `test_dispositivos_ingreso.py`
+  siguen siendo coherentes. Por pedido del PM (26/10/2026) no se corrió la suite en local: la corre el CI del
+  PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
 
 ---
