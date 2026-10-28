@@ -231,7 +231,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
             <label for="{{ form_reasignar.asignado_a.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Nuevo agente territorial <span class="text-fg-danger">*</span></label>
             {{ form_reasignar.asignado_a }}
             <p class="mt-1 text-xs text-body-subtle">Hoy lo tiene {{ relevamiento_reasignar.asignado_a.get_full_name|default:relevamiento_reasignar.asignado_a.username }}.{% if agente_externo %} La lista solo trae agentes <strong>externos a {{ relevamiento_reasignar.edificio.nombre }}</strong>.{% endif %}</p>
-            {% if puede_crear_agente %}<button type="button" data-quick-user="agente" data-user-select="#form-reasignar-relevamiento select[name=asignado_a]" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus" aria-hidden="true"></i> Crear agente</button>{% endif %}
+            {% include "programas/dispositivos/relevamientos/_boton_crear_agente.html" with puede_crear_agente=puede_crear_agente selector="#form-reasignar-relevamiento select[name=asignado_a]" only %}
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="asignado_a"></p>
           </div>
         </div>

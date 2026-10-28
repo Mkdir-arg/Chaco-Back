@@ -127,6 +127,15 @@ MENSAJE_DNI_AGENTE = (
     "Ese DNI ya es de un usuario del sistema: pedile al administrador del programa que le sume el rol de agente."
 )
 
+#: Qué se le dice a quien repite un DNI, por tipo de alta (la persona ya existe: hay que sumarle el rol, no duplicarla).
+#: Los tipos de backoffice no están: ven el texto genérico del ABM.
+MENSAJES_DNI_DUPLICADO = {"territorial": MENSAJE_DNI_TERRITORIAL, "agente": MENSAJE_DNI_AGENTE}
+
+#: En Dispositivos `programa.configurar` es delegable a propósito (da alcance total de configurador:
+#: `puede_configurar_dispositivos`, `dispositivos_en_alcance`), así que `puede_asignar_capacidades` no la frena.
+#: Un rol de agente que la tenga convertiría el alta en una vía para fabricar configuradores.
+CAPS_PROHIBIDAS_EN_ROL_DE_AGENTE = frozenset({"programa.configurar"})
+
 
 def _rol_de_agente():
     """El grupo sembrado de agente (por clave) o ``None`` si no se lo puede dar de forma segura.
@@ -140,7 +149,10 @@ def _rol_de_agente():
         return None
     if meta.programa.codigo != rbac.CODIGO_PROGRAMA_DISPOSITIVOS:
         return None
-    if not rbac.puede_asignar_capacidades(meta.programa, rbac.capacidades_de_grupo(meta.grupo)):
+    capacidades = set(rbac.capacidades_de_grupo(meta.grupo))
+    if capacidades & CAPS_PROHIBIDAS_EN_ROL_DE_AGENTE:
+        return None
+    if not rbac.puede_asignar_capacidades(meta.programa, capacidades):
         return None
     return meta.grupo
 
@@ -223,77 +235,26 @@ def usuario_asignar_territorial(request):
     )
 
 
-@login_required
-@require_POST
-def usuario_alta_rapida(request):
-    tipo = request.POST.get("tipo")
-    if tipo not in ROLES_BACKOFFICE and tipo not in ("territorial", "agente"):
-        return JsonResponse({"ok": False, "message": "Tipo de usuario inválido."}, status=400)
+def _crear_y_responder(request, *, tipo, rol, data, alcance, segmento=None, roles_acotados=None):
+    """Cola común del alta rápida: valida con `UserCreationForm`, crea, entrega la clave y responde el JSON.
 
-    roles_acotados = None
-    if tipo == "agente":
-        # Se evalúa acotada a Dispositivos: la misma capacidad tildada en un rol de otro programa no sirve.
-        if not puede_en_programa_dispositivos(request.user, CAP_CREAR_AGENTE):
-            return JsonResponse({"ok": False, "message": "No tiene permiso para crear agentes."}, status=403)
-        if rate_limit_excedido(
-            request,
-            CUBETA_ALTA_AGENTE,
-            ALTAS_AGENTE_POR_MINUTO,
-            sufijo=str(request.user.pk),
-            incluir_ip=False,
-        ):
-            return JsonResponse(
-                {"ok": False, "message": "Hiciste muchas altas seguidas. Esperá un minuto y probá de nuevo."},
-                status=429,
-            )
-        rol = _rol_de_agente()
-        segmento = None
-        roles_acotados = Group.objects.filter(pk=rol.pk) if rol else None
-    elif tipo == "territorial":
-        if not rbac.puede(request.user, CAP_TERRITORIAL):
-            return JsonResponse({"ok": False, "message": "No tiene permiso para crear territoriales."}, status=403)
-        rol = Group.objects.filter(name=ROL_TERRITORIAL).first()
-        segmento = _segmento_destino(request, request.POST.get("segmento_id"))
-        if segmento is None:
-            return JsonResponse({"ok": False, "message": "Seleccioná un segmento permitido."}, status=403)
-    else:
-        nombre_rol, plural = ROLES_BACKOFFICE[tipo]
-        if not es_admin_becas(request.user):
-            return JsonResponse({"ok": False, "message": f"No tiene permiso para crear {plural}."}, status=403)
-        rol = Group.objects.filter(name=nombre_rol).first()
-        segmento = None
-
-    if not rol:
-        return JsonResponse({"ok": False, "message": "El rol requerido no está configurado."}, status=409)
-
-    data = request.POST.copy()
-    if tipo == "agente":
-        # Lista blanca: solo los datos de la persona. Roles, contraseña, jerarquía y segmentos del POST se descartan.
-        data = QueryDict(mutable=True)
-        for campo in CAMPOS_ALTA_AGENTE:
-            data[campo] = request.POST.get(campo, "").strip()
-        if not data["email"]:
-            # Decisión del 14-oct: el agente lleva correo obligatorio; el enlace de la clave viaja por ahí.
-            mensaje = "El correo es obligatorio: la clave se le entrega por correo."
-            return JsonResponse({"ok": False, "message": mensaje, "errors": {"email": [mensaje]}}, status=400)
+    Es la misma para todos los tipos; lo que cambia —permiso, rol, datos aceptados y alcance de roles—
+    lo resuelve cada llamador (`usuario_alta_rapida` para Becas, `_alta_agente` para Dispositivos).
+    """
     data.setlist("groups", [str(rol.pk)])
     if segmento:
         data.setlist("segmentos_territoriales", [str(segmento.pk)])
     form = UserCreationForm(data=data, operador=request.user, roles_acotados=roles_acotados)
     if not form.is_valid():
         errores = {campo: [str(error) for error in lista] for campo, lista in form.errors.items()}
-        if tipo == "agente":
-            if MENSAJE_DNI_DUPLICADO in errores.get("dni", []):
-                errores["dni"] = [MENSAJE_DNI_AGENTE if e == MENSAJE_DNI_DUPLICADO else e for e in errores["dni"]]
-                return JsonResponse({"ok": False, "message": MENSAJE_DNI_AGENTE, "errors": errores}, status=400)
-        if tipo == "territorial" and MENSAJE_DNI_DUPLICADO in errores.get("dni", []):
-            # La persona ya existe: hay que buscarla, no duplicarla. El texto del ABM no cambia.
-            errores["dni"] = [MENSAJE_DNI_TERRITORIAL if e == MENSAJE_DNI_DUPLICADO else e for e in errores["dni"]]
-            return JsonResponse({"ok": False, "message": MENSAJE_DNI_TERRITORIAL, "errors": errores}, status=400)
+        mensaje_dni = MENSAJES_DNI_DUPLICADO.get(tipo)
+        if mensaje_dni and MENSAJE_DNI_DUPLICADO in errores.get("dni", []):
+            # La persona ya existe: hay que sumarle el rol, no duplicarla. El texto del ABM no cambia.
+            errores["dni"] = [mensaje_dni if e == MENSAJE_DNI_DUPLICADO else e for e in errores["dni"]]
+            return JsonResponse({"ok": False, "message": mensaje_dni, "errors": errores}, status=400)
         return JsonResponse({"ok": False, "errors": errores}, status=400)
 
     try:
-        alcance = {rol.pk} if tipo == "agente" else alcance_roles_ids(request.user)
         usuario = UsuariosAdminService.create_user_from_form(form, alcance_group_ids=alcance)
     except IntegrityError as exc:
         # G1b-10: el `ModelForm` ya valida que el usuario y el DNI no estén tomados,
@@ -357,4 +318,80 @@ def usuario_alta_rapida(request):
                 "segmentos": segmentos,
             },
         }
+    )
+
+
+def _alta_agente(request):
+    """Alta de un agente de relevamiento edilicio (Dispositivos, ``inspeccion.agente.crear``).
+
+    Solo da el rol sembrado de agente: permiso acotado a Dispositivos, límite por operador, rol por clave,
+    lista blanca de campos y un formulario que no acepta ningún otro rol.
+    """
+    if not puede_en_programa_dispositivos(request.user, CAP_CREAR_AGENTE):
+        return JsonResponse({"ok": False, "message": "No tiene permiso para crear agentes."}, status=403)
+    if rate_limit_excedido(
+        request,
+        CUBETA_ALTA_AGENTE,
+        ALTAS_AGENTE_POR_MINUTO,
+        sufijo=str(request.user.pk),
+        incluir_ip=False,
+    ):
+        return JsonResponse(
+            {"ok": False, "message": "Hiciste muchas altas seguidas. Esperá un minuto y probá de nuevo."},
+            status=429,
+        )
+    rol = _rol_de_agente()
+    if rol is None:
+        return JsonResponse({"ok": False, "message": "El rol requerido no está configurado."}, status=409)
+    # Lista blanca: solo los datos de la persona. Roles, contraseña, jerarquía y segmentos del POST se descartan.
+    data = QueryDict(mutable=True)
+    for campo in CAMPOS_ALTA_AGENTE:
+        data[campo] = request.POST.get(campo, "").strip()
+    if not data["email"]:
+        # Decisión del 14-oct: el agente lleva correo obligatorio; el enlace de la clave viaja por ahí.
+        mensaje = "El correo es obligatorio: la clave se le entrega por correo."
+        return JsonResponse({"ok": False, "message": mensaje, "errors": {"email": [mensaje]}}, status=400)
+    return _crear_y_responder(
+        request,
+        tipo="agente",
+        rol=rol,
+        data=data,
+        alcance={rol.pk},
+        roles_acotados=Group.objects.filter(pk=rol.pk),
+    )
+
+
+@login_required
+@require_POST
+def usuario_alta_rapida(request):
+    tipo = request.POST.get("tipo")
+    if tipo == "agente":
+        return _alta_agente(request)
+    if tipo not in ROLES_BACKOFFICE and tipo != "territorial":
+        return JsonResponse({"ok": False, "message": "Tipo de usuario inválido."}, status=400)
+
+    if tipo == "territorial":
+        if not rbac.puede(request.user, CAP_TERRITORIAL):
+            return JsonResponse({"ok": False, "message": "No tiene permiso para crear territoriales."}, status=403)
+        rol = Group.objects.filter(name=ROL_TERRITORIAL).first()
+        segmento = _segmento_destino(request, request.POST.get("segmento_id"))
+        if segmento is None:
+            return JsonResponse({"ok": False, "message": "Seleccioná un segmento permitido."}, status=403)
+    else:
+        nombre_rol, plural = ROLES_BACKOFFICE[tipo]
+        if not es_admin_becas(request.user):
+            return JsonResponse({"ok": False, "message": f"No tiene permiso para crear {plural}."}, status=403)
+        rol = Group.objects.filter(name=nombre_rol).first()
+        segmento = None
+
+    if not rol:
+        return JsonResponse({"ok": False, "message": "El rol requerido no está configurado."}, status=409)
+
+    return _crear_y_responder(
+        request,
+        tipo=tipo,
+        rol=rol,
+        data=request.POST.copy(),
+        alcance=alcance_roles_ids(request.user),
+        segmento=segmento,
     )

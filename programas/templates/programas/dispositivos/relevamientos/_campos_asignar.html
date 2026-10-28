@@ -22,7 +22,7 @@ del campo, en el form: `_field.html` las dibuja ANTES del error y las enlaza con
 {% endif %}
 <div>
   {% with field=form.asignado_a %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
-  {% if puede_crear_agente %}<button type="button" data-quick-user="agente" data-user-select="{{ selector_agente }}" class="btn-nodo btn-tertiary btn-sm mt-2"><i class="fas fa-user-plus" aria-hidden="true"></i> Crear agente</button>{% endif %}
+  {% include "programas/dispositivos/relevamientos/_boton_crear_agente.html" with puede_crear_agente=puede_crear_agente selector=selector_agente only %}
 </div>
 <div>{% with field=form.fecha_vencimiento %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
 <div>{% with field=form.indicaciones %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>

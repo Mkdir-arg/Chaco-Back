@@ -269,6 +269,15 @@ class EndpointTests(BaseCrearAgente):
         self.assertEqual(respuesta.status_code, 409)
         self.assertFalse(User.objects.filter(username__regex=r"^agente[0-9]").exists())
 
+    def test_si_al_rol_le_tildaron_programa_configurar_no_se_usa(self):
+        """En Dispositivos `programa.configurar` es delegable y da alcance total: no puede viajar en este rol."""
+        self.rol_agente.permissions.add(_permiso("programa.configurar"))
+
+        respuesta = self._post()
+
+        self.assertEqual(respuesta.status_code, 409)
+        self.assertFalse(User.objects.filter(username__regex=r"^agente[0-9]").exists())
+
     def test_un_rol_inactivo_es_409(self):
         RolMeta.objects.filter(clave=CLAVE_ROL_AGENTE).update(activo=False)
 
@@ -366,3 +375,67 @@ class MigracionAdministradorTests(TestCase):
         self.admin.delete()
         self.migracion.sembrar(apps_registry, None)
         self.migracion.quitar(apps_registry, None)
+
+
+class MigracionRolAgenteTests(TestCase):
+    """`users.0044`: el rol llega por migración, porque en ECOM el seed del arranque no corre."""
+
+    def setUp(self):
+        self.migracion = importlib.import_module("users.migrations.0044_sembrar_rol_agente_dispositivos")
+
+    def _programa(self):
+        return Programa.objects.create(
+            codigo="DISPOSITIVOS", nombre="Dispositivos", tipo=Programa.TipoPrograma.DISPOSITIVOS
+        )
+
+    def test_crea_el_rol_con_clave_programa_y_capacidad(self):
+        programa = self._programa()
+
+        self.migracion.sembrar(apps_registry, None)
+
+        meta = RolMeta.objects.get(clave=CLAVE_ROL_AGENTE)
+        self.assertEqual(meta.grupo.name, NOMBRE_ROL_AGENTE)
+        self.assertEqual(
+            (meta.categoria, meta.programa_id, meta.activo, meta.protegido), ("Programa", programa.pk, True, False)
+        )
+        self.assertEqual(set(meta.grupo.permissions.values_list("codename", flat=True)), {"inspeccion_relevar"})
+
+    def test_es_idempotente(self):
+        self._programa()
+        for _ in range(2):
+            self.migracion.sembrar(apps_registry, None)
+
+        self.assertEqual(RolMeta.objects.filter(clave=CLAVE_ROL_AGENTE).count(), 1)
+        self.assertEqual(Group.objects.filter(name=NOMBRE_ROL_AGENTE).count(), 1)
+
+    def test_sin_el_programa_no_hace_nada(self):
+        self.migracion.sembrar(apps_registry, None)
+
+        self.assertFalse(RolMeta.objects.filter(clave=CLAVE_ROL_AGENTE).exists())
+        self.assertFalse(Group.objects.filter(name=NOMBRE_ROL_AGENTE).exists())
+
+    def test_un_rol_renombrado_no_se_duplica_ni_se_pisa(self):
+        self._programa()
+        grupo, _ = asegurar_roles_dispositivos()
+        Group.objects.filter(pk=grupo.pk).update(name="Agentes de campo")
+        RolMeta.objects.filter(grupo=grupo).update(descripcion="La mía", activo=False)
+        grupo.permissions.add(_permiso("dispositivo.ver"))
+
+        self.migracion.sembrar(apps_registry, None)
+
+        self.assertEqual(RolMeta.objects.filter(clave=CLAVE_ROL_AGENTE).count(), 1)
+        self.assertFalse(Group.objects.filter(name=NOMBRE_ROL_AGENTE).exists())
+        meta = RolMeta.objects.get(clave=CLAVE_ROL_AGENTE)
+        self.assertEqual((meta.grupo.name, meta.descripcion, meta.activo), ("Agentes de campo", "La mía", False))
+        self.assertEqual(
+            set(meta.grupo.permissions.values_list("codename", flat=True)), {"inspeccion_relevar", "dispositivo_ver"}
+        )
+
+    def test_el_seed_posterior_reconoce_el_rol_de_la_migracion(self):
+        self._programa()
+        self.migracion.sembrar(apps_registry, None)
+
+        _, creado = asegurar_roles_dispositivos()
+
+        self.assertFalse(creado)
+        self.assertEqual(RolMeta.objects.filter(clave=CLAVE_ROL_AGENTE).count(), 1)
