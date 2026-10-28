@@ -121,6 +121,7 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   El paso 2 suma «Volver a buscar» (`btn-tertiary mr-auto`) y se precarga con lo tipeado. Los tipos
   que no buscan abren directo en el paso 2, sin «Volver a buscar». Evidencia:
   `users/templates/user/_alta_rapida_modal.html` (territorial de Becas).
+  Los tipos sin buscador (`agente` de Dispositivos, desde los modales de asignar/reasignar/crear relevamiento) abren directo en el paso 2, con correo obligatorio y sin los campos de institución, observación y clave; el botón «Crear agente» (`btn-tertiary btn-sm`, `data-quick-user="agente"`) va bajo el select de agente y su `data-user-select` es un selector único por modal (`#form-…-relevamiento select[name=asignado_a]`), solo si el servidor calculó `puede_crear_agente`.
 - **Modal abierto por parámetro GET y armado por el servidor**: cuando el contenido depende del
   registro (un selector acotado por el edificio de la fila) y lo dispara un menú de fila, que solo
   navega. La vista lee `?<accion>=<id>`, valida que el registro siga siendo gestionable, arma el

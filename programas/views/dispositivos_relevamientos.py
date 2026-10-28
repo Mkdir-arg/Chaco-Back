@@ -52,6 +52,7 @@ from programas.services.formularios_tipo import aviso_de_tipos, formularios_de_l
 from programas.services.inspecciones import (
     AGENTE_DEBE_SER_EXTERNO,
     CAP_ASIGNAR,
+    CAP_CREAR_AGENTE,
     Situacion,
     agentes_asignables,
     agentes_asignables_para,
@@ -242,6 +243,8 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
                 "resumen": resumen,
                 "ocultos_nuevo": [(k, params[k]) for k in PARAMETROS_DE_VISTA if params.get(k)],
                 "agente_externo": AGENTE_DEBE_SER_EXTERNO,
+                # El botón «Crear agente»: el servidor vuelve a chequear la capacidad en el endpoint.
+                "puede_crear_agente": puede_en_programa_dispositivos(user, CAP_CREAR_AGENTE),
                 "volver_qs": vista.urlencode(),
                 "url_nuevo": reverse("dispositivos:relevamientos") + "?nuevo=1",
             }

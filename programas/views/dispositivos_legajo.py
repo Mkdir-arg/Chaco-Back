@@ -100,6 +100,7 @@ from programas.services.ingreso import maneja_plazas, plazas_para_ingresar
 from programas.services.inspecciones import (
     AGENTE_DEBE_SER_EXTERNO,
     CAP_ASIGNAR,
+    CAP_CREAR_AGENTE,
     agentes_asignables_para,
     edificios_para_asignar_del_dispositivo,
     semaforos_de_dispositivos,
@@ -572,6 +573,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             return
         context["puede_crear_relevamiento"] = True
         context["agente_externo"] = AGENTE_DEBE_SER_EXTERNO
+        context["puede_crear_agente"] = puede_en_programa_dispositivos(user, CAP_CREAR_AGENTE)
         context["form_relevamiento"] = AsignarRelevamientoDispositivoForm(
             edificios=elegibles,
             agentes=agentes_asignables_para(elegibles),
