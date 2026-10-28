@@ -19,9 +19,11 @@ Contexto del usuario: `$ARGUMENTS`
    estado del código ni temas internos (regla de `docs/client/`).
 3. **Mostrá la minuta completa** al usuario y ajustá lo que pida.
 4. **Publicá en `docs/client/`** siguiendo las reglas de `AGENTS.md` →
-   "Publicar documentación pública": plantilla de `docs/client/templates/`,
-   actualizar el `index.md` de Minutas **y** el `nav:` de `mkdocs.yml`,
-   `python -m mkdocs build --strict`.
-5. **Confirmá explícitamente antes del deploy** (`gh-deploy` publica online).
+   "Publicar documentación pública" (plantilla de `docs/client/templates/`, `index.md`
+   de Minutas **y** `nav:` de `mkdocs.yml`; build y gate `check_docs_client.py` en 0
+   están ahí, no se repiten).
+5. **Deploy:** lo hace `docs-auto-deploy.yml` al llegar a `development` (flujo en la misma
+   sección de `AGENTS.md`); no corras `gh-deploy` a mano. Confirmá con el usuario antes
+   de pushear, porque publica online.
 6. Si en la reunión surgieron requerimientos nuevos, **no los analices**:
    listalos al final y recomendá pasarlos por `/analisis`.
