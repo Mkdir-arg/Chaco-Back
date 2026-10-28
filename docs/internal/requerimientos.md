@@ -513,7 +513,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 387 | Dispositivos: limpieza de los MINOR de las auditorías de #979, #980, #982 y #983 y del carril de diseño | Dispositivos · P4, P21, configuración de tipos, ingreso; `core/dni`, `nodo_ui`, fichas de diseño | `#ui` `#relevamientos` | Juez del carril (auditorías) | 27/10/2026 | 🟢 **Hecho** | No requiere |
 | 388 | Dispositivos: el formulario «Relevamiento» por tipo llega al territorial por la API de campo | Dispositivos · tipos (P17), relevamientos (P4, P21, informe), API de campo | `#relevamientos` `#api` `#mobile` `#datos` | PM — pedido del 27/10/2026 | 27/10/2026 | 🟢 **Hecho** | Migración 0107 y 0108 (expand) |
 | 389 | Sectores y plazas: la plaza libre se reserva, se presta o se saca de servicio, y tocar una plaza no recarga la página | Dispositivos · P5 Sectores y plazas · modal de asignar relevamiento (P4, P21) | `#ui` `#rbac` `#performance` `#relevamientos` | PM — prueba en testing | 27/10/2026 | 🟢 **Hecho** | No requiere |
-| 392 | gates-ci: procedimiento ante una CVE nueva en «Pip Audit» | Transversal · skill `gates-ci` · CI (`Pip Audit`) | `#infra` `#metodo` | Juez — Cambios 315, 363 y 391 | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 391 | gates-ci: procedimiento ante una CVE nueva en «Pip Audit» | Transversal · skill `gates-ci` · CI (`Pip Audit`) | `#infra` `#metodo` | Juez — Cambios 315 y 363, y PR #988 | 27/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -49425,7 +49425,7 @@ elimina la vulnerabilidad de Twisted instalado.
 
 ---
 
-# Cambio 392 — gates-ci: procedimiento ante una CVE nueva en «Pip Audit»
+# Cambio 391 — gates-ci: procedimiento ante una CVE nueva en «Pip Audit»
 
 🟢 **HECHO — 28/10/2026**
 
@@ -49433,7 +49433,7 @@ elimina la vulnerabilidad de Twisted instalado.
 |---|---|
 | **Programa / módulo** | Transversal · skill `gates-ci` · CI (`Pip Audit`) |
 | **Etiquetas** | `#infra` `#metodo` |
-| **Solicitante** | Juez — Cambios 315, 363 y 391 |
+| **Solicitante** | Juez — Cambios 315 y 363, y PR #988 |
 | **Fecha del pedido** | 28/10/2026 |
 | **Issue / épica** | sin issue |
 | **Partes afectadas** | Skill |
@@ -49441,8 +49441,8 @@ elimina la vulnerabilidad de Twisted instalado.
 
 ## Pedido original
 
-Cuando «Pip Audit» se puso rojo por una CVE nueva de twisted (28/10/2026), el procedimiento
-vivía solo en la cabecera de `security/excepciones.toml` y en los Cambios 315, 363 y 391.
+Cuando «Pip Audit» se puso rojo por una CVE nueva de twisted (PR #988, 27/10/2026), el procedimiento
+vivía solo en la cabecera de `security/excepciones.toml`, en los Cambios 315 y 363 y en el PR #988.
 Codificarlo en la skill `gates-ci`.
 
 ## Alcance acordado
@@ -49459,7 +49459,7 @@ decidir, validar y retirar.
   excepciones; no las duplica.
 - **Módulo cargado en la superficie servida: decide el PM**, y solo con una mitigación
   verificable (caso nginx de CVE-2026-115877).
-- **Sin excepción sin vencimiento y sin pinear un release candidate**, como en los Cambios 363 y 391.
+- **Sin excepción sin vencimiento y sin pinear un release candidate**, como en el Cambio 363 y el PR #988.
 
 ## Implementación
 
