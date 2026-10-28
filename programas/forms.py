@@ -41,7 +41,13 @@ from programas.models import (
     TipoDispositivo,
 )
 from programas.services.dispositivos import normalizar_codigo_institucional
-from programas.services.siis import SiisCatalogError, catalogo, funciones_programa, listar_programas
+from programas.services.siis import (
+    SiisCatalogError,
+    catalogo,
+    catalogo_geografico,
+    funciones_programa,
+    listar_programas,
+)
 from programas.services.siis_envio import provincia_de
 from programas.validacion_contacto import (
     AYUDA_DOCUMENTO_RESPONSABLE,
@@ -342,7 +348,7 @@ class DatosSiisForm(forms.Form):
     def __init__(self, *args, actuales=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.actuales = actuales if isinstance(actuales, dict) else {}
-        provincias, error_prov = _cargar_catalogo(lambda: catalogo("provincias"))
+        provincias, error_prov = _cargar_catalogo(lambda: catalogo_geografico("provincias"))
         estados, error_est = _cargar_catalogo(lambda: catalogo("estados-civiles"))
         jurisdicciones, error_jur = _cargar_catalogo(lambda: catalogo("jurisdicciones"))
         programas_siis, error_prog = _cargar_catalogo(listar_programas)
@@ -390,19 +396,20 @@ class DatosSiisForm(forms.Form):
         if loc is None or campo in self._a_quitar():
             return
         prov = self._provincia_de_referencia(campo_provincia)
-        localidades, error = _cargar_catalogo(lambda: catalogo("localidades"))
+        localidades, error = _cargar_catalogo(lambda: catalogo_geografico("localidades"))
         if error:
             self.add_error(campo, error)
             return
-        item = next((i for i in localidades if i["id"] == loc), None)
-        if item is None:
+        candidatas = [i for i in localidades if i["id"] == loc]
+        if not candidatas:
             self.add_error(campo, "La localidad no está en el catálogo de SIIS.")
             return
-        # SIIS-18: la misma lectura de las cuatro claves que usa el armado del
-        # payload; antes se miraban dos y la localidad de otra provincia pasaba.
-        prov_item = provincia_de(item)
-        if prov and prov_item is not None and str(prov_item) != str(prov):
+        # El ID se numera dentro de cada provincia: no alcanza con el primer
+        # ítem que tenga ese número (p. ej. 1/1 Resistencia y 21/1 La Plata).
+        if prov and not any(provincia_de(i) in (None, int(prov)) for i in candidatas):
             self.add_error(campo, "La localidad no pertenece a la provincia elegida.")
+        elif not prov and len(candidatas) > 1:
+            self.add_error(campo_provincia, "Elegí la provincia para identificar la localidad.")
 
     def clean_barrio_actual(self):
         barrio = " ".join((self.cleaned_data.get("barrio_actual") or "").split())
