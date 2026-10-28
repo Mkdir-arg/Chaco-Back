@@ -47041,8 +47041,8 @@ Nada más que el deploy: la imagen se reconstruye con setuptools 84.1.0.
 
 ## Pendientes / a definir
 
-- **Cuando salga twisted 26.10.0 final, revisar juntas las seis excepciones de twisted:** las
-  cinco de este Cambio y la del 315 (CVE-2026-106454). Se corre `pip-audit -r requirements.txt`
+- **Cuando salga twisted 26.10.0 final, revisar juntas las siete excepciones de twisted:** las
+  seis de este Cambio y la del 315 (CVE-2026-106454). Se corre `pip-audit -r requirements.txt`
   sin ningún `--ignore-vuln` y se borra toda entrada cuyo id ya no aparezca: es el criterio de
   la cabecera de `security/excepciones.toml`.
 - **Confirmar con ECOM que el ingress rearma la petición** y no reenvía un CR o un LF suelto
@@ -47061,6 +47061,11 @@ hay datos ni migración. El check de «Pip Audit» vuelve a rojo.
   CVE-2026-115877, que es lo que imprime el CI, daba por verificado el ingress de ECOM
   (MAJOR). Además había dos criterios de retiro distintos, y el comentario del pin seguía
   diciendo «backend de build». Los tres se corrigieron en la misma rama.
+- **28/10/2026 — séptima excepción de twisted: CVE-2026-83813** (GHSA-jj36-9pvh-vj5r). Pip Audit
+  se puso rojo en todos los PR. Es el cliente DNS de `twisted.names`, que acepta respuestas UDP
+  falsificadas. Ni el repo ni daphne/channels lo importan (verificado en `sys.modules`), así que
+  entra con las de módulos que no se cargan: vence el 15/12/2026 y se retira con las otras seis
+  cuando salga la 26.10.0 final. Decisión del PM: excepción antes que pinear el rc.
 
 ---
 

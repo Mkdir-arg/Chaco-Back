@@ -11,7 +11,7 @@
 #   vence_el  fecha en la que vuelve a bloquear
 #   ticket    dónde se sigue (ficha de la auditoría o issue)
 
-# Excepciones vigentes: seis, todas de twisted (Cambios 315 y 363). Lo normal es que no
+# Excepciones vigentes: siete, todas de twisted (Cambios 315 y 363). Lo normal es que no
 # haya ninguna.
 #
 # La anterior, `PYSEC-2026-3447`, se retiró en el Cambio 196 (RED-85): era setuptools
@@ -94,4 +94,16 @@ ticket = "Cambio 363"
 id = "CVE-2026-115877"
 motivo = "nginx en icore rearma la petición (verificado); el ingress de ECOM, sin confirmar (pendiente del Cambio 363); no hay release final corregido"
 vence_el = 2026-11-25
+ticket = "Cambio 363"
+
+# twisted 26.4.0, CVE-2026-83813 (GHSA-jj36-9pvh-vj5r), agregada el 28/10/2026 (Historial del
+# Cambio 363): el cliente DNS de `twisted.names` acepta una respuesta UDP solo por el id de la
+# transacción, sin mirar de qué servidor vino. Ni el repo ni daphne/channels importan
+# `twisted.names`: verificado importando `daphne.server`, `daphne.http_protocol`,
+# `daphne.ws_protocol` y `channels.layers` (no aparece en `sys.modules`), y el reactor resuelve
+# con el `getaddrinfo` del sistema. Vence con las otras de módulos que no se cargan.
+[[pip_audit]]
+id = "CVE-2026-83813"
+motivo = "es del cliente DNS de twisted.names, que ni el repo ni daphne/channels cargan, y no hay release final corregido"
+vence_el = 2026-12-15
 ticket = "Cambio 363"
