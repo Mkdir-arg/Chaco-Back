@@ -477,10 +477,8 @@ _SIN_PROGRAMA = "Sin programa"
 def _ambito_de(meta):
     """Solapa a la que pertenece un rol.
 
-    Un rol de categoría ``Programa`` pertenece al ámbito de **su programa**; el
-    resto, al de su categoría. Así "Becas" es una sola solapa: fusiona los roles
-    del programa Becas con los de la categoría homónima (que existe por historia)
-    y no queda un "Becas" adentro de otro "Programa".
+    Un rol de alcance ``Programa`` va a la solapa de **su programa**; el resto, a la de la
+    etiqueta de su alcance («Global»).
     """
     categoria = getattr(meta, "categoria", "") or _SIN_CATEGORIA
     if categoria != rbac.CATEGORIA_PROGRAMA:
@@ -489,7 +487,7 @@ def _ambito_de(meta):
 
 
 def _orden_de_ambitos(ambitos):
-    """Categorías canónicas primero, después los programas alfabéticos, y los huérfanos al final."""
+    """«Global» primero, después los programas alfabéticos, y los huérfanos al final."""
     canonicas = [rbac.ETIQUETAS_CATEGORIA[rbac.CATEGORIA_BACKOFFICE]]
     colas = (_SIN_CATEGORIA, _SIN_PROGRAMA)
     orden = [a for a in canonicas if a in ambitos]
