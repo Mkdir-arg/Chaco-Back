@@ -32,10 +32,6 @@ NOMBRE_OPERADOR = "Operador de backoffice"
 
 _CATEGORIA_POR_GRUPO = {
     rbac.GRUPO_CIUDADANO_PORTAL: rbac.CATEGORIA_PORTAL,
-    "EncargadoInstitucion": rbac.CATEGORIA_INSTITUCION,
-    "AdministrativoInstitucion": rbac.CATEGORIA_INSTITUCION,
-    "ProfesorInstitucion": rbac.CATEGORIA_INSTITUCION,
-    rbac.ROL_ADMINISTRADOR: rbac.CATEGORIA_SISTEMA,
 }
 
 #: Rol de Notificaciones (análisis 007) y lo que trae al crearse.
@@ -87,7 +83,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_LABEL("\nRol Administrador..."))
         defaults_admin = {
             "descripcion": "Acceso total al backoffice. Rol protegido del sistema.",
-            "categoria": rbac.CATEGORIA_SISTEMA,
+            "categoria": rbac.CATEGORIA_BACKOFFICE,
             "protegido": True,
             "activo": True,
         }

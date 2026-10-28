@@ -516,6 +516,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 390 | Instrucciones de agentes y comandos alineadas con las decisiones del PM: Iteration al crear, QA en testing, estimación solo en Task, publicación con venv y retiro de `chaco-dev-reviewer` | Transversal · método de trabajo de los agentes (`AGENTS.md`, `QA.md`, `.claude/commands/`, `.claude/agents/`, skill `auditoria`) | `#metodo` `#gestion` | PM — decisiones previas (28/08, 28/10/2026) | 28/10/2026 | 🟢 **Hecho** | No requiere |
 | 391 | gates-ci: procedimiento ante una CVE nueva en «Pip Audit» | Transversal · skill `gates-ci` · CI (`Pip Audit`) | `#infra` `#metodo` | Juez — Cambios 315 y 363, y PR #988 | 28/10/2026 | 🟢 **Hecho** | No requiere |
 | 392 | Panel de capacidades del ABM de Roles: solapas por ámbito (General · Administración · Becas · Dispositivos) | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 393 | La «Categoría» del rol pasa a ser «Alcance»: Global o De un programa | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0041`, de datos) |
 
 **Notas del índice**
 
@@ -49626,6 +49627,112 @@ Nada: sin migración.
 ## Reversión
 
 Revertir el PR; no hay datos que se pierdan.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 393 — La «Categoría» del rol pasa a ser «Alcance»: Global o De un programa
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · Roles (RBAC) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | PM — decisión del 28/10/2026 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | `users.0041_rolmeta_alcance_global_programa` (datos + `choices`, sin SQL) |
+
+## Pedido original
+
+El campo «Categoría» del rol tenía seis valores (Backoffice, Institución, Portal, Sistema, Becas, Programa) y solo dos
+decidían algo. Pasa a llamarse «Alcance» con dos opciones visibles: **Global** y **De un programa**.
+
+## Alcance acordado
+
+**Entra:** etiquetas nuevas (`ETIQUETAS_CATEGORIA` en `core/rbac.py`); retiro de `CATEGORIA_SISTEMA`,
+`CATEGORIA_INSTITUCION` y `CATEGORIA_BECAS`; migración de datos de los roles guardados; textos de `rol_form`,
+`rol_list`, `rol_detail` y de la solapa «Global» del selector de roles del ABM de Usuarios.
+
+**Queda afuera:** el nombre de la columna (`categoria`) y los strings guardados `Backoffice` y `Programa`; cualquier
+cambio en `puede*`, `programas_administrables*`, `puede_gestionar_rol` o `roles_visibles_para`.
+
+## Decisiones tomadas
+
+- **Los strings guardados se conservan**: `Backoffice` = Global y `Programa` = De un programa. Cambian solo las etiquetas
+  (choices), así que no se reescribe ninguna fila que ya está bien.
+- **`Portal` queda solo interno**: sigue en las `choices` del modelo (marca al grupo `Ciudadanos`) pero nunca en el combo
+  del formulario ni en el filtro del listado. `_roles_asignables_queryset` sigue excluyéndolo.
+- **Migración `users.0041`** (idempotente: filtra por el estado de origen). `Sistema` e `Institución` pasan a
+  `Backoffice`; `Becas` con programa pasa a `Programa` (mismo programa); `Becas` sin programa pasa a `Backoffice`. Es lo
+  que ya hacía el código: `_CATEGORIAS_CON_PROGRAMA` trataba a `Becas` como de programa solo con `programa_id`. La
+  autorización no cambia. Reversa `noop` declarada: se pierde la etiqueta original, que es cosmética.
+- `AlterField` de `choices` y `verbose_name`: `sqlmigrate` dice `(no-op)`; sin columna nueva ni `NOT NULL`.
+- El listado de roles sigue agrupando a `Ciudadanos` (Portal) en su propio grupo: `CATEGORIAS_ROL_TODAS` lo incluye para
+  agrupar, `CATEGORIAS_ROL` (lo que se ofrece) no.
+- Selector de roles del ABM de Usuarios: la solapa de los roles globales se llama «Global» (id `global`); las de
+  programa siguen agrupadas por nombre de programa. Cierra la duplicación que marcó el Cambio 332 (Programa sumado dos
+  veces en `categorias_rol`).
+- No se cambió `help_text` del FK `programa` ni la estética: solo textos.
+
+## Implementación
+
+`core/rbac.py` define `CATEGORIAS_ROL` = [Backoffice, Programa], `ETIQUETAS_CATEGORIA` y las choices del modelo
+(`CATEGORIAS_ROL_MODELO_CHOICES`, con Portal). `RolForm` ofrece `CATEGORIAS_ROL_CHOICES`; el admin de programa sigue
+viendo solo «De un programa». Las vistas del listado y la ficha muestran `get_categoria_display`. `seed_rbac` y
+`seed_datos_base` siembran `Backoffice` donde antes ponían `Sistema` o `Institución`.
+
+## Archivos
+
+- `core/rbac.py`
+- `users/models/__init__.py`
+- `users/migrations/0041_rolmeta_alcance_global_programa.py`
+- `users/forms/__init__.py`, `users/forms/roles.py`, `users/selectors/roles.py`, `users/views/roles.py`
+- `users/management/commands/seed_rbac.py`, `users/management/commands/seed_datos_base.py`
+- `users/templates/rol/rol_form.html`, `rol_list.html`, `rol_detail.html`
+- `.claude/design/componentes/filtros.md`
+- Tests: `users/tests/test_roles_alcance.py` (nuevo) y los que usaban las constantes retiradas
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Migración `users.0041` de datos y `choices`, sin DDL. `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`: «No
+changes detected». `scripts/check_migraciones.py` sobre la 0041: 0 problemas.
+
+## Validación
+
+- `users.tests.test_roles_alcance`: los cuatro casos de la migración (Sistema, Institución, Becas con programa, Becas
+  sin programa) más los que no se tocan, idempotencia, choices del formulario por operador, etiquetas del listado, y
+  `Ciudadanos` fuera de los roles asignables.
+- Verificado por mutación: quitar la exclusión de `Portal` en `_roles_asignables_queryset` pone rojo
+  `PortalExcluidoDeRolesAsignablesTests`.
+- `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent --changed` (OK), `scripts/requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Antes del deploy, en testing y PRD, contar qué toca la migración:
+
+```sql
+SELECT categoria, programa_id IS NULL, COUNT(*) FROM users_rolmeta GROUP BY 1, 2;
+```
+
+La migración corre sola con el arranque. Las filas `Sistema`, `Institución` y `Becas` desaparecen; el resto no cambia.
+
+## Pendientes / a definir
+
+- Retirar el módulo `instituciones` del catálogo (pendiente del Cambio 392).
+- Renombrar la columna `categoria` a `alcance` (no se hizo para no reescribir el esquema; sería otro expand/contract).
+
+## Reversión
+
+Revertir el PR. La migración no deshace los valores: las etiquetas Sistema/Institución/Becas se pierden, pero eran
+cosméticas y la autorización no cambia.
 
 ## Historial
 

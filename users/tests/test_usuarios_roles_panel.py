@@ -18,6 +18,9 @@ def _programa(codigo, nombre):
     return Programa.objects.create(codigo=codigo, nombre=nombre, estado=Programa.Estado.ACTIVO)
 
 
+GLOBAL = rbac.ETIQUETAS_CATEGORIA[rbac.CATEGORIA_BACKOFFICE]
+
+
 def _rol(nombre, categoria, programa=None, descripcion="", activo=True):
     grupo = Group.objects.create(name=nombre)
     RolMeta.objects.create(
@@ -35,10 +38,10 @@ class RolesPorAmbitoTests(TestCase):
         self.programa_becas = _programa("BECAS", "Becas")
         self.programa_disp = _programa("DISPOSITIVOS", "Dispositivos")
         self.rol_backoffice = _rol("Operador legajos", rbac.CATEGORIA_BACKOFFICE, descripcion="Carga legajos")
-        self.rol_sistema = _rol("Auditor", rbac.CATEGORIA_SISTEMA)
-        # "Territorial" es el rol legacy con categoría Becas y sin programa: tiene que
-        # caer en la MISMA solapa que los roles del programa Becas.
-        self.rol_cat_becas = _rol("Territorial", rbac.CATEGORIA_BECAS)
+        self.rol_sistema = _rol("Auditor", rbac.CATEGORIA_BACKOFFICE)
+        # "Territorial" era un rol legacy con categoría Becas y sin programa: la migración
+        # users.0041 lo pasa a Global (así se comportaba).
+        self.rol_cat_becas = _rol("Territorial", rbac.CATEGORIA_BACKOFFICE)
         self.rol_prog_becas = _rol("Becas — Coordinador", rbac.CATEGORIA_PROGRAMA, programa=self.programa_becas)
         self.rol_prog_disp = _rol("Operador Dispositivos", rbac.CATEGORIA_PROGRAMA, programa=self.programa_disp)
 
@@ -52,15 +55,15 @@ class RolesPorAmbitoTests(TestCase):
         """Cada programa es su propia solapa: no existe una solapa "Programa" contenedora."""
         labels = [tab["label"] for tab in UserCreationForm().roles_por_ambito()]
         self.assertNotIn(rbac.CATEGORIA_PROGRAMA, labels)
-        self.assertEqual(
-            labels,
-            [rbac.CATEGORIA_BACKOFFICE, rbac.CATEGORIA_SISTEMA, rbac.CATEGORIA_BECAS, "Dispositivos"],
-        )
+        self.assertEqual(labels, [GLOBAL, "Becas", "Dispositivos"])
 
-    def test_categoria_becas_y_programa_becas_van_en_la_misma_solapa(self):
-        tab = self._tabs(UserCreationForm())[rbac.CATEGORIA_BECAS]
-        self.assertEqual(tab["total"], 2)
-        self.assertEqual(sorted(r["nombre"] for r in tab["roles"]), ["Becas — Coordinador", "Territorial"])
+    def test_los_roles_globales_van_en_la_solapa_global_y_los_de_programa_en_la_suya(self):
+        tabs = self._tabs(UserCreationForm())
+        self.assertNotIn("Backoffice", tabs)
+        self.assertEqual(
+            sorted(r["nombre"] for r in tabs[GLOBAL]["roles"]), ["Auditor", "Operador legajos", "Territorial"]
+        )
+        self.assertEqual([r["nombre"] for r in tabs["Becas"]["roles"]], ["Becas — Coordinador"])
 
     def test_solapa_expone_id_slug_y_total(self):
         """El id es el slug del ámbito (lo usan data-tab / aria-controls del panel)."""
@@ -68,9 +71,8 @@ class RolesPorAmbitoTests(TestCase):
         self.assertEqual(tabs["Dispositivos"]["id"], "dispositivos")
         self.assertEqual(tabs["Dispositivos"]["total"], 1)
 
-    def test_id_de_solapa_sin_acentos_ni_espacios(self):
-        _rol("Referente institucional", rbac.CATEGORIA_INSTITUCION)
-        self.assertEqual(self._tabs(UserCreationForm())[rbac.CATEGORIA_INSTITUCION]["id"], "institucion")
+    def test_id_de_solapa_es_el_slug_del_ambito(self):
+        self.assertEqual(self._tabs(UserCreationForm())[GLOBAL]["id"], "global")
 
     def test_ids_de_solapa_no_chocan_entre_ambitos_parecidos(self):
         """Dos ámbitos que slugifican igual no pueden compartir data-tab."""
@@ -87,11 +89,13 @@ class RolesPorAmbitoTests(TestCase):
         self.assertEqual(self._roles(UserCreationForm(), "Sin programa"), ["Rol huérfano"])
 
     def test_roles_ordenados_por_nombre_dentro_de_la_solapa(self):
-        _rol("Aaa primero", rbac.CATEGORIA_SISTEMA)
-        self.assertEqual(self._roles(UserCreationForm(), rbac.CATEGORIA_SISTEMA), ["Aaa primero", "Auditor"])
+        _rol("Aaa primero", rbac.CATEGORIA_BACKOFFICE)
+        self.assertEqual(
+            self._roles(UserCreationForm(), GLOBAL), ["Aaa primero", "Auditor", "Operador legajos", "Territorial"]
+        )
 
     def test_rol_expone_descripcion_para_la_ficha(self):
-        rol = self._tabs(UserCreationForm())[rbac.CATEGORIA_BACKOFFICE]["roles"][0]
+        rol = next(r for r in self._tabs(UserCreationForm())[GLOBAL]["roles"] if r["nombre"] == "Operador legajos")
         self.assertEqual(rol["descripcion"], "Carga legajos")
         self.assertFalse(rol["checked"])
 
@@ -108,14 +112,14 @@ class RolesPorAmbitoTests(TestCase):
             data={"username": "", "email": "", "password": "", "groups": [str(self.rol_prog_becas.pk)]}
         )
         self.assertFalse(form.is_valid())
-        tildados = [r["nombre"] for r in self._tabs(form)[rbac.CATEGORIA_BECAS]["roles"] if r["checked"]]
+        tildados = [r["nombre"] for r in self._tabs(form)["Becas"]["roles"] if r["checked"]]
         self.assertEqual(tildados, ["Becas — Coordinador"])
 
     def test_rol_inactivo_asignado_se_marca_como_inactivo(self):
         rol_viejo = _rol("Rol discontinuado", rbac.CATEGORIA_BACKOFFICE, activo=False)
         user = User.objects.create_user("pedro", password="x")
         user.groups.add(rol_viejo)
-        roles = self._tabs(CustomUserChangeForm(instance=user))[rbac.CATEGORIA_BACKOFFICE]["roles"]
+        roles = self._tabs(CustomUserChangeForm(instance=user))[GLOBAL]["roles"]
         self.assertEqual([r["nombre"] for r in roles if r["inactivo"]], ["Rol discontinuado"])
 
     def test_rol_territorial_de_becas_queda_marcado_para_el_campo_segmento(self):
@@ -137,7 +141,7 @@ class UserFormTemplateTests(TestCase):
 
     def setUp(self):
         self.programa = _programa("BECAS", "Becas")
-        self.rol = _rol("Territorial", rbac.CATEGORIA_BECAS, descripcion="Releva en campo")
+        self.rol = _rol("Territorial", rbac.CATEGORIA_BACKOFFICE, descripcion="Releva en campo")
         self.rol_programa = _rol("Becas — Coordinador", rbac.CATEGORIA_PROGRAMA, programa=self.programa)
         self.admin = User.objects.create_superuser("admin_tpl", "a@a.com", "x")
 

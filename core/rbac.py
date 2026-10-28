@@ -354,23 +354,28 @@ CATALOGO = [
     },
 ]
 
-# Categorías válidas de un Rol (RolMeta.categoria).
+# Alcance de un Rol (``RolMeta.categoria``; el nombre de la columna se conserva).
+# Los valores guardados NO cambian de string: ``Backoffice`` es el alcance «Global» y
+# ``Programa`` el de «De un programa» (lo acota ``RolMeta.programa``). ``Portal`` es solo
+# interno: marca el grupo ``Ciudadanos`` y nunca se ofrece en un combo ni en un filtro.
 CATEGORIA_BACKOFFICE = "Backoffice"
-CATEGORIA_INSTITUCION = "Institución"
 CATEGORIA_PORTAL = "Portal"
-CATEGORIA_SISTEMA = "Sistema"
-CATEGORIA_BECAS = "Becas"
-# Categoría programática: agrupa roles acotados por ``RolMeta.programa``.
 CATEGORIA_PROGRAMA = "Programa"
+# Los que un operador puede elegir/filtrar, en el orden en que se muestran.
 CATEGORIAS_ROL = [
     CATEGORIA_BACKOFFICE,
-    CATEGORIA_INSTITUCION,
-    CATEGORIA_PORTAL,
-    CATEGORIA_SISTEMA,
-    CATEGORIA_BECAS,
     CATEGORIA_PROGRAMA,
 ]
-CATEGORIAS_ROL_CHOICES = [(c, c) for c in CATEGORIAS_ROL]
+# Todo lo que puede haber guardado, para agrupar listados (``Portal`` incluido).
+CATEGORIAS_ROL_TODAS = CATEGORIAS_ROL + [CATEGORIA_PORTAL]
+ETIQUETAS_CATEGORIA = {
+    CATEGORIA_BACKOFFICE: "Global",
+    CATEGORIA_PROGRAMA: "De un programa",
+    CATEGORIA_PORTAL: "Portal (identidad ciudadana)",
+}
+CATEGORIAS_ROL_CHOICES = [(c, ETIQUETAS_CATEGORIA[c]) for c in CATEGORIAS_ROL]
+# Para el modelo: incluye ``Portal``, que existe en la base pero no se ofrece.
+CATEGORIAS_ROL_MODELO_CHOICES = CATEGORIAS_ROL_CHOICES + [(CATEGORIA_PORTAL, ETIQUETAS_CATEGORIA[CATEGORIA_PORTAL])]
 
 # Metadatos de los tabs para el ABM de Roles (panel de capacidades).
 TABS_CAPACIDADES = [

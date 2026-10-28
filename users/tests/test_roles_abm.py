@@ -20,7 +20,7 @@ def _perm(codigo):
 def _rol_admin(nombre="Admins"):
     """Crea un rol activo con capacidades de administración + un usuario activo."""
     g = Group.objects.create(name=nombre)
-    RolMeta.objects.create(grupo=g, categoria="Sistema", activo=True)
+    RolMeta.objects.create(grupo=g, categoria="Backoffice", activo=True)
     g.permissions.add(_perm("usuario.administrar"), _perm("rol.administrar"))
     u = User.objects.create_user(f"admin-{nombre}", password="x")
     u.groups.add(g)
@@ -163,8 +163,8 @@ class RolesServiceTests(TestCase):
 
     def test_editar_rol_protegido_bloqueado(self):
         g = Group.objects.create(name="Administrador")
-        RolMeta.objects.create(grupo=g, categoria="Sistema", protegido=True)
-        form = RolForm(data={"name": "Administrador", "categoria": "Sistema"}, instance=g)
+        RolMeta.objects.create(grupo=g, categoria="Backoffice", protegido=True)
+        form = RolForm(data={"name": "Administrador", "categoria": "Backoffice"}, instance=g)
         self.assertTrue(form.is_valid(), form.errors)
         with self.assertRaises(RolProtegidoError):
             RolesAdminService.actualizar(form, g)
@@ -183,7 +183,7 @@ class RolesServiceTests(TestCase):
 
     def test_eliminar_rol_protegido_bloqueado(self):
         g = Group.objects.create(name="Administrador")
-        RolMeta.objects.create(grupo=g, categoria="Sistema", protegido=True)
+        RolMeta.objects.create(grupo=g, categoria="Backoffice", protegido=True)
         with self.assertRaises(RolProtegidoError):
             RolesAdminService.eliminar(g)
 
@@ -198,7 +198,7 @@ class RolesServiceTests(TestCase):
     def test_auto_bloqueo_al_quitar_capacidad_del_unico_rol_admin(self):
         g, _u = _rol_admin()  # único rol con administración
         form = RolForm(
-            data={"name": g.name, "categoria": "Sistema", "capacidades": ["ciudadano.ver"]},
+            data={"name": g.name, "categoria": "Backoffice", "capacidades": ["ciudadano.ver"]},
             instance=g,
         )
         self.assertTrue(form.is_valid(), form.errors)
@@ -218,7 +218,7 @@ class RolCategoriaFormTests(TestCase):
     def test_categoria_programa_en_selector_global(self):
         choices = {value for value, _label in RolForm().fields["categoria"].choices}
         self.assertIn(rbac.CATEGORIA_PROGRAMA, choices)
-        self.assertNotIn(rbac.CATEGORIA_BECAS, choices)
+        self.assertEqual(choices, {rbac.CATEGORIA_BACKOFFICE, rbac.CATEGORIA_PROGRAMA})
 
     def test_alta_rol_becas_con_programa(self):  # TC-64-01
         form = RolForm(
@@ -289,7 +289,7 @@ class RolCategoriaFormTests(TestCase):
         g = Group.objects.create(name="Rol Backoffice")
         meta = RolMeta(grupo=g, categoria=rbac.CATEGORIA_BACKOFFICE, programa=self.becas)
 
-        with self.assertRaisesMessage(ValidationError, "Solo los roles de categoría Programa"):
+        with self.assertRaisesMessage(ValidationError, "Solo los roles de alcance"):
             meta.full_clean()
 
     def test_modelo_rechaza_categoria_programa_sin_programa(self):
@@ -366,7 +366,7 @@ class RolAlcanceTests(TestCase):
         rol_becas_categoria = Group.objects.create(name="Coordinador Becas")
         RolMeta.objects.create(
             grupo=rol_becas_categoria,
-            categoria=rbac.CATEGORIA_BECAS,
+            categoria=rbac.CATEGORIA_PROGRAMA,
             programa=self.becas,
             activo=True,
         )
@@ -498,8 +498,7 @@ class RolAlcanceTests(TestCase):
     def test_form_admin_programa_incluye_categoria_programa(self):
         form = RolForm(operador=self.admin_becas)
         choices = {value for value, _label in form.fields["categoria"].choices}
-        self.assertIn(rbac.CATEGORIA_PROGRAMA, choices)
-        self.assertNotIn(rbac.CATEGORIA_BECAS, choices)
+        self.assertEqual(choices, {rbac.CATEGORIA_PROGRAMA})
         self.assertEqual(form.fields["categoria"].initial, rbac.CATEGORIA_PROGRAMA)
 
     def test_form_admin_programa_guarda_en_su_programa(self):  # TC-66-03
@@ -660,18 +659,11 @@ class RolesFiltrosTests(TestCase):
         nombres = {it["group"].name for it in items}
         self.assertEqual(nombres, {"Territorial Becas"})
 
-    def test_filtro_categoria_becas(self):
-        rol_becas_categoria = Group.objects.create(name="Coordinador Becas")
-        RolMeta.objects.create(
-            grupo=rol_becas_categoria,
-            categoria=rbac.CATEGORIA_BECAS,
-            programa=self.becas,
-            activo=True,
-        )
-
-        items = roles_filtrados_para(self.su, {"categoria": rbac.CATEGORIA_BECAS})
-        nombres = {it["group"].name for it in items}
-        self.assertEqual(nombres, {"Coordinador Becas"})
+    def test_filtro_categoria_retirada_se_ignora(self):
+        """Becas, Sistema e Institución ya no son alcances: el filtro no acota."""
+        total = len(roles_filtrados_para(self.su, {}))
+        for retirada in ("Becas", "Sistema", "Institución"):
+            self.assertEqual(len(roles_filtrados_para(self.su, {"categoria": retirada})), total)
 
     def test_filtro_estado_inactivo(self):
         items = roles_filtrados_para(self.su, {"estado": "inactivo"})
@@ -712,7 +704,7 @@ class RolesFiltrosTests(TestCase):
         self.assertEqual(resp.context["filtro_q"], "territorial")
         self.assertEqual(resp.context["filtro_categoria"], rbac.CATEGORIA_PROGRAMA)
         self.assertEqual(resp.context["filtro_estado"], "activo")
-        self.assertIn(rbac.CATEGORIA_PROGRAMA, resp.context["categorias_rol"])
+        self.assertIn((rbac.CATEGORIA_PROGRAMA, "De un programa"), resp.context["categorias_rol"])
         # El estado vacío con filtros lo decide `request.GET|hay_filtros` en la plantilla
         # (Cambio 166): la vista ya no pasa `hay_filtros_activos`, `roles` ni `total_roles`.
         for muerta in ("roles", "total_roles", "hay_filtros_activos"):
@@ -827,7 +819,7 @@ class RolesEscrituraHttpTests(TestCase):
 
     def test_eliminar_rol_protegido_avisa_y_no_borra(self):
         protegido = Group.objects.create(name=rbac.ROL_ADMINISTRADOR)
-        RolMeta.objects.create(grupo=protegido, categoria=rbac.CATEGORIA_SISTEMA, protegido=True, activo=True)
+        RolMeta.objects.create(grupo=protegido, categoria=rbac.CATEGORIA_BACKOFFICE, protegido=True, activo=True)
         self.client.force_login(self.admin)
 
         respuesta = self.client.post(reverse("users:rol_eliminar", args=[protegido.pk]), follow=True)
@@ -837,7 +829,7 @@ class RolesEscrituraHttpTests(TestCase):
 
     def test_toggle_de_rol_protegido_avisa_y_no_cambia(self):
         protegido = Group.objects.create(name="Rol intocable")
-        meta = RolMeta.objects.create(grupo=protegido, categoria=rbac.CATEGORIA_SISTEMA, protegido=True, activo=True)
+        meta = RolMeta.objects.create(grupo=protegido, categoria=rbac.CATEGORIA_BACKOFFICE, protegido=True, activo=True)
         self.client.force_login(self.admin)
 
         respuesta = self.client.post(reverse("users:rol_toggle", args=[protegido.pk]), follow=True)

@@ -18,7 +18,7 @@
     {% endif %}
   {% endpage_header %}
 
-  <p class="text-xs text-body-subtle">Categoría: {{ meta.categoria|default:"—" }}{% if meta.programa %} · <i class="fas fa-folder" aria-hidden="true"></i> Programa: {{ meta.programa.nombre }}{% endif %} · {{ num_usuarios }} usuario(s)</p>
+  <p class="text-xs text-body-subtle">Alcance: {% if meta %}{{ meta.get_categoria_display }}{% else %}—{% endif %}{% if meta.programa %} · <i class="fas fa-folder" aria-hidden="true"></i> Programa: {{ meta.programa.nombre }}{% endif %} · {{ num_usuarios }} usuario(s)</p>
 
   <div class="bg-white rounded-xl border border-base shadow-sm p-6">
     <h2 class="text-heading font-bold">Capacidades que otorga</h2>

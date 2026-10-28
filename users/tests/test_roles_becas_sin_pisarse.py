@@ -61,7 +61,7 @@ def _rol(nombre, caps, programa=None, activo=True):
     grupo = Group.objects.create(name=nombre)
     RolMeta.objects.create(
         grupo=grupo,
-        categoria=rbac.CATEGORIA_PROGRAMA if programa else "Sistema",
+        categoria=rbac.CATEGORIA_PROGRAMA if programa else "Backoffice",
         programa=programa,
         activo=activo,
     )

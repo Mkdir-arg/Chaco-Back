@@ -149,7 +149,7 @@ class ImportUsersFromCsvTests(TestCase):
     def test_actualizar_no_puede_dejar_al_sistema_sin_administrador(self):
         """`groups.set` de la referencia le quita el rol al único que administra."""
         rol_admin = Group.objects.create(name="Administración")
-        RolMeta.objects.create(grupo=rol_admin, categoria="Sistema", activo=True)
+        RolMeta.objects.create(grupo=rol_admin, categoria="Backoffice", activo=True)
         rol_admin.permissions.add(_perm("usuario.administrar"))
         unico = self.User.objects.create_user(username="ocupado", password=CLAVE_DE_LA_PERSONA)
         unico.groups.add(rol_admin)
@@ -171,7 +171,7 @@ class ImportUsersFromCsvTests(TestCase):
         """Un administrador del sistema que **no** es superusuario: el superusuario
         cuenta como admin de todos los programas y taparía el check acotado."""
         rol = Group.objects.get_or_create(name="Administración del sistema")[0]
-        RolMeta.objects.get_or_create(grupo=rol, defaults={"categoria": "Sistema", "activo": True})
+        RolMeta.objects.get_or_create(grupo=rol, defaults={"categoria": "Backoffice", "activo": True})
         rol.permissions.add(_perm("usuario.administrar"))
         usuario = self.User.objects.create_user(username=username, password=CLAVE_DE_LA_PERSONA)
         usuario.groups.add(rol)
