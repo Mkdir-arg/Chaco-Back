@@ -1,6 +1,10 @@
 ---
 name: mysql-mariadb
 description: Patrones de MySQL 8 y MariaDB para Chaco — esquema, índices, consultas, transacciones, migraciones y diagnóstico — con las trampas que ya cobraron en ECOM (UUID con guiones, CONVERT_TZ, UniqueConstraint condicional, read_timeout de 10 s). Usala al diseñar un modelo o índice, al escribir una migración sobre una tabla grande, o cuando una consulta, un bloqueo o un 500 aparece solo en producción.
+paths:
+  - "**/migrations/*.py"
+  - "**/models/*.py"
+  - "core/migraciones.py"
 ---
 
 # MySQL y MariaDB en Chaco

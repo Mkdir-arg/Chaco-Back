@@ -1,6 +1,15 @@
 ---
 name: seguridad-django
 description: Checklist de seguridad para código Django de Chaco — autorización por capacidades (core/rbac.py), separación backoffice/portal, inscripción pública por token, archivos del ciudadano, inyección SQL, XSS, CSRF, subidas, CSP y datos personales. Usala al escribir o revisar una vista, un endpoint de /api/, un formulario público, una subida de archivos, SQL crudo o cualquier cosa que muestre datos del padrón.
+paths:
+  - "core/rbac.py"
+  - "**/views.py"
+  - "**/views/*.py"
+  - "**/api/*.py"
+  - "**/middleware.py"
+  - "config/middlewares/**"
+  - "**/forms.py"
+  - "**/forms/*.py"
 ---
 
 # Seguridad en Django para Chaco

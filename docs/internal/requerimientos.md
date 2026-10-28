@@ -515,6 +515,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 389 | Sectores y plazas: la plaza libre se reserva, se presta o se saca de servicio, y tocar una plaza no recarga la página | Dispositivos · P5 Sectores y plazas · modal de asignar relevamiento (P4, P21) | `#ui` `#rbac` `#performance` `#relevamientos` | PM — prueba en testing | 27/10/2026 | 🟢 **Hecho** | No requiere |
 | 390 | Instrucciones de agentes y comandos alineadas con las decisiones del PM: Iteration al crear, QA en testing, estimación solo en Task, publicación con venv y retiro de `chaco-dev-reviewer` | Transversal · método de trabajo de los agentes (`AGENTS.md`, `QA.md`, `.claude/commands/`, `.claude/agents/`, skill `auditoria`) | `#metodo` `#gestion` | PM — decisiones previas (28/08, 28/10/2026) | 28/10/2026 | 🟢 **Hecho** | No requiere |
 | 391 | gates-ci: procedimiento ante una CVE nueva en «Pip Audit» | Transversal · skill `gates-ci` · CI (`Pip Audit`) | `#infra` `#metodo` | Juez — Cambios 315 y 363, y PR #988 | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 392 | Skills: activación por `paths:` en mysql-mariadb, seguridad-django y gates-ci | Transversal · skills de `.claude/skills/` | `#metodo` `#gestion` | Juez — informe del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -49541,6 +49542,78 @@ No hay.
 ## Reversión
 
 Borrar la sección de la skill.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 392 — Skills: activación por `paths:` en mysql-mariadb, seguridad-django y gates-ci
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · skills de `.claude/skills/` |
+| **Etiquetas** | `#metodo` `#gestion` |
+| **Solicitante** | Juez — informe del 28/10/2026 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Skills |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Un informe del 28/10/2026 encontró que el listado de skills tiene un presupuesto del 1 % del
+contexto y que `paths:` es la vía nativa para activarlas por archivo. El enrutador de skills del
+usuario (un hook en `~/.claude`, fuera del repo) va a dejar de detectar esos archivos por regex.
+
+## Alcance acordado
+
+**Entra:** el campo `paths:` (lista YAML de globs) en el frontmatter de `mysql-mariadb`,
+`seguridad-django` y `gates-ci`.
+
+**Queda afuera:** la `description` y el cuerpo de las skills, y el hook del usuario.
+
+## Decisiones tomadas
+
+- **Formato según la documentación oficial** (code.claude.com/docs/en/skills): lista YAML o
+  string separado por comas, globs relativos al directorio de trabajo de Claude.
+- **Solo globs que matchean algo:** `**/models.py` no existe en el repo y se omitió.
+
+## Implementación
+
+- `mysql-mariadb`: `**/migrations/*.py`, `**/models/*.py`, `core/migraciones.py`.
+- `seguridad-django`: `core/rbac.py`, vistas, `**/api/*.py`, middlewares, formularios.
+- `gates-ci`: workflows, `security/excepciones.toml`, `requirements*.txt`, `scripts/check_*.py`.
+
+## Archivos
+
+- `.claude/skills/mysql-mariadb/SKILL.md`
+- `.claude/skills/seguridad-django/SKILL.md`
+- `.claude/skills/gates-ci/SKILL.md`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `scripts/requerimientos.py --check`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada: solo documentación de desarrollo.
+
+## Pendientes / a definir
+
+No hay.
+
+## Reversión
+
+Quitar el campo `paths:` de las tres skills.
 
 ## Historial
 

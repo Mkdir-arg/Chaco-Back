@@ -1,6 +1,11 @@
 ---
 name: gates-ci
 description: Qué corre el CI de Chaco en cada PR y en el release, qué bloquea el merge, qué no lo bloquea pero igual frena Publish main y el release gate, y cómo leer un rojo. Usala antes de abrir o mergear un PR, cuando un check sale rojo, al tocar contratos de API o el alcance de mypy, o antes de espejar a ECOM.
+paths:
+  - ".github/workflows/*.yml"
+  - "security/excepciones.toml"
+  - "requirements*.txt"
+  - "scripts/check_*.py"
 ---
 
 # Gates de CI
