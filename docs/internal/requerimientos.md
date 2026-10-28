@@ -515,6 +515,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 389 | Sectores y plazas: la plaza libre se reserva, se presta o se saca de servicio, y tocar una plaza no recarga la página | Dispositivos · P5 Sectores y plazas · modal de asignar relevamiento (P4, P21) | `#ui` `#rbac` `#performance` `#relevamientos` | PM — prueba en testing | 27/10/2026 | 🟢 **Hecho** | No requiere |
 | 390 | Instrucciones de agentes y comandos alineadas con las decisiones del PM: Iteration al crear, QA en testing, estimación solo en Task, publicación con venv y retiro de `chaco-dev-reviewer` | Transversal · método de trabajo de los agentes (`AGENTS.md`, `QA.md`, `.claude/commands/`, `.claude/agents/`, skill `auditoria`) | `#metodo` `#gestion` | PM — decisiones previas (28/08, 28/10/2026) | 28/10/2026 | 🟢 **Hecho** | No requiere |
 | 391 | gates-ci: procedimiento ante una CVE nueva en «Pip Audit» | Transversal · skill `gates-ci` · CI (`Pip Audit`) | `#infra` `#metodo` | Juez — Cambios 315 y 363, y PR #988 | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 392 | Panel de capacidades del ABM de Roles: solapas por ámbito (General · Administración · Becas · Dispositivos) | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -49541,6 +49542,90 @@ No hay.
 ## Reversión
 
 Borrar la sección de la skill.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 392 — Panel de capacidades del ABM de Roles: solapas por ámbito (General · Administración · Becas · Dispositivos)
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · Roles (RBAC) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | PM — decisión del 28/10/2026 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El panel de capacidades de `/roles/crear/` mostraba las solapas Backoffice, Institución, Portal, Sistema y Becas.
+Reordenarlo por ámbito real; «Dispositivos y Merenderos son lo mismo».
+
+## Alcance acordado
+
+**Entra:** nuevas solapas `general`, `administracion`, `becas`, `dispositivos` en `TABS_CAPACIDADES` y la clave `"tab"`
+de cada módulo de `CATALOGO`; `arbol_por_tabs` deja de devolver solapas sin módulos.
+
+**Queda afuera:** los códigos de capacidad (`merendero.*` incluido), el programa MERENDEROS, el campo Categoría y
+`RolMeta`, el retiro del módulo `instituciones` (PR posterior).
+
+## Decisiones tomadas
+
+- **General**: ciudadanos, dashboard, reportes, notificaciones, conversaciones, relevamientos.
+  **Administración**: sistema, configuracion, programas e `instituciones`.
+  **Becas**: todos los `becas_*`. **Dispositivos**: dispositivos, inspecciones y merenderos.
+- **`instituciones` va provisoriamente a Administración** en vez de mantener una solapa Institución: no tiene uso
+  (`CAPACIDADES_SIN_USO`) y se retira en un PR posterior, así no queda una solapa para un solo módulo condenado.
+- **Portal se borra** (no tenía módulos).
+- **Sin solapas vacías**: un admin de programa solo ve las que tienen módulos asignables. Antes se incluían «para
+  futura expansión» y aparecían vacías.
+- El ícono de Dispositivos es `fa-building`, el edificio que ya usa el sidebar para ese grupo.
+- No se confunde con las categorías de rol (`RolMeta.categoria`) ni con `_ambito_de`, que no se tocan.
+
+## Implementación
+
+El panel agrupa las capacidades en cuatro solapas por ámbito y oculta las que no tienen módulos. El template
+`rol_form.html` itera `form.arbol_por_tabs` sin cambios.
+
+## Archivos
+
+- `core/rbac.py`
+- `users/tests/test_roles_abm.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios: los códigos de capacidad no cambian. `makemigrations --check --dry-run` con
+`DJANGO_SYNCDB_PROJECT_APPS=False`: «No changes detected».
+
+## Validación
+
+- `users.tests.test_roles_abm.SolapasDeCapacidadesTests` (6 tests: orden e ids, módulos de Dispositivos, ámbitos,
+  sin solapas vacías, admin de programa de Dispositivos sin Becas). Verificado por mutación: volviendo a devolver las
+  vacías fallan 3 de 6.
+- `manage.py test users core`: 2098 tests, OK (44 skipped). `manage.py check` sin observaciones. Ruff check y format
+  sobre lo tocado. No se tocó ningún template.
+- `scripts/requerimientos.py --check`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada: sin migración.
+
+## Pendientes / a definir
+
+- Retirar el módulo `instituciones` del catálogo (PR posterior).
+- Unificar la Categoría del rol con los ámbitos (otro PR).
+
+## Reversión
+
+Revertir el PR; no hay datos que se pierdan.
 
 ## Historial
 

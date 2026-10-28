@@ -89,6 +89,47 @@ class EtiquetaConfigurarPorProgramaTests(TestCase):
         self.assertEqual(self._label(RolForm(instance=g).arbol_por_tabs()), self.ORIGINAL)
 
 
+class SolapasDeCapacidadesTests(TestCase):
+    """Las solapas del panel de capacidades se agrupan por ámbito real (28-oct-2026)."""
+
+    def _por_id(self, tabs):
+        return {t["id"]: {m["modulo"] for m in t["modulos"]} for t in tabs}
+
+    def test_orden_e_ids_de_las_solapas(self):
+        ids = [t["id"] for t in rbac.arbol_por_tabs()]
+        self.assertEqual(ids, ["general", "administracion", "becas", "dispositivos"])
+
+    def test_dispositivos_inspecciones_y_merenderos_comparten_solapa(self):
+        modulos = self._por_id(rbac.arbol_por_tabs())
+        self.assertEqual(modulos["dispositivos"], {"dispositivos", "inspecciones", "merenderos"})
+
+    def test_ambitos_generales_y_de_administracion(self):
+        modulos = self._por_id(rbac.arbol_por_tabs())
+        self.assertTrue(
+            {"ciudadanos", "dashboard", "reportes", "notificaciones", "relevamientos"} <= modulos["general"]
+        )
+        self.assertTrue({"programas", "configuracion", "sistema"} <= modulos["administracion"])
+        self.assertTrue(all(m.startswith("becas") for m in modulos["becas"]))
+
+    def test_todo_modulo_del_catalogo_cae_en_una_solapa_definida(self):
+        ids = {t["id"] for t in rbac.TABS_CAPACIDADES}
+        self.assertEqual({m["tab"] for m in rbac.CATALOGO} - ids, set())
+
+    def test_no_se_devuelven_solapas_vacias(self):
+        for kwargs in ({}, {"solo_programa": True, "programa": "DISPOSITIVOS"}, {"permitidas": {"ciudadano.ver"}}):
+            with self.subTest(kwargs=kwargs):
+                tabs = rbac.arbol_por_tabs(**kwargs)
+                self.assertTrue(tabs)
+                self.assertTrue(all(t["modulos"] for t in tabs), [t["id"] for t in tabs])
+
+    def test_admin_de_programa_de_dispositivos_no_ve_becas(self):
+        tabs = rbac.arbol_por_tabs(solo_programa=True, programa="DISPOSITIVOS")
+        ids = [t["id"] for t in tabs]
+        self.assertNotIn("becas", ids)
+        self.assertTrue(all(t["modulos"] for t in tabs))
+        self.assertIn("dispositivos", ids)
+
+
 class RolesServiceTests(TestCase):
     def test_crear_rol_con_capacidades(self):
         form = RolForm(
