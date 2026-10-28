@@ -514,6 +514,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 388 | Dispositivos: el formulario «Relevamiento» por tipo llega al territorial por la API de campo | Dispositivos · tipos (P17), relevamientos (P4, P21, informe), API de campo | `#relevamientos` `#api` `#mobile` `#datos` | PM — pedido del 27/10/2026 | 27/10/2026 | 🟢 **Hecho** | Migración 0107 y 0108 (expand) |
 | 389 | Sectores y plazas: la plaza libre se reserva, se presta o se saca de servicio, y tocar una plaza no recarga la página | Dispositivos · P5 Sectores y plazas · modal de asignar relevamiento (P4, P21) | `#ui` `#rbac` `#performance` `#relevamientos` | PM — prueba en testing | 27/10/2026 | 🟢 **Hecho** | No requiere |
 | 390 | Instrucciones de agentes y comandos alineadas con las decisiones del PM: Iteration al crear, QA en testing, estimación solo en Task, publicación con venv y retiro de `chaco-dev-reviewer` | Transversal · método de trabajo de los agentes (`AGENTS.md`, `QA.md`, `.claude/commands/`, `.claude/agents/`, skill `auditoria`) | `#metodo` `#gestion` | PM — decisiones previas (28/08, 28/10/2026) | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 391 | gates-ci: procedimiento ante una CVE nueva en «Pip Audit» | Transversal · skill `gates-ci` · CI (`Pip Audit`) | `#infra` `#metodo` | Juez — Cambios 315 y 363, y PR #988 | 28/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -49472,5 +49473,77 @@ Revertir el commit; no hay datos.
 
 ## Historial
 - 28/10/2026 — Ajustes tras la auditoría del PR #991: `AGENTS.md` queda como fuente única del flujo de publicación (tipos minuta/versión/funcionalidad, venv, `requirements-ci.txt`, `check_docs_client.py` en 0, deploy por `docs-auto-deploy.yml`, sin `gh-deploy` manual) y `pm:minuta`/`analisis:publicar` remiten a esa sección; el paso 6 de la receta `gh` verifica el Status leyendo el ítem por GraphQL (el Project supera los 500 ítems); el caso «Requerimiento» sigue el orden de la receta general; la iteración activa se define con `startDate`/`duration`; `dev:cierre` suma la rúbrica `codigo-limpio.md` y remite a las rúbricas en vez de copiar sus patrones.
+
+---
+
+# Cambio 391 — gates-ci: procedimiento ante una CVE nueva en «Pip Audit»
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · skill `gates-ci` · CI (`Pip Audit`) |
+| **Etiquetas** | `#infra` `#metodo` |
+| **Solicitante** | Juez — Cambios 315 y 363, y PR #988 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Skill |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cuando «Pip Audit» se puso rojo por una CVE nueva de twisted (PR #988, 27/10/2026), el procedimiento
+vivía solo en la cabecera de `security/excepciones.toml`, en los Cambios 315 y 363 y en el PR #988.
+Codificarlo en la skill `gates-ci`.
+
+## Alcance acordado
+
+**Entra:** la sección «Pip Audit rojo por una CVE nueva» en `.claude/skills/gates-ci/SKILL.md`,
+con los seis pasos: leer la falla, identificar la advisory, comprobar si el módulo se carga,
+decidir, validar y retirar.
+
+**Queda afuera:** cambios en `security/excepciones.toml`, en el workflow o en las dependencias.
+
+## Decisiones tomadas
+
+- **La skill ordena la decisión y remite a la cabecera del toml** para las reglas de las
+  excepciones; no las duplica.
+- **Módulo cargado en la superficie servida: decide el PM**, y solo con una mitigación
+  verificable (caso nginx de CVE-2026-115877).
+- **Sin excepción sin vencimiento y sin pinear un release candidate**, como en el Cambio 363 y el PR #988.
+
+## Implementación
+
+Sección nueva al final de `gates-ci/SKILL.md`. La skill no tiene índice ni tabla de contenidos
+que actualizar; el frontmatter ya cubre «cuando un check sale rojo».
+
+## Archivos
+
+- `.claude/skills/gates-ci/SKILL.md`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `scripts/requerimientos.py --check`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada: solo documentación de desarrollo.
+
+## Pendientes / a definir
+
+No hay.
+
+## Reversión
+
+Borrar la sección de la skill.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
 
 ---
