@@ -84,12 +84,16 @@ acá va el orden en que se decide.
    afectado y la versión corregida (o su ausencia).
 3. **Comprobar si el módulo se carga.** Con `.venv312`, importar `daphne.server`,
    `daphne.http_protocol`, `daphne.ws_protocol` y `channels.layers` y listar `sys.modules`
-   por el prefijo del paquete afectado. Buscar también si el repo lo importa. Es la
-   evidencia que va al motivo de la excepción.
+   por el prefijo del paquete afectado. Mirar `sys.modules` tras importar solo mide lo que
+   se carga al arrancar: revisar también el camino que activaría el módulo en ejecución (en
+   el caso de DNS, `reactor.nameResolver`). Buscar también si el repo lo importa. Es la
+   evidencia que va al motivo de la excepción. Si la excepción depende de que algo no se
+   cargue, esa condición queda cubierta por un test en un proceso aislado, como
+   `core/tests/test_twisted_dns.py`.
 4. **Decidir.**
    - Hay versión **final** corregida: se sube el pin (si el paquete no está pineado, la
      toma sola la imagen).
-   - Solo hay un release candidate y el módulo **no** se carga: excepción en
+   - No hay versión final corregida (solo un rc, o ninguna) y el módulo **no** se carga: excepción en
      `security/excepciones.toml` con `vence_el` y ticket.
    - El módulo **sí** se carga en la superficie servida (p. ej. `twisted.web` con daphne):
      decide el PM, y solo con una mitigación verificable, como la de nginx en
