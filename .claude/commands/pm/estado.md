@@ -21,5 +21,8 @@ Contexto del usuario: `$ARGUMENTS`
    resumen ejecutivo · tablero (Status × Tipo) · esfuerzo (EstimacionHoras por
    Status) · horas reales (total y por persona) · alertas rápidas (sin
    estimación, sin Prioridad/Modulo, sin actividad reciente).
+   **La estimación (EstimacionHoras), el total de esfuerzo y la alerta «sin
+   estimación» aplican solo a Tipo=Task**: Épicas y Análisis son agrupadores y no se
+   suman ni se marcan.
 4. Toda fila cita su issue `#NN`. Datos faltantes se marcan, no se rellenan.
 5. Cerrá con las 2-3 recomendaciones más útiles para el PM (qué mirar primero).

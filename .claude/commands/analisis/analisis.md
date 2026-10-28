@@ -27,7 +27,8 @@ Contexto del usuario: `$ARGUMENTS`
    duplicidad sin resolver, impacto crítico no contemplado o criterios no
    verificables. Listá lo que falta y frená.
 5. Creá el issue (label `analisis`) con `Épica padre: #NN`, agregalo al Project en
-   **Backlog** y seteá **Tipo = Analisis** (ver receta `gh` del agente). No lo
+   **Backlog** y seteá **Tipo = Analisis** y **Iteration = la activa**, con Status=Backlog como último
+   paso y verificado (ver receta `gh` de `AGENTS.md`). No lo
    muevas de Backlog.
 6. Actualizá "Análisis vinculados" en la épica con el número del análisis.
 7. Reportá el número del análisis y los sub-issues propuestos (para correr después

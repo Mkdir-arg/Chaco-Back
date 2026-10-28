@@ -96,7 +96,8 @@ Cuando los análisis de la épica estén cerrados:
 3. Editá cada análisis para listar sus sub-issues como checklist (`- [ ] #KK`) y
    actualizá "Análisis vinculados" en la épica.
 4. Agregá los issues al GitHub Project y dejalos en **Backlog**
-   (`gh project item-add`). **No muevas tareas entre estados: solo el PM mueve las
+   (`gh project item-add`; receta completa en `AGENTS.md`: Tipo, **Iteration = la activa**
+   y, como último paso, Status=Backlog verificado). **No muevas tareas entre estados: solo el PM mueve las
    tareas.**
 
 ## Cierre

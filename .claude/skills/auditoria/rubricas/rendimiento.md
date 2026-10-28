@@ -1,7 +1,7 @@
 # Rúbrica: rendimiento y base de datos
 
-Junta las búsquedas activas de rendimiento de `.claude/agents/chaco-dev-reviewer.md` (§Método 5)
-con las trampas del ORM que se midieron en el banco MySQL con volumen real y que los tests sobre
+Junta las búsquedas activas de rendimiento (heredadas del antiguo agente de revisión de
+desarrollo, ya retirado) con las trampas del ORM que se midieron en el banco MySQL con volumen real y que los tests sobre
 SQLite no reproducen. En producción (ECOM, MariaDB) la conexión tiene `read_timeout` de **10 s**:
 una consulta lenta no es una pantalla lenta, es un **500**.
 

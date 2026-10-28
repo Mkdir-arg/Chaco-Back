@@ -21,10 +21,10 @@ Contexto del usuario: `$ARGUMENTS`
 3. **Control estricto de entrada:** criterios de aprobación verificables y análisis
    `Definido` sin preguntas abiertas. Si falla, **frená**: reportá qué está difuso
    y no generes casos.
-4. **Ambiente de prueba.** Preguntale al PM en cuál se prueba (DEV
-   `relevamiento-deshum.ecomdev.ar` · QA `datanach.ecomdev.ar` · PRD
-   `datanach.chaco.gob.ar`; tabla en `QA.md`) si no lo dijo. Es la **primera línea**
-   de la sección de casos.
+4. **Ambiente de prueba.** Siempre testing, https://datanach.ecomdev.ar/ (decisión del
+   PM del 28-oct-2026; no se pregunta; ver `QA.md`). Es la **primera línea** de la
+   sección de casos. Si una ruta la bloquea el WAF, el caso va «BLOQUEADO POR
+   FIREWALL» con un dato alternativo.
 5. **Derivá los casos** (`TC-<task>-NN`, Dado/Cuando/Entonces, categorías
    feliz / alternativo / negativo / límite / permisos). Mostralos al usuario
    antes de publicar.

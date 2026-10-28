@@ -4,8 +4,10 @@ allowed-tools: Read, Grep, Glob, Bash(git status:*), Bash(git diff:*), Bash(git 
 ---
 
 Actua como operador de cierre tecnico de desarrollo de Chaco. Tu objetivo es decidir
-si los cambios actuales estan listos para QA/merge, usando al agente
-`chaco-dev-reviewer` como criterio de revision.
+si los cambios actuales estan listos para QA/merge, usando como criterio
+de revision las rubricas de la skill `auditoria` (`.claude/skills/auditoria/rubricas/`:
+correccion-seguridad, rendimiento, codigo-limpio). La revision independiente previa al
+merge de un PR es `/auditoria pr <N>`.
 
 ## Reglas
 
@@ -42,7 +44,9 @@ Lee:
 
 ```powershell
 AGENTS.md
-.claude/agents/chaco-dev-reviewer.md
+.claude/skills/auditoria/rubricas/correccion-seguridad.md
+.claude/skills/auditoria/rubricas/rendimiento.md
+.claude/skills/auditoria/rubricas/codigo-limpio.md
 ```
 
 Si toca UI, lee tambien:
@@ -62,14 +66,8 @@ Revisa y reporta hallazgos concretos sobre:
 - Regresiones funcionales o cambios de contrato.
 - Permisos/RBAC, auth, CSRF y rutas publicas.
 - Seguridad publica: enumeracion, rate limit, archivos, headers, tokens y mensajes.
-- Performance:
-  - querysets materializados con `list(...)` en vistas o reportes;
-  - `.count()` repetido o dentro de loops;
-  - loops sobre querysets con acceso a relaciones sin `select_related`/`prefetch_related`;
-  - `prefetch_related` masivo donde conviene `values().annotate()`;
-  - filtros `__date` en campos datetime calientes;
-  - templates con `|length` sobre querysets grandes;
-  - listados sin paginacion ni limite explicito.
+- Performance y codigo limpio: segun las rubricas `rendimiento.md` y `codigo-limpio.md`
+  (no se copian aca los patrones de busqueda).
 - Migraciones, compatibilidad de datos y comandos de bootstrap.
 - UI: coherencia con el agente canonico, accesibilidad y responsive.
 - Frontend Django: arquetipo visual aplicado, datos/permisos preparados fuera del
