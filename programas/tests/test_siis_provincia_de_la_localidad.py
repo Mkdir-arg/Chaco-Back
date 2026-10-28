@@ -238,3 +238,20 @@ class PadronGeograficoRevisionTests(_BaseAprobacionTest):
             call_command("seed_catalogo_siis", stdout=StringIO())
         self.assertIn({"id": 21, "nombre": "BUENOS AIRES"}, catalogo_geografico("provincias"))
         self.assertIn({"id": 1, "nombre": "LA PLATA", "id_provincia": 21}, catalogo_geografico("localidades"))
+
+
+class InvalidarPadronGeograficoSinCacheTests(SimpleTestCase):
+    """Un cache caído no puede impedir el arranque (bootstrap con ``seed_catalogo_siis``)."""
+
+    def test_cache_caido_no_propaga_y_deja_warning(self):
+        from django_redis.exceptions import ConnectionInterrupted
+
+        from programas.services.siis import invalidar_padron_geografico
+
+        with patch(
+            "programas.services.siis.cache.delete_many",
+            side_effect=ConnectionInterrupted(connection=None),
+        ):
+            with self.assertLogs("programas.services.siis", level="WARNING") as capturado:
+                invalidar_padron_geografico()
+        self.assertIn("ConnectionInterrupted", capturado.output[0])
