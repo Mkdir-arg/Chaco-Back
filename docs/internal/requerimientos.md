@@ -49380,7 +49380,17 @@ configura el PM.
 
 ## Pendientes / a definir
 
-- Los dos MINOR de la auditoría de #986 (ver Historial).
+- Los tres MINOR de la auditoría de #986 (ver Historial).
+- **Pendientes del carril de Dispositivos al cierre del 27/10/2026**, que no tenían entrada propia:
+  - MINOR de #971/#972: falta el test que rechaza un `formulario_tipo_diseno` de otro tipo (`programas/forms.py`,
+    alrededor de la línea 961).
+  - MINOR de #971/#972: P4 no muestra las respuestas que quedan en `anteriores`
+    (`formularios_respondidos` en `programas/services/respuestas_dispositivo.py`). Propuesta: un bloque «De
+    versiones anteriores».
+  - **DECISIÓN PM:** ¿se guarda la traza de quién cambió una respuesta del formulario por tipo, y cuándo? Hoy se
+    guarda la respuesta vigente, sin historial.
+  - `CapacidadConcurrenteTests` sigue fallando a veces en el caso de sectores distintos, aun después del arreglo
+    del Cambio 347. No se investigó.
 - El subtítulo y el tono del encabezado por acción en el modal genérico. Requiere que `_modal_header.html` acepte
   esos valores dinámicos.
 - Sin JS, un error de reservar o prestar vuelve a la pantalla con un aviso y sin el modal abierto, igual que las
@@ -49398,5 +49408,9 @@ normales de `ReservaPlaza`, y se liberan desde el mapa.
   la plaza anterior. Se corrigió en `8a7ed7fb`. Quedan dos MINOR para el próximo PR del carril: las tres copias de la
   resolución de capacidades + plaza en `dispositivos_legajo.py` (que pasa las 1400 líneas) y la cadena de clases por
   tono copiada tres veces en `_mapa_plazas.html`.
+- **28/10/2026 — pendientes que no estaban escritos.** Se suma un tercer MINOR de la misma auditoría: la limpieza
+  del modal al cerrarlo no reusa la de `_ajax_js.html` y deja el id del error anterior en `aria-describedby`, así
+  que el lector de pantalla sigue anunciando un error que ya no se ve. También se suman a Pendientes los restos del
+  carril que no tenían entrada propia.
 
 ---
