@@ -50,7 +50,7 @@ def _rol_admin(nombre, programa=None):
     grupo = Group.objects.create(name=nombre)
     RolMeta.objects.create(
         grupo=grupo,
-        categoria=rbac.CATEGORIA_PROGRAMA if programa else rbac.CATEGORIA_SISTEMA,
+        categoria=rbac.CATEGORIA_PROGRAMA if programa else rbac.CATEGORIA_BACKOFFICE,
         programa=programa,
         activo=True,
     )
@@ -63,7 +63,7 @@ def _rol_admin(nombre, programa=None):
 def _form_de_rol(nombre, capacidades=()):
     """Un `RolForm` de admin global ya validado, que es lo que recibe el servicio."""
     form = RolForm(
-        data={"name": nombre, "categoria": rbac.CATEGORIA_SISTEMA, "capacidades": list(capacidades)},
+        data={"name": nombre, "categoria": rbac.CATEGORIA_BACKOFFICE, "capacidades": list(capacidades)},
         operador=None,
     )
     assert form.is_valid(), form.errors

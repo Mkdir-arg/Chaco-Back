@@ -34,7 +34,7 @@ def _rol(nombre, capacidades, programa=None, categoria=None):
     grupo = Group.objects.create(name=nombre)
     RolMeta.objects.create(
         grupo=grupo,
-        categoria=categoria or (rbac.CATEGORIA_PROGRAMA if programa else rbac.CATEGORIA_SISTEMA),
+        categoria=categoria or (rbac.CATEGORIA_PROGRAMA if programa else rbac.CATEGORIA_BACKOFFICE),
         programa=programa,
         activo=True,
     )
@@ -451,7 +451,7 @@ class AsegurarAdminRestanteTests(Base):
         with zeal_ignore():
             self.client.post(
                 reverse("users:rol_editar", args=[self.root.groups.first().pk]),
-                {"name": "Admins", "categoria": rbac.CATEGORIA_SISTEMA, "capacidades": []},
+                {"name": "Admins", "categoria": rbac.CATEGORIA_BACKOFFICE, "capacidades": []},
             )
 
         self.assertIn("usuario.administrar", rbac.capacidades_de_grupo(self.root.groups.first()))

@@ -484,13 +484,13 @@ def _ambito_de(meta):
     """
     categoria = getattr(meta, "categoria", "") or _SIN_CATEGORIA
     if categoria != rbac.CATEGORIA_PROGRAMA:
-        return categoria
+        return rbac.ETIQUETAS_CATEGORIA.get(categoria, categoria)
     return getattr(getattr(meta, "programa", None), "nombre", "") or _SIN_PROGRAMA
 
 
 def _orden_de_ambitos(ambitos):
     """Categorías canónicas primero, después los programas alfabéticos, y los huérfanos al final."""
-    canonicas = [c for c in rbac.CATEGORIAS_ROL if c != rbac.CATEGORIA_PROGRAMA]
+    canonicas = [rbac.ETIQUETAS_CATEGORIA[rbac.CATEGORIA_BACKOFFICE]]
     colas = (_SIN_CATEGORIA, _SIN_PROGRAMA)
     orden = [a for a in canonicas if a in ambitos]
     orden += sorted(a for a in ambitos if a not in canonicas and a not in colas)
@@ -536,7 +536,7 @@ class RolesPorAmbitoMixin:
     def roles_por_ambito(self):
         """``[{"id", "label", "total", "roles": [...]}]``, una solapa por ámbito.
 
-        Un ámbito es una categoría de rol (Backoffice, Sistema, …) o un **programa**
+        Un ámbito es el alcance global (solapa «Global») o un **programa**
         (Becas, Dispositivos, …). Los roles de categoría ``Programa`` se listan en la
         solapa de su programa, no en una solapa "Programa" con tarjetas adentro: así
         cada solapa es un nivel único y "Becas" no aparece dos veces (ver

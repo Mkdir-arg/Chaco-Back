@@ -103,7 +103,7 @@ class SeedRbacTests(TestCase):
 
         admin = Group.objects.get(name=rbac.ROL_ADMINISTRADOR)
         self.assertTrue(admin.meta.protegido)
-        self.assertEqual(admin.meta.categoria, rbac.CATEGORIA_SISTEMA)
+        self.assertEqual(admin.meta.categoria, rbac.CATEGORIA_BACKOFFICE)
         self.assertEqual(admin.permissions.count(), total_caps)
 
         # RolMeta creada para el grupo preexistente
@@ -125,7 +125,7 @@ class AutoProteccionTests(TestCase):
 
         # Con un rol que administra y un usuario activo -> no lanza
         rol = Group.objects.create(name="Admins")
-        RolMeta.objects.create(grupo=rol, categoria="Sistema", activo=True)
+        RolMeta.objects.create(grupo=rol, categoria="Backoffice", activo=True)
         rol.permissions.add(_perm("usuario.administrar"))
         user = User.objects.create_user("admin1", password="x")
         user.groups.add(rol)
@@ -268,7 +268,7 @@ class MotorPuedeProgramaTests(TestCase):
 
     def test_rol_global_con_capacidad_de_programa_cuenta(self):  # RN-3
         rol_g = Group.objects.create(name="Admin total")
-        RolMeta.objects.create(grupo=rol_g, categoria="Sistema", activo=True, programa=None)
+        RolMeta.objects.create(grupo=rol_g, categoria="Backoffice", activo=True, programa=None)
         rol_g.permissions.add(_perm("relevamiento.gestionar"))
         u = User.objects.create_user("global", password="x")
         u.groups.add(rol_g)
@@ -280,7 +280,7 @@ class MotorPuedeProgramaTests(TestCase):
         # Regresión: un rol global (programa=null) con la cap, al que el usuario NO
         # pertenece, no debe otorgársela en un programa donde no la tiene.
         glob = Group.objects.create(name="Admin total ajeno")
-        RolMeta.objects.create(grupo=glob, categoria="Sistema", activo=True, programa=None)
+        RolMeta.objects.create(grupo=glob, categoria="Backoffice", activo=True, programa=None)
         glob.permissions.add(_perm("relevamiento.gestionar"))  # el user NO está en glob
         u = self._u()
         self.assertTrue(rbac.puede(u, "relevamiento.gestionar", programa=self.becas))
