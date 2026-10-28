@@ -56,7 +56,7 @@ class RolListView(_RolesPermMixin, TemplateView):
         context["page_obj"] = page_obj
         context["paginator"] = paginator
         context["is_paginated"] = page_obj.has_other_pages()
-        context["categorias_rol"] = list(rbac.CATEGORIAS_ROL) + [rbac.CATEGORIA_PROGRAMA]
+        context["categorias_rol"] = rbac.CATEGORIAS_ROL_CHOICES
         context["programas_admin"] = programas_administrables_roles(user)
 
         # La pantalla decide «los filtros no traen nada» con `request.GET|hay_filtros`

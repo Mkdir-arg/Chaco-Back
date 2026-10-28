@@ -27,7 +27,7 @@ def _perm(codigo):
 
 def _usuario_con(*codigos):
     g, _ = Group.objects.get_or_create(name="RolAPI")
-    RolMeta.objects.get_or_create(grupo=g, defaults={"categoria": "Sistema", "activo": True})
+    RolMeta.objects.get_or_create(grupo=g, defaults={"categoria": "Backoffice", "activo": True})
     for c in codigos:
         g.permissions.add(_perm(c))
     u = User.objects.create_user(f"u-{'-'.join(codigos)}", password="x")

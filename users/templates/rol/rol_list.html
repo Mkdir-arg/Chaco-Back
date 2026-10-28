@@ -18,10 +18,10 @@
 
   <form method="get" data-dynamic-list-filters>
     <input type="search" name="q" value="{{ filtro_q }}" class="nodo-field max-w-xs" aria-label="Buscar rol">
-    <select name="categoria" class="nodo-field max-w-xs" aria-label="Categoría">
-      <option value="">Todas las categorías</option>
-      {% for cat in categorias_rol %}
-      <option value="{{ cat }}" {% if filtro_categoria == cat %}selected{% endif %}>{{ cat }}</option>
+    <select name="categoria" class="nodo-field max-w-xs" aria-label="Alcance">
+      <option value="">Todos los alcances</option>
+      {% for valor, etiqueta in categorias_rol %}
+      <option value="{{ valor }}" {% if filtro_categoria == valor %}selected{% endif %}>{{ etiqueta }}</option>
       {% endfor %}
     </select>
     <select name="programa" class="nodo-field max-w-xs" aria-label="Programa">
@@ -45,7 +45,7 @@
           <tr class="nodo-thead-row">
             <th class="nodo-th">Rol</th>
             <th class="nodo-th">Descripción</th>
-            <th class="nodo-th">Categoría</th>
+            <th class="nodo-th">Alcance</th>
             <th class="nodo-th">Programa</th>
             <th class="nodo-th">Capacidades</th>
             <th class="nodo-th">Estado</th>
@@ -70,7 +70,7 @@
             <td class="nodo-td text-body-subtle">{{ item.meta.descripcion|default:"—"|truncatechars:60 }}</td>
             <td class="nodo-td">
               {% if item.meta %}
-              <span class="badge badge-gray">{{ item.meta.categoria }}</span>
+              <span class="badge badge-gray">{{ item.meta.get_categoria_display }}</span>
               {% else %}
               <span class="text-body-subtle">—</span>
               {% endif %}

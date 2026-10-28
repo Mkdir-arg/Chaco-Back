@@ -14,7 +14,7 @@ def _capacidades_desde_prefetch(group):
 
 
 _CAPACIDAD_LABELS = {codigo: etiqueta for modulo in rbac.CATALOGO for codigo, etiqueta in modulo["capacidades"]}
-_CATEGORIAS_CON_PROGRAMA = {rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_BECAS}
+_CATEGORIAS_CON_PROGRAMA = {rbac.CATEGORIA_PROGRAMA}
 
 
 def _codenames(capacidades):
@@ -141,7 +141,7 @@ def roles_visibles_para(user):
         .order_by("name")
     )
 
-    cats = [c for c in rbac.CATEGORIAS_ROL if c != rbac.CATEGORIA_PROGRAMA]
+    cats = [c for c in rbac.CATEGORIAS_ROL_TODAS if c != rbac.CATEGORIA_PROGRAMA]
     por_categoria = {cat: [] for cat in cats}
     sin_categoria = []
     por_programa = {}  # programa_pk -> (Programa, [items])
@@ -201,7 +201,7 @@ def roles_filtrados_para(user, get_params, lista=None):
             if q in it["group"].name.lower() or (it["meta"] and q in (it["meta"].descripcion or "").lower())
         ]
 
-    categorias_validas = set(rbac.CATEGORIAS_ROL) | {rbac.CATEGORIA_PROGRAMA}
+    categorias_validas = set(rbac.CATEGORIAS_ROL)
     categoria = get_params.get("categoria") or ""
     if categoria in categorias_validas:
         items = [it for it in items if (it["meta"].categoria if it["meta"] else None) == categoria]
@@ -230,7 +230,7 @@ def roles_por_categoria():
     """Roles agrupados por categoría, con meta, conteo de usuarios y capacidades.
 
     Devuelve ``[(categoria, [item, ...]), ...]`` en el orden de
-    :data:`core.rbac.CATEGORIAS_ROL`, omitiendo las categorías vacías.
+    :data:`core.rbac.CATEGORIAS_ROL_TODAS`, omitiendo las categorías vacías.
     """
     groups = (
         Group.objects.select_related("meta")
@@ -239,7 +239,7 @@ def roles_por_categoria():
         .order_by("name")
     )
 
-    por_categoria = {cat: [] for cat in rbac.CATEGORIAS_ROL}
+    por_categoria = {cat: [] for cat in rbac.CATEGORIAS_ROL_TODAS}
     sin_categoria = []
     for group in groups:
         item = _item_para_group(group)
@@ -247,7 +247,9 @@ def roles_por_categoria():
         categoria = meta.categoria if meta else None
         (por_categoria.get(categoria, sin_categoria)).append(item)
 
-    resultado = [(categoria, por_categoria[categoria]) for categoria in rbac.CATEGORIAS_ROL if por_categoria[categoria]]
+    resultado = [
+        (categoria, por_categoria[categoria]) for categoria in rbac.CATEGORIAS_ROL_TODAS if por_categoria[categoria]
+    ]
     if sin_categoria:
         resultado.append(("Sin categoría", sin_categoria))
     return resultado

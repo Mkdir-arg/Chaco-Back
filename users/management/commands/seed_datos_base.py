@@ -87,14 +87,14 @@ _ROLES_MENU = [
     (
         "menu.configuracion",
         "Configuración",
-        rbac.CATEGORIA_SISTEMA,
+        rbac.CATEGORIA_BACKOFFICE,
         "Acceso a la sección Configuración.",
         ["config.ver", "config.administrar"],
     ),
     (
         "menu.administracion",
         "Administración",
-        rbac.CATEGORIA_SISTEMA,
+        rbac.CATEGORIA_BACKOFFICE,
         "Acceso a la sección Administración (usuarios y roles).",
         ["usuario.administrar", "rol.administrar"],
     ),
