@@ -69,3 +69,34 @@ suite completa, migraciones sobre MariaDB, la imagen construida con su manifest 
 estáticos y un smoke HTTP—. Es lo que `/pushGitLabecomTEST` corre antes de espejar y lo
 que `/pushGitLabecomPRD` exige en verde. Y `publish-main.yml` no publica un release de un
 commit que no venga de un PR con el CI en verde.
+
+## «Pip Audit» rojo por una CVE nueva
+
+Una advisory publicada hoy pone rojo `Pip Audit` en **todos** los PR abiertos, también en los
+que no tocaron una dependencia: el problema no es del PR, y se resuelve en un PR propio que
+saca los demás del rojo. Las reglas de las excepciones (cuatro claves, `vence_el` como fecha
+TOML, retiro) están en la cabecera de [`security/excepciones.toml`](../../../security/excepciones.toml);
+acá va el orden en que se decide.
+
+1. **Leer la falla.** `gh run view <id> --log-failed --repo Mkdir-arg/Chaco-Back` filtrado por
+   `CVE-`, `GHSA-` o `PYSEC-`, nunca el log entero.
+2. **Identificar la advisory.** `gh api "/advisories?cve_id=<CVE>"`: da el GHSA, el módulo
+   afectado y la versión corregida (o su ausencia).
+3. **Comprobar si el módulo se carga.** Con `.venv312`, importar `daphne.server`,
+   `daphne.http_protocol`, `daphne.ws_protocol` y `channels.layers` y listar `sys.modules`
+   por el prefijo del paquete afectado. Buscar también si el repo lo importa. Es la
+   evidencia que va al motivo de la excepción.
+4. **Decidir.**
+   - Hay versión **final** corregida: se sube el pin (si el paquete no está pineado, la
+     toma sola la imagen).
+   - Solo hay un release candidate y el módulo **no** se carga: excepción en
+     `security/excepciones.toml` con `vence_el` y ticket.
+   - El módulo **sí** se carga en la superficie servida (p. ej. `twisted.web` con daphne):
+     decide el PM, y solo con una mitigación verificable, como la de nginx en
+     CVE-2026-115877.
+   - No existe la excepción sin vencimiento, y nunca se pinea un release candidate en la imagen.
+5. **Validar.** `scripts/check_excepciones_seguridad.py` y después `pip-audit -r <archivo>`
+   con las banderas de `--ignore-args`, para los tres `requirements*.txt`, tal como lo hace
+   `pr-security.yml`.
+6. **Retirar.** Cuando sale la versión final: `pip-audit` sin ningún `--ignore-vuln` y se
+   borra toda entrada cuyo id ya no aparece, no solo las del mismo ticket.
