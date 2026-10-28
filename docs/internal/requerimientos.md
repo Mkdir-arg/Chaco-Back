@@ -49382,11 +49382,9 @@ configura el PM.
 
 - Los tres MINOR de la auditoría de #986 (ver Historial).
 - **Pendientes del carril de Dispositivos al cierre del 27/10/2026**, que no tenían entrada propia:
-  - MINOR de #971/#972: falta el test que rechaza un `formulario_tipo_diseno` de otro tipo (`programas/forms.py`,
-    alrededor de la línea 961).
-  - MINOR de #971/#972: P4 no muestra las respuestas que quedan en `anteriores`
-    (`formularios_respondidos` en `programas/services/respuestas_dispositivo.py`). Propuesta: un bloque «De
-    versiones anteriores».
+  - **DECISIÓN PM:** P4 no muestra las respuestas que quedan en `anteriores` (`formularios_respondidos` en
+    `programas/services/respuestas_dispositivo.py`). Ya está en los Pendientes del Cambio 387: es un cambio de
+    comportamiento y necesita pedido. Propuesta por defecto: un bloque «De versiones anteriores».
   - **DECISIÓN PM:** ¿se guarda la traza de quién cambió una respuesta del formulario por tipo, y cuándo? Hoy se
     guarda la respuesta vigente, sin historial.
   - `CapacidadConcurrenteTests` sigue fallando a veces en el caso de sectores distintos, aun después del arreglo
@@ -49411,6 +49409,8 @@ normales de `ReservaPlaza`, y se liberan desde el mapa.
 - **28/10/2026 — pendientes que no estaban escritos.** Se suma un tercer MINOR de la misma auditoría: la limpieza
   del modal al cerrarlo no reusa la de `_ajax_js.html` y deja el id del error anterior en `aria-describedby`, así
   que el lector de pantalla sigue anunciando un error que ya no se ve. También se suman a Pendientes los restos del
-  carril que no tenían entrada propia.
+  carril que no tenían entrada propia. El test del `formulario_tipo_diseno` ajeno, que figuraba como pendiente en
+  las notas del carril, ya existe (`test_la_marca_de_un_diseno_ajeno_no_guarda_y_vuelve_con_la_seccion_del_tipo_elegido`,
+  entró en `69542b91`, Cambio 387).
 
 ---
