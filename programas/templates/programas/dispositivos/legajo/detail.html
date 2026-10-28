@@ -691,16 +691,17 @@
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-relevamiento-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Crear relevamiento" titulo_id="modal-relevamiento-titulo" subtitulo="Se le crea la tarea al agente territorial; la institución relevada no la puede completar." icono="fa-clipboard-list" cerrar="modalRelevamiento=false" %}
-      <form method="post" action="{{ url_relevamiento }}" data-ajax class="flex flex-col flex-1 min-h-0">
+      <form id="form-crear-relevamiento" method="post" action="{{ url_relevamiento }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          {% include "programas/dispositivos/relevamientos/_campos_asignar.html" with form=form_relevamiento agente_externo=agente_externo only %}
+          {% include "programas/dispositivos/relevamientos/_campos_asignar.html" with form=form_relevamiento agente_externo=agente_externo puede_crear_agente=puede_crear_agente selector_agente="#form-crear-relevamiento select[name=asignado_a]" only %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalRelevamiento=false" accion_texto="Asignar relevamiento" %}
       </form>
     </div>
   </div>
   {% endif %}
+  {% if puede_crear_agente %}{% include "user/_alta_rapida_modal.html" %}{% endif %}
 </div>
 {% endblock %}
 
