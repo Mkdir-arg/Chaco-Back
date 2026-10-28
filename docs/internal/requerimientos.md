@@ -518,6 +518,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 392 | Panel de capacidades del ABM de Roles: solapas por ámbito (General · Administración · Becas · Dispositivos) | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
 | 393 | La «Categoría» del rol pasa a ser «Alcance»: Global o De un programa | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0041`, de datos) |
 | 394 | Se retiran las capacidades `institucion.ver` e `institucion.administrar` (cierra OPS-14) y se limpian MINORs de los Cambios 392 y 393 | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0042`, de datos, con reversa) |
+| 395 | Dispositivos: «Crear agente» de relevamiento edilicio desde el modal de asignar, con la capacidad `inspeccion.agente.crear` y el rol sembrado «Dispositivos — Agente de relevamiento» | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0043`, de datos, con reversa) |
 
 **Notas del índice**
 
@@ -49833,6 +49834,129 @@ WHERE p.codename IN ('institucion_ver', 'institucion_administrar');
 2. Revertir el PR (el catálogo vuelve a ofrecerlas).
 
 No se pierde ningún dato: la reversa restituye exactamente lo que la ida quitó.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 395 — «Crear agente» desde el modal de asignar un relevamiento edilicio (Dispositivos)
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) |
+| **Etiquetas** | `#rbac` `#usuarios` `#ui` |
+| **Solicitante** | PM — decisión del 28/10/2026 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (modales de asignar, reasignar y crear relevamiento; endpoint de alta rápida; Roles) |
+| **Migración** | `users.0043_administrador_inspeccion_agente_crear` (datos + `AlterModelOptions`, con reversa real) y `users.0044_sembrar_rol_agente_dispositivos` (datos, reversa `REVERSA-NOOP`) |
+
+## Pedido original
+
+Un rol intermedio de Dispositivos (no administrador del programa) tiene que poder dar de alta **agentes de relevamiento
+edilicio** desde el modal donde asigna un relevamiento, como el botón «Crear territorial» de Becas, que solo se ve si el rol
+tiene el tilde de crear territoriales.
+
+## Alcance acordado
+
+**Entra:** capacidad `inspeccion.agente.crear`; rol sembrado «Dispositivos — Agente de relevamiento»; botón «Crear agente»
+en las tres pantallas; endpoint (tipo `agente` del alta rápida); migración que se la da al Administrador.
+
+**Queda afuera:** buscar o asignar usuarios que ya existen (a diferencia de Becas); abrir el ABM de Usuarios; cambiar el
+alta de coordinador, referente o territorial.
+
+## Decisiones tomadas
+
+- **Capacidad `inspeccion.agente.crear`** — «Dar de alta agentes de relevamiento edilicio» — en el módulo `inspecciones`
+  (alcance programa, solo DISPOSITIVOS). No está en `CAPS_ENTRADA_ABM_USUARIOS`. Es **delegable**: no es administración, así
+  que un admin de programa de Dispositivos puede tildarla (`capacidades_delegables`, `puede_asignar_capacidades`).
+- **Se evalúa acotada a Dispositivos** (`puede_en_programa_dispositivos`): la misma capacidad en un rol de otro programa no
+  habilita ni el botón ni el endpoint. El servidor vuelve a chequear; el template solo decide si dibuja.
+- **Rol sembrado por clave** `dispositivos.agente_relevamiento`, **por migración** (`users.0044`: en ECOM el arranque no corre y en una
+  base nueva `seed_datos_base` corre antes que `crear_programas`) y además por `seed_dispositivos` (llamado por `seed_datos_base`,
+  que queda como red): categoría Programa + DISPOSITIVOS, capacidad `inspeccion.relevar`. Respeta el Cambio 104: nombre,
+  descripción y activo son del ABM; a un rol existente se le asegura la capacidad base y no se le quita lo tildado. Sin el
+  programa DISPOSITIVOS no hace nada. En el alta el rol se busca **por clave** (`RolMeta.clave`), no por nombre como hace
+  Becas (bug latente que no se copió).
+- **Cómo se acota el formulario**: `UserCreationForm` recibe `roles_acotados` (queryset que reemplaza al del operador). Se
+  prefirió a una rama nueva en `_roles_asignables_queryset` porque esa función decide por *quién es* el operador y se usa en
+  el ABM, el alcance y la edición: tocarla cambiaba reglas ajenas. Con el parámetro, el único rol asignable es el que la vista
+  resolvió por clave, y el resto del formulario (DNI, correo, clave) no cambia.
+- **Defensa en capas del endpoint**: lista blanca de campos (`username`, `email`, `first_name`, `last_name`, `dni`,
+  `telefono`; roles, clave, jerarquía y segmentos del POST se descartan); `groups` lo fija la vista; el formulario solo
+  acepta ese rol; `alcance_group_ids={rol}`. El rol se descarta con 409 si está inactivo, dejó de ser de Dispositivos o
+  alguien le tildó una capacidad no delegable (administración) o `programa.configurar`: en Dispositivos esa es delegable a propósito
+  y da alcance total de configurador (`puede_configurar_dispositivos`, `dispositivos_en_alcance`), así que `puede_asignar_capacidades`
+  no la frena. El resto de las capacidades de Dispositivos están acotadas por asignación de dispositivo.
+- **Código**: `_alta_agente` agrupa permiso, límite, rol, lista blanca y alcance; la cola común (formulario, colisión de unicidad
+  → 409, credenciales, JSON) es `_crear_y_responder`, compartida con el alta de Becas, y el mensaje de DNI repetido sale de un dict
+  por tipo. El botón es el include `_boton_crear_agente.html`.
+- **Correo obligatorio** (decisión del 14-oct) y credenciales provisorias por correo como el territorial
+  (`entregar_credenciales_provisorias`). **DNI repetido**: «Ese DNI ya es de un usuario del sistema: pedile al administrador
+  del programa que le sume el rol de agente.» Rol ausente → 409 «El rol requerido no está configurado.»
+- **Límite** de 20 altas por minuto por operador (cubeta `usuario_alta_agente`, sin IP).
+- **UI**: se reusa el modal de alta rápida de Becas (sin piezas nuevas): para `agente` abre directo en el formulario, el
+  correo lleva asterisco y se ocultan institución, observación y clave. El `<select>` de agente tiene `id` repetido entre
+  P21 (asignar y reasignar) y P4, así que cada botón apunta con `data-user-select` a un selector único por modal
+  (`#form-asignar-relevamiento`, `#form-reasignar-relevamiento`, `#form-crear-relevamiento`).
+- **Migraciones**: `users.0044` siembra el rol (Group + RolMeta + `inspeccion.relevar`) buscando por clave, sin tocar uno existente y sin
+  hacer nada si falta el programa; su reversa no borra (no se sabe si lo creó ella o el seed, y borrarlo deshace altas). `users.0043`: el Administrador (protegido; en ECOM el `seed_rbac` no corre) recibe la capacidad, patrón de
+  `users.0040`. Idempotente; la reversa la saca solo del Administrador y no toca a los demás roles.
+
+## Implementación
+
+`core/rbac.py` (capacidad); `programas/services/inspecciones.py` (constantes); `users/views/quick_create.py` (tipo `agente`);
+`users/forms/__init__.py` (`roles_acotados`); `users.0044` + `seed_dispositivos` + `seed_datos_base`; `_alta_rapida_modal.html`; los tres
+templates de Dispositivos y sus dos vistas (`puede_crear_agente`); `users.0043`.
+
+## Archivos
+
+- `core/rbac.py`, `programas/services/inspecciones.py`
+- `users/views/quick_create.py`, `users/forms/__init__.py`, `users/migrations/0043_administrador_inspeccion_agente_crear.py`, `users/migrations/0044_sembrar_rol_agente_dispositivos.py`
+- `programas/management/commands/seed_dispositivos.py`, `users/management/commands/seed_datos_base.py`
+- `users/templates/user/_alta_rapida_modal.html`, `programas/templates/programas/dispositivos/relevamientos/_campos_asignar.html`,
+  `.../relevamientos/_boton_crear_agente.html`, `.../relevamientos/list.html`, `.../legajo/detail.html`, `programas/views/dispositivos_relevamientos.py`,
+  `programas/views/dispositivos_legajo.py`
+- Tests: `programas/tests/test_dispositivos_crear_agente.py`
+- `.claude/design/arquetipos/modal.md`, `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Migraciones `users.0043` (datos y `AlterModelOptions`, lista entera de `Capacidad`) y `users.0044` (datos), sin DDL. `makemigrations --check
+--dry-run` (SYNCDB=False) sin cambios; `scripts/check_migraciones.py` 0 problemas.
+
+## Validación
+
+- `programas.tests.test_dispositivos_crear_agente` (30 casos): botón en las tres pantallas con y sin capacidad (también con
+  la capacidad en otro programa), 403, alta con solo el rol de agente, aparece en `agentes_asignables`, correo, DNI, POST
+  manipulado, rol ausente/inactivo/inseguro (incluido `programa.configurar`), rol por clave, límite, seed idempotente con renombre,
+  migraciones 0043 (ida y vuelta) y 0044 (ida, idempotencia, sin programa, rol renombrado).
+- Mutación: quitar el chequeo de capacidad del endpoint pone rojos los dos tests de 403; quitar la lista blanca y la
+  restricción de rol (vista y formulario) pone rojos siete tests; sacar el rechazo de `programa.configurar` pone rojo su test.
+- `manage.py check`, tests de `users` y `core`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent --changed` (OK), `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+1. El rol lo crea la migración `users.0044` al migrar (el seed del arranque queda como red). Verificación post-deploy:
+   `SELECT g.name FROM auth_group g JOIN users_rolmeta m ON m.grupo_id = g.id WHERE m.clave = 'dispositivos.agente_relevamiento';`
+2. **Para habilitar el botón, el PM tilda «Dar de alta agentes de relevamiento edilicio» en el rol intermedio del programa
+   Dispositivos** (ABM de Roles → solapa Dispositivos).
+
+## Pendientes / a definir
+
+- Un agente creado por este camino no se puede buscar ni sumar a otro rol desde acá: lo gestiona el administrador del
+  programa.
+
+## Reversión
+
+1. `manage.py migrate users 0042`: saca la capacidad del Administrador (los roles que la tienen tildada la conservan hasta
+   que se destilde en el ABM).
+2. Revertir el PR. El rol sembrado y los usuarios ya creados quedan (son datos).
 
 ## Historial
 

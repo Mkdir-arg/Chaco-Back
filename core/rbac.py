@@ -92,6 +92,10 @@ CATALOGO = [
         "capacidades": [
             ("inspeccion.asignar", "Crear, asignar, reasignar y cancelar relevamientos edilicios"),
             ("inspeccion.relevar", "Cargar el resultado de los relevamientos edilicios asignados"),
+            # Alta de agentes desde el modal de asignar (28-oct-2026). Operativa: la puede delegar
+            # el admin del programa y NO abre el ABM de Usuarios (no está en
+            # `CAPS_ENTRADA_ABM_USUARIOS`). Solo permite crear un usuario con el rol sembrado de agente.
+            ("inspeccion.agente.crear", "Dar de alta agentes de relevamiento edilicio"),
         ],
     },
     {

@@ -646,11 +646,21 @@ class UserCreationForm(RolesPorAmbitoMixin, forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, operador=None, **kwargs):
+    def __init__(self, *args, operador=None, roles_acotados=None, **kwargs):
+        """``roles_acotados``: queryset de roles que **reemplaza** al del operador.
+
+        Lo pasa el alta de agentes de Dispositivos (``inspeccion.agente.crear``): quien la tiene
+        no administra los usuarios de ningún programa, así que la regla general le daría un combo
+        vacío, y ensancharla le abriría roles de más. Con esto el único rol asignable es el que
+        la vista resolvió por clave; el resto de las reglas del formulario no cambia.
+        """
         args, kwargs = _normalize_groups_args(args, kwargs)
         super().__init__(*args, **kwargs)
         self.operador = operador
-        self.fields["groups"].queryset = _roles_asignables_queryset(operador)
+        if roles_acotados is not None:
+            self.fields["groups"].queryset = roles_acotados
+        else:
+            self.fields["groups"].queryset = _roles_asignables_queryset(operador)
         _agregar_campos_perfil_usuario(self)
         _agregar_campo_segmento_territorial(self, operador)
         _agregar_campos_jerarquia_becas(self)
