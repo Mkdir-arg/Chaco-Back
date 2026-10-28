@@ -517,6 +517,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 391 | gates-ci: procedimiento ante una CVE nueva en «Pip Audit» | Transversal · skill `gates-ci` · CI (`Pip Audit`) | `#infra` `#metodo` | Juez — Cambios 315 y 363, y PR #988 | 28/10/2026 | 🟢 **Hecho** | No requiere |
 | 392 | Panel de capacidades del ABM de Roles: solapas por ámbito (General · Administración · Becas · Dispositivos) | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
 | 393 | La «Categoría» del rol pasa a ser «Alcance»: Global o De un programa | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0041`, de datos) |
+| 394 | Se retiran las capacidades `institucion.ver` e `institucion.administrar` (cierra OPS-14) y se limpian MINORs de los Cambios 392 y 393 | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0042`, de datos, con reversa) |
 
 **Notas del índice**
 
@@ -49671,7 +49672,10 @@ cambio en `puede*`, `programas_administrables*`, `puede_gestionar_rol` o `roles_
 - **Migración `users.0041`** (idempotente: filtra por el estado de origen). `Sistema` e `Institución` pasan a
   `Backoffice`; `Becas` con programa pasa a `Programa` (mismo programa); `Becas` sin programa pasa a `Backoffice`. Es lo
   que ya hacía el código: `_CATEGORIAS_CON_PROGRAMA` trataba a `Becas` como de programa solo con `programa_id`. La
-  autorización no cambia. Reversa `noop` declarada: se pierde la etiqueta original, que es cosmética.
+  autorización casi no cambia: la única diferencia es que la guarda RN-8 de «programa sin administrador»
+  (`programas_que_administra`, `RolesAdminService._programa_que_administra`) ahora también cuenta los roles legacy Becas
+  con programa, como ya los contaba `usuarios_que_administran_programa`. Reversa `noop` declarada: se pierde la
+  etiqueta original, que es cosmética.
 - `AlterField` de `choices` y `verbose_name`: `sqlmigrate` dice `(no-op)`; sin columna nueva ni `NOT NULL`.
 - El listado de roles sigue agrupando a `Ciudadanos` (Portal) en su propio grupo: `CATEGORIAS_ROL_TODAS` lo incluye para
   agrupar, `CATEGORIAS_ROL` (lo que se ofrece) no.
@@ -49716,7 +49720,8 @@ changes detected». `scripts/check_migraciones.py` sobre la 0041: 0 problemas.
 
 ## Puesta en marcha en el servidor
 
-Antes del deploy, en testing y PRD, contar qué toca la migración:
+Antes del deploy, en testing y PRD, contar qué toca la migración y, de los roles `Becas` con programa, cuáles tienen
+alguna capacidad de `CAPS_ADMIN_PROGRAMA` (esos son los que la guarda RN-8 empieza a contar):
 
 ```sql
 SELECT categoria, programa_id IS NULL, COUNT(*) FROM users_rolmeta GROUP BY 1, 2;
@@ -49726,13 +49731,108 @@ La migración corre sola con el arranque. Las filas `Sistema`, `Institución` y 
 
 ## Pendientes / a definir
 
-- Retirar el módulo `instituciones` del catálogo (pendiente del Cambio 392).
+- ~~Retirar el módulo `instituciones` del catálogo~~ (hecho en el Cambio 394).
 - Renombrar la columna `categoria` a `alcance` (no se hizo para no reescribir el esquema; sería otro expand/contract).
 
 ## Reversión
 
 Revertir el PR. La migración no deshace los valores: las etiquetas Sistema/Institución/Becas se pierden, pero eran
-cosméticas y la autorización no cambia.
+cosméticas; lo único que cambia en autorización es la guarda RN-8 descripta arriba.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 394 — Se retiran `institucion.ver` e `institucion.administrar` y se limpian MINORs de los Cambios 392 y 393
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · Roles (RBAC) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | PM — decisión del 28/10/2026 (cierra el pendiente OPS-14 / Cambio 160) |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (ABM de Roles) |
+| **Migración** | `users.0042_retirar_capacidades_institucion` (datos + `AlterModelOptions`, con reversa real) |
+
+## Pedido original
+
+Nadie evaluaba `institucion.ver` ni `institucion.administrar` (figuraban en `CAPACIDADES_SIN_USO`, motivo OPS-14), pero el
+ABM de Roles las ofrecía en la solapa Administración. El PM decidió retirarlas. Además, cuatro MINORs de las auditorías de
+los Cambios 392 y 393.
+
+## Alcance acordado
+
+**Entra:** sacar el módulo `instituciones` de `CATALOGO` y las dos entradas de `CAPACIDADES_SIN_USO`; migración que borra
+las dos `Permission`; limpieza del condicional inalcanzable de `rol_form.html`; docstrings de `_ambito_de` /
+`_orden_de_ambitos`; comentarios de `users.0041` y del Cambio 393.
+
+**Queda afuera:** el modelo `legajos.Institucion` y todo el dominio; no se borran grupos de la base.
+
+## Decisiones tomadas
+
+- **`users.0042` con reversa real**: la ida registra cada par rol/capacidad en `users.CapacidadRevocada`
+  (`migracion="users.0042"`) antes de borrar las `Permission`; la reversa las recrea y las vuelve a tildar en los mismos
+  roles. A diferencia de `users.0033` (`ciudadano.eliminar`), cuya reversa no reasigna. Idempotente, con literales y
+  `apps.get_model`.
+- Incluye el `AlterModelOptions` con la lista entera de capacidades (gotcha conocido de `Capacidad.Meta.permissions`).
+- `seed_rbac._CATEGORIA_POR_GRUPO` ya solo mapea el grupo del portal desde el Cambio 393: no había nada que simplificar.
+- `rbac.arbol_por_tabs` no devuelve solapas vacías (Cambio 392), así que el `{% else %}` «Sin capacidades definidas…» de
+  `rol_form.html` era inalcanzable y se quitó.
+- El efecto del Cambio 393 sobre la guarda RN-8 queda corregido en su entrada y en `users.0041` (solo comentarios).
+
+## Implementación
+
+`core/rbac.py` sin el módulo `instituciones`; `users/migrations/0042_retirar_capacidades_institucion.py`;
+`rol_form.html` sin el condicional; docstrings de `users/forms/__init__.py`; tests nuevos en
+`users/tests/test_roles_alcance.py`: `GuardaRN8RolesBecasLegacyTests` (rol `Becas` con programa y
+`programa.usuario.administrar`, se aplica `reubicar_categorias`, `programas_que_administra(u) == {programa.pk}`) y
+`MigracionRetirarCapacidadesInstitucionTests` (ida, idempotencia y vuelta de `users.0042`).
+
+## Archivos
+
+- `core/rbac.py`
+- `users/migrations/0042_retirar_capacidades_institucion.py`, `users/migrations/0041_rolmeta_alcance_global_programa.py` (comentarios)
+- `users/forms/__init__.py`, `users/templates/rol/rol_form.html`
+- Tests: `users/tests/test_rbac_contrato.py`, `users/tests/test_roles_alcance.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Migración `users.0042` de datos sin DDL: borra dos filas de `auth_permission` (y por cascada de `auth_group_permissions`).
+`makemigrations --check --dry-run` (SYNCDB=False) sin cambios; `scripts/check_migraciones.py` 0 problemas.
+
+## Validación
+
+- `manage.py check`, tests de `users` y `core`, ruff, `design_audit --ratchet`, `compile_templates --bloques`,
+  `check_design_agent --changed`, `requerimientos.py --check`.
+- Mutación: dejar una entrada huérfana en `CAPACIDADES_SIN_USO` pone rojo `test_rbac_contrato`.
+
+## Puesta en marcha en el servidor
+
+Antes del deploy, ver a qué roles se les quita (queda registrado en `users_capacidadrevocada`):
+
+```sql
+SELECT g.name, p.codename FROM auth_group_permissions gp
+JOIN auth_group g ON g.id = gp.group_id JOIN auth_permission p ON p.id = gp.permission_id
+WHERE p.codename IN ('institucion_ver', 'institucion_administrar');
+```
+
+## Pendientes / a definir
+
+- Renombrar la columna `categoria` a `alcance` (sigue pendiente del Cambio 393).
+
+## Reversión
+
+1. `manage.py migrate users 0041`: recrea las dos `Permission` y las tilda otra vez en los roles registrados en
+   `users_capacidadrevocada`.
+2. Revertir el PR (el catálogo vuelve a ofrecerlas).
+
+No se pierde ningún dato: la reversa restituye exactamente lo que la ida quitó.
 
 ## Historial
 

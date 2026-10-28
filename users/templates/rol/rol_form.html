@@ -101,7 +101,6 @@
             {# Tab panels #}
             {% for tab in form.arbol_por_tabs %}
             <div id="panel-{{ tab.id }}" class="cap-tab-panel hidden" role="tabpanel" aria-labelledby="cap-tab-{{ tab.id }}">
-                {% if tab.modulos %}
                 <div class="flex justify-end mb-3">
                     <button type="button" class="tab-select-all-btn text-sm font-medium text-blue-600 hover:text-blue-700" data-tab="{{ tab.id }}">Seleccionar todo</button>
                 </div>
@@ -133,11 +132,6 @@
                     </div>
                     {% endfor %}
                 </div>
-                {% else %}
-                <div class="py-8 text-center text-sm text-gray-400">
-                    <i class="fas fa-circle-info mr-1"></i> Sin capacidades definidas para esta categoría todavía.
-                </div>
-                {% endif %}
             </div>
             {% endfor %}
         </div>
