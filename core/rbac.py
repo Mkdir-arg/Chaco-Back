@@ -335,15 +335,6 @@ CATALOGO = [
         ],
     },
     {
-        "modulo": "instituciones",
-        "label": "Instituciones",
-        "tab": "administracion",
-        "capacidades": [
-            ("institucion.ver", "Ver instituciones"),
-            ("institucion.administrar", "Administrar instituciones"),
-        ],
-    },
-    {
         "modulo": "sistema",
         "label": "Sistema",
         "tab": "administracion",

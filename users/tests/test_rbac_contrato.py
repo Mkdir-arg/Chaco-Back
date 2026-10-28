@@ -93,8 +93,6 @@ CAPACIDADES_SIN_USO = {
     # el egreso contra `Estadia`. Es el ratchet funcionando —«cuando la pantalla llega,
     # la entrada sale de la lista»— y por eso estuvieron declaradas mientras tanto.
     "relevamiento.ver": "Becas usa `becas.relevamiento.ver`; el módulo genérico quedó sin consumidores (OPS-14)",
-    "institucion.ver": "no existe el módulo de Instituciones: no hay vista ni URL que la evalúe (OPS-14)",
-    "institucion.administrar": "ídem `institucion.ver` (OPS-14)",
 }
 
 # Capacidades que **sí** se evalúan, pero nunca por su nombre: solo cuentan dentro

@@ -48,7 +48,10 @@ class Migration(migrations.Migration):
         migrations.RunPython(
             reubicar_categorias,
             # REVERSA-NOOP: no se puede saber el valor original; se pierde la etiqueta
-            # Sistema/Institución/Becas de cada rol, que es cosmética: la autorización no cambia.
+            # Sistema/Institución/Becas de cada rol, que es cosmética. La única diferencia de autorización es la
+            # guarda RN-8 de «programa sin administrador» (`programas_que_administra`,
+            # `RolesAdminService._programa_que_administra`): ahora también cuenta los roles legacy
+            # Becas con programa, como ya los contaba `usuarios_que_administran_programa`.
             migrations.RunPython.noop,
         ),
     ]

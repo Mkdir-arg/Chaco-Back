@@ -2,7 +2,10 @@
 
 El campo ``RolMeta.categoria`` es ahora el «Alcance». Los valores guardados no cambian de
 string (``Backoffice`` = Global, ``Programa`` = De un programa); la autorización sigue
-saliendo del FK ``programa``, nunca de la categoría.
+saliendo del FK ``programa``, nunca de la categoría. La única diferencia es que la guarda
+RN-8 de «programa sin administrador» (``programas_que_administra``,
+``RolesAdminService._programa_que_administra``) ahora también cuenta los roles legacy Becas
+con programa, como ya los contaba ``usuarios_que_administran_programa``.
 """
 
 import importlib
@@ -80,6 +83,43 @@ class MigracionAlcanceTests(TestCase):
         meta.refresh_from_db()
         self.assertEqual((meta.categoria, meta.programa_id), ("Programa", self.becas.pk))
         meta.clean()  # la regla de coherencia categoría/programa se cumple
+
+
+class GuardaRN8RolesBecasLegacyTests(TestCase):
+    def test_rol_becas_con_programa_cuenta_como_admin_tras_la_migracion(self):
+        programa = Programa.objects.create(codigo="BECAS", nombre="Becas")
+        meta = _meta("Coord Becas legacy", "Becas", programa)
+        ct = ContentType.objects.get_for_model(Capacidad)
+        meta.grupo.permissions.add(
+            Permission.objects.get(codename=rbac.codename_de("programa.usuario.administrar"), content_type=ct)
+        )
+        u = User.objects.create_user("legacy-becas", password="x")
+        u.groups.add(meta.grupo)
+        self.assertEqual(rbac.programas_que_administra(u), set())
+
+        MIGRACION.reubicar_categorias(django_apps, None)
+
+        self.assertEqual(rbac.programas_que_administra(u), {programa.pk})
+
+
+class MigracionRetirarCapacidadesInstitucionTests(TestCase):
+    def test_ida_y_vuelta_restituye_los_roles(self):
+        m42 = importlib.import_module("users.migrations.0042_retirar_capacidades_institucion")
+        ct = ContentType.objects.get_for_model(Capacidad)
+        permiso, _ = Permission.objects.get_or_create(
+            content_type=ct, codename="institucion_ver", defaults={"name": "Ver instituciones"}
+        )
+        grupo = Group.objects.create(name="Rol con institucion")
+        grupo.permissions.add(permiso)
+
+        m42.retirar(django_apps, None)
+        m42.retirar(django_apps, None)  # idempotente
+        self.assertFalse(Permission.objects.filter(content_type=ct, codename="institucion_ver").exists())
+        self.assertEqual(grupo.capacidades_revocadas.filter(migracion="users.0042").count(), 1)
+
+        m42.restituir(django_apps, None)
+        self.assertEqual(list(grupo.permissions.values_list("codename", flat=True)), ["institucion_ver"])
+        self.assertFalse(grupo.capacidades_revocadas.filter(migracion="users.0042").exists())
 
 
 class SelectorAlcanceTests(TestCase):
