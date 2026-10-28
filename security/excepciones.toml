@@ -11,7 +11,7 @@
 #   vence_el  fecha en la que vuelve a bloquear
 #   ticket    dónde se sigue (ficha de la auditoría o issue)
 
-# Excepciones vigentes: seis, todas de twisted (Cambios 315 y 363). Lo normal es que no
+# Excepciones vigentes: siete, todas de twisted (Cambios 315, 363 y PR #988). Lo normal es que no
 # haya ninguna.
 #
 # La anterior, `PYSEC-2026-3447`, se retiró en el Cambio 196 (RED-85): era setuptools
@@ -95,3 +95,16 @@ id = "CVE-2026-115877"
 motivo = "nginx en icore rearma la petición (verificado); el ingress de ECOM, sin confirmar (pendiente del Cambio 363); no hay release final corregido"
 vence_el = 2026-11-25
 ticket = "Cambio 363"
+
+# CVE-2026-83813 (GHSA-jj36-9pvh-vj5r): falsificación de respuestas UDP en
+# twisted.names.dns.DNSDatagramProtocol. Verificado con daphne 4.2.3 y twisted
+# 26.4.0: el reactor usa GAIResolver sobre socket.getaddrinfo, no twisted.names.
+# El repo no instala un resolver alternativo. La prueba test_twisted_dns mantiene
+# esa precondición en un proceso aislado. No hay release final corregido en PyPI;
+# retirar esta excepción al actualizar a una versión final corregida, o antes si
+# cambia el resolver. Evidencia y alcance en docs/internal/requerimientos.md (PR #988).
+[[pip_audit]]
+id = "CVE-2026-83813"
+motivo = "Daphne usa GAIResolver/socket.getaddrinfo y no carga twisted.names; verificado en el contenedor y protegido por test; sin release final corregido"
+vence_el = 2026-11-26
+ticket = "PR #988"
