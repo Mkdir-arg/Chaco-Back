@@ -519,6 +519,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 393 | La «Categoría» del rol pasa a ser «Alcance»: Global o De un programa | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0041`, de datos) |
 | 394 | Se retiran las capacidades `institucion.ver` e `institucion.administrar` (cierra OPS-14) y se limpian MINORs de los Cambios 392 y 393 | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0042`, de datos, con reversa) |
 | 395 | Dispositivos: «Crear agente» de relevamiento edilicio desde el modal de asignar, con la capacidad `inspeccion.agente.crear` y el rol sembrado «Dispositivos — Agente de relevamiento» | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0043`, de datos, con reversa) |
+| 396 | El bootstrap del entrypoint ya no muere si Redis no responde al invalidar el padrón geográfico de SIIS | Becas · SIIS (`seed_catalogo_siis`, `invalidar_padron_geografico`) · arranque del contenedor | `#siis` `#infra` | Juez — release-gate run 40764473533 (PR #988) | 28/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -49957,6 +49958,81 @@ Migraciones `users.0043` (datos y `AlterModelOptions`, lista entera de `Capacida
 1. `manage.py migrate users 0042`: saca la capacidad del Administrador (los roles que la tienen tildada la conservan hasta
    que se destilde en el ABM).
 2. Revertir el PR. El rol sembrado y los usuarios ya creados quedan (son datos).
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 396 — El bootstrap ya no muere si Redis no responde al invalidar el padrón geográfico de SIIS
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · SIIS (`seed_catalogo_siis`, `invalidar_padron_geografico`) · arranque del contenedor |
+| **Etiquetas** | `#siis` `#infra` |
+| **Solicitante** | Juez — release-gate run 40764473533 (PR #988) |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servicio |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El PR #988 agregó `transaction.on_commit(invalidar_padron_geografico)` en `seed_catalogo_siis`.
+La función hacía `cache.delete_many(...)` sin atajar errores: con `ENVIRONMENT=qa/prd` el cache es
+`django_redis` sin `IGNORE_EXCEPTIONS`, y con Redis sin respuesta sale `ConnectionInterrupted`. El
+bootstrap del entrypoint (el seed corre dentro del candado) terminaba en error y el contenedor no
+arrancaba; en el release-gate no hay Redis y el smoke HTTP fallaba.
+
+## Alcance acordado
+
+**Entra:** que `invalidar_padron_geografico` sea tolerante, igual que `programa_cache.invalidar`
+(Cambio 99 y siguientes): `try/except Exception`, `logger.warning` con el tipo de excepción.
+
+**Queda afuera:** settings y entrypoint.
+
+## Decisiones tomadas
+
+- **Invalidación best-effort:** lo peor es que otro proceso vea el padrón anterior hasta que la
+  clave venza sola (`CATALOGO_CACHE_SECONDS`, 300 s). Un cache caído no debe impedir el arranque.
+- **No se toca la lectura** (`catalogo_padron_geografico`): ahí un cache caído sí falla fuerte.
+
+## Implementación
+
+`programas/services/siis.py`: `invalidar_padron_geografico` atrapa `Exception` y avisa por log.
+
+## Archivos
+
+- `programas/services/siis.py`
+- `programas/tests/test_siis_provincia_de_la_localidad.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Test nuevo `InvalidarPadronGeograficoSinCacheTests`: `cache.delete_many` levanta
+  `ConnectionInterrupted`, no se propaga y queda el warning. Verificado por mutación (sin el `try`
+  el test falla con `ConnectionInterrupted`).
+- `manage.py check`, módulo `test_siis_provincia_de_la_localidad` (21 tests), ruff: OK.
+- `scripts/requerimientos.py --check`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+No hay.
+
+## Reversión
+
+Revertir el PR.
 
 ## Historial
 
