@@ -49447,4 +49447,7 @@ Ninguno.
 ## Reversión
 Revertir el commit; no hay datos.
 
+## Historial
+- 28/10/2026 — Ajustes tras la auditoría del PR #991: `AGENTS.md` queda como fuente única del flujo de publicación (tipos minuta/versión/funcionalidad, venv, `requirements-ci.txt`, `check_docs_client.py` en 0, deploy por `docs-auto-deploy.yml`, sin `gh-deploy` manual) y `pm:minuta`/`analisis:publicar` remiten a esa sección; el paso 6 de la receta `gh` verifica el Status leyendo el ítem por GraphQL (el Project supera los 500 ítems); el caso «Requerimiento» sigue el orden de la receta general; la iteración activa se define con `startDate`/`duration`; `dev:cierre` suma la rúbrica `codigo-limpio.md` y remite a las rúbricas en vez de copiar sus patrones.
+
 ---

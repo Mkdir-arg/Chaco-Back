@@ -65,18 +65,9 @@ Preguntá (numerado, en texto, si no quedó claro en `$ARGUMENTS`):
 
 ## Paso 3 — Validar y deployar
 
-1. Todo `python` va por el venv del proyecto (`$env:PY_VENV = "$PWD\.venv\Scripts\python.exe"`;
-   ver `docs/internal/venv-setup.md`), nunca por el Python global. Verificá que
-   `mkdocs` esté instalado; si falta, `& $env:PY_VENV -m pip install -r requirements-ci.txt`
-   (trae `mkdocs-material` pineado).
-   ```powershell
-   & $env:PY_VENV -m mkdocs --version
-   ```
-2. Gate de publicación pública: `& $env:PY_VENV scripts\check_docs_client.py` → 0 hallazgos.
-   Build local de control: `& $env:PY_VENV -m mkdocs build --strict` (falla si hay
-   links rotos o páginas fuera del `nav`). Corregí lo que marque.
-3. El deploy a GitHub Pages lo hace el workflow `docs-auto-deploy.yml` al pushear a
-   `development` (con aprobación humana del environment `publicacion-docs`). No
-   corras `gh-deploy` a mano salvo que el usuario lo pida y confirme, porque publica online.
+Seguí el **flujo vigente de `AGENTS.md` → «Publicar documentación pública»** (venv del
+proyecto, dependencias de `requirements-ci.txt`, `mkdocs build --strict`,
+`check_docs_client.py` en 0, deploy por `docs-auto-deploy.yml`, sin `gh-deploy` manual).
+Es la fuente única: no se repiten acá los comandos. Corregí lo que marque el build o el gate.
 4. Reportá: archivo creado, fila agregada al índice, entrada en `nav:` y si se
    deployó o quedó pendiente.
