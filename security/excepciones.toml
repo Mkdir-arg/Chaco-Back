@@ -11,7 +11,7 @@
 #   vence_el  fecha en la que vuelve a bloquear
 #   ticket    dónde se sigue (ficha de la auditoría o issue)
 
-# Excepciones vigentes: seis, todas de twisted (Cambios 315 y 363). Lo normal es que no
+# Excepciones vigentes: siete, todas de twisted (Cambios 315, 363 y 391). Lo normal es que no
 # haya ninguna.
 #
 # La anterior, `PYSEC-2026-3447`, se retiró en el Cambio 196 (RED-85): era setuptools
@@ -47,7 +47,7 @@ ticket = "Cambio 315"
 # único de autobahn que nombra `twisted.conch` es `autobahn/twisted/cryptosign.py`, dentro
 # de una función que daphne no llama. La corregida es 26.10.0rc1. twisted no está
 # pineado, así que cuando salga la 26.10.0 final `pip-audit` y la imagen la toman solas:
-# ese día se revisan juntas las seis de twisted, incluida la del Cambio 315, con el
+# ese día se revisan juntas las siete de twisted, incluida la del Cambio 315, con el
 # criterio de la cabecera. Vencen el 15/12/2026, siete semanas después del rc del 22/10:
 # margen para que salga la final sin dejarlas abiertas tres meses.
 #
@@ -78,6 +78,19 @@ id = "CVE-2026-115776"
 motivo = "es del servidor IRC de twisted.words, que ni el repo ni daphne/channels cargan, y no hay release final corregido"
 vence_el = 2026-12-15
 ticket = "Cambio 363"
+
+# twisted 26.4.0, CVE-2026-83813 (GHSA-jj36-9pvh-vj5r): `twisted.names.dns.DNSDatagramProtocol`,
+# el transporte UDP del cliente DNS de twisted, acepta una respuesta solo por el ID de
+# transacción y no valida la dirección de origen (suplantación de respuestas DNS). Es el
+# módulo `twisted.names`, que no se carga: importar `daphne.server`, `daphne.http_protocol`,
+# `daphne.ws_protocol` y `channels.layers` no trae ningún `twisted.names.*`, y el repo no
+# importa twisted. La corregida es 26.10.0rc1; se retira junto con las otras seis cuando
+# salga la final.
+[[pip_audit]]
+id = "CVE-2026-83813"
+motivo = "es del cliente DNS de twisted.names, que ni el repo ni daphne/channels cargan, y no hay release final corregido"
+vence_el = 2026-12-15
+ticket = "Cambio 391"
 
 # twisted 26.4.0, CVE-2026-115877 (GHSA-q7qq-6mhp-9rc4): request smuggling en
 # `twisted.web.http.HTTPChannel.headerReceived`, que acepta un CR o un LF suelto dentro del

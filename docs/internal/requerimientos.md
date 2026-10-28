@@ -513,6 +513,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 387 | Dispositivos: limpieza de los MINOR de las auditorías de #979, #980, #982 y #983 y del carril de diseño | Dispositivos · P4, P21, configuración de tipos, ingreso; `core/dni`, `nodo_ui`, fichas de diseño | `#ui` `#relevamientos` | Juez del carril (auditorías) | 27/10/2026 | 🟢 **Hecho** | No requiere |
 | 388 | Dispositivos: el formulario «Relevamiento» por tipo llega al territorial por la API de campo | Dispositivos · tipos (P17), relevamientos (P4, P21, informe), API de campo | `#relevamientos` `#api` `#mobile` `#datos` | PM — pedido del 27/10/2026 | 27/10/2026 | 🟢 **Hecho** | Migración 0107 y 0108 (expand) |
 | 389 | Sectores y plazas: la plaza libre se reserva, se presta o se saca de servicio, y tocar una plaza no recarga la página | Dispositivos · P5 Sectores y plazas · modal de asignar relevamiento (P4, P21) | `#ui` `#rbac` `#performance` `#relevamientos` | PM — prueba en testing | 27/10/2026 | 🟢 **Hecho** | No requiere |
+| 391 | «Pip Audit» vuelve a verde: excepción con vencimiento para twisted CVE-2026-83813 | Transversal · dependencias (`security/excepciones.toml`) · CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo en todos los PRs desde el 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -49398,5 +49399,87 @@ normales de `ReservaPlaza`, y se liberan desde el mapa.
   la plaza anterior. Se corrigió en `8a7ed7fb`. Quedan dos MINOR para el próximo PR del carril: las tres copias de la
   resolución de capacidades + plaza en `dispositivos_legajo.py` (que pasa las 1400 líneas) y la cadena de clases por
   tono copiada tres veces en `_mapa_plazas.html`.
+
+---
+
+# Cambio 391 — Excepción con vencimiento para twisted CVE-2026-83813: «Pip Audit» vuelve a verde
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · dependencias (`security/excepciones.toml`) · CI (`Pip Audit`) |
+| **Etiquetas** | `#infra` `#gestion` |
+| **Solicitante** | Juez — check «Pip Audit» rojo en todos los PRs desde el 28/10/2026 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | CI |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Pip Audit» se puso rojo en todos los PRs por una advisory nueva de twisted 26.4.0:
+CVE-2026-83813 (GHSA-jj36-9pvh-vj5r). La corrección está en 26.10.0rc1, un release candidate.
+twisted no está pineado: lo trae `daphne`. Mismo caso que los Cambios 315 y 363.
+
+## Alcance acordado
+
+**Entra:** una entrada `[[pip_audit]]` nueva en `security/excepciones.toml`, con vencimiento el
+15/12/2026 como las otras de twisted en release candidate, y el conteo de la cabecera.
+
+**Queda afuera:** pinear twisted y cualquier cambio en daphne.
+
+## Decisiones tomadas
+
+- **La advisory es de `twisted.names`:** `DNSDatagramProtocol`, el transporte UDP del cliente DNS
+  de twisted, acepta una respuesta solo por el ID de transacción de 16 bits y no valida la
+  dirección de origen (suplantación de respuestas DNS). Afecta a quien resuelve nombres con
+  `twisted.names.client`.
+- **Ese módulo no se carga.** Importar `daphne.server`, `daphne.http_protocol`,
+  `daphne.ws_protocol` y `channels.layers` no trae ningún `twisted.names.*` (los módulos de
+  primer nivel de twisted que sí entran son `application`, `cred`, `internet`, `logger`,
+  `persisted`, `plugin`, `protocols`, `python` y `web`), y el repo no importa twisted. Por eso
+  va con vencimiento y sin la cautela de CVE-2026-115877.
+- **No se pinea `twisted==26.10.0rc1`:** sería un release candidate en la imagen de producción;
+  la final entra sola cuando salga.
+
+## Implementación
+
+Un bloque `[[pip_audit]]` con `ticket = "Cambio 391"` y la cabecera que pasa a decir siete
+excepciones vigentes, todas de twisted.
+
+## Archivos
+
+- `security/excepciones.toml`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `scripts/check_excepciones_seguridad.py`: las siete excepciones vigentes y bien formadas.
+- `pip-audit` con las banderas de `--ignore-args`: en `requirements.txt` y `requirements-dev.txt`,
+  «No known vulnerabilities found, 7 ignored»; en `requirements-ci.txt`, «No known
+  vulnerabilities found».
+
+## Puesta en marcha en el servidor
+
+Nada: no cambia la imagen.
+
+## Pendientes / a definir
+
+- **Cuando salga twisted 26.10.0 final, revisar juntas las siete excepciones de twisted** con el
+  criterio de la cabecera de `security/excepciones.toml`: `pip-audit -r requirements.txt` sin
+  ningún `--ignore-vuln` y se borra toda entrada cuyo id ya no aparezca.
+
+## Reversión
+
+Borrar la entrada con `ticket = "Cambio 391"`. El check de «Pip Audit» vuelve a rojo.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
 
 ---
