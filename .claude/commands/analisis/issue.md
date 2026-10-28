@@ -28,8 +28,9 @@ Contexto del usuario: `$ARGUMENTS`
    - Archivos/módulos afectados + estimación en horas
    Si una tarea es grande, partila.
 4. Creá cada sub-issue (label `task`) con `Épica padre: #NN` + `Análisis de
-   origen: #MM`, agregalo al Project en **Backlog** y seteá **Tipo = Task** (ver
-   receta `gh` del agente). No muevas las tareas de Backlog.
+   origen: #MM`, agregalo al Project en **Backlog** y seteá **Tipo = Task** y
+   **Iteration = la activa**, con Status=Backlog como último paso y verificado (ver
+   receta `gh` de `AGENTS.md`). No muevas las tareas de Backlog.
 5. Editá el análisis para listar los sub-issues como checklist (`- [ ] #KK`).
 6. Reportá la cadena creada: **Épica #NN → Análisis #MM → Sub-issues #…**.
 7. **Handoff a QA (no lo saltees):** ofrecé generar **ahora** los casos de prueba

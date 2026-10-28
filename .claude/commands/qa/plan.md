@@ -25,8 +25,9 @@ Contexto del usuario: `$ARGUMENTS`
    El plan **no inventa casos por task nuevos**: consolida los existentes y solo
    agrega los end-to-end.
 4. Mostrá el plan al usuario antes de publicar.
-5. **Creá el issue** `[PLAN DE PRUEBAS] ...`, agregalo al Project en **Backlog**,
-   con **Tipo = Testing** y el campo Modulo (receta en `QA.md` / `AGENTS.md`).
+5. **Creá el issue** `[PLAN DE PRUEBAS] ...`, agregalo al Project con
+   **Tipo = Testing**, el campo Modulo e **Iteration = la activa**, y como último
+   paso Status=Backlog verificado (receta en `QA.md` / `AGENTS.md`).
    No muevas tareas.
 6. Reportá el número del plan y la cadena: **Épica #NN → Plan #PP**.
 7. **Handoff al PM:** la épica quedó lista para planificar — listá qué tasks

@@ -513,6 +513,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 387 | Dispositivos: limpieza de los MINOR de las auditorías de #979, #980, #982 y #983 y del carril de diseño | Dispositivos · P4, P21, configuración de tipos, ingreso; `core/dni`, `nodo_ui`, fichas de diseño | `#ui` `#relevamientos` | Juez del carril (auditorías) | 27/10/2026 | 🟢 **Hecho** | No requiere |
 | 388 | Dispositivos: el formulario «Relevamiento» por tipo llega al territorial por la API de campo | Dispositivos · tipos (P17), relevamientos (P4, P21, informe), API de campo | `#relevamientos` `#api` `#mobile` `#datos` | PM — pedido del 27/10/2026 | 27/10/2026 | 🟢 **Hecho** | Migración 0107 y 0108 (expand) |
 | 389 | Sectores y plazas: la plaza libre se reserva, se presta o se saca de servicio, y tocar una plaza no recarga la página | Dispositivos · P5 Sectores y plazas · modal de asignar relevamiento (P4, P21) | `#ui` `#rbac` `#performance` `#relevamientos` | PM — prueba en testing | 27/10/2026 | 🟢 **Hecho** | No requiere |
+| 390 | Instrucciones de agentes y comandos alineadas con las decisiones del PM: Iteration al crear, QA en testing, estimación solo en Task, publicación con venv y retiro de `chaco-dev-reviewer` | Transversal · método de trabajo de los agentes (`AGENTS.md`, `QA.md`, `.claude/commands/`, `.claude/agents/`, skill `auditoria`) | `#metodo` `#gestion` | PM — decisiones previas (28/08, 28/10/2026) | 28/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -49398,5 +49399,52 @@ normales de `ReservaPlaza`, y se liberan desde el mapa.
   la plaza anterior. Se corrigió en `8a7ed7fb`. Quedan dos MINOR para el próximo PR del carril: las tres copias de la
   resolución de capacidades + plaza en `dispositivos_legajo.py` (que pasa las 1400 líneas) y la cadena de clases por
   tono copiada tres veces en `_mapa_plazas.html`.
+
+---
+
+# Cambio 390 — Instrucciones de agentes y comandos alineadas con las decisiones del PM
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · método de trabajo de los agentes |
+| **Etiquetas** | `#metodo` `#gestion` |
+| **Solicitante** | PM — decisiones ya tomadas (Iteration 28/08/2026; ambiente de QA 28/10/2026), pasadas por la auditoría de skills |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Método de trabajo (solo `.md`) |
+| **Migración** | No requiere |
+
+## Pedido original
+Alinear las instrucciones de agentes y comandos del repo con las decisiones del PM que la auditoría de skills (28/10) encontró contradichas.
+
+## Alcance acordado
+Entra: texto de `AGENTS.md`, `QA.md`, los comandos `analisis*`, `qa*`, `pm:estado`, `pm:minuta`, `analisis:publicar`, `dev:cierre`, el agente `qa-analyst` y la skill `auditoria`. Afuera: código de la app y los documentos históricos que nombran al agente retirado.
+
+## Decisiones tomadas
+1. **Iteration al crear issues.** Receta única en `AGENTS.md`: Tipo, Iteration = la activa (leída del Project, sin hardcodear el id), Status=Backlog como último paso y verificado, porque el Project auto-mueve a Ready al crear o asignar. Assignees siguen siendo del PM. Los comandos de análisis y QA remiten a esa receta.
+2. **Ambiente de QA.** Todos los casos se prueban en testing (`https://datanach.ecomdev.ar/`), sin preguntarle al PM; reemplaza la regla del 09/09. Si el WAF bloquea una ruta, el caso va «BLOQUEADO POR FIREWALL» con un dato alternativo.
+3. **pm:estado.** EstimacionHoras, el total de esfuerzo y la alerta «sin estimación» aplican solo a Tipo=Task; Épicas y Análisis son agrupadores.
+4. **Publicación.** `docs/client/sprints/` no existe: la estructura real es `versiones/`, y la rama «Sprint» de `analisis:publicar` pasó a «Versión». `python`/`pip` salen por el venv del proyecto; el deploy lo hace `docs-auto-deploy.yml` y `check_docs_client.py` va antes del build.
+5. **`chaco-dev-reviewer` retirado.** Lo reemplazó `/auditoria pr <N>` (chaco-auditor) desde #943. `dev:cierre` usa las rúbricas de la skill como criterio.
+
+## Implementación
+Solo texto. No cambia el comportamiento de la app.
+
+## Archivos
+`AGENTS.md`, `QA.md`, `.claude/commands/analisis.md`, `analisis/{epica,analisis,issue,publicar}.md`, `qa.md`, `qa/{casos,plan}.md`, `pm/{estado,minuta}.md`, `dev/cierre.md`, `.claude/agents/qa-analyst.md`, `.claude/agents/chaco-dev-reviewer.md` (borrado), `.claude/skills/auditoria/SKILL.md` y `rubricas/rendimiento.md`.
+
+## Base de datos
+No requiere.
+
+## Validación
+`scripts/requerimientos.py --check`, `manage.py check` y `grep chaco-dev-reviewer` sin referencias vivas.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Revertir el commit; no hay datos.
 
 ---

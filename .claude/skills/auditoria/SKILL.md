@@ -67,4 +67,5 @@ comentario y no corre en el CI. No tiene bypass. Si frena, el head actual se aud
 Las rúbricas de corrección y de código limpio están adaptadas de `thermo-nuclear-review` y
 `thermo-nuclear-code-quality-review`, del plugin Thermos
 ([cursor/plugins](https://github.com/cursor/plugins), commit `8b3326d`, licencia MIT, © Cursor).
-La de rendimiento sale de `chaco-dev-reviewer` §Método 5 y de las mediciones del banco MySQL.
+La de rendimiento sale de las búsquedas activas del antiguo agente de revisión de desarrollo (retirado
+al entrar esta skill) y de las mediciones del banco MySQL.

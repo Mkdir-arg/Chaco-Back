@@ -100,19 +100,20 @@ detecta las que no la tienen y las cubre.
 
 ## Ambientes de prueba
 
-Hay tres ambientes y **el PM indica en cuál se prueba cada task** al pasarla a QA.
-Lo primero que tiene que verse en la sección de casos es el ambiente: quien ejecuta
-no adivina dónde entrar.
+**Decisión del PM (28-oct-2026, reemplaza la del 09-sep): todos los casos de QA se
+prueban en testing, https://datanach.ecomdev.ar/.** No se le pregunta al PM en cuál
+ambiente se prueba. Lo primero que tiene que verse en la sección de casos es el
+ambiente: quien ejecuta no adivina dónde entrar.
 
 | Ambiente | URL | Qué corre |
 |---|---|---|
-| **DEV** | https://relevamiento-deshum.ecomdev.ar/ | icore-srv (10.5.6.209, VPN). Ramas de trabajo aún no mergeadas; lo despliega el equipo a mano |
-| **QA** | https://datanach.ecomdev.ar/ | Rama `test` del GitLab de ECOM: el release publicado en `main` de GitHub, antes de producción |
-| **PRD** | https://datanach.chaco.gob.ar/ | Rama `main` del GitLab de ECOM: producción |
+| **Testing (QA)** | https://datanach.ecomdev.ar/ | Rama `test` del GitLab de ECOM: el release publicado en `main` de GitHub, antes de producción. **Es donde se prueban todos los casos** |
+| DEV | https://relevamiento-deshum.ecomdev.ar/ | icore-srv (10.5.6.209, VPN). Solo referencia; no es destino de los casos |
+| PRD | https://datanach.chaco.gob.ar/ | Rama `main` del GitLab de ECOM: producción. Solo referencia |
 
-Regla: si el PM no dijo el ambiente, se pregunta (en sesión interactiva) o se deja
-`Ambiente de prueba: a definir por el PM` y se reporta; **nunca se inventa**. Una task
-cuyo código todavía no está mergeado solo puede probarse en DEV.
+Regla: la línea de ambiente de cada sección apunta siempre a testing y no se pregunta.
+Si una ruta que el caso necesita la bloquea el WAF de ECOM, el caso se marca
+**«BLOQUEADO POR FIREWALL»** con un dato alternativo para poder probarlo.
 
 ## Estructura canónica de los casos en la task
 
@@ -123,7 +124,7 @@ task cambió).
 ```markdown
 ## Casos de prueba (QA)
 
-**Ambiente de prueba:** DEV · https://relevamiento-deshum.ecomdev.ar/ (indicado por el PM el AAAA-MM-DD)
+**Ambiente de prueba:** Testing · https://datanach.ecomdev.ar/
 
 > Derivados de los criterios de aprobación de esta task y del análisis #MM.
 > Generado: AAAA-MM-DD. Quien ejecuta marca cada caso al probarlo.
@@ -141,9 +142,9 @@ task cambió).
 ```
 
 Reglas del formato:
-- **La primera línea de la sección es el ambiente** (`DEV` · `QA` · `PRD`, con su URL y
-  quién lo indicó y cuándo); ver *Ambientes de prueba*. Si cambia el ambiente, se edita
-  esa línea, no se regeneran los casos.
+- **La primera línea de la sección es el ambiente**: testing, con su URL; ver
+  *Ambientes de prueba*. Si cambia el ambiente, se edita esa línea, no se regeneran los
+  casos.
 - ID `TC-<nro de task>-NN` (ej.: `TC-87-03`), correlativo dentro de la task.
 - Categoría al final del título: `feliz` · `alternativo` · `negativo` · `límite` · `permisos`.
 - Cada **Entonces** es verificable a ojo: cumple / no cumple, sin interpretación.
@@ -157,7 +158,7 @@ Uno por épica. Consolida y da la vista integral de QA; **no inventa casos nuevo
 que cruzan varias tasks. Secciones, en este orden:
 
 1. **Encabezado** — `Épica #NN · Análisis #… · Tasks #…` que consolida, y el **ambiente de
-   prueba** de la prueba integral (lo indica el PM; ver *Ambientes de prueba*).
+   prueba** de la prueba integral (testing; ver *Ambientes de prueba*).
 2. **Alcance de la prueba** — qué se prueba y qué no (espejo del alcance de la épica).
 3. **Actores y accesos** — matriz actor → qué superficies usa en esta épica.
 4. **Cobertura por task** — tabla: Task · # casos · categorías cubiertas · link.
@@ -196,8 +197,9 @@ gh issue edit <n> --repo Mkdir-arg/Chaco-Back --body-file task-body.md
 ```
 
 ### Crear el Plan de pruebas (caso especial, como el [REQUERIMIENTO])
-Se crea → se agrega al Project → Status **Backlog** → **Tipo = Testing** (opción
-`06e99ba0` del campo Tipo) → campo Modulo con el módulo de la épica. Sin label de
+Se crea → se agrega al Project → **Tipo = Testing** (opción `06e99ba0` del campo
+Tipo) → campo Modulo con el módulo de la épica → **Iteration = la activa** →
+Status **Backlog** como último paso, verificado. Sin label de
 **nivel**: alcanza con el prefijo `[PLAN DE PRUEBAS]` en el título — pero **con la
 etiqueta de programa de la épica**:
 
@@ -206,7 +208,8 @@ URL=$(gh issue create --repo Mkdir-arg/Chaco-Back --title "[PLAN DE PRUEBAS] ...
   --label <becas|dispositivos|transversal> --body-file <archivo>)
 ```
 
-Misma receta `gh project item-add` / `item-edit` de `AGENTS.md`.
+Misma receta `gh project item-add` / `item-edit` de `AGENTS.md` (incluye Iteration y
+el Status=Backlog final).
 
 ### Detectar tasks sin casos (revisión de cobertura)
 ```bash
@@ -243,8 +246,8 @@ QA es el **eslabón del medio** de la línea de producción (handoffs completos 
   cuerpos de tasks y crea el issue `[PLAN DE PRUEBAS]` en Backlog; nada más.
 - **Todo issue que QA cree lleva su etiqueta de programa** (la de la épica que
   cubre). Si la épica no la tiene, se reporta en vez de adivinarla.
-- **No inventar.** Sin criterios claros no hay casos: se frena y se reporta. Tampoco
-  se inventa el **ambiente de prueba**: lo dice el PM (ver *Ambientes de prueba*).
+- **No inventar.** Sin criterios claros no hay casos: se frena y se reporta. El
+  **ambiente de prueba** es siempre testing (ver *Ambientes de prueba*).
 - **No tocar lo existente.** Al editar una task solo se agrega/regenera la sección
   de QA; el resto del cuerpo queda intacto.
 - **Trazabilidad siempre:** todo caso referencia su task; todo plan referencia su

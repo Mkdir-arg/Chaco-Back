@@ -21,7 +21,8 @@ Contexto del usuario: `$ARGUMENTS`
 4. **Publicá en `docs/client/`** siguiendo las reglas de `AGENTS.md` →
    "Publicar documentación pública": plantilla de `docs/client/templates/`,
    actualizar el `index.md` de Minutas **y** el `nav:` de `mkdocs.yml`,
-   `python -m mkdocs build --strict`.
+   `& $env:PY_VENV -m mkdocs build --strict` (venv del proyecto, no el Python global) y
+   `& $env:PY_VENV scripts\check_docs_client.py` en 0.
 5. **Confirmá explícitamente antes del deploy** (`gh-deploy` publica online).
 6. Si en la reunión surgieron requerimientos nuevos, **no los analices**:
    listalos al final y recomendá pasarlos por `/analisis`.

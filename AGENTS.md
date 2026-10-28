@@ -250,13 +250,26 @@ URL=$(gh issue create --repo Mkdir-arg/Chaco-Back --title "[ANALISIS] ..." \
   --label analisis --label <becas|dispositivos|transversal> --body-file <archivo>)
 # 2. agregar al Project (--jq integrado de gh, no requiere binario jq)
 ITEM=$(gh project item-add 1 --owner Mkdir-arg --url "$URL" --format json --jq '.id')
-# 3. Status = Backlog
-gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
-  --field-id PVTSSF_lAHODLaoqM4BXQVZzhSeb2Q --single-select-option-id f75ad846
-# 4. Tipo según nivel (Epica=abc63c47 · Analisis=3dab4bf3 · Task=e03cf9e1)
+# 3. Tipo según nivel (Epica=abc63c47 · Analisis=3dab4bf3 · Task=e03cf9e1)
 gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
   --field-id PVTSSF_lAHODLaoqM4BXQVZzhS9ZPE --single-select-option-id <opción-del-nivel>
+# 4. Iteration = la iteración activa (se lee del Project, no se hardcodea el id)
+gh api graphql -f query='{ node(id:"PVT_kwHODLaoqM4BXQVZ") { ... on ProjectV2 { field(name:"Iteration") {
+  ... on ProjectV2IterationField { id configuration { iterations { id title startDate } } } } } } }'
+gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
+  --field-id <id-campo-Iteration> --iteration-id <id-de-la-iteración-activa>
+# 5. ÚLTIMO paso: Status = Backlog (el Project auto-mueve a Ready al crear/asignar)
+gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
+  --field-id PVTSSF_lAHODLaoqM4BXQVZzhSeb2Q --single-select-option-id f75ad846
+# 6. Verificar que quedó en Backlog (si no, repetir el paso 5)
+gh project item-list 1 --owner Mkdir-arg --format json -L 300 \
+  --jq '.items[]|select(.content.url=="'"$URL"'")|.status'
 ```
+
+**Iteration** (regla del PM, 28-ago-2026): todo issue creado por `gh` entra al Project
+con la iteración **activa** (hoy hay una sola, «Iteration 7»; se lee del Project). El
+paso 5 va siempre al final: setear Iteration o asignar dispara el auto-movimiento a
+Ready. Esta es la receta única; los comandos de `.claude/commands/` la referencian.
 
 ### Requerimiento completo (caso especial)
 Se crea igual (crear → item-add → Status Backlog → Prioridad + Modulo), con el
@@ -287,8 +300,9 @@ Qué campo va en cada nivel:
 | FechaCompromiso (fecha) | solo si hay compromiso con el cliente | — | — |
 
 `Size` y `Estimate` (defaults de GitHub) **no se usan**: la estimación es
-`EstimacionHoras`. `Iteration` (sprint) y `Assignees` los administra el PM
-humano según las reglas de `ESTADOS.md`.
+`EstimacionHoras`. `Iteration` la setea el agente al crear (iteración activa, ver la
+receta de arriba); `Assignees` los administra el PM humano según las reglas de
+`ESTADOS.md`.
 
 ```bash
 # Prioridad (single-select)

@@ -4,8 +4,10 @@ allowed-tools: Read, Grep, Glob, Bash(git status:*), Bash(git diff:*), Bash(git 
 ---
 
 Actua como operador de cierre tecnico de desarrollo de Chaco. Tu objetivo es decidir
-si los cambios actuales estan listos para QA/merge, usando al agente
-`chaco-dev-reviewer` como criterio de revision.
+si los cambios actuales estan listos para QA/merge, usando como criterio
+de revision las rubricas de la skill `auditoria` (`.claude/skills/auditoria/rubricas/`:
+correccion-seguridad, rendimiento, codigo-limpio). La revision independiente previa al
+merge de un PR es `/auditoria pr <N>`.
 
 ## Reglas
 
@@ -42,7 +44,8 @@ Lee:
 
 ```powershell
 AGENTS.md
-.claude/agents/chaco-dev-reviewer.md
+.claude/skills/auditoria/rubricas/correccion-seguridad.md
+.claude/skills/auditoria/rubricas/rendimiento.md
 ```
 
 Si toca UI, lee tambien:
