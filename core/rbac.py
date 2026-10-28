@@ -37,7 +37,7 @@ CATALOGO = [
     {
         "modulo": "ciudadanos",
         "label": "Ciudadanos / Legajos",
-        "tab": "backoffice",
+        "tab": "general",
         "capacidades": [
             ("ciudadano.ver", "Ver ciudadanos y legajos"),
             ("ciudadano.crear", "Crear ciudadanos"),
@@ -52,7 +52,7 @@ CATALOGO = [
     {
         "modulo": "programas",
         "label": "Programas",
-        "tab": "backoffice",
+        "tab": "administracion",
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("programa.configurar", "Configurar programas"),
@@ -63,7 +63,7 @@ CATALOGO = [
     {
         "modulo": "dispositivos",
         "label": "Dispositivos",
-        "tab": "backoffice",
+        "tab": "dispositivos",
         "alcance": "programa",
         "programas": ("DISPOSITIVOS",),
         "capacidades": [
@@ -86,7 +86,7 @@ CATALOGO = [
         # dos personas distintas: quien asigna no carga, y el agente solo ve lo suyo.
         "modulo": "inspecciones",
         "label": "Relevamientos edilicios",
-        "tab": "backoffice",
+        "tab": "dispositivos",
         "alcance": "programa",
         "programas": ("DISPOSITIVOS",),
         "capacidades": [
@@ -97,7 +97,7 @@ CATALOGO = [
     {
         "modulo": "merenderos",
         "label": "Merenderos",
-        "tab": "backoffice",
+        "tab": "dispositivos",
         "alcance": "programa",
         "programas": ("MERENDEROS",),
         "capacidades": [
@@ -111,7 +111,7 @@ CATALOGO = [
     {
         "modulo": "relevamientos",
         "label": "Relevamientos",
-        "tab": "backoffice",
+        "tab": "general",
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("relevamiento.ver", "Ver relevamientos"),
@@ -289,7 +289,7 @@ CATALOGO = [
     {
         "modulo": "conversaciones",
         "label": "Conversaciones",
-        "tab": "backoffice",
+        "tab": "general",
         "capacidades": [
             ("conversacion.operar", "Operar conversaciones"),
             ("conversacion.configurar", "Configurar conversaciones"),
@@ -299,7 +299,7 @@ CATALOGO = [
     {
         "modulo": "dashboard",
         "label": "Dashboard",
-        "tab": "backoffice",
+        "tab": "general",
         "capacidades": [
             ("dashboard.ver", "Ver dashboard"),
         ],
@@ -307,7 +307,7 @@ CATALOGO = [
     {
         "modulo": "reportes",
         "label": "Reportes",
-        "tab": "backoffice",
+        "tab": "general",
         "capacidades": [
             ("reporte.ver", "Ver reportes"),
         ],
@@ -318,7 +318,7 @@ CATALOGO = [
         # conviene poder dárselo a menos gente que el armado (RN-007-12).
         "modulo": "notificaciones",
         "label": "Notificaciones",
-        "tab": "backoffice",
+        "tab": "general",
         "capacidades": [
             ("notificacion.ver", "Ver campañas de correo y su resultado"),
             ("notificacion.gestionar", "Crear, editar, duplicar y eliminar campañas de correo, y mandar pruebas"),
@@ -328,7 +328,7 @@ CATALOGO = [
     {
         "modulo": "configuracion",
         "label": "Configuración (geografía)",
-        "tab": "sistema",
+        "tab": "administracion",
         "capacidades": [
             ("config.ver", "Ver configuración"),
             ("config.administrar", "Administrar configuración"),
@@ -337,7 +337,7 @@ CATALOGO = [
     {
         "modulo": "instituciones",
         "label": "Instituciones",
-        "tab": "institucion",
+        "tab": "administracion",
         "capacidades": [
             ("institucion.ver", "Ver instituciones"),
             ("institucion.administrar", "Administrar instituciones"),
@@ -346,7 +346,7 @@ CATALOGO = [
     {
         "modulo": "sistema",
         "label": "Sistema",
-        "tab": "sistema",
+        "tab": "administracion",
         "capacidades": [
             ("usuario.administrar", "Administrar usuarios"),
             ("rol.administrar", "Administrar roles"),
@@ -374,11 +374,10 @@ CATEGORIAS_ROL_CHOICES = [(c, c) for c in CATEGORIAS_ROL]
 
 # Metadatos de los tabs para el ABM de Roles (panel de capacidades).
 TABS_CAPACIDADES = [
-    {"id": "backoffice", "label": "Backoffice", "icon": "fa-table-columns"},
-    {"id": "institucion", "label": "Institución", "icon": "fa-building-columns"},
-    {"id": "portal", "label": "Portal", "icon": "fa-globe"},
-    {"id": "sistema", "label": "Sistema", "icon": "fa-gear"},
+    {"id": "general", "label": "General", "icon": "fa-table-columns"},
+    {"id": "administracion", "label": "Administración", "icon": "fa-gear"},
     {"id": "becas", "label": "Becas", "icon": "fa-graduation-cap"},
+    {"id": "dispositivos", "label": "Dispositivos", "icon": "fa-building"},
 ]
 
 # Capacidades que dan acceso de administración del propio RBAC (para auto-protección).
@@ -677,7 +676,7 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None, permi
 
     Devuelve la lista de tabs definida en :data:`TABS_CAPACIDADES`, cada una con
     los módulos que le corresponden y las capacidades marcadas según
-    ``codigos_activos``. Los tabs vacíos se incluyen (permiten futura expansión).
+    ``codigos_activos``. Los tabs sin módulos no se devuelven (un admin de programa no ve solapas vacías).
 
     Con ``solo_programa=True`` solo incluye módulos con ``alcance == "programa"``.
     ``programa`` aplica la misma restricción de módulos especializados que
@@ -691,7 +690,7 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None, permi
             continue
         if not _modulo_asignable_en_programa(modulo, programa):
             continue
-        tab_id = modulo.get("tab", "backoffice")
+        tab_id = modulo.get("tab", "general")
         if tab_id not in tabs:
             continue
         capacidades = [
@@ -708,7 +707,7 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None, permi
         tabs[tab_id]["modulos"].append(
             {"modulo": modulo["modulo"], "label": modulo["label"], "capacidades": capacidades}
         )
-    return list(tabs.values())
+    return [t for t in tabs.values() if t["modulos"]]
 
 
 # ---------------------------------------------------------------------------
