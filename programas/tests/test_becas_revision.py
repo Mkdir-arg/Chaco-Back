@@ -1486,8 +1486,9 @@ class ReenvioYDatosSiisTests(_BaseAprobacionTest):
         self.form_a.save(update_fields=["estado"])
         self.enviar = patch("programas.views.revision.enviar_beneficiario_a_siis").start()
         patch("programas.forms.catalogo", side_effect=_catalogo_siis_falso).start()
+        patch("programas.forms.catalogo_geografico", side_effect=_catalogo_siis_falso).start()
         patch("programas.forms.listar_programas", side_effect=_programas_siis_falsos).start()
-        patch("programas.views.revision.catalogo", side_effect=_catalogo_siis_falso).start()
+        patch("programas.views.revision.catalogo_geografico", side_effect=_catalogo_siis_falso).start()
         self.addCleanup(patch.stopall)
         self.enviar.return_value = EnvioSIIS(formulario=self.form_a, estado=EnvioSIIS.Estado.ENVIADO, siis_id=26)
 
@@ -1599,8 +1600,9 @@ class QuitarCorreccionSiisTests(_BaseAprobacionTest):
         self.form_a.datos_siis = {"barrio_actual": "Barrio 108", "prov_actual": 22, "loc_actual": 37}
         self.form_a.save(update_fields=["estado", "datos_siis"])
         patch("programas.forms.catalogo", side_effect=_catalogo_siis_falso).start()
+        patch("programas.forms.catalogo_geografico", side_effect=_catalogo_siis_falso).start()
         patch("programas.forms.listar_programas", side_effect=_programas_siis_falsos).start()
-        patch("programas.views.revision.catalogo", side_effect=_catalogo_siis_falso).start()
+        patch("programas.views.revision.catalogo_geografico", side_effect=_catalogo_siis_falso).start()
         self.addCleanup(patch.stopall)
         self.url = reverse("becas:formulario_datos_siis", args=[self.form_a.pk])
 
@@ -1711,6 +1713,7 @@ class UiEnvioSiisTests(_BaseAprobacionTest):
     def setUp(self):
         super().setUp()
         patch("programas.forms.catalogo", side_effect=_catalogo_siis_falso).start()
+        patch("programas.forms.catalogo_geografico", side_effect=_catalogo_siis_falso).start()
         patch("programas.forms.listar_programas", side_effect=_programas_siis_falsos).start()
         self.addCleanup(patch.stopall)
 
