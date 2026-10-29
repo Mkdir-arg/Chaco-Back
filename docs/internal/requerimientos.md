@@ -520,6 +520,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 394 | Se retiran las capacidades `institucion.ver` e `institucion.administrar` (cierra OPS-14) y se limpian MINORs de los Cambios 392 y 393 | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0042`, de datos, con reversa) |
 | 395 | Dispositivos: «Crear agente» de relevamiento edilicio desde el modal de asignar, con la capacidad `inspeccion.agente.crear` y el rol sembrado «Dispositivos — Agente de relevamiento» | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0043`, de datos, con reversa) |
 | 396 | El bootstrap del entrypoint ya no muere si Redis no responde al invalidar el padrón geográfico de SIIS | Becas · SIIS (`seed_catalogo_siis`, `invalidar_padron_geografico`) · arranque del contenedor | `#siis` `#infra` | Juez — release-gate run 40764473533 (PR #988) | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 397 | Alta masiva SIIS de la Convocatoria 1 en PRD (1.786 altas): procedimiento probado documentado paso a paso | Becas · SIIS (`corregir_datos_siis`, `procesar_casos_siis`, `sincronizar_tabla_intermedia`) · operación en PRD de ECOM | `#siis` `#infra` | PM — pedido del 28/10/2026 | 29/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -50037,5 +50038,88 @@ Revertir el PR.
 ## Historial
 
 - **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 397 — Alta masiva SIIS de la Convocatoria 1 en PRD: procedimiento probado
+
+🟢 **HECHO — 29/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · SIIS (`corregir_datos_siis`, `procesar_casos_siis`, `sincronizar_tabla_intermedia`) · operación en PRD de ECOM |
+| **Etiquetas** | `#siis` `#infra` |
+| **Solicitante** | PM — pedido del 28/10/2026 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Documentación (operación de datos en PRD, sin cambio de código) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Simular en testing (base = dump de PRD del 27/10) el alta masiva en SIIS de la Convocatoria 1 de Becas
+con `--destino tabla`, después correrla en PRD, y dejar documentado el proceso para la próxima vez.
+
+## Alcance acordado
+
+**Entra:** solo la Convocatoria 1. **Queda afuera:** los cursos (relevamientos 4 y 5) y la lista de
+exclusión `siis_enviar`.
+
+## Decisiones tomadas
+
+- Localidad declarada «San Fernando», «Resistencia San Fernando», «Argentina», «Chaco» o
+  «Chaco - Resistencia» → RESISTENCIA (63 DNI agregados a `localidades_corregidas`).
+- `aprobados_materias` de PRD se reemplaza por la planilla del 27/10 (8.570 DNI).
+- Los 3 apoderados con fecha imposible (casos 67, 1409, 6690) **no se corrigen**: se sacan de la tabla
+  intermedia y quedan sin informar.
+- Primero a la tabla intermedia de PRD (`--destino tabla`) y recién después a SIIS.
+- El envío a SIIS se hace con `sincronizar_tabla_intermedia(limite=40)` y 60 s de pausa desde la
+  consola del pod, **no** con `procesar_casos_siis --destino siis`: el comando drena la tabla entera de
+  una vez y en el alta un 429 deja el envío `INCIERTO`.
+
+## Implementación
+
+Sin cambio de código. Insumos y preparación por SQL (ECOM, consola de la base); el resto desde la
+consola del pod `web` de PRD. El paso a paso, con comandos y números, está en
+`docs/internal/procedimiento-alta-siis.md`, sección «Camino probado en PRD».
+
+## Archivos
+
+- `docs/internal/procedimiento-alta-siis.md`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Datos en PRD, sin cambio de esquema: insumos (`aprobados_materias`, `localidades_corregidas`), destinos
+SIIS de 7 requisitos, 5.261 marcas `destinos_siis` vacías quitadas, padrón SIIS sembrado
+(`seed_catalogo_siis`), 1.339 casos con `datos_siis` corregido y 25 legajos con la fecha de nacimiento.
+
+## Validación
+
+- Testing: 2.743 en la tabla intermedia, sin envío.
+- PRD: 1.789 en la tabla intermedia (4.672 `duplicidad_becas`, 52 `edad_minima`, 3 `empleo_publico`);
+  envío final `ENVIADO` 1.786, `ERROR` 1 (caso 67), `INCOMPLETO` 2 viejos. Prueba de 1 caso verificada
+  con `siis_id` antes del masivo.
+
+## Puesta en marcha en el servidor
+
+Ya ejecutado en PRD el 28 y 29/10/2026.
+
+## Pendientes / a definir
+
+- Confirmar con SIIS que los 4.672 `duplicidad_becas` están en el programa 90, y qué estado deben
+  mostrar en DATAÑACH (hoy quedan incompatibles, no aprobados).
+- 147 localidades que no cruzan: planilla o equivalencias.
+- Rotar las credenciales que circularon durante la operación.
+- Mejora de código posible: que `procesar_casos_siis --destino siis` respete `--total` y `--pausa` al
+  drenar la tabla intermedia.
+
+## Reversión
+
+No aplica: un alta en SIIS no se deshace desde acá (ver «Deshacer un envío» en el procedimiento).
+
+## Historial
+
+- **29/10/2026 — alta del cambio.**
 
 ---
