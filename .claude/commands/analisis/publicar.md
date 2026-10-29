@@ -1,5 +1,5 @@
 ---
-description: Publicar un documento público en docs/client (minuta, sprint o funcionalidad) y deploy a GitHub Pages
+description: Publicar un documento público en docs/client (minuta, versión o funcionalidad) y deploy a GitHub Pages
 argument-hint: "[qué publicar / nro de issue / tema, opcional]"
 ---
 
@@ -24,7 +24,7 @@ Contexto del usuario: `$ARGUMENTS`
   corresponda, admoniciones (`!!! abstract/info/tip/success/warning/quote`), iconos
   `:material-...:`, tablas de metadatos, grid cards, tasklists. Usá como molde la
   plantilla de `docs/client/templates/` que corresponda.
-- **Nombres** en `kebab-case.md`. Minutas y sprints con fecha `YYYY-MM-DD` cuando aplique.
+- **Nombres** en `kebab-case.md`. Minutas con fecha `YYYY-MM-DD` cuando aplique.
 - **Dos actualizaciones obligatorias** por cada documento (si falta una, no se ve):
   1. La tabla de registro del `index.md` de la sección.
   2. El bloque `nav:` de `mkdocs.yml`.
@@ -36,7 +36,7 @@ Preguntá (numerado, en texto, si no quedó claro en `$ARGUMENTS`):
 > ¿Qué publicamos?
 > 1. **Funcionalidad** — versión pública de una épica/definición (desde un Issue de GitHub).
 > 2. **Minuta** — minuta de reunión.
-> 3. **Sprint** — definición o cierre de un sprint.
+> 3. **Versión** — definición o cierre de una versión (`docs/client/versiones/`).
 
 ## Paso 2 — Generar según el tipo
 
@@ -56,24 +56,18 @@ Preguntá (numerado, en texto, si no quedó claro en `$ARGUMENTS`):
 3. Sumá la fila a `minutas/index.md` (Fecha · Reunión · Estado · Documento) y
    agregá la página al `nav:` bajo "Minutas".
 
-### Sprint → `docs/client/sprints/`
-1. Molde: `docs/client/sprints/sprint-001.md`.
-2. Creá/actualizá `docs/client/sprints/sprint-NNN.md` con objetivo, período,
+### Versión → `docs/client/versiones/`
+(`docs/client/sprints/` ya no existe: las entregas se publican como versiones.)
+1. Molde: `docs/client/versiones/version-001.md` (cerrada) o `version-002.md` (en curso).
+2. Creá/actualizá `docs/client/versiones/version-NNN.md` con objetivo, período,
    alcance comprometido y estado de cada ítem.
-3. Actualizá las grillas de `sprints/index.md` (activos / cerrados) y el `nav:`
-   bajo "Sprints".
+3. Actualizá la tabla de `versiones/index.md` y el `nav:` bajo "Versiones".
 
 ## Paso 3 — Validar y deployar
 
-1. Verificá que el sitio compile. Si `mkdocs` no está instalado, avisá:
-   ```bash
-   python -m mkdocs --version || pip install mkdocs-material
-   ```
-2. Build local de control: `python -m mkdocs build --strict` (falla si hay links
-   rotos o páginas fuera del `nav`). Corregí lo que marque.
-3. Deploy a GitHub Pages (confirmá con el usuario antes, porque publica online):
-   ```bash
-   python -m mkdocs gh-deploy
-   ```
+Seguí el **flujo vigente de `AGENTS.md` → «Publicar documentación pública»** (venv del
+proyecto, dependencias de `requirements-ci.txt`, `mkdocs build --strict`,
+`check_docs_client.py` en 0, deploy por `docs-auto-deploy.yml`, sin `gh-deploy` manual).
+Es la fuente única: no se repiten acá los comandos. Corregí lo que marque el build o el gate.
 4. Reportá: archivo creado, fila agregada al índice, entrada en `nav:` y si se
    deployó o quedó pendiente.

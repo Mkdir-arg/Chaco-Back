@@ -13,15 +13,19 @@
        modalCambio: {% if form_cambio %}true{% else %}false{% endif %},
        modalEdificio: {% if form_edificio %}true{% else %}false{% endif %},
        modalVincular: {% if form_vincular %}true{% else %}false{% endif %},
+       modalRelevamiento: false,
        egreso: { url: '{{ url_egresar|escapejs }}', persona: '{{ estadia_egreso.persona_visible|escapejs }}' }
      }"
-     @becas-saved.window="modalEgreso=false; modalCambio=false; modalEdificio=false; modalVincular=false">
+     @becas-saved.window="modalEgreso=false; modalCambio=false; modalEdificio=false; modalVincular=false; modalRelevamiento=false">
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corría y el clic en esa franja no cerraba el modal #}
   <div class="space-y-5">
 
     {# ===== PageHeader ===== #}
     {% url 'dispositivos:lista' as url_volver %}
+    {% url 'dispositivos:editar' dispositivo.pk as url_editar_dispositivo %}
+    {% url 'dispositivos:inactivar' dispositivo.pk as url_inactivar %}
+    {% url 'dispositivos:cerrar' dispositivo.pk as url_cerrar %}
     {% estado_dispositivo dispositivo as estado_header %}
     {% page_header titulo=dispositivo.nombre volver_url=url_volver volver_label="Instituciones" estado_texto=estado_header.texto estado_variante=estado_header.tono %}
       {% bajada %}{{ dispositivo.codigo }} · {{ dispositivo.tipo.nombre }}{% if dispositivo.domicilio %} · {{ dispositivo.domicilio }}{% if dispositivo.localidad %}, {{ dispositivo.localidad }}{% endif %}{% elif dispositivo.localidad %} · {{ dispositivo.localidad }}{% endif %}{% if dispositivo.responsable_nombre %} · responsable {{ dispositivo.responsable_nombre }}{% endif %}{% endbajada %}
@@ -29,11 +33,6 @@
       <a href="{% url 'dispositivos:bitacora' dispositivo.pk %}" class="btn-nodo btn-secondary btn-sm btn-fit">
         <i class="fas fa-clock" aria-hidden="true"></i> Bitácora del turno
       </a>
-      {% if puede_editar and dispositivo.estado != 'CERRADO' %}
-      <a href="{% url 'dispositivos:editar' dispositivo.pk %}" class="btn-nodo btn-secondary btn-sm btn-fit">
-        <i class="fas fa-pen" aria-hidden="true"></i> Editar
-      </a>
-      {% endif %}
       {% if puede_editar and dispositivo.estado == 'BORRADOR' or puede_editar and dispositivo.estado == 'OBSERVADO' %}
       <button type="button" class="btn-nodo btn-brand btn-sm btn-fit"
               data-confirm-url="{% url 'dispositivos:enviar_validacion' dispositivo.pk %}"
@@ -41,34 +40,34 @@
               data-confirm-text="Se verificará que estén completos los datos requeridos."
               data-confirm-danger="false" data-confirm-ok="Sí, enviar">Enviar a validación</button>
       {% endif %}
-      {% if puede_validar and dispositivo.estado == 'PENDIENTE_VALIDACION' %}
+      {% if validacion_pendiente %}
       <button type="button" class="btn-nodo btn-brand btn-sm btn-fit"
               data-confirm-url="{% url 'dispositivos:validar' dispositivo.pk %}"
               data-confirm-title="¿Validar dispositivo?"
               data-confirm-text="Quedará habilitado para admitir personas."
               data-confirm-danger="false" data-confirm-ok="Sí, validar">Validar</button>
-      <button type="button" @click="modalObservar=true" class="btn-nodo btn-secondary btn-sm btn-fit">Observar</button>
-      <button type="button" @click="modalRechazar=true" class="btn-nodo btn-danger btn-sm btn-fit">Rechazar</button>
       {% endif %}
-      {% if puede_editar and dispositivo.estado == 'ACTIVO' %}
-      <button type="button" class="btn-nodo btn-secondary btn-sm btn-fit"
-              data-confirm-url="{% url 'dispositivos:inactivar' dispositivo.pk %}"
-              data-confirm-title="¿Inactivar dispositivo?"
-              data-confirm-text="Dejará de estar operativo, sin borrar su historial."
-              data-confirm-danger="false" data-confirm-ok="Sí, inactivar">Inactivar</button>
-      {% endif %}
-      {% if puede_editar %}{% if dispositivo.estado == 'ACTIVO' or dispositivo.estado == 'INACTIVO' or dispositivo.estado == 'RECHAZADO' %}
-      <button type="button" class="btn-nodo btn-tertiary btn-sm btn-fit"
-              data-confirm-url="{% url 'dispositivos:cerrar' dispositivo.pk %}"
-              data-confirm-title="¿Cerrar dispositivo?"
-              data-confirm-text="La acción conserva el legajo e impide nuevas operaciones."
-              data-confirm-danger="true" data-confirm-ok="Sí, cerrar">Cerrar</button>
-      {% endif %}{% endif %}
       {% if puede_admitir and dispositivo.estado == 'ACTIVO' %}
       <a href="{{ url_ingreso }}" class="btn-nodo btn-brand btn-sm btn-fit">
         <i class="fas fa-plus" aria-hidden="true"></i> Ingresar persona
       </a>
       {% endif %}
+      {# Las acciones secundarias van al menú; si ninguna corresponde al estado o a la capacidad, el menú no se dibuja #}
+      {% menu_fila id="acciones-dispositivo" etiqueta="Más acciones del dispositivo "|add:dispositivo.nombre texto="Más acciones" %}
+        {% if puede_editar and dispositivo.estado != 'CERRADO' %}
+        {% include "components/_menu_fila_item.html" with texto="Editar" icono="fa-pen" url=url_editar_dispositivo only %}
+        {% endif %}
+        {% if validacion_pendiente %}
+        {% include "components/_menu_fila_item.html" with texto="Observar" icono="fa-eye" abre_modal="modalObservar" only %}
+        {% include "components/_menu_fila_item.html" with texto="Rechazar" icono="fa-ban" abre_modal="modalRechazar" peligro=True only %}
+        {% endif %}
+        {% if puede_editar and dispositivo.estado == 'ACTIVO' %}
+        {% include "components/_menu_fila_item.html" with texto="Inactivar" icono="fa-pause" confirm_url=url_inactivar confirm_title="¿Inactivar dispositivo?" confirm_text="Dejará de estar operativo, sin borrar su historial." confirm_ok="Sí, inactivar" only %}
+        {% endif %}
+        {% if puede_editar %}{% if dispositivo.estado == 'ACTIVO' or dispositivo.estado == 'INACTIVO' or dispositivo.estado == 'RECHAZADO' %}
+        {% include "components/_menu_fila_item.html" with texto="Cerrar" icono="fa-lock" peligro=True confirm_url=url_cerrar confirm_title="¿Cerrar dispositivo?" confirm_text="La acción conserva el legajo e impide nuevas operaciones." confirm_ok="Sí, cerrar" only %}
+        {% endif %}{% endif %}
+      {% endmenu_fila %}
     {% endpage_header %}
 
     {% if aviso_sin_ingresos %}
@@ -147,12 +146,16 @@
       <div x-show="tab==='datos'" x-cloak role="tabpanel" id="panel-datos" aria-labelledby="tab-datos" class="p-6">
         <dl class="grid gap-5 sm:grid-cols-2 break-words">
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Tipo</dt><dd class="mt-1 text-body">{{ dispositivo.tipo.nombre }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Categoría</dt><dd class="mt-1 text-body">{{ dispositivo.get_categoria_display|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Área del Ministerio</dt><dd class="mt-1 text-body">{{ dispositivo.area_ministerio|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Titularidad del inmueble</dt><dd class="mt-1 text-body">{{ dispositivo.get_titularidad_inmueble_display|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Dependencia de la gestión</dt><dd class="mt-1 text-body">{{ dispositivo.get_dependencia_gestion_display|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Localidad</dt><dd class="mt-1 text-body">{{ dispositivo.localidad|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ dispositivo.domicilio|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Responsable</dt><dd class="mt-1 text-body">{{ dispositivo.responsable_nombre|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Contacto</dt><dd class="mt-1 text-body">{{ dispositivo.contacto_telefono|default:'—' }}</dd></div>
           <div><dt class="text-xs font-semibold uppercase text-body-subtle">Email</dt><dd class="mt-1 text-body">{{ dispositivo.contacto_email|default:'—' }}</dd></div>
-          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Días y horarios</dt><dd class="mt-1 text-body whitespace-pre-line">{{ dispositivo.horarios|default:'—' }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Horario de atención</dt><dd class="mt-1 text-body whitespace-pre-line">{{ dispositivo.horarios|default:'—' }}</dd></div>
           {% if dispositivo.fuente_padron %}<div><dt class="text-xs font-semibold uppercase text-body-subtle">Procedencia del padrón</dt><dd class="mt-1 text-body">{{ dispositivo.fuente_padron }} · {{ dispositivo.fecha_padron|date:'d/m/Y'|default:'Sin fecha' }} · {{ dispositivo.responsable_padron|default:'Sin responsable' }}</dd></div>{% endif %}
         </dl>
         <div class="mt-5">
@@ -257,7 +260,11 @@
                   {% menu_fila id=estadia.pk etiqueta="Acciones de estadía de "|add:estadia.persona_del_menu %}
                     {% include "components/_menu_fila_item.html" with texto="Ver estadía" icono="fa-eye" url=estadia.url_ver only %}
                     {% if estadia.url_cambiar %}
+                    {% if estadia.asigna_plaza %}
+                    {% include "components/_menu_fila_item.html" with texto="Asignar plaza" icono="fa-right-left" url=estadia.url_cambiar motivo=estadia.motivo_cambiar only %}
+                    {% else %}
                     {% include "components/_menu_fila_item.html" with texto="Cambiar plaza" icono="fa-right-left" url=estadia.url_cambiar motivo=estadia.motivo_cambiar only %}
+                    {% endif %}
                     {% endif %}
                     {% if estadia.url_egresar %}
                     {% include "components/_menu_fila_item.html" with texto="Registrar egreso" icono="fa-right-from-bracket" url=estadia.url_modal_egreso peligro=True only %}
@@ -286,17 +293,24 @@
 
       {# ===== TAB: Infraestructura (P19 del MVP: criticidad, observaciones y registro fotográfico del edificio) ===== #}
       <div x-show="tab==='infraestructura'" x-cloak role="tabpanel" id="panel-infraestructura" aria-labelledby="tab-infraestructura">
-        {% if puede_editar %}
-        {# El alta y la vinculación abren su modal con un parámetro GET, como los de P21 #}
+        {% if puede_editar or puede_crear_relevamiento %}
+        {# El alta y la vinculación abren su modal con un parámetro GET, como los de P21; «Crear relevamiento» lo abre Alpine #}
         <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-4 border-b border-light">
           <p class="text-xs text-body-subtle">El edificio es el inmueble: un predio compartido se releva una vez y el resultado lo ven todas las instituciones que lo ocupan.</p>
           <div class="flex gap-2 flex-wrap">
+            {% if puede_crear_relevamiento %}
+            <button type="button" @click="modalRelevamiento=true" class="btn-nodo btn-secondary btn-sm btn-fit">
+              <i class="fas fa-clipboard-list" aria-hidden="true"></i> Crear relevamiento
+            </button>
+            {% endif %}
+            {% if puede_editar %}
             <a href="{{ url_detalle }}?tab=infraestructura&amp;edificio=vincular" class="btn-nodo btn-tertiary btn-sm btn-fit">
               <i class="fas fa-link" aria-hidden="true"></i> Vincular un edificio
             </a>
             <a href="{{ url_detalle }}?tab=infraestructura&amp;edificio=nuevo" class="btn-nodo btn-brand btn-sm btn-fit">
               <i class="fas fa-plus" aria-hidden="true"></i> Cargar edificio
             </a>
+            {% endif %}
           </div>
         </div>
         {% endif %}
@@ -307,6 +321,54 @@
           {% endfor %}
         </div>
 
+        {% if infraestructura.en_tabla %}
+        {# Con 2 o más edificios: una fila por edificio; «Ver» abre uno solo con su registro fotográfico #}
+        <div class="overflow-x-auto border-t border-light">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Edificio</th>
+                <th class="nodo-th">Domicilio</th>
+                <th class="nodo-th">Estado</th>
+                <th class="nodo-th">Último relevamiento</th>
+                <th class="nodo-th text-right">Instituciones en el predio</th>
+                <th class="nodo-th text-right w-28"><span class="sr-only">Acciones</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for edificio in infraestructura.edificios %}
+              {% with pk_texto=edificio.pk|stringformat:"s" %}
+              <tr class="hover:bg-secondary transition">
+                <td class="nodo-td">
+                  <a href="{{ url_detalle }}?tab=infraestructura&amp;ver_edificio={{ edificio.pk }}" class="font-medium text-fg-brand hover:underline">{{ edificio.nombre }}</a>
+                  <span class="text-xs text-body-subtle block mt-px">{{ edificio.codigo }}</span>
+                </td>
+                <td class="nodo-td">{{ edificio.domicilio|default:'—' }}</td>
+                <td class="nodo-td"><span class="badge badge-dot badge-{{ edificio.semaforo.tono }}">{{ edificio.semaforo.texto }}</span></td>
+                <td class="nodo-td whitespace-nowrap">{% if edificio.ultima %}{{ edificio.ultima.realizada_en|date:"d/m/Y" }}{% else %}<span class="text-body-subtle">Sin relevar</span>{% endif %}</td>
+                <td class="nodo-td text-right">{{ edificio.otras_instituciones|add:1 }}</td>
+                <td class="nodo-td text-right whitespace-nowrap">
+                  {% menu_fila id="edificio-"|add:pk_texto etiqueta="Acciones del edificio "|add:edificio.nombre %}
+                    {% include "components/_menu_fila_item.html" with texto="Ver" icono="fa-eye" url=url_detalle|add:"?tab=infraestructura&ver_edificio="|add:pk_texto only %}
+                    {% if puede_editar %}
+                    {% include "components/_menu_fila_item.html" with texto="Editar edificio" icono="fa-pen" url=url_detalle|add:"?tab=infraestructura&edificio="|add:pk_texto only %}
+                    {% url 'dispositivos:edificio_desvincular' dispositivo.pk edificio.pk as url_desvincular %}
+                    {% include "components/_menu_fila_item.html" with texto="Desvincular" icono="fa-link-slash" peligro=True confirm_url=url_desvincular confirm_title="¿Desvincular el edificio?" confirm_text="Esta institución deja de ver su estado edilicio y sus relevamientos. El edificio no se borra: volver a vincularlo lo repone con su historia." confirm_ok="Sí, desvincular" only %}
+                    {% endif %}
+                  {% endmenu_fila %}
+                </td>
+              </tr>
+              {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        {% if infraestructura.viendo %}
+        <div class="px-5 pt-4 border-t border-light">
+          <a href="{{ url_detalle }}?tab=infraestructura" class="text-sm text-fg-brand hover:underline"><i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a los edificios</a>
+        </div>
+        {% endif %}
         {% for edificio in infraestructura.edificios %}
         <section class="border-t border-light" aria-labelledby="edificio-{{ edificio.pk }}-titulo">
           <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-3 flex-wrap">
@@ -379,8 +441,15 @@
           <div class="p-5">
             {% include "components/_linea_tiempo.html" with eventos=infraestructura.eventos vacio_titulo="Todavía no hay relevamientos" vacio_texto="Cuando se releve el edificio, cada relevamiento aparece acá con sus fotos." %}
           </div>
+          {% if infraestructura.viendo %}
+          {% with pk_texto=infraestructura.viendo.pk|stringformat:"s" %}
+          {% include "components/_paginacion.html" with page_obj=infraestructura.relevamientos entidad="relevamiento" param="relevamientos_page" extra_qs="tab=infraestructura&ver_edificio="|add:pk_texto %}
+          {% endwith %}
+          {% else %}
           {% include "components/_paginacion.html" with page_obj=infraestructura.relevamientos entidad="relevamiento" param="relevamientos_page" extra_qs="tab=infraestructura" %}
+          {% endif %}
         </section>
+        {% endif %}
         {% else %}
         {% if puede_editar %}
         {% url 'dispositivos:detalle' dispositivo.pk as url_base_edificio %}
@@ -402,7 +471,7 @@
     </div>
   </div>
 
-  {% if puede_validar and dispositivo.estado == 'PENDIENTE_VALIDACION' %}
+  {% if validacion_pendiente %}
   {# Modal: Observar — confirmación con motivo (arquetipo Modal) #}
   <div x-show="modalObservar" x-cloak x-becas-modal="modalObservar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalObservar=false"></div>
@@ -451,37 +520,25 @@
   {% endif %}
 
   {% if form_cambio %}
-  {# Modal: Cambiar de plaza — x-becas-modal: foco, Tab atrapado, Escape y scroll del fondo (becas-modal.js) #}
+  {# Modal: Cambiar o asignar plaza (sin plaza, el motivo es opcional) — x-becas-modal: foco, Tab atrapado, Escape y scroll del fondo (becas-modal.js) #}
   <div x-show="modalCambio" x-cloak x-becas-modal="modalCambio" class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCambio=false"></div>
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-cambio-titulo">
+      {% if es_asignacion %}
+      {% include "programas/becas/_modal_header.html" with titulo="Asignar plaza" titulo_id="modal-cambio-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalCambio=false" %}
+      {% else %}
       {% include "programas/becas/_modal_header.html" with titulo="Cambiar de plaza" titulo_id="modal-cambio-titulo" subtitulo=estadia_cambio.persona_visible icono="fa-right-left" cerrar="modalCambio=false" %}
+      {% endif %}
       <form method="post" action="{{ url_cambiar_plaza }}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="volver" value="dispositivo">
-        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          <div>
-            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
-            <label for="{{ form_cambio.plaza.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.plaza.label }} <span class="text-fg-danger">*</span></label>
-            {{ form_cambio.plaza }}
-            <p class="mt-1 text-xs text-body-subtle">Solo las plazas libres del dispositivo. Ahora: {{ estadia_cambio.plaza.sector.nombre }} · {{ estadia_cambio.plaza.codigo }}.</p>
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="plaza"></p>
-          </div>
-          <div>
-            <label for="{{ form_cambio.momento.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.momento.label }} <span class="text-fg-danger">*</span></label>
-            {{ form_cambio.momento }}
-            {% if form_cambio.momento.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ form_cambio.momento.help_text }}</p>{% endif %}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="momento"></p>
-          </div>
-          <div>
-            <label for="{{ form_cambio.motivo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">{{ form_cambio.motivo.label }} <span class="text-fg-danger">*</span></label>
-            {{ form_cambio.motivo }}
-            <p class="mt-1 text-xs text-fg-danger hidden" data-error="motivo"></p>
-          </div>
-          {% include "components/_alerta.html" with tono="info" texto="La plaza de ahora queda libre en el acto. El cambio queda en la línea de tiempo con su motivo y quién lo registró." %}
-        </div>
+        {% include "programas/dispositivos/_form_cambio_plaza.html" %}
+        {% if es_asignacion %}
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCambio=false" accion_texto="Confirmar asignación" %}
+        {% else %}
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCambio=false" accion_texto="Confirmar cambio" %}
+        {% endif %}
       </form>
     </div>
   </div>
@@ -626,6 +683,25 @@
     </div>
   </div>
   {% endif %}
+
+  {% if form_relevamiento %}
+  {# Modal: Crear relevamiento (asignar a un territorial el relevamiento de un edificio de la institución) #}
+  <div x-show="modalRelevamiento" x-cloak x-becas-modal="modalRelevamiento" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalRelevamiento=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-relevamiento-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Crear relevamiento" titulo_id="modal-relevamiento-titulo" subtitulo="Se le crea la tarea al agente territorial; la institución relevada no la puede completar." icono="fa-clipboard-list" cerrar="modalRelevamiento=false" %}
+      <form id="form-crear-relevamiento" method="post" action="{{ url_relevamiento }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% include "programas/dispositivos/relevamientos/_campos_asignar.html" with form=form_relevamiento agente_externo=agente_externo puede_crear_agente=puede_crear_agente selector_agente="#form-crear-relevamiento select[name=asignado_a]" only %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalRelevamiento=false" accion_texto="Asignar relevamiento" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+  {% if puede_crear_agente %}{% include "user/_alta_rapida_modal.html" %}{% endif %}
 </div>
 {% endblock %}
 

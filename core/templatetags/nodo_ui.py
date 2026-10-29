@@ -72,6 +72,11 @@ Renderiza ``templates/components/_menu_fila.html``: un ``.nodo-icon-btn`` de 28 
 - ``id`` tiene que ser único en la página (el del registro con un prefijo de la tabla, p. ej.
   ``cama-{{ cama.pk }}``): de él sale el ``id`` del menú que apunta ``aria-controls``. Se sanea a
   letras, números, ``_`` y ``-``.
+- ``texto`` opcional (p. ej. ``texto="Más acciones"``): el disparador pasa a ser un botón
+  ``btn-nodo btn-secondary btn-sm btn-fit`` con ese texto y un caret, para encabezados de página. Sin
+  él, el ⋮ de siempre.
+- Un ítem puede abrir un modal Alpine con ``abre_modal="modalObservar"`` (solo el nombre de la
+  variable del ``x-data``; el filtro ``nombre_alpine`` descarta cualquier otra cosa).
 - Si el bloque no dibuja ningún ítem (todos condicionados por permiso, p. ej.) no se dibuja ni el
   botón: un ⋮ que abre un menú vacío es un control roto.
 """
@@ -193,6 +198,9 @@ def do_page_header(parser, token):
 
 TEMPLATE_MENU_FILA = "components/_menu_fila.html"
 ARGUMENTOS_MENU_FILA = ("id", "etiqueta")
+ARGUMENTOS_MENU_FILA_OPCIONALES = ("texto",)
+ARGUMENTOS_MENU_FILA_ADMITIDOS = ARGUMENTOS_MENU_FILA + ARGUMENTOS_MENU_FILA_OPCIONALES
+IDENTIFICADOR_ALPINE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 ID_NO_VALIDO = re.compile(r"[^\w-]+")
 
 
@@ -209,7 +217,9 @@ class MenuFilaNode(template.Node):
             return ""
         identificador = ID_NO_VALIDO.sub("-", str(valores["id"]))
         plantilla = context.template.engine.get_template(TEMPLATE_MENU_FILA)
-        with context.push(id=identificador, etiqueta=valores["etiqueta"], items=items):
+        with context.push(
+            id=identificador, etiqueta=valores["etiqueta"], texto=valores.get("texto") or "", items=items
+        ):
             return plantilla.render(context)
 
 
@@ -221,10 +231,10 @@ def do_menu_fila(parser, token):
     kwargs = token_kwargs(restantes, parser)
     if restantes:
         raise template.TemplateSyntaxError(
-            f"'{nombre_tag}' solo acepta argumentos con nombre ({', '.join(ARGUMENTOS_MENU_FILA)}); "
+            f"'{nombre_tag}' solo acepta argumentos con nombre ({', '.join(ARGUMENTOS_MENU_FILA_ADMITIDOS)}); "
             f"sobra: {restantes[0]!r}"
         )
-    desconocidos = set(kwargs) - set(ARGUMENTOS_MENU_FILA)
+    desconocidos = set(kwargs) - set(ARGUMENTOS_MENU_FILA_ADMITIDOS)
     if desconocidos:
         raise template.TemplateSyntaxError(f"'{nombre_tag}' no acepta: {', '.join(sorted(desconocidos))}")
     for obligatorio in ARGUMENTOS_MENU_FILA:
@@ -233,6 +243,14 @@ def do_menu_fila(parser, token):
     items = parser.parse(("endmenu_fila",))
     parser.delete_first_token()
     return MenuFilaNode(kwargs, items)
+
+
+@register.filter
+def nombre_alpine(valor):
+    """El nombre de una variable Alpine si es un identificador simple, o ``""``: nunca una expresión."""
+    if not isinstance(valor, str):
+        return ""
+    return valor if IDENTIFICADOR_ALPINE.fullmatch(valor) else ""
 
 
 @register.filter

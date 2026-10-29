@@ -244,7 +244,12 @@ pudo ser de soporte, apertura, reuniones o análisis: lo confirma el PM.
 **Verificación antes de commitear.** La suma de las filas de cada día y de cada
 sección tiene que dar **exactamente** el total declarado, y los totales por
 programa, por persona y el contador acumulado tienen que cerrar contra las filas.
-Se verifica con un script, nunca a ojo.
+Lo verifica **`scripts/auditar_horas.py`**, que recorre el registro entero y lo
+contrasta contra cada numero publicado en `docs/client/financiero/` y en la
+portada: tiene que decir «AUDITORÍA OK — todo cierra». Nunca a ojo y nunca con un
+chequeo improvisado — el script ya encontró diferencias de minutos que una suma por
+día no detecta. Al abrir un mes nuevo se le agregan sus constantes `DECL` y `TRAS`,
+porque un mes que no figura ahí no se verifica y no avisa.
 
 ### 6. Informe de mes (`/pm:informemes`) — cierre mensual para enviar al cliente
 

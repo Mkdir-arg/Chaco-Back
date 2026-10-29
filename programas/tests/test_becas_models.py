@@ -56,6 +56,13 @@ COLUMNAS_UUID_AMPLIADAS = (
     ("programas.Relevamiento", "token_publico", "programas_relevamiento", "token_publico", "programas.0073"),
     ("programas.FotoInspeccion", "uuid_cliente", "programas_fotoinspeccion", "uuid_cliente", "programas.0093"),
     (
+        "programas.AdjuntoRespuestaRelevamiento",
+        "uuid_cliente",
+        "programas_adjuntorespuestarelevamiento",
+        "uuid_cliente",
+        "programas.0108",
+    ),
+    (
         "programas.InspeccionEdificio",
         "uuid_resultado",
         "programas_inspeccionedificio",

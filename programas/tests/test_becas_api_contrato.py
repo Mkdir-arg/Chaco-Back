@@ -536,7 +536,10 @@ class ContratoAppDeCampoTests(_BaseApiTest):
         token, _ = Token.objects.get_or_create(user=coordinador)
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
 
-        self.assertEqual(self.client.get("/api/becas/").status_code, 403)
+        respuesta = self.client.get("/api/becas/")
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.json()["code"], "SIN_MODULO")
+        self.assertTrue(respuesta.json()["detail"])
 
     # ── SEC-23 / SEC-24 (Cambio 184) ────────────────────────────────────────
     # Lo que el teléfono instalado manda de verdad en el alta, fijado como

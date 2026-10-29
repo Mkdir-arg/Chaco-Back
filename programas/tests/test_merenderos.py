@@ -21,6 +21,12 @@ from programas.services.merenderos import (
     guardar_prestacion,
     registrar_entrega,
 )
+from programas.validacion_contacto import (
+    MENSAJE_CUIT_INVALIDO,
+    MENSAJE_DOCUMENTO_INVALIDO,
+    MENSAJE_NOMBRE_INVALIDO,
+    MENSAJE_TELEFONO_INVALIDO,
+)
 from users.models import Capacidad, RolMeta
 
 
@@ -226,6 +232,108 @@ class SolicitudMerenderoFormTests(TestCase):
         self.assertFalse(form.is_valid())
         for campo in SolicitudMerendero.CAMPOS_INSTITUCIONALES_REQUERIDOS:
             self.assertIn(campo, form.errors)
+
+
+def _datos_solicitud(**cambios):
+    return {
+        "codigo": "MER-VAL-01",
+        "nombre": "Amanecer",
+        "domicilio": "Calle 5",
+        "zona": "Sur",
+        "barrio": "Barrio Sur",
+        "dias_horarios": "Martes",
+        "responsable_nombre": "María Pérez",
+        "responsable_documento": "30.123.456",
+        "telefono": "362 412-3456",
+        **cambios,
+    }
+
+
+class SolicitudMerenderoContactoTests(TestCase):
+    """DNI/CUIT, teléfono y nombre del responsable (#628): `3e1312321` se guardó como DNI/CUIT."""
+
+    def test_guarda_normalizado(self):
+        form = SolicitudMerenderoForm(data=_datos_solicitud(), validar_completitud=False)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["responsable_documento"], "30123456")
+        self.assertEqual(form.cleaned_data["telefono"], "3624123456")
+
+    def test_cuit_valido_y_con_verificador_malo(self):
+        form = SolicitudMerenderoForm(data=_datos_solicitud(responsable_documento="20-12345678-6"))
+        form.is_valid()
+        self.assertEqual(form.cleaned_data["responsable_documento"], "20123456786")
+        form = SolicitudMerenderoForm(data=_datos_solicitud(responsable_documento="20123456780"))
+        form.is_valid()
+        self.assertEqual(form.errors["responsable_documento"], [MENSAJE_CUIT_INVALIDO])
+
+    def test_el_caso_de_qa_se_rechaza(self):
+        form = SolicitudMerenderoForm(data=_datos_solicitud(responsable_documento="3e1312321"))
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors["responsable_documento"], [MENSAJE_DOCUMENTO_INVALIDO])
+
+    def test_telefono_y_nombre_invalidos(self):
+        form = SolicitudMerenderoForm(data=_datos_solicitud(telefono="12345", responsable_nombre="123"))
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors["telefono"], [MENSAJE_TELEFONO_INVALIDO])
+        self.assertEqual(form.errors["responsable_nombre"], [MENSAJE_NOMBRE_INVALIDO])
+
+    def test_borrador_vacio_no_valida_formato(self):
+        form = SolicitudMerenderoForm(
+            data=_datos_solicitud(responsable_documento="", telefono="", responsable_nombre=""),
+            validar_completitud=False,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_la_documentacion_respaldatoria_ya_valida_el_adjunto(self):
+        # Punto 4 de #628: la regla vive en `core.validators.validar_adjunto` (Cambio 188).
+        validadores = SolicitudMerendero._meta.get_field("documentacion").validators
+        self.assertIn("validar_adjunto", [getattr(v, "__name__", "") for v in validadores])
+
+    def test_la_ayuda_del_documento(self):
+        form = SolicitudMerenderoForm()
+        self.assertEqual(form.fields["responsable_documento"].help_text, "DNI de 7 u 8 dígitos o CUIT de 11")
+
+
+class SolicitudMerenderoRegistroViejoTests(TestCase):
+    """Un registro viejo con datos inválidos se ve sin error; al guardar se pide corregir."""
+
+    def setUp(self):
+        self.usuario = get_user_model().objects.create_superuser(username="admin-contacto", password="test")
+        Programa.objects.create(codigo="MERENDEROS", nombre="Merenderos", tipo=Programa.TipoPrograma.MERENDEROS)
+        self.client.force_login(self.usuario)
+        self.solicitud = SolicitudMerendero.objects.create(
+            codigo="MER-VIEJO",
+            nombre="Viejo",
+            domicilio="Calle 1",
+            zona="Centro",
+            barrio="Centro",
+            dias_horarios="Lunes",
+            responsable_nombre="Ana Díaz",
+            responsable_documento="3e1312321",
+            telefono="123",
+            estado=SolicitudMerendero.Estado.BORRADOR,
+        )
+        self.url = reverse("merenderos:solicitud_editar", args=[self.solicitud.pk])
+
+    def test_el_get_muestra_el_dato_viejo_sin_error(self):
+        respuesta = self.client.get(self.url)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, "3e1312321")
+        self.assertNotContains(respuesta, MENSAJE_DOCUMENTO_INVALIDO)
+
+    def test_al_guardar_se_pide_corregir_y_con_el_dato_bueno_se_normaliza(self):
+        datos = _datos_solicitud(codigo="MER-VIEJO", responsable_documento="3e1312321", telefono="123")
+        respuesta = self.client.post(self.url, {**datos, "accion": "borrador"})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, MENSAJE_DOCUMENTO_INVALIDO)
+        self.solicitud.refresh_from_db()
+        self.assertEqual(self.solicitud.responsable_documento, "3e1312321")
+
+        respuesta = self.client.post(self.url, {**_datos_solicitud(codigo="MER-VIEJO"), "accion": "borrador"})
+        self.assertEqual(respuesta.status_code, 302)
+        self.solicitud.refresh_from_db()
+        self.assertEqual(self.solicitud.responsable_documento, "30123456")
+        self.assertEqual(self.solicitud.telefono, "3624123456")
 
 
 class _BotonesDelFormulario(HTMLParser):

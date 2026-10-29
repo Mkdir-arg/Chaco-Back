@@ -24,7 +24,7 @@ RAIZ = Path(__file__).resolve().parent.parent.parent
 
 #: Columnas UUID cuyo valor entra desde afuera (la app de campo, el link público) y
 #: por lo tanto pueden existir en las dos representaciones.
-#: ``uuid_cliente`` y ``uuid_resultado`` son los del relevamiento edilicio (programas.0093).
+#: ``uuid_cliente`` y ``uuid_resultado`` son los del relevamiento edilicio (programas.0093; el de los adjuntos del formulario, programas.0108).
 CAMPOS_UUID_EXTERNOS = frozenset({"client_uuid", "token_publico", "uuid_cliente", "uuid_resultado"})
 
 #: Métodos de queryset que comparan contra la columna. ``create``/``update`` quedan

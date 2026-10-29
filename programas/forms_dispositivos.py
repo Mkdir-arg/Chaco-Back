@@ -6,13 +6,16 @@ Aparte de `programas/forms.py` a propósito: ese archivo es evidencia del campo 
 
 from django import forms
 from django.utils import timezone
+from django.utils.html import format_html
 
+from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.validators import ACCEPT_ADJUNTO
 from core.widgets import ChipsSelectMultiple, SwitchInput
 from programas.forms import INPUT_CLASS
 from programas.models import EntradaBitacora, MotivoEgreso, Plaza, Sector, Turno
 from programas.services.bitacora_pantalla import TIPOS_MANUALES
 from programas.services.edificios import CAMPOS as CAMPOS_EDIFICIO
+from programas.services.ingreso import buscar_ciudadano_por_dni
 from programas.services.movimientos import ultimo_momento
 from programas.services.plazas import TOPE_POR_LOTE
 
@@ -85,6 +88,9 @@ class CambioPlazaForm(forms.Form):
     formulario no decide qué es una plaza tomada. La regla de fondo —plaza del dispositivo,
     libre con su fila bloqueada, motivo, momento ni futuro ni anterior al último
     movimiento— la sostiene `programas.services.estadias.cambiar_plaza`.
+
+    Con una estadía **sin plaza** el mismo formulario es el de «Asignar plaza»
+    (`asignar_plaza`): el motivo pasa a ser opcional y los textos dicen asignar.
     """
 
     plaza = forms.TypedChoiceField(
@@ -121,20 +127,33 @@ class CambioPlazaForm(forms.Form):
             if libres:
                 grupos.append((item["sector"].nombre, libres))
         self.hay_plazas_libres = bool(grupos)
+        self.asigna = estadia is not None and estadia.plaza_id is None
+        if self.asigna:
+            self.fields["plaza"].label = "Plaza"
+            self.fields["plaza"].error_messages["required"] = "Elegí la plaza que se le asigna a la persona."
+            self.fields["momento"].help_text = "No puede ser anterior al último movimiento de la estadía."
+            self.fields["motivo"].required = False
+            self.fields["motivo"].widget.attrs["placeholder"] = "Opcional: se liberó una plaza, pedido de la persona…"
+        ayuda = "Solo las plazas libres del dispositivo."
+        if estadia is not None and estadia.plaza_id is not None:
+            ayuda += f" Ahora: {estadia.plaza.sector.nombre} · {estadia.plaza.codigo}."
+        self.fields["plaza"].help_text = ayuda
         self.fields["plaza"].choices = [("", "Elegí una plaza libre"), *grupos]
         if not self.is_bound:
             self.fields["momento"].initial = timezone.localtime().replace(second=0, microsecond=0)
 
     def clean_motivo(self):
         motivo = self.cleaned_data["motivo"].strip()
-        if not motivo:
+        if not motivo and not self.asigna:
             raise forms.ValidationError("El cambio de plaza exige un motivo.")
         return motivo
 
     def clean_momento(self):
         momento = self.cleaned_data["momento"]
         if momento > timezone.now():
-            raise forms.ValidationError("El cambio no puede ser futuro.")
+            raise forms.ValidationError(
+                "La asignación no puede ser futura." if self.asigna else "El cambio no puede ser futuro."
+            )
         if self.estadia is not None:
             ultimo = ultimo_momento(self.estadia)
             # Como en `EgresoForm`: el `datetime-local` no trae segundos y el
@@ -142,7 +161,11 @@ class CambioPlazaForm(forms.Form):
             # quedaría «anterior» por los segundos; se compara al minuto y, dentro de ese
             # minuto, el cambio va en el instante del último movimiento.
             if momento < ultimo.replace(second=0, microsecond=0):
-                raise forms.ValidationError("El cambio no puede ser anterior al último movimiento de la estadía.")
+                raise forms.ValidationError(
+                    "La asignación no puede ser anterior al último movimiento de la estadía."
+                    if self.asigna
+                    else "El cambio no puede ser anterior al último movimiento de la estadía."
+                )
             momento = max(momento, ultimo)
         return momento
 
@@ -167,6 +190,7 @@ class SacarPlazaDeServicioForm(forms.Form):
         label="Motivo",
         max_length=200,
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Colchón roto, reparación…"}),
+        help_text="Se ve en el mapa y en la alerta del dispositivo mientras la plaza esté fuera de servicio.",
         error_messages={"required": "Sacar una plaza de servicio exige un motivo."},
     )
 
@@ -186,7 +210,72 @@ class LiberarPlazaForm(forms.Form):
         widget=forms.Textarea(
             attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional: reemplaza el motivo de la reserva"}
         ),
+        help_text="Opcional. Si se escribe, reemplaza el motivo con el que se tomó la plaza.",
     )
+
+
+#: Los cuatro formularios del modal de una plaza conviven en la misma página, todos con
+#: un campo `motivo`: cada uno lleva su prefijo de id para no repetir `id_motivo`.
+AUTO_ID_PLAZA_RESERVAR = "reservar_%s"
+AUTO_ID_PLAZA_PRESTAR = "prestar_%s"
+AUTO_ID_PLAZA_SACAR = "sacar_%s"
+AUTO_ID_PLAZA_LIBERAR = "liberar_%s"
+
+MENSAJE_DNI_SIN_PERSONA = "No encontramos a nadie con ese DNI: dala de alta desde Ingresar persona."
+
+
+class ReservarPlazaForm(forms.Form):
+    """Reservar una plaza disponible para una persona del Legajo, que se busca por DNI.
+
+    La búsqueda es la del asistente de ingreso (`ingreso.buscar_ciudadano_por_dni`): sin
+    alta de personas desde acá. Las reglas de fondo —plaza libre con su fila bloqueada,
+    alcance, vigencia— son de `estadias.reservar_plaza`.
+    """
+
+    dni = forms.CharField(
+        label="DNI de la persona",
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "Ej.: 30123456", "inputmode": "numeric"}),
+        error_messages={"required": "Indicá el DNI de la persona para quien se guarda la plaza."},
+    )
+    motivo = forms.CharField(
+        label="Motivo",
+        max_length=200,
+        required=False,
+        widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional"}),
+    )
+
+    def clean_dni(self):
+        dni = normalizar_dni(self.cleaned_data.get("dni"))
+        if not dni_valido(dni):
+            raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
+        self.ciudadano = buscar_ciudadano_por_dni(dni)
+        if self.ciudadano is None:
+            raise forms.ValidationError(MENSAJE_DNI_SIN_PERSONA)
+        return dni
+
+    def clean(self):
+        datos = super().clean()
+        if not self.errors:
+            datos["ciudadano"] = self.ciudadano
+        return datos
+
+
+class PrestarPlazaForm(ReservarPlazaForm):
+    """Prestar una plaza: lo mismo que reservarla, con el vencimiento obligatorio.
+
+    El préstamo es «por 12 o 24 h» a partir de ahora: el modal ofrece los dos atajos y
+    deja la fecha y hora libres. Que sea posterior a este momento lo exige el servicio.
+    """
+
+    hasta = forms.DateTimeField(
+        label="Hasta",
+        input_formats=["%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"],
+        widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"class": INPUT_CLASS, "type": "datetime-local"}),
+        help_text="Cuándo vence el préstamo. Pasada esa hora, la plaza vuelve a estar disponible.",
+        error_messages={"required": "Un préstamo exige indicar hasta cuándo."},
+    )
+
+    field_order = ["dni", "hasta", "motivo"]
 
 
 # --------------------------------------------------------------------------- #
@@ -248,10 +337,103 @@ class AsignarRelevamientoForm(forms.Form):
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional"}),
     )
 
-    def __init__(self, *args, edificio, agentes, **kwargs):
+    def __init__(
+        self, *args, edificio=None, agentes, agente_externo=False, tipos_formularios=(), aviso_formulario="", **kwargs
+    ):
         super().__init__(*args, **kwargs)
-        self.fields["edificio"].initial = f"{edificio.nombre} · {edificio.codigo}"
+        if edificio is not None:
+            self.fields["edificio"].initial = f"{edificio.nombre} · {edificio.codigo}"
+            if agente_externo:
+                # La ayuda es del campo, no de la pantalla: así `_field.html` la dibuja antes del
+                # error y la enlaza con `aria-describedby`. El nombre es dato de usuario: `format_html`.
+                self.fields["asignado_a"].help_text = format_html(
+                    "La lista solo trae agentes <strong>externos a {}</strong>.", edificio.nombre
+                )
+        # Deshabilitado y sin `required`, pero es un dato obligatorio de la asignación: lleva el asterisco.
+        self.fields["edificio"].marca_requerido = True
         self.fields["asignado_a"].queryset = agentes
+        self._tipos = {}
+        # D3: el aviso de «sin formulario» lo calcula la vista (``aviso_de_tipos``).
+        self.aviso_formulario = aviso_formulario
+        # D1: el formulario sale del tipo de la institución. Solo si el edificio aloja a más de un
+        # tipo hay que elegir; con uno, lo resuelve el servicio.
+        tipos_formularios = list(tipos_formularios)
+        if len(tipos_formularios) > 1:
+            self._tipos = {str(tipo.pk): tipo for tipo, _formulario in tipos_formularios}
+            self.fields["tipo"] = forms.ChoiceField(
+                label="Formulario del relevamiento",
+                choices=[
+                    ("", "Elegí el tipo de institución"),
+                    *[
+                        (str(tipo.pk), tipo.nombre if formulario is not None else f"{tipo.nombre} · sin formulario")
+                        for tipo, formulario in tipos_formularios
+                    ],
+                ],
+                widget=forms.Select(attrs={"class": INPUT_CLASS}),
+                help_text=(
+                    "El edificio aloja instituciones de distintos tipos: el territorial completa el formulario "
+                    "del tipo que elijas."
+                ),
+                error_messages={
+                    "required": "Elegí de qué tipo de institución es el formulario.",
+                    "invalid_choice": "Ese tipo no corresponde a ninguna institución del edificio.",
+                },
+            )
+            self.fields["tipo"].marca_requerido = True
+            self.order_fields(["edificio", "tipo", "asignado_a", "fecha_vencimiento", "indicaciones"])
+
+    def clean_tipo(self):
+        return self._tipos[self.cleaned_data["tipo"]]
+
+
+#: Prefijo de los ids del modal «Crear relevamiento» de P4: comparte página con otros
+#: formularios que tienen un campo `edificio`, y dos `id_edificio` en el mismo documento
+#: rompen el `for` de los labels.
+AUTO_ID_RELEVAMIENTO = "relev_%s"
+
+
+class AsignarRelevamientoDispositivoForm(AsignarRelevamientoForm):
+    """«Crear relevamiento» desde la solapa Infraestructura de P4: el edificio se elige acá.
+
+    Mismos cuatro campos que :class:`AsignarRelevamientoForm`; cambia solo el de edificio,
+    que es un selector de los ``edificios`` que el servicio ya dejó elegibles (en alcance, sin
+    un relevamiento en curso, de este dispositivo). Con uno solo va fijo y de solo lectura:
+    un campo deshabilitado ignora lo que llegue por POST y usa el inicial, así que no se
+    puede cambiar. El agente lo acota la vista (``agentes_asignables_para``) y lo decide el
+    servicio contra el edificio elegido.
+    """
+
+    edificio = forms.ChoiceField(
+        label="Edificio",
+        choices=(),
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        error_messages={
+            "required": "Elegí el edificio que se va a relevar.",
+            "invalid_choice": "Ese edificio no está disponible para asignarle un relevamiento.",
+        },
+    )
+
+    def __init__(self, *args, edificios, aviso_formulario="", **kwargs):
+        super().__init__(*args, **kwargs)
+        # D3: el tipo de la institución no tiene formulario «Relevamiento» (lo decide la vista).
+        self.aviso_formulario = aviso_formulario
+        self._edificios = {str(edificio.pk): edificio for edificio in edificios}
+        campo = self.fields["edificio"]
+        opciones = [(pk, f"{e.nombre} · {e.codigo}") for pk, e in self._edificios.items()]
+        if len(opciones) == 1:
+            campo.choices = opciones
+            campo.initial = opciones[0][0]
+            campo.disabled = True
+        else:
+            campo.choices = [("", "Elegí un edificio"), *opciones]
+            campo.help_text = "Solo los edificios de la institución que no tienen un relevamiento en curso."
+
+    @property
+    def edificio_fijo(self):
+        return self.fields["edificio"].disabled
+
+    def clean_edificio(self):
+        return self._edificios[self.cleaned_data["edificio"]]
 
 
 class ReasignarRelevamientoForm(forms.Form):
@@ -552,7 +734,8 @@ class AgregarPlazasForm(forms.Form):
         label="Sector",
         queryset=None,
         empty_label="Elegí el sector",
-        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        # P5 abre el modal sin recargar: el botón de cada sector vacío elige el suyo acá.
+        widget=forms.Select(attrs={"class": INPUT_CLASS, "x-model": "sectorPlazas"}),
         error_messages={"required": "Elegí a qué sector agregar las plazas."},
     )
     cantidad = forms.IntegerField(
@@ -577,6 +760,9 @@ class AgregarPlazasForm(forms.Form):
     )
 
     def __init__(self, *args, dispositivo, sectores, **kwargs):
+        # Llega con P5 aunque se abra otro modal, y SectorForm y PlazaForm también tienen
+        # `tipo`: sin prefijo se repetiría id_tipo.
+        kwargs.setdefault("auto_id", "id_plazas_%s")
         super().__init__(*args, **kwargs)
         self.dispositivo = dispositivo
         # El label de Sector usa el código del dispositivo; cargarlo una vez evita

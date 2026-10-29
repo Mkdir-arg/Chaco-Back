@@ -26,8 +26,8 @@ Tarde · entradas», debajo de su encabezado.
 | `entradas` | Lista de dicts (no queryset), de la más nueva a la más vieja: `hora`, `categoria`, y opcionales `tono`, `titulo`, `texto`, `autor`, `automatica`, `version`, `url_corregir` |
 | `total` | Opcional: cantidad real de entradas si la vista mandó menos |
 
-`programas/services/bitacora.py` genera las novedades de ingreso, egreso y cambio de plaza
-con origen automático: la vista pasa `automatica=True` y no ofrece «Corregir» para ellas.
+`programas/services/bitacora.py` genera las novedades de ingreso, egreso, cambio y asignación de plaza
+(«Se asignó la plaza X») con origen automático: la vista pasa `automatica=True` y no ofrece «Corregir» para ellas.
 
 `url_corregir` dibuja «corregir (crea versión)» como enlace discreto en la línea de autoría.
 La pantalla lo prepara solo para entradas corregibles y con capacidad y alcance; abre

@@ -250,17 +250,34 @@ URL=$(gh issue create --repo Mkdir-arg/Chaco-Back --title "[ANALISIS] ..." \
   --label analisis --label <becas|dispositivos|transversal> --body-file <archivo>)
 # 2. agregar al Project (--jq integrado de gh, no requiere binario jq)
 ITEM=$(gh project item-add 1 --owner Mkdir-arg --url "$URL" --format json --jq '.id')
-# 3. Status = Backlog
-gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
-  --field-id PVTSSF_lAHODLaoqM4BXQVZzhSeb2Q --single-select-option-id f75ad846
-# 4. Tipo según nivel (Epica=abc63c47 · Analisis=3dab4bf3 · Task=e03cf9e1)
+# 3. Tipo según nivel (Epica=abc63c47 · Analisis=3dab4bf3 · Task=e03cf9e1)
 gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
   --field-id PVTSSF_lAHODLaoqM4BXQVZzhS9ZPE --single-select-option-id <opción-del-nivel>
+# 4. Iteration = la iteración activa (se lee del Project, no se hardcodea el id)
+gh api graphql -f query='{ node(id:"PVT_kwHODLaoqM4BXQVZ") { ... on ProjectV2 { field(name:"Iteration") {
+  ... on ProjectV2IterationField { id configuration { iterations { id title startDate duration } } } } } } }'
+gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
+  --field-id <id-campo-Iteration> --iteration-id <id-de-la-iteración-activa>
+# 5. ÚLTIMO paso: Status = Backlog (el Project auto-mueve a Ready al crear/asignar)
+gh project item-edit --id "$ITEM" --project-id PVT_kwHODLaoqM4BXQVZ \
+  --field-id PVTSSF_lAHODLaoqM4BXQVZzhSeb2Q --single-select-option-id f75ad846
+# 6. Verificar que quedó en Backlog (si no, repetir el paso 5). Se lee el ítem directo:
+#    el Project tiene más de 500 ítems y `item-list -L 300` no lo encuentra.
+gh api graphql -f query='query($id:ID!){ node(id:$id){ ... on ProjectV2Item { fieldValueByName(name:"Status"){ ... on ProjectV2ItemFieldSingleSelectValue { name } } } } }' -f id="$ITEM" --jq '.data.node.fieldValueByName.name'
+# debe imprimir: Backlog
 ```
 
+**Iteration** (regla del PM, 28-ago-2026): todo issue creado por `gh` entra al Project
+con la iteración **activa** (hoy hay una sola, «Iteration 7»; se lee del Project). La
+activa es la que cumple `startDate <= hoy < startDate + duration` (`duration` en días).
+El
+paso 5 va siempre al final: setear Iteration o asignar dispara el auto-movimiento a
+Ready. Esta es la receta única; los comandos de `.claude/commands/` la referencian.
+
 ### Requerimiento completo (caso especial)
-Se crea igual (crear → item-add → Status Backlog → Prioridad + Modulo), con el
-título `[REQUERIMIENTO] ...` y **Tipo = Requerimiento** (opción `f49bbfa6`).
+Se crea igual, en el mismo orden que la receta general (crear → item-add → Tipo →
+Iteration activa → Status=Backlog como ÚLTIMO paso → verificación) y luego Prioridad +
+Modulo, con el título `[REQUERIMIENTO] ...` y **Tipo = Requerimiento** (opción `f49bbfa6`).
 No lleva label de **nivel**: alcanza con el prefijo `[REQUERIMIENTO]` en el
 título. El de **programa** sí lo lleva, como todo issue.
 (El `[PLAN DE PRUEBAS]` de QA usa la misma receta con **Tipo = Testing**,
@@ -287,8 +304,9 @@ Qué campo va en cada nivel:
 | FechaCompromiso (fecha) | solo si hay compromiso con el cliente | — | — |
 
 `Size` y `Estimate` (defaults de GitHub) **no se usan**: la estimación es
-`EstimacionHoras`. `Iteration` (sprint) y `Assignees` los administra el PM
-humano según las reglas de `ESTADOS.md`.
+`EstimacionHoras`. `Iteration` la setea el agente al crear (iteración activa, ver la
+receta de arriba); `Assignees` los administra el PM humano según las reglas de
+`ESTADOS.md`.
 
 ```bash
 # Prioridad (single-select)
@@ -336,7 +354,7 @@ Analista a implementar código ni a abrir PRs.
 ## Publicar documentación pública (docs/client)
 
 `docs/client/` se sirve con MkDocs Material en GitHub Pages. Secciones: Proyecto,
-Minutas, Sprints, **Funcionalidades**, Plantillas. Reglas:
+Minutas, Versiones, **Funcionalidades**, Plantillas. Reglas:
 - **Es público:** lenguaje cliente (qué hace y para qué). **Nunca** publiques estado
   del código, impacto técnico, riesgos, preguntas abiertas ni nada de `docs/internal/`.
 - **Solo lo confirmado:** lo no acordado va como "A confirmar"; no se inventa.
@@ -344,8 +362,19 @@ Minutas, Sprints, **Funcionalidades**, Plantillas. Reglas:
   grid cards; usá la plantilla de `docs/client/templates/` que corresponda.
 - **Dos updates obligatorios:** la tabla del `index.md` de la sección **y** el `nav:`
   de `mkdocs.yml`.
-- **Deploy:** `python -m mkdocs build --strict` y luego `python -m mkdocs gh-deploy`
-  (requiere `pip install mkdocs-material`). Confirmar antes de deployar (publica online).
+- **Flujo vigente (fuente única; los comandos `/analisis:publicar` y `/pm:minuta` remiten
+  acá):**
+  1. Python siempre por el venv del proyecto: `$env:PY_VENV = "$PWD\.venv\Scripts\python.exe"`
+     (ver `docs/internal/venv-setup.md`), nunca el Python global. Dependencias:
+     `& $env:PY_VENV -m pip install -r requirements-ci.txt` (trae `mkdocs-material==9.7.7`
+     pineado; no `pip install mkdocs-material` suelto).
+  2. Build de control: `& $env:PY_VENV -m mkdocs build --strict`.
+  3. Gate: `& $env:PY_VENV scripts\check_docs_client.py` tiene que dar 0 hallazgos antes
+     de publicar.
+  4. El deploy lo hace `.github/workflows/docs-auto-deploy.yml` al llegar el cambio a
+     `development`, con aprobación del environment `publicacion-docs`. **No** correr
+     `mkdocs gh-deploy` a mano: saltea el gate; solo si el usuario lo pide
+     explícitamente y lo confirma.
 
 ## Handoff: qué pasa después del analista
 

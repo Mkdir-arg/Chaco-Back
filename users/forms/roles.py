@@ -31,7 +31,7 @@ class RolForm(forms.Form):
     )
     categoria = forms.ChoiceField(
         choices=rbac.CATEGORIAS_ROL_CHOICES,
-        label="Categoría",
+        label="Alcance",
         widget=forms.Select(attrs={"class": _INPUT_CLASS}),
     )
     programa = forms.ModelChoiceField(
@@ -58,13 +58,6 @@ class RolForm(forms.Form):
         self.instance = instance  # Group o None
         self.operador = operador
         super().__init__(*args, **kwargs)
-        # ``Becas`` se conserva como valor legacy para poder identificar datos
-        # antiguos, pero ya no es una categoría seleccionable. Los roles del
-        # módulo se crean y editan con categoría ``Programa`` + programa Becas.
-        self.fields["categoria"].choices = [
-            (value, label) for value, label in self.fields["categoria"].choices if value != rbac.CATEGORIA_BECAS
-        ]
-
         # Modo del formulario según el operador (admin global vs admin de programa).
         from users.selectors.roles import es_admin_global, programas_administrables_roles
 
@@ -80,7 +73,7 @@ class RolForm(forms.Form):
             self.fields["programa"].queryset = progs
             self.fields["programa"].empty_label = None
             self.fields["categoria"].choices = [
-                (rbac.CATEGORIA_PROGRAMA, rbac.CATEGORIA_PROGRAMA),
+                (rbac.CATEGORIA_PROGRAMA, rbac.ETIQUETAS_CATEGORIA[rbac.CATEGORIA_PROGRAMA]),
             ]
             self.fields["categoria"].required = True
             self.fields["categoria"].initial = rbac.CATEGORIA_PROGRAMA
@@ -161,7 +154,7 @@ class RolForm(forms.Form):
         ):
             self.add_error(
                 "programa",
-                "Debés seleccionar un programa para los roles de categoría Programa.",
+                "Debés seleccionar un programa para los roles de alcance «De un programa».",
             )
         if (
             cleaned.get("categoria")
@@ -171,7 +164,7 @@ class RolForm(forms.Form):
         ):
             self.add_error(
                 "programa",
-                "Solo los roles de categoría Programa pueden tener un programa asociado.",
+                "Solo los roles de alcance «De un programa» pueden tener un programa asociado.",
             )
         programa = cleaned.get("programa")
         if not (
@@ -209,6 +202,16 @@ class RolForm(forms.Form):
             permitidas |= rbac.capacidades_delegables(programa)
         return permitidas
 
+    def _programa_etiquetas(self):
+        """Código del programa del rol para ajustar etiquetas (no filtra módulos).
+
+        Cubre alta con programa fijo, edición y re-render tras un POST. Un admin global que
+        elige el programa en el navegador en un alta nueva no lo tiene hasta guardar.
+        """
+        if getattr(self, "muestra_alcance_dispositivos", False):
+            return rbac.CODIGO_PROGRAMA_DISPOSITIVOS
+        return getattr(self.programa_fijo, "codigo", None)
+
     def arbol_capacidades(self):
         """Árbol plano por módulo (retrocompatibilidad)."""
         return rbac.arbol_capacidades(
@@ -216,6 +219,7 @@ class RolForm(forms.Form):
             solo_programa=not self.es_admin_global,
             programa=self.programa_fijo,
             permitidas=self._permitidas(),
+            programa_etiquetas=self._programa_etiquetas(),
         )
 
     def arbol_por_tabs(self):
@@ -225,4 +229,5 @@ class RolForm(forms.Form):
             solo_programa=not self.es_admin_global,
             programa=self.programa_fijo,
             permitidas=self._permitidas(),
+            programa_etiquetas=self._programa_etiquetas(),
         )

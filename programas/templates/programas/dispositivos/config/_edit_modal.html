@@ -1,46 +1,23 @@
-<div class="fixed inset-0 z-50 overflow-y-auto bg-black/55 backdrop-blur-sm"
+{% comment %}Modal de edición del tipo (golden: becas/config/programa_list.html). Llega por fetch y se
+inyecta ya abierto, sin scope de Alpine, por eso lleva `data-edit-modal` y no `x-becas-modal`. El JS de
+`tipo_detail.html` lo engancha con `window.becasModal.bind` (becas-modal.js: foco, Tab atrapado y
+Escape) y conserva solo el cierre al tocar el fondo, con `pointerdown`.{% endcomment %}
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4"
      data-edit-modal
      data-edit-url="{{ modal_action }}"
      data-cancel-url="{% url 'dispositivos:tipo_detalle' tipo.pk %}">
-  <div class="flex min-h-full items-end justify-center p-0 sm:items-center sm:p-6">
-    <section role="dialog"
-             aria-modal="true"
-             aria-labelledby="dispositivos-edit-title"
-             class="flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-base shadow-xl sm:max-h-[90vh] sm:max-w-3xl sm:rounded-2xl"
-             style="background:var(--bg-primary)"
-             data-edit-modal-panel>
-      <header class="flex items-start justify-between gap-4 border-b border-light px-5 py-4 sm:px-6">
-        <div>
-          <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-fg-brand">{{ tipo.nombre }}</p>
-          <h2 id="dispositivos-edit-title" class="text-xl font-extrabold text-heading">
-            Editar tipo de dispositivo
-          </h2>
-        </div>
-        <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}"
-           class="btn-nodo btn-tertiary btn-sm"
-           data-modal-close
-           aria-label="Cerrar edición">Cerrar</a>
-      </header>
-
-      <form method="post"
-            action="{{ modal_action }}"
-            class="flex min-h-0 flex-1 flex-col"
-            data-ajax
-            data-reset="false">
-        {% csrf_token %}
-        <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
-          {% include "programas/dispositivos/config/_tipo_form_fields.html" %}
-        </div>
-        <footer class="flex flex-col-reverse gap-3 border-t border-light px-5 py-4 sm:flex-row sm:justify-end sm:px-6"
-                style="background:var(--bg-secondary)">
-          <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}"
-             class="btn-nodo btn-tertiary btn-base"
-             data-modal-close>Cancelar</a>
-          <button type="submit" class="btn-nodo btn-brand btn-base">
-            Guardar tipo
-          </button>
-        </footer>
-      </form>
-    </section>
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+  <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+       role="dialog" aria-modal="true" aria-labelledby="dispositivos-edit-title"
+       data-edit-modal-panel>
+    {% include "programas/becas/_modal_header.html" with titulo="Editar tipo de dispositivo" titulo_id="dispositivos-edit-title" subtitulo=tipo.nombre icono="fa-sitemap" %}
+    <form method="post" action="{{ modal_action }}" data-ajax data-reset="false" class="flex flex-col flex-1 min-h-0">
+      {% csrf_token %}
+      <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+        {% include "components/_form_errores.html" %}
+        {% include "programas/dispositivos/config/_tipo_form_fields.html" %}
+      </div>
+      {% include "programas/becas/_modal_footer.html" with accion_texto="Guardar tipo" %}
+    </form>
   </div>
 </div>

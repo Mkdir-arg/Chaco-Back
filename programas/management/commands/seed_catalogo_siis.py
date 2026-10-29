@@ -39,6 +39,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from programas.models import AliasLocalidadSiis, Formulario, LocalidadSiis, ProvinciaSiis, RequisitoNativo
+from programas.services.siis import invalidar_padron_geografico
 from programas.services.siis_envio import clave_nombre
 
 DATOS = Path(__file__).resolve().parents[2] / "data"
@@ -135,6 +136,7 @@ class Command(BaseCommand):
             nuevas += creada
             actualizadas += not creada
         self._log(f"Equivalencias: {nuevas} nuevas, {actualizadas} ya estaban ({sin_destino} sin destino a propósito)")
+        transaction.on_commit(invalidar_padron_geografico)
 
     # ── Revisión ────────────────────────────────────────────────────────────
 

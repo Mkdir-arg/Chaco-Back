@@ -2,12 +2,13 @@
 #342, #343 y #344, análisis #326): pantalla, drag & drop, ítems y condiciones."""
 
 import json
+import re
 from datetime import date
 from io import StringIO
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from programas.management.commands.seed_becas import ROL_ADMIN, ROL_COORDINADOR
@@ -76,6 +77,33 @@ class _Base(TestCase):
 
 
 class PantallaTests(_Base):
+    @override_settings(CSRF_COOKIE_HTTPONLY=True)
+    def test_guarda_condicion_con_token_del_html_y_cookie_httponly(self):
+        cliente = Client(enforce_csrf_checks=True)
+        cliente.force_login(self.admin)
+        respuesta = cliente.get(self._url("convocatoria_formulario"))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(cliente.cookies["csrftoken"]["httponly"])
+        token = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', respuesta.content.decode()).group(1)
+        url = self._url("formulario_condicion", clave_requisito(self.certificado))
+        condicion = {
+            "modo": "todas",
+            "reglas": [{"fuente": clave_requisito(self.nivel), "op": "es", "valor": "Secundario"}],
+        }
+        datos = json.dumps({"condicion": condicion})
+        rechazada = cliente.post(url, datos, content_type="application/json")
+        self.assertEqual(rechazada.status_code, 403)
+        guardada = cliente.post(
+            url,
+            datos,
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN=token,
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(guardada.status_code, 200)
+        self.assertTrue(guardada.json()["ok"])
+        self.assertEqual(self._item(clave_requisito(self.certificado)).condicion, condicion)
+
     def test_abre_y_persiste_el_diseno_por_defecto(self):
         self.assertFalse(DisenoFormulario.objects.filter(convocatoria=self.convocatoria).exists())
         resp = self.client.get(self._url("convocatoria_formulario"))

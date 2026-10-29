@@ -77,15 +77,15 @@ class FidelidadFFTests(BaseDetalle):
             self.client.get(reverse("dispositivos:editar", args=[self.cis.pk])), 'id="duplicate-search"'
         )
 
-    def test_cerrar_es_terciario_y_conserva_confirmacion_destructiva(self):
+    def test_cerrar_va_al_menu_de_mas_acciones_y_conserva_confirmacion_destructiva(self):
         html = self.client.get(self.url).content.decode()
         boton = re.search(
             r'<button[^>]+data-confirm-url="'
             + re.escape(reverse("dispositivos:cerrar", args=[self.cis.pk]))
-            + r'"[^>]*>Cerrar</button>',
+            + r'"[^>]*>.*?Cerrar</span></button>',
             html,
         ).group()
-        self.assertIn('class="btn-nodo btn-tertiary btn-sm btn-fit"', boton)
+        self.assertIn("nodo-menu-fila__item--danger", boton)
         self.assertIn('data-confirm-danger="true"', boton)
         self.assertIn('data-confirm-ok="Sí, cerrar"', boton)
         self.assertIn('data-confirm-url="' + reverse("dispositivos:inactivar", args=[self.cis.pk]) + '"', html)
@@ -110,19 +110,39 @@ class FidelidadFFTests(BaseDetalle):
         ).group(1)
         self.assertNotIn(self.cis.nombre, bajada)
 
-    def test_no_busca_plazas_sin_filas_activas_con_plaza(self):
+    def _sin_superusuario(self):
         self.operador.is_superuser = False
         self.operador.save()
         self.client.force_login(self.operador)
+
+    def _cerrada_y_activa_sin_plaza(self):
+        cerrada = _alojar(self.cis, self.plaza, self.persona, AHORA - timedelta(days=2))
+        Estadia.objects.filter(pk=cerrada.pk).update(
+            estado=Estadia.Estado.EGRESADA, fecha_egreso=AHORA, clave_alojamiento=None
+        )
+        _alojar(self.cis, None, self.otra_persona, AHORA - timedelta(days=1))
+
+    def test_no_busca_plazas_sin_filas_activas_con_plaza(self):
+        # Tipo que no maneja plazas: una fila sin plaza no tiene a dónde asignarse.
+        self._sin_superusuario()
+        self.tipo.plaza_obligatoria_al_ingresar = False
+        self.tipo.tipos_plaza_admitidos = []
+        self.tipo.save()
         with patch("programas.views.dispositivos_legajo.plazas_para_ingresar", wraps=plazas_para_ingresar) as mapa:
             self.assertEqual(self.client.get(self.url).status_code, 200)
-            cerrada = _alojar(self.cis, self.plaza, self.persona, AHORA - timedelta(days=2))
-            Estadia.objects.filter(pk=cerrada.pk).update(
-                estado=Estadia.Estado.EGRESADA, fecha_egreso=AHORA, clave_alojamiento=None
-            )
-            _alojar(self.cis, None, self.otra_persona, AHORA - timedelta(days=1))
+            self._cerrada_y_activa_sin_plaza()
             self.assertEqual(self.client.get(self.url, {"estado": "TODAS"}).status_code, 200)
         mapa.assert_not_called()
+
+    def test_activa_sin_plaza_en_tipo_con_plazas_lee_las_plazas_una_sola_vez(self):
+        # Cambio 374: «Asignar plaza» necesita las plazas elegibles, y se leen una vez por pedido.
+        self._sin_superusuario()
+        self.tipo.plaza_obligatoria_al_ingresar = True
+        self.tipo.save()
+        self._cerrada_y_activa_sin_plaza()
+        with patch("programas.views.dispositivos_legajo.plazas_para_ingresar", wraps=plazas_para_ingresar) as mapa:
+            self.assertEqual(self.client.get(self.url, {"estado": "TODAS"}).status_code, 200)
+        self.assertEqual(mapa.call_count, 1)
 
     def test_menu_y_modal_comparten_una_sola_lectura_de_plazas(self):
         activa = _alojar(self.cis, self.plaza, self.persona, AHORA - timedelta(days=2))

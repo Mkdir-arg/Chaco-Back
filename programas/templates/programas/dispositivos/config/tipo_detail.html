@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block customJS %}
-<script src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
+{% include "programas/becas/_confirm_js.html" %}
 <script src="{% static 'custom/js/becas-modal.js' %}"></script>
 <script>
 (function () {
@@ -20,6 +20,8 @@
   let triggerEdicion = null;
   let triggerUrl = null;
   let aperturaActiva = 0;
+  let presionoAfuera = false;
+  let controlModal = null;
 
   function getCookie(name) {
     const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
@@ -50,19 +52,17 @@
     if (!modal) return;
 
     triggerUrl = modal.dataset.editUrl || triggerUrl;
-    document.body.style.overflow = 'hidden';
-    const firstControl = modal.querySelector(
-      '[aria-invalid="true"], input:not([type="hidden"]):not([type="checkbox"]), textarea, select'
-    );
-    if (firstControl) firstControl.focus();
+    // becas-modal.js da foco, Tab atrapado, Escape, scroll del fondo y los [data-becas-modal-cerrar].
+    controlModal = window.becasModal.bind(modal, { onClose: closeModal });
   }
 
   function closeModal() {
     const modal = modalRoot.querySelector('[data-edit-modal]');
     if (!modal) return;
     const cancelUrl = modal.dataset.cancelUrl;
+    if (controlModal) controlModal.destruir();
+    controlModal = null;
     modalRoot.replaceChildren();
-    document.body.style.overflow = '';
     if (cancelUrl && window.location.pathname !== cancelUrl) {
       window.history.replaceState({}, '', cancelUrl);
     }
@@ -100,54 +100,22 @@
   }
 
   document.addEventListener('click', function (event) {
-    const editLink = event.target.closest('[data-edit-url]');
+    // Solo el enlace: el modal también lleva data-edit-url, y un clic adentro lo volvía a abrir.
+    const editLink = event.target.closest('a[data-edit-url]');
     if (editLink) {
       event.preventDefault();
       openModal(editLink);
       return;
     }
 
-    const closeButton = event.target.closest('[data-modal-close]');
-    if (closeButton) {
-      event.preventDefault();
-      closeModal();
-      return;
-    }
-
+    // Cierra solo si el gesto entero fue afuera del panel: arrastrar desde un campo y soltar
+    // sobre el fondo también dispara un `click` con el fondo como destino y perdía lo escrito.
     const modal = event.target.closest('[data-edit-modal]');
-    if (modal && !event.target.closest('[data-edit-modal-panel]')) closeModal();
+    if (modal && !event.target.closest('[data-edit-modal-panel]') && presionoAfuera) closeModal();
   });
 
-  document.addEventListener('keydown', function (event) {
-    const modal = modalRoot.querySelector('[data-edit-modal]');
-    if (!modal) return;
-    if (event.key === 'Escape') {
-      closeModal();
-      return;
-    }
-    if (event.key !== 'Tab') return;
-
-    const focusable = Array.from(modal.querySelectorAll(
-      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    )).filter(function (element) {
-      return !element.hidden && element.offsetParent !== null;
-    });
-    if (!focusable.length) {
-      event.preventDefault();
-      return;
-    }
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (!modal.contains(document.activeElement)) {
-      event.preventDefault();
-      first.focus();
-    } else if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
+  document.addEventListener('pointerdown', function (event) {
+    presionoAfuera = !!event.target.closest('[data-edit-modal]') && !event.target.closest('[data-edit-modal-panel]');
   });
 
   document.addEventListener('submit', function (event) {
@@ -214,29 +182,6 @@
       window.toast.error('Error de red.');
     }).finally(function () {
       if (submitButton && submitButton.isConnected) submitButton.disabled = false;
-    });
-  });
-
-  document.addEventListener('click', function (event) {
-    const button = event.target.closest('[data-confirm-url]');
-    if (!button) return;
-    event.preventDefault();
-    Swal.fire({
-      icon: 'warning',
-      title: button.dataset.confirmTitle,
-      text: button.dataset.confirmText,
-      showCancelButton: true,
-      confirmButtonText: button.dataset.confirmOk,
-      cancelButtonText: 'Cancelar'
-    }).then(function (result) {
-      if (!result.isConfirmed) return;
-      const form = document.createElement('form');
-      form.method = 'post';
-      form.action = button.dataset.confirmUrl;
-      const csrf = document.querySelector('[name=csrfmiddlewaretoken]').cloneNode();
-      form.appendChild(csrf);
-      document.body.appendChild(form);
-      form.submit();
     });
   });
 

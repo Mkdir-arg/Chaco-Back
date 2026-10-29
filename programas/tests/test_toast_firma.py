@@ -107,6 +107,7 @@ class DetalleDelCasoAvisaConElOrdenCorrectoTests(base._BaseAprobacionTest):
     def setUp(self):
         super().setUp()
         patch("programas.forms.catalogo", side_effect=base._catalogo_siis_falso).start()
+        patch("programas.forms.catalogo_geografico", side_effect=base._catalogo_siis_falso).start()
         patch("programas.forms.listar_programas", side_effect=base._programas_siis_falsos).start()
         self.addCleanup(patch.stopall)
 

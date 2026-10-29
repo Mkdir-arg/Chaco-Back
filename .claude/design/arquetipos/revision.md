@@ -41,7 +41,7 @@ por capacidad; el template no evalúa permisos.
 | `ficha` | `pendiente` (bool), `titulo`, `texto`, `url_completar` |
 | `secciones` | lista de dicts con las claves de `_ficha_seccion` (`codigo`, `titulo`, `avance`, `avance_tono`, `sensibilidad`, `sensibilidad_tono`, `bloqueada`, `motivo`, `completa`, `completar_url`, `campos`, `vacio_texto`); el productor marca el campo DNI con `formato: "dni"` |
 | `eventos` | lista de dicts de `_linea_tiempo`, ya ordenada |
-| `puede_*`, `url_*` | acciones por capacidad: `cambiar_plaza`, `permiso_salida`, `trasladar`, `egresar`, `cargar_novedad` (la URL de esta última es `url_novedad`) |
+| `puede_*`, `url_*` | acciones por capacidad: `cambiar_plaza`, `permiso_salida`, `trasladar`, `egresar`, `cargar_novedad` (la URL de esta última es `url_novedad`); `cambiar_plaza` es «Asignar plaza» cuando la estadía no tiene plaza —`es_asignacion`—: mismo modal, el motivo pasa a ser opcional) |
 | `otras_estadias`, `adjuntos` | listas; `n_movimientos`, `n_novedades`, `n_adjuntos` son contadores |
 | `url_volver`, `url_legajo`, `migas` | navegación |
 

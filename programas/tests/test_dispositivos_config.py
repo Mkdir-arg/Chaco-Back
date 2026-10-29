@@ -5,6 +5,8 @@ el F-00 configurable muere con la admisión vieja, y lo que lo reemplace va sobr
 motor de formularios. Lo que queda acá es el tipo en sí.
 """
 
+from importlib import import_module
+
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
@@ -14,7 +16,7 @@ from django.urls import reverse
 
 from core import rbac
 from programas.forms import DispositivoForm, TipoDispositivoForm
-from programas.models import Programa, TipoDispositivo
+from programas.models import Dispositivo, Plaza, Programa, Sector, TipoDispositivo
 from users.models import Capacidad, RolMeta
 
 
@@ -59,6 +61,164 @@ class TipoDispositivoFormTests(TestCase):
         self.assertNotIn("camas_totales", DispositivoForm.base_fields)
 
 
+class TipoDispositivoSectoresYPlazasTests(TestCase):
+    """«Sectores y plazas» reemplaza a «Maneja camas» en el modal del tipo."""
+
+    def _form(self, datos=None, instance=None):
+        base = {"codigo": "SP", "nombre": "Con plazas", "descripcion": "", "activo": "on"}
+        return TipoDispositivoForm({**base, **(datos or {})}, instance=instance)
+
+    def test_tildada_sin_tipos_de_plaza_es_error(self):
+        form = self._form({"maneja_sectores_plazas": "on"})
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors["tipos_plaza_admitidos"], ["Elegí al menos un tipo de plaza."])
+
+    def test_tildada_con_cama_maneja_plazas_y_sincroniza_maneja_camas(self):
+        form = self._form({"maneja_sectores_plazas": "on", "tipos_plaza_admitidos": ["CAMA"]})
+
+        self.assertTrue(form.is_valid(), form.errors)
+        tipo = form.save()
+        tipo.refresh_from_db()
+        self.assertEqual(tipo.tipos_plaza_admitidos, ["CAMA"])
+        self.assertTrue(tipo.maneja_plazas)
+        self.assertTrue(tipo.maneja_camas)
+
+    def test_destildada_vacia_los_tipos_y_la_obligatoriedad(self):
+        tipo = TipoDispositivo.objects.create(
+            codigo="SP",
+            nombre="Con plazas",
+            maneja_camas=True,
+            tipos_plaza_admitidos=["CAMA", "CUPO"],
+            plaza_obligatoria_al_ingresar=True,
+        )
+        form = self._form(
+            {"tipos_plaza_admitidos": ["CAMA"], "plaza_obligatoria_al_ingresar": "on"},
+            instance=tipo,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        tipo.refresh_from_db()
+        self.assertEqual(tipo.tipos_plaza_admitidos, [])
+        self.assertFalse(tipo.plaza_obligatoria_al_ingresar)
+        self.assertFalse(tipo.maneja_plazas)
+        self.assertFalse(tipo.maneja_camas)
+
+    def test_destildar_con_plazas_cargadas_no_deja(self):
+        tipo = TipoDispositivo.objects.create(
+            codigo="SP", nombre="Con plazas", maneja_camas=True, tipos_plaza_admitidos=["CAMA"]
+        )
+        dispositivo = Dispositivo.objects.create(tipo=tipo, codigo="SP-1", nombre="Institución")
+        sector = Sector.objects.create(dispositivo=dispositivo, nombre="Pabellón", capacidad=2)
+        Plaza.objects.create(sector=sector, codigo="P-1")
+        Plaza.objects.create(sector=sector, codigo="P-2")
+
+        form = self._form(instance=tipo)
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["maneja_sectores_plazas"],
+            [
+                "Hay 2 plazas cargadas en instituciones de este tipo: "
+                "no se puede dejar de manejar plazas mientras existan."
+            ],
+        )
+        tipo.refresh_from_db()
+        self.assertTrue(tipo.maneja_plazas)
+
+    def test_destildar_con_una_sola_plaza_cargada_concuerda_en_singular(self):
+        tipo = TipoDispositivo.objects.create(
+            codigo="SP1", nombre="Con una plaza", maneja_camas=True, tipos_plaza_admitidos=["CAMA"]
+        )
+        dispositivo = Dispositivo.objects.create(tipo=tipo, codigo="SP1-1", nombre="Institución")
+        sector = Sector.objects.create(dispositivo=dispositivo, nombre="Pabellón", capacidad=1)
+        Plaza.objects.create(sector=sector, codigo="P-1")
+
+        form = self._form(instance=tipo)
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["maneja_sectores_plazas"],
+            [
+                "Hay 1 plaza cargada en instituciones de este tipo: "
+                "no se puede dejar de manejar plazas mientras existan."
+            ],
+        )
+
+    def test_tipo_de_la_v1_con_maneja_camas_viene_tildado_con_cama(self):
+        tipo = TipoDispositivo.objects.create(codigo="MUN", nombre="Municipal", maneja_camas=True)
+
+        form = TipoDispositivoForm(instance=tipo)
+
+        self.assertTrue(form["maneja_sectores_plazas"].value())
+        self.assertEqual(form["tipos_plaza_admitidos"].value(), ["CAMA"])
+
+    def test_exigir_plaza_viene_tildada_en_el_alta(self):
+        form = TipoDispositivoForm()
+
+        self.assertTrue(form["plaza_obligatoria_al_ingresar"].value())
+
+    def test_exigir_plaza_viene_tildada_en_un_tipo_de_la_v1_sin_configurar(self):
+        tipo = TipoDispositivo.objects.create(codigo="MUN", nombre="Municipal", maneja_camas=True)
+
+        form = TipoDispositivoForm(instance=tipo)
+
+        self.assertTrue(form["plaza_obligatoria_al_ingresar"].value())
+
+    def test_exigir_plaza_respeta_lo_guardado_en_un_tipo_de_la_v2(self):
+        tipo = TipoDispositivo.objects.create(
+            codigo="CDD",
+            nombre="Centro de día",
+            tipos_plaza_admitidos=["CUPO"],
+            plaza_obligatoria_al_ingresar=False,
+        )
+
+        form = TipoDispositivoForm(instance=tipo)
+
+        self.assertFalse(form["plaza_obligatoria_al_ingresar"].value())
+
+    def test_alta_sin_enviar_la_casilla_de_exigir_plaza_guarda_false(self):
+        form = self._form({"maneja_sectores_plazas": "on", "tipos_plaza_admitidos": ["CAMA"]})
+
+        self.assertTrue(form.is_valid(), form.errors)
+        tipo = form.save()
+        tipo.refresh_from_db()
+        self.assertFalse(tipo.plaza_obligatoria_al_ingresar)
+
+    def test_guardar_el_tipo_de_la_v1_le_da_la_solapa_al_detalle_de_la_institucion(self):
+        programa, _ = Programa.objects.get_or_create(
+            codigo="DISPOSITIVOS",
+            defaults={"nombre": "Dispositivos", "tipo": Programa.TipoPrograma.DISPOSITIVOS},
+        )
+        rol = Group.objects.create(name="Lector plazas test")
+        RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=programa, activo=True)
+        rol.permissions.add(permiso("dispositivo.ver"), permiso("programa.configurar"))
+        usuario = User.objects.create_user("lector-plazas", password="x")
+        usuario.groups.add(rol)
+        tipo = TipoDispositivo.objects.create(codigo="MUN", nombre="Municipal", maneja_camas=True)
+        dispositivo = Dispositivo.objects.create(tipo=tipo, codigo="MUN-1", nombre="Municipal 1")
+        url = reverse("dispositivos:detalle", args=[dispositivo.pk])
+        self.client.force_login(usuario)
+        self.assertNotContains(self.client.get(url), "Sectores y plazas")
+
+        form = TipoDispositivoForm(
+            {
+                "codigo": "MUN",
+                "nombre": "Municipal",
+                "descripcion": "",
+                "maneja_sectores_plazas": "on",
+                "tipos_plaza_admitidos": ["CAMA"],
+                "activo": "on",
+            },
+            instance=tipo,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        self.assertContains(self.client.get(url), "Sectores y plazas")
+
+
 class ConfiguracionDispositivosViewsTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -94,7 +254,8 @@ class ConfiguracionDispositivosViewsTests(TestCase):
                 "codigo": "NUEVO",
                 "nombre": "Nuevo tipo",
                 "descripcion": "Demo",
-                "maneja_camas": "on",
+                "maneja_sectores_plazas": "on",
+                "tipos_plaza_admitidos": ["CAMA"],
                 "activo": "on",
             },
         )
@@ -142,14 +303,29 @@ class ConfiguracionDispositivosViewsTests(TestCase):
         self.assertContains(editar_tipo, "data-edit-modal")
         self.assertContains(editar_tipo, "Editar tipo de dispositivo")
         self.assertContains(editar_tipo, 'value="Tipo test"')
+        # Modal estándar: se cierra con la X y «Cancelar» (`data-becas-modal-cerrar`) y a dónde
+        # vuelve lo dice `data-cancel-url`, que lee el JS de la pantalla.
+        self.assertContains(editar_tipo, 'aria-labelledby="dispositivos-edit-title"')
+        # La X del encabezado y Cancelar del pie del esqueleto estándar, dentro del panel del modal.
+        panel = editar_tipo.content.decode().split("data-edit-modal-panel", 1)[1].split("</form>", 1)[0]
+        self.assertEqual(panel.count("data-becas-modal-cerrar"), 2)
         self.assertContains(
             editar_tipo,
-            f'href="{reverse("dispositivos:tipo_detalle", args=[self.tipo.pk])}"',
-            count=2,
+            f'data-cancel-url="{reverse("dispositivos:tipo_detalle", args=[self.tipo.pk])}"',
         )
 
         nuevo_tipo = self.client.get(reverse("dispositivos:tipo_crear"))
         self.assertNotContains(nuevo_tipo, "data-edit-modal")
+
+    def test_un_clic_dentro_del_modal_no_lo_vuelve_a_abrir(self):
+        """El modal también lleva `data-edit-url`: si el clic lo busca sin `a`, cada clic adentro lo
+        pone gris y lo vuelve a pedir, y la casilla no se tilda."""
+        self.client.force_login(self.admin)
+
+        editar_tipo = self.client.get(reverse("dispositivos:tipo_editar", args=[self.tipo.pk]))
+
+        self.assertContains(editar_tipo, "closest('a[data-edit-url]')")
+        self.assertNotContains(editar_tipo, "closest('[data-edit-url]')")
 
     def test_get_ajax_de_ediciones_devuelve_solo_el_modal(self):
         self.client.force_login(self.admin)
@@ -314,9 +490,11 @@ class ConfiguracionDispositivosViewsTests(TestCase):
 
     def test_p14_estado_junto_al_titulo_conserva_textos_y_acciones(self):
         self.client.force_login(self.admin)
+        # El semáforo se muestra si el tipo maneja plazas (Cambio 372), no por `maneja_camas`.
+        self.tipo.tipos_plaza_admitidos = ["CAMA"]
         for activo, texto, tono in ((True, "Activo", "success"), (False, "Inactivo", "gray")):
             self.tipo.activo = activo
-            self.tipo.save(update_fields=["activo"])
+            self.tipo.save(update_fields=["activo", "tipos_plaza_admitidos"])
             with self.subTest(activo=activo):
                 respuesta = self.client.get(reverse("dispositivos:tipo_detalle", args=[self.tipo.pk]))
                 self.assertContains(
@@ -334,3 +512,90 @@ class ConfiguracionDispositivosViewsTests(TestCase):
                 self.assertContains(respuesta, "Editar tipo")
                 self.assertContains(respuesta, "Desactivar" if activo else "Activar")
                 self.assertContains(respuesta, "Semáforo de ocupación: amarillo desde")
+
+
+class ConvertirTiposV1MigracionTests(TestCase):
+    """La 0106 deja un tipo de la v1 con Cama y «Exige asignar una plaza» destildada."""
+
+    def setUp(self):
+        self.migracion = import_module("programas.migrations.0106_convertir_tipos_dispositivo_v1")
+
+    def _estado(self, tipo):
+        tipo.refresh_from_db()
+        return (tipo.tipos_plaza_admitidos, tipo.plaza_obligatoria_al_ingresar, tipo.maneja_camas)
+
+    def _convertir(self):
+        return self.migracion.convertir_tipos_v1(TipoDispositivo)
+
+    def _guardado_con_el_form(self, tipo):
+        """Lo que queda al abrir el modal y guardar: el POST trae lo que el form mostró tildado."""
+
+        form = TipoDispositivoForm(instance=tipo)
+        datos = {"codigo": tipo.codigo, "nombre": tipo.nombre, "descripcion": "", "activo": "on"}
+        if form.fields["maneja_sectores_plazas"].initial:
+            datos["maneja_sectores_plazas"] = "on"
+        datos["tipos_plaza_admitidos"] = list(form.fields["tipos_plaza_admitidos"].initial)
+        if form.initial.get("plaza_obligatoria_al_ingresar", tipo.plaza_obligatoria_al_ingresar):
+            datos["plaza_obligatoria_al_ingresar"] = "on"
+        guardado = TipoDispositivoForm(datos, instance=tipo)
+        self.assertTrue(guardado.is_valid(), guardado.errors)
+        guardado.save()
+
+    def test_tipo_v1_queda_con_cama_y_sin_exigir_plaza(self):
+        casos = (
+            ("V1A", "lista vacía", [], False),
+            ("V1B", "lista nula", None, False),
+            ("V1C", "v1 con plaza obligatoria", [], True),
+        )
+        for codigo, nombre, lista, obligatoria in casos:
+            with self.subTest(caso=nombre):
+                tipo = TipoDispositivo.objects.create(
+                    codigo=codigo,
+                    nombre=nombre,
+                    maneja_camas=True,
+                    tipos_plaza_admitidos=lista,
+                    plaza_obligatoria_al_ingresar=obligatoria,
+                )
+                self._convertir()
+
+                self.assertEqual(self._estado(tipo), ([Plaza.Tipo.CAMA], False, True))
+
+    def test_tipo_convertido_maneja_plazas_y_el_form_lo_abre_sin_exigir_plaza(self):
+        tipo = TipoDispositivo.objects.create(codigo="CONV", nombre="Convertido", maneja_camas=True)
+        self._convertir()
+        tipo.refresh_from_db()
+
+        self.assertTrue(tipo.maneja_plazas)
+        form = TipoDispositivoForm(instance=tipo)
+        self.assertTrue(form.fields["maneja_sectores_plazas"].initial)
+        self.assertEqual(list(form.fields["tipos_plaza_admitidos"].initial), [Plaza.Tipo.CAMA])
+        self.assertFalse(form["plaza_obligatoria_al_ingresar"].value())
+
+        self._guardado_con_el_form(tipo)
+        self.assertEqual(self._estado(tipo), ([Plaza.Tipo.CAMA], False, True))
+
+    def test_tipo_ya_configurado_no_cambia(self):
+        tipo = TipoDispositivo.objects.create(
+            codigo="CFG",
+            nombre="Configurado",
+            maneja_camas=True,
+            tipos_plaza_admitidos=[Plaza.Tipo.CUPO],
+            plaza_obligatoria_al_ingresar=False,
+        )
+
+        self.assertEqual(self._convertir(), 0)
+        self.assertEqual(self._estado(tipo), ([Plaza.Tipo.CUPO], False, True))
+
+    def test_tipo_sin_camas_no_cambia(self):
+        tipo = TipoDispositivo.objects.create(codigo="SC", nombre="Sin camas", maneja_camas=False)
+
+        self.assertEqual(self._convertir(), 0)
+        self.assertEqual(self._estado(tipo), ([], False, False))
+
+    def test_correrla_dos_veces_da_lo_mismo(self):
+        v1 = TipoDispositivo.objects.create(codigo="V1", nombre="V1", maneja_camas=True)
+        self.assertEqual(self._convertir(), 1)
+        primero = self._estado(v1)
+
+        self.assertEqual(self._convertir(), 0)
+        self.assertEqual(self._estado(v1), primero)
