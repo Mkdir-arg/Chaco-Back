@@ -21,6 +21,7 @@ from users.views import (
     UsuariosLoginView,
     usuario_alta_rapida,
     usuario_asignar_territorial,
+    usuario_buscar_agente,
     usuario_buscar_territorial,
 )
 
@@ -74,6 +75,7 @@ urlpatterns = [
     path("usuarios/crear/", UserCreateView.as_view(), name="usuario_crear"),
     path("usuarios/alta-rapida/", usuario_alta_rapida, name="usuario_alta_rapida"),
     # Colgadas del prefijo conocido: el WAF de ECOM bloquea rutas nuevas fuera de ellos.
+    path("usuarios/alta-rapida/agente/buscar/", usuario_buscar_agente, name="usuario_buscar_agente"),
     path("usuarios/alta-rapida/territorial/buscar/", usuario_buscar_territorial, name="usuario_buscar_territorial"),
     path("usuarios/alta-rapida/territorial/asignar/", usuario_asignar_territorial, name="usuario_asignar_territorial"),
     path("usuarios/editar/<int:pk>/", UserUpdateView.as_view(), name="usuario_editar"),

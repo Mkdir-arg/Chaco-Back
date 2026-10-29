@@ -1,7 +1,7 @@
 {% load static %}
 {% comment %}
 Alta rápida de usuario (coordinador / referente / territorial) desde las pantallas de Becas, y de agente de
-relevamiento edilicio (tipo=agente) desde las de Dispositivos: sin buscador, correo obligatorio.
+relevamiento edilicio (tipo=agente) desde las de Dispositivos: correo obligatorio.
 Modal canónico: panel role=dialog, encabezado con X, cuerpo desplazable y pie gris.
 El cierre (X, Cancelar, backdrop, Escape) lo resuelve este mismo script con
 [data-quick-user-close], para no quedar encerrado si becas-modal.js no llega a cargar
@@ -12,7 +12,14 @@ users:usuario_alta_rapida, respuesta data.user.
 Para tipo=territorial el modal abre en un paso previo de búsqueda (users:usuario_buscar_territorial):
 si la persona ya tiene cuenta se le suma el segmento (users:usuario_asignar_territorial) en vez de
 crear otra; si no está, "Crear territorial nuevo" pasa al formulario de siempre, precargado con lo
-tipeado. Coordinador y referente abren directo en el formulario. Un solo role=dialog con dos
+tipeado. Coordinador y referente abren directo en el formulario.
+
+Para tipo=agente (Dispositivos) abre en el MISMO paso de búsqueda, contra users:usuario_buscar_agente
+(data-action-agente): solo entre quienes ya tienen el rol de agente, y elegir a alguien NO da ningún
+rol: solo lo deja elegido en el <select> destino. Los no asignables salen deshabilitados con su motivo.
+El botón aporta el edificio: data-edificio-id, o data-edificio-source (selector del campo que lo elige,
+P4). Los textos que cambian por tipo van en data-quick-user-nuevo-texto y en los dos bloques
+data-quick-user-vacio. Un solo role=dialog con dos
 paneles; el paso se alterna con la CLASE hidden (un contenedor .flex le gana al atributo [hidden]).
 
 No reutiliza programas/becas/_modal_header.html ni _modal_footer.html: esos parciales
@@ -28,7 +35,7 @@ funcionando sin ese script.
       <h3 id="quick-user-titulo" class="text-lg font-bold text-heading flex-1 min-w-0"><span data-quick-user-accion>Crear</span> <span data-quick-user-title>usuario</span></h3>
       <button type="button" data-becas-modal-cerrar data-quick-user-close aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors flex-shrink-0"><i class="fas fa-xmark text-base" aria-hidden="true"></i></button>
     </div>
-    <form id="quick-user-buscar" role="search" action="{% url 'users:usuario_buscar_territorial' %}" class="flex flex-col min-h-0 flex-1 hidden">
+    <form id="quick-user-buscar" role="search" action="{% url 'users:usuario_buscar_territorial' %}" data-action-agente="{% url 'users:usuario_buscar_agente' %}" class="flex flex-col min-h-0 flex-1 hidden">
       <div class="overflow-y-auto flex-1 p-6 space-y-4">
         <p class="text-sm text-body">Buscá si la persona ya tiene cuenta antes de crear una nueva.</p>
         <div>
@@ -43,15 +50,19 @@ funcionando sin ese script.
         <div aria-live="polite" data-quick-user-resultados>
           <p class="text-sm text-body-subtle" role="status" data-quick-user-estado></p>
           <ul class="divide-y divide-light" data-quick-user-lista></ul>
-          <div class="hidden" data-quick-user-vacio>
+          <div class="hidden" data-quick-user-vacio="territorial">
             {% include "components/_estado_vacio.html" with icono="fa-user-slash" titulo="No encontramos territoriales con esos datos" texto="Probá con otro dato o creá uno nuevo." %}
             <div class="text-center"><button type="button" data-quick-user-crear-nuevo class="btn-nodo btn-brand btn-base">Crear territorial nuevo</button></div>
+          </div>
+          <div class="hidden" data-quick-user-vacio="agente">
+            {% include "components/_estado_vacio.html" with icono="fa-user-slash" titulo="No encontramos agentes con esos datos" texto="Probá con otro dato o creá uno nuevo." %}
+            <div class="text-center"><button type="button" data-quick-user-crear-nuevo class="btn-nodo btn-brand btn-base">Crear agente nuevo</button></div>
           </div>
         </div>
       </div>
       <div class="flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary flex-shrink-0">
         <button type="button" data-becas-modal-cerrar data-quick-user-close class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-        <button type="button" data-quick-user-crear-nuevo class="btn-nodo btn-secondary btn-base">Crear territorial nuevo</button>
+        <button type="button" data-quick-user-crear-nuevo class="btn-nodo btn-secondary btn-base"><span>Crear <span data-quick-user-nuevo-texto>territorial</span> nuevo</span></button>
       </div>
     </form>
     <form id="quick-user-form" action="{% url 'users:usuario_alta_rapida' %}" class="flex flex-col min-h-0 flex-1">
@@ -100,20 +111,34 @@ funcionando sin ese script.
   const submitBuscar = buscar.querySelector('[data-quick-user-buscar-submit]');
   const estado = buscar.querySelector('[data-quick-user-estado]');
   const lista = buscar.querySelector('[data-quick-user-lista]');
-  const vacio = buscar.querySelector('[data-quick-user-vacio]');
+  const vaciosPorTipo = {};
+  buscar.querySelectorAll('[data-quick-user-vacio]').forEach(bloque => { vaciosPorTipo[bloque.dataset.quickUserVacio] = bloque; });
+  const nuevoTexto = buscar.querySelector('[data-quick-user-nuevo-texto]');
+  // Edificio al que se asigna (solo tipo=agente): lo fija el botón al abrir el modal.
+  let edificioId = '';
   const volver = form.querySelector('[data-quick-user-volver]');
   const accion = modal.querySelector('[data-quick-user-accion]');
   const MIN_Q = 3;
-  // Paso 1 (buscar) o paso 2 (formulario). Solo el territorial pasa por el 1.
+  // Tipos con paso de búsqueda: a dónde se consulta, qué parámetros suma a ``q`` y cómo se dibuja cada fila.
+  // (``fila`` se completa más abajo, donde están definidas las funciones que dibujan.)
+  const BUSQUEDA = {
+    territorial: {url: buscar.action, params: () => ({segmento_id: form.elements.segmento_id.value}), fila: null},
+    agente: {url: buscar.dataset.actionAgente, params: () => ({edificio_id: edificioId}), fila: null},
+  };
+  const tipoActual = () => form.elements.tipo.value;
+  // Paso 1 (buscar) o paso 2 (formulario). Pasan por el 1 los tipos de BUSQUEDA.
+  const conBusqueda = tipo => tipo in BUSQUEDA;
   const mostrarPaso = (paso, tipo) => {
     const enBusqueda = paso === 'buscar';
     buscar.classList.toggle('hidden', !enBusqueda);
     form.classList.toggle('hidden', enBusqueda);
-    volver.classList.toggle('hidden', tipo !== 'territorial');
+    volver.classList.toggle('hidden', !conBusqueda(tipo));
     accion.textContent = enBusqueda ? 'Buscar' : 'Crear';
+    if (nuevoTexto) nuevoTexto.textContent = tipo;
   };
   const limpiarResultados = () => {
-    lista.replaceChildren(); estado.replaceChildren(); vacio.classList.add('hidden'); errorQ.textContent = '';
+    lista.replaceChildren(); estado.replaceChildren(); errorQ.textContent = '';
+    Object.values(vaciosPorTipo).forEach(bloque => bloque.classList.add('hidden'));
   };
   // Un elemento con texto: los datos del servidor entran siempre por textContent.
   const nodo = (tag, clase, texto) => {
@@ -191,13 +216,20 @@ funcionando sin ese script.
     const tipo = button.dataset.quickUser; target = document.querySelector(button.dataset.userSelect);
     const segmento = segmentoDe(button);
     if (tipo === 'territorial' && !segmento) return;
+    // El agente se busca contra un edificio: sin él no se sabe quién es asignable (P4 lo elige en el modal).
+    edificioId = '';
+    if (tipo === 'agente') {
+      const origen = button.dataset.edificioSource ? document.querySelector(button.dataset.edificioSource) : null;
+      edificioId = button.dataset.edificioId || (origen ? origen.value : '') || '';
+      if (!edificioId) { window.toast('warning', 'Eleg\u00ed primero el edificio: la b\u00fasqueda se hace contra \u00e9l.'); return; }
+    }
     form.reset(); form.elements.tipo.value = tipo; form.elements.segmento_id.value = segmento;
     sincronizarTipo(tipo);
     modal.querySelector('[data-quick-user-title]').textContent = tipo; error.textContent = '';
     buscar.reset(); limpiarResultados();
-    mostrarPaso(tipo === 'territorial' ? 'buscar' : 'crear', tipo);
+    mostrarPaso(conBusqueda(tipo) ? 'buscar' : 'crear', tipo);
     modal.style.display = 'flex';
-    if (tipo === 'territorial') campoQ.focus();
+    if (conBusqueda(tipo)) campoQ.focus();
   }));
   // Deja el <select> destino con el usuario elegido: si la opción ya existe se actualiza
   // (suma los segmentos), si no se agrega. Lo comparten Asignar, Seleccionar y Crear.
@@ -209,17 +241,41 @@ funcionando sin ese script.
       if (option) {
         const segmentos = (option.dataset.segmentos || '').split(' ').filter(Boolean);
         nuevos.forEach(id => { if (!segmentos.includes(id)) segmentos.push(id); });
-        option.dataset.segmentos = segmentos.join(' ');
+        if (nuevos.length) option.dataset.segmentos = segmentos.join(' ');
         option.selected = true;
       } else {
         option = new Option(usuario.label, usuario.id, true, true);
-        option.dataset.segmentos = nuevos.join(' ');
+        if (nuevos.length) option.dataset.segmentos = nuevos.join(' ');
         target.add(option);
       }
       target.dispatchEvent(new Event('change', {bubbles:true}));
     }
     close();
     if (mensaje) window.toast('success', mensaje);
+  };
+  // Fila del buscador de agentes: elegir NO da ningún rol, solo deja al agente en el <select>. Quien no es
+  // asignable a este edificio sale deshabilitado con el motivo y nunca llega a la lista.
+  const filaDeAgente = (fila) => {
+    const li = nodo('li', 'flex items-start justify-between gap-3 py-3');
+    const cuerpo = nodo('div', 'min-w-0 flex-1');
+    cuerpo.appendChild(nodo('p', 'text-sm font-semibold text-heading', fila.nombre));
+    const contacto = [fila.dni ? 'DNI ' + fila.dni : '', fila.email].filter(Boolean).join(' \u00b7 ');
+    if (contacto) cuerpo.appendChild(nodo('p', 'text-xs text-body-subtle', contacto));
+    if (!fila.asignable && fila.motivo) cuerpo.appendChild(nodo('p', 'mt-1 text-xs text-body-subtle', fila.motivo));
+    li.appendChild(cuerpo);
+    const accionesFila = nodo('div', 'flex flex-col items-end gap-1.5 flex-shrink-0');
+    if (!fila.activo) accionesFila.appendChild(nodo('span', 'badge badge-gray badge-sm', 'Inactivo'));
+    const elegir = nodo('button', 'btn-nodo btn-secondary btn-sm', 'Seleccionar');
+    elegir.type = 'button';
+    elegir.setAttribute('aria-label', 'Seleccionar a ' + fila.nombre);
+    if (fila.asignable) {
+      elegir.addEventListener('click', () => aplicarUsuario({id: fila.id, label: fila.nombre}, fila.nombre + ' queda seleccionado.'));
+    } else {
+      elegir.disabled = true;
+    }
+    accionesFila.appendChild(elegir);
+    li.appendChild(accionesFila);
+    return li;
   };
   const filaDeResultado = (fila) => {
     const li = nodo('li', 'flex items-start justify-between gap-3 py-3');
@@ -256,6 +312,8 @@ funcionando sin ese script.
     li.appendChild(accionesFila);
     return li;
   };
+  BUSQUEDA.territorial.fila = filaDeResultado;
+  BUSQUEDA.agente.fila = filaDeAgente;
   const asignarUsuario = async (fila, boton) => {
     if (boton.disabled) return;
     boton.disabled = true;
@@ -284,23 +342,25 @@ funcionando sin ese script.
     const buscando = nodo('i', 'fas fa-spinner fa-spin'); buscando.setAttribute('aria-hidden', 'true');
     estado.append(buscando, ' Buscando\u2026');
     try {
-      const params = new URLSearchParams({q: texto, segmento_id: form.elements.segmento_id.value});
-      const response = await fetch(buscar.action + '?' + params.toString(), {headers:{'X-Requested-With':'XMLHttpRequest'}});
+      const tipo = tipoActual();
+      const config = BUSQUEDA[tipo];
+      const params = new URLSearchParams({q: texto, ...config.params()});
+      const response = await fetch(config.url + '?' + params.toString(), {headers:{'X-Requested-With':'XMLHttpRequest'}});
       let data;
       try { data = await response.json(); } catch (e) {
         estado.replaceChildren(); window.toast('error', 'No pudimos buscar (respuesta inesperada del servidor). Prob\u00e1 de nuevo.'); return;
       }
       estado.replaceChildren();
       if (!response.ok || !data.ok) { window.toast('error', data.message || 'No pudimos buscar.'); return; }
-      if (!data.resultados.length) { vacio.classList.remove('hidden'); return; }
-      data.resultados.forEach(fila => lista.appendChild(filaDeResultado(fila)));
+      if (!data.resultados.length) { vaciosPorTipo[tipo].classList.remove('hidden'); return; }
+      data.resultados.forEach(fila => lista.appendChild(config.fila(fila)));
       estado.textContent = data.resultados.length === 1 ? '1 resultado' : data.resultados.length + ' resultados';
       if (data.hay_mas) estado.textContent += '. Hay m\u00e1s resultados: escrib\u00ed m\u00e1s datos.';
     } catch (e) {
       estado.replaceChildren(); window.toast('error', 'No pudimos conectar con el servidor. Revis\u00e1 tu conexi\u00f3n.');
     } finally { submitBuscar.disabled = false; }
   });
-  // "Crear territorial nuevo": pasa al formulario con lo tipeado en el campo que corresponde.
+  // "Crear territorial/agente nuevo": pasa al formulario con lo tipeado en el campo que corresponde.
   buscar.addEventListener('click', event => {
     const boton = event.target.closest && event.target.closest('[data-quick-user-crear-nuevo]');
     if (!boton || !buscar.contains(boton)) return;
@@ -311,10 +371,10 @@ funcionando sin ese script.
     else if (texto.includes('@')) form.elements.email.value = texto;
     else form.elements.last_name.value = texto;
     error.textContent = '';
-    mostrarPaso('crear', 'territorial');
+    mostrarPaso('crear', tipoActual());
     document.getElementById('quick-user-username').focus();
   });
-  volver.addEventListener('click', () => { error.textContent = ''; mostrarPaso('buscar', 'territorial'); campoQ.focus(); });
+  volver.addEventListener('click', () => { error.textContent = ''; mostrarPaso('buscar', tipoActual()); campoQ.focus(); });
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.textContent = '';
     if (submit.disabled) return;

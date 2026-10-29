@@ -21,20 +21,25 @@ from programas.services.autorizacion import (
     puede_gestionar_segmento,
     segmentos_asignables_territorial,
 )
+from programas.services.buscador_agentes import buscar_agentes_de_relevamiento
 from programas.services.dispositivos import puede_en_programa_dispositivos
-from programas.services.inspecciones import CAP_CREAR_AGENTE, CLAVE_ROL_AGENTE
+from programas.services.inspecciones import (
+    CAP_ASIGNAR,
+    CAP_CREAR_AGENTE,
+    CLAVE_ROL_AGENTE,
+    edificios_en_alcance,
+)
 from users.forms import MENSAJE_DNI_DUPLICADO, UserCreationForm
 from users.models import RolMeta
 from users.selectors.usuarios import alcance_roles_ids
 from users.services.admin import UsuariosAdminService
+from users.services.busqueda import MIN_CARACTERES, nombre_para_mostrar
 from users.services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
 from users.services.territoriales import (
-    MIN_CARACTERES,
     TerritorialFueraDeAlcance,
     TerritorialInactivo,
     asignar_segmento,
     buscar_territoriales,
-    nombre_para_mostrar,
 )
 
 # Atajos de alta de los modales de Becas: tipo del botón → (rol que otorga, plural
@@ -119,6 +124,7 @@ MENSAJE_DNI_TERRITORIAL = (
 
 #: Alta de agentes de relevamiento edilicio (Dispositivos). Cubeta por operador, como las del territorial.
 CUBETA_ALTA_AGENTE = "usuario_alta_agente"
+CUBETA_BUSCAR_AGENTE = "usuario_buscar_agente"
 ALTAS_AGENTE_POR_MINUTO = 20
 #: Lo único que el operador de Dispositivos puede mandar en el alta: nada de roles, jerarquía ni segmentos.
 CAMPOS_ALTA_AGENTE = ("username", "email", "first_name", "last_name", "dni", "telefono")
@@ -198,6 +204,38 @@ def usuario_buscar_territorial(request):
     if len(texto) < MIN_CARACTERES:
         return error_json(f"Escribí al menos {MIN_CARACTERES} caracteres.", status=400)
     resultados, hay_mas = buscar_territoriales(request.user, texto, segmento)
+    return ok_json(resultados=resultados, hay_mas=hay_mas)
+
+
+@login_required
+@require_GET
+def usuario_buscar_agente(request):
+    """Busca agentes de relevamiento que ya tienen cuenta (Cambio 397), para elegirlos en el modal de asignar.
+
+    Mismo gate que el botón «Crear agente» (``inspeccion.agente.crear`` acotada a Dispositivos). Solo devuelve
+    a quien tiene el rol sembrado de agente y marca si es asignable al edificio; **no da rol ni permiso**.
+    """
+    if not puede_en_programa_dispositivos(request.user, CAP_CREAR_AGENTE):
+        return error_json("No tiene permiso para buscar agentes.", status=403)
+    try:
+        edificio_id = int(request.GET.get("edificio_id") or "")
+    except ValueError:
+        return error_json("Elegí primero el edificio.", status=400)
+    edificio = edificios_en_alcance(request.user, CAP_ASIGNAR).filter(pk=edificio_id).first()
+    if edificio is None:
+        return error_json("No tenés alcance sobre ese edificio.", status=403)
+    if rate_limit_excedido(
+        request,
+        CUBETA_BUSCAR_AGENTE,
+        BUSQUEDAS_POR_MINUTO,
+        sufijo=str(request.user.pk),
+        incluir_ip=False,
+    ):
+        return error_json("Hiciste muchas búsquedas seguidas. Esperá un minuto y probá de nuevo.", status=429)
+    texto = (request.GET.get("q") or "").strip()
+    if len(texto) < MIN_CARACTERES:
+        return error_json(f"Escribí al menos {MIN_CARACTERES} caracteres.", status=400)
+    resultados, hay_mas = buscar_agentes_de_relevamiento(edificio, texto)
     return ok_json(resultados=resultados, hay_mas=hay_mas)
 
 

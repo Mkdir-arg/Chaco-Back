@@ -207,9 +207,22 @@ class EntrypointTests(SimpleTestCase):
 
                 self.assertIn("Sacar la variable del entorno", resultado.stderr)
 
+
+class EntrypointTextoTests(SimpleTestCase):
+    """Lo que se fija leyendo el texto del script: no necesita una shell POSIX."""
+
     def test_la_guarda_corre_antes_de_tocar_la_base(self):
         """Si quedara después de `run_bootstrap`, en un ambiente con la base caída el
         pod se quedaría esperando para siempre sin llegar nunca a dar el motivo real."""
         script = ENTRYPOINT.read_text(encoding="utf-8")
 
         self.assertLess(script.index("guard_worker_class\n"), script.index("wait_for_database()"))
+
+    def test_gunicorn_arranca_sin_socket_de_control(self):
+        """Desde la 25.1 gunicorn abre por defecto un socket de control que nadie usa y
+        que se rearma en cada reciclado por `--max-requests`. Sacar el flag vuelve a
+        prenderlo sin que ningún otro test lo note."""
+        script = ENTRYPOINT.read_text(encoding="utf-8")
+        bloque = script[script.index("exec gunicorn") : script.index("--log-file -")]
+
+        self.assertIn("--no-control-socket", bloque)

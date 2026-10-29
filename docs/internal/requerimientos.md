@@ -520,7 +520,11 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 394 | Se retiran las capacidades `institucion.ver` e `institucion.administrar` (cierra OPS-14) y se limpian MINORs de los Cambios 392 y 393 | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0042`, de datos, con reversa) |
 | 395 | Dispositivos: «Crear agente» de relevamiento edilicio desde el modal de asignar, con la capacidad `inspeccion.agente.crear` y el rol sembrado «Dispositivos — Agente de relevamiento» | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0043`, de datos, con reversa) |
 | 396 | El bootstrap del entrypoint ya no muere si Redis no responde al invalidar el padrón geográfico de SIIS | Becas · SIIS (`seed_catalogo_siis`, `invalidar_padron_geografico`) · arranque del contenedor | `#siis` `#infra` | Juez — release-gate run 40764473533 (PR #988) | 28/10/2026 | 🟢 **Hecho** | No requiere |
-| 397 | Alta masiva SIIS de la Convocatoria 1 en PRD (1.786 altas): procedimiento probado documentado paso a paso | Becas · SIIS (`corregir_datos_siis`, `procesar_casos_siis`, `sincronizar_tabla_intermedia`) · operación en PRD de ECOM | `#siis` `#infra` | PM — pedido del 28/10/2026 | 29/10/2026 | 🟢 **Hecho** | No requiere |
+| 397 | Dispositivos: «Buscar agente» en el modal de asignar un relevamiento (reemplaza tres puntos del Cambio 395: ahora se busca entre los agentes que ya existen) | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 29/10/2026 | 29/10/2026 | 🟢 **Hecho** | No requiere |
+| 398 | gunicorn arranca sin el socket de control nuevo de la 25.1 (MINOR de la auditoría de #947) y el pendiente del Cambio 363 pasa a contar siete excepciones de twisted | Transversal · arranque del contenedor (`docker-entrypoint.sh`) · `security/excepciones.toml` (solo docs) | `#infra` | Juez — auditoría del PR #947 y cierre del PR #990 | 29/10/2026 | 🟢 **Hecho** | No requiere |
+| 399 | Dispositivos / SIIS: MINOR de las auditorías de #999 y #1001 (buscador de agentes en su propio módulo, motivo genérico, modal con tabla `BUSQUEDA`, espaciado del botón, invalidación tolerante con el helper de cache) | Dispositivos · Usuarios (alta rápida) · SIIS (`seed_catalogo_siis`, `refrescar_catalogos_locales`) | `#usuarios` `#ui` `#siis` | Juez — MINOR de auditoría (#999, #1001) | 29/10/2026 | 🟢 **Hecho** | No requiere |
+| 400 | Dispositivos / SIIS: MINOR de la auditoría de #1003 (refresco de catálogos tolera Redis caído, Historial de 396/397, rama genérica inalcanzable del buscador) | Dispositivos · SIIS (`refrescar_catalogos_locales`) | `#siis` `#usuarios` | Juez — MINOR de auditoría (#1003) | 29/10/2026 | 🟢 **Hecho** | No requiere |
+| 401 | Alta masiva SIIS de la Convocatoria 1 en PRD (1.786 altas): procedimiento probado documentado paso a paso | Becas · SIIS (`corregir_datos_siis`, `procesar_casos_siis`, `sincronizar_tabla_intermedia`) · operación en PRD de ECOM | `#siis` `#infra` | PM — pedido del 28/10/2026 | 29/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -47049,8 +47053,9 @@ Nada más que el deploy: la imagen se reconstruye con setuptools 84.1.0.
 
 ## Pendientes / a definir
 
-- **Cuando salga twisted 26.10.0 final, revisar juntas las seis excepciones de twisted:** las
-  cinco de este Cambio y la del 315 (CVE-2026-106454). Se corre `pip-audit -r requirements.txt`
+- **Cuando salga twisted 26.10.0 final, revisar juntas las siete excepciones de twisted:** las
+  cinco de este Cambio, la del 315 (CVE-2026-106454) y la de CVE-2026-83813, que entró con el
+  PR #988 (el conteo se corrigió en el Cambio 398). Se corre `pip-audit -r requirements.txt`
   sin ningún `--ignore-vuln` y se borra toda entrada cuyo id ya no aparezca: es el criterio de
   la cabecera de `security/excepciones.toml`.
 - **Confirmar con ECOM que el ingress rearma la petición** y no reenvía un CR o un LF suelto
@@ -49388,7 +49393,15 @@ configura el PM.
 
 ## Pendientes / a definir
 
-- Los dos MINOR de la auditoría de #986 (ver Historial).
+- Los tres MINOR de la auditoría de #986 (ver Historial).
+- **Pendientes del carril de Dispositivos al cierre del 27/10/2026**, que no tenían entrada propia:
+  - **DECISIÓN PM:** P4 no muestra las respuestas que quedan en `anteriores` (`formularios_respondidos` en
+    `programas/services/respuestas_dispositivo.py`). Ya está en los Pendientes del Cambio 387: es un cambio de
+    comportamiento y necesita pedido. Propuesta por defecto: un bloque «De versiones anteriores».
+  - **DECISIÓN PM:** ¿se guarda la traza de quién cambió una respuesta del formulario por tipo, y cuándo? Hoy se
+    guarda la respuesta vigente, sin historial.
+  - `CapacidadConcurrenteTests` sigue fallando a veces en el caso de sectores distintos, aun después del arreglo
+    del Cambio 347. No se investigó.
 - El subtítulo y el tono del encabezado por acción en el modal genérico. Requiere que `_modal_header.html` acepte
   esos valores dinámicos.
 - Sin JS, un error de reservar o prestar vuelve a la pantalla con un aviso y sin el modal abierto, igual que las
@@ -49406,6 +49419,12 @@ normales de `ReservaPlaza`, y se liberan desde el mapa.
   la plaza anterior. Se corrigió en `8a7ed7fb`. Quedan dos MINOR para el próximo PR del carril: las tres copias de la
   resolución de capacidades + plaza en `dispositivos_legajo.py` (que pasa las 1400 líneas) y la cadena de clases por
   tono copiada tres veces en `_mapa_plazas.html`.
+- **28/10/2026 — pendientes que no estaban escritos.** Se suma un tercer MINOR de la misma auditoría: la limpieza
+  del modal al cerrarlo no reusa la de `_ajax_js.html` y deja el id del error anterior en `aria-describedby`, así
+  que el lector de pantalla sigue anunciando un error que ya no se ve. También se suman a Pendientes los restos del
+  carril que no tenían entrada propia. El test del `formulario_tipo_diseno` ajeno, que figuraba como pendiente en
+  las notas del carril, ya existe (`test_la_marca_de_un_diseno_ajeno_no_guarda_y_vuelve_con_la_seccion_del_tipo_elegido`,
+  entró en `69542b91`, Cambio 387).
 
 ---
 
@@ -49963,6 +49982,7 @@ Migraciones `users.0043` (datos y `AlterModelOptions`, lista entera de `Capacida
 ## Historial
 
 - **28/10/2026 — alta del cambio.**
+- **29/10/2026** — el Cambio 397 suma la búsqueda de agentes existentes y deja sin efecto tres puntos de este cambio: el «Queda afuera: buscar o asignar usuarios que ya existen», la decisión de UI «para `agente` abre directo en el formulario» y el pendiente «Un agente creado por este camino no se puede buscar…».
 
 ---
 
@@ -49990,8 +50010,8 @@ arrancaba; en el release-gate no hay Redis y el smoke HTTP fallaba.
 
 ## Alcance acordado
 
-**Entra:** que `invalidar_padron_geografico` sea tolerante, igual que `programa_cache.invalidar`
-(Cambio 99 y siguientes): `try/except Exception`, `logger.warning` con el tipo de excepción.
+**Entra:** que `invalidar_padron_geografico` sea tolerante, igual que `programa_cache.invalidar_programa`
+(Cambio 165, OPS-12; unificado en el Cambio 193, RED-80): `try/except Exception`, `logger.warning` con el tipo de excepción.
 
 **Queda afuera:** settings y entrypoint.
 
@@ -50038,10 +50058,334 @@ Revertir el PR.
 ## Historial
 
 - **28/10/2026 — alta del cambio.**
+- **29/10/2026** — Cambio 399: la entrada citaba «`programa_cache.invalidar` (Cambio 99 y siguientes)»; el nombre vigente es `programa_cache.invalidar_programa`. Además `invalidar_padron_geografico` se eliminó: `seed_catalogo_siis` invalida con `invalidar_tras_commit(claves_padron_geografico())`.
 
 ---
 
-# Cambio 397 — Alta masiva SIIS de la Convocatoria 1 en PRD: procedimiento probado
+# Cambio 397 — «Buscar agente» en el modal de asignar un relevamiento (Dispositivos)
+
+🟢 **HECHO — 29/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) |
+| **Etiquetas** | `#rbac` `#usuarios` `#ui` |
+| **Solicitante** | PM — decisión del 29/10/2026 (opción a) |
+| **Fecha del pedido** | 29/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (modales de asignar, reasignar y crear relevamiento; endpoint nuevo de búsqueda; modal de alta rápida) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El botón «Crear agente» tiene que funcionar igual que «Crear territorial» de Becas: el modal abre primero en un paso
+**«Buscar agente»** («Buscá si la persona ya tiene cuenta antes de crear una nueva.»; campo «Nombre, apellido, DNI o
+correo»; «Mínimo 3 caracteres. El DNI y el correo, completos.») y, si no está, «Crear agente nuevo» pasa al formulario de
+alta de siempre, precargado con lo tipeado.
+
+## Alcance acordado
+
+**Entra:** endpoint GET de búsqueda; paso de búsqueda del modal para el tipo `agente`; el botón aporta el edificio.
+
+**Queda afuera:** dar roles o permisos a quien ya existe (la búsqueda no asigna nada); buscar fuera del rol sembrado de
+agente; cambiar el alta del Cambio 395 o el alcance de Becas.
+
+## Decisiones tomadas
+
+- **Esto REEMPLAZA tres puntos del Cambio 395**: el «Queda afuera: buscar o asignar usuarios que ya existen», la decisión de UI
+  «para `agente` abre directo en el formulario» y el pendiente «Un agente creado por este camino no se puede buscar…». La búsqueda es **solo entre los
+  usuarios que ya tienen el rol sembrado «Dispositivos — Agente de relevamiento»** (`RolMeta.clave = CLAVE_ROL_AGENTE`;
+  opción a del PM). Un territorial de Becas, o alguien que releva por otro rol, no aparece. No son superusuarios.
+- **Elegir un resultado no da ningún permiso ni rol**: solo deja a ese agente elegido en el `<select>` de agente del modal que
+  abrió (el selector viene en `_boton_crear_agente.html`). El POST de asignar vuelve a validar al agente contra el edificio
+  (`_validar_agente` y el queryset del campo): la búsqueda no es una vía alternativa.
+- **Asignabilidad decidida en el servidor, con la misma fuente que llena el select** (`agentes_asignables(edificio)`): el
+  resultado trae `asignable` y `motivo`. No asignable: inactivo, personal de una institución del edificio (regla
+  `AGENTE_DEBE_SER_EXTERNO`) o sin rol activo que le permita relevar. Se muestra con el botón deshabilitado y el motivo, y
+  **nunca se agrega al select**. DNI y correo de quien no es asignable salen enmascarados (como Becas); el asignable los
+  muestra completos.
+- **El edificio es parte del contrato**: `edificio_id` obligatorio. P21 asignar y reasignar lo conocen (`data-edificio-id`);
+  en P4 el edificio se elige dentro del modal, así que el botón lleva `data-edificio-source` (el campo del edificio) y,
+  si todavía no hay uno elegido, el modal avisa con un toast y no abre: no se inventa asignabilidad.
+- **Endpoint** `users:usuario_buscar_agente` (`/usuarios/alta-rapida/agente/buscar/`, colgado del prefijo conocido por el WAF
+  de ECOM): 403 sin `inspeccion.agente.crear` en Dispositivos (la misma condición que el botón, acotada al programa), 403 si el
+  edificio no existe o está fuera del alcance de asignar del operador, 400 sin edificio o con menos de 3 caracteres, 429 por
+  operador (30 por minuto, cubeta propia), GET solamente. Tope de 10 resultados con aviso de que hay más.
+- **DNI y correo solo exactos**, nombre y apellido parciales: mismo filtro que Becas, sin duplicarlo. Los helpers
+  (`filtrar_por_texto`, `formatear_dni`, enmascarados, `nombre_para_mostrar`, constantes) pasaron a
+  `users/services/busqueda.py`; `territoriales.py` los reexporta y Becas no cambia de comportamiento.
+- **Front**: el mismo paso 1 del modal canónico, parametrizado por tipo (sin segundo modal): URL de búsqueda por tipo
+  (`data-action-agente`), un bloque de estado vacío por tipo y el texto del botón «Crear … nuevo». «Volver a buscar» también
+  aparece para el agente.
+
+## Implementación
+
+`users/services/busqueda.py` (nuevo, helpers comunes); `programas/services/inspecciones.py`
+(`buscar_agentes_de_relevamiento` y los motivos); `users/views/quick_create.py` (`usuario_buscar_agente`);
+`users/urls.py`; `users/templates/user/_alta_rapida_modal.html`; el include del botón, `_campos_asignar.html`, `list.html`
+y `legajo/detail.html` (aportan el edificio).
+
+## Archivos
+
+- `users/services/busqueda.py`, `users/services/territoriales.py`, `programas/services/inspecciones.py`
+- `users/views/quick_create.py`, `users/views/__init__.py`, `users/urls.py`
+- `users/templates/user/_alta_rapida_modal.html`, `programas/templates/programas/dispositivos/relevamientos/_boton_crear_agente.html`,
+  `.../relevamientos/_campos_asignar.html`, `.../relevamientos/list.html`, `.../legajo/detail.html`
+- Tests: `programas/tests/test_dispositivos_buscar_agente.py` (nuevo), `users/tests/test_alta_rapida_modal.py` (un pin de
+  texto actualizado: `conBusqueda(tipo)` en vez de `tipo === 'territorial'`)
+- `.claude/design/arquetipos/modal.md`, `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `programas.tests.test_dispositivos_buscar_agente` (21 casos): solo el rol de agente (no el territorial de Becas, ni quien
+  no tiene el rol, ni quien releva por otro rol, ni el superusuario), DNI y correo exactos, tope, personal del edificio /
+  inactivo / rol inactivo marcados con motivo y enmascarados, personal de un edificio asignable a otro, 403 (sin
+  capacidad, capacidad en otro programa, edificio fuera de alcance), 400, 429 por operador, anónimo, solo GET, buscar no
+  crea ni modifica grupos ni permisos, y el edificio llega al botón en las tres pantallas.
+- Mutación: quitar el filtro por `CLAVE_ROL_AGENTE` pone rojo `test_solo_devuelve_a_quien_tiene_el_rol_de_agente`; quitar el
+  chequeo de capacidad del endpoint pone rojos `test_sin_la_capacidad_es_403` y `test_la_capacidad_en_otro_programa_es_403`.
+- `programas.tests.test_dispositivos_crear_agente`, `users.tests.test_alta_rapida_modal`, `test_territorial_buscador`,
+  `test_territorial_multisegmento`, `test_dispositivos_inspecciones`: verdes. `manage.py check`, ruff,
+  `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0), `check_design_agent --changed` (OK),
+  `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada especial: no hay migración ni variable nueva.
+
+## Pendientes / a definir
+
+- Sumar el rol de agente a una persona que ya existe sigue siendo del administrador del programa: esta búsqueda no lo hace.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **29/10/2026 — alta del cambio.**
+- **29/10/2026** — Cambio 399: la decisión citaba «la decisión 2 del Cambio 395», que no existe. El buscador pasó a `programas/services/buscador_agentes.py`, ya no hay reexport en `territoriales.py` (se importa de `users.services.busqueda`) y existe el motivo genérico `MOTIVO_AGENTE_GENERICO` para quien tiene el rol y aun así no es asignable. (Cambio 400 lo retiró por inalcanzable.)
+
+---
+
+# Cambio 398 — gunicorn arranca sin el socket de control y el Cambio 363 cuenta siete excepciones
+
+🟢 **HECHO — 29/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · arranque del contenedor (`docker-entrypoint.sh`) · `security/excepciones.toml` (solo docs) |
+| **Etiquetas** | `#infra` |
+| **Solicitante** | Juez — MINOR de la auditoría del PR #947 (gunicorn 23.0.0 → 26.2.0) y cierre del PR #990 |
+| **Fecha del pedido** | 29/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Infra/ECOM |
+| **Migración** | No requiere |
+
+## Pedido original
+
+La auditoría de #947 encontró un MINOR, y lo vieron los dos auditores: desde la 25.1, gunicorn abre por defecto un socket
+de control en `$HOME/.gunicorn/gunicorn.ctl`. Ese socket no lo usa nadie. Además, su hilo se detiene y se vuelve a
+levantar en cada fork del arbiter, es decir, en cada worker que se recicla por `--max-requests 1000`. Al cerrar #990,
+quedó a la vista que el pendiente del Cambio 363 seguía diciendo «seis excepciones» de twisted, cuando ya son siete.
+
+## Alcance acordado
+
+**Entra:** agregar `--no-control-socket` al `exec gunicorn` del entrypoint, sumar un test que lo fije y corregir el texto
+del pendiente del Cambio 363.
+
+**Queda afuera:** subir a gunicorn 26.2.2 (con el fix de chunked de 26.2.1), porque todavía no está en PyPI. También
+queda afuera daphne, que es lo que corre ECOM.
+
+## Decisiones tomadas
+
+- **Apagar el socket en lugar de dejarlo prendido.** Esa pieza ya trajo dos bugs upstream: un deadlock al hacer fork
+  (#3529, arreglado en #3520) y una fuga de descriptores en SIGHUP (#3648, arreglada en 26.1). Si la raíz del contenedor
+  es de solo lectura, deja un ERROR en el log por cada reciclado. Con el flag, gunicorn arranca igual que con la 23.0.0.
+
+## Implementación
+
+`docker-entrypoint.sh`: el `exec gunicorn` lleva `--no-control-socket`, con un comentario que explica por qué. En
+`requerimientos.md`, el pendiente del Cambio 363 pasa a contar siete excepciones.
+
+## Archivos
+
+- `docker-entrypoint.sh`
+- `config/tests/test_wsgi_runtime.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Test nuevo `test_gunicorn_arranca_sin_socket_de_control`.
+- gunicorn 26.2.0 en `python:3.12-slim`, con los flags exactos del entrypoint más `--no-control-socket`: arranca y
+  responde 200.
+
+## Puesta en marcha en el servidor
+
+Nada más que el deploy. Antes de redesplegar icore hay que correr el `Release gate`, que es lo único que arranca
+gunicorn de verdad.
+
+## Pendientes / a definir
+
+- Subir a gunicorn 26.2.2 cuando salga en PyPI.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **29/10/2026 — alta del cambio.**
+- **29/10/2026 — los tres MINOR de la auditoría de #1002.** El comentario del bloque del Cambio 363 en
+  `security/excepciones.toml` seguía diciendo «las seis de twisted»: ahora dice siete y nombra CVE-2026-83813.
+  Los dos tests que leen el texto del entrypoint (`test_la_guarda_corre_antes_de_tocar_la_base` y
+  `test_gunicorn_arranca_sin_socket_de_control`) pasan de `EntrypointTests`, que ejecuta el script y se saltea
+  sin `sh`, a `EntrypointTextoTests`, que no necesita shell. En el pendiente del Cambio 363,
+  «(corregido en el Cambio 398)» pasa a decir «(el conteo se corrigió en el Cambio 398)».
+
+---
+
+# Cambio 399 — MINOR de las auditorías de #999 (Cambio 396) y #1001 (Cambio 397)
+
+🟢 **HECHO — 29/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Usuarios (alta rápida) · SIIS |
+| **Etiquetas** | `#usuarios` `#ui` `#siis` |
+| **Solicitante** | Juez — MINOR que dejaron las auditorías de #999 y #1001 |
+| **Fecha del pedido** | 29/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (modal de alta rápida, buscador de agentes) · bootstrap y CronJob de SIIS |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Resolver en un solo PR los MINOR de las dos auditorías, **sin cambiar comportamiento ni textos visibles** (salvo el espaciado del botón del pie del paso de búsqueda).
+
+## Alcance acordado
+
+**Entra:** los nueve puntos de abajo. **Queda afuera:** cualquier cambio funcional o de textos.
+
+## Decisiones tomadas
+
+- **Cambio 397 (#1001)**
+  1. La entrada 397 y el índice dejan de citar una «decisión 2 del Cambio 395» que no existe: reemplaza el «Queda afuera», la decisión de UI del modal y el pendiente del 395; el Historial del 395 lo anota (única línea agregada allí).
+  2. `buscar_agentes_de_relevamiento` y las `MOTIVO_AGENTE_*` salen de `inspecciones.py` a `programas/services/buscador_agentes.py`, que importa de ahí la fuente de verdad de la asignabilidad.
+  3. `users/services/territoriales.py` ya no reexporta con `# noqa: F401`; `quick_create.py` y el test del buscador importan de `users.services.busqueda`.
+  4. `_alta_rapida_modal.html`: una tabla `BUSQUEDA = {territorial, agente}` (`url`, `params`, `fila`) reemplaza las ramas por tipo; `conBusqueda = tipo => tipo in BUSQUEDA` y `nuevoTexto.textContent = tipo`. **Se dejaron los dos bloques de «vacío»** (el HTML literal no cambia, así que los tests que fijan textos siguen igual); Becas territorial se comporta igual.
+  5. El motivo comodín dejó de afirmar «No tiene un rol activo…» sin verificarlo: se consulta `_candidatos_a_relevar().filter(pk__in=ids)` (una consulta acotada); si tiene el rol y aun así no es asignable, el motivo es «No se le puede asignar este relevamiento.» (`MOTIVO_AGENTE_GENERICO`).
+  6. El botón «Crear {tipo} nuevo» del pie envuelve el texto en un solo `<span>`, para que el `gap` del botón no separe las palabras («Crear agente nuevo»).
+- **Cambio 396 (#999)**
+  7. `siis.py` expone `claves_padron_geografico()` y `seed_catalogo_siis` invalida con `core.performance.cache_utils.invalidar_tras_commit`. `invalidar_padron_geografico` no tenía otros llamadores y se **eliminó**. Con el cache caído el helper deja un warning en el logger `django` («No se pudo invalidar cache…») y no propaga.
+  8. En la entrada 396, `programa_cache.invalidar` pasa a `programa_cache.invalidar_programa` (Cambio 165, OPS-12; unificado en el Cambio 193, RED-80).
+  9. `refrescar_catalogos_locales` usa `invalidate_cache_keys` (tolerante) en lugar de `cache.delete` sin atajar.
+
+## Implementación
+
+`programas/services/buscador_agentes.py` (nuevo), `programas/services/inspecciones.py`, `programas/services/siis.py`, `programas/management/commands/seed_catalogo_siis.py`, `users/views/quick_create.py`, `users/services/territoriales.py`, `users/templates/user/_alta_rapida_modal.html`.
+
+## Archivos
+
+- Los de arriba, más `programas/tests/test_dispositivos_buscar_agente.py`, `programas/tests/test_siis_provincia_de_la_localidad.py`, `users/tests/test_territorial_buscador.py` y `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Tests de buscar agente, crear agente, provincia de la localidad (con el caso de cache caído en la invalidación del seed y en `refrescar_catalogos_locales`), el caso del motivo genérico y `users`; `manage.py check`; ruff; `design_audit --ratchet`; `compile_templates --bloques`; `check_design_agent --changed`; `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **29/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 400 — MINOR de la auditoría del PR #1003: refresco de catálogos sin Redis, historial de 396/397 y rama inalcanzable del buscador
+
+🟢 **HECHO — 29/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · SIIS · requerimientos |
+| **Etiquetas** | `#siis` `#usuarios` |
+| **Solicitante** | Juez — MINOR de la auditoría del PR #1003 |
+| **Fecha del pedido** | 29/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | CronJob `sincronizar_programas_siis` · buscador de agentes |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Resolver los tres MINOR de la auditoría de #1003 sin cambiar comportamiento visible.
+
+## Alcance acordado
+
+**Entra:** los tres puntos de abajo. **Queda afuera:** cualquier cambio funcional.
+
+## Decisiones tomadas
+
+1. `refrescar_catalogos_locales` ataja `Exception` por catálogo: `catalogo()` y `_token()` leen el cache sin atajar, así que con Redis caído el cron fallaba pese a que el docstring prometía no levantar. Ese catálogo va a `fallados` (con `logger.warning` del tipo de excepción, sin datos) y el comentario dice exactamente eso. El test se reescribió con un `cache` caído (`ConnectionInterrupted` en `get`/`set`/`delete`) y sin mockear `catalogo`.
+2. Las entradas 396 y 397 que el Cambio 399 corrigió en el lugar ganan su línea de Historial fechada, como pide la regla del archivo.
+3. En `buscador_agentes.py` se sacó la consulta `con_rol`, la rama inalcanzable y `MOTIVO_AGENTE_GENERICO`: asignable = activo ∧ rol de programa con `inspeccion.relevar` ∧ ¬personal, así que quien no es asignable y no es inactivo ni personal solo puede no tener el rol. `MOTIVO_AGENTE_NO_RELEVA` queda como último caso, con el invariante comentado. `_personal_del_edificio` pasó a ser público (`personal_del_edificio`) en `inspecciones.py`; ya no se importan helpers privados.
+
+## Implementación
+
+`programas/services/siis.py`, `programas/services/buscador_agentes.py`, `programas/services/inspecciones.py` (renombre), `docs/internal/requerimientos.md`.
+
+## Archivos
+
+- Los de arriba, más `programas/tests/test_siis_provincia_de_la_localidad.py` (test reescrito; la clase del cache caído declara `databases` para no depender del orden) y `programas/tests/test_dispositivos_buscar_agente.py` (se eliminó el test de la rama genérica).
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Tests de SIIS y del buscador, con mutación (sin el `except` nuevo el test se pone rojo); `manage.py check`; ruff; `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **29/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 401 — Alta masiva SIIS de la Convocatoria 1 en PRD: procedimiento probado
 
 🟢 **HECHO — 29/10/2026**
 

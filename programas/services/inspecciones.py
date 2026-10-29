@@ -234,7 +234,7 @@ def _personal_de_edificios(edificio_ids):
     """Asignaciones de personal (rol activo, asignación activa) a instituciones de esos edificios.
 
     Es **la** definición de «personal del edificio»: la usan el selector de un edificio
-    (:func:`_personal_del_edificio`), el de varios (:func:`agentes_asignables_para`) y la validación
+    (:func:`personal_del_edificio`), el de varios (:func:`agentes_asignables_para`) y la validación
     del servicio. Un dispositivo en dos de los edificios aparece una vez por cada uno.
     """
 
@@ -243,7 +243,7 @@ def _personal_de_edificios(edificio_ids):
     )
 
 
-def _personal_del_edificio(edificio):
+def personal_del_edificio(edificio):
     """Ids de usuario con un rol activo asignado a alguna institución del edificio."""
 
     return _personal_de_edificios([edificio.pk]).values("rol__user")
@@ -272,7 +272,7 @@ def agentes_asignables(edificio):
 
     candidatos = _candidatos_a_relevar()
     if AGENTE_DEBE_SER_EXTERNO:
-        candidatos = candidatos.exclude(pk__in=_personal_del_edificio(edificio))
+        candidatos = candidatos.exclude(pk__in=personal_del_edificio(edificio))
     return candidatos.distinct().order_by("first_name", "last_name", "username")
 
 
@@ -303,7 +303,7 @@ def _validar_agente(agente, edificio):
         raise ValidationError({"asignado_a": "Elegí un agente activo."})
     if not puede_en_programa_dispositivos(agente, CAP_RELEVAR):
         raise ValidationError({"asignado_a": "El agente elegido no puede relevar en el Programa Dispositivos."})
-    if AGENTE_DEBE_SER_EXTERNO and _personal_del_edificio(edificio).filter(rol__user=agente).exists():
+    if AGENTE_DEBE_SER_EXTERNO and personal_del_edificio(edificio).filter(rol__user=agente).exists():
         raise ValidationError(
             {"asignado_a": "El relevamiento no se asigna al personal de una institución que ocupa el edificio."}
         )

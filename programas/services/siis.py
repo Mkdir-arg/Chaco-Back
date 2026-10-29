@@ -13,6 +13,7 @@ from django.db import connection
 
 from core.checks import escritura_siis_bloqueada
 from core.integraciones import Cortacircuito, sesion_http
+from core.performance.cache_utils import invalidate_cache_keys
 from core.performance.query_observability import instrument_external_call
 
 logger = logging.getLogger(__name__)
@@ -878,25 +879,13 @@ def _leer_padron_geografico(nombre):
     ]
 
 
-def invalidar_padron_geografico():
-    """Invalida el padrón geográfico cacheado; si el cache no responde, no rompe.
+def claves_padron_geografico():
+    """Claves del cache del padrón geográfico (provincias y localidades).
 
-    Lo llama ``seed_catalogo_siis`` en ``on_commit``, dentro del bootstrap del
-    entrypoint: con Redis caído (``ConnectionInterrupted``) una invalidación sin
-    atajar mataba el arranque del contenedor. Es *best-effort*, igual que
-    ``programa_cache.invalidar``: lo peor es que otro proceso vea el padrón
-    anterior hasta que la clave venza sola. Se atrapa ``Exception`` para no
-    acoplarse a los tipos de un backend concreto.
+    Quien las invalida lo hace con ``core.performance.cache_utils.invalidar_tras_commit``, que no propaga un cache
+    caído: con Redis caído (``ConnectionInterrupted``) una invalidación sin atajar mataba el arranque del bootstrap.
     """
-    claves = [PADRON_GEOGRAFICO_CACHE_KEY.format(nombre) for nombre in ("provincias", "localidades")]
-    try:
-        cache.delete_many(claves)
-    except Exception as excepcion:  # noqa: BLE001 — ver el docstring
-        logger.warning(
-            "No se pudo invalidar el padrón geográfico en el cache (%s): el arranque sigue y las claves vencen solas en %s s.",
-            type(excepcion).__name__,
-            CATALOGO_CACHE_SECONDS,
-        )
+    return [PADRON_GEOGRAFICO_CACHE_KEY.format(nombre) for nombre in ("provincias", "localidades")]
 
 
 def funciones_programa(id_programa):
@@ -964,11 +953,17 @@ def refrescar_catalogos_locales():
     cliente = SiisAPIClient()
     actualizados, fallados = [], []
     for nombre in CATALOGOS_MAESTROS:
-        cache.delete(CATALOGO_CACHE_KEY.format(nombre))
+        # La invalidación ya tolera un cache caído, pero ``catalogo()`` y ``_token()`` leen el cache sin atajar:
+        # con Redis caído levantan. Un catálogo que falla por lo que sea va a ``fallados`` y no corta el resto.
+        invalidate_cache_keys(CATALOGO_CACHE_KEY.format(nombre))
         try:
             items = cliente.catalogo(nombre)
         except SiisCatalogError as exc:
             fallados.append((nombre, str(exc)))
+            continue
+        except Exception as exc:
+            logger.warning("No se pudo refrescar el catálogo SIIS %s: %s", nombre, type(exc).__name__)
+            fallados.append((nombre, f"Error inesperado ({type(exc).__name__})."))
             continue
         if items:
             actualizados.append((nombre, len(items)))
