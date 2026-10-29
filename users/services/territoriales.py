@@ -27,9 +27,7 @@ from programas.services.autorizacion import (
     segmentos_para_gestion_territoriales,
 )
 from users.selectors.roles import es_gestor_territorial
-from users.services.busqueda import (  # noqa: F401  (se reexportan: los usan las vistas y los tests)
-    MIN_CARACTERES,
-    SIN_NOMBRE,
+from users.services.busqueda import (
     TOPE_RESULTADOS,
     enmascarar_correo,
     enmascarar_dni,

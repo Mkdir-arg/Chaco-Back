@@ -24,7 +24,7 @@ from programas.models import AsignacionCoordinador, AsignacionTerritorial, Segme
 from programas.services.autorizacion import usuarios_territoriales_becas
 from users.forms import CustomUserChangeForm
 from users.models import Profile
-from users.services.territoriales import enmascarar_correo, enmascarar_dni
+from users.services.busqueda import enmascarar_correo, enmascarar_dni
 
 BUSCAR = "users:usuario_buscar_territorial"
 ASIGNAR = "users:usuario_asignar_territorial"

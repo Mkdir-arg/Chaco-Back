@@ -246,12 +246,27 @@ class InvalidarPadronGeograficoSinCacheTests(SimpleTestCase):
     def test_cache_caido_no_propaga_y_deja_warning(self):
         from django_redis.exceptions import ConnectionInterrupted
 
-        from programas.services.siis import invalidar_padron_geografico
+        from core.performance.cache_utils import invalidar_tras_commit
+        from programas.services.siis import claves_padron_geografico
 
         with patch(
-            "programas.services.siis.cache.delete_many",
+            "core.performance.cache_utils.cache.delete_many",
             side_effect=ConnectionInterrupted(connection=None),
         ):
-            with self.assertLogs("programas.services.siis", level="WARNING") as capturado:
-                invalidar_padron_geografico()
-        self.assertIn("ConnectionInterrupted", capturado.output[0])
+            with self.assertLogs("django", level="WARNING") as capturado:
+                invalidar_tras_commit(claves_padron_geografico())
+        self.assertIn("No se pudo invalidar cache", capturado.output[0])
+
+    def test_refrescar_catalogos_con_cache_caido_no_propaga(self):
+        from django_redis.exceptions import ConnectionInterrupted
+
+        from programas.services.siis import CATALOGOS_MAESTROS, SiisAPIClient, refrescar_catalogos_locales
+
+        with (
+            patch("core.performance.cache_utils.cache.delete", side_effect=ConnectionInterrupted(connection=None)),
+            patch.object(SiisAPIClient, "catalogo", return_value=[{"id": 1}]),
+            self.assertLogs("django", level="WARNING"),
+        ):
+            actualizados, fallados = refrescar_catalogos_locales()
+        self.assertEqual(len(actualizados), len(CATALOGOS_MAESTROS))
+        self.assertEqual(fallados, [])
