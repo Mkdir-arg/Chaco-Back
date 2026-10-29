@@ -8,9 +8,8 @@ from django.contrib.auth import get_user_model
 from programas.services.inspecciones import (
     AGENTE_DEBE_SER_EXTERNO,
     CLAVE_ROL_AGENTE,
-    _candidatos_a_relevar,
-    _personal_del_edificio,
     agentes_asignables,
+    personal_del_edificio,
 )
 from users.services.busqueda import (
     TOPE_RESULTADOS,
@@ -24,7 +23,6 @@ from users.services.busqueda import (
 MOTIVO_AGENTE_INACTIVO = "Está inactivo: lo reactiva el administrador del programa."
 MOTIVO_AGENTE_ES_PERSONAL = "Es personal de una institución de este edificio: no se le asigna su propio relevamiento."
 MOTIVO_AGENTE_NO_RELEVA = "No tiene un rol activo que le permita relevar en Dispositivos."
-MOTIVO_AGENTE_GENERICO = "No se le puede asignar este relevamiento."
 
 
 def buscar_agentes_de_relevamiento(edificio, texto):
@@ -37,7 +35,7 @@ def buscar_agentes_de_relevamiento(edificio, texto):
     (:func:`agentes_asignables`), no de una regla paralela. A quien no es asignable se le enmascaran DNI y correo.
 
     El llamador ya validó el largo mínimo y el alcance del operador sobre ``edificio``. Consultas acotadas:
-    los candidatos, los asignables entre ellos, el personal del edificio y los que tienen rol (nada por fila).
+    los candidatos, los asignables entre ellos y el personal del edificio (nada por fila).
     """
 
     candidatos = list(
@@ -53,8 +51,7 @@ def buscar_agentes_de_relevamiento(edificio, texto):
     candidatos = candidatos[:TOPE_RESULTADOS]
     ids = [usuario.pk for usuario in candidatos]
     asignables = set(agentes_asignables(edificio).filter(pk__in=ids).values_list("pk", flat=True))
-    personal = set(_personal_del_edificio(edificio).filter(rol__user__in=ids).values_list("rol__user", flat=True))
-    con_rol = set(_candidatos_a_relevar().filter(pk__in=ids).values_list("pk", flat=True))
+    personal = set(personal_del_edificio(edificio).filter(rol__user__in=ids).values_list("rol__user", flat=True))
 
     filas = []
     for usuario in candidatos:
@@ -65,11 +62,11 @@ def buscar_agentes_de_relevamiento(edificio, texto):
             motivo = MOTIVO_AGENTE_INACTIVO
         elif AGENTE_DEBE_SER_EXTERNO and usuario.pk in personal:
             motivo = MOTIVO_AGENTE_ES_PERSONAL
-        elif usuario.pk not in con_rol:
-            motivo = MOTIVO_AGENTE_NO_RELEVA
         else:
-            # Tiene el rol y no es personal, pero igual no es asignable: no se afirma una causa que no se verificó.
-            motivo = MOTIVO_AGENTE_GENERICO
+            # Invariante: asignable = activo ∧ rol activo del programa con ``inspeccion.relevar`` ∧ ¬personal del
+            # edificio (``agentes_asignables``). Quien llega acá está activo y no es personal, así que lo único que
+            # le falta es el rol. Si ``agentes_asignables`` suma otra exclusión, hay que sumar acá su motivo.
+            motivo = MOTIVO_AGENTE_NO_RELEVA
         perfil = getattr(usuario, "profile", None)
         dni = (getattr(perfil, "dni", "") or "") if perfil else ""
         filas.append(
