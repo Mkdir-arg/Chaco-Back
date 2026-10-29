@@ -32,8 +32,8 @@ urlpatterns = [
     path("<int:pk>/", legajo.DispositivoDetailView.as_view(), name="detalle"),
     path("<int:pk>/editar/", legajo.DispositivoUpdateView.as_view(), name="editar"),
     path("<int:pk>/sectores/", legajo.DispositivoSectoresView.as_view(), name="sectores"),
-    # Capacidad instalada (carril C5). Mutan: solo POST. Los modales que las disparan se
-    # abren con `?sector=nuevo`, `?sector=<id>` y `?plazas=1` sobre `sectores`.
+    # Capacidad instalada (carril C5). Mutan: solo POST. Los modales de las dos altas llegan
+    # con `sectores` y los abre el botón; el de la edición, `?sector=<id>` sobre esa pantalla.
     path("<int:pk>/sectores/nuevo/", capacidad.SectorCrearView.as_view(), name="sector_crear"),
     path(
         "<int:pk>/sectores/<int:sector_pk>/editar/",
@@ -57,6 +57,16 @@ urlpatterns = [
         name="edificio_desvincular",
     ),
     # Acciones del mapa de plazas (P5). El modal las abre con `?plaza=<id>` sobre `sectores`.
+    path(
+        "<int:pk>/plazas/<int:plaza_pk>/reservar/",
+        legajo.PlazaReservarView.as_view(),
+        name="plaza_reservar",
+    ),
+    path(
+        "<int:pk>/plazas/<int:plaza_pk>/prestar/",
+        legajo.PlazaPrestarView.as_view(),
+        name="plaza_prestar",
+    ),
     path(
         "<int:pk>/plazas/<int:plaza_pk>/liberar/",
         legajo.PlazaLiberarView.as_view(),
@@ -98,6 +108,11 @@ urlpatterns = [
         "relevamientos/edificio/<int:edificio_pk>/asignar/",
         relevamientos.RelevamientoAsignarView.as_view(),
         name="relevamiento_asignar",
+    ),
+    path(
+        "<int:pk>/relevamiento/asignar/",
+        relevamientos.DispositivoRelevamientoAsignarView.as_view(),
+        name="relevamiento_asignar_dispositivo",
     ),
     path(
         "relevamientos/<int:pk>/reasignar/",

@@ -44,7 +44,12 @@ class Command(BaseCommand):
 
         tipo, _ = TipoDispositivo.objects.update_or_create(
             codigo="ACEP-183",
-            defaults={"nombre": "Aceptación Plan 183", "maneja_camas": True, "activo": True},
+            defaults={
+                "nombre": "Aceptación Plan 183",
+                "maneja_camas": True,
+                "tipos_plaza_admitidos": ["CAMA"],
+                "activo": True,
+            },
         )
         Dispositivo.objects.update_or_create(
             codigo="ACEP-183-DIS",

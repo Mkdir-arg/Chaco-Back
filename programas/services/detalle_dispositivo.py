@@ -429,7 +429,7 @@ def _indicadores_edilicios(semaforo, edificios, realizados, fotos):
     ]
 
 
-def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
+def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edificio_id=None):
     """Lo que dibuja la solapa Infraestructura: criticidad, observaciones y registro fotográfico.
 
     El relevamiento **cuelga del edificio**: un predio compartido muestra los mismos en todas las
@@ -450,6 +450,12 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
     relevamiento en curso y el usuario podría coordinar el edificio.
     Las instituciones visibles agregan una consulta para todos los edificios,
     además de evaluar el alcance con el servicio RBAC.
+
+    Con dos o más edificios la solapa es una tabla (``en_tabla``): no se dibuja el registro
+    fotográfico, así que no se piden ni el ``COUNT``, ni la página, ni las fotos (3 consultas
+    menos). ``edificio_id`` abre uno solo (``viendo``): si es uno de los vinculados acota la lista
+    a ese antes de calcular semáforo, totales y registro; si no lo es, o no es un número, se
+    ignora y se devuelve la tabla, nunca un edificio ajeno.
     """
 
     edificios = list(
@@ -486,7 +492,20 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
             "indicadores": [],
             "eventos": [],
             "relevamientos": None,
+            "viendo": None,
+            "en_tabla": False,
         }
+
+    viendo_pk = None
+    if len(edificios) > 1:
+        try:
+            pedido = int(edificio_id)
+        except (TypeError, ValueError):
+            pedido = None
+        if pedido in {edificio.pk for edificio in edificios}:
+            viendo_pk = pedido
+            edificios = [edificio for edificio in edificios if edificio.pk == pedido]
+    en_tabla = len(edificios) > 1
 
     instituciones = instituciones_del_predio(usuario, [edificio.pk for edificio in edificios])
     ultimas = InspeccionEdificio.objects.select_related("realizada_por").in_bulk(
@@ -520,11 +539,24 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
         fotos=Count("fotos", filter=~Q(estado=InspeccionEdificio.Estado.CANCELADA)),
     )
 
+    indicadores = _indicadores_edilicios(semaforo, filas, totales["realizados"], totales["fotos"])
+    if en_tabla:
+        return {
+            "edificios": filas,
+            "semaforo": semaforo,
+            "indicadores": indicadores,
+            "eventos": [],
+            "relevamientos": None,
+            "viendo": None,
+            "en_tabla": True,
+        }
+
     # Las canceladas no entran: no tienen resultado. La en curso va primero (todavía no tiene fecha).
-    consulta = (
-        inspecciones_de_dispositivo(dispositivo)
-        .annotate(n_fotos=Count("fotos"))
-        .order_by(F("realizada_en").desc(nulls_first=True), "-creado", "-pk")
+    inspecciones = inspecciones_de_dispositivo(dispositivo)
+    if viendo_pk is not None:
+        inspecciones = inspecciones.filter(edificio_id=viendo_pk)
+    consulta = inspecciones.annotate(n_fotos=Count("fotos")).order_by(
+        F("realizada_en").desc(nulls_first=True), "-creado", "-pk"
     )
     relevamientos = Paginator(consulta, POR_PAGINA_RELEVAMIENTOS).get_page(pagina)
     ids = [inspeccion.pk for inspeccion in relevamientos]
@@ -558,7 +590,9 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None):
     return {
         "edificios": filas,
         "semaforo": semaforo,
-        "indicadores": _indicadores_edilicios(semaforo, filas, totales["realizados"], totales["fotos"]),
+        "indicadores": indicadores,
         "eventos": eventos,
         "relevamientos": relevamientos,
+        "viendo": filas[0] if viendo_pk is not None else None,
+        "en_tabla": False,
     }

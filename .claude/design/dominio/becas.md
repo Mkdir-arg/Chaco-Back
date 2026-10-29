@@ -27,7 +27,7 @@ los de Merenderos. El mapeo también puede vivir en el servicio o selector del m
 entrega texto y `tono` y el template dibuja `badge badge-dot badge-{{ tono }}` sin decidir nada:
 así lo hace la estadía de Dispositivos (`ESTADOS_VISIBLES` de `programas/services/estadias.py`,
 que leen el detalle del dispositivo, la solapa del legajo y el detalle de la estadía (P7)). De ese
-módulo, `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egreso, plazas) es dominio. **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
+módulo, `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egreso, asignación y cambio de plaza) es dominio. **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
 `badge-danger` ni en `text-fg-danger`.
 
 Para la institución, `TONOS_ESTADO` y `estado_de_dispositivo` de
@@ -316,6 +316,11 @@ Cada uno pone su `#constructor` con los `data-url-*` y el encabezado. Parámetro
 (oculta «Se pide en» y el toggle de la vista previa; manda `canal=ambos` oculto) y, en
 `_constructor_items.html`, `vacio_texto`. El editor de Dispositivos no tiene «Restablecer» porque
 no hay catálogo. La inclusión en Becas va sin espacios: su HTML no cambió.
+
+Los guardados JSON del JS compartido envían `X-CSRFToken` desde el input oculto
+`csrfmiddlewaretoken` dentro de `#constructor`, renderizado por `{% csrf_token %}`
+en los modales del cuerpo. No requieren leer cookies desde JavaScript: funcionan
+también con la cookie CSRF `HttpOnly`.
 
 Patrón: encabezado por `{% page_header %}` con las migas de Becas, badge de versión y estado
 «Guardando… / Guardado en vivo» (`aria-live`) como acciones; grid `grid-cols-1 xl:grid-cols-2` con

@@ -226,6 +226,16 @@ class NormalizarDniTests(SimpleTestCase):
         self.assertEqual(normalizar_dni(float("nan")), "")
         self.assertEqual(normalizar_dni(Decimal("NaN")), "")
 
+    def test_solo_cuentan_los_digitos_ascii(self):
+        """``str.isdigit()`` acepta dígitos árabes, superíndices y de otros alfabetos: no son un DNI."""
+        arabes = "١٢٣٤٥٦٧٨"  # ١٢٣٤٥٦٧٨
+        for nombre, funcion in self.PUERTAS.items():
+            with self.subTest(puerta=nombre):
+                self.assertEqual(funcion(arabes), "")
+                self.assertEqual(funcion("30²123456"), "30123456")  # el superíndice «²» se descarta
+        self.assertFalse(dni_valido(arabes))
+        self.assertEqual(normalizar_dni("30.123.456"), "30123456")
+
 
 class EstaHabilitadoTests(_BasePadronTest):
     def test_sin_padron_el_link_es_abierto(self):

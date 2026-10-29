@@ -477,20 +477,18 @@ _SIN_PROGRAMA = "Sin programa"
 def _ambito_de(meta):
     """Solapa a la que pertenece un rol.
 
-    Un rol de categoría ``Programa`` pertenece al ámbito de **su programa**; el
-    resto, al de su categoría. Así "Becas" es una sola solapa: fusiona los roles
-    del programa Becas con los de la categoría homónima (que existe por historia)
-    y no queda un "Becas" adentro de otro "Programa".
+    Un rol de alcance ``Programa`` va a la solapa de **su programa**; el resto, a la de la
+    etiqueta de su alcance («Global»).
     """
     categoria = getattr(meta, "categoria", "") or _SIN_CATEGORIA
     if categoria != rbac.CATEGORIA_PROGRAMA:
-        return categoria
+        return rbac.ETIQUETAS_CATEGORIA.get(categoria, categoria)
     return getattr(getattr(meta, "programa", None), "nombre", "") or _SIN_PROGRAMA
 
 
 def _orden_de_ambitos(ambitos):
-    """Categorías canónicas primero, después los programas alfabéticos, y los huérfanos al final."""
-    canonicas = [c for c in rbac.CATEGORIAS_ROL if c != rbac.CATEGORIA_PROGRAMA]
+    """«Global» primero, después los programas alfabéticos, y los huérfanos al final."""
+    canonicas = [rbac.ETIQUETAS_CATEGORIA[rbac.CATEGORIA_BACKOFFICE]]
     colas = (_SIN_CATEGORIA, _SIN_PROGRAMA)
     orden = [a for a in canonicas if a in ambitos]
     orden += sorted(a for a in ambitos if a not in canonicas and a not in colas)
@@ -536,7 +534,7 @@ class RolesPorAmbitoMixin:
     def roles_por_ambito(self):
         """``[{"id", "label", "total", "roles": [...]}]``, una solapa por ámbito.
 
-        Un ámbito es una categoría de rol (Backoffice, Sistema, …) o un **programa**
+        Un ámbito es el alcance global (solapa «Global») o un **programa**
         (Becas, Dispositivos, …). Los roles de categoría ``Programa`` se listan en la
         solapa de su programa, no en una solapa "Programa" con tarjetas adentro: así
         cada solapa es un nivel único y "Becas" no aparece dos veces (ver
@@ -648,11 +646,21 @@ class UserCreationForm(RolesPorAmbitoMixin, forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, operador=None, **kwargs):
+    def __init__(self, *args, operador=None, roles_acotados=None, **kwargs):
+        """``roles_acotados``: queryset de roles que **reemplaza** al del operador.
+
+        Lo pasa el alta de agentes de Dispositivos (``inspeccion.agente.crear``): quien la tiene
+        no administra los usuarios de ningún programa, así que la regla general le daría un combo
+        vacío, y ensancharla le abriría roles de más. Con esto el único rol asignable es el que
+        la vista resolvió por clave; el resto de las reglas del formulario no cambia.
+        """
         args, kwargs = _normalize_groups_args(args, kwargs)
         super().__init__(*args, **kwargs)
         self.operador = operador
-        self.fields["groups"].queryset = _roles_asignables_queryset(operador)
+        if roles_acotados is not None:
+            self.fields["groups"].queryset = roles_acotados
+        else:
+            self.fields["groups"].queryset = _roles_asignables_queryset(operador)
         _agregar_campos_perfil_usuario(self)
         _agregar_campo_segmento_territorial(self, operador)
         _agregar_campos_jerarquia_becas(self)

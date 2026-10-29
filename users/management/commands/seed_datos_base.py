@@ -10,7 +10,8 @@ Hace, sin duplicar nada al repetirse:
 2. Corre ``seed_rbac`` (capacidades, RolMeta, roles Administrador y Operador
    de backoffice) y ``seed_becas`` (Programa Becas + sus 5 roles de programa:
    Administrador / Coordinador / Coordinador Regional / Referente / Territorial
-   + adjuntos obligatorios). Como ``seed_becas`` **sincroniza las capacidades
+   + adjuntos obligatorios) y ``seed_dispositivos`` (el rol «Dispositivos — Agente de
+   relevamiento», por clave). Como ``seed_becas`` **sincroniza las capacidades
    base** de cada rol, correr esto en cada arranque es lo que mantiene los roles
    alineados con el código; un bootstrap que lo omita los deja congelados en el
    estado en que se sembró la base. Lo que la pantalla de Roles deja editar —nombre,
@@ -87,14 +88,14 @@ _ROLES_MENU = [
     (
         "menu.configuracion",
         "Configuración",
-        rbac.CATEGORIA_SISTEMA,
+        rbac.CATEGORIA_BACKOFFICE,
         "Acceso a la sección Configuración.",
         ["config.ver", "config.administrar"],
     ),
     (
         "menu.administracion",
         "Administración",
-        rbac.CATEGORIA_SISTEMA,
+        rbac.CATEGORIA_BACKOFFICE,
         "Acceso a la sección Administración (usuarios y roles).",
         ["usuario.administrar", "rol.administrar"],
     ),
@@ -126,6 +127,9 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.MIGRATE_LABEL("Programa Becas..."))
         call_command("seed_becas")
+
+        self.stdout.write(self.style.MIGRATE_LABEL("Roles de Dispositivos..."))
+        call_command("seed_dispositivos")
 
         self.stdout.write(self.style.MIGRATE_LABEL("Roles de menú..."))
         ct = ContentType.objects.get_for_model(Capacidad)

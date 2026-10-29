@@ -7,6 +7,8 @@ Contexto:
   texto         descripción opcional.
   icono         Font Awesome sin «fas»; con filtros, por defecto «fa-magnifying-glass».
   accion_url    opcional: sin ella no hay botón.
+  accion_click  opcional, expresión de Alpine: el botón abre un modal de la pantalla en vez de
+                navegar. Gana sobre `accion_url`.
   accion_texto  texto del botón; con filtros, por defecto «Limpiar filtros».
   accion_icono  ícono opcional del botón.
   con_filtros   variante «los filtros no traen nada»: la acción es terciaria (limpiar),
@@ -16,7 +18,9 @@ Contexto:
   <div class="text-fg-brand"><i class="fas {% if icono %}{{ icono }}{% elif con_filtros %}fa-magnifying-glass{% else %}fa-inbox{% endif %} text-5xl" aria-hidden="true"></i></div>
   <p class="text-[17px] font-bold text-heading">{{ titulo }}</p>
   {% if texto %}<p class="text-sm text-body max-w-xs">{{ texto }}</p>{% endif %}
-  {% if accion_url %}
+  {% if accion_click %}
+  <button type="button" @click="{{ accion_click }}" class="btn-nodo btn-brand btn-base mt-2">{% if accion_icono %}<i class="fas {{ accion_icono }}" aria-hidden="true"></i> {% endif %}{{ accion_texto }}</button>
+  {% elif accion_url %}
   <a href="{{ accion_url }}" class="btn-nodo {% if con_filtros %}btn-tertiary{% else %}btn-brand{% endif %} btn-base mt-2">{% if accion_icono %}<i class="fas {{ accion_icono }}" aria-hidden="true"></i> {% endif %}{% if accion_texto %}{{ accion_texto }}{% elif con_filtros %}Limpiar filtros{% endif %}</a>
   {% endif %}
 </div>

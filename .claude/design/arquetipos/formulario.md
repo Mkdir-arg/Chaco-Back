@@ -46,7 +46,7 @@ vive en el form y en los servicios**, nunca en el template. Los widgets ya traen
 desde `INPUT_CLASS` de `programas/forms.py`: el template no agrega clases a los controles.
 Un formulario armado por el constructor (P17) también: en P3, `_formulario_tipo.html` dibuja
 el formulario «Crear dispositivo» del tipo con `programas.forms_dinamicos.RespuestasDisenoForm`
-en **su propia tarjeta**, después de «Días y horarios» (surface canónica con encabezado
+en **su propia tarjeta**, después de «Horario de atención» (surface canónica con encabezado
 `px-5 py-4 border-b border-light`: `h2` «Formulario de ingreso» + bajada `text-xs`, y cuerpo
 `p-5` con un bloque por grupo —`h3` + bajada `text-xs`, `border-t border-light mt-5 pt-4` desde
 el segundo—, campos con el campo canónico en `sm:grid-cols-2`). Sin formulario del tipo no sale
@@ -66,7 +66,7 @@ solo pone etiqueta y error.
   Conserva el esqueleto de la golden, sus campos y errores. Los paneles muestran
   información del dominio (duplicados y requisitos existentes), nunca reglas nuevas.
   El `<form>` es un contenedor `space-y-5` y no la tarjeta: la tarjeta de datos (errores,
-  identidad con el estado, ubicación, responsable, días y horarios) y la del formulario del tipo
+  identidad con el estado, ubicación, responsable, horario de atención) y la del formulario del tipo
   son hermanas, y el pie queda **fuera** de ellas, después de la última.
   Estado mediante el parcial del módulo y pie `flex flex-wrap justify-end gap-3`.
   Puede sumar «Enviar a validación» si existe la transición, con su capacidad y alcance,
@@ -85,7 +85,7 @@ solo pone etiqueta y error.
   La coincidencia de nombre/localidad confirma con `ModernModal` canónico (`warning`, botón de marca); un error de búsqueda avisa con `window.toast`.
   La localidad es un `Select` común del campo canónico (el buscador `nodo-buscador.js` solo
   está cargado en el portal); un valor heredado fuera del catálogo se ofrece primero como
-  «<valor> (cargado antes)». Días y horarios: las franjas guardadas van en la tabla canónica
+  «<valor> (cargado antes)». Horario de atención (solo informativo; no son los turnos de la Bitácora): las franjas guardadas van en la tabla canónica
   (`table w-full border-collapse` con `nodo-thead-row`/`nodo-th`, dentro de `overflow-x-auto`) con los campos ocultos del formset, y «Quitar»
   es `btn-tertiary btn-sm btn-fit`; la fila de carga usa el campo canónico en
   `sm:grid-cols-3` y «Agregar» es `btn-secondary btn-sm`, visible solo con JS. Sin JS,

@@ -1,11 +1,32 @@
-<div class="rounded-lg bg-danger-soft p-3 text-sm text-fg-danger{% if not form.non_field_errors %} hidden{% endif %}"
-     data-error="__all__">{{ form.non_field_errors|join:" " }}</div>
-{% for field in form %}
-  {% if field.name == "maneja_camas" or field.name == "activo" %}
-    <label class="flex items-center gap-2 text-sm text-body cursor-pointer">{{ field }} {{ field.label }}</label>
-    <p class="text-xs text-fg-danger{% if not field.errors %} hidden{% endif %}"
-       data-error="{{ field.name }}">{{ field.errors|join:" " }}</p>
-  {% else %}
-    {% include "components/_field.html" with wrapper_class="" %}
-  {% endif %}
-{% endfor %}
+{% comment %}Campos del tipo, compartidos por la página de alta y el modal de edición. Los errores no de
+campo los muestra `components/_form_errores.html` (lo incluye cada consumidor); el `<p>` general va
+adentro del primer bloque porque, como hijo directo de `space-y-5`, suma un hueco aunque esté oculto.{% endcomment %}
+<div>
+  <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+  {% include "components/_field.html" with field=form.codigo wrapper_class="" %}
+</div>
+{% include "components/_field.html" with field=form.nombre wrapper_class="" %}
+{% include "components/_field.html" with field=form.descripcion wrapper_class="" %}
+<div class="space-y-5" x-data="{ plazas: {% if form.maneja_sectores_plazas.value %}true{% else %}false{% endif %} }">
+  <div>
+    <label class="flex items-center gap-2 text-sm text-body cursor-pointer">{{ form.maneja_sectores_plazas }} {{ form.maneja_sectores_plazas.label }}</label>
+    <p class="mt-1 text-xs text-body-subtle">{{ form.maneja_sectores_plazas.help_text }}</p>
+    <p class="text-xs text-fg-danger{% if not form.maneja_sectores_plazas.errors %} hidden{% endif %}"
+       data-error="maneja_sectores_plazas">{{ form.maneja_sectores_plazas.errors|join:" " }}</p>
+  </div>
+  <div class="space-y-5" x-show="plazas">
+    {% include "components/_field.html" with field=form.tipos_plaza_admitidos wrapper_class="" %}
+    <div>
+      <label class="flex items-center gap-2 text-sm text-body cursor-pointer">{{ form.plaza_obligatoria_al_ingresar }} {{ form.plaza_obligatoria_al_ingresar.label }}</label>
+      <p class="text-xs text-fg-danger{% if not form.plaza_obligatoria_al_ingresar.errors %} hidden{% endif %}"
+         data-error="plaza_obligatoria_al_ingresar">{{ form.plaza_obligatoria_al_ingresar.errors|join:" " }}</p>
+    </div>
+  </div>
+</div>
+{% include "components/_field.html" with field=form.umbral_ocupacion_amarillo wrapper_class="" %}
+{% include "components/_field.html" with field=form.umbral_ocupacion_rojo wrapper_class="" %}
+<div>
+  <label class="flex items-center gap-2 text-sm text-body cursor-pointer">{{ form.activo }} {{ form.activo.label }}</label>
+  <p class="text-xs text-fg-danger{% if not form.activo.errors %} hidden{% endif %}"
+     data-error="activo">{{ form.activo.errors|join:" " }}</p>
+</div>

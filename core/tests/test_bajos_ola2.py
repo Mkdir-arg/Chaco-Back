@@ -31,7 +31,7 @@ CLAVE = "Clave-Seg-2026x"
 
 def _rol(nombre, capacidades):
     grupo = Group.objects.create(name=nombre)
-    RolMeta.objects.create(grupo=grupo, categoria=rbac.CATEGORIA_SISTEMA, activo=True)
+    RolMeta.objects.create(grupo=grupo, categoria=rbac.CATEGORIA_BACKOFFICE, activo=True)
     tipo = ContentType.objects.get_for_model(Capacidad)
     for codigo in capacidades:
         grupo.permissions.add(Permission.objects.get(content_type=tipo, codename=rbac.codename_de(codigo)))

@@ -338,6 +338,9 @@ rojo es una regla del proceso, no un mecanismo. Un check rojo que el merge deja 
 Tocar `programas/api/serializers.py`, `definicion_formulario` o una clave que el front lee a
 mano obliga a actualizar el test de contrato en el mismo diff.
 
+Antes de mergear un PR a `development` se corre `/auditoria pr <N>`: es la revisión independiente y deja el
+«Aprobado @ SHA» que exige el hook `guardia_merge` (`.claude/hooks/`) para dejar pasar `gh pr merge`.
+
 Qué corre cada workflow, qué bloquea y qué no, el alcance de mypy y el release gate están
 en la skill [`gates-ci`](.claude/skills/gates-ci/SKILL.md).
 

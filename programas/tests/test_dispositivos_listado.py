@@ -424,7 +424,7 @@ class PlazasEnLaFilaTests(BaseListado):
         self.assertEqual(plazas["CIS-003"].texto, "9 / 10")
         self.assertEqual((plazas["CIS-003"].porcentaje, plazas["CIS-003"].tono), (90, "danger"))
         self.assertContains(respuesta, "9 / 10")
-        self.assertContains(respuesta, '<span class="badge badge-danger ml-1">90 %')
+        self.assertContains(respuesta, '<span class="badge badge-dot badge-danger ml-1">90 %')
 
     def test_la_institucion_sin_plazas_lo_dice_y_no_muestra_cero_por_ciento(self):
         respuesta = self._cliente(self.admin).get(URL_LISTA)

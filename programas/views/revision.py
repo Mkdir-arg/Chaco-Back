@@ -74,7 +74,7 @@ from programas.services.listados import PaginadorConConteo
 from programas.services.padron import fila_padron
 from programas.services.personas import consultar_persona
 from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
-from programas.services.siis import SiisCatalogError, catalogo, funciones_programa
+from programas.services.siis import SiisCatalogError, catalogo_geografico, funciones_programa
 from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis, mensaje_envio, provincia_de
 from programas.services.validacion_siis import validar_formulario_en_siis
 from programas.views.cupo import CAP_BENEFICIARIO_VER, CAP_CUPO_VER
@@ -859,7 +859,7 @@ def siis_localidades_json(request):
     except ValueError:
         provincia = 0
     try:
-        items = catalogo("localidades")
+        items = catalogo_geografico("localidades")
     except SiisCatalogError as exc:
         return JsonResponse({"localidades": [], "error": str(exc)}, status=503)
     if provincia:

@@ -480,12 +480,25 @@ class PresupuestosTests(BaseInfraestructura):
         usuario = self._fresco(self.admin)
         rbac.puede(usuario, "dispositivo.ver", programa=self.programa)
         with CaptureQueriesContext(connection) as muchos:
-            infra = infraestructura_del_dispositivo(self.parador, usuario=usuario)
+            infra = infraestructura_del_dispositivo(self.parador, usuario=usuario, edificio_id=self.predio.pk)
 
-        self.assertEqual(len(infra["eventos"]), 8)
+        self.assertEqual(len(infra["eventos"]), 7)
         self.assertTrue(all(edificio["instituciones"] for edificio in infra["edificios"]))
         self.assertEqual(len(muchos), len(uno))
         self.assertLessEqual(len(muchos), self._techo("dispositivos_infraestructura"))
+
+    def test_la_tabla_de_edificios_no_pide_el_registro_fotografico(self):
+        self.edificio_cis.dispositivos.add(self.parador)
+        self._relevar(self.predio, Criticidad.MEDIA, fotos=("fachada",))
+        self._relevar(self.edificio_cis, Criticidad.ALTA, fotos=("cocina",))
+        usuario = self._fresco(self.admin)
+        rbac.puede(usuario, "dispositivo.ver", programa=self.programa)
+        with CaptureQueriesContext(connection) as tabla:
+            infra = infraestructura_del_dispositivo(self.parador, usuario=usuario)
+
+        self.assertTrue(infra["en_tabla"])
+        self.assertEqual(infra["eventos"], [])
+        self.assertLessEqual(len(tabla), self._techo("dispositivos_infraestructura") - 3)
 
 
 class RolSinAsignacionTests(BaseInfraestructura):
@@ -500,3 +513,82 @@ class RolSinAsignacionTests(BaseInfraestructura):
         usuario.groups.add(rol)
 
         self.assertEqual(self._detalle(usuario, self.geriatrico).status_code, 403)
+
+
+class VariosEdificiosTests(BaseInfraestructura):
+    """Con 2 o más edificios la solapa es una tabla; cada edificio se ve por separado."""
+
+    def setUp(self):
+        super().setUp()
+        self.edificio_cis.dispositivos.add(self.parador)
+        self._relevar(self.predio, Criticidad.MEDIA, fotos=("fachada",), observaciones="Faltan dos duchas")
+        self._relevar(self.edificio_cis, Criticidad.ALTA, fotos=("cocina",), observaciones="Pérdida de gas")
+
+    def test_dos_edificios_son_una_tabla_sin_registro_fotografico(self):
+        respuesta = self._detalle(self.admin, self.parador, tab="infraestructura")
+        panel = _panel(respuesta.content.decode())
+
+        self.assertTrue(respuesta.context["infraestructura"]["en_tabla"])
+        self.assertIsNone(respuesta.context["infraestructura"]["viendo"])
+        self.assertIn("Predio Resistencia", panel)
+        self.assertIn("Edificio CIS", panel)
+        self.assertIn("Último relevamiento", panel)
+        self.assertIn(f"ver_edificio={self.predio.pk}", panel)
+        self.assertEqual(panel.count("nodo-stat-tablero-valor"), 3)
+        self.assertNotIn("Registro fotográfico", panel)
+        self.assertNotIn("Volver a los edificios", panel)
+        self.assertNotIn("Faltan dos duchas", panel)
+
+    def test_ver_un_edificio_muestra_solo_ese_con_su_registro(self):
+        respuesta = self._detalle(self.admin, self.parador, tab="infraestructura", ver_edificio=self.predio.pk)
+        panel = _panel(respuesta.content.decode())
+        infra = respuesta.context["infraestructura"]
+
+        self.assertFalse(infra["en_tabla"])
+        self.assertEqual(infra["viendo"]["pk"], self.predio.pk)
+        self.assertEqual([fila["pk"] for fila in infra["edificios"]], [self.predio.pk])
+        self.assertEqual(len(infra["eventos"]), 1)
+        self.assertIn("Registro fotográfico", panel)
+        self.assertIn("Volver a los edificios", panel)
+        self.assertIn("Faltan dos duchas", panel)
+        self.assertNotIn("Edificio CIS", panel)
+        self.assertNotIn("Pérdida de gas", panel)
+        self.assertEqual(infra["indicadores"][1]["valor"], 1)
+
+    def test_un_edificio_no_vinculado_se_ignora_y_vuelve_la_tabla(self):
+        ajeno = Edificio.objects.create(codigo="ED-AJENO", nombre="Edificio ajeno")
+        for pedido in (ajeno.pk, "no-es-un-numero"):
+            with self.subTest(pedido=pedido):
+                respuesta = self._detalle(self.admin, self.parador, tab="infraestructura", ver_edificio=pedido)
+                panel = _panel(respuesta.content.decode())
+
+                self.assertTrue(respuesta.context["infraestructura"]["en_tabla"])
+                self.assertNotIn("Edificio ajeno", panel)
+                self.assertNotIn("Volver a los edificios", panel)
+
+    def test_un_solo_edificio_queda_como_antes(self):
+        respuesta = self._detalle(self.operador_geriatrico, self.geriatrico, tab="infraestructura")
+        panel = _panel(respuesta.content.decode())
+
+        self.assertFalse(respuesta.context["infraestructura"]["en_tabla"])
+        self.assertIsNone(respuesta.context["infraestructura"]["viendo"])
+        self.assertNotIn("Último relevamiento", panel)
+        self.assertNotIn("Volver a los edificios", panel)
+        self.assertIn("Registro fotográfico", panel)
+        self.assertIn("Faltan dos duchas", panel)
+
+    def test_sin_permiso_de_edicion_el_menu_solo_ve(self):
+        respuesta = self._detalle(self.coordinador, self.parador, tab="infraestructura")
+        panel = _panel(respuesta.content.decode())
+
+        self.assertTrue(respuesta.context["infraestructura"]["en_tabla"])
+        self.assertIn(">Ver<", panel)
+        self.assertNotIn("Editar edificio", panel)
+        self.assertNotIn("Desvincular", panel)
+
+    def test_con_permiso_de_edicion_el_menu_ofrece_editar_y_desvincular(self):
+        panel = _panel(self._detalle(self.admin, self.parador, tab="infraestructura").content.decode())
+
+        self.assertIn("Editar edificio", panel)
+        self.assertIn(f"edificio={self.predio.pk}", panel)
+        self.assertIn("Desvincular", panel)

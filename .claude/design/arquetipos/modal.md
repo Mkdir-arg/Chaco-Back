@@ -98,7 +98,15 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   apuntándole con `form_id` de `_modal_footer.html`.
 - Título dinámico Nuevo/Editar: `titulo_x_text` (expresión Alpine) en `_modal_header.html`.
 - Modal sin Alpine: `window.becasModal.bind(overlay, {onClose})` observa la clase `hidden` del
-  overlay; Escape y cualquier `[data-becas-modal-cerrar]` llaman a `onClose`.
+  overlay; Escape y cualquier `[data-becas-modal-cerrar]` llaman a `onClose`. Si el panel llega
+  por `fetch` ya abierto (`data-edit-modal` en el overlay, `data-edit-modal-panel` en el panel), se
+  hace `bind(modal, {onClose})` al inyectarlo y `destruir()` al cerrarlo. El fondo cierra solo si el
+  `pointerdown` **también** fue afuera del panel: arrastrar desde un campo y soltar sobre el fondo
+  no debe perder lo escrito. Evidencia: `programas/templates/programas/dispositivos/config/_edit_modal.html`
+  y `tipo_detail.html` (P14): el JS de la pantalla solo conserva el cierre por fondo con `pointerdown`;
+  foco, Tab atrapado y Escape los maneja `becas-modal.js` vía `bind`.
+  El cuerpo del modal «asignar relevamiento», compartido por P4 y P21, es el include
+  `programas/templates/programas/dispositivos/relevamientos/_campos_asignar.html` (campos con `_field.html`, `wrapper_class=""`); suma el selector «Formulario del relevamiento» (`form.tipo`, solo si el edificio aloja a más de un tipo) y una `_alerta` `warning` cuando el tipo no tiene formulario).
 - **Bloques alternativos por un switch**: un `SwitchInput` arriba (`<label class="inline-flex items-center gap-2 text-sm text-body" @change="flag = $event.target.checked">`)
   y los bloques con `x-show="flag"` / `x-show="!flag"`; el estado inicial sale del `value` del form en el `x-data` de la
   pantalla. Los campos ocultos viajan vacíos y el servidor decide. Consumidor: «Valida con SIIS» en `programa_list.html`.
@@ -113,6 +121,7 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   El paso 2 suma «Volver a buscar» (`btn-tertiary mr-auto`) y se precarga con lo tipeado. Los tipos
   que no buscan abren directo en el paso 2, sin «Volver a buscar». Evidencia:
   `users/templates/user/_alta_rapida_modal.html` (territorial de Becas).
+  Los tipos sin buscador (`agente` de Dispositivos, desde los modales de asignar/reasignar/crear relevamiento) abren directo en el paso 2, con correo obligatorio y sin los campos de institución, observación y clave; el botón «Crear agente» (include `programas/templates/programas/dispositivos/relevamientos/_boton_crear_agente.html`, `btn-tertiary btn-sm`, `data-quick-user="agente"`) va bajo el select de agente y su `data-user-select` es un selector único por modal (`#form-…-relevamiento select[name=asignado_a]`), solo si el servidor calculó `puede_crear_agente`.
 - **Modal abierto por parámetro GET y armado por el servidor**: cuando el contenido depende del
   registro (un selector acotado por el edificio de la fila) y lo dispara un menú de fila, que solo
   navega. La vista lee `?<accion>=<id>`, valida que el registro siga siendo gestionable, arma el
@@ -127,6 +136,12 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   `data-ajax`, porque no muta) que elige el registro y reabre la pantalla con el modal del paso
   siguiente. Conserva la solapa y los filtros activos en `<input type="hidden">` armados en la
   vista, así el guardado vuelve a donde estaba. Evidencia: «Nuevo relevamiento» de P21.
+- **Alta que elige el registro adentro**: el esqueleto de la golden tal cual (botón `<button type="button" @click>` y modal
+  con `x-show`, formulario con la página, sin parámetro GET: el GET es solo para lo que depende de un registro). El campo
+  que elige el registro es un `<select>`, o va fijo y deshabilitado (usa el inicial e ignora el POST) con un solo candidato,
+  y el POST cuelga del padre. Los ids llevan `auto_id` propio (`relev_%s`): la página ya trae otro campo `edificio`.
+  Evidencia: «Crear relevamiento» en la solapa Infraestructura de P4
+  (`programas/templates/programas/dispositivos/legajo/detail.html`).
 
 ## Prohibido
 

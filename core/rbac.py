@@ -37,7 +37,7 @@ CATALOGO = [
     {
         "modulo": "ciudadanos",
         "label": "Ciudadanos / Legajos",
-        "tab": "backoffice",
+        "tab": "general",
         "capacidades": [
             ("ciudadano.ver", "Ver ciudadanos y legajos"),
             ("ciudadano.crear", "Crear ciudadanos"),
@@ -52,7 +52,7 @@ CATALOGO = [
     {
         "modulo": "programas",
         "label": "Programas",
-        "tab": "backoffice",
+        "tab": "administracion",
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("programa.configurar", "Configurar programas"),
@@ -63,7 +63,7 @@ CATALOGO = [
     {
         "modulo": "dispositivos",
         "label": "Dispositivos",
-        "tab": "backoffice",
+        "tab": "dispositivos",
         "alcance": "programa",
         "programas": ("DISPOSITIVOS",),
         "capacidades": [
@@ -86,18 +86,22 @@ CATALOGO = [
         # dos personas distintas: quien asigna no carga, y el agente solo ve lo suyo.
         "modulo": "inspecciones",
         "label": "Relevamientos edilicios",
-        "tab": "backoffice",
+        "tab": "dispositivos",
         "alcance": "programa",
         "programas": ("DISPOSITIVOS",),
         "capacidades": [
             ("inspeccion.asignar", "Crear, asignar, reasignar y cancelar relevamientos edilicios"),
             ("inspeccion.relevar", "Cargar el resultado de los relevamientos edilicios asignados"),
+            # Alta de agentes desde el modal de asignar (28-oct-2026). Operativa: la puede delegar
+            # el admin del programa y NO abre el ABM de Usuarios (no está en
+            # `CAPS_ENTRADA_ABM_USUARIOS`). Solo permite crear un usuario con el rol sembrado de agente.
+            ("inspeccion.agente.crear", "Dar de alta agentes de relevamiento edilicio"),
         ],
     },
     {
         "modulo": "merenderos",
         "label": "Merenderos",
-        "tab": "backoffice",
+        "tab": "dispositivos",
         "alcance": "programa",
         "programas": ("MERENDEROS",),
         "capacidades": [
@@ -111,7 +115,7 @@ CATALOGO = [
     {
         "modulo": "relevamientos",
         "label": "Relevamientos",
-        "tab": "backoffice",
+        "tab": "general",
         "alcance": "programa",  # módulo "de programa": sus capacidades se evalúan con alcance
         "capacidades": [
             ("relevamiento.ver", "Ver relevamientos"),
@@ -289,7 +293,7 @@ CATALOGO = [
     {
         "modulo": "conversaciones",
         "label": "Conversaciones",
-        "tab": "backoffice",
+        "tab": "general",
         "capacidades": [
             ("conversacion.operar", "Operar conversaciones"),
             ("conversacion.configurar", "Configurar conversaciones"),
@@ -299,7 +303,7 @@ CATALOGO = [
     {
         "modulo": "dashboard",
         "label": "Dashboard",
-        "tab": "backoffice",
+        "tab": "general",
         "capacidades": [
             ("dashboard.ver", "Ver dashboard"),
         ],
@@ -307,7 +311,7 @@ CATALOGO = [
     {
         "modulo": "reportes",
         "label": "Reportes",
-        "tab": "backoffice",
+        "tab": "general",
         "capacidades": [
             ("reporte.ver", "Ver reportes"),
         ],
@@ -318,7 +322,7 @@ CATALOGO = [
         # conviene poder dárselo a menos gente que el armado (RN-007-12).
         "modulo": "notificaciones",
         "label": "Notificaciones",
-        "tab": "backoffice",
+        "tab": "general",
         "capacidades": [
             ("notificacion.ver", "Ver campañas de correo y su resultado"),
             ("notificacion.gestionar", "Crear, editar, duplicar y eliminar campañas de correo, y mandar pruebas"),
@@ -328,25 +332,16 @@ CATALOGO = [
     {
         "modulo": "configuracion",
         "label": "Configuración (geografía)",
-        "tab": "sistema",
+        "tab": "administracion",
         "capacidades": [
             ("config.ver", "Ver configuración"),
             ("config.administrar", "Administrar configuración"),
         ],
     },
     {
-        "modulo": "instituciones",
-        "label": "Instituciones",
-        "tab": "institucion",
-        "capacidades": [
-            ("institucion.ver", "Ver instituciones"),
-            ("institucion.administrar", "Administrar instituciones"),
-        ],
-    },
-    {
         "modulo": "sistema",
         "label": "Sistema",
-        "tab": "sistema",
+        "tab": "administracion",
         "capacidades": [
             ("usuario.administrar", "Administrar usuarios"),
             ("rol.administrar", "Administrar roles"),
@@ -354,31 +349,35 @@ CATALOGO = [
     },
 ]
 
-# Categorías válidas de un Rol (RolMeta.categoria).
+# Alcance de un Rol (``RolMeta.categoria``; el nombre de la columna se conserva).
+# Los valores guardados NO cambian de string: ``Backoffice`` es el alcance «Global» y
+# ``Programa`` el de «De un programa» (lo acota ``RolMeta.programa``). ``Portal`` es solo
+# interno: marca el grupo ``Ciudadanos`` y nunca se ofrece en un combo ni en un filtro.
 CATEGORIA_BACKOFFICE = "Backoffice"
-CATEGORIA_INSTITUCION = "Institución"
 CATEGORIA_PORTAL = "Portal"
-CATEGORIA_SISTEMA = "Sistema"
-CATEGORIA_BECAS = "Becas"
-# Categoría programática: agrupa roles acotados por ``RolMeta.programa``.
 CATEGORIA_PROGRAMA = "Programa"
+# Los que un operador puede elegir/filtrar, en el orden en que se muestran.
 CATEGORIAS_ROL = [
     CATEGORIA_BACKOFFICE,
-    CATEGORIA_INSTITUCION,
-    CATEGORIA_PORTAL,
-    CATEGORIA_SISTEMA,
-    CATEGORIA_BECAS,
     CATEGORIA_PROGRAMA,
 ]
-CATEGORIAS_ROL_CHOICES = [(c, c) for c in CATEGORIAS_ROL]
+# Todo lo que puede haber guardado, para agrupar listados (``Portal`` incluido).
+CATEGORIAS_ROL_TODAS = CATEGORIAS_ROL + [CATEGORIA_PORTAL]
+ETIQUETAS_CATEGORIA = {
+    CATEGORIA_BACKOFFICE: "Global",
+    CATEGORIA_PROGRAMA: "De un programa",
+    CATEGORIA_PORTAL: "Portal (identidad ciudadana)",
+}
+CATEGORIAS_ROL_CHOICES = [(c, ETIQUETAS_CATEGORIA[c]) for c in CATEGORIAS_ROL]
+# Para el modelo: incluye ``Portal``, que existe en la base pero no se ofrece.
+CATEGORIAS_ROL_MODELO_CHOICES = CATEGORIAS_ROL_CHOICES + [(CATEGORIA_PORTAL, ETIQUETAS_CATEGORIA[CATEGORIA_PORTAL])]
 
 # Metadatos de los tabs para el ABM de Roles (panel de capacidades).
 TABS_CAPACIDADES = [
-    {"id": "backoffice", "label": "Backoffice", "icon": "fa-table-columns"},
-    {"id": "institucion", "label": "Institución", "icon": "fa-building-columns"},
-    {"id": "portal", "label": "Portal", "icon": "fa-globe"},
-    {"id": "sistema", "label": "Sistema", "icon": "fa-gear"},
+    {"id": "general", "label": "General", "icon": "fa-table-columns"},
+    {"id": "administracion", "label": "Administración", "icon": "fa-gear"},
     {"id": "becas", "label": "Becas", "icon": "fa-graduation-cap"},
+    {"id": "dispositivos", "label": "Dispositivos", "icon": "fa-building"},
 ]
 
 # Capacidades que dan acceso de administración del propio RBAC (para auto-protección).
@@ -518,7 +517,25 @@ def _modulo_asignable_en_programa(modulo, programa):
     return not codigos_programa or programa is None or getattr(programa, "codigo", programa) in codigos_programa
 
 
-def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None, permitidas=None):
+#: Etiquetas ampliadas que se dibujan **solo al renderizar** el árbol, por programa del rol.
+#: No tocan ``CATALOGO``: el ``AlterModelOptions`` de ``users.Capacidad`` declara el nombre de
+#: cada permiso, así que cambiarlo ahí genera migración y cambia el texto para todos.
+ETIQUETAS_POR_PROGRAMA = {
+    CODIGO_PROGRAMA_DISPOSITIVOS: {
+        "programa.configurar": (
+            "Configurar programas (en Dispositivos: tipos, formularios y alcance total sobre las instituciones)"
+        ),
+    },
+}
+
+
+def _etiqueta_para_programa(codigo, etiqueta, programa):
+    """La etiqueta de ``codigo`` tal como se muestra en un rol de ``programa`` (o la original)."""
+    codigo_programa = getattr(programa, "codigo", programa)
+    return ETIQUETAS_POR_PROGRAMA.get(codigo_programa, {}).get(codigo, etiqueta)
+
+
+def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None, permitidas=None, programa_etiquetas=None):
     """Catálogo agrupado por módulo, marcando las capacidades activas.
 
     Estructura lista para renderizar el árbol del ABM de Roles::
@@ -531,8 +548,13 @@ def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None, pe
     conjunto de códigos concreto (lo que el operador puede delegar: ver
     :func:`capacidades_delegables`) y deja afuera los módulos que quedan vacíos. El
     default es retrocompatible: devuelve el catálogo completo.
+
+    Las etiquetas se ajustan al programa del rol (:data:`ETIQUETAS_POR_PROGRAMA`): el de
+    ``programa_etiquetas`` o, si no viene, el de ``programa``. Se separan porque ``programa``
+    además **filtra módulos** y un admin global, que ve todos, igual edita un rol de un programa.
     """
     activos = set(codigos_activos)
+    programa_etiquetas = programa if programa_etiquetas is None else programa_etiquetas
     modulos = []
     for modulo in CATALOGO:
         if solo_programa and modulo.get("alcance") != "programa":
@@ -540,7 +562,11 @@ def arbol_capacidades(codigos_activos=(), solo_programa=False, programa=None, pe
         if not _modulo_asignable_en_programa(modulo, programa):
             continue
         capacidades = [
-            {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
+            {
+                "codigo": codigo,
+                "label": _etiqueta_para_programa(codigo, etiqueta, programa_etiquetas),
+                "checked": codigo in activos,
+            }
             for (codigo, etiqueta) in modulo["capacidades"]
             if permitidas is None or codigo in permitidas
         ]
@@ -645,29 +671,34 @@ def puede_asignar_capacidades(programa, codigos):
     return not (set(codigos) & capacidades_no_delegables(programa))
 
 
-def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None, permitidas=None):
+def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None, permitidas=None, programa_etiquetas=None):
     """Catálogo agrupado por tab para el panel de capacidades del ABM de Roles.
 
     Devuelve la lista de tabs definida en :data:`TABS_CAPACIDADES`, cada una con
     los módulos que le corresponden y las capacidades marcadas según
-    ``codigos_activos``. Los tabs vacíos se incluyen (permiten futura expansión).
+    ``codigos_activos``. Los tabs sin módulos no se devuelven (un admin de programa no ve solapas vacías).
 
     Con ``solo_programa=True`` solo incluye módulos con ``alcance == "programa"``.
     ``programa`` aplica la misma restricción de módulos especializados que
-    :func:`arbol_capacidades`.
+    :func:`arbol_capacidades` (y ``programa_etiquetas``, igual que ahí).
     """
     activos = set(codigos_activos)
+    programa_etiquetas = programa if programa_etiquetas is None else programa_etiquetas
     tabs = {t["id"]: {"id": t["id"], "label": t["label"], "icon": t["icon"], "modulos": []} for t in TABS_CAPACIDADES}
     for modulo in CATALOGO:
         if solo_programa and modulo.get("alcance") != "programa":
             continue
         if not _modulo_asignable_en_programa(modulo, programa):
             continue
-        tab_id = modulo.get("tab", "backoffice")
+        tab_id = modulo.get("tab", "general")
         if tab_id not in tabs:
             continue
         capacidades = [
-            {"codigo": codigo, "label": etiqueta, "checked": codigo in activos}
+            {
+                "codigo": codigo,
+                "label": _etiqueta_para_programa(codigo, etiqueta, programa_etiquetas),
+                "checked": codigo in activos,
+            }
             for (codigo, etiqueta) in modulo["capacidades"]
             if permitidas is None or codigo in permitidas
         ]
@@ -676,7 +707,7 @@ def arbol_por_tabs(codigos_activos=(), solo_programa=False, programa=None, permi
         tabs[tab_id]["modulos"].append(
             {"modulo": modulo["modulo"], "label": modulo["label"], "capacidades": capacidades}
         )
-    return list(tabs.values())
+    return [t for t in tabs.values() if t["modulos"]]
 
 
 # ---------------------------------------------------------------------------

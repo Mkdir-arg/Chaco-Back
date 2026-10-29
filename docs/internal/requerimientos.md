@@ -487,7 +487,39 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 359 | Detalle del segmento: solapa «Convocatorias» con las del segmento y las de sus subsegmentos | Becas · detalle del segmento | `#convocatorias` `#ui` `#rbac` | PM — pedido en sesión | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 360 | DRF 3.18.2: «Pip Audit» vuelve a verde por las 3 CVEs de djangorestframework 3.17.2 | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (22/10/2026) | 22/10/2026 | 🟢 **Hecho** | No requiere |
 | 361 | Entrar después de un logout por inactividad ya no termina en un 405 | Transversal / sesión | `#sesion` | PM — reportó el 405 en `https://datanach.ecomdev.ar/logout` | 22/10/2026 | 🟢 **Hecho** | No requiere |
+| 362 | Skill `/auditoria`: auditoría completa de development y control antes de mergear cada PR | Transversal · método de trabajo de los agentes | `#metodo` `#performance` | PM — pedido en sesión | 23/10/2026 | 🟢 **Hecho** | No requiere |
 | 363 | setuptools 84.1.0 y cinco excepciones de twisted: «Pip Audit» vuelve a verde | Transversal · dependencias y CI (`Pip Audit`) | `#infra` `#gestion` | Juez — check «Pip Audit» rojo (24/10/2026) | 24/10/2026 | 🟢 **Hecho** | No requiere |
+| 364 | El Excel de respuestas por persona suma la fecha de nacimiento del titular | Becas · detalle del programa → Dashboard → Exportar «Respuestas por persona» | `#datos` `#convocatorias` | PM — en sesión (26/10/2026) | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 365 | Una fecha imposible guardada en una respuesta ya no tumba el export ni la revisión | Becas · exportación «Respuestas por persona» y pantalla de revisión | `#datos` `#convocatorias` | PM — en sesión: «hacé todos los pendientes» (26/10/2026) | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 368 | P3: categoría, área del Ministerio, titularidad del inmueble y dependencia de la gestión | Dispositivos · alta y edición de institución (P3) | `#datos` `#ui` | PM — prueba en testing de P3 | 26/10/2026 | 🟢 **Hecho** | `programas.0105` |
+| 369 | DNI/CUIT, teléfono y nombre del responsable se validan en la solicitud de merendero y en el alta de dispositivo | Merenderos · solicitud · Dispositivos · P3 | `#datos` `#ui` | QA — #564 · PM — amplía a P3 | 06/10/2026 | 🟢 **Hecho** | No requiere |
+| 370 | Roles: en un rol de Dispositivos, «Configurar programas» dice qué habilita | Usuarios · ABM de Roles | `#rbac` `#ui` | QA — #816 · PM — elige la etiqueta | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 371 | P3: «Horario de atención» separado de los turnos, y aviso de que las camas se cargan en Sectores y plazas | Dispositivos · P3 · P4 | `#ui` `#textos` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 372 | El tipo de dispositivo configura «Sectores y plazas» en lugar de «Maneja camas» | Dispositivos · Configuración · Tipos | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 373 | Infraestructura con varios edificios: tabla y cada edificio por separado dentro de la solapa | Dispositivos · P4 · Infraestructura | `#ui` `#performance` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 374 | «Asignar plaza» a una persona alojada sin plaza | Dispositivos · P4 · P7 | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 375 | Ingreso: alta mínima de la persona que no está en el legajo ni en el Registro de Personas | Dispositivos · P6 · paso Persona | `#datos` `#ui` | PM — recorrida del MVP v2 | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 376 | El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro | Dispositivos · Configuración → Tipos | `#ui` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 377 | Sectores y plazas: reubicar a la persona desde la plaza ocupada | Dispositivos · P5 · Sectores y plazas | `#ui` `#rbac` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 378 | Dispositivos: la leyenda del mapa de plazas pasa a pastillas, y los tonos del listado y de P21 se alinean | Dispositivos · leyenda del mapa (P5, P6) · listado · P21 | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 379 | «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal | Dispositivos · P5 Sectores y plazas | `#ui` `#performance` | PM — prueba en testing | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 380 | Ingreso a un dispositivo: el asistente avanza siempre con «Continuar» | Dispositivos · asistente de ingreso (P6) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 381 | Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle | Dispositivos · Configuración → Tipos | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 382 | Detalle de una institución (P4): las acciones secundarias del encabezado van al menú «Más acciones» | Dispositivos · detalle de la institución (P4) · menú de fila | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 383 | «Soy el administrador y no veo Relevamientos»: el rol protegido Administrador recibe `inspeccion.asignar` por migración | Transversal · RBAC (rol Administrador) · Dispositivos → Relevamientos (P21) | `#rbac` `#datos` `#relevamientos` | PM — prueba en testing (ECOM) | 26/10/2026 | 🟢 **Hecho** | `users.0040` |
+| 384 | «Crear relevamiento» desde la solapa Infraestructura de la institución | Dispositivos · P4 · Infraestructura | `#ui` `#relevamientos` `#rbac` | PM — pedido en sesión | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 385 | Los tipos de dispositivo de la v1 pasan solos a «Sectores y plazas», sin exigir plaza al ingresar | Dispositivos · Configuración · Tipos | `#datos` | PM — decisión sobre la conversión de los tipos v1 | 26/10/2026 | 🟢 **Hecho** | `programas.0106` |
+| 386 | Dispositivos: los modales del tipo y de sectores y plazas pasan al modal y al campo estándar | Dispositivos · Configuración → Tipos, P5 Sectores y plazas, cambio de plaza (P4, estadía) | `#ui` | PM — revisión de diseño | 26/10/2026 | 🟢 **Hecho** | No requiere |
+| 387 | Dispositivos: limpieza de los MINOR de las auditorías de #979, #980, #982 y #983 y del carril de diseño | Dispositivos · P4, P21, configuración de tipos, ingreso; `core/dni`, `nodo_ui`, fichas de diseño | `#ui` `#relevamientos` | Juez del carril (auditorías) | 27/10/2026 | 🟢 **Hecho** | No requiere |
+| 388 | Dispositivos: el formulario «Relevamiento» por tipo llega al territorial por la API de campo | Dispositivos · tipos (P17), relevamientos (P4, P21, informe), API de campo | `#relevamientos` `#api` `#mobile` `#datos` | PM — pedido del 27/10/2026 | 27/10/2026 | 🟢 **Hecho** | Migración 0107 y 0108 (expand) |
+| 389 | Sectores y plazas: la plaza libre se reserva, se presta o se saca de servicio, y tocar una plaza no recarga la página | Dispositivos · P5 Sectores y plazas · modal de asignar relevamiento (P4, P21) | `#ui` `#rbac` `#performance` `#relevamientos` | PM — prueba en testing | 27/10/2026 | 🟢 **Hecho** | No requiere |
+| 390 | Instrucciones de agentes y comandos alineadas con las decisiones del PM: Iteration al crear, QA en testing, estimación solo en Task, publicación con venv y retiro de `chaco-dev-reviewer` | Transversal · método de trabajo de los agentes (`AGENTS.md`, `QA.md`, `.claude/commands/`, `.claude/agents/`, skill `auditoria`) | `#metodo` `#gestion` | PM — decisiones previas (28/08, 28/10/2026) | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 391 | gates-ci: procedimiento ante una CVE nueva en «Pip Audit» | Transversal · skill `gates-ci` · CI (`Pip Audit`) | `#infra` `#metodo` | Juez — Cambios 315 y 363, y PR #988 | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 392 | Panel de capacidades del ABM de Roles: solapas por ámbito (General · Administración · Becas · Dispositivos) | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 393 | La «Categoría» del rol pasa a ser «Alcance»: Global o De un programa | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0041`, de datos) |
+| 394 | Se retiran las capacidades `institucion.ver` e `institucion.administrar` (cierra OPS-14) y se limpian MINORs de los Cambios 392 y 393 | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0042`, de datos, con reversa) |
+| 395 | Dispositivos: «Crear agente» de relevamiento edilicio desde el modal de asignar, con la capacidad `inspeccion.agente.crear` y el rol sembrado «Dispositivos — Agente de relevamiento» | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0043`, de datos, con reversa) |
+| 396 | El bootstrap del entrypoint ya no muere si Redis no responde al invalidar el padrón geográfico de SIIS | Becas · SIIS (`seed_catalogo_siis`, `invalidar_padron_geografico`) · arranque del contenedor | `#siis` `#infra` | Juez — release-gate run 40764473533 (PR #988) | 28/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -31869,6 +31901,10 @@ No requiere.
 
 Entrada nueva. Ejecuta la etapa 0 del plan del Cambio 191.
 
+- **26/10/2026 — Cambio 378:** la leyenda pasa a pastillas `badge badge-{tono}` con el ícono y el texto
+  adentro. Siguen las dos reglas de esta entrada: el color nunca va solo y cada tono lleva el mismo ícono en
+  la leyenda y en el mapa.
+
 ---
 
 ---
@@ -32447,6 +32483,10 @@ avisar**. Hoy eso no pierde nada porque nacen vacías, pero «no hay forma de qu
 falso —un shell, un fixture o un script las pueblan—, así que la regla es: **desde el primer alta,
 bajar esta migración deja de ser gratis y pasa a ser una decisión explícita**. De la 0087 en
 adelante, cuando el circuito de la etapa 2 exista, directamente no lo va a ser.
+
+## Historial
+
+- **26/10/2026** — el modal del tipo deja de ofrecer «Maneja camas» y configura «Sectores y plazas» (`tipos_plaza_admitidos` y `plaza_obligatoria_al_ingresar`, Cambio 372). `maneja_camas` sigue en el modelo, sincronizado al guardar el tipo: el *contract* del pendiente sigue abierto.
 
 ---
 
@@ -34415,6 +34455,7 @@ No requiere.
 ## Historial
 
 Entrada nueva. Etapa 2 del plan del Cambio 191.
+- **26/10/2026** — el paso 1 ofrece el alta mínima (DNI, nombre, apellido, nacimiento y género) cuando la persona no está en el legajo ni en el Registro de Personas, como pedía el mockup (Cambio 375).
 
 ---
 
@@ -37003,6 +37044,10 @@ existían y dejan su `TrazaDispositivo`, que es aditiva.
 Entrada nueva. Cierra los pendientes de enlaces del Cambio 281, el N+1 del Cambio 272 y la
 contención del Cambio 262.
 
+- **27/10/2026 — Cambio 389:** reservar y prestar desde el mapa, que este cambio dejó afuera, entran ahora: la
+  persona se elige por DNI, y además de `dispositivo.admitir` piden `ciudadano.ver`. La plaza disponible ofrece las
+  tres opciones, y la regla «una acción por plaza» pasa a ser una lista (`acciones_de_plaza`).
+
 ---
 
 ---
@@ -38399,6 +38444,11 @@ Entrada nueva y única de C5. Retoma el commit `c2e82f24`, completa edición de 
 y corrige unicidad entre sectores y respuestas de alcance. Rebasado únicamente C5 sobre
 `origin/development` después del merge de #853; la entrada 287 de C1 se conserva desde la base.
 
+- **26/10/2026 — Cambio 379.** «+ Agregar plazas» y «Nuevo sector» dejan la variante GET: decía
+  `GET: … plazas=id` y «formas y consultas adicionales solo al abrir el modal». Las dos altas no
+  dependen de un registro, así que sus formularios ahora llegan con P5 y los abre el botón, sin
+  recargar. Editar sector, Editar plaza y las acciones del mapa siguen por GET.
+
 ---
 
 ---
@@ -39707,6 +39757,8 @@ datos; regresan la presentación anterior y las consultas anticipadas del mapa d
 
 Entrada nueva y única de FF. No se modifican entradas anteriores.
 
+- **26/10/2026** — categoría, área, titularidad y dependencia ya existen en el modelo y se dibujan en P3 y en P4 (Cambio 368): ese apartamiento deja de valer.
+
 ---
 
 ---
@@ -40272,6 +40324,8 @@ migraciones. Regresan el formulario de una columna y el semáforo de criticidad.
 Entrada nueva y única de FI. Las decisiones anteriores de FF/FG se conservan en
 sus entradas; la columna y Vencido quedan autorizados por este encargo del PM.
 
+- **26/10/2026** — categoría, área, titularidad y dependencia ya existen en el modelo y se dibujan en P3 y en P4 (Cambio 368): ese apartamiento deja de valer.
+
 ---
 
 ---
@@ -40631,6 +40685,10 @@ Sin pendientes funcionales de los diez puntos del carril.
 Revertir los commits de código y documentación de FJ. No requiere cambios de
 base ni pierde datos. Retorna la firma anterior del servicio junto con todos
 sus consumidores y el comportamiento previo de P3.
+
+## Historial
+
+- **26/10/2026** — categoría, área, titularidad y dependencia ya existen en el modelo y se dibujan en P3 y en P4 (Cambio 368): ese apartamiento deja de valer.
 
 ---
 
@@ -42508,7 +42566,11 @@ el responsable de esa funcionalidad. El juez asigna el número definitivo de est
 Revertir el commit de código y el de documentación. No hay datos ni migraciones que revertir.
 La reversión restituye las fugas de identidad y la discrepancia de permanencia anteriores.
 
----
+## Historial
+
+- **26/10/2026 — Cambio 378:** P21 pasa a llevar `tono` en sus cuatro métricas, alineadas con el badge de
+  situación de su tabla. Lo de «P21 conserva el HTML de sus métricas sin tono» describía el alcance de este
+  PR, no una decisión de diseño, y queda superado.
 
 ---
 
@@ -42664,6 +42726,11 @@ No son funciones nuevas que se implementen en este carril.
 
 Revertir los commits de código y documentación. No hay datos ni esquema que deshacer; vuelven
 los defaults abiertos, el rótulo genérico y la ventana de carrera en el alcance previo al lock.
+
+## Historial
+
+- **27/10/2026 — Cambio 389:** la decisión 10 («sin alta nueva de reservas/préstamos») se revierte a pedido del PM:
+  la plaza disponible del mapa se reserva o se presta, con la persona elegida por DNI.
 
 ---
 
@@ -44905,6 +44972,7 @@ Revertir el commit de código (vuelve el texto libre) y desaplicar `programas.00
 ## Historial
 
 - **20/10/2026 — alta del cambio.**
+- **26/10/2026** — la tarjeta «Días y horarios» se llama «Horario de atención» en P3 y en P4, con la ayuda de que es solo informativo y que los turnos del personal se configuran en la Bitácora (Cambio 371). Las franjas y el modelo no cambian.
 
 ---
 
@@ -46715,6 +46783,183 @@ Revertir el PR; no hay datos.
 
 ---
 
+# Cambio 362 — Skill `/auditoria`: auditoría completa de development y control antes de mergear cada PR
+
+🟢 **HECHO — 23/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · método de trabajo de los agentes |
+| **Etiquetas** | `#metodo` `#performance` |
+| **Solicitante** | PM — pedido en sesión |
+| **Fecha del pedido** | 23/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | No aplica: herramienta de desarrollo (`.claude/` no viaja al release ni a ECOM) |
+| **Migración** | No requiere |
+
+## Pedido original
+«Me gustaría crear una skill que junte todas estas cosas, tanto de Thermos como las que usamos de
+Chaco, para lanzar un proceso de auditoría completo: desde performance del código, errores,
+mejoras y todo lo que sea para mejorar cómo funciona el código, sin cambiar lógica ni estética.»
+«Siempre auditamos la rama development y es todo el código. Aparte, por cada PR que se arme, me
+gustaría que esta skill se corra siempre antes de mergear el PR a development, para analizar si el
+código es limpio y óptimo. Son dos cosas las que te pido.» Sobre el revisor independiente: «Lo
+reemplaza». Sobre el entregable de la auditoría completa: «Solo el informe, y dentro del informe
+cuál es la solución al error, y también reglas que se pueden sumar a las skills o al modelo para
+no volver a repetir el error al momento de codificar».
+
+## Alcance acordado
+Una skill de proyecto con dos modos, un agente auditor y un hook local:
+- `/auditoria pr <N>` — corre antes de mergear cualquier PR a `development` y **es** la revisión
+  independiente. Publica el veredicto en el PR con un marcador que lee el hook.
+- `/auditoria completa [módulo]` — audita `origin/development` entera (o una app) y entrega solo un
+  informe en `docs/internal/auditoria-AAAA-MM/`. Cada hallazgo trae su solución y la regla para no
+  repetirlo.
+- Hook `PreToolUse` que frena `gh pr merge` a `development` sin un APPROVE para el head actual.
+
+**Afuera:** implementar lo que encuentre la auditoría completa (va por olas, con aprobación); un
+check en el CI; cubrir el merge desde la web de GitHub o por `gh api`.
+
+## Decisiones tomadas
+1. **Una skill, dos modos.** Comparten rúbricas, agente y plantillas; cambia el alcance: todo
+   `development` en un caso, lo que el PR agrega o modifica en el otro.
+2. **El modo `pr` reemplaza al revisor, no se suma.** Sumar un paso por PR vuelve al ciclo lento
+   que se dejó atrás el 08-oct. Absorbe el checklist del revisor liviano y le suma las rúbricas de
+   Thermos. Sigue el «Aprobado @ SHA» y el ciclo acelerado: APPROVE con solo MINOR se mergea y los
+   MINOR pasan al próximo PR del carril.
+3. **Las rúbricas se adaptan, no se copian** (mismo criterio que el Cambio 340). La de calidad de
+   Thermos pide reestructurar «con ambición»: en un PR bloquea solo lo que el PR **empeora**
+   (archivo que cruza las 1000 líneas, condición especial en un flujo ajeno, helper duplicado,
+   lógica en la capa equivocada); la deuda previa queda para el modo completo. Cada rúbrica cita su
+   origen (`cursor/plugins` @ `8b3326d`, MIT) y la skill no depende de que Thermos esté instalado.
+4. **«Sin cambiar lógica ni estética» rige cada propuesta.** La auditoría nunca edita código del
+   producto. Si la única solución cambia una regla de negocio o el diseño, el hallazgo va como
+   `DECISIÓN CLIENTE: <propuesta por defecto>` y no bloquea.
+5. **El modo completo entrega solo el informe, con la regla para no repetir el error.** Si una
+   herramienta puede detectarlo, la regla es un control (chequeo de `design_audit`, regla de ruff,
+   test, presupuesto de consultas), no un párrafo. La prosa va a la skill o al agente del tema, y a
+   `CLAUDE.md` solo si aplica a toda sesión.
+6. **La obligatoriedad es un hook local, no un check del CI.** Un check con Claude necesita una API
+   key como secret, cuesta en cada push y un rojo más frena `Publish main`. Hoy mergea el juez con
+   `gh pr merge --match-head-commit`: el hook cubre ese camino exacto y exige que el SHA auditado sea
+   el que se mergea. Es una guarda del proceso, no de seguridad: no mira quién escribió el
+   comentario.
+7. **Re-sello sin agentes.** Traer `development` al PR o renumerar el Cambio cambia el SHA pero no el
+   código del PR. Se compara el diff propio del PR (contra su merge-base) con
+   `git patch-id --verbatim`, sin `requerimientos.md`: si es igual, se re-sella sin volver a auditar.
+   `--verbatim` y no `--stable`: el segundo ignora los espacios, y en Python la indentación es código.
+8. **El SHA del merge va literal.** El hook lee el texto del comando antes de que el shell lo
+   expanda: `--match-head-commit "$HEAD_SHA"` se frena aunque el APPROVE esté publicado, y el
+   mensaje del hook lo dice.
+9. **Los worktrees de la skill van en `.claude/worktrees/`.** Con la ruta del scratchpad, en Windows
+   el checkout falla con «Filename too long».
+10. **El hook mira `gh pr merge` solo en posición de comando, y lee el comando como un shell.**
+    Corta en `; | & { } ( )` y en los saltos de línea que están fuera de comillas, ignora el cuerpo
+    de los heredocs y here-strings y acepta `if`, `then`, `else` o `do` delante. Nombrarlo en un
+    `grep`, en un mensaje de commit o en el cuerpo de un PR no consulta GitHub ni frena; un merge
+    dentro de `if ($?) { … }` sí se controla. A cambio, uno dentro de comillas (`bash -c "…"`,
+    `"$(…)"`) no pasa por la guarda. Todo lo que depende del shell se resuelve en el mismo lector,
+    sin pasadas previas sobre el texto: el escape y la continuación de línea (`\` en Bash, backtick
+    en PowerShell), los comentarios (`#` al comienzo de una palabra), el heredoc (solo Bash y fuera
+    de comillas), el here-string (solo PowerShell) y las comillas que se vuelven a abrir dentro de
+    `"$(…)"`. Si al final queda una comilla o un `$(` abierto, el lector perdió la cuenta y corta
+    además sin comillas: ante la duda ve un merge de más, nunca uno de menos (falla cerrado, como
+    cuando no puede consultar GitHub).
+
+## Implementación
+Antes de mergear un PR, el juez corre `/auditoria pr <N>`. Dos auditores de solo lectura revisan el
+diff en paralelo —uno corrección, seguridad, datos y contratos; otro código limpio y rendimiento—
+sin repetir lo que ya mide el CI. El juez verifica lo grave, decide el veredicto y lo publica en el
+PR. Si después se pide mergear, el hook deja pasar el merge solo si hay un APPROVE para ese mismo
+head. Para la auditoría completa, `/auditoria completa` arma un worktree del SHA, una línea de base
+mecánica, siete auditores por eje y una segunda pasada que reproduce con un test lo crítico y lo
+alto. Entrega un informe con fichas, plan por olas, reglas propuestas y descartados.
+
+## Archivos
+- `.claude/skills/auditoria/SKILL.md`, `modo-pr.md`, `modo-completa.md`.
+- `.claude/skills/auditoria/rubricas/correccion-seguridad.md`, `codigo-limpio.md`, `rendimiento.md`.
+- `.claude/skills/auditoria/plantillas/ficha.md`, `comentario-pr.md`.
+- `.claude/agents/chaco-auditor.md` (opus, solo lectura).
+- `.claude/hooks/guardia_merge.py` y su registro `PreToolUse` en `.claude/settings.json`.
+- `core/tests/test_guardia_merge.py` (se saltea si el hook no existe, como en el snapshot de `main`).
+- `CLAUDE.md` §Gates de CI: una línea.
+- `docs/superpowers/specs/2026-10-23-skill-auditoria-design.md` y
+  `docs/superpowers/plans/2026-10-23-skill-auditoria.md`.
+
+## Base de datos
+No requiere.
+
+## Validación
+- `core.tests.test_guardia_merge`: 26 casos. De la guarda: sin merge, stdin inválido, sin
+  comentario, SHA viejo, CHANGES_NEEDED, último veredicto gana, APPROVE, `--match-head-commit`
+  distinto, abreviado o con una variable, otra base u otro repo, `gh` caído, dos merges
+  encadenados. Del lector del comando: comando compuesto, merge sin selector, nombrado sin
+  ejecutarlo (`grep`, commit en una línea, con heredoc o con here-string, cuerpo de PR), merge
+  dentro de un bloque o de `"$( (…); …)"`, merge después de un heredoc o de un `<<<`, comentario
+  con una comilla impar, comilla o `$(` sin cerrar, heredoc sin terminador o nombrado dentro de un
+  string, `@'` en Bash, `<<` en PowerShell, escape y continuación distintos en Bash y en
+  PowerShell, continuación al final de un comentario, `#` pegado a un escape, redirección que no
+  es selector (también `*>`), `gh.exe` con ruta o con variables de entorno, `-R` con el valor
+  pegado, selector por URL o por rama, comando partido en varias líneas. Mutación: sacar o
+  invertir cualquiera de las veintiocho reglas pone el test en rojo. De la guarda: comparación de
+  SHA, ancla, aviso de la variable, una consulta por merge. Del lector: `&`, llaves y paréntesis,
+  palabras clave, comillas, `"$(…)"`, paréntesis anidados, falla cerrado con comilla y con `$(`,
+  escape y continuación según el shell, continuación sin pasada previa, lo escapado es parte de
+  la palabra, comentario, `#` solo al comienzo de una palabra, heredoc en el lector, heredoc sin
+  cierre no se saltea, heredoc solo en Bash, here-string, here-string solo en PowerShell, `<<<`,
+  redirección, `*>`, `gh.exe`, `-R` pegado.
+- `core.tests.test_gates_ci`, `test_motor_real`, `test_roundtrip_migraciones`,
+  `test_un_solo_migrador` y `test_guardia_merge` con `.venv312`: 184 OK (33 se saltean por motor
+  real).
+- Lanzador del hook: comando común → 0; un `grep` que nombra `gh pr merge` → 0; sin el archivo del
+  hook → 0; `gh pr merge` sin marcador → 2; el mensaje sale en UTF-8.
+- Ensayo en seco de los dos modos: `gh pr view` y fetch del ref `pull/N/head`; re-sello con un
+  `development` simulado que avanza (iguales → re-sello; con un cambio propio → auditar); línea de
+  base completa del modo completo sobre un worktree de `8f7c8d80`.
+- `scripts/check_design_agent.py --changed`: OK. Cada task revisada por un subagente independiente.
+- Punta a punta: este mismo PR es el primero que pasa por `/auditoria pr` y por el hook. El hook
+  frenó el merge sin auditoría y con CHANGES_NEEDED. La primera ronda dio CHANGES NEEDED con dos
+  MAJOR del propio hook: un merge dentro de `if ($?) { … }` pasaba sin consultar, y los
+  separadores cortaban dentro de comillas y heredocs y frenaban commits. La segunda dio CHANGES
+  NEEDED con un MAJOR: si el lector perdía la cuenta de las comillas (un comentario con un
+  apóstrofo, la barra en PowerShell, el backtick en Bash, un `<<` sin terminador), el merge pasaba
+  sin consultar. La tercera dio CHANGES NEEDED con dos MAJOR de la misma raíz: la continuación
+  de línea y el heredoc se resolvían con una regex sobre el texto crudo, sin saber el shell ni
+  dónde había un comentario, y la regla del comentario se activaba dentro de `"$(…)"`. Las tres
+  se corrigieron en la misma rama; la re-auditoría queda en el PR.
+
+## Puesta en marcha en el servidor
+No requiere. El hook corre en la máquina de quien mergea, con `python` en el PATH (solo biblioteca
+estándar).
+
+## Pendientes / a definir
+- La primera auditoría completa con el modo nuevo.
+- El hook no cubre el merge desde la web de GitHub, por `gh api …/merge` ni dentro de comillas
+  (`bash -c "…"`, `"$(…)"`).
+- Para el próximo PR del carril (MINOR de la auditoría): las rúbricas remiten a
+  `chaco-dev-reviewer`, `mysql-mariadb` y `CLAUDE.md` en vez de copiarlos; los pasos 2 y 7 de
+  `modo-pr.md` buscan el marcador con la misma expresión que el hook; «Severidad» en
+  `codigo-limpio.md`. Va junto con el escalado por riesgo de los auditores, ya aprobado.
+
+## Reversión
+Borrar `.claude/skills/auditoria/`, `.claude/agents/chaco-auditor.md`,
+`.claude/hooks/guardia_merge.py`, `core/tests/test_guardia_merge.py`, el bloque `PreToolUse` de
+`.claude/settings.json` y la línea de `CLAUDE.md`. No toca datos ni producto.
+
+## Historial
+- **23/10/2026 — alta del cambio.**
+- **23/10/2026 — ronda de `/auditoria pr 943`:** el hook lee el comando como un shell (bloques,
+  comillas, heredocs, here-strings, redirecciones), el re-sello usa `--verbatim` y el hook importa
+  `subprocess` solo cuando hay un merge.
+- **24/10/2026 — segunda ronda de `/auditoria pr 943`:** el lector falla cerrado si pierde la cuenta
+  de las comillas, reconoce los comentarios, toma el escape según el shell, borra un heredoc solo
+  con su línea de cierre y entiende `*>` como redirección.
+- **24/10/2026 — tercera ronda de `/auditoria pr 943`:** la continuación, el heredoc y el
+  here-string pasan adentro del lector, cada uno solo en su shell; `"$(…)"` vuelve a abrir
+  comillas y un `$(` sin cerrar también corta sin comillas.
+
+---
+
 # Cambio 363 — setuptools 84.1.0 y cinco excepciones de twisted: «Pip Audit» vuelve a verde
 
 🟢 **HECHO — 26/10/2026**
@@ -46823,5 +47068,2974 @@ hay datos ni migración. El check de «Pip Audit» vuelve a rojo.
   CVE-2026-115877, que es lo que imprime el CI, daba por verificado el ingress de ECOM
   (MAJOR). Además había dos criterios de retiro distintos, y el comentario del pin seguía
   diciendo «backend de build». Los tres se corrigieron en la misma rama.
+
+---
+
+# Cambio 364 — El Excel de respuestas por persona suma la fecha de nacimiento del titular
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · configuración → detalle del programa → solapa Dashboard → Exportar → «Respuestas por persona» |
+| **Etiquetas** | `#datos` `#convocatorias` |
+| **Solicitante** | PM — en sesión: «vamos a agregar al excel el valor fecha de nacimiento del ciudadano que respondió» |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | Sin issue propio: extiende el Cambio 65 |
+| **Partes afectadas** | Backoffice (servicio de exportación) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+> «Vamos a agregar al Excel el valor fecha de nacimiento del ciudadano que respondió.»
+
+## Alcance acordado
+
+**Entra:** una columna fija «Fecha de nacimiento», justo después de «Apellido y nombre», en el
+XLSX y en el CSV de «Respuestas por persona».
+
+**Queda afuera:** la vista, el template y `programas/services/respuestas.py` (su
+`COLUMNAS_FIJAS` es otro símbolo y lo usa la API).
+
+## Decisiones tomadas
+
+- **Es la fecha del titular del caso**, la misma persona de «DNI» y «Apellido y nombre»; no la
+  del apoderado.
+- **Mismo criterio que «DNI» y «Apellido y nombre»:** con legajo, la fecha sale solo del legajo
+  (si no la tiene, celda vacía; confirmado por el PM el 26/10/2026: celda vacía, completar el legajo con
+  la fecha de la app sería otra regla); sin legajo, de `datos_identificacion`.
+- **Texto dd/mm/aaaa**, igual que «Fecha de envío» y que las fechas de las respuestas
+  (`legible` con tipo `DATE`); una fecha ilegible o imposible («2000-02-30») queda tal cual y
+  no tumba la planilla.
+
+## Implementación
+
+`programas/services/dashboard_becas.py`: columna en `COLUMNAS_FIJAS`, `ciudadano__fecha_nacimiento`
+en `_COLUMNAS_CASO` (reusa el LEFT JOIN de `ciudadano__dni`), helper `_fecha_nacimiento` junto a
+`_identificacion` y su valor en `_filas_por_persona`.
+
+## Archivos
+
+- `programas/services/dashboard_becas.py`
+- `programas/tests/test_dashboard_becas.py`
+- `programas/tests/test_export_respuestas_streaming.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios. Sin consultas nuevas: el presupuesto `becas_respuestas_por_persona` no cambia.
+
+## Impacto
+
+Mismos permisos (`becas.reportes.exportar`, alcance y SEC-22). **Las columnas siguientes a
+«Apellido y nombre» se corren un lugar:** quien procese la planilla por letra de columna tiene
+que ajustarla.
+
+## Validación
+
+- Tests nuevos del legajo con fecha, del caso sin legajo, del legajo sin fecha (celda vacía), de la
+  fecha imposible (queda tal cual) y del caso sin fecha, más el encabezado en su lugar. Mutación: con `_fecha_nacimiento` devolviendo
+  `""` el test nuevo se pone rojo.
+- `manage.py check`, ruff y `scripts/requerimientos.py --check`.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit. No hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+- **26/10/2026 — `/auditoria pr 950`, primera ronda:** CHANGES NEEDED. Una fecha ISO imposible
+  hacía 500 en toda la exportación (MAJOR) y el respaldo legajo → `datos_identificacion` era
+  inalcanzable (MINOR). Se envolvió la conversión y se alineó con `_identificacion`.
+- **26/10/2026 — el envoltorio pasó a `legible` (Cambio 365):** `_fecha_nacimiento` ya no lleva su
+  propio `try/except`.
+
+---
+
+# Cambio 365 — Una fecha imposible guardada en una respuesta ya no tumba el export ni la revisión
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · exportación «Respuestas por persona» y pantalla de revisión del caso (`programas/services/respuestas.py`) |
+| **Etiquetas** | `#datos` `#convocatorias` |
+| **Solicitante** | PM — en sesión: «hacé todos los pendientes» |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | Sin issue propio: hallazgo de la auditoría del PR #950 (Cambio 364) |
+| **Partes afectadas** | Backoffice (servicio de respuestas) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+La auditoría del #950 encontró que `legible` (`respuestas.py`) levanta `ValueError` con una fecha ISO
+bien formada pero imposible («2000-02-30», «1990-13-01»), porque `parse_date` la rechaza así. Con un
+solo caso así el export por persona (`_celdas_de_las_respuestas`) y la pantalla de revisión
+(`respuestas_legibles`) dan 500. El #950 lo tapó solo para la fecha de nacimiento; esto lo resuelve
+en el origen.
+
+## Alcance acordado
+
+**Entra:** atrapar el `ValueError` dentro de `legible` y devolver el texto tal cual, igual que ya
+hacía con un texto que no se puede leer como fecha; sacar el `try/except` que el #950 había puesto en
+`_fecha_nacimiento`, que queda redundante.
+
+**Queda afuera:** corregir o validar el dato guardado.
+
+## Decisiones tomadas
+
+- **Queda tal cual, sin avisar:** una celda con «2000-02-30» es más útil que un 500 y deja ver el dato
+  malo. Los demás llamadores de `legible` (inscripción del portal, respuestas de dispositivo) no
+  dependían de la excepción.
+
+## Implementación
+
+`try/except ValueError` alrededor de `parse_date` en `legible`; `_fecha_nacimiento` vuelve a
+llamar directo a `_texto_legible`.
+
+## Archivos
+
+- `programas/services/respuestas.py`
+- `programas/services/dashboard_becas.py`
+- `programas/tests/test_respuestas.py`
+- `programas/tests/test_dashboard_campos_propios.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Unitario de `legible` (fecha válida, imposible, mes 13 y otro formato) y caso de integración del
+  export con una respuesta DATE imposible. Mutación: sin el `try` de `legible` los tests nuevos y el
+  de «2000-02-30» del #950 se ponen rojos.
+- `manage.py check`, ruff y `scripts/requerimientos.py --check`.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit. No hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+---
+
+# Cambio 368 — P3: categoría, área del Ministerio, titularidad del inmueble y dependencia de la gestión
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alta y edición de institución (P3) y detalle (P4, solapa Datos) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | PM — prueba en testing de `/dispositivos/nuevo/`, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 (MVP de Dispositivos) |
+| **Partes afectadas** | Servidor: `programas.models.Dispositivo`, `DispositivoForm`, `services/dispositivos.py` (`_CAMPOS_REQUERIDOS_VALIDACION`), vista de detalle · Backoffice: `dispositivos/legajo/form.html`, `dispositivos/legajo/detail.html` |
+| **Migración** | `programas.0105_dispositivo_encuadre` — 4 columnas nullable (expand puro) |
+
+## Pedido original
+
+En P3 faltan los selectores del mockup #p3 dentro de «Identidad y encuadre»: **Categoría** *, **Área del
+Ministerio** *, **Titularidad del inmueble** y **Dependencia de la gestión**.
+
+## Alcance acordado
+
+Entra: los cuatro campos en el modelo, en P3 (después de Nombre, en la grilla de dos columnas) y en la
+solapa Datos de P4. Queda afuera: el listado (P2) con las columnas «Tipo · área» y «Categoría», la API, el
+import del padrón y los exports.
+
+## Decisiones tomadas
+
+- **Cambia los apartamientos de los Cambios 302, 308 y 310**, que no dibujaban estos campos porque el
+  modelo no los tenía. No era una decisión contra los campos: ahora existen.
+- **Categoría**: Público / Estatal, Privado, ONG, Religioso (análisis 006 §Encuadre jurídico, minuta del
+  26/06/2026).
+- **Área del Ministerio = la subsecretaría** (`core.Subsecretaria`, decisión del PM del 09/09/2026; mismo
+  patrón que `Programa.subsecretaria`). El select ofrece las activas y conserva la guardada aunque se haya
+  desactivado.
+- **Titularidad del inmueble** (Estado provincial, Municipio, Iglesia o congregación religiosa, ONG o
+  asociación civil, Particular (alquiler o préstamo), Otro) y **Dependencia de la gestión** (Ministerio,
+  Municipio, ONG o asociación civil, Iglesia o congregación religiosa, Otro): **listas propuestas por el
+  juez**, a confirmar por el PM. Son `TextChoices`: cambiarlas es solo Python.
+- Categoría y Área llevan el asterisco: se exigen **para enviar a validación**, no para guardar el
+  borrador. Titularidad y Dependencia son opcionales.
+- P4 los muestra en la solapa Datos, con «—» si faltan.
+
+## Implementación
+
+Tres `TextChoices` en `Dispositivo` y un FK `PROTECT` a `core.Subsecretaria`. `null=True` en los
+`CharField` a propósito: la columna nace nullable por el contrato de migraciones. El detalle suma
+`select_related("area_ministerio__secretaria")`.
+
+## Archivos
+
+- `programas/models/__init__.py`, `programas/migrations/0105_dispositivo_encuadre.py`
+- `programas/forms.py` (`DispositivoForm`: `Meta` y `__init__`), `programas/services/dispositivos.py`
+- `programas/views/dispositivos_legajo.py`
+- `programas/templates/programas/dispositivos/legajo/form.html`, `.../legajo/detail.html`
+- `programas/tests/test_dispositivos_fidelidad_fi.py`, `test_dispositivos_legajo.py`, `test_dispositivos_formulario_alta.py`
+
+## Base de datos
+
+`programas.0105`: `area_ministerio_id bigint NULL` con FK a `core_subsecretaria` e índice, y `categoria`,
+`titularidad_inmueble` y `dependencia_gestion` `varchar(20) NULL`. Expand puro: la release anterior
+sigue dando de alta.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check`, `check_migraciones.py` (0 problemas), `design_audit
+  --ratchet` (0 nuevos), `compile_templates --bloques` (0) y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada: la migración corre con el release.
+
+## Pendientes / a definir
+
+- El PM confirma las listas de Titularidad y Dependencia.
+- Las instituciones ya cargadas quedan sin Categoría ni Área: se les piden al reenviarlas a validación.
+- Columnas en el listado (P2) y en exports: sin pedido.
+
+## Reversión
+
+1. Backup de `programas_dispositivo` (solo si ya se cargaron datos y se quieren conservar).
+2. `manage.py migrate programas 0104` con el código de esta release (desaplica `programas.0105`).
+3. Revertir el commit y desplegar.
+
+Se pierde: la Categoría, el Área del Ministerio, la Titularidad y la Dependencia cargadas en cada
+institución. Nada más depende de esas columnas. La release anterior no las lee, así que también puede
+volverse solo con el código y dejar las columnas (expand puro).
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 369 — DNI/CUIT, teléfono y nombre del responsable se validan en la solicitud de merendero y en el alta de dispositivo
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Merenderos · solicitud de alta · Dispositivos · alta y edición de institución (P3) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | QA (Matías Abate) — #564, `3e1312321` aceptado como DNI/CUIT; PM — amplía a P3 (26/10/2026) |
+| **Fecha del pedido** | 06/10/2026 |
+| **Issue / épica** | #628 · Épica #127 |
+| **Partes afectadas** | Servidor: `programas/validacion_contacto.py` (nuevo), `programas/forms.py` (`SolicitudMerenderoForm`, `DispositivoForm`) |
+| **Migración** | no |
+
+## Pedido original
+
+La solicitud de merendero guardaba como DNI/CUIT lo que llegara (`3e1312321`), y lo mismo el teléfono y el
+nombre del responsable. El alta de dispositivo tenía el mismo hueco.
+
+## Alcance acordado
+
+Entra: formato de DNI/CUIT, teléfono y nombre del responsable en los dos formularios. Queda afuera: la
+documentación respaldatoria (ya la valida el Cambio 188, `validar_adjunto`) y el import del padrón, que
+escribe sin pasar por el formulario.
+
+## Decisiones tomadas
+
+- **DNI/CUIT**: se quitan puntos, guiones y espacios; 7 u 8 dígitos con la regla única de `core/dni.py`
+  (RED-48); 11 con `cuil_valido` de `services/siis_envio.py`, sin duplicar el algoritmo. Se guarda solo con
+  dígitos. Ayuda: «DNI de 7 u 8 dígitos o CUIT de 11».
+- **Teléfono**: dígitos, espacios, `+ - ( )`, de 8 a 15 dígitos; se guarda solo con dígitos y el `+`
+  inicial si lo tenía.
+- **Nombre**: al menos una letra.
+- Un campo vacío no se valida (borrador). Un registro viejo inválido se **ve** sin error; al guardarlo se
+  pide corregir.
+
+## Implementación
+
+Funciones puras en `programas/validacion_contacto.py`, llamadas desde `clean_*` de cada formulario. Vive
+aparte de `programas/validadores.py` porque ese módulo lo importa `programas.models` y este importa
+`siis_envio`, que importa los modelos.
+
+## Archivos
+
+- `programas/validacion_contacto.py` (nuevo), `programas/forms.py`
+- `programas/tests/test_validacion_contacto.py` (nuevo), `programas/tests/test_merenderos.py`
+- `programas/tests/test_dispositivos_fidelidad_fi.py` y `test_dispositivos_formulario_alta.py` (usaban un
+  teléfono de 6 dígitos)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check`, ruff y una prueba manual del helper con la tabla de #628
+  (incluido `3e1312321`): en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- El import del padrón de dispositivos sigue sin validar estos campos.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 370 — Roles: en un rol de Dispositivos, «Configurar programas» dice qué habilita
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Usuarios · ABM de Roles (alta, edición y detalle de un rol de Dispositivos) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | QA (Matías Abate) — #816, «no hay una sección dentro de roles asociada a la configuración de dispositivos»; PM — elige la etiqueta (26/10/2026) |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | #816 · Épica #127 |
+| **Partes afectadas** | Servidor: `core/rbac.py` (`arbol_capacidades`, `arbol_por_tabs`), `users/forms/roles.py` (`RolForm`), `users/views/roles.py` (`RolDetailView`) |
+| **Migración** | no |
+
+## Pedido original
+
+En un rol de Dispositivos no hay ninguna casilla de «configuración». Lo que configura Dispositivos (tipos,
+formularios por tipo y alcance total sobre las instituciones) cuelga de «Configurar programas», en la
+sección Programas, y su nombre no lo dice.
+
+## Alcance acordado
+
+Entra: el texto de la casilla en el árbol de capacidades de un rol de Dispositivos (alta con programa
+fijo, edición, re-render tras un POST y detalle). Queda afuera: la capacidad en sí, que no cambia, y los
+badges del listado de roles (`users/templates/rol/rol_list.html`).
+
+## Decisiones tomadas
+
+- **Solo texto, sin capacidad nueva.** Una `dispositivo.configurar` obligaría a mover los `CAPS_ADMIN_*`
+  en sus cuatro lugares; no se justifica para un problema de nombre.
+- **No se toca `CATALOGO`.** El `AlterModelOptions` de `users.Capacidad` declara el nombre de cada
+  permiso: cambiarlo ahí genera migración y cambia el texto en todos los programas. La etiqueta se ajusta
+  solo al renderizar, con `ETIQUETAS_POR_PROGRAMA`.
+- Texto: «Configurar programas (en Dispositivos: tipos, formularios y alcance total sobre las
+  instituciones)». Sectores y plazas **no** van: cuelgan de «Editar dispositivos».
+- `programa_etiquetas` va separado de `programa` porque `programa` además filtra módulos, y un admin
+  global que ve todos los módulos igual edita un rol de un programa.
+
+## Implementación
+
+`ETIQUETAS_POR_PROGRAMA` y `_etiqueta_para_programa` en `core/rbac.py`. `arbol_capacidades` y
+`arbol_por_tabs` reciben el kwarg opcional `programa_etiquetas` (por defecto, el `programa`).
+`RolForm._programa_etiquetas()` y `RolDetailView` le pasan el programa del rol.
+
+## Archivos
+
+- `core/rbac.py`, `users/forms/roles.py`, `users/views/roles.py`
+- `users/tests/test_roles_abm.py` (`EtiquetaConfigurarPorProgramaTests`)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check` (sin migración) y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Alta de un rol nuevo por un admin global: el programa se elige en el navegador y la etiqueta recién
+  aparece al guardar. Cubrirlo pide JS nuevo; sin pedido.
+- Los badges del listado de roles siguen con el nombre corto.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 371 — P3: «Horario de atención» separado de los turnos, y aviso de que las camas se cargan en Sectores y plazas
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alta y edición de institución (P3) y detalle (P4, solapa Datos) |
+| **Etiquetas** | `#ui` `#textos` |
+| **Solicitante** | PM — recorrida del MVP v2 en testing, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/legajo/form.html`, `legajo/_formulario_tipo.html`, `legajo/detail.html` · Servidor: `views/dispositivos_legajo.py` (`aviso_plazas`, `url_sectores`) |
+| **Migración** | no |
+
+## Pedido original
+
+1. «¿Para qué pido Días y horarios si lo que maneja el ingreso es Configurar turnos de la bitácora?»
+2. «Creé una institución que maneja camas: ¿dónde configuro la cantidad?» Nada en P3 lo dice.
+
+## Alcance acordado
+
+Entra: el rótulo y una ayuda en P3 y P4, y un aviso en P3. Queda afuera: unir horario y turnos (son datos
+distintos) y ocultar el horario por tipo.
+
+## Decisiones tomadas
+
+- **Son dos cosas distintas y ninguna frena el ingreso.** Las franjas de P3 (`HorarioDispositivo`) son el
+  horario de **atención** de la institución, solo informativo (P4 y padrón). Los `Turno` de la bitácora son
+  los turnos del **personal** (bitácora, censo, alerta «sin turnos», eyebrow del ingreso).
+- La tarjeta «Días y horarios» pasa a **«Horario de atención»**, con la ayuda «Solo informativo. Los turnos
+  del personal se configuran en la Bitácora del turno.». P4 usa el mismo rótulo. Opción 1 de 4 elegida por el
+  PM; se descartaron ocultarlo en tipos de 24 h (pedía un campo nuevo), sacarlo (contradice el Cambio 343) y
+  derivar uno del otro.
+- **Aviso de camas**, solo si el tipo maneja plazas (`TipoDispositivo.maneja_plazas`):
+  - alta: «Las camas se cargan después de guardar», con el camino Sectores y plazas → «Nuevo sector» →
+    «Agregar plazas»;
+  - edición: «Las camas no se cargan acá», con el enlace «Ir a Sectores y plazas».
+- El aviso vive en el parcial que se recarga al elegir el tipo, así aparece y desaparece sin JS nuevo.
+- No cambian el `verbose_name` del modelo (pedía migración) ni la columna `dias_horarios` del padrón
+  (contrato de archivo).
+
+## Implementación
+
+Textos en los templates. `tipo_maneja_plazas(tipo_id, dispositivo)` en la vista calcula el aviso para el
+alta, la edición, el POST con errores y el endpoint de la sección del tipo.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/legajo/form.html`, `_formulario_tipo.html`, `detail.html`
+- `programas/views/dispositivos_legajo.py`, `programas/services/horarios_dispositivo.py` (docstring)
+- `programas/tests/test_dispositivos_formulario_alta.py` (`AvisoPlazasTests`), `test_dispositivos_horarios_localidad.py`
+- `.claude/design/arquetipos/formulario.md`, `detalle.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent` y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 372 — El tipo de dispositivo configura «Sectores y plazas» en lugar de «Maneja camas»
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (alta, edición, listado y detalle del tipo) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | PM — recorrida del MVP v2 en testing, 26/10/2026 («al configurar un tipo no veo Sectores y plazas») |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `programas/forms.py` (`TipoDispositivoForm`), `models.TipoDispositivo` (property `maneja_plazas`), `services/ingreso.py`, `seed_aceptacion_reportes` · Backoffice: `dispositivos/config/_tipo_form_fields.html`, `tipo_list.html`, `_tipo_detail_content.html` |
+| **Migración** | no |
+
+## Pedido original
+
+El modal del tipo muestra «Maneja camas» y no hay forma de decir que el tipo tiene sectores y plazas. Un
+tipo con «Maneja camas» tildado no muestra la solapa «Sectores y plazas» y deja ingresar sin cama.
+
+## Alcance acordado
+
+Entra: reemplazar la casilla por la configuración real de la v2. Queda afuera: borrar la columna
+`maneja_camas` (contract de una release posterior, Cambio 239), sobrecupo y lista de espera (decisión del
+PM: después).
+
+## Decisiones tomadas
+
+- **Era un hueco**: `maneja_camas` es de la v1 y en la v2 solo la leían el listado y el texto del semáforo.
+  La solapa, el paso «Plaza» del ingreso y la exigencia dependen de `tipos_plaza_admitidos` y
+  `plaza_obligatoria_al_ingresar`, que no tenían pantalla.
+- El modal ofrece **«Maneja sectores y plazas»** y, tildada, **«Tipos de plaza que admite»** (Cama / Cupo /
+  Turno, al menos uno) y **«Exige asignar una plaza al ingresar»**.
+- **«Exige asignar una plaza» viene tildada** en un tipo nuevo y en uno de la v1 sin configurar (decisión del
+  PM). La ayuda dice que se destilda en los tipos que atienden sin cama.
+- Destildada: lista vacía y no exige. **No se puede destildar** si hay plazas cargadas en instituciones de ese
+  tipo («Hay N plazas cargadas en instituciones de este tipo: no se puede dejar de manejar plazas mientras existan.», y «Hay 1 plaza cargada…» con una sola).
+- **Sin migración de datos**: un tipo de la v1 (`maneja_camas` y lista vacía) abre tildado, con Cama y con
+  «Exige» marcados; guardarlo una vez lo deja configurado.
+- `maneja_camas` se sincroniza al guardar, para la release anterior y lo que todavía lo lea.
+- Una sola regla: `TipoDispositivo.maneja_plazas`, que ahora usa también `services/ingreso.maneja_plazas`.
+  El listado dice «Sectores y plazas» (Sí/No).
+
+## Implementación
+
+`TipoDispositivoForm` con un campo de form (`maneja_sectores_plazas`), un `MultipleChoiceField` con chips
+sobre `tipos_plaza_admitidos` y `plaza_obligatoria_al_ingresar` en `Meta.fields`. `clean()` aplica las
+reglas y `save()` escribe la lista y sincroniza `maneja_camas`. Los campos dependientes se muestran con
+Alpine (`x-show`); sin JS se ven siempre y decide el servidor.
+
+## Archivos
+
+- `programas/forms.py`, `programas/models/__init__.py`, `programas/services/ingreso.py`
+- `programas/templates/programas/dispositivos/config/_tipo_form_fields.html`, `tipo_list.html`, `_tipo_detail_content.html`
+- `programas/management/commands/seed_aceptacion_reportes.py` (el tipo sembrado lleva `["CAMA"]`)
+- `programas/tests/test_dispositivos_config.py` (`TipoDispositivoSectoresYPlazasTests`)
+- `.claude/design/componentes/field.md`
+
+## Base de datos
+
+Sin cambios de esquema: los campos existen desde `programas.0086`.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check` (sin cambios), `design_audit --ratchet` (0 nuevos),
+  `compile_templates --bloques` (0), `check_design_agent` y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Abrir y guardar cada tipo que tenga que manejar camas (en testing, «Municipal»). Hasta entonces sus
+instituciones no muestran la solapa.
+
+## Pendientes / a definir
+
+- Sobrecupo («Excepcional / sobre capacidad») y lista de espera: después (PM, 26/10/2026).
+- Borrar `maneja_camas`: contract en una release posterior.
+
+## Reversión
+
+Revertir el commit. Lo guardado en `tipos_plaza_admitidos` y `plaza_obligatoria_al_ingresar` queda y la
+release anterior lo lee igual; `maneja_camas` quedó sincronizado.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+- **27/10/2026 — Cambio 385.** «Sin migración de datos» queda superado: la migración `programas.0106`
+  convierte sola cada tipo de la v1 (`maneja_camas` con la lista vacía) a Cama, **sin** exigir plaza al
+  ingresar. La puesta en marcha ya no pide abrir y guardar cada tipo. Un tipo nuevo sigue naciendo con
+  «Exige asignar una plaza» tildada.
+
+---
+
+# Cambio 373 — Infraestructura con varios edificios: tabla y cada edificio por separado dentro de la solapa
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle de institución (P4), solapa Infraestructura |
+| **Etiquetas** | `#ui` `#performance` |
+| **Solicitante** | PM — recorrida del MVP v2 en testing, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `services/detalle_dispositivo.py` (`infraestructura_del_dispositivo`), `views/dispositivos_legajo.py` · Backoffice: `dispositivos/legajo/detail.html` |
+| **Migración** | no |
+
+## Pedido original
+
+«Si tengo varios edificios creados quiero verlos en forma de tabla y poder ingresar, porque con más de uno es
+confuso.» Ingreso: «adentro de la misma solapa».
+
+## Alcance acordado
+
+Entra: la tabla con 2 o más edificios y la vista de un edificio dentro de la solapa. Queda afuera: cambiar la
+pantalla del edificio (`/infraestructura/<pk>/`) y la solapa con un solo edificio.
+
+## Decisiones tomadas
+
+- **1 edificio: igual que hoy** (la ficha y su registro, sin tabla en el medio). Es el caso común.
+- **2 o más: tabla** con Edificio (código), Domicilio, Estado, Último relevamiento, Instituciones en el
+  predio y ⋮ (Ver, Editar edificio, Desvincular).
+- «Ver» abre el edificio **en la misma solapa** (`?tab=infraestructura&ver_edificio=<pk>`), con
+  «← Volver a los edificios», su registro y su paginación. Un `ver_edificio` que no es de esta institución
+  vuelve a la tabla, sin 404.
+- **Presupuesto**: la tabla cuesta 4 consultas; un edificio, 7, lo mismo que la solapa de un edificio hoy.
+
+## Implementación
+
+`infraestructura_del_dispositivo(..., edificio_id=None)` devuelve `en_tabla` y `viendo`; la vista lee
+`ver_edificio` del querystring. La tabla usa el componente de tabla del canon (sin piezas nuevas).
+
+## Archivos
+
+- `programas/services/detalle_dispositivo.py`, `programas/views/dispositivos_legajo.py`
+- `programas/templates/programas/dispositivos/legajo/detail.html`
+- `programas/tests/test_dispositivos_infraestructura.py` (`VariosEdificiosTests`; el presupuesto de la
+  solapa ahora mide con `edificio_id`, y se suma el de la tabla)
+- `.claude/design/arquetipos/detalle.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent` y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el commit; no hay datos ni migración.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 374 — «Asignar plaza» a una persona alojada sin plaza
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle de institución (P4, persona alojada) y detalle de estadía (P7) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | PM — recorrida del MVP v2 en testing, 26/10/2026 («puede que la plaza quede libre en un rato») |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `services/estadias.py` (`asignar_plaza`), `forms_dispositivos.py` (`CambioPlazaForm`), `views/dispositivos_legajo.py`, `selectors/estadia_detalle.py`, `selectors/auditoria_dispositivo.py`, `services/bitacora.py` · Backoffice: `dispositivos/legajo/detail.html`, `estadia/detalle.html` |
+| **Migración** | no |
+
+## Pedido original
+
+Un ingreso sin plaza (tipo que no la exige, o «Continuar sin plaza») no tenía cómo recibir una plaza
+después: «Cambiar plaza» pedía tener una.
+
+## Alcance acordado
+
+Entra: asignar una plaza libre a una estadía activa sin plaza, desde P4 y P7. Queda afuera: sobrecupo y lista
+de espera (después, PM 26/10/2026).
+
+## Decisiones tomadas
+
+- **Mismo permiso y alcance que el ingreso** (`puede_operar_dispositivo` con la capacidad de admitir). Solo
+  si el tipo maneja plazas, la estadía está activa y todavía no tiene plaza.
+- **Motivo opcional** (en «Cambiar plaza» sigue obligatorio).
+- Se rechaza una plaza ocupada, una plaza de otra institución, un momento futuro y uno anterior al último
+  movimiento.
+- **Concurrencia**: bloquea la plaza y después la estadía, el mismo orden que «Cambiar plaza», para no
+  cruzar bloqueos. Reusa `_bloquear_plaza`, `_exigir_plaza_libre` y `_exigir_plaza_libre_desde`.
+- Queda registrado como `MovimientoEstadia` de cambio de plaza con **origen vacío**, traza
+  `ESTADIA_ASIGNACION_PLAZA` y bitácora «Se asignó la plaza X». La línea de tiempo lo muestra como
+  asignación, no como cambio.
+- Reusa la URL, la vista y el modal de «Cambiar plaza»: el modal cambia el título y el motivo según la
+  estadía tenga plaza o no.
+
+## Implementación
+
+`asignar_plaza(*, estadia, plaza, usuario, motivo="", momento=None)` en `services/estadias.py`. La vista de
+cambio de plaza deriva al servicio que corresponde. El ⋮ de la persona en P4 y la acción de P7 dicen
+«Asignar plaza» cuando la estadía no tiene plaza.
+
+## Archivos
+
+- `programas/services/estadias.py`, `programas/services/bitacora.py`, `programas/forms_dispositivos.py`
+- `programas/views/dispositivos_legajo.py`, `programas/selectors/estadia_detalle.py`, `programas/selectors/auditoria_dispositivo.py`
+- `programas/templates/programas/dispositivos/legajo/detail.html`, `estadia/detalle.html`
+- `programas/tests/test_dispositivos_movimientos.py` (`AsignarPlazaTests`), `test_dispositivos_detalle.py` (`AsignarPlazaEnLaSolapaTests`)
+- `.claude/design/arquetipos/revision.md`, `.claude/design/componentes/tabla.md`, `ficha_timeline.md`,
+  `turno_bitacora.md`, `.claude/design/dominio/becas.md`
+
+## Base de datos
+
+Sin cambios de esquema: `MovimientoEstadia.plaza_origen` ya es anulable.
+
+## Validación
+
+- `manage.py check`, `makemigrations --check` (sin cambios), `design_audit --ratchet` (0 nuevos),
+  `compile_templates --bloques` (0), `check_design_agent` y ruff: en verde.
+- Tests escritos y **no corridos en local por pedido del PM** (26/10/2026): los corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Sobrecupo y lista de espera: después (PM, 26/10/2026).
+
+## Reversión
+
+Revertir el commit. Las asignaciones hechas quedan como movimientos de cambio de plaza sin origen, que la
+release anterior muestra como un cambio de plaza común.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 375 — Ingreso: alta mínima de la persona que no está en el legajo ni en el Registro de Personas
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · asistente de ingreso (P6), paso 1 «Persona» |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | PM — recorrida del MVP v2 en testing, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `services/ingreso.py` (`buscar_en_registro_de_personas`, `_alta_manual`, `_crear_legajo`), `views/dispositivos_ingreso.py`, `forms_ingreso.py` (`IngresoAltaMinimaForm`) · Backoffice: `dispositivos/ingreso/paso_persona.html`, `paso_confirmar.html` |
+| **Migración** | no |
+
+## Pedido original
+
+En `/dispositivos/1/ingresar/` sale «No se encontraron datos en el Registro de Personas: Configuracion RENAPER
+incompleta (URL).» y no hay forma de seguir. «Si no encuentra a la persona en la base de datos o en RENAPER, te
+muestra el formulario chico de crear ciudadano.» El mockup de la v2 ya lo pedía (P6, paso 1: «alta mínima si no
+existe»); el Cambio 272 no lo implementó.
+
+## Alcance acordado
+
+Entra: el alta mínima dentro del paso 1. Queda afuera: hacer opcional el sexo (el Registro lo sigue pidiendo) y
+la «Ficha mínima» por tipo (pendiente del Cambio 272).
+
+## Decisiones tomadas
+
+- **Cuándo aparece**: la persona no está en el legajo, quien opera tiene `ciudadano.crear`, indicó el sexo y el
+  Registro de Personas no la devolvió (no encontrada, caído o mal configurado). Se ve un aviso «No encontramos a
+  la persona», con el motivo, y la tarjeta «Alta de la persona».
+- **El formulario chico**: DNI (fijo), Nombre\*, Apellido\*, Fecha de nacimiento (opcional, no futura) y Género
+  (viene con el sexo consultado).
+- **El DNI sale de la sesión**, nunca del POST. El envío exige `ciudadano.crear` y que la consulta fallida esté en
+  la sesión. Un oculto con lo que la pantalla mostraba frena el cambio desde otra pestaña.
+- **Se da de alta recién al confirmar**, en la misma transacción que la estadía (regla 2 de
+  `services/ingreso.py`). Si el ingreso falla, no queda el legajo.
+- El legajo nace con **`estado_renaper` vacío**, como la carga manual de Legajos, y pasa por su mismo formulario
+  (`CiudadanoManualForm`). En Plaza se ve como «Carga manual» y en Confirmar, con los datos cargados a mano, sin validar.
+- Si la persona aparece en el legajo entre pasos, se sigue con esa y no se duplica.
+- **Sin cambios**: el fallecido sigue bloqueando (no se aloja a quien figura fallecido); sin `ciudadano.crear` y
+  sin sexo siguen los errores de hoy; la persona encontrada en el Registro sigue igual.
+
+## Implementación
+
+`buscar_en_registro_de_personas` devuelve datos, motivo y fallecido por separado.
+La sesión guarda `sin_registro`
+(lo consultado) y, con el alta válida, `manual`. `confirmar_ingreso` recibe `datos_manual`, y el alta del
+Registro y la manual comparten `_crear_legajo`, que tolera la carrera por el DNI.
+
+## Archivos
+
+- `programas/services/ingreso.py`, `programas/views/dispositivos_ingreso.py`, `programas/forms_ingreso.py`
+- `programas/templates/programas/dispositivos/ingreso/paso_persona.html`, `paso_confirmar.html`
+- `programas/tests/test_dispositivos_ingreso.py` (`AltaMinimaTests`)
+- `.claude/design/arquetipos/wizard.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent` y ruff: en verde.
+- `AltaMinimaTests` corrida en local con `.venv312`: en verde. La suite completa la corre el CI.
+
+## Puesta en marcha en el servidor
+
+Nada. En testing el Registro de Personas no está configurado, así que toda persona fuera del legajo pasa por el
+alta mínima.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el commit. Los legajos creados quedan como cargas manuales comunes.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 376 — El modal «Editar tipo de dispositivo» se volvía a abrir con cada clic adentro
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (detalle del tipo, modal de edición) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — prueba en testing del Cambio 372, 26/10/2026 («cuando toco se pone en gris y se recarga») |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/config/tipo_detail.html` (script del modal) |
+| **Migración** | no |
+
+## Pedido original
+
+En `/dispositivos/config/<n>/`, dentro del modal «Editar tipo de dispositivo», cualquier clic lo pone gris y
+lo recarga. La casilla «Maneja sectores y plazas» (Cambio 372) no se puede tildar.
+
+## Alcance acordado
+
+Entra: que un clic dentro del modal no lo vuelva a abrir. Queda afuera todo lo demás del modal.
+
+## Decisiones tomadas
+
+- **Causa**: el script de la página abre el modal con cualquier clic dentro de un elemento con
+  `data-edit-url`, y el contenedor del modal (`_edit_modal.html`) también lleva ese atributo, que usa para
+  devolverle el foco al botón al cerrar. Así, cada clic adentro cancelaba la acción, ponía el modal en
+  `opacity-60` y lo volvía a pedir al servidor. Estaba así desde julio (PR #196), también en PRD, y afectaba
+  a **todo** lo que se hacía dentro del modal: «Guardar» (y Enter, que dispara el clic del botón de envío),
+  «Cerrar», «Cancelar», el clic en el fondo y las casillas. No lo trajo el Cambio 372; recién ahí se notó,
+  porque hizo falta tildar algo en el modal. (Precisado en el Cambio 378.)
+- El clic que abre el modal se busca **solo en un enlace** (`a[data-edit-url]`), que es lo que es el botón
+  «Editar tipo». El atributo del contenedor queda como está.
+
+## Implementación
+
+Una línea en el script de `tipo_detail.html`: `closest('[data-edit-url]')` → `closest('a[data-edit-url]')`.
+Reproducido antes y después en Chromium headless con el script real: antes la casilla no se tilda, el modal
+queda `pointer-events-none opacity-60` y sale un `GET` del modal; después la casilla se tilda, no hay pedido,
+«Editar tipo» sigue abriendo el modal y, con Alpine, tildar muestra «Tipos de plaza que admite».
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/config/tipo_detail.html`
+- `programas/tests/test_dispositivos_config.py` (`test_un_clic_dentro_del_modal_no_lo_vuelve_a_abrir`)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- ruff, `design_audit --ratchet` (0 nuevos) y `check_design_agent --changed`: en verde.
+- Test escrito y **no corrido en local por pedido del PM** (26/10/2026): lo corre el CI del PR. El repo no
+  tiene tests de JS; el test fija el selector en la página renderizada.
+
+## Puesta en marcha en el servidor
+
+Nada. En testing, recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit (vuelve el modal que se reabre con cada clic).
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+- **26/10/2026 — Cambio 378:** la causa se precisa con lo que encontró la auditoría del PR #973. No era solo
+  la casilla: desde julio ningún clic dentro del modal andaba, también en PRD. Queda pendiente un MINOR de
+  esa auditoría: arrastrar desde un campo y soltar sobre el fondo cierra el modal y pierde lo escrito
+  (`tipo_detail.html`). Se arregla en el PR del modal del tipo.
+
+---
+
+# Cambio 377 — Sectores y plazas: reubicar a la persona desde la plaza ocupada
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Sectores y plazas (P5) · modal de la plaza ocupada |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | PM — prueba en testing, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/sectores/sectores.html` · Servidor: `services/sectores_plazas.py`, `views/dispositivos_legajo.py` |
+| **Migración** | no |
+
+## Pedido original
+
+En «Sectores y plazas», al tocar una plaza **ocupada** se abre un modal sin salida («No se puede sacar de
+servicio… reubicá a la persona») que manda a la estadía. El PM quiere moverla a otra plaza libre ahí mismo.
+
+## Alcance acordado
+
+Entra: la acción **reubicar** en la plaza ocupada, con el formulario del cambio de plaza de P7 dentro del modal
+del mapa. Queda afuera: tocar `estadias.cambiar_plaza` y el modal de P7.
+
+## Decisiones tomadas
+
+- **Revierte en parte el Cambio 287**, que dejó afuera «reubicar» y explicaba la plaza ocupada con un modal sin
+  formulario («La plaza ocupada no esconde la acción: la explica»). Cambia por pedido del PM, 26/10/2026: el
+  aviso sin salida obligaba a ir a la estadía para hacer lo que el operador ya estaba haciendo en el mapa.
+- **Capacidad**: reubicar lo hace quien tiene `dispositivo.admitir` sobre el dispositivo, la misma que ya exige
+  `cambiar_plaza`. El PM la configura por rol.
+- **Precedencia por plaza**: fuera de servicio → volver; reserva abierta → liberar; ocupada → reubicar si puede
+  admitir, si no (y puede editar) el aviso de hoy `MOTIVO_PLAZA_OCUPADA`; resto → sacar de servicio. El mapa y
+  `plaza_para_accion` deciden igual (`accion_de_plaza`).
+- **Sin plazas libres**: el modal avisa «No hay plazas libres en el dispositivo para moverla.» y no trae formulario.
+- **Al confirmar se vuelve al mapa** (`volver=sectores` en `EstadiaCambiarPlazaView`), no a la estadía.
+- El formulario y la estadía se arman **solo con el modal abierto**: el mapa cerrado conserva sus consultas fijas.
+- El nombre de la persona se ve solo con `ciudadano.ver`; si no, «Persona alojada» (como la solapa de estadías).
+
+## Archivos
+
+- `programas/services/sectores_plazas.py`
+- `programas/views/dispositivos_legajo.py`
+- `programas/templates/programas/dispositivos/sectores/sectores.html`
+- `programas/tests/test_dispositivos_plazas_acciones.py`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `test_dispositivos_plazas_acciones` y los módulos afines de Dispositivos: en verde. Mutación: con la guarda de
+  `admitir` fuera, tres tests se ponen rojos.
+
+## Puesta en marcha en el servidor
+
+Nada. Los roles que deban reubicar necesitan `dispositivo.admitir`.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit (vuelve el aviso sin salida de la plaza ocupada).
+
+## Historial
+
+- **26/10/2026 — alta del cambio.** Revierte parcialmente la decisión del Cambio 287.
+
+---
+
+# Cambio 378 — Dispositivos: la leyenda del mapa de plazas pasa a pastillas, y los tonos del listado y de P21 se alinean
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · leyenda del mapa de plazas (P5 y P6) · listado de dispositivos · relevamientos (P21) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 («la leyenda Disponible / Ocupada / Reservada / Prestada no encaja con el diseño») |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `templates/components/_leyenda_plazas.html`, `dispositivos/legajo/list.html`, `dispositivos/relevamientos/list.html` · Fichas: `mapa_plazas.md`, `stat_card.md`, `tabla.md` |
+| **Migración** | no |
+
+## Pedido original
+
+El PM siente desvíos de diseño en Dispositivos y da un ejemplo: la leyenda del mapa de plazas «no encaja con el
+diseño». Pide corregir los desvíos sin cambiar comportamiento, en PRs chicos. Un relevamiento de solo lectura
+(`chaco-design-reviewer`, 26/10) encontró 11 desvíos. Este cambio es el primer lote: la leyenda y dos chips
+de tono.
+
+## Alcance acordado
+
+Entra: la leyenda de estados de plaza, el badge de ocupación del listado de dispositivos y las cuatro métricas
+de P21. Queda afuera el resto del relevamiento, que va en los PRs siguientes del lote (ver Pendientes). No
+cambian datos, vistas, contextos ni URLs.
+
+## Decisiones tomadas
+
+- **La leyenda es una fila de pastillas `badge badge-{tono}`**, con el ícono y el texto adentro, en vez del
+  cuadradito de 20 px con el texto suelto en gris. Las pastillas son la pieza que el sistema ya usa para un
+  estado con tono (`nodo-badges.css`), así que no hace falta CSS nuevo. Se mantienen las dos reglas del
+  Cambio 214: el color nunca va solo (ícono y texto) y cada tono lleva **el mismo ícono en la leyenda y en el
+  mapa**. Un tono desconocido da `badge-gray` con `fa-circle`. El ícono va con un espacio antes del texto,
+  como en el resto de los badges del repo, porque `.badge` ya trae su `gap`.
+- **Sin rótulo «Estado de las plazas».** Ninguna ficha prevé un rótulo para un grupo de badges. Sumarlo sería
+  una novedad, y el `aria-label` de la lista ya lo dice.
+- **Ocupada (`info`, violeta) y Prestada (`brand`, rosa) conservan su tono.** En pastilla se distinguen por
+  el color, el ícono (`fa-user` / `fa-right-left`) y el texto. Cambiar un tono obligaría a tocar el mapa y el
+  servicio de ocupación, que le da el tono a cada plaza. Lo decidió el juez por delegación del PM (26/10/2026).
+- **Listado de dispositivos:** el badge de porcentaje de ocupación lleva `badge-dot`, como los de estado e
+  infraestructura de la misma tabla.
+- **P21:** las cuatro métricas llevan `tono`. Al día `success`, Por vencer `warning` y Vencidos `danger` son
+  los mismos tonos que el badge de situación de su tabla (`_relevamiento_situacion_badge.html`). Asignados va
+  en `brand`, el tono por defecto de la pieza, porque la tabla no tiene un estado «asignado». Esto reemplaza lo que dejó el Cambio 324 («P21
+  conserva el HTML de sus métricas sin tono»), que era el alcance de ese PR, no una decisión de diseño. Ahora
+  P21 se ve como P4 y P19.
+
+## Implementación
+
+- `_leyenda_plazas.html`: un `li` por estado con
+  `<span class="badge badge-{tono}"><i class="fas {ícono}" aria-hidden="true"></i> {estado}</span>`. El
+  contrato de la include (`leyenda`, lista de `estado` + `tono`) y sus consumidores no cambian.
+- `legajo/list.html`: suma `badge-dot`. `relevamientos/list.html`: suma `tono=` en las cuatro `_stat_card`.
+- Las fichas `mapa_plazas.md`, `stat_card.md` y `tabla.md` se actualizan en el mismo diff.
+
+## Archivos
+
+- `templates/components/_leyenda_plazas.html`
+- `programas/templates/programas/dispositivos/legajo/list.html`
+- `programas/templates/programas/dispositivos/relevamientos/list.html`
+- `core/tests/test_nodo_ui_lote_b.py` (`LeyendaPlazasTest`: pastilla y mismo ícono que el mapa por tono, y el
+  tono desconocido)
+- `programas/tests/test_dispositivos_sectores.py`: las aserciones de estado se acotan a la celda del mapa
+  (`block font-semibold">…`). La leyenda ahora tiene el mismo `</i> Ocupada`, y el test de «nada ocupado»
+  fallaba. El de «aparece ocupada» pasaba siempre: medía la leyenda, no la celda.
+- `programas/tests/test_dispositivos_listado.py` (badge de ocupación con `badge-dot`)
+- `.claude/design/componentes/mapa_plazas.md`, `stat_card.md`, `tabla.md`
+- `docs/internal/requerimientos.md`: este cambio; la causa del Cambio 376 corregida; el separador entre 375
+  y 376; Historial en 214 y 324.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent --changed` y ruff: en verde.
+- La primera versión del PR no adaptó dos tests: el de sectores y el del listado. Los encontró la auditoría
+  del PR (`/auditoria pr 974`). Se arreglaron y se corrieron solo esos módulos (`test_dispositivos_sectores`,
+  `test_dispositivos_listado` y `core.tests.test_nodo_ui_lote_b`: 57 OK). El juez autorizó esa excepción
+  puntual al pedido del PM de no correr la suite en local; la suite completa la corre el CI.
+- Mutación: con `fa-user` cambiado en `_mapa_plazas.html`, el test «aparece ocupada» da rojo. La guarda vuelve
+  a medir la celda.
+
+## Puesta en marcha en el servidor
+
+Nada. Recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+El resto del relevamiento de diseño va en PRs aparte, con las decisiones que el PM tomó el 26/10/2026
+(«sigo tus recomendaciones»):
+
+1. Configuración de tipos: listado, formulario y botones del detalle a los arquetipos.
+2. Asistente de ingreso: «Continuar» es el único verbo de avance. En el paso 1 el botón de la izquierda sigue
+   siendo «Cancelar». El pie de Plaza va dentro de la card, como en Persona y Confirmar.
+3. Modal del tipo y campos de los modales de Sectores, con el arreglo del arrastre del Cambio 376 (abajo). El
+   SweetAlert2 propio de `tipo_detail.html` se reemplaza por el modal estándar.
+4. P4: las acciones secundarias del encabezado se agrupan en un menú «Más acciones».
+5. Los tipos de la v1 con `maneja_camas` se convierten solos al modelo de sectores y plazas, también en PRD,
+   sin que haya que guardar cada tipo a mano.
+
+## Reversión
+
+Revertir el commit: vuelven el cuadradito de la leyenda y los chips sin tono. No hay datos que revertir.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 379 — «Agregar plazas» y «Nuevo sector» recargaban la pantalla antes de abrir el modal
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P5 Sectores y plazas (modales «Agregar plazas» y «Nuevo sector») |
+| **Etiquetas** | `#ui` `#performance` |
+| **Solicitante** | PM — prueba en testing, 26/10/2026 («hace como un F5 antes de abrir»; después: «arreglalo en este PR» para «Nuevo sector») |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `sectores/sectores.html`, `sectores/_modal_sector.html` (nuevo), `DispositivoSectoresView`, `AgregarPlazasForm`, la pieza canónica `components/_estado_vacio.html` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En `https://datanach.ecomdev.ar/dispositivos/2/sectores/?plazas=1`, al tocar «Agregar plazas» se abre el
+modal «Agregar plazas · Un lote con el código autogenerado. Nacen operativas.», pero antes hace como un F5.
+Buscar por qué es y arreglarlo. Después, en el mismo PR: «Nuevo sector» tenía el mismo F5.
+
+## Alcance acordado
+
+Entra: los dos botones «Agregar plazas» de P5, el del encabezado y el de cada sector vacío, y los dos de
+«Nuevo sector», el del encabezado y el del estado vacío de un dispositivo sin sectores. Quedan como están
+«Editar sector», «Editar plaza» y las acciones de una plaza del mapa: dependen de un registro y siguen
+abriéndose por parámetro GET (variante del arquetipo Modal).
+
+## Decisiones tomadas
+
+- **Causa**: el botón era un enlace a `?plazas=1`. El navegador pedía la pantalla entera de nuevo y el
+  servidor la devolvía con el modal abierto: eso era el F5. Estaba así desde el Cambio 291, que abría los
+  modales de configuración de P5 por GET y armaba sus formularios «solo al abrir el modal».
+- **El lote deja la variante GET y vuelve al esqueleto de la golden de Modal** (`<button type="button"
+  @click>`): esa variante es para cuando el contenido depende del registro, y el lote no depende de
+  ninguno, porque el sector se elige adentro. El formulario llega con la página, cerrado, y solo para quien
+  puede configurar las plazas y con al menos un sector activo, como ya pasaba con el botón.
+- **Costo aceptado**: P5 suma las consultas del selector del lote a cada carga para quien configura (las
+  del presupuesto `dispositivos_selector_lote_plazas`). El del mapa (`dispositivos_sectores_con_plazas`) no
+  cambia.
+- **El botón de un sector vacío elige su sector en el navegador**: `x-model="sectorPlazas"` en el select y
+  `sectorPlazas='<id>'` en el botón; el del encabezado lo deja vacío. Ya no hay `?plazas=` que leer, y con
+  eso desaparece otro error: el `?plazas=1` del encabezado se leía como id de sector y preelegía el sector
+  1 en la institución que lo tuviera.
+- **`auto_id="id_plazas_%s"`** en `AgregarPlazasForm`: ahora convive en el HTML con `SectorForm` y
+  `PlazaForm`, que también tienen `tipo`, y sin prefijo se repetía `id_tipo`. El `name` del POST no cambia.
+- **«Nuevo sector» tiene su propio modal**, separado del de «Editar sector». Los dos comparten el mismo
+  formulario y por eso salen de una sola plantilla, `sectores/_modal_sector.html`, con su variable de
+  Alpine y su id de título como parámetros. El alta llega siempre con la página para quien configura las
+  plazas, y la edición se sigue armando con `?sector=<id>`, así que pueden estar las dos a la vez. Por eso el
+  alta usa `auto_id="id_nuevo_%s"`.
+- **`?sector=nuevo` se ignora en silencio**: era el enlace del alta y puede seguir en un marcador o en el
+  historial. Ya no es un id, y sin esa excepción la pantalla avisaría que «ese sector no se puede editar».
+- **`accion_click` en la pieza canónica del estado vacío**: el botón del vacío pasa a ser
+  `<button type="button" @click>` cuando la acción abre un modal de la pantalla, en vez de un enlace que
+  recarga. Gana sobre `accion_url`. Los seis usos que ya existían producen el mismo HTML, byte por byte.
+  La ficha `estado_vacio.md` suma el parámetro y la sección «Alta que abre un modal de la pantalla».
+
+## Implementación
+
+«Agregar plazas» abre el modal sin recargar. El del encabezado lo abre sin sector elegido; el de un
+sector vacío, con ese sector ya elegido. «Nuevo sector» también abre su modal sin recargar, desde el
+encabezado o desde el estado vacío, y llega con el formulario limpio aunque la edición de otro sector esté
+abierta. Guardar sigue igual (POST AJAX, toast y vuelta al mapa).
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/sectores/sectores.html`
+- `programas/templates/programas/dispositivos/sectores/_modal_sector.html` (nuevo: el modal del sector,
+  para el alta y la edición)
+- `programas/views/dispositivos_legajo.py` (`_preparar_modales_de_configuracion`, docstring de la vista)
+- `programas/views/dispositivos_capacidad.py` (docstring) y `programas/dispositivos_urls.py` (comentario)
+- `programas/forms_dispositivos.py` (`AgregarPlazasForm`)
+- `templates/components/_estado_vacio.html` y `.claude/design/componentes/estado_vacio.md` (`accion_click`)
+- `programas/tests/test_dispositivos_capacidad.py` (`AltasSinRecargaTests` y el test del estado vacío)
+- `core/tests/test_nodo_ui_piezas.py` (`accion_click` del estado vacío)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Tests nuevos en rojo antes del arreglo (2 de 4 por la causa esperada) y en verde después. Mutación: sin
+  el `auto_id`, `test_la_pantalla_no_repite_ids_con_otro_modal_abierto` falla con `id_tipo` repetido.
+- Los 1179 tests de `programas.tests.test_dispositivos*` con `.venv312` (Django 5.2): OK.
+- Chromium (Playwright) contra un servidor local: el encabezado abre el modal sin navegar (ninguna
+  navegación, una marca en `window` sobrevive, el select queda vacío); el sector vacío lo abre con su
+  sector elegido; el lote se guarda y aparecen M-01 a M-03; sin errores de consola ni HTTP ≥ 400.
+- «Nuevo sector»: tests en rojo antes y en verde después. Mutación: sin el `auto_id` del alta,
+  `test_la_pantalla_no_repite_ids_con_otro_modal_abierto` falla con ids repetidos frente al modal de
+  edición y al de la plaza. 2640 tests OK con `.venv312`: dispositivos, `core` y el snapshot de Becas, que
+  congela el shell. El HTML de los seis usos previos de `_estado_vacio.html` es idéntico al de antes
+  (mismo hash).
+- Chromium, «Nuevo sector»: `?sector=<id>` abre la edición al cargar. Cerrada con Escape, el botón del
+  encabezado abre el alta sin navegar y con el nombre vacío, y guardar crea el sector. En un dispositivo sin
+  sectores, el botón del estado vacío abre el modal sin navegar. «Agregar plazas» sigue abriendo sin
+  navegar. Sin errores de consola ni HTTP ≥ 400.
+- `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `--arquetipo modal` y `detalle` OK,
+  `--goldens` 0, `compile_templates --bloques` 0 y `check_design_agent --changed` OK.
+
+## Puesta en marcha en el servidor
+
+Nada. En testing, recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+- Nada de este cambio. «Editar sector», «Editar plaza» y las acciones del mapa siguen por GET porque
+  dependen del registro, como manda la ficha del arquetipo.
+
+## Reversión
+
+Revertir los dos commits: vuelven los enlaces a `?plazas=` y `?sector=nuevo`, y con ellos la recarga.
+Revertir solo el segundo devuelve «Nuevo sector» al enlace y saca `accion_click` de la pieza del estado
+vacío. Ningún otro uso de la pieza lo emplea.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+- **26/10/2026 — «Nuevo sector» entra en el mismo PR (#975)**, a pedido del PM. Sale de Pendientes y pasa
+  a Alcance, Decisiones e Implementación.
+
+---
+
+# Cambio 383 — «Soy el administrador y no veo Relevamientos»: el rol protegido Administrador recibe `inspeccion.asignar` por migración
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · RBAC (rol protegido «Administrador») · Dispositivos → Relevamientos (P21) |
+| **Etiquetas** | `#rbac` `#datos` `#relevamientos` |
+| **Solicitante** | PM — prueba en testing (ECOM), 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: migración de datos sobre `auth_group_permissions` (solo el rol Administrador) |
+| **Migración** | `users.0040` |
+
+## Pedido original
+
+«Soy el super admin y no veo Relevamientos en el menú: agregale ese permiso al super admin del sistema.»
+En https://datanach.ecomdev.ar el PM entra con el rol protegido «Administrador» y en Programas → Dispositivos
+no aparece «Relevamientos».
+
+## Alcance acordado
+
+Entra: una migración de datos que le da al rol del sistema «Administrador» (`RolMeta.clave =
+"sistema.administrador"`, global) las capacidades `inspeccion.asignar` y `becas.revision.identidad` si le
+faltan. Queda afuera: `inspeccion.relevar`, realinear el rol con todo el catálogo, cualquier otro rol (los
+configura el PM) y tocar `seed_rbac`.
+
+## Decisiones tomadas
+
+- **Causa.** El link del sidebar (`templates/includes/sidebar/opciones.html`) y `RelevamientoListView` exigen
+  `inspeccion.asignar` con alcance a Dispositivos; un rol global con la capacidad cuenta
+  (`_capacidades_activas_en_programa`). `users.0037` declaró la capacidad **sin sembrar roles** y la `0038`
+  dejó `becas.revision.identidad` al seed del arranque. En ECOM el `seed_rbac` —que le da todo el catálogo al
+  Administrador— no corre, y el rol es protegido: el ABM de Roles no lo deja editar. La migración es la única
+  vía, como en `users.0025` y `users.0035`. No es `is_superuser`: el superusuario tiene bypass y lo vería.
+- **Decidido sin el diagnóstico del pod.** El PM no lo va a correr y delegó la decisión al juez (27/10/2026:
+  «resolver las dudas solos»). Por eso el alcance es el que se puede justificar sin saber qué más le falta al
+  rol en ECOM.
+- **Alcance: dos capacidades, nombradas.** Se evaluaron tres opciones:
+  1. *Realinear con todo el catálogo* (lo que hace `seed_rbac`). **Descartada.** La migración corre también en
+     PRD, y entre `users.0002` y `0039` hubo varias tandas de capacidades declaradas sin sembrarle al
+     Administrador (0006, 0011, 0015, 0021, 0026 con `becas.programa.proceso_masivo`…): sin diagnóstico, le daría en
+     producción un conjunto que nadie listó. Además no tendría reversa real —no se puede saber qué agregó—, y
+     congelaría en una migración una lista que el seed mantiene con `set`. Ninguna migración del repo realinea
+     al Administrador: el patrón (0025, 0035) es darle por nombre lo de cada funcionalidad.
+  2. *Todo lo de la 0037* (`asignar` + `relevar`). **`inspeccion.relevar` descartada.** Es capacidad de la app de
+     campo (`rbac.CAPACIDADES_DE_CAMPO`). Al Administrador global nunca se le asigna un relevamiento, porque el
+     selector (`agentes_asignables`) solo ofrece roles **del programa** Dispositivos. Lo único que le sumaría es
+     poder sacar token de la app de campo (`programas/api/views.py`). Es el mismo criterio que `seed_becas`
+     aplica con `becas.campo` al Administrador de Becas.
+  3. **Elegida:** `inspeccion.asignar` (lo pedido) + `becas.revision.identidad` (0038, mismo motivo). La segunda
+     hoy es redundante si el rol tiene `becas.programa.administrar`, porque `puede_validar_identidad` acepta
+     cualquiera de las dos. Igual completa lo que la 0038 dio por hecho, y no abre ninguna superficie nueva.
+- **Cómo encuentra el rol:** por la clave `sistema.administrador`. Si ninguna RolMeta la tiene, lo busca por
+  el nombre canónico «Administrador», igual que `users.0035`. En una base nueva no hay rol y no hace nada:
+  lo crea `seed_rbac` con todo.
+- **Idempotente y atómica:** `permissions.add` solo de las que faltan. `get_or_create` de las `Permission`,
+  porque en una base que migra de corrido el `post_migrate` todavía no las materializó. Es solo datos, sin
+  DDL, así que la transacción la cubre entera. Deja en el log de la migración qué sumó y qué ya tenía.
+- **Reversa real:** saca las dos **solo** del Administrador. No borra las `Permission` (son de la 0037/0038) ni
+  toca otros roles. Lo que no distingue: en una base donde `seed_rbac` ya se las había dado, revertir se las
+  saca hasta el próximo arranque con seed. En ECOM, donde no corre, vuelve exactamente al estado anterior.
+
+## Implementación
+
+Con el deploy, `migrate` aplica `users.0040`. El Administrador queda con «Crear, asignar, reasignar y
+cancelar relevamientos edilicios» y «Validar la identidad de un caso», y ve Programas → Dispositivos →
+Relevamientos (`/dispositivos/relevamientos/`). Los demás roles quedan igual.
+
+## Archivos
+
+- `users/migrations/0040_administrador_inspeccion_e_identidad.py` (nuevo)
+- `users/tests/test_migracion_administrador_inspeccion.py` (nuevo)
+
+## Base de datos
+
+`users.0040`: `RunPython` con reversa. Agrega a lo sumo dos filas en `auth_group_permissions`, del grupo del
+Administrador. No toca el esquema y es segura sobre datos existentes.
+
+## Validación
+
+- `users.tests.test_migracion_administrador_inspeccion`: 13 tests OK, contra los modelos históricos
+  (`estado_historico`, RED-17). Cubren catálogo, clave y nombre, otros roles intactos, sin
+  `inspeccion.relevar`, idempotencia, base nueva, `Permission` faltantes y reversa. El de punta a punta usa
+  un usuario cuyo único rol es el Administrador global con `dispositivo.ver` y `programa.configurar`. Antes
+  de la migración, `puede_en_programa_dispositivos` da False, `/dispositivos/relevamientos/` da 403 y el
+  sidebar no trae el link. Después da True, la pantalla da 200 y el link aparece.
+- **Mutación:** las siete mutaciones ponen al menos un test en rojo. Son: sacar `becas_revision_identidad`,
+  sembrar a todos los grupos, buscar solo por nombre, sumar `inspeccion_relevar`, que la reversa quite de
+  todos, reversa vacía y siembra vacía.
+- RBAC afines (`test_migracion_dispositivo_bitacora`, `test_migracion_administrador_publico`,
+  `notificaciones.tests.test_rbac`, `test_menu_rbac`, `test_seed_datos_base`): 69 OK.
+- `manage.py check` sin observaciones. `makemigrations --check --dry-run` (con
+  `DJANGO_SYNCDB_PROJECT_APPS=False`) da «No changes». `scripts/check_migraciones.py` da 0 problemas, y ruff
+  pasa.
+
+## Puesta en marcha en el servidor
+
+Nada manual: la aplica el `migrate` del deploy. Después del espejo a testing, el PM **recarga la página**
+(las capacidades se calculan por request; si no aparece, cerrar sesión y volver a entrar). En el log del
+deploy, la línea «Administrador «…»: sumó …; ya tenía …» dice qué cambió.
+
+## Pendientes / a definir
+
+- **Si después del deploy el log dice «sumó ninguna» y el PM sigue sin ver Relevamientos,** su usuario no
+  tiene el rol del sistema sino otro. Hace falta el diagnóstico de solo lectura del traspaso (grupos del
+  usuario y `rbac.codigos_de_capacidad()` que le faltan al rol).
+- **Lo mismo puede faltarle a otros roles en ECOM.** Si el arranque no corre `seed_becas`, al «Becas —
+  Coordinador» le falta `becas.revision.identidad` (Cambio 334). Esos roles sí se editan en la pantalla de
+  Roles: el PM puede verificar «Validar la identidad de un caso» y tildarla.
+- **Causa de fondo, a confirmar con ECOM:** si el pod de testing/PRD arranca con `LOCAL_BOOTSTRAP_COMMANDS=false`
+  o con un comando propio, ningún seed corre. Hasta que se confirme, toda capacidad nueva que el Administrador
+  deba tener va con su migración de siembra, como la 0025, la 0035 y esta.
+
+## Reversión
+
+`migrate users 0039`: la reversa le saca las dos al Administrador y no toca nada más. Después, revertir el
+commit.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.** Lo decidió el juez por delegación del PM, sin el diagnóstico del pod.
+
+---
+
+# Cambio 380 — Ingreso a un dispositivo: el asistente avanza siempre con «Continuar»
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · asistente de ingreso (P6) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/ingreso/paso_persona.html` · Ficha: `.claude/design/arquetipos/wizard.md` |
+| **Migración** | no |
+
+## Pedido original
+
+Es el tercer lote de la revisión de diseño de Dispositivos (ver el Cambio 378). El asistente de ingreso
+usaba tres verbos distintos para avanzar: «Siguiente» en Persona, «Continuar» en Plaza y «Confirmar ingreso»
+en Confirmar. El relevamiento marcó además que el pie de Plaza no lleva el separador que sí tienen Persona y
+Confirmar.
+
+## Alcance acordado
+
+Entra el texto del botón de avance. Quedan afuera los forms, los campos ocultos, los `name`/`value` de los
+envíos y la lógica de los pasos.
+
+## Decisiones tomadas
+
+- **«Continuar» es el único verbo de avance.** Lo decidió el PM el 26/10/2026 («sigo tus recomendaciones»).
+  En el paso 1 el botón de la izquierda sigue siendo «Cancelar», porque ahí todavía no hay paso anterior. La
+  acción final sigue siendo «Confirmar ingreso», y la del alta mínima, «Dar de alta y seguir», es otra acción.
+  La golden de Configuración de Becas conserva «Siguiente», así que la ficha registra esto como propio del
+  ingreso de Dispositivos.
+- **El pie de Plaza queda sin separador. El relevamiento se había equivocado.** En Persona y Confirmar el
+  separador divide el contenido de los botones dentro de una misma card. En Plaza el contenido es una grilla de
+  varias cards (el mapa por sector y Persona), y el pie va en su propia card `<form>`, que solo tiene los
+  ocultos y los botones. Un `border-t` ahí deja una franja vacía de unos 48 px sobre la línea. Se probó, se
+  revirtió, y la ficha de Wizard explica por qué.
+
+## Implementación
+
+- `paso_persona.html`: «Siguiente» pasa a «Continuar», con el mismo ícono `fa-arrow-right`.
+- `wizard.md`: la variante del paso intermedio registra el verbo del ingreso de Dispositivos, y el bullet del
+  paso de plaza explica que su pie va en una card propia y sin separador.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/ingreso/paso_persona.html`
+- `.claude/design/arquetipos/wizard.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y
+  `check_design_agent --changed`: en verde.
+- Ningún test afirma el «Siguiente» de Dispositivos. Los que buscan «Continuar» en `test_dispositivos_ingreso.py`
+  siguen siendo coherentes. Por pedido del PM (26/10/2026) no se corrió la suite en local: la corre el CI del
+  PR.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 381 — Dispositivos: el listado y el formulario de tipos siguen sus arquetipos, y los botones del detalle van en tamaño de detalle
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (listado, alta/edición y detalle) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/config/tipo_list.html`, `tipo_form.html`, `_tipo_detail_content.html` |
+| **Migración** | no |
+
+## Pedido original
+
+Es el segundo lote de la revisión de diseño de Dispositivos (ver el Cambio 378). El relevamiento marcó tres cosas
+en la configuración de tipos:
+
+- El listado tiene el título armado a mano, un SVG en «Nuevo tipo», la tabla sin `nodo-th`/`nodo-td` y el estado
+  vacío suelto.
+- El formulario tiene un «← Volver» de texto, un `<h1>` propio y un ancho angosto centrado.
+- El detalle tiene los botones del encabezado en tamaño de página.
+
+## Alcance acordado
+
+Entran las tres pantallas, sin cambiar comportamiento: mismos datos, URLs, formularios, `data-*` y JS. Quedan
+afuera:
+
+- el modal del tipo (`_edit_modal.html`);
+- los campos de `_tipo_form_fields.html`;
+- el JS de `tipo_detail.html`.
+
+Van en el PR del modal (ver Pendientes).
+
+## Decisiones tomadas
+
+- **Listado → arquetipo Listado** (golden `becas/revision/personas_list.html`):
+  - `page_header` con eyebrow y bajada, y «Nuevo tipo» con `fa-plus`;
+  - la tabla con `nodo-thead-row`/`nodo-th`/`nodo-td`;
+  - el estado vacío con `_estado_vacio.html`, que ahora ofrece «Nuevo tipo». La pantalla no condiciona ese
+    botón por capacidad, igual que el del encabezado.
+  - La acción de fila «Configurar», que era un botón con texto, pasa a `nodo-icon-btn` (`fa-gear`) con
+    `aria-label="Configurar el tipo …"`, como pide la ficha de tabla.
+  - El badge de estado sale del helper canónico `estado_tipo_dispositivo`, el mismo que usa el detalle, y no
+    de un `{% if %}` en el template. El HTML que se dibuja es el mismo.
+- **Formulario → arquetipo Formulario** (golden `becas/config/segmento_form.html`):
+  - `page_header` con `volver_url` al listado. Este template solo dibuja el alta, porque la edición va en el
+    modal sobre el detalle (`TipoDispositivoUpdateView`);
+  - surface `bg-white` a todo el ancho, como la golden;
+  - el pie con `mt-6 pt-4 border-t`, y «Guardar tipo» con `fa-check`, como el esqueleto. El espaciado entre
+    campos no cambia.
+- **Detalle:** los tres botones del encabezado pasan de `btn-base` a `btn-sm btn-fit`, el tamaño de los
+  detalles. El relevamiento había marcado «Activar» con dos variantes a la vez, pero no era así: es un `{% if %}`
+  que pone una sola, `btn-tertiary` para desactivar y `btn-secondary` para activar. Queda igual.
+
+## Implementación
+
+Solo templates. Las URLs de volver salen de `{% url … as … %}` en el template, así que no se tocó ninguna vista.
+Hubo que recompilar Tailwind aunque no se agregó ninguna clase: «← Volver» y el nombre del tipo eran los
+últimos usos de `hover:text-fg-brand`, y el CSS commiteado conservaba esa regla. Sacar una clase también obliga
+a recompilar.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/config/tipo_list.html`
+- `programas/templates/programas/dispositivos/config/tipo_form.html`
+- `programas/templates/programas/dispositivos/config/_tipo_detail_content.html`
+- `static/custom/css/tailwind.css`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y
+  `check_design_agent --changed`: en verde.
+- `design_audit --arquetipo listado tipo_list.html`: OK.
+- `design_audit --arquetipo formulario tipo_form.html`: 2 desvíos, los dos por la misma causa. Faltan los
+  marcadores `_form_errores.html` y `_field.html`, porque los campos viven en `_tipo_form_fields.html`, que
+  comparte el modal. Escribir los includes en `tipo_form.html` sin usarlos solo engañaría al auditor. Se
+  resuelve cuando ese parcial pase a `_field.html` (Pendientes).
+- Ningún test afirma el markup que cambió (grep en `programas/tests/` y `core/tests/`). Por pedido del PM
+  (26/10/2026) no se corrió la suite en local: la corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada. Recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+- Migrar `_tipo_form_fields.html` a `_field.html` y `_form_errores.html` en el PR del modal del tipo (lote D del
+  Cambio 378). Ahí `tipo_form.html` pasa los marcadores del arquetipo Formulario.
+
+## Reversión
+
+Revertir el commit. No hay datos que revertir.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 382 — Detalle de una institución (P4): las acciones secundarias del encabezado van al menú «Más acciones»
+
+🟢 **HECHO — 26/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle de la institución (P4) · menú de fila |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/legajo/detail.html` · Piezas: `{% menu_fila %}` (`texto=`), `components/_menu_fila_item.html` (`abre_modal=`), filtro `nombre_alpine` · Fichas: `.claude/design/componentes/tabla.md`, inventario de `.claude/agents/chaco-design-system.md` |
+| **Migración** | no |
+
+## Pedido original
+
+Es el cuarto lote de la revisión de diseño de Dispositivos (ver el Cambio 378). El encabezado del detalle de una
+institución puede llegar a mostrar nueve botones en una fila, según el estado y la capacidad: Bitácora del turno,
+Editar, Enviar a validación, Validar, Observar, Rechazar, Inactivar, Cerrar e Ingresar persona. Ninguna otra
+pantalla del sistema tiene un encabezado así.
+
+## Alcance acordado
+
+Entra dónde se dibujan las acciones. Quedan afuera:
+- qué acción aparece en cada estado y con qué capacidad;
+- las URLs, los contratos de confirmación (`data-confirm-*`) y los modales Observar y Rechazar.
+
+## Decisiones tomadas
+
+- **Las acciones secundarias van a un menú «Más acciones».** Lo decidió el PM el 26/10/2026 («sigo tus
+  recomendaciones»).
+  - Quedan visibles «Bitácora del turno» y la primaria del estado: Enviar a validación, Validar o Ingresar persona.
+  - Van al menú, en este orden: Editar, Observar, Rechazar, Inactivar y Cerrar. Rechazar y Cerrar en rojo.
+  - Cada ítem conserva su condición de estado y de capacidad. Si ninguno aplica, el menú no se dibuja.
+  - El orden visual cambia: Editar ya no queda entre la bitácora y la primaria. El menú va último.
+- **Es una variante del menú de fila, no una pieza nueva.** Lo decidió el juez. Así se reusan el teclado, el foco,
+  el cierre con Escape o con un clic afuera, y el posicionamiento de `nodo-menu-fila.js`.
+  - `texto="Más acciones"` cambia el disparador ⋮ por un botón `btn-secondary btn-sm btn-fit` con el texto y un caret.
+  - Sin `texto`, el HTML de los consumidores que ya existían no cambia: hay un test que lo compara byte a byte.
+- **`abre_modal` acepta solo el nombre de una variable Alpine.** Observar y Rechazar abren modales de la pantalla. El
+  ítem dibuja `@click="<variable>=true"`, y el filtro `nombre_alpine` descarta todo lo que no sea un identificador.
+  Así un valor no puede meter una expresión. Si no pasa el filtro, el ítem no se dibuja. El menú no se mueve del DOM
+  (es `position: fixed`), así que el `@click` sigue dentro del `x-data` de la pantalla.
+
+## Implementación
+
+- `_menu_fila.html` y `{% menu_fila %}`: suman el parámetro opcional `texto`.
+- `_menu_fila_item.html`: suma `abre_modal`.
+  - Va después de `motivo`, `confirm_url` y `url`, que le ganan.
+  - Acepta `peligro=True`.
+- `core/templatetags/nodo_ui.py`: el filtro `nombre_alpine`.
+- `legajo/detail.html`: el encabezado se reordena con `{% menu_fila id="acciones-dispositivo" … texto="Más acciones" %}`.
+- `tabla.md` suma la subsección «Variante de encabezado (`texto=`) y ítem que abre un modal (`abre_modal=`)», con la
+  regla de cuándo usarla. El inventario del agente canónico se actualiza.
+- No hay CSS ni JS nuevos.
+
+## Archivos
+
+- `templates/components/_menu_fila.html`
+- `templates/components/_menu_fila_item.html`
+- `core/templatetags/nodo_ui.py`
+- `programas/templates/programas/dispositivos/legajo/detail.html`
+- `core/tests/test_nodo_ui_piezas.py`
+- `programas/tests/test_dispositivos_detalle.py`
+- `programas/tests/test_dispositivos_fidelidad_ff.py`
+- `.claude/design/componentes/tabla.md`
+- `.claude/agents/chaco-design-system.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0), `check_design_agent
+  --changed` y ruff: en verde.
+- Tests de los módulos tocados: `core.tests.test_nodo_ui_piezas`, `programas.tests.test_dispositivos_detalle` y
+  `programas.tests.test_dispositivos_fidelidad_ff`. Dieron 207 OK y 2 salteados. La suite completa la corre el CI.
+  - `MenuFilaTest` cubre:
+    - `abre_modal` válido, con `peligro`, y con siete valores inválidos (en ninguno sale `@click`);
+    - que cede ante `motivo` y `url`;
+    - el disparador con texto;
+    - el HTML sin `texto`, idéntico byte a byte al anterior.
+  - El detalle verifica tres cosas:
+    - quien solo ve la institución no tiene menú;
+    - el validador recibe Observar y Rechazar con su `@click`;
+    - sin `dispositivo.validar` no aparecen.
+  - Mutación: con `puede_validar` fuera de la condición, el test de «sin `dispositivo.validar`» se pone rojo.
+- En el navegador, a 1440 y a 390 px:
+  - el menú abre y cierra con Escape y con un clic afuera, y el foco vuelve al disparador;
+  - Observar y Rechazar abren su modal;
+  - Inactivar y Cerrar abren su confirmación;
+  - a 390 px el menú queda dentro del viewport, sin scroll horizontal;
+  - la consola no muestra errores.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el commit.
+
+## Historial
+
+- **26/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 384 — «Crear relevamiento» desde la solapa Infraestructura de la institución
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P4 (detalle de la institución) · solapa Infraestructura |
+| **Etiquetas** | `#ui` `#relevamientos` `#rbac` |
+| **Solicitante** | PM — pedido en sesión, 26/10/2026 («un botón Crear relevamiento al lado de Vincular un edificio»); las tres preguntas, respondidas «sí a las 3» el 27/10/2026 |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `legajo/detail.html` (botón y modal), `DispositivoDetailView._preparar_relevamiento`, vista nueva `DispositivoRelevamientoAsignarView` (ruta `dispositivos:relevamiento_asignar_dispositivo`), `AsignarRelevamientoDispositivoForm`, `services/inspecciones.py` (`agentes_asignables_para`, `edificios_para_asignar_del_dispositivo`), ficha `.claude/design/arquetipos/modal.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En `/dispositivos/<id>/?tab=infraestructura`, al lado de «Vincular un edificio», un botón «Crear relevamiento»
+para asignar el relevamiento edilicio sin ir a la pantalla de Relevamientos (P21).
+
+## Alcance acordado
+
+Respuestas del PM («sí a las 3»):
+
+1. Los mismos cuatro campos del modal de P21: edificio, agente territorial, vence (obligatorio) e indicaciones.
+2. Con varios edificios, un selector con los que **no** tienen un relevamiento en curso; con uno solo, fijo.
+3. El territorial es un usuario con un rol activo del programa Dispositivos que tenga «Cargar el resultado de
+   los relevamientos edilicios asignados» (`inspeccion.relevar`): por capacidad, nunca por nombre de grupo.
+
+Se mantienen las reglas de P21: el botón aparece solo con `inspeccion.asignar` y alcance sobre el edificio, y
+no aparece si ningún edificio de la institución admite uno nuevo.
+
+## Decisiones tomadas
+
+- **Mismo circuito que P21**: el alta la hace `crear_inspeccion`, que vuelve a validar capacidad, alcance,
+  edificio sin uno en curso y agente. No se duplica ninguna regla.
+- **La ruta cuelga de la institución** (`<pk>/relevamiento/asignar/`) y el edificio viaja en el POST: el
+  formulario lo acota a los elegibles de esa institución. Un edificio ajeno, fuera del alcance o con uno en
+  curso da el mismo error en el campo, sin decir cuál de los tres es.
+- **Con un solo edificio elegible** el campo va deshabilitado: Django usa el inicial e ignora lo que llegue.
+- **Territorial con varios edificios** (decisión del juez): el selector ofrece la unión de los agentes válidos
+  para cada edificio, sin el personal que lo es de **todos**. Un agente válido para uno y personal del otro
+  pasa el selector y lo rechaza el servicio al elegir el edificio que no corresponde (`_validar_agente`, error
+  en «Agente territorial»). La regla del agente externo (`AGENTE_DEBE_SER_EXTERNO`) queda solo en el servicio.
+- **Abre sin recargar** (decisión del juez): botón `@click` y formulario con la página, como las altas de P5
+  del Cambio 379, porque el PM rechazó la recarga. La variante GET del arquetipo Modal queda para lo que
+  depende de un registro. Costo aceptado: para quien puede asignar y tiene edificios elegibles, P4 suma una
+  consulta de edificios y hasta dos del selector de agentes; nadie más paga nada. Ningún presupuesto vigente
+  cambia.
+- `auto_id="relev_%s"`: la página ya trae el campo `edificio` del modal de vincular.
+- La barra de la solapa se dibuja también para quien solo puede asignar: ve «Crear relevamiento» y no los
+  botones de edificio.
+- Al guardar, toast y vuelta a la solapa Infraestructura.
+
+## Implementación
+
+Botón «Crear relevamiento» en la barra de la solapa Infraestructura. El modal sigue el esqueleto de la golden
+(`_modal_header`/`_modal_footer`, POST AJAX con `data-ajax`) y avisa que nunca se asigna al personal de la
+institución relevada. Si no queda ningún edificio elegible, el botón no aparece.
+
+## Archivos
+
+- `programas/templates/programas/dispositivos/legajo/detail.html`
+- `programas/views/dispositivos_legajo.py` (`_preparar_relevamiento`)
+- `programas/views/dispositivos_relevamientos.py` (`DispositivoRelevamientoAsignarView`)
+- `programas/dispositivos_urls.py` (`relevamiento_asignar_dispositivo`)
+- `programas/forms_dispositivos.py` (`AsignarRelevamientoDispositivoForm`, `AUTO_ID_RELEVAMIENTO`; el edificio
+  de `AsignarRelevamientoForm` pasa a opcional para poder heredarlo, sin cambio para P21)
+- `programas/services/inspecciones.py` (`agentes_asignables_para`, `edificios_para_asignar_del_dispositivo`)
+- `programas/tests/test_dispositivos_crear_relevamiento_p4.py` (nuevo, 26 tests)
+- `.claude/design/arquetipos/modal.md` (consumidor «Alta que elige el registro adentro»)
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 26 tests nuevos: botón con y sin capacidad, sin elegibles, edificio fijo y selector, POST que crea y que
+  rechaza (sin capacidad, edificio ajeno, edificio con uno en curso, agente que es personal del edificio,
+  vencimiento vacío), formulario solo para quien puede, enlace viejo ignorado y sin ids repetidos en P4.
+- Mutación: sin el filtro por institución de `edificios_para_asignar_del_dispositivo`, fallan 2 tests.
+- 305 tests de P4, infraestructura, inspecciones y relevamientos y `--tag performance programas` (44): OK.
+- `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y
+  `check_design_agent --changed`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada. Quien asigna necesita `inspeccion.asignar` en un rol del programa (el Administrador la recibe con el
+Cambio 383) y tiene que haber territoriales con `inspeccion.relevar`; los roles los configura el PM.
+
+## Pendientes / a definir
+
+- Nada de este cambio.
+
+## Reversión
+
+Revertir el commit: desaparecen el botón, el modal y la ruta nueva. Los relevamientos creados desde P4 son
+relevamientos comunes de P21 y siguen ahí.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 385 — Los tipos de dispositivo de la v1 pasan solos a «Sectores y plazas», sin exigir plaza al ingresar
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (y, por arrastre, la solapa «Sectores y plazas» y el ingreso de las instituciones de esos tipos) |
+| **Etiquetas** | `#datos` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 (los tipos de la v1 se convierten solos, también en PRD); casilla resuelta por el PM el 27/10/2026 (opción 1: destildada) |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: migración de datos `programas/migrations/0106_convertir_tipos_dispositivo_v1.py` · Tests: `programas/tests/test_dispositivos_config.py` (`ConvertirTiposV1MigracionTests`) |
+| **Migración** | `programas.0106` (datos, sin cambios de esquema) |
+
+## Pedido original
+
+El Cambio 372 dejó a los tipos de la v1 (`maneja_camas` tildado y sin tipos de plaza) esperando que alguien
+los abra y los guarde una vez: hasta entonces sus instituciones no muestran la solapa «Sectores y plazas».
+El PM pidió que se conviertan solos, también en PRD, sin depender de que alguien se acuerde de guardarlos.
+
+## Alcance acordado
+
+Entra: cada tipo con `maneja_camas=True` y `tipos_plaza_admitidos` vacío o nulo. Queda afuera: los tipos ya
+configurados (tienen al menos un tipo de plaza) y los que no manejan camas, que no se tocan; borrar
+`maneja_camas` sigue siendo el contract de una release posterior (Cambio 239).
+
+## Decisiones tomadas
+
+- **«Exige asignar una plaza al ingresar» queda destildada** (decisión del PM, 27/10/2026, opción 1 de dos).
+  Tildada, toda institución de esos tipos que todavía no cargó plazas dejaba de poder registrar ingresos en
+  PRD: lo rechazan `programas/services/estadias.py` y `programas/views/dispositivos_ingreso.py`. Quien quiera
+  exigir la plaza la tilda después desde Configuración → Tipos.
+- Por eso la conversión **no** es idéntica a abrir el tipo en el modal y guardarlo: el modal lo abre con la
+  casilla tildada (Cambio 372). Lo demás sí coincide: `tipos_plaza_admitidos=["CAMA"]` y `maneja_camas=True`.
+- La casilla se escribe en `False` de forma explícita, también si un tipo de la v1 la tuviera en `True` con
+  la lista vacía.
+- Un tipo nuevo sigue naciendo con la casilla tildada: eso es del form y no cambia.
+- Un tipo de la v1 que alguien ya guardó a mano (en testing, «Municipal», si se hizo la puesta en marcha del
+  Cambio 372) ya tiene la lista y no se toca: conserva lo que eligió quien lo guardó.
+
+## Implementación
+
+`RunPython` que recorre los tipos con `maneja_camas=True`, saltea los que tienen lista, y a los demás les
+escribe `["CAMA"]`, `plaza_obligatoria_al_ingresar=False` y `maneja_camas=True` con un `update` por fila. La
+lista vacía se mira en Python (son pocas filas y el lookup JSON difiere entre MySQL y MariaDB). Es
+idempotente: filtra por el estado de origen, así que un reintento no toca lo ya convertido. `CAMA` va
+escrito a mano para no depender de las `TextChoices` de hoy.
+
+## Archivos
+
+- `programas/migrations/0106_convertir_tipos_dispositivo_v1.py` (nuevo)
+- `programas/tests/test_dispositivos_config.py` (`ConvertirTiposV1MigracionTests`)
+
+## Base de datos
+
+`programas.0106_convertir_tipos_dispositivo_v1`: migración de **datos** sobre `TipoDispositivo`, sin cambios
+de esquema. Depende de `programas.0105`. Toca solo las filas de tipos de la v1 (en testing, las que sigan sin
+configurar); una tabla de catálogo de pocas filas, sin riesgo de `read_timeout`.
+
+## Validación
+
+- `ConvertirTiposV1MigracionTests` y `TipoDispositivoSectoresYPlazasTests` con `.venv312` (Django 5.2): 16
+  tests OK. Casos: lista vacía, lista nula, v1 con la casilla en `True`, ya configurado, sin camas, correrla
+  dos veces, y que el form abra el tipo convertido con «Maneja sectores y plazas», Cama y la casilla
+  destildada, y que guardarlo así no lo cambie.
+- Mutación: con la casilla en `True` en la migración, fallan 4 comprobaciones de la clase; con `False`, pasan.
+- `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`: «No changes detected».
+- `scripts/check_migraciones.py`: 0 problemas. Ruff: OK.
+- La suite completa y la ida y vuelta contra MariaDB y MySQL las corre el CI del PR.
+
+## Puesta en marcha en el servidor
+
+Nada: la corre el `migrate` del deploy. Ya no hace falta abrir y guardar cada tipo (lo que pedía el Cambio
+372). Después del deploy, las instituciones de esos tipos muestran la solapa «Sectores y plazas» y siguen
+ingresando personas sin plaza hasta que alguien tilde la casilla en su tipo.
+
+## Pendientes / a definir
+
+- Nada de este cambio.
+
+## Reversión
+
+1. `python manage.py migrate programas 0105`: la reversa es un no-op (`# REVERSA-NOOP`), no deshace nada.
+2. Revertir el commit.
+3. Los tipos convertidos quedan con `["CAMA"]`, sin exigir plaza y con `maneja_camas=True`, que la release
+   anterior ya lee (Cambio 372, Reversión). No se pierde ningún dato. No se distingue un tipo convertido de
+   uno guardado a mano, por eso no se intenta volver a la lista vacía.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 386 — Dispositivos: los modales del tipo y de sectores y plazas pasan al modal y al campo estándar
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Configuración → Tipos (detalle, edición y alta del tipo) · P5 Sectores y plazas · «Cambiar de plaza» en P4, P5 y la estadía |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — revisión de diseño de Dispositivos, 26/10/2026 (lote D del Cambio 378) |
+| **Fecha del pedido** | 26/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `config/_edit_modal.html`, `tipo_detail.html`, `_tipo_detail_content.html`, `_tipo_form_fields.html`, `tipo_form.html`, `sectores/sectores.html`, `sectores/_modal_sector.html`, `estadia/detalle.html`, `legajo/detail.html`, parcial nueva `dispositivos/_form_cambio_plaza.html` · Servidor: `views/dispositivos_legajo.py`, `services/sectores_plazas.py`, `forms_dispositivos.py` (textos de ayuda) · Fichas: `arquetipos/modal.md`, `componentes/field.md`, `estado_vacio.md`, `ficha_timeline.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cuarto lote de la revisión de diseño de Dispositivos (ver el Cambio 378): el modal de edición del tipo, la
+confirmación con SweetAlert2 y los campos escritos a mano en los modales de P5 y del tipo no seguían el
+sistema de diseño. El PM decidió (26/10/2026) que el SweetAlert2 del detalle del tipo pase al modal estándar.
+
+## Alcance acordado
+
+Sin cambio de comportamiento: estructura y piezas canónicas. Entran también un error del modal del tipo y los
+MINOR de las auditorías de #978 y #975.
+
+## Decisiones tomadas
+
+- **Modal del tipo** (`_edit_modal.html`): esqueleto de la golden (`_modal_header`/`_modal_footer`). Llega por
+  `fetch`, fuera de Alpine, así que no lleva `x-becas-modal`: `tipo_detail.html` lo engancha con
+  `window.becasModal.bind` (foco atrapado, Escape, X y Cancelar) y se borra el JS propio que lo duplicaba. Queda
+  en la variante de `bind` de `modal.md`. Los desvíos de `--arquetipo modal` sobre el parcial bajan de 5 a 2: el
+  atributo y el script los pone la página que lo inyecta.
+- **Arrastrar no cierra**: el modal se cierra con un clic en el fondo solo si el `pointerdown` también fue en el
+  fondo. Antes, seleccionar texto de un campo y soltar afuera cerraba el modal y se perdía lo escrito.
+- **Confirmación**: el SweetAlert2 del detalle del tipo pasa a la confirmación estándar (`_confirm_js.html`,
+  ModernModal), con los mismos textos. Atendía todos los botones con `data-confirm-url`, así que el cambio cubre
+  Activar/Desactivar el tipo y también Reactivar, Dar de baja y Eliminar de los formularios por momento. El tono
+  sigue el de la acción: rojo para desactivar, dar de baja y eliminar; el del sistema para activar y reactivar
+  (`data-confirm-danger="false"`).
+- **Texto de ayuda de P7** (decisión del juez): queda el texto unificado «Ahora: Sector · CÓDIGO», el mismo en
+  P4, P5 y la estadía, porque ahora sale de una sola parcial.
+- **Reubicar desde el mapa sin consulta de más**: `_sectores_para_cambio` recibe el dispositivo que ya cargó la
+  vista, con su tipo, en vez de `estadia.dispositivo`. Lo cubre un test que cuenta las consultas al tipo.
+- **Campos**: los de los modales de sector, plaza, agregar plazas, liberar, fuera de servicio y cambio de plaza,
+  los del tipo y el de «Nuevo formulario» pasan a `components/_field.html` (`wrapper_class=""` en los modales).
+  Los textos de ayuda que estaban en el HTML pasan al `help_text` del form, con el mismo texto. Las casillas
+  del tipo conservan el label al costado (patrón que documenta la ficha de `_field`). `tipo_form.html` pasa el
+  arquetipo Formulario (de 2 desvíos a 0).
+- **«Cambiar de plaza» en un solo lugar**: el cuerpo del formulario estaba copiado en P4, P5 y la estadía; ahora
+  es la parcial `dispositivos/_form_cambio_plaza.html`, y el armado del form en la vista es un helper
+  (`_form_de_cambio_de_plaza`). El aviso «No hay plazas libres en el dispositivo para moverla.» lo devuelve
+  `bloqueo_de_plaza`.
+- Se pierden los enlaces `href` de Cerrar y Cancelar del modal del tipo, que solo servían sin JS (el modal
+  mismo llega por JS).
+
+## Implementación
+
+Mismo comportamiento y mismos textos. El modal del tipo no se cierra al soltar un arrastre afuera.
+
+## Archivos
+
+Los de «Partes afectadas», más `programas/tests/test_dispositivos_config.py` (la aserción de los enlaces del
+modal pasa a mirar `aria-labelledby` y `data-cancel-url`) y `programas/tests/test_dispositivos_capacidad.py`
+(MINOR de #975: el test de «Editar sector» sin permiso pide `?sector=<id>` y suma `assertNotIn` del alta y del
+lote).
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- 441 tests de configuración, capacidad, sectores, acciones de plaza, detalle, estadía y piezas de `core`, y
+  `--tag performance programas`: OK con `.venv312`.
+- Mutación del test de #975: sin la guarda de `puede_configurar_plazas`, rojo.
+- `design_audit --ratchet` (0 nuevos), `--goldens` (0), `--arquetipo formulario` sobre `tipo_form.html` (0),
+  `compile_templates --bloques` (0), `check_design_agent --changed` y ruff: OK.
+- Chromium (Playwright, SQLite local): editar el tipo, arrastrar desde un campo hasta el fondo **no** cierra y
+  conserva el texto; clic en el fondo, Escape, la X y Cancelar cierran; el foco queda atrapado; los errores del
+  servidor se pintan en el campo; guardar edita. Activar/Desactivar con la confirmación estándar. En P5, «Agregar
+  plazas», «Nuevo sector», «Editar sector», «Editar plaza», «Sacar de servicio» y «Cambiar de plaza» pintan sus
+  errores; el cambio de plaza desde P4 y desde la estadía abre y guarda. Sin errores de consola.
+
+## Puesta en marcha en el servidor
+
+Nada. Recargar con Ctrl+F5 después del deploy.
+
+## Pendientes / a definir
+
+- Nada de este cambio.
+
+## Reversión
+
+Revertir los commits del PR: vuelven el modal anterior, el SweetAlert2 y las tres copias del cambio de plaza.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 387 — Dispositivos: limpieza de los MINOR de las auditorías de #979, #980, #982 y #983 y del carril de diseño
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P4 (detalle), P21 (relevamientos), configuración de tipos, ingreso · `core/dni.py` · `core/templatetags/nodo_ui.py` · fichas de diseño |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | Juez del carril de Dispositivos: MINOR de `/auditoria` de #979, #980, #982 y #983 y los acumulados del carril de diseño (Cambios 378–386) |
+| **Fecha del pedido** | 27/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `legajo/detail.html`, `relevamientos/list.html`, parcial nueva `relevamientos/_campos_asignar.html`, `config/_edit_modal.html` (comentario) · Servidor: `views/dispositivos_legajo.py`, `views/dispositivos_relevamientos.py`, `views/dispositivos_ingreso.py`, `services/inspecciones.py`, `forms_dispositivos.py`, `programas/forms.py` (comentario), `core/dni.py`, `core/templatetags/nodo_ui.py` · Fichas: `page_header.md`, `detalle.md`, `tabla.md`, `wizard.md`, `modal.md`, `field.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Las auditorías del carril dejaron hallazgos MINOR para «el próximo PR del carril». El PM pidió terminar el carril
+sin consultas, así que este cambio los junta en un solo PR.
+
+## Alcance acordado
+
+Sin cambio de comportamiento visible, salvo `normalizar_dni`, que deja de aceptar dígitos que no son ASCII.
+
+## Decisiones tomadas
+
+- **P4, validación pendiente**: la vista calcula `validacion_pendiente` una sola vez. Antes la condición estaba
+  repetida en tres `{% if %}`: el botón, el menú y los modales.
+- **Modal de asignar relevamiento**: P4 y P21 usan la parcial `_campos_asignar.html`, con `components/_field.html`.
+  - El aviso «nunca se asigna al personal de la institución» va bajo `{% if agente_externo %}` en los dos. Antes,
+    en P4 se mostraba siempre.
+  - El edificio conserva el asterisco con `marca_requerido`, porque el campo es `required=False` para poder
+    heredarlo.
+  - El aspecto no cambia. Sí cambia el marcado del campo (ids, `aria-describedby` y error por campo).
+- **Relevamientos**: el final de `post` (toast, respuesta AJAX, redirección) es un helper común
+  (`_creado`). «Personal del edificio» se define en un solo lugar (`_personal_de_edificios`). No había un
+  `.order_by()` de más en `agentes_asignables_para`, así que no se tocó.
+- **`nodo_ui`**: constante `ARGUMENTOS_MENU_FILA_ADMITIDOS`; `nombre_alpine` ya no tiene el alias sin uso.
+- **`normalizar_dni`**: solo acepta 0-9 ASCII. Ningún llamador dependía de los otros dígitos: todos normalizan para
+  guardar o para comparar.
+- **Ingreso**: en `huella_persona`, las ramas «registro» y «manual» comparten un bucle. La huella no cambia.
+- **Fichas**:
+  - `page_header.md` y `detalle.md` remiten a la regla «Más acciones» de `tabla.md`.
+  - `tabla.md` corrige el tono de las stat cards: Asignados va en `brand`.
+  - `wizard.md` aclara que «Dar de alta y seguir» no es un verbo de avance.
+  - `modal.md` y `field.md` documentan la parcial nueva.
+- **Comentarios desactualizados**: `programas/forms.py` cita programas.0106, y `_edit_modal.html` describe el
+  `bind`.
+- **Decisión del juez**: queda afuera el `icono` en `LEYENDA_PLAZAS`/`EstadoPlaza`. Ponerlo agrega un parámetro
+  al contrato de dos piezas canónicas, y el HTML de quien hoy pasa solo `tono` no quedaría idéntico. Queda
+  pendiente.
+
+## Implementación
+
+Commit `69542b91`, más el merge de development si hace falta.
+
+## Archivos
+
+Los de «Partes afectadas», más los tests:
+- `core/tests/test_nodo_ui_piezas.py`: caso `confirm_url`;
+- `programas/tests/test_dispositivos_crear_relevamiento_p4.py`: tres tests reforzados y el aviso del agente externo;
+- `programas/tests/test_dispositivos_formulario_alta.py`: rechazo de un diseño ajeno;
+- `programas/tests/test_dispositivos_ingreso.py`: prefijo de la huella;
+- `programas/tests/test_padron.py`: dígitos que no son ASCII.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Tests focalizados: 1507 tests de nodo_ui, DNI, padrón y todos los `test_dispositivos_*`, OK. También
+  `--tag performance programas` (45): OK.
+- Mutaciones en rojo: el enlace viejo, `disabled` del edificio, el costo sin capacidad, `isdigit()` en
+  `normalizar_dni`, `confirm_url`, el diseño ajeno y el prefijo de la huella.
+- `manage.py check`, `design_audit --ratchet` (0 nuevos), `--goldens` (0), `compile_templates --bloques` (0),
+  `check_design_agent --changed` y ruff: OK.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- `icono` en `LEYENDA_PLAZAS`/`EstadoPlaza`, para que el mapeo de tono a ícono viva en un solo lugar. Hace falta
+  decidir el contrato de las piezas.
+- Las ramas de edición sin uso de `tipo_form.html`, para la auditoría completa.
+- P4 no muestra las respuestas de versiones anteriores del formulario del tipo. Es un cambio de comportamiento:
+  hace falta un pedido.
+
+## Reversión
+
+Revertir el commit. Vuelven las copias y los comentarios anteriores, y `normalizar_dni` vuelve a aceptar
+dígitos que no son ASCII.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 388 — Dispositivos: el formulario «Relevamiento» por tipo llega al territorial por la API de campo
+
+🟢 **HECHO — 27/10/2026** · PR pendiente de revisión (`/auditoria pr`)
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · configuración de tipos (P17), relevamientos (P4, P21, informe del coordinador) · API de campo `/api/dispositivos/inspecciones/` · `/api/becas/` (solo el cuerpo del 403) |
+| **Etiquetas** | `#relevamientos` `#api` `#mobile` `#datos` |
+| **Solicitante** | PM — pedido del 27/10/2026 (D1 a D4 cerradas) |
+| **Fecha del pedido** | 27/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `programas/models/__init__.py`, `services/inspecciones.py`, `services/respuestas_dispositivo.py`, `services/formularios_tipo.py`, `api/serializers_inspecciones.py`, `api/views_inspecciones.py`, `api/views.py`, `forms_dispositivos.py`, `views/dispositivos_relevamientos.py`, `views/dispositivos_legajo.py`, `core/views/media.py` · Backoffice: `_campos_asignar.html`, `informe.html` · Documento: `docs/internal/contrato-app-dispositivos.md` |
+| **Migración** | Sí: `programas.0107` (momento, `diseno`, dos modelos) y `programas.0108` (`uuid_cliente` a `char(36)` en MySQL y MariaDB) y `programas.0109` (solo choices de la traza). Expand puro. |
+
+## Pedido original
+
+Que el relevamiento edilicio de Dispositivos tenga un formulario propio, armado por tipo con el constructor de
+P17 y entregado al territorial en la misma app de Becas, con los módulos aislados entre sí.
+
+## Alcance acordado
+
+- **D1**: el formulario sale del tipo de la institución. Desde P4 es el tipo de esa institución. Desde el listado
+  P21 es el único tipo del edificio o, si hay varios, el que se elige en el modal. El diseño elegido queda en
+  `InspeccionEdificio.diseno`.
+- **D2**: el formulario complementa el resultado fijo (criticidad, observaciones, fotos).
+- **D3**: sin formulario «Relevamiento», o dado de baja, se asigna igual con `diseno=None` y el modal avisa.
+- **D4**: siempre la versión **vigente**. La foto de la definición y la versión se toman al recibir el resultado.
+  La app puede mandar `version_capturada`: si difiere se acepta y se marca, como en Becas G1-16. Las claves que ya
+  no están en el diseño van a `anteriores`.
+
+## Decisiones tomadas
+
+- **Momento nuevo** `MomentoFormulario.RELEVAMIENTO`, visible en el alta de formularios del tipo.
+- **Modelos**: `RespuestasRelevamiento` (OneToOne con la inspección, sobre `RespuestasDeFormulario`) y
+  `AdjuntoRespuestaRelevamiento`, que cuelga de la **inspección** y no de las respuestas, para que un archivo pueda
+  llegar antes que el resultado. `uuid_cliente` es único; no hay `UniqueConstraint` condicional.
+- **Las respuestas se crean al recibir el resultado** siempre que haya un diseño vigente, aunque vengan vacías. Así
+  el informe puede marcar un ARCHIVO obligatorio que no llegó.
+- **Un ARCHIVO obligatorio no bloquea el resultado**: llega después por `adjuntos/`. Un obligatorio oculto por su
+  condición no se exige.
+- **`adjuntos/`**: multipart, un archivo por request, idempotente por `uuid_cliente` (201 la primera vez, 200 el
+  reenvío). Se acepta con el relevamiento en curso o realizado, no revisado. Mismos límites que los adjuntos de
+  Becas (`validar_adjunto`).
+- **Un diseño asignado no se borra**: la FK es PROTECT, así que «eliminar» lo da de baja. El borrado cuenta las
+  respuestas del relevamiento y los relevamientos que lo traen.
+- **`/media/`**: el archivo lo baja quien ve el relevamiento (`inspecciones_visibles`), la misma regla que las fotos.
+- **403 `SIN_MODULO`** en los dos namespaces de campo, conservando `detail`: la app distingue «no tiene este
+  módulo» de una sesión caída.
+- **UI**: se reusaron las piezas existentes (select con `_field.html`, `_alerta` warning). El selector de tipo solo
+  aparece si el edificio aloja a más de un tipo.
+- **Condiciones sobre ARCHIVO** (ronda 2): cualquier valor no vacío en la clave ARCHIVO (la app manda
+  `{"archivo_adjunto": true, "nombre": ...}`) cuenta como adjuntado; el informe suma los adjuntos recibidos.
+- **Ronda 2, código**: la validación por tipo reusa `forms_dinamicos._field_para_campo`; «qué formulario
+  corresponde» vive en `formularios_tipo.py`; `diseno_vigente_de` es la única definición de «diseño vigente»;
+  `agregar_adjunto_formulario` comparte guardas con `agregar_foto` y deja traza (`TrazaInspeccion.Accion.ADJUNTO`,
+  migración `programas.0109`, solo choices).
+- **Contrato para la app**: `docs/internal/contrato-app-dispositivos.md`, con JSON real generado desde los tests.
+
+## Implementación
+
+Rama `feat/dispositivos-relevamiento-formulario-app`. Ver el PR.
+
+## Archivos
+
+Los de «Partes afectadas», más las migraciones y los tests:
+- `programas/tests/test_api_campo_relevamiento_formulario.py` (nuevo, 54 casos);
+- `programas/tests/test_api_campo_inspecciones.py`: claves nuevas del listado y el detalle, `code` del 403;
+- `programas/tests/test_becas_api_contrato.py`: `code` del 403;
+- `core/tests/test_uuid_mariadb.py`: comentario;
+- `programas/tests/test_becas_models.py`, `test_models_contrato.py` y `test_dispositivos_formularios_tipo.py`: el modelo y el momento nuevos;
+- fichas `modal.md` y `field.md`.
+
+## Base de datos
+
+- `programas.0107`: `InspeccionEdificio.diseno` (FK nula, PROTECT), el momento «relevamiento» y las tablas de
+  respuestas y adjuntos.
+- `programas.0108`: ensancha `uuid_cliente` a `char(36)` en MySQL y MariaDB (patrón de `programas.0073`), con
+  `atomic = False` y pasos idempotentes. Las búsquedas usan `q_uuid_en_texto`.
+
+## Validación
+
+- Suite de `programas` y `core` (5643 tests): los 5 contratos que fallaban por los modelos y el momento nuevos
+  (ratchet de UUID, registro de tablas, momentos libres del tipo) se ajustaron y pasan; los nuevos son 54 en
+  `test_api_campo_relevamiento_formulario`.
+- Mutaciones en rojo: `_exigir_asignado`, `code` de `CampoInspeccionPermission`, `has_permission` de ese permiso,
+  `code` de `CampoBecasPermission`, `clave_de_archivo_valida`, la regla de `/media/`, el tipo ajeno al edificio y
+  los obligatorios del resultado. `inspecciones_para_envio` ensanchado **no** rompe nada: `_exigir_asignado` sigue
+  devolviendo el 404 (doble guarda).
+- `manage.py check`, `makemigrations --check` (SYNCDB=False), `check_migraciones`, `design_audit --ratchet` (0
+  nuevos), `compile_templates --bloques` (0), `check_design_agent --changed` y ruff: OK.
+
+## Puesta en marcha en el servidor
+
+**Orden del release:** la app instalada hoy manda `resultado/` sin `respuestas`; con un formulario «Relevamiento»
+con obligatorios recibiría un 400 sin salida. No se crean formularios con obligatorios hasta que la app nueva
+esté en el ambiente, o se sube `APP_CAMPO_VERSION_MINIMA` al publicarla.
+
+Las migraciones corren en el deploy. Para que un tipo use el formulario hay que crear el momento «Relevamiento» en
+su pantalla de formularios.
+
+## Pendientes / a definir
+
+- **DECISIÓN CLIENTE: la clave de idempotencia de los adjuntos es `uuid_cliente`, con el mismo mensaje
+  «Ese identificador ya se usó para otra foto»** (el `code` `UUID_EN_USO` es el que vale). Propuesta por defecto:
+  dejarlo así.
+- La app todavía no consume la API de Dispositivos: el contrato va a la sesión de la app.
+- El detalle de la API no devuelve lo ya respondido ni los adjuntos; la app conserva lo que envió.
+
+## Reversión
+
+Revertir el PR. Las migraciones son de expand: se puede bajar la release sin tocar los datos. Las tablas nuevas
+quedan vacías de uso.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.**
+
+---
+# Cambio 389 — Sectores y plazas: la plaza libre se reserva, se presta o se saca de servicio, y tocar una plaza no recarga la página
+
+🟢 **HECHO — 27/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P5 Sectores y plazas · modal «Crear relevamiento» (P4) y «Asignar relevamiento» (P21) |
+| **Etiquetas** | `#ui` `#rbac` `#performance` `#relevamientos` |
+| **Solicitante** | PM — prueba en testing (27/10/2026), plan aprobado; más un MINOR de la auditoría de #984 |
+| **Fecha del pedido** | 27/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/sectores/sectores.html`, parcial nueva `sectores/_modal_reubicar.html`, pieza canónica `components/_mapa_plazas.html`, `relevamientos/_campos_asignar.html`, `legajo/detail.html`, `relevamientos/list.html` · Servidor: `services/sectores_plazas.py`, `views/dispositivos_legajo.py`, `views/dispositivos_relevamientos.py`, `forms_dispositivos.py`, `dispositivos_urls.py` · Fichas: `.claude/design/componentes/mapa_plazas.md`, fila de la pieza en `.claude/agents/chaco-design-system.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En `/dispositivos/<id>/sectores/`, el PM pidió dos cosas:
+
+1. Al tocar una plaza **disponible**, que el modal ofrezca **Reservar, Prestar y Sacar de servicio**. Hasta ahora
+   solo ofrecía «Sacar de servicio».
+2. Que tocar una plaza **no recargue la página**. La celda era un enlace `?plaza=<id>` y hacía una navegación
+   completa.
+
+Además se suma el MINOR que dejó la auditoría de #984: en el modal de asignar relevamiento, cuando un campo vuelve
+con error, la ayuda del campo quedaba debajo del error.
+
+## Alcance acordado
+
+- **Revierte una decisión registrada.** Los Cambios 287, 291 y 325 (punto 10) dejaron fuera «reservar y prestar
+  desde el mapa» porque la reserva necesita elegir a la persona. Ahora entra: la persona se elige por DNI. Queda
+  anotado en el Historial de 287 y 325.
+- Las otras ramas del modal no cambian. Una plaza ocupada ofrece «Cambiar de plaza» (Cambio 377), una con reserva
+  abierta ofrece «Liberar» y una fuera de servicio ofrece «Volver a servicio».
+- Sin alta de personas desde el mapa: el alta sigue siendo «Ingresar persona».
+
+## Decisiones tomadas
+
+**Reservar y prestar** (plan aprobado por el PM):
+- **Reservar** pide el **DNI** y un motivo opcional.
+  - El servidor busca a la persona con el mismo servicio del asistente de ingreso (`ingreso.buscar_ciudadano_por_dni`),
+    con el DNI normalizado por `core/dni`.
+  - Si no la encuentra, el campo muestra «No encontramos a nadie con ese DNI: dala de alta desde Ingresar persona.»
+- **Prestar** pide lo mismo y además **«Hasta»**, que es obligatorio. Los botones **12 h / 24 h** lo completan, y
+  también se puede escribir una fecha y hora.
+- Las dos usan el servicio que ya existía, `estadias.reservar_plaza`, que deja la traza `PLAZA_RESERVADA`. Las vistas
+  son hijas de `_PlazaAccionView`: mismo gate de alcance, mismo CSRF, mismo 404 para la plaza ajena, inexistente o de
+  un sector dado de baja.
+- **Sacar de servicio** no cambia: motivo obligatorio y capacidad `dispositivo.editar`.
+
+**Decisión del juez: reservar y prestar exigen además `ciudadano.ver`.** El plan decía solo `dispositivo.admitir`,
+pero buscar una persona por DNI es consultar el padrón. Sin `ciudadano.ver`, la diferencia entre «no encontramos» y
+el éxito sería un oráculo para saber quién está en el Legajo. El asistente de ingreso ya exige las dos capacidades
+(`dispositivos_ingreso.py`), y esta regla queda alineada con él.
+- Si falta una de las dos, la opción no aparece.
+- El POST se rechaza **antes** de validar el formulario, con la misma respuesta que la falta de alcance: 403 si es
+  AJAX y `PermissionDenied` si no.
+- Si quien mira no puede ninguna opción, la plaza no es clickeable, como antes.
+
+**Qué ofrece cada plaza según la capacidad** (`acciones_de_plaza`, que reemplaza a `accion_de_plaza` y `_habilitada`):
+
+| Situación | Acciones | Capacidad |
+|---|---|---|
+| Fuera de servicio | volver a servicio | `dispositivo.editar` |
+| Con reserva o préstamo sin liberar | liberar | `dispositivo.admitir` |
+| Ocupada | reubicar | `dispositivo.admitir` |
+| Ocupada, sin `admitir` | sacar de servicio, **bloqueada** con su motivo | `dispositivo.editar` |
+| Disponible | reservar y prestar | `dispositivo.admitir` + `ciudadano.ver` |
+| Disponible | sacar de servicio | `dispositivo.editar` |
+
+**El mapa no recarga:**
+- La celda con acción pasa a ser un `<button type="button" @click>`. Para eso, la pieza canónica `_mapa_plazas.html`
+  suma un campo opcional, `click`, que tiene prioridad sobre `url`. Los demás usos de la pieza (asistente de ingreso,
+  cambio de plaza) siguen con `url` o sin acción, y su HTML no cambia.
+- Reservar, prestar, sacar de servicio, liberar y volver a servicio se resuelven en un **único modal Alpine** con sus
+  formularios armados una vez en la página, cada uno con su propio `auto_id`.
+  - Los datos de cada plaza (código, estado, acciones y bloqueo) viajan en un `json_script` (`plazas_modal`) y salen
+    de lo que el mapa ya calculaba.
+  - El `action` de cada formulario se arma con una URL por acción, con `__pk__` en el lugar del id.
+  - El presupuesto `dispositivos_sectores_con_plazas` **no sube**: siguen siendo 8 consultas fijas.
+- **Cambiar de plaza** (plaza ocupada) depende de la estadía y de las plazas libres, y el mapa no puede traerlas
+  plaza por plaza sin pasarse del presupuesto.
+  - **Decisión del juez:** la celda pide el cuerpo del modal por AJAX (`?plaza=<id>&fragmento=reubicar`). La vista
+    corta antes de armar el mapa, con el mismo gate y el mismo 404.
+  - El cuerpo sale de la parcial nueva `_modal_reubicar.html`, que es la misma que usa el camino `?plaza=<id>` sin JS.
+  - El formulario inyectado envía por el handler delegado de `data-ajax`, y Alpine se inicializa con `initTree`.
+  - Si el pedido falla, navega a `?plaza=<id>`.
+- `?plaza=<id>` sigue abriendo el modal ya elegido, como enlace directo.
+- **Decisión del juez: el guardado exitoso sí recarga**, con el `redirect` del JSON de siempre, para redibujar el mapa
+  y las cifras. Lo que dejó de recargar es abrir el modal y equivocarse. Los errores de validación quedan en el modal
+  abierto, por AJAX.
+- **Decisión del juez:** «Editar plaza» (`?editar_plaza=<id>`) sigue siendo un enlace. No entró en el pedido y su
+  modal lo arma el servidor.
+- **Decisión del juez:** el modal genérico usa un solo encabezado («Reservar la plaza P2», «Liberar la plaza P2»…).
+  Pierde el subtítulo y el tono por acción que tenía antes, porque `_modal_header.html` no los acepta dinámicos y
+  tocar la pieza quedaba fuera de alcance. Queda pendiente.
+
+**El modal único se limpia al abrir otra plaza y al volver al menú de opciones**: `form.reset()`, errores y
+`aria-invalid` del panel. Sin eso, el DNI tipeado en una plaza quedaba escrito al abrir otra y bastaba un clic para
+reservarla a nombre de esa persona; con el render por plaza de antes no pasaba.
+
+**MINOR de #984**:
+- Las dos ayudas de la parcial `_campos_asignar.html` pasan a ser el `help_text` de su campo, así que
+  `components/_field.html` las dibuja **antes** del error y las enlaza por `aria-describedby`.
+  - La ayuda del edificio (P4) solo se muestra cuando el edificio no es fijo.
+  - La ayuda del agente externo (P21) va con `format_html`: el nombre del edificio es dato de usuario y la
+    `<strong>` se conserva.
+- La parcial ya no recibe `ayuda_edificio` ni `edificio_nombre`.
+
+## Implementación
+
+Commits `f2beffa2`, `1b6a9312` y `8a7ed7fb` de la rama `feat/dispositivos-plaza-libre-acciones`. El último sale de la
+auditoría de #986 (ver Historial).
+
+## Archivos
+
+Los de «Partes afectadas», más los tests:
+- `programas/tests/test_dispositivos_plazas_acciones.py`: opciones según la capacidad, reservar y prestar (éxito, DNI
+  inexistente, préstamo sin «hasta», sin `admitir`, sin `ciudadano.ver`, plaza ajena), celda `<button>` y fragmento de
+  reubicar (solo el modal, 404 para la plaza ajena, libre o sin capacidad, techo de consultas);
+- `core/tests/test_nodo_ui_lote_b.py`: botón o enlace de la pieza;
+- `programas/tests/test_dispositivos_crear_relevamiento_p4.py` y `test_dispositivos_relevamientos_listado.py`: la
+  ayuda va antes del error.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Tests de todos los módulos `programas/tests/test_dispositivos*.py`: 1257 OK. También `core.tests.test_nodo_ui_*`
+  y `--tag performance programas` (45, sin subir presupuestos).
+- Mutaciones en rojo:
+  - las vistas con `dispositivo.editar` en lugar de `admitir`;
+  - la lista de acciones sin el filtro de `admitir`;
+  - «sacar de servicio» ofrecido con `admitir`;
+  - la vista sin el chequeo de `ciudadano.ver` (13 subtests caen, el juez lo repitió);
+  - el servicio sin el filtro de `ciudadano.ver`.
+- Navegador (Playwright sobre SQLite) en P5. Ninguna apertura de modal navegó (se marcó `window` y se siguió el
+  `framenavigated`):
+  - plaza libre: modal con las tres opciones;
+  - DNI inexistente: error en el campo;
+  - reservar: «Reservada», y la plaza ofrece «Liberar»;
+  - prestar con 12 h: «Prestada hasta…»;
+  - sacar de servicio: «Fuera de serv.»;
+  - plaza ocupada: «Cambiar de plaza» por fragmento, con los errores del formulario sin recargar, y el cambio
+    aplicado;
+  - `?plaza=<id>`: abre el modal;
+  - cerrar con un DNI y un error a la vista y abrir otra plaza: el formulario llega vacío y sin error.
+- `manage.py check`, `makemigrations --check --dry-run` (sin syncdb), ruff, `design_audit --ratchet` (0 nuevos),
+  `compile_templates --bloques` (0) y `check_design_agent --changed`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada. Para reservar y prestar desde el mapa, el rol necesita `dispositivo.admitir` y `ciudadano.ver`. Los roles los
+configura el PM.
+
+## Pendientes / a definir
+
+- Los dos MINOR de la auditoría de #986 (ver Historial).
+- El subtítulo y el tono del encabezado por acción en el modal genérico. Requiere que `_modal_header.html` acepte
+  esos valores dinámicos.
+- Sin JS, un error de reservar o prestar vuelve a la pantalla con un aviso y sin el modal abierto, igual que las
+  demás acciones de `_PlazaAccionView`.
+
+## Reversión
+
+Revertir el merge. No hay esquema ni datos que deshacer: las reservas y los préstamos creados quedan como registros
+normales de `ReservaPlaza`, y se liberan desde el mapa.
+
+## Historial
+
+- **27/10/2026 — alta del cambio.** Revierte el «queda afuera» de reservar y prestar de los Cambios 287, 291 y 325.
+- **27/10/2026 — auditoría de #986 (CHANGES NEEDED):** un MAJOR, el modal único arrastraba el DNI y los errores de
+  la plaza anterior. Se corrigió en `8a7ed7fb`. Quedan dos MINOR para el próximo PR del carril: las tres copias de la
+  resolución de capacidades + plaza en `dispositivos_legajo.py` (que pasa las 1400 líneas) y la cadena de clases por
+  tono copiada tres veces en `_mapa_plazas.html`.
+
+---
+
+# Seguridad — excepción temporal de DNS de Twisted (PR #988)
+
+**27/10/2026.** Pip Audit bloquea el PR de localidades por CVE-2026-83813
+(GHSA-jj36-9pvh-vj5r), sin cambios de dependencias en ese PR. El aviso afecta a
+`twisted.names.dns.DNSDatagramProtocol`: no verifica el origen de las respuestas UDP.
+Fuente: https://github.com/twisted/twisted/security/advisories/GHSA-jj36-9pvh-vj5r.
+
+Se verificó en el contenedor local con Daphne 4.2.3 y Twisted 26.4.0 que importar
+`daphne.server`, sus protocolos HTTP/WebSocket y `channels.layers` instala
+`GAIResolver` y resuelve con `socket.getaddrinfo`; no carga `twisted.names`.
+La búsqueda en el código del proyecto no encontró un resolver alternativo de Twisted.
+`core/tests/test_twisted_dns.py` verifica esa precondición en un proceso aislado.
+Esto sustenta una excepción por componente no utilizado, no una corrección del paquete.
+
+PyPI todavía ofrece 26.4.0 como última final; las corregidas 26.10.0rc1/rc2 son
+preliminares. Se registra la excepción en `security/excepciones.toml` hasta el
+**26/11/2026**. No se cambia Daphne, Twisted ni el workflow de auditoría. Retirar
+la excepción al disponer de una final corregida y auditar sin ella; si se cambia
+el resolver DNS, reevaluarla antes de desplegar. La aceptación es temporal y no
+elimina la vulnerabilidad de Twisted instalado.
+
+---
+
+# Cambio 390 — Instrucciones de agentes y comandos alineadas con las decisiones del PM
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · método de trabajo de los agentes |
+| **Etiquetas** | `#metodo` `#gestion` |
+| **Solicitante** | PM — decisiones ya tomadas (Iteration 28/08/2026; ambiente de QA 28/10/2026), pasadas por la auditoría de skills |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Método de trabajo (solo `.md`) |
+| **Migración** | No requiere |
+
+## Pedido original
+Alinear las instrucciones de agentes y comandos del repo con las decisiones del PM que la auditoría de skills (28/10) encontró contradichas.
+
+## Alcance acordado
+Entra: texto de `AGENTS.md`, `QA.md`, los comandos `analisis*`, `qa*`, `pm:estado`, `pm:minuta`, `analisis:publicar`, `dev:cierre`, el agente `qa-analyst` y la skill `auditoria`. Afuera: código de la app y los documentos históricos que nombran al agente retirado.
+
+## Decisiones tomadas
+1. **Iteration al crear issues.** Receta única en `AGENTS.md`: Tipo, Iteration = la activa (leída del Project, sin hardcodear el id), Status=Backlog como último paso y verificado, porque el Project auto-mueve a Ready al crear o asignar. Assignees siguen siendo del PM. Los comandos de análisis y QA remiten a esa receta.
+2. **Ambiente de QA.** Todos los casos se prueban en testing (`https://datanach.ecomdev.ar/`), sin preguntarle al PM; reemplaza la regla del 09/09. Si el WAF bloquea una ruta, el caso va «BLOQUEADO POR FIREWALL» con un dato alternativo.
+3. **pm:estado.** EstimacionHoras, el total de esfuerzo y la alerta «sin estimación» aplican solo a Tipo=Task; Épicas y Análisis son agrupadores.
+4. **Publicación.** `docs/client/sprints/` no existe: la estructura real es `versiones/`, y la rama «Sprint» de `analisis:publicar` pasó a «Versión». `python`/`pip` salen por el venv del proyecto; el deploy lo hace `docs-auto-deploy.yml` y `check_docs_client.py` va antes del build.
+5. **`chaco-dev-reviewer` retirado.** Lo reemplazó `/auditoria pr <N>` (chaco-auditor) desde #943. `dev:cierre` usa las rúbricas de la skill como criterio.
+
+## Implementación
+Solo texto. No cambia el comportamiento de la app.
+
+## Archivos
+`AGENTS.md`, `QA.md`, `.claude/commands/analisis.md`, `analisis/{epica,analisis,issue,publicar}.md`, `qa.md`, `qa/{casos,plan}.md`, `pm/{estado,minuta}.md`, `dev/cierre.md`, `.claude/agents/qa-analyst.md`, `.claude/agents/chaco-dev-reviewer.md` (borrado), `.claude/skills/auditoria/SKILL.md` y `rubricas/rendimiento.md`.
+
+## Base de datos
+No requiere.
+
+## Validación
+`scripts/requerimientos.py --check`, `manage.py check` y `grep chaco-dev-reviewer` sin referencias vivas.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Revertir el commit; no hay datos.
+
+## Historial
+- 28/10/2026 — Ajustes tras la auditoría del PR #991: `AGENTS.md` queda como fuente única del flujo de publicación (tipos minuta/versión/funcionalidad, venv, `requirements-ci.txt`, `check_docs_client.py` en 0, deploy por `docs-auto-deploy.yml`, sin `gh-deploy` manual) y `pm:minuta`/`analisis:publicar` remiten a esa sección; el paso 6 de la receta `gh` verifica el Status leyendo el ítem por GraphQL (el Project supera los 500 ítems); el caso «Requerimiento» sigue el orden de la receta general; la iteración activa se define con `startDate`/`duration`; `dev:cierre` suma la rúbrica `codigo-limpio.md` y remite a las rúbricas en vez de copiar sus patrones.
+
+---
+
+# Cambio 391 — gates-ci: procedimiento ante una CVE nueva en «Pip Audit»
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · skill `gates-ci` · CI (`Pip Audit`) |
+| **Etiquetas** | `#infra` `#metodo` |
+| **Solicitante** | Juez — Cambios 315 y 363, y PR #988 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Skill |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cuando «Pip Audit» se puso rojo por una CVE nueva de twisted (PR #988, 27/10/2026), el procedimiento
+vivía solo en la cabecera de `security/excepciones.toml`, en los Cambios 315 y 363 y en el PR #988.
+Codificarlo en la skill `gates-ci`.
+
+## Alcance acordado
+
+**Entra:** la sección «Pip Audit rojo por una CVE nueva» en `.claude/skills/gates-ci/SKILL.md`,
+con los seis pasos: leer la falla, identificar la advisory, comprobar si el módulo se carga,
+decidir, validar y retirar.
+
+**Queda afuera:** cambios en `security/excepciones.toml`, en el workflow o en las dependencias.
+
+## Decisiones tomadas
+
+- **La skill ordena la decisión y remite a la cabecera del toml** para las reglas de las
+  excepciones; no las duplica.
+- **Módulo cargado en la superficie servida: decide el PM**, y solo con una mitigación
+  verificable (caso nginx de CVE-2026-115877).
+- **Sin excepción sin vencimiento y sin pinear un release candidate**, como en el Cambio 363 y el PR #988.
+
+## Implementación
+
+Sección nueva al final de `gates-ci/SKILL.md`. La skill no tiene índice ni tabla de contenidos
+que actualizar; el frontmatter ya cubre «cuando un check sale rojo».
+
+## Archivos
+
+- `.claude/skills/gates-ci/SKILL.md`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `scripts/requerimientos.py --check`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada: solo documentación de desarrollo.
+
+## Pendientes / a definir
+
+No hay.
+
+## Reversión
+
+Borrar la sección de la skill.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 392 — Panel de capacidades del ABM de Roles: solapas por ámbito (General · Administración · Becas · Dispositivos)
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · Roles (RBAC) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | PM — decisión del 28/10/2026 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El panel de capacidades de `/roles/crear/` mostraba las solapas Backoffice, Institución, Portal, Sistema y Becas.
+Reordenarlo por ámbito real; «Dispositivos y Merenderos son lo mismo».
+
+## Alcance acordado
+
+**Entra:** nuevas solapas `general`, `administracion`, `becas`, `dispositivos` en `TABS_CAPACIDADES` y la clave `"tab"`
+de cada módulo de `CATALOGO`; `arbol_por_tabs` deja de devolver solapas sin módulos.
+
+**Queda afuera:** los códigos de capacidad (`merendero.*` incluido), el programa MERENDEROS, el campo Categoría y
+`RolMeta`, el retiro del módulo `instituciones` (PR posterior).
+
+## Decisiones tomadas
+
+- **General**: ciudadanos, dashboard, reportes, notificaciones, conversaciones, relevamientos.
+  **Administración**: sistema, configuracion, programas e `instituciones`.
+  **Becas**: todos los `becas_*`. **Dispositivos**: dispositivos, inspecciones y merenderos.
+- **`instituciones` va provisoriamente a Administración** en vez de mantener una solapa Institución: no tiene uso
+  (`CAPACIDADES_SIN_USO`) y se retira en un PR posterior, así no queda una solapa para un solo módulo condenado.
+- **Portal se borra** (no tenía módulos).
+- **Sin solapas vacías**: un admin de programa solo ve las que tienen módulos asignables. Antes se incluían «para
+  futura expansión» y aparecían vacías.
+- El ícono de Dispositivos es `fa-building`, el edificio que ya usa el sidebar para ese grupo.
+- No se confunde con las categorías de rol (`RolMeta.categoria`) ni con `_ambito_de`, que no se tocan.
+
+## Implementación
+
+El panel agrupa las capacidades en cuatro solapas por ámbito y oculta las que no tienen módulos. El template
+`rol_form.html` itera `form.arbol_por_tabs` sin cambios.
+
+## Archivos
+
+- `core/rbac.py`
+- `users/tests/test_roles_abm.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios: los códigos de capacidad no cambian. `makemigrations --check --dry-run` con
+`DJANGO_SYNCDB_PROJECT_APPS=False`: «No changes detected».
+
+## Validación
+
+- `users.tests.test_roles_abm.SolapasDeCapacidadesTests` (6 tests: orden e ids, módulos de Dispositivos, ámbitos,
+  sin solapas vacías, admin de programa de Dispositivos sin Becas). Verificado por mutación: volviendo a devolver las
+  vacías fallan 3 de 6.
+- `manage.py test users core`: 2098 tests, OK (44 skipped). `manage.py check` sin observaciones. Ruff check y format
+  sobre lo tocado. No se tocó ningún template.
+- `scripts/requerimientos.py --check`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada: sin migración.
+
+## Pendientes / a definir
+
+- Retirar el módulo `instituciones` del catálogo (PR posterior).
+- Unificar la Categoría del rol con los ámbitos (otro PR).
+
+## Reversión
+
+Revertir el PR; no hay datos que se pierdan.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 393 — La «Categoría» del rol pasa a ser «Alcance»: Global o De un programa
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · Roles (RBAC) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | PM — decisión del 28/10/2026 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | `users.0041_rolmeta_alcance_global_programa` (datos + `choices`, sin SQL) |
+
+## Pedido original
+
+El campo «Categoría» del rol tenía seis valores (Backoffice, Institución, Portal, Sistema, Becas, Programa) y solo dos
+decidían algo. Pasa a llamarse «Alcance» con dos opciones visibles: **Global** y **De un programa**.
+
+## Alcance acordado
+
+**Entra:** etiquetas nuevas (`ETIQUETAS_CATEGORIA` en `core/rbac.py`); retiro de `CATEGORIA_SISTEMA`,
+`CATEGORIA_INSTITUCION` y `CATEGORIA_BECAS`; migración de datos de los roles guardados; textos de `rol_form`,
+`rol_list`, `rol_detail` y de la solapa «Global» del selector de roles del ABM de Usuarios.
+
+**Queda afuera:** el nombre de la columna (`categoria`) y los strings guardados `Backoffice` y `Programa`; cualquier
+cambio en `puede*`, `programas_administrables*`, `puede_gestionar_rol` o `roles_visibles_para`.
+
+## Decisiones tomadas
+
+- **Los strings guardados se conservan**: `Backoffice` = Global y `Programa` = De un programa. Cambian solo las etiquetas
+  (choices), así que no se reescribe ninguna fila que ya está bien.
+- **`Portal` queda solo interno**: sigue en las `choices` del modelo (marca al grupo `Ciudadanos`) pero nunca en el combo
+  del formulario ni en el filtro del listado. `_roles_asignables_queryset` sigue excluyéndolo.
+- **Migración `users.0041`** (idempotente: filtra por el estado de origen). `Sistema` e `Institución` pasan a
+  `Backoffice`; `Becas` con programa pasa a `Programa` (mismo programa); `Becas` sin programa pasa a `Backoffice`. Es lo
+  que ya hacía el código: `_CATEGORIAS_CON_PROGRAMA` trataba a `Becas` como de programa solo con `programa_id`. La
+  autorización casi no cambia: la única diferencia es que la guarda RN-8 de «programa sin administrador»
+  (`programas_que_administra`, `RolesAdminService._programa_que_administra`) ahora también cuenta los roles legacy Becas
+  con programa, como ya los contaba `usuarios_que_administran_programa`. Reversa `noop` declarada: se pierde la
+  etiqueta original, que es cosmética.
+- `AlterField` de `choices` y `verbose_name`: `sqlmigrate` dice `(no-op)`; sin columna nueva ni `NOT NULL`.
+- El listado de roles sigue agrupando a `Ciudadanos` (Portal) en su propio grupo: `CATEGORIAS_ROL_TODAS` lo incluye para
+  agrupar, `CATEGORIAS_ROL` (lo que se ofrece) no.
+- Selector de roles del ABM de Usuarios: la solapa de los roles globales se llama «Global» (id `global`); las de
+  programa siguen agrupadas por nombre de programa. Cierra la duplicación que marcó el Cambio 332 (Programa sumado dos
+  veces en `categorias_rol`).
+- No se cambió `help_text` del FK `programa` ni la estética: solo textos.
+
+## Implementación
+
+`core/rbac.py` define `CATEGORIAS_ROL` = [Backoffice, Programa], `ETIQUETAS_CATEGORIA` y las choices del modelo
+(`CATEGORIAS_ROL_MODELO_CHOICES`, con Portal). `RolForm` ofrece `CATEGORIAS_ROL_CHOICES`; el admin de programa sigue
+viendo solo «De un programa». Las vistas del listado y la ficha muestran `get_categoria_display`. `seed_rbac` y
+`seed_datos_base` siembran `Backoffice` donde antes ponían `Sistema` o `Institución`.
+
+## Archivos
+
+- `core/rbac.py`
+- `users/models/__init__.py`
+- `users/migrations/0041_rolmeta_alcance_global_programa.py`
+- `users/forms/__init__.py`, `users/forms/roles.py`, `users/selectors/roles.py`, `users/views/roles.py`
+- `users/management/commands/seed_rbac.py`, `users/management/commands/seed_datos_base.py`
+- `users/templates/rol/rol_form.html`, `rol_list.html`, `rol_detail.html`
+- `.claude/design/componentes/filtros.md`
+- Tests: `users/tests/test_roles_alcance.py` (nuevo) y los que usaban las constantes retiradas
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Migración `users.0041` de datos y `choices`, sin DDL. `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`: «No
+changes detected». `scripts/check_migraciones.py` sobre la 0041: 0 problemas.
+
+## Validación
+
+- `users.tests.test_roles_alcance`: los cuatro casos de la migración (Sistema, Institución, Becas con programa, Becas
+  sin programa) más los que no se tocan, idempotencia, choices del formulario por operador, etiquetas del listado, y
+  `Ciudadanos` fuera de los roles asignables.
+- Verificado por mutación: quitar la exclusión de `Portal` en `_roles_asignables_queryset` pone rojo
+  `PortalExcluidoDeRolesAsignablesTests`.
+- `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent --changed` (OK), `scripts/requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Antes del deploy, en testing y PRD, contar qué toca la migración y, de los roles `Becas` con programa, cuáles tienen
+alguna capacidad de `CAPS_ADMIN_PROGRAMA` (esos son los que la guarda RN-8 empieza a contar):
+
+```sql
+SELECT categoria, programa_id IS NULL, COUNT(*) FROM users_rolmeta GROUP BY 1, 2;
+```
+
+La migración corre sola con el arranque. Las filas `Sistema`, `Institución` y `Becas` desaparecen; el resto no cambia.
+
+## Pendientes / a definir
+
+- ~~Retirar el módulo `instituciones` del catálogo~~ (hecho en el Cambio 394).
+- Renombrar la columna `categoria` a `alcance` (no se hizo para no reescribir el esquema; sería otro expand/contract).
+
+## Reversión
+
+Revertir el PR. La migración no deshace los valores: las etiquetas Sistema/Institución/Becas se pierden, pero eran
+cosméticas; lo único que cambia en autorización es la guarda RN-8 descripta arriba.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 394 — Se retiran `institucion.ver` e `institucion.administrar` y se limpian MINORs de los Cambios 392 y 393
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · Roles (RBAC) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | PM — decisión del 28/10/2026 (cierra el pendiente OPS-14 / Cambio 160) |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (ABM de Roles) |
+| **Migración** | `users.0042_retirar_capacidades_institucion` (datos + `AlterModelOptions`, con reversa real) |
+
+## Pedido original
+
+Nadie evaluaba `institucion.ver` ni `institucion.administrar` (figuraban en `CAPACIDADES_SIN_USO`, motivo OPS-14), pero el
+ABM de Roles las ofrecía en la solapa Administración. El PM decidió retirarlas. Además, cuatro MINORs de las auditorías de
+los Cambios 392 y 393.
+
+## Alcance acordado
+
+**Entra:** sacar el módulo `instituciones` de `CATALOGO` y las dos entradas de `CAPACIDADES_SIN_USO`; migración que borra
+las dos `Permission`; limpieza del condicional inalcanzable de `rol_form.html`; docstrings de `_ambito_de` /
+`_orden_de_ambitos`; comentarios de `users.0041` y del Cambio 393.
+
+**Queda afuera:** el modelo `legajos.Institucion` y todo el dominio; no se borran grupos de la base.
+
+## Decisiones tomadas
+
+- **`users.0042` con reversa real**: la ida registra cada par rol/capacidad en `users.CapacidadRevocada`
+  (`migracion="users.0042"`) antes de borrar las `Permission`; la reversa las recrea y las vuelve a tildar en los mismos
+  roles. A diferencia de `users.0033` (`ciudadano.eliminar`), cuya reversa no reasigna. Idempotente, con literales y
+  `apps.get_model`.
+- Incluye el `AlterModelOptions` con la lista entera de capacidades (gotcha conocido de `Capacidad.Meta.permissions`).
+- `seed_rbac._CATEGORIA_POR_GRUPO` ya solo mapea el grupo del portal desde el Cambio 393: no había nada que simplificar.
+- `rbac.arbol_por_tabs` no devuelve solapas vacías (Cambio 392), así que el `{% else %}` «Sin capacidades definidas…» de
+  `rol_form.html` era inalcanzable y se quitó.
+- El efecto del Cambio 393 sobre la guarda RN-8 queda corregido en su entrada y en `users.0041` (solo comentarios).
+
+## Implementación
+
+`core/rbac.py` sin el módulo `instituciones`; `users/migrations/0042_retirar_capacidades_institucion.py`;
+`rol_form.html` sin el condicional; docstrings de `users/forms/__init__.py`; tests nuevos en
+`users/tests/test_roles_alcance.py`: `GuardaRN8RolesBecasLegacyTests` (rol `Becas` con programa y
+`programa.usuario.administrar`, se aplica `reubicar_categorias`, `programas_que_administra(u) == {programa.pk}`) y
+`MigracionRetirarCapacidadesInstitucionTests` (ida, idempotencia y vuelta de `users.0042`).
+
+## Archivos
+
+- `core/rbac.py`
+- `users/migrations/0042_retirar_capacidades_institucion.py`, `users/migrations/0041_rolmeta_alcance_global_programa.py` (comentarios)
+- `users/forms/__init__.py`, `users/templates/rol/rol_form.html`
+- Tests: `users/tests/test_rbac_contrato.py`, `users/tests/test_roles_alcance.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Migración `users.0042` de datos sin DDL: borra dos filas de `auth_permission` (y por cascada de `auth_group_permissions`).
+`makemigrations --check --dry-run` (SYNCDB=False) sin cambios; `scripts/check_migraciones.py` 0 problemas.
+
+## Validación
+
+- `manage.py check`, tests de `users` y `core`, ruff, `design_audit --ratchet`, `compile_templates --bloques`,
+  `check_design_agent --changed`, `requerimientos.py --check`.
+- Mutación: dejar una entrada huérfana en `CAPACIDADES_SIN_USO` pone rojo `test_rbac_contrato`.
+
+## Puesta en marcha en el servidor
+
+Antes del deploy, ver a qué roles se les quita (queda registrado en `users_capacidadrevocada`):
+
+```sql
+SELECT g.name, p.codename FROM auth_group_permissions gp
+JOIN auth_group g ON g.id = gp.group_id JOIN auth_permission p ON p.id = gp.permission_id
+WHERE p.codename IN ('institucion_ver', 'institucion_administrar');
+```
+
+## Pendientes / a definir
+
+- Renombrar la columna `categoria` a `alcance` (sigue pendiente del Cambio 393).
+
+## Reversión
+
+1. `manage.py migrate users 0041`: recrea las dos `Permission` y las tilda otra vez en los roles registrados en
+   `users_capacidadrevocada`.
+2. Revertir el PR (el catálogo vuelve a ofrecerlas).
+
+No se pierde ningún dato: la reversa restituye exactamente lo que la ida quitó.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 395 — «Crear agente» desde el modal de asignar un relevamiento edilicio (Dispositivos)
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) |
+| **Etiquetas** | `#rbac` `#usuarios` `#ui` |
+| **Solicitante** | PM — decisión del 28/10/2026 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (modales de asignar, reasignar y crear relevamiento; endpoint de alta rápida; Roles) |
+| **Migración** | `users.0043_administrador_inspeccion_agente_crear` (datos + `AlterModelOptions`, con reversa real) y `users.0044_sembrar_rol_agente_dispositivos` (datos, reversa `REVERSA-NOOP`) |
+
+## Pedido original
+
+Un rol intermedio de Dispositivos (no administrador del programa) tiene que poder dar de alta **agentes de relevamiento
+edilicio** desde el modal donde asigna un relevamiento, como el botón «Crear territorial» de Becas, que solo se ve si el rol
+tiene el tilde de crear territoriales.
+
+## Alcance acordado
+
+**Entra:** capacidad `inspeccion.agente.crear`; rol sembrado «Dispositivos — Agente de relevamiento»; botón «Crear agente»
+en las tres pantallas; endpoint (tipo `agente` del alta rápida); migración que se la da al Administrador.
+
+**Queda afuera:** buscar o asignar usuarios que ya existen (a diferencia de Becas); abrir el ABM de Usuarios; cambiar el
+alta de coordinador, referente o territorial.
+
+## Decisiones tomadas
+
+- **Capacidad `inspeccion.agente.crear`** — «Dar de alta agentes de relevamiento edilicio» — en el módulo `inspecciones`
+  (alcance programa, solo DISPOSITIVOS). No está en `CAPS_ENTRADA_ABM_USUARIOS`. Es **delegable**: no es administración, así
+  que un admin de programa de Dispositivos puede tildarla (`capacidades_delegables`, `puede_asignar_capacidades`).
+- **Se evalúa acotada a Dispositivos** (`puede_en_programa_dispositivos`): la misma capacidad en un rol de otro programa no
+  habilita ni el botón ni el endpoint. El servidor vuelve a chequear; el template solo decide si dibuja.
+- **Rol sembrado por clave** `dispositivos.agente_relevamiento`, **por migración** (`users.0044`: en ECOM el arranque no corre y en una
+  base nueva `seed_datos_base` corre antes que `crear_programas`) y además por `seed_dispositivos` (llamado por `seed_datos_base`,
+  que queda como red): categoría Programa + DISPOSITIVOS, capacidad `inspeccion.relevar`. Respeta el Cambio 104: nombre,
+  descripción y activo son del ABM; a un rol existente se le asegura la capacidad base y no se le quita lo tildado. Sin el
+  programa DISPOSITIVOS no hace nada. En el alta el rol se busca **por clave** (`RolMeta.clave`), no por nombre como hace
+  Becas (bug latente que no se copió).
+- **Cómo se acota el formulario**: `UserCreationForm` recibe `roles_acotados` (queryset que reemplaza al del operador). Se
+  prefirió a una rama nueva en `_roles_asignables_queryset` porque esa función decide por *quién es* el operador y se usa en
+  el ABM, el alcance y la edición: tocarla cambiaba reglas ajenas. Con el parámetro, el único rol asignable es el que la vista
+  resolvió por clave, y el resto del formulario (DNI, correo, clave) no cambia.
+- **Defensa en capas del endpoint**: lista blanca de campos (`username`, `email`, `first_name`, `last_name`, `dni`,
+  `telefono`; roles, clave, jerarquía y segmentos del POST se descartan); `groups` lo fija la vista; el formulario solo
+  acepta ese rol; `alcance_group_ids={rol}`. El rol se descarta con 409 si está inactivo, dejó de ser de Dispositivos o
+  alguien le tildó una capacidad no delegable (administración) o `programa.configurar`: en Dispositivos esa es delegable a propósito
+  y da alcance total de configurador (`puede_configurar_dispositivos`, `dispositivos_en_alcance`), así que `puede_asignar_capacidades`
+  no la frena. El resto de las capacidades de Dispositivos están acotadas por asignación de dispositivo.
+- **Código**: `_alta_agente` agrupa permiso, límite, rol, lista blanca y alcance; la cola común (formulario, colisión de unicidad
+  → 409, credenciales, JSON) es `_crear_y_responder`, compartida con el alta de Becas, y el mensaje de DNI repetido sale de un dict
+  por tipo. El botón es el include `_boton_crear_agente.html`.
+- **Correo obligatorio** (decisión del 14-oct) y credenciales provisorias por correo como el territorial
+  (`entregar_credenciales_provisorias`). **DNI repetido**: «Ese DNI ya es de un usuario del sistema: pedile al administrador
+  del programa que le sume el rol de agente.» Rol ausente → 409 «El rol requerido no está configurado.»
+- **Límite** de 20 altas por minuto por operador (cubeta `usuario_alta_agente`, sin IP).
+- **UI**: se reusa el modal de alta rápida de Becas (sin piezas nuevas): para `agente` abre directo en el formulario, el
+  correo lleva asterisco y se ocultan institución, observación y clave. El `<select>` de agente tiene `id` repetido entre
+  P21 (asignar y reasignar) y P4, así que cada botón apunta con `data-user-select` a un selector único por modal
+  (`#form-asignar-relevamiento`, `#form-reasignar-relevamiento`, `#form-crear-relevamiento`).
+- **Migraciones**: `users.0044` siembra el rol (Group + RolMeta + `inspeccion.relevar`) buscando por clave, sin tocar uno existente y sin
+  hacer nada si falta el programa; su reversa no borra (no se sabe si lo creó ella o el seed, y borrarlo deshace altas). `users.0043`: el Administrador (protegido; en ECOM el `seed_rbac` no corre) recibe la capacidad, patrón de
+  `users.0040`. Idempotente; la reversa la saca solo del Administrador y no toca a los demás roles.
+
+## Implementación
+
+`core/rbac.py` (capacidad); `programas/services/inspecciones.py` (constantes); `users/views/quick_create.py` (tipo `agente`);
+`users/forms/__init__.py` (`roles_acotados`); `users.0044` + `seed_dispositivos` + `seed_datos_base`; `_alta_rapida_modal.html`; los tres
+templates de Dispositivos y sus dos vistas (`puede_crear_agente`); `users.0043`.
+
+## Archivos
+
+- `core/rbac.py`, `programas/services/inspecciones.py`
+- `users/views/quick_create.py`, `users/forms/__init__.py`, `users/migrations/0043_administrador_inspeccion_agente_crear.py`, `users/migrations/0044_sembrar_rol_agente_dispositivos.py`
+- `programas/management/commands/seed_dispositivos.py`, `users/management/commands/seed_datos_base.py`
+- `users/templates/user/_alta_rapida_modal.html`, `programas/templates/programas/dispositivos/relevamientos/_campos_asignar.html`,
+  `.../relevamientos/_boton_crear_agente.html`, `.../relevamientos/list.html`, `.../legajo/detail.html`, `programas/views/dispositivos_relevamientos.py`,
+  `programas/views/dispositivos_legajo.py`
+- Tests: `programas/tests/test_dispositivos_crear_agente.py`
+- `.claude/design/arquetipos/modal.md`, `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Migraciones `users.0043` (datos y `AlterModelOptions`, lista entera de `Capacidad`) y `users.0044` (datos), sin DDL. `makemigrations --check
+--dry-run` (SYNCDB=False) sin cambios; `scripts/check_migraciones.py` 0 problemas.
+
+## Validación
+
+- `programas.tests.test_dispositivos_crear_agente` (30 casos): botón en las tres pantallas con y sin capacidad (también con
+  la capacidad en otro programa), 403, alta con solo el rol de agente, aparece en `agentes_asignables`, correo, DNI, POST
+  manipulado, rol ausente/inactivo/inseguro (incluido `programa.configurar`), rol por clave, límite, seed idempotente con renombre,
+  migraciones 0043 (ida y vuelta) y 0044 (ida, idempotencia, sin programa, rol renombrado).
+- Mutación: quitar el chequeo de capacidad del endpoint pone rojos los dos tests de 403; quitar la lista blanca y la
+  restricción de rol (vista y formulario) pone rojos siete tests; sacar el rechazo de `programa.configurar` pone rojo su test.
+- `manage.py check`, tests de `users` y `core`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent --changed` (OK), `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+1. El rol lo crea la migración `users.0044` al migrar (el seed del arranque queda como red). Verificación post-deploy:
+   `SELECT g.name FROM auth_group g JOIN users_rolmeta m ON m.grupo_id = g.id WHERE m.clave = 'dispositivos.agente_relevamiento';`
+2. **Para habilitar el botón, el PM tilda «Dar de alta agentes de relevamiento edilicio» en el rol intermedio del programa
+   Dispositivos** (ABM de Roles → solapa Dispositivos).
+
+## Pendientes / a definir
+
+- Un agente creado por este camino no se puede buscar ni sumar a otro rol desde acá: lo gestiona el administrador del
+  programa.
+
+## Reversión
+
+1. `manage.py migrate users 0042`: saca la capacidad del Administrador (los roles que la tienen tildada la conservan hasta
+   que se destilde en el ABM).
+2. Revertir el PR. El rol sembrado y los usuarios ya creados quedan (son datos).
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 396 — El bootstrap ya no muere si Redis no responde al invalidar el padrón geográfico de SIIS
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · SIIS (`seed_catalogo_siis`, `invalidar_padron_geografico`) · arranque del contenedor |
+| **Etiquetas** | `#siis` `#infra` |
+| **Solicitante** | Juez — release-gate run 40764473533 (PR #988) |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servicio |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El PR #988 agregó `transaction.on_commit(invalidar_padron_geografico)` en `seed_catalogo_siis`.
+La función hacía `cache.delete_many(...)` sin atajar errores: con `ENVIRONMENT=qa/prd` el cache es
+`django_redis` sin `IGNORE_EXCEPTIONS`, y con Redis sin respuesta sale `ConnectionInterrupted`. El
+bootstrap del entrypoint (el seed corre dentro del candado) terminaba en error y el contenedor no
+arrancaba; en el release-gate no hay Redis y el smoke HTTP fallaba.
+
+## Alcance acordado
+
+**Entra:** que `invalidar_padron_geografico` sea tolerante, igual que `programa_cache.invalidar`
+(Cambio 99 y siguientes): `try/except Exception`, `logger.warning` con el tipo de excepción.
+
+**Queda afuera:** settings y entrypoint.
+
+## Decisiones tomadas
+
+- **Invalidación best-effort:** lo peor es que otro proceso vea el padrón anterior hasta que la
+  clave venza sola (`CATALOGO_CACHE_SECONDS`, 300 s). Un cache caído no debe impedir el arranque.
+- **No se toca la lectura** (`catalogo_padron_geografico`): ahí un cache caído sí falla fuerte.
+
+## Implementación
+
+`programas/services/siis.py`: `invalidar_padron_geografico` atrapa `Exception` y avisa por log.
+
+## Archivos
+
+- `programas/services/siis.py`
+- `programas/tests/test_siis_provincia_de_la_localidad.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Test nuevo `InvalidarPadronGeograficoSinCacheTests`: `cache.delete_many` levanta
+  `ConnectionInterrupted`, no se propaga y queda el warning. Verificado por mutación (sin el `try`
+  el test falla con `ConnectionInterrupted`).
+- `manage.py check`, módulo `test_siis_provincia_de_la_localidad` (21 tests), ruff: OK.
+- `scripts/requerimientos.py --check`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+No hay.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
 
 ---

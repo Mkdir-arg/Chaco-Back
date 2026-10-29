@@ -121,30 +121,24 @@ ramas, PRs ni jerga: «el link público», «el constructor de formularios»):
 
 ## 6. Verificá (obligatorio, antes del commit)
 
-```bash
-# Las filas de cada día tienen que dar el total declarado
-.venv/Scripts/python.exe -c "
-import io,re
-d=io.open(r'docs/client/financiero/detalle-tareas.md',encoding='utf-8').read().split(chr(10))
-def suma(pref):
-    t=0.0
-    for l in d:
-        if l.startswith('| '+pref):
-            c=[x.strip() for x in l.split('|')]
-            m=re.match(r'^([0-9]+(?:[.,][0-9]+)?) h\$', c[-3]) if len(c)>4 else None
-            if m: t+=float(m.group(1).replace(',','.'))
-    return t
-for p in ['01/09','02/09','03/09','04/09','05/09']: print(p, suma(p))
-"
-```
-
-La columna de horas es la **antepenúltima** celda de la tabla por entregable
-(`c[-3]`). Además: los totales por programa y por persona tienen que cerrar
-contra las filas, el contador acumulado contra la suma de los meses, y
+El verificador es [`scripts/auditar_horas.py`](../../../scripts/auditar_horas.py):
+suma **todas** las filas del registro y las contrasta contra cada número publicado
+—totales de sección, totales mensuales, tablas por programa y por persona, contador
+del proyecto, índice financiero y portada—. Sale con código 1 si algo no cierra.
+Nunca a ojo, y nunca con un chequeo armado al momento: el script ya encontró
+defectos que una suma por día no ve (6 min de redondeo en julio, 3 min de desvío en
+los totales por persona del proyecto).
 
 ```powershell
-& .venv\Scripts\mkdocs.exe build --strict     # el sitio tiene que compilar
+& $env:PY_VENV scripts\auditar_horas.py      # «AUDITORÍA OK — todo cierra»
+& .venv\Scripts\mkdocs.exe build --strict    # el sitio tiene que compilar
 ```
+
+**Si abrís un mes nuevo, antes actualizá el script**: las constantes `DECL` (total
+declarado de cada mes) y `TRAS` (excedente trasladado que recibe cada mes) están al
+principio del archivo. Un mes que no figura en `DECL` **no se verifica y no avisa**.
+El bloque final, que compara el índice financiero y la portada, está escrito contra
+el mes en curso: cuando el mes en curso cambia, se mueve ahí también.
 
 ## 7. Publicá
 

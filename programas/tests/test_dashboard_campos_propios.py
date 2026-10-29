@@ -102,6 +102,15 @@ class CamposPropiosEnReportesTests(DashboardBecasBase):
         self.assertEqual(fila["Fecha de mudanza"], "07/03/2024")
         self.assertEqual(fila["Ayudas que recibís"], "AUH | Tarjeta")
 
+    def test_una_fecha_imposible_no_tumba_el_excel_y_queda_tal_cual(self):
+        self._propio("cp-mudanza", "Fecha de mudanza", [], orden=92, tipo=TipoCampo.DATE)
+        self._caso_con_foto(self.rel_publico, {"cp-mudanza": "2000-02-30"})
+
+        reporte, _ = svc.respuestas_por_persona(self.conv_propia, incluir_publicos=True)
+
+        fila = dict(zip(list(reporte.encabezados), reporte.filas[0]))
+        self.assertEqual(fila["Fecha de mudanza"], "2000-02-30")
+
     def test_un_caso_sin_foto_sigue_exportando_desde_data(self):
         """Los casos anteriores al Cambio 58 no tienen `respuestas` ni foto: sus
         columnas se siguen leyendo del contrato anterior."""

@@ -115,8 +115,8 @@ línea (mismo resultado visual): se migra al tocarla, no se copia.
 **Consumidores de referencia:** `programas/templates/programas/dispositivos/relevamientos/list.html`
 (P21: ítems con `url`, `motivo` y `confirm_url` preparados en la vista; revisión sin datos con
 `_confirm_js.html` y ModernModal; las acciones con formulario abren su modal por
-parámetro GET). P4 (`dispositivos/legajo/detail.html`) reusa el mismo contrato para cambiar plaza
-y egresar: un modal por URL y capacidad, sin consultas por fila. Lo van a usar también P12, P20 y P22.
+parámetro GET; Al día, Por vencer y Vencidos llevan el `tono` del badge de situación de la tabla; Asignados va en `brand`, el tono por defecto de la card). P4 (`dispositivos/legajo/detail.html`) reusa el mismo contrato para cambiar plaza
+(o asignarla, si la estadía no tiene: ítem «Asignar plaza», mismo modal) y egresar: un modal por URL y capacidad, sin consultas por fila. Lo van a usar también P12, P20 y P22.
 
 ### Cuándo va cada forma
 
@@ -180,3 +180,17 @@ preparan en la vista (`motivo` vacío = acción disponible).
 - Un `<details>`, un `x-data` o un menú armado a mano para las acciones de fila.
 - Ítems sin `only`, `confirm()` nativo, `style=` para posicionarlo (lo calcula el JS).
 - `.nodo-icon-btn` deshabilitado suelto para «explicar» por qué una acción no está disponible.
+
+### Variante de encabezado (`texto=`) y ítem que abre un modal (`abre_modal=`)
+
+- `{% menu_fila id=… etiqueta=… texto="Más acciones" %}`: el disparador pasa a ser un botón
+  `btn-nodo btn-secondary btn-sm btn-fit` con el texto y un caret (`fa-chevron-down`, decorativo), con los mismos
+  `aria-haspopup`/`aria-expanded`/`aria-controls`, teclado y foco. Sin `texto`, el ⋮ de siempre (el HTML de los
+  consumidores existentes no cambia). Es la forma de las acciones secundarias de un `page_header`.
+- `abre_modal="modalObservar"` en `_menu_fila_item.html`: dibuja `<button role="menuitem" @click="modalObservar=true">`.
+  Solo el **nombre** de una variable del `x-data` de la pantalla (`[A-Za-z_][A-Za-z0-9_]*`, filtro `nombre_alpine`);
+  cualquier otra cosa no dibuja el ítem. Pierde ante `motivo`, `confirm_url` y `url`. `peligro=True` lo pinta en rojo.
+  El menú no se mueve del DOM (es `position: fixed`), así que el `@click` sigue dentro del `x-data`.
+- Cuándo: un encabezado con más de una acción secundaria deja visibles la primaria (`btn-brand`) y, a lo sumo, una
+  secundaria frecuente; el resto va al menú con `texto="Más acciones"`. Si ninguna aplica, no se dibuja. Referencia:
+  P4 (`dispositivos/legajo/detail.html`). Tests: `MenuFilaTest`.

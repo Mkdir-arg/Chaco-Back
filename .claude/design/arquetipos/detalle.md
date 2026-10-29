@@ -120,6 +120,7 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
 - Estado junto al H1: P4/P19 y P7 pasan `estado_texto` y `estado_variante` a `page_header`;
   el estado se omite del cuerpo de acciones. El resto de los detalles conserva su header.
 
+- Encabezado con más de una acción secundaria: el menú `texto="Más acciones"` (ver la «Variante de encabezado» de `componentes/tabla.md`).
 - Sin métricas: se omite la grilla de stat cards.
 - Secciones apiladas en vez de solapas cuando hay un área sola.
 - Solapa con carga diferida: `@click="tab='x'; $dispatch('<evento>')"` y el JS escucha ese
@@ -129,6 +130,7 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   (`programas/templates/programas/dispositivos/legajo/detail.html`),
   `programas/services/detalle_dispositivo.py` normaliza `?tab=` según las solapas disponibles
   y la vista pasa `tab` al `x-data`; una inexistente cae en la predeterminada.
+  La `dl` de datos de la solapa Datos rotula las franjas de P3 como «Horario de atención» (solo informativo; no son los turnos de la Bitácora).
 - Respuestas de un formulario del constructor en la solapa Datos de P4: una `section`
   `border-t border-light mt-6 pt-5` por formulario respondido, con `h2` y `badge badge-gray`
   «Versión N» (más «Tipo anterior: …» si es de otro tipo), `h3` por sección y la misma `dl`
@@ -146,6 +148,12 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   con el selector que usa la alerta. Sin vencidos
   conserva la criticidad de la última realizada o «Sin relevar»; sin inmuebles,
   «Sin edificio cargado». P2 usa el mismo servicio, con lecturas por lote.
+  Con 2 o más edificios la solapa muestra, bajo las tres tarjetas globales, una tabla canónica
+  (Edificio con código, Domicilio, Estado, Último relevamiento, Instituciones en el predio) con
+  `menu_fila` (Ver; con edición, Editar edificio y Desvincular) y sin registro fotográfico.
+  `?tab=infraestructura&ver_edificio=<pk>` abre uno solo, con su registro paginado y el enlace
+  «Volver a los edificios»; un id no vinculado se ignora y vuelve la tabla (`edificio_id`,
+  `viendo` y `en_tabla` del servicio). Con un solo edificio no hay tabla ni enlace.
 - En P4, la columna Persona muestra «Apellido, Nombre» y DNI sin avatar solo con `ciudadano.ver`.
   Sin esa capacidad, fila, etiqueta del menú y modales de cambio/egreso muestran «Persona alojada»
   sin identidad en texto ni atributos; tampoco los movimientos del Historial precargado nombran

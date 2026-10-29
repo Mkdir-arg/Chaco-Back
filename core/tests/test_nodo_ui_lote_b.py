@@ -59,6 +59,22 @@ class MapaPlazasTest(SimpleTestCase):
         self.assertNotIn("aria-disabled", enlace)
         self.assertIn('aria-disabled="true" class="cursor-not-allowed', html)
 
+    def test_plaza_con_click_es_un_boton_que_gana_sobre_url(self):
+        html = render_to_string(
+            MAPA, {"plazas": [_plaza("A-01", url="?plaza=1", click="abrirPlaza(1)"), _plaza("A-02", url="/x")]}
+        )
+
+        boton = re.search(r"<button [^>]*>", html).group(0)
+        self.assertIn('type="button"', boton)
+        self.assertIn('@click="abrirPlaza(1)"', boton)
+        self.assertIn("bg-success-soft", boton)
+        self.assertIn("cursor-pointer", boton)
+        self.assertEqual(html.count("<button "), 1)
+        self.assertEqual(html.count("</button>"), 1)
+        # Solo la celda sin `click` sigue siendo enlace: con `click` el `url` no se dibuja.
+        self.assertEqual(html.count("<a "), 1)
+        self.assertNotIn("?plaza=1", html)
+
     def test_plaza_elegida_se_marca_con_texto_y_aria_current(self):
         html = render_to_string(MAPA, {"plazas": [_plaza(url="/x", seleccionada=True)]})
 
@@ -120,7 +136,7 @@ class MapaPlazasTest(SimpleTestCase):
 
 
 class LeyendaPlazasTest(SimpleTestCase):
-    def test_cada_estado_lleva_muestra_icono_y_texto(self):
+    def test_cada_estado_es_una_pastilla_con_icono_y_texto(self):
         leyenda = [
             {"estado": "Disponible", "tono": "success"},
             {"estado": "Ocupada", "tono": "info"},
@@ -133,8 +149,10 @@ class LeyendaPlazasTest(SimpleTestCase):
         self.assertIn('aria-label="Leyenda de estados de plaza"', html)
         for item in leyenda:
             self.assertIn(item["estado"], html)
-            self.assertIn(f"bg-{item['tono']}-soft", html)
-            self.assertIn(ICONOS[item["tono"]], html)
+            self.assertIn(f'class="badge badge-{item["tono"]}"', html)
+            self.assertIn(
+                f'<i class="fas {ICONOS[item["tono"]]}" aria-hidden="true"></i> {item["estado"]}</span>', html
+            )
         self.assertEqual(html.count("aria-hidden"), 5)
 
     def test_sin_leyenda_no_dibuja_nada(self):
@@ -146,8 +164,15 @@ class LeyendaPlazasTest(SimpleTestCase):
             mapa = render_to_string(MAPA, {"plazas": [_plaza(estado="E", tono=tono)]})
 
             for clase in (f"bg-{tono}-soft", f"text-fg-{tono}", ICONOS[tono]):
-                self.assertIn(clase, leyenda)
                 self.assertIn(clase, mapa)
+            self.assertIn(f"badge-{tono}", leyenda)
+            self.assertIn(ICONOS[tono], leyenda)
+
+    def test_tono_desconocido_dibuja_pastilla_gris_con_circulo(self):
+        html = render_to_string(LEYENDA, {"leyenda": [{"estado": "E", "tono": "otro"}]})
+
+        self.assertIn('class="badge badge-gray"', html)
+        self.assertIn('<i class="fas fa-circle" aria-hidden="true">', html)
 
 
 class GaleriaFotosTest(SimpleTestCase):

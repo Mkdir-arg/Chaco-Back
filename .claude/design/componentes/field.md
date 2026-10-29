@@ -33,7 +33,7 @@ Render de cada campo:
 </div>
 ```
 
-- El asterisco sale de `field.field.required` o `campo.marca_requerido`; esta marca no cambia `required` y la bajada explica la transición que exige esos datos.
+- El asterisco sale de `field.field.required` o `campo.marca_requerido`; esta marca no cambia `required` y la bajada explica la transición que exige esos datos. También la usa el edificio deshabilitado (`required=False`) de `AsignarRelevamientoForm` (`programas/forms_dispositivos.py`), que es un dato obligatorio de la asignación. El mismo form suma `tipo` (select «Formulario del relevamiento», con la misma marca) cuando el edificio aloja a más de un tipo. El aviso «sin formulario» (`aviso_formulario`) lo calcula la vista y se lo pasa al form.
 - La ayuda va en `text-body-subtle`; el rojo queda **solo** para el error.
 - **El `<p>` del error está siempre**, con `data-error="<campo>"` y oculto mientras no haya
   texto: es donde el guardado AJAX (`programas/templates/programas/becas/_ajax_js.html`) lo
@@ -64,7 +64,9 @@ el error equivocado.
 Se resuelve dándole `auto_id` propio a uno de los dos (`kwargs.setdefault("auto_id", "id_<algo>_%s")`
 en su `__init__`), **no** `prefix`: `prefix` cambia también el `name` del POST y obliga a tocar la
 vista que lo procesa. Caso vivo: `VolverACampoForm` y `ReprogramarForm` comparten `fecha_hasta` en
-el detalle del relevamiento, y el primero declara `AUTO_ID = "id_volver_%s"`.
+el detalle del relevamiento, y el primero declara `AUTO_ID = "id_volver_%s"`. Lo mismo hace
+`IngresoAltaMinimaForm` (`programas/forms_ingreso.py`) con `id_alta_%s`: convive con `IngresoPersonaForm`,
+que también tiene `dni`, en el paso 1 del ingreso a un dispositivo (Cambio 375).
 
 De `programas/forms.py` la evidencia de diseño es **`INPUT_CLASS`, los `widget=…` que la usan y `marca_requerido`**;
 el resto del archivo es validación de dominio (`clean_*`, validaciones cruzadas) y no define nada
@@ -149,6 +151,8 @@ servicios = forms.MultipleChoiceField(choices=SERVICIOS, widget=ChipsSelectMulti
 autoriza = forms.BooleanField(widget=SwitchInput, required=False)
 ```
 
+- **Casilla que muestra otros campos** (`TipoDispositivoForm`, «Maneja sectores y plazas»): el widget lleva `x-model` sobre un `x-data` del template y los campos dependientes `x-show`, sin `x-cloak`: sin JS se ven siempre y el servidor decide en `clean()`.
+
 - **Accesibilidad de los chips:** el contenedor es `role="group"` con `aria-labelledby` hacia el
   label de `_field.html` (que ahora lleva `id="<auto_id>-etiqueta"` y omite `for` cuando el widget
   no tiene un único control). La ayuda y el error cuelgan del grupo, no de cada chip. La clase
@@ -174,7 +178,15 @@ autoriza = forms.BooleanField(widget=SwitchInput, required=False)
 
 ## Campos dentro de un modal
 
-En un modal con guardado AJAX el campo se escribe a mano para poder enganchar el error inline:
+En un modal con guardado AJAX el campo va con `_field.html` y `wrapper_class=""`: el cuerpo
+`space-y-5` (o la grilla `gap-4`) ya separa, y el `<p data-error="<campo>">` del include es donde
+el guardado AJAX escribe el error inline. Pantallas que lo usan: la bitácora (P10), «Sectores y
+plazas» (P5) y el cuerpo compartido `programas/templates/programas/dispositivos/_form_cambio_plaza.html`
+(P4, P5 y P7). El error general (`data-error="__all__"`) va adentro del primer bloque, no como hijo
+directo del cuerpo. Un texto de ayuda propio del modal va en el `help_text` del form, no en el template.
+
+La golden del arquetipo Modal (`programa_list.html`) conserva el campo escrito a mano, que es
+equivalente y por eso no se migra:
 
 ```django
 <label for="{{ form.campo.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Etiqueta <span class="text-fg-danger">*</span></label>

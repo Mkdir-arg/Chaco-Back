@@ -1,4 +1,4 @@
-"""Días y horarios del dispositivo: franjas por día y su resumen en texto (P3).
+"""Horario de atención del dispositivo: franjas por día y su resumen en texto (P3).
 
 El legajo guarda las franjas en `HorarioDispositivo` y conserva `Dispositivo.horarios` como
 **resumen derivado** («Lunes 09:00–12:00 y 13:00–18:00 · Martes 15:00–16:00»), que es lo que

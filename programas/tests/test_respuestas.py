@@ -31,10 +31,23 @@ from programas.services.respuestas import (
     foto_definicion,
     identidad_desde_respuestas,
     legacy_desde_respuestas,
+    legible,
     respuestas_desde_legacy,
     respuestas_legibles,
     sincronizar_desde_legacy,
 )
+
+
+class LegibleFechaTests(TestCase):
+    """`legible` con un DATE: dd/mm/aaaa, y lo que no es una fecha válida queda tal cual
+    (una fecha ISO imposible no puede levantar ValueError)."""
+
+    def test_fecha_valida_imposible_y_otro_formato(self):
+        item = {"tipo": "DATE"}
+        self.assertEqual(legible(item, "2005-03-14"), "14/03/2005")
+        self.assertEqual(legible(item, "2000-02-30"), "2000-02-30")
+        self.assertEqual(legible(item, "1990-13-01"), "1990-13-01")
+        self.assertEqual(legible(item, "15/03/2010"), "15/03/2010")
 
 
 class _Base(TestCase):

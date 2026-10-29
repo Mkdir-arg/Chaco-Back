@@ -38,6 +38,7 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from programas.forms_dispositivos import (
+    AsignarRelevamientoDispositivoForm,
     AsignarRelevamientoForm,
     CancelarRelevamientoForm,
     ElegirEdificioForm,
@@ -47,15 +48,19 @@ from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
 from programas.models import Dispositivo, InspeccionEdificio
 from programas.selectors.inspecciones import relevamiento_para_revision
 from programas.services.dispositivos import CAP_VER, puede_en_programa_dispositivos, puede_operar_dispositivo
+from programas.services.formularios_tipo import aviso_de_tipos, formularios_de_los_tipos
 from programas.services.inspecciones import (
     AGENTE_DEBE_SER_EXTERNO,
     CAP_ASIGNAR,
+    CAP_CREAR_AGENTE,
     Situacion,
     agentes_asignables,
+    agentes_asignables_para,
     cancelar_inspeccion,
     crear_inspeccion,
     edificios_en_alcance,
     edificios_para_asignar,
+    edificios_para_asignar_del_dispositivo,
     edificios_sin_relevar,
     filtrar_por_situacion,
     informe_de_relevamiento,
@@ -238,6 +243,8 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
                 "resumen": resumen,
                 "ocultos_nuevo": [(k, params[k]) for k in PARAMETROS_DE_VISTA if params.get(k)],
                 "agente_externo": AGENTE_DEBE_SER_EXTERNO,
+                # El botón «Crear agente»: el servidor vuelve a chequear la capacidad en el endpoint.
+                "puede_crear_agente": puede_en_programa_dispositivos(user, CAP_CREAR_AGENTE),
                 "volver_qs": vista.urlencode(),
                 "url_nuevo": reverse("dispositivos:relevamientos") + "?nuevo=1",
             }
@@ -329,7 +336,14 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         edificio = self._pedido(params, "asignar", edificios_libres)
         if edificio is not None:
             context["edificio_asignar"] = edificio
-            context["form_asignar"] = AsignarRelevamientoForm(edificio=edificio, agentes=agentes_asignables(edificio))
+            tipos = formularios_de_los_tipos(edificio)
+            context["form_asignar"] = AsignarRelevamientoForm(
+                edificio=edificio,
+                agentes=agentes_asignables(edificio),
+                tipos_formularios=tipos,
+                aviso_formulario=aviso_de_tipos(tipos),
+                agente_externo=AGENTE_DEBE_SER_EXTERNO,
+            )
 
         gestionables = InspeccionEdificio.objects.filter(
             estado=Estado.ASIGNADA,
@@ -421,6 +435,9 @@ class _RelevamientoAccionView(DispositivoProgramaPermissionMixin, View):
         messages.success(self.request, mensaje)
         return redirect(self._volver())
 
+    def _creado(self, edificio, agente):
+        return self._ok(f"Relevamiento de {edificio.nombre} asignado a {_nombre(agente)}.")
+
     def _errores_del_servicio(self, error, form):
         if not hasattr(error, "error_dict"):
             return {"__all__": list(error.messages)}
@@ -484,7 +501,12 @@ class RelevamientoAsignarView(_RelevamientoAccionView):
         # `edificios_en_alcance` y no `edificios_para_asignar`: «ya tiene uno en curso» sigue
         # siendo un error del campo, que lo decide el servicio.
         edificio = get_object_or_404(edificios_en_alcance(request.user, CAP_ASIGNAR), pk=edificio_pk)
-        form = AsignarRelevamientoForm(request.POST, edificio=edificio, agentes=agentes_asignables(edificio))
+        form = AsignarRelevamientoForm(
+            request.POST,
+            edificio=edificio,
+            agentes=agentes_asignables(edificio),
+            tipos_formularios=formularios_de_los_tipos(edificio),
+        )
         if not form.is_valid():
             return self._rechazar(form.errors)
         datos = form.cleaned_data
@@ -495,12 +517,54 @@ class RelevamientoAsignarView(_RelevamientoAccionView):
                 asignado_a=datos["asignado_a"],
                 fecha_vencimiento=datos["fecha_vencimiento"],
                 indicaciones=datos["indicaciones"],
+                tipo=datos.get("tipo"),
             )
         except PermissionDenied as error:
             return self._prohibido(error)
         except ValidationError as error:
             return self._rechazar(self._errores_del_servicio(error, form))
-        return self._ok(f"Relevamiento de {edificio.nombre} asignado a {_nombre(datos['asignado_a'])}.")
+        return self._creado(edificio, datos["asignado_a"])
+
+
+class DispositivoRelevamientoAsignarView(_RelevamientoAccionView):
+    """«Crear relevamiento» desde P4: el edificio se elige en el modal, no en la URL.
+
+    La ruta cuelga del **dispositivo** y el edificio viaja en el POST, que el formulario acota
+    a los elegibles de ese dispositivo (:func:`edificios_para_asignar_del_dispositivo`): uno
+    ajeno, fuera del alcance de quien asigna, o con un relevamiento en curso es un error del
+    campo, con el mismo mensaje para los tres —no dice cuál de ellos es—. La capacidad la exige
+    el mixin y la creación la hace el mismo servicio que P21, que vuelve a validar alcance,
+    edificio libre y agente.
+    """
+
+    def _volver(self):
+        return f"{reverse('dispositivos:detalle', args=[self.kwargs['pk']])}?tab=infraestructura"
+
+    def post(self, request, pk):
+        dispositivo = get_object_or_404(Dispositivo, pk=pk)
+        elegibles = edificios_para_asignar_del_dispositivo(request.user, dispositivo)
+        form = AsignarRelevamientoDispositivoForm(
+            request.POST, edificios=elegibles, agentes=agentes_asignables_para(elegibles)
+        )
+        if not form.is_valid():
+            return self._rechazar(form.errors)
+        datos = form.cleaned_data
+        edificio = datos["edificio"]
+        try:
+            # D1: desde la institución, el formulario es el del tipo de **esa** institución.
+            crear_inspeccion(
+                request.user,
+                edificio=edificio,
+                asignado_a=datos["asignado_a"],
+                fecha_vencimiento=datos["fecha_vencimiento"],
+                indicaciones=datos["indicaciones"],
+                tipo=dispositivo.tipo,
+            )
+        except PermissionDenied as error:
+            return self._prohibido(error)
+        except ValidationError as error:
+            return self._rechazar(self._errores_del_servicio(error, form))
+        return self._creado(edificio, datos["asignado_a"])
 
 
 class RelevamientoReasignarView(_RelevamientoAccionView):
