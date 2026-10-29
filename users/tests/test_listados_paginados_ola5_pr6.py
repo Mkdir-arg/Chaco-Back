@@ -28,7 +28,7 @@ class RolesPaginaDeVerdadTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.admin_group = Group.objects.create(name="Admins roles")
-        RolMeta.objects.create(grupo=cls.admin_group, categoria="Sistema", activo=True)
+        RolMeta.objects.create(grupo=cls.admin_group, categoria="Portal", activo=True)
         cls.admin_group.permissions.add(_perm("rol.administrar"))
         cls.admin = User.objects.create_user("admin-paginacion", password="x")
         cls.admin.groups.add(cls.admin_group)
@@ -87,7 +87,7 @@ class UsuariosUsaLaPiezaDePaginacionTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         grupo = Group.objects.create(name="Admins usuarios")
-        RolMeta.objects.create(grupo=grupo, categoria="Sistema", activo=True)
+        RolMeta.objects.create(grupo=grupo, categoria="Backoffice", activo=True)
         grupo.permissions.add(_perm("usuario.administrar"))
         cls.admin = User.objects.create_user("admin-usuarios-pag", password="x")
         cls.admin.groups.add(grupo)

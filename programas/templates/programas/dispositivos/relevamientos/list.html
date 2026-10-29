@@ -203,11 +203,11 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-asignar-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Asignar relevamiento · "|add:edificio_asignar.nombre titulo_id="modal-asignar-titulo" subtitulo="Se le crea la tarea al agente territorial; la institución relevada no la puede completar." icono="fa-clipboard-list" cerrar="modalAsignar=false" %}
-      <form method="post" action="{% url 'dispositivos:relevamiento_asignar' edificio_asignar.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
+      <form id="form-asignar-relevamiento" method="post" action="{% url 'dispositivos:relevamiento_asignar' edificio_asignar.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="volver" value="{{ volver_qs }}">
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          {% include "programas/dispositivos/relevamientos/_campos_asignar.html" with form=form_asignar agente_externo=agente_externo only %}
+          {% include "programas/dispositivos/relevamientos/_campos_asignar.html" with form=form_asignar agente_externo=agente_externo puede_crear_agente=puede_crear_agente selector_agente="#form-asignar-relevamiento select[name=asignado_a]" only %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalAsignar=false" accion_texto="Asignar relevamiento" %}
       </form>
@@ -222,7 +222,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-reasignar-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Reasignar relevamiento · "|add:relevamiento_reasignar.edificio.nombre titulo_id="modal-reasignar-titulo" subtitulo="El agente anterior deja de ver la tarea." icono="fa-user-pen" cerrar="modalReasignar=false" %}
-      <form method="post" action="{% url 'dispositivos:relevamiento_reasignar' relevamiento_reasignar.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
+      <form id="form-reasignar-relevamiento" method="post" action="{% url 'dispositivos:relevamiento_reasignar' relevamiento_reasignar.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <input type="hidden" name="volver" value="{{ volver_qs }}">
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
@@ -231,6 +231,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
             <label for="{{ form_reasignar.asignado_a.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Nuevo agente territorial <span class="text-fg-danger">*</span></label>
             {{ form_reasignar.asignado_a }}
             <p class="mt-1 text-xs text-body-subtle">Hoy lo tiene {{ relevamiento_reasignar.asignado_a.get_full_name|default:relevamiento_reasignar.asignado_a.username }}.{% if agente_externo %} La lista solo trae agentes <strong>externos a {{ relevamiento_reasignar.edificio.nombre }}</strong>.{% endif %}</p>
+            {% include "programas/dispositivos/relevamientos/_boton_crear_agente.html" with puede_crear_agente=puede_crear_agente selector="#form-reasignar-relevamiento select[name=asignado_a]" only %}
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="asignado_a"></p>
           </div>
         </div>
@@ -264,6 +265,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
     </div>
   </div>
   {% endif %}
+  {% if puede_crear_agente %}{% include "user/_alta_rapida_modal.html" %}{% endif %}
 </div>
 {% endblock %}
 

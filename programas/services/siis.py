@@ -106,6 +106,7 @@ ESTADO_DESCONOCIDO = "DESCONOCIDO"
 CATALOGO_CACHE_KEY = "siis_api:catalogo:{}"
 CATALOGO_CACHE_LARGO = 24 * 60 * 60
 CATALOGOS_MAESTROS = ("provincias", "localidades", "estados-civiles", "tipos-documento", "jurisdicciones")
+PADRON_GEOGRAFICO_CACHE_KEY = "siis_padron:catalogo:{}"
 TAB_INTERMEDIA_PATH = "/api/v1/auth/tab-intermedia"
 # SIIS-02 · Qué pasó con el POST, visto desde la única pregunta que importa:
 # «¿puede haber quedado un alta del otro lado?». El alta no tiene baja, así que
@@ -842,6 +843,60 @@ def cargar_beneficiario(payload):
 
 def catalogo(nombre):
     return SiisAPIClient().catalogo(nombre)
+
+
+def catalogo_geografico(nombre):
+    """Geografía verificada del organismo, con los mismos IDs que usa el alta.
+
+    El ID de localidad se repite entre provincias. No se mezcla este padrón
+    con el catálogo de la API, que puede devolver posiciones en vez de IDs.
+    """
+    if nombre not in ("provincias", "localidades"):
+        raise ValueError(f"Catálogo geográfico SIIS desconocido: {nombre}")
+    clave = PADRON_GEOGRAFICO_CACHE_KEY.format(nombre)
+    items = cache.get(clave)
+    if items is None:
+        items = _leer_padron_geografico(nombre)
+        # También cachea el padrón ausente: abrir otro caso no debe repetir la
+        # consulta. El seed invalida ambas claves una vez confirmada su carga.
+        cache.set(clave, items, CATALOGO_CACHE_SECONDS)
+    if not items:
+        raise SiisCatalogError(
+            "El padrón geográfico de SIIS no está cargado. Solicitá al administrador ejecutar seed_catalogo_siis."
+        )
+    return items
+
+
+def _leer_padron_geografico(nombre):
+    from programas.models import LocalidadSiis, ProvinciaSiis
+
+    if nombre == "provincias":
+        return [{"id": provincia.siis_id, "nombre": provincia.nombre} for provincia in ProvinciaSiis.objects.all()]
+    return [
+        {"id": localidad.siis_id, "nombre": localidad.nombre, "id_provincia": localidad.provincia.siis_id}
+        for localidad in LocalidadSiis.objects.select_related("provincia").all()
+    ]
+
+
+def invalidar_padron_geografico():
+    """Invalida el padrón geográfico cacheado; si el cache no responde, no rompe.
+
+    Lo llama ``seed_catalogo_siis`` en ``on_commit``, dentro del bootstrap del
+    entrypoint: con Redis caído (``ConnectionInterrupted``) una invalidación sin
+    atajar mataba el arranque del contenedor. Es *best-effort*, igual que
+    ``programa_cache.invalidar``: lo peor es que otro proceso vea el padrón
+    anterior hasta que la clave venza sola. Se atrapa ``Exception`` para no
+    acoplarse a los tipos de un backend concreto.
+    """
+    claves = [PADRON_GEOGRAFICO_CACHE_KEY.format(nombre) for nombre in ("provincias", "localidades")]
+    try:
+        cache.delete_many(claves)
+    except Exception as excepcion:  # noqa: BLE001 — ver el docstring
+        logger.warning(
+            "No se pudo invalidar el padrón geográfico en el cache (%s): el arranque sigue y las claves vencen solas en %s s.",
+            type(excepcion).__name__,
+            CATALOGO_CACHE_SECONDS,
+        )
 
 
 def funciones_programa(id_programa):

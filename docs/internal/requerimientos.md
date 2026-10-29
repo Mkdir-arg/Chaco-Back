@@ -513,6 +513,13 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 387 | Dispositivos: limpieza de los MINOR de las auditorías de #979, #980, #982 y #983 y del carril de diseño | Dispositivos · P4, P21, configuración de tipos, ingreso; `core/dni`, `nodo_ui`, fichas de diseño | `#ui` `#relevamientos` | Juez del carril (auditorías) | 27/10/2026 | 🟢 **Hecho** | No requiere |
 | 388 | Dispositivos: el formulario «Relevamiento» por tipo llega al territorial por la API de campo | Dispositivos · tipos (P17), relevamientos (P4, P21, informe), API de campo | `#relevamientos` `#api` `#mobile` `#datos` | PM — pedido del 27/10/2026 | 27/10/2026 | 🟢 **Hecho** | Migración 0107 y 0108 (expand) |
 | 389 | Sectores y plazas: la plaza libre se reserva, se presta o se saca de servicio, y tocar una plaza no recarga la página | Dispositivos · P5 Sectores y plazas · modal de asignar relevamiento (P4, P21) | `#ui` `#rbac` `#performance` `#relevamientos` | PM — prueba en testing | 27/10/2026 | 🟢 **Hecho** | No requiere |
+| 390 | Instrucciones de agentes y comandos alineadas con las decisiones del PM: Iteration al crear, QA en testing, estimación solo en Task, publicación con venv y retiro de `chaco-dev-reviewer` | Transversal · método de trabajo de los agentes (`AGENTS.md`, `QA.md`, `.claude/commands/`, `.claude/agents/`, skill `auditoria`) | `#metodo` `#gestion` | PM — decisiones previas (28/08, 28/10/2026) | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 391 | gates-ci: procedimiento ante una CVE nueva en «Pip Audit» | Transversal · skill `gates-ci` · CI (`Pip Audit`) | `#infra` `#metodo` | Juez — Cambios 315 y 363, y PR #988 | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 392 | Panel de capacidades del ABM de Roles: solapas por ámbito (General · Administración · Becas · Dispositivos) | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 393 | La «Categoría» del rol pasa a ser «Alcance»: Global o De un programa | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0041`, de datos) |
+| 394 | Se retiran las capacidades `institucion.ver` e `institucion.administrar` (cierra OPS-14) y se limpian MINORs de los Cambios 392 y 393 | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0042`, de datos, con reversa) |
+| 395 | Dispositivos: «Crear agente» de relevamiento edilicio desde el modal de asignar, con la capacidad `inspeccion.agente.crear` y el rol sembrado «Dispositivos — Agente de relevamiento» | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0043`, de datos, con reversa) |
+| 396 | El bootstrap del entrypoint ya no muere si Redis no responde al invalidar el padrón geográfico de SIIS | Becas · SIIS (`seed_catalogo_siis`, `invalidar_padron_geografico`) · arranque del contenedor | `#siis` `#infra` | Juez — release-gate run 40764473533 (PR #988) | 28/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -49412,5 +49419,637 @@ normales de `ReservaPlaza`, y se liberan desde el mapa.
   carril que no tenían entrada propia. El test del `formulario_tipo_diseno` ajeno, que figuraba como pendiente en
   las notas del carril, ya existe (`test_la_marca_de_un_diseno_ajeno_no_guarda_y_vuelve_con_la_seccion_del_tipo_elegido`,
   entró en `69542b91`, Cambio 387).
+
+---
+
+# Seguridad — excepción temporal de DNS de Twisted (PR #988)
+
+**27/10/2026.** Pip Audit bloquea el PR de localidades por CVE-2026-83813
+(GHSA-jj36-9pvh-vj5r), sin cambios de dependencias en ese PR. El aviso afecta a
+`twisted.names.dns.DNSDatagramProtocol`: no verifica el origen de las respuestas UDP.
+Fuente: https://github.com/twisted/twisted/security/advisories/GHSA-jj36-9pvh-vj5r.
+
+Se verificó en el contenedor local con Daphne 4.2.3 y Twisted 26.4.0 que importar
+`daphne.server`, sus protocolos HTTP/WebSocket y `channels.layers` instala
+`GAIResolver` y resuelve con `socket.getaddrinfo`; no carga `twisted.names`.
+La búsqueda en el código del proyecto no encontró un resolver alternativo de Twisted.
+`core/tests/test_twisted_dns.py` verifica esa precondición en un proceso aislado.
+Esto sustenta una excepción por componente no utilizado, no una corrección del paquete.
+
+PyPI todavía ofrece 26.4.0 como última final; las corregidas 26.10.0rc1/rc2 son
+preliminares. Se registra la excepción en `security/excepciones.toml` hasta el
+**26/11/2026**. No se cambia Daphne, Twisted ni el workflow de auditoría. Retirar
+la excepción al disponer de una final corregida y auditar sin ella; si se cambia
+el resolver DNS, reevaluarla antes de desplegar. La aceptación es temporal y no
+elimina la vulnerabilidad de Twisted instalado.
+
+---
+
+# Cambio 390 — Instrucciones de agentes y comandos alineadas con las decisiones del PM
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · método de trabajo de los agentes |
+| **Etiquetas** | `#metodo` `#gestion` |
+| **Solicitante** | PM — decisiones ya tomadas (Iteration 28/08/2026; ambiente de QA 28/10/2026), pasadas por la auditoría de skills |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | Sin issue |
+| **Partes afectadas** | Método de trabajo (solo `.md`) |
+| **Migración** | No requiere |
+
+## Pedido original
+Alinear las instrucciones de agentes y comandos del repo con las decisiones del PM que la auditoría de skills (28/10) encontró contradichas.
+
+## Alcance acordado
+Entra: texto de `AGENTS.md`, `QA.md`, los comandos `analisis*`, `qa*`, `pm:estado`, `pm:minuta`, `analisis:publicar`, `dev:cierre`, el agente `qa-analyst` y la skill `auditoria`. Afuera: código de la app y los documentos históricos que nombran al agente retirado.
+
+## Decisiones tomadas
+1. **Iteration al crear issues.** Receta única en `AGENTS.md`: Tipo, Iteration = la activa (leída del Project, sin hardcodear el id), Status=Backlog como último paso y verificado, porque el Project auto-mueve a Ready al crear o asignar. Assignees siguen siendo del PM. Los comandos de análisis y QA remiten a esa receta.
+2. **Ambiente de QA.** Todos los casos se prueban en testing (`https://datanach.ecomdev.ar/`), sin preguntarle al PM; reemplaza la regla del 09/09. Si el WAF bloquea una ruta, el caso va «BLOQUEADO POR FIREWALL» con un dato alternativo.
+3. **pm:estado.** EstimacionHoras, el total de esfuerzo y la alerta «sin estimación» aplican solo a Tipo=Task; Épicas y Análisis son agrupadores.
+4. **Publicación.** `docs/client/sprints/` no existe: la estructura real es `versiones/`, y la rama «Sprint» de `analisis:publicar` pasó a «Versión». `python`/`pip` salen por el venv del proyecto; el deploy lo hace `docs-auto-deploy.yml` y `check_docs_client.py` va antes del build.
+5. **`chaco-dev-reviewer` retirado.** Lo reemplazó `/auditoria pr <N>` (chaco-auditor) desde #943. `dev:cierre` usa las rúbricas de la skill como criterio.
+
+## Implementación
+Solo texto. No cambia el comportamiento de la app.
+
+## Archivos
+`AGENTS.md`, `QA.md`, `.claude/commands/analisis.md`, `analisis/{epica,analisis,issue,publicar}.md`, `qa.md`, `qa/{casos,plan}.md`, `pm/{estado,minuta}.md`, `dev/cierre.md`, `.claude/agents/qa-analyst.md`, `.claude/agents/chaco-dev-reviewer.md` (borrado), `.claude/skills/auditoria/SKILL.md` y `rubricas/rendimiento.md`.
+
+## Base de datos
+No requiere.
+
+## Validación
+`scripts/requerimientos.py --check`, `manage.py check` y `grep chaco-dev-reviewer` sin referencias vivas.
+
+## Pendientes / a definir
+Ninguno.
+
+## Reversión
+Revertir el commit; no hay datos.
+
+## Historial
+- 28/10/2026 — Ajustes tras la auditoría del PR #991: `AGENTS.md` queda como fuente única del flujo de publicación (tipos minuta/versión/funcionalidad, venv, `requirements-ci.txt`, `check_docs_client.py` en 0, deploy por `docs-auto-deploy.yml`, sin `gh-deploy` manual) y `pm:minuta`/`analisis:publicar` remiten a esa sección; el paso 6 de la receta `gh` verifica el Status leyendo el ítem por GraphQL (el Project supera los 500 ítems); el caso «Requerimiento» sigue el orden de la receta general; la iteración activa se define con `startDate`/`duration`; `dev:cierre` suma la rúbrica `codigo-limpio.md` y remite a las rúbricas en vez de copiar sus patrones.
+
+---
+
+# Cambio 391 — gates-ci: procedimiento ante una CVE nueva en «Pip Audit»
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · skill `gates-ci` · CI (`Pip Audit`) |
+| **Etiquetas** | `#infra` `#metodo` |
+| **Solicitante** | Juez — Cambios 315 y 363, y PR #988 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Skill |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cuando «Pip Audit» se puso rojo por una CVE nueva de twisted (PR #988, 27/10/2026), el procedimiento
+vivía solo en la cabecera de `security/excepciones.toml`, en los Cambios 315 y 363 y en el PR #988.
+Codificarlo en la skill `gates-ci`.
+
+## Alcance acordado
+
+**Entra:** la sección «Pip Audit rojo por una CVE nueva» en `.claude/skills/gates-ci/SKILL.md`,
+con los seis pasos: leer la falla, identificar la advisory, comprobar si el módulo se carga,
+decidir, validar y retirar.
+
+**Queda afuera:** cambios en `security/excepciones.toml`, en el workflow o en las dependencias.
+
+## Decisiones tomadas
+
+- **La skill ordena la decisión y remite a la cabecera del toml** para las reglas de las
+  excepciones; no las duplica.
+- **Módulo cargado en la superficie servida: decide el PM**, y solo con una mitigación
+  verificable (caso nginx de CVE-2026-115877).
+- **Sin excepción sin vencimiento y sin pinear un release candidate**, como en el Cambio 363 y el PR #988.
+
+## Implementación
+
+Sección nueva al final de `gates-ci/SKILL.md`. La skill no tiene índice ni tabla de contenidos
+que actualizar; el frontmatter ya cubre «cuando un check sale rojo».
+
+## Archivos
+
+- `.claude/skills/gates-ci/SKILL.md`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `scripts/requerimientos.py --check`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada: solo documentación de desarrollo.
+
+## Pendientes / a definir
+
+No hay.
+
+## Reversión
+
+Borrar la sección de la skill.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 392 — Panel de capacidades del ABM de Roles: solapas por ámbito (General · Administración · Becas · Dispositivos)
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · Roles (RBAC) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | PM — decisión del 28/10/2026 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El panel de capacidades de `/roles/crear/` mostraba las solapas Backoffice, Institución, Portal, Sistema y Becas.
+Reordenarlo por ámbito real; «Dispositivos y Merenderos son lo mismo».
+
+## Alcance acordado
+
+**Entra:** nuevas solapas `general`, `administracion`, `becas`, `dispositivos` en `TABS_CAPACIDADES` y la clave `"tab"`
+de cada módulo de `CATALOGO`; `arbol_por_tabs` deja de devolver solapas sin módulos.
+
+**Queda afuera:** los códigos de capacidad (`merendero.*` incluido), el programa MERENDEROS, el campo Categoría y
+`RolMeta`, el retiro del módulo `instituciones` (PR posterior).
+
+## Decisiones tomadas
+
+- **General**: ciudadanos, dashboard, reportes, notificaciones, conversaciones, relevamientos.
+  **Administración**: sistema, configuracion, programas e `instituciones`.
+  **Becas**: todos los `becas_*`. **Dispositivos**: dispositivos, inspecciones y merenderos.
+- **`instituciones` va provisoriamente a Administración** en vez de mantener una solapa Institución: no tiene uso
+  (`CAPACIDADES_SIN_USO`) y se retira en un PR posterior, así no queda una solapa para un solo módulo condenado.
+- **Portal se borra** (no tenía módulos).
+- **Sin solapas vacías**: un admin de programa solo ve las que tienen módulos asignables. Antes se incluían «para
+  futura expansión» y aparecían vacías.
+- El ícono de Dispositivos es `fa-building`, el edificio que ya usa el sidebar para ese grupo.
+- No se confunde con las categorías de rol (`RolMeta.categoria`) ni con `_ambito_de`, que no se tocan.
+
+## Implementación
+
+El panel agrupa las capacidades en cuatro solapas por ámbito y oculta las que no tienen módulos. El template
+`rol_form.html` itera `form.arbol_por_tabs` sin cambios.
+
+## Archivos
+
+- `core/rbac.py`
+- `users/tests/test_roles_abm.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios: los códigos de capacidad no cambian. `makemigrations --check --dry-run` con
+`DJANGO_SYNCDB_PROJECT_APPS=False`: «No changes detected».
+
+## Validación
+
+- `users.tests.test_roles_abm.SolapasDeCapacidadesTests` (6 tests: orden e ids, módulos de Dispositivos, ámbitos,
+  sin solapas vacías, admin de programa de Dispositivos sin Becas). Verificado por mutación: volviendo a devolver las
+  vacías fallan 3 de 6.
+- `manage.py test users core`: 2098 tests, OK (44 skipped). `manage.py check` sin observaciones. Ruff check y format
+  sobre lo tocado. No se tocó ningún template.
+- `scripts/requerimientos.py --check`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada: sin migración.
+
+## Pendientes / a definir
+
+- Retirar el módulo `instituciones` del catálogo (PR posterior).
+- Unificar la Categoría del rol con los ámbitos (otro PR).
+
+## Reversión
+
+Revertir el PR; no hay datos que se pierdan.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 393 — La «Categoría» del rol pasa a ser «Alcance»: Global o De un programa
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · Roles (RBAC) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | PM — decisión del 28/10/2026 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | `users.0041_rolmeta_alcance_global_programa` (datos + `choices`, sin SQL) |
+
+## Pedido original
+
+El campo «Categoría» del rol tenía seis valores (Backoffice, Institución, Portal, Sistema, Becas, Programa) y solo dos
+decidían algo. Pasa a llamarse «Alcance» con dos opciones visibles: **Global** y **De un programa**.
+
+## Alcance acordado
+
+**Entra:** etiquetas nuevas (`ETIQUETAS_CATEGORIA` en `core/rbac.py`); retiro de `CATEGORIA_SISTEMA`,
+`CATEGORIA_INSTITUCION` y `CATEGORIA_BECAS`; migración de datos de los roles guardados; textos de `rol_form`,
+`rol_list`, `rol_detail` y de la solapa «Global» del selector de roles del ABM de Usuarios.
+
+**Queda afuera:** el nombre de la columna (`categoria`) y los strings guardados `Backoffice` y `Programa`; cualquier
+cambio en `puede*`, `programas_administrables*`, `puede_gestionar_rol` o `roles_visibles_para`.
+
+## Decisiones tomadas
+
+- **Los strings guardados se conservan**: `Backoffice` = Global y `Programa` = De un programa. Cambian solo las etiquetas
+  (choices), así que no se reescribe ninguna fila que ya está bien.
+- **`Portal` queda solo interno**: sigue en las `choices` del modelo (marca al grupo `Ciudadanos`) pero nunca en el combo
+  del formulario ni en el filtro del listado. `_roles_asignables_queryset` sigue excluyéndolo.
+- **Migración `users.0041`** (idempotente: filtra por el estado de origen). `Sistema` e `Institución` pasan a
+  `Backoffice`; `Becas` con programa pasa a `Programa` (mismo programa); `Becas` sin programa pasa a `Backoffice`. Es lo
+  que ya hacía el código: `_CATEGORIAS_CON_PROGRAMA` trataba a `Becas` como de programa solo con `programa_id`. La
+  autorización casi no cambia: la única diferencia es que la guarda RN-8 de «programa sin administrador»
+  (`programas_que_administra`, `RolesAdminService._programa_que_administra`) ahora también cuenta los roles legacy Becas
+  con programa, como ya los contaba `usuarios_que_administran_programa`. Reversa `noop` declarada: se pierde la
+  etiqueta original, que es cosmética.
+- `AlterField` de `choices` y `verbose_name`: `sqlmigrate` dice `(no-op)`; sin columna nueva ni `NOT NULL`.
+- El listado de roles sigue agrupando a `Ciudadanos` (Portal) en su propio grupo: `CATEGORIAS_ROL_TODAS` lo incluye para
+  agrupar, `CATEGORIAS_ROL` (lo que se ofrece) no.
+- Selector de roles del ABM de Usuarios: la solapa de los roles globales se llama «Global» (id `global`); las de
+  programa siguen agrupadas por nombre de programa. Cierra la duplicación que marcó el Cambio 332 (Programa sumado dos
+  veces en `categorias_rol`).
+- No se cambió `help_text` del FK `programa` ni la estética: solo textos.
+
+## Implementación
+
+`core/rbac.py` define `CATEGORIAS_ROL` = [Backoffice, Programa], `ETIQUETAS_CATEGORIA` y las choices del modelo
+(`CATEGORIAS_ROL_MODELO_CHOICES`, con Portal). `RolForm` ofrece `CATEGORIAS_ROL_CHOICES`; el admin de programa sigue
+viendo solo «De un programa». Las vistas del listado y la ficha muestran `get_categoria_display`. `seed_rbac` y
+`seed_datos_base` siembran `Backoffice` donde antes ponían `Sistema` o `Institución`.
+
+## Archivos
+
+- `core/rbac.py`
+- `users/models/__init__.py`
+- `users/migrations/0041_rolmeta_alcance_global_programa.py`
+- `users/forms/__init__.py`, `users/forms/roles.py`, `users/selectors/roles.py`, `users/views/roles.py`
+- `users/management/commands/seed_rbac.py`, `users/management/commands/seed_datos_base.py`
+- `users/templates/rol/rol_form.html`, `rol_list.html`, `rol_detail.html`
+- `.claude/design/componentes/filtros.md`
+- Tests: `users/tests/test_roles_alcance.py` (nuevo) y los que usaban las constantes retiradas
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Migración `users.0041` de datos y `choices`, sin DDL. `makemigrations --check --dry-run` con `DJANGO_SYNCDB_PROJECT_APPS=False`: «No
+changes detected». `scripts/check_migraciones.py` sobre la 0041: 0 problemas.
+
+## Validación
+
+- `users.tests.test_roles_alcance`: los cuatro casos de la migración (Sistema, Institución, Becas con programa, Becas
+  sin programa) más los que no se tocan, idempotencia, choices del formulario por operador, etiquetas del listado, y
+  `Ciudadanos` fuera de los roles asignables.
+- Verificado por mutación: quitar la exclusión de `Portal` en `_roles_asignables_queryset` pone rojo
+  `PortalExcluidoDeRolesAsignablesTests`.
+- `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent --changed` (OK), `scripts/requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Antes del deploy, en testing y PRD, contar qué toca la migración y, de los roles `Becas` con programa, cuáles tienen
+alguna capacidad de `CAPS_ADMIN_PROGRAMA` (esos son los que la guarda RN-8 empieza a contar):
+
+```sql
+SELECT categoria, programa_id IS NULL, COUNT(*) FROM users_rolmeta GROUP BY 1, 2;
+```
+
+La migración corre sola con el arranque. Las filas `Sistema`, `Institución` y `Becas` desaparecen; el resto no cambia.
+
+## Pendientes / a definir
+
+- ~~Retirar el módulo `instituciones` del catálogo~~ (hecho en el Cambio 394).
+- Renombrar la columna `categoria` a `alcance` (no se hizo para no reescribir el esquema; sería otro expand/contract).
+
+## Reversión
+
+Revertir el PR. La migración no deshace los valores: las etiquetas Sistema/Institución/Becas se pierden, pero eran
+cosméticas; lo único que cambia en autorización es la guarda RN-8 descripta arriba.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 394 — Se retiran `institucion.ver` e `institucion.administrar` y se limpian MINORs de los Cambios 392 y 393
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · Roles (RBAC) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | PM — decisión del 28/10/2026 (cierra el pendiente OPS-14 / Cambio 160) |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (ABM de Roles) |
+| **Migración** | `users.0042_retirar_capacidades_institucion` (datos + `AlterModelOptions`, con reversa real) |
+
+## Pedido original
+
+Nadie evaluaba `institucion.ver` ni `institucion.administrar` (figuraban en `CAPACIDADES_SIN_USO`, motivo OPS-14), pero el
+ABM de Roles las ofrecía en la solapa Administración. El PM decidió retirarlas. Además, cuatro MINORs de las auditorías de
+los Cambios 392 y 393.
+
+## Alcance acordado
+
+**Entra:** sacar el módulo `instituciones` de `CATALOGO` y las dos entradas de `CAPACIDADES_SIN_USO`; migración que borra
+las dos `Permission`; limpieza del condicional inalcanzable de `rol_form.html`; docstrings de `_ambito_de` /
+`_orden_de_ambitos`; comentarios de `users.0041` y del Cambio 393.
+
+**Queda afuera:** el modelo `legajos.Institucion` y todo el dominio; no se borran grupos de la base.
+
+## Decisiones tomadas
+
+- **`users.0042` con reversa real**: la ida registra cada par rol/capacidad en `users.CapacidadRevocada`
+  (`migracion="users.0042"`) antes de borrar las `Permission`; la reversa las recrea y las vuelve a tildar en los mismos
+  roles. A diferencia de `users.0033` (`ciudadano.eliminar`), cuya reversa no reasigna. Idempotente, con literales y
+  `apps.get_model`.
+- Incluye el `AlterModelOptions` con la lista entera de capacidades (gotcha conocido de `Capacidad.Meta.permissions`).
+- `seed_rbac._CATEGORIA_POR_GRUPO` ya solo mapea el grupo del portal desde el Cambio 393: no había nada que simplificar.
+- `rbac.arbol_por_tabs` no devuelve solapas vacías (Cambio 392), así que el `{% else %}` «Sin capacidades definidas…» de
+  `rol_form.html` era inalcanzable y se quitó.
+- El efecto del Cambio 393 sobre la guarda RN-8 queda corregido en su entrada y en `users.0041` (solo comentarios).
+
+## Implementación
+
+`core/rbac.py` sin el módulo `instituciones`; `users/migrations/0042_retirar_capacidades_institucion.py`;
+`rol_form.html` sin el condicional; docstrings de `users/forms/__init__.py`; tests nuevos en
+`users/tests/test_roles_alcance.py`: `GuardaRN8RolesBecasLegacyTests` (rol `Becas` con programa y
+`programa.usuario.administrar`, se aplica `reubicar_categorias`, `programas_que_administra(u) == {programa.pk}`) y
+`MigracionRetirarCapacidadesInstitucionTests` (ida, idempotencia y vuelta de `users.0042`).
+
+## Archivos
+
+- `core/rbac.py`
+- `users/migrations/0042_retirar_capacidades_institucion.py`, `users/migrations/0041_rolmeta_alcance_global_programa.py` (comentarios)
+- `users/forms/__init__.py`, `users/templates/rol/rol_form.html`
+- Tests: `users/tests/test_rbac_contrato.py`, `users/tests/test_roles_alcance.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Migración `users.0042` de datos sin DDL: borra dos filas de `auth_permission` (y por cascada de `auth_group_permissions`).
+`makemigrations --check --dry-run` (SYNCDB=False) sin cambios; `scripts/check_migraciones.py` 0 problemas.
+
+## Validación
+
+- `manage.py check`, tests de `users` y `core`, ruff, `design_audit --ratchet`, `compile_templates --bloques`,
+  `check_design_agent --changed`, `requerimientos.py --check`.
+- Mutación: dejar una entrada huérfana en `CAPACIDADES_SIN_USO` pone rojo `test_rbac_contrato`.
+
+## Puesta en marcha en el servidor
+
+Antes del deploy, ver a qué roles se les quita (queda registrado en `users_capacidadrevocada`):
+
+```sql
+SELECT g.name, p.codename FROM auth_group_permissions gp
+JOIN auth_group g ON g.id = gp.group_id JOIN auth_permission p ON p.id = gp.permission_id
+WHERE p.codename IN ('institucion_ver', 'institucion_administrar');
+```
+
+## Pendientes / a definir
+
+- Renombrar la columna `categoria` a `alcance` (sigue pendiente del Cambio 393).
+
+## Reversión
+
+1. `manage.py migrate users 0041`: recrea las dos `Permission` y las tilda otra vez en los roles registrados en
+   `users_capacidadrevocada`.
+2. Revertir el PR (el catálogo vuelve a ofrecerlas).
+
+No se pierde ningún dato: la reversa restituye exactamente lo que la ida quitó.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 395 — «Crear agente» desde el modal de asignar un relevamiento edilicio (Dispositivos)
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) |
+| **Etiquetas** | `#rbac` `#usuarios` `#ui` |
+| **Solicitante** | PM — decisión del 28/10/2026 |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (modales de asignar, reasignar y crear relevamiento; endpoint de alta rápida; Roles) |
+| **Migración** | `users.0043_administrador_inspeccion_agente_crear` (datos + `AlterModelOptions`, con reversa real) y `users.0044_sembrar_rol_agente_dispositivos` (datos, reversa `REVERSA-NOOP`) |
+
+## Pedido original
+
+Un rol intermedio de Dispositivos (no administrador del programa) tiene que poder dar de alta **agentes de relevamiento
+edilicio** desde el modal donde asigna un relevamiento, como el botón «Crear territorial» de Becas, que solo se ve si el rol
+tiene el tilde de crear territoriales.
+
+## Alcance acordado
+
+**Entra:** capacidad `inspeccion.agente.crear`; rol sembrado «Dispositivos — Agente de relevamiento»; botón «Crear agente»
+en las tres pantallas; endpoint (tipo `agente` del alta rápida); migración que se la da al Administrador.
+
+**Queda afuera:** buscar o asignar usuarios que ya existen (a diferencia de Becas); abrir el ABM de Usuarios; cambiar el
+alta de coordinador, referente o territorial.
+
+## Decisiones tomadas
+
+- **Capacidad `inspeccion.agente.crear`** — «Dar de alta agentes de relevamiento edilicio» — en el módulo `inspecciones`
+  (alcance programa, solo DISPOSITIVOS). No está en `CAPS_ENTRADA_ABM_USUARIOS`. Es **delegable**: no es administración, así
+  que un admin de programa de Dispositivos puede tildarla (`capacidades_delegables`, `puede_asignar_capacidades`).
+- **Se evalúa acotada a Dispositivos** (`puede_en_programa_dispositivos`): la misma capacidad en un rol de otro programa no
+  habilita ni el botón ni el endpoint. El servidor vuelve a chequear; el template solo decide si dibuja.
+- **Rol sembrado por clave** `dispositivos.agente_relevamiento`, **por migración** (`users.0044`: en ECOM el arranque no corre y en una
+  base nueva `seed_datos_base` corre antes que `crear_programas`) y además por `seed_dispositivos` (llamado por `seed_datos_base`,
+  que queda como red): categoría Programa + DISPOSITIVOS, capacidad `inspeccion.relevar`. Respeta el Cambio 104: nombre,
+  descripción y activo son del ABM; a un rol existente se le asegura la capacidad base y no se le quita lo tildado. Sin el
+  programa DISPOSITIVOS no hace nada. En el alta el rol se busca **por clave** (`RolMeta.clave`), no por nombre como hace
+  Becas (bug latente que no se copió).
+- **Cómo se acota el formulario**: `UserCreationForm` recibe `roles_acotados` (queryset que reemplaza al del operador). Se
+  prefirió a una rama nueva en `_roles_asignables_queryset` porque esa función decide por *quién es* el operador y se usa en
+  el ABM, el alcance y la edición: tocarla cambiaba reglas ajenas. Con el parámetro, el único rol asignable es el que la vista
+  resolvió por clave, y el resto del formulario (DNI, correo, clave) no cambia.
+- **Defensa en capas del endpoint**: lista blanca de campos (`username`, `email`, `first_name`, `last_name`, `dni`,
+  `telefono`; roles, clave, jerarquía y segmentos del POST se descartan); `groups` lo fija la vista; el formulario solo
+  acepta ese rol; `alcance_group_ids={rol}`. El rol se descarta con 409 si está inactivo, dejó de ser de Dispositivos o
+  alguien le tildó una capacidad no delegable (administración) o `programa.configurar`: en Dispositivos esa es delegable a propósito
+  y da alcance total de configurador (`puede_configurar_dispositivos`, `dispositivos_en_alcance`), así que `puede_asignar_capacidades`
+  no la frena. El resto de las capacidades de Dispositivos están acotadas por asignación de dispositivo.
+- **Código**: `_alta_agente` agrupa permiso, límite, rol, lista blanca y alcance; la cola común (formulario, colisión de unicidad
+  → 409, credenciales, JSON) es `_crear_y_responder`, compartida con el alta de Becas, y el mensaje de DNI repetido sale de un dict
+  por tipo. El botón es el include `_boton_crear_agente.html`.
+- **Correo obligatorio** (decisión del 14-oct) y credenciales provisorias por correo como el territorial
+  (`entregar_credenciales_provisorias`). **DNI repetido**: «Ese DNI ya es de un usuario del sistema: pedile al administrador
+  del programa que le sume el rol de agente.» Rol ausente → 409 «El rol requerido no está configurado.»
+- **Límite** de 20 altas por minuto por operador (cubeta `usuario_alta_agente`, sin IP).
+- **UI**: se reusa el modal de alta rápida de Becas (sin piezas nuevas): para `agente` abre directo en el formulario, el
+  correo lleva asterisco y se ocultan institución, observación y clave. El `<select>` de agente tiene `id` repetido entre
+  P21 (asignar y reasignar) y P4, así que cada botón apunta con `data-user-select` a un selector único por modal
+  (`#form-asignar-relevamiento`, `#form-reasignar-relevamiento`, `#form-crear-relevamiento`).
+- **Migraciones**: `users.0044` siembra el rol (Group + RolMeta + `inspeccion.relevar`) buscando por clave, sin tocar uno existente y sin
+  hacer nada si falta el programa; su reversa no borra (no se sabe si lo creó ella o el seed, y borrarlo deshace altas). `users.0043`: el Administrador (protegido; en ECOM el `seed_rbac` no corre) recibe la capacidad, patrón de
+  `users.0040`. Idempotente; la reversa la saca solo del Administrador y no toca a los demás roles.
+
+## Implementación
+
+`core/rbac.py` (capacidad); `programas/services/inspecciones.py` (constantes); `users/views/quick_create.py` (tipo `agente`);
+`users/forms/__init__.py` (`roles_acotados`); `users.0044` + `seed_dispositivos` + `seed_datos_base`; `_alta_rapida_modal.html`; los tres
+templates de Dispositivos y sus dos vistas (`puede_crear_agente`); `users.0043`.
+
+## Archivos
+
+- `core/rbac.py`, `programas/services/inspecciones.py`
+- `users/views/quick_create.py`, `users/forms/__init__.py`, `users/migrations/0043_administrador_inspeccion_agente_crear.py`, `users/migrations/0044_sembrar_rol_agente_dispositivos.py`
+- `programas/management/commands/seed_dispositivos.py`, `users/management/commands/seed_datos_base.py`
+- `users/templates/user/_alta_rapida_modal.html`, `programas/templates/programas/dispositivos/relevamientos/_campos_asignar.html`,
+  `.../relevamientos/_boton_crear_agente.html`, `.../relevamientos/list.html`, `.../legajo/detail.html`, `programas/views/dispositivos_relevamientos.py`,
+  `programas/views/dispositivos_legajo.py`
+- Tests: `programas/tests/test_dispositivos_crear_agente.py`
+- `.claude/design/arquetipos/modal.md`, `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Migraciones `users.0043` (datos y `AlterModelOptions`, lista entera de `Capacidad`) y `users.0044` (datos), sin DDL. `makemigrations --check
+--dry-run` (SYNCDB=False) sin cambios; `scripts/check_migraciones.py` 0 problemas.
+
+## Validación
+
+- `programas.tests.test_dispositivos_crear_agente` (30 casos): botón en las tres pantallas con y sin capacidad (también con
+  la capacidad en otro programa), 403, alta con solo el rol de agente, aparece en `agentes_asignables`, correo, DNI, POST
+  manipulado, rol ausente/inactivo/inseguro (incluido `programa.configurar`), rol por clave, límite, seed idempotente con renombre,
+  migraciones 0043 (ida y vuelta) y 0044 (ida, idempotencia, sin programa, rol renombrado).
+- Mutación: quitar el chequeo de capacidad del endpoint pone rojos los dos tests de 403; quitar la lista blanca y la
+  restricción de rol (vista y formulario) pone rojos siete tests; sacar el rechazo de `programa.configurar` pone rojo su test.
+- `manage.py check`, tests de `users` y `core`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0),
+  `check_design_agent --changed` (OK), `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+1. El rol lo crea la migración `users.0044` al migrar (el seed del arranque queda como red). Verificación post-deploy:
+   `SELECT g.name FROM auth_group g JOIN users_rolmeta m ON m.grupo_id = g.id WHERE m.clave = 'dispositivos.agente_relevamiento';`
+2. **Para habilitar el botón, el PM tilda «Dar de alta agentes de relevamiento edilicio» en el rol intermedio del programa
+   Dispositivos** (ABM de Roles → solapa Dispositivos).
+
+## Pendientes / a definir
+
+- Un agente creado por este camino no se puede buscar ni sumar a otro rol desde acá: lo gestiona el administrador del
+  programa.
+
+## Reversión
+
+1. `manage.py migrate users 0042`: saca la capacidad del Administrador (los roles que la tienen tildada la conservan hasta
+   que se destilde en el ABM).
+2. Revertir el PR. El rol sembrado y los usuarios ya creados quedan (son datos).
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 396 — El bootstrap ya no muere si Redis no responde al invalidar el padrón geográfico de SIIS
+
+🟢 **HECHO — 28/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · SIIS (`seed_catalogo_siis`, `invalidar_padron_geografico`) · arranque del contenedor |
+| **Etiquetas** | `#siis` `#infra` |
+| **Solicitante** | Juez — release-gate run 40764473533 (PR #988) |
+| **Fecha del pedido** | 28/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servicio |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El PR #988 agregó `transaction.on_commit(invalidar_padron_geografico)` en `seed_catalogo_siis`.
+La función hacía `cache.delete_many(...)` sin atajar errores: con `ENVIRONMENT=qa/prd` el cache es
+`django_redis` sin `IGNORE_EXCEPTIONS`, y con Redis sin respuesta sale `ConnectionInterrupted`. El
+bootstrap del entrypoint (el seed corre dentro del candado) terminaba en error y el contenedor no
+arrancaba; en el release-gate no hay Redis y el smoke HTTP fallaba.
+
+## Alcance acordado
+
+**Entra:** que `invalidar_padron_geografico` sea tolerante, igual que `programa_cache.invalidar`
+(Cambio 99 y siguientes): `try/except Exception`, `logger.warning` con el tipo de excepción.
+
+**Queda afuera:** settings y entrypoint.
+
+## Decisiones tomadas
+
+- **Invalidación best-effort:** lo peor es que otro proceso vea el padrón anterior hasta que la
+  clave venza sola (`CATALOGO_CACHE_SECONDS`, 300 s). Un cache caído no debe impedir el arranque.
+- **No se toca la lectura** (`catalogo_padron_geografico`): ahí un cache caído sí falla fuerte.
+
+## Implementación
+
+`programas/services/siis.py`: `invalidar_padron_geografico` atrapa `Exception` y avisa por log.
+
+## Archivos
+
+- `programas/services/siis.py`
+- `programas/tests/test_siis_provincia_de_la_localidad.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Test nuevo `InvalidarPadronGeograficoSinCacheTests`: `cache.delete_many` levanta
+  `ConnectionInterrupted`, no se propaga y queda el warning. Verificado por mutación (sin el `try`
+  el test falla con `ConnectionInterrupted`).
+- `manage.py check`, módulo `test_siis_provincia_de_la_localidad` (21 tests), ruff: OK.
+- `scripts/requerimientos.py --check`: OK.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+No hay.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **28/10/2026 — alta del cambio.**
 
 ---

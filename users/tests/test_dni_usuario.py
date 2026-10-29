@@ -31,7 +31,7 @@ MOTOR_REAL = connection.vendor == "mysql"
 
 def _rol_administrador():
     grupo = Group.objects.create(name="Administrador")
-    RolMeta.objects.create(grupo=grupo, categoria="Sistema", activo=True, protegido=True)
+    RolMeta.objects.create(grupo=grupo, categoria="Backoffice", activo=True, protegido=True)
     tipo = ContentType.objects.get_for_model(Capacidad)
     for codigo in ("usuario.administrar", "rol.administrar"):
         grupo.permissions.add(Permission.objects.get(codename=rbac.codename_de(codigo), content_type=tipo))

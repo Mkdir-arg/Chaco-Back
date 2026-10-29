@@ -9,7 +9,7 @@ from django.utils import timezone
 from core.rbac import (
     CATEGORIA_BACKOFFICE,
     CATEGORIA_PROGRAMA,
-    CATEGORIAS_ROL_CHOICES,
+    CATEGORIAS_ROL_MODELO_CHOICES,
     todas_las_capacidades,
 )
 
@@ -71,9 +71,9 @@ class RolMeta(models.Model):
     descripcion = models.TextField(blank=True, default="", verbose_name="Descripción")
     categoria = models.CharField(
         max_length=20,
-        choices=CATEGORIAS_ROL_CHOICES,
+        choices=CATEGORIAS_ROL_MODELO_CHOICES,
         default=CATEGORIA_BACKOFFICE,
-        verbose_name="Categoría",
+        verbose_name="Alcance",
     )
     protegido = models.BooleanField(default=False, verbose_name="Protegido")
     activo = models.BooleanField(default=True, verbose_name="Activo")
@@ -94,10 +94,12 @@ class RolMeta(models.Model):
     def clean(self):
         super().clean()
         if self.categoria == CATEGORIA_PROGRAMA and self.programa_id is None:
-            raise ValidationError({"programa": "Debés seleccionar un programa para los roles de categoría Programa."})
+            raise ValidationError(
+                {"programa": "Debés seleccionar un programa para los roles de alcance «De un programa»."}
+            )
         if self.categoria != CATEGORIA_PROGRAMA and self.programa_id is not None:
             raise ValidationError(
-                {"programa": "Solo los roles de categoría Programa pueden tener un programa asociado."}
+                {"programa": "Solo los roles de alcance «De un programa» pueden tener un programa asociado."}
             )
 
     def __str__(self):

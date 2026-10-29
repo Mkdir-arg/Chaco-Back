@@ -46,7 +46,7 @@ def _rol(nombre, *codenames):
 def _administrador(nombre="Administrador", clave=migracion.CLAVE_ADMINISTRADOR, *codenames):
     grupo = _rol(nombre, *codenames)
     RolMeta.objects.create(
-        grupo=grupo, categoria=rbac.CATEGORIA_SISTEMA, protegido=True, activo=True, programa=None, clave=clave
+        grupo=grupo, categoria=rbac.CATEGORIA_BACKOFFICE, protegido=True, activo=True, programa=None, clave=clave
     )
     return grupo
 

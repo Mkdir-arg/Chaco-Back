@@ -92,6 +92,11 @@ from programas.services.validacion_relevamiento import validar_respuestas_de_cam
 
 CAP_ASIGNAR = "inspeccion.asignar"
 CAP_RELEVAR = "inspeccion.relevar"
+CAP_CREAR_AGENTE = "inspeccion.agente.crear"
+#: Rol sembrado que se le da al agente dado de alta desde el modal de asignar. Se busca por
+#: **clave** (`RolMeta.clave`): el nombre lo deja renombrar el ABM de Roles.
+CLAVE_ROL_AGENTE = "dispositivos.agente_relevamiento"
+NOMBRE_ROL_AGENTE = "Dispositivos — Agente de relevamiento"
 
 #: Default a confirmar con el Ministerio: el agente no puede ser personal de ninguna de
 #: las instituciones que ocupan el edificio (mockup P21).

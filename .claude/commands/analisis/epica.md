@@ -26,5 +26,6 @@ Contexto del usuario: `$ARGUMENTS`
 4. **Estricto:** no crees la épica si quedan huecos o contradicciones. Listá lo
    que falta y frená.
 5. Creá el issue (label `epica`), agregalo al Project en **Backlog** y seteá
-   **Tipo = Epica** (ver receta `gh` del agente). No muevas la tarea de Backlog.
+   **Tipo = Epica** y **Iteration = la activa**, con Status=Backlog como último paso
+   y verificado (ver receta `gh` de `AGENTS.md`). No muevas la tarea de Backlog.
 6. Reportá el número de la épica creada.

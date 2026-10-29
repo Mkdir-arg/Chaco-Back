@@ -27,7 +27,7 @@ def _perm(codigo):
 
 def _admin(username):
     g, _ = Group.objects.get_or_create(name="Admins")
-    RolMeta.objects.get_or_create(grupo=g, defaults={"categoria": "Sistema", "activo": True})
+    RolMeta.objects.get_or_create(grupo=g, defaults={"categoria": "Backoffice", "activo": True})
     g.permissions.add(_perm("usuario.administrar"), _perm("rol.administrar"))
     u = User.objects.create_user(username, password="x")
     u.groups.add(g)
@@ -433,7 +433,7 @@ class Sec03TomaDeCuentasTests(TestCase):
         grupo = Group.objects.create(name=nombre)
         RolMeta.objects.create(
             grupo=grupo,
-            categoria=rbac.CATEGORIA_PROGRAMA if programa else "Sistema",
+            categoria=rbac.CATEGORIA_PROGRAMA if programa else "Backoffice",
             programa=programa,
             activo=True,
         )
@@ -546,7 +546,7 @@ class ProgramaSinAdminTests(TestCase):
         self.becas = Programa.objects.create(codigo="BECAS", nombre="Becas")
         # Admin global NO superusuario: hace pasar el check global, deja ver el scoped.
         self.rol_global = Group.objects.create(name="Administrador")
-        RolMeta.objects.create(grupo=self.rol_global, categoria="Sistema", activo=True)
+        RolMeta.objects.create(grupo=self.rol_global, categoria="Backoffice", activo=True)
         self.rol_global.permissions.add(_perm("usuario.administrar"), _perm("rol.administrar"))
         self.jefe = User.objects.create_user("jefe", password="x")
         self.jefe.groups.add(self.rol_global)
