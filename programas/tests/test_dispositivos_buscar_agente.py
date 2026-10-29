@@ -13,18 +13,22 @@ Lo que se fija acá, y por qué:
 5. El modal lleva el edificio del botón y los textos del paso de búsqueda por tipo.
 """
 
+from unittest.mock import patch
+
 from django.contrib.auth.models import Group, User
 from django.test import Client
 from django.urls import reverse
 
 from core import rbac
 from programas.models import AsignacionDispositivo, InspeccionEdificio
-from programas.services.inspecciones import (
+from programas.services.buscador_agentes import (
     MOTIVO_AGENTE_ES_PERSONAL,
+    MOTIVO_AGENTE_GENERICO,
     MOTIVO_AGENTE_INACTIVO,
     MOTIVO_AGENTE_NO_RELEVA,
-    agentes_asignables,
+    buscar_agentes_de_relevamiento,
 )
+from programas.services.inspecciones import agentes_asignables
 from programas.tests.test_dispositivos_crear_agente import BaseCrearAgente
 from users.models import Profile, RolMeta
 
@@ -179,6 +183,14 @@ class AsignabilidadTests(BaseBuscarAgente):
         fila = self._fila(self.carla)
         self.assertFalse(fila["asignable"])
         self.assertEqual(fila["motivo"], MOTIVO_AGENTE_NO_RELEVA)
+
+    def test_un_agente_con_rol_que_no_cae_en_ninguna_regla_lleva_el_motivo_generico(self):
+        with patch("programas.services.buscador_agentes.agentes_asignables") as asignables:
+            asignables.return_value = User.objects.none()
+            filas, _ = buscar_agentes_de_relevamiento(self.predio, "Quiroga")
+        fila = next(f for f in filas if f["id"] == self.carla.pk)
+        self.assertFalse(fila["asignable"])
+        self.assertEqual(fila["motivo"], MOTIVO_AGENTE_GENERICO)
 
 
 class EndpointTests(BaseBuscarAgente):

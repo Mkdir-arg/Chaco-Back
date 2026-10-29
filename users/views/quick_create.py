@@ -21,26 +21,25 @@ from programas.services.autorizacion import (
     puede_gestionar_segmento,
     segmentos_asignables_territorial,
 )
+from programas.services.buscador_agentes import buscar_agentes_de_relevamiento
 from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.inspecciones import (
     CAP_ASIGNAR,
     CAP_CREAR_AGENTE,
     CLAVE_ROL_AGENTE,
-    buscar_agentes_de_relevamiento,
     edificios_en_alcance,
 )
 from users.forms import MENSAJE_DNI_DUPLICADO, UserCreationForm
 from users.models import RolMeta
 from users.selectors.usuarios import alcance_roles_ids
 from users.services.admin import UsuariosAdminService
+from users.services.busqueda import MIN_CARACTERES, nombre_para_mostrar
 from users.services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
 from users.services.territoriales import (
-    MIN_CARACTERES,
     TerritorialFueraDeAlcance,
     TerritorialInactivo,
     asignar_segmento,
     buscar_territoriales,
-    nombre_para_mostrar,
 )
 
 # Atajos de alta de los modales de Becas: tipo del botón → (rol que otorga, plural
