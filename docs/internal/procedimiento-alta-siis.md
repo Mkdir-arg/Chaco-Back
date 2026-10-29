@@ -303,13 +303,16 @@ SQL o entregárselas al organismo. No hay caso de prueba ni freno: no hay nada q
 Revisión típica antes de mandar:
 
 ```sql
-SELECT prov_actual, loc_actual, COUNT(*) FROM siis_tabla_intermedia GROUP BY 1, 2 ORDER BY 3 DESC;
-SELECT COUNT(*) FROM siis_tabla_intermedia WHERE fecha_nacim_apoderado < '1753-01-01';
-SELECT COUNT(*) FROM siis_tabla_intermedia WHERE nro_actual >= 10000;
+SELECT prov_actual, loc_actual, COUNT(*) FROM siis_tabla_intermedia WHERE sincronizado = 0
+  GROUP BY 1, 2 ORDER BY 3 DESC;
+SELECT COUNT(*) FROM siis_tabla_intermedia WHERE sincronizado = 0 AND fecha_nacim_apoderado < '1753-01-01';
+SELECT COUNT(*) FROM siis_tabla_intermedia WHERE sincronizado = 0 AND nro_actual >= 10000;
 ```
 
 Cuando esté revisado, la corrida normal con `--destino siis` **vacía esa tabla primero** y después sigue con
-los casos nuevos. Nada se queda ahí.
+los casos nuevos. Nada se queda ahí. **Con más de unas decenas de filas no se usa eso:** drena la tabla
+entera sin pausa, SIIS empieza a cortar con 429 y cada corte deja un envío `INCIERTO`. Se manda con el
+script del «Paso 9 — envío real a SIIS, de a lotes» de la sección «Camino probado en PRD».
 
 ---
 
