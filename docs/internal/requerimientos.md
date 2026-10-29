@@ -47052,7 +47052,7 @@ Nada más que el deploy: la imagen se reconstruye con setuptools 84.1.0.
 
 - **Cuando salga twisted 26.10.0 final, revisar juntas las siete excepciones de twisted:** las
   cinco de este Cambio, la del 315 (CVE-2026-106454) y la de CVE-2026-83813, que entró con el
-  PR #988 (corregido en el Cambio 398). Se corre `pip-audit -r requirements.txt`
+  PR #988 (el conteo se corrigió en el Cambio 398). Se corre `pip-audit -r requirements.txt`
   sin ningún `--ignore-vuln` y se borra toda entrada cuyo id ya no aparezca: es el criterio de
   la cabecera de `security/excepciones.toml`.
 - **Confirmar con ECOM que el ingress rearma la petición** y no reenvía un CR o un LF suelto
@@ -50237,5 +50237,11 @@ Revertir el PR.
 ## Historial
 
 - **29/10/2026 — alta del cambio.**
+- **29/10/2026 — los tres MINOR de la auditoría de #1002.** El comentario del bloque del Cambio 363 en
+  `security/excepciones.toml` seguía diciendo «las seis de twisted»: ahora dice siete y nombra CVE-2026-83813.
+  Los dos tests que leen el texto del entrypoint (`test_la_guarda_corre_antes_de_tocar_la_base` y
+  `test_gunicorn_arranca_sin_socket_de_control`) pasan de `EntrypointTests`, que ejecuta el script y se saltea
+  sin `sh`, a `EntrypointTextoTests`, que no necesita shell. En el pendiente del Cambio 363,
+  «(corregido en el Cambio 398)» pasa a decir «(el conteo se corrigió en el Cambio 398)».
 
 ---
