@@ -284,4 +284,4 @@ class InvalidarPadronGeograficoSinCacheTests(SimpleTestCase):
         self.assertEqual(actualizados, [])
         self.assertEqual([nombre for nombre, _ in fallados], list(CATALOGOS_MAESTROS))
         self.assertEqual(len(capturado.records), len(CATALOGOS_MAESTROS))
-        self.assertIn("ConnectionInterrupted", capturado.output[0])
+        self.assertIsInstance(capturado.records[0].exc_info[1], ConnectionInterrupted)
