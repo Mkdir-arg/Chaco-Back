@@ -962,7 +962,9 @@ def refrescar_catalogos_locales():
             fallados.append((nombre, str(exc)))
             continue
         except Exception as exc:
-            logger.warning("No se pudo refrescar el catálogo SIIS %s: %s", nombre, type(exc).__name__)
+            # Con traceback: un catálogo que falla todas las noches deja el cron en 0 y sin esto no hay con qué
+            # diagnosticarlo. Los catálogos son geográficos y el token no viaja en el mensaje de la excepción.
+            logger.exception("No se pudo refrescar el catálogo SIIS %s", nombre)
             fallados.append((nombre, f"Error inesperado ({type(exc).__name__})."))
             continue
         if items:

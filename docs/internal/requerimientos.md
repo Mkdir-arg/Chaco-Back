@@ -525,6 +525,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 399 | Dispositivos / SIIS: MINOR de las auditorías de #999 y #1001 (buscador de agentes en su propio módulo, motivo genérico, modal con tabla `BUSQUEDA`, espaciado del botón, invalidación tolerante con el helper de cache) | Dispositivos · Usuarios (alta rápida) · SIIS (`seed_catalogo_siis`, `refrescar_catalogos_locales`) | `#usuarios` `#ui` `#siis` | Juez — MINOR de auditoría (#999, #1001) | 29/10/2026 | 🟢 **Hecho** | No requiere |
 | 400 | Dispositivos / SIIS: MINOR de la auditoría de #1003 (refresco de catálogos tolera Redis caído, Historial de 396/397, rama genérica inalcanzable del buscador) | Dispositivos · SIIS (`refrescar_catalogos_locales`) | `#siis` `#usuarios` | Juez — MINOR de auditoría (#1003) | 29/10/2026 | 🟢 **Hecho** | No requiere |
 | 401 | Alta masiva SIIS de la Convocatoria 1 en PRD (1.786 altas): procedimiento probado documentado paso a paso | Becas · SIIS (`corregir_datos_siis`, `procesar_casos_siis`, `sincronizar_tabla_intermedia`) · operación en PRD de ECOM | `#siis` `#infra` | PM — pedido del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 402 | SIIS: el refresco de catálogos registra el traceback del catálogo que falla (MINOR de la auditoría de #1005) | SIIS (`refrescar_catalogos_locales`) | `#siis` | Juez — MINOR de auditoría (#1005), pedido del PM | 29/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -50382,6 +50383,7 @@ Revertir el PR.
 ## Historial
 
 - **29/10/2026 — alta del cambio.**
+- **29/10/2026** — Cambio 402: la Decisión 1 vale para la función, no para el comando. Con Redis caído desde el arranque, `sincronizar_programas_siis` ya cae antes, en `listar_programas_todos` (`cache.get`), que el `handle` no ataja; el `except` nuevo solo entra si Redis se cae entre el trabajo principal y el refresco, o si falla un catálogo por otra causa. Además, el `logger.warning` sin traceback pasó a `logger.exception`.
 
 ---
 
@@ -50471,5 +50473,66 @@ No aplica: un alta en SIIS no se deshace desde acá (ver «Deshacer un envío» 
   la fila cuyo caso tiene un envío vigente). Además, los controles del paso 8 filtran `sincronizado = 0` y dicen
   cómo se corren en el pod. También se corrige la nota del `read_timeout` (muere con `OperationalError`, no
   devuelve `None`) y se aclara el margen de `CURDATE() - INTERVAL 1 DAY`.
+
+---
+
+# Cambio 402 — MINOR de la auditoría del PR #1005: traceback del catálogo SIIS que falla
+
+🟢 **HECHO — 29/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | SIIS (`refrescar_catalogos_locales`) |
+| **Etiquetas** | `#siis` |
+| **Solicitante** | Juez — MINOR de la auditoría del PR #1005; lo pidió el PM |
+| **Fecha del pedido** | 29/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | CronJob `sincronizar_programas_siis` (solo el log) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Que el catálogo SIIS que falla por un error inesperado deje el traceback en el log, y precisar la Decisión 1 del Cambio 400.
+
+## Alcance acordado
+
+**Entra:** el log del `except Exception` de `refrescar_catalogos_locales` y la línea de Historial del Cambio 400. **Queda afuera:** el exit code del comando (sigue en 0 con `fallados`, como con `SiisCatalogError`) y lo que pasa con Redis caído antes del refresco.
+
+## Decisiones tomadas
+
+1. `logger.warning(..., type(exc).__name__)` pasa a `logger.exception("No se pudo refrescar el catálogo SIIS %s", nombre)`. Un catálogo que falla todas las noches (error de base en `guardar_catalogo_local`, error de programación en `_normalizar_items`) deja el cron en 0; sin traceback no había con qué diagnosticarlo. No filtra datos: los catálogos son geográficos y el token no viaja en el mensaje de la excepción. stdout y `fallados` no cambian.
+2. La Decisión 1 del Cambio 400 se precisa con una línea de Historial fechada en esa entrada, sin reescribirla.
+
+## Implementación
+
+`programas/services/siis.py`.
+
+## Archivos
+
+- `programas/services/siis.py`, `programas/tests/test_siis_provincia_de_la_localidad.py` (el test del cache caído exige que el registro lleve la excepción en `exc_info`), `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Tests de SIIS con mutación (con `logger.warning` el test queda rojo); `manage.py check`; ruff; `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **29/10/2026 — alta del cambio.**
 
 ---
