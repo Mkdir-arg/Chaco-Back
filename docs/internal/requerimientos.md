@@ -520,6 +520,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 394 | Se retiran las capacidades `institucion.ver` e `institucion.administrar` (cierra OPS-14) y se limpian MINORs de los Cambios 392 y 393 | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0042`, de datos, con reversa) |
 | 395 | Dispositivos: «Crear agente» de relevamiento edilicio desde el modal de asignar, con la capacidad `inspeccion.agente.crear` y el rol sembrado «Dispositivos — Agente de relevamiento» | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0043`, de datos, con reversa) |
 | 396 | El bootstrap del entrypoint ya no muere si Redis no responde al invalidar el padrón geográfico de SIIS | Becas · SIIS (`seed_catalogo_siis`, `invalidar_padron_geografico`) · arranque del contenedor | `#siis` `#infra` | Juez — release-gate run 40764473533 (PR #988) | 28/10/2026 | 🟢 **Hecho** | No requiere |
+| 397 | Dispositivos: «Buscar agente» en el modal de asignar un relevamiento (reemplaza la decisión 2 del Cambio 395: ahora se busca entre los agentes que ya existen) | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 29/10/2026 | 29/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -50051,5 +50052,113 @@ Revertir el PR.
 ## Historial
 
 - **28/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 397 — «Buscar agente» en el modal de asignar un relevamiento (Dispositivos)
+
+🟢 **HECHO — 29/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) |
+| **Etiquetas** | `#rbac` `#usuarios` `#ui` |
+| **Solicitante** | PM — decisión del 29/10/2026 (opción a) |
+| **Fecha del pedido** | 29/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (modales de asignar, reasignar y crear relevamiento; endpoint nuevo de búsqueda; modal de alta rápida) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El botón «Crear agente» tiene que funcionar igual que «Crear territorial» de Becas: el modal abre primero en un paso
+**«Buscar agente»** («Buscá si la persona ya tiene cuenta antes de crear una nueva.»; campo «Nombre, apellido, DNI o
+correo»; «Mínimo 3 caracteres. El DNI y el correo, completos.») y, si no está, «Crear agente nuevo» pasa al formulario de
+alta de siempre, precargado con lo tipeado.
+
+## Alcance acordado
+
+**Entra:** endpoint GET de búsqueda; paso de búsqueda del modal para el tipo `agente`; el botón aporta el edificio.
+
+**Queda afuera:** dar roles o permisos a quien ya existe (la búsqueda no asigna nada); buscar fuera del rol sembrado de
+agente; cambiar el alta del Cambio 395 o el alcance de Becas.
+
+## Decisiones tomadas
+
+- **Esto REEMPLAZA la decisión 2 del Cambio 395** («solo alta, sin buscar existentes»). La búsqueda es **solo entre los
+  usuarios que ya tienen el rol sembrado «Dispositivos — Agente de relevamiento»** (`RolMeta.clave = CLAVE_ROL_AGENTE`;
+  opción a del PM). Un territorial de Becas, o alguien que releva por otro rol, no aparece. No son superusuarios.
+- **Elegir un resultado no da ningún permiso ni rol**: solo deja a ese agente elegido en el `<select>` de agente del modal que
+  abrió (el selector viene en `_boton_crear_agente.html`). El POST de asignar vuelve a validar al agente contra el edificio
+  (`_validar_agente` y el queryset del campo): la búsqueda no es una vía alternativa.
+- **Asignabilidad decidida en el servidor, con la misma fuente que llena el select** (`agentes_asignables(edificio)`): el
+  resultado trae `asignable` y `motivo`. No asignable: inactivo, personal de una institución del edificio (regla
+  `AGENTE_DEBE_SER_EXTERNO`) o sin rol activo que le permita relevar. Se muestra con el botón deshabilitado y el motivo, y
+  **nunca se agrega al select**. DNI y correo de quien no es asignable salen enmascarados (como Becas); el asignable los
+  muestra completos.
+- **El edificio es parte del contrato**: `edificio_id` obligatorio. P21 asignar y reasignar lo conocen (`data-edificio-id`);
+  en P4 el edificio se elige dentro del modal, así que el botón lleva `data-edificio-source` (el campo del edificio) y,
+  si todavía no hay uno elegido, el modal avisa con un toast y no abre: no se inventa asignabilidad.
+- **Endpoint** `users:usuario_buscar_agente` (`/usuarios/alta-rapida/agente/buscar/`, colgado del prefijo conocido por el WAF
+  de ECOM): 403 sin `inspeccion.agente.crear` en Dispositivos (la misma condición que el botón, acotada al programa), 403 si el
+  edificio no existe o está fuera del alcance de asignar del operador, 400 sin edificio o con menos de 3 caracteres, 429 por
+  operador (30 por minuto, cubeta propia), GET solamente. Tope de 10 resultados con aviso de que hay más.
+- **DNI y correo solo exactos**, nombre y apellido parciales: mismo filtro que Becas, sin duplicarlo. Los helpers
+  (`filtrar_por_texto`, `formatear_dni`, enmascarados, `nombre_para_mostrar`, constantes) pasaron a
+  `users/services/busqueda.py`; `territoriales.py` los reexporta y Becas no cambia de comportamiento.
+- **Front**: el mismo paso 1 del modal canónico, parametrizado por tipo (sin segundo modal): URL de búsqueda por tipo
+  (`data-action-agente`), un bloque de estado vacío por tipo y el texto del botón «Crear … nuevo». «Volver a buscar» también
+  aparece para el agente.
+
+## Implementación
+
+`users/services/busqueda.py` (nuevo, helpers comunes); `programas/services/inspecciones.py`
+(`buscar_agentes_de_relevamiento` y los motivos); `users/views/quick_create.py` (`usuario_buscar_agente`);
+`users/urls.py`; `users/templates/user/_alta_rapida_modal.html`; el include del botón, `_campos_asignar.html`, `list.html`
+y `legajo/detail.html` (aportan el edificio).
+
+## Archivos
+
+- `users/services/busqueda.py`, `users/services/territoriales.py`, `programas/services/inspecciones.py`
+- `users/views/quick_create.py`, `users/views/__init__.py`, `users/urls.py`
+- `users/templates/user/_alta_rapida_modal.html`, `programas/templates/programas/dispositivos/relevamientos/_boton_crear_agente.html`,
+  `.../relevamientos/_campos_asignar.html`, `.../relevamientos/list.html`, `.../legajo/detail.html`
+- Tests: `programas/tests/test_dispositivos_buscar_agente.py` (nuevo), `users/tests/test_alta_rapida_modal.py` (un pin de
+  texto actualizado: `conBusqueda(tipo)` en vez de `tipo === 'territorial'`)
+- `.claude/design/arquetipos/modal.md`, `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `programas.tests.test_dispositivos_buscar_agente` (21 casos): solo el rol de agente (no el territorial de Becas, ni quien
+  no tiene el rol, ni quien releva por otro rol, ni el superusuario), DNI y correo exactos, tope, personal del edificio /
+  inactivo / rol inactivo marcados con motivo y enmascarados, personal de un edificio asignable a otro, 403 (sin
+  capacidad, capacidad en otro programa, edificio fuera de alcance), 400, 429 por operador, anónimo, solo GET, buscar no
+  crea ni modifica grupos ni permisos, y el edificio llega al botón en las tres pantallas.
+- Mutación: quitar el filtro por `CLAVE_ROL_AGENTE` pone rojo `test_solo_devuelve_a_quien_tiene_el_rol_de_agente`; quitar el
+  chequeo de capacidad del endpoint pone rojos `test_sin_la_capacidad_es_403` y `test_la_capacidad_en_otro_programa_es_403`.
+- `programas.tests.test_dispositivos_crear_agente`, `users.tests.test_alta_rapida_modal`, `test_territorial_buscador`,
+  `test_territorial_multisegmento`, `test_dispositivos_inspecciones`: verdes. `manage.py check`, ruff,
+  `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0), `check_design_agent --changed` (OK),
+  `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada especial: no hay migración ni variable nueva.
+
+## Pendientes / a definir
+
+- Sumar el rol de agente a una persona que ya existe sigue siendo del administrador del programa: esta búsqueda no lo hace.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **29/10/2026 — alta del cambio.**
 
 ---
