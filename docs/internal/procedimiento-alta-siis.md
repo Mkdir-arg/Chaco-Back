@@ -168,8 +168,10 @@ FIN
    `EnvioSIIS.objects.filter(estado__in=["ERROR", "INCIERTO", "EN_PROCESO"])` → `codigo_error`,
    `detalles`, `respuesta`. **No alcanza con `ERROR`:** un 429 o un 408 deja el envío `INCIERTO`.
 4. **Antes de volver a pegar el script** (porque frenó o porque se cortó la consola), revisar si quedó
-   algún `INCIERTO` o algún `EN_PROCESO` de más de 5 minutos. Si hay, **no se vuelve a pegar** hasta
-   conciliarlo con `conciliar_envios_siis --listar` → ECOM → `--confirmar`/`--liberar --aplicar`.
+   algún `INCIERTO` o **cualquier** `EN_PROCESO`, sin importar la edad. Si hay, **no se vuelve a pegar**
+   hasta conciliarlo con `conciliar_envios_siis --listar` → ECOM → `--confirmar`/
+   `--liberar --motivo "…" --aplicar`. Un `EN_PROCESO` recién creado todavía no sale en `--listar`
+   (entra a los 5 minutos, `EN_PROCESO_VENCE`): se espera a que pasen y recién ahí se lista.
    Motivo: el script marca `sincronizado` **sin contarla ni frenar** a toda fila cuyo caso ya tenga un
    envío vigente (`siis_envio.py`, rama `envios_sis.filter(vigente=True)`), y `INCIERTO` y `EN_PROCESO`
    cuentan como vigentes. Si se vuelve a pegar antes, el alta dudosa desaparece de la vista e imprime

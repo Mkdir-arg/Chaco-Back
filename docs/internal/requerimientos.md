@@ -50466,7 +50466,7 @@ No aplica: un alta en SIIS no se deshace desde acá (ver «Deshacer un envío» 
 
 - **29/10/2026 — alta del cambio.**
 - **29/10/2026 — ronda de la auditoría de #1000.** Se pasa de 397 a 401 porque el 397–400 ya estaban tomados.
-  En el runbook: «si frena» ahora mira `INCIERTO` y `EN_PROCESO`, y no solo `ERROR`, y prohíbe volver a pegar el
+  En el runbook: «si frena» ahora mira `INCIERTO` y `EN_PROCESO` (cualquiera, sin importar la edad), y no solo `ERROR`, y prohíbe volver a pegar el
   script antes de conciliar con `conciliar_envios_siis` (era un MAJOR: el script marca `sincronizado` sin avisar a
   la fila cuyo caso tiene un envío vigente). Además, los controles del paso 8 filtran `sincronizado = 0` y dicen
   cómo se corren en el pod. También se corrige la nota del `read_timeout` (muere con `OperationalError`, no
