@@ -62,7 +62,7 @@ funcionando sin ese script.
       </div>
       <div class="flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary flex-shrink-0">
         <button type="button" data-becas-modal-cerrar data-quick-user-close class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-        <button type="button" data-quick-user-crear-nuevo class="btn-nodo btn-secondary btn-base">Crear <span data-quick-user-nuevo-texto>territorial</span> nuevo</button>
+        <button type="button" data-quick-user-crear-nuevo class="btn-nodo btn-secondary btn-base"><span>Crear <span data-quick-user-nuevo-texto>territorial</span> nuevo</span></button>
       </div>
     </form>
     <form id="quick-user-form" action="{% url 'users:usuario_alta_rapida' %}" class="flex flex-col min-h-0 flex-1">
@@ -119,17 +119,22 @@ funcionando sin ese script.
   const volver = form.querySelector('[data-quick-user-volver]');
   const accion = modal.querySelector('[data-quick-user-accion]');
   const MIN_Q = 3;
-  const URL_BUSCAR = {territorial: buscar.action, agente: buscar.dataset.actionAgente};
+  // Tipos con paso de búsqueda: a dónde se consulta, qué parámetros suma a ``q`` y cómo se dibuja cada fila.
+  // (``fila`` se completa más abajo, donde están definidas las funciones que dibujan.)
+  const BUSQUEDA = {
+    territorial: {url: buscar.action, params: () => ({segmento_id: form.elements.segmento_id.value}), fila: null},
+    agente: {url: buscar.dataset.actionAgente, params: () => ({edificio_id: edificioId}), fila: null},
+  };
   const tipoActual = () => form.elements.tipo.value;
-  // Paso 1 (buscar) o paso 2 (formulario). Pasan por el 1 el territorial y el agente.
-  const conBusqueda = tipo => tipo === 'territorial' || tipo === 'agente';
+  // Paso 1 (buscar) o paso 2 (formulario). Pasan por el 1 los tipos de BUSQUEDA.
+  const conBusqueda = tipo => tipo in BUSQUEDA;
   const mostrarPaso = (paso, tipo) => {
     const enBusqueda = paso === 'buscar';
     buscar.classList.toggle('hidden', !enBusqueda);
     form.classList.toggle('hidden', enBusqueda);
     volver.classList.toggle('hidden', !conBusqueda(tipo));
     accion.textContent = enBusqueda ? 'Buscar' : 'Crear';
-    if (nuevoTexto) nuevoTexto.textContent = tipo === 'agente' ? 'agente' : 'territorial';
+    if (nuevoTexto) nuevoTexto.textContent = tipo;
   };
   const limpiarResultados = () => {
     lista.replaceChildren(); estado.replaceChildren(); errorQ.textContent = '';
@@ -307,6 +312,8 @@ funcionando sin ese script.
     li.appendChild(accionesFila);
     return li;
   };
+  BUSQUEDA.territorial.fila = filaDeResultado;
+  BUSQUEDA.agente.fila = filaDeAgente;
   const asignarUsuario = async (fila, boton) => {
     if (boton.disabled) return;
     boton.disabled = true;
@@ -336,9 +343,9 @@ funcionando sin ese script.
     estado.append(buscando, ' Buscando\u2026');
     try {
       const tipo = tipoActual();
-      const params = new URLSearchParams({q: texto});
-      if (tipo === 'agente') params.set('edificio_id', edificioId); else params.set('segmento_id', form.elements.segmento_id.value);
-      const response = await fetch(URL_BUSCAR[tipo] + '?' + params.toString(), {headers:{'X-Requested-With':'XMLHttpRequest'}});
+      const config = BUSQUEDA[tipo];
+      const params = new URLSearchParams({q: texto, ...config.params()});
+      const response = await fetch(config.url + '?' + params.toString(), {headers:{'X-Requested-With':'XMLHttpRequest'}});
       let data;
       try { data = await response.json(); } catch (e) {
         estado.replaceChildren(); window.toast('error', 'No pudimos buscar (respuesta inesperada del servidor). Prob\u00e1 de nuevo.'); return;
@@ -346,7 +353,7 @@ funcionando sin ese script.
       estado.replaceChildren();
       if (!response.ok || !data.ok) { window.toast('error', data.message || 'No pudimos buscar.'); return; }
       if (!data.resultados.length) { vaciosPorTipo[tipo].classList.remove('hidden'); return; }
-      data.resultados.forEach(fila => lista.appendChild(tipo === 'agente' ? filaDeAgente(fila) : filaDeResultado(fila)));
+      data.resultados.forEach(fila => lista.appendChild(config.fila(fila)));
       estado.textContent = data.resultados.length === 1 ? '1 resultado' : data.resultados.length + ' resultados';
       if (data.hay_mas) estado.textContent += '. Hay m\u00e1s resultados: escrib\u00ed m\u00e1s datos.';
     } catch (e) {

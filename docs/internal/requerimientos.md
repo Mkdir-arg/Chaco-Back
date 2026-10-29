@@ -520,7 +520,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 394 | Se retiran las capacidades `institucion.ver` e `institucion.administrar` (cierra OPS-14) y se limpian MINORs de los Cambios 392 y 393 | Transversal · Roles (RBAC) | `#rbac` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0042`, de datos, con reversa) |
 | 395 | Dispositivos: «Crear agente» de relevamiento edilicio desde el modal de asignar, con la capacidad `inspeccion.agente.crear` y el rol sembrado «Dispositivos — Agente de relevamiento» | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0043`, de datos, con reversa) |
 | 396 | El bootstrap del entrypoint ya no muere si Redis no responde al invalidar el padrón geográfico de SIIS | Becas · SIIS (`seed_catalogo_siis`, `invalidar_padron_geografico`) · arranque del contenedor | `#siis` `#infra` | Juez — release-gate run 40764473533 (PR #988) | 28/10/2026 | 🟢 **Hecho** | No requiere |
-| 397 | Dispositivos: «Buscar agente» en el modal de asignar un relevamiento (reemplaza la decisión 2 del Cambio 395: ahora se busca entre los agentes que ya existen) | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 29/10/2026 | 29/10/2026 | 🟢 **Hecho** | No requiere |
+| 397 | Dispositivos: «Buscar agente» en el modal de asignar un relevamiento (reemplaza tres puntos del Cambio 395: ahora se busca entre los agentes que ya existen) | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 29/10/2026 | 29/10/2026 | 🟢 **Hecho** | No requiere |
+| 398 | Dispositivos / SIIS: MINOR de las auditorías de #999 y #1001 (buscador de agentes en su propio módulo, motivo genérico, modal con tabla `BUSQUEDA`, espaciado del botón, invalidación tolerante con el helper de cache) | Dispositivos · Usuarios (alta rápida) · SIIS (`seed_catalogo_siis`, `refrescar_catalogos_locales`) | `#usuarios` `#ui` `#siis` | Juez — MINOR de auditoría (#999, #1001) | 29/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -49977,6 +49978,7 @@ Migraciones `users.0043` (datos y `AlterModelOptions`, lista entera de `Capacida
 ## Historial
 
 - **28/10/2026 — alta del cambio.**
+- **29/10/2026** — el Cambio 397 suma la búsqueda de agentes existentes y deja sin efecto tres puntos de este cambio: el «Queda afuera: buscar o asignar usuarios que ya existen», la decisión de UI «para `agente` abre directo en el formulario» y el pendiente «Un agente creado por este camino no se puede buscar…».
 
 ---
 
@@ -50004,8 +50006,8 @@ arrancaba; en el release-gate no hay Redis y el smoke HTTP fallaba.
 
 ## Alcance acordado
 
-**Entra:** que `invalidar_padron_geografico` sea tolerante, igual que `programa_cache.invalidar`
-(Cambio 99 y siguientes): `try/except Exception`, `logger.warning` con el tipo de excepción.
+**Entra:** que `invalidar_padron_geografico` sea tolerante, igual que `programa_cache.invalidar_programa`
+(Cambio 165, OPS-12; unificado en el Cambio 193, RED-80): `try/except Exception`, `logger.warning` con el tipo de excepción.
 
 **Queda afuera:** settings y entrypoint.
 
@@ -50085,7 +50087,8 @@ agente; cambiar el alta del Cambio 395 o el alcance de Becas.
 
 ## Decisiones tomadas
 
-- **Esto REEMPLAZA la decisión 2 del Cambio 395** («solo alta, sin buscar existentes»). La búsqueda es **solo entre los
+- **Esto REEMPLAZA tres puntos del Cambio 395**: el «Queda afuera: buscar o asignar usuarios que ya existen», la decisión de UI
+  «para `agente` abre directo en el formulario» y el pendiente «Un agente creado por este camino no se puede buscar…». La búsqueda es **solo entre los
   usuarios que ya tienen el rol sembrado «Dispositivos — Agente de relevamiento»** (`RolMeta.clave = CLAVE_ROL_AGENTE`;
   opción a del PM). Un territorial de Becas, o alguien que releva por otro rol, no aparece. No son superusuarios.
 - **Elegir un resultado no da ningún permiso ni rol**: solo deja a ese agente elegido en el `<select>` de agente del modal que
@@ -50152,6 +50155,76 @@ Nada especial: no hay migración ni variable nueva.
 ## Pendientes / a definir
 
 - Sumar el rol de agente a una persona que ya existe sigue siendo del administrador del programa: esta búsqueda no lo hace.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **29/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 398 — MINOR de las auditorías de #999 (Cambio 396) y #1001 (Cambio 397)
+
+🟢 **HECHO — 29/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Usuarios (alta rápida) · SIIS |
+| **Etiquetas** | `#usuarios` `#ui` `#siis` |
+| **Solicitante** | Juez — MINOR que dejaron las auditorías de #999 y #1001 |
+| **Fecha del pedido** | 29/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (modal de alta rápida, buscador de agentes) · bootstrap y CronJob de SIIS |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Resolver en un solo PR los MINOR de las dos auditorías, **sin cambiar comportamiento ni textos visibles** (salvo el espaciado del botón del pie del paso de búsqueda).
+
+## Alcance acordado
+
+**Entra:** los nueve puntos de abajo. **Queda afuera:** cualquier cambio funcional o de textos.
+
+## Decisiones tomadas
+
+- **Cambio 397 (#1001)**
+  1. La entrada 397 y el índice dejan de citar una «decisión 2 del Cambio 395» que no existe: reemplaza el «Queda afuera», la decisión de UI del modal y el pendiente del 395; el Historial del 395 lo anota (única línea agregada allí).
+  2. `buscar_agentes_de_relevamiento` y las `MOTIVO_AGENTE_*` salen de `inspecciones.py` a `programas/services/buscador_agentes.py`, que importa de ahí la fuente de verdad de la asignabilidad.
+  3. `users/services/territoriales.py` ya no reexporta con `# noqa: F401`; `quick_create.py` y el test del buscador importan de `users.services.busqueda`.
+  4. `_alta_rapida_modal.html`: una tabla `BUSQUEDA = {territorial, agente}` (`url`, `params`, `fila`) reemplaza las ramas por tipo; `conBusqueda = tipo => tipo in BUSQUEDA` y `nuevoTexto.textContent = tipo`. **Se dejaron los dos bloques de «vacío»** (el HTML literal no cambia, así que los tests que fijan textos siguen igual); Becas territorial se comporta igual.
+  5. El motivo comodín dejó de afirmar «No tiene un rol activo…» sin verificarlo: se consulta `_candidatos_a_relevar().filter(pk__in=ids)` (una consulta acotada); si tiene el rol y aun así no es asignable, el motivo es «No se le puede asignar este relevamiento.» (`MOTIVO_AGENTE_GENERICO`).
+  6. El botón «Crear {tipo} nuevo» del pie envuelve el texto en un solo `<span>`, para que el `gap` del botón no separe las palabras («Crear agente nuevo»).
+- **Cambio 396 (#999)**
+  7. `siis.py` expone `claves_padron_geografico()` y `seed_catalogo_siis` invalida con `core.performance.cache_utils.invalidar_tras_commit`. `invalidar_padron_geografico` no tenía otros llamadores y se **eliminó**. Con el cache caído el helper deja un warning en el logger `django` («No se pudo invalidar cache…») y no propaga.
+  8. En la entrada 396, `programa_cache.invalidar` pasa a `programa_cache.invalidar_programa` (Cambio 165, OPS-12; unificado en el Cambio 193, RED-80).
+  9. `refrescar_catalogos_locales` usa `invalidate_cache_keys` (tolerante) en lugar de `cache.delete` sin atajar.
+
+## Implementación
+
+`programas/services/buscador_agentes.py` (nuevo), `programas/services/inspecciones.py`, `programas/services/siis.py`, `programas/management/commands/seed_catalogo_siis.py`, `users/views/quick_create.py`, `users/services/territoriales.py`, `users/templates/user/_alta_rapida_modal.html`.
+
+## Archivos
+
+- Los de arriba, más `programas/tests/test_dispositivos_buscar_agente.py`, `programas/tests/test_siis_provincia_de_la_localidad.py`, `users/tests/test_territorial_buscador.py` y `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Tests de buscar agente, crear agente, provincia de la localidad (con el caso de cache caído en la invalidación del seed y en `refrescar_catalogos_locales`), el caso del motivo genérico y `users`; `manage.py check`; ruff; `design_audit --ratchet`; `compile_templates --bloques`; `check_design_agent --changed`; `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+- Ninguno.
 
 ## Reversión
 

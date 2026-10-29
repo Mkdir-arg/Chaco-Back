@@ -86,7 +86,7 @@ class AltaRapidaModalTests(SimpleTestCase):
         self.assertIn("usuarios/alta-rapida/territorial/asignar/", self.html)
         # Cambio 397: el agente de Dispositivos pasa por el mismo paso de búsqueda (otro endpoint).
         self.assertIn("mostrarPaso(conBusqueda(tipo) ? 'buscar' : 'crear', tipo)", self.html)
-        self.assertIn("const conBusqueda = tipo => tipo === 'territorial' || tipo === 'agente'", self.html)
+        self.assertIn("const conBusqueda = tipo => tipo in BUSQUEDA", self.html)
         self.assertIn("usuarios/alta-rapida/agente/buscar/", self.html)
         self.assertIn("data-quick-user-volver", self.html)
         self.assertIn("Crear territorial nuevo", self.html)
