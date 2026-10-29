@@ -953,12 +953,17 @@ def refrescar_catalogos_locales():
     cliente = SiisAPIClient()
     actualizados, fallados = [], []
     for nombre in CATALOGOS_MAESTROS:
-        # Tolerante a un cache caído (como la invalidación del padrón): refrescar no depende de Redis.
+        # La invalidación ya tolera un cache caído, pero ``catalogo()`` y ``_token()`` leen el cache sin atajar:
+        # con Redis caído levantan. Un catálogo que falla por lo que sea va a ``fallados`` y no corta el resto.
         invalidate_cache_keys(CATALOGO_CACHE_KEY.format(nombre))
         try:
             items = cliente.catalogo(nombre)
         except SiisCatalogError as exc:
             fallados.append((nombre, str(exc)))
+            continue
+        except Exception as exc:
+            logger.warning("No se pudo refrescar el catálogo SIIS %s: %s", nombre, type(exc).__name__)
+            fallados.append((nombre, f"Error inesperado ({type(exc).__name__})."))
             continue
         if items:
             actualizados.append((nombre, len(items)))

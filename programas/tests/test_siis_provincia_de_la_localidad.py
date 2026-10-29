@@ -17,7 +17,7 @@ Esa localidad va a SIIS adentro del alta, que no tiene baja.
 """
 
 from io import StringIO
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.core.management import call_command
 from django.test import SimpleTestCase
@@ -243,6 +243,9 @@ class PadronGeograficoRevisionTests(_BaseAprobacionTest):
 class InvalidarPadronGeograficoSinCacheTests(SimpleTestCase):
     """Un cache caído no puede impedir el arranque (bootstrap con ``seed_catalogo_siis``)."""
 
+    # ``on_commit`` abre la conexión para saber si hay transacción: sin esto el test depende del orden de la corrida.
+    databases = {"default"}
+
     def test_cache_caido_no_propaga_y_deja_warning(self):
         from django_redis.exceptions import ConnectionInterrupted
 
@@ -258,15 +261,27 @@ class InvalidarPadronGeograficoSinCacheTests(SimpleTestCase):
         self.assertIn("No se pudo invalidar cache", capturado.output[0])
 
     def test_refrescar_catalogos_con_cache_caido_no_propaga(self):
+        """Con Redis caído ``catalogo()`` levanta al leer el cache: el cron no debe morir, los marca fallados."""
         from django_redis.exceptions import ConnectionInterrupted
 
-        from programas.services.siis import CATALOGOS_MAESTROS, SiisAPIClient, refrescar_catalogos_locales
+        from programas.services.siis import CATALOGOS_MAESTROS, refrescar_catalogos_locales
 
+        def caido(*args, **kwargs):
+            raise ConnectionInterrupted(connection=None)
+
+        cache_caido = MagicMock()
+        cache_caido.get.side_effect = caido
+        cache_caido.set.side_effect = caido
+        cache_caido.delete.side_effect = caido
         with (
-            patch("core.performance.cache_utils.cache.delete", side_effect=ConnectionInterrupted(connection=None)),
-            patch.object(SiisAPIClient, "catalogo", return_value=[{"id": 1}]),
-            self.assertLogs("django", level="WARNING"),
+            patch("programas.services.siis.cache", cache_caido),
+            patch("core.performance.cache_utils.cache", cache_caido),
+            patch("programas.services.siis.requests.Session.get") as red,
+            self.assertLogs("programas.services.siis", level="WARNING") as capturado,
         ):
             actualizados, fallados = refrescar_catalogos_locales()
-        self.assertEqual(len(actualizados), len(CATALOGOS_MAESTROS))
-        self.assertEqual(fallados, [])
+        red.assert_not_called()
+        self.assertEqual(actualizados, [])
+        self.assertEqual([nombre for nombre, _ in fallados], list(CATALOGOS_MAESTROS))
+        self.assertEqual(len(capturado.records), len(CATALOGOS_MAESTROS))
+        self.assertIn("ConnectionInterrupted", capturado.output[0])
