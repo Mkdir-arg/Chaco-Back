@@ -207,6 +207,10 @@ class EntrypointTests(SimpleTestCase):
 
                 self.assertIn("Sacar la variable del entorno", resultado.stderr)
 
+
+class EntrypointTextoTests(SimpleTestCase):
+    """Lo que se fija leyendo el texto del script: no necesita una shell POSIX."""
+
     def test_la_guarda_corre_antes_de_tocar_la_base(self):
         """Si quedara después de `run_bootstrap`, en un ambiente con la base caída el
         pod se quedaría esperando para siempre sin llegar nunca a dar el motivo real."""
