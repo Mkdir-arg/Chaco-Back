@@ -523,6 +523,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 397 | Dispositivos: «Buscar agente» en el modal de asignar un relevamiento (reemplaza tres puntos del Cambio 395: ahora se busca entre los agentes que ya existen) | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 29/10/2026 | 29/10/2026 | 🟢 **Hecho** | No requiere |
 | 398 | gunicorn arranca sin el socket de control nuevo de la 25.1 (MINOR de la auditoría de #947) y el pendiente del Cambio 363 pasa a contar siete excepciones de twisted | Transversal · arranque del contenedor (`docker-entrypoint.sh`) · `security/excepciones.toml` (solo docs) | `#infra` | Juez — auditoría del PR #947 y cierre del PR #990 | 29/10/2026 | 🟢 **Hecho** | No requiere |
 | 399 | Dispositivos / SIIS: MINOR de las auditorías de #999 y #1001 (buscador de agentes en su propio módulo, motivo genérico, modal con tabla `BUSQUEDA`, espaciado del botón, invalidación tolerante con el helper de cache) | Dispositivos · Usuarios (alta rápida) · SIIS (`seed_catalogo_siis`, `refrescar_catalogos_locales`) | `#usuarios` `#ui` `#siis` | Juez — MINOR de auditoría (#999, #1001) | 29/10/2026 | 🟢 **Hecho** | No requiere |
+| 400 | Dispositivos / SIIS: MINOR de la auditoría de #1003 (refresco de catálogos tolera Redis caído, Historial de 396/397, rama genérica inalcanzable del buscador) | Dispositivos · SIIS (`refrescar_catalogos_locales`) | `#siis` `#usuarios` | Juez — MINOR de auditoría (#1003) | 29/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -50056,6 +50057,7 @@ Revertir el PR.
 ## Historial
 
 - **28/10/2026 — alta del cambio.**
+- **29/10/2026** — Cambio 399: la entrada citaba «`programa_cache.invalidar` (Cambio 99 y siguientes)»; el nombre vigente es `programa_cache.invalidar_programa`. Además `invalidar_padron_geografico` se eliminó: `seed_catalogo_siis` invalida con `invalidar_tras_commit(claves_padron_geografico())`.
 
 ---
 
@@ -50165,6 +50167,7 @@ Revertir el PR.
 ## Historial
 
 - **29/10/2026 — alta del cambio.**
+- **29/10/2026** — Cambio 399: la decisión citaba «la decisión 2 del Cambio 395», que no existe. El buscador pasó a `programas/services/buscador_agentes.py`, ya no hay reexport en `territoriales.py` (se importa de `users.services.busqueda`) y existe el motivo genérico `MOTIVO_AGENTE_GENERICO` para quien tiene el rol y aun así no es asignable. (Cambio 400 lo retiró por inalcanzable.)
 
 ---
 
@@ -50300,6 +50303,68 @@ Sin cambios.
 ## Validación
 
 - Tests de buscar agente, crear agente, provincia de la localidad (con el caso de cache caído en la invalidación del seed y en `refrescar_catalogos_locales`), el caso del motivo genérico y `users`; `manage.py check`; ruff; `design_audit --ratchet`; `compile_templates --bloques`; `check_design_agent --changed`; `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **29/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 400 — MINOR de la auditoría del PR #1003: refresco de catálogos sin Redis, historial de 396/397 y rama inalcanzable del buscador
+
+🟢 **HECHO — 29/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · SIIS · requerimientos |
+| **Etiquetas** | `#siis` `#usuarios` |
+| **Solicitante** | Juez — MINOR de la auditoría del PR #1003 |
+| **Fecha del pedido** | 29/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | CronJob `sincronizar_programas_siis` · buscador de agentes |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Resolver los tres MINOR de la auditoría de #1003 sin cambiar comportamiento visible.
+
+## Alcance acordado
+
+**Entra:** los tres puntos de abajo. **Queda afuera:** cualquier cambio funcional.
+
+## Decisiones tomadas
+
+1. `refrescar_catalogos_locales` ataja `Exception` por catálogo: `catalogo()` y `_token()` leen el cache sin atajar, así que con Redis caído el cron fallaba pese a que el docstring prometía no levantar. Ese catálogo va a `fallados` (con `logger.warning` del tipo de excepción, sin datos) y el comentario dice exactamente eso. El test se reescribió con un `cache` caído (`ConnectionInterrupted` en `get`/`set`/`delete`) y sin mockear `catalogo`.
+2. Las entradas 396 y 397 que el Cambio 399 corrigió en el lugar ganan su línea de Historial fechada, como pide la regla del archivo.
+3. En `buscador_agentes.py` se sacó la consulta `con_rol`, la rama inalcanzable y `MOTIVO_AGENTE_GENERICO`: asignable = activo ∧ rol de programa con `inspeccion.relevar` ∧ ¬personal, así que quien no es asignable y no es inactivo ni personal solo puede no tener el rol. `MOTIVO_AGENTE_NO_RELEVA` queda como último caso, con el invariante comentado. `_personal_del_edificio` pasó a ser público (`personal_del_edificio`) en `inspecciones.py`; ya no se importan helpers privados.
+
+## Implementación
+
+`programas/services/siis.py`, `programas/services/buscador_agentes.py`, `programas/services/inspecciones.py` (renombre), `docs/internal/requerimientos.md`.
+
+## Archivos
+
+- Los de arriba, más `programas/tests/test_siis_provincia_de_la_localidad.py` (test reescrito; la clase del cache caído declara `databases` para no depender del orden) y `programas/tests/test_dispositivos_buscar_agente.py` (se eliminó el test de la rama genérica).
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Tests de SIIS y del buscador, con mutación (sin el `except` nuevo el test se pone rojo); `manage.py check`; ruff; `requerimientos.py --check`.
 
 ## Puesta en marcha en el servidor
 
