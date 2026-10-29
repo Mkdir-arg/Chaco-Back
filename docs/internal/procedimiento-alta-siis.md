@@ -25,11 +25,13 @@ después **hecha en PRD**: **1.786 altas** en SIIS de producción, `ENVIADO` con
 - Los `.sql` con datos personales **no van al repo** (export-ignore + RED-01) ni a la imagen. Subirlos
   al repo para tenerlos en el pod obligaría además a un deploy completo de PRD. Se le pasan a ECOM.
 - La conexión de la app tiene `read_timeout` de 10 s. Un control que recorre el JSON de todos los
-  formularios (por ejemplo, las marcas `destinos_siis`) **se parte en tramos de 500 ids**, o devuelve
-  `None` sin error.
+  formularios (por ejemplo, las marcas `destinos_siis`) **se parte en tramos de 500 ids**
+  (`for desde in range(0, max_id, 500): qs.filter(pk__gt=desde, pk__lte=desde + 500)…`), o muere con
+  `OperationalError` *Lost connection to server during query*.
 - **En ECOM no se filtra por fecha con `creado__date`**: se traduce a `CONVERT_TZ`, la base no tiene
-  tablas de zona horaria y devuelve **vacío** (no error). Para «lo de hoy», ordenar por id o usar
-  `creado >= CURDATE() - INTERVAL 1 DAY` en SQL crudo.
+  tablas de zona horaria y devuelve **vacío** (no error). Para lo reciente, ordenar por id o usar
+  `creado >= CURDATE() - INTERVAL 1 DAY` en SQL crudo: trae desde ayer a las 00:00, un margen a
+  propósito porque `creado` está en UTC y la corrida es en hora argentina.
 
 ### Decisiones del PM para esta corrida
 
@@ -52,7 +54,7 @@ después **hecha en PRD**: **1.786 altas** en SIIS de producción, `ENVIADO` con
 | 5 | Pod | **`seed_catalogo_siis`** (en PRD el padrón estaba vacío: 0/0/0) | 30 provincias · 275 localidades · 28 + 1 alias |
 | 6 | Pod | `corregir_datos_siis` (ensayo y después `--aplicar`) | 1.339 casos escritos · 25 legajos |
 | 7 | Pod | `procesar_casos_siis --destino tabla` en tandas | 1.789 en `siis_tabla_intermedia` |
-| 8 | Pod | Control de la tabla intermedia | ver abajo |
+| 8 | Pod (`manage.py shell`) o ECOM | Control de la tabla intermedia | ver abajo |
 | 9 | Pod | Envío a SIIS **de a lotes** con script (no con el comando) | 1.786 `ENVIADO` |
 
 **Huellas de los insumos** (confirman que se cargó el archivo correcto sin mirar datos):
@@ -100,14 +102,21 @@ reconsultan. Resultado en PRD (34 tandas, ~75 min), contado en `programas_valida
 
 **Paso 8 — control de la tabla intermedia:**
 
+Las consultas miran **solo lo pendiente** (`sincronizado = 0`): las filas de corridas anteriores no se
+borran al sincronizar. En el pod no hay cliente `mysql`, así que se corren dentro de
+`manage.py shell` con `from django.db import connection; c = connection.cursor(); c.execute("…");
+print(c.fetchall())`, o las corre ECOM en su consola.
+
 ```sql
-SELECT COUNT(*), COUNT(DISTINCT dni), SUM(sincronizado=0) FROM siis_tabla_intermedia;          -- los tres iguales
-SELECT id_plan_soc, jurid, id_fun_x_plan, COUNT(*) FROM siis_tabla_intermedia GROUP BY 1,2,3;  -- un solo grupo
-SELECT SUM(loc_actual IS NULL), SUM(fecha_nacim IS NULL) FROM siis_tabla_intermedia;           -- 0, 0
+SELECT COUNT(*), COUNT(DISTINCT dni) FROM siis_tabla_intermedia WHERE sincronizado = 0;       -- iguales
+SELECT id_plan_soc, jurid, id_fun_x_plan, COUNT(*) FROM siis_tabla_intermedia
+ WHERE sincronizado = 0 GROUP BY 1,2,3;                                                      -- un solo grupo
+SELECT SUM(loc_actual IS NULL), SUM(fecha_nacim IS NULL) FROM siis_tabla_intermedia
+ WHERE sincronizado = 0;                                                                     -- 0, 0
 SELECT COUNT(*) FROM siis_tabla_intermedia
- WHERE fecha_nacim > CURDATE() - INTERVAL 18 YEAR AND dni_apoderado IS NULL;                  -- 0
+ WHERE sincronizado = 0 AND fecha_nacim > CURDATE() - INTERVAL 18 YEAR AND dni_apoderado IS NULL; -- 0
 SELECT formulario_id, fecha_nacim_apoderado FROM siis_tabla_intermedia
- WHERE fecha_nacim_apoderado < '1753-01-01';                                                  -- sacarlas
+ WHERE sincronizado = 0 AND fecha_nacim_apoderado < '1753-01-01';                            -- sacarlas
 ```
 
 La última consulta encuentra las fechas que **el SQL Server de SIIS no acepta** (anteriores a 1753):
@@ -155,9 +164,17 @@ FIN
    tiene que estar `ENVIADO` con `siis_id`.
 2. Después el masivo con `40, 60, 50`. Un lote de 100 tardó 20 s, que es el ritmo en el que SIIS
    empieza a cortar; con 40 por minuto queda muy lejos. Tarda unos 45 minutos.
-3. Si frena, mirar el error antes de seguir: `EnvioSIIS.objects.filter(estado="ERROR")` →
-   `codigo_error`, `detalles`, `respuesta`.
-4. Si la consola se corta, se vuelve a pegar: lo `ENVIADO` no se repite.
+3. Si frena, mirar el error antes de seguir:
+   `EnvioSIIS.objects.filter(estado__in=["ERROR", "INCIERTO", "EN_PROCESO"])` → `codigo_error`,
+   `detalles`, `respuesta`. **No alcanza con `ERROR`:** un 429 o un 408 deja el envío `INCIERTO`.
+4. **Antes de volver a pegar el script** (porque frenó o porque se cortó la consola), revisar si quedó
+   algún `INCIERTO` o algún `EN_PROCESO` de más de 5 minutos. Si hay, **no se vuelve a pegar** hasta
+   conciliarlo con `conciliar_envios_siis --listar` → ECOM → `--confirmar`/`--liberar --aplicar`.
+   Motivo: el script marca `sincronizado` **sin contarla ni frenar** a toda fila cuyo caso ya tenga un
+   envío vigente (`siis_envio.py`, rama `envios_sis.filter(vigente=True)`), y `INCIERTO` y `EN_PROCESO`
+   cuentan como vigentes. Si se vuelve a pegar antes, el alta dudosa desaparece de la vista e imprime
+   «pendientes: 0». Una vez conciliado, lo `ENVIADO` no se repite y una fila liberada vuelve a salir en
+   el próximo lote.
 
 Resultado final en PRD: **`ENVIADO` 1.786** · `ERROR` 1 (caso 67, la fecha imposible, antes de sacarla
 de la tabla) · `INCOMPLETO` 2 (envíos viejos del 13 y el 15/10).
