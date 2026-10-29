@@ -521,6 +521,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 395 | Dispositivos: «Crear agente» de relevamiento edilicio desde el modal de asignar, con la capacidad `inspeccion.agente.crear` y el rol sembrado «Dispositivos — Agente de relevamiento» | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | Requiere migración (`users.0043`, de datos, con reversa) |
 | 396 | El bootstrap del entrypoint ya no muere si Redis no responde al invalidar el padrón geográfico de SIIS | Becas · SIIS (`seed_catalogo_siis`, `invalidar_padron_geografico`) · arranque del contenedor | `#siis` `#infra` | Juez — release-gate run 40764473533 (PR #988) | 28/10/2026 | 🟢 **Hecho** | No requiere |
 | 397 | Dispositivos: «Buscar agente» en el modal de asignar un relevamiento (reemplaza la decisión 2 del Cambio 395: ahora se busca entre los agentes que ya existen) | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 29/10/2026 | 29/10/2026 | 🟢 **Hecho** | No requiere |
+| 398 | gunicorn arranca sin el socket de control nuevo de la 25.1 (MINOR de la auditoría de #947) y el pendiente del Cambio 363 pasa a contar siete excepciones de twisted | Transversal · arranque del contenedor (`docker-entrypoint.sh`) · `security/excepciones.toml` (solo docs) | `#infra` | Juez — auditoría del PR #947 y cierre del PR #990 | 29/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -47049,8 +47050,9 @@ Nada más que el deploy: la imagen se reconstruye con setuptools 84.1.0.
 
 ## Pendientes / a definir
 
-- **Cuando salga twisted 26.10.0 final, revisar juntas las seis excepciones de twisted:** las
-  cinco de este Cambio y la del 315 (CVE-2026-106454). Se corre `pip-audit -r requirements.txt`
+- **Cuando salga twisted 26.10.0 final, revisar juntas las siete excepciones de twisted:** las
+  cinco de este Cambio, la del 315 (CVE-2026-106454) y la de CVE-2026-83813, que entró con el
+  PR #988 (corregido en el Cambio 398). Se corre `pip-audit -r requirements.txt`
   sin ningún `--ignore-vuln` y se borra toda entrada cuyo id ya no aparezca: es el criterio de
   la cabecera de `security/excepciones.toml`.
 - **Confirmar con ECOM que el ingress rearma la petición** y no reenvía un CR o un LF suelto
@@ -50152,6 +50154,81 @@ Nada especial: no hay migración ni variable nueva.
 ## Pendientes / a definir
 
 - Sumar el rol de agente a una persona que ya existe sigue siendo del administrador del programa: esta búsqueda no lo hace.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **29/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 398 — gunicorn arranca sin el socket de control y el Cambio 363 cuenta siete excepciones
+
+🟢 **HECHO — 29/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · arranque del contenedor (`docker-entrypoint.sh`) · `security/excepciones.toml` (solo docs) |
+| **Etiquetas** | `#infra` |
+| **Solicitante** | Juez — MINOR de la auditoría del PR #947 (gunicorn 23.0.0 → 26.2.0) y cierre del PR #990 |
+| **Fecha del pedido** | 29/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Infra/ECOM |
+| **Migración** | No requiere |
+
+## Pedido original
+
+La auditoría de #947 encontró un MINOR, y lo vieron los dos auditores: desde la 25.1, gunicorn abre por defecto un socket
+de control en `$HOME/.gunicorn/gunicorn.ctl`. Ese socket no lo usa nadie. Además, su hilo se detiene y se vuelve a
+levantar en cada fork del arbiter, es decir, en cada worker que se recicla por `--max-requests 1000`. Al cerrar #990,
+quedó a la vista que el pendiente del Cambio 363 seguía diciendo «seis excepciones» de twisted, cuando ya son siete.
+
+## Alcance acordado
+
+**Entra:** agregar `--no-control-socket` al `exec gunicorn` del entrypoint, sumar un test que lo fije y corregir el texto
+del pendiente del Cambio 363.
+
+**Queda afuera:** subir a gunicorn 26.2.2 (con el fix de chunked de 26.2.1), porque todavía no está en PyPI. También
+queda afuera daphne, que es lo que corre ECOM.
+
+## Decisiones tomadas
+
+- **Apagar el socket en lugar de dejarlo prendido.** Esa pieza ya trajo dos bugs upstream: un deadlock al hacer fork
+  (#3529, arreglado en #3520) y una fuga de descriptores en SIGHUP (#3648, arreglada en 26.1). Si la raíz del contenedor
+  es de solo lectura, deja un ERROR en el log por cada reciclado. Con el flag, gunicorn arranca igual que con la 23.0.0.
+
+## Implementación
+
+`docker-entrypoint.sh`: el `exec gunicorn` lleva `--no-control-socket`, con un comentario que explica por qué. En
+`requerimientos.md`, el pendiente del Cambio 363 pasa a contar siete excepciones.
+
+## Archivos
+
+- `docker-entrypoint.sh`
+- `config/tests/test_wsgi_runtime.py`
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Test nuevo `test_gunicorn_arranca_sin_socket_de_control`.
+- gunicorn 26.2.0 en `python:3.12-slim`, con los flags exactos del entrypoint más `--no-control-socket`: arranca y
+  responde 200.
+
+## Puesta en marcha en el servidor
+
+Nada más que el deploy. Antes de redesplegar icore hay que correr el `Release gate`, que es lo único que arranca
+gunicorn de verdad.
+
+## Pendientes / a definir
+
+- Subir a gunicorn 26.2.2 cuando salga en PyPI.
 
 ## Reversión
 
