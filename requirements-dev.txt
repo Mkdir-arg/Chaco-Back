@@ -17,7 +17,7 @@ debugpy==1.8.22
 
 # `shell_plus`, `show_urls`, `graph_models`. `config/settings.py` lo suma a
 # `INSTALLED_APPS` solo con `DEBUG`: en un ambiente servido no hay `shell_plus`.
-django-extensions==3.2.3
+django-extensions==4.1
 
 # Profiling de requests y consultas en `/silk/`. `config/settings.py` y `config/urls.py`
 # lo montan solo con `DEBUG`, y `config/settings_production.py` lo saca de
