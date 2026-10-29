@@ -9,6 +9,8 @@ Contexto (se incluye con `only`):
   agente_externo   regla AGENTE_DEBE_SER_EXTERNO: sin ella no se dibuja ningún aviso del personal.
   puede_crear_agente / selector_agente  botón «Crear agente» (alta rápida de users, `inspeccion.agente.crear`)
                    y el selector CSS ÚNICO del <select> de agente de este modal (la página puede tener más de uno).
+  edificio_id / edificio_source  el edificio contra el que el botón busca agentes que ya existen: el id si ya está
+                   elegido (P21) o el selector CSS del campo que lo elige (P4).
 Las ayudas del selector de edificio y del agente (que solo trae externos) son del `help_text`
 del campo, en el form: `_field.html` las dibuja ANTES del error y las enlaza con `aria-describedby`.
 {% endcomment %}
@@ -22,7 +24,7 @@ del campo, en el form: `_field.html` las dibuja ANTES del error y las enlaza con
 {% endif %}
 <div>
   {% with field=form.asignado_a %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
-  {% include "programas/dispositivos/relevamientos/_boton_crear_agente.html" with puede_crear_agente=puede_crear_agente selector=selector_agente only %}
+  {% include "programas/dispositivos/relevamientos/_boton_crear_agente.html" with puede_crear_agente=puede_crear_agente selector=selector_agente edificio_id=edificio_id edificio_source=edificio_source only %}
 </div>
 <div>{% with field=form.fecha_vencimiento %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
 <div>{% with field=form.indicaciones %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>

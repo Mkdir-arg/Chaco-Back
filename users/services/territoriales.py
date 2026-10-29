@@ -18,10 +18,8 @@ Reglas:
 
 from django.contrib.auth.models import Group, User
 from django.db import transaction
-from django.db.models import Q
 
 from core import rbac
-from core.dni import normalizar_dni
 from programas.models import AsignacionTerritorial, Segmento
 from programas.services.autorizacion import (
     grupos_territoriales_becas,
@@ -29,10 +27,16 @@ from programas.services.autorizacion import (
     segmentos_para_gestion_territoriales,
 )
 from users.selectors.roles import es_gestor_territorial
-
-MIN_CARACTERES = 3
-TOPE_RESULTADOS = 10
-SIN_NOMBRE = "(sin nombre)"
+from users.services.busqueda import (  # noqa: F401  (se reexportan: los usan las vistas y los tests)
+    MIN_CARACTERES,
+    SIN_NOMBRE,
+    TOPE_RESULTADOS,
+    enmascarar_correo,
+    enmascarar_dni,
+    filtrar_por_texto,
+    formatear_dni,
+    nombre_para_mostrar,
+)
 
 
 class TerritorialFueraDeAlcance(Exception):
@@ -57,47 +61,6 @@ def universo_territoriales(operador):
     return universo.distinct()
 
 
-def _filtrar_por_texto(universo, texto):
-    """DNI exacto si son solo dígitos, correo exacto si lleva ``@``, si no nombre parcial."""
-    if "@" in texto:
-        return universo.filter(email__iexact=texto)
-    if all(ch.isdigit() or ch in ". " for ch in texto) and any(ch.isdigit() for ch in texto):
-        return universo.filter(profile__dni=normalizar_dni(texto))
-    for palabra in texto.split():
-        universo = universo.filter(Q(first_name__icontains=palabra) | Q(last_name__icontains=palabra))
-    return universo
-
-
-def _formatear_dni(dni):
-    if not dni or not dni.isdigit():
-        return dni or ""
-    return f"{int(dni):,}".replace(",", ".")
-
-
-def enmascarar_dni(dni):
-    """``12345678`` → ``12.***.678``."""
-    if not dni:
-        return ""
-    if len(dni) < 6:  # regla-dni: ok solo decide el enmascarado, no valida
-        return "***"
-    return f"{dni[:2]}.***.{dni[-3:]}"
-
-
-def enmascarar_correo(email):
-    """``carla@dominio.gob.ar`` → ``c***@dominio.gob.ar``."""
-    if not email:
-        return ""
-    local, arroba, dominio = email.partition("@")
-    if not arroba:
-        return "***"
-    return f"{local[:1]}***@{dominio}"
-
-
-def nombre_para_mostrar(usuario):
-    """El nombre completo; nunca el ``username``."""
-    return usuario.get_full_name().strip() or SIN_NOMBRE
-
-
 def buscar_territoriales(operador, texto, segmento_destino):
     """``(filas, hay_mas)`` con hasta ``TOPE_RESULTADOS`` coincidencias para ``texto``.
 
@@ -105,7 +68,7 @@ def buscar_territoriales(operador, texto, segmento_destino):
     sus segmentos y una por los nombres de esos segmentos (nada por fila).
     """
     candidatos = list(
-        _filtrar_por_texto(universo_territoriales(operador), texto)
+        filtrar_por_texto(universo_territoriales(operador), texto)
         .select_related("profile")
         .order_by("last_name", "first_name", "pk")[: TOPE_RESULTADOS + 1]
     )
@@ -129,7 +92,7 @@ def buscar_territoriales(operador, texto, segmento_destino):
             {
                 "id": usuario.pk,
                 "nombre": nombre_para_mostrar(usuario),
-                "dni": _formatear_dni(dni) if en_alcance else enmascarar_dni(dni),
+                "dni": formatear_dni(dni) if en_alcance else enmascarar_dni(dni),
                 "email": usuario.email if en_alcance else enmascarar_correo(usuario.email),
                 "segmentos": sorted(nombres[s] for s in segmentos if s in nombres),
                 "activo": usuario.is_active,
