@@ -228,6 +228,9 @@ if [ "${APP_RUNTIME}" = "gunicorn" ]; then
   # proceso y el GIL lo limita a uno. Los websockets NO pasan por aca: los
   # atiende otro contenedor/pod con daphne, y nginx o el ingress enrutan /ws/
   # hacia el. Por eso WEBSOCKETS_ENABLED no se deduce y hay que declararla.
+  # --no-control-socket: desde la 25.1 gunicorn abre un socket de control en
+  # $HOME/.gunicorn que nadie usa y que se rearma en cada reciclado de worker; con la
+  # raiz de solo lectura deja un ERROR por reciclado. Asi arranca igual que la 23.
   GUNICORN_WORKERS="${GUNICORN_WORKERS:-3}"
   GUNICORN_THREADS="${GUNICORN_THREADS:-2}"
   GUNICORN_TIMEOUT="${GUNICORN_TIMEOUT:-120}"
@@ -245,6 +248,7 @@ if [ "${APP_RUNTIME}" = "gunicorn" ]; then
     --graceful-timeout 30 \
     --max-requests "${GUNICORN_MAX_REQUESTS}" \
     --max-requests-jitter 100 \
+    --no-control-socket \
     --log-file -
 fi
 
