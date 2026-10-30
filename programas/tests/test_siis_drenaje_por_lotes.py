@@ -29,6 +29,10 @@ def _incierto(payload):
     return {"success": False, "codigo": "RESULTADO_INCIERTO", "resultado": "INCIERTO", "reintentable": False}
 
 
+def _rechazo(payload):
+    return {"success": False, "codigo": "DATOS_INVALIDOS", "resultado": "RECHAZADO", "reintentable": False}
+
+
 def _error_tecnico(payload):
     return {"success": False, "codigo": "ERROR_TECNICO", "resultado": "NO_ENVIADO", "reintentable": True}
 
@@ -126,7 +130,8 @@ class DrenajePorLotesTests(_BaseExclusionTest):
 
         self.assertIn("FRENO en el lote 1", salida)
         self.assertIn("conciliar_envios_siis", salida)
-        self.assertEqual(self.llamadas.call_count, 2)
+        # El freno corta dentro del lote: no sigue pidiendo filas apenas hay un INCIERTO.
+        self.assertEqual(self.llamadas.call_count, 1)
         self.assertTrue(EnvioSIIS.objects.filter(estado=EnvioSIIS.Estado.INCIERTO).exists())
 
     def test_frena_si_la_fila_se_cerro_por_un_envio_vigente(self):
@@ -142,6 +147,56 @@ class DrenajePorLotesTests(_BaseExclusionTest):
         self.assertIn("FRENO en el lote 1", salida)
         self.assertIn("ya tenía un envío vigente", salida)
         self.assertIn("conciliar_envios_siis", salida)
+
+    def test_el_freno_por_rechazo_manda_a_regenerar_la_fila(self):
+        self._altas(2)
+
+        salida = self.correr("--aplicar", "--total", "2", "--lote", "2", api=_rechazo)
+
+        self.assertIn("--destino tabla", salida)
+        self.assertIn("Paso 8", salida)
+        self.assertNotIn("conciliar_envios_siis", salida)
+
+    def test_duerme_la_pausa_entre_el_drenaje_y_el_primer_lote_nuevo(self):
+        self._altas(1)
+        with (
+            patch("programas.management.commands.procesar_casos_siis.proceso_masivo.candidatos"),
+            patch(
+                "programas.management.commands.procesar_casos_siis.proceso_masivo.ids_de",
+                return_value=[self.formulario.pk],
+            ),
+        ):
+            self.correr("--aplicar", "--total", "5", "--lote", "5", "--pausa", "30", "--solo-enviar")
+
+        self.assertIn(30.0, [c.args[0] for c in self.dormir.call_args_list])
+
+    def test_sin_drenaje_no_hay_pausa_antes_del_primer_lote(self):
+        with (
+            patch("programas.management.commands.procesar_casos_siis.proceso_masivo.candidatos"),
+            patch(
+                "programas.management.commands.procesar_casos_siis.proceso_masivo.ids_de",
+                return_value=[self.formulario.pk],
+            ),
+        ):
+            self.correr("--aplicar", "--total", "5", "--lote", "5", "--pausa", "30", "--solo-enviar")
+
+        self.dormir.assert_not_called()
+
+    def test_el_servicio_corta_dentro_del_lote_con_cortar_si(self):
+        self._altas(3)
+
+        with patch(SIIS, side_effect=_incierto) as api:
+            sincronizar_tabla_intermedia(self.user, cortar_si=lambda envio: envio.estado == EnvioSIIS.Estado.INCIERTO)
+
+        self.assertEqual(api.call_count, 1)
+
+    def test_sin_cortar_si_el_servicio_recorre_todo(self):
+        self._altas(3)
+
+        with patch(SIIS, side_effect=_incierto) as api:
+            sincronizar_tabla_intermedia(self.user)
+
+        self.assertEqual(api.call_count, 3)
 
     def test_el_ensayo_no_manda_y_dice_cuantos_lotes_haria(self):
         self._altas(5)

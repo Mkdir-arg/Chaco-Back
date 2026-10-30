@@ -1369,7 +1369,7 @@ def _pendientes_por_paginas(modelo, limite=None, pagina=PAGINA_DRENAJE):
         ultimo = tramo[-1].pk
 
 
-def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
+def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None, cortar_si=None):
     """Manda a SIIS lo que quedó pendiente en la tabla intermedia local.
 
     Es lo que evita que un alta se quede guardada acá para siempre: una corrida
@@ -1391,6 +1391,9 @@ def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
     camino: se cierran sin mandar, y quien dosifica el drenaje tiene que verlas
     para no leer «0 pendientes» donde hay un alta por conciliar.
     ``al_terminar`` se llama con cada ``(alta, envio)`` para informar el avance.
+    ``cortar_si(envio) -> bool`` es opcional: si devuelve ``True`` para un envío
+    recién intentado, deja de pedir filas (el drenaje con freno no sigue golpeando
+    a SIIS dentro del mismo lote). Sin él, se recorren todas.
 
     El estado del caso se **relee bajo lock** antes de mandar (SIIS-04): una fila
     guardada hace días puede corresponder a un caso que desde entonces pasó a
@@ -1441,6 +1444,8 @@ def sincronizar_tabla_intermedia(solicitado_por, limite=None, al_terminar=None):
             cuenta["errores"] += 1
         if al_terminar is not None:
             al_terminar(alta, envio)
+        if cortar_si is not None and cortar_si(envio):
+            break
     return cuenta
 
 

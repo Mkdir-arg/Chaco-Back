@@ -126,7 +126,7 @@ antes de mandar (`AltaIntermediaSIIS.objects.filter(formulario_id__in=[…], sin
 El caso no cambia; si después le corrigen la fecha, se regenera con `--destino tabla`.
 
 **Paso 9 — envío real a SIIS, de a lotes.** Desde el Cambio 403, `procesar_casos_siis --destino siis`
-drena la tabla intermedia **de a lotes**: respeta `--total` (máximo de filas de la corrida), `--lote` (filas
+drena la tabla intermedia **de a lotes**: respeta `--total` (máximo de filas del drenaje; los casos nuevos vuelven a usar el `--total` entero), `--lote` (filas
 por lote) y `--pausa` (segundos entre lotes), y frena en el primer lote con errores, rechazadas, excluidas,
 envíos `INCIERTO`/`EN_PROCESO` o filas cerradas por tener ya un envío vigente. Si el drenaje gasta todo el
 `--total`, la corrida no sigue con casos nuevos. En el **alta**, el corte por exceso de pedidos (HTTP 429)
@@ -164,7 +164,8 @@ for i in range(1, MAX_LOTES + 1):
     t = time.time()
     c = sincronizar_tabla_intermedia(yo, limite=LOTE)
     print(f"lote {i:>2} · pendientes antes {pend:>5} · {c} · {time.time()-t:.0f} s", flush=True)
-    if c["errores"] or c["rechazadas"] or c["no_aprobables"] or c["excluidas"]:
+    if (c["errores"] or c["rechazadas"] or c["no_aprobables"] or c["excluidas"]
+            or c["inciertos"] or c["vigentes"]):
         print("FRENO: hubo errores/rechazos."); break
     if i < MAX_LOTES:
         time.sleep(PAUSA)
@@ -186,11 +187,13 @@ FIN
    hasta conciliarlo con `conciliar_envios_siis --listar` → ECOM → `--confirmar`/
    `--liberar --motivo "…" --aplicar`. Un `EN_PROCESO` recién creado todavía no sale en `--listar`
    (entra a los 5 minutos, `EN_PROCESO_VENCE`): se espera a que pasen y recién ahí se lista.
-   Motivo: el script marca `sincronizado` **sin contarla ni frenar** a toda fila cuyo caso ya tenga un
-   envío vigente (`siis_envio.py`, rama `envios_sis.filter(vigente=True)`), y `INCIERTO` y `EN_PROCESO`
-   cuentan como vigentes. Si se vuelve a pegar antes, el alta dudosa desaparece de la vista e imprime
-   «pendientes: 0». Una vez conciliado, lo `ENVIADO` no se repite y una fila liberada vuelve a salir en
-   el próximo lote.
+   Motivo: el servicio marca `sincronizado` a toda fila cuyo caso ya tenga un envío vigente
+   (`siis_envio.py`, rama `envios_sis.filter(vigente=True)`), y `INCIERTO` y `EN_PROCESO` cuentan como
+   vigentes. Desde el Cambio 403 esa rama se cuenta aparte (`vigentes`), igual que los envíos que esta
+   pasada dejó `INCIERTO`/`EN_PROCESO` (`inciertos`), y tanto el comando como el script de arriba frenan
+   con cualquiera de los dos. Si se corre sin mirar el freno, el alta dudosa desaparece de la vista e
+   imprime «pendientes: 0». Una vez conciliado, lo `ENVIADO` no se repite y una fila liberada vuelve a
+   salir en el próximo lote.
 
 Resultado final en PRD: **`ENVIADO` 1.786** · `ERROR` 1 (caso 67, la fecha imposible, antes de sacarla
 de la tabla) · `INCOMPLETO` 2 (envíos viejos del 13 y el 15/10).

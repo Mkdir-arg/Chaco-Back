@@ -50591,7 +50591,7 @@ Nada especial. La próxima alta masiva usa `--destino siis --total ... --lote 40
 
 ## Pendientes / a definir
 
-- Una fila de la lista de exclusión que quede pendiente frena el drenaje en cada corrida hasta que alguien la saque de la tabla o de la lista.
+- Una fila excluida, rechazada o que ya no corresponde a un caso aprobado queda pendiente y frena el drenaje en cada corrida siguiente hasta que alguien la saque de la tabla (regenerarla con `--destino tabla` o borrarla, Paso 8 del procedimiento) o de la lista de exclusión.
 
 ## Reversión
 
@@ -50600,5 +50600,6 @@ Revertir el PR.
 ## Historial
 
 - **30/10/2026 — alta del cambio.**
+- **30/10/2026 — ronda de la auditoría de #1007.** El script de consola del Paso 9 frena también con `inciertos` y `vigentes` y se reescribió su punto 4; `sincronizar_tabla_intermedia` acepta `cortar_si` y el comando corta dentro del lote ante INCIERTO, EN_PROCESO o ERROR; hay pausa en el empalme entre el drenaje y el primer lote de casos nuevos; el texto de `--total` aclara que el drenaje tiene su tope y los casos nuevos usan el `--total` entero; el mensaje de freno distingue conciliar con ECOM de regenerar o borrar la fila.
 
 ---
