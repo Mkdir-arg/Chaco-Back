@@ -247,7 +247,10 @@ breve = f"{int(nov_t)}h" if not nov_t % 1 else corto  # en punto, la portada esc
 ok(corto in port or breve in port, f"portada: consumido de noviembre «{corto}» o «{breve}»")
 ok(f"({pct}%)" in port, f"portada: porcentaje de noviembre {pct}%")
 oct_real = mes_h["10"] + TRAS["10"]
-ok(abs(oct_real - 850 - TRAS["11"]) < 0.02, f"octubre: esfuerzo real {hm(oct_real)} = 850 h + traslado {hm(TRAS['11'])}")
+ok(
+    abs(oct_real - 850 - TRAS["11"]) < 0.02,
+    f"octubre: esfuerzo real {hm(oct_real)} = 850 h + traslado {hm(TRAS['11'])}",
+)
 ok(
     "942 h 30 min" in leer(os.path.join(FIN, "mes-2026-09.md"))
     and "92 h 30 min" in leer(os.path.join(FIN, "mes-2026-10.md")),
