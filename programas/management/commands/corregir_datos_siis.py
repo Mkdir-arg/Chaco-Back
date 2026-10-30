@@ -30,6 +30,18 @@ Corre en seco por defecto: sin ``--aplicar`` no escribe nada y solo informa.
     python manage.py corregir_datos_siis --aplicar --fecha-apoderado 1990-01-01
     python manage.py corregir_datos_siis --sin-apoderados --aplicar
 
+**Lo que no cruza, para el organismo.** ``--exportar-sin-cruce RUTA`` escribe un CSV con
+una fila por caso cuya localidad no cruza el catálogo y no se pudo resolver (la
+planilla tampoco cruza, o el DNI no está en ella), con la columna ``localidad_siis``
+vacía para que el cliente la complete. Funciona en ensayo: no escribe la base, solo
+el archivo (``-`` lo manda a stdout y el log va a stderr). El CSV trae DNI: es un
+dato personal, no se commitea ni va a ``docs/client/``. Completado, vuelve con
+``--cargar-localidades RUTA``, que lo pasa a la tabla ``localidades_corregidas``
+(en seco salvo ``--aplicar``); después se corre la corrección de siempre.
+
+    python manage.py corregir_datos_siis --convocatoria 1 --exportar-sin-cruce sin_cruce.csv
+    python manage.py corregir_datos_siis --cargar-localidades completado.csv --aplicar
+
 Avanza por lotes, cada uno en su transacción: si se corta, lo confirmado queda
 y volver a correrlo es seguro (reconoce lo ya corregido y no lo repite).
 
@@ -45,6 +57,7 @@ vigente ni se toca. Cada caso escrito deja su ``TracaFormulario``.
 """
 
 import collections
+import csv
 import json
 import time
 from datetime import date
@@ -69,6 +82,18 @@ from programas.services.siis_envio import (
 )
 
 TABLA_LOCALIDADES = "localidades_corregidas"
+#: Columnas del CSV que se le pasa al organismo. ``localidad_siis`` sale vacía.
+COLUMNAS_SIN_CRUCE = (
+    "caso_pk",
+    "caso_numero",
+    "relevamiento_id",
+    "dni",
+    "localidad_declarada",
+    "provincia_declarada",
+    "texto_planilla",
+    "motivo",
+    "localidad_siis",
+)
 #: Campo de la traza que deja el comando. Uno por caso, no uno por corrección.
 CAMPO_TRAZA = "Datos SIIS · corregir_datos_siis"
 #: Centinela para distinguir «la clave no está» de «la clave vale None».
@@ -167,6 +192,25 @@ class Command(ComandoSiisBase):
                 "tomándola de ciudadanos_renaper. Es la única corrección que toca el legajo."
             ),
         )
+        parser.add_argument(
+            "--exportar-sin-cruce",
+            default=None,
+            metavar="RUTA.csv",
+            help=(
+                "Escribe un CSV con un caso por fila de los que no cruzan la localidad y no se pudieron resolver, "
+                "con la columna `localidad_siis` vacía para completar. Funciona en ensayo (no toca la base). "
+                "`-` lo manda a stdout y el log va a stderr. Lleva DNI: no se commitea."
+            ),
+        )
+        parser.add_argument(
+            "--cargar-localidades",
+            default=None,
+            metavar="RUTA.csv",
+            help=(
+                "Carga en la tabla de localidades corregidas el CSV completado (columnas `dni` y `localidad_siis`). "
+                "No corrige casos: después se corre la corrección normal. En seco salvo --aplicar."
+            ),
+        )
         parser.add_argument("--lote", type=int, default=LOTE, help=f"Casos por transacción. Por defecto {LOTE}.")
         parser.add_argument("--limite", type=int, default=0, help="Procesa como mucho N casos. 0 = todos.")
         parser.add_argument("--convocatoria", type=int, default=None, help="Acota a una convocatoria por id.")
@@ -192,6 +236,17 @@ class Command(ComandoSiisBase):
                     filas[dni] = fecha
         return filas
 
+    @staticmethod
+    def _columna_dni(tabla):
+        """El nombre de la columna del DNI en la tabla de localidades, validando que sirva."""
+        if tabla not in connection.introspection.table_names():
+            raise CommandError(f"No existe la tabla `{tabla}`. Cargala primero con dos columnas: `dni` y `localidad`.")
+        columnas = {c.name for c in connection.introspection.get_table_description(connection.cursor(), tabla)}
+        col_dni = "dni" if "dni" in columnas else ("dni_extraido" if "dni_extraido" in columnas else None)
+        if col_dni is None or "localidad" not in columnas:
+            raise CommandError(f"La tabla `{tabla}` necesita las columnas `dni` (o `dni_extraido`) y `localidad`.")
+        return col_dni
+
     def _localidades_corregidas(self, tabla):
         """``{dni: localidad}`` de la planilla del organismo.
 
@@ -199,12 +254,7 @@ class Command(ComandoSiisBase):
         la tabla la crea un script aparte y puede quedar con otra intercalación,
         y ahí un JOIN falla con «Illegal mix of collations».
         """
-        if tabla not in connection.introspection.table_names():
-            raise CommandError(f"No existe la tabla `{tabla}`. Cargala primero con dos columnas: `dni` y `localidad`.")
-        columnas = {c.name for c in connection.introspection.get_table_description(connection.cursor(), tabla)}
-        col_dni = "dni" if "dni" in columnas else ("dni_extraido" if "dni_extraido" in columnas else None)
-        if col_dni is None or "localidad" not in columnas:
-            raise CommandError(f"La tabla `{tabla}` necesita las columnas `dni` (o `dni_extraido`) y `localidad`.")
+        col_dni = self._columna_dni(tabla)
         filas = {}
         with connection.cursor() as cur:
             # Nombres validados contra la introspección, no entrada externa.
@@ -311,6 +361,109 @@ class Command(ComandoSiisBase):
         except CatalogoNoDisponible:
             return None
 
+    def _anotar_sin_cruce(self, caso, dni, respuestas, texto_planilla, motivo):
+        """Guarda la fila del CSV de ``--exportar-sin-cruce`` (una por caso)."""
+        self.filas_sin_cruce.append(
+            {
+                "caso_pk": caso.pk,
+                "caso_numero": caso.numero,
+                "relevamiento_id": caso.relevamiento_id,
+                "dni": dni,
+                "localidad_declarada": " ".join(str(respuestas.get("loc_actual", "")).split()),
+                "provincia_declarada": " ".join(str(respuestas.get("prov_actual", "")).split()),
+                "texto_planilla": texto_planilla,
+                "motivo": motivo,
+                "localidad_siis": "",
+            }
+        )
+
+    def _exportar_sin_cruce(self, ruta):
+        """Escribe el CSV de lo que no cruza. ``-`` es stdout; el archivo lleva BOM para Excel."""
+        filas = sorted(
+            self.filas_sin_cruce,
+            key=lambda f: (f["localidad_declarada"].lower(), f["texto_planilla"].lower(), f["caso_pk"]),
+        )
+        try:
+            if ruta == "-":
+                self.stdout.write("\ufeff", ending="")
+                salida = csv.DictWriter(self.stdout, fieldnames=COLUMNAS_SIN_CRUCE, lineterminator="\n")
+                salida.writeheader()
+                salida.writerows(filas)
+            else:
+                with open(ruta, "w", newline="", encoding="utf-8-sig") as archivo:
+                    salida = csv.DictWriter(archivo, fieldnames=COLUMNAS_SIN_CRUCE, lineterminator="\n")
+                    salida.writeheader()
+                    salida.writerows(filas)
+        except OSError as exc:
+            raise CommandError(f"No se pudo escribir {ruta}: {exc}") from exc
+        destino = "stdout" if ruta == "-" else ruta
+        self._log(f"\nCSV de localidades sin cruce: {len(filas)} caso(s) en {destino}. Lleva DNI: no se commitea.")
+
+    def _cargar_localidades(self, ruta, tabla, aplicar):
+        """Pasa a la tabla de localidades corregidas lo que el organismo completó.
+
+        Solo se cargan las filas con ``localidad_siis`` y un nombre que existe en
+        el catálogo de SIIS; un mismo DNI con dos valores distintos se deja afuera
+        y se avisa, porque no hay a cuál creerle.
+        """
+        col_dni = self._columna_dni(tabla)
+        try:
+            with open(ruta, newline="", encoding="utf-8-sig") as archivo:
+                filas = list(csv.DictReader(archivo))
+        except OSError as exc:
+            raise CommandError(f"No se pudo leer {ruta}: {exc}") from exc
+        if not filas or "dni" not in filas[0] or "localidad_siis" not in filas[0]:
+            raise CommandError("El CSV necesita las columnas «dni» y «localidad_siis» (las trae --exportar-sin-cruce).")
+
+        pedidos, conflicto, sin_completar, no_existe = {}, set(), 0, collections.Counter()
+        for fila in filas:
+            dni = _digitos(fila.get("dni"))
+            texto = " ".join(str(fila.get("localidad_siis") or "").split())
+            if not dni or not texto:
+                sin_completar += 1
+                continue
+            if not LocalidadSiis.objects.filter(clave=clave_nombre(texto)).exists():
+                no_existe[texto] += 1
+                continue
+            if dni in pedidos and pedidos[dni] != texto:
+                conflicto.add(dni)
+            pedidos[dni] = texto
+        for dni in conflicto:
+            pedidos.pop(dni, None)
+
+        with connection.cursor() as cur:
+            cur.execute(f"SELECT `{col_dni}`, `localidad` FROM `{tabla}`")  # nosec B608
+            existentes = {_digitos(d): (d, " ".join(str(loc or "").split())) for d, loc in cur.fetchall()}
+        nuevos = {d: t for d, t in pedidos.items() if d not in existentes}
+        cambian = {d: t for d, t in pedidos.items() if d in existentes and existentes[d][1] != t}
+        iguales = len(pedidos) - len(nuevos) - len(cambian)
+
+        if aplicar:
+            with transaction.atomic(), connection.cursor() as cur:
+                for dni, texto in nuevos.items():
+                    cur.execute(f"INSERT INTO `{tabla}` (`{col_dni}`, `localidad`) VALUES (%s, %s)", [dni, texto])  # nosec B608
+                for dni, texto in cambian.items():
+                    cur.execute(  # nosec B608
+                        f"UPDATE `{tabla}` SET `localidad` = %s WHERE `{col_dni}` = %s", [texto, existentes[dni][0]]
+                    )
+        verbo = "cargadas" if aplicar else "a cargar"
+        self._log("Resumen", self.style.MIGRATE_HEADING)
+        self._log(f"   {'filas del CSV':48} {len(filas):6}")
+        self._log(f"   {'sin completar (no se toca)':48} {sin_completar:6}")
+        self._log(f"   {'DNI con dos localidades distintas (afuera)':48} {len(conflicto):6}")
+        self._log(f"   {'localidad que no está en el catálogo (afuera)':48} {sum(no_existe.values()):6}")
+        self._log(f"   {'DNI nuevos ' + verbo:48} {len(nuevos):6}")
+        self._log(f"   {'DNI que ya estaban y cambian ' + verbo:48} {len(cambian):6}")
+        self._log(f"   {'DNI que ya estaban igual (no se toca)':48} {iguales:6}")
+        for texto, n in no_existe.most_common(20):
+            self._log(f"      no está en el catálogo: {texto:30} {n:5}", self.style.WARNING)
+        if aplicar:
+            self._log(
+                "\nListo. Ahora corré la corrección normal y regenerá con `procesar_casos_siis`.", self.style.SUCCESS
+            )
+        else:
+            self._log("\nEnsayo: la tabla quedó intacta. Agregá --aplicar para cargar.", self.style.WARNING)
+
     def _corregir_localidad(self, caso, catalogos, planilla, cuenta):
         correcciones = caso.datos_siis if isinstance(caso.datos_siis, dict) else {}
         if correcciones.get("loc_actual") not in (None, ""):
@@ -338,6 +491,7 @@ class Command(ComandoSiisBase):
         texto = planilla.get(dni) or planilla.get(dni.lstrip("0")) or planilla.get(dni.zfill(8))
         if not texto:
             cuenta["loc_sin_dato_en_planilla"] += 1
+            self._anotar_sin_cruce(caso, dni, respuestas, "", "loc_sin_dato_en_planilla")
             etiqueta = declarado.strip() or "(vacío)"
             self.sin_planilla[etiqueta] = self.sin_planilla.get(etiqueta, 0) + 1
             return None
@@ -353,6 +507,7 @@ class Command(ComandoSiisBase):
         suelta = self._localidad_unica(texto)
         if suelta is None or not suelta.provincia_id:
             cuenta["loc_planilla_no_cruza"] += 1
+            self._anotar_sin_cruce(caso, dni, respuestas, texto, "loc_planilla_no_cruza")
             self.sin_cruce[texto] = self.sin_cruce.get(texto, 0) + 1
             return None
         cuenta["loc_corregida"] += 1
@@ -594,11 +749,25 @@ class Command(ComandoSiisBase):
         hoy = timezone.localdate()
         arranque = time.monotonic()
         self.sin_cruce = {}
+        self.filas_sin_cruce = []
         self.sin_planilla = {}
         self.sin_equivalente = {}
         # Antes de leer nada: un --usuario que no existe tiene que cortar acá y
         # no después de media corrida escrita sin firma.
         solicitante = self._solicitante(options["usuario"])
+
+        exportar = options["exportar_sin_cruce"]
+        if exportar and options["cargar_localidades"]:
+            raise CommandError("Elegí una sola cosa: --exportar-sin-cruce o --cargar-localidades.")
+        if exportar == "-":
+            # El CSV va por stdout: el log pasa a stderr para que se pueda redirigir limpio.
+            def _log_a_stderr(texto="", estilo=None):
+                self.stderr.write(estilo(texto) if estilo else texto, style_func=lambda t: t)
+
+            self._log = _log_a_stderr
+        if options["cargar_localidades"]:
+            self._cargar_localidades(options["cargar_localidades"], options["tabla"], aplicar)
+            return
 
         if not aplicar:
             self._log("ENSAYO: no se escribe nada. Agregá --aplicar para hacerlo de verdad.\n", self.style.WARNING)
@@ -665,6 +834,8 @@ class Command(ComandoSiisBase):
         ids = proceso_masivo.ids_de(casos, limite=options["limite"] or None)
         if not ids:
             self._log("No hay casos pendientes que corregir.", self.style.SUCCESS)
+            if exportar:
+                self._exportar_sin_cruce(exportar)
             return
         total_lotes = (len(ids) + tamano - 1) // tamano
         self._log(f"Casos pendientes a revisar: {len(ids)} en {total_lotes} lotes de {tamano}\n")
@@ -784,6 +955,9 @@ class Command(ComandoSiisBase):
             for texto, n in sorted(self.sin_planilla.items(), key=lambda kv: -kv[1])[:20]:
                 self._log(f"      {texto:40} {n:5} casos")
             self._log("   Se resuelven sumándolos a la planilla, o con una equivalencia si es un nombre repetido.")
+
+        if exportar:
+            self._exportar_sin_cruce(exportar)
 
         segundos = time.monotonic() - arranque
         if aplicar:

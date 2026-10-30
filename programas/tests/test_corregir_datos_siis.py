@@ -5,6 +5,9 @@ que **no** hace: no toca lo que ya está bien, no inventa donde no se le pide, y
 escribe en la corrección del caso sin tocar la respuesta del ciudadano.
 """
 
+import csv
+import os
+import tempfile
 from datetime import date, timedelta
 from io import StringIO
 from unittest.mock import patch
@@ -581,3 +584,158 @@ class EstadoCivilSinCatalogoTests(_BaseCorreccionTest):
 
         self.assertIn("catálogo de estados civiles", str(ctx.exception))
         self.assertIn("sin credenciales", str(ctx.exception))
+
+
+class ExportarSinCruceTests(_BaseCorreccionTest):
+    """``--exportar-sin-cruce``: el listado para que el organismo complete la localidad."""
+
+    def setUp(self):
+        super().setUp()
+        self.directorio = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directorio.cleanup)
+        self.ruta = os.path.join(self.directorio.name, "sin_cruce.csv")
+
+    def _declarar(self, localidad):
+        self.responder("prov_actual", "Chaco", texto="Provincia")
+        self.responder("loc_actual", localidad, texto="Localidad")
+
+    def _filas(self):
+        with open(self.ruta, newline="", encoding="utf-8-sig") as archivo:
+            return list(csv.DictReader(archivo))
+
+    def test_una_fila_por_caso_que_no_cruza_con_la_columna_para_completar(self):
+        self._declarar("Un lugar que no existe")
+        crear_tabla_localidades((self.ciudadano.dni, "Otro lugar inexistente"))
+
+        self.correr("--exportar-sin-cruce", self.ruta)
+
+        filas = self._filas()
+        self.assertEqual(len(filas), 1)
+        fila = filas[0]
+        self.assertEqual(fila["caso_pk"], str(self.formulario.pk))
+        self.assertEqual(fila["dni"], str(self.ciudadano.dni))
+        self.assertEqual(fila["localidad_declarada"], "Un lugar que no existe")
+        self.assertEqual(fila["texto_planilla"], "Otro lugar inexistente")
+        self.assertEqual(fila["motivo"], "loc_planilla_no_cruza")
+        self.assertEqual(fila["localidad_siis"], "")
+
+    def test_el_caso_sin_dato_en_la_planilla_sale_con_su_motivo(self):
+        self._declarar("Un lugar que no existe")
+        crear_tabla_localidades()
+
+        self.correr("--exportar-sin-cruce", self.ruta)
+
+        filas = self._filas()
+        self.assertEqual([f["motivo"] for f in filas], ["loc_sin_dato_en_planilla"])
+        self.assertEqual(filas[0]["texto_planilla"], "")
+
+    def test_el_caso_que_cruza_no_sale(self):
+        self._declarar("Resistencia")
+        crear_tabla_localidades()
+
+        self.correr("--exportar-sin-cruce", self.ruta)
+
+        self.assertEqual(self._filas(), [])
+
+    def test_el_caso_que_la_planilla_resuelve_no_sale(self):
+        self._declarar("Machagay del sur")
+        crear_tabla_localidades((self.ciudadano.dni, "Machagai"))
+
+        self.correr("--exportar-sin-cruce", self.ruta)
+
+        self.assertEqual(self._filas(), [])
+
+    def test_en_ensayo_exporta_y_no_toca_la_base(self):
+        self._declarar("Un lugar que no existe")
+        crear_tabla_localidades()
+
+        salida = self.correr("--exportar-sin-cruce", self.ruta)
+
+        self.assertIn("ENSAYO", salida)
+        self.assertEqual(len(self._filas()), 1)
+        self.assertEqual(self.correcciones(), {})
+
+    def test_el_archivo_lleva_bom_para_excel(self):
+        self._declarar("Un lugar que no existe")
+        crear_tabla_localidades()
+
+        self.correr("--exportar-sin-cruce", self.ruta)
+
+        with open(self.ruta, "rb") as archivo:
+            self.assertTrue(archivo.read().startswith(b"\xef\xbb\xbf"))
+
+    def test_con_guion_manda_el_csv_a_stdout_y_el_log_a_stderr(self):
+        self._declarar("Un lugar que no existe")
+        crear_tabla_localidades()
+        salida, errores = StringIO(), StringIO()
+
+        call_command("corregir_datos_siis", "--exportar-sin-cruce", "-", stdout=salida, stderr=errores)
+
+        filas = list(csv.DictReader(StringIO(salida.getvalue().lstrip("﻿"))))
+        self.assertEqual(len(filas), 1)
+        self.assertEqual(filas[0]["localidad_declarada"], "Un lugar que no existe")
+        self.assertIn("ENSAYO", errores.getvalue())
+        self.assertNotIn("ENSAYO", salida.getvalue())
+
+
+class CargarLocalidadesTests(_BaseCorreccionTest):
+    """``--cargar-localidades``: del CSV completado a la tabla de localidades corregidas."""
+
+    def setUp(self):
+        super().setUp()
+        self.directorio = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directorio.cleanup)
+        self.ruta = os.path.join(self.directorio.name, "completado.csv")
+
+    def _csv(self, *filas):
+        with open(self.ruta, "w", newline="", encoding="utf-8-sig") as archivo:
+            escritor = csv.writer(archivo)
+            escritor.writerow(["caso_pk", "dni", "localidad_siis"])
+            for dni, localidad in filas:
+                escritor.writerow([1, dni, localidad])
+
+    def _tabla(self):
+        with connection.cursor() as cur:
+            cur.execute(f"SELECT dni, localidad FROM {TABLA_LOCALIDADES} ORDER BY dni")
+            return [tuple(f) for f in cur.fetchall()]
+
+    def test_en_seco_por_defecto_no_escribe(self):
+        crear_tabla_localidades()
+        self._csv(("111", "Machagai"))
+
+        salida = self.correr("--cargar-localidades", self.ruta)
+
+        self.assertEqual(self._tabla(), [])
+        self.assertIn("Ensayo", salida)
+
+    def test_con_aplicar_inserta_y_actualiza(self):
+        crear_tabla_localidades(("222", "Otra"), ("333", "Machagai"))
+        self._csv(("111", "Machagai"), ("222", "Resistencia"), ("333", "Machagai"))
+
+        self.correr("--cargar-localidades", self.ruta, "--aplicar")
+
+        self.assertEqual(self._tabla(), [("111", "Machagai"), ("222", "Resistencia"), ("333", "Machagai")])
+
+    def test_deja_afuera_lo_vacio_lo_inexistente_y_lo_contradictorio(self):
+        crear_tabla_localidades()
+        self._csv(("111", ""), ("222", "No existe en SIIS"), ("333", "Machagai"), ("333", "Resistencia"))
+
+        self.correr("--cargar-localidades", self.ruta, "--aplicar")
+
+        self.assertEqual(self._tabla(), [])
+
+    def test_lo_cargado_lo_toma_la_correccion(self):
+        self.responder("prov_actual", "Chaco", texto="Provincia")
+        self.responder("loc_actual", "Un lugar que no existe", texto="Localidad")
+        crear_tabla_localidades()
+        self._csv((self.ciudadano.dni, "Machagai"))
+
+        self.correr("--cargar-localidades", self.ruta, "--aplicar")
+        self.correr("--aplicar")
+
+        self.assertEqual(self.correcciones()["loc_actual"], 44)
+
+    def test_no_se_pueden_pedir_las_dos_cosas_juntas(self):
+        crear_tabla_localidades()
+        with self.assertRaises(CommandError):
+            self.correr("--cargar-localidades", self.ruta, "--exportar-sin-cruce", self.ruta)
