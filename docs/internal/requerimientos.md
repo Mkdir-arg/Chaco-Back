@@ -528,6 +528,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 402 | SIIS: el refresco de catálogos registra el traceback del catálogo que falla (MINOR de la auditoría de #1005) | SIIS (`refrescar_catalogos_locales`) | `#siis` | Juez — MINOR de auditoría (#1005), pedido del PM | 29/10/2026 | 🟢 **Hecho** | No requiere |
 | 403 | SIIS: `procesar_casos_siis --destino siis` drena la tabla intermedia de a lotes, con `--total`, `--lote` y `--pausa`, y frena ante errores o envíos inciertos | SIIS (`procesar_casos_siis`, `sincronizar_tabla_intermedia`) | `#siis` | Juez — pendiente del Cambio 401 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 404 | SIIS: `corregir_datos_siis` exporta a CSV las localidades que no cruzan (una fila por caso) y carga lo que completa el cliente en `localidades_corregidas` | SIIS (`corregir_datos_siis`) · procedimiento del alta | `#siis` | PM — pendiente de las 147 localidades del Cambio 401 | 30/10/2026 | 🟢 **Hecho** | No requiere |
+| 406 | Dispositivos: el ingreso consume la reserva de la persona, reservar valida a la persona y los sectores solo donde hay plazas (QA local del 30/10) | Dispositivos · sectores y plazas · asistente de ingreso | `#ui` `#datos` | QA local de Dispositivos (30/10/2026): B-01, B-02, A-07, A-08, B-05, A-12 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -49428,6 +49429,10 @@ normales de `ReservaPlaza`, y se liberan desde el mapa.
   carril que no tenían entrada propia. El test del `formulario_tipo_diseno` ajeno, que figuraba como pendiente en
   las notas del carril, ya existe (`test_la_marca_de_un_diseno_ajeno_no_guarda_y_vuelve_con_la_seccion_del_tipo_elegido`,
   entró en `69542b91`, Cambio 387).
+- **30/10/2026 — Cambio 406.** Reservar y prestar desde el mapa ahora validan a la persona (no alojada, sin otra
+  reserva en el dispositivo) y el error cae en el campo del DNI. «Nuevo sector» y «Agregar plazas» ya no se ofrecen
+  ni se aceptan donde el tipo no maneja plazas. Volver a servicio una plaza operativa dice que ya estaba, y el modal
+  de liberar distingue préstamo de reserva. No cambia lo decidido acá.
 
 ---
 
@@ -50683,3 +50688,112 @@ Revertir el PR. Lo cargado con `--aplicar` queda en la tabla; se corrige volvien
 - **30/10/2026 — ronda 3 de la auditoría del PR #1008.** El bloque de CSV (columnas, escritura, lectura, plan de carga) sale de `corregir_datos_siis.py` —que pasaba de 1000 líneas— al módulo hermano `_localidades_csv_siis.py`, con funciones sin efectos; el comando conserva el log, la transacción y el INSERT/UPDATE. El aviso de la carga cubre toda clave que no sea única en el catálogo (también las que resuelven solo por equivalencia): «solo cruza si la provincia declarada es la correcta (o la de la equivalencia)». No cambia qué se carga.
 
 ---
+
+---
+
+# Cambio 406 — Dispositivos: el ingreso consume la reserva, reservar valida a la persona y los sectores solo donde hay plazas
+
+🟢 **HECHO — 30/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P5 Sectores y plazas · P6 asistente de ingreso |
+| **Etiquetas** | `#ui` `#datos` |
+| **Solicitante** | QA local de Dispositivos del 30/10/2026 (hallazgos B-01, B-02, A-07, A-08, B-05, A-12) |
+| **Fecha del pedido** | 30/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `services/estadias.py`, `services/ingreso.py`, `services/plazas.py`, `views/dispositivos_ingreso.py`, `views/dispositivos_legajo.py` · Backoffice: `dispositivos/sectores/sectores.html` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+La QA local encontró que ingresar a una persona no consumía la reserva que tenía (la plaza quedaba tomada por una
+reserva de alguien que ya estaba adentro), que se podía guardar una plaza para quien ya estaba alojada o ya tenía otra,
+que «Nuevo sector» creaba sectores en un tipo sin plazas, y tres textos que decían algo distinto de lo que pasó.
+
+## Alcance acordado
+
+**Entra:** los seis hallazgos, con tests y mutación sobre B-01 y B-02.
+**Queda afuera:** migraciones, reservas a futuro, y el caso de una persona con reserva en un dispositivo que ingresa en
+otro (ver Pendientes).
+
+## Decisiones tomadas
+
+1. **B-01 · el ingreso consume la reserva** (`ingreso.confirmar_ingreso`, que antes nunca pasaba `reserva=` a
+   `ingresar_persona`).
+   - En el paso «Plaza», la plaza que la persona tiene reservada o prestada en ese dispositivo es **elegible solo para
+     ella** (`plazas_para_ingresar(plaza_propia_id=)`), con el detalle «Guardada para esta persona», y llega
+     **preseleccionada** si no eligió otra. No suma a los `disponibles` del sector: esos son los de cualquier otra
+     persona. Su estado sigue siendo Reservada/Prestada, el de la fuente única (`ocupacion.estado_de_plazas`).
+   - Al confirmar en esa plaza, la reserva se consume (`CONSUMIDA`) por el camino que ya existía, con el orden de
+     candados plaza y después reserva.
+   - Si entra en **otra plaza o sin plaza**, las reservas abiertas de la persona en ese dispositivo se cierran con
+     `liberar_reserva` (`LIBERADA`, con su traza `PLAZA_LIBERADA` y el motivo «La persona ingresó al dispositivo.»),
+     en la misma transacción. También se cierra una vencida que nadie liberó: si no, seguiría encendiendo la alerta
+     «Préstamo vencido sin liberar» de alguien que ya está adentro.
+   - Una reserva **vencida** sobre la plaza elegida no se consume (ya no la tomaba): se cierra y el ingreso entra por
+     el camino normal.
+2. **B-02 / A-08 · reservar valida a la persona** (`estadias.reservar_plaza`). Con la plaza ya bloqueada, y bloqueando
+   la fila de la persona (mismo orden que el ingreso), rechaza con error sobre `ciudadano`:
+   - si la persona tiene una **estadía abierta en cualquier dispositivo de la red**: el mismo criterio y el mismo
+     recorte por alcance que el ingreso (`verificar_alojamiento_en_red`);
+   - si tiene una **reserva o préstamo vigente en este dispositivo**. **Decisión: alcance de dispositivo y no de red.**
+     La reserva es de la institución que la tomó y es la única que la puede ver y liberar; preguntar por las de otras
+     instituciones diría a quien no las ve que la persona figura en su lista (el oráculo que la verificación de
+     alojamiento ya evita con su recorte). Es también el alcance con el que el ingreso cierra las reservas de la
+     persona. Una reserva vencida no cuenta.
+   - La vista traduce `ciudadano` al campo `dni` del modal.
+3. **A-07 · sectores solo donde hay plazas** (`plazas.motivo_sin_ampliar_capacidad`, una sola pregunta para el
+   servicio y la pantalla). `crear_sector` y `agregar_plazas` rechazan, como **error general** (`__all__`), un tipo
+   que no maneja plazas (`TipoDispositivo.maneja_plazas`) y un dispositivo **cerrado o rechazado** (antes solo
+   cerrado). Editar un sector o una plaza existente no cambia. La pantalla no arma ni ofrece «Nuevo sector» ni
+   «Agregar plazas» (`puede_ampliar_capacidad`).
+4. **B-05.** Volver a servicio una plaza que ya estaba operativa sigue siendo un no-op del servicio, sin traza
+   duplicada, pero la respuesta dice «La plaza P1 ya estaba en servicio: no hubo nada que cambiar.».
+5. **A-12.** El aviso del modal de liberar distingue préstamo de reserva según el estado de la plaza.
+
+## Implementación
+
+`estadias.py`: `_exigir_persona_sin_alojamiento_ni_reserva`, `reserva_propia_vigente`,
+`reservas_abiertas_de_la_persona`. `ingreso.py`: `plaza_reservada_de`, `_reserva_a_consumir`, `confirmar_ingreso`.
+`plazas.py`: `motivo_sin_ampliar_capacidad`. Vistas y template: ver Partes afectadas. Sin clases, includes ni variantes
+nuevas.
+
+## Archivos
+
+Los de «Partes afectadas», las fichas `.claude/design/componentes/estado_vacio.md` y `dominio/becas.md` (el guardián de
+`check_design_agent` las pide por tocar `sectores.html` y `estadias.py`; sin cambio de reglas visuales),
+`programas/tests/test_dispositivos_reservas_y_plazas.py` (nuevo) y los fixtures de
+`test_dispositivos_capacidad.py` (el tipo del terreno ahora maneja plazas) y `test_dispositivos_ingreso.py` (una persona
+no tiene dos reservas).
+
+## Base de datos
+
+Sin cambios de esquema.
+
+## Validación
+
+`test_dispositivos_reservas_y_plazas` (25 tests). Mutación B-01: pasar `reserva=None` a `ingresar_persona` deja rojos
+los tres tests que ingresan en la plaza reservada. Mutación B-02: reemplazar la llamada a la validación por `pass` deja
+rojos cuatro tests (alojada, alojada en otro dispositivo, dos reservas y el error en el campo del DNI).
+`manage.py test programas`, `--tag performance`, `check`, ruff, `design_audit --ratchet`, `compile_templates --bloques` y
+`check_design_agent --changed`.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+- Una persona con reserva en el dispositivo A que ingresa en el B conserva la reserva de A (el alcance es el
+  dispositivo). Cerrarla exigiría cruzar el alcance de quien ingresa.
+- El aviso de liberar de una reserva **vencida** sin liberar (la plaza se dibuja Disponible) usa el texto de reserva
+  aunque sea un préstamo: el modal solo conoce el estado de la celda.
+
+## Reversión
+
+Revertir el PR. No hay datos que migrar.
+
+## Historial
+
+- **30/10/2026 — alta del cambio.** Origen: QA local de Dispositivos. Se anota en el Historial del 389.

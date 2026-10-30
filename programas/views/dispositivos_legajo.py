@@ -106,6 +106,7 @@ from programas.services.inspecciones import (
     semaforos_de_dispositivos,
 )
 from programas.services.ocupacion import ocupacion_de_plazas, tension_de_ocupacion
+from programas.services.plazas import motivo_sin_ampliar_capacidad
 from programas.services.reportes import filtrar_dispositivos
 from programas.services.respuestas_dispositivo import formularios_respondidos, guardar_respuestas_alta
 from programas.services.sectores_plazas import (
@@ -838,6 +839,8 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             {"label": "Sectores y plazas", "url": ""},
         ]
         context["puede_configurar_plazas"] = puede_configurar_plazas
+        # Las altas (sector nuevo, lote de plazas) solo se ofrecen donde el servicio las admite.
+        context["puede_ampliar_capacidad"] = puede_configurar_plazas and not motivo_sin_ampliar_capacidad(dispositivo)
         self._preparar_modal_de_plaza(context, dispositivo, puede_liberar, puede_configurar_plazas)
         self._preparar_modal(context, dispositivo, puede_liberar, puede_configurar_plazas)
         self._preparar_modales_de_configuracion(context, dispositivo, puede_configurar_plazas)
@@ -857,8 +860,9 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         # Las altas no dependen de un registro: llegan con la página y las abre el botón, sin el
         # viaje al servidor que se veía como un F5. El alta del sector lleva su propio auto_id
         # porque convive con «Editar sector», que es el mismo formulario.
-        context["form_sector_nuevo"] = SectorForm(auto_id="id_nuevo_%s")
-        context["url_sector_nuevo"] = reverse("dispositivos:sector_crear", args=[dispositivo.pk])
+        if context["puede_ampliar_capacidad"]:
+            context["form_sector_nuevo"] = SectorForm(auto_id="id_nuevo_%s")
+            context["url_sector_nuevo"] = reverse("dispositivos:sector_crear", args=[dispositivo.pk])
         pedido = self.request.GET.get("sector", "")
         # `?sector=nuevo` es el enlace de antes al alta: se ignora en vez de avisar que ese
         # sector no se puede editar.
@@ -872,7 +876,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
                 context["form_sector"] = SectorForm(sector=sector)
                 context["url_sector"] = reverse("dispositivos:sector_editar", args=[dispositivo.pk, sector.pk])
 
-        if context["sectores"]:
+        if context["sectores"] and context["puede_ampliar_capacidad"]:
             context["form_plazas"] = AgregarPlazasForm(
                 dispositivo=dispositivo,
                 sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True),
@@ -1049,11 +1053,14 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
             raise
         except ValidationError as error:
             return self._rechazar(request, self._errores_del_servicio(error, form), volver)
-        mensaje = self.mensaje_exito.format(plaza=plaza.codigo)
+        mensaje = self.mensaje(plaza)
         if is_ajax(request):
             return ajax_redirect(request, volver, mensaje)
         messages.success(request, mensaje)
         return redirect(volver)
+
+    def mensaje(self, plaza):
+        return self.mensaje_exito.format(plaza=plaza.codigo)
 
     @staticmethod
     def _errores_del_servicio(error, form):
@@ -1093,14 +1100,22 @@ class PlazaReservarView(_PlazaAccionView):
     tipo = ReservaPlaza.Tipo.RESERVA
 
     def ejecutar(self, request, plaza, datos):
-        reservar_plaza(
-            plaza=plaza,
-            ciudadano=datos["ciudadano"],
-            usuario=request.user,
-            tipo=self.tipo,
-            hasta=datos.get("hasta"),
-            motivo=datos.get("motivo", ""),
-        )
+        try:
+            reservar_plaza(
+                plaza=plaza,
+                ciudadano=datos["ciudadano"],
+                usuario=request.user,
+                tipo=self.tipo,
+                hasta=datos.get("hasta"),
+                motivo=datos.get("motivo", ""),
+            )
+        except ValidationError as error:
+            # El servicio habla de la persona; el modal la pide por DNI: el error va a ese campo.
+            if hasattr(error, "error_dict") and "ciudadano" in error.error_dict:
+                errores = error.message_dict
+                errores["dni"] = errores.pop("ciudadano")
+                raise ValidationError(errores) from error
+            raise
 
 
 class PlazaPrestarView(PlazaReservarView):
@@ -1144,9 +1159,17 @@ class PlazaVolverAServicioView(_PlazaAccionView):
 
     capacidad_requerida = CAP_EDITAR
     mensaje_exito = "Plaza {plaza} de nuevo en servicio."
+    mensaje_sin_cambio = "La plaza {plaza} ya estaba en servicio: no hubo nada que cambiar."
 
     def ejecutar(self, request, plaza, datos):
+        # Lo que el pedido encontró al llegar: si otro la repuso antes, no se anuncia un cambio
+        # que no hizo este usuario. El servicio es idempotente y no deja traza en ese caso.
+        self.ya_estaba = plaza.estado == Plaza.Estado.OPERATIVA
         volver_plaza_a_servicio(plaza=plaza, usuario=request.user)
+
+    def mensaje(self, plaza):
+        plantilla = self.mensaje_sin_cambio if self.ya_estaba else self.mensaje_exito
+        return plantilla.format(plaza=plaza.codigo)
 
 
 # Egreso (MVP v2, etapa 2 · #691). El egreso muta estado: solo POST con CSRF. La regla de fondo

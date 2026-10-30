@@ -821,6 +821,7 @@ def reservar_plaza(*, plaza, ciudadano, usuario, tipo=ReservaPlaza.Tipo.RESERVA,
         # alcance: no se distingue «no existe» de «no es tuya».
         raise PermissionDenied("No tenés alcance para reservar plazas en este dispositivo.")
     plaza = _tomar_plaza(pk, dispositivo, momento=ahora)
+    _exigir_persona_sin_alojamiento_ni_reserva(ciudadano, dispositivo, usuario, momento=ahora)
 
     reserva = ReservaPlaza(
         plaza=plaza,
@@ -843,6 +844,79 @@ def reservar_plaza(*, plaza, ciudadano, usuario, tipo=ReservaPlaza.Tipo.RESERVA,
         detalle=f"Plaza {plaza.codigo} · {reserva.get_tipo_display()} · ciudadano {ciudadano.pk}",
     )
     return reserva
+
+
+#: La persona a la que se le quiere guardar una plaza ya tiene otra guardada en el dispositivo.
+PERSONA_CON_RESERVA = (
+    "La persona ya tiene {que} vigente en este dispositivo (plaza {plaza}). Liberala antes de guardarle otra plaza."
+)
+
+
+def _exigir_persona_sin_alojamiento_ni_reserva(ciudadano, dispositivo, usuario, *, momento):
+    """A quien no está adentro y no tiene ya otra plaza guardada aquí se le puede guardar una.
+
+    Se llama con la **plaza ya bloqueada**, y bloquea la fila de la persona: dos reservas
+    simultáneas a la misma persona en plazas distintas se serializan acá, en el mismo orden
+    que el ingreso (plaza y después persona). Los errores caen sobre `ciudadano`; la vista
+    del modal los muestra en el campo del DNI.
+
+    * **Estadía abierta, en cualquier dispositivo de la red**: el mismo criterio que
+      `ingresar_persona` (`verificar_alojamiento_en_red`, con su recorte por alcance). Guardar
+      una plaza para quien ya está alojada bloquea un lugar que nadie va a usar.
+    * **Reserva o préstamo vigente, en este dispositivo**: el alcance es el dispositivo y no la
+      red porque la reserva es de la institución que la tomó —es quien la puede liberar— y
+      preguntar por las de otras instituciones diría, a quien no las ve, que la persona figura
+      en su lista. Es el mismo alcance con el que el ingreso cierra las reservas de la persona.
+    """
+
+    Ciudadano.objects.select_for_update().only("pk").get(pk=ciudadano.pk)
+    verificacion = verificar_alojamiento_en_red(ciudadano, usuario)
+    if verificacion.alojada:
+        raise ValidationError({"ciudadano": verificacion.mensaje})
+    propia = (
+        _reservas_que_toman_de_la_persona(ciudadano.pk, dispositivo, momento)
+        .select_related("plaza")
+        .order_by("id")
+        .first()
+    )
+    if propia is not None:
+        que = "un préstamo" if propia.tipo == ReservaPlaza.Tipo.PRESTAMO else "una reserva"
+        raise ValidationError({"ciudadano": PERSONA_CON_RESERVA.format(que=que, plaza=propia.plaza.codigo)})
+
+
+def _reservas_que_toman_de_la_persona(ciudadano_id, dispositivo, momento):
+    """Las reservas y préstamos de esa persona en ese dispositivo que siguen tomando una plaza."""
+
+    return ReservaPlaza.objects.filter(
+        ciudadano_id=ciudadano_id,
+        plaza__sector__dispositivo_id=dispositivo.pk,
+        estado=ReservaPlaza.Estado.VIGENTE,
+    ).filter(Q(hasta__isnull=True) | Q(hasta__gte=momento))
+
+
+def reservas_abiertas_de_la_persona(ciudadano_id, dispositivo):
+    """Las reservas y préstamos **sin resolver** de la persona en el dispositivo, vencidos o no."""
+
+    return ReservaPlaza.objects.filter(
+        ciudadano_id=ciudadano_id,
+        plaza__sector__dispositivo_id=dispositivo.pk,
+        estado=ReservaPlaza.Estado.VIGENTE,
+    ).select_related("plaza__sector__dispositivo")
+
+
+def reserva_propia_vigente(ciudadano_id, dispositivo, momento=None):
+    """La reserva o préstamo vigente de la persona en el dispositivo, o ``None``. Sin bloquear nada.
+
+    Es la que el ingreso de esa persona consume: su plaza es elegible para ella aunque el mapa
+    la cuente como tomada.
+    """
+
+    return (
+        _reservas_que_toman_de_la_persona(ciudadano_id, dispositivo, momento or timezone.now())
+        .select_related("plaza")
+        .order_by("id")
+        .first()
+    )
 
 
 @transaction.atomic
