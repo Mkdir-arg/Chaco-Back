@@ -526,6 +526,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 400 | Dispositivos / SIIS: MINOR de la auditoría de #1003 (refresco de catálogos tolera Redis caído, Historial de 396/397, rama genérica inalcanzable del buscador) | Dispositivos · SIIS (`refrescar_catalogos_locales`) | `#siis` `#usuarios` | Juez — MINOR de auditoría (#1003) | 29/10/2026 | 🟢 **Hecho** | No requiere |
 | 401 | Alta masiva SIIS de la Convocatoria 1 en PRD (1.786 altas): procedimiento probado documentado paso a paso | Becas · SIIS (`corregir_datos_siis`, `procesar_casos_siis`, `sincronizar_tabla_intermedia`) · operación en PRD de ECOM | `#siis` `#infra` | PM — pedido del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
 | 402 | SIIS: el refresco de catálogos registra el traceback del catálogo que falla (MINOR de la auditoría de #1005) | SIIS (`refrescar_catalogos_locales`) | `#siis` | Juez — MINOR de auditoría (#1005), pedido del PM | 29/10/2026 | 🟢 **Hecho** | No requiere |
+| 403 | SIIS: `procesar_casos_siis --destino siis` drena la tabla intermedia de a lotes, con `--total`, `--lote` y `--pausa`, y frena ante errores o envíos inciertos | SIIS (`procesar_casos_siis`, `sincronizar_tabla_intermedia`) | `#siis` | Juez — pendiente del Cambio 401 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -50473,6 +50474,7 @@ No aplica: un alta en SIIS no se deshace desde acá (ver «Deshacer un envío» 
   la fila cuyo caso tiene un envío vigente). Además, los controles del paso 8 filtran `sincronizado = 0` y dicen
   cómo se corren en el pod. También se corrige la nota del `read_timeout` (muere con `OperationalError`, no
   devuelve `None`) y se aclara el margen de `CURDATE() - INTERVAL 1 DAY`.
+- **30/10/2026** — el pendiente «que `procesar_casos_siis --destino siis` respete `--total` y `--pausa`» se resolvió en el Cambio 403.
 
 ---
 
@@ -50534,5 +50536,69 @@ Revertir el PR.
 ## Historial
 
 - **29/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 403 — SIIS: el drenaje de la tabla intermedia respeta `--total`, `--lote` y `--pausa`
+
+🟢 **HECHO — 30/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | SIIS (`procesar_casos_siis`, `sincronizar_tabla_intermedia`) |
+| **Etiquetas** | `#siis` |
+| **Solicitante** | Juez — pendiente del Cambio 401 (alta masiva en PRD) |
+| **Fecha del pedido** | 30/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Comando `procesar_casos_siis` y servicio `sincronizar_tabla_intermedia` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+`procesar_casos_siis --destino siis` empezaba vaciando la tabla intermedia de una sola vez, sin respetar `--total`, `--lote` ni `--pausa`. En el alta, un 429 de SIIS deja el envío `INCIERTO` (no reintentable), así que en PRD hubo que mandar desde la consola con un script a mano (Cambio 401, Paso 9).
+
+## Alcance acordado
+
+**Entra:** el drenaje de la tabla intermedia por lotes, con pausa y freno; el ensayo que dice cuántos lotes haría; el Paso 9 del procedimiento. **Queda afuera:** la lógica del alta y del filtro por `aprobados_materias`.
+
+## Decisiones tomadas
+
+1. El drenaje manda de a `--lote` filas (`limite=`), duerme `--pausa` segundos entre lotes (no después del último) y no pasa de `--total` filas por corrida.
+2. Si el drenaje gasta todo el `--total`, la corrida termina ahí: los casos nuevos solo entran cuando la tabla se vació con margen, como antes.
+3. Frena en el **primer lote** que traiga errores, rechazadas, altas que ya no corresponden, excluidas, envíos `INCIERTO`/`EN_PROCESO` o filas cerradas por tener un envío vigente, igual que el script del Paso 9. No reusa `--max-errores`/`--max-inciertos`: esos topes cuentan rachas de casos seguidos, y acá el criterio del runbook es cortar a la primera, porque un lote con algo dudoso hay que conciliarlo antes de seguir. El mensaje remite a `conciliar_envios_siis --listar`.
+4. `sincronizar_tabla_intermedia` devuelve dos contadores nuevos: `inciertos` (envíos que esta pasada dejó `INCIERTO`/`EN_PROCESO`, que antes se contaban como `errores`) y `vigentes` (filas que se cierran sin mandar porque su caso ya tenía un envío vigente, que antes no se contaban). Sin el segundo, el freno no ve el caso que el Paso 9 advertía.
+5. El ensayo (sin `--aplicar`) sigue sin mandar nada y informa cuántos lotes haría.
+
+## Implementación
+
+`programas/management/commands/procesar_casos_siis.py` (`_vaciar_tabla_intermedia` recibe las opciones y devuelve si la corrida sigue) y `programas/services/siis_envio.py` (contadores nuevos).
+
+## Archivos
+
+- `programas/management/commands/procesar_casos_siis.py`, `programas/services/siis_envio.py`, `programas/tests/test_siis_drenaje_por_lotes.py`, `docs/internal/procedimiento-alta-siis.md`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+9 tests nuevos (respeta total, lote y pausa; corta si gasta el total; frena ante error, `INCIERTO` y envío vigente; ensayo; contadores del servicio). Mutación: sin el freno y sin el límite por lote quedan 5 rojos. `manage.py check`, ruff y `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada especial. La próxima alta masiva usa `--destino siis --total ... --lote 40 --pausa 60`.
+
+## Pendientes / a definir
+
+- Una fila de la lista de exclusión que quede pendiente frena el drenaje en cada corrida hasta que alguien la saque de la tabla o de la lista.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **30/10/2026 — alta del cambio.**
 
 ---

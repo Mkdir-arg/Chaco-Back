@@ -125,10 +125,24 @@ reintenta, así que la fila vuelve a salir en cada lote y frena el envío: hay q
 antes de mandar (`AltaIntermediaSIIS.objects.filter(formulario_id__in=[…], sincronizado=False).delete()`).
 El caso no cambia; si después le corrigen la fecha, se regenera con `--destino tabla`.
 
-**Paso 9 — envío real a SIIS, de a lotes.** **No usar `procesar_casos_siis --destino siis` para vaciar
-una tabla intermedia grande**: drena **todas** las filas pendientes de una sola vez, sin `--total`, sin
-pausa y sin freno. En el **alta**, el corte por exceso de pedidos (HTTP 429) **no es reintentable**: el
-envío queda `INCIERTO` y hay que conciliarlo con ECOM. Se usa la misma función del comando, con límite:
+**Paso 9 — envío real a SIIS, de a lotes.** Desde el Cambio 403, `procesar_casos_siis --destino siis`
+drena la tabla intermedia **de a lotes**: respeta `--total` (máximo de filas de la corrida), `--lote` (filas
+por lote) y `--pausa` (segundos entre lotes), y frena en el primer lote con errores, rechazadas, excluidas,
+envíos `INCIERTO`/`EN_PROCESO` o filas cerradas por tener ya un envío vigente. Si el drenaje gasta todo el
+`--total`, la corrida no sigue con casos nuevos. En el **alta**, el corte por exceso de pedidos (HTTP 429)
+**no es reintentable**: el envío queda `INCIERTO` y hay que conciliarlo con ECOM; por eso el ritmo importa.
+
+Camino recomendado (primero el ensayo, sin `--aplicar`, que dice cuántos lotes haría):
+
+```bash
+# prueba de 1 caso
+python manage.py procesar_casos_siis --destino siis --total 1 --lote 1 --aplicar --usuario <usuario>
+# masivo
+python manage.py procesar_casos_siis --destino siis --total 2000 --lote 40 --pausa 60 --aplicar --usuario <usuario>
+```
+
+Alternativa desde la consola, con la misma función del comando y su límite (por si hace falta mirar cada
+lote a mano):
 
 ```bash
 python manage.py shell <<'FIN'
@@ -310,9 +324,10 @@ SELECT COUNT(*) FROM siis_tabla_intermedia WHERE sincronizado = 0 AND nro_actual
 ```
 
 Cuando esté revisado, la corrida normal con `--destino siis` **vacía esa tabla primero** y después sigue con
-los casos nuevos. Nada se queda ahí. **Con más de unas decenas de filas no se usa eso:** drena la tabla
-entera sin pausa, SIIS empieza a cortar con 429 y cada corte deja un envío `INCIERTO`. Se manda con el
-script del «Paso 9 — envío real a SIIS, de a lotes» de la sección «Camino probado en PRD».
+los casos nuevos. Nada se queda ahí. **Con más de unas decenas de filas se manda de a lotes:** sin
+pausa SIIS empieza a cortar con 429 y cada corte deja un envío `INCIERTO`. Se usa
+`--destino siis --total ... --lote 40 --pausa 60` («Paso 9 — envío real a SIIS, de a lotes», sección
+«Camino probado en PRD»).
 
 ---
 

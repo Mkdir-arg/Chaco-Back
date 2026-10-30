@@ -131,33 +131,96 @@ class Command(ComandoSiisBase):
 
     # ── Orquestación ────────────────────────────────────────────────────────
 
-    def _vaciar_tabla_intermedia(self, responsable, aplicar):
-        """Manda a SIIS lo que haya quedado guardado de este lado.
+    def _vaciar_tabla_intermedia(self, responsable, aplicar, options):
+        """Manda a SIIS lo que haya quedado guardado de este lado, de a lotes.
 
         Va antes de elegir candidatos: así las que se sincronizan dejan su
         ``EnvioSIIS`` y no vuelven a entrar como casos nuevos en la misma
         corrida. Sin esto, un alta guardada con ``--destino tabla`` se quedaría
         ahí para siempre, que es justo lo que no puede pasar.
+
+        Respeta ``--total`` (tope de filas de la corrida, drenaje incluido),
+        ``--lote`` (filas por llamada) y ``--pausa`` (segundos entre lotes). Sin
+        eso mandaba toda la tabla de una vez y, en el alta, un 429 de SIIS deja
+        el envío ``INCIERTO``, que no se reintenta (Cambio 401, paso 9).
+
+        Frena en el primer lote que traiga algo que una persona tiene que mirar:
+        errores, rechazos, filas que ya no corresponden, excluidas, envíos de
+        resultado desconocido o filas cerradas porque su caso ya tenía un envío
+        vigente. Esto último no se puede ignorar: la fila se marca sincronizada
+        y la tabla diría «0 pendientes» sobre un alta que falta conciliar.
+
+        Devuelve ``True`` si la corrida puede seguir con los casos nuevos, y
+        ``False`` si hay que cortar acá (frenó, o el drenaje gastó el ``--total``).
         """
         pendientes = AltaIntermediaSIIS.objects.filter(sincronizado=False).count()
         if not pendientes:
-            return
+            return True
+        total = max(1, options["total"])
+        tamano = max(1, options["lote"])
+        a_mandar = min(pendientes, total)
+        lotes = (a_mandar + tamano - 1) // tamano
+        gasta_el_total = pendientes >= total
         self._log(f"Tabla intermedia: {pendientes} alta(s) guardada(s) sin informar. Van primero.")
+        self._log(f"   Esta corrida manda hasta {a_mandar} en {lotes} lote(s) de {tamano} (--total {total}).")
         if not aplicar:
             self._log("   (ensayo: no se manda ninguna)", self.style.WARNING)
-            return
-        cuenta = sincronizar_tabla_intermedia(responsable)
-        self._log(
-            f"   informadas {cuenta['altas']} · rechazadas {cuenta['rechazadas']} · errores {cuenta['errores']} · "
-            f"cambiaron de estado {cuenta['no_aprobables']}"
-        )
-        if cuenta["no_aprobables"]:
+            if gasta_el_total:
+                self._log(
+                    "   El drenaje gasta todo el --total: la corrida real no seguiría con casos nuevos.",
+                    self.style.WARNING,
+                )
+            return not gasta_el_total
+        mandadas = 0
+        for numero in range(1, lotes + 1):
+            if numero > 1 and options["pausa"]:
+                time.sleep(options["pausa"])
+            limite = min(tamano, total - mandadas)
+            cuenta = sincronizar_tabla_intermedia(responsable, limite=limite)
+            mandadas += sum(cuenta.values())
             self._log(
-                f"   {cuenta['no_aprobables']} alta(s) guardada(s) ya no corresponden a un caso aprobado: "
-                "quedan en la tabla para que alguien decida si se regeneran o se descartan.",
+                f"   lote {numero:>3}/{lotes} · informadas {cuenta['altas']} · rechazadas {cuenta['rechazadas']} · "
+                f"errores {cuenta['errores']} · cambiaron de estado {cuenta['no_aprobables']} · "
+                f"excluidas {cuenta['excluidas']} · sin saber si llegaron {cuenta['inciertos']} · "
+                f"ya tenían envío vigente {cuenta['vigentes']}"
+            )
+            motivo = self._motivo_de_freno_del_drenaje(cuenta)
+            if motivo:
+                self._log(
+                    f"   FRENO en el lote {numero}: {motivo}. Quedan {AltaIntermediaSIIS.objects.filter(sincronizado=False).count()} "
+                    "pendiente(s). Antes de volver a correr, mirá `manage.py conciliar_envios_siis --listar`: "
+                    "un envío INCIERTO o EN_PROCESO se concilia con ECOM, no se reintenta.",
+                    self.style.ERROR,
+                )
+                return False
+        restan = AltaIntermediaSIIS.objects.filter(sincronizado=False).count()
+        self._log(f"   Tabla intermedia: quedan {restan} pendiente(s).")
+        self._log("")
+        if gasta_el_total:
+            self._log(
+                f"El drenaje usó todo el --total ({total}): no se sigue con casos nuevos en esta corrida.",
                 self.style.WARNING,
             )
-        self._log("")
+            return False
+        return True
+
+    @staticmethod
+    def _motivo_de_freno_del_drenaje(cuenta):
+        """Por qué un lote del drenaje corta la corrida, o ``""`` si salió limpio."""
+        motivos = []
+        if cuenta["errores"]:
+            motivos.append(f"{cuenta['errores']} error(es) técnico(s)")
+        if cuenta["rechazadas"]:
+            motivos.append(f"{cuenta['rechazadas']} rechazada(s) por SIIS")
+        if cuenta["no_aprobables"]:
+            motivos.append(f"{cuenta['no_aprobables']} alta(s) que ya no corresponden a un caso aprobado")
+        if cuenta["excluidas"]:
+            motivos.append(f"{cuenta['excluidas']} en la lista de exclusión")
+        if cuenta["inciertos"]:
+            motivos.append(f"{cuenta['inciertos']} envío(s) sin saber si el alta llegó (INCIERTO/EN_PROCESO)")
+        if cuenta["vigentes"]:
+            motivos.append(f"{cuenta['vigentes']} fila(s) cerradas porque su caso ya tenía un envío vigente")
+        return " · ".join(motivos)
 
     def _cuantas_se_mandarian(self, options):
         """``(guardadas, tope_nuevos)``: lo que puede salir a SIIS en esta corrida.
@@ -264,7 +327,8 @@ class Command(ComandoSiisBase):
             if aplicar and not self._confirmar(self._cuantas_se_mandarian(options), options["si"]):
                 self._log("Cancelado: no se mandó ninguno.", self.style.WARNING)
                 return
-            self._vaciar_tabla_intermedia(responsable, aplicar)
+            if not self._vaciar_tabla_intermedia(responsable, aplicar, options):
+                return
         filtros = {
             "convocatoria": options["convocatoria"],
             "relevamiento": options["relevamiento"],
