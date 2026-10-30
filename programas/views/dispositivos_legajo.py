@@ -89,6 +89,7 @@ from programas.services.estadias import (
     cambiar_plaza,
     egresar_persona,
     liberar_reserva,
+    puede_ingresar_persona,
     reserva_abierta_de,
     reservar_plaza,
     sacar_plaza_de_servicio,
@@ -461,9 +462,11 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 # con la foto de la versión respondida.
                 "formularios_respondidos": formularios_respondidos(dispositivo),
                 "puede_editar": puede_operar_dispositivo(user, dispositivo, "dispositivo.editar"),
+                "puede_enviar_validacion": puede_enviar_desde_formulario(user, dispositivo),
                 "puede_validar": puede_validar,
                 "validacion_pendiente": puede_validar and dispositivo.estado == Dispositivo.Estado.PENDIENTE_VALIDACION,
-                "puede_admitir": puede_operar_dispositivo(user, dispositivo, "dispositivo.admitir"),
+                # Misma función que el gate del asistente: sin `ciudadano.ver` no se ofrece.
+                "puede_admitir": puede_ingresar_persona(user, dispositivo),
                 "puede_ver_ciudadano": puede_ver_ciudadano,
                 "puede_egresar": puede_egresar,
                 "url_ingreso": reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]),
@@ -1225,7 +1228,9 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
         cosa que no sea `estadia` cae al destino de siempre.
         """
 
-        if request.POST.get("volver") == VOLVER_A_LA_ESTADIA:
+        # El detalle de la estadía exige `ciudadano.ver`: quien no lo tiene vuelve a la solapa
+        # Estadías en lugar de caer en un 403 después de haber egresado.
+        if request.POST.get("volver") == VOLVER_A_LA_ESTADIA and puede(request.user, CAP_VER_CIUDADANO):
             return reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
         return url_solapa_estadias(dispositivo.pk)
 
@@ -1386,8 +1391,10 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
             volver = url_solapa_estadias(dispositivo.pk)
         elif destino == "sectores":
             volver = reverse("dispositivos:sectores", args=[dispositivo.pk])
-        else:
+        elif puede(request.user, CAP_VER_CIUDADANO):
             volver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
+        else:
+            volver = url_solapa_estadias(dispositivo.pk)
 
         form = CambioPlazaForm(
             request.POST, estadia=estadia, sectores=_sectores_para_cambio(dispositivo), auto_id=AUTO_ID_CAMBIO

@@ -2,6 +2,8 @@
 {% load nodo_ui static %}
 {% block title %}Dispositivos · {% if form.instance.pk %}Editar institución{% else %}Nueva institución{% endif %}{% endblock %}
 
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-buscador.css' %}">{% endblock %}
+
 {% block main-content %}
 <div class="space-y-5">
   {% if form.instance.pk %}{% url 'dispositivos:detalle' form.instance.pk as url_volver %}{% else %}{% url 'dispositivos:lista' as url_volver %}{% endif %}
@@ -136,6 +138,7 @@
 {% endblock %}
 
 {% block customJS %}
+<script src="{% static 'custom/js/nodo-buscador.js' %}"></script>
 <script>
 (function () {
   const requisitos = Array.from(document.querySelectorAll('[data-requisito-campo]'));
@@ -236,6 +239,8 @@
     const respuesta = await fetch(seccion.dataset.url + '?' + params, {signal: controller.signal, headers: {'X-Requested-With': 'XMLHttpRequest'}});
     if (!respuesta.ok) throw new Error('No se pudo cargar el formulario del tipo.');
     seccion.innerHTML = await respuesta.text();
+    // El formulario del tipo llega por fetch: los campos con presentación buscador se montan acá.
+    if (window.nodoBuscador) window.nodoBuscador.montar(seccion);
     aplicar();
   }
   tipo.addEventListener('change', function () {
