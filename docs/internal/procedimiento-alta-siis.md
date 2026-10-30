@@ -356,7 +356,11 @@ python manage.py corregir_datos_siis --convocatoria 1 --exportar-sin-cruce - > s
    `provincia_declarada`, `texto_planilla`, `motivo` (`loc_planilla_no_cruza` o `loc_sin_dato_en_planilla`) y
    `localidad_siis` **vacía**. UTF-8 con BOM: abre bien en Excel.
 2. **El cliente completa** `localidad_siis` con el nombre de la localidad como figura en SIIS (los nombres que no
-   existen en el catálogo se rechazan al cargar). No hay que tocar las otras columnas.
+   existen en el catálogo, ni como equivalencia, se rechazan al cargar). No hay que tocar las otras columnas.
+   Para abrirlo en Excel sin que todo quede en la columna A: **Datos > Desde texto/CSV** (origen UTF-8, delimitador
+   coma). Para guardarlo: Guardar como «CSV UTF-8 (delimitado por comas)». Si Excel lo guarda con `;` o en
+   Windows-1252, la carga lo detecta igual. Las celdas de texto libre que empiezan con `=`, `+`, `-` o `@` salen con
+   una comilla simple adelante (para que Excel no las ejecute como fórmula); esa comilla no hay que sacarla.
 3. **Cargar.** Primero en seco, después de verdad; escribe en `localidades_corregidas` (inserta los DNI nuevos y
    actualiza los que cambian; no toca los casos):
    ```bash
@@ -364,7 +368,8 @@ python manage.py corregir_datos_siis --convocatoria 1 --exportar-sin-cruce - > s
    python manage.py corregir_datos_siis --cargar-localidades completado.csv --aplicar
    ```
    Quedan afuera, y el resumen lo cuenta, las filas sin completar, los nombres que no están en el catálogo y los DNI
-   con dos localidades distintas.
+   con dos localidades distintas. Un nombre repetido entre provincias se carga, pero el resumen lo cuenta aparte:
+   solo cruza si la provincia declarada del caso es la correcta.
 4. **Corregir y regenerar.** Se vuelve a correr `corregir_datos_siis ... --aplicar` (paso 6), después
    `procesar_casos_siis --destino tabla` y el envío como en el paso 8.
 

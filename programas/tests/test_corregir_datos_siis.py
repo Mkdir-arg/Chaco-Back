@@ -655,6 +655,21 @@ class ExportarSinCruceTests(_BaseCorreccionTest):
         self.assertEqual(len(self._filas()), 1)
         self.assertEqual(self.correcciones(), {})
 
+    def test_el_texto_libre_que_parece_formula_sale_neutralizado(self):
+        self._declarar('=HYPERLINK("x")')
+        crear_tabla_localidades((self.ciudadano.dni, "+cmd|calc"))
+
+        self.correr("--exportar-sin-cruce", self.ruta)
+
+        fila = self._filas()[0]
+        self.assertEqual(fila["localidad_declarada"], '\'=HYPERLINK("x")')
+        self.assertEqual(fila["texto_planilla"], "'+cmd|calc")
+
+    def test_con_sin_localidades_no_hay_nada_que_listar(self):
+        crear_tabla_localidades()
+        with self.assertRaises(CommandError):
+            self.correr("--exportar-sin-cruce", self.ruta, "--sin-localidades")
+
     def test_el_archivo_lleva_bom_para_excel(self):
         self._declarar("Un lugar que no existe")
         crear_tabla_localidades()
@@ -687,9 +702,9 @@ class CargarLocalidadesTests(_BaseCorreccionTest):
         self.addCleanup(self.directorio.cleanup)
         self.ruta = os.path.join(self.directorio.name, "completado.csv")
 
-    def _csv(self, *filas):
-        with open(self.ruta, "w", newline="", encoding="utf-8-sig") as archivo:
-            escritor = csv.writer(archivo)
+    def _csv(self, *filas, delimiter=",", encoding="utf-8-sig"):
+        with open(self.ruta, "w", newline="", encoding=encoding) as archivo:
+            escritor = csv.writer(archivo, delimiter=delimiter)
             escritor.writerow(["caso_pk", "dni", "localidad_siis"])
             for dni, localidad in filas:
                 escritor.writerow([1, dni, localidad])
@@ -739,3 +754,71 @@ class CargarLocalidadesTests(_BaseCorreccionTest):
         crear_tabla_localidades()
         with self.assertRaises(CommandError):
             self.correr("--cargar-localidades", self.ruta, "--exportar-sin-cruce", self.ruta)
+
+    def test_csv_con_punto_y_coma_de_excel_es_ar(self):
+        crear_tabla_localidades()
+        self._csv(("111", "Machagai"), delimiter=";")
+
+        self.correr("--cargar-localidades", self.ruta, "--aplicar")
+
+        self.assertEqual(self._tabla(), [("111", "Machagai")])
+
+    def test_csv_en_cp1252_con_tildes(self):
+        LocalidadSiis.objects.create(siis_id=7, provincia=self.provincia, nombre="SÁENZ PEÑA", clave="saenz pena")
+        crear_tabla_localidades()
+        self._csv(("111", "Sáenz Peña"), delimiter=";", encoding="cp1252")
+
+        self.correr("--cargar-localidades", self.ruta, "--aplicar")
+
+        self.assertEqual(self._tabla(), [("111", "Sáenz Peña")])
+
+    def test_un_archivo_ilegible_dice_como_guardarlo(self):
+        crear_tabla_localidades()
+        with open(self.ruta, "wb") as archivo:
+            archivo.write(b"dni;localidad_siis\n1;\x81\x8d\x8f\n")
+
+        with self.assertRaises(CommandError) as ctx:
+            self.correr("--cargar-localidades", self.ruta)
+
+        self.assertIn("CSV UTF-8", str(ctx.exception))
+
+    def test_acepta_un_alias_con_destino(self):
+        AliasLocalidadSiis.objects.create(
+            provincia=self.provincia, clave="barrio norte", texto="Barrio Norte", localidad=self.resistencia
+        )
+        crear_tabla_localidades()
+        self._csv(("111", "Barrio Norte"))
+
+        self.correr("--cargar-localidades", self.ruta, "--aplicar")
+
+        self.assertEqual(self._tabla(), [("111", "Barrio Norte")])
+
+    def test_un_alias_sin_destino_no_cuenta_como_equivalencia(self):
+        AliasLocalidadSiis.objects.create(
+            provincia=self.provincia, clave="barrio norte", texto="Barrio Norte", localidad=None
+        )
+        crear_tabla_localidades()
+        self._csv(("111", "Barrio Norte"))
+
+        self.correr("--cargar-localidades", self.ruta, "--aplicar")
+
+        self.assertEqual(self._tabla(), [])
+
+    def test_un_nombre_repetido_entre_provincias_se_carga_con_aviso(self):
+        otra = ProvinciaSiis.objects.create(siis_id=2, nombre="CORRIENTES", clave="corrientes")
+        LocalidadSiis.objects.create(siis_id=9, provincia=otra, nombre="RESISTENCIA", clave="resistencia")
+        crear_tabla_localidades()
+        self._csv(("111", "Resistencia"))
+
+        salida = self.correr("--cargar-localidades", self.ruta, "--aplicar")
+
+        self.assertEqual(self._tabla(), [("111", "Resistencia")])
+        self.assertIn("solo cruza si la provincia declarada es la correcta", salida)
+
+    def test_un_nombre_unico_no_lleva_aviso_de_repetido(self):
+        crear_tabla_localidades()
+        self._csv(("111", "Machagai"))
+
+        salida = self.correr("--cargar-localidades", self.ruta)
+
+        self.assertNotIn("solo cruza si la provincia", salida)

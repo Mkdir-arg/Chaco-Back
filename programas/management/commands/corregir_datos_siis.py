@@ -64,13 +64,15 @@ from datetime import date
 
 from django.core.management.base import CommandError
 from django.db import connection, transaction
+from django.db.models import Count
 from django.utils import timezone
 
 from core.edad import MAYORIA_DE_EDAD, edad_en_anios
+from core.exportacion import celda_segura
 from legajos.models import Ciudadano
 from programas.management.commands._base_siis import ComandoSiisBase
 from programas.management.commands._insumos_siis import falta_tabla
-from programas.models import EnvioSIIS, Formulario, LocalidadSiis, TracaFormulario
+from programas.models import AliasLocalidadSiis, EnvioSIIS, Formulario, LocalidadSiis, TracaFormulario
 from programas.services import proceso_masivo
 from programas.services.padron import normalizar_dni
 from programas.services.siis import catalogo
@@ -369,9 +371,10 @@ class Command(ComandoSiisBase):
                 "caso_numero": caso.numero,
                 "relevamiento_id": caso.relevamiento_id,
                 "dni": dni,
-                "localidad_declarada": " ".join(str(respuestas.get("loc_actual", "")).split()),
-                "provincia_declarada": " ".join(str(respuestas.get("prov_actual", "")).split()),
-                "texto_planilla": texto_planilla,
+                # Texto libre del ciudadano: una celda «=HYPERLINK(...)» se ejecutaría en Excel (RED-70).
+                "localidad_declarada": celda_segura(" ".join(str(respuestas.get("loc_actual", "")).split())),
+                "provincia_declarada": celda_segura(" ".join(str(respuestas.get("prov_actual", "")).split())),
+                "texto_planilla": celda_segura(texto_planilla),
                 "motivo": motivo,
                 "localidad_siis": "",
             }
@@ -399,6 +402,36 @@ class Command(ComandoSiisBase):
         destino = "stdout" if ruta == "-" else ruta
         self._log(f"\nCSV de localidades sin cruce: {len(filas)} caso(s) en {destino}. Lleva DNI: no se commitea.")
 
+    @staticmethod
+    def _leer_csv_completado(ruta):
+        """Las filas del CSV que devolvió el cliente, venga de Excel en es-AR o no.
+
+        Excel en español guarda con ``;`` y, según «Guardar como», en cp1252 y no
+        en UTF-8: el separador se detecta en la primera línea y, si el archivo no
+        es UTF-8, se reintenta en cp1252.
+        """
+        try:
+            with open(ruta, "rb") as archivo:
+                crudo = archivo.read()
+        except OSError as exc:
+            raise CommandError(f"No se pudo leer {ruta}: {exc}") from exc
+        try:
+            texto = crudo.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            try:
+                texto = crudo.decode("cp1252")
+            except UnicodeDecodeError as exc:
+                raise CommandError(
+                    f"No se pudo leer {ruta}: ni UTF-8 ni Windows-1252. En Excel, Guardar como «CSV UTF-8 "
+                    "(delimitado por comas)» y volver a cargarlo."
+                ) from exc
+        primera = texto.splitlines()[0] if texto.strip() else ""
+        try:
+            delimitador = csv.Sniffer().sniff(primera, delimiters=",;").delimiter
+        except csv.Error:
+            delimitador = ","
+        return list(csv.DictReader(texto.splitlines(), delimiter=delimitador))
+
     def _cargar_localidades(self, ruta, tabla, aplicar):
         """Pasa a la tabla de localidades corregidas lo que el organismo completó.
 
@@ -407,24 +440,31 @@ class Command(ComandoSiisBase):
         y se avisa, porque no hay a cuál creerle.
         """
         col_dni = self._columna_dni(tabla)
-        try:
-            with open(ruta, newline="", encoding="utf-8-sig") as archivo:
-                filas = list(csv.DictReader(archivo))
-        except OSError as exc:
-            raise CommandError(f"No se pudo leer {ruta}: {exc}") from exc
+        filas = self._leer_csv_completado(ruta)
         if not filas or "dni" not in filas[0] or "localidad_siis" not in filas[0]:
             raise CommandError("El CSV necesita las columnas «dni» y «localidad_siis» (las trae --exportar-sin-cruce).")
 
+        # Mismo criterio que la corrección (``Catalogos._resolver_localidad``): una
+        # equivalencia con destino gana; si no, el nombre del catálogo propio. Se
+        # precalcula una vez: una consulta por fila son miles de idas a la base.
+        cantidad = {
+            f["clave"]: f["n"] for f in LocalidadSiis.objects.values("clave").annotate(n=Count("id")).order_by()
+        }
+        con_alias = set(AliasLocalidadSiis.objects.filter(localidad__isnull=False).values_list("clave", flat=True))
         pedidos, conflicto, sin_completar, no_existe = {}, set(), 0, collections.Counter()
+        repetidas = collections.Counter()
         for fila in filas:
             dni = _digitos(fila.get("dni"))
             texto = " ".join(str(fila.get("localidad_siis") or "").split())
             if not dni or not texto:
                 sin_completar += 1
                 continue
-            if not LocalidadSiis.objects.filter(clave=clave_nombre(texto)).exists():
+            clave = clave_nombre(texto)
+            if clave not in con_alias and not cantidad.get(clave):
                 no_existe[texto] += 1
                 continue
+            if clave not in con_alias and cantidad[clave] > 1:
+                repetidas[texto] += 1
             if dni in pedidos and pedidos[dni] != texto:
                 conflicto.add(dni)
             pedidos[dni] = texto
@@ -455,6 +495,12 @@ class Command(ComandoSiisBase):
         self._log(f"   {'DNI nuevos ' + verbo:48} {len(nuevos):6}")
         self._log(f"   {'DNI que ya estaban y cambian ' + verbo:48} {len(cambian):6}")
         self._log(f"   {'DNI que ya estaban igual (no se toca)':48} {iguales:6}")
+        if repetidas:
+            self._log(
+                f"   {'nombre repetido entre provincias (se carga)':48} {sum(repetidas.values()):6}", self.style.WARNING
+            )
+            for texto, n in repetidas.most_common(20):
+                self._log(f"      {texto:30} {n:5}  solo cruza si la provincia declarada es la correcta")
         for texto, n in no_existe.most_common(20):
             self._log(f"      no está en el catálogo: {texto:30} {n:5}", self.style.WARNING)
         if aplicar:
@@ -759,6 +805,8 @@ class Command(ComandoSiisBase):
         exportar = options["exportar_sin_cruce"]
         if exportar and options["cargar_localidades"]:
             raise CommandError("Elegí una sola cosa: --exportar-sin-cruce o --cargar-localidades.")
+        if exportar and options["sin_localidades"]:
+            raise CommandError("--exportar-sin-cruce no tiene nada que listar con --sin-localidades.")
         if exportar == "-":
             # El CSV va por stdout: el log pasa a stderr para que se pueda redirigir limpio.
             def _log_a_stderr(texto="", estilo=None):

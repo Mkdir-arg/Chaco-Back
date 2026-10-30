@@ -50612,5 +50612,6 @@ Revertir el PR. Lo cargado con `--aplicar` queda en la tabla; se corrige volvien
 ## Historial
 
 - **30/10/2026 — alta del cambio.**
+- **30/10/2026 — ronda de la auditoría del PR #1008.** El CSV pasa `localidad_declarada`, `provincia_declarada` y `texto_planilla` por `core.exportacion.celda_segura` (inyección de fórmulas, RED-70); la carga detecta `;` y cae a cp1252 (con `CommandError` que dice cómo guardar el archivo); el criterio de la carga se alinea con la corrección (alias con destino aceptados; un nombre repetido entre provincias se carga y se cuenta aparte con aviso); y `--exportar-sin-cruce` con `--sin-localidades` es error.
 
 ---
