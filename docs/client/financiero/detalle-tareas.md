@@ -1406,35 +1406,107 @@
 | 26/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
 | | | | **Total 18 al 26/10** | | **274 h** | **185 h** |
 
+### :material-package-variant-closed: Consumo del 27 al 30 de octubre — por entregable
+
+!!! note "Cierre de octubre: Roles por alcance, relevamiento edilicio y alta masiva en SIIS"
+    El martes y el miércoles trabajó el equipo completo: en Dispositivos, el **formulario de relevamiento
+    por tipo** llegó a la app de campo, la **plaza libre** se maneja desde el mapa y el relevamiento
+    edilicio suma **crear y buscar agentes**; el **ABM de Roles** se ordenó por alcance. El jueves y el
+    viernes el equipo no trabajó: la jornada es solo de la gestión, que condujo de noche el **alta masiva
+    en SIIS de la Convocatoria 1 en producción** y su seguimiento. Lo nuevo de Dispositivos del viernes
+    **sigue en desarrollo**. Hubo publicación en testing del organismo el 30 de octubre.
+
+| Período | Persona | Programa | Entregable | Qué incluye | Horas | Equiv. |
+|---|---|---|---|---|---:|---:|
+| 27/10 | Matías Fariña | Dispositivos | Definición de la plaza libre y del formulario de relevamiento por tipo | Qué se puede hacer con una plaza libre y qué formulario usa cada tipo de dispositivo. | 1,5 h | — |
+| 27/10 | Matías Fariña | Dispositivos | Revisión en testing de los ajustes del MVP | Recorrido de los ajustes publicados el día anterior. | 2 h | — |
+| 27/10 | Matías Fariña | Transversal | Registro de horas del 18 al 26 de octubre | Reconstrucción del consumo del período y publicación del financiero. | 1,5 h | — |
+| 27/10 | Matías Fariña | Transversal | Autorización de una excepción de seguridad temporal | Revisión y aval de una alerta de librería sin arreglo disponible todavía. | 0,5 h | — |
+| 27/10 | Matías Fariña | Transversal | Coordinación de los frentes en paralelo | Reparto del día y seguimiento del tablero. | 2 h | — |
+| 27/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 27/10 | Pablo Cao | Dispositivos | Formulario «Relevamiento» por tipo en la app de campo | Cada tipo de dispositivo tiene su formulario, llega al territorial y el informe muestra las respuestas y adjuntos. | 4 h | 8 h |
+| 27/10 | Pablo Cao | Dispositivos | Plaza libre desde el mapa | Reservar, prestar o sacar de servicio una plaza libre sin recargar la pantalla. | 3 h | 6 h |
+| 27/10 | Pablo Cao | Dispositivos | «Crear relevamiento» desde la solapa Infraestructura | El relevamiento edilicio se pide desde la ficha de la institución. | 1 h | 2 h |
+| 27/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 27/10 | Juani Portilla | Becas | La revisión SIIS usa el padrón geográfico verificado | Las localidades se cruzan contra el padrón verificado, sin sumar demora a la revisión. | 2,5 h | 5 h |
+| 27/10 | Juani Portilla | Becas | Arreglo de seguridad del constructor de formularios | El constructor sigue guardando con la protección de sesión reforzada. | 1,5 h | 3 h |
+| 27/10 | Juani Portilla | Transversal | El Administrador recibe sus permisos de relevamiento | El rol Administrador ve y asigna relevamientos sin configurarlo a mano. | 1 h | 2 h |
+| 27/10 | Juani Portilla | Dispositivos | Los tipos anteriores pasan a sectores y plazas | Los tipos creados antes se convierten solos, sin exigir plaza al ingresar. | 1 h | 2 h |
+| 27/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1 h | — |
+| 27/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 27/10 | Matías Abate | Dispositivos | Pruebas en testing de plazas, ventanas y relevamiento | Verificación de cada ajuste publicado en el día. | 5 h | — |
+| 27/10 | Matías Abate | Dispositivos | Casos de prueba de la plaza libre y del relevamiento por tipo | Fichas de prueba para su ejecución. | 2 h | — |
+| 27/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 27/10 | Nahuel De Francesco | Dispositivos | Ventanas del tipo y de sectores y plazas al sistema de diseño | Ventanas y campos estándar, y correcciones de las revisiones internas. | 4,5 h | 9 h |
+| 27/10 | Nahuel De Francesco | Dispositivos | Revisión visual en testing | Comparación de las pantallas publicadas contra el diseño. | 1,5 h | — |
+| 27/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 28/10 | Matías Fariña | Transversal | Definición del ABM de Roles | Permisos por solapas, alcance Global o De un programa y retiro de los permisos de instituciones. | 1,5 h | — |
+| 28/10 | Matías Fariña | Becas | Preparación del alta masiva en SIIS de la Convocatoria 1 | Listado a informar, respaldo y plan de la corrida en producción. | 1,5 h | — |
+| 28/10 | Matías Fariña | Dispositivos | Pendientes de Dispositivos por escrito | Lo que quedó acordado y no estaba registrado. | 1 h | — |
+| 28/10 | Matías Fariña | Transversal | Actualización del método de trabajo del equipo | Las instrucciones del equipo siguen las últimas decisiones de gestión. | 1 h | — |
+| 28/10 | Matías Fariña | Transversal | Revisión de Roles en testing | Recorrido del ABM de Roles con los cambios del día. | 1 h | — |
+| 28/10 | Matías Fariña | Transversal | Coordinación de los frentes en paralelo | Reparto del día y seguimiento del tablero. | 1,5 h | — |
+| 28/10 | Matías Fariña | Transversal | Reunión de seguimiento diaria e informe | Reunión diaria del equipo y armado del informe del día. | 1,5 h | — |
+| 28/10 | Pablo Cao | Dispositivos | «Crear agente» al asignar un relevamiento edilicio | Si el agente no existe, se da de alta desde la misma ventana. | 4 h | 8 h |
+| 28/10 | Pablo Cao | Transversal | Roles: alcance Global o De un programa | La «Categoría» del rol pasa a ser su alcance. | 2,5 h | 5 h |
+| 28/10 | Pablo Cao | Transversal | Roles: permisos por solapas | El panel de permisos se ordena en General, Administración, Becas y Dispositivos. | 1,5 h | 3 h |
+| 28/10 | Pablo Cao | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 28/10 | Juani Portilla | Transversal | Retiro de los permisos de instituciones | Dos permisos que ya no se usaban salen del ABM de Roles. | 2 h | 4 h |
+| 28/10 | Juani Portilla | Transversal | Excepción de seguridad con vencimiento | Alerta de librería documentada con fecha de retiro y procedimiento ante alertas nuevas. | 2 h | 2 h |
+| 28/10 | Juani Portilla | Becas | El sistema arranca aunque la caché no responda | La puesta en marcha ya no se detiene al refrescar el padrón geográfico. | 1,5 h | 3 h |
+| 28/10 | Juani Portilla | Transversal | Revisión técnica de los cambios del equipo | Lectura y devolución de los cambios de los demás antes de integrarlos. | 1,5 h | — |
+| 28/10 | Juani Portilla | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 28/10 | Matías Abate | Transversal | Pruebas y casos de prueba del ABM de Roles | Solapas, alcance y permisos retirados. | 3,5 h | — |
+| 28/10 | Matías Abate | Dispositivos | Pruebas y casos de prueba de «Crear agente» | Alta del agente desde la asignación del relevamiento. | 2,5 h | — |
+| 28/10 | Matías Abate | Becas | Pruebas de las localidades en la revisión SIIS | Cruce contra el padrón verificado. | 1 h | — |
+| 28/10 | Matías Abate | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 28/10 | Nahuel De Francesco | Transversal | Revisión visual de las pantallas de Roles | Comparación contra el sistema de diseño. | 2 h | — |
+| 28/10 | Nahuel De Francesco | Dispositivos | Datos de prueba y prueba completa del relevamiento edilicio | Carga de datos en testing y recorrido de punta a punta. | 3 h | — |
+| 28/10 | Nahuel De Francesco | Transversal | Reunión de seguimiento diaria | Reunión diaria de seguimiento del equipo. | 1 h | — |
+| 29/10 | Matías Fariña | Becas | Alta masiva en SIIS de la Convocatoria 1 en producción | Ejecución de noche y control del resultado. | 3,5 h | — |
+| 29/10 | Matías Fariña | Becas | Procedimiento probado del alta masiva | Registro paso a paso de la corrida para repetirla en las próximas convocatorias. | 1 h | — |
+| 29/10 | Matías Fariña | Dispositivos | «Buscar agente» al asignar un relevamiento | Se elige un agente existente desde la misma ventana. | 1 h | 2 h |
+| 29/10 | Matías Fariña | Transversal | Puesta al día del servidor y de las dependencias | Arranque del servidor, librerías actualizadas y correcciones de las revisiones técnicas. | 1 h | 2 h |
+| 29/10 | Matías Fariña | Transversal | Coordinación y tablero | Seguimiento del tablero. | 0,5 h | — |
+| 30/10 | Matías Fariña | Becas | Seguimiento nocturno de los envíos a SIIS | Control de lo informado y de lo pendiente. | 2,5 h | — |
+| 30/10 | Matías Fariña | Becas | Envío a SIIS por lotes controlados y localidades sin cruce | El envío respeta cantidad, tamaño de lote y pausa; las localidades sin cruce se exportan para que las complete el organismo. | 2 h | 4 h |
+| 30/10 | Matías Fariña | Dispositivos | «Sumar como agente», formulario de ingreso y respuestas anteriores | En desarrollo. | 1,5 h | 3 h |
+| 30/10 | Matías Fariña | Transversal | Publicación en testing del organismo y coordinación | Publicación en el ambiente de pruebas y seguimiento del tablero. | 1 h | — |
+| | | | **Total 27 al 30/10** | | **95 h** | **73 h** |
+
 ### :material-briefcase-outline: Consumo de octubre por programa
 
 | Programa | Horas octubre |
 |---|---:|
-| Becas | 270 h 30 min |
-| Transversal | 380 h 30 min |
-| Dispositivos | 146 h 00 min |
-| **Total octubre 2026 (al 26/10)** | **797 h 00 min** |
+| Becas | 287 h 30 min |
+| Transversal | 420 h 00 min |
+| Dispositivos | 184 h 30 min |
+| **Esfuerzo real de octubre 2026** | **892 h 00 min** |
+
+!!! abstract "Imputación de octubre"
+    Octubre se **imputa por 850 h** (el 100% de su presupuesto) y las **42 h** restantes se
+    **trasladan a noviembre 2026**. Las horas de arriba son el esfuerzo real ejecutado: el traslado es de
+    imputación, no de registro.
 
 !!! note "Qué incluye"
-    El trabajo propio de octubre al 26/10 es de **704 h 30 min**. Las horas de Becas incluyen además las
+    El trabajo propio de octubre es de **799 h 30 min**. Las horas de Becas incluyen además las
     **92 h 30 min trasladadas de septiembre**, cuyo detalle día por día está en las secciones de ese
-    mes: 704 h 30 min + 92 h 30 min = **797 h 00 min**. El mes está en curso, así que todavía no hay
-    imputación de cierre.
+    mes: 799 h 30 min + 92 h 30 min = **892 h 00 min**.
 
 ---
 
 ## :material-account-group: Consumo por persona — acumulado del proyecto
 
-| Persona | Rol | Junio | Julio | Agosto | Septiembre | Octubre *(al 26/10)* | **Total** |
+| Persona | Rol | Junio | Julio | Agosto | Septiembre | Octubre | **Total** |
 |---|---|---:|---:|---:|---:|---:|---:|
-| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,75 | 197,0 | 196,5 | 137,5 | **908 h 10 min** |
-| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 229,5 | 223,0 | **941 h 01 min** |
-| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,25 | 219,0 | 197,5 | 135,0 | **687 h 44 min** |
-| Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 177,0 | 127,0 | **511 h 30 min** |
-| Nahuel De Francesco | Desarrollo, documentación y pruebas *(desde el 09/09)* | — | — | — | 38,5 | 82,0 | **120 h 30 min** |
+| Juani Portilla | Desarrollo, automatización de pruebas y rendimiento | 113,4 | 263,75 | 197,0 | 196,5 | 153,5 | **924 h 10 min** |
+| Matías Fariña | Análisis funcional, gestión y publicaciones | 112,5 | 146,0 | 230,0 | 229,5 | 255,0 | **973 h 01 min** |
+| Pablo Cao | Desarrollo del backoffice, del portal y de la app de campo | 96,0 | 40,25 | 219,0 | 197,5 | 153,0 | **705 h 44 min** |
+| Matías Abate | Pruebas funcionales, casos de prueba y documentación | — | 50,0 | 157,5 | 177,0 | 143,0 | **527 h 30 min** |
+| Nahuel De Francesco | Desarrollo, documentación y pruebas *(desde el 09/09)* | — | — | — | 38,5 | 95,0 | **133 h 30 min** |
 | Agostina Coppola | Análisis funcional y testing *(hasta agosto)* | 112,3 | — | — | — | — | **112 h 17 min** |
 | Equipo UX | Mockups del programa *(junio)* | 65,0 | — | — | — | — | **65 h 00 min** |
-| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **839 h 00 min** | **704 h 30 min** | **3.346 h 12 min** |
+| **Total del mes** | | **499 h 12 min** | **500 h 00 min** | **803 h 30 min** | **839 h 00 min** | **799 h 30 min** | **3.441 h 12 min** |
 
 !!! note "Cómo leer esta tabla"
     Las columnas mensuales van en horas decimales, tal como las publica la página de cada mes; los totales
@@ -1447,8 +1519,8 @@
     la apertura por programa de ese mes se arma sobre el total y no fila por fila.
 
     Agosto y septiembre son **esfuerzo real**, no imputación: agosto 803 h 30 min (se imputaron 700 h y
-    103 h 30 min pasaron a septiembre) y septiembre 942 h 30 min (se imputaron 850 h y 92 h 30 min
-    pasaron a octubre).
+    103 h 30 min pasaron a septiembre), septiembre 942 h 30 min (se imputaron 850 h y 92 h 30 min
+    pasaron a octubre) y octubre 892 h (se imputaron 850 h y 42 h pasaron a noviembre).
 
 ### :material-clipboard-text-outline: En qué trabajó cada uno en septiembre
 
@@ -1483,12 +1555,13 @@
 
 !!! success "Contador total"
 
-    **200.772 minutos** (3.346 h 12 min)
+    **206.472 minutos** (3.441 h 12 min)
 
-    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 839 h 00 min + octubre 704 h 30 min (al 26/10).
+    Junio 499 h 12 min + julio 500 h 00 min + agosto 803 h 30 min + septiembre 839 h 00 min + octubre 799 h 30 min.
 
     Es el **esfuerzo real ejecutado**, no la imputación. A efectos de imputación, agosto cerró por 700 h con
-    103 h 30 min trasladadas a septiembre, y septiembre cerró por 850 h con 92 h 30 min trasladadas a octubre.
+    103 h 30 min trasladadas a septiembre, septiembre cerró por 850 h con 92 h 30 min trasladadas a octubre,
+    y octubre cerró por 850 h con 42 h trasladadas a noviembre.
     Cada traslado se registra en el mes en que se trabajó y se imputa en el siguiente, así que el contador
     no lo cuenta dos veces.
 

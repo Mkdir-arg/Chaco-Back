@@ -81,7 +81,7 @@ for k in sorted(mes_h):
     print(f"  {k}: {hm(mes_h[k])} en filas")
 
 print("\n=== 2. Totales mensuales publicados vs filas ===")
-DECL = {"06": 499 + 12 / 60, "07": 500.0, "08": 803.5, "09": 839.0, "10": 704.5}
+DECL = {"06": 499 + 12 / 60, "07": 500.0, "08": 803.5, "09": 839.0, "10": 799.5}
 for k in sorted(DECL):
     ok(abs(mes_h.get(k, 0) - DECL[k]) < 0.02, f"{k}: publicado {hm(DECL[k])} vs filas {hm(mes_h.get(k, 0))}")
 
@@ -99,7 +99,7 @@ for ln in lineas:
         acum = 0.0
 
 print("\n=== 4. Tablas «por programa» ===")
-TRAS = {"09": 103.5, "10": 92.5}
+TRAS = {"09": 103.5, "10": 92.5, "11": 42.0}
 TABLAS = [
     ("06", "Consumo de junio por programa"),
     ("07", "Consumo de julio por programa"),
@@ -204,10 +204,11 @@ for mes, arch, presup, imputado in (
     ("07", "mes-2026-07.md", 500, None),
     ("08", "mes-2026-08.md", 700, 700),
     ("09", "mes-2026-09.md", 850, 850),
-    ("10", "mes-2026-10.md", 850, None),
+    ("10", "mes-2026-10.md", 850, 850),
+    ("11", "mes-2026-11.md", 850, None),
 ):
     s = leer(os.path.join(FIN, arch))
-    esperado = mes_h[mes] + TRAS.get(mes, 0)
+    esperado = mes_h.get(mes, 0) + TRAS.get(mes, 0)
     prog, per = {}, {}
     for ln in s.split("\n"):
         c = [x.strip() for x in ln.split("|")]
@@ -223,7 +224,7 @@ for mes, arch, presup, imputado in (
     if per:
         sper = sum(v for k, v in per.items() if not k.startswith("**"))
         tper = next((v for k, v in per.items() if k.startswith("**")), None)
-        base = mes_h[mes]
+        base = mes_h.get(mes, 0)
         ok(abs(sper - base) < 0.6, f"{arch}: por persona suma {sper:g} vs registro {base:g}")
         ok(tper is None or abs(tper - sper) < 0.02, f"{arch}: total por persona {tper} vs suma {sper:g}")
         for p, v in per.items():
@@ -236,19 +237,26 @@ for mes, arch, presup, imputado in (
 
 print("\n=== 8. Índice financiero y portada ===")
 idx, port = leer(os.path.join(FIN, "index.md")), leer(os.path.join(RAIZ, "docs", "client", "index.md"))
-oct_t = mes_h["10"] + TRAS["10"]
-saldo, pct = 850 - oct_t, round(oct_t / 850 * 100)
-ok(hm(oct_t) in idx, f"índice: consumido de octubre {hm(oct_t)}")
-ok(hm(saldo) in idx, f"índice: saldo de octubre {hm(saldo)}")
-ok(f"({pct}%)" in idx, f"índice: porcentaje de octubre {pct}%")
-corto = hm(oct_t).replace(" h ", "h ").replace(" min", "min")
-breve = f"{int(oct_t)}h" if not oct_t % 1 else corto  # en punto, la portada escribe «523h»
-ok(corto in port or breve in port, f"portada: consumido de octubre «{corto}» o «{breve}»")
-ok(f"({pct}%)" in port, f"portada: porcentaje de octubre {pct}%")
+nov_t = mes_h.get("11", 0) + TRAS["11"]
+saldo, pct = 850 - nov_t, round(nov_t / 850 * 100)
+ok(hm(nov_t) in idx, f"índice: consumido de noviembre {hm(nov_t)}")
+ok(hm(saldo) in idx, f"índice: saldo de noviembre {hm(saldo)}")
+ok(f"({pct}%)" in idx, f"índice: porcentaje de noviembre {pct}%")
+corto = hm(nov_t).replace(" h ", "h ").replace(" min", "min")
+breve = f"{int(nov_t)}h" if not nov_t % 1 else corto  # en punto, la portada escribe «523h»
+ok(corto in port or breve in port, f"portada: consumido de noviembre «{corto}» o «{breve}»")
+ok(f"({pct}%)" in port, f"portada: porcentaje de noviembre {pct}%")
+oct_real = mes_h["10"] + TRAS["10"]
+ok(abs(oct_real - 850 - TRAS["11"]) < 0.02, f"octubre: esfuerzo real {hm(oct_real)} = 850 h + traslado {hm(TRAS['11'])}")
 ok(
     "942 h 30 min" in leer(os.path.join(FIN, "mes-2026-09.md"))
     and "92 h 30 min" in leer(os.path.join(FIN, "mes-2026-10.md")),
     "cadena del traslado septiembre → octubre",
+)
+ok(
+    hm(oct_real) in leer(os.path.join(FIN, "mes-2026-10.md"))
+    and hm(TRAS["11"]) in leer(os.path.join(FIN, "mes-2026-11.md")),
+    "cadena del traslado octubre → noviembre",
 )
 
 print("\n" + "=" * 64)
