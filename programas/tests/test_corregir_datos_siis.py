@@ -815,6 +815,20 @@ class CargarLocalidadesTests(_BaseCorreccionTest):
         self.assertEqual(self._tabla(), [("111", "Resistencia")])
         self.assertIn("solo cruza si la provincia declarada es la correcta", salida)
 
+    def test_un_alias_que_no_esta_en_el_catalogo_se_carga_con_aviso(self):
+        """El alias se busca acotado a la provincia del caso: depende de que sea la correcta."""
+        otra = ProvinciaSiis.objects.create(siis_id=2, nombre="CORRIENTES", clave="corrientes")
+        AliasLocalidadSiis.objects.create(
+            provincia=otra, clave="barrio norte", texto="Barrio Norte", localidad=self.resistencia
+        )
+        crear_tabla_localidades()
+        self._csv(("111", "Barrio Norte"))
+
+        salida = self.correr("--cargar-localidades", self.ruta, "--aplicar")
+
+        self.assertEqual(self._tabla(), [("111", "Barrio Norte")])
+        self.assertIn("o la de la equivalencia", salida)
+
     def test_un_nombre_unico_no_lleva_aviso_de_repetido(self):
         crear_tabla_localidades()
         self._csv(("111", "Machagai"))

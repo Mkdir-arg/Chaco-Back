@@ -50613,5 +50613,6 @@ Revertir el PR. Lo cargado con `--aplicar` queda en la tabla; se corrige volvien
 
 - **30/10/2026 — alta del cambio.**
 - **30/10/2026 — ronda de la auditoría del PR #1008.** El CSV pasa `localidad_declarada`, `provincia_declarada` y `texto_planilla` por `core.exportacion.celda_segura` (inyección de fórmulas, RED-70); la carga detecta `;` y cae a cp1252 (con `CommandError` que dice cómo guardar el archivo); el criterio de la carga se alinea con la corrección (alias con destino aceptados; un nombre repetido entre provincias se carga y se cuenta aparte con aviso); y `--exportar-sin-cruce` con `--sin-localidades` es error.
+- **30/10/2026 — ronda 3 de la auditoría del PR #1008.** El bloque de CSV (columnas, escritura, lectura, plan de carga) sale de `corregir_datos_siis.py` —que pasaba de 1000 líneas— al módulo hermano `_localidades_csv_siis.py`, con funciones sin efectos; el comando conserva el log, la transacción y el INSERT/UPDATE. El aviso de la carga cubre toda clave que no sea única en el catálogo (también las que resuelven solo por equivalencia): «solo cruza si la provincia declarada es la correcta (o la de la equivalencia)». No cambia qué se carga.
 
 ---
