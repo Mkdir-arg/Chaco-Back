@@ -25,7 +25,7 @@ class CapacidadConcurrenteTests(MotorRealMixin, TransactionTestCase):
         self.usuarios = [
             User.objects.create_superuser(username=f"capacidad_concurrente_{i}", password="x") for i in (1, 2)
         ]
-        tipo = TipoDispositivo.objects.create(codigo="C5", nombre="Albergue C5")
+        tipo = TipoDispositivo.objects.create(codigo="C5", nombre="Albergue C5", plaza_obligatoria_al_ingresar=True)
         self.dispositivo = Dispositivo.objects.create(
             tipo=tipo,
             codigo="C5",
