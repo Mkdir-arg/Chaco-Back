@@ -125,10 +125,24 @@ reintenta, así que la fila vuelve a salir en cada lote y frena el envío: hay q
 antes de mandar (`AltaIntermediaSIIS.objects.filter(formulario_id__in=[…], sincronizado=False).delete()`).
 El caso no cambia; si después le corrigen la fecha, se regenera con `--destino tabla`.
 
-**Paso 9 — envío real a SIIS, de a lotes.** **No usar `procesar_casos_siis --destino siis` para vaciar
-una tabla intermedia grande**: drena **todas** las filas pendientes de una sola vez, sin `--total`, sin
-pausa y sin freno. En el **alta**, el corte por exceso de pedidos (HTTP 429) **no es reintentable**: el
-envío queda `INCIERTO` y hay que conciliarlo con ECOM. Se usa la misma función del comando, con límite:
+**Paso 9 — envío real a SIIS, de a lotes.** Desde el Cambio 403, `procesar_casos_siis --destino siis`
+drena la tabla intermedia **de a lotes**: respeta `--total` (máximo de filas del drenaje; los casos nuevos vuelven a usar el `--total` entero), `--lote` (filas
+por lote) y `--pausa` (segundos entre lotes), y frena en el primer lote con errores, rechazadas, excluidas,
+envíos `INCIERTO`/`EN_PROCESO` o filas cerradas por tener ya un envío vigente. Si el drenaje gasta todo el
+`--total`, la corrida no sigue con casos nuevos. En el **alta**, el corte por exceso de pedidos (HTTP 429)
+**no es reintentable**: el envío queda `INCIERTO` y hay que conciliarlo con ECOM; por eso el ritmo importa.
+
+Camino recomendado (primero el ensayo, sin `--aplicar`, que dice cuántos lotes haría):
+
+```bash
+# prueba de 1 caso
+python manage.py procesar_casos_siis --destino siis --total 1 --lote 1 --aplicar --usuario <usuario>
+# masivo
+python manage.py procesar_casos_siis --destino siis --total 2000 --lote 40 --pausa 60 --aplicar --usuario <usuario>
+```
+
+Alternativa desde la consola, con la misma función del comando y su límite (por si hace falta mirar cada
+lote a mano):
 
 ```bash
 python manage.py shell <<'FIN'
@@ -150,7 +164,8 @@ for i in range(1, MAX_LOTES + 1):
     t = time.time()
     c = sincronizar_tabla_intermedia(yo, limite=LOTE)
     print(f"lote {i:>2} · pendientes antes {pend:>5} · {c} · {time.time()-t:.0f} s", flush=True)
-    if c["errores"] or c["rechazadas"] or c["no_aprobables"] or c["excluidas"]:
+    if (c["errores"] or c["rechazadas"] or c["no_aprobables"] or c["excluidas"]
+            or c["inciertos"] or c["vigentes"]):
         print("FRENO: hubo errores/rechazos."); break
     if i < MAX_LOTES:
         time.sleep(PAUSA)
@@ -172,11 +187,13 @@ FIN
    hasta conciliarlo con `conciliar_envios_siis --listar` → ECOM → `--confirmar`/
    `--liberar --motivo "…" --aplicar`. Un `EN_PROCESO` recién creado todavía no sale en `--listar`
    (entra a los 5 minutos, `EN_PROCESO_VENCE`): se espera a que pasen y recién ahí se lista.
-   Motivo: el script marca `sincronizado` **sin contarla ni frenar** a toda fila cuyo caso ya tenga un
-   envío vigente (`siis_envio.py`, rama `envios_sis.filter(vigente=True)`), y `INCIERTO` y `EN_PROCESO`
-   cuentan como vigentes. Si se vuelve a pegar antes, el alta dudosa desaparece de la vista e imprime
-   «pendientes: 0». Una vez conciliado, lo `ENVIADO` no se repite y una fila liberada vuelve a salir en
-   el próximo lote.
+   Motivo: el servicio marca `sincronizado` a toda fila cuyo caso ya tenga un envío vigente
+   (`siis_envio.py`, rama `envios_sis.filter(vigente=True)`), y `INCIERTO` y `EN_PROCESO` cuentan como
+   vigentes. Desde el Cambio 403 esa rama se cuenta aparte (`vigentes`), igual que los envíos que esta
+   pasada dejó `INCIERTO`/`EN_PROCESO` (`inciertos`), y tanto el comando como el script de arriba frenan
+   con cualquiera de los dos. Si se corre sin mirar el freno, el alta dudosa desaparece de la vista e
+   imprime «pendientes: 0». Una vez conciliado, lo `ENVIADO` no se repite y una fila liberada vuelve a
+   salir en el próximo lote.
 
 Resultado final en PRD: **`ENVIADO` 1.786** · `ERROR` 1 (caso 67, la fecha imposible, antes de sacarla
 de la tabla) · `INCOMPLETO` 2 (envíos viejos del 13 y el 15/10).
@@ -310,9 +327,10 @@ SELECT COUNT(*) FROM siis_tabla_intermedia WHERE sincronizado = 0 AND nro_actual
 ```
 
 Cuando esté revisado, la corrida normal con `--destino siis` **vacía esa tabla primero** y después sigue con
-los casos nuevos. Nada se queda ahí. **Con más de unas decenas de filas no se usa eso:** drena la tabla
-entera sin pausa, SIIS empieza a cortar con 429 y cada corte deja un envío `INCIERTO`. Se manda con el
-script del «Paso 9 — envío real a SIIS, de a lotes» de la sección «Camino probado en PRD».
+los casos nuevos. Nada se queda ahí. **Con más de unas decenas de filas se manda de a lotes:** sin
+pausa SIIS empieza a cortar con 429 y cada corte deja un envío `INCIERTO`. Se usa
+`--destino siis --total ... --lote 40 --pausa 60` («Paso 9 — envío real a SIIS, de a lotes», sección
+«Camino probado en PRD»).
 
 ---
 
