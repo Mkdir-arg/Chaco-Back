@@ -526,6 +526,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 400 | Dispositivos / SIIS: MINOR de la auditoría de #1003 (refresco de catálogos tolera Redis caído, Historial de 396/397, rama genérica inalcanzable del buscador) | Dispositivos · SIIS (`refrescar_catalogos_locales`) | `#siis` `#usuarios` | Juez — MINOR de auditoría (#1003) | 29/10/2026 | 🟢 **Hecho** | No requiere |
 | 401 | Alta masiva SIIS de la Convocatoria 1 en PRD (1.786 altas): procedimiento probado documentado paso a paso | Becas · SIIS (`corregir_datos_siis`, `procesar_casos_siis`, `sincronizar_tabla_intermedia`) · operación en PRD de ECOM | `#siis` `#infra` | PM — pedido del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
 | 402 | SIIS: el refresco de catálogos registra el traceback del catálogo que falla (MINOR de la auditoría de #1005) | SIIS (`refrescar_catalogos_locales`) | `#siis` | Juez — MINOR de auditoría (#1005), pedido del PM | 29/10/2026 | 🟢 **Hecho** | No requiere |
+| 405 | Dispositivos: P4 muestra, plegado y de solo lectura, lo respondido en campos que el diseño del formulario ya no tiene («De versiones anteriores») | Dispositivos · P4 detalle de la institución (solapa Datos) · `programas/services/respuestas_dispositivo.py` | `#ui` `#relevamientos` | PM — decisión del 30/10/2026 sobre el pendiente de los Cambios 387 y 389 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -49115,6 +49116,7 @@ dígitos que no son ASCII.
 ## Historial
 
 - **27/10/2026 — alta del cambio.**
+- **30/10/2026 — DECISIÓN PM resuelta en el Cambio 405:** P4 muestra las respuestas de versiones anteriores del formulario del tipo, en un bloque plegado.
 
 ---
 
@@ -49426,6 +49428,7 @@ normales de `ReservaPlaza`, y se liberan desde el mapa.
   carril que no tenían entrada propia. El test del `formulario_tipo_diseno` ajeno, que figuraba como pendiente en
   las notas del carril, ya existe (`test_la_marca_de_un_diseno_ajeno_no_guarda_y_vuelve_con_la_seccion_del_tipo_elegido`,
   entró en `69542b91`, Cambio 387).
+- **30/10/2026 — DECISIÓN PM resuelta en el Cambio 405:** P4 muestra las respuestas de versiones anteriores del formulario del tipo (bloque plegado «De versiones anteriores»). La otra decisión (traza de quién cambió una respuesta) sigue abierta.
 
 ---
 
@@ -50534,5 +50537,70 @@ Revertir el PR.
 ## Historial
 
 - **29/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 405 — P4 muestra las respuestas de versiones anteriores del formulario del tipo
+
+🟢 **HECHO — 30/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P4 detalle de la institución (solapa Datos) · `programas/services/respuestas_dispositivo.py` |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | PM — decisión del 30/10/2026 sobre el pendiente «DECISIÓN PM» de los Cambios 387 y 389 |
+| **Fecha del pedido** | 30/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/legajo/detail.html` (solapa Datos); servicio `respuestas_dispositivo.py`; ficha `ficha_timeline.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Que P4 muestre, debajo de las respuestas vigentes de cada formulario, las respuestas de campos que el diseño vigente ya no tiene (quedan en `respuestas` y su definición en `anteriores`), plegadas, de solo lectura, con la etiqueta que tenían y el valor legible.
+
+## Alcance acordado
+
+**Entra:** el bloque plegado «De versiones anteriores» en cada formulario respondido de P4. **Queda afuera:** el formulario «Relevamiento» (`formulario_del_relevamiento`, informe A5), que es otra pantalla y no pasa por `formularios_respondidos`; la traza de quién cambió una respuesta; enlaces a archivos viejos.
+
+## Decisiones tomadas
+
+1. La lógica vive en el servicio (`respuestas_de_versiones_anteriores`), no en la vista ni el template. Una clave cuenta si está en `anteriores`, la foto de la fila ya no la tiene, y su valor no está vacío. El orden es el de `anteriores` (el orden en que dejaron de estar).
+2. Un valor se lee con `legible` (fechas dd/mm/aaaa; una lista se une con comas). Sin respuestas viejas el bloque no se dibuja.
+3. Un archivo de un campo viejo se muestra por su **nombre, sin enlace**: la sección plegable compartida no lleva enlaces y sumarlos pedía una variante nueva. Es de solo lectura y no se pierde: el archivo sigue en el servidor.
+4. La pieza es `components/_ficha_seccion.html` con `abierta=False`, ya canónica: sin clases, includes ni variantes nuevas. Se suma una nota en su ficha.
+5. Sin cambios de permisos: lo ve quien ya ve el formulario en P4.
+6. P4 lee la foto guardada en la fila: el bloque aparece desde el **primer guardado con el diseño nuevo** (hasta entonces la clave sigue en su sección vigente).
+
+## Implementación
+
+Servicio con una función nueva y dos claves más en cada entrada de `formularios_respondidos` (`anteriores`, `id_anteriores`); un include en `detail.html`. Sin consultas nuevas.
+
+## Archivos
+
+- `programas/services/respuestas_dispositivo.py`, `programas/templates/programas/dispositivos/legajo/detail.html`, `.claude/design/componentes/ficha_timeline.md`, `programas/tests/test_dispositivos_formulario_alta.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Tests de `RespuestasAnterioresP4Tests` (clave borrada con etiqueta y valor, sin claves viejas, valor vacío, clave vigente, valores legibles); mutación del filtro de vigentes y del filtro de vacíos en rojo; `--tag performance` de P4 sin cambio de presupuesto; `manage.py check`, `design_audit --ratchet`, `compile_templates --bloques`, `check_design_agent --changed`, ruff y `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **30/10/2026 — alta del cambio.**
 
 ---

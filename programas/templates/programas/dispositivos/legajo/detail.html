@@ -178,6 +178,12 @@
           {% empty %}
           <p class="text-sm text-body-subtle">Todavía no tiene respuestas.</p>
           {% endfor %}
+          {# Cambio 405: respuestas de campos que el diseño ya no tiene, plegadas y de solo lectura. #}
+          {% if respondido.anteriores %}
+          <div class="mt-5">
+            {% include "components/_ficha_seccion.html" with codigo=respondido.id_anteriores titulo="De versiones anteriores" campos=respondido.anteriores abierta=False %}
+          </div>
+          {% endif %}
         </section>
         {% endfor %}
       </div>
