@@ -103,16 +103,18 @@ def _trazar(dispositivo, usuario, accion, *, detalle=""):
 
 
 def _exigir_alcance(dispositivo, usuario):
-    """La capacidad con alcance al dispositivo, y que el dispositivo siga abierto.
+    """La capacidad con alcance al dispositivo, y que el dispositivo no esté cerrado.
+
+    Editar lo que ya existe solo lo frena el cierre; que un dispositivo rechazado no admita capacidad
+    **nueva** lo dice `motivo_sin_ampliar_capacidad`, que usan las altas.
 
     En ese orden: quien no tiene alcance no se entera de en qué estado está el legajo.
     """
 
     if not puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para configurar las plazas de este dispositivo.")
-    motivo = _ESTADOS_SIN_CAPACIDAD.get(dispositivo.estado, "")
-    if motivo:
-        raise ValidationError({"__all__": motivo})
+    if dispositivo.estado == Dispositivo.Estado.CERRADO:
+        raise ValidationError({"__all__": DISPOSITIVO_CERRADO})
 
 
 def _exigir_que_se_pueda_ampliar(dispositivo):

@@ -54,6 +54,13 @@ la plaza**. O sea que escribir una reserva toma la plaza aunque el código no la
 Por eso `liberar_reserva` bloquea la plaza antes de la reserva aunque no tenga nada que
 preguntarle. Lo verifica `programas.tests.test_dispositivos_concurrencia`.
 
+Con la persona va igual: `reservar_plaza` e `ingresar_persona` la bloquean **después** de la
+plaza y de la reserva. `ingreso.confirmar_ingreso`, que además cierra las otras reservas de la
+persona, lo respeta: las cierra primero (por `plaza_id`, cada una con su plaza y después su
+reserva), toma la plaza del ingreso, y recién entonces la persona; con ella bloqueada vuelve a
+leer sus reservas abiertas y, si apareció una nueva, rechaza el ingreso en vez de cerrarla a
+ciegas.
+
 Al ordenar candados hay que contemplar también los que toma InnoDB al modificar
 índices usados por una FK. `OrdenDeLosCandadosTests` fija el orden por la secuencia de
 llamadas en SQLite; `programas.tests.test_dispositivos_concurrencia` corre la carrera real.
@@ -241,47 +248,6 @@ def _trazar(dispositivo, usuario, accion, *, estado_anterior="", estado_nuevo=""
     )
 
 
-def _reservas_que_toman(plaza, momento):
-    """Las reservas que toman la plaza desde ahora: las vigentes **y las que todavía no empezaron**.
-
-    No es `ReservaPlaza.objects.vigentes()`, y la diferencia es el MAJOR 2 de la revisión
-    de #802: `vigentes()` contesta «¿cuenta hoy en el mapa?» y mira un instante; acá la
-    pregunta es «¿puedo dar esta plaza?», que es un intervalo que arranca ahora y no
-    termina. Una reserva con `desde` dentro de una hora no cuenta hoy, pero si se aloja
-    a alguien encima, al llegar su `desde` la plaza queda ocupada **y** reservada, y el
-    mapa muestra `disponibles` negativos.
-
-    Lo único que libera la plaza es que la reserva haya **terminado**: resuelta
-    (consumida o liberada) o con `hasta` pasado. `reservar_plaza` ya no crea reservas a
-    futuro, así que esto es la red para las que entren por otro camino.
-    """
-
-    return ReservaPlaza.objects.filter(plaza=plaza, estado=ReservaPlaza.Estado.VIGENTE).filter(
-        Q(hasta__isnull=True) | Q(hasta__gte=momento)
-    )
-
-
-def reservas_abiertas(plaza_ids):
-    """Las reservas y préstamos **sin resolver** de esas plazas: ``VIGENTE``, venzan o no.
-
-    La tercera pregunta sobre una reserva, distinta de las otras dos:
-
-    * ``ReservaPlaza.objects.vigentes()`` contesta «¿cuenta hoy en el mapa?» y mira un
-      instante;
-    * :func:`_reservas_que_toman` contesta «¿puedo dar esta plaza?» y mira de ahora en
-      adelante;
-    * esta contesta **«¿queda algo que liberar?»**, y la respuesta no depende del
-      vencimiento: una reserva con el ``hasta`` pasado que nadie liberó sigue abierta.
-
-    Es justo el caso que enciende la alerta «Préstamo vencido sin liberar» de P4 —la plaza
-    ya cuenta como disponible y la reserva sigue ahí—, y por eso el mapa necesita esta
-    lectura y no la de `vigentes()`: con esa, la plaza de esa alerta sale «Disponible» y
-    la única acción que ofrecería sería sacarla de servicio, que no resuelve nada.
-    """
-
-    return ReservaPlaza.objects.filter(plaza_id__in=plaza_ids, estado=ReservaPlaza.Estado.VIGENTE)
-
-
 def reserva_abierta_de(plaza):
     """La reserva sin resolver de una plaza, o ``None``. La más vieja si hubiera más de una.
 
@@ -290,7 +256,7 @@ def reserva_abierta_de(plaza):
     queda.
     """
 
-    return reservas_abiertas([getattr(plaza, "pk", plaza)]).order_by("id").first()
+    return ReservaPlaza.objects.abiertas().filter(plaza=getattr(plaza, "pk", plaza)).order_by("id").first()
 
 
 def _plaza_tomada_por(plaza, *, excepto_reserva=None, momento=None):
@@ -302,7 +268,7 @@ def _plaza_tomada_por(plaza, *, excepto_reserva=None, momento=None):
 
     if Estadia.objects.activas().filter(plaza=plaza).exists():
         return "una estadía activa"
-    reservas = _reservas_que_toman(plaza, momento or timezone.now())
+    reservas = ReservaPlaza.objects.que_toman(momento).filter(plaza=plaza)
     if excepto_reserva is not None:
         reservas = reservas.exclude(pk=excepto_reserva.pk)
     reserva = reservas.first()
@@ -873,35 +839,10 @@ def _exigir_persona_sin_alojamiento_ni_reserva(ciudadano, dispositivo, usuario, 
     verificacion = verificar_alojamiento_en_red(ciudadano, usuario)
     if verificacion.alojada:
         raise ValidationError({"ciudadano": verificacion.mensaje})
-    propia = (
-        _reservas_que_toman_de_la_persona(ciudadano.pk, dispositivo, momento)
-        .select_related("plaza")
-        .order_by("id")
-        .first()
-    )
+    propia = reserva_propia_vigente(ciudadano.pk, dispositivo, momento)
     if propia is not None:
         que = "un préstamo" if propia.tipo == ReservaPlaza.Tipo.PRESTAMO else "una reserva"
         raise ValidationError({"ciudadano": PERSONA_CON_RESERVA.format(que=que, plaza=propia.plaza.codigo)})
-
-
-def _reservas_que_toman_de_la_persona(ciudadano_id, dispositivo, momento):
-    """Las reservas y préstamos de esa persona en ese dispositivo que siguen tomando una plaza."""
-
-    return ReservaPlaza.objects.filter(
-        ciudadano_id=ciudadano_id,
-        plaza__sector__dispositivo_id=dispositivo.pk,
-        estado=ReservaPlaza.Estado.VIGENTE,
-    ).filter(Q(hasta__isnull=True) | Q(hasta__gte=momento))
-
-
-def reservas_abiertas_de_la_persona(ciudadano_id, dispositivo):
-    """Las reservas y préstamos **sin resolver** de la persona en el dispositivo, vencidos o no."""
-
-    return ReservaPlaza.objects.filter(
-        ciudadano_id=ciudadano_id,
-        plaza__sector__dispositivo_id=dispositivo.pk,
-        estado=ReservaPlaza.Estado.VIGENTE,
-    ).select_related("plaza__sector__dispositivo")
 
 
 def reserva_propia_vigente(ciudadano_id, dispositivo, momento=None):
@@ -912,7 +853,8 @@ def reserva_propia_vigente(ciudadano_id, dispositivo, momento=None):
     """
 
     return (
-        _reservas_que_toman_de_la_persona(ciudadano_id, dispositivo, momento or timezone.now())
+        ReservaPlaza.objects.que_toman(momento)
+        .filter(ciudadano_id=ciudadano_id, plaza__sector__dispositivo_id=dispositivo.pk)
         .select_related("plaza")
         .order_by("id")
         .first()

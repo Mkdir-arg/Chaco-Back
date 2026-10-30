@@ -13,19 +13,27 @@ Lo que se fija acá, y por qué:
 
 import re
 from datetime import timedelta
+from unittest import mock
 
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.utils import timezone
 
 from programas.models import Dispositivo, Estadia, ReservaPlaza, Sector, TrazaDispositivo
+from programas.services import ingreso as servicio_ingreso
 from programas.services.estadias import ingresar_persona, reservar_plaza
-from programas.services.ingreso import confirmar_ingreso, plazas_para_ingresar
+from programas.services.ingreso import (
+    RESERVA_NUEVA_DURANTE_EL_INGRESO,
+    confirmar_ingreso,
+    plazas_para_ingresar,
+)
 from programas.services.plazas import (
     DISPOSITIVO_RECHAZADO,
     TIPO_SIN_PLAZAS,
     agregar_plazas,
     crear_sector,
+    editar_plaza,
+    editar_sector,
     motivo_sin_ampliar_capacidad,
 )
 from programas.tests.test_dispositivos_ingreso import BaseIngreso
@@ -174,6 +182,52 @@ class IngresoConsumeLaReservaTests(BaseIngreso):
 
         self.assertContains(respuesta, "Esa plaza ya no está disponible")
 
+    def test_una_reserva_que_aparece_mientras_se_ingresa_frena_el_ingreso(self):
+        """Con la persona ya bloqueada se relee: si le guardaron otra plaza en el medio, se rechaza."""
+        original = servicio_ingreso._bloquear_persona
+
+        def bloquear_y_que_aparezca_una_reserva(ciudadano):
+            original(ciudadano)
+            ReservaPlaza.objects.create(
+                plaza=self.otra_plaza,
+                ciudadano=ciudadano,
+                tipo=ReservaPlaza.Tipo.RESERVA,
+                estado=ReservaPlaza.Estado.VIGENTE,
+                desde=timezone.now(),
+                creada_por=self.operador_cis,
+            )
+
+        with mock.patch.object(servicio_ingreso, "_bloquear_persona", side_effect=bloquear_y_que_aparezca_una_reserva):
+            with self.assertRaises(ValidationError) as fallo:
+                self._confirmar_en(self.plaza)
+
+        self.assertEqual(fallo.exception.messages, [RESERVA_NUEVA_DURANTE_EL_INGRESO])
+        self.assertFalse(Estadia.objects.filter(ciudadano=self.persona).exists())
+        # Todo corre en una transacción: la reserva que apareció a mitad también se deshace.
+        self.assertFalse(ReservaPlaza.objects.filter(ciudadano=self.persona).exists())
+
+    def test_las_otras_reservas_se_cierran_antes_de_ingresar(self):
+        self._reservar(self.otra_plaza)
+        orden = []
+        liberar = servicio_ingreso.liberar_reserva
+        ingresar = servicio_ingreso.ingresar_persona
+
+        def liberar_anotando(*args, **kwargs):
+            orden.append("liberar")
+            return liberar(*args, **kwargs)
+
+        def ingresar_anotando(*args, **kwargs):
+            orden.append("ingresar")
+            return ingresar(*args, **kwargs)
+
+        with (
+            mock.patch.object(servicio_ingreso, "liberar_reserva", side_effect=liberar_anotando),
+            mock.patch.object(servicio_ingreso, "ingresar_persona", side_effect=ingresar_anotando),
+        ):
+            self._confirmar_en(self.plaza)
+
+        self.assertEqual(orden, ["liberar", "ingresar"])
+
 
 class ReservarExigeUnaPersonaLibreTests(BaseIngreso):
     def test_no_se_guarda_una_plaza_para_quien_ya_esta_alojada(self):
@@ -291,6 +345,22 @@ class SectoresSoloDondeHayPlazasTests(BaseMapa):
 
         self.assertEqual(fallo.exception.message_dict, {"__all__": [DISPOSITIVO_RECHAZADO]})
         self.assertEqual(motivo_sin_ampliar_capacidad(self.cis), DISPOSITIVO_RECHAZADO)
+
+    def test_un_dispositivo_rechazado_si_deja_corregir_sectores_y_plazas(self):
+        Dispositivo.objects.filter(pk=self.cis.pk).update(estado=Dispositivo.Estado.RECHAZADO)
+        self.cis.refresh_from_db()
+
+        editar_sector(
+            sector=self.sector, usuario=self.operador_cis, nombre="Corregido", tipo=self.sector.tipo, capacidad=2
+        )
+        editar_plaza(plaza=self.plaza, usuario=self.operador_cis, codigo="Z-9", tipo=self.plaza.tipo)
+
+        self.sector.refresh_from_db()
+        self.plaza.refresh_from_db()
+        self.assertEqual(self.sector.nombre, "Corregido")
+        self.assertEqual(self.plaza.codigo, "Z-9")
+        with self.assertRaises(ValidationError):
+            agregar_plazas(sector=self.sector, usuario=self.operador_cis, cantidad=1)
 
     def test_el_boton_solo_aparece_donde_el_alta_es_posible(self):
         self.tipo.plaza_obligatoria_al_ingresar = True

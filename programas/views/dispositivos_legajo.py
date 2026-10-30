@@ -1020,6 +1020,8 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
     mensaje_exito = ""
     #: Reservar y prestar buscan a la persona por DNI en el padrón: piden también `ciudadano.ver`.
     requiere_ver_ciudadanos = False
+    #: Campo del servicio → campo del modal, cuando el modal lo pide con otro nombre.
+    alias_de_campos = {}
 
     def post(self, request, pk, plaza_pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
@@ -1052,7 +1054,7 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
                 return JsonResponse({"ok": False, "message": "No tenés alcance sobre este dispositivo."}, status=403)
             raise
         except ValidationError as error:
-            return self._rechazar(request, self._errores_del_servicio(error, form), volver)
+            return self._rechazar(request, self._errores_del_servicio(error, form, self.alias_de_campos), volver)
         mensaje = self.mensaje(plaza)
         if is_ajax(request):
             return ajax_redirect(request, volver, mensaje)
@@ -1063,19 +1065,21 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
         return self.mensaje_exito.format(plaza=plaza.codigo)
 
     @staticmethod
-    def _errores_del_servicio(error, form):
+    def _errores_del_servicio(error, form, alias_de_campos=None):
         """Lo que el servicio rechaza, en la forma `{campo: [mensajes]}` del modal.
 
         Una clave que el formulario no tiene —`estado` cuando la reserva ya se liberó,
         `plaza` cuando quedó tomada— va al error general, el único lugar donde el modal la
-        puede mostrar.
+        puede mostrar. `alias_de_campos` traduce antes los nombres del servicio a los del modal.
         """
 
         if not hasattr(error, "error_dict"):
             return {"__all__": list(error.messages)}
         campos = form.fields if form else {}
+        alias = alias_de_campos or {}
         errores = {}
         for campo, mensajes in error.message_dict.items():
+            campo = alias.get(campo, campo)
             destino = campo if campo in campos else "__all__"
             errores.setdefault(destino, []).extend(mensajes)
         return errores
@@ -1095,27 +1099,21 @@ class PlazaReservarView(_PlazaAccionView):
 
     capacidad_requerida = CAP_ADMITIR
     requiere_ver_ciudadanos = True
+    # El servicio habla de la persona; el modal la pide por DNI: ese error va a ese campo.
+    alias_de_campos = {"ciudadano": "dni"}
     form_class = ReservarPlazaForm
     mensaje_exito = "Plaza {plaza} reservada."
     tipo = ReservaPlaza.Tipo.RESERVA
 
     def ejecutar(self, request, plaza, datos):
-        try:
-            reservar_plaza(
-                plaza=plaza,
-                ciudadano=datos["ciudadano"],
-                usuario=request.user,
-                tipo=self.tipo,
-                hasta=datos.get("hasta"),
-                motivo=datos.get("motivo", ""),
-            )
-        except ValidationError as error:
-            # El servicio habla de la persona; el modal la pide por DNI: el error va a ese campo.
-            if hasattr(error, "error_dict") and "ciudadano" in error.error_dict:
-                errores = error.message_dict
-                errores["dni"] = errores.pop("ciudadano")
-                raise ValidationError(errores) from error
-            raise
+        reservar_plaza(
+            plaza=plaza,
+            ciudadano=datos["ciudadano"],
+            usuario=request.user,
+            tipo=self.tipo,
+            hasta=datos.get("hasta"),
+            motivo=datos.get("motivo", ""),
+        )
 
 
 class PlazaPrestarView(PlazaReservarView):

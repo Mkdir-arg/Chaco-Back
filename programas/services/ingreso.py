@@ -21,18 +21,16 @@ from typing import NamedTuple
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 
 from core.dni import normalizar_dni
 from legajos.forms import CiudadanoConfirmarForm, CiudadanoManualForm
 from legajos.models import Ciudadano
 from legajos.services import CiudadanosService
-from programas.models import Plaza, Sector
+from programas.models import Plaza, ReservaPlaza, Sector
 from programas.services.estadias import (
     ingresar_persona,
     liberar_reserva,
     reserva_propia_vigente,
-    reservas_abiertas_de_la_persona,
 )
 from programas.services.ocupacion import ESTADO_PRESTADA, ESTADO_RESERVADA, estado_de_plazas
 
@@ -200,10 +198,30 @@ def confirmar_ingreso(
         plaza = Plaza.objects.get(pk=plaza_id) if plaza_id else None
         # Lo que la persona tenía guardado en este dispositivo: si es la plaza donde entra, el
         # ingreso la consume; el resto se cierra, porque una persona que ya está adentro no
-        # puede seguir bloqueando plazas. Todo en esta transacción.
-        abiertas = list(reservas_abiertas_de_la_persona(ciudadano.pk, dispositivo))
-        propia = _reserva_a_consumir(abiertas, plaza)
-        estadia = ingresar_persona(
+        # puede seguir bloqueando plazas. Todo en esta transacción y, para no cruzar candados,
+        # en el orden plaza → reserva → persona: primero se cierran las otras (por plaza_id),
+        # después se toma la plaza del ingreso y recién entonces la persona.
+        propia = reserva_propia_vigente(ciudadano.pk, dispositivo)
+        if propia is not None and (plaza is None or propia.plaza_id != plaza.pk):
+            propia = None
+        for reserva in _reservas_abiertas_de(ciudadano.pk, dispositivo):
+            if propia is not None and reserva.pk == propia.pk:
+                continue
+            try:
+                liberar_reserva(reserva=reserva, usuario=usuario, motivo=MOTIVO_RESERVA_CERRADA_POR_INGRESO)
+            except ValidationError:
+                continue  # ya la resolvió otro: lo que importa es que no quede bloqueando
+        if plaza is not None:
+            # Solo el candado: `ingresar_persona` vuelve a tomar la plaza y a validarla.
+            list(Plaza.objects.select_for_update().filter(pk=plaza.pk).values_list("pk", flat=True))
+        _bloquear_persona(ciudadano)
+        # Con la persona bloqueada nadie le puede guardar otra plaza: si apareció una entre la
+        # lectura y el bloqueo, quedaría bloqueando una plaza de alguien que ya está adentro.
+        if any(
+            propia is None or reserva.pk != propia.pk for reserva in _reservas_abiertas_de(ciudadano.pk, dispositivo)
+        ):
+            raise ValidationError(RESERVA_NUEVA_DURANTE_EL_INGRESO)
+        return ingresar_persona(
             ciudadano=ciudadano,
             dispositivo=dispositivo,
             usuario=usuario,
@@ -211,33 +229,31 @@ def confirmar_ingreso(
             fecha_ingreso=fecha_ingreso,
             reserva=propia,
         )
-        for reserva in abiertas:
-            if propia is not None and reserva.pk == propia.pk:
-                continue
-            try:
-                liberar_reserva(reserva=reserva, usuario=usuario, motivo=MOTIVO_RESERVA_CERRADA_POR_INGRESO)
-            except ValidationError:
-                continue  # ya la resolvió otro: lo que importa es que no quede bloqueando
-        return estadia
 
 
 #: Por qué se cierra la reserva o el préstamo que la persona tenía cuando ingresa en otra plaza o sin plaza.
 MOTIVO_RESERVA_CERRADA_POR_INGRESO = "La persona ingresó al dispositivo."
 
+RESERVA_NUEVA_DURANTE_EL_INGRESO = (
+    "Mientras se registraba el ingreso se le guardó una plaza a esta persona; volvé a confirmar."
+)
 
-def _reserva_a_consumir(abiertas, plaza):
-    """La reserva vigente de la persona sobre la plaza donde entra, o `None`.
 
-    Una vencida (`hasta` pasado) ya no toma la plaza: no se consume, se cierra con las demás.
-    """
+def _reservas_abiertas_de(ciudadano_id, dispositivo):
+    """Las reservas sin resolver de la persona en el dispositivo, vencidas o no, por plaza."""
 
-    if plaza is None:
-        return None
-    ahora = timezone.now()
-    for reserva in abiertas:
-        if reserva.plaza_id == plaza.pk and (reserva.hasta is None or reserva.hasta >= ahora):
-            return reserva
-    return None
+    return list(
+        ReservaPlaza.objects.abiertas()
+        .filter(ciudadano_id=ciudadano_id, plaza__sector__dispositivo_id=dispositivo.pk)
+        .select_related("plaza__sector__dispositivo")
+        .order_by("plaza_id")
+    )
+
+
+def _bloquear_persona(ciudadano):
+    """La fila de la persona, con `FOR UPDATE`: serializa lo que se le guarda o se le aloja."""
+
+    Ciudadano.objects.select_for_update().only("pk").get(pk=ciudadano.pk)
 
 
 def _alta_desde_registro(datos):

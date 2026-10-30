@@ -50729,7 +50729,11 @@ otro (ver Pendientes).
      candados plaza y después reserva.
    - Si entra en **otra plaza o sin plaza**, las reservas abiertas de la persona en ese dispositivo se cierran con
      `liberar_reserva` (`LIBERADA`, con su traza `PLAZA_LIBERADA` y el motivo «La persona ingresó al dispositivo.»),
-     en la misma transacción. También se cierra una vencida que nadie liberó: si no, seguiría encendiendo la alerta
+     en la misma transacción y **antes** de `ingresar_persona`, ordenadas por `plaza_id`: el orden de candados es
+     plaza → reserva → persona, el mismo de `reservar_plaza`, así que dos transacciones no se esperan en cruz (1213).
+     Con la persona ya bloqueada se **releen** sus reservas abiertas: si apareció una que no es la que se consume, el
+     ingreso se rechaza con «Mientras se registraba el ingreso se le guardó una plaza a esta persona; volvé a
+     confirmar.» y no deja nada a medias. También se cierra una vencida que nadie liberó: si no, seguiría encendiendo la alerta
      «Préstamo vencido sin liberar» de alguien que ya está adentro.
    - Una reserva **vencida** sobre la plaza elegida no se consume (ya no la tomaba): se cierra y el ingreso entra por
      el camino normal.
@@ -50746,7 +50750,8 @@ otro (ver Pendientes).
 3. **A-07 · sectores solo donde hay plazas** (`plazas.motivo_sin_ampliar_capacidad`, una sola pregunta para el
    servicio y la pantalla). `crear_sector` y `agregar_plazas` rechazan, como **error general** (`__all__`), un tipo
    que no maneja plazas (`TipoDispositivo.maneja_plazas`) y un dispositivo **cerrado o rechazado** (antes solo
-   cerrado). Editar un sector o una plaza existente no cambia. La pantalla no arma ni ofrece «Nuevo sector» ni
+   cerrado). Editar un sector o una plaza existente solo se bloquea con el dispositivo **cerrado**: uno rechazado se
+   puede corregir y reenviar. La pantalla no arma ni ofrece «Nuevo sector» ni
    «Agregar plazas» (`puede_ampliar_capacidad`).
 4. **B-05.** Volver a servicio una plaza que ya estaba operativa sigue siendo un no-op del servicio, sin traza
    duplicada, pero la respuesta dice «La plaza P1 ya estaba en servicio: no hubo nada que cambiar.».
@@ -50754,8 +50759,10 @@ otro (ver Pendientes).
 
 ## Implementación
 
-`estadias.py`: `_exigir_persona_sin_alojamiento_ni_reserva`, `reserva_propia_vigente`,
-`reservas_abiertas_de_la_persona`. `ingreso.py`: `plaza_reservada_de`, `_reserva_a_consumir`, `confirmar_ingreso`.
+`models`: `ReservaPlazaQuerySet.abiertas()` y `.que_toman(momento)` junto a `vigentes()`: la única definición de «qué
+reserva sigue tomando la plaza». `estadias.py`: `_exigir_persona_sin_alojamiento_ni_reserva`, `reserva_propia_vigente`.
+`ingreso.py`: `plaza_reservada_de`, `confirmar_ingreso`, `_reservas_abiertas_de`, `_bloquear_persona`. La vista pasa
+`alias_de_campos` a `_errores_del_servicio`.
 `plazas.py`: `motivo_sin_ampliar_capacidad`. Vistas y template: ver Partes afectadas. Sin clases, includes ni variantes
 nuevas.
 
@@ -50773,7 +50780,8 @@ Sin cambios de esquema.
 
 ## Validación
 
-`test_dispositivos_reservas_y_plazas` (25 tests). Mutación B-01: pasar `reserva=None` a `ingresar_persona` deja rojos
+`test_dispositivos_reservas_y_plazas` (28 tests). Mutación de la carrera (reserva que aparece con la persona ya
+bloqueada): quitar el rechazo deja rojo `test_una_reserva_que_aparece_mientras_se_ingresa_frena_el_ingreso`. Mutación B-01: pasar `reserva=None` a `ingresar_persona` deja rojos
 los tres tests que ingresan en la plaza reservada. Mutación B-02: reemplazar la llamada a la validación por `pass` deja
 rojos cuatro tests (alojada, alojada en otro dispositivo, dos reservas y el error en el campo del DNI).
 `manage.py test programas`, `--tag performance`, `check`, ruff, `design_audit --ratchet`, `compile_templates --bloques` y
