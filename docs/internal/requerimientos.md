@@ -527,6 +527,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 401 | Alta masiva SIIS de la Convocatoria 1 en PRD (1.786 altas): procedimiento probado documentado paso a paso | Becas · SIIS (`corregir_datos_siis`, `procesar_casos_siis`, `sincronizar_tabla_intermedia`) · operación en PRD de ECOM | `#siis` `#infra` | PM — pedido del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
 | 402 | SIIS: el refresco de catálogos registra el traceback del catálogo que falla (MINOR de la auditoría de #1005) | SIIS (`refrescar_catalogos_locales`) | `#siis` | Juez — MINOR de auditoría (#1005), pedido del PM | 29/10/2026 | 🟢 **Hecho** | No requiere |
 | 403 | SIIS: `procesar_casos_siis --destino siis` drena la tabla intermedia de a lotes, con `--total`, `--lote` y `--pausa`, y frena ante errores o envíos inciertos | SIIS (`procesar_casos_siis`, `sincronizar_tabla_intermedia`) | `#siis` | Juez — pendiente del Cambio 401 | 30/10/2026 | 🟢 **Hecho** | No requiere |
+| 404 | SIIS: `corregir_datos_siis` exporta a CSV las localidades que no cruzan (una fila por caso) y carga lo que completa el cliente en `localidades_corregidas` | SIIS (`corregir_datos_siis`) · procedimiento del alta | `#siis` | PM — pendiente de las 147 localidades del Cambio 401 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -50475,6 +50476,8 @@ No aplica: un alta en SIIS no se deshace desde acá (ver «Deshacer un envío» 
   cómo se corren en el pod. También se corrige la nota del `read_timeout` (muere con `OperationalError`, no
   devuelve `None`) y se aclara el margen de `CURDATE() - INTERVAL 1 DAY`.
 - **30/10/2026** — el pendiente «que `procesar_casos_siis --destino siis` respete `--total` y `--pausa`» se resolvió en el Cambio 403.
+- **30/10/2026 — pendiente de las 147 localidades.** Se atiende en el Cambio 404: `corregir_datos_siis
+  --exportar-sin-cruce` arma el listado para el cliente y `--cargar-localidades` vuelca lo que completa.
 
 ---
 
@@ -50601,5 +50604,82 @@ Revertir el PR.
 
 - **30/10/2026 — alta del cambio.**
 - **30/10/2026 — ronda de la auditoría de #1007.** El script de consola del Paso 9 frena también con `inciertos` y `vigentes` y se reescribió su punto 4; `sincronizar_tabla_intermedia` acepta `cortar_si` y el comando corta dentro del lote ante INCIERTO, EN_PROCESO o ERROR; hay pausa en el empalme entre el drenaje y el primer lote de casos nuevos; el texto de `--total` aclara que el drenaje tiene su tope y los casos nuevos usan el `--total` entero; el mensaje de freno distingue conciliar con ECOM de regenerar o borrar la fila.
+
+---
+
+# Cambio 404 — SIIS: listado de localidades sin cruce para que el cliente las complete
+
+🟢 **HECHO — 30/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | SIIS (`corregir_datos_siis`) · procedimiento del alta |
+| **Etiquetas** | `#siis` |
+| **Solicitante** | PM — pendiente de las 147 localidades del Cambio 401 |
+| **Fecha del pedido** | 30/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Comando de gestión, documentación |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Pasarle al cliente el listado completo de las localidades que no cruzan el catálogo de SIIS (el resumen del comando
+solo imprime las 20 más frecuentes), y poder cargar lo que complete en `localidades_corregidas`.
+
+## Alcance acordado
+
+**Entra:** una opción de exportación y una de carga en `corregir_datos_siis`, con tests y el paso a paso en el procedimiento.
+**Queda afuera:** crear modelos o migraciones, correr nada en PRD, y regenerar/mandar los casos (eso es `procesar_casos_siis`).
+
+## Decisiones tomadas
+
+1. `--exportar-sin-cruce RUTA.csv` escribe una fila por **caso** (no por DNI ni por texto) con `caso_pk`, `caso_numero`,
+   `relevamiento_id`, `dni`, `localidad_declarada`, `provincia_declarada`, `texto_planilla`, `motivo`
+   (`loc_planilla_no_cruza` o `loc_sin_dato_en_planilla`, las claves del resumen) y `localidad_siis` vacía. UTF-8 con BOM para
+   Excel. Funciona en ensayo: solo escribe el archivo. `-` manda el CSV a stdout y el log a stderr.
+2. `--cargar-localidades RUTA.csv` lee `dni` y `localidad_siis` y hace insert/update en la tabla `localidades_corregidas`
+   por SQL directo (la tabla la crea el script del organismo, no hay modelo). En seco salvo `--aplicar`. Deja afuera las
+   filas sin completar, las cuyo nombre no existe en el catálogo propio de SIIS y los DNI con dos localidades
+   distintas. No corrige casos: después se corre la corrección normal.
+3. El CSV lleva DNI: no se commitea ni va a `docs/client/`.
+
+## Implementación
+
+`programas/management/commands/corregir_datos_siis.py`: `_anotar_sin_cruce` junta las filas en las dos ramas de
+`_corregir_localidad` que hoy cuentan el no cruce; `_exportar_sin_cruce`; `_cargar_localidades`; `_columna_dni` sale de
+`_localidades_corregidas` para compartir la validación de la tabla.
+
+## Archivos
+
+- `programas/management/commands/corregir_datos_siis.py`, `programas/tests/test_corregir_datos_siis.py`,
+  `docs/internal/procedimiento-alta-siis.md`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios de esquema. La carga escribe filas en `localidades_corregidas` solo con `--aplicar`.
+
+## Validación
+
+`ExportarSinCruceTests` y `CargarLocalidadesTests` (51 tests del módulo en verde). Mutación: llamar a
+`_anotar_sin_cruce` también para el caso que ya cruza deja rojo `test_el_caso_que_cruza_no_sale`; ejecutar la carga
+sin mirar `--aplicar` deja rojo `test_en_seco_por_defecto_no_escribe`. `manage.py check`, ruff.
+
+## Puesta en marcha en el servidor
+
+Nada especial. Receta en `docs/internal/procedimiento-alta-siis.md`, «Localidades que no cruzan».
+
+## Pendientes / a definir
+
+- Que el cliente complete el CSV de PRD (el pendiente de las 147 localidades sigue abierto hasta entonces).
+
+## Reversión
+
+Revertir el PR. Lo cargado con `--aplicar` queda en la tabla; se corrige volviendo a cargar.
+
+## Historial
+
+- **30/10/2026 — alta del cambio.**
+- **30/10/2026 — ronda de la auditoría del PR #1008.** El CSV pasa `localidad_declarada`, `provincia_declarada` y `texto_planilla` por `core.exportacion.celda_segura` (inyección de fórmulas, RED-70); la carga detecta `;` y cae a cp1252 (con `CommandError` que dice cómo guardar el archivo); el criterio de la carga se alinea con la corrección (alias con destino aceptados; un nombre repetido entre provincias se carga y se cuenta aparte con aviso); y `--exportar-sin-cruce` con `--sin-localidades` es error.
+- **30/10/2026 — ronda 3 de la auditoría del PR #1008.** El bloque de CSV (columnas, escritura, lectura, plan de carga) sale de `corregir_datos_siis.py` —que pasaba de 1000 líneas— al módulo hermano `_localidades_csv_siis.py`, con funciones sin efectos; el comando conserva el log, la transacción y el INSERT/UPDATE. El aviso de la carga cubre toda clave que no sea única en el catálogo (también las que resuelven solo por equivalencia): «solo cruza si la provincia declarada es la correcta (o la de la equivalencia)». No cambia qué se carga.
 
 ---

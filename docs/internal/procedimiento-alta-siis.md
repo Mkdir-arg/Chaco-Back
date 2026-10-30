@@ -204,7 +204,7 @@ de la tabla) · `INCOMPLETO` 2 (envíos viejos del 13 y el 15/10).
 |---|---|
 | 4.672 `duplicidad_becas` | Confirmar con SIIS que están en el programa 90, y decidir qué estado muestran en DATAÑACH (hoy: incompatibles, no aprobados) |
 | 3 apoderados con fecha imposible | Si se corrigen, regenerar con `--destino tabla` y mandar |
-| 147 localidades que no cruzan | Sumarlas a la planilla o agregar equivalencias en el padrón |
+| 147 localidades que no cruzan | Exportar el listado, que el cliente lo complete y cargarlo (ver «Localidades que no cruzan», sección 6; Cambio 404) |
 | 52 por `edad_minima`, 3 por `empleo_publico` | Rechazos legítimos de SIIS: no se hace nada |
 
 ---
@@ -359,6 +359,40 @@ Mirar dos líneas del resumen: **"la planilla tampoco cruza"** y **"su DNI no es
 planilla"**. Son la lista de trabajo para la próxima vuelta.
 
 ⏱ 15 min
+
+### Localidades que no cruzan: exportar, completar, cargar
+
+El resumen solo muestra las 20 más frecuentes. Para el listado completo, en ensayo (no toca la base):
+
+```bash
+python manage.py corregir_datos_siis --convocatoria 1 --exportar-sin-cruce sin_cruce.csv
+# si el pod no deja escribir a disco: el CSV por stdout y el log por stderr
+python manage.py corregir_datos_siis --convocatoria 1 --exportar-sin-cruce - > sin_cruce.csv
+```
+
+1. **Exportar.** Una fila por caso con `caso_pk`, `caso_numero`, `relevamiento_id`, `dni`, `localidad_declarada`,
+   `provincia_declarada`, `texto_planilla`, `motivo` (`loc_planilla_no_cruza` o `loc_sin_dato_en_planilla`) y
+   `localidad_siis` **vacía**. UTF-8 con BOM: abre bien en Excel.
+2. **El cliente completa** `localidad_siis` con el nombre de la localidad como figura en SIIS (los nombres que no
+   existen en el catálogo, ni como equivalencia, se rechazan al cargar). No hay que tocar las otras columnas.
+   Para abrirlo en Excel sin que todo quede en la columna A: **Datos > Desde texto/CSV** (origen UTF-8, delimitador
+   coma). Para guardarlo: Guardar como «CSV UTF-8 (delimitado por comas)». Si Excel lo guarda con `;` o en
+   Windows-1252, la carga lo detecta igual. Las celdas de texto libre que empiezan con `=`, `+`, `-` o `@` salen con
+   una comilla simple adelante (para que Excel no las ejecute como fórmula); esa comilla no hay que sacarla.
+3. **Cargar.** Primero en seco, después de verdad; escribe en `localidades_corregidas` (inserta los DNI nuevos y
+   actualiza los que cambian; no toca los casos):
+   ```bash
+   python manage.py corregir_datos_siis --cargar-localidades completado.csv
+   python manage.py corregir_datos_siis --cargar-localidades completado.csv --aplicar
+   ```
+   Quedan afuera, y el resumen lo cuenta, las filas sin completar, los nombres que no están en el catálogo y los DNI
+   con dos localidades distintas. Un nombre repetido entre provincias se carga, pero el resumen lo cuenta aparte:
+   solo cruza si la provincia declarada del caso es la correcta.
+4. **Corregir y regenerar.** Se vuelve a correr `corregir_datos_siis ... --aplicar` (paso 6), después
+   `procesar_casos_siis --destino tabla` y el envío como en el paso 8.
+
+El CSV lleva DNI: **no se commitea ni se pone en `docs/client/`** (es público). Se manda por el canal acordado con el
+cliente y se borra del pod al terminar.
 
 ---
 
