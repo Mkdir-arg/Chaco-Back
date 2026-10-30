@@ -394,8 +394,9 @@ class Command(ComandoSiisBase):
                 for dni, texto in plan.nuevos.items():
                     cur.execute(f"INSERT INTO `{tabla}` (`{col_dni}`, `localidad`) VALUES (%s, %s)", [dni, texto])  # nosec B608
                 for dni, texto in plan.cambian.items():
-                    cur.execute(  # nosec B608
-                        f"UPDATE `{tabla}` SET `localidad` = %s WHERE `{col_dni}` = %s", [texto, existentes[dni][0]]
+                    cur.execute(
+                        f"UPDATE `{tabla}` SET `localidad` = %s WHERE `{col_dni}` = %s",  # nosec B608
+                        [texto, existentes[dni][0]],
                     )
         verbo = "cargadas" if aplicar else "a cargar"
         self._log("Resumen", self.style.MIGRATE_HEADING)
