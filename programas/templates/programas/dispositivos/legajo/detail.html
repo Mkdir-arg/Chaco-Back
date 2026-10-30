@@ -33,7 +33,7 @@
       <a href="{% url 'dispositivos:bitacora' dispositivo.pk %}" class="btn-nodo btn-secondary btn-sm btn-fit">
         <i class="fas fa-clock" aria-hidden="true"></i> Bitácora del turno
       </a>
-      {% if puede_editar and dispositivo.estado == 'BORRADOR' or puede_editar and dispositivo.estado == 'OBSERVADO' %}
+      {% if puede_enviar_validacion %}
       <button type="button" class="btn-nodo btn-brand btn-sm btn-fit"
               data-confirm-url="{% url 'dispositivos:enviar_validacion' dispositivo.pk %}"
               data-confirm-title="¿Enviar a validación?"

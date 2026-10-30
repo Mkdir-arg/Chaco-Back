@@ -274,7 +274,7 @@ class FidelidadFITests(BaseInfraestructura):
         self.assertNotContains(respuesta, "Editar institución")
         self.assertFalse(Dispositivo.objects.filter(codigo=self.datos["codigo"]).exists())
 
-    def test_solo_borrador_y_observado_ofrecen_envio_y_servidor_rechaza_activo(self):
+    def test_solo_borrador_observado_y_rechazado_ofrecen_envio_y_servidor_rechaza_activo(self):
         for estado in Dispositivo.Estado.values:
             self.cis.estado = estado
             self.cis.save()
@@ -282,7 +282,11 @@ class FidelidadFITests(BaseInfraestructura):
                 self.assertEqual(self.client.get(self.editar).status_code, 403)
                 continue
             respuesta = self.client.get(self.editar)
-            esperado = estado in (Dispositivo.Estado.BORRADOR, Dispositivo.Estado.OBSERVADO)
+            esperado = estado in (
+                Dispositivo.Estado.BORRADOR,
+                Dispositivo.Estado.OBSERVADO,
+                Dispositivo.Estado.RECHAZADO,
+            )
             self.assertEqual(respuesta.context["puede_enviar_validacion"], esperado)
         self.cis.estado = Dispositivo.Estado.ACTIVO
         self.cis.save()

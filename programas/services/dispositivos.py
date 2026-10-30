@@ -205,11 +205,21 @@ def campos_para_validacion():
     return _CAMPOS_REQUERIDOS_VALIDACION
 
 
-def puede_enviar_desde_formulario(usuario, dispositivo):
-    """Una institución nueva todavía no tiene asignaciones: exige alcance total."""
+def estados_desde_los_que_se_envia():
+    """Estados desde los que se (re)envía a validación: borrador, observado y rechazado.
+
+    El rechazado se corrige y vuelve a enviarse (decisión del PM, 30/10/2026, Cambio 407).
+    Una sola fuente para el servicio, el formulario y el botón del detalle.
+    """
     from programas.models import Dispositivo
 
-    if dispositivo.estado not in (Dispositivo.Estado.BORRADOR, Dispositivo.Estado.OBSERVADO):
+    return (Dispositivo.Estado.BORRADOR, Dispositivo.Estado.OBSERVADO, Dispositivo.Estado.RECHAZADO)
+
+
+def puede_enviar_desde_formulario(usuario, dispositivo):
+    """Una institución nueva todavía no tiene asignaciones: exige alcance total."""
+
+    if dispositivo.estado not in estados_desde_los_que_se_envia():
         return False
     if not dispositivo.pk:
         return puede_configurar_dispositivos(usuario) and puede_en_programa_dispositivos(usuario, "dispositivo.editar")
@@ -276,7 +286,7 @@ def enviar_a_validacion(dispositivo, usuario):
     return _transicionar(
         dispositivo,
         usuario,
-        origenes=(Dispositivo.Estado.BORRADOR, Dispositivo.Estado.OBSERVADO),
+        origenes=estados_desde_los_que_se_envia(),
         destino=Dispositivo.Estado.PENDIENTE_VALIDACION,
         accion="ENVIADO_VALIDACION",
         exige_datos=True,

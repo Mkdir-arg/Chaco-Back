@@ -528,6 +528,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 402 | SIIS: el refresco de catálogos registra el traceback del catálogo que falla (MINOR de la auditoría de #1005) | SIIS (`refrescar_catalogos_locales`) | `#siis` | Juez — MINOR de auditoría (#1005), pedido del PM | 29/10/2026 | 🟢 **Hecho** | No requiere |
 | 403 | SIIS: `procesar_casos_siis --destino siis` drena la tabla intermedia de a lotes, con `--total`, `--lote` y `--pausa`, y frena ante errores o envíos inciertos | SIIS (`procesar_casos_siis`, `sincronizar_tabla_intermedia`) | `#siis` | Juez — pendiente del Cambio 401 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 404 | SIIS: `corregir_datos_siis` exporta a CSV las localidades que no cruzan (una fila por caso) y carga lo que completa el cliente en `localidades_corregidas` | SIIS (`corregir_datos_siis`) · procedimiento del alta | `#siis` | PM — pendiente de las 147 localidades del Cambio 401 | 30/10/2026 | 🟢 **Hecho** | No requiere |
+| 407 | Dispositivos: «Ingresar persona» solo a quien el asistente deja entrar, buscador en el formulario del tipo, reenvío del rechazado y clave provisoria del agente en la app | Dispositivos (legajo P4/P3, asistente de ingreso, `ObtainCampoToken`) | `#rbac` `#ui` `#api` `#mobile` | PM — QA local de Dispositivos del 30/10/2026 (A-01/B-03, A-05, A-02, C-S2) | 30/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -50681,5 +50682,107 @@ Revertir el PR. Lo cargado con `--aplicar` queda en la tabla; se corrige volvien
 - **30/10/2026 — alta del cambio.**
 - **30/10/2026 — ronda de la auditoría del PR #1008.** El CSV pasa `localidad_declarada`, `provincia_declarada` y `texto_planilla` por `core.exportacion.celda_segura` (inyección de fórmulas, RED-70); la carga detecta `;` y cae a cp1252 (con `CommandError` que dice cómo guardar el archivo); el criterio de la carga se alinea con la corrección (alias con destino aceptados; un nombre repetido entre provincias se carga y se cuenta aparte con aviso); y `--exportar-sin-cruce` con `--sin-localidades` es error.
 - **30/10/2026 — ronda 3 de la auditoría del PR #1008.** El bloque de CSV (columnas, escritura, lectura, plan de carga) sale de `corregir_datos_siis.py` —que pasaba de 1000 líneas— al módulo hermano `_localidades_csv_siis.py`, con funciones sin efectos; el comando conserva el log, la transacción y el INSERT/UPDATE. El aviso de la carga cubre toda clave que no sea única en el catálogo (también las que resuelven solo por equivalencia): «solo cruza si la provincia declarada es la correcta (o la de la equivalencia)». No cambia qué se carga.
+
+---
+
+# Cambio 407 — Dispositivos: permisos de ingreso, buscador, reenvío del rechazado y clave provisoria en la app
+
+🟢 **HECHO — 30/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (legajo P4/P3, asistente de ingreso, egreso) · API de campo (`/api/becas/auth/token/`) |
+| **Etiquetas** | `#rbac` `#ui` `#api` `#mobile` |
+| **Solicitante** | PM — QA local de Dispositivos del 30/10/2026 (A-01/B-03, A-05, A-02, C-S2) |
+| **Fecha del pedido** | 30/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servicios, vistas, templates del legajo, API de campo, fichas de diseño |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cuatro hallazgos del QA local de Dispositivos: el botón «Ingresar persona» se ofrecía a quien el asistente rechaza con 403
+(A-01/B-03); el campo con presentación BUSCADOR del formulario del tipo se veía como select múltiple nativo (A-05); un
+dispositivo RECHAZADO solo ofrecía «Cerrar» (A-02); y la clave provisoria del agente de Dispositivos no se cobraba en la
+app (C-S2).
+
+## Alcance acordado
+
+**Entra:** las cuatro correcciones, con tests y mutaciones. **Queda afuera:** reactivar un dispositivo INACTIVO (pendiente),
+invalidar tokens ya emitidos, migraciones.
+
+## Decisiones tomadas
+
+1. **A-01.** Una sola función, `programas.services.estadias.puede_ingresar_persona(user, dispositivo)` =
+   `dispositivo.admitir` con alcance **y** `ciudadano.ver`. Es el gate de `IngresoBaseView` y la bandera `puede_admitir` del
+   detalle, que es lo único que leen los dos botones del template: no hay regla duplicada. El detalle de la estadía ya
+   ofrecía el enlace solo con `ciudadano.ver` (por diseño: muestra nombre, DNI y trayectoria del padrón); el 403 que vio el QA
+   era el **destino del egreso y del cambio de plaza** (`volver=estadia` o el valor por defecto), así que ahora, sin
+   `ciudadano.ver`, vuelven a la solapa Estadías.
+2. **A-05.** `form.html` (P3, alta y edición) carga `nodo-buscador.css` en `page_css` y `nodo-buscador.js` en `customJS`, y el JS
+   del formulario vuelve a montar el buscador cuando cambia el tipo (la sección llega por `fetch`). Sin clase, include ni
+   variante nuevos.
+3. **A-02 (decisión del PM, 30/10/2026).** Un dispositivo RECHAZADO se corrige y se vuelve a enviar a validación, con la misma
+   regla de «qué falta», la misma capacidad (`dispositivo.editar`) y la misma traza (`ENVIADO_VALIDACION`, anterior
+   `RECHAZADO`) que desde borrador u observado. La lista de estados de origen es una sola
+   (`estados_desde_los_que_se_envia`), usada por el servicio, el formulario y el botón del detalle (bandera
+   `puede_enviar_validacion`). INACTIVO queda como estaba, sin reactivación.
+4. **C-S2 (decisión del PM, 30/10/2026).** a) El alta rápida «Crear agente» **ya seguía** el camino del usuario de campo de
+   Becas: `inspeccion.relevar` está en `CAPACIDADES_DE_CAMPO`, así que `es_solo_campo` es verdadero, el correo es obligatorio y
+   la entrega es un **enlace de reseteo** sin clave en claro; un test lo fija. b) `ObtainCampoToken` (el único endpoint de
+   token de campo: `becas_api:token`, que sirve también a Dispositivos) responde **403** con
+   `{"codigo": "debe_cambiar_contrasena", "detail": "…"}` y no emite token si `Profile.debe_cambiar_contrasena` es verdadero. Va
+   después de validar credenciales y acceso (con clave equivocada no se revela la marca). `codigo` es contrato con la app.
+   c) El enlace de reseteo y «Olvidé mi contraseña» usan la misma vista (`EstablecerContrasenaView`), que **ya limpia** la
+   marca; un test recorre el camino completo (alta → 403 → enlace → token 200).
+5. **Tokens ya emitidos: no se invalidan.** SEC-26 decidió que cambiar o resetear la clave no cierra la sesión de la app (la app
+   instalada no se recupera de un 401 y perdería lo no subido); se mantiene. La marca solo corta la emisión de tokens nuevos.
+
+## Implementación
+
+`programas/services/estadias.py` (`puede_ingresar_persona`), `programas/services/dispositivos.py`
+(`estados_desde_los_que_se_envia`), `programas/views/dispositivos_ingreso.py` y `dispositivos_legajo.py`,
+`legajo/detail.html` y `legajo/form.html`, `programas/api/views.py` (`CODIGO_DEBE_CAMBIAR_CLAVE`).
+
+## Archivos
+
+- Código: los de arriba y `programas/services/detalle_dispositivo.py` (aviso del estado rechazado).
+- Fichas: `.claude/design/arquetipos/detalle.md`, `.claude/design/arquetipos/formulario.md`, `.claude/design/dominio/becas.md`.
+- Tests: `programas/tests/test_dispositivos_cambio_407.py`.
+
+## Base de datos
+
+Sin cambios de esquema.
+
+## Validación
+
+`test_dispositivos_cambio_407` (16 tests) más `users.tests.test_credenciales_ola2_pr2`. Mutaciones, cada una deja rojo el test que
+la cubre: sacar `ciudadano.ver` de `puede_ingresar_persona`; apagar el rechazo del token; no limpiar la marca en
+`EstablecerContrasenaView`; sacar RECHAZADO de los orígenes; renombrar el bloque `page_css`; quitar la guarda de `volver`.
+
+## Puesta en marcha en el servidor
+
+**Antes de desplegar, revisar quién tiene la marca puesta.** Los usuarios de campo creados antes de D-26 (Cambio 37, clave en
+claro) quedaron con `debe_cambiar_contrasena=True` sin forma de limpiarla, porque nunca pisaron el backoffice. Con este cambio
+no pueden loguearse en la app hasta usar el enlace o «Olvidé mi contraseña» (exige correo cargado). Ver el Pendiente 2.
+
+## Pendientes / a definir
+
+1. INACTIVO sin reactivación: no se tocó; sigue siendo terminal salvo «Cerrar».
+2. Usuarios de campo existentes con la marca puesta (Becas y Dispositivos): contarlos en PRD
+   (`Profile.objects.filter(debe_cambiar_contrasena=True)` cruzado con `es_solo_campo`) y mandarles el enlace, o limpiar la
+   marca a quienes ya cambiaron su clave, antes de desplegar. No se resolvió acá por requerir datos o una migración.
+3. Tokens ya emitidos a usuarios con la marca: siguen valiendo (decisión 5). Si el PM quiere cortarlos, hace falta que la app
+   entienda el `codigo` también en los recursos y no solo en el login.
+4. La app tiene que leer `codigo == "debe_cambiar_contrasena"` del 403 del login y mostrar el `detail`.
+5. Revisión visual con el navegador del buscador en P3: cubierta con test de render, no con captura.
+
+## Reversión
+
+Revertir el PR; sin migraciones ni datos.
+
+## Historial
+
+- **30/10/2026 — alta del cambio.**
 
 ---

@@ -86,6 +86,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.utils import timezone
 
+from core import rbac
 from legajos.models import Ciudadano
 from programas.models import (
     Dispositivo,
@@ -108,6 +109,20 @@ CAP_ADMITIR = "dispositivo.admitir"
 CAP_EGRESAR = "dispositivo.egresar"
 #: Sacar y reponer plazas es configuración de la capacidad instalada, no operación diaria.
 CAP_EDITAR = "dispositivo.editar"
+#: El asistente de ingreso muestra y busca personas del padrón: además de admitir pide verlas.
+CAP_VER_CIUDADANO = "ciudadano.ver"
+
+
+def puede_ingresar_persona(user, dispositivo):
+    """Quién puede abrir el asistente de ingreso: `dispositivo.admitir` con alcance Y `ciudadano.ver`.
+
+    Es la única fuente de la regla: la vista del asistente la usa de gate y el detalle del
+    dispositivo la usa para ofrecer (o no) «Ingresar persona», así que el botón nunca
+    aparece donde el asistente respondería 403.
+    """
+
+    return puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR) and rbac.puede(user, CAP_VER_CIUDADANO)
+
 
 #: A quién se le pide que resuelva una estadía abierta fuera del alcance de quien pregunta.
 REFERENTE_FUERA_DE_ALCANCE = "la coordinación del Programa Dispositivos"
