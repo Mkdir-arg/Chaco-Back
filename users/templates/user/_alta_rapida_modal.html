@@ -15,8 +15,9 @@ crear otra; si no está, "Crear territorial nuevo" pasa al formulario de siempre
 tipeado. Coordinador y referente abren directo en el formulario.
 
 Para tipo=agente (Dispositivos) abre en el MISMO paso de búsqueda, contra users:usuario_buscar_agente
-(data-action-agente): solo entre quienes ya tienen el rol de agente, y elegir a alguien NO da ningún
+(data-action-agente): entre quienes ya tienen el rol de agente (y, Cambio 404, quienes tienen cuenta sin él), y elegir a alguien NO da ningún
 rol: solo lo deja elegido en el <select> destino. Los no asignables salen deshabilitados con su motivo.
+Quien tiene cuenta pero no el rol sale con «Sumar como agente» (confirmación y POST a users:usuario_sumar_agente, Cambio 404).
 El botón aporta el edificio: data-edificio-id, o data-edificio-source (selector del campo que lo elige,
 P4). Los textos que cambian por tipo van en data-quick-user-nuevo-texto y en los dos bloques
 data-quick-user-vacio. Un solo role=dialog con dos
@@ -35,7 +36,7 @@ funcionando sin ese script.
       <h3 id="quick-user-titulo" class="text-lg font-bold text-heading flex-1 min-w-0"><span data-quick-user-accion>Crear</span> <span data-quick-user-title>usuario</span></h3>
       <button type="button" data-becas-modal-cerrar data-quick-user-close aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors flex-shrink-0"><i class="fas fa-xmark text-base" aria-hidden="true"></i></button>
     </div>
-    <form id="quick-user-buscar" role="search" action="{% url 'users:usuario_buscar_territorial' %}" data-action-agente="{% url 'users:usuario_buscar_agente' %}" class="flex flex-col min-h-0 flex-1 hidden">
+    <form id="quick-user-buscar" role="search" action="{% url 'users:usuario_buscar_territorial' %}" data-action-agente="{% url 'users:usuario_buscar_agente' %}" data-action-agente-sumar="{% url 'users:usuario_sumar_agente' %}" class="flex flex-col min-h-0 flex-1 hidden">
       <div class="overflow-y-auto flex-1 p-6 space-y-4">
         <p class="text-sm text-body">Buscá si la persona ya tiene cuenta antes de crear una nueva.</p>
         <div>
@@ -265,6 +266,16 @@ funcionando sin ese script.
     li.appendChild(cuerpo);
     const accionesFila = nodo('div', 'flex flex-col items-end gap-1.5 flex-shrink-0');
     if (!fila.activo) accionesFila.appendChild(nodo('span', 'badge badge-gray badge-sm', 'Inactivo'));
+    if (fila.sumable) {
+      // Quien tiene cuenta pero no el rol de agente: sumarlo da SOLO ese rol, previa confirmación.
+      const sumar = nodo('button', 'btn-nodo btn-brand btn-sm', 'Sumar como agente');
+      sumar.type = 'button';
+      sumar.setAttribute('aria-label', 'Sumar a ' + fila.nombre + ' como agente de relevamiento');
+      sumar.addEventListener('click', () => confirmarSumar(fila, sumar));
+      accionesFila.appendChild(sumar);
+      li.appendChild(accionesFila);
+      return li;
+    }
     const elegir = nodo('button', 'btn-nodo btn-secondary btn-sm', 'Seleccionar');
     elegir.type = 'button';
     elegir.setAttribute('aria-label', 'Seleccionar a ' + fila.nombre);
@@ -276,6 +287,42 @@ funcionando sin ese script.
     accionesFila.appendChild(elegir);
     li.appendChild(accionesFila);
     return li;
+  };
+  // Sumar el rol de agente a quien ya existe (Cambio 404): confirma con ModernModal (la confirmación canónica
+  // del backoffice) y recién ahí hace el POST. Si queda asignable a este edificio se elige igual que «Seleccionar».
+  const confirmarSumar = (fila, boton) => {
+    if (boton.disabled) return;
+    window.ModernModal.show({
+      type: 'confirm',
+      danger: false,
+      title: '¿Sumar como agente de relevamiento?',
+      message: '¿Sumar a ' + fila.nombre + ' como agente de relevamiento? Va a poder ver los relevamientos que le asignen.',
+      confirmText: 'Sí, sumar',
+      cancelText: 'Cancelar',
+      onConfirm: () => sumarAgente(fila, boton),
+    });
+  };
+  const sumarAgente = async (fila, boton) => {
+    if (boton.disabled) return;
+    boton.disabled = true;
+    try {
+      const datos = new FormData();
+      datos.append('csrfmiddlewaretoken', form.elements.csrfmiddlewaretoken.value);
+      datos.append('user_id', fila.id);
+      datos.append('edificio_id', edificioId);
+      const response = await fetch(buscar.dataset.actionAgenteSumar, {method:'POST', body:datos, headers:{'X-Requested-With':'XMLHttpRequest'}});
+      let data;
+      try { data = await response.json(); } catch (e) {
+        window.toast('error', 'No pudimos sumar al agente (respuesta inesperada del servidor). Probá de nuevo.'); boton.disabled = false; return;
+      }
+      if (!response.ok || !data.ok) { window.toast('error', data.message || 'No pudimos sumar al agente.'); boton.disabled = false; return; }
+      if (data.asignable) { aplicarUsuario(data.user, data.message); return; }
+      // Tiene el rol pero no es opción de este edificio: no entra al <select>.
+      boton.replaceWith(nodo('span', 'badge badge-gray badge-sm', 'Ya es agente'));
+      window.toast('warning', data.message);
+    } catch (e) {
+      window.toast('error', 'No pudimos conectar con el servidor. Revisá tu conexión.'); boton.disabled = false;
+    }
   };
   const filaDeResultado = (fila) => {
     const li = nodo('li', 'flex items-start justify-between gap-3 py-3');

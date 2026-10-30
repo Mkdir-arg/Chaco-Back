@@ -526,6 +526,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 400 | Dispositivos / SIIS: MINOR de la auditoría de #1003 (refresco de catálogos tolera Redis caído, Historial de 396/397, rama genérica inalcanzable del buscador) | Dispositivos · SIIS (`refrescar_catalogos_locales`) | `#siis` `#usuarios` | Juez — MINOR de auditoría (#1003) | 29/10/2026 | 🟢 **Hecho** | No requiere |
 | 401 | Alta masiva SIIS de la Convocatoria 1 en PRD (1.786 altas): procedimiento probado documentado paso a paso | Becas · SIIS (`corregir_datos_siis`, `procesar_casos_siis`, `sincronizar_tabla_intermedia`) · operación en PRD de ECOM | `#siis` `#infra` | PM — pedido del 28/10/2026 | 28/10/2026 | 🟢 **Hecho** | No requiere |
 | 402 | SIIS: el refresco de catálogos registra el traceback del catálogo que falla (MINOR de la auditoría de #1005) | SIIS (`refrescar_catalogos_locales`) | `#siis` | Juez — MINOR de auditoría (#1005), pedido del PM | 29/10/2026 | 🟢 **Hecho** | No requiere |
+| 404 | Dispositivos: «Sumar como agente» desde «Buscar agente» (reemplaza el «Queda afuera» y el Pendiente del Cambio 397: quien ya tiene cuenta puede recibir el rol de agente) | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 30/10/2026 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -50170,6 +50171,7 @@ Revertir el PR.
 
 - **29/10/2026 — alta del cambio.**
 - **29/10/2026** — Cambio 399: la decisión citaba «la decisión 2 del Cambio 395», que no existe. El buscador pasó a `programas/services/buscador_agentes.py`, ya no hay reexport en `territoriales.py` (se importa de `users.services.busqueda`) y existe el motivo genérico `MOTIVO_AGENTE_GENERICO` para quien tiene el rol y aun así no es asignable. (Cambio 400 lo retiró por inalcanzable.)
+- **30/10/2026** — Cambio 404 (decisión del PM): REEMPLAZA el «Queda afuera: dar roles o permisos a quien ya existe» y el Pendiente de esta entrada. La búsqueda suma a los usuarios activos del backoffice sin el rol de agente, marcados `sumable` y enmascarados, y el modal les ofrece «Sumar como agente» (POST `users:usuario_sumar_agente`, que da solo el rol sembrado de agente). Buscar y «Seleccionar» siguen sin dar nada.
 
 ---
 
@@ -50534,5 +50536,81 @@ Revertir el PR.
 ## Historial
 
 - **29/10/2026 — alta del cambio.**
+
+---
+
+# Cambio 404 — «Sumar como agente» desde «Buscar agente» (Dispositivos)
+
+🟢 **HECHO — 30/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) |
+| **Etiquetas** | `#rbac` `#usuarios` `#ui` |
+| **Solicitante** | PM — decisión del 30/10/2026 |
+| **Fecha del pedido** | 30/10/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (paso «Buscar agente» del modal de alta rápida; endpoint nuevo de POST; buscador) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Una persona que ya tiene cuenta (p. ej. un territorial de Becas) no aparecía en «Buscar agente» y no había cómo sumarla como agente de relevamiento desde ahí. Que la búsqueda también la encuentre y que el operador pueda sumarle el rol de agente con un botón «Sumar como agente».
+
+## Alcance acordado
+
+**Entra:** buscar también a los usuarios activos del backoffice sin el rol de agente; botón «Sumar como agente» con confirmación; endpoint POST que da solo el rol sembrado de agente. **Queda afuera:** dar cualquier otro rol o capacidad, cambiar contraseña o datos, reactivar usuarios inactivos, tocar el POST de asignar (`_validar_agente`) y el alta de agentes nuevos (Cambio 395).
+
+## Decisiones tomadas
+
+- **Esto REEMPLAZA** el «Queda afuera: dar roles o permisos a quien ya existe» y el Pendiente del Cambio 397.
+- **Universo de la búsqueda**: quien tiene el rol de agente (como antes: activo o no, con su motivo) **más** los usuarios **activos** sin ese rol que no sean superusuarios ni ciudadanos del portal (`es_ciudadano_portal`, grupo `Ciudadanos`). Mismo filtro de texto (DNI y correo exactos, nombre y apellido parciales, mínimo 3 caracteres) y mismo tope de 10. Los inactivos sin el rol no aparecen: reactivarlos es del administrador del programa.
+- **Fila sumable**: `sumable: true`, `asignable: false`, motivo «No es agente de relevamiento.» (o, si además es personal de una institución del edificio, el motivo lo aclara), DNI y correo **enmascarados** con los helpers de `users/services/busqueda.py`. Las filas de agentes llevan `sumable: false`.
+- **Endpoint** `users:usuario_sumar_agente` (`POST /usuarios/alta-rapida/agente/sumar/`, bajo el prefijo conocido por el WAF de ECOM): 403 sin `inspeccion.agente.crear` en Dispositivos (misma condición que el botón y la búsqueda), 400 sin edificio, 403 si el edificio no existe o está fuera del alcance de asignar, CSRF, 429 por operador (20 por minuto, cubeta `usuario_sumar_agente`), POST solamente. Del usuario: 403 si no existe, es superusuario o ciudadano del portal (mismo texto, sin distinguir); 409 si está inactivo; 409 si el rol sembrado falta, está inactivo o dejó de ser seguro de repartir.
+- **Da solo el grupo de agente**: el mismo `Group` que asigna el alta rápida, resuelto por `RolMeta.clave = CLAVE_ROL_AGENTE`. `_rol_de_agente` pasó de la vista a `programas/services/sumar_agente.py` (`rol_de_agente`, con `CAPS_PROHIBIDAS_EN_ROL_DE_AGENTE`) para que el alta y este camino compartan la misma guarda. No toca otros grupos del usuario, permisos directos, contraseña ni datos.
+- **Idempotente**: quien ya tiene el rol responde **200** con `sumado: false` (no escribe ni duplica) y, si es asignable, el modal lo deja elegido igual. Se prefirió 200 a 409 porque el estado pedido ya se cumple y el modal puede haber quedado desactualizado frente a otro operador.
+- **Personal de una institución del edificio**: se le suma el rol (es global) y la respuesta trae `asignable: false` con un mensaje que lo dice; el modal avisa con un toast y **no lo agrega al `<select>`**. Bloquearlo habría dejado a la persona sin poder recibir el rol para otros edificios, donde sí sería asignable; el POST de asignar sigue rechazándolo para este edificio (`_validar_agente`).
+- **Escritura en un servicio** (`sumar_rol_de_agente`) con `transaction.atomic` y la fila del usuario leída con `select_for_update`, para que una desactivación en paralelo no se cruce. No toma el candado de administración (`rbac.tomar_candado_de_administracion`): agregar un rol sin capacidades de administración no puede dejar al sistema sin administrador.
+- **Traza**: users no tiene un registro persistente de cambios de roles (el ABM de Roles no deja historial de quién se lo dio a quién), así que se usa `logger.info` estructurado con ids (`operador_id`, `usuario_id`, `rol_id`, `edificio_id`) **sin nombre, DNI ni correo**. Ver Pendientes.
+- **Front**: mismo paso 1 del modal canónico. La fila sumable lleva «Sumar como agente» (`btn-brand btn-sm`) en vez de «Seleccionar»; confirma con `ModernModal` (`type: 'confirm'`: «¿Sumar a <nombre> como agente de relevamiento? Va a poder ver los relevamientos que le asignen.») y recién ahí hace el POST. Se usó `ModernModal` y no un `Swal.fire` porque la ficha del modal y el agente de diseño prohíben un `Swal.fire` nuevo en pantallas nuevas; sin `confirm()` nativo. Avisos con `window.toast()`. Si queda asignable se agrega al `<select>` y queda elegido; si no, el botón pasa a la etiqueta «Ya es agente».
+
+## Implementación
+
+`programas/services/sumar_agente.py` (nuevo: `rol_de_agente`, `sumar_rol_de_agente`, excepciones); `programas/services/buscador_agentes.py` (universo ampliado, `_fila_sumable`, motivos); `users/views/quick_create.py` (`usuario_sumar_agente`, cubeta nueva; sale `_rol_de_agente`); `users/urls.py`; `users/views/__init__.py`; `users/templates/user/_alta_rapida_modal.html` (botón, confirmación, POST, `data-action-agente-sumar`).
+
+## Archivos
+
+- `programas/services/sumar_agente.py`, `programas/services/buscador_agentes.py`
+- `users/views/quick_create.py`, `users/views/__init__.py`, `users/urls.py`, `users/templates/user/_alta_rapida_modal.html`
+- `.claude/design/arquetipos/modal.md` (el párrafo del modal de dos pasos con agente)
+- Tests: `programas/tests/test_dispositivos_sumar_agente.py` (nuevo), `programas/tests/test_dispositivos_buscar_agente.py` (el test del universo pasa de «solo el agente» a «el agente no es sumable y el resto viene sumable»)
+- `docs/internal/requerimientos.md`
+
+## Base de datos
+
+Sin cambios de esquema. Escribe una fila en `auth_user_groups` por persona sumada.
+
+## Validación
+
+- `programas.tests.test_dispositivos_sumar_agente` (27 casos): la búsqueda trae sin-rol enmascarado y sumable (no superusuarios, ciudadanos ni inactivos sin rol), DNI y correo exactos, tope de 10, personal del edificio con su motivo; sumar da exactamente un grupo (el de agente) y ningún permiso, contraseña ni correo cambian, conserva los otros roles; idempotencia; personal con `asignable: false`; traza sin datos personales; rechazos (inactivo 409, superusuario y ciudadano 403, inexistente 403, rol inactivo o con `programa.configurar` 409); 403 sin capacidad y con capacidad de otro programa, 403 edificio fuera de alcance o inexistente, 400 sin edificio, 405 con GET, anónimo, CSRF, 429 por operador.
+- Mutación: quitar el chequeo de capacidad del endpoint pone rojos `test_sin_la_capacidad_es_403_y_no_suma` y `test_la_capacidad_en_otro_programa_es_403`; hacer que el servicio agregue un segundo grupo pone rojos `test_suma_exactamente_el_grupo_de_agente_y_nada_mas` y `test_conserva_los_otros_roles_que_ya_tenia`; sacar el rechazo de superusuario y ciudadano pone rojos sus dos tests; forzar `sumado = True` pone rojo `test_es_idempotente_si_ya_es_agente`.
+- `users` y el resto de `programas` sin errores nuevos; `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0), `check_design_agent --changed` (OK), `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada especial: no hay migración ni variable nueva. La ruta nueva cuelga de `/usuarios/alta-rapida/`, prefijo ya conocido por el WAF de ECOM.
+
+## Pendientes / a definir
+
+- Falta una **traza persistente** de cambios de roles: hoy quién sumó el rol a quién solo queda en el log de la aplicación (ids, sin datos personales), que rota. Si el PM la quiere consultable desde la UI, hace falta un modelo de auditoría (afectaría también al ABM de Roles y de Usuarios).
+- No hay forma de **quitar** el rol de agente desde este modal: sigue siendo del administrador del programa.
+
+## Reversión
+
+Revertir el PR. Los roles ya sumados no se deshacen solos: se quitan desde el ABM de Usuarios.
+
+## Historial
+
+- **30/10/2026 — alta del cambio.**
 
 ---

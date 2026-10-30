@@ -68,20 +68,21 @@ class UniversoTests(BaseBuscarAgente):
                 self.assertEqual(respuesta.status_code, 200, respuesta.content)
                 self.assertEqual(self._ids(respuesta), {self.carla.pk})
 
-    def test_solo_devuelve_a_quien_tiene_el_rol_de_agente(self):
+    def test_el_agente_no_es_sumable_y_quien_no_tiene_el_rol_viene_como_sumable(self):
+        # Desde el Cambio 404 quien tiene cuenta activa pero no el rol de agente también aparece, como sumable.
         territorial = self._persona("terri", "Carla", "Quiroga Territorial", "30111333", "terri@example.com")
         territorial.groups.add(Group.objects.create(name="Becas — Territorial de prueba"))
         sin_rol = self._persona("sinrol", "Carla", "Quiroga Sinrol", "30111444", "sinrol@example.com")
-        # Puede relevar por otro rol del programa, pero no es el agente sembrado: no entra.
         con_otro_rol = self._usuario("relevador", ("inspeccion.relevar",))
         con_otro_rol.first_name, con_otro_rol.last_name = "Carla", "Quiroga Relevador"
         con_otro_rol.save()
 
-        ids = self._ids(self._buscar("Quiroga"))
+        filas = {f["id"]: f for f in self._buscar("Quiroga").json()["resultados"]}
 
-        self.assertEqual(ids, {self.carla.pk})
+        self.assertFalse(filas[self.carla.pk]["sumable"])
         for ajeno in (territorial, sin_rol, con_otro_rol):
-            self.assertNotIn(ajeno.pk, ids)
+            self.assertTrue(filas[ajeno.pk]["sumable"], ajeno)
+            self.assertFalse(filas[ajeno.pk]["asignable"])
 
     def test_un_superusuario_con_el_rol_no_aparece(self):
         self.carla.is_superuser = True
