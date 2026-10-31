@@ -60,7 +60,8 @@ parámetro no excluido trae valor; por defecto excluye `page`, y acepta una list
 Cuando el alta es un modal que ya llega con la página (el esqueleto de la golden de Modal, sin
 parámetro GET), el vacío lo abre con `accion_click` en vez de mandar a una URL que recarga.
 Evidencia: «Nuevo sector» de P5 (`programas/templates/programas/dispositivos/sectores/sectores.html`,
-`accion_click="modalSectorNuevo=true"`). Los campos de esos modales usan el campo canónico (`field.md`).
+`accion_click="modalSectorNuevo=true"`). Los campos de esos modales usan el campo canónico (`field.md`). Esa acción
+solo se ofrece si el servicio admite el alta (`puede_ampliar_capacidad`): sin ella el vacío es el de lectura.
 
 ## Dentro de un modal
 

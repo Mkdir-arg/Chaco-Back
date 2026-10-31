@@ -26,9 +26,16 @@ from core.dni import normalizar_dni
 from legajos.forms import CiudadanoConfirmarForm, CiudadanoManualForm
 from legajos.models import Ciudadano
 from legajos.services import CiudadanosService
-from programas.models import Plaza, Sector
-from programas.services.estadias import ingresar_persona
-from programas.services.ocupacion import estado_de_plazas
+from programas.models import Plaza, ReservaPlaza, Sector
+from programas.services.estadias import (
+    ingresar_persona,
+    liberar_reserva,
+    reserva_propia_vigente,
+)
+from programas.services.ocupacion import ESTADO_PRESTADA, ESTADO_RESERVADA, estado_de_plazas
+
+#: Los estados en los que una plaza puede ser la que la persona tiene guardada.
+ESTADOS_GUARDADOS = (ESTADO_RESERVADA, ESTADO_PRESTADA)
 
 #: Mismo tope por sector que el mapa de «Sectores y plazas».
 TOPE_PLAZAS_POR_SECTOR = 200
@@ -94,13 +101,34 @@ def buscar_en_registro_de_personas(dni, sexo):
     return RespuestaRegistro(datos, "", False)
 
 
-def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False):
+#: Qué dice la celda de la plaza que la persona tiene guardada: es suya, así que se puede elegir.
+DETALLE_PLAZA_PROPIA = "Guardada para esta persona"
+
+
+def plaza_reservada_de(ciudadano_id, dispositivo):
+    """El id de la plaza que la persona tiene reservada o prestada en el dispositivo, o `None`.
+
+    Esa plaza el mapa la cuenta como tomada, pero para **esta** persona es la suya: el ingreso
+    la consume (`confirmar_ingreso`). Sin bloquear nada: es una lectura para dibujar el paso.
+    """
+
+    if not ciudadano_id:
+        return None
+    reserva = reserva_propia_vigente(ciudadano_id, dispositivo)
+    return reserva.plaza_id if reserva is not None else None
+
+
+def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False, plaza_propia_id=None):
     """El mapa del paso 2: sectores activos con cada plaza y su estado, sin bloquear nada.
 
     El estado de cada plaza lo deriva `ocupacion.estado_de_plazas`, el mismo que usa
     «Sectores y plazas»: acá no se decide qué es «ocupada». Se ofrecen solo las plazas de
     un tipo que el dispositivo admite. Devuelve
     `([{"sector", "plazas", "total", "disponibles"}], {pk de plaza elegible})`.
+
+    `plaza_propia_id` es la plaza que la persona que ingresa tiene reservada o prestada
+    (:func:`plaza_reservada_de`): es elegible **solo para ella**, y no suma a los
+    `disponibles` del sector, que cuentan lo que le queda a cualquier otra persona.
     """
 
     tipo = dispositivo.tipo
@@ -114,15 +142,17 @@ def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False):
     por_sector = {sector.pk: [] for sector in sectores}
     for plaza in sorted(plazas, key=lambda p: p.codigo):
         derivado = estados[plaza.pk]
+        propia = plaza.pk == plaza_propia_id and not derivado.disponible and derivado.estado in ESTADOS_GUARDADOS
         por_sector[plaza.sector_id].append(
             {
                 "pk": plaza.pk,
                 "codigo": plaza.codigo,
                 "estado": derivado.estado,
                 "tono": derivado.tono,
-                "detalle": derivado.detalle,
-                "detalle_completo": derivado.detalle_completo,
+                "detalle": DETALLE_PLAZA_PROPIA if propia else derivado.detalle,
+                "detalle_completo": DETALLE_PLAZA_PROPIA if propia else derivado.detalle_completo,
                 "disponible": derivado.disponible,
+                "propia": propia,
             }
         )
 
@@ -131,6 +161,7 @@ def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False):
         del_sector = por_sector[sector.pk]
         libres = [plaza for plaza in del_sector if plaza["disponible"]]
         elegibles.update(plaza["pk"] for plaza in libres)
+        elegibles.update(plaza["pk"] for plaza in del_sector if plaza["propia"])
         armados.append(
             {
                 "sector": sector,
@@ -165,13 +196,64 @@ def confirmar_ingreso(
         else:
             ciudadano = _alta_desde_registro(datos_renaper)
         plaza = Plaza.objects.get(pk=plaza_id) if plaza_id else None
+        # Lo que la persona tenía guardado en este dispositivo: si es la plaza donde entra, el
+        # ingreso la consume; el resto se cierra, porque una persona que ya está adentro no
+        # puede seguir bloqueando plazas. Todo en esta transacción y, para no cruzar candados,
+        # en el orden plaza → reserva → persona: primero se cierran las otras (por plaza_id),
+        # después se toma la plaza del ingreso y recién entonces la persona.
+        propia = reserva_propia_vigente(ciudadano.pk, dispositivo)
+        if propia is not None and (plaza is None or propia.plaza_id != plaza.pk):
+            propia = None
+        for reserva in _reservas_abiertas_de(ciudadano.pk, dispositivo):
+            if propia is not None and reserva.pk == propia.pk:
+                continue
+            try:
+                liberar_reserva(reserva=reserva, usuario=usuario, motivo=MOTIVO_RESERVA_CERRADA_POR_INGRESO)
+            except ValidationError:
+                continue  # ya la resolvió otro: lo que importa es que no quede bloqueando
+        if plaza is not None:
+            # Solo el candado: `ingresar_persona` vuelve a tomar la plaza y a validarla.
+            list(Plaza.objects.select_for_update().filter(pk=plaza.pk).values_list("pk", flat=True))
+        _bloquear_persona(ciudadano)
+        # Con la persona bloqueada nadie le puede guardar otra plaza: si apareció una entre la
+        # lectura y el bloqueo, quedaría bloqueando una plaza de alguien que ya está adentro.
+        if any(
+            propia is None or reserva.pk != propia.pk for reserva in _reservas_abiertas_de(ciudadano.pk, dispositivo)
+        ):
+            raise ValidationError(RESERVA_NUEVA_DURANTE_EL_INGRESO)
         return ingresar_persona(
             ciudadano=ciudadano,
             dispositivo=dispositivo,
             usuario=usuario,
             plaza=plaza,
             fecha_ingreso=fecha_ingreso,
+            reserva=propia,
         )
+
+
+#: Por qué se cierra la reserva o el préstamo que la persona tenía cuando ingresa en otra plaza o sin plaza.
+MOTIVO_RESERVA_CERRADA_POR_INGRESO = "La persona ingresó al dispositivo."
+
+RESERVA_NUEVA_DURANTE_EL_INGRESO = (
+    "Mientras se registraba el ingreso se le guardó una plaza a esta persona; volvé a confirmar."
+)
+
+
+def _reservas_abiertas_de(ciudadano_id, dispositivo):
+    """Las reservas sin resolver de la persona en el dispositivo, vencidas o no, por plaza."""
+
+    return list(
+        ReservaPlaza.objects.abiertas()
+        .filter(ciudadano_id=ciudadano_id, plaza__sector__dispositivo_id=dispositivo.pk)
+        .select_related("plaza__sector__dispositivo")
+        .order_by("plaza_id")
+    )
+
+
+def _bloquear_persona(ciudadano):
+    """La fila de la persona, con `FOR UPDATE`: serializa lo que se le guarda o se le aloja."""
+
+    Ciudadano.objects.select_for_update().only("pk").get(pk=ciudadano.pk)
 
 
 def _alta_desde_registro(datos):
