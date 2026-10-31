@@ -58,6 +58,35 @@ SECTOR_CON_PLAZAS_TOMADAS = (
 DISPOSITIVO_CERRADO = "El dispositivo está cerrado: no se puede cambiar su capacidad instalada."
 
 
+#: Un dispositivo rechazado nunca se habilitó: no tiene capacidad que configurar.
+DISPOSITIVO_RECHAZADO = "El dispositivo está rechazado: no se puede cambiar su capacidad instalada."
+
+#: El tipo no asigna plaza al ingresar ni declara tipos de plaza: no tiene sectores ni plazas.
+TIPO_SIN_PLAZAS = "Este tipo de dispositivo no maneja sectores ni plazas."
+
+_ESTADOS_SIN_CAPACIDAD = {
+    Dispositivo.Estado.CERRADO: DISPOSITIVO_CERRADO,
+    Dispositivo.Estado.RECHAZADO: DISPOSITIVO_RECHAZADO,
+}
+
+
+def motivo_sin_ampliar_capacidad(dispositivo):
+    """Por qué **no se pueden dar de alta sectores ni plazas** en el dispositivo, o ``""``.
+
+    Es la misma pregunta para el servicio y para la pantalla: el botón «Nuevo sector» y el
+    rechazo del servicio no pueden discrepar. Dos motivos: el estado del legajo (cerrado o
+    rechazado no admiten capacidad nueva) y el tipo, que si no maneja plazas
+    (`TipoDispositivo.maneja_plazas`) no tiene qué ordenar en sectores.
+    """
+
+    motivo = _ESTADOS_SIN_CAPACIDAD.get(dispositivo.estado, "")
+    if motivo:
+        return motivo
+    if not dispositivo.tipo.maneja_plazas:
+        return TIPO_SIN_PLAZAS
+    return ""
+
+
 def _trazar(dispositivo, usuario, accion, *, detalle=""):
     """Traza sobre el patrón de `TrazaDispositivo`: aditiva, inmutable, sin nombres propios.
 
@@ -74,7 +103,10 @@ def _trazar(dispositivo, usuario, accion, *, detalle=""):
 
 
 def _exigir_alcance(dispositivo, usuario):
-    """La capacidad con alcance al dispositivo, y que el dispositivo siga abierto.
+    """La capacidad con alcance al dispositivo, y que el dispositivo no esté cerrado.
+
+    Editar lo que ya existe solo lo frena el cierre; que un dispositivo rechazado no admita capacidad
+    **nueva** lo dice `motivo_sin_ampliar_capacidad`, que usan las altas.
 
     En ese orden: quien no tiene alcance no se entera de en qué estado está el legajo.
     """
@@ -83,6 +115,14 @@ def _exigir_alcance(dispositivo, usuario):
         raise PermissionDenied("No tenés alcance para configurar las plazas de este dispositivo.")
     if dispositivo.estado == Dispositivo.Estado.CERRADO:
         raise ValidationError({"__all__": DISPOSITIVO_CERRADO})
+
+
+def _exigir_que_se_pueda_ampliar(dispositivo):
+    """Las altas (sector nuevo, lote de plazas) piden además que el tipo maneje plazas."""
+
+    motivo = motivo_sin_ampliar_capacidad(dispositivo)
+    if motivo:
+        raise ValidationError({"__all__": motivo})
 
 
 def _normalizar(texto):
@@ -122,6 +162,7 @@ def crear_sector(*, dispositivo, usuario, nombre, tipo, perfil="", capacidad=0, 
     """Da de alta un sector del dispositivo. Nace activo y sin plazas: las agrega el lote."""
 
     _exigir_alcance(dispositivo, usuario)
+    _exigir_que_se_pueda_ampliar(dispositivo)
     nombre = _normalizar(nombre)
     if not nombre:
         raise ValidationError({"nombre": "El sector necesita un nombre."})
@@ -227,6 +268,7 @@ def agregar_plazas(*, sector, usuario, cantidad, tipo=Plaza.Tipo.CAMA, prefijo="
     Dispositivo.objects.select_for_update().get(pk=sector.dispositivo_id)
     sector = Sector.objects.select_for_update().get(pk=sector.pk)
     dispositivo = sector.dispositivo
+    _exigir_que_se_pueda_ampliar(dispositivo)
     if not sector.activo:
         raise ValidationError({"sector": "El sector está dado de baja: reactivalo antes de agregarle plazas."})
 

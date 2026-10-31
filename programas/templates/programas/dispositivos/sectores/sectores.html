@@ -82,7 +82,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
     {% url 'dispositivos:detalle' dispositivo.pk as url_volver %}
     {% page_header titulo="Sectores y plazas" eyebrow=dispositivo.nombre volver_url=url_volver volver_label=dispositivo.nombre migas=migas %}
       {% bajada %}{{ totales.operativas }} operativa{{ totales.operativas|pluralize }} de {{ totales.total }} · {{ totales.fuera_servicio }} fuera de servicio · {{ totales.ocupadas }} ocupada{{ totales.ocupadas|pluralize }} · {{ totales.reservadas }} reservada{{ totales.reservadas|pluralize }} · {{ totales.prestadas }} prestada{{ totales.prestadas|pluralize }} · {{ totales.disponibles }} disponible{{ totales.disponibles|pluralize }}{% endbajada %}
-      {% if puede_configurar_plazas %}
+      {% if puede_ampliar_capacidad %}
       <button type="button" @click="modalSectorNuevo=true" class="btn-nodo btn-tertiary btn-sm btn-fit">
         <i class="fas fa-layer-group" aria-hidden="true"></i> Nuevo sector
       </button>
@@ -116,7 +116,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
       </div>
       <div class="p-5">
         {% include "components/_mapa_plazas.html" with plazas=item.plazas total=item.resumen.total %}
-        {% if not item.plazas and puede_configurar_plazas %}
+        {% if not item.plazas and puede_ampliar_capacidad %}
         <button type="button" @click="sectorPlazas='{{ item.sector.pk }}'; modalPlazas=true" class="btn-nodo btn-brand btn-sm mt-3">
           <i class="fas fa-plus" aria-hidden="true"></i> Agregar plazas
         </button>
@@ -125,7 +125,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
     </section>
     {% empty %}
     <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
-      {% if puede_configurar_plazas %}
+      {% if puede_ampliar_capacidad %}
       {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Un sector es cómo la institución ordena su capacidad: una habitación, un pabellón, un servicio o un turno. Las plazas se agregan adentro de uno." accion_click="modalSectorNuevo=true" accion_texto="Nuevo sector" accion_icono="fa-plus" %}
       {% else %}
       {% include "components/_estado_vacio.html" with icono="fa-bed" titulo="Este dispositivo no tiene sectores" texto="Cuando se carguen los sectores, cada uno aparece acá con su mapa de plazas." %}
@@ -225,7 +225,12 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
             {% include "components/_field.html" with field=form_liberar.motivo wrapper_class="" %}
           </div>
-          {% include "components/_alerta.html" with tono="warning" texto="La reserva queda registrada como liberada y la plaza vuelve a contar como disponible. La persona que la tenía reservada no queda alojada." %}
+          <div x-show="plazasModal[plazaSel]?.estado === 'Prestada'">
+            {% include "components/_alerta.html" with tono="warning" texto="El préstamo queda registrado como liberado y la plaza vuelve a contar como disponible. La persona a la que se le prestó no queda alojada." %}
+          </div>
+          <div x-show="plazasModal[plazaSel]?.estado !== 'Prestada'">
+            {% include "components/_alerta.html" with tono="warning" texto="La reserva queda registrada como liberada y la plaza vuelve a contar como disponible. La persona que la tenía reservada no queda alojada." %}
+          </div>
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalPlaza=false" cancelar_texto="Volver" accion_texto="Sí, liberar" %}
       </form>
