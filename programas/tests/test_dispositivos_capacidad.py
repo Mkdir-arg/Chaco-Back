@@ -64,6 +64,9 @@ class BaseCapacidad(BaseEstadias):
         reloj.start()
         self.addCleanup(reloj.stop)
         super().setUp()
+        # Sin sectores ni plazas no hay capacidad que configurar: el tipo del terreno las maneja.
+        self.tipo.plaza_obligatoria_al_ingresar = True
+        self.tipo.save()
         # Usuarios con todo menos la condición que cada test prueba.
         self.sin_editar = self._operador(
             "Sin editar capacidad", self.cis, ("dispositivo.ver", "dispositivo.admitir", "dispositivo.egresar")

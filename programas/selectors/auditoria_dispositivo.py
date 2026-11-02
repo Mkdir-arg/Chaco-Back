@@ -56,6 +56,7 @@ TITULOS_TRAZA = {
     "OBSERVADO": "Observación del dispositivo",
     "RECHAZADO": "Rechazo del dispositivo",
     "INACTIVADO": "Inactivación del dispositivo",
+    "REACTIVADO": "Reactivación del dispositivo",
     "CERRADO": "Cierre del dispositivo",
     "PLAZA_RESERVADA": "Plaza reservada",
     "PLAZA_LIBERADA": "Reserva de plaza liberada",
@@ -76,11 +77,12 @@ TITULOS_TRAZA = {
 
 #: Las acciones que mueven el estado del legajo: el detalle es «antes → después».
 _CAMBIOS_DE_ESTADO = frozenset(
-    {"CREADO", "ENVIADO_VALIDACION", "VALIDADO", "OBSERVADO", "RECHAZADO", "INACTIVADO", "CERRADO"}
+    {"CREADO", "ENVIADO_VALIDACION", "VALIDADO", "OBSERVADO", "RECHAZADO", "INACTIVADO", "REACTIVADO", "CERRADO"}
 )
 
 _TONOS_TRAZA = {
     "VALIDADO": "success",
+    "REACTIVADO": "success",
     "OBSERVADO": "warning",
     "RECHAZADO": "danger",
     "CERRADO": "danger",

@@ -57,6 +57,7 @@ from programas.services.identidad import ORIGEN_PADRON, ORIGEN_PERSONAS, identif
 from programas.services.inspecciones import CAP_RELEVAR
 from programas.services.padron import datos_de_fila, fila_padron, normalizar_dni, objetivo_con_identidad
 from programas.services.respuestas import sincronizar_desde_legacy
+from users.models import Profile
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +157,18 @@ class CampoBecasPermission(BasePermission):
         return bool(user and user.is_authenticated and puede(user, CAP))
 
 
+CODIGO_DEBE_CAMBIAR_CLAVE = "debe_cambiar_contrasena"
+MENSAJE_DEBE_CAMBIAR_CLAVE = (
+    "Tenés que cambiar la clave antes de usar la app. "
+    "Usá el enlace que te llegó por correo o pedí uno nuevo desde «Olvidé mi contraseña»."
+)
+#: Sin correo cargado, el enlace no tiene a dónde llegar: lo que sigue es pedirle uno al administrador.
+MENSAJE_DEBE_CAMBIAR_CLAVE_SIN_CORREO = (
+    "Tenés que cambiar la clave antes de usar la app, pero tu usuario no tiene un correo cargado. "
+    "Pedile a tu administrador que te cargue un correo."
+)
+
+
 class ObtainCampoToken(ObtainAuthToken):
     """Login de la app de campo: valida credenciales y exige ``becas.campo``.
 
@@ -228,6 +241,19 @@ class ObtainCampoToken(ObtainAuthToken):
                 # Sin nombrar Becas: este login también lo usa el agente del relevamiento
                 # edilicio, y el 403 es «ninguna de las dos superficies», no «Becas».
                 {"detail": "El usuario no tiene acceso a la app de campo."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        # La clave provisoria se cambia antes de usar la app (Cambio 407). El middleware exime
+        # `/api/` (el cambio se resuelve en el navegador), así que sin este chequeo la clave
+        # provisoria servía para siempre acá. El enlace del correo y «Olvidé mi contraseña»
+        # (`EstablecerContrasenaView`) limpian el flag. Va **después** de validar credenciales y
+        # acceso: a quien no las tiene no se le revela nada. `codigo` es contrato con la app.
+        if Profile.objects.filter(user=user, debe_cambiar_contrasena=True).exists():
+            return Response(
+                {
+                    "codigo": CODIGO_DEBE_CAMBIAR_CLAVE,
+                    "detail": MENSAJE_DEBE_CAMBIAR_CLAVE if user.email else MENSAJE_DEBE_CAMBIAR_CLAVE_SIN_CORREO,
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
         token, _ = Token.objects.get_or_create(user=user)

@@ -130,6 +130,7 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   (`programas/templates/programas/dispositivos/legajo/detail.html`),
   `programas/services/detalle_dispositivo.py` normaliza `?tab=` según las solapas disponibles
   y la vista pasa `tab` al `x-data`; una inexistente cae en la predeterminada.
+  Las acciones del encabezado de P4 salen de banderas que arma la vista, no de un `{% if %}` sobre el estado: «Ingresar persona» (`puede_admitir`, misma función que el gate del asistente: `dispositivo.admitir` con alcance y `ciudadano.ver`) y «Enviar a validación» (`puede_enviar_validacion`, desde borrador, observado o rechazado con `dispositivo.editar`).
   La `dl` de datos de la solapa Datos rotula las franjas de P3 como «Horario de atención» (solo informativo; no son los turnos de la Bitácora).
 - Respuestas de un formulario del constructor en la solapa Datos de P4: una `section`
   `border-t border-light mt-6 pt-5` por formulario respondido, con `h2` y `badge badge-gray`
@@ -171,7 +172,8 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   Un detalle sin esas filas ni modal no consulta las plazas elegibles para ingreso.
 - En el encabezado de P4, Cerrar usa `btn-nodo btn-tertiary btn-sm btn-fit` y conserva
   su confirmación destructiva (`data-confirm-danger="true"`). Inactivar permanece como
-  acción secundaria existente, condicionada por capacidad y estado activo.
+  acción secundaria existente, condicionada por capacidad y estado activo; «Reactivar» (confirmación
+  no destructiva, mismo menú) aparece solo con el dispositivo inactivo y la misma capacidad.
 - Estado vacío dentro de la tabla: `{% empty %}` con `<td colspan="n" class="p-0">`.
 - Acción de la fila que muta: `<button type="button">` con `data-*` + `<form method="post" class="hidden">`
   con `{% csrf_token %}`, y la confirmación por `data-confirm-url` (arquetipo Confirmación).

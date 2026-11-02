@@ -174,7 +174,9 @@ class GuardadoDelNoDuenoTests(_Base):
 
     def test_el_dueno_edita_la_cuenta_y_conserva_la_fila_ajena(self):
         resp = self._editar(self.coord_a, username="renombrado", segmentos_territoriales=[str(self.seg_a.pk)])
-        self.assertEqual(resp.status_code, 302, resp.context["form"].errors if resp.context else None)
+        self.assertEqual(
+            resp.status_code, 302, resp.context["form"].errors if resp.context and "form" in resp.context else None
+        )
         self.territorial.refresh_from_db()
         self.assertEqual(self.territorial.username, "renombrado")
         self.assertEqual(self.territorial.first_name, "Cambiado")
@@ -191,7 +193,9 @@ class GuardadoDelNoDuenoTests(_Base):
         coord_ac = self._coordinador("coord_ac", self.seg_a)
         AsignacionCoordinador.objects.create(segmento=self.seg_c, coordinador=coord_ac)
         resp = self._editar(coord_ac, segmentos_territoriales=[str(self.seg_c.pk)])
-        self.assertEqual(resp.status_code, 302, resp.context["form"].errors if resp.context else None)
+        self.assertEqual(
+            resp.status_code, 302, resp.context["form"].errors if resp.context and "form" in resp.context else None
+        )
         # A salió (era de su alcance y no lo eligió), B (ajeno) se conserva, C entró.
         self.assertEqual(self._segmentos_del_territorial(), {self.seg_b.pk, self.seg_c.pk})
         self.assertEqual(AsignacionTerritorial.objects.get(segmento=self.seg_c).asignado_por, coord_ac)
@@ -211,7 +215,9 @@ class EscritorYFormTests(_Base):
                 segmentos_territoriales=[str(self.seg_c.pk)],
             ),
         )
-        self.assertEqual(resp.status_code, 302, resp.context["form"].errors if resp.context else None)
+        self.assertEqual(
+            resp.status_code, 302, resp.context["form"].errors if resp.context and "form" in resp.context else None
+        )
         self.assertEqual(self._segmentos_del_territorial(), {self.seg_b.pk, self.seg_c.pk})  # A reemplazado
         self.assertEqual(AsignacionTerritorial.objects.get(segmento=self.seg_c).asignado_por, self.admin)
 

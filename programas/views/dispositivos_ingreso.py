@@ -41,13 +41,18 @@ from legajos.models import Ciudadano
 from programas.forms_ingreso import IngresoAltaMinimaForm, IngresoConfirmarForm, IngresoPersonaForm
 from programas.models import Dispositivo, Plaza
 from programas.services.bitacora import turno_vigente
-from programas.services.dispositivos import puede_operar_dispositivo
-from programas.services.estadias import CAP_ADMITIR, AlojamientoEnLaRed, verificar_alojamiento_en_red
+from programas.services.estadias import (
+    CAP_VER_CIUDADANO,
+    AlojamientoEnLaRed,
+    puede_ingresar_persona,
+    verificar_alojamiento_en_red,
+)
 from programas.services.ingreso import (
     buscar_ciudadano_por_dni,
     buscar_en_registro_de_personas,
     confirmar_ingreso,
     maneja_plazas,
+    plaza_reservada_de,
     plazas_para_ingresar,
 )
 from programas.services.ocupacion import (
@@ -59,8 +64,7 @@ from programas.services.ocupacion import (
 
 #: Una sola clave de sesión con un estado por dispositivo: `{"<pk>": {...}}`.
 CLAVE_SESION = "ingreso_asistente"
-#: Quien busca a la persona en el legajo necesita verla: es lo que muestra el asistente.
-CAP_VER_CIUDADANO = "ciudadano.ver"
+#: Dar de alta en el legajo a la persona que no está: el asistente lo ofrece solo a quien puede.
 CAP_CREAR_CIUDADANO = "ciudadano.crear"
 
 AVISO_OTRA_PESTANA = (
@@ -83,9 +87,7 @@ class IngresoBaseView(LoginRequiredMixin, View):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
         self.dispositivo = get_object_or_404(Dispositivo.objects.select_related("tipo"), pk=kwargs["pk"])
-        if not puede_operar_dispositivo(request.user, self.dispositivo, CAP_ADMITIR) or not puede(
-            request.user, CAP_VER_CIUDADANO
-        ):
+        if not puede_ingresar_persona(request.user, self.dispositivo):
             raise PermissionDenied
         if self.dispositivo.estado != Dispositivo.Estado.ACTIVO:
             messages.error(request, "Solo se puede alojar en un dispositivo activo.")
@@ -433,9 +435,18 @@ class IngresoPlazaView(IngresoBaseView):
 
         if not hasattr(self, "_mapa"):
             self._mapa = plazas_para_ingresar(
-                self.dispositivo, puede_ver_personas=puede(self.request.user, CAP_VER_CIUDADANO)
+                self.dispositivo,
+                puede_ver_personas=puede(self.request.user, CAP_VER_CIUDADANO),
+                plaza_propia_id=self.plaza_propia(),
             )
         return self._mapa
+
+    def plaza_propia(self):
+        """La plaza que la persona tiene reservada o prestada aquí: para ella es elegible y se sugiere."""
+
+        if not hasattr(self, "_plaza_propia"):
+            self._plaza_propia = plaza_reservada_de(self.estado().get("ciudadano_id"), self.dispositivo)
+        return self._plaza_propia
 
     def tension(self):
         """Cómo se lee la ocupación del dispositivo, de la fuente única (`services.ocupacion`).
@@ -502,7 +513,11 @@ class IngresoPlazaView(IngresoBaseView):
             return self.render_paso(request, estado, persona, None, "Esa plaza ya no está disponible. Elegí otra.")
         # Al volver desde «Confirmar», la plaza guardada sigue marcada si todavía se puede elegir.
         guardada = estado.get("plaza_id")
-        return self.render_paso(request, estado, persona, guardada if guardada in elegibles else None, error)
+        if guardada in elegibles:
+            return self.render_paso(request, estado, persona, guardada, error)
+        # Sin plaza elegida, la que la persona ya tenía guardada llega marcada: es la suya.
+        propia = self.plaza_propia()
+        return self.render_paso(request, estado, persona, propia if propia in elegibles else None, error)
 
     def post(self, request, pk):
         """«Continuar» con la plaza marcada, o «Continuar sin plaza» si el tipo no la exige."""
