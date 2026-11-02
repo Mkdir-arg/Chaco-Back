@@ -15,7 +15,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from legajos.models import Ciudadano
-from programas.selectors.personas_sugeridas import MAXIMO_RESULTADOS, sugerir_personas
+from programas.selectors.personas_sugeridas import MAXIMO_RESULTADOS, _filtro, sugerir_personas
 from programas.tests.test_dispositivos_estadias import BaseEstadias
 
 CAPS_PRESTAR = ("dispositivo.ver", "dispositivo.admitir", "ciudadano.ver")
@@ -117,6 +117,55 @@ class ContenidoTests(BaseSugerencias):
 
     def test_sin_coincidencias_la_lista_esta_vacia(self):
         self.assertEqual(self._buscar("99999999").json(), {"resultados": [], "hay_mas": False})
+
+
+class ConsultaTests(BaseSugerencias):
+    def test_el_prefijo_de_dni_no_se_traduce_a_like_binary_en_mysql(self):
+        """`startswith` en MySQL/MariaDB es `LIKE BINARY`: no usa bien el índice (224 ms en 200k filas)."""
+
+        from django.db.backends.mysql.base import DatabaseWrapper
+
+        conexion = DatabaseWrapper(
+            {
+                "NAME": "x",
+                "USER": "x",
+                "PASSWORD": "x",
+                "HOST": "x",
+                "PORT": "",
+                "OPTIONS": {},
+                "TIME_ZONE": None,
+                "CONN_MAX_AGE": 0,
+                "CONN_HEALTH_CHECKS": False,
+                "AUTOCOMMIT": True,
+                "ATOMIC_REQUESTS": False,
+                "TEST": {},
+            }
+        )
+        for texto in ("30111", "Gómez", "Pérez Juan"):
+            with self.subTest(texto=texto):
+                consulta = Ciudadano.objects.filter(_filtro(texto)).query
+                sql, _ = consulta.get_compiler(connection=conexion).as_sql()
+                self.assertNotIn("LIKE BINARY", sql)
+                self.assertIn("LIKE", sql)
+
+    def test_lo_tecleado_se_acota_a_cien_caracteres_y_cinco_palabras(self):
+        largo = "30111" + "9" * 500
+        self.assertEqual(sugerir_personas(largo), {"resultados": [], "hay_mas": False})
+        # Las palabras de más no cuentan: la sexta contradice el nombre y aun así encuentra.
+        self.assertEqual(
+            [f["dni"] for f in sugerir_personas("Pérez Juan Juan Juan Juan zzzz")["resultados"]], ["30333444"]
+        )
+        # Pasados los 100 caracteres se corta: el prefijo útil sigue buscándose.
+        self.assertEqual([f["dni"] for f in sugerir_personas("Pérez" + " " * 200 + "zzzz")["resultados"]], ["30333444"])
+
+    def test_los_atributos_del_campo_vienen_del_modulo_neutral(self):
+        from core.forms_sugerencias import attrs_sugerencias
+
+        self.assertEqual(attrs_sugerencias(None), {})
+        self.assertEqual(
+            set(attrs_sugerencias("/x/")),
+            {"data-sugerencias-url", "data-sugerencias-vacio", "data-sugerencias-hay-mas"},
+        )
 
 
 class TopeTests(BaseSugerencias):

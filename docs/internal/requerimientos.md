@@ -51582,7 +51582,8 @@ En el modal de una plaza, el campo DNI de «Prestar» y de «Reservar» no sugie
 5. **Sin coincidencias:** «No encontramos a nadie: dala de alta desde Ingresar persona.»
 6. **El servidor sigue validando como hoy.** La sugerencia solo completa el campo; sin JavaScript el campo funciona igual.
 7. **La pieza se carga solo en `sectores.html`**, no en `base.html`: no toca los snapshots de Becas. No hay clases de Tailwind nuevas (CSS propio con tokens), así que no se regenera el CSS compilado.
-8. **Sin datos personales en logs:** la vista no registra lo tecleado y responde `Cache-Control: no-store`.
+8. **Logs:** la vista no registra lo tecleado y responde `Cache-Control: no-store`; pero el `?q=` del GET queda en el access log de nginx, igual que con los demás buscadores GET del repo. Decisión del juez: se queda en GET.
+9. **Una sola compuerta y un solo contrato:** `puede_reservar_o_prestar(user, dispositivo)` la usan las dos acciones, el endpoint y el armado de la URL; `core/forms_sugerencias.py` guarda `attrs_sugerencias(url)` y los textos, para que los demás buscadores los reusen.
 
 ## Implementación
 
@@ -51590,11 +51591,11 @@ En el modal de una plaza, el campo DNI de «Prestar» y de «Reservar» no sugie
 
 ## Archivos
 
-`programas/selectors/personas_sugeridas.py`, `programas/views/dispositivos_legajo.py`, `programas/dispositivos_urls.py`, `programas/forms_dispositivos.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `static/custom/js/nodo-sugerencias.js`, `static/custom/css/nodo-sugerencias.css`, `.claude/design/componentes/sugerencias.md`, `.claude/agents/chaco-design-system.md`, `programas/tests/test_dispositivos_personas_sugeridas_415.py`.
+`programas/selectors/personas_sugeridas.py`, `programas/views/dispositivos_legajo.py`, `programas/dispositivos_urls.py`, `programas/forms_dispositivos.py`, `core/forms_sugerencias.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `static/custom/js/nodo-sugerencias.js`, `static/custom/css/nodo-sugerencias.css`, `.claude/design/componentes/sugerencias.md`, `.claude/agents/chaco-design-system.md`, `programas/tests/test_dispositivos_personas_sugeridas_415.py`.
 
 ## Base de datos
 
-No requiere migración. La búsqueda usa los índices existentes de `dni`, `(apellido, nombre)` y `nombre`.
+No requiere migración. La búsqueda usa los índices existentes de `dni`, `(apellido, nombre)` y `nombre`. El DNI va con `istartswith` (`LIKE`) y no con `startswith`: en MySQL/MariaDB este último es `LIKE BINARY` y recorre todo el índice (medido en 200k filas: 224 ms contra 0,03 ms). Un test lo fija compilando la consulta con el backend de MySQL. La consulta se acota a 100 caracteres y 5 palabras.
 
 ## Validación
 

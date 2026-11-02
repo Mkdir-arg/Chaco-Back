@@ -2,7 +2,9 @@
 
 Lectura pura: devuelve apellido, nombre y DNI, nunca otro dato. La búsqueda es por
 **prefijo** (`LIKE 'texto%'`) sobre columnas indexadas —`dni`, `(apellido, nombre)` y `nombre`—,
-sin función sobre la columna: así el motor usa el índice en MySQL y en MariaDB.
+sin función sobre la columna: así el motor usa el índice en MySQL y en MariaDB. Siempre `istartswith`
+(`LIKE`) y nunca `startswith`: en MySQL/MariaDB este último se traduce a `LIKE BINARY`, que recorre
+todo el índice (200k filas: 224 ms contra 0,03 ms).
 """
 
 import re
@@ -14,6 +16,9 @@ from legajos.models import Ciudadano
 
 MINIMO_CARACTERES = 3
 MAXIMO_RESULTADOS = 10
+#: Lo que se lee de lo tecleado: más largo que cualquier nombre o DNI, para no armar un WHERE enorme.
+MAXIMO_CARACTERES = 100
+MAXIMO_PALABRAS = 5
 
 _SOLO_DNI = re.compile(r"[\d.\s]+")
 
@@ -23,9 +28,9 @@ def _filtro(texto):
 
     if _SOLO_DNI.fullmatch(texto):
         digitos = normalizar_dni(texto)
-        return Q(dni__startswith=digitos) if len(digitos) >= MINIMO_CARACTERES else None
+        return Q(dni__istartswith=digitos) if len(digitos) >= MINIMO_CARACTERES else None
     filtro = Q()
-    for palabra in texto.replace(",", " ").split():
+    for palabra in texto.replace(",", " ").split()[:MAXIMO_PALABRAS]:
         filtro &= Q(apellido__istartswith=palabra) | Q(nombre__istartswith=palabra)
     return filtro
 
@@ -37,7 +42,7 @@ def sugerir_personas(texto):
     que el tope para saber si hay más sin contar.
     """
 
-    texto = (texto or "").strip()
+    texto = (texto or "").strip()[:MAXIMO_CARACTERES].strip()
     vacio = {"resultados": [], "hay_mas": False}
     if len(texto) < MINIMO_CARACTERES:
         return vacio

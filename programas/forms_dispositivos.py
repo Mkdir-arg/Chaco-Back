@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
+from core.forms_sugerencias import attrs_sugerencias
 from core.validators import ACCEPT_ADJUNTO
 from core.widgets import ChipsSelectMultiple, SwitchInput
 from programas.forms import INPUT_CLASS
@@ -222,9 +223,6 @@ AUTO_ID_PLAZA_SACAR = "sacar_%s"
 AUTO_ID_PLAZA_LIBERAR = "liberar_%s"
 
 MENSAJE_DNI_SIN_PERSONA = "No encontramos a nadie con ese DNI: dala de alta desde Ingresar persona."
-#: Lo que dice el desplegable de sugerencias (Cambio 415) cuando lo tecleado no coincide con nadie.
-MENSAJE_SUGERENCIA_SIN_PERSONA = "No encontramos a nadie: dala de alta desde Ingresar persona."
-MENSAJE_SUGERENCIA_HAY_MAS = "Hay más resultados: escribí más datos."
 
 
 class ReservarPlazaForm(forms.Form):
@@ -255,14 +253,7 @@ class ReservarPlazaForm(forms.Form):
         """
 
         super().__init__(*args, **kwargs)
-        if url_sugerencias:
-            self.fields["dni"].widget.attrs.update(
-                {
-                    "data-sugerencias-url": url_sugerencias,
-                    "data-sugerencias-vacio": MENSAJE_SUGERENCIA_SIN_PERSONA,
-                    "data-sugerencias-hay-mas": MENSAJE_SUGERENCIA_HAY_MAS,
-                }
-            )
+        self.fields["dni"].widget.attrs.update(attrs_sugerencias(url_sugerencias))
 
     def clean_dni(self):
         dni = normalizar_dni(self.cleaned_data.get("dni"))

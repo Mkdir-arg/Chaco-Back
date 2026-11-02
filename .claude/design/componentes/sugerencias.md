@@ -2,7 +2,7 @@
 
 **Clasificación:** Canónico reutilizable. Pieza única.
 **Evidencia:** `static/custom/js/nodo-sugerencias.js`, `static/custom/css/nodo-sugerencias.css`,
-`programas/selectors/personas_sugeridas.py`, `programas/views/dispositivos_legajo.py`
+`core/forms_sugerencias.py`, `programas/selectors/personas_sugeridas.py`, `programas/views/dispositivos_legajo.py`
 (`PersonasSugeridasView`).
 **Consumidores de referencia:** el DNI de «Reservar» y «Prestar» en el modal de una plaza
 (`programas/templates/programas/dispositivos/sectores/sectores.html`).
@@ -22,8 +22,8 @@ reemplaza al campo ni a la validación: el input es el que viaja en el POST y el
 
 - Se carga con `nodo-sugerencias.css` (`{% block page_css %}`) y `nodo-sugerencias.js`
   (`{% block customJS %}`) **solo en la pantalla que la usa**, no en `base.html`.
-- El formulario Django pone los atributos con `widget.attrs` (ver `url_sugerencias` en
-  `ReservarPlazaForm`); sin la URL no se agrega nada y el campo queda como siempre.
+- El formulario Django pone los atributos con `attrs_sugerencias(url)` de `core/forms_sugerencias.py`
+  (que también guarda los textos), en el `widget.attrs` (ver `url_sugerencias` en `ReservarPlazaForm`); sin la URL no se agrega nada y el campo queda como siempre.
 - El JS envuelve el input en `.nodo-sugerencias` y agrega un panel con `ul[role=listbox]` y un
   aviso `role=status`. Sin dependencias: no usa Alpine.
 
@@ -40,5 +40,5 @@ reemplaza al campo ni a la validación: el input es el que viaja en el POST y el
 
 `GET ?q=` → `{"resultados": [{"apellido", "nombre", "dni"}], "hay_mas": bool}`. Tope de 10, mínimo
 de 3 caracteres; solo esas tres claves, nunca teléfono, correo ni domicilio. Búsqueda por prefijo
-(`LIKE 'x%'`, sin función sobre la columna). El endpoint de cada pantalla aplica la misma
+(`istartswith` → `LIKE 'x%'`, sin función sobre la columna; nunca `startswith`, que en MySQL/MariaDB es `LIKE BINARY` y recorre todo el índice). El endpoint de cada pantalla aplica la misma
 capacidad y alcance que la acción que completa el campo.

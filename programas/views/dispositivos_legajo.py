@@ -954,7 +954,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         # a quien no las puede usar no se le ofrecen, y el campo queda como siempre.
         url_sugerencias = (
             reverse("dispositivos:personas_buscar", args=[dispositivo.pk])
-            if puede_liberar and puede(self.request.user, CAP_VER_CIUDADANO)
+            if puede_reservar_o_prestar(self.request.user, dispositivo)
             else None
         )
         context["form_reservar"] = ReservarPlazaForm(auto_id=AUTO_ID_PLAZA_RESERVAR, url_sugerencias=url_sugerencias)
@@ -1056,6 +1056,16 @@ URL_DE_ACCION = {
 }
 
 
+def puede_reservar_o_prestar(user, dispositivo):
+    """La compuerta única de reservar, prestar y de las sugerencias de personas de su campo DNI.
+
+    Admitir en ese dispositivo (con alcance) y ver personas del padrón: reservar y prestar buscan
+    a la persona por DNI. Quien no cumple no recibe la acción ni las sugerencias.
+    """
+
+    return puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR) and puede(user, CAP_VER_CIUDADANO)
+
+
 class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
     """Base de las tres acciones del mapa de plazas.
 
@@ -1078,8 +1088,10 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
         volver = reverse("dispositivos:sectores", args=[dispositivo.pk])
         # Antes de mirar la plaza y de validar el form: con el DNI en la mano, la diferencia
         # entre «no encontramos» y el éxito sería un oráculo del padrón para quien no lo puede ver.
-        if not puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida) or (
-            self.requiere_ver_ciudadanos and not puede(request.user, CAP_VER_CIUDADANO)
+        if not (
+            puede_reservar_o_prestar(request.user, dispositivo)
+            if self.requiere_ver_ciudadanos
+            else puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida)
         ):
             if is_ajax(request):
                 return JsonResponse({"ok": False, "message": "No tenés alcance sobre este dispositivo."}, status=403)
@@ -1187,9 +1199,7 @@ class PersonasSugeridasView(DispositivoProgramaPermissionMixin, View):
 
     def get(self, request, pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
-        if not puede_operar_dispositivo(request.user, dispositivo, CAP_ADMITIR) or not puede(
-            request.user, CAP_VER_CIUDADANO
-        ):
+        if not puede_reservar_o_prestar(request.user, dispositivo):
             return JsonResponse({"ok": False, "message": "No tenés alcance sobre este dispositivo."}, status=403)
         # Sin registrar lo tecleado: es un DNI o un apellido, dato personal.
         respuesta = JsonResponse(sugerir_personas(request.GET.get("q", "")))
