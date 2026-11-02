@@ -679,6 +679,51 @@ class AsignacionDispositivo(TimeStamped):
         return f"{self.rol} → {self.dispositivo}"
 
 
+class MiembroEquipoDispositivo(TimeStamped):
+    """Una persona del Equipo de un dispositivo, con el rol con el que trabaja ahí (Cambio 410).
+
+    Es el alcance fino por **persona**: varias filas por dispositivo, y una misma persona puede
+    estar con roles distintos en dispositivos distintos. La baja es ``activo=False`` (volver a
+    sumarla reactiva la fila). ``es_responsable`` marca a quienes arman el Equipo.
+    """
+
+    dispositivo = models.ForeignKey(
+        Dispositivo,
+        on_delete=models.CASCADE,
+        related_name="equipo",
+        verbose_name="Dispositivo",
+    )
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="equipos_dispositivos",
+        verbose_name="Persona",
+    )
+    rol = models.ForeignKey(
+        Group,
+        on_delete=models.CASCADE,
+        related_name="miembros_equipo_dispositivos",
+        verbose_name="Rol",
+    )
+    es_responsable = models.BooleanField(default=False, verbose_name="Es responsable")
+    activo = models.BooleanField(default=True, db_index=True, verbose_name="Activo")
+
+    class Meta:
+        verbose_name = "Miembro del equipo de un dispositivo"
+        verbose_name_plural = "Miembros del equipo de dispositivos"
+        ordering = ["dispositivo", "usuario", "rol"]
+        constraints = [
+            # No condicional: MySQL/MariaDB no soportan las condicionales.
+            models.UniqueConstraint(
+                fields=["dispositivo", "usuario", "rol"],
+                name="miembro_equipo_dispositivo_unico",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.usuario} · {self.rol} → {self.dispositivo}"
+
+
 class TrazaDispositivoQuerySet(models.QuerySet):
     """Evita vías masivas de mutación para una auditoría solo-aditiva."""
 

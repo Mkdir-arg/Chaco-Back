@@ -532,6 +532,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 406 | Dispositivos: el ingreso consume la reserva de la persona, reservar valida a la persona y los sectores solo donde hay plazas (QA local del 30/10) | Dispositivos · sectores y plazas · asistente de ingreso | `#ui` `#datos` | QA local de Dispositivos (30/10/2026): B-01, B-02, A-07, A-08, B-05, A-12 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 407 | Dispositivos: «Ingresar persona» solo a quien el asistente deja entrar, buscador en el formulario del tipo, reenvío del rechazado y clave provisoria del agente en la app | Dispositivos (legajo P4/P3, asistente de ingreso, `ObtainCampoToken`) | `#rbac` `#ui` `#api` `#mobile` | PM — QA local de Dispositivos del 30/10/2026 (A-01/B-03, A-05, A-02, C-S2) | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 409 | Dispositivos: reactivar un INACTIVO, el ingreso libera todas las reservas de la persona, clave de campo por enlace en el CSV y correcciones de la QA 2 (02/11) | Dispositivos (legajo P4, asistente de ingreso, sectores y plazas) · Usuarios (ABM, import CSV, alta rápida de agente) · API de campo | `#ui` `#rbac` `#datos` `#api` | PM — QA 2 local de Dispositivos del 02/11/2026 y MINOR de las auditorías de #1011 y #1012 (D1-D3, A2-07, A2-01, C2-04) | 02/11/2026 | 🟢 **Hecho** | No requiere |
+| 410 | Dispositivos: el alcance por Equipo de personas (`MiembroEquipoDispositivo`) y la capacidad `dispositivo.ver_todos` (PR A: modelo, regla y servicio, sin UI) | Dispositivos (alcance fino, RBAC) · Usuarios (ancla de capacidades) | `#rbac` `#datos` | PM — QA, task #690: un rol con ver/admitir no veía ningún dispositivo | 02/11/2026 | 🟡 **En curso** | Requiere |
 
 **Notas del índice**
 
@@ -51108,3 +51109,90 @@ Revertir el PR; sin migraciones. Las trazas `REACTIVADO` ya escritas quedan en e
 - **02/11/2026 — alta del cambio.**
 
 ---
+
+---
+
+# Cambio 410 — Dispositivos: Equipo por persona y `dispositivo.ver_todos` (PR A, sin UI)
+
+🟡 **EN CURSO — 02/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (alcance fino, RBAC) · Usuarios (ancla de capacidades) |
+| **Etiquetas** | `#rbac` `#datos` |
+| **Solicitante** | PM — QA, task #690 |
+| **Fecha del pedido** | 02/11/2026 |
+| **Issue / épica** | #690 |
+| **Partes afectadas** | `core/rbac.py`, `programas/services/dispositivos.py`, `programas/services/equipo_dispositivo.py` (nuevo), modelos y admin de `programas` |
+| **Migración** | Requiere: `users.0045`, `programas.0110`, `programas.0111` |
+
+## Pedido original
+
+Un rol con `dispositivo.ver`, `dispositivo.admitir` y `ciudadano.ver` no veía ningún dispositivo: el alcance fino exigía una
+`AsignacionDispositivo` (rol → dispositivo) que solo se crea desde el admin de Django.
+
+## Alcance acordado
+
+**Entra (PR A):** capacidad, modelo, regla de alcance, migración de datos, servicio del Equipo y admin de Django.
+**Queda afuera:** la UI para armar el Equipo y exigir responsable al crear (PR siguiente), y retirar la asignación de rol vieja
+(Cambio posterior).
+
+## Decisiones tomadas
+
+1. **`dispositivo.ver_todos`** (PM, 02/11/2026): capacidad nueva del módulo de dispositivos, alcance programa. Quien la tiene
+   VE todos los dispositivos y solo eso (solo se aplica cuando la capacidad pedida es `dispositivo.ver`); operar exige ser del
+   Equipo o admin del programa (`puede_configurar_dispositivos`). Sigue haciendo falta `dispositivo.ver`.
+2. **Equipo por persona**: `MiembroEquipoDispositivo(dispositivo, usuario, rol, es_responsable, activo)`, `UniqueConstraint`
+   NO condicional sobre (dispositivo, usuario, rol). La baja es `activo=False`; volver a sumar reactiva la fila.
+3. **Responsables**: varios por dispositivo y obligatorio al crear (la UI va en el PR siguiente; acá solo
+   `validar_responsables_al_crear`). El servicio no deja sin responsables activos a un dispositivo que ya tenía.
+4. **Quién arma el Equipo**: admin de Dispositivos y los responsables de ese dispositivo (`puede_gestionar_equipo`).
+5. **Los agentes de relevamiento no cambian**: `AsignacionDispositivo` e `inspecciones.py` quedan como están.
+6. **Regla** (`puede_operar_dispositivo` / `dispositivos_en_alcance`): capacidad en el programa; admin → todo; `ver_todos` →
+   todo para `CAP_VER`; si no, dispositivos donde hay una fila activa del Equipo cuyo rol (activo, del programa, que la persona
+   todavía tiene) tiene esa capacidad. **OR con la asignación de rol vieja**, mantenida a propósito para no dejar sin acceso a
+   nadie durante la transición; se retira en un Cambio posterior.
+7. **Migración de datos `programas.0111`**: por cada `AsignacionDispositivo` activa, una fila del Equipo por cada usuario del
+   rol, salvo el rol de agente (`RolMeta.clave == dispositivos.agente_relevamiento`). Idempotente (`get_or_create`); la reversa
+   es `# REVERSA-NOOP` (volver atrás la 0110 borra la tabla).
+
+## Archivos
+
+- Código: `core/rbac.py`, `programas/models/__init__.py`, `programas/admin.py`, `programas/services/dispositivos.py`,
+  `programas/services/equipo_dispositivo.py` (nuevo).
+- Migraciones: `users/migrations/0045_capacidad_dispositivo_ver_todos.py`,
+  `programas/migrations/0110_miembro_equipo_dispositivo.py`, `programas/migrations/0111_equipo_desde_asignaciones.py`.
+- Tests: `programas/tests/test_dispositivos_equipo_410.py`.
+
+## Base de datos
+
+Migraciones `users.0045` (capacidad), `programas.0110` (tabla) y `programas.0111` (datos). Tabla nueva `programas_miembroequipodispositivo` (expand puro, no toca tablas existentes) y una fila de capacidad en el ancla
+(`users.Capacidad` es `managed = False`: solo `AlterModelOptions`). La capacidad nueva **no** se tilda en ningún rol: el PM la
+asigna desde el ABM de Roles.
+
+## Validación
+
+Mutaciones, cada una deja rojo el test que la cubre: `ver_todos` también para operar; no mirar la capacidad del rol del
+Equipo; no mirar `activo` de la fila; no mirar el programa del rol; no mirar que el rol esté activo; no mirar que la persona
+todavía tenga el rol; no excluir al agente en la migración; gestionar el Equipo sin ser responsable; dejar al dispositivo sin
+responsables; no validar que la persona tenga el rol, que sea del programa ni que esté activo.
+
+## Puesta en marcha en el servidor
+
+Migrar (`users.0045`, `programas.0110`, `programas.0111`) y tildar `dispositivo.ver_todos` en los roles que corresponda.
+
+## Pendientes / a definir
+
+1. PR B: UI para armar el Equipo y responsable obligatorio al crear.
+2. Retirar la asignación de rol vieja como vía de alcance (salvo agentes).
+
+## Reversión
+
+1. Revertir el PR (el código vuelve a usar solo la asignación de rol, que nunca se tocó).
+2. `migrate programas 0109`: la `0111` no hace nada al volver y la `0110` borra la tabla.
+3. `migrate users 0044`: la capacidad solo sale del ancla; la `Permission` y los roles que la tildaron conservan la fila.
+Se pierde el Equipo cargado (personas, roles y responsables). Nadie pierde acceso, porque la asignación de rol vieja sigue vigente.
+
+## Historial
+
+- **02/11/2026 — alta del cambio.**

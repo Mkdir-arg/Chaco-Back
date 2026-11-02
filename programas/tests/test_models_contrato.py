@@ -52,6 +52,7 @@ TABLAS = {
     "AltaIntermediaSIIS": "siis_tabla_intermedia",
     "AsignacionCoordinador": "programas_asignacioncoordinador",
     "AsignacionDispositivo": "programas_asignaciondispositivo",
+    "MiembroEquipoDispositivo": "programas_miembroequipodispositivo",
     "AsignacionReferente": "programas_asignacionreferente",
     "AsignacionTerritorial": "programas_asignacionterritorial",
     "CatalogoSiisLocal": "programas_catalogosiislocal",
