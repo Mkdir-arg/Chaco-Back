@@ -223,13 +223,43 @@ def _secciones(foto, respuestas, adjuntos, hoy):
     return secciones
 
 
+def respuestas_de_versiones_anteriores(foto, respuestas, anteriores, adjuntos):
+    """Lo respondido en campos que la foto vigente de la fila ya no tiene, para el bloque plegado
+    «De versiones anteriores» de P4: ``[{etiqueta, valor}]``, en el orden en que dejaron de estar.
+
+    Solo cuenta una clave que está en ``anteriores`` (con su definición, de ahí sale la etiqueta
+    y el tipo), que la foto **ya no** tiene y cuyo valor no está vacío. Una lista se une con comas.
+    Un archivo se muestra por su nombre, **sin enlace**: la sección plegable compartida
+    (``_ficha_seccion``) no lleva enlaces y la descarga sigue disponible desde el legajo.
+    """
+    vigentes = {campo["clave"] for campo in campos_de(foto)}
+    campos = []
+    for clave, entrada in (anteriores or {}).items():
+        if clave in vigentes or clave not in respuestas:
+            continue
+        campo = (entrada or {}).get("campo") or {}
+        adjunto = adjuntos.get(clave) if campo.get("tipo") == "ARCHIVO" else None
+        if adjunto is not None:
+            valor = Path(adjunto.archivo.name or "").name
+        else:
+            valor = legible(campo, respuestas[clave])
+            if isinstance(valor, list):
+                valor = ", ".join(str(parte) for parte in valor)
+        if esta_vacio(valor):
+            continue
+        campos.append({"etiqueta": campo.get("texto") or clave, "valor": valor})
+    return campos
+
+
 def formularios_respondidos(dispositivo):
     """Lo respondido en «Crear dispositivo», para la solapa Datos de P4.
 
     Una entrada por fila —la del tipo actual primero, después las de tipos anteriores—
     leída **con su foto**: ``{titulo, tipo, version, del_tipo_actual, secciones}``, y
     cada sección ``{titulo, campos}`` con solo lo visible según sus condiciones
-    (evaluadas al día en que se respondió). Dos consultas, sin importar cuántos campos.
+    (evaluadas al día en que se respondió), más ``anteriores`` (ver
+    :func:`respuestas_de_versiones_anteriores`) y ``id_anteriores`` (id único del bloque
+    plegado). Dos consultas, sin importar cuántos campos.
     """
     filas = (
         RespuestasAltaDispositivo.objects.filter(dispositivo=dispositivo)
@@ -239,10 +269,11 @@ def formularios_respondidos(dispositivo):
     )
     salida = []
     for fila in filas:
+        adjuntos = _adjuntos_por_clave(fila)
         secciones = _secciones(
             fila.definicion or {},
             fila.respuestas or {},
-            _adjuntos_por_clave(fila),
+            adjuntos,
             fecha_local(fila.modificado) or timezone.localdate(),
         )
         tipo = fila.diseno.tipo_dispositivo
@@ -253,6 +284,10 @@ def formularios_respondidos(dispositivo):
                 "version": fila.version,
                 "del_tipo_actual": fila.diseno.tipo_dispositivo_id == dispositivo.tipo_id,
                 "secciones": secciones,
+                "anteriores": respuestas_de_versiones_anteriores(
+                    fila.definicion or {}, fila.respuestas or {}, fila.anteriores, adjuntos
+                ),
+                "id_anteriores": f"anteriores-{fila.pk}",
             }
         )
     salida.sort(key=lambda entrada: not entrada["del_tipo_actual"])

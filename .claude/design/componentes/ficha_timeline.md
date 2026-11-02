@@ -65,6 +65,12 @@ evento (P19, «Registro fotográfico»). Sin `fotos` —o con la lista vacía—
 siempre, carácter por carácter. Consumidor: la solapa Infraestructura de
 `programas/templates/programas/dispositivos/legajo/detail.html`.
 
+**Sección de ficha plegada, solo lectura (Cambio 405).** `_ficha_seccion.html` con `abierta=False` y `campos`
+`{etiqueta, valor}` es también el bloque «De versiones anteriores» de la solapa Datos de P4
+(`programas/templates/programas/dispositivos/legajo/detail.html`): las respuestas de campos que el diseño
+del formulario ya no tiene, bajo las vigentes. Sin ese contenido el include no se dibuja. No lleva
+enlaces: un archivo viejo se muestra por su nombre.
+
 ## Límites actuales
 
 - **No lleva otro contenido rico.** `detalle` sigue siendo una línea escapada, no un slot. Las fotos
