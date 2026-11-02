@@ -1,0 +1,54 @@
+/* NODO Design System — Sugerencias de personas (Cambio 415)
+   Desplegable bajo un <input data-sugerencias-url>, montado por nodo-sugerencias.js.
+   El input conserva el canon del field; esto solo dibuja la lista, con el mismo
+   lenguaje que la lista de .nodo-buscador. */
+
+.nodo-sugerencias {
+    position: relative;
+    width: 100%;
+}
+
+.nodo-sugerencias__panel {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 100%;
+    background: var(--bg-white);
+    border: 1px solid var(--border-base);
+    border-radius: var(--rounded-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+.nodo-sugerencias__panel[hidden],
+.nodo-sugerencias__lista[hidden],
+.nodo-sugerencias__aviso[hidden] { display: none; }
+
+.nodo-sugerencias__lista {
+    max-height: 240px;
+    margin: 0;
+    padding: 4px;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.nodo-sugerencias__opcion {
+    padding: 8px 10px;
+    font-size: 14px;
+    color: var(--text-heading);
+    border-radius: var(--rounded-md);
+    cursor: pointer;
+}
+
+.nodo-sugerencias__opcion:hover,
+.nodo-sugerencias__opcion[data-activa="1"] {
+    background: var(--bg-brand-softer);
+    color: var(--text-fg-brand);
+}
+
+.nodo-sugerencias__aviso {
+    margin: 0;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--text-body-subtle);
+}

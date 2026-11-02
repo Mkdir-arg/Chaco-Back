@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
+from core.forms_sugerencias import attrs_sugerencias
 from core.validators import ACCEPT_ADJUNTO
 from core.widgets import ChipsSelectMultiple, SwitchInput
 from programas.forms import INPUT_CLASS
@@ -243,6 +244,16 @@ class ReservarPlazaForm(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={"class": INPUT_CLASS, "rows": 3, "placeholder": "Opcional"}),
     )
+
+    def __init__(self, *args, url_sugerencias=None, **kwargs):
+        """`url_sugerencias`: el endpoint que sugiere personas mientras se escribe el DNI.
+
+        Es solo presentación (`nodo-sugerencias.js`): sin la URL, o sin JavaScript, el campo es
+        el mismo de siempre y `clean_dni` sigue siendo quien decide.
+        """
+
+        super().__init__(*args, **kwargs)
+        self.fields["dni"].widget.attrs.update(attrs_sugerencias(url_sugerencias))
 
     def clean_dni(self):
         dni = normalizar_dni(self.cleaned_data.get("dni"))
