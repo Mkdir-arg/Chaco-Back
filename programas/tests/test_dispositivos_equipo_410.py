@@ -340,6 +340,24 @@ class GestionDelEquipoTests(BaseEquipo):
         m.refresh_from_db()
         self.assertFalse(m.es_responsable)
 
+    def test_sumar_dos_veces_el_mismo_par_activo_no_le_saca_la_marca_de_responsable(self):
+        m = equipo.sumar_miembro(
+            actor=self.admin, dispositivo=self.disp_a, usuario=self.resp2, rol=self.rol_resp, es_responsable=True
+        )
+        otra = equipo.sumar_miembro(actor=self.admin, dispositivo=self.disp_a, usuario=self.resp2, rol=self.rol_resp)
+        self.assertEqual(otra.pk, m.pk)
+        m.refresh_from_db()
+        self.assertTrue(m.activo and m.es_responsable)
+
+    def test_cambiar_rol_rechaza_el_rol_de_agente(self):
+        rol_agente = self._rol("Agente", ["dispositivo.ver"], clave="dispositivos.agente_relevamiento")
+        self.op.groups.add(rol_agente)
+        m = equipo.sumar_miembro(actor=self.admin, dispositivo=self.disp_a, usuario=self.op, rol=self.rol_op)
+        with self.assertRaises(ValidationError):
+            equipo.cambiar_rol(actor=self.admin, miembro=m, rol_nuevo=rol_agente)
+        m.refresh_from_db()
+        self.assertEqual(m.rol, self.rol_op)
+
     def test_sumar_miembro_rechaza_el_rol_de_agente_y_al_usuario_inactivo(self):
         rol_agente = self._rol("Agente", ["dispositivo.ver"], clave="dispositivos.agente_relevamiento")
         agente = self._usuario("agente", rol_agente)

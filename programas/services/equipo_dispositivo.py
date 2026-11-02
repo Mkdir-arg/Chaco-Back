@@ -78,17 +78,6 @@ def _exigir_pares_sumables(programa, pares):
         raise ValidationError("Elegí personas y roles del listado.")
 
 
-def _validar_rol(usuario, rol):
-    """El rol es del programa Dispositivos, está activo y la persona lo tiene."""
-
-    programa = programa_dispositivos()
-    meta = getattr(rol, "meta", None)
-    if programa is None or meta is None or not meta.activo or meta.programa_id != programa.pk:
-        raise ValidationError("El rol no es un rol activo del programa Dispositivos.")
-    if not usuario.groups.filter(pk=rol.pk).exists():
-        raise ValidationError("La persona no tiene ese rol.")
-
-
 def _responsables_activos(dispositivo):
     from programas.models import MiembroEquipoDispositivo
 
@@ -118,8 +107,10 @@ def sumar_miembro(*, actor, dispositivo, usuario, rol, es_responsable=False):
             dispositivo=dispositivo, usuario=usuario, rol=rol, defaults={"es_responsable": es_responsable}
         )
         if not creado:
+            estaba_de_baja = not miembro.activo
             miembro.activo = True
-            miembro.es_responsable = es_responsable
+            # De baja vuelve como se pide; si ya estaba activa (dos altas a la vez) no se le saca la marca.
+            miembro.es_responsable = es_responsable if estaba_de_baja else miembro.es_responsable or es_responsable
             miembro.save(update_fields=["activo", "es_responsable", "modificado"])
         return miembro
 
@@ -155,7 +146,7 @@ def cambiar_rol(*, actor, miembro, rol_nuevo):
         dispositivo = _bloquear(miembro.dispositivo)
         _exigir_gestion(actor, dispositivo)
         miembro = MiembroEquipoDispositivo.objects.select_for_update().get(pk=miembro.pk)
-        _validar_rol(miembro.usuario, rol_nuevo)
+        _exigir_pares_sumables(programa_dispositivos(), [(miembro.usuario, rol_nuevo)])
         if miembro.rol_id == rol_nuevo.pk:
             return miembro
         if MiembroEquipoDispositivo.objects.filter(
