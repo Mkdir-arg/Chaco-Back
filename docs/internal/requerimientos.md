@@ -51124,16 +51124,16 @@ Revertir el PR; sin migraciones. Las trazas `REACTIVADO` ya escritas quedan en e
 | **Fecha del pedido** | 02/11/2026 |
 | **Issue / épica** | #690 |
 | **Partes afectadas** | `core/rbac.py`, `programas/services/dispositivos.py`, `programas/services/equipo_dispositivo.py` (nuevo), modelos y admin de `programas` |
-| **Migración** | Requiere: `users.0045`, `programas.0110`, `programas.0111` |
+| **Migración** | Requiere: `users.0045`, `programas.0110` |
 
 ## Pedido original
 
 Un rol con `dispositivo.ver`, `dispositivo.admitir` y `ciudadano.ver` no veía ningún dispositivo: el alcance fino exigía una
-`AsignacionDispositivo` (rol → dispositivo) que solo se crea desde el admin de Django.
+`AsignacionDispositivo` (rol → dispositivo) que se edita desde el admin de Django y desde el ABM de Roles («Alcance por dispositivo»).
 
 ## Alcance acordado
 
-**Entra (PR A):** capacidad, modelo, regla de alcance, migración de datos, servicio del Equipo y admin de Django.
+**Entra (PR A):** capacidad, modelo, regla de alcance, servicio del Equipo y admin de Django.
 **Queda afuera:** la UI para armar el Equipo y exigir responsable al crear (PR siguiente), y retirar la asignación de rol vieja
 (Cambio posterior).
 
@@ -51152,21 +51152,21 @@ Un rol con `dispositivo.ver`, `dispositivo.admitir` y `ciudadano.ver` no veía n
    todo para `CAP_VER`; si no, dispositivos donde hay una fila activa del Equipo cuyo rol (activo, del programa, que la persona
    todavía tiene) tiene esa capacidad. **OR con la asignación de rol vieja**, mantenida a propósito para no dejar sin acceso a
    nadie durante la transición; se retira en un Cambio posterior.
-7. **Migración de datos `programas.0111`**: por cada `AsignacionDispositivo` activa, una fila del Equipo por cada usuario del
-   rol, salvo el rol de agente (`RolMeta.clave == dispositivos.agente_relevamiento`). Idempotente (`get_or_create`); la reversa
-   es `# REVERSA-NOOP` (volver atrás la 0110 borra la tabla).
+7. **Sin migración de datos** (auditoría): el ABM de Roles apaga `AsignacionDispositivo` pero no las filas del Equipo, así
+   que copiar las asignaciones al Equipo (ex `programas.0111`) hacía que destildar dejara de revocar. La vía vieja sigue
+   como OR y el acceso es idéntico al de antes.
 
 ## Archivos
 
 - Código: `core/rbac.py`, `programas/models/__init__.py`, `programas/admin.py`, `programas/services/dispositivos.py`,
   `programas/services/equipo_dispositivo.py` (nuevo).
 - Migraciones: `users/migrations/0045_capacidad_dispositivo_ver_todos.py`,
-  `programas/migrations/0110_miembro_equipo_dispositivo.py`, `programas/migrations/0111_equipo_desde_asignaciones.py`.
+  `programas/migrations/0110_miembro_equipo_dispositivo.py`.
 - Tests: `programas/tests/test_dispositivos_equipo_410.py`.
 
 ## Base de datos
 
-Migraciones `users.0045` (capacidad), `programas.0110` (tabla) y `programas.0111` (datos). Tabla nueva `programas_miembroequipodispositivo` (expand puro, no toca tablas existentes) y una fila de capacidad en el ancla
+Migraciones `users.0045` (capacidad) y `programas.0110` (tabla). Tabla nueva `programas_miembroequipodispositivo` (expand puro, no toca tablas existentes) y una fila de capacidad en el ancla
 (`users.Capacidad` es `managed = False`: solo `AlterModelOptions`). La capacidad nueva **no** se tilda en ningún rol: el PM la
 asigna desde el ABM de Roles.
 
@@ -51174,22 +51174,23 @@ asigna desde el ABM de Roles.
 
 Mutaciones, cada una deja rojo el test que la cubre: `ver_todos` también para operar; no mirar la capacidad del rol del
 Equipo; no mirar `activo` de la fila; no mirar el programa del rol; no mirar que el rol esté activo; no mirar que la persona
-todavía tenga el rol; no excluir al agente en la migración; gestionar el Equipo sin ser responsable; dejar al dispositivo sin
+todavía tenga el rol; gestionar el Equipo sin ser responsable; dejar al dispositivo sin
 responsables; no validar que la persona tenga el rol, que sea del programa ni que esté activo.
 
 ## Puesta en marcha en el servidor
 
-Migrar (`users.0045`, `programas.0110`, `programas.0111`) y tildar `dispositivo.ver_todos` en los roles que corresponda.
+Migrar (`users.0045`, `programas.0110`) y tildar `dispositivo.ver_todos` en los roles que corresponda.
 
 ## Pendientes / a definir
 
 1. PR B: UI para armar el Equipo y responsable obligatorio al crear.
-2. Retirar la asignación de rol vieja como vía de alcance (salvo agentes).
+2. Retirar la asignación de rol vieja como vía de alcance (salvo agentes). En ese Cambio se corre la migración de
+   asignaciones → Equipo, junto con que el ABM de Roles deje de escribir asignaciones.
 
 ## Reversión
 
 1. Revertir el PR (el código vuelve a usar solo la asignación de rol, que nunca se tocó).
-2. `migrate programas 0109`: la `0111` no hace nada al volver y la `0110` borra la tabla.
+2. `migrate programas 0109`: la `0110` borra la tabla.
 3. `migrate users 0044`: la capacidad solo sale del ancla; la `Permission` y los roles que la tildaron conservan la fila.
 Se pierde el Equipo cargado (personas, roles y responsables). Nadie pierde acceso, porque la asignación de rol vieja sigue vigente.
 

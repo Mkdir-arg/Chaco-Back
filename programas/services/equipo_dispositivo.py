@@ -14,8 +14,10 @@ simultáneas no pueden dejarlo sin responsables.
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import F
 
 from programas.services.dispositivos import (
+    membresias_vigentes,
     programa_dispositivos,
     puede_configurar_dispositivos,
 )
@@ -28,11 +30,11 @@ def puede_gestionar_equipo(user, dispositivo):
         return False
     if puede_configurar_dispositivos(user):
         return True
-    from programas.models import MiembroEquipoDispositivo
-
-    return MiembroEquipoDispositivo.objects.filter(
-        dispositivo=dispositivo, usuario=user, activo=True, es_responsable=True
-    ).exists()
+    return (
+        membresias_vigentes(user, programa_dispositivos(user))
+        .filter(dispositivo=dispositivo, es_responsable=True)
+        .exists()
+    )
 
 
 def _exigir_gestion(actor, dispositivo):
@@ -60,7 +62,14 @@ def _validar_rol(usuario, rol):
 def _responsables_activos(dispositivo):
     from programas.models import MiembroEquipoDispositivo
 
-    return MiembroEquipoDispositivo.objects.filter(dispositivo=dispositivo, activo=True, es_responsable=True)
+    return MiembroEquipoDispositivo.objects.filter(
+        dispositivo=dispositivo,
+        activo=True,
+        es_responsable=True,
+        rol__user=F("usuario"),
+        rol__meta__activo=True,
+        rol__meta__programa=programa_dispositivos(),
+    )
 
 
 def _exigir_otro_responsable(dispositivo, miembro):

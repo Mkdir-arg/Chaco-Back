@@ -78,11 +78,12 @@ def puede_en_programa_dispositivos(user, capacidad):
     return programa is not None and rbac.puede(user, capacidad, programa=programa)
 
 
-def _filtro_equipo(user, capacidad, programa):
-    """Membresías del Equipo (Cambio 410) con las que ``user`` tiene ``capacidad``.
+def membresias_vigentes(user, programa):
+    """Filas activas del Equipo (Cambio 410) de ``user`` que todavía valen.
 
-    Cuenta la fila activa cuyo rol es del programa, está activo, tiene la capacidad y que el
-    usuario TODAVÍA tiene (si se le sacó el rol, la fila no habilita).
+    Vale la fila activa cuyo rol es del programa y está activo, y que el usuario TODAVÍA tiene
+    (si se le sacó el rol, la fila no cuenta). Es la única definición de «membresía vigente»:
+    la usan el alcance y la gestión del Equipo.
     """
 
     from programas.models import MiembroEquipoDispositivo
@@ -93,16 +94,21 @@ def _filtro_equipo(user, capacidad, programa):
         rol__user=user,
         rol__meta__activo=True,
         rol__meta__programa=programa,
-        rol__permissions__codename=rbac.codename_de(capacidad),
     )
+
+
+def _filtro_equipo(user, capacidad, programa):
+    """Membresías vigentes del Equipo cuyo rol tiene ``capacidad``."""
+
+    return membresias_vigentes(user, programa).filter(rol__permissions__codename=rbac.codename_de(capacidad))
 
 
 def _filtro_asignacion_rol(user, capacidad, programa):
     """Vía **vieja** (rol → dispositivo, ``AsignacionDispositivo``).
 
     Se mantiene como OR de la nueva para no dejar sin acceso a nadie durante la transición:
-    los agentes de relevamiento siguen con esta asignación y el resto se migró al Equipo
-    (``programas.0111``). Se retira de acá en un Cambio posterior.
+    el ABM de Roles («Alcance por dispositivo») sigue escribiendo estas asignaciones. Se retira
+    de acá, junto con la migración de asignaciones al Equipo, en un Cambio posterior.
     """
 
     from programas.models import AsignacionDispositivo

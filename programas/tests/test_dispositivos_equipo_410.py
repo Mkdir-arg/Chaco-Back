@@ -5,14 +5,11 @@ Lo que se fija acá, y cada guarda se verificó con mutación (romperla deja roj
 1. ``dispositivo.ver_todos`` da **ver** todos los dispositivos y nada más.
 2. Operar exige ser del Equipo con un rol que tenga la capacidad; un rol sin ella, de otro
    programa o inactivo no habilita; la baja (o perder el rol) quita el acceso.
-3. La migración de datos arma el Equipo desde las asignaciones y **no suma agentes**.
+3. La asignación de rol vieja (ABM de Roles) sigue valiendo y destildarla revoca el acceso.
 4. Solo el admin del programa o un responsable de ese dispositivo arma el Equipo, y no se
    deja sin responsables a quien ya tenía.
 """
 
-from importlib import import_module
-
-from django.apps import apps as django_apps
 from django.contrib.auth.models import Group, Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
@@ -34,7 +31,6 @@ from programas.services.dispositivos import (
     dispositivos_visibles,
     puede_operar_dispositivo,
 )
-from programas.services.inspecciones import CLAVE_ROL_AGENTE
 from users.models import Capacidad, RolMeta
 
 
@@ -197,6 +193,17 @@ class AlcanceDelEquipoTests(BaseEquipo):
         self.assertTrue(puede_operar_dispositivo(usuario, self.disp_a, "dispositivo.ver"))
         self.assertEqual(set(dispositivos_visibles(usuario)), {self.disp_a})
 
+    def test_destildar_la_asignacion_vieja_revoca_el_acceso(self):
+        rol = self._rol("Viejo", ["dispositivo.ver"])
+        usuario = self._usuario("viejo", rol)
+        asignacion = AsignacionDispositivo.objects.create(dispositivo=self.disp_a, rol=rol, activo=True)
+        self.assertTrue(puede_operar_dispositivo(self._fresco(usuario), self.disp_a, "dispositivo.ver"))
+        asignacion.activo = False
+        asignacion.save()
+        usuario = self._fresco(usuario)
+        self.assertFalse(puede_operar_dispositivo(usuario, self.disp_a, "dispositivo.ver"))
+        self.assertFalse(dispositivos_visibles(usuario).exists())
+
 
 class ModeloTests(BaseEquipo):
     def test_unico_por_dispositivo_usuario_y_rol_sin_condicion(self):
@@ -207,38 +214,6 @@ class ModeloTests(BaseEquipo):
         self._miembro(self.disp_a, usuario, rol)
         with self.assertRaises(IntegrityError), transaction.atomic():
             self._miembro(self.disp_a, usuario, rol)
-
-
-class MigracionDeDatosTests(BaseEquipo):
-    def _correr(self):
-        modulo = import_module("programas.migrations.0111_equipo_desde_asignaciones")
-        modulo.crear_equipo(django_apps, schema_editor=None)
-
-    def test_arma_el_equipo_desde_las_asignaciones_y_no_suma_agentes(self):
-        rol = self._rol("Operador", ["dispositivo.ver"])
-        rol_agente = self._rol("Agente", ["inspeccion.relevar"], clave=CLAVE_ROL_AGENTE)
-        ana = self._usuario("ana", rol)
-        beto = self._usuario("beto", rol)
-        agente = self._usuario("agente", rol_agente)
-        AsignacionDispositivo.objects.create(dispositivo=self.disp_a, rol=rol, activo=True)
-        AsignacionDispositivo.objects.create(dispositivo=self.disp_a, rol=rol_agente, activo=True)
-        AsignacionDispositivo.objects.create(dispositivo=self.disp_b, rol=rol, activo=False)
-
-        self._correr()
-
-        self.assertEqual(
-            set(MiembroEquipoDispositivo.objects.values_list("dispositivo__codigo", "usuario__username")),
-            {("A-1", ana.username), ("A-1", beto.username)},
-        )
-        self.assertFalse(MiembroEquipoDispositivo.objects.filter(usuario=agente).exists())
-
-    def test_es_idempotente(self):
-        rol = self._rol("Operador", ["dispositivo.ver"])
-        self._usuario("ana", rol)
-        AsignacionDispositivo.objects.create(dispositivo=self.disp_a, rol=rol, activo=True)
-        self._correr()
-        self._correr()
-        self.assertEqual(MiembroEquipoDispositivo.objects.count(), 1)
 
 
 class GestionDelEquipoTests(BaseEquipo):
@@ -269,6 +244,27 @@ class GestionDelEquipoTests(BaseEquipo):
         self.m_resp.activo = False
         self.m_resp.save()
         self.assertFalse(equipo.puede_gestionar_equipo(self._fresco(self.resp), self.disp_a))
+
+    def test_un_responsable_que_perdio_el_rol_o_con_rol_inactivo_no_gestiona(self):
+        self.resp.groups.remove(self.rol_resp)
+        self.assertFalse(equipo.puede_gestionar_equipo(self._fresco(self.resp), self.disp_a))
+        self.resp.groups.add(self.rol_resp)
+        self.assertTrue(equipo.puede_gestionar_equipo(self._fresco(self.resp), self.disp_a))
+        self.rol_resp.meta.activo = False
+        self.rol_resp.meta.save()
+        self.assertFalse(equipo.puede_gestionar_equipo(self._fresco(self.resp), self.disp_a))
+
+    def test_un_responsable_sin_rol_vigente_no_cuenta_como_otro_responsable(self):
+        m2 = self._miembro(self.disp_a, self.resp2, self.rol_resp, responsable=True)
+        self.resp2.groups.remove(self.rol_resp)
+        with self.assertRaises(ValidationError):
+            equipo._exigir_otro_responsable(self.disp_a, self.m_resp)
+        self.resp2.groups.add(self.rol_resp)
+        equipo._exigir_otro_responsable(self.disp_a, self.m_resp)
+        self.rol_resp.meta.activo = False
+        self.rol_resp.meta.save()
+        with self.assertRaises(ValidationError):
+            equipo._exigir_otro_responsable(self.disp_a, m2)
 
     def test_sumar_valida_el_rol(self):
         with self.assertRaises(ValidationError):  # la persona no tiene ese rol
