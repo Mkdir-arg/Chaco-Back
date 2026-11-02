@@ -34,7 +34,7 @@ from programas.models import (
 )
 from programas.services import constructor
 from programas.services.formularios_tipo import crear_formulario, puede_eliminar_formulario
-from programas.services.respuestas_dispositivo import formularios_respondidos
+from programas.services.respuestas_dispositivo import formularios_respondidos, respuestas_de_versiones_anteriores
 from programas.tests.test_dispositivos_fidelidad_fd import AHORA
 from programas.tests.test_dispositivos_horarios_localidad import LUNES, _post_franjas, catalogo_chaco
 from programas.tests.test_dispositivos_inspecciones import TODAS_DE_DISPOSITIVOS, BaseInspecciones
@@ -523,6 +523,74 @@ class DetalleTests(_Base):
     def test_sin_respuestas_no_hay_seccion(self):
         respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]))
         self.assertNotContains(respuesta, "formulario-respondido-1")
+
+
+class RespuestasAnterioresP4Tests(_Base):
+    """Cambio 405: P4 muestra, plegado y de solo lectura, lo respondido en campos que el diseño quitó."""
+
+    def _detalle(self, dispositivo):
+        return self.client.get(reverse("dispositivos:detalle", args=[dispositivo.pk])).content.decode()
+
+    def _quitar_y_reguardar(self, campo, **respuestas_extra):
+        """El diseño quita ``campo``; la edición guarda con la foto nueva (ahí pasa a ``anteriores``)."""
+        dispositivo = Dispositivo.objects.get(codigo="FA-1")
+        self._mutar(self.diseno, campo.delete)
+        datos = self._datos(respuestas={self.camas: "6", self.cocina: "No"})
+        datos["codigo"], datos["nombre"] = dispositivo.codigo, dispositivo.nombre
+        self.assertEqual(
+            self.client.post(reverse("dispositivos:editar", args=[dispositivo.pk]), datos).status_code, 302
+        )
+        return dispositivo
+
+    def test_una_clave_borrada_del_diseno_aparece_plegada_con_su_etiqueta_y_valor(self):
+        """Mutación: sin el `continue` de `vigentes` o sin leer `anteriores`, el bloque cambia o no sale."""
+        self._alta(respuestas={self.camas: "5", self.cocina: "No", self.observaciones: "Con patio"})
+        dispositivo = self._quitar_y_reguardar(self.observaciones)
+
+        html = self._detalle(dispositivo)
+        self.assertIn("De versiones anteriores", html)
+        bloque = html[html.index("De versiones anteriores") :]
+        self.assertIn("Observaciones", bloque)
+        self.assertIn("Con patio", bloque)
+        self.assertIn('x-data="{ abierta: false }"', html)
+        # Lo vigente sigue en su sección, no en el bloque.
+        self.assertNotIn("Cantidad de camas", bloque)
+
+    def test_sin_claves_viejas_no_hay_bloque(self):
+        self._alta(respuestas={self.camas: "5", self.cocina: "No", self.observaciones: "Con patio"})
+        dispositivo = Dispositivo.objects.get(codigo="FA-1")
+        self.assertNotIn("De versiones anteriores", self._detalle(dispositivo))
+
+    def test_una_clave_vieja_con_valor_vacio_no_aparece(self):
+        self._alta(respuestas={self.camas: "5", self.cocina: "No"})
+        dispositivo = self._quitar_y_reguardar(self.observaciones)
+        self.assertNotIn("De versiones anteriores", self._detalle(dispositivo))
+        # Y una clave conservada con valor vacío (o solo espacios) tampoco se dibuja.
+        anteriores = {k: {"campo": {"texto": k}} for k in ("a", "b", "c")}
+        self.assertEqual(
+            respuestas_de_versiones_anteriores({"items": []}, {"a": "", "b": "  ", "c": []}, anteriores, {}), []
+        )
+
+    def test_una_clave_que_el_diseno_vigente_tiene_nunca_es_anterior(self):
+        self._alta(respuestas={self.camas: "5", self.cocina: "No", self.observaciones: "Con patio"})
+        fila = self._fila(Dispositivo.objects.get(codigo="FA-1"))
+        anteriores = {
+            self.observaciones.clave: {"campo": {"clave": self.observaciones.clave, "texto": "Observaciones"}}
+        }
+        self.assertEqual(
+            respuestas_de_versiones_anteriores(fila.definicion, fila.respuestas, anteriores, {}),
+            [],
+        )
+
+    def test_los_valores_se_leen_legibles(self):
+        campo = {"clave": "k", "texto": "Fecha", "tipo": "DATE"}
+        foto = {"items": []}
+        salida = respuestas_de_versiones_anteriores(
+            foto, {"k": "2026-03-04", "l": ["a", "b"]}, {"k": {"campo": campo}, "l": {"campo": {"texto": "Varios"}}}, {}
+        )
+        self.assertEqual(
+            salida, [{"etiqueta": "Fecha", "valor": "04/03/2026"}, {"etiqueta": "Varios", "valor": "a, b"}]
+        )
 
 
 # ── Eliminar con respuestas = baja ───────────────────────────────────────────
