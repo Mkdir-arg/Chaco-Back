@@ -528,6 +528,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 402 | SIIS: el refresco de catálogos registra el traceback del catálogo que falla (MINOR de la auditoría de #1005) | SIIS (`refrescar_catalogos_locales`) | `#siis` | Juez — MINOR de auditoría (#1005), pedido del PM | 29/10/2026 | 🟢 **Hecho** | No requiere |
 | 403 | SIIS: `procesar_casos_siis --destino siis` drena la tabla intermedia de a lotes, con `--total`, `--lote` y `--pausa`, y frena ante errores o envíos inciertos | SIIS (`procesar_casos_siis`, `sincronizar_tabla_intermedia`) | `#siis` | Juez — pendiente del Cambio 401 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 404 | SIIS: `corregir_datos_siis` exporta a CSV las localidades que no cruzan (una fila por caso) y carga lo que completa el cliente en `localidades_corregidas` | SIIS (`corregir_datos_siis`) · procedimiento del alta | `#siis` | PM — pendiente de las 147 localidades del Cambio 401 | 30/10/2026 | 🟢 **Hecho** | No requiere |
+| 405 | Dispositivos: P4 muestra, plegado y de solo lectura, lo respondido en campos que el diseño del formulario ya no tiene («De versiones anteriores») | Dispositivos · P4 detalle de la institución (solapa Datos) · `programas/services/respuestas_dispositivo.py` | `#ui` `#relevamientos` | PM — decisión del 30/10/2026 sobre el pendiente de los Cambios 387 y 389 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 406 | Dispositivos: el ingreso consume la reserva de la persona, reservar valida a la persona y los sectores solo donde hay plazas (QA local del 30/10) | Dispositivos · sectores y plazas · asistente de ingreso | `#ui` `#datos` | QA local de Dispositivos (30/10/2026): B-01, B-02, A-07, A-08, B-05, A-12 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 407 | Dispositivos: «Ingresar persona» solo a quien el asistente deja entrar, buscador en el formulario del tipo, reenvío del rechazado y clave provisoria del agente en la app | Dispositivos (legajo P4/P3, asistente de ingreso, `ObtainCampoToken`) | `#rbac` `#ui` `#api` `#mobile` | PM — QA local de Dispositivos del 30/10/2026 (A-01/B-03, A-05, A-02, C-S2) | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 409 | Dispositivos: reactivar un INACTIVO, el ingreso libera todas las reservas de la persona, clave de campo por enlace en el CSV y correcciones de la QA 2 (02/11) | Dispositivos (legajo P4, asistente de ingreso, sectores y plazas) · Usuarios (ABM, import CSV, alta rápida de agente) · API de campo | `#ui` `#rbac` `#datos` `#api` | PM — QA 2 local de Dispositivos del 02/11/2026 y MINOR de las auditorías de #1011 y #1012 (D1-D3, A2-07, A2-01, C2-04) | 02/11/2026 | 🟢 **Hecho** | No requiere |
@@ -19510,7 +19511,6 @@ orquesta `scripts/roundtrip_migraciones.py`:
 | 5 | comparación de columnas obligatorias contra la foto | el del PR |
 | 6 | vuelta app por app hasta la base (barreras toleradas) | el del PR |
 | 7 | `migrate` de nuevo y `migrate --check` | el del PR |
-| 408 | Dispositivos: «Sumar como agente» desde «Buscar agente» (reemplaza el «Queda afuera» y el Pendiente del Cambio 397: quien ya tiene cuenta puede recibir el rol de agente) | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 30/10/2026 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 
 **El agujero (a).** `manage.py verificar_columnas_obligatorias --guardar|--comparar` marca toda columna que quede
 `NOT NULL`, sin `DEFAULT` en la base y sin llenarla el motor, **y que antes no estuviera así**: nueva, o antes nullable,
@@ -48826,6 +48826,7 @@ relevamientos comunes de P21 y siguen ahí.
 ## Historial
 
 - **27/10/2026 — alta del cambio.**
+- **30/10/2026 — DECISIÓN PM resuelta en el Cambio 405:** P4 muestra las respuestas de versiones anteriores del formulario del tipo, en un bloque plegado.
 
 ---
 
@@ -49432,6 +49433,7 @@ normales de `ReservaPlaza`, y se liberan desde el mapa.
   carril que no tenían entrada propia. El test del `formulario_tipo_diseno` ajeno, que figuraba como pendiente en
   las notas del carril, ya existe (`test_la_marca_de_un_diseno_ajeno_no_guarda_y_vuelve_con_la_seccion_del_tipo_elegido`,
   entró en `69542b91`, Cambio 387).
+- **30/10/2026 — DECISIÓN PM resuelta en el Cambio 405:** P4 muestra las respuestas de versiones anteriores del formulario del tipo (bloque plegado «De versiones anteriores»). La otra decisión (traza de quién cambió una respuesta) sigue abierta.
 - **30/10/2026 — Cambio 406.** Reservar y prestar desde el mapa ahora validan a la persona (no alojada, sin otra
   reserva en el dispositivo) y el error cae en el campo del DNI. «Nuevo sector» y «Agregar plazas» ya no se ofrecen
   ni se aceptan donde el tipo no maneja plazas. Volver a servicio una plaza operativa dice que ya estaba, y el modal
@@ -50180,7 +50182,6 @@ Revertir el PR.
 
 - **29/10/2026 — alta del cambio.**
 - **29/10/2026** — Cambio 399: la decisión citaba «la decisión 2 del Cambio 395», que no existe. El buscador pasó a `programas/services/buscador_agentes.py`, ya no hay reexport en `territoriales.py` (se importa de `users.services.busqueda`) y existe el motivo genérico `MOTIVO_AGENTE_GENERICO` para quien tiene el rol y aun así no es asignable. (Cambio 400 lo retiró por inalcanzable.)
-- **30/10/2026** — Cambio 408 (decisión del PM): REEMPLAZA el «Queda afuera: dar roles o permisos a quien ya existe» y el Pendiente de esta entrada. La búsqueda suma a los usuarios activos del backoffice sin el rol de agente, marcados `sumable` y enmascarados, y el modal les ofrece «Sumar como agente» (POST `users:usuario_sumar_agente`, que da solo el rol sembrado de agente). Buscar y «Seleccionar» siguen sin dar nada.
 
 ---
 
@@ -50693,6 +50694,71 @@ Revertir el PR. Lo cargado con `--aplicar` queda en la tabla; se corrige volvien
 
 ---
 
+# Cambio 405 — P4 muestra las respuestas de versiones anteriores del formulario del tipo
+
+🟢 **HECHO — 30/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P4 detalle de la institución (solapa Datos) · `programas/services/respuestas_dispositivo.py` |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | PM — decisión del 30/10/2026 sobre el pendiente «DECISIÓN PM» de los Cambios 387 y 389 |
+| **Fecha del pedido** | 30/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/legajo/detail.html` (solapa Datos); servicio `respuestas_dispositivo.py`; ficha `ficha_timeline.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Que P4 muestre, debajo de las respuestas vigentes de cada formulario, las respuestas de campos que el diseño vigente ya no tiene (quedan en `respuestas` y su definición en `anteriores`), plegadas, de solo lectura, con la etiqueta que tenían y el valor legible.
+
+## Alcance acordado
+
+**Entra:** el bloque plegado «De versiones anteriores» en cada formulario respondido de P4. **Queda afuera:** el formulario «Relevamiento» (`formulario_del_relevamiento`, informe A5), que es otra pantalla y no pasa por `formularios_respondidos`; la traza de quién cambió una respuesta; enlaces a archivos viejos.
+
+## Decisiones tomadas
+
+1. La lógica vive en el servicio (`respuestas_de_versiones_anteriores`), no en la vista ni el template. Una clave cuenta si está en `anteriores`, la foto de la fila ya no la tiene, y su valor no está vacío. El orden es el de `anteriores` (el orden en que dejaron de estar).
+2. Un valor se lee con `legible` (fechas dd/mm/aaaa; una lista se une con comas). Sin respuestas viejas el bloque no se dibuja.
+3. Un archivo de un campo viejo se muestra por su **nombre, sin enlace**: la sección plegable compartida no lleva enlaces y sumarlos pedía una variante nueva. Es de solo lectura y no se pierde: el archivo sigue en el servidor.
+4. La pieza es `components/_ficha_seccion.html` con `abierta=False`, ya canónica: sin clases, includes ni variantes nuevas. Se suma una nota en su ficha.
+5. Sin cambios de permisos: lo ve quien ya ve el formulario en P4.
+6. P4 lee la foto guardada en la fila: el bloque aparece desde el **primer guardado con el diseño nuevo** (hasta entonces la clave sigue en su sección vigente).
+
+## Implementación
+
+Servicio con una función nueva y dos claves más en cada entrada de `formularios_respondidos` (`anteriores`, `id_anteriores`); un include en `detail.html`. Sin consultas nuevas.
+
+## Archivos
+
+- `programas/services/respuestas_dispositivo.py`, `programas/templates/programas/dispositivos/legajo/detail.html`, `.claude/design/componentes/ficha_timeline.md`, `programas/tests/test_dispositivos_formulario_alta.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Tests de `RespuestasAnterioresP4Tests` (clave borrada con etiqueta y valor, sin claves viejas, valor vacío, clave vigente, valores legibles); mutación del filtro de vigentes y del filtro de vacíos en rojo; `--tag performance` de P4 sin cambio de presupuesto; `manage.py check`, `design_audit --ratchet`, `compile_templates --bloques`, `check_design_agent --changed`, ruff y `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **30/10/2026 — alta del cambio.**
+
+---
+
 ---
 
 # Cambio 406 — Dispositivos: el ingreso consume la reserva, reservar valida a la persona y los sectores solo donde hay plazas
@@ -51040,81 +51106,5 @@ Revertir el PR; sin migraciones. Las trazas `REACTIVADO` ya escritas quedan en e
 ## Historial
 
 - **02/11/2026 — alta del cambio.**
-
----
-
-# Cambio 408 — «Sumar como agente» desde «Buscar agente» (Dispositivos)
-
-🟢 **HECHO — 30/10/2026**
-
-| | |
-|---|---|
-| **Programa / módulo** | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) |
-| **Etiquetas** | `#rbac` `#usuarios` `#ui` |
-| **Solicitante** | PM — decisión del 30/10/2026 |
-| **Fecha del pedido** | 30/10/2026 |
-| **Issue / épica** | sin issue |
-| **Partes afectadas** | Backoffice (paso «Buscar agente» del modal de alta rápida; endpoint nuevo de POST; buscador) |
-| **Migración** | No requiere |
-
-## Pedido original
-
-Una persona que ya tiene cuenta (p. ej. un territorial de Becas) no aparecía en «Buscar agente» y no había cómo sumarla como agente de relevamiento desde ahí. Que la búsqueda también la encuentre y que el operador pueda sumarle el rol de agente con un botón «Sumar como agente».
-
-## Alcance acordado
-
-**Entra:** buscar también a los usuarios activos del backoffice sin el rol de agente; botón «Sumar como agente» con confirmación; endpoint POST que da solo el rol sembrado de agente. **Queda afuera:** dar cualquier otro rol o capacidad, cambiar contraseña o datos, reactivar usuarios inactivos, tocar el POST de asignar (`_validar_agente`) y el alta de agentes nuevos (Cambio 395).
-
-## Decisiones tomadas
-
-- **Esto REEMPLAZA** el «Queda afuera: dar roles o permisos a quien ya existe» y el Pendiente del Cambio 397.
-- **Universo de la búsqueda**: quien tiene el rol de agente (como antes: activo o no, con su motivo) **más** los usuarios **activos** sin ese rol que no sean superusuarios ni ciudadanos del portal (`es_ciudadano_portal`, grupo `Ciudadanos`). Mismo filtro de texto (DNI y correo exactos, nombre y apellido parciales, mínimo 3 caracteres) y mismo tope de 10. Los inactivos sin el rol no aparecen: reactivarlos es del administrador del programa.
-- **Fila sumable**: `sumable: true`, `asignable: false`, motivo «No es agente de relevamiento.» (o, si además es personal de una institución del edificio, el motivo lo aclara), DNI y correo **enmascarados** con los helpers de `users/services/busqueda.py`. Las filas de agentes llevan `sumable: false`.
-- **Endpoint** `users:usuario_sumar_agente` (`POST /usuarios/alta-rapida/agente/sumar/`, bajo el prefijo conocido por el WAF de ECOM): 403 sin `inspeccion.agente.crear` en Dispositivos (misma condición que el botón y la búsqueda), 400 sin edificio, 403 si el edificio no existe o está fuera del alcance de asignar, CSRF, 429 por operador (20 por minuto, cubeta `usuario_sumar_agente`), POST solamente. Del usuario: 403 si no existe, es superusuario o ciudadano del portal (mismo texto, sin distinguir); 409 si está inactivo; 409 si el rol sembrado falta, está inactivo o dejó de ser seguro de repartir.
-- **Da solo el grupo de agente**: el mismo `Group` que asigna el alta rápida, resuelto por `RolMeta.clave = CLAVE_ROL_AGENTE`. `_rol_de_agente` pasó de la vista a `programas/services/sumar_agente.py` (`rol_de_agente`, con `CAPS_PROHIBIDAS_EN_ROL_DE_AGENTE`) para que el alta y este camino compartan la misma guarda. No toca otros grupos del usuario, permisos directos, contraseña ni datos.
-- **Idempotente**: quien ya tiene el rol responde **200** con `sumado: false` (no escribe ni duplica) y, si es asignable, el modal lo deja elegido igual. Se prefirió 200 a 409 porque el estado pedido ya se cumple y el modal puede haber quedado desactualizado frente a otro operador.
-- **Personal de una institución del edificio**: se le suma el rol (es global) y la respuesta trae `asignable: false` con un mensaje que lo dice; el modal avisa con un toast y **no lo agrega al `<select>`**. Bloquearlo habría dejado a la persona sin poder recibir el rol para otros edificios, donde sí sería asignable; el POST de asignar sigue rechazándolo para este edificio (`_validar_agente`).
-- **Escritura en un servicio** (`sumar_rol_de_agente`) con `transaction.atomic` y la fila del usuario leída con `select_for_update`, para que una desactivación en paralelo no se cruce. No toma el candado de administración (`rbac.tomar_candado_de_administracion`): agregar un rol sin capacidades de administración no puede dejar al sistema sin administrador.
-- **Traza**: users no tiene un registro persistente de cambios de roles (el ABM de Roles no deja historial de quién se lo dio a quién), así que se usa `logger.info` estructurado con ids (`operador_id`, `usuario_id`, `rol_id`, `edificio_id`) **sin nombre, DNI ni correo**. Ver Pendientes.
-- **Front**: mismo paso 1 del modal canónico. La fila sumable lleva «Sumar como agente» (`btn-brand btn-sm`) en vez de «Seleccionar»; confirma con `ModernModal` (`type: 'confirm'`: «¿Sumar a <nombre> como agente de relevamiento? Va a poder ver los relevamientos que le asignen.») y recién ahí hace el POST. Se usó `ModernModal` y no un `Swal.fire` porque la ficha del modal y el agente de diseño prohíben un `Swal.fire` nuevo en pantallas nuevas; sin `confirm()` nativo. Avisos con `window.toast()`. Si queda asignable se agrega al `<select>` y queda elegido; si no, el botón pasa a la etiqueta «Ya es agente».
-
-## Implementación
-
-`programas/services/sumar_agente.py` (nuevo: `rol_de_agente`, `sumar_rol_de_agente`, excepciones); `programas/services/buscador_agentes.py` (universo ampliado, `_fila_sumable`, motivos); `users/views/quick_create.py` (`usuario_sumar_agente`, cubeta nueva; sale `_rol_de_agente`); `users/urls.py`; `users/views/__init__.py`; `users/templates/user/_alta_rapida_modal.html` (botón, confirmación, POST, `data-action-agente-sumar`).
-
-## Archivos
-
-- `programas/services/sumar_agente.py`, `programas/services/buscador_agentes.py`
-- `users/views/quick_create.py`, `users/views/__init__.py`, `users/urls.py`, `users/templates/user/_alta_rapida_modal.html`
-- `.claude/design/arquetipos/modal.md` (el párrafo del modal de dos pasos con agente)
-- Tests: `programas/tests/test_dispositivos_sumar_agente.py` (nuevo), `programas/tests/test_dispositivos_buscar_agente.py` (el test del universo pasa de «solo el agente» a «el agente no es sumable y el resto viene sumable»)
-- `docs/internal/requerimientos.md`
-
-## Base de datos
-
-Sin cambios de esquema. Escribe una fila en `auth_user_groups` por persona sumada.
-
-## Validación
-
-- `programas.tests.test_dispositivos_sumar_agente` (27 casos): la búsqueda trae sin-rol enmascarado y sumable (no superusuarios, ciudadanos ni inactivos sin rol), DNI y correo exactos, tope de 10, personal del edificio con su motivo; sumar da exactamente un grupo (el de agente) y ningún permiso, contraseña ni correo cambian, conserva los otros roles; idempotencia; personal con `asignable: false`; traza sin datos personales; rechazos (inactivo 409, superusuario y ciudadano 403, inexistente 403, rol inactivo o con `programa.configurar` 409); 403 sin capacidad y con capacidad de otro programa, 403 edificio fuera de alcance o inexistente, 400 sin edificio, 405 con GET, anónimo, CSRF, 429 por operador.
-- Mutación: quitar el chequeo de capacidad del endpoint pone rojos `test_sin_la_capacidad_es_403_y_no_suma` y `test_la_capacidad_en_otro_programa_es_403`; hacer que el servicio agregue un segundo grupo pone rojos `test_suma_exactamente_el_grupo_de_agente_y_nada_mas` y `test_conserva_los_otros_roles_que_ya_tenia`; sacar el rechazo de superusuario y ciudadano pone rojos sus dos tests; forzar `sumado = True` pone rojo `test_es_idempotente_si_ya_es_agente`.
-- `users` y el resto de `programas` sin errores nuevos; `manage.py check`, ruff, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0), `check_design_agent --changed` (OK), `requerimientos.py --check`.
-
-## Puesta en marcha en el servidor
-
-Nada especial: no hay migración ni variable nueva. La ruta nueva cuelga de `/usuarios/alta-rapida/`, prefijo ya conocido por el WAF de ECOM.
-
-## Pendientes / a definir
-
-- Falta una **traza persistente** de cambios de roles: hoy quién sumó el rol a quién solo queda en el log de la aplicación (ids, sin datos personales), que rota. Si el PM la quiere consultable desde la UI, hace falta un modelo de auditoría (afectaría también al ABM de Roles y de Usuarios).
-- No hay forma de **quitar** el rol de agente desde este modal: sigue siendo del administrador del programa.
-
-## Reversión
-
-Revertir el PR. Los roles ya sumados no se deshacen solos: se quitan desde el ABM de Usuarios.
-
-## Historial
-
-- **30/10/2026 — alta del cambio.**
 
 ---
