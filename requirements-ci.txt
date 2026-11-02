@@ -30,7 +30,7 @@
 # bloqueantes. El pin es lo que permitió hacer bloqueante el segundo (pendiente del
 # Cambio 320): sin él, una regla E/W nueva lo pondría en rojo sin que nadie toque nada.
 # Subir esta versión es el PR donde aparecen los hallazgos nuevos: se formatea ahí.
-ruff==0.17.2
+ruff==0.17.3
 
 # `Tests & Coverage`: `coverage run manage.py test` + `coverage report` con
 # `fail_under = 79` y el piso por módulo crítico (TST-03). Un cambio en cómo mide ramas
@@ -61,7 +61,7 @@ pip-audit==2.10.1
 bandit[toml]==1.9.4
 
 # `Docs Auto Deploy`, que publica `docs/client/` en GitHub Pages con `contents: write`.
-mkdocs-material==9.7.7
+mkdocs-material==9.8.0
 
 # `Tipos (mypy)` (no bloqueante, RED-76). El alcance —qué módulos se verifican— vive en
 # `files` de `[tool.mypy]`, en `pyproject.toml`, y crece un módulo por PR.
