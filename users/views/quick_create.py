@@ -2,7 +2,7 @@ import logging
 import re
 
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, User
 from django.db import IntegrityError
 from django.http import JsonResponse, QueryDict
 from django.views.decorators.http import require_GET, require_POST
@@ -128,6 +128,10 @@ CUBETA_BUSCAR_AGENTE = "usuario_buscar_agente"
 ALTAS_AGENTE_POR_MINUTO = 20
 #: Lo único que el operador de Dispositivos puede mandar en el alta: nada de roles, jerarquía ni segmentos.
 CAMPOS_ALTA_AGENTE = ("username", "email", "first_name", "last_name", "dni", "telefono")
+
+MENSAJE_CORREO_AGENTE_EXISTENTE = (
+    "Ya hay un usuario con ese correo: buscalo en el paso «Buscar agente» en vez de crear uno nuevo."
+)
 
 MENSAJE_DNI_AGENTE = (
     "Ese DNI ya es de un usuario del sistema: pedile al administrador del programa que le sume el rol de agente."
@@ -389,6 +393,18 @@ def _alta_agente(request):
         # Decisión del 14-oct: el agente lleva correo obligatorio; el enlace de la clave viaja por ahí.
         mensaje = "El correo es obligatorio: la clave se le entrega por correo."
         return JsonResponse({"ok": False, "message": mensaje, "errors": {"email": [mensaje]}}, status=400)
+    if User.objects.filter(email__iexact=data["email"]).exists():
+        # Cambio 409 (QA C2-04): sin esto «Crear agente nuevo» fabricaba un homónimo (mismo nombre y
+        # correo) de alguien que ya tiene cuenta y se saltaba la regla de agente externo. No se dice de
+        # quién es el correo: solo que existe y a dónde ir.
+        return JsonResponse(
+            {
+                "ok": False,
+                "message": MENSAJE_CORREO_AGENTE_EXISTENTE,
+                "errors": {"email": [MENSAJE_CORREO_AGENTE_EXISTENTE]},
+            },
+            status=409,
+        )
     return _crear_y_responder(
         request,
         tipo="agente",

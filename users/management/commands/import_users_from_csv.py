@@ -29,6 +29,7 @@ from django.db import transaction
 
 from core import rbac
 from users.models import Profile
+from users.services.correo import MENSAJE_CAMPO_SIN_CORREO
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,12 @@ FALTA_MOTIVO = (
     "--actualizar necesita --motivo: le reemplaza los grupos y la contraseña a gente que ya está "
     "trabajando, así que tiene que quedar escrito quién lo hizo y por qué."
 )
-SOLO_CAMPO_SIN_CORREO = "es un usuario de campo y no tiene correo: la clave se entrega por enlace."
+SOLO_CAMPO_SIN_CORREO = f"es un usuario de campo y no tiene correo. {MENSAJE_CAMPO_SIN_CORREO}."
+#: Una fila de un usuario de campo CON correo no lleva la clave del archivo: se ignora (Cambio 409, D3).
+CLAVE_IGNORADA_DE_CAMPO = (
+    "es un usuario de campo: se ignora la clave del archivo. La clave se entrega por enlace: "
+    'pedir "Olvidé mi contraseña".'
+)
 YA_EXISTE = "«{usuario}» ya existe: no se toca. Con --actualizar --motivo «...» se le replican los grupos."
 
 
@@ -109,7 +115,8 @@ class Command(BaseCommand):
                 motivo,
             )
 
-        plan, omitidos = self._planificar(csv_path, user_model, actualizar, grupos_referencia)
+        solo_campo = bool(rbac.roles_solo_campo(grupos_referencia))
+        plan, omitidos = self._planificar(csv_path, user_model, actualizar, solo_campo)
 
         if aplicar:
             self._aplicar(plan, grupos_referencia)
@@ -126,7 +133,7 @@ class Command(BaseCommand):
 
     # ── Planificación (corre igual en el ensayo) ────────────────────────────
 
-    def _planificar(self, csv_path, user_model, actualizar, grupos_referencia=()):
+    def _planificar(self, csv_path, user_model, actualizar, solo_campo):
         """`([{usuario, crear, datos, clave}], [omitidos])`, o corta sin escribir nada."""
         plan, omitidos, errores = [], [], []
 
@@ -164,13 +171,17 @@ class Command(BaseCommand):
                 # Cambio 407: a un usuario de campo la clave se entrega por enlace, y sin correo no hay
                 # enlace. La fila se rechaza y se informa; las demás siguen.
                 correo = datos["email"] or (existente.email if existente is not None else "")
-                if clave and not correo and rbac.roles_solo_campo(list(grupos_referencia)):
+                if clave and solo_campo and not correo:
                     self.stdout.write(
                         self.style.WARNING(f"Fila {numero} («{username}»): {SOLO_CAMPO_SIN_CORREO} Se rechaza.")
                     )
                     omitidos.append(username)
                     continue
-                if existente is None and not clave:
+                if clave and solo_campo:
+                    # Con correo la clave no se entrega por el archivo: se ignora y se informa.
+                    self.stdout.write(self.style.WARNING(f"Fila {numero} («{username}»): {CLAVE_IGNORADA_DE_CAMPO}"))
+                    clave = ""
+                if existente is None and not clave and not (solo_campo and correo):
                     errores.append(f"Fila {numero} («{username}»): falta la contraseña.")
                     continue
                 if clave:
@@ -212,6 +223,9 @@ class Command(BaseCommand):
                             setattr(usuario, campo, valor)
                 if item["clave"]:
                     usuario.set_password(item["clave"])
+                elif creado:
+                    # Sin clave en el archivo (usuario de campo): entra por «Olvidé mi contraseña».
+                    usuario.set_unusable_password()
                 usuario.save()
                 usuario.groups.set(grupos_referencia)
                 if item["clave"]:

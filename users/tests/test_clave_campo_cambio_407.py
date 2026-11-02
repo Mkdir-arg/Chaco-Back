@@ -18,14 +18,13 @@ from django.urls import reverse
 from programas.models import Programa
 from users.forms import MENSAJE_CAMPO_SIN_CORREO
 from users.models import Profile
-from users.tests.test_credenciales_ola2_pr2 import EdicionHaciaUsuarioDeCampoTests as _Base
-from users.tests.test_credenciales_ola2_pr2 import _rol, _user
+from users.tests.test_credenciales_ola2_pr2 import EscenarioEdicionHaciaCampo, _rol, _SinCubetas, _user
 
 TEXTO = "Para un usuario de campo hace falta un correo: la clave se entrega por enlace"
 CLAVE_NUEVA = "Clave-Larguisima-2026"
 
 
-class EdicionDeUsuarioDeCampoConClaveTests(_Base):
+class EdicionDeUsuarioDeCampoConClaveTests(EscenarioEdicionHaciaCampo, _SinCubetas):
     def _alta(self, username, email):
         return self.client.post(
             reverse("users:usuario_crear"),
@@ -70,6 +69,16 @@ class EdicionDeUsuarioDeCampoConClaveTests(_Base):
         respuesta = self._editar(operador, password=CLAVE_NUEVA)
 
         self.assertEqual(respuesta.status_code, 302)
+
+    def test_promover_a_backoffice_con_clave_tipeada_y_sin_correo_se_guarda_en_un_paso(self):
+        """La rama de «clave tipeada» mira los roles con los que la cuenta queda, no los de antes."""
+        viejo = self._crear("promo409", self.rol_terr)
+
+        respuesta = self._editar(viejo, groups=[str(self.rol_op.pk)], password=CLAVE_NUEVA)
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertEqual(set(viejo.groups.all()), {self.rol_op})
+        self.assertTrue(User.objects.get(pk=viejo.pk).check_password(CLAVE_NUEVA))
 
     def test_el_alta_de_campo_sin_correo_usa_el_mismo_texto(self):
         respuesta = self._alta("alta407", "")
@@ -135,3 +144,23 @@ class ImportCsvSoloCampoTests(TestCase):
         self._importar([self._fila("back407")])
 
         self.assertTrue(User.objects.filter(username="back407").exists())
+
+    def test_una_fila_de_campo_con_correo_ignora_la_clave_del_archivo_y_lo_informa(self):
+        """Cambio 409 · D3: la clave se entrega por enlace; la del archivo no se usa."""
+        salida = self._importar([self._fila("conmail409", "c409@x.test")])
+
+        usuario = User.objects.get(username="conmail409")
+        self.assertFalse(usuario.check_password("Resistencia-2026-Chaco"))
+        self.assertFalse(usuario.has_usable_password())
+        self.assertIn('pedir "Olvidé mi contraseña"', salida)
+        self.assertIn("conmail409", salida)
+        self.assertNotIn("Resistencia-2026-Chaco", salida)
+
+    def test_la_misma_fila_de_backoffice_conserva_la_clave_del_archivo(self):
+        rol_op = _rol("OpY", ["ciudadano.ver"])
+        self.referencia.groups.set(Group.objects.filter(pk=rol_op.pk))
+
+        salida = self._importar([self._fila("back409", "b409@x.test")])
+
+        self.assertTrue(User.objects.get(username="back409").check_password("Resistencia-2026-Chaco"))
+        self.assertNotIn("Olvidé mi contraseña", salida)

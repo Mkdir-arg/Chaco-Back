@@ -70,13 +70,13 @@ from programas.services.dispositivos import (
     dispositivos_visibles,
     enviar_a_validacion,
     enviar_desde_formulario,
-    estados_desde_los_que_se_envia,
     inactivar_dispositivo,
     observar_dispositivo,
     puede_configurar_dispositivos,
     puede_en_programa_dispositivos,
     puede_enviar_desde_formulario,
     puede_operar_dispositivo,
+    reactivar_dispositivo,
     rechazar_dispositivo,
     registrar_alta_dispositivo,
     registrar_edicion_dispositivo,
@@ -110,6 +110,7 @@ from programas.services.inspecciones import (
 )
 from programas.services.ocupacion import ocupacion_de_plazas, tension_de_ocupacion
 from programas.services.plazas import motivo_sin_ampliar_capacidad
+from programas.services.plazas import puede_configurar_plazas as puede_configurar_las_plazas
 from programas.services.reportes import filtrar_dispositivos
 from programas.services.respuestas_dispositivo import formularios_respondidos, guardar_respuestas_alta
 from programas.services.sectores_plazas import (
@@ -126,11 +127,6 @@ from programas.services.sectores_plazas import (
     sectores_con_plazas,
 )
 from programas.views.ajax_utils import ajax_redirect, is_ajax
-
-#: La capacidad que habilita **nombrar** a la persona. Sin ella las pantallas del programa
-#: muestran un rótulo opaco (decisión PM 1, Cambios 324/325), y con ella el nombre va
-#: siempre como «Apellido, Nombre» (`Ciudadano.apellido_nombre`). Se declara acá arriba
-#: porque la usan tanto el detalle del dispositivo (P4) como el egreso y P7.
 
 
 class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
@@ -465,7 +461,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 # con la foto de la versión respondida.
                 "formularios_respondidos": formularios_respondidos(dispositivo),
                 "puede_editar": puede_editar,
-                "puede_enviar_validacion": puede_editar and dispositivo.estado in estados_desde_los_que_se_envia(),
+                "puede_enviar_validacion": puede_enviar_desde_formulario(user, dispositivo),
                 "puede_validar": puede_validar,
                 "validacion_pendiente": puede_validar and dispositivo.estado == Dispositivo.Estado.PENDIENTE_VALIDACION,
                 # Misma función que el gate del asistente: sin `ciudadano.ver` no se ofrece.
@@ -743,6 +739,14 @@ class DispositivoInactivarView(DispositivoActionView):
         inactivar_dispositivo(dispositivo, request.user)
 
 
+class DispositivoReactivarView(DispositivoActionView):
+    capacidad_requerida = "dispositivo.editar"
+    mensaje_exito = "Dispositivo reactivado."
+
+    def ejecutar(self, dispositivo, request):
+        reactivar_dispositivo(dispositivo, request.user)
+
+
 class DispositivoCerrarView(DispositivoActionView):
     capacidad_requerida = "dispositivo.editar"
     mensaje_exito = "Dispositivo cerrado."
@@ -798,7 +802,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         dispositivo = self.object = self.get_object()
         usuario = request.user
         puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
-        puede_configurar_plazas = puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR)
+        puede_configurar_plazas = puede_configurar_las_plazas(usuario, dispositivo)
         pk = _entero(request.GET.get("plaza", ""))
         accion = (
             plaza_para_accion(
@@ -827,7 +831,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         dispositivo = self.object
         usuario = self.request.user
         puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
-        puede_configurar_plazas = puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR)
+        puede_configurar_plazas = puede_configurar_las_plazas(usuario, dispositivo)
 
         context.update(
             sectores_con_plazas(

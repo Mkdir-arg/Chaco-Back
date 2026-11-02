@@ -238,7 +238,11 @@ def enviar_desde_formulario(dispositivo, usuario):
 def _exigir_campos_para_validacion(dispositivo):
     faltantes = [campo for campo in campos_para_validacion() if not getattr(dispositivo, campo)]
     if faltantes:
-        raise ValidationError("Completá los campos obligatorios antes de validar el dispositivo.")
+        # Con el nombre de cada campo como lo ve el operador: el aviso genérico lo dejaba buscando.
+        nombres = [str(dispositivo._meta.get_field(campo).verbose_name) for campo in faltantes]
+        raise ValidationError(
+            "Completá los campos obligatorios antes de validar el dispositivo. Falta: " + ", ".join(nombres) + "."
+        )
 
 
 def _exigir_formulario_del_tipo(dispositivo):
@@ -350,6 +354,23 @@ def inactivar_dispositivo(dispositivo, usuario):
         origenes=(Dispositivo.Estado.ACTIVO,),
         destino=Dispositivo.Estado.INACTIVO,
         accion="INACTIVADO",
+    )
+
+
+def reactivar_dispositivo(dispositivo, usuario):
+    """Un dispositivo inactivo vuelve a ACTIVO (decisión del PM, 02/11/2026, Cambio 409).
+
+    Misma capacidad que inactivar (`dispositivo.editar`); queda en el historial como
+    «REACTIVADO». El cerrado no vuelve: el cierre es definitivo.
+    """
+    from programas.models import Dispositivo
+
+    return _transicionar(
+        dispositivo,
+        usuario,
+        origenes=(Dispositivo.Estado.INACTIVO,),
+        destino=Dispositivo.Estado.ACTIVO,
+        accion="REACTIVADO",
     )
 
 

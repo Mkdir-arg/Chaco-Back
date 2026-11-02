@@ -25,6 +25,7 @@
     {% url 'dispositivos:lista' as url_volver %}
     {% url 'dispositivos:editar' dispositivo.pk as url_editar_dispositivo %}
     {% url 'dispositivos:inactivar' dispositivo.pk as url_inactivar %}
+    {% url 'dispositivos:reactivar' dispositivo.pk as url_reactivar %}
     {% url 'dispositivos:cerrar' dispositivo.pk as url_cerrar %}
     {% estado_dispositivo dispositivo as estado_header %}
     {% page_header titulo=dispositivo.nombre volver_url=url_volver volver_label="Instituciones" estado_texto=estado_header.texto estado_variante=estado_header.tono %}
@@ -63,6 +64,9 @@
         {% endif %}
         {% if puede_editar and dispositivo.estado == 'ACTIVO' %}
         {% include "components/_menu_fila_item.html" with texto="Inactivar" icono="fa-pause" confirm_url=url_inactivar confirm_title="¿Inactivar dispositivo?" confirm_text="Dejará de estar operativo, sin borrar su historial." confirm_ok="Sí, inactivar" only %}
+        {% endif %}
+        {% if puede_editar and dispositivo.estado == 'INACTIVO' %}
+        {% include "components/_menu_fila_item.html" with texto="Reactivar" icono="fa-play" confirm_url=url_reactivar confirm_title="¿Reactivar dispositivo?" confirm_text="Vuelve a estar operativo y a admitir personas." confirm_ok="Sí, reactivar" only %}
         {% endif %}
         {% if puede_editar %}{% if dispositivo.estado == 'ACTIVO' or dispositivo.estado == 'INACTIVO' or dispositivo.estado == 'RECHAZADO' %}
         {% include "components/_menu_fila_item.html" with texto="Cerrar" icono="fa-lock" peligro=True confirm_url=url_cerrar confirm_title="¿Cerrar dispositivo?" confirm_text="La acción conserva el legajo e impide nuevas operaciones." confirm_ok="Sí, cerrar" only %}

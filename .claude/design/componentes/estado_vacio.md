@@ -62,6 +62,7 @@ parámetro GET), el vacío lo abre con `accion_click` en vez de mandar a una URL
 Evidencia: «Nuevo sector» de P5 (`programas/templates/programas/dispositivos/sectores/sectores.html`,
 `accion_click="modalSectorNuevo=true"`). Los campos de esos modales usan el campo canónico (`field.md`). Esa acción
 solo se ofrece si el servicio admite el alta (`puede_ampliar_capacidad`): sin ella el vacío es el de lectura.
+El modal «Liberar» de ese mismo mapa distingue préstamo de reserva por el dato `es_prestamo` de `plazasModal`, no por el texto del estado.
 
 ## Dentro de un modal
 

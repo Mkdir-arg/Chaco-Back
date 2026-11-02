@@ -653,13 +653,11 @@ class AltaDeUsuarioDeCampoTests(_SinCubetas):
         self.assertIn("password", respuesta.context["form"].errors)
 
 
-class EdicionHaciaUsuarioDeCampoTests(_SinCubetas):
-    """La otra pantalla por la que se llegaba al estado que D-26 (b) cerró.
+class EscenarioEdicionHaciaCampo:
+    """Mixin sin tests: el escenario (roles, admin global) y los helpers de la edición hacia solo-campo.
 
-    El alta ya exige correo al usuario de campo, pero la edición no miraba nada: se
-    daba de alta un **mixto** sin correo (legítimo) y después se le destildaba el rol
-    que no era de campo. La cuenta quedaba solo-campo, sin correo y con la clave que
-    tipeó el operador, vigente para siempre.
+    Va aparte para que otro módulo lo reuse sin importar —y volver a correr— los tests de la clase.
+    Se combina con `_SinCubetas` (`class X(EscenarioEdicionHaciaCampo, _SinCubetas)`).
     """
 
     def setUp(self):
@@ -690,6 +688,16 @@ class EdicionHaciaUsuarioDeCampoTests(_SinCubetas):
         }
         datos.update(extra)
         return self.client.post(reverse("users:usuario_editar", args=[usuario.pk]), datos)
+
+
+class EdicionHaciaUsuarioDeCampoTests(EscenarioEdicionHaciaCampo, _SinCubetas):
+    """La otra pantalla por la que se llegaba al estado que D-26 (b) cerró.
+
+    El alta ya exige correo al usuario de campo, pero la edición no miraba nada: se
+    daba de alta un **mixto** sin correo (legítimo) y después se le destildaba el rol
+    que no era de campo. La cuenta quedaba solo-campo, sin correo y con la clave que
+    tipeó el operador, vigente para siempre.
+    """
 
     def test_sacarle_el_rol_de_backoffice_a_un_mixto_sin_correo_se_rechaza(self):
         mixto = self._crear("mixto", self.rol_terr, self.rol_op)

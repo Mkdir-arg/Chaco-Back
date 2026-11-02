@@ -68,6 +68,7 @@ from programas.services.estadias import reserva_abierta_de
 from programas.services.ocupacion import (
     ESTADO_FUERA_SERVICIO,
     ESTADO_OCUPADA,
+    ESTADO_PRESTADA,
     LEYENDA_PLAZAS,
     estado_de_plazas,
     ocupacion_de_plazas,
@@ -190,6 +191,8 @@ def datos_para_el_modal(plaza, estado, acciones, bloqueo=""):
     return {
         "codigo": plaza.codigo,
         "estado": estado.estado,
+        # El aviso de «Liberar» distingue préstamo de reserva: lo dice el dato, no el texto de la etiqueta.
+        "es_prestamo": estado.estado == ESTADO_PRESTADA,
         "detalle": estado.detalle,
         "acciones": list(acciones),
         "bloqueo": bloqueo,

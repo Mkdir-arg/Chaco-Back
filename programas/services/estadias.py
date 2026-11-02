@@ -117,6 +117,10 @@ CAP_EGRESAR = "dispositivo.egresar"
 #: Sacar y reponer plazas es configuración de la capacidad instalada, no operación diaria.
 CAP_EDITAR = "dispositivo.editar"
 #: El asistente de ingreso muestra y busca personas del padrón: además de admitir pide verlas.
+#: Es también la capacidad que habilita **nombrar** a la persona: sin ella las pantallas del
+#: programa muestran un rótulo opaco (decisión PM 1, Cambios 324/325), y con ella el nombre va
+#: siempre como «Apellido, Nombre» (`Ciudadano.apellido_nombre`), en el detalle del dispositivo
+#: (P4), el egreso y P7.
 CAP_VER_CIUDADANO = "ciudadano.ver"
 
 
@@ -877,11 +881,16 @@ def reserva_propia_vigente(ciudadano_id, dispositivo, momento=None):
 
 
 @transaction.atomic
-def liberar_reserva(*, reserva, usuario, motivo=""):
-    """Suelta una reserva o un préstamo antes de su vencimiento."""
+def liberar_reserva(*, reserva, usuario, motivo="", verificar_alcance=True):
+    """Suelta una reserva o un préstamo antes de su vencimiento.
+
+    `verificar_alcance=False` es solo para el ingreso, que cierra las reservas de la persona
+    en **otros** dispositivos donde quien ingresa puede no tener alcance: no es una decisión
+    del operador sobre esa plaza sino la consecuencia de que la persona ya está adentro.
+    """
 
     dispositivo = reserva.plaza.sector.dispositivo
-    if not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+    if verificar_alcance and not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
         raise PermissionDenied("No tenés alcance para liberar plazas en este dispositivo.")
 
     # Plaza y después reserva, igual que el ingreso: el UPDATE de estado puede tomar
