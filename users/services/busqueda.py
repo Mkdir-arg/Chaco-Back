@@ -54,5 +54,5 @@ def enmascarar_correo(email):
 
 
 def nombre_para_mostrar(usuario):
-    """El nombre completo; nunca el ``username``."""
-    return usuario.get_full_name().strip() or SIN_NOMBRE
+    """El nombre completo; sin él, el correo enmascarado (como lo muestra el buscador); nunca el ``username``."""
+    return usuario.get_full_name().strip() or enmascarar_correo(usuario.email) or SIN_NOMBRE

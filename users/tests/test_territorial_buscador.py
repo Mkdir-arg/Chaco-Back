@@ -119,7 +119,7 @@ class BuscarTerritorialTests(_Base):
         self.assertEqual(self._ids(self._buscar(self.coord_a, "sinnombre")), set())
         respuesta = self._buscar(self.coord_a, "40111222")
         self.assertEqual(self._ids(respuesta), {self.sin_nombre.pk})
-        self.assertEqual(respuesta.json()["resultados"][0]["nombre"], "(sin nombre)")
+        self.assertEqual(respuesta.json()["resultados"][0]["nombre"], "s***@example.com")
         self.assertNotIn("sinnombre", respuesta.content.decode())
         for fila in self._buscar(self.admin, "quir").json()["resultados"]:
             self.assertNotIn("username", fila)

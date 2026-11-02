@@ -131,6 +131,18 @@ class SumarTests(BaseSumarAgente):
         self.assertEqual((original[2], original[3]), (nuevo[2], nuevo[3]))
         self.assertIn(ana, set(agentes_asignables(self.predio)))
 
+    def test_sin_nombre_ni_apellido_la_confirmacion_usa_el_correo_enmascarado(self):
+        """Cambio 412: nada de «(sin nombre)» en el toast ni en el select; el mismo valor que el buscador."""
+        anonimo = self._persona("anonimo", "", "", "30777666", "pablo@example.com")
+
+        fila = {f["id"]: f for f in self._buscar("30777666").json()["resultados"]}[anonimo.pk]
+        cuerpo = self._sumar(anonimo.pk).json()
+
+        self.assertEqual(fila["nombre"], "p***@example.com")
+        self.assertEqual(cuerpo["user"]["label"], "p***@example.com")
+        self.assertIn("p***@example.com ahora es agente", cuerpo["message"])
+        self.assertNotIn("sin nombre", cuerpo["message"])
+
     def test_conserva_los_otros_roles_que_ya_tenia(self):
         otro = Group.objects.create(name="Rol previo")
         self.ana.groups.add(otro)
