@@ -293,6 +293,17 @@ class CrearAgenteNoDuplicaElCorreoTests(BaseCrearAgente):
         self.assertIn("pedile al administrador del programa que le sume el rol de agente", respuesta.json()["message"])
         self.assertNotIn("Buscar agente", respuesta.json()["message"])
 
+    def test_un_superusuario_con_el_rol_de_agente_no_se_manda_a_buscarlo(self):
+        # La búsqueda excluye a los superusuarios aunque tengan el rol: mismo universo (``universo_buscar_agente``).
+        superu = User.objects.create_user("superu", email="superu@example.com", password="x", is_superuser=True)
+        superu.groups.add(self.rol_agente)
+
+        respuesta = self._post(self._datos(email="superu@example.com"))
+
+        self.assertEqual(respuesta.status_code, 409, respuesta.content)
+        self.assertIn("pedile al administrador del programa", respuesta.json()["message"])
+        self.assertNotIn("Buscar agente", respuesta.json()["message"])
+
     def test_un_ciudadano_del_portal_se_manda_con_el_administrador(self):
         ciudadano = User.objects.create_user("ciudadano", email="ciudadano@example.com", password="x")
         ciudadano.groups.add(Group.objects.get_or_create(name=GRUPO_CIUDADANO_PORTAL)[0])

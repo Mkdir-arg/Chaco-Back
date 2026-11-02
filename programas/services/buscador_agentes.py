@@ -32,11 +32,27 @@ MOTIVO_SUMABLE_PERSONAL = (
 )
 
 
+def universo_buscar_agente():
+    """Quién puede aparecer en «Buscar agente»: la única fuente, también para el 409 del alta (``dueno_del_correo``).
+
+    Usuarios no superusuarios que o bien tienen el rol sembrado de agente (activos o no, como en el 397) o bien
+    están activos y no son ciudadanos del portal (sumables, Cambio 408). Anota ``_con_rol`` (tiene el rol de agente).
+    """
+    usuarios = get_user_model().objects
+    con_rol = Exists(usuarios.filter(pk=OuterRef("pk"), groups__meta__clave=CLAVE_ROL_AGENTE))
+    es_ciudadano = Exists(usuarios.filter(pk=OuterRef("pk"), groups__name=GRUPO_CIUDADANO_PORTAL))
+    return (
+        usuarios.filter(is_superuser=False)
+        .annotate(_con_rol=con_rol, _ciudadano=es_ciudadano)
+        .filter(Q(_con_rol=True) | (Q(is_active=True) & Q(_ciudadano=False)))
+    )
+
+
 def buscar_agentes_de_relevamiento(edificio, texto):
     """``(filas, hay_mas)``: personas que coinciden con ``texto``, y si se pueden asignar o sumar como agentes.
 
-    Es el buscador del modal «Asignar relevamiento» (Cambio 397, ampliado en el 404). Devuelve a quien tiene el
-    rol sembrado de agente (``RolMeta.clave = CLAVE_ROL_AGENTE``) y, desde el 404, también a los usuarios
+    Es el buscador del modal «Asignar relevamiento» (Cambio 397, ampliado en el 408). Devuelve a quien tiene el
+    rol sembrado de agente (``RolMeta.clave = CLAVE_ROL_AGENTE``) y, desde el 408, también a los usuarios
     **activos** del backoffice sin ese rol (ni superusuarios ni ciudadanos del portal): vienen con
     ``sumable: true`` y el modal les ofrece «Sumar como agente». **Buscar y elegir no dan ningún rol ni permiso**:
     el resultado solo dice si esa persona ya es una opción válida del selector de ``edificio``; sumar el rol es
@@ -48,16 +64,8 @@ def buscar_agentes_de_relevamiento(edificio, texto):
     los candidatos, los asignables entre ellos y el personal del edificio (nada por fila).
     """
 
-    usuarios = get_user_model().objects
-    con_rol = Exists(usuarios.filter(pk=OuterRef("pk"), groups__meta__clave=CLAVE_ROL_AGENTE))
-    es_ciudadano = Exists(usuarios.filter(pk=OuterRef("pk"), groups__name=GRUPO_CIUDADANO_PORTAL))
     candidatos = list(
-        filtrar_por_texto(
-            usuarios.filter(is_superuser=False).annotate(_con_rol=con_rol, _ciudadano=es_ciudadano),
-            texto,
-        )
-        # Con el rol (activo o no, como en el 397) o sin él pero activo y del backoffice (sumable, Cambio 408).
-        .filter(Q(_con_rol=True) | (Q(is_active=True) & Q(_ciudadano=False)))
+        filtrar_por_texto(universo_buscar_agente(), texto)
         .select_related("profile")
         .order_by("last_name", "first_name", "pk")[: TOPE_RESULTADOS + 1]
     )

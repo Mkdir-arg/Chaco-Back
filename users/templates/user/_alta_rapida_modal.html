@@ -292,6 +292,17 @@ funcionando sin ese script.
   // del backoffice) y recién ahí hace el POST. Si queda asignable a este edificio se elige igual que «Seleccionar».
   const confirmarSumar = (fila, boton) => {
     if (boton.disabled) return;
+    // #modal-overlay (z-50, base.html) queda detrás de este modal (z-[70]): se lo sube mientras la confirmación
+    // está abierta y se lo devuelve cuando vuelve a quedar oculto (confirmar, cancelar, X, Esc o fondo).
+    const overlay = document.getElementById('modal-overlay');
+    // Por estilo en línea: `.modal-responsive { z-index: 50 }` (responsive.css) pisa a la utilidad z-[1001].
+    overlay.style.zIndex = '1001';
+    const vigia = new MutationObserver(() => {
+      if (!overlay.classList.contains('hidden')) return;
+      overlay.style.zIndex = '';
+      vigia.disconnect();
+    });
+    vigia.observe(overlay, {attributes: true, attributeFilter: ['class']});
     window.ModernModal.show({
       type: 'confirm',
       danger: false,

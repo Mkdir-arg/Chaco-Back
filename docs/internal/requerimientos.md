@@ -51148,6 +51148,9 @@ Una persona que ya tiene cuenta (p. ej. un territorial de Becas) no aparecía en
 
 - **Choque con el Cambio 409 (QA C2-04)**: «Crear agente nuevo» rechaza con 409 un correo que ya existe y el texto dependía de si el dueño era agente. Con este Cambio, un usuario activo del backoffice sin el rol **sí** aparece en «Buscar agente» como `sumable`, así que mandarlo «con el administrador del programa» era falso. `users/services/agentes.dueno_del_correo` (reemplaza a `correo_es_de_un_agente`) devuelve `agente` / `sumable` / `otro` con el mismo universo que el buscador: agente → «buscalo en Buscar agente»; sumable (activo, no superusuario, no ciudadano del portal) → «buscalo en el paso Buscar agente y usá Sumar como agente» (`MENSAJE_CORREO_USUARIO_SUMABLE`); el «pedile al administrador del programa» queda solo para quien la búsqueda no muestra (inactivo sin rol, ciudadano, superusuario). Con el correo compartido entre usuarios gana el que deja camino en la búsqueda. Tests en `programas/tests/test_dispositivos_qa2_409.py`.
 
+- **Ronda 2 de la auditoría.** (a) La confirmación de «Sumar como agente» (`ModernModal`, `#modal-overlay`, z-50) quedaba detrás de `#quick-user-modal` (z-[70]): mientras está abierta se le pone `z-index: 1001` por estilo en línea y se lo devuelve al quedar oculto (confirmar, cancelar, X, Esc o fondo). Se usa estilo en línea y no la utilidad `z-[1001]` porque `.modal-responsive { z-index: 50 }` (responsive.css, cargado después de tailwind.css) la pisa; verificado en Chromium con Playwright sobre el HTML real de la pantalla (confirmación visible sobre el modal, z-index 1001 abierta y limpio al cerrar). (b) Una sola fuente del universo de «Buscar agente»: `programas/services/buscador_agentes.universo_buscar_agente()` la usan el buscador y `users/services/agentes.dueno_del_correo` (que queda como fachada); un superusuario con el rol de agente ya no sale como «agente» en el 409 (no aparece en la búsqueda: «pedile al administrador»), con test.
+- **Decisión del PM (02/11/2026):** sumar el rol de agente a una cuenta activa sin ningún rol la deja dentro del alcance de credenciales del admin de usuarios de Dispositivos; **aceptado por el PM**: solo da capacidades de agente, sin salto de programa. Sin cambios de código.
+
 ## Implementación
 
 `programas/services/sumar_agente.py` (nuevo: `rol_de_agente`, `sumar_rol_de_agente`, excepciones); `programas/services/buscador_agentes.py` (universo ampliado, `_fila_sumable`, motivos); `users/views/quick_create.py` (`usuario_sumar_agente`, cubeta nueva; sale `_rol_de_agente`); `users/urls.py`; `users/views/__init__.py`; `users/templates/user/_alta_rapida_modal.html` (botón, confirmación, POST, `data-action-agente-sumar`).
@@ -51178,6 +51181,7 @@ Nada especial: no hay migración ni variable nueva. La ruta nueva cuelga de `/us
 
 - Falta una **traza persistente** de cambios de roles: hoy quién sumó el rol a quién solo queda en el log de la aplicación (ids, sin datos personales), que rota. Si el PM la quiere consultable desde la UI, hace falta un modelo de auditoría (afectaría también al ABM de Roles y de Usuarios).
 - No hay forma de **quitar** el rol de agente desde este modal: sigue siendo del administrador del programa.
+- **Riesgo conocido (aceptado el 02/11/2026):** sumar el rol de agente a una cuenta activa sin ningún rol la deja dentro del alcance de credenciales del admin de usuarios de Dispositivos. Revisar si cambia el alcance de credenciales.
 
 ## Reversión
 
