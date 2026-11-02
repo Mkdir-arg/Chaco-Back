@@ -225,10 +225,10 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
             <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
             {% include "components/_field.html" with field=form_liberar.motivo wrapper_class="" %}
           </div>
-          <div x-show="plazasModal[plazaSel]?.estado === 'Prestada'">
+          <div x-show="plazasModal[plazaSel]?.es_prestamo">
             {% include "components/_alerta.html" with tono="warning" texto="El préstamo queda registrado como liberado y la plaza vuelve a contar como disponible. La persona a la que se le prestó no queda alojada." %}
           </div>
-          <div x-show="plazasModal[plazaSel]?.estado !== 'Prestada'">
+          <div x-show="!plazasModal[plazaSel]?.es_prestamo">
             {% include "components/_alerta.html" with tono="warning" texto="La reserva queda registrada como liberada y la plaza vuelve a contar como disponible. La persona que la tenía reservada no queda alojada." %}
           </div>
         </div>

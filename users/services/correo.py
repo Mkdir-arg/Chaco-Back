@@ -27,6 +27,10 @@ LARGO_CLAVE = 12
 ENTREGA_CLAVE = "clave"
 ENTREGA_LINK = "link"
 
+#: A un usuario de campo la clave se entrega por enlace (Cambio 407): sin correo no hay cómo.
+#: Una sola fuente para el formulario del ABM y el import por CSV.
+MENSAJE_CAMPO_SIN_CORREO = "Para un usuario de campo hace falta un correo: la clave se entrega por enlace"
+
 
 def generar_password_provisoria(largo: int = LARGO_CLAVE) -> str:
     return "".join(secrets.choice(ALFABETO_CLAVE) for _ in range(largo))

@@ -262,7 +262,16 @@ class LegibleTests(BaseAuditoria):
         self.assertEqual(egreso["detalle"], "Liberó la plaza P1 (Varones)")
 
     def test_toda_accion_conocida_tiene_titulo_de_operador(self):
-        acciones = {"CREADO", "EDITADO", "ENVIADO_VALIDACION", "VALIDADO", "OBSERVADO", "RECHAZADO", "INACTIVADO"}
+        acciones = {
+            "CREADO",
+            "EDITADO",
+            "ENVIADO_VALIDACION",
+            "VALIDADO",
+            "OBSERVADO",
+            "RECHAZADO",
+            "INACTIVADO",
+            "REACTIVADO",
+        }
         acciones |= {"CERRADO", "PLAZA_RESERVADA", "PLAZA_LIBERADA", "PLAZA_FUERA_SERVICIO", "PLAZA_EN_SERVICIO"}
         acciones |= {"TURNO_CREADO", "TURNO_EDITADO"}
         # Capacidad instalada (carril C5): el alta del edificio, los sectores y los lotes de
