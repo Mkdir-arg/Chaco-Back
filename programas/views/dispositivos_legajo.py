@@ -109,8 +109,7 @@ from programas.services.inspecciones import (
     semaforos_de_dispositivos,
 )
 from programas.services.ocupacion import ocupacion_de_plazas, tension_de_ocupacion
-from programas.services.plazas import motivo_sin_ampliar_capacidad
-from programas.services.plazas import puede_configurar_plazas as puede_configurar_las_plazas
+from programas.services.plazas import motivo_sin_ampliar_capacidad, puede_configurar_plazas
 from programas.services.reportes import filtrar_dispositivos
 from programas.services.respuestas_dispositivo import formularios_respondidos, guardar_respuestas_alta
 from programas.services.sectores_plazas import (
@@ -802,14 +801,14 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         dispositivo = self.object = self.get_object()
         usuario = request.user
         puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
-        puede_configurar_plazas = puede_configurar_las_plazas(usuario, dispositivo)
+        configura_plazas = puede_configurar_plazas(usuario, dispositivo)
         pk = _entero(request.GET.get("plaza", ""))
         accion = (
             plaza_para_accion(
                 dispositivo,
                 pk,
                 puede_liberar=puede_liberar,
-                puede_configurar_plazas=puede_configurar_plazas,
+                puede_configurar_plazas=configura_plazas,
                 puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
             )
             if pk is not None
@@ -820,7 +819,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         context = {
             "dispositivo": dispositivo,
             "plaza_accion": accion,
-            "puede_configurar_plazas": puede_configurar_plazas,
+            "puede_configurar_plazas": configura_plazas,
         }
         if not self._preparar_reubicar(context, dispositivo, accion):
             raise Http404
@@ -831,13 +830,13 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         dispositivo = self.object
         usuario = self.request.user
         puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
-        puede_configurar_plazas = puede_configurar_las_plazas(usuario, dispositivo)
+        configura_plazas = puede_configurar_plazas(usuario, dispositivo)
 
         context.update(
             sectores_con_plazas(
                 dispositivo,
                 puede_liberar=puede_liberar,
-                puede_configurar_plazas=puede_configurar_plazas,
+                puede_configurar_plazas=configura_plazas,
                 puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
             )
         )
@@ -847,12 +846,12 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
             {"label": "Sectores y plazas", "url": ""},
         ]
-        context["puede_configurar_plazas"] = puede_configurar_plazas
+        context["puede_configurar_plazas"] = configura_plazas
         # Las altas (sector nuevo, lote de plazas) solo se ofrecen donde el servicio las admite.
-        context["puede_ampliar_capacidad"] = puede_configurar_plazas and not motivo_sin_ampliar_capacidad(dispositivo)
-        self._preparar_modal_de_plaza(context, dispositivo, puede_liberar, puede_configurar_plazas)
-        self._preparar_modal(context, dispositivo, puede_liberar, puede_configurar_plazas)
-        self._preparar_modales_de_configuracion(context, dispositivo, puede_configurar_plazas)
+        context["puede_ampliar_capacidad"] = configura_plazas and not motivo_sin_ampliar_capacidad(dispositivo)
+        self._preparar_modal_de_plaza(context, dispositivo, puede_liberar, configura_plazas)
+        self._preparar_modal(context, dispositivo, puede_liberar, configura_plazas)
+        self._preparar_modales_de_configuracion(context, dispositivo, configura_plazas)
         return context
 
     def _preparar_modales_de_configuracion(self, context, dispositivo, puede_configurar_plazas):

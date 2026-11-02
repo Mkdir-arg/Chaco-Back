@@ -9,6 +9,7 @@ from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.management import call_command
@@ -151,7 +152,9 @@ class ImportCsvSoloCampoTests(TestCase):
 
         usuario = User.objects.get(username="conmail409")
         self.assertFalse(usuario.check_password("Resistencia-2026-Chaco"))
-        self.assertFalse(usuario.has_usable_password())
+        # El enlace de «Olvidé mi contraseña» tiene que poder salir: Django no se lo manda a quien
+        # tiene la clave inutilizable.
+        self.assertIn(usuario, list(PasswordResetForm().get_users("c409@x.test")))
         self.assertIn('pedir "Olvidé mi contraseña"', salida)
         self.assertIn("conmail409", salida)
         self.assertNotIn("Resistencia-2026-Chaco", salida)

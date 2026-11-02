@@ -265,10 +265,22 @@ class CrearAgenteNoDuplicaElCorreoTests(BaseCrearAgente):
         respuesta = self._post(self._datos(email="persona.repetida@example.COM"))
 
         self.assertEqual(respuesta.status_code, 409, respuesta.content)
-        self.assertIn("Buscar agente", respuesta.json()["message"])
+        self.assertIn("pedile al administrador del programa que le sume el rol de agente", respuesta.json()["message"])
+        self.assertNotIn("Buscar agente", respuesta.json()["message"])
         self.assertIn("email", respuesta.json()["errors"])
         self.assertEqual(User.objects.count(), antes)
         self.assertNotIn(existente.username, respuesta.content.decode())
+
+    def test_si_el_dueno_del_correo_es_agente_se_lo_manda_a_buscarlo(self):
+        existente = User.objects.create_user("ya_agente", email="agente.previo@example.com", password="x")
+        existente.groups.add(self.rol_agente)
+
+        respuesta = self._post(self._datos(email="Agente.Previo@example.com"))
+
+        self.assertEqual(respuesta.status_code, 409, respuesta.content)
+        self.assertIn("Buscar agente", respuesta.json()["message"])
+        self.assertNotIn("sume el rol de agente", respuesta.json()["message"])
+        self.assertNotIn("ya_agente", respuesta.content.decode())
 
     def test_un_correo_nuevo_sigue_creando_al_agente(self):
         respuesta = self._post()

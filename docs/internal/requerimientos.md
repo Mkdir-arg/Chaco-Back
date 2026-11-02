@@ -50986,6 +50986,15 @@ los hallazgos de la app (C2-01 a C2-03).
    después del chequeo del correo obligatorio y el #1009 cambia `_rol_de_agente` por `rol_de_agente` más arriba; no deberían
    dar conflicto de texto, pero el que entre segundo tiene que revisar que la validación de correo siga antes de
    `_crear_y_responder`. Nota: contradice a medias el Cambio sobre correo compartido (13-oct) solo para el alta de agente.
+   **Ronda 2 de la auditoría:** el texto del 409 depende de quién es el dueño del correo
+   (`users/services/agentes.correo_es_de_un_agente`, el mismo criterio del buscador: rol sembrado de agente). Si es agente,
+   «Buscar agente»; si es otro usuario del sistema, «pedile al administrador del programa que le sume el rol de agente».
+10. **Ronda 2 · CSV de campo.** El usuario de campo sin clave en el archivo nace con una clave al azar (`generar_password_provisoria(32)`,
+    como `entregar_credenciales_provisorias`) y no con `set_unusable_password()`: Django no manda el enlace de
+    «Olvidé mi contraseña» a quien no tiene clave usable, y D3 se apoya en ese enlace. El test lo verifica con
+    `PasswordResetForm.get_users`.
+11. **Ronda 2 · MINOR.** Sin el alias `puede_configurar_las_plazas` en `dispositivos_legajo.py` (se renombraron los locales) y
+    docstring de `estadias.py` con el orden de candados vigente (todas las plazas por pk, luego reservas, luego persona).
 
 ## Implementación
 
@@ -50993,7 +51002,7 @@ los hallazgos de la app (C2-01 a C2-03).
 y `dispositivos_ingreso.py`; `programas/dispositivos_urls.py`; `legajo/detail.html` y `sectores/sectores.html`;
 `programas/selectors/auditoria_dispositivo.py`; `programas/forms.py`; `legajo/_formulario_tipo.html`, `programas/services/plazas.py`; `programas/api/views.py`;
 `users/forms/__init__.py`, `users/services/correo.py`, `users/management/commands/import_users_from_csv.py`,
-`users/views/quick_create.py`.
+`users/views/quick_create.py`, `users/services/agentes.py` (nuevo).
 
 ## Archivos
 
@@ -51010,6 +51019,7 @@ Sin cambios de esquema.
 Mutaciones, cada una deja rojo el test que la cubre: reactivar también desde CERRADO; la vista de reactivar con la capacidad de
 solo ver; filtrar otra vez las reservas por dispositivo; sacar la plaza del ingreso del bloqueo conjunto; usar la clave del
 archivo en el CSV de campo; mirar `actuales` y no `resultantes` en el form; apagar el chequeo de correo repetido del alta de agente.
+Ronda 2: volver a `set_unusable_password()` en el CSV (rojo: el enlace de reseteo no sale) y dar siempre «es agente» al dueño del correo (rojo).
 
 ## Puesta en marcha en el servidor
 

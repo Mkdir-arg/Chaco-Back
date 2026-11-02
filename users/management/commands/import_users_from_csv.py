@@ -29,7 +29,7 @@ from django.db import transaction
 
 from core import rbac
 from users.models import Profile
-from users.services.correo import MENSAJE_CAMPO_SIN_CORREO
+from users.services.correo import MENSAJE_CAMPO_SIN_CORREO, generar_password_provisoria
 
 logger = logging.getLogger(__name__)
 
@@ -224,8 +224,10 @@ class Command(BaseCommand):
                 if item["clave"]:
                     usuario.set_password(item["clave"])
                 elif creado:
-                    # Sin clave en el archivo (usuario de campo): entra por «Olvidé mi contraseña».
-                    usuario.set_unusable_password()
+                    # Sin clave en el archivo (usuario de campo): entra por «Olvidé mi contraseña». Lleva una
+                    # clave al azar y no una inutilizable: Django no manda el enlace de reseteo a quien no
+                    # tiene clave usable (``PasswordResetForm.get_users``).
+                    usuario.set_password(generar_password_provisoria(32))
                 usuario.save()
                 usuario.groups.set(grupos_referencia)
                 if item["clave"]:

@@ -56,10 +56,10 @@ preguntarle. Lo verifica `programas.tests.test_dispositivos_concurrencia`.
 
 Con la persona va igual: `reservar_plaza` e `ingresar_persona` la bloquean **después** de la
 plaza y de la reserva. `ingreso.confirmar_ingreso`, que además cierra las otras reservas de la
-persona, lo respeta: las cierra primero (por `plaza_id`, cada una con su plaza y después su
-reserva), toma la plaza del ingreso, y recién entonces la persona; con ella bloqueada vuelve a
-leer sus reservas abiertas y, si apareció una nueva, rechaza el ingreso en vez de cerrarla a
-ciegas.
+persona (de cualquier dispositivo), lo respeta: bloquea de una vez todas las plazas
+involucradas (las de esas reservas y la del ingreso) ordenadas por pk, después cada reserva, y
+recién entonces la persona; con ella bloqueada vuelve a leer sus reservas abiertas y, si
+apareció una nueva, rechaza el ingreso en vez de cerrarla a ciegas.
 
 Al ordenar candados hay que contemplar también los que toma InnoDB al modificar
 índices usados por una FK. `OrdenDeLosCandadosTests` fija el orden por la secuencia de
