@@ -12,6 +12,7 @@ from programas.services.programa_cache import clave_de, programa_por_codigo
 PROGRAMA_DISPOSITIVOS_CODIGO = "DISPOSITIVOS"
 CAP_CONFIGURAR = "programa.configurar"
 CAP_VER = "dispositivo.ver"
+CAP_VER_TODOS = "dispositivo.ver_todos"
 # `CAP_ADMITIR` vivía acá para que `core.views.media` dejara al admisor bajar el F-00
 # que él mismo había subido. Se fue con la admisión vieja (MVP v2, release A); la
 # capacidad sigue en el catálogo y la repone la E2 con el ingreso contra `Estadia`.
@@ -77,11 +78,72 @@ def puede_en_programa_dispositivos(user, capacidad):
     return programa is not None and rbac.puede(user, capacidad, programa=programa)
 
 
+def membresias_vigentes(user, programa):
+    """Filas activas del Equipo (Cambio 410) de ``user`` que todavía valen.
+
+    Vale la fila activa cuyo rol es del programa y está activo, y que el usuario TODAVÍA tiene
+    (si se le sacó el rol, la fila no cuenta). Es la única definición de «membresía vigente»:
+    la usan el alcance y la gestión del Equipo.
+    """
+
+    from programas.models import MiembroEquipoDispositivo
+
+    return MiembroEquipoDispositivo.objects.filter(
+        usuario=user,
+        activo=True,
+        rol__user=user,
+        rol__meta__activo=True,
+        rol__meta__programa=programa,
+    )
+
+
+def _filtro_equipo(user, capacidad, programa):
+    """Membresías vigentes del Equipo cuyo rol tiene ``capacidad``."""
+
+    return membresias_vigentes(user, programa).filter(rol__permissions__codename=rbac.codename_de(capacidad))
+
+
+def _filtro_asignacion_rol(user, capacidad, programa):
+    """Vía **vieja** (rol → dispositivo, ``AsignacionDispositivo``).
+
+    Se mantiene como OR de la nueva para no dejar sin acceso a nadie durante la transición:
+    el ABM de Roles («Alcance por dispositivo») sigue escribiendo estas asignaciones. Se retira
+    de acá, junto con la migración de asignaciones al Equipo, en un Cambio posterior.
+    """
+
+    from programas.models import AsignacionDispositivo
+
+    return AsignacionDispositivo.objects.filter(
+        rol__user=user,
+        rol__meta__activo=True,
+        rol__meta__programa=programa,
+        rol__permissions__codename=rbac.codename_de(capacidad),
+        activo=True,
+    )
+
+
+def _del_equipo_o_asignados(user, capacidad, programa):
+    """Dispositivos donde el usuario integra el Equipo o (transición) tiene la asignación de rol."""
+
+    from programas.models import Dispositivo
+
+    del_equipo = _filtro_equipo(user, capacidad, programa).values("dispositivo_id")
+    asignados = _filtro_asignacion_rol(user, capacidad, programa).values("dispositivo_id")
+    return Dispositivo.objects.filter(Q(pk__in=del_equipo) | Q(pk__in=asignados))
+
+
+def _ve_todos(user, capacidad, programa):
+    """``dispositivo.ver_todos`` da lectura total y **solo** lectura (``CAP_VER``)."""
+
+    return capacidad == CAP_VER and rbac.puede(user, CAP_VER_TODOS, programa=programa)
+
+
 def puede_operar_dispositivo(user, dispositivo, capacidad):
     """Evalúa capacidad de Programa más el alcance fino del dispositivo.
 
-    Los administradores del programa y los superusuarios conservan alcance total.
-    El resto necesita una asignación activa sobre el dispositivo concreto.
+    Los administradores del programa y los superusuarios conservan alcance total, y
+    ``dispositivo.ver_todos`` da lectura de todo. El resto necesita ser parte del Equipo del
+    dispositivo con un rol que tenga la capacidad (o, en transición, una asignación de rol).
     """
 
     if user is None or not getattr(user, "is_authenticated", False):
@@ -90,19 +152,10 @@ def puede_operar_dispositivo(user, dispositivo, capacidad):
     programa = programa_dispositivos(user)
     if programa is None or not rbac.puede(user, capacidad, programa=programa):
         return False
-    if puede_configurar_dispositivos(user):
+    if puede_configurar_dispositivos(user) or _ve_todos(user, capacidad, programa):
         return True
-
-    from programas.models import AsignacionDispositivo
-
-    return AsignacionDispositivo.objects.filter(
-        dispositivo=dispositivo,
-        rol__user=user,
-        rol__meta__activo=True,
-        rol__meta__programa=programa,
-        rol__permissions__codename=rbac.codename_de(capacidad),
-        activo=True,
-    ).exists()
+    # Una sola consulta (los dos orígenes como subconsultas): el alcance se pregunta por pantalla.
+    return _del_equipo_o_asignados(user, capacidad, programa).filter(pk=dispositivo.pk).exists()
 
 
 def dispositivos_visibles(user):
@@ -115,25 +168,19 @@ def dispositivos_en_alcance(user, capacidad):
     """Dispositivos sobre los que el usuario tiene ``capacidad``, con el alcance fino.
 
     La misma regla que :func:`puede_operar_dispositivo`, en forma de queryset: la
-    capacidad en el programa, y después todo (admin del programa) o solo los
-    dispositivos donde un rol activo **que tiene esa capacidad** está asignado.
+    capacidad en el programa, y después todo (admin del programa, o ``ver_todos`` para
+    leer) o solo los dispositivos donde integra el Equipo con un rol que tiene esa
+    capacidad (más la asignación de rol vieja, que se retira en un Cambio posterior).
     """
 
-    from programas.models import AsignacionDispositivo, Dispositivo
+    from programas.models import Dispositivo
 
     programa = programa_dispositivos(user)
     if programa is None or not rbac.puede(user, capacidad, programa=programa):
         return Dispositivo.objects.none()
-    if puede_configurar_dispositivos(user):
+    if puede_configurar_dispositivos(user) or _ve_todos(user, capacidad, programa):
         return Dispositivo.objects.all()
-    asignados = AsignacionDispositivo.objects.filter(
-        rol__user=user,
-        rol__meta__activo=True,
-        rol__meta__programa=programa,
-        rol__permissions__codename=rbac.codename_de(capacidad),
-        activo=True,
-    ).values("dispositivo_id")
-    return Dispositivo.objects.filter(pk__in=asignados)
+    return _del_equipo_o_asignados(user, capacidad, programa)
 
 
 def _registrar_traza(dispositivo, usuario, accion, estado_anterior, estado_nuevo, detalle=""):
