@@ -528,6 +528,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 402 | SIIS: el refresco de catálogos registra el traceback del catálogo que falla (MINOR de la auditoría de #1005) | SIIS (`refrescar_catalogos_locales`) | `#siis` | Juez — MINOR de auditoría (#1005), pedido del PM | 29/10/2026 | 🟢 **Hecho** | No requiere |
 | 403 | SIIS: `procesar_casos_siis --destino siis` drena la tabla intermedia de a lotes, con `--total`, `--lote` y `--pausa`, y frena ante errores o envíos inciertos | SIIS (`procesar_casos_siis`, `sincronizar_tabla_intermedia`) | `#siis` | Juez — pendiente del Cambio 401 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 404 | SIIS: `corregir_datos_siis` exporta a CSV las localidades que no cruzan (una fila por caso) y carga lo que completa el cliente en `localidades_corregidas` | SIIS (`corregir_datos_siis`) · procedimiento del alta | `#siis` | PM — pendiente de las 147 localidades del Cambio 401 | 30/10/2026 | 🟢 **Hecho** | No requiere |
+| 405 | Dispositivos: P4 muestra, plegado y de solo lectura, lo respondido en campos que el diseño del formulario ya no tiene («De versiones anteriores») | Dispositivos · P4 detalle de la institución (solapa Datos) · `programas/services/respuestas_dispositivo.py` | `#ui` `#relevamientos` | PM — decisión del 30/10/2026 sobre el pendiente de los Cambios 387 y 389 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 406 | Dispositivos: el ingreso consume la reserva de la persona, reservar valida a la persona y los sectores solo donde hay plazas (QA local del 30/10) | Dispositivos · sectores y plazas · asistente de ingreso | `#ui` `#datos` | QA local de Dispositivos (30/10/2026): B-01, B-02, A-07, A-08, B-05, A-12 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 407 | Dispositivos: «Ingresar persona» solo a quien el asistente deja entrar, buscador en el formulario del tipo, reenvío del rechazado y clave provisoria del agente en la app | Dispositivos (legajo P4/P3, asistente de ingreso, `ObtainCampoToken`) | `#rbac` `#ui` `#api` `#mobile` | PM — QA local de Dispositivos del 30/10/2026 (A-01/B-03, A-05, A-02, C-S2) | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 408 | Dispositivos: «Sumar como agente» desde «Buscar agente» (reemplaza el «Queda afuera» y el Pendiente del Cambio 397: quien ya tiene cuenta puede recibir el rol de agente) | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 30/10/2026 | 30/10/2026 | 🟢 **Hecho** | No requiere |
@@ -48826,6 +48827,7 @@ relevamientos comunes de P21 y siguen ahí.
 ## Historial
 
 - **27/10/2026 — alta del cambio.**
+- **30/10/2026 — DECISIÓN PM resuelta en el Cambio 405:** P4 muestra las respuestas de versiones anteriores del formulario del tipo, en un bloque plegado.
 
 ---
 
@@ -49432,6 +49434,7 @@ normales de `ReservaPlaza`, y se liberan desde el mapa.
   carril que no tenían entrada propia. El test del `formulario_tipo_diseno` ajeno, que figuraba como pendiente en
   las notas del carril, ya existe (`test_la_marca_de_un_diseno_ajeno_no_guarda_y_vuelve_con_la_seccion_del_tipo_elegido`,
   entró en `69542b91`, Cambio 387).
+- **30/10/2026 — DECISIÓN PM resuelta en el Cambio 405:** P4 muestra las respuestas de versiones anteriores del formulario del tipo (bloque plegado «De versiones anteriores»). La otra decisión (traza de quién cambió una respuesta) sigue abierta.
 - **30/10/2026 — Cambio 406.** Reservar y prestar desde el mapa ahora validan a la persona (no alojada, sin otra
   reserva en el dispositivo) y el error cae en el campo del DNI. «Nuevo sector» y «Agregar plazas» ya no se ofrecen
   ni se aceptan donde el tipo no maneja plazas. Volver a servicio una plaza operativa dice que ya estaba, y el modal
@@ -50690,6 +50693,71 @@ Revertir el PR. Lo cargado con `--aplicar` queda en la tabla; se corrige volvien
 - **30/10/2026 — alta del cambio.**
 - **30/10/2026 — ronda de la auditoría del PR #1008.** El CSV pasa `localidad_declarada`, `provincia_declarada` y `texto_planilla` por `core.exportacion.celda_segura` (inyección de fórmulas, RED-70); la carga detecta `;` y cae a cp1252 (con `CommandError` que dice cómo guardar el archivo); el criterio de la carga se alinea con la corrección (alias con destino aceptados; un nombre repetido entre provincias se carga y se cuenta aparte con aviso); y `--exportar-sin-cruce` con `--sin-localidades` es error.
 - **30/10/2026 — ronda 3 de la auditoría del PR #1008.** El bloque de CSV (columnas, escritura, lectura, plan de carga) sale de `corregir_datos_siis.py` —que pasaba de 1000 líneas— al módulo hermano `_localidades_csv_siis.py`, con funciones sin efectos; el comando conserva el log, la transacción y el INSERT/UPDATE. El aviso de la carga cubre toda clave que no sea única en el catálogo (también las que resuelven solo por equivalencia): «solo cruza si la provincia declarada es la correcta (o la de la equivalencia)». No cambia qué se carga.
+
+---
+
+# Cambio 405 — P4 muestra las respuestas de versiones anteriores del formulario del tipo
+
+🟢 **HECHO — 30/10/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · P4 detalle de la institución (solapa Datos) · `programas/services/respuestas_dispositivo.py` |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | PM — decisión del 30/10/2026 sobre el pendiente «DECISIÓN PM» de los Cambios 387 y 389 |
+| **Fecha del pedido** | 30/10/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/legajo/detail.html` (solapa Datos); servicio `respuestas_dispositivo.py`; ficha `ficha_timeline.md` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Que P4 muestre, debajo de las respuestas vigentes de cada formulario, las respuestas de campos que el diseño vigente ya no tiene (quedan en `respuestas` y su definición en `anteriores`), plegadas, de solo lectura, con la etiqueta que tenían y el valor legible.
+
+## Alcance acordado
+
+**Entra:** el bloque plegado «De versiones anteriores» en cada formulario respondido de P4. **Queda afuera:** el formulario «Relevamiento» (`formulario_del_relevamiento`, informe A5), que es otra pantalla y no pasa por `formularios_respondidos`; la traza de quién cambió una respuesta; enlaces a archivos viejos.
+
+## Decisiones tomadas
+
+1. La lógica vive en el servicio (`respuestas_de_versiones_anteriores`), no en la vista ni el template. Una clave cuenta si está en `anteriores`, la foto de la fila ya no la tiene, y su valor no está vacío. El orden es el de `anteriores` (el orden en que dejaron de estar).
+2. Un valor se lee con `legible` (fechas dd/mm/aaaa; una lista se une con comas). Sin respuestas viejas el bloque no se dibuja.
+3. Un archivo de un campo viejo se muestra por su **nombre, sin enlace**: la sección plegable compartida no lleva enlaces y sumarlos pedía una variante nueva. Es de solo lectura y no se pierde: el archivo sigue en el servidor.
+4. La pieza es `components/_ficha_seccion.html` con `abierta=False`, ya canónica: sin clases, includes ni variantes nuevas. Se suma una nota en su ficha.
+5. Sin cambios de permisos: lo ve quien ya ve el formulario en P4.
+6. P4 lee la foto guardada en la fila: el bloque aparece desde el **primer guardado con el diseño nuevo** (hasta entonces la clave sigue en su sección vigente).
+
+## Implementación
+
+Servicio con una función nueva y dos claves más en cada entrada de `formularios_respondidos` (`anteriores`, `id_anteriores`); un include en `detail.html`. Sin consultas nuevas.
+
+## Archivos
+
+- `programas/services/respuestas_dispositivo.py`, `programas/templates/programas/dispositivos/legajo/detail.html`, `.claude/design/componentes/ficha_timeline.md`, `programas/tests/test_dispositivos_formulario_alta.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Tests de `RespuestasAnterioresP4Tests` (clave borrada con etiqueta y valor, sin claves viejas, valor vacío, clave vigente, valores legibles); mutación del filtro de vigentes y del filtro de vacíos en rojo; `--tag performance` de P4 sin cambio de presupuesto; `manage.py check`, `design_audit --ratchet`, `compile_templates --bloques`, `check_design_agent --changed`, ruff y `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **30/10/2026 — alta del cambio.**
 
 ---
 
