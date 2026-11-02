@@ -20,6 +20,7 @@ from .quick_create import (  # noqa: F401
     usuario_asignar_territorial,
     usuario_buscar_agente,
     usuario_buscar_territorial,
+    usuario_sumar_agente,
 )
 from .roles import (  # noqa: F401
     RolCreateView,

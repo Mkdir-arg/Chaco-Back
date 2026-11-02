@@ -17,13 +17,14 @@ import re
 from datetime import timedelta
 from unittest import mock
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core.exceptions import ValidationError
 from django.db.models.query import QuerySet
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from core.rbac import GRUPO_CIUDADANO_PORTAL
 from programas.forms import ItemCampoPropioForm
 from programas.models import Dispositivo, ReservaPlaza, TrazaDispositivo
 from programas.services import ingreso as servicio_ingreso
@@ -265,11 +266,53 @@ class CrearAgenteNoDuplicaElCorreoTests(BaseCrearAgente):
         respuesta = self._post(self._datos(email="persona.repetida@example.COM"))
 
         self.assertEqual(respuesta.status_code, 409, respuesta.content)
-        self.assertIn("pedile al administrador del programa que le sume el rol de agente", respuesta.json()["message"])
-        self.assertNotIn("Buscar agente", respuesta.json()["message"])
         self.assertIn("email", respuesta.json()["errors"])
         self.assertEqual(User.objects.count(), antes)
         self.assertNotIn(existente.username, respuesta.content.decode())
+
+    def test_un_usuario_activo_sin_rol_de_agente_se_manda_a_sumarlo_desde_buscar_agente(self):
+        # Cambio 408: ese usuario SÍ aparece en «Buscar agente» como sumable, así que no se lo manda con el admin.
+        User.objects.create_user("ya_existe", email="sin.rol@example.com", password="x")
+
+        respuesta = self._post(self._datos(email="Sin.Rol@example.com"))
+
+        self.assertEqual(respuesta.status_code, 409, respuesta.content)
+        mensaje = respuesta.json()["message"]
+        self.assertIn("Buscar agente", mensaje)
+        self.assertIn("Sumar como agente", mensaje)
+        self.assertNotIn("administrador del programa", mensaje)
+        self.assertNotIn("ya_existe", respuesta.content.decode())
+
+    def test_un_usuario_inactivo_sin_rol_se_manda_con_el_administrador(self):
+        # La búsqueda excluye a los inactivos sin rol: no hay a dónde mandarlo salvo con el admin.
+        User.objects.create_user("inactivo", email="inactivo@example.com", password="x", is_active=False)
+
+        respuesta = self._post(self._datos(email="inactivo@example.com"))
+
+        self.assertEqual(respuesta.status_code, 409, respuesta.content)
+        self.assertIn("pedile al administrador del programa que le sume el rol de agente", respuesta.json()["message"])
+        self.assertNotIn("Buscar agente", respuesta.json()["message"])
+
+    def test_un_superusuario_con_el_rol_de_agente_no_se_manda_a_buscarlo(self):
+        # La búsqueda excluye a los superusuarios aunque tengan el rol: mismo universo (``universo_buscar_agente``).
+        superu = User.objects.create_user("superu", email="superu@example.com", password="x", is_superuser=True)
+        superu.groups.add(self.rol_agente)
+
+        respuesta = self._post(self._datos(email="superu@example.com"))
+
+        self.assertEqual(respuesta.status_code, 409, respuesta.content)
+        self.assertIn("pedile al administrador del programa", respuesta.json()["message"])
+        self.assertNotIn("Buscar agente", respuesta.json()["message"])
+
+    def test_un_ciudadano_del_portal_se_manda_con_el_administrador(self):
+        ciudadano = User.objects.create_user("ciudadano", email="ciudadano@example.com", password="x")
+        ciudadano.groups.add(Group.objects.get_or_create(name=GRUPO_CIUDADANO_PORTAL)[0])
+
+        respuesta = self._post(self._datos(email="ciudadano@example.com"))
+
+        self.assertEqual(respuesta.status_code, 409, respuesta.content)
+        self.assertIn("pedile al administrador del programa", respuesta.json()["message"])
+        self.assertNotIn("Buscar agente", respuesta.json()["message"])
 
     def test_si_el_dueno_del_correo_es_agente_se_lo_manda_a_buscarlo(self):
         existente = User.objects.create_user("ya_agente", email="agente.previo@example.com", password="x")
