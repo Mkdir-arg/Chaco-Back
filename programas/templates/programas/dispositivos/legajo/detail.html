@@ -14,9 +14,10 @@
        modalEdificio: {% if form_edificio %}true{% else %}false{% endif %},
        modalVincular: {% if form_vincular %}true{% else %}false{% endif %},
        modalRelevamiento: false,
+       modalEquipo: {% if form_equipo %}true{% else %}false{% endif %},
        egreso: { url: '{{ url_egresar|escapejs }}', persona: '{{ estadia_egreso.persona_visible|escapejs }}' }
      }"
-     @becas-saved.window="modalEgreso=false; modalCambio=false; modalEdificio=false; modalVincular=false; modalRelevamiento=false">
+     @becas-saved.window="modalEgreso=false; modalCambio=false; modalEdificio=false; modalVincular=false; modalRelevamiento=false; modalEquipo=false">
 
   {# Los overlays fixed van fuera del space-y-5: su margin-top los corría y el clic en esa franja no cerraba el modal #}
   <div class="space-y-5">
@@ -136,6 +137,13 @@
                 :class="tab==='infraestructura' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
           <i class="fas fa-building" aria-hidden="true"></i> Infraestructura
           <span class="badge badge-dot badge-{{ infraestructura.semaforo.tono }}">{{ infraestructura.semaforo.texto }}</span>
+        </button>
+        <button @click="tab='equipo'" type="button" role="tab" id="tab-equipo" aria-controls="panel-equipo"
+                :aria-selected="tab==='equipo'"
+                class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
+                :class="tab==='equipo' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
+          <i class="fas fa-people-group" aria-hidden="true"></i> Equipo
+          <span class="badge" :class="tab==='equipo' ? 'badge-info' : 'badge-gray'">{{ n_equipo }}</span>
         </button>
         <button @click="tab='historial'" type="button" role="tab" id="tab-historial" aria-controls="panel-historial"
                 :aria-selected="tab==='historial'"
@@ -470,6 +478,61 @@
         {% endif %}
       </div>
 
+      {# ===== TAB: Equipo (Cambio 411) ===== #}
+      <div x-show="tab==='equipo'" x-cloak role="tabpanel" id="panel-equipo" aria-labelledby="tab-equipo">
+        <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-4 border-b border-light">
+          <p class="text-xs text-body-subtle">Quienes trabajan en este dispositivo, con el rol con el que lo hacen. Los responsables arman el Equipo.</p>
+          {% if puede_gestionar_equipo %}
+          <a href="{{ url_detalle }}?tab=equipo&amp;equipo=sumar" class="btn-nodo btn-brand btn-sm btn-fit">
+            <i class="fas fa-plus" aria-hidden="true"></i> Sumar persona
+          </a>
+          {% endif %}
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <caption class="sr-only">Equipo del dispositivo</caption>
+            <thead>
+              <tr class="nodo-thead-row">
+                <th class="nodo-th">Persona</th>
+                <th class="nodo-th">Rol</th>
+                <th class="nodo-th">Responsable</th>
+                {% if puede_gestionar_equipo %}<th class="nodo-th text-right w-28"><span class="sr-only">Acciones</span></th>{% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for miembro in equipo %}
+              <tr class="hover:bg-secondary transition">
+                <td class="nodo-td"><span class="font-medium text-heading">{{ miembro.persona }}</span></td>
+                <td class="nodo-td">{{ miembro.rol.name }}{% if not miembro.vigente %} <span class="badge badge-warning badge-sm">Rol no vigente</span>{% endif %}</td>
+                <td class="nodo-td">{% if miembro.es_responsable %}<span class="badge badge-dot badge-success">Responsable</span>{% else %}<span class="text-body-subtle">—</span>{% endif %}</td>
+                {% if puede_gestionar_equipo %}
+                <td class="nodo-td text-right whitespace-nowrap">
+                  {% url 'dispositivos:equipo_baja' dispositivo.pk miembro.pk as url_baja %}
+                  {% url 'dispositivos:equipo_responsable' dispositivo.pk miembro.pk as url_responsable %}
+                  {% url 'dispositivos:equipo_quitar_responsable' dispositivo.pk miembro.pk as url_quitar_responsable %}
+                  {% menu_fila id=miembro.pk etiqueta="Acciones de "|add:miembro.persona %}
+                    {% if miembro.es_responsable %}
+                    {% include "components/_menu_fila_item.html" with texto="Quitar como responsable" icono="fa-user-minus" confirm_url=url_quitar_responsable confirm_title="¿Quitar como responsable?" confirm_text="La persona sigue en el Equipo pero deja de armarlo. El dispositivo no puede quedar sin responsables." confirm_ok="Sí, quitar" peligro=True only %}
+                    {% else %}
+                    {% include "components/_menu_fila_item.html" with texto="Marcar como responsable" icono="fa-user-check" confirm_url=url_responsable confirm_title="¿Marcar como responsable?" confirm_text="La persona podrá sumar y dar de baja a otras del Equipo." confirm_ok="Sí, marcar" only %}
+                    {% endif %}
+                    {% include "components/_menu_fila_item.html" with texto="Dar de baja" icono="fa-user-slash" confirm_url=url_baja confirm_title="¿Dar de baja del Equipo?" confirm_text="La persona deja de operar este dispositivo. Volver a sumarla la repone." confirm_ok="Sí, dar de baja" peligro=True only %}
+                  {% endmenu_fila %}
+                </td>
+                {% endif %}
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="{% if puede_gestionar_equipo %}4{% else %}3{% endif %}" class="p-0">
+                  {% include "components/_estado_vacio.html" with icono="fa-people-group" titulo="Este dispositivo no tiene Equipo" texto="Cuando se sume a alguien, aparece acá con su rol." %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {# ===== TAB: Historial ===== #}
       <div x-show="tab==='historial'" x-cloak role="tabpanel" id="panel-historial" aria-labelledby="tab-historial">
         <div class="p-5">
@@ -707,6 +770,27 @@
           {% include "programas/dispositivos/relevamientos/_campos_asignar.html" with form=form_relevamiento agente_externo=agente_externo puede_crear_agente=puede_crear_agente selector_agente="#form-crear-relevamiento select[name=asignado_a]" edificio_source="#form-crear-relevamiento [name=edificio]" only %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalRelevamiento=false" accion_texto="Asignar relevamiento" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+  {% if form_equipo %}
+  {# Modal: Sumar persona al Equipo (arquetipo Modal) #}
+  <div x-show="modalEquipo" x-cloak x-becas-modal="modalEquipo" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEquipo=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-equipo-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Sumar persona al Equipo" titulo_id="modal-equipo-titulo" subtitulo="La persona opera el dispositivo con el rol que elijas." icono="fa-user-plus" cerrar="modalEquipo=false" %}
+      <form method="post" action="{{ url_equipo_sumar }}" data-ajax class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          <div>
+            <p class="mb-2 text-xs text-fg-danger hidden" data-error="__all__" role="alert"></p>
+            {% with field=form_equipo.persona_rol %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}
+          </div>
+          <div>{% with field=form_equipo.es_responsable %}{% include "components/_field.html" with wrapper_class="" %}{% endwith %}</div>
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalEquipo=false" accion_texto="Sumar al Equipo" %}
       </form>
     </div>
   </div>

@@ -12,15 +12,17 @@ Las escrituras toman ``select_for_update`` sobre el dispositivo: dos altas o baj
 simultáneas no pueden dejarlo sin responsables.
 """
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import F
+from django.db.models import Exists, F, OuterRef
 
 from programas.services.dispositivos import (
     membresias_vigentes,
     programa_dispositivos,
     puede_configurar_dispositivos,
 )
+from programas.services.inspecciones import CLAVE_ROL_AGENTE
 
 
 def puede_gestionar_equipo(user, dispositivo):
@@ -97,6 +99,30 @@ def sumar_miembro(*, actor, dispositivo, usuario, rol, es_responsable=False):
             miembro.es_responsable = miembro.es_responsable or es_responsable
             miembro.save(update_fields=["activo", "es_responsable", "modificado"])
         return miembro
+
+
+def sumar_responsables_al_crear(*, actor, dispositivo, pares):
+    """Deja a ``pares`` (``[(usuario, rol)]``) como responsables de un dispositivo recién creado.
+
+    Va dentro de la transacción del alta. Valida todo contra la misma definición que ofrece el
+    formulario (``pares_persona_rol``) y escribe en una sola consulta, así que sumar a varios no
+    cuesta más consultas por persona.
+    """
+
+    from programas.models import MiembroEquipoDispositivo
+
+    with transaction.atomic():
+        dispositivo = _bloquear(dispositivo)
+        _exigir_gestion(actor, dispositivo)
+        validos = {par["valor"] for par in pares_persona_rol()}
+        if not pares or any(f"{usuario.pk}:{rol.pk}" not in validos for usuario, rol in pares):
+            raise ValidationError("Elegí personas y roles del listado.")
+        MiembroEquipoDispositivo.objects.bulk_create(
+            [
+                MiembroEquipoDispositivo(dispositivo=dispositivo, usuario=usuario, rol=rol, es_responsable=True)
+                for usuario, rol in dict.fromkeys(pares)
+            ]
+        )
 
 
 def cambiar_rol(*, actor, miembro, rol_nuevo):
@@ -176,3 +202,86 @@ def validar_responsables_al_crear(responsables):
     if not unicos:
         raise ValidationError("Indicá al menos un responsable del dispositivo.")
     return unicos
+
+
+def nombre_de_persona(usuario):
+    return usuario.get_full_name().strip() or usuario.get_username()
+
+
+def pares_persona_rol(dispositivo=None):
+    """Las opciones «Persona — Rol» que se pueden sumar al Equipo.
+
+    Una por usuario activo × rol activo del programa Dispositivos que la persona **tiene**, sin
+    el rol de agente de relevamiento (los agentes no integran el Equipo, decisión 5 del 410).
+    Con ``dispositivo`` salen las que ya están activas ahí. Devuelve diccionarios
+    ``{valor, usuario, rol, etiqueta}``; ``valor`` es ``"<usuario_pk>:<rol_pk>"``.
+    """
+
+    programa = programa_dispositivos()
+    if programa is None:
+        return []
+    enlaces = (
+        get_user_model()
+        .groups.through.objects.filter(
+            user__is_active=True,
+            group__meta__activo=True,
+            group__meta__programa=programa,
+        )
+        .exclude(group__meta__clave=CLAVE_ROL_AGENTE)
+        .select_related("user", "group")
+        .order_by("user__last_name", "user__first_name", "user__username", "group__name")
+    )
+    ocupadas = set()
+    if dispositivo is not None:
+        from programas.models import MiembroEquipoDispositivo
+
+        ocupadas = set(
+            MiembroEquipoDispositivo.objects.filter(dispositivo=dispositivo, activo=True).values_list(
+                "usuario_id", "rol_id"
+            )
+        )
+    pares = []
+    for enlace in enlaces:
+        if (enlace.user_id, enlace.group_id) in ocupadas:
+            continue
+        pares.append(
+            {
+                "valor": f"{enlace.user_id}:{enlace.group_id}",
+                "usuario": enlace.user,
+                "rol": enlace.group,
+                "etiqueta": f"{nombre_de_persona(enlace.user)} — {enlace.group.name}",
+            }
+        )
+    return pares
+
+
+def equipo_del_dispositivo(dispositivo):
+    """Los miembros activos del Equipo para la solapa, con ``vigente`` (el rol todavía vale).
+
+    Una sola consulta: «vigente» es la misma definición de ``membresias_vigentes`` (rol activo del
+    programa que la persona todavía tiene), resuelta con un ``Exists`` sobre la tabla de roles.
+    """
+
+    from programas.models import MiembroEquipoDispositivo
+
+    programa = programa_dispositivos()
+    tiene_el_rol = get_user_model().groups.through.objects.filter(
+        user_id=OuterRef("usuario_id"), group_id=OuterRef("rol_id")
+    )
+    miembros = list(
+        MiembroEquipoDispositivo.objects.filter(dispositivo=dispositivo, activo=True)
+        .select_related("usuario", "rol__meta")
+        .annotate(tiene_el_rol=Exists(tiene_el_rol))
+        .order_by("-es_responsable", "usuario__last_name", "usuario__first_name", "usuario__username", "rol__name")
+    )
+    for miembro in miembros:
+        meta = getattr(miembro.rol, "meta", None)
+        miembro.persona = nombre_de_persona(miembro.usuario)
+        miembro.vigente = bool(
+            miembro.tiene_el_rol
+            and meta is not None
+            and meta.activo
+            and programa is not None
+            and meta.programa_id == programa.pk
+        )
+    return miembros
