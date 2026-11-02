@@ -537,6 +537,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 411 | Dispositivos: solapa «Equipo» en el detalle y responsables obligatorios en el alta (PR B del Cambio 410) | Dispositivos (legajo P4, alta de institución) | `#ui` `#rbac` | PM — QA, task #690 (continuación del Cambio 410) | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 412 | Dispositivos: menores acumulados (aviso de reserva en «Confirmar», «Sumar como agente» sin nombre, botón duplicado, alerta de turnos, archivo viejo en P4, capa de `agentes`, test flaky) | Dispositivos · Usuarios (alta rápida) | `#ui` `#usuarios` | QA local del 02/11/2026 y auditorías de #1009, #1010 y #1018 | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 413 | Tablas de Dispositivos legibles a 390 px: columna de acciones fija y pista de scroll horizontal (canon de tabla) | Dispositivos · sistema de diseño | `#ui` | PM — QA 2 local de Dispositivos (A2-12, B-06, B2-07, A-13) | 02/11/2026 | 🟡 **En curso** | No requiere |
+| 414 | Dispositivos: menores de las auditorías de #1024 y #1026 (reactivar al ex responsable, un solo validador del Equipo, vigencia única, «y» en el aviso de reservas) | Dispositivos | `#rbac` `#datos` `#textos` | Auditorías de los PR #1024 (Equipo) y #1026 | 02/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51565,6 +51566,64 @@ A 390 px las tablas de Instituciones, Estadías y Tipos se cortan sin indicio de
 ## Validación
 
 `design_audit --ratchet`, `compile_templates --bloques`, `check_design_agent --changed`, `manage.py check` y tests de Dispositivos.
+
+## Historial
+
+- **02/11/2026 — alta del cambio.**
+
+# Cambio 414 — Dispositivos: menores de las auditorías de #1024 y #1026 (sin cambio de reglas, salvo un bug)
+
+🟡 **EN CURSO — 02/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (Equipo del dispositivo, ingreso) |
+| **Etiquetas** | `#rbac` `#datos` `#textos` |
+| **Solicitante** | Auditorías independientes de los PR #1024 y #1026 (hallazgos menores) |
+| **Fecha del pedido** | 02/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cerrar los seis menores que dejaron las auditorías de #1024 y #1026, sin cambiar reglas de negocio salvo el primero, que es un bug.
+
+## Alcance acordado
+
+**Entra:** (1) reactivar a un ex responsable con el interruptor apagado ya no lo deja responsable; (2) un solo validador de quién se puede sumar al Equipo; (3) la vigencia de la membresía escrita una vez; (4) sacar la validación de responsables que el formulario descartaba; (5) la solapa «equipo» entra en la medición de consultas del detalle; (6) el aviso de reservas une los nombres con «y».
+**Queda afuera:** cualquier cambio de reglas del Equipo; el techo de `scripts/perf_budgets.json` no cambia.
+
+## Decisiones tomadas
+
+1. **Bug de `sumar_miembro`**: al reactivar una fila existente se aplica `es_responsable` tal cual lo pasa quien suma (antes se hacía `o` con el valor viejo). Quien quiere dejarlo responsable lo tilda; el interruptor apagado ya no hereda la marca anterior.
+2. **Un validador**: `_exigir_pares_sumables(programa, pares)` aplica los mismos filtros que `pares_persona_rol` (usuario activo, rol activo del programa que la persona tiene, sin el rol de agente de relevamiento) acotado a lo elegido (`user_id__in`/`group_id__in`). Lo usan `sumar_miembro` y `sumar_responsables_al_crear`; el rol de agente y los usuarios inactivos ahora se rechazan también al sumar. `cambiar_rol` conserva `_validar_rol`.
+3. **Vigencia única**: `q_membresia_vigente(programa)` en `services/dispositivos.py` (la pertenencia al rol va con `Exists`, para no multiplicar filas en un `annotate`). La usan `membresias_vigentes`, `_responsables_activos` y `equipo_del_dispositivo` (una sola consulta, `annotate(vigente=Case(When(...)))`).
+4. `clean_responsables` ya no llama a `validar_responsables_al_crear`; la función y su test se retiran (el campo es obligatorio y el servicio revalida al escribir).
+
+## Implementación
+
+El Equipo se comporta igual que antes salvo el punto 1 y que sumar rechaza el rol de agente y a las personas inactivas. El aviso de «Confirmar» dice «en A, B y C».
+
+## Archivos
+
+`programas/services/equipo_dispositivo.py`, `programas/services/dispositivos.py`, `programas/forms.py`, `programas/views/dispositivos_ingreso.py`, `programas/tests/test_dispositivos_equipo_410.py`, `programas/tests/test_dispositivos_ingreso.py`, `programas/tests/test_dispositivos_fidelidad_ff.py`.
+
+## Base de datos
+
+No requiere.
+
+## Validación
+
+Test del punto 1 verificado por mutación (revertida la línea, falla; con el arreglo, pasa). Tests de Dispositivos, `--tag performance`, ruff, `manage.py check` y `makemigrations --check` en verde.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el PR. No hay datos que deshacer.
 
 ## Historial
 

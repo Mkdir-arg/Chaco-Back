@@ -553,13 +553,22 @@ class IngresoPlazaView(IngresoBaseView):
         return redirect(self.urls()["confirmar"])
 
 
+def _unir_con_y(nombres):
+    """«A», «A y B», «A, B y C»."""
+
+    nombres = list(nombres)
+    if len(nombres) <= 1:
+        return "".join(nombres)
+    return ", ".join(nombres[:-1]) + " y " + nombres[-1]
+
+
 def _aviso_reserva_en_otro_dispositivo(nombres, fuera_de_alcance):
     """El texto del aviso de «Confirmar»: la reserva en otro dispositivo se libera al confirmar (Cambio 412)."""
 
     if not nombres and not fuera_de_alcance:
         return ""
     if nombres and not fuera_de_alcance:
-        donde = "en " + " y en ".join(nombres) if len(nombres) <= 2 else "en " + ", ".join(nombres)
+        donde = "en " + _unir_con_y(nombres)
         plural = len(nombres) > 1
     else:
         donde = "en otro dispositivo de la red"

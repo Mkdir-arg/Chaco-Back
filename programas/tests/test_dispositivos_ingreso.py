@@ -9,6 +9,7 @@ import re
 from datetime import timedelta
 from unittest import mock
 
+from django.test import SimpleTestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -17,7 +18,7 @@ from programas.models import AsignacionDispositivo, Estadia, Plaza, ReservaPlaza
 from programas.services.bitacora import crear_turno
 from programas.services.estadias import ingresar_persona, reservar_plaza
 from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias, _permiso
-from programas.views.dispositivos_ingreso import IngresoBaseView
+from programas.views.dispositivos_ingreso import IngresoBaseView, _aviso_reserva_en_otro_dispositivo
 
 CAPACIDADES_INGRESO = (*CAPACIDADES_OPERATIVAS, "ciudadano.ver", "ciudadano.crear")
 
@@ -956,3 +957,26 @@ class AltaMinimaTests(BaseIngreso):
         self.assertTrue(huella_registro.startswith(f"registro:{self.DNI}:F:"))
         self.assertEqual(IngresoBaseView.huella_persona({"ciudadano_id": 7, "renaper": manual}), "legajo:7")
         self.assertEqual(IngresoBaseView.huella_persona({"sexo": "F"}), "")
+
+
+class AvisoReservaEnOtrosDispositivosTests(SimpleTestCase):
+    """Cambio 414: la lista de dispositivos se une como «A», «A y B», «A, B y C»."""
+
+    def test_une_los_nombres_con_y_antes_del_ultimo(self):
+        casos = {
+            ("Casa A",): "Tiene una reserva vigente en Casa A: al confirmar el ingreso se libera.",
+            ("Casa A", "Casa B"): "Tiene reservas vigentes en Casa A y Casa B: al confirmar el ingreso se liberan.",
+            ("Casa A", "Casa B", "Casa C"): (
+                "Tiene reservas vigentes en Casa A, Casa B y Casa C: al confirmar el ingreso se liberan."
+            ),
+        }
+        for nombres, esperado in casos.items():
+            with self.subTest(nombres=nombres):
+                self.assertEqual(_aviso_reserva_en_otro_dispositivo(list(nombres), False), esperado)
+
+    def test_con_otros_fuera_de_alcance_cierra_con_y_en_otro_dispositivo(self):
+        self.assertEqual(
+            _aviso_reserva_en_otro_dispositivo(["Casa A", "Casa B"], True),
+            "Tiene reservas vigentes en Casa A, Casa B y en otro dispositivo de la red: "
+            "al confirmar el ingreso se liberan.",
+        )
