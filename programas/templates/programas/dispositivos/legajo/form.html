@@ -62,7 +62,7 @@
               <th class="nodo-th">Día</th>
               <th class="nodo-th">Desde</th>
               <th class="nodo-th">Hasta</th>
-              <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+              <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
             </tr>
           </thead>
           <tbody data-franjas-filas>
@@ -71,7 +71,7 @@
               <td class="nodo-td text-heading font-medium">{{ franja.texto_dia }}{{ franja.dia.as_hidden }}{{ franja.hora_desde.as_hidden }}{{ franja.hora_hasta.as_hidden }}{% if franja.dia.errors %}<p class="mt-1 text-xs text-fg-danger">{{ franja.dia.errors|join:" " }}</p>{% endif %}</td>
               <td class="nodo-td">{{ franja.texto_desde }}{% if franja.hora_desde.errors %}<p class="mt-1 text-xs text-fg-danger">{{ franja.hora_desde.errors|join:" " }}</p>{% endif %}</td>
               <td class="nodo-td">{{ franja.texto_hasta }}{% if franja.hora_hasta.errors %}<p class="mt-1 text-xs text-fg-danger">{{ franja.hora_hasta.errors|join:" " }}</p>{% endif %}</td>
-              <td class="nodo-td text-right">
+              <td class="nodo-td nodo-col-acciones text-right">
                 <label class="inline-flex items-center gap-2 text-sm text-body" data-quitar-sin-js>{{ franja.DELETE }} Quitar</label>
                 <button type="button" class="btn-nodo btn-tertiary btn-sm btn-fit hidden" data-quitar aria-label="Quitar la franja del {{ franja.texto_dia|lower }} de {{ franja.texto_desde }} a {{ franja.texto_hasta }}">Quitar</button>
               </td>
@@ -353,7 +353,7 @@
     primera.classList.add('text-heading', 'font-medium');
     primera.append(oculto('dia', dia.value), oculto('hora_desde', desde.value), oculto('hora_hasta', hasta.value));
     const acciones = document.createElement('td');
-    acciones.className = 'nodo-td text-right';
+    acciones.className = 'nodo-td nodo-col-acciones text-right';
     const boton = document.createElement('button');
     boton.type = 'button';
     boton.className = 'btn-nodo btn-tertiary btn-sm btn-fit';

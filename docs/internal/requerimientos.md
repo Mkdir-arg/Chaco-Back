@@ -534,6 +534,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 408 | Dispositivos: «Sumar como agente» desde «Buscar agente» (reemplaza el «Queda afuera» y el Pendiente del Cambio 397: quien ya tiene cuenta puede recibir el rol de agente) | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 30/10/2026 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 409 | Dispositivos: reactivar un INACTIVO, el ingreso libera todas las reservas de la persona, clave de campo por enlace en el CSV y correcciones de la QA 2 (02/11) | Dispositivos (legajo P4, asistente de ingreso, sectores y plazas) · Usuarios (ABM, import CSV, alta rápida de agente) · API de campo | `#ui` `#rbac` `#datos` `#api` | PM — QA 2 local de Dispositivos del 02/11/2026 y MINOR de las auditorías de #1011 y #1012 (D1-D3, A2-07, A2-01, C2-04) | 02/11/2026 | 🟢 **Hecho** | No requiere |
 | 410 | Dispositivos: el alcance por Equipo de personas (`MiembroEquipoDispositivo`) y la capacidad `dispositivo.ver_todos` (PR A: modelo, regla y servicio, sin UI) | Dispositivos (alcance fino, RBAC) · Usuarios (ancla de capacidades) | `#rbac` `#datos` | PM — QA, task #690: un rol con ver/admitir no veía ningún dispositivo | 02/11/2026 | 🟡 **En curso** | Requiere |
+| 413 | Tablas de Dispositivos legibles a 390 px: columna de acciones fija y pista de scroll horizontal (canon de tabla) | Dispositivos · sistema de diseño | `#ui` | PM — QA 2 local de Dispositivos (A2-12, B-06, B2-07, A-13) | 02/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51199,6 +51200,48 @@ Se pierde el Equipo cargado (personas, roles y responsables). Nadie pierde acces
 
 - **02/11/2026 — alta del cambio.**
 ---
+
+# Cambio 413 — Tablas de Dispositivos legibles a 390 px: columna de acciones fija y pista de scroll
+
+🟡 **EN CURSO — 02/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (Instituciones, Estadías, Tipos, Relevamientos, Edificios) · sistema de diseño (tabla densa) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — QA 2 local de Dispositivos (A2-12, B-06, B2-07, A-13) |
+| **Fecha del pedido** | 02/11/2026 |
+| **Issue / épica** | — |
+| **Partes afectadas** | `static/custom/css/nodo-tables.css`, `static/custom/js/nodo-tables.js` (nuevo), `templates/includes/base.html`, templates de Dispositivos |
+| **Migración** | No requiere |
+
+## Pedido original
+
+A 390 px las tablas de Instituciones, Estadías y Tipos se cortan sin indicio de scroll: Estado y el menú de fila quedan fuera de pantalla.
+
+## Alcance acordado
+
+**Entra:** columna de acciones fija a la derecha con fondo sólido y sombra de borde que aparece solo cuando hay contenido oculto; se promueve al canon de tabla.
+**Queda afuera:** tarjetas por fila a 390 px y reordenar columnas (cambiarían el aspecto a 1440 px).
+
+## Decisiones tomadas
+
+1. **Opciones 1 + 2** (juez, por delegación del PM, 02/11/2026): `nodo-col-acciones` (`sticky right-0`) + `nodo-scroll-mas` puesta por `nodo-tables.js`, mejora progresiva y global.
+2. Sin cambio visual a 1440 px: sin overflow no hay sombra y la celda sticky pinta el mismo fondo que la fila.
+3. El Estado sigue pudiendo quedar a la derecha de la pantalla; la sombra avisa que hay más columnas.
+
+## Archivos
+
+- Canon: `.claude/design/componentes/tabla.md` y la fila «Tabla densa backoffice» de `.claude/agents/chaco-design-system.md`.
+- Dispositivos: `legajo/list.html`, `legajo/detail.html`, `legajo/form.html`, `config/tipo_list.html`, `config/_tipo_detail_content.html`, `relevamientos/list.html`.
+
+## Validación
+
+`design_audit --ratchet`, `compile_templates --bloques`, `check_design_agent --changed`, `manage.py check` y tests de Dispositivos.
+
+## Historial
+
+- **02/11/2026 — alta del cambio.**
 
 # Cambio 408 — «Sumar como agente» desde «Buscar agente» (Dispositivos)
 

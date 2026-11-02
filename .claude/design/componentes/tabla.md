@@ -51,6 +51,7 @@ reusado por la solapa del legajo), `programas/templates/programas/becas/reportes
   `DispositivosResponsiveFDTests` exige wrapper para cada tabla visible cuyo contenido no entra,
   compara capturas con y sin la posición del wrapper a 1440 px y mide ausencia de desborde
   a 390 px con nombres largos en P2, Tipos, Becas, Ciudadanos y Configuración.
+- **Tabla más ancha que la pantalla (390 px):** la columna de acciones lleva `nodo-col-acciones` en el `th` y en cada `td` (`<th class="nodo-th nodo-col-acciones text-right">`, `<td class="nodo-td nodo-col-acciones text-right">`): queda fija al borde derecho del wrapper con fondo sólido (`sticky right-0`; el hover de fila también la pinta), así el ⋮ no se pierde. `static/custom/js/nodo-tables.js` (mejora progresiva, global, cargado por el shell) marca el wrapper con `nodo-scroll-mas` mientras queda contenido oculto a la derecha y el CSS dibuja una sombra de borde en esa columna; sin JS solo falta la sombra. A pantalla ancha no hay overflow y no cambia nada. Toda tabla con columna de acciones la usa. Consumidores: Instituciones, Estadías, Tipos, Relevamientos y Edificios de Dispositivos.
 - La columna de acciones **no lleva el `<th>` vacío**:
   `<th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>`, porque una columna
   sin nombre no se anuncia.
