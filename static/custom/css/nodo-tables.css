@@ -64,6 +64,12 @@
     z-index: 1;
 }
 
+/* El menú ⋮ (position: fixed) vive dentro de la celda: mientras está abierto la celda sube,
+   o las celdas sticky de las filas siguientes lo taparían. */
+.nodo-col-acciones:has([data-menu-fila-trigger][aria-expanded="true"]) {
+    z-index: 2;
+}
+
 th.nodo-col-acciones {
     background: var(--bg-secondary);
 }

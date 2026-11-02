@@ -32,6 +32,7 @@
     } else {
         barrer();
     }
-    window.addEventListener('resize', barrer);
     document.addEventListener('alpine:initialized', barrer);
+    /* Para tablas que llegan después por AJAX (innerHTML): window.nodoTablas.barrer(). */
+    window.nodoTablas = { barrer: barrer };
 })();
