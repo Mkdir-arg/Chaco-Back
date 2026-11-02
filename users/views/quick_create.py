@@ -26,14 +26,18 @@ from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.inspecciones import (
     CAP_ASIGNAR,
     CAP_CREAR_AGENTE,
-    CLAVE_ROL_AGENTE,
     edificios_en_alcance,
 )
+from programas.services.sumar_agente import (
+    RolDeAgenteNoDisponible,
+    UsuarioNoSumable,
+    rol_de_agente,
+    sumar_rol_de_agente,
+)
 from users.forms import MENSAJE_DNI_DUPLICADO, UserCreationForm
-from users.models import RolMeta
 from users.selectors.usuarios import alcance_roles_ids
 from users.services.admin import UsuariosAdminService
-from users.services.agentes import correo_es_de_un_agente
+from users.services.agentes import DUENO_AGENTE, DUENO_SUMABLE, dueno_del_correo
 from users.services.busqueda import MIN_CARACTERES, nombre_para_mostrar
 from users.services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
 from users.services.territoriales import (
@@ -126,12 +130,18 @@ MENSAJE_DNI_TERRITORIAL = (
 #: Alta de agentes de relevamiento edilicio (Dispositivos). Cubeta por operador, como las del territorial.
 CUBETA_ALTA_AGENTE = "usuario_alta_agente"
 CUBETA_BUSCAR_AGENTE = "usuario_buscar_agente"
+CUBETA_SUMAR_AGENTE = "usuario_sumar_agente"
+SUMAS_AGENTE_POR_MINUTO = 20
 ALTAS_AGENTE_POR_MINUTO = 20
 #: Lo único que el operador de Dispositivos puede mandar en el alta: nada de roles, jerarquía ni segmentos.
 CAMPOS_ALTA_AGENTE = ("username", "email", "first_name", "last_name", "dni", "telefono")
 
 MENSAJE_CORREO_AGENTE_EXISTENTE = (
     "Ya hay un usuario con ese correo: buscalo en el paso «Buscar agente» en vez de crear uno nuevo."
+)
+
+MENSAJE_CORREO_USUARIO_SUMABLE = (
+    "Ese correo ya es de un usuario del sistema: buscalo en el paso «Buscar agente» y usá «Sumar como agente»."
 )
 
 MENSAJE_CORREO_USUARIO_NO_AGENTE = (
@@ -145,31 +155,6 @@ MENSAJE_DNI_AGENTE = (
 #: Qué se le dice a quien repite un DNI, por tipo de alta (la persona ya existe: hay que sumarle el rol, no duplicarla).
 #: Los tipos de backoffice no están: ven el texto genérico del ABM.
 MENSAJES_DNI_DUPLICADO = {"territorial": MENSAJE_DNI_TERRITORIAL, "agente": MENSAJE_DNI_AGENTE}
-
-#: En Dispositivos `programa.configurar` es delegable a propósito (da alcance total de configurador:
-#: `puede_configurar_dispositivos`, `dispositivos_en_alcance`), así que `puede_asignar_capacidades` no la frena.
-#: Un rol de agente que la tenga convertiría el alta en una vía para fabricar configuradores.
-CAPS_PROHIBIDAS_EN_ROL_DE_AGENTE = frozenset({"programa.configurar"})
-
-
-def _rol_de_agente():
-    """El grupo sembrado de agente (por clave) o ``None`` si no se lo puede dar de forma segura.
-
-    Se descarta si está inactivo, si dejó de ser de Dispositivos o si alguien le tildó una capacidad
-    que un operador de programa no puede repartir: el endpoint solo está pensado para dar el rol de
-    agente, no para fabricar administradores.
-    """
-    meta = RolMeta.objects.filter(clave=CLAVE_ROL_AGENTE, activo=True).select_related("grupo", "programa").first()
-    if meta is None or meta.categoria != rbac.CATEGORIA_PROGRAMA or meta.programa is None:
-        return None
-    if meta.programa.codigo != rbac.CODIGO_PROGRAMA_DISPOSITIVOS:
-        return None
-    capacidades = set(rbac.capacidades_de_grupo(meta.grupo))
-    if capacidades & CAPS_PROHIBIDAS_EN_ROL_DE_AGENTE:
-        return None
-    if not rbac.puede_asignar_capacidades(meta.programa, capacidades):
-        return None
-    return meta.grupo
 
 
 def _segmento_destino(request, valor):
@@ -246,6 +231,53 @@ def usuario_buscar_agente(request):
         return error_json(f"Escribí al menos {MIN_CARACTERES} caracteres.", status=400)
     resultados, hay_mas = buscar_agentes_de_relevamiento(edificio, texto)
     return ok_json(resultados=resultados, hay_mas=hay_mas)
+
+
+@login_required
+@require_POST
+def usuario_sumar_agente(request):
+    """Suma el rol de agente a alguien que ya tiene cuenta (Cambio 408), desde el paso «Buscar agente».
+
+    Mismo gate que el botón y la búsqueda (``inspeccion.agente.crear`` acotada a Dispositivos) y mismo alcance
+    sobre el edificio. **Da solo el rol sembrado de agente**; la escritura vive en
+    :func:`~programas.services.sumar_agente.sumar_rol_de_agente`. Idempotente: si ya lo tenía responde 200 sin
+    cambiar nada (``sumado: false``). El resultado trae ``asignable``: el personal de una institución del edificio
+    recibe el rol pero no es opción de ese relevamiento.
+    """
+    if not puede_en_programa_dispositivos(request.user, CAP_CREAR_AGENTE):
+        return error_json("No tiene permiso para sumar agentes.", status=403)
+    try:
+        edificio_id = int(request.POST.get("edificio_id") or "")
+    except ValueError:
+        return error_json("Elegí primero el edificio.", status=400)
+    edificio = edificios_en_alcance(request.user, CAP_ASIGNAR).filter(pk=edificio_id).first()
+    if edificio is None:
+        return error_json("No tenés alcance sobre ese edificio.", status=403)
+    if rate_limit_excedido(
+        request,
+        CUBETA_SUMAR_AGENTE,
+        SUMAS_AGENTE_POR_MINUTO,
+        sufijo=str(request.user.pk),
+        incluir_ip=False,
+    ):
+        return error_json("Hiciste muchas altas seguidas. Esperá un minuto y probá de nuevo.", status=429)
+    try:
+        usuario, sumado, asignable = sumar_rol_de_agente(request.user, edificio, request.POST.get("user_id"))
+    except UsuarioNoSumable as exc:
+        return error_json(exc.motivo, status=exc.estado)
+    except RolDeAgenteNoDisponible:
+        return error_json("El rol requerido no está configurado.", status=409)
+    nombre = nombre_para_mostrar(usuario)
+    if not asignable:
+        mensaje = (
+            f"{nombre} ahora es agente de relevamiento, pero no se le puede asignar este edificio: "
+            "es personal de una institución que lo ocupa."
+        )
+    elif sumado:
+        mensaje = f"{nombre} ahora es agente de relevamiento y queda seleccionado."
+    else:
+        mensaje = f"{nombre} ya era agente de relevamiento y queda seleccionado."
+    return ok_json(message=mensaje, sumado=sumado, asignable=asignable, user={"id": usuario.pk, "label": nombre})
 
 
 @login_required
@@ -387,7 +419,7 @@ def _alta_agente(request):
             {"ok": False, "message": "Hiciste muchas altas seguidas. Esperá un minuto y probá de nuevo."},
             status=429,
         )
-    rol = _rol_de_agente()
+    rol = rol_de_agente()
     if rol is None:
         return JsonResponse({"ok": False, "message": "El rol requerido no está configurado."}, status=409)
     # Lista blanca: solo los datos de la persona. Roles, contraseña, jerarquía y segmentos del POST se descartan.
@@ -398,9 +430,16 @@ def _alta_agente(request):
         # Decisión del 14-oct: el agente lleva correo obligatorio; el enlace de la clave viaja por ahí.
         mensaje = "El correo es obligatorio: la clave se le entrega por correo."
         return JsonResponse({"ok": False, "message": mensaje, "errors": {"email": [mensaje]}}, status=400)
-    es_agente = correo_es_de_un_agente(data["email"])
-    if es_agente is not None:
-        mensaje = MENSAJE_CORREO_AGENTE_EXISTENTE if es_agente else MENSAJE_CORREO_USUARIO_NO_AGENTE
+    dueno = dueno_del_correo(data["email"])
+    if dueno is not None:
+        # Cambio 408: quien aparece en «Buscar agente» (agente, o usuario activo sumable) va para allá; el
+        # «pedile al administrador» queda para quien la búsqueda no muestra (inactivo sin rol, ciudadano).
+        if dueno == DUENO_AGENTE:
+            mensaje = MENSAJE_CORREO_AGENTE_EXISTENTE
+        elif dueno == DUENO_SUMABLE:
+            mensaje = MENSAJE_CORREO_USUARIO_SUMABLE
+        else:
+            mensaje = MENSAJE_CORREO_USUARIO_NO_AGENTE
         # Cambio 409 (QA C2-04): sin esto «Crear agente nuevo» fabricaba un homónimo (mismo nombre y
         # correo) de alguien que ya tiene cuenta y se saltaba la regla de agente externo. No se dice de
         # quién es el correo: solo que existe y a dónde ir.
