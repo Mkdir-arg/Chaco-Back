@@ -43,6 +43,7 @@ from programas.services.sectores_plazas import (
     sectores_con_plazas,
 )
 from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias
+from programas.views.dispositivos_legajo import url_solapa_estadias
 
 PRESUPUESTOS = settings.BASE_DIR / "scripts" / "perf_budgets.json"
 CLAVE_PRESUPUESTO = "dispositivos_sectores_con_plazas"
@@ -278,13 +279,20 @@ class ReubicarDesdeElMapaTests(BaseMapa):
         self.assertEqual(movimiento.motivo, "Convivencia")
 
     def test_sin_volver_el_post_sigue_yendo_a_la_estadia(self):
-        respuesta = self._post_cambio(volver="")
+        respuesta = self._post_cambio(self.con_ciudadano, volver="")
 
         self.assertRedirects(
             respuesta,
             reverse("dispositivos:estadia_detalle", args=[self.cis.pk, self.estadia.pk]),
             fetch_redirect_response=False,
         )
+
+    def test_sin_volver_y_sin_ver_ciudadanos_vuelve_a_la_solapa_estadias(self):
+        """Cambio 407: el detalle de la estadía pide `ciudadano.ver`; no se manda ahí a quien no lo tiene."""
+
+        respuesta = self._post_cambio(volver="")
+
+        self.assertRedirects(respuesta, url_solapa_estadias(self.cis.pk), fetch_redirect_response=False)
 
     def test_el_mapa_cerrado_no_arma_el_formulario(self):
         respuesta = self._pantalla()

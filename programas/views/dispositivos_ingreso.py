@@ -41,8 +41,12 @@ from legajos.models import Ciudadano
 from programas.forms_ingreso import IngresoAltaMinimaForm, IngresoConfirmarForm, IngresoPersonaForm
 from programas.models import Dispositivo, Plaza
 from programas.services.bitacora import turno_vigente
-from programas.services.dispositivos import puede_operar_dispositivo
-from programas.services.estadias import CAP_ADMITIR, AlojamientoEnLaRed, verificar_alojamiento_en_red
+from programas.services.estadias import (
+    CAP_VER_CIUDADANO,
+    AlojamientoEnLaRed,
+    puede_ingresar_persona,
+    verificar_alojamiento_en_red,
+)
 from programas.services.ingreso import (
     buscar_ciudadano_por_dni,
     buscar_en_registro_de_personas,
@@ -61,7 +65,6 @@ from programas.services.ocupacion import (
 #: Una sola clave de sesión con un estado por dispositivo: `{"<pk>": {...}}`.
 CLAVE_SESION = "ingreso_asistente"
 #: Quien busca a la persona en el legajo necesita verla: es lo que muestra el asistente.
-CAP_VER_CIUDADANO = "ciudadano.ver"
 CAP_CREAR_CIUDADANO = "ciudadano.crear"
 
 AVISO_OTRA_PESTANA = (
@@ -84,9 +87,7 @@ class IngresoBaseView(LoginRequiredMixin, View):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
         self.dispositivo = get_object_or_404(Dispositivo.objects.select_related("tipo"), pk=kwargs["pk"])
-        if not puede_operar_dispositivo(request.user, self.dispositivo, CAP_ADMITIR) or not puede(
-            request.user, CAP_VER_CIUDADANO
-        ):
+        if not puede_ingresar_persona(request.user, self.dispositivo):
             raise PermissionDenied
         if self.dispositivo.estado != Dispositivo.Estado.ACTIVO:
             messages.error(request, "Solo se puede alojar en un dispositivo activo.")

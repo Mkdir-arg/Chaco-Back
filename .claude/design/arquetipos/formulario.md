@@ -83,8 +83,8 @@ solo pone etiqueta y error.
   Evidencia: `programas/templates/programas/dispositivos/legajo/form.html` (P3).
   Los asteriscos marcan requisitos para validar (`marca_requerido`, sin cambiar `required`); la bajada lo explica y el borrador admite incompletos.
   La coincidencia de nombre/localidad confirma con `ModernModal` canónico (`warning`, botón de marca); un error de búsqueda avisa con `window.toast`.
-  La localidad es un `Select` común del campo canónico (el buscador `nodo-buscador.js` solo
-  está cargado en el portal); un valor heredado fuera del catálogo se ofrece primero como
+  La localidad es un `Select` común del campo canónico (`nodo-buscador.js/css` se cargan en P3 solo para
+  los campos del formulario por tipo con presentación BUSCADOR, y se vuelven a montar al cambiar el tipo); un valor heredado fuera del catálogo se ofrece primero como
   «<valor> (cargado antes)». Horario de atención (solo informativo; no son los turnos de la Bitácora): las franjas guardadas van en la tabla canónica
   (`table w-full border-collapse` con `nodo-thead-row`/`nodo-th`, dentro de `overflow-x-auto`) con los campos ocultos del formset, y «Quitar»
   es `btn-tertiary btn-sm btn-fit`; la fila de carga usa el campo canónico en

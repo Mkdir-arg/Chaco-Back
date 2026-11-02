@@ -70,6 +70,7 @@ from programas.services.dispositivos import (
     dispositivos_visibles,
     enviar_a_validacion,
     enviar_desde_formulario,
+    estados_desde_los_que_se_envia,
     inactivar_dispositivo,
     observar_dispositivo,
     puede_configurar_dispositivos,
@@ -85,10 +86,12 @@ from programas.services.estadias import (
     CAP_ADMITIR,
     CAP_EDITAR,
     CAP_EGRESAR,
+    CAP_VER_CIUDADANO,
     asignar_plaza,
     cambiar_plaza,
     egresar_persona,
     liberar_reserva,
+    puede_ingresar_persona,
     reserva_abierta_de,
     reservar_plaza,
     sacar_plaza_de_servicio,
@@ -128,7 +131,6 @@ from programas.views.ajax_utils import ajax_redirect, is_ajax
 #: muestran un rótulo opaco (decisión PM 1, Cambios 324/325), y con ella el nombre va
 #: siempre como «Apellido, Nombre» (`Ciudadano.apellido_nombre`). Se declara acá arriba
 #: porque la usan tanto el detalle del dispositivo (P4) como el egreso y P7.
-CAP_VER_CIUDADANO = "ciudadano.ver"
 
 
 class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
@@ -400,6 +402,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         puede_cambiar = puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR)
         puede_ver_ciudadano = puede(user, CAP_VER_CIUDADANO)
         puede_validar = puede_operar_dispositivo(user, dispositivo, "dispositivo.validar")
+        puede_editar = puede_operar_dispositivo(user, dispositivo, "dispositivo.editar")
         con_plazas = maneja_plazas(dispositivo)
         for estadia in estadias:
             estadia.persona_visible = estadia.ciudadano.apellido_nombre if puede_ver_ciudadano else "Persona alojada"
@@ -461,10 +464,12 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 # Lo respondido en el formulario «Crear dispositivo» de su tipo (P17), leído
                 # con la foto de la versión respondida.
                 "formularios_respondidos": formularios_respondidos(dispositivo),
-                "puede_editar": puede_operar_dispositivo(user, dispositivo, "dispositivo.editar"),
+                "puede_editar": puede_editar,
+                "puede_enviar_validacion": puede_editar and dispositivo.estado in estados_desde_los_que_se_envia(),
                 "puede_validar": puede_validar,
                 "validacion_pendiente": puede_validar and dispositivo.estado == Dispositivo.Estado.PENDIENTE_VALIDACION,
-                "puede_admitir": puede_operar_dispositivo(user, dispositivo, "dispositivo.admitir"),
+                # Misma función que el gate del asistente: sin `ciudadano.ver` no se ofrece.
+                "puede_admitir": puede_ingresar_persona(user, dispositivo),
                 "puede_ver_ciudadano": puede_ver_ciudadano,
                 "puede_egresar": puede_egresar,
                 "url_ingreso": reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]),
@@ -1186,6 +1191,18 @@ def url_solapa_estadias(dispositivo_pk):
     return f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=estadias"
 
 
+def url_volver_a_la_estadia(user, dispositivo, estadia):
+    """El detalle de la estadía si quien vuelve puede verlo (`ciudadano.ver`); si no, la solapa Estadías.
+
+    Es la única regla del destino: el detalle muestra nombre, DNI y trayectoria del padrón y da 403 sin la
+    capacidad, así que no se manda ahí a quien acaba de egresar o cambiar de plaza sin poder verlo.
+    """
+
+    if puede(user, CAP_VER_CIUDADANO):
+        return reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
+    return url_solapa_estadias(dispositivo.pk)
+
+
 class DispositivoEstadiasView(LoginRequiredMixin, View):
     """Compatibilidad: la lista de personas alojadas pasó a la solapa Estadías del detalle.
 
@@ -1247,7 +1264,7 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
         """
 
         if request.POST.get("volver") == VOLVER_A_LA_ESTADIA:
-            return reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
+            return url_volver_a_la_estadia(request.user, dispositivo, estadia)
         return url_solapa_estadias(dispositivo.pk)
 
     @staticmethod
@@ -1408,7 +1425,7 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
         elif destino == "sectores":
             volver = reverse("dispositivos:sectores", args=[dispositivo.pk])
         else:
-            volver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
+            volver = url_volver_a_la_estadia(request.user, dispositivo, estadia)
 
         form = CambioPlazaForm(
             request.POST, estadia=estadia, sectores=_sectores_para_cambio(dispositivo), auto_id=AUTO_ID_CAMBIO
