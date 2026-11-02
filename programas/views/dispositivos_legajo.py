@@ -51,6 +51,7 @@ from programas.selectors.estadia_detalle import (
 from programas.selectors.estadia_detalle import (
     normalizar_solapa as normalizar_solapa_estadia,
 )
+from programas.selectors.personas_sugeridas import sugerir_personas
 from programas.services.detalle_dispositivo import (
     alertas_del_dispositivo,
     aviso_sin_ingresos,
@@ -949,8 +950,15 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         context["motivo_plaza_ocupada"] = MOTIVO_PLAZA_OCUPADA
         if not (puede_liberar or puede_configurar_plazas):
             return
-        context["form_reservar"] = ReservarPlazaForm(auto_id=AUTO_ID_PLAZA_RESERVAR)
-        context["form_prestar"] = PrestarPlazaForm(auto_id=AUTO_ID_PLAZA_PRESTAR)
+        # Las sugerencias de personas piden lo mismo que reservar y prestar (admitir + ver personas):
+        # a quien no las puede usar no se le ofrecen, y el campo queda como siempre.
+        url_sugerencias = (
+            reverse("dispositivos:personas_buscar", args=[dispositivo.pk])
+            if puede_liberar and puede(self.request.user, CAP_VER_CIUDADANO)
+            else None
+        )
+        context["form_reservar"] = ReservarPlazaForm(auto_id=AUTO_ID_PLAZA_RESERVAR, url_sugerencias=url_sugerencias)
+        context["form_prestar"] = PrestarPlazaForm(auto_id=AUTO_ID_PLAZA_PRESTAR, url_sugerencias=url_sugerencias)
         context["form_sacar"] = SacarPlazaDeServicioForm(auto_id=AUTO_ID_PLAZA_SACAR)
         context["form_liberar"] = LiberarPlazaForm(auto_id=AUTO_ID_PLAZA_LIBERAR)
         context["urls_plaza"] = {
@@ -1164,6 +1172,29 @@ class PlazaPrestarView(PlazaReservarView):
     form_class = PrestarPlazaForm
     mensaje_exito = "Plaza {plaza} prestada."
     tipo = ReservaPlaza.Tipo.PRESTAMO
+
+
+class PersonasSugeridasView(DispositivoProgramaPermissionMixin, View):
+    """Sugiere personas del Legajo mientras se escribe el DNI de «Reservar» y «Prestar» (Cambio 415).
+
+    Solo lectura y solo JSON. Pide **lo mismo que esas dos acciones**: `dispositivo.admitir` con
+    alcance al dispositivo y `ciudadano.ver`. Cada sugerencia lleva apellido, nombre y DNI, nada
+    más. El servidor sigue validando el DNI al guardar: esto solo completa el campo.
+    """
+
+    http_method_names = ["get"]
+    capacidad_requerida = CAP_ADMITIR
+
+    def get(self, request, pk):
+        dispositivo = get_object_or_404(Dispositivo, pk=pk)
+        if not puede_operar_dispositivo(request.user, dispositivo, CAP_ADMITIR) or not puede(
+            request.user, CAP_VER_CIUDADANO
+        ):
+            return JsonResponse({"ok": False, "message": "No tenés alcance sobre este dispositivo."}, status=403)
+        # Sin registrar lo tecleado: es un DNI o un apellido, dato personal.
+        respuesta = JsonResponse(sugerir_personas(request.GET.get("q", "")))
+        respuesta["Cache-Control"] = "no-store"
+        return respuesta
 
 
 class PlazaLiberarView(_PlazaAccionView):
