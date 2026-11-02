@@ -3,6 +3,8 @@
 {% load static nodo_ui %}
 {% block title %}Dispositivos · Sectores y plazas · {{ dispositivo.nombre }}{% endblock %}
 
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endblock %}
+
 {% block main-content %}
 {% comment %}P5 · Sectores y plazas. El mapa es `components/_mapa_plazas.html`: la celda con `click`
 es un botón que abre sin recargar el modal de la plaza (`abrirPlaza(<id>)`), armado una vez
@@ -331,4 +333,5 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_ajax_js.html" %}
-<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
+<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endblock %}

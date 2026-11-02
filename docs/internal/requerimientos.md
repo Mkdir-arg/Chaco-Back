@@ -538,6 +538,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 412 | Dispositivos: menores acumulados (aviso de reserva en «Confirmar», «Sumar como agente» sin nombre, botón duplicado, alerta de turnos, archivo viejo en P4, capa de `agentes`, test flaky) | Dispositivos · Usuarios (alta rápida) | `#ui` `#usuarios` | QA local del 02/11/2026 y auditorías de #1009, #1010 y #1018 | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 413 | Tablas de Dispositivos legibles a 390 px: columna de acciones fija y pista de scroll horizontal (canon de tabla) | Dispositivos · sistema de diseño | `#ui` | PM — QA 2 local de Dispositivos (A2-12, B-06, B2-07, A-13) | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 414 | Dispositivos: menores de las auditorías de #1024 y #1026 (reactivar al ex responsable, un solo validador del Equipo, vigencia única, «y» en el aviso de reservas) | Dispositivos | `#rbac` `#datos` `#textos` | Auditorías de los PR #1024 (Equipo) y #1026 | 02/11/2026 | 🟡 **En curso** | No requiere |
+| 415 | Sugerencias de personas mientras se escribe el DNI de Reservar y Prestar plaza (pieza reutilizable `nodo-sugerencias`) | Dispositivos · sistema de diseño | `#ui` `#rbac` `#datos` | PM — pedido del 02/11/2026 (modal de una plaza) | 02/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51538,6 +51539,71 @@ Test del punto 1 verificado por mutación (revertida la línea, falla; con el ar
 ## Pendientes / a definir
 
 Ninguno.
+
+## Reversión
+
+Revertir el PR. No hay datos que deshacer.
+
+## Historial
+
+- **02/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 415 — Sugerencias de personas mientras se escribe el DNI de Reservar y Prestar plaza
+
+🟡 **EN CURSO — 02/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (mapa de plazas) · sistema de diseño |
+| **Etiquetas** | `#ui` `#rbac` `#datos` |
+| **Solicitante** | PM — pedido del 02/11/2026 |
+| **Fecha del pedido** | 02/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En el modal de una plaza, el campo DNI de «Prestar» y de «Reservar» no sugiere nada mientras se escribe. Desde 3 números o letras tiene que mostrar la persona que coincide o la lista de coincidencias. Vale para todos los buscadores de personas; este PR trae la pieza y su uso en Prestar y Reservar, el resto va en el PR siguiente.
+
+## Alcance acordado
+
+**Entra:** un endpoint de solo lectura `dispositivos/<pk>/personas/buscar/?q=`, el selector que busca, la pieza de UI reutilizable `nodo-sugerencias` (JS + CSS + ficha + fila del agente canónico) y su uso en el DNI de Reservar y Prestar.
+**Queda afuera:** los demás buscadores de personas (PR siguiente); cambiar `ReservarPlazaForm.clean_dni` o `buscar_ciudadano_por_dni`, que siguen mandando.
+
+## Decisiones tomadas
+
+1. **Quién ve sugerencias:** quien puede reservar o prestar en ese dispositivo: `dispositivo.admitir` con alcance (`puede_operar_dispositivo`) más `ciudadano.ver`, la misma compuerta que `PlazaReservarView`/`PlazaPrestarView`. Sin eso, 403. Si el usuario no cumple, el modal ni siquiera pone la URL en el campo.
+2. **Qué muestra:** solo «Apellido, Nombre · DNI». El JSON trae únicamente `apellido`, `nombre` y `dni`, más `hay_mas`.
+3. **Cuántas:** mínimo 3 caracteres (menos, lista vacía) y tope de 10; con más avisa «Hay más resultados: escribí más datos».
+4. **Qué busca:** si lo tecleado son números (con o sin puntos), prefijo de DNI normalizado; si no, cada palabra es prefijo de apellido o de nombre (`istartswith`, sin función sobre la columna). No busca en el medio del texto, y no encuentra DNIs guardados con separadores (los que `buscar_ciudadano_por_dni` sí reconoce al guardar).
+5. **Sin coincidencias:** «No encontramos a nadie: dala de alta desde Ingresar persona.»
+6. **El servidor sigue validando como hoy.** La sugerencia solo completa el campo; sin JavaScript el campo funciona igual.
+7. **La pieza se carga solo en `sectores.html`**, no en `base.html`: no toca los snapshots de Becas. No hay clases de Tailwind nuevas (CSS propio con tokens), así que no se regenera el CSS compilado.
+8. **Logs:** la vista no registra lo tecleado y responde `Cache-Control: no-store`; pero el `?q=` del GET queda en el access log de nginx, igual que con los demás buscadores GET del repo. Decisión del juez: se queda en GET.
+9. **Una sola compuerta y un solo contrato:** `puede_reservar_o_prestar(user, dispositivo)` la usan las dos acciones, el endpoint y el armado de la URL; `core/forms_sugerencias.py` guarda `attrs_sugerencias(url)` y los textos, para que los demás buscadores los reusen.
+
+## Implementación
+
+`programas/selectors/personas_sugeridas.py` (consulta), `PersonasSugeridasView` en `programas/views/dispositivos_legajo.py` (orquesta) y la ruta `dispositivos:personas_buscar`. `ReservarPlazaForm` acepta `url_sugerencias` y pone los `data-sugerencias-*` en el campo. `static/custom/js/nodo-sugerencias.js`: debounce de 250 ms, consulta anterior cancelada con `AbortController`, combobox con `role=listbox`, flechas, Enter, Escape y `aria-activedescendant`, texto con `textContent`.
+
+## Archivos
+
+`programas/selectors/personas_sugeridas.py`, `programas/views/dispositivos_legajo.py`, `programas/dispositivos_urls.py`, `programas/forms_dispositivos.py`, `core/forms_sugerencias.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `static/custom/js/nodo-sugerencias.js`, `static/custom/css/nodo-sugerencias.css`, `.claude/design/componentes/sugerencias.md`, `.claude/agents/chaco-design-system.md`, `programas/tests/test_dispositivos_personas_sugeridas_415.py`.
+
+## Base de datos
+
+No requiere migración. La búsqueda usa los índices existentes de `dni`, `(apellido, nombre)` y `nombre`. El DNI va con `istartswith` (`LIKE`) y no con `startswith`: en MySQL/MariaDB este último es `LIKE BINARY` y recorre todo el índice (medido en 200k filas: 224 ms contra 0,03 ms). Un test lo fija compilando la consulta con el backend de MySQL. La consulta se acota a 100 caracteres y 5 palabras.
+
+## Validación
+
+Tests nuevos (alcance, capacidad, mínimo de 3, tope y `hay_mas`, claves exactas del JSON, prefijo por DNI, apellido y nombre). La compuerta se verificó por mutación: sin la verificación de capacidad y alcance, fallan los tests de otro dispositivo y de sin `ciudadano.ver`; con `dispositivo.ver` en lugar de `admitir`, falla el de sin admitir. Revertidas las mutaciones, pasan.
+
+## Pendientes / a definir
+
+El PR siguiente usa la pieza en los demás buscadores de personas.
 
 ## Reversión
 

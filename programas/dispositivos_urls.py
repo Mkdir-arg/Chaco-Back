@@ -82,6 +82,8 @@ urlpatterns = [
         legajo.PlazaPrestarView.as_view(),
         name="plaza_prestar",
     ),
+    # Sugerencias de personas para el DNI de reservar y prestar (solo lectura, JSON).
+    path("<int:pk>/personas/buscar/", legajo.PersonasSugeridasView.as_view(), name="personas_buscar"),
     path(
         "<int:pk>/plazas/<int:plaza_pk>/liberar/",
         legajo.PlazaLiberarView.as_view(),
