@@ -43,10 +43,10 @@ from programas.services.bitacora import (
 )
 from programas.services.bitacora_pantalla import pantalla_bitacora
 from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.estadias import CAP_VER_CIUDADANO
 from programas.views.ajax_utils import ajax_redirect, is_ajax
 
 CAP_VER = "dispositivo.ver"
-CAP_VER_CIUDADANO = "ciudadano.ver"
 
 
 class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):

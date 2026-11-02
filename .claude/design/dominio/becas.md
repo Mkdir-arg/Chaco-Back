@@ -27,7 +27,7 @@ los de Merenderos. El mapeo también puede vivir en el servicio o selector del m
 entrega texto y `tono` y el template dibuja `badge badge-dot badge-{{ tono }}` sin decidir nada:
 así lo hace la estadía de Dispositivos (`ESTADOS_VISIBLES` de `programas/services/estadias.py`,
 que leen el detalle del dispositivo, la solapa del legajo y el detalle de la estadía (P7)). De ese
-módulo, `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egreso, asignación y cambio de plaza) es dominio. **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
+módulo, `ESTADOS_VISIBLES` es contrato visual: el resto (ingreso, egreso, asignación, cambio de plaza, reserva y consulta de reservas abiertas) es dominio. **Apagado es gris, no rojo**: «Inactivo», «Cerrado» y «Sin datos» nunca van en
 `badge-danger` ni en `text-fg-danger`.
 
 Para la institución, `TONOS_ESTADO` y `estado_de_dispositivo` de
@@ -37,6 +37,7 @@ el template y obtiene el tono con el filtro `tono_estado_dispositivo`, que lee e
 `TONOS_ESTADO` (desconocido → gray). `estado_de_tipo` conserva Activo/success e Inactivo/gray en P14.
 «Enviar a validación» exige además los obligatorios visibles del formulario «Crear dispositivo»
 del tipo (`_exigir_formulario_del_tipo`), y sus faltantes entran al mismo resumen lateral de P3.
+«Enviar a validación» se ofrece desde borrador, observado y rechazado (`estados_desde_los_que_se_envia`; Cambio 407), y «Ingresar persona» solo a quien `puede_ingresar_persona` deja entrar (`dispositivo.admitir` con alcance y `ciudadano.ver`): el servicio es la fuente y el template solo lee la bandera. Un dispositivo inactivo se reactiva (`reactivar_dispositivo`, traza `REACTIVADO`, misma capacidad que inactivar; Cambio 409) y el cerrado no vuelve.
 Los tags `estado_dispositivo` y `estado_tipo_dispositivo` solo presentan esos datos, sin consultas.
 
 En `ESTADOS_VISIBLES`, una estadía activa se presenta como «Alojada» (`info`) y una

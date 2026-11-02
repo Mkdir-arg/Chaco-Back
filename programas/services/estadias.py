@@ -54,6 +54,13 @@ la plaza**. O sea que escribir una reserva toma la plaza aunque el código no la
 Por eso `liberar_reserva` bloquea la plaza antes de la reserva aunque no tenga nada que
 preguntarle. Lo verifica `programas.tests.test_dispositivos_concurrencia`.
 
+Con la persona va igual: `reservar_plaza` e `ingresar_persona` la bloquean **después** de la
+plaza y de la reserva. `ingreso.confirmar_ingreso`, que además cierra las otras reservas de la
+persona (de cualquier dispositivo), lo respeta: bloquea de una vez todas las plazas
+involucradas (las de esas reservas y la del ingreso) ordenadas por pk, después cada reserva, y
+recién entonces la persona; con ella bloqueada vuelve a leer sus reservas abiertas y, si
+apareció una nueva, rechaza el ingreso en vez de cerrarla a ciegas.
+
 Al ordenar candados hay que contemplar también los que toma InnoDB al modificar
 índices usados por una FK. `OrdenDeLosCandadosTests` fija el orden por la secuencia de
 llamadas en SQLite; `programas.tests.test_dispositivos_concurrencia` corre la carrera real.
@@ -86,6 +93,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.utils import timezone
 
+from core import rbac
 from legajos.models import Ciudadano
 from programas.models import (
     Dispositivo,
@@ -108,6 +116,24 @@ CAP_ADMITIR = "dispositivo.admitir"
 CAP_EGRESAR = "dispositivo.egresar"
 #: Sacar y reponer plazas es configuración de la capacidad instalada, no operación diaria.
 CAP_EDITAR = "dispositivo.editar"
+#: El asistente de ingreso muestra y busca personas del padrón: además de admitir pide verlas.
+#: Es también la capacidad que habilita **nombrar** a la persona: sin ella las pantallas del
+#: programa muestran un rótulo opaco (decisión PM 1, Cambios 324/325), y con ella el nombre va
+#: siempre como «Apellido, Nombre» (`Ciudadano.apellido_nombre`), en el detalle del dispositivo
+#: (P4), el egreso y P7.
+CAP_VER_CIUDADANO = "ciudadano.ver"
+
+
+def puede_ingresar_persona(user, dispositivo):
+    """Quién puede abrir el asistente de ingreso: `dispositivo.admitir` con alcance Y `ciudadano.ver`.
+
+    Es la única fuente de la regla: la vista del asistente la usa de gate y el detalle del
+    dispositivo la usa para ofrecer (o no) «Ingresar persona», así que el botón nunca
+    aparece donde el asistente respondería 403.
+    """
+
+    return puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR) and rbac.puede(user, CAP_VER_CIUDADANO)
+
 
 #: A quién se le pide que resuelva una estadía abierta fuera del alcance de quien pregunta.
 REFERENTE_FUERA_DE_ALCANCE = "la coordinación del Programa Dispositivos"
@@ -241,47 +267,6 @@ def _trazar(dispositivo, usuario, accion, *, estado_anterior="", estado_nuevo=""
     )
 
 
-def _reservas_que_toman(plaza, momento):
-    """Las reservas que toman la plaza desde ahora: las vigentes **y las que todavía no empezaron**.
-
-    No es `ReservaPlaza.objects.vigentes()`, y la diferencia es el MAJOR 2 de la revisión
-    de #802: `vigentes()` contesta «¿cuenta hoy en el mapa?» y mira un instante; acá la
-    pregunta es «¿puedo dar esta plaza?», que es un intervalo que arranca ahora y no
-    termina. Una reserva con `desde` dentro de una hora no cuenta hoy, pero si se aloja
-    a alguien encima, al llegar su `desde` la plaza queda ocupada **y** reservada, y el
-    mapa muestra `disponibles` negativos.
-
-    Lo único que libera la plaza es que la reserva haya **terminado**: resuelta
-    (consumida o liberada) o con `hasta` pasado. `reservar_plaza` ya no crea reservas a
-    futuro, así que esto es la red para las que entren por otro camino.
-    """
-
-    return ReservaPlaza.objects.filter(plaza=plaza, estado=ReservaPlaza.Estado.VIGENTE).filter(
-        Q(hasta__isnull=True) | Q(hasta__gte=momento)
-    )
-
-
-def reservas_abiertas(plaza_ids):
-    """Las reservas y préstamos **sin resolver** de esas plazas: ``VIGENTE``, venzan o no.
-
-    La tercera pregunta sobre una reserva, distinta de las otras dos:
-
-    * ``ReservaPlaza.objects.vigentes()`` contesta «¿cuenta hoy en el mapa?» y mira un
-      instante;
-    * :func:`_reservas_que_toman` contesta «¿puedo dar esta plaza?» y mira de ahora en
-      adelante;
-    * esta contesta **«¿queda algo que liberar?»**, y la respuesta no depende del
-      vencimiento: una reserva con el ``hasta`` pasado que nadie liberó sigue abierta.
-
-    Es justo el caso que enciende la alerta «Préstamo vencido sin liberar» de P4 —la plaza
-    ya cuenta como disponible y la reserva sigue ahí—, y por eso el mapa necesita esta
-    lectura y no la de `vigentes()`: con esa, la plaza de esa alerta sale «Disponible» y
-    la única acción que ofrecería sería sacarla de servicio, que no resuelve nada.
-    """
-
-    return ReservaPlaza.objects.filter(plaza_id__in=plaza_ids, estado=ReservaPlaza.Estado.VIGENTE)
-
-
 def reserva_abierta_de(plaza):
     """La reserva sin resolver de una plaza, o ``None``. La más vieja si hubiera más de una.
 
@@ -290,7 +275,7 @@ def reserva_abierta_de(plaza):
     queda.
     """
 
-    return reservas_abiertas([getattr(plaza, "pk", plaza)]).order_by("id").first()
+    return ReservaPlaza.objects.abiertas().filter(plaza=getattr(plaza, "pk", plaza)).order_by("id").first()
 
 
 def _plaza_tomada_por(plaza, *, excepto_reserva=None, momento=None):
@@ -302,7 +287,7 @@ def _plaza_tomada_por(plaza, *, excepto_reserva=None, momento=None):
 
     if Estadia.objects.activas().filter(plaza=plaza).exists():
         return "una estadía activa"
-    reservas = _reservas_que_toman(plaza, momento or timezone.now())
+    reservas = ReservaPlaza.objects.que_toman(momento).filter(plaza=plaza)
     if excepto_reserva is not None:
         reservas = reservas.exclude(pk=excepto_reserva.pk)
     reserva = reservas.first()
@@ -821,6 +806,7 @@ def reservar_plaza(*, plaza, ciudadano, usuario, tipo=ReservaPlaza.Tipo.RESERVA,
         # alcance: no se distingue «no existe» de «no es tuya».
         raise PermissionDenied("No tenés alcance para reservar plazas en este dispositivo.")
     plaza = _tomar_plaza(pk, dispositivo, momento=ahora)
+    _exigir_persona_sin_alojamiento_ni_reserva(ciudadano, dispositivo, usuario, momento=ahora)
 
     reserva = ReservaPlaza(
         plaza=plaza,
@@ -845,12 +831,66 @@ def reservar_plaza(*, plaza, ciudadano, usuario, tipo=ReservaPlaza.Tipo.RESERVA,
     return reserva
 
 
+#: La persona a la que se le quiere guardar una plaza ya tiene otra guardada en el dispositivo.
+PERSONA_CON_RESERVA = (
+    "La persona ya tiene {que} vigente en este dispositivo (plaza {plaza}). Liberala antes de guardarle otra plaza."
+)
+
+
+def _exigir_persona_sin_alojamiento_ni_reserva(ciudadano, dispositivo, usuario, *, momento):
+    """A quien no está adentro y no tiene ya otra plaza guardada aquí se le puede guardar una.
+
+    Se llama con la **plaza ya bloqueada**, y bloquea la fila de la persona: dos reservas
+    simultáneas a la misma persona en plazas distintas se serializan acá, en el mismo orden
+    que el ingreso (plaza y después persona). Los errores caen sobre `ciudadano`; la vista
+    del modal los muestra en el campo del DNI.
+
+    * **Estadía abierta, en cualquier dispositivo de la red**: el mismo criterio que
+      `ingresar_persona` (`verificar_alojamiento_en_red`, con su recorte por alcance). Guardar
+      una plaza para quien ya está alojada bloquea un lugar que nadie va a usar.
+    * **Reserva o préstamo vigente, en este dispositivo**: el alcance es el dispositivo y no la
+      red porque la reserva es de la institución que la tomó —es quien la puede liberar— y
+      preguntar por las de otras instituciones diría, a quien no las ve, que la persona figura
+      en su lista. Es el mismo alcance con el que el ingreso cierra las reservas de la persona.
+    """
+
+    Ciudadano.objects.select_for_update().only("pk").get(pk=ciudadano.pk)
+    verificacion = verificar_alojamiento_en_red(ciudadano, usuario)
+    if verificacion.alojada:
+        raise ValidationError({"ciudadano": verificacion.mensaje})
+    propia = reserva_propia_vigente(ciudadano.pk, dispositivo, momento)
+    if propia is not None:
+        que = "un préstamo" if propia.tipo == ReservaPlaza.Tipo.PRESTAMO else "una reserva"
+        raise ValidationError({"ciudadano": PERSONA_CON_RESERVA.format(que=que, plaza=propia.plaza.codigo)})
+
+
+def reserva_propia_vigente(ciudadano_id, dispositivo, momento=None):
+    """La reserva o préstamo vigente de la persona en el dispositivo, o ``None``. Sin bloquear nada.
+
+    Es la que el ingreso de esa persona consume: su plaza es elegible para ella aunque el mapa
+    la cuente como tomada.
+    """
+
+    return (
+        ReservaPlaza.objects.que_toman(momento)
+        .filter(ciudadano_id=ciudadano_id, plaza__sector__dispositivo_id=dispositivo.pk)
+        .select_related("plaza")
+        .order_by("id")
+        .first()
+    )
+
+
 @transaction.atomic
-def liberar_reserva(*, reserva, usuario, motivo=""):
-    """Suelta una reserva o un préstamo antes de su vencimiento."""
+def liberar_reserva(*, reserva, usuario, motivo="", verificar_alcance=True):
+    """Suelta una reserva o un préstamo antes de su vencimiento.
+
+    `verificar_alcance=False` es solo para el ingreso, que cierra las reservas de la persona
+    en **otros** dispositivos donde quien ingresa puede no tener alcance: no es una decisión
+    del operador sobre esa plaza sino la consecuencia de que la persona ya está adentro.
+    """
 
     dispositivo = reserva.plaza.sector.dispositivo
-    if not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
+    if verificar_alcance and not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
         raise PermissionDenied("No tenés alcance para liberar plazas en este dispositivo.")
 
     # Plaza y después reserva, igual que el ingreso: el UPDATE de estado puede tomar

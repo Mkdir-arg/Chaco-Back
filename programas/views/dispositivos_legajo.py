@@ -76,6 +76,7 @@ from programas.services.dispositivos import (
     puede_en_programa_dispositivos,
     puede_enviar_desde_formulario,
     puede_operar_dispositivo,
+    reactivar_dispositivo,
     rechazar_dispositivo,
     registrar_alta_dispositivo,
     registrar_edicion_dispositivo,
@@ -85,10 +86,12 @@ from programas.services.estadias import (
     CAP_ADMITIR,
     CAP_EDITAR,
     CAP_EGRESAR,
+    CAP_VER_CIUDADANO,
     asignar_plaza,
     cambiar_plaza,
     egresar_persona,
     liberar_reserva,
+    puede_ingresar_persona,
     reserva_abierta_de,
     reservar_plaza,
     sacar_plaza_de_servicio,
@@ -106,6 +109,7 @@ from programas.services.inspecciones import (
     semaforos_de_dispositivos,
 )
 from programas.services.ocupacion import ocupacion_de_plazas, tension_de_ocupacion
+from programas.services.plazas import motivo_sin_ampliar_capacidad, puede_configurar_plazas
 from programas.services.reportes import filtrar_dispositivos
 from programas.services.respuestas_dispositivo import formularios_respondidos, guardar_respuestas_alta
 from programas.services.sectores_plazas import (
@@ -122,12 +126,6 @@ from programas.services.sectores_plazas import (
     sectores_con_plazas,
 )
 from programas.views.ajax_utils import ajax_redirect, is_ajax
-
-#: La capacidad que habilita **nombrar** a la persona. Sin ella las pantallas del programa
-#: muestran un rótulo opaco (decisión PM 1, Cambios 324/325), y con ella el nombre va
-#: siempre como «Apellido, Nombre» (`Ciudadano.apellido_nombre`). Se declara acá arriba
-#: porque la usan tanto el detalle del dispositivo (P4) como el egreso y P7.
-CAP_VER_CIUDADANO = "ciudadano.ver"
 
 
 class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
@@ -399,6 +397,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         puede_cambiar = puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR)
         puede_ver_ciudadano = puede(user, CAP_VER_CIUDADANO)
         puede_validar = puede_operar_dispositivo(user, dispositivo, "dispositivo.validar")
+        puede_editar = puede_operar_dispositivo(user, dispositivo, "dispositivo.editar")
         con_plazas = maneja_plazas(dispositivo)
         for estadia in estadias:
             estadia.persona_visible = estadia.ciudadano.apellido_nombre if puede_ver_ciudadano else "Persona alojada"
@@ -460,10 +459,12 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 # Lo respondido en el formulario «Crear dispositivo» de su tipo (P17), leído
                 # con la foto de la versión respondida.
                 "formularios_respondidos": formularios_respondidos(dispositivo),
-                "puede_editar": puede_operar_dispositivo(user, dispositivo, "dispositivo.editar"),
+                "puede_editar": puede_editar,
+                "puede_enviar_validacion": puede_enviar_desde_formulario(user, dispositivo),
                 "puede_validar": puede_validar,
                 "validacion_pendiente": puede_validar and dispositivo.estado == Dispositivo.Estado.PENDIENTE_VALIDACION,
-                "puede_admitir": puede_operar_dispositivo(user, dispositivo, "dispositivo.admitir"),
+                # Misma función que el gate del asistente: sin `ciudadano.ver` no se ofrece.
+                "puede_admitir": puede_ingresar_persona(user, dispositivo),
                 "puede_ver_ciudadano": puede_ver_ciudadano,
                 "puede_egresar": puede_egresar,
                 "url_ingreso": reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]),
@@ -737,6 +738,14 @@ class DispositivoInactivarView(DispositivoActionView):
         inactivar_dispositivo(dispositivo, request.user)
 
 
+class DispositivoReactivarView(DispositivoActionView):
+    capacidad_requerida = "dispositivo.editar"
+    mensaje_exito = "Dispositivo reactivado."
+
+    def ejecutar(self, dispositivo, request):
+        reactivar_dispositivo(dispositivo, request.user)
+
+
 class DispositivoCerrarView(DispositivoActionView):
     capacidad_requerida = "dispositivo.editar"
     mensaje_exito = "Dispositivo cerrado."
@@ -792,14 +801,14 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         dispositivo = self.object = self.get_object()
         usuario = request.user
         puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
-        puede_configurar_plazas = puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR)
+        configura_plazas = puede_configurar_plazas(usuario, dispositivo)
         pk = _entero(request.GET.get("plaza", ""))
         accion = (
             plaza_para_accion(
                 dispositivo,
                 pk,
                 puede_liberar=puede_liberar,
-                puede_configurar_plazas=puede_configurar_plazas,
+                puede_configurar_plazas=configura_plazas,
                 puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
             )
             if pk is not None
@@ -810,7 +819,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         context = {
             "dispositivo": dispositivo,
             "plaza_accion": accion,
-            "puede_configurar_plazas": puede_configurar_plazas,
+            "puede_configurar_plazas": configura_plazas,
         }
         if not self._preparar_reubicar(context, dispositivo, accion):
             raise Http404
@@ -821,13 +830,13 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         dispositivo = self.object
         usuario = self.request.user
         puede_liberar = puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR)
-        puede_configurar_plazas = puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR)
+        configura_plazas = puede_configurar_plazas(usuario, dispositivo)
 
         context.update(
             sectores_con_plazas(
                 dispositivo,
                 puede_liberar=puede_liberar,
-                puede_configurar_plazas=puede_configurar_plazas,
+                puede_configurar_plazas=configura_plazas,
                 puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
             )
         )
@@ -837,10 +846,12 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
             {"label": "Sectores y plazas", "url": ""},
         ]
-        context["puede_configurar_plazas"] = puede_configurar_plazas
-        self._preparar_modal_de_plaza(context, dispositivo, puede_liberar, puede_configurar_plazas)
-        self._preparar_modal(context, dispositivo, puede_liberar, puede_configurar_plazas)
-        self._preparar_modales_de_configuracion(context, dispositivo, puede_configurar_plazas)
+        context["puede_configurar_plazas"] = configura_plazas
+        # Las altas (sector nuevo, lote de plazas) solo se ofrecen donde el servicio las admite.
+        context["puede_ampliar_capacidad"] = configura_plazas and not motivo_sin_ampliar_capacidad(dispositivo)
+        self._preparar_modal_de_plaza(context, dispositivo, puede_liberar, configura_plazas)
+        self._preparar_modal(context, dispositivo, puede_liberar, configura_plazas)
+        self._preparar_modales_de_configuracion(context, dispositivo, configura_plazas)
         return context
 
     def _preparar_modales_de_configuracion(self, context, dispositivo, puede_configurar_plazas):
@@ -857,8 +868,9 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         # Las altas no dependen de un registro: llegan con la página y las abre el botón, sin el
         # viaje al servidor que se veía como un F5. El alta del sector lleva su propio auto_id
         # porque convive con «Editar sector», que es el mismo formulario.
-        context["form_sector_nuevo"] = SectorForm(auto_id="id_nuevo_%s")
-        context["url_sector_nuevo"] = reverse("dispositivos:sector_crear", args=[dispositivo.pk])
+        if context["puede_ampliar_capacidad"]:
+            context["form_sector_nuevo"] = SectorForm(auto_id="id_nuevo_%s")
+            context["url_sector_nuevo"] = reverse("dispositivos:sector_crear", args=[dispositivo.pk])
         pedido = self.request.GET.get("sector", "")
         # `?sector=nuevo` es el enlace de antes al alta: se ignora en vez de avisar que ese
         # sector no se puede editar.
@@ -872,7 +884,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
                 context["form_sector"] = SectorForm(sector=sector)
                 context["url_sector"] = reverse("dispositivos:sector_editar", args=[dispositivo.pk, sector.pk])
 
-        if context["sectores"]:
+        if context["sectores"] and context["puede_ampliar_capacidad"]:
             context["form_plazas"] = AgregarPlazasForm(
                 dispositivo=dispositivo,
                 sectores=Sector.objects.filter(dispositivo=dispositivo, activo=True),
@@ -1016,6 +1028,8 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
     mensaje_exito = ""
     #: Reservar y prestar buscan a la persona por DNI en el padrón: piden también `ciudadano.ver`.
     requiere_ver_ciudadanos = False
+    #: Campo del servicio → campo del modal, cuando el modal lo pide con otro nombre.
+    alias_de_campos = {}
 
     def post(self, request, pk, plaza_pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
@@ -1048,27 +1062,32 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
                 return JsonResponse({"ok": False, "message": "No tenés alcance sobre este dispositivo."}, status=403)
             raise
         except ValidationError as error:
-            return self._rechazar(request, self._errores_del_servicio(error, form), volver)
-        mensaje = self.mensaje_exito.format(plaza=plaza.codigo)
+            return self._rechazar(request, self._errores_del_servicio(error, form, self.alias_de_campos), volver)
+        mensaje = self.mensaje(plaza)
         if is_ajax(request):
             return ajax_redirect(request, volver, mensaje)
         messages.success(request, mensaje)
         return redirect(volver)
 
+    def mensaje(self, plaza):
+        return self.mensaje_exito.format(plaza=plaza.codigo)
+
     @staticmethod
-    def _errores_del_servicio(error, form):
+    def _errores_del_servicio(error, form, alias_de_campos=None):
         """Lo que el servicio rechaza, en la forma `{campo: [mensajes]}` del modal.
 
         Una clave que el formulario no tiene —`estado` cuando la reserva ya se liberó,
         `plaza` cuando quedó tomada— va al error general, el único lugar donde el modal la
-        puede mostrar.
+        puede mostrar. `alias_de_campos` traduce antes los nombres del servicio a los del modal.
         """
 
         if not hasattr(error, "error_dict"):
             return {"__all__": list(error.messages)}
         campos = form.fields if form else {}
+        alias = alias_de_campos or {}
         errores = {}
         for campo, mensajes in error.message_dict.items():
+            campo = alias.get(campo, campo)
             destino = campo if campo in campos else "__all__"
             errores.setdefault(destino, []).extend(mensajes)
         return errores
@@ -1088,6 +1107,8 @@ class PlazaReservarView(_PlazaAccionView):
 
     capacidad_requerida = CAP_ADMITIR
     requiere_ver_ciudadanos = True
+    # El servicio habla de la persona; el modal la pide por DNI: ese error va a ese campo.
+    alias_de_campos = {"ciudadano": "dni"}
     form_class = ReservarPlazaForm
     mensaje_exito = "Plaza {plaza} reservada."
     tipo = ReservaPlaza.Tipo.RESERVA
@@ -1144,9 +1165,17 @@ class PlazaVolverAServicioView(_PlazaAccionView):
 
     capacidad_requerida = CAP_EDITAR
     mensaje_exito = "Plaza {plaza} de nuevo en servicio."
+    mensaje_sin_cambio = "La plaza {plaza} ya estaba en servicio: no hubo nada que cambiar."
 
     def ejecutar(self, request, plaza, datos):
+        # Lo que el pedido encontró al llegar: si otro la repuso antes, no se anuncia un cambio
+        # que no hizo este usuario. El servicio es idempotente y no deja traza en ese caso.
+        self.ya_estaba = plaza.estado == Plaza.Estado.OPERATIVA
         volver_plaza_a_servicio(plaza=plaza, usuario=request.user)
+
+    def mensaje(self, plaza):
+        plantilla = self.mensaje_sin_cambio if self.ya_estaba else self.mensaje_exito
+        return plantilla.format(plaza=plaza.codigo)
 
 
 # Egreso (MVP v2, etapa 2 · #691). El egreso muta estado: solo POST con CSRF. La regla de fondo
@@ -1163,6 +1192,18 @@ def url_solapa_estadias(dispositivo_pk):
     """El detalle del dispositivo abierto en la solapa Estadías."""
 
     return f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=estadias"
+
+
+def url_volver_a_la_estadia(user, dispositivo, estadia):
+    """El detalle de la estadía si quien vuelve puede verlo (`ciudadano.ver`); si no, la solapa Estadías.
+
+    Es la única regla del destino: el detalle muestra nombre, DNI y trayectoria del padrón y da 403 sin la
+    capacidad, así que no se manda ahí a quien acaba de egresar o cambiar de plaza sin poder verlo.
+    """
+
+    if puede(user, CAP_VER_CIUDADANO):
+        return reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
+    return url_solapa_estadias(dispositivo.pk)
 
 
 class DispositivoEstadiasView(LoginRequiredMixin, View):
@@ -1226,7 +1267,7 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
         """
 
         if request.POST.get("volver") == VOLVER_A_LA_ESTADIA:
-            return reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
+            return url_volver_a_la_estadia(request.user, dispositivo, estadia)
         return url_solapa_estadias(dispositivo.pk)
 
     @staticmethod
@@ -1387,7 +1428,7 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
         elif destino == "sectores":
             volver = reverse("dispositivos:sectores", args=[dispositivo.pk])
         else:
-            volver = reverse("dispositivos:estadia_detalle", args=[dispositivo.pk, estadia.pk])
+            volver = url_volver_a_la_estadia(request.user, dispositivo, estadia)
 
         form = CambioPlazaForm(
             request.POST, estadia=estadia, sectores=_sectores_para_cambio(dispositivo), auto_id=AUTO_ID_CAMBIO

@@ -1,4 +1,4 @@
-"""Sumar el rol de agente de relevamiento a quien ya tiene cuenta (Cambio 404).
+"""Sumar el rol de agente de relevamiento a quien ya tiene cuenta (Cambio 408).
 
 Lo usa el paso «Buscar agente» del modal de alta rápida de Dispositivos: si la persona existe pero no tiene el rol
 sembrado «Dispositivos — Agente de relevamiento», el operador con ``inspeccion.agente.crear`` se lo suma.
@@ -85,7 +85,7 @@ def sumar_rol_de_agente(operador, edificio, user_id):
         sumado = not usuario.groups.filter(pk=rol.pk).exists()
         if sumado:
             usuario.groups.add(rol)
-            # Solo ids, sin nombre, DNI ni correo. Falta una traza persistente de cambios de roles (Cambio 404).
+            # Solo ids, sin nombre, DNI ni correo. Falta una traza persistente de cambios de roles (Cambio 408).
             logger.info(
                 "Rol de agente de relevamiento sumado: operador_id=%s usuario_id=%s rol_id=%s edificio_id=%s",
                 operador.pk,

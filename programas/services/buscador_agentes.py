@@ -56,7 +56,7 @@ def buscar_agentes_de_relevamiento(edificio, texto):
             usuarios.filter(is_superuser=False).annotate(_con_rol=con_rol, _ciudadano=es_ciudadano),
             texto,
         )
-        # Con el rol (activo o no, como en el 397) o sin él pero activo y del backoffice (sumable, Cambio 404).
+        # Con el rol (activo o no, como en el 397) o sin él pero activo y del backoffice (sumable, Cambio 408).
         .filter(Q(_con_rol=True) | (Q(is_active=True) & Q(_ciudadano=False)))
         .select_related("profile")
         .order_by("last_name", "first_name", "pk")[: TOPE_RESULTADOS + 1]

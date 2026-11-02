@@ -14,7 +14,8 @@ El asterisco marca lo que exige «Enviar a validación», no el guardado.
 {% if formulario_tipo %}
 <input type="hidden" name="formulario_tipo_diseno" value="{{ formulario_tipo.diseno.pk }}">
 {{ formulario_tipo.planos|json_script:"formulario-tipo-items" }}
-<section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden mt-5" aria-labelledby="titulo-formulario-tipo">
+{# Sin overflow-hidden: la lista desplegable del buscador (nodo-buscador) se abre hacia abajo y la tarjeta la recortaba (V-02). #}
+<section class="bg-white rounded-xl border border-base shadow-sm mt-5" aria-labelledby="titulo-formulario-tipo">
   <div class="px-5 py-4 border-b border-light">
     <h2 id="titulo-formulario-tipo" class="text-heading font-bold">Formulario de ingreso</h2>
     <p class="mt-1 text-xs text-body-subtle">Lo pide el tipo «{{ formulario_tipo.diseno.tipo_dispositivo.nombre }}». Los campos con * hacen falta para enviar a validación.</p>
@@ -29,7 +30,7 @@ El asterisco marca lo que exige «Enviar a validación», no el guardado.
     {% if fila.tipo == "texto" %}
     <p class="text-sm text-body sm:col-span-2" data-item="{{ fila.clave }}">{{ fila.texto|urlize }}</p>
     {% else %}
-    <div data-item="{{ fila.clave }}" data-campo{% if fila.obligatorio %} data-obligatorio data-texto="{{ fila.bound.label }}"{% endif %}{% if fila.archivo_guardado %} data-valor="{{ fila.archivo_guardado }}"{% endif %} class="{% if fila.es_checks %}nodo-checks sm:col-span-2{% endif %}">
+    <div data-item="{{ fila.clave }}" data-campo{% if fila.obligatorio %} data-obligatorio data-texto="{{ fila.bound.label }}"{% endif %}{% if fila.archivo_guardado %} data-valor="{{ fila.archivo_guardado }}"{% endif %} class="break-words{% if fila.es_checks %} nodo-checks sm:col-span-2{% endif %}">
       {% include "components/_field.html" with field=fila.bound wrapper_class="" %}
       {% if fila.archivo_guardado %}<p class="mt-1 text-xs text-body-subtle">Ya cargado: {{ fila.archivo_guardado }}. Subí otro solo si lo querés reemplazar.</p>{% endif %}
     </div>

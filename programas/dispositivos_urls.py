@@ -28,6 +28,7 @@ urlpatterns = [
     path("<int:pk>/observar/", legajo.DispositivoObservarView.as_view(), name="observar"),
     path("<int:pk>/rechazar/", legajo.DispositivoRechazarView.as_view(), name="rechazar"),
     path("<int:pk>/inactivar/", legajo.DispositivoInactivarView.as_view(), name="inactivar"),
+    path("<int:pk>/reactivar/", legajo.DispositivoReactivarView.as_view(), name="reactivar"),
     path("<int:pk>/cerrar/", legajo.DispositivoCerrarView.as_view(), name="cerrar"),
     path("<int:pk>/", legajo.DispositivoDetailView.as_view(), name="detalle"),
     path("<int:pk>/editar/", legajo.DispositivoUpdateView.as_view(), name="editar"),

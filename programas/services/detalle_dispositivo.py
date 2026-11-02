@@ -86,7 +86,7 @@ _AVISO_SIN_INGRESOS = {
     Dispositivo.Estado.BORRADOR: "Está en borrador: admite ingresos cuando se envíe a validación y se valide.",
     Dispositivo.Estado.PENDIENTE_VALIDACION: "Está pendiente de validación: admite ingresos cuando se valide.",
     Dispositivo.Estado.OBSERVADO: "Está observado: hay que corregir los datos y volver a enviarlo a validación.",
-    Dispositivo.Estado.RECHAZADO: "Fue rechazado en la validación: no admite ingresos.",
+    Dispositivo.Estado.RECHAZADO: "Fue rechazado en la validación: no admite ingresos. Corregí los datos y volvé a enviarlo a validación.",
     Dispositivo.Estado.INACTIVO: "Está inactivo: no admite ingresos mientras siga así.",
     Dispositivo.Estado.CERRADO: "Está cerrado: el legajo se conserva, pero no admite ingresos ni otras operaciones.",
 }

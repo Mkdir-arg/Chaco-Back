@@ -1,4 +1,4 @@
-"""«Sumar como agente» desde «Buscar agente» (Dispositivos · 30-oct-2026, Cambio 404).
+"""«Sumar como agente» desde «Buscar agente» (Dispositivos · 30-oct-2026, Cambio 408).
 
 Lo que se fija acá, y por qué:
 

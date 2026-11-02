@@ -205,11 +205,21 @@ def campos_para_validacion():
     return _CAMPOS_REQUERIDOS_VALIDACION
 
 
-def puede_enviar_desde_formulario(usuario, dispositivo):
-    """Una institución nueva todavía no tiene asignaciones: exige alcance total."""
+def estados_desde_los_que_se_envia():
+    """Estados desde los que se (re)envía a validación: borrador, observado y rechazado.
+
+    El rechazado se corrige y vuelve a enviarse (decisión del PM, 30/10/2026, Cambio 407).
+    Una sola fuente para el servicio, el formulario y el botón del detalle.
+    """
     from programas.models import Dispositivo
 
-    if dispositivo.estado not in (Dispositivo.Estado.BORRADOR, Dispositivo.Estado.OBSERVADO):
+    return (Dispositivo.Estado.BORRADOR, Dispositivo.Estado.OBSERVADO, Dispositivo.Estado.RECHAZADO)
+
+
+def puede_enviar_desde_formulario(usuario, dispositivo):
+    """Una institución nueva todavía no tiene asignaciones: exige alcance total."""
+
+    if dispositivo.estado not in estados_desde_los_que_se_envia():
         return False
     if not dispositivo.pk:
         return puede_configurar_dispositivos(usuario) and puede_en_programa_dispositivos(usuario, "dispositivo.editar")
@@ -228,7 +238,11 @@ def enviar_desde_formulario(dispositivo, usuario):
 def _exigir_campos_para_validacion(dispositivo):
     faltantes = [campo for campo in campos_para_validacion() if not getattr(dispositivo, campo)]
     if faltantes:
-        raise ValidationError("Completá los campos obligatorios antes de validar el dispositivo.")
+        # Con el nombre de cada campo como lo ve el operador: el aviso genérico lo dejaba buscando.
+        nombres = [str(dispositivo._meta.get_field(campo).verbose_name) for campo in faltantes]
+        raise ValidationError(
+            "Completá los campos obligatorios antes de validar el dispositivo. Falta: " + ", ".join(nombres) + "."
+        )
 
 
 def _exigir_formulario_del_tipo(dispositivo):
@@ -276,7 +290,7 @@ def enviar_a_validacion(dispositivo, usuario):
     return _transicionar(
         dispositivo,
         usuario,
-        origenes=(Dispositivo.Estado.BORRADOR, Dispositivo.Estado.OBSERVADO),
+        origenes=estados_desde_los_que_se_envia(),
         destino=Dispositivo.Estado.PENDIENTE_VALIDACION,
         accion="ENVIADO_VALIDACION",
         exige_datos=True,
@@ -340,6 +354,23 @@ def inactivar_dispositivo(dispositivo, usuario):
         origenes=(Dispositivo.Estado.ACTIVO,),
         destino=Dispositivo.Estado.INACTIVO,
         accion="INACTIVADO",
+    )
+
+
+def reactivar_dispositivo(dispositivo, usuario):
+    """Un dispositivo inactivo vuelve a ACTIVO (decisión del PM, 02/11/2026, Cambio 409).
+
+    Misma capacidad que inactivar (`dispositivo.editar`); queda en el historial como
+    «REACTIVADO». El cerrado no vuelve: el cierre es definitivo.
+    """
+    from programas.models import Dispositivo
+
+    return _transicionar(
+        dispositivo,
+        usuario,
+        origenes=(Dispositivo.Estado.INACTIVO,),
+        destino=Dispositivo.Estado.ACTIVO,
+        accion="REACTIVADO",
     )
 
 

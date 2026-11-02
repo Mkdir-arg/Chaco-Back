@@ -15,9 +15,9 @@ crear otra; si no está, "Crear territorial nuevo" pasa al formulario de siempre
 tipeado. Coordinador y referente abren directo en el formulario.
 
 Para tipo=agente (Dispositivos) abre en el MISMO paso de búsqueda, contra users:usuario_buscar_agente
-(data-action-agente): entre quienes ya tienen el rol de agente (y, Cambio 404, quienes tienen cuenta sin él), y elegir a alguien NO da ningún
+(data-action-agente): entre quienes ya tienen el rol de agente (y, Cambio 408, quienes tienen cuenta sin él), y elegir a alguien NO da ningún
 rol: solo lo deja elegido en el <select> destino. Los no asignables salen deshabilitados con su motivo.
-Quien tiene cuenta pero no el rol sale con «Sumar como agente» (confirmación y POST a users:usuario_sumar_agente, Cambio 404).
+Quien tiene cuenta pero no el rol sale con «Sumar como agente» (confirmación y POST a users:usuario_sumar_agente, Cambio 408).
 El botón aporta el edificio: data-edificio-id, o data-edificio-source (selector del campo que lo elige,
 P4). Los textos que cambian por tipo van en data-quick-user-nuevo-texto y en los dos bloques
 data-quick-user-vacio. Un solo role=dialog con dos
@@ -288,7 +288,7 @@ funcionando sin ese script.
     li.appendChild(accionesFila);
     return li;
   };
-  // Sumar el rol de agente a quien ya existe (Cambio 404): confirma con ModernModal (la confirmación canónica
+  // Sumar el rol de agente a quien ya existe (Cambio 408): confirma con ModernModal (la confirmación canónica
   // del backoffice) y recién ahí hace el POST. Si queda asignable a este edificio se elige igual que «Seleccionar».
   const confirmarSumar = (fila, boton) => {
     if (boton.disabled) return;

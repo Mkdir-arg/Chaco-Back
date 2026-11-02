@@ -59,7 +59,7 @@ from django.core.mail import get_connection
 from django.core.management.base import CommandError
 
 from programas.management.commands._base_siis import ComandoSiisBase
-from programas.models import AltaIntermediaSIIS, Formulario
+from programas.models import AltaIntermediaSIIS, EnvioSIIS, Formulario
 from programas.services import proceso_masivo
 from programas.services.siis_envio import (
     DESTINO_SIIS,
@@ -131,33 +131,127 @@ class Command(ComandoSiisBase):
 
     # ── Orquestación ────────────────────────────────────────────────────────
 
-    def _vaciar_tabla_intermedia(self, responsable, aplicar):
-        """Manda a SIIS lo que haya quedado guardado de este lado.
+    def _vaciar_tabla_intermedia(self, responsable, aplicar, options):
+        """Manda a SIIS lo que haya quedado guardado de este lado, de a lotes.
 
         Va antes de elegir candidatos: así las que se sincronizan dejan su
         ``EnvioSIIS`` y no vuelven a entrar como casos nuevos en la misma
         corrida. Sin esto, un alta guardada con ``--destino tabla`` se quedaría
         ahí para siempre, que es justo lo que no puede pasar.
+
+        Respeta ``--total`` (tope de filas **del drenaje**; los casos nuevos
+        vuelven a usar el ``--total`` entero, salvo que el drenaje lo gaste),
+        ``--lote`` (filas por llamada) y ``--pausa`` (segundos entre lotes). Sin
+        eso mandaba toda la tabla de una vez y, en el alta, un 429 de SIIS deja
+        el envío ``INCIERTO``, que no se reintenta (Cambio 401, paso 9).
+
+        Frena en el primer lote que traiga algo que una persona tiene que mirar:
+        errores, rechazos, filas que ya no corresponden, excluidas, envíos de
+        resultado desconocido o filas cerradas porque su caso ya tenía un envío
+        vigente. Esto último no se puede ignorar: la fila se marca sincronizada
+        y la tabla diría «0 pendientes» sobre un alta que falta conciliar.
+
+        Devuelve ``(sigue, mando)``: ``sigue`` es ``True`` si la corrida puede
+        seguir con los casos nuevos y ``False`` si hay que cortar acá (frenó, o
+        el drenaje gastó el ``--total``); ``mando`` es ``True`` si llamó a SIIS al
+        menos una vez, para que el primer lote nuevo espere la ``--pausa``.
         """
         pendientes = AltaIntermediaSIIS.objects.filter(sincronizado=False).count()
         if not pendientes:
-            return
+            return True, False
+        total = max(1, options["total"])
+        tamano = max(1, options["lote"])
+        a_mandar = min(pendientes, total)
+        lotes = (a_mandar + tamano - 1) // tamano
+        gasta_el_total = pendientes >= total
         self._log(f"Tabla intermedia: {pendientes} alta(s) guardada(s) sin informar. Van primero.")
+        self._log(f"   Esta corrida manda hasta {a_mandar} en {lotes} lote(s) de {tamano} (--total {total}).")
         if not aplicar:
             self._log("   (ensayo: no se manda ninguna)", self.style.WARNING)
-            return
-        cuenta = sincronizar_tabla_intermedia(responsable)
-        self._log(
-            f"   informadas {cuenta['altas']} · rechazadas {cuenta['rechazadas']} · errores {cuenta['errores']} · "
-            f"cambiaron de estado {cuenta['no_aprobables']}"
-        )
-        if cuenta["no_aprobables"]:
+            if gasta_el_total:
+                self._log(
+                    "   El drenaje gasta todo el --total: la corrida real no seguiría con casos nuevos.",
+                    self.style.WARNING,
+                )
+            return not gasta_el_total, False
+        mandadas = 0
+        for numero in range(1, lotes + 1):
+            if numero > 1 and options["pausa"]:
+                time.sleep(options["pausa"])
+            limite = min(tamano, total - mandadas)
+            cuenta = sincronizar_tabla_intermedia(responsable, limite=limite, cortar_si=self._envio_que_corta)
+            mandadas += sum(cuenta.values())
             self._log(
-                f"   {cuenta['no_aprobables']} alta(s) guardada(s) ya no corresponden a un caso aprobado: "
-                "quedan en la tabla para que alguien decida si se regeneran o se descartan.",
+                f"   lote {numero:>3}/{lotes} · informadas {cuenta['altas']} · rechazadas {cuenta['rechazadas']} · "
+                f"errores {cuenta['errores']} · cambiaron de estado {cuenta['no_aprobables']} · "
+                f"excluidas {cuenta['excluidas']} · sin saber si llegaron {cuenta['inciertos']} · "
+                f"ya tenían envío vigente {cuenta['vigentes']}"
+            )
+            motivo = self._motivo_de_freno_del_drenaje(cuenta)
+            if motivo:
+                self._log(
+                    f"   FRENO en el lote {numero}: {motivo}. Quedan "
+                    f"{AltaIntermediaSIIS.objects.filter(sincronizado=False).count()} pendiente(s). "
+                    + self._que_hacer_tras_el_freno(cuenta),
+                    self.style.ERROR,
+                )
+                return False, True
+        restan = AltaIntermediaSIIS.objects.filter(sincronizado=False).count()
+        self._log(f"   Tabla intermedia: quedan {restan} pendiente(s).")
+        self._log("")
+        if gasta_el_total:
+            self._log(
+                f"El drenaje usó todo el --total ({total}): no se sigue con casos nuevos en esta corrida.",
                 self.style.WARNING,
             )
-        self._log("")
+            return False, True
+        return True, True
+
+    @staticmethod
+    def _envio_que_corta(envio):
+        """Un envío que deja de pedir filas al servicio: ``INCIERTO``, ``EN_PROCESO`` o ``ERROR``.
+
+        Sin esto el servicio termina el lote entero aunque SIIS ya esté cortando.
+        """
+        return envio.estado in (EnvioSIIS.Estado.INCIERTO, EnvioSIIS.Estado.EN_PROCESO, EnvioSIIS.Estado.ERROR)
+
+    @staticmethod
+    def _que_hacer_tras_el_freno(cuenta):
+        """Qué sigue según por qué frenó: conciliar con ECOM, o corregir la fila."""
+        pasos = []
+        if cuenta["inciertos"] or cuenta["vigentes"]:
+            pasos.append(
+                "Hay envíos INCIERTO/EN_PROCESO o cerrados por un envío vigente: mirá "
+                "`manage.py conciliar_envios_siis --listar`; se concilian con ECOM, no se reintentan."
+            )
+        if cuenta["rechazadas"] or cuenta["no_aprobables"]:
+            pasos.append(
+                "Las rechazadas o que ya no corresponden quedan en la tabla y frenan cada corrida: "
+                "revisalas y regeneralas con `--destino tabla`, o borrá la fila (Paso 8 del procedimiento)."
+            )
+        if cuenta["errores"]:
+            pasos.append("Hubo errores técnicos: mirá el `codigo_error` del envío antes de volver a correr.")
+        if cuenta["excluidas"]:
+            pasos.append("Las excluidas siguen pendientes: sacalas de la tabla o de la lista de exclusión.")
+        return " ".join(pasos)
+
+    @staticmethod
+    def _motivo_de_freno_del_drenaje(cuenta):
+        """Por qué un lote del drenaje corta la corrida, o ``""`` si salió limpio."""
+        motivos = []
+        if cuenta["errores"]:
+            motivos.append(f"{cuenta['errores']} error(es) técnico(s)")
+        if cuenta["rechazadas"]:
+            motivos.append(f"{cuenta['rechazadas']} rechazada(s) por SIIS")
+        if cuenta["no_aprobables"]:
+            motivos.append(f"{cuenta['no_aprobables']} alta(s) que ya no corresponden a un caso aprobado")
+        if cuenta["excluidas"]:
+            motivos.append(f"{cuenta['excluidas']} en la lista de exclusión")
+        if cuenta["inciertos"]:
+            motivos.append(f"{cuenta['inciertos']} envío(s) sin saber si el alta llegó (INCIERTO/EN_PROCESO)")
+        if cuenta["vigentes"]:
+            motivos.append(f"{cuenta['vigentes']} fila(s) cerradas porque su caso ya tenía un envío vigente")
+        return " · ".join(motivos)
 
     def _cuantas_se_mandarian(self, options):
         """``(guardadas, tope_nuevos)``: lo que puede salir a SIIS en esta corrida.
@@ -250,6 +344,7 @@ class Command(ComandoSiisBase):
                 proceso_masivo.dnis_aprobados_materias()
             except proceso_masivo.TablaAprobadosMateriasFaltante as exc:
                 raise CommandError(str(exc)) from exc
+        drenaje_mando = False
         if destino == DESTINO_TABLA:
             self._log(
                 "Destino: la tabla intermedia de este lado. NO se llama a SIIS.\n"
@@ -264,7 +359,9 @@ class Command(ComandoSiisBase):
             if aplicar and not self._confirmar(self._cuantas_se_mandarian(options), options["si"]):
                 self._log("Cancelado: no se mandó ninguno.", self.style.WARNING)
                 return
-            self._vaciar_tabla_intermedia(responsable, aplicar)
+            sigue, drenaje_mando = self._vaciar_tabla_intermedia(responsable, aplicar, options)
+            if not sigue:
+                return
         filtros = {
             "convocatoria": options["convocatoria"],
             "relevamiento": options["relevamiento"],
@@ -367,6 +464,9 @@ class Command(ComandoSiisBase):
 
         self._log("")
         for numero, lote in self._lotes(casos, tamano):
+            if numero == 1 and drenaje_mando and options["pausa"]:
+                # El empalme con el drenaje también es un lote seguido de otro.
+                time.sleep(options["pausa"])
             antes = replace(cuenta)
             # G1-14: una conexión SMTP por **lote**, no una por correo. Con
             # `--avisar` y lotes de 40 eran 40 handshakes TLS contra el mismo

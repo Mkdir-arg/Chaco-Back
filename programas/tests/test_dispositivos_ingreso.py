@@ -395,7 +395,7 @@ class UnSoloOrigenDelEstadoDeLaPlazaTests(BaseIngreso):
         reservar_plaza(plaza=self.otra_plaza, ciudadano=self.persona, usuario=self.operador_cis)  # P2 reservada
         reservar_plaza(
             plaza=prestada,
-            ciudadano=self.persona,
+            ciudadano=Ciudadano.objects.create(dni="30555666", nombre="Luz", apellido="Ríos"),
             usuario=self.operador_cis,
             tipo=ReservaPlaza.Tipo.PRESTAMO,
             hasta=timezone.now() + timedelta(hours=12),
@@ -431,7 +431,7 @@ class UnSoloOrigenDelEstadoDeLaPlazaTests(BaseIngreso):
         reservar_plaza(plaza=self.otra_plaza, ciudadano=self.persona, usuario=self.operador_cis)
         reservar_plaza(
             plaza=prestada,
-            ciudadano=self.persona,
+            ciudadano=Ciudadano.objects.create(dni="30555666", nombre="Luz", apellido="Ríos"),
             usuario=self.operador_cis,
             tipo=ReservaPlaza.Tipo.PRESTAMO,
             hasta=timezone.now() + timedelta(hours=12),

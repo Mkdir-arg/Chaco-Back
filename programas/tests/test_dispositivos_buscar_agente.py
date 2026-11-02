@@ -69,7 +69,7 @@ class UniversoTests(BaseBuscarAgente):
                 self.assertEqual(self._ids(respuesta), {self.carla.pk})
 
     def test_el_agente_no_es_sumable_y_quien_no_tiene_el_rol_viene_como_sumable(self):
-        # Desde el Cambio 404 quien tiene cuenta activa pero no el rol de agente también aparece, como sumable.
+        # Desde el Cambio 408 quien tiene cuenta activa pero no el rol de agente también aparece, como sumable.
         territorial = self._persona("terri", "Carla", "Quiroga Territorial", "30111333", "terri@example.com")
         territorial.groups.add(Group.objects.create(name="Becas — Territorial de prueba"))
         sin_rol = self._persona("sinrol", "Carla", "Quiroga Sinrol", "30111444", "sinrol@example.com")
