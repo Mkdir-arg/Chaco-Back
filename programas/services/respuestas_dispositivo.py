@@ -223,14 +223,16 @@ def _secciones(foto, respuestas, adjuntos, hoy):
     return secciones
 
 
-def respuestas_de_versiones_anteriores(foto, respuestas, anteriores, adjuntos):
+def respuestas_de_versiones_anteriores(foto, respuestas, anteriores):
     """Lo respondido en campos que la foto vigente de la fila ya no tiene, para el bloque plegado
-    «De versiones anteriores» de P4: ``[{etiqueta, valor}]``, en el orden en que dejaron de estar.
+    «De versiones anteriores» de P4: ``[{etiqueta, valor}]``, en el orden de ``anteriores`` (el JSON de MySQL no
+    conserva el orden de claves, así que no es el de baja).
 
     Solo cuenta una clave que está en ``anteriores`` (con su definición, de ahí sale la etiqueta
     y el tipo), que la foto **ya no** tiene y cuyo valor no está vacío. Una lista se une con comas.
-    Un archivo se muestra por su nombre, **sin enlace**: la sección plegable compartida
-    (``_ficha_seccion``) no lleva enlaces y la descarga sigue disponible desde el legajo.
+    Un archivo se muestra por su nombre original (``legible``), nunca por el nombre opaco del adjunto
+    guardado, y **sin enlace**: la sección plegable compartida (``_ficha_seccion``) no lleva enlaces y en P4
+    no hay descarga de ese adjunto.
     """
     vigentes = {campo["clave"] for campo in campos_de(foto)}
     campos = []
@@ -238,13 +240,9 @@ def respuestas_de_versiones_anteriores(foto, respuestas, anteriores, adjuntos):
         if clave in vigentes or clave not in respuestas:
             continue
         campo = (entrada or {}).get("campo") or {}
-        adjunto = adjuntos.get(clave) if campo.get("tipo") == "ARCHIVO" else None
-        if adjunto is not None:
-            valor = Path(adjunto.archivo.name or "").name
-        else:
-            valor = legible(campo, respuestas[clave])
-            if isinstance(valor, list):
-                valor = ", ".join(str(parte) for parte in valor)
+        valor = legible(campo, respuestas[clave])
+        if isinstance(valor, list):
+            valor = ", ".join(str(parte) for parte in valor)
         if esta_vacio(valor):
             continue
         campos.append({"etiqueta": campo.get("texto") or clave, "valor": valor})
@@ -285,7 +283,7 @@ def formularios_respondidos(dispositivo):
                 "del_tipo_actual": fila.diseno.tipo_dispositivo_id == dispositivo.tipo_id,
                 "secciones": secciones,
                 "anteriores": respuestas_de_versiones_anteriores(
-                    fila.definicion or {}, fila.respuestas or {}, fila.anteriores, adjuntos
+                    fila.definicion or {}, fila.respuestas or {}, fila.anteriores
                 ),
                 "id_anteriores": f"anteriores-{fila.pk}",
             }

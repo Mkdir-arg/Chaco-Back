@@ -20,6 +20,9 @@
   {% elif verificacion %}
   {% include "components/_alerta.html" with tono="info" icono="circle-check" texto=verificacion.mensaje %}
   {% endif %}
+  {% if aviso_reserva %}
+  {% include "components/_alerta.html" with tono="info" icono="bookmark" texto=aviso_reserva %}
+  {% endif %}
 
   <div class="bg-white rounded-xl border border-base shadow-sm p-6">
     <h2 class="text-heading font-bold">Resumen del ingreso</h2>

@@ -16,6 +16,7 @@ from programas.management.commands.seed_becas import (
     ROL_TERRITORIAL,
 )
 from programas.models import AsignacionTerritorial, Segmento
+from programas.services.agentes import DUENO_AGENTE, DUENO_SUMABLE, dueno_del_correo
 from programas.services.autorizacion import (
     es_admin_becas,
     puede_gestionar_segmento,
@@ -37,7 +38,6 @@ from programas.services.sumar_agente import (
 from users.forms import MENSAJE_DNI_DUPLICADO, UserCreationForm
 from users.selectors.usuarios import alcance_roles_ids
 from users.services.admin import UsuariosAdminService
-from users.services.agentes import DUENO_AGENTE, DUENO_SUMABLE, dueno_del_correo
 from users.services.busqueda import MIN_CARACTERES, nombre_para_mostrar
 from users.services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
 from users.services.territoriales import (

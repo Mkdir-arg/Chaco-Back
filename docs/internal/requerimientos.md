@@ -534,6 +534,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 408 | Dispositivos: «Sumar como agente» desde «Buscar agente» (reemplaza el «Queda afuera» y el Pendiente del Cambio 397: quien ya tiene cuenta puede recibir el rol de agente) | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 30/10/2026 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 409 | Dispositivos: reactivar un INACTIVO, el ingreso libera todas las reservas de la persona, clave de campo por enlace en el CSV y correcciones de la QA 2 (02/11) | Dispositivos (legajo P4, asistente de ingreso, sectores y plazas) · Usuarios (ABM, import CSV, alta rápida de agente) · API de campo | `#ui` `#rbac` `#datos` `#api` | PM — QA 2 local de Dispositivos del 02/11/2026 y MINOR de las auditorías de #1011 y #1012 (D1-D3, A2-07, A2-01, C2-04) | 02/11/2026 | 🟢 **Hecho** | No requiere |
 | 410 | Dispositivos: el alcance por Equipo de personas (`MiembroEquipoDispositivo`) y la capacidad `dispositivo.ver_todos` (PR A: modelo, regla y servicio, sin UI) | Dispositivos (alcance fino, RBAC) · Usuarios (ancla de capacidades) | `#rbac` `#datos` | PM — QA, task #690: un rol con ver/admitir no veía ningún dispositivo | 02/11/2026 | 🟡 **En curso** | Requiere |
+| 412 | Dispositivos: menores acumulados (aviso de reserva en «Confirmar», «Sumar como agente» sin nombre, botón duplicado, alerta de turnos, archivo viejo en P4, capa de `agentes`, test flaky) | Dispositivos · Usuarios (alta rápida) | `#ui` `#usuarios` | QA local del 02/11/2026 y auditorías de #1009, #1010 y #1018 | 02/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51198,6 +51199,72 @@ Se pierde el Equipo cargado (personas, roles y responsables). Nadie pierde acces
 ## Historial
 
 - **02/11/2026 — alta del cambio.**
+---
+
+# Cambio 412 — Dispositivos: menores acumulados de la QA local del 02/11 y de las auditorías (sin cambio de reglas)
+
+🟡 **EN CURSO — 02/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Usuarios (alta rápida) |
+| **Etiquetas** | `#ui` `#usuarios` |
+| **Solicitante** | QA local del 02/11/2026 (development @8441e897) y auditorías de #1009, #1010 y #1018 |
+| **Fecha del pedido** | 02/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Ingreso (paso «Confirmar»), alta rápida (modal y buscador de agentes), alertas del detalle, P4 (versiones anteriores) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Siete menores sueltos, sin tocar reglas: avisar la reserva en otro dispositivo en «Confirmar»; fallback legible para quien no
+tiene nombre; botón «Crear agente nuevo» repetido; redacción de la alerta «Sin turnos configurados»; archivo de una versión
+anterior mostrado con el nombre opaco; `agentes.py` de `users` importando de `programas`; test flaky en Windows.
+
+## Alcance acordado
+
+Un ítem por punto, preservando el comportamiento. Quedan afuera la solapa Equipo y el alta con responsables (Cambio 411) y las tablas a 390 px (Cambio 413).
+
+## Decisiones tomadas
+
+1. **Confirmar avisa la reserva ajena** («Tiene una reserva vigente en <dispositivo>: al confirmar el ingreso se libera.»). El nombre solo se dice si
+   el operador tiene alcance de admisión sobre ese dispositivo; si no, «en otro dispositivo de la red» (misma convención que el aviso de alojamiento).
+2. **Sin nombre ni apellido**: `nombre_para_mostrar` cae al correo enmascarado (el mismo del buscador) y recién después a «(sin nombre)»; vale también para el aria-label y el buscador de territoriales.
+3. **«Crear … nuevo» una sola vez**: con el estado vacío en pantalla se oculta el botón del pie y queda el del cuerpo; con resultados vuelve el del pie.
+4. **Alerta de turnos**: el pie pasa de «Turnos del dispositivo · desde el …» (pegado a la frase) a «Sin turnos activos · desde el …».
+5. **P4, archivo de versiones anteriores**: siempre `legible(campo, respuesta)` (el nombre original); `respuestas_de_versiones_anteriores` deja de recibir `adjuntos` y el docstring ya no promete orden de baja ni enlace.
+6. **`users/services/agentes.py` pasa a `programas/services/agentes.py`** (junto al buscador). El universo de «Buscar agente» ya está escrito una sola vez (`universo_buscar_agente`); `sumar_agente` no lo repite (lee al usuario con candado y valida cada rechazo con su propio código HTTP), así que no se tocó.
+7. **Test flaky** `test_la_fecha_es_desde_cuando_pasa…`: momentos fijos con `mock.patch("django.utils.timezone.now")`.
+
+## Archivos
+
+- Código: `programas/services/ingreso.py`, `programas/views/dispositivos_ingreso.py`, `programas/templates/programas/dispositivos/ingreso/paso_confirmar.html`, `users/services/busqueda.py`, `users/templates/user/_alta_rapida_modal.html`, `programas/services/alertas_dispositivos.py`, `programas/services/respuestas_dispositivo.py`, `programas/services/agentes.py` (movido), `users/views/quick_create.py`.
+- Tests: `test_dispositivos_ingreso.py`, `test_dispositivos_sumar_agente.py`, `test_dispositivos_alertas.py`, `test_dispositivos_formulario_alta.py`, `users/tests/test_territorial_buscador.py`.
+
+## Base de datos
+
+Sin cambios de esquema.
+
+## Validación
+
+Tests de las apps tocadas, `manage.py check`, `makemigrations --check`, ruff, `design_audit --ratchet`, `compile_templates --bloques`, `check_design_agent --changed`, `requerimientos.py --check`.
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el PR.
+
+## Historial
+
+- **02/11/2026 — alta del cambio.**
+
 ---
 
 # Cambio 408 — «Sumar como agente» desde «Buscar agente» (Dispositivos)
