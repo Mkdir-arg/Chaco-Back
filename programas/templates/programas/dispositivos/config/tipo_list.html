@@ -21,7 +21,7 @@
             <th class="nodo-th">Código</th>
             <th class="nodo-th">Sectores y plazas</th>
             <th class="nodo-th">Estado</th>
-            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -36,7 +36,7 @@
             <td class="nodo-td">
               {% estado_tipo_dispositivo tipo as estado %}<span class="badge badge-dot badge-{{ estado.tono }}">{{ estado.texto }}</span>
             </td>
-            <td class="nodo-td text-right">
+            <td class="nodo-td nodo-col-acciones text-right">
               <a href="{% url 'dispositivos:tipo_detalle' tipo.pk %}" class="nodo-icon-btn"
                  aria-label="Configurar el tipo {{ tipo.nombre }}">
                 <i class="fas fa-gear" aria-hidden="true"></i>

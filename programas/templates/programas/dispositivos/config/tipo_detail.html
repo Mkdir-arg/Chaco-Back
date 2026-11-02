@@ -150,7 +150,10 @@
       if (result.status >= 200 && result.status < 300 && data.ok) {
         if (data.target && typeof data.html === 'string') {
           const target = document.querySelector(data.target);
-          if (target) target.innerHTML = data.html;
+          if (target) {
+            target.innerHTML = data.html;
+            if (window.nodoTablas) window.nodoTablas.barrer();
+          }
         }
         if (isCurrentForm()) closeModal();
         window.toast.success(data.message || 'Guardado.');

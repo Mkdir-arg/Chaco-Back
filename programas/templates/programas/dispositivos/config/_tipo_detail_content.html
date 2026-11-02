@@ -41,7 +41,7 @@
             <th class="nodo-th text-center">Secciones</th>
             <th class="nodo-th text-center">Campos</th>
             <th class="nodo-th text-center">Versión</th>
-            <th class="nodo-th text-right w-28"><span class="sr-only">Acciones</span></th>
+            <th class="nodo-th nodo-col-acciones text-right w-28"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -56,7 +56,7 @@
             <td class="nodo-td text-center">{{ formulario.n_secciones }}</td>
             <td class="nodo-td text-center">{{ formulario.n_campos }}</td>
             <td class="nodo-td text-center">{{ formulario.version }}</td>
-            <td class="nodo-td text-right whitespace-nowrap">
+            <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
               <a href="{{ url_editor }}" class="nodo-icon-btn" aria-label="Editar el formulario {{ formulario.get_momento_display }}">
                 <i class="fas fa-pen" aria-hidden="true"></i>
               </a>
