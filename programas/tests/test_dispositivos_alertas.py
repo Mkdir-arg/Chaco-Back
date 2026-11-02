@@ -276,9 +276,13 @@ class PlazasFueraDeServicioTests(BaseAlertas):
     def test_la_fecha_es_desde_cuando_pasa_y_no_la_ultima_plaza_que_se_sumo(self):
         """El pie dice «desde el …»: la alerta está encendida desde la plaza más vieja."""
 
-        sacar_plaza_de_servicio(plaza=self.plaza, usuario=self.operador_cis, motivo="Pintura")
+        # Momentos fijos: dos llamadas seguidas pueden caer en el mismo microsegundo (Windows).
+        momento = timezone.now().replace(microsecond=0)
+        with mock.patch("django.utils.timezone.now", return_value=momento - timedelta(hours=2)):
+            sacar_plaza_de_servicio(plaza=self.plaza, usuario=self.operador_cis, motivo="Pintura")
         primera = Plaza.objects.get(pk=self.plaza.pk).modificado
-        sacar_plaza_de_servicio(plaza=self.otra_plaza, usuario=self.operador_cis, motivo="Cama rota")
+        with mock.patch("django.utils.timezone.now", return_value=momento - timedelta(hours=1)):
+            sacar_plaza_de_servicio(plaza=self.otra_plaza, usuario=self.operador_cis, motivo="Cama rota")
         ultima = Plaza.objects.get(pk=self.otra_plaza.pk).modificado
         self.assertGreater(ultima, primera, "la segunda plaza tiene que salir de servicio después")
 
@@ -386,6 +390,12 @@ class SinTurnosTests(BaseAlertas):
         self.assertEqual(alerta["severidad"], "media")
         self.assertEqual(alerta["titulo"], "Sin turnos configurados")
         self.assertIn("bitácora", alerta["texto"])
+
+    def test_el_pie_no_se_pega_a_la_frase_con_el_nombre_de_la_pantalla(self):
+        """«… turno activo. Turnos del dispositivo · desde el …» se leía como un pegote."""
+        [alerta] = self._alertas(regla=self.regla)
+        self.assertNotIn("Turnos del dispositivo", alerta["texto"])
+        self.assertRegex(alerta["texto"], r"turno activo\. Sin turnos activos · desde el \d{2}/\d{2}/\d{4}")
 
     def test_desaparece_al_configurar_un_turno(self):
         crear_turno(
