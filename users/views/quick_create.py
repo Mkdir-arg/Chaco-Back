@@ -9,6 +9,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from core import rbac
 from core.http import error_json, ok_json
+from core.http_cache import sin_cache
 from core.services.throttle import rate_limit_excedido
 from programas.management.commands.seed_becas import (
     ROL_COORDINADOR,
@@ -16,6 +17,7 @@ from programas.management.commands.seed_becas import (
     ROL_TERRITORIAL,
 )
 from programas.models import AsignacionTerritorial, Segmento
+from programas.selectors.agentes_sugeridos import sugerir_agentes
 from programas.services.agentes import DUENO_AGENTE, DUENO_SUMABLE, dueno_del_correo
 from programas.services.autorizacion import (
     es_admin_becas,
@@ -120,6 +122,8 @@ CAP_TERRITORIAL = "becas.usuario.territorial"
 CUBETA_BUSCAR_TERRITORIAL = "usuario_buscar_territorial"
 CUBETA_ASIGNAR_TERRITORIAL = "usuario_asignar_territorial"
 BUSQUEDAS_POR_MINUTO = 30
+#: Las sugerencias piden una por pausa del tipeo (250 ms): cubeta aparte y más ancha que la del botón «Buscar».
+SUGERENCIAS_POR_MINUTO = 120
 ASIGNACIONES_POR_MINUTO = 20
 
 MENSAJE_DNI_TERRITORIAL = (
@@ -130,6 +134,7 @@ MENSAJE_DNI_TERRITORIAL = (
 #: Alta de agentes de relevamiento edilicio (Dispositivos). Cubeta por operador, como las del territorial.
 CUBETA_ALTA_AGENTE = "usuario_alta_agente"
 CUBETA_BUSCAR_AGENTE = "usuario_buscar_agente"
+CUBETA_SUGERIR_AGENTE = "usuario_sugerir_agente"
 CUBETA_SUMAR_AGENTE = "usuario_sumar_agente"
 SUMAS_AGENTE_POR_MINUTO = 20
 ALTAS_AGENTE_POR_MINUTO = 20
@@ -231,6 +236,37 @@ def usuario_buscar_agente(request):
         return error_json(f"Escribí al menos {MIN_CARACTERES} caracteres.", status=400)
     resultados, hay_mas = buscar_agentes_de_relevamiento(edificio, texto)
     return ok_json(resultados=resultados, hay_mas=hay_mas)
+
+
+@login_required
+@require_GET
+def usuario_sugerir_agente(request):
+    """Sugiere agentes mientras se escribe en «Buscar agente» (Cambio 416). Solo lectura, solo JSON.
+
+    **Misma guarda que** :func:`usuario_buscar_agente`: ``inspeccion.agente.crear`` acotada a Dispositivos y
+    alcance sobre el edificio. Devuelve apellido, nombre y DNI enmascarado de quien coincide por nombre
+    (prefijo): nunca correo ni teléfono, y ni DNI ni correo se buscan acá. Sin permiso, 403 JSON.
+    """
+    if not puede_en_programa_dispositivos(request.user, CAP_CREAR_AGENTE):
+        return sin_cache(error_json("No tiene permiso para buscar agentes.", status=403))
+    try:
+        edificio_id = int(request.GET.get("edificio_id") or "")
+    except ValueError:
+        return sin_cache(error_json("Elegí primero el edificio.", status=400))
+    if not edificios_en_alcance(request.user, CAP_ASIGNAR).filter(pk=edificio_id).exists():
+        return sin_cache(error_json("No tenés alcance sobre ese edificio.", status=403))
+    if rate_limit_excedido(
+        request,
+        CUBETA_SUGERIR_AGENTE,
+        SUGERENCIAS_POR_MINUTO,
+        sufijo=str(request.user.pk),
+        incluir_ip=False,
+    ):
+        return sin_cache(
+            error_json("Hiciste muchas búsquedas seguidas. Esperá un minuto y probá de nuevo.", status=429)
+        )
+    # Sin registrar lo tecleado: es un nombre, dato personal.
+    return sin_cache(ok_json(**sugerir_agentes(request.GET.get("q"))))
 
 
 @login_required

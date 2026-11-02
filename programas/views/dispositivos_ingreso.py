@@ -306,6 +306,16 @@ class IngresoPersonaView(IngresoBaseView):
             )
         return render(request, self.template_name, contexto)
 
+    def _form_buscar(self, *args, **kwargs):
+        """El formulario del DNI, con las sugerencias de personas (Cambio 416).
+
+        El gate del asistente (`puede_ingresar_persona`) ya corrió en `dispatch`, y es el mismo del
+        endpoint de sugerencias (`puede_ingresar_persona`): quien llega acá puede usarlas.
+        """
+
+        url = reverse("dispositivos:personas_buscar", args=[self.dispositivo.pk])
+        return IngresoPersonaForm(*args, url_sugerencias=url, **kwargs)
+
     def _alta_minima_form(self, sin_registro, data=None):
         return IngresoAltaMinimaForm(data, dni=sin_registro["dni"], sexo=sin_registro.get("sexo") or "")
 
@@ -313,10 +323,10 @@ class IngresoPersonaView(IngresoBaseView):
         estado = self.estado()
         sin_registro = estado.get("sin_registro")
         if sin_registro and puede(request.user, CAP_CREAR_CIUDADANO):
-            form = IngresoPersonaForm(initial={"dni": sin_registro["dni"], "sexo": sin_registro.get("sexo") or ""})
+            form = self._form_buscar(initial={"dni": sin_registro["dni"], "sexo": sin_registro.get("sexo") or ""})
             return self.render_paso(request, form, alta=self._alta_minima_form(sin_registro))
         persona = self.resumen_persona(estado)
-        form = IngresoPersonaForm(initial={"dni": persona["dni"]} if persona else None)
+        form = self._form_buscar(initial={"dni": persona["dni"]} if persona else None)
         return self.render_paso(request, form)
 
     def _seguir_con(self, request, ciudadano, form):
@@ -348,7 +358,7 @@ class IngresoPersonaView(IngresoBaseView):
         # Cada consulta reemplaza a la anterior: DNI inválido, sin sexo, fallecida o ya
         # alojada cortan con error sin tocar la sesión, y la alta mínima vieja no puede volver.
         self._descartar_alta_minima()
-        form = IngresoPersonaForm(request.POST)
+        form = self._form_buscar(request.POST)
         if not form.is_valid():
             return self.render_paso(request, form)
         dni = form.cleaned_data["dni"]
@@ -385,7 +395,7 @@ class IngresoPersonaView(IngresoBaseView):
             return redirect(self.urls()["persona"])
         dni = sin_registro["dni"]
         sexo = sin_registro.get("sexo") or ""
-        buscar = IngresoPersonaForm(initial={"dni": dni, "sexo": sexo})
+        buscar = self._form_buscar(initial={"dni": dni, "sexo": sexo})
 
         if request.POST.get("persona") != self.huella_sin_registro(sin_registro):
             # Otra pestaña cambió a quién se está dando de alta: no se guarda nada.

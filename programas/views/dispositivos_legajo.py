@@ -15,6 +15,7 @@ from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.archivos import archivos_atomicos
+from core.http_cache import sin_cache
 from core.rbac import puede
 from programas.forms import DispositivoForm, formulario_tipo_para, tipos_para_dispositivo
 from programas.forms_dispositivos import (
@@ -954,7 +955,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         # a quien no las puede usar no se le ofrecen, y el campo queda como siempre.
         url_sugerencias = (
             reverse("dispositivos:personas_buscar", args=[dispositivo.pk])
-            if puede_reservar_o_prestar(self.request.user, dispositivo)
+            if puede_ingresar_persona(self.request.user, dispositivo)
             else None
         )
         context["form_reservar"] = ReservarPlazaForm(auto_id=AUTO_ID_PLAZA_RESERVAR, url_sugerencias=url_sugerencias)
@@ -1056,16 +1057,6 @@ URL_DE_ACCION = {
 }
 
 
-def puede_reservar_o_prestar(user, dispositivo):
-    """La compuerta única de reservar, prestar y de las sugerencias de personas de su campo DNI.
-
-    Admitir en ese dispositivo (con alcance) y ver personas del padrón: reservar y prestar buscan
-    a la persona por DNI. Quien no cumple no recibe la acción ni las sugerencias.
-    """
-
-    return puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR) and puede(user, CAP_VER_CIUDADANO)
-
-
 class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
     """Base de las tres acciones del mapa de plazas.
 
@@ -1089,7 +1080,7 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
         # Antes de mirar la plaza y de validar el form: con el DNI en la mano, la diferencia
         # entre «no encontramos» y el éxito sería un oráculo del padrón para quien no lo puede ver.
         if not (
-            puede_reservar_o_prestar(request.user, dispositivo)
+            puede_ingresar_persona(request.user, dispositivo)
             if self.requiere_ver_ciudadanos
             else puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida)
         ):
@@ -1187,7 +1178,7 @@ class PlazaPrestarView(PlazaReservarView):
 
 
 class PersonasSugeridasView(DispositivoProgramaPermissionMixin, View):
-    """Sugiere personas del Legajo mientras se escribe el DNI de «Reservar» y «Prestar» (Cambio 415).
+    """Sugiere personas del Legajo mientras se escribe el DNI de «Reservar», «Prestar» (Cambio 415) y «Ingresar persona» (416).
 
     Solo lectura y solo JSON. Pide **lo mismo que esas dos acciones**: `dispositivo.admitir` con
     alcance al dispositivo y `ciudadano.ver`. Cada sugerencia lleva apellido, nombre y DNI, nada
@@ -1199,12 +1190,10 @@ class PersonasSugeridasView(DispositivoProgramaPermissionMixin, View):
 
     def get(self, request, pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
-        if not puede_reservar_o_prestar(request.user, dispositivo):
+        if not puede_ingresar_persona(request.user, dispositivo):
             return JsonResponse({"ok": False, "message": "No tenés alcance sobre este dispositivo."}, status=403)
         # Sin registrar lo tecleado: es un DNI o un apellido, dato personal.
-        respuesta = JsonResponse(sugerir_personas(request.GET.get("q", "")))
-        respuesta["Cache-Control"] = "no-store"
-        return respuesta
+        return sin_cache(JsonResponse(sugerir_personas(request.GET.get("q", ""))))
 
 
 class PlazaLiberarView(_PlazaAccionView):

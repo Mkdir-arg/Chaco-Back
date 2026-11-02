@@ -14,6 +14,9 @@ from core.dni import normalizar_dni
 
 MIN_CARACTERES = 3
 TOPE_RESULTADOS = 10
+#: Lo que se lee de lo tecleado en las sugerencias: más largo que cualquier nombre o DNI, para no armar un WHERE enorme.
+MAXIMO_CARACTERES = 100
+MAXIMO_PALABRAS = 5
 SIN_NOMBRE = "(sin nombre)"
 
 
@@ -26,6 +29,25 @@ def filtrar_por_texto(universo, texto):
     for palabra in texto.split():
         universo = universo.filter(Q(first_name__icontains=palabra) | Q(last_name__icontains=palabra))
     return universo
+
+
+def normalizar_tecleado(texto):
+    """Lo tecleado, sin espacios de los bordes y acotado a ``MAXIMO_CARACTERES`` (``None`` es vacío)."""
+    return (texto or "").strip()[:MAXIMO_CARACTERES].strip()
+
+
+def palabras_del_tecleado(texto):
+    """Las palabras de lo tecleado (la coma separa), hasta ``MAXIMO_PALABRAS``."""
+    return texto.replace(",", " ").split()[:MAXIMO_PALABRAS]
+
+
+def q_prefijo_por_palabras(palabras, campo_a, campo_b):
+    """``Q`` en el que cada palabra es prefijo (``istartswith``, nunca ``startswith``: en MySQL es ``LIKE BINARY``) de
+    ``campo_a`` **o** de ``campo_b``. Sin palabras, un ``Q`` vacío (no filtra)."""
+    filtro = Q()
+    for palabra in palabras:
+        filtro &= Q(**{f"{campo_a}__istartswith": palabra}) | Q(**{f"{campo_b}__istartswith": palabra})
+    return filtro
 
 
 def formatear_dni(dni):

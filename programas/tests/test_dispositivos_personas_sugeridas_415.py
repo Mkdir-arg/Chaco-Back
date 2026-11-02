@@ -15,7 +15,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from legajos.models import Ciudadano
-from programas.selectors.personas_sugeridas import MAXIMO_RESULTADOS, _filtro, sugerir_personas
+from programas.selectors.personas_sugeridas import MAXIMO_RESULTADOS, _filtros, sugerir_personas
 from programas.tests.test_dispositivos_estadias import BaseEstadias
 
 CAPS_PRESTAR = ("dispositivo.ver", "dispositivo.admitir", "ciudadano.ver")
@@ -143,10 +143,11 @@ class ConsultaTests(BaseSugerencias):
         )
         for texto in ("30111", "Gómez", "Pérez Juan"):
             with self.subTest(texto=texto):
-                consulta = Ciudadano.objects.filter(_filtro(texto)).query
-                sql, _ = consulta.get_compiler(connection=conexion).as_sql()
-                self.assertNotIn("LIKE BINARY", sql)
-                self.assertIn("LIKE", sql)
+                for filtro in _filtros(texto):
+                    consulta = Ciudadano.objects.filter(filtro).query
+                    sql, _ = consulta.get_compiler(connection=conexion).as_sql()
+                    self.assertNotIn("LIKE BINARY", sql)
+                    self.assertIn("LIKE", sql)
 
     def test_lo_tecleado_se_acota_a_cien_caracteres_y_cinco_palabras(self):
         largo = "30111" + "9" * 500
@@ -200,7 +201,7 @@ class TopeTests(BaseSugerencias):
 
 @tag("performance")
 class CostoTests(BaseSugerencias):
-    def test_una_sola_consulta_a_la_base_para_buscar(self):
+    def test_buscar_por_dni_es_una_sola_consulta(self):
         with CaptureQueriesContext(connection) as consultas:
             sugerir_personas("301")
 

@@ -539,6 +539,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 413 | Tablas de Dispositivos legibles a 390 px: columna de acciones fija y pista de scroll horizontal (canon de tabla) | Dispositivos · sistema de diseño | `#ui` | PM — QA 2 local de Dispositivos (A2-12, B-06, B2-07, A-13) | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 414 | Dispositivos: menores de las auditorías de #1024 y #1026 (reactivar al ex responsable, un solo validador del Equipo, vigencia única, «y» en el aviso de reservas) | Dispositivos | `#rbac` `#datos` `#textos` | Auditorías de los PR #1024 (Equipo) y #1026 | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 415 | Sugerencias de personas mientras se escribe el DNI de Reservar y Prestar plaza (pieza reutilizable `nodo-sugerencias`) | Dispositivos · sistema de diseño | `#ui` `#rbac` `#datos` | PM — pedido del 02/11/2026 (modal de una plaza) | 02/11/2026 | 🟡 **En curso** | No requiere |
+| 416 | Sugerencias de personas y de agentes en el paso «Ingresar persona» y en «Buscar agente» (reusa `nodo-sugerencias`; consulta por columna) | Dispositivos · sistema de diseño | `#ui` `#rbac` `#datos` | PM — continuación del Cambio 415 | 02/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51604,6 +51605,87 @@ Tests nuevos (alcance, capacidad, mínimo de 3, tope y `hay_mas`, claves exactas
 ## Pendientes / a definir
 
 El PR siguiente usa la pieza en los demás buscadores de personas.
+
+## Reversión
+
+Revertir el PR. No hay datos que deshacer.
+
+## Historial
+
+- **02/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 416 — Sugerencias de personas y de agentes en el paso «Ingresar persona» y en «Buscar agente»
+
+🟡 **EN CURSO — 02/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (ingreso, relevamientos) · alta rápida de usuarios · sistema de diseño |
+| **Etiquetas** | `#ui` `#rbac` `#datos` |
+| **Solicitante** | PM — pedido del 02/11/2026; alcance decidido por el juez por delegación del PM |
+| **Fecha del pedido** | 02/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Continuación del Cambio 415: la pieza `nodo-sugerencias` entró en Reservar y Prestar plaza; este PR la lleva a los demás buscadores de personas de Dispositivos, desde 3 números o letras.
+
+## Alcance acordado
+
+**Entra:**
+
+1. **El DNI del paso «Ingresar persona»** del asistente de ingreso (`IngresoPersonaForm`), con el mismo endpoint `dispositivos:personas_buscar` y el mismo selector de personas del Legajo.
+2. **El campo de «Buscar agente»** del modal de alta rápida de usuarios, abierto como agente (Dispositivos): selector nuevo `programas/selectors/agentes_sugeridos.py` y endpoint nuevo `users:usuario_sugerir_agente`.
+3. Optimización del selector de personas (pendiente del Cambio 415, ver *Base de datos*).
+
+**Queda afuera, y por qué:**
+
+- El filtro de `legajos/ciudadano_list.html`: es un filtro de listado, no un selector de persona.
+- `ciudadano_renaper_form.html`: consulta RENAPER, un servicio externo; cada tecla sería una llamada.
+- El portal ciudadano (`login.html` y demás): sin uso (decisión del 29/09/2026).
+- `conversaciones`: sin uso.
+- `docs/`.
+- Cualquier otro campo de Dispositivos que pida un DNI: se revisaron los formularios y templates del módulo y no hay más; el resto de los DNI son datos que se muestran, no que se eligen.
+
+## Decisiones tomadas
+
+1. **Una sola compuerta para elegir una persona del padrón dentro de un dispositivo.** El paso de ingreso ya exigía `dispositivo.admitir` con alcance más `ciudadano.ver` (`puede_ingresar_persona`), que es exactamente lo que exigía `puede_reservar_o_prestar`. No se relajó nada ni se agregó otra regla: `puede_reservar_o_prestar` **se eliminó** y sus usos (Reservar, Prestar, el armado de la URL y el endpoint) llaman a `puede_ingresar_persona`, así que el asistente, el modal de la plaza y el endpoint no pueden discrepar (un test lo compara usuario por usuario).
+2. **El paso de ingreso reusa el endpoint del dispositivo**, sin ruta nueva. El `<form>` del DNI recibe `url_sugerencias` como el de Reservar.
+3. **«Buscar agente» sugiere solo por nombre** (cada palabra, prefijo de nombre o de apellido, `istartswith`). El DNI y el correo siguen siendo búsqueda **exacta** en el buscador completo, que es una defensa deliberada contra barrer el padrón de usuarios de a pedazos; las sugerencias no la debilitan. Con un DNI o un correo no sale nada y el aviso dice «Con un DNI o un correo, usá Buscar».
+4. **Qué muestra:** apellido, nombre y **DNI enmascarado** (`30.***.222`), siempre —incluso al agente ya asignable, a quien el buscador completo sí le muestra el DNI entero—. Nunca correo, teléfono ni usuario. Cada fila trae además `valor` (nombre y apellido), que es lo que el campo recibe al elegir; así «Buscar» lo encuentra por palabras.
+5. **Mismo universo que el buscador completo** (`universo_buscar_agente`): agentes activos o no y usuarios activos sin el rol (sumables); no superusuarios ni ciudadanos del portal.
+6. **Misma guarda que el buscador de agentes:** `inspeccion.agente.crear` acotada a Dispositivos y alcance sobre el edificio. Sin permiso, 403 JSON con `Cache-Control: no-store` (también en 400/429). Cubeta de límite **propia** y más ancha (120 por minuto y operador, contra 30 del botón «Buscar»), porque las sugerencias piden una por pausa del tipeo; excederla da 429 y el JS se calla.
+7. **Mismos límites que Personas:** mínimo 3 caracteres, tope 10, `hay_mas`, texto acotado a 100 caracteres y 5 palabras, sin registrar lo tecleado.
+8. **La pieza canónica cambió poco:** `data-sugerencias-url` se lee en cada consulta (un campo puede recibirla o perderla después), y la fila puede traer `valor`. Se actualizaron la ficha y la fila del agente canónico. El CSS suma `flex: 1 1 0%; min-width: 0` para convivir con un botón al lado.
+9. **Becas no cambia.** El modal de alta rápida lo incluyen pantallas de Becas: el cambio de HTML es un solo `data-action-agente-sugerir` en el `<form>`, y la pieza se monta **desde el JS del modal solo al abrirse como agente** y solo si la pantalla cargó `nodo-sugerencias.js` (únicamente `legajo/detail.html` y `relevamientos/list.html`, las dos de Dispositivos con el botón «Crear agente»). Sin la pieza, el campo es el de siempre.
+10. **El servidor sigue validando como hoy:** la sugerencia solo completa el campo.
+11. **Orden de la unión como la base (auditoría del PR).** Las dos consultas por columna vienen ordenadas por el motor con su collation (`_ai_ci`); al unirlas en Python se ordena con una clave aproximada (`NFKD`, sin tildes, `casefold`, más el id), no por codepoint: así «acosta», «Ávila» y «Benítez» salen en ese orden y con más de 10 coincidencias entra el mismo tope. Se probó unir en la base (`union` con `LIMIT` por parte) y SQLite no lo admite, por eso queda en Python.
+12. **Aviso de vacío propio en «Ingresar persona»:** `attrs_sugerencias(url, vacio=None)`; el paso dice «No encontramos a nadie: buscá el DNI para darla de alta.» porque «dala de alta desde Ingresar persona» mandaba a la pantalla en la que ya está. Reservar y Prestar no cambian.
+13. **Una sola copia de lo común:** `normalizar_tecleado`, `palabras_del_tecleado` y `q_prefijo_por_palabras` en `users/services/busqueda.py` (el `icontains` del buscador completo no se tocó), y `sin_cache` en `core/http_cache.py` para el `Cache-Control: no-store` de los dos endpoints.
+
+## Implementación
+
+`programas/selectors/personas_sugeridas.py` (consulta por columna), `programas/selectors/agentes_sugeridos.py` (nuevo), `usuario_sugerir_agente` en `users/views/quick_create.py` con su ruta, `IngresoPersonaForm(url_sugerencias=)` y `IngresoPersonaView._form_buscar`, `puede_reservar_o_prestar` eliminada, `core/http_cache.py`, los helpers de `users/services/busqueda.py`, el JS del modal (`sincronizarSugerencias`) y los tres templates que cargan la pieza.
+
+## Archivos
+
+`programas/selectors/personas_sugeridas.py`, `programas/selectors/agentes_sugeridos.py`, `users/services/busqueda.py`, `core/http_cache.py`, `core/forms_sugerencias.py`, `programas/views/dispositivos_legajo.py`, `programas/views/dispositivos_ingreso.py`, `programas/forms_ingreso.py`, `programas/templates/programas/dispositivos/ingreso/paso_persona.html`, `programas/templates/programas/dispositivos/legajo/detail.html`, `programas/templates/programas/dispositivos/relevamientos/list.html`, `users/views/quick_create.py`, `users/views/__init__.py`, `users/urls.py`, `users/templates/user/_alta_rapida_modal.html`, `static/custom/js/nodo-sugerencias.js`, `static/custom/css/nodo-sugerencias.css`, `.claude/design/componentes/sugerencias.md`, `.claude/agents/chaco-design-system.md`, `programas/tests/test_dispositivos_sugerencias_416.py`, `programas/tests/test_dispositivos_personas_sugeridas_415.py`.
+
+## Base de datos
+
+No requiere migración. **Medición pendiente del 415 (banco `scripts/perf_mysql/`, MySQL 8 en el contenedor 3308, `chaco_perf_ci`):** `EXPLAIN` del `OR` entre apellido y nombre muestra `index_merge` con `sort_union` y `filesort`: usa índices, pero con un prefijo común ordena todo lo que coincide antes de cortar en 11. Sobre una tabla de prueba de 200.000 filas con nombres comunes (`gar`: 51 ms el `OR` contra 0,7 ms partido en dos consultas por columna; `mar`: 23 ms contra 14 ms). Por eso el selector hace una consulta por columna, cada una con su tope, y las une en Python sin repetir y en el mismo orden (apellido, nombre, id); el costo pasa a 2 consultas por búsqueda de palabras (1 por DNI). El banco propio (22.000 filas sintéticas `Apellido PERF NNNN`) no tiene prefijos comunes y no discrimina; la tabla de prueba se borró al terminar. En `auth_user` no hay índice por nombre: el selector de agentes recorre una tabla de miles de usuarios, no de cientos de miles.
+
+## Validación
+
+Tests nuevos en `programas/tests/test_dispositivos_sugerencias_416.py`: compuerta compartida, paso de ingreso (también tras un error de validación), unión por columna (orden, sin repetidos, tope), y el endpoint de agentes (prefijo, mayúsculas, no busca en el medio, campos exactos, DNI enmascarado, DNI y correo sin sugerencias, tope y `hay_mas`, universo, 403/400/429, sin cache, solo lectura, `istartswith` sin `LIKE BINARY` compilando con el backend de MySQL). **Mutaciones** (romper la regla, ver el test rojo, restaurar): `puede_ingresar_persona` en el endpoint de personas anulada; sin la capacidad `inspeccion.agente.crear`; sin el alcance al edificio; `startswith` en el selector; DNI sin enmascarar; sin los atributos en el campo del paso; sin la consulta por nombre; en la revisión, el orden por codepoint, `no-store, private` y el aviso de vacío sin el texto propio. La primera corrida de la mutación de la capacidad salió verde porque el alcance al edificio también daba 403: se agregó un test con alcance pero sin la capacidad, y con él la mutación queda en rojo.
+
+## Pendientes / a definir
+
+- Ninguno de código. El efecto en pantalla (desplegable dentro del modal de alta rápida, que tiene `overflow-y-auto`) conviene mirarlo en testing.
 
 ## Reversión
 
