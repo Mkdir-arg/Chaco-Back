@@ -1,6 +1,7 @@
 {% extends "includes/base.html" %}
-{% load nodo_ui %}
+{% load nodo_ui static %}
 {% block title %}Dispositivos · Ingresar persona — Paso {{ paso_actual }}{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endblock %}
 
 {% comment %}Paso de un wizard (arquetipo Wizard): campos con el esqueleto del paso intermedio; el indicador es `components/_stepper.html`. Sin legajo ni Registro de Personas, el segundo formulario es el alta mínima (`accion=alta_minima`); su oculto `persona` dice a quién mostraba.{% endcomment %}
 
@@ -47,3 +48,4 @@
   {% endif %}
 </div>
 {% endblock %}
+{% block customJS %}<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endblock %}

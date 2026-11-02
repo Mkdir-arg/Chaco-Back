@@ -1,6 +1,7 @@
 {% extends "includes/base.html" %}
 {% load static nodo_ui %}
 {% block title %}Dispositivos · Relevamientos{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endblock %}
 
 {% block main-content %}
 {% comment %}P21 · Relevamientos edilicios (en el código, InspeccionEdificio). Molde: golden de
@@ -271,4 +272,5 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
 
 {% block customJS %}{% include "programas/becas/_ajax_js.html" %}
 {% include "programas/becas/_confirm_js.html" %}
-<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
+<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endblock %}

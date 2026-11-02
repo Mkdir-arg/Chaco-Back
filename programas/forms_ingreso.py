@@ -8,6 +8,7 @@ from django import forms
 from django.utils import timezone
 
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
+from core.forms_sugerencias import MENSAJE_SUGERENCIA_SIN_PERSONA_EN_INGRESO, attrs_sugerencias
 from legajos.models import Ciudadano
 from programas.forms import INPUT_CLASS
 
@@ -32,6 +33,18 @@ class IngresoPersonaForm(forms.Form):
         help_text="Solo si la persona no está en el Legajo Ciudadano: el Registro de Personas lo pide.",
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
     )
+
+    def __init__(self, *args, url_sugerencias=None, **kwargs):
+        """`url_sugerencias`: el endpoint que sugiere personas del Legajo mientras se escribe el DNI (Cambio 416).
+
+        Solo presentación (`nodo-sugerencias.js`): sin la URL, o sin JavaScript, el campo es el de siempre
+        y `clean_dni` sigue decidiendo.
+        """
+
+        super().__init__(*args, **kwargs)
+        self.fields["dni"].widget.attrs.update(
+            attrs_sugerencias(url_sugerencias, MENSAJE_SUGERENCIA_SIN_PERSONA_EN_INGRESO)
+        )
 
     def clean_dni(self):
         dni = normalizar_dni(self.cleaned_data.get("dni"))

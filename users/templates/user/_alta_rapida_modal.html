@@ -36,7 +36,7 @@ funcionando sin ese script.
       <h3 id="quick-user-titulo" class="text-lg font-bold text-heading flex-1 min-w-0"><span data-quick-user-accion>Crear</span> <span data-quick-user-title>usuario</span></h3>
       <button type="button" data-becas-modal-cerrar data-quick-user-close aria-label="Cerrar" class="p-1.5 rounded-lg text-body-subtle hover:text-heading hover:bg-secondary transition-colors flex-shrink-0"><i class="fas fa-xmark text-base" aria-hidden="true"></i></button>
     </div>
-    <form id="quick-user-buscar" role="search" action="{% url 'users:usuario_buscar_territorial' %}" data-action-agente="{% url 'users:usuario_buscar_agente' %}" data-action-agente-sumar="{% url 'users:usuario_sumar_agente' %}" class="flex flex-col min-h-0 flex-1 hidden">
+    <form id="quick-user-buscar" role="search" action="{% url 'users:usuario_buscar_territorial' %}" data-action-agente="{% url 'users:usuario_buscar_agente' %}" data-action-agente-sugerir="{% url 'users:usuario_sugerir_agente' %}" data-action-agente-sumar="{% url 'users:usuario_sumar_agente' %}" class="flex flex-col min-h-0 flex-1 hidden">
       <div class="overflow-y-auto flex-1 p-6 space-y-4">
         <p class="text-sm text-body">Buscá si la persona ya tiene cuenta antes de crear una nueva.</p>
         <div>
@@ -129,6 +129,23 @@ funcionando sin ese script.
     agente: {url: buscar.dataset.actionAgente, params: () => ({edificio_id: edificioId}), fila: null},
   };
   const tipoActual = () => form.elements.tipo.value;
+  // Sugerencias de agentes mientras se escribe (Cambio 416): solo las pantallas de Dispositivos cargan
+  // nodo-sugerencias.js; en las de Becas no existe y el campo queda como siempre. La URL lleva el
+  // edificio y se quita en los demás tipos (sin URL el desplegable no consulta nada).
+  const SUGERENCIAS_AGENTE = {
+    vacio: 'No hay agentes con ese nombre. Con un DNI o un correo, usá Buscar.',
+    hayMas: 'Hay más resultados: escribí más del nombre.',
+  };
+  const sincronizarSugerencias = tipo => {
+    if (tipo === 'agente' && window.NodoSugerencias && buscar.dataset.actionAgenteSugerir) {
+      campoQ.setAttribute('data-sugerencias-url', buscar.dataset.actionAgenteSugerir + '?edificio_id=' + encodeURIComponent(edificioId));
+      campoQ.setAttribute('data-sugerencias-vacio', SUGERENCIAS_AGENTE.vacio);
+      campoQ.setAttribute('data-sugerencias-hay-mas', SUGERENCIAS_AGENTE.hayMas);
+      window.NodoSugerencias.montar(buscar);
+    } else {
+      campoQ.removeAttribute('data-sugerencias-url');
+    }
+  };
   // Paso 1 (buscar) o paso 2 (formulario). Pasan por el 1 los tipos de BUSQUEDA.
   const conBusqueda = tipo => tipo in BUSQUEDA;
   const mostrarPaso = (paso, tipo) => {
@@ -232,6 +249,7 @@ funcionando sin ese script.
     modal.querySelector('[data-quick-user-title]').textContent = tipo; error.textContent = '';
     buscar.reset(); limpiarResultados();
     mostrarPaso(conBusqueda(tipo) ? 'buscar' : 'crear', tipo);
+    sincronizarSugerencias(tipo);
     modal.style.display = 'flex';
     if (conBusqueda(tipo)) campoQ.focus();
   }));

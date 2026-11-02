@@ -2,13 +2,16 @@
  *
  * Monta un desplegable de sugerencias sobre cualquier <input data-sugerencias-url="...">.
  * Desde 3 caracteres pide al endpoint (GET ?q=) una lista de {apellido, nombre, dni} y,
- * al elegir una, completa el campo con el DNI. El <input> sigue siendo el mismo: es el
+ * al elegir una, completa el campo con el DNI (o con `valor`, si la fila lo trae: el buscador
+ * de agentes lo usa para dejar nombre y apellido). El <input> sigue siendo el mismo: es el
  * que viaja en el POST y el servidor valida igual que siempre.
  *
  * Si este archivo no se carga o falla, el campo funciona como un input de texto común.
  *
  * Atributos:
- *   data-sugerencias-url       endpoint (obligatorio)
+ *   data-sugerencias-url       endpoint (obligatorio). Se lee en cada consulta: una pantalla puede
+ *                              cambiarlo o quitarlo (sin URL no se consulta nada); para montar un
+ *                              campo que lo recibe después, window.NodoSugerencias.montar(contenedor)
  *   data-sugerencias-vacio     texto cuando nadie coincide
  *   data-sugerencias-hay-mas   texto cuando el servidor avisa que hay más resultados
  *
@@ -33,7 +36,6 @@
         if (input.dataset.sugerenciasMontado === '1') return;
         input.dataset.sugerenciasMontado = '1';
 
-        var url = input.getAttribute(ATTR);
         var textoVacio = input.getAttribute('data-sugerencias-vacio') || 'No encontramos a nadie.';
         var textoHayMas = input.getAttribute('data-sugerencias-hay-mas') || 'Hay más resultados: escribí más datos.';
         var id = 'nodo-sugerencias-' + (++seq);
@@ -91,7 +93,7 @@
         function elegir(indice) {
             var li = opciones[indice];
             if (!li) return;
-            input.value = li.getAttribute('data-dni');
+            input.value = li.getAttribute('data-valor');
             abrir(false);
             ultimaConsulta = input.value.trim();
             // Quien escucha el campo se entera igual que si la persona lo hubiera tecleado.
@@ -110,8 +112,8 @@
                 li.id = id + '-' + i;
                 li.setAttribute('role', 'option');
                 li.setAttribute('aria-selected', 'false');
-                li.setAttribute('data-dni', fila.dni);
-                li.textContent = fila.apellido + ', ' + fila.nombre + ' · ' + fila.dni;
+                li.setAttribute('data-valor', fila.valor || fila.dni);
+                li.textContent = fila.apellido + ', ' + fila.nombre + (fila.dni ? ' · ' + fila.dni : '');
                 // mousedown y no click: el click llega después del blur y el panel ya se cerró.
                 li.addEventListener('mousedown', function (e) {
                     e.preventDefault();
@@ -132,7 +134,8 @@
             if (texto === ultimaConsulta) return;
             ultimaConsulta = texto;
             if (pedido) pedido.abort();
-            if (texto.length < MINIMO) {
+            var url = input.getAttribute(ATTR);
+            if (!url || texto.length < MINIMO) {
                 pedido = null;
                 abrir(false);
                 return;
