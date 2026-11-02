@@ -43,6 +43,17 @@
         {% for field in form %}{% if field.name == 'responsable_nombre' or field.name == 'responsable_documento' or field.name == 'contacto_telefono' or field.name == 'contacto_email' %}{% include "components/_field.html" with wrapper_class="" %}{% endif %}{% endfor %}
       </div>
     </div>
+    {% if form.responsables %}
+    {% comment %}Cambio 411: solo el alta. Quienes se tildan quedan en el Equipo del dispositivo como responsables, con ese rol; la edición no los pide (se gestionan en la solapa Equipo).{% endcomment %}
+    <div class="border-t border-light mt-5 pt-4">
+      <h2 id="titulo-responsables" class="text-heading font-bold">Responsables del dispositivo <span class="text-fg-danger">*</span></h2>
+      <p class="mt-1 mb-4 text-xs text-body-subtle">{{ form.responsables.help_text }} Después se arma el resto del Equipo desde la solapa «Equipo» del detalle.</p>
+      <div class="nodo-checks max-h-64 overflow-y-auto rounded-lg border border-base p-3" role="group" aria-labelledby="titulo-responsables">
+        {{ form.responsables }}
+      </div>
+      <p class="mt-1 text-xs text-fg-danger{% if not form.responsables.errors %} hidden{% endif %}" data-error="responsables">{{ form.responsables.errors|join:" " }}</p>
+    </div>
+    {% endif %}
     {% comment %}Horario de atención: un formset de franjas (día, desde, hasta). Las filas con datos van a la tabla, con sus valores en campos ocultos; las vacías son el bloque para agregar. Sin JS se completa una fila por franja y se quita marcando «Quitar»; con JS la primera fila vacía es el control de «Agregar» y «Quitar» saca la fila. Las reglas (superposición, desde < hasta, tope por día) las valida el servidor.{% endcomment %}
     <div class="border-t border-light mt-5 pt-4" data-franjas data-prefijo="{{ form.franjas.prefix }}">
       <h2 class="text-heading font-bold">Horario de atención</h2>

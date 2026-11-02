@@ -3,6 +3,7 @@ from django.urls import path
 from programas.views import dispositivos_bitacora as bitacora
 from programas.views import dispositivos_capacidad as capacidad
 from programas.views import dispositivos_config as cfg
+from programas.views import dispositivos_equipo as equipo_views
 from programas.views import dispositivos_formularios as frm
 from programas.views import dispositivos_ingreso as ingreso
 from programas.views import dispositivos_legajo as legajo
@@ -31,6 +32,19 @@ urlpatterns = [
     path("<int:pk>/reactivar/", legajo.DispositivoReactivarView.as_view(), name="reactivar"),
     path("<int:pk>/cerrar/", legajo.DispositivoCerrarView.as_view(), name="cerrar"),
     path("<int:pk>/", legajo.DispositivoDetailView.as_view(), name="detalle"),
+    # Equipo del dispositivo (Cambio 411): cada acción es un POST que re-verifica `puede_gestionar_equipo`.
+    path("<int:pk>/equipo/sumar/", equipo_views.EquipoSumarView.as_view(), name="equipo_sumar"),
+    path("<int:pk>/equipo/<int:miembro_pk>/baja/", equipo_views.EquipoBajaView.as_view(), name="equipo_baja"),
+    path(
+        "<int:pk>/equipo/<int:miembro_pk>/responsable/",
+        equipo_views.EquipoMarcarResponsableView.as_view(),
+        name="equipo_responsable",
+    ),
+    path(
+        "<int:pk>/equipo/<int:miembro_pk>/quitar-responsable/",
+        equipo_views.EquipoDesmarcarResponsableView.as_view(),
+        name="equipo_quitar_responsable",
+    ),
     path("<int:pk>/editar/", legajo.DispositivoUpdateView.as_view(), name="editar"),
     path("<int:pk>/sectores/", legajo.DispositivoSectoresView.as_view(), name="sectores"),
     # Capacidad instalada (carril C5). Mutan: solo POST. Los modales de las dos altas llegan

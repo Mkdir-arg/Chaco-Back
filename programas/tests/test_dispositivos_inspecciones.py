@@ -131,6 +131,11 @@ class BaseInspecciones(TestCase):
         usuario.groups.add(rol)
         return User.objects.get(pk=usuario.pk)
 
+    def par_responsable(self, usuario=None):
+        """«<usuario>:<rol>» de un responsable para el POST del alta (Cambio 411 exige al menos uno)."""
+        usuario = usuario or self.admin
+        return f"{usuario.pk}:{usuario.groups.first().pk}"
+
     def _fresco(self, usuario):
         """`rbac` memoiza las capacidades en el objeto: se recarga entre operaciones."""
 

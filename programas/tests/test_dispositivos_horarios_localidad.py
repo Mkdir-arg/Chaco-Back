@@ -287,6 +287,7 @@ class PantallaDeHorariosTests(BaseInfraestructura):
                 "codigo": "HOR-1",
                 "nombre": "Institución con horario",
                 "localidad": "Resistencia",
+                "responsables": [self.par_responsable()],
                 **_post_franjas((LUNES, "09:00", "12:00"), (LUNES, "13:00", "18:00"), (MARTES, "15:00", "16:00")),
             },
         )
