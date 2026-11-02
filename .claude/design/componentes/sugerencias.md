@@ -26,6 +26,7 @@ reemplaza al campo ni a la validación: el input es el que viaja en el POST y el
 
 - `data-sugerencias-url` se lee **en cada consulta**: una pantalla puede cambiarlo o quitarlo (sin URL no consulta).
   Un campo que la recibe después se monta con `window.NodoSugerencias.montar(contenedor)`.
+- `attrs_sugerencias(url, vacio=None)` acepta otro aviso de vacío (el paso «Ingresar persona» no manda a «Ingresar persona»).
 - Se carga con `nodo-sugerencias.css` (`{% block page_css %}`) y `nodo-sugerencias.js`
   (`{% block customJS %}`) **solo en la pantalla que la usa**, no en `base.html`.
 - El formulario Django pone los atributos con `attrs_sugerencias(url)` de `core/forms_sugerencias.py`
@@ -51,8 +52,11 @@ capacidad y alcance que la acción que completa el campo.
 
 ## Selectores
 
+- Los dos selectores comparten `normalizar_tecleado`, `palabras_del_tecleado` y `q_prefijo_por_palabras` de
+  `users/services/busqueda.py` (100 caracteres, 5 palabras, `istartswith`), y los endpoints responden con `sin_cache`
+  de `core/http_cache.py` (`Cache-Control: no-store`).
 - Personas del Legajo: `programas/selectors/personas_sugeridas.py`. Con palabras, **una consulta por columna**
-  (apellido y nombre) unidas en Python: el `OR` entre columnas lo resuelve MySQL con `index_merge` y, con un prefijo
+  (apellido y nombre) unidas en Python, ordenadas como la collation de la base (sin tildes ni mayúsculas): el `OR` entre columnas lo resuelve MySQL con `index_merge` y, con un prefijo
   común, ordena todo lo que coincide antes de cortar (200k filas: 51 ms contra 0,7 ms).
 - Agentes (usuarios): `programas/selectors/agentes_sugeridos.py`, solo por nombre, con el DNI **enmascarado**; DNI y
   correo siguen siendo búsqueda exacta en el buscador completo. Su endpoint (`users:usuario_sugerir_agente`) tiene

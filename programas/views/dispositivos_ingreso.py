@@ -310,7 +310,7 @@ class IngresoPersonaView(IngresoBaseView):
         """El formulario del DNI, con las sugerencias de personas (Cambio 416).
 
         El gate del asistente (`puede_ingresar_persona`) ya corrió en `dispatch`, y es el mismo del
-        endpoint de sugerencias (`puede_reservar_o_prestar`): quien llega acá puede usarlas.
+        endpoint de sugerencias (`puede_ingresar_persona`): quien llega acá puede usarlas.
         """
 
         url = reverse("dispositivos:personas_buscar", args=[self.dispositivo.pk])

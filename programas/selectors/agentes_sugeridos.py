@@ -8,14 +8,15 @@ en el buscador completo —así no se puede barrer el padrón de usuarios de a p
 Cada sugerencia lleva apellido, nombre y DNI **enmascarado** (`12.***.678`); nunca correo, teléfono ni usuario.
 """
 
-from django.db.models import Q
-
 from programas.services.buscador_agentes import universo_buscar_agente
-from users.services.busqueda import MIN_CARACTERES, TOPE_RESULTADOS, enmascarar_dni
-
-#: Lo que se lee de lo tecleado: más largo que cualquier nombre, para no armar un WHERE enorme.
-MAXIMO_CARACTERES = 100
-MAXIMO_PALABRAS = 5
+from users.services.busqueda import (
+    MIN_CARACTERES,
+    TOPE_RESULTADOS,
+    enmascarar_dni,
+    normalizar_tecleado,
+    palabras_del_tecleado,
+    q_prefijo_por_palabras,
+)
 
 
 def sugerir_agentes(texto):
@@ -25,13 +26,11 @@ def sugerir_agentes(texto):
     encuentra por palabras. Con menos de 3 caracteres la lista va vacía; un DNI o un correo no es prefijo de ningún nombre, así que tampoco devuelve nada.
     """
 
-    texto = (texto or "").strip()[:MAXIMO_CARACTERES].strip()
+    texto = normalizar_tecleado(texto)
     vacio = {"resultados": [], "hay_mas": False}
     if len(texto) < MIN_CARACTERES:
         return vacio
-    filtro = Q()
-    for palabra in texto.replace(",", " ").split()[:MAXIMO_PALABRAS]:
-        filtro &= Q(first_name__istartswith=palabra) | Q(last_name__istartswith=palabra)
+    filtro = q_prefijo_por_palabras(palabras_del_tecleado(texto), "first_name", "last_name")
     filas = list(
         universo_buscar_agente()
         .filter(filtro)

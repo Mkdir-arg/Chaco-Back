@@ -3,7 +3,7 @@
 Lo que se fija acá, y por qué:
 
 1. **El paso «Ingresar persona» usa el mismo endpoint y la misma compuerta** que Reservar y Prestar:
-   `puede_reservar_o_prestar` es `puede_ingresar_persona`; no hay dos reglas que puedan discrepar.
+   el endpoint de sugerencias y el asistente usan `puede_ingresar_persona`; no hay dos reglas que puedan discrepar.
 2. **El paso de ingreso ofrece las sugerencias solo a quien las puede usar** (y carga la pieza solo ahí).
 3. **«Buscar agente» sugiere por nombre**: misma guarda que el buscador completo (capacidad, alcance
    al edificio), 403 JSON sin cache, mínimo 3, tope 10, `hay_mas`, prefijo `istartswith` sin `LIKE BINARY`.
@@ -26,7 +26,6 @@ from programas.selectors.personas_sugeridas import MAXIMO_RESULTADOS, sugerir_pe
 from programas.services.estadias import puede_ingresar_persona
 from programas.tests.test_dispositivos_buscar_agente import BaseBuscarAgente
 from programas.tests.test_dispositivos_estadias import BaseEstadias
-from programas.views.dispositivos_legajo import puede_reservar_o_prestar
 from users.models import Profile
 
 CAPS_INGRESO = ("dispositivo.ver", "dispositivo.admitir", "ciudadano.ver")
@@ -56,6 +55,22 @@ class IngresoPersonaTests(BaseEstadias):
 
         self.assertContains(respuesta, f'data-sugerencias-url="{self.url_sugerencias}"')
 
+    def test_el_aviso_de_vacio_del_paso_no_manda_a_la_pantalla_en_la_que_ya_esta(self):
+        self.client.force_login(self.con_alcance)
+
+        paso = self.client.get(self.url_ingreso)
+        self.assertContains(paso, "buscá el DNI para darla de alta")
+        self.assertNotContains(paso, "dala de alta desde Ingresar persona")
+
+    def test_reservar_y_prestar_conservan_su_aviso_de_vacio(self):
+        from core.forms_sugerencias import MENSAJE_SUGERENCIA_SIN_PERSONA, attrs_sugerencias
+
+        self.assertEqual(attrs_sugerencias("/x/")["data-sugerencias-vacio"], MENSAJE_SUGERENCIA_SIN_PERSONA)
+        self.assertEqual(attrs_sugerencias("/x/", "Otro")["data-sugerencias-vacio"], "Otro")
+        self.client.force_login(self.con_alcance)
+        sectores = self.client.get(reverse("dispositivos:sectores", args=[self.cis.pk]))
+        self.assertContains(sectores, "dala de alta desde Ingresar persona")
+
     def test_sin_ver_personas_el_asistente_responde_403_y_no_hay_sugerencias(self):
         sin_padron = self._operador("Admite sin padron", self.cis, ("dispositivo.ver", "dispositivo.admitir"))
         self.client.force_login(sin_padron)
@@ -69,7 +84,7 @@ class IngresoPersonaTests(BaseEstadias):
         sin_rol = User.objects.create_user("sin_rol", password="x")
         for usuario in (self.con_alcance, sin_admitir, de_otro, sin_rol):
             with self.subTest(usuario=usuario.username):
-                self.assertEqual(puede_reservar_o_prestar(usuario, self.cis), puede_ingresar_persona(usuario, self.cis))
+                self.assertEqual(puede_ingresar_persona(usuario, self.cis), usuario in (self.con_alcance,))
                 self.client.force_login(usuario)
                 asistente = self.client.get(self.url_ingreso).status_code
                 endpoint = self.client.get(self.url_sugerencias, {"q": "Pérez"}).status_code
@@ -111,6 +126,19 @@ class PersonasPorColumnaTests(BaseEstadias):
         # El orden global (apellido, nombre) pone a «Aaron» primero aunque salga de la consulta por nombre.
         self.assertEqual(resultado["resultados"][0]["apellido"], "Aaron")
         self.assertEqual(set(resultado["resultados"][0]), CLAVES_PERSONA)
+
+    def test_el_orden_de_la_union_ignora_tildes_y_mayusculas_como_la_collation_de_la_base(self):
+        for apellido, nombre, dni in (
+            ("Benítez", "Xiomara", "43000001"),
+            ("acosta", "Xiomara", "43000002"),
+            ("Ávila", "Xiomara", "43000003"),
+        ):
+            Ciudadano.objects.create(apellido=apellido, nombre=nombre, dni=dni)
+
+        resultado = sugerir_personas("xio")
+
+        # A < B por la letra base, no por el codepoint (donde «Ávila» y «acosta» irían al final): acosta, Ávila, Benítez.
+        self.assertEqual([f["dni"] for f in resultado["resultados"]], ["43000002", "43000003", "43000001"])
 
     def test_buscar_por_palabras_son_dos_consultas_una_por_columna(self):
         with CaptureQueriesContext(connection) as consultas:
@@ -305,3 +333,27 @@ class ModalDeAgentesTests(BaseBuscarAgente):
         self.assertContains(respuesta, 'data-action-agente-sugerir="' + reverse("users:usuario_sugerir_agente"))
         self.assertContains(respuesta, "custom/js/nodo-sugerencias.js")
         self.assertContains(respuesta, "custom/css/nodo-sugerencias.css")
+
+
+class HelpersCompartidosTests(BaseEstadias):
+    def test_sin_cache_deja_exactamente_no_store(self):
+        from django.http import JsonResponse
+
+        from core.http_cache import sin_cache
+
+        respuesta = sin_cache(JsonResponse({}))
+
+        self.assertEqual(respuesta["Cache-Control"], "no-store")
+
+    def test_el_filtro_por_palabras_es_prefijo_de_una_columna_o_de_la_otra(self):
+        from users.services.busqueda import normalizar_tecleado, palabras_del_tecleado, q_prefijo_por_palabras
+
+        self.assertEqual(normalizar_tecleado(None), "")
+        self.assertEqual(len(normalizar_tecleado("a" * 500)), 100)
+        self.assertEqual(palabras_del_tecleado("Perez, Juan  a b c d e"), ["Perez", "Juan", "a", "b", "c"])
+        self.assertEqual(str(q_prefijo_por_palabras([], "apellido", "nombre")), "(AND: )")
+        Ciudadano.objects.create(apellido="Zúñiga", nombre="Juan", dni="44000001")
+        Ciudadano.objects.create(apellido="Juan", nombre="Zúñiga", dni="44000002")
+        Ciudadano.objects.create(apellido="Zúñiga", nombre="Pedro", dni="44000003")
+        encontrados = Ciudadano.objects.filter(q_prefijo_por_palabras(["Zúñiga", "Jua"], "apellido", "nombre"))
+        self.assertEqual(sorted(encontrados.values_list("dni", flat=True)), ["44000001", "44000002"])

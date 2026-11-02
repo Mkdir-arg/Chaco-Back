@@ -9,6 +9,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from core import rbac
 from core.http import error_json, ok_json
+from core.http_cache import sin_cache
 from core.services.throttle import rate_limit_excedido
 from programas.management.commands.seed_becas import (
     ROL_COORDINADOR,
@@ -247,13 +248,13 @@ def usuario_sugerir_agente(request):
     (prefijo): nunca correo ni teléfono, y ni DNI ni correo se buscan acá. Sin permiso, 403 JSON.
     """
     if not puede_en_programa_dispositivos(request.user, CAP_CREAR_AGENTE):
-        return _sin_cache(error_json("No tiene permiso para buscar agentes.", status=403))
+        return sin_cache(error_json("No tiene permiso para buscar agentes.", status=403))
     try:
         edificio_id = int(request.GET.get("edificio_id") or "")
     except ValueError:
-        return _sin_cache(error_json("Elegí primero el edificio.", status=400))
+        return sin_cache(error_json("Elegí primero el edificio.", status=400))
     if not edificios_en_alcance(request.user, CAP_ASIGNAR).filter(pk=edificio_id).exists():
-        return _sin_cache(error_json("No tenés alcance sobre ese edificio.", status=403))
+        return sin_cache(error_json("No tenés alcance sobre ese edificio.", status=403))
     if rate_limit_excedido(
         request,
         CUBETA_SUGERIR_AGENTE,
@@ -261,16 +262,11 @@ def usuario_sugerir_agente(request):
         sufijo=str(request.user.pk),
         incluir_ip=False,
     ):
-        return _sin_cache(
+        return sin_cache(
             error_json("Hiciste muchas búsquedas seguidas. Esperá un minuto y probá de nuevo.", status=429)
         )
     # Sin registrar lo tecleado: es un nombre, dato personal.
-    return _sin_cache(ok_json(**sugerir_agentes(request.GET.get("q"))))
-
-
-def _sin_cache(respuesta):
-    respuesta["Cache-Control"] = "no-store"
-    return respuesta
+    return sin_cache(ok_json(**sugerir_agentes(request.GET.get("q"))))
 
 
 @login_required

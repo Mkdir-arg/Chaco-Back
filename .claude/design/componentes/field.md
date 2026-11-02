@@ -68,6 +68,8 @@ vista que lo procesa. Caso vivo: `VolverACampoForm` y `ReprogramarForm` comparte
 el detalle del relevamiento, y el primero declara `AUTO_ID = "id_volver_%s"`. Lo mismo hace
 `IngresoAltaMinimaForm` (`programas/forms_ingreso.py`) con `id_alta_%s`: convive con `IngresoPersonaForm`,
 que también tiene `dni`, en el paso 1 del ingreso a un dispositivo (Cambio 375).
+El `dni` de `IngresoPersonaForm` lleva además `data-sugerencias-*` (`attrs_sugerencias`, ficha `sugerencias.md`) con su
+propio aviso de vacío (Cambio 416): es mejora progresiva, el campo sigue siendo un `TextInput` común.
 
 De `programas/forms.py` la evidencia de diseño es **`INPUT_CLASS`, los `widget=…` que la usan y `marca_requerido`**;
 el resto del archivo es validación de dominio (`clean_*`, validaciones cruzadas) y no define nada
