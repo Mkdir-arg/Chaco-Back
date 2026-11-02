@@ -38,7 +38,7 @@ por plaza pasaría el presupuesto del mapa, así que ese modal se pide **al toca
 (`?plaza=<id>&fragmento=reubicar`) y la celda lleva `abrirReubicar(<id>)`.
 
 «Con una reserva sin liberar» no es «reservada en el mapa»: la reserva vencida que nadie
-liberó deja la plaza **Disponible** y sigue abierta (`estadias.reservas_abiertas`). Es
+liberó deja la plaza **Disponible** y sigue abierta (`ReservaPlaza.objects.abiertas()`). Es
 exactamente la que enciende la alerta de P4, y si la acción se decidiera por el estado del
 mapa, esa alerta no se podría resolver desde acá. El estado dibujado sigue saliendo de
 `estado_de_plazas` y de ningún otro lado; lo que se suma es un segundo hecho, no un
@@ -63,8 +63,8 @@ nada más que para dibujarse.
 
 from django.utils import timezone
 
-from programas.models import Plaza, Sector
-from programas.services.estadias import reserva_abierta_de, reservas_abiertas
+from programas.models import Plaza, ReservaPlaza, Sector
+from programas.services.estadias import reserva_abierta_de
 from programas.services.ocupacion import (
     ESTADO_FUERA_SERVICIO,
     ESTADO_OCUPADA,
@@ -263,7 +263,12 @@ def _reservas_abiertas_por_plaza(plazas):
 
     if not plazas:
         return {}
-    filas = reservas_abiertas([plaza.pk for plaza in plazas]).order_by("-id").values_list("plaza_id", "id")
+    filas = (
+        ReservaPlaza.objects.abiertas()
+        .filter(plaza_id__in=[plaza.pk for plaza in plazas])
+        .order_by("-id")
+        .values_list("plaza_id", "id")
+    )
     return dict(filas)
 
 

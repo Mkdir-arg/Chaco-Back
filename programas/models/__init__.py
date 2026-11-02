@@ -1231,6 +1231,31 @@ class ReservaPlazaQuerySet(models.QuerySet):
             models.Q(hasta__isnull=True) | models.Q(hasta__gte=momento)
         )
 
+    def abiertas(self):
+        """Las **sin resolver**: ``VIGENTE``, venzan o no. ¿Queda algo que liberar?
+
+        No depende del vencimiento: una reserva con el ``hasta`` pasado que nadie liberó sigue
+        abierta. Es el caso de la alerta «Préstamo vencido sin liberar» de P4: la plaza ya
+        cuenta como disponible y la reserva sigue ahí, así que el mapa necesita esta lectura y
+        no la de `vigentes()`.
+        """
+
+        return self.filter(estado=ReservaPlaza.Estado.VIGENTE)
+
+    def que_toman(self, momento=None):
+        """Las que toman la plaza **desde ahora**: las abiertas que todavía no terminaron.
+
+        No es `vigentes()`: esa mira un instante (¿cuenta hoy en el mapa?) y descarta las que
+        todavía no empezaron. Acá la pregunta es «¿puedo dar esta plaza?», un intervalo que
+        arranca ahora y no termina: una reserva con `desde` dentro de una hora no cuenta hoy,
+        pero si se aloja a alguien encima, al llegar su `desde` la plaza queda ocupada **y**
+        reservada (MAJOR 2 de la revisión de #802). Solo la libera haber **terminado**:
+        resuelta o con `hasta` pasado.
+        """
+
+        momento = momento or timezone.now()
+        return self.abiertas().filter(models.Q(hasta__isnull=True) | models.Q(hasta__gte=momento))
+
 
 class ReservaPlaza(TimeStamped):
     """Una plaza tomada sin que haya nadie alojado todavía (MVP v2, etapa 2 · #689).

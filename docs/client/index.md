@@ -34,7 +34,9 @@ hide:
 
     ---
 
-    **Octubre 2026 (en curso):** 797h consumidas de 850h (94%), con 53h disponibles — al 26/10
+    **Noviembre 2026 (en curso):** 42h consumidas de 850h (5%), con 808h disponibles — traslado del excedente de octubre
+
+    **Octubre 2026 (cerrado):** esfuerzo real 892h, imputadas las 850h del presupuesto (100%); 42h pasaron a noviembre como consumo inicial
 
     **Septiembre 2026 (cerrado):** esfuerzo real 942h 30min, imputadas las 850h del presupuesto (100%); 92h 30min pasaron a octubre como consumo inicial
 
@@ -44,13 +46,13 @@ hide:
 
     **Junio 2026 (cerrado):** 499h de 500h (100%) — dentro del presupuesto
 
-    [:octicons-arrow-right-16: Ver dashboard](financiero/mes-2026-09.md)
+    [:octicons-arrow-right-16: Ver dashboard](financiero/mes-2026-11.md)
 
 -   :material-calendar-clock: **Última actualización**
 
     ---
 
-    **27 de octubre 2026**
+    **30 de octubre 2026**
 
     Documentación viva — se actualiza al cierre de cada versión.
 
