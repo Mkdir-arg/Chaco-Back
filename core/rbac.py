@@ -77,6 +77,9 @@ CATALOGO = [
             # P15. Separada de `admitir` porque cargar la bitácora del turno no es alojar
             # a nadie. `users.0036` la siembra en los roles que ya admiten.
             ("dispositivo.bitacora", "Cargar novedades en la bitácora del turno"),
+            # Cambio 410: ver TODOS los dispositivos sin ser parte del Equipo. Solo lectura:
+            # opera únicamente quien integra el Equipo del dispositivo o administra el programa.
+            ("dispositivo.ver_todos", "Ver todos los dispositivos (solo lectura)"),
         ],
     },
     {

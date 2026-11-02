@@ -41,6 +41,7 @@ from .models import (
     Formulario,
     InscripcionPrograma,
     ListaEspera,
+    MiembroEquipoDispositivo,
     MotivoEgreso,
     Plaza,
     PreguntaGlobal,
@@ -342,6 +343,14 @@ class AsignacionDispositivoAdmin(admin.ModelAdmin):
     list_display = ("rol", "dispositivo", "activo", "creado")
     list_filter = ("activo", "dispositivo__tipo")
     search_fields = ("rol__name", "dispositivo__codigo", "dispositivo__nombre")
+
+
+@admin.register(MiembroEquipoDispositivo)
+class MiembroEquipoDispositivoAdmin(admin.ModelAdmin):
+    list_display = ("usuario", "rol", "dispositivo", "es_responsable", "activo", "creado")
+    list_filter = ("activo", "es_responsable", "dispositivo__tipo")
+    raw_id_fields = ("usuario", "dispositivo")
+    search_fields = ("usuario__username", "rol__name", "dispositivo__codigo", "dispositivo__nombre")
 
 
 @admin.register(AsignacionTerritorial)
