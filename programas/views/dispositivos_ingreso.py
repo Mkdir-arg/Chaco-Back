@@ -64,7 +64,7 @@ from programas.services.ocupacion import (
 
 #: Una sola clave de sesión con un estado por dispositivo: `{"<pk>": {...}}`.
 CLAVE_SESION = "ingreso_asistente"
-#: Quien busca a la persona en el legajo necesita verla: es lo que muestra el asistente.
+#: Dar de alta en el legajo a la persona que no está: el asistente lo ofrece solo a quien puede.
 CAP_CREAR_CIUDADANO = "ciudadano.crear"
 
 AVISO_OTRA_PESTANA = (

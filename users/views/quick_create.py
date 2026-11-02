@@ -33,6 +33,7 @@ from users.forms import MENSAJE_DNI_DUPLICADO, UserCreationForm
 from users.models import RolMeta
 from users.selectors.usuarios import alcance_roles_ids
 from users.services.admin import UsuariosAdminService
+from users.services.agentes import correo_es_de_un_agente
 from users.services.busqueda import MIN_CARACTERES, nombre_para_mostrar
 from users.services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
 from users.services.territoriales import (
@@ -128,6 +129,14 @@ CUBETA_BUSCAR_AGENTE = "usuario_buscar_agente"
 ALTAS_AGENTE_POR_MINUTO = 20
 #: Lo único que el operador de Dispositivos puede mandar en el alta: nada de roles, jerarquía ni segmentos.
 CAMPOS_ALTA_AGENTE = ("username", "email", "first_name", "last_name", "dni", "telefono")
+
+MENSAJE_CORREO_AGENTE_EXISTENTE = (
+    "Ya hay un usuario con ese correo: buscalo en el paso «Buscar agente» en vez de crear uno nuevo."
+)
+
+MENSAJE_CORREO_USUARIO_NO_AGENTE = (
+    "Ese correo ya es de un usuario del sistema: pedile al administrador del programa que le sume el rol de agente."
+)
 
 MENSAJE_DNI_AGENTE = (
     "Ese DNI ya es de un usuario del sistema: pedile al administrador del programa que le sume el rol de agente."
@@ -389,6 +398,20 @@ def _alta_agente(request):
         # Decisión del 14-oct: el agente lleva correo obligatorio; el enlace de la clave viaja por ahí.
         mensaje = "El correo es obligatorio: la clave se le entrega por correo."
         return JsonResponse({"ok": False, "message": mensaje, "errors": {"email": [mensaje]}}, status=400)
+    es_agente = correo_es_de_un_agente(data["email"])
+    if es_agente is not None:
+        mensaje = MENSAJE_CORREO_AGENTE_EXISTENTE if es_agente else MENSAJE_CORREO_USUARIO_NO_AGENTE
+        # Cambio 409 (QA C2-04): sin esto «Crear agente nuevo» fabricaba un homónimo (mismo nombre y
+        # correo) de alguien que ya tiene cuenta y se saltaba la regla de agente externo. No se dice de
+        # quién es el correo: solo que existe y a dónde ir.
+        return JsonResponse(
+            {
+                "ok": False,
+                "message": mensaje,
+                "errors": {"email": [mensaje]},
+            },
+            status=409,
+        )
     return _crear_y_responder(
         request,
         tipo="agente",

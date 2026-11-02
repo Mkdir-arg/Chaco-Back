@@ -162,6 +162,11 @@ MENSAJE_DEBE_CAMBIAR_CLAVE = (
     "Tenés que cambiar la clave antes de usar la app. "
     "Usá el enlace que te llegó por correo o pedí uno nuevo desde «Olvidé mi contraseña»."
 )
+#: Sin correo cargado, el enlace no tiene a dónde llegar: lo que sigue es pedirle uno al administrador.
+MENSAJE_DEBE_CAMBIAR_CLAVE_SIN_CORREO = (
+    "Tenés que cambiar la clave antes de usar la app, pero tu usuario no tiene un correo cargado. "
+    "Pedile a tu administrador que te cargue un correo."
+)
 
 
 class ObtainCampoToken(ObtainAuthToken):
@@ -245,7 +250,10 @@ class ObtainCampoToken(ObtainAuthToken):
         # acceso: a quien no las tiene no se le revela nada. `codigo` es contrato con la app.
         if Profile.objects.filter(user=user, debe_cambiar_contrasena=True).exists():
             return Response(
-                {"codigo": CODIGO_DEBE_CAMBIAR_CLAVE, "detail": MENSAJE_DEBE_CAMBIAR_CLAVE},
+                {
+                    "codigo": CODIGO_DEBE_CAMBIAR_CLAVE,
+                    "detail": MENSAJE_DEBE_CAMBIAR_CLAVE if user.email else MENSAJE_DEBE_CAMBIAR_CLAVE_SIN_CORREO,
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
         token, _ = Token.objects.get_or_create(user=user)

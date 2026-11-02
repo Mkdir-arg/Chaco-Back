@@ -6,6 +6,7 @@ from django.utils.text import slugify
 
 from core import rbac
 from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
+from users.services.correo import MENSAJE_CAMPO_SIN_CORREO
 
 
 def _normalize_groups_data(data):
@@ -275,9 +276,6 @@ def _validar_clave_tipeada(form):
         form.add_error("password", exc)
 
 
-MENSAJE_CAMPO_SIN_CORREO = "Para un usuario de campo hace falta un correo: la clave se entrega por enlace"
-
-
 def _validar_correo_de_entrega(form, *, exigir_clave=True, grupos=None):
     """Cómo le llega la clave a quien se está dando de alta (G1b-08 + D-26).
 
@@ -349,8 +347,13 @@ def _validar_correo_de_entrega_al_editar(form):
     if not instancia.email and rbac.roles_solo_campo(actuales):
         # Ya estaba así: la edición sin tocar la clave tiene que poder guardarse. Pero si el operador
         # tipea una clave, la conoce, y a un usuario de campo la clave solo se le entrega por enlace
-        # (Cambio 407, decisión del PM 30/10/2026): sin correo no hay forma de dársela.
-        if form.cleaned_data.get("password") and not form.cleaned_data.get("email"):
+        # (Cambio 407, decisión del PM 30/10/2026): sin correo no hay forma de dársela. Se mira con
+        # qué roles **queda**: una promoción a backoffice en el mismo guardado ya no es de campo.
+        if (
+            form.cleaned_data.get("password")
+            and not form.cleaned_data.get("email")
+            and rbac.roles_solo_campo(resultantes)
+        ):
             form.add_error("email", MENSAJE_CAMPO_SIN_CORREO)
         return
     _validar_correo_de_entrega(form, exigir_clave=False, grupos=resultantes)

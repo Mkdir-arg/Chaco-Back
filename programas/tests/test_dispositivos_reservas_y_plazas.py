@@ -418,4 +418,5 @@ class MensajesDelMapaTests(BaseMapa):
 
         self.assertIn("El préstamo queda registrado como liberado", html)
         self.assertIn("La reserva queda registrada como liberada", html)
-        self.assertTrue(re.search(r"x-show=\"plazasModal\[plazaSel\]\?\.estado === 'Prestada'\"", html))
+        self.assertTrue(re.search(r"x-show=\"plazasModal\[plazaSel\]\?\.es_prestamo\"", html))
+        self.assertNotIn("=== 'Prestada'", html)

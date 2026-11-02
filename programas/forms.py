@@ -2280,7 +2280,9 @@ class ItemCampoPropioForm(forms.Form):
     """Campo propio de la convocatoria (D2): vive solo en este diseño y no se
     suma al catálogo."""
 
-    texto = forms.CharField(label="Texto", max_length=240, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
+    # 120 y no los 240 del modelo: una etiqueta más larga no entra en la tarjeta del constructor
+    # ni en la del formulario (QA A2-01). Lo ya guardado más largo se muestra cortado por CSS.
+    texto = forms.CharField(label="Texto", max_length=120, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
     tipo = forms.ChoiceField(
         label="Tipo de campo", choices=TipoCampo.choices, widget=forms.Select(attrs={"class": INPUT_CLASS})
     )

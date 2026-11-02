@@ -530,6 +530,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 404 | SIIS: `corregir_datos_siis` exporta a CSV las localidades que no cruzan (una fila por caso) y carga lo que completa el cliente en `localidades_corregidas` | SIIS (`corregir_datos_siis`) · procedimiento del alta | `#siis` | PM — pendiente de las 147 localidades del Cambio 401 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 406 | Dispositivos: el ingreso consume la reserva de la persona, reservar valida a la persona y los sectores solo donde hay plazas (QA local del 30/10) | Dispositivos · sectores y plazas · asistente de ingreso | `#ui` `#datos` | QA local de Dispositivos (30/10/2026): B-01, B-02, A-07, A-08, B-05, A-12 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 407 | Dispositivos: «Ingresar persona» solo a quien el asistente deja entrar, buscador en el formulario del tipo, reenvío del rechazado y clave provisoria del agente en la app | Dispositivos (legajo P4/P3, asistente de ingreso, `ObtainCampoToken`) | `#rbac` `#ui` `#api` `#mobile` | PM — QA local de Dispositivos del 30/10/2026 (A-01/B-03, A-05, A-02, C-S2) | 30/10/2026 | 🟢 **Hecho** | No requiere |
+| 409 | Dispositivos: reactivar un INACTIVO, el ingreso libera todas las reservas de la persona, clave de campo por enlace en el CSV y correcciones de la QA 2 (02/11) | Dispositivos (legajo P4, asistente de ingreso, sectores y plazas) · Usuarios (ABM, import CSV, alta rápida de agente) · API de campo | `#ui` `#rbac` `#datos` `#api` | PM — QA 2 local de Dispositivos del 02/11/2026 y MINOR de las auditorías de #1011 y #1012 (D1-D3, A2-07, A2-01, C2-04) | 02/11/2026 | 🟢 **Hecho** | No requiere |
 
 **Notas del índice**
 
@@ -50917,5 +50918,125 @@ Revertir el PR; sin migraciones ni datos.
 - **30/10/2026 — alta del cambio.**
 - **30/10/2026 — ronda de la auditoría del PR #1011.** Decisión 5 (correo obligatorio para el usuario solo de campo, ABM y CSV),
   decisión 6 (refactor menor) y el conteo de PRD en 0 (Pendiente 2 resuelto).
+
+---
+
+# Cambio 409 — Dispositivos: reactivar un INACTIVO, el ingreso libera todas las reservas de la persona y correcciones de la QA 2
+
+🟢 **HECHO — 02/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (legajo P4, asistente de ingreso, sectores y plazas) · Usuarios (ABM, importación CSV, alta rápida de agente) · API de campo |
+| **Etiquetas** | `#ui` `#rbac` `#datos` `#api` |
+| **Solicitante** | PM — QA 2 local de Dispositivos del 02/11/2026 y MINOR de las auditorías de #1011 y #1012 (D1-D3, A2-07, A2-01, C2-04) |
+| **Fecha del pedido** | 02/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Servicios de dispositivos e ingreso, vistas y templates del legajo y del mapa de plazas, formularios del ABM y del constructor, comando de importación CSV, alta rápida de agente, API de campo |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Tres decisiones del PM sobre lo que dejó la QA 2 local (D1-D3), los MINOR de las auditorías de #1011 y #1012, y los hallazgos
+medios del back de esa QA: A2-07 (validar con datos faltantes no dice cuáles), A2-01 (etiqueta de campo propio sin límite) y
+C2-04 («Crear agente nuevo» fabrica un homónimo).
+
+## Alcance acordado
+
+**Entra:** lo de arriba, con tests y mutaciones. **Queda afuera:** la tabla de 390 px (A2-12 / B-06 / B2-07: PR visual aparte) y
+los hallazgos de la app (C2-01 a C2-03).
+
+## Decisiones tomadas
+
+1. **D1 (PM, 02/11/2026) — un dispositivo INACTIVO se reactiva y vuelve a ACTIVO.** Transición `reactivar_dispositivo` en
+   `programas/services/dispositivos.py` (misma `_transicionar`: `select_for_update`, origen solo INACTIVO, traza `REACTIVADO`
+   con «INACTIVO → ACTIVO» en el historial). Misma capacidad que inactivar (`dispositivo.editar`), URL `dispositivos:reactivar`
+   (POST) y entrada «Reactivar» en el menú del detalle con el modal de confirmación estándar. El CERRADO sigue siendo
+   definitivo.
+2. **D2 (PM, 02/11/2026) — al ingresar se liberan TODAS las reservas abiertas de la persona, también las de otros
+   dispositivos.** `_reservas_abiertas_de` ya no filtra por dispositivo. `liberar_reserva` gana `verificar_alcance=False` solo
+   para este caso: quien ingresa no necesariamente tiene alcance en el otro dispositivo, y no es una decisión suya sobre esa
+   plaza sino la consecuencia de que la persona ya está adentro; la traza `PLAZA_LIBERADA` queda en el historial del
+   dispositivo de esa plaza. Orden de candados del Cambio 406 intacto (plaza, reserva, persona) y, MINOR de la auditoría de
+   #1012, **todas las plazas involucradas** (las de las reservas a liberar más la del ingreso) se bloquean de una vez, ordenadas
+   por pk, antes del bucle; la línea que bloqueaba la plaza del ingreso por separado se fue. El motivo de cierre pasa a «La
+   persona ingresó a un dispositivo.».
+3. **D3 (PM, 02/11/2026) — importación CSV.** Una fila de un usuario solo de campo **con correo** ignora la clave del archivo y
+   lo informa («la clave se entrega por enlace: pedir "Olvidé mi contraseña"»); el usuario nuevo nace con clave inutilizable y
+   no hace falta la columna de clave para esas filas. Sin correo se sigue rechazando la fila (Cambio 407).
+4. **MINOR de #1011.** El ABM mira con qué roles **queda** la cuenta (`resultantes`) al decidir si una clave tipeada sin correo
+   se rechaza: una promoción a backoffice se guarda en un paso. `roles_solo_campo` se calcula una sola vez en `handle` y llega a
+   `_planificar` como argumento obligatorio. `MENSAJE_CAMPO_SIN_CORREO` vive en `users/services/correo.py` y lo usan el form y
+   el comando. El 403 `debe_cambiar_contrasena` de un usuario sin correo agrega «Pedile a tu administrador que te cargue un
+   correo» (`codigo` sin cambios). Los tests de 407 usan un mixin sin tests en vez de heredar (y volver a correr) los de la
+   clase base.
+5. **MINOR de #1012.** Los `#:` huérfanos de `CAP_VER_CIUDADANO` se llevaron a `estadias.py`, junto a la constante; la bandera
+   `puede_enviar_validacion` del detalle sale de `puede_enviar_desde_formulario` (sin recomponer la regla en la vista); el aviso
+   de «Liberar» del mapa lee `es_prestamo` (dato) y no compara contra el texto `'Prestada'`.
+6. **A2-07.** Validar o enviar con datos faltantes dice cuáles faltan (nombres de campo como los ve el operador).
+7. **A2-01.** El texto de un campo propio del constructor tiene tope de 120 caracteres en el formulario (el modelo guarda en
+   `JSONField`, sin migración; lo ya guardado más largo no se toca) y el contenedor de cada campo del formulario del tipo (`_formulario_tipo.html`) corta con `break-words` (no se tocó `_field.html`: es canónico y los snapshots de Becas lo congelan).
+8. **N-01 (QA local).** `plazas.puede_configurar_plazas(usuario, dispositivo)` (capacidad con alcance y no CERRADO, la regla de
+   `_exigir_alcance`) es la bandera que lee «Sectores y plazas»: con el dispositivo cerrado no se ofrecen «Editar sector»,
+   «Editar plaza» ni «Sacar de servicio». **V-02.** La tarjeta «Formulario de ingreso» de P3 perdió `overflow-hidden`, que
+   recortaba la lista del buscador (verificado con capturas a 1440 y 390 px: la lista sale de la tarjeta y se ve entera).
+9. **C2-04.** «Crear agente nuevo» rechaza con 409 un correo que ya existe (sin distinguir mayúsculas) y manda a «Buscar agente».
+   Se rechaza en vez de ofrecer «Sumar como agente» porque ese flujo es el del PR #1009 (`feature/dispositivos-sumar-agente`,
+   Cambio 404), todavía sin mergear. **Se pisan en `users/views/quick_create.py`** (`_alta_agente`): lo mío agrega un bloque
+   después del chequeo del correo obligatorio y el #1009 cambia `_rol_de_agente` por `rol_de_agente` más arriba; no deberían
+   dar conflicto de texto, pero el que entre segundo tiene que revisar que la validación de correo siga antes de
+   `_crear_y_responder`. Nota: contradice a medias el Cambio sobre correo compartido (13-oct) solo para el alta de agente.
+   **Ronda 2 de la auditoría:** el texto del 409 depende de quién es el dueño del correo
+   (`users/services/agentes.correo_es_de_un_agente`, el mismo criterio del buscador: rol sembrado de agente). Si es agente,
+   «Buscar agente»; si es otro usuario del sistema, «pedile al administrador del programa que le sume el rol de agente».
+10. **Ronda 2 · CSV de campo.** El usuario de campo sin clave en el archivo nace con una clave al azar (`generar_password_provisoria(32)`,
+    como `entregar_credenciales_provisorias`) y no con `set_unusable_password()`: Django no manda el enlace de
+    «Olvidé mi contraseña» a quien no tiene clave usable, y D3 se apoya en ese enlace. El test lo verifica con
+    `PasswordResetForm.get_users`.
+11. **Ronda 2 · MINOR.** Sin el alias `puede_configurar_las_plazas` en `dispositivos_legajo.py` (se renombraron los locales) y
+    docstring de `estadias.py` con el orden de candados vigente (todas las plazas por pk, luego reservas, luego persona).
+
+## Implementación
+
+`programas/services/dispositivos.py`, `ingreso.py`, `estadias.py`, `sectores_plazas.py`; `programas/views/dispositivos_legajo.py`
+y `dispositivos_ingreso.py`; `programas/dispositivos_urls.py`; `legajo/detail.html` y `sectores/sectores.html`;
+`programas/selectors/auditoria_dispositivo.py`; `programas/forms.py`; `legajo/_formulario_tipo.html`, `programas/services/plazas.py`; `programas/api/views.py`;
+`users/forms/__init__.py`, `users/services/correo.py`, `users/management/commands/import_users_from_csv.py`,
+`users/views/quick_create.py`, `users/services/agentes.py` (nuevo).
+
+## Archivos
+
+- Tests: `programas/tests/test_dispositivos_qa2_409.py` (nuevo), `users/tests/test_clave_campo_cambio_407.py`,
+  `users/tests/test_credenciales_ola2_pr2.py` (mixin), `programas/tests/test_dispositivos_reservas_y_plazas.py`,
+  `programas/tests/test_dispositivos_auditoria.py`.
+
+## Base de datos
+
+Sin cambios de esquema.
+
+## Validación
+
+Mutaciones, cada una deja rojo el test que la cubre: reactivar también desde CERRADO; la vista de reactivar con la capacidad de
+solo ver; filtrar otra vez las reservas por dispositivo; sacar la plaza del ingreso del bloqueo conjunto; usar la clave del
+archivo en el CSV de campo; mirar `actuales` y no `resultantes` en el form; apagar el chequeo de correo repetido del alta de agente.
+Ronda 2: volver a `set_unusable_password()` en el CSV (rojo: el enlace de reseteo no sale) y dar siempre «es agente» al dueño del correo (rojo).
+
+## Puesta en marcha en el servidor
+
+Nada especial.
+
+## Pendientes / a definir
+
+1. La tabla de 390 px de Instituciones, Estadías y Tipos (PR visual aparte).
+2. «Sumar como agente» ante un correo existente: lo trae el PR #1009.
+3. Hallazgos de la app C2-01 a C2-03.
+
+## Reversión
+
+Revertir el PR; sin migraciones. Las trazas `REACTIVADO` ya escritas quedan en el historial.
+
+## Historial
+
+- **02/11/2026 — alta del cambio.**
 
 ---
