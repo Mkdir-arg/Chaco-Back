@@ -50,3 +50,38 @@
     padding: 13px 16px;
     font-size: var(--font-size-sm);
 }
+
+/* Columna de acciones fija y pista de scroll horizontal.
+   La columna de acciones (`nodo-col-acciones` en th y td) queda pegada al borde
+   derecho del wrapper con fondo sólido, así el menú de fila no se pierde cuando la
+   tabla es más ancha que la pantalla. `nodo-tables.js` agrega `nodo-scroll-mas` al
+   wrapper mientras queda contenido oculto a la derecha: ahí aparece la sombra de borde.
+   Sin JS la columna sigue fija y solo falta la sombra. A pantalla ancha no hay overflow:
+   no se ve ningún cambio. */
+.nodo-col-acciones {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+}
+
+/* El menú ⋮ (position: fixed) vive dentro de la celda: mientras está abierto la celda sube,
+   o las celdas sticky de las filas siguientes lo taparían. */
+.nodo-col-acciones:has([data-menu-fila-trigger][aria-expanded="true"]) {
+    z-index: 2;
+}
+
+th.nodo-col-acciones {
+    background: var(--bg-secondary);
+}
+
+td.nodo-col-acciones {
+    background: var(--bg-primary);
+}
+
+tr:hover > td.nodo-col-acciones {
+    background: var(--bg-secondary);
+}
+
+.nodo-scroll-mas .nodo-col-acciones {
+    box-shadow: -8px 0 8px -6px rgba(0, 0, 0, 0.18);
+}

@@ -51,6 +51,7 @@ reusado por la solapa del legajo), `programas/templates/programas/becas/reportes
   `DispositivosResponsiveFDTests` exige wrapper para cada tabla visible cuyo contenido no entra,
   compara capturas con y sin la posición del wrapper a 1440 px y mide ausencia de desborde
   a 390 px con nombres largos en P2, Tipos, Becas, Ciudadanos y Configuración.
+- **Tabla más ancha que la pantalla (390 px) — obligatorio en toda tabla nueva o tocada con columna de acciones** (hoy solo Dispositivos la adoptó; las demás se migran al tocarlas): la columna de acciones lleva `nodo-col-acciones` en el `th` y en cada `td` (`<th class="nodo-th nodo-col-acciones text-right">`, `<td class="nodo-td nodo-col-acciones text-right">`): queda fija al borde derecho del wrapper con fondo sólido (`sticky right-0`; el hover de fila también la pinta), así el ⋮ no se pierde. `static/custom/js/nodo-tables.js` (mejora progresiva, global, cargado por el shell) marca el wrapper con `nodo-scroll-mas` mientras queda contenido oculto a la derecha y el CSS dibuja una sombra de borde en esa columna; sin JS solo falta la sombra. Una tabla que llega por AJAX (`innerHTML`) llama a `window.nodoTablas.barrer()` después de insertarla. A pantalla ancha no hay overflow y no cambia nada. Consumidores: Instituciones, Estadías, Tipos (incluidos los formularios de `config/_tipo_detail_content.html`), Relevamientos, Edificios y las franjas horarias de `legajo/form.html`. Con un ⋮ abierto la celda sube a `z-index: 2` (`:has([data-menu-fila-trigger][aria-expanded="true"])`): el menú vive dentro de la celda y sin eso las celdas sticky de las filas siguientes lo taparían (ver «Menú de fila»).
 - La columna de acciones **no lleva el `<th>` vacío**:
   `<th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>`, porque una columna
   sin nombre no se anuncia.
@@ -117,6 +118,8 @@ línea (mismo resultado visual): se migra al tocarla, no se copia.
 `_confirm_js.html` y ModernModal; las acciones con formulario abren su modal por
 parámetro GET; Al día, Por vencer y Vencidos llevan el `tono` del badge de situación de la tabla; Asignados va en `brand`, el tono por defecto de la card). P4 (`dispositivos/legajo/detail.html`) reusa el mismo contrato para cambiar plaza
 (o asignarla, si la estadía no tiene: ítem «Asignar plaza», mismo modal) y egresar: un modal por URL y capacidad, sin consultas por fila. Lo van a usar también P12, P20 y P22.
+
+Dentro de una columna `nodo-col-acciones` el menú se apila solo: ver la regla de `z-index` de la nota «Tabla más ancha que la pantalla».
 
 ### Cuándo va cada forma
 

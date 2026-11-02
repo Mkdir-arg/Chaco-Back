@@ -420,6 +420,9 @@
              Delegado sobre [data-menu-fila]; sin este script el menú queda cerrado. -->
         <script src="{% static 'custom/js/nodo-menu-fila.js' %}"></script>
 
+        <!-- Tablas: sombra de scroll horizontal (mejora progresiva, nodo-tables.css). -->
+        <script src="{% static 'custom/js/nodo-tables.js' %}"></script>
+
         <!-- NODO SweetAlert2 theming (fuente única): se ejecuta después de customJS
              a propósito — reasigna window.Swal = Swal.mixin(...) y cada Swal.fire()
              existente lee esa variable global recién al momento del click. -->

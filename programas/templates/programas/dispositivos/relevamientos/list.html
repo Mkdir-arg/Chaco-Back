@@ -62,7 +62,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
                 <th class="nodo-th">Vence</th>
                 <th class="nodo-th">Criticidad</th>
                 <th class="nodo-th">Estado</th>
-                <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+                <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
               </tr>
             </thead>
             <tbody>
@@ -86,7 +86,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
                   {% if r.revisado_en %}<span class="block text-xs text-body-subtle mt-1">{{ r.revisado_por.get_full_name|default:r.revisado_por.username }} · {{ r.revisado_en|date:"d/m/Y H:i" }}</span>{% endif %}
                   {% if r.motivo_cancelacion %}<span class="block text-xs text-body-subtle mt-1">{{ r.motivo_cancelacion }}</span>{% endif %}
                 </td>
-                <td class="nodo-td text-right">
+                <td class="nodo-td nodo-col-acciones text-right">
                   {% if r.con_acciones %}
                   <div class="inline-flex items-center gap-1">
                     {% if r.en_curso %}
@@ -138,7 +138,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
                 <th class="nodo-th">Edificio</th>
                 <th class="nodo-th">Asignado a</th>
                 <th class="nodo-th">Estado</th>
-                <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+                <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
               </tr>
             </thead>
             <tbody>
@@ -151,7 +151,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
                 <td class="nodo-td">
                   {% include "programas/dispositivos/_relevamiento_situacion_badge.html" with situacion="SIN_RELEVAR" texto="Sin relevar" %}
                 </td>
-                <td class="nodo-td text-right">
+                <td class="nodo-td nodo-col-acciones text-right">
                   {% if edificio.url_asignar %}
                   <a href="{{ edificio.url_asignar }}" class="btn-nodo btn-brand btn-sm btn-fit">
                     <i class="fas fa-plus" aria-hidden="true"></i> Asignar

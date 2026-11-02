@@ -49,7 +49,7 @@
             <th class="nodo-th">Plazas</th>
             <th class="nodo-th">Estado</th>
             <th class="nodo-th">Infraestructura</th>
-            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -70,7 +70,7 @@
             </td>
             <td class="nodo-td">{% include "programas/dispositivos/_estado_badge.html" %}</td>
             <td class="nodo-td"><span class="badge badge-dot badge-{{ dispositivo.semaforo.tono }}">{{ dispositivo.semaforo.texto }}</span></td>
-            <td class="nodo-td text-right">
+            <td class="nodo-td nodo-col-acciones text-right">
               <a href="{% url 'dispositivos:detalle' dispositivo.pk %}?next={{ request.get_full_path|urlencode }}"
                  class="nodo-icon-btn" aria-label="Ver institución {{ dispositivo.nombre }}">
                 <i class="fas fa-eye" aria-hidden="true"></i>
