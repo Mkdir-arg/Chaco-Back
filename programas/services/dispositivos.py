@@ -4,7 +4,7 @@ import json
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 
 from core import rbac
 from programas.services.programa_cache import clave_de, programa_por_codigo
@@ -78,23 +78,32 @@ def puede_en_programa_dispositivos(user, capacidad):
     return programa is not None and rbac.puede(user, capacidad, programa=programa)
 
 
-def membresias_vigentes(user, programa):
-    """Filas activas del Equipo (Cambio 410) de ``user`` que todavía valen.
+def q_membresia_vigente(programa):
+    """``Q`` sobre ``MiembroEquipoDispositivo``: la fila vale (Cambio 414).
 
-    Vale la fila activa cuyo rol es del programa y está activo, y que el usuario TODAVÍA tiene
-    (si se le sacó el rol, la fila no cuenta). Es la única definición de «membresía vigente»:
-    la usan el alcance y la gestión del Equipo.
+    Vale la fila activa cuyo rol es del programa y está activo, y que la persona TODAVÍA tiene
+    (si se le sacó el rol, la fila no cuenta). Es la única escritura de «membresía vigente»: la
+    comparten ``membresias_vigentes``, los responsables activos y la solapa Equipo. La pertenencia
+    al rol va con ``Exists`` para no multiplicar filas cuando se usa en un ``annotate``.
+    """
+
+    from django.contrib.auth import get_user_model
+
+    tiene_el_rol = get_user_model().groups.through.objects.filter(
+        user_id=OuterRef("usuario_id"), group_id=OuterRef("rol_id")
+    )
+    return Q(activo=True, rol__meta__activo=True, rol__meta__programa=programa) & Exists(tiene_el_rol)
+
+
+def membresias_vigentes(user, programa):
+    """Filas activas del Equipo (Cambio 410) de ``user`` que todavía valen (``q_membresia_vigente``).
+
+    La usan el alcance y la gestión del Equipo.
     """
 
     from programas.models import MiembroEquipoDispositivo
 
-    return MiembroEquipoDispositivo.objects.filter(
-        usuario=user,
-        activo=True,
-        rol__user=user,
-        rol__meta__activo=True,
-        rol__meta__programa=programa,
-    )
+    return MiembroEquipoDispositivo.objects.filter(q_membresia_vigente(programa), usuario=user)
 
 
 def _filtro_equipo(user, capacidad, programa):
