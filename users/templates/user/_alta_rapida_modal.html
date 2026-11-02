@@ -63,7 +63,7 @@ funcionando sin ese script.
       </div>
       <div class="flex justify-end gap-3 px-6 py-4 border-t border-light bg-secondary flex-shrink-0">
         <button type="button" data-becas-modal-cerrar data-quick-user-close class="btn-nodo btn-tertiary btn-base">Cancelar</button>
-        <button type="button" data-quick-user-crear-nuevo class="btn-nodo btn-secondary btn-base"><span>Crear <span data-quick-user-nuevo-texto>territorial</span> nuevo</span></button>
+        <button type="button" data-quick-user-crear-nuevo data-quick-user-crear-pie class="btn-nodo btn-secondary btn-base"><span>Crear <span data-quick-user-nuevo-texto>territorial</span> nuevo</span></button>
       </div>
     </form>
     <form id="quick-user-form" action="{% url 'users:usuario_alta_rapida' %}" class="flex flex-col min-h-0 flex-1">
@@ -115,6 +115,8 @@ funcionando sin ese script.
   const vaciosPorTipo = {};
   buscar.querySelectorAll('[data-quick-user-vacio]').forEach(bloque => { vaciosPorTipo[bloque.dataset.quickUserVacio] = bloque; });
   const nuevoTexto = buscar.querySelector('[data-quick-user-nuevo-texto]');
+  // Con el estado vacío en pantalla ya hay un «Crear … nuevo» en el cuerpo: el del pie se oculta para no repetirlo.
+  const crearPie = buscar.querySelector('[data-quick-user-crear-pie]');
   // Edificio al que se asigna (solo tipo=agente): lo fija el botón al abrir el modal.
   let edificioId = '';
   const volver = form.querySelector('[data-quick-user-volver]');
@@ -140,6 +142,7 @@ funcionando sin ese script.
   const limpiarResultados = () => {
     lista.replaceChildren(); estado.replaceChildren(); errorQ.textContent = '';
     Object.values(vaciosPorTipo).forEach(bloque => bloque.classList.add('hidden'));
+    if (crearPie) crearPie.classList.remove('hidden');
   };
   // Un elemento con texto: los datos del servidor entran siempre por textContent.
   const nodo = (tag, clase, texto) => {
@@ -410,7 +413,7 @@ funcionando sin ese script.
       }
       estado.replaceChildren();
       if (!response.ok || !data.ok) { window.toast('error', data.message || 'No pudimos buscar.'); return; }
-      if (!data.resultados.length) { vaciosPorTipo[tipo].classList.remove('hidden'); return; }
+      if (!data.resultados.length) { vaciosPorTipo[tipo].classList.remove('hidden'); if (crearPie) crearPie.classList.add('hidden'); return; }
       data.resultados.forEach(fila => lista.appendChild(config.fila(fila)));
       estado.textContent = data.resultados.length === 1 ? '1 resultado' : data.resultados.length + ' resultados';
       if (data.hay_mas) estado.textContent += '. Hay m\u00e1s resultados: escrib\u00ed m\u00e1s datos.';

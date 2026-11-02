@@ -130,6 +130,7 @@ class _Base(BaseInspecciones):
             "domicilio": "Calle 123",
             "responsable_nombre": "Responsable",
             "contacto_telefono": "3624123456",
+            "responsables": [self.par_responsable(self.admin)],
         }
         if diseno is not False:
             datos["formulario_tipo_diseno"] = (diseno or self.diseno).pk
@@ -568,7 +569,7 @@ class RespuestasAnterioresP4Tests(_Base):
         # Y una clave conservada con valor vacío (o solo espacios) tampoco se dibuja.
         anteriores = {k: {"campo": {"texto": k}} for k in ("a", "b", "c")}
         self.assertEqual(
-            respuestas_de_versiones_anteriores({"items": []}, {"a": "", "b": "  ", "c": []}, anteriores, {}), []
+            respuestas_de_versiones_anteriores({"items": []}, {"a": "", "b": "  ", "c": []}, anteriores), []
         )
 
     def test_una_clave_que_el_diseno_vigente_tiene_nunca_es_anterior(self):
@@ -578,7 +579,7 @@ class RespuestasAnterioresP4Tests(_Base):
             self.observaciones.clave: {"campo": {"clave": self.observaciones.clave, "texto": "Observaciones"}}
         }
         self.assertEqual(
-            respuestas_de_versiones_anteriores(fila.definicion, fila.respuestas, anteriores, {}),
+            respuestas_de_versiones_anteriores(fila.definicion, fila.respuestas, anteriores),
             [],
         )
 
@@ -586,11 +587,19 @@ class RespuestasAnterioresP4Tests(_Base):
         campo = {"clave": "k", "texto": "Fecha", "tipo": "DATE"}
         foto = {"items": []}
         salida = respuestas_de_versiones_anteriores(
-            foto, {"k": "2026-03-04", "l": ["a", "b"]}, {"k": {"campo": campo}, "l": {"campo": {"texto": "Varios"}}}, {}
+            foto, {"k": "2026-03-04", "l": ["a", "b"]}, {"k": {"campo": campo}, "l": {"campo": {"texto": "Varios"}}}
         )
         self.assertEqual(
             salida, [{"etiqueta": "Fecha", "valor": "04/03/2026"}, {"etiqueta": "Varios", "valor": "a, b"}]
         )
+
+    def test_un_archivo_viejo_se_muestra_por_su_nombre_original_no_por_el_del_adjunto(self):
+        """El adjunto guarda un nombre opaco (``<uuid>.pdf``); el bloque muestra el que subió la persona."""
+        campo = {"clave": "doc", "texto": "Constancia", "tipo": "ARCHIVO"}
+        salida = respuestas_de_versiones_anteriores(
+            {"items": []}, {"doc": "constancia-original.pdf"}, {"doc": {"campo": campo}}
+        )
+        self.assertEqual(salida, [{"etiqueta": "Constancia", "valor": "constancia-original.pdf"}])
 
 
 # ── Eliminar con respuestas = baja ───────────────────────────────────────────

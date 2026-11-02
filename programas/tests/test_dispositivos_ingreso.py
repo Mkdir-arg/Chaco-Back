@@ -183,6 +183,36 @@ class FlujoDeIngresoTests(BaseIngreso):
         self.assertEqual(respuesta.status_code, 200)  # no avanza
         self.assertContains(respuesta, "La persona ya está alojada")
 
+    def _reserva_en_el_parador(self):
+        reservar_plaza(plaza=self.plaza_parador, ciudadano=self.persona, usuario=self.operador_parador)
+
+    def test_confirmar_avisa_la_reserva_vigente_en_otro_dispositivo_con_su_nombre(self):
+        self._reserva_en_el_parador()
+        AsignacionDispositivo.objects.create(
+            dispositivo=self.parador, rol=self.operador_cis.groups.first(), activo=True
+        )
+        self._hasta_la_plaza(self.persona, self.plaza)
+
+        respuesta = self.client.get(self.url_confirmar)
+
+        self.assertContains(
+            respuesta,
+            f"Tiene una reserva vigente en {self.parador.nombre}: al confirmar el ingreso se libera.",
+        )
+
+    def test_confirmar_no_dice_el_nombre_del_dispositivo_fuera_del_alcance(self):
+        self._reserva_en_el_parador()
+        self._hasta_la_plaza(self.persona, self.plaza)
+
+        respuesta = self.client.get(self.url_confirmar)
+
+        self.assertContains(respuesta, "Tiene una reserva vigente en otro dispositivo de la red")
+        self.assertNotContains(respuesta, self.parador.nombre)
+
+    def test_confirmar_sin_reservas_ajenas_no_muestra_el_aviso(self):
+        self._hasta_la_plaza(self.persona, self.plaza)
+        self.assertNotContains(self.client.get(self.url_confirmar), "Tiene una reserva vigente")
+
 
 class EyebrowConElTurnoTests(BaseIngreso):
     """El eyebrow de P6 es «CIS N.º 3 · turno Tarde · 08/09/2026 16:48» (carril C3).

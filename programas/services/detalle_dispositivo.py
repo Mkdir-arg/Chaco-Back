@@ -57,7 +57,7 @@ POR_PAGINA_RELEVAMIENTOS = 10
 
 #: Las solapas de P4, en el orden en que se dibujan. «Sectores y plazas» solo existe si el
 #: tipo del dispositivo maneja plazas: en los demás, `?tab=sectores` no lleva a ninguna parte.
-SOLAPAS = ("datos", "sectores", "estadias", "infraestructura", "historial")
+SOLAPAS = ("datos", "sectores", "estadias", "infraestructura", "equipo", "historial")
 #: La que abre la pantalla, y a la que vuelven las acciones del encabezado.
 SOLAPA_POR_DEFECTO = "estadias"
 

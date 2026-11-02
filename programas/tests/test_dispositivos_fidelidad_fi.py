@@ -50,6 +50,7 @@ class FidelidadFITests(BaseInfraestructura):
             "domicilio": "Calle 123",
             "responsable_nombre": "Responsable FI",
             "contacto_telefono": "3624123456",
+            "responsables": [self.par_responsable()],
         }
 
     def test_alta_y_edicion_tienen_dos_columnas_y_paneles(self):
