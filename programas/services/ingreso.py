@@ -27,7 +27,9 @@ from legajos.forms import CiudadanoConfirmarForm, CiudadanoManualForm
 from legajos.models import Ciudadano
 from legajos.services import CiudadanosService
 from programas.models import Plaza, ReservaPlaza, Sector
+from programas.services.dispositivos import dispositivos_en_alcance
 from programas.services.estadias import (
+    CAP_ADMITIR,
     ingresar_persona,
     liberar_reserva,
     reserva_propia_vigente,
@@ -262,6 +264,32 @@ def _reservas_abiertas_de(ciudadano_id):
         .select_related("plaza__sector__dispositivo")
         .order_by("plaza_id")
     )
+
+
+def reservas_en_otros_dispositivos(ciudadano_id, dispositivo, usuario):
+    """Las reservas o préstamos abiertos de la persona en **otros** dispositivos, que el ingreso va a liberar.
+
+    Solo lectura, para avisarlo en el paso «Confirmar» (Cambio 412). Devuelve
+    ``(nombres, fuera_de_alcance)``: los nombres de los dispositivos que ``usuario`` puede ver, sin repetir y
+    por orden alfabético, y cuántos más quedan fuera de su alcance (de esos solo se sabe que existen).
+    """
+
+    if not ciudadano_id:
+        return [], 0
+    destinos = {
+        reserva.plaza.sector.dispositivo
+        for reserva in _reservas_abiertas_de(ciudadano_id)
+        if reserva.plaza.sector.dispositivo_id != dispositivo.pk
+    }
+    if not destinos:
+        return [], 0
+    visibles = set(
+        dispositivos_en_alcance(usuario, CAP_ADMITIR)
+        .filter(pk__in=[d.pk for d in destinos])
+        .values_list("pk", flat=True)
+    )
+    nombres = sorted({d.nombre for d in destinos if d.pk in visibles})
+    return nombres, sum(1 for d in destinos if d.pk not in visibles)
 
 
 def _bloquear_persona(ciudadano):

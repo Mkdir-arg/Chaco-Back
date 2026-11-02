@@ -54,6 +54,7 @@ from programas.services.ingreso import (
     maneja_plazas,
     plaza_reservada_de,
     plazas_para_ingresar,
+    reservas_en_otros_dispositivos,
 )
 from programas.services.ocupacion import (
     LEYENDA_PLAZAS,
@@ -552,6 +553,25 @@ class IngresoPlazaView(IngresoBaseView):
         return redirect(self.urls()["confirmar"])
 
 
+def _aviso_reserva_en_otro_dispositivo(nombres, fuera_de_alcance):
+    """El texto del aviso de «Confirmar»: la reserva en otro dispositivo se libera al confirmar (Cambio 412)."""
+
+    if not nombres and not fuera_de_alcance:
+        return ""
+    if nombres and not fuera_de_alcance:
+        donde = "en " + " y en ".join(nombres) if len(nombres) <= 2 else "en " + ", ".join(nombres)
+        plural = len(nombres) > 1
+    else:
+        donde = "en otro dispositivo de la red"
+        plural = False
+        if nombres:
+            donde = "en " + ", ".join(nombres) + " y en otro dispositivo de la red"
+            plural = True
+    if plural:
+        return f"Tiene reservas vigentes {donde}: al confirmar el ingreso se liberan."
+    return f"Tiene una reserva vigente {donde}: al confirmar el ingreso se libera."
+
+
 class IngresoConfirmarView(IngresoBaseView):
     """Paso final: resumen, aviso de la red y escritura con la plaza revalidada y bloqueada."""
 
@@ -571,8 +591,10 @@ class IngresoConfirmarView(IngresoBaseView):
         if estado.get("plaza_id"):
             plaza = Plaza.objects.select_related("sector").filter(pk=estado["plaza_id"]).first()
         contexto = self.contexto(3 if self.usa_plazas else 2)
+        nombres, fuera = reservas_en_otros_dispositivos(estado.get("ciudadano_id"), self.dispositivo, request.user)
         contexto.update(
             {
+                "aviso_reserva": _aviso_reserva_en_otro_dispositivo(nombres, fuera),
                 "form": form,
                 "resumen": {"persona": persona, "plaza": plaza},
                 "mostrado": self.mostrado(estado, estado.get("plaza_id")),

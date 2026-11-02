@@ -272,7 +272,7 @@ def sin_turnos(dispositivo, momento=None, usuario=None):
     yield Aviso(
         titulo="Sin turnos configurados",
         texto="No se puede cargar la bitácora hasta que la institución tenga al menos un turno activo.",
-        origen="Turnos del dispositivo",
+        origen="Sin turnos activos",
         fecha=desde,
         enlace=enlace,
         accion=accion,
