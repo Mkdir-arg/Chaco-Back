@@ -1041,11 +1041,13 @@ class DispositivoForm(forms.ModelForm):
         }
         help_texts = {"responsable_documento": AYUDA_DOCUMENTO_RESPONSABLE}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, con_responsables=False, **kwargs):
         from programas.services.dispositivos import campos_para_validacion
         from programas.services.horarios_dispositivo import franjas_del_dispositivo
 
         super().__init__(*args, **kwargs)
+        if con_responsables:
+            self._agregar_responsables()
         self.fields["localidad"].choices = _opciones_de_localidad(self.instance.localidad if self.instance.pk else "")
         guardadas = franjas_del_dispositivo(self.instance)
         # Un POST sin el bloque de franjas (sin su management form) no las toca: no es
@@ -1085,6 +1087,34 @@ class DispositivoForm(forms.ModelForm):
         # `enviar_a_validacion`, con la misma lista). Lo dibuja `components/_field.html`.
         for nombre in campos_para_validacion():
             self.fields[nombre].marca_requerido = True
+
+    def _agregar_responsables(self):
+        """Alta: los responsables del dispositivo (Cambio 411), pares «Persona — Rol», al menos uno.
+
+        Solo el alta lo pide: la edición no exige responsables, se gestionan desde la solapa Equipo.
+        """
+        from programas.services.equipo_dispositivo import pares_persona_rol
+
+        pares = pares_persona_rol()
+        self._pares_responsables = {par["valor"]: (par["usuario"], par["rol"]) for par in pares}
+        self.fields["responsables"] = forms.MultipleChoiceField(
+            label="Responsables del dispositivo",
+            required=True,
+            choices=[(par["valor"], par["etiqueta"]) for par in pares],
+            widget=forms.CheckboxSelectMultiple,
+            help_text="Quienes arman el Equipo del dispositivo. Elegí al menos una persona con su rol.",
+            error_messages={
+                "required": "Indicá al menos un responsable del dispositivo.",
+                "invalid_choice": "Elegí personas y roles del listado.",
+            },
+        )
+
+    def clean_responsables(self):
+        from programas.services.equipo_dispositivo import validar_responsables_al_crear
+
+        elegidos = [self._pares_responsables[valor] for valor in self.cleaned_data["responsables"]]
+        validar_responsables_al_crear([usuario for usuario, _ in elegidos])
+        return elegidos
 
     def clean_codigo(self):
         codigo = normalizar_codigo_institucional(self.cleaned_data["codigo"])

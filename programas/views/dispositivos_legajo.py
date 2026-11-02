@@ -34,6 +34,7 @@ from programas.forms_dispositivos import (
     ReservarPlazaForm,
     SacarPlazaDeServicioForm,
     SectorForm,
+    SumarMiembroEquipoForm,
     VincularEdificioForm,
 )
 from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los importan otras vistas)
@@ -81,6 +82,12 @@ from programas.services.dispositivos import (
     registrar_alta_dispositivo,
     registrar_edicion_dispositivo,
     validar_dispositivo,
+)
+from programas.services.equipo_dispositivo import (
+    equipo_del_dispositivo,
+    pares_persona_rol,
+    puede_gestionar_equipo,
+    sumar_responsables_al_crear,
 )
 from programas.services.estadias import (
     CAP_ADMITIR,
@@ -242,12 +249,19 @@ class DispositivoCreateView(FormularioInstitucionMixin, DispositivoAltaPermissio
     form_class = DispositivoForm
     template_name = "programas/dispositivos/legajo/form.html"
 
+    def get_form_kwargs(self):
+        # El alta exige al menos un responsable; la edición no (se gestiona desde la solapa Equipo).
+        return {**super().get_form_kwargs(), "con_responsables": True}
+
     @archivos_atomicos
     def _guardar(self, form):
         # `archivos_atomicos` por afuera: si algo falla, el archivo del formulario del
         # tipo que ya se escribió se borra junto con el rollback.
         with transaction.atomic():
             self.object = form.save()
+            sumar_responsables_al_crear(
+                actor=self.request.user, dispositivo=self.object, pares=form.cleaned_data["responsables"]
+            )
             reemplazar_franjas(self.object, form.franjas_horarias())
             self._guardar_formulario_tipo(form, self.object)
             registrar_alta_dispositivo(self.object, self.request.user)
@@ -474,7 +488,27 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         self._preparar_modales_de_estadia(context, dispositivo, puede_cambiar, puede_egresar)
         self._preparar_modales_de_edificio(context, dispositivo, context["puede_editar"])
         self._preparar_relevamiento(context, dispositivo)
+        self._preparar_equipo(context, dispositivo)
         return context
+
+    def _preparar_equipo(self, context, dispositivo):
+        """Solapa «Equipo» (Cambio 411): la ve quien ve el dispositivo; arma quien lo gestiona.
+
+        El formulario de «Sumar persona» y sus opciones se leen solo para quien puede gestionar.
+        """
+
+        user = self.request.user
+        miembros = equipo_del_dispositivo(dispositivo)
+        context["equipo"] = miembros
+        context["n_equipo"] = len(miembros)
+        context["puede_gestionar_equipo"] = puede_gestionar_equipo(user, dispositivo)
+        # El modal «Sumar persona» se abre con `?tab=equipo&equipo=sumar`, como los del edificio: las
+        # opciones (una consulta sobre usuarios y roles) se leen solo con el modal abierto, y el
+        # detalle de siempre sigue costando lo mismo.
+        if context["puede_gestionar_equipo"] and self.request.GET.get("equipo") == "sumar":
+            context["tab"] = "equipo"
+            context["form_equipo"] = SumarMiembroEquipoForm(pares=pares_persona_rol(dispositivo), auto_id="equipo_%s")
+            context["url_equipo_sumar"] = reverse("dispositivos:equipo_sumar", args=[dispositivo.pk])
 
     def _preparar_modales_de_estadia(self, context, dispositivo, puede_cambiar, puede_egresar):
         """Un solo modal abierto por URL, sin formularios ni consultas por fila (contrato P21)."""

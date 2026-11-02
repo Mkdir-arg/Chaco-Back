@@ -130,6 +130,7 @@ class _Base(BaseInspecciones):
             "domicilio": "Calle 123",
             "responsable_nombre": "Responsable",
             "contacto_telefono": "3624123456",
+            "responsables": [self.par_responsable(self.admin)],
         }
         if diseno is not False:
             datos["formulario_tipo_diseno"] = (diseno or self.diseno).pk

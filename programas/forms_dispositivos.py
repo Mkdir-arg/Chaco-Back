@@ -867,3 +867,38 @@ class VincularEdificioForm(forms.Form):
     def __init__(self, *args, edificios, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["edificio"].queryset = edificios
+
+
+class SumarMiembroEquipoForm(forms.Form):
+    """«Sumar persona» al Equipo (Cambio 411): una opción «Persona — Rol» y la marca de responsable.
+
+    Las opciones son solo las que el servicio acepta (roles activos de Dispositivos que la
+    persona tiene, sin el de agente de relevamiento, y que todavía no están en el Equipo); el
+    servicio vuelve a validar al guardar.
+    """
+
+    persona_rol = forms.ChoiceField(
+        label="Persona y rol",
+        choices=(),
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        error_messages={
+            "required": "Elegí a la persona y el rol con el que se suma.",
+            "invalid_choice": "Esa persona y ese rol no se pueden sumar al Equipo.",
+        },
+    )
+    es_responsable = forms.BooleanField(
+        label="Es responsable del dispositivo",
+        required=False,
+        widget=SwitchInput(),
+        help_text="Los responsables arman el Equipo del dispositivo.",
+    )
+
+    def __init__(self, *args, pares=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self._pares = {par["valor"]: (par["usuario"], par["rol"]) for par in pares}
+        self.fields["persona_rol"].choices = [("", "Elegí una persona")] + [
+            (par["valor"], par["etiqueta"]) for par in pares
+        ]
+
+    def clean_persona_rol(self):
+        return self._pares[self.cleaned_data["persona_rol"]]

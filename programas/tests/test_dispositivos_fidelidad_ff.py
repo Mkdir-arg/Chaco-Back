@@ -56,6 +56,10 @@ class FidelidadFFTests(BaseDetalle):
                 )
                 self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
                 for nombre in respuesta.context["form"].fields:
+                    if nombre == "responsables":
+                        # Casillas «Persona — Rol» (solo el alta, Cambio 411): un input por opción.
+                        self.assertContains(respuesta, 'id="titulo-responsables"')
+                        continue
                     self.assertContains(respuesta, f'name="{nombre}"', count=1)
                 self.assertContains(respuesta, "Cancelar")
                 self.assertContains(respuesta, guardar)

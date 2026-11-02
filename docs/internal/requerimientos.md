@@ -534,6 +534,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 408 | Dispositivos: «Sumar como agente» desde «Buscar agente» (reemplaza el «Queda afuera» y el Pendiente del Cambio 397: quien ya tiene cuenta puede recibir el rol de agente) | Dispositivos · Relevamientos edilicios (P4 y P21) · Usuarios (alta rápida) | `#rbac` `#usuarios` `#ui` | PM — decisión del 30/10/2026 | 30/10/2026 | 🟢 **Hecho** | No requiere |
 | 409 | Dispositivos: reactivar un INACTIVO, el ingreso libera todas las reservas de la persona, clave de campo por enlace en el CSV y correcciones de la QA 2 (02/11) | Dispositivos (legajo P4, asistente de ingreso, sectores y plazas) · Usuarios (ABM, import CSV, alta rápida de agente) · API de campo | `#ui` `#rbac` `#datos` `#api` | PM — QA 2 local de Dispositivos del 02/11/2026 y MINOR de las auditorías de #1011 y #1012 (D1-D3, A2-07, A2-01, C2-04) | 02/11/2026 | 🟢 **Hecho** | No requiere |
 | 410 | Dispositivos: el alcance por Equipo de personas (`MiembroEquipoDispositivo`) y la capacidad `dispositivo.ver_todos` (PR A: modelo, regla y servicio, sin UI) | Dispositivos (alcance fino, RBAC) · Usuarios (ancla de capacidades) | `#rbac` `#datos` | PM — QA, task #690: un rol con ver/admitir no veía ningún dispositivo | 02/11/2026 | 🟡 **En curso** | Requiere |
+| 411 | Dispositivos: solapa «Equipo» en el detalle y responsables obligatorios en el alta (PR B del Cambio 410) | Dispositivos (legajo P4, alta de institución) | `#ui` `#rbac` | PM — QA, task #690 (continuación del Cambio 410) | 02/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51184,7 +51185,7 @@ Migrar (`users.0045`, `programas.0110`) y tildar `dispositivo.ver_todos` en los 
 
 ## Pendientes / a definir
 
-1. PR B: UI para armar el Equipo y responsable obligatorio al crear.
+1. ~~PR B: UI para armar el Equipo y responsable obligatorio al crear.~~ Hecho en el Cambio 411.
 2. Retirar la asignación de rol vieja como vía de alcance (salvo agentes). En ese Cambio se corre la migración de
    asignaciones → Equipo, junto con que el ABM de Roles deje de escribir asignaciones.
 
@@ -51194,6 +51195,101 @@ Migrar (`users.0045`, `programas.0110`) y tildar `dispositivo.ver_todos` en los 
 2. `migrate programas 0109`: la `0110` borra la tabla.
 3. `migrate users 0044`: la capacidad solo sale del ancla; la `Permission` y los roles que la tildaron conservan la fila.
 Se pierde el Equipo cargado (personas, roles y responsables). Nadie pierde acceso, porque la asignación de rol vieja sigue vigente.
+
+## Historial
+
+- **02/11/2026 — alta del cambio.**
+---
+
+# Cambio 411 — Dispositivos: solapa «Equipo» y responsables obligatorios en el alta (PR B del Cambio 410)
+
+🟡 **EN CURSO — 02/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (legajo P4, alta de institución) |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | PM — QA, task #690 (continuación del Cambio 410) |
+| **Fecha del pedido** | 02/11/2026 |
+| **Issue / épica** | #690 |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El Cambio 410 dejó la regla y el servicio del Equipo por persona sin pantalla. Este PR pone la UI: armar el Equipo desde el
+detalle del dispositivo y pedir al menos un responsable al crearlo.
+
+## Alcance acordado
+
+**Entra:** solapa «Equipo» en el detalle, sus cuatro acciones (sumar, baja, marcar y quitar responsable) y el campo
+«Responsables» del alta. **No cambia** ninguna regla del 410 (alcance, quién gestiona, último responsable).
+**Queda afuera:** retirar la asignación de rol vieja y el cambio de rol de una persona ya sumada (el servicio `cambiar_rol`
+existe pero no tiene pantalla: se da de baja y se suma con el otro rol).
+
+## Decisiones tomadas
+
+1. **Quién ve qué**: la solapa la ve quien ve el dispositivo (`dispositivo.ver` en su alcance), con persona, rol y marca de
+   responsable. Los botones solo se dibujan si `puede_gestionar_equipo`; la barrera es el servidor: cada POST exige
+   `puede_gestionar_equipo` (403) antes de mirar nada más y el servicio la vuelve a exigir.
+2. **Opciones «Persona — Rol»**: una por usuario activo × rol activo del programa Dispositivos que la persona tiene, sin el rol
+   de agente de relevamiento (`dispositivos.agente_relevamiento`). Una sola definición (`pares_persona_rol`) alimenta el modal
+   «Sumar persona» y el alta; en el modal no se ofrece lo que ya está activo en el Equipo. Se eligió un único select de pares y
+   no dos selects dependientes: no hace falta JS y el servidor valida el par entero.
+3. **Alta**: `DispositivoForm(con_responsables=True)` agrega el campo (mínimo 1) solo desde `DispositivoCreateView`; la edición no
+   lo pide. Las filas se crean con `sumar_responsables_al_crear` **dentro de la transacción del alta** (si algo falla, no queda
+   el dispositivo sin responsables ni responsables sin dispositivo). Escribe con una sola consulta: sumar de a uno con
+   `sumar_miembro` bloqueaba el dispositivo una vez por persona y `zeal` lo marcaba como N+1.
+4. **Baja y quitar responsable** con confirmación `ModernModal` (la baja y el quitar van en rojo); marcar como responsable
+   también confirma porque el ítem de menú de fila solo sabe mutar así. Los errores de negocio (último responsable, etc.) vuelven
+   como toast de Django; el modal «Sumar persona» los muestra en su campo (contrato `data-ajax`).
+5. **Fila con rol no vigente** (la persona perdió el rol o el rol se desactivó): se muestra con la insignia «Rol no vigente»,
+   porque esa fila ya no da alcance (`membresias_vigentes`) y mostrarla como miembro común engañaría.
+6. **Modal por URL**: «Sumar persona» es un enlace a `?tab=equipo&equipo=sumar`, como los modales del edificio: las opciones
+   (una consulta sobre usuarios y roles) se leen solo con el modal abierto y el detalle de siempre no paga esa consulta.
+7. **Diseño**: solo piezas del canon (solapas, tabla con `menu_fila`, modal de `_modal_header`/`_modal_footer`, `_field`,
+   `.nodo-checks` con scroll, `badge-success`/`badge-warning`). Sin clases, includes ni variantes nuevas.
+
+## Implementación
+
+Solapa «Equipo» (entre Infraestructura e Historial, con contador). Botón «Sumar persona» abre el modal; cada fila del Equipo
+tiene un menú con «Marcar/Quitar como responsable» y «Dar de baja». En «Nueva institución» aparece «Responsables del
+dispositivo» (casillas «Persona — Rol»).
+
+## Archivos
+
+- Código: `programas/services/equipo_dispositivo.py` (`pares_persona_rol`, `equipo_del_dispositivo`,
+  `sumar_responsables_al_crear`), `programas/views/dispositivos_equipo.py` (nuevo), `programas/views/dispositivos_legajo.py`,
+  `programas/dispositivos_urls.py`, `programas/forms.py`, `programas/forms_dispositivos.py`,
+  `programas/services/detalle_dispositivo.py` (solapa `equipo`), `scripts/perf_budgets.json`.
+- Templates: `programas/templates/programas/dispositivos/legajo/detail.html` y `form.html`.
+- Tests: `programas/tests/test_dispositivos_equipo_ui_411.py`; los tests de alta existentes (`formulario_alta`, `fidelidad_fi`, `horarios_localidad`) mandan ahora `responsables` con
+  `BaseInspecciones.par_responsable`, y `fidelidad_ff` cuenta las casillas aparte.
+
+## Base de datos
+
+No requiere: sin migraciones.
+
+## Validación
+
+Tests de vistas (403 en cada POST sin gestión, lista sin botones para quien solo ve, alta sin responsables rechazada, alta con
+responsables crea las filas, el agente no se ofrece ni se acepta). Mutación: sacar la compuerta `puede_gestionar_equipo` de
+`_EquipoAccionView.post` deja en rojo `test_el_403_ajax_es_json`; `test_sin_gestion_cada_post_es_403_y_no_muta` sigue en verde
+porque el servicio la vuelve a exigir (doble barrera, a propósito). Presupuesto del detalle: `dispositivos_detalle_sin_estadias`
+25 → 26 (la lista del Equipo es una consulta). Suite `test_dispositivos*`: ver el PR.
+
+## Puesta en marcha en el servidor
+
+Solo el deploy.
+
+## Pendientes / a definir
+
+1. Retirar la asignación de rol vieja como vía de alcance (Pendiente 2 del Cambio 410).
+2. Pantalla para cambiar el rol de una persona ya sumada (hoy: baja y alta con el otro rol).
+
+## Reversión
+
+Revertir el PR. No hay datos nuevos fuera de las filas del Equipo, que siguen siendo las del Cambio 410.
 
 ## Historial
 
