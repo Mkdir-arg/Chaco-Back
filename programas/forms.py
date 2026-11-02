@@ -1110,11 +1110,7 @@ class DispositivoForm(forms.ModelForm):
         )
 
     def clean_responsables(self):
-        from programas.services.equipo_dispositivo import validar_responsables_al_crear
-
-        elegidos = [self._pares_responsables[valor] for valor in self.cleaned_data["responsables"]]
-        validar_responsables_al_crear([usuario for usuario, _ in elegidos])
-        return elegidos
+        return [self._pares_responsables[valor] for valor in self.cleaned_data["responsables"]]
 
     def clean_codigo(self):
         codigo = normalizar_codigo_institucional(self.cleaned_data["codigo"])
