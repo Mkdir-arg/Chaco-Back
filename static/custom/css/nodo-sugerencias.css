@@ -6,6 +6,9 @@
 .nodo-sugerencias {
     position: relative;
     width: 100%;
+    /* En una fila flex (campo + botón) el campo toma el resto y no empuja al botón. */
+    flex: 1 1 0%;
+    min-width: 0;
 }
 
 .nodo-sugerencias__panel {

@@ -23,35 +23,51 @@ MAXIMO_PALABRAS = 5
 _SOLO_DNI = re.compile(r"[\d.\s]+")
 
 
-def _filtro(texto):
-    """El `Q` del texto: prefijo de DNI si son números, y si no, cada palabra contra apellido o nombre."""
+def _filtros(texto):
+    """Los `Q` que se consultan por separado y se unen en Python; lista vacía si no hay qué buscar.
+
+    Números: uno solo, prefijo de DNI. Palabras: la primera es prefijo de apellido **o** de nombre, y cada
+    una de las demás también. Ese OR de la primera se parte en dos consultas, una por columna: el
+    `OR` entre dos columnas lo resuelve MySQL con `index_merge` y, con un prefijo común (`gar`, `mar`),
+    ordena todo lo que coincide antes de cortar en 11 (200k filas: 51 ms contra 0,7 ms por columna).
+    """
 
     if _SOLO_DNI.fullmatch(texto):
         digitos = normalizar_dni(texto)
-        return Q(dni__istartswith=digitos) if len(digitos) >= MINIMO_CARACTERES else None
-    filtro = Q()
-    for palabra in texto.replace(",", " ").split()[:MAXIMO_PALABRAS]:
-        filtro &= Q(apellido__istartswith=palabra) | Q(nombre__istartswith=palabra)
-    return filtro
+        return [Q(dni__istartswith=digitos)] if len(digitos) >= MINIMO_CARACTERES else []
+    palabras = texto.replace(",", " ").split()[:MAXIMO_PALABRAS]
+    if not palabras:
+        return []
+    resto = Q()
+    for palabra in palabras[1:]:
+        resto &= Q(apellido__istartswith=palabra) | Q(nombre__istartswith=palabra)
+    primera = palabras[0]
+    return [Q(apellido__istartswith=primera) & resto, Q(nombre__istartswith=primera) & resto]
 
 
 def sugerir_personas(texto):
     """`{"resultados": [{apellido, nombre, dni}], "hay_mas": bool}` para lo que se lleva tecleado.
 
     Con menos de 3 caracteres devuelve la lista vacía: el padrón no se recorre. Trae uno más
-    que el tope para saber si hay más sin contar.
+    que el tope para saber si hay más sin contar. Cada `Q` de `_filtros` es una consulta con su
+    tope; se unen sin repetir, en el orden de siempre (apellido, nombre, id), y se corta en el tope.
     """
 
     texto = (texto or "").strip()[:MAXIMO_CARACTERES].strip()
     vacio = {"resultados": [], "hay_mas": False}
     if len(texto) < MINIMO_CARACTERES:
         return vacio
-    filtro = _filtro(texto)
-    if filtro is None:
-        return vacio
-    filas = list(
-        Ciudadano.objects.filter(filtro)
-        .order_by("apellido", "nombre", "pk")
-        .values("apellido", "nombre", "dni")[: MAXIMO_RESULTADOS + 1]
-    )
-    return {"resultados": filas[:MAXIMO_RESULTADOS], "hay_mas": len(filas) > MAXIMO_RESULTADOS}
+    filas = {}
+    for filtro in _filtros(texto):
+        consulta = (
+            Ciudadano.objects.filter(filtro)
+            .order_by("apellido", "nombre", "pk")
+            .values("pk", "apellido", "nombre", "dni")[: MAXIMO_RESULTADOS + 1]
+        )
+        for fila in consulta:
+            filas[fila["pk"]] = fila
+    ordenadas = sorted(filas.values(), key=lambda f: (f["apellido"], f["nombre"], f["pk"]))
+    return {
+        "resultados": [{k: f[k] for k in ("apellido", "nombre", "dni")} for f in ordenadas[:MAXIMO_RESULTADOS]],
+        "hay_mas": len(ordenadas) > MAXIMO_RESULTADOS,
+    }

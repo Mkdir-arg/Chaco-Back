@@ -23,6 +23,7 @@ from users.views import (
     usuario_asignar_territorial,
     usuario_buscar_agente,
     usuario_buscar_territorial,
+    usuario_sugerir_agente,
     usuario_sumar_agente,
 )
 
@@ -77,6 +78,7 @@ urlpatterns = [
     path("usuarios/alta-rapida/", usuario_alta_rapida, name="usuario_alta_rapida"),
     # Colgadas del prefijo conocido: el WAF de ECOM bloquea rutas nuevas fuera de ellos.
     path("usuarios/alta-rapida/agente/buscar/", usuario_buscar_agente, name="usuario_buscar_agente"),
+    path("usuarios/alta-rapida/agente/sugerir/", usuario_sugerir_agente, name="usuario_sugerir_agente"),
     path("usuarios/alta-rapida/agente/sumar/", usuario_sumar_agente, name="usuario_sumar_agente"),
     path("usuarios/alta-rapida/territorial/buscar/", usuario_buscar_territorial, name="usuario_buscar_territorial"),
     path("usuarios/alta-rapida/territorial/asignar/", usuario_asignar_territorial, name="usuario_asignar_territorial"),

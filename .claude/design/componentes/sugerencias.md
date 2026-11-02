@@ -5,10 +5,14 @@
 `core/forms_sugerencias.py`, `programas/selectors/personas_sugeridas.py`, `programas/views/dispositivos_legajo.py`
 (`PersonasSugeridasView`).
 **Consumidores de referencia:** el DNI de «Reservar» y «Prestar» en el modal de una plaza
-(`programas/templates/programas/dispositivos/sectores/sectores.html`).
+(`programas/templates/programas/dispositivos/sectores/sectores.html`), el DNI del paso «Ingresar persona»
+(`ingreso/paso_persona.html`, Cambio 416) y el campo de «Buscar agente» del modal de alta rápida de usuarios
+(`users/templates/user/_alta_rapida_modal.html`, que se monta desde su propio JS al abrirse como agente; lo cargan
+`legajo/detail.html` y `relevamientos/list.html`).
 
 Mejora progresiva sobre un `<input>` de texto que ya existe: desde 3 caracteres muestra
-la persona que coincide, o la lista, y al elegir una completa el campo con su DNI. No
+la persona que coincide, o la lista, y al elegir una completa el campo con su DNI (o con `valor`, si la fila lo trae: el buscador de agentes deja
+nombre y apellido). No
 reemplaza al campo ni a la validación: el input es el que viaja en el POST y el servidor
 (`clean_dni`, `buscar_ciudadano_por_dni`) decide igual que sin la pieza.
 
@@ -20,6 +24,8 @@ reemplaza al campo ni a la validación: el input es el que viaja en el POST y el
        data-sugerencias-hay-mas="Hay más resultados: escribí más datos.">
 ```
 
+- `data-sugerencias-url` se lee **en cada consulta**: una pantalla puede cambiarlo o quitarlo (sin URL no consulta).
+  Un campo que la recibe después se monta con `window.NodoSugerencias.montar(contenedor)`.
 - Se carga con `nodo-sugerencias.css` (`{% block page_css %}`) y `nodo-sugerencias.js`
   (`{% block customJS %}`) **solo en la pantalla que la usa**, no en `base.html`.
 - El formulario Django pone los atributos con `attrs_sugerencias(url)` de `core/forms_sugerencias.py`
@@ -38,7 +44,16 @@ reemplaza al campo ni a la validación: el input es el que viaja en el POST y el
 
 ## Contrato del endpoint
 
-`GET ?q=` → `{"resultados": [{"apellido", "nombre", "dni"}], "hay_mas": bool}`. Tope de 10, mínimo
+`GET ?q=` → `{"resultados": [{"apellido", "nombre", "dni"}], "hay_mas": bool}` (la fila puede sumar `valor`). Tope de 10, mínimo
 de 3 caracteres; solo esas tres claves, nunca teléfono, correo ni domicilio. Búsqueda por prefijo
 (`istartswith` → `LIKE 'x%'`, sin función sobre la columna; nunca `startswith`, que en MySQL/MariaDB es `LIKE BINARY` y recorre todo el índice). El endpoint de cada pantalla aplica la misma
 capacidad y alcance que la acción que completa el campo.
+
+## Selectores
+
+- Personas del Legajo: `programas/selectors/personas_sugeridas.py`. Con palabras, **una consulta por columna**
+  (apellido y nombre) unidas en Python: el `OR` entre columnas lo resuelve MySQL con `index_merge` y, con un prefijo
+  común, ordena todo lo que coincide antes de cortar (200k filas: 51 ms contra 0,7 ms).
+- Agentes (usuarios): `programas/selectors/agentes_sugeridos.py`, solo por nombre, con el DNI **enmascarado**; DNI y
+  correo siguen siendo búsqueda exacta en el buscador completo. Su endpoint (`users:usuario_sugerir_agente`) tiene
+  la misma guarda que ese buscador.

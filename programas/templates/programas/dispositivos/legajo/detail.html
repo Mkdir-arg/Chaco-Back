@@ -1,6 +1,7 @@
 {% extends "includes/base.html" %}
 {% load static nodo_ui dispositivos %}
 {% block title %}Dispositivos · {{ dispositivo.nombre }}{% endblock %}
+{% block page_css %}<link rel="stylesheet" href="{% static 'custom/css/nodo-sugerencias.css' %}">{% endblock %}
 
 {% block main-content %}
 {% url 'dispositivos:detalle' dispositivo.pk as url_detalle %}
@@ -800,4 +801,5 @@
 {% endblock %}
 
 {% block customJS %}{% include "programas/becas/_confirm_js.html" %}{% include "programas/becas/_ajax_js.html" %}
-<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}
+<script src="{% static 'custom/js/becas-modal.js' %}"></script>
+<script src="{% static 'custom/js/nodo-sugerencias.js' %}"></script>{% endblock %}

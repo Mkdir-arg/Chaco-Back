@@ -1057,13 +1057,15 @@ URL_DE_ACCION = {
 
 
 def puede_reservar_o_prestar(user, dispositivo):
-    """La compuerta única de reservar, prestar y de las sugerencias de personas de su campo DNI.
+    """La compuerta única de reservar, prestar y de las sugerencias de personas de los campos de DNI.
 
-    Admitir en ese dispositivo (con alcance) y ver personas del padrón: reservar y prestar buscan
-    a la persona por DNI. Quien no cumple no recibe la acción ni las sugerencias.
+    Admitir en ese dispositivo (con alcance) y ver personas del padrón. Es **la misma regla** que abre el
+    asistente de ingreso (`puede_ingresar_persona`, Cambio 416): no se escribe dos veces, así que el paso
+    «Buscar persona» y el modal de la plaza no pueden discrepar. Quien no cumple no recibe la acción ni
+    las sugerencias.
     """
 
-    return puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR) and puede(user, CAP_VER_CIUDADANO)
+    return puede_ingresar_persona(user, dispositivo)
 
 
 class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
@@ -1187,7 +1189,7 @@ class PlazaPrestarView(PlazaReservarView):
 
 
 class PersonasSugeridasView(DispositivoProgramaPermissionMixin, View):
-    """Sugiere personas del Legajo mientras se escribe el DNI de «Reservar» y «Prestar» (Cambio 415).
+    """Sugiere personas del Legajo mientras se escribe el DNI de «Reservar», «Prestar» (Cambio 415) y «Ingresar persona» (416).
 
     Solo lectura y solo JSON. Pide **lo mismo que esas dos acciones**: `dispositivo.admitir` con
     alcance al dispositivo y `ciudadano.ver`. Cada sugerencia lleva apellido, nombre y DNI, nada
