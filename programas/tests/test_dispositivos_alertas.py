@@ -55,7 +55,7 @@ from programas.services.estadias import (
     volver_plaza_a_servicio,
 )
 from programas.services.inspecciones import cancelar_inspeccion, crear_inspeccion, registrar_resultado
-from programas.tests.test_dispositivos_estadias import BaseEstadias, _permiso
+from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias, _permiso
 from users.models import RolMeta
 
 PRESUPUESTOS = settings.BASE_DIR / "scripts" / "perf_budgets.json"
@@ -524,7 +524,9 @@ class NuncaBloqueaTests(BaseAlertas):
 
     def test_el_detalle_ofrece_ingresar_aunque_haya_alertas(self):
         self._todas_encendidas()
-        self.client.force_login(self.operador_cis)
+        # El asistente de ingreso pide además `ciudadano.ver` (Cambio 407): sin él no se ofrece.
+        admisor = self._operador("Admisor con padron", self.cis, (*CAPACIDADES_OPERATIVAS, "ciudadano.ver"))
+        self.client.force_login(admisor)
 
         respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]))
 

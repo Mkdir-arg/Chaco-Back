@@ -88,12 +88,11 @@ class UsuariosAdminService:
         lo que esperan `users/services/correo.py` y el middleware (Cambio 37).
 
         **Dónde no alcanza: el usuario de campo.** La marca la cobra el backoffice,
-        y a quien solo tiene `becas.campo` el backoffice nunca le pide nada —el
-        login web lo rechaza y `/api/becas/auth/token/` no mira el flag—, así que
-        acá queda puesta y no la hace cumplir nadie. Esa puerta se cierra en el
-        alta y no en esta función: `_validar_correo_de_entrega` le exige correo a
-        un usuario de campo, para que la clave le llegue como link de reseteo
-        (D-26 (b)) y el operador no la conozca. La marca igual se escribe: si
+        y a quien solo tiene `becas.campo` el backoffice nunca le pide nada (el
+        login web lo rechaza); la marca la cobra el token de la app (Cambio 407) y la
+        limpia el enlace de reseteo. Por eso a un usuario de campo la clave se le
+        entrega por ese enlace y no tipeada: `_validar_correo_de_entrega` le exige
+        correo (D-26 (b)) y las vistas del ABM llaman a `entregar_credenciales_provisorias`. La marca igual se escribe: si
         mañana suma un rol de backoffice, el primer ingreso se la cobra.
         """
         from users.models import Profile
