@@ -161,7 +161,29 @@ class UserUpdateView(TimestampedSuccessUrlMixin, AdminRequiredMixin, UpdateView)
             form.add_error(None, ERROR_GUARDAR_USUARIO)
             return self.form_invalid(form)
 
+        self._entregar_enlace_a_usuario_de_campo(form)
         return self.redirect_with_timestamp()
+
+    def _entregar_enlace_a_usuario_de_campo(self, form):
+        """Si el operador tipeó una clave para una cuenta solo de campo, la clave se entrega por enlace.
+
+        El form ya exigió el correo (Cambio 407). La clave tipeada se reemplaza por una que nadie
+        conoce y la persona fija la suya con el enlace.
+        """
+        if not form.cleaned_data.get("password") or not getattr(form, "credenciales_editables", True):
+            return
+        usuario = User.objects.get(pk=self.object.pk)
+        if usuario.pk == self.request.user.pk or not usuario.email or not rbac.es_solo_campo(usuario):
+            return
+        try:
+            entregar_credenciales_provisorias(usuario, self.request)
+            messages.success(self.request, "Se envió el correo con el enlace para que el usuario defina su contraseña.")
+        except Exception:
+            logger.exception("La clave del usuario de campo se cambió, pero no se pudo enviar el enlace")
+            messages.warning(
+                self.request,
+                'No se pudo enviar el correo con el enlace. El usuario puede pedir uno desde "Olvidé mi contraseña".',
+            )
 
 
 class UserToggleActivoView(AdminRequiredMixin, View):

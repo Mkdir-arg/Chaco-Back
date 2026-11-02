@@ -275,6 +275,9 @@ def _validar_clave_tipeada(form):
         form.add_error("password", exc)
 
 
+MENSAJE_CAMPO_SIN_CORREO = "Para un usuario de campo hace falta un correo: la clave se entrega por enlace"
+
+
 def _validar_correo_de_entrega(form, *, exigir_clave=True, grupos=None):
     """Cómo le llega la clave a quien se está dando de alta (G1b-08 + D-26).
 
@@ -285,10 +288,10 @@ def _validar_correo_de_entrega(form, *, exigir_clave=True, grupos=None):
 
     Para un usuario **de campo** esa segunda vía no existe. «Vale un solo ingreso»
     se apoya en que el backoffice le pida cambiarla al entrar, y a él el backoffice
-    no le pide nada: el login web lo rechaza (``territorial_mobile_only``) y
-    ``/api/becas/auth/token/`` no mira ``debe_cambiar_contrasena``. La clave que
-    tipeó el operador le quedaba vigente **para siempre**, que es justo lo que D-26
-    (b) vino a cerrar con el link de reseteo. El link viaja por correo, así que acá
+    no le pide nada: el login web lo rechaza (``territorial_mobile_only``).
+    Desde el Cambio 407 el login de token de la app sí cobra ``debe_cambiar_contrasena``
+    (403 hasta cambiar la clave), pero el cambio se hace por el enlace: la clave que
+    tipeó el operador no le serviría de nada, y D-26 (b) la reemplaza por el link de reseteo. El link viaja por correo, así que acá
     el correo es obligatorio: es la única forma de entregarle una clave que después
     el operador no conozca.
 
@@ -302,11 +305,7 @@ def _validar_correo_de_entrega(form, *, exigir_clave=True, grupos=None):
     if grupos is None:
         grupos = form.cleaned_data.get("groups") or []
     if rbac.roles_solo_campo(grupos):
-        form.add_error(
-            "email",
-            "Un usuario de campo necesita correo: la clave se le entrega con un enlace para que la "
-            "defina él, y no hay otra vía.",
-        )
+        form.add_error("email", MENSAJE_CAMPO_SIN_CORREO)
         return
     if not exigir_clave:
         return
@@ -346,9 +345,14 @@ def _validar_correo_de_entrega_al_editar(form):
         _validar_correo_de_entrega(form, exigir_clave=False)
         return
     actuales = list(instancia.groups.all())
-    if not instancia.email and rbac.roles_solo_campo(actuales):
-        return  # ya estaba así: la edición no empeora nada y tiene que poder guardarse
     resultantes, _alcance = _roles_resultantes(form)
+    if not instancia.email and rbac.roles_solo_campo(actuales):
+        # Ya estaba así: la edición sin tocar la clave tiene que poder guardarse. Pero si el operador
+        # tipea una clave, la conoce, y a un usuario de campo la clave solo se le entrega por enlace
+        # (Cambio 407, decisión del PM 30/10/2026): sin correo no hay forma de dársela.
+        if form.cleaned_data.get("password") and not form.cleaned_data.get("email"):
+            form.add_error("email", MENSAJE_CAMPO_SIN_CORREO)
+        return
     _validar_correo_de_entrega(form, exigir_clave=False, grupos=resultantes)
 
 

@@ -41,7 +41,12 @@ from legajos.models import Ciudadano
 from programas.forms_ingreso import IngresoAltaMinimaForm, IngresoConfirmarForm, IngresoPersonaForm
 from programas.models import Dispositivo, Plaza
 from programas.services.bitacora import turno_vigente
-from programas.services.estadias import AlojamientoEnLaRed, puede_ingresar_persona, verificar_alojamiento_en_red
+from programas.services.estadias import (
+    CAP_VER_CIUDADANO,
+    AlojamientoEnLaRed,
+    puede_ingresar_persona,
+    verificar_alojamiento_en_red,
+)
 from programas.services.ingreso import (
     buscar_ciudadano_por_dni,
     buscar_en_registro_de_personas,
@@ -59,7 +64,6 @@ from programas.services.ocupacion import (
 #: Una sola clave de sesión con un estado por dispositivo: `{"<pk>": {...}}`.
 CLAVE_SESION = "ingreso_asistente"
 #: Quien busca a la persona en el legajo necesita verla: es lo que muestra el asistente.
-CAP_VER_CIUDADANO = "ciudadano.ver"
 CAP_CREAR_CIUDADANO = "ciudadano.crear"
 
 AVISO_OTRA_PESTANA = (

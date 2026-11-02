@@ -52,6 +52,7 @@ FALTA_MOTIVO = (
     "--actualizar necesita --motivo: le reemplaza los grupos y la contraseña a gente que ya está "
     "trabajando, así que tiene que quedar escrito quién lo hizo y por qué."
 )
+SOLO_CAMPO_SIN_CORREO = "es un usuario de campo y no tiene correo: la clave se entrega por enlace."
 YA_EXISTE = "«{usuario}» ya existe: no se toca. Con --actualizar --motivo «...» se le replican los grupos."
 
 
@@ -108,7 +109,7 @@ class Command(BaseCommand):
                 motivo,
             )
 
-        plan, omitidos = self._planificar(csv_path, user_model, actualizar)
+        plan, omitidos = self._planificar(csv_path, user_model, actualizar, grupos_referencia)
 
         if aplicar:
             self._aplicar(plan, grupos_referencia)
@@ -125,7 +126,7 @@ class Command(BaseCommand):
 
     # ── Planificación (corre igual en el ensayo) ────────────────────────────
 
-    def _planificar(self, csv_path, user_model, actualizar):
+    def _planificar(self, csv_path, user_model, actualizar, grupos_referencia=()):
         """`([{usuario, crear, datos, clave}], [omitidos])`, o corta sin escribir nada."""
         plan, omitidos, errores = [], [], []
 
@@ -160,6 +161,15 @@ class Command(BaseCommand):
                     "last_name": (row.get("Apellido") or "").strip(),
                 }
                 clave = (row.get("Contraseña") or "").strip()
+                # Cambio 407: a un usuario de campo la clave se entrega por enlace, y sin correo no hay
+                # enlace. La fila se rechaza y se informa; las demás siguen.
+                correo = datos["email"] or (existente.email if existente is not None else "")
+                if clave and not correo and rbac.roles_solo_campo(list(grupos_referencia)):
+                    self.stdout.write(
+                        self.style.WARNING(f"Fila {numero} («{username}»): {SOLO_CAMPO_SIN_CORREO} Se rechaza.")
+                    )
+                    omitidos.append(username)
+                    continue
                 if existente is None and not clave:
                     errores.append(f"Fila {numero} («{username}»): falta la contraseña.")
                     continue

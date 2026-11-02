@@ -50735,7 +50735,16 @@ invalidar tokens ya emitidos, migraciones.
    después de validar credenciales y acceso (con clave equivocada no se revela la marca). `codigo` es contrato con la app.
    c) El enlace de reseteo y «Olvidé mi contraseña» usan la misma vista (`EstablecerContrasenaView`), que **ya limpia** la
    marca; un test recorre el camino completo (alta → 403 → enlace → token 200).
-5. **Tokens ya emitidos: no se invalidan.** SEC-26 decidió que cambiar o resetear la clave no cierra la sesión de la app (la app
+5. **Usuario solo de campo = correo obligatorio (decisión del PM, 30/10/2026, tras la auditoría del PR #1011).** En el ABM, alta y
+   edición: si el operador tipea una clave para una cuenta solo de campo (`es_solo_campo`) sin correo, se rechaza con el error en
+   el campo correo («Para un usuario de campo hace falta un correo: la clave se entrega por enlace»); la edición que no toca la
+   clave sigue pudiendo guardarse. Con correo, la clave se entrega con `entregar_credenciales_provisorias` (enlace; la tipeada se
+   reemplaza por una que nadie conoce) y queda `debe_cambiar_contrasena`. La importación por CSV aplica la misma regla: la fila
+   solo de campo sin correo se rechaza y se informa, las demás siguen. Cierra el hueco por el que una clave tipeada quedaba
+   vigente y sin cobrar. Se corrigieron las docstrings que decían que la API no mira la marca.
+6. **Refactor menor.** `url_volver_a_la_estadia` es la única regla del destino tras egresar o cambiar de plaza; `CAP_VER_CIUDADANO`
+   vive solo en `programas/services/estadias.py`; `puede_enviar_validacion` reutiliza `puede_editar`.
+7. **Tokens ya emitidos: no se invalidan.** SEC-26 decidió que cambiar o resetear la clave no cierra la sesión de la app (la app
    instalada no se recupera de un 401 y perdería lo no subido); se mantiene. La marca solo corta la emisión de tokens nuevos.
 
 ## Implementación
@@ -50762,16 +50771,14 @@ la cubre: sacar `ciudadano.ver` de `puede_ingresar_persona`; apagar el rechazo d
 
 ## Puesta en marcha en el servidor
 
-**Antes de desplegar, revisar quién tiene la marca puesta.** Los usuarios de campo creados antes de D-26 (Cambio 37, clave en
-claro) quedaron con `debe_cambiar_contrasena=True` sin forma de limpiarla, porque nunca pisaron el backoffice. Con este cambio
-no pueden loguearse en la app hasta usar el enlace o «Olvidé mi contraseña» (exige correo cargado). Ver el Pendiente 2.
+La condición de deploy (contar en PRD los usuarios con `debe_cambiar_contrasena` y sin correo) **está cumplida: 0** (PM, 30/10/2026).
+Quien tenga la marca y correo entra por el enlace o «Olvidé mi contraseña».
 
 ## Pendientes / a definir
 
 1. INACTIVO sin reactivación: no se tocó; sigue siendo terminal salvo «Cerrar».
-2. Usuarios de campo existentes con la marca puesta (Becas y Dispositivos): contarlos en PRD
-   (`Profile.objects.filter(debe_cambiar_contrasena=True)` cruzado con `es_solo_campo`) y mandarles el enlace, o limpiar la
-   marca a quienes ya cambiaron su clave, antes de desplegar. No se resolvió acá por requerir datos o una migración.
+2. ~~Usuarios de campo con la marca puesta y sin correo en PRD (condición de deploy).~~ **Resuelto el 30/10/2026:** el PM contó en
+   PRD y dio 0 con la marca y sin correo, y 0 de esos solo de campo.
 3. Tokens ya emitidos a usuarios con la marca: siguen valiendo (decisión 5). Si el PM quiere cortarlos, hace falta que la app
    entienda el `codigo` también en los recursos y no solo en el login.
 4. La app tiene que leer `codigo == "debe_cambiar_contrasena"` del 403 del login y mostrar el `detail`.
@@ -50784,5 +50791,7 @@ Revertir el PR; sin migraciones ni datos.
 ## Historial
 
 - **30/10/2026 — alta del cambio.**
+- **30/10/2026 — ronda de la auditoría del PR #1011.** Decisión 5 (correo obligatorio para el usuario solo de campo, ABM y CSV),
+  decisión 6 (refactor menor) y el conteo de PRD en 0 (Pendiente 2 resuelto).
 
 ---

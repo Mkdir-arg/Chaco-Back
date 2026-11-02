@@ -92,9 +92,10 @@ def entregar_credenciales_provisorias(user, request, rol=""):
     para que elija la suya. El Cambio 37 había aceptado mandarla en claro apoyado
     en que «sirve una sola vez, porque el primer login obliga a cambiarla»; para el
     territorial esa mitigación no existe: el login web lo rechaza
-    (``territorial_mobile_only``) y la API no mira el flag, así que la clave del
+    (``territorial_mobile_only``) y la API no miraba el flag, así que la clave del
     correo le quedaba vigente **para siempre** y
-    ``debe_cambiar_contrasena`` en ``True`` sin manera de limpiarlo. El resto de
+    ``debe_cambiar_contrasena`` en ``True`` sin manera de limpiarlo. (Desde el Cambio 407
+    el token de la app sí lo cobra, y el enlace de reseteo lo limpia.) El resto de
     los usuarios sigue igual que antes.
     """
     from users.models import Profile
