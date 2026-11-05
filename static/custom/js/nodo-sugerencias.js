@@ -14,6 +14,9 @@
  *                              campo que lo recibe después, window.NodoSugerencias.montar(contenedor)
  *   data-sugerencias-vacio     texto cuando nadie coincide
  *   data-sugerencias-hay-mas   texto cuando el servidor avisa que hay más resultados
+ *   data-sugerencias-destino   id de un <input type="hidden">: al elegir recibe `valor` y el campo visible
+ *                              muestra `etiqueta` (si la fila la trae); al volver a teclear, el destino se vacía.
+ *                              El que viaja en el POST es el destino (Cambio 417: «Persona — Rol»).
  *
  * Todo texto del servidor se escribe con textContent: nunca innerHTML con datos.
  * Sin dependencias: no usa Alpine.
@@ -67,6 +70,12 @@
         var temporizador = null;
         var pedido = null;
         var ultimaConsulta = '';
+        var eligiendo = false;
+
+        function destino() {
+            var id = input.getAttribute('data-sugerencias-destino');
+            return id ? document.getElementById(id) : null;
+        }
 
         function marcar(indice) {
             activa = indice;
@@ -93,12 +102,20 @@
         function elegir(indice) {
             var li = opciones[indice];
             if (!li) return;
-            input.value = li.getAttribute('data-valor');
+            var oculto = destino();
+            eligiendo = true;
+            if (oculto) {
+                oculto.value = li.getAttribute('data-valor');
+                input.value = li.getAttribute('data-etiqueta') || li.textContent;
+            } else {
+                input.value = li.getAttribute('data-valor');
+            }
             abrir(false);
             ultimaConsulta = input.value.trim();
             // Quien escucha el campo se entera igual que si la persona lo hubiera tecleado.
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
+            eligiendo = false;
         }
 
         function dibujar(datos) {
@@ -113,7 +130,8 @@
                 li.setAttribute('role', 'option');
                 li.setAttribute('aria-selected', 'false');
                 li.setAttribute('data-valor', fila.valor || fila.dni);
-                li.textContent = fila.apellido + ', ' + fila.nombre + (fila.dni ? ' · ' + fila.dni : '');
+                if (fila.etiqueta) li.setAttribute('data-etiqueta', fila.etiqueta);
+                li.textContent = fila.etiqueta || fila.apellido + ', ' + fila.nombre + (fila.dni ? ' · ' + fila.dni : '');
                 // mousedown y no click: el click llega después del blur y el panel ya se cerró.
                 li.addEventListener('mousedown', function (e) {
                     e.preventDefault();
@@ -162,6 +180,9 @@
         }
 
         input.addEventListener('input', function () {
+            // Teclear de nuevo invalida la elección anterior: lo que viaja es solo lo que se eligió de la lista.
+            var oculto = destino();
+            if (oculto && !eligiendo) oculto.value = '';
             clearTimeout(temporizador);
             temporizador = setTimeout(consultar, DEMORA_MS);
         });

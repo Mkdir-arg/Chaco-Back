@@ -24,9 +24,12 @@ from programas.forms_dispositivos import (
     AUTO_ID_PLAZA_RESERVAR,
     AUTO_ID_PLAZA_SACAR,
     AUTO_ID_RELEVAMIENTO,
+    MENSAJE_EQUIPO_PEDIR_ALTA,
+    MENSAJE_EQUIPO_SIN_PERSONA,
     AgregarPlazasForm,
     AsignarRelevamientoDispositivoForm,
     CambioPlazaForm,
+    CrearPersonaEquipoForm,
     EdificioForm,
     EgresoForm,
     LiberarPlazaForm,
@@ -87,8 +90,9 @@ from programas.services.dispositivos import (
 )
 from programas.services.equipo_dispositivo import (
     equipo_del_dispositivo,
-    pares_persona_rol,
+    puede_crear_persona,
     puede_gestionar_equipo,
+    roles_para_crear_persona,
     sumar_responsables_al_crear,
 )
 from programas.services.estadias import (
@@ -509,8 +513,26 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         # detalle de siempre sigue costando lo mismo.
         if context["puede_gestionar_equipo"] and self.request.GET.get("equipo") == "sumar":
             context["tab"] = "equipo"
-            context["form_equipo"] = SumarMiembroEquipoForm(pares=pares_persona_rol(dispositivo), auto_id="equipo_%s")
+            # «Crear persona» (Cambio 417) es de quien además administra los usuarios de Dispositivos: el resto ve
+            # el pedido al administrador, tanto en el aviso de «sin resultados» como bajo el buscador.
+            puede_crear = puede_crear_persona(user, dispositivo)
+            context["puede_crear_persona"] = puede_crear
+            context["form_equipo"] = SumarMiembroEquipoForm(
+                dispositivo=dispositivo,
+                url_sugerencias=reverse("dispositivos:equipo_personas_buscar", args=[dispositivo.pk]),
+                sin_resultados=MENSAJE_EQUIPO_SIN_PERSONA if puede_crear else MENSAJE_EQUIPO_PEDIR_ALTA,
+                auto_id="equipo_%s",
+            )
             context["url_equipo_sumar"] = reverse("dispositivos:equipo_sumar", args=[dispositivo.pk])
+            if puede_crear:
+                context["form_crear_persona"] = CrearPersonaEquipoForm(
+                    roles=roles_para_crear_persona(user), auto_id="crear_persona_%s"
+                )
+                context["url_equipo_crear_persona"] = reverse(
+                    "dispositivos:equipo_crear_persona", args=[dispositivo.pk]
+                )
+            else:
+                context["mensaje_pedir_alta"] = MENSAJE_EQUIPO_PEDIR_ALTA
 
     def _preparar_modales_de_estadia(self, context, dispositivo, puede_cambiar, puede_egresar):
         """Un solo modal abierto por URL, sin formularios ni consultas por fila (contrato P21)."""
