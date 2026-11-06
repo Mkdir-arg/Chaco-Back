@@ -38,11 +38,21 @@
   var opcionesWrapper = opcionesField.closest('.mb-4');
   if (!opcionesWrapper) return;
 
+  // Cambio 418: con fuente de catálogo no hay opciones a mano y el tipo lo fija
+  // el servidor (selector); «depende de» solo aplica a Localidad.
+  var fuenteSelect = document.getElementById('id_fuente_opciones');
+  var dependeSelect = document.getElementById('id_depende_de');
+  var dependeWrapper = dependeSelect ? dependeSelect.closest('.mb-4') : null;
+
   function toggle() {
-    opcionesWrapper.style.display = TIPOS_CON_OPCIONES.indexOf(tipoSelect.value) !== -1 ? '' : 'none';
+    var fuente = fuenteSelect ? fuenteSelect.value : '';
+    var conOpciones = !fuente && TIPOS_CON_OPCIONES.indexOf(tipoSelect.value) !== -1;
+    opcionesWrapper.style.display = conOpciones ? '' : 'none';
+    if (dependeWrapper) dependeWrapper.style.display = fuente === 'localidad' ? '' : 'none';
   }
   toggle();
   tipoSelect.addEventListener('change', toggle);
+  if (fuenteSelect) fuenteSelect.addEventListener('change', toggle);
 })();
 </script>
 {% endblock %}

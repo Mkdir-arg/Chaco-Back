@@ -21,6 +21,7 @@ from programas.models import (
     Relevamiento,
     RequisitoNativo,
     Segmento,
+    TipoCampo,
 )
 
 
@@ -104,15 +105,70 @@ def _campo_dict(obj, alcance):
     destino = getattr(obj, "destino_siis", "") or ""
     if destino:
         datos["destino_siis"] = destino
+    # Cambio 418: opciones que salen del catálogo geográfico (Provincia/Localidad).
+    # Mismo criterio que arriba: la clave va solo cuando hay fuente, así la foto de
+    # los casos de siempre no cambia. ``depende_de`` es la clave del ítem de la
+    # Provincia («pg-<pk>»). Una Localidad sin Provincia (borrada por fuera del
+    # ABM, que lo impide) no tiene con qué filtrar: se sirve como texto libre.
+    fuente = getattr(obj, "fuente_opciones", None)
+    if fuente:
+        if fuente == PreguntaGlobal.FuenteOpciones.LOCALIDAD and not obj.depende_de_id:
+            datos["tipo"] = TipoCampo.STRING
+        else:
+            datos["fuente_opciones"] = fuente
+            if obj.depende_de_id:
+                datos["depende_de"] = f"pg-{obj.depende_de_id}"
     return datos
 
 
-def definicion_formulario(relevamiento):
+CAPACIDAD_CATALOGOS = "catalogos"
+
+
+def definicion_para_cliente(definicion, capacidades):
+    """Adapta la definición a lo que el cliente declara que sabe dibujar (Cambio 418).
+
+    La app instalada pinta todas las opciones de un selector sin virtualizar: con las
+    8779 localidades se cuelga. Quien **no** declara la capacidad ``catalogos`` recibe
+    Provincia y Localidad como texto (``STRING``) y sin la clave ``catalogos``: carga
+    el dato a mano, igual que antes de este cambio. Con la capacidad, la definición
+    sale como está (``SELECTOR`` + ``fuente_opciones`` + ``catalogos``).
+    """
+    if CAPACIDAD_CATALOGOS in capacidades:
+        return definicion
+    definicion.pop("catalogos", None)
+    listas = [
+        definicion.get("globales") or [],
+        definicion.get("requisitos") or [],
+        _recorrer_campos(definicion["items"]),
+    ]
+    for lista in listas:
+        for campo in lista:
+            if campo.get("fuente_opciones"):
+                campo["tipo"] = TipoCampo.STRING
+                campo.pop("fuente_opciones", None)
+                campo.pop("depende_de", None)
+    return definicion
+
+
+def _usa_catalogos(campos):
+    return any(c.get("fuente_opciones") for c in campos)
+
+
+def _recorrer_campos(estructura):
+    for grupo in estructura:
+        yield from grupo.get("items") or []
+
+
+def definicion_formulario(relevamiento, con_catalogos=True):
     """Definición del formulario para la app de campo (#82) y el link público.
 
     Devuelve preguntas globales y requisitos (con herencia de subsegmento) según
     la convocatoria del relevamiento, filtrados por el canal del relevamiento
     (Cambio 58), más el flag ``requiere_gps`` del segmento.
+
+    ``con_catalogos=False`` omite la clave ``catalogos`` (Cambio 418): quien solo
+    necesita la estructura —la foto que se guarda por caso— no paga la lectura
+    del catálogo geográfico.
     """
     from programas.services.diseno import catalogo_convocatoria, items_vigentes, plan_por_defecto, serializar
 
@@ -156,7 +212,7 @@ def definicion_formulario(relevamiento):
                         "modo": "todas",
                         "reglas": [{"fuente": f"pg-{nacimiento.pk}", "op": "edad_menor", "valor": 18}],
                     }
-    return {
+    definicion = {
         "requiere_gps": convocatoria.segmento.requiere_gps,
         "acepta_respuestas": True,
         "canal": canal,
@@ -165,6 +221,14 @@ def definicion_formulario(relevamiento):
         "globales": [_campo_dict(p, "global") for p in globales],
         "requisitos": [_campo_dict(r, _alcance_requisito(r)) for r in requisitos],
     }
+    # Cambio 418: el catálogo geográfico viaja una sola vez, a nivel superior, y solo
+    # si alguna pregunta de este formulario lo usa. Una resolución por definición
+    # (cacheada), nunca por ítem; no entra en la foto del caso ni en la huella.
+    if con_catalogos and (_usa_catalogos(definicion["globales"]) or _usa_catalogos(_recorrer_campos(estructura))):
+        from programas.services.catalogo_geografico import catalogos_geograficos
+
+        definicion["catalogos"] = catalogos_geograficos()
+    return definicion
 
 
 def formulario_por_client_uuid(relevamiento, client_uuid):

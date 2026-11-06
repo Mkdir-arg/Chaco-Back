@@ -51,10 +51,15 @@ IDENTIDAD = {
 
 
 def foto_definicion(relevamiento, definicion=None):
-    """La foto que guarda el caso: versión, canal, ítems anidados y destinos SIIS."""
+    """La foto que guarda el caso: versión, canal, ítems anidados y destinos SIIS.
+
+    **Nunca** lleva ``catalogos`` (Cambio 418): el catálogo geográfico son ~150 KB
+    y la foto se paga por cada caso. Se arma con las cuatro claves de abajo, así
+    que aunque ``definicion`` lo traiga no pasa; y cuando la definición se pide
+    acá, se pide sin él."""
     from programas.services.becas import definicion_formulario
 
-    definicion = definicion or definicion_formulario(relevamiento)
+    definicion = definicion or definicion_formulario(relevamiento, con_catalogos=False)
     items = definicion.get("items") or []
     return {
         "version": definicion.get("version", 1),
