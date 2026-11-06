@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from programas.models import Formulario, ListaEspera, Segmento, ValidacionSIS
 from programas.services.becas import registrar_traza
+from programas.services.marca_de_oficio import marcar as marcar_alta_de_oficio
 
 #: El mensaje de todas las carreras perdidas: alguien ya resolvió el caso.
 CASO_YA_RESUELTO = "El caso ya fue resuelto por otra operación: recargá la pantalla."
@@ -121,6 +122,16 @@ def cerrar_espera_activa(formulario, user, motivo):
 _VALIDACION_SIN_BUSCAR = object()
 
 
+def _motivo_bloqueo_identidad(formulario):
+    """Las dos primeras reglas de la aprobación, que comparten la aprobación común
+    y la de oficio: identidad validada y ciudadano con DNI. ``None`` si pasa."""
+    if not formulario.validado_renaper:
+        return "La identidad debe estar validada antes de aprobar."
+    if not formulario.ciudadano_id or not formulario.ciudadano.dni:
+        return "El formulario debe tener un ciudadano con DNI vinculado."
+    return None
+
+
 def motivo_bloqueo_aprobacion(formulario, validacion=_VALIDACION_SIN_BUSCAR):
     """Explica por qué un formulario todavía no puede aprobarse.
 
@@ -136,10 +147,9 @@ def motivo_bloqueo_aprobacion(formulario, validacion=_VALIDACION_SIN_BUSCAR):
     obligatorio es haber consultado: sin ese registro auditable no hay
     aprobación.
     """
-    if not formulario.validado_renaper:
-        return "La identidad debe estar validada antes de aprobar."
-    if not formulario.ciudadano_id or not formulario.ciudadano.dni:
-        return "El formulario debe tener un ciudadano con DNI vinculado."
+    bloqueo = _motivo_bloqueo_identidad(formulario)
+    if bloqueo:
+        return bloqueo
 
     segmento = formulario.relevamiento.convocatoria.segmento
     programa = segmento.programa
@@ -349,6 +359,46 @@ def aprobar_o_poner_en_espera(formulario, user):
 
     agregar_a_lista_espera(formulario, segmento, user)
     return "lista_espera"
+
+
+@transaction.atomic
+def aprobar_de_oficio(formulario, user):
+    """Aprueba de oficio a quien ya es beneficiaria y ya figura en SIIS.
+
+    Es el camino de ``inscribir_de_oficio``: alta administrativa de personas que
+    el PM da de alta directamente. Exige identidad validada y ciudadano con DNI
+    (las dos primeras reglas de :func:`motivo_bloqueo_aprobacion`) y **no** exige
+    la validación SIIS: la persona ya está allá, consultarla no suma. Toma el
+    candado del segmento como :func:`aprobar_o_poner_en_espera`, pero sin cupo
+    **no** manda a lista de espera: levanta ``ValidationError``, porque un alta
+    de oficio que no entra es un error de planificación, no una cola.
+
+    Deja la traza del estado y una marca explícita de que fue de oficio y sin SIIS.
+    """
+    if formulario.estado != Formulario.Estado.ENVIADO:
+        raise ValidationError("Solo se pueden aprobar formularios en estado ENVIADO.")
+    bloqueo = _motivo_bloqueo_identidad(formulario)
+    if bloqueo:
+        raise ValidationError(bloqueo)
+
+    segmento = formulario.relevamiento.convocatoria.segmento
+    Segmento.objects.select_for_update().get(pk=segmento.pk)
+    estado_actual = (
+        Formulario.objects.select_for_update().filter(pk=formulario.pk).values_list("estado", flat=True).get()
+    )
+    if estado_actual != Formulario.Estado.ENVIADO:
+        raise ValidationError(CASO_YA_RESUELTO)
+    # CMP-N1: quien está en la lista de espera se aprueba promoviéndolo desde Cupo.
+    if ListaEspera.objects.filter(formulario_id=formulario.pk, promovido=False).exists():
+        raise CasoEnListaEspera()
+    if get_cupo_stats(segmento)["cupo_disponible"] <= 0:
+        raise ValidationError(f"No hay cupo disponible en el segmento '{segmento.nombre}'.")
+    if not _escribir_estado(formulario, Formulario.Estado.APROBADO, Formulario.Estado.ENVIADO):
+        raise ValidationError(CASO_YA_RESUELTO)
+    registrar_traza(formulario, user, [("estado", estado_actual, Formulario.Estado.APROBADO)])
+    # La marca nace con el caso (alta_de_oficio.py); acá solo se asegura.
+    marcar_alta_de_oficio(formulario, user)
+    return "aprobado"
 
 
 @transaction.atomic
