@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from programas.models import Formulario, ListaEspera, Segmento, ValidacionSIS
 from programas.services.becas import registrar_traza
+from programas.services.marca_de_oficio import marcar as marcar_alta_de_oficio
 
 #: El mensaje de todas las carreras perdidas: alguien ya resolvió el caso.
 CASO_YA_RESUELTO = "El caso ya fue resuelto por otra operación: recargá la pantalla."
@@ -121,6 +122,16 @@ def cerrar_espera_activa(formulario, user, motivo):
 _VALIDACION_SIN_BUSCAR = object()
 
 
+def _motivo_bloqueo_identidad(formulario):
+    """Las dos primeras reglas de la aprobación, que comparten la aprobación común
+    y la de oficio: identidad validada y ciudadano con DNI. ``None`` si pasa."""
+    if not formulario.validado_renaper:
+        return "La identidad debe estar validada antes de aprobar."
+    if not formulario.ciudadano_id or not formulario.ciudadano.dni:
+        return "El formulario debe tener un ciudadano con DNI vinculado."
+    return None
+
+
 def motivo_bloqueo_aprobacion(formulario, validacion=_VALIDACION_SIN_BUSCAR):
     """Explica por qué un formulario todavía no puede aprobarse.
 
@@ -136,10 +147,9 @@ def motivo_bloqueo_aprobacion(formulario, validacion=_VALIDACION_SIN_BUSCAR):
     obligatorio es haber consultado: sin ese registro auditable no hay
     aprobación.
     """
-    if not formulario.validado_renaper:
-        return "La identidad debe estar validada antes de aprobar."
-    if not formulario.ciudadano_id or not formulario.ciudadano.dni:
-        return "El formulario debe tener un ciudadano con DNI vinculado."
+    bloqueo = _motivo_bloqueo_identidad(formulario)
+    if bloqueo:
+        return bloqueo
 
     segmento = formulario.relevamiento.convocatoria.segmento
     programa = segmento.programa
@@ -367,10 +377,9 @@ def aprobar_de_oficio(formulario, user):
     """
     if formulario.estado != Formulario.Estado.ENVIADO:
         raise ValidationError("Solo se pueden aprobar formularios en estado ENVIADO.")
-    if not formulario.validado_renaper:
-        raise ValidationError("La identidad debe estar validada antes de aprobar.")
-    if not formulario.ciudadano_id or not formulario.ciudadano.dni:
-        raise ValidationError("El formulario debe tener un ciudadano con DNI vinculado.")
+    bloqueo = _motivo_bloqueo_identidad(formulario)
+    if bloqueo:
+        raise ValidationError(bloqueo)
 
     segmento = formulario.relevamiento.convocatoria.segmento
     Segmento.objects.select_for_update().get(pk=segmento.pk)
@@ -379,18 +388,16 @@ def aprobar_de_oficio(formulario, user):
     )
     if estado_actual != Formulario.Estado.ENVIADO:
         raise ValidationError(CASO_YA_RESUELTO)
+    # CMP-N1: quien está en la lista de espera se aprueba promoviéndolo desde Cupo.
+    if ListaEspera.objects.filter(formulario_id=formulario.pk, promovido=False).exists():
+        raise CasoEnListaEspera()
     if get_cupo_stats(segmento)["cupo_disponible"] <= 0:
         raise ValidationError(f"No hay cupo disponible en el segmento '{segmento.nombre}'.")
     if not _escribir_estado(formulario, Formulario.Estado.APROBADO, Formulario.Estado.ENVIADO):
         raise ValidationError(CASO_YA_RESUELTO)
-    registrar_traza(
-        formulario,
-        user,
-        [
-            ("estado", estado_actual, Formulario.Estado.APROBADO),
-            ("alta_de_oficio", "", "Alta de oficio sin validación SIIS (beneficiaria vigente, ya figura en SIIS)"),
-        ],
-    )
+    registrar_traza(formulario, user, [("estado", estado_actual, Formulario.Estado.APROBADO)])
+    # La marca nace con el caso (alta_de_oficio.py); acá solo se asegura.
+    marcar_alta_de_oficio(formulario, user)
     return "aprobado"
 
 

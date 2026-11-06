@@ -25,15 +25,20 @@ import uuid
 from dataclasses import dataclass
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import InterfaceError, OperationalError, transaction
 from django.utils import timezone
 
 from core.dni import dni_valido, normalizar_dni
 from programas.models import Convocatoria, Formulario, Relevamiento
-from programas.services.becas import formulario_por_client_uuid, resolver_ciudadano_offline
+from programas.services.becas import (
+    _anotar_identidad_acreditada,
+    formulario_por_client_uuid,
+    resolver_ciudadano_offline,
+)
 from programas.services.cupo import aprobar_de_oficio, get_cupo_stats
 from programas.services.identidad import ORIGEN_MANUAL, identificar
 from programas.services.inscripcion_publica import dni_en_convocatoria
+from programas.services.marca_de_oficio import marcar
 from programas.services.padron import normalizar_sexo, normalizar_texto
 from programas.services.personas import fecha_iso
 from programas.services.respuestas import foto_definicion
@@ -91,6 +96,8 @@ class ResultadoFila:
     error_tecnico: bool = False
     #: Se hizo una consulta a Personas en esta fila (para la pausa).
     consulto_personas: bool = False
+    #: La conexión a la base falló: la corrida cierra las conexiones viejas.
+    error_bd: bool = False
 
 
 def _sin_acentos(texto):
@@ -199,9 +206,20 @@ class AltaDeOficio:
         existente = formulario_por_client_uuid(self.relevamiento, self.client_uuid(dni))
         if existente is None:
             if dni_en_convocatoria(self.convocatoria, dni):
-                return ResultadoFila(dni, YA_INSCRIPTO, detalle="el DNI ya figura en la convocatoria"), None
+                return ResultadoFila(dni, YA_INSCRIPTO, detalle=self._detalle_ya_inscripto(dni)), None
             return None, None
         return self._resultado_de_existente(dni, existente), existente
+
+    def _detalle_ya_inscripto(self, dni, convocatoria=None):
+        """Estado y número del caso que ya ocupa el DNI (misma regla que
+        ``dni_en_convocatoria``: un RECHAZADO sin validar no cuenta)."""
+        casos = Formulario.objects.filter(relevamiento__convocatoria=convocatoria or self.convocatoria).exclude(
+            estado=Formulario.Estado.RECHAZADO, validado_renaper=False
+        )
+        caso = casos.filter(dni_titular=dni).first() or casos.filter(ciudadano__dni=dni).first()
+        if caso is None:
+            return "el DNI ya figura en la convocatoria"
+        return f"el DNI ya figura en la convocatoria: caso {caso.numero} del relevamiento {caso.relevamiento_id}, estado {caso.estado}"
 
     @staticmethod
     def _resultado_de_existente(dni, existente):
@@ -291,6 +309,9 @@ class AltaDeOficio:
             return resultado
         except ValidationError as error:
             return ResultadoFila(dni, ERROR, detalle="; ".join(error.messages)[:300])
+        except (OperationalError, InterfaceError) as error:
+            # Conexión caída o timeout de la base: es técnico, cuenta para el freno.
+            return ResultadoFila(dni, ERROR, error_tecnico=True, error_bd=True, detalle=f"Base de datos: {error}"[:300])
         except Exception as error:  # una fila rota no corta las demás
             return ResultadoFila(dni, ERROR, detalle=f"{type(error).__name__}: {error}"[:300])
 
@@ -302,7 +323,7 @@ class AltaDeOficio:
             existente = formulario_por_client_uuid(rel, self.client_uuid(dni))
             if existente is None:
                 if dni_en_convocatoria(convocatoria, dni):
-                    return ResultadoFila(dni, YA_INSCRIPTO, detalle="el DNI ya figura en la convocatoria")
+                    return ResultadoFila(dni, YA_INSCRIPTO, detalle=self._detalle_ya_inscripto(dni, convocatoria))
                 if rel.formularios.count() >= rel.cupo_maximo:
                     raise ValidationError("El relevamiento no tiene cupo para más casos.")
                 formulario = self._crear(rel, fila, identidad)
@@ -337,7 +358,7 @@ class AltaDeOficio:
         else:
             nombre, apellido, nacimiento, origen = fila["nombres"], fila["apellido"], "", ORIGEN_MANUAL
         acredita = bool(validado and nombre and apellido)
-        return Formulario.objects.create(
+        formulario = Formulario.objects.create(
             relevamiento=rel,
             data={},
             respuestas={},
@@ -357,6 +378,9 @@ class AltaDeOficio:
             validado_renaper=acredita,
             origen_validacion=origen if acredita else "",
         )
+        # La marca nace con el caso, validado o no: ningún camino lo informa a SIIS.
+        marcar(formulario, self.usuario)
+        return formulario
 
     @staticmethod
     def _acreditar(formulario, identidad):
@@ -372,7 +396,21 @@ class AltaDeOficio:
         )
         ciudadano = formulario.ciudadano
         if ciudadano is not None:
+            # SIIS-08: si el legajo conserva los nombres del CSV y difieren de lo
+            # acreditado, queda constancia (traza y ``datos_siis``).
+            acreditada = {
+                "nombre": datos["nombre"],
+                "apellido": datos["apellido"],
+                "fecha_nacimiento": datos.get("fecha_nacimiento") or "",
+                "origen": identidad["origen"],
+            }
+            if _anotar_identidad_acreditada(formulario, ciudadano, acreditada):
+                Formulario.objects.filter(pk=formulario.pk).update(datos_siis=formulario.datos_siis)
             completar = []
+            nacimiento = fecha_iso(datos.get("fecha_nacimiento")) or None
+            if nacimiento and not ciudadano.fecha_nacimiento:
+                ciudadano.fecha_nacimiento = nacimiento
+                completar.append("fecha_nacimiento")
             if not ciudadano.nombre:
                 ciudadano.nombre = datos["nombre"]
                 completar.append("nombre")

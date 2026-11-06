@@ -145,7 +145,7 @@ class AplicarTests(AltaDeOficioBase):
         campos = set(formulario.trazas.values_list("campo", flat=True))
         self.assertEqual(campos, {"estado", "alta_de_oficio"})
         marca = formulario.trazas.get(campo="alta_de_oficio")
-        self.assertIn("sin validación SIIS", marca.valor_nuevo)
+        self.assertIn("ya figura en SIIS", marca.valor_nuevo)
         self.assertEqual(marca.editado_por, self.usuario)
         fila = self.informe_filas()[0]
         self.assertEqual(fila["resultado"], "aprobado")
@@ -309,3 +309,146 @@ class AprobarDeOficioReglasTests(AltaDeOficioBase):
         caso = Formulario.objects.create(relevamiento=self.relevamiento, validado_renaper=True)
         with self.assertRaises(ValidationError):
             aprobar_de_oficio(caso, self.usuario)
+
+
+class MarcaDeOficioTests(AltaDeOficioBase):
+    def test_la_marca_nace_con_el_caso_tambien_sin_validar(self):
+        sin_datos = {"success": False, "error": "No encontrada", "not_found": True}
+        with mock.patch(PERSONAS, return_value=sin_datos):
+            self.correr([["30111222", "F", "Perez", "Juan"]])
+        formulario = Formulario.objects.get()
+        self.assertEqual(formulario.estado, Formulario.Estado.ENVIADO)
+        self.assertEqual(formulario.trazas.filter(campo="alta_de_oficio").count(), 1)
+
+    def test_ya_inscripto_informa_estado_y_numero(self):
+        previo = Formulario.objects.create(
+            relevamiento=self.relevamiento, datos_identificacion={"dni": "30111222"}, validado_renaper=True
+        )
+        with mock.patch(PERSONAS, return_value=_ok()):
+            self.correr([["30111222", "F", "Paz", "Ana"]])
+        detalle = self.informe_filas()[0]["detalle"]
+        self.assertIn(f"caso {previo.numero}", detalle)
+        self.assertIn("ENVIADO", detalle)
+
+    def test_error_de_conexion_cuenta_como_tecnico_y_frena(self):
+        from django.db import OperationalError
+
+        filas = [[str(30111000 + n), "F", "A", "B"] for n in range(6)]
+        with (
+            mock.patch(PERSONAS, side_effect=OperationalError("server has gone away")) as personas,
+            mock.patch("programas.management.commands.inscribir_de_oficio.close_old_connections") as cerrar,
+        ):
+            self.correr(filas, max_errores=3)
+        self.assertEqual(personas.call_count, 3)
+        self.assertEqual(cerrar.call_count, 3)
+        self.assertEqual(Formulario.objects.count(), 0)
+
+    def test_acreditar_deja_constancia_y_completa_nacimiento(self):
+        filas = [["30111222", "F", "Perez", "Juan"]]
+        with mock.patch(PERSONAS, return_value={"success": False, "error": "no", "not_found": True}):
+            self.correr(filas)
+        with mock.patch(PERSONAS, return_value=_ok("Juana", "Perez Oficial")):
+            self.correr(filas)
+        formulario = Formulario.objects.get()
+        formulario.ciudadano.refresh_from_db()
+        self.assertEqual(str(formulario.ciudadano.fecha_nacimiento), "1980-05-01")
+        self.assertEqual(formulario.ciudadano.nombre, "Juan", "el legajo no se corrige: solo se deja constancia")
+        self.assertTrue(formulario.trazas.filter(campo__startswith="Identidad acreditada").exists())
+        self.assertIn("_identidad_acreditada", formulario.datos_siis)
+
+    def test_aprobar_de_oficio_respeta_la_lista_de_espera(self):
+        from django.core.exceptions import ValidationError
+
+        from programas.models import ListaEspera
+        from programas.services.cupo import CasoEnListaEspera, aprobar_de_oficio
+
+        ciudadano = Ciudadano.objects.create(dni="30111999", nombre="X", apellido="Y")
+        caso = Formulario.objects.create(relevamiento=self.relevamiento, ciudadano=ciudadano, validado_renaper=True)
+        ListaEspera.objects.create(formulario=caso, segmento=self.segmento, posicion=1)
+        with self.assertRaises(CasoEnListaEspera):
+            aprobar_de_oficio(caso, self.usuario)
+        caso.refresh_from_db()
+        self.assertEqual(caso.estado, Formulario.Estado.ENVIADO)
+        self.assertTrue(issubclass(CasoEnListaEspera, ValidationError))
+
+
+class NingunCaminoInformaASiisTests(AltaDeOficioBase):
+    """Los casos de oficio ya figuran en SIIS y la API no deduplica."""
+
+    def setUp(self):
+        super().setUp()
+        from programas.models import ProgramaSiis
+
+        self.programa = ProgramaSiis.objects.create(nombre="Becas oficio", siis_programa_id=7)
+        self.segmento.programa = self.programa
+        self.segmento.save()
+
+    def _de_oficio(self, dni="30111222", nombre="Ana"):
+        with mock.patch(PERSONAS, return_value=_ok(nombre, "Paz")):
+            self.correr([[dni, "F", "Paz", nombre]])
+        return Formulario.objects.get(dni_titular=dni)
+
+    def _comun(self, dni="30999888"):
+        ciudadano = Ciudadano.objects.create(dni=dni, nombre="Otra", apellido="Persona")
+        return Formulario.objects.create(
+            relevamiento=self.relevamiento,
+            ciudadano=ciudadano,
+            estado=Formulario.Estado.APROBADO,
+            validado_renaper=True,
+        )
+
+    def test_reservar_cierra_sin_llamar_a_siis(self):
+        from programas.services import siis_envio
+
+        formulario = self._de_oficio()
+        with (
+            mock.patch("programas.services.siis_envio.cargar_beneficiario") as api,
+            mock.patch("programas.services.siis_envio.armar_payload", return_value=({"id_plan_soc": 7}, {})),
+        ):
+            envio = siis_envio.enviar_beneficiario_a_siis(formulario, self.usuario, catalogos=mock.MagicMock())
+        api.assert_not_called()
+        self.assertEqual(envio.estado, EnvioSIIS.Estado.RECHAZADO)
+        self.assertEqual(envio.codigo_error, "ALTA_DE_OFICIO")
+        self.assertFalse(envio.vigente)
+        self.assertFalse(EnvioSIIS.objects.filter(formulario=formulario, vigente=True).exists())
+
+    def test_guardar_en_tabla_intermedia_no_guarda(self):
+        from programas.models import AltaIntermediaSIIS
+        from programas.services.siis_envio import guardar_en_tabla_intermedia
+
+        formulario = self._de_oficio()
+        alta, envio = guardar_en_tabla_intermedia(formulario, self.usuario, catalogos=mock.MagicMock())
+        self.assertIsNone(alta)
+        self.assertEqual(envio.codigo_error, "ALTA_DE_OFICIO")
+        self.assertFalse(AltaIntermediaSIIS.objects.exists())
+
+    def test_candidatos_no_toma_al_de_oficio_pero_si_al_comun(self):
+        from programas.services import proceso_masivo
+
+        oficio_aprobado = self._de_oficio()
+        sin_validar = self._de_oficio(dni="30111223", nombre="Eva")
+        Formulario.objects.filter(pk=sin_validar.pk).update(estado=Formulario.Estado.ENVIADO)
+        comun = self._comun()
+        for destino in (proceso_masivo.DESTINO_SIIS, proceso_masivo.DESTINO_TABLA):
+            pks = set(proceso_masivo.candidatos(filtrar_materias=False, destino=destino).values_list("pk", flat=True))
+            self.assertIn(comun.pk, pks)
+            self.assertNotIn(oficio_aprobado.pk, pks)
+            self.assertNotIn(sin_validar.pk, pks)
+
+    def test_enviar_casos_siis_no_toma_al_de_oficio_pero_si_al_comun(self):
+        from programas.management.commands.enviar_casos_siis import Command
+
+        oficio = self._de_oficio()
+        comun = self._comun()
+        opciones = {
+            "convocatoria": None,
+            "relevamiento": None,
+            "segmento": None,
+            "programa": None,
+            "limite": None,
+            "reintentar_rechazados": False,
+            "sin_filtro_materias": True,
+        }
+        pks = {fila[0] for fila in Command()._casos(opciones, [Formulario.Estado.APROBADO])}
+        self.assertIn(comun.pk, pks)
+        self.assertNotIn(oficio.pk, pks)

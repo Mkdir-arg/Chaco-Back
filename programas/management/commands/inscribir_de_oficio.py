@@ -25,6 +25,7 @@ from collections import Counter
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
+from django.db import close_old_connections
 
 from programas.models import Relevamiento
 from programas.services import alta_de_oficio as alta
@@ -154,6 +155,8 @@ class Command(BaseCommand):
         for numero, fila in enumerate(filas, start=1):
             resultado = fila["previo"] or servicio.procesar(fila)
             resultados.append(resultado)
+            if resultado.error_bd:
+                close_old_connections()
             seguidos = seguidos + 1 if resultado.error_tecnico else 0
             if numero % PROGRESO_CADA == 0:
                 self.stdout.write(f"  {numero}/{len(filas)} filas procesadas")

@@ -51731,6 +51731,8 @@ Revertir el PR. No hay datos que deshacer.
 5. **No exige `habilitado_en` ni EN_CURSO** (es un alta administrativa) pero sí el `cupo_maximo` del relevamiento y el cupo del segmento; si no entran las filas válidas, aborta antes de escribir.
 6. **Primero en testing** (pod de ECOM), después PRD.
 7. **En seco por defecto**; `--aplicar` exige `--informe`. La salida son conteos, nunca nombres.
+8. **Los casos de oficio quedan marcados y ningún camino los informa a SIIS** (auditoría del PR #1033): la persona ya figura en SIIS y la API de alta no deduplica. La marca es una traza `alta_de_oficio` escrita al **crear** el caso (también el que queda ENVIADO). `siis_envio._reservar` y `guardar_en_tabla_intermedia` cierran el intento sin llamar a SIIS (`EnvioSIIS` `RECHAZADO`, `codigo_error="ALTA_DE_OFICIO"`, sin `vigente`, patrón de `DUPLICADO_LOCAL`); `proceso_masivo.candidatos` y `enviar_casos_siis` los excluyen con `NOT EXISTS` por `formulario_id`. Módulo `programas/services/marca_de_oficio.py`.
+9. `aprobar_de_oficio` respeta la lista de espera (CMP-N1, `CasoEnListaEspera`) y comparte con la aprobación común `_motivo_bloqueo_identidad`.
 
 ## Implementación
 
@@ -51738,7 +51740,7 @@ Por fila, en su propia transacción con `select_for_update` del relevamiento y d
 
 ## Archivos
 
-`programas/management/commands/inscribir_de_oficio.py`, `programas/services/alta_de_oficio.py`, `programas/services/cupo.py`, `programas/tests/test_inscribir_de_oficio.py`, `docs/internal/requerimientos.md`.
+`programas/management/commands/inscribir_de_oficio.py`, `programas/services/alta_de_oficio.py`, `programas/services/cupo.py`, `programas/services/marca_de_oficio.py`, `programas/services/siis_envio.py`, `programas/services/proceso_masivo.py`, `programas/management/commands/enviar_casos_siis.py`, `programas/tests/test_inscribir_de_oficio.py`, `docs/internal/requerimientos.md`.
 
 ## Base de datos
 
@@ -51746,7 +51748,7 @@ Sin cambios de modelo ni migraciones. Cada caso lleva `created_by` = el usuario 
 
 ## Validación
 
-Tests en `programas/tests/test_inscribir_de_oficio.py` con Personas mockeada. **Mutaciones** (romper la regla, ver el test rojo, restaurar): `client_uuid` aleatorio (idempotencia, 2 tests rojos); sin el chequeo de identidad validada en `aprobar_de_oficio`; sin el duplicado por convocatoria; sin el control de cupo en `aprobar_de_oficio`.
+Tests en `programas/tests/test_inscribir_de_oficio.py` con Personas mockeada. **Mutaciones** (romper la regla, ver el test rojo, restaurar): `client_uuid` aleatorio (idempotencia, 2 tests rojos); sin el chequeo de identidad validada en `aprobar_de_oficio`; sin el duplicado por convocatoria; sin el control de cupo en `aprobar_de_oficio`; sin la guarda de `_reservar` y de `guardar_en_tabla_intermedia`; sin la exclusión en `candidatos` y en `enviar_casos_siis`; sin el chequeo de lista de espera.
 
 ## Pendientes / a definir
 
@@ -51760,5 +51762,6 @@ Los casos creados se identifican por `created_by` y por la traza `alta_de_oficio
 ## Historial
 
 - **06/11/2026 — alta del cambio.**
+- **06/11/2026 — ronda de auditoría de #1033:** marca de oficio y bloqueo del alta a SIIS por todos los caminos, lista de espera, constancia SIIS-08 al acreditar, detalle del `ya_inscripto` y errores de conexión como técnicos.
 
 ---
