@@ -540,6 +540,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 414 | Dispositivos: menores de las auditorías de #1024 y #1026 (reactivar al ex responsable, un solo validador del Equipo, vigencia única, «y» en el aviso de reservas) | Dispositivos | `#rbac` `#datos` `#textos` | Auditorías de los PR #1024 (Equipo) y #1026 | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 415 | Sugerencias de personas mientras se escribe el DNI de Reservar y Prestar plaza (pieza reutilizable `nodo-sugerencias`) | Dispositivos · sistema de diseño | `#ui` `#rbac` `#datos` | PM — pedido del 02/11/2026 (modal de una plaza) | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 416 | Sugerencias de personas y de agentes en el paso «Ingresar persona» y en «Buscar agente» (reusa `nodo-sugerencias`; consulta por columna) | Dispositivos · sistema de diseño | `#ui` `#rbac` `#datos` | PM — continuación del Cambio 415 | 02/11/2026 | 🟡 **En curso** | No requiere |
+| 419 | SIIS: `proponer_alias_siis` propone a qué localidad de SIIS equivale cada localidad core de Chaco que no cruza, para revisión del organismo (no toca `siis_alias_localidades.csv`) | SIIS (`programas/management/commands`) · `docs/internal/siis/` | `#siis` `#datos` | PM — pedido de Provincia/Localidad en Requisitos generales (06/11/2026), PR 3 | 06/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51694,5 +51695,72 @@ Revertir el PR. No hay datos que deshacer.
 ## Historial
 
 - **02/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 419 — SIIS: propuesta de equivalencias de localidades de Chaco para revisión del organismo
+
+🟡 **EN CURSO — 06/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | SIIS (`proponer_alias_siis`) · `docs/internal/siis/` |
+| **Etiquetas** | `#siis` `#datos` |
+| **Solicitante** | PM — pedido de Provincia y Localidad como selectores en Requisitos generales (06/11/2026), PR 3 de 3 |
+| **Fecha del pedido** | 06/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice (comando de gestión y documento interno) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El selector de Localidad va a guardar nombres del catálogo core (778 localidades de Chaco); el padrón de SIIS tiene 165. Medido: unas 130 cruzan por `clave_nombre` y el resto terminaría en «La localidad no coincide con el catálogo de SIIS». Hay que proponer a qué localidad de SIIS equivale cada una para que **el organismo** lo revise.
+
+## Alcance acordado
+
+**Entra:** el comando `proponer_alias_siis` (solo lectura) y su salida de esta corrida en `docs/internal/siis/propuesta-alias-localidades-chaco.csv` con un README de cómo revisarla y de cómo, una vez aprobada, pasarla a `programas/data/siis_alias_localidades.csv`.
+
+**Queda afuera, y por qué:**
+
+- `siis_alias_localidades.csv` no se toca: **DECISIÓN CLIENTE** — lo aprueba el organismo.
+- El envío a SIIS no cambia: el código sigue sin decidir equivalencias.
+- Otras provincias: solo la operativa (`PROVINCIA_OPERATIVA`).
+
+## Decisiones tomadas
+
+1. Cada localidad core queda `CRUZA`, `PROPUESTA` o `SIN_CANDIDATO`. `CRUZA` usa el mismo criterio del envío (`clave_nombre` única en el catálogo propio, o equivalencia con destino).
+2. La propuesta exige **un único** candidato, por dos vías: el mismo nombre con abreviaturas expandidas («Pcia.», «Gral.», …) y sin artículos del medio; o el nombre del **municipio**. La vía por municipio es la débil y el CSV lo dice en el `motivo`.
+3. El artículo inicial no se quita: «El Pastoril» y «La Pastoril» son lugares distintos.
+4. Mismo nombre en municipios distintos con propuestas distintas → `SIN_CANDIDATO`: el alias se busca por nombre, no por municipio.
+5. Una equivalencia ya cargada sin destino cuenta como revisada y queda `SIN_CANDIDATO`.
+
+## Implementación
+
+`programas/management/commands/proponer_alias_siis.py` (función pura `clasificar` + comando con `--salida`; reusa `clave_nombre` y `celda_segura`; cuatro lecturas y ninguna escritura).
+
+## Archivos
+
+`programas/management/commands/proponer_alias_siis.py`, `programas/tests/test_proponer_alias_siis.py`, `docs/internal/siis/README.md`, `docs/internal/siis/propuesta-alias-localidades-chaco.csv`.
+
+## Base de datos
+
+No requiere migración. El comando solo lee.
+
+## Validación
+
+`programas/tests/test_proponer_alias_siis.py`: un caso de cada estado con datos mínimos, equivalencias cargadas, conflicto de nombres, sin escrituras (`assertNumQueries(4)` y conteos), celdas protegidas contra fórmulas y salida a archivo. Corrida contra el fixture completo: 131 CRUZA, 522 PROPUESTA (todas por municipio), 125 SIN_CANDIDATO.
+
+## Pendientes / a definir
+
+- **DECISIÓN CLIENTE:** el organismo revisa el CSV y aprueba las filas; recién entonces otro PR las pasa a `siis_alias_localidades.csv`.
+- **DECISIÓN CLIENTE / del juez:** «Tierra del Fuego, Antártida e Islas del Atlántico Sur» (core) no cruza con «TIERRA DEL FUEGO» (SIIS) y no existe alias de provincia. Propuesta: una tabla de alias de provincias simétrica a la de localidades. No se implementa acá.
+
+## Reversión
+
+Revertir el PR. No hay datos que deshacer.
+
+## Historial
+
+- **06/11/2026 — alta del cambio.**
 
 ---
