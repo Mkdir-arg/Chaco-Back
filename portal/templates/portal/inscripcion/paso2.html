@@ -37,6 +37,7 @@ todo el formulario se muestra y el envío funciona igual.{% endcomment %}
         {% csrf_token %}
         {{ form.gps_lat }}{{ form.gps_lng }}
         {{ planos|json_script:"formulario-items" }}
+        {% if catalogos %}{{ catalogos|json_script:"catalogos-geo" }}{% endif %}
 
         {% if formulario_cambio %}
             <div class="mb-4 p-3 text-sm" style="background: var(--bg-warning-soft); border: 1px solid var(--border-warning-subtle); border-radius: var(--radius-lg); color: var(--text-fg-warning);" role="alert">
@@ -100,6 +101,7 @@ todo el formulario se muestra y el envío funciona igual.{% endcomment %}
 <script src="{% static 'custom/js/nodo-buscador.js' %}"></script>
 <script src="{% static 'custom/js/nodo-condiciones.js' %}"></script>
 <script src="{% static 'custom/js/nodo-formulario.js' %}"></script>
+{% if catalogos %}<script src="{% static 'custom/js/nodo-cascada-geo.js' %}"></script>{% endif %}
 
 {% if requiere_gps %}
 <script>

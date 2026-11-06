@@ -654,8 +654,11 @@ CLAVES_ITEM_CAMPO = {
     "grupo",
     "clave",
 }
-#: Opcional: solo viaja cuando el campo tiene destino en SIIS.
-CLAVES_ITEM_CAMPO_OPCIONALES = {"destino_siis"}
+#: Opcionales: solo viajan cuando el campo tiene destino en SIIS (``destino_siis``) o sus
+#: opciones salen del catálogo geográfico y el cliente declaró la capacidad (Cambio 418).
+CLAVES_ITEM_CAMPO_OPCIONALES = {"destino_siis", "fuente_opciones", "depende_de"}
+#: ``catalogos`` (nivel superior) solo viaja con la capacidad y si alguna pregunta lo usa.
+CLAVES_DEFINICION_OPCIONALES = {"catalogos"}
 
 
 class ContratoDeErroresYLoginTests(_BaseApiTest):

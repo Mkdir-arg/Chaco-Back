@@ -3755,6 +3755,32 @@ class PreguntaGlobal(TimeStamped):
         ),
     )
 
+    class FuenteOpciones(models.TextChoices):
+        """Catálogo de ``core`` del que salen las opciones de un SELECTOR
+        (Cambio 418). Con fuente no se guardan opciones fijas: el catálogo
+        geográfico tiene 8779 localidades y no entra en un JSON por pregunta."""
+
+        PROVINCIA = "provincia", "Provincia (catálogo)"
+        LOCALIDAD = "localidad", "Localidad (catálogo, según la provincia elegida)"
+
+    fuente_opciones = models.CharField(
+        max_length=20,
+        choices=FuenteOpciones.choices,
+        null=True,
+        blank=True,
+        verbose_name="Opciones del catálogo",
+        help_text="Si se indica, las opciones salen del catálogo geográfico y no se cargan a mano.",
+    )
+    depende_de = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dependientes",
+        verbose_name="Depende de",
+        help_text="Solo para Localidad: la pregunta de Provincia que la filtra.",
+    )
+
     class Meta:
         verbose_name = "Pregunta global"
         verbose_name_plural = "Preguntas globales"

@@ -1244,6 +1244,22 @@ def pregunta_toggle_activo(request, pk):
                 "Desactivá esa primero o sacale el destino SIIS a una de las dos.",
             )
             return redirect("becas:preguntas")
+    # Cambio 418: una Localidad de catálogo sin su Provincia activa no se puede
+    # contestar (el portal no sabe qué filtrar), así que el par se mueve ordenado.
+    if pregunta.activo:
+        activa = pregunta.dependientes.filter(activo=True).first()
+        if activa is not None:
+            messages.error(
+                request,
+                f"No se desactivó: la pregunta «{activa.texto}» (Localidad) depende de ésta. Desactivá esa primero.",
+            )
+            return redirect("becas:preguntas")
+    elif pregunta.depende_de_id and not pregunta.depende_de.activo:
+        messages.error(
+            request,
+            f"No se activó: depende de «{pregunta.depende_de.texto}», que está inactiva. Activá esa primero.",
+        )
+        return redirect("becas:preguntas")
     pregunta.activo = not pregunta.activo
     pregunta.save(update_fields=["activo", "modificado"])
     messages.success(request, f"Pregunta {'activada' if pregunta.activo else 'desactivada'}.")
@@ -1259,6 +1275,17 @@ def pregunta_eliminar(request, pk):
             # Cambio 58, RN-5: los protegidos se renombran, agrupan y ordenan; no se borran.
             messages.error(
                 request, "Este campo viene con el sistema y no se puede eliminar; podés renombrarlo o moverlo de grupo."
+            )
+            return redirect("becas:preguntas")
+        # Cambio 418: `depende_de` es SET_NULL, no PROTECT: borrar la Provincia no
+        # levanta ProtectedError y dejaría a su Localidad sin con qué filtrar. El
+        # mensaje propio evita además que caiga en el de «caso(s) subieron este documento».
+        dependiente = pregunta.dependientes.first()
+        if dependiente is not None:
+            messages.error(
+                request,
+                f"No se puede eliminar: la pregunta «{dependiente.texto}» (Localidad) depende de ésta. "
+                "Eliminá o desvinculá esa primero.",
             )
             return redirect("becas:preguntas")
         try:
