@@ -12,7 +12,7 @@ from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.forms_sugerencias import attrs_sugerencias
 from core.widgets import SwitchInput
 from programas.forms import INPUT_CLASS
-from programas.models import MotivoEgreso, Plaza, Sector
+from programas.models import Edificio, MotivoEgreso, Plaza, Sector
 from programas.services.edificios import CAMPOS as CAMPOS_EDIFICIO
 from programas.services.ingreso import buscar_ciudadano_por_dni
 from programas.services.movimientos import ultimo_momento
@@ -499,6 +499,15 @@ class SectorForm(forms.Form):
     muestra como diferencia— y por eso el formulario no las confronta.
     """
 
+    edificio = forms.ModelChoiceField(
+        label="Edificio",
+        queryset=Edificio.objects.none(),
+        required=False,
+        empty_label="Elegí el edificio",
+        widget=forms.Select(attrs={"class": INPUT_CLASS}),
+        help_text="Solo los edificios vinculados a esta institución.",
+        error_messages={"required": "Elegí el edificio del sector."},
+    )
     nombre = forms.CharField(
         label="Nombre",
         max_length=120,
@@ -537,20 +546,43 @@ class SectorForm(forms.Form):
         help_text="Un sector dado de baja deja de dibujarse en el mapa y de ofrecerse para ingresar.",
     )
 
-    def __init__(self, *args, sector=None, **kwargs):
+    def __init__(self, *args, dispositivo, sector=None, **kwargs):
         """Con `sector`, es edición: el switch de baja existe solo ahí.
 
         En el alta el sector nace activo, y ofrecer «dar de baja» en el mismo formulario
         que lo crea sería una casilla que nadie toca.
+
+        El edificio se elige entre los **vinculados al dispositivo** (el servicio lo vuelve a
+        exigir) y es obligatorio en el alta. En la edición lo es mientras el sector quede activo
+        (`clean`): un sector anterior al campo, sin edificio, lo pide al guardar, pero se lo puede
+        dar de baja sin elegir uno.
         """
 
         super().__init__(*args, **kwargs)
         self.sector = sector
+        self.fields["edificio"].queryset = Edificio.objects.filter(dispositivos=dispositivo).order_by("nombre", "pk")
+        if not self.fields["edificio"].queryset.exists():
+            self.fields[
+                "edificio"
+            ].help_text = "Esta institución no tiene edificios: cargá o vinculá uno en la solapa Infraestructura."
+        # El asterisco de `_field.html` sale de `required` o de `marca_requerido`: en la edición el campo no
+        # es `required` (un sector de baja no lo necesita) pero se pide mientras quede activo.
+        self.fields["edificio"].marca_requerido = True
         if sector is None:
             del self.fields["activo"]
+            self.fields["edificio"].required = True
         elif not self.is_bound:
             for campo in ("nombre", "tipo", "perfil", "capacidad", "condiciones_uso", "activo"):
                 self.initial.setdefault(campo, getattr(sector, campo))
+            self.initial.setdefault("edificio", sector.edificio_id)
+
+    def clean(self):
+        datos = super().clean()
+        # `activo` no existe en el alta: ahí el sector nace activo y el edificio siempre se exige.
+        queda_activo = datos.get("activo", True) if "activo" in self.fields else True
+        if queda_activo and not datos.get("edificio") and "edificio" not in self.errors:
+            self.add_error("edificio", "Elegí el edificio del sector.")
+        return datos
 
 
 class AgregarPlazasForm(forms.Form):

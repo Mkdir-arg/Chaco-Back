@@ -343,6 +343,45 @@
           {% endfor %}
         </div>
 
+        {# Vista jerárquica edificio → sectores (Cambio 429); «Sin edificio» junta los sectores que un administrador todavía no asignó #}
+        <section class="border-t border-light" aria-labelledby="sectores-por-edificio-titulo">
+          <div class="px-5 py-4 border-b border-light">
+            <h3 id="sectores-por-edificio-titulo" class="text-sm font-bold text-heading">Sectores por edificio</h3>
+            <p class="text-xs text-body-subtle mt-1">Cada sector está en uno de los edificios de la institución. La capacidad se configura en <a href="{% url 'dispositivos:sectores' dispositivo.pk %}" class="text-fg-brand hover:underline">Sectores y plazas</a>.</p>
+          </div>
+          {% for edificio in infraestructura.edificios %}
+          <div class="border-b border-light">
+            <p class="px-5 pt-4 text-sm font-semibold text-heading">{{ edificio.nombre }} <span class="text-xs font-normal text-body-subtle">· {{ edificio.codigo }} · {{ edificio.sectores|length }} sector{{ edificio.sectores|length|pluralize:"es" }} · {{ edificio.n_plazas }} plaza{{ edificio.n_plazas|pluralize }}</span></p>
+            {% if edificio.sectores %}
+            <ul class="divide-y divide-light mt-2">
+              {% for sector in edificio.sectores %}
+              <li class="px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
+                <span class="text-sm text-body"><i class="fas fa-layer-group text-body-subtle mr-2" aria-hidden="true"></i>{{ sector.nombre }} <span class="text-xs text-body-subtle">· {{ sector.tipo }}</span></span>
+                <span class="text-xs text-body-subtle">{{ sector.plazas }} plaza{{ sector.plazas|pluralize }}</span>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="px-5 py-3 text-sm text-body-subtle">Sin sectores en este edificio.</p>
+            {% endif %}
+          </div>
+          {% endfor %}
+          {% if infraestructura.sin_edificio %}
+          <div class="border-t border-light">
+            <p class="px-5 pt-4 text-sm font-semibold text-heading">Sin edificio <span class="text-xs font-normal text-body-subtle">· {{ infraestructura.sin_edificio.sectores|length }} sector{{ infraestructura.sin_edificio.sectores|length|pluralize:"es" }} · {{ infraestructura.sin_edificio.n_plazas }} plaza{{ infraestructura.sin_edificio.n_plazas|pluralize }}</span></p>
+            <p class="px-5 mt-1 text-xs text-body-subtle">Quedan acá hasta que un administrador les asigne el edificio, desde «Editar sector».</p>
+            <ul class="divide-y divide-light mt-2">
+              {% for sector in infraestructura.sin_edificio.sectores %}
+              <li class="px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
+                <span class="text-sm text-body"><i class="fas fa-layer-group text-body-subtle mr-2" aria-hidden="true"></i>{{ sector.nombre }} <span class="text-xs text-body-subtle">· {{ sector.tipo }}</span></span>
+                <span class="text-xs text-body-subtle">{{ sector.plazas }} plaza{{ sector.plazas|pluralize }}</span>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+        </section>
+
         {% if infraestructura.en_tabla %}
         {# Con 2 o más edificios: una fila por edificio; «Ver» abre uno solo con su registro fotográfico #}
         <div class="overflow-x-auto border-t border-light">
