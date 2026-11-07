@@ -556,6 +556,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 431 | Dispositivos: pulido visual de móvil (solapas, filtros, KPI de relevamientos, bitácora, Infraestructura, informe, reasignar) | Dispositivos · relevamientos, detalle y bitácora | `#ui` | Revisión visual en testing (390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 432 | Dispositivos: sin alcance sobre un dispositivo, 404 (igual que un id inexistente) en vez de 403; la falta de capacidad del módulo sigue en 403 | Dispositivos · alcance | `#rbac` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 433 | Dispositivos: seis errores de lógica de QA (reasignar con la misma fuente de candidatos, doble envío de novedad, corregir sin cambios, fuera de servicio repetido, estado antes que agente al reasignar, tope de capacidad declarada) | Dispositivos · relevamiento edilicio · bitácora · sectores y plazas | `#relevamientos` `#datos` `#ui` | QA — errores de lógica en testing | 07/11/2026 | 🟢 **Hecho** | No requiere |
+| 434 | Dispositivos: lista de tarjetas para móvil (pieza nueva del sistema de diseño) aplicada a Relevamientos, y confirmación global `ModernModal` centrada en móvil | Dispositivos · relevamientos · sistema de diseño | `#ui` `#relevamientos` | PM — decisiones del 07/11/2026 (revisión visual a 390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -52760,5 +52761,68 @@ Revertir el commit; no hay migración ni datos.
 ## Historial
 
 - **07/11/2026 — alta y cierre del cambio.**
+
+---
+
+# Cambio 434 — Lista de tarjetas para móvil y confirmación global centrada en celular
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamientos · sistema de diseño (transversal por el CSS de la confirmación) |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | PM — decisiones del 07/11/2026 tras la revisión visual a 390 px (pendientes del Cambio 431) |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Template · CSS |
+| **Migración** | No requiere |
+
+## Pedido original
+
+A: una pieza nueva, «lista de tarjetas para móvil», como alternativa de una tabla a menos de `md`, aplicada en `/dispositivos/relevamientos/` en todas las solapas, con edificio y dispositivo, estado y criticidad, quién relevó o a quién está asignado y la fecha; la acción principal depende de la solapa y las demás van en «⋮», con las mismas URL y atributos que la tabla. B: arreglar en `mobile-modals.css` la confirmación global `ModernModal` para que en móvil quede centrada, de alto automático y con márgenes laterales iguales, como el modal de Reasignar relevamiento.
+
+## Alcance acordado
+
+**Entra:** `templates/components/_lista_tarjetas.html` con su ficha, su fila de inventario y su test; las cuatro solapas de relevamientos más «Sin relevar nunca»; una lectura nueva (fija, no por fila) con los dispositivos de los edificios de la página; el CSS de `#modal-overlay` / `#modal-content` a ≤ 640 px.
+**No entra:** cambiar la tabla de escritorio, migrar otras tablas a tarjetas, tocar las reglas `.modal` / `.modal-dialog` de `mobile-modals.css` ni los modales Alpine de las pantallas.
+
+## Decisiones tomadas
+
+1. La tabla pasa a `hidden md:block` y la lista a `md:hidden`: se decide solo por CSS, sin JS. Son las únicas utilidades nuevas del CSS compilado (`npm run build:tailwind`).
+2. La vista arma las tarjetas con los mismos valores que la tabla (`url_reasignar`, `url_cancelar`, `url_informe`, `url_revisar`, `motivo_*`). Lo que en la tabla es el botón visible de la fila (Reasignar) es la acción principal; Ver informe es principal en Completados, Revisados y Cancelados. Lo demás va al «⋮» con el mismo componente `{% menu_fila %}`. Un test compara los conjuntos de URL y `data-confirm-*` de la tabla y de las tarjetas, incluidos los ítems bloqueados con motivo.
+3. Un relevamiento no tiene un dispositivo propio: el predio puede alojar varios. La tarjeta nombra los que el usuario **coordina o puede ver** (`dispositivos_en_alcance(asignar)` o `dispositivos_visibles`), hasta dos y «y N más»; los de otras instituciones del predio no se nombran, igual que la tabla oculta la asignación sin alcance.
+4. La criticidad va como par etiqueta-valor (texto), no como segundo badge: la tarjeta lleva un solo badge de estado (más la marca «Revisado»).
+5. Presupuesto de consultas `dispositivos_relevamientos_listado` 16 → 17: una consulta para todos los edificios de la página, no por fila (`_meta.adjustments`).
+6. La confirmación global deja de ser una hoja inferior de alto completo en móvil: `#modal-overlay > div` pasa a centrar y `#modal-content` a `border-radius: 1rem` con tope `100dvh - 2rem`. El margen lateral lo da el padding de 1rem de `.modal-responsive`.
+
+## Implementación
+
+En celular, cada solapa de Relevamientos muestra tarjetas con edificio, código y localidad, estado, dispositivo, agente (Relevó / Asignado a), fecha (Vence / Relevado el), criticidad y la acción principal; en escritorio la tabla no cambia. Las confirmaciones sí/no del backoffice se ven centradas, con alto según su contenido y 16 px de margen a cada lado.
+
+## Archivos
+
+`templates/components/_lista_tarjetas.html`, `.claude/design/componentes/lista_tarjetas.md`, `.claude/agents/chaco-design-system.md` (fila nueva), `.claude/design/componentes/modern_modal_toast.md`, `programas/views/dispositivos_relevamientos.py`, `programas/selectors/capacidad_dispositivo.py`, `.claude/design/componentes/tabs.md`, `programas/templates/programas/dispositivos/relevamientos/list.html`, `static/custom/css/mobile-modals.css`, `static/custom/css/tailwind.css`, `scripts/perf_budgets.json`, `core/tests/test_nodo_ui_piezas.py` (`ListaTarjetasTest`), `programas/tests/test_dispositivos_relevamientos_listado.py` (`TarjetasMovilTests`).
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Suites `programas.tests.test_dispositivos_relevamientos_listado` y `core.tests.test_nodo_ui_piezas` en verde, con el presupuesto de consultas medido (17 con 2 y con 20 relevamientos). `manage.py check`, `design_audit --ratchet` (0 nuevos) y `--arquetipo listado`, `compile_templates --bloques`, `check_design_agent --changed` y `check_perf_budgets` en verde. Verificación visual con Chromium (Playwright) a 390 y 1440 px sobre un servidor local con SQLite: a 390 px solo se ve la lista (sin desborde horizontal) y a 1440 solo la tabla; las confirmaciones «Marcar como revisado», «Reactivar sector» y dos de Becas quedan a 16 px de cada borde, centradas en vertical y con radio de 16 px, igual que el modal de Cancelar relevamiento.
+
+## Pendientes / a definir
+
+- Etiquetas secundarias de la bitácora (pendiente del Cambio 431).
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+- **07/11/2026 — ronda de auditoría del PR #1049.** Una sola fuente de las acciones de la fila (`_preparar_fila` arma `accion_visible` y `acciones_menu`; la tabla y la tarjeta las recorren, y la tarjeta solo agrega la promoción de la primera acción que navega a principal); la lectura de las instituciones del predio pasa a `instituciones_del_predio(..., tambien=)` en `programas/selectors/capacidad_dispositivo.py` (17 consultas, sin cambio); «Relevado el» en hora local (`timezone.localtime`), con test a las 23:30 AR; la barra de solapas de Relevamientos no comprime las solapas (`shrink-0`, ficha `tabs.md`), lo que corrige los íconos y contadores encimados a 390 px; la nota del motivo de cancelación va al par de fecha; el `!important` y el `padding: 0` redundantes salen de `mobile-modals.css`; y el nombre accesible de cada lista va en minúsculas.
 
 ---

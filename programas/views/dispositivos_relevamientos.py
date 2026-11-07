@@ -46,8 +46,14 @@ from programas.forms_dispositivos import (
 )
 from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, alcance_o_404
 from programas.models import Dispositivo, InspeccionEdificio
+from programas.selectors.capacidad_dispositivo import instituciones_del_predio
 from programas.selectors.inspecciones import relevamiento_para_revision
-from programas.services.dispositivos import CAP_VER, puede_en_programa_dispositivos, puede_operar_dispositivo
+from programas.services.dispositivos import (
+    CAP_VER,
+    dispositivos_en_alcance,
+    puede_en_programa_dispositivos,
+    puede_operar_dispositivo,
+)
 from programas.services.formularios_tipo import aviso_de_tipos, formularios_de_los_tipos
 from programas.services.inspecciones import (
     AGENTE_DEBE_SER_EXTERNO,
@@ -134,6 +140,118 @@ def _vence_relativo(fecha, hoy):
 
 def _nombre(usuario):
     return usuario.get_full_name() or usuario.username
+
+
+#: Tono del badge de estado de las tarjetas de móvil: el mismo que decide
+#: `_relevamiento_situacion_badge.html` para la tabla (un test los mantiene juntos).
+TONO_DE_SITUACION = {
+    Situacion.VENCIDA: "danger",
+    Situacion.POR_VENCER: "warning",
+    Situacion.AL_DIA: "success",
+    Situacion.REALIZADA: "info",
+}
+#: Cuántos dispositivos nombra la tarjeta antes de resumir el resto en «y N más».
+DISPOSITIVOS_POR_TARJETA = 2
+
+
+def _dispositivos_por_edificio(user, ids_de_edificios):
+    """«A, B y N más» por edificio: las instituciones que el usuario coordina o puede ver (selector).
+
+    Un predio compartido aloja a otras instituciones: las que el usuario no ve no se nombran.
+    Una consulta para toda la página, no una por fila.
+    """
+
+    if not ids_de_edificios:
+        return {}
+    por_edificio = instituciones_del_predio(user, ids_de_edificios, tambien=dispositivos_en_alcance(user, CAP_ASIGNAR))
+    resumen = {}
+    for edificio_id, instituciones in por_edificio.items():
+        nombres = [i["nombre"] for i in instituciones]
+        resto = len(nombres) - DISPOSITIVOS_POR_TARJETA
+        resumen[edificio_id] = ", ".join(nombres[:DISPOSITIVOS_POR_TARJETA]) + (f" y {resto} más" if resto > 0 else "")
+    return resumen
+
+
+def _subtitulo_de_edificio(edificio):
+    return f"{edificio.codigo} · {edificio.localidad}" if edificio.localidad else edificio.codigo
+
+
+def _tarjeta_de_relevamiento(r, dispositivos):
+    """La tarjeta de móvil de una fila. Las acciones son las MISMAS listas que arma `_preparar_fila`
+    para la tabla (`accion_visible` y `acciones_menu`): una sola fuente."""
+
+    nombre = r.edificio.nombre
+    realizado = r.estado == Estado.REALIZADA
+    badges = [{"texto": r.situacion_texto, "tono": TONO_DE_SITUACION.get(r.situacion, "")}]
+    if r.revisado_en:
+        badges.append({"texto": "Revisado", "tono": "success"})
+    if realizado and r.realizada_en:
+        # En hora local, como la tabla: un cierre a las 23:30 no pasa al día siguiente.
+        fecha = {"etiqueta": "Relevado el", "valor": f"{timezone.localtime(r.realizada_en):%d/%m/%Y}"}
+    else:
+        fecha = {"etiqueta": "Vence", "valor": f"{r.fecha_vencimiento:%d/%m/%Y}", "nota": r.vence_relativo}
+    if r.motivo_cancelacion:
+        fecha["nota"] = r.motivo_cancelacion
+    pares = [
+        {"etiqueta": "Dispositivo", "valor": dispositivos},
+        {"etiqueta": "Relevó" if realizado else "Asignado a", "valor": r.agente_visible},
+        fecha,
+    ]
+    if r.criticidad:
+        pares.append({"etiqueta": "Criticidad", "valor": r.get_criticidad_display()})
+    accion = r.accion_visible
+    menu = list(r.acciones_menu)
+    if accion is None:
+        # Propio de la tarjeta: sin acción visible, la primera del menú que solo navega pasa a principal.
+        propia = next((n for n, item in enumerate(menu) if item.get("url") and not item.get("motivo")), None)
+        if propia is not None:
+            item = menu.pop(propia)
+            accion = {
+                "texto": item["texto"],
+                "icono": item.get("icono", ""),
+                "url": item["url"],
+                "etiqueta": f"{item['texto']} del relevamiento de {nombre}",
+            }
+    return {
+        "titulo": nombre,
+        "subtitulo": _subtitulo_de_edificio(r.edificio),
+        "badges": badges,
+        "pares": pares,
+        "accion": accion,
+        "menu": menu,
+        "menu_id": f"tarjeta-{r.menu_id}",
+        "menu_etiqueta": r.menu_etiqueta,
+    }
+
+
+def _tarjeta_de_edificio_sin_relevar(edificio, dispositivos):
+    """La tarjeta de móvil de un edificio de la cuarta solapa: «Asignar» o el aviso de que ya tiene uno."""
+
+    if edificio.asignado_a:
+        asignado = {
+            "etiqueta": "Asignado a",
+            "valor": edificio.asignado_a,
+            "nota": f"vence el {edificio.relevamiento_en_curso.fecha_vencimiento:%d/%m/%Y}",
+        }
+    else:
+        asignado = {"etiqueta": "Asignado a", "valor": "Sin asignar"}
+    tarjeta = {
+        "titulo": edificio.nombre,
+        "subtitulo": _subtitulo_de_edificio(edificio),
+        "badges": [{"texto": "Sin relevar", "tono": ""}],
+        "pares": [{"etiqueta": "Dispositivo", "valor": dispositivos}, asignado],
+    }
+    if edificio.url_asignar:
+        tarjeta["accion"] = {
+            "texto": "Asignar",
+            "icono": "fa-plus",
+            "url": edificio.url_asignar,
+            "variante": "brand",
+            "etiqueta": f"Asignar un relevamiento a {edificio.nombre}",
+        }
+    else:
+        tarjeta["pares"].append({"etiqueta": "Relevamiento", "valor": "ya tiene uno en curso"})
+    return tarjeta
 
 
 class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
@@ -235,6 +353,18 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
 
         edificios_libres = edificios_para_asignar(user)
         sin_relevar = self._solapa_sin_relevar(user, params, vista, querystring_de)
+        # Los dispositivos de todos los edificios de la página, en una sola lectura (tarjetas de móvil).
+        dispositivos = _dispositivos_por_edificio(
+            user,
+            {r.edificio_id for s in solapas for r in s["filas"]} | {e.pk for e in sin_relevar["filas"]},
+        )
+        for solapa in solapas:
+            solapa["tarjetas"] = [
+                _tarjeta_de_relevamiento(r, dispositivos.get(r.edificio_id, "")) for r in solapa["filas"]
+            ]
+        sin_relevar["tarjetas"] = [
+            _tarjeta_de_edificio_sin_relevar(e, dispositivos.get(e.pk, "")) for e in sin_relevar["filas"]
+        ]
         context.update(
             {
                 "solapas": solapas,
@@ -305,6 +435,10 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         )
         relevamiento.menu_id = f"relevamiento-{relevamiento.pk}"
         relevamiento.menu_etiqueta = f"Más acciones del relevamiento de {relevamiento.edificio.nombre}"
+        # Una sola fuente de las acciones de la fila: la tabla y la tarjeta de móvil recorren estas listas.
+        relevamiento.accion_visible = None
+        relevamiento.acciones_menu = []
+        relevamiento.url_revisar = ""
         if con_informe:
             consulta = vista.copy()
             consulta["tab"] = solapa
@@ -317,6 +451,20 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
                     reverse("dispositivos:relevamiento_revisar", args=[relevamiento.pk])
                     + f"?{urlencode({PARAMETRO_VOLVER: consulta.urlencode()})}"
                 )
+            relevamiento.acciones_menu.append(
+                {"texto": "Ver informe", "icono": "fa-file-lines", "url": relevamiento.url_informe}
+            )
+            if relevamiento.url_revisar:
+                relevamiento.acciones_menu.append(
+                    {
+                        "texto": "Marcar como revisado",
+                        "icono": "fa-circle-check",
+                        "confirm_url": relevamiento.url_revisar,
+                        "confirm_title": "¿Marcar como revisado?",
+                        "confirm_text": relevamiento.edificio.nombre,
+                        "confirm_ok": "Sí, marcar como revisado",
+                    }
+                )
         if not relevamiento.en_curso:
             return
         relevamiento.gestionable = relevamiento.edificio_id in en_alcance
@@ -327,6 +475,23 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
             consulta["tab"] = solapa
             consulta[accion] = relevamiento.pk
             setattr(relevamiento, f"url_{accion}", f"?{consulta.urlencode()}")
+        reasignar = {"texto": "Reasignar", "icono": "fa-user-pen", "url": relevamiento.url_reasignar}
+        if relevamiento.gestionable:
+            relevamiento.accion_visible = {
+                **reasignar,
+                "etiqueta": f"Reasignar el relevamiento de {relevamiento.edificio.nombre}",
+            }
+        else:
+            relevamiento.acciones_menu.append({**reasignar, "motivo": relevamiento.motivo_reasignar})
+        relevamiento.acciones_menu.append(
+            {
+                "texto": "Cancelar",
+                "icono": "fa-ban",
+                "peligro": True,
+                "url": relevamiento.url_cancelar,
+                "motivo": relevamiento.motivo_cancelar,
+            }
+        )
 
     def _preparar_modales(self, context, user, params, edificios_libres):
         """Cada modal se abre solo si el registro pedido sigue siendo gestionable."""
