@@ -569,9 +569,7 @@ class SectorForm(forms.Form):
             campo.widget.attrs.pop("max", None)
         self.fields["edificio"].queryset = Edificio.objects.filter(dispositivos=dispositivo).order_by("nombre", "pk")
         if not self.fields["edificio"].queryset.exists():
-            self.fields[
-                "edificio"
-            ].help_text = "Esta institución no tiene edificios: cargá o vinculá uno en la solapa Infraestructura."
+            self.fields["edificio"].help_text = "Vinculá un edificio al dispositivo desde la solapa Infraestructura."
         # El asterisco de `_field.html` sale de `required` o de `marca_requerido`: en la edición el campo no
         # es `required` (un sector de baja no lo necesita) pero se pide mientras quede activo.
         self.fields["edificio"].marca_requerido = True

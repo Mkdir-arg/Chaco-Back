@@ -33,6 +33,9 @@ con `?sector=<id>`—, así que cada uno trae su variable de Alpine y su id de t
         </div>
         {% include "components/_field.html" with field=form.condiciones_uso wrapper_class="" %}
         {% if form.activo %}
+        {% if sector and not sector.activo %}
+        {% include "components/_alerta.html" with tono="info" texto="Este sector está dado de baja. Elegí su edificio y activá «Sector activo» para que vuelva al mapa con sus plazas; sus estadías no se tocan." %}
+        {% endif %}
         {% include "components/_field.html" with field=form.activo wrapper_class="" %}
         {% include "components/_alerta.html" with tono="warning" texto="No se da de baja un sector con plazas tomadas: primero se reubica a esas personas o se liberan sus reservas. Las plazas no se borran, siguen colgando de la historia que ya tienen." %}
         {% else %}

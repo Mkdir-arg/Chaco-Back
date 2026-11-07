@@ -58,7 +58,7 @@ class SectoresYPlazasPantallaTests(TestCase):
         self.client.force_login(self.lector)
         respuesta = self.client.get(self.url)
         self.assertEqual(respuesta.status_code, 200)
-        self.assertContains(respuesta, "Pabellón A · varones · 3 plazas")
+        self.assertContains(respuesta, "Pabellón A · Sin edificio · varones · 3 plazas")
         self.assertContains(respuesta, "2 operativas de 3")
         self.assertContains(respuesta, "1 fuera de servicio")
         self.assertContains(respuesta, "colchón")
