@@ -50,3 +50,16 @@ para los selectores largos y los tokens del portal. Light-only.
   superficie, con otro shell y otros tokens.
 - Un tercer script de terceros: el shell ya define cuáles entran y por variable de entorno.
 - Validar en el cliente y confiar: la autoridad es el servidor.
+
+## Provincia y Localidad con catálogo
+
+Cuando el formulario trae preguntas con opciones del catálogo geográfico, `paso2.html` publica
+`catalogos-geo` con `json_script` y carga `static/custom/js/nodo-cascada-geo.js`. La Localidad se
+filtra por la Provincia elegida en el cliente (sin la Provincia visible ofrece todas las localidades, sin repetir).
+Sin JS la Localidad sale vacía: es una limitación documentada, porque poblar el `<select>` desde el
+servidor suma unos 150 KB por carga. El servidor valida la pertenencia. Los controles son los de
+`nodo-field`: sin clases nuevas.
+
+El JS de la cascada no tiene test automático (la suite no corre un navegador): su comportamiento
+se verifica a mano, en dos casos: con la Provincia oculta por una condición la Localidad ofrece
+todas las localidades, y al volver con errores conserva la localidad elegida.

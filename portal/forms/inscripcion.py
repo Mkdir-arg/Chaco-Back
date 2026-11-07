@@ -14,6 +14,7 @@ from programas.forms_dinamicos import (  # noqa: F401
     _field_para_campo,
     _validar_archivo,
 )
+from programas.services.catalogo_geografico import localidad_pertenece
 from programas.services.personas import fecha_iso
 from programas.services.respuestas import aplicar, foto_definicion, legible, planos_de
 
@@ -78,6 +79,9 @@ class InscripcionPaso2Form(forms.Form):
     def __init__(self, *args, definicion, identificacion, **kwargs):
         super().__init__(*args, **kwargs)
         self.definicion = definicion
+        # Cambio 418: el catálogo geográfico viaja aparte de la foto (que arma
+        # solo con los ítems); de acá salen las opciones de Provincia y Localidad.
+        self.catalogos = definicion.get("catalogos") or {}
         self.foto = foto_definicion(None, definicion)
         self.identificacion = identificacion
         # "personas" (Base de Personas) y "padron" (Cambio 57) traen la
@@ -135,7 +139,11 @@ class InscripcionPaso2Form(forms.Form):
             fila["fijo"] = valor_fijo
             fila["fijo_texto"] = legible(item, valor_fijo)
             return fila
-        field = self._field_vinculado(origen, vinculo, item) or _field_para_campo(item)
+        field = self._field_vinculado(origen, vinculo, item) or _field_para_campo(item, self.catalogos)
+        if item.get("fuente_opciones") == "localidad" and self.is_bound:
+            # El <select> sale vacío y lo llena el navegador: al volver con errores
+            # le dice cuál era la elegida.
+            field.widget.attrs["data-geo-valor"] = self.data.get(clave) or ""
         obligatorio = bool(item.get("obligatorio"))
         if origen == "legajo" and vinculo in ("nombre", "apellido", "dni", "fecha_nacimiento"):
             # La identidad del titular siempre se completa (D14 para la fecha).
@@ -253,7 +261,24 @@ class InscripcionPaso2Form(forms.Form):
                     continue
             if self.obligatorios.get(clave) and valor in (None, "", []) and clave not in self.errors:
                 self.add_error(clave, "Este dato es obligatorio.")
+        self._validar_localidades(cleaned, ocultos)
         return cleaned
+
+    def _validar_localidades(self, cleaned, ocultos):
+        """Cambio 418: una Localidad de catálogo tiene que ser de la Provincia
+        elegida. El <select> lo filtra en el navegador, pero un POST armado a mano
+        no pasa por ahí. Si la Provincia no se pregunta en este canal o quedó
+        oculta por una condición no hay contra qué cruzar, y no se valida."""
+        claves = {clave for clave, _item in self._campos}
+        for clave, item in self._campos:
+            if item.get("fuente_opciones") != "localidad" or clave in ocultos or clave in self.errors:
+                continue
+            clave_provincia = item.get("depende_de")
+            if clave_provincia not in claves or clave_provincia in ocultos:
+                continue
+            localidad, provincia = cleaned.get(clave), cleaned.get(clave_provincia)
+            if localidad and provincia and not localidad_pertenece(provincia, localidad, self.catalogos):
+                self.add_error(clave, "Esta localidad no pertenece a la provincia elegida.")
 
     # --- Salidas hacia la ingesta -----------------------------------------
     def respuestas(self):

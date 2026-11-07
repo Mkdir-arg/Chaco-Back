@@ -243,6 +243,7 @@ def revisar_carga(formulario, relevamiento=None, identidad=None):
                 observaciones.append(f"Falta la respuesta obligatoria «{campo.get('texto') or clave}».")
             continue
         observaciones.extend(_problemas_de_valor(campo, valor))
+    observaciones.extend(_observaciones_de_catalogo(definicion, efectivas))
 
     sexo = str((identidad or {}).get("sexo") or (identidad or {}).get("genero") or "").strip().upper()
     if sexo and sexo not in GENEROS_DEL_LEGAJO:
@@ -386,7 +387,7 @@ def definicion_del_caso(formulario, relevamiento=None):
         return formulario.definicion
     from programas.services.becas import definicion_formulario
 
-    return definicion_formulario(relevamiento or formulario.relevamiento)
+    return definicion_formulario(relevamiento or formulario.relevamiento, con_catalogos=False)
 
 
 def claves_de_archivo(definicion):
@@ -447,7 +448,7 @@ def pertenencia_del_adjunto(formulario, pregunta_global=None, requisito_nativo=N
         # Sin foto, ``definicion_del_caso`` ya fue la definición vigente entera.
         from programas.services.becas import definicion_formulario
 
-        if clave in claves_de_archivo(definicion_formulario(formulario.relevamiento)):
+        if clave in claves_de_archivo(definicion_formulario(formulario.relevamiento, con_catalogos=False)):
             return ADJUNTO_DEL_FORMULARIO
     if requisito_nativo is not None and not _requisito_de_la_convocatoria(formulario, requisito_nativo):
         return ADJUNTO_AJENO
@@ -617,6 +618,29 @@ def _etiqueta(definicion, clave):
         if campo.get("clave") == clave:
             return campo.get("texto") or clave
     return clave
+
+
+def _observaciones_de_catalogo(definicion, efectivas):
+    """Cambio 418: una Localidad que no es de la Provincia respondida se observa,
+    **no se rechaza** (G1-05: solo el DNI se rechaza; un 400 acá frena la cola
+    offline de la app). Se cruza contra el catálogo vivo. ``efectivas`` ya no trae
+    lo que el motor de condiciones escondió, así que una Provincia oculta no cuenta."""
+    from programas.services.catalogo_geografico import par_coherente_en_catalogo
+
+    observaciones = []
+    for campo in campos_de(definicion):
+        if campo.get("fuente_opciones") != "localidad" or not campo.get("depende_de"):
+            continue
+        localidad = efectivas.get(campo.get("clave"))
+        provincia = efectivas.get(campo["depende_de"])
+        if _vacio(localidad) or _vacio(provincia):
+            continue
+        if not par_coherente_en_catalogo(str(provincia), str(localidad)):
+            etiqueta = campo.get("texto") or campo.get("clave")
+            observaciones.append(
+                f"«{etiqueta}» llegó con una localidad que no es de la provincia: «{localidad}» en «{provincia}»."
+            )
+    return observaciones
 
 
 def _problemas_de_valor(campo, valor):

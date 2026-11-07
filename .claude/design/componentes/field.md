@@ -205,3 +205,8 @@ equivalente y por eso no se migra:
 - `class="nodo-field"` escrito en el template sobre un control que sale del form.
 - Label sin `for`.
 - Validar en el template: la validación vive en el Django Form y en los servicios.
+
+## Select de catálogo geográfico (Provincia y Localidad)
+
+`programas/forms.py` arma estos campos como `select` con `INPUT_CLASS`, igual que el resto. La
+Localidad declara `depende_de` y el paso 2 del portal la filtra con `nodo-cascada-geo.js`.

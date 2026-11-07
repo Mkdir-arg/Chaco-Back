@@ -53,12 +53,50 @@ def _attrs_buscador(placeholder):
     return {"class": INPUT_CLASS, "data-buscador": "1", "data-buscador-placeholder": placeholder}
 
 
-def _field_para_campo(campo):
+class LocalidadCatalogoField(forms.ChoiceField):
+    """Localidad del catálogo (Cambio 418): el <select> viaja **vacío** y lo llena
+    el navegador según la provincia elegida (``nodo-cascada-geo.js``), porque son
+    8779 opciones. El servidor acepta cualquier localidad que exista en el catálogo
+    y la cruza con la provincia en ``InscripcionPaso2Form.clean``."""
+
+    def __init__(self, *, todas, **kwargs):
+        super().__init__(**kwargs)
+        self._todas = todas
+
+    def valid_value(self, value):
+        return value in self._todas
+
+
+def _field_catalogo(campo, catalogos):
+    """Provincia o Localidad de ``catalogos`` (la clave de nivel superior de la
+    definición). Las opciones no vienen del campo: el campo no las lleva."""
+    etiqueta = campo["texto"]
+    requerido = bool(campo["obligatorio"])
+    vacia = [("", "Elegí una opción")]
+    if campo["fuente_opciones"] == "provincia":
+        widget = forms.Select(attrs={"class": INPUT_CLASS, "data-geo": "provincia"})
+        provincias = catalogos.get("provincias") or []
+        return forms.ChoiceField(
+            label=etiqueta, required=requerido, choices=vacia + [(p, p) for p in provincias], widget=widget
+        )
+    widget = forms.Select(
+        attrs={"class": INPUT_CLASS, "data-geo": "localidad", "data-geo-provincia": campo.get("depende_de") or ""}
+    )
+    todas = {n for nombres in (catalogos.get("localidades") or {}).values() for n in nombres}
+    return LocalidadCatalogoField(label=etiqueta, required=requerido, choices=vacia, widget=widget, todas=todas)
+
+
+def _field_para_campo(campo, catalogos=None):
     """Traduce un campo de ``definicion_formulario`` (la misma definición que
-    consume la app, RN-P12) a un field de Django. Tipos: ``TipoCampo``."""
+    consume la app, RN-P12) a un field de Django. Tipos: ``TipoCampo``.
+
+    ``catalogos`` es la clave del mismo nombre de la definición (Cambio 418): sin
+    ella un campo con ``fuente_opciones`` se arma como un selector común."""
     etiqueta = campo["texto"]
     requerido = bool(campo["obligatorio"])
     tipo = campo["tipo"]
+    if catalogos and campo.get("fuente_opciones") and tipo == "SELECTOR":
+        return _field_catalogo(campo, catalogos)
     if tipo == "INT":
         return forms.IntegerField(
             label=etiqueta,
