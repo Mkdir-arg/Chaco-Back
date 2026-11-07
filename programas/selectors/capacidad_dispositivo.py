@@ -1,6 +1,6 @@
 """Lecturas de configuración de la capacidad instalada y del predio compartido."""
 
-from django.db.models import Count, Exists, OuterRef, Q
+from django.db.models import Case, Count, Exists, F, OuterRef, Q, Value, When
 
 from programas.models import Dispositivo, Edificio, Estadia, Plaza, ReservaPlaza, Sector
 from programas.services.dispositivos import dispositivos_visibles
@@ -106,11 +106,16 @@ def sectores_por_edificio(dispositivo):
     return por_edificio, sin_edificio
 
 
+#: Cómo se nombra el edificio de un sector que no tiene (o que ya no está vinculado al dispositivo).
+SIN_EDIFICIO = "Sin edificio"
+
+
 def sectores_inactivos(dispositivo):
     """Los sectores dados de baja del dispositivo, con su cantidad de plazas, por nombre.
 
     Cada uno trae su edificio (`select_related`) y `edificio_vinculado`: un edificio que el
     dispositivo ya no tiene vinculado cuenta como «sin edificio», igual que en la reactivación.
+    `edificio_nombre` ya trae el rótulo que se dibuja (`SIN_EDIFICIO` incluido): el template no decide.
     """
 
     vinculado = Edificio.dispositivos.through.objects.filter(
@@ -120,5 +125,11 @@ def sectores_inactivos(dispositivo):
         Sector.objects.filter(dispositivo=dispositivo, activo=False)
         .select_related("edificio")
         .annotate(cantidad_plazas=Count("plazas"), edificio_vinculado=Exists(vinculado))
+        .annotate(
+            edificio_nombre=Case(
+                When(edificio_vinculado=True, edificio__isnull=False, then=F("edificio__nombre")),
+                default=Value(SIN_EDIFICIO),
+            )
+        )
         .order_by("nombre")
     )

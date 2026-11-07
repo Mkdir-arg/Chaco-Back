@@ -560,6 +560,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 434 | Dispositivos: lista de tarjetas para móvil (pieza nueva del sistema de diseño) aplicada a Relevamientos, y confirmación global `ModernModal` centrada en móvil | Dispositivos · relevamientos · sistema de diseño | `#ui` `#relevamientos` | PM — decisiones del 07/11/2026 (revisión visual a 390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 435 | Dispositivos: un sector inactivo se edita desde el listado de inactivos (eligiendo edificio y activándolo en el mismo guardado) y el mapa muestra el edificio de cada sector | Dispositivos · sectores y plazas | `#datos` `#ui` | QA — dos pedidos sobre «Sectores y plazas» | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 436 | Dispositivos: al corregir una novedad de la bitácora se pueden quitar adjuntos y personas (la versión anterior los conserva; el registro dice qué se quitó y qué se sumó) | Dispositivos · bitácora del turno | `#ui` `#datos` | QA — continuación del caso 4 (Cambio 426) | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 437 | Dispositivos: la plaza ocupada del mapa ofrece cambiar de plaza, ver la estadía, ver el legajo y registrar el egreso; «sacar de servicio» queda visible pero deshabilitada con su motivo | Dispositivos · Sectores y plazas (P5) | `#ui` `#rbac` | QA — plaza ocupada solo ofrecía «Cambiar de plaza» | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -53020,5 +53021,63 @@ Revertir el PR; no hay datos que deshacer.
 
 - **07/11/2026 — alta del cambio.**
 - **07/11/2026 — ronda de auditoría de #1052.** Las corregibles salen de las vigentes solo si el tope no las recortó (si no, consulta aparte); «Personas asociadas» ya no depende de que haya personas alojadas (se puede quitar a una egresada); `plural` única en `bitacora_detalle.py`; `_IdsField.to_python` devuelve enteros y rechaza lo no numérico; `field.md` documenta la variante armada por Alpine.
+
+---
+
+# Cambio 437 — Sectores y plazas: la plaza ocupada ofrece más acciones
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Sectores y plazas (P5) · modal de la plaza ocupada |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | QA — decidido por el PM |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Backoffice: `dispositivos/sectores/sectores.html` · Servidor: `services/sectores_plazas.py`, `services/ocupacion.py`, `views/dispositivos_legajo.py` |
+| **Migración** | No |
+
+## Pedido original
+
+Al seleccionar una plaza ocupada en el mapa solo aparecía «Cambiar de plaza»; tenía que mostrar más opciones.
+
+## Alcance acordado
+
+**Entra:** en la plaza ocupada, (1) cambiar de plaza, (2) ver la estadía, (3) ver el legajo, (4) registrar el egreso y (5) «sacar de servicio» visible pero deshabilitada con el motivo «La plaza está ocupada: primero registrá el egreso o cambiala de plaza.». Además, cuatro MINOR de la auditoría del PR #1050 (Cambio 435). **Queda afuera:** capacidades nuevas y tocar las vistas destino.
+
+## Decisiones tomadas
+
+1. Se consultaron los Cambios 287 y 377: el 377 había dejado la plaza ocupada con «reubicar» (`admitir`) o, a quien solo edita, «sacar de servicio» bloqueada. Esto lo amplía sin contradecirlo: «reubicar» sigue como la primera opción y con la misma capacidad.
+2. **Cada acción con la capacidad que ya exige su destino**: cambiar de plaza `dispositivo.admitir`; ver estadía y ver legajo `ciudadano.ver` (la vista de la estadía responde 403 sin ella, y el legajo la exige); registrar egreso `dispositivo.egresar`; sacar de servicio `dispositivo.editar`. Sin la capacidad la opción no llega al modal.
+3. **Destinos existentes, ninguno inventado:** `dispositivos:estadia_detalle`, `legajos:ciudadano_detalle` y, para el egreso, el modal de la solapa Estadías (`?tab=estadias&egreso=<id>`), porque el egreso es solo POST y su formulario vive ahí. No se omitió ninguna acción.
+4. **Sin consultas por plaza:** `estado_de_plazas` ya consulta las estadías activas para saber qué plazas están ocupadas; esa misma consulta trae ahora `id` y `ciudadano_id` (`EstadoPlaza.estadia_id/ciudadano_id`). Los enlaces se arman con `reverse`, sin base. Con una sola acción posible (solo `admitir`) no hay menú y la celda sigue yendo directo a `abrirReubicar`.
+5. «Cambiar de plaza» desde el menú cierra el menú y abre el formulario con `abrirReubicar` (el cuerpo depende de la estadía y no viaja en la página). `?plaza=<id>` sigue abriendo el formulario de reubicar para quien puede admitir (enlace directo y respaldo sin JS).
+6. `MOTIVO_PLAZA_OCUPADA` pasa al texto pedido por el PM; lo usan también el aviso de quien solo puede editar y `bloqueo`.
+7. MINOR #1050: «Sin edificio» se arma una vez, en el selector (`edificio_nombre` en los inactivos, `SIN_EDIFICIO` y la clave del mapa); `_exigir_nombre_libre(..., mensaje=)` reemplaza el `try/except`; el bloque de botones de los inactivos queda indentado; fichas `estado_vacio.md` y `mapa_plazas.md` al día.
+
+## Archivos
+
+`programas/services/sectores_plazas.py`, `programas/services/ocupacion.py`, `programas/services/plazas.py`, `programas/selectors/capacidad_dispositivo.py`, `programas/views/dispositivos_legajo.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `programas/tests/test_dispositivos_plazas_acciones.py` (`MenuDePlazaOcupadaTests`), `.claude/design/componentes/estado_vacio.md`, `.claude/design/componentes/mapa_plazas.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Módulos `test_dispositivos*` y `--tag performance` en verde, sin tocar presupuestos. `MenuDePlazaOcupadaTests` cubre las cinco acciones con y sin cada capacidad. Mutaciones (rojo y restaurado): egreso sin su capacidad, enlaces sin `ciudadano.ver`, sacar de servicio sin `editar` y reubicar sin `admitir`.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
 
 ---
