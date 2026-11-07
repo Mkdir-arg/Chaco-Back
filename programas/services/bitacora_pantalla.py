@@ -45,12 +45,14 @@ Presupuesto ``dispositivos_bitacora_turno`` en ``scripts/perf_budgets.json``.
 from datetime import date, timedelta
 
 from django.db.models import Count, Prefetch
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
 
 from programas.models import Dispositivo, EntradaBitacora, Estadia, Turno
 from programas.services import censo as censo_servicio
 from programas.services.bitacora import MAX_ADJUNTOS_POR_ENTRADA, turnos_activos
+from programas.services.bitacora_detalle import adjuntos_de
 from programas.services.ocupacion import ocupacion_de_plazas
 
 #: Cuántas entradas del turno se dibujan; el resto se avisa con el total. La pieza tiene su
@@ -140,9 +142,6 @@ def _texto_de(entrada, *, nombrar_personas: bool) -> str:
             lineas.append("Personas: " + " · ".join(_persona(estadia) for estadia in personas))
         else:
             lineas.append("Personas involucradas: " + str(len(personas)))
-    adjuntos = list(entrada.adjuntos.all())
-    if adjuntos:
-        lineas.append("Adjuntos: " + ", ".join(str(adjunto) for adjunto in adjuntos))
     if entrada.version > 1:
         # Cuándo se corrigió: el momento de la novedad es el de lo que pasó, no el de la versión.
         lineas.append("Corregida el " + timezone.localtime(entrada.creado).strftime("%d/%m/%Y %H:%M"))
@@ -162,6 +161,9 @@ def _entrada(entrada, *, nombrar_personas: bool, reemplazada: bool = False) -> d
         "autor": _autor(entrada.responsable),
         "automatica": entrada.origen == EntradaBitacora.Origen.AUTOMATICA,
         "version": entrada.version,
+        # Los archivos van como enlaces de la pieza y no como texto: se abren desde `/media/`.
+        "adjuntos": [{"nombre": a["nombre"], "url": a["url"]} for a in adjuntos_de(entrada)],
+        "url_detalle": reverse("dispositivos:bitacora_entrada", args=[entrada.dispositivo_id, entrada.pk]),
     }
     if reemplazada:
         # La pieza escribe «Versión N» solo desde la 2; la reemplazada lo dice en el título

@@ -32,7 +32,7 @@ from django.views.generic import DetailView
 from core import rbac
 from programas.forms_bitacora import CorreccionForm, NovedadForm, TurnoForm
 from programas.mixins_dispositivos import DispositivoObjectPermissionMixin, DispositivoProgramaPermissionMixin
-from programas.models import Dispositivo
+from programas.models import Dispositivo, EntradaBitacora
 from programas.services.bitacora import (
     CAP_BITACORA,
     CAP_EDITAR,
@@ -41,6 +41,7 @@ from programas.services.bitacora import (
     editar_turno,
     registrar_entrada,
 )
+from programas.services.bitacora_detalle import detalle_entrada
 from programas.services.bitacora_pantalla import pantalla_bitacora
 from programas.services.dispositivos import puede_operar_dispositivo
 from programas.services.estadias import CAP_VER_CIUDADANO
@@ -116,6 +117,35 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
             {"label": "Instituciones", "url": reverse("dispositivos:lista")},
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
             {"label": "Bitácora", "url": ""},
+        ]
+        return context
+
+
+class BitacoraEntradaView(DispositivoObjectPermissionMixin, DetailView):
+    """Detalle de una novedad: texto completo, personas, adjuntos y la cadena de versiones.
+
+    Pide lo mismo que leer la bitácora (``dispositivo.ver`` con alcance al dispositivo). Una
+    entrada de **otro** dispositivo —aunque el id exista— es un 404: la URL no confirma que
+    haya una novedad ajena. Los archivos se bajan por ``/media/``, que valida el alcance del
+    dispositivo dueño del adjunto (`core.views.media`).
+    """
+
+    capacidad_requerida = CAP_VER
+    model = Dispositivo
+    template_name = "programas/dispositivos/bitacora/entrada.html"
+    context_object_name = "dispositivo"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        dispositivo = self.object
+        entrada = get_object_or_404(EntradaBitacora, pk=self.kwargs["entrada_pk"], dispositivo=dispositivo)
+        datos = detalle_entrada(entrada, nombrar_personas=rbac.puede(self.request.user, CAP_VER_CIUDADANO))
+        context.update(datos)
+        context["migas"] = [
+            {"label": "Instituciones", "url": reverse("dispositivos:lista")},
+            {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},
+            {"label": "Bitácora", "url": datos["url_bitacora"]},
+            {"label": "Novedad", "url": ""},
         ]
         return context
 
