@@ -34,7 +34,7 @@ from core.rbac import puede
 from core.services.vencimientos import avisos
 from programas.models import Dispositivo, Edificio, Estadia, FotoInspeccion, InspeccionEdificio, Sector
 from programas.selectors.auditoria_dispositivo import auditoria_del_dispositivo
-from programas.selectors.capacidad_dispositivo import instituciones_del_predio
+from programas.selectors.capacidad_dispositivo import instituciones_del_predio, sectores_por_edificio
 from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_vencido
 from programas.services.alertas_dispositivos import AMBITO, ICONOS, TONOS
 from programas.services.estadias import estado_visible
@@ -437,6 +437,10 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
     instituciones que lo ocupan. Sin edificio cargado devuelve ``edificios`` vacío y el semáforo
     «Sin edificio cargado», que no es lo mismo que un edificio sin relevar.
 
+    Cada edificio trae sus sectores activos y sus plazas (``sectores``, ``n_plazas``: vista
+    jerárquica edificio → sectores, Cambio 429) y ``sin_edificio`` los que todavía no tienen
+    edificio: una consulta más, la misma para cualquier cantidad de edificios.
+
     Incluye coordenadas del edificio y las instituciones visibles del predio. No trae
     tenencia, servicios, habitaciones, plano ni vigencia: no son del MVP.
 
@@ -495,6 +499,7 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
             "relevamientos": None,
             "viendo": None,
             "en_tabla": False,
+            "sin_edificio": None,
         }
 
     viendo_pk = None
@@ -519,13 +524,17 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
         .annotate(con_detalle=visibles)
         .in_bulk([edificio.ultima_id for edificio in edificios if edificio.ultima_id])
     )
+    sectores_de, sectores_sin_edificio = sectores_por_edificio(dispositivo)
     filas = []
     for edificio in edificios:
         ultima = ultimas.get(edificio.ultima_id)
+        sectores = sectores_de.get(edificio.pk, [])
         ve_detalle = ultima is None or ultima.con_detalle
         filas.append(
             {
                 "pk": edificio.pk,
+                "sectores": sectores,
+                "n_plazas": sum(sector["plazas"] for sector in sectores),
                 "codigo": edificio.codigo,
                 "nombre": edificio.nombre,
                 "domicilio": edificio.domicilio_completo,
@@ -550,6 +559,12 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
     )
 
     indicadores = _indicadores_edilicios(semaforo, filas, totales["realizados"], totales["fotos"])
+    # «Sin edificio» solo en la vista de todos los edificios: al abrir uno solo, la jerarquía es la de ese.
+    sin_edificio = (
+        {"sectores": sectores_sin_edificio, "n_plazas": sum(sector["plazas"] for sector in sectores_sin_edificio)}
+        if sectores_sin_edificio and viendo_pk is None
+        else None
+    )
     if en_tabla:
         return {
             "edificios": filas,
@@ -559,6 +574,7 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
             "relevamientos": None,
             "viendo": None,
             "en_tabla": True,
+            "sin_edificio": sin_edificio,
         }
 
     # Las canceladas no entran: no tienen resultado. La en curso va primero (todavía no tiene fecha).
@@ -610,4 +626,5 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
         "relevamientos": relevamientos,
         "viendo": filas[0] if viendo_pk is not None else None,
         "en_tabla": False,
+        "sin_edificio": sin_edificio,
     }

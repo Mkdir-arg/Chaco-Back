@@ -10,7 +10,8 @@ from programas.services.inspecciones import edificios_en_alcance
 def instituciones_del_predio(usuario, edificios_ids):
     """Identidad de instituciones visibles; no revela siquiera nombres fuera del alcance.
 
-    Sector no tiene vínculo con Edificio: no se atribuyen sectores a un inmueble.
+    Los sectores se ubican en un edificio (`Sector.edificio`, Cambio 429) pero acá solo van
+    las instituciones: los sectores por edificio los lee `sectores_por_edificio`.
     Una consulta para todos los edificios, con el tipo en el mismo JOIN.
     """
 
@@ -66,6 +67,36 @@ def plazas_tomadas_del_sector(sector):
 
 def codigos_del_dispositivo(dispositivo):
     return set(Plaza.objects.filter(sector__dispositivo=dispositivo).values_list("codigo", flat=True))
+
+
+def sectores_por_edificio(dispositivo):
+    """Los sectores ACTIVOS del dispositivo con su cantidad de plazas, agrupados por edificio (una consulta).
+
+    Devuelve ``(por_edificio, sin_edificio)``: un dict ``edificio_id -> [fila]`` y la lista de los
+    que todavía no tienen edificio (los anteriores al campo en un dispositivo con 2+ edificios,
+    hasta que un administrador los asigne). Cada fila: ``pk``, ``nombre``, ``tipo``, ``plazas``.
+    """
+
+    sectores = (
+        Sector.objects.filter(dispositivo=dispositivo, activo=True)
+        .annotate(cantidad_plazas=Count("plazas"))
+        .order_by("nombre", "pk")
+        .values("pk", "nombre", "tipo", "edificio_id", "cantidad_plazas")
+    )
+    por_edificio = {}
+    sin_edificio = []
+    for fila in sectores:
+        item = {
+            "pk": fila["pk"],
+            "nombre": fila["nombre"],
+            "tipo": Sector.Tipo(fila["tipo"]).label if fila["tipo"] in Sector.Tipo.values else fila["tipo"],
+            "plazas": fila["cantidad_plazas"],
+        }
+        if fila["edificio_id"] is None:
+            sin_edificio.append(item)
+        else:
+            por_edificio.setdefault(fila["edificio_id"], []).append(item)
+    return por_edificio, sin_edificio
 
 
 def sectores_inactivos(dispositivo):

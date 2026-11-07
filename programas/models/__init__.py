@@ -875,9 +875,10 @@ class Edificio(TimeStamped):
 class Sector(TimeStamped):
     """La organización operativa de la institución: una habitación, un pabellón, un servicio o un turno.
 
-    Cuelga del **dispositivo y no del edificio**, y la distinción es deliberada: el
-    edificio es el inmueble, el sector es cómo la institución ordena su capacidad adentro.
-    Dos instituciones del mismo predio tienen sectores propios.
+    Cuelga del **dispositivo** —el edificio es el inmueble, el sector es cómo la institución
+    ordena su capacidad adentro— y además **se ubica en uno de los edificios que ese
+    dispositivo ocupa** (`edificio`, Cambio 429). Dos instituciones del mismo predio tienen
+    sectores propios: el sector es del dispositivo, el edificio solo dice dónde está.
 
     `capacidad` es la cifra **declarada** —la que dice el legajo—, no la real: la
     capacidad operativa sale de contar las plazas y la deriva el servicio único de
@@ -897,6 +898,19 @@ class Sector(TimeStamped):
         on_delete=models.PROTECT,
         related_name="sectores",
         verbose_name="Dispositivo",
+    )
+    # Nulo en la base (contrato de migraciones: la release vieja sigue dando de alta sectores sin
+    # edificio) y obligatorio en el alta, que lo exige `programas.services.plazas`. Sale de los
+    # edificios vinculados al dispositivo: un sector no puede estar en un inmueble que la
+    # institución no ocupa. Un sector anterior al campo queda sin edificio hasta que un
+    # administrador lo asigne (Cambio 429).
+    edificio = models.ForeignKey(
+        "Edificio",
+        on_delete=models.PROTECT,
+        related_name="sectores",
+        null=True,
+        blank=True,
+        verbose_name="Edificio",
     )
     nombre = models.CharField(max_length=120, verbose_name="Nombre")
     tipo = models.CharField(
