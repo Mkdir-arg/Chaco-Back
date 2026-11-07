@@ -1071,6 +1071,23 @@ class AvisoResolucionEnvioRealTests(_BaseAvisoResolucionTest):
         self.assertEqual(mail.outbox[0].to, ["a@b.com"])
         self.assertEqual(mail.outbox[0].subject, "Tu inscripción fue aprobada — Conv A")
 
+    def test_alta_de_oficio_aprobada_desde_pantalla_no_manda_aviso(self):
+        """Decisión del PM (07-nov-2026, Cambio 421): al caso de oficio nunca se
+        le manda el aviso. El contraste (caso común, mismas condiciones, sí
+        manda) es ``test_territorial_con_el_toggle_encendido_manda_el_aviso``."""
+        from programas.services.marca_de_oficio import marcar
+
+        marcar(self.form_a, self.coord_a)
+
+        resp = self._llamar(formulario_aprobar, self.form_a.pk)
+
+        self.assertEqual(resp.status_code, 302)
+        self.form_a.refresh_from_db()
+        self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
+        self.assertEqual(self.form_a.email_contacto, "a@b.com")
+        self.assertTrue(self.rel_a.confirmar_por_email)
+        self.assertEqual(len(mail.outbox), 0)
+
     def test_el_rechazo_manda_el_motivo_textual(self):
         motivo = "Falta el certificado de alumno regular."
 

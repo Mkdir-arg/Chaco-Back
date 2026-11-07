@@ -541,6 +541,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 415 | Sugerencias de personas mientras se escribe el DNI de Reservar y Prestar plaza (pieza reutilizable `nodo-sugerencias`) | Dispositivos · sistema de diseño | `#ui` `#rbac` `#datos` | PM — pedido del 02/11/2026 (modal de una plaza) | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 416 | Sugerencias de personas y de agentes en el paso «Ingresar persona» y en «Buscar agente» (reusa `nodo-sugerencias`; consulta por columna) | Dispositivos · sistema de diseño | `#ui` `#rbac` `#datos` | PM — continuación del Cambio 415 | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 417 | Alta de oficio en una convocatoria de Becas: comando `inscribir_de_oficio` (CSV, APROBADO directo, sin SIIS ni correos) | Becas · convocatorias · operación | `#convocatorias` `#cupos` `#siis` | PM — sesión del 06/11/2026 | 06/11/2026 | 🟡 **En curso** | No requiere |
+| 421 | Alta de oficio de Becas: nunca se manda el aviso de resolución por correo; tres MINOR de la auditoría de #1033 | Becas · convocatorias · avisos · SIIS | `#convocatorias` `#siis` `#correo` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51763,5 +51764,66 @@ Los casos creados se identifican por `created_by` y por la traza `alta_de_oficio
 
 - **06/11/2026 — alta del cambio.**
 - **06/11/2026 — ronda de auditoría de #1033:** marca de oficio y bloqueo del alta a SIIS por todos los caminos, lista de espera, constancia SIIS-08 al acreditar, detalle del `ya_inscripto` y errores de conexión como técnicos.
+
+---
+
+# Cambio 421 — Alta de oficio de Becas: sin aviso por correo + MINOR de la auditoría de #1033
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · convocatorias · avisos de resolución · envío a SIIS |
+| **Etiquetas** | `#convocatorias` `#siis` `#correo` |
+| **Solicitante** | PM — decisión del 07/11/2026 |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue (seguimiento del Cambio 417, PR #1033) |
+| **Partes afectadas** | Backend (servicios) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Seguimiento del alta de oficio (Cambio 417): a un caso dado de alta de oficio nunca se le manda el aviso de resolución por correo, y se aplican los tres MINOR que dejó la auditoría de #1033.
+
+## Alcance acordado
+
+**Entra:** salida temprana en `enviar_aviso_resolucion` (cubre aprobar desde pantalla, cupo, proceso masivo y reenvío manual) y los tres MINOR de la auditoría.
+
+**Queda afuera:** cambiar el contenido del aviso o su toggle (`confirmar_por_email`).
+
+## Decisiones tomadas
+
+1. **Decisión del PM (07/11/2026): a un caso de alta de oficio NUNCA se le manda el aviso de resolución por correo**, ni al aprobarlo desde pantalla, ni por proceso masivo, ni por reenvío manual. La guarda vive en `programas/services/avisos_resolucion.enviar_aviso_resolucion` (usa `es_alta_de_oficio`), así que alcanza a todos los llamadores. Devuelve `False` sin enviar y sin traza de aviso (no hubo intento).
+2. `enviar_beneficiario_a_siis` chequea la marca **antes** de `armar_payload` (mismo orden que `guardar_en_tabla_intermedia`) y `reenviar_siis_pendientes` excluye los casos marcados: un caso de oficio ya no queda en `ERROR SIN_COPIA_CATALOGO`.
+3. `caso_en_convocatoria(convocatoria, dni)` en `inscripcion_publica.py` concentra el filtro RN-P5; `dni_en_convocatoria` y `_detalle_ya_inscripto` lo usan.
+4. `_tomar_caso_enviado(formulario)` en `cupo.py` concentra el protocolo de candados (BEC-01) de `aprobar_o_poner_en_espera` y `aprobar_de_oficio`.
+
+## Implementación
+
+Ver decisiones. Sin cambios de comportamiento en 2 a 4 salvo lo descrito.
+
+## Archivos
+
+`programas/services/avisos_resolucion.py`, `programas/services/siis_envio.py`, `programas/services/inscripcion_publica.py`, `programas/services/alta_de_oficio.py`, `programas/services/cupo.py`, `programas/tests/test_becas_revision.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Test `test_alta_de_oficio_aprobada_desde_pantalla_no_manda_aviso` (`test_becas_revision.AvisoResolucionEnvioRealTests`), con el contraste del caso común en `test_territorial_con_el_toggle_encendido_manda_el_aviso`. **Mutación:** sin la guarda en `enviar_aviso_resolucion` el test queda rojo; restaurada, verde.
+
+## Pendientes / a definir
+
+- Contrato de `datos_identificacion` compartido con `_insertar_formulario` (pendiente de la ronda 1 de #1033).
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
 
 ---
