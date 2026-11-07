@@ -224,7 +224,7 @@ class EntradasBitacoraAccionTest(SimpleTestCase):
         sin_accion = self._render()
         self.entradas[0]["url_corregir"] = "/bitacora/?turno=2&corregir=7"
         html = self._render()
-        accion = ' · <a href="/bitacora/?turno=2&amp;corregir=7" class="text-fg-brand hover:underline">corregir</a> (crea versión)'
+        accion = ' · <a href="/bitacora/?turno=2&amp;corregir=7" class="btn-nodo btn-tertiary btn-sm"><i class="fas fa-pen" aria-hidden="true"></i> Corregir (crea versión)</a>'
         self.assertIn("Lucía Méndez" + accion + "</p>", html)
         self.assertEqual(html.replace(accion, ""), sin_accion)
         self.assertIn("Acta &lt;sin HTML&gt;<br>Segunda línea", html)
@@ -820,6 +820,17 @@ class UbicacionTest(SimpleTestCase):
 
             self.assertIn("Sin ubicación cargada", html)
             self.assertNotIn("<a ", html)
+
+    def test_variante_compacta_es_una_linea_sin_coordenadas_y_no_cambia_con_ellas(self):
+        for contexto in ({}, {"latitud": None, "longitud": None}, {"latitud": "", "longitud": ""}):
+            html = render_to_string(UBICACION, {**contexto, "compacto": True})
+
+            self.assertIn("Sin ubicación cargada", html)
+            self.assertNotIn("py-14", html)
+            self.assertNotIn("<a ", html)
+        con = {"latitud": Decimal("-27.45"), "longitud": Decimal("-58.98")}
+        self.assertEqual(render_to_string(UBICACION, {**con, "compacto": True}), render_to_string(UBICACION, con))
+        self.assertIn("py-14", render_to_string(UBICACION, {}))
 
     def test_plano_adjunto_es_opcional(self):
         base = {"latitud": Decimal("-27.45"), "longitud": Decimal("-58.98")}

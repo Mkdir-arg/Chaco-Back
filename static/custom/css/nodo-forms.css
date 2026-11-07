@@ -99,6 +99,12 @@ textarea.nodo-field {
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* La etiqueta no se parte en dos líneas. */
+.nodo-pildora > span {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
 .nodo-pildora:focus-within {
     border-color: var(--border-brand);
     box-shadow: var(--ring-brand);

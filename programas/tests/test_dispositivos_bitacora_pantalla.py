@@ -78,7 +78,7 @@ PDF = b"%PDF-1.4\n%prueba\n"
 
 #: Las acciones de la tarjeta del turno: enlaces a esta misma pantalla que piden el modal por GET.
 ENLACE_NOVEDAD = 'novedad=1"'
-ENLACE_CORREGIR = ">corregir</a> (crea versión)"
+ENLACE_CORREGIR = "Corregir (crea versión)</a>"
 AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
 
 

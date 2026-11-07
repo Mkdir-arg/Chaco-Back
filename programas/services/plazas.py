@@ -165,8 +165,37 @@ def _bloquear_dispositivo(dispositivo):
     return Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
 
 
-def _detalle_sector(sector):
-    return f"Sector {sector.nombre} · {Sector.Tipo(sector.tipo).label} · capacidad declarada {sector.capacidad}"
+def _etiqueta_edificio(edificio):
+    return edificio.codigo if edificio is not None else "sin edificio"
+
+
+def _detalle_sector(sector, *, edificio_anterior=False):
+    """El detalle de la traza: con el edificio, y con de dónde venía si el edificio cambió.
+
+    `edificio_anterior` es ``False`` cuando no cambió (un `None` es un valor válido: «sin edificio»).
+    """
+
+    detalle = (
+        f"Sector {sector.nombre} · {Sector.Tipo(sector.tipo).label} · capacidad declarada {sector.capacidad}"
+        f" · edificio {_etiqueta_edificio(sector.edificio)}"
+    )
+    if edificio_anterior is not False:
+        detalle += f" (antes: {_etiqueta_edificio(edificio_anterior)})"
+    return detalle
+
+
+def _exigir_edificio_del_dispositivo(dispositivo, edificio):
+    """El edificio tiene que estar vinculado al dispositivo: no se puede ubicar un sector en un inmueble ajeno.
+
+    Se valida acá y no solo en el formulario: el selector ya ofrece solo esos edificios, pero un POST
+    armado a mano no pasa por el selector. Va bajo el bloqueo del dispositivo, el mismo que toma
+    `edificios.desvincular_edificio`, así que no se puede desvincular entre esta consulta y el guardado.
+    """
+
+    if edificio is None:
+        raise ValidationError({"edificio": "Elegí el edificio del sector."})
+    if not dispositivo.edificios.filter(pk=edificio.pk).exists():
+        raise ValidationError({"edificio": "Ese edificio no está vinculado a este dispositivo."})
 
 
 def _exigir_tipo_de_plaza_admitido(dispositivo, tipo):
@@ -184,8 +213,11 @@ def _exigir_tipo_de_plaza_admitido(dispositivo, tipo):
 
 
 @transaction.atomic
-def crear_sector(*, dispositivo, usuario, nombre, tipo, perfil="", capacidad=0, condiciones_uso=""):
-    """Da de alta un sector del dispositivo. Nace activo y sin plazas: las agrega el lote."""
+def crear_sector(*, dispositivo, usuario, nombre, tipo, edificio=None, perfil="", capacidad=0, condiciones_uso=""):
+    """Da de alta un sector del dispositivo. Nace activo y sin plazas: las agrega el lote.
+
+    El edificio es obligatorio y tiene que ser uno de los vinculados al dispositivo (Cambio 429).
+    """
 
     _exigir_alcance(dispositivo, usuario)
     _exigir_que_se_pueda_ampliar(dispositivo)
@@ -193,10 +225,12 @@ def crear_sector(*, dispositivo, usuario, nombre, tipo, perfil="", capacidad=0, 
     if not nombre:
         raise ValidationError({"nombre": "El sector necesita un nombre."})
     _bloquear_dispositivo(dispositivo)
+    _exigir_edificio_del_dispositivo(dispositivo, edificio)
     _exigir_nombre_libre(dispositivo, nombre)
 
     sector = Sector.objects.create(
         dispositivo=dispositivo,
+        edificio=edificio,
         nombre=nombre,
         tipo=tipo,
         perfil=_normalizar(perfil),
@@ -213,8 +247,15 @@ def crear_sector(*, dispositivo, usuario, nombre, tipo, perfil="", capacidad=0, 
 
 
 @transaction.atomic
-def editar_sector(*, sector, usuario, nombre, tipo, perfil="", capacidad=0, condiciones_uso="", activo=True):
+def editar_sector(
+    *, sector, usuario, nombre, tipo, edificio=None, perfil="", capacidad=0, condiciones_uso="", activo=True
+):
     """Cambia los datos del sector y, si `activo` pasa a falso, lo da de baja.
+
+    El edificio se puede cambiar (siempre a uno vinculado al dispositivo) y es obligatorio mientras el
+    sector quede activo: un sector anterior al campo, sin edificio, no se puede guardar sin elegir uno.
+    Dar de baja uno sin edificio no lo exige. El cambio queda en la traza `SECTOR_EDITADO` con el
+    edificio de antes y el de ahora.
 
     La baja va por acá y no por un botón propio porque es un estado del sector, no una
     acción distinta: el sector dado de baja deja de dibujarse en el mapa y de ofrecerse
@@ -232,9 +273,16 @@ def editar_sector(*, sector, usuario, nombre, tipo, perfil="", capacidad=0, cond
     _bloquear_dispositivo(sector.dispositivo)
     sector = Sector.objects.select_for_update().get(pk=sector.pk)
     dispositivo = sector.dispositivo
+    edificio_anterior = sector.edificio
     # Un sector inactivo que sigue inactivo no compite por el nombre; si queda activo, sí.
     if activo:
         _exigir_nombre_libre(dispositivo, nombre, excepto=sector)
+    if edificio is None:
+        if activo:
+            raise ValidationError({"edificio": "Elegí el edificio del sector."})
+        edificio = edificio_anterior
+    elif activo or edificio.pk != sector.edificio_id:
+        _exigir_edificio_del_dispositivo(dispositivo, edificio)
 
     daba_de_baja = sector.activo and not activo
     reactiva = activo and not sector.activo
@@ -246,19 +294,23 @@ def editar_sector(*, sector, usuario, nombre, tipo, perfil="", capacidad=0, cond
                 {"activo": SECTOR_CON_PLAZAS_TOMADAS.format(cuantas=tomadas, plural="s" if tomadas > 1 else "")}
             )
 
+    cambio_edificio = (edificio.pk if edificio else None) != sector.edificio_id
+    sector.edificio = edificio
     sector.nombre = nombre
     sector.tipo = tipo
     sector.perfil = _normalizar(perfil)
     sector.capacidad = capacidad or 0
     sector.condiciones_uso = (condiciones_uso or "").strip()
     sector.activo = bool(activo)
-    sector.save(update_fields=["nombre", "tipo", "perfil", "capacidad", "condiciones_uso", "activo", "modificado"])
+    sector.save(
+        update_fields=["edificio", "nombre", "tipo", "perfil", "capacidad", "condiciones_uso", "activo", "modificado"]
+    )
 
     _trazar(
         dispositivo,
         usuario,
         "SECTOR_BAJA" if daba_de_baja else ("SECTOR_REACTIVADO" if reactiva else "SECTOR_EDITADO"),
-        detalle=_detalle_sector(sector),
+        detalle=_detalle_sector(sector, edificio_anterior=edificio_anterior if cambio_edificio else False),
     )
     return sector
 
@@ -285,6 +337,22 @@ def reactivar_sector(*, sector, usuario):
                 "Renombrá uno de los dos y volvé a intentar."
             }
         ) from None
+
+    if sector.edificio_id is None:
+        # El edificio es obligatorio mientras el sector quede activo (Cambio 429): uno anterior al
+        # campo vuelve a activo solo desde «Editar», eligiendo el edificio.
+        raise ValidationError(
+            {
+                "__all__": "No se puede reactivar: el sector no tiene edificio. Editá el sector, elegí un edificio y activalo."
+            }
+        )
+    if not dispositivo.edificios.filter(pk=sector.edificio_id).exists():
+        raise ValidationError(
+            {
+                "__all__": "No se puede reactivar: el edificio del sector ya no está vinculado a este dispositivo. "
+                "Editá el sector, elegí un edificio y activalo."
+            }
+        )
 
     sector.activo = True
     sector.save(update_fields=["activo", "modificado"])

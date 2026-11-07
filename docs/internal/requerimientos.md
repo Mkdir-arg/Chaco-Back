@@ -552,6 +552,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 426 | Dispositivos: al corregir una novedad de la bitácora se pueden sumar archivos y personas, y el registro dice qué se sumó | Dispositivos · bitácora | `#ui` | QA — caso 4 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 427 | Dispositivos: detalle de cada novedad de la bitácora (texto completo, personas con enlace al legajo, adjuntos con vista previa o descarga, versiones) y archivo del listado como enlace | Dispositivos · bitácora · sistema de diseño | `#ui` `#rbac` | QA — caso 3 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 428 | Dispositivos: el relevamiento de un edificio compartido lo ve quien opera alguno de sus dispositivos; la franja de Infraestructura sin alcance de inspección muestra solo el semáforo | Dispositivos · relevamiento edilicio | `#rbac` `#ui` | QA — caso 7 (decisión delegada al juez) | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 429 | Dispositivos: el sector se ubica en un edificio del dispositivo (obligatorio al crear), la pestaña Infraestructura muestra edificio → sectores con «Sin edificio», y no se desvincula un edificio con sectores activos | Dispositivos · sectores y plazas · infraestructura | `#datos` `#ui` | QA — caso 6 (decisiones delegadas al juez) | 07/11/2026 | 🟡 **En curso** | `programas.0113` y `programas.0114` |
+| 431 | Dispositivos: pulido visual de móvil (solapas, filtros, KPI de relevamientos, bitácora, Infraestructura, informe, reasignar) | Dispositivos · relevamientos, detalle y bitácora | `#ui` | Revisión visual en testing (390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 432 | Dispositivos: sin alcance sobre un dispositivo, 404 (igual que un id inexistente) en vez de 403; la falta de capacidad del módulo sigue en 403 | Dispositivos · alcance | `#rbac` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
@@ -52500,6 +52502,138 @@ Sin cambios.
 ## Pendientes / a definir
 
 - El Historial sigue nombrando a quien relevó un relevamiento ya realizado (decisión del Cambio 289): confirmar con el PM si también se oculta a quien no tiene alcance.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 429 — El sector se ubica en un edificio del dispositivo
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · sectores y plazas (P5) · pestaña Infraestructura (P19) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | QA — caso 6 (decisiones delegadas al juez) |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backend (modelo, migraciones, servicios, form), Frontend (modal de sector y pestaña Infraestructura) |
+| **Migración** | `programas.0113` (esquema) y `programas.0114` (datos) |
+
+## Pedido original
+
+«Un sector no se vincula a un edificio: agregar la relación y mostrarla en la pestaña Infraestructura.» Criterios de QA: el sector tiene un campo «Edificio», obligatorio al crear y editable; la pestaña Infraestructura muestra edificio → sectores con la cantidad de sectores (y plazas) de cada edificio; los sectores existentes se asignan solos si el dispositivo tiene 1 edificio y quedan en «Sin edificio» si tiene 2 o más; no se pierden sectores, plazas ni estadías.
+
+## Alcance acordado
+
+**Entra:** `Sector.edificio`, el selector en el alta y la edición, la validación en el servicio, el bloqueo de desvincular un edificio con sectores activos, la migración de datos, la vista jerárquica y la traza del cambio de edificio.
+
+**Queda afuera:** reasignación masiva de sectores sin edificio (se hace de a uno desde «Editar sector»), mostrar el edificio en la pantalla «Sectores y plazas», y cualquier cambio de permisos.
+
+## Decisiones tomadas
+
+1. **La columna es nula en la base** (`null=True`, `on_delete=PROTECT`, `related_name="sectores"`): contrato de las migraciones, porque la release vieja sigue dando de alta sectores sin edificio durante el rolling. **Es obligatoria en el alta** (form y `crear_sector`); en la edición se puede cambiar y se pide mientras el sector quede activo. Dar de baja un sector sin edificio no lo exige.
+2. **Solo edificios vinculados al dispositivo del sector**: el selector los ofrece y el servicio lo vuelve a exigir bajo el bloqueo de la fila del dispositivo, el mismo que toman el alta, la edición y la desvinculación. Un POST armado a mano con un edificio ajeno falla en el campo `edificio`.
+3. **Desvincular un edificio** con sectores activos de ese dispositivo apuntando a él se bloquea con mensaje claro. Los sectores dados de baja, los de otro edificio y los de otra institución del mismo predio no cuentan. Reactivar un sector cuyo edificio ya no está vinculado también se rechaza.
+4. **Migración de datos aparte de la de esquema**, con `apps.get_model` y reversa. Un `UPDATE` por dispositivo con exactamente un edificio vinculado (no una fila por sector); solo toca sectores con `edificio` NULL, así que es idempotente y no pisa una asignación hecha a mano. Con 2 o más edificios los sectores quedan NULL.
+5. **Traza:** el cambio de edificio queda como `SECTOR_EDITADO` con el detalle «edificio EDI-B (antes: EDI-A)». El detalle de todas las trazas de sector ahora lleva el edificio. No hay acción nueva, así que no se tocó `TITULOS_TRAZA`.
+6. **Vista jerárquica** en la pestaña Infraestructura: sección «Sectores por edificio» con los sectores activos de cada edificio, su cantidad de sectores y de plazas, y el bloque «Sin edificio» (solo en la vista de todos los edificios; al abrir uno solo se ve la jerarquía de ese). Sin piezas nuevas: lista `divide-y` y tipografía ya inventariadas.
+7. **Presupuesto de consultas** de la solapa: `dispositivos_infraestructura` 7 → 8 (una consulta fija: sectores activos con `COUNT` de plazas), con su entrada en `adjustments` de `scripts/perf_budgets.json`.
+
+## Implementación
+
+`Sector.edificio` (0113); `asignar_edificio_unico` y `desasignar_edificios` (0114); `plazas.crear_sector`, `editar_sector` y `reactivar_sector` con `edificio`; `edificios.desvincular_edificio` con el bloqueo; `SectorForm(dispositivo=...)` con el campo `edificio`; `capacidad_dispositivo.sectores_por_edificio`; `detalle_dispositivo.infraestructura_del_dispositivo` agrega `sectores`, `n_plazas` y `sin_edificio`.
+
+## Archivos
+
+`programas/models/__init__.py`, `programas/migrations/0113_sector_edificio.py`, `programas/migrations/0114_sector_edificio_datos.py`, `programas/services/plazas.py`, `programas/services/edificios.py`, `programas/services/detalle_dispositivo.py`, `programas/selectors/capacidad_dispositivo.py`, `programas/forms_dispositivos.py`, `programas/views/dispositivos_capacidad.py`, `programas/views/dispositivos_legajo.py`, `programas/templates/programas/dispositivos/sectores/_modal_sector.html`, `programas/templates/programas/dispositivos/legajo/detail.html`, `scripts/perf_budgets.json`, `programas/tests/test_dispositivos_sector_edificio.py` (nuevo), `programas/tests/test_dispositivos_capacidad.py`, `programas/tests/test_dispositivos_reservas_y_plazas.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+`programas.0113`: `ALTER TABLE programas_sector ADD edificio_id … NULL` con FK a `programas_edificio` (expand, nulable, sin contract). `programas.0114`: `RunPython` de datos, idempotente y con reversa. Ninguna de las dos es barrera de reversa: no se agrega a D.4.
+
+## Validación
+
+`test_dispositivos_sector_edificio.py` (28 casos): el alta exige edificio, edificio no vinculado, edición y traza, desvincular bloqueado (y los casos que no bloquean), la función de la migración (1 edificio → asignado, 2 → NULL, idempotencia, no pisa asignados, sin pérdida de sectores ni plazas, reversa) y la vista jerárquica con «Sin edificio». **Mutaciones** (rojo y restaurado): sacar la exigencia de edificio en el alta, sacar el chequeo de vinculación, sacar el bloqueo al desvincular, que la migración tome también 2+ edificios, que la migración pise los ya asignados, sacar el bloque «Sin edificio», exigir edificio para la baja, sacar el «antes» de la traza y guardar sin pedir edificio a un sector que no lo tiene.
+
+## Pendientes / a definir
+
+- Los sectores existentes de dispositivos con 2 o más edificios los asigna un administrador, de a uno, desde «Editar sector».
+
+## Reversión
+
+Ninguna de las dos migraciones es barrera de reversa: se vuelve con `migrate`, en este orden.
+
+1. `python manage.py migrate programas 0113`: corre la reversa de la 0114, que deja todos los sectores con `edificio` en NULL. Se pierde solo la asignación del campo (la automática y las hechas a mano); no se toca ningún sector, plaza ni estadía.
+2. `python manage.py migrate programas 0112`: la reversa de la 0113 elimina la columna `edificio_id` y su FK de `programas_sector`. El código viejo no la conoce y sigue funcionando.
+3. Con la release anterior desplegada no hay nada más que deshacer. Si la reversa falla a mitad, el camino es D.4 (restore), no `--fake`.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 431 — Dispositivos: pulido visual de móvil
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamientos, detalle del dispositivo y bitácora |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Revisión visual en testing (390 px) |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Template · CSS |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Arreglos chicos de una revisión visual a 390 px: solapas partidas en varias filas, etiqueta «Asignado a:» cortada, KPI sin concordancia de número, bitácora, estado vacío de ubicación, «Agente asignado» repetido en el informe, y (aprobado después por el PM) indicadores 2×2 en móvil y selector de reasignar con usuario.
+
+## Alcance acordado
+
+**Entra:** solapas de relevamientos y del detalle con `overflow-x-auto`; la etiqueta de la píldora no se parte; pluralización y texto «hoy o en los próximos 30 días» en las tarjetas de relevamientos; botón «Corregir (crea versión)» y turno con mayúscula en la bitácora; ubicación sin coordenadas en una línea; informe sin «Agente asignado» repetido; indicadores 2×2; selector de reasignar «Nombre Apellido · usuario» y ayuda nueva. **Queda afuera:** el modal «Reactivar sector» (es la confirmación global `ModernModal`), las tarjetas móviles del listado de relevamientos (no hay patrón en el inventario) y el estilo de las etiquetas «Personas:», «Adjuntos:», «Corregida el…», «Motivo…» en la lista de la bitácora (requiere un parámetro nuevo de la pieza).
+
+## Decisiones tomadas
+
+1. Las solapas con 4 o más ítems usan `overflow-x-auto` en lugar de `flex-wrap` (ficha `tabs.md`); la golden de detalle no se toca.
+2. La etiqueta de `.nodo-pildora` no se parte (`white-space: nowrap`, en `nodo-forms.css`).
+3. El cálculo de «Por vencer» ya incluía hoy; solo cambió el texto. La concordancia de número se resuelve en el template con `pluralize`.
+4. «Corregir» pasa a `btn-nodo btn-tertiary btn-sm btn-fit` dentro de `_entradas_bitacora.html` (ficha `turno_bitacora.md`).
+5. Sin coordenadas, el bloque de ubicación de Infraestructura es una línea de texto con ícono; no se agregó variante compacta a `_estado_vacio.html`.
+6. «Agente asignado» del informe se muestra solo si difiere de «Relevó».
+7. **Ronda de auditoría del PR:** la barra de solapas se parte en envoltorio con borde y barra con scroll (sin `-mb-px` en las solapas), para que `overflow-x-auto` no cree una barra vertical ni recorte el subrayado; el vacío compacto de ubicación pasa a la pieza (`compacto` en `_ubicacion.html`, ficha y test); el nombre del turno se capitaliza con `capfirst` en un solo lugar; la ayuda de reasignar conserva el aviso condicional del agente externo; «Corregir» sin `btn-fit`. Esto reemplaza la decisión 5.
+
+## Implementación
+
+Plantillas de relevamientos, detalle del dispositivo, bitácora y las piezas de turno y entradas; CSS de la píldora; campo de agente con usuario en el formulario de reasignar.
+
+## Archivos
+
+`programas/templates/programas/dispositivos/relevamientos/list.html`, `.../relevamientos/informe.html`, `.../legajo/detail.html`, `.../bitacora/entrada.html`, `templates/components/_entradas_bitacora.html`, `templates/components/_turno_tarjeta.html`, `static/custom/css/nodo-forms.css`, `programas/forms_dispositivos.py`, `programas/services/bitacora_pantalla.py`, fichas `tabs.md`, `filtros.md`, `turno_bitacora.md` y `field.md`, y los tests.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Suites de relevamientos, bitácora, sectores, infraestructura, detalle y piezas de UI en verde; tests nuevos de pluralización y de selector de reasignar.
+
+## Pendientes / a definir
+
+- Modal «Reactivar sector» a 390 px: es la confirmación global (`mobile-modals.css`, CSS marcado duplicado o conflictivo); corregirlo toca todas las confirmaciones.
+- Tarjetas móviles del listado de relevamientos: falta un patrón de lista móvil en el inventario.
+- Etiquetas secundarias de la lista de la bitácora: necesita campos estructurados en `_entradas_bitacora.html`.
 
 ## Reversión
 

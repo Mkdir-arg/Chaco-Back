@@ -34,7 +34,7 @@ test que lo fija contra todas las invocaciones del repo:
 | `kpi_id` | marca el valor con `data-kpi="<kpi_id>"` para que el JS lo refresque |
 | `sufijo` | texto corto pegado al valor (« %», « / »), en `text-sm text-body-subtle font-semibold` |
 | `sufijo_id` | segundo número dentro del sufijo, también con `data-kpi`: el «M» de un valor compuesto «N / M». Su texto inicial sale de `valor_sufijo` («—») |
-| `nota` | pie de tarjeta: `text-xs text-body-subtle mt-1` |
+| `nota` | pie de tarjeta: `text-xs text-body-subtle mt-1`. Si lleva un número, concuerda: `{% with s=n|pluralize %}` y `nota="relevamiento"|add:s|add:" en curso"` (evidencia: `dispositivos/relevamientos/list.html`) |
 | `nota_id` | `data-kpi` del pie, cuando lo escribe el JS (ahí `nota` va vacía) |
 
 **Con `sufijo`/`sufijo_id`, `kpi_id` marca un `<span>` y no el `<p>`:** el JS asigna

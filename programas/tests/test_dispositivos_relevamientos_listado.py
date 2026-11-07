@@ -322,6 +322,14 @@ class ListadoTests(BaseListado):
         )
         self.assertContains(respuesta, '<input type="hidden" name="tab" value="completados">', count=2)
 
+    def test_las_notas_de_las_tarjetas_concuerdan_en_numero(self):
+        self._crear()
+        respuesta = self._cliente(self.coord).get(URL_LISTA)
+        self.assertContains(respuesta, "relevamiento en curso")
+        self.assertNotContains(respuesta, "relevamientos en curso</p>")
+        self.assertContains(respuesta, "hoy o en los próximos 30 días")
+        self.assertNotContains(respuesta, "vencen en los próximos 30 días")
+
     def test_situacion_derivada_y_resumen(self):
         hoy = timezone.localdate()
         inspeccion = self._crear()
@@ -418,6 +426,15 @@ class SelectorDeAgentesTests(BaseListado):
         html = str(respuesta.context["form_reasignar"]["asignado_a"])
         self.assertNotIn(f'value="{self.agente.pk}"', html)
         self.assertIn(f'value="{self.otro_agente.pk}"', html)
+
+    def test_el_selector_de_reasignar_distingue_por_usuario_y_la_ayuda_es_la_nueva(self):
+        self.otro_agente.first_name, self.otro_agente.last_name = "Ana", "Gómez"
+        self.otro_agente.save()
+        inspeccion = self._crear()
+        respuesta = self._cliente(self.coord).get(URL_LISTA, {"reasignar": inspeccion.pk})
+        etiqueta = str(respuesta.context["form_reasignar"]["asignado_a"])
+        self.assertIn(f">Ana Gómez · {self.otro_agente.username}</option>", etiqueta)
+        self.assertContains(respuesta, "Agentes de campo disponibles. No incluye al agente asignado ahora.")
 
     def test_el_modal_de_un_edificio_fuera_de_alcance_no_se_abre(self):
         respuesta = self._cliente(self.coord).get(URL_LISTA, {"asignar": self.edificio_cis.pk})
