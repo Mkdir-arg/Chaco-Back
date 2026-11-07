@@ -545,6 +545,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 419 | SIIS: `proponer_alias_siis` propone a qué localidad de SIIS equivale cada localidad core de Chaco que no cruza, para revisión del organismo (no toca `siis_alias_localidades.csv`) | SIIS (`programas/management/commands`) · `docs/internal/siis/` | `#siis` `#datos` | PM — pedido de Provincia/Localidad en Requisitos generales (06/11/2026), PR 3 | 06/11/2026 | 🟡 **En curso** | No requiere |
 | 420 | Dispositivos: «Crear persona» en «Sumar persona al Equipo» (alta de usuario + Equipo en una transacción) y buscador «Persona — Rol» con sugerencias | Dispositivos · usuarios · sistema de diseño | `#ui` `#rbac` `#usuarios` | PM — pedido del 05/11/2026 (modal «Sumar persona al Equipo») | 05/11/2026 | 🟡 **En curso** | No requiere |
 | 421 | Alta de oficio de Becas: nunca se manda el aviso de resolución por correo; tres MINOR de la auditoría de #1033 | Becas · convocatorias · avisos · SIIS | `#convocatorias` `#siis` `#correo` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 424 | Dispositivos: un sector dado de baja se ve (filtro «sectores inactivos»), se reactiva y libera su nombre; el nombre es único solo entre sectores activos | Dispositivos · sectores y plazas | `#datos` `#ui` `#rbac` | QA / PM — caso «sector inactivado no se ve ni se reactiva» | 07/11/2026 | 🟡 **En curso** | `programas.0112` |
 
 **Notas del índice**
 
@@ -52058,5 +52059,74 @@ Revertir el PR; no hay datos que deshacer.
 
 - **07/11/2026 — alta del cambio.**
 - **07/11/2026 — ronda de auditoría de #1036:** `dni_en_convocatoria` vuelve a sus dos `EXISTS` sin ORDER BY (solo comparte con `caso_en_convocatoria` el queryset base); el reenvío manual del aviso informa el motivo en un caso de oficio.
+
+---
+
+# Cambio 424 — Sectores inactivos: ver, reactivar y reutilizar el nombre
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · sectores y plazas (P5) |
+| **Etiquetas** | `#datos` `#ui` `#rbac` |
+| **Solicitante** | QA / PM — caso «un sector inactivado no se ve, no se puede reactivar y su nombre no se puede reutilizar» |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backend (servicio, vista, URL, modelo), template de `/dispositivos/<id>/sectores/`, ficha `estado_vacio.md` |
+| **Migración** | `programas.0112_sector_nombre_unico_solo_entre_activos` |
+
+## Pedido original
+
+Un sector (pabellón) dado de baja desaparecía del mapa, no había forma de volver a activarlo desde la pantalla y su nombre quedaba tomado para siempre por el `UniqueConstraint` (dispositivo, nombre).
+
+## Alcance acordado
+
+**Entra:** filtro «Ver sectores inactivos» (`?inactivos=1`) con la lista de inactivos y un botón «Reactivar» con confirmación; servicio `reactivar_sector`; unicidad del nombre solo entre sectores **activos**; crear un sector con el nombre de uno inactivo.
+
+**Queda afuera:** borrar sectores (nada con historia se borra), cambiar la baja (sigue siendo el switch «Sector activo» del modal de edición) y la pantalla de plazas de un sector inactivo.
+
+## Decisiones tomadas
+
+1. **Definición de QA/PM:** listado con filtro de inactivos y botón «Reactivar». Sin el parámetro el filtro no cuesta ninguna consulta extra.
+2. **El nombre es único entre los activos.** Se quitó el `UniqueConstraint` incondicional. Un UNIQUE condicional no existe en MySQL/MariaDB (Django descarta la `condition` en silencio y SQLite sí la crea: el CI pasaría en verde sin regla en producción), así que la regla vive en `plazas._exigir_nombre_libre` (filtra `activo=True`) y se sostiene con `select_for_update()` sobre la fila del `Dispositivo` en crear, editar y reactivar (mismo orden de bloqueo que `agregar_plazas`: dispositivo y después sector).
+3. **Reactivar se bloquea con mensaje claro** si ya hay un sector activo con el mismo nombre («Renombrá uno de los dos y volvé a intentar»). Editar un inactivo dejándolo activo (switch) pasa por la misma guarda.
+4. **Traza propia `SECTOR_REACTIVADO`** (tono `success`) en el historial del legajo; la reactivación por el switch del modal también la usa.
+5. **Mismo permiso y alcance que la edición:** `dispositivo.editar` con alcance (403 sin capacidad, 404 fuera de alcance o sector ajeno), solo POST. Confirmación con `data-confirm-url` (`_confirm_js.html`), nunca `confirm()`; el aviso va por el toast de mensajes.
+6. **Las plazas y las estadías no se tocan:** la baja nunca las borró, así que reactivar las recupera tal cual.
+
+## Implementación
+
+`reactivar_sector` en `programas/services/plazas.py`, `SectorReactivarView` en `programas/views/dispositivos_capacidad.py`, ruta `dispositivos:sector_reactivar`, contexto `ver_inactivos` / `sectores_inactivos` en `DispositivoSectoresView` y una surface «Sectores inactivos» en `sectores.html` (sin variante nueva: surface + filas con botón `btn-secondary`).
+
+## Archivos
+
+`programas/models/__init__.py`, `programas/migrations/0112_sector_nombre_unico_solo_entre_activos.py`, `programas/services/plazas.py`, `programas/views/dispositivos_capacidad.py`, `programas/views/dispositivos_legajo.py`, `programas/dispositivos_urls.py`, `programas/selectors/auditoria_dispositivo.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `.claude/design/componentes/estado_vacio.md`, `programas/tests/test_dispositivos_capacidad.py`, `programas/tests/test_dispositivos_edificio_sector_plaza.py`.
+
+## Base de datos
+
+`programas.0112`: `RemoveConstraint sector_nombre_unico_por_dispositivo`. Es expand para el código viejo (que pregunta el nombre antes de crear). **Reversa:** `migrate programas 0111` vuelve a crear el UNIQUE y **falla** si ya hay un sector inactivo y uno activo con el mismo nombre en un dispositivo; antes hay que renombrarlos (la consulta está en el docstring de la migración).
+
+## Validación
+
+`ReactivarSectorTests` en `programas/tests/test_dispositivos_capacidad.py`: filtro, reactivar recupera plazas, bloqueo por nombre activo duplicado (servicio y vista), crear con nombre de inactivo, editar-y-activar, permisos (403/404), sector ajeno, solo POST y estadías históricas intactas. **Mutaciones:** sin `activo=True` en `_exigir_nombre_libre` (4 tests rojos) y sin la guarda de nombre en `reactivar_sector` (2 tests rojos); restauradas. El test de modelo que exigía el IntegrityError pasó a afirmar que la base ya no tiene UNIQUE.
+
+## Pendientes / a definir
+
+- La concurrencia real (dos altas simultáneas del mismo nombre) la cubre el bloqueo del dispositivo; no hay test de carrera, SQLite no lo permite.
+
+## Reversión
+
+Pasos, en orden:
+
+1. Confirmar que no hay duplicados que impidan volver a crear el UNIQUE: `SELECT dispositivo_id, nombre, COUNT(*) FROM programas_sector GROUP BY dispositivo_id, nombre HAVING COUNT(*) > 1;`. Si hay filas, renombrar uno de cada par (no se pierde ningún dato: es solo el nombre).
+2. `migrate programas 0111` (vuelve a crear el UNIQUE en (dispositivo, nombre)).
+3. Desplegar el código anterior.
+
+Se pierde la posibilidad de reutilizar el nombre de un sector inactivo. Los sectores ya reactivados siguen activos y sus plazas y estadías no cambian.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
 
 ---

@@ -5,6 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Count
 from django.db.utils import IntegrityError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -899,6 +900,14 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             )
         )
         context["puede_reubicar"] = puede_liberar
+        # Los inactivos se piden con `?inactivos=1`: sin el parámetro no cuestan ninguna consulta.
+        context["ver_inactivos"] = self.request.GET.get("inactivos") == "1"
+        if context["ver_inactivos"]:
+            context["sectores_inactivos"] = (
+                Sector.objects.filter(dispositivo=dispositivo, activo=False)
+                .annotate(cantidad_plazas=Count("plazas"))
+                .order_by("nombre")
+            )
         context["migas"] = [
             {"label": "Instituciones", "url": reverse("dispositivos:lista")},
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},

@@ -41,7 +41,7 @@ from programas.services.edificios import (
     editar_edificio,
     vincular_edificio,
 )
-from programas.services.estadias import ingresar_persona, reservar_plaza, sacar_plaza_de_servicio
+from programas.services.estadias import egresar_persona, ingresar_persona, reservar_plaza, sacar_plaza_de_servicio
 from programas.services.ocupacion import ocupacion_de_plazas
 from programas.services.plazas import (
     TOPE_POR_LOTE,
@@ -50,6 +50,7 @@ from programas.services.plazas import (
     crear_sector,
     editar_plaza,
     editar_sector,
+    reactivar_sector,
 )
 from programas.tests.test_dispositivos_estadias import BaseEstadias
 
@@ -854,3 +855,139 @@ class CapacidadPresupuestoTests(BaseCapacidad):
             with CaptureQueriesContext(connection) as consultas:
                 self.assertEqual(plazas_tomadas_del_sector(self.sector), 0)
             self.assertLessEqual(len(consultas), techo)
+
+
+class ReactivarSectorTests(BaseCapacidad):
+    """Cambio 424: el nombre es único entre los ACTIVOS; un sector dado de baja se ve y se reactiva."""
+
+    def _baja(self, sector=None):
+        sector = sector or self.sector
+        return editar_sector(
+            sector=sector,
+            usuario=self.operador_cis,
+            nombre=sector.nombre,
+            tipo=sector.tipo,
+            capacidad=sector.capacidad,
+            activo=False,
+        )
+
+    def _url_reactivar(self, sector=None):
+        return reverse("dispositivos:sector_reactivar", args=[self.cis.pk, (sector or self.sector).pk])
+
+    def test_el_filtro_lista_los_inactivos_y_sin_el_filtro_no_aparecen(self):
+        self._baja()
+        self.client.force_login(self.operador_cis)
+        url = reverse("dispositivos:sectores", args=[self.cis.pk])
+
+        sin_filtro = self.client.get(url)
+        con_filtro = self.client.get(url, {"inactivos": "1"})
+
+        self.assertNotIn("sectores_inactivos", sin_filtro.context)
+        self.assertEqual([s.pk for s in con_filtro.context["sectores_inactivos"]], [self.sector.pk])
+        self.assertContains(con_filtro, "Reactivar")
+        self.assertNotContains(sin_filtro, self._url_reactivar())
+
+    def test_reactivar_recupera_las_plazas_y_deja_la_traza(self):
+        self._baja()
+        self.assertEqual(ocupacion_de_plazas(self.cis).de(self.cis).conteo.totales, 0)
+
+        sector = reactivar_sector(sector=self.sector, usuario=self.operador_cis)
+
+        self.assertTrue(sector.activo)
+        self.assertEqual(ocupacion_de_plazas(self.cis).de(self.cis).conteo.totales, 2)
+        self.assertTrue(TrazaDispositivo.objects.filter(dispositivo=self.cis, accion="SECTOR_REACTIVADO").exists())
+
+    def test_reactivar_se_bloquea_si_hay_un_activo_con_el_mismo_nombre(self):
+        self._baja()
+        crear_sector(
+            dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector(nombre=self.sector.nombre)
+        )
+
+        with self.assertRaises(ValidationError) as fallo:
+            reactivar_sector(sector=self.sector, usuario=self.operador_cis)
+
+        self.assertIn("ya hay un sector activo", fallo.exception.message_dict["nombre"][0])
+        self.assertFalse(Sector.objects.get(pk=self.sector.pk).activo)
+
+    def test_se_puede_crear_un_sector_con_el_nombre_de_uno_inactivo(self):
+        self._baja()
+
+        nuevo = crear_sector(
+            dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector(nombre=self.sector.nombre)
+        )
+
+        self.assertTrue(nuevo.activo)
+        self.assertEqual(Sector.objects.filter(dispositivo=self.cis, nombre=self.sector.nombre).count(), 2)
+
+    def test_editar_un_inactivo_y_dejarlo_activo_tampoco_pisa_un_nombre_activo(self):
+        self._baja()
+        crear_sector(
+            dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector(nombre=self.sector.nombre)
+        )
+
+        with self.assertRaises(ValidationError) as fallo:
+            editar_sector(
+                sector=self.sector,
+                usuario=self.operador_cis,
+                nombre=self.sector.nombre,
+                tipo=self.sector.tipo,
+                activo=True,
+            )
+
+        self.assertIn("nombre", fallo.exception.message_dict)
+
+    def test_las_estadias_historicas_se_mantienen(self):
+        estadia = ingresar_persona(
+            ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza
+        )
+        egresar_persona(estadia=estadia, usuario=self.operador_cis, destino="Domicilio", motivo_egreso=self.motivo_alta)
+        self._baja()
+
+        reactivar_sector(sector=self.sector, usuario=self.operador_cis)
+
+        estadia.refresh_from_db()
+        self.assertEqual(estadia.plaza_id, self.plaza.pk)
+        self.assertEqual(Plaza.objects.filter(sector=self.sector).count(), 2)
+
+    def test_la_vista_reactiva_y_avisa(self):
+        self._baja()
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.post(self._url_reactivar(), follow=True)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(Sector.objects.get(pk=self.sector.pk).activo)
+        self.assertIn("reactivado", " ".join(str(m) for m in respuesta.context["messages"]))
+
+    def test_la_vista_con_nombre_activo_duplicado_no_reactiva_y_avisa(self):
+        self._baja()
+        crear_sector(
+            dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector(nombre=self.sector.nombre)
+        )
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.post(self._url_reactivar(), follow=True)
+
+        self.assertFalse(Sector.objects.get(pk=self.sector.pk).activo)
+        self.assertIn("ya hay un sector activo", " ".join(str(m) for m in respuesta.context["messages"]))
+
+    def test_sin_permiso_o_alcance_no_reactiva(self):
+        self._baja()
+        for usuario, esperado in ((self.sin_editar, 403), (self.operador_parador, 404)):
+            with self.subTest(usuario=usuario.username):
+                self.client.force_login(usuario)
+                self.assertEqual(self.client.post(self._url_reactivar()).status_code, esperado)
+        self.assertFalse(Sector.objects.get(pk=self.sector.pk).activo)
+
+    def test_un_sector_ajeno_da_404(self):
+        ajeno = Sector.objects.create(dispositivo=self.parador, nombre="Ajeno", activo=False)
+        self.client.force_login(self.operador_cis)
+
+        respuesta = self.client.post(reverse("dispositivos:sector_reactivar", args=[self.cis.pk, ajeno.pk]))
+
+        self.assertEqual(respuesta.status_code, 404)
+        self.assertFalse(Sector.objects.get(pk=ajeno.pk).activo)
+
+    def test_solo_post(self):
+        self.client.force_login(self.operador_cis)
+        self.assertEqual(self.client.get(self._url_reactivar()).status_code, 405)

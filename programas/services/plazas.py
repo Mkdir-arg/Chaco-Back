@@ -142,17 +142,24 @@ def _normalizar(texto):
 
 
 def _exigir_nombre_libre(dispositivo, nombre, *, excepto=None):
-    """El `UniqueConstraint` de (dispositivo, nombre) dicho como error de campo.
+    """El nombre es único entre los sectores ACTIVOS del dispositivo; uno dado de baja libera el suyo.
 
-    Se pregunta además de dejar que el constraint hable: un `IntegrityError` dentro de una
-    transacción la aborta, y el modal necesita volver con el error puesto en su campo.
+    No hay UNIQUE en la base (MySQL/MariaDB no tienen índice único condicional): la regla es esta
+    y la sostiene el bloqueo de la fila del dispositivo (`_bloquear_dispositivo`), que tienen que
+    tomar el alta, la edición y la reactivación antes de llamarla.
     """
 
-    repetidos = Sector.objects.filter(dispositivo=dispositivo, nombre=nombre)
+    repetidos = Sector.objects.filter(dispositivo=dispositivo, nombre=nombre, activo=True)
     if excepto is not None:
         repetidos = repetidos.exclude(pk=excepto.pk)
     if repetidos.exists():
-        raise ValidationError({"nombre": "Ya hay un sector con ese nombre en este dispositivo."})
+        raise ValidationError({"nombre": "Ya hay un sector activo con ese nombre en este dispositivo."})
+
+
+def _bloquear_dispositivo(dispositivo):
+    """Serializa las altas, ediciones y reactivaciones de sectores del mismo dispositivo."""
+
+    Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
 
 
 def _exigir_tipo_de_plaza_admitido(dispositivo, tipo):
@@ -178,6 +185,7 @@ def crear_sector(*, dispositivo, usuario, nombre, tipo, perfil="", capacidad=0, 
     nombre = _normalizar(nombre)
     if not nombre:
         raise ValidationError({"nombre": "El sector necesita un nombre."})
+    _bloquear_dispositivo(dispositivo)
     _exigir_nombre_libre(dispositivo, nombre)
 
     sector = Sector.objects.create(
@@ -214,11 +222,15 @@ def editar_sector(*, sector, usuario, nombre, tipo, perfil="", capacidad=0, cond
     if not nombre:
         raise ValidationError({"nombre": "El sector necesita un nombre."})
 
+    _bloquear_dispositivo(sector.dispositivo)
     sector = Sector.objects.select_for_update().get(pk=sector.pk)
     dispositivo = sector.dispositivo
-    _exigir_nombre_libre(dispositivo, nombre, excepto=sector)
+    # Un sector inactivo que sigue inactivo no compite por el nombre; si queda activo, sí.
+    if activo:
+        _exigir_nombre_libre(dispositivo, nombre, excepto=sector)
 
     daba_de_baja = sector.activo and not activo
+    reactiva = activo and not sector.activo
     if daba_de_baja:
         list(Plaza.objects.select_for_update().filter(sector=sector).order_by("pk").values_list("pk", flat=True))
         tomadas = plazas_tomadas_del_sector(sector)
@@ -238,7 +250,41 @@ def editar_sector(*, sector, usuario, nombre, tipo, perfil="", capacidad=0, cond
     _trazar(
         dispositivo,
         usuario,
-        "SECTOR_BAJA" if daba_de_baja else "SECTOR_EDITADO",
+        "SECTOR_BAJA" if daba_de_baja else ("SECTOR_REACTIVADO" if reactiva else "SECTOR_EDITADO"),
+        detalle=f"Sector {sector.nombre} · {Sector.Tipo(sector.tipo).label} · capacidad declarada {sector.capacidad}",
+    )
+    return sector
+
+
+@transaction.atomic
+def reactivar_sector(*, sector, usuario):
+    """Vuelve a dar de alta un sector dado de baja: recupera sus plazas y sus estadías no se tocan.
+
+    Se bloquea si ya hay un sector activo con el mismo nombre (la baja liberó el nombre y
+    pudo haberlo tomado otro). Va bajo el bloqueo del dispositivo, el mismo del alta.
+    """
+
+    _exigir_alcance(sector.dispositivo, usuario)
+    _bloquear_dispositivo(sector.dispositivo)
+    sector = Sector.objects.select_for_update().select_related("dispositivo").get(pk=sector.pk)
+    if sector.activo:
+        raise ValidationError({"__all__": "Ese sector ya está activo."})
+    try:
+        _exigir_nombre_libre(sector.dispositivo, sector.nombre, excepto=sector)
+    except ValidationError:
+        raise ValidationError(
+            {
+                "nombre": f"No se puede reactivar: ya hay un sector activo llamado «{sector.nombre}». "
+                "Renombrá uno de los dos y volvé a intentar."
+            }
+        ) from None
+
+    sector.activo = True
+    sector.save(update_fields=["activo", "modificado"])
+    _trazar(
+        sector.dispositivo,
+        usuario,
+        "SECTOR_REACTIVADO",
         detalle=f"Sector {sector.nombre} · {Sector.Tipo(sector.tipo).label} · capacidad declarada {sector.capacidad}",
     )
     return sector

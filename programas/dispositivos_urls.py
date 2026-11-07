@@ -61,6 +61,11 @@ urlpatterns = [
         capacidad.SectorEditarView.as_view(),
         name="sector_editar",
     ),
+    path(
+        "<int:pk>/sectores/<int:sector_pk>/reactivar/",
+        capacidad.SectorReactivarView.as_view(),
+        name="sector_reactivar",
+    ),
     path("<int:pk>/plazas/agregar/", capacidad.PlazasAgregarView.as_view(), name="plazas_agregar"),
     path("<int:pk>/plazas/<int:plaza_pk>/editar/", capacidad.PlazaEditarView.as_view(), name="plaza_editar"),
     # Edificio de la solapa Infraestructura (P19). El alta lo vincula; «vincular» declara el
