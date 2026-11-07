@@ -558,6 +558,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 432 | Dispositivos: sin alcance sobre un dispositivo, 404 (igual que un id inexistente) en vez de 403; la falta de capacidad del módulo sigue en 403 | Dispositivos · alcance | `#rbac` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 433 | Dispositivos: seis errores de lógica de QA (reasignar con la misma fuente de candidatos, doble envío de novedad, corregir sin cambios, fuera de servicio repetido, estado antes que agente al reasignar, tope de capacidad declarada) | Dispositivos · relevamiento edilicio · bitácora · sectores y plazas | `#relevamientos` `#datos` `#ui` | QA — errores de lógica en testing | 07/11/2026 | 🟢 **Hecho** | No requiere |
 | 434 | Dispositivos: lista de tarjetas para móvil (pieza nueva del sistema de diseño) aplicada a Relevamientos, y confirmación global `ModernModal` centrada en móvil | Dispositivos · relevamientos · sistema de diseño | `#ui` `#relevamientos` | PM — decisiones del 07/11/2026 (revisión visual a 390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 436 | Dispositivos: al corregir una novedad de la bitácora se pueden quitar adjuntos y personas (la versión anterior los conserva; el registro dice qué se quitó y qué se sumó) | Dispositivos · bitácora del turno | `#ui` `#datos` | QA — continuación del caso 4 (Cambio 426) | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -52892,5 +52893,67 @@ Revertir el PR; no hay datos que deshacer.
 
 - **07/11/2026 — alta del cambio.**
 - **07/11/2026 — ronda de auditoría del PR #1049.** Una sola fuente de las acciones de la fila (`_preparar_fila` arma `accion_visible` y `acciones_menu`; la tabla y la tarjeta las recorren, y la tarjeta solo agrega la promoción de la primera acción que navega a principal); la lectura de las instituciones del predio pasa a `instituciones_del_predio(..., tambien=)` en `programas/selectors/capacidad_dispositivo.py` (17 consultas, sin cambio); «Relevado el» en hora local (`timezone.localtime`), con test a las 23:30 AR; la barra de solapas de Relevamientos no comprime las solapas (`shrink-0`, ficha `tabs.md`), lo que corrige los íconos y contadores encimados a 390 px; la nota del motivo de cancelación va al par de fecha; el `!important` y el `padding: 0` redundantes salen de `mobile-modals.css`; y el nombre accesible de cada lista va en minúsculas.
+
+---
+
+# Cambio 436 — Bitácora de Dispositivos: al corregir una novedad se pueden quitar adjuntos y personas
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · bitácora del turno |
+| **Etiquetas** | `#ui` `#datos` |
+| **Solicitante** | QA — continuación del caso 4 (Cambio 426) |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue (hallazgo de QA) |
+| **Partes afectadas** | Formulario · vista · servicio · template del modal |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Al corregir una novedad no se podían quitar adjuntos ni personas cargados por error. El formulario de corrección tiene que listar los adjuntos y las personas actuales con «Quitar», generar una versión sin ellos, indicar qué se quitó y qué se sumó, y dejar la versión anterior con todo lo que tenía.
+
+## Alcance acordado
+
+**Entra:** quitar adjuntos y desasociar personas desde «Corregir novedad», combinable con sumar. **Queda afuera:** nada más; la validación de personas alojadas sigue aplicando solo a las que se suman.
+
+## Decisiones tomadas
+
+1. Se consultó el archivo vivo (Cambios 426, 427, 433): el 426 dejó «quitar» como pendiente («no se pidió»), así que no hay contradicción; la regla «sin cambios se rechaza» (433) sigue y quitar algo cuenta como cambio.
+2. **Diseño de versiones: sin cambios de esquema.** Cada corrección ya es una `EntradaBitacora` nueva (`version_anterior`, `entrada_original`) con sus **propias** relaciones M2M (`personas`, `adjuntos`). Quitar es no vincular a la versión nueva lo que la anterior tenía; la anterior queda intacta. Nunca se borra la fila de `AdjuntoBitacora` ni el archivo.
+3. `corregir_entrada` recibe `quitar_personas` (nuevo) junto a `quitar_adjuntos` (ya existía y nadie validaba). Los ids se validan contra los de **esa** versión: uno ajeno, de otro dispositivo o no numérico es un 400 sobre `entrada` y no se escribe nada.
+4. Las personas que quedan no se revalidan contra el momento de la novedad (pudieron egresar después); solo se validan las que se suman.
+5. El registro va en `motivo_correccion`, como en el 426, ahora con quitado y sumado: «−1 adjunto, +1 adjunto, −1 persona, +1 persona» (solo los términos que aplican). El quién y el cuándo los dicen el autor y «Corregida el…» de la versión.
+6. Las personas se nombran y se desasocian solo con `ciudadano.ver` (igual que se suman); sin esa capacidad el modal no recibe nombres y la vista ignora `quitar_personas`. Los adjuntos se quitan sin esa condición.
+7. UI sin piezas nuevas: el modal arma con Alpine, desde `corregibles_datos`, las listas «Adjuntos actuales» y «Personas asociadas» de la novedad elegida, con `.nodo-checks` (ficha `field.md`) y una casilla «Quitar …» por fila. Ficha `turno_bitacora.md` actualizada.
+
+## Implementación
+
+`programas/services/bitacora.py` (`corregir_entrada`, `_ids_a_quitar`, `_motivo_con_cambios`), `programas/forms_bitacora.py` (`CorreccionForm.quitar_adjuntos/quitar_personas`), `programas/views/dispositivos_bitacora.py` (`NovedadCorregirView`, datos del modal), `programas/services/bitacora_pantalla.py` (`_opcion_correccion`), `bitacora.html` (modal).
+
+## Archivos
+
+Los de Implementación, `programas/tests/test_dispositivos_bitacora_pantalla.py` (`CorregirQuitandoTests`) y `.claude/design/componentes/turno_bitacora.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+`CorregirQuitandoTests` (12 casos): quita y la anterior conserva (fila y archivo físico), desasocia persona, quitar + sumar con el registro, sin cambios sigue rechazado, no se revalidan las que quedan, ids de otra novedad / otro dispositivo / basura, sin `ciudadano.ver`, permisos y alcance, el modal lista lo actual. Mutaciones (rojo y restaurado): borrar de verdad el adjunto quitado y sacar la validación de pertenencia.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
 
 ---

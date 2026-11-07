@@ -8,16 +8,18 @@
        modalNovedad: {% if abrir_modal_novedad %}true{% else %}false{% endif %},
        modalCorregir: {% if abrir_modal_corregir %}true{% else %}false{% endif %},
        modalTurnos: {% if abrir_modal_turnos %}true{% else %}false{% endif %},
-       correccion: { entrada: '{{ correccion_inicial }}', tipo: '', texto: '' },
+       correccion: { entrada: '{{ correccion_inicial }}', tipo: '', texto: '', adjuntos: [], personas: [] },
        turnoForm: { turno: '', nombre: '', desde: '', hasta: '', orden: '0', activo: true },
        datos(id) {
          var nodo = document.getElementById(id);
          return nodo ? JSON.parse(nodo.textContent) : {};
        },
        elegirCorreccion() {
-         var elegida = this.datos('bitacora-corregibles')[this.correccion.entrada] || { tipo: '', texto: '' };
+         var elegida = this.datos('bitacora-corregibles')[this.correccion.entrada] || { tipo: '', texto: '', adjuntos: [], personas: [] };
          this.correccion.tipo = elegida.tipo;
          this.correccion.texto = elegida.texto;
+         this.correccion.adjuntos = elegida.adjuntos;
+         this.correccion.personas = elegida.personas;
        },
        elegirTurno() {
          var turno = this.datos('bitacora-turnos')[this.turnoForm.turno];
@@ -212,9 +214,28 @@
           {% include "components/_field.html" with field=form_correccion.tipo wrapper_class="" %}
           {% include "components/_field.html" with field=form_correccion.texto wrapper_class="" %}
           {% include "components/_field.html" with field=form_correccion.motivo wrapper_class="" %}
-          {% if personas %}{% include "components/_field.html" with field=form_correccion.personas wrapper_class="" %}{% endif %}
+          {# Lo que la novedad tiene hoy: cada fila con su casilla «Quitar». La versión nueva no lo lleva; la anterior lo conserva. #}
+          <div class="nodo-checks" x-show="correccion.adjuntos.length" x-cloak>
+            <p class="block text-sm font-medium text-heading mb-1">Adjuntos actuales</p>
+            <div>
+              <template x-for="adjunto in correccion.adjuntos" :key="adjunto.id">
+                <label><input type="checkbox" name="quitar_adjuntos" :value="adjunto.id"> <span>Quitar <span x-text="adjunto.nombre"></span></span></label>
+              </template>
+            </div>
+          </div>
           {% include "components/_field.html" with field=form_correccion.adjuntos wrapper_class="" %}
-          {% include "components/_alerta.html" with tono="info" texto="Se agrega una versión nueva con tu nombre; la anterior sigue visible en «Versiones anteriores». Las personas y los adjuntos que ya tenía se conservan: acá solo se pueden sumar más, y la versión deja anotado qué se sumó." %}
+          {% if personas %}
+          <div class="nodo-checks" x-show="correccion.personas.length" x-cloak>
+            <p class="block text-sm font-medium text-heading mb-1">Personas asociadas</p>
+            <div>
+              <template x-for="persona in correccion.personas" :key="persona.id">
+                <label><input type="checkbox" name="quitar_personas" :value="persona.id"> <span>Quitar <span x-text="persona.nombre"></span></span></label>
+              </template>
+            </div>
+          </div>
+          {% include "components/_field.html" with field=form_correccion.personas wrapper_class="" %}
+          {% endif %}
+          {% include "components/_alerta.html" with tono="info" texto="Se agrega una versión nueva con tu nombre; la anterior sigue visible en «Versiones anteriores» con todo lo que tenía. Acá podés quitar adjuntos o personas cargados por error y sumar otros: la versión deja anotado qué se quitó y qué se sumó." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCorregir=false" accion_texto="Guardar corrección" %}
       </form>

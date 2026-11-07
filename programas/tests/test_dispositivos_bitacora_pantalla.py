@@ -20,6 +20,7 @@ El reloj está fijo: miércoles 09/09/2026 a las 16:00, en el turno Tarde del CI
 """
 
 import json
+import os
 import re
 import shutil
 import tempfile
@@ -40,6 +41,7 @@ from django.utils import timezone
 from core import rbac
 from legajos.models import Ciudadano
 from programas.models import (
+    AdjuntoBitacora,
     AsignacionDispositivo,
     Dispositivo,
     EntradaBitacora,
@@ -504,6 +506,167 @@ class CorregirSumandoTests(BasePantalla):
         self.assertIn("Sumar adjuntos", html)
         self.assertIn("Sumar personas involucradas", html)
         self.assertNotIn("Las personas y los adjuntos se conservan.", html)
+
+
+class CorregirQuitandoTests(BasePantalla):
+    """Corregir puede **quitar** adjuntos y personas cargados por error; la versión anterior los conserva."""
+
+    def setUp(self):
+        super().setUp()
+        archivos = [SimpleUploadedFile(n, PDF, content_type="application/pdf") for n in ("mal.pdf", "bien.pdf")]
+        self.entrada = self._cargar(
+            _local(MIERCOLES, 15, 30),
+            texto="Discusion.",
+            personas=[self.estadia_ana, self.estadia_juan],
+            adjuntos=archivos,
+        )
+        self.mal = self.entrada.adjuntos.get(nombre_original="mal.pdf")
+        self.bien = self.entrada.adjuntos.get(nombre_original="bien.pdf")
+
+    def _corregir(self, usuario=None, **extra):
+        datos = {"entrada": self.entrada.pk, "tipo": "INCIDENTE", "texto": "Discusión.", **extra}
+        return self._post("bitacora_corregir", datos, usuario)
+
+    def _nueva(self):
+        return self._manuales().get(version=2)
+
+    def test_quita_un_adjunto_y_la_version_anterior_lo_conserva(self):
+        ruta = self.mal.archivo.path
+
+        respuesta = self._corregir(quitar_adjuntos=[self.mal.pk])
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual({a.pk for a in self._nueva().adjuntos.all()}, {self.bien.pk})
+        self.entrada.refresh_from_db()
+        self.assertEqual({a.pk for a in self.entrada.adjuntos.all()}, {self.mal.pk, self.bien.pk})
+        # Ni la fila ni el archivo físico se tocan.
+        self.assertTrue(AdjuntoBitacora.objects.filter(pk=self.mal.pk).exists())
+        self.assertTrue(os.path.exists(ruta))
+
+    def test_desasocia_una_persona_sin_tocar_la_version_anterior(self):
+        respuesta = self._corregir(quitar_personas=[self.estadia_juan.pk])
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(list(self._nueva().personas.all()), [self.estadia_ana])
+        self.entrada.refresh_from_db()
+        self.assertEqual(set(self.entrada.personas.all()), {self.estadia_ana, self.estadia_juan})
+
+    def test_quita_y_suma_en_la_misma_correccion_y_lo_dice_el_registro(self):
+        nuevo = SimpleUploadedFile("correcto.pdf", PDF, content_type="application/pdf")
+
+        self._corregir(quitar_adjuntos=[self.mal.pk], adjuntos=[nuevo], quitar_personas=[self.estadia_juan.pk])
+
+        nueva = self._nueva()
+        self.assertEqual(nueva.motivo_correccion, "−1 adjunto, +1 adjunto, −1 persona")
+        self.assertEqual(sorted(a.nombre_original for a in nueva.adjuntos.all()), ["bien.pdf", "correcto.pdf"])
+        self.assertEqual(nueva.responsable, self.operador)
+        self.assertIn("Corregida el", self._html(self._get()))
+
+    def test_quitar_algo_cuenta_como_cambio_y_sin_nada_se_rechaza(self):
+        # Mismo texto y tipo: lo único distinto es lo que se quita.
+        mismo = {"tipo": self.entrada.tipo, "texto": self.entrada.texto}
+        self.assertEqual(self._corregir(quitar_adjuntos=[self.mal.pk], **mismo).status_code, 200)
+        vigente = self._nueva()
+
+        respuesta = self._post(
+            "bitacora_corregir", {"entrada": vigente.pk, "tipo": vigente.tipo, "texto": vigente.texto}
+        )
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("No hay cambios para corregir", json.dumps(respuesta.json(), ensure_ascii=False))
+
+    def test_quitar_una_persona_no_revalida_a_las_que_quedan(self):
+        Estadia.objects.filter(pk=self.estadia_ana.pk).update(
+            estado="EGRESADA", fecha_egreso=_local(MIERCOLES, 15, 10), clave_alojamiento=None
+        )
+
+        respuesta = self._corregir(quitar_personas=[self.estadia_juan.pk])
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(list(self._nueva().personas.all()), [self.estadia_ana])
+
+    def test_un_adjunto_de_otra_novedad_no_se_puede_quitar(self):
+        otra = self._cargar(
+            _local(MIERCOLES, 15, 40),
+            texto="Otra.",
+            adjuntos=[SimpleUploadedFile("ajeno.pdf", PDF, content_type="application/pdf")],
+        )
+        ajeno = otra.adjuntos.get()
+
+        respuesta = self._corregir(quitar_adjuntos=[ajeno.pk])
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(self._manuales().count(), 2)
+        self.assertEqual(otra.adjuntos.count(), 1)
+
+    def test_una_persona_de_otra_novedad_no_se_puede_desasociar(self):
+        otra = self._cargar(_local(MIERCOLES, 15, 40), texto="Otra.", personas=[self.estadia_ana])
+        # Una novedad que no tiene a Juan: no se le puede «quitar» ni su estadía existente.
+        entrada = self._cargar(_local(MIERCOLES, 15, 45), texto="Sin Juan.", personas=[self.estadia_ana])
+
+        respuesta = self._post(
+            "bitacora_corregir",
+            {
+                "entrada": entrada.pk,
+                "tipo": "INCIDENTE",
+                "texto": "Sin Juan 2.",
+                "quitar_personas": [self.estadia_juan.pk],
+            },
+        )
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(otra.personas.count(), 1)
+        self.assertEqual(self._manuales().filter(version=2).count(), 0)
+
+    def test_un_adjunto_o_persona_de_otro_dispositivo_o_basura_se_rechaza(self):
+        ajeno = AdjuntoBitacora.objects.create(
+            dispositivo=self.parador,
+            archivo=SimpleUploadedFile("otro.pdf", PDF, content_type="application/pdf"),
+            nombre_original="otro.pdf",
+            subido_por=self.operador,
+        )
+
+        for extra in ({"quitar_adjuntos": [ajeno.pk]}, {"quitar_personas": ["999999"]}, {"quitar_adjuntos": ["abc"]}):
+            self.assertEqual(self._corregir(**extra).status_code, 400, extra)
+        self.assertEqual(self._manuales().count(), 1)
+
+    def test_sin_ciudadano_ver_no_se_desasocian_personas_pero_los_adjuntos_si_se_quitan(self):
+        usuario = self._usuario("Sin legajo", self.cis, _sin("ciudadano.ver"))
+
+        respuesta = self._corregir(usuario, quitar_personas=[self.estadia_juan.pk], quitar_adjuntos=[self.mal.pk])
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        nueva = self._nueva()
+        self.assertEqual(set(nueva.personas.all()), {self.estadia_ana, self.estadia_juan})
+        self.assertEqual({a.pk for a in nueva.adjuntos.all()}, {self.bien.pk})
+
+    def test_el_permiso_y_el_alcance_son_los_de_corregir(self):
+        sin_bitacora = self._usuario("Sin bitacora", self.cis, _sin("dispositivo.bitacora"))
+        de_otra = self._usuario("De otro", self.parador)
+
+        for usuario, esperado in ((sin_bitacora, 403), (de_otra, 404)):
+            respuesta = self._corregir(usuario, quitar_adjuntos=[self.mal.pk])
+            self.assertEqual(respuesta.status_code, esperado)
+        self.assertEqual(self._manuales().count(), 1)
+
+    def test_el_modal_lista_lo_actual_de_cada_novedad_para_quitar(self):
+        html = self._html(self._get())
+
+        self.assertIn("Adjuntos actuales", html)
+        self.assertIn("Personas asociadas", html)
+        self.assertIn('name="quitar_adjuntos"', html)
+        datos = re.search(r'<script id="bitacora-corregibles"[^>]*>(.*?)</script>', html, re.S).group(1)
+        actual = json.loads(datos)[str(self.entrada.pk)]
+        self.assertEqual({a["id"] for a in actual["adjuntos"]}, {self.mal.pk, self.bien.pk})
+        self.assertEqual({p["id"] for p in actual["personas"]}, {self.estadia_ana.pk, self.estadia_juan.pk})
+
+    def test_sin_ciudadano_ver_el_modal_no_nombra_personas(self):
+        usuario = self._usuario("Sin legajo", self.cis, _sin("ciudadano.ver"))
+        html = self._html(self._get(usuario))
+
+        datos = re.search(r'<script id="bitacora-corregibles"[^>]*>(.*?)</script>', html, re.S).group(1)
+        self.assertEqual(json.loads(datos)[str(self.entrada.pk)]["personas"], [])
+        self.assertNotIn("Gómez", datos)
 
 
 class TurnosTests(BasePantalla):

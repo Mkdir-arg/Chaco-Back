@@ -92,7 +92,13 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
                     max_adjuntos=datos["max_adjuntos"],
                 )
                 context["corregibles_datos"] = {
-                    str(item["pk"]): {"tipo": item["tipo"], "texto": item["texto"]} for item in datos["corregibles"]
+                    str(item["pk"]): {
+                        "tipo": item["tipo"],
+                        "texto": item["texto"],
+                        "adjuntos": item["adjuntos"],
+                        "personas": item["personas"],
+                    }
+                    for item in datos["corregibles"]
                 }
         if puede_configurar:
             context["form_turno"] = TurnoForm(
@@ -265,15 +271,19 @@ class NovedadCorregirView(_BitacoraPostView):
         )
 
     def ejecutar(self, request, dispositivo, datos):
-        # Solo se suma: las personas de la versión corregida se conservan y el servicio agrega
-        # las nuevas. Sin `ciudadano.ver` el modal no ofrece personas: si llegan, no se vinculan.
+        # Las personas de la versión corregida se conservan salvo las que se quitan; el servicio
+        # agrega las nuevas. Sin `ciudadano.ver` el modal no ofrece personas ni nombres: si
+        # llegan, ni se vinculan ni se desasocian.
+        con_personas = rbac.puede(request.user, CAP_VER_CIUDADANO)
         corregir_entrada(
             entrada=datos["entrada"],
             usuario=request.user,
             texto=datos["texto"],
             tipo=datos["tipo"],
-            sumar_personas=datos["personas"] if rbac.puede(request.user, CAP_VER_CIUDADANO) else (),
+            sumar_personas=datos["personas"] if con_personas else (),
+            quitar_personas=datos["quitar_personas"] if con_personas else (),
             adjuntos_nuevos=datos["adjuntos"],
+            quitar_adjuntos=datos["quitar_adjuntos"],
             motivo=datos["motivo"],
         )
 
