@@ -558,6 +558,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 432 | Dispositivos: sin alcance sobre un dispositivo, 404 (igual que un id inexistente) en vez de 403; la falta de capacidad del módulo sigue en 403 | Dispositivos · alcance | `#rbac` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 433 | Dispositivos: seis errores de lógica de QA (reasignar con la misma fuente de candidatos, doble envío de novedad, corregir sin cambios, fuera de servicio repetido, estado antes que agente al reasignar, tope de capacidad declarada) | Dispositivos · relevamiento edilicio · bitácora · sectores y plazas | `#relevamientos` `#datos` `#ui` | QA — errores de lógica en testing | 07/11/2026 | 🟢 **Hecho** | No requiere |
 | 434 | Dispositivos: lista de tarjetas para móvil (pieza nueva del sistema de diseño) aplicada a Relevamientos, y confirmación global `ModernModal` centrada en móvil | Dispositivos · relevamientos · sistema de diseño | `#ui` `#relevamientos` | PM — decisiones del 07/11/2026 (revisión visual a 390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 435 | Dispositivos: un sector inactivo se edita desde el listado de inactivos (eligiendo edificio y activándolo en el mismo guardado) y el mapa muestra el edificio de cada sector | Dispositivos · sectores y plazas | `#datos` `#ui` | QA — dos pedidos sobre «Sectores y plazas» | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -52892,5 +52893,68 @@ Revertir el PR; no hay datos que deshacer.
 
 - **07/11/2026 — alta del cambio.**
 - **07/11/2026 — ronda de auditoría del PR #1049.** Una sola fuente de las acciones de la fila (`_preparar_fila` arma `accion_visible` y `acciones_menu`; la tabla y la tarjeta las recorren, y la tarjeta solo agrega la promoción de la primera acción que navega a principal); la lectura de las instituciones del predio pasa a `instituciones_del_predio(..., tambien=)` en `programas/selectors/capacidad_dispositivo.py` (17 consultas, sin cambio); «Relevado el» en hora local (`timezone.localtime`), con test a las 23:30 AR; la barra de solapas de Relevamientos no comprime las solapas (`shrink-0`, ficha `tabs.md`), lo que corrige los íconos y contadores encimados a 390 px; la nota del motivo de cancelación va al par de fecha; el `!important` y el `padding: 0` redundantes salen de `mobile-modals.css`; y el nombre accesible de cada lista va en minúsculas.
+
+---
+
+# Cambio 435 — Sectores inactivos: «Editar» desde el listado, y el edificio en el mapa
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · sectores y plazas (P5) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | QA — dos pedidos sobre «Sectores y plazas» (continuación del Cambio 429) |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backend (servicio, selector, form), Frontend (listado de inactivos, encabezado del mapa, modal de sector) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+A: un sector inactivo sin edificio no se puede reactivar («No se puede reactivar: el sector no tiene edificio. Editá el sector…») pero el listado de inactivos no ofrece «Editar»: cada fila tiene que abrir el mismo modal «Editar sector», elegir un edificio vinculado y activarlo en el mismo guardado. B: el mapa no muestra el edificio de cada sector: mostrarlo en el encabezado («Pabellón 9 · Edificio Matias») y en cada fila de inactivos, «Sin edificio» si no tiene, sin consultas por sector.
+
+## Alcance acordado
+
+**Entra:** botón «Editar» en cada inactivo (permiso `dispositivo.editar`), el mismo modal con un aviso de que el sector está dado de baja, la regla del nombre repetido compartida entre «Reactivar» y «Editar», el texto de ayuda cuando el dispositivo no tiene edificios, y el nombre del edificio en el encabezado y en el listado de inactivos.
+
+**Queda afuera:** cambios de permisos, de modelo y de migraciones; reasignación masiva.
+
+## Decisiones tomadas
+
+1. **«Editar» es un enlace `?inactivos=1&sector=<id>`**, la misma variante «abierto por parámetro GET» del «Editar sector» del mapa: el modal y el endpoint ya aceptaban sectores inactivos. El listado de inactivos sigue detrás del modal. Sin `dispositivo.editar` no se ve el botón y el POST sigue dando 403 (404 fuera de alcance, Cambio 432).
+2. **Una sola regla del nombre al volver a activo**: `_exigir_nombre_libre_al_reactivar` en `services/plazas.py`, usada por `reactivar_sector` y por `editar_sector` cuando el guardado reactiva. El mensaje es idéntico («No se puede reactivar: ya hay un sector activo llamado …»). Si en el mismo guardado se renombra el sector, el nombre nuevo se valida con la regla de siempre de la edición.
+3. **El edificio desvinculado cuenta como sin edificio**, en el servicio (ya lo exigía `_exigir_edificio_del_dispositivo` y `reactivar_sector`) y en el listado: `sectores_inactivos` anota `edificio_vinculado` (un `Exists` sobre la tabla puente, dentro de la misma consulta) y la fila dice «Sin edificio» si el edificio ya no está vinculado.
+4. **Dispositivo sin edificios:** el texto de ayuda del selector pasa a «Vinculá un edificio al dispositivo desde la solapa Infraestructura.».
+5. **Edificio en el mapa:** `sectores_con_plazas` trae el edificio con `select_related` (un JOIN, ninguna consulta nueva) y el encabezado dice «Pabellón 9 · Edificio Matias»; el que no tiene, «Sin edificio». Lo ve quien ve el mapa; el cambio desde «Editar sector» se refleja al volver. **Los presupuestos de consultas no se mueven**: no hubo que tocar `scripts/perf_budgets.json`, y un test mide la misma cantidad con 1 y con 4 sectores activos e inactivos.
+6. Sin piezas nuevas de UI: el botón es `btn-nodo btn-secondary btn-sm` (el mismo de «Editar sector») y el aviso, `_alerta` tono `info`.
+
+## Implementación
+
+`programas/services/plazas.py` (`_exigir_nombre_libre_al_reactivar`, `editar_sector`, `reactivar_sector`), `programas/selectors/capacidad_dispositivo.py` (`sectores_inactivos`), `programas/services/sectores_plazas.py` (`select_related("edificio")`), `programas/forms_dispositivos.py` (texto de ayuda) y los templates `sectores.html` y `_modal_sector.html`.
+
+## Archivos
+
+`programas/services/plazas.py`, `programas/services/sectores_plazas.py`, `programas/selectors/capacidad_dispositivo.py`, `programas/forms_dispositivos.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `programas/templates/programas/dispositivos/sectores/_modal_sector.html`, `programas/tests/test_dispositivos_sectores_inactivos_edificio.py` (nuevo), `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+`test_dispositivos_sectores_inactivos_edificio.py` (13 casos): «Editar» en cada inactivo y modal abierto, elegir edificio y activar en un guardado (el sector vuelve al mapa con sus plazas), rechazo sin edificio, edificio desvinculado, mensaje de dispositivo sin edificios, nombre repetido con el mismo mensaje que «Reactivar» (servicio y pantalla), permisos (sin edición no hay botón y el POST da 403; fuera de alcance, 404), edificio en el encabezado y en la fila, vista de solo lectura, reflejo del cambio de edificio y consultas constantes. **Mutación** (rojo y restaurado): sacar la regla del nombre al reactivar desde «Editar».
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el PR; no hay migración ni datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
 
 ---

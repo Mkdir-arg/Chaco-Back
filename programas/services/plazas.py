@@ -159,6 +159,24 @@ def _exigir_nombre_libre(dispositivo, nombre, *, excepto=None):
         raise ValidationError({"nombre": "Ya hay un sector activo con ese nombre en este dispositivo."})
 
 
+def _exigir_nombre_libre_al_reactivar(dispositivo, sector):
+    """La regla del nombre al volver a activo un sector: la misma para «Reactivar» y para «Editar».
+
+    La baja liberó el nombre y otro sector activo pudo haberlo tomado. Con la regla en un solo
+    lugar, las dos entradas dan el mismo mensaje y no pueden divergir.
+    """
+
+    try:
+        _exigir_nombre_libre(dispositivo, sector.nombre, excepto=sector)
+    except ValidationError:
+        raise ValidationError(
+            {
+                "nombre": f"No se puede reactivar: ya hay un sector activo llamado «{sector.nombre}». "
+                "Renombrá uno de los dos y volvé a intentar."
+            }
+        ) from None
+
+
 def _bloquear_dispositivo(dispositivo):
     """Serializa las altas, ediciones y reactivaciones de sectores del mismo dispositivo.
 
@@ -290,8 +308,14 @@ def editar_sector(
         _exigir_capacidad_declarada(capacidad)
     dispositivo = sector.dispositivo
     edificio_anterior = sector.edificio
-    # Un sector inactivo que sigue inactivo no compite por el nombre; si queda activo, sí.
-    if activo:
+    reactiva = activo and not sector.activo
+    # Un sector inactivo que sigue inactivo no compite por el nombre; si queda activo, sí. Al
+    # reactivarlo desde «Editar» rige la misma regla (y el mismo mensaje) que en «Reactivar»,
+    # con el nombre ya guardado: si el usuario lo renombra en el mismo guardado, el nuevo se
+    # valida como en cualquier edición.
+    if reactiva and nombre == sector.nombre:
+        _exigir_nombre_libre_al_reactivar(dispositivo, sector)
+    elif activo:
         _exigir_nombre_libre(dispositivo, nombre, excepto=sector)
     if edificio is None:
         if activo:
@@ -301,7 +325,6 @@ def editar_sector(
         _exigir_edificio_del_dispositivo(dispositivo, edificio)
 
     daba_de_baja = sector.activo and not activo
-    reactiva = activo and not sector.activo
     if daba_de_baja:
         list(Plaza.objects.select_for_update().filter(sector=sector).order_by("pk").values_list("pk", flat=True))
         tomadas = plazas_tomadas_del_sector(sector)
@@ -344,15 +367,7 @@ def reactivar_sector(*, sector, usuario):
     sector = Sector.objects.select_for_update().get(pk=sector.pk)
     if sector.activo:
         raise ValidationError({"__all__": "Ese sector ya está activo."})
-    try:
-        _exigir_nombre_libre(dispositivo, sector.nombre, excepto=sector)
-    except ValidationError:
-        raise ValidationError(
-            {
-                "nombre": f"No se puede reactivar: ya hay un sector activo llamado «{sector.nombre}». "
-                "Renombrá uno de los dos y volvé a intentar."
-            }
-        ) from None
+    _exigir_nombre_libre_al_reactivar(dispositivo, sector)
 
     if sector.edificio_id is None:
         # El edificio es obligatorio mientras el sector quede activo (Cambio 429): uno anterior al

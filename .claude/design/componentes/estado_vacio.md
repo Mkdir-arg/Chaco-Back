@@ -64,7 +64,7 @@ Evidencia: «Nuevo sector» de P5 (`programas/templates/programas/dispositivos/s
 solo se ofrece si el servicio admite el alta (`puede_ampliar_capacidad`): sin ella el vacío es el de lectura.
 El modal «Agregar plazas» de ese mapa explica la numeración por sector (el número sigue al mayor que ya tiene el sector con ese prefijo; no pisa ni reusa), en una `_alerta` informativa y sin pieza nueva (Cambio 430).
 El modal «Liberar» de ese mismo mapa distingue préstamo de reserva por el dato `es_prestamo` de `plazasModal`, no por el texto del estado.
-El filtro `?inactivos=1` de ese mapa suma una surface «Sectores inactivos» con su vacío de lectura (`icono="fa-layer-group"`, sin acción) y un «Reactivar» por fila con `data-confirm-url` (confirmación `_confirm_js.html`, POST sin modal propio).
+El filtro `?inactivos=1` de ese mapa suma una surface «Sectores inactivos» con su vacío de lectura (`icono="fa-layer-group"`, sin acción) y un «Reactivar» por fila con `data-confirm-url` (confirmación `_confirm_js.html`, POST sin modal propio) y un «Editar» (enlace `?inactivos=1&sector=<id>` al mismo modal «Editar sector», con el edificio y el switch «Sector activo»), sin pieza nueva (Cambio 435). El encabezado de cada sector y cada fila de inactivos nombran su edificio («Sin edificio» si no tiene).
 
 ## Dentro de un modal
 
