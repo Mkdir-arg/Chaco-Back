@@ -143,6 +143,9 @@ def _texto_de(entrada, *, nombrar_personas: bool) -> str:
     adjuntos = list(entrada.adjuntos.all())
     if adjuntos:
         lineas.append("Adjuntos: " + ", ".join(str(adjunto) for adjunto in adjuntos))
+    if entrada.version > 1:
+        # Cuándo se corrigió: el momento de la novedad es el de lo que pasó, no el de la versión.
+        lineas.append("Corregida el " + timezone.localtime(entrada.creado).strftime("%d/%m/%Y %H:%M"))
     if entrada.motivo_correccion:
         lineas.append("Motivo de la corrección: " + entrada.motivo_correccion)
     return "\n".join(lineas)

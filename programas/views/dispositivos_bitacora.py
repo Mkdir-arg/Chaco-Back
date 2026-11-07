@@ -82,7 +82,9 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
             context["form_novedad"] = NovedadForm(personas=datos["personas"], max_adjuntos=datos["max_adjuntos"])
             if datos["corregibles"]:
                 context["form_correccion"] = CorreccionForm(
-                    corregibles=[(item["pk"], item["etiqueta"]) for item in datos["corregibles"]]
+                    corregibles=[(item["pk"], item["etiqueta"]) for item in datos["corregibles"]],
+                    personas=datos["personas"],
+                    max_adjuntos=datos["max_adjuntos"],
                 )
                 context["corregibles_datos"] = {
                     str(item["pk"]): {"tipo": item["tipo"], "texto": item["texto"]} for item in datos["corregibles"]
@@ -217,14 +219,28 @@ class NovedadCorregirView(_BitacoraPostView):
     mensaje_exito = "Novedad corregida: la versión anterior sigue visible."
 
     def armar_form(self, request, dispositivo):
-        return CorreccionForm(request.POST, dispositivo=dispositivo)
+        return CorreccionForm(
+            request.POST,
+            request.FILES,
+            dispositivo=dispositivo,
+            personas=[(valor, valor) for valor in request.POST.getlist("personas")],
+        )
 
     def ejecutar(self, request, dispositivo, datos):
+        entrada = datos["entrada"]
+        # Solo se suma: las personas de la versión corregida se conservan y las nuevas se
+        # agregan. Sin `ciudadano.ver` el modal no ofrece personas: si llegan, no se vinculan.
+        personas = None
+        if datos["personas"] and rbac.puede(request.user, CAP_VER_CIUDADANO):
+            actuales = [str(pk) for pk in entrada.personas.values_list("pk", flat=True)]
+            personas = [*actuales, *(pk for pk in datos["personas"] if pk not in actuales)]
         corregir_entrada(
-            entrada=datos["entrada"],
+            entrada=entrada,
             usuario=request.user,
             texto=datos["texto"],
             tipo=datos["tipo"],
+            personas=personas,
+            adjuntos_nuevos=datos["adjuntos"],
             motivo=datos["motivo"],
         )
 

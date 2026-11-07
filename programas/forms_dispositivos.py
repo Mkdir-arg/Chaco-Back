@@ -578,10 +578,31 @@ class CorreccionForm(forms.Form):
         max_length=255,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "Opcional"}),
     )
+    # Solo se agrega: las personas y los adjuntos de la versión corregida se conservan.
+    # Los mismos campos y la misma validación que el alta de la novedad.
+    personas = forms.MultipleChoiceField(
+        label="Sumar personas involucradas",
+        required=False,
+        choices=(),
+        widget=ChipsSelectMultiple,
+    )
+    adjuntos = AdjuntosField(
+        label="Sumar adjuntos",
+        required=False,
+        widget=AdjuntosInput(attrs={"class": INPUT_CLASS, "accept": ACCEPT_ADJUNTO}),
+    )
 
-    def __init__(self, *args, dispositivo=None, corregibles=(), **kwargs):
+    def __init__(self, *args, dispositivo=None, corregibles=(), personas=(), max_adjuntos=None, **kwargs):
+        # Los dos modales conviven en la página: sin prefijo de id repetirían `id_texto`, etc.
+        kwargs.setdefault("auto_id", "id_corr_%s")
         super().__init__(*args, **kwargs)
         self.dispositivo = dispositivo
+        self.fields["personas"].choices = [(str(pk), etiqueta) for pk, etiqueta in personas]
+        if max_adjuntos:
+            self.fields["adjuntos"].help_text = (
+                f"Hasta {max_adjuntos} archivos por novedad, contando los que ya tiene: "
+                "PDF, imágenes o documentos de 5 MB."
+            )
         self.fields["tipo"].choices = [("", "Elegí el tipo"), *TIPOS_MANUALES]
         self.fields["entrada"].widget.choices = [("", "Elegí la novedad"), *corregibles]
 

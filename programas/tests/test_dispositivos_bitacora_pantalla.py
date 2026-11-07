@@ -377,6 +377,120 @@ class CorregirTests(BasePantalla):
         self.assertIn("Solo se corrigen novedades del turno en curso", " ".join(respuesta.json()["errors"]["entrada"]))
 
 
+class CorregirSumandoTests(BasePantalla):
+    """Corregir puede **sumar** adjuntos y personas; lo que la novedad ya tenía se conserva."""
+
+    def setUp(self):
+        super().setUp()
+        archivo = SimpleUploadedFile("original.pdf", PDF, content_type="application/pdf")
+        self.entrada = self._cargar(
+            _local(MIERCOLES, 15, 30), texto="Discusion.", personas=[self.estadia_ana], adjuntos=[archivo]
+        )
+
+    def _corregir(self, usuario=None, **extra):
+        datos = {"entrada": self.entrada.pk, "tipo": "INCIDENTE", "texto": "Discusión.", **extra}
+        return self._post("bitacora_corregir", datos, usuario)
+
+    def _nueva(self):
+        return self._manuales().get(version=2)
+
+    def test_suma_un_adjunto_y_una_persona_y_conserva_los_originales(self):
+        archivo = SimpleUploadedFile("nuevo.pdf", PDF, content_type="application/pdf")
+
+        respuesta = self._corregir(adjuntos=[archivo], personas=[self.estadia_juan.pk])
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        nueva = self._nueva()
+        self.assertEqual(set(nueva.personas.all()), {self.estadia_ana, self.estadia_juan})
+        self.assertEqual(nueva.adjuntos.count(), 2)
+        # La versión que se corrigió no cambia.
+        self.entrada.refresh_from_db()
+        self.assertEqual(list(self.entrada.personas.all()), [self.estadia_ana])
+        self.assertEqual(self.entrada.adjuntos.count(), 1)
+
+    def test_el_registro_dice_que_se_sumo_quien_y_cuando(self):
+        archivos = [SimpleUploadedFile(f"n{n}.pdf", PDF, content_type="application/pdf") for n in range(2)]
+
+        self._corregir(adjuntos=archivos, personas=[self.estadia_juan.pk], motivo="Faltaba el acta")
+
+        nueva = self._nueva()
+        self.assertEqual(nueva.motivo_correccion, "Faltaba el acta · +2 adjuntos, +1 persona")
+        self.assertEqual(nueva.responsable, self.operador)
+        self.assertIsNotNone(nueva.creado)
+        self.assertRegex(self._html(self._get()), r"Corregida el \d{2}/\d{2}/\d{4} \d{2}:\d{2}")
+        self.assertIn("Motivo de la corrección: Faltaba el acta · +2 adjuntos, +1 persona", self._html(self._get()))
+
+    def test_sin_motivo_el_registro_es_solo_lo_sumado(self):
+        self._corregir(personas=[self.estadia_juan.pk])
+
+        self.assertEqual(self._nueva().motivo_correccion, "+1 persona")
+
+    def test_una_persona_ya_involucrada_no_cuenta_como_sumada(self):
+        self._corregir(personas=[self.estadia_ana.pk])
+
+        nueva = self._nueva()
+        self.assertEqual(list(nueva.personas.all()), [self.estadia_ana])
+        self.assertEqual(nueva.motivo_correccion, "")
+
+    def test_sin_sumar_nada_se_conserva_todo(self):
+        self._corregir()
+
+        nueva = self._nueva()
+        self.assertEqual(list(nueva.personas.all()), [self.estadia_ana])
+        self.assertEqual(nueva.adjuntos.count(), 1)
+
+    def test_los_limites_del_alta_aplican_al_sumar(self):
+        malo = SimpleUploadedFile("virus.exe", b"MZ", content_type="application/octet-stream")
+
+        respuesta = self._corregir(adjuntos=[malo])
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(self._manuales().count(), 1)
+
+        muchos = [SimpleUploadedFile(f"a{n}.pdf", PDF, content_type="application/pdf") for n in range(10)]
+        respuesta = self._corregir(adjuntos=muchos)
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("hasta 10 archivos", " ".join(respuesta.json()["errors"]["adjuntos"]))
+        self.assertEqual(self._manuales().count(), 1)
+
+    def test_una_persona_que_no_es_del_dispositivo_se_rechaza(self):
+        respuesta = self._corregir(personas=["999999"])
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(self._manuales().count(), 1)
+
+    def test_sin_ciudadano_ver_no_se_nombran_personas_pero_los_adjuntos_si_se_suman(self):
+        usuario = self._usuario("Sin legajo", self.cis, _sin("ciudadano.ver"))
+        archivo = SimpleUploadedFile("nuevo.pdf", PDF, content_type="application/pdf")
+
+        respuesta = self._corregir(usuario, personas=[self.estadia_juan.pk], adjuntos=[archivo])
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        nueva = self._nueva()
+        self.assertEqual(list(nueva.personas.all()), [self.estadia_ana])
+        self.assertEqual(nueva.adjuntos.count(), 2)
+        self.assertEqual(nueva.motivo_correccion, "+1 adjunto")
+
+    def test_el_permiso_y_el_alcance_son_los_de_corregir(self):
+        archivo = SimpleUploadedFile("nuevo.pdf", PDF, content_type="application/pdf")
+        sin_bitacora = self._usuario("Sin bitacora", self.cis, _sin("dispositivo.bitacora"))
+        de_otra = self._usuario("De otro", self.parador)
+
+        for usuario in (sin_bitacora, de_otra):
+            archivo.seek(0)
+            respuesta = self._corregir(usuario, adjuntos=[archivo], personas=[self.estadia_juan.pk])
+            self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(self._manuales().count(), 1)
+
+    def test_el_modal_ofrece_sumar_y_ya_no_dice_que_no_se_puede(self):
+        html = self._html(self._get())
+
+        self.assertIn("Sumar adjuntos", html)
+        self.assertIn("Sumar personas involucradas", html)
+        self.assertNotIn("Las personas y los adjuntos se conservan.", html)
+
+
 class TurnosTests(BasePantalla):
     def _datos(self, **extra):
         # `activo` va como lo manda el modal (el switch arranca tildado): desde que

@@ -523,6 +523,23 @@ def anotar_en_bitacora(movimiento):
     return entrada
 
 
+def _motivo_con_agregados(motivo, *, adjuntos, personas):
+    """El motivo seguido de «+2 adjuntos, +1 persona» cuando la corrección sumó algo."""
+
+    partes = []
+    if adjuntos:
+        partes.append(f"+{adjuntos} {'adjunto' if adjuntos == 1 else 'adjuntos'}")
+    if personas:
+        partes.append(f"+{personas} {'persona' if personas == 1 else 'personas'}")
+    if not partes:
+        return motivo
+    agregado = ", ".join(partes)
+    if not motivo:
+        return agregado
+    # El campo es de 255: el motivo cede lugar, el resumen no se recorta.
+    return f"{motivo[: 255 - len(agregado) - 3]} · {agregado}"
+
+
 CORRECCION_CONCURRENTE = (
     "La entrada ya fue corregida mientras la editabas: revisá la versión vigente y, si hace falta, corregí esa."
 )
@@ -588,14 +605,22 @@ def corregir_entrada(
         version_anterior=corregida,
         motivo_correccion=(motivo or "").strip()[:255],
     )
-    nueva.clean()
+    previas = list(corregida.personas.all())
     if personas is None:
-        estadias = list(corregida.personas.all())
+        estadias = previas
     else:
         estadias = _estadias_del_momento(corregida.dispositivo, personas, corregida.momento)
     quitar = {adjunto.pk if isinstance(adjunto, AdjuntoBitacora) else adjunto for adjunto in quitar_adjuntos or ()}
     heredados = [adjunto for adjunto in corregida.adjuntos.all() if adjunto.pk not in quitar]
     archivos = _guardar_adjuntos(corregida.dispositivo, usuario, adjuntos_nuevos, heredados=len(heredados))
+    # La traza dice qué sumó la corrección; quién y cuándo ya lo dicen `responsable` y la
+    # fecha de la versión. Va en el motivo, que la pantalla muestra con la versión.
+    nueva.motivo_correccion = _motivo_con_agregados(
+        nueva.motivo_correccion,
+        adjuntos=len(archivos),
+        personas=len({estadia.pk for estadia in estadias} - {estadia.pk for estadia in previas}),
+    )
+    nueva.clean()
     try:
         # La red de abajo: si alguien llegara sin pasar por el bloqueo de arriba, el
         # UNIQUE de `version_anterior` rechaza la segunda corrección de la misma versión.
