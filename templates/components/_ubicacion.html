@@ -11,6 +11,8 @@ Contexto:
                      Tiene que ser la URL de un archivo adjunto (FileField.url), no una URL libre:
                      el autoescape protege del marcado, pero no de un esquema `javascript:`.
   plano_nombre       texto del enlace del plano; por defecto «Plano del edificio».
+  compacto           opcional (booleano): sin coordenadas, el vacío es una sola línea con ícono en vez del
+                     estado vacío grande. Con coordenadas no cambia nada.
 El enlace «Ver en el mapa» abre OpenStreetMap en una pestaña nueva: no carga nada dentro de la
 página, así que no hace falta tocar la CSP ni cargar librerías de mapas. Por ese enlace, el prefijo
 `https://www.openstreetmap.org/?mlat=` figura entre los permitidos de
@@ -24,7 +26,11 @@ a traer código de un CDN: si se cambia de proveedor hay que actualizar esa list
     <div><dt class="text-xs font-semibold uppercase text-body-subtle">Longitud</dt><dd class="mt-1 text-body">{{ longitud|floatformat:6 }}</dd></div>
   </dl>
   {% else %}
+  {% if compacto %}
+  <p class="text-sm text-body-subtle"><i class="fas fa-location-dot" aria-hidden="true"></i> Sin ubicación cargada: todavía no se cargaron las coordenadas.</p>
+  {% else %}
   {% include "components/_estado_vacio.html" with icono="fa-location-dot" titulo="Sin ubicación cargada" texto="Todavía no se cargaron las coordenadas de este dispositivo." %}
+  {% endif %}
   {% endif %}
   {% if latitud is not None and latitud != "" and longitud is not None and longitud != "" or plano_url %}
   <div class="flex flex-wrap items-center gap-3">

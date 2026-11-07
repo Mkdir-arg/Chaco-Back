@@ -52541,6 +52541,7 @@ Arreglos chicos de una revisión visual a 390 px: solapas partidas en varias fil
 4. «Corregir» pasa a `btn-nodo btn-tertiary btn-sm btn-fit` dentro de `_entradas_bitacora.html` (ficha `turno_bitacora.md`).
 5. Sin coordenadas, el bloque de ubicación de Infraestructura es una línea de texto con ícono; no se agregó variante compacta a `_estado_vacio.html`.
 6. «Agente asignado» del informe se muestra solo si difiere de «Relevó».
+7. **Ronda de auditoría del PR:** la barra de solapas se parte en envoltorio con borde y barra con scroll (sin `-mb-px` en las solapas), para que `overflow-x-auto` no cree una barra vertical ni recorte el subrayado; el vacío compacto de ubicación pasa a la pieza (`compacto` en `_ubicacion.html`, ficha y test); el nombre del turno se capitaliza con `capfirst` en un solo lugar; la ayuda de reasignar conserva el aviso condicional del agente externo; «Corregir» sin `btn-fit`. Esto reemplaza la decisión 5.
 
 ## Implementación
 

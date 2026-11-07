@@ -435,7 +435,6 @@ class SelectorDeAgentesTests(BaseListado):
         etiqueta = str(respuesta.context["form_reasignar"]["asignado_a"])
         self.assertIn(f">Ana Gómez · {self.otro_agente.username}</option>", etiqueta)
         self.assertContains(respuesta, "Agentes de campo disponibles. No incluye al agente asignado ahora.")
-        self.assertNotContains(respuesta, "La lista solo trae agentes")
 
     def test_el_modal_de_un_edificio_fuera_de_alcance_no_se_abre(self):
         respuesta = self._cliente(self.coord).get(URL_LISTA, {"asignar": self.edificio_cis.pk})

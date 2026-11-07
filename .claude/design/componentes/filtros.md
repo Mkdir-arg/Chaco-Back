@@ -110,6 +110,7 @@ include con `ocultos=(("tab", <su clave>),)`, y la vista le arma a cada uno las 
 **filtran algo**: una que no cambia nada en ese panel confunde más de lo que ayuda. Evidencia:
 `programas/templates/programas/dispositivos/relevamientos/list.html` (P21) y la solapa Estadías de
 `programas/templates/programas/dispositivos/legajo/detail.html` (P4).
+La barra de solapas de esas dos pantallas usa la estructura con envoltorio y scroll horizontal de `tabs.md`.
 
 En P21, «Revisados» filtra completados con fecha de revisión; su contador y «Asignado a»
 conservan el mismo alcance que las demás solapas. Las opciones de «Asignado a» se limitan a relevamientos cuya asignación puede ver
