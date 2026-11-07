@@ -1234,6 +1234,10 @@ def enviar_beneficiario_a_siis(
         return vigente
 
     base = _base_envio(formulario, solicitado_por)
+    if es_alta_de_oficio(formulario.pk):
+        # Antes de armar el payload (mismo orden que ``guardar_en_tabla_intermedia``):
+        # sin catálogos, armarlo dejaría al caso en ERROR SIN_COPIA_CATALOGO.
+        return _cerrado_por_alta_de_oficio(base)
     try:
         payload, faltantes = armar_payload(formulario, catalogos=catalogos)
     except CatalogoNoDisponible as exc:

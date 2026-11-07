@@ -51,6 +51,24 @@ class InscripcionNoHabilitada(Exception):
     """El DNI+sexo dejó de figurar en el padrón del relevamiento (RN-P14)."""
 
 
+def _formularios_que_ocupan_el_dni(convocatoria):
+    """Queryset base de RN-P5 (con la excepción de SIIS-13), compartido por
+    :func:`dni_en_convocatoria` y :func:`caso_en_convocatoria`."""
+    return Formulario.objects.filter(relevamiento__convocatoria=convocatoria).exclude(
+        estado=Formulario.Estado.RECHAZADO, validado_renaper=False
+    )
+
+
+def caso_en_convocatoria(convocatoria, dni):
+    """El caso que ocupa el DNI en la convocatoria (misma regla RN-P5 que
+    :func:`dni_en_convocatoria`) o ``None``. Trae el caso, así que ordena por
+    ``pk``: no es para el camino del link público, que solo necesita el booleano."""
+    if not dni:
+        return None
+    en_convocatoria = _formularios_que_ocupan_el_dni(convocatoria)
+    return en_convocatoria.filter(dni_titular=dni).first() or en_convocatoria.filter(ciudadano__dni=dni).first()
+
+
 def dni_en_convocatoria(convocatoria, dni):
     """RN-P5, única definición: cualquier relevamiento de la convocatoria (de
     campo o público), por ciudadano resuelto o identificación offline. La usan
@@ -74,9 +92,7 @@ def dni_en_convocatoria(convocatoria, dni):
     """
     if not dni:
         return False
-    en_convocatoria = Formulario.objects.filter(relevamiento__convocatoria=convocatoria).exclude(
-        estado=Formulario.Estado.RECHAZADO, validado_renaper=False
-    )
+    en_convocatoria = _formularios_que_ocupan_el_dni(convocatoria)
     return en_convocatoria.filter(dni_titular=dni).exists() or en_convocatoria.filter(ciudadano__dni=dni).exists()
 
 

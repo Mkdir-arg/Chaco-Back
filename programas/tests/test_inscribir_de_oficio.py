@@ -372,6 +372,25 @@ class MarcaDeOficioTests(AltaDeOficioBase):
         self.assertTrue(issubclass(CasoEnListaEspera, ValidationError))
 
 
+class ConsultaDeDniEnConvocatoriaTests(AltaDeOficioBase):
+    def test_dni_en_convocatoria_no_ordena_y_caso_en_convocatoria_devuelve_el_caso(self):
+        """Cambio 91: el booleano del link público va por dos ``EXISTS`` sin ORDER BY."""
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        from programas.services.inscripcion_publica import caso_en_convocatoria, dni_en_convocatoria
+
+        with mock.patch(PERSONAS, return_value=_ok("Ana", "Paz")):
+            self.correr([["30111222", "F", "Paz", "Ana"]])
+        caso = Formulario.objects.get(dni_titular="30111222")
+        with CaptureQueriesContext(connection) as capturadas:
+            self.assertTrue(dni_en_convocatoria(self.convocatoria, "30111222"))
+            self.assertFalse(dni_en_convocatoria(self.convocatoria, "30999999"))
+        self.assertFalse([q["sql"] for q in capturadas if "ORDER BY" in q["sql"].upper()])
+        self.assertEqual(caso_en_convocatoria(self.convocatoria, "30111222"), caso)
+        self.assertIsNone(caso_en_convocatoria(self.convocatoria, "30999999"))
+
+
 class NingunCaminoInformaASiisTests(AltaDeOficioBase):
     """Los casos de oficio ya figuran en SIIS y la API no deduplica."""
 
@@ -411,6 +430,33 @@ class NingunCaminoInformaASiisTests(AltaDeOficioBase):
         self.assertEqual(envio.codigo_error, "ALTA_DE_OFICIO")
         self.assertFalse(envio.vigente)
         self.assertFalse(EnvioSIIS.objects.filter(formulario=formulario, vigente=True).exists())
+
+    def test_enviar_no_arma_el_payload_de_un_caso_de_oficio(self):
+        """Sin catálogos, armar el payload dejaba al caso en ERROR SIN_COPIA_CATALOGO."""
+        from programas.services import siis_envio
+
+        formulario = self._de_oficio()
+        with mock.patch("programas.services.siis_envio.armar_payload") as armar:
+            envio = siis_envio.enviar_beneficiario_a_siis(formulario, self.usuario, catalogos=mock.MagicMock())
+        armar.assert_not_called()
+        self.assertEqual(envio.codigo_error, "ALTA_DE_OFICIO")
+
+    def test_reenviar_siis_pendientes_no_lista_al_de_oficio_pero_si_al_comun(self):
+        from programas.management.commands.reenviar_siis_pendientes import Command
+
+        oficio = self._de_oficio()
+        comun = self._comun()
+        for formulario in (oficio, comun):
+            EnvioSIIS.objects.create(
+                formulario=formulario,
+                solicitado_por=self.usuario,
+                estado=EnvioSIIS.Estado.ERROR,
+                codigo_error="SIN_COPIA_CATALOGO",
+            )
+        casos, _agotados = Command()._casos(None)
+        pks = {caso.pk for caso in casos}
+        self.assertIn(comun.pk, pks)
+        self.assertNotIn(oficio.pk, pks)
 
     def test_guardar_en_tabla_intermedia_no_guarda(self):
         from programas.models import AltaIntermediaSIIS
