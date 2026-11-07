@@ -545,6 +545,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 419 | SIIS: `proponer_alias_siis` propone a qué localidad de SIIS equivale cada localidad core de Chaco que no cruza, para revisión del organismo (no toca `siis_alias_localidades.csv`) | SIIS (`programas/management/commands`) · `docs/internal/siis/` | `#siis` `#datos` | PM — pedido de Provincia/Localidad en Requisitos generales (06/11/2026), PR 3 | 06/11/2026 | 🟡 **En curso** | No requiere |
 | 420 | Dispositivos: «Crear persona» en «Sumar persona al Equipo» (alta de usuario + Equipo en una transacción) y buscador «Persona — Rol» con sugerencias | Dispositivos · usuarios · sistema de diseño | `#ui` `#rbac` `#usuarios` | PM — pedido del 05/11/2026 (modal «Sumar persona al Equipo») | 05/11/2026 | 🟡 **En curso** | No requiere |
 | 421 | Alta de oficio de Becas: nunca se manda el aviso de resolución por correo; tres MINOR de la auditoría de #1033 | Becas · convocatorias · avisos · SIIS | `#convocatorias` `#siis` `#correo` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 422 | Dispositivos: el informe, las fotos y el listado de un relevamiento edilicio solo para quien lo coordina, lo opera o lo relevó (ver todos los dispositivos ya no lo abre) | Dispositivos · relevamiento edilicio | `#rbac` `#ui` | PM — caso QA 7 (seguridad), decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -52058,5 +52059,74 @@ Revertir el PR; no hay datos que deshacer.
 
 - **07/11/2026 — alta del cambio.**
 - **07/11/2026 — ronda de auditoría de #1036:** `dni_en_convocatoria` vuelve a sus dos `EXISTS` sin ORDER BY (solo comparte con `caso_en_convocatoria` el queryset base); el reenvío manual del aviso informa el motivo en un caso de oficio.
+
+---
+
+# Cambio 422 — El relevamiento edilicio solo para quien lo coordina, lo opera o lo relevó
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamiento edilicio (informe, listado, fotos y adjuntos, solapa Infraestructura) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | PM — caso QA 7 (seguridad), decisión del 07/11/2026 |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue (caso QA 7) |
+| **Partes afectadas** | Backoffice · Servidor |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Caso QA 7: el usuario `qa_coordinador`, con un rol que tiene «Ver dispositivos» y «Crear, asignar, reasignar y cancelar relevamientos edilicios» con alcance sobre 3 de 5 instituciones, abre `/dispositivos/relevamientos/<id>/informe/` de una institución fuera de su alcance y ve el informe completo. Decisión del PM: el informe y el listado de relevamientos los ve **solo** quien tiene alcance de inspección sobre esa institución, o el agente asignado; fuera de eso, 404, aunque vea todos los dispositivos. El superusuario y el alcance total siguen viendo todo.
+
+## Alcance acordado
+
+**Entra:** la regla única `inspecciones_visibles` y, por ella, todos sus consumidores (listado y solapas de P21, «Ver informe», reasignar, cancelar, fotos y adjuntos de `/media/`); el registro de relevamientos de la solapa Infraestructura.
+
+**Queda afuera:** la franja de la solapa Infraestructura (semáforo, «último relevamiento» de cada edificio, totales), que se sigue mostrando a quien ve el dispositivo; la API de campo (`inspecciones_asignadas`, `inspecciones_para_envio`), que ya era solo del agente; la línea de tiempo de Historial, que no enlaza al informe.
+
+## Decisiones tomadas
+
+1. **El camino de `dispositivo.ver` de `inspecciones_visibles` usa el alcance fino, no el de lectura.** Antes era `dispositivos_en_alcance(user, "dispositivo.ver")`, que con `dispositivo.ver_todos` o el admin del programa (`programa.configurar`) devuelve **todos** los dispositivos: quien coordinaba algunas instituciones y leía todas abría el relevamiento de cualquier edificio. Ahora es `dispositivos_operados`: el Equipo de la institución (y, en transición, la asignación de rol vieja), sin la ampliación. Lo ajeno da el mismo 404 que lo inexistente.
+2. **Se conserva el camino de quien opera la institución** (su Equipo con `dispositivo.ver`): la solapa Infraestructura del propio dispositivo enlaza al informe y dibuja las fotos, y las dos cosas se sirven por `inspecciones_visibles`; sin ese camino la institución relevada dejaba de ver su propio relevamiento (Cambios 280 y 289). El predio compartido sigue igual: el relevamiento es del edificio y lo leen las instituciones que lo ocupan, **por su Equipo**.
+3. **Esto restringe lo registrado en los Cambios 275, 280 y 289**, que decían que «quien opera (`dispositivo.ver`) cualquier institución del edificio» ve el relevamiento: valía con el alcance de lectura, que después del Cambio 410 (`ver_todos`) dejó de ser lo mismo que operar. La decisión del PM no contradice el predio compartido, que se mantiene por Equipo.
+4. **El admin del programa sin `inspeccion.asignar` ya no ve los relevamientos de instituciones que no opera.** «Alcance total» es admin del programa **con** `inspeccion.asignar` (que entra por el primer camino y ve todo), o superusuario.
+5. **El registro de la solapa Infraestructura se cruza con `inspecciones_visibles`** cuando hay usuario: quien entra al detalle por `ver_todos` sin operar ni coordinar no ve eventos que enlazarían a un informe y a fotos que le darían 404.
+
+## Implementación
+
+Quien coordina relevamientos sobre una parte de las instituciones y puede ver todos los dispositivos ya no abre el informe, las fotos ni los adjuntos de un edificio que no coordina, no lo ve en el listado de Relevamientos y no puede reasignarlo ni cancelarlo (404). En el detalle de una institución ajena, la solapa Infraestructura no lista sus relevamientos. El coordinador, el agente asignado y la institución que ocupa el edificio siguen viéndolo como antes.
+
+## Archivos
+
+`programas/services/dispositivos.py` (`dispositivos_operados`), `programas/services/inspecciones.py` (`inspecciones_visibles`), `programas/services/detalle_dispositivo.py` (registro de la solapa Infraestructura), `programas/tests/test_dispositivos_relevamiento_alcance.py` (nuevo), `programas/tests/test_dispositivos_relevamiento_informe.py` (docstring del test de predio compartido), `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `test_dispositivos_relevamiento_alcance` (9 tests): coordinador con `ver_todos` + `inspeccion.asignar` acotado y admin del programa sin `inspeccion.asignar` → 404 en informe, 403/404 en foto y adjunto, 404 en reasignar y cancelar (sin cambios en la fila), ausente del listado y de `inspecciones_visibles`, solapa Infraestructura ajena sin eventos; admin con `inspeccion.asignar` y superusuario → 200 en todo; agente asignado y Equipo de la institución → 200.
+- **Mutación:** volviendo a `dispositivos_en_alcance` en el camino de `dispositivo.ver`, quedan rojos los 5 tests que fijan lo que se cierra (informe, fotos y adjuntos, reasignar y cancelar, listado, solapa); los 4 que fijan lo que sigue abierto quedan verdes; sacando el filtro de la solapa, queda rojo el de la solapa. Restaurado, verde.
+- Suites de Dispositivos (`--pattern "test_*dispositivo*.py"`, 1632 tests), `test_api_campo_relevamiento_formulario`, `test_arquitectura`, `core.tests.test_media_protegida` y `--tag performance` de `programas` y `core`: OK. `manage.py check` y `ruff` sin hallazgos. No toca templates.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- **Reproducir el caso con los datos de QA.** Con un rol que tiene las dos capacidades y alcance por Equipo sobre 3 instituciones, las dos reglas dan lo mismo: el hueco aparece si el usuario además lee todo (`ver_todos` o `programa.configurar`). Si en QA el edificio de la institución «ajena» lo comparte con una de las 3, el relevamiento es del edificio y lo sigue viendo (decisión del predio compartido, Cambio 275).
+- La franja de la solapa Infraestructura (semáforo y observaciones del último relevamiento de cada edificio) se sigue mostrando a quien ve el dispositivo por `ver_todos`: confirmar con el PM si también se oculta.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
 
 ---

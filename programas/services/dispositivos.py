@@ -192,6 +192,23 @@ def dispositivos_en_alcance(user, capacidad):
     return _del_equipo_o_asignados(user, capacidad, programa)
 
 
+def dispositivos_operados(user, capacidad):
+    """Solo el alcance fino: los dispositivos donde integra el Equipo con un rol que tiene ``capacidad``.
+
+    Lo mismo que :func:`dispositivos_en_alcance` **sin** la ampliación a todo del admin del
+    programa ni de ``dispositivo.ver_todos``: es «la institución que opera», no «lo que puede
+    leer». La usa el relevamiento edilicio (Cambio 422), que no se abre por ver todos los
+    dispositivos.
+    """
+
+    from programas.models import Dispositivo
+
+    programa = programa_dispositivos(user)
+    if programa is None or not rbac.puede(user, capacidad, programa=programa):
+        return Dispositivo.objects.none()
+    return _del_equipo_o_asignados(user, capacidad, programa)
+
+
 def _registrar_traza(dispositivo, usuario, accion, estado_anterior, estado_nuevo, detalle=""):
     from programas.models import TrazaDispositivo
 
