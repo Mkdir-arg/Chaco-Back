@@ -53,6 +53,7 @@ from programas.models import (
     TrazaDispositivo,
     Turno,
 )
+from programas.services.bitacora_detalle import plural as _plural
 from programas.services.dispositivos import puede_operar_dispositivo
 from programas.services.nombre_plaza import nombre_de_plaza
 
@@ -578,10 +579,6 @@ def anotar_en_bitacora(movimiento):
     # deja la novedad colgando de la estadía para la solapa Novedades de P7.
     _vincular(entrada, [movimiento.estadia_id], [])
     return entrada
-
-
-def _plural(cantidad, singular, plural):
-    return f"{cantidad} {singular if cantidad == 1 else plural}"
 
 
 def _motivo_con_cambios(motivo, *, adjuntos, personas, adjuntos_quitados=0, personas_quitadas=0):

@@ -54,6 +54,7 @@ from programas.models import Dispositivo, EntradaBitacora, Estadia, Turno
 from programas.services import censo as censo_servicio
 from programas.services.bitacora import MAX_ADJUNTOS_POR_ENTRADA, turnos_activos
 from programas.services.bitacora_detalle import adjuntos_de
+from programas.services.bitacora_detalle import plural as _plural
 from programas.services.nombre_plaza import plaza_con_sector
 from programas.services.ocupacion import ocupacion_de_plazas
 
@@ -115,10 +116,6 @@ def _hora(momento) -> str:
 
 def _dia(fecha: date) -> str:
     return date_format(fecha, "l d/m/Y")
-
-
-def _plural(cantidad, singular, plural):
-    return f"{cantidad} {singular if cantidad == 1 else plural}"
 
 
 def _autor(usuario) -> str:
@@ -461,9 +458,10 @@ def pantalla_bitacora(
         versiones = [_entrada(entrada, nombrar_personas=nombrar_personas, reemplazada=True) for entrada in reemplazadas]
 
     corregibles = []
-    if puede_cargar and not tipo and turno is not None and turno.pk == en_curso.turno.pk:
-        # Sin filtro, las vigentes del turno en curso (mismo orden y tope) **son** las corregibles:
-        # ya traen personas y adjuntos, que el modal ofrece quitar, sin consultas de más.
+    if puede_cargar and not tipo and turno is not None and turno.pk == en_curso.turno.pk and len(vigentes) == total:
+        # Sin filtro y sin recorte, las vigentes del turno en curso **son** todas las corregibles:
+        # ya traen personas y adjuntos, que el modal ofrece quitar, sin consultas de más. Si el
+        # tope las recortó, la consulta aparte filtra las manuales antes de aplicarlo.
         corregibles = [
             _opcion_correccion(entrada, nombrar_personas=nombrar_personas)
             for entrada in vigentes

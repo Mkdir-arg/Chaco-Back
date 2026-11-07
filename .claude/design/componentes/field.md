@@ -116,6 +116,8 @@ dibuja con su valor.
 
 ## Selector múltiple apilado
 
+**Variante armada por Alpine:** «Corregir novedad» de la bitácora (Cambio 436, `bitacora.html`) usa `.nodo-checks` con filas `<label><input type="checkbox" name="quitar_…">` que Alpine arma desde `corregibles_datos` (adjuntos y personas actuales de la novedad elegida); no pasan por un widget de Django (`CorreccionForm.quitar_*` solo recibe los ids).
+
 El contenedor del campo lleva `.nodo-checks`: el widget de Django queda como grilla de filas
 clickeables, caja de 18 px con `accent-color` de marca y `:focus-visible` con anillo. Lo consumen
 el paso 2 del portal (`portal/templates/portal/inscripcion/paso2.html`), la vista previa del

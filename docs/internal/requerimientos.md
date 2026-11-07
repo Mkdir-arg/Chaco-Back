@@ -52955,5 +52955,6 @@ Revertir el PR; no hay datos que deshacer.
 ## Historial
 
 - **07/11/2026 — alta del cambio.**
+- **07/11/2026 — ronda de auditoría de #1052.** Las corregibles salen de las vigentes solo si el tope no las recortó (si no, consulta aparte); «Personas asociadas» ya no depende de que haya personas alojadas (se puede quitar a una egresada); `plural` única en `bitacora_detalle.py`; `_IdsField.to_python` devuelve enteros y rechaza lo no numérico; `field.md` documenta la variante armada por Alpine.
 
 ---

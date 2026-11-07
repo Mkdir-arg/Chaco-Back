@@ -668,6 +668,42 @@ class CorregirQuitandoTests(BasePantalla):
         self.assertEqual(json.loads(datos)[str(self.entrada.pk)]["personas"], [])
         self.assertNotIn("Gómez", datos)
 
+    def test_el_modal_ofrece_quitar_una_persona_ya_egresada_sin_nadie_alojado(self):
+        # Nadie alojado hoy: no hay a quién sumar, pero lo ya asociado se puede quitar.
+        Estadia.objects.filter(pk__in=[self.estadia_ana.pk, self.estadia_juan.pk]).update(
+            estado="EGRESADA", fecha_egreso=_local(MIERCOLES, 15, 50), clave_alojamiento=None
+        )
+        html = self._html(self._get())
+
+        self.assertIn('name="quitar_personas"', html)
+        self.assertIn("Personas asociadas", html)
+        self.assertNotIn("Sumar personas involucradas", html)
+        respuesta = self._corregir(quitar_personas=[self.estadia_juan.pk])
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(list(self._nueva().personas.all()), [self.estadia_ana])
+
+    def test_con_mas_vigentes_que_el_tope_las_corregibles_siguen_siendo_las_manuales(self):
+        # 55 automáticas recientes llenan el tope de las vigentes: las manuales viejas quedan fuera
+        # del recorte y aun así tienen que poder corregirse.
+        for n in range(55):
+            EntradaBitacora.objects.create(
+                dispositivo=self.cis,
+                turno=self.entrada.turno,
+                fecha_operativa=self.entrada.fecha_operativa,
+                momento=_local(MIERCOLES, 15, 31) + timedelta(seconds=n),
+                responsable=self.operador,
+                tipo=EntradaBitacora.Tipo.INGRESO,
+                origen=EntradaBitacora.Origen.AUTOMATICA,
+                texto=f"Automática {n}",
+            )
+
+        with _reloj():
+            datos = pantalla_bitacora(
+                self.cis, puede_cargar=True, puede_configurar=True, nombrar_personas=True, url_base=self.url
+            )
+
+        self.assertEqual([item["pk"] for item in datos["corregibles"]], [self.entrada.pk])
+
 
 class TurnosTests(BasePantalla):
     def _datos(self, **extra):

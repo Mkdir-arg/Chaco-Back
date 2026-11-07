@@ -224,7 +224,7 @@
             </div>
           </div>
           {% include "components/_field.html" with field=form_correccion.adjuntos wrapper_class="" %}
-          {% if personas %}
+          {# Lo ya asociado se ofrece quitar aunque hoy nadie esté alojado: no depende de `personas` (las que se suman). #}
           <div class="nodo-checks" x-show="correccion.personas.length" x-cloak>
             <p class="block text-sm font-medium text-heading mb-1">Personas asociadas</p>
             <div>
@@ -233,8 +233,7 @@
               </template>
             </div>
           </div>
-          {% include "components/_field.html" with field=form_correccion.personas wrapper_class="" %}
-          {% endif %}
+          {% if personas %}{% include "components/_field.html" with field=form_correccion.personas wrapper_class="" %}{% endif %}
           {% include "components/_alerta.html" with tono="info" texto="Se agrega una versión nueva con tu nombre; la anterior sigue visible en «Versiones anteriores» con todo lo que tenía. Acá podés quitar adjuntos o personas cargados por error y sumar otros: la versión deja anotado qué se quitó y qué se sumó." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCorregir=false" accion_texto="Guardar corrección" %}

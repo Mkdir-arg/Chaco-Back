@@ -44,8 +44,18 @@ class AdjuntosField(forms.FileField):
 
 
 class _IdsField(forms.MultipleChoiceField):
-    """Ids marcados en el modal. No se validan acá contra opciones: son de la novedad que se
-    elige en el mismo modal, y `bitacora.corregir_entrada` exige que lo sean."""
+    """Ids marcados en el modal (casillas «Quitar» armadas por Alpine, que escriben el nombre en el POST).
+
+    Devuelve una lista de enteros y rechaza lo no numérico. No se validan contra opciones: son de la
+    novedad que se elige en el mismo modal, y `bitacora.corregir_entrada` exige que lo sean. El widget
+    solo fija el nombre del campo en el POST: nunca se dibuja.
+    """
+
+    def to_python(self, value):
+        try:
+            return [int(str(valor).strip()) for valor in super().to_python(value)]
+        except ValueError:
+            raise forms.ValidationError("Alguno de los elementos a quitar no es válido.", code="invalid") from None
 
     def valid_value(self, value):
         return True
