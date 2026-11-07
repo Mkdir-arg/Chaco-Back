@@ -1035,9 +1035,6 @@ def semaforos_de_dispositivos(dispositivo_ids):
 # Quién ve la asignación, la galería y el informe de un relevamiento
 # --------------------------------------------------------------------------- #
 
-#: El tope que dibuja `components/_galeria_fotos.html`: la tanda se recorta acá, no en la pieza.
-FOTOS_POR_TANDA = 24
-
 #: Formatos que un navegador no dibuja en un `<img>`. Desde el rechazo de HEIC/HEIF
 #: (`core.validators.FOTO_EXTENSIONES`) no entra ninguno nuevo; el manejo queda por las
 #: fotos que ya hubieran entrado antes.
@@ -1096,7 +1093,7 @@ def _fecha_corta(momento):
     return date_format(timezone.localtime(momento), "d/m/Y")
 
 
-def fotos_para_galeria(inspeccion, fotos, tope=FOTOS_POR_TANDA):
+def fotos_para_galeria(inspeccion, fotos):
     """Los dicts que pide `components/_galeria_fotos.html` para la tanda de un relevamiento.
 
     Una sola definición para la línea de tiempo de P19 y para el informe. La URL es la de
@@ -1109,7 +1106,7 @@ def fotos_para_galeria(inspeccion, fotos, tope=FOTOS_POR_TANDA):
 
     fecha = _fecha_corta(inspeccion.realizada_en or inspeccion.creado)
     galeria = []
-    for numero, foto in enumerate(fotos[:tope], start=1):
+    for numero, foto in enumerate(fotos, start=1):
         rotulo = foto.descripcion or f"Foto {numero}"
         galeria.append(
             {
@@ -1183,9 +1180,10 @@ def informe_de_relevamiento(usuario, inspeccion, *, hoy=None):
     404); acá se decide **qué ve**: el resultado lo lee cualquiera que vea el relevamiento,
     y el agente y las indicaciones solo quien pasa :func:`ve_la_asignacion`.
 
-    Costo fijo: el total de fotos y la tanda de la página (2 consultas), más la del alcance
-    cuando el usuario puede coordinar. No crece con las fotos: la galería se recorta en
-    :data:`FOTOS_POR_TANDA`.
+    Costo fijo: el total de fotos y la tanda completa del relevamiento (2 consultas), más la
+    del alcance cuando el usuario puede coordinar. No crece con las fotos. Se mandan **todas**:
+    `components/_galeria_fotos.html` dibuja 24 y pliega el resto en «Ver las N fotos restantes»
+    (Cambio 423; antes se cortaba en 24 sin forma de ver las demás).
     """
 
     hoy = hoy or timezone.localdate()
@@ -1194,7 +1192,7 @@ def informe_de_relevamiento(usuario, inspeccion, *, hoy=None):
     situacion_texto = Situacion.ETIQUETAS.get(situacion, situacion)
     semaforo = semaforo_de_inspeccion(inspeccion) if realizada else None
     total_fotos = inspeccion.fotos.count()
-    fotos = list(inspeccion.fotos.order_by("creado", "pk")[:FOTOS_POR_TANDA])
+    fotos = list(inspeccion.fotos.order_by("creado", "pk"))
     ve_asignacion = ve_la_asignacion(usuario, inspeccion)
     return {
         "relevamiento": inspeccion,
