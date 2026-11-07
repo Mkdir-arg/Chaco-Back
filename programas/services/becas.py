@@ -23,7 +23,7 @@ from programas.models import (
     Segmento,
     TipoCampo,
 )
-from programas.services import respuestas
+from programas.services.foto_campos import campos_de
 
 
 def _filtro_canal(canal):
@@ -140,7 +140,7 @@ def definicion_para_cliente(definicion, capacidades):
     listas = [
         definicion.get("globales") or [],
         definicion.get("requisitos") or [],
-        respuestas.campos_de(definicion),
+        campos_de(definicion),
     ]
     for lista in listas:
         for campo in lista:
@@ -163,8 +163,8 @@ def _localidades_sin_provincia_en_el_canal(definicion):
     huérfana de ``_campo_dict``: ``STRING`` sin ``fuente_opciones`` ni
     ``depende_de``.
     """
-    servidas = {c.get("clave") for c in respuestas.campos_de(definicion)}
-    listas = [definicion["globales"], definicion["requisitos"], respuestas.campos_de(definicion)]
+    servidas = {c.get("clave") for c in campos_de(definicion)}
+    listas = [definicion["globales"], definicion["requisitos"], campos_de(definicion)]
     for lista in listas:
         for campo in lista:
             if campo.get("fuente_opciones") == PreguntaGlobal.FuenteOpciones.LOCALIDAD and (
@@ -241,7 +241,7 @@ def definicion_formulario(relevamiento, con_catalogos=True):
     # Cambio 418: el catálogo geográfico viaja una sola vez, a nivel superior, y solo
     # si alguna pregunta de este formulario lo usa. Una resolución por definición
     # (cacheada), nunca por ítem; no entra en la foto del caso ni en la huella.
-    if con_catalogos and (_usa_catalogos(definicion["globales"]) or _usa_catalogos(respuestas.campos_de(definicion))):
+    if con_catalogos and (_usa_catalogos(definicion["globales"]) or _usa_catalogos(campos_de(definicion))):
         from programas.services.catalogo_geografico import catalogos_geograficos
 
         definicion["catalogos"] = catalogos_geograficos()
