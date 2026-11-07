@@ -119,6 +119,9 @@ urlpatterns = [
         name="cambiar_plaza",
     ),
     path("<int:pk>/bitacora/", bitacora.BitacoraTurnoView.as_view(), name="bitacora"),
+    path(
+        "<int:pk>/bitacora/entradas/<int:entrada_pk>/", bitacora.BitacoraEntradaView.as_view(), name="bitacora_entrada"
+    ),
     path("<int:pk>/bitacora/novedad/", bitacora.NovedadCrearView.as_view(), name="bitacora_novedad"),
     path("<int:pk>/bitacora/corregir/", bitacora.NovedadCorregirView.as_view(), name="bitacora_corregir"),
     path("<int:pk>/bitacora/turnos/", bitacora.TurnoGuardarView.as_view(), name="bitacora_turnos"),
