@@ -540,6 +540,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 414 | Dispositivos: menores de las auditorías de #1024 y #1026 (reactivar al ex responsable, un solo validador del Equipo, vigencia única, «y» en el aviso de reservas) | Dispositivos | `#rbac` `#datos` `#textos` | Auditorías de los PR #1024 (Equipo) y #1026 | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 415 | Sugerencias de personas mientras se escribe el DNI de Reservar y Prestar plaza (pieza reutilizable `nodo-sugerencias`) | Dispositivos · sistema de diseño | `#ui` `#rbac` `#datos` | PM — pedido del 02/11/2026 (modal de una plaza) | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 416 | Sugerencias de personas y de agentes en el paso «Ingresar persona» y en «Buscar agente» (reusa `nodo-sugerencias`; consulta por columna) | Dispositivos · sistema de diseño | `#ui` `#rbac` `#datos` | PM — continuación del Cambio 415 | 02/11/2026 | 🟡 **En curso** | No requiere |
+| 417 | Alta de oficio en una convocatoria de Becas: comando `inscribir_de_oficio` (CSV, APROBADO directo, sin SIIS ni correos) | Becas · convocatorias · operación | `#convocatorias` `#cupos` `#siis` | PM — sesión del 06/11/2026 | 06/11/2026 | 🟡 **En curso** | No requiere |
 | 419 | SIIS: `proponer_alias_siis` propone a qué localidad de SIIS equivale cada localidad core de Chaco que no cruza, para revisión del organismo (no toca `siis_alias_localidades.csv`) | SIIS (`programas/management/commands`) · `docs/internal/siis/` | `#siis` `#datos` | PM — pedido de Provincia/Localidad en Requisitos generales (06/11/2026), PR 3 | 06/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
@@ -51698,6 +51699,75 @@ Revertir el PR. No hay datos que deshacer.
 
 ---
 
+# Cambio 417 — Alta de oficio en una convocatoria de Becas (`inscribir_de_oficio`)
+
+🟡 **EN CURSO — 06/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · convocatorias · operación (comando de gestión) |
+| **Etiquetas** | `#convocatorias` `#cupos` `#siis` |
+| **Solicitante** | PM — sesión del 06/11/2026 |
+| **Fecha del pedido** | 06/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backend (comando de gestión, servicios) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Lo damos de alta nosotros… van como APROBADO ya que son los actuales… ya están en SIIS.» Son 5258 personas que ya son beneficiarias y ya figuran en SIIS: no tienen que pasar por el link público ni por la revisión.
+
+## Alcance acordado
+
+**Entra:** el comando `programas/management/commands/inscribir_de_oficio.py` y el servicio `programas/services/alta_de_oficio.py`. Lee un CSV (`dni, sexo, apellido, nombres`) y, por cada persona, crea el caso en el relevamiento público indicado, crea o vincula el legajo y lo aprueba. Función nueva `aprobar_de_oficio` en `programas/services/cupo.py`.
+
+**Queda afuera:** una pantalla para esto, el alta en SIIS, la validación SIIS, cualquier correo, y la lista de espera.
+
+## Decisiones tomadas
+
+1. **Sin padrón.** Un relevamiento sin padrón propio: la identidad sale de Personas (Gran Base) y, si no valida, de lo que trae el CSV.
+2. **Alta de oficio APROBADO directo, sin SIIS ni correos.** `aprobar_de_oficio` exige identidad validada y ciudadano con DNI, y **no** exige validación SIIS. Sin cupo levanta error: no manda a lista de espera. Deja en la traza una marca `alta_de_oficio` explícita.
+3. **Quien no valida en Personas queda ENVIADO** (origen `manual`) para que lo revise una persona; no se aprueba sin identidad.
+4. **Idempotente por `client_uuid`** (`uuid5` del token del relevamiento y el DNI): una corrida cortada se retoma sin duplicar, y un caso que antes no validaba y ahora sí se aprueba.
+5. **No exige `habilitado_en` ni EN_CURSO** (es un alta administrativa) pero sí el `cupo_maximo` del relevamiento y el cupo del segmento; si no entran las filas válidas, aborta antes de escribir.
+6. **Primero en testing** (pod de ECOM), después PRD.
+7. **En seco por defecto**; `--aplicar` exige `--informe`. La salida son conteos, nunca nombres.
+8. **Los casos de oficio quedan marcados y ningún camino los informa a SIIS** (auditoría del PR #1033): la persona ya figura en SIIS y la API de alta no deduplica. La marca es una traza `alta_de_oficio` escrita al **crear** el caso (también el que queda ENVIADO). `siis_envio._reservar` y `guardar_en_tabla_intermedia` cierran el intento sin llamar a SIIS (`EnvioSIIS` `RECHAZADO`, `codigo_error="ALTA_DE_OFICIO"`, sin `vigente`, patrón de `DUPLICADO_LOCAL`); `proceso_masivo.candidatos` y `enviar_casos_siis` los excluyen con `NOT EXISTS` por `formulario_id`. Módulo `programas/services/marca_de_oficio.py`.
+9. `aprobar_de_oficio` respeta la lista de espera (CMP-N1, `CasoEnListaEspera`) y comparte con la aprobación común `_motivo_bloqueo_identidad`.
+
+## Implementación
+
+Por fila, en su propia transacción con `select_for_update` del relevamiento y de la convocatoria: duplicado por convocatoria (`dni_en_convocatoria`), identidad (`identificar`), alta del `Formulario`, `resolver_ciudadano_offline` y `aprobar_de_oficio`. Frenos: `--max-errores` errores técnicos seguidos de Personas, `--pausa` entre consultas. Resultados: `aprobado`, `creado_sin_validar`, `ya_aprobado`, `ya_inscripto`, `invalido`, `duplicado_archivo`, `fallecido`, `error`.
+
+## Archivos
+
+`programas/management/commands/inscribir_de_oficio.py`, `programas/services/alta_de_oficio.py`, `programas/services/cupo.py`, `programas/services/marca_de_oficio.py`, `programas/services/siis_envio.py`, `programas/services/proceso_masivo.py`, `programas/management/commands/enviar_casos_siis.py`, `programas/tests/test_inscribir_de_oficio.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios de modelo ni migraciones. Cada caso lleva `created_by` = el usuario indicado y `client_uuid` determinista.
+
+## Validación
+
+Tests en `programas/tests/test_inscribir_de_oficio.py` con Personas mockeada. **Mutaciones** (romper la regla, ver el test rojo, restaurar): `client_uuid` aleatorio (idempotencia, 2 tests rojos); sin el chequeo de identidad validada en `aprobar_de_oficio`; sin el duplicado por convocatoria; sin el control de cupo en `aprobar_de_oficio`; sin la guarda de `_reservar` y de `guardar_en_tabla_intermedia`; sin la exclusión en `candidatos` y en `enviar_casos_siis`; sin el chequeo de lista de espera.
+
+## Pendientes / a definir
+
+- Correr en testing con el CSV real y, si da bien, en PRD. Antes, correr en seco con `--consultar-personas`.
+- Los que queden `creado_sin_validar` los resuelve una persona desde la bandeja.
+
+## Reversión
+
+Los casos creados se identifican por `created_by` y por la traza `alta_de_oficio`. No hay comando de reversa: un alta equivocada se da de baja desde la pantalla de cupo. Revertir el código no toca los casos ya creados.
+
+## Historial
+
+- **06/11/2026 — alta del cambio.**
+- **06/11/2026 — ronda de auditoría de #1033:** marca de oficio y bloqueo del alta a SIIS por todos los caminos, lista de espera, constancia SIIS-08 al acreditar, detalle del `ya_inscripto` y errores de conexión como técnicos.
+
+
+---
+
 # Cambio 419 — SIIS: propuesta de equivalencias de localidades de Chaco para revisión del organismo
 
 🟡 **EN CURSO — 06/11/2026**
@@ -51762,5 +51832,4 @@ Revertir el PR. No hay datos que deshacer.
 ## Historial
 
 - **06/11/2026 — alta del cambio.**
-
 ---
