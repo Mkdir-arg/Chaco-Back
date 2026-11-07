@@ -30,7 +30,7 @@ import json
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views import View
@@ -39,12 +39,14 @@ from core.edad import edad_en_anios, fecha_o_none
 from core.rbac import puede
 from legajos.models import Ciudadano
 from programas.forms_ingreso import IngresoAltaMinimaForm, IngresoConfirmarForm, IngresoPersonaForm
+from programas.mixins_dispositivos import dispositivo_operable_o_404
 from programas.models import Dispositivo, Plaza
 from programas.services.bitacora import turno_vigente
+from programas.services.dispositivos import puede_en_programa_dispositivos
 from programas.services.estadias import (
+    CAP_ADMITIR,
     CAP_VER_CIUDADANO,
     AlojamientoEnLaRed,
-    puede_ingresar_persona,
     verificar_alojamiento_en_red,
 )
 from programas.services.ingreso import (
@@ -87,8 +89,13 @@ class IngresoBaseView(LoginRequiredMixin, View):
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
-        self.dispositivo = get_object_or_404(Dispositivo.objects.select_related("tipo"), pk=kwargs["pk"])
-        if not puede_ingresar_persona(request.user, self.dispositivo):
+        # Sin la capacidad es 403, con cualquier id; con ella, sin alcance sobre este dispositivo es 404.
+        if not puede_en_programa_dispositivos(request.user, CAP_ADMITIR):
+            raise PermissionDenied
+        self.dispositivo = dispositivo_operable_o_404(
+            request, kwargs["pk"], CAP_ADMITIR, Dispositivo.objects.select_related("tipo")
+        )
+        if not puede(request.user, CAP_VER_CIUDADANO):
             raise PermissionDenied
         if self.dispositivo.estado != Dispositivo.Estado.ACTIVO:
             messages.error(request, "Solo se puede alojar en un dispositivo activo.")

@@ -523,12 +523,12 @@ class IdentidadDeEstadiasTests(BaseDetalle):
 
 
 class AccionesYAlcanceTests(BaseDetalle):
-    def test_el_detalle_de_un_dispositivo_ajeno_es_403(self):
+    def test_el_detalle_de_un_dispositivo_ajeno_es_404(self):
         """Mismo usuario, misma capacidad: lo que cambia es el alcance (no tiene el Parador)."""
 
         self.assertEqual(self.client.get(self.url).status_code, 200)
         respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.parador.pk]))
-        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.status_code, 404)
 
     def test_sin_dispositivo_ver_es_403_aunque_tenga_otras_capacidades_sobre_el_dispositivo(self):
         """Asignado al CIS y con todas las operativas menos `dispositivo.ver`: no entra."""

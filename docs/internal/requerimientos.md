@@ -554,6 +554,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 428 | Dispositivos: el relevamiento de un edificio compartido lo ve quien opera alguno de sus dispositivos; la franja de Infraestructura sin alcance de inspección muestra solo el semáforo | Dispositivos · relevamiento edilicio | `#rbac` `#ui` | QA — caso 7 (decisión delegada al juez) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 429 | Dispositivos: el sector se ubica en un edificio del dispositivo (obligatorio al crear), la pestaña Infraestructura muestra edificio → sectores con «Sin edificio», y no se desvincula un edificio con sectores activos | Dispositivos · sectores y plazas · infraestructura | `#datos` `#ui` | QA — caso 6 (decisiones delegadas al juez) | 07/11/2026 | 🟡 **En curso** | `programas.0113` y `programas.0114` |
 | 431 | Dispositivos: pulido visual de móvil (solapas, filtros, KPI de relevamientos, bitácora, Infraestructura, informe, reasignar) | Dispositivos · relevamientos, detalle y bitácora | `#ui` | Revisión visual en testing (390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 432 | Dispositivos: sin alcance sobre un dispositivo, 404 (igual que un id inexistente) en vez de 403; la falta de capacidad del módulo sigue en 403 | Dispositivos · alcance | `#rbac` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -52643,3 +52644,66 @@ Revertir el PR; no hay datos que deshacer.
 - **07/11/2026 — alta del cambio.**
 
 ---
+
+# Cambio 432 — Dispositivos: sin alcance sobre un dispositivo, 404
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alcance sobre un dispositivo y lo que cuelga de él |
+| **Etiquetas** | `#rbac` |
+| **Solicitante** | PM — decisión del 07/11/2026 |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cuando un usuario autenticado del backoffice pide un recurso de un dispositivo sobre el que no tiene alcance, la respuesta es 404 y no 403, para no revelar qué dispositivos existen. Estaba mezclado: `/dispositivos/<id>/` respondía 403 y el informe de un relevamiento ajeno, 404.
+
+## Alcance acordado
+
+**Entra:** todas las vistas de Dispositivos que cargan un dispositivo o algo que cuelga de él y respondían 403 por falta de alcance sobre ESE objeto, y el acta de la bitácora servida por `/media/`. **Queda afuera:** la falta de capacidad del módulo, que sigue en 403; los servicios, que siguen lanzando `PermissionDenied`.
+
+## Decisiones tomadas
+
+1. **Alcance sobre ese objeto, aunque se tenga la capacidad en general: 404.** El mismo código y el mismo cuerpo que un id inexistente. Lo resuelven `DispositivoObjectPermissionMixin.get_object` (detalle, edición, sectores, bitácora y su entrada, detalle de estadía) y la compuerta de cada vista de POST (acciones del encabezado, plazas, egreso, cambio de plaza, novedades y turnos de la bitácora, asistente de ingreso, Equipo).
+2. **Falta de capacidad: 403.** `@requiere`/`DispositivoProgramaPermissionMixin` (capacidad en el programa), `ConfigurarDispositivosMixin`, `ciudadano.ver` en el asistente de ingreso y en la estadía, el dispositivo cerrado que no se edita, y quien **sí** tiene alcance sobre el dispositivo pero no gestiona su Equipo.
+3. Las vistas que ya traducían el `PermissionDenied` de un servicio lo siguen traduciendo a 403: el servicio corre después de la compuerta de alcance, así que esa denegación es de capacidad.
+4. Revisar un relevamiento ajeno o inexistente es 404 (antes 403); asignar, reasignar y cancelar ya daban 404 por alcance.
+5. El acta de la bitácora en `/media/` sin alcance es 404 (antes 403), como un archivo inexistente.
+6. **Un solo punto de decisión:** `alcance_o_404` y `dispositivo_operable_o_404` en `programas/mixins_dispositivos.py` (inexistente y ajeno lanzan la misma `DispositivoNoOperable`, un `Http404`). El `dispatch` de `DispositivoProgramaPermissionMixin` la traduce: en un pedido AJAX responde JSON 404 con «No encontramos ese dispositivo o ya no tenés acceso.»; en el resto, la página 404 de siempre. `_ajax_js.html` (compartido con Becas) muestra ese mensaje, o «No encontramos lo que buscabas o ya no tenés acceso.», ante un 404.
+7. **Orden de chequeos en las compuertas con `ciudadano.ver`:** primero el alcance (404) y después la capacidad (403), sin repetir la consulta de alcance en el camino exitoso. En el asistente de ingreso la capacidad `dispositivo.admitir` en el programa se exige antes de mirar el id: sin ella, 403 con cualquier id.
+8. «Crear relevamiento» desde el detalle: si el dispositivo no tiene edificios elegibles y quien pide no tiene alcance sobre él, 404 (antes un 400 con el error del campo, que lo distinguía de un id inexistente).
+
+## Implementación
+
+Ver «Archivos». Sin cambios de modelos ni de plantillas.
+
+## Archivos
+
+`programas/mixins_dispositivos.py`, `programas/views/dispositivos_legajo.py`, `programas/views/dispositivos_bitacora.py`, `programas/views/dispositivos_equipo.py`, `programas/views/dispositivos_ingreso.py`, `programas/views/dispositivos_relevamientos.py`, `core/views/media.py`, `programas/templates/programas/becas/_ajax_js.html`, `programas/tests/test_dispositivos_alcance_404.py` y los tests de Dispositivos que esperaban 403 por alcance, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `test_dispositivos_alcance_404`: un dispositivo ajeno y uno inexistente dan el mismo 404 y el mismo cuerpo en el detalle, los sectores, la bitácora, el informe de un relevamiento y «Crear relevamiento»; el POST AJAX responde el mismo JSON 404; el ingreso sin `dispositivo.admitir` es 403 con cualquier id; sin `dispositivo.ver` sigue siendo 403.
+- **Mutación:** hacer que `alcance_o_404` lance `PermissionDenied` deja rojos 6 de los 6 tests. Restaurado, verde.
+- Los `programas.tests.test_dispositivos*`, `manage.py check` y ruff en verde.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**

@@ -62,6 +62,9 @@ El token sale del `[name=csrfmiddlewaretoken]` de la página o de la cookie `csr
   «¿Asignar igual?» y botón «Sí, asignar igual» (marca, no destructivo), y reenvía **una sola
   vez** con `confirmar_solapamiento=1` vía `requestSubmit()` (el campo se agrega para ese envío
   y se quita después).
+- **404** → avisa `error` con `message` si la vista lo manda, o «No encontramos lo que buscabas
+  o ya no tenés acceso.» (Cambio 432: en Dispositivos, un objeto sin alcance responde igual que
+  uno inexistente).
 - **403, error de servidor y red** → avisan `error`. CSRF por la cookie `csrftoken`.
 
 Mientras el pedido está en curso el form lleva `aria-busy`, todos sus submit (también los de

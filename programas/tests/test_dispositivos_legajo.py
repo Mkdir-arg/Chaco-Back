@@ -348,7 +348,7 @@ class LegajoDispositivoViewsTests(TestCase):
         self.assertNotContains(listado, "Hogar B")
         self.assertContains(detalle_en_alcance, "Hogar A")
         self.assertNotContains(detalle_en_alcance, "Editar")
-        self.assertEqual(fuera_de_alcance.status_code, 403)
+        self.assertEqual(fuera_de_alcance.status_code, 404)
 
     def test_vacio_con_filtros_ofrece_limpiar_y_no_afirma_falta_de_alcance(self):
         self.client.force_login(self.consulta)
