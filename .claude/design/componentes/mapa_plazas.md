@@ -52,7 +52,7 @@ sale de la misma consulta de reservas y no aumenta el presupuesto del censo.
   menú —«Cambiar de plaza», «Ver estadía», «Ver legajo», «Registrar egreso» y «Sacar de servicio»
   deshabilitada con su motivo, cada una solo si quien mira tiene la capacidad de su destino (Cambio 437)—
   y, si lo único que puede hacer es cambiarla de plaza, pide su cuerpo al servidor con
-  `abrirReubicar(<id>)`, porque depende de la estadía; si ese pedido falla, la pantalla navega al `url`). Como el modal es único, la pantalla lo limpia (`reset` de los forms,
+  `abrirReubicar(<id>)`, porque depende de la estadía; si ese pedido falla, la pantalla navega al `url` con `&opcion=reubicar`, que abre el formulario de reubicar aunque la plaza ofrezca más cosas; sin ese parámetro, `?plaza=<id>` sobre una plaza ocupada con varias opciones abre el menú). Como el modal es único, la pantalla lo limpia (`reset` de los forms,
   errores y `aria-invalid`) al abrir otra plaza y al volver al menú de opciones. Una plaza sin `url` usa `cursor-not-allowed` y `aria-disabled="true"`,
   es informativa y no entra en el orden de tabulación. La vista decide cuáles se
   pueden elegir (p. ej. en el ingreso, solo las disponibles); el componente no lo infiere del estado.

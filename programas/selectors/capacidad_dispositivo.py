@@ -110,6 +110,16 @@ def sectores_por_edificio(dispositivo):
 SIN_EDIFICIO = "Sin edificio"
 
 
+def nombre_de_edificio(sector):
+    """El rótulo del edificio de un sector **activo** (lado Python de «Sin edificio»).
+
+    Los sectores inactivos lo resuelven en SQL, en `sectores_inactivos` (que además mira el vínculo
+    del edificio con el dispositivo). El criterio de los dos lados no es el mismo a propósito.
+    """
+
+    return sector.edificio.nombre if sector.edificio else SIN_EDIFICIO
+
+
 def sectores_inactivos(dispositivo):
     """Los sectores dados de baja del dispositivo, con su cantidad de plazas, por nombre.
 

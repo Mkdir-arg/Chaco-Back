@@ -109,6 +109,7 @@ from programas.services.estadias import (
     reserva_abierta_de,
     reservar_plaza,
     sacar_plaza_de_servicio,
+    url_modal_egreso,
     volver_plaza_a_servicio,
 )
 from programas.services.formularios_tipo import aviso_sin_formulario
@@ -444,9 +445,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
             for estadia in estadias:
                 if estadia.estado == Estadia.Estado.ACTIVA:
                     estadia.url_egresar = reverse("dispositivos:egresar", args=[dispositivo.pk, estadia.pk])
-                    estadia.url_modal_egreso = (
-                        f"{self.request.path}?{urlencode({'tab': 'estadias', 'egreso': estadia.pk})}"
-                    )
+                    estadia.url_modal_egreso = url_modal_egreso(dispositivo.pk, estadia.pk)
 
         context.update(
             {
@@ -993,7 +992,9 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         """`?plaza=<id>`: el enlace directo, y el camino de vuelta a una plaza concreta.
 
         Las acciones que se arman en el navegador (todas menos reubicar) abren el modal ya
-        elegido; la reubicación, que depende de la estadía, la arma el servidor.
+        elegido; la reubicación, que depende de la estadía, la arma el servidor. Una plaza
+        ocupada abre el formulario de reubicar solo si es lo único que ofrece o si la URL trae
+        `&opcion=reubicar` (el regreso de «Cambiar de plaza»); con más opciones llega el menú.
         """
 
         pedida = self.request.GET.get("plaza", "")
@@ -1016,8 +1017,12 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             messages.warning(self.request, "Esa plaza ya no se puede gestionar desde acá.")
             return
         plaza = accion["plaza"]
-        context["plaza_accion"] = accion
-        if ACCION_REUBICAR in accion["acciones"]:
+        abre_reubicar = ACCION_REUBICAR in accion["acciones"] and (
+            accion["acciones"] == [ACCION_REUBICAR] or self.request.GET.get("opcion") == OPCION_REUBICAR
+        )
+        if abre_reubicar or ACCION_REUBICAR not in accion["acciones"]:
+            context["plaza_accion"] = accion
+        if abre_reubicar:
             # Su destino es el de la estadía (`url_cambiar_plaza`), no una acción de plaza.
             if not self._preparar_reubicar(context, dispositivo, accion):
                 context.pop("plaza_accion")
@@ -1067,6 +1072,8 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
 # `programas.services.estadias`; acá se resuelve el alcance y se traduce lo que el
 # servicio rechaza a lo que el modal sabe mostrar.
 
+#: Valor de `?opcion=` con el que se pide abrir directo el formulario de reubicar de una plaza con menú.
+OPCION_REUBICAR = "reubicar"
 #: Valor de `?fragmento=` con el que el mapa pide, por AJAX, solo el cuerpo del modal de reubicar.
 FRAGMENTO_REUBICAR = "reubicar"
 

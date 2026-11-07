@@ -91,6 +91,7 @@ from datetime import datetime
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import F, Q
+from django.urls import reverse
 from django.utils import timezone
 
 from core import rbac
@@ -266,6 +267,15 @@ def _trazar(dispositivo, usuario, accion, *, estado_anterior="", estado_nuevo=""
         estado_nuevo=estado_nuevo,
         detalle=detalle,
     )
+
+
+def url_modal_egreso(dispositivo_pk, estadia_pk):
+    """El detalle del dispositivo con el modal de egreso de esa estadía abierto (`?tab=estadias&egreso=`).
+
+    Lo comparten la solapa Estadías y el menú de la plaza ocupada del mapa: un solo armado del enlace.
+    """
+
+    return f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=estadias&egreso={estadia_pk}"
 
 
 def reserva_abierta_de(plaza):

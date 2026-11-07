@@ -13,7 +13,7 @@ en la página con los datos que el mapa ya calculó (`plazas_modal`, `json_scrip
 abriéndolo (enlace directo). La reubicación de una plaza ocupada depende de la estadía y de las plazas
 libres, que el mapa no puede traer por plaza: su celda es un botón `abrirReubicar(<id>)` que pide el cuerpo
 del modal (`_modal_reubicar.html`) a `?plaza=<id>&fragmento=reubicar` y lo inyecta; si el pedido falla,
-navega a `?plaza=<id>`, que arma el mismo modal en el servidor (variante «abierto por parámetro GET» de P21).
+navega a `?plaza=<id>&opcion=reubicar`, que arma el mismo modal en el servidor (variante «abierto por parámetro GET» de P21).
 El modal sigue la golden de Modal (becas/config/programa_list.html).
 
 «Editar sector», en el encabezado de cada sector, usa la misma variante, con `?sector=<id>`.
@@ -30,8 +30,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
                modalEditarPlaza: {% if form_editar_plaza %}true{% else %}false{% endif %},
                get accion() {
                  const p = this.plazasModal[this.plazaSel];
-                 const conFormulario = ['reservar', 'prestar', 'fuera_servicio', 'liberar', 'volver'];
-                 return this.opcion || (p && p.acciones.length === 1 && conFormulario.includes(p.acciones[0]) ? p.acciones[0] : '');
+                 return this.opcion || p?.directa || '';
                },
                limpiarModalPlaza() {
                  const panel = this.$refs.panelPlaza;
@@ -55,7 +54,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
                },
                abrirReubicar(pk) {
                  const contenido = document.getElementById('reubicar-contenido');
-                 const irAlEnlace = () => { window.location.href = '?plaza=' + pk; };
+                 const irAlEnlace = () => { window.location.href = '?plaza=' + pk + '&opcion=reubicar'; };
                  contenido.innerHTML = '';
                  this.reubicarCargando = true;
                  this.modalReubicar = true;
@@ -183,7 +182,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
     {% endif %}
   </div>
 
-  {# Modal de una plaza (reservar, prestar, sacar de servicio, liberar, volver a servicio): se abre sin recargar con `abrirPlaza(<id>)`, o ya elegido con `?plaza=<id>` #}
+  {# Modal de una plaza: el formulario de reservar, prestar, sacar de servicio, liberar o volver a servicio, o el menú de opciones (plaza disponible u ocupada); se abre sin recargar con `abrirPlaza(<id>)`, o ya elegido con `?plaza=<id>` #}
   {{ plazas_modal|json_script:"plazas-modal-datos" }}
   {{ urls_plaza|json_script:"urls-plaza-datos" }}
   <div x-show="modalPlaza" x-cloak x-becas-modal="modalPlaza" class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -192,7 +191,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
          role="dialog" aria-modal="true" aria-labelledby="modal-plaza-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Plaza" titulo_x_text="tituloPlaza()" titulo_id="modal-plaza-titulo" icono="fa-bed" cerrar="modalPlaza=false" %}
 
-      {# Elegir qué hacer con la plaza disponible: solo las opciones que quien mira puede ejercer #}
+      {# Menú de la plaza (disponible u ocupada): qué hacer con ella, solo las opciones que quien mira puede ejercer #}
       <div x-show="!accion" class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
         <p class="text-sm text-body"><strong class="text-heading" x-text="plazasModal[plazaSel]?.codigo"></strong> · <span x-text="plazasModal[plazaSel]?.estado"></span>. ¿Qué querés hacer con esta plaza?</p>
         <div class="flex flex-col gap-3">
