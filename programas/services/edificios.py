@@ -185,13 +185,15 @@ def desvincular_edificio(*, edificio, dispositivo, usuario):
     """
 
     _exigir_alcance(dispositivo, usuario)
+    # Mismo bloqueo del dispositivo que toma el alta y la edición de sectores (`plazas`): sin él, un
+    # sector podría crearse en este edificio entre la consulta de abajo y el `remove()`. Va ANTES
+    # que el del edificio, en el mismo orden que `plazas` (dispositivo y después la FK al
+    # edificio): en el orden inverso InnoDB arma un ciclo y corta una de las dos con 1213.
+    Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
     edificio = Edificio.objects.select_for_update().get(pk=edificio.pk)
     if not edificio.dispositivos.filter(pk=dispositivo.pk).exists():
         raise PermissionDenied("Ese edificio no es de este dispositivo.")
 
-    # Mismo bloqueo del dispositivo que toma el alta y la edición de sectores (`plazas`): sin él, un
-    # sector podría crearse en este edificio entre la consulta de abajo y el `remove()`.
-    Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
     sectores_activos = Sector.objects.filter(dispositivo=dispositivo, edificio=edificio, activo=True).count()
     if sectores_activos:
         raise ValidationError(

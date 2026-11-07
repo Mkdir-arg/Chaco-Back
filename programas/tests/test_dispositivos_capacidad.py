@@ -887,6 +887,12 @@ class CapacidadPresupuestoTests(BaseCapacidad):
 class ReactivarSectorTests(BaseCapacidad):
     """Cambio 424: el nombre es único entre los ACTIVOS; un sector dado de baja se ve y se reactiva."""
 
+    def setUp(self):
+        super().setUp()
+        # Cambio 429: solo se reactiva un sector con edificio vinculado.
+        self.sector.edificio = self._edificio_de(self.cis)
+        self.sector.save(update_fields=["edificio"])
+
     def _baja(self, sector=None):
         sector = sector or self.sector
         return editar_sector(

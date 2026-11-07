@@ -338,7 +338,15 @@ def reactivar_sector(*, sector, usuario):
             }
         ) from None
 
-    if sector.edificio_id is not None and not dispositivo.edificios.filter(pk=sector.edificio_id).exists():
+    if sector.edificio_id is None:
+        # El edificio es obligatorio mientras el sector quede activo (Cambio 429): uno anterior al
+        # campo vuelve a activo solo desde «Editar», eligiendo el edificio.
+        raise ValidationError(
+            {
+                "__all__": "No se puede reactivar: el sector no tiene edificio. Editá el sector, elegí un edificio y activalo."
+            }
+        )
+    if not dispositivo.edificios.filter(pk=sector.edificio_id).exists():
         raise ValidationError(
             {
                 "__all__": "No se puede reactivar: el edificio del sector ya no está vinculado a este dispositivo. "

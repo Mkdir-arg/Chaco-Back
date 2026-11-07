@@ -196,6 +196,15 @@ class EdicionConEdificioTests(BaseSectorEdificio):
         sector.refresh_from_db()
         self.assertFalse(sector.activo)
 
+    def test_no_se_reactiva_un_sector_sin_edificio(self):
+        sector = self._sector(None, activo=False)
+
+        with self.assertRaises(ValidationError):
+            reactivar_sector(sector=sector, usuario=self.operador_cis)
+
+        sector.refresh_from_db()
+        self.assertFalse(sector.activo)
+
 
 class DesvincularConSectoresTests(BaseSectorEdificio):
     def test_se_bloquea_con_sectores_activos_del_dispositivo_en_el_edificio(self):
