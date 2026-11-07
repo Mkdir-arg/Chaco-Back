@@ -339,8 +339,8 @@ class VerificacionEnLaRedTests(BaseIngreso):
         # Alcance sobre el parador, no sobre el CIS.
         self.client.force_login(self.operador_parador)
         for url in (self.url_persona, self.url_plaza, self.url_confirmar):
-            self.assertEqual(self.client.get(url).status_code, 403)
-        self.assertEqual(self.client.post(self.url_persona, {"dni": self.persona.dni}).status_code, 403)
+            self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.post(self.url_persona, {"dni": self.persona.dni}).status_code, 404)
 
     def test_sin_permiso_de_ver_ciudadanos_tampoco(self):
         sin_legajo = self._operador("Sin legajo", self.cis)

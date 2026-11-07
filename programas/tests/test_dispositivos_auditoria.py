@@ -436,7 +436,7 @@ class AlcanceTests(BaseAuditoria):
         self.assertNotContains(respuesta, self.persona.apellido)
 
         self.client.force_login(self.operador_parador)
-        self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertEqual(self.client.get(url).status_code, 404)
 
 
 @tag("performance")

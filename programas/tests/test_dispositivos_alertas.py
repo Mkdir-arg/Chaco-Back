@@ -576,7 +576,7 @@ class PantallaTests(BaseAlertas):
         self._turno(self.parador)
         self.client.force_login(self.operador_parador)
 
-        self.assertEqual(self.client.get(self.url).status_code, 403)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
         propia = self.client.get(reverse("dispositivos:detalle", args=[self.parador.pk]))
         self.assertNotContains(propia, "Préstamo vencido sin liberar")
         self.assertNotContains(propia, 'aria-label="Alertas del dispositivo"')
