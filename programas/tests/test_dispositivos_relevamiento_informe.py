@@ -96,7 +96,12 @@ class AlcanceTests(BaseInforme):
         self.assertContains(respuesta, "fachada")
 
     def test_quien_opera_otra_institucion_del_predio_tambien_entra(self):
-        """El relevamiento es del edificio: lo leen todas las instituciones que lo ocupan."""
+        """El relevamiento es del edificio: lo leen todas las instituciones que lo ocupan.
+
+        Por su **Equipo** (alcance fino), no por leer todos los dispositivos: `ver_todos` sin
+        operar ni coordinar la institución da 404 (Cambio 422,
+        `test_dispositivos_relevamiento_alcance`).
+        """
 
         inspeccion = self._realizado()
 

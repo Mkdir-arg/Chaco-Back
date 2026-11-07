@@ -45,6 +45,7 @@ from programas.services.inspecciones import (
     edificios_de_dispositivo_con_asignacion_visible,
     fotos_para_galeria,
     inspecciones_de_dispositivo,
+    inspecciones_visibles,
     semaforo_de_inspeccion,
     semaforo_de_ultimas,
     subconsulta_ultima_realizada,
@@ -553,6 +554,11 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
 
     # Las canceladas no entran: no tienen resultado. La en curso va primero (todavía no tiene fecha).
     inspecciones = inspecciones_de_dispositivo(dispositivo)
+    if usuario is not None:
+        # Cambio 422: el registro enlaza al informe y a las fotos, y los dos se abren solo por
+        # `inspecciones_visibles`. Quien llega al detalle por leer todos los dispositivos
+        # (`ver_todos`) sin operar ni coordinar la institución no ve los relevamientos.
+        inspecciones = inspecciones.filter(pk__in=inspecciones_visibles(usuario).values("pk"))
     if viendo_pk is not None:
         inspecciones = inspecciones.filter(edificio_id=viendo_pk)
     consulta = inspecciones.annotate(n_fotos=Count("fotos")).order_by(

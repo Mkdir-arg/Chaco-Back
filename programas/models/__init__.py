@@ -918,9 +918,10 @@ class Sector(TimeStamped):
         # Sector -> Dispositivo), con lo que cada listado paga dos JOIN de mas y termina
         # ordenado por el nombre del dispositivo, que nadie pidio.
         ordering = ["dispositivo_id", "nombre"]
-        constraints = [
-            models.UniqueConstraint(fields=["dispositivo", "nombre"], name="sector_nombre_unico_por_dispositivo")
-        ]
+        # El nombre es unico solo entre los sectores ACTIVOS del dispositivo: uno dado de baja libera
+        # el suyo. MySQL y MariaDB no tienen UNIQUE condicional (Django descarta la `condition` en
+        # silencio y SQLite si la crea), asi que la regla vive en `programas.services.plazas`
+        # (`_exigir_nombre_libre`), bajo el bloqueo de la fila del dispositivo.
         indexes = [models.Index(fields=["dispositivo", "activo"])]
 
     def __str__(self):

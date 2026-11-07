@@ -76,6 +76,7 @@ from programas.models import (
 from programas.services.dispositivos import (
     CAP_VER,
     dispositivos_en_alcance,
+    dispositivos_operados,
     programa_dispositivos,
     puede_configurar_dispositivos,
     puede_en_programa_dispositivos,
@@ -175,6 +176,11 @@ def inspecciones_visibles(user):
     Se suman tres caminos, cada uno por su capacidad: el coordinador ve los de su alcance,
     el agente **solo los que tiene asignados**, y quien opera un dispositivo ve los de los
     edificios que ese dispositivo ocupa.
+
+    El tercero es el alcance **fino** (`dispositivos_operados`: el Equipo de la institución),
+    no el de lectura: ver todos los dispositivos —``dispositivo.ver_todos`` o el admin del
+    programa sin ``inspeccion.asignar``— no abre el relevamiento de una institución que no se
+    opera ni se coordina (decisión del PM del 07/11/2026, Cambio 422). Fuera de los tres, 404.
     """
 
     if user is None or not getattr(user, "is_authenticated", False):
@@ -188,7 +194,7 @@ def inspecciones_visibles(user):
     if puede_en_programa_dispositivos(user, CAP_RELEVAR):
         caminos.append(Q(asignado_a=user))
     if puede_en_programa_dispositivos(user, CAP_VER):
-        caminos.append(Q(edificio_id__in=_edificios_de(dispositivos_en_alcance(user, CAP_VER))))
+        caminos.append(Q(edificio_id__in=_edificios_de(dispositivos_operados(user, CAP_VER))))
     if not caminos:
         return InspeccionEdificio.objects.none()
     return InspeccionEdificio.objects.filter(reduce(or_, caminos))

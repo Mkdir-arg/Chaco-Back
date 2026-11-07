@@ -125,11 +125,14 @@ class SectorTests(TestCase):
         self.assertEqual(list(self.dispositivo.sectores.all()), [sector])
         self.assertNotIn("edificio", {campo.name for campo in Sector._meta.get_fields()})
 
-    def test_el_nombre_del_sector_es_unico_dentro_del_dispositivo(self):
+    def test_el_nombre_del_sector_no_tiene_unique_en_la_base(self):
+        """Es único solo entre activos (Cambio 424) y MySQL/MariaDB no tienen UNIQUE condicional:
+        la regla vive en `plazas._exigir_nombre_libre` (probada en `test_dispositivos_capacidad`)."""
+
+        Sector.objects.create(dispositivo=self.dispositivo, nombre="Pabellón A", activo=False)
         Sector.objects.create(dispositivo=self.dispositivo, nombre="Pabellón A")
 
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            Sector.objects.create(dispositivo=self.dispositivo, nombre="Pabellón A")
+        self.assertEqual(Sector.objects.filter(dispositivo=self.dispositivo, nombre="Pabellón A").count(), 2)
 
     def test_dos_instituciones_pueden_tener_un_sector_con_el_mismo_nombre(self):
         Sector.objects.create(dispositivo=self.dispositivo, nombre="Pabellón A")

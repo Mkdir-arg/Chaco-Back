@@ -545,7 +545,10 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 419 | SIIS: `proponer_alias_siis` propone a qué localidad de SIIS equivale cada localidad core de Chaco que no cruza, para revisión del organismo (no toca `siis_alias_localidades.csv`) | SIIS (`programas/management/commands`) · `docs/internal/siis/` | `#siis` `#datos` | PM — pedido de Provincia/Localidad en Requisitos generales (06/11/2026), PR 3 | 06/11/2026 | 🟡 **En curso** | No requiere |
 | 420 | Dispositivos: «Crear persona» en «Sumar persona al Equipo» (alta de usuario + Equipo en una transacción) y buscador «Persona — Rol» con sugerencias | Dispositivos · usuarios · sistema de diseño | `#ui` `#rbac` `#usuarios` | PM — pedido del 05/11/2026 (modal «Sumar persona al Equipo») | 05/11/2026 | 🟡 **En curso** | No requiere |
 | 421 | Alta de oficio de Becas: nunca se manda el aviso de resolución por correo; tres MINOR de la auditoría de #1033 | Becas · convocatorias · avisos · SIIS | `#convocatorias` `#siis` `#correo` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 422 | Dispositivos: el informe, las fotos y el listado de un relevamiento edilicio solo para quien lo coordina, lo opera o lo relevó (ver todos los dispositivos ya no lo abre) | Dispositivos · relevamiento edilicio | `#rbac` `#ui` | PM — caso QA 7 (seguridad), decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 423 | Dispositivos: el informe del relevamiento y la línea histórica muestran todas las fotos (24 a la vista, el resto en «Ver las N fotos restantes») | Dispositivos · relevamientos · sistema de diseño | `#ui` | QA — caso 8 | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 424 | Dispositivos: un sector dado de baja se ve (filtro «sectores inactivos»), se reactiva y libera su nombre; el nombre es único solo entre sectores activos | Dispositivos · sectores y plazas | `#datos` `#ui` `#rbac` | QA / PM — caso «sector inactivado no se ve ni se reactiva» | 07/11/2026 | 🟡 **En curso** | `programas.0112` |
+| 425 | Dispositivos: el selector «Nuevo agente» de Reasignar un relevamiento no ofrece al agente que ya lo tiene | Dispositivos · relevamientos edilicios | `#relevamientos` `#rbac` | QA — caso 5 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 426 | Dispositivos: al corregir una novedad de la bitácora se pueden sumar archivos y personas, y el registro dice qué se sumó | Dispositivos · bitácora | `#ui` | QA — caso 4 | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
@@ -52063,6 +52066,75 @@ Revertir el PR; no hay datos que deshacer.
 
 ---
 
+# Cambio 422 — El relevamiento edilicio solo para quien lo coordina, lo opera o lo relevó
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamiento edilicio (informe, listado, fotos y adjuntos, solapa Infraestructura) |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | PM — caso QA 7 (seguridad), decisión del 07/11/2026 |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue (caso QA 7) |
+| **Partes afectadas** | Backoffice · Servidor |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Caso QA 7: el usuario `qa_coordinador`, con un rol que tiene «Ver dispositivos» y «Crear, asignar, reasignar y cancelar relevamientos edilicios» con alcance sobre 3 de 5 instituciones, abre `/dispositivos/relevamientos/<id>/informe/` de una institución fuera de su alcance y ve el informe completo. Decisión del PM: el informe y el listado de relevamientos los ve **solo** quien tiene alcance de inspección sobre esa institución, o el agente asignado; fuera de eso, 404, aunque vea todos los dispositivos. El superusuario y el alcance total siguen viendo todo.
+
+## Alcance acordado
+
+**Entra:** la regla única `inspecciones_visibles` y, por ella, todos sus consumidores (listado y solapas de P21, «Ver informe», reasignar, cancelar, fotos y adjuntos de `/media/`); el registro de relevamientos de la solapa Infraestructura.
+
+**Queda afuera:** la franja de la solapa Infraestructura (semáforo, «último relevamiento» de cada edificio, totales), que se sigue mostrando a quien ve el dispositivo; la API de campo (`inspecciones_asignadas`, `inspecciones_para_envio`), que ya era solo del agente; la línea de tiempo de Historial, que no enlaza al informe.
+
+## Decisiones tomadas
+
+1. **El camino de `dispositivo.ver` de `inspecciones_visibles` usa el alcance fino, no el de lectura.** Antes era `dispositivos_en_alcance(user, "dispositivo.ver")`, que con `dispositivo.ver_todos` o el admin del programa (`programa.configurar`) devuelve **todos** los dispositivos: quien coordinaba algunas instituciones y leía todas abría el relevamiento de cualquier edificio. Ahora es `dispositivos_operados`: el Equipo de la institución (y, en transición, la asignación de rol vieja), sin la ampliación. Lo ajeno da el mismo 404 que lo inexistente.
+2. **Se conserva el camino de quien opera la institución** (su Equipo con `dispositivo.ver`): la solapa Infraestructura del propio dispositivo enlaza al informe y dibuja las fotos, y las dos cosas se sirven por `inspecciones_visibles`; sin ese camino la institución relevada dejaba de ver su propio relevamiento (Cambios 280 y 289). El predio compartido sigue igual: el relevamiento es del edificio y lo leen las instituciones que lo ocupan, **por su Equipo**.
+3. **Esto restringe lo registrado en los Cambios 275, 280 y 289**, que decían que «quien opera (`dispositivo.ver`) cualquier institución del edificio» ve el relevamiento: valía con el alcance de lectura, que después del Cambio 410 (`ver_todos`) dejó de ser lo mismo que operar. La decisión del PM no contradice el predio compartido, que se mantiene por Equipo.
+4. **El admin del programa sin `inspeccion.asignar` ya no ve los relevamientos de instituciones que no opera.** «Alcance total» es admin del programa **con** `inspeccion.asignar` (que entra por el primer camino y ve todo), o superusuario.
+5. **El registro de la solapa Infraestructura se cruza con `inspecciones_visibles`** cuando hay usuario: quien entra al detalle por `ver_todos` sin operar ni coordinar no ve eventos que enlazarían a un informe y a fotos que le darían 404.
+
+## Implementación
+
+Quien coordina relevamientos sobre una parte de las instituciones y puede ver todos los dispositivos ya no abre el informe, las fotos ni los adjuntos de un edificio que no coordina, no lo ve en el listado de Relevamientos y no puede reasignarlo ni cancelarlo (404). En el detalle de una institución ajena, la solapa Infraestructura no lista sus relevamientos. El coordinador, el agente asignado y la institución que ocupa el edificio siguen viéndolo como antes.
+
+## Archivos
+
+`programas/services/dispositivos.py` (`dispositivos_operados`), `programas/services/inspecciones.py` (`inspecciones_visibles`), `programas/services/detalle_dispositivo.py` (registro de la solapa Infraestructura), `programas/tests/test_dispositivos_relevamiento_alcance.py` (nuevo), `programas/tests/test_dispositivos_relevamiento_informe.py` (docstring del test de predio compartido), `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `test_dispositivos_relevamiento_alcance` (9 tests): coordinador con `ver_todos` + `inspeccion.asignar` acotado y admin del programa sin `inspeccion.asignar` → 404 en informe, 403/404 en foto y adjunto, 404 en reasignar y cancelar (sin cambios en la fila), ausente del listado y de `inspecciones_visibles`, solapa Infraestructura ajena sin eventos; admin con `inspeccion.asignar` y superusuario → 200 en todo; agente asignado y Equipo de la institución → 200.
+- **Mutación:** volviendo a `dispositivos_en_alcance` en el camino de `dispositivo.ver`, quedan rojos los 5 tests que fijan lo que se cierra (informe, fotos y adjuntos, reasignar y cancelar, listado, solapa); los 4 que fijan lo que sigue abierto quedan verdes; sacando el filtro de la solapa, queda rojo el de la solapa. Restaurado, verde.
+- Suites de Dispositivos (`--pattern "test_*dispositivo*.py"`, 1632 tests), `test_api_campo_relevamiento_formulario`, `test_arquitectura`, `core.tests.test_media_protegida` y `--tag performance` de `programas` y `core`: OK. `manage.py check` y `ruff` sin hallazgos. No toca templates.
+
+## Puesta en marcha en el servidor
+
+No requiere.
+
+## Pendientes / a definir
+
+- **Reproducir el caso con los datos de QA.** Con un rol que tiene las dos capacidades y alcance por Equipo sobre 3 instituciones, las dos reglas dan lo mismo: el hueco aparece si el usuario además lee todo (`ver_todos` o `programa.configurar`). Si en QA el edificio de la institución «ajena» lo comparte con una de las 3, el relevamiento es del edificio y lo sigue viendo (decisión del predio compartido, Cambio 275).
+- La franja de la solapa Infraestructura (semáforo y observaciones del último relevamiento de cada edificio) se sigue mostrando a quien ve el dispositivo por `ver_todos`: confirmar con el PM si también se oculta.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+
+---
+
 # Cambio 423 — Informe de relevamiento y línea histórica: todas las fotos son alcanzables
 
 🟡 **EN CURSO — 07/11/2026**
@@ -52111,6 +52183,137 @@ Tests: la galería con 34 fotos dibuja las 34 y pliega 10 (`GaleriaFotosTest`); 
 ## Pendientes / a definir
 
 - Si algún relevamiento llegara a miles de fotos, habrá que paginar el servicio; hoy la app no pone tope y el uso real son decenas.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 424 — Sectores inactivos: ver, reactivar y reutilizar el nombre
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · sectores y plazas (P5) |
+| **Etiquetas** | `#datos` `#ui` `#rbac` |
+| **Solicitante** | QA / PM — caso «un sector inactivado no se ve, no se puede reactivar y su nombre no se puede reutilizar» |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backend (servicio, vista, URL, modelo), template de `/dispositivos/<id>/sectores/`, ficha `estado_vacio.md` |
+| **Migración** | `programas.0112_sector_nombre_unico_solo_entre_activos` |
+
+## Pedido original
+
+Un sector (pabellón) dado de baja desaparecía del mapa, no había forma de volver a activarlo desde la pantalla y su nombre quedaba tomado para siempre por el `UniqueConstraint` (dispositivo, nombre).
+
+## Alcance acordado
+
+**Entra:** filtro «Ver sectores inactivos» (`?inactivos=1`) con la lista de inactivos y un botón «Reactivar» con confirmación; servicio `reactivar_sector`; unicidad del nombre solo entre sectores **activos**; crear un sector con el nombre de uno inactivo.
+
+**Queda afuera:** borrar sectores (nada con historia se borra), cambiar la baja (sigue siendo el switch «Sector activo» del modal de edición) y la pantalla de plazas de un sector inactivo.
+
+## Decisiones tomadas
+
+1. **Definición de QA/PM:** listado con filtro de inactivos y botón «Reactivar». Sin el parámetro el filtro no cuesta ninguna consulta extra.
+2. **El nombre es único entre los activos.** Se quitó el `UniqueConstraint` incondicional. Un UNIQUE condicional no existe en MySQL/MariaDB (Django descarta la `condition` en silencio y SQLite sí la crea: el CI pasaría en verde sin regla en producción), así que la regla vive en `plazas._exigir_nombre_libre` (filtra `activo=True`) y se sostiene con `select_for_update()` sobre la fila del `Dispositivo` en crear, editar y reactivar (mismo orden de bloqueo que `agregar_plazas`: dispositivo y después sector).
+3. **Reactivar se bloquea con mensaje claro** si ya hay un sector activo con el mismo nombre («Renombrá uno de los dos y volvé a intentar»). Editar un inactivo dejándolo activo (switch) pasa por la misma guarda.
+4. **Traza propia `SECTOR_REACTIVADO`** (tono `success`) en el historial del legajo; la reactivación por el switch del modal también la usa.
+5. **Mismo permiso y alcance que la edición:** `dispositivo.editar` con alcance (403 sin capacidad, 404 fuera de alcance o sector ajeno), solo POST. Confirmación con `data-confirm-url` (`_confirm_js.html`), nunca `confirm()`; el aviso va por el toast de mensajes.
+6. **Las plazas y las estadías no se tocan:** la baja nunca las borró, así que reactivar las recupera tal cual.
+
+## Implementación
+
+`reactivar_sector` en `programas/services/plazas.py`, `SectorReactivarView` en `programas/views/dispositivos_capacidad.py`, ruta `dispositivos:sector_reactivar`, contexto `ver_inactivos` / `sectores_inactivos` en `DispositivoSectoresView` y una surface «Sectores inactivos» en `sectores.html` (sin variante nueva: surface + filas con botón `btn-secondary`).
+
+## Archivos
+
+`programas/models/__init__.py`, `programas/migrations/0112_sector_nombre_unico_solo_entre_activos.py`, `programas/services/plazas.py`, `programas/views/dispositivos_capacidad.py`, `programas/views/dispositivos_legajo.py`, `programas/dispositivos_urls.py`, `programas/selectors/auditoria_dispositivo.py`, `programas/selectors/capacidad_dispositivo.py`, `docs/internal/processes.md`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `.claude/design/componentes/estado_vacio.md`, `programas/tests/test_dispositivos_capacidad.py`, `programas/tests/test_dispositivos_edificio_sector_plaza.py`.
+
+## Base de datos
+
+`programas.0112`: `RemoveConstraint sector_nombre_unico_por_dispositivo`. Es expand para el código viejo (que pregunta el nombre antes de crear). **Reversa:** `migrate programas 0111` vuelve a crear el UNIQUE y **falla** si ya hay un sector inactivo y uno activo con el mismo nombre en un dispositivo; antes hay que renombrarlos (la consulta está en el docstring de la migración).
+
+## Validación
+
+`ReactivarSectorTests` en `programas/tests/test_dispositivos_capacidad.py`: filtro, reactivar recupera plazas, bloqueo por nombre activo duplicado (servicio y vista), crear con nombre de inactivo, editar-y-activar, permisos (403/404), sector ajeno, solo POST y estadías históricas intactas. **Mutaciones:** sin `activo=True` en `_exigir_nombre_libre` (4 tests rojos) y sin la guarda de nombre en `reactivar_sector` (2 tests rojos); restauradas. El test de modelo que exigía el IntegrityError pasó a afirmar que la base ya no tiene UNIQUE.
+
+## Pendientes / a definir
+
+- La concurrencia real (dos altas simultáneas del mismo nombre) la cubre el bloqueo del dispositivo; no hay test de carrera, SQLite no lo permite.
+
+## Reversión
+
+Pasos, en orden:
+
+1. Confirmar que no hay duplicados que impidan volver a crear el UNIQUE: `SELECT dispositivo_id, nombre, COUNT(*) FROM programas_sector GROUP BY dispositivo_id, nombre HAVING COUNT(*) > 1;`. Si hay filas, renombrar uno de cada par (no se pierde ningún dato: es solo el nombre).
+2. `migrate programas 0111` (vuelve a crear el UNIQUE en (dispositivo, nombre)).
+3. Desplegar el código anterior.
+
+Se pierde la posibilidad de reutilizar el nombre de un sector inactivo. Los sectores ya reactivados siguen activos y sus plazas y estadías no cambian.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+- **07/11/2026 — ronda de auditoría de #1038:** `programas.0112` suma a las reversas condicionadas de `processes.md` D.4; la consulta de inactivos pasa a `sectores_inactivos` (selector); `_bloquear_dispositivo` devuelve el dispositivo y lo usan también `agregar_plazas` y `editar_plaza`; `_detalle_sector` para las tres trazas. El «Reactivar» sin JS resultó ser un falso hallazgo: `_ajax_js.html` ya incluye `_confirm_js.html`; se dejó un test que lo fija (mutación: sin ese include, rojo) y no se duplicó el include.
+
+---
+
+# Cambio 425 — Reasignar relevamiento: el selector no ofrece al agente actual
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamientos edilicios (P21) · Reasignar |
+| **Etiquetas** | `#relevamientos` `#rbac` |
+| **Solicitante** | QA — caso 5 |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backend (form y vista) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+QA reporta que en el popup «Reasignar» el selector «Nuevo agente» no lista agentes. Criterios: lista a todos los agentes de campo activos (con o sin relevamientos), no incluye al asignado actual, se puede reasignar a uno sin relevamientos, y queda registro de quién, cuándo y de qué agente a cuál.
+
+## Alcance acordado
+
+**Entra:** excluir al asignado actual del selector (y de la validación del POST) de `ReasignarRelevamientoForm`.
+
+**Queda afuera:** reglas de alcance y visibilidad, permisos, y el modal `?asignar=` de «Sin relevar» (usa `AsignarRelevamientoForm`: no hay agente actual).
+
+## Decisiones tomadas
+
+1. El selector sale de `agentes_asignables(edificio)`, que filtra por **capacidad** (`inspeccion.relevar` en un rol activo del programa), no por tener relevamientos: un agente sin relevamientos aparece. No hay otro filtro que lo vacíe.
+2. Antes el queryset incluía al asignado actual y solo el servicio lo rechazaba («ya está asignado a ese agente»). Ahora el form recibe `actual` y lo excluye; el POST con el mismo agente falla como `invalid_choice` en el campo `asignado_a`.
+3. **Causa probable de la lista vacía de QA: datos de testing.** Con un solo agente de campo (el asignado) la lista era de uno, que es el actual; o ningún usuario activo con rol del programa Dispositivos y `inspeccion.relevar`, o todos son personal del edificio (`AGENTE_DEBE_SER_EXTERNO`). No se encontró un defecto de código que la vacíe.
+4. La traza `REASIGNADA` ya registra usuario, fecha y «de X a Y» (`reasignar_inspeccion`); no se tocó.
+
+## Implementación
+
+`ReasignarRelevamientoForm(agentes=..., actual=<asignado_a_id>)`; la vista lo pasa en el GET del modal y en el POST.
+
+## Archivos
+
+`programas/forms_dispositivos.py`, `programas/views/dispositivos_relevamientos.py`, `programas/tests/test_dispositivos_relevamientos_listado.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Tests `test_el_selector_de_reasignar_no_ofrece_al_asignado_y_si_a_un_agente_sin_relevamientos` y `test_reasignar_a_un_agente_sin_relevamientos_cambia_de_agente_y_deja_traza`. **Mutación:** sin el `exclude` el primero queda rojo; restaurado, verde.
+
+## Pendientes / a definir
+
+- Confirmar en testing que existen usuarios activos con rol de Dispositivos e `inspeccion.relevar` fuera del personal del edificio.
 
 ## Reversión
 

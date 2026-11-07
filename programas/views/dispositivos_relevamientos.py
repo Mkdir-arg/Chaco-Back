@@ -352,7 +352,9 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         relevamiento = self._pedido(params, "reasignar", gestionables)
         if relevamiento is not None:
             context["relevamiento_reasignar"] = relevamiento
-            context["form_reasignar"] = ReasignarRelevamientoForm(agentes=agentes_asignables(relevamiento.edificio))
+            context["form_reasignar"] = ReasignarRelevamientoForm(
+                agentes=agentes_asignables(relevamiento.edificio), actual=relevamiento.asignado_a_id
+            )
         relevamiento = self._pedido(params, "cancelar", gestionables)
         if relevamiento is not None:
             context["relevamiento_cancelar"] = relevamiento
@@ -570,7 +572,9 @@ class DispositivoRelevamientoAsignarView(_RelevamientoAccionView):
 class RelevamientoReasignarView(_RelevamientoAccionView):
     def post(self, request, pk):
         relevamiento = self._relevamiento(pk)
-        form = ReasignarRelevamientoForm(request.POST, agentes=agentes_asignables(relevamiento.edificio))
+        form = ReasignarRelevamientoForm(
+            request.POST, agentes=agentes_asignables(relevamiento.edificio), actual=relevamiento.asignado_a_id
+        )
         if not form.is_valid():
             return self._rechazar(form.errors)
         agente = form.cleaned_data["asignado_a"]
