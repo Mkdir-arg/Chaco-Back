@@ -18,11 +18,21 @@ from legajos.models import Ciudadano
 from programas.models import AdjuntoFormulario, Formulario, OrigenRequisito, Relevamiento
 from programas.services import campo as servicio_campo
 from programas.services import respuestas as respuestas_servicio
-from programas.services.becas import definicion_formulario
+from programas.services.becas import CAPACIDAD_CATALOGOS, definicion_formulario, definicion_para_cliente
 from programas.services.padron import normalizar_dni
 from programas.services.personas import fecha_iso
 
 MENSAJE_FECHA_INVALIDA = "La fecha de nacimiento no es una fecha válida."
+
+
+def capacidades_del_cliente(request):
+    """Lo que el cliente declara que sabe hacer (Cambio 418): una lista separada
+    por comas en el header ``X-Capacidades`` o, si no hay header, en el parámetro
+    ``capacidades``. Un cliente que no manda nada es la app instalada."""
+    if request is None:
+        return frozenset()
+    bruto = request.headers.get("X-Capacidades") or request.query_params.get("capacidades") or ""
+    return frozenset(parte.strip().lower() for parte in bruto.split(",") if parte.strip())
 
 
 def rechazo_legible(detalle, mensaje):
@@ -120,7 +130,12 @@ class RelevamientoDetailSerializer(RelevamientoListSerializer):
         fields = RelevamientoListSerializer.Meta.fields + ["definicion_formulario"]
 
     def get_definicion_formulario(self, obj) -> dict:
-        return definicion_formulario(obj)
+        # Cambio 418: el cliente declara que sabe dibujar los catálogos geográficos
+        # con `X-Capacidades: catalogos` (o `?capacidades=catalogos`). Sin eso, Provincia
+        # y Localidad van como texto y sin `catalogos`: la app instalada no los virtualiza.
+        capacidades = capacidades_del_cliente(self.context.get("request"))
+        definicion = definicion_formulario(obj, con_catalogos=CAPACIDAD_CATALOGOS in capacidades)
+        return definicion_para_cliente(definicion, capacidades)
 
 
 class FormularioSerializer(serializers.ModelSerializer):

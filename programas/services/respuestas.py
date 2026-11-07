@@ -26,6 +26,7 @@ from django.utils.dateparse import parse_date
 from core.utils_fechas import fecha_local
 from programas.models import OrigenRequisito
 from programas.services import condiciones
+from programas.services.foto_campos import _es_campo, campos_de, recorrer  # noqa: F401  (campos_de se reexporta)
 
 # Columna fija del caso ↔ (origen, vínculo) del campo protegido del catálogo.
 COLUMNAS_FIJAS = {
@@ -51,10 +52,15 @@ IDENTIDAD = {
 
 
 def foto_definicion(relevamiento, definicion=None):
-    """La foto que guarda el caso: versión, canal, ítems anidados y destinos SIIS."""
+    """La foto que guarda el caso: versión, canal, ítems anidados y destinos SIIS.
+
+    **Nunca** lleva ``catalogos`` (Cambio 418): el catálogo geográfico son ~150 KB
+    y la foto se paga por cada caso. Se arma con las cuatro claves de abajo, así
+    que aunque ``definicion`` lo traiga no pasa; y cuando la definición se pide
+    acá, se pide sin él."""
     from programas.services.becas import definicion_formulario
 
-    definicion = definicion or definicion_formulario(relevamiento)
+    definicion = definicion or definicion_formulario(relevamiento, con_catalogos=False)
     items = definicion.get("items") or []
     return {
         "version": definicion.get("version", 1),
@@ -101,26 +107,6 @@ def huella_definicion(foto):
     la persona tiene delante ya no es lo que se le va a validar."""
     plano = json.dumps(foto or {}, sort_keys=True, default=str, ensure_ascii=True)
     return hashlib.sha256(plano.encode("utf-8")).hexdigest()[:16]
-
-
-def recorrer(items):
-    """Recorre la foto en orden de pantalla: ``(item, grupo)`` para cada grupo
-    (``grupo=None``), campo y texto."""
-    for grupo in items or []:
-        yield grupo, None
-        for hijo in grupo.get("items") or []:
-            yield hijo, grupo
-
-
-def campos_de(definicion):
-    """Los campos de la foto, en orden."""
-    return [item for item, grupo in recorrer((definicion or {}).get("items")) if grupo is not None and _es_campo(item)]
-
-
-def _es_campo(item):
-    return item.get("tipo_item") == "campo" or (
-        item.get("tipo") not in ("grupo", "texto") and "clave" in item and "tipo" in item
-    )
 
 
 def planos_de(definicion):

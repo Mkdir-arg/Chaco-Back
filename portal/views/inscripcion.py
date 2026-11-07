@@ -337,6 +337,9 @@ def inscripcion_paso2(request, token):
             "requiere_gps": definicion["requiere_gps"],
             # Los items con sus condiciones para el motor del navegador (Cambio 58).
             "planos": form.planos(),
+            # Cambio 418: provincias y localidades embebidas para la cascada del
+            # navegador (sin endpoint público); None si ninguna pregunta las usa.
+            "catalogos": definicion.get("catalogos"),
             "formulario_cambio": formulario_cambio,
         },
     )

@@ -73,6 +73,11 @@ class ApiCorsTests(SimpleTestCase):
         self.assertEqual(permitida["Vary"], "Origin")
         self.assertNotIn("Access-Control-Allow-Origin", rechazada)
 
+    def test_el_preflight_admite_la_cabecera_de_capacidades_de_la_app(self):
+        permitida = self._respuesta(origenes=ORIGEN_PROPIO, origin=ORIGEN_PROPIO)
+        admitidas = [h.strip() for h in permitida["Access-Control-Allow-Headers"].split(",")]
+        self.assertIn("X-Capacidades", admitidas)
+
     def test_un_origen_permitido_expone_date_y_retry_after(self):
         """K6 · la app corrige el desfase de su reloj con el `Date` del servidor y
         respeta el `Retry-After` del 429; sin esta cabecera un navegador/PWA no se
