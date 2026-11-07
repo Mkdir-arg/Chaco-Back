@@ -226,7 +226,7 @@ class VerTests(BasePantalla):
 
         respuesta = self._get(self._usuario("Operador parador", self.parador))
 
-        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.status_code, 404)
 
     def test_anonimo_va_al_login(self):
         with _reloj():
@@ -281,7 +281,7 @@ class CargarTests(BasePantalla):
             "bitacora_novedad", {"tipo": "GENERAL", "texto": "Algo."}, self._usuario("De otro", self.parador)
         )
 
-        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.status_code, 404)
         self.assertFalse(self._manuales().exists())
 
     def test_fuera_del_turno_en_curso_muestra_el_error_del_servicio(self):
@@ -491,10 +491,11 @@ class CorregirSumandoTests(BasePantalla):
         sin_bitacora = self._usuario("Sin bitacora", self.cis, _sin("dispositivo.bitacora"))
         de_otra = self._usuario("De otro", self.parador)
 
-        for usuario in (sin_bitacora, de_otra):
+        # Sin la capacidad es 403; sin alcance sobre el dispositivo, 404.
+        for usuario, esperado in ((sin_bitacora, 403), (de_otra, 404)):
             archivo.seek(0)
             respuesta = self._corregir(usuario, adjuntos=[archivo], personas=[self.estadia_juan.pk])
-            self.assertEqual(respuesta.status_code, 403)
+            self.assertEqual(respuesta.status_code, esperado)
         self.assertEqual(self._manuales().count(), 1)
 
     def test_el_modal_ofrece_sumar_y_ya_no_dice_que_no_se_puede(self):
@@ -592,7 +593,7 @@ class TurnosTests(BasePantalla):
     def test_otra_institucion_no_configura(self):
         respuesta = self._post("bitacora_turnos", self._datos(), self._usuario("Del parador", self.parador))
 
-        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.status_code, 404)
         self.assertFalse(Turno.objects.filter(nombre="Guardia").exists())
 
     def test_el_turno_de_otro_dispositivo_no_se_edita_desde_aca(self):
@@ -1172,7 +1173,7 @@ class OraculoDeIdsTests(BasePantalla):
         )
         for nombre, datos in casos:
             with self.subTest(nombre=nombre, datos=datos):
-                self.assertEqual(self._post(nombre, datos, intruso).status_code, 403)
+                self.assertEqual(self._post(nombre, datos, intruso).status_code, 404)
 
 
 class NovedadesDeLaEstadiaTests(BasePantalla):

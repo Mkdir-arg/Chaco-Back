@@ -417,7 +417,7 @@ class PostDeLasAccionesTests(BaseMapa):
 
         respuesta = self.client.post(self._url("dispositivos:plaza_fuera_servicio"), {"motivo": "x"})
 
-        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.status_code, 404)
         self.plaza.refresh_from_db()
         self.assertEqual(self.plaza.estado, Plaza.Estado.OPERATIVA)
 
@@ -449,7 +449,7 @@ class PostDeLasAccionesTests(BaseMapa):
         )
 
         self.assertEqual(existe.status_code, inexistente.status_code)
-        self.assertEqual(existe.status_code, 403)
+        self.assertEqual(existe.status_code, 404)
 
     def test_la_plaza_de_otra_institucion_da_404_y_no_se_toca(self):
         self.client.force_login(self.operador_cis)
@@ -705,7 +705,7 @@ class ReservarYPrestarTests(BaseMapa):
     def test_quien_no_opera_el_dispositivo_recibe_403_aunque_la_plaza_exista(self):
         respuesta = self._post("reservar", {"dni": self.otra_persona.dni}, usuario=self.operador_parador)
 
-        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.status_code, 404)
         self.assertFalse(ReservaPlaza.objects.exists())
 
     def test_una_plaza_tomada_no_se_reserva(self):

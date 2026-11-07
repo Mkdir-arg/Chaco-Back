@@ -552,6 +552,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 426 | Dispositivos: al corregir una novedad de la bitácora se pueden sumar archivos y personas, y el registro dice qué se sumó | Dispositivos · bitácora | `#ui` | QA — caso 4 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 427 | Dispositivos: detalle de cada novedad de la bitácora (texto completo, personas con enlace al legajo, adjuntos con vista previa o descarga, versiones) y archivo del listado como enlace | Dispositivos · bitácora · sistema de diseño | `#ui` `#rbac` | QA — caso 3 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 428 | Dispositivos: el relevamiento de un edificio compartido lo ve quien opera alguno de sus dispositivos; la franja de Infraestructura sin alcance de inspección muestra solo el semáforo | Dispositivos · relevamiento edilicio | `#rbac` `#ui` | QA — caso 7 (decisión delegada al juez) | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 432 | Dispositivos: sin alcance sobre un dispositivo, 404 (igual que un id inexistente) en vez de 403; la falta de capacidad del módulo sigue en 403 | Dispositivos · alcance | `#rbac` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -52509,3 +52510,64 @@ Revertir el PR; no hay datos que deshacer.
 - **07/11/2026 — alta del cambio.**
 
 ---
+
+# Cambio 432 — Dispositivos: sin alcance sobre un dispositivo, 404
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alcance sobre un dispositivo y lo que cuelga de él |
+| **Etiquetas** | `#rbac` |
+| **Solicitante** | PM — decisión del 07/11/2026 |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Cuando un usuario autenticado del backoffice pide un recurso de un dispositivo sobre el que no tiene alcance, la respuesta es 404 y no 403, para no revelar qué dispositivos existen. Estaba mezclado: `/dispositivos/<id>/` respondía 403 y el informe de un relevamiento ajeno, 404.
+
+## Alcance acordado
+
+**Entra:** todas las vistas de Dispositivos que cargan un dispositivo o algo que cuelga de él y respondían 403 por falta de alcance sobre ESE objeto, y el acta de la bitácora servida por `/media/`. **Queda afuera:** la falta de capacidad del módulo, que sigue en 403; los servicios, que siguen lanzando `PermissionDenied`.
+
+## Decisiones tomadas
+
+1. **Alcance sobre ese objeto, aunque se tenga la capacidad en general: 404.** El mismo código y el mismo cuerpo que un id inexistente. Lo resuelven `DispositivoObjectPermissionMixin.get_object` (detalle, edición, sectores, bitácora y su entrada, detalle de estadía) y la compuerta de cada vista de POST (acciones del encabezado, plazas, egreso, cambio de plaza, novedades y turnos de la bitácora, asistente de ingreso, Equipo).
+2. **Falta de capacidad: 403.** `@requiere`/`DispositivoProgramaPermissionMixin` (capacidad en el programa), `ConfigurarDispositivosMixin`, `ciudadano.ver` en el asistente de ingreso y en la estadía, el dispositivo cerrado que no se edita, y quien **sí** tiene alcance sobre el dispositivo pero no gestiona su Equipo.
+3. Las vistas que ya traducían el `PermissionDenied` de un servicio lo siguen traduciendo a 403: el servicio corre después de la compuerta de alcance, así que esa denegación es de capacidad.
+4. Revisar un relevamiento ajeno o inexistente es 404 (antes 403); asignar, reasignar y cancelar ya daban 404 por alcance.
+5. El acta de la bitácora en `/media/` sin alcance es 404 (antes 403), como un archivo inexistente.
+6. El 404 no lleva cuerpo JSON aunque el pedido sea AJAX: es la página de error de siempre, la misma que ya devolvían los `get_object_or_404`.
+
+## Implementación
+
+Ver «Archivos». Sin cambios de modelos ni de plantillas.
+
+## Archivos
+
+`programas/mixins_dispositivos.py`, `programas/views/dispositivos_legajo.py`, `programas/views/dispositivos_bitacora.py`, `programas/views/dispositivos_equipo.py`, `programas/views/dispositivos_ingreso.py`, `programas/views/dispositivos_relevamientos.py`, `core/views/media.py`, `programas/tests/test_dispositivos_alcance_404.py` y los tests de Dispositivos que esperaban 403 por alcance, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `test_dispositivos_alcance_404`: un dispositivo ajeno y uno inexistente dan el mismo 404 y el mismo cuerpo en el detalle, los sectores, la bitácora y el informe de un relevamiento; sin `dispositivo.ver` sigue siendo 403.
+- **Mutación:** volver a `PermissionDenied` en `DispositivoObjectPermissionMixin.get_object` deja rojos los tres casos del detalle, los sectores y la bitácora. Restaurado, verde.
+- Los `programas.tests.test_dispositivos*`, `manage.py check` y ruff en verde.
+
+## Pendientes / a definir
+
+- «Crear relevamiento» desde el detalle (`DispositivoRelevamientoAsignarView`) con un dispositivo ajeno responde 400 con el error del campo, no 403 ni 404: no revela el dispositivo pero tampoco coincide con el id inexistente (404). No se tocó: no era un 403.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**

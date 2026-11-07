@@ -733,12 +733,7 @@ class DispositivoActionView(DispositivoProgramaPermissionMixin, View):
     def post(self, request, pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
         if not puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida):
-            if is_ajax(request):
-                return JsonResponse(
-                    {"ok": False, "message": "No tenés permiso para realizar esta acción."},
-                    status=403,
-                )
-            raise PermissionDenied
+            raise Http404
         volver = reverse("dispositivos:detalle", args=[dispositivo.pk])
         try:
             self.ejecutar(dispositivo, request)
@@ -1105,13 +1100,12 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
         volver = reverse("dispositivos:sectores", args=[dispositivo.pk])
         # Antes de mirar la plaza y de validar el form: con el DNI en la mano, la diferencia
         # entre «no encontramos» y el éxito sería un oráculo del padrón para quien no lo puede ver.
-        if not (
-            puede_ingresar_persona(request.user, dispositivo)
-            if self.requiere_ver_ciudadanos
-            else puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida)
-        ):
+        # Sin alcance es 404; con alcance pero sin `ciudadano.ver` (capacidad) sigue siendo 403.
+        if not puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida):
+            raise Http404
+        if self.requiere_ver_ciudadanos and not puede_ingresar_persona(request.user, dispositivo):
             if is_ajax(request):
-                return JsonResponse({"ok": False, "message": "No tenés alcance sobre este dispositivo."}, status=403)
+                return JsonResponse({"ok": False, "message": "No tenés permiso para realizar esta acción."}, status=403)
             raise PermissionDenied
         # La ajena, la inexistente y la del sector dado de baja dan el mismo 404: ninguna de
         # las tres se dibuja en el mapa, y tres respuestas distintas serían un oráculo.
@@ -1216,8 +1210,10 @@ class PersonasSugeridasView(DispositivoProgramaPermissionMixin, View):
 
     def get(self, request, pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
+        if not puede_operar_dispositivo(request.user, dispositivo, CAP_ADMITIR):
+            raise Http404
         if not puede_ingresar_persona(request.user, dispositivo):
-            return JsonResponse({"ok": False, "message": "No tenés alcance sobre este dispositivo."}, status=403)
+            return JsonResponse({"ok": False, "message": "No tenés permiso para realizar esta acción."}, status=403)
         # Sin registrar lo tecleado: es un DNI o un apellido, dato personal.
         return sin_cache(JsonResponse(sugerir_personas(request.GET.get("q", ""))))
 
@@ -1315,7 +1311,7 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
     def post(self, request, pk, estadia_pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
         if not puede_operar_dispositivo(request.user, dispositivo, CAP_EGRESAR):
-            raise PermissionDenied
+            raise Http404
         estadia = get_object_or_404(Estadia.objects.select_related("ciudadano"), pk=estadia_pk, dispositivo=dispositivo)
         volver = self._volver(request, dispositivo, estadia)
 
@@ -1510,7 +1506,7 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
     def post(self, request, pk, estadia_pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
         if not puede_operar_dispositivo(request.user, dispositivo, CAP_ADMITIR):
-            raise PermissionDenied
+            raise Http404
         estadia = _estadia_del_dispositivo(dispositivo, estadia_pk)
         destino = request.POST.get("volver")
         if destino == "dispositivo":

@@ -9,7 +9,7 @@ los re-exporta para no romper los imports que ya existen.
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 
 from programas.services.dispositivos import (
     puede_configurar_dispositivos,
@@ -75,7 +75,8 @@ class DispositivoObjectPermissionMixin(DispositivoProgramaPermissionMixin):
     def get_object(self, queryset=None):
         dispositivo = super().get_object(queryset)
         if not puede_operar_dispositivo(self.request.user, dispositivo, self.capacidad_requerida):
-            raise PermissionDenied
+            # Sin alcance sobre ESTE dispositivo: el mismo 404 que un id inexistente.
+            raise Http404
         return dispositivo
 
 

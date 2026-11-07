@@ -47,7 +47,7 @@ class CompuertaTests(BaseSugerencias):
     def test_con_un_rol_de_otro_dispositivo_es_403(self):
         ajeno = self._operador("Prestador Parador", self.parador, CAPS_PRESTAR)
 
-        self.assertEqual(self._buscar("301", ajeno).status_code, 403)
+        self.assertEqual(self._buscar("301", ajeno).status_code, 404)
 
     def test_sin_admitir_es_403(self):
         solo_ver = self._operador("Ve personas CIS", self.cis, ("dispositivo.ver", "ciudadano.ver"))

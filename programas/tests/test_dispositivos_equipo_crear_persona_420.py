@@ -133,8 +133,8 @@ class QuienVeCrearPersonaTests(BaseCrear):
         respuesta = self.client.get(self.url_sumar)
 
         # Sin alcance sobre el dispositivo ni siquiera ve la pantalla: administrar usuarios no abre su Equipo.
-        self.assertEqual(respuesta.status_code, 403)
-        self.assertNotContains(respuesta, "modal-crear-persona-titulo", status_code=403)
+        self.assertEqual(respuesta.status_code, 404)
+        self.assertNotContains(respuesta, "modal-crear-persona-titulo", status_code=404)
 
     def test_el_aviso_de_sin_resultados_depende_del_permiso(self):
         self._entrar(self.admin_programa)
@@ -171,7 +171,7 @@ class CompuertaDelPostTests(BaseCrear):
     def test_quien_administra_usuarios_pero_no_gestiona_este_equipo_recibe_403(self):
         rol = self._rol("Solo usuarios", ("dispositivo.ver", "programa.usuario.administrar"))
 
-        self.assertEqual(self._crear(self._usuario("solo_usuarios", rol)).status_code, 403)
+        self.assertEqual(self._crear(self._usuario("solo_usuarios", rol)).status_code, 404)
         self._sin_alta()
 
     def test_el_admin_de_usuarios_de_otro_programa_recibe_403(self):
@@ -429,19 +429,21 @@ class BuscadorDeParesTests(BaseCrear):
         self._entrar(usuario or self.admin_programa)
         return self.client.get(self.url_buscar, {"q": q})
 
-    def test_sin_gestionar_el_equipo_es_403_json(self):
+    def test_sin_gestionar_el_equipo_con_alcance_es_403_json(self):
+        # Con alcance sobre el dispositivo pero sin gestionar su Equipo: es una falta de permiso, 403.
         solo_ve = self._usuario("solo_ve", self.rol_ver)
+        self._miembro(self.disp_a, solo_ve, self.rol_ver)
         for usuario in (solo_ve,):
             respuesta = self._sugerir("ana", usuario)
             self.assertEqual(respuesta.status_code, 403)
             self.assertFalse(respuesta.json()["ok"])
             self.assertEqual(respuesta["Cache-Control"], "no-store")
 
-    def test_un_responsable_de_otro_dispositivo_es_403(self):
+    def test_un_responsable_de_otro_dispositivo_es_404(self):
         ajeno = self._usuario("ajeno", self.rol_ver)
         self._miembro(self.disp_b, ajeno, self.rol_ver, responsable=True)
 
-        self.assertEqual(self._sugerir("ana", ajeno).status_code, 403)
+        self.assertEqual(self._sugerir("ana", ajeno).status_code, 404)
 
     def test_quien_gestiona_recibe_los_pares_persona_rol_con_valor_y_etiqueta(self):
         respuesta = self._sugerir("ana")

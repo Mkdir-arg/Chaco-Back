@@ -30,6 +30,7 @@ import json
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -41,7 +42,9 @@ from legajos.models import Ciudadano
 from programas.forms_ingreso import IngresoAltaMinimaForm, IngresoConfirmarForm, IngresoPersonaForm
 from programas.models import Dispositivo, Plaza
 from programas.services.bitacora import turno_vigente
+from programas.services.dispositivos import puede_operar_dispositivo
 from programas.services.estadias import (
+    CAP_ADMITIR,
     CAP_VER_CIUDADANO,
     AlojamientoEnLaRed,
     puede_ingresar_persona,
@@ -88,6 +91,8 @@ class IngresoBaseView(LoginRequiredMixin, View):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
         self.dispositivo = get_object_or_404(Dispositivo.objects.select_related("tipo"), pk=kwargs["pk"])
+        if not puede_operar_dispositivo(request.user, self.dispositivo, CAP_ADMITIR):
+            raise Http404
         if not puede_ingresar_persona(request.user, self.dispositivo):
             raise PermissionDenied
         if self.dispositivo.estado != Dispositivo.Estado.ACTIVO:

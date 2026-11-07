@@ -638,12 +638,12 @@ class MediaDeLaBitacoraTests(BaseBitacora):
         self.assertIs(_autorizar(self.operador, self.ruta), True)
 
     def test_el_operador_de_otra_institucion_no(self):
-        self.assertIs(_autorizar(self.operador_parador, self.ruta), False)
+        self.assertIs(_autorizar(self.operador_parador, self.ruta), None)
 
     def test_sin_ver_no_la_baja_aunque_cargue_la_bitacora(self):
         sin_ver = self._operador("Sin ver", self.cis, tuple(c for c in TODAS if c != "dispositivo.ver"))
 
-        self.assertIs(_autorizar(sin_ver, self.ruta), False)
+        self.assertIs(_autorizar(sin_ver, self.ruta), None)
 
     def test_un_archivo_sin_fila_no_tiene_duenio(self):
         self.assertIsNone(_autorizar(self.operador, "dispositivos/bitacora/2026/09/inexistente.pdf"))

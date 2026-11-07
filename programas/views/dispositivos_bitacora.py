@@ -23,7 +23,7 @@ no las repite: si el servicio rechaza, muestra su mensaje en el campo que corres
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
@@ -205,7 +205,7 @@ class _BitacoraPostView(DispositivoProgramaPermissionMixin, View):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
         volver = reverse("dispositivos:bitacora", args=[dispositivo.pk])
         if not puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida):
-            return _sin_alcance(request, "No tenés alcance sobre este dispositivo.")
+            raise Http404
         form = self.armar_form(request, dispositivo)
         if not form.is_valid():
             return _rechazar(request, form.errors, volver)

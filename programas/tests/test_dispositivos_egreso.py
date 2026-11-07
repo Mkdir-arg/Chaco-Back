@@ -276,7 +276,7 @@ class EgresoPantallaTests(BaseEgreso):
 
         respuesta = self._post(cliente=otro)
 
-        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.status_code, 404)
         self.estadia.refresh_from_db()
         self.assertTrue(self.estadia.activa)
 
@@ -289,7 +289,7 @@ class EgresoPantallaTests(BaseEgreso):
         with mock.patch("programas.views.dispositivos_legajo.egresar_persona") as servicio:
             respuesta = self._post(cliente=otro)
 
-        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.status_code, 404)
         servicio.assert_not_called()
 
     def test_la_estadia_tiene_que_ser_del_dispositivo_de_la_url(self):

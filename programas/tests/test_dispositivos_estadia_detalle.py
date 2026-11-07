@@ -134,7 +134,7 @@ class AutorizacionTests(BaseDetalle):
     def test_con_todo_en_otra_institucion_no_entra(self):
         usuario = self._operador("Todo en el parador", self.parador, TODO)
 
-        self.assertEqual(self._get(usuario).status_code, 403)
+        self.assertEqual(self._get(usuario).status_code, 404)
 
     def test_una_estadia_de_otro_dispositivo_da_404(self):
         usuario = self._operador("Todo en el parador", self.parador, TODO)
@@ -393,7 +393,7 @@ class CambioDePlazaPantallaTests(BaseDetalle):
 
         respuesta = self._post(usuario)
 
-        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(respuesta.status_code, 404)
         self._sin_cambios()
 
     def test_el_motivo_es_obligatorio(self):
