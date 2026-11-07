@@ -56,12 +56,14 @@ from programas.services.inspecciones import (
     Situacion,
     agentes_asignables,
     agentes_asignables_para,
+    agentes_para_reasignar,
     cancelar_inspeccion,
     crear_inspeccion,
     edificios_en_alcance,
     edificios_para_asignar,
     edificios_para_asignar_del_dispositivo,
     edificios_sin_relevar,
+    exigir_reasignable,
     filtrar_por_situacion,
     informe_de_relevamiento,
     inspecciones_en_curso_por_edificio,
@@ -352,9 +354,7 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         relevamiento = self._pedido(params, "reasignar", gestionables)
         if relevamiento is not None:
             context["relevamiento_reasignar"] = relevamiento
-            context["form_reasignar"] = ReasignarRelevamientoForm(
-                agentes=agentes_asignables(relevamiento.edificio), actual=relevamiento.asignado_a_id
-            )
+            context["form_reasignar"] = ReasignarRelevamientoForm(agentes=agentes_para_reasignar(relevamiento))
         relevamiento = self._pedido(params, "cancelar", gestionables)
         if relevamiento is not None:
             context["relevamiento_cancelar"] = relevamiento
@@ -575,9 +575,13 @@ class DispositivoRelevamientoAsignarView(_RelevamientoAccionView):
 class RelevamientoReasignarView(_RelevamientoAccionView):
     def post(self, request, pk):
         relevamiento = self._relevamiento(pk)
-        form = ReasignarRelevamientoForm(
-            request.POST, agentes=agentes_asignables(relevamiento.edificio), actual=relevamiento.asignado_a_id
-        )
+        # El estado va antes que el agente: sobre un relevamiento cancelado o ya realizado, el
+        # error del agente («no se puede asignar a este edificio») sería engañoso.
+        try:
+            exigir_reasignable(relevamiento)
+        except ValidationError as error:
+            return self._rechazar({"__all__": list(error.messages)})
+        form = ReasignarRelevamientoForm(request.POST, agentes=agentes_para_reasignar(relevamiento))
         if not form.is_valid():
             return self._rechazar(form.errors)
         agente = form.cleaned_data["asignado_a"]
