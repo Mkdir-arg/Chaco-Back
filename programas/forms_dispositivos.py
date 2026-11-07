@@ -16,7 +16,7 @@ from programas.models import Edificio, MotivoEgreso, Plaza, Sector
 from programas.services.edificios import CAMPOS as CAMPOS_EDIFICIO
 from programas.services.ingreso import buscar_ciudadano_por_dni
 from programas.services.movimientos import ultimo_momento
-from programas.services.plazas import TOPE_POR_LOTE
+from programas.services.plazas import CAPACIDAD_DECLARADA_MAXIMA, TOPE_POR_LOTE
 
 
 class EgresoForm(forms.Form):
@@ -457,11 +457,9 @@ class ReasignarRelevamientoForm(forms.Form):
         },
     )
 
-    def __init__(self, *args, agentes, actual=None, **kwargs):
+    def __init__(self, *args, agentes, **kwargs):
         super().__init__(*args, **kwargs)
-        # Reasignar es cambiar de agente: quien ya lo tiene asignado no es una opción.
-        if actual is not None:
-            agentes = agentes.exclude(pk=actual)
+        # `agentes` ya viene sin el asignado actual (`agentes_para_reasignar`): una sola fuente.
         self.fields["asignado_a"].queryset = agentes
 
 
@@ -521,8 +519,9 @@ class SectorForm(forms.Form):
     capacidad = forms.IntegerField(
         label="Capacidad declarada",
         min_value=0,
+        max_value=CAPACIDAD_DECLARADA_MAXIMA,
         initial=0,
-        widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
+        widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": CAPACIDAD_DECLARADA_MAXIMA}),
         help_text="La del legajo. La operativa se cuenta desde las plazas cargadas.",
     )
     condiciones_uso = forms.CharField(

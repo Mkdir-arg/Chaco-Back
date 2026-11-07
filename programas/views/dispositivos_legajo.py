@@ -1245,9 +1245,17 @@ class PlazaFueraDeServicioView(_PlazaAccionView):
     capacidad_requerida = CAP_EDITAR
     form_class = SacarPlazaDeServicioForm
     mensaje_exito = "Plaza {plaza} fuera de servicio."
+    mensaje_sin_cambio = "La plaza {plaza} ya estaba fuera de servicio: no hubo nada que cambiar."
 
     def ejecutar(self, request, plaza, datos):
+        # Igual que «volver a servicio»: lo que el pedido encontró al llegar. El servicio es
+        # idempotente y no pisa el motivo ni la fecha de la plaza que ya estaba fuera de servicio.
+        self.ya_estaba = plaza.estado == Plaza.Estado.FUERA_SERVICIO
         sacar_plaza_de_servicio(plaza=plaza, usuario=request.user, motivo=datos["motivo"])
+
+    def mensaje(self, plaza):
+        plantilla = self.mensaje_sin_cambio if self.ya_estaba else self.mensaje_exito
+        return plantilla.format(plaza=plaza.codigo)
 
 
 class PlazaVolverAServicioView(_PlazaAccionView):

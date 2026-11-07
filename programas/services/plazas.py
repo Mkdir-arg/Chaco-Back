@@ -212,6 +212,15 @@ def _exigir_tipo_de_plaza_admitido(dispositivo, tipo):
         raise ValidationError({"tipo": f"{dispositivo.tipo.nombre} solo admite plazas de tipo: {admitidos}."})
 
 
+#: Tope de la capacidad **declarada** de un sector. Es un dato del legajo, no se relaciona con las plazas.
+CAPACIDAD_DECLARADA_MAXIMA = 9999
+
+
+def _exigir_capacidad_declarada(capacidad):
+    if capacidad is not None and not 0 <= capacidad <= CAPACIDAD_DECLARADA_MAXIMA:
+        raise ValidationError({"capacidad": f"La capacidad declarada va de 0 a {CAPACIDAD_DECLARADA_MAXIMA}."})
+
+
 @transaction.atomic
 def crear_sector(*, dispositivo, usuario, nombre, tipo, edificio=None, perfil="", capacidad=0, condiciones_uso=""):
     """Da de alta un sector del dispositivo. Nace activo y sin plazas: las agrega el lote.
@@ -220,6 +229,7 @@ def crear_sector(*, dispositivo, usuario, nombre, tipo, edificio=None, perfil=""
     """
 
     _exigir_alcance(dispositivo, usuario)
+    _exigir_capacidad_declarada(capacidad)
     _exigir_que_se_pueda_ampliar(dispositivo)
     nombre = _normalizar(nombre)
     if not nombre:
@@ -269,6 +279,7 @@ def editar_sector(
     nombre = _normalizar(nombre)
     if not nombre:
         raise ValidationError({"nombre": "El sector necesita un nombre."})
+    _exigir_capacidad_declarada(capacidad)
 
     _bloquear_dispositivo(sector.dispositivo)
     sector = Sector.objects.select_for_update().get(pk=sector.pk)

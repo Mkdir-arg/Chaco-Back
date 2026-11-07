@@ -371,6 +371,10 @@ def _guardar_adjuntos(dispositivo, usuario, archivos, *, heredados=0):
     return adjuntos
 
 
+#: Dos novedades idénticas (autor, turno, tipo y texto) dentro de esta ventana son un doble envío.
+VENTANA_DOBLE_ENVIO = timedelta(seconds=10)
+
+
 @archivos_atomicos
 @transaction.atomic
 def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, personas=(), adjuntos=()):
@@ -393,6 +397,30 @@ def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, person
         raise ValidationError({"momento": "La novedad no puede ser futura."})
     situado = _exigir_turno_en_curso(dispositivo, momento, ahora)
 
+    # Doble envío: el candado del dispositivo hace que el segundo POST espere al primero y
+    # lo vea ya guardado. No se usa un UniqueConstraint condicional (no existe en MySQL/MariaDB).
+    _bloquear_dispositivo(dispositivo)
+    texto_limpio = (texto or "").strip()
+    repetida = (
+        EntradaBitacora.objects.filter(
+            dispositivo=dispositivo,
+            turno=situado.turno,
+            fecha_operativa=situado.fecha_operativa,
+            responsable=usuario,
+            tipo=tipo,
+            origen=EntradaBitacora.Origen.MANUAL,
+            texto=texto_limpio,
+            version=1,
+            # Una novedad ya corregida dejó de ser la vigente: repetirla no es un doble envío.
+            correccion__isnull=True,
+            creado__gte=ahora - VENTANA_DOBLE_ENVIO,
+        )
+        .order_by("pk")
+        .first()
+    )
+    if repetida is not None:
+        return repetida
+
     entrada = EntradaBitacora(
         dispositivo=dispositivo,
         turno=situado.turno,
@@ -401,7 +429,7 @@ def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, person
         responsable=usuario,
         tipo=tipo,
         origen=EntradaBitacora.Origen.MANUAL,
-        texto=(texto or "").strip(),
+        texto=texto_limpio,
     )
     entrada.clean()
     estadias = _estadias_del_momento(dispositivo, personas, momento)
@@ -545,6 +573,9 @@ CORRECCION_CONCURRENTE = (
 )
 
 
+SIN_CAMBIOS_PARA_CORREGIR = "No hay cambios para corregir."
+
+
 @archivos_atomicos
 @transaction.atomic
 def corregir_entrada(
@@ -634,6 +665,15 @@ def corregir_entrada(
         ]
     quitar = {adjunto.pk if isinstance(adjunto, AdjuntoBitacora) else adjunto for adjunto in quitar_adjuntos or ()}
     heredados = [adjunto for adjunto in corregida.adjuntos.all() if adjunto.pk not in quitar]
+    # Una versión idéntica a la vigente no corrige nada. Antes de escribir archivos.
+    if (
+        nueva.texto == corregida.texto
+        and nueva.tipo == corregida.tipo
+        and {estadia.pk for estadia in estadias} == {estadia.pk for estadia in previas}
+        and not adjuntos_nuevos
+        and len(heredados) == corregida.adjuntos.count()
+    ):
+        raise ValidationError({"entrada": SIN_CAMBIOS_PARA_CORREGIR})
     archivos = _guardar_adjuntos(corregida.dispositivo, usuario, adjuntos_nuevos, heredados=len(heredados))
     # La traza dice qué sumó la corrección; quién y cuándo ya lo dicen `responsable` y la
     # fecha de la versión. Va en el motivo, que la pantalla muestra con la versión.

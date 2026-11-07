@@ -386,6 +386,15 @@ def crear_inspeccion(usuario, *, edificio, asignado_a, fecha_vencimiento, indica
     return inspeccion
 
 
+SOLO_EN_CURSO_SE_REASIGNA = "Solo se reasigna un relevamiento en curso."
+
+
+def agentes_para_reasignar(inspeccion):
+    """Los candidatos de la reasignación: los mismos que al asignar el edificio, menos el asignado actual."""
+
+    return agentes_asignables(inspeccion.edificio).exclude(pk=inspeccion.asignado_a_id)
+
+
 @transaction.atomic
 def reasignar_inspeccion(usuario, inspeccion, asignado_a):
     """Cambia el agente de un relevamiento en curso. El anterior deja de verlo."""
@@ -393,7 +402,7 @@ def reasignar_inspeccion(usuario, inspeccion, asignado_a):
     _exigir_alcance_coordinador(usuario, inspeccion.edificio)
     inspeccion = _bloquear(inspeccion)
     if not inspeccion.en_curso:
-        raise ValidationError("Solo se reasigna un relevamiento en curso.")
+        raise ValidationError(SOLO_EN_CURSO_SE_REASIGNA)
     if asignado_a is not None and asignado_a.pk == inspeccion.asignado_a_id:
         raise ValidationError({"asignado_a": "El relevamiento ya está asignado a ese agente."})
     _validar_agente(asignado_a, inspeccion.edificio)
