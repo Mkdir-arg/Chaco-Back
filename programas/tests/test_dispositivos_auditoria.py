@@ -226,7 +226,7 @@ class LegibleTests(BaseAuditoria):
         self.assertEqual(ingreso["detalle"], "Plaza P1 (Varones)")
         edicion = next(e for e in eventos if e["titulo"] == "Edición de los datos del dispositivo")
         self.assertEqual(edicion["detalle"], "Responsable: — → Marta")
-        self.assertIn("Plaza P2 · motivo: Cama rota", textos)
+        self.assertIn("Plaza P2 (Varones) · motivo: Cama rota", textos)
 
         # Ni códigos de acción ni nombres de campo crudos, ni las observaciones libres del egreso.
         self.assertIsNone(re.search(r"\b[A-Z]{3,}_[A-Z_]+\b", textos), textos)
@@ -302,7 +302,7 @@ class LegibleTests(BaseAuditoria):
 
         [evento] = _todo(self.cis)
         self.assertEqual(evento["titulo"], "Plaza reservada")
-        self.assertEqual(evento["detalle"], "Plaza P1 · Reserva")
+        self.assertEqual(evento["detalle"], "Plaza P1 (Varones) · Reserva")
         self.assertNotIn(str(self.otra_persona.pk), evento["detalle"])
 
     def test_un_relevamiento_con_criticidad_alta_no_sale_en_verde(self):

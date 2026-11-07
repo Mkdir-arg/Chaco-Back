@@ -54,6 +54,7 @@ from programas.models import Dispositivo, EntradaBitacora, Estadia, Turno
 from programas.services import censo as censo_servicio
 from programas.services.bitacora import MAX_ADJUNTOS_POR_ENTRADA, turnos_activos
 from programas.services.bitacora_detalle import adjuntos_de
+from programas.services.nombre_plaza import plaza_con_sector
 from programas.services.ocupacion import ocupacion_de_plazas
 
 #: Cuántas entradas del turno se dibujan; el resto se avisa con el total. La pieza tiene su
@@ -477,11 +478,19 @@ def pantalla_bitacora(
     personas = []
     if puede_cargar and nombrar_personas:
         personas = [
-            (estadia.pk, _persona(estadia) + (f" · {estadia.plaza.codigo}" if estadia.plaza_id else ""))
+            (estadia.pk, _persona(estadia) + (f" · {plaza_con_sector(estadia.plaza)}" if estadia.plaza_id else ""))
             for estadia in Estadia.objects.activas()
             .filter(dispositivo=dispositivo)
-            .select_related("ciudadano", "plaza")
-            .only("id", "plaza", "plaza__codigo", "ciudadano", "ciudadano__nombre", "ciudadano__apellido")
+            .select_related("ciudadano", "plaza__sector")
+            .only(
+                "id",
+                "plaza",
+                "plaza__codigo",
+                "plaza__sector__nombre",
+                "ciudadano",
+                "ciudadano__nombre",
+                "ciudadano__apellido",
+            )
             .order_by("ciudadano__apellido", "ciudadano__nombre", "id")
         ]
 

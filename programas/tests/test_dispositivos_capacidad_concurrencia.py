@@ -62,47 +62,59 @@ class CapacidadConcurrenteTests(MotorRealMixin, TransactionTestCase):
         self.assertEqual([repr(error) for error in errores], [])
         return sorted(r.status_code for r in respuestas)
 
-    def test_dos_lotes_simultaneos_en_sectores_distintos_no_duplican_codigos(self):
-        url = reverse("dispositivos:plazas_agregar", args=[self.dispositivo.pk])
-        estados = self._post_simultaneos(
-            [
-                (url, {"sector": sector.pk, "cantidad": 2, "tipo": Plaza.Tipo.CAMA, "prefijo": "B-"})
-                for sector in self.sectores
-            ]
+    def _lote(self, sector, cantidad):
+        return (
+            reverse("dispositivos:plazas_agregar", args=[self.dispositivo.pk]),
+            {"sector": sector.pk, "cantidad": cantidad, "tipo": Plaza.Tipo.CAMA, "prefijo": "B-"},
         )
+
+    def _editar(self, plaza, codigo):
+        return (
+            reverse("dispositivos:plaza_editar", args=[self.dispositivo.pk, plaza.pk]),
+            {"codigo": codigo, "tipo": Plaza.Tipo.CAMA},
+        )
+
+    def _codigos_de(self, sector):
+        return sorted(Plaza.objects.filter(sector=sector, codigo__startswith="B-").values_list("codigo", flat=True))
+
+    def test_dos_lotes_simultaneos_en_sectores_distintos_numeran_cada_uno_desde_1(self):
+        """Cambio 430: la numeración es por sector, así que no compiten por el mismo número."""
+
+        estados = self._post_simultaneos([self._lote(sector, 2) for sector in self.sectores])
+
         self.assertEqual(estados, [200, 200])
-        self.assertEqual(
-            sorted(Plaza.objects.filter(codigo__startswith="B-").values_list("codigo", flat=True)),
-            ["B-01", "B-02", "B-03", "B-04"],
-        )
+        for sector in self.sectores:
+            self.assertEqual(self._codigos_de(sector), ["B-01", "B-02"])
 
-    def test_dos_ediciones_simultaneas_al_mismo_codigo_guardan_una_sola(self):
-        estados = self._post_simultaneos(
-            [
-                (
-                    reverse("dispositivos:plaza_editar", args=[self.dispositivo.pk, plaza.pk]),
-                    {"codigo": "B-01", "tipo": Plaza.Tipo.CAMA},
-                )
-                for plaza in self.plazas
-            ]
-        )
+    def test_dos_lotes_simultaneos_en_el_mismo_sector_no_duplican_numeros(self):
+        estados = self._post_simultaneos([self._lote(self.sectores[0], 2) for _ in self.usuarios])
+
+        self.assertEqual(estados, [200, 200])
+        self.assertEqual(self._codigos_de(self.sectores[0]), ["B-01", "B-02", "B-03", "B-04"])
+        self.assertEqual(self._codigos_de(self.sectores[1]), [])
+
+    def test_dos_ediciones_simultaneas_al_mismo_codigo_en_sectores_distintos_guardan_las_dos(self):
+        """El código ya no es único en el dispositivo: dos sectores pueden tener «B-01»."""
+
+        estados = self._post_simultaneos([self._editar(plaza, "B-01") for plaza in self.plazas])
+
+        self.assertEqual(estados, [200, 200])
+        for sector in self.sectores:
+            self.assertEqual(self._codigos_de(sector), ["B-01"])
+
+    def test_dos_ediciones_simultaneas_al_mismo_codigo_en_el_mismo_sector_guardan_una_sola(self):
+        otra = Plaza.objects.create(sector=self.sectores[0], codigo="P9")
+
+        estados = self._post_simultaneos([self._editar(self.plazas[0], "B-01"), self._editar(otra, "B-01")])
+
         self.assertEqual(estados, [200, 400])
-        self.assertEqual(Plaza.objects.filter(codigo="B-01").count(), 1)
+        self.assertEqual(self._codigos_de(self.sectores[0]), ["B-01"])
 
-    def test_un_lote_y_una_edicion_simultaneos_comparten_el_candado(self):
-        estados = self._post_simultaneos(
-            [
-                (
-                    reverse("dispositivos:plazas_agregar", args=[self.dispositivo.pk]),
-                    {"sector": self.sectores[0].pk, "cantidad": 1, "tipo": Plaza.Tipo.CAMA, "prefijo": "B-"},
-                ),
-                (
-                    reverse("dispositivos:plaza_editar", args=[self.dispositivo.pk, self.plazas[1].pk]),
-                    {"codigo": "B-01", "tipo": Plaza.Tipo.CAMA},
-                ),
-            ]
-        )
+    def test_un_lote_y_una_edicion_simultaneos_en_el_mismo_sector_comparten_el_candado(self):
+        estados = self._post_simultaneos([self._lote(self.sectores[0], 1), self._editar(self.plazas[0], "B-01")])
+
+        # Gana el lote (B-01) y la edición choca, o gana la edición y el lote sigue en B-02.
         self.assertIn(estados, ([200, 200], [200, 400]))
-        codigos = list(Plaza.objects.values_list("codigo", flat=True))
+        codigos = list(Plaza.objects.filter(sector=self.sectores[0]).values_list("codigo", flat=True))
         self.assertEqual(len(codigos), len(set(codigos)))
         self.assertEqual(Plaza.objects.count(), 3)

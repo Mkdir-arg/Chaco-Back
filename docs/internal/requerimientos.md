@@ -553,6 +553,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 427 | Dispositivos: detalle de cada novedad de la bitácora (texto completo, personas con enlace al legajo, adjuntos con vista previa o descarga, versiones) y archivo del listado como enlace | Dispositivos · bitácora · sistema de diseño | `#ui` `#rbac` | QA — caso 3 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 428 | Dispositivos: el relevamiento de un edificio compartido lo ve quien opera alguno de sus dispositivos; la franja de Infraestructura sin alcance de inspección muestra solo el semáforo | Dispositivos · relevamiento edilicio | `#rbac` `#ui` | QA — caso 7 (decisión delegada al juez) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 429 | Dispositivos: el sector se ubica en un edificio del dispositivo (obligatorio al crear), la pestaña Infraestructura muestra edificio → sectores con «Sin edificio», y no se desvincula un edificio con sectores activos | Dispositivos · sectores y plazas · infraestructura | `#datos` `#ui` | QA — caso 6 (decisiones delegadas al juez) | 07/11/2026 | 🟡 **En curso** | `programas.0113` y `programas.0114` |
+| 430 | Dispositivos: las plazas se numeran por sector desde 1 (siguiente = mayor + 1, sin reusar números) y la unicidad del código es por sector | Dispositivos · sectores y plazas | `#datos` `#ui` | QA — caso 2 (decisión del PM) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 431 | Dispositivos: pulido visual de móvil (solapas, filtros, KPI de relevamientos, bitácora, Infraestructura, informe, reasignar) | Dispositivos · relevamientos, detalle y bitácora | `#ui` | Revisión visual en testing (390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 432 | Dispositivos: sin alcance sobre un dispositivo, 404 (igual que un id inexistente) en vez de 403; la falta de capacidad del módulo sigue en 403 | Dispositivos · alcance | `#rbac` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 433 | Dispositivos: seis errores de lógica de QA (reasignar con la misma fuente de candidatos, doble envío de novedad, corregir sin cambios, fuera de servicio repetido, estado antes que agente al reasignar, tope de capacidad declarada) | Dispositivos · relevamiento edilicio · bitácora · sectores y plazas | `#relevamientos` `#datos` `#ui` | QA — errores de lógica en testing | 07/11/2026 | 🟢 **Hecho** | No requiere |
@@ -52580,6 +52581,73 @@ Ninguna de las dos migraciones es barrera de reversa: se vuelve con `migrate`, e
 ## Historial
 
 - **07/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 430 — Las plazas se numeran por sector, desde 1
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · sectores y plazas (P5) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | QA — caso 2 (decisión del PM, 07/11/2026) |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backend (servicio y selector de plazas), Frontend (un texto de ayuda) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Las plazas se numeran por sector, empezando en 1, con `unique(sector, numero)`. Las plazas existentes mantienen su número: no se renumera nada.» En testing un sector nuevo arrancó en 98 y 99.
+
+## Alcance acordado
+
+**Entra:** el cálculo del código de las plazas del lote «Agregar plazas», la edición del código (la unicidad pasa a ser por sector) y el texto de ayuda del modal de plaza.
+
+**Queda afuera:** renumerar plazas existentes, un campo `numero` aparte del código, y cualquier cambio de permisos.
+
+## Decisiones tomadas
+
+1. **No existe `Plaza.numero`: el «número» es el sufijo del `codigo`** (`B-01`, `98`). La unicidad en la base ya es `UniqueConstraint(sector, codigo)` (`plaza_codigo_unico_por_sector`, desde `0086`), **sin condición**. La unicidad por dispositivo que describía el pedido nunca estuvo en la base: la hacían cumplir el generador del lote y `editar_plaza` desde el servicio, bajo el bloqueo del dispositivo. Por eso **no hay migración** y no hay nada que contraer.
+2. **Siguiente número = mayor número con ese prefijo en el sector + 1, o 1 si no hay.** Cuentan todas las plazas del sector, también las fuera de servicio, y el hueco no se rellena: un número no se reusa. Un código que no sigue el patrón `prefijo + dígitos` no cuenta para el máximo, pero tampoco se pisa. El selector pasa de `codigos_del_dispositivo` a `codigos_del_sector`.
+3. **Concurrencia:** el mismo bloqueo de siempre, en el mismo orden (Dispositivo, después Sector), y los códigos se leen ya con ambos bloqueados. La constraint de la base es la red de seguridad: un duplicado en el sector da `IntegrityError`.
+4. **`editar_plaza` valida el código dentro del sector**, no del dispositivo, para ser coherente con la numeración (dos sectores pueden tener `B-01`). El mensaje dice «en el sector».
+5. **Rolling:** la release anterior numera por dispositivo y sigue siendo compatible. Sus códigos nunca chocan con la constraint (que es por sector y ya existe), y el generador nuevo, que sigue al mayor del sector, no pisa sus plazas.
+6. **Los textos guardados nombran la plaza con su sector** («plaza 01 (Pabellón A)»), el formato que ya usaba la auditoría, porque el código ya no identifica a la plaza en el dispositivo. Un único helper (`services/nombre_plaza.py`: `nombre_de_plaza`, `plaza_con_sector`) lo arma y lo usan la novedad automática de la bitácora, las trazas de estadías, reservas y plazas (`estadias.py`, `PLAZA_EDITADA` en `plazas.py`), la alerta de plazas fuera de servicio («01 · Varones (motivo)»), los avisos de las vistas y el selector de personas de la bitácora. Donde la plaza se relee con `select_for_update` (sin JOIN, a propósito) el sector se lee antes del bloqueo o del objeto ya cargado: no se agrega ninguna consulta, salvo el origen de un cambio de sector. Las trazas y novedades ya guardadas no se reescriben.
+7. **Orden natural:** el modelo ya ordenaba por `sector_id, codigo`, pero el texto a secas pone «100» antes que «98». El mapa de «Sectores y plazas» y el de ingreso ordenan con `clave_natural` (tramos numéricos como números) y el mapa recorta recién después, así que el tope de 200 por sector no esconde las plazas equivocadas.
+8. **Modal «Agregar plazas»:** el texto explica la regla nueva (el número sigue al mayor del sector; no pisa ni reusa).
+
+## Implementación
+
+`programas/services/plazas.py` (`codigos_en_lote`, `agregar_plazas`, `editar_plaza`), `programas/selectors/capacidad_dispositivo.py` (`codigos_del_sector`) y `programas/services/nombre_plaza.py` (nuevo) con sus usos.
+
+## Archivos
+
+`programas/services/plazas.py`, `programas/services/nombre_plaza.py` (nuevo), `programas/services/estadias.py`, `programas/services/bitacora.py`, `programas/services/bitacora_pantalla.py`, `programas/services/alertas_dispositivos.py`, `programas/services/sectores_plazas.py`, `programas/services/ingreso.py`, `programas/views/dispositivos_legajo.py`, `programas/selectors/capacidad_dispositivo.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `programas/tests/test_dispositivos_plazas_por_sector_430.py` (nuevo), `test_dispositivos_capacidad.py`, `test_dispositivos_capacidad_revision.py`, `test_dispositivos_alertas.py`, `test_dispositivos_auditoria.py`, `test_dispositivos_bitacora_automatica.py`, `test_dispositivos_movimientos.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios de esquema ni de datos. No se renumera nada: los sectores con 98 y 99 siguen en 100.
+
+## Validación
+
+`test_dispositivos_capacidad` y `test_dispositivos_capacidad_revision`: un sector nuevo arranca en 1; uno con 98 y 99 sigue en 100; dos sectores numeran independientes; no se reusa el número de una plaza fuera de servicio ni un hueco; la base rechaza el duplicado en el sector (`IntegrityError`) y lo admite en otro; el lote relee los códigos tras bloquear el dispositivo, sobre el mismo sector. **Mutaciones** (rojo y restaurado): numerar contra el dispositivo, rellenar huecos en vez de seguir al mayor, sacar la constraint, y contar solo las plazas operativas. `test_dispositivos_plazas_por_sector_430`: el nombre con sector en la novedad, la traza y el helper, y el orden natural de los dos mapas; mutaciones: quitar el sector del helper y quitar el orden natural de cada mapa.
+
+## Pendientes / a definir
+
+- Si más adelante se quiere un `numero` entero separado del código, es otro cambio: sería una columna nueva `null=True` con su migración de datos.
+
+## Reversión
+
+Se vuelve con el commit anterior: no hay migración. Los códigos ya creados quedan como están.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+- **07/11/2026 — ronda de auditoría de #1047:** los textos guardados nombran el sector, orden natural en los mapas, texto del modal y simplificación de `codigos_en_lote`.
+- **07/11/2026 — CI de #1047:** los 3 tests de `test_dispositivos_capacidad_concurrencia` (solo corren contra el motor real) asumían numeración y unicidad por dispositivo, así que eran tests viejos y no un bug (reproducido en MariaDB 10.11: los tres fallan igual con el archivo anterior). Se reescribieron para medir la garantía nueva, sin debilitarla: sectores distintos numeran cada uno desde 01 y aceptan el mismo código; dos lotes o dos ediciones en el MISMO sector no duplican y el segundo choca (200/400); lote y edición en el mismo sector comparten el candado. Se sumó el caso de dos lotes simultáneos en un mismo sector. Mutación: sin el bloqueo del dispositivo en el lote, el test de lote y edición cae con un deadlock (1213). Se actualizaron las fichas `turno_bitacora.md` y `estado_vacio.md` de `.claude/design/` (formato «plaza 01 (Pabellón A)» y numeración por sector), que exige `check_design_agent.py`.
 
 ---
 

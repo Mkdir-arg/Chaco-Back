@@ -75,7 +75,7 @@ class CadaMovimientoDejaSuNovedadTests(BaseAutomaticas):
         self.assertEqual(entrada.turno, self.turno)
         self.assertEqual(entrada.momento, ingreso, "la novedad es de cuándo pasó, no de cuándo se cargó")
         self.assertEqual(entrada.responsable, self.operador_cis)
-        self.assertEqual(entrada.texto, "Ingreso · plaza P1")
+        self.assertEqual(entrada.texto, "Ingreso · plaza P1 (Varones)")
         self.assertEqual(list(entrada.personas.all()), [estadia])
         self.assertEqual(entrada.movimiento, estadia.movimientos.get(tipo=MovimientoEstadia.Tipo.INGRESO))
 
@@ -94,7 +94,9 @@ class CadaMovimientoDejaSuNovedadTests(BaseAutomaticas):
         cambiar_plaza(estadia=estadia, plaza=self.otra_plaza, usuario=self.operador_cis, motivo="Convivencia")
 
         entrada = EntradaBitacora.objects.get(dispositivo=self.cis, tipo=Tipo.MOVIMIENTO)
-        self.assertEqual(entrada.texto, "Cambio de plaza · P1 → P2 · motivo: Convivencia")
+        self.assertEqual(
+            entrada.texto, "Cambio de plaza · plaza P1 (Varones) → plaza P2 (Varones) · motivo: Convivencia"
+        )
 
     def test_el_nombre_de_la_persona_no_va_en_el_texto(self):
         """Va en `personas`, que la pantalla nombra solo con `ciudadano.ver` (Cambio 271)."""
@@ -235,7 +237,9 @@ class LaEstadiaLasMuestraTests(BaseAutomaticas):
         filas = list(novedades_de_estadia(estadia))
 
         self.assertEqual([fila["categoria"] for fila in filas], ["Movimiento", "Ingreso"])
-        self.assertEqual(filas[0]["texto"], "Cambio de plaza · P1 → P2 · motivo: Convivencia")
+        self.assertEqual(
+            filas[0]["texto"], "Cambio de plaza · plaza P1 (Varones) → plaza P2 (Varones) · motivo: Convivencia"
+        )
 
 
 class SinPlazaTests(BaseAutomaticas):
