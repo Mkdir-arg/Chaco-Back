@@ -65,6 +65,7 @@ from django.utils import timezone
 
 from programas.models import Plaza, ReservaPlaza, Sector
 from programas.services.estadias import reserva_abierta_de
+from programas.services.nombre_plaza import clave_natural
 from programas.services.ocupacion import (
     ESTADO_FUERA_SERVICIO,
     ESTADO_OCUPADA,
@@ -246,10 +247,12 @@ def _plazas_por_sector(sector_ids):
         .order_by("sector_id", "codigo")
     )
     for plaza in plazas:
-        fila = por_sector[plaza.sector_id]
-        if len(fila) < TOPE_PLAZAS_POR_SECTOR:
-            fila.append(plaza)
-    return por_sector
+        por_sector[plaza.sector_id].append(plaza)
+    # El orden natural y después el recorte: «99» antes que «100», también al pasar el tope.
+    return {
+        pk: sorted(fila, key=lambda p: clave_natural(p.codigo))[:TOPE_PLAZAS_POR_SECTOR]
+        for pk, fila in por_sector.items()
+    }
 
 
 def _reservas_abiertas_por_plaza(plazas):

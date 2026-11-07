@@ -34,6 +34,7 @@ from programas.services.estadias import (
     liberar_reserva,
     reserva_propia_vigente,
 )
+from programas.services.nombre_plaza import clave_natural
 from programas.services.ocupacion import ESTADO_PRESTADA, ESTADO_RESERVADA, estado_de_plazas
 
 #: Los estados en los que una plaza puede ser la que la persona tiene guardada.
@@ -142,7 +143,7 @@ def plazas_para_ingresar(dispositivo, *, puede_ver_personas=False, plaza_propia_
     estados = estado_de_plazas(plazas, puede_ver_personas=puede_ver_personas)
 
     por_sector = {sector.pk: [] for sector in sectores}
-    for plaza in sorted(plazas, key=lambda p: p.codigo):
+    for plaza in sorted(plazas, key=lambda p: clave_natural(p.codigo)):
         derivado = estados[plaza.pk]
         propia = plaza.pk == plaza_propia_id and not derivado.disponible and derivado.estado in ESTADOS_GUARDADOS
         por_sector[plaza.sector_id].append(

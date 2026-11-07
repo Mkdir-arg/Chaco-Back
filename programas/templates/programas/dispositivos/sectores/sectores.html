@@ -362,7 +362,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
             {% include "components/_field.html" with field=form_plazas.tipo wrapper_class="" %}
           </div>
           {% include "components/_field.html" with field=form_plazas.prefijo wrapper_class="" %}
-          {% include "components/_alerta.html" with tono="info" texto="Los códigos que ya existen en la institución se saltean, así que el lote nunca pisa una plaza cargada." %}
+          {% include "components/_alerta.html" with tono="info" texto="El número sigue al mayor que ya tiene el sector con ese prefijo: el lote no pisa una plaza cargada ni reusa un número." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalPlazas=false" accion_texto="Agregar plazas" %}
       </form>

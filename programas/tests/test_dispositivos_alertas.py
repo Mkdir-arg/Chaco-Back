@@ -264,7 +264,7 @@ class PlazasFueraDeServicioTests(BaseAlertas):
         self.assertEqual(alerta["severidad"], "baja")
         self.assertEqual(alerta["tono"], "info")
         self.assertEqual(alerta["titulo"], "1 plaza fuera de servicio")
-        self.assertIn("P2 (Cama rota)", alerta["texto"])
+        self.assertIn("P2 · Varones (Cama rota)", alerta["texto"])
         self.assertEqual(alerta["enlace"], reverse("dispositivos:sectores", args=[self.cis.pk]))
 
     def test_varias_plazas_son_una_sola_alerta(self):

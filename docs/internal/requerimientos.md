@@ -52611,15 +52611,17 @@ Ninguna de las dos migraciones es barrera de reversa: se vuelve con `migrate`, e
 3. **Concurrencia:** el mismo bloqueo de siempre, en el mismo orden (Dispositivo, después Sector), y los códigos se leen ya con ambos bloqueados. La constraint de la base es la red de seguridad: un duplicado en el sector da `IntegrityError`.
 4. **`editar_plaza` valida el código dentro del sector**, no del dispositivo, para ser coherente con la numeración (dos sectores pueden tener `B-01`). El mensaje dice «en el sector».
 5. **Rolling:** la release anterior numera por dispositivo y sigue siendo compatible. Sus códigos nunca chocan con la constraint (que es por sector y ya existe), y el generador nuevo, que sigue al mayor del sector, no pisa sus plazas.
-6. **Orden:** el modelo ya ordena por `sector_id, codigo` y el mapa por `sector_id, codigo`; el código repetido entre sectores no afecta. Las estadías y la bitácora muestran el sector junto a la plaza.
+6. **Los textos guardados nombran la plaza con su sector** («plaza 01 (Pabellón A)»), el formato que ya usaba la auditoría, porque el código ya no identifica a la plaza en el dispositivo. Un único helper (`services/nombre_plaza.py`: `nombre_de_plaza`, `plaza_con_sector`) lo arma y lo usan la novedad automática de la bitácora, las trazas de estadías, reservas y plazas (`estadias.py`, `PLAZA_EDITADA` en `plazas.py`), la alerta de plazas fuera de servicio («01 · Varones (motivo)»), los avisos de las vistas y el selector de personas de la bitácora. Donde la plaza se relee con `select_for_update` (sin JOIN, a propósito) el sector se lee antes del bloqueo o del objeto ya cargado: no se agrega ninguna consulta, salvo el origen de un cambio de sector. Las trazas y novedades ya guardadas no se reescriben.
+7. **Orden natural:** el modelo ya ordenaba por `sector_id, codigo`, pero el texto a secas pone «100» antes que «98». El mapa de «Sectores y plazas» y el de ingreso ordenan con `clave_natural` (tramos numéricos como números) y el mapa recorta recién después, así que el tope de 200 por sector no esconde las plazas equivocadas.
+8. **Modal «Agregar plazas»:** el texto explica la regla nueva (el número sigue al mayor del sector; no pisa ni reusa).
 
 ## Implementación
 
-`programas/services/plazas.py` (`codigos_en_lote`, `agregar_plazas`, `editar_plaza`) y `programas/selectors/capacidad_dispositivo.py` (`codigos_del_sector`).
+`programas/services/plazas.py` (`codigos_en_lote`, `agregar_plazas`, `editar_plaza`), `programas/selectors/capacidad_dispositivo.py` (`codigos_del_sector`) y `programas/services/nombre_plaza.py` (nuevo) con sus usos.
 
 ## Archivos
 
-`programas/services/plazas.py`, `programas/selectors/capacidad_dispositivo.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `programas/tests/test_dispositivos_capacidad.py`, `programas/tests/test_dispositivos_capacidad_revision.py`, `docs/internal/requerimientos.md`.
+`programas/services/plazas.py`, `programas/services/nombre_plaza.py` (nuevo), `programas/services/estadias.py`, `programas/services/bitacora.py`, `programas/services/bitacora_pantalla.py`, `programas/services/alertas_dispositivos.py`, `programas/services/sectores_plazas.py`, `programas/services/ingreso.py`, `programas/views/dispositivos_legajo.py`, `programas/selectors/capacidad_dispositivo.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `programas/tests/test_dispositivos_plazas_por_sector_430.py` (nuevo), `test_dispositivos_capacidad.py`, `test_dispositivos_capacidad_revision.py`, `test_dispositivos_alertas.py`, `test_dispositivos_auditoria.py`, `test_dispositivos_bitacora_automatica.py`, `test_dispositivos_movimientos.py`, `docs/internal/requerimientos.md`.
 
 ## Base de datos
 
@@ -52627,7 +52629,7 @@ Sin cambios de esquema ni de datos. No se renumera nada: los sectores con 98 y 9
 
 ## Validación
 
-`test_dispositivos_capacidad` y `test_dispositivos_capacidad_revision`: un sector nuevo arranca en 1; uno con 98 y 99 sigue en 100; dos sectores numeran independientes; no se reusa el número de una plaza fuera de servicio ni un hueco; la base rechaza el duplicado en el sector (`IntegrityError`) y lo admite en otro; el lote relee los códigos tras bloquear el dispositivo, sobre el mismo sector. **Mutaciones** (rojo y restaurado): numerar contra el dispositivo, rellenar huecos en vez de seguir al mayor, sacar la constraint, y contar solo las plazas operativas.
+`test_dispositivos_capacidad` y `test_dispositivos_capacidad_revision`: un sector nuevo arranca en 1; uno con 98 y 99 sigue en 100; dos sectores numeran independientes; no se reusa el número de una plaza fuera de servicio ni un hueco; la base rechaza el duplicado en el sector (`IntegrityError`) y lo admite en otro; el lote relee los códigos tras bloquear el dispositivo, sobre el mismo sector. **Mutaciones** (rojo y restaurado): numerar contra el dispositivo, rellenar huecos en vez de seguir al mayor, sacar la constraint, y contar solo las plazas operativas. `test_dispositivos_plazas_por_sector_430`: el nombre con sector en la novedad, la traza y el helper, y el orden natural de los dos mapas; mutaciones: quitar el sector del helper y quitar el orden natural de cada mapa.
 
 ## Pendientes / a definir
 
@@ -52640,5 +52642,6 @@ Se vuelve con el commit anterior: no hay migración. Los códigos ya creados que
 ## Historial
 
 - **07/11/2026 — alta del cambio.**
+- **07/11/2026 — ronda de auditoría de #1047:** los textos guardados nombran el sector, orden natural en los mapas, texto del modal y simplificación de `codigos_en_lote`.
 
 ---

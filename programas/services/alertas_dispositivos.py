@@ -153,11 +153,13 @@ def plazas_fuera_de_servicio(dispositivo, momento=None, usuario=None):
             estado=Plaza.Estado.FUERA_SERVICIO,
         )
         .order_by("-modificado", "-id")
-        .values_list("codigo", "motivo_fuera_servicio", "modificado")
+        .values_list("codigo", "sector__nombre", "motivo_fuera_servicio", "modificado")
     )
     if not plazas:
         return
-    nombradas = ", ".join(f"{codigo} ({motivo})" for codigo, motivo, _m in plazas[:MAX_PLAZAS_NOMBRADAS])
+    nombradas = ", ".join(
+        f"{codigo} · {sector} ({motivo})" for codigo, sector, motivo, _m in plazas[:MAX_PLAZAS_NOMBRADAS]
+    )
     resto = len(plazas) - MAX_PLAZAS_NOMBRADAS
     if resto > 0:
         nombradas += f" y {resto} más"
@@ -168,7 +170,7 @@ def plazas_fuera_de_servicio(dispositivo, momento=None, usuario=None):
         origen="Sectores y plazas",
         # La más vieja, no la última: el pie dice «desde cuándo pasa», y la alerta está
         # encendida desde que salió de servicio la primera de las plazas que nombra.
-        fecha=min(modificado for _codigo, _motivo, modificado in plazas),
+        fecha=min(modificado for *_resto, modificado in plazas),
         enlace=_url_mapa(dispositivo),
         accion="Ver plazas",
     )

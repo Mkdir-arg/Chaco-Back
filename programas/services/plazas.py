@@ -38,6 +38,7 @@ from programas.models import Dispositivo, Plaza, Sector, TrazaDispositivo
 from programas.selectors.capacidad_dispositivo import codigos_del_sector, plazas_tomadas_del_sector
 from programas.services.dispositivos import puede_operar_dispositivo
 from programas.services.estadias import _plaza_tomada_por
+from programas.services.nombre_plaza import plaza_con_sector
 
 #: Configurar la capacidad instalada es edición del legajo, no operación diaria. La misma
 #: capacidad con la que se saca una plaza de servicio.
@@ -373,22 +374,15 @@ def codigos_en_lote(*, cantidad, prefijo, tomados):
     `tomados` son los códigos de **todas** las plazas del sector, también las fuera de servicio:
     el siguiente es el mayor número con ese prefijo más uno, o 1 si no hay ninguno, así que el
     número de una plaza no se reusa nunca (Cambio 430). Se rellena a dos dígitos (`A-01`, como
-    el mockup). Un código que no sigue el patrón no cuenta para el máximo, pero tampoco se
-    pisa. Es una función pura para poder probarla sin base.
+    el mockup). Un código que no sigue el patrón no cuenta para el máximo; el generado no puede
+    chocar con ninguno porque siempre es mayor. Es una función pura para poder probarla sin base.
     """
 
     # La comparación coincide con la collation de códigos de MySQL/MariaDB.
-    tomados = {codigo.casefold() for codigo in tomados}
     patron = re.compile(rf"{re.escape(prefijo.casefold())}(\d+)")
-    numero = 1 + max((int(m.group(1)) for m in map(patron.fullmatch, tomados) if m), default=0)
-    codigos = []
-    while len(codigos) < cantidad:
-        codigo = f"{prefijo}{numero:02d}"
-        if codigo.casefold() not in tomados:
-            codigos.append(codigo)
-            tomados.add(codigo.casefold())
-        numero += 1
-    return codigos
+    numeros = (int(m.group(1)) for m in map(patron.fullmatch, (codigo.casefold() for codigo in tomados)) if m)
+    primero = 1 + max(numeros, default=0)
+    return [f"{prefijo}{numero:02d}" for numero in range(primero, primero + cantidad)]
 
 
 @transaction.atomic
@@ -452,6 +446,7 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
     """
 
     dispositivo = plaza.sector.dispositivo
+    sector_nombre = plaza.sector.nombre
     _exigir_alcance(dispositivo, usuario)
 
     codigo = _normalizar(codigo)
@@ -476,6 +471,6 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
         dispositivo,
         usuario,
         "PLAZA_EDITADA",
-        detalle=f"Plaza {anterior} → {plaza.codigo} · {Plaza.Tipo(plaza.tipo).label}",
+        detalle=f"Plaza {anterior} → {plaza_con_sector(plaza, sector_nombre)} · {Plaza.Tipo(plaza.tipo).label}",
     )
     return plaza

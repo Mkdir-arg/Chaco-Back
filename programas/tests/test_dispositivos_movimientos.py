@@ -354,7 +354,9 @@ class AsignarPlazaTests(BaseEstadias):
 
         movimiento = self._asignar(self.plaza)
 
-        self.assertEqual(_texto_automatico(movimiento), f"Se asignó la plaza {self.plaza.codigo}")
+        self.assertEqual(
+            _texto_automatico(movimiento), f"Se asignó la plaza {self.plaza.codigo} ({self.plaza.sector.nombre})"
+        )
 
     def test_la_persona_cuenta_en_la_plaza_desde_el_momento_asignado(self):
         momento = timezone.now() - timedelta(hours=5)

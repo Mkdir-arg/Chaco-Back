@@ -121,6 +121,7 @@ from programas.services.inspecciones import (
     edificios_para_asignar_del_dispositivo,
     semaforos_de_dispositivos,
 )
+from programas.services.nombre_plaza import plaza_con_sector
 from programas.services.ocupacion import ocupacion_de_plazas, tension_de_ocupacion
 from programas.services.plazas import motivo_sin_ampliar_capacidad, puede_configurar_plazas
 from programas.services.reportes import filtrar_dispositivos
@@ -1141,7 +1142,7 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
         return redirect(volver)
 
     def mensaje(self, plaza):
-        return self.mensaje_exito.format(plaza=plaza.codigo)
+        return self.mensaje_exito.format(plaza=plaza_con_sector(plaza))
 
     @staticmethod
     def _errores_del_servicio(error, form, alias_de_campos=None):
@@ -1265,7 +1266,7 @@ class PlazaVolverAServicioView(_PlazaAccionView):
 
     def mensaje(self, plaza):
         plantilla = self.mensaje_sin_cambio if self.ya_estaba else self.mensaje_exito
-        return plantilla.format(plaza=plaza.codigo)
+        return plantilla.format(plaza=plaza_con_sector(plaza))
 
 
 # Egreso (MVP v2, etapa 2 · #691). El egreso muta estado: solo POST con CSRF. La regla de fondo
@@ -1539,8 +1540,8 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
         except ValidationError as error:
             return EstadiaEgresarView._rechazar(request, EstadiaEgresarView._errores_del_servicio(error, form), volver)
 
-        codigo = movimiento.plaza_destino.codigo
-        mensaje = f"Plaza asignada: {codigo}." if form.asigna else f"Cambio de plaza registrado: {codigo}."
+        nombre = plaza_con_sector(movimiento.plaza_destino)
+        mensaje = f"Plaza asignada: {nombre}." if form.asigna else f"Cambio de plaza registrado: {nombre}."
         if is_ajax(request):
             return ajax_redirect(request, volver, mensaje)
         messages.success(request, mensaje)
