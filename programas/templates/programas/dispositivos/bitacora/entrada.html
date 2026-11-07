@@ -1,0 +1,134 @@
+{# arquetipo: detalle + apilado #}{# Cambio 427: una novedad con su texto completo, personas, adjuntos y versiones; un area sola, secciones apiladas. Sin acciones que muten #}
+{% extends "includes/base.html" %}
+{% load nodo_ui %}
+{% block title %}Dispositivos · Novedad · {{ dispositivo.nombre }}{% endblock %}
+
+{% block main-content %}
+<div class="space-y-5">
+
+  {# ===== PageHeader ===== #}
+  {% page_header titulo="Novedad" eyebrow=dispositivo.nombre bajada="Lo que se anotó en la bitácora, con sus personas, archivos y versiones." volver_url=url_bitacora volver_label="la bitácora" migas=migas %}
+    <span class="badge {% if tono == 'success' %}badge-success{% elif tono == 'info' %}badge-info{% elif tono == 'warning' %}badge-warning{% elif tono == 'danger' %}badge-danger{% elif tono == 'brand' %}badge-brand{% else %}badge-gray{% endif %}">{{ tipo_texto }}</span>
+  {% endpage_header %}
+
+  {% if reemplazada %}
+  {% include "components/_alerta.html" with tono="warning" titulo="Esta versión fue reemplazada." texto="La novedad se corrigió después. Lo que se ve acá es lo que decía en esta versión; la vigente está al final, en «Versiones»." %}
+  {% endif %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+
+    {# ===== Novedad ===== #}
+    <div class="lg:col-span-2 grid grid-cols-1 gap-4">
+      <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="novedad-titulo">
+        <div class="px-5 py-4 border-b border-light">
+          <h2 id="novedad-titulo" class="text-heading font-bold">Observaciones</h2>
+        </div>
+        <div class="p-5 break-words text-sm text-body">{{ entrada.texto|linebreaksbr }}</div>
+        {% if entrada.motivo_correccion %}
+        <p class="px-5 py-4 border-t border-light text-xs text-body-subtle">Motivo de la corrección: {{ entrada.motivo_correccion }}</p>
+        {% endif %}
+      </section>
+
+      <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="personas-titulo">
+        <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-2">
+          <h2 id="personas-titulo" class="text-heading font-bold">Personas asociadas</h2>
+          <span class="badge badge-gray">{{ cantidad_personas }}</span>
+        </div>
+        {% if personas %}
+        <ul class="px-5" role="list">
+          {% for persona in personas %}
+          <li class="flex items-center gap-3 py-3 text-sm{% if not forloop.first %} border-t border-light{% endif %}">
+            <i class="fas fa-user text-body-subtle" aria-hidden="true"></i>
+            <a href="{{ persona.url_legajo }}" class="text-fg-brand hover:underline break-words">{{ persona.nombre }}</a>
+            <span class="text-xs text-body-subtle">Ver legajo</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% elif cantidad_personas and not nombrar_personas %}
+        <p class="p-5 text-sm text-body-subtle">{{ cantidad_personas }} persona{{ cantidad_personas|pluralize }} involucrada{{ cantidad_personas|pluralize }}. Para ver quiénes son hace falta el permiso de ver ciudadanos.</p>
+        {% else %}
+        {% include "components/_estado_vacio.html" with icono="fa-user" titulo="Sin personas asociadas" texto="Esta novedad no involucra a ninguna persona." %}
+        {% endif %}
+      </section>
+
+      <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="adjuntos-titulo">
+        <div class="px-5 py-4 border-b border-light flex items-center justify-between gap-2">
+          <h2 id="adjuntos-titulo" class="text-heading font-bold">Adjuntos</h2>
+          <span class="badge badge-gray">{{ cantidad_adjuntos }}</span>
+        </div>
+        {% if cantidad_adjuntos %}
+        {% if imagenes %}
+        <div class="p-5">{% include "components/_galeria_fotos.html" with fotos=imagenes %}</div>
+        {% endif %}
+        {% if archivos %}
+        <ul class="px-5" role="list">
+          {% for archivo in archivos %}
+          <li class="flex items-center gap-3 py-3 text-sm{% if not forloop.first %} border-t border-light{% endif %}">
+            <i class="fas fa-paperclip text-body-subtle" aria-hidden="true"></i>
+            <a href="{{ archivo.url }}" class="text-fg-brand hover:underline break-words" rel="noopener noreferrer">{{ archivo.nombre }}</a>
+            <span class="text-xs text-body-subtle">Descargar</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        {% else %}
+        {% include "components/_estado_vacio.html" with icono="fa-paperclip" titulo="Sin adjuntos" texto="Esta novedad no tiene archivos." %}
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4">
+      {# ===== Datos de la novedad ===== #}
+      <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="datos-titulo">
+        <div class="px-5 py-4 border-b border-light">
+          <h2 id="datos-titulo" class="text-heading font-bold">Datos</h2>
+        </div>
+        <dl class="px-5">
+          <div class="flex items-start justify-between gap-4 py-2 text-sm">
+            <dt class="text-body-subtle">Cuándo pasó</dt>
+            <dd class="text-right text-body tabular-nums">{{ momento_texto }}</dd>
+          </div>
+          <div class="flex items-start justify-between gap-4 py-2 text-sm border-t border-light">
+            <dt class="text-body-subtle">Turno</dt>
+            <dd class="text-right text-body">{{ turno_texto }}</dd>
+          </div>
+          <div class="flex items-start justify-between gap-4 py-2 text-sm border-t border-light">
+            <dt class="text-body-subtle">Día operativo</dt>
+            <dd class="text-right text-body tabular-nums">{{ fecha_operativa_texto }}</dd>
+          </div>
+          <div class="flex items-start justify-between gap-4 py-2 text-sm border-t border-light">
+            <dt class="text-body-subtle">Registró</dt>
+            <dd class="text-right text-body">{{ autor }}{% if automatica %} · automática{% endif %}</dd>
+          </div>
+          <div class="flex items-start justify-between gap-4 py-2 text-sm border-t border-light">
+            <dt class="text-body-subtle">Versión</dt>
+            <dd class="text-right text-body">{{ entrada.version }}{% if corregida_el %} · corregida el {{ corregida_el }}{% endif %}</dd>
+          </div>
+        </dl>
+      </section>
+
+      {# ===== Versiones ===== #}
+      <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="versiones-titulo">
+        <div class="px-5 py-4 border-b border-light">
+          <h2 id="versiones-titulo" class="text-heading font-bold">Versiones</h2>
+          <p class="text-xs text-body-subtle mt-1">Corregir agrega una versión; ninguna se borra.</p>
+        </div>
+        <ol class="px-5" role="list">
+          {% for version in versiones %}
+          <li class="py-3 text-sm{% if not forloop.first %} border-t border-light{% endif %}"{% if version.es_actual %} aria-current="true"{% endif %}>
+            <p class="flex items-center gap-2 flex-wrap">
+              {% if version.es_actual %}<strong class="text-heading">Versión {{ version.version }}</strong>{% else %}<a href="{{ version.url }}" class="font-semibold text-fg-brand hover:underline">Versión {{ version.version }}</a>{% endif %}
+              {% if version.vigente %}<span class="badge badge-success">Vigente</span>{% else %}<span class="badge badge-gray">Reemplazada</span>{% endif %}
+              {% if version.es_actual %}<span class="text-xs text-body-subtle">(la que estás viendo)</span>{% endif %}
+            </p>
+            <p class="mt-1 text-xs text-body-subtle">{{ version.autor }} · {{ version.fecha_hora }} · {{ version.resumen }}</p>
+            {% if version.motivo %}<p class="mt-1 text-xs text-body-subtle">Motivo: {{ version.motivo }}</p>{% endif %}
+            {% if not version.es_actual %}<p class="mt-1 text-body break-words">{{ version.texto|truncatechars:160 }}</p>{% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

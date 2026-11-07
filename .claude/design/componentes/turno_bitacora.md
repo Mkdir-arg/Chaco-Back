@@ -4,7 +4,7 @@
 de cada turno y la lista de anotaciones de un turno.
 **Evidencia:** `templates/components/_turno_tarjeta.html`, `templates/components/_entradas_bitacora.html`,
 `core/tests/test_nodo_ui_lote_c.py`, `core/tests/test_nodo_ui_piezas.py`.
-**Consumidores de referencia:** `programas/templates/programas/dispositivos/bitacora/bitacora.html` (bitácora del turno, P10).
+**Consumidores de referencia:** `programas/templates/programas/dispositivos/bitacora/bitacora.html` (bitácora del turno, P10). Detalle de una novedad: `programas/templates/programas/dispositivos/bitacora/entrada.html` («detalle + apilado», Cambio 427).
 Se entra desde el botón «Bitácora del turno» del encabezado de P4
 (`programas/templates/programas/dispositivos/legajo/detail.html`), como en el mockup.
 
@@ -23,7 +23,7 @@ Tarde · entradas», debajo de su encabezado.
 | Parámetro | Efecto |
 |---|---|
 | `turno` | Dict armado por la vista: `nombre`, `estado`, y opcionales `horario`, `tono`, `detalle`, `activo`, `sin_abrir`, `acciones` (lista de `url`, `texto`, `variante`) |
-| `entradas` | Lista de dicts (no queryset), de la más nueva a la más vieja: `hora`, `categoria`, y opcionales `tono`, `titulo`, `texto`, `autor`, `automatica`, `version`, `url_corregir` |
+| `entradas` | Lista de dicts (no queryset), de la más nueva a la más vieja: `hora`, `categoria`, y opcionales `tono`, `titulo`, `texto`, `autor`, `automatica`, `version`, `url_corregir`, `url_detalle`, `adjuntos` |
 | `total` | Opcional: cantidad real de entradas si la vista mandó menos |
 
 `programas/services/bitacora.py` genera las novedades de ingreso, egreso, cambio y asignación de plaza
@@ -33,6 +33,7 @@ Tarde · entradas», debajo de su encabezado.
 La pantalla lo prepara solo para entradas corregibles y con capacidad y alcance; abre
 el modal precargado con `?corregir=<id>` sin mutar nada. Sin el parámetro, el HTML es idéntico.
 En P10 la corrección vive en cada entrada, no en la tarjeta del turno.
+`url_detalle` dibuja «Ver detalle» en la línea de autoría y navega a la pantalla de detalle de la novedad (`dispositivos:bitacora_entrada`, variante «detalle + apilado», sin piezas nuevas; la vista previa de imágenes reusa `_galeria_fotos.html`). `adjuntos` (lista de `{nombre, url}`) se dibuja como enlaces de descarga bajo el texto; la `url` es la de `/media/`, que valida `dispositivo.ver` sobre el dispositivo dueño. Sin ninguna de las dos claves, el HTML es idéntico. La vista autoriza el detalle con `dispositivo.ver` con alcance (entrada de otro dispositivo: 404) y enlaza a la persona con `legajos:ciudadano_detalle` solo con `ciudadano.ver`.
 El modal «Corregir novedad» reusa los campos del alta (`personas` en chips y `adjuntos`, con los mismos límites)
 para **sumar**, nunca para quitar: sin includes ni variantes nuevas. La versión muestra «Corregida el <fecha hora>»
 y el motivo termina con lo sumado («+2 adjuntos, +1 persona»); el autor ya va en la línea de autoría. El servicio recibe `sumar_personas` (aditivo, sin revalidar las originales).

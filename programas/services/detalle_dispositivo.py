@@ -25,7 +25,7 @@ lectura por cada una de sus cuatro fuentes (``programas.selectors.auditoria_disp
 from collections import defaultdict
 
 from django.core.paginator import Paginator
-from django.db.models import Count, F, Q
+from django.db.models import Count, Exists, F, OuterRef, Q, Value
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
@@ -514,14 +514,22 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
     en_tabla = len(edificios) > 1
 
     instituciones = instituciones_del_predio(usuario, [edificio.pk for edificio in edificios])
-    ultimas = InspeccionEdificio.objects.select_related("realizada_por").in_bulk(
-        [edificio.ultima_id for edificio in edificios if edificio.ultima_id]
+    # Cambio 428: la criticidad, las observaciones y quién relevó son del informe, que se abre solo
+    # por `inspecciones_visibles`. Quien ve el dispositivo sin ese alcance recibe el semáforo y la
+    # fecha, nada más. Va como `Exists` en la misma consulta de las últimas, sin una más; sin
+    # usuario, todo como siempre.
+    visibles = Exists(inspecciones_visibles(usuario).filter(pk=OuterRef("pk"))) if usuario is not None else Value(True)
+    ultimas = (
+        InspeccionEdificio.objects.select_related("realizada_por")
+        .annotate(con_detalle=visibles)
+        .in_bulk([edificio.ultima_id for edificio in edificios if edificio.ultima_id])
     )
     sectores_de, sectores_sin_edificio = sectores_por_edificio(dispositivo)
     filas = []
     for edificio in edificios:
         ultima = ultimas.get(edificio.ultima_id)
         sectores = sectores_de.get(edificio.pk, [])
+        ve_detalle = ultima is None or ultima.con_detalle
         filas.append(
             {
                 "pk": edificio.pk,
@@ -535,7 +543,8 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
                 "instituciones": instituciones.get(edificio.pk, []),
                 "semaforo": semaforo_de_inspeccion(ultima, vencido=edificio.vencido),
                 "ultima": ultima,
-                "relevo": _nombre(ultima.realizada_por) if ultima else "",
+                "ve_detalle": ve_detalle,
+                "relevo": _nombre(ultima.realizada_por) if ultima and ve_detalle else "",
                 "otras_instituciones": edificio.n_instituciones - 1,
             }
         )

@@ -550,6 +550,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 424 | Dispositivos: un sector dado de baja se ve (filtro «sectores inactivos»), se reactiva y libera su nombre; el nombre es único solo entre sectores activos | Dispositivos · sectores y plazas | `#datos` `#ui` `#rbac` | QA / PM — caso «sector inactivado no se ve ni se reactiva» | 07/11/2026 | 🟡 **En curso** | `programas.0112` |
 | 425 | Dispositivos: el selector «Nuevo agente» de Reasignar un relevamiento no ofrece al agente que ya lo tiene | Dispositivos · relevamientos edilicios | `#relevamientos` `#rbac` | QA — caso 5 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 426 | Dispositivos: al corregir una novedad de la bitácora se pueden sumar archivos y personas, y el registro dice qué se sumó | Dispositivos · bitácora | `#ui` | QA — caso 4 | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 427 | Dispositivos: detalle de cada novedad de la bitácora (texto completo, personas con enlace al legajo, adjuntos con vista previa o descarga, versiones) y archivo del listado como enlace | Dispositivos · bitácora · sistema de diseño | `#ui` `#rbac` | QA — caso 3 | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 428 | Dispositivos: el relevamiento de un edificio compartido lo ve quien opera alguno de sus dispositivos; la franja de Infraestructura sin alcance de inspección muestra solo el semáforo | Dispositivos · relevamiento edilicio | `#rbac` `#ui` | QA — caso 7 (decisión delegada al juez) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 429 | Dispositivos: el sector se ubica en un edificio del dispositivo (obligatorio al crear), la pestaña Infraestructura muestra edificio → sectores con «Sin edificio», y no se desvincula un edificio con sectores activos | Dispositivos · sectores y plazas · infraestructura | `#datos` `#ui` | QA — caso 6 (decisiones delegadas al juez) | 07/11/2026 | 🟡 **En curso** | `programas.0113` y `programas.0114` |
 
 **Notas del índice**
@@ -52376,6 +52378,128 @@ Sin cambios.
 ## Pendientes / a definir
 
 - Quitar adjuntos o personas desde la pantalla: no se pidió.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 427 — Bitácora de Dispositivos: detalle de cada novedad, con archivos que se abren y enlace al legajo
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · bitácora del turno · sistema de diseño |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | QA — caso 3 |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue (hallazgo de QA) |
+| **Partes afectadas** | Vista · servicio de pantalla · template nuevo · pieza `_entradas_bitacora.html` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Las novedades de la bitácora permiten asociar una persona y cargar un archivo, pero al consultarlas solo se muestra el nombre del archivo como texto plano: no hay forma de abrirlo, ni vista de detalle de la entrada, ni acceso al legajo del ciudadano asociado. Criterios: existe un detalle de cada entrada; muestra observaciones completas, adjuntos y personas (con versiones y motivo); las imágenes tienen vista previa y el resto se descarga; cada persona enlaza a su legajo; el acceso a los archivos respeta permisos.
+
+## Alcance acordado
+
+**Entra:** pantalla `/dispositivos/<id>/bitacora/entradas/<entrada_id>/`, «Ver detalle» en cada novedad del listado y el nombre del archivo como enlace. **Queda afuera:** corregir desde el detalle (sigue en el modal de la bitácora) y quitar archivos o personas.
+
+## Decisiones tomadas
+
+1. Se consultó el archivo vivo (Cambios 271, 274, 426): nombrar personas exige `ciudadano.ver` (271) y la corrección conserva la versión anterior (274, 426). No hay contradicción.
+2. **Autorización:** la misma que leer la bitácora, `dispositivo.ver` con alcance al dispositivo (`DispositivoObjectPermissionMixin`). Una entrada de otro dispositivo es 404; sin alcance al dispositivo de la URL es 403 igual con un id ajeno que con uno inexistente (no es un oráculo de ids).
+3. **Archivos:** no se creó una vista de descarga nueva. `core.views.media` ya resuelve el adjunto por su ruta (`_adjunto_de_bitacora`) y exige `dispositivo.ver` sobre **su** dispositivo, con `attachment` + `nosniff`; el detalle solo enlaza esa URL. Una imagen se previsualiza con `<img>` (la carga de subrecursos ignora `Content-Disposition`).
+4. **Personas:** se nombran y enlazan a `legajos:ciudadano_detalle` solo con `ciudadano.ver`; sin ella se dice cuántas son y el nombre no llega al template.
+5. **Pantalla:** variante «detalle + apilado» declarada (un área sola), clonando la estructura de `bitacora.html`; la vista previa reusa `components/_galeria_fotos.html`. Sin piezas nuevas.
+6. **Pieza canónica `_entradas_bitacora.html`:** dos claves opcionales, `url_detalle` («Ver detalle») y `adjuntos` (enlaces); sin ellas el HTML no cambia. La línea de texto «Adjuntos: a, b» del listado se reemplaza por los enlaces.
+7. El detalle de una versión reemplazada avisa que lo fue y enlaza a todas las versiones de la cadena, con autor, fecha, motivo («+N adjuntos, +N persona») y cuántas personas y archivos tenía cada una.
+
+## Implementación
+
+`programas/services/bitacora_detalle.py` (nuevo), `programas/views/dispositivos_bitacora.py` (`BitacoraEntradaView`), `programas/dispositivos_urls.py` (`dispositivos:bitacora_entrada`), `programas/services/bitacora_pantalla.py` (`_entrada`, `_texto_de`), `programas/templates/programas/dispositivos/bitacora/entrada.html` (nuevo), `templates/components/_entradas_bitacora.html`.
+
+## Archivos
+
+Los de Implementación, `programas/tests/test_dispositivos_bitacora_detalle.py` (nuevo), `.claude/design/componentes/turno_bitacora.md` y la fila de la pieza en `.claude/agents/chaco-design-system.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+`test_dispositivos_bitacora_detalle` (15 casos): 200 con `dispositivo.ver`, 403 sin la capacidad o de otra institución (igual con id inexistente), 404 con la entrada de otro dispositivo, contenido completo, enlace al legajo, sin `ciudadano.ver` ni nombre ni enlace, imagen con `<img>` y PDF con enlace de descarga, cadena de versiones con motivo, y `/media/` 200 / 403. Mutaciones: sacar el filtro `dispositivo=` de la entrada, forzar `nombrar_personas=True` y desactivar la compuerta de alcance del mixin ponen rojo, cada una, el test que las cubre.
+
+## Pendientes / a definir
+
+- Corregir una novedad desde su detalle: no se pidió.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 428 — Relevamiento edilicio: edificio compartido y franja de Infraestructura sin alcance
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamiento edilicio (alcance) y solapa Infraestructura del detalle |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | QA — caso 7 (decisión delegada al juez) |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue (seguimiento del Cambio 422) |
+| **Partes afectadas** | Backoffice · Servidor · Template |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Dos decisiones que dejó abiertas el Cambio 422, delegadas por el PM al juez: (1) un relevamiento es de un edificio y un edificio puede estar vinculado a varios dispositivos; (2) qué ve en la franja de Infraestructura quien lee el dispositivo sin alcance de inspección. Más un MINOR del 422: que `dispositivos_en_alcance` delegue en `dispositivos_operados`.
+
+## Alcance acordado
+
+**Entra:** test del edificio compartido (sin cambio de código); el semáforo sin detalle en la solapa Infraestructura. **Queda afuera:** la línea de tiempo de Historial (sigue nombrando a quien relevó un relevamiento realizado, regla del Cambio 289), la API de campo.
+
+## Decisiones tomadas
+
+1. **Edificio compartido:** un usuario con alcance de inspección sobre ALGUNO de los dispositivos vinculados al edificio ve el relevamiento (listado, informe, fotos y adjuntos). Fuera de eso, 404, aunque lea todos los dispositivos. Ya era así: `inspecciones_visibles` arma los edificios desde los dispositivos del alcance (`_edificios_de`), así que basta uno. Se fija con test; no hubo cambio de código.
+2. **Franja de Infraestructura:** quien ve el dispositivo (por ejemplo con «ver todos los dispositivos») pero no tiene alcance de inspección sobre el relevamiento ve solo el semáforo y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó. Con alcance o superusuario, todo como hasta ahora. «Alcance» es el mismo `inspecciones_visibles` que gobierna el informe, evaluado sobre el último relevamiento de cada edificio: una sola regla.
+3. El cruce con `inspecciones_visibles` va como `Exists` dentro de la consulta de los últimos relevamientos: no suma consultas y el presupuesto de `dispositivos_infraestructura` queda igual.
+4. **MINOR no aplicado:** `dispositivos_en_alcance` no delega en `dispositivos_operados`. Las dos arrancan con la misma guarda (programa y capacidad), pero en la primera esa guarda tiene que ir antes de la rama «todo» (admin del programa o `ver_todos`); delegar obligaría a repetirla o a evaluar `rbac.puede` dos veces, y lo único que se comparte es la llamada a `_del_equipo_o_asignados`. No elimina duplicación real.
+
+## Implementación
+
+Quien lee un dispositivo sin alcance de inspección sobre su edificio ve en la solapa Infraestructura el semáforo y la fecha del último relevamiento, con un aviso de que el detalle lo ve quien opera o coordina la institución. El Historial no cambia.
+
+## Archivos
+
+`programas/services/detalle_dispositivo.py` (`infraestructura_del_dispositivo`: `ve_detalle` por edificio), `programas/templates/programas/dispositivos/legajo/detail.html`, `.claude/design/arquetipos/detalle.md`, `programas/tests/test_dispositivos_relevamiento_alcance.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `EdificioCompartidoTests` (3) y `FranjaInfraestructuraSinAlcanceTests` (2) en `test_dispositivos_relevamiento_alcance`: edificio compartido por parador y CIS visto por quien opera cualquiera de los dos y por el coordinador (informe, foto y listado), 404 para un operador ajeno y para quien solo lee todo; franja sin alcance con semáforo y fecha pero sin la observación ni el nombre de quien relevó (assertNotIn sobre el panel), con alcance, admin y superusuario completa.
+- **Mutaciones:** `ve_detalle` siempre verdadero deja rojo el test de la franja; anular el camino de `dispositivo.ver` de `inspecciones_visibles` deja rojos los de edificio compartido; volver al alcance de lectura (`dispositivos_en_alcance`) deja rojos los 404. Restaurado, verde.
+
+## Pendientes / a definir
+
+- El Historial sigue nombrando a quien relevó un relevamiento ya realizado (decisión del Cambio 289): confirmar con el PM si también se oculta a quien no tiene alcance.
 
 ## Reversión
 

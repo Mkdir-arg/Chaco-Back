@@ -474,7 +474,12 @@
               </table>
             </div>
             {% endif %}
-            {% if edificio.ultima %}
+            {% if edificio.ultima and not edificio.ve_detalle %}
+            <dl class="grid gap-5 sm:grid-cols-3">
+              <div><dt class="text-xs font-semibold uppercase text-body-subtle">Relevado el</dt><dd class="mt-1 text-body">{{ edificio.ultima.realizada_en|date:"d/m/Y" }}</dd></div>
+            </dl>
+            <p class="text-sm text-body-subtle">El detalle del relevamiento lo ve quien opera o coordina la institución del edificio.</p>
+            {% elif edificio.ultima %}
             <dl class="grid gap-5 sm:grid-cols-3">
               <div><dt class="text-xs font-semibold uppercase text-body-subtle">Criticidad</dt><dd class="mt-1 text-body">{{ edificio.ultima.get_criticidad_display }}</dd></div>
               <div><dt class="text-xs font-semibold uppercase text-body-subtle">Relevado el</dt><dd class="mt-1 text-body">{{ edificio.ultima.realizada_en|date:"d/m/Y" }}</dd></div>
