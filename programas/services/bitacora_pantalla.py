@@ -461,7 +461,15 @@ def pantalla_bitacora(
         versiones = [_entrada(entrada, nombrar_personas=nombrar_personas, reemplazada=True) for entrada in reemplazadas]
 
     corregibles = []
-    if puede_cargar:
+    if puede_cargar and not tipo and turno is not None and turno.pk == en_curso.turno.pk:
+        # Sin filtro, las vigentes del turno en curso (mismo orden y tope) **son** las corregibles:
+        # ya traen personas y adjuntos, que el modal ofrece quitar, sin consultas de más.
+        corregibles = [
+            _opcion_correccion(entrada, nombrar_personas=nombrar_personas)
+            for entrada in vigentes
+            if entrada.origen == EntradaBitacora.Origen.MANUAL
+        ][:TOPE_CORREGIBLES]
+    elif puede_cargar:
         corregibles = [
             _opcion_correccion(entrada, nombrar_personas=nombrar_personas)
             for entrada in EntradaBitacora.objects.vigentes()
