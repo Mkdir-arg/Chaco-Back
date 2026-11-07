@@ -113,7 +113,7 @@ class SectorTests(TestCase):
         cls.dispositivo = _dispositivo(cls.tipo)
         cls.otro = _dispositivo(cls.tipo, codigo="CIS-4", nombre="CIS N.º 4")
 
-    def test_el_sector_cuelga_del_dispositivo_y_no_del_edificio(self):
+    def test_el_sector_cuelga_del_dispositivo_y_se_ubica_en_un_edificio(self):
         sector = Sector.objects.create(
             dispositivo=self.dispositivo,
             nombre="Pabellón A",
@@ -123,7 +123,9 @@ class SectorTests(TestCase):
         )
 
         self.assertEqual(list(self.dispositivo.sectores.all()), [sector])
-        self.assertNotIn("edificio", {campo.name for campo in Sector._meta.get_fields()})
+        # Cambio 429: el edificio es opcional en la base (null) y obligatorio en el alta, por el servicio.
+        self.assertIsNone(sector.edificio)
+        self.assertTrue(Sector._meta.get_field("edificio").null)
 
     def test_el_nombre_del_sector_no_tiene_unique_en_la_base(self):
         """Es único solo entre activos (Cambio 424) y MySQL/MariaDB no tienen UNIQUE condicional:

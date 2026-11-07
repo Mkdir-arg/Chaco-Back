@@ -931,7 +931,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         # viaje al servidor que se veía como un F5. El alta del sector lleva su propio auto_id
         # porque convive con «Editar sector», que es el mismo formulario.
         if context["puede_ampliar_capacidad"]:
-            context["form_sector_nuevo"] = SectorForm(auto_id="id_nuevo_%s")
+            context["form_sector_nuevo"] = SectorForm(dispositivo=dispositivo, auto_id="id_nuevo_%s")
             context["url_sector_nuevo"] = reverse("dispositivos:sector_crear", args=[dispositivo.pk])
         pedido = self.request.GET.get("sector", "")
         # `?sector=nuevo` es el enlace de antes al alta: se ignora en vez de avisar que ese
@@ -943,7 +943,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
                 messages.warning(self.request, "Ese sector ya no se puede editar desde acá.")
             else:
                 context["sector_en_edicion"] = sector
-                context["form_sector"] = SectorForm(sector=sector)
+                context["form_sector"] = SectorForm(dispositivo=dispositivo, sector=sector)
                 context["url_sector"] = reverse("dispositivos:sector_editar", args=[dispositivo.pk, sector.pk])
 
         if context["sectores"] and context["puede_ampliar_capacidad"]:

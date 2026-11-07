@@ -190,6 +190,12 @@ contrato de `componentes/ficha_timeline.md`. Las fotos en curso conservan su fec
 Quien ve el dispositivo sin alcance de inspección sobre el edificio (`inspecciones_visibles`) ve en la franja de
 Infraestructura solo el semáforo y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó.
 
+La solapa Infraestructura de P4 abre, debajo de los indicadores, la sección «Sectores por
+edificio» (Cambio 429): por cada edificio un título con su cantidad de sectores y de plazas y la
+lista `ul.divide-y.divide-light` de sus sectores activos, y, si quedan sectores sin ubicar, el
+bloque «Sin edificio» con la misma lista. Es lista simple, sin componente nuevo. La arma
+`infraestructura_del_dispositivo` (`sectores`, `n_plazas`, `sin_edificio`) con una consulta fija.
+
 ## Prohibido
 
 - `<h1>` propio, «← Volver» como link de texto, header dentro de una card.
