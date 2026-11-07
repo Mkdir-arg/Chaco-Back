@@ -221,7 +221,7 @@ class VerTests(BasePantalla):
 
         self.assertEqual(respuesta.status_code, 403)
 
-    def test_otra_institucion_es_403(self):
+    def test_otra_institucion_es_404(self):
         """Con todas las capacidades, pero asignado al parador: el CIS no es suyo."""
 
         respuesta = self._get(self._usuario("Operador parador", self.parador))

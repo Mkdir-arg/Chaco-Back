@@ -13,7 +13,7 @@ import logging
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError
-from django.http import Http404, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
@@ -21,11 +21,10 @@ from django.views import View
 from core.http_cache import sin_cache
 from core.services.throttle import rate_limit_excedido
 from programas.forms_dispositivos import CrearPersonaEquipoForm, SumarMiembroEquipoForm
-from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
+from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, alcance_o_404
 from programas.models import Dispositivo, MiembroEquipoDispositivo
 from programas.selectors.equipo_sugeridas import sugerir_pares_equipo
 from programas.services import equipo_dispositivo as equipo
-from programas.services.dispositivos import puede_operar_dispositivo
 from programas.views.ajax_utils import ajax_redirect, errores_del_servicio, is_ajax
 from users.forms import MENSAJE_DNI_DUPLICADO
 from users.services.correo import ENTREGA_LINK, entregar_credenciales_provisorias
@@ -62,8 +61,7 @@ class _EquipoAccionView(DispositivoProgramaPermissionMixin, View):
     def post(self, request, pk, **kwargs):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
         if not self.autorizado(request, dispositivo):
-            if not puede_operar_dispositivo(request.user, dispositivo, "dispositivo.ver"):
-                raise Http404
+            alcance_o_404(request.user, dispositivo, "dispositivo.ver")
             if is_ajax(request):
                 return JsonResponse({"ok": False, "message": self.mensaje_sin_permiso}, status=403)
             raise PermissionDenied
@@ -196,8 +194,7 @@ class EquipoPersonasSugeridasView(DispositivoProgramaPermissionMixin, View):
     def get(self, request, pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
         if not equipo.puede_gestionar_equipo(request.user, dispositivo):
-            if not puede_operar_dispositivo(request.user, dispositivo, "dispositivo.ver"):
-                raise Http404
+            alcance_o_404(request.user, dispositivo, "dispositivo.ver")
             return sin_cache(
                 JsonResponse({"ok": False, "message": "No tenés alcance para armar el Equipo."}, status=403)
             )

@@ -702,7 +702,7 @@ class ReservarYPrestarTests(BaseMapa):
         self.assertEqual(respuesta.status_code, 404)
         self.assertFalse(ReservaPlaza.objects.exists())
 
-    def test_quien_no_opera_el_dispositivo_recibe_403_aunque_la_plaza_exista(self):
+    def test_quien_no_opera_el_dispositivo_recibe_404_aunque_la_plaza_exista(self):
         respuesta = self._post("reservar", {"dni": self.otra_persona.dni}, usuario=self.operador_parador)
 
         self.assertEqual(respuesta.status_code, 404)

@@ -52540,7 +52540,9 @@ Cuando un usuario autenticado del backoffice pide un recurso de un dispositivo s
 3. Las vistas que ya traducían el `PermissionDenied` de un servicio lo siguen traduciendo a 403: el servicio corre después de la compuerta de alcance, así que esa denegación es de capacidad.
 4. Revisar un relevamiento ajeno o inexistente es 404 (antes 403); asignar, reasignar y cancelar ya daban 404 por alcance.
 5. El acta de la bitácora en `/media/` sin alcance es 404 (antes 403), como un archivo inexistente.
-6. El 404 no lleva cuerpo JSON aunque el pedido sea AJAX: es la página de error de siempre, la misma que ya devolvían los `get_object_or_404`.
+6. **Un solo punto de decisión:** `alcance_o_404` y `dispositivo_operable_o_404` en `programas/mixins_dispositivos.py` (inexistente y ajeno lanzan la misma `DispositivoNoOperable`, un `Http404`). El `dispatch` de `DispositivoProgramaPermissionMixin` la traduce: en un pedido AJAX responde JSON 404 con «No encontramos ese dispositivo o ya no tenés acceso.»; en el resto, la página 404 de siempre. `_ajax_js.html` (compartido con Becas) muestra ese mensaje, o «No encontramos lo que buscabas o ya no tenés acceso.», ante un 404.
+7. **Orden de chequeos en las compuertas con `ciudadano.ver`:** primero el alcance (404) y después la capacidad (403), sin repetir la consulta de alcance en el camino exitoso. En el asistente de ingreso la capacidad `dispositivo.admitir` en el programa se exige antes de mirar el id: sin ella, 403 con cualquier id.
+8. «Crear relevamiento» desde el detalle: si el dispositivo no tiene edificios elegibles y quien pide no tiene alcance sobre él, 404 (antes un 400 con el error del campo, que lo distinguía de un id inexistente).
 
 ## Implementación
 
@@ -52548,7 +52550,7 @@ Ver «Archivos». Sin cambios de modelos ni de plantillas.
 
 ## Archivos
 
-`programas/mixins_dispositivos.py`, `programas/views/dispositivos_legajo.py`, `programas/views/dispositivos_bitacora.py`, `programas/views/dispositivos_equipo.py`, `programas/views/dispositivos_ingreso.py`, `programas/views/dispositivos_relevamientos.py`, `core/views/media.py`, `programas/tests/test_dispositivos_alcance_404.py` y los tests de Dispositivos que esperaban 403 por alcance, `docs/internal/requerimientos.md`.
+`programas/mixins_dispositivos.py`, `programas/views/dispositivos_legajo.py`, `programas/views/dispositivos_bitacora.py`, `programas/views/dispositivos_equipo.py`, `programas/views/dispositivos_ingreso.py`, `programas/views/dispositivos_relevamientos.py`, `core/views/media.py`, `programas/templates/programas/becas/_ajax_js.html`, `programas/tests/test_dispositivos_alcance_404.py` y los tests de Dispositivos que esperaban 403 por alcance, `docs/internal/requerimientos.md`.
 
 ## Base de datos
 
@@ -52556,13 +52558,13 @@ Sin cambios.
 
 ## Validación
 
-- `test_dispositivos_alcance_404`: un dispositivo ajeno y uno inexistente dan el mismo 404 y el mismo cuerpo en el detalle, los sectores, la bitácora y el informe de un relevamiento; sin `dispositivo.ver` sigue siendo 403.
-- **Mutación:** volver a `PermissionDenied` en `DispositivoObjectPermissionMixin.get_object` deja rojos los tres casos del detalle, los sectores y la bitácora. Restaurado, verde.
+- `test_dispositivos_alcance_404`: un dispositivo ajeno y uno inexistente dan el mismo 404 y el mismo cuerpo en el detalle, los sectores, la bitácora, el informe de un relevamiento y «Crear relevamiento»; el POST AJAX responde el mismo JSON 404; el ingreso sin `dispositivo.admitir` es 403 con cualquier id; sin `dispositivo.ver` sigue siendo 403.
+- **Mutación:** hacer que `alcance_o_404` lance `PermissionDenied` deja rojos 6 de los 6 tests. Restaurado, verde.
 - Los `programas.tests.test_dispositivos*`, `manage.py check` y ruff en verde.
 
 ## Pendientes / a definir
 
-- «Crear relevamiento» desde el detalle (`DispositivoRelevamientoAsignarView`) con un dispositivo ajeno responde 400 con el error del campo, no 403 ni 404: no revela el dispositivo pero tampoco coincide con el id inexistente (404). No se tocó: no era un 403.
+Ninguno.
 
 ## Reversión
 

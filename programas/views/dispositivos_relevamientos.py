@@ -44,7 +44,7 @@ from programas.forms_dispositivos import (
     ElegirEdificioForm,
     ReasignarRelevamientoForm,
 )
-from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
+from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, alcance_o_404
 from programas.models import Dispositivo, InspeccionEdificio
 from programas.selectors.inspecciones import relevamiento_para_revision
 from programas.services.dispositivos import CAP_VER, puede_en_programa_dispositivos, puede_operar_dispositivo
@@ -545,6 +545,9 @@ class DispositivoRelevamientoAsignarView(_RelevamientoAccionView):
     def post(self, request, pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
         elegibles = edificios_para_asignar_del_dispositivo(request.user, dispositivo)
+        # Sin alcance sobre el dispositivo, el mismo 404 que un id inexistente (y no el 400 del campo).
+        if not elegibles:
+            alcance_o_404(request.user, dispositivo, CAP_VER)
         form = AsignarRelevamientoDispositivoForm(
             request.POST, edificios=elegibles, agentes=agentes_asignables_para(elegibles)
         )

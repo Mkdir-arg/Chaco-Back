@@ -10,13 +10,44 @@ los re-exporta para no romper los imports que ya existen.
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.http import Http404, JsonResponse
+from django.shortcuts import get_object_or_404
 
+from programas.models import Dispositivo
 from programas.services.dispositivos import (
     puede_configurar_dispositivos,
     puede_en_programa_dispositivos,
     puede_operar_dispositivo,
 )
 from programas.views.ajax_utils import is_ajax
+
+MENSAJE_DISPOSITIVO_NO_ENCONTRADO = "No encontramos ese dispositivo o ya no tenés acceso."
+
+
+class DispositivoNoOperable(Http404):
+    """Un dispositivo inexistente o sin alcance para quien pregunta: la misma respuesta para los dos.
+
+    Es un ``Http404`` común; el ``dispatch`` del mixin la traduce a JSON cuando el pedido es AJAX.
+    """
+
+
+def alcance_o_404(user, dispositivo, capacidad):
+    """Exige alcance sobre ESTE dispositivo; sin él, el 404 de un id inexistente."""
+
+    if not puede_operar_dispositivo(user, dispositivo, capacidad):
+        raise DispositivoNoOperable
+    return dispositivo
+
+
+def dispositivo_operable_o_404(request, pk, capacidad, queryset=None):
+    """Carga el dispositivo y exige alcance con ``capacidad``: ajeno e inexistente dan el mismo 404."""
+
+    try:
+        dispositivo = get_object_or_404(queryset if queryset is not None else Dispositivo.objects.all(), pk=pk)
+    except DispositivoNoOperable:
+        raise
+    except Http404:
+        raise DispositivoNoOperable from None
+    return alcance_o_404(request.user, dispositivo, capacidad)
 
 
 class DispositivoProgramaPermissionMixin(LoginRequiredMixin):
@@ -42,7 +73,12 @@ class DispositivoProgramaPermissionMixin(LoginRequiredMixin):
                     status=403,
                 )
             raise PermissionDenied
-        return super().dispatch(request, *args, **kwargs)
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except DispositivoNoOperable:
+            if is_ajax(request):
+                return JsonResponse({"ok": False, "message": MENSAJE_DISPOSITIVO_NO_ENCONTRADO}, status=404)
+            raise
 
 
 class DispositivoAltaPermissionMixin(DispositivoProgramaPermissionMixin):
@@ -73,11 +109,11 @@ class DispositivoAltaPermissionMixin(DispositivoProgramaPermissionMixin):
 
 class DispositivoObjectPermissionMixin(DispositivoProgramaPermissionMixin):
     def get_object(self, queryset=None):
-        dispositivo = super().get_object(queryset)
-        if not puede_operar_dispositivo(self.request.user, dispositivo, self.capacidad_requerida):
-            # Sin alcance sobre ESTE dispositivo: el mismo 404 que un id inexistente.
-            raise Http404
-        return dispositivo
+        try:
+            dispositivo = super().get_object(queryset)
+        except Http404:
+            raise DispositivoNoOperable from None
+        return alcance_o_404(self.request.user, dispositivo, self.capacidad_requerida)
 
 
 class ConfigurarDispositivosMixin(LoginRequiredMixin):

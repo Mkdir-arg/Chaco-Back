@@ -35,6 +35,35 @@ class DispositivoAjenoIgualQueInexistenteTests(BasePantalla):
             with self.subTest(nombre):
                 self._igual(nombre, intruso)
 
+    def test_el_post_ajax_ajeno_responde_json_igual_que_el_inexistente(self):
+        intruso = self._usuario("Operador parador", self.parador)
+        self.client.force_login(intruso)
+        respuestas = [
+            self.client.post(
+                reverse("dispositivos:bitacora_novedad", args=[pk]),
+                {"tipo": "GENERAL", "texto": "X."},
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+            for pk in (self.cis.pk, INEXISTENTE)
+        ]
+
+        for respuesta in respuestas:
+            self.assertEqual(respuesta.status_code, 404)
+            self.assertEqual(
+                respuesta.json(), {"ok": False, "message": "No encontramos ese dispositivo o ya no tenés acceso."}
+            )
+
+    def test_ingreso_sin_la_capacidad_es_403_con_cualquier_id_y_sin_alcance_es_404(self):
+        sin_admitir = self._usuario("Sin admitir", self.cis, _sin("dispositivo.admitir"))
+        intruso = self._usuario("Operador parador", self.parador)
+
+        self.client.force_login(sin_admitir)
+        for pk in (self.cis.pk, INEXISTENTE):
+            self.assertEqual(self.client.get(reverse("dispositivos:ingreso_persona", args=[pk])).status_code, 403)
+        self.client.force_login(intruso)
+        for pk in (self.cis.pk, INEXISTENTE):
+            self.assertEqual(self.client.get(reverse("dispositivos:ingreso_persona", args=[pk])).status_code, 404)
+
     def test_sin_la_capacidad_del_modulo_sigue_siendo_403(self):
         sin_ver = self._usuario("Sin ver", self.cis, _sin("dispositivo.ver"))
 
@@ -52,6 +81,17 @@ class InformeAjenoIgualQueInexistenteTests(BaseRevision):
 
         ajeno = cliente.get(reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk]))
         inexistente = cliente.get(reverse("dispositivos:relevamiento_informe", args=[INEXISTENTE]))
+
+        self.assertEqual((ajeno.status_code, inexistente.status_code), (404, 404))
+        self.assertEqual(_sin_token(ajeno.content), _sin_token(inexistente.content))
+
+    def test_crear_relevamiento_desde_un_dispositivo_ajeno_es_404_igual_que_inexistente(self):
+        intruso = self._usuario("otra_institucion", ("dispositivo.ver", "inspeccion.asignar"), [self.cis])
+        cliente = Client()
+        cliente.force_login(intruso)
+
+        ajeno = cliente.post(reverse("dispositivos:relevamiento_asignar_dispositivo", args=[self.parador.pk]), {})
+        inexistente = cliente.post(reverse("dispositivos:relevamiento_asignar_dispositivo", args=[INEXISTENTE]), {})
 
         self.assertEqual((ajeno.status_code, inexistente.status_code), (404, 404))
         self.assertEqual(_sin_token(ajeno.content), _sin_token(inexistente.content))

@@ -523,7 +523,7 @@ class IdentidadDeEstadiasTests(BaseDetalle):
 
 
 class AccionesYAlcanceTests(BaseDetalle):
-    def test_el_detalle_de_un_dispositivo_ajeno_es_403(self):
+    def test_el_detalle_de_un_dispositivo_ajeno_es_404(self):
         """Mismo usuario, misma capacidad: lo que cambia es el alcance (no tiene el Parador)."""
 
         self.assertEqual(self.client.get(self.url).status_code, 200)

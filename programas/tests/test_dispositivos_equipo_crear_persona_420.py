@@ -168,7 +168,7 @@ class CompuertaDelPostTests(BaseCrear):
         self.assertEqual(self.client.post(self.url_crear, self._datos()).status_code, 403)
         self._sin_alta()
 
-    def test_quien_administra_usuarios_pero_no_gestiona_este_equipo_recibe_403(self):
+    def test_quien_administra_usuarios_pero_no_gestiona_este_equipo_recibe_404(self):
         rol = self._rol("Solo usuarios", ("dispositivo.ver", "programa.usuario.administrar"))
 
         self.assertEqual(self._crear(self._usuario("solo_usuarios", rol)).status_code, 404)

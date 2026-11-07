@@ -45,6 +45,7 @@ from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los i
     DispositivoAltaPermissionMixin,
     DispositivoObjectPermissionMixin,
     DispositivoProgramaPermissionMixin,
+    dispositivo_operable_o_404,
 )
 from programas.models import Dispositivo, Edificio, Estadia, Plaza, ReservaPlaza, Sector, TipoDispositivo
 from programas.selectors.capacidad_dispositivo import edificios_vinculables, sectores_inactivos
@@ -731,9 +732,7 @@ class DispositivoActionView(DispositivoProgramaPermissionMixin, View):
         raise NotImplementedError
 
     def post(self, request, pk):
-        dispositivo = get_object_or_404(Dispositivo, pk=pk)
-        if not puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida):
-            raise Http404
+        dispositivo = dispositivo_operable_o_404(request, pk, self.capacidad_requerida)
         volver = reverse("dispositivos:detalle", args=[dispositivo.pk])
         try:
             self.ejecutar(dispositivo, request)
@@ -1096,14 +1095,12 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
     alias_de_campos = {}
 
     def post(self, request, pk, plaza_pk):
-        dispositivo = get_object_or_404(Dispositivo, pk=pk)
+        dispositivo = dispositivo_operable_o_404(request, pk, self.capacidad_requerida)
         volver = reverse("dispositivos:sectores", args=[dispositivo.pk])
         # Antes de mirar la plaza y de validar el form: con el DNI en la mano, la diferencia
         # entre «no encontramos» y el éxito sería un oráculo del padrón para quien no lo puede ver.
         # Sin alcance es 404; con alcance pero sin `ciudadano.ver` (capacidad) sigue siendo 403.
-        if not puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida):
-            raise Http404
-        if self.requiere_ver_ciudadanos and not puede_ingresar_persona(request.user, dispositivo):
+        if self.requiere_ver_ciudadanos and not puede(request.user, CAP_VER_CIUDADANO):
             if is_ajax(request):
                 return JsonResponse({"ok": False, "message": "No tenés permiso para realizar esta acción."}, status=403)
             raise PermissionDenied
@@ -1209,10 +1206,8 @@ class PersonasSugeridasView(DispositivoProgramaPermissionMixin, View):
     capacidad_requerida = CAP_ADMITIR
 
     def get(self, request, pk):
-        dispositivo = get_object_or_404(Dispositivo, pk=pk)
-        if not puede_operar_dispositivo(request.user, dispositivo, CAP_ADMITIR):
-            raise Http404
-        if not puede_ingresar_persona(request.user, dispositivo):
+        dispositivo_operable_o_404(request, pk, CAP_ADMITIR)
+        if not puede(request.user, CAP_VER_CIUDADANO):
             return JsonResponse({"ok": False, "message": "No tenés permiso para realizar esta acción."}, status=403)
         # Sin registrar lo tecleado: es un DNI o un apellido, dato personal.
         return sin_cache(JsonResponse(sugerir_personas(request.GET.get("q", ""))))
@@ -1309,9 +1304,7 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
     http_method_names = ["post"]
 
     def post(self, request, pk, estadia_pk):
-        dispositivo = get_object_or_404(Dispositivo, pk=pk)
-        if not puede_operar_dispositivo(request.user, dispositivo, CAP_EGRESAR):
-            raise Http404
+        dispositivo = dispositivo_operable_o_404(request, pk, CAP_EGRESAR)
         estadia = get_object_or_404(Estadia.objects.select_related("ciudadano"), pk=estadia_pk, dispositivo=dispositivo)
         volver = self._volver(request, dispositivo, estadia)
 
@@ -1504,9 +1497,7 @@ class EstadiaCambiarPlazaView(DispositivoProgramaPermissionMixin, View):
     http_method_names = ["post"]
 
     def post(self, request, pk, estadia_pk):
-        dispositivo = get_object_or_404(Dispositivo, pk=pk)
-        if not puede_operar_dispositivo(request.user, dispositivo, CAP_ADMITIR):
-            raise Http404
+        dispositivo = dispositivo_operable_o_404(request, pk, CAP_ADMITIR)
         estadia = _estadia_del_dispositivo(dispositivo, estadia_pk)
         destino = request.POST.get("volver")
         if destino == "dispositivo":

@@ -253,6 +253,8 @@
         confirmarSolapamiento(form, data.message);
       } else if (r.status === 403) {
         aviso('error', data.message || 'No tiene permisos para realizar esta acción.');
+      } else if (r.status === 404) {
+        aviso('error', data.message || 'No encontramos lo que buscabas o ya no tenés acceso.');
       } else {
         aviso('error', data.message || 'Ocurrió un error del sistema. Si persiste, avisá al administrador.');
       }

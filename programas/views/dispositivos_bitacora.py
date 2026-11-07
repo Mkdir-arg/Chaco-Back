@@ -23,7 +23,7 @@ no las repite: si el servicio rechaza, muestra su mensaje en el campo que corres
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import Http404, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
@@ -31,7 +31,11 @@ from django.views.generic import DetailView
 
 from core import rbac
 from programas.forms_bitacora import CorreccionForm, NovedadForm, TurnoForm
-from programas.mixins_dispositivos import DispositivoObjectPermissionMixin, DispositivoProgramaPermissionMixin
+from programas.mixins_dispositivos import (
+    DispositivoObjectPermissionMixin,
+    DispositivoProgramaPermissionMixin,
+    dispositivo_operable_o_404,
+)
 from programas.models import Dispositivo, EntradaBitacora
 from programas.services.bitacora import (
     CAP_BITACORA,
@@ -182,7 +186,7 @@ def _rechazar(request, errores, volver):
     return redirect(volver)
 
 
-def _sin_alcance(request, mensaje):
+def _prohibido(request, mensaje):
     if is_ajax(request):
         return JsonResponse({"ok": False, "message": mensaje}, status=403)
     raise PermissionDenied(mensaje)
@@ -202,17 +206,15 @@ class _BitacoraPostView(DispositivoProgramaPermissionMixin, View):
     mensaje_exito = ""
 
     def post(self, request, pk):
-        dispositivo = get_object_or_404(Dispositivo, pk=pk)
+        dispositivo = dispositivo_operable_o_404(request, pk, self.capacidad_requerida)
         volver = reverse("dispositivos:bitacora", args=[dispositivo.pk])
-        if not puede_operar_dispositivo(request.user, dispositivo, self.capacidad_requerida):
-            raise Http404
         form = self.armar_form(request, dispositivo)
         if not form.is_valid():
             return _rechazar(request, form.errors, volver)
         try:
             self.ejecutar(request, dispositivo, form.cleaned_data)
         except PermissionDenied as error:
-            return _sin_alcance(request, str(error) or "No tenés permiso para realizar esta acción.")
+            return _prohibido(request, str(error) or "No tenés permiso para realizar esta acción.")
         except ValidationError as error:
             return _rechazar(request, _errores_del_servicio(error, form), volver)
         if is_ajax(request):
