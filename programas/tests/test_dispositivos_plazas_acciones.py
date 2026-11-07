@@ -32,11 +32,14 @@ from programas.services.detalle_dispositivo import alertas_del_dispositivo
 from programas.services.estadias import ingresar_persona, reservar_plaza, sacar_plaza_de_servicio
 from programas.services.ocupacion import ESTADO_DISPONIBLE, ESTADO_FUERA_SERVICIO, ESTADO_OCUPADA
 from programas.services.sectores_plazas import (
+    ACCION_EGRESAR,
     ACCION_FUERA_SERVICIO,
     ACCION_LIBERAR,
     ACCION_PRESTAR,
     ACCION_RESERVAR,
     ACCION_REUBICAR,
+    ACCION_VER_ESTADIA,
+    ACCION_VER_LEGAJO,
     ACCION_VOLVER,
     MOTIVO_PLAZA_OCUPADA,
     MOTIVO_SIN_PLAZAS_LIBRES,
@@ -246,7 +249,8 @@ class ReubicarDesdeElMapaTests(BaseMapa):
     def test_con_editar_sin_admitir_sigue_el_aviso_de_hoy(self):
         respuesta = self._pantalla(self.sin_admitir, plaza=self.plaza.pk)
 
-        self.assertEqual(respuesta.context["plaza_accion"]["accion"], ACCION_FUERA_SERVICIO)
+        self.assertIn(ACCION_FUERA_SERVICIO, respuesta.context["plaza_accion"]["acciones"])
+        self.assertNotIn(ACCION_REUBICAR, respuesta.context["plaza_accion"]["acciones"])
         self.assertEqual(respuesta.context["plaza_accion"]["bloqueo"], MOTIVO_PLAZA_OCUPADA)
         self.assertNotIn("form_cambio", respuesta.context)
 
@@ -299,6 +303,113 @@ class ReubicarDesdeElMapaTests(BaseMapa):
 
         self.assertNotIn("form_cambio", respuesta.context)
         self.assertNotIn("estadia_cambio", respuesta.context)
+
+
+class MenuDePlazaOcupadaTests(BaseMapa):
+    """La plaza ocupada ofrece más que cambiarla de plaza (Cambio 437): cada acción con la capacidad
+    que exige su vista destino, y «sacar de servicio» a la vista pero bloqueada."""
+
+    def setUp(self):
+        super().setUp()
+        self.estadia = ingresar_persona(
+            ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza
+        )
+        self.url_estadia = reverse("dispositivos:estadia_detalle", args=[self.cis.pk, self.estadia.pk])
+        self.url_legajo = reverse("legajos:ciudadano_detalle", args=[self.persona.pk])
+        base = reverse("dispositivos:detalle", args=[self.cis.pk])
+        self.url_egreso = f"{base}?tab=estadias&egreso={self.estadia.pk}"
+
+    def _modal(self, usuario):
+        respuesta = self._pantalla(usuario)
+        return respuesta, respuesta.context["plazas_modal"].get(self.plaza.pk)
+
+    def test_con_todas_las_capacidades_ofrece_las_cinco_acciones_en_orden(self):
+        respuesta, modal = self._modal(self.con_personas)
+
+        self.assertEqual(
+            modal["acciones"],
+            [ACCION_REUBICAR, ACCION_VER_ESTADIA, ACCION_VER_LEGAJO, ACCION_EGRESAR, ACCION_FUERA_SERVICIO],
+        )
+        self.assertEqual(
+            modal["enlaces"],
+            {ACCION_VER_ESTADIA: self.url_estadia, ACCION_VER_LEGAJO: self.url_legajo, ACCION_EGRESAR: self.url_egreso},
+        )
+        self.assertEqual(self._celdas(respuesta)["P1"]["click"], f"abrirPlaza({self.plaza.pk})")
+
+    def test_sacar_de_servicio_llega_deshabilitada_y_con_el_motivo_pedido(self):
+        respuesta, modal = self._modal(self.con_personas)
+
+        self.assertEqual(modal["bloqueo"], "La plaza está ocupada: primero registrá el egreso o cambiala de plaza.")
+        self.assertContains(respuesta, 'aria-describedby="motivo-sacar-ocupada"')
+        self.assertContains(respuesta, "Ver estadía")
+        self.assertContains(respuesta, "Registrar egreso")
+
+    def test_sin_ciudadano_ver_no_se_ofrece_ver_estadia_ni_ver_legajo(self):
+        _, modal = self._modal(self.operador_cis)
+
+        self.assertEqual(modal["acciones"], [ACCION_REUBICAR, ACCION_EGRESAR, ACCION_FUERA_SERVICIO])
+        self.assertEqual(set(modal["enlaces"]), {ACCION_EGRESAR})
+
+    def test_sin_egresar_no_se_ofrece_registrar_egreso(self):
+        usuario = self._operador(
+            "Sin egresar CIS",
+            self.cis,
+            ("dispositivo.ver", "dispositivo.admitir", "dispositivo.editar", "ciudadano.ver"),
+        )
+        _, modal = self._modal(usuario)
+
+        self.assertEqual(
+            modal["acciones"], [ACCION_REUBICAR, ACCION_VER_ESTADIA, ACCION_VER_LEGAJO, ACCION_FUERA_SERVICIO]
+        )
+        self.assertNotIn(ACCION_EGRESAR, modal["enlaces"])
+
+    def test_sin_admitir_no_se_ofrece_cambiar_de_plaza(self):
+        usuario = self._operador(
+            "Sin admitir con personas CIS",
+            self.cis,
+            ("dispositivo.ver", "dispositivo.egresar", "dispositivo.editar", "ciudadano.ver"),
+        )
+        _, modal = self._modal(usuario)
+
+        self.assertNotIn(ACCION_REUBICAR, modal["acciones"])
+        self.assertEqual(modal["acciones"][0], ACCION_VER_ESTADIA)
+
+    def test_sin_editar_no_se_ofrece_sacar_de_servicio(self):
+        _, modal = self._modal(self.sin_editar_con_personas)
+
+        self.assertNotIn(ACCION_FUERA_SERVICIO, modal["acciones"])
+        self.assertEqual(modal["bloqueo"], "")
+
+    def test_solo_con_ciudadano_ver_se_ofrecen_los_dos_enlaces_de_lectura(self):
+        usuario = self._operador("Lector CIS", self.cis, ("dispositivo.ver", "ciudadano.ver"))
+        _, modal = self._modal(usuario)
+
+        self.assertEqual(modal["acciones"], [ACCION_VER_ESTADIA, ACCION_VER_LEGAJO])
+
+    def test_solo_lectura_no_ofrece_nada(self):
+        respuesta, modal = self._modal(self.solo_lectura)
+
+        self.assertIsNone(modal)
+        self.assertEqual(self._celdas(respuesta)["P1"]["click"], "")
+
+    def test_los_enlaces_apuntan_a_vistas_que_el_usuario_puede_abrir(self):
+        self.client.force_login(self.con_personas)
+        for url in (self.url_estadia, self.url_legajo, self.url_egreso):
+            self.assertEqual(self.client.get(url).status_code, 200, url)
+
+    def test_con_plaza_en_la_url_sin_admitir_llega_el_menu_con_sus_enlaces(self):
+        usuario = self._operador(
+            "Sin admitir con personas 2 CIS",
+            self.cis,
+            ("dispositivo.ver", "dispositivo.egresar", "ciudadano.ver"),
+        )
+        respuesta = self._pantalla(usuario, plaza=self.plaza.pk)
+
+        self.assertEqual(respuesta.context["plaza_inicial"], self.plaza.pk)
+        self.assertEqual(
+            respuesta.context["plazas_modal"][self.plaza.pk]["acciones"],
+            [ACCION_VER_ESTADIA, ACCION_VER_LEGAJO, ACCION_EGRESAR],
+        )
 
 
 class CapacidadDelMapaTests(BaseMapa):
@@ -569,7 +680,9 @@ class PlazaDisponibleSinRecargaTests(BaseMapa):
     def test_la_plaza_ocupada_tambien_es_un_boton_que_pide_su_modal_al_tocar(self):
         ingresar_persona(ciudadano=self.persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.plaza)
 
-        respuesta = self._pantalla()
+        # Solo puede cambiarla de plaza (sin egresar ni ver personas): no hay menú, la celda va directo.
+        usuario = self._operador("Solo admitir CIS", self.cis, ("dispositivo.ver", "dispositivo.admitir"))
+        respuesta = self._pantalla(usuario)
 
         celda = self._celdas(respuesta)["P1"]
         self.assertEqual(celda["url"], f"?plaza={self.plaza.pk}")
