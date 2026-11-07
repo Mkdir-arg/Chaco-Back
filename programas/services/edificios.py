@@ -30,7 +30,7 @@ instituciones que no comparte lo hace quien tiene alcance sobre las dos.
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
-from programas.models import Dispositivo, Edificio, InspeccionEdificio, TrazaDispositivo
+from programas.models import Dispositivo, Edificio, InspeccionEdificio, Sector, TrazaDispositivo
 from programas.selectors.capacidad_dispositivo import edificios_vinculables
 from programas.services.dispositivos import puede_operar_dispositivo
 
@@ -55,6 +55,10 @@ CAMPOS = (
 
 DISPOSITIVO_CERRADO = "El dispositivo está cerrado: no se puede cambiar su edificio."
 RELEVAMIENTO_EN_CURSO = "El edificio tiene un relevamiento en curso: no puede quedar sin dispositivos."
+SECTORES_ACTIVOS_EN_EL_EDIFICIO = (
+    "El edificio tiene {cuantos} sector{plural} activo{plural} de esta institución: "
+    "asignales otro edificio o dalos de baja antes de desvincularlo."
+)
 
 
 def _trazar(dispositivo, usuario, accion, *, detalle=""):
@@ -175,12 +179,28 @@ def desvincular_edificio(*, edificio, dispositivo, usuario):
     estado vacío. Si el edificio queda sin ninguna institución deja de verse en todas
     partes, pero sigue entero: volver a vincularlo lo repone con su historia. Con un
     relevamiento en curso debe conservar al menos una institución para poder gestionarlo.
+
+    Se bloquea mientras la institución tenga **sectores activos** ubicados en ese edificio
+    (Cambio 429): quedarían en un inmueble que ya no ocupa. Los dados de baja no cuentan.
     """
 
     _exigir_alcance(dispositivo, usuario)
     edificio = Edificio.objects.select_for_update().get(pk=edificio.pk)
     if not edificio.dispositivos.filter(pk=dispositivo.pk).exists():
         raise PermissionDenied("Ese edificio no es de este dispositivo.")
+
+    # Mismo bloqueo del dispositivo que toma el alta y la edición de sectores (`plazas`): sin él, un
+    # sector podría crearse en este edificio entre la consulta de abajo y el `remove()`.
+    Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
+    sectores_activos = Sector.objects.filter(dispositivo=dispositivo, edificio=edificio, activo=True).count()
+    if sectores_activos:
+        raise ValidationError(
+            {
+                "__all__": SECTORES_ACTIVOS_EN_EL_EDIFICIO.format(
+                    cuantos=sectores_activos, plural="es" if sectores_activos > 1 else ""
+                )
+            }
+        )
 
     if (
         not edificio.dispositivos.exclude(pk=dispositivo.pk).exists()

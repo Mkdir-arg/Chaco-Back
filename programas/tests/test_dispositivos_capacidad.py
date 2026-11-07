@@ -78,8 +78,26 @@ class BaseCapacidad(BaseEstadias):
             ("dispositivo.ver", "dispositivo.editar", "programa.configurar"),
         )
 
-    def _datos_de_sector(self, **extra):
-        return {"nombre": "Pabellón B", "tipo": Sector.Tipo.PABELLON, "capacidad": 4, **extra}
+    def _edificio_de(self, dispositivo):
+        """Un edificio vinculado al dispositivo, creado la primera vez que se pide (Cambio 429).
+
+        No va en `setUp`: los tests del edificio parten de que no hay ninguno.
+        """
+
+        edificio, _ = Edificio.objects.get_or_create(codigo=f"EDI-T{dispositivo.pk}", defaults={"nombre": "Predio"})
+        edificio.dispositivos.add(dispositivo)
+        return edificio
+
+    def _datos_de_sector(self, dispositivo=None, **extra):
+        edificio = self._edificio_de(dispositivo or self.cis)
+        return {"nombre": "Pabellón B", "tipo": Sector.Tipo.PABELLON, "capacidad": 4, "edificio": edificio, **extra}
+
+    def _datos_post_de_sector(self, dispositivo=None, **extra):
+        """Lo mismo, como lo manda el formulario: el edificio por su id."""
+
+        datos = self._datos_de_sector(dispositivo, **extra)
+        datos["edificio"] = datos["edificio"].pk
+        return datos
 
 
 class AltaDeSectoresYPlazasTests(BaseCapacidad):
@@ -100,7 +118,9 @@ class AltaDeSectoresYPlazasTests(BaseCapacidad):
     def test_el_alta_por_la_pantalla_crea_el_sector_y_deja_su_traza(self):
         self.client.force_login(self.operador_cis)
 
-        respuesta = self.client.post(reverse("dispositivos:sector_crear", args=[self.cis.pk]), self._datos_de_sector())
+        respuesta = self.client.post(
+            reverse("dispositivos:sector_crear", args=[self.cis.pk]), self._datos_post_de_sector()
+        )
 
         self.assertEqual(respuesta.status_code, 302)
         self.assertTrue(Sector.objects.filter(dispositivo=self.cis, nombre="Pabellón B", activo=True).exists())
@@ -127,7 +147,7 @@ class AltaDeSectoresYPlazasTests(BaseCapacidad):
         """
 
         otro = crear_sector(
-            dispositivo=self.cis, usuario=self.operador_cis, nombre="Pabellón C", tipo=Sector.Tipo.PABELLON
+            dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector(nombre="Pabellón C")
         )
         Plaza.objects.create(sector=otro, codigo="B-02")
         sector = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
@@ -152,7 +172,9 @@ class AltaDeSectoresYPlazasTests(BaseCapacidad):
     def test_el_mismo_nombre_en_otra_institucion_si_entra(self):
         crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
 
-        sector = crear_sector(dispositivo=self.parador, usuario=self.operador_parador, **self._datos_de_sector())
+        sector = crear_sector(
+            dispositivo=self.parador, usuario=self.operador_parador, **self._datos_de_sector(self.parador)
+        )
 
         self.assertEqual(sector.dispositivo, self.parador)
 
@@ -283,6 +305,7 @@ class BajaDeSectorTests(BaseCapacidad):
             nombre=self.sector.nombre,
             tipo=self.sector.tipo,
             capacidad=self.sector.capacidad,
+            edificio=self._edificio_de(self.cis),
             activo=True,
         )
 
@@ -304,7 +327,9 @@ class AlcanceDeLaConfiguracionTests(BaseCapacidad):
     def test_sin_la_capacidad_la_pantalla_responde_403(self):
         self.client.force_login(self.sin_editar)
 
-        respuesta = self.client.post(reverse("dispositivos:sector_crear", args=[self.cis.pk]), self._datos_de_sector())
+        respuesta = self.client.post(
+            reverse("dispositivos:sector_crear", args=[self.cis.pk]), self._datos_post_de_sector()
+        )
 
         self.assertEqual(respuesta.status_code, 403)
         self.assertFalse(Sector.objects.filter(dispositivo=self.cis, nombre="Pabellón B").exists())
@@ -312,13 +337,15 @@ class AlcanceDeLaConfiguracionTests(BaseCapacidad):
     def test_el_operador_de_otra_institucion_no_crea_sectores_acá(self):
         self.client.force_login(self.operador_parador)
 
-        respuesta = self.client.post(reverse("dispositivos:sector_crear", args=[self.cis.pk]), self._datos_de_sector())
+        respuesta = self.client.post(
+            reverse("dispositivos:sector_crear", args=[self.cis.pk]), self._datos_post_de_sector()
+        )
 
         self.assertEqual(respuesta.status_code, 404)
 
     def test_un_sector_ajeno_da_el_mismo_404_que_uno_inexistente(self):
         self.client.force_login(self.operador_cis)
-        datos = self._datos_de_sector()
+        datos = self._datos_post_de_sector()
 
         ajeno = self.client.post(
             reverse("dispositivos:sector_editar", args=[self.cis.pk, self.sector_parador.pk]), datos
@@ -610,21 +637,21 @@ class GuardasDeCapacidadTests(BaseCapacidad):
         respuesta = self.client.get(url)
         self.assertContains(respuesta, "Este dispositivo no tiene sectores")
         self.assertContains(respuesta, '<button type="button" @click="modalSectorNuevo=true"', count=2)
-        sector = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
-        self.assertContains(self.client.get(url), f"sectorPlazas='{sector.pk}'; modalPlazas=true")
         respuesta = self.client.get(reverse("dispositivos:detalle", args=[self.cis.pk]), {"tab": "infraestructura"})
         self.assertContains(respuesta, "Este dispositivo no tiene edificio cargado")
         self.assertContains(respuesta, "edificio=nuevo")
+        sector = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
+        self.assertContains(self.client.get(url), f"sectorPlazas='{sector.pk}'; modalPlazas=true")
 
     def test_los_errores_ajax_del_servicio_llegan_al_campo_o_al_error_general(self):
         self.client.force_login(self.operador_cis)
         url = reverse("dispositivos:sector_crear", args=[self.cis.pk])
         headers = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
-        respuesta = self.client.post(url, self._datos_de_sector(nombre=self.sector.nombre), **headers)
+        respuesta = self.client.post(url, self._datos_post_de_sector(nombre=self.sector.nombre), **headers)
         self.assertEqual(respuesta.status_code, 400)
         self.assertIn("nombre", respuesta.json()["errors"])
         Dispositivo.objects.filter(pk=self.cis.pk).update(estado=Dispositivo.Estado.CERRADO)
-        respuesta = self.client.post(url, self._datos_de_sector(), **headers)
+        respuesta = self.client.post(url, self._datos_post_de_sector(), **headers)
         self.assertEqual(respuesta.status_code, 400)
         self.assertIn("__all__", respuesta.json()["errors"])
 

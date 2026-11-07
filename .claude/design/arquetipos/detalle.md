@@ -188,6 +188,12 @@ evento con su informe de solo lectura y conserva el dispositivo de origen para v
 La revisión agrega badge verde, revisor y fecha/hora sin perder la criticidad, con el
 contrato de `componentes/ficha_timeline.md`. Las fotos en curso conservan su fecha de carga.
 
+La solapa Infraestructura de P4 abre, debajo de los indicadores, la sección «Sectores por
+edificio» (Cambio 429): por cada edificio un título con su cantidad de sectores y de plazas y la
+lista `ul.divide-y.divide-light` de sus sectores activos, y, si quedan sectores sin ubicar, el
+bloque «Sin edificio» con la misma lista. Es lista simple, sin componente nuevo. La arma
+`infraestructura_del_dispositivo` (`sectores`, `n_plazas`, `sin_edificio`) con una consulta fija.
+
 ## Prohibido
 
 - `<h1>` propio, «← Volver» como link de texto, header dentro de una card.

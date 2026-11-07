@@ -133,7 +133,7 @@ class SectorCrearView(_AccionDeSectorView):
     """«Nuevo sector» del encabezado de P5."""
 
     def construir_form(self, request, dispositivo):
-        return SectorForm(request.POST)
+        return SectorForm(request.POST, dispositivo=dispositivo)
 
     def ejecutar(self, request, dispositivo, datos):
         return crear_sector(dispositivo=dispositivo, usuario=request.user, **datos)
@@ -152,7 +152,7 @@ class SectorEditarView(_AccionDeSectorView):
 
     def construir_form(self, request, dispositivo):
         self.sector = sector_del_dispositivo(dispositivo, self.kwargs["sector_pk"])
-        return SectorForm(request.POST, sector=self.sector)
+        return SectorForm(request.POST, dispositivo=dispositivo, sector=self.sector)
 
     def ejecutar(self, request, dispositivo, datos):
         return editar_sector(sector=self.sector, usuario=request.user, **datos)

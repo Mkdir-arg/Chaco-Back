@@ -19,7 +19,7 @@ from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Dispositivo, Estadia, ReservaPlaza, Sector, TrazaDispositivo
+from programas.models import Dispositivo, Edificio, Estadia, ReservaPlaza, Sector, TrazaDispositivo
 from programas.services import ingreso as servicio_ingreso
 from programas.services.estadias import ingresar_persona, reservar_plaza
 from programas.services.ingreso import (
@@ -306,6 +306,11 @@ class SectoresSoloDondeHayPlazasTests(BaseMapa):
         self.tipo.save()
         self.cis.refresh_from_db()
 
+    def _edificio(self):
+        edificio, _ = Edificio.objects.get_or_create(codigo="EDI-RP", defaults={"nombre": "Predio"})
+        edificio.dispositivos.add(self.cis)
+        return edificio
+
     def test_un_tipo_sin_plazas_no_admite_sectores_nuevos(self):
         self._tipo_sin_plazas()
 
@@ -329,7 +334,7 @@ class SectoresSoloDondeHayPlazasTests(BaseMapa):
 
         respuesta = self.client.post(
             reverse("dispositivos:sector_crear", args=[self.cis.pk]),
-            {"nombre": "Nuevo", "tipo": Sector.Tipo.PABELLON, "capacidad": 2},
+            {"nombre": "Nuevo", "tipo": Sector.Tipo.PABELLON, "capacidad": 2, "edificio": self._edificio().pk},
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
 
@@ -351,7 +356,12 @@ class SectoresSoloDondeHayPlazasTests(BaseMapa):
         self.cis.refresh_from_db()
 
         editar_sector(
-            sector=self.sector, usuario=self.operador_cis, nombre="Corregido", tipo=self.sector.tipo, capacidad=2
+            sector=self.sector,
+            usuario=self.operador_cis,
+            nombre="Corregido",
+            tipo=self.sector.tipo,
+            capacidad=2,
+            edificio=self._edificio(),
         )
         editar_plaza(plaza=self.plaza, usuario=self.operador_cis, codigo="Z-9", tipo=self.plaza.tipo)
 
@@ -382,10 +392,15 @@ class SectoresSoloDondeHayPlazasTests(BaseMapa):
         self.cis.refresh_from_db()
 
         sector = crear_sector(
-            dispositivo=self.cis, usuario=self.operador_cis, nombre="Nuevo", tipo=Sector.Tipo.PABELLON
+            dispositivo=self.cis,
+            usuario=self.operador_cis,
+            nombre="Nuevo",
+            tipo=Sector.Tipo.PABELLON,
+            edificio=self._edificio(),
         )
 
         self.assertEqual(sector.nombre, "Nuevo")
+        self.assertEqual(sector.edificio, self._edificio())
 
 
 class MensajesDelMapaTests(BaseMapa):
