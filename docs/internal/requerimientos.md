@@ -561,6 +561,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 435 | Dispositivos: un sector inactivo se edita desde el listado de inactivos (eligiendo edificio y activándolo en el mismo guardado) y el mapa muestra el edificio de cada sector | Dispositivos · sectores y plazas | `#datos` `#ui` | QA — dos pedidos sobre «Sectores y plazas» | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 436 | Dispositivos: al corregir una novedad de la bitácora se pueden quitar adjuntos y personas (la versión anterior los conserva; el registro dice qué se quitó y qué se sumó) | Dispositivos · bitácora del turno | `#ui` `#datos` | QA — continuación del caso 4 (Cambio 426) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 437 | Dispositivos: la plaza ocupada del mapa ofrece cambiar de plaza, ver la estadía, ver el legajo y registrar el egreso; «sacar de servicio» queda visible pero deshabilitada con su motivo | Dispositivos · Sectores y plazas (P5) | `#ui` `#rbac` | QA — plaza ocupada solo ofrecía «Cambiar de plaza» | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 438 | Dispositivos: cinco MINOR de la auditoría del PR #1053 (acciones de la plaza ocupada): lista de acciones con formulario en el servicio, helper único del enlace de egreso, tests de capacidades sobre el modal, «Sin edificio» con helper y `?plaza=` ocupada abre el menú | Dispositivos · Sectores y plazas (P5) | `#ui` `#rbac` | Auditoría del PR #1053 (Cambio 437) | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -53067,6 +53068,60 @@ Sin cambios.
 ## Validación
 
 Módulos `test_dispositivos*` y `--tag performance` en verde, sin tocar presupuestos. `MenuDePlazaOcupadaTests` cubre las cinco acciones con y sin cada capacidad. Mutaciones (rojo y restaurado): egreso sin su capacidad, enlaces sin `ciudadano.ver`, sacar de servicio sin `editar` y reubicar sin `admitir`.
+
+## Pendientes / a definir
+
+- Ninguno.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 438 — Sectores y plazas: cinco MINOR de la auditoría del PR #1053
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Sectores y plazas (P5) · modal de la plaza |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | Auditoría del PR #1053 (Cambio 437) |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `services/sectores_plazas.py`, `selectors/capacidad_dispositivo.py`, `views/dispositivos_legajo.py` · Backoffice: `dispositivos/sectores/sectores.html` |
+| **Migración** | No |
+
+## Pedido original
+
+Resolver los cinco MINOR que dejó la auditoría del Cambio 437, sin cambiar el comportamiento visible salvo el último.
+
+## Alcance acordado
+
+**Entra:** (1) `ACCIONES_CON_FORMULARIO` en el servicio y la clave `directa` en los datos del modal, en lugar de la lista copiada en Alpine; (2) `url_modal_egreso` única para el mapa y la solapa Estadías; (3) los tests de capacidades miran `modal["acciones"]`/`["enlaces"]` y no markup estático; (4) `nombre_de_edificio` junto a `SIN_EDIFICIO`; (5) `?plaza=<id>` sobre una plaza ocupada con varias opciones abre el menú. **Queda afuera:** unificar el criterio del vínculo del edificio en activos e inactivos (sería un cambio de comportamiento).
+
+## Decisiones tomadas
+
+1. Se consultó el Cambio 437: esto corrige su punto 5, que dejaba `?plaza=<id>` abriendo directo el formulario de reubicar aunque la plaza ofreciera más acciones.
+2. El formulario de reubicar del servidor se arma solo si `acciones == [reubicar]` o si la URL trae `&opcion=reubicar`; si no, llega el menú (`plaza_inicial`). El respaldo de `abrirReubicar` navega con `&opcion=reubicar`.
+3. «Sin edificio» sigue con dos reglas a propósito (SQL en inactivos, que mira el vínculo con el dispositivo; Python en activos); el helper solo evita repetir la expresión del lado Python.
+
+## Archivos
+
+`programas/services/sectores_plazas.py`, `programas/selectors/capacidad_dispositivo.py`, `programas/views/dispositivos_legajo.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `programas/tests/test_dispositivos_plazas_acciones.py`, `.claude/design/componentes/estado_vacio.md`, `.claude/design/componentes/mapa_plazas.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Módulos `test_dispositivos*` y `--tag performance` en verde, sin tocar presupuestos. Mutaciones (rojo y restaurado): ver estadía/legajo sin `ciudadano.ver`, egreso sin `dispositivo.egresar`, sacar de servicio sin `editar`, reubicar sin `admitir`, abrir siempre el formulario de reubicar con `?plaza=`, exigir solo `opcion` y quitar la guarda `in ACCIONES_CON_FORMULARIO`.
 
 ## Pendientes / a definir
 
