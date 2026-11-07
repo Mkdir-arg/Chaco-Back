@@ -96,7 +96,12 @@ class AlcanceTests(BaseInforme):
         self.assertContains(respuesta, "fachada")
 
     def test_quien_opera_otra_institucion_del_predio_tambien_entra(self):
-        """El relevamiento es del edificio: lo leen todas las instituciones que lo ocupan."""
+        """El relevamiento es del edificio: lo leen todas las instituciones que lo ocupan.
+
+        Por su **Equipo** (alcance fino), no por leer todos los dispositivos: `ver_todos` sin
+        operar ni coordinar la institución da 404 (Cambio 422,
+        `test_dispositivos_relevamiento_alcance`).
+        """
 
         inspeccion = self._realizado()
 
@@ -397,6 +402,15 @@ class ContenidoTests(BaseInforme):
         self.assertEqual([foto["rotulo"] for foto in informe["fotos"]], ["fachada", "cocina", "patio"])
         self.assertEqual(informe["total_fotos"], 3)
         self.assertTrue(all(foto["url"] for foto in informe["fotos"]))
+
+    def test_con_34_fotos_el_informe_las_trae_todas(self):
+        inspeccion = self._realizado(fotos=tuple(f"foto-{n:02d}" for n in range(34)))
+
+        informe = informe_de_relevamiento(self._fresco(self.coordinador), inspeccion)
+
+        self.assertEqual(len(informe["fotos"]), 34)
+        self.assertEqual(informe["total_fotos"], 34)
+        self.assertEqual(informe["fotos"][-1]["rotulo"], "foto-33")
 
     def test_un_relevamiento_cancelado_muestra_su_motivo_y_no_una_criticidad(self):
         inspeccion = crear_inspeccion(
