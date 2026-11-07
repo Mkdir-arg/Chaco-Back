@@ -402,7 +402,7 @@ class EnlacesEstadiaTests(BaseSolapa):
         self.assertContains(respuesta, "Parador Vedia")
         self.assertContains(respuesta, f'href="{self._url(propia)}"')
         self.assertNotContains(respuesta, self._url(ajena))
-        self.assertEqual(self.client.get(self._url(ajena)).status_code, 403)
+        self.assertEqual(self.client.get(self._url(ajena)).status_code, 404)
 
     def test_asignacion_inactiva_no_ofrece_detalle(self):
         self.estadia_cerrada(self.cis)

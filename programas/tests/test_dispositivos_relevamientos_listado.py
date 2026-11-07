@@ -17,8 +17,9 @@ Lo que se fija acá, y por qué:
 
 import json
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from django.db import connection
 from django.template.loader import render_to_string
@@ -934,6 +935,36 @@ class TarjetasMovilTests(BaseListado):
         self.assertEqual(tarjetas[libre.nombre]["accion"]["texto"], "Asignar")
         self.assertEqual(tarjetas[libre.nombre]["accion"]["url"], f"?tab=sin_relevar&asignar={libre.pk}")
         self.assertEqual(tarjetas[libre.nombre]["badges"], [{"texto": "Sin relevar", "tono": ""}])
+
+    def test_las_tarjetas_reusan_las_listas_de_acciones_de_la_fila(self):
+        self._sembrar_todas_las_solapas()
+        respuesta = self._cliente(self.coord).get(URL_LISTA)
+
+        for solapa in respuesta.context["solapas"]:
+            for fila, tarjeta in zip(solapa["filas"], solapa["tarjetas"], strict=True):
+                self.assertTrue(fila.acciones_menu or fila.accion_visible)
+                if fila.accion_visible is not None:
+                    self.assertEqual(tarjeta["accion"], fila.accion_visible)
+                    self.assertEqual(tarjeta["menu"], fila.acciones_menu)
+                else:
+                    # Sin acción visible, la primera del menú que solo navega sube a principal.
+                    self.assertEqual(tarjeta["accion"]["url"], fila.acciones_menu[0]["url"])
+                    self.assertEqual(tarjeta["menu"], fila.acciones_menu[1:])
+
+    def test_relevado_el_usa_la_hora_local_como_la_tabla(self):
+        completado = self._crear()
+        servicio.registrar_resultado(
+            self._fresco(self.agente), completado, criticidad=InspeccionEdificio.Criticidad.BAJA
+        )
+        cierre = datetime(2026, 11, 6, 23, 30, tzinfo=ZoneInfo("America/Argentina/Buenos_Aires"))
+        InspeccionEdificio.objects.filter(pk=completado.pk).update(realizada_en=cierre)
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA)
+        tarjeta = _solapa(respuesta, "completados")["tarjetas"][0]
+        html = respuesta.content.decode()
+
+        self.assertEqual({p["etiqueta"]: p["valor"] for p in tarjeta["pares"]}["Relevado el"], "06/11/2026")
+        self.assertIn("relevado el 06/11/2026", html)  # la tabla
 
     def test_el_tono_de_la_tarjeta_coincide_con_el_badge_de_la_tabla(self):
         plantilla = "programas/dispositivos/_relevamiento_situacion_badge.html"

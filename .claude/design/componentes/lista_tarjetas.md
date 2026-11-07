@@ -41,10 +41,14 @@ Cada tarjeta:
 
 ## Reglas
 
-- **Mismas acciones que la tabla.** Misma URL y mismos `data-*` (modales por querystring, `data-confirm-url`): la
-  vista los arma una sola vez y alimenta a las dos. Lo que en la tabla es un `.nodo-icon-btn` visible es la acción
-  principal; lo que va al menú de la tabla va al «⋮». Una acción que muta nunca es la principal: confirma desde el
-  menú con `ModernModal`. Un ítem bloqueado conserva su `motivo`, no se omite. Un test compara los dos conjuntos.
+- **Mismas acciones que la tabla, de una sola fuente.** La vista arma las acciones de la fila **una vez** (en
+  Relevamientos, `_preparar_fila`): `accion_visible` (dict o `None`: lo que en la tabla es el botón de ícono) y
+  `acciones_menu` (lista de dicts con las claves de `_menu_fila_item.html`, con `motivo` si está bloqueada). La
+  tabla recorre esas listas con el include `only` y la tarjeta las reusa tal cual: no se vuelven a escribir los
+  textos, íconos ni `confirm_*` en otro lado. Lo único propio de la tarjeta, explícito en la vista: **si la fila no
+  tiene acción visible, la primera acción del menú que solo navega (con `url` y sin `motivo`) pasa a principal** y
+  sale del menú. Una acción que muta nunca es la principal: confirma desde el menú con `ModernModal`. Un ítem
+  bloqueado conserva su `motivo`, no se omite. Un test compara las listas de dicts y el HTML de los dos bloques.
 - `menu_id` tiene que ser distinto del de la tabla (`tarjeta-` + el id de la fila): los dos bloques están en el
   DOM aunque uno esté oculto.
 - El estado, el tono, las etiquetas y los permisos los decide la vista; el template solo traduce `tono` a la

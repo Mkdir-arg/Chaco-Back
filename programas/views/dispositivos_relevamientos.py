@@ -29,7 +29,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.http import JsonResponse, QueryDict
+from django.http import Http404, JsonResponse, QueryDict
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
@@ -44,13 +44,13 @@ from programas.forms_dispositivos import (
     ElegirEdificioForm,
     ReasignarRelevamientoForm,
 )
-from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
-from programas.models import Dispositivo, Edificio, InspeccionEdificio
+from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, alcance_o_404
+from programas.models import Dispositivo, InspeccionEdificio
+from programas.selectors.capacidad_dispositivo import instituciones_del_predio
 from programas.selectors.inspecciones import relevamiento_para_revision
 from programas.services.dispositivos import (
     CAP_VER,
     dispositivos_en_alcance,
-    dispositivos_visibles,
     puede_en_programa_dispositivos,
     puede_operar_dispositivo,
 )
@@ -153,31 +153,21 @@ DISPOSITIVOS_POR_TARJETA = 2
 
 
 def _dispositivos_por_edificio(user, ids_de_edificios):
-    """Los nombres de los dispositivos que ocupan cada edificio, **solo los que el usuario coordina o puede ver**.
+    """«A, B y N más» por edificio: las instituciones que el usuario coordina o puede ver (selector).
 
-    Un predio compartido aloja a otras instituciones: nombrar las que el usuario no ve sería
-    filtrar el padrón. Una consulta para toda la página (un lote, no una por fila).
+    Un predio compartido aloja a otras instituciones: las que el usuario no ve no se nombran.
+    Una consulta para toda la página, no una por fila.
     """
 
     if not ids_de_edificios:
         return {}
-    vinculos = (
-        Edificio.dispositivos.through.objects.filter(
-            Q(dispositivo__in=dispositivos_en_alcance(user, CAP_ASIGNAR))
-            | Q(dispositivo__in=dispositivos_visibles(user)),
-            edificio_id__in=ids_de_edificios,
-        )
-        .order_by("dispositivo__nombre")
-        .values_list("edificio_id", "dispositivo__nombre")
-    )
-    por_edificio = {}
-    for edificio_id, nombre in vinculos:
-        por_edificio.setdefault(edificio_id, []).append(nombre)
-    return {
-        edificio_id: ", ".join(nombres[:DISPOSITIVOS_POR_TARJETA])
-        + (f" y {len(nombres) - DISPOSITIVOS_POR_TARJETA} más" if len(nombres) > DISPOSITIVOS_POR_TARJETA else "")
-        for edificio_id, nombres in por_edificio.items()
-    }
+    por_edificio = instituciones_del_predio(user, ids_de_edificios, tambien=dispositivos_en_alcance(user, CAP_ASIGNAR))
+    resumen = {}
+    for edificio_id, instituciones in por_edificio.items():
+        nombres = [i["nombre"] for i in instituciones]
+        resto = len(nombres) - DISPOSITIVOS_POR_TARJETA
+        resumen[edificio_id] = ", ".join(nombres[:DISPOSITIVOS_POR_TARJETA]) + (f" y {resto} más" if resto > 0 else "")
+    return resumen
 
 
 def _subtitulo_de_edificio(edificio):
@@ -185,7 +175,8 @@ def _subtitulo_de_edificio(edificio):
 
 
 def _tarjeta_de_relevamiento(r, dispositivos):
-    """La tarjeta de móvil de una fila: las mismas acciones, URL y atributos que la tabla (`_preparar_fila`)."""
+    """La tarjeta de móvil de una fila. Las acciones son las MISMAS listas que arma `_preparar_fila`
+    para la tabla (`accion_visible` y `acciones_menu`): una sola fuente."""
 
     nombre = r.edificio.nombre
     realizado = r.estado == Estado.REALIZADA
@@ -193,9 +184,12 @@ def _tarjeta_de_relevamiento(r, dispositivos):
     if r.revisado_en:
         badges.append({"texto": "Revisado", "tono": "success"})
     if realizado and r.realizada_en:
-        fecha = {"etiqueta": "Relevado el", "valor": f"{r.realizada_en:%d/%m/%Y}"}
+        # En hora local, como la tabla: un cierre a las 23:30 no pasa al día siguiente.
+        fecha = {"etiqueta": "Relevado el", "valor": f"{timezone.localtime(r.realizada_en):%d/%m/%Y}"}
     else:
         fecha = {"etiqueta": "Vence", "valor": f"{r.fecha_vencimiento:%d/%m/%Y}", "nota": r.vence_relativo}
+    if r.motivo_cancelacion:
+        fecha["nota"] = r.motivo_cancelacion
     pares = [
         {"etiqueta": "Dispositivo", "valor": dispositivos},
         {"etiqueta": "Relevó" if realizado else "Asignado a", "valor": r.agente_visible},
@@ -203,57 +197,29 @@ def _tarjeta_de_relevamiento(r, dispositivos):
     ]
     if r.criticidad:
         pares.append({"etiqueta": "Criticidad", "valor": r.get_criticidad_display()})
-    if r.motivo_cancelacion:
-        pares[-1]["nota"] = r.motivo_cancelacion
-    tarjeta = {
+    accion = r.accion_visible
+    menu = list(r.acciones_menu)
+    if accion is None:
+        # Propio de la tarjeta: sin acción visible, la primera del menú que solo navega pasa a principal.
+        propia = next((n for n, item in enumerate(menu) if item.get("url") and not item.get("motivo")), None)
+        if propia is not None:
+            item = menu.pop(propia)
+            accion = {
+                "texto": item["texto"],
+                "icono": item.get("icono", ""),
+                "url": item["url"],
+                "etiqueta": f"{item['texto']} del relevamiento de {nombre}",
+            }
+    return {
         "titulo": nombre,
         "subtitulo": _subtitulo_de_edificio(r.edificio),
         "badges": badges,
         "pares": pares,
+        "accion": accion,
+        "menu": menu,
         "menu_id": f"tarjeta-{r.menu_id}",
         "menu_etiqueta": r.menu_etiqueta,
-        "menu": [],
     }
-    if r.en_curso:
-        if r.gestionable:
-            tarjeta["accion"] = {
-                "texto": "Reasignar",
-                "icono": "fa-user-pen",
-                "url": r.url_reasignar,
-                "etiqueta": f"Reasignar el relevamiento de {nombre}",
-            }
-        else:
-            tarjeta["menu"].append(
-                {"texto": "Reasignar", "icono": "fa-user-pen", "url": r.url_reasignar, "motivo": r.motivo_reasignar}
-            )
-        tarjeta["menu"].append(
-            {
-                "texto": "Cancelar",
-                "icono": "fa-ban",
-                "peligro": True,
-                "url": r.url_cancelar,
-                "motivo": r.motivo_cancelar,
-            }
-        )
-    elif r.con_acciones:
-        tarjeta["accion"] = {
-            "texto": "Ver informe",
-            "icono": "fa-file-lines",
-            "url": r.url_informe,
-            "etiqueta": f"Ver el informe del relevamiento de {nombre}",
-        }
-        if getattr(r, "url_revisar", ""):
-            tarjeta["menu"].append(
-                {
-                    "texto": "Marcar como revisado",
-                    "icono": "fa-circle-check",
-                    "confirm_url": r.url_revisar,
-                    "confirm_title": "¿Marcar como revisado?",
-                    "confirm_text": nombre,
-                    "confirm_ok": "Sí, marcar como revisado",
-                }
-            )
-    return tarjeta
 
 
 def _tarjeta_de_edificio_sin_relevar(edificio, dispositivos):
@@ -467,6 +433,10 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
         )
         relevamiento.menu_id = f"relevamiento-{relevamiento.pk}"
         relevamiento.menu_etiqueta = f"Más acciones del relevamiento de {relevamiento.edificio.nombre}"
+        # Una sola fuente de las acciones de la fila: la tabla y la tarjeta de móvil recorren estas listas.
+        relevamiento.accion_visible = None
+        relevamiento.acciones_menu = []
+        relevamiento.url_revisar = ""
         if con_informe:
             consulta = vista.copy()
             consulta["tab"] = solapa
@@ -479,6 +449,20 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
                     reverse("dispositivos:relevamiento_revisar", args=[relevamiento.pk])
                     + f"?{urlencode({PARAMETRO_VOLVER: consulta.urlencode()})}"
                 )
+            relevamiento.acciones_menu.append(
+                {"texto": "Ver informe", "icono": "fa-file-lines", "url": relevamiento.url_informe}
+            )
+            if relevamiento.url_revisar:
+                relevamiento.acciones_menu.append(
+                    {
+                        "texto": "Marcar como revisado",
+                        "icono": "fa-circle-check",
+                        "confirm_url": relevamiento.url_revisar,
+                        "confirm_title": "¿Marcar como revisado?",
+                        "confirm_text": relevamiento.edificio.nombre,
+                        "confirm_ok": "Sí, marcar como revisado",
+                    }
+                )
         if not relevamiento.en_curso:
             return
         relevamiento.gestionable = relevamiento.edificio_id in en_alcance
@@ -489,6 +473,23 @@ class RelevamientoListView(DispositivoProgramaPermissionMixin, TemplateView):
             consulta["tab"] = solapa
             consulta[accion] = relevamiento.pk
             setattr(relevamiento, f"url_{accion}", f"?{consulta.urlencode()}")
+        reasignar = {"texto": "Reasignar", "icono": "fa-user-pen", "url": relevamiento.url_reasignar}
+        if relevamiento.gestionable:
+            relevamiento.accion_visible = {
+                **reasignar,
+                "etiqueta": f"Reasignar el relevamiento de {relevamiento.edificio.nombre}",
+            }
+        else:
+            relevamiento.acciones_menu.append({**reasignar, "motivo": relevamiento.motivo_reasignar})
+        relevamiento.acciones_menu.append(
+            {
+                "texto": "Cancelar",
+                "icono": "fa-ban",
+                "peligro": True,
+                "url": relevamiento.url_cancelar,
+                "motivo": relevamiento.motivo_cancelar,
+            }
+        )
 
     def _preparar_modales(self, context, user, params, edificios_libres):
         """Cada modal se abre solo si el registro pedido sigue siendo gestionable."""
@@ -648,7 +649,7 @@ class RelevamientoRevisarView(_RelevamientoAccionView):
     def post(self, request, pk):
         relevamiento = relevamiento_para_revision(request.user, pk)
         if relevamiento is None:
-            return self._prohibido(PermissionDenied("No tenés permiso para revisar este relevamiento."))
+            raise Http404
         try:
             marcar_revisado(request.user, relevamiento)
         except PermissionDenied as error:
@@ -709,6 +710,9 @@ class DispositivoRelevamientoAsignarView(_RelevamientoAccionView):
     def post(self, request, pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
         elegibles = edificios_para_asignar_del_dispositivo(request.user, dispositivo)
+        # Sin alcance sobre el dispositivo, el mismo 404 que un id inexistente (y no el 400 del campo).
+        if not elegibles:
+            alcance_o_404(request.user, dispositivo, CAP_VER)
         form = AsignarRelevamientoDispositivoForm(
             request.POST, edificios=elegibles, agentes=agentes_asignables_para(elegibles)
         )

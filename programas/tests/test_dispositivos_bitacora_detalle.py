@@ -74,12 +74,12 @@ class AutorizacionTests(BaseDetalle):
 
         self.assertEqual(self._detalle(usuario).status_code, 403)
 
-    def test_otra_institucion_es_403_igual_con_id_ajeno_que_inexistente(self):
+    def test_otra_institucion_es_404_igual_con_id_ajeno_que_inexistente(self):
         intruso = self._usuario("Operador parador", self.parador)
         inexistente = mock.Mock(pk=999999)
 
-        self.assertEqual(self._detalle(intruso).status_code, 403)
-        self.assertEqual(self._detalle(intruso, entrada=inexistente).status_code, 403)
+        self.assertEqual(self._detalle(intruso).status_code, 404)
+        self.assertEqual(self._detalle(intruso, entrada=inexistente).status_code, 404)
 
     def test_entrada_de_otro_dispositivo_es_404(self):
         operador_parador = self._usuario("Operador parador", self.parador)
@@ -186,10 +186,10 @@ class MediaTests(BaseDetalle):
         self.assertIn("attachment", respuesta["Content-Disposition"])
 
     def test_otra_institucion_no_baja_el_archivo(self):
-        self.assertEqual(self._bajar(self._usuario("Operador parador", self.parador)).status_code, 403)
+        self.assertEqual(self._bajar(self._usuario("Operador parador", self.parador)).status_code, 404)
 
     def test_sin_dispositivo_ver_no_baja_el_archivo(self):
-        self.assertEqual(self._bajar(self._usuario("Sin ver", self.cis, _sin("dispositivo.ver"))).status_code, 403)
+        self.assertEqual(self._bajar(self._usuario("Sin ver", self.cis, _sin("dispositivo.ver"))).status_code, 404)
 
 
 class DesdeElListadoTests(BaseDetalle):

@@ -38,7 +38,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
         {% for solapa in solapas_nav %}
         <button @click="tab='{{ solapa.clave }}'" type="button" role="tab" id="tab-{{ solapa.clave }}" aria-controls="panel-{{ solapa.clave }}"
                 :aria-selected="tab==='{{ solapa.clave }}'"
-                class="px-4 py-3 text-sm border-b-2 transition flex items-center gap-1.5 whitespace-nowrap"
+                class="px-4 py-3 text-sm border-b-2 transition flex items-center gap-1.5 whitespace-nowrap shrink-0"
                 :class="tab==='{{ solapa.clave }}' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
           <i class="fas {{ solapa.icono }}" aria-hidden="true"></i> {{ solapa.etiqueta }}
           <span class="badge" :class="tab==='{{ solapa.clave }}' ? 'badge-info' : 'badge-gray'">{{ solapa.total }}</span>
@@ -92,22 +92,14 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
                 <td class="nodo-td nodo-col-acciones text-right">
                   {% if r.con_acciones %}
                   <div class="inline-flex items-center gap-1">
-                    {% if r.en_curso %}
-                    {% if r.gestionable %}
-                    <a href="{{ r.url_reasignar }}" class="nodo-icon-btn" aria-label="Reasignar el relevamiento de {{ r.edificio.nombre }}">
-                      <i class="fas fa-user-pen" aria-hidden="true"></i>
+                    {% if r.accion_visible %}
+                    <a href="{{ r.accion_visible.url }}" class="nodo-icon-btn" aria-label="{{ r.accion_visible.etiqueta }}">
+                      <i class="fas {{ r.accion_visible.icono }}" aria-hidden="true"></i>
                     </a>
                     {% endif %}
                     {% menu_fila id=r.menu_id etiqueta=r.menu_etiqueta %}
-                      {% if not r.gestionable %}{% include "components/_menu_fila_item.html" with texto="Reasignar" icono="fa-user-pen" url=r.url_reasignar motivo=r.motivo_reasignar only %}{% endif %}
-                      {% include "components/_menu_fila_item.html" with texto="Cancelar" icono="fa-ban" peligro=True url=r.url_cancelar motivo=r.motivo_cancelar only %}
+                      {% for it in r.acciones_menu %}{% include "components/_menu_fila_item.html" with texto=it.texto icono=it.icono url=it.url confirm_url=it.confirm_url confirm_title=it.confirm_title confirm_text=it.confirm_text confirm_ok=it.confirm_ok peligro=it.peligro motivo=it.motivo only %}{% endfor %}
                     {% endmenu_fila %}
-                    {% else %}
-                    {% menu_fila id=r.menu_id etiqueta=r.menu_etiqueta %}
-                      {% include "components/_menu_fila_item.html" with texto="Ver informe" icono="fa-file-lines" url=r.url_informe only %}
-                      {% if r.url_revisar %}{% include "components/_menu_fila_item.html" with texto="Marcar como revisado" icono="fa-circle-check" confirm_url=r.url_revisar confirm_title="¿Marcar como revisado?" confirm_text=r.edificio.nombre confirm_ok="Sí, marcar como revisado" only %}{% endif %}
-                    {% endmenu_fila %}
-                    {% endif %}
                   </div>
                   {% endif %}
                 </td>
@@ -116,7 +108,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
             </tbody>
           </table>
         </div>
-        {% include "components/_lista_tarjetas.html" with tarjetas=solapa.tarjetas nombre="Relevamientos "|add:solapa.etiqueta %}
+        {% with etiqueta_minusculas=solapa.etiqueta|lower %}{% include "components/_lista_tarjetas.html" with tarjetas=solapa.tarjetas nombre="Relevamientos "|add:etiqueta_minusculas %}{% endwith %}
         {% include "components/_paginacion.html" with page_obj=solapa.pagina entidad="relevamiento" param=solapa.param filtros_qs=solapa.filtros_qs %}
         {% elif solapa.hay_filtros %}
           {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún relevamiento coincide con los filtros" texto="Probá con otro estado o agente." accion_url=solapa.url_sin_filtros %}

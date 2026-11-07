@@ -1,26 +1,31 @@
 """Lecturas de configuración de la capacidad instalada y del predio compartido."""
 
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from programas.models import Dispositivo, Edificio, Estadia, Plaza, ReservaPlaza, Sector
 from programas.services.dispositivos import dispositivos_visibles
 from programas.services.inspecciones import edificios_en_alcance
 
 
-def instituciones_del_predio(usuario, edificios_ids):
+def instituciones_del_predio(usuario, edificios_ids, tambien=None):
     """Identidad de instituciones visibles; no revela siquiera nombres fuera del alcance.
 
     Los sectores se ubican en un edificio (`Sector.edificio`, Cambio 429) pero acá solo van
     las instituciones: los sectores por edificio los lee `sectores_por_edificio`.
     Una consulta para todos los edificios, con el tipo en el mismo JOIN.
+    `tambien` (queryset de `Dispositivo`) suma otro alcance del usuario al de lectura: el
+    coordinador de un relevamiento ve las instituciones que coordina aunque no las lea.
     """
 
     if usuario is None:
         return {}
+    alcance = Q(dispositivo_id__in=dispositivos_visibles(usuario).values("pk"))
+    if tambien is not None:
+        alcance |= Q(dispositivo_id__in=tambien.values("pk"))
     filas = (
         Edificio.dispositivos.through.objects.filter(
+            alcance,
             edificio_id__in=edificios_ids,
-            dispositivo_id__in=dispositivos_visibles(usuario).values("pk"),
         )
         .values(
             "edificio_id", "dispositivo_id", "dispositivo__nombre", "dispositivo__tipo__nombre", "dispositivo__estado"
