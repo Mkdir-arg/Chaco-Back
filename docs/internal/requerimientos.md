@@ -541,6 +541,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 415 | Sugerencias de personas mientras se escribe el DNI de Reservar y Prestar plaza (pieza reutilizable `nodo-sugerencias`) | Dispositivos · sistema de diseño | `#ui` `#rbac` `#datos` | PM — pedido del 02/11/2026 (modal de una plaza) | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 416 | Sugerencias de personas y de agentes en el paso «Ingresar persona» y en «Buscar agente» (reusa `nodo-sugerencias`; consulta por columna) | Dispositivos · sistema de diseño | `#ui` `#rbac` `#datos` | PM — continuación del Cambio 415 | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 417 | Alta de oficio en una convocatoria de Becas: comando `inscribir_de_oficio` (CSV, APROBADO directo, sin SIIS ni correos) | Becas · convocatorias · operación | `#convocatorias` `#cupos` `#siis` | PM — sesión del 06/11/2026 | 06/11/2026 | 🟡 **En curso** | No requiere |
+| 418 | Provincia y Localidad del domicilio como preguntas de Requisitos generales, con las opciones del catálogo geográfico (Localidad filtrada por Provincia; portal, API con capacidad `catalogos`) | Becas (requisitos generales, link público, API de campo) | `#requisitos` `#datos` `#api` `#mobile` | PM — pedido del 06/11/2026 (Provincia y Localidad del domicilio como selectores, también desde la app) | 06/11/2026 | 🟡 **En curso** | Requiere |
 | 419 | SIIS: `proponer_alias_siis` propone a qué localidad de SIIS equivale cada localidad core de Chaco que no cruza, para revisión del organismo (no toca `siis_alias_localidades.csv`) | SIIS (`programas/management/commands`) · `docs/internal/siis/` | `#siis` `#datos` | PM — pedido de Provincia/Localidad en Requisitos generales (06/11/2026), PR 3 | 06/11/2026 | 🟡 **En curso** | No requiere |
 | 420 | Dispositivos: «Crear persona» en «Sumar persona al Equipo» (alta de usuario + Equipo en una transacción) y buscador «Persona — Rol» con sugerencias | Dispositivos · usuarios · sistema de diseño | `#ui` `#rbac` `#usuarios` | PM — pedido del 05/11/2026 (modal «Sumar persona al Equipo») | 05/11/2026 | 🟡 **En curso** | No requiere |
 | 421 | Alta de oficio de Becas: nunca se manda el aviso de resolución por correo; tres MINOR de la auditoría de #1033 | Becas · convocatorias · avisos · SIIS | `#convocatorias` `#siis` `#correo` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
@@ -51767,6 +51768,98 @@ Los casos creados se identifican por `created_by` y por la traza `alta_de_oficio
 - **06/11/2026 — alta del cambio.**
 - **06/11/2026 — ronda de auditoría de #1033:** marca de oficio y bloqueo del alta a SIIS por todos los caminos, lista de espera, constancia SIIS-08 al acreditar, detalle del `ya_inscripto` y errores de conexión como técnicos.
 
+
+---
+
+# Cambio 418 — Provincia y Localidad del domicilio como preguntas de Requisitos generales, con catálogo
+
+🟡 **EN CURSO — 06/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas — requisitos generales, link público de inscripción, API de la app de campo |
+| **Etiquetas** | `#requisitos` `#datos` `#api` `#mobile` |
+| **Solicitante** | PM — pedido del 06/11/2026; diseño aprobado por el PM («dale para adelante») |
+| **Fecha del pedido** | 06/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Portal (link público) · Servidor/API (Mobile, en un PR aparte) |
+| **Migración** | `programas.0111_preguntaglobal_fuente_opciones_depende_de` |
+
+## Pedido original
+
+En `/becas/config/preguntas/` («Requisitos generales») agregar **Provincia y Localidad del domicilio** como selectores, con la Localidad filtrada por la provincia elegida y el catálogo de `core` (24 provincias, 2109 municipios, 8779 localidades, todo el país). También desde la app móvil.
+
+## Alcance acordado
+
+**Entra (este PR, el back):** dos columnas nuevas en `PreguntaGlobal`, el ABM, la definición del formulario con el catálogo, la cascada del link público, la capacidad de la API y la observación de incoherencias.
+
+**Queda afuera:**
+
+- **Provincia y Localidad de NACIMIENTO**: son otra cosa (requisito nativo de segmento). Fuera de alcance.
+- **La app móvil**: PR aparte, que espera a que éste esté mergeado.
+- **El script que propone las equivalencias core→SIIS**: PR aparte (Cambio 419).
+- **Crear las preguntas por seed.** Las crea el PM desde el ABM (ver *Puesta en marcha*).
+
+## Decisiones tomadas
+
+1. **Dos columnas, ningún tipo nuevo.** `PreguntaGlobal.fuente_opciones` (`null` | `provincia` | `localidad`) y `PreguntaGlobal.depende_de` (FK a sí misma, `SET_NULL`, `related_name="dependientes"`). El tipo sigue siendo `SELECTOR`; no hay `TipoCampo` nuevo. Lo que se guarda en las respuestas es el **nombre como texto**, igual que cualquier selector: ninguna clave ni formato guardado cambió.
+2. **El catálogo viaja una sola vez, a nivel superior.** La definición suma la clave `catalogos` = `{"provincias": [nombres], "localidades": {provincia: [nombres]}}`, y solo si alguna pregunta activa de ese formulario la usa. No va dentro de cada campo (8779 nombres por campo, ~150 KB) ni en la foto del caso ni en la huella. Los nombres de localidad se deduplican por provincia (en Chaco hay 5 «San Antonio» en municipios distintos y se guarda el texto) y se ordenan `nombre, pk`, explícito: sin eso el orden de las opciones dependía del motor y la huella del paso 2 podía variar entre el GET y el POST.
+3. **Cacheado y resuelto una vez por definición.** `programas/services/catalogo_geografico.py` guarda el catálogo en el cache de Django (Redis en prd y qa, LocMem en dev) con clave versionada (`becas:catalogo-geografico:v1`) y TTL de 1 hora. **No se invalida a mano**: el catálogo cambia solo por el ABM de `/configuracion/localidades/` o por `load_initial_data`, y a lo sumo tarda una hora en verse en el formulario; subir `CATALOGO_VERSION` lo descarta de golpe. Nunca se resuelve por ítem: `_campo_dict` no lo toca.
+3. **bis. La foto por caso no lo paga.** `definicion_formulario(rel, con_catalogos=False)` y `foto_definicion` lo piden sin el catálogo: un alta por API no lee 150 KB del cache. Los cuatro lugares que persisten la foto (`inscripcion_publica.py`, `api/serializers.py`, `respuestas.sincronizar_desde_legacy`, `completar_casos_renaper`) pasan todos por `foto_definicion`, que arma la foto con cuatro claves fijas (`version`, `canal`, `items`, `destinos_siis`): `catalogos` no puede entrar aunque la definición lo traiga. Lo que sí queda en cada foto es `fuente_opciones` y `depende_de` por campo (pocos bytes, y solo cuando hay fuente).
+4. **ABM.** Con fuente: no se piden ni se guardan opciones fijas, el tipo se fuerza a `SELECTOR` y la presentación a `LISTA` (el buscador con píldoras copia las opciones al montarse y no sirve con un `<select>` que se llena después). `localidad` exige `depende_de` apuntando a una pregunta con fuente `provincia`; `provincia` no lleva `depende_de`. Una Provincia con Localidades dependientes no puede dejar de serlo. Los campos protegidos no tocan estos datos.
+5. **Aviso de choque con SIIS.** Al marcar `prov_actual` / `loc_actual` en una pregunta de catálogo, si ya hay un `RequisitoNativo` con ese destino se rechaza el guardado con un mensaje que lo explica: en el envío a SIIS el requisito nativo le gana a la pregunta general (`siis_envio`, precedencia RN > PG), así que la de catálogo quedaría sin efecto. **Solo se evalúa para preguntas de catálogo**, para no empezar a rechazar ediciones de preguntas viejas que ya tienen ese cruce.
+6. **Eliminar y activar, con guardas propias.** `depende_de` es `SET_NULL`, no `PROTECT`: borrar la Provincia **no** levanta `ProtectedError` (el mensaje del ABM, «N casos subieron este documento», habría sido el equivocado) y dejaría a su Localidad huérfana. La vista de eliminar lo frena con un mensaje propio («la pregunta X (Localidad) depende de ésta»); la de activar/desactivar impide desactivar una Provincia con Localidad activa y activar una Localidad cuya Provincia está inactiva. Una Localidad que quedara sin Provincia por un borrado fuera del ABM se sirve como texto libre (`STRING`) en vez de como un selector sin opciones.
+7. **Link público (portal).** El paso 2 se arma desde la foto, que no lleva opciones: las de Provincia salen de `definicion["catalogos"]` y el `<select>` de Localidad viaja **vacío** y lo llena `static/custom/js/nodo-cascada-geo.js` con los datos embebidos en la página (`json_script`), sin endpoint público nuevo. El servidor acepta cualquier localidad del catálogo y rechaza la que **no es de la provincia elegida** (error en el campo). Si la Provincia no se pregunta en ese canal o quedó oculta por una condición, no hay contra qué cruzar y no se valida la pertenencia. Al volver con errores, `data-geo-valor` le dice al JS cuál era la localidad elegida.
+8. **API de campo: la capacidad `catalogos`.** El cliente declara que sabe dibujar los catálogos con el header **`X-Capacidades: catalogos`** (lista separada por comas; también vale el parámetro `?capacidades=catalogos`, sin distinguir mayúsculas). Sin la capacidad —**la app instalada**— Provincia y Localidad se sirven como tipo `STRING`, sin `fuente_opciones`, sin `depende_de` y sin la clave `catalogos`: la app carga el dato a mano como antes y no se cuelga pintando 8779 opciones. Con la capacidad: `SELECTOR` + `fuente_opciones` + `depende_de` + `catalogos`. El test de contrato (`test_becas_api_contrato.py`) suma `fuente_opciones` y `depende_de` a las claves opcionales del campo y `catalogos` a las de la definición.
+9. **Alta por API: la incoherencia se observa, no se rechaza.** Si la Localidad respondida no es de la Provincia respondida, `revisar_carga` deja una observación («llegó con una localidad que no es de la provincia») y el caso se guarda (regla G1-05: solo el DNI se rechaza; un 400 frenaría la cola offline de la app). El cruce se hace contra el catálogo **vivo**, no contra el cache, y solo cuando las dos respuestas están y no quedaron ocultas por una condición.
+10. **Dashboard sin cambios.** Con `opciones` vacías la distribución muestra solo lo observado (no las 8779 filas): se verificó con un test y no hizo falta tocar `dashboard_becas.py`.
+11. **Se crean inactivas.** El PM las activa cuando la app nueva esté publicada; hasta entonces, quien no declara la capacidad igual recibe el campo como texto.
+
+12. **Sin JS la Localidad sale vacía (limitación documentada).** Poblar el `<select>` desde el servidor suma unos 150 KB por carga del link, así que el portal la llena en el navegador con `nodo-cascada-geo.js`; sin JavaScript no se puede elegir. Decisión del cliente. La ficha `.claude/design/dominio/inscripcion.md` ya no dice que sin JS muestra todas las opciones.
+13. **El par se mueve ordenado también desde el formulario del ABM.** `PreguntaGlobalForm` aplica las mismas reglas de activación que `pregunta_toggle_activo` (mensajes en constantes compartidas): no se desactiva una Provincia con Localidades activas ni se activa una Localidad con su Provincia inactiva.
+14. **Localidad sin Provincia servida.** Si la Provincia no se pide en el canal de la definición, la Localidad sale como `STRING` sin `fuente_opciones` ni `depende_de` (mismo criterio que la Localidad huérfana). Y en el link, sin la Provincia en la página o con la Provincia oculta por una condición, el JS ofrece todas las localidades sin repetir (el servidor ya las acepta).
+
+DECISIÓN CLIENTE (propuestas, no confirmadas): (a) que la Provincia sea obligatoria y la Localidad también cuando se activen (las del seed del domicilio de hoy lo son); (b) si alguna vez el sistema atendiera otra provincia, el catálogo ya es nacional y no hay que tocar nada; (c) la ventana de una hora para que un cambio del catálogo llegue al formulario.
+
+## Implementación
+
+`PreguntaGlobal.FuenteOpciones`, `fuente_opciones` y `depende_de`; `PreguntaGlobalForm._limpiar_fuente_catalogo`; guardas en `pregunta_eliminar` y `pregunta_toggle_activo`; `programas/services/catalogo_geografico.py` (catálogo, cache, pertenencia); `_campo_dict`, `definicion_formulario(con_catalogos=)` y `definicion_para_cliente` en `services/becas.py`; `_observaciones_de_catalogo` en `services/campo.py`; `capacidades_del_cliente` en `api/serializers.py`; `forms_dinamicos._field_catalogo` y `LocalidadCatalogoField`; `InscripcionPaso2Form._validar_localidades`; el JS de la cascada y su carga condicional en `paso2.html`. El template del ABM no cambió de estructura: el form genérico muestra los dos campos nuevos y el JS existente oculta las opciones a mano cuando hay fuente y «Depende de» cuando no es Localidad (ninguna pieza de UI nueva).
+
+## Archivos
+
+`programas/models/__init__.py`, `programas/migrations/0111_preguntaglobal_fuente_opciones_depende_de.py`, `programas/forms.py`, `programas/forms_dinamicos.py`, `programas/views/configuracion.py`, `programas/templates/programas/becas/config/pregunta_form.html`, `programas/services/catalogo_geografico.py`, `programas/services/becas.py`, `programas/services/respuestas.py`, `programas/services/campo.py`, `programas/api/serializers.py`, `portal/forms/inscripcion.py`, `portal/views/inscripcion.py`, `portal/templates/portal/inscripcion/paso2.html`, `static/custom/js/nodo-cascada-geo.js`, `programas/tests/test_becas_api_contrato.py`, `programas/tests/test_preguntas_catalogo_geo.py`, `portal/tests/test_inscripcion_catalogo_geo.py`.
+
+## Base de datos
+
+Migración `programas.0111_preguntaglobal_fuente_opciones_depende_de`, **solo expand**: dos columnas nullable (`fuente_opciones` `varchar(20) NULL`, `depende_de_id` `bigint NULL` con su FK y su índice). El código viejo no las manda y no se rompe. Sin backfill ni datos que tocar. Al aplicarla hay que correr `makemigrations --check` con `DJANGO_SYNCDB_PROJECT_APPS=False`, como el CI.
+
+## Validación
+
+- **Tests nuevos** (`programas/tests/test_preguntas_catalogo_geo.py` y `portal/tests/test_inscripcion_catalogo_geo.py`): huella estable GET vs POST con preguntas de catálogo (aun con una localidad nueva y el cache vaciado entre medio); el portal rechaza la localidad de otra provincia, la que no existe y la provincia que no existe, y acepta la correcta; sin la Provincia en el canal o con ella oculta por condición no se valida; la API sin capacidad devuelve `STRING` sin `catalogos` y con capacidad `SELECTOR` + `catalogos` (header y query); el alta por API con el par incoherente se guarda con observación y con el coherente no; la foto persistida no lleva `catalogos`; el ABM rechaza una Localidad sin `depende_de`, con una dependencia que no es Provincia, una Provincia con `depende_de`, y avisa del choque con un requisito nativo; eliminar la Provincia con Localidad dependiente tiene su mensaje y `SET_NULL` no levanta `ProtectedError`; el dashboard con opciones vacías muestra solo lo observado.
+- **Mutaciones** (romper la regla, ver el test rojo, restaurar), las siete en rojo: sin el rechazo de pertenencia del portal; la API sin capacidad devolviendo el catálogo; `revisar_carga` sin la observación; `catalogos` dentro de la foto (rompe también la huella); Localidad sin `depende_de` aceptada; sin el aviso de choque con el requisito nativo; eliminar la Provincia sin la guarda.
+- Resultados de las suites y de los gates en el informe del PR.
+
+## Puesta en marcha en el servidor
+
+Solo el deploy y el `migrate` (0111). **Las preguntas no se crean solas.** Para activarlas, el PM, en `/becas/config/preguntas/`: (1) crear «Provincia» con *Opciones del catálogo = Provincia*; (2) crear «Localidad» con *Opciones del catálogo = Localidad* y *Depende de = Provincia*; (3) dejarlas **inactivas** hasta que la app nueva (que declara `X-Capacidades: catalogos`) esté publicada; (4) revisar que ningún requisito de segmento tenga destino SIIS `prov_actual` / `loc_actual` (el formulario lo avisa). El catálogo geográfico tiene que estar cargado en el ambiente (`load_initial_data`); si está vacío, los selectores salen vacíos.
+
+## Pendientes / a definir
+
+- **App móvil**: declarar la capacidad y dibujar la cascada (PR aparte).
+- **Equivalencias core→SIIS** de Provincia y Localidad: Cambio 419.
+- **Orden de aparición en el formulario**: las preguntas nuevas entran al final del grupo «Cuestionario social»; el PM las ordena desde el constructor.
+- **Las respuestas ya guardadas** con texto libre en estos campos no se tocan: quien las active ve el selector vacío al reabrir un caso viejo.
+
+## Reversión
+
+1. **Antes de bajar la release**, desactivar las dos preguntas de catálogo desde `/becas/config/preguntas/` (o borrarlas: primero la Localidad y después la Provincia). Con la release vieja y esas preguntas activas, el formulario las serviría como selectores sin opciones.
+2. Bajar la release (el código viejo no lee las columnas nuevas).
+3. Si además hay que deshacer el esquema: `manage.py migrate programas 0110`, que quita `fuente_opciones` y `depende_de`. **Se pierde** la marca de «opciones del catálogo» y la dependencia de cada pregunta; no se pierde ninguna respuesta de los casos, que son texto (el nombre de la provincia o de la localidad) y siguen siendo válidas para el formulario anterior. El catálogo de `core` no se toca en ningún paso.
+
+## Historial
+
+- **06/11/2026 — alta del cambio.**
+- **07/11/2026 — ronda de auditoría de #1035 (CHANGES_NEEDED @ e3f88f49):** (MAJOR) reglas de activación del par en el formulario del ABM, Localidad como texto cuando su Provincia no se sirve en el canal y respaldo del JS con todas las localidades; (MINOR) `con_catalogos=False` en `definicion_del_caso` y `pertenencia_del_adjunto`, `_recorrer_campos` reemplazado por `respuestas.campos_de`, mensajes del ABM en constantes, ficha corregida (sin JS la Localidad sale vacía) y `X-Capacidades` admitido en el preflight CORS. Cada guarda con su test, verificadas por mutación.
 
 ---
 

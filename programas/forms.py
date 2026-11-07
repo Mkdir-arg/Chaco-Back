@@ -631,7 +631,10 @@ class _OpcionesMixin(forms.ModelForm):
         cleaned = super().clean()
         tipo = cleaned.get(self.tipo_field_name)
         texto = (cleaned.get("opciones_texto") or "").strip()
-        if tipo in TipoCampo.selectores():
+        # Cambio 418: con fuente de catálogo las opciones no se cargan ni se guardan.
+        if cleaned.get("fuente_opciones"):
+            cleaned["_opciones"] = None
+        elif tipo in TipoCampo.selectores():
             opciones = [linea.strip() for linea in texto.splitlines() if linea.strip()]
             if not opciones:
                 self.add_error("opciones_texto", "Indicá al menos una opción para este tipo de campo.")
@@ -1387,6 +1390,13 @@ class GrupoRequisitoForm(forms.ModelForm):
         return nombre
 
 
+MSG_LOCALIDADES_DEPENDEN = "Hay preguntas de Localidad que dependen de ésta: tiene que seguir siendo una Provincia."
+MSG_NO_DESACTIVAR_PROVINCIA = (
+    "No se desactivó: la pregunta «{texto}» (Localidad) depende de ésta. Desactivá esa primero."
+)
+MSG_NO_ACTIVAR_LOCALIDAD = "No se activó: depende de «{texto}», que está inactiva. Activá esa primero."
+
+
 class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
     """Requisitos generales: el orden es único entre todas las preguntas.
 
@@ -1398,16 +1408,30 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
 
     mensaje_orden_duplicado = "Ya hay otra pregunta con el orden {orden}. Elegí un número libre."
     # Lo que un protegido no puede cambiar desde el backoffice.
-    _BLOQUEADOS_PROTEGIDO = ("tipo", "presentacion", "opciones_texto")
+    _BLOQUEADOS_PROTEGIDO = ("tipo", "presentacion", "opciones_texto", "fuente_opciones", "depende_de")
     _BLOQUEADOS_IDENTIDAD = ("obligatorio", "activo")
 
     class Meta:
         model = PreguntaGlobal
-        fields = ["texto", "tipo", "presentacion", "grupo", "canal", "obligatorio", "orden", "activo", "destino_siis"]
+        fields = [
+            "texto",
+            "tipo",
+            "presentacion",
+            "grupo",
+            "canal",
+            "obligatorio",
+            "orden",
+            "activo",
+            "destino_siis",
+            "fuente_opciones",
+            "depende_de",
+        ]
         widgets = {
             "texto": forms.TextInput(attrs={"class": INPUT_CLASS}),
             "tipo": forms.Select(attrs={"class": INPUT_CLASS}),
             "presentacion": forms.Select(attrs={"class": INPUT_CLASS}),
+            "fuente_opciones": forms.Select(attrs={"class": INPUT_CLASS}),
+            "depende_de": forms.Select(attrs={"class": INPUT_CLASS}),
             "grupo": forms.Select(attrs={"class": INPUT_CLASS}),
             "canal": forms.Select(attrs={"class": INPUT_CLASS}),
             "obligatorio": forms.CheckboxInput(attrs={"class": CHECKBOX_CLASS}),
@@ -1424,6 +1448,17 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
         grupo.empty_label = "Sin grupo (Cuestionario social)"
         # Un POST sin canal (pantallas o clientes anteriores al Cambio 58) vale «ambos».
         self.fields["canal"].required = False
+        # Cambio 418: Localidad se filtra por una pregunta de Provincia (otra, nunca ella misma).
+        depende = self.fields["depende_de"]
+        depende.required = False
+        depende.empty_label = "Sin dependencia"
+        depende.queryset = PreguntaGlobal.objects.filter(fuente_opciones=PreguntaGlobal.FuenteOpciones.PROVINCIA)
+        if self.instance.pk:
+            depende.queryset = depende.queryset.exclude(pk=self.instance.pk)
+        self.fields["fuente_opciones"].required = False
+        self.fields["fuente_opciones"].choices = [("", "Opciones cargadas a mano")] + list(
+            PreguntaGlobal.FuenteOpciones.choices
+        )
         if self.instance and self.instance.pk and self.instance.protegido:
             bloqueados = list(self._BLOQUEADOS_PROTEGIDO)
             if self.instance.es_identidad:
@@ -1433,6 +1468,8 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
 
     def clean(self):
         cleaned = super().clean()
+        self._limpiar_fuente_catalogo(cleaned)
+        self._limpiar_activacion_catalogo(cleaned)
         if cleaned.get("grupo") is None:
             cleaned["grupo"] = GrupoRequisito.objects.filter(clave="cuestionario").first()
         if not cleaned.get("canal"):
@@ -1443,6 +1480,8 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
             cleaned["tipo"] = self.instance.tipo
             cleaned["presentacion"] = self.instance.presentacion
             cleaned["_opciones"] = self.instance.opciones
+            cleaned["fuente_opciones"] = self.instance.fuente_opciones
+            cleaned["depende_de"] = self.instance.depende_de
             if self.instance.es_identidad:
                 cleaned["obligatorio"] = True
                 cleaned["activo"] = True
@@ -1462,6 +1501,74 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
                     f"Ya hay una pregunta activa que alimenta «{etiqueta}»: «{otra.texto}».",
                 )
         return cleaned
+
+    def _limpiar_fuente_catalogo(self, cleaned):
+        """Cambio 418: reglas de una pregunta cuyas opciones salen del catálogo.
+
+        Con fuente el tipo es siempre SELECTOR en lista (sin opciones fijas);
+        Localidad exige una Provincia de la que depender; Provincia no depende
+        de nadie. Y un destino SIIS de domicilio que ya tiene un requisito
+        nativo se avisa, porque en el envío a SIIS el nativo le gana a la
+        pregunta general (``siis_envio``) y la de catálogo quedaría sin efecto.
+        """
+        if self.instance.pk and self.instance.protegido:
+            return
+        Fuente = PreguntaGlobal.FuenteOpciones
+        fuente = cleaned.get("fuente_opciones") or None
+        cleaned["fuente_opciones"] = fuente
+        tiene_dependientes = bool(self.instance.pk) and self.instance.dependientes.exists()
+        if not fuente:
+            cleaned["depende_de"] = None
+            # Dejar de ser de catálogo con Localidades que dependen de ésta las dejaría huérfanas.
+            if tiene_dependientes:
+                self.add_error("fuente_opciones", MSG_LOCALIDADES_DEPENDEN)
+            return
+        cleaned["tipo"] = TipoCampo.SELECTOR
+        cleaned["presentacion"] = PresentacionCampo.LISTA
+        cleaned["_opciones"] = None
+        depende = cleaned.get("depende_de")
+        if fuente == Fuente.LOCALIDAD:
+            if depende is None:
+                if "depende_de" not in self.errors:
+                    self.add_error("depende_de", "Elegí la pregunta de Provincia que filtra a esta Localidad.")
+            elif depende.fuente_opciones != Fuente.PROVINCIA:
+                self.add_error("depende_de", "Tiene que ser una pregunta de Provincia del catálogo.")
+            if tiene_dependientes:
+                self.add_error("fuente_opciones", MSG_LOCALIDADES_DEPENDEN)
+        else:
+            if depende is not None:
+                self.add_error("depende_de", "La Provincia no depende de otra pregunta.")
+            cleaned["depende_de"] = None
+        destino = cleaned.get("destino_siis") or ""
+        if (
+            destino in (PreguntaGlobal.DestinoSiis.PROVINCIA_ACTUAL, PreguntaGlobal.DestinoSiis.LOCALIDAD_ACTUAL)
+            and RequisitoNativo.objects.filter(destino_siis=destino).exists()
+        ):
+            etiqueta = PreguntaGlobal.DestinoSiis(destino).label
+            self.add_error(
+                "destino_siis",
+                f"Ya hay un requisito de segmento que alimenta «{etiqueta}» a SIIS y tiene prioridad "
+                "sobre esta pregunta: SIIS no tomaría su respuesta. Sacale ese destino al requisito "
+                "o dejá ésta sin destino SIIS.",
+            )
+
+    def _limpiar_activacion_catalogo(self, cleaned):
+        """Cambio 418: mismas reglas de activación que ``pregunta_toggle_activo``.
+
+        El par Provincia/Localidad se mueve ordenado: una Provincia no se
+        desactiva con Localidades activas que dependen de ella, ni una
+        Localidad se activa con su Provincia inactiva.
+        """
+        if self.instance.pk and self.instance.protegido:
+            return
+        activo = cleaned.get("activo", True)
+        if self.instance.pk and not activo and self.instance.activo:
+            dependiente = self.instance.dependientes.filter(activo=True).first()
+            if dependiente is not None:
+                self.add_error("activo", MSG_NO_DESACTIVAR_PROVINCIA.format(texto=dependiente.texto))
+        depende = cleaned.get("depende_de")
+        if activo and depende is not None and not depende.activo:
+            self.add_error("activo", MSG_NO_ACTIVAR_LOCALIDAD.format(texto=depende.texto))
 
     def hermanos_orden(self):
         return PreguntaGlobal.objects.all()

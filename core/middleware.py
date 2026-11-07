@@ -68,7 +68,9 @@ class ApiCorsMiddleware:
         response["Access-Control-Allow-Origin"] = origin
         response["Access-Control-Allow-Credentials"] = "true"
         response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, X-CSRFToken, X-Requested-With"
+        response["Access-Control-Allow-Headers"] = (
+            "Authorization, Content-Type, Accept, X-CSRFToken, X-Requested-With, X-Capacidades"
+        )
         response["Access-Control-Max-Age"] = "86400"
         # El navegador/PWA solo deja leer a JS las cabeceras "seguras". La app corrige el
         # desfase de su reloj con el `Date` del servidor y respeta `Retry-After` del 429.
