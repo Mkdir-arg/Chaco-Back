@@ -1669,3 +1669,93 @@ class HeroInicioTest(SimpleTestCase):
 
         self.assertNotIn("hero_inicio", inicio)
         self.assertIn("{% page_header", inicio)
+
+
+class ListaTarjetasTest(SimpleTestCase):
+    """Lista de tarjetas para móvil (``components/_lista_tarjetas.html``): contrato de la pieza."""
+
+    PLANTILLA = "components/_lista_tarjetas.html"
+
+    def _tarjeta(self, **extra):
+        tarjeta = {
+            "titulo": "Predio Resistencia",
+            "subtitulo": "ED-1 · Resistencia",
+            "badges": [{"texto": "Vencido", "tono": "danger"}, {"texto": "Revisado", "tono": "success"}],
+            "pares": [
+                {"etiqueta": "Dispositivo", "valor": "Parador"},
+                {"etiqueta": "Asignado a", "valor": ""},
+                {"etiqueta": "Vence", "valor": "01/12/2026", "nota": "en 3 días"},
+            ],
+            "accion": {"texto": "Reasignar", "icono": "fa-user-pen", "url": "?reasignar=7", "etiqueta": "Reasignar X"},
+            "menu_id": "tarjeta-relevamiento-7",
+            "menu_etiqueta": "Más acciones del relevamiento de X",
+            "menu": [
+                {"texto": "Cancelar", "icono": "fa-ban", "peligro": True, "url": "?cancelar=7"},
+                {"texto": "Marcar", "confirm_url": "/revisar/7/", "confirm_title": "¿Seguro?", "confirm_ok": "Sí"},
+                {"texto": "Reasignar", "motivo": "Fuera de tu alcance"},
+            ],
+        }
+        tarjeta.update(extra)
+        return tarjeta
+
+    def _render(self, *tarjetas):
+        return render_to_string(self.PLANTILLA, {"nombre": "Relevamientos en curso", "tarjetas": list(tarjetas)})
+
+    def test_aparece_solo_a_menos_de_md_y_se_nombra(self):
+        html = self._render(self._tarjeta())
+        self.assertIn('<ul class="md:hidden ', html)
+        self.assertIn('aria-label="Relevamientos en curso"', html)
+        self.assertEqual(html.count("<li "), 1)
+
+    def test_muestra_titulo_subtitulo_pares_y_badges_con_texto(self):
+        html = self._render(self._tarjeta())
+        self.assertIn("Predio Resistencia", html)
+        self.assertIn("ED-1 · Resistencia", html)
+        self.assertIn('<dt class="text-xs text-body-subtle">Dispositivo</dt>', html)
+        self.assertIn("en 3 días", html)
+        self.assertIn('badge badge-dot badge-danger">Vencido', html)
+        # El segundo badge es una marca, sin el punto del estado.
+        self.assertIn('badge badge-success">Revisado', html)
+
+    def test_un_valor_vacio_se_lee_con_raya_y_un_tono_desconocido_es_neutro(self):
+        html = self._render(self._tarjeta(badges=[{"texto": "Sin relevar", "tono": "inventado"}]))
+        self.assertIn('text-body">—', html)
+        self.assertIn('badge-gray">Sin relevar', html)
+
+    def test_la_accion_principal_navega_y_nombra_el_registro(self):
+        html = self._render(self._tarjeta())
+        self.assertIn(
+            '<a href="?reasignar=7" class="btn-nodo btn-sm btn-fit btn-secondary" aria-label="Reasignar X">', html
+        )
+        brand = self._render(self._tarjeta(accion={"texto": "Asignar", "url": "?asignar=1", "variante": "brand"}))
+        self.assertIn("btn-brand", brand)
+
+    def test_el_menu_reusa_los_items_del_menu_de_fila(self):
+        html = self._render(self._tarjeta())
+        self.assertIn('id="menu-fila-tarjeta-relevamiento-7"', html)
+        self.assertIn('aria-label="Más acciones del relevamiento de X"', html)
+        self.assertIn('href="?cancelar=7"', html)
+        self.assertIn("nodo-menu-fila__item--danger", html)
+        self.assertIn('data-confirm-url="/revisar/7/"', html)
+        self.assertIn('data-confirm-title="¿Seguro?"', html)
+        # Lo bloqueado se ve con su motivo, no se omite.
+        self.assertIn('aria-disabled="true"', html)
+        self.assertIn("Fuera de tu alcance", html)
+
+    def test_sin_menu_no_hay_tres_puntos_y_sin_acciones_no_hay_pie(self):
+        sin_menu = self._render(self._tarjeta(menu=[]))
+        self.assertNotIn("data-menu-fila", sin_menu)
+        self.assertIn("Reasignar X", sin_menu)
+        solo_lectura = self._render(self._tarjeta(menu=[], accion=None))
+        self.assertNotIn("btn-nodo", solo_lectura)
+        self.assertNotIn("data-menu-fila", solo_lectura)
+
+    def test_escapa_el_texto_de_la_vista(self):
+        html = self._render(self._tarjeta(titulo="<script>alert(1)</script>"))
+        self.assertNotIn("<script>alert(1)</script>", html)
+        self.assertIn("&lt;script&gt;", html)
+
+    def test_las_utilidades_responsive_estan_compiladas(self):
+        css = (RAIZ / "static/custom/css/tailwind.css").read_text(encoding="utf-8")
+        self.assertIn(r".md\:hidden", css)
+        self.assertIn(r".md\:block", css)

@@ -25,7 +25,10 @@ formularios y las confirmaciones de cupo, caso y procesos masivos.
 | `icon` | `warning`, `danger`, `question` o `info`, solo con `type:'confirm'`: fija el tono del ícono y manda sobre el default (sin `icon`: `danger` si es destructiva, «?» gris si no) |
 
 - Pie con botones del sistema: «Cancelar» `btn-tertiary btn-base`, confirmar `btn-brand` o
-  `btn-danger` en `btn-base`; en celular es hoja inferior con los botones a ancho completo.
+  `btn-danger` en `btn-base`; en celular (≤ 640 px) queda **centrado, de alto automático y con el mismo
+  margen a los dos lados** que los modales Alpine de las pantallas (`rounded-2xl`, tope `100dvh - 2rem`), con
+  los botones a ancho completo. Lo fija `static/custom/css/mobile-modals.css` solo sobre `#modal-overlay > div`
+  y `#modal-content`; las reglas `.modal`/`.modal-dialog` de esa hoja son de otras pantallas y no se tocan.
 - Tras el primer confirmar/cancelar/cerrar ignora clics repetidos durante la animación de cierre
   (300 ms): `onConfirm` corre una sola vez. Si un `onConfirm` abre otro `ModernModal` (por
   ejemplo un aviso de error), el cierre diferido del primero no oculta al segundo.

@@ -5,6 +5,7 @@ Aparte de `programas/forms.py` a propósito: ese archivo es evidencia del campo 
 """
 
 from django import forms
+from django.core.validators import MaxValueValidator
 from django.utils import timezone
 from django.utils.html import format_html
 
@@ -16,7 +17,7 @@ from programas.models import Edificio, MotivoEgreso, Plaza, Sector
 from programas.services.edificios import CAMPOS as CAMPOS_EDIFICIO
 from programas.services.ingreso import buscar_ciudadano_por_dni
 from programas.services.movimientos import ultimo_momento
-from programas.services.plazas import TOPE_POR_LOTE
+from programas.services.plazas import CAPACIDAD_DECLARADA_MAXIMA, TOPE_POR_LOTE
 
 
 class EgresoForm(forms.Form):
@@ -465,11 +466,9 @@ class ReasignarRelevamientoForm(forms.Form):
         },
     )
 
-    def __init__(self, *args, agentes, actual=None, **kwargs):
+    def __init__(self, *args, agentes, **kwargs):
         super().__init__(*args, **kwargs)
-        # Reasignar es cambiar de agente: quien ya lo tiene asignado no es una opción.
-        if actual is not None:
-            agentes = agentes.exclude(pk=actual)
+        # `agentes` ya viene sin el asignado actual (`agentes_para_reasignar`): una sola fuente.
         self.fields["asignado_a"].queryset = agentes
 
 
@@ -529,8 +528,9 @@ class SectorForm(forms.Form):
     capacidad = forms.IntegerField(
         label="Capacidad declarada",
         min_value=0,
+        max_value=CAPACIDAD_DECLARADA_MAXIMA,
         initial=0,
-        widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0}),
+        widget=forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 0, "max": CAPACIDAD_DECLARADA_MAXIMA}),
         help_text="La del legajo. La operativa se cuenta desde las plazas cargadas.",
     )
     condiciones_uso = forms.CharField(
@@ -560,6 +560,13 @@ class SectorForm(forms.Form):
 
         super().__init__(*args, **kwargs)
         self.sector = sector
+        if sector is not None and sector.capacidad > CAPACIDAD_DECLARADA_MAXIMA:
+            # Un sector anterior al tope: sin `max`, para poder renombrarlo o darlo de baja sin
+            # tocar la cifra. `clean_capacidad` solo deja pasar un valor mayor si no cambió.
+            campo = self.fields["capacidad"]
+            campo.max_value = None
+            campo.validators = [v for v in campo.validators if not isinstance(v, MaxValueValidator)]
+            campo.widget.attrs.pop("max", None)
         self.fields["edificio"].queryset = Edificio.objects.filter(dispositivos=dispositivo).order_by("nombre", "pk")
         if not self.fields["edificio"].queryset.exists():
             self.fields[
@@ -575,6 +582,12 @@ class SectorForm(forms.Form):
             for campo in ("nombre", "tipo", "perfil", "capacidad", "condiciones_uso", "activo"):
                 self.initial.setdefault(campo, getattr(sector, campo))
             self.initial.setdefault("edificio", sector.edificio_id)
+
+    def clean_capacidad(self):
+        capacidad = self.cleaned_data["capacidad"]
+        if capacidad > CAPACIDAD_DECLARADA_MAXIMA and (self.sector is None or capacidad != self.sector.capacidad):
+            raise forms.ValidationError(f"La capacidad declarada va de 0 a {CAPACIDAD_DECLARADA_MAXIMA}.")
+        return capacidad
 
     def clean(self):
         datos = super().clean()

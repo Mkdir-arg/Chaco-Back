@@ -1090,6 +1090,10 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
     http_method_names = ["post"]
     form_class = None
     mensaje_exito = ""
+    #: Para las acciones idempotentes: lo que se dice si la plaza ya estaba como se la pide
+    #: (`ya_estaba`, que `ejecutar` fija mirando la plaza tal como llegó el pedido).
+    mensaje_sin_cambio = ""
+    ya_estaba = False
     #: Reservar y prestar buscan a la persona por DNI en el padrón: piden también `ciudadano.ver`.
     requiere_ver_ciudadanos = False
     #: Campo del servicio → campo del modal, cuando el modal lo pide con otro nombre.
@@ -1133,7 +1137,8 @@ class _PlazaAccionView(DispositivoProgramaPermissionMixin, View):
         return redirect(volver)
 
     def mensaje(self, plaza):
-        return self.mensaje_exito.format(plaza=plaza_con_sector(plaza))
+        plantilla = self.mensaje_sin_cambio if self.ya_estaba else self.mensaje_exito
+        return plantilla.format(plaza=plaza_con_sector(plaza))
 
     @staticmethod
     def _errores_del_servicio(error, form, alias_de_campos=None):
@@ -1237,8 +1242,12 @@ class PlazaFueraDeServicioView(_PlazaAccionView):
     capacidad_requerida = CAP_EDITAR
     form_class = SacarPlazaDeServicioForm
     mensaje_exito = "Plaza {plaza} fuera de servicio."
+    mensaje_sin_cambio = "La plaza {plaza} ya estaba fuera de servicio: no hubo nada que cambiar."
 
     def ejecutar(self, request, plaza, datos):
+        # Igual que «volver a servicio»: lo que el pedido encontró al llegar. El servicio es
+        # idempotente y no pisa el motivo ni la fecha de la plaza que ya estaba fuera de servicio.
+        self.ya_estaba = plaza.estado == Plaza.Estado.FUERA_SERVICIO
         sacar_plaza_de_servicio(plaza=plaza, usuario=request.user, motivo=datos["motivo"])
 
 
@@ -1254,10 +1263,6 @@ class PlazaVolverAServicioView(_PlazaAccionView):
         # que no hizo este usuario. El servicio es idempotente y no deja traza en ese caso.
         self.ya_estaba = plaza.estado == Plaza.Estado.OPERATIVA
         volver_plaza_a_servicio(plaza=plaza, usuario=request.user)
-
-    def mensaje(self, plaza):
-        plantilla = self.mensaje_sin_cambio if self.ya_estaba else self.mensaje_exito
-        return plantilla.format(plaza=plaza_con_sector(plaza))
 
 
 # Egreso (MVP v2, etapa 2 · #691). El egreso muta estado: solo POST con CSRF. La regla de fondo

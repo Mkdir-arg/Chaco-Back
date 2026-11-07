@@ -556,6 +556,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 430 | Dispositivos: las plazas se numeran por sector desde 1 (siguiente = mayor + 1, sin reusar números) y la unicidad del código es por sector | Dispositivos · sectores y plazas | `#datos` `#ui` | QA — caso 2 (decisión del PM) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 431 | Dispositivos: pulido visual de móvil (solapas, filtros, KPI de relevamientos, bitácora, Infraestructura, informe, reasignar) | Dispositivos · relevamientos, detalle y bitácora | `#ui` | Revisión visual en testing (390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 432 | Dispositivos: sin alcance sobre un dispositivo, 404 (igual que un id inexistente) en vez de 403; la falta de capacidad del módulo sigue en 403 | Dispositivos · alcance | `#rbac` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 433 | Dispositivos: seis errores de lógica de QA (reasignar con la misma fuente de candidatos, doble envío de novedad, corregir sin cambios, fuera de servicio repetido, estado antes que agente al reasignar, tope de capacidad declarada) | Dispositivos · relevamiento edilicio · bitácora · sectores y plazas | `#relevamientos` `#datos` `#ui` | QA — errores de lógica en testing | 07/11/2026 | 🟢 **Hecho** | No requiere |
+| 434 | Dispositivos: lista de tarjetas para móvil (pieza nueva del sistema de diseño) aplicada a Relevamientos, y confirmación global `ModernModal` centrada en móvil | Dispositivos · relevamientos · sistema de diseño | `#ui` `#relevamientos` | PM — decisiones del 07/11/2026 (revisión visual a 390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -52775,3 +52777,120 @@ Revertir el PR; no hay datos que deshacer.
 ## Historial
 
 - **07/11/2026 — alta del cambio.**
+
+# Cambio 433 — Dispositivos: seis errores de lógica de la ronda de QA en testing
+
+🟢 **HECHO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamiento edilicio · bitácora · sectores y plazas |
+| **Etiquetas** | `#relevamientos` `#datos` `#ui` |
+| **Solicitante** | QA — errores de lógica hallados en testing |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+Seis errores de lógica de QA en testing: reasignar un relevamiento edilicio puede ser imposible; el doble envío de una novedad la duplica; corregir una novedad sin cambios crea una versión idéntica; «fuera de servicio» sobre una plaza que ya lo está responde como si hubiera cambiado algo; reasignar un relevamiento cancelado devuelve un error engañoso; la capacidad declarada del sector acepta 99999999.
+
+## Alcance acordado
+Cambios mínimos, cada uno con test. Queda afuera relacionar la capacidad declarada con las plazas (es un dato declarativo) y tocar si el motivo de la corrección es obligatorio (no hay nada decidido en este archivo; no se cambió).
+
+## Decisiones tomadas
+1. **Reasignar: una sola fuente de candidatos.** `agentes_para_reasignar` = `agentes_asignables(edificio)` menos el asignado actual; el modal, el POST y la regla del servicio salen de ahí. La comparación de los dos caminos (`_candidatos_a_relevar`, `agentes_asignables`, `agentes_asignables_para`, `_validar_agente`, `AGENTE_DEBE_SER_EXTERNO`) no mostró una divergencia de reglas: el caso de QA es el de un único agente elegible, que es el asignado actual; al excluirlo el selector queda vacío y todo POST se rechaza (incluso el mismo agente, que además el servicio rechaza por «ya asignado»). Queda fijado por test que un agente aceptado al asignar lo es al reasignar otro relevamiento del edificio.
+2. **Doble envío de novedad.** `registrar_entrada` toma el candado del dispositivo y, si hay una novedad manual versión 1, sin corregir, del mismo autor, turno, tipo, texto, **conjunto de personas y adjuntos (cantidad y nombre)** creada en los últimos 10 s (`VENTANA_DOBLE_ENVIO`), devuelve esa con el mismo éxito. Orden de candados: **estadías de `personas` (por pk) y después dispositivo**, porque egreso, cambio y asignación de plaza bloquean la estadía y piden luego un lock compartido sobre el dispositivo por la FK; al revés habría deadlock. Sin `UniqueConstraint` condicional (no existe en MySQL/MariaDB).
+3. **Corregir sin cambios** se rechaza con «No hay cambios para corregir.» si tipo, texto, personas y adjuntos son los de la versión vigente. El motivo sigue como estaba.
+4. **«Fuera de servicio» repetido** dice «ya estaba fuera de servicio: no hubo nada que cambiar», igual que «volver a servicio»; el servicio ya era idempotente y no toca el motivo ni la fecha.
+5. **Reasignar un relevamiento no en curso** valida el estado antes que el agente: «Solo se reasigna un relevamiento en curso.» (`exigir_reasignable`, que llaman la vista y el servicio).
+6. **Tope de 9999** a la capacidad declarada del sector, en el formulario y en el servicio (`CAPACIDAD_DECLARADA_MAXIMA`). En la edición se exige solo si la cifra cambia: un sector anterior al tope (p. ej. 50000) se puede renombrar y dar de baja sin tocarla, y su formulario no lleva `max`. El campo del modelo no cambia, por eso no hay migración.
+
+## Implementación
+Ver las decisiones. La traducción de los errores del servicio al modal no cambia.
+
+## Archivos
+`programas/services/inspecciones.py`, `programas/services/bitacora.py`, `programas/services/plazas.py`, `programas/forms_dispositivos.py`, `programas/views/dispositivos_relevamientos.py`, `programas/views/dispositivos_legajo.py`, `programas/tests/test_dispositivos_logica_qa_433.py`.
+
+## Base de datos
+Sin cambios de esquema.
+
+## Validación
+`programas.tests.test_dispositivos*` en verde con `--parallel 4`, `manage.py check`, ruff. **Mutaciones** (rojo y restaurado): sacar el chequeo de duplicado reciente, cambiar la fuente de candidatos de la reasignación y desactivar el rechazo de la corrección sin cambios. El candado del dispositivo no se puede probar en SQLite: la carrera real queda cubierta por el patrón ya usado en altas de sector e ingreso.
+
+## Pendientes / a definir
+- Si el motivo de una corrección debe ser obligatorio: sin decisión registrada, queda como está.
+- **Causa probable de lo que vio QA al reasignar.** «Personal» de un edificio incluye a todo usuario de un rol con «Alcance por dispositivo» (`AsignacionDispositivo`) sobre una institución del edificio. En testing el rol de agente probablemente vuelve «personal» a todos los agentes: el selector de reasignar queda vacío (y P4 los ofrece cuando el edificio es compartido y el POST los rechaza). Es configuración de roles o una decisión de redefinir «personal»; no es un error de este cambio. Queda fijado por test. El selector de P4 no se cambió.
+- Un edificio con un solo agente elegible no se puede reasignar: hace falta habilitar otro agente.
+
+## Reversión
+Revertir el commit; no hay migración ni datos.
+
+## Historial
+
+- **07/11/2026 — alta y cierre del cambio.**
+
+---
+
+# Cambio 434 — Lista de tarjetas para móvil y confirmación global centrada en celular
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamientos · sistema de diseño (transversal por el CSS de la confirmación) |
+| **Etiquetas** | `#ui` `#relevamientos` |
+| **Solicitante** | PM — decisiones del 07/11/2026 tras la revisión visual a 390 px (pendientes del Cambio 431) |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Template · CSS |
+| **Migración** | No requiere |
+
+## Pedido original
+
+A: una pieza nueva, «lista de tarjetas para móvil», como alternativa de una tabla a menos de `md`, aplicada en `/dispositivos/relevamientos/` en todas las solapas, con edificio y dispositivo, estado y criticidad, quién relevó o a quién está asignado y la fecha; la acción principal depende de la solapa y las demás van en «⋮», con las mismas URL y atributos que la tabla. B: arreglar en `mobile-modals.css` la confirmación global `ModernModal` para que en móvil quede centrada, de alto automático y con márgenes laterales iguales, como el modal de Reasignar relevamiento.
+
+## Alcance acordado
+
+**Entra:** `templates/components/_lista_tarjetas.html` con su ficha, su fila de inventario y su test; las cuatro solapas de relevamientos más «Sin relevar nunca»; una lectura nueva (fija, no por fila) con los dispositivos de los edificios de la página; el CSS de `#modal-overlay` / `#modal-content` a ≤ 640 px.
+**No entra:** cambiar la tabla de escritorio, migrar otras tablas a tarjetas, tocar las reglas `.modal` / `.modal-dialog` de `mobile-modals.css` ni los modales Alpine de las pantallas.
+
+## Decisiones tomadas
+
+1. La tabla pasa a `hidden md:block` y la lista a `md:hidden`: se decide solo por CSS, sin JS. Son las únicas utilidades nuevas del CSS compilado (`npm run build:tailwind`).
+2. La vista arma las tarjetas con los mismos valores que la tabla (`url_reasignar`, `url_cancelar`, `url_informe`, `url_revisar`, `motivo_*`). Lo que en la tabla es el botón visible de la fila (Reasignar) es la acción principal; Ver informe es principal en Completados, Revisados y Cancelados. Lo demás va al «⋮» con el mismo componente `{% menu_fila %}`. Un test compara los conjuntos de URL y `data-confirm-*` de la tabla y de las tarjetas, incluidos los ítems bloqueados con motivo.
+3. Un relevamiento no tiene un dispositivo propio: el predio puede alojar varios. La tarjeta nombra los que el usuario **coordina o puede ver** (`dispositivos_en_alcance(asignar)` o `dispositivos_visibles`), hasta dos y «y N más»; los de otras instituciones del predio no se nombran, igual que la tabla oculta la asignación sin alcance.
+4. La criticidad va como par etiqueta-valor (texto), no como segundo badge: la tarjeta lleva un solo badge de estado (más la marca «Revisado»).
+5. Presupuesto de consultas `dispositivos_relevamientos_listado` 16 → 17: una consulta para todos los edificios de la página, no por fila (`_meta.adjustments`).
+6. La confirmación global deja de ser una hoja inferior de alto completo en móvil: `#modal-overlay > div` pasa a centrar y `#modal-content` a `border-radius: 1rem` con tope `100dvh - 2rem`. El margen lateral lo da el padding de 1rem de `.modal-responsive`.
+
+## Implementación
+
+En celular, cada solapa de Relevamientos muestra tarjetas con edificio, código y localidad, estado, dispositivo, agente (Relevó / Asignado a), fecha (Vence / Relevado el), criticidad y la acción principal; en escritorio la tabla no cambia. Las confirmaciones sí/no del backoffice se ven centradas, con alto según su contenido y 16 px de margen a cada lado.
+
+## Archivos
+
+`templates/components/_lista_tarjetas.html`, `.claude/design/componentes/lista_tarjetas.md`, `.claude/agents/chaco-design-system.md` (fila nueva), `.claude/design/componentes/modern_modal_toast.md`, `programas/views/dispositivos_relevamientos.py`, `programas/selectors/capacidad_dispositivo.py`, `.claude/design/componentes/tabs.md`, `programas/templates/programas/dispositivos/relevamientos/list.html`, `static/custom/css/mobile-modals.css`, `static/custom/css/tailwind.css`, `scripts/perf_budgets.json`, `core/tests/test_nodo_ui_piezas.py` (`ListaTarjetasTest`), `programas/tests/test_dispositivos_relevamientos_listado.py` (`TarjetasMovilTests`).
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Suites `programas.tests.test_dispositivos_relevamientos_listado` y `core.tests.test_nodo_ui_piezas` en verde, con el presupuesto de consultas medido (17 con 2 y con 20 relevamientos). `manage.py check`, `design_audit --ratchet` (0 nuevos) y `--arquetipo listado`, `compile_templates --bloques`, `check_design_agent --changed` y `check_perf_budgets` en verde. Verificación visual con Chromium (Playwright) a 390 y 1440 px sobre un servidor local con SQLite: a 390 px solo se ve la lista (sin desborde horizontal) y a 1440 solo la tabla; las confirmaciones «Marcar como revisado», «Reactivar sector» y dos de Becas quedan a 16 px de cada borde, centradas en vertical y con radio de 16 px, igual que el modal de Cancelar relevamiento.
+
+## Pendientes / a definir
+
+- Etiquetas secundarias de la bitácora (pendiente del Cambio 431).
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+- **07/11/2026 — ronda de auditoría del PR #1049.** Una sola fuente de las acciones de la fila (`_preparar_fila` arma `accion_visible` y `acciones_menu`; la tabla y la tarjeta las recorren, y la tarjeta solo agrega la promoción de la primera acción que navega a principal); la lectura de las instituciones del predio pasa a `instituciones_del_predio(..., tambien=)` en `programas/selectors/capacidad_dispositivo.py` (17 consultas, sin cambio); «Relevado el» en hora local (`timezone.localtime`), con test a las 23:30 AR; la barra de solapas de Relevamientos no comprime las solapas (`shrink-0`, ficha `tabs.md`), lo que corrige los íconos y contadores encimados a 390 px; la nota del motivo de cancelación va al par de fecha; el `!important` y el `padding: 0` redundantes salen de `mobile-modals.css`; y el nombre accesible de cada lista va en minúsculas.
+
+---

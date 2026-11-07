@@ -1,0 +1,58 @@
+{% load nodo_ui %}{% comment %}
+Lista de tarjetas para móvil: la alternativa de una tabla a menos de `md` (768 px). Una por registro.
+La tabla de escritorio no cambia: su wrapper pasa a `hidden md:block` y esta lista aparece sola a menos de `md`.
+  {% include "components/_lista_tarjetas.html" with tarjetas=solapa.tarjetas nombre="Relevamientos en curso" %}
+Contexto:
+  nombre     obligatorio: nombre accesible de la lista («Relevamientos en curso»).
+  tarjetas   lista de dicts armada por la VISTA (nunca un queryset), una por registro:
+               titulo     obligatorio.
+               subtitulo  opcional, una línea.
+               badges     lista de dicts {texto, tono}; el primero es el estado. tono: success | info | warning |
+                          danger | brand; otro valor (o ninguno) dibuja el badge neutro. El texto lleva la
+                          información, el color solo la refuerza.
+               pares      2 a 4 dicts {etiqueta, valor, nota}; un valor vacío se lee «—»; nota es opcional.
+               accion     opcional, la acción principal VISIBLE: {texto, url, icono, etiqueta (aria-label),
+                          variante: brand | secondary (default)}. Solo navega: lo que muta va en el menú.
+               menu       opcional, las demás acciones en ⋮. Lista de dicts con las claves de
+                          components/_menu_fila_item.html (texto, icono, url, confirm_url, confirm_title,
+                          confirm_text, confirm_ok, peligro, motivo). Sin ítems no se dibuja el ⋮.
+               menu_id    obligatorio con menu: único en la página (distinto del de la tabla que reemplaza).
+               menu_etiqueta  obligatorio con menu: nombra el registro («Más acciones del relevamiento de X»).
+Las acciones tienen que ser las mismas que las de la tabla (misma URL, mismos data-*): las arma la vista con los
+mismos valores. El texto de la vista se escapa siempre (autoescape).
+{% endcomment %}
+<ul class="md:hidden px-4 pt-3 pb-4 space-y-3" aria-label="{{ nombre }}" data-lista-tarjetas>
+  {% for t in tarjetas %}
+  <li class="rounded-xl border border-base bg-white p-4 shadow-sm">
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <h3 class="text-sm font-bold text-heading">{{ t.titulo }}</h3>
+        {% if t.subtitulo %}<p class="text-xs text-body-subtle">{{ t.subtitulo }}</p>{% endif %}
+      </div>
+      <div class="flex flex-wrap items-center justify-end gap-1">
+        {% for b in t.badges %}<span class="badge{% if forloop.first %} badge-dot{% endif %} {% if b.tono == 'success' %}badge-success{% elif b.tono == 'info' %}badge-info{% elif b.tono == 'warning' %}badge-warning{% elif b.tono == 'danger' %}badge-danger{% elif b.tono == 'brand' %}badge-brand{% else %}badge-gray{% endif %}">{{ b.texto }}</span>{% endfor %}
+      </div>
+    </div>
+    {% if t.pares %}
+    <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
+      {% for p in t.pares %}
+      <div class="min-w-0">
+        <dt class="text-xs text-body-subtle">{{ p.etiqueta }}</dt>
+        <dd class="text-sm text-body">{{ p.valor|default:"—" }}{% if p.nota %}<span class="block text-xs text-body-subtle">{{ p.nota }}</span>{% endif %}</dd>
+      </div>
+      {% endfor %}
+    </dl>
+    {% endif %}
+    {% if t.accion or t.menu %}
+    <div class="mt-3 flex items-center justify-between gap-2">
+      {% if t.accion %}<a href="{{ t.accion.url }}" class="btn-nodo btn-sm btn-fit {% if t.accion.variante == 'brand' %}btn-brand{% else %}btn-secondary{% endif %}"{% if t.accion.etiqueta %} aria-label="{{ t.accion.etiqueta }}"{% endif %}>{% if t.accion.icono %}<i class="fas {{ t.accion.icono }}" aria-hidden="true"></i> {% endif %}{{ t.accion.texto }}</a>{% else %}<span></span>{% endif %}
+      {% if t.menu %}
+      {% menu_fila id=t.menu_id etiqueta=t.menu_etiqueta %}
+        {% for it in t.menu %}{% include "components/_menu_fila_item.html" with texto=it.texto icono=it.icono url=it.url confirm_url=it.confirm_url confirm_title=it.confirm_title confirm_text=it.confirm_text confirm_ok=it.confirm_ok peligro=it.peligro motivo=it.motivo only %}{% endfor %}
+      {% endmenu_fila %}
+      {% endif %}
+    </div>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
