@@ -63,6 +63,7 @@ Evidencia: «Nuevo sector» de P5 (`programas/templates/programas/dispositivos/s
 `accion_click="modalSectorNuevo=true"`). Los campos de esos modales usan el campo canónico (`field.md`). Esa acción
 solo se ofrece si el servicio admite el alta (`puede_ampliar_capacidad`): sin ella el vacío es el de lectura.
 El modal «Liberar» de ese mismo mapa distingue préstamo de reserva por el dato `es_prestamo` de `plazasModal`, no por el texto del estado.
+El filtro `?inactivos=1` de ese mapa suma una surface «Sectores inactivos» con su vacío de lectura (`icono="fa-layer-group"`, sin acción) y un «Reactivar» por fila con `data-confirm-url` (confirmación `_confirm_js.html`, POST sin modal propio).
 
 ## Dentro de un modal
 

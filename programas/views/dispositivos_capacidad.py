@@ -40,7 +40,7 @@ from programas.services.edificios import (
     editar_edificio,
     vincular_edificio,
 )
-from programas.services.plazas import agregar_plazas, crear_sector, editar_plaza, editar_sector
+from programas.services.plazas import agregar_plazas, crear_sector, editar_plaza, editar_sector, reactivar_sector
 from programas.views.ajax_utils import ajax_redirect, errores_del_servicio, is_ajax, rechazar
 
 #: Adónde vuelve cada familia de acciones. Las de sectores y plazas, al mapa (P5); las del
@@ -161,6 +161,22 @@ class SectorEditarView(_AccionDeSectorView):
         if not resultado.activo:
             return f"Sector {resultado.nombre} dado de baja."
         return f"Sector {resultado.nombre} actualizado."
+
+
+class SectorReactivarView(_AccionDeSectorView):
+    """«Reactivar» de un sector dado de baja (filtro «sectores inactivos» de P5).
+
+    Mismo permiso y alcance que la edición (`dispositivo.editar`, 404 fuera de alcance). Sin
+    formulario: el servicio bloquea si ya hay un sector activo con ese nombre.
+    """
+
+    def ejecutar(self, request, dispositivo, datos):
+        return reactivar_sector(
+            sector=sector_del_dispositivo(dispositivo, self.kwargs["sector_pk"]), usuario=request.user
+        )
+
+    def mensaje(self, resultado):
+        return f"Sector {resultado.nombre} reactivado."
 
 
 class PlazasAgregarView(_AccionDeSectorView):

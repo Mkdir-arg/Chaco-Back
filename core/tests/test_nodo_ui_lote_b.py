@@ -215,14 +215,22 @@ class GaleriaFotosTest(SimpleTestCase):
         self.assertNotIn("<script", html)
         self.assertIn("&lt;i&gt;x", html)
 
-    def test_tiene_tope_de_24_y_avisa(self):
-        fotos = [self._foto(f"foto-{n:02d}") for n in range(30)]
+    def test_mas_de_24_pliega_el_resto_y_no_descarta_ninguna(self):
+        fotos = [self._foto(f"foto-{n:02d}") for n in range(34)]
         html = render_to_string(GALERIA, {"fotos": fotos})
 
-        self.assertEqual(html.count("<img"), 24)
-        self.assertIn("foto-23", html)
-        self.assertNotIn("foto-24", html)
-        self.assertIn("Mostrando 24 de 30 fotos.", html)
+        self.assertEqual(html.count("<img"), 34)
+        self.assertEqual(html.count("<details"), 1)
+        self.assertIn("Ver las 10 fotos restantes", html)
+        self.assertIn("foto-33", html)
+        self.assertNotIn("Mostrando", html)
+        self.assertLess(html.index("foto-23"), html.index("<details"))
+        self.assertGreater(html.index("foto-24"), html.index("<details"))
+
+    def test_24_o_menos_no_pliega(self):
+        html = render_to_string(GALERIA, {"fotos": [self._foto(f"f{n}") for n in range(24)]})
+
+        self.assertNotIn("<details", html)
 
     def test_total_mayor_que_lo_enviado_avisa(self):
         html = render_to_string(GALERIA, {"fotos": [self._foto()], "total": 80})

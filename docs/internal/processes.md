@@ -476,6 +476,12 @@ mientras no haya formularios por tipo de dispositivo (`DisenoFormulario` con
 UNIQUE y la FK (RED-58)—. Para volver: restore, o, solo si esos formularios se pueden
 perder, borrarlos (sus ítems caen en cascada) y reintentar. Nunca `--fake`.
 
+`programas.0112` (sacó el UNIQUE `sector_nombre_unico_por_dispositivo`) es otra **reversa
+condicionada**: volver a crearlo falla si un dispositivo tiene un sector inactivo y uno activo con
+el mismo nombre. Antes de revertir: `SELECT dispositivo_id, nombre, COUNT(*) FROM programas_sector
+GROUP BY dispositivo_id, nombre HAVING COUNT(*) > 1;` y renombrar uno de cada par. No se pierde
+ningún dato. Nunca `--fake`.
+
 1. Bajar la app (`kubectl scale --replicas=0`, o `docker compose -f docker-compose.prod.yml stop web websocket`).
 2. `DROP DATABASE` + `CREATE DATABASE` + restore del dump de D.0. **Nunca restaurar
    encima:** deja tablas huérfanas de la release nueva y el deploy siguiente muere con
