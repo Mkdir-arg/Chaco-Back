@@ -542,6 +542,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 416 | Sugerencias de personas y de agentes en el paso «Ingresar persona» y en «Buscar agente» (reusa `nodo-sugerencias`; consulta por columna) | Dispositivos · sistema de diseño | `#ui` `#rbac` `#datos` | PM — continuación del Cambio 415 | 02/11/2026 | 🟡 **En curso** | No requiere |
 | 417 | Alta de oficio en una convocatoria de Becas: comando `inscribir_de_oficio` (CSV, APROBADO directo, sin SIIS ni correos) | Becas · convocatorias · operación | `#convocatorias` `#cupos` `#siis` | PM — sesión del 06/11/2026 | 06/11/2026 | 🟡 **En curso** | No requiere |
 | 419 | SIIS: `proponer_alias_siis` propone a qué localidad de SIIS equivale cada localidad core de Chaco que no cruza, para revisión del organismo (no toca `siis_alias_localidades.csv`) | SIIS (`programas/management/commands`) · `docs/internal/siis/` | `#siis` `#datos` | PM — pedido de Provincia/Localidad en Requisitos generales (06/11/2026), PR 3 | 06/11/2026 | 🟡 **En curso** | No requiere |
+| 420 | Dispositivos: «Crear persona» en «Sumar persona al Equipo» (alta de usuario + Equipo en una transacción) y buscador «Persona — Rol» con sugerencias | Dispositivos · usuarios · sistema de diseño | `#ui` `#rbac` `#usuarios` | PM — pedido del 05/11/2026 (modal «Sumar persona al Equipo») | 05/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51832,4 +51833,74 @@ Revertir el PR. No hay datos que deshacer.
 ## Historial
 
 - **06/11/2026 — alta del cambio.**
+---
+
+---
+
+# Cambio 420 — «Crear persona» en «Sumar persona al Equipo» y buscador «Persona — Rol» con sugerencias
+
+🟡 **EN CURSO — 05/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (Equipo del dispositivo) · alta de usuarios · sistema de diseño |
+| **Etiquetas** | `#ui` `#rbac` `#usuarios` |
+| **Solicitante** | PM — pedido del 05/11/2026; las cuatro decisiones son del PM |
+| **Fecha del pedido** | 05/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice |
+| **Migración** | No requiere |
+
+## Pedido original
+
+En el modal «Sumar persona al Equipo» de un dispositivo, si la persona no aparece tiene que haber una opción para crearla. Continuación de los Cambios 410, 411 y 414 (Equipo) y 415 y 416 (sugerencias).
+
+## Alcance acordado
+
+**Entra:**
+
+1. **«Crear persona»** dentro del modal «Sumar persona»: abre un segundo modal (arquetipo Modal) con DNI, nombre, apellido, correo, rol y la marca de responsable. Crea el usuario y lo suma al Equipo en **una sola transacción**.
+2. **«Persona y rol» pasa a buscador con sugerencias** (`nodo-sugerencias`): las opciones ya no viajan en la página, se piden por GET desde 3 caracteres.
+
+**Queda afuera:** crear al usuario sin correo, pedir o mostrar una clave provisoria, y cualquier cambio de Reservar y Prestar, Ingresar persona o Buscar agente (no cambian de comportamiento).
+
+## Decisiones tomadas
+
+1. **Quién ve «Crear persona» (decisión del PM).** Solo quien gestiona **ese** Equipo (`puede_gestionar_equipo`) **y** administra los usuarios del programa Dispositivos: `programa.usuario.administrar` acotado a Dispositivos (`programas_administrables_usuarios`), `usuario.administrar` o superusuario (`es_admin_global_usuarios`). Está en `puede_crear_persona`. Un responsable común no ve el botón: ve «¿No está? Pedile al administrador del programa que la dé de alta.». La barrera es el servidor: el POST de crear exige lo mismo y responde **403** (JSON si es AJAX), y el servicio lo vuelve a exigir.
+2. **Roles que se pueden dar (decisión del PM).** Solo roles activos de Dispositivos, sin `dispositivos.agente_relevamiento` y solo los que el actor puede asignar según **la misma regla del combo «Roles» del ABM de Usuarios** (`users.forms._roles_asignables_queryset`, expuesta como `users.selectors.usuarios.roles_asignables`): no se da un rol que otorga administración ni capacidades que el actor no puede delegar. `roles_para_crear_persona` solo la acota a Dispositivos y le saca al agente; no hay una regla paralela.
+3. **Todo o nada (decisión del PM).** `crear_persona_y_sumar` crea el usuario con `UsuariosAdminService.create_user_from_form` (el servicio de las altas rápidas) y llama a `sumar_miembro` dentro de un `transaction.atomic()`: si sumar al Equipo falla, no queda ni el usuario. El formulario es el `UserCreationForm` del ABM (con `roles_acotados`), así que DNI, correo y que el rol no se pise las valida la misma regla.
+4. **Datos (decisión del PM).** DNI, nombre, apellido y correo, los cuatro obligatorios. No se pide ni se muestra una clave. El nombre de usuario sale del DNI (`<dni>-2`, `-3`… si otra cuenta ya lo tiene). DNI repetido: «Esa persona ya tiene usuario: dale el rol desde Usuarios.», con el mismo mecanismo que `MENSAJES_DNI_DUPLICADO` (entrada `equipo`). **El correo repetido no se bloquea**: varios usuarios pueden compartir correo (decisión del PM del 13/10); la excepción de los agentes (`dueno_del_correo`) es de su alta y acá no aplica.
+5. **«Persona y rol» con sugerencias (decisión del PM).** Las sugerencias son los pares de `pares_persona_rol` filtrados por lo tecleado: 3 caracteres, tope 10, `hay_mas`, `istartswith` sobre nombre o apellido con los helpers de `users/services/busqueda.py`. Endpoint GET `dispositivos:equipo_personas_buscar` con la guarda `puede_gestionar_equipo` (403 JSON) y `sin_cache`. Sin correo, teléfono ni DNI. El servidor valida el par al guardar. Si nada coincide, el aviso depende del permiso: con permiso invita a «Crear persona»; sin permiso dice el pedido al administrador.
+6. **La pieza canónica se extendió de forma compatible.** `data-sugerencias-destino` (id de un `<input type="hidden">`): al elegir, el destino recibe `valor` y el campo visible muestra `etiqueta`; al volver a teclear, el destino se vacía. Sin ese atributo y sin `etiqueta` el comportamiento es el de siempre. Se actualizó la ficha y la fila del agente canónico.
+7. **El correo con la clave sale con la transacción cerrada** (`entregar_credenciales_provisorias`, el servicio de las altas rápidas). Un fallo del correo no deshace el alta y se avisa. El servicio entrega **por enlace** al usuario solo de campo; a un rol de backoffice le manda la clave provisoria que **genera el sistema** (nadie la tipea ni la ve en pantalla), igual que el ABM de Usuarios. No se creó un camino nuevo de entrega.
+8. **Límite por operador** (20 por minuto, sin IP) en el alta, como el alta de agentes.
+
+## Implementación
+
+`puede_administrar_usuarios_dispositivos`, `puede_crear_persona`, `roles_para_crear_persona`, `datos_de_alta_de_persona`, `crear_persona_y_sumar` y `exigir_par_sumable` en `programas/services/equipo_dispositivo.py`; selector `programas/selectors/equipo_sugeridas.py`; `EquipoCrearPersonaView` y `EquipoPersonasSugeridasView` en `programas/views/dispositivos_equipo.py` (la base suma el gancho `autorizado`); `CrearPersonaEquipoForm` y el `SumarMiembroEquipoForm` con campo visible más par oculto; el modal en `legajo/detail.html`; `roles_asignables` en `users/selectors/usuarios.py`; `MENSAJE_DNI_EQUIPO` en `users/views/quick_create.py`.
+
+## Archivos
+
+`programas/services/equipo_dispositivo.py`, `programas/selectors/equipo_sugeridas.py`, `programas/views/dispositivos_equipo.py`, `programas/views/dispositivos_legajo.py`, `programas/forms_dispositivos.py`, `programas/dispositivos_urls.py`, `programas/templates/programas/dispositivos/legajo/detail.html`, `users/selectors/usuarios.py`, `users/views/quick_create.py`, `static/custom/js/nodo-sugerencias.js`, `.claude/design/componentes/sugerencias.md`, `.claude/agents/chaco-design-system.md`, `programas/tests/test_dispositivos_equipo_crear_persona_420.py`, `programas/tests/test_dispositivos_equipo_ui_411.py`.
+
+## Base de datos
+
+No requiere migración. Las sugerencias consultan la tabla de enlaces usuario-rol con prefijo (`LIKE 'x%'`) sobre nombre y apellido de `auth_user` (sin índice por nombre: recorre miles de usuarios, no cientos de miles; como el buscador de agentes del Cambio 416).
+
+## Validación
+
+Tests en `programas/tests/test_dispositivos_equipo_crear_persona_420.py`: quién ve el botón (admin del programa, superusuario, `usuario.administrar`; no el responsable común, ni el admin de usuarios de otro programa, ni quien administra usuarios sin gestionar ese Equipo), 403 sin la capacidad (AJAX y no), roles (uno que el actor no puede asignar, el de agente, de otro programa e inactivo), transacción atómica en los dos sentidos, DNI duplicado, correo repetido permitido, sugerencias (guarda, `no-store`, tope, `hay_mas`, sin correo, prefijo, `istartswith` sin `LIKE BINARY` con el backend de MySQL compilado) y validación del par oculto al guardar. **Mutaciones** (romper la regla, ver el test rojo, restaurar): las del cierre, ver el PR.
+
+## Pendientes / a definir
+
+- El efecto en pantalla (desplegable y segundo modal) conviene mirarlo en testing.
+
+## Reversión
+
+Revertir el PR. No hay datos que deshacer (los usuarios creados quedan como cualquier alta del ABM).
+
+## Historial
+
+- **05/11/2026 — alta del cambio.**
+
 ---
