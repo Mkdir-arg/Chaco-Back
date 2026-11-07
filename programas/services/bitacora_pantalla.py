@@ -184,12 +184,21 @@ def _personas_prefetch(nombrar_personas: bool):
     return Prefetch("personas", queryset=estadias)
 
 
-def _opcion_correccion(entrada):
+def _opcion_correccion(entrada, *, nombrar_personas: bool):
+    """Una novedad corregible, con lo que el modal ofrece quitar: sus adjuntos y personas actuales.
+
+    Sin `ciudadano.ver` no se nombra a nadie, y sin nombre no hay nada que ofrecer quitar.
+    """
+
     return {
         "pk": entrada.pk,
         "etiqueta": f"{_hora(entrada.momento)} · {entrada.get_tipo_display()} · {entrada.texto[:60]}",
         "tipo": entrada.tipo,
         "texto": entrada.texto,
+        "adjuntos": [{"id": adjunto.pk, "nombre": str(adjunto)} for adjunto in entrada.adjuntos.all()],
+        "personas": [{"id": estadia.pk, "nombre": _persona(estadia)} for estadia in entrada.personas.all()]
+        if nombrar_personas
+        else [],
     }
 
 
@@ -454,7 +463,7 @@ def pantalla_bitacora(
     corregibles = []
     if puede_cargar:
         corregibles = [
-            _opcion_correccion(entrada)
+            _opcion_correccion(entrada, nombrar_personas=nombrar_personas)
             for entrada in EntradaBitacora.objects.vigentes()
             .filter(
                 dispositivo=dispositivo,
@@ -463,6 +472,7 @@ def pantalla_bitacora(
                 origen=EntradaBitacora.Origen.MANUAL,
             )
             .only("id", "momento", "tipo", "texto")
+            .prefetch_related(_personas_prefetch(nombrar_personas), "adjuntos")
             .order_by("-momento", "-id")[:TOPE_CORREGIBLES]
         ]
         # Un filtro puede mostrar una entrada más vieja que el recorte del select.
@@ -470,7 +480,7 @@ def pantalla_bitacora(
         if tramo is not None and tramo.en_curso:
             incluidos = {entrada["pk"] for entrada in corregibles}
             corregibles.extend(
-                _opcion_correccion(entrada)
+                _opcion_correccion(entrada, nombrar_personas=nombrar_personas)
                 for entrada in vigentes
                 if entrada.origen == EntradaBitacora.Origen.MANUAL and entrada.pk not in incluidos
             )
