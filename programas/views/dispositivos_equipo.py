@@ -21,7 +21,7 @@ from django.views import View
 from core.http_cache import sin_cache
 from core.services.throttle import rate_limit_excedido
 from programas.forms_dispositivos import CrearPersonaEquipoForm, SumarMiembroEquipoForm
-from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
+from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, alcance_o_404
 from programas.models import Dispositivo, MiembroEquipoDispositivo
 from programas.selectors.equipo_sugeridas import sugerir_pares_equipo
 from programas.services import equipo_dispositivo as equipo
@@ -61,6 +61,7 @@ class _EquipoAccionView(DispositivoProgramaPermissionMixin, View):
     def post(self, request, pk, **kwargs):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
         if not self.autorizado(request, dispositivo):
+            alcance_o_404(request.user, dispositivo, "dispositivo.ver")
             if is_ajax(request):
                 return JsonResponse({"ok": False, "message": self.mensaje_sin_permiso}, status=403)
             raise PermissionDenied
@@ -193,6 +194,7 @@ class EquipoPersonasSugeridasView(DispositivoProgramaPermissionMixin, View):
     def get(self, request, pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
         if not equipo.puede_gestionar_equipo(request.user, dispositivo):
+            alcance_o_404(request.user, dispositivo, "dispositivo.ver")
             return sin_cache(
                 JsonResponse({"ok": False, "message": "No tenés alcance para armar el Equipo."}, status=403)
             )

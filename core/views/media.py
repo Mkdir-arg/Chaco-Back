@@ -258,7 +258,8 @@ def _adjunto_de_bitacora(user, ruta):
     adjunto = AdjuntoBitacora.objects.select_related("dispositivo").filter(archivo=ruta).first()
     if adjunto is None:
         return None
-    return puede_operar_dispositivo(user, adjunto.dispositivo, "dispositivo.ver")
+    # Sin alcance sobre ese dispositivo, el mismo 404 que un archivo inexistente.
+    return True if puede_operar_dispositivo(user, adjunto.dispositivo, "dispositivo.ver") else None
 
 
 def _archivo_de_formulario_dispositivo(user, ruta):

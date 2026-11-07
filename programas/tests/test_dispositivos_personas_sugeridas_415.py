@@ -3,7 +3,7 @@
 Lo que se fija acá, y por qué:
 
 1. **La compuerta es la de reservar y prestar**: `dispositivo.admitir` con alcance al
-   dispositivo, más `ciudadano.ver`. Sin cualquiera de las tres cosas, 403.
+   dispositivo, más `ciudadano.ver`. Sin la capacidad o sin `ciudadano.ver`, 403; sin alcance sobre el dispositivo, 404.
 2. **Solo apellido, nombre y DNI**: ni teléfono, ni correo, ni domicilio.
 3. **Mínimo 3 caracteres, tope 10** y aviso de que hay más.
 4. **Prefijo**, por DNI (con o sin puntos) o por apellido o nombre.
@@ -44,10 +44,10 @@ class CompuertaTests(BaseSugerencias):
 
         self.assertNotEqual(respuesta.status_code, 200)
 
-    def test_con_un_rol_de_otro_dispositivo_es_403(self):
+    def test_con_un_rol_de_otro_dispositivo_es_404(self):
         ajeno = self._operador("Prestador Parador", self.parador, CAPS_PRESTAR)
 
-        self.assertEqual(self._buscar("301", ajeno).status_code, 403)
+        self.assertEqual(self._buscar("301", ajeno).status_code, 404)
 
     def test_sin_admitir_es_403(self):
         solo_ver = self._operador("Ve personas CIS", self.cis, ("dispositivo.ver", "ciudadano.ver"))

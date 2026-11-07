@@ -128,7 +128,7 @@ class SolapaVisibleTests(BaseInfraestructura):
         sin_admin = tuple(c for c in TODAS_DE_DISPOSITIVOS if c != "programa.configurar")
         usuario = self._usuario("todo_menos_alcance", sin_admin, [self.cis])
 
-        self.assertEqual(self._detalle(usuario, self.geriatrico).status_code, 403)
+        self.assertEqual(self._detalle(usuario, self.geriatrico).status_code, 404)
 
     def test_la_solapa_se_abre_por_la_url(self):
         respuesta = self._detalle(self.operador_geriatrico, self.geriatrico, tab="infraestructura")
@@ -512,7 +512,7 @@ class RolSinAsignacionTests(BaseInfraestructura):
         AsignacionDispositivo.objects.create(dispositivo=self.geriatrico, rol=rol, activo=True)
         usuario.groups.add(rol)
 
-        self.assertEqual(self._detalle(usuario, self.geriatrico).status_code, 403)
+        self.assertEqual(self._detalle(usuario, self.geriatrico).status_code, 404)
 
 
 class VariosEdificiosTests(BaseInfraestructura):
