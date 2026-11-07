@@ -17,10 +17,12 @@ Lo que se fija acá, y por qué:
 
 import json
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from django.db import connection
+from django.template.loader import render_to_string
 from django.test import Client, tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
@@ -30,6 +32,7 @@ from programas.models import Edificio, InspeccionEdificio
 from programas.services import inspecciones as servicio
 from programas.services.inspecciones import Situacion, filtrar_por_situacion, resumen_listado, situacion_de
 from programas.tests.test_dispositivos_inspecciones import TODAS_DE_DISPOSITIVOS, BaseInspecciones
+from programas.views.dispositivos_relevamientos import TONO_DE_SITUACION
 
 URL_LISTA = reverse("dispositivos:relevamientos")
 AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
@@ -298,7 +301,9 @@ class ListadoTests(BaseListado):
         fila = _filas(respuesta)[0]
         self.assertEqual((fila.situacion, fila.situacion_texto), (Situacion.AL_DIA, "Al día"))
         self.assertIn((Situacion.AL_DIA, "Al día"), _solapa(respuesta, "en_curso")["pildoras"][0]["opciones"])
-        self.assertContains(respuesta, "Al día", count=3)  # tarjeta, opción de la píldora y badge
+        self.assertContains(
+            respuesta, "Al día", count=4
+        )  # tarjeta de resumen, opción de la píldora, badge y badge de la tarjeta móvil
 
     def test_parametros_con_digitos_no_ascii_no_rompen(self):
         cliente = self._cliente(self.coord)
@@ -814,3 +819,158 @@ class ListadoPresupuestoTests(BaseListado):
             f"{muchas} consultas; el presupuesto de «{CLAVE_PRESUPUESTO}» en scripts/perf_budgets.json es "
             f"{techo}. Subirlo exige justificarlo en el mismo PR.",
         )
+
+
+class TarjetasMovilTests(BaseListado):
+    """Cambio 434: a menos de `md` cada solapa muestra tarjetas con las MISMAS acciones que la tabla."""
+
+    def _acciones(self, html, bloque):
+        """Las URL y los `data-confirm-*` de todos los bloques de la página (la tabla o la lista de tarjetas)."""
+
+        patron = r"<table.*?</table>" if bloque == "tabla" else r"<ul [^>]*data-lista-tarjetas.*?</ul>"
+        bloques = "".join(re.findall(patron, html, flags=re.S))
+        urls = sorted(re.findall(r'href="([^"]+)"', bloques))
+        confirmaciones = sorted(
+            re.findall(
+                r'data-confirm-url="([^"]*)" data-confirm-title="([^"]*)" data-confirm-text="([^"]*)" '
+                r'data-confirm-ok="([^"]*)" data-confirm-danger="([^"]*)"',
+                bloques,
+            )
+        )
+        return urls, confirmaciones, bloques.count('aria-disabled="true"')
+
+    def _sembrar_todas_las_solapas(self):
+        completado = self._crear()
+        servicio.registrar_resultado(
+            self._fresco(self.agente), completado, criticidad=InspeccionEdificio.Criticidad.ALTA
+        )
+        revisado = self._crear()
+        servicio.registrar_resultado(self._fresco(self.agente), revisado, criticidad=InspeccionEdificio.Criticidad.BAJA)
+        servicio.marcar_revisado(self._fresco(self.coord), revisado)
+        servicio.cancelar_inspeccion(self._fresco(self.coord), self._crear(), "Duplicado")
+        self._crear()
+        self._edificio_del_parador("ED-LIBRE")
+        return completado
+
+    def test_las_tarjetas_tienen_las_mismas_acciones_que_la_tabla_en_todas_las_solapas(self):
+        self._sembrar_todas_las_solapas()
+        html = self._cliente(self.coord).get(URL_LISTA).content.decode()
+
+        tabla = self._acciones(html, "tabla")
+        tarjetas = self._acciones(html, "tarjetas")
+
+        self.assertGreater(len(tabla[0]), 4, "la prueba no vería nada: sin acciones en la tabla")
+        self.assertTrue(tabla[1], "la prueba no vería ninguna confirmación (Marcar como revisado)")
+        self.assertEqual(tarjetas, tabla)
+
+    def test_lo_bloqueado_por_alcance_conserva_su_motivo_en_la_tarjeta(self):
+        mixto = self._usuario("mixto", ("inspeccion.asignar",), [self.parador])
+        rol_ver = self._usuario("mixto_ver", ("dispositivo.ver",), [self.cis]).groups.first()
+        mixto.groups.add(rol_ver)
+        servicio.crear_inspeccion(
+            self._fresco(self._usuario("admin", TODAS_DE_DISPOSITIVOS)),
+            edificio=self.edificio_cis,
+            asignado_a=self._fresco(self.agente),
+            fecha_vencimiento=self.vence,
+        )
+        self._crear()
+
+        html = self._cliente(self._fresco(mixto)).get(URL_LISTA).content.decode()
+
+        tabla = self._acciones(html, "tabla")
+        tarjetas = self._acciones(html, "tarjetas")
+        self.assertEqual(tabla[2], 2, "el relevamiento ajeno bloquea Reasignar y Cancelar en la tabla")
+        self.assertEqual(tarjetas, tabla)
+
+    def test_la_tarjeta_de_un_completado_trae_lo_pedido(self):
+        completado = self._sembrar_todas_las_solapas()
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA)
+        html = respuesta.content.decode()
+        tarjetas = _solapa(respuesta, "completados")["tarjetas"]
+        tarjeta = next(t for t in tarjetas if t["menu_id"].endswith(f"-{completado.pk}"))
+
+        self.assertEqual(tarjeta["titulo"], "Predio Resistencia")
+        self.assertEqual(tarjeta["badges"][0], {"texto": "Completado", "tono": "info"})
+        pares = {p["etiqueta"]: p["valor"] for p in tarjeta["pares"]}
+        self.assertEqual(pares["Dispositivo"], "Parador")
+        self.assertTrue(pares["Criticidad"].startswith("Alta"))
+        self.assertIn("Relevó", pares)
+        self.assertIn("Relevado el", pares)
+        self.assertEqual(tarjeta["accion"]["texto"], "Ver informe")
+        self.assertEqual([i["texto"] for i in tarjeta["menu"]], ["Marcar como revisado"])
+        # Mobile-first: la lista aparece solo a menos de md y la tabla se oculta ahí.
+        self.assertIn('class="hidden md:block overflow-x-auto', html)
+        self.assertIn('<ul class="md:hidden ', html)
+        # Una lista por solapa de relevamientos con filas (en curso, completados, revisados, cancelados) y la de edificios.
+        self.assertEqual(html.count("data-lista-tarjetas"), 5)
+
+    def test_en_curso_la_accion_principal_es_reasignar_y_cancelar_va_al_menu(self):
+        en_curso = self._crear()
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA)
+        tarjeta = _solapa(respuesta, "en_curso")["tarjetas"][0]
+
+        self.assertEqual(tarjeta["accion"]["texto"], "Reasignar")
+        self.assertEqual(tarjeta["accion"]["url"], f"?tab=en_curso&reasignar={en_curso.pk}")
+        self.assertEqual([i["texto"] for i in tarjeta["menu"]], ["Cancelar"])
+        self.assertEqual(tarjeta["pares"][1]["etiqueta"], "Asignado a")
+
+    def test_la_tarjeta_nombra_solo_los_dispositivos_que_el_usuario_coordina_o_ve(self):
+        self._crear()
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA)
+        html = respuesta.content.decode()
+
+        # El predio aloja al Parador (que coordina) y al Geriátrico (que no): del segundo, ni el nombre.
+        self.assertEqual(_solapa(respuesta, "en_curso")["tarjetas"][0]["pares"][0]["valor"], "Parador")
+        self.assertNotIn("Geri", html)
+
+    def test_edificios_sin_relevar_tienen_tarjeta_con_asignar(self):
+        libre = self._edificio_del_parador("ED-LIBRE")
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA, {"tab": "sin_relevar"})
+        tarjetas = {t["titulo"]: t for t in respuesta.context["sin_relevar"]["tarjetas"]}
+
+        self.assertEqual(tarjetas[libre.nombre]["accion"]["texto"], "Asignar")
+        self.assertEqual(tarjetas[libre.nombre]["accion"]["url"], f"?tab=sin_relevar&asignar={libre.pk}")
+        self.assertEqual(tarjetas[libre.nombre]["badges"], [{"texto": "Sin relevar", "tono": ""}])
+
+    def test_las_tarjetas_reusan_las_listas_de_acciones_de_la_fila(self):
+        self._sembrar_todas_las_solapas()
+        respuesta = self._cliente(self.coord).get(URL_LISTA)
+
+        for solapa in respuesta.context["solapas"]:
+            for fila, tarjeta in zip(solapa["filas"], solapa["tarjetas"], strict=True):
+                self.assertTrue(fila.acciones_menu or fila.accion_visible)
+                if fila.accion_visible is not None:
+                    self.assertEqual(tarjeta["accion"], fila.accion_visible)
+                    self.assertEqual(tarjeta["menu"], fila.acciones_menu)
+                else:
+                    # Sin acción visible, la primera del menú que solo navega sube a principal.
+                    self.assertEqual(tarjeta["accion"]["url"], fila.acciones_menu[0]["url"])
+                    self.assertEqual(tarjeta["menu"], fila.acciones_menu[1:])
+
+    def test_relevado_el_usa_la_hora_local_como_la_tabla(self):
+        completado = self._crear()
+        servicio.registrar_resultado(
+            self._fresco(self.agente), completado, criticidad=InspeccionEdificio.Criticidad.BAJA
+        )
+        cierre = datetime(2026, 11, 6, 23, 30, tzinfo=ZoneInfo("America/Argentina/Buenos_Aires"))
+        InspeccionEdificio.objects.filter(pk=completado.pk).update(realizada_en=cierre)
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA)
+        tarjeta = _solapa(respuesta, "completados")["tarjetas"][0]
+        html = respuesta.content.decode()
+
+        self.assertEqual({p["etiqueta"]: p["valor"] for p in tarjeta["pares"]}["Relevado el"], "06/11/2026")
+        self.assertIn("relevado el 06/11/2026", html)  # la tabla
+
+    def test_el_tono_de_la_tarjeta_coincide_con_el_badge_de_la_tabla(self):
+        plantilla = "programas/dispositivos/_relevamiento_situacion_badge.html"
+        for situacion in (Situacion.VENCIDA, Situacion.POR_VENCER, Situacion.AL_DIA, Situacion.REALIZADA):
+            html = render_to_string(plantilla, {"situacion": situacion, "texto": "x", "relevamiento": None})
+            self.assertIn(f"badge-{TONO_DE_SITUACION[situacion]}", html, situacion)
+        neutro = render_to_string(plantilla, {"situacion": Situacion.CANCELADA, "texto": "x", "relevamiento": None})
+        self.assertIn("badge-gray", neutro)
+        self.assertNotIn(Situacion.CANCELADA, TONO_DE_SITUACION)

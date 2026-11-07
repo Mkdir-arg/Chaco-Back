@@ -1,15 +1,19 @@
 /* Mobile Modal Optimizations for NODO */
 
-/* Full screen modals on mobile */
+/* Modales en celular */
 @media (max-width: 640px) {
-    #modal-overlay,
-    #modal-content {
-        border-radius: 0 !important;
+    /* ModernModal (#modal-overlay, confirmaciones sí/no): centrado, de alto automático y con el mismo
+       margen a los dos lados que los modales Alpine de las pantallas (el margen lo da el padding de
+       .modal-responsive). Antes era una hoja inferior de alto completo. */
+    #modal-overlay > div {
+        width: 100%;
+        min-height: 0;
+        align-items: center;
     }
 
     #modal-content {
-        max-width: 100% !important;
-        min-height: 100dvh;
+        border-radius: 1rem;
+        max-height: calc(100dvh - 2rem);
     }
 
     #modal-header,
