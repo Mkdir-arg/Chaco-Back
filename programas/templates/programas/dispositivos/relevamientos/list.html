@@ -56,7 +56,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
           {% include "components/_filtro_pildora.html" with pildoras=solapa.pildoras ocultos=solapa.ocultos %}
         </div>
         {% if solapa.filas %}
-        <div class="overflow-x-auto mt-3">
+        <div class="hidden md:block overflow-x-auto mt-3">
           <table class="w-full border-collapse">
             <thead>
               <tr class="nodo-thead-row">
@@ -116,6 +116,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
             </tbody>
           </table>
         </div>
+        {% include "components/_lista_tarjetas.html" with tarjetas=solapa.tarjetas nombre="Relevamientos "|add:solapa.etiqueta %}
         {% include "components/_paginacion.html" with page_obj=solapa.pagina entidad="relevamiento" param=solapa.param filtros_qs=solapa.filtros_qs %}
         {% elif solapa.hay_filtros %}
           {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún relevamiento coincide con los filtros" texto="Probá con otro estado o agente." accion_url=solapa.url_sin_filtros %}
@@ -134,7 +135,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
       filtran relevamientos. «Asignar» abre el mismo modal del paso 2 (?asignar=<edificio>).{% endcomment %}
       <div x-show="tab==='{{ sin_relevar.clave }}'" x-cloak role="tabpanel" id="panel-{{ sin_relevar.clave }}" aria-labelledby="tab-{{ sin_relevar.clave }}">
         {% if sin_relevar.filas %}
-        <div class="overflow-x-auto">
+        <div class="hidden md:block overflow-x-auto">
           <table class="w-full border-collapse">
             <thead>
               <tr class="nodo-thead-row">
@@ -168,6 +169,7 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
             </tbody>
           </table>
         </div>
+        {% include "components/_lista_tarjetas.html" with tarjetas=sin_relevar.tarjetas nombre="Edificios sin relevar nunca" %}
         {% include "components/_paginacion.html" with page_obj=sin_relevar.pagina entidad="edificio" param=sin_relevar.param filtros_qs=sin_relevar.filtros_qs %}
         {% else %}
           {% include "components/_estado_vacio.html" with icono="fa-building" titulo="Todos los edificios de tu alcance ya se relevaron al menos una vez" texto="Cuando se dé de alta un edificio nuevo, aparece acá hasta que se cierre su primer relevamiento." %}
