@@ -38,7 +38,7 @@ Render de cada campo:
 - «Nuevo/Editar sector» (`SectorForm`, `programas/forms_dispositivos.py`, Cambio 429): suma `edificio`, un `Select` con solo los edificios vinculados al dispositivo (`dispositivo=` obligatorio en el form). Es `required` en el alta; en la edición no lo es pero lleva `marca_requerido`, porque se exige mientras el sector quede activo (`clean`) y un sector de baja no lo necesita. Sin edificios vinculados, la bajada dice «Vinculá un edificio al dispositivo desde la solapa Infraestructura» (Cambio 435).
 - «Sumar persona» al Equipo (`SumarMiembroEquipoForm`, `programas/forms_dispositivos.py`, Cambio 411): un `Select` único de pares «Persona — Rol» y un `SwitchInput` «Es responsable»; con `auto_id="equipo_%s"` para no chocar con otros formularios de la pantalla.
 - Selector de agentes al reasignar un relevamiento (`ReasignarRelevamientoForm`, `programas/forms_dispositivos.py`): cada opción es «Nombre Apellido · usuario» (solo el usuario si no hay nombre), para distinguir homónimos; la ayuda del campo es la de la pantalla.
-- «Corregir novedad» de la bitácora (`CorreccionForm`, `programas/forms_bitacora.py`, Cambio 426): suma `personas` (`ChipsSelectMultiple`) y `adjuntos` (`AdjuntosField`) con los mismos campos del alta, sin variante nueva; el formulario lleva `auto_id="id_corr_%s"` porque convive con el modal de alta en la misma página.
+- «Corregir novedad» de la bitácora (`CorreccionForm`, `programas/forms_bitacora.py`, Cambio 426): suma `personas` (`ChipsSelectMultiple`) y `adjuntos` (`AdjuntosField`) con los mismos campos del alta, sin variante nueva; desde el Cambio 436 también `quitar_adjuntos` y `quitar_personas` (`_IdsField`, ids de las casillas «Quitar» de la novedad elegida, `.nodo-checks`; el servicio los valida contra los de esa novedad); el formulario lleva `auto_id="id_corr_%s"` porque convive con el modal de alta en la misma página.
 - **El `<p>` del error está siempre**, con `data-error="<campo>"` y oculto mientras no haya
   texto: es donde el guardado AJAX (`programas/templates/programas/becas/_ajax_js.html`) lo
   escribe sin recargar.
@@ -115,6 +115,8 @@ exija el dato. Si el caso ya tiene un apoderado cargado, el form lo pide igual y
 dibuja con su valor.
 
 ## Selector múltiple apilado
+
+**Variante armada por Alpine:** «Corregir novedad» de la bitácora (Cambio 436, `bitacora.html`) usa `.nodo-checks` con filas `<label><input type="checkbox" name="quitar_…">` que Alpine arma desde `corregibles_datos` (adjuntos y personas actuales de la novedad elegida); no pasan por un widget de Django (`CorreccionForm.quitar_*` solo recibe los ids).
 
 El contenedor del campo lleva `.nodo-checks`: el widget de Django queda como grilla de filas
 clickeables, caja de 18 px con `accent-color` de marca y `:focus-visible` con anillo. Lo consumen

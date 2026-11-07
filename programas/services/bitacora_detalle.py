@@ -33,7 +33,7 @@ def _fecha_hora(momento) -> str:
     return timezone.localtime(momento).strftime("%d/%m/%Y %H:%M")
 
 
-def _plural(cantidad, singular, plural):
+def plural(cantidad, singular, plural):
     return f"{cantidad} {singular if cantidad == 1 else plural}"
 
 
@@ -98,8 +98,8 @@ def detalle_entrada(entrada, *, nombrar_personas: bool) -> dict:
             "url": reverse("dispositivos:bitacora_entrada", args=[dispositivo_pk, version.pk]),
             "resumen": " · ".join(
                 (
-                    _plural(len(version.personas.all()), "persona", "personas"),
-                    _plural(len(version.adjuntos.all()), "adjunto", "adjuntos"),
+                    plural(len(version.personas.all()), "persona", "personas"),
+                    plural(len(version.adjuntos.all()), "adjunto", "adjuntos"),
                 )
             ),
         }

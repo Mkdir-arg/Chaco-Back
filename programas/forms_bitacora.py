@@ -43,6 +43,24 @@ class AdjuntosField(forms.FileField):
         return [data] if data else []
 
 
+class _IdsField(forms.MultipleChoiceField):
+    """Ids marcados en el modal (casillas «Quitar» armadas por Alpine, que escriben el nombre en el POST).
+
+    Devuelve una lista de enteros y rechaza lo no numérico. No se validan contra opciones: son de la
+    novedad que se elige en el mismo modal, y `bitacora.corregir_entrada` exige que lo sean. El widget
+    solo fija el nombre del campo en el POST: nunca se dibuja.
+    """
+
+    def to_python(self, value):
+        try:
+            return [int(str(valor).strip()) for valor in super().to_python(value)]
+        except ValueError:
+            raise forms.ValidationError("Alguno de los elementos a quitar no es válido.", code="invalid") from None
+
+    def valid_value(self, value):
+        return True
+
+
 class _PersonasYAdjuntosForm(forms.Form):
     """Las personas y los adjuntos que comparten el alta y la corrección de una novedad."""
 
@@ -128,8 +146,10 @@ class CorreccionForm(_PersonasYAdjuntosForm):
         max_length=255,
         widget=forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "Opcional"}),
     )
-    # Solo se agrega: las personas y los adjuntos de la versión corregida se conservan.
-    # Los mismos campos y la misma validación que el alta de la novedad.
+    # Se puede sumar (los mismos campos y validación que el alta) y quitar lo cargado por error:
+    # la versión nueva no lo lleva, la anterior lo conserva.
+    quitar_adjuntos = _IdsField(required=False, widget=forms.MultipleHiddenInput)
+    quitar_personas = _IdsField(required=False, widget=forms.MultipleHiddenInput)
     etiqueta_personas = "Sumar personas involucradas"
     etiqueta_adjuntos = "Sumar adjuntos"
     ayuda_adjuntos = "Hasta {max} archivos por novedad, contando los que ya tiene: PDF, imágenes o documentos de 5 MB."
