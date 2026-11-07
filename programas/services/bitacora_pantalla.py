@@ -48,6 +48,7 @@ from django.db.models import Count, Prefetch
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
+from django.utils.text import capfirst
 
 from programas.models import Dispositivo, EntradaBitacora, Estadia, Turno
 from programas.services import censo as censo_servicio
@@ -566,14 +567,14 @@ def pantalla_bitacora(
     # el título lo dice, para que nadie lea las entradas de la mañana como las de ahora.
     titulo_entradas = "Entradas"
     if turno is not None:
-        titulo_entradas = f"Turno {turno.nombre} · entradas"
+        titulo_entradas = f"Turno {capfirst(turno.nombre)} · entradas"
         if en_curso is not None and turno.pk != en_curso.turno.pk:
-            titulo_entradas += f" · no es el turno en curso (ahora, {en_curso.turno.nombre})"
+            titulo_entradas += f" · no es el turno en curso (ahora, {capfirst(en_curso.turno.nombre)})"
 
     if tramo is None and turno is not None:
-        censo_nota = f"El turno {turno.nombre} se dio de baja: no tiene censo propio. Abajo, el del día."
+        censo_nota = f"El turno {capfirst(turno.nombre)} se dio de baja: no tiene censo propio. Abajo, el del día."
     elif tramo is not None and tramo.estado == censo_servicio.POR_VENIR:
-        censo_nota = f"El turno {turno.nombre} todavía no empezó."
+        censo_nota = f"El turno {capfirst(turno.nombre)} todavía no empezó."
     else:
         censo_nota = ""
 
@@ -621,7 +622,7 @@ def pantalla_bitacora(
         "url_abrir_turnos": url_de(fecha, turno, "turnos=1"),
         "censo_titulo": "Censo del turno" if tramo is not None else "Censo del día",
         "subtitulo_en_curso": (
-            f"Turno {en_curso.turno.nombre} · {en_curso.turno.hora_desde:%H:%M}–{en_curso.turno.hora_hasta:%H:%M}"
+            f"Turno {capfirst(en_curso.turno.nombre)} · {en_curso.turno.hora_desde:%H:%M}–{en_curso.turno.hora_hasta:%H:%M}"
             if en_curso
             else ""
         ),

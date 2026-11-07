@@ -38,7 +38,7 @@
           <dd class="mt-1 text-body">{% if realizada %}{% include "programas/dispositivos/_relevamiento_criticidad_badge.html" with relevamiento=relevamiento %}{% else %}<span class="text-body-subtle">todavía sin resultado</span>{% endif %}</dd></div>
         <div><dt class="text-xs font-semibold uppercase text-body-subtle">{% if realizada %}Relevó{% else %}Vence el{% endif %}</dt>
           <dd class="mt-1 text-body">{% if realizada %}{{ relevo }}{% else %}{{ relevamiento.fecha_vencimiento|date:"d/m/Y" }}{% endif %}</dd></div>
-        {% if agente %}
+        {% if agente and agente != relevo %}
         {# El nombre del agente lo decide el servicio (`ve_la_asignacion`): a la institución relevada no se le pasa #}
         <div><dt class="text-xs font-semibold uppercase text-body-subtle">Agente asignado</dt><dd class="mt-1 text-body">{{ agente }}</dd></div>
         {% endif %}
