@@ -37,7 +37,7 @@ from programas.services.becas import (
 )
 from programas.services.cupo import aprobar_de_oficio, get_cupo_stats
 from programas.services.identidad import ORIGEN_MANUAL, identificar
-from programas.services.inscripcion_publica import dni_en_convocatoria
+from programas.services.inscripcion_publica import caso_en_convocatoria, dni_en_convocatoria
 from programas.services.marca_de_oficio import marcar
 from programas.services.padron import normalizar_sexo, normalizar_texto
 from programas.services.personas import fecha_iso
@@ -213,10 +213,7 @@ class AltaDeOficio:
     def _detalle_ya_inscripto(self, dni, convocatoria=None):
         """Estado y número del caso que ya ocupa el DNI (misma regla que
         ``dni_en_convocatoria``: un RECHAZADO sin validar no cuenta)."""
-        casos = Formulario.objects.filter(relevamiento__convocatoria=convocatoria or self.convocatoria).exclude(
-            estado=Formulario.Estado.RECHAZADO, validado_renaper=False
-        )
-        caso = casos.filter(dni_titular=dni).first() or casos.filter(ciudadano__dni=dni).first()
+        caso = caso_en_convocatoria(convocatoria or self.convocatoria, dni)
         if caso is None:
             return "el DNI ya figura en la convocatoria"
         return f"el DNI ya figura en la convocatoria: caso {caso.numero} del relevamiento {caso.relevamiento_id}, estado {caso.estado}"

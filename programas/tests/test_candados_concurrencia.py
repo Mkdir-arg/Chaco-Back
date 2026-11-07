@@ -243,7 +243,7 @@ class ContratoDeCandadosTests(_BaseEsperaTest):
         with candados_tomados(Segmento.objects) as candados:
             self.assertEqual(aprobar_o_poner_en_espera(self.form_a, self.coord_a), "aprobado")
 
-        self.assertIn("cupo.py:aprobar_o_poner_en_espera", candados)
+        self.assertIn("cupo.py:_tomar_caso_enviado", candados)
 
     def test_mandar_a_la_lista_de_espera_toma_el_candado_del_segmento(self):
         """Sin cupo, aprobar deriva a la lista: las dos ramas quedan cubiertas."""
@@ -254,7 +254,7 @@ class ContratoDeCandadosTests(_BaseEsperaTest):
         with candados_tomados(Segmento.objects) as candados:
             self.assertEqual(aprobar_o_poner_en_espera(self.form_a, self.coord_a), "lista_espera")
 
-        self.assertEqual(candados, ["cupo.py:aprobar_o_poner_en_espera", "cupo.py:agregar_a_lista_espera"])
+        self.assertEqual(candados, ["cupo.py:_tomar_caso_enviado", "cupo.py:agregar_a_lista_espera"])
 
     def test_promover_toma_el_candado_del_segmento(self):
         with candados_tomados(Segmento.objects) as candados:
@@ -358,7 +358,7 @@ class CandadoDelCasoAlAprobarTests(_BaseEsperaTest):
         with candados_tomados(Formulario.objects) as candados:
             self.assertEqual(aprobar_o_poner_en_espera(self.form_a, self.coord_a), "aprobado")
 
-        self.assertIn("cupo.py:aprobar_o_poner_en_espera", candados)
+        self.assertIn("cupo.py:_tomar_caso_enviado", candados)
 
     def test_sin_carrera_la_aprobacion_sigue_funcionando(self):
         self.assertEqual(aprobar_o_poner_en_espera(self.form_a, self.coord_a), "aprobado")

@@ -23,6 +23,7 @@ from django.db.models import Exists, OuterRef, Subquery
 from programas.management.commands._base_siis import ComandoSiisBase
 from programas.models import EnvioSIIS, Formulario
 from programas.services import proceso_masivo
+from programas.services.marca_de_oficio import marcada as alta_de_oficio_marcada
 from programas.services.siis_envio import Catalogos, enviar_beneficiario_a_siis
 
 
@@ -49,6 +50,8 @@ class Command(ComandoSiisBase):
             .filter(ultimo_estado=EnvioSIIS.Estado.ERROR)
             # SIIS-01: nada con envío vigente vuelve a salir, por ninguna vía.
             .filter(~Exists(vigente))
+            # Altas de oficio: ya figuran en SIIS, no se vuelven a informar.
+            .filter(~alta_de_oficio_marcada())
             # Un programa que no valida con SIIS no informa altas.
             .filter(proceso_masivo.Q_PROGRAMA_VALIDA_SIIS)
             .select_related("ciudadano", "relevamiento__convocatoria__segmento__programa")

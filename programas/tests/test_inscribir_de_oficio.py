@@ -412,6 +412,33 @@ class NingunCaminoInformaASiisTests(AltaDeOficioBase):
         self.assertFalse(envio.vigente)
         self.assertFalse(EnvioSIIS.objects.filter(formulario=formulario, vigente=True).exists())
 
+    def test_enviar_no_arma_el_payload_de_un_caso_de_oficio(self):
+        """Sin catálogos, armar el payload dejaba al caso en ERROR SIN_COPIA_CATALOGO."""
+        from programas.services import siis_envio
+
+        formulario = self._de_oficio()
+        with mock.patch("programas.services.siis_envio.armar_payload") as armar:
+            envio = siis_envio.enviar_beneficiario_a_siis(formulario, self.usuario, catalogos=mock.MagicMock())
+        armar.assert_not_called()
+        self.assertEqual(envio.codigo_error, "ALTA_DE_OFICIO")
+
+    def test_reenviar_siis_pendientes_no_lista_al_de_oficio_pero_si_al_comun(self):
+        from programas.management.commands.reenviar_siis_pendientes import Command
+
+        oficio = self._de_oficio()
+        comun = self._comun()
+        for formulario in (oficio, comun):
+            EnvioSIIS.objects.create(
+                formulario=formulario,
+                solicitado_por=self.usuario,
+                estado=EnvioSIIS.Estado.ERROR,
+                codigo_error="SIN_COPIA_CATALOGO",
+            )
+        casos, _agotados = Command()._casos(None)
+        pks = {caso.pk for caso in casos}
+        self.assertIn(comun.pk, pks)
+        self.assertNotIn(oficio.pk, pks)
+
     def test_guardar_en_tabla_intermedia_no_guarda(self):
         from programas.models import AltaIntermediaSIIS
         from programas.services.siis_envio import guardar_en_tabla_intermedia

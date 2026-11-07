@@ -51804,7 +51804,7 @@ Ver decisiones. Sin cambios de comportamiento en 2 a 4 salvo lo descrito.
 
 ## Archivos
 
-`programas/services/avisos_resolucion.py`, `programas/services/siis_envio.py`, `programas/services/inscripcion_publica.py`, `programas/services/alta_de_oficio.py`, `programas/services/cupo.py`, `programas/tests/test_becas_revision.py`, `docs/internal/requerimientos.md`.
+`programas/services/avisos_resolucion.py`, `programas/services/siis_envio.py`, `programas/management/commands/reenviar_siis_pendientes.py`, `programas/services/inscripcion_publica.py`, `programas/services/alta_de_oficio.py`, `programas/services/cupo.py`, `programas/tests/test_becas_revision.py`, `programas/tests/test_inscribir_de_oficio.py`, `programas/tests/test_candados_concurrencia.py`, `docs/internal/requerimientos.md`.
 
 ## Base de datos
 
@@ -51812,7 +51812,7 @@ Sin cambios.
 
 ## Validación
 
-Test `test_alta_de_oficio_aprobada_desde_pantalla_no_manda_aviso` (`test_becas_revision.AvisoResolucionEnvioRealTests`), con el contraste del caso común en `test_territorial_con_el_toggle_encendido_manda_el_aviso`. **Mutación:** sin la guarda en `enviar_aviso_resolucion` el test queda rojo; restaurada, verde.
+Test `test_alta_de_oficio_aprobada_desde_pantalla_no_manda_aviso` (`test_becas_revision.AvisoResolucionEnvioRealTests`), con el contraste del caso común en `test_territorial_con_el_toggle_encendido_manda_el_aviso`. **Mutación:** sin la guarda en `enviar_aviso_resolucion` el test queda rojo; restaurada, verde. Para el punto 2, dos tests en `test_inscribir_de_oficio` (`enviar_beneficiario_a_siis` no arma el payload; `reenviar_siis_pendientes._casos` no lista la marca), cada uno rojo al quitar su guarda. El contrato de candados de `test_candados_concurrencia` ahora atribuye el candado a `_tomar_caso_enviado`.
 
 ## Pendientes / a definir
 

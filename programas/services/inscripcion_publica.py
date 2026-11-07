@@ -51,6 +51,21 @@ class InscripcionNoHabilitada(Exception):
     """El DNI+sexo dejó de figurar en el padrón del relevamiento (RN-P14)."""
 
 
+def caso_en_convocatoria(convocatoria, dni):
+    """RN-P5, única definición: el caso que ocupa el DNI o ``None``.
+
+    Cualquier relevamiento de la convocatoria (de campo o público), por ciudadano
+    resuelto o identificación offline. Ver :func:`dni_en_convocatoria` para el
+    criterio completo (RECHAZADO sin validar, SIIS-13, índices, Cambio 91).
+    """
+    if not dni:
+        return None
+    en_convocatoria = Formulario.objects.filter(relevamiento__convocatoria=convocatoria).exclude(
+        estado=Formulario.Estado.RECHAZADO, validado_renaper=False
+    )
+    return en_convocatoria.filter(dni_titular=dni).first() or en_convocatoria.filter(ciudadano__dni=dni).first()
+
+
 def dni_en_convocatoria(convocatoria, dni):
     """RN-P5, única definición: cualquier relevamiento de la convocatoria (de
     campo o público), por ciudadano resuelto o identificación offline. La usan
@@ -72,12 +87,7 @@ def dni_en_convocatoria(convocatoria, dni):
     corrigió después. Antes era una sola con ``OR`` sobre la clave del JSON,
     que recorría todos los formularios de la convocatoria.
     """
-    if not dni:
-        return False
-    en_convocatoria = Formulario.objects.filter(relevamiento__convocatoria=convocatoria).exclude(
-        estado=Formulario.Estado.RECHAZADO, validado_renaper=False
-    )
-    return en_convocatoria.filter(dni_titular=dni).exists() or en_convocatoria.filter(ciudadano__dni=dni).exists()
+    return caso_en_convocatoria(convocatoria, dni) is not None
 
 
 def crear_formulario_publico(relevamiento, *, identificacion, form, client_uuid):
