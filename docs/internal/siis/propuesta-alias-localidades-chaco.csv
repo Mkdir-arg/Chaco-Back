@@ -1,0 +1,779 @@
+localidad_core,municipio_core,estado,localidad_siis_propuesta,siis_id,motivo
+Avia Terai,Avia Terai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Lote 13,Avia Terai,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 14,Avia Terai,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 29,Avia Terai,PROPUESTA,AVIA TERAI,47,coincide el municipio «Avia Terai» con una localidad de SIIS (vía débil: revisar)
+Lote 9,Avia Terai,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa Grande,Avia Terai,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa Regimiento,Avia Terai,PROPUESTA,AVIA TERAI,47,coincide el municipio «Avia Terai» con una localidad de SIIS (vía débil: revisar)
+Pampa Verde,Avia Terai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Barranqueras,Barranqueras,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Basail,Basail,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia El Paraisal,Basail,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Colonia Florencia,Basail,PROPUESTA,BASAIL,5,coincide el municipio «Basail» con una localidad de SIIS (vía débil: revisar)
+Colonia Las Mercedes,Basail,PROPUESTA,BASAIL,5,coincide el municipio «Basail» con una localidad de SIIS (vía débil: revisar)
+Colonia Palmira,Basail,PROPUESTA,BASAIL,5,coincide el municipio «Basail» con una localidad de SIIS (vía débil: revisar)
+Colonia Tacuarí,Basail,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Paraisal,Basail,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Saladillo,Basail,PROPUESTA,BASAIL,5,coincide el municipio «Basail» con una localidad de SIIS (vía débil: revisar)
+Las Mercedes,Basail,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Loma Alta,Basail,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Playa Ford,Basail,PROPUESTA,BASAIL,5,coincide el municipio «Basail» con una localidad de SIIS (vía débil: revisar)
+Campo Largo,Campo Largo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia José Mármol,Campo Largo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Fortín Las Chuñas,Campo Largo,PROPUESTA,CAMPO LARGO,48,coincide el municipio «Campo Largo» con una localidad de SIIS (vía débil: revisar)
+La Flecha,Campo Largo,PROPUESTA,CAMPO LARGO,48,coincide el municipio «Campo Largo» con una localidad de SIIS (vía débil: revisar)
+La Montenegrina,Campo Largo,PROPUESTA,CAMPO LARGO,48,coincide el municipio «Campo Largo» con una localidad de SIIS (vía débil: revisar)
+Lote 1,Campo Largo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 33,Campo Largo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 48,Campo Largo,PROPUESTA,CAMPO LARGO,48,coincide el municipio «Campo Largo» con una localidad de SIIS (vía débil: revisar)
+Lote 50,Campo Largo,PROPUESTA,CAMPO LARGO,48,coincide el municipio «Campo Largo» con una localidad de SIIS (vía débil: revisar)
+Lote 91 y 101,Campo Largo,PROPUESTA,CAMPO LARGO,48,coincide el municipio «Campo Largo» con una localidad de SIIS (vía débil: revisar)
+Pampa Oculta,Campo Largo,PROPUESTA,CAMPO LARGO,48,coincide el municipio «Campo Largo» con una localidad de SIIS (vía débil: revisar)
+Campo Quijano,Capitán Solari,PROPUESTA,CAPITAN SOLARI,16,coincide el municipio «Capitán Solari» con una localidad de SIIS (vía débil: revisar)
+Capitán Solari,Capitán Solari,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Lote 6,Capitán Solari,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Charadai,Charadai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Haumonia,Charadai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Horquilla,Charadai,PROPUESTA,CHARADAI,33,coincide el municipio «Charadai» con una localidad de SIIS (vía débil: revisar)
+Kilómetro 443,Charadai,PROPUESTA,CHARADAI,33,coincide el municipio «Charadai» con una localidad de SIIS (vía débil: revisar)
+Kilómetro 474,Charadai,PROPUESTA,CHARADAI,33,coincide el municipio «Charadai» con una localidad de SIIS (vía débil: revisar)
+La Sabana,Charadai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+La Vicuña,Charadai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Las Unidas,Charadai,PROPUESTA,CHARADAI,33,coincide el municipio «Charadai» con una localidad de SIIS (vía débil: revisar)
+Oetling,Charadai,PROPUESTA,CHARADAI,33,coincide el municipio «Charadai» con una localidad de SIIS (vía débil: revisar)
+Charata,Charata,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia General Lavalle,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Colonia General Lavalle Norte,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Colonia General Necochea,Charata,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Fisco,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+El Picaso,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Laguna del Sargento,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Las Tolderias,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Pampa Barrera,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Pampa Cabrera,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Pampa Cejas,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Pampa Galván,Charata,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa Moreno,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Pampa Páez,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Pampa Roldán,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Pampa Sommer,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Pampa del Cielo,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Pampa Ávila,Charata,PROPUESTA,CHARATA,51,coincide el municipio «Charata» con una localidad de SIIS (vía débil: revisar)
+Tres Estacas,Charata,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Chorotis,Chorotis,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Aguaray,Chorotis,PROPUESTA,CHOROTIS,65,coincide el municipio «Chorotis» con una localidad de SIIS (vía débil: revisar)
+Tres Mojones,Chorotis,PROPUESTA,CHOROTIS,65,coincide el municipio «Chorotis» con una localidad de SIIS (vía débil: revisar)
+Tres Mojones Este,Chorotis,PROPUESTA,CHOROTIS,65,coincide el municipio «Chorotis» con una localidad de SIIS (vía débil: revisar)
+Tres Mojones Oeste,Chorotis,PROPUESTA,CHOROTIS,65,coincide el municipio «Chorotis» con una localidad de SIIS (vía débil: revisar)
+Venados Grandes,Chorotis,PROPUESTA,CHOROTIS,65,coincide el municipio «Chorotis» con una localidad de SIIS (vía débil: revisar)
+Ciervo Petiso,Ciervo Petiso,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Barrio de los Pescadores,Colonia Benítez,PROPUESTA,COLONIA BENITEZ,6,coincide el municipio «Colonia Benítez» con una localidad de SIIS (vía débil: revisar)
+Campo Rossi,Colonia Benítez,PROPUESTA,COLONIA BENITEZ,6,coincide el municipio «Colonia Benítez» con una localidad de SIIS (vía débil: revisar)
+Colonia Benítez,Colonia Benítez,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Isla Antequera,Colonia Benítez,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Lote 1,Colonia Benítez,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Puente San Pedro,Colonia Benítez,PROPUESTA,COLONIA BENITEZ,6,coincide el municipio «Colonia Benítez» con una localidad de SIIS (vía débil: revisar)
+Puerto Antequera,Colonia Benítez,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Campo Grande,Colonia Elisa,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Campo Novo,Colonia Elisa,PROPUESTA,COLONIA ELISA,15,coincide el municipio «Colonia Elisa» con una localidad de SIIS (vía débil: revisar)
+Colonia Elisa,Colonia Elisa,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia Mixta,Colonia Elisa,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Ingeniero Barbet,Colonia Elisa,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Kilómetro 575,Colonia Elisa,PROPUESTA,COLONIA ELISA,15,coincide el municipio «Colonia Elisa» con una localidad de SIIS (vía débil: revisar)
+La Fortuna,Colonia Elisa,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Legua 54,Colonia Elisa,PROPUESTA,COLONIA ELISA,15,coincide el municipio «Colonia Elisa» con una localidad de SIIS (vía débil: revisar)
+Lote 20,Colonia Elisa,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Salto de la Vieja,Colonia Elisa,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Tres Ceibos,Colonia Elisa,PROPUESTA,COLONIA ELISA,15,coincide el municipio «Colonia Elisa» con una localidad de SIIS (vía débil: revisar)
+Colonia Popular,Colonia Popular,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Puerto Bastiani,Colonia Popular,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonias Unidas,Colonias Unidas,CRUZA,,,el nombre coincide con el catálogo de SIIS
+La Pastoril,Colonias Unidas,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Lote 7,Colonias Unidas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Concepción del Bermejo,Concepción del Bermejo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+La Ralera,Concepción del Bermejo,PROPUESTA,CONCEPCION DEL BERMEJO,57,coincide el municipio «Concepción del Bermejo» con una localidad de SIIS (vía débil: revisar)
+Lote 30,Concepción del Bermejo,PROPUESTA,CONCEPCION DEL BERMEJO,57,coincide el municipio «Concepción del Bermejo» con una localidad de SIIS (vía débil: revisar)
+Pampa Cuvalo,Concepción del Bermejo,PROPUESTA,CONCEPCION DEL BERMEJO,57,coincide el municipio «Concepción del Bermejo» con una localidad de SIIS (vía débil: revisar)
+Pampa El Mollal,Concepción del Bermejo,PROPUESTA,CONCEPCION DEL BERMEJO,57,coincide el municipio «Concepción del Bermejo» con una localidad de SIIS (vía débil: revisar)
+Pampa Pereyra,Concepción del Bermejo,PROPUESTA,CONCEPCION DEL BERMEJO,57,coincide el municipio «Concepción del Bermejo» con una localidad de SIIS (vía débil: revisar)
+Pampa Virgen,Concepción del Bermejo,PROPUESTA,CONCEPCION DEL BERMEJO,57,coincide el municipio «Concepción del Bermejo» con una localidad de SIIS (vía débil: revisar)
+Campo Ugarte,Coronel Du Graty,PROPUESTA,CORONEL DU GRATY,38,coincide el municipio «Coronel Du Graty» con una localidad de SIIS (vía débil: revisar)
+Colonia La Avanzada,Coronel Du Graty,PROPUESTA,CORONEL DU GRATY,38,coincide el municipio «Coronel Du Graty» con una localidad de SIIS (vía débil: revisar)
+Colonia La Colorada,Coronel Du Graty,PROPUESTA,CORONEL DU GRATY,38,coincide el municipio «Coronel Du Graty» con una localidad de SIIS (vía débil: revisar)
+Coronel Du Graty,Coronel Du Graty,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Palmar,Coronel Du Graty,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Las Golondrinas,Coronel Du Graty,PROPUESTA,CORONEL DU GRATY,38,coincide el municipio «Coronel Du Graty» con una localidad de SIIS (vía débil: revisar)
+Las Golondrinas Norte,Coronel Du Graty,PROPUESTA,CORONEL DU GRATY,38,coincide el municipio «Coronel Du Graty» con una localidad de SIIS (vía débil: revisar)
+Las Golondrinas Sur,Coronel Du Graty,PROPUESTA,CORONEL DU GRATY,38,coincide el municipio «Coronel Du Graty» con una localidad de SIIS (vía débil: revisar)
+Los Fortines,Coronel Du Graty,PROPUESTA,CORONEL DU GRATY,38,coincide el municipio «Coronel Du Graty» con una localidad de SIIS (vía débil: revisar)
+Campo Cantón,Corzuela,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Corzuela,Corzuela,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Corzuela Norte,Corzuela,PROPUESTA,CORZUELA,49,coincide el municipio «Corzuela» con una localidad de SIIS (vía débil: revisar)
+Loro Blanco,Corzuela,PROPUESTA,CORZUELA,49,coincide el municipio «Corzuela» con una localidad de SIIS (vía débil: revisar)
+Lote 4 El Loro Blanco,Corzuela,PROPUESTA,CORZUELA,49,coincide el municipio «Corzuela» con una localidad de SIIS (vía débil: revisar)
+Lote 9 Pampa Grande,Corzuela,PROPUESTA,CORZUELA,49,coincide el municipio «Corzuela» con una localidad de SIIS (vía débil: revisar)
+Pampa Alsina,Corzuela,PROPUESTA,CORZUELA,49,coincide el municipio «Corzuela» con una localidad de SIIS (vía débil: revisar)
+Pampa La Porteña,Corzuela,PROPUESTA,CORZUELA,49,coincide el municipio «Corzuela» con una localidad de SIIS (vía débil: revisar)
+Pampa Villordo,Corzuela,PROPUESTA,CORZUELA,49,coincide el municipio «Corzuela» con una localidad de SIIS (vía débil: revisar)
+Pampa Zappa,Corzuela,PROPUESTA,CORZUELA,49,coincide el municipio «Corzuela» con una localidad de SIIS (vía débil: revisar)
+San Antonio,Corzuela,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Cote Lai,Cote Lai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Don Ovidio,Cote Lai,PROPUESTA,COTE LAI,32,coincide el municipio «Cote Lai» con una localidad de SIIS (vía débil: revisar)
+El 38,Cote Lai,PROPUESTA,COTE LAI,32,coincide el municipio «Cote Lai» con una localidad de SIIS (vía débil: revisar)
+Kilómetro 25,Cote Lai,PROPUESTA,COTE LAI,32,coincide el municipio «Cote Lai» con una localidad de SIIS (vía débil: revisar)
+Río Tapenagá,Cote Lai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Alto Alegre,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Bajo Verde,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+El Ballado,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+El Cebilar,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+El Colorado,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+El Pintado,El Sauzalito,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Quebrachal,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+El Recreo,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+El Retiro Norte,El Sauzalito,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Sauzal,El Sauzalito,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Sauzalito,El Sauzalito,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Vizcacheral,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Fortín Belgrano,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Güemes Norte,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+La Ensenada,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+La Entrada,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+La Estación,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+La Fortuna,El Sauzalito,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+La Invernada,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+La Mesada,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+La Zanja,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Laguna Ayarde,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Lagunita,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Montevideo,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Pozo El Gallo,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Pozo del Anta,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Pozo del Gato,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Puesto Grande,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+San Juancito,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Santa Rita,El Sauzalito,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Tartagal,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Tres Pozos,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Valdocco,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Wichi,El Sauzalito,PROPUESTA,EL SAUZALITO,61,coincide el municipio «El Sauzalito» con una localidad de SIIS (vía débil: revisar)
+Enrique Urien,Enrique Urién,CRUZA,,,el nombre coincide con el catálogo de SIIS
+La Viruela,Enrique Urién,PROPUESTA,ENRIQUE URIEN,36,coincide el municipio «Enrique Urién» con una localidad de SIIS (vía débil: revisar)
+Fontana,Fontana,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Bajos de Alvarado,Fuerte Esperanza,PROPUESTA,FUERTE ESPERANZA,63,coincide el municipio «Fuerte Esperanza» con una localidad de SIIS (vía débil: revisar)
+Campo Grande,Fuerte Esperanza,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Comandancia Frías,Fuerte Esperanza,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Refucilo,Fuerte Esperanza,PROPUESTA,FUERTE ESPERANZA,63,coincide el municipio «Fuerte Esperanza» con una localidad de SIIS (vía débil: revisar)
+El Triunfo,Fuerte Esperanza,PROPUESTA,FUERTE ESPERANZA,63,coincide el municipio «Fuerte Esperanza» con una localidad de SIIS (vía débil: revisar)
+Fuerte Esperanza,Fuerte Esperanza,CRUZA,,,el nombre coincide con el catálogo de SIIS
+La Nación,Fuerte Esperanza,PROPUESTA,FUERTE ESPERANZA,63,coincide el municipio «Fuerte Esperanza» con una localidad de SIIS (vía débil: revisar)
+Los Madrejones,Fuerte Esperanza,PROPUESTA,FUERTE ESPERANZA,63,coincide el municipio «Fuerte Esperanza» con una localidad de SIIS (vía débil: revisar)
+Santa María,Fuerte Esperanza,PROPUESTA,FUERTE ESPERANZA,63,coincide el municipio «Fuerte Esperanza» con una localidad de SIIS (vía débil: revisar)
+Santo Tomás,Fuerte Esperanza,PROPUESTA,FUERTE ESPERANZA,63,coincide el municipio «Fuerte Esperanza» con una localidad de SIIS (vía débil: revisar)
+Campo del Cielo,Gancedo,PROPUESTA,GANCEDO,54,coincide el municipio «Gancedo» con una localidad de SIIS (vía débil: revisar)
+El Cuadrado Oeste,Gancedo,PROPUESTA,GANCEDO,54,coincide el municipio «Gancedo» con una localidad de SIIS (vía débil: revisar)
+Gancedo,Gancedo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+La Bolsa,Gancedo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+La Tota,Gancedo,PROPUESTA,GANCEDO,54,coincide el municipio «Gancedo» con una localidad de SIIS (vía débil: revisar)
+Las Víboras,Gancedo,PROPUESTA,GANCEDO,54,coincide el municipio «Gancedo» con una localidad de SIIS (vía débil: revisar)
+Campo Marcelino Ugarte,General Capdevila,PROPUESTA,GENERAL CAPDEVILA,53,coincide el municipio «General Capdevila» con una localidad de SIIS (vía débil: revisar)
+General Capdevila,General Capdevila,CRUZA,,,el nombre coincide con el catálogo de SIIS
+General Güemes,General Güemes,SIN_CANDIDATO,,,ni el nombre ni el municipio coinciden con una localidad de SIIS
+Colonia Bravo,General Pinedo,PROPUESTA,GENERAL PINEDO,52,coincide el municipio «General Pinedo» con una localidad de SIIS (vía débil: revisar)
+Colonia San Antonio,General Pinedo,PROPUESTA,GENERAL PINEDO,52,coincide el municipio «General Pinedo» con una localidad de SIIS (vía débil: revisar)
+Colonia Welbers,General Pinedo,PROPUESTA,GENERAL PINEDO,52,coincide el municipio «General Pinedo» con una localidad de SIIS (vía débil: revisar)
+Colonia Welbers Sur,General Pinedo,PROPUESTA,GENERAL PINEDO,52,coincide el municipio «General Pinedo» con una localidad de SIIS (vía débil: revisar)
+El Palmar,General Pinedo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Palmar Central,General Pinedo,PROPUESTA,GENERAL PINEDO,52,coincide el municipio «General Pinedo» con una localidad de SIIS (vía débil: revisar)
+El Palmar Norte,General Pinedo,PROPUESTA,GENERAL PINEDO,52,coincide el municipio «General Pinedo» con una localidad de SIIS (vía débil: revisar)
+El Palmar Sur,General Pinedo,PROPUESTA,GENERAL PINEDO,52,coincide el municipio «General Pinedo» con una localidad de SIIS (vía débil: revisar)
+General Pinedo,General Pinedo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+La Picada,General Pinedo,PROPUESTA,GENERAL PINEDO,52,coincide el municipio «General Pinedo» con una localidad de SIIS (vía débil: revisar)
+Las Leonas,General Pinedo,PROPUESTA,GENERAL PINEDO,52,coincide el municipio «General Pinedo» con una localidad de SIIS (vía débil: revisar)
+Mesón de Fierro,General Pinedo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Pampa Dorotier,General Pinedo,PROPUESTA,GENERAL PINEDO,52,coincide el municipio «General Pinedo» con una localidad de SIIS (vía débil: revisar)
+Pampa Galván,General Pinedo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa González,General Pinedo,PROPUESTA,GENERAL PINEDO,52,coincide el municipio «General Pinedo» con una localidad de SIIS (vía débil: revisar)
+Pampa Landriel,General Pinedo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Pampa Schmidt,General Pinedo,PROPUESTA,GENERAL PINEDO,52,coincide el municipio «General Pinedo» con una localidad de SIIS (vía débil: revisar)
+Colonia San Eduardo,General Vedia,PROPUESTA,GENERAL VEDIA,23,coincide el municipio «General Vedia» con una localidad de SIIS (vía débil: revisar)
+El 14,General Vedia,PROPUESTA,GENERAL VEDIA,23,coincide el municipio «General Vedia» con una localidad de SIIS (vía débil: revisar)
+El Retiro Norte,General Vedia,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+General Vedia,General Vedia,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Loma Alta,General Vedia,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote Fiscal 16,General Vedia,PROPUESTA,GENERAL VEDIA,23,coincide el municipio «General Vedia» con una localidad de SIIS (vía débil: revisar)
+San Carlos,General Vedia,PROPUESTA,GENERAL VEDIA,23,coincide el municipio «General Vedia» con una localidad de SIIS (vía débil: revisar)
+Tres Horquetas,General Vedia,SIN_CANDIDATO,,,"el nombre está repetido en el catálogo de SIIS (2 candidatos: TRES HORQUETAS, TRES HORQUETAS)"
+Colonia Campo Hermoso,Hermoso Campo,PROPUESTA,HERMOSO CAMPO,55,coincide el municipio «Hermoso Campo» con una localidad de SIIS (vía débil: revisar)
+Colonia Jacarandá I,Hermoso Campo,PROPUESTA,HERMOSO CAMPO,55,coincide el municipio «Hermoso Campo» con una localidad de SIIS (vía débil: revisar)
+Colonia Jacarandá II,Hermoso Campo,PROPUESTA,HERMOSO CAMPO,55,coincide el municipio «Hermoso Campo» con una localidad de SIIS (vía débil: revisar)
+Colonia Puerta del León,Hermoso Campo,PROPUESTA,HERMOSO CAMPO,55,coincide el municipio «Hermoso Campo» con una localidad de SIIS (vía débil: revisar)
+Colonia Puerta del León Sur,Hermoso Campo,PROPUESTA,HERMOSO CAMPO,55,coincide el municipio «Hermoso Campo» con una localidad de SIIS (vía débil: revisar)
+Colonia Tañigo,Hermoso Campo,PROPUESTA,HERMOSO CAMPO,55,coincide el municipio «Hermoso Campo» con una localidad de SIIS (vía débil: revisar)
+El Tizón,Hermoso Campo,PROPUESTA,HERMOSO CAMPO,55,coincide el municipio «Hermoso Campo» con una localidad de SIIS (vía débil: revisar)
+Hermoso Campo,Hermoso Campo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Itín,Hermoso Campo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Lote 14,Hermoso Campo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 15,Hermoso Campo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 19,Hermoso Campo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 33,Hermoso Campo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 40,Hermoso Campo,PROPUESTA,HERMOSO CAMPO,55,coincide el municipio «Hermoso Campo» con una localidad de SIIS (vía débil: revisar)
+Tañigo,Hermoso Campo,PROPUESTA,HERMOSO CAMPO,55,coincide el municipio «Hermoso Campo» con una localidad de SIIS (vía débil: revisar)
+Zuberbühler,Hermoso Campo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Atajito,Isla del Cerrito,PROPUESTA,ISLA DEL CERRITO,20,coincide el municipio «Isla del Cerrito» con una localidad de SIIS (vía débil: revisar)
+Isla del Cerrito,Isla del Cerrito,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Alberdi,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Bella Vista,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Campo Alto,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Campo Bedogni,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Campo Florido,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Campo de Mayo,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Colonia Castelli,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Colonia El 44,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+El Asustado,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+El Cruce,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+El Destierro,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+El Gramillar,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+El Juramento,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+El Palomo,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+El Paraisal,Juan José Castelli,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Progreso,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+El Recreo Sur,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+El Rincón Dichoso,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+El Rosario,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+El Silencio,Juan José Castelli,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Telasco,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+El Ñandú,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Juan José Castelli,Juan José Castelli,CRUZA,,,el nombre coincide con el catálogo de SIIS
+La Argentina,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+La Esperanza,Juan José Castelli,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+La Florida,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+La Florida Grande,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+La Gerónima,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+La Gloria,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+La Indiana,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+La Mora,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+La Nueva Unión,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+La Rinconada,Juan José Castelli,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+La Selva,Juan José Castelli,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+La Unión,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+La Unión Sur,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Las Delicias,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Las Maravillas,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Monte Quemado,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Pampa Almirón,Juan José Castelli,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Pampa Castro,Juan José Castelli,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa Cruz,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Pampa Nueva,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Pampa San Martín,Juan José Castelli,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa Tolosa,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Pampa Tolosa Chica,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Pozo Colorado,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Puerta Negra,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Río Muerto Cruz,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+San Agustín,Juan José Castelli,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+San Vicente,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Santa Carmen,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Villa Fortuny,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Zaparinqui,Juan José Castelli,PROPUESTA,JUAN JOSE CASTELLI,64,coincide el municipio «Juan José Castelli» con una localidad de SIIS (vía débil: revisar)
+Colonia General Urquiza,La Clotilde,PROPUESTA,LA CLOTILDE,40,coincide el municipio «La Clotilde» con una localidad de SIIS (vía débil: revisar)
+Colonia José Mármol,La Clotilde,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Tabacal,La Clotilde,PROPUESTA,LA CLOTILDE,40,coincide el municipio «La Clotilde» con una localidad de SIIS (vía débil: revisar)
+La Clotilde,La Clotilde,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Lote 13,La Clotilde,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 6,La Clotilde,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Campo Antonieli,La Eduvigis,PROPUESTA,LA EDUVIGIS,25,coincide el municipio «La Eduvigis» con una localidad de SIIS (vía débil: revisar)
+Colonia El Fiscal,La Eduvigis,PROPUESTA,LA EDUVIGIS,25,coincide el municipio «La Eduvigis» con una localidad de SIIS (vía débil: revisar)
+La Eduvigis,La Eduvigis,CRUZA,,,el nombre coincide con el catálogo de SIIS
+La Textil,La Eduvigis,PROPUESTA,LA EDUVIGIS,25,coincide el municipio «La Eduvigis» con una localidad de SIIS (vía débil: revisar)
+Loma Florida,La Eduvigis,PROPUESTA,LA EDUVIGIS,25,coincide el municipio «La Eduvigis» con una localidad de SIIS (vía débil: revisar)
+San Antonio,La Eduvigis,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Selvas del Río de Oro,La Eduvigis,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia El Cacique Llorón,La Escondida,PROPUESTA,LA ESCONDIDA,14,coincide el municipio «La Escondida» con una localidad de SIIS (vía débil: revisar)
+La Escondida,La Escondida,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia Cabral Cué,La Leonesa,PROPUESTA,LA LEONESA,22,coincide el municipio «La Leonesa» con una localidad de SIIS (vía débil: revisar)
+La Esperanza,La Leonesa,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+La Leonesa,La Leonesa,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Lapacho,La Leonesa,PROPUESTA,LA LEONESA,22,coincide el municipio «La Leonesa» con una localidad de SIIS (vía débil: revisar)
+Las Rosas,La Leonesa,PROPUESTA,LA LEONESA,22,coincide el municipio «La Leonesa» con una localidad de SIIS (vía débil: revisar)
+Maipú,La Leonesa,PROPUESTA,LA LEONESA,22,coincide el municipio «La Leonesa» con una localidad de SIIS (vía débil: revisar)
+Pindo,La Leonesa,PROPUESTA,LA LEONESA,22,coincide el municipio «La Leonesa» con una localidad de SIIS (vía débil: revisar)
+Quia,La Leonesa,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Rincón del Zorro,La Leonesa,PROPUESTA,LA LEONESA,22,coincide el municipio «La Leonesa» con una localidad de SIIS (vía débil: revisar)
+Yatay,La Leonesa,PROPUESTA,LA LEONESA,22,coincide el municipio «La Leonesa» con una localidad de SIIS (vía débil: revisar)
+Colonia Nicolás Avellaneda,La Tigra,PROPUESTA,LA TIGRA,41,coincide el municipio «La Tigra» con una localidad de SIIS (vía débil: revisar)
+La Cuchilla,La Tigra,PROPUESTA,LA TIGRA,41,coincide el municipio «La Tigra» con una localidad de SIIS (vía débil: revisar)
+La Tigra,La Tigra,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Lote 11,La Tigra,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 12,La Tigra,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+La Verde,La Verde,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Legua 41,La Verde,PROPUESTA,LA VERDE,13,coincide el municipio «La Verde» con una localidad de SIIS (vía débil: revisar)
+Arroyo Saladillo,Laguna Blanca,PROPUESTA,LAGUNA BLANCA,10,coincide el municipio «Laguna Blanca» con una localidad de SIIS (vía débil: revisar)
+Colonia Suriz,Laguna Blanca,PROPUESTA,LAGUNA BLANCA,10,coincide el municipio «Laguna Blanca» con una localidad de SIIS (vía débil: revisar)
+Costa Alegre,Laguna Blanca,PROPUESTA,LAGUNA BLANCA,10,coincide el municipio «Laguna Blanca» con una localidad de SIIS (vía débil: revisar)
+Laguna Blanca,Laguna Blanca,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Rodeo Tapití,Laguna Blanca,PROPUESTA,LAGUNA BLANCA,10,coincide el municipio «Laguna Blanca» con una localidad de SIIS (vía débil: revisar)
+Colonia La Florida,Laguna Limpia,PROPUESTA,LAGUNA LIMPIA,30,coincide el municipio «Laguna Limpia» con una localidad de SIIS (vía débil: revisar)
+La Entrerriana,Laguna Limpia,PROPUESTA,LAGUNA LIMPIA,30,coincide el municipio «Laguna Limpia» con una localidad de SIIS (vía débil: revisar)
+Laguna Limpia,Laguna Limpia,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Loma Alta,Laguna Limpia,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lapachito,Lapachito,CRUZA,,,el nombre coincide con el catálogo de SIIS
+2 de Mayo,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Campo Cantón,Las Breñas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Colonia General Necochea,Las Breñas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Colonia Juan Lavalle,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Curva de Novoa,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+El Arenal,Las Breñas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Estero,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+El Pucá,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+El Recoveco,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+El Triángulo,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+India Muerta,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+La Esterlina,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+La Selva,Las Breñas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Las Breñas,Las Breñas,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Las Piedritas,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Los Arenales,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Los Cerritos,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Lote 47,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Lote 90,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Lote Norassi,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pampa Brugnoli,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pampa Cantón,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pampa Carnevale,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pampa Castro,Las Breñas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa Gómez,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pampa Hermosa,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pampa Iporá Guazú,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pampa Las Flores,Las Breñas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa Leguizamón,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pampa Mitre,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pampa San Martín,Las Breñas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa Sandi,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pampa Suárez,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pampa Zanata,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pampa del Zorro,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Pozo del Indio,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+San Antonio,Las Breñas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Santa Elena,Las Breñas,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Santa Justina,Las Breñas,PROPUESTA,LAS BRENAS,50,coincide el municipio «Las Breñas» con una localidad de SIIS (vía débil: revisar)
+Campo del Blanco,Las Garcitas,PROPUESTA,LAS GARCITAS,18,coincide el municipio «Las Garcitas» con una localidad de SIIS (vía débil: revisar)
+Colonia La Dificultad,Las Garcitas,PROPUESTA,LAS GARCITAS,18,coincide el municipio «Las Garcitas» con una localidad de SIIS (vía débil: revisar)
+Las Garcitas,Las Garcitas,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Lote 21,Las Garcitas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 9,Las Garcitas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Paso del Oso,Las Garcitas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Puerto Libertad,Libertad,SIN_CANDIDATO,,,ni el nombre ni el municipio coinciden con una localidad de SIIS
+San Cayetano,Libertad,SIN_CANDIDATO,,,ni el nombre ni el municipio coinciden con una localidad de SIIS
+Villa Cooperativa,Libertad,SIN_CANDIDATO,,,ni el nombre ni el municipio coinciden con una localidad de SIIS
+La Higuerita,Libertador General San Martín,SIN_CANDIDATO,,,ni el nombre ni el municipio coinciden con una localidad de SIIS
+Libertador General San Martín,Libertador General San Martín,SIN_CANDIDATO,,,ni el nombre ni el municipio coinciden con una localidad de SIIS
+Mesada de las Colmenas,Libertador General San Martín,SIN_CANDIDATO,,,ni el nombre ni el municipio coinciden con una localidad de SIIS
+Palos Blancos,Libertador General San Martín,SIN_CANDIDATO,,,ni el nombre ni el municipio coinciden con una localidad de SIIS
+Paulina,Libertador General San Martín,SIN_CANDIDATO,,,ni el nombre ni el municipio coinciden con una localidad de SIIS
+Pueblo Ledesma,Libertador General San Martín,SIN_CANDIDATO,,,ni el nombre ni el municipio coinciden con una localidad de SIIS
+Cuatro Bocas,Los Frentones,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Arenal,Los Frentones,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Palo Blanco,Los Frentones,PROPUESTA,LOS FRENTONES,59,coincide el municipio «Los Frentones» con una localidad de SIIS (vía débil: revisar)
+Kilómetro 77,Los Frentones,PROPUESTA,LOS FRENTONES,59,coincide el municipio «Los Frentones» con una localidad de SIIS (vía débil: revisar)
+Las Margaritas,Los Frentones,PROPUESTA,LOS FRENTONES,59,coincide el municipio «Los Frentones» con una localidad de SIIS (vía débil: revisar)
+Los Frentones,Los Frentones,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Pampa Quimilí,Los Frentones,PROPUESTA,LOS FRENTONES,59,coincide el municipio «Los Frentones» con una localidad de SIIS (vía débil: revisar)
+Paraje Santa Rosa,Los Frentones,PROPUESTA,LOS FRENTONES,59,coincide el municipio «Los Frentones» con una localidad de SIIS (vía débil: revisar)
+Río Muerto,Los Frentones,CRUZA,,,el nombre coincide con el catálogo de SIIS
+San José,Los Frentones,PROPUESTA,LOS FRENTONES,59,coincide el municipio «Los Frentones» con una localidad de SIIS (vía débil: revisar)
+Torre del Mirador,Los Frentones,PROPUESTA,LOS FRENTONES,59,coincide el municipio «Los Frentones» con una localidad de SIIS (vía débil: revisar)
+Cacique Dominga,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Campo Riaño,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Colonia Aborigen,Machagai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia Blas Parera,Machagai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia General Arenales,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Colonia Gualtieri,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Colonia La Lola,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Colonia La Tambora,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Colonia Lamadrid,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Colonia Lamadrid Sur,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Colonia Tres Palmas,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+El Aguará,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+El Martillo,Machagai,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Totoral,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+La Esperanza,Machagai,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+La Lomita,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Los Blanquizales,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Lote 22,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Lote 24,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Lote 39,Machagai,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Machagai,Machagai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Napalpí,Machagai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Nueva Población,Machagai,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa Bandera,Machagai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Pampa Ombú,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Pampa Verde,Machagai,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Paso del Oso,Machagai,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Santa Marta,Machagai,PROPUESTA,MACHAGAI,44,coincide el municipio «Machagai» con una localidad de SIIS (vía débil: revisar)
+Campo Philipon,Makallé,PROPUESTA,MAKALLE,12,coincide el municipio «Makallé» con una localidad de SIIS (vía débil: revisar)
+Colonia Mixta,Makallé,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Makallé,Makallé,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Makallé Viejo,Makallé,PROPUESTA,MAKALLE,12,coincide el municipio «Makallé» con una localidad de SIIS (vía débil: revisar)
+Colonia Amadeo,Margarita Belén,PROPUESTA,MARGARITA BELEN,7,coincide el municipio «Margarita Belén» con una localidad de SIIS (vía débil: revisar)
+Costa Iné,Margarita Belén,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Margarita Belén,Margarita Belén,CRUZA,,,el nombre coincide con el catálogo de SIIS
+San Miguel,Margarita Belén,PROPUESTA,MARGARITA BELEN,7,coincide el municipio «Margarita Belén» con una localidad de SIIS (vía débil: revisar)
+1° de Mayo,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+4 de Febrero,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Bajada Alta,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Balbuena,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Campo La China,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Central Norte,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Costa Rica,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Cruce Peñaloza,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+El Cañón,Miraflores,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Descanso,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+El Milagro,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+El Quebracho,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+El Quebracho Baleado,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+El Retiro,Miraflores,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Zanjón,Miraflores,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Güemes,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Kilómetro 40,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+La Armonía,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+La Cheogue,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+La Fidelidad,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+La Pampa,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Las Cuatro Bocas,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Las Hacheras,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Las Puertas,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Los Pereyras,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Los Placeres,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Los Porongos,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Los Potreros,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Los Quirquinchos,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Los Rosales,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Lote 126,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Lote 71,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Lote 76,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Miraflores,Miraflores,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Monte Caseros,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Monte Redondo,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Palo Marcado,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Paso de la Cruz,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Pozo La Gringa,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Pozo del Toro,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+San Antonio,Miraflores,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+San Lorenzo,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Santa Victoria,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Techat,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Yapeyú,Miraflores,PROPUESTA,MIRAFLORES,67,coincide el municipio «Miraflores» con una localidad de SIIS (vía débil: revisar)
+Bajo Hondo,Misión Nueva Pompeya,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Atento,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+El Palo Santo,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+El Polenom,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+El Pozo de los Suris,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+El Quirquincho,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+Ex Fortín Arenales,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+La Barraca,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+Laguna Araujo,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+Los Chorros,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+Los Ciénagos,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+Nueva Población,Misión Nueva Pompeya,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Nueva Pompeya,Misión Nueva Pompeya,CRUZA,,,ya tiene una equivalencia cargada
+Palo Flojal,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+Paraje El Estanque,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+Paraje Las Vertientes,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+Pozo El Toba,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+Pozo del Mataco,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+Pozo del Salado,Misión Nueva Pompeya,PROPUESTA,MISION NUEVA POMPEYA,62,coincide el municipio «Misión Nueva Pompeya» con una localidad de SIIS (vía débil: revisar)
+Lote 27,Napenay,PROPUESTA,NAPENAY,46,coincide el municipio «Napenay» con una localidad de SIIS (vía débil: revisar)
+Napenay,Napenay,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Pampa La Desatinada,Napenay,PROPUESTA,NAPENAY,46,coincide el municipio «Napenay» con una localidad de SIIS (vía débil: revisar)
+El Perdido,Pampa Almirón,PROPUESTA,PAMPA ALMIRON,26,coincide el municipio «Pampa Almirón» con una localidad de SIIS (vía débil: revisar)
+Kilómetro 62,Pampa Almirón,PROPUESTA,PAMPA ALMIRON,26,coincide el municipio «Pampa Almirón» con una localidad de SIIS (vía débil: revisar)
+La Blanca,Pampa Almirón,PROPUESTA,PAMPA ALMIRON,26,coincide el municipio «Pampa Almirón» con una localidad de SIIS (vía débil: revisar)
+Pampa Almirón,Pampa Almirón,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Villa Jardín,Pampa Almirón,PROPUESTA,PAMPA ALMIRON,26,coincide el municipio «Pampa Almirón» con una localidad de SIIS (vía débil: revisar)
+10 de Mayo,Pampa del Indio,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Campo Alemany,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+Campo Los Toros,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+Cancha Larga,Pampa del Indio,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia Mixta,Pampa del Indio,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia Ombú,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+Cuarta Legua,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+Fortín Brown,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+La Loma,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+Las Bravas,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+Las Chuñas,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+Lote 4,Pampa del Indio,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 7,Pampa del Indio,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 82,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+Lote 96,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+Pampa Chica,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+Pampa del Indio,Pampa del Indio,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Santa Rita,Pampa del Indio,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Santos Lugares,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+Tres Lagunas,Pampa del Indio,PROPUESTA,PAMPA DEL INDIO,29,coincide el municipio «Pampa del Indio» con una localidad de SIIS (vía débil: revisar)
+Colonia Pampa Bolsa Norte,Pampa del Infierno,PROPUESTA,PAMPA DEL INFIERNO,58,coincide el municipio «Pampa del Infierno» con una localidad de SIIS (vía débil: revisar)
+Colonia Pampa Bolsa Sur,Pampa del Infierno,PROPUESTA,PAMPA DEL INFIERNO,58,coincide el municipio «Pampa del Infierno» con una localidad de SIIS (vía débil: revisar)
+Colonia Pampa Unida,Pampa del Infierno,PROPUESTA,PAMPA DEL INFIERNO,58,coincide el municipio «Pampa del Infierno» con una localidad de SIIS (vía débil: revisar)
+El Silencio,Pampa del Infierno,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 23 Pampa Grande,Pampa del Infierno,PROPUESTA,PAMPA DEL INFIERNO,58,coincide el municipio «Pampa del Infierno» con una localidad de SIIS (vía débil: revisar)
+Pampa El Mangrullo,Pampa del Infierno,PROPUESTA,PAMPA DEL INFIERNO,58,coincide el municipio «Pampa del Infierno» con una localidad de SIIS (vía débil: revisar)
+Pampa Grande,Pampa del Infierno,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa Guanaco,Pampa del Infierno,PROPUESTA,PAMPA DEL INFIERNO,58,coincide el municipio «Pampa del Infierno» con una localidad de SIIS (vía débil: revisar)
+Pampa Juanita,Pampa del Infierno,PROPUESTA,PAMPA DEL INFIERNO,58,coincide el municipio «Pampa del Infierno» con una localidad de SIIS (vía débil: revisar)
+Pampa del Infierno,Pampa del Infierno,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Campo Medina,Presidencia Roca,PROPUESTA,PRESIDENCIA ROCA,28,coincide el municipio «Presidencia Roca» con una localidad de SIIS (vía débil: revisar)
+Campo Nuevo,Presidencia Roca,PROPUESTA,PRESIDENCIA ROCA,28,coincide el municipio «Presidencia Roca» con una localidad de SIIS (vía débil: revisar)
+Colonia Alcalá,Presidencia Roca,PROPUESTA,PRESIDENCIA ROCA,28,coincide el municipio «Presidencia Roca» con una localidad de SIIS (vía débil: revisar)
+Colonia San Francisco,Presidencia Roca,PROPUESTA,PRESIDENCIA ROCA,28,coincide el municipio «Presidencia Roca» con una localidad de SIIS (vía débil: revisar)
+Colonia San Isidro,Presidencia Roca,PROPUESTA,PRESIDENCIA ROCA,28,coincide el municipio «Presidencia Roca» con una localidad de SIIS (vía débil: revisar)
+Las Tablas,Presidencia Roca,PROPUESTA,PRESIDENCIA ROCA,28,coincide el municipio «Presidencia Roca» con una localidad de SIIS (vía débil: revisar)
+Pampa Chica Sur,Presidencia Roca,PROPUESTA,PRESIDENCIA ROCA,28,coincide el municipio «Presidencia Roca» con una localidad de SIIS (vía débil: revisar)
+Presidencia Roca,Presidencia Roca,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Bajo Hondo,Presidencia Roque Sáenz Peña,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Bajo Hondo Chico,Presidencia Roque Sáenz Peña,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Bajo Hondo Grande,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Colonia Bajo Hondo,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Colonia El Toba,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Colonia Napenay,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Colonia Pampa Galpón,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Colonia Pampa Loca,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Colonia Rivadavia,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Colonia Sarmiento,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Ensanche Norte,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Girasol,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+La Chiquita Norte,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+La Mascota,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+La Pobladora,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Lote 17,Presidencia Roque Sáenz Peña,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa Alegría,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Pampa Florida,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Pampa Gamba,Presidencia Roque Sáenz Peña,PROPUESTA,PRESIDENCIA ROQUE SAENZ PEÑA,42,coincide el municipio «Presidencia Roque Sáenz Peña» con una localidad de SIIS (vía débil: revisar)
+Presidencia Roque Sáenz Peña,Presidencia Roque Sáenz Peña,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia Brandsen Norte,Presidencia de la Plaza,PROPUESTA,PCIA. DE LA PLAZA,19,coincide el municipio «Presidencia de la Plaza» con una localidad de SIIS (vía débil: revisar)
+Colonia Brandsen Sur,Presidencia de la Plaza,PROPUESTA,PCIA. DE LA PLAZA,19,coincide el municipio «Presidencia de la Plaza» con una localidad de SIIS (vía débil: revisar)
+Colonia El Cacique,Presidencia de la Plaza,PROPUESTA,PCIA. DE LA PLAZA,19,coincide el municipio «Presidencia de la Plaza» con una localidad de SIIS (vía débil: revisar)
+Colonia El Curundú,Presidencia de la Plaza,PROPUESTA,PCIA. DE LA PLAZA,19,coincide el municipio «Presidencia de la Plaza» con una localidad de SIIS (vía débil: revisar)
+Colonia El Raigonal,Presidencia de la Plaza,PROPUESTA,PCIA. DE LA PLAZA,19,coincide el municipio «Presidencia de la Plaza» con una localidad de SIIS (vía débil: revisar)
+Colonia Hipólito Vieytes,Presidencia de la Plaza,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia Pastoril,Presidencia de la Plaza,PROPUESTA,PCIA. DE LA PLAZA,19,coincide el municipio «Presidencia de la Plaza» con una localidad de SIIS (vía débil: revisar)
+Colonia Santa Elena,Presidencia de la Plaza,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Cuatro Árboles,Presidencia de la Plaza,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Palmar,Presidencia de la Plaza,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Fortín Aguilar,Presidencia de la Plaza,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Guayaibí,Presidencia de la Plaza,PROPUESTA,PCIA. DE LA PLAZA,19,coincide el municipio «Presidencia de la Plaza» con una localidad de SIIS (vía débil: revisar)
+Presidencia de la Plaza,Presidencia de la Plaza,CRUZA,,,ya tiene una equivalencia cargada
+Colonia El Mirasol,Puerto Bermejo,PROPUESTA,PUERTO BERMEJO,24,coincide el municipio «Puerto Bermejo» con una localidad de SIIS (vía débil: revisar)
+La Posta,Puerto Bermejo,PROPUESTA,PUERTO BERMEJO,24,coincide el municipio «Puerto Bermejo» con una localidad de SIIS (vía débil: revisar)
+Puerto Bermejo Nuevo,Puerto Bermejo,CRUZA,,,ya tiene una equivalencia cargada
+Puerto Bermejo Viejo,Puerto Bermejo,PROPUESTA,PUERTO BERMEJO,24,coincide el municipio «Puerto Bermejo» con una localidad de SIIS (vía débil: revisar)
+Colonia Vélaz,Puerto Eva Perón,PROPUESTA,PUERTO EVA PERON,66,coincide el municipio «Puerto Eva Perón» con una localidad de SIIS (vía débil: revisar)
+Puerto Eva Perón,Puerto Eva Perón,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia Cruce Viejo,Puerto Tirol,PROPUESTA,PUERTO TIROL,8,coincide el municipio «Puerto Tirol» con una localidad de SIIS (vía débil: revisar)
+Estación General Obligado,Puerto Tirol,PROPUESTA,PUERTO TIROL,8,coincide el municipio «Puerto Tirol» con una localidad de SIIS (vía débil: revisar)
+Fortín Cardoso,Puerto Tirol,PROPUESTA,PUERTO TIROL,8,coincide el municipio «Puerto Tirol» con una localidad de SIIS (vía débil: revisar)
+General Donovan,Puerto Tirol,PROPUESTA,PUERTO TIROL,8,coincide el municipio «Puerto Tirol» con una localidad de SIIS (vía débil: revisar)
+Kilómetro 501,Puerto Tirol,PROPUESTA,PUERTO TIROL,8,coincide el municipio «Puerto Tirol» con una localidad de SIIS (vía débil: revisar)
+Kilómetro 519,Puerto Tirol,PROPUESTA,PUERTO TIROL,8,coincide el municipio «Puerto Tirol» con una localidad de SIIS (vía débil: revisar)
+La Choza,Puerto Tirol,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Puerto Tirol,Puerto Tirol,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Villa Jalón,Puerto Tirol,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Balneario Paranacito,Puerto Vilelas,PROPUESTA,PUERTO VILELAS,3,coincide el municipio «Puerto Vilelas» con una localidad de SIIS (vía débil: revisar)
+El Naranjito,Puerto Vilelas,PROPUESTA,PUERTO VILELAS,3,coincide el municipio «Puerto Vilelas» con una localidad de SIIS (vía débil: revisar)
+Isla Soto,Puerto Vilelas,PROPUESTA,PUERTO VILELAS,3,coincide el municipio «Puerto Vilelas» con una localidad de SIIS (vía débil: revisar)
+Puerto Vilelas,Puerto Vilelas,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Bajo Hondo Chico,Quitilipi,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Campo Feldman,Quitilipi,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Campo Feldman Sur,Quitilipi,PROPUESTA,QUITILIPI,43,coincide el municipio «Quitilipi» con una localidad de SIIS (vía débil: revisar)
+Colonia Blas Parera,Quitilipi,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia El Paraisal,Quitilipi,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Colonia General Paz,Quitilipi,PROPUESTA,QUITILIPI,43,coincide el municipio «Quitilipi» con una localidad de SIIS (vía débil: revisar)
+Colonia General Paz Norte,Quitilipi,PROPUESTA,QUITILIPI,43,coincide el municipio «Quitilipi» con una localidad de SIIS (vía débil: revisar)
+Colonia Uriburu,Quitilipi,PROPUESTA,QUITILIPI,43,coincide el municipio «Quitilipi» con una localidad de SIIS (vía débil: revisar)
+Cuatro Bocas,Quitilipi,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Paraisal,Quitilipi,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Tacuruzal,Quitilipi,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Zanjón,Quitilipi,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+La Chiquita,Quitilipi,PROPUESTA,QUITILIPI,43,coincide el municipio «Quitilipi» con una localidad de SIIS (vía débil: revisar)
+La Matanza,Quitilipi,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Legua 19,Quitilipi,PROPUESTA,QUITILIPI,43,coincide el municipio «Quitilipi» con una localidad de SIIS (vía débil: revisar)
+Lote 106,Quitilipi,PROPUESTA,QUITILIPI,43,coincide el municipio «Quitilipi» con una localidad de SIIS (vía débil: revisar)
+Lote 17,Quitilipi,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 176,Quitilipi,PROPUESTA,QUITILIPI,43,coincide el municipio «Quitilipi» con una localidad de SIIS (vía débil: revisar)
+Pampa Esperanza,Quitilipi,PROPUESTA,QUITILIPI,43,coincide el municipio «Quitilipi» con una localidad de SIIS (vía débil: revisar)
+Pampa Verde,Quitilipi,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Quitilipi,Quitilipi,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Villa El Palmar,Quitilipi,PROPUESTA,QUITILIPI,43,coincide el municipio «Quitilipi» con una localidad de SIIS (vía débil: revisar)
+Colonia Baranda,Resistencia,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Palmar,Resistencia,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Salado,Resistencia,PROPUESTA,RESISTENCIA,1,coincide el municipio «Resistencia» con una localidad de SIIS (vía débil: revisar)
+La Querencia,Resistencia,PROPUESTA,RESISTENCIA,1,coincide el municipio «Resistencia» con una localidad de SIIS (vía débil: revisar)
+Los Palmares,Resistencia,PROPUESTA,RESISTENCIA,1,coincide el municipio «Resistencia» con una localidad de SIIS (vía débil: revisar)
+María Sara,Resistencia,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Resistencia,Resistencia,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Tres Horquetas,Resistencia,SIN_CANDIDATO,,,"el nombre está repetido en el catálogo de SIIS (2 candidatos: TRES HORQUETAS, TRES HORQUETAS)"
+Lote 23,Samuhú,PROPUESTA,SAMUHU,35,coincide el municipio «Samuhú» con una localidad de SIIS (vía débil: revisar)
+Lote 25,Samuhú,PROPUESTA,SAMUHU,35,coincide el municipio «Samuhú» con una localidad de SIIS (vía débil: revisar)
+Samuhú,Samuhú,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Colonia Domingo Matheu,San Bernardo,PROPUESTA,SAN BERNARDO,39,coincide el municipio «San Bernardo» con una localidad de SIIS (vía débil: revisar)
+La Sirena,San Bernardo,PROPUESTA,SAN BERNARDO,39,coincide el municipio «San Bernardo» con una localidad de SIIS (vía débil: revisar)
+Lote 1,San Bernardo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 10,San Bernardo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 10 Sur,San Bernardo,PROPUESTA,SAN BERNARDO,39,coincide el municipio «San Bernardo» con una localidad de SIIS (vía débil: revisar)
+Lote 5,San Bernardo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Pampa Las Flores,San Bernardo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+San Bernardo,San Bernardo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Campo Las Puertas,Santa Sylvina,PROPUESTA,SANTA SYLVINA,56,coincide el municipio «Santa Sylvina» con una localidad de SIIS (vía débil: revisar)
+Colonia Cabeza de Tigre,Santa Sylvina,PROPUESTA,SANTA SYLVINA,56,coincide el municipio «Santa Sylvina» con una localidad de SIIS (vía débil: revisar)
+Colonia Campo del Banco,Santa Sylvina,PROPUESTA,SANTA SYLVINA,56,coincide el municipio «Santa Sylvina» con una localidad de SIIS (vía débil: revisar)
+Colonia El Urunday,Santa Sylvina,PROPUESTA,SANTA SYLVINA,56,coincide el municipio «Santa Sylvina» con una localidad de SIIS (vía débil: revisar)
+Colonia Jacarandá Sur,Santa Sylvina,PROPUESTA,SANTA SYLVINA,56,coincide el municipio «Santa Sylvina» con una localidad de SIIS (vía débil: revisar)
+El Ñandubay,Santa Sylvina,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Santa Sylvina,Santa Sylvina,CRUZA,,,el nombre coincide con el catálogo de SIIS
+3 de Mayo,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Alta Esperanza,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Castelli,Taco Pozo,CRUZA,,,ya tiene una equivalencia cargada
+Chaco Porá,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+El Brasil,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+El Cañon,Taco Pozo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Indio,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+El Lebretón,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+El Palo Santo 2,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+El Pintado,Taco Pozo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Quinto,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+El Rosillo,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+General Roca,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Kilómetro 27,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+La Aguada,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+La Aurora,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+La Ilusión,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+La Paloma,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+La Pinta,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+La Sara,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Las Flores,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Los Magos,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Lote 34,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Luján,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Madre de Dios,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Nueva York,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Ojo de Agua,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Pozo Hondo,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Primavera,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Puesto Santa Cruz,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Puesto Santa Cruz Norte,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+San Agustín,Taco Pozo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+San Antonio,Taco Pozo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+San Telmo,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Santa Elena,Taco Pozo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Santa Lucía,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Santa Rita,Taco Pozo,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Santa Rosa,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Santa Teresa de Carballo,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Sol de Mayo,Taco Pozo,PROPUESTA,TACO POZO,60,coincide el municipio «Taco Pozo» con una localidad de SIIS (vía débil: revisar)
+Taco Pozo,Taco Pozo,CRUZA,,,el nombre coincide con el catálogo de SIIS
+2 de Abril,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Cabañaro,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Colonia La Matanza,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Colonia Lalelay,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Colonia Pampa El 11,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Colonia Tacuruzal,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Colonia Tres Naciones,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Colonia Vélez Sarsfield,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+El 45,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+El 50,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+El Aguacerito,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+El Boquerón,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+El Martillo,Tres Isletas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+El Palmar Chico,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Kilómetro 841,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Kilómetro 855,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Kilómetro 884,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+La Curva,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+La Llave,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+La Matanza,Tres Isletas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+La Media Luna,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+La Peligrosa,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+La Rinconada,Tres Isletas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Las Gomas,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Lote 10,Tres Isletas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 12,Tres Isletas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 18,Tres Isletas,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 20 Legua A,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Monte Quemado Chico,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Monte Quemado Grande,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Pampa Aguará,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Pampa El Gallo,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Pampa Ghan,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Pampa Laglaive,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Pampa Nardelli,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Pampa Sena,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Pampa Vargas,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Pato Real,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Río Muerto,Tres Isletas,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Toundaian,Tres Isletas,PROPUESTA,TRES ISLETAS,45,coincide el municipio «Tres Isletas» con una localidad de SIIS (vía débil: revisar)
+Tres Isletas,Tres Isletas,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Kilómetro 525,Villa Berthet,PROPUESTA,VILLA BERTHET,34,coincide el municipio «Villa Berthet» con una localidad de SIIS (vía débil: revisar)
+La Negrita,Villa Berthet,PROPUESTA,VILLA BERTHET,34,coincide el municipio «Villa Berthet» con una localidad de SIIS (vía débil: revisar)
+Lote 14,Villa Berthet,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 15,Villa Berthet,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 17,Villa Berthet,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 18,Villa Berthet,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 19,Villa Berthet,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 20,Villa Berthet,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 21,Villa Berthet,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 3,Villa Berthet,PROPUESTA,VILLA BERTHET,34,coincide el municipio «Villa Berthet» con una localidad de SIIS (vía débil: revisar)
+Lote 4,Villa Berthet,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 45,Villa Berthet,PROPUESTA,VILLA BERTHET,34,coincide el municipio «Villa Berthet» con una localidad de SIIS (vía débil: revisar)
+Lote 5,Villa Berthet,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 8,Villa Berthet,PROPUESTA,VILLA BERTHET,34,coincide el municipio «Villa Berthet» con una localidad de SIIS (vía débil: revisar)
+Villa Berthet,Villa Berthet,CRUZA,,,el nombre coincide con el catálogo de SIIS
+10 de Mayo,Villa Río Bermejito,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Cabeza de Buey,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+El Algarrobal,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+El Colchón,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+El Corredero,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+El Escondido,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+El Espinillo,Villa Río Bermejito,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Estanque,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+El Mojo,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+El Palmar,Villa Río Bermejito,CRUZA,,,el nombre coincide con el catálogo de SIIS
+El Simbolar,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+El Toroltay,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+El Ñandubay,Villa Río Bermejito,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Fortín Lavalle,Villa Río Bermejito,CRUZA,,,el nombre coincide con el catálogo de SIIS
+La Bolsa,Villa Río Bermejito,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+La Cangayé,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+La Esmeralda,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Las Palomas,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Las Tunillas,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Las Vertientes,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Los Milagros,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Lote 39,Villa Río Bermejito,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Manantiales,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Media Luna,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Miramar,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Olla Quebrada,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Paso Sosa,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Pozo El Zapallar,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Pozo del Bayo,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Puerto Lavalle,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Río Muerto,Villa Río Bermejito,CRUZA,,,el nombre coincide con el catálogo de SIIS
+San Luis,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+San Manuel,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Villa Río Bermejito,Villa Río Bermejito,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Víboras Blancas,Villa Río Bermejito,PROPUESTA,VILLA RIO BERMEJITO,68,coincide el municipio «Villa Río Bermejito» con una localidad de SIIS (vía débil: revisar)
+Colonia Juan José Paso,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+Colonia Juan José Paso Norte,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+Colonia La Chaqueña,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+Colonia Pegouriel,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+El Caburé,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+El Pastoril,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+La Carlota,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+La Manuela,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+Las Avispas,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+Los Gansos,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+Lote 11,Villa Ángela,SIN_CANDIDATO,,,el mismo nombre en otro municipio daría otra propuesta; el alias no distingue municipios
+Lote 88,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+Mesón de Fierro,Villa Ángela,CRUZA,,,el nombre coincide con el catálogo de SIIS
+Pueblo Coronel Díaz,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+Tres Boliches,Villa Ángela,PROPUESTA,VILLA ANGELA,37,coincide el municipio «Villa Ángela» con una localidad de SIIS (vía débil: revisar)
+Villa Angela,Villa Ángela,CRUZA,,,el nombre coincide con el catálogo de SIIS

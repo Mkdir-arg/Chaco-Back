@@ -34,6 +34,12 @@ urlpatterns = [
     path("<int:pk>/", legajo.DispositivoDetailView.as_view(), name="detalle"),
     # Equipo del dispositivo (Cambio 411): cada acción es un POST que re-verifica `puede_gestionar_equipo`.
     path("<int:pk>/equipo/sumar/", equipo_views.EquipoSumarView.as_view(), name="equipo_sumar"),
+    path("<int:pk>/equipo/crear-persona/", equipo_views.EquipoCrearPersonaView.as_view(), name="equipo_crear_persona"),
+    path(
+        "<int:pk>/equipo/personas/buscar/",
+        equipo_views.EquipoPersonasSugeridasView.as_view(),
+        name="equipo_personas_buscar",
+    ),
     path("<int:pk>/equipo/<int:miembro_pk>/baja/", equipo_views.EquipoBajaView.as_view(), name="equipo_baja"),
     path(
         "<int:pk>/equipo/<int:miembro_pk>/responsable/",

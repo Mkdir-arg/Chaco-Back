@@ -7,6 +7,9 @@ Reglas (decisiones del PM, 02-nov-2026):
 * Hay **varios responsables** por dispositivo; si ya tenía alguno, no se lo deja sin ninguno.
 * Arman el Equipo el admin de Dispositivos y los responsables **de ese** dispositivo.
 * El rol tiene que ser de un rol del programa Dispositivos y la persona tiene que tenerlo.
+* Quien además administra los usuarios del programa Dispositivos puede **crear a la persona** que no
+  está (Cambio 420), con un rol que la regla del ABM de Usuarios le deje dar, y sumarla en la misma
+  transacción.
 
 Las escrituras toman ``select_for_update`` sobre el dispositivo: dos altas o bajas
 simultáneas no pueden dejarlo sin responsables.
@@ -17,6 +20,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import BooleanField, Case, When
 
+from core import rbac
 from programas.services.dispositivos import (
     membresias_vigentes,
     programa_dispositivos,
@@ -38,6 +42,44 @@ def puede_gestionar_equipo(user, dispositivo):
         .filter(dispositivo=dispositivo, es_responsable=True)
         .exists()
     )
+
+
+def puede_administrar_usuarios_dispositivos(user):
+    """Superusuario, ``usuario.administrar`` o ``programa.usuario.administrar`` **acotado a Dispositivos**.
+
+    Es el alcance del ABM de Usuarios (``programas_administrables_usuarios``): la misma definición que
+    acota los roles que se pueden dar, así que quien pasa esta puerta no queda con el combo vacío por otra regla.
+    """
+
+    if user is None or not getattr(user, "is_authenticated", False) or not user.is_active:
+        return False
+    if rbac.puede(user, "usuario.administrar"):
+        return True
+    programa = programa_dispositivos(user)
+    return programa is not None and rbac.puede(user, "programa.usuario.administrar", programa=programa)
+
+
+def puede_crear_persona(user, dispositivo):
+    """«Crear persona» desde el Equipo: gestiona **este** Equipo y administra los usuarios de Dispositivos."""
+
+    return puede_gestionar_equipo(user, dispositivo) and puede_administrar_usuarios_dispositivos(user)
+
+
+def roles_para_crear_persona(actor):
+    """Roles con los que el ``actor`` puede dar de alta a una persona nueva en el Equipo.
+
+    Parte de la regla del ABM de Usuarios (``roles_asignables``: no se da un rol con capacidades que el
+    actor no puede asignar) y la acota al programa Dispositivos, sin el rol de agente de relevamiento.
+    """
+
+    from django.contrib.auth.models import Group
+
+    from users.selectors.usuarios import roles_asignables
+
+    programa = programa_dispositivos()
+    if programa is None:
+        return Group.objects.none()
+    return roles_asignables(actor).filter(meta__programa=programa).exclude(meta__clave=CLAVE_ROL_AGENTE)
 
 
 def _exigir_gestion(actor, dispositivo):
@@ -78,6 +120,12 @@ def _exigir_pares_sumables(programa, pares):
         raise ValidationError("Elegí personas y roles del listado.")
 
 
+def exigir_par_sumable(usuario, rol):
+    """Falla con ``ValidationError`` si ``(usuario, rol)`` no es una opción de ``pares_persona_rol``."""
+
+    _exigir_pares_sumables(programa_dispositivos(), [(usuario, rol)])
+
+
 def _responsables_activos(dispositivo):
     from programas.models import MiembroEquipoDispositivo
 
@@ -113,6 +161,53 @@ def sumar_miembro(*, actor, dispositivo, usuario, rol, es_responsable=False):
             miembro.es_responsable = es_responsable if estaba_de_baja else miembro.es_responsable or es_responsable
             miembro.save(update_fields=["activo", "es_responsable", "modificado"])
         return miembro
+
+
+def datos_de_alta_de_persona(*, actor, dni, nombre, apellido, correo, rol):
+    """El ``UserCreationForm`` del ABM de Usuarios armado para el alta de una persona del Equipo.
+
+    No hay una regla paralela: es el formulario del ABM, con los roles acotados a ``roles_para_crear_persona``
+    (el rol elegido tiene que estar ahí) y el operador, que valida DNI, correo y que el rol no se pise.
+    La clave la genera el sistema y llega por enlace al correo: no se pide ni se muestra una provisoria.
+    El usuario se llama como el DNI (o ``<dni>-<n>`` si ese nombre ya lo tiene otra cuenta).
+    """
+
+    from django.http import QueryDict
+
+    from users.forms import UserCreationForm
+
+    username = str(dni)
+    ocupado = get_user_model().objects.filter(username__iexact=username).exists()
+    numero = 1
+    while ocupado:
+        numero += 1
+        username = f"{dni}-{numero}"
+        ocupado = get_user_model().objects.filter(username__iexact=username).exists()
+    datos = QueryDict(mutable=True)
+    datos.update({"username": username, "email": correo, "first_name": nombre, "last_name": apellido, "dni": dni})
+    datos.setlist("groups", [str(rol.pk)])
+    return UserCreationForm(data=datos, operador=actor, roles_acotados=roles_para_crear_persona(actor))
+
+
+def crear_persona_y_sumar(*, actor, dispositivo, alta, rol, es_responsable=False):
+    """Crea el usuario de ``alta`` (``UserCreationForm`` válido) y lo suma al Equipo, **todo o nada**.
+
+    Una sola transacción: si sumar al Equipo falla, no queda ni el usuario. La escritura del usuario es la
+    de las altas rápidas (``UsuariosAdminService.create_user_from_form``). El correo con la clave no viaja
+    acá: lo manda la vista cuando la transacción ya cerró.
+    """
+
+    from users.selectors.usuarios import alcance_roles_ids
+    from users.services.admin import UsuariosAdminService
+
+    with transaction.atomic():
+        if not puede_crear_persona(actor, dispositivo):
+            raise PermissionDenied("Solo quien administra los usuarios de Dispositivos da de alta personas.")
+        if not roles_para_crear_persona(actor).filter(pk=rol.pk).exists():
+            raise ValidationError({"rol": "Ese rol no se puede dar al crear una persona."})
+        usuario = UsuariosAdminService.create_user_from_form(alta, alcance_group_ids=alcance_roles_ids(actor))
+        sumar_miembro(actor=actor, dispositivo=dispositivo, usuario=usuario, rol=rol, es_responsable=es_responsable)
+    return usuario
 
 
 def sumar_responsables_al_crear(*, actor, dispositivo, pares):
