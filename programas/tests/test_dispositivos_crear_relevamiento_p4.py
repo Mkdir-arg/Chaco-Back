@@ -346,12 +346,12 @@ class PostTests(BaseCrearRelevamiento):
 
         self.assertEqual(respuesta.status_code, 404)
 
-    def test_sin_alcance_sobre_los_edificios_no_crea_nada(self):
+    def test_sin_alcance_sobre_los_edificios_es_404_y_no_crea_nada(self):
         coord_cis = self._usuario("coord_cis_post", ("inspeccion.asignar", "dispositivo.ver"), [self.cis])
 
         respuesta = self._post(self._datos(self.predio), usuario=coord_cis)
 
-        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(respuesta.status_code, 404)
         self.assertFalse(InspeccionEdificio.objects.exists())
 
 

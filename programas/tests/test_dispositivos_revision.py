@@ -102,7 +102,7 @@ class RevisionTests(BaseRevision):
         inspeccion.refresh_from_db()
         self.assertIsNone(inspeccion.revisado_en)
 
-    def test_fuera_de_alcance_403_igual_que_inexistente_sin_leer_estado(self):
+    def test_fuera_de_alcance_404_igual_que_inexistente_sin_leer_estado(self):
         inspeccion = self._completada()
         usuario = self._usuario(
             "otra_institucion", [c for c in TODAS_DE_DISPOSITIVOS if c != "programa.configurar"], [self.cis]
@@ -114,18 +114,15 @@ class RevisionTests(BaseRevision):
         cliente = self._cliente(usuario)
         ajeno = cliente.post(self._url(inspeccion))
         inexistente = cliente.post(reverse("dispositivos:relevamiento_revisar", args=[999999]))
-        self.assertEqual((ajeno.status_code, inexistente.status_code), (403, 403))
+        self.assertEqual((ajeno.status_code, inexistente.status_code), (404, 404))
         self.assertEqual(_sin_token(ajeno.content), _sin_token(inexistente.content))
-        self.assertNotContains(ajeno, self.predio.nombre, status_code=403)
+        self.assertNotContains(ajeno, self.predio.nombre, status_code=404)
         ajeno_ajax = cliente.post(self._url(inspeccion), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         inexistente_ajax = cliente.post(
             reverse("dispositivos:relevamiento_revisar", args=[999999]), HTTP_X_REQUESTED_WITH="XMLHttpRequest"
         )
-        self.assertEqual((ajeno_ajax.status_code, inexistente_ajax.status_code), (403, 403))
-        self.assertEqual(
-            ajeno_ajax.json(), {"ok": False, "message": "No tenés permiso para revisar este relevamiento."}
-        )
-        self.assertEqual(ajeno_ajax.json(), inexistente_ajax.json())
+        self.assertEqual((ajeno_ajax.status_code, inexistente_ajax.status_code), (404, 404))
+        self.assertEqual(_sin_token(ajeno_ajax.content), _sin_token(inexistente_ajax.content))
         inspeccion.refresh_from_db()
         self.assertIsNone(inspeccion.revisado_en)
 

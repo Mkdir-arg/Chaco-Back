@@ -29,7 +29,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.http import JsonResponse, QueryDict
+from django.http import Http404, JsonResponse, QueryDict
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
@@ -44,7 +44,7 @@ from programas.forms_dispositivos import (
     ElegirEdificioForm,
     ReasignarRelevamientoForm,
 )
-from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin
+from programas.mixins_dispositivos import DispositivoProgramaPermissionMixin, alcance_o_404
 from programas.models import Dispositivo, InspeccionEdificio
 from programas.selectors.inspecciones import relevamiento_para_revision
 from programas.services.dispositivos import CAP_VER, puede_en_programa_dispositivos, puede_operar_dispositivo
@@ -484,7 +484,7 @@ class RelevamientoRevisarView(_RelevamientoAccionView):
     def post(self, request, pk):
         relevamiento = relevamiento_para_revision(request.user, pk)
         if relevamiento is None:
-            return self._prohibido(PermissionDenied("No tenés permiso para revisar este relevamiento."))
+            raise Http404
         try:
             marcar_revisado(request.user, relevamiento)
         except PermissionDenied as error:
@@ -545,6 +545,9 @@ class DispositivoRelevamientoAsignarView(_RelevamientoAccionView):
     def post(self, request, pk):
         dispositivo = get_object_or_404(Dispositivo, pk=pk)
         elegibles = edificios_para_asignar_del_dispositivo(request.user, dispositivo)
+        # Sin alcance sobre el dispositivo, el mismo 404 que un id inexistente (y no el 400 del campo).
+        if not elegibles:
+            alcance_o_404(request.user, dispositivo, CAP_VER)
         form = AsignarRelevamientoDispositivoForm(
             request.POST, edificios=elegibles, agentes=agentes_asignables_para(elegibles)
         )
