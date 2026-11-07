@@ -67,6 +67,7 @@ TITULOS_TRAZA = {
     "SECTOR_CREADO": "Alta de un sector",
     "SECTOR_EDITADO": "Cambio en un sector",
     "SECTOR_BAJA": "Baja de un sector",
+    "SECTOR_REACTIVADO": "Reactivación de un sector",
     "PLAZAS_AGREGADAS": "Alta de plazas",
     "PLAZA_EDITADA": "Cambio en una plaza",
     "EDIFICIO_CREADO": "Alta de un edificio",
@@ -89,6 +90,7 @@ _TONOS_TRAZA = {
     "PLAZA_FUERA_SERVICIO": "warning",
     # La baja de un sector saca plazas de la capacidad operativa: se lee como la de una plaza.
     "SECTOR_BAJA": "warning",
+    "SECTOR_REACTIVADO": "success",
     "EDIFICIO_DESVINCULADO": "warning",
 }
 

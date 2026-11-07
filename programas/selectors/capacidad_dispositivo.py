@@ -1,6 +1,8 @@
 """Lecturas de configuración de la capacidad instalada y del predio compartido."""
 
-from programas.models import Dispositivo, Edificio, Estadia, Plaza, ReservaPlaza
+from django.db.models import Count
+
+from programas.models import Dispositivo, Edificio, Estadia, Plaza, ReservaPlaza, Sector
 from programas.services.dispositivos import dispositivos_visibles
 from programas.services.inspecciones import edificios_en_alcance
 
@@ -64,3 +66,13 @@ def plazas_tomadas_del_sector(sector):
 
 def codigos_del_dispositivo(dispositivo):
     return set(Plaza.objects.filter(sector__dispositivo=dispositivo).values_list("codigo", flat=True))
+
+
+def sectores_inactivos(dispositivo):
+    """Los sectores dados de baja del dispositivo, con su cantidad de plazas, por nombre."""
+
+    return (
+        Sector.objects.filter(dispositivo=dispositivo, activo=False)
+        .annotate(cantidad_plazas=Count("plazas"))
+        .order_by("nombre")
+    )
