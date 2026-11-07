@@ -71,7 +71,7 @@ from django.utils import timezone
 
 from programas.models import Plaza, ReservaPlaza, Sector
 from programas.selectors.capacidad_dispositivo import nombre_de_edificio
-from programas.services.estadias import reserva_abierta_de, url_modal_egreso
+from programas.services.estadias import reserva_abierta_de
 from programas.services.nombre_plaza import clave_natural
 from programas.services.ocupacion import (
     ESTADO_FUERA_SERVICIO,
@@ -170,6 +170,15 @@ def bloqueo_del_modal(estado, acciones):
     if ACCION_FUERA_SERVICIO in acciones:
         return bloqueo_de_plaza(estado, ACCION_FUERA_SERVICIO)
     return bloqueo_de_plaza(estado, acciones[0]) if acciones else ""
+
+
+def url_modal_egreso(dispositivo_pk, estadia_pk):
+    """El detalle del dispositivo con el modal de egreso de esa estadía abierto (`?tab=estadias&egreso=`).
+
+    Lo comparten la solapa Estadías y el menú de la plaza ocupada del mapa: un solo armado del enlace.
+    """
+
+    return f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=estadias&egreso={estadia_pk}"
 
 
 def enlaces_de_plaza(dispositivo, estado, acciones):

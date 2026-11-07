@@ -109,7 +109,6 @@ from programas.services.estadias import (
     reserva_abierta_de,
     reservar_plaza,
     sacar_plaza_de_servicio,
-    url_modal_egreso,
     volver_plaza_a_servicio,
 )
 from programas.services.formularios_tipo import aviso_sin_formulario
@@ -140,6 +139,7 @@ from programas.services.sectores_plazas import (
     datos_para_el_modal,
     plaza_para_accion,
     sectores_con_plazas,
+    url_modal_egreso,
 )
 from programas.views.ajax_utils import ajax_redirect, is_ajax
 

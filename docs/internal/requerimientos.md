@@ -53094,7 +53094,7 @@ Revertir el PR; no hay datos que deshacer.
 | **Solicitante** | Auditoría del PR #1053 (Cambio 437) |
 | **Fecha del pedido** | 07/11/2026 |
 | **Issue / épica** | sin issue · Épica #127 |
-| **Partes afectadas** | Servidor: `services/sectores_plazas.py`, `services/estadias.py`, `selectors/capacidad_dispositivo.py`, `views/dispositivos_legajo.py` · Backoffice: `dispositivos/sectores/sectores.html` |
+| **Partes afectadas** | Servidor: `services/sectores_plazas.py`, `selectors/capacidad_dispositivo.py`, `views/dispositivos_legajo.py` · Backoffice: `dispositivos/sectores/sectores.html` |
 | **Migración** | No |
 
 ## Pedido original
@@ -53113,7 +53113,7 @@ Resolver los cinco MINOR que dejó la auditoría del Cambio 437, sin cambiar el 
 
 ## Archivos
 
-`programas/services/sectores_plazas.py`, `programas/services/estadias.py`, `programas/selectors/capacidad_dispositivo.py`, `programas/views/dispositivos_legajo.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `programas/tests/test_dispositivos_plazas_acciones.py`, `.claude/design/componentes/estado_vacio.md`, `.claude/design/componentes/mapa_plazas.md`.
+`programas/services/sectores_plazas.py`, `programas/selectors/capacidad_dispositivo.py`, `programas/views/dispositivos_legajo.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `programas/tests/test_dispositivos_plazas_acciones.py`, `.claude/design/componentes/estado_vacio.md`, `.claude/design/componentes/mapa_plazas.md`.
 
 ## Base de datos
 
