@@ -459,8 +459,11 @@ class ReasignarRelevamientoForm(forms.Form):
         },
     )
 
-    def __init__(self, *args, agentes, **kwargs):
+    def __init__(self, *args, agentes, actual=None, **kwargs):
         super().__init__(*args, **kwargs)
+        # Reasignar es cambiar de agente: quien ya lo tiene asignado no es una opción.
+        if actual is not None:
+            agentes = agentes.exclude(pk=actual)
         self.fields["asignado_a"].queryset = agentes
 
 

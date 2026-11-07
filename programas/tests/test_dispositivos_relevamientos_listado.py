@@ -407,6 +407,18 @@ class SelectorDeAgentesTests(BaseListado):
         self.assertIn(self.otro_agente.pk, opciones)
         self.assertNotIn(self.personal_parador.pk, opciones)
 
+    def test_el_selector_de_reasignar_no_ofrece_al_asignado_y_si_a_un_agente_sin_relevamientos(self):
+        inspeccion = self._crear()
+        self.assertFalse(InspeccionEdificio.objects.filter(asignado_a=self.otro_agente).exists())
+
+        respuesta = self._cliente(self.coord).get(URL_LISTA, {"reasignar": inspeccion.pk})
+        opciones = self._opciones(respuesta, "form_reasignar")
+        self.assertNotIn(self.agente.pk, opciones)
+        self.assertIn(self.otro_agente.pk, opciones)
+        html = str(respuesta.context["form_reasignar"]["asignado_a"])
+        self.assertNotIn(f'value="{self.agente.pk}"', html)
+        self.assertIn(f'value="{self.otro_agente.pk}"', html)
+
     def test_el_modal_de_un_edificio_fuera_de_alcance_no_se_abre(self):
         respuesta = self._cliente(self.coord).get(URL_LISTA, {"asignar": self.edificio_cis.pk})
         self.assertNotIn("form_asignar", respuesta.context)
@@ -515,6 +527,17 @@ class ReasignarYCancelarTests(BaseListado):
         self.assertTrue(respuesta.json()["ok"])
         self.inspeccion.refresh_from_db()
         self.assertEqual(self.inspeccion.asignado_a_id, self.otro_agente.pk)
+
+    def test_reasignar_a_un_agente_sin_relevamientos_cambia_de_agente_y_deja_traza(self):
+        url = self._url("relevamiento_reasignar", self.inspeccion.pk)
+        respuesta = self._cliente(self.coord).post(url, {"asignado_a": self.otro_agente.pk}, **AJAX)
+        self.assertTrue(respuesta.json()["ok"])
+        self.inspeccion.refresh_from_db()
+        self.assertEqual(self.inspeccion.asignado_a_id, self.otro_agente.pk)
+        traza = self.inspeccion.trazas.get(accion="REASIGNADA")
+        self.assertEqual(traza.usuario_id, self.coord.pk)
+        self.assertIsNotNone(traza.creado_en)
+        self.assertIn("de agente a otro_agente", traza.detalle)
 
     def test_reasignar_al_mismo_agente_es_error_del_campo(self):
         url = self._url("relevamiento_reasignar", self.inspeccion.pk)
