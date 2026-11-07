@@ -550,6 +550,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 424 | Dispositivos: un sector dado de baja se ve (filtro «sectores inactivos»), se reactiva y libera su nombre; el nombre es único solo entre sectores activos | Dispositivos · sectores y plazas | `#datos` `#ui` `#rbac` | QA / PM — caso «sector inactivado no se ve ni se reactiva» | 07/11/2026 | 🟡 **En curso** | `programas.0112` |
 | 425 | Dispositivos: el selector «Nuevo agente» de Reasignar un relevamiento no ofrece al agente que ya lo tiene | Dispositivos · relevamientos edilicios | `#relevamientos` `#rbac` | QA — caso 5 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 426 | Dispositivos: al corregir una novedad de la bitácora se pueden sumar archivos y personas, y el registro dice qué se sumó | Dispositivos · bitácora | `#ui` | QA — caso 4 | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 428 | Dispositivos: el relevamiento de un edificio compartido lo ve quien opera alguno de sus dispositivos; la franja de Infraestructura sin alcance de inspección muestra solo el semáforo | Dispositivos · relevamiento edilicio | `#rbac` `#ui` | QA — caso 7 (decisión delegada al juez) | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -52375,6 +52376,66 @@ Sin cambios.
 ## Pendientes / a definir
 
 - Quitar adjuntos o personas desde la pantalla: no se pidió.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 428 — Relevamiento edilicio: edificio compartido y franja de Infraestructura sin alcance
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamiento edilicio (alcance) y solapa Infraestructura del detalle |
+| **Etiquetas** | `#rbac` `#ui` |
+| **Solicitante** | QA — caso 7 (decisión delegada al juez) |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue (seguimiento del Cambio 422) |
+| **Partes afectadas** | Backoffice · Servidor · Template |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Dos decisiones que dejó abiertas el Cambio 422, delegadas por el PM al juez: (1) un relevamiento es de un edificio y un edificio puede estar vinculado a varios dispositivos; (2) qué ve en la franja de Infraestructura quien lee el dispositivo sin alcance de inspección. Más un MINOR del 422: que `dispositivos_en_alcance` delegue en `dispositivos_operados`.
+
+## Alcance acordado
+
+**Entra:** test del edificio compartido (sin cambio de código); el semáforo sin detalle en la solapa Infraestructura. **Queda afuera:** la línea de tiempo de Historial (sigue nombrando a quien relevó un relevamiento realizado, regla del Cambio 289), la API de campo.
+
+## Decisiones tomadas
+
+1. **Edificio compartido:** un usuario con alcance de inspección sobre ALGUNO de los dispositivos vinculados al edificio ve el relevamiento (listado, informe, fotos y adjuntos). Fuera de eso, 404, aunque lea todos los dispositivos. Ya era así: `inspecciones_visibles` arma los edificios desde los dispositivos del alcance (`_edificios_de`), así que basta uno. Se fija con test; no hubo cambio de código.
+2. **Franja de Infraestructura:** quien ve el dispositivo (por ejemplo con «ver todos los dispositivos») pero no tiene alcance de inspección sobre el relevamiento ve solo el semáforo y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó. Con alcance o superusuario, todo como hasta ahora. «Alcance» es el mismo `inspecciones_visibles` que gobierna el informe, evaluado sobre el último relevamiento de cada edificio: una sola regla.
+3. El cruce con `inspecciones_visibles` va como `Exists` dentro de la consulta de los últimos relevamientos: no suma consultas y el presupuesto de `dispositivos_infraestructura` queda igual.
+4. **MINOR no aplicado:** `dispositivos_en_alcance` no delega en `dispositivos_operados`. Las dos arrancan con la misma guarda (programa y capacidad), pero en la primera esa guarda tiene que ir antes de la rama «todo» (admin del programa o `ver_todos`); delegar obligaría a repetirla o a evaluar `rbac.puede` dos veces, y lo único que se comparte es la llamada a `_del_equipo_o_asignados`. No elimina duplicación real.
+
+## Implementación
+
+Quien lee un dispositivo sin alcance de inspección sobre su edificio ve en la solapa Infraestructura el semáforo y la fecha del último relevamiento, con un aviso de que el detalle lo ve quien opera o coordina la institución. El Historial no cambia.
+
+## Archivos
+
+`programas/services/detalle_dispositivo.py` (`infraestructura_del_dispositivo`: `ve_detalle` por edificio), `programas/templates/programas/dispositivos/legajo/detail.html`, `.claude/design/arquetipos/detalle.md`, `programas/tests/test_dispositivos_relevamiento_alcance.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `EdificioCompartidoTests` (3) y `FranjaInfraestructuraSinAlcanceTests` (2) en `test_dispositivos_relevamiento_alcance`: edificio compartido por parador y CIS visto por quien opera cualquiera de los dos y por el coordinador (informe, foto y listado), 404 para un operador ajeno y para quien solo lee todo; franja sin alcance con semáforo y fecha pero sin la observación ni el nombre de quien relevó (assertNotIn sobre el panel), con alcance, admin y superusuario completa.
+- **Mutaciones:** `ve_detalle` siempre verdadero deja rojo el test de la franja; anular el camino de `dispositivo.ver` de `inspecciones_visibles` deja rojos los de edificio compartido; volver al alcance de lectura (`dispositivos_en_alcance`) deja rojos los 404. Restaurado, verde.
+
+## Pendientes / a definir
+
+- El Historial sigue nombrando a quien relevó un relevamiento ya realizado (decisión del Cambio 289): confirmar con el PM si también se oculta a quien no tiene alcance.
 
 ## Reversión
 

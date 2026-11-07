@@ -187,6 +187,8 @@ nombres; una vez realizado, el resultado muestra quién relevó. Infraestructura
 evento con su informe de solo lectura y conserva el dispositivo de origen para volver.
 La revisión agrega badge verde, revisor y fecha/hora sin perder la criticidad, con el
 contrato de `componentes/ficha_timeline.md`. Las fotos en curso conservan su fecha de carga.
+Quien ve el dispositivo sin alcance de inspección sobre el edificio (`inspecciones_visibles`) ve en la franja de
+Infraestructura solo el semáforo y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó.
 
 ## Prohibido
 
