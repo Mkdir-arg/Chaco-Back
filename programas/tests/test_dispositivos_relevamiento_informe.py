@@ -403,6 +403,15 @@ class ContenidoTests(BaseInforme):
         self.assertEqual(informe["total_fotos"], 3)
         self.assertTrue(all(foto["url"] for foto in informe["fotos"]))
 
+    def test_con_34_fotos_el_informe_las_trae_todas(self):
+        inspeccion = self._realizado(fotos=tuple(f"foto-{n:02d}" for n in range(34)))
+
+        informe = informe_de_relevamiento(self._fresco(self.coordinador), inspeccion)
+
+        self.assertEqual(len(informe["fotos"]), 34)
+        self.assertEqual(informe["total_fotos"], 34)
+        self.assertEqual(informe["fotos"][-1]["rotulo"], "foto-33")
+
     def test_un_relevamiento_cancelado_muestra_su_motivo_y_no_una_criticidad(self):
         inspeccion = crear_inspeccion(
             self._fresco(self.admin),

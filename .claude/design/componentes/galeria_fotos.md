@@ -1,7 +1,7 @@
 # Componente · Galería fotográfica histórica (`components/_galeria_fotos.html`)
 
 **Clasificación:** Canónico reutilizable. Pieza única, sin variantes.
-**Evidencia:** `templates/components/_galeria_fotos.html`, `core/tests/test_nodo_ui_lote_b.py`
+**Evidencia:** `templates/components/_galeria_fotos.html` (+ `_galeria_fotos_celda.html`), `core/tests/test_nodo_ui_lote_b.py`
 (`GaleriaFotosTest`).
 **Consumidores de referencia:** `templates/components/_linea_tiempo.html`, que la anida dentro de cada
 evento que trae `fotos` (ficha `ficha_timeline.md`); a través de ella, la solapa Infraestructura del
@@ -44,9 +44,11 @@ no es una card propia.
 
 ## Tope
 
-Una galería sin tope carga decenas de imágenes de golpe. **El recorte es de la vista**: una tanda por
-vez, con paginación o «ver más»; la pieza dibuja **hasta 24 fotos** como red de seguridad y avisa
-«Mostrando 24 de N fotos». Lista vacía: estado vacío canónico.
+La pieza dibuja **24 fotos** con `loading="lazy"`; si hay más, el resto va plegado en un `<details>` nativo
+(«Ver las N fotos restantes», sin JS; las imágenes de un `<details>` cerrado no se descargan). **Nunca se
+descarta una foto:** la vista manda la tanda entera de un relevamiento. «Mostrando X de N fotos» solo
+aparece si la vista mandó menos que `total`. La celda vive en `components/_galeria_fotos_celda.html`
+(interna de la galería, no se incluye suelta). Lista vacía: estado vacío canónico.
 
 ## Límites actuales
 
