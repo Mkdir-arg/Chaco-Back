@@ -327,7 +327,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
             {% include "components/_field.html" with field=form_editar_plaza.codigo wrapper_class="" %}
           </div>
           {% include "components/_field.html" with field=form_editar_plaza.tipo wrapper_class="" %}
-          {% include "components/_alerta.html" with tono="info" texto="El código debe ser único en la institución. El estado operativo se cambia desde la acción de la plaza." %}
+          {% include "components/_alerta.html" with tono="info" texto="El código no se puede repetir dentro del sector. El estado operativo se cambia desde la acción de la plaza." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalEditarPlaza=false" accion_texto="Guardar plaza" %}
       </form>

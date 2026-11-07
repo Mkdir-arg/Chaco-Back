@@ -553,6 +553,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 427 | Dispositivos: detalle de cada novedad de la bitácora (texto completo, personas con enlace al legajo, adjuntos con vista previa o descarga, versiones) y archivo del listado como enlace | Dispositivos · bitácora · sistema de diseño | `#ui` `#rbac` | QA — caso 3 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 428 | Dispositivos: el relevamiento de un edificio compartido lo ve quien opera alguno de sus dispositivos; la franja de Infraestructura sin alcance de inspección muestra solo el semáforo | Dispositivos · relevamiento edilicio | `#rbac` `#ui` | QA — caso 7 (decisión delegada al juez) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 429 | Dispositivos: el sector se ubica en un edificio del dispositivo (obligatorio al crear), la pestaña Infraestructura muestra edificio → sectores con «Sin edificio», y no se desvincula un edificio con sectores activos | Dispositivos · sectores y plazas · infraestructura | `#datos` `#ui` | QA — caso 6 (decisiones delegadas al juez) | 07/11/2026 | 🟡 **En curso** | `programas.0113` y `programas.0114` |
+| 430 | Dispositivos: las plazas se numeran por sector desde 1 (siguiente = mayor + 1, sin reusar números) y la unicidad del código es por sector | Dispositivos · sectores y plazas | `#datos` `#ui` | QA — caso 2 (decisión del PM) | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -52572,6 +52573,69 @@ Ninguna de las dos migraciones es barrera de reversa: se vuelve con `migrate`, e
 1. `python manage.py migrate programas 0113`: corre la reversa de la 0114, que deja todos los sectores con `edificio` en NULL. Se pierde solo la asignación del campo (la automática y las hechas a mano); no se toca ningún sector, plaza ni estadía.
 2. `python manage.py migrate programas 0112`: la reversa de la 0113 elimina la columna `edificio_id` y su FK de `programas_sector`. El código viejo no la conoce y sigue funcionando.
 3. Con la release anterior desplegada no hay nada más que deshacer. Si la reversa falla a mitad, el camino es D.4 (restore), no `--fake`.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 430 — Las plazas se numeran por sector, desde 1
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · sectores y plazas (P5) |
+| **Etiquetas** | `#datos` `#ui` |
+| **Solicitante** | QA — caso 2 (decisión del PM, 07/11/2026) |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backend (servicio y selector de plazas), Frontend (un texto de ayuda) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+«Las plazas se numeran por sector, empezando en 1, con `unique(sector, numero)`. Las plazas existentes mantienen su número: no se renumera nada.» En testing un sector nuevo arrancó en 98 y 99.
+
+## Alcance acordado
+
+**Entra:** el cálculo del código de las plazas del lote «Agregar plazas», la edición del código (la unicidad pasa a ser por sector) y el texto de ayuda del modal de plaza.
+
+**Queda afuera:** renumerar plazas existentes, un campo `numero` aparte del código, y cualquier cambio de permisos.
+
+## Decisiones tomadas
+
+1. **No existe `Plaza.numero`: el «número» es el sufijo del `codigo`** (`B-01`, `98`). La unicidad en la base ya es `UniqueConstraint(sector, codigo)` (`plaza_codigo_unico_por_sector`, desde `0086`), **sin condición**. La unicidad por dispositivo que describía el pedido nunca estuvo en la base: la hacían cumplir el generador del lote y `editar_plaza` desde el servicio, bajo el bloqueo del dispositivo. Por eso **no hay migración** y no hay nada que contraer.
+2. **Siguiente número = mayor número con ese prefijo en el sector + 1, o 1 si no hay.** Cuentan todas las plazas del sector, también las fuera de servicio, y el hueco no se rellena: un número no se reusa. Un código que no sigue el patrón `prefijo + dígitos` no cuenta para el máximo, pero tampoco se pisa. El selector pasa de `codigos_del_dispositivo` a `codigos_del_sector`.
+3. **Concurrencia:** el mismo bloqueo de siempre, en el mismo orden (Dispositivo, después Sector), y los códigos se leen ya con ambos bloqueados. La constraint de la base es la red de seguridad: un duplicado en el sector da `IntegrityError`.
+4. **`editar_plaza` valida el código dentro del sector**, no del dispositivo, para ser coherente con la numeración (dos sectores pueden tener `B-01`). El mensaje dice «en el sector».
+5. **Rolling:** la release anterior numera por dispositivo y sigue siendo compatible. Sus códigos nunca chocan con la constraint (que es por sector y ya existe), y el generador nuevo, que sigue al mayor del sector, no pisa sus plazas.
+6. **Orden:** el modelo ya ordena por `sector_id, codigo` y el mapa por `sector_id, codigo`; el código repetido entre sectores no afecta. Las estadías y la bitácora muestran el sector junto a la plaza.
+
+## Implementación
+
+`programas/services/plazas.py` (`codigos_en_lote`, `agregar_plazas`, `editar_plaza`) y `programas/selectors/capacidad_dispositivo.py` (`codigos_del_sector`).
+
+## Archivos
+
+`programas/services/plazas.py`, `programas/selectors/capacidad_dispositivo.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `programas/tests/test_dispositivos_capacidad.py`, `programas/tests/test_dispositivos_capacidad_revision.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios de esquema ni de datos. No se renumera nada: los sectores con 98 y 99 siguen en 100.
+
+## Validación
+
+`test_dispositivos_capacidad` y `test_dispositivos_capacidad_revision`: un sector nuevo arranca en 1; uno con 98 y 99 sigue en 100; dos sectores numeran independientes; no se reusa el número de una plaza fuera de servicio ni un hueco; la base rechaza el duplicado en el sector (`IntegrityError`) y lo admite en otro; el lote relee los códigos tras bloquear el dispositivo, sobre el mismo sector. **Mutaciones** (rojo y restaurado): numerar contra el dispositivo, rellenar huecos en vez de seguir al mayor, sacar la constraint, y contar solo las plazas operativas.
+
+## Pendientes / a definir
+
+- Si más adelante se quiere un `numero` entero separado del código, es otro cambio: sería una columna nueva `null=True` con su migración de datos.
+
+## Reversión
+
+Se vuelve con el commit anterior: no hay migración. Los códigos ya creados quedan como están.
 
 ## Historial
 

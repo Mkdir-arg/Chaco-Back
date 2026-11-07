@@ -65,8 +65,10 @@ def plazas_tomadas_del_sector(sector):
     return len(con_estadia | con_reserva)
 
 
-def codigos_del_dispositivo(dispositivo):
-    return set(Plaza.objects.filter(sector__dispositivo=dispositivo).values_list("codigo", flat=True))
+def codigos_del_sector(sector):
+    """Los códigos de TODAS las plazas del sector, también las fuera de servicio."""
+
+    return set(Plaza.objects.filter(sector=sector).values_list("codigo", flat=True))
 
 
 def sectores_por_edificio(dispositivo):

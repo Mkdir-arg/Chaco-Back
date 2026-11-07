@@ -145,11 +145,10 @@ class UnicidadBajoCandadoTests(BaseCapacidad):
                 self.assertFalse(queryset.query.select_related, "El FOR UPDATE debe bloquear una sola tabla")
                 candados.append(queryset.model)
                 if queryset.model is Dispositivo:
-                    # Otro POST terminó mientras esperábamos: el form ya vio el código libre.
-                    Plaza.objects.create(sector=self.rival, codigo="B-01")
+                    # Otro POST terminó mientras esperábamos, en el mismo sector: el form vio el código libre.
+                    Plaza.objects.create(sector=self.sector, codigo="B-01")
             return resultado
 
-        self.rival = Sector.objects.create(dispositivo=self.cis, nombre="Otro pabellón")
         with patch.object(QuerySet, "get", get):
             comprobar(operacion)
         self.assertEqual(candados[0], Dispositivo)
