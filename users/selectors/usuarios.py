@@ -72,6 +72,18 @@ def alcance_roles_ids(user):
     return set(_roles_asignables_queryset(user).values_list("id", flat=True))
 
 
+def roles_asignables(operador):
+    """Roles (``Group``) que el operador puede dar al crear o editar un usuario en el ABM de Usuarios.
+
+    Es la regla del combo «Roles» de ese ABM (``users.forms._roles_asignables_queryset``): activos, no de
+    Portal y, para un admin de programa, solo los de sus programas que no otorgan administración. Quien
+    necesite acotarla más (un programa, sin el rol de agente) filtra sobre este queryset, no la reescribe.
+    """
+    from users.forms import _roles_asignables_queryset
+
+    return _roles_asignables_queryset(operador)
+
+
 def puede_gestionar_usuario(operador, target):
     """¿El operador puede editar a ``target`` según su alcance?
 
