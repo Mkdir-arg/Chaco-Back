@@ -445,8 +445,16 @@ class AsignarRelevamientoDispositivoForm(AsignarRelevamientoForm):
         return self._edificios[self.cleaned_data["edificio"]]
 
 
+class _AgenteConUsuarioChoiceField(_AgenteChoiceField):
+    """«Nombre Apellido · usuario»: dos agentes con el mismo nombre se distinguen por el usuario."""
+
+    def label_from_instance(self, usuario):
+        nombre = usuario.get_full_name()
+        return f"{nombre} · {usuario.username}" if nombre else usuario.username
+
+
 class ReasignarRelevamientoForm(forms.Form):
-    asignado_a = _AgenteChoiceField(
+    asignado_a = _AgenteConUsuarioChoiceField(
         label="Nuevo agente territorial",
         queryset=None,
         empty_label="Elegí un agente",

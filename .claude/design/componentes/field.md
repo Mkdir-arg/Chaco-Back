@@ -37,6 +37,7 @@ Render de cada campo:
 - La ayuda va en `text-body-subtle`; el rojo queda **solo** para el error.
 - «Nuevo/Editar sector» (`SectorForm`, `programas/forms_dispositivos.py`, Cambio 429): suma `edificio`, un `Select` con solo los edificios vinculados al dispositivo (`dispositivo=` obligatorio en el form). Es `required` en el alta; en la edición no lo es pero lleva `marca_requerido`, porque se exige mientras el sector quede activo (`clean`) y un sector de baja no lo necesita.
 - «Sumar persona» al Equipo (`SumarMiembroEquipoForm`, `programas/forms_dispositivos.py`, Cambio 411): un `Select` único de pares «Persona — Rol» y un `SwitchInput` «Es responsable»; con `auto_id="equipo_%s"` para no chocar con otros formularios de la pantalla.
+- Selector de agentes al reasignar un relevamiento (`ReasignarRelevamientoForm`, `programas/forms_dispositivos.py`): cada opción es «Nombre Apellido · usuario» (solo el usuario si no hay nombre), para distinguir homónimos; la ayuda del campo es la de la pantalla.
 - «Corregir novedad» de la bitácora (`CorreccionForm`, `programas/forms_bitacora.py`, Cambio 426): suma `personas` (`ChipsSelectMultiple`) y `adjuntos` (`AdjuntosField`) con los mismos campos del alta, sin variante nueva; el formulario lleva `auto_id="id_corr_%s"` porque convive con el modal de alta en la misma página.
 - **El `<p>` del error está siempre**, con `data-error="<campo>"` y oculto mientras no haya
   texto: es donde el guardado AJAX (`programas/templates/programas/becas/_ajax_js.html`) lo

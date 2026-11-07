@@ -99,7 +99,7 @@ que se tocan todo el tiempo (área, estado, sector). Va en una fila propia **fue
   valor: con teclado la flecha sobre un `<select>` cerrado dispara `change` y recargaría la
   página en la primera opción, sin llegar a la segunda (WCAG 3.2.2). Se aparta del mockup, que
   filtra al elegir; el botón es la forma de avisar y confirmar el cambio.
-- CSS: `.nodo-pildora` y `.nodo-pildora__control` en `static/custom/css/nodo-forms.css`.
+- CSS: `.nodo-pildora` y `.nodo-pildora__control` en `static/custom/css/nodo-forms.css`. La etiqueta (`span`) no se parte en dos líneas (`white-space: nowrap`).
 - Sin chevron propio: se ve la flecha nativa del `<select>`.
 
 **Con solapas, las píldoras van dentro de cada panel y el oculto `tab` es el del panel.** La solapa
@@ -110,6 +110,7 @@ include con `ocultos=(("tab", <su clave>),)`, y la vista le arma a cada uno las 
 **filtran algo**: una que no cambia nada en ese panel confunde más de lo que ayuda. Evidencia:
 `programas/templates/programas/dispositivos/relevamientos/list.html` (P21) y la solapa Estadías de
 `programas/templates/programas/dispositivos/legajo/detail.html` (P4).
+La barra de solapas de esas dos pantallas usa la estructura con envoltorio y scroll horizontal de `tabs.md`.
 
 En P21, «Revisados» filtra completados con fecha de revisión; su contador y «Asignado a»
 conservan el mismo alcance que las demás solapas. Las opciones de «Asignado a» se limitan a relevamientos cuya asignación puede ver

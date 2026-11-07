@@ -553,6 +553,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 427 | Dispositivos: detalle de cada novedad de la bitácora (texto completo, personas con enlace al legajo, adjuntos con vista previa o descarga, versiones) y archivo del listado como enlace | Dispositivos · bitácora · sistema de diseño | `#ui` `#rbac` | QA — caso 3 | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 428 | Dispositivos: el relevamiento de un edificio compartido lo ve quien opera alguno de sus dispositivos; la franja de Infraestructura sin alcance de inspección muestra solo el semáforo | Dispositivos · relevamiento edilicio | `#rbac` `#ui` | QA — caso 7 (decisión delegada al juez) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 429 | Dispositivos: el sector se ubica en un edificio del dispositivo (obligatorio al crear), la pestaña Infraestructura muestra edificio → sectores con «Sin edificio», y no se desvincula un edificio con sectores activos | Dispositivos · sectores y plazas · infraestructura | `#datos` `#ui` | QA — caso 6 (decisiones delegadas al juez) | 07/11/2026 | 🟡 **En curso** | `programas.0113` y `programas.0114` |
+| 431 | Dispositivos: pulido visual de móvil (solapas, filtros, KPI de relevamientos, bitácora, Infraestructura, informe, reasignar) | Dispositivos · relevamientos, detalle y bitácora | `#ui` | Revisión visual en testing (390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -52572,6 +52573,70 @@ Ninguna de las dos migraciones es barrera de reversa: se vuelve con `migrate`, e
 1. `python manage.py migrate programas 0113`: corre la reversa de la 0114, que deja todos los sectores con `edificio` en NULL. Se pierde solo la asignación del campo (la automática y las hechas a mano); no se toca ningún sector, plaza ni estadía.
 2. `python manage.py migrate programas 0112`: la reversa de la 0113 elimina la columna `edificio_id` y su FK de `programas_sector`. El código viejo no la conoce y sigue funcionando.
 3. Con la release anterior desplegada no hay nada más que deshacer. Si la reversa falla a mitad, el camino es D.4 (restore), no `--fake`.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 431 — Dispositivos: pulido visual de móvil
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamientos, detalle del dispositivo y bitácora |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | Revisión visual en testing (390 px) |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Template · CSS |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Arreglos chicos de una revisión visual a 390 px: solapas partidas en varias filas, etiqueta «Asignado a:» cortada, KPI sin concordancia de número, bitácora, estado vacío de ubicación, «Agente asignado» repetido en el informe, y (aprobado después por el PM) indicadores 2×2 en móvil y selector de reasignar con usuario.
+
+## Alcance acordado
+
+**Entra:** solapas de relevamientos y del detalle con `overflow-x-auto`; la etiqueta de la píldora no se parte; pluralización y texto «hoy o en los próximos 30 días» en las tarjetas de relevamientos; botón «Corregir (crea versión)» y turno con mayúscula en la bitácora; ubicación sin coordenadas en una línea; informe sin «Agente asignado» repetido; indicadores 2×2; selector de reasignar «Nombre Apellido · usuario» y ayuda nueva. **Queda afuera:** el modal «Reactivar sector» (es la confirmación global `ModernModal`), las tarjetas móviles del listado de relevamientos (no hay patrón en el inventario) y el estilo de las etiquetas «Personas:», «Adjuntos:», «Corregida el…», «Motivo…» en la lista de la bitácora (requiere un parámetro nuevo de la pieza).
+
+## Decisiones tomadas
+
+1. Las solapas con 4 o más ítems usan `overflow-x-auto` en lugar de `flex-wrap` (ficha `tabs.md`); la golden de detalle no se toca.
+2. La etiqueta de `.nodo-pildora` no se parte (`white-space: nowrap`, en `nodo-forms.css`).
+3. El cálculo de «Por vencer» ya incluía hoy; solo cambió el texto. La concordancia de número se resuelve en el template con `pluralize`.
+4. «Corregir» pasa a `btn-nodo btn-tertiary btn-sm btn-fit` dentro de `_entradas_bitacora.html` (ficha `turno_bitacora.md`).
+5. Sin coordenadas, el bloque de ubicación de Infraestructura es una línea de texto con ícono; no se agregó variante compacta a `_estado_vacio.html`.
+6. «Agente asignado» del informe se muestra solo si difiere de «Relevó».
+7. **Ronda de auditoría del PR:** la barra de solapas se parte en envoltorio con borde y barra con scroll (sin `-mb-px` en las solapas), para que `overflow-x-auto` no cree una barra vertical ni recorte el subrayado; el vacío compacto de ubicación pasa a la pieza (`compacto` en `_ubicacion.html`, ficha y test); el nombre del turno se capitaliza con `capfirst` en un solo lugar; la ayuda de reasignar conserva el aviso condicional del agente externo; «Corregir» sin `btn-fit`. Esto reemplaza la decisión 5.
+
+## Implementación
+
+Plantillas de relevamientos, detalle del dispositivo, bitácora y las piezas de turno y entradas; CSS de la píldora; campo de agente con usuario en el formulario de reasignar.
+
+## Archivos
+
+`programas/templates/programas/dispositivos/relevamientos/list.html`, `.../relevamientos/informe.html`, `.../legajo/detail.html`, `.../bitacora/entrada.html`, `templates/components/_entradas_bitacora.html`, `templates/components/_turno_tarjeta.html`, `static/custom/css/nodo-forms.css`, `programas/forms_dispositivos.py`, `programas/services/bitacora_pantalla.py`, fichas `tabs.md`, `filtros.md`, `turno_bitacora.md` y `field.md`, y los tests.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Suites de relevamientos, bitácora, sectores, infraestructura, detalle y piezas de UI en verde; tests nuevos de pluralización y de selector de reasignar.
+
+## Pendientes / a definir
+
+- Modal «Reactivar sector» a 390 px: es la confirmación global (`mobile-modals.css`, CSS marcado duplicado o conflictivo); corregirlo toca todas las confirmaciones.
+- Tarjetas móviles del listado de relevamientos: falta un patrón de lista móvil en el inventario.
+- Etiquetas secundarias de la lista de la bitácora: necesita campos estructurados en `_entradas_bitacora.html`.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
 
 ## Historial
 
