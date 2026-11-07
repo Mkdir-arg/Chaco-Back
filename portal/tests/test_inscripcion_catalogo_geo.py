@@ -105,6 +105,23 @@ class Paso2VistaCatalogoTests(_BaseGeoTest):
         # Las localidades NO se renderizan como <option>: las llena el navegador.
         self.assertNotIn(">Resistencia</option>", html)
 
+    def test_la_cascada_cae_a_todas_las_localidades_sin_provincia_visible(self):
+        """El JS no se corre en la suite (no hay navegador): se fija del lado servidor que
+        la página lo carga con el catálogo embebido y que el script trae el modo de
+        respaldo con las localidades deduplicadas. La conducta en el navegador se
+        verifica a mano."""
+        self._sembrar_sesion()
+        html = self.client.get(self._url()).content.decode()
+        self.assertIn('data-geo="localidad"', html)
+        self.assertIn("nodo-cascada-geo.js", html)
+        from django.contrib.staticfiles import finders
+
+        ruta = finders.find("custom/js/nodo-cascada-geo.js")
+        fuente = open(ruta, encoding="utf-8").read()
+        self.assertIn("data-geo-modo", fuente)
+        self.assertIn("!selectProvincia || !visible(selectProvincia)", fuente)
+        self.assertIn("data-geo-valor", fuente)
+
     def test_sin_preguntas_de_catalogo_la_pagina_no_cambia(self):
         PreguntaGlobal.objects.filter(pk__in=[self.provincia.pk, self.localidad.pk]).update(activo=False)
         self._sembrar_sesion()

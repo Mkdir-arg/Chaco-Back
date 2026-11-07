@@ -4,7 +4,8 @@
  * y localidades por provincia), sin endpoint público. El <select data-geo=
  * "localidad"> llega vacío del servidor y se llena acá con las localidades de
  * la provincia elegida; su atributo data-geo-provincia es el nombre del campo
- * de la Provincia. data-geo-valor es la localidad que había elegido la persona
+ * de la Provincia; sin esa Provincia visible se ofrecen todas las localidades,
+ * sin repetir (data-geo-modo="todas"). data-geo-valor es la localidad que había elegido la persona
  * cuando el formulario vuelve con errores.
  *
  * El servidor revalida que la localidad sea de la provincia: esto es comodidad
@@ -30,14 +31,19 @@
         return op;
     }
 
-    function poblar(selectLocalidad, provincia, elegida) {
-        var nombres = porProvincia[provincia] || [];
+    // Todas las localidades del catálogo, sin repetir y en orden: lo que el servidor
+    // acepta cuando la Localidad llega sin Provincia que la filtre.
+    var todas = (function () {
+        var vistas = {};
+        Object.keys(porProvincia).forEach(function (prov) {
+            (porProvincia[prov] || []).forEach(function (n) { vistas[n] = true; });
+        });
+        return Object.keys(vistas).sort(function (x, y) { return x.localeCompare(y, 'es'); });
+    })();
+
+    function llenar(selectLocalidad, nombres, vacio, elegida) {
         selectLocalidad.innerHTML = '';
-        if (!provincia) {
-            selectLocalidad.appendChild(opcion('', 'Elegí primero la provincia'));
-            return;
-        }
-        selectLocalidad.appendChild(opcion('', nombres.length ? 'Elegí una localidad' : 'La provincia no tiene localidades cargadas'));
+        selectLocalidad.appendChild(opcion('', vacio));
         var fragmento = document.createDocumentFragment();
         nombres.forEach(function (nombre) {
             fragmento.appendChild(opcion(nombre, nombre));
@@ -46,26 +52,58 @@
         if (elegida && nombres.indexOf(elegida) !== -1) selectLocalidad.value = elegida;
     }
 
+    function poblar(selectLocalidad, provincia, elegida) {
+        if (!provincia) {
+            selectLocalidad.innerHTML = '';
+            selectLocalidad.appendChild(opcion('', 'Elegí primero la provincia'));
+            return;
+        }
+        var nombres = porProvincia[provincia] || [];
+        llenar(selectLocalidad, nombres, nombres.length ? 'Elegí una localidad' : 'La provincia no tiene localidades cargadas', elegida);
+    }
+
+    function visible(el) {
+        return !el.closest('[hidden]') && el.getClientRects().length > 0;
+    }
+
     function provinciaDe(selectLocalidad) {
         var form = selectLocalidad.closest('form');
         var nombre = selectLocalidad.getAttribute('data-geo-provincia');
         return form && nombre ? form.querySelector('[name="' + nombre + '"]') : null;
     }
 
-    function iniciar(selectLocalidad) {
+    // Sin Provincia en la página, o con la Provincia oculta (otro canal, una
+    // condición del diseño), no hay con qué filtrar: se ofrecen todas.
+    function iniciar(selectLocalidad, elegida) {
         var selectProvincia = provinciaDe(selectLocalidad);
-        poblar(selectLocalidad, selectProvincia ? selectProvincia.value : '', selectLocalidad.getAttribute('data-geo-valor') || '');
+        if (!selectProvincia || !visible(selectProvincia)) {
+            selectLocalidad.setAttribute('data-geo-modo', 'todas');
+            llenar(selectLocalidad, todas, 'Elegí una localidad', elegida);
+            return;
+        }
+        selectLocalidad.removeAttribute('data-geo-modo');
+        poblar(selectLocalidad, selectProvincia.value, elegida);
     }
 
-    document.querySelectorAll('select[data-geo="localidad"]').forEach(iniciar);
+    document.querySelectorAll('select[data-geo="localidad"]').forEach(function (loc) {
+        iniciar(loc, loc.getAttribute('data-geo-valor') || '');
+    });
 
     document.addEventListener('change', function (e) {
         var el = e.target;
-        if (!(el instanceof HTMLSelectElement) || el.getAttribute('data-geo') !== 'provincia') return;
-        var form = el.closest('form');
+        var form = el instanceof Element ? el.closest('form') : null;
         if (!form) return;
+        var esProvincia = el instanceof HTMLSelectElement && el.getAttribute('data-geo') === 'provincia';
         form.querySelectorAll('select[data-geo="localidad"]').forEach(function (loc) {
-            if (provinciaDe(loc) === el) poblar(loc, el.value, '');
+            if (esProvincia && provinciaDe(loc) === el) {
+                poblar(loc, el.value, '');
+            } else if (!esProvincia) {
+                // Una condición pudo ocultar o mostrar la Provincia: se reevalúa el modo.
+                var antes = loc.getAttribute('data-geo-modo') === 'todas';
+                var sel = provinciaDe(loc);
+                var ahora = !sel || !visible(sel);
+                if (antes !== ahora) iniciar(loc, loc.value);
+            }
         });
     });
 })();

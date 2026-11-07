@@ -23,6 +23,7 @@ from programas.models import (
     Segmento,
     TipoCampo,
 )
+from programas.services import respuestas
 
 
 def _filtro_canal(canal):
@@ -139,7 +140,7 @@ def definicion_para_cliente(definicion, capacidades):
     listas = [
         definicion.get("globales") or [],
         definicion.get("requisitos") or [],
-        _recorrer_campos(definicion["items"]),
+        respuestas.campos_de(definicion),
     ]
     for lista in listas:
         for campo in lista:
@@ -154,9 +155,24 @@ def _usa_catalogos(campos):
     return any(c.get("fuente_opciones") for c in campos)
 
 
-def _recorrer_campos(estructura):
-    for grupo in estructura:
-        yield from grupo.get("items") or []
+def _localidades_sin_provincia_en_el_canal(definicion):
+    """Una Localidad cuya Provincia no se sirve en este canal sale como texto libre.
+
+    Sin la Provincia no hay con qué filtrar y la Localidad quedaría vacía y
+    sin poder contestarse (Cambio 418). Mismo criterio que la Localidad
+    huérfana de ``_campo_dict``: ``STRING`` sin ``fuente_opciones`` ni
+    ``depende_de``.
+    """
+    servidas = {c.get("clave") for c in respuestas.campos_de(definicion)}
+    listas = [definicion["globales"], definicion["requisitos"], respuestas.campos_de(definicion)]
+    for lista in listas:
+        for campo in lista:
+            if campo.get("fuente_opciones") == PreguntaGlobal.FuenteOpciones.LOCALIDAD and (
+                campo.get("depende_de") not in servidas
+            ):
+                campo["tipo"] = TipoCampo.STRING
+                campo.pop("fuente_opciones", None)
+                campo.pop("depende_de", None)
 
 
 def definicion_formulario(relevamiento, con_catalogos=True):
@@ -221,10 +237,11 @@ def definicion_formulario(relevamiento, con_catalogos=True):
         "globales": [_campo_dict(p, "global") for p in globales],
         "requisitos": [_campo_dict(r, _alcance_requisito(r)) for r in requisitos],
     }
+    _localidades_sin_provincia_en_el_canal(definicion)
     # Cambio 418: el catálogo geográfico viaja una sola vez, a nivel superior, y solo
     # si alguna pregunta de este formulario lo usa. Una resolución por definición
     # (cacheada), nunca por ítem; no entra en la foto del caso ni en la huella.
-    if con_catalogos and (_usa_catalogos(definicion["globales"]) or _usa_catalogos(_recorrer_campos(estructura))):
+    if con_catalogos and (_usa_catalogos(definicion["globales"]) or _usa_catalogos(respuestas.campos_de(definicion))):
         from programas.services.catalogo_geografico import catalogos_geograficos
 
         definicion["catalogos"] = catalogos_geograficos()

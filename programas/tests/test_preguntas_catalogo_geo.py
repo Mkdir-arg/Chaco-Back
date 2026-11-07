@@ -99,6 +99,31 @@ class AbmPreguntaCatalogoTests(TestCase):
         form = PreguntaGlobalForm(datos_form(fuente_opciones=Fuente.LOCALIDAD, depende_de=provincia.pk))
         self.assertTrue(form.is_valid(), form.errors)
 
+    def test_el_form_no_desactiva_una_provincia_con_localidad_activa(self):
+        provincia, _ = crear_par()
+        form = PreguntaGlobalForm(
+            datos_form(texto=provincia.texto, tipo="SELECTOR", fuente_opciones=Fuente.PROVINCIA),
+            instance=provincia,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("activo", form.errors)
+        activa = datos_form(texto=provincia.texto, tipo="SELECTOR", fuente_opciones=Fuente.PROVINCIA, activo="on")
+        self.assertTrue(PreguntaGlobalForm(activa, instance=provincia).is_valid())
+
+    def test_el_form_no_activa_una_localidad_con_su_provincia_inactiva(self):
+        provincia, localidad = crear_par()
+        PreguntaGlobal.objects.filter(pk=provincia.pk).update(activo=False)
+        datos = datos_form(
+            texto=localidad.texto,
+            tipo="SELECTOR",
+            fuente_opciones=Fuente.LOCALIDAD,
+            depende_de=provincia.pk,
+            activo="on",
+        )
+        form = PreguntaGlobalForm(datos, instance=localidad)
+        self.assertFalse(form.is_valid())
+        self.assertIn("activo", form.errors)
+
     def test_provincia_no_lleva_depende_de(self):
         provincia, _ = crear_par()
         form = PreguntaGlobalForm(datos_form(fuente_opciones=Fuente.PROVINCIA, depende_de=provincia.pk))
@@ -191,6 +216,19 @@ class DefinicionConCatalogoTests(_CampoBase):
     def test_inactivas_no_activan_el_catalogo(self):
         crear_par(activo=False)
         self.assertNotIn("catalogos", definicion_formulario(self.rel))
+
+    def test_una_localidad_cuya_provincia_no_se_sirve_en_el_canal_sale_como_texto(self):
+        provincia, localidad = crear_par()
+        PreguntaGlobal.objects.filter(pk=provincia.pk).update(canal="link")  # el relevamiento de la prueba es de la app
+        definicion = definicion_formulario(self.rel)
+        campos = [c for g in definicion["items"] for c in g["items"] if c.get("tipo_item") == "campo"]
+        loc = next(c for c in campos if c["clave"] == f"pg-{localidad.pk}")
+        self.assertEqual(loc["tipo"], TipoCampo.STRING)
+        self.assertNotIn("fuente_opciones", loc)
+        self.assertNotIn("depende_de", loc)
+        glob = next(c for c in definicion["globales"] if c["id"] == localidad.pk)
+        self.assertEqual(glob["tipo"], TipoCampo.STRING)
+        self.assertNotIn("catalogos", definicion)
 
     def test_el_campo_expone_fuente_y_dependencia_y_el_catalogo_va_arriba(self):
         provincia, localidad = crear_par()

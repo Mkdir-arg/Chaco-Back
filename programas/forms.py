@@ -1390,6 +1390,13 @@ class GrupoRequisitoForm(forms.ModelForm):
         return nombre
 
 
+MSG_LOCALIDADES_DEPENDEN = "Hay preguntas de Localidad que dependen de ésta: tiene que seguir siendo una Provincia."
+MSG_NO_DESACTIVAR_PROVINCIA = (
+    "No se desactivó: la pregunta «{texto}» (Localidad) depende de ésta. Desactivá esa primero."
+)
+MSG_NO_ACTIVAR_LOCALIDAD = "No se activó: depende de «{texto}», que está inactiva. Activá esa primero."
+
+
 class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
     """Requisitos generales: el orden es único entre todas las preguntas.
 
@@ -1462,6 +1469,7 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
     def clean(self):
         cleaned = super().clean()
         self._limpiar_fuente_catalogo(cleaned)
+        self._limpiar_activacion_catalogo(cleaned)
         if cleaned.get("grupo") is None:
             cleaned["grupo"] = GrupoRequisito.objects.filter(clave="cuestionario").first()
         if not cleaned.get("canal"):
@@ -1513,10 +1521,7 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
             cleaned["depende_de"] = None
             # Dejar de ser de catálogo con Localidades que dependen de ésta las dejaría huérfanas.
             if tiene_dependientes:
-                self.add_error(
-                    "fuente_opciones",
-                    "Hay preguntas de Localidad que dependen de ésta: tiene que seguir siendo una Provincia.",
-                )
+                self.add_error("fuente_opciones", MSG_LOCALIDADES_DEPENDEN)
             return
         cleaned["tipo"] = TipoCampo.SELECTOR
         cleaned["presentacion"] = PresentacionCampo.LISTA
@@ -1529,10 +1534,7 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
             elif depende.fuente_opciones != Fuente.PROVINCIA:
                 self.add_error("depende_de", "Tiene que ser una pregunta de Provincia del catálogo.")
             if tiene_dependientes:
-                self.add_error(
-                    "fuente_opciones",
-                    "Hay preguntas de Localidad que dependen de ésta: tiene que seguir siendo una Provincia.",
-                )
+                self.add_error("fuente_opciones", MSG_LOCALIDADES_DEPENDEN)
         else:
             if depende is not None:
                 self.add_error("depende_de", "La Provincia no depende de otra pregunta.")
@@ -1549,6 +1551,24 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
                 "sobre esta pregunta: SIIS no tomaría su respuesta. Sacale ese destino al requisito "
                 "o dejá ésta sin destino SIIS.",
             )
+
+    def _limpiar_activacion_catalogo(self, cleaned):
+        """Cambio 418: mismas reglas de activación que ``pregunta_toggle_activo``.
+
+        El par Provincia/Localidad se mueve ordenado: una Provincia no se
+        desactiva con Localidades activas que dependen de ella, ni una
+        Localidad se activa con su Provincia inactiva.
+        """
+        if self.instance.pk and self.instance.protegido:
+            return
+        activo = cleaned.get("activo", True)
+        if self.instance.pk and not activo and self.instance.activo:
+            dependiente = self.instance.dependientes.filter(activo=True).first()
+            if dependiente is not None:
+                self.add_error("activo", MSG_NO_DESACTIVAR_PROVINCIA.format(texto=dependiente.texto))
+        depende = cleaned.get("depende_de")
+        if activo and depende is not None and not depende.activo:
+            self.add_error("activo", MSG_NO_ACTIVAR_LOCALIDAD.format(texto=depende.texto))
 
     def hermanos_orden(self):
         return PreguntaGlobal.objects.all()

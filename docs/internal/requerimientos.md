@@ -51809,6 +51809,10 @@ En `/becas/config/preguntas/` («Requisitos generales») agregar **Provincia y L
 10. **Dashboard sin cambios.** Con `opciones` vacías la distribución muestra solo lo observado (no las 8779 filas): se verificó con un test y no hizo falta tocar `dashboard_becas.py`.
 11. **Se crean inactivas.** El PM las activa cuando la app nueva esté publicada; hasta entonces, quien no declara la capacidad igual recibe el campo como texto.
 
+12. **Sin JS la Localidad sale vacía (limitación documentada).** Poblar el `<select>` desde el servidor suma unos 150 KB por carga del link, así que el portal la llena en el navegador con `nodo-cascada-geo.js`; sin JavaScript no se puede elegir. Decisión del cliente. La ficha `.claude/design/dominio/inscripcion.md` ya no dice que sin JS muestra todas las opciones.
+13. **El par se mueve ordenado también desde el formulario del ABM.** `PreguntaGlobalForm` aplica las mismas reglas de activación que `pregunta_toggle_activo` (mensajes en constantes compartidas): no se desactiva una Provincia con Localidades activas ni se activa una Localidad con su Provincia inactiva.
+14. **Localidad sin Provincia servida.** Si la Provincia no se pide en el canal de la definición, la Localidad sale como `STRING` sin `fuente_opciones` ni `depende_de` (mismo criterio que la Localidad huérfana). Y en el link, sin la Provincia en la página o con la Provincia oculta por una condición, el JS ofrece todas las localidades sin repetir (el servidor ya las acepta).
+
 DECISIÓN CLIENTE (propuestas, no confirmadas): (a) que la Provincia sea obligatoria y la Localidad también cuando se activen (las del seed del domicilio de hoy lo son); (b) si alguna vez el sistema atendiera otra provincia, el catálogo ya es nacional y no hay que tocar nada; (c) la ventana de una hora para que un cambio del catálogo llegue al formulario.
 
 ## Implementación
@@ -51849,3 +51853,4 @@ Solo el deploy y el `migrate` (0111). **Las preguntas no se crean solas.** Para 
 ## Historial
 
 - **06/11/2026 — alta del cambio.**
+- **07/11/2026 — ronda de auditoría de #1035 (CHANGES_NEEDED @ e3f88f49):** (MAJOR) reglas de activación del par en el formulario del ABM, Localidad como texto cuando su Provincia no se sirve en el canal y respaldo del JS con todas las localidades; (MINOR) `con_catalogos=False` en `definicion_del_caso` y `pertenencia_del_adjunto`, `_recorrer_campos` reemplazado por `respuestas.campos_de`, mensajes del ABM en constantes, ficha corregida (sin JS la Localidad sale vacía) y `X-Capacidades` admitido en el preflight CORS. Cada guarda con su test, verificadas por mutación.

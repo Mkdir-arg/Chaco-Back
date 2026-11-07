@@ -55,5 +55,7 @@ para los selectores largos y los tokens del portal. Light-only.
 
 Cuando el formulario trae preguntas con opciones del catálogo geográfico, `paso2.html` publica
 `catalogos-geo` con `json_script` y carga `static/custom/js/nodo-cascada-geo.js`. La Localidad se
-filtra por la Provincia elegida en el cliente; sin JS el `<select>` muestra todas las opciones y el
-servidor valida la pertenencia. Los controles son los de `nodo-field`: sin clases nuevas.
+filtra por la Provincia elegida en el cliente (sin la Provincia visible ofrece todas las localidades, sin repetir).
+Sin JS la Localidad sale vacía: es una limitación documentada, porque poblar el `<select>` desde el
+servidor suma unos 150 KB por carga. El servidor valida la pertenencia. Los controles son los de
+`nodo-field`: sin clases nuevas.

@@ -27,6 +27,8 @@ from django.views.generic.detail import DetailView
 
 from core.rbac import CapacidadRequeridaMixin, puede, puede_alguna, requiere
 from programas.forms import (
+    MSG_NO_ACTIVAR_LOCALIDAD,
+    MSG_NO_DESACTIVAR_PROVINCIA,
     AsignacionCoordinadorForm,
     GrupoRequisitoForm,
     PreguntaGlobalForm,
@@ -1249,16 +1251,10 @@ def pregunta_toggle_activo(request, pk):
     if pregunta.activo:
         activa = pregunta.dependientes.filter(activo=True).first()
         if activa is not None:
-            messages.error(
-                request,
-                f"No se desactivó: la pregunta «{activa.texto}» (Localidad) depende de ésta. Desactivá esa primero.",
-            )
+            messages.error(request, MSG_NO_DESACTIVAR_PROVINCIA.format(texto=activa.texto))
             return redirect("becas:preguntas")
     elif pregunta.depende_de_id and not pregunta.depende_de.activo:
-        messages.error(
-            request,
-            f"No se activó: depende de «{pregunta.depende_de.texto}», que está inactiva. Activá esa primero.",
-        )
+        messages.error(request, MSG_NO_ACTIVAR_LOCALIDAD.format(texto=pregunta.depende_de.texto))
         return redirect("becas:preguntas")
     pregunta.activo = not pregunta.activo
     pregunta.save(update_fields=["activo", "modificado"])

@@ -387,7 +387,7 @@ def definicion_del_caso(formulario, relevamiento=None):
         return formulario.definicion
     from programas.services.becas import definicion_formulario
 
-    return definicion_formulario(relevamiento or formulario.relevamiento)
+    return definicion_formulario(relevamiento or formulario.relevamiento, con_catalogos=False)
 
 
 def claves_de_archivo(definicion):
@@ -448,7 +448,7 @@ def pertenencia_del_adjunto(formulario, pregunta_global=None, requisito_nativo=N
         # Sin foto, ``definicion_del_caso`` ya fue la definición vigente entera.
         from programas.services.becas import definicion_formulario
 
-        if clave in claves_de_archivo(definicion_formulario(formulario.relevamiento)):
+        if clave in claves_de_archivo(definicion_formulario(formulario.relevamiento, con_catalogos=False)):
             return ADJUNTO_DEL_FORMULARIO
     if requisito_nativo is not None and not _requisito_de_la_convocatoria(formulario, requisito_nativo):
         return ADJUNTO_AJENO
