@@ -555,6 +555,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 429 | Dispositivos: el sector se ubica en un edificio del dispositivo (obligatorio al crear), la pestaña Infraestructura muestra edificio → sectores con «Sin edificio», y no se desvincula un edificio con sectores activos | Dispositivos · sectores y plazas · infraestructura | `#datos` `#ui` | QA — caso 6 (decisiones delegadas al juez) | 07/11/2026 | 🟡 **En curso** | `programas.0113` y `programas.0114` |
 | 431 | Dispositivos: pulido visual de móvil (solapas, filtros, KPI de relevamientos, bitácora, Infraestructura, informe, reasignar) | Dispositivos · relevamientos, detalle y bitácora | `#ui` | Revisión visual en testing (390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 432 | Dispositivos: sin alcance sobre un dispositivo, 404 (igual que un id inexistente) en vez de 403; la falta de capacidad del módulo sigue en 403 | Dispositivos · alcance | `#rbac` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 433 | Dispositivos: seis errores de lógica de QA (reasignar con la misma fuente de candidatos, doble envío de novedad, corregir sin cambios, fuera de servicio repetido, estado antes que agente al reasignar, tope de capacidad declarada) | Dispositivos · relevamiento edilicio · bitácora · sectores y plazas | `#relevamientos` `#datos` `#ui` | QA — errores de lógica en testing | 07/11/2026 | 🟢 **Hecho** | No requiere |
 | 434 | Dispositivos: lista de tarjetas para móvil (pieza nueva del sistema de diseño) aplicada a Relevamientos, y confirmación global `ModernModal` centrada en móvil | Dispositivos · relevamientos · sistema de diseño | `#ui` `#relevamientos` | PM — decisiones del 07/11/2026 (revisión visual a 390 px) | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
@@ -52708,6 +52709,60 @@ Revertir el PR; no hay datos que deshacer.
 ## Historial
 
 - **07/11/2026 — alta del cambio.**
+
+# Cambio 433 — Dispositivos: seis errores de lógica de la ronda de QA en testing
+
+🟢 **HECHO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamiento edilicio · bitácora · sectores y plazas |
+| **Etiquetas** | `#relevamientos` `#datos` `#ui` |
+| **Solicitante** | QA — errores de lógica hallados en testing |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice · Servidor/API |
+| **Migración** | No requiere |
+
+## Pedido original
+Seis errores de lógica de QA en testing: reasignar un relevamiento edilicio puede ser imposible; el doble envío de una novedad la duplica; corregir una novedad sin cambios crea una versión idéntica; «fuera de servicio» sobre una plaza que ya lo está responde como si hubiera cambiado algo; reasignar un relevamiento cancelado devuelve un error engañoso; la capacidad declarada del sector acepta 99999999.
+
+## Alcance acordado
+Cambios mínimos, cada uno con test. Queda afuera relacionar la capacidad declarada con las plazas (es un dato declarativo) y tocar si el motivo de la corrección es obligatorio (no hay nada decidido en este archivo; no se cambió).
+
+## Decisiones tomadas
+1. **Reasignar: una sola fuente de candidatos.** `agentes_para_reasignar` = `agentes_asignables(edificio)` menos el asignado actual; el modal, el POST y la regla del servicio salen de ahí. La comparación de los dos caminos (`_candidatos_a_relevar`, `agentes_asignables`, `agentes_asignables_para`, `_validar_agente`, `AGENTE_DEBE_SER_EXTERNO`) no mostró una divergencia de reglas: el caso de QA es el de un único agente elegible, que es el asignado actual; al excluirlo el selector queda vacío y todo POST se rechaza (incluso el mismo agente, que además el servicio rechaza por «ya asignado»). Queda fijado por test que un agente aceptado al asignar lo es al reasignar otro relevamiento del edificio.
+2. **Doble envío de novedad.** `registrar_entrada` toma el candado del dispositivo y, si hay una novedad manual versión 1, sin corregir, del mismo autor, turno, tipo, texto, **conjunto de personas y adjuntos (cantidad y nombre)** creada en los últimos 10 s (`VENTANA_DOBLE_ENVIO`), devuelve esa con el mismo éxito. Orden de candados: **estadías de `personas` (por pk) y después dispositivo**, porque egreso, cambio y asignación de plaza bloquean la estadía y piden luego un lock compartido sobre el dispositivo por la FK; al revés habría deadlock. Sin `UniqueConstraint` condicional (no existe en MySQL/MariaDB).
+3. **Corregir sin cambios** se rechaza con «No hay cambios para corregir.» si tipo, texto, personas y adjuntos son los de la versión vigente. El motivo sigue como estaba.
+4. **«Fuera de servicio» repetido** dice «ya estaba fuera de servicio: no hubo nada que cambiar», igual que «volver a servicio»; el servicio ya era idempotente y no toca el motivo ni la fecha.
+5. **Reasignar un relevamiento no en curso** valida el estado antes que el agente: «Solo se reasigna un relevamiento en curso.» (`exigir_reasignable`, que llaman la vista y el servicio).
+6. **Tope de 9999** a la capacidad declarada del sector, en el formulario y en el servicio (`CAPACIDAD_DECLARADA_MAXIMA`). En la edición se exige solo si la cifra cambia: un sector anterior al tope (p. ej. 50000) se puede renombrar y dar de baja sin tocarla, y su formulario no lleva `max`. El campo del modelo no cambia, por eso no hay migración.
+
+## Implementación
+Ver las decisiones. La traducción de los errores del servicio al modal no cambia.
+
+## Archivos
+`programas/services/inspecciones.py`, `programas/services/bitacora.py`, `programas/services/plazas.py`, `programas/forms_dispositivos.py`, `programas/views/dispositivos_relevamientos.py`, `programas/views/dispositivos_legajo.py`, `programas/tests/test_dispositivos_logica_qa_433.py`.
+
+## Base de datos
+Sin cambios de esquema.
+
+## Validación
+`programas.tests.test_dispositivos*` en verde con `--parallel 4`, `manage.py check`, ruff. **Mutaciones** (rojo y restaurado): sacar el chequeo de duplicado reciente, cambiar la fuente de candidatos de la reasignación y desactivar el rechazo de la corrección sin cambios. El candado del dispositivo no se puede probar en SQLite: la carrera real queda cubierta por el patrón ya usado en altas de sector e ingreso.
+
+## Pendientes / a definir
+- Si el motivo de una corrección debe ser obligatorio: sin decisión registrada, queda como está.
+- **Causa probable de lo que vio QA al reasignar.** «Personal» de un edificio incluye a todo usuario de un rol con «Alcance por dispositivo» (`AsignacionDispositivo`) sobre una institución del edificio. En testing el rol de agente probablemente vuelve «personal» a todos los agentes: el selector de reasignar queda vacío (y P4 los ofrece cuando el edificio es compartido y el POST los rechaza). Es configuración de roles o una decisión de redefinir «personal»; no es un error de este cambio. Queda fijado por test. El selector de P4 no se cambió.
+- Un edificio con un solo agente elegible no se puede reasignar: hace falta habilitar otro agente.
+
+## Reversión
+Revertir el commit; no hay migración ni datos.
+
+## Historial
+
+- **07/11/2026 — alta y cierre del cambio.**
+
+---
 
 # Cambio 434 — Lista de tarjetas para móvil y confirmación global centrada en celular
 
