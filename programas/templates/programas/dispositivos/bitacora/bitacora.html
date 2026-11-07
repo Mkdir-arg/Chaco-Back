@@ -202,7 +202,7 @@
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-corregir-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Corregir novedad" titulo_id="modal-corregir-titulo" subtitulo=subtitulo_en_curso icono="fa-pen" cerrar="modalCorregir=false" %}
-      <form method="post" action="{% url 'dispositivos:bitacora_corregir' dispositivo.pk %}" data-ajax class="flex flex-col flex-1 min-h-0">
+      <form method="post" action="{% url 'dispositivos:bitacora_corregir' dispositivo.pk %}" enctype="multipart/form-data" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
           <div>
@@ -212,7 +212,9 @@
           {% include "components/_field.html" with field=form_correccion.tipo wrapper_class="" %}
           {% include "components/_field.html" with field=form_correccion.texto wrapper_class="" %}
           {% include "components/_field.html" with field=form_correccion.motivo wrapper_class="" %}
-          {% include "components/_alerta.html" with tono="info" texto="Se agrega una versión nueva con tu nombre; la anterior sigue visible en «Versiones anteriores». Las personas y los adjuntos se conservan." %}
+          {% if personas %}{% include "components/_field.html" with field=form_correccion.personas wrapper_class="" %}{% endif %}
+          {% include "components/_field.html" with field=form_correccion.adjuntos wrapper_class="" %}
+          {% include "components/_alerta.html" with tono="info" texto="Se agrega una versión nueva con tu nombre; la anterior sigue visible en «Versiones anteriores». Las personas y los adjuntos que ya tenía se conservan: acá solo se pueden sumar más, y la versión deja anotado qué se sumó." %}
         </div>
         {% include "programas/becas/_modal_footer.html" with cancelar="modalCorregir=false" accion_texto="Guardar corrección" %}
       </form>
