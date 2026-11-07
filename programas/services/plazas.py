@@ -157,9 +157,16 @@ def _exigir_nombre_libre(dispositivo, nombre, *, excepto=None):
 
 
 def _bloquear_dispositivo(dispositivo):
-    """Serializa las altas, ediciones y reactivaciones de sectores del mismo dispositivo."""
+    """Serializa las altas, ediciones y reactivaciones de sectores del mismo dispositivo.
 
-    Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
+    Devuelve el dispositivo ya bloqueado y fresco.
+    """
+
+    return Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
+
+
+def _detalle_sector(sector):
+    return f"Sector {sector.nombre} · {Sector.Tipo(sector.tipo).label} · capacidad declarada {sector.capacidad}"
 
 
 def _exigir_tipo_de_plaza_admitido(dispositivo, tipo):
@@ -200,7 +207,7 @@ def crear_sector(*, dispositivo, usuario, nombre, tipo, perfil="", capacidad=0, 
         dispositivo,
         usuario,
         "SECTOR_CREADO",
-        detalle=f"Sector {sector.nombre} · {Sector.Tipo(sector.tipo).label} · capacidad declarada {sector.capacidad}",
+        detalle=_detalle_sector(sector),
     )
     return sector
 
@@ -251,7 +258,7 @@ def editar_sector(*, sector, usuario, nombre, tipo, perfil="", capacidad=0, cond
         dispositivo,
         usuario,
         "SECTOR_BAJA" if daba_de_baja else ("SECTOR_REACTIVADO" if reactiva else "SECTOR_EDITADO"),
-        detalle=f"Sector {sector.nombre} · {Sector.Tipo(sector.tipo).label} · capacidad declarada {sector.capacidad}",
+        detalle=_detalle_sector(sector),
     )
     return sector
 
@@ -265,12 +272,12 @@ def reactivar_sector(*, sector, usuario):
     """
 
     _exigir_alcance(sector.dispositivo, usuario)
-    _bloquear_dispositivo(sector.dispositivo)
-    sector = Sector.objects.select_for_update().select_related("dispositivo").get(pk=sector.pk)
+    dispositivo = _bloquear_dispositivo(sector.dispositivo)
+    sector = Sector.objects.select_for_update().get(pk=sector.pk)
     if sector.activo:
         raise ValidationError({"__all__": "Ese sector ya está activo."})
     try:
-        _exigir_nombre_libre(sector.dispositivo, sector.nombre, excepto=sector)
+        _exigir_nombre_libre(dispositivo, sector.nombre, excepto=sector)
     except ValidationError:
         raise ValidationError(
             {
@@ -282,10 +289,10 @@ def reactivar_sector(*, sector, usuario):
     sector.activo = True
     sector.save(update_fields=["activo", "modificado"])
     _trazar(
-        sector.dispositivo,
+        dispositivo,
         usuario,
         "SECTOR_REACTIVADO",
-        detalle=f"Sector {sector.nombre} · {Sector.Tipo(sector.tipo).label} · capacidad declarada {sector.capacidad}",
+        detalle=_detalle_sector(sector),
     )
     return sector
 
@@ -323,7 +330,7 @@ def agregar_plazas(*, sector, usuario, cantidad, tipo=Plaza.Tipo.CAMA, prefijo="
     """
 
     _exigir_alcance(sector.dispositivo, usuario)
-    Dispositivo.objects.select_for_update().get(pk=sector.dispositivo_id)
+    _bloquear_dispositivo(sector.dispositivo)
     sector = Sector.objects.select_for_update().get(pk=sector.pk)
     dispositivo = sector.dispositivo
     _exigir_que_se_pueda_ampliar(dispositivo)
@@ -378,7 +385,7 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
         raise ValidationError({"codigo": "La plaza necesita un código."})
     _exigir_tipo_de_plaza_admitido(dispositivo, tipo)
 
-    Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
+    _bloquear_dispositivo(dispositivo)
     plaza = Plaza.objects.select_for_update().get(pk=plaza.pk)
     tomada = _plaza_tomada_por(plaza)
     if tomada:

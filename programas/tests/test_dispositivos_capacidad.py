@@ -885,6 +885,8 @@ class ReactivarSectorTests(BaseCapacidad):
         self.assertNotIn("sectores_inactivos", sin_filtro.context)
         self.assertEqual([s.pk for s in con_filtro.context["sectores_inactivos"]], [self.sector.pk])
         self.assertContains(con_filtro, "Reactivar")
+        # «Reactivar» es un `data-confirm-url`: solo anda si la página carga `_confirm_js.html` (hoy, vía `_ajax_js.html`).
+        self.assertContains(con_filtro, "__becasConfirmJs")
         self.assertNotContains(sin_filtro, self._url_reactivar())
 
     def test_reactivar_recupera_las_plazas_y_deja_la_traza(self):

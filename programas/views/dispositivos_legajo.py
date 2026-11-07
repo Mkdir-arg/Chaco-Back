@@ -5,7 +5,6 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count
 from django.db.utils import IntegrityError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -48,7 +47,7 @@ from programas.mixins_dispositivos import (  # noqa: F401  (re-exportados: los i
     DispositivoProgramaPermissionMixin,
 )
 from programas.models import Dispositivo, Edificio, Estadia, Plaza, ReservaPlaza, Sector, TipoDispositivo
-from programas.selectors.capacidad_dispositivo import edificios_vinculables
+from programas.selectors.capacidad_dispositivo import edificios_vinculables, sectores_inactivos
 from programas.selectors.estadia_detalle import (
     detalle_de_estadia,
     novedades_de_estadia,
@@ -903,11 +902,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
         # Los inactivos se piden con `?inactivos=1`: sin el parámetro no cuestan ninguna consulta.
         context["ver_inactivos"] = self.request.GET.get("inactivos") == "1"
         if context["ver_inactivos"]:
-            context["sectores_inactivos"] = (
-                Sector.objects.filter(dispositivo=dispositivo, activo=False)
-                .annotate(cantidad_plazas=Count("plazas"))
-                .order_by("nombre")
-            )
+            context["sectores_inactivos"] = sectores_inactivos(dispositivo)
         context["migas"] = [
             {"label": "Instituciones", "url": reverse("dispositivos:lista")},
             {"label": dispositivo.nombre, "url": reverse("dispositivos:detalle", args=[dispositivo.pk])},

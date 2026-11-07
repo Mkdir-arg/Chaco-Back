@@ -52101,7 +52101,7 @@ Un sector (pabellón) dado de baja desaparecía del mapa, no había forma de vol
 
 ## Archivos
 
-`programas/models/__init__.py`, `programas/migrations/0112_sector_nombre_unico_solo_entre_activos.py`, `programas/services/plazas.py`, `programas/views/dispositivos_capacidad.py`, `programas/views/dispositivos_legajo.py`, `programas/dispositivos_urls.py`, `programas/selectors/auditoria_dispositivo.py`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `.claude/design/componentes/estado_vacio.md`, `programas/tests/test_dispositivos_capacidad.py`, `programas/tests/test_dispositivos_edificio_sector_plaza.py`.
+`programas/models/__init__.py`, `programas/migrations/0112_sector_nombre_unico_solo_entre_activos.py`, `programas/services/plazas.py`, `programas/views/dispositivos_capacidad.py`, `programas/views/dispositivos_legajo.py`, `programas/dispositivos_urls.py`, `programas/selectors/auditoria_dispositivo.py`, `programas/selectors/capacidad_dispositivo.py`, `docs/internal/processes.md`, `programas/templates/programas/dispositivos/sectores/sectores.html`, `.claude/design/componentes/estado_vacio.md`, `programas/tests/test_dispositivos_capacidad.py`, `programas/tests/test_dispositivos_edificio_sector_plaza.py`.
 
 ## Base de datos
 
@@ -52128,5 +52128,6 @@ Se pierde la posibilidad de reutilizar el nombre de un sector inactivo. Los sect
 ## Historial
 
 - **07/11/2026 — alta del cambio.**
+- **07/11/2026 — ronda de auditoría de #1038:** `programas.0112` suma a las reversas condicionadas de `processes.md` D.4; la consulta de inactivos pasa a `sectores_inactivos` (selector); `_bloquear_dispositivo` devuelve el dispositivo y lo usan también `agregar_plazas` y `editar_plaza`; `_detalle_sector` para las tres trazas. El «Reactivar» sin JS resultó ser un falso hallazgo: `_ajax_js.html` ya incluye `_confirm_js.html`; se dejó un test que lo fija (mutación: sin ese include, rojo) y no se duplicó el include.
 
 ---
