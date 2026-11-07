@@ -28,6 +28,8 @@ from programas.models import (
 )
 from programas.services.avisos_resolucion import enviar_aviso_resolucion
 from programas.services.cupo import CasoEnListaEspera, aprobar_o_poner_en_espera
+from programas.services.marca_de_oficio import CODIGO_ERROR as CODIGO_ALTA_DE_OFICIO
+from programas.services.marca_de_oficio import marcada as alta_de_oficio_marcada
 from programas.services.siis import CODIGO_AMBIENTE_NO_PRD
 from programas.services.siis_envio import (
     DESTINO_SIIS,
@@ -658,6 +660,9 @@ def candidatos(
         # búsqueda exacta por caso, no el scan por fila de un ``Exists`` sobre
         # una FK casi siempre nula.
         .filter(~Exists(vigente))
+        # Altas de oficio: la persona ya figura en SIIS y la API no deduplica.
+        # NOT EXISTS por ``formulario_id`` (FK indexada), nunca un ``IN`` de ids.
+        .filter(~alta_de_oficio_marcada())
         .order_by("pk")
     )
     agotados = insumos.agotados
@@ -893,7 +898,7 @@ def procesar_caso(
         # dice nada sobre el estado del servicio.
         cuenta.ocupados += 1
     elif envio.estado == EnvioSIIS.Estado.RECHAZADO:
-        if envio.codigo_error == "DUPLICADO_LOCAL":
+        if envio.codigo_error in ("DUPLICADO_LOCAL", CODIGO_ALTA_DE_OFICIO):
             cuenta.duplicados += 1
         else:
             cuenta.rechazados += 1
