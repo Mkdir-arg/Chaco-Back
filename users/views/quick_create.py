@@ -157,9 +157,15 @@ MENSAJE_DNI_AGENTE = (
     "Ese DNI ya es de un usuario del sistema: pedile al administrador del programa que le sume el rol de agente."
 )
 
+MENSAJE_DNI_EQUIPO = "Esa persona ya tiene usuario: dale el rol desde Usuarios."
+
 #: Qué se le dice a quien repite un DNI, por tipo de alta (la persona ya existe: hay que sumarle el rol, no duplicarla).
 #: Los tipos de backoffice no están: ven el texto genérico del ABM.
-MENSAJES_DNI_DUPLICADO = {"territorial": MENSAJE_DNI_TERRITORIAL, "agente": MENSAJE_DNI_AGENTE}
+MENSAJES_DNI_DUPLICADO = {
+    "territorial": MENSAJE_DNI_TERRITORIAL,
+    "agente": MENSAJE_DNI_AGENTE,
+    "equipo": MENSAJE_DNI_EQUIPO,
+}
 
 
 def _segmento_destino(request, valor):
