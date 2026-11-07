@@ -545,6 +545,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 419 | SIIS: `proponer_alias_siis` propone a qué localidad de SIIS equivale cada localidad core de Chaco que no cruza, para revisión del organismo (no toca `siis_alias_localidades.csv`) | SIIS (`programas/management/commands`) · `docs/internal/siis/` | `#siis` `#datos` | PM — pedido de Provincia/Localidad en Requisitos generales (06/11/2026), PR 3 | 06/11/2026 | 🟡 **En curso** | No requiere |
 | 420 | Dispositivos: «Crear persona» en «Sumar persona al Equipo» (alta de usuario + Equipo en una transacción) y buscador «Persona — Rol» con sugerencias | Dispositivos · usuarios · sistema de diseño | `#ui` `#rbac` `#usuarios` | PM — pedido del 05/11/2026 (modal «Sumar persona al Equipo») | 05/11/2026 | 🟡 **En curso** | No requiere |
 | 421 | Alta de oficio de Becas: nunca se manda el aviso de resolución por correo; tres MINOR de la auditoría de #1033 | Becas · convocatorias · avisos · SIIS | `#convocatorias` `#siis` `#correo` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 423 | Dispositivos: el informe del relevamiento y la línea histórica muestran todas las fotos (24 a la vista, el resto en «Ver las N fotos restantes») | Dispositivos · relevamientos · sistema de diseño | `#ui` | QA — caso 8 | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -52058,5 +52059,64 @@ Revertir el PR; no hay datos que deshacer.
 
 - **07/11/2026 — alta del cambio.**
 - **07/11/2026 — ronda de auditoría de #1036:** `dni_en_convocatoria` vuelve a sus dos `EXISTS` sin ORDER BY (solo comparte con `caso_en_convocatoria` el queryset base); el reenvío manual del aviso informa el motivo en un caso de oficio.
+
+---
+
+# Cambio 423 — Informe de relevamiento y línea histórica: todas las fotos son alcanzables
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamientos · galería fotográfica |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | QA — caso 8 |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue (hallazgo de QA) |
+| **Partes afectadas** | Backend (servicio) · template compartido |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Un relevamiento con 34 fotos mostraba 24 en el informe y en la línea histórica; las otras 10 no se podían ver ni descargar.
+
+## Alcance acordado
+
+**Entra:** que ninguna foto se descarte; las que pasan de 24 van plegadas con aviso. **Queda afuera:** la app de campo (no tiene tope de carga: ni la API ni el serializador limitan la cantidad de fotos por relevamiento) y la regla de acceso (sin cambios).
+
+## Decisiones tomadas
+
+1. **Causa:** `FOTOS_POR_TANDA = 24` recortaba en `informe_de_relevamiento` (`[:24]`), en `fotos_para_galeria` (`fotos[:tope]`) y en `_galeria_fotos.html` (`slice:":24"` + «Mostrando 24 de N»). La línea histórica ya leía todas las fotos de la página y las recortaba en `fotos_para_galeria`.
+2. Se elimina el tope del servicio (la constante desaparece). La pieza dibuja 24 con `loading="lazy"` y el resto en un `<details>` nativo «Ver las N fotos restantes»: sin JS, sin endpoint nuevo (mismo control de acceso que el informe y `/media/`), y las imágenes de un `<details>` cerrado no se descargan, así que el presupuesto de carga se respeta. Cada foto abre en pestaña nueva, desde donde se guarda.
+3. «Mostrando X de N» queda solo para cuando la vista manda menos que `total`.
+4. La celda se extrae a `components/_galeria_fotos_celda.html` (interna de la galería).
+
+## Implementación
+
+`templates/components/_galeria_fotos.html` y `_galeria_fotos_celda.html`; `programas/services/inspecciones.py` (`fotos_para_galeria`, `informe_de_relevamiento`).
+
+## Archivos
+
+`templates/components/_galeria_fotos.html`, `templates/components/_galeria_fotos_celda.html`, `programas/services/inspecciones.py`, `.claude/design/componentes/galeria_fotos.md`, `.claude/agents/chaco-design-system.md`, `core/tests/test_nodo_ui_lote_b.py`, `programas/tests/test_dispositivos_relevamiento_informe.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios. Consultas del informe: las mismas 2 (total y tanda).
+
+## Validación
+
+Tests: la galería con 34 fotos dibuja las 34 y pliega 10 (`GaleriaFotosTest`); el informe con 34 fotos las trae todas. Presupuestos `--tag performance` en verde.
+
+## Pendientes / a definir
+
+- Si algún relevamiento llegara a miles de fotos, habrá que paginar el servicio; hoy la app no pone tope y el uso real son decenas.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
 
 ---

@@ -1,0 +1,8 @@
+{# Celda de _galeria_fotos.html: no se incluye suelta. Recibe `foto`. #}
+<li>
+    <figure class="overflow-hidden rounded-lg border border-base bg-white">
+      {% if foto.url %}<a href="{{ foto.url }}" target="_blank" rel="noopener noreferrer" class="block bg-tertiary"><img src="{{ foto.url }}" alt="{{ foto.alt|default:foto.rotulo }}" loading="lazy" decoding="async" class="h-24 w-full object-cover"><span class="sr-only">Abrir la foto (se abre en una pestaña nueva)</span></a>
+      {% else %}<div class="flex h-24 w-full flex-col items-center justify-center gap-1 bg-tertiary text-body-subtle"><i class="fas fa-camera" aria-hidden="true"></i><span class="sr-only">{{ foto.alt|default:foto.rotulo }}: sin imagen</span></div>{% endif %}
+      <figcaption class="p-2 text-xs"><span class="block truncate font-semibold text-heading" title="{{ foto.rotulo }}">{{ foto.rotulo }}</span>{% if foto.fecha %}<time class="block text-body-subtle" datetime="{{ foto.fecha|date:'Y-m-d' }}">{{ foto.fecha|date:"d/m/Y" }}</time>{% endif %}</figcaption>
+    </figure>
+</li>
