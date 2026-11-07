@@ -59,3 +59,7 @@ filtra por la Provincia elegida en el cliente (sin la Provincia visible ofrece t
 Sin JS la Localidad sale vacía: es una limitación documentada, porque poblar el `<select>` desde el
 servidor suma unos 150 KB por carga. El servidor valida la pertenencia. Los controles son los de
 `nodo-field`: sin clases nuevas.
+
+El JS de la cascada no tiene test automático (la suite no corre un navegador): su comportamiento
+se verifica a mano, en dos casos: con la Provincia oculta por una condición la Localidad ofrece
+todas las localidades, y al volver con errores conserva la localidad elegida.

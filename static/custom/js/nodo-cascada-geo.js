@@ -85,9 +85,16 @@
         poblar(selectLocalidad, selectProvincia.value, elegida);
     }
 
-    document.querySelectorAll('select[data-geo="localidad"]').forEach(function (loc) {
-        iniciar(loc, loc.getAttribute('data-geo-valor') || '');
-    });
+    // La pasada inicial espera a DOMContentLoaded: nodo-formulario.js aplica las
+    // condiciones ahí, y hasta entonces una Provincia oculta por condición todavía
+    // cuenta como visible. Este script carga después, así que su listener corre después.
+    function arrancar() {
+        document.querySelectorAll('select[data-geo="localidad"]').forEach(function (loc) {
+            iniciar(loc, loc.getAttribute('data-geo-valor') || '');
+        });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
+    else arrancar();
 
     document.addEventListener('change', function (e) {
         var el = e.target;
@@ -102,7 +109,7 @@
                 var antes = loc.getAttribute('data-geo-modo') === 'todas';
                 var sel = provinciaDe(loc);
                 var ahora = !sel || !visible(sel);
-                if (antes !== ahora) iniciar(loc, loc.value);
+                if (antes !== ahora) iniciar(loc, loc.value || loc.getAttribute('data-geo-valor') || '');
             }
         });
     });

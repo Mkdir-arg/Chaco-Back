@@ -117,8 +117,11 @@ class Paso2VistaCatalogoTests(_BaseGeoTest):
         from django.contrib.staticfiles import finders
 
         ruta = finders.find("custom/js/nodo-cascada-geo.js")
-        fuente = open(ruta, encoding="utf-8").read()
+        with open(ruta, encoding="utf-8") as archivo:
+            fuente = archivo.read()
         self.assertIn("data-geo-modo", fuente)
+        # La pasada inicial espera a que nodo-formulario.js aplique las condiciones.
+        self.assertIn("document.addEventListener('DOMContentLoaded', arrancar)", fuente)
         self.assertIn("!selectProvincia || !visible(selectProvincia)", fuente)
         self.assertIn("data-geo-valor", fuente)
 
