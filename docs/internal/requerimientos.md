@@ -545,6 +545,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 419 | SIIS: `proponer_alias_siis` propone a qué localidad de SIIS equivale cada localidad core de Chaco que no cruza, para revisión del organismo (no toca `siis_alias_localidades.csv`) | SIIS (`programas/management/commands`) · `docs/internal/siis/` | `#siis` `#datos` | PM — pedido de Provincia/Localidad en Requisitos generales (06/11/2026), PR 3 | 06/11/2026 | 🟡 **En curso** | No requiere |
 | 420 | Dispositivos: «Crear persona» en «Sumar persona al Equipo» (alta de usuario + Equipo en una transacción) y buscador «Persona — Rol» con sugerencias | Dispositivos · usuarios · sistema de diseño | `#ui` `#rbac` `#usuarios` | PM — pedido del 05/11/2026 (modal «Sumar persona al Equipo») | 05/11/2026 | 🟡 **En curso** | No requiere |
 | 421 | Alta de oficio de Becas: nunca se manda el aviso de resolución por correo; tres MINOR de la auditoría de #1033 | Becas · convocatorias · avisos · SIIS | `#convocatorias` `#siis` `#correo` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 425 | Dispositivos: el selector «Nuevo agente» de Reasignar un relevamiento no ofrece al agente que ya lo tiene | Dispositivos · relevamientos edilicios | `#relevamientos` `#rbac` | QA — caso 5 | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -52058,5 +52059,67 @@ Revertir el PR; no hay datos que deshacer.
 
 - **07/11/2026 — alta del cambio.**
 - **07/11/2026 — ronda de auditoría de #1036:** `dni_en_convocatoria` vuelve a sus dos `EXISTS` sin ORDER BY (solo comparte con `caso_en_convocatoria` el queryset base); el reenvío manual del aviso informa el motivo en un caso de oficio.
+
+---
+
+
+# Cambio 425 — Reasignar relevamiento: el selector no ofrece al agente actual
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · relevamientos edilicios (P21) · Reasignar |
+| **Etiquetas** | `#relevamientos` `#rbac` |
+| **Solicitante** | QA — caso 5 |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backend (form y vista) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+QA reporta que en el popup «Reasignar» el selector «Nuevo agente» no lista agentes. Criterios: lista a todos los agentes de campo activos (con o sin relevamientos), no incluye al asignado actual, se puede reasignar a uno sin relevamientos, y queda registro de quién, cuándo y de qué agente a cuál.
+
+## Alcance acordado
+
+**Entra:** excluir al asignado actual del selector (y de la validación del POST) de `ReasignarRelevamientoForm`.
+
+**Queda afuera:** reglas de alcance y visibilidad, permisos, y el modal `?asignar=` de «Sin relevar» (usa `AsignarRelevamientoForm`: no hay agente actual).
+
+## Decisiones tomadas
+
+1. El selector sale de `agentes_asignables(edificio)`, que filtra por **capacidad** (`inspeccion.relevar` en un rol activo del programa), no por tener relevamientos: un agente sin relevamientos aparece. No hay otro filtro que lo vacíe.
+2. Antes el queryset incluía al asignado actual y solo el servicio lo rechazaba («ya está asignado a ese agente»). Ahora el form recibe `actual` y lo excluye; el POST con el mismo agente falla como `invalid_choice` en el campo `asignado_a`.
+3. **Causa probable de la lista vacía de QA: datos de testing.** Con un solo agente de campo (el asignado) la lista era de uno, que es el actual; o ningún usuario activo con rol del programa Dispositivos y `inspeccion.relevar`, o todos son personal del edificio (`AGENTE_DEBE_SER_EXTERNO`). No se encontró un defecto de código que la vacíe.
+4. La traza `REASIGNADA` ya registra usuario, fecha y «de X a Y» (`reasignar_inspeccion`); no se tocó.
+
+## Implementación
+
+`ReasignarRelevamientoForm(agentes=..., actual=<asignado_a_id>)`; la vista lo pasa en el GET del modal y en el POST.
+
+## Archivos
+
+`programas/forms_dispositivos.py`, `programas/views/dispositivos_relevamientos.py`, `programas/tests/test_dispositivos_relevamientos_listado.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Tests `test_el_selector_de_reasignar_no_ofrece_al_asignado_y_si_a_un_agente_sin_relevamientos` y `test_reasignar_a_un_agente_sin_relevamientos_cambia_de_agente_y_deja_traza`. **Mutación:** sin el `exclude` el primero queda rojo; restaurado, verde.
+
+## Pendientes / a definir
+
+- Confirmar en testing que existen usuarios activos con rol de Dispositivos e `inspeccion.relevar` fuera del personal del edificio.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
 
 ---
