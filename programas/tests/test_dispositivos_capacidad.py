@@ -25,7 +25,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
 from django.test import override_settings, tag
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
@@ -138,27 +138,61 @@ class AltaDeSectoresYPlazasTests(BaseCapacidad):
         self.assertEqual(Plaza.objects.filter(sector=sector).count(), 3)
         self.assertTrue(TrazaDispositivo.objects.filter(dispositivo=self.cis, accion="PLAZAS_AGREGADAS").exists())
 
-    def test_el_lote_saltea_los_codigos_que_ya_existen_en_la_institucion(self):
-        """Un código se lee solo, sin su sector, en los mensajes y en la bitácora.
-
-        El modelo solo exige que no se repita **dentro del sector**, así que esta parte no
-        la cubre la base: si el generador no mirara toda la institución, el segundo
-        pabellón nacería con otra «B-02».
-        """
+    def test_cada_sector_numera_sus_plazas_desde_1_sin_mirar_a_los_otros(self):
+        """Cambio 430: la numeración es por sector; el código ya no es único en la institución."""
 
         otro = crear_sector(
             dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector(nombre="Pabellón C")
         )
-        Plaza.objects.create(sector=otro, codigo="B-02")
+        Plaza.objects.bulk_create([Plaza(sector=otro, codigo=f"B-{n:02d}") for n in (98, 99)])
         sector = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
 
-        plazas = agregar_plazas(sector=sector, usuario=self.operador_cis, cantidad=3, prefijo="B-")
+        nuevas = agregar_plazas(sector=sector, usuario=self.operador_cis, cantidad=3, prefijo="B-")
+        siguientes = agregar_plazas(sector=otro, usuario=self.operador_cis, cantidad=2, prefijo="B-")
 
-        self.assertEqual([plaza.codigo for plaza in plazas], ["B-01", "B-03", "B-04"])
+        self.assertEqual([plaza.codigo for plaza in nuevas], ["B-01", "B-02", "B-03"])
+        self.assertEqual([plaza.codigo for plaza in siguientes], ["B-100", "B-101"])
+
+    def test_un_sector_con_98_y_99_sigue_en_100_y_uno_vacio_arranca_en_1(self):
+        con_plazas = crear_sector(
+            dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector(nombre="Pabellón C")
+        )
+        Plaza.objects.bulk_create([Plaza(sector=con_plazas, codigo=c) for c in ("98", "99")])
+        vacio = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
+
+        seguidas = agregar_plazas(sector=con_plazas, usuario=self.operador_cis, cantidad=2)
+        primeras = agregar_plazas(sector=vacio, usuario=self.operador_cis, cantidad=2)
+
+        self.assertEqual([plaza.codigo for plaza in seguidas], ["100", "101"])
+        self.assertEqual([plaza.codigo for plaza in primeras], ["01", "02"])
+
+    def test_no_se_reusa_el_numero_de_una_plaza_fuera_de_servicio_ni_el_hueco(self):
+        sector = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
+        Plaza.objects.create(sector=sector, codigo="B-01")
+        Plaza.objects.create(
+            sector=sector, codigo="B-05", estado=Plaza.Estado.FUERA_SERVICIO, motivo_fuera_servicio="Rota"
+        )
+
+        plazas = agregar_plazas(sector=sector, usuario=self.operador_cis, cantidad=2, prefijo="B-")
+
+        self.assertEqual([plaza.codigo for plaza in plazas], ["B-06", "B-07"])
+
+    def test_la_base_rechaza_el_codigo_repetido_en_el_sector_pero_no_en_otro(self):
+        sector = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
+        otro = crear_sector(
+            dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector(nombre="Pabellón C")
+        )
+        Plaza.objects.create(sector=sector, codigo="B-01")
+        Plaza.objects.create(sector=otro, codigo="B-01")
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Plaza.objects.create(sector=sector, codigo="B-01")
 
     def test_los_codigos_del_lote_no_dependen_de_la_base(self):
         self.assertEqual(codigos_en_lote(cantidad=3, prefijo="A-", tomados=set()), ["A-01", "A-02", "A-03"])
         self.assertEqual(codigos_en_lote(cantidad=2, prefijo="", tomados={"01"}), ["02", "03"])
+        self.assertEqual(codigos_en_lote(cantidad=2, prefijo="", tomados={"02"}), ["03", "04"])
+        self.assertEqual(codigos_en_lote(cantidad=1, prefijo="A-", tomados={"B-09", "A-X"}), ["A-01"])
         self.assertEqual(codigos_en_lote(cantidad=2, prefijo="A-", tomados={"a-01"}), ["A-02", "A-03"])
 
     def test_el_nombre_del_sector_no_se_repite_en_la_institucion(self):
@@ -584,12 +618,16 @@ class EdicionDePlazaTests(BaseCapacidad):
         self.assertEqual(self.plaza.sector, self.sector)
         self.assertTrue(TrazaDispositivo.objects.filter(dispositivo=self.cis, accion="PLAZA_EDITADA").exists())
 
-    def test_el_codigo_es_unico_entre_sectores_del_dispositivo(self):
-        otro = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
-        Plaza.objects.create(sector=otro, codigo="b-01")
+    def test_el_codigo_es_unico_en_el_sector_pero_no_entre_sectores(self):
+        Plaza.objects.create(sector=self.plaza.sector, codigo="b-01")
         with self.assertRaises(ValidationError) as fallo:
             editar_plaza(plaza=self.plaza, usuario=self.operador_cis, codigo="B-01", tipo=Plaza.Tipo.CAMA)
         self.assertIn("codigo", fallo.exception.message_dict)
+
+        otro = crear_sector(dispositivo=self.cis, usuario=self.operador_cis, **self._datos_de_sector())
+        Plaza.objects.create(sector=otro, codigo="c-01")
+        plaza = editar_plaza(plaza=self.plaza, usuario=self.operador_cis, codigo="C-01", tipo=Plaza.Tipo.CAMA)
+        self.assertEqual(plaza.codigo, "C-01")
 
     def test_otro_dispositivo_puede_usar_el_mismo_codigo(self):
         plaza = editar_plaza(plaza=self.plaza, usuario=self.operador_cis, codigo="G1", tipo=Plaza.Tipo.CAMA)

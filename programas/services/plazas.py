@@ -29,13 +29,16 @@ liberar—: primero se reubica a la persona, que es exactamente lo que ya exige
 una de la capacidad operativa es sacarla de servicio, con su motivo.
 """
 
+import re
+
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
 from programas.models import Dispositivo, Plaza, Sector, TrazaDispositivo
-from programas.selectors.capacidad_dispositivo import codigos_del_dispositivo, plazas_tomadas_del_sector
+from programas.selectors.capacidad_dispositivo import codigos_del_sector, plazas_tomadas_del_sector
 from programas.services.dispositivos import puede_operar_dispositivo
 from programas.services.estadias import _plaza_tomada_por
+from programas.services.nombre_plaza import plaza_con_sector
 
 #: Configurar la capacidad instalada es edición del legajo, no operación diaria. La misma
 #: capacidad con la que se saca una plaza de servicio.
@@ -379,24 +382,20 @@ def reactivar_sector(*, sector, usuario):
 
 
 def codigos_en_lote(*, cantidad, prefijo, tomados):
-    """Los `cantidad` códigos del lote: `prefijo` + número, salteando los que ya existen.
+    """Los `cantidad` códigos del lote: `prefijo` + número, siguiendo al mayor que ya hay.
 
-    Numera desde 1 y rellena a dos dígitos (`A-01`, como el mockup), así que el orden
-    alfabético del mapa coincide con el numérico hasta 99. Es una función pura para poder
-    probarla sin base.
+    `tomados` son los códigos de **todas** las plazas del sector, también las fuera de servicio:
+    el siguiente es el mayor número con ese prefijo más uno, o 1 si no hay ninguno, así que el
+    número de una plaza no se reusa nunca (Cambio 430). Se rellena a dos dígitos (`A-01`, como
+    el mockup). Un código que no sigue el patrón no cuenta para el máximo; el generado no puede
+    chocar con ninguno porque siempre es mayor. Es una función pura para poder probarla sin base.
     """
 
     # La comparación coincide con la collation de códigos de MySQL/MariaDB.
-    tomados = {codigo.casefold() for codigo in tomados}
-    codigos = []
-    numero = 1
-    while len(codigos) < cantidad:
-        codigo = f"{prefijo}{numero:02d}"
-        if codigo.casefold() not in tomados:
-            codigos.append(codigo)
-            tomados.add(codigo.casefold())
-        numero += 1
-    return codigos
+    patron = re.compile(rf"{re.escape(prefijo.casefold())}(\d+)")
+    numeros = (int(m.group(1)) for m in map(patron.fullmatch, (codigo.casefold() for codigo in tomados)) if m)
+    primero = 1 + max(numeros, default=0)
+    return [f"{prefijo}{numero:02d}" for numero in range(primero, primero + cantidad)]
 
 
 @transaction.atomic
@@ -406,8 +405,9 @@ def agregar_plazas(*, sector, usuario, cantidad, tipo=Plaza.Tipo.CAMA, prefijo="
     Las plazas nacen operativas: una plaza que todavía no se puede usar se saca de servicio
     con su motivo, que es lo que el mapa sabe mostrar.
 
-    Se bloquea el dispositivo antes del sector: la numeración es única entre sectores,
-    incluso cuando dos lotes se cargan al mismo tiempo en pabellones distintos.
+    La numeración es por sector y arranca en 1 (Cambio 430). Se bloquea el dispositivo antes
+    del sector, y los códigos se leen ya con ambos bloqueados: dos lotes simultáneos sobre el
+    mismo sector no toman el mismo número.
     """
 
     _exigir_alcance(sector.dispositivo, usuario)
@@ -426,7 +426,7 @@ def agregar_plazas(*, sector, usuario, cantidad, tipo=Plaza.Tipo.CAMA, prefijo="
     _exigir_tipo_de_plaza_admitido(dispositivo, tipo)
 
     prefijo = (prefijo or "").strip()
-    codigos = codigos_en_lote(cantidad=cantidad, prefijo=prefijo, tomados=codigos_del_dispositivo(dispositivo))
+    codigos = codigos_en_lote(cantidad=cantidad, prefijo=prefijo, tomados=codigos_del_sector(sector))
     largo = max(len(codigo) for codigo in codigos)
     if largo > Plaza._meta.get_field("codigo").max_length:
         raise ValidationError({"prefijo": "El prefijo es demasiado largo para el código de la plaza."})
@@ -450,8 +450,8 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
 
     Una plaza con estadía, reserva o préstamo vigente primero se reubica o libera.
     Se consulta la misma guarda de estadías con la fila de la plaza bloqueada.
-    El dispositivo se bloquea antes: la unicidad del código abarca todos sus sectores
-    y se revalida dentro de esta transacción, también frente a altas en lote.
+    El dispositivo se bloquea antes: la unicidad del código es por sector (Cambio 430) y se
+    revalida dentro de esta transacción, también frente a altas en lote.
 
     El estado operativo es de `estadias.sacar_plaza_de_servicio` y
     `estadias.volver_plaza_a_servicio`: tienen su propia regla (la plaza tomada no sale) y
@@ -459,6 +459,7 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
     """
 
     dispositivo = plaza.sector.dispositivo
+    sector_nombre = plaza.sector.nombre
     _exigir_alcance(dispositivo, usuario)
 
     codigo = _normalizar(codigo)
@@ -471,8 +472,8 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
     tomada = _plaza_tomada_por(plaza)
     if tomada:
         raise ValidationError({"__all__": f"La plaza tiene {tomada}: reubicá o liberá antes de editarla."})
-    if Plaza.objects.filter(sector__dispositivo=dispositivo, codigo__iexact=codigo).exclude(pk=plaza.pk).exists():
-        raise ValidationError({"codigo": "Ya hay una plaza con ese código en el dispositivo."})
+    if Plaza.objects.filter(sector=plaza.sector_id, codigo__iexact=codigo).exclude(pk=plaza.pk).exists():
+        raise ValidationError({"codigo": "Ya hay una plaza con ese código en el sector."})
 
     anterior = plaza.codigo
     plaza.codigo = codigo
@@ -483,6 +484,6 @@ def editar_plaza(*, plaza, usuario, codigo, tipo):
         dispositivo,
         usuario,
         "PLAZA_EDITADA",
-        detalle=f"Plaza {anterior} → {plaza.codigo} · {Plaza.Tipo(plaza.tipo).label}",
+        detalle=f"Plaza {anterior} → {plaza_con_sector(plaza, sector_nombre)} · {Plaza.Tipo(plaza.tipo).label}",
     )
     return plaza

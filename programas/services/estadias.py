@@ -111,6 +111,7 @@ from programas.services.dispositivos import (
     puede_operar_dispositivo,
 )
 from programas.services.movimientos import plaza_ocupada_despues_de, registrar_movimiento, ultimo_momento
+from programas.services.nombre_plaza import nombre_de_plaza, plaza_con_sector
 
 CAP_ADMITIR = "dispositivo.admitir"
 CAP_EGRESAR = "dispositivo.egresar"
@@ -520,7 +521,7 @@ def ingresar_persona(*, ciudadano, dispositivo, usuario, plaza=None, fecha_ingre
         usuario,
         "ESTADIA_INGRESO",
         estado_nuevo=Estadia.Estado.ACTIVA,
-        detalle=f"Estadía {estadia.pk} · ciudadano {ciudadano.pk} · plaza {plaza.codigo if plaza else '—'}",
+        detalle=f"Estadía {estadia.pk} · ciudadano {ciudadano.pk} · {nombre_de_plaza(plaza) if plaza else 'plaza —'}",
     )
     return estadia
 
@@ -681,6 +682,12 @@ def cambiar_plaza(*, estadia, plaza, usuario, motivo, momento=None):
 
     origen = estadia.plaza
     cambia_de_sector = origen is not None and origen.sector_id != plaza.sector_id
+    # Misma plaza.sector (ya leído) salvo que cambie de sector: ahí el origen cuesta una consulta.
+    nombre_origen = (
+        "plaza —"
+        if origen is None
+        else nombre_de_plaza(origen, origen.sector.nombre if cambia_de_sector else plaza.sector.nombre)
+    )
     tipo = MovimientoEstadia.Tipo.CAMBIO_SECTOR if cambia_de_sector else MovimientoEstadia.Tipo.CAMBIO_PLAZA
 
     estadia.plaza = plaza
@@ -702,8 +709,7 @@ def cambiar_plaza(*, estadia, plaza, usuario, motivo, momento=None):
         usuario,
         "ESTADIA_CAMBIO_PLAZA",
         detalle=(
-            f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · "
-            f"plaza {origen.codigo if origen else '—'} → {plaza.codigo}"
+            f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · {nombre_origen} → {nombre_de_plaza(plaza)}"
         ),
     )
     return movimiento
@@ -769,7 +775,7 @@ def asignar_plaza(*, estadia, plaza, usuario, motivo="", momento=None):
         dispositivo,
         usuario,
         "ESTADIA_ASIGNACION_PLAZA",
-        detalle=f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · plaza {plaza.codigo}",
+        detalle=f"Estadía {estadia.pk} · ciudadano {estadia.ciudadano_id} · {nombre_de_plaza(plaza)}",
     )
     return movimiento
 
@@ -826,7 +832,7 @@ def reservar_plaza(*, plaza, ciudadano, usuario, tipo=ReservaPlaza.Tipo.RESERVA,
         usuario,
         "PLAZA_RESERVADA",
         estado_nuevo=ReservaPlaza.Estado.VIGENTE,
-        detalle=f"Plaza {plaza.codigo} · {reserva.get_tipo_display()} · ciudadano {ciudadano.pk}",
+        detalle=f"Plaza {plaza_con_sector(plaza)} · {reserva.get_tipo_display()} · ciudadano {ciudadano.pk}",
     )
     return reserva
 
@@ -861,7 +867,7 @@ def _exigir_persona_sin_alojamiento_ni_reserva(ciudadano, dispositivo, usuario, 
     propia = reserva_propia_vigente(ciudadano.pk, dispositivo, momento)
     if propia is not None:
         que = "un préstamo" if propia.tipo == ReservaPlaza.Tipo.PRESTAMO else "una reserva"
-        raise ValidationError({"ciudadano": PERSONA_CON_RESERVA.format(que=que, plaza=propia.plaza.codigo)})
+        raise ValidationError({"ciudadano": PERSONA_CON_RESERVA.format(que=que, plaza=plaza_con_sector(propia.plaza))})
 
 
 def reserva_propia_vigente(ciudadano_id, dispositivo, momento=None):
@@ -890,6 +896,7 @@ def liberar_reserva(*, reserva, usuario, motivo="", verificar_alcance=True):
     """
 
     dispositivo = reserva.plaza.sector.dispositivo
+    sector_nombre = reserva.plaza.sector.nombre
     if verificar_alcance and not puede_operar_dispositivo(usuario, dispositivo, CAP_ADMITIR):
         raise PermissionDenied("No tenés alcance para liberar plazas en este dispositivo.")
 
@@ -915,7 +922,7 @@ def liberar_reserva(*, reserva, usuario, motivo="", verificar_alcance=True):
         "PLAZA_LIBERADA",
         estado_anterior=ReservaPlaza.Estado.VIGENTE,
         estado_nuevo=ReservaPlaza.Estado.LIBERADA,
-        detalle=f"Plaza {reserva.plaza.codigo} · {reserva.get_tipo_display()}",
+        detalle=f"Plaza {plaza_con_sector(reserva.plaza, sector_nombre)} · {reserva.get_tipo_display()}",
     )
     return reserva
 
@@ -940,6 +947,7 @@ def sacar_plaza_de_servicio(*, plaza, usuario, motivo):
         raise ValidationError({"motivo_fuera_servicio": "Sacar una plaza de servicio exige un motivo."})
 
     dispositivo = plaza.sector.dispositivo
+    sector_nombre = plaza.sector.nombre
     if not puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para cambiar las plazas de este dispositivo.")
 
@@ -960,7 +968,7 @@ def sacar_plaza_de_servicio(*, plaza, usuario, motivo):
         "PLAZA_FUERA_SERVICIO",
         estado_anterior=Plaza.Estado.OPERATIVA,
         estado_nuevo=Plaza.Estado.FUERA_SERVICIO,
-        detalle=f"Plaza {plaza.codigo} · motivo: {motivo}",
+        detalle=f"Plaza {plaza_con_sector(plaza, sector_nombre)} · motivo: {motivo}",
     )
     return plaza
 
@@ -974,6 +982,7 @@ def volver_plaza_a_servicio(*, plaza, usuario):
     """
 
     dispositivo = plaza.sector.dispositivo
+    sector_nombre = plaza.sector.nombre
     if not puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR):
         raise PermissionDenied("No tenés alcance para cambiar las plazas de este dispositivo.")
 
@@ -991,6 +1000,6 @@ def volver_plaza_a_servicio(*, plaza, usuario):
         "PLAZA_EN_SERVICIO",
         estado_anterior=Plaza.Estado.FUERA_SERVICIO,
         estado_nuevo=Plaza.Estado.OPERATIVA,
-        detalle=f"Plaza {plaza.codigo}",
+        detalle=f"Plaza {plaza_con_sector(plaza, sector_nombre)}",
     )
     return plaza

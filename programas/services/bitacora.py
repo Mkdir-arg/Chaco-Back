@@ -54,6 +54,7 @@ from programas.models import (
     Turno,
 )
 from programas.services.dispositivos import puede_operar_dispositivo
+from programas.services.nombre_plaza import nombre_de_plaza
 
 #: Cargar y corregir novedades del turno.
 CAP_BITACORA = "dispositivo.bitacora"
@@ -504,26 +505,29 @@ def _texto_automatico(movimiento) -> str:
     muestra solo con `ciudadano.ver` (Cambio 271). Si el nombre estuviera en el texto, la
     bitácora se lo contaría a cualquiera que tenga `dispositivo.ver`, que es menos.
 
-    Las plazas se nombran por su código y nunca por su sector: el movimiento trae la
-    plaza que el servicio ya tenía en la mano, y leerle el sector sería una consulta más
-    dentro de la transacción que aloja o egresa a alguien.
+    Las plazas se nombran con su sector («plaza 01 (Pabellón A)»): el código se repite entre
+    sectores desde el Cambio 430. El movimiento trae la plaza que el servicio ya tenía en la
+    mano, con el sector leído, así que no cuesta una consulta; solo el origen de un cambio de
+    sector hace una (en el mismo sector se reusa el del destino).
     """
 
     tipo = movimiento.tipo
+    destino = movimiento.plaza_destino
     if tipo == MovimientoEstadia.Tipo.INGRESO:
-        destino = movimiento.plaza_destino
-        texto = f"Ingreso · plaza {destino.codigo}" if destino is not None else "Ingreso · sin plaza asignada"
+        texto = f"Ingreso · {nombre_de_plaza(destino)}" if destino is not None else "Ingreso · sin plaza asignada"
     elif tipo == MovimientoEstadia.Tipo.EGRESO:
         texto = "Egreso"
     elif tipo == MovimientoEstadia.Tipo.CAMBIO_PLAZA and movimiento.plaza_origen_id is None:
         # Sin origen: la persona estaba sin plaza y se le asignó una (`asignar_plaza`).
-        texto = f"Se asignó la plaza {movimiento.plaza_destino.codigo}"
+        texto = f"Se asignó la {nombre_de_plaza(destino)}"
     else:
         origen = movimiento.plaza_origen
-        texto = (
-            f"{movimiento.get_tipo_display()} · "
-            f"{origen.codigo if origen is not None else 'sin plaza'} → {movimiento.plaza_destino.codigo}"
-        )
+        if origen is None:
+            nombre_origen = "sin plaza"
+        else:
+            mismo_sector = origen.sector_id == destino.sector_id
+            nombre_origen = nombre_de_plaza(origen, destino.sector.nombre if mismo_sector else None)
+        texto = f"{movimiento.get_tipo_display()} · {nombre_origen} → {nombre_de_plaza(destino)}"
     return f"{texto} · motivo: {movimiento.motivo}" if movimiento.motivo else texto
 
 
