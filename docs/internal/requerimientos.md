@@ -52645,6 +52645,7 @@ Se vuelve con el commit anterior: no hay migración. Los códigos ya creados que
 
 - **07/11/2026 — alta del cambio.**
 - **07/11/2026 — ronda de auditoría de #1047:** los textos guardados nombran el sector, orden natural en los mapas, texto del modal y simplificación de `codigos_en_lote`.
+- **07/11/2026 — CI de #1047:** los 3 tests de `test_dispositivos_capacidad_concurrencia` (solo corren contra el motor real) asumían numeración y unicidad por dispositivo, así que eran tests viejos y no un bug (reproducido en MariaDB 10.11: los tres fallan igual con el archivo anterior). Se reescribieron para medir la garantía nueva, sin debilitarla: sectores distintos numeran cada uno desde 01 y aceptan el mismo código; dos lotes o dos ediciones en el MISMO sector no duplican y el segundo choca (200/400); lote y edición en el mismo sector comparten el candado. Se sumó el caso de dos lotes simultáneos en un mismo sector. Mutación: sin el bloqueo del dispositivo en el lote, el test de lote y edición cae con un deadlock (1213). Se actualizaron las fichas `turno_bitacora.md` y `estado_vacio.md` de `.claude/design/` (formato «plaza 01 (Pabellón A)» y numeración por sector), que exige `check_design_agent.py`.
 
 ---
 

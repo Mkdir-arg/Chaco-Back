@@ -27,7 +27,7 @@ Tarde · entradas», debajo de su encabezado.
 | `total` | Opcional: cantidad real de entradas si la vista mandó menos |
 
 `programas/services/bitacora.py` genera las novedades de ingreso, egreso, cambio y asignación de plaza
-(«Se asignó la plaza X») con origen automático: la vista pasa `automatica=True` y no ofrece «Corregir» para ellas.
+(«Se asignó la plaza X») con origen automático. Desde el Cambio 430 las plazas se numeran por sector y el código se repite, así que el texto las nombra con su sector («plaza 01 (Pabellón A)», helper único `nombre_de_plaza` de `programas/services/nombre_plaza.py`; lo mismo en las trazas de `programas/services/estadias.py`): la vista pasa `automatica=True` y no ofrece «Corregir» para ellas.
 
 `url_corregir` dibuja «Corregir (crea versión)» como botón terciario chico (`btn-nodo btn-tertiary btn-sm`, área táctil de botón) en la línea de autoría. El nombre del turno se muestra con la primera letra en mayúscula (`capfirst` en la tarjeta).
 La pantalla lo prepara solo para entradas corregibles y con capacidad y alcance; abre
