@@ -513,7 +513,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         # detalle de siempre sigue costando lo mismo.
         if context["puede_gestionar_equipo"] and self.request.GET.get("equipo") == "sumar":
             context["tab"] = "equipo"
-            # «Crear persona» (Cambio 417) es de quien además administra los usuarios de Dispositivos: el resto ve
+            # «Crear persona» (Cambio 420) es de quien además administra los usuarios de Dispositivos: el resto ve
             # el pedido al administrador, tanto en el aviso de «sin resultados» como bajo el buscador.
             puede_crear = puede_crear_persona(user, dispositivo)
             context["puede_crear_persona"] = puede_crear

@@ -10,7 +10,7 @@
 (`ingreso/paso_persona.html`, Cambio 416) y el campo de «Buscar agente» del modal de alta rápida de usuarios
 (`users/templates/user/_alta_rapida_modal.html`, que se monta desde su propio JS al abrirse como agente; lo cargan
 `legajo/detail.html` y `relevamientos/list.html`) y el buscador «Persona y rol» del modal «Sumar persona al Equipo»
-(`legajo/detail.html`, Cambio 417: usa `data-sugerencias-destino`).
+(`legajo/detail.html`, Cambio 420: usa `data-sugerencias-destino`).
 
 Mejora progresiva sobre un `<input>` de texto que ya existe: desde 3 caracteres muestra
 la persona que coincide, o la lista, y al elegir una completa el campo con su DNI (o con `valor`, si la fila lo trae: el buscador de agentes deja
@@ -28,7 +28,7 @@ reemplaza al campo ni a la validación: el input es el que viaja en el POST y el
 
 - `data-sugerencias-url` se lee **en cada consulta**: una pantalla puede cambiarlo o quitarlo (sin URL no consulta).
   Un campo que la recibe después se monta con `window.NodoSugerencias.montar(contenedor)`.
-- `data-sugerencias-destino="<id>"` apunta a un `<input type="hidden">`: al elegir, el destino recibe `valor` y el campo visible muestra `etiqueta` (la fila la trae); al volver a teclear, el destino se vacía. Es lo que viaja en el POST y el servidor lo valida (Cambio 417: el par `usuario:rol` del Equipo). Sin el atributo, y sin `etiqueta`, el comportamiento es el de siempre.
+- `data-sugerencias-destino="<id>"` apunta a un `<input type="hidden">`: al elegir, el destino recibe `valor` y el campo visible muestra `etiqueta` (la fila la trae); al volver a teclear, el destino se vacía. Es lo que viaja en el POST y el servidor lo valida (Cambio 420: el par `usuario:rol` del Equipo). Sin el atributo, y sin `etiqueta`, el comportamiento es el de siempre.
 - `attrs_sugerencias(url, vacio=None)` acepta otro aviso de vacío (el paso «Ingresar persona» no manda a «Ingresar persona»).
 - Se carga con `nodo-sugerencias.css` (`{% block page_css %}`) y `nodo-sugerencias.js`
   (`{% block customJS %}`) **solo en la pantalla que la usa**, no en `base.html`.
@@ -61,7 +61,7 @@ capacidad y alcance que la acción que completa el campo.
 - Personas del Legajo: `programas/selectors/personas_sugeridas.py`. Con palabras, **una consulta por columna**
   (apellido y nombre) unidas en Python, ordenadas como la collation de la base (sin tildes ni mayúsculas): el `OR` entre columnas lo resuelve MySQL con `index_merge` y, con un prefijo
   común, ordena todo lo que coincide antes de cortar (200k filas: 51 ms contra 0,7 ms).
-- Equipo (Cambio 417): `programas/selectors/equipo_sugeridas.py`, los pares «Persona — Rol» de `pares_persona_rol` filtrados por
+- Equipo (Cambio 420): `programas/selectors/equipo_sugeridas.py`, los pares «Persona — Rol» de `pares_persona_rol` filtrados por
   nombre o apellido (prefijo, una sola consulta sobre los enlaces usuario-rol); la fila trae `apellido`, `nombre`, `rol`, `valor` y
   `etiqueta`, nunca correo, teléfono ni DNI. Su endpoint pide `puede_gestionar_equipo`.
 - Agentes (usuarios): `programas/selectors/agentes_sugeridos.py`, solo por nombre, con el DNI **enmascarado**; DNI y

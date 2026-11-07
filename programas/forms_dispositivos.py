@@ -880,7 +880,7 @@ class VincularEdificioForm(forms.Form):
         self.fields["edificio"].queryset = edificios
 
 
-#: Lo que dice el buscador del Equipo cuando nadie coincide, según quien lo use (Cambio 417).
+#: Lo que dice el buscador del Equipo cuando nadie coincide, según quien lo use (Cambio 420).
 MENSAJE_EQUIPO_SIN_PERSONA = "No encontramos a nadie: tocá «Crear persona» para darla de alta."
 MENSAJE_EQUIPO_PEDIR_ALTA = "¿No está? Pedile al administrador del programa que la dé de alta."
 
@@ -888,7 +888,7 @@ MENSAJE_EQUIPO_PEDIR_ALTA = "¿No está? Pedile al administrador del programa qu
 class SumarMiembroEquipoForm(forms.Form):
     """«Sumar persona» al Equipo (Cambio 411): un buscador «Persona — Rol» y la marca de responsable.
 
-    Desde el Cambio 417 la persona se busca con sugerencias (``nodo-sugerencias.js``): el campo visible
+    Desde el Cambio 420 la persona se busca con sugerencias (``nodo-sugerencias.js``): el campo visible
     es solo para teclear y el que viaja es ``persona_rol`` (``"<usuario_pk>:<rol_pk>"``, oculto), que el
     formulario valida contra lo que el servicio acepta (usuario activo, rol activo de Dispositivos que la
     persona tiene, sin el de agente de relevamiento y que todavía no está en el Equipo). El servicio
@@ -952,7 +952,7 @@ class SumarMiembroEquipoForm(forms.Form):
 
 
 class CrearPersonaEquipoForm(forms.Form):
-    """«Crear persona» desde el Equipo (Cambio 417): los cuatro datos y el rol con el que entra.
+    """«Crear persona» desde el Equipo (Cambio 420): los cuatro datos y el rol con el que entra.
 
     ``roles`` es ``roles_para_crear_persona(actor)``: lo que el actor puede dar según la regla del ABM de
     Usuarios, acotado a Dispositivos y sin el rol de agente. No pide clave: llega por enlace al correo.

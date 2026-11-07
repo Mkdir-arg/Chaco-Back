@@ -8,7 +8,7 @@ Reglas (decisiones del PM, 02-nov-2026):
 * Arman el Equipo el admin de Dispositivos y los responsables **de ese** dispositivo.
 * El rol tiene que ser de un rol del programa Dispositivos y la persona tiene que tenerlo.
 * Quien además administra los usuarios del programa Dispositivos puede **crear a la persona** que no
-  está (Cambio 417), con un rol que la regla del ABM de Usuarios le deje dar, y sumarla en la misma
+  está (Cambio 420), con un rol que la regla del ABM de Usuarios le deje dar, y sumarla en la misma
   transacción.
 
 Las escrituras toman ``select_for_update`` sobre el dispositivo: dos altas o bajas

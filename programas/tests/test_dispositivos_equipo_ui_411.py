@@ -80,7 +80,7 @@ class SolapaEquipoTests(BaseUI):
         self._entrar(self.admin)
         respuesta = self.client.get(self.url_detalle + "?tab=equipo&equipo=sumar")
         self.assertIn("form_equipo", respuesta.context)
-        # Desde el Cambio 417 las opciones no viajan en la página: se piden por sugerencias (lo prueba el 417).
+        # Desde el Cambio 420 las opciones no viajan en la página: se piden por sugerencias (lo prueba el 420).
         self.assertContains(respuesta, "data-sugerencias-url")
         self.assertNotContains(respuesta, "admin — Admin")
         self.assertNotIn("form_equipo", self.client.get(self.url_detalle + "?tab=equipo").context)

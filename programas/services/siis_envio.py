@@ -18,6 +18,8 @@ from core.dni import dni_valido
 from core.edad import MAYORIA_DE_EDAD, edad_en_anios
 from programas.models import EnvioSIIS, Formulario, PreguntaGlobal
 from programas.services.dashboard_becas import respuesta_de
+from programas.services.marca_de_oficio import CODIGO_ERROR as CODIGO_ALTA_DE_OFICIO
+from programas.services.marca_de_oficio import es_alta_de_oficio
 from programas.services.padron import normalizar_dni
 from programas.services.respuestas import campos_de
 from programas.services.siis import (
@@ -1088,6 +1090,8 @@ def _reservar(formulario, base, payload, faltantes, *, exigir_aprobado=True, est
         vigente = EnvioSIIS.objects.filter(formulario_id=formulario.pk, vigente=True).first()
         if vigente is not None:
             raise CasoYaInformado(vigente)
+        if es_alta_de_oficio(formulario.pk):
+            return _cerrado_por_alta_de_oficio(base)
         if faltantes:
             return EnvioSIIS.objects.create(
                 estado=EnvioSIIS.Estado.INCOMPLETO,
@@ -1115,6 +1119,19 @@ def _reservar(formulario, base, payload, faltantes, *, exigir_aprobado=True, est
             if duplicado is not None:
                 return duplicado
             raise
+
+
+def _cerrado_por_alta_de_oficio(base):
+    """El caso es un alta de oficio: la persona ya figura en SIIS y la API no
+    deduplica. Intento cerrado **sin llamar a SIIS**, con el patrón de
+    ``DUPLICADO_LOCAL``: ``RECHAZADO`` sin ``vigente``, que no se reintenta."""
+    return EnvioSIIS.objects.create(
+        estado=EnvioSIIS.Estado.RECHAZADO,
+        codigo_error=CODIGO_ALTA_DE_OFICIO,
+        detalles={"_": ["Alta de oficio: la persona ya figura en SIIS, no se vuelve a dar de alta."]},
+        resuelto_en=timezone.now(),
+        **base,
+    )
 
 
 def _duplicado_local(formulario, base):
@@ -1285,6 +1302,8 @@ def guardar_en_tabla_intermedia(formulario, solicitado_por, catalogos=None, exig
         return None, None
 
     base = _base_envio(formulario, solicitado_por)
+    if es_alta_de_oficio(formulario.pk):
+        return None, _cerrado_por_alta_de_oficio(base)
     try:
         payload, faltantes = armar_payload(formulario, catalogos=catalogos)
     except CatalogoNoDisponible as exc:
@@ -1467,6 +1486,8 @@ def mensaje_envio(envio):
             "warning",
             "No sabemos si SIIS registró el alta: no se reenvía hasta verificarlo con SIIS.",
         )
+    if envio.estado == EnvioSIIS.Estado.RECHAZADO and envio.codigo_error == CODIGO_ALTA_DE_OFICIO:
+        return "warning", "Alta de oficio: la persona ya figura en SIIS, no se vuelve a dar de alta."
     if envio.estado == EnvioSIIS.Estado.RECHAZADO and envio.codigo_error == "DUPLICADO_LOCAL":
         return (
             "warning",

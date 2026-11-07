@@ -4,7 +4,7 @@ Cada acción es un POST que re-verifica en el servidor: la vista exige ``puede_g
 (admin de Dispositivos o responsable de **ese** dispositivo) antes de mirar nada más, y el
 servicio (``equipo_dispositivo``) vuelve a exigirlo. El botón escondido no es una barrera.
 
-«Crear persona» (Cambio 417) exige además administrar los usuarios del programa Dispositivos
+«Crear persona» (Cambio 420) exige además administrar los usuarios del programa Dispositivos
 (``puede_crear_persona``): sin eso, 403 aunque se pueda gestionar el Equipo.
 """
 
@@ -98,7 +98,7 @@ class EquipoSumarView(_EquipoAccionView):
 
 
 class EquipoCrearPersonaView(_EquipoAccionView):
-    """Crea a la persona que no estaba y la suma al Equipo, todo o nada (Cambio 417).
+    """Crea a la persona que no estaba y la suma al Equipo, todo o nada (Cambio 420).
 
     La puerta es ``puede_crear_persona`` (403 antes de mirar el formulario). El usuario se crea con el
     formulario y el servicio del ABM de Usuarios; la clave llega por enlace al correo, ya con la
@@ -181,7 +181,7 @@ class EquipoCrearPersonaView(_EquipoAccionView):
 
 
 class EquipoPersonasSugeridasView(DispositivoProgramaPermissionMixin, View):
-    """Sugiere «Persona — Rol» mientras se escribe en «Sumar persona» (Cambio 417). Solo lectura, solo JSON.
+    """Sugiere «Persona — Rol» mientras se escribe en «Sumar persona» (Cambio 420). Solo lectura, solo JSON.
 
     Pide lo mismo que sumar: ``puede_gestionar_equipo`` de **este** dispositivo (403 JSON si no). Sin
     correo, teléfono ni DNI. Sin registrar lo tecleado: es un nombre, dato personal.

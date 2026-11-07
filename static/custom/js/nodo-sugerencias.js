@@ -16,7 +16,7 @@
  *   data-sugerencias-hay-mas   texto cuando el servidor avisa que hay más resultados
  *   data-sugerencias-destino   id de un <input type="hidden">: al elegir recibe `valor` y el campo visible
  *                              muestra `etiqueta` (si la fila la trae); al volver a teclear, el destino se vacía.
- *                              El que viaja en el POST es el destino (Cambio 417: «Persona — Rol»).
+ *                              El que viaja en el POST es el destino (Cambio 420: «Persona — Rol»).
  *
  * Todo texto del servidor se escribe con textContent: nunca innerHTML con datos.
  * Sin dependencias: no usa Alpine.

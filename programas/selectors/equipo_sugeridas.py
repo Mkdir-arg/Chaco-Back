@@ -1,4 +1,4 @@
-"""Sugerencias de «Persona — Rol» del modal «Sumar persona al Equipo» mientras se escribe (Cambio 417).
+"""Sugerencias de «Persona — Rol» del modal «Sumar persona al Equipo» mientras se escribe (Cambio 420).
 
 Lectura pura. Ofrece los mismos pares que ``pares_persona_rol`` (usuario activo × rol activo de Dispositivos que
 la persona tiene, sin el rol de agente de relevamiento y sin quien ya está activo en ese Equipo), filtrados por lo

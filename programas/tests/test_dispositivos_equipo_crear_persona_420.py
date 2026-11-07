@@ -1,4 +1,4 @@
-"""«Crear persona» y buscador con sugerencias en «Sumar persona al Equipo» (Cambio 417).
+"""«Crear persona» y buscador con sugerencias en «Sumar persona al Equipo» (Cambio 420).
 
 Lo que se fija acá, y cada guarda se verificó con mutación (romperla deja rojo el test que la cubre):
 
