@@ -523,6 +523,23 @@ def anotar_en_bitacora(movimiento):
     return entrada
 
 
+def _motivo_con_agregados(motivo, *, adjuntos, personas):
+    """El motivo seguido de «+2 adjuntos, +1 persona» cuando la corrección sumó algo."""
+
+    partes = []
+    if adjuntos:
+        partes.append(f"+{adjuntos} {'adjunto' if adjuntos == 1 else 'adjuntos'}")
+    if personas:
+        partes.append(f"+{personas} {'persona' if personas == 1 else 'personas'}")
+    if not partes:
+        return motivo
+    agregado = ", ".join(partes)
+    if not motivo:
+        return agregado
+    # El campo es de 255: el motivo cede lugar, el resumen no se recorta.
+    return f"{motivo[: 255 - len(agregado) - 3]} · {agregado}"
+
+
 CORRECCION_CONCURRENTE = (
     "La entrada ya fue corregida mientras la editabas: revisá la versión vigente y, si hace falta, corregí esa."
 )
@@ -531,7 +548,16 @@ CORRECCION_CONCURRENTE = (
 @archivos_atomicos
 @transaction.atomic
 def corregir_entrada(
-    *, entrada, usuario, texto, tipo=None, personas=None, adjuntos_nuevos=(), quitar_adjuntos=(), motivo=""
+    *,
+    entrada,
+    usuario,
+    texto,
+    tipo=None,
+    personas=None,
+    sumar_personas=(),
+    adjuntos_nuevos=(),
+    quitar_adjuntos=(),
+    motivo="",
 ):
     """Corrige una novedad **agregando** una versión. La que se corrige no se toca.
 
@@ -542,7 +568,8 @@ def corregir_entrada(
     Lo que no se pasa se hereda de la versión corregida: el tipo, las personas y los
     adjuntos. `quitar_adjuntos` saca de **esta** versión adjuntos que la anterior tenía
     —el archivo y la versión anterior quedan—. El momento, el turno y la fecha operativa
-    no se corrigen: son de cuándo pasó, no de lo que se dijo.
+    no se corrigen: son de cuándo pasó, no de lo que se dijo. `personas` reemplaza las de la
+    versión; `sumar_personas` solo agrega a las que ya tiene, sin revalidarlas.
     """
 
     if not puede_operar_dispositivo(usuario, entrada.dispositivo, CAP_BITACORA):
@@ -588,14 +615,34 @@ def corregir_entrada(
         version_anterior=corregida,
         motivo_correccion=(motivo or "").strip()[:255],
     )
-    nueva.clean()
+    previas = list(corregida.personas.all())
     if personas is None:
-        estadias = list(corregida.personas.all())
+        estadias = previas
     else:
         estadias = _estadias_del_momento(corregida.dispositivo, personas, corregida.momento)
+    if sumar_personas:
+        # Aditivo: las que la versión ya tenía no se revalidan (pudieron egresar antes del
+        # momento de la novedad); solo las que se suman tienen que estar alojadas en él.
+        ids_actuales = {estadia.pk for estadia in estadias}
+        estadias = [
+            *estadias,
+            *(
+                estadia
+                for estadia in _estadias_del_momento(corregida.dispositivo, sumar_personas, corregida.momento)
+                if estadia.pk not in ids_actuales
+            ),
+        ]
     quitar = {adjunto.pk if isinstance(adjunto, AdjuntoBitacora) else adjunto for adjunto in quitar_adjuntos or ()}
     heredados = [adjunto for adjunto in corregida.adjuntos.all() if adjunto.pk not in quitar]
     archivos = _guardar_adjuntos(corregida.dispositivo, usuario, adjuntos_nuevos, heredados=len(heredados))
+    # La traza dice qué sumó la corrección; quién y cuándo ya lo dicen `responsable` y la
+    # fecha de la versión. Va en el motivo, que la pantalla muestra con la versión.
+    nueva.motivo_correccion = _motivo_con_agregados(
+        nueva.motivo_correccion,
+        adjuntos=len(archivos),
+        personas=len({estadia.pk for estadia in estadias} - {estadia.pk for estadia in previas}),
+    )
+    nueva.clean()
     try:
         # La red de abajo: si alguien llegara sin pasar por el bloqueo de arriba, el
         # UNIQUE de `version_anterior` rechaza la segunda corrección de la misma versión.

@@ -30,7 +30,7 @@ from django.views import View
 from django.views.generic import DetailView
 
 from core import rbac
-from programas.forms_dispositivos import CorreccionForm, NovedadForm, TurnoForm
+from programas.forms_bitacora import CorreccionForm, NovedadForm, TurnoForm
 from programas.mixins_dispositivos import DispositivoObjectPermissionMixin, DispositivoProgramaPermissionMixin
 from programas.models import Dispositivo
 from programas.services.bitacora import (
@@ -82,7 +82,9 @@ class BitacoraTurnoView(DispositivoObjectPermissionMixin, DetailView):
             context["form_novedad"] = NovedadForm(personas=datos["personas"], max_adjuntos=datos["max_adjuntos"])
             if datos["corregibles"]:
                 context["form_correccion"] = CorreccionForm(
-                    corregibles=[(item["pk"], item["etiqueta"]) for item in datos["corregibles"]]
+                    corregibles=[(item["pk"], item["etiqueta"]) for item in datos["corregibles"]],
+                    personas=datos["personas"],
+                    max_adjuntos=datos["max_adjuntos"],
                 )
                 context["corregibles_datos"] = {
                     str(item["pk"]): {"tipo": item["tipo"], "texto": item["texto"]} for item in datos["corregibles"]
@@ -133,6 +135,12 @@ def _errores_del_servicio(error, form):
         destino = campo if campo in form.fields else "__all__"
         errores.setdefault(destino, []).extend(mensajes)
     return errores
+
+
+def _personas_posteadas(request):
+    """Las opciones de `personas` tal como llegaron: el servicio es quien las valida."""
+
+    return [(valor, valor) for valor in request.POST.getlist("personas")]
 
 
 def _rechazar(request, errores, volver):
@@ -193,7 +201,7 @@ class NovedadCrearView(_BitacoraPostView):
         return NovedadForm(
             request.POST,
             request.FILES,
-            personas=[(valor, valor) for valor in request.POST.getlist("personas")],
+            personas=_personas_posteadas(request),
         )
 
     def ejecutar(self, request, dispositivo, datos):
@@ -217,14 +225,23 @@ class NovedadCorregirView(_BitacoraPostView):
     mensaje_exito = "Novedad corregida: la versión anterior sigue visible."
 
     def armar_form(self, request, dispositivo):
-        return CorreccionForm(request.POST, dispositivo=dispositivo)
+        return CorreccionForm(
+            request.POST,
+            request.FILES,
+            dispositivo=dispositivo,
+            personas=_personas_posteadas(request),
+        )
 
     def ejecutar(self, request, dispositivo, datos):
+        # Solo se suma: las personas de la versión corregida se conservan y el servicio agrega
+        # las nuevas. Sin `ciudadano.ver` el modal no ofrece personas: si llegan, no se vinculan.
         corregir_entrada(
             entrada=datos["entrada"],
             usuario=request.user,
             texto=datos["texto"],
             tipo=datos["tipo"],
+            sumar_personas=datos["personas"] if rbac.puede(request.user, CAP_VER_CIUDADANO) else (),
+            adjuntos_nuevos=datos["adjuntos"],
             motivo=datos["motivo"],
         )
 
