@@ -301,7 +301,10 @@ def sectores_con_plazas(dispositivo, *, puede_liberar=False, puede_configurar_pl
     # `now()` distintos el encabezado y una celda podrían discrepar justo en su borde.
     momento = timezone.now()
     ocupacion = ocupacion_de_plazas(dispositivo, momento).de(dispositivo)
-    sectores = {sector.pk: sector for sector in Sector.objects.filter(dispositivo=dispositivo, activo=True)}
+    sectores = {
+        sector.pk: sector
+        for sector in Sector.objects.filter(dispositivo=dispositivo, activo=True).select_related("edificio")
+    }
     por_sector = _plazas_por_sector(list(sectores))
 
     dibujadas = [plaza for item in ocupacion.sectores for plaza in por_sector.get(item.sector_id, ())]

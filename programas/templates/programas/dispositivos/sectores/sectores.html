@@ -112,7 +112,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
     <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sector-{{ item.sector.pk }}-titulo">
       <div class="px-5 py-4 border-b border-light flex items-start justify-between gap-3 flex-wrap">
         <div class="min-w-0">
-          <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
+          <h2 id="sector-{{ item.sector.pk }}-titulo" class="text-heading font-bold">{{ item.sector.nombre }} · {% if item.sector.edificio %}{{ item.sector.edificio.nombre }}{% else %}Sin edificio{% endif %}{% if item.sector.perfil %} · {{ item.sector.perfil }}{% endif %} · {{ item.resumen.total }} plaza{{ item.resumen.total|pluralize }}</h2>
           <p class="text-xs text-body-subtle mt-1">{{ item.resumen.operativas }} operativa{{ item.resumen.operativas|pluralize }} · {{ item.resumen.fuera_servicio }} fuera de servicio · {{ item.resumen.ocupadas }} ocupada{{ item.resumen.ocupadas|pluralize }} · {{ item.resumen.reservadas }} reservada{{ item.resumen.reservadas|pluralize }} · {{ item.resumen.prestadas }} prestada{{ item.resumen.prestadas|pluralize }} · {{ item.resumen.disponibles }} disponible{{ item.resumen.disponibles|pluralize }}{% if item.difiere_de_lo_declarado %} · capacidad declarada: {{ item.sector.capacidad }}{% endif %}{% if item.resumen.porcentaje is not None %} · {{ item.resumen.porcentaje }} %{% endif %}</p>
         </div>
         {% if puede_configurar_plazas %}
@@ -145,7 +145,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
     <section class="bg-white rounded-xl border border-base shadow-sm overflow-hidden" aria-labelledby="sectores-inactivos-titulo">
       <div class="px-5 py-4 border-b border-light">
         <h2 id="sectores-inactivos-titulo" class="text-heading font-bold">Sectores inactivos</h2>
-        <p class="text-xs text-body-subtle mt-1">Dados de baja: no se dibujan en el mapa ni se ofrecen para ingresar. Al reactivarlos recuperan sus plazas y su historia.</p>
+        <p class="text-xs text-body-subtle mt-1">Dados de baja: no se dibujan en el mapa ni se ofrecen para ingresar. Al reactivarlos recuperan sus plazas y su historia. Si no tienen edificio, se reactivan desde «Editar», eligiendo uno.</p>
       </div>
       {% if sectores_inactivos %}
       <ul class="divide-y divide-light">
@@ -153,9 +153,13 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
         <li class="px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
           <div class="min-w-0">
             <p class="text-sm font-semibold text-heading">{{ inactivo.nombre }}{% if inactivo.perfil %} · {{ inactivo.perfil }}{% endif %}</p>
-            <p class="text-xs text-body-subtle mt-1">{{ inactivo.get_tipo_display }} · {{ inactivo.cantidad_plazas }} plaza{{ inactivo.cantidad_plazas|pluralize }}</p>
+            <p class="text-xs text-body-subtle mt-1">{{ inactivo.get_tipo_display }} · {% if inactivo.edificio and inactivo.edificio_vinculado %}{{ inactivo.edificio.nombre }}{% else %}Sin edificio{% endif %} · {{ inactivo.cantidad_plazas }} plaza{{ inactivo.cantidad_plazas|pluralize }}</p>
           </div>
           {% if puede_configurar_plazas %}
+          <div class="flex items-center gap-2 flex-wrap">
+          <a href="?inactivos=1&amp;sector={{ inactivo.pk }}" class="btn-nodo btn-secondary btn-sm btn-fit">
+            <i class="fas fa-pen" aria-hidden="true"></i> Editar
+          </a>
           <button type="button"
                   class="btn-nodo btn-secondary btn-sm btn-fit"
                   data-confirm-url="{% url 'dispositivos:sector_reactivar' dispositivo.pk inactivo.pk %}"
@@ -165,6 +169,7 @@ además lo elige en el select (`sectorPlazas`).{% endcomment %}
                   data-confirm-danger="false">
             <i class="fas fa-rotate-left" aria-hidden="true"></i> Reactivar
           </button>
+          </div>
           {% endif %}
         </li>
         {% endfor %}
