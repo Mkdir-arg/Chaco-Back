@@ -39,7 +39,7 @@ from programas.models import (
     ValidacionSIS,
 )
 from programas.views.cupo import promover_lista_espera_view
-from programas.views.revision import formulario_aprobar, formulario_rechazar
+from programas.views.revision import formulario_aprobar, formulario_rechazar, formulario_reenviar_aviso
 from users.models import Capacidad, RolMeta
 
 
@@ -1086,6 +1086,23 @@ class AvisoResolucionEnvioRealTests(_BaseAvisoResolucionTest):
         self.assertEqual(self.form_a.estado, Formulario.Estado.APROBADO)
         self.assertEqual(self.form_a.email_contacto, "a@b.com")
         self.assertTrue(self.rel_a.confirmar_por_email)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_reenvio_manual_a_un_caso_de_oficio_avisa_el_motivo_y_no_manda(self):
+        from programas.services.marca_de_oficio import marcar
+
+        Formulario.objects.filter(pk=self.form_a.pk).update(estado=Formulario.Estado.APROBADO)
+        marcar(self.form_a, self.coord_a)
+        request = RequestFactory().post("/")
+        request.user = self.coord_a
+        request.session = self.client.session
+        request._messages = FallbackStorage(request)
+
+        resp = formulario_reenviar_aviso(request, self.form_a.pk)
+
+        self.assertEqual(resp.status_code, 302)
+        textos = [str(m) for m in request._messages]
+        self.assertEqual(textos, ["A un caso de alta de oficio no se le manda el aviso al ciudadano."])
         self.assertEqual(len(mail.outbox), 0)
 
     def test_el_rechazo_manda_el_motivo_textual(self):

@@ -118,8 +118,9 @@ def enviar_aviso_resolucion(
 
     Devuelve ``True`` solo si el correo salió. Devuelve ``False`` —sin
     propagar nunca— si el relevamiento no notifica, si el formulario no tiene
-    correo de contacto, si el ``resultado`` no es uno de los cuatro o si el
-    envío falló.
+    correo de contacto, si es un caso de alta de oficio (decisión del PM,
+    07-nov-2026: nunca se le avisa), si el ``resultado`` no es uno de los
+    cuatro o si el envío falló.
     """
     if resultado not in ASUNTOS:
         logger.error(

@@ -71,6 +71,7 @@ from programas.services.cupo import (
 )
 from programas.services.identidad import gran_base_activa
 from programas.services.listados import PaginadorConConteo
+from programas.services.marca_de_oficio import es_alta_de_oficio
 from programas.services.padron import fila_padron
 from programas.services.personas import consultar_persona
 from programas.services.respuestas import respuestas_legibles, sincronizar_desde_legacy
@@ -759,6 +760,8 @@ def formulario_reenviar_aviso(request, pk):
         messages.error(request, "El relevamiento tiene apagado el aviso por correo.")
     elif not formulario.email_contacto:
         messages.error(request, "El caso no tiene correo de contacto cargado.")
+    elif es_alta_de_oficio(formulario.pk):
+        messages.info(request, "A un caso de alta de oficio no se le manda el aviso al ciudadano.")
     elif enviar_aviso_resolucion(
         formulario,
         resultado,

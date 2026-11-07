@@ -372,6 +372,25 @@ class MarcaDeOficioTests(AltaDeOficioBase):
         self.assertTrue(issubclass(CasoEnListaEspera, ValidationError))
 
 
+class ConsultaDeDniEnConvocatoriaTests(AltaDeOficioBase):
+    def test_dni_en_convocatoria_no_ordena_y_caso_en_convocatoria_devuelve_el_caso(self):
+        """Cambio 91: el booleano del link público va por dos ``EXISTS`` sin ORDER BY."""
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        from programas.services.inscripcion_publica import caso_en_convocatoria, dni_en_convocatoria
+
+        with mock.patch(PERSONAS, return_value=_ok("Ana", "Paz")):
+            self.correr([["30111222", "F", "Paz", "Ana"]])
+        caso = Formulario.objects.get(dni_titular="30111222")
+        with CaptureQueriesContext(connection) as capturadas:
+            self.assertTrue(dni_en_convocatoria(self.convocatoria, "30111222"))
+            self.assertFalse(dni_en_convocatoria(self.convocatoria, "30999999"))
+        self.assertFalse([q["sql"] for q in capturadas if "ORDER BY" in q["sql"].upper()])
+        self.assertEqual(caso_en_convocatoria(self.convocatoria, "30111222"), caso)
+        self.assertIsNone(caso_en_convocatoria(self.convocatoria, "30999999"))
+
+
 class NingunCaminoInformaASiisTests(AltaDeOficioBase):
     """Los casos de oficio ya figuran en SIIS y la API no deduplica."""
 
