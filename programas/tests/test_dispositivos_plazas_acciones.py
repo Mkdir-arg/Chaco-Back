@@ -199,7 +199,7 @@ class ReubicarDesdeElMapaTests(BaseMapa):
         return self.client.post(reverse("dispositivos:cambiar_plaza", args=[self.cis.pk, self.estadia.pk]), cuerpo)
 
     def test_con_admitir_la_plaza_ocupada_ofrece_reubicar_con_solo_las_libres(self):
-        respuesta = self._pantalla(plaza=self.plaza.pk)
+        respuesta = self._pantalla(plaza=self.plaza.pk, opcion="reubicar")
 
         celda = self._celdas(respuesta)["P1"]
         self.assertEqual(celda["estado"], ESTADO_OCUPADA)
@@ -223,13 +223,13 @@ class ReubicarDesdeElMapaTests(BaseMapa):
         consultas = {}
         for nombre, plaza in (("reubicar", self.plaza), ("otra", self.otra_plaza)):
             with CaptureQueriesContext(connection) as capturadas:
-                self.client.get(self.url, {"plaza": plaza.pk})
+                self.client.get(self.url, {"plaza": plaza.pk, "opcion": "reubicar"})
             consultas[nombre] = sum("programas_tipodispositivo" in q["sql"] for q in capturadas)
 
         self.assertEqual(consultas["reubicar"], consultas["otra"])
 
     def test_admitir_sin_editar_tambien_reubica(self):
-        respuesta = self._pantalla(self.sin_editar, plaza=self.plaza.pk)
+        respuesta = self._pantalla(self.sin_editar, plaza=self.plaza.pk, opcion="reubicar")
 
         self.assertEqual(respuesta.context["plaza_accion"]["accion"], ACCION_REUBICAR)
         self.assertIn("form_cambio", respuesta.context)
@@ -239,7 +239,7 @@ class ReubicarDesdeElMapaTests(BaseMapa):
             ciudadano=self.otra_persona, dispositivo=self.cis, usuario=self.operador_cis, plaza=self.otra_plaza
         )
 
-        respuesta = self._pantalla(plaza=self.plaza.pk)
+        respuesta = self._pantalla(plaza=self.plaza.pk, opcion="reubicar")
 
         self.assertEqual(respuesta.context["plaza_accion"]["bloqueo"], MOTIVO_SIN_PLAZAS_LIBRES)
         self.assertNotIn("form_cambio", respuesta.context)
@@ -262,11 +262,11 @@ class ReubicarDesdeElMapaTests(BaseMapa):
         self.assertNotIn("form_cambio", respuesta.context)
 
     def test_el_nombre_de_la_persona_solo_lo_ve_quien_puede_ver_ciudadanos(self):
-        sin_nombre = self._pantalla(plaza=self.plaza.pk)
+        sin_nombre = self._pantalla(plaza=self.plaza.pk, opcion="reubicar")
         self.assertEqual(sin_nombre.context["estadia_cambio"].persona_visible, "Persona alojada")
         self.assertNotContains(sin_nombre, "Gómez")
 
-        con_nombre = self._pantalla(self.con_ciudadano, plaza=self.plaza.pk)
+        con_nombre = self._pantalla(self.con_ciudadano, plaza=self.plaza.pk, opcion="reubicar")
         self.assertContains(con_nombre, "Gómez")
 
     def test_confirmar_vuelve_al_mapa_libera_la_plaza_y_registra_el_movimiento(self):
@@ -340,9 +340,8 @@ class MenuDePlazaOcupadaTests(BaseMapa):
         respuesta, modal = self._modal(self.con_personas)
 
         self.assertEqual(modal["bloqueo"], "La plaza está ocupada: primero registrá el egreso o cambiala de plaza.")
-        self.assertContains(respuesta, 'aria-describedby="motivo-sacar-ocupada"')
-        self.assertContains(respuesta, "Ver estadía")
-        self.assertContains(respuesta, "Registrar egreso")
+        self.assertIn(ACCION_FUERA_SERVICIO, modal["acciones"])
+        self.assertEqual(modal["directa"], "")
 
     def test_sin_ciudadano_ver_no_se_ofrece_ver_estadia_ni_ver_legajo(self):
         _, modal = self._modal(self.operador_cis)
@@ -394,8 +393,49 @@ class MenuDePlazaOcupadaTests(BaseMapa):
 
     def test_los_enlaces_apuntan_a_vistas_que_el_usuario_puede_abrir(self):
         self.client.force_login(self.con_personas)
-        for url in (self.url_estadia, self.url_legajo, self.url_egreso):
+        for url in (self.url_estadia, self.url_legajo):
             self.assertEqual(self.client.get(url).status_code, 200, url)
+        respuesta = self.client.get(self.url_egreso)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.context["estadia_egreso"].pk, self.estadia.pk)
+        self.assertIn("form_egreso", respuesta.context)
+
+    def test_directa_solo_con_una_accion_de_formulario(self):
+        _, ocupada = self._modal(self.con_personas)
+        self.assertEqual(ocupada["directa"], "")
+        libre = self._pantalla(self.con_personas).context["plazas_modal"][self.otra_plaza.pk]
+        self.assertEqual(libre["directa"], "")
+        sacar = self._pantalla(self.sin_admitir).context["plazas_modal"][self.otra_plaza.pk]
+        self.assertEqual(sacar["acciones"], [ACCION_FUERA_SERVICIO])
+        self.assertEqual(sacar["directa"], ACCION_FUERA_SERVICIO)
+
+    def test_una_accion_unica_que_es_enlace_no_abre_formulario(self):
+        usuario = self._operador("Solo egresar CIS", self.cis, ("dispositivo.ver", "dispositivo.egresar"))
+        _, modal = self._modal(usuario)
+
+        self.assertEqual(modal["acciones"], [ACCION_EGRESAR])
+        self.assertEqual(modal["directa"], "")
+
+    def test_con_plaza_en_la_url_y_varias_opciones_llega_el_menu_y_no_el_formulario(self):
+        respuesta = self._pantalla(self.con_personas, plaza=self.plaza.pk)
+
+        self.assertEqual(respuesta.context["plaza_inicial"], self.plaza.pk)
+        self.assertNotIn("plaza_accion", respuesta.context)
+        self.assertNotIn("form_cambio", respuesta.context)
+
+    def test_con_opcion_reubicar_en_la_url_abre_el_formulario(self):
+        respuesta = self._pantalla(self.con_personas, plaza=self.plaza.pk, opcion="reubicar")
+
+        self.assertEqual(respuesta.context["plaza_accion"]["accion"], ACCION_REUBICAR)
+        self.assertIn("form_cambio", respuesta.context)
+        self.assertNotIn("plaza_inicial", respuesta.context)
+
+    def test_si_reubicar_es_lo_unico_la_url_abre_el_formulario_sin_opcion(self):
+        usuario = self._operador("Solo admitir CIS", self.cis, ("dispositivo.ver", "dispositivo.admitir"))
+        respuesta = self._pantalla(usuario, plaza=self.plaza.pk)
+
+        self.assertEqual(respuesta.context["plaza_accion"]["acciones"], [ACCION_REUBICAR])
+        self.assertIn("form_cambio", respuesta.context)
 
     def test_con_plaza_en_la_url_sin_admitir_llega_el_menu_con_sus_enlaces(self):
         usuario = self._operador(

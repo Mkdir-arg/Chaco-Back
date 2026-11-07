@@ -70,7 +70,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from programas.models import Plaza, ReservaPlaza, Sector
-from programas.selectors.capacidad_dispositivo import SIN_EDIFICIO
+from programas.selectors.capacidad_dispositivo import nombre_de_edificio
 from programas.services.estadias import reserva_abierta_de
 from programas.services.nombre_plaza import clave_natural
 from programas.services.ocupacion import (
@@ -97,6 +97,9 @@ ACCION_PRESTAR = "prestar"
 ACCION_VER_ESTADIA = "ver_estadia"
 ACCION_VER_LEGAJO = "ver_legajo"
 ACCION_EGRESAR = "egresar"
+
+# Las acciones cuyo formulario arma el navegador: con una sola, el modal abre directo en él.
+ACCIONES_CON_FORMULARIO = (ACCION_RESERVAR, ACCION_PRESTAR, ACCION_FUERA_SERVICIO, ACCION_LIBERAR, ACCION_VOLVER)
 
 #: El aviso del modal de una plaza ocupada cuando no hay a dónde mover a la persona.
 MOTIVO_SIN_PLAZAS_LIBRES = "No hay plazas libres en el dispositivo para moverla."
@@ -169,6 +172,15 @@ def bloqueo_del_modal(estado, acciones):
     return bloqueo_de_plaza(estado, acciones[0]) if acciones else ""
 
 
+def url_modal_egreso(dispositivo_pk, estadia_pk):
+    """El detalle del dispositivo con el modal de egreso de esa estadía abierto (`?tab=estadias&egreso=`).
+
+    Lo comparten la solapa Estadías y el menú de la plaza ocupada del mapa: un solo armado del enlace.
+    """
+
+    return f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=estadias&egreso={estadia_pk}"
+
+
 def enlaces_de_plaza(dispositivo, estado, acciones):
     """`{accion: url}` de las acciones de la plaza ocupada que son enlaces, no formularios.
 
@@ -185,8 +197,7 @@ def enlaces_de_plaza(dispositivo, estado, acciones):
     if ACCION_VER_LEGAJO in acciones:
         enlaces[ACCION_VER_LEGAJO] = reverse("legajos:ciudadano_detalle", args=[estado.ciudadano_id])
     if ACCION_EGRESAR in acciones:
-        base = reverse("dispositivos:detalle", args=[dispositivo.pk])
-        enlaces[ACCION_EGRESAR] = f"{base}?tab=estadias&egreso={estado.estadia_id}"
+        enlaces[ACCION_EGRESAR] = url_modal_egreso(dispositivo.pk, estado.estadia_id)
     return enlaces
 
 
@@ -256,6 +267,8 @@ def datos_para_el_modal(plaza, estado, acciones, bloqueo="", enlaces=None):
         "es_prestamo": estado.estado == ESTADO_PRESTADA,
         "detalle": estado.detalle,
         "acciones": list(acciones),
+        # La acción cuyo formulario abre sin menú: la única de la plaza, si es de las que arma el navegador.
+        "directa": acciones[0] if len(acciones) == 1 and acciones[0] in ACCIONES_CON_FORMULARIO else "",
         "bloqueo": bloqueo,
         # Los destinos de las acciones que son enlaces (plaza ocupada), por nombre de acción.
         "enlaces": enlaces or {},
@@ -418,7 +431,7 @@ def sectores_con_plazas(
         armados.append(
             {
                 "sector": sector,
-                "edificio_nombre": sector.edificio.nombre if sector.edificio else SIN_EDIFICIO,
+                "edificio_nombre": nombre_de_edificio(sector),
                 "resumen": _resumen(item.conteo),
                 "difiere_de_lo_declarado": sector.capacidad != item.conteo.totales,
                 "plazas": celdas,
