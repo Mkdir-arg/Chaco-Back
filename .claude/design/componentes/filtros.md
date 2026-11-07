@@ -99,7 +99,7 @@ que se tocan todo el tiempo (área, estado, sector). Va en una fila propia **fue
   valor: con teclado la flecha sobre un `<select>` cerrado dispara `change` y recargaría la
   página en la primera opción, sin llegar a la segunda (WCAG 3.2.2). Se aparta del mockup, que
   filtra al elegir; el botón es la forma de avisar y confirmar el cambio.
-- CSS: `.nodo-pildora` y `.nodo-pildora__control` en `static/custom/css/nodo-forms.css`.
+- CSS: `.nodo-pildora` y `.nodo-pildora__control` en `static/custom/css/nodo-forms.css`. La etiqueta (`span`) no se parte en dos líneas (`white-space: nowrap`).
 - Sin chevron propio: se ve la flecha nativa del `<select>`.
 
 **Con solapas, las píldoras van dentro de cada panel y el oculto `tab` es el del panel.** La solapa

@@ -29,7 +29,7 @@ Tarde · entradas», debajo de su encabezado.
 `programas/services/bitacora.py` genera las novedades de ingreso, egreso, cambio y asignación de plaza
 («Se asignó la plaza X») con origen automático: la vista pasa `automatica=True` y no ofrece «Corregir» para ellas.
 
-`url_corregir` dibuja «corregir (crea versión)» como enlace discreto en la línea de autoría.
+`url_corregir` dibuja «Corregir (crea versión)» como botón terciario chico (`btn-nodo btn-tertiary btn-sm btn-fit`, área táctil de botón) en la línea de autoría. El nombre del turno se muestra con la primera letra en mayúscula (`capfirst` en la tarjeta).
 La pantalla lo prepara solo para entradas corregibles y con capacidad y alcance; abre
 el modal precargado con `?corregir=<id>` sin mutar nada. Sin el parámetro, el HTML es idéntico.
 En P10 la corrección vive en cada entrada, no en la tarjeta del turno.

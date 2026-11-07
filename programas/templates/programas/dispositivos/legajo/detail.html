@@ -99,7 +99,7 @@
         <h2 id="indicadores-titulo" class="text-heading font-bold">Indicadores operativos</h2>
         <p class="text-xs text-body-subtle mt-1">Derivados de plazas y estadías; no admiten carga manual.</p>
       </div>
-      <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="p-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
         {% for indicador in indicadores %}
         {% include "components/_stat_card.html" with etiqueta=indicador.etiqueta valor=indicador.valor icono=indicador.icono tono=indicador.tono|default:"brand" nota=indicador.nota variante="tablero" %}
         {% endfor %}
@@ -110,7 +110,7 @@
     {# ===== Solapas ===== #}
     <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
 
-      <div class="border-b border-base flex gap-1 px-2 flex-wrap" role="tablist" aria-label="Secciones del dispositivo">
+      <div class="border-b border-base flex gap-1 px-2 overflow-x-auto" role="tablist" aria-label="Secciones del dispositivo">
         <button @click="tab='datos'" type="button" role="tab" id="tab-datos" aria-controls="panel-datos"
                 :aria-selected="tab==='datos'"
                 class="px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5 whitespace-nowrap"
@@ -416,7 +416,11 @@
               <div><dt class="text-xs font-semibold uppercase text-body-subtle">Instituciones en el predio</dt><dd class="mt-1 text-body">{{ edificio.otras_instituciones|add:1 }}</dd></div>
             </dl>
             <h3 class="text-sm font-bold text-heading">Ubicación geolocalizada</h3>
+            {% if edificio.latitud is not None and edificio.longitud is not None %}
             {% include "components/_ubicacion.html" with latitud=edificio.latitud longitud=edificio.longitud only %}
+            {% else %}
+            <p class="text-sm text-body-subtle"><i class="fas fa-location-dot" aria-hidden="true"></i> Sin ubicación cargada: todavía no se cargaron las coordenadas.</p>
+            {% endif %}
             {% if edificio.otras_instituciones %}
             {% include "components/_alerta.html" with tono="info" icono="building" titulo="Predio compartido:" texto="el relevamiento es del edificio y lo ven todas las instituciones que lo ocupan; cada una mantiene su propio legajo." %}
             <p class="text-xs text-body-subtle">Instituciones en tu alcance.</p>

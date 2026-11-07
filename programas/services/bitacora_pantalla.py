@@ -115,6 +115,13 @@ def _dia(fecha: date) -> str:
     return date_format(fecha, "l d/m/Y")
 
 
+def _capitalizar(texto) -> str:
+    """Primera letra en mayúscula al mostrar el nombre de un turno («tarde» → «Tarde»)."""
+
+    texto = str(texto or "")
+    return texto[:1].upper() + texto[1:]
+
+
 def _plural(cantidad, singular, plural):
     return f"{cantidad} {singular if cantidad == 1 else plural}"
 
@@ -254,7 +261,7 @@ def _tarjeta(turno, tramo, *, elegido, cantidad, url_ver, acciones_en_curso) -> 
     if not elegido and (tramo is None or tramo.estado != censo_servicio.POR_VENIR):
         acciones.append({"texto": "Ver", "variante": "tertiary", "url": url_ver})
     return {
-        "nombre": turno.nombre,
+        "nombre": _capitalizar(turno.nombre),
         "horario": f"{turno.hora_desde:%H:%M}–{turno.hora_hasta:%H:%M}",
         "estado": estado,
         "tono": tono,
@@ -566,14 +573,14 @@ def pantalla_bitacora(
     # el título lo dice, para que nadie lea las entradas de la mañana como las de ahora.
     titulo_entradas = "Entradas"
     if turno is not None:
-        titulo_entradas = f"Turno {turno.nombre} · entradas"
+        titulo_entradas = f"Turno {_capitalizar(turno.nombre)} · entradas"
         if en_curso is not None and turno.pk != en_curso.turno.pk:
-            titulo_entradas += f" · no es el turno en curso (ahora, {en_curso.turno.nombre})"
+            titulo_entradas += f" · no es el turno en curso (ahora, {_capitalizar(en_curso.turno.nombre)})"
 
     if tramo is None and turno is not None:
-        censo_nota = f"El turno {turno.nombre} se dio de baja: no tiene censo propio. Abajo, el del día."
+        censo_nota = f"El turno {_capitalizar(turno.nombre)} se dio de baja: no tiene censo propio. Abajo, el del día."
     elif tramo is not None and tramo.estado == censo_servicio.POR_VENIR:
-        censo_nota = f"El turno {turno.nombre} todavía no empezó."
+        censo_nota = f"El turno {_capitalizar(turno.nombre)} todavía no empezó."
     else:
         censo_nota = ""
 
@@ -621,7 +628,7 @@ def pantalla_bitacora(
         "url_abrir_turnos": url_de(fecha, turno, "turnos=1"),
         "censo_titulo": "Censo del turno" if tramo is not None else "Censo del día",
         "subtitulo_en_curso": (
-            f"Turno {en_curso.turno.nombre} · {en_curso.turno.hora_desde:%H:%M}–{en_curso.turno.hora_hasta:%H:%M}"
+            f"Turno {_capitalizar(en_curso.turno.nombre)} · {en_curso.turno.hora_desde:%H:%M}–{en_curso.turno.hora_hasta:%H:%M}"
             if en_curso
             else ""
         ),

@@ -36,7 +36,7 @@ No hay include ni tag: las solapas se clonan de la golden de detalle con su ARIA
 ```
 
 - Las solapas van **dentro de una surface**, como primera fila.
-- Barra: `border-b border-base flex gap-1 px-2 flex-wrap` con `role="tablist"` y `aria-label`.
+- Barra: `border-b border-base flex gap-1 px-2 flex-wrap` con `role="tablist"` y `aria-label`. Con 4 o más solapas o etiquetas largas (relevamientos, detalle del dispositivo), `overflow-x-auto` en lugar de `flex-wrap`: a 390 px quedan en una fila con scroll horizontal y no en tres o cuatro.
 - Ítem: `px-4 py-3 text-sm border-b-2 -mb-px transition flex items-center gap-1.5`; activo
   `text-fg-brand border-brand font-bold`; inactivo
   `text-body-subtle border-transparent hover:text-body font-medium`.

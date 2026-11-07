@@ -224,7 +224,7 @@ class EntradasBitacoraAccionTest(SimpleTestCase):
         sin_accion = self._render()
         self.entradas[0]["url_corregir"] = "/bitacora/?turno=2&corregir=7"
         html = self._render()
-        accion = ' · <a href="/bitacora/?turno=2&amp;corregir=7" class="text-fg-brand hover:underline">corregir</a> (crea versión)'
+        accion = ' · <a href="/bitacora/?turno=2&amp;corregir=7" class="btn-nodo btn-tertiary btn-sm btn-fit"><i class="fas fa-pen" aria-hidden="true"></i> Corregir (crea versión)</a>'
         self.assertIn("Lucía Méndez" + accion + "</p>", html)
         self.assertEqual(html.replace(accion, ""), sin_accion)
         self.assertIn("Acta &lt;sin HTML&gt;<br>Segunda línea", html)
