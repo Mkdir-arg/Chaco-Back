@@ -186,10 +186,15 @@ def _exigir_sin_superposicion(dispositivo, *, nombre, hora_desde, hora_hasta, ex
 
 
 def _bloquear_dispositivo(dispositivo):
-    """Serializa a quienes configuran turnos del mismo dispositivo.
+    """Serializa a quienes configuran turnos o cargan novedades del mismo dispositivo.
 
     Sin el bloqueo, dos altas simultáneas de turnos superpuestos pasan las dos el
-    control —cada una mira la base sin la otra— y el turno vigente deja de ser uno.
+    control —cada una mira la base sin la otra— y el turno vigente deja de ser uno; y dos
+    envíos idénticos de una novedad pasan los dos el chequeo de duplicado.
+
+    Orden de candados: **estadía y después dispositivo**. Egreso, cambio y asignación de plaza
+    bloquean la estadía y luego piden un lock compartido sobre el dispositivo por la FK;
+    quien pida el dispositivo primero y la estadía después arma un ciclo.
     """
 
     return Dispositivo.objects.select_for_update().get(pk=dispositivo.pk)
@@ -320,8 +325,8 @@ def _exigir_turno_en_curso(dispositivo, momento, ahora):
     return en_curso
 
 
-def _estadias_del_momento(dispositivo, personas, momento):
-    """Las estadías involucradas, que tienen que ser de acá y estar abiertas en ese momento."""
+def _ids_de_personas(personas):
+    """Los ids de estadía de `personas` (estadías, ids o texto del formulario); uno inválido es un 400."""
 
     ids = set()
     for persona in personas or ():
@@ -332,6 +337,13 @@ def _estadias_del_momento(dispositivo, personas, momento):
             ids.add(int(str(valor).strip()))
         except (TypeError, ValueError):
             raise ValidationError({"personas": PERSONAS_FUERA_DEL_TURNO}) from None
+    return ids
+
+
+def _estadias_del_momento(dispositivo, personas, momento):
+    """Las estadías involucradas, que tienen que ser de acá y estar abiertas en ese momento."""
+
+    ids = _ids_de_personas(personas)
     if not ids:
         return []
     estadias = list(
@@ -397,11 +409,20 @@ def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, person
         raise ValidationError({"momento": "La novedad no puede ser futura."})
     situado = _exigir_turno_en_curso(dispositivo, momento, ahora)
 
+    # Primero las estadías de `personas`, en orden de pk, y recién después el dispositivo: egreso,
+    # cambio y asignación de plaza bloquean la estadía y piden luego un lock compartido sobre el
+    # dispositivo (FK). Con el orden inverso acá, los dos se esperan: deadlock.
+    ids_personas = _ids_de_personas(personas)
+    if ids_personas:
+        list(
+            Estadia.objects.select_for_update().filter(pk__in=ids_personas).order_by("pk").values_list("pk", flat=True)
+        )
     # Doble envío: el candado del dispositivo hace que el segundo POST espere al primero y
     # lo vea ya guardado. No se usa un UniqueConstraint condicional (no existe en MySQL/MariaDB).
     _bloquear_dispositivo(dispositivo)
     texto_limpio = (texto or "").strip()
-    repetida = (
+    nombres = sorted((getattr(archivo, "name", "") or "")[:255] for archivo in adjuntos or ())
+    candidatas = (
         EntradaBitacora.objects.filter(
             dispositivo=dispositivo,
             turno=situado.turno,
@@ -416,10 +437,14 @@ def registrar_entrada(*, dispositivo, usuario, tipo, texto, momento=None, person
             creado__gte=ahora - VENTANA_DOBLE_ENVIO,
         )
         .order_by("pk")
-        .first()
+        .prefetch_related("personas", "adjuntos")
     )
-    if repetida is not None:
-        return repetida
+    # Es repetida solo si trae lo mismo: otra persona u otros archivos es otra novedad.
+    for repetida in candidatas:
+        if {estadia.pk for estadia in repetida.personas.all()} == ids_personas and sorted(
+            adjunto.nombre_original for adjunto in repetida.adjuntos.all()
+        ) == nombres:
+            return repetida
 
     entrada = EntradaBitacora(
         dispositivo=dispositivo,
@@ -664,14 +689,15 @@ def corregir_entrada(
             ),
         ]
     quitar = {adjunto.pk if isinstance(adjunto, AdjuntoBitacora) else adjunto for adjunto in quitar_adjuntos or ()}
-    heredados = [adjunto for adjunto in corregida.adjuntos.all() if adjunto.pk not in quitar]
+    previos = list(corregida.adjuntos.all())
+    heredados = [adjunto for adjunto in previos if adjunto.pk not in quitar]
     # Una versión idéntica a la vigente no corrige nada. Antes de escribir archivos.
     if (
         nueva.texto == corregida.texto
         and nueva.tipo == corregida.tipo
         and {estadia.pk for estadia in estadias} == {estadia.pk for estadia in previas}
         and not adjuntos_nuevos
-        and len(heredados) == corregida.adjuntos.count()
+        and len(heredados) == len(previos)
     ):
         raise ValidationError({"entrada": SIN_CAMBIOS_PARA_CORREGIR})
     archivos = _guardar_adjuntos(corregida.dispositivo, usuario, adjuntos_nuevos, heredados=len(heredados))

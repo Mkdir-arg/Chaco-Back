@@ -52602,11 +52602,11 @@ Cambios mínimos, cada uno con test. Queda afuera relacionar la capacidad declar
 
 ## Decisiones tomadas
 1. **Reasignar: una sola fuente de candidatos.** `agentes_para_reasignar` = `agentes_asignables(edificio)` menos el asignado actual; el modal, el POST y la regla del servicio salen de ahí. La comparación de los dos caminos (`_candidatos_a_relevar`, `agentes_asignables`, `agentes_asignables_para`, `_validar_agente`, `AGENTE_DEBE_SER_EXTERNO`) no mostró una divergencia de reglas: el caso de QA es el de un único agente elegible, que es el asignado actual; al excluirlo el selector queda vacío y todo POST se rechaza (incluso el mismo agente, que además el servicio rechaza por «ya asignado»). Queda fijado por test que un agente aceptado al asignar lo es al reasignar otro relevamiento del edificio.
-2. **Doble envío de novedad.** `registrar_entrada` toma el candado del dispositivo y, si hay una novedad manual versión 1 del mismo autor, turno, tipo y texto creada en los últimos 10 s (`VENTANA_DOBLE_ENVIO`), devuelve esa con el mismo éxito. Sin `UniqueConstraint` condicional (no existe en MySQL/MariaDB).
+2. **Doble envío de novedad.** `registrar_entrada` toma el candado del dispositivo y, si hay una novedad manual versión 1, sin corregir, del mismo autor, turno, tipo, texto, **conjunto de personas y adjuntos (cantidad y nombre)** creada en los últimos 10 s (`VENTANA_DOBLE_ENVIO`), devuelve esa con el mismo éxito. Orden de candados: **estadías de `personas` (por pk) y después dispositivo**, porque egreso, cambio y asignación de plaza bloquean la estadía y piden luego un lock compartido sobre el dispositivo por la FK; al revés habría deadlock. Sin `UniqueConstraint` condicional (no existe en MySQL/MariaDB).
 3. **Corregir sin cambios** se rechaza con «No hay cambios para corregir.» si tipo, texto, personas y adjuntos son los de la versión vigente. El motivo sigue como estaba.
 4. **«Fuera de servicio» repetido** dice «ya estaba fuera de servicio: no hubo nada que cambiar», igual que «volver a servicio»; el servicio ya era idempotente y no toca el motivo ni la fecha.
-5. **Reasignar un relevamiento no en curso** valida el estado antes que el agente: «Solo se reasigna un relevamiento en curso.»
-6. **Tope de 9999** a la capacidad declarada del sector, en el formulario y en el servicio (`CAPACIDAD_DECLARADA_MAXIMA`). El campo del modelo no cambia, por eso no hay migración.
+5. **Reasignar un relevamiento no en curso** valida el estado antes que el agente: «Solo se reasigna un relevamiento en curso.» (`exigir_reasignable`, que llaman la vista y el servicio).
+6. **Tope de 9999** a la capacidad declarada del sector, en el formulario y en el servicio (`CAPACIDAD_DECLARADA_MAXIMA`). En la edición se exige solo si la cifra cambia: un sector anterior al tope (p. ej. 50000) se puede renombrar y dar de baja sin tocarla, y su formulario no lleva `max`. El campo del modelo no cambia, por eso no hay migración.
 
 ## Implementación
 Ver las decisiones. La traducción de los errores del servicio al modal no cambia.
@@ -52622,6 +52622,7 @@ Sin cambios de esquema.
 
 ## Pendientes / a definir
 - Si el motivo de una corrección debe ser obligatorio: sin decisión registrada, queda como está.
+- **Causa probable de lo que vio QA al reasignar.** «Personal» de un edificio incluye a todo usuario de un rol con «Alcance por dispositivo» (`AsignacionDispositivo`) sobre una institución del edificio. En testing el rol de agente probablemente vuelve «personal» a todos los agentes: el selector de reasignar queda vacío (y P4 los ofrece cuando el edificio es compartido y el POST los rechaza). Es configuración de roles o una decisión de redefinir «personal»; no es un error de este cambio. Queda fijado por test. El selector de P4 no se cambió.
 - Un edificio con un solo agente elegible no se puede reasignar: hace falta habilitar otro agente.
 
 ## Reversión

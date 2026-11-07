@@ -279,10 +279,12 @@ def editar_sector(
     nombre = _normalizar(nombre)
     if not nombre:
         raise ValidationError({"nombre": "El sector necesita un nombre."})
-    _exigir_capacidad_declarada(capacidad)
 
     _bloquear_dispositivo(sector.dispositivo)
     sector = Sector.objects.select_for_update().get(pk=sector.pk)
+    # Un sector anterior al tope conserva su cifra: solo se exige el tope si la cifra cambia.
+    if (capacidad or 0) != sector.capacidad:
+        _exigir_capacidad_declarada(capacidad)
     dispositivo = sector.dispositivo
     edificio_anterior = sector.edificio
     # Un sector inactivo que sigue inactivo no compite por el nombre; si queda activo, sí.

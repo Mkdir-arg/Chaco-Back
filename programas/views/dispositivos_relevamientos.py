@@ -53,7 +53,6 @@ from programas.services.inspecciones import (
     AGENTE_DEBE_SER_EXTERNO,
     CAP_ASIGNAR,
     CAP_CREAR_AGENTE,
-    SOLO_EN_CURSO_SE_REASIGNA,
     Situacion,
     agentes_asignables,
     agentes_asignables_para,
@@ -64,6 +63,7 @@ from programas.services.inspecciones import (
     edificios_para_asignar,
     edificios_para_asignar_del_dispositivo,
     edificios_sin_relevar,
+    exigir_reasignable,
     filtrar_por_situacion,
     informe_de_relevamiento,
     inspecciones_en_curso_por_edificio,
@@ -574,8 +574,10 @@ class RelevamientoReasignarView(_RelevamientoAccionView):
         relevamiento = self._relevamiento(pk)
         # El estado va antes que el agente: sobre un relevamiento cancelado o ya realizado, el
         # error del agente («no se puede asignar a este edificio») sería engañoso.
-        if not relevamiento.en_curso:
-            return self._rechazar({"__all__": [SOLO_EN_CURSO_SE_REASIGNA]})
+        try:
+            exigir_reasignable(relevamiento)
+        except ValidationError as error:
+            return self._rechazar({"__all__": list(error.messages)})
         form = ReasignarRelevamientoForm(request.POST, agentes=agentes_para_reasignar(relevamiento))
         if not form.is_valid():
             return self._rechazar(form.errors)
