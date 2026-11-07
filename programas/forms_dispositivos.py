@@ -880,21 +880,104 @@ class VincularEdificioForm(forms.Form):
         self.fields["edificio"].queryset = edificios
 
 
-class SumarMiembroEquipoForm(forms.Form):
-    """«Sumar persona» al Equipo (Cambio 411): una opción «Persona — Rol» y la marca de responsable.
+#: Lo que dice el buscador del Equipo cuando nadie coincide, según quien lo use (Cambio 420).
+MENSAJE_EQUIPO_SIN_PERSONA = "No encontramos a nadie: tocá «Crear persona» para darla de alta."
+MENSAJE_EQUIPO_PEDIR_ALTA = "¿No está? Pedile al administrador del programa que la dé de alta."
 
-    Las opciones son solo las que el servicio acepta (roles activos de Dispositivos que la
-    persona tiene, sin el de agente de relevamiento, y que todavía no están en el Equipo); el
-    servicio vuelve a validar al guardar.
+
+class SumarMiembroEquipoForm(forms.Form):
+    """«Sumar persona» al Equipo (Cambio 411): un buscador «Persona — Rol» y la marca de responsable.
+
+    Desde el Cambio 420 la persona se busca con sugerencias (``nodo-sugerencias.js``): el campo visible
+    es solo para teclear y el que viaja es ``persona_rol`` (``"<usuario_pk>:<rol_pk>"``, oculto), que el
+    formulario valida contra lo que el servicio acepta (usuario activo, rol activo de Dispositivos que la
+    persona tiene, sin el de agente de relevamiento y que todavía no está en el Equipo). El servicio
+    vuelve a validar al guardar.
     """
 
-    persona_rol = forms.ChoiceField(
+    persona = forms.CharField(
         label="Persona y rol",
-        choices=(),
+        required=False,
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "placeholder": "Escribí nombre o apellido"}),
+    )
+    persona_rol = forms.CharField(
+        widget=forms.HiddenInput(),
+        error_messages={"required": "Elegí a la persona y el rol de la lista de sugerencias."},
+    )
+    es_responsable = forms.BooleanField(
+        label="Es responsable del dispositivo",
+        required=False,
+        widget=SwitchInput(),
+        help_text="Los responsables arman el Equipo del dispositivo.",
+    )
+
+    def __init__(self, *args, dispositivo=None, url_sugerencias=None, sin_resultados=None, **kwargs):
+        """``url_sugerencias`` y ``sin_resultados`` (el aviso cuando nadie coincide) son solo presentación."""
+
+        super().__init__(*args, **kwargs)
+        self.dispositivo = dispositivo
+        campo = self.fields["persona"]
+        campo.widget.attrs.update(attrs_sugerencias(url_sugerencias, sin_resultados))
+        if url_sugerencias:
+            campo.widget.attrs["data-sugerencias-destino"] = self["persona_rol"].auto_id
+
+    def clean_persona_rol(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group
+        from django.core.exceptions import ValidationError
+
+        from programas.models import MiembroEquipoDispositivo
+        from programas.services import equipo_dispositivo as equipo
+
+        invalido = forms.ValidationError("Esa persona y ese rol no se pueden sumar al Equipo.", code="invalid_choice")
+        usuario_pk, _, rol_pk = self.cleaned_data["persona_rol"].partition(":")
+        if not (usuario_pk.isascii() and usuario_pk.isdecimal() and rol_pk.isascii() and rol_pk.isdecimal()):
+            raise invalido
+        usuario = get_user_model().objects.filter(pk=int(usuario_pk)).first()
+        rol = Group.objects.filter(pk=int(rol_pk)).first()
+        if usuario is None or rol is None:
+            raise invalido
+        try:
+            equipo.exigir_par_sumable(usuario, rol)
+        except ValidationError:
+            raise invalido from None
+        if (
+            self.dispositivo is not None
+            and MiembroEquipoDispositivo.objects.filter(
+                dispositivo=self.dispositivo, usuario=usuario, rol=rol, activo=True
+            ).exists()
+        ):
+            raise forms.ValidationError("Esa persona ya está en el Equipo con ese rol.")
+        return usuario, rol
+
+
+class CrearPersonaEquipoForm(forms.Form):
+    """«Crear persona» desde el Equipo (Cambio 420): los cuatro datos y el rol con el que entra.
+
+    ``roles`` es ``roles_para_crear_persona(actor)``: lo que el actor puede dar según la regla del ABM de
+    Usuarios, acotado a Dispositivos y sin el rol de agente. No pide clave: llega por enlace al correo.
+    El DNI, el correo y el resto de las reglas del alta las valida el formulario del ABM de Usuarios.
+    """
+
+    dni = forms.CharField(
+        label="DNI",
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "inputmode": "numeric", "placeholder": "Sin puntos"}),
+    )
+    first_name = forms.CharField(label="Nombre", max_length=150, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
+    last_name = forms.CharField(label="Apellido", max_length=150, widget=forms.TextInput(attrs={"class": INPUT_CLASS}))
+    email = forms.EmailField(
+        label="Correo",
+        widget=forms.EmailInput(attrs={"class": INPUT_CLASS}),
+        help_text="La clave le llega a este correo, por un enlace para definirla.",
+    )
+    rol = forms.ModelChoiceField(
+        label="Rol",
+        queryset=None,
+        empty_label="Elegí un rol",
         widget=forms.Select(attrs={"class": INPUT_CLASS}),
         error_messages={
-            "required": "Elegí a la persona y el rol con el que se suma.",
-            "invalid_choice": "Esa persona y ese rol no se pueden sumar al Equipo.",
+            "required": "Elegí el rol con el que se suma.",
+            "invalid_choice": "Ese rol no se puede dar al crear una persona.",
         },
     )
     es_responsable = forms.BooleanField(
@@ -904,12 +987,12 @@ class SumarMiembroEquipoForm(forms.Form):
         help_text="Los responsables arman el Equipo del dispositivo.",
     )
 
-    def __init__(self, *args, pares=(), **kwargs):
+    def __init__(self, *args, roles, **kwargs):
         super().__init__(*args, **kwargs)
-        self._pares = {par["valor"]: (par["usuario"], par["rol"]) for par in pares}
-        self.fields["persona_rol"].choices = [("", "Elegí una persona")] + [
-            (par["valor"], par["etiqueta"]) for par in pares
-        ]
+        self.fields["rol"].queryset = roles
 
-    def clean_persona_rol(self):
-        return self._pares[self.cleaned_data["persona_rol"]]
+    def clean_dni(self):
+        dni = normalizar_dni(self.cleaned_data["dni"])
+        if not dni_valido(dni):
+            raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
+        return dni
