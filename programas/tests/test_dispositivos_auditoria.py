@@ -276,7 +276,7 @@ class LegibleTests(BaseAuditoria):
         acciones |= {"TURNO_CREADO", "TURNO_EDITADO"}
         # Capacidad instalada (carril C5): el alta del edificio, los sectores y los lotes de
         # plazas trazan en el mismo historial, así que cada una necesita su título.
-        acciones |= {"SECTOR_CREADO", "SECTOR_EDITADO", "SECTOR_BAJA", "PLAZAS_AGREGADAS", "PLAZA_EDITADA"}
+        acciones |= {"SECTOR_CREADO", "SECTOR_EDITADO", "SECTOR_BAJA", "SECTOR_REACTIVADO", "PLAZAS_AGREGADAS", "PLAZA_EDITADA"}
         acciones |= {"EDIFICIO_CREADO", "EDIFICIO_EDITADO", "EDIFICIO_VINCULADO", "EDIFICIO_DESVINCULADO"}
         self.assertEqual(set(TITULOS_TRAZA), acciones)
 
