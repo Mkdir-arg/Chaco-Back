@@ -30,7 +30,7 @@ from django.views import View
 from django.views.generic import DetailView
 
 from core import rbac
-from programas.forms_dispositivos import CorreccionForm, NovedadForm, TurnoForm
+from programas.forms_bitacora import CorreccionForm, NovedadForm, TurnoForm
 from programas.mixins_dispositivos import DispositivoObjectPermissionMixin, DispositivoProgramaPermissionMixin
 from programas.models import Dispositivo
 from programas.services.bitacora import (
@@ -137,6 +137,12 @@ def _errores_del_servicio(error, form):
     return errores
 
 
+def _personas_posteadas(request):
+    """Las opciones de `personas` tal como llegaron: el servicio es quien las valida."""
+
+    return [(valor, valor) for valor in request.POST.getlist("personas")]
+
+
 def _rechazar(request, errores, volver):
     if is_ajax(request):
         return JsonResponse({"ok": False, "errors": {k: list(v) for k, v in errores.items()}}, status=400)
@@ -195,7 +201,7 @@ class NovedadCrearView(_BitacoraPostView):
         return NovedadForm(
             request.POST,
             request.FILES,
-            personas=[(valor, valor) for valor in request.POST.getlist("personas")],
+            personas=_personas_posteadas(request),
         )
 
     def ejecutar(self, request, dispositivo, datos):
@@ -223,23 +229,18 @@ class NovedadCorregirView(_BitacoraPostView):
             request.POST,
             request.FILES,
             dispositivo=dispositivo,
-            personas=[(valor, valor) for valor in request.POST.getlist("personas")],
+            personas=_personas_posteadas(request),
         )
 
     def ejecutar(self, request, dispositivo, datos):
-        entrada = datos["entrada"]
-        # Solo se suma: las personas de la versión corregida se conservan y las nuevas se
-        # agregan. Sin `ciudadano.ver` el modal no ofrece personas: si llegan, no se vinculan.
-        personas = None
-        if datos["personas"] and rbac.puede(request.user, CAP_VER_CIUDADANO):
-            actuales = [str(pk) for pk in entrada.personas.values_list("pk", flat=True)]
-            personas = [*actuales, *(pk for pk in datos["personas"] if pk not in actuales)]
+        # Solo se suma: las personas de la versión corregida se conservan y el servicio agrega
+        # las nuevas. Sin `ciudadano.ver` el modal no ofrece personas: si llegan, no se vinculan.
         corregir_entrada(
-            entrada=entrada,
+            entrada=datos["entrada"],
             usuario=request.user,
             texto=datos["texto"],
             tipo=datos["tipo"],
-            personas=personas,
+            sumar_personas=datos["personas"] if rbac.puede(request.user, CAP_VER_CIUDADANO) else (),
             adjuntos_nuevos=datos["adjuntos"],
             motivo=datos["motivo"],
         )

@@ -548,7 +548,16 @@ CORRECCION_CONCURRENTE = (
 @archivos_atomicos
 @transaction.atomic
 def corregir_entrada(
-    *, entrada, usuario, texto, tipo=None, personas=None, adjuntos_nuevos=(), quitar_adjuntos=(), motivo=""
+    *,
+    entrada,
+    usuario,
+    texto,
+    tipo=None,
+    personas=None,
+    sumar_personas=(),
+    adjuntos_nuevos=(),
+    quitar_adjuntos=(),
+    motivo="",
 ):
     """Corrige una novedad **agregando** una versión. La que se corrige no se toca.
 
@@ -559,7 +568,8 @@ def corregir_entrada(
     Lo que no se pasa se hereda de la versión corregida: el tipo, las personas y los
     adjuntos. `quitar_adjuntos` saca de **esta** versión adjuntos que la anterior tenía
     —el archivo y la versión anterior quedan—. El momento, el turno y la fecha operativa
-    no se corrigen: son de cuándo pasó, no de lo que se dijo.
+    no se corrigen: son de cuándo pasó, no de lo que se dijo. `personas` reemplaza las de la
+    versión; `sumar_personas` solo agrega a las que ya tiene, sin revalidarlas.
     """
 
     if not puede_operar_dispositivo(usuario, entrada.dispositivo, CAP_BITACORA):
@@ -610,6 +620,18 @@ def corregir_entrada(
         estadias = previas
     else:
         estadias = _estadias_del_momento(corregida.dispositivo, personas, corregida.momento)
+    if sumar_personas:
+        # Aditivo: las que la versión ya tenía no se revalidan (pudieron egresar antes del
+        # momento de la novedad); solo las que se suman tienen que estar alojadas en él.
+        ids_actuales = {estadia.pk for estadia in estadias}
+        estadias = [
+            *estadias,
+            *(
+                estadia
+                for estadia in _estadias_del_momento(corregida.dispositivo, sumar_personas, corregida.momento)
+                if estadia.pk not in ids_actuales
+            ),
+        ]
     quitar = {adjunto.pk if isinstance(adjunto, AdjuntoBitacora) else adjunto for adjunto in quitar_adjuntos or ()}
     heredados = [adjunto for adjunto in corregida.adjuntos.all() if adjunto.pk not in quitar]
     archivos = _guardar_adjuntos(corregida.dispositivo, usuario, adjuntos_nuevos, heredados=len(heredados))

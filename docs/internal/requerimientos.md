@@ -52148,14 +52148,14 @@ En `/dispositivos/<id>/bitacora/`, al corregir una novedad no se podían agregar
 
 1. Se consultó el archivo vivo (Cambios 274, 283, 288, 297): ninguna decisión pedía que la corrección no tocara personas ni adjuntos; el Cambio 274 solo dice que corregir el texto no obliga a volver a subir el acta. No hay contradicción.
 2. `CorreccionForm` reusa los campos del alta (`personas` en chips, `adjuntos` con `AdjuntosField`); los límites los valida `_guardar_adjuntos`, igual que en el alta, contando los adjuntos heredados para el tope de 10.
-3. La vista pasa al servicio las personas originales más las nuevas, y solo si el usuario tiene `ciudadano.ver` (igual que el alta); sin esa capacidad no se vinculan personas, pero los adjuntos sí se suman.
+3. La vista pasa al servicio `sumar_personas` (aditivo: el servicio no revalida las originales, que pudieron egresar antes del momento de la novedad) y solo si el usuario tiene `ciudadano.ver` (igual que el alta); sin esa capacidad no se vinculan personas, pero los adjuntos sí se suman.
 4. La traza va en el modelo existente: `motivo_correccion` termina con «+2 adjuntos, +1 persona» (lo arma el servicio, aunque no haya motivo escrito) y la pantalla agrega «Corregida el dd/mm/aaaa hh:mm»; el quién ya lo dice el autor de la versión.
 5. Las personas que se ofrecen son las alojadas hoy; el servicio las valida contra el momento de la novedad, así que una persona que ingresó después de esa hora se rechaza con el error de siempre.
 6. El formulario lleva `auto_id="id_corr_%s"` para no repetir ids con el modal de alta.
 
 ## Implementación
 
-`programas/forms_dispositivos.py` (`CorreccionForm`), `programas/views/dispositivos_bitacora.py` (`NovedadCorregirView`), `programas/services/bitacora.py` (`corregir_entrada`, `_motivo_con_agregados`), `programas/services/bitacora_pantalla.py` (`_texto_de`), `bitacora.html` (modal).
+`programas/forms_bitacora.py` (`CorreccionForm`, formularios de bitácora movidos desde `forms_dispositivos.py`), `programas/views/dispositivos_bitacora.py` (`NovedadCorregirView`), `programas/services/bitacora.py` (`corregir_entrada`, `_motivo_con_agregados`), `programas/services/bitacora_pantalla.py` (`_texto_de`), `bitacora.html` (modal).
 
 ## Archivos
 

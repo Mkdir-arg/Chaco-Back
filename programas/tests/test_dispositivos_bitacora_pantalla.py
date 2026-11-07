@@ -432,6 +432,20 @@ class CorregirSumandoTests(BasePantalla):
         self.assertEqual(list(nueva.personas.all()), [self.estadia_ana])
         self.assertEqual(nueva.motivo_correccion, "")
 
+    def test_una_persona_original_que_ya_egreso_no_impide_sumar_otra(self):
+        """Las originales no se revalidan: solo las que se suman tienen que estar alojadas."""
+
+        Estadia.objects.filter(pk=self.estadia_ana.pk).update(
+            estado="EGRESADA", fecha_egreso=_local(MIERCOLES, 15, 10), clave_alojamiento=None
+        )
+
+        respuesta = self._corregir(personas=[self.estadia_juan.pk])
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        nueva = self._nueva()
+        self.assertEqual(set(nueva.personas.all()), {self.estadia_ana, self.estadia_juan})
+        self.assertEqual(nueva.motivo_correccion, "+1 persona")
+
     def test_sin_sumar_nada_se_conserva_todo(self):
         self._corregir()
 

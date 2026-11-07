@@ -35,7 +35,7 @@ el modal precargado con `?corregir=<id>` sin mutar nada. Sin el parámetro, el H
 En P10 la corrección vive en cada entrada, no en la tarjeta del turno.
 El modal «Corregir novedad» reusa los campos del alta (`personas` en chips y `adjuntos`, con los mismos límites)
 para **sumar**, nunca para quitar: sin includes ni variantes nuevas. La versión muestra «Corregida el <fecha hora>»
-y el motivo termina con lo sumado («+2 adjuntos, +1 persona»); el autor ya va en la línea de autoría.
+y el motivo termina con lo sumado («+2 adjuntos, +1 persona»); el autor ya va en la línea de autoría. El servicio recibe `sumar_personas` (aditivo, sin revalidar las originales).
 En P10 el hueco sin turno con ingresos, egresos o descuadre usa una tarjeta de solo lectura, ordenada por inicio, sin acciones y con badge neutro «Cerrado / En curso / Por venir»; sin turnos se conserva el aviso del día.
 El modal muestra «Activo» también al crear: `crear_turno(activo=True)` respeta el switch y solo exige no superponer turnos activos.
 
