@@ -315,6 +315,32 @@ def promover_lista_espera(lista_espera, user):
     raise error
 
 
+def _tomar_caso_enviado(formulario):
+    """Toma los dos candados de una aprobación y devuelve ``(segmento, estado)``.
+
+    Releídos bajo los dos candados —segmento y caso, en ese orden—: una
+    promoción o un alta concurrentes no se cuelan entre el chequeo y la
+    aprobación, y un rechazo tampoco (BEC-01). El estado va en su propia
+    consulta porque ``select_for_update`` con un ``Exists`` correlacionado
+    llevaría el candado a las filas de la lista de espera, que no es lo que se
+    quiere bloquear acá.
+
+    Lanza ``ValidationError`` si el caso ya no está ENVIADO y ``CasoEnListaEspera``
+    si está en una lista de espera (CMP-N1: ese caso se aprueba promoviéndolo
+    desde Cupo). Debe llamarse dentro de una transacción.
+    """
+    segmento = formulario.relevamiento.convocatoria.segmento
+    Segmento.objects.select_for_update().get(pk=segmento.pk)
+    estado_actual = (
+        Formulario.objects.select_for_update().filter(pk=formulario.pk).values_list("estado", flat=True).get()
+    )
+    if estado_actual != Formulario.Estado.ENVIADO:
+        raise ValidationError(CASO_YA_RESUELTO)
+    if ListaEspera.objects.filter(formulario_id=formulario.pk, promovido=False).exists():
+        raise CasoEnListaEspera()
+    return segmento, estado_actual
+
+
 @transaction.atomic
 def aprobar_o_poner_en_espera(formulario, user):
     """Aprueba un formulario ENVIADO si hay cupo; si no, lo agrega a lista de
@@ -333,22 +359,7 @@ def aprobar_o_poner_en_espera(formulario, user):
 
     validar_aprobacion(formulario)
 
-    segmento = formulario.relevamiento.convocatoria.segmento
-    Segmento.objects.select_for_update().get(pk=segmento.pk)
-
-    # Releídos bajo los dos candados —segmento y caso, en ese orden—: una
-    # promoción o un alta concurrentes no se cuelan entre el chequeo y la
-    # aprobación, y un rechazo tampoco (BEC-01). El estado va en su propia
-    # consulta porque ``select_for_update`` con un ``Exists`` correlacionado
-    # llevaría el candado a las filas de la lista de espera, que no es lo que se
-    # quiere bloquear acá.
-    estado_actual = (
-        Formulario.objects.select_for_update().filter(pk=formulario.pk).values_list("estado", flat=True).get()
-    )
-    if estado_actual != Formulario.Estado.ENVIADO:
-        raise ValidationError(CASO_YA_RESUELTO)
-    if ListaEspera.objects.filter(formulario_id=formulario.pk, promovido=False).exists():
-        raise CasoEnListaEspera()
+    segmento, estado_actual = _tomar_caso_enviado(formulario)
 
     if get_cupo_stats(segmento)["cupo_disponible"] > 0:
         estado_anterior = estado_actual
@@ -381,16 +392,7 @@ def aprobar_de_oficio(formulario, user):
     if bloqueo:
         raise ValidationError(bloqueo)
 
-    segmento = formulario.relevamiento.convocatoria.segmento
-    Segmento.objects.select_for_update().get(pk=segmento.pk)
-    estado_actual = (
-        Formulario.objects.select_for_update().filter(pk=formulario.pk).values_list("estado", flat=True).get()
-    )
-    if estado_actual != Formulario.Estado.ENVIADO:
-        raise ValidationError(CASO_YA_RESUELTO)
-    # CMP-N1: quien está en la lista de espera se aprueba promoviéndolo desde Cupo.
-    if ListaEspera.objects.filter(formulario_id=formulario.pk, promovido=False).exists():
-        raise CasoEnListaEspera()
+    segmento, estado_actual = _tomar_caso_enviado(formulario)
     if get_cupo_stats(segmento)["cupo_disponible"] <= 0:
         raise ValidationError(f"No hay cupo disponible en el segmento '{segmento.nombre}'.")
     if not _escribir_estado(formulario, Formulario.Estado.APROBADO, Formulario.Estado.ENVIADO):

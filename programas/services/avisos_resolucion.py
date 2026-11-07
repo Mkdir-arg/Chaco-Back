@@ -33,6 +33,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
+from programas.services.marca_de_oficio import es_alta_de_oficio
 from users.services.correo import contexto_pie
 
 logger = logging.getLogger(__name__)
@@ -117,8 +118,9 @@ def enviar_aviso_resolucion(
 
     Devuelve ``True`` solo si el correo salió. Devuelve ``False`` —sin
     propagar nunca— si el relevamiento no notifica, si el formulario no tiene
-    correo de contacto, si el ``resultado`` no es uno de los cuatro o si el
-    envío falló.
+    correo de contacto, si es un caso de alta de oficio (decisión del PM,
+    07-nov-2026: nunca se le avisa), si el ``resultado`` no es uno de los
+    cuatro o si el envío falló.
     """
     if resultado not in ASUNTOS:
         logger.error(
@@ -130,6 +132,10 @@ def enviar_aviso_resolucion(
 
     relevamiento = formulario.relevamiento
     if not relevamiento.confirmar_por_email or not formulario.email_contacto:
+        return False
+    # Decisión del PM (07-nov-2026): a un caso de alta de oficio nunca se le
+    # manda el aviso, venga de la pantalla, del masivo o de un reenvío.
+    if es_alta_de_oficio(formulario.pk):
         return False
 
     convocatoria = relevamiento.convocatoria

@@ -544,6 +544,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 418 | Provincia y Localidad del domicilio como preguntas de Requisitos generales, con las opciones del catálogo geográfico (Localidad filtrada por Provincia; portal, API con capacidad `catalogos`) | Becas (requisitos generales, link público, API de campo) | `#requisitos` `#datos` `#api` `#mobile` | PM — pedido del 06/11/2026 (Provincia y Localidad del domicilio como selectores, también desde la app) | 06/11/2026 | 🟡 **En curso** | Requiere |
 | 419 | SIIS: `proponer_alias_siis` propone a qué localidad de SIIS equivale cada localidad core de Chaco que no cruza, para revisión del organismo (no toca `siis_alias_localidades.csv`) | SIIS (`programas/management/commands`) · `docs/internal/siis/` | `#siis` `#datos` | PM — pedido de Provincia/Localidad en Requisitos generales (06/11/2026), PR 3 | 06/11/2026 | 🟡 **En curso** | No requiere |
 | 420 | Dispositivos: «Crear persona» en «Sumar persona al Equipo» (alta de usuario + Equipo en una transacción) y buscador «Persona — Rol» con sugerencias | Dispositivos · usuarios · sistema de diseño | `#ui` `#rbac` `#usuarios` | PM — pedido del 05/11/2026 (modal «Sumar persona al Equipo») | 05/11/2026 | 🟡 **En curso** | No requiere |
+| 421 | Alta de oficio de Becas: nunca se manda el aviso de resolución por correo; tres MINOR de la auditoría de #1033 | Becas · convocatorias · avisos · SIIS | `#convocatorias` `#siis` `#correo` | PM — decisión del 07/11/2026 | 07/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51995,5 +51996,67 @@ Revertir el PR. No hay datos que deshacer (los usuarios creados quedan como cual
 ## Historial
 
 - **05/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 421 — Alta de oficio de Becas: sin aviso por correo + MINOR de la auditoría de #1033
+
+🟡 **EN CURSO — 07/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · convocatorias · avisos de resolución · envío a SIIS |
+| **Etiquetas** | `#convocatorias` `#siis` `#correo` |
+| **Solicitante** | PM — decisión del 07/11/2026 |
+| **Fecha del pedido** | 07/11/2026 |
+| **Issue / épica** | sin issue (seguimiento del Cambio 417, PR #1033) |
+| **Partes afectadas** | Backend (servicios) |
+| **Migración** | No requiere |
+
+## Pedido original
+
+Seguimiento del alta de oficio (Cambio 417): a un caso dado de alta de oficio nunca se le manda el aviso de resolución por correo, y se aplican los tres MINOR que dejó la auditoría de #1033.
+
+## Alcance acordado
+
+**Entra:** salida temprana en `enviar_aviso_resolucion` (cubre aprobar desde pantalla, cupo, proceso masivo y reenvío manual) y los tres MINOR de la auditoría.
+
+**Queda afuera:** cambiar el contenido del aviso o su toggle (`confirmar_por_email`).
+
+## Decisiones tomadas
+
+1. **Decisión del PM (07/11/2026): a un caso de alta de oficio NUNCA se le manda el aviso de resolución por correo**, ni al aprobarlo desde pantalla, ni por proceso masivo, ni por reenvío manual. La guarda vive en `programas/services/avisos_resolucion.enviar_aviso_resolucion` (usa `es_alta_de_oficio`), así que alcanza a todos los llamadores. Devuelve `False` sin enviar y sin traza de aviso (no hubo intento).
+2. `enviar_beneficiario_a_siis` chequea la marca **antes** de `armar_payload` (mismo orden que `guardar_en_tabla_intermedia`) y `reenviar_siis_pendientes` excluye los casos marcados: un caso de oficio ya no queda en `ERROR SIN_COPIA_CATALOGO`.
+3. `caso_en_convocatoria(convocatoria, dni)` en `inscripcion_publica.py` concentra el filtro RN-P5; `dni_en_convocatoria` y `_detalle_ya_inscripto` lo usan.
+4. `_tomar_caso_enviado(formulario)` en `cupo.py` concentra el protocolo de candados (BEC-01) de `aprobar_o_poner_en_espera` y `aprobar_de_oficio`.
+
+## Implementación
+
+Ver decisiones. Sin cambios de comportamiento en 2 a 4 salvo lo descrito.
+
+## Archivos
+
+`programas/services/avisos_resolucion.py`, `programas/services/siis_envio.py`, `programas/management/commands/reenviar_siis_pendientes.py`, `programas/services/inscripcion_publica.py`, `programas/services/alta_de_oficio.py`, `programas/services/cupo.py`, `programas/tests/test_becas_revision.py`, `programas/tests/test_inscribir_de_oficio.py`, `programas/tests/test_candados_concurrencia.py`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Test `test_alta_de_oficio_aprobada_desde_pantalla_no_manda_aviso` (`test_becas_revision.AvisoResolucionEnvioRealTests`), con el contraste del caso común en `test_territorial_con_el_toggle_encendido_manda_el_aviso`. **Mutación:** sin la guarda en `enviar_aviso_resolucion` el test queda rojo; restaurada, verde. Para el punto 2, dos tests en `test_inscribir_de_oficio` (`enviar_beneficiario_a_siis` no arma el payload; `reenviar_siis_pendientes._casos` no lista la marca), cada uno rojo al quitar su guarda. El contrato de candados de `test_candados_concurrencia` ahora atribuye el candado a `_tomar_caso_enviado`.
+
+## Pendientes / a definir
+
+- Contrato de `datos_identificacion` compartido con `_insertar_formulario` (pendiente de la ronda 1 de #1033).
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **07/11/2026 — alta del cambio.**
+- **07/11/2026 — ronda de auditoría de #1036:** `dni_en_convocatoria` vuelve a sus dos `EXISTS` sin ORDER BY (solo comparte con `caso_en_convocatoria` el queryset base); el reenvío manual del aviso informa el motivo en un caso de oficio.
 
 ---
