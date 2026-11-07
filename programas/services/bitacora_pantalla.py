@@ -54,6 +54,7 @@ from programas.models import Dispositivo, EntradaBitacora, Estadia, Turno
 from programas.services import censo as censo_servicio
 from programas.services.bitacora import MAX_ADJUNTOS_POR_ENTRADA, turnos_activos
 from programas.services.bitacora_detalle import adjuntos_de
+from programas.services.bitacora_detalle import plural as _plural
 from programas.services.nombre_plaza import plaza_con_sector
 from programas.services.ocupacion import ocupacion_de_plazas
 
@@ -115,10 +116,6 @@ def _hora(momento) -> str:
 
 def _dia(fecha: date) -> str:
     return date_format(fecha, "l d/m/Y")
-
-
-def _plural(cantidad, singular, plural):
-    return f"{cantidad} {singular if cantidad == 1 else plural}"
 
 
 def _autor(usuario) -> str:
@@ -184,12 +181,21 @@ def _personas_prefetch(nombrar_personas: bool):
     return Prefetch("personas", queryset=estadias)
 
 
-def _opcion_correccion(entrada):
+def _opcion_correccion(entrada, *, nombrar_personas: bool):
+    """Una novedad corregible, con lo que el modal ofrece quitar: sus adjuntos y personas actuales.
+
+    Sin `ciudadano.ver` no se nombra a nadie, y sin nombre no hay nada que ofrecer quitar.
+    """
+
     return {
         "pk": entrada.pk,
         "etiqueta": f"{_hora(entrada.momento)} · {entrada.get_tipo_display()} · {entrada.texto[:60]}",
         "tipo": entrada.tipo,
         "texto": entrada.texto,
+        "adjuntos": [{"id": adjunto.pk, "nombre": str(adjunto)} for adjunto in entrada.adjuntos.all()],
+        "personas": [{"id": estadia.pk, "nombre": _persona(estadia)} for estadia in entrada.personas.all()]
+        if nombrar_personas
+        else [],
     }
 
 
@@ -452,9 +458,18 @@ def pantalla_bitacora(
         versiones = [_entrada(entrada, nombrar_personas=nombrar_personas, reemplazada=True) for entrada in reemplazadas]
 
     corregibles = []
-    if puede_cargar:
+    if puede_cargar and not tipo and turno is not None and turno.pk == en_curso.turno.pk and len(vigentes) == total:
+        # Sin filtro y sin recorte, las vigentes del turno en curso **son** todas las corregibles:
+        # ya traen personas y adjuntos, que el modal ofrece quitar, sin consultas de más. Si el
+        # tope las recortó, la consulta aparte filtra las manuales antes de aplicarlo.
         corregibles = [
-            _opcion_correccion(entrada)
+            _opcion_correccion(entrada, nombrar_personas=nombrar_personas)
+            for entrada in vigentes
+            if entrada.origen == EntradaBitacora.Origen.MANUAL
+        ][:TOPE_CORREGIBLES]
+    elif puede_cargar:
+        corregibles = [
+            _opcion_correccion(entrada, nombrar_personas=nombrar_personas)
             for entrada in EntradaBitacora.objects.vigentes()
             .filter(
                 dispositivo=dispositivo,
@@ -463,6 +478,7 @@ def pantalla_bitacora(
                 origen=EntradaBitacora.Origen.MANUAL,
             )
             .only("id", "momento", "tipo", "texto")
+            .prefetch_related(_personas_prefetch(nombrar_personas), "adjuntos")
             .order_by("-momento", "-id")[:TOPE_CORREGIBLES]
         ]
         # Un filtro puede mostrar una entrada más vieja que el recorte del select.
@@ -470,7 +486,7 @@ def pantalla_bitacora(
         if tramo is not None and tramo.en_curso:
             incluidos = {entrada["pk"] for entrada in corregibles}
             corregibles.extend(
-                _opcion_correccion(entrada)
+                _opcion_correccion(entrada, nombrar_personas=nombrar_personas)
                 for entrada in vigentes
                 if entrada.origen == EntradaBitacora.Origen.MANUAL and entrada.pk not in incluidos
             )

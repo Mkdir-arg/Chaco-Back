@@ -53,6 +53,7 @@ from programas.models import (
     TrazaDispositivo,
     Turno,
 )
+from programas.services.bitacora_detalle import plural as _plural
 from programas.services.dispositivos import puede_operar_dispositivo
 from programas.services.nombre_plaza import nombre_de_plaza
 
@@ -580,14 +581,18 @@ def anotar_en_bitacora(movimiento):
     return entrada
 
 
-def _motivo_con_agregados(motivo, *, adjuntos, personas):
-    """El motivo seguido de «+2 adjuntos, +1 persona» cuando la corrección sumó algo."""
+def _motivo_con_cambios(motivo, *, adjuntos, personas, adjuntos_quitados=0, personas_quitadas=0):
+    """El motivo seguido de «−1 adjunto, +1 persona» cuando la corrección quitó o sumó algo."""
 
     partes = []
+    if adjuntos_quitados:
+        partes.append("−" + _plural(adjuntos_quitados, "adjunto", "adjuntos"))
     if adjuntos:
-        partes.append(f"+{adjuntos} {'adjunto' if adjuntos == 1 else 'adjuntos'}")
+        partes.append("+" + _plural(adjuntos, "adjunto", "adjuntos"))
+    if personas_quitadas:
+        partes.append("−" + _plural(personas_quitadas, "persona", "personas"))
     if personas:
-        partes.append(f"+{personas} {'persona' if personas == 1 else 'personas'}")
+        partes.append("+" + _plural(personas, "persona", "personas"))
     if not partes:
         return motivo
     agregado = ", ".join(partes)
@@ -595,6 +600,20 @@ def _motivo_con_agregados(motivo, *, adjuntos, personas):
         return agregado
     # El campo es de 255: el motivo cede lugar, el resumen no se recorta.
     return f"{motivo[: 255 - len(agregado) - 3]} · {agregado}"
+
+
+def _ids_a_quitar(valores, *, vigentes, campo, mensaje):
+    """Los ids de `valores` (objetos, enteros o texto), que tienen que ser de la versión que se corrige."""
+
+    ids = set()
+    for valor in valores or ():
+        try:
+            ids.add(int(str(getattr(valor, "pk", valor)).strip()))
+        except (TypeError, ValueError):
+            raise ValidationError({campo: mensaje}) from None
+    if not ids <= vigentes:
+        raise ValidationError({campo: mensaje})
+    return ids
 
 
 CORRECCION_CONCURRENTE = (
@@ -617,6 +636,7 @@ def corregir_entrada(
     sumar_personas=(),
     adjuntos_nuevos=(),
     quitar_adjuntos=(),
+    quitar_personas=(),
     motivo="",
 ):
     """Corrige una novedad **agregando** una versión. La que se corrige no se toca.
@@ -629,7 +649,10 @@ def corregir_entrada(
     adjuntos. `quitar_adjuntos` saca de **esta** versión adjuntos que la anterior tenía
     —el archivo y la versión anterior quedan—. El momento, el turno y la fecha operativa
     no se corrigen: son de cuándo pasó, no de lo que se dijo. `personas` reemplaza las de la
-    versión; `sumar_personas` solo agrega a las que ya tiene, sin revalidarlas.
+    versión; `sumar_personas` solo agrega a las que ya tiene, sin revalidarlas, y
+    `quitar_personas` saca de la nueva versión estadías que la anterior tenía. Lo que se
+    quita tiene que ser de **esta** novedad; la versión anterior conserva todo, y nunca se
+    borra un adjunto ni su archivo.
     """
 
     if not puede_operar_dispositivo(usuario, entrada.dispositivo, CAP_BITACORA):
@@ -692,8 +715,22 @@ def corregir_entrada(
                 if estadia.pk not in ids_actuales
             ),
         ]
-    quitar = {adjunto.pk if isinstance(adjunto, AdjuntoBitacora) else adjunto for adjunto in quitar_adjuntos or ()}
     previos = list(corregida.adjuntos.all())
+    quitar = _ids_a_quitar(
+        quitar_adjuntos,
+        vigentes={adjunto.pk for adjunto in previos},
+        campo="entrada",
+        mensaje="Alguno de los adjuntos a quitar no es de esta novedad.",
+    )
+    quitar_estadias = _ids_a_quitar(
+        quitar_personas,
+        vigentes={estadia.pk for estadia in previas},
+        campo="entrada",
+        mensaje="Alguna de las personas a quitar no es de esta novedad.",
+    )
+    if quitar_estadias:
+        # Las que quedan no se revalidan: solo se saca lo pedido de lo que la versión ya tenía.
+        estadias = [estadia for estadia in estadias if estadia.pk not in quitar_estadias]
     heredados = [adjunto for adjunto in previos if adjunto.pk not in quitar]
     # Una versión idéntica a la vigente no corrige nada. Antes de escribir archivos.
     if (
@@ -707,10 +744,14 @@ def corregir_entrada(
     archivos = _guardar_adjuntos(corregida.dispositivo, usuario, adjuntos_nuevos, heredados=len(heredados))
     # La traza dice qué sumó la corrección; quién y cuándo ya lo dicen `responsable` y la
     # fecha de la versión. Va en el motivo, que la pantalla muestra con la versión.
-    nueva.motivo_correccion = _motivo_con_agregados(
+    ids_previas = {estadia.pk for estadia in previas}
+    ids_nuevas = {estadia.pk for estadia in estadias}
+    nueva.motivo_correccion = _motivo_con_cambios(
         nueva.motivo_correccion,
         adjuntos=len(archivos),
-        personas=len({estadia.pk for estadia in estadias} - {estadia.pk for estadia in previas}),
+        personas=len(ids_nuevas - ids_previas),
+        adjuntos_quitados=len(quitar),
+        personas_quitadas=len(ids_previas - ids_nuevas),
     )
     nueva.clean()
     try:

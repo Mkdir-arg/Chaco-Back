@@ -88,3 +88,4 @@ site/
 scripts/*.sql
 # Excepción: el molde sin datos, que es justamente el que el operador necesita leer.
 !scripts/aprobados_materias_plantilla.sql
+default_*.sqlite3
