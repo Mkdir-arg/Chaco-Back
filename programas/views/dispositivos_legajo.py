@@ -867,7 +867,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             if pk is not None
             else None
         )
-        if accion is None or accion["accion"] != ACCION_REUBICAR:
+        if accion is None or ACCION_REUBICAR not in accion["acciones"]:
             raise Http404
         context = {
             "dispositivo": dispositivo,
@@ -891,6 +891,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
                 puede_liberar=puede_liberar,
                 puede_configurar_plazas=configura_plazas,
                 puede_ver_personas=puede(usuario, CAP_VER_CIUDADANO),
+                puede_egresar=puede_operar_dispositivo(usuario, dispositivo, CAP_EGRESAR),
             )
         )
         context["puede_reubicar"] = puede_liberar
@@ -1006,6 +1007,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
                 puede_liberar=puede_liberar,
                 puede_configurar_plazas=puede_configurar_plazas,
                 puede_ver_personas=puede(self.request.user, CAP_VER_CIUDADANO),
+                puede_egresar=puede_operar_dispositivo(self.request.user, dispositivo, CAP_EGRESAR),
             )
             if pk is not None
             else None
@@ -1015,7 +1017,7 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             return
         plaza = accion["plaza"]
         context["plaza_accion"] = accion
-        if accion["accion"] == ACCION_REUBICAR:
+        if ACCION_REUBICAR in accion["acciones"]:
             # Su destino es el de la estadía (`url_cambiar_plaza`), no una acción de plaza.
             if not self._preparar_reubicar(context, dispositivo, accion):
                 context.pop("plaza_accion")
@@ -1023,7 +1025,8 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
             return
         # Una plaza más allá del tope de la grilla no está en `plazas_modal`: se suma acá.
         context["plazas_modal"].setdefault(
-            plaza.pk, datos_para_el_modal(plaza, accion["estado"], accion["acciones"], accion["bloqueo"])
+            plaza.pk,
+            datos_para_el_modal(plaza, accion["estado"], accion["acciones"], accion["bloqueo"], accion["enlaces"]),
         )
         context["plaza_inicial"] = plaza.pk
 

@@ -144,19 +144,20 @@ def _normalizar(texto):
     return " ".join((texto or "").split())
 
 
-def _exigir_nombre_libre(dispositivo, nombre, *, excepto=None):
+def _exigir_nombre_libre(dispositivo, nombre, *, excepto=None, mensaje=None):
     """El nombre es único entre los sectores ACTIVOS del dispositivo; uno dado de baja libera el suyo.
 
     No hay UNIQUE en la base (MySQL/MariaDB no tienen índice único condicional): la regla es esta
     y la sostiene el bloqueo de la fila del dispositivo (`_bloquear_dispositivo`), que tienen que
-    tomar el alta, la edición y la reactivación antes de llamarla.
+    tomar el alta, la edición y la reactivación antes de llamarla. `mensaje` reemplaza el aviso
+    estándar (la reactivación explica qué hacer).
     """
 
     repetidos = Sector.objects.filter(dispositivo=dispositivo, nombre=nombre, activo=True)
     if excepto is not None:
         repetidos = repetidos.exclude(pk=excepto.pk)
     if repetidos.exists():
-        raise ValidationError({"nombre": "Ya hay un sector activo con ese nombre en este dispositivo."})
+        raise ValidationError({"nombre": mensaje or "Ya hay un sector activo con ese nombre en este dispositivo."})
 
 
 def _exigir_nombre_libre_al_reactivar(dispositivo, sector):
@@ -166,15 +167,15 @@ def _exigir_nombre_libre_al_reactivar(dispositivo, sector):
     lugar, las dos entradas dan el mismo mensaje y no pueden divergir.
     """
 
-    try:
-        _exigir_nombre_libre(dispositivo, sector.nombre, excepto=sector)
-    except ValidationError:
-        raise ValidationError(
-            {
-                "nombre": f"No se puede reactivar: ya hay un sector activo llamado «{sector.nombre}». "
-                "Renombrá uno de los dos y volvé a intentar."
-            }
-        ) from None
+    _exigir_nombre_libre(
+        dispositivo,
+        sector.nombre,
+        excepto=sector,
+        mensaje=(
+            f"No se puede reactivar: ya hay un sector activo llamado «{sector.nombre}». "
+            "Renombrá uno de los dos y volvé a intentar."
+        ),
+    )
 
 
 def _bloquear_dispositivo(dispositivo):

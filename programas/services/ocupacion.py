@@ -478,6 +478,10 @@ class EstadoPlaza:
     tono: str
     detalle: str = ""
     detalle_completo: str = ""
+    #: Solo en la plaza ocupada: la estadía y la persona alojada, para los enlaces del modal del mapa.
+    #: Salen de la misma consulta que el estado: no cuestan ninguna más.
+    estadia_id: int | None = None
+    ciudadano_id: int | None = None
 
     @property
     def disponible(self) -> bool:
@@ -501,10 +505,10 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
     ids = [plaza.pk for plaza in plazas]
     momento = momento or timezone.now()
     ocupadas = {
-        pk: (apellido, nombre)
-        for pk, apellido, nombre in _estadias_que_ocupan()
+        pk: (apellido, nombre, estadia_id, ciudadano_id)
+        for pk, apellido, nombre, estadia_id, ciudadano_id in _estadias_que_ocupan()
         .filter(plaza_id__in=ids)
-        .values_list("plaza_id", "ciudadano__apellido", "ciudadano__nombre")
+        .values_list("plaza_id", "ciudadano__apellido", "ciudadano__nombre", "id", "ciudadano_id")
     }
     reservas = {
         pk: (tipo, apellido, nombre, hasta)
@@ -517,11 +521,13 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
     for plaza in plazas:
         detalle = ""
         detalle_completo = ""
+        estadia_id = ciudadano_id = None
         if plaza.estado == Plaza.Estado.FUERA_SERVICIO:
             estado, detalle = ESTADO_FUERA_SERVICIO, plaza.motivo_fuera_servicio
         elif plaza.pk in ocupadas:
             estado = ESTADO_OCUPADA
-            detalle = _nombre_en_plaza(*ocupadas[plaza.pk]) if puede_ver_personas else ""
+            apellido, nombre, estadia_id, ciudadano_id = ocupadas[plaza.pk]
+            detalle = _nombre_en_plaza(apellido, nombre) if puede_ver_personas else ""
         elif plaza.pk in reservas:
             tipo, apellido, nombre, hasta = reservas[plaza.pk]
             prestada = tipo == ReservaPlaza.Tipo.PRESTAMO
@@ -534,7 +540,12 @@ def estado_de_plazas(plazas, momento=None, *, puede_ver_personas=False) -> dict[
         else:
             estado = ESTADO_DISPONIBLE
         derivados[plaza.pk] = EstadoPlaza(
-            estado=estado, tono=_TONO_DE[estado], detalle=detalle, detalle_completo=detalle_completo or detalle
+            estado=estado,
+            tono=_TONO_DE[estado],
+            detalle=detalle,
+            detalle_completo=detalle_completo or detalle,
+            estadia_id=estadia_id,
+            ciudadano_id=ciudadano_id,
         )
     return derivados
 
