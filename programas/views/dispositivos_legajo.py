@@ -476,6 +476,9 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                     get.get("relevamientos_page"),
                     usuario=user,
                     edificio_id=get.get("ver_edificio"),
+                    estado=get.get("estado_edificio"),
+                    # La ocupación sale del mismo censo de la franja: una sola lectura para toda la pantalla.
+                    ocupadas_por_sector={sector["pk"]: sector["ocupadas"] for sector in sectores},
                 ),
                 # Lo respondido en el formulario «Crear dispositivo» de su tipo (P17), leído
                 # con la foto de la versión respondida.
@@ -490,6 +493,8 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "puede_egresar": puede_egresar,
                 "url_ingreso": reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]),
                 "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]),
+                # «Asignar edificio» lleva a editar el sector: la misma regla que `puede_configurar_plazas`.
+                "puede_asignar_edificio": puede_editar and dispositivo.estado != Dispositivo.Estado.CERRADO,
             }
         )
         self._preparar_modales_de_estadia(context, dispositivo, puede_cambiar, puede_egresar)

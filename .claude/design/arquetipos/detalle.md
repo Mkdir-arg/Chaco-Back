@@ -138,24 +138,20 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   «Versión N» (más «Tipo anterior: …» si es de otro tipo), `h3` por sección y la misma `dl`
   `grid gap-5 sm:grid-cols-2` de los datos; el archivo es un enlace con `fa-paperclip`. Solo
   lo visible según las condiciones de la foto respondida.
-- Infraestructura de P4/P19: cada edificio muestra su domicilio normalizado junto a su
-  identidad y `_ubicacion.html` con las coordenadas del inmueble. El predio compartido
-  lista solo instituciones visibles, con tipo, estado y enlace al legajo; omite sector
-  porque `Sector` no se relaciona con `Edificio`. `infraestructura_del_dispositivo`
-  entrega domicilio y coordenadas sin consultas por fila. Alta, edición y vínculo se abren en los modales
-  canónicos de esa solapa y exigen alcance de edición al dispositivo.
-  El semáforo de la solapa y de cada edificio conserva «Crítico» (`danger`) si la última
-  realizada fue Alta, incluso con relevamientos vencidos en ese edificio u otro del dispositivo.
-  En los demás casos muestra «Vencido» (`warning`) si hay un relevamiento en curso vencido,
-  con el selector que usa la alerta. Sin vencidos
-  conserva la criticidad de la última realizada o «Sin relevar»; sin inmuebles,
-  «Sin edificio cargado». P2 usa el mismo servicio, con lecturas por lote.
-  Con 2 o más edificios la solapa muestra, bajo las tres tarjetas globales, una tabla canónica
-  (Edificio con código, Domicilio, Estado, Último relevamiento, Instituciones en el predio) con
-  `menu_fila` (Ver; con edición, Editar edificio y Desvincular) y sin registro fotográfico.
-  `?tab=infraestructura&ver_edificio=<pk>` abre uno solo, con su registro paginado y el enlace
-  «Volver a los edificios»; un id no vinculado se ignora y vuelve la tabla (`edificio_id`,
-  `viendo` y `en_tabla` del servicio). Con un solo edificio no hay tabla ni enlace.
+- Infraestructura de P4/P19: tres modos que arma `infraestructura_del_dispositivo` (`modo`). Sin edificio, el
+  estado vacío con las acciones. Con 2 o más, un **listado**: encabezado «Funciona en N edificios» con el más
+  grave nombrado, acciones (Vincular, Cargar edificio, Crear relevamiento), filtro por estado con chips
+  (`estado_edificio`, del lado del servidor, `components/_chips_enlace.html`) y una grilla de
+  `components/_tarjeta_edificio.html` del más grave al mejor, sin relevar al final. Sin tablas ni tarjetas
+  globales. Con uno solo, o con `?tab=infraestructura&ver_edificio=<pk>`, la **ficha** del edificio
+  (`_infra_ficha.html`): último relevamiento, sectores con ocupadas, instituciones del predio, datos con
+  `_ubicacion.html` y el registro fotográfico en `<details>` por relevamiento con su paginación; con 2 o más
+  edificios suma los chips para cambiar de uno a otro y «Los N edificios». Un id no vinculado se ignora y vuelve
+  el listado. Alta, edición y vínculo se abren en los modales canónicos y exigen alcance de edición.
+  La tarjeta separa el estado (criticidad de la última realizada) del aviso «Vencido» (`danger`, relevamiento en
+  curso vencido) o «Vence en N días» (`warning`, dentro de `DIAS_POR_VENCER`). El semáforo agregado conserva
+  «Crítico» aunque haya vencidos; sin inmuebles, «Sin edificio cargado». Los sectores sin edificio van en una
+  `_alerta` warning; «Asignar edificio» solo con `puede_asignar_edificio`. P2 usa el mismo servicio.
 - En P4, la columna Persona muestra «Apellido, Nombre» y DNI sin avatar solo con `ciudadano.ver`.
   Sin esa capacidad, fila, etiqueta del menú y modales de cambio/egreso muestran «Persona alojada»
   sin identidad en texto ni atributos; tampoco los movimientos del Historial precargado nombran
@@ -187,14 +183,8 @@ nombres; una vez realizado, el resultado muestra quién relevó. Infraestructura
 evento con su informe de solo lectura y conserva el dispositivo de origen para volver.
 La revisión agrega badge verde, revisor y fecha/hora sin perder la criticidad, con el
 contrato de `componentes/ficha_timeline.md`. Las fotos en curso conservan su fecha de carga.
-Quien ve el dispositivo sin alcance de inspección sobre el edificio (`inspecciones_visibles`) ve en la franja de
-Infraestructura solo el semáforo y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó.
-
-La solapa Infraestructura de P4 abre, debajo de los indicadores, la sección «Sectores por
-edificio» (Cambio 429): por cada edificio un título con su cantidad de sectores y de plazas y la
-lista `ul.divide-y.divide-light` de sus sectores activos, y, si quedan sectores sin ubicar, el
-bloque «Sin edificio» con la misma lista. Es lista simple, sin componente nuevo. La arma
-`infraestructura_del_dispositivo` (`sectores`, `n_plazas`, `sin_edificio`) con una consulta fija.
+Quien ve el dispositivo sin alcance de inspección sobre el edificio (`inspecciones_visibles`) ve en la tarjeta y la ficha de
+Infraestructura solo el estado y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó.
 
 ## Prohibido
 

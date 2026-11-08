@@ -25,10 +25,11 @@ lectura por cada una de sus cuatro fuentes (``programas.selectors.auditoria_disp
 from collections import defaultdict
 
 from django.core.paginator import Paginator
-from django.db.models import Count, Exists, F, OuterRef, Q, Value
+from django.db.models import Count, Exists, F, OuterRef, Q, Subquery, Value
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
+from django.utils.text import Truncator
 
 from core.rbac import puede
 from core.services.vencimientos import avisos
@@ -39,6 +40,7 @@ from programas.selectors.vencimiento_inspecciones import tiene_relevamiento_venc
 from programas.services.alertas_dispositivos import AMBITO, ICONOS, TONOS
 from programas.services.estadias import estado_visible
 from programas.services.inspecciones import (
+    DIAS_POR_VENCER,
     SEMAFOROS,
     SIN_EDIFICIO,
     edificios_con_asignacion_visible,
@@ -372,6 +374,13 @@ def _evento_de_relevamiento(inspeccion, fotos, con_edificio, *, ve_asignacion=Fa
             "cuando": f"en curso{edificio}{agente}",
             "titulo": "Relevamiento en curso",
             "detalle": f"{detalle} · {rotulos}" if rotulos else detalle,
+            # Lo que dibuja la fila desplegable de la ficha del edificio (Cambio 439).
+            "fecha_texto": "En curso",
+            "quien": f"Asignado a {_nombre(inspeccion.asignado_a)}" if ve_asignacion else "",
+            "fotos_texto": _cantidad_de_fotos(inspeccion.n_fotos),
+            "estado_texto": "En curso",
+            "estado_tono": "gray",
+            "observaciones": "",
             **galeria,
         }
     semaforo = semaforo_de_inspeccion(inspeccion)
@@ -381,6 +390,13 @@ def _evento_de_relevamiento(inspeccion, fotos, con_edificio, *, ve_asignacion=Fa
         "detalle": rotulos,
         "badge": semaforo.texto,
         "badge_tono": semaforo.tono,
+        "fecha_texto": _fecha(inspeccion.realizada_en),
+        "quien": f"Relevó {_nombre(inspeccion.realizada_por)}",
+        "fotos_texto": _cantidad_de_fotos(inspeccion.n_fotos),
+        "estado_texto": semaforo.texto,
+        "estado_tono": semaforo.tono,
+        "observaciones": (inspeccion.observaciones or "").strip(),
+        "revisado": inspeccion.revisado_en is not None,
         **galeria,
     }
     if semaforo.tono in _TONOS_CON_COLOR:
@@ -395,74 +411,152 @@ def _evento_de_relevamiento(inspeccion, fotos, con_edificio, *, ve_asignacion=Fa
     return evento
 
 
-def _indicadores_edilicios(semaforo, edificios, realizados, fotos):
-    """La franja de la solapa: el semáforo y dos cifras, ya formateadas."""
-
-    if len(edificios) > 1:
-        nota_estado = f"el más grave de {len(edificios)} edificios"
-    elif edificios[0]["ultima"] is not None:
-        nota_estado = f"último relevamiento {_fecha(edificios[0]['ultima'].realizada_en)}"
-    else:
-        nota_estado = "ningún relevamiento realizado"
-    return [
-        {
-            "etiqueta": "Estado edilicio",
-            "valor": semaforo.texto,
-            "icono": "fa-building",
-            # Sin color, va con el de marca y el texto manda.
-            "tono": semaforo.tono if semaforo.tono in _TONOS_CON_COLOR else "brand",
-            "nota": nota_estado,
-        },
-        {
-            "etiqueta": "Relevamientos realizados",
-            "valor": realizados,
-            "icono": "fa-clipboard-check",
-            "tono": "brand",
-            "nota": "cada uno queda en el registro",
-        },
-        {
-            "etiqueta": "Fotos",
-            "valor": fotos,
-            "icono": "fa-camera",
-            "tono": "brand",
-            "nota": "cada relevamiento agrega su tanda",
-        },
-    ]
+#: Los estados del filtro de la solapa, en el orden en que se ofrecen y en el que se ordenan las
+#: tarjetas (del más grave al mejor, «sin relevar» al final): clave, rótulo y criticidad de la última
+#: realizada que la define (``None`` = ninguna realizada).
+ESTADOS_EDILICIOS = (
+    ("CRITICO", "Crítico", InspeccionEdificio.Criticidad.ALTA),
+    ("REGULAR", "Regular", InspeccionEdificio.Criticidad.MEDIA),
+    ("BUENO", "Bueno", InspeccionEdificio.Criticidad.BAJA),
+    ("SIN_RELEVAR", "Sin relevar", None),
+)
+_CLAVES_ESTADO = {clave for clave, _texto, _criticidad in ESTADOS_EDILICIOS}
+_ORDEN_ESTADO = {clave: orden for orden, (clave, _texto, _criticidad) in enumerate(ESTADOS_EDILICIOS)}
+#: Cuántos sectores nombra la tarjeta antes de decir «y N más»; la ficha los lista todos.
+_SECTORES_EN_TARJETA = 4
+#: Largo de la observación en la tarjeta; el texto entero está en la ficha.
+_LARGO_OBSERVACION = 140
 
 
-def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edificio_id=None):
-    """Lo que dibuja la solapa Infraestructura: criticidad, observaciones y registro fotográfico.
+def _plural(cantidad, singular, plural):
+    return f"{cantidad} {singular if cantidad == 1 else plural}"
 
-    El relevamiento **cuelga del edificio**: un predio compartido muestra los mismos en todas las
-    instituciones que lo ocupan. Sin edificio cargado devuelve ``edificios`` vacío y el semáforo
-    «Sin edificio cargado», que no es lo mismo que un edificio sin relevar.
 
-    Cada edificio trae sus sectores activos y sus plazas (``sectores``, ``n_plazas``: vista
-    jerárquica edificio → sectores, Cambio 429) y ``sin_edificio`` los que todavía no tienen
-    edificio: una consulta más, la misma para cualquier cantidad de edificios.
+def _clave_estado(ultima):
+    """El estado del filtro de un edificio: sale de la criticidad de la última realizada."""
 
-    Incluye coordenadas del edificio y las instituciones visibles del predio. No trae
-    tenencia, servicios, habitaciones, plano ni vigencia: no son del MVP.
+    if ultima is None:
+        return "SIN_RELEVAR"
+    for clave, _texto, criticidad in ESTADOS_EDILICIOS:
+        if criticidad is not None and ultima.criticidad == criticidad:
+            return clave
+    return ""
 
-    ``usuario`` decide **de quién** se muestra el relevamiento en curso: sin él —o con quien solo
-    opera la institución— el evento dice «en curso» y nada más
-    (`programas.services.inspecciones.ve_la_asignacion`).
 
-    Costo fijo, sin importar cuántos relevamientos ni cuántas fotos: los edificios con su última
-    realizada y la cantidad de instituciones (1), esas últimas con quien relevó (1), los totales
-    de la franja (1), el ``COUNT`` y la página del registro fotográfico (2) y las fotos de la
-    página (1). Sin edificio, una sola. Una más —no una por fila— solo cuando la página trae algún
-    relevamiento en curso y el usuario podría coordinar el edificio.
-    Las instituciones visibles agregan una consulta para todos los edificios,
-    además de evaluar el alcance con el servicio RBAC.
+def _aviso_de_vencimiento(vencido, vence_el, hoy):
+    """«Vencido» o «Vence en N días» de un edificio, o ``None``.
 
-    Con dos o más edificios la solapa es una tabla (``en_tabla``): no se dibuja el registro
-    fotográfico, así que no se piden ni el ``COUNT``, ni la página, ni las fotos (3 consultas
-    menos). ``edificio_id`` abre uno solo (``viendo``): si es uno de los vinculados acota la lista
-    a ese antes de calcular semáforo, totales y registro; si no lo es, o no es un número, se
-    ignora y se devuelve la tabla, nunca un edificio ajeno.
+    Vencido es la regla del selector compartido (relevamiento en curso con fecha pasada); «por vencer»
+    usa la misma ventana que el listado de relevamientos (``DIAS_POR_VENCER``).
     """
 
+    if vencido:
+        return {"texto": "Vencido", "tono": "danger"}
+    if vence_el is None:
+        return None
+    dias = (vence_el - hoy).days
+    if dias > DIAS_POR_VENCER:
+        return None
+    return {"texto": "Vence hoy" if dias <= 0 else f"Vence en {_plural(dias, 'día', 'días')}", "tono": "warning"}
+
+
+def _predio(otras, visibles):
+    """Con quién comparte el inmueble, sin nombrar a quien el usuario no puede ver."""
+
+    if otras <= 0:
+        return "Solo esta institución"
+    if otras == 1 and len(visibles) == 1:
+        return f"Compartido con {visibles[0]['nombre']}"
+    return f"Compartido con {_plural(otras, 'institución', 'instituciones')}"
+
+
+def _sectores_en_texto(sectores):
+    if not sectores:
+        return "Todavía no hay sectores"
+    nombres = [f"{sector['nombre']} ({sector['plazas']})" for sector in sectores[:_SECTORES_EN_TARJETA]]
+    resto = len(sectores) - _SECTORES_EN_TARJETA
+    if resto > 0:
+        nombres.append(f"y {resto} más")
+    return " · ".join(nombres)
+
+
+def _resumen_del_listado(filas):
+    """El encabezado del listado: cuántos edificios, el más grave si hay uno que lo merezca y las cuentas."""
+
+    # `filas` ya viene del más grave al mejor: el primero es el más grave, y solo se nombra si
+    # es crítico o regular (que «el más grave» sea «Bueno» no le sirve a nadie).
+    peor = filas[0]
+    mas_grave = peor if peor["estado"]["clave"] in ("CRITICO", "REGULAR") else None
+    relevados = [fila for fila in filas if fila["estado"]["clave"] != "SIN_RELEVAR"]
+    compartidos = sum(1 for fila in filas if fila["otras_instituciones"] > 0)
+    sin_relevar = len(filas) - len(relevados)
+    partes = []
+    if compartidos:
+        partes.append(
+            "1 edificio es un predio compartido con otras instituciones"
+            if compartidos == 1
+            else f"{compartidos} edificios son predios compartidos con otras instituciones"
+        )
+    if sin_relevar:
+        if partes:
+            partes.append("1 todavía no se relevó" if sin_relevar == 1 else f"{sin_relevar} todavía no se relevaron")
+        else:
+            partes.append(
+                "1 edificio todavía no se relevó"
+                if sin_relevar == 1
+                else f"{sin_relevar} edificios todavía no se relevaron"
+            )
+    return {
+        "titulo": f"Funciona en {_plural(len(filas), 'edificio', 'edificios')}",
+        "mas_grave": mas_grave,
+        "todos_buenos": mas_grave is None
+        and bool(relevados)
+        and all(f["estado"]["clave"] == "BUENO" for f in relevados),
+        # Las partes que aplican, en una frase: «A y B.» o «A.»; vacía si ninguna aplica.
+        "cuentas": (" y ".join(partes) + ".") if partes else "",
+    }
+
+
+def infraestructura_del_dispositivo(
+    dispositivo, pagina=1, usuario=None, edificio_id=None, estado=None, ocupadas_por_sector=None
+):
+    """Lo que dibuja la solapa Infraestructura: tarjetas por edificio y, al abrir uno, su ficha (Cambio 439).
+
+    El relevamiento **cuelga del edificio**: un predio compartido muestra los mismos en todas las
+    instituciones que lo ocupan. Sin edificio cargado devuelve ``modo="vacio"`` y el semáforo
+    «Sin edificio cargado», que no es lo mismo que un edificio sin relevar.
+
+    ``modo`` es lo que la pantalla dibuja:
+
+    - ``"vacio"``: ningún edificio.
+    - ``"listado"``: dos o más edificios y ninguno abierto. ``edificios`` va del más grave al mejor (la
+      última realizada manda; a igual estado, el que tiene un relevamiento vencido primero; «sin relevar» al
+      final), ``listado`` es lo que deja el filtro ``estado`` (``CRITICO``, ``REGULAR``, ``BUENO``,
+      ``SIN_RELEVAR``; otro valor no filtra), ``filtros`` los chips con su conteo y ``resumen`` el
+      encabezado. El registro fotográfico no se pide.
+    - ``"ficha"``: un edificio abierto (``viendo``), por ``edificio_id`` o porque es el único. Trae su registro
+      paginado (``eventos``, ``relevamientos``) y los ``chips`` para pasar a otro edificio.
+
+    Cada fila trae sus sectores activos con plazas y, si el llamador pasó ``ocupadas_por_sector``
+    (``{sector_id: ocupadas}``, del censo que la pantalla ya calculó: la ocupación sale de las estadías,
+    nunca se tipea), cuántas están ocupadas. ``sin_edificio`` junta los sectores que todavía no tienen edificio.
+
+    Incluye coordenadas del edificio y las instituciones visibles del predio. No trae tenencia, servicios,
+    habitaciones, plano ni vigencia: no son del MVP.
+
+    ``usuario`` decide **de quién** se muestra el relevamiento en curso: sin él —o con quien solo opera la
+    institución— el evento dice «en curso» y nada más (`programas.services.inspecciones.ve_la_asignacion`).
+    Cambio 428: la criticidad, las observaciones, quién relevó y las fotos son del informe; sin alcance de
+    inspección (`ve_detalle` falso) queda el semáforo y la fecha.
+
+    Costo fijo, sin importar cuántos edificios, relevamientos ni fotos: los edificios con su última realizada,
+    el próximo vencimiento y la cantidad de instituciones (1), las instituciones visibles (1), las últimas con
+    quien relevó (1), los sectores con sus plazas (1) y los totales por edificio (1). La ficha suma el ``COUNT``
+    y la página del registro (2) y las fotos de la página (1); una más, no una por fila, solo si la página trae
+    algún relevamiento en curso y el usuario podría coordinar el edificio. Sin edificio, una sola.
+    """
+
+    hoy = timezone.localdate()
     edificios = list(
         Edificio.objects.filter(
             pk__in=Edificio.dispositivos.through.objects.filter(dispositivo=dispositivo).values("edificio_id")
@@ -471,6 +565,11 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
             ultima_id=subconsulta_ultima_realizada(),
             n_instituciones=Count("dispositivos", distinct=True),
             vencido=tiene_relevamiento_vencido(),
+            vence_el=Subquery(
+                InspeccionEdificio.objects.filter(edificio=OuterRef("pk"), estado=InspeccionEdificio.Estado.ASIGNADA)
+                .order_by("fecha_vencimiento", "pk")
+                .values("fecha_vencimiento")[:1]
+            ),
         )
         # El domicilio normalizado viaja en la MISMA consulta: leerlo
         # después desde el objeto sería una consulta por edificio, porque `only()` los deja
@@ -487,14 +586,20 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
             "codigo_postal",
             "latitud",
             "longitud",
+            "creado",
         )
         .order_by("nombre", "pk")
     )
     if not edificios:
         return {
+            "modo": "vacio",
             "edificios": [],
+            "n_edificios": 0,
             "semaforo": SEMAFOROS[SIN_EDIFICIO],
-            "indicadores": [],
+            "listado": [],
+            "filtros": [],
+            "resumen": None,
+            "chips": [],
             "eventos": [],
             "relevamientos": None,
             "viendo": None,
@@ -502,16 +607,16 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
             "sin_edificio": None,
         }
 
-    viendo_pk = None
-    if len(edificios) > 1:
+    pedido = None
+    if len(edificios) == 1:
+        pedido = edificios[0].pk
+    else:
         try:
             pedido = int(edificio_id)
         except (TypeError, ValueError):
             pedido = None
-        if pedido in {edificio.pk for edificio in edificios}:
-            viendo_pk = pedido
-            edificios = [edificio for edificio in edificios if edificio.pk == pedido]
-    en_tabla = len(edificios) > 1
+        if pedido not in {edificio.pk for edificio in edificios}:
+            pedido = None
 
     instituciones = instituciones_del_predio(usuario, [edificio.pk for edificio in edificios])
     # Cambio 428: la criticidad, las observaciones y quién relevó son del informe, que se abre solo
@@ -525,51 +630,136 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
         .in_bulk([edificio.ultima_id for edificio in edificios if edificio.ultima_id])
     )
     sectores_de, sectores_sin_edificio = sectores_por_edificio(dispositivo)
+    # Los relevamientos realizados y las fotos de CADA edificio, en una sola consulta agrupada.
+    totales = {
+        fila["edificio_id"]: fila
+        for fila in InspeccionEdificio.objects.filter(edificio_id__in=[edificio.pk for edificio in edificios])
+        .values("edificio_id")
+        .annotate(
+            realizados=Count("pk", filter=Q(estado=_REALIZADA), distinct=True),
+            fotos=Count("fotos", filter=~Q(estado=InspeccionEdificio.Estado.CANCELADA)),
+        )
+    }
+
+    def _con_ocupacion(sector):
+        ocupadas = None if ocupadas_por_sector is None else ocupadas_por_sector.get(sector["pk"], 0)
+        return {**sector, "ocupadas": ocupadas}
+
     filas = []
     for edificio in edificios:
         ultima = ultimas.get(edificio.ultima_id)
-        sectores = sectores_de.get(edificio.pk, [])
+        sectores = [_con_ocupacion(sector) for sector in sectores_de.get(edificio.pk, [])]
         ve_detalle = ultima is None or ultima.con_detalle
+        semaforo_estado = semaforo_de_inspeccion(ultima)
+        otras = edificio.n_instituciones - 1
+        del_predio = instituciones.get(edificio.pk, [])
+        total = totales.get(edificio.pk, {})
+        realizados = total.get("realizados", 0)
+        observaciones = (ultima.observaciones or "").strip() if ultima else ""
+        if ultima is None:
+            observacion = "Todavía no se relevó este edificio."
+        elif ve_detalle:
+            observacion = Truncator(observaciones).chars(_LARGO_OBSERVACION) or "Sin observaciones."
+        else:
+            observacion = ""
         filas.append(
             {
                 "pk": edificio.pk,
                 "sectores": sectores,
+                "sectores_texto": _sectores_en_texto(sectores),
                 "n_plazas": sum(sector["plazas"] for sector in sectores),
+                "n_ocupadas": None if ocupadas_por_sector is None else sum(sector["ocupadas"] for sector in sectores),
                 "codigo": edificio.codigo,
                 "nombre": edificio.nombre,
                 "domicilio": edificio.domicilio_completo,
                 "latitud": edificio.latitud,
                 "longitud": edificio.longitud,
-                "instituciones": instituciones.get(edificio.pk, []),
+                "instituciones": del_predio,
                 "semaforo": semaforo_de_inspeccion(ultima, vencido=edificio.vencido),
+                # El estado de la tarjeta es el de la última realizada; «Vencido» y «Vence en N días» van aparte.
+                "estado": {
+                    "clave": _clave_estado(ultima),
+                    "texto": semaforo_estado.texto,
+                    "tono": semaforo_estado.tono,
+                },
+                "vencido": bool(edificio.vencido),
+                "aviso": _aviso_de_vencimiento(edificio.vencido, edificio.vence_el, hoy),
                 "ultima": ultima,
                 "ve_detalle": ve_detalle,
                 "relevo": _nombre(ultima.realizada_por) if ultima and ve_detalle else "",
-                "otras_instituciones": edificio.n_instituciones - 1,
+                "fecha_texto": (
+                    f"Relevado el {_fecha(ultima.realizada_en)}" if ultima else f"Cargado el {_fecha(edificio.creado)}"
+                ),
+                "observacion": observacion,
+                "otras_instituciones": otras,
+                "n_instituciones": otras + 1,
+                "predio": _predio(otras, [i for i in del_predio if i["pk"] != dispositivo.pk]),
+                # Sin alcance no se cuenta lo que no se puede abrir: ni relevamientos ni fotos.
+                "conteo": (
+                    f"{_plural(realizados, 'relevamiento', 'relevamientos')} · "
+                    f"{_plural(total.get('fotos', 0), 'foto', 'fotos')}"
+                    if realizados
+                    else "Sin relevamientos"
+                ),
+                "con_conteo": ve_detalle,
             }
         )
+    filas.sort(
+        key=lambda fila: (
+            _ORDEN_ESTADO.get(fila["estado"]["clave"], len(_ORDEN_ESTADO)),
+            0 if fila["vencido"] else 1,
+            fila["nombre"].lower(),
+            fila["pk"],
+        )
+    )
     semaforo = semaforo_de_ultimas(
         {fila["pk"]: fila["ultima"] for fila in filas},
         vencidos={edificio.pk for edificio in edificios if edificio.vencido},
     )
-
-    totales = InspeccionEdificio.objects.filter(edificio_id__in=[fila["pk"] for fila in filas]).aggregate(
-        realizados=Count("pk", filter=Q(estado=_REALIZADA), distinct=True),
-        fotos=Count("fotos", filter=~Q(estado=InspeccionEdificio.Estado.CANCELADA)),
-    )
-
-    indicadores = _indicadores_edilicios(semaforo, filas, totales["realizados"], totales["fotos"])
-    # «Sin edificio» solo en la vista de todos los edificios: al abrir uno solo, la jerarquía es la de ese.
+    # «Sin edificio» solo cuando no hay una ficha abierta entre varios: al abrir uno, la jerarquía es la de ese.
     sin_edificio = (
-        {"sectores": sectores_sin_edificio, "n_plazas": sum(sector["plazas"] for sector in sectores_sin_edificio)}
-        if sectores_sin_edificio and viendo_pk is None
+        {
+            "sectores": sectores_sin_edificio,
+            "n_plazas": sum(sector["plazas"] for sector in sectores_sin_edificio),
+            "titulo": (
+                "1 sector todavía no tiene edificio"
+                if len(sectores_sin_edificio) == 1
+                else f"{len(sectores_sin_edificio)} sectores todavía no tienen edificio"
+            ),
+            "texto": "; ".join(
+                f"{sector['nombre']} · {_plural(sector['plazas'], 'plaza', 'plazas')}"
+                for sector in sectores_sin_edificio
+            )
+            + ". Hasta asignarlos no figuran en ningún edificio.",
+            # «Asignar edificio» abre la edición del primero; el resto se asigna de a uno, igual.
+            "primero_pk": sectores_sin_edificio[0]["pk"],
+        }
+        if sectores_sin_edificio and (pedido is None or len(filas) == 1)
         else None
     )
-    if en_tabla:
+    base = reverse("dispositivos:detalle", args=[dispositivo.pk]) + "?tab=infraestructura"
+
+    if pedido is None:
+        clave = estado if estado in _CLAVES_ESTADO else ""
+        filtros = [{"texto": "Todos", "n": len(filas), "url": base, "activo": not clave}] + [
+            {
+                "texto": texto,
+                "n": sum(1 for fila in filas if fila["estado"]["clave"] == codigo),
+                "url": f"{base}&estado_edificio={codigo}",
+                "activo": clave == codigo,
+            }
+            for codigo, texto, _criticidad in ESTADOS_EDILICIOS
+        ]
         return {
+            "modo": "listado",
             "edificios": filas,
+            "n_edificios": len(filas),
             "semaforo": semaforo,
-            "indicadores": indicadores,
+            "listado": [fila for fila in filas if not clave or fila["estado"]["clave"] == clave],
+            "filtros": filtros,
+            "estado": clave,
+            "resumen": _resumen_del_listado(filas),
+            "chips": [],
             "eventos": [],
             "relevamientos": None,
             "viendo": None,
@@ -577,15 +767,25 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
             "sin_edificio": sin_edificio,
         }
 
+    viendo = next(fila for fila in filas if fila["pk"] == pedido)
+    chips = [
+        {
+            "texto": fila["nombre"],
+            "url": f"{base}&ver_edificio={fila['pk']}",
+            "activo": fila["pk"] == pedido,
+            "tono": fila["estado"]["tono"],
+            "estado": fila["estado"]["texto"],
+        }
+        for fila in filas
+    ]
+
     # Las canceladas no entran: no tienen resultado. La en curso va primero (todavía no tiene fecha).
-    inspecciones = inspecciones_de_dispositivo(dispositivo)
+    inspecciones = inspecciones_de_dispositivo(dispositivo).filter(edificio_id=pedido)
     if usuario is not None:
         # Cambio 422: el registro enlaza al informe y a las fotos, y los dos se abren solo por
         # `inspecciones_visibles`. Quien llega al detalle por leer todos los dispositivos
         # (`ver_todos`) sin operar ni coordinar la institución no ve los relevamientos.
         inspecciones = inspecciones.filter(pk__in=inspecciones_visibles(usuario).values("pk"))
-    if viendo_pk is not None:
-        inspecciones = inspecciones.filter(edificio_id=viendo_pk)
     consulta = inspecciones.annotate(n_fotos=Count("fotos")).order_by(
         F("realizada_en").desc(nulls_first=True), "-creado", "-pk"
     )
@@ -600,7 +800,6 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
         ):
             fotos_por_inspeccion[foto.inspeccion_id].append(foto)
 
-    con_edificio = len(filas) > 1
     # El alcance se resuelve para toda la página y solo si hay algo en curso que lo necesite:
     # preguntarlo por fila sería un N+1 proporcional a la página.
     en_curso = [inspeccion for inspeccion in relevamientos if inspeccion.estado != _REALIZADA]
@@ -610,7 +809,7 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
         _evento_de_relevamiento(
             inspeccion,
             fotos_por_inspeccion.get(inspeccion.pk, []),
-            con_edificio,
+            False,
             ve_asignacion=inspeccion.pk in propios or inspeccion.edificio_id in coordinados,
             enlace=reverse("dispositivos:relevamiento_informe", args=[inspeccion.pk])
             + f"?dispositivo={dispositivo.pk}",
@@ -619,12 +818,18 @@ def infraestructura_del_dispositivo(dispositivo, pagina=1, usuario=None, edifici
     ]
 
     return {
-        "edificios": filas,
+        "modo": "ficha",
+        # Al abrir uno, la jerarquía es la de ese; los otros solo aparecen como chips (`n_edificios` los cuenta).
+        "edificios": [viendo],
+        "n_edificios": len(filas),
         "semaforo": semaforo,
-        "indicadores": indicadores,
+        "listado": [],
+        "filtros": [],
+        "resumen": None,
+        "chips": chips if len(filas) > 1 else [],
         "eventos": eventos,
         "relevamientos": relevamientos,
-        "viendo": filas[0] if viendo_pk is not None else None,
+        "viendo": viendo,
         "en_tabla": False,
         "sin_edificio": sin_edificio,
     }
