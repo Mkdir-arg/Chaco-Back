@@ -21,7 +21,7 @@
     }
 
     /* ── Clases scopeadas para HTML inyectado por JS ── */
-    .cd-row:hover { background-color: var(--bg-tertiary); }
+    .cd-row:hover { background-color: var(--bg-secondary); }
     .cd-cell      { color: var(--text-heading); font-size: 13.5px; }
     .cd-muted     { color: var(--text-body-subtle); font-size: 13.5px; }
     .cd-link      { color: var(--text-fg-brand); }
@@ -911,7 +911,7 @@
                                 <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Etiqueta</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Origen</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Fecha</th>
-                                <th class="w-28 px-4 py-3 text-center text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Acciones</th>
+                                <th class="nodo-col-acciones w-28 px-4 py-3 text-center text-xs font-bold uppercase tracking-widest" style="color: var(--text-body-subtle); letter-spacing: .05em;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tabla-archivos" class="divide-y" style="border-color: var(--border-light);"></tbody>
@@ -1142,7 +1142,7 @@ function cargarArchivos() {
                                 }
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 cd-cell">${fecha}</td>
-                            <td class="whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
+                            <td class="nodo-col-acciones whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
                                 <div class="flex items-center justify-center gap-2">
                                     <a href="${escaparHtml(archivo.url)}" target="_blank" class="cd-btn-dl" title="Descargar">
                                         <i class="fas fa-download"></i>
@@ -1156,6 +1156,7 @@ function cargarArchivos() {
                         </tr>
                     `;
                 }).join('');
+                if (window.nodoTablas) window.nodoTablas.barrer();
                 mensajeSin.classList.add('hidden');
             } else {
                 tbody.innerHTML = '';

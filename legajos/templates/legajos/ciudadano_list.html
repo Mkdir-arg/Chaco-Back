@@ -51,7 +51,7 @@ acción del estado vacío (que es el mismo destino) se dibujan.{% endcomment %}
           <tr class="nodo-thead-row">
             <th class="nodo-th">Ciudadano</th>
             <th class="nodo-th">DNI</th>
-            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -67,7 +67,7 @@ acción del estado vacío (que es el mismo destino) se dibujan.{% endcomment %}
               </div>
             </td>
             <td class="nodo-td text-body">{{ ciudadano.dni }}</td>
-            <td class="nodo-td text-right">
+            <td class="nodo-td nodo-col-acciones text-right">
               <a href="{% url 'legajos:ciudadano_detalle' ciudadano.pk %}" class="nodo-icon-btn"
                  aria-label="Ver legajo de {{ ciudadano.nombre }} {{ ciudadano.apellido }}">
                 <i class="fas fa-eye" aria-hidden="true"></i>
