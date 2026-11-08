@@ -39,13 +39,16 @@ Ese mismo selector prepara el `persona` del encabezado, y lo nombra **«Apellido
 Estadías de P4— lo escribe en la celda, en el menú y en los modales, y el título tiene que decir
 lo mismo que la fila. Contrato de la variable en `arquetipos/revision.md`.
 
-En Infraestructura (P19), el evento revisado usa `badge="Revisado"` y `badge_tono="success"`;
-conserva la criticidad en `detalle` y el tono del punto, y agrega revisor y fecha/hora a `cuando`.
+En Infraestructura (P19), el badge del encabezado es **siempre la criticidad** del relevamiento (semáforo de
+`SEMAFOROS`, con su tono); un evento en curso o asignado muestra su estado. El estado de revisión («Revisado»)
+va adentro del panel, en `detalle`, y el revisor y la fecha/hora se agregan a `cuando`.
 El servicio carga `revisado_por` junto con la página de relevamientos.
 
 **Plegable (opcional, `plegable=True`).** Cada evento se pliega: a la vista quedan `cuando`, `titulo` y `badge`, y
 un botón (`aria-expanded` + `aria-controls="evento-<n>"`, Alpine, con `focus-visible`) abre `observaciones` (párrafo
-escapado, solo con esta variante), `detalle`, `fotos` y `enlace`. Mismo riel y mismo punto; sin `plegable` el HTML
+escapado, solo con esta variante), `detalle`, `fotos` y `enlace`; el anillo de foco es `focus-visible:ring-2
+focus-visible:ring-brand` (`ringColor.brand` en `tailwind.config.js`). Un evento sin nada de eso no dibuja botón ni
+chevron: queda en texto plano. Mismo riel y mismo punto; sin `plegable` el HTML
 no cambia. Los `id` de los paneles son `evento-<n>`: **una línea de tiempo plegable por pantalla**. Consumidor: la
 ficha del edificio de P4/P19 (`_infra_ficha.html`), que no arma `<details>` propio. El revisor y la fecha de la
 revisión van en `cuando` y, por lo tanto, siempre visibles.

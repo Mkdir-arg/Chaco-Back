@@ -99,8 +99,8 @@ class SegmentoListEncabezadoTests(_BaseSegmentos):
         self.assertIn('<i class="fas fa-plus" aria-hidden="true"></i> Nuevo segmento', self.html)
 
     def test_sin_utilidad_de_tailwind_fuera_del_build(self):
-        # TWBUILD: focus:ring-brand no existe en el CSS compilado (el checkbox
-        # quedaba sin anillo de foco). Ahora el control va por .nodo-checks.
+        # focus:ring-brand sin `focus:ring-2` no dibuja anillo (el checkbox
+        # quedaba sin indicador de foco). Ahora el control va por .nodo-checks.
         self.assertNotIn("focus:ring-brand", self.html)
         self.assertIn('class="nodo-checks"', self.html)
 

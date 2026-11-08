@@ -172,13 +172,19 @@ def bloqueo_del_modal(estado, acciones):
     return bloqueo_de_plaza(estado, acciones[0]) if acciones else ""
 
 
+def url_solapa_estadias(dispositivo_pk):
+    """El detalle del dispositivo abierto en la solapa Estadías."""
+
+    return f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=estadias"
+
+
 def url_modal_egreso(dispositivo_pk, estadia_pk):
     """El detalle del dispositivo con el modal de egreso de esa estadía abierto (`?tab=estadias&egreso=`).
 
     Lo comparten la solapa Estadías y el menú de la plaza ocupada del mapa: un solo armado del enlace.
     """
 
-    return f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=estadias&egreso={estadia_pk}"
+    return f"{url_solapa_estadias(dispositivo_pk)}&egreso={estadia_pk}"
 
 
 def enlaces_de_plaza(dispositivo, estado, acciones):

@@ -200,7 +200,7 @@ class PersonasListUsaLasPiezasTests(TestCase):
         self.assertNotIn('aria-label="Ver formulario"', html)
 
     def test_sin_focus_ring_brand(self):
-        # focus:ring-brand no está en el build de Tailwind (TWBUILD): no hacía nada.
+        # focus:ring-brand solo colorea un anillo que el checkbox no activa (sin `focus:ring-2`): no hacía nada.
         self.assertNotIn("focus:ring-brand", PERSONAS_LIST.read_text(encoding="utf-8"))
         html = self.client.get(reverse("becas:revision")).content.decode()
         self.assertNotIn("focus:ring-brand", html)

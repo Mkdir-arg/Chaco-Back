@@ -126,8 +126,8 @@
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="cupo_maximo"></p>
           </div>
           {% comment %}nodo-checks (nodo-forms.css) trae la caja de 18px con acento de marca y
-          el anillo de foco ya compilados: la utilidad `focus:ring-brand` no está en el build
-          de Tailwind committeado y dejaba el control sin foco visible (TWBUILD).{% endcomment %}
+          el anillo de foco ya compilados: `focus:ring-brand` sin `focus:ring-2` no dibuja
+          anillo y dejaba el control sin foco visible.{% endcomment %}
           <div class="nodo-checks">
             <div>
               <label>

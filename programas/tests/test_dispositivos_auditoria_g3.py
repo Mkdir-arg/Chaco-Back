@@ -48,10 +48,14 @@ class InfraestructuraTests(RelojFijo, BaseInfraestructura):
             for relevamiento in datos["relevamientos"]:
                 self.assertEqual(relevamiento.revisado_por.first_name, "Ana Revisora")
         html = render_to_string("components/_linea_tiempo.html", {"eventos": datos["eventos"]})
-        self.assertEqual(html.count('class="badge badge-success">Revisado</span>'), 3)
+        # El badge del encabezado es siempre la criticidad; «Revisado» pasa al panel (detalle).
+        self.assertEqual(html.count('class="badge badge-danger">Crítico</span>'), 3)
+        self.assertNotIn("badge-success", html)
         for evento in datos["eventos"]:
             self.assertIn("revisado por Ana Revisora el 14/10/2026 09:00", evento["cuando"])
-            self.assertIn("Crítico", evento["detalle"])
+            self.assertEqual(evento["badge"], "Crítico")
+            self.assertEqual(evento["badge_tono"], "danger")
+            self.assertIn("Revisado", evento["detalle"])
             self.assertEqual(evento["tono"], "danger")
 
     def test_revisor_se_carga_en_lote_en_la_consulta_de_la_pagina(self):

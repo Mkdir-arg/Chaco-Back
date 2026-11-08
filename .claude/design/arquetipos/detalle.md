@@ -184,7 +184,7 @@ incluidos los cancelados. La asignación la ven el coordinador del edificio y el
 (`programas.services.inspecciones.ve_la_asignacion`). El Historial rearma esas trazas sin
 nombres; una vez realizado, el resultado muestra quién relevó. Infraestructura enlaza cada
 evento con su informe de solo lectura y conserva el dispositivo de origen para volver.
-La revisión agrega badge verde, revisor y fecha/hora sin perder la criticidad, con el
+El badge del registro es siempre la criticidad; la revisión agrega «Revisado» en el panel, más revisor y fecha/hora, con el
 contrato de `componentes/ficha_timeline.md`. Las fotos en curso conservan su fecha de carga.
 Quien ve el dispositivo sin alcance de inspección sobre el edificio (`inspecciones_visibles`) ve en la tarjeta y la ficha de
 Infraestructura solo el estado y la fecha del último relevamiento: sin criticidad, observaciones ni quién relevó.
