@@ -1,0 +1,56 @@
+{% load nodo_ui %}{% comment %}
+Tarjeta de un edificio en el listado de Infraestructura de un dispositivo. Una por edificio, en una grilla que arma la pantalla.
+  {% include "components/_tarjeta_edificio.html" with edificio=edificio url_ver=url_ver url_editar=url_editar url_desvincular=url_desvincular only %}
+Contexto:
+  edificio         dict armado por la VISTA (`programas.services.detalle_dispositivo.infraestructura_del_dispositivo`):
+                     pk, nombre, codigo, domicilio, estado {texto, tono}, aviso {texto, tono} o None, fecha_texto,
+                     observacion (vacía = no se dibuja), predio, sectores_texto, conteo, con_conteo.
+                   La observación y los conteos ya vienen recortados por alcance (Cambio 428): acá no se decide nada.
+  url_ver          obligatorio: la ficha del edificio. Es el título, el ítem «Ver» y el pie.
+  url_editar       opcional: sin ella no hay «Editar edificio» (la vista la manda solo con `dispositivo.editar`).
+  url_desvincular  opcional: igual, con confirmación sí/no por `data-confirm-url` (ModernModal).
+El ⋮ lleva siempre «Ver», así que nunca queda vacío. El estado va en texto (badge con punto) además del tono del ícono.
+{% endcomment %}
+{% with tono=edificio.estado.tono %}
+<article class="rounded-xl border border-base bg-white shadow-sm flex flex-col overflow-hidden" aria-labelledby="edificio-{{ edificio.pk }}-titulo" data-tarjeta-edificio>
+  <header class="px-5 py-4 border-b border-light flex items-start gap-3">
+    <div class="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0 {% if tono == 'danger' %}bg-danger-soft text-fg-danger{% elif tono == 'warning' %}bg-warning-soft text-fg-warning{% elif tono == 'success' %}bg-success-soft text-fg-success{% else %}bg-secondary text-body-subtle{% endif %}">
+      <i class="fas fa-building text-lg" aria-hidden="true"></i>
+    </div>
+    <div class="min-w-0 flex-1">
+      <h3 id="edificio-{{ edificio.pk }}-titulo" class="text-sm font-bold text-heading"><a href="{{ url_ver }}" class="hover:underline">{{ edificio.nombre }}</a></h3>
+      <p class="text-xs text-body-subtle">{{ edificio.codigo }} · {{ edificio.domicilio|default:"Sin domicilio cargado" }}</p>
+    </div>
+    {% with pk_texto=edificio.pk|stringformat:"s" %}
+    {% menu_fila id="edificio-"|add:pk_texto etiqueta="Acciones del edificio "|add:edificio.nombre %}
+      {% include "components/_menu_fila_item.html" with texto="Ver" icono="fa-eye" url=url_ver only %}
+      {% if url_editar %}
+      {% include "components/_menu_fila_item.html" with texto="Editar edificio" icono="fa-pen" url=url_editar only %}
+      {% endif %}
+      {% if url_desvincular %}
+      {% include "components/_menu_fila_item.html" with texto="Desvincular" icono="fa-link-slash" peligro=True confirm_url=url_desvincular confirm_title="¿Desvincular el edificio?" confirm_text="Esta institución deja de ver su estado edilicio y sus relevamientos. El edificio no se borra: volver a vincularlo lo repone con su historia." confirm_ok="Sí, desvincular" only %}
+      {% endif %}
+    {% endmenu_fila %}
+    {% endwith %}
+  </header>
+  <div class="px-5 py-4 space-y-3.5 flex-1">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="badge badge-dot badge-{{ tono }}">{{ edificio.estado.texto }}</span>
+      {% if edificio.aviso %}<span class="badge badge-{{ edificio.aviso.tono }}">{{ edificio.aviso.texto }}</span>{% endif %}
+      <span class="text-xs text-body-subtle">{{ edificio.fecha_texto }}</span>
+    </div>
+    {% if edificio.observacion %}
+    <p class="rounded-lg px-3 py-2 text-sm text-body {% if tono == 'danger' %}bg-danger-soft{% elif tono == 'warning' %}bg-warning-soft{% elif tono == 'success' %}bg-success-soft{% else %}bg-secondary{% endif %}">{{ edificio.observacion }}</p>
+    {% endif %}
+    <p class="text-sm text-body flex items-center gap-2"><i class="fas fa-users text-fg-brand" aria-hidden="true"></i> {{ edificio.predio }}</p>
+    <div>
+      <p class="text-xs font-semibold uppercase text-body-subtle">Sectores de esta institución</p>
+      <p class="mt-1 text-sm font-semibold text-heading">{{ edificio.sectores_texto }}</p>
+    </div>
+  </div>
+  <footer class="px-5 py-3 border-t border-light bg-secondary flex items-center justify-between gap-3 text-sm">
+    <span class="text-body-subtle">{% if edificio.con_conteo %}{{ edificio.conteo }}{% endif %}</span>
+    <a href="{{ url_ver }}" class="text-fg-brand font-medium hover:underline whitespace-nowrap">{% if edificio.con_conteo %}Ver ficha y fotos{% else %}Ver ficha{% endif %} <i class="fas fa-arrow-right" aria-hidden="true"></i><span class="sr-only"> de {{ edificio.nombre }}</span></a>
+  </footer>
+</article>
+{% endwith %}

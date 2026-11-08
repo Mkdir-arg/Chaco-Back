@@ -938,6 +938,41 @@ class LineaTiempoTest(SimpleTestCase):
         self.assertIn("Sin movimientos todavía", html)
         self.assertNotIn("<ol", html)
 
+    def test_plegable_deja_a_la_vista_el_cuando_y_pliega_el_resto_con_aria(self):
+        fotos = [{"url": "/media/x/1.jpg", "alt": "Fachada del predio", "rotulo": "fachada"}]
+        eventos = [
+            {
+                "cuando": "02/02 · relevamiento · Ana · revisado por Luis",
+                "titulo": "1 foto",
+                "badge": "Revisado",
+                "badge_tono": "success",
+                "detalle": "fachada",
+                "observaciones": "Faltan <b>duchas</b>",
+                "fotos": fotos,
+                "enlace": "/informe/1/",
+                "enlace_texto": "Ver informe",
+            },
+            {"cuando": "01/02", "titulo": "Sin fotos"},
+        ]
+        html = render_to_string(LINEA_TIEMPO, {"eventos": eventos, "plegable": True})
+
+        self.assertEqual(html.count("<li "), 2)
+        self.assertEqual(html.count('x-data="{ abierto: false }"'), 2)
+        self.assertIn('aria-controls="evento-1"', html)
+        self.assertIn('id="evento-2"', html)
+        self.assertIn(':aria-expanded="abierto"', html)
+        self.assertIn("focus-visible:ring-2", html)
+        self.assertIn("revisado por Luis", html)
+        self.assertIn("Faltan &lt;b&gt;duchas", html)
+        self.assertIn("Ver informe<span", html)
+        self.assertNotIn("<details", html)
+
+    def test_sin_plegable_el_html_no_cambia(self):
+        html = render_to_string(LINEA_TIEMPO, {"eventos": [{"cuando": "x", "titulo": "Novedad"}]})
+
+        self.assertNotIn("x-data", html)
+        self.assertNotIn("aria-expanded", html)
+
     def test_escapa_los_textos(self):
         html = render_to_string(LINEA_TIEMPO, {"eventos": [{"cuando": "<i>", "titulo": "<b>x</b>"}]})
 
@@ -1794,3 +1829,109 @@ class ListaTarjetasTest(SimpleTestCase):
         css = (RAIZ / "static/custom/css/tailwind.css").read_text(encoding="utf-8")
         self.assertIn(r".md\:hidden", css)
         self.assertIn(r".md\:block", css)
+
+
+class ChipsEnlaceTest(SimpleTestCase):
+    """Chips de enlace (``components/_chips_enlace.html``): contrato de la pieza."""
+
+    PLANTILLA = "components/_chips_enlace.html"
+
+    def _render(self, chips, **extra):
+        return render_to_string(self.PLANTILLA, {"nombre": "Filtrar los edificios", "chips": chips, **extra})
+
+    def test_cada_chip_es_un_enlace_y_el_activo_se_marca(self):
+        html = self._render(
+            [
+                {"texto": "Todos", "url": "?tab=a", "n": 3, "activo": True},
+                {"texto": "Crítico", "url": "?tab=a&estado=C", "n": 0, "tono": "danger", "estado": "Estado crítico"},
+            ]
+        )
+        self.assertIn('aria-label="Filtrar los edificios"', html)
+        self.assertEqual(html.count("<a "), 2)
+        self.assertEqual(html.count("aria-current"), 1)
+        self.assertIn('aria-current="true"', html)
+        self.assertIn('href="?tab=a&amp;estado=C"', html)
+
+    def test_el_conteo_cero_se_muestra_y_el_estado_va_en_texto(self):
+        html = self._render([{"texto": "Crítico", "url": "?x", "n": 0, "tono": "danger", "estado": "Estado crítico"}])
+        self.assertIn(">0</span>", html)
+        self.assertIn("text-fg-danger", html)
+        self.assertIn("sr-only", html)
+        self.assertIn("Estado crítico", html)
+
+    def test_aria_current_se_puede_cambiar(self):
+        html = self._render([{"texto": "A", "url": "?a", "activo": True}], aria_current="page")
+        self.assertIn('aria-current="page"', html)
+
+    def test_sin_conteo_ni_tono_no_se_dibujan(self):
+        html = self._render([{"texto": "A", "url": "?a"}])
+        self.assertNotIn("badge", html)
+        self.assertNotIn("fa-circle", html)
+
+    def test_escapa_el_texto_de_la_vista(self):
+        html = self._render([{"texto": "<script>alert(1)</script>", "url": "?a"}])
+        self.assertNotIn("<script>alert(1)</script>", html)
+        self.assertIn("&lt;script&gt;", html)
+
+
+class TarjetaEdificioTest(SimpleTestCase):
+    """Tarjeta de un edificio (``components/_tarjeta_edificio.html``): contrato de la pieza."""
+
+    PLANTILLA = "components/_tarjeta_edificio.html"
+
+    def _edificio(self, **extra):
+        edificio = {
+            "pk": 7,
+            "nombre": "Predio Resistencia",
+            "codigo": "ED-1",
+            "domicilio": "Av. Sarmiento 100",
+            "estado": {"clave": "CRITICO", "texto": "Crítico", "tono": "danger"},
+            "aviso": {"texto": "Vencido", "tono": "danger"},
+            "fecha_texto": "01/11/2026",
+            "observacion": "Pérdida de gas",
+            "predio": "Compartido con Geriátrico",
+            "sectores_texto": "Pabellón Norte (2)",
+            "conteo": "2 relevamientos · 5 fotos",
+            "con_conteo": True,
+        }
+        edificio.update(extra)
+        return edificio
+
+    def _render(self, edificio=None, **extra):
+        contexto = {"edificio": edificio or self._edificio(), "url_ver": "/ver/7/", **extra}
+        return render_to_string(self.PLANTILLA, contexto)
+
+    def test_muestra_el_estado_en_texto_el_aviso_y_la_observacion(self):
+        html = self._render()
+        self.assertIn("data-tarjeta-edificio", html)
+        self.assertIn("Predio Resistencia", html)
+        self.assertIn("Crítico", html)
+        self.assertIn("Vencido", html)
+        self.assertIn("Pérdida de gas", html)
+        self.assertIn("Pabellón Norte (2)", html)
+        self.assertIn('href="/ver/7/"', html)
+
+    def test_el_menu_siempre_trae_ver_y_editar_y_desvincular_solo_con_url(self):
+        solo_ver = self._render()
+        self.assertIn("Ver", solo_ver)
+        self.assertNotIn("Editar edificio", solo_ver)
+        self.assertNotIn("Desvincular", solo_ver)
+        completo = self._render(url_editar="/editar/7/", url_desvincular="/desvincular/7/")
+        self.assertIn('href="/editar/7/"', completo)
+        self.assertIn('data-confirm-url="/desvincular/7/"', completo)
+
+    def test_sin_aviso_ni_observacion_no_se_dibujan(self):
+        html = self._render(self._edificio(aviso=None, observacion=""))
+        self.assertNotIn("Vencido", html)
+        self.assertNotIn("Pérdida de gas", html)
+
+    def test_sin_conteo_el_pie_no_cuenta_y_el_enlace_no_promete_fotos(self):
+        html = self._render(self._edificio(con_conteo=False))
+        self.assertNotIn("2 relevamientos", html)
+        self.assertNotIn("Ver ficha y fotos", html)
+        self.assertIn("Ver ficha", html)
+
+    def test_escapa_el_texto_de_la_vista(self):
+        html = self._render(self._edificio(nombre="<script>alert(1)</script>"))
+        self.assertNotIn("<script>alert(1)</script>", html)
+        self.assertIn("&lt;script&gt;", html)

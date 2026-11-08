@@ -16,7 +16,6 @@ Lo que se fija acá, y por qué:
 """
 
 import json
-import re
 from datetime import timedelta
 
 from django.conf import settings
@@ -147,8 +146,7 @@ class HistorialFotograficoTests(BaseInfraestructura):
         self.assertEqual([tanda["pk"] for tanda in infra["eventos"]], [nuevo.pk, viejo.pk])
         self.assertEqual([len(tanda["fotos"]) for tanda in infra["eventos"]], [3, 2])
         self.assertEqual([tanda["titulo"] for tanda in infra["eventos"]], ["3 fotos", "2 fotos"])
-        self.assertEqual(infra["indicadores"][1]["valor"], 2)
-        self.assertEqual(infra["indicadores"][2]["valor"], 5)
+        self.assertEqual(infra["viendo"]["conteo"], "2 relevamientos · 5 fotos")
 
     def test_una_foto_cargada_despues_se_suma_a_su_tanda(self):
         inspeccion = self._relevar(self.predio, Criticidad.BAJA, fotos=("fachada",))
@@ -173,21 +171,22 @@ class HistorialFotograficoTests(BaseInfraestructura):
         self.assertIn("Filtración en el techo", panel)
         self.assertIn("Registro fotográfico", panel)
 
-    def test_una_sola_linea_de_tiempo_con_las_fotos_dentro_de_cada_evento(self):
-        """El riel es continuo (una `<ol>`) y cada galería vive dentro de su `<li>`, como en P19."""
+    def test_un_desplegable_por_relevamiento_con_las_fotos_dentro_de_cada_uno(self):
+        """Cada relevamiento es un evento plegable de la línea de tiempo (Cambio 439) y su galería vive adentro."""
 
         self._relevar(self.predio, Criticidad.BAJA, fotos=("fachada",), dias_atras=90)
         self._relevar(self.predio, Criticidad.ALTA, fotos=("techo", "cocina"))
 
         panel = _panel(self._detalle(self.operador_geriatrico, self.geriatrico).content.decode())
-        riel = panel[panel.index('<h3 id="registro-fotografico-titulo"') :]
+        registro = panel[panel.index('<h3 id="registro-fotografico-titulo"') :]
 
-        self.assertEqual(riel.count("<ol "), 1)
-        eventos = re.findall(
-            r'<li class="relative pl-5 text-sm">(.*?)</li>\s*(?=<li class="relative|</ol>)', riel, re.S
-        )
-        self.assertEqual(len(eventos), 2)
-        self.assertEqual([evento.count("<figure") for evento in eventos], [2, 1])
+        # La galería también usa <li>: se parte por el inicio de cada evento, no por el cierre.
+        desplegables = registro.split('<li class="relative pl-5 text-sm" x-data')[1:]
+        self.assertEqual(len(desplegables), 2)
+        self.assertEqual([d.count("<figure") for d in desplegables], [2, 1])
+        # Cerrados de entrada: el botón arranca con `abierto: false` y el panel va con `x-show`.
+        self.assertEqual(registro.count('x-data="{ abierto: false }"'), 2)
+        self.assertEqual([d.count('x-show="abierto"') for d in desplegables], [1, 1])
 
     def test_una_foto_heic_vieja_no_se_dibuja_rota(self):
         """El navegador no muestra HEIC en un `<img>`: va la celda gris con cámara, sin URL.
@@ -367,20 +366,17 @@ class SemaforoTests(BaseInfraestructura):
         self.assertEqual(len(set(textos)), len(textos))
         self.assertTrue(all(texto.strip() for texto in textos))
 
-    def test_el_detalle_lo_muestra_en_la_franja_y_por_edificio(self):
+    def test_el_detalle_lo_muestra_en_la_ficha_con_texto_y_tono(self):
         self._relevar(self.predio, Criticidad.MEDIA, observaciones="Faltan dos duchas")
 
         respuesta = self._detalle(self.operador_geriatrico, self.geriatrico)
         infra = respuesta.context["infraestructura"]
         panel = _panel(respuesta.content.decode())
 
-        self.assertEqual(infra["indicadores"][0]["etiqueta"], "Estado edilicio")
-        self.assertEqual(infra["indicadores"][0]["valor"], "Regular")
-        self.assertEqual(panel.count("nodo-stat-tablero-valor"), 3)
-        self.assertIn(
-            "nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0 bg-warning-soft text-fg-warning",
-            panel,
-        )
+        self.assertEqual(infra["semaforo"].texto, "Regular")
+        self.assertEqual(infra["viendo"]["estado"], {"clave": "REGULAR", "texto": "Regular", "tono": "warning"})
+        # Las tres tarjetas de arriba se fueron: los datos viven en la ficha y en las tarjetas.
+        self.assertNotIn("nodo-stat-tablero-valor", panel)
         self.assertIn('<span class="badge badge-dot badge-warning">Regular</span>', panel)
         self.assertIn("Faltan dos duchas", panel)
 
@@ -496,7 +492,7 @@ class PresupuestosTests(BaseInfraestructura):
         with CaptureQueriesContext(connection) as tabla:
             infra = infraestructura_del_dispositivo(self.parador, usuario=usuario)
 
-        self.assertTrue(infra["en_tabla"])
+        self.assertEqual(infra["modo"], "listado")
         self.assertEqual(infra["eventos"], [])
         self.assertLessEqual(len(tabla), self._techo("dispositivos_infraestructura") - 3)
 
@@ -516,7 +512,7 @@ class RolSinAsignacionTests(BaseInfraestructura):
 
 
 class VariosEdificiosTests(BaseInfraestructura):
-    """Con 2 o más edificios la solapa es una tabla; cada edificio se ve por separado."""
+    """Con 2 o más edificios la solapa es un listado de tarjetas; cada edificio se abre en su ficha."""
 
     def setUp(self):
         super().setUp()
@@ -524,56 +520,63 @@ class VariosEdificiosTests(BaseInfraestructura):
         self._relevar(self.predio, Criticidad.MEDIA, fotos=("fachada",), observaciones="Faltan dos duchas")
         self._relevar(self.edificio_cis, Criticidad.ALTA, fotos=("cocina",), observaciones="Pérdida de gas")
 
-    def test_dos_edificios_son_una_tabla_sin_registro_fotografico(self):
+    def test_dos_edificios_son_un_listado_sin_registro_fotografico(self):
         respuesta = self._detalle(self.admin, self.parador, tab="infraestructura")
         panel = _panel(respuesta.content.decode())
 
-        self.assertTrue(respuesta.context["infraestructura"]["en_tabla"])
+        self.assertEqual(respuesta.context["infraestructura"]["modo"], "listado")
         self.assertIsNone(respuesta.context["infraestructura"]["viendo"])
+        self.assertIn("Funciona en 2 edificios", panel)
         self.assertIn("Predio Resistencia", panel)
         self.assertIn("Edificio CIS", panel)
-        self.assertIn("Último relevamiento", panel)
         self.assertIn(f"ver_edificio={self.predio.pk}", panel)
-        self.assertEqual(panel.count("nodo-stat-tablero-valor"), 3)
+        self.assertEqual(panel.count("data-tarjeta-edificio"), 2)
+        self.assertNotIn("nodo-stat-tablero-valor", panel)
         self.assertNotIn("Registro fotográfico", panel)
-        self.assertNotIn("Volver a los edificios", panel)
-        self.assertNotIn("Faltan dos duchas", panel)
+        self.assertNotIn("Los 2 edificios", panel)
 
-    def test_ver_un_edificio_muestra_solo_ese_con_su_registro(self):
+    def test_ver_un_edificio_abre_su_ficha_con_su_registro(self):
         respuesta = self._detalle(self.admin, self.parador, tab="infraestructura", ver_edificio=self.predio.pk)
         panel = _panel(respuesta.content.decode())
         infra = respuesta.context["infraestructura"]
 
-        self.assertFalse(infra["en_tabla"])
+        self.assertEqual(infra["modo"], "ficha")
         self.assertEqual(infra["viendo"]["pk"], self.predio.pk)
         self.assertEqual([fila["pk"] for fila in infra["edificios"]], [self.predio.pk])
+        self.assertEqual(infra["n_edificios"], 2)
         self.assertEqual(len(infra["eventos"]), 1)
         self.assertIn("Registro fotográfico", panel)
-        self.assertIn("Volver a los edificios", panel)
+        self.assertIn("Los 2 edificios", panel)
         self.assertIn("Faltan dos duchas", panel)
-        self.assertNotIn("Edificio CIS", panel)
         self.assertNotIn("Pérdida de gas", panel)
-        self.assertEqual(infra["indicadores"][1]["valor"], 1)
+        self.assertNotIn("data-tarjeta-edificio", panel)
+        # El otro edificio solo aparece como chip para cambiar, con su estado en texto.
+        self.assertIn('aria-label="Otros edificios de esta institución"', panel)
+        self.assertIn("Edificio CIS", panel)
 
-    def test_un_edificio_no_vinculado_se_ignora_y_vuelve_la_tabla(self):
+    def test_un_edificio_no_vinculado_se_ignora_y_vuelve_el_listado(self):
         ajeno = Edificio.objects.create(codigo="ED-AJENO", nombre="Edificio ajeno")
         for pedido in (ajeno.pk, "no-es-un-numero"):
             with self.subTest(pedido=pedido):
                 respuesta = self._detalle(self.admin, self.parador, tab="infraestructura", ver_edificio=pedido)
                 panel = _panel(respuesta.content.decode())
 
-                self.assertTrue(respuesta.context["infraestructura"]["en_tabla"])
+                self.assertEqual(respuesta.context["infraestructura"]["modo"], "listado")
                 self.assertNotIn("Edificio ajeno", panel)
-                self.assertNotIn("Volver a los edificios", panel)
+                self.assertNotIn("Los 2 edificios", panel)
 
-    def test_un_solo_edificio_queda_como_antes(self):
+    def test_un_solo_edificio_va_directo_a_la_ficha_sin_chips(self):
         respuesta = self._detalle(self.operador_geriatrico, self.geriatrico, tab="infraestructura")
         panel = _panel(respuesta.content.decode())
+        infra = respuesta.context["infraestructura"]
 
-        self.assertFalse(respuesta.context["infraestructura"]["en_tabla"])
-        self.assertIsNone(respuesta.context["infraestructura"]["viendo"])
-        self.assertNotIn("Último relevamiento", panel)
-        self.assertNotIn("Volver a los edificios", panel)
+        self.assertEqual(infra["modo"], "ficha")
+        self.assertEqual(infra["viendo"]["pk"], self.predio.pk)
+        self.assertEqual(infra["chips"], [])
+        self.assertNotIn("data-tarjeta-edificio", panel)
+        self.assertNotIn("Los 1 edificios", panel)
+        self.assertNotIn("Otros edificios de esta institución", panel)
+        self.assertIn("Último relevamiento", panel)
         self.assertIn("Registro fotográfico", panel)
         self.assertIn("Faltan dos duchas", panel)
 
@@ -581,7 +584,7 @@ class VariosEdificiosTests(BaseInfraestructura):
         respuesta = self._detalle(self.coordinador, self.parador, tab="infraestructura")
         panel = _panel(respuesta.content.decode())
 
-        self.assertTrue(respuesta.context["infraestructura"]["en_tabla"])
+        self.assertEqual(respuesta.context["infraestructura"]["modo"], "listado")
         self.assertIn(">Ver<", panel)
         self.assertNotIn("Editar edificio", panel)
         self.assertNotIn("Desvincular", panel)

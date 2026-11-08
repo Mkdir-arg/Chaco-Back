@@ -562,6 +562,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 436 | Dispositivos: al corregir una novedad de la bitácora se pueden quitar adjuntos y personas (la versión anterior los conserva; el registro dice qué se quitó y qué se sumó) | Dispositivos · bitácora del turno | `#ui` `#datos` | QA — continuación del caso 4 (Cambio 426) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 437 | Dispositivos: la plaza ocupada del mapa ofrece cambiar de plaza, ver la estadía, ver el legajo y registrar el egreso; «sacar de servicio» queda visible pero deshabilitada con su motivo | Dispositivos · Sectores y plazas (P5) | `#ui` `#rbac` | QA — plaza ocupada solo ofrecía «Cambiar de plaza» | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 438 | Dispositivos: cinco MINOR de la auditoría del PR #1053 (acciones de la plaza ocupada): lista de acciones con formulario en el servicio, helper único del enlace de egreso, tests de capacidades sobre el modal, «Sin edificio» con helper y `?plaza=` ocupada abre el menú | Dispositivos · Sectores y plazas (P5) | `#ui` `#rbac` | Auditoría del PR #1053 (Cambio 437) | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 439 | Dispositivos: la solapa Infraestructura pasa a tarjetas por edificio (más grave primero, filtro por estado, aviso de vencimiento, predio compartido, sectores) y a una ficha por edificio con su registro fotográfico; dos piezas nuevas, tarjeta de edificio y chips de enlace | Dispositivos · Infraestructura (P4/P19) | `#ui` `#rbac` | QA — la solapa «está medio plana» y no dice a qué edificio pertenece | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 440 | Tablas en notebooks, PR 1 de 4: Usuarios y Roles con la columna de acciones fija (`nodo-col-acciones`) y el email que parte (`break-all`) | Usuarios y Roles · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 441 | Tablas en notebooks, PR 2 de 4: el ancho de la tabla depende del breakpoint `lg` (`max-content` debajo de 1024 px, 100 % desde `lg`; el Período de Convocatorias no se parte) | Sistema de diseño (tablas) · Becas (Convocatorias) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 
@@ -53136,6 +53137,62 @@ Revertir el PR; no hay datos que deshacer.
 ## Historial
 
 - **07/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 439 — Dispositivos: Infraestructura como tarjetas por edificio y ficha
+
+🟡 **EN CURSO — 08/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Infraestructura (P4/P19) |
+| **Etiquetas** | `#ui` `#rbac` |
+| **Solicitante** | QA — la solapa «está medio plana» y no se entiende a qué edificio pertenece el dispositivo ni si está en varios |
+| **Fecha del pedido** | 08/11/2026 |
+| **Issue / épica** | sin issue · Épica #127 |
+| **Partes afectadas** | Servidor: `services/detalle_dispositivo.py`, `views/dispositivos_legajo.py` · Backoffice: `dispositivos/legajo/detail.html` y cuatro parciales `_infra_*` · Piezas: `_tarjeta_edificio.html`, `_chips_enlace.html` |
+| **Migración** | No |
+
+## Pedido original
+
+Rediseñar la solapa Infraestructura del detalle del dispositivo según los mockups aprobados por el PM: listado de tarjetas por edificio y ficha del edificio.
+
+## Alcance acordado
+
+**Entra:** (1) listado con 2 o más edificios: encabezado «Funciona en N edificios» con el más grave, predios compartidos y sin relevar; acciones Vincular, Cargar edificio y Crear relevamiento con las mismas capacidades; filtro por estado del lado del servidor (`estado_edificio`) con chips; tarjetas del más grave al mejor, con estado, aviso «Vencido» o «Vence en N días», último relevamiento, observación, predio compartido, sectores y pie de conteos; (2) ficha del edificio (reemplaza `?ver_edificio=`) con último relevamiento, sectores con ocupadas, instituciones del predio, datos y registro fotográfico por relevamiento; (3) alerta «N sectores todavía no tienen edificio» con «Asignar edificio» solo con la capacidad; (4) un solo edificio va directo a la ficha. **Sale:** las tres tarjetas globales y la tabla de edificios. **Queda afuera:** «Vigente hasta» (el modelo no tiene el campo) y la tarjeta compacta móvil del mockup (la tarjeta única es responsive).
+
+## Decisiones tomadas
+
+1. Se consultó el archivo vivo: el Cambio 428 (alcance del relevamiento) y el 429 (sector por edificio) se respetan; sin alcance de inspección la tarjeta y la ficha muestran solo estado y fecha.
+2. El estado de la tarjeta es la criticidad de la última realizada; «Vencido» y «Vence en N días» son un badge aparte (el semáforo agregado conserva su regla de antes).
+3. Dos piezas nuevas, autorizadas en la tarea y con ficha: `_tarjeta_edificio.html` y `_chips_enlace.html`.
+4. El filtro usa `estado_edificio` porque `estado` ya lo usa el filtro de estadías.
+
+## Archivos
+
+`programas/services/detalle_dispositivo.py`, `programas/views/dispositivos_legajo.py`, `programas/templates/programas/dispositivos/legajo/detail.html`, `_infra_acciones.html`, `_infra_listado.html`, `_infra_ficha.html`, `_infra_sin_edificio.html`, `templates/components/_tarjeta_edificio.html`, `templates/components/_chips_enlace.html`, `static/custom/css/tailwind.css`, `templates/components/_linea_tiempo.html`, `.claude/design/componentes/ficha_timeline.md`, `programas/tests/test_dispositivos_infraestructura_tarjetas.py`, `core/tests/test_nodo_ui_piezas.py`, `.claude/design/componentes/tarjeta_edificio.md`, `.claude/design/componentes/chips_enlace.md`, `.claude/design/arquetipos/detalle.md`, `.claude/agents/chaco-design-system.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+Módulos de dispositivos, piezas y presupuesto `dispositivos_infraestructura` en verde. Mutaciones (rojo y restaurado): `ve_detalle` siempre verdadero, orden sin estado, filtro ignorado, `puede_asignar_edificio` siempre verdadero, ⋮ del listado y botones de la ficha sin la capacidad de edición.
+
+## Pendientes / a definir
+
+- «Vigente hasta» queda para cuando el relevamiento tenga ese dato.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **08/11/2026 — alta del cambio.**
+- **08/11/2026 — ajustes de auditoría del PR #1055.** `_linea_tiempo` gana la variante `plegable` (el registro de la ficha deja de armar su `<details>`); el servicio manda las URL por fila (`url_ver`, `url_editar`, `url_desvincular`), `url_listado`, `qs_paginacion` y `sin_edificio.url_asignar`, tope de 60 tarjetas y de 6 chips (con «Los N edificios» como primer chip), `ESTADOS_EDILICIOS` toma sus rótulos de `SEMAFOROS`, `_fila_de_edificio` y un dict base reemplazan las tres respuestas armadas a mano, y se borran `en_tabla`, `con_edificio`, el `semaforo` por fila y las claves del evento que nadie leía. La ficha incluye `_infra_acciones.html` (flag `ocultar_vinculo`), muestra el registro cuando hay relevamientos visibles aunque el último realizado sea de otro y deja visible quién revisó y cuándo. `puede_asignar_edificio` usa `puede_configurar_plazas`. Fichas: `tarjeta_edificio.md` (por qué no es `_lista_tarjetas`), `chips_enlace.md`, `ficha_timeline.md` y `detalle.md`.
 
 ---
 

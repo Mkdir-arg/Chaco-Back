@@ -359,10 +359,10 @@ class VistaJerarquicaTests(BaseSectorEdificio):
         self.assertEqual(por_codigo["EDI-B"]["sectores"], [])
         self.assertEqual([s["nombre"] for s in infra["sin_edificio"]["sectores"]], ["Sin ubicar"])
         self.assertEqual(infra["sin_edificio"]["n_plazas"], 1)
-        self.assertContains(respuesta, "Sectores por edificio")
-        self.assertContains(respuesta, "Sin edificio")
-        self.assertContains(respuesta, "2 sectores")
-        self.assertContains(respuesta, "Sin sectores en este edificio.")
+        self.assertContains(respuesta, "Pabellón 1 (2)")
+        self.assertContains(respuesta, "Pabellón 2 (0)")
+        self.assertContains(respuesta, "Todavía no hay sectores")
+        self.assertContains(respuesta, "1 sector todavía no tiene edificio")
 
     def test_sin_sectores_huerfanos_no_hay_bloque_sin_edificio(self):
         self._sector(self.edificio_a)
@@ -378,9 +378,10 @@ class VistaJerarquicaTests(BaseSectorEdificio):
 
         respuesta = self._infraestructura()
 
-        fila = respuesta.context["infraestructura"]["edificios"][0]
-        self.assertEqual([s["nombre"] for s in fila["sectores"]], ["Único"])
-        self.assertContains(respuesta, "1 sector ")
+        infra = respuesta.context["infraestructura"]
+        self.assertEqual(infra["modo"], "ficha")
+        self.assertEqual([s["nombre"] for s in infra["viendo"]["sectores"]], ["Único"])
+        self.assertContains(respuesta, "Único")
 
     def test_al_abrir_un_edificio_solo_se_ve_su_jerarquia(self):
         self._sector(self.edificio_a, "En A")
