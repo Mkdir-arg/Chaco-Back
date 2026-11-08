@@ -25,6 +25,11 @@
 .sortable-ghost { opacity: .35; background: var(--bg-brand-soft); }
 .sortable-chosen { background: var(--bg-brand-softer); }
 .sortable-drag { box-shadow: 0 8px 24px rgba(0, 0, 0, .12); }
+/* La celda fija de acciones (nodo-tables.css) pinta su propio fondo: con la fila
+   arrastrada tiene que tomar el de la fila o queda un bloque blanco (Cambio 443). Con el
+   puntero encima rige el hover de la tabla (nodo-tables.css), que también pinta la fila. */
+tbody > tr.sortable-ghost:not(:hover) > td.nodo-col-acciones { background: var(--bg-brand-soft); }
+tbody > tr.sortable-chosen:not(:hover) > td.nodo-col-acciones { background: var(--bg-brand-softer); }
 
 [data-sortable-grupos].is-saving { opacity: .6; pointer-events: none; }
 tbody[data-sortable-preguntas]:empty { display: block; min-height: 44px; }

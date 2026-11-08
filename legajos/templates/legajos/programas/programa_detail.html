@@ -258,7 +258,7 @@
                                 <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Estado</th>
                                 <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Urgencia</th>
                                 <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Fecha</th>
-                                <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Acciones</th>
+                                <th class="nodo-col-acciones px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Acciones</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-[var(--border-base)]">
@@ -281,7 +281,7 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-body-subtle)]">{{ derivacion.creado|date:"d/m/Y H:i" }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <td class="nodo-col-acciones px-6 py-4 whitespace-nowrap text-sm">
                                     {% if derivacion.estado == 'PENDIENTE' %}
                                     {# SEC-12: las dos acciones van por POST con CSRF. «Rechazar» era un <a> —un GET— y bastaba con que alguien abriera el link para cerrar la derivación. #}
                                     <form method="post" action="{% url 'legajos:derivacion_ciudadano_aceptar' derivacion.pk %}" class="inline">
@@ -379,7 +379,7 @@
                             <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Estado</th>
                             <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Responsable</th>
                             <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Inscripción</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Acciones</th>
+                            <th class="nodo-col-acciones px-6 py-4 text-left text-xs font-bold text-[var(--text-body-subtle)] uppercase">Acciones</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-[var(--border-base)]">
@@ -399,7 +399,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-body-subtle)]">{{ acomp.responsable.get_full_name|default:"-" }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-body-subtle)]">{{ acomp.fecha_inscripcion|date:"d/m/Y" }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <td class="nodo-col-acciones px-6 py-4 whitespace-nowrap text-sm">
                                 <div class="flex items-center gap-3">
                                     <a href="{% url 'legajos:ciudadano_detalle' acomp.ciudadano.id %}" class="text-blue-600 hover:underline">
                                         <i class="fas fa-user mr-1"></i>Ver Ciudadano

@@ -82,6 +82,12 @@ tr:hover > td.nodo-col-acciones {
     background: var(--bg-secondary);
 }
 
+/* El pie pinta su fondo en la fila (p. ej. bg-secondary en «Total distribuido»):
+   la celda fija lo toma de ahí en vez de quedar blanca. */
+tfoot > tr > td.nodo-col-acciones {
+    background: inherit;
+}
+
 .nodo-scroll-mas .nodo-col-acciones {
     box-shadow: -8px 0 8px -6px rgba(0, 0, 0, 0.18);
 }

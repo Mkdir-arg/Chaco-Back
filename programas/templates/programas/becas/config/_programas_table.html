@@ -35,7 +35,7 @@
     </thead>
     <tbody>
       {% for p in programas %}
-      <tr class="hover:bg-tertiary">
+      <tr class="hover:bg-secondary">
         <td class="nodo-td font-semibold text-heading">{{ p.nombre }}</td>
         <td class="nodo-td text-body text-right">{% if p.valida_siis %}#{{ p.siis_programa_id }}{% else %}—{% endif %}</td>
         <td class="nodo-td text-body text-right">
