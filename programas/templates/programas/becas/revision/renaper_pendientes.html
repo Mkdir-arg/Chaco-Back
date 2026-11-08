@@ -30,7 +30,7 @@
             <th class="nodo-th">Fecha</th>
             <th class="nodo-th">Territorial</th>
             <th class="nodo-th">Segmento</th>
-            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -47,7 +47,7 @@
             <td class="nodo-td text-body">{{ formulario.creado|date:'d/m/Y' }}</td>
             <td class="nodo-td text-body">{% if formulario.relevamiento.territorial %}{{ formulario.relevamiento.territorial.username }}{% else %}Formulario público{% endif %}</td>
             <td class="nodo-td text-body">{{ formulario.relevamiento.convocatoria.segmento.nombre }}</td>
-            <td class="nodo-td text-right">
+            <td class="nodo-td nodo-col-acciones text-right">
               <a href="{% url 'becas:formulario_detalle' formulario.pk %}?next={{ request.get_full_path|urlencode }}" class="nodo-icon-btn" aria-label="{% if formulario.ciudadano %}Ver caso de {{ formulario.ciudadano.nombre_completo }}{% else %}Ver caso {{ formulario.numero }} sin ciudadano vinculado{% endif %}">
                 <i class="fas fa-eye" aria-hidden="true"></i>
               </a>

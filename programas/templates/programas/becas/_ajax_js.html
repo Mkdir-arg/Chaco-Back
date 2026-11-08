@@ -241,6 +241,8 @@
             if (window.Alpine && typeof window.Alpine.initTree === 'function') {
               window.Alpine.initTree(tgt);
             }
+            // La tabla nueva necesita la sombra de la columna de acciones fija.
+            if (window.nodoTablas) window.nodoTablas.barrer();
           }
         }
         if (form.getAttribute('data-reset') !== 'false') form.reset();

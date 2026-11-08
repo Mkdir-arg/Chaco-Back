@@ -66,9 +66,9 @@
     {% endif %}
   </div>
 
-  <div style="overflow-x:auto;">
+  <div class="overflow-x-auto">
     {% if formularios %}
-    <table style="width:100%; border-collapse:collapse;">
+    <table class="w-full border-collapse">
       <thead>
         <tr style="background:var(--bg-secondary);">
           <th style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">Convocatoria</th>
@@ -77,7 +77,7 @@
           <th style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">Relevamiento</th>
           <th style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">Estado</th>
           <th style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">Fecha</th>
-          <th style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">Acciones</th>
+          <th class="nodo-col-acciones" style="padding:11px 16px; text-align:left; font-size:11px; font-weight:700; color:var(--text-body-subtle); text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap;">Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -105,7 +105,7 @@
           <td style="padding:13px 16px; font-size:13.5px; color:var(--text-body-subtle); white-space:nowrap;">
             {{ formulario.creado|date:"d/m/Y" }}
           </td>
-          <td style="padding:13px 16px;">
+          <td class="nodo-col-acciones" style="padding:13px 16px;">
             {% comment %}DC-6/DC-7: acción de fila canónica (.nodo-icon-btn + fa-eye) y
             TIT-9: el caso vuelve a donde estaba el usuario. Desde la solapa del legajo
             el origen no es una URL de /becas/: la vista lo descarta y el volver cae en

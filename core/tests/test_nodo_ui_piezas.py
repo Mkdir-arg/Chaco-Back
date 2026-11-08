@@ -153,7 +153,7 @@ class TablaResponsiveTest(SimpleTestCase):
             navegador.close()
 
     def test_el_ancho_de_la_tabla_depende_del_breakpoint_lg(self):
-        """Desde lg la tabla parte texto y entra en el wrapper; debajo scrollea (Cambio 166)."""
+        """Desde lg la tabla parte texto y entra en el wrapper; debajo scrollea (Cambio 441)."""
         from playwright.sync_api import sync_playwright
 
         raiz = Path(__file__).resolve().parents[2]
@@ -183,8 +183,12 @@ class TablaResponsiveTest(SimpleTestCase):
                 " <= document.querySelector('.overflow-x-auto').getBoundingClientRect().right"
             )
             self.assertTrue(dentro)
-            pagina.set_viewport_size({"width": 390, "height": 700})
-            self.assertGreater(wrapper.evaluate("e => e.scrollWidth"), wrapper.evaluate("e => e.clientWidth"))
+            # 768 px: arriba del tramo de celular de responsive.css (min-width de la tabla solo hasta
+            # 640 px), así que acá scrollea únicamente por la regla de nodo-tables.css bajo lg.
+            for ancho in (768, 390):
+                with self.subTest(ancho=ancho):
+                    pagina.set_viewport_size({"width": ancho, "height": 700})
+                    self.assertGreater(wrapper.evaluate("e => e.scrollWidth"), wrapper.evaluate("e => e.clientWidth"))
             navegador.close()
 
 

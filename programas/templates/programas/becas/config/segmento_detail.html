@@ -363,6 +363,7 @@
           <a href="{% url 'becas:programa_detalle' segmento.programa_id %}" class="text-xs text-fg-brand hover:underline">Editar en el programa</a>
         </div>
         <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
           <table class="w-full border-collapse">
             <tbody>
               {% for req in requisitos_programa %}
@@ -376,6 +377,7 @@
               {% endfor %}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
       {% endif %}
@@ -422,7 +424,7 @@
                   <a href="{% url 'becas:convocatoria_detalle' c.pk %}" class="text-fg-brand hover:underline">{{ c.nombre }}</a>
                 </td>
                 <td class="nodo-td text-body">{{ c.subsegmento.nombre|default:"Todo el segmento" }}</td>
-                <td class="nodo-td text-body">{{ c.fecha_inicio|date:"d/m/Y" }} → {{ c.fecha_fin|date:"d/m/Y" }}</td>
+                <td class="nodo-td text-body whitespace-nowrap">{{ c.fecha_inicio|date:"d/m/Y" }} → {{ c.fecha_fin|date:"d/m/Y" }}</td>
                 <td class="nodo-td text-body text-right">{{ c.n_relevamientos }} relevamiento{{ c.n_relevamientos|pluralize }}</td>
                 <td class="nodo-td text-center">
                   {% include "programas/becas/_convocatoria_estado_badge.html" with convocatoria=c %}
