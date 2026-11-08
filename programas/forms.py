@@ -1469,6 +1469,11 @@ class PreguntaGlobalForm(_OrdenUnicoMixin, _PresentacionMixin, _OpcionesMixin):
     def clean(self):
         cleaned = super().clean()
         self._limpiar_fuente_catalogo(cleaned)
+        # Cambio 418 (decisión 11) y 445: una pregunta de catálogo nace inactiva; el PM la
+        # activa cuando la app nueva esté publicada. Va antes de validar la activación y el
+        # destino SIIS, que se evalúan sobre lo que de verdad se va a guardar.
+        if not self.instance.pk and cleaned.get("fuente_opciones"):
+            cleaned["activo"] = False
         self._limpiar_activacion_catalogo(cleaned)
         if cleaned.get("grupo") is None:
             cleaned["grupo"] = GrupoRequisito.objects.filter(clave="cuestionario").first()

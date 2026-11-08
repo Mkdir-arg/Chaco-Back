@@ -568,6 +568,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 442 | Tablas en notebooks, PR 3 de 4: Becas con la columna de acciones fija (`nodo-col-acciones`) en 21 tablas, los wrappers de scroll que faltaban y `barrer()` tras las tablas por AJAX | Becas · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 443 | Tablas en notebooks, PR 4 de 4 (cierre): `nodo-col-acciones` en el resto de las listas (Configuración, Legajos, Notificaciones, Equipo de Dispositivos), hover de un solo tono en Becas y la celda fija durante el arrastre | Configuración · Legajos · Notificaciones · Dispositivos (Equipo) · Becas · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 444 | Dispositivos: siete ajustes de Infraestructura posteriores al Cambio 439 (el badge del registro es siempre la criticidad, tope de 6 chips, sin chevron vacío, foco de marca, una consulta menos, `_RESPUESTA_BASE` pasa a ser `_respuesta_base()` (una base nueva por llamada, sin listas compartidas), URL de solapa al servicio) | Dispositivos · Infraestructura (P4/P19) | `#ui` | PM — decisión sobre la etiqueta del registro plegable y MINOR de los PR #1054 y #1055 | 08/11/2026 | 🟡 **En curso** | No requiere |
+| 445 | Becas: «Opciones del catálogo» y «Depende de» en los modales de Requisitos generales (alta y edición), y el alta con catálogo nace inactiva | Becas · Requisitos generales | `#requisitos` `#ui` | PM — hueco del Cambio 418 | 08/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51883,6 +51884,7 @@ Solo el deploy y el `migrate` (0111). **Las preguntas no se crean solas.** Para 
 
 - **06/11/2026 — alta del cambio.**
 - **07/11/2026 — ronda de auditoría de #1035 (CHANGES_NEEDED @ e3f88f49):** (MAJOR) reglas de activación del par en el formulario del ABM, Localidad como texto cuando su Provincia no se sirve en el canal y respaldo del JS con todas las localidades; (MINOR) `con_catalogos=False` en `definicion_del_caso` y `pertenencia_del_adjunto`, `_recorrer_campos` reemplazado por `respuestas.campos_de`, mensajes del ABM en constantes, ficha corregida (sin JS la Localidad sale vacía) y `X-Capacidades` admitido en el preflight CORS. Cada guarda con su test, verificadas por mutación.
+- **08/11/2026 — hueco de los modales del listado:** ver [Cambio 445](#cambio-445) (el catálogo y «Depende de» no estaban en «Nueva pregunta» ni «Editar pregunta», y el alta mandaba `activo` fijo).
 
 ---
 
@@ -53507,6 +53509,61 @@ Sin cambios.
 ## Validación
 
 `manage.py check`, `ruff`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0), `check_design_agent --changed` (OK), `makemigrations --check` (sin cambios), tests de `programas` y `core.tests.test_nodo_ui_piezas`.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **08/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 445 — Opciones del catálogo en los modales de Requisitos generales
+
+🟡 **EN CURSO — 08/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas · Requisitos generales (`/becas/config/preguntas/`) |
+| **Etiquetas** | `#requisitos` `#ui` |
+| **Solicitante** | PM — hueco del Cambio 418: no había forma de elegir el catálogo desde el listado |
+| **Fecha del pedido** | 08/11/2026 |
+| **Issue / épica** | sin issue; completa el [Cambio 418](#cambio-418) |
+| **Partes afectadas** | Backoffice: `programas/templates/programas/becas/config/{pregunta_list,_pregunta_row}.html`, `programas/views/configuracion.py`, `programas/forms.py`, `.claude/design/dominio/becas.md`, `.claude/design/componentes/tabla.md`, `programas/tests/test_preguntas_catalogo_geo.py` |
+| **Migración** | No |
+
+## Pedido original
+
+El Cambio 418 sumó «Opciones del catálogo» y «Depende de» a `PreguntaGlobalForm` y a la página completa `pregunta_form.html`, pero el PM crea y edita desde los modales del listado, armados a mano sin esos campos. Además el modal de alta mandaba `activo=on` fijo, así que Provincia y Localidad habrían nacido activas, contra la decisión 11 del 418.
+
+## Alcance acordado
+
+**Entra:** (1) «Nueva pregunta» con el selector de catálogo y «Depende de» (solo con Localidad); con fuente se ocultan las opciones a mano y la presentación y el tipo queda en Selector; (2) el alta con fuente nace inactiva; (3) «Editar pregunta» con los mismos dos campos precargados (la fila los pasa a `openEdit`) y deshabilitados si la pregunta es protegida; (4) los errores del servidor (Localidad sin `depende_de`, choque con SIIS) se ven en el modal con un `data-error` por campo. **Queda afuera:** cambios de la página completa o del alta de las preguntas comunes; de `PreguntaGlobalForm` solo entra la regla de alta inactiva.
+
+## Decisiones tomadas
+
+1. Las choices (`fuente_choices`) y las Provincias candidatas (`depende_de_choices`) las arma `PreguntaGlobalListView` desde `PreguntaGlobalForm`: no hay listas escritas en el template.
+2. **Alta inactiva, regla en el form.** `PreguntaGlobalForm.clean()` fuerza `activo=False` cuando la instancia es nueva y llega `fuente_opciones`, entre la limpieza de la fuente y la de la activación (las reglas de activación y de destino SIIS se evalúan sobre lo que se guarda). Además, crear o editar una Provincia (o dejar de serlo) responde con `redirect` al listado en vez de reemplazar solo la tabla: las candidatas de «Depende de» se arman al cargar la página y, sin recarga, el modal no ofrecería la Provincia nueva. Además el `hidden activo` del modal se deshabilita con fuente (`:disabled`). Las preguntas comunes siguen naciendo activas. Se prefirió el form al «solo el template» y a la vista porque también cubre la página completa y cualquier cliente, y se puede probar sin vista.
+3. Con fuente, el JS del modal fija tipo Selector y presentación Lista (el servidor lo vuelve a forzar) y limpia «Depende de» si la fuente no es Localidad.
+
+## Archivos
+
+Los de «Partes afectadas».
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- Tests nuevos en `programas/tests/test_preguntas_catalogo_geo.py` (`ModalesDelListadoConCatalogoTests`): los dos modales rinden ambos campos con las choices correctas, solo las Provincias son candidatas, la fila precarga fuente y dependencia, el alta con Provincia y con Localidad nace inactiva y con fuente, la común nace activa y el error de Localidad sin Provincia llega por campo.
+- Mutación: sin la regla de alta inactiva en `PreguntaGlobalForm.clean()`, los tests de alta con fuente (form y vista) quedan en rojo; restaurado.
 
 ## Pendientes / a definir
 

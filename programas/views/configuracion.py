@@ -1004,6 +1004,16 @@ def _grupos_con_preguntas():
     return resultado
 
 
+def _recarga_por_provincia(request, form, message, era_provincia=False):
+    """Cambio 445: las candidatas de «Depende de» se arman al cargar el listado.
+    Si lo guardado es (o dejó de ser) una Provincia, el modal quedaría con la
+    lista vieja: se recarga el listado en vez de reemplazar solo la tabla."""
+    Fuente = PreguntaGlobal.FuenteOpciones
+    if form.instance.fuente_opciones == Fuente.PROVINCIA or era_provincia:
+        return ajax_redirect(request, reverse("becas:preguntas"), message)
+    return _preguntas_ajax(request, message)
+
+
 def _preguntas_ajax(request, message="Pregunta guardada."):
     return ajax_ok(
         request,
@@ -1143,6 +1153,14 @@ class PreguntaGlobalListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
         ctx["presentacion_choices"] = PresentacionCampo.choices
         ctx["canal_choices"] = CanalFormulario.choices
         ctx["destino_siis_choices"] = PreguntaGlobal.DestinoSiis.choices
+        # Cambio 445: los modales arman a mano lo que el form del ABM ya sabe
+        # (las choices y las Provincias candidatas salen de ahí, no del template).
+        form_catalogo = PreguntaGlobalForm()
+        ctx["fuente_choices"] = list(form_catalogo.fields["fuente_opciones"].choices)
+        # La opción vacía («Sin dependencia») sale del empty_label del form.
+        ctx["depende_de_choices"] = [
+            (str(valor), etiqueta) for valor, etiqueta in form_catalogo.fields["depende_de"].choices
+        ]
         ctx["hay_filtros_activos"] = any(
             self.request.GET.get(nombre, "").strip() for nombre in ("q", "tipo", "obligatorio", "activo")
         )
@@ -1171,7 +1189,7 @@ class PreguntaGlobalCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Crea
     def form_valid(self, form):
         self.object = form.save()
         if is_ajax(self.request):
-            return _preguntas_ajax(self.request, "Pregunta creada.")
+            return _recarga_por_provincia(self.request, form, "Pregunta creada.")
         messages.success(self.request, "Pregunta creada.")
         return redirect(self.success_url)
 
@@ -1188,10 +1206,17 @@ class PreguntaGlobalUpdateView(CapacidadRequeridaMixin, LoginRequiredMixin, Upda
     template_name = "programas/becas/config/pregunta_form.html"
     success_url = reverse_lazy("becas:preguntas")
 
+    def get_object(self, queryset=None):
+        # Se anota antes de que el form pise la instancia: otra consulta sería un N+1.
+        pregunta = super().get_object(queryset)
+        self.era_provincia = pregunta.fuente_opciones == PreguntaGlobal.FuenteOpciones.PROVINCIA
+        return pregunta
+
     def form_valid(self, form):
+        era_provincia = self.era_provincia
         self.object = form.save()
         if is_ajax(self.request):
-            return _preguntas_ajax(self.request, "Pregunta actualizada.")
+            return _recarga_por_provincia(self.request, form, "Pregunta actualizada.", era_provincia)
         messages.success(self.request, "Pregunta actualizada.")
         return redirect(self.success_url)
 
