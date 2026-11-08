@@ -215,6 +215,12 @@ en `.js-lista-texto`, que lee el anuncio del drag & drop.
 `requisitos_segmento.html` y `subsegmento_detail.html` ya usan el helper de modales y las partes
 de header y pie; `segmento_detail.html` y `programa_detail.html` siguen con marcado propio hasta
 su propia migración.
+**Opciones del catálogo (Cambio 445):** los modales de preguntas generales (`pregunta_list.html`) llevan
+«Opciones del catálogo» (`fuente_opciones`) y «Depende de» (`depende_de`, solo con Localidad), con las
+choices y las Provincias candidatas que arma la vista desde `PreguntaGlobalForm` (`fuente_choices`,
+`depende_de_choices`); con fuente se ocultan opciones y presentación y el tipo queda en Selector. La
+fila pasa `fuente_opciones` y `depende_de_id` a `openEdit`. El alta con fuente nace inactiva
+(`PreguntaGlobalCreateView.get_form_kwargs` descarta `activo`), las comunes siguen activas.
 **Quién ve las acciones:** el alta y las acciones de fila (editar, eliminar) de un requisito **del
 programa** se dibujan con los flags que calcula la vista —`puede_crear_requisito_programa` y
 `puede_editar_requisito_programa`: la capacidad **y** administrar Becas, la misma puerta que

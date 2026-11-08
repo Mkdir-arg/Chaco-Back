@@ -55,7 +55,9 @@
           '{{ p.canal }}',
           {{ p.protegido|yesno:'true,false' }},
           {{ p.es_identidad|yesno:'true,false' }},
-          '{{ p.destino_siis }}'
+          '{{ p.destino_siis }}',
+          '{{ p.fuente_opciones|default_if_none:'' }}',
+          '{{ p.depende_de_id|default_if_none:'' }}'
         )">
         <i class="fas fa-edit" aria-hidden="true"></i>
       </button>

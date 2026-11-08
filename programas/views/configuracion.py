@@ -1143,6 +1143,11 @@ class PreguntaGlobalListView(CapacidadRequeridaMixin, LoginRequiredMixin, ListVi
         ctx["presentacion_choices"] = PresentacionCampo.choices
         ctx["canal_choices"] = CanalFormulario.choices
         ctx["destino_siis_choices"] = PreguntaGlobal.DestinoSiis.choices
+        # Cambio 445: los modales arman a mano lo que el form del ABM ya sabe
+        # (las choices y las Provincias candidatas salen de ahí, no del template).
+        form_catalogo = PreguntaGlobalForm()
+        ctx["fuente_choices"] = list(form_catalogo.fields["fuente_opciones"].choices)
+        ctx["depende_de_choices"] = [(p.pk, p.texto) for p in form_catalogo.fields["depende_de"].queryset]
         ctx["hay_filtros_activos"] = any(
             self.request.GET.get(nombre, "").strip() for nombre in ("q", "tipo", "obligatorio", "activo")
         )
@@ -1167,6 +1172,19 @@ class PreguntaGlobalCreateView(CapacidadRequeridaMixin, LoginRequiredMixin, Crea
     form_class = PreguntaGlobalForm
     template_name = "programas/becas/config/pregunta_form.html"
     success_url = reverse_lazy("becas:preguntas")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # Cambio 418 (decisión 11) y 445: una pregunta de catálogo nace inactiva;
+        # el PM la activa cuando la app nueva esté publicada. Se descarta el
+        # ``activo`` antes de validar, así las reglas de activación y de destino
+        # SIIS se evalúan sobre lo que de verdad se va a guardar.
+        datos = kwargs.get("data")
+        if datos is not None and datos.get("fuente_opciones"):
+            datos = datos.copy()
+            datos.pop("activo", None)
+            kwargs["data"] = datos
+        return kwargs
 
     def form_valid(self, form):
         self.object = form.save()

@@ -394,3 +394,88 @@ class DashboardConCatalogoTests(TestCase):
         distribucion = _armar_distribucion(_P, {"Chaco": 3, "Corrientes": 1}, 4)
         self.assertEqual([o["opcion"] for o in distribucion.opciones], ["Chaco", "Corrientes"])
         self.assertEqual(len(distribucion.opciones), 2)
+
+
+class ModalesDelListadoConCatalogoTests(TestCase):
+    """Cambio 445: el PM crea y edita desde los modales del listado, no desde la página completa."""
+
+    AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+    def setUp(self):
+        from django.core.management import call_command
+
+        call_command("seed_becas", stdout=__import__("io").StringIO())
+        self.admin = User.objects.create_superuser("admin-modal-geo", "a@a.com", "x")
+        self.client.force_login(self.admin)
+
+    def _listado(self):
+        resp = self.client.get(reverse("becas:preguntas"))
+        self.assertEqual(resp.status_code, 200)
+        return resp
+
+    def test_los_dos_modales_traen_la_fuente_y_la_dependencia_con_las_choices_del_servidor(self):
+        provincia, _ = crear_par()
+        html = self._listado().content.decode()
+        # Un par de selectores por modal (alta y edición).
+        self.assertEqual(html.count('name="fuente_opciones"'), 2)
+        self.assertEqual(html.count('name="depende_de"'), 2)
+        for valor, etiqueta in [("", "Opciones cargadas a mano")] + list(Fuente.choices):
+            self.assertEqual(html.count(f'<option value="{valor}">{etiqueta}</option>'), 2)
+        # Solo las preguntas de Provincia son candidatas a «Depende de».
+        self.assertEqual(html.count(f'<option value="{provincia.pk}">{provincia.texto}</option>'), 2)
+
+    def test_depende_de_no_ofrece_preguntas_que_no_son_de_provincia(self):
+        _, localidad = crear_par()
+        html = self._listado().content.decode()
+        self.assertNotIn(f'<option value="{localidad.pk}">{localidad.texto}</option>', html)
+
+    def test_la_fila_precarga_la_fuente_y_la_dependencia_en_el_modal_de_edicion(self):
+        provincia, localidad = crear_par()
+        html = self._listado().content.decode()
+        self.assertIn(f"'{Fuente.LOCALIDAD}',\n          '{provincia.pk}'", html.replace("\r\n", "\n"))
+        self.assertIn(f"'{Fuente.PROVINCIA}',\n          ''", html.replace("\r\n", "\n"))
+        self.assertIn(reverse("becas:pregunta_editar", args=[localidad.pk]), html)
+
+    def test_alta_con_fuente_provincia_crea_la_pregunta_inactiva_y_con_fuente(self):
+        resp = self.client.post(
+            reverse("becas:pregunta_crear"),
+            datos_form(texto="Provincia", fuente_opciones=Fuente.PROVINCIA, activo="on"),
+            **self.AJAX,
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        pregunta = PreguntaGlobal.objects.get(texto="Provincia")
+        self.assertEqual(pregunta.fuente_opciones, Fuente.PROVINCIA)
+        self.assertEqual(pregunta.tipo, TipoCampo.SELECTOR)
+        self.assertFalse(pregunta.activo)
+
+    def test_alta_de_localidad_con_su_provincia_nace_inactiva(self):
+        provincia = PreguntaGlobal.objects.create(
+            texto="Provincia", tipo="SELECTOR", fuente_opciones=Fuente.PROVINCIA, orden=70
+        )
+        resp = self.client.post(
+            reverse("becas:pregunta_crear"),
+            datos_form(texto="Localidad", fuente_opciones=Fuente.LOCALIDAD, depende_de=provincia.pk, activo="on"),
+            **self.AJAX,
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        localidad = PreguntaGlobal.objects.get(texto="Localidad")
+        self.assertEqual(localidad.depende_de_id, provincia.pk)
+        self.assertFalse(localidad.activo)
+
+    def test_alta_comun_sigue_naciendo_activa(self):
+        resp = self.client.post(reverse("becas:pregunta_crear"), datos_form(texto="Común", activo="on"), **self.AJAX)
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertTrue(PreguntaGlobal.objects.get(texto="Común").activo)
+
+    def test_los_errores_del_servidor_llegan_al_modal_por_campo(self):
+        resp = self.client.post(
+            reverse("becas:pregunta_crear"),
+            datos_form(texto="Localidad", fuente_opciones=Fuente.LOCALIDAD),
+            **self.AJAX,
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("depende_de", resp.json()["errors"])
+        # Y el modal tiene dónde mostrarlo: un <p data-error> por campo, en alta y en edición.
+        html = self._listado().content.decode()
+        self.assertEqual(html.count('data-error="depende_de"'), 2)
+        self.assertEqual(html.count('data-error="fuente_opciones"'), 2)
