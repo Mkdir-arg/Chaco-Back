@@ -30,7 +30,7 @@
         <th class="nodo-th text-right">Segmentos</th>
         <th class="nodo-th">Vinculado el</th>
         <th class="nodo-th text-center">Estado</th>
-        <th class="nodo-th text-right">Acciones</th>
+        <th class="nodo-th nodo-col-acciones text-right">Acciones</th>
       </tr>
     </thead>
     <tbody>
@@ -53,7 +53,7 @@
             {% endif %}
           </div>
         </td>
-        <td class="nodo-td text-right">
+        <td class="nodo-td nodo-col-acciones text-right">
           <div class="flex items-center justify-end gap-2">
             {% if p.valida_siis %}
             <button type="button" aria-label="Ver detalle SIIS de {{ p.nombre }}"

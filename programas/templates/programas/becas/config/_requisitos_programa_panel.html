@@ -1,5 +1,6 @@
 {% if requisitos %}
 <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
   <table class="w-full border-collapse">
     <thead>
       <tr class="nodo-thead-row">
@@ -7,7 +8,7 @@
         <th class="nodo-th">Pregunta</th>
         <th class="nodo-th">Tipo</th>
         <th class="nodo-th">Obligatorio</th>
-        <th class="nodo-th text-right">Acciones</th>
+        <th class="nodo-th nodo-col-acciones text-right">Acciones</th>
       </tr>
     </thead>
     {# Cambio 264: el orden se define arrastrando desde la manija; solo filas propias. #}
@@ -37,7 +38,7 @@
             <span class="badge badge-gray">Opcional</span>
           {% endif %}
         </td>
-        <td class="nodo-td text-right">
+        <td class="nodo-td nodo-col-acciones text-right">
           <div class="flex items-center justify-end gap-2">
             {% if puede_editar_requisito_programa %}
             <button type="button" class="nodo-icon-btn" title="Editar" aria-label="Editar requisito {{ req.texto }}"
@@ -65,6 +66,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 {% else %}
 <div class="py-12 px-6 text-center flex flex-col items-center gap-3 bg-white rounded-xl border border-base shadow-sm">

@@ -45,7 +45,7 @@
             <th class="nodo-th">Contacto</th>
             <th class="nodo-th text-center">Identidad</th>
             <th class="nodo-th">Estado</th>
-            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -77,7 +77,7 @@
                 <span class="badge badge-warning mt-1"><i class="fas fa-code-compare" aria-hidden="true"></i> Duplicado por resolver</span>
               {% endif %}
             </td>
-            <td class="nodo-td text-right">
+            <td class="nodo-td nodo-col-acciones text-right">
               <a href="{% url 'becas:formulario_detalle' f.pk %}?next={{ request.get_full_path|urlencode }}" class="nodo-icon-btn"
                  aria-label="Ver caso de {% if f.ciudadano %}{{ f.ciudadano.nombre }} {{ f.ciudadano.apellido }}{% elif f.datos_identificacion %}{{ f.datos_identificacion.nombre }} {{ f.datos_identificacion.apellido }}{% else %}persona sin identificar{% endif %}">
                 <i class="fas fa-eye" aria-hidden="true"></i>

@@ -157,6 +157,7 @@
           if (tgt) {
             tgt.innerHTML = data.html;
             if (window.Alpine && typeof window.Alpine.initTree === 'function') { window.Alpine.initTree(tgt); }
+            if (window.nodoTablas) window.nodoTablas.barrer();
           }
           indicar('Orden guardado');
           anunciar('Orden guardado.');
@@ -341,6 +342,7 @@
           if (tgt) {
             tgt.innerHTML = data.html;
             if (window.Alpine && typeof window.Alpine.initTree === 'function') { window.Alpine.initTree(tgt); }
+            if (window.nodoTablas) window.nodoTablas.barrer();
           }
           indicarLista('Orden guardado');
           anunciar('Orden guardado.');
