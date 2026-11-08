@@ -21,7 +21,7 @@
         </td>
         <td class="nodo-td text-body">{{ c.segmento.nombre }}</td>
         <td class="nodo-td text-body">{{ c.subsegmento.nombre|default:"—" }}</td>
-        <td class="nodo-td text-body">
+        <td class="nodo-td text-body whitespace-nowrap">
           {{ c.fecha_inicio|date:"d/m/Y" }} → {{ c.fecha_fin|date:"d/m/Y" }}
         </td>
         <td class="nodo-td text-body text-right">

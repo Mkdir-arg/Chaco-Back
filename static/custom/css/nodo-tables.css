@@ -85,3 +85,17 @@ tr:hover > td.nodo-col-acciones {
 .nodo-scroll-mas .nodo-col-acciones {
     box-shadow: -8px 0 8px -6px rgba(0, 0, 0, 0.18);
 }
+
+/* Ancho de la tabla en su wrapper de scroll. Debajo de lg (tablet y celular) mide lo
+   que mide su texto y el wrapper scrollea; la columna nodo-col-acciones queda a la vista.
+   Desde lg la tabla ocupa el wrapper (w-full) y las celdas parten texto: en notebooks las
+   acciones entran sin scroll. Una planilla que no debe partir lleva whitespace-nowrap. */
+@media (max-width: 1023.98px) {
+    .overflow-x-auto > table,
+    .overflow-x-scroll > table,
+    .table-responsive > table,
+    .table-scroll-wrapper > table {
+        width: max-content;
+        min-width: 100%;
+    }
+}

@@ -152,6 +152,41 @@ class TablaResponsiveTest(SimpleTestCase):
             self.assertEqual(pagina.locator("th").first.evaluate("e => getComputedStyle(e).position"), "sticky")
             navegador.close()
 
+    def test_el_ancho_de_la_tabla_depende_del_breakpoint_lg(self):
+        """Desde lg la tabla parte texto y entra en el wrapper; debajo scrollea (Cambio 166)."""
+        from playwright.sync_api import sync_playwright
+
+        raiz = Path(__file__).resolve().parents[2]
+        # El mismo orden de carga que base.html: la regla de ancho no puede reaparecer en responsive.css.
+        css = "\n".join(
+            (raiz / "static/custom/css" / nombre).read_text(encoding="utf-8")
+            for nombre in ("tailwind.css", "nodo-tables.css", "responsive.css")
+        )
+        texto_largo = " ".join(["Nombre completo de una persona con apellidos muy largos"] * 6)
+        html = (
+            "<!DOCTYPE html><html><head><style>" + css + "</style></head>"
+            '<body><div class="p-4"><div class="overflow-x-auto">'
+            '<table class="w-full border-collapse"><thead><tr class="nodo-thead-row">'
+            '<th class="nodo-th">Persona</th><th class="nodo-th text-right">'
+            '<span class="sr-only">Acciones</span></th></tr></thead><tbody><tr>'
+            '<td class="nodo-td">' + texto_largo + '</td><td class="nodo-td">Ver</td>'
+            "</tr></tbody></table></div></div></body></html>"
+        )
+        with sync_playwright() as motor:
+            navegador = motor.chromium.launch()
+            pagina = navegador.new_page(viewport={"width": 1366, "height": 700})
+            pagina.set_content(html)
+            wrapper = pagina.locator(".overflow-x-auto")
+            self.assertLessEqual(wrapper.evaluate("e => e.scrollWidth"), wrapper.evaluate("e => e.clientWidth"))
+            dentro = pagina.evaluate(
+                "() => document.querySelector('td:last-child').getBoundingClientRect().right"
+                " <= document.querySelector('.overflow-x-auto').getBoundingClientRect().right"
+            )
+            self.assertTrue(dentro)
+            pagina.set_viewport_size({"width": 390, "height": 700})
+            self.assertGreater(wrapper.evaluate("e => e.scrollWidth"), wrapper.evaluate("e => e.clientWidth"))
+            navegador.close()
+
 
 PAGINACION = "components/_paginacion.html"
 STAT = "components/_stat_card.html"
