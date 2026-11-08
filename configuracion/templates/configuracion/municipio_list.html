@@ -28,7 +28,7 @@
                 <tr class="nodo-thead-row">
                     <th class="nodo-th">Nombre</th>
                     <th class="nodo-th">Provincia</th>
-                    <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+                    <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
                 </tr>
             </thead>
             <tbody>
@@ -36,7 +36,7 @@
                 <tr class="hover:bg-secondary">
                     <td class="nodo-td text-heading font-medium">{{ municipio.nombre }}</td>
                     <td class="nodo-td text-body-subtle">{{ municipio.provincia.nombre }}</td>
-                    <td class="nodo-td text-right">
+                    <td class="nodo-td nodo-col-acciones text-right">
                         <div class="inline-flex items-center gap-1">
                             <a href="{% url 'configuracion:municipio_editar' municipio.pk %}"
                                @click.prevent="abrirEditar({{ municipio.pk }})"

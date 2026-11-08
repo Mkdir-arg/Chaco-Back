@@ -30,7 +30,7 @@
             <th class="nodo-th">Egreso</th>
             <th class="nodo-th">Estado</th>
             <th class="nodo-th">Motivo de egreso</th>
-            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -45,7 +45,7 @@
             <td class="nodo-td whitespace-nowrap">{{ fila.egreso|date:"d/m/Y"|default:"—" }}</td>
             <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.tono }}">{{ fila.estado }}</span></td>
             <td class="nodo-td">{{ fila.motivo|default:"—" }}</td>
-            <td class="nodo-td text-right">
+            <td class="nodo-td nodo-col-acciones text-right">
               {% if fila.url_estadia %}
               <a href="{{ fila.url_estadia }}" class="nodo-icon-btn" aria-label="Ver estadía en {{ fila.dispositivo }} del {{ fila.ingreso|date:'d/m/Y' }}">
                 <i class="fas fa-eye" aria-hidden="true"></i>

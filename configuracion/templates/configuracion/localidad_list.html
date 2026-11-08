@@ -29,7 +29,7 @@
                     <th class="nodo-th">Nombre</th>
                     <th class="nodo-th">Municipio</th>
                     <th class="nodo-th">Provincia</th>
-                    <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+                    <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
                 </tr>
             </thead>
             <tbody>
@@ -38,7 +38,7 @@
                     <td class="nodo-td text-heading font-medium">{{ localidad.nombre }}</td>
                     <td class="nodo-td text-body-subtle">{{ localidad.municipio.nombre }}</td>
                     <td class="nodo-td text-body-subtle">{{ localidad.municipio.provincia.nombre }}</td>
-                    <td class="nodo-td text-right">
+                    <td class="nodo-td nodo-col-acciones text-right">
                         <div class="inline-flex items-center gap-1">
                             <a href="{% url 'configuracion:localidad_editar' localidad.pk %}"
                                @click.prevent="abrirEditar({{ localidad.pk }})"

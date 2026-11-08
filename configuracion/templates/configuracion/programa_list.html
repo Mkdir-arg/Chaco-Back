@@ -48,7 +48,7 @@
                         <th class="nodo-th">Naturaleza</th>
                         <th class="nodo-th">Estado</th>
                         {% if puede_editar_alguno %}
-                        <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+                        <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
                         {% endif %}
                     </tr>
                 </thead>
@@ -86,7 +86,7 @@
                         </td>
                         {% comment %}SEC-07: la celda sigue a la columna (si no, la fila queda corta) y las acciones, al alcance de la fila.{% endcomment %}
                         {% if puede_editar_alguno %}
-                        <td class="nodo-td text-right">
+                        <td class="nodo-td nodo-col-acciones text-right">
                             {% if programa.puede_editar %}
                             <div class="inline-flex items-center gap-1">
                                 <a href="{% url 'configuracion:programa_editar_paso1' programa.pk %}"

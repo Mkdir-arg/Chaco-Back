@@ -353,7 +353,7 @@
                 <th class="nodo-th">Persona</th>
                 <th class="nodo-th">Rol</th>
                 <th class="nodo-th">Responsable</th>
-                {% if puede_gestionar_equipo %}<th class="nodo-th text-right w-28"><span class="sr-only">Acciones</span></th>{% endif %}
+                {% if puede_gestionar_equipo %}<th class="nodo-th nodo-col-acciones text-right w-28"><span class="sr-only">Acciones</span></th>{% endif %}
               </tr>
             </thead>
             <tbody>
@@ -363,7 +363,7 @@
                 <td class="nodo-td">{{ miembro.rol.name }}{% if not miembro.vigente %} <span class="badge badge-warning badge-sm">Rol no vigente</span>{% endif %}</td>
                 <td class="nodo-td">{% if miembro.es_responsable %}<span class="badge badge-dot badge-success">Responsable</span>{% else %}<span class="text-body-subtle">—</span>{% endif %}</td>
                 {% if puede_gestionar_equipo %}
-                <td class="nodo-td text-right whitespace-nowrap">
+                <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
                   {% url 'dispositivos:equipo_baja' dispositivo.pk miembro.pk as url_baja %}
                   {% url 'dispositivos:equipo_responsable' dispositivo.pk miembro.pk as url_responsable %}
                   {% url 'dispositivos:equipo_quitar_responsable' dispositivo.pk miembro.pk as url_quitar_responsable %}

@@ -27,14 +27,14 @@
         <thead>
           <tr class="nodo-thead-row">
             <th class="nodo-th">Nombre</th>
-            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
           {% for provincia in provincias %}
           <tr class="hover:bg-secondary">
             <td class="nodo-td text-heading font-medium">{{ provincia.nombre }}</td>
-            <td class="nodo-td text-right">
+            <td class="nodo-td nodo-col-acciones text-right">
               <div class="inline-flex items-center gap-1">
                 {# Editar — abre modal con datos de la fila #}
                 <a href="{% url 'configuracion:provincia_editar' provincia.pk %}"
