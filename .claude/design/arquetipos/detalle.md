@@ -75,7 +75,7 @@ se las olvidó pasaría como «apilada» y el gate no serviría para nada.
           <thead>
             <tr class="nodo-thead-row">
               <th class="nodo-th"><Columna></th>
-              <th class="nodo-th text-right w-28"><span class="sr-only">Acciones</span></th>
+              <th class="nodo-th nodo-col-acciones text-right w-28"><span class="sr-only">Acciones</span></th>
             </tr>
           </thead>
           <tbody>
@@ -87,7 +87,7 @@ se las olvidó pasaría como «apilada» y el gate no serviría para nada.
                   <span class="font-medium text-heading">{{ obj.<apellido> }}, {{ obj.<nombre> }}</span>
                 </div>
               </td>
-              <td class="nodo-td text-right whitespace-nowrap">
+              <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
                 <a href="{% url '<app>:<detalle>' obj.pk %}?next={{ request.get_full_path|urlencode }}"
                    class="nodo-icon-btn" aria-label="Ver <entidad> de {{ obj.<nombre> }} {{ obj.<apellido> }}">
                   <i class="fas fa-eye" aria-hidden="true"></i>
