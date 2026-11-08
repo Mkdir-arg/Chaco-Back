@@ -53535,7 +53535,7 @@ Revertir el PR; no hay datos que deshacer.
 | **Solicitante** | PM — hueco del Cambio 418: no había forma de elegir el catálogo desde el listado |
 | **Fecha del pedido** | 08/11/2026 |
 | **Issue / épica** | sin issue; completa el [Cambio 418](#cambio-418) |
-| **Partes afectadas** | Backoffice: `programas/templates/programas/becas/config/{pregunta_list,_pregunta_row}.html`, `programas/views/configuracion.py`, `.claude/design/dominio/becas.md`, `programas/tests/test_preguntas_catalogo_geo.py` |
+| **Partes afectadas** | Backoffice: `programas/templates/programas/becas/config/{pregunta_list,_pregunta_row}.html`, `programas/views/configuracion.py`, `programas/forms.py`, `.claude/design/dominio/becas.md`, `.claude/design/componentes/tabla.md`, `programas/tests/test_preguntas_catalogo_geo.py` |
 | **Migración** | No |
 
 ## Pedido original
@@ -53544,12 +53544,12 @@ El Cambio 418 sumó «Opciones del catálogo» y «Depende de» a `PreguntaGloba
 
 ## Alcance acordado
 
-**Entra:** (1) «Nueva pregunta» con el selector de catálogo y «Depende de» (solo con Localidad); con fuente se ocultan las opciones a mano y la presentación y el tipo queda en Selector; (2) el alta con fuente nace inactiva; (3) «Editar pregunta» con los mismos dos campos precargados (la fila los pasa a `openEdit`) y deshabilitados si la pregunta es protegida; (4) los errores del servidor (Localidad sin `depende_de`, choque con SIIS) se ven en el modal con un `data-error` por campo. **Queda afuera:** cualquier cambio de `PreguntaGlobalForm`, de la página completa o del alta de las preguntas comunes.
+**Entra:** (1) «Nueva pregunta» con el selector de catálogo y «Depende de» (solo con Localidad); con fuente se ocultan las opciones a mano y la presentación y el tipo queda en Selector; (2) el alta con fuente nace inactiva; (3) «Editar pregunta» con los mismos dos campos precargados (la fila los pasa a `openEdit`) y deshabilitados si la pregunta es protegida; (4) los errores del servidor (Localidad sin `depende_de`, choque con SIIS) se ven en el modal con un `data-error` por campo. **Queda afuera:** cambios de la página completa o del alta de las preguntas comunes; de `PreguntaGlobalForm` solo entra la regla de alta inactiva.
 
 ## Decisiones tomadas
 
 1. Las choices (`fuente_choices`) y las Provincias candidatas (`depende_de_choices`) las arma `PreguntaGlobalListView` desde `PreguntaGlobalForm`: no hay listas escritas en el template.
-2. **Alta inactiva, regla en el servidor.** `PreguntaGlobalCreateView.get_form_kwargs` descarta `activo` del POST cuando llega `fuente_opciones`, antes de validar (las reglas de activación y de destino SIIS se evalúan sobre lo que se guarda). Además el `hidden activo` del modal se deshabilita con fuente (`:disabled`). Las preguntas comunes siguen naciendo activas. Se prefirió el servidor al «solo el template» porque también cubre la página completa y cualquier cliente, y es lo que el test puede verificar.
+2. **Alta inactiva, regla en el form.** `PreguntaGlobalForm.clean()` fuerza `activo=False` cuando la instancia es nueva y llega `fuente_opciones`, entre la limpieza de la fuente y la de la activación (las reglas de activación y de destino SIIS se evalúan sobre lo que se guarda). Además, crear o editar una Provincia (o dejar de serlo) responde con `redirect` al listado en vez de reemplazar solo la tabla: las candidatas de «Depende de» se arman al cargar la página y, sin recarga, el modal no ofrecería la Provincia nueva. Además el `hidden activo` del modal se deshabilita con fuente (`:disabled`). Las preguntas comunes siguen naciendo activas. Se prefirió el form al «solo el template» y a la vista porque también cubre la página completa y cualquier cliente, y se puede probar sin vista.
 3. Con fuente, el JS del modal fija tipo Selector y presentación Lista (el servidor lo vuelve a forzar) y limpia «Depende de» si la fuente no es Localidad.
 
 ## Archivos
@@ -53563,7 +53563,7 @@ Sin cambios.
 ## Validación
 
 - Tests nuevos en `programas/tests/test_preguntas_catalogo_geo.py` (`ModalesDelListadoConCatalogoTests`): los dos modales rinden ambos campos con las choices correctas, solo las Provincias son candidatas, la fila precarga fuente y dependencia, el alta con Provincia y con Localidad nace inactiva y con fuente, la común nace activa y el error de Localidad sin Provincia llega por campo.
-- Mutación: sin el descarte de `activo`, los dos tests de alta con fuente quedan en rojo; restaurado.
+- Mutación: sin la regla de alta inactiva en `PreguntaGlobalForm.clean()`, los tests de alta con fuente (form y vista) quedan en rojo; restaurado.
 
 ## Pendientes / a definir
 
