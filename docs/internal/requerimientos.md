@@ -53462,5 +53462,6 @@ Revertir el PR; no hay datos que deshacer. Las clases son aditivas y los cambios
 ## Historial
 
 - **08/11/2026 — alta del cambio.**
+- **08/11/2026 — ronda 2 (auditoría del PR 4).** Build de Tailwind recompilado (sale `hover:bg-tertiary`), celda fija del `tfoot` con el fondo de su fila y hover durante el arrastre sin pisar la celda.
 
 ---
