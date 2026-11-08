@@ -1,0 +1,11 @@
+{% comment %}
+Sectores que todavía no tienen edificio (Cambio 429): una tarea pendiente, no un dato más. «Asignar edificio» lleva a editar el
+primero en «Sectores y plazas» y solo se ofrece con `puede_asignar_edificio`; sin ella queda el aviso.
+{% endcomment %}
+{% with sin=infraestructura.sin_edificio %}
+{% if puede_asignar_edificio %}
+{% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo=sin.titulo texto=sin.texto accion_url=sin.url_asignar accion_texto="Asignar edificio" role="status" %}
+{% else %}
+{% include "components/_alerta.html" with tono="warning" icono="triangle-exclamation" titulo=sin.titulo texto=sin.texto role="status" %}
+{% endif %}
+{% endwith %}

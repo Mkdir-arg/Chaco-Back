@@ -1,0 +1,29 @@
+{% comment %}
+Chips de enlace: una fila de enlaces en píldora para cambiar de filtro o de registro sin salir de la pantalla.
+Cada chip es un <a>: la pantalla recarga con la URL que armó la vista (nada se decide en el navegador).
+  {% include "components/_chips_enlace.html" with nombre="Filtrar los edificios por estado" chips=infraestructura.filtros %}
+  {% include "components/_chips_enlace.html" with nombre="Otros edificios de esta institución" chips=infraestructura.chips aria_current="page" %}
+Contexto:
+  nombre        obligatorio: nombre accesible de la fila (`aria-label` del <nav>).
+  chips         lista de dicts armada por la VISTA, en el orden en que se dibujan:
+                  texto    obligatorio.
+                  url      obligatorio: destino interno que arma la vista con `reverse`.
+                  activo   el chip elegido: va resaltado y con `aria-current`.
+                  n        opcional: conteo (un 0 se muestra), en un badge.
+                  tono     opcional: success | warning | danger; otro valor, punto neutro. Dibuja un punto del
+                           color del estado del registro.
+                  estado   opcional: el estado en palabras, solo para lector de pantalla (el punto es color).
+                  icono    opcional: Font Awesome sin `fas` («fa-arrow-left»).
+  aria_current  opcional: valor de `aria-current` del chip activo; «true» por defecto, «page» al cambiar de registro.
+El color nunca es el único portador: el estado y el conteo van en texto.
+{% endcomment %}
+<nav class="flex flex-wrap items-center gap-2" aria-label="{{ nombre }}" data-chips-enlace>
+  {% for chip in chips %}
+  <a href="{{ chip.url }}" class="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm transition whitespace-nowrap {% if chip.activo %}bg-brand-soft border-brand text-fg-brand font-bold{% else %}bg-white border-base text-body font-semibold hover:bg-secondary{% endif %}"{% if chip.activo %} aria-current="{{ aria_current|default:'true' }}"{% endif %}>
+    {% if chip.icono %}<i class="fas {{ chip.icono }}" aria-hidden="true"></i>{% endif %}
+    {% if chip.tono %}<i class="fas fa-circle text-xs {% if chip.tono == 'danger' %}text-fg-danger{% elif chip.tono == 'warning' %}text-fg-warning{% elif chip.tono == 'success' %}text-fg-success{% else %}text-body-subtle{% endif %}" aria-hidden="true"></i>{% endif %}
+    {{ chip.texto }}{% if chip.estado %}<span class="sr-only"> · {{ chip.estado }}</span>{% endif %}
+    {% if chip.n is not None %}<span class="badge {% if chip.activo %}badge-info{% else %}badge-gray{% endif %}">{{ chip.n }}</span>{% endif %}
+  </a>
+  {% endfor %}
+</nav>

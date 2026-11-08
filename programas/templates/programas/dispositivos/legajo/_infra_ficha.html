@@ -1,0 +1,181 @@
+{% comment %}
+Ficha de un edificio de la solapa Infraestructura (Cambio 439). Reemplaza a la vista `?ver_edificio=<id>` de antes.
+Lo arma `infraestructura_del_dispositivo` (modo «ficha»). Sin alcance de inspección sobre el último relevamiento
+(`viendo.ve_detalle` falso, Cambio 428) quedan el estado y la fecha: ni criticidad, ni observaciones, ni quién relevó, ni fotos.
+Las secciones son <section> con <h3> y se separan con borde, sin cards anidadas dentro de la surface de las solapas.
+{% endcomment %}
+{% with edificio=infraestructura.viendo %}
+{% with tono=edificio.estado.tono %}
+{% url 'dispositivos:sectores' dispositivo.pk as url_sectores_pagina %}
+<div class="px-5 py-4 border-b border-light space-y-4">
+  {% if infraestructura.chips %}
+  {% include "components/_chips_enlace.html" with nombre="Otros edificios de esta institución" chips=infraestructura.chips aria_current="page" %}
+  {% endif %}
+
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div class="flex items-start gap-3 min-w-0 flex-1">
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 {% if tono == 'danger' %}bg-danger-soft text-fg-danger{% elif tono == 'warning' %}bg-warning-soft text-fg-warning{% elif tono == 'success' %}bg-success-soft text-fg-success{% else %}bg-secondary text-body-subtle{% endif %}">
+        <i class="fas fa-building text-xl" aria-hidden="true"></i>
+      </div>
+      <div class="min-w-0">
+        <h2 class="text-heading font-bold">{{ edificio.nombre }}</h2>
+        <p class="text-xs text-body-subtle mt-1">{{ edificio.codigo }} · {{ edificio.domicilio|default:"Sin domicilio cargado" }}</p>
+        <div class="flex flex-wrap items-center gap-2 mt-2">
+          <span class="badge badge-dot badge-{{ tono }}">{{ edificio.estado.texto }}</span>
+          {% if edificio.aviso %}<span class="badge badge-{{ edificio.aviso.tono }}">{{ edificio.aviso.texto }}</span>{% endif %}
+          {% if edificio.otras_instituciones %}<span class="badge badge-info">Predio compartido · {{ edificio.n_instituciones }} instituciones</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      {% if puede_editar %}
+      <button type="button" class="btn-nodo btn-tertiary btn-sm btn-fit"
+              data-confirm-url="{{ edificio.url_desvincular }}"
+              data-confirm-title="¿Desvincular el edificio?"
+              data-confirm-text="Esta institución deja de ver su estado edilicio y sus relevamientos. El edificio no se borra: volver a vincularlo lo repone con su historia."
+              data-confirm-danger="true" data-confirm-ok="Sí, desvincular">Desvincular</button>
+      <a href="{{ edificio.url_editar }}" class="btn-nodo btn-secondary btn-sm btn-fit">
+        <i class="fas fa-pen" aria-hidden="true"></i> Editar edificio
+      </a>
+      {% endif %}
+      {% include "programas/dispositivos/legajo/_infra_acciones.html" with ocultar_vinculo=infraestructura.chips %}
+    </div>
+  </div>
+</div>
+
+{% if infraestructura.sin_edificio %}
+<div class="p-5 border-b border-light">
+  {% include "programas/dispositivos/legajo/_infra_sin_edificio.html" %}
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2">
+  <div class="min-w-0">
+
+    <section aria-labelledby="ultimo-relevamiento-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h3 id="ultimo-relevamiento-titulo" class="text-sm font-bold text-heading">Último relevamiento</h3>
+      </div>
+      <div class="p-5 space-y-4">
+        {% if not edificio.ultima %}
+        <p class="text-sm text-body-subtle">Todavía no se relevó este edificio: la criticidad aparece con el primer relevamiento realizado.</p>
+        {% elif not edificio.ve_detalle %}
+        <dl class="grid gap-5 sm:grid-cols-2">
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Estado</dt><dd class="mt-1 text-body">{{ edificio.estado.texto }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Relevado el</dt><dd class="mt-1 text-body">{{ edificio.ultima.realizada_en|date:"d/m/Y" }}</dd></div>
+        </dl>
+        <p class="text-sm text-body-subtle">El detalle del relevamiento lo ve quien opera o coordina la institución del edificio.</p>
+        {% else %}
+        <dl class="grid gap-5 sm:grid-cols-3">
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Criticidad</dt><dd class="mt-1 text-body">{{ edificio.ultima.get_criticidad_display }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Relevado el</dt><dd class="mt-1 text-body">{{ edificio.ultima.realizada_en|date:"d/m/Y" }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Relevó</dt><dd class="mt-1 text-body">{{ edificio.relevo }}</dd></div>
+        </dl>
+        {% if edificio.ultima.observaciones %}
+        {% include "components/_alerta.html" with tono="warning" icono="screwdriver-wrench" titulo="Observaciones" texto=edificio.ultima.observaciones role="status" %}
+        {% else %}
+        <p class="text-sm text-body-subtle">El último relevamiento no dejó observaciones.</p>
+        {% endif %}
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="border-t border-light" aria-labelledby="sectores-del-edificio-titulo">
+      <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-2">
+        <h3 id="sectores-del-edificio-titulo" class="text-sm font-bold text-heading">Sectores de {{ dispositivo.nombre }} en este edificio</h3>
+        <a href="{{ url_sectores_pagina }}" class="text-xs text-fg-brand font-medium hover:underline">Ir a Sectores y plazas</a>
+      </div>
+      {% if edificio.sectores %}
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">Sector</th>
+              <th class="nodo-th">Perfil</th>
+              {% if edificio.n_ocupadas is not None %}<th class="nodo-th text-right">Ocupadas</th>{% endif %}
+              <th class="nodo-th text-right">Plazas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sector in edificio.sectores %}
+            <tr class="hover:bg-secondary transition">
+              <td class="nodo-td font-medium text-heading">{{ sector.nombre }}</td>
+              <td class="nodo-td">{{ sector.tipo }}</td>
+              {% if edificio.n_ocupadas is not None %}<td class="nodo-td text-right">{{ sector.ocupadas }}</td>{% endif %}
+              <td class="nodo-td text-right">{{ sector.plazas }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+              <td class="nodo-td font-bold text-heading">Total</td>
+              <td class="nodo-td"></td>
+              {% if edificio.n_ocupadas is not None %}<td class="nodo-td text-right font-bold text-heading">{{ edificio.n_ocupadas }}</td>{% endif %}
+              <td class="nodo-td text-right font-bold text-heading">{{ edificio.n_plazas }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="p-5 text-sm text-body-subtle">Sin sectores en este edificio.</p>
+      {% endif %}
+    </section>
+
+    {% if edificio.otras_instituciones %}
+    <section class="border-t border-light" aria-labelledby="instituciones-del-predio-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h3 id="instituciones-del-predio-titulo" class="text-sm font-bold text-heading">Instituciones en el predio</h3>
+        <p class="text-xs text-body-subtle mt-1">Instituciones en tu alcance.</p>
+      </div>
+      <div class="p-5 space-y-4">
+        {% include "components/_alerta.html" with tono="info" icono="building" titulo="Predio compartido:" texto="el relevamiento es del edificio y lo ven todas las instituciones que lo ocupan; cada una mantiene su propio legajo." %}
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <thead><tr class="nodo-thead-row"><th class="nodo-th">Institución en este predio</th><th class="nodo-th">Tipo</th><th class="nodo-th">Legajo</th></tr></thead>
+            <tbody>
+              {% for institucion in edificio.instituciones %}
+              <tr class="hover:bg-secondary transition">
+                <td class="nodo-td font-medium text-heading"><a href="{% url 'dispositivos:detalle' institucion.pk %}" class="text-fg-brand hover:underline">{{ institucion.nombre }}</a>{% if institucion.pk == dispositivo.pk %}<span class="text-xs text-body-subtle block mt-px">acá estás</span>{% endif %}</td>
+                <td class="nodo-td">{{ institucion.tipo }}</td>
+                <td class="nodo-td">{% include "programas/dispositivos/_estado_badge.html" with dispositivo=institucion only %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="border-t border-light" aria-labelledby="datos-del-edificio-titulo">
+      <div class="px-5 py-4 border-b border-light">
+        <h3 id="datos-del-edificio-titulo" class="text-sm font-bold text-heading">Datos del edificio</h3>
+      </div>
+      <div class="p-5 space-y-4">
+        <dl class="grid gap-5 sm:grid-cols-2">
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Código</dt><dd class="mt-1 text-body">{{ edificio.codigo }}</dd></div>
+          <div><dt class="text-xs font-semibold uppercase text-body-subtle">Domicilio</dt><dd class="mt-1 text-body">{{ edificio.domicilio|default:'—' }}</dd></div>
+        </dl>
+        {% include "components/_ubicacion.html" with latitud=edificio.latitud longitud=edificio.longitud compacto=True only %}
+      </div>
+    </section>
+  </div>
+
+  <section class="min-w-0 border-t border-light lg:border-t-0 lg:border-l" aria-labelledby="registro-fotografico-titulo">
+    <div class="px-5 py-4 border-b border-light flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h3 id="registro-fotografico-titulo" class="text-sm font-bold text-heading">Registro fotográfico</h3>
+        <p class="text-xs text-body-subtle mt-1">Histórico: cada relevamiento agrega su tanda, no pisa la anterior.</p>
+      </div>
+      {% if edificio.con_conteo %}<span class="text-xs text-body-subtle">{{ edificio.conteo }}</span>{% endif %}
+    </div>
+    {% if edificio.ultima and not edificio.ve_detalle and not infraestructura.eventos %}
+    <p class="p-5 text-sm text-body-subtle">El registro fotográfico y el informe de cada relevamiento los ve quien opera o coordina la institución del edificio.</p>
+    {% else %}
+    <div class="p-5">
+      {% include "components/_linea_tiempo.html" with eventos=infraestructura.eventos plegable=True vacio_titulo="Todavía no hay relevamientos" vacio_texto="Cuando se releve el edificio, cada relevamiento aparece acá con sus fotos." %}
+    </div>
+    {% endif %}
+    {% include "components/_paginacion.html" with page_obj=infraestructura.relevamientos entidad="relevamiento" param="relevamientos_page" extra_qs=infraestructura.qs_paginacion %}
+  </section>
+</div>
+{% endwith %}
+{% endwith %}
