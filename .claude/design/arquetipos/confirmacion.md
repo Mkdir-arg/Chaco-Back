@@ -49,7 +49,7 @@ El token sale del `[name=csrfmiddlewaretoken]` de la página o de la cookie `csr
 `programas/templates/programas/becas/_ajax_js.html` (también transversal) maneja los
 `<form data-ajax>`. Contrato JSON que la vista tiene que respetar:
 
-- **2xx `{ok, target, html, message}`** → reemplaza el nodo `target`, re-inicializa Alpine,
+- **2xx `{ok, target, html, message}`** → reemplaza el nodo `target`, re-inicializa Alpine (y llama a `window.nodoTablas.barrer()` para que una tabla re-renderizada recupere la sombra de `nodo-col-acciones`, Cambio 442),
   dispara el evento `becas-saved` y avisa `success`.
 - **2xx `{ok, redirect, message}`** → navega; el mensaje lo muestra la página destino y el
   botón queda ocupado hasta cambiar de página.
