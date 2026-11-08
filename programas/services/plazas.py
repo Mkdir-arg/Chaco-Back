@@ -105,16 +105,19 @@ def _trazar(dispositivo, usuario, accion, *, detalle=""):
     )
 
 
-def puede_configurar_plazas(usuario, dispositivo):
+def puede_configurar_plazas(usuario, dispositivo, *, puede_editar=None):
     """¿Se pueden editar sectores y plazas existentes (o sacarlas de servicio)? Capacidad con alcance y no cerrado.
 
     La misma regla que `_exigir_alcance` aplica al escribir: la pantalla de «Sectores y plazas» lee esta
-    bandera y no ofrece lo que el servidor va a rechazar (Cambio 409, N-01).
+    bandera y no ofrece lo que el servidor va a rechazar (Cambio 409, N-01). ``puede_editar`` es el
+    resultado ya calculado de `puede_operar_dispositivo(..., CAP_EDITAR)`: si viene, no se repite la consulta.
     """
 
-    return dispositivo.estado != Dispositivo.Estado.CERRADO and puede_operar_dispositivo(
-        usuario, dispositivo, CAP_EDITAR
-    )
+    if dispositivo.estado == Dispositivo.Estado.CERRADO:
+        return False
+    if puede_editar is not None:
+        return puede_editar
+    return puede_operar_dispositivo(usuario, dispositivo, CAP_EDITAR)
 
 
 def _exigir_alcance(dispositivo, usuario):

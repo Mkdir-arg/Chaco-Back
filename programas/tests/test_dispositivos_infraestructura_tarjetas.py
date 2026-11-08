@@ -243,7 +243,9 @@ class AlcanceDelRelevamientoTests(BaseTarjetas):
         _, _, panel = self._infra(ver_edificio=self.predio.pk)
 
         self.assertIn("revisado por", panel)
-        self.assertIn("Revisado</span>", panel)
+        self.assertIn("Bueno</span>", panel)
+        self.assertNotIn("Revisado</span>", panel)
+        self.assertIn("Revisado</p>", panel)
 
 
 class ChipsTests(BaseTarjetas):
@@ -267,7 +269,9 @@ class ChipsTests(BaseTarjetas):
         _, infra, panel = self._infra(ver_edificio=ultimo.pk)
 
         edificios = infra["chips"][1:]
-        self.assertEqual(len(edificios), 6)
+        # «Los N edificios» cuenta: la fila entera es de 6 como máximo.
+        self.assertEqual(len(infra["chips"]), 6)
+        self.assertEqual(len(edificios), 5)
         self.assertIn(ultimo.nombre, [chip["texto"] for chip in edificios if chip["activo"]])
         self.assertEqual(infra["chips"][0]["texto"], "Los 12 edificios")
         self.assertIn("Los 12 edificios", panel)

@@ -133,6 +133,9 @@ module.exports = {
         'fg-info': 'var(--text-fg-info)',
         pink: 'var(--text-fg-pink)',
       },
+      ringColor: {
+        brand: 'var(--border-brand)',
+      },
       borderColor: {
         base: 'var(--border-base)',
         'base-soft': 'var(--border-base-soft)',
