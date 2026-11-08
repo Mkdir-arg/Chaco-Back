@@ -566,6 +566,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 440 | Tablas en notebooks, PR 1 de 4: Usuarios y Roles con la columna de acciones fija (`nodo-col-acciones`) y el email que parte (`break-all`) | Usuarios y Roles · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 441 | Tablas en notebooks, PR 2 de 4: el ancho de la tabla depende del breakpoint `lg` (`max-content` debajo de 1024 px, 100 % desde `lg`; el Período de Convocatorias no se parte) | Sistema de diseño (tablas) · Becas (Convocatorias) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 442 | Tablas en notebooks, PR 3 de 4: Becas con la columna de acciones fija (`nodo-col-acciones`) en 21 tablas, los wrappers de scroll que faltaban y `barrer()` tras las tablas por AJAX | Becas · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
+| 443 | Tablas en notebooks, PR 4 de 4 (cierre): `nodo-col-acciones` en el resto de las listas (Configuración, Legajos, Notificaciones, Equipo de Dispositivos), hover de un solo tono en Becas y la celda fija durante el arrastre | Configuración · Legajos · Notificaciones · Dispositivos (Equipo) · Becas · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -53387,6 +53388,76 @@ Test `TablaResponsiveTest.test_el_ancho_de_la_tabla_depende_del_breakpoint_lg` (
 ## Reversión
 
 Revertir el PR; no hay datos que deshacer. Los wrappers y las clases son aditivos.
+
+## Historial
+
+- **08/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 443 — Tablas en notebooks, PR 4 de 4 (cierre): el resto de las listas con la columna de acciones fija
+
+🟡 **EN CURSO — 08/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Configuración (Geografía, Secretarías, Subsecretarías, Programas) · Legajos (Ciudadanos, detalle, Programas, solapa Dispositivos) · Notificaciones (Campañas) · Dispositivos (Equipo del legajo) · Becas (3 MINOR del #1058) · sistema de diseño (tablas) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) |
+| **Fecha del pedido** | 08/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice: 6 templates de `configuracion/templates/configuracion/`, 4 de `legajos/templates/legajos/`, `notificaciones/templates/notificaciones/campana_list.html`, `programas/templates/programas/dispositivos/legajo/detail.html`, 3 de `programas/templates/programas/becas/`, `static/custom/css/nodo-constructor.css`, `.claude/design/componentes/tabla.md`, `.claude/design/dominio/becas.md` |
+| **Migración** | No |
+
+## Pedido original
+
+PR 4 de 4 del plan «tablas en notebooks»: cerrar el contrato `nodo-col-acciones` en las listas del backoffice que quedaban (Configuración, Legajos, Notificaciones y el Equipo del dispositivo) y saldar los MINOR que dejó la auditoría del #1058.
+
+## Alcance acordado
+
+**Entra:** `nodo-col-acciones` en el `th` y en todos los `td` de la columna de acciones de las 6 listas de Configuración, `ciudadano_list`, la tabla de archivos de `ciudadano_detail` (más `window.nodoTablas.barrer()` tras su `innerHTML`), las dos tablas con acciones de `legajos/programas/programa_detail.html`, `solapas/dispositivos.html`, `campana_list.html` y el Equipo de `dispositivos/legajo/detail.html`. MINOR del #1058: (a) hover de un solo tono en `_programas_table.html` y `_resumen_ciudadano.html` (`bg-secondary`, como el contrato de tabla); (b) la última celda del `tfoot` de `_subsegmentos_panel.html` con la clase; (c) en `nodo-constructor.css`, la celda fija toma el fondo de la fila arrastrada (`.sortable-chosen`/`.sortable-ghost`). **Queda afuera:** Conversaciones y Merenderos (sin uso, decisión del PM) y el PR 5 del plan (variante de badge que baje de línea en Roles; solo si el PM lo pide).
+
+## Decisiones tomadas
+
+1. Corte en 1024 px, solo los rangos de fecha en `whitespace-nowrap` y Conversaciones y Merenderos afuera: decisiones cerradas del PM. En las tablas de este PR no aparece ningún rango de fecha (las fechas con hora de Legajos ya llevan `whitespace-nowrap`), así que no hubo que tocar ninguno.
+2. Las tablas de Legajos son legacy (utilidades en línea, `th` con texto «Acciones» visible): se les suma la clase y no se migran al sistema de tabla; el `th` visible queda como estaba.
+3. Hover de un solo tono: se llevan las filas al `bg-secondary` del contrato, sin tocar CSS compartido. En `_resumen_ciudadano.html` el hover es un `onmouseover` en línea y cambia solo el valor del token; en `ciudadano_detail.html` la clase `.cd-row:hover` pasa de `--bg-tertiary` a `--bg-secondary` (cambia también el hover de la tabla de actividades; es el mismo gris suave del resto del backoffice).
+4. SortableJS: el selector lleva `tbody > tr.…` para ganarle en especificidad a `tr:hover > td.nodo-col-acciones` de `nodo-tables.css` (la fila arrastrada siempre está bajo el cursor).
+5. Las tablas de derivaciones y acompañamientos de `legajos/programas/programa_detail.html` están muertas: la vista fija sus listas en `[]` (`legajos/views/programas.py:63-67`, deuda previa, FE-16). Se les puso la clase para que el contrato quede completo el día que se reactiven; no se pudieron ver en pantalla.
+
+## Archivos
+
+`configuracion/templates/configuracion/{provincia,municipio,localidad,secretaria,subsecretaria,programa}_list.html`, `legajos/templates/legajos/{ciudadano_list,ciudadano_detail,programas/programa_detail,solapas/dispositivos}.html`, `notificaciones/templates/notificaciones/campana_list.html`, `programas/templates/programas/dispositivos/legajo/detail.html`, `programas/templates/programas/becas/{_resumen_ciudadano,config/_programas_table,config/_subsegmentos_panel}.html`, `static/custom/css/nodo-constructor.css`, `.claude/design/componentes/tabla.md`, `.claude/design/dominio/becas.md`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+`manage.py check`, `design_audit --ratchet --base origin/development` (0 nuevos), `--goldens` (0), `compile_templates --bloques` (0), `requerimientos.py --check` y la suite de `configuracion legajos notificaciones programas core`.
+
+Playwright contra una base sembrada (derivaciones, inscripciones, estadía, equipo y un adjunto), 12 pantallas y sus tabs a 390, 1366 y 1440 px: a 390 px el primer y el último control de acciones de cada fila quedan dentro del rectángulo visible del wrapper, el wrapper scrollea y recibe `nodo-scroll-mas` (sombra en la celda); a 1366 y 1440 px no hay scroll, no hay marca y la celda no lleva sombra. La tabla de archivos del ciudadano (por AJAX) recibe la sombra a 390 px gracias a `barrer()`. Hover de las dos tablas de Becas: fila y celda fija miden `rgb(249, 250, 251)`. Fila arrastrada: la celda fija mide lo mismo que la fila (`.sortable-chosen` `rgb(254, 243, 255)`, `.sortable-ghost` `rgb(254, 233, 255)`).
+
+## Cierre del plan «tablas en notebooks»
+
+| PR | Cambio | Qué dejó |
+|---|---|---|
+| #1056 | 440 | Usuarios y Roles con la columna de acciones fija y el email que parte (`break-all`) |
+| #1057 | 441 | El ancho de la tabla depende de `lg`: `max-content` debajo de 1024 px, 100 % desde `lg`; el Período de Convocatorias no se parte |
+| #1058 | 442 | Becas: 21 tablas con la columna fija, wrappers que faltaban y `barrer()` tras las tablas por AJAX |
+| este | 443 | Configuración, Legajos, Notificaciones y Equipo con la columna fija; tres MINOR del #1058 |
+
+**Quedó afuera:** PR 5 (Roles conserva scroll en notebooks porque sus badges no parten; se retoma solo si el PM lo pide), Conversaciones y Merenderos (sin uso, decisión del PM) y las tablas de maquetación de correo.
+
+## Pendientes / a definir
+
+- PR 5 opcional (variante de badge multilínea para Capacidades en Roles).
+- Las tablas muertas de `legajos/programas/programa_detail.html` siguen sin datos: quitarlas o reactivarlas es decisión del PM.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer. Las clases son aditivas y los cambios de hover y de `nodo-constructor.css` son de un valor.
 
 ## Historial
 
