@@ -11,7 +11,8 @@
        modalEdit: false,
        createTipo: 'STRING',
        createPresentacion: 'LISTA',
-       createGrupo: '', createCanal: 'ambos',
+       createGrupo: '', createCanal: 'ambos', createFuente: '', createDepende: '',
+       editFuente: '', editDepende: '',
        editUrl: '', editTexto: '', editTipo: '', editObl: 'True', editActivo: 'True', editOrden: 0, editOpciones: '',
        editPresentacion: 'LISTA', editDestino: '', editGrupo: '', editCanal: 'ambos', editProtegido: false, editIdentidad: false,
        modalGrupo: false, grupoUrl: '', grupoNombre: '', grupoSubtitulo: '', grupoCanal: 'ambos', grupoEsNuevo: true,
@@ -83,7 +84,20 @@
          }
          return reglas.length ? JSON.stringify({modo: this.grupoCond.modo, reglas: reglas}) : '';
        },
-       openEdit(url, texto, tipo, obl, activo, orden, opc, presentacion, grupo, canal, protegido, identidad, destino) {
+       elegirFuenteCrear() {
+         if (this.createFuente) { this.createTipo = 'SELECTOR'; this.createPresentacion = 'LISTA'; }
+         if (this.createFuente !== 'localidad') { this.createDepende = ''; }
+       },
+       elegirFuenteEdit() {
+         if (this.editFuente) { this.editTipo = 'SELECTOR'; this.editPresentacion = 'LISTA'; }
+         if (this.editFuente !== 'localidad') { this.editDepende = ''; }
+       },
+       conOpciones(tipo, fuente) { return !fuente && (tipo === 'SELECTOR' || tipo === 'SELECTOR_MULTIPLE'); },
+       openEdit(p) {
+         var url = p.url, texto = p.texto, tipo = p.tipo, obl = p.obligatorio, activo = p.activo, orden = p.orden,
+             opc = p.opciones, presentacion = p.presentacion, grupo = p.grupo, canal = p.canal,
+             protegido = p.protegido, identidad = p.identidad, destino = p.destino, fuente = p.fuente, depende = p.depende;
+         this.editFuente = fuente || ''; this.editDepende = depende || '';
          this.editUrl = url; this.editTexto = texto; this.editTipo = tipo;
          this.editObl = obl; this.editActivo = activo; this.editOrden = orden; this.editOpciones = (opc || []).join('\n');
          this.editPresentacion = presentacion || 'LISTA';
@@ -156,7 +170,8 @@
       {% comment %}FORM envuelve body + footer{% endcomment %}
       <form method="post" action="{% url 'becas:pregunta_crear' %}" data-ajax class="flex flex-col flex-1 min-h-0">
         {% csrf_token %}
-        <input type="hidden" name="activo" value="on">
+        {# Las preguntas comunes nacen activas; las de catálogo, inactivas (Cambio 418, decisión 11). #}
+        <input type="hidden" name="activo" value="on" :disabled="createFuente !== ''">
 
         {% comment %}BODY{% endcomment %}
         <div class="p-6 space-y-5 overflow-y-auto min-h-0">
@@ -185,12 +200,28 @@
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
-          <div x-show="createTipo === 'SELECTOR' || createTipo === 'SELECTOR_MULTIPLE'">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1" for="crear-fuente-opciones">Opciones del catálogo</label>
+            <select id="crear-fuente-opciones" name="fuente_opciones" x-model="createFuente" @change="elegirFuenteCrear()" class="nodo-field">
+              {% for val, label in fuente_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">Con catálogo la pregunta es un selector y nace inactiva: se activa desde el listado.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="fuente_opciones"></p>
+          </div>
+          <div x-show="createFuente === 'localidad'">
+            <label class="block text-sm font-medium text-heading mb-1" for="crear-depende-de">Depende de</label>
+            <select id="crear-depende-de" name="depende_de" x-model="createDepende" class="nodo-field">
+              {% for val, label in depende_de_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-body-subtle mt-1">La pregunta de Provincia que filtra a esta Localidad.</p>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="depende_de"></p>
+          </div>
+          <div x-show="conOpciones(createTipo, createFuente)">
             <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
             <textarea name="opciones_texto" rows="4" class="nodo-field"></textarea>
             <p class="mt-1 text-xs text-fg-danger hidden" data-error="opciones_texto"></p>
           </div>
-          <div x-show="createTipo === 'SELECTOR' || createTipo === 'SELECTOR_MULTIPLE'">
+          <div x-show="conOpciones(createTipo, createFuente)">
             <label class="block text-sm font-medium text-heading mb-1">Presentación</label>
             <select name="presentacion" x-model="createPresentacion" class="nodo-field">
               {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
@@ -272,12 +303,26 @@
               <p class="mt-1 text-xs text-fg-danger hidden" data-error="orden"></p>
             </div>
           </div>
-          <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
+          <div>
+            <label class="block text-sm font-medium text-heading mb-1" for="edit-fuente-opciones">Opciones del catálogo</label>
+            <select id="edit-fuente-opciones" name="fuente_opciones" x-model="editFuente" @change="elegirFuenteEdit()" :disabled="editProtegido" class="nodo-field">
+              {% for val, label in fuente_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="fuente_opciones"></p>
+          </div>
+          <div x-show="editFuente === 'localidad'">
+            <label class="block text-sm font-medium text-heading mb-1" for="edit-depende-de">Depende de</label>
+            <select id="edit-depende-de" name="depende_de" x-model="editDepende" :disabled="editProtegido" class="nodo-field">
+              {% for val, label in depende_de_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+            <p class="mt-1 text-xs text-fg-danger hidden" data-error="depende_de"></p>
+          </div>
+          <div x-show="conOpciones(editTipo, editFuente)">
             <label class="block text-sm font-medium text-heading mb-1">Opciones (una por línea)</label>
             <textarea name="opciones_texto" x-model="editOpciones" :disabled="editProtegido" rows="4" class="nodo-field"></textarea>
             <p x-show="editProtegido" class="text-xs text-body-subtle mt-1">El tipo y las opciones de un campo del legajo los dicta el legajo.</p>
           </div>
-          <div x-show="editTipo === 'SELECTOR' || editTipo === 'SELECTOR_MULTIPLE'">
+          <div x-show="conOpciones(editTipo, editFuente)">
             <label class="block text-sm font-medium text-heading mb-1">Presentación</label>
             <select name="presentacion" x-model="editPresentacion" class="nodo-field">
               {% for val, label in presentacion_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}

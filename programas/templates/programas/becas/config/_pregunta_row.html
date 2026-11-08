@@ -42,21 +42,23 @@
     <div class="flex items-center justify-end gap-2">
       {% if request.user|puede:"becas.pregunta.editar" %}
       <button type="button" class="nodo-icon-btn" title="Editar" aria-label="Editar pregunta {{ p.texto }}"
-        @click="openEdit(
-          '{% url 'becas:pregunta_editar' p.pk %}',
-          '{{ p.texto|escapejs }}',
-          '{{ p.tipo }}',
-          '{{ p.obligatorio|yesno:'True,False' }}',
-          '{{ p.activo|yesno:'True,False' }}',
-          {{ p.orden }},
-          [{% for o in p.opciones %}'{{ o|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],
-          '{{ p.presentacion }}',
-          '{{ p.grupo_id|default_if_none:'' }}',
-          '{{ p.canal }}',
-          {{ p.protegido|yesno:'true,false' }},
-          {{ p.es_identidad|yesno:'true,false' }},
-          '{{ p.destino_siis }}'
-        )">
+        @click="openEdit({
+          url: '{% url 'becas:pregunta_editar' p.pk %}',
+          texto: '{{ p.texto|escapejs }}',
+          tipo: '{{ p.tipo }}',
+          obligatorio: '{{ p.obligatorio|yesno:'True,False' }}',
+          activo: '{{ p.activo|yesno:'True,False' }}',
+          orden: {{ p.orden }},
+          opciones: [{% for o in p.opciones %}'{{ o|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+          presentacion: '{{ p.presentacion }}',
+          grupo: '{{ p.grupo_id|default_if_none:'' }}',
+          canal: '{{ p.canal }}',
+          protegido: {{ p.protegido|yesno:'true,false' }},
+          identidad: {{ p.es_identidad|yesno:'true,false' }},
+          destino: '{{ p.destino_siis }}',
+          fuente: '{{ p.fuente_opciones|default_if_none:'' }}',
+          depende: '{{ p.depende_de_id|default_if_none:'' }}'
+        })">
         <i class="fas fa-edit" aria-hidden="true"></i>
       </button>
       {% if not p.es_identidad %}
