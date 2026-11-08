@@ -49,7 +49,7 @@
             <th class="nodo-th">Programa</th>
             <th class="nodo-th">Capacidades</th>
             <th class="nodo-th">Estado</th>
-            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -95,7 +95,7 @@
               <span class="badge badge-gray badge-dot">Inactivo</span>
               {% endif %}
             </td>
-            <td class="nodo-td text-right">
+            <td class="nodo-td nodo-col-acciones text-right">
               <div class="inline-flex items-center gap-1">
                 <a href="{% url 'users:rol_detalle' item.group.pk %}" class="nodo-icon-btn"
                    aria-label="Ver rol {{ item.group.name }}"

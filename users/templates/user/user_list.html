@@ -38,7 +38,7 @@
             <th class="nodo-th">Email</th>
             <th class="nodo-th">Roles</th>
             <th class="nodo-th">Estado</th>
-            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -46,7 +46,7 @@
           <tr class="hover:bg-secondary">
             <td class="nodo-td text-heading font-bold">{{ user.username }}</td>
             <td class="nodo-td text-body">{{ user.get_full_name|default:"—" }}</td>
-            <td class="nodo-td text-body-subtle">{{ user.email|default:"—" }}</td>
+            <td class="nodo-td text-body-subtle break-all">{{ user.email|default:"—" }}</td>
             <td class="nodo-td">
               <div class="flex items-center gap-1 flex-wrap">
                 {% for group in user.groups.all %}
@@ -63,7 +63,7 @@
               <span class="badge badge-gray badge-dot">Inactivo</span>
               {% endif %}
             </td>
-            <td class="nodo-td text-right">
+            <td class="nodo-td nodo-col-acciones text-right">
               {# R0b-10: sin alcance sobre la cuenta no se ofrece el botón; el servidor ya lo rechazaba. #}
               <div class="inline-flex items-center gap-1">
                 {% if user.gestionable %}
