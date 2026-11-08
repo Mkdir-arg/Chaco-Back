@@ -138,14 +138,17 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   «Versión N» (más «Tipo anterior: …» si es de otro tipo), `h3` por sección y la misma `dl`
   `grid gap-5 sm:grid-cols-2` de los datos; el archivo es un enlace con `fa-paperclip`. Solo
   lo visible según las condiciones de la foto respondida.
-- Infraestructura de P4/P19: tres modos que arma `infraestructura_del_dispositivo` (`modo`). Sin edificio, el
+- Infraestructura de P4/P19: tres modos que arma `infraestructura_del_dispositivo` (`modo`); los parciales son
+  `legajo/_infra_listado.html`, `_infra_ficha.html`, `_infra_sin_edificio.html` (sectores sin edificio) y
+  `_infra_acciones.html` (Vincular, Cargar y Crear relevamiento; `ocultar_vinculo` los deja en uno), y las URL
+  de todos las arma el servicio. Sin edificio, el
   estado vacío con las acciones. Con 2 o más, un **listado**: encabezado «Funciona en N edificios» con el más
   grave nombrado, acciones (Vincular, Cargar edificio, Crear relevamiento), filtro por estado con chips
   (`estado_edificio`, del lado del servidor, `components/_chips_enlace.html`) y una grilla de
   `components/_tarjeta_edificio.html` del más grave al mejor, sin relevar al final. Sin tablas ni tarjetas
   globales. Con uno solo, o con `?tab=infraestructura&ver_edificio=<pk>`, la **ficha** del edificio
   (`_infra_ficha.html`): último relevamiento, sectores con ocupadas, instituciones del predio, datos con
-  `_ubicacion.html` y el registro fotográfico en `<details>` por relevamiento con su paginación; con 2 o más
+  `_ubicacion.html` y el registro fotográfico como `_linea_tiempo` plegable (`plegable=True`) por relevamiento, con su paginación; con 2 o más
   edificios suma los chips para cambiar de uno a otro y «Los N edificios». Un id no vinculado se ignora y vuelve
   el listado. Alta, edición y vínculo se abren en los modales canónicos y exigen alcance de edición.
   La tarjeta separa el estado (criticidad de la última realizada) del aviso «Vencido» (`danger`, relevamiento en

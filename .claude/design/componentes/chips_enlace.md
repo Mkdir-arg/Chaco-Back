@@ -39,5 +39,7 @@ solo lector de pantalla); `icono` (Font Awesome sin `fas`).
 ## Prohibido
 
 - Chips que cambian contenido sin recargar (eso es `tabs.md`).
-- Más de 5 o 6 chips en una fila: pasa a un select o a un listado.
+- Más de 5 o 6 chips en una fila: pasa a un select o a un listado. En la ficha de un edificio el servicio manda
+  «Los N edificios» (primero, con `icono="fa-arrow-left"`, vuelve al listado) y hasta 6 edificios, con el abierto
+  siempre incluido; el resto se alcanza desde el listado.
 - Una URL externa o armada en el template.

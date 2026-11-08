@@ -395,7 +395,8 @@ class FidelidadFITests(BaseInfraestructura):
             self.assertEqual(semaforos[dispositivo.pk], SEMAFOROS[VENCIDO])
             datos = infraestructura_del_dispositivo(dispositivo)
             self.assertEqual(datos["semaforo"], SEMAFOROS[VENCIDO])
-            self.assertEqual(datos["edificios"][0]["semaforo"], SEMAFOROS[VENCIDO])
+            self.assertTrue(datos["edificios"][0]["vencido"])
+            self.assertEqual(datos["edificios"][0]["aviso"], {"texto": "Vencido", "tono": "danger"})
             self.assertContains(
                 self.client.get(reverse("dispositivos:detalle", args=[dispositivo.pk])), "Vencido</span>"
             )
@@ -475,6 +476,6 @@ class FidelidadFITests(BaseInfraestructura):
         self.assertEqual(medidas[0], medidas[1])
         with CaptureQueriesContext(connection) as consultas:
             tabla = infraestructura_del_dispositivo(self.parador)
-        self.assertTrue(tabla["en_tabla"])
+        self.assertEqual(tabla["modo"], "listado")
         self.assertEqual(tabla["semaforo"].nivel, VENCIDO)
         self.assertLessEqual(len(consultas), medidas[1][1])

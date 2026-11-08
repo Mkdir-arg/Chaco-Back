@@ -2,10 +2,11 @@
 Acciones de la solapa Infraestructura que no son de un edificio puntual: vincular uno que ya existe, cargar uno nuevo y crear un relevamiento.
 El alta y la vinculación abren su modal con un parámetro GET, como los de P21; «Crear relevamiento» lo abre Alpine (`modalRelevamiento`).
 Cada botón va con la capacidad que lo habilita (`puede_editar`, `puede_crear_relevamiento`): sin ella, no se dibuja.
+`ocultar_vinculo` (opcional) deja solo «Crear relevamiento»: la ficha de un edificio entre varios no ofrece vincular ni cargar.
 {% endcomment %}
-{% if puede_editar or puede_crear_relevamiento %}
+{% if puede_crear_relevamiento or puede_editar and not ocultar_vinculo %}
 <div class="flex gap-2 flex-wrap">
-  {% if puede_editar %}
+  {% if puede_editar and not ocultar_vinculo %}
   <a href="{{ url_detalle }}?tab=infraestructura&amp;edificio=vincular" class="btn-nodo btn-tertiary btn-sm btn-fit">
     <i class="fas fa-link" aria-hidden="true"></i> Vincular un edificio
   </a>

@@ -43,6 +43,13 @@ En Infraestructura (P19), el evento revisado usa `badge="Revisado"` y `badge_ton
 conserva la criticidad en `detalle` y el tono del punto, y agrega revisor y fecha/hora a `cuando`.
 El servicio carga `revisado_por` junto con la página de relevamientos.
 
+**Plegable (opcional, `plegable=True`).** Cada evento se pliega: a la vista quedan `cuando`, `titulo` y `badge`, y
+un botón (`aria-expanded` + `aria-controls="evento-<n>"`, Alpine, con `focus-visible`) abre `observaciones` (párrafo
+escapado, solo con esta variante), `detalle`, `fotos` y `enlace`. Mismo riel y mismo punto; sin `plegable` el HTML
+no cambia. Los `id` de los paneles son `evento-<n>`: **una línea de tiempo plegable por pantalla**. Consumidor: la
+ficha del edificio de P4/P19 (`_infra_ficha.html`), que no arma `<details>` propio. El revisor y la fecha de la
+revisión van en `cuando` y, por lo tanto, siempre visibles.
+
 **La lista llega acotada.** El componente dibuja todos los eventos que recibe y una estadía larga trae
 cientos: **recortar es responsabilidad de la vista** (las últimas N, más un enlace «Ver todo» cuando
 hay más). El componente no pagina. Cuando el feed es largo de verdad —la solapa Historial de

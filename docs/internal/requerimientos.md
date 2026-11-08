@@ -53169,7 +53169,7 @@ Rediseñar la solapa Infraestructura del detalle del dispositivo según los mock
 
 ## Archivos
 
-`programas/services/detalle_dispositivo.py`, `programas/views/dispositivos_legajo.py`, `programas/templates/programas/dispositivos/legajo/detail.html`, `_infra_acciones.html`, `_infra_listado.html`, `_infra_ficha.html`, `_infra_sin_edificio.html`, `templates/components/_tarjeta_edificio.html`, `templates/components/_chips_enlace.html`, `static/custom/css/tailwind.css`, `programas/tests/test_dispositivos_infraestructura_tarjetas.py`, `core/tests/test_nodo_ui_piezas.py`, `.claude/design/componentes/tarjeta_edificio.md`, `.claude/design/componentes/chips_enlace.md`, `.claude/design/arquetipos/detalle.md`, `.claude/agents/chaco-design-system.md`.
+`programas/services/detalle_dispositivo.py`, `programas/views/dispositivos_legajo.py`, `programas/templates/programas/dispositivos/legajo/detail.html`, `_infra_acciones.html`, `_infra_listado.html`, `_infra_ficha.html`, `_infra_sin_edificio.html`, `templates/components/_tarjeta_edificio.html`, `templates/components/_chips_enlace.html`, `static/custom/css/tailwind.css`, `templates/components/_linea_tiempo.html`, `.claude/design/componentes/ficha_timeline.md`, `programas/tests/test_dispositivos_infraestructura_tarjetas.py`, `core/tests/test_nodo_ui_piezas.py`, `.claude/design/componentes/tarjeta_edificio.md`, `.claude/design/componentes/chips_enlace.md`, `.claude/design/arquetipos/detalle.md`, `.claude/agents/chaco-design-system.md`.
 
 ## Base de datos
 
@@ -53190,5 +53190,6 @@ Revertir el PR; no hay datos que deshacer.
 ## Historial
 
 - **08/11/2026 — alta del cambio.**
+- **08/11/2026 — ajustes de auditoría del PR #1055.** `_linea_tiempo` gana la variante `plegable` (el registro de la ficha deja de armar su `<details>`); el servicio manda las URL por fila (`url_ver`, `url_editar`, `url_desvincular`), `url_listado`, `qs_paginacion` y `sin_edificio.url_asignar`, tope de 60 tarjetas y de 6 chips (con «Los N edificios» como primer chip), `ESTADOS_EDILICIOS` toma sus rótulos de `SEMAFOROS`, `_fila_de_edificio` y un dict base reemplazan las tres respuestas armadas a mano, y se borran `en_tabla`, `con_edificio`, el `semaforo` por fila y las claves del evento que nadie leía. La ficha incluye `_infra_acciones.html` (flag `ocultar_vinculo`), muestra el registro cuando hay relevamientos visibles aunque el último realizado sea de otro y deja visible quién revisó y cuándo. `puede_asignar_edificio` usa `puede_configurar_plazas`. Fichas: `tarjeta_edificio.md` (por qué no es `_lista_tarjetas`), `chips_enlace.md`, `ficha_timeline.md` y `detalle.md`.
 
 ---

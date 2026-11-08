@@ -212,23 +212,62 @@ class AlcanceDelRelevamientoTests(BaseTarjetas):
 
         self.assertEqual(infra["modo"], "ficha")
         self.assertNotIn("Faltan dos duchas", panel)
-        self.assertNotIn("<details", panel)
+        self.assertNotIn('aria-controls="evento-', panel)
         self.assertIn("Último relevamiento", panel)
 
     def test_la_ficha_con_alcance_trae_el_registro_en_desplegables(self):
         _, _, panel = self._infra(ver_edificio=self.predio.pk)
 
         self.assertIn("Faltan dos duchas", panel)
-        self.assertIn("<details", panel)
+        self.assertIn('aria-controls="evento-1"', panel)
+        self.assertIn("Registro fotográfico", panel)
+
+    def test_la_ficha_muestra_el_registro_visible_aunque_el_ultimo_realizado_sea_de_otro(self):
+        """Un agente con un relevamiento asignado ve ese en el registro; el detalle del último no es suyo."""
+
+        agente = self._usuario("agente_asignado", ("dispositivo.ver", "dispositivo.ver_todos", "inspeccion.relevar"))
+        crear_inspeccion(
+            self._fresco(self.admin), edificio=self.predio, asignado_a=agente, fecha_vencimiento=self.vence
+        )
+        _, infra, panel = self._infra(agente, ver_edificio=self.predio.pk)
+
+        self.assertFalse(infra["viendo"]["ve_detalle"])
+        self.assertEqual(len(infra["eventos"]), 1)
+        self.assertIn("Relevamiento en curso", panel)
+        self.assertNotIn("Faltan dos duchas", panel)
+        self.assertNotIn("los ve quien opera o coordina la institución del edificio", panel)
+
+    def test_el_revisor_y_la_fecha_del_evento_se_ven_en_el_registro(self):
+        inspeccion = self._relevar(self.predio, Criticidad.BAJA)
+        InspeccionEdificio.objects.filter(pk=inspeccion.pk).update(revisado_en=timezone.now(), revisado_por=self.admin)
+        _, _, panel = self._infra(ver_edificio=self.predio.pk)
+
+        self.assertIn("revisado por", panel)
+        self.assertIn("Revisado</span>", panel)
 
 
 class ChipsTests(BaseTarjetas):
     def test_la_ficha_ofrece_cambiar_de_edificio_y_marca_el_actual(self):
         _, infra, panel = self._infra(ver_edificio=self.predio.pk)
 
-        self.assertEqual(len(infra["chips"]), 3)
+        # «Los 3 edificios» y los tres edificios.
+        self.assertEqual(len(infra["chips"]), 4)
         self.assertEqual([chip["texto"] for chip in infra["chips"] if chip["activo"]], ["Predio Resistencia"])
         self.assertIn('aria-current="page"', panel)
         for chip in infra["chips"]:
             self.assertIn("tab=infraestructura", chip["url"])
         self.assertIn("Los 3 edificios", panel)
+        self.assertEqual(infra["chips"][0]["icono"], "fa-arrow-left")
+        self.assertEqual(infra["chips"][0]["url"], infra["url_listado"])
+
+    def test_los_chips_de_edificio_tienen_tope_y_el_abierto_siempre_entra(self):
+        for n in range(9):
+            Edificio.objects.create(codigo=f"ED-Z{n}", nombre=f"Zeta {n}").dispositivos.add(self.parador)
+        ultimo = Edificio.objects.get(codigo="ED-Z8")
+        _, infra, panel = self._infra(ver_edificio=ultimo.pk)
+
+        edificios = infra["chips"][1:]
+        self.assertEqual(len(edificios), 6)
+        self.assertIn(ultimo.nombre, [chip["texto"] for chip in edificios if chip["activo"]])
+        self.assertEqual(infra["chips"][0]["texto"], "Los 12 edificios")
+        self.assertIn("Los 12 edificios", panel)

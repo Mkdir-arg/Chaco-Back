@@ -16,7 +16,6 @@ Lo que se fija acá, y por qué:
 """
 
 import json
-import re
 from datetime import timedelta
 
 from django.conf import settings
@@ -173,7 +172,7 @@ class HistorialFotograficoTests(BaseInfraestructura):
         self.assertIn("Registro fotográfico", panel)
 
     def test_un_desplegable_por_relevamiento_con_las_fotos_dentro_de_cada_uno(self):
-        """Cada relevamiento es un `<details>` (Cambio 439) y su galería vive adentro, no en un riel aparte."""
+        """Cada relevamiento es un evento plegable de la línea de tiempo (Cambio 439) y su galería vive adentro."""
 
         self._relevar(self.predio, Criticidad.BAJA, fotos=("fachada",), dias_atras=90)
         self._relevar(self.predio, Criticidad.ALTA, fotos=("techo", "cocina"))
@@ -181,11 +180,13 @@ class HistorialFotograficoTests(BaseInfraestructura):
         panel = _panel(self._detalle(self.operador_geriatrico, self.geriatrico).content.decode())
         registro = panel[panel.index('<h3 id="registro-fotografico-titulo"') :]
 
-        desplegables = re.findall(r"<details class=\"group[^>]*>(.*?)</details>", registro, re.S)
+        # La galería también usa <li>: se parte por el inicio de cada evento, no por el cierre.
+        desplegables = registro.split('<li class="relative pl-5 text-sm" x-data')[1:]
         self.assertEqual(len(desplegables), 2)
         self.assertEqual([d.count("<figure") for d in desplegables], [2, 1])
-        # Cerrados de entrada: las fotos no se descargan hasta abrir (`<details>` sin `open`).
-        self.assertNotIn("<details open", registro)
+        # Cerrados de entrada: el botón arranca con `abierto: false` y el panel va con `x-show`.
+        self.assertEqual(registro.count('x-data="{ abierto: false }"'), 2)
+        self.assertEqual([d.count('x-show="abierto"') for d in desplegables], [1, 1])
 
     def test_una_foto_heic_vieja_no_se_dibuja_rota(self):
         """El navegador no muestra HEIC en un `<img>`: va la celda gris con cámara, sin URL.
@@ -491,7 +492,7 @@ class PresupuestosTests(BaseInfraestructura):
         with CaptureQueriesContext(connection) as tabla:
             infra = infraestructura_del_dispositivo(self.parador, usuario=usuario)
 
-        self.assertTrue(infra["en_tabla"])
+        self.assertEqual(infra["modo"], "listado")
         self.assertEqual(infra["eventos"], [])
         self.assertLessEqual(len(tabla), self._techo("dispositivos_infraestructura") - 3)
 
@@ -524,7 +525,6 @@ class VariosEdificiosTests(BaseInfraestructura):
         panel = _panel(respuesta.content.decode())
 
         self.assertEqual(respuesta.context["infraestructura"]["modo"], "listado")
-        self.assertTrue(respuesta.context["infraestructura"]["en_tabla"])
         self.assertIsNone(respuesta.context["infraestructura"]["viendo"])
         self.assertIn("Funciona en 2 edificios", panel)
         self.assertIn("Predio Resistencia", panel)
@@ -541,7 +541,6 @@ class VariosEdificiosTests(BaseInfraestructura):
         infra = respuesta.context["infraestructura"]
 
         self.assertEqual(infra["modo"], "ficha")
-        self.assertFalse(infra["en_tabla"])
         self.assertEqual(infra["viendo"]["pk"], self.predio.pk)
         self.assertEqual([fila["pk"] for fila in infra["edificios"]], [self.predio.pk])
         self.assertEqual(infra["n_edificios"], 2)

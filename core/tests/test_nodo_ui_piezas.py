@@ -903,6 +903,41 @@ class LineaTiempoTest(SimpleTestCase):
         self.assertIn("Sin movimientos todavía", html)
         self.assertNotIn("<ol", html)
 
+    def test_plegable_deja_a_la_vista_el_cuando_y_pliega_el_resto_con_aria(self):
+        fotos = [{"url": "/media/x/1.jpg", "alt": "Fachada del predio", "rotulo": "fachada"}]
+        eventos = [
+            {
+                "cuando": "02/02 · relevamiento · Ana · revisado por Luis",
+                "titulo": "1 foto",
+                "badge": "Revisado",
+                "badge_tono": "success",
+                "detalle": "fachada",
+                "observaciones": "Faltan <b>duchas</b>",
+                "fotos": fotos,
+                "enlace": "/informe/1/",
+                "enlace_texto": "Ver informe",
+            },
+            {"cuando": "01/02", "titulo": "Sin fotos"},
+        ]
+        html = render_to_string(LINEA_TIEMPO, {"eventos": eventos, "plegable": True})
+
+        self.assertEqual(html.count("<li "), 2)
+        self.assertEqual(html.count('x-data="{ abierto: false }"'), 2)
+        self.assertIn('aria-controls="evento-1"', html)
+        self.assertIn('id="evento-2"', html)
+        self.assertIn(':aria-expanded="abierto"', html)
+        self.assertIn("focus-visible:ring-2", html)
+        self.assertIn("revisado por Luis", html)
+        self.assertIn("Faltan &lt;b&gt;duchas", html)
+        self.assertIn("Ver informe<span", html)
+        self.assertNotIn("<details", html)
+
+    def test_sin_plegable_el_html_no_cambia(self):
+        html = render_to_string(LINEA_TIEMPO, {"eventos": [{"cuando": "x", "titulo": "Novedad"}]})
+
+        self.assertNotIn("x-data", html)
+        self.assertNotIn("aria-expanded", html)
+
     def test_escapa_los_textos(self):
         html = render_to_string(LINEA_TIEMPO, {"eventos": [{"cuando": "<i>", "titulo": "<b>x</b>"}]})
 

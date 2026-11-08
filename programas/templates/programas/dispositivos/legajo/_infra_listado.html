@@ -7,7 +7,7 @@ Lo arma `infraestructura_del_dispositivo` (modo «listado»); acá no se ordena,
   <div class="min-w-0 flex-1">
     <h2 class="text-heading font-bold">{{ resumen.titulo }}</h2>
     <p class="text-sm text-body mt-1">
-      {% if resumen.mas_grave %}El estado más grave es <strong class="{% if resumen.mas_grave.estado.clave == 'CRITICO' %}text-fg-danger{% else %}text-fg-warning{% endif %}">{{ resumen.mas_grave.estado.texto }}</strong>, en <a href="{{ url_detalle }}?tab=infraestructura&amp;ver_edificio={{ resumen.mas_grave.pk }}" class="text-fg-brand font-medium hover:underline">{{ resumen.mas_grave.nombre }}</a>.{% elif resumen.todos_buenos %}Los edificios relevados están en buen estado.{% endif %}
+      {% if resumen.mas_grave %}El estado más grave es <strong class="text-fg-{{ resumen.mas_grave.estado.tono }}">{{ resumen.mas_grave.estado.texto }}</strong>, en <a href="{{ resumen.mas_grave.url_ver }}" class="text-fg-brand font-medium hover:underline">{{ resumen.mas_grave.nombre }}</a>.{% elif resumen.todos_buenos %}Los edificios relevados están en buen estado.{% endif %}
       {{ resumen.cuentas }}
     </p>
     <p class="text-xs text-body-subtle mt-1">El edificio es el inmueble: un predio compartido se releva una vez y el resultado lo ven todas las instituciones que lo ocupan.</p>
@@ -24,18 +24,15 @@ Lo arma `infraestructura_del_dispositivo` (modo «listado»); acá no se ordena,
 {% if infraestructura.listado %}
 <div class="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
   {% for edificio in infraestructura.listado %}
-  {% with pk_texto=edificio.pk|stringformat:"s" %}
-  {% if puede_editar %}
-  {% url 'dispositivos:edificio_desvincular' dispositivo.pk edificio.pk as url_desvincular %}
-  {% include "components/_tarjeta_edificio.html" with edificio=edificio url_ver=url_detalle|add:"?tab=infraestructura&ver_edificio="|add:pk_texto url_editar=url_detalle|add:"?tab=infraestructura&edificio="|add:pk_texto url_desvincular=url_desvincular only %}
-  {% else %}
-  {% include "components/_tarjeta_edificio.html" with edificio=edificio url_ver=url_detalle|add:"?tab=infraestructura&ver_edificio="|add:pk_texto only %}
-  {% endif %}
-  {% endwith %}
+  {% include "components/_tarjeta_edificio.html" with edificio=edificio url_ver=edificio.url_ver url_editar=edificio.url_editar url_desvincular=edificio.url_desvincular only %}
   {% endfor %}
 </div>
 {% else %}
-{% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún edificio está en ese estado" texto="Probá con otro estado o volvé a ver todos." accion_url=url_detalle|add:"?tab=infraestructura" %}
+{% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún edificio está en ese estado" texto="Probá con otro estado o volvé a ver todos." accion_url=infraestructura.url_listado %}
+{% endif %}
+
+{% if infraestructura.n_sin_mostrar %}
+<p class="px-5 pb-4 text-xs text-body-subtle">Se muestran los {{ infraestructura.listado|length }} edificios más graves; filtrá por estado para ver el resto.</p>
 {% endif %}
 
 {% if infraestructura.sin_edificio %}
