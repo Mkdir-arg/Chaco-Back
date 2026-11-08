@@ -565,6 +565,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 439 | Dispositivos: la solapa Infraestructura pasa a tarjetas por edificio (más grave primero, filtro por estado, aviso de vencimiento, predio compartido, sectores) y a una ficha por edificio con su registro fotográfico; dos piezas nuevas, tarjeta de edificio y chips de enlace | Dispositivos · Infraestructura (P4/P19) | `#ui` `#rbac` | QA — la solapa «está medio plana» y no dice a qué edificio pertenece | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 440 | Tablas en notebooks, PR 1 de 4: Usuarios y Roles con la columna de acciones fija (`nodo-col-acciones`) y el email que parte (`break-all`) | Usuarios y Roles · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 441 | Tablas en notebooks, PR 2 de 4: el ancho de la tabla depende del breakpoint `lg` (`max-content` debajo de 1024 px, 100 % desde `lg`; el Período de Convocatorias no se parte) | Sistema de diseño (tablas) · Becas (Convocatorias) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
+| 442 | Tablas en notebooks, PR 3 de 4: Becas con la columna de acciones fija (`nodo-col-acciones`) en 21 tablas, los wrappers de scroll que faltaban y `barrer()` tras las tablas por AJAX | Becas · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -53322,6 +53323,70 @@ Ninguna fecha, DNI o monto simple se parte desde `lg`. Sin filas de prueba no se
 ## Reversión
 
 Revertir el PR; no hay datos que deshacer. La regla vieja vuelve entera a `responsive.css`.
+
+## Historial
+
+- **08/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 442 — Tablas en notebooks, PR 3 de 4: Becas con la columna de acciones fija y los wrappers de scroll que faltaban
+
+🟡 **EN CURSO — 08/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Becas (Configuración, Cupo, Convocatorias, Relevamientos, Revisión, resumen del ciudadano) · sistema de diseño (tablas) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) |
+| **Fecha del pedido** | 08/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice: 19 templates de `programas/templates/programas/becas/`, `programas/templates/programas/becas/_ajax_js.html`, `static/custom/js/nodo-catalogo-grupos.js`, `.claude/design/arquetipos/listado.md`, `.claude/design/arquetipos/detalle.md`, `.claude/design/componentes/tabla.md` |
+| **Migración** | No |
+
+## Pedido original
+
+PR 3 de 4 del plan «tablas en notebooks». Con la regla por breakpoint del Cambio 441, las tablas de Becas ya entran en su wrapper desde `lg`; este PR las pone en el contrato de la columna de acciones (`nodo-col-acciones`, que Dispositivos, Usuarios y Roles ya cumplen) y cierra el hueco de las cards `overflow-hidden` que recortaban la tabla sin darle scroll.
+
+## Alcance acordado
+
+**Entra:** `nodo-col-acciones` en el `th` y el `td` de acciones de las 21 tablas de Becas del plan (incluidas las goldens `revision/personas_list.html` y `cupo/segmento_detail.html`); `<div class="overflow-x-auto">` dentro de la card `overflow-hidden` en los paneles de requisitos y subsegmentos, los casos de la convocatoria, los relevamientos de la convocatoria y los requisitos heredados del segmento; el wrapper y la tabla de `_resumen_ciudadano.html` pasan de `style=` a clases; `window.nodoTablas.barrer()` después de cada `innerHTML` que trae una tabla por AJAX (`_ajax_js.html`, `nodo-catalogo-grupos.js`); `whitespace-nowrap` en los rangos de fecha de Relevamientos y del tab Convocatorias del segmento (MINOR de la auditoría del #1057); el test del Cambio 441 mide también a 768 px. **Queda afuera:** Configuración, Legajos, Notificaciones y Dispositivos (PR 4), Conversaciones y Merenderos, `merenderos/prestacion_mensual.html` (ya scrollea bien) y los `email/*_body.html`.
+
+## Decisiones tomadas
+
+1. Cada tabla con columna de acciones lleva `nodo-col-acciones` en el `th` y en todos los `td` de la columna; los `th` visibles («Acciones» con texto) se dejan como estaban.
+2. Wrapper dentro de la card, sin reindentar el contenido (diff mínimo): la card conserva `overflow-hidden` para las esquinas redondeadas y el scroll lo hace el wrapper.
+3. Los rangos de fecha no se parten: además del Período de Convocatorias (Cambio 441), el rango «dd/mm/aaaa hh:mm al dd/mm/aaaa hh:mm» de Relevamientos (lista y tab de la convocatoria) y el Período del tab Convocatorias del segmento llevan `whitespace-nowrap`. Fechas simples y DNI no se tocan.
+4. **Decisiones mías, sin consultar al PM** (cambio chico, reversible): (a) el `th` vacío de las personas relevadas (`relevamiento_detail.html`) pasa a `<span class="sr-only">Acciones</span>`, porque el contrato de `tabla.md` prohíbe la columna sin nombre; (b) el `thead sr-only` de `_preguntas_grupos.html` también lleva la clase en su `th` de Acciones, por coherencia con las filas (no se ve); (c) `barrer()` va después de `Alpine.initTree`, no justo después del `innerHTML`, para medir con el contenido ya inicializado.
+5. En `_resumen_ciudadano.html` (todo con `style=`) solo se tocó lo pedido: wrapper, tabla y la clase en el `th` y el `td` de acciones; las celdas siguen con su estilo en línea (deuda previa de esa pantalla, no se amplía).
+6. El test que fija el `th` de la golden de Listado (`GoldensSaneadasTests.test_el_listado_nombra_la_columna_de_acciones`) se actualiza al `th` nuevo: la clase nueva es el cambio buscado.
+
+## Archivos
+
+`programas/templates/programas/becas/{_resumen_ciudadano,config/_pregunta_row,config/_preguntas_grupos,config/_preguntas_table,config/_programas_table,config/_requisitos_page_table,config/_requisitos_panel,config/_requisitos_programa_panel,config/_requisitos_propios_panel,config/_segmentos_table,config/_subsegmentos_panel,config/programa_detail,config/segmento_detail,cupo/segmento_detail,relevamientos/_convocatorias_table,relevamientos/_relevamientos_tab_table,relevamientos/convocatoria_detail,relevamientos/relevamiento_detail,relevamientos/relevamiento_list,revision/formulario_list,revision/personas_list,revision/renaper_pendientes}.html`, `programas/templates/programas/becas/_ajax_js.html`, `static/custom/js/nodo-catalogo-grupos.js`, `core/tests/test_nodo_ui_piezas.py`, `core/tests/test_design_audit_estructura.py`, `.claude/design/arquetipos/listado.md`, `.claude/design/arquetipos/detalle.md`, `.claude/design/componentes/tabla.md`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+`manage.py check`, `ruff`, `design_audit --ratchet --base origin/development` (0 nuevos), `--goldens` (0), `--arquetipo listado` sobre `personas_list` (OK), `compile_templates --bloques` (0) y `requerimientos.py --check` (OK).
+
+Playwright contra una base sembrada (subsegmentos, requisitos en los tres niveles, lista de espera y beneficiarios aprobados), 15 pantallas y todos sus tabs a 390, 1366 y 1440 px: en cada tabla con la columna, el primero y el último control de acciones de todas las filas quedan dentro del rectángulo visible del wrapper (y de la card) a 390 y a 1366 px. A 390 px el wrapper scrollea y recibe `nodo-scroll-mas` (sombra en la columna); a 1366 y 1440 px no hay scroll, el wrapper no lleva la marca y la celda no tiene sombra. Las tablas sin columna de acciones (requisitos heredados, Convocatorias del segmento, Casos de la convocatoria, Dashboard) scrollean en el wrapper nuevo a 390 px.
+
+AJAX a 390 px: crear un requisito y reordenar con teclado requisitos y preguntas (`nodo-catalogo-grupos.js`) devuelven un wrapper nuevo con `nodo-scroll-mas`. Control negativo: sacando la línea `barrer()` el wrapper nuevo llega sin la marca en los tres caminos.
+
+Test `TablaResponsiveTest.test_el_ancho_de_la_tabla_depende_del_breakpoint_lg` (con `CHACO_PLAYWRIGHT=1`) ahora mide a 768 y a 390 px (`subTest`). Anulando la regla de `nodo-tables.css` falla solo `ancho=768` (`736 not greater than 736`): a 390 px pasaba igual por el `min-width` de `responsive.css`. Con la regla, pasa.
+
+## Pendientes / a definir
+
+- PR 4 del plan: el resto de las listas (Configuración, Legajos, Notificaciones, Equipo de Dispositivos).
+- PR 5 opcional (variante de badge que baje de línea en Roles) solo si el PM lo pide.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer. Los wrappers y las clases son aditivos.
 
 ## Historial
 

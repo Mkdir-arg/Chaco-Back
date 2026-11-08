@@ -132,7 +132,7 @@
                 <th class="nodo-th text-right">Cupo total</th>
                 <th class="nodo-th text-right">Subsegmentos</th>
                 <th class="nodo-th text-center">Estado</th>
-                <th class="nodo-th text-right">Acciones</th>
+                <th class="nodo-th nodo-col-acciones text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -151,7 +151,7 @@
                     <span class="badge badge-danger badge-dot">Inactivo</span>
                   {% endif %}
                 </td>
-                <td class="nodo-td text-right">
+                <td class="nodo-td nodo-col-acciones text-right">
                   <a href="{% url 'becas:segmento_detalle' s.pk %}" class="nodo-icon-btn" aria-label="Ver detalle del segmento {{ s.nombre }}" title="Ver detalle">
                     <i class="fas fa-eye" aria-hidden="true"></i>
                   </a>

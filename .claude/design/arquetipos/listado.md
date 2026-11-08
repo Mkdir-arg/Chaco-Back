@@ -50,7 +50,7 @@ filas fijas (eso es una sección del detalle).
             <th class="nodo-th"><Columna principal></th>
             <th class="nodo-th"><Columna></th>
             <th class="nodo-th">Estado</th>
-            <th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>
+            <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -60,7 +60,7 @@ filas fijas (eso es una sección del detalle).
               <span class="block text-xs text-body-subtle"><metadato></span></td>
             <td class="nodo-td text-body">{{ obj.<campo> }}</td>
             <td class="nodo-td">{% include "programas/<modulo>/_estado_badge.html" with estado=obj.estado %}</td>
-            <td class="nodo-td text-right">
+            <td class="nodo-td nodo-col-acciones text-right">
               <a href="{% url '<app>:<entidad>_detalle' obj.pk %}?next={{ request.get_full_path|urlencode }}"
                  class="nodo-icon-btn" aria-label="Ver <entidad> {{ obj.<nombre> }}">
                 <i class="fas fa-eye" aria-hidden="true"></i>

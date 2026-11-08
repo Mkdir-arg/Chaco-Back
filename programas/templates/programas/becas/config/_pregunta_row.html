@@ -38,7 +38,7 @@
       <span class="badge badge-danger badge-dot">Inactiva</span>
     {% endif %}
   </td>
-  <td class="nodo-td text-right">
+  <td class="nodo-td nodo-col-acciones text-right">
     <div class="flex items-center justify-end gap-2">
       {% if request.user|puede:"becas.pregunta.editar" %}
       <button type="button" class="nodo-icon-btn" title="Editar" aria-label="Editar pregunta {{ p.texto }}"

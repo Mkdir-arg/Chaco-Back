@@ -7,7 +7,7 @@
         <th class="nodo-th">Requisito</th>
         <th class="nodo-th">Tipo de campo</th>
         <th class="nodo-th">Obligatorio</th>
-        <th class="nodo-th text-right">Acciones</th>
+        <th class="nodo-th nodo-col-acciones text-right">Acciones</th>
       </tr>
     </thead>
     <tbody>
@@ -35,7 +35,7 @@
             <span class="badge badge-gray">Opcional</span>
           {% endif %}
         </td>
-        <td class="nodo-td text-right">
+        <td class="nodo-td nodo-col-acciones text-right">
           <div class="flex items-center justify-end gap-2">
             {# Cambio 334: los del programa son solo del Administrador (``_assert_scope_requisito``). #}
             {% if req.segmento_id and request.user|puede:"becas.requisito.editar" or puede_editar_requisito_programa %}

@@ -63,7 +63,7 @@
               <th class="nodo-th">DNI</th>
               <th class="nodo-th">Caso</th>
               <th class="nodo-th" title="Fecha de aprobación">Fecha ingreso</th>
-              <th class="nodo-th text-right w-28">Acciones</th>
+              <th class="nodo-th nodo-col-acciones text-right w-28">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -81,7 +81,7 @@
                 <span class="text-xs text-body-subtle block mt-px">{{ formulario.relevamiento.convocatoria.nombre }}</span>
               </td>
               <td class="nodo-td" title="Fecha de aprobación">{{ formulario.modificado|date:"d/m/Y" }}</td>
-              <td class="nodo-td text-right whitespace-nowrap">
+              <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
                 <div class="inline-flex items-center gap-1">
                   <a href="{% url 'legajos:ciudadano_detalle' formulario.ciudadano.pk %}"
                      class="nodo-icon-btn" aria-label="Ver legajo de {{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}">
@@ -124,7 +124,7 @@
               <th class="nodo-th">Ciudadano</th>
               <th class="nodo-th">DNI</th>
               <th class="nodo-th">Fecha de ingreso</th>
-              <th class="nodo-th text-right w-32">Acciones</th>
+              <th class="nodo-th nodo-col-acciones text-right w-32">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -139,7 +139,7 @@
               </td>
               <td class="nodo-td">{{ le.formulario.ciudadano.dni }}</td>
               <td class="nodo-td">{{ le.fecha_ingreso|date:"d/m/Y" }}</td>
-              <td class="nodo-td text-right whitespace-nowrap">
+              <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
                 <div class="inline-flex items-center gap-1">
                   <a href="{% url 'becas:formulario_detalle' le.formulario.pk %}?next={{ request.get_full_path|urlencode }}"
                      class="nodo-icon-btn" aria-label="Ver formulario de {{ le.formulario.ciudadano.nombre }} {{ le.formulario.ciudadano.apellido }}">
@@ -182,7 +182,7 @@
               <th class="nodo-th">DNI</th>
               <th class="nodo-th">Relevamiento</th>
               <th class="nodo-th">Fecha ingreso</th>
-              <th class="nodo-th text-right w-40">Acciones</th>
+              <th class="nodo-th nodo-col-acciones text-right w-40">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -197,7 +197,7 @@
               <td class="nodo-td">{{ formulario.ciudadano.dni }}</td>
               <td class="nodo-td">{{ formulario.relevamiento.convocatoria.nombre }}</td>
               <td class="nodo-td">{{ formulario.creado|date:"d/m/Y" }}</td>
-              <td class="nodo-td text-right whitespace-nowrap">
+              <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
                 <div class="inline-flex items-center gap-1">
                   <a href="{% url 'becas:formulario_detalle' formulario.pk %}?next={{ request.get_full_path|urlencode }}"
                      class="nodo-icon-btn" aria-label="Ver formulario de {{ formulario.ciudadano.nombre }} {{ formulario.ciudadano.apellido }}">

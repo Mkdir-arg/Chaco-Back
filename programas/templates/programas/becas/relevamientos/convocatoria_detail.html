@@ -194,6 +194,7 @@
       </div>
       {% if beneficiarios %}
       <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
         <table class="w-full border-collapse">
           <thead>
             <tr class="nodo-thead-row">
@@ -220,6 +221,7 @@
             {% endfor %}
           </tbody>
         </table>
+        </div>
       </div>
       {% include "components/_paginacion.html" with page_obj=beneficiarios entidad="caso" param="beneficiarios_page" extra_qs="tab=ben" filtros_qs=beneficiarios_querystring %}
       {% else %}

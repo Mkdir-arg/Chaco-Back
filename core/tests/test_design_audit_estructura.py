@@ -458,7 +458,7 @@ class GoldensSaneadasTests(SimpleTestCase):
     def test_el_listado_nombra_la_columna_de_acciones(self):
         """WCAG 1.3.1: el `<th>` de acciones estaba vacío y la columna no tenía nombre."""
         listado = self.contenido(dict(design_audit.GOLDENS)["listado"])
-        th = '<th class="nodo-th text-right"><span class="sr-only">Acciones</span></th>'
+        th = '<th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>'
 
         self.assertEqual(listado.count(th), 1, "el <th> de acciones tiene que nombrar la columna")
 
