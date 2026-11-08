@@ -390,9 +390,8 @@ def _evento_de_relevamiento(inspeccion, fotos, *, ve_asignacion=False, enlace=""
     if semaforo.tono in _TONOS_CON_COLOR:
         evento["tono"] = semaforo.tono
     if inspeccion.revisado_en is not None:
-        evento["badge"] = "Revisado"
-        evento["badge_tono"] = "success"
-        evento["detalle"] = " · ".join(parte for parte in (rotulos, semaforo.texto) if parte)
+        # El badge del encabezado es siempre la criticidad; el estado de revisión va en el panel (`detalle`).
+        evento["detalle"] = " · ".join(parte for parte in (rotulos, "Revisado") if parte)
         evento["cuando"] += (
             f" · revisado por {_nombre(inspeccion.revisado_por)} el {_fecha_legible(inspeccion.revisado_en)}"
         )
@@ -511,24 +510,27 @@ def _resumen_del_listado(filas):
 
 
 #: Lo que devuelve `infraestructura_del_dispositivo` en cualquier modo; cada modo pisa lo suyo.
-_RESPUESTA_BASE = {
-    "modo": "",
-    "edificios": [],
-    "n_edificios": 0,
-    "semaforo": None,
-    "listado": [],
-    "n_sin_mostrar": 0,
-    "filtros": [],
-    "estado": "",
-    "resumen": None,
-    "chips": [],
-    "eventos": [],
-    "relevamientos": None,
-    "viendo": None,
-    "sin_edificio": None,
-    "url_listado": "",
-    "qs_paginacion": "",
-}
+def _respuesta_base():
+    """Una base nueva en cada llamada: las listas no se comparten entre requests."""
+
+    return {
+        "modo": "",
+        "edificios": [],
+        "n_edificios": 0,
+        "semaforo": None,
+        "listado": [],
+        "n_sin_mostrar": 0,
+        "filtros": [],
+        "estado": "",
+        "resumen": None,
+        "chips": [],
+        "eventos": [],
+        "relevamientos": None,
+        "viendo": None,
+        "sin_edificio": None,
+        "url_listado": "",
+        "qs_paginacion": "",
+    }
 
 
 def _fila_de_edificio(
@@ -671,7 +673,7 @@ def infraestructura_del_dispositivo(
         .order_by("nombre", "pk")
     )
     if not edificios:
-        return {**_RESPUESTA_BASE, "modo": "vacio", "semaforo": SEMAFOROS[SIN_EDIFICIO], "url_listado": base}
+        return {**_respuesta_base(), "modo": "vacio", "semaforo": SEMAFOROS[SIN_EDIFICIO], "url_listado": base}
 
     pedido = None
     if len(edificios) == 1:
@@ -778,7 +780,7 @@ def infraestructura_del_dispositivo(
         # La grilla tiene tope: del más grave al mejor, y el filtro por estado muestra el resto.
         elegidos = [fila for fila in filas if not clave or fila["estado"]["clave"] == clave]
         return {
-            **_RESPUESTA_BASE,
+            **_respuesta_base(),
             "modo": "listado",
             "edificios": filas,
             "n_edificios": len(filas),
@@ -793,9 +795,9 @@ def infraestructura_del_dispositivo(
         }
 
     viendo = next(fila for fila in filas if fila["pk"] == pedido)
-    # «Los N edificios» vuelve al listado y es el primer chip; después, hasta `_TOPE_CHIPS` edificios (el abierto
+    # «Los N edificios» vuelve al listado y es el primer chip; después, hasta completar `_TOPE_CHIPS` en la fila (el abierto
     # siempre entra, aunque no esté entre los primeros). El resto se alcanza desde el listado.
-    nombres = [fila for fila in filas if fila["pk"] != pedido][: _TOPE_CHIPS - 1]
+    nombres = [fila for fila in filas if fila["pk"] != pedido][: _TOPE_CHIPS - 2]
     nombres.append(viendo)
     nombres.sort(key=filas.index)
     chips = [{"texto": f"Los {len(filas)} edificios", "url": base, "activo": False, "icono": "fa-arrow-left"}] + [
@@ -847,7 +849,7 @@ def infraestructura_del_dispositivo(
     ]
 
     return {
-        **_RESPUESTA_BASE,
+        **_respuesta_base(),
         "modo": "ficha",
         # Al abrir uno, la jerarquía es la de ese; los otros solo aparecen como chips (`n_edificios` los cuenta).
         "edificios": [viendo],

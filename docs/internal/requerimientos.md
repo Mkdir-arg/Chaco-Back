@@ -565,7 +565,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 439 | Dispositivos: la solapa Infraestructura pasa a tarjetas por edificio (más grave primero, filtro por estado, aviso de vencimiento, predio compartido, sectores) y a una ficha por edificio con su registro fotográfico; dos piezas nuevas, tarjeta de edificio y chips de enlace | Dispositivos · Infraestructura (P4/P19) | `#ui` `#rbac` | QA — la solapa «está medio plana» y no dice a qué edificio pertenece | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 440 | Tablas en notebooks, PR 1 de 4: Usuarios y Roles con la columna de acciones fija (`nodo-col-acciones`) y el email que parte (`break-all`) | Usuarios y Roles · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 441 | Tablas en notebooks, PR 2 de 4: el ancho de la tabla depende del breakpoint `lg` (`max-content` debajo de 1024 px, 100 % desde `lg`; el Período de Convocatorias no se parte) | Sistema de diseño (tablas) · Becas (Convocatorias) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
-| 442 | Tablas en notebooks, PR 3 de 4: Becas con la columna de acciones fija (`nodo-col-acciones`) en 21 tablas, los wrappers de scroll que faltaban y `barrer()` tras las tablas por AJAX | Becas · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
+| 442 | Tablas en notebooks, PR 3 de 4: Becas con la columna de acciones fija (`nodo-col-acciones`) en 21 tablas, los wrappers de scroll que faltaban y `barrer()` tras las tablas por AJAX | Becas · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
+| 444 | Dispositivos: siete ajustes de Infraestructura posteriores al Cambio 439 (el badge del registro es siempre la criticidad, tope de 6 chips, sin chevron vacío, foco de marca, una consulta menos, base inmutable, URL de solapa al servicio) | Dispositivos · Infraestructura (P4/P19) | `#ui` | PM — decisión sobre la etiqueta del registro plegable y MINOR de los PR #1054 y #1055 | 08/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -53387,6 +53388,61 @@ Test `TablaResponsiveTest.test_el_ancho_de_la_tabla_depende_del_breakpoint_lg` (
 ## Reversión
 
 Revertir el PR; no hay datos que deshacer. Los wrappers y las clases son aditivos.
+
+## Historial
+
+- **08/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 444 — Dispositivos: ajustes de Infraestructura posteriores al Cambio 439
+
+🟡 **EN CURSO — 08/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Infraestructura (P4/P19) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — decisión sobre la etiqueta del registro plegable y MINOR de los PR #1054 (Cambio 438) y #1055 (Cambio 439) |
+| **Fecha del pedido** | 08/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice: `templates/components/_linea_tiempo.html`, `programas/services/{detalle_dispositivo,plazas,sectores_plazas}.py`, `programas/views/dispositivos_legajo.py`, `tailwind.config.js`, `static/custom/css/tailwind.css`, `.claude/design/componentes/{ficha_timeline,chips_enlace}.md`, `.claude/design/arquetipos/detalle.md` |
+| **Migración** | No |
+
+## Pedido original
+
+Ajustes posteriores a la solapa Infraestructura (Cambio 439) y a los MINOR del Cambio 438: el encabezado de cada relevamiento del registro plegable mostraba a veces la criticidad y a veces el estado de revisión.
+
+## Alcance acordado
+
+**Entra:** (1) el badge del encabezado es siempre la criticidad (semáforo con su tono) y «Revisado» pasa al panel (`detalle`); los eventos en curso conservan su estado; (2) la fila de chips del edificio suma 6 en total contando «Los N edificios»; (3) un evento plegable sin contenido no dibuja botón ni chevron; (4) anillo de foco `focus-visible:ring-brand` (nueva `ringColor.brand` en `tailwind.config.js`, CSS regenerado); (5) `puede_configurar_plazas(..., puede_editar=None)` evita repetir la consulta de alcance; (6) `_RESPUESTA_BASE` con tuplas; (7) `url_solapa_estadias` pasa a `sectores_plazas.py`, `url_modal_egreso` la compone y se corrige el docstring de `_preparar_modal`. **Queda afuera:** el alcance de quién ve cada relevamiento (Cambio 428) no se amplía.
+
+## Decisiones tomadas
+
+1. Decisión del PM: el badge del registro es siempre la criticidad; el estado de revisión va adentro del panel.
+2. El anillo de foco usa `ringColor.brand = var(--border-brand)`: `ring-brand` no existía en el build (`ring-*` solo tenía el color por defecto).
+3. `url_solapa_estadias` sigue importable desde `programas.views.dispositivos_legajo` (la vista la importa del servicio).
+4. Las etiquetas `dispositivos` e `infraestructura` no existen en el vocabulario del archivo: se usó `#ui`.
+
+## Archivos
+
+Los de «Partes afectadas» y los tests `core/tests/test_nodo_ui_piezas.py`, `programas/tests/test_dispositivos_auditoria_g3.py`, `programas/tests/test_dispositivos_infraestructura_tarjetas.py`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+`manage.py check`, `ruff`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0), `check_design_agent --changed` (OK), `makemigrations --check` (sin cambios), tests de `programas` y `core.tests.test_nodo_ui_piezas`.
+
+## Pendientes / a definir
+
+Ninguno.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
 
 ## Historial
 

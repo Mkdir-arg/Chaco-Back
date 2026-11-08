@@ -963,13 +963,22 @@ class LineaTiempoTest(SimpleTestCase):
         self.assertEqual(html.count("<li "), 2)
         self.assertEqual(html.count('x-data="{ abierto: false }"'), 2)
         self.assertIn('aria-controls="evento-1"', html)
-        self.assertIn('id="evento-2"', html)
         self.assertIn(':aria-expanded="abierto"', html)
-        self.assertIn("focus-visible:ring-2", html)
+        self.assertIn("focus-visible:ring-2 focus-visible:ring-brand", html)
         self.assertIn("revisado por Luis", html)
         self.assertIn("Faltan &lt;b&gt;duchas", html)
         self.assertIn("Ver informe<span", html)
         self.assertNotIn("<details", html)
+
+    def test_plegable_sin_contenido_para_abrir_no_dibuja_boton_ni_chevron(self):
+        eventos = [{"cuando": "01/02", "titulo": "Sin fotos", "badge": "Crítico", "badge_tono": "danger"}]
+        html = render_to_string(LINEA_TIEMPO, {"eventos": eventos, "plegable": True})
+
+        self.assertIn("Sin fotos", html)
+        self.assertIn("Crítico", html)
+        self.assertNotIn("<button", html)
+        self.assertNotIn("fa-chevron-down", html)
+        self.assertNotIn("aria-controls", html)
 
     def test_sin_plegable_el_html_no_cambia(self):
         html = render_to_string(LINEA_TIEMPO, {"eventos": [{"cuando": "x", "titulo": "Novedad"}]})

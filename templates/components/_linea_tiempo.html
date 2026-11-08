@@ -23,7 +23,8 @@ Contexto:
              observaciones opcional, solo con `plegable`: párrafo de texto escapado dentro del evento abierto.
   plegable     opcional (False por defecto): cada evento se pliega. Queda a la vista el `cuando`, el `titulo` y el
                `badge`; al abrirlo (botón con `aria-expanded` y `aria-controls`, Alpine) salen `detalle`,
-               `observaciones`, `fotos` y `enlace`. Sin `plegable` el HTML es el de siempre. Los `id` de los
+               `observaciones`, `fotos` y `enlace`; un evento sin nada de eso no dibuja botón ni chevron (texto plano).
+               Sin `plegable` el HTML es el de siempre. Los `id` de los
                paneles son `evento-<n>`: una línea de tiempo plegable por pantalla.
   vacio_titulo, vacio_texto  opcionales: textos del estado vacío cuando no hay eventos.
 El tono es un refuerzo visual del punto: lo que dice el evento va siempre en `titulo`.
@@ -34,7 +35,8 @@ Es la única forma de meter contenido en un evento: `detalle` sigue siendo una l
   {% for ev in eventos %}
   <li class="relative pl-5 text-sm" x-data="{ abierto: false }">
     <span class="absolute -left-1.5 top-1 w-2.5 h-2.5 rounded-full bg-white border-2 {% if ev.tono == 'warning' %}border-warning{% elif ev.tono == 'danger' %}border-danger{% elif ev.tono == 'success' %}border-success{% else %}border-brand{% endif %}" aria-hidden="true"></span>
-    <button type="button" class="w-full flex items-start justify-between gap-3 text-left rounded-lg focus-visible:ring-2" @click="abierto = !abierto" :aria-expanded="abierto" aria-controls="evento-{{ forloop.counter }}">
+    {% if ev.observaciones or ev.detalle or ev.fotos or ev.enlace %}
+    <button type="button" class="w-full flex items-start justify-between gap-3 text-left rounded-lg focus-visible:ring-2 focus-visible:ring-brand" @click="abierto = !abierto" :aria-expanded="abierto" aria-controls="evento-{{ forloop.counter }}">
       <span class="min-w-0">
         <span class="block text-xs text-body-subtle">{{ ev.cuando }}</span>
         <span class="text-body"><strong class="text-heading">{{ ev.titulo }}</strong>{% if ev.badge %} · <span class="badge badge-{{ ev.badge_tono|default:'warning' }}">{{ ev.badge }}</span>{% endif %}</span>
@@ -47,6 +49,10 @@ Es la única forma de meter contenido en un evento: `detalle` sigue siendo una l
       {% if ev.fotos %}{% include "components/_galeria_fotos.html" with fotos=ev.fotos total=ev.total_fotos %}{% endif %}
       {% if ev.enlace %}<a href="{{ ev.enlace }}" class="inline-block text-sm text-fg-brand font-medium hover:underline">{{ ev.enlace_texto|default:"Ver" }}<span class="sr-only"> · {{ ev.cuando }}</span></a>{% endif %}
     </div>
+    {% else %}
+    <span class="block text-xs text-body-subtle">{{ ev.cuando }}</span>
+    <span class="block text-body"><strong class="text-heading">{{ ev.titulo }}</strong>{% if ev.badge %} · <span class="badge badge-{{ ev.badge_tono|default:'warning' }}">{{ ev.badge }}</span>{% endif %}</span>
+    {% endif %}
   </li>
   {% endfor %}
 </ol>

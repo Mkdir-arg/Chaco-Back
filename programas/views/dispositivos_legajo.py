@@ -140,6 +140,7 @@ from programas.services.sectores_plazas import (
     plaza_para_accion,
     sectores_con_plazas,
     url_modal_egreso,
+    url_solapa_estadias,
 )
 from programas.views.ajax_utils import ajax_redirect, is_ajax
 
@@ -495,7 +496,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
                 "url_ingreso": reverse("dispositivos:ingreso_persona", args=[dispositivo.pk]),
                 "url_sectores": reverse("dispositivos:sectores", args=[dispositivo.pk]),
                 # «Asignar edificio» lleva a editar el sector: la misma regla que «Sectores y plazas».
-                "puede_asignar_edificio": puede_configurar_plazas(user, dispositivo),
+                "puede_asignar_edificio": puede_configurar_plazas(user, dispositivo, puede_editar=puede_editar),
             }
         )
         self._preparar_modales_de_estadia(context, dispositivo, puede_cambiar, puede_egresar)
@@ -997,9 +998,11 @@ class DispositivoSectoresView(DispositivoObjectPermissionMixin, DetailView):
     def _preparar_modal(self, context, dispositivo, puede_liberar, puede_configurar_plazas):
         """`?plaza=<id>`: el enlace directo, y el camino de vuelta a una plaza concreta.
 
-        Las acciones que se arman en el navegador (todas menos reubicar) abren el modal ya
-        elegido; la reubicación, que depende de la estadía, la arma el servidor. Una plaza
-        ocupada abre el formulario de reubicar solo si es lo único que ofrece o si la URL trae
+        Resuelve las acciones de la plaza con `plaza_para_accion` y, si no hay ninguna que ofrecer, avisa
+        con un mensaje. Las acciones que se arman en el navegador (todas menos reubicar) abren el modal ya
+        elegido (`plaza_inicial`, sumando la plaza a `plazas_modal` si quedó más allá del tope de la
+        grilla); la reubicación, que depende de la estadía, la arma el servidor en `_preparar_reubicar`. Una
+        plaza ocupada abre el formulario de reubicar solo si es lo único que ofrece o si la URL trae
         `&opcion=reubicar` (el regreso de «Cambiar de plaza»); con más opciones llega el menú.
         """
 
@@ -1289,12 +1292,6 @@ class PlazaVolverAServicioView(_PlazaAccionView):
 
 #: Valor del campo oculto `volver` con el que el modal de egreso de P7 pide volver a la estadía.
 VOLVER_A_LA_ESTADIA = "estadia"
-
-
-def url_solapa_estadias(dispositivo_pk):
-    """El detalle del dispositivo abierto en la solapa Estadías."""
-
-    return f"{reverse('dispositivos:detalle', args=[dispositivo_pk])}?tab=estadias"
 
 
 def url_volver_a_la_estadia(user, dispositivo, estadia):
