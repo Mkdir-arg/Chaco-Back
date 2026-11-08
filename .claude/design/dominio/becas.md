@@ -56,6 +56,7 @@ Evidencia: `programas/templates/programas/becas/config/_siis_programa_modal.html
 up «Detalle SIIS», que `programa_detail.html` incluye con `identificadores_programa=programa`) y
 `programas/templates/programas/becas/config/segmento_list.html` (modal «Editar segmento»), que
 `programas/templates/programas/becas/config/_segmentos_table.html` alimenta.
+El checkbox del modal usa `.nodo-checks`: `focus:ring-brand` solo colorea un anillo que el checkbox canónico no activa.
 
 Estado en SIIS: el aviso «SIIS inactivo» (badge y alerta `bg-warning-soft` de `programa_detail.html`,
 `segmento_detail.html`, `_segmentos_table.html` y `_siis_programa_modal.html`) es **informativo**: no

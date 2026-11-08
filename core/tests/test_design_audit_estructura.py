@@ -654,12 +654,10 @@ class CssCompiladoAlDiaTests(SimpleTestCase):
         # `font-lora` salió de la deuda con FE-22: su único consumidor era el `<h1>`
         # propio de `legajos/reportes.html`, que pasó a `{% page_header %}`.
         "touch-target",
-        # `ring-brand` no es un color del tema (el foco de marca es la custom
-        # property `--ring-brand`, un box-shadow). O sea que el checkbox canónico
-        # de `programas/forms.py` CHECKBOX_CLASS **no tiene indicador de foco**:
-        # hallazgo nuevo, WCAG 2.4.7, anotado para la Ola 5 (no se arregla acá
-        # porque cambia el render de todos los checkboxes del backoffice).
-        "focus:ring-brand",
+        # `focus:ring-brand` salió de la deuda con el Cambio 444: `ring-brand` ya es un color
+        # del tema (`ringColor.brand`). Ojo: el checkbox canónico de `programas/forms.py`
+        # CHECKBOX_CLASS sigue **sin indicador de foco** (no lleva `focus:ring-2`): hallazgo
+        # WCAG 2.4.7 abierto, anotado para la Ola 5 (cambia el render de todos los checkboxes).
     }
 
     def usadas_fuera_del_build(self):

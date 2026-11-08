@@ -421,7 +421,7 @@ class DispositivoDetailView(DispositivoObjectPermissionMixin, DetailView):
         puede_cambiar = puede_operar_dispositivo(user, dispositivo, CAP_ADMITIR)
         puede_ver_ciudadano = puede(user, CAP_VER_CIUDADANO)
         puede_validar = puede_operar_dispositivo(user, dispositivo, "dispositivo.validar")
-        puede_editar = puede_operar_dispositivo(user, dispositivo, "dispositivo.editar")
+        puede_editar = puede_operar_dispositivo(user, dispositivo, CAP_EDITAR)
         con_plazas = maneja_plazas(dispositivo)
         for estadia in estadias:
             estadia.persona_visible = estadia.ciudadano.apellido_nombre if puede_ver_ciudadano else "Persona alojada"

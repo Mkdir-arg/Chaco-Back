@@ -105,7 +105,7 @@ def _trazar(dispositivo, usuario, accion, *, detalle=""):
     )
 
 
-def puede_configurar_plazas(usuario, dispositivo, puede_editar=None):
+def puede_configurar_plazas(usuario, dispositivo, *, puede_editar=None):
     """¿Se pueden editar sectores y plazas existentes (o sacarlas de servicio)? Capacidad con alcance y no cerrado.
 
     La misma regla que `_exigir_alcance` aplica al escribir: la pantalla de «Sectores y plazas» lee esta
