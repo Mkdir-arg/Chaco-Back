@@ -563,6 +563,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 437 | Dispositivos: la plaza ocupada del mapa ofrece cambiar de plaza, ver la estadía, ver el legajo y registrar el egreso; «sacar de servicio» queda visible pero deshabilitada con su motivo | Dispositivos · Sectores y plazas (P5) | `#ui` `#rbac` | QA — plaza ocupada solo ofrecía «Cambiar de plaza» | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 438 | Dispositivos: cinco MINOR de la auditoría del PR #1053 (acciones de la plaza ocupada): lista de acciones con formulario en el servicio, helper único del enlace de egreso, tests de capacidades sobre el modal, «Sin edificio» con helper y `?plaza=` ocupada abre el menú | Dispositivos · Sectores y plazas (P5) | `#ui` `#rbac` | Auditoría del PR #1053 (Cambio 437) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 440 | Tablas en notebooks, PR 1 de 4: Usuarios y Roles con la columna de acciones fija (`nodo-col-acciones`) y el email que parte (`break-all`) | Usuarios y Roles · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
+| 441 | Tablas en notebooks, PR 2 de 4: el ancho de la tabla depende del breakpoint `lg` (`max-content` debajo de 1024 px, 100 % desde `lg`; el Período de Convocatorias no se parte) | Sistema de diseño (tablas) · Becas (Convocatorias) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -53149,7 +53150,7 @@ Revertir el PR; no hay datos que deshacer.
 | **Solicitante** | PM — plan «tablas en notebooks» (en notebooks la columna de acciones queda fuera de pantalla) |
 | **Fecha del pedido** | 08/11/2026 |
 | **Issue / épica** | sin issue |
-| **Partes afectadas** | Backoffice: `users/templates/user/user_list.html`, `users/templates/rol/rol_list.html` |
+| **Partes afectadas** | Backoffice: `users/templates/user/user_list.html`, `users/templates/rol/rol_list.html`, `.claude/design/componentes/tabla.md` |
 | **Migración** | No |
 
 ## Pedido original
@@ -53169,7 +53170,7 @@ En notebooks (1280–1366 px) las tablas de Usuarios y Roles esconden la columna
 
 ## Archivos
 
-`users/templates/user/user_list.html`, `users/templates/rol/rol_list.html`, `docs/internal/requerimientos.md`.
+`users/templates/user/user_list.html`, `users/templates/rol/rol_list.html`, `.claude/design/componentes/tabla.md`, `docs/internal/requerimientos.md`.
 
 ## Base de datos
 
@@ -53186,6 +53187,84 @@ Sin cambios.
 ## Reversión
 
 Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **08/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 441 — Tablas en notebooks, PR 2 de 4: el ancho de la tabla depende del breakpoint `lg`
+
+🟡 **EN CURSO — 08/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Sistema de diseño (tablas) · todas las tablas con wrapper de scroll · Becas (Convocatorias) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) |
+| **Fecha del pedido** | 08/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice: `static/custom/css/nodo-tables.css`, `static/custom/css/responsive.css`, `programas/templates/programas/becas/relevamientos/_convocatorias_table.html`, `.claude/design/componentes/tabla.md`, `.claude/agents/chaco-design-system.md` |
+| **Migración** | No |
+
+## Pedido original
+
+PR 2 de 4 del plan «tablas en notebooks». Con el PR 1 (Cambio 440) Usuarios y Roles ya soportan una tabla que se achica. Este PR cambia la regla global: `.overflow-x-auto > table { width: max-content; min-width: 100% }` (en `responsive.css`) hace que toda tabla mida lo que mide su texto, así que en notebooks (1280–1366 px) la tabla desborda su wrapper y la columna de acciones queda detrás del scroll.
+
+## Alcance acordado
+
+**Entra:** la regla de `max-content` se mueve de `responsive.css` a `nodo-tables.css` y queda envuelta en `@media (max-width: 1023.98px)`; desde `lg` la tabla ocupa el wrapper (todas las tablas con wrapper ya traen `w-full`) y las celdas parten texto. `whitespace-nowrap` en la celda de Período de Convocatorias. **Queda afuera:** poner `nodo-col-acciones` en el resto de las listas (PR 3 y 4), los wrappers que faltan en Becas (PR 3), Conversaciones y Merenderos, y cualquier variante nueva de badge (PR 5 opcional).
+
+## Decisiones tomadas
+
+1. Corte en 1024 px (decisión del PM, 08/11/2026): debajo de `lg` la tabla se comporta exactamente como hoy (`max-content`); desde `lg` ocupa el wrapper y parte texto. Medido: aplicar `width: 100%` también en celular da filas de 150 a 420 px y encabezados en 2–3 líneas.
+2. Roles: solo la columna fija del PR 1; no hay badge nuevo (decisión del PM, 08/11/2026).
+3. Lo único que nunca se parte son los rangos de fecha: Período de Convocatorias lleva `whitespace-nowrap` (con `width: 100%` se partía en dos líneas, «08/11/2026 → 07/01/2026»). DNI, fechas simples y montos no se tocan: no tienen espacios y no se parten. Las planillas que ya llevaban `whitespace-nowrap` (Reporte «avance») no cambian.
+4. Conversaciones y Merenderos quedan afuera (decisión del PM, 08/11/2026).
+5. La regla vive en `nodo-tables.css`, la pieza dueña de la tabla, y no en `responsive.css`. `.overflow-x-auto > table` (especificidad 0,1,1) le sigue ganando a `.w-full` (0,1,0) debajo de `lg`.
+6. **Contradice a propósito el Cambio 166**, que se apoyó en la regla de `max-content` «medida a 390 px» para sacar el `min-width` de `rol_list`: ese comportamiento se conserva debajo de `lg`; lo que cambia es escritorio, que el 166 no midió.
+7. **Contradice a propósito el «sin cambio visual a 1440» del Cambio 413** (decisión 2): desde `lg` el cambio es visible, pero solo en las tablas que hoy desbordaban (es el objetivo). Las que ya entraban en su wrapper quedan con el mismo ancho y la misma altura de fila (medido). La decisión 3 del 413 (Estado puede quedar fuera de pantalla, la sombra avisa) sigue valiendo debajo de `lg`.
+
+## Archivos
+
+`static/custom/css/nodo-tables.css`, `static/custom/css/responsive.css`, `programas/templates/programas/becas/relevamientos/_convocatorias_table.html`, `core/tests/test_nodo_ui_piezas.py`, `.claude/design/componentes/tabla.md`, `.claude/agents/chaco-design-system.md`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+`manage.py check`, `design_audit --ratchet` (0 nuevos) y `--goldens` (0), `compile_templates --bloques` (0), `requerimientos.py --check` (OK), `ruff` y `manage.py test core programas` (6316 tests, OK). Test nuevo `TablaResponsiveTest.test_el_ancho_de_la_tabla_depende_del_breakpoint_lg` (con `CHACO_PLAYWRIGHT=1`): a 1366 px una tabla con texto largo con espacios entra en su wrapper y la última celda queda dentro; a 390 px el wrapper scrollea. Falla con la regla vieja (`scrollWidth` 2645 contra `clientWidth` 1334) y pasa con la nueva; `DispositivosResponsiveFDTests` sigue en verde.
+
+Playwright con la regla real (no inyectada), contra una base con nombres de 50–120 caracteres, comparando `development` con la rama; 120 pares de pantalla y ancho a 390, 768 y 1023 px dan **idénticos** (métricas de cada tabla y captura byte a byte). Desde `lg`, acciones a la vista a 1366 px y ancho de tabla · altura de fila a 1440 px:
+
+| Pantalla | Acciones a 1366 px (antes → después) | 1440 px: ancho · fila | Veredicto |
+|---|---|---|---|
+| Ciudadanos, Legajos lista | N → S | 1256→1086 · 66→87 | mejora |
+| Becas convocatorias | N → S | 1310→1086 · 53→69 | mejora |
+| Becas relevamientos | N → S | 1322→1086 · 53→69 | mejora |
+| Becas revisión (personas / formularios) | N → S | 2436→1086 · 66→132 / 1575→1086 · 53→69 | mejora |
+| Becas RENAPER pendientes | N → S | 1610→1086 · 53→69 | mejora |
+| Becas segmentos y preguntas | N → S (a 1280 y 1366) | 1086→1086 · 53→53 | mejora |
+| Subsecretarías, Campañas de notificaciones | N → S | 1417→1086 · 53→69 / 1086→1086 · 66→66 | mejora |
+| Usuarios | S → S, sin scroll | 2006→1086 · 53→107 | mejora (sin scroll) |
+| Dispositivos lista | S → S, sin scroll | 1240→1086 · 66→87 | mejora (sin scroll) |
+| Roles | S → S, **sigue con scroll** | 2255→1309 · 53→115 | **empeora levemente**: la fila sube a 115 px y el scroll queda (su mínimo, 1309 px, lo fijan los badges `nowrap` de Capacidades); las acciones quedan a la vista por la columna fija. Es el default del PM; la salida es el PR 5 opcional |
+| Configuración, Becas programas y detalle, Tipos de dispositivo, Cupos, Becas del ciudadano, Secretarías | S → S | igual · 53→53 | igual |
+| Reporte «avance» (planilla `nowrap`) | scroll → scroll | 2500→2500 · 48→48 | igual (a propósito) |
+
+Ninguna fecha, DNI o monto simple se parte desde `lg`. Sin filas de prueba no se midieron las tablas de detalle de segmento, convocatoria y relevamiento, requisitos, Legajos programas y Dispositivos relevamientos (estado vacío); Merenderos responde 403 y está fuera de alcance.
+
+## Pendientes / a definir
+
+- PR 3 (Becas: columna fija y wrappers que faltan) y PR 4 (el resto de las listas) del mismo plan.
+- PR 5 opcional (variante de badge que baje de línea en Roles) solo si el PM lo pide.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer. La regla vieja vuelve entera a `responsive.css`.
 
 ## Historial
 
