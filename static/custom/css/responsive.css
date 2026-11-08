@@ -59,14 +59,6 @@ code,
     -webkit-overflow-scrolling: touch;
 }
 
-.overflow-x-auto > table,
-.overflow-x-scroll > table,
-.table-responsive > table,
-.table-scroll-wrapper > table {
-    width: max-content;
-    min-width: 100%;
-}
-
 .filter-input,
 .filter-input-sm {
     width: 100%;
