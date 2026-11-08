@@ -263,8 +263,9 @@ convocatoria que se está editando, y un `disabled` de Django además ignora lo 
 segmento y subsegmento (`_requisitos_programa_panel.html`, `_requisitos_panel.html`,
 `_requisitos_propios_panel.html`, mismo JS) y el constructor de formularios.
 El JS re-renderiza la tabla por `innerHTML` y después llama a `window.nodoTablas.barrer()`;
-la columna de acciones del catálogo y de `config/segmento_detail.html` lleva `nodo-col-acciones`, y los
-rangos de fecha de sus tablas, `whitespace-nowrap` (Cambio 442; contrato en `.claude/design/componentes/tabla.md`).
+la columna de acciones del catálogo lleva `nodo-col-acciones`, y los rangos de fecha de las tablas de
+`config/segmento_detail.html` (pantalla sin columna de acciones propia), `whitespace-nowrap`; durante el
+arrastre la celda fija toma el fondo de la fila (`static/custom/css/nodo-constructor.css`, Cambio 443) (Cambio 442; contrato en `.claude/design/componentes/tabla.md`).
 
 **Lista plana** (variante del mismo JS, sin grupos): `tbody[data-sortable-lista]` con
 `data-url-reordenar`, `data-puede-ordenar` y `data-indicador` (id del `<span>` de estado
