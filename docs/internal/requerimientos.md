@@ -562,6 +562,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 436 | Dispositivos: al corregir una novedad de la bitácora se pueden quitar adjuntos y personas (la versión anterior los conserva; el registro dice qué se quitó y qué se sumó) | Dispositivos · bitácora del turno | `#ui` `#datos` | QA — continuación del caso 4 (Cambio 426) | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 437 | Dispositivos: la plaza ocupada del mapa ofrece cambiar de plaza, ver la estadía, ver el legajo y registrar el egreso; «sacar de servicio» queda visible pero deshabilitada con su motivo | Dispositivos · Sectores y plazas (P5) | `#ui` `#rbac` | QA — plaza ocupada solo ofrecía «Cambiar de plaza» | 07/11/2026 | 🟡 **En curso** | No requiere |
 | 438 | Dispositivos: cinco MINOR de la auditoría del PR #1053 (acciones de la plaza ocupada): lista de acciones con formulario en el servicio, helper único del enlace de egreso, tests de capacidades sobre el modal, «Sin edificio» con helper y `?plaza=` ocupada abre el menú | Dispositivos · Sectores y plazas (P5) | `#ui` `#rbac` | Auditoría del PR #1053 (Cambio 437) | 07/11/2026 | 🟡 **En curso** | No requiere |
+| 440 | Tablas en notebooks, PR 1 de 4: Usuarios y Roles con la columna de acciones fija (`nodo-col-acciones`) y el email que parte (`break-all`) | Usuarios y Roles · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -53134,5 +53135,60 @@ Revertir el PR; no hay datos que deshacer.
 ## Historial
 
 - **07/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 440 — Tablas en notebooks, PR 1 de 4: Usuarios y Roles
+
+🟡 **EN CURSO — 08/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Usuarios y Roles · listados · sistema de diseño (tablas) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — plan «tablas en notebooks» (en notebooks la columna de acciones queda fuera de pantalla) |
+| **Fecha del pedido** | 08/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | Backoffice: `users/templates/user/user_list.html`, `users/templates/rol/rol_list.html` |
+| **Migración** | No |
+
+## Pedido original
+
+En notebooks (1280–1366 px) las tablas de Usuarios y Roles esconden la columna de acciones detrás del scroll horizontal. El plan completo son 4 PRs; este es el PR 1 de 4: deja esas dos pantallas preparadas antes de tocar la regla global de ancho (PR 2), Becas (PR 3) y el resto de las listas (PR 4).
+
+## Alcance acordado
+
+**Entra:** `nodo-col-acciones` en el `th` y el `td` de acciones de Usuarios y de Roles, y `break-all` en la celda del email de Usuarios. **Queda afuera:** `responsive.css` y `nodo-tables.css` (PR 2), las demás listas (PR 3 y 4) y cualquier variante nueva de badge (PR 5 opcional del plan).
+
+## Decisiones tomadas
+
+1. Usuarios y Roles van primero porque con la regla global sola empeoran: medido en el plan, con `width: 100%` la fila de Usuarios pasa de 53 a 165 px y la de Roles de 53 a 115 px, y las dos siguen con scroll porque su ancho mínimo (1114 y 1309 px) no entra en el wrapper. Lo que las arregla no cambia nada visible hoy, así que entra antes.
+2. Roles: solo columna fija, sin variante nueva de badge (default del PM; el PR 5 opcional, badges de Capacidades que bajan de línea, queda afuera).
+3. Ninguna de las dos listas se reinyecta por AJAX (el filtro recarga la página), así que no se llama a `window.nodoTablas.barrer()`.
+4. Mientras rija `max-content` el email no parte: el `break-all` solo actúa cuando el PR 2 deje achicar la tabla.
+
+## Archivos
+
+`users/templates/user/user_list.html`, `users/templates/rol/rol_list.html`, `docs/internal/requerimientos.md`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+`manage.py check`, `design_audit --ratchet` (0 nuevos) y `--goldens` (0), `compile_templates --bloques` (0), `ruff` y `manage.py test users core.tests.test_nodo_ui_piezas` (813 tests, OK). Playwright contra una base con nombres y emails largos, a 1280, 1366 y 390 px: en Usuarios y Roles el último botón de acciones de cada fila queda dentro del rectángulo visible del wrapper, con la columna `sticky` y el marcador de scroll activo.
+
+## Pendientes / a definir
+
+- PR 2 (regla de ancho por breakpoint), PR 3 (Becas) y PR 4 (resto de las listas) del mismo plan.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **08/11/2026 — alta del cambio.**
 
 ---
