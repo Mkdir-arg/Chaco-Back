@@ -1002,8 +1002,9 @@ CAMPOS_CONTACTO_DEL_RESPONSABLE = ("responsable_nombre", "responsable_documento"
 class ResponsablesSelectMultiple(forms.SelectMultiple):
     """El buscador de responsables del alta: cada opción lleva el nombre y el teléfono de la persona.
 
-    El alta los muestra como «Datos de contacto» de la primera píldora y avisa si falta el teléfono,
-    que hace falta para enviar a validación. Documento y email no viajan a la página.
+    El alta los muestra como «Datos de contacto» de la primera píldora y avisa si falta el nombre o
+    el teléfono, que hacen falta para enviar a validación. ``data-persona`` es cómo se la nombra en
+    el aviso (la misma etiqueta del listado). Documento y email no viajan a la página.
     """
 
     def __init__(self, contactos, attrs=None):
@@ -1014,6 +1015,7 @@ class ResponsablesSelectMultiple(forms.SelectMultiple):
         opcion = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
         contacto = self.contactos.get(str(value))
         if contacto:
+            opcion["attrs"]["data-persona"] = contacto["persona"]
             opcion["attrs"]["data-nombre"] = contacto["responsable_nombre"]
             opcion["attrs"]["data-telefono"] = contacto["contacto_telefono"]
         return opcion
@@ -1123,7 +1125,7 @@ class DispositivoForm(forms.ModelForm):
         Desde el Cambio 450 es un buscador múltiple y reemplaza a «Responsable y contacto»: esos
         cuatro datos salen del primer responsable elegido (``datos_de_contacto``).
         """
-        from programas.services.equipo_dispositivo import datos_de_contacto, pares_persona_rol
+        from programas.services.equipo_dispositivo import datos_de_contacto, nombre_de_persona, pares_persona_rol
 
         pares = pares_persona_rol()
         self._pares_responsables = {par["valor"]: (par["usuario"], par["rol"]) for par in pares}
@@ -1134,7 +1136,10 @@ class DispositivoForm(forms.ModelForm):
             required=True,
             choices=[(par["valor"], par["etiqueta"]) for par in pares],
             widget=ResponsablesSelectMultiple(
-                contactos={par["valor"]: datos_de_contacto(par["usuario"]) for par in pares},
+                contactos={
+                    par["valor"]: {**datos_de_contacto(par["usuario"]), "persona": nombre_de_persona(par["usuario"])}
+                    for par in pares
+                },
                 attrs={
                     "class": INPUT_CLASS,
                     "data-buscador": "1",
@@ -1174,13 +1179,29 @@ class DispositivoForm(forms.ModelForm):
 
     @property
     def faltantes_responsable(self):
-        """Lo que el alta necesita de los responsables para enviar a validación: ``ninguno`` o ``telefono``."""
+        """Lo que el alta necesita del primer responsable para enviar a validación.
+
+        ``ninguno`` si no hay, y si lo hay, ``nombre`` y/o ``telefono`` cuando su perfil no trae uno
+        válido: son los dos datos de contacto que exige `enviar_a_validacion`.
+        """
         if "responsables" not in self.fields:
             return []
         contacto = self.contacto_de_alta
         if contacto is None:
             return ["ninguno"]
-        return [] if contacto["contacto_telefono"] else ["telefono"]
+        return [
+            clave
+            for clave, campo in (("nombre", "responsable_nombre"), ("telefono", "contacto_telefono"))
+            if not contacto[campo]
+        ]
+
+    @property
+    def persona_de_contacto(self):
+        """Cómo se nombra en el aviso a la persona de la que sale el contacto (aunque su nombre no valga)."""
+        from programas.services.equipo_dispositivo import nombre_de_persona
+
+        usuario = self.responsable_de_contacto
+        return nombre_de_persona(usuario) if usuario is not None else ""
 
     def save(self, commit=True):
         # Lo mismo que muestra el resumen: una sola definición de «la primera persona elegida».

@@ -15,7 +15,7 @@ from .settings import LOG_DIR, LOG_TO_FILES
 # la variable `ENVIRONMENT`, y el system check `core.W002` avisa si no la declararon.
 DEBUG = False
 
-# Cambio 450: el `LOGGING` se armó en `settings.py` con el `DEBUG` de la variable, antes de
+# Cambio 448: el `LOGGING` se armó en `settings.py` con el `DEBUG` de la variable, antes de
 # la línea de arriba. Con `DJANGO_DEBUG=True` mal puesto (testing de ECOM, 09-nov-2026) el
 # root y `django.template` quedaban en DEBUG y cada `VariableDoesNotExist` se registraba con
 # su traceback: el detalle de un dispositivo pasaba de 0,27 s a 3,7 s. Se rearma acá.

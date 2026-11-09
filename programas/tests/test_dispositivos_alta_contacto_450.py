@@ -79,6 +79,21 @@ class AltaContactoDelResponsableTests(BaseUI):
         self.client.post(url, self._datos(codigo="NUEVO-450B", responsables=[self.par_admin]))
         self.assertEqual(Dispositivo.objects.get(codigo="NUEVO-450B").contacto_telefono, "0362154111222")
 
+    def test_un_responsable_sin_nombre_valido_lo_pide_en_el_resumen(self):
+        """Usuario cuyo username es el DNI y sin nombre: el legajo no tendría «Responsable» y
+        «Enviar a validación» lo rechazaría, así que el resumen lo pide, nombrándolo por la etiqueta."""
+        self._entrar(self.admin)
+        sin_nombre = self._usuario("30111222", self.rol_ver)
+        Profile.objects.update_or_create(user=sin_nombre, defaults={"telefono": "3624111222"})
+        par = f"{sin_nombre.pk}:{self.rol_ver.pk}"
+        respuesta = self.client.post(reverse("dispositivos:crear"), {"codigo": "X", "responsables": [par]})
+        self.assertEqual(respuesta.context["form"].faltantes_responsable, ["nombre"])
+        self.assertContains(respuesta, 'data-persona="30111222"')
+        self.assertContains(
+            respuesta, "Nombre del responsable: cargalo en el perfil de <span data-nombre-responsable>30111222</span>"
+        )
+        self.assertContains(respuesta, "30111222 · 3624111222")
+
     def test_un_post_con_los_campos_viejos_no_los_pisa(self):
         self._entrar(self.admin)
         self.client.post(
