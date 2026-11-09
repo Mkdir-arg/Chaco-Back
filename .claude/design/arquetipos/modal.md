@@ -136,6 +136,8 @@ Al corregir (`input`/`change`) o reenviar, el handler limpia error y ARIA sin qu
   `data-ajax`, porque no muta) que elige el registro y reabre la pantalla con el modal del paso
   siguiente. Conserva la solapa y los filtros activos en `<input type="hidden">` armados en la
   vista, así el guardado vuelve a donde estaba. Evidencia: «Nuevo relevamiento» de P21.
+  Sin elección no envía: `novalidate` y un `@submit` de Alpine muestran «Elegí un edificio para
+  continuar.» en un `role="alert"` sobre la lista, en vez del aviso nativo del navegador (Cambio 447).
 - **Alta que elige el registro adentro**: el esqueleto de la golden tal cual (botón `<button type="button" @click>` y modal
   con `x-show`, formulario con la página, sin parámetro GET: el GET es solo para lo que depende de un registro). El campo
   que elige el registro es un `<select>`, o va fijo y deshabilitado (usa el inicial e ignora el POST) con un solo candidato,

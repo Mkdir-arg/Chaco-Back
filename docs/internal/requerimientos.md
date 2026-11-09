@@ -53654,7 +53654,7 @@ Revertir el PR: la tabla y sus filas siguen intactas, así que la vía vieja vue
 | **Solicitante** | PM — recorrido de QA de todos los roles en testing (`datanach.ecomdev.ar` y la app de campo) y en local, 09/11/2026 |
 | **Fecha del pedido** | 09/11/2026 |
 | **Issue / épica** | sin issue; sigue a las tasks de confirmación #1064–#1068 |
-| **Partes afectadas** | Backoffice: `programas/templates/programas/dispositivos/legajo/detail.html`, `static/custom/css/nodo-stat-card.css`, `static/custom/css/tailwind.css`, `programas/services/edificios.py`, `programas/templates/programas/dispositivos/relevamientos/list.html`, `.claude/design/componentes/stat_card.md`, `.claude/design/arquetipos/detalle.md`; tests `test_dispositivos_detalle_movil.py` (nuevo), `test_dispositivos_sector_edificio.py`, `test_dispositivos_relevamientos_listado.py` |
+| **Partes afectadas** | Backoffice: `programas/templates/programas/dispositivos/legajo/detail.html`, `static/custom/css/nodo-stat-card.css`, `static/custom/css/tailwind.css`, `programas/services/edificios.py`, `programas/templates/programas/dispositivos/relevamientos/list.html`, `.claude/design/componentes/stat_card.md`, `.claude/design/arquetipos/{detalle,modal}.md`; tests `test_dispositivos_detalle_movil.py` (nuevo), `test_dispositivos_sector_edificio.py`, `test_dispositivos_relevamientos_listado.py` |
 | **Migración** | No |
 
 ## Pedido original
