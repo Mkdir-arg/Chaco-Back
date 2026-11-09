@@ -20,3 +20,13 @@
     font-weight: 800;
     line-height: 1.1;
 }
+
+/* Celular (< 480 px): dos tarjetas por fila dejan ~40 px al rótulo junto a la caja de 52 px y
+   «Disponibles» queda tapada. La caja pasa arriba y el rótulo ocupa todo el ancho de la tarjeta. */
+@media (max-width: 479.98px) {
+    .nodo-stat-tablero > div:first-child {
+        flex-direction: column-reverse;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
