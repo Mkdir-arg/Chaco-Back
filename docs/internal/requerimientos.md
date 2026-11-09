@@ -569,7 +569,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 443 | Tablas en notebooks, PR 4 de 4 (cierre): `nodo-col-acciones` en el resto de las listas (Configuración, Legajos, Notificaciones, Equipo de Dispositivos), hover de un solo tono en Becas y la celda fija durante el arrastre | Configuración · Legajos · Notificaciones · Dispositivos (Equipo) · Becas · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 444 | Dispositivos: siete ajustes de Infraestructura posteriores al Cambio 439 (el badge del registro es siempre la criticidad, tope de 6 chips, sin chevron vacío, foco de marca, una consulta menos, `_RESPUESTA_BASE` pasa a ser `_respuesta_base()` (una base nueva por llamada, sin listas compartidas), URL de solapa al servicio) | Dispositivos · Infraestructura (P4/P19) | `#ui` | PM — decisión sobre la etiqueta del registro plegable y MINOR de los PR #1054 y #1055 | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 445 | Becas: «Opciones del catálogo» y «Depende de» en los modales de Requisitos generales (alta y edición), y el alta con catálogo nace inactiva | Becas · Requisitos generales | `#requisitos` `#ui` | PM — hueco del Cambio 418 | 08/11/2026 | 🟡 **En curso** | No requiere |
-| 446 | Dispositivos: arreglos del recorrido de QA de noviembre (detalle en el celular con solapas en una fila, Equipo legible e indicadores sin tapar; «sectores activos» bien escrito; «Nuevo relevamiento» valida en español) | Dispositivos · detalle (P4) · Infraestructura · Relevamientos | `#ui` | PM — recorrido de QA en testing y local del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
+| 446 | Dispositivos: se retira la vía vieja de alcance (`AsignacionDispositivo`, «Alcance por dispositivo» del ABM de Roles); el alcance es solo el Equipo y el personal del edificio pasa a ser el Equipo | Dispositivos · Usuarios (ABM de Roles) | `#rbac` | PM — decisión del 09/11/2026 (Pendiente 2 de los Cambios 410 y 411) | 09/11/2026 | 🟡 **En curso** | No requiere |
+| 447 | Dispositivos: arreglos del recorrido de QA de noviembre (detalle en el celular con solapas en una fila, Equipo legible e indicadores sin tapar; «sectores activos» bien escrito; «Nuevo relevamiento» valida en español) | Dispositivos · detalle (P4) · Infraestructura · Relevamientos | `#ui` | PM — recorrido de QA en testing y local del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51316,6 +51317,7 @@ Se pierde el Equipo cargado (personas, roles y responsables). Nadie pierde acces
 ## Historial
 
 - **02/11/2026 — alta del cambio.**
+- **09/11/2026 — se retira la vía vieja:** ver [Cambio 446](#cambio-446) (Pendiente 2 resuelto, sin migración de datos).
 ---
 
 # Cambio 411 — Dispositivos: solapa «Equipo» y responsables obligatorios en el alta (PR B del Cambio 410)
@@ -53580,7 +53582,68 @@ Revertir el PR; no hay datos que deshacer.
 
 ---
 
-# Cambio 446 — Arreglos del recorrido de QA de Dispositivos (noviembre)
+# Cambio 446 — Dispositivos: se retira la vía vieja de alcance (`AsignacionDispositivo`)
+
+🟡 **EN CURSO — 09/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (alcance fino, relevamiento edilicio) · Usuarios (ABM de Roles) |
+| **Etiquetas** | `#rbac` |
+| **Solicitante** | PM — decisión del 09/11/2026 |
+| **Fecha del pedido** | 09/11/2026 |
+| **Issue / épica** | sin issue; cierra el Pendiente 2 del [Cambio 410](#cambio-410) y el Pendiente 1 del [Cambio 411](#cambio-411) |
+| **Partes afectadas** | `programas/services/dispositivos.py`, `programas/services/inspecciones.py`, `programas/services/buscador_agentes.py`, `users/forms/roles.py`, `users/services/roles.py`, `users/templates/rol/rol_form.html`, `programas/admin.py`, `programas/models/__init__.py` (solo docstring), `legajos/views/dispositivos.py` (comentario), tests de `programas` y `users` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El Cambio 410 dejó la asignación de rol vieja (`AsignacionDispositivo`: rol → dispositivo, editada desde el ABM de Roles como «Alcance por dispositivo») como OR del Equipo «durante la transición», con su retiro previsto en un Cambio posterior (decisiones 5 a 7 y Pendiente 2). El PM decide sacarla.
+
+## Alcance acordado
+
+**Entra:** el alcance sale solo del Equipo; el personal del edificio (el agente de relevamiento debe ser externo) se lee del Equipo; el ABM de Roles pierde el campo «Alcance por dispositivo»; el admin de Django deja de registrar `AsignacionDispositivo`. **Queda afuera:** el modelo y la tabla (expand/contract: el `DeleteModel` va dos releases después, con su `# CONTRACT:`), y cualquier migración de datos.
+
+## Decisiones tomadas
+
+1. **Se retira la vía vieja y no se hace nada con los datos existentes** (PM, 09/11/2026): ni migración de datos ni copia al Equipo. Quien tenía acceso solo por la asignación vieja lo pierde; está aceptado.
+2. **Regla resultante**: admin del programa (`puede_configurar_dispositivos`) → todo; `dispositivo.ver_todos` → ve todos (solo para `CAP_VER`), no opera; si no, solo los dispositivos donde la persona es miembro vigente del Equipo (`MiembroEquipoDispositivo`) con un rol que tiene la capacidad. Responsable = miembro con `es_responsable`.
+3. **«Personal del edificio»** (PM, 09/11/2026): usuario con una membresía vigente del Equipo de cualquier dispositivo que ocupa el edificio, cualquiera sea el rol (también uno de solo consulta; no se pide capacidad). La vigencia es la de `q_membresia_vigente` (fila activa, rol activo del programa que la persona todavía tiene). Los territoriales que no están en ningún Equipo son generales: asignables en cualquier edificio.
+4. **ABM de Roles**: se saca el campo completo (`dispositivos_alcance`, el bloque `#dispositivos-alcance` y su JS, la sincronización del servicio). Las etiquetas propias de Dispositivos del árbol de capacidades se siguen decidiendo por «el programa del rol es DISPOSITIVOS» (`RolForm._programa_es_dispositivos`).
+5. **El modelo y la tabla `programas_asignaciondispositivo` quedan**, sin lectura ni escritura desde esta release. No hay migración: `makemigrations --check` con `DJANGO_SYNCDB_PROJECT_APPS=False` da «No changes».
+
+## Archivos
+
+Los de «Partes afectadas». Tests: unos veinte archivos de `programas/tests/` y `users/tests/test_roles_abm.py` pasan de crear `AsignacionDispositivo` a crear `MiembroEquipoDispositivo`; los dos tests de la transición del Cambio 410 y el del campo del ABM se reemplazan por los que prueban que ya no existen.
+
+## Base de datos
+
+Sin cambios. La tabla `programas_asignaciondispositivo` conserva sus filas; el `DeleteModel` va dos releases después de que nadie la lea (Cambio posterior, con `# CONTRACT:`).
+
+## Validación
+
+- Tests nuevos: una `AsignacionDispositivo` existente ya no da acceso (`puede_operar_dispositivo`, `dispositivos_visibles`, `dispositivos_en_alcance`, `dispositivos_operados`) ni suma a una membresía en otro dispositivo; el miembro del Equipo de una institución del edificio (con cualquier rol) no es asignable como agente de ese edificio y sí de otro; el territorial sin Equipo es asignable en cualquier edificio; una membresía dada de baja deja de ser personal; la asignación vieja tampoco hace personal; el formulario de Roles ya no tiene el campo ni el bloque.
+- Mutaciones (cada una deja rojo el test que la cubre): volver a leer `AsignacionDispositivo` en `_del_equipo`; no filtrar por vigencia en `_personal_de_edificios`; que el personal exija capacidad.
+
+## Puesta en marcha en el servidor
+
+Ninguna. Quien tenía acceso solo por la asignación vieja lo pierde (aceptado por el PM): si hace falta, se lo suma al Equipo desde la solapa «Equipo» del dispositivo.
+
+## Pendientes / a definir
+
+1. `DeleteModel` de `AsignacionDispositivo` dos releases después, con `# CONTRACT: dejó de leerse en la release del Cambio 446`.
+
+## Reversión
+
+Revertir el PR: la tabla y sus filas siguen intactas, así que la vía vieja vuelve a valer tal como estaba.
+
+## Historial
+
+- **09/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 447 — Arreglos del recorrido de QA de Dispositivos (noviembre)
 
 🟡 **EN CURSO — 09/11/2026**
 

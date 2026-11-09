@@ -28,7 +28,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Edificio, InspeccionEdificio
+from programas.models import Edificio, InspeccionEdificio, MiembroEquipoDispositivo
 from programas.services import inspecciones as servicio
 from programas.services.inspecciones import Situacion, filtrar_por_situacion, resumen_listado, situacion_de
 from programas.tests.test_dispositivos_inspecciones import TODAS_DE_DISPOSITIVOS, BaseInspecciones
@@ -76,6 +76,8 @@ class PrivacidadAsignacionTests(BaseListado):
         self.lector = self._usuario("coord_a", capacidades, [self.parador])
         lector_b = self._usuario("lector_b", [c for c in capacidades if c != "inspeccion.asignar"], [self.cis])
         self.lector.groups.add(*lector_b.groups.all())
+        # El alcance es por persona (Equipo): coord_a también integra el Equipo del CIS con el rol de lector_b.
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.cis, usuario=self.lector, rol=lector_b.groups.get())
         self.agente.first_name = "Agente exclusivo B"
         self.agente.save(update_fields=["first_name"])
         self.otro_agente.first_name = "Agente visible A"
@@ -194,6 +196,7 @@ class ListadoTests(BaseListado):
         mixto = self._usuario("mixto", ("inspeccion.asignar",), [self.parador])
         rol_ver = self._usuario("mixto_ver", ("dispositivo.ver",), [self.cis]).groups.first()
         mixto.groups.add(rol_ver)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.cis, usuario=mixto, rol=rol_ver)
         del_cis = self._ajeno()
         del_predio = self._crear()
 
@@ -607,7 +610,9 @@ class ReasignarYCancelarTests(BaseListado):
 
     def test_visible_sin_alcance_es_403_del_servicio(self):
         mixto = self._usuario("mixto", ("inspeccion.asignar",), [self.cis])
-        mixto.groups.add(self._usuario("mixto_ver", ("dispositivo.ver",), [self.geriatrico]).groups.first())
+        rol_ver = self._usuario("mixto_ver", ("dispositivo.ver",), [self.geriatrico]).groups.first()
+        mixto.groups.add(rol_ver)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.geriatrico, usuario=mixto, rol=rol_ver)
         url = self._url("relevamiento_cancelar", self.inspeccion.pk)
         respuesta = self._cliente(self._fresco(mixto)).post(url, {"motivo": "Duplicado"}, **AJAX)
         self.assertEqual(respuesta.status_code, 403)
@@ -889,6 +894,7 @@ class TarjetasMovilTests(BaseListado):
         mixto = self._usuario("mixto", ("inspeccion.asignar",), [self.parador])
         rol_ver = self._usuario("mixto_ver", ("dispositivo.ver",), [self.cis]).groups.first()
         mixto.groups.add(rol_ver)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.cis, usuario=mixto, rol=rol_ver)
         servicio.crear_inspeccion(
             self._fresco(self._usuario("admin", TODAS_DE_DISPOSITIVOS)),
             edificio=self.edificio_cis,

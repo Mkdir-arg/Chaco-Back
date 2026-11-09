@@ -73,7 +73,7 @@ def buscar_agentes_de_relevamiento(edificio, texto):
     candidatos = candidatos[:TOPE_RESULTADOS]
     ids = [usuario.pk for usuario in candidatos]
     asignables = set(agentes_asignables(edificio).filter(pk__in=ids).values_list("pk", flat=True))
-    personal = set(personal_del_edificio(edificio).filter(rol__user__in=ids).values_list("rol__user", flat=True))
+    personal = set(personal_del_edificio(edificio).filter(usuario__in=ids).values_list("usuario", flat=True))
 
     filas = []
     for usuario in candidatos:

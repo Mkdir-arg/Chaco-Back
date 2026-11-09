@@ -26,8 +26,9 @@ Lo que define el Ministerio y acá es un default
 La escala de criticidad y los estados viven en el modelo como `TextChoices`. Que el agente
 sea **externo a la institución** relevada es :data:`AGENTE_DEBE_SER_EXTERNO`: el mockup
 (P21) lo dice —«nunca se asigna al personal de la institución relevada»— y se aplica, pero
-apagarlo es cambiar esa constante. «Personal» es tener un rol activo asignado
-(`AsignacionDispositivo`) a alguno de los dispositivos que ocupan el edificio.
+apagarlo es cambiar esa constante. «Personal» es tener una membresía vigente del Equipo
+(`MiembroEquipoDispositivo`), con cualquier rol, en alguno de los dispositivos que ocupan el
+edificio.
 
 La app de campo (tasks 38 y 39)
 -------------------------------
@@ -67,10 +68,10 @@ from core.archivos import anotar_archivo_escrito, archivos_atomicos
 from core.db import q_uuid_en_texto
 from programas.models import (
     AdjuntoRespuestaRelevamiento,
-    AsignacionDispositivo,
     Edificio,
     FotoInspeccion,
     InspeccionEdificio,
+    MiembroEquipoDispositivo,
     TrazaInspeccion,
 )
 from programas.services.dispositivos import (
@@ -80,6 +81,7 @@ from programas.services.dispositivos import (
     programa_dispositivos,
     puede_configurar_dispositivos,
     puede_en_programa_dispositivos,
+    q_membresia_vigente,
 )
 from programas.services.formularios_tipo import diseno_para_asignar
 from programas.services.respuestas_dispositivo import (
@@ -237,22 +239,26 @@ def inspecciones_para_envio(user):
 
 
 def _personal_de_edificios(edificio_ids):
-    """Asignaciones de personal (rol activo, asignación activa) a instituciones de esos edificios.
+    """Membresías vigentes del Equipo de los dispositivos que ocupan esos edificios.
 
     Es **la** definición de «personal del edificio»: la usan el selector de un edificio
     (:func:`personal_del_edificio`), el de varios (:func:`agentes_asignables_para`) y la validación
-    del servicio. Un dispositivo en dos de los edificios aparece una vez por cada uno.
+    del servicio. Cuenta cualquier rol del Equipo (también uno de solo consulta); no se pide
+    capacidad. Un dispositivo en dos de los edificios aparece una vez por cada uno.
     """
 
-    return AsignacionDispositivo.objects.filter(
-        dispositivo__edificios__in=edificio_ids, activo=True, rol__meta__activo=True
+    programa = programa_dispositivos()
+    if programa is None:
+        return MiembroEquipoDispositivo.objects.none()
+    return MiembroEquipoDispositivo.objects.filter(
+        q_membresia_vigente(programa), dispositivo__edificios__in=edificio_ids
     )
 
 
 def personal_del_edificio(edificio):
-    """Ids de usuario con un rol activo asignado a alguna institución del edificio."""
+    """Ids de usuario con una membresía vigente del Equipo de alguna institución del edificio."""
 
-    return _personal_de_edificios([edificio.pk]).values("rol__user")
+    return _personal_de_edificios([edificio.pk]).values("usuario")
 
 
 def _candidatos_a_relevar():
@@ -295,7 +301,7 @@ def agentes_asignables_para(edificios):
     ids = [edificio.pk for edificio in edificios]
     candidatos = _candidatos_a_relevar()
     if AGENTE_DEBE_SER_EXTERNO and ids:
-        pares = _personal_de_edificios(ids).values_list("dispositivo__edificios", "rol__user")
+        pares = _personal_de_edificios(ids).values_list("dispositivo__edificios", "usuario")
         personal = {pk: set() for pk in ids}
         for edificio_id, usuario_id in pares:
             personal[edificio_id].add(usuario_id)
@@ -309,7 +315,7 @@ def _validar_agente(agente, edificio):
         raise ValidationError({"asignado_a": "Elegí un agente activo."})
     if not puede_en_programa_dispositivos(agente, CAP_RELEVAR):
         raise ValidationError({"asignado_a": "El agente elegido no puede relevar en el Programa Dispositivos."})
-    if AGENTE_DEBE_SER_EXTERNO and personal_del_edificio(edificio).filter(rol__user=agente).exists():
+    if AGENTE_DEBE_SER_EXTERNO and personal_del_edificio(edificio).filter(usuario=agente).exists():
         raise ValidationError(
             {"asignado_a": "El relevamiento no se asigna al personal de una institución que ocupa el edificio."}
         )

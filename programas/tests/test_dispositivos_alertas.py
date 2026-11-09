@@ -31,10 +31,10 @@ from core import rbac
 from core.services import vencimientos as registro
 from core.services.vencimientos import Aviso, ReglaAviso, avisos, registrar_aviso
 from programas.models import (
-    AsignacionDispositivo,
     Dispositivo,
     Edificio,
     InspeccionEdificio,
+    MiembroEquipoDispositivo,
     Plaza,
     ReservaPlaza,
     Sector,
@@ -95,10 +95,10 @@ class BaseAlertas(BaseEstadias):
         rol = Group.objects.create(name=f"Rol {nombre}")
         RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True)
         rol.permissions.add(*[_permiso(codigo) for codigo in capacidades])
-        for dispositivo in dispositivos:
-            AsignacionDispositivo.objects.create(dispositivo=dispositivo, rol=rol, activo=True)
         usuario = User.objects.create_user(username=nombre, password="x", first_name=nombre.capitalize())
         usuario.groups.add(rol)
+        for dispositivo in dispositivos:
+            MiembroEquipoDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, rol=rol)
         return User.objects.get(pk=usuario.pk)
 
     def _turno(self, dispositivo=None):

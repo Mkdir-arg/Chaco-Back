@@ -42,10 +42,10 @@ from core import rbac
 from legajos.models import Ciudadano
 from programas.models import (
     AdjuntoBitacora,
-    AsignacionDispositivo,
     Dispositivo,
     EntradaBitacora,
     Estadia,
+    MiembroEquipoDispositivo,
     Plaza,
     Programa,
     Sector,
@@ -149,11 +149,11 @@ class BasePantalla(TestCase):
         rol = Group.objects.create(name=nombre)
         RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True)
         rol.permissions.add(*[_permiso(codigo) for codigo in capacidades])
-        AsignacionDispositivo.objects.create(dispositivo=dispositivo, rol=rol, activo=True)
         usuario = User.objects.create_user(
             username=nombre.replace(" ", "_").lower(), password="x", first_name="Lucía", last_name="Méndez"
         )
         usuario.groups.add(rol)
+        MiembroEquipoDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, rol=rol)
         return User.objects.get(pk=usuario.pk)
 
     def _ingresar(self, persona, plaza, momento):
@@ -1261,8 +1261,8 @@ class AccionPorEntradaTests(BasePantalla):
         rol_lectura = Group.objects.create(name="Lectura CIS sin bitacora")
         RolMeta.objects.create(grupo=rol_lectura, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa)
         rol_lectura.permissions.add(_permiso("dispositivo.ver"))
-        AsignacionDispositivo.objects.create(dispositivo=self.cis, rol=rol_lectura)
         usuario.groups.add(rol_lectura)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.cis, usuario=usuario, rol=rol_lectura)
         respuesta = self._get(User.objects.get(pk=usuario.pk))
         self.assertEqual(respuesta.status_code, 200)
         self.assertNotContains(respuesta, ENLACE_CORREGIR)
