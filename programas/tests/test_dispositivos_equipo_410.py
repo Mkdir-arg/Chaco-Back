@@ -28,6 +28,7 @@ from programas.models import (
 from programas.services import equipo_dispositivo as equipo
 from programas.services.dispositivos import (
     dispositivos_en_alcance,
+    dispositivos_operados,
     dispositivos_visibles,
     puede_operar_dispositivo,
 )
@@ -185,24 +186,24 @@ class AlcanceDelEquipoTests(BaseEquipo):
         usuario.groups.remove(rol)
         self.assertFalse(puede_operar_dispositivo(self._fresco(usuario), self.disp_a, "dispositivo.ver"))
 
-    def test_la_asignacion_de_rol_vieja_sigue_valiendo_en_la_transicion(self):
-        rol = self._rol("Viejo", ["dispositivo.ver"])
+    def test_la_asignacion_de_rol_vieja_ya_no_da_acceso(self):
+        rol = self._rol("Viejo", ["dispositivo.ver", "dispositivo.admitir"])
         usuario = self._usuario("viejo", rol)
         AsignacionDispositivo.objects.create(dispositivo=self.disp_a, rol=rol, activo=True)
         usuario = self._fresco(usuario)
-        self.assertTrue(puede_operar_dispositivo(usuario, self.disp_a, "dispositivo.ver"))
-        self.assertEqual(set(dispositivos_visibles(usuario)), {self.disp_a})
-
-    def test_destildar_la_asignacion_vieja_revoca_el_acceso(self):
-        rol = self._rol("Viejo", ["dispositivo.ver"])
-        usuario = self._usuario("viejo", rol)
-        asignacion = AsignacionDispositivo.objects.create(dispositivo=self.disp_a, rol=rol, activo=True)
-        self.assertTrue(puede_operar_dispositivo(self._fresco(usuario), self.disp_a, "dispositivo.ver"))
-        asignacion.activo = False
-        asignacion.save()
-        usuario = self._fresco(usuario)
         self.assertFalse(puede_operar_dispositivo(usuario, self.disp_a, "dispositivo.ver"))
         self.assertFalse(dispositivos_visibles(usuario).exists())
+        self.assertFalse(dispositivos_en_alcance(usuario, "dispositivo.admitir").exists())
+        self.assertFalse(dispositivos_operados(usuario, "dispositivo.ver").exists())
+
+    def test_la_asignacion_vieja_no_suma_a_la_membresia_en_otro_dispositivo(self):
+        rol = self._rol("Mixto", ["dispositivo.ver"])
+        usuario = self._usuario("mixto", rol)
+        self._miembro(self.disp_a, usuario, rol)
+        AsignacionDispositivo.objects.create(dispositivo=self.disp_b, rol=rol, activo=True)
+        usuario = self._fresco(usuario)
+        self.assertEqual(set(dispositivos_visibles(usuario)), {self.disp_a})
+        self.assertFalse(puede_operar_dispositivo(usuario, self.disp_b, "dispositivo.ver"))
 
 
 class ModeloTests(BaseEquipo):

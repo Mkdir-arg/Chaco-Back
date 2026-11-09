@@ -234,7 +234,7 @@ class RolCategoriaFormTests(TestCase):
         self.assertEqual(group.meta.categoria, rbac.CATEGORIA_PROGRAMA)
         self.assertEqual(group.meta.programa_id, self.becas.pk)
 
-    def test_alta_rol_dispositivos_guarda_su_alcance_fino(self):
+    def test_alta_rol_dispositivos_ignora_el_alcance_por_dispositivo_que_ya_no_existe(self):
         dispositivos = Programa.objects.create(
             codigo="DISPOSITIVOS",
             nombre="Dispositivos",
@@ -252,9 +252,11 @@ class RolCategoriaFormTests(TestCase):
             }
         )
 
+        self.assertNotIn("dispositivos_alcance", form.fields)
         self.assertTrue(form.is_valid(), form.errors)
+        self.assertNotIn("dispositivos_alcance", form.cleaned_data)
         group = RolesAdminService.crear(form)
-        self.assertTrue(AsignacionDispositivo.objects.filter(rol=group, dispositivo=dispositivo, activo=True).exists())
+        self.assertFalse(AsignacionDispositivo.objects.filter(rol=group).exists())
 
     def test_alta_rol_global_sin_programa(self):  # TC-64-02
         form = RolForm(
@@ -470,7 +472,7 @@ class RolAlcanceTests(TestCase):
         self.assertNotIn("merenderos", modulos)
         self.assertIn("dispositivo.validar", codigos)
 
-    def test_edicion_rol_dispositivos_muestra_selector_de_alcance(self):
+    def test_edicion_rol_dispositivos_ya_no_muestra_selector_de_alcance(self):
         dispositivos = Programa.objects.create(
             codigo="DISPOSITIVOS",
             nombre="Dispositivos",
@@ -484,16 +486,18 @@ class RolAlcanceTests(TestCase):
             activo=True,
         )
         tipo = TipoDispositivo.objects.create(codigo="UI-ALC", nombre="UI alcance")
-        dispositivo = Dispositivo.objects.create(codigo="UI-ALC-01", nombre="Dispositivo UI", tipo=tipo)
-        AsignacionDispositivo.objects.create(rol=rol, dispositivo=dispositivo)
+        Dispositivo.objects.create(codigo="UI-ALC-01", nombre="Dispositivo UI", tipo=tipo)
 
         self.client.force_login(self.su)
         response = self.client.get(reverse("users:rol_editar", args=[rol.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context["form"].muestra_alcance_dispositivos)
-        self.assertContains(response, 'id="dispositivos-alcance" class="md:col-span-2"')
-        self.assertContains(response, "Dispositivo UI")
+        self.assertNotIn("dispositivos_alcance", response.context["form"].fields)
+        self.assertNotContains(response, "dispositivos-alcance")
+        self.assertNotContains(response, "Alcance por dispositivo")
+        self.assertNotContains(response, "Dispositivo UI")
+        # Las etiquetas propias de Dispositivos en el árbol de capacidades se conservan.
+        self.assertEqual(response.context["form"]._programa_etiquetas(), rbac.CODIGO_PROGRAMA_DISPOSITIVOS)
 
     def test_form_admin_programa_incluye_categoria_programa(self):
         form = RolForm(operador=self.admin_becas)

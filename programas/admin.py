@@ -31,7 +31,6 @@ from django.utils.html import format_html
 
 from .models import (
     AsignacionCoordinador,
-    AsignacionDispositivo,
     AsignacionReferente,
     AsignacionTerritorial,
     Convocatoria,
@@ -336,13 +335,6 @@ class AsignacionCoordinadorAdmin(admin.ModelAdmin):
 class AsignacionReferenteAdmin(admin.ModelAdmin):
     list_display = ("referente", "coordinador", "fecha_asignacion")
     search_fields = ("referente__username", "coordinador__username")
-
-
-@admin.register(AsignacionDispositivo)
-class AsignacionDispositivoAdmin(admin.ModelAdmin):
-    list_display = ("rol", "dispositivo", "activo", "creado")
-    list_filter = ("activo", "dispositivo__tipo")
-    search_fields = ("rol__name", "dispositivo__codigo", "dispositivo__nombre")
 
 
 @admin.register(MiembroEquipoDispositivo)
