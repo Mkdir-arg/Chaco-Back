@@ -177,11 +177,15 @@ vista: el selector de agentes depende del edificio y el menú de fila solo naveg
     <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
          role="dialog" aria-modal="true" aria-labelledby="modal-nuevo-titulo">
       {% include "programas/becas/_modal_header.html" with titulo="Nuevo relevamiento" titulo_id="modal-nuevo-titulo" subtitulo="Elegí el edificio; después, el agente que lo va a relevar." icono="fa-clipboard-list" cerrar="modalNuevo=false" %}
-      <form method="get" action="{% url 'dispositivos:relevamientos' %}" class="flex flex-col flex-1 min-h-0">
+      {# novalidate: el aviso nativo sale en el idioma del navegador; el mensaje lo dice este formulario #}
+      <form method="get" action="{% url 'dispositivos:relevamientos' %}" novalidate x-data="{ falta: false }"
+            @submit="if (!$el.elements.asignar.value) { $event.preventDefault(); falta = true; $el.elements.asignar.focus(); }"
+            class="flex flex-col flex-1 min-h-0">
         {# La solapa y los filtros activos viajan al paso 2 y de ahí al «volver» del guardado #}
         {% for nombre, valor in ocultos_nuevo %}<input type="hidden" name="{{ nombre }}" value="{{ valor }}">{% endfor %}
         <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
-          <div>
+          <div @change="falta = false">
+            <p id="elegir-edificio-error" class="mb-2 text-xs text-fg-danger" role="alert" x-show="falta" x-cloak>Elegí un edificio para continuar.</p>
             <label for="{{ form_elegir.asignar.id_for_label }}" class="block text-sm font-medium text-heading mb-1">Edificio <span class="text-fg-danger">*</span></label>
             {{ form_elegir.asignar }}
             {% if form_elegir.asignar.help_text %}<p class="mt-1 text-xs text-body-subtle">{{ form_elegir.asignar.help_text }}</p>{% endif %}

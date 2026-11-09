@@ -569,7 +569,9 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 443 | Tablas en notebooks, PR 4 de 4 (cierre): `nodo-col-acciones` en el resto de las listas (Configuración, Legajos, Notificaciones, Equipo de Dispositivos), hover de un solo tono en Becas y la celda fija durante el arrastre | Configuración · Legajos · Notificaciones · Dispositivos (Equipo) · Becas · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 444 | Dispositivos: siete ajustes de Infraestructura posteriores al Cambio 439 (el badge del registro es siempre la criticidad, tope de 6 chips, sin chevron vacío, foco de marca, una consulta menos, `_RESPUESTA_BASE` pasa a ser `_respuesta_base()` (una base nueva por llamada, sin listas compartidas), URL de solapa al servicio) | Dispositivos · Infraestructura (P4/P19) | `#ui` | PM — decisión sobre la etiqueta del registro plegable y MINOR de los PR #1054 y #1055 | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 445 | Becas: «Opciones del catálogo» y «Depende de» en los modales de Requisitos generales (alta y edición), y el alta con catálogo nace inactiva | Becas · Requisitos generales | `#requisitos` `#ui` | PM — hueco del Cambio 418 | 08/11/2026 | 🟡 **En curso** | No requiere |
-| 446 | El módulo endurecido rearma el `LOGGING` con `debug=False`: `DJANGO_DEBUG=True` mal puesto dejaba los logs en DEBUG y hacía Dispositivos ~15 veces más lento en testing | Transversal · configuración (Dispositivos) | `#performance` `#infra` | PM — «anda medio lento todo Dispositivos en test» | 09/11/2026 | 🟡 **En curso** | No requiere |
+| 446 | Dispositivos: se retira la vía vieja de alcance (`AsignacionDispositivo`, «Alcance por dispositivo» del ABM de Roles); el alcance es solo el Equipo y el personal del edificio pasa a ser el Equipo | Dispositivos · Usuarios (ABM de Roles) | `#rbac` | PM — decisión del 09/11/2026 (Pendiente 2 de los Cambios 410 y 411) | 09/11/2026 | 🟡 **En curso** | No requiere |
+| 447 | Dispositivos: arreglos del recorrido de QA de noviembre (detalle en el celular con solapas en una fila, Equipo legible e indicadores sin tapar; «sectores activos» bien escrito; «Nuevo relevamiento» valida en español) | Dispositivos · detalle (P4) · Infraestructura · Relevamientos | `#ui` | PM — recorrido de QA en testing y local del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
+| 448 | El módulo endurecido rearma el `LOGGING` con `debug=False`: `DJANGO_DEBUG=True` mal puesto dejaba los logs en DEBUG y hacía Dispositivos ~15 veces más lento en testing | Transversal · configuración (Dispositivos) | `#performance` `#infra` | PM — «anda medio lento todo Dispositivos en test» | 09/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -51316,6 +51318,7 @@ Se pierde el Equipo cargado (personas, roles y responsables). Nadie pierde acces
 ## Historial
 
 - **02/11/2026 — alta del cambio.**
+- **09/11/2026 — se retira la vía vieja:** ver [Cambio 446](#cambio-446) (Pendiente 2 resuelto, sin migración de datos).
 ---
 
 # Cambio 411 — Dispositivos: solapa «Equipo» y responsables obligatorios en el alta (PR B del Cambio 410)
@@ -53580,7 +53583,134 @@ Revertir el PR; no hay datos que deshacer.
 
 ---
 
-# Cambio 446 — El módulo endurecido rearma el LOGGING sin DEBUG
+# Cambio 446 — Dispositivos: se retira la vía vieja de alcance (`AsignacionDispositivo`)
+
+🟡 **EN CURSO — 09/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos (alcance fino, relevamiento edilicio) · Usuarios (ABM de Roles) |
+| **Etiquetas** | `#rbac` |
+| **Solicitante** | PM — decisión del 09/11/2026 |
+| **Fecha del pedido** | 09/11/2026 |
+| **Issue / épica** | sin issue; cierra el Pendiente 2 del [Cambio 410](#cambio-410) y el Pendiente 1 del [Cambio 411](#cambio-411) |
+| **Partes afectadas** | `programas/services/dispositivos.py`, `programas/services/inspecciones.py`, `programas/services/buscador_agentes.py`, `users/forms/roles.py`, `users/services/roles.py`, `users/templates/rol/rol_form.html`, `programas/admin.py`, `programas/models/__init__.py` (solo docstring), `legajos/views/dispositivos.py` (comentario), tests de `programas` y `users` |
+| **Migración** | No requiere |
+
+## Pedido original
+
+El Cambio 410 dejó la asignación de rol vieja (`AsignacionDispositivo`: rol → dispositivo, editada desde el ABM de Roles como «Alcance por dispositivo») como OR del Equipo «durante la transición», con su retiro previsto en un Cambio posterior (decisiones 5 a 7 y Pendiente 2). El PM decide sacarla.
+
+## Alcance acordado
+
+**Entra:** el alcance sale solo del Equipo; el personal del edificio (el agente de relevamiento debe ser externo) se lee del Equipo; el ABM de Roles pierde el campo «Alcance por dispositivo»; el admin de Django deja de registrar `AsignacionDispositivo`. **Queda afuera:** el modelo y la tabla (expand/contract: el `DeleteModel` va dos releases después, con su `# CONTRACT:`), y cualquier migración de datos.
+
+## Decisiones tomadas
+
+1. **Se retira la vía vieja y no se hace nada con los datos existentes** (PM, 09/11/2026): ni migración de datos ni copia al Equipo. Quien tenía acceso solo por la asignación vieja lo pierde; está aceptado.
+2. **Regla resultante**: admin del programa (`puede_configurar_dispositivos`) → todo; `dispositivo.ver_todos` → ve todos (solo para `CAP_VER`), no opera; si no, solo los dispositivos donde la persona es miembro vigente del Equipo (`MiembroEquipoDispositivo`) con un rol que tiene la capacidad. Responsable = miembro con `es_responsable`.
+3. **«Personal del edificio»** (PM, 09/11/2026): usuario con una membresía vigente del Equipo de cualquier dispositivo que ocupa el edificio, cualquiera sea el rol (también uno de solo consulta; no se pide capacidad). La vigencia es la de `q_membresia_vigente` (fila activa, rol activo del programa que la persona todavía tiene). Los territoriales que no están en ningún Equipo son generales: asignables en cualquier edificio.
+4. **ABM de Roles**: se saca el campo completo (`dispositivos_alcance`, el bloque `#dispositivos-alcance` y su JS, la sincronización del servicio). Las etiquetas propias de Dispositivos del árbol de capacidades se siguen decidiendo por «el programa del rol es DISPOSITIVOS» (`RolForm._programa_es_dispositivos`).
+5. **El modelo y la tabla `programas_asignaciondispositivo` quedan**, sin lectura ni escritura desde esta release. No hay migración: `makemigrations --check` con `DJANGO_SYNCDB_PROJECT_APPS=False` da «No changes».
+
+## Archivos
+
+Los de «Partes afectadas». Tests: unos veinte archivos de `programas/tests/` y `users/tests/test_roles_abm.py` pasan de crear `AsignacionDispositivo` a crear `MiembroEquipoDispositivo`; los dos tests de la transición del Cambio 410 y el del campo del ABM se reemplazan por los que prueban que ya no existen.
+
+## Base de datos
+
+Sin cambios. La tabla `programas_asignaciondispositivo` conserva sus filas; el `DeleteModel` va dos releases después de que nadie la lea (Cambio posterior, con `# CONTRACT:`).
+
+## Validación
+
+- Tests nuevos: una `AsignacionDispositivo` existente ya no da acceso (`puede_operar_dispositivo`, `dispositivos_visibles`, `dispositivos_en_alcance`, `dispositivos_operados`) ni suma a una membresía en otro dispositivo; el miembro del Equipo de una institución del edificio (con cualquier rol) no es asignable como agente de ese edificio y sí de otro; el territorial sin Equipo es asignable en cualquier edificio; una membresía dada de baja deja de ser personal; la asignación vieja tampoco hace personal; el formulario de Roles ya no tiene el campo ni el bloque.
+- Mutaciones (cada una deja rojo el test que la cubre): volver a leer `AsignacionDispositivo` en `_del_equipo`; no filtrar por vigencia en `_personal_de_edificios`; que el personal exija capacidad.
+
+## Puesta en marcha en el servidor
+
+Ninguna. Quien tenía acceso solo por la asignación vieja lo pierde (aceptado por el PM): si hace falta, se lo suma al Equipo desde la solapa «Equipo» del dispositivo.
+
+## Pendientes / a definir
+
+1. `DeleteModel` de `AsignacionDispositivo` dos releases después, con `# CONTRACT: dejó de leerse en la release del Cambio 446`.
+
+## Reversión
+
+Revertir el PR: la tabla y sus filas siguen intactas, así que la vía vieja vuelve a valer tal como estaba.
+
+## Historial
+
+- **09/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 447 — Arreglos del recorrido de QA de Dispositivos (noviembre)
+
+🟡 **EN CURSO — 09/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle (P4), Infraestructura, Relevamientos |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — recorrido de QA de todos los roles en testing (`datanach.ecomdev.ar` y la app de campo) y en local, 09/11/2026 |
+| **Fecha del pedido** | 09/11/2026 |
+| **Issue / épica** | sin issue; sigue a las tasks de confirmación #1064–#1068 |
+| **Partes afectadas** | Backoffice: `programas/templates/programas/dispositivos/legajo/detail.html`, `static/custom/css/nodo-stat-card.css`, `static/custom/css/tailwind.css`, `programas/services/edificios.py`, `programas/templates/programas/dispositivos/relevamientos/list.html`, `.claude/design/componentes/stat_card.md`, `.claude/design/arquetipos/{detalle,modal}.md`; tests `test_dispositivos_detalle_movil.py` (nuevo), `test_dispositivos_sector_edificio.py`, `test_dispositivos_relevamientos_listado.py` |
+| **Migración** | No |
+
+## Pedido original
+
+«Arreglar todo en un solo PR», sobre los hallazgos de los dos recorridos de QA de Dispositivos (informe de testing: 3 Media y 7 Baja; informe local: 2 Media y 4 Baja). Se repartió en tres carriles en paralelo (T1 detalle en el celular, T2 mensajes y validaciones, T3 filtro y legajo).
+
+## Alcance acordado
+
+**Entra:** (1) las solapas del detalle a 390 px se superponían: ahora van en una fila con scroll; (2) el Equipo a 390 px cortaba el Rol y escondía el Responsable; (3) los rótulos de los indicadores operativos quedaban tapados por el ícono; (4) «sectores activoes» al desvincular un edificio; (5) «Nuevo relevamiento» sin edificio mostraba la validación del navegador en inglés.
+**Queda afuera:** la app de campo (Chaco-mobile: reasignar con la app abierta pierde lo cargado sin decir por qué, el falso «No tenés relevamientos asignados», `sw.js`), que va en su repo; la clave provisoria solo por correo (contradice los Cambios 37 y 181: decide el PM); la búsqueda por texto en Instituciones (no existe: funcionalidad nueva, propuesta al PM); y el aviso genérico «Revisá los datos del formulario» junto al error del campo (ver decisión 4).
+
+## Decisiones tomadas
+
+1. **Solapas:** los seis `role="tab"` del detalle no tenían `shrink-0`, que la ficha `tabs.md` ya exigía; el Cambio 431 dejó la fila con scroll pero las solapas se comprimían. Llevan `shrink-0 whitespace-nowrap`, y `px-3 gap-1` para que a 1366 px la barra siga entrando sin scroll (`gap-1.5` no estaba en el build).
+2. **Equipo bajo `lg`:** la tabla ya tenía `nodo-col-acciones`, pero mide ~810 px y la columna fija tapaba el resto. Rol (con «Rol no vigente») y el badge Responsable se apilan bajo el nombre (`lg:hidden`) y sus columnas pasan a `hidden lg:table-cell`. Desde `lg` no cambia nada.
+3. **Indicadores:** en `variante="tablero"`, bajo 480 px la caja del ícono va encima del rótulo (`column-reverse` en `nodo-stat-card.css`). `_stat_card.html` no cambia; a ≥480 px el render es idéntico. Alcanza también a las otras pantallas con `variante="tablero"`, solo bajo 480 px.
+4. **El aviso genérico se queda.** El QA marcó que «Revisá los datos del formulario» aparece junto al mensaje del campo (nombre de sector repetido, «No hay cambios para corregir», reservar con un DNI sin persona). Es lo que decidió el Cambio 96.11 («cada error va bajo su campo, más un único aviso de resumen») para `mostrarErrores` de `becas/_ajax_js.html`, que comparten 17 pantallas. El carril T2 lo había cambiado; el juez lo sacó del PR. Si el PM quiere un solo mensaje, el cambio está hecho en la rama `fix/qa-dispositivos-nov-t2` (commit `72faa71e`).
+5. **No eran defectos:** reservar o prestar con un DNI sin persona ya devuelve el mensaje específico bajo el campo (`forms_dispositivos.py`); reasignar un relevamiento sí deja el aviso, que se ve al cargar la página destino (la captura del QA era una página a medio cargar; se agregó un test que lo fija); el legajo sin `ciudadano.ver` redirige a Inicio **con** el toast «No tiene permisos…», que es la convención de `CapacidadRequeridaMixin` y `@requiere` (Cambio 122, ~60 vistas); y el enlace «Ver legajo» ya se oculta sin `ciudadano.ver` en todo Dispositivos.
+6. «sector(es) activo(s)» usaba un solo plural para las dos palabras: ahora cada una lleva el suyo.
+7. «Nuevo relevamiento» (el formulario GET del paso uno) lleva `novalidate` y valida con Alpine: «Elegí un edificio para continuar.» en un `role="alert"`.
+
+## Archivos
+
+Los de «Partes afectadas».
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `test_dispositivos_detalle_movil.py` (6 tests: `shrink-0` y `whitespace-nowrap` en las solapas, barra con `overflow-x-auto`, clases presentes en el build, Equipo apilado y columnas ocultas bajo `lg`, bloque CSS bajo 480 px) y tests nuevos de plural, `novalidate` del paso uno y aviso de reasignar.
+- Mutaciones (rojo y restauradas): sin `shrink-0`; sin `lg:hidden` en el apilado; `column-reverse` → `column`; plural único; sin `novalidate`.
+- Capturas antes y después a 390, 1366 y 1440 px del detalle (Datos y Equipo).
+- `manage.py check`, snapshots de Becas sin cambios, `design_audit --ratchet` 0 nuevos, `compile_templates --bloques` 0, `check_design_agent` OK, ruff OK.
+
+## Pendientes / a definir
+
+- PM: ¿un solo mensaje en los errores de formulario (decisión 4)?
+- PM: búsqueda por nombre o código en el listado de Instituciones.
+- PM: clave provisoria cuando el correo no es accesible.
+- La solapa activa del detalle no se desplaza sola hasta quedar a la vista en el celular cuando está a la derecha (por ejemplo, Equipo).
+- App de campo: PR aparte en Chaco-mobile.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **09/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 448 — El módulo endurecido rearma el LOGGING sin DEBUG
 
 🟡 **EN CURSO — 09/11/2026**
 

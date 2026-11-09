@@ -39,10 +39,10 @@ from core.views.media import _autorizar
 from legajos.models import Ciudadano
 from programas.models import (
     AdjuntoBitacora,
-    AsignacionDispositivo,
     Dispositivo,
     EntradaBitacora,
     Estadia,
+    MiembroEquipoDispositivo,
     Programa,
     TipoDispositivo,
     Turno,
@@ -215,9 +215,9 @@ class BaseBitacora(TestCase):
         rol = Group.objects.create(name=nombre)
         RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True)
         rol.permissions.add(*[_permiso(codigo) for codigo in capacidades])
-        AsignacionDispositivo.objects.create(dispositivo=dispositivo, rol=rol, activo=True)
         usuario = User.objects.create_user(username=nombre.replace(" ", "_").lower(), password="x")
         usuario.groups.add(rol)
+        MiembroEquipoDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, rol=rol)
         return User.objects.get(pk=usuario.pk)
 
     def _estadia(self, persona, dispositivo, ingreso, egreso=None):

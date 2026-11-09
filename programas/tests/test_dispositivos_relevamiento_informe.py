@@ -22,7 +22,7 @@ from datetime import timedelta
 from django.test import Client
 from django.urls import reverse
 
-from programas.models import AsignacionDispositivo, Edificio, InspeccionEdificio, TrazaInspeccion
+from programas.models import Edificio, InspeccionEdificio, MiembroEquipoDispositivo, TrazaInspeccion
 from programas.services.detalle_dispositivo import eventos_de_historial
 from programas.services.inspecciones import (
     agregar_foto,
@@ -265,7 +265,7 @@ class PrivacidadHistorialTests(BaseInforme):
         )
 
     def _dar_lectura(self, usuario):
-        AsignacionDispositivo.objects.create(dispositivo=self.parador, rol=usuario.groups.get(), activo=True)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.parador, usuario=usuario, rol=usuario.groups.get())
 
     def _asignar(self, agente):
         return crear_inspeccion(

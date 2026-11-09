@@ -28,7 +28,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import Edificio, InspeccionEdificio
+from programas.models import Edificio, InspeccionEdificio, MiembroEquipoDispositivo
 from programas.services import inspecciones as servicio
 from programas.services.inspecciones import Situacion, filtrar_por_situacion, resumen_listado, situacion_de
 from programas.tests.test_dispositivos_inspecciones import TODAS_DE_DISPOSITIVOS, BaseInspecciones
@@ -76,6 +76,8 @@ class PrivacidadAsignacionTests(BaseListado):
         self.lector = self._usuario("coord_a", capacidades, [self.parador])
         lector_b = self._usuario("lector_b", [c for c in capacidades if c != "inspeccion.asignar"], [self.cis])
         self.lector.groups.add(*lector_b.groups.all())
+        # El alcance es por persona (Equipo): coord_a también integra el Equipo del CIS con el rol de lector_b.
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.cis, usuario=self.lector, rol=lector_b.groups.get())
         self.agente.first_name = "Agente exclusivo B"
         self.agente.save(update_fields=["first_name"])
         self.otro_agente.first_name = "Agente visible A"
@@ -194,6 +196,7 @@ class ListadoTests(BaseListado):
         mixto = self._usuario("mixto", ("inspeccion.asignar",), [self.parador])
         rol_ver = self._usuario("mixto_ver", ("dispositivo.ver",), [self.cis]).groups.first()
         mixto.groups.add(rol_ver)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.cis, usuario=mixto, rol=rol_ver)
         del_cis = self._ajeno()
         del_predio = self._crear()
 
@@ -326,6 +329,15 @@ class ListadoTests(BaseListado):
             respuesta.context["ocultos_nuevo"], [("tab", "completados"), ("asignado_a", str(self.agente.pk))]
         )
         self.assertContains(respuesta, '<input type="hidden" name="tab" value="completados">', count=2)
+
+    def test_el_paso_uno_valida_con_su_propio_mensaje_y_no_con_el_del_navegador(self):
+        respuesta = self._cliente(self.coord).get(URL_LISTA, {"nuevo": "1"})
+        html = respuesta.content.decode()
+        # El mensaje nativo («Please select an item in the list.») sale en el idioma del navegador:
+        # el formulario apaga esa validación y dice lo suyo en castellano.
+        self.assertIn(f'action="{URL_LISTA}" novalidate', html)
+        self.assertContains(respuesta, 'id="elegir-edificio-error"')
+        self.assertContains(respuesta, "Elegí un edificio para continuar.")
 
     def test_las_notas_de_las_tarjetas_concuerdan_en_numero(self):
         self._crear()
@@ -550,6 +562,19 @@ class ReasignarYCancelarTests(BaseListado):
         self.inspeccion.refresh_from_db()
         self.assertEqual(self.inspeccion.asignado_a_id, self.otro_agente.pk)
 
+    def test_reasignar_deja_el_aviso_de_exito_en_la_pagina_a_la_que_vuelve(self):
+        cliente = self._cliente(self.coord)
+        url = self._url("relevamiento_reasignar", self.inspeccion.pk)
+        respuesta = cliente.post(url, {"asignado_a": self.otro_agente.pk, "volver": "tab=en_curso"}, **AJAX)
+        datos = respuesta.json()
+        self.assertTrue(datos["ok"])
+        self.assertIn("reasignado a otro_agente", datos["message"])
+
+        # El front navega sin mostrar el aviso: lo muestra la página destino desde `messages`.
+        destino = cliente.get(datos["redirect"])
+        self.assertEqual(destino.status_code, 200)
+        self.assertContains(destino, "reasignado a otro_agente")
+
     def test_reasignar_a_un_agente_sin_relevamientos_cambia_de_agente_y_deja_traza(self):
         url = self._url("relevamiento_reasignar", self.inspeccion.pk)
         respuesta = self._cliente(self.coord).post(url, {"asignado_a": self.otro_agente.pk}, **AJAX)
@@ -585,7 +610,9 @@ class ReasignarYCancelarTests(BaseListado):
 
     def test_visible_sin_alcance_es_403_del_servicio(self):
         mixto = self._usuario("mixto", ("inspeccion.asignar",), [self.cis])
-        mixto.groups.add(self._usuario("mixto_ver", ("dispositivo.ver",), [self.geriatrico]).groups.first())
+        rol_ver = self._usuario("mixto_ver", ("dispositivo.ver",), [self.geriatrico]).groups.first()
+        mixto.groups.add(rol_ver)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.geriatrico, usuario=mixto, rol=rol_ver)
         url = self._url("relevamiento_cancelar", self.inspeccion.pk)
         respuesta = self._cliente(self._fresco(mixto)).post(url, {"motivo": "Duplicado"}, **AJAX)
         self.assertEqual(respuesta.status_code, 403)
@@ -867,6 +894,7 @@ class TarjetasMovilTests(BaseListado):
         mixto = self._usuario("mixto", ("inspeccion.asignar",), [self.parador])
         rol_ver = self._usuario("mixto_ver", ("dispositivo.ver",), [self.cis]).groups.first()
         mixto.groups.add(rol_ver)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.cis, usuario=mixto, rol=rol_ver)
         servicio.crear_inspeccion(
             self._fresco(self._usuario("admin", TODAS_DE_DISPOSITIVOS)),
             edificio=self.edificio_cis,

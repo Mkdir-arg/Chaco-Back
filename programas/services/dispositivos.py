@@ -112,33 +112,12 @@ def _filtro_equipo(user, capacidad, programa):
     return membresias_vigentes(user, programa).filter(rol__permissions__codename=rbac.codename_de(capacidad))
 
 
-def _filtro_asignacion_rol(user, capacidad, programa):
-    """Vía **vieja** (rol → dispositivo, ``AsignacionDispositivo``).
-
-    Se mantiene como OR de la nueva para no dejar sin acceso a nadie durante la transición:
-    el ABM de Roles («Alcance por dispositivo») sigue escribiendo estas asignaciones. Se retira
-    de acá, junto con la migración de asignaciones al Equipo, en un Cambio posterior.
-    """
-
-    from programas.models import AsignacionDispositivo
-
-    return AsignacionDispositivo.objects.filter(
-        rol__user=user,
-        rol__meta__activo=True,
-        rol__meta__programa=programa,
-        rol__permissions__codename=rbac.codename_de(capacidad),
-        activo=True,
-    )
-
-
-def _del_equipo_o_asignados(user, capacidad, programa):
-    """Dispositivos donde el usuario integra el Equipo o (transición) tiene la asignación de rol."""
+def _del_equipo(user, capacidad, programa):
+    """Dispositivos donde el usuario integra el Equipo con un rol que tiene ``capacidad``."""
 
     from programas.models import Dispositivo
 
-    del_equipo = _filtro_equipo(user, capacidad, programa).values("dispositivo_id")
-    asignados = _filtro_asignacion_rol(user, capacidad, programa).values("dispositivo_id")
-    return Dispositivo.objects.filter(Q(pk__in=del_equipo) | Q(pk__in=asignados))
+    return Dispositivo.objects.filter(pk__in=_filtro_equipo(user, capacidad, programa).values("dispositivo_id"))
 
 
 def _ve_todos(user, capacidad, programa):
@@ -152,7 +131,7 @@ def puede_operar_dispositivo(user, dispositivo, capacidad):
 
     Los administradores del programa y los superusuarios conservan alcance total, y
     ``dispositivo.ver_todos`` da lectura de todo. El resto necesita ser parte del Equipo del
-    dispositivo con un rol que tenga la capacidad (o, en transición, una asignación de rol).
+    dispositivo con un rol que tenga la capacidad.
     """
 
     if user is None or not getattr(user, "is_authenticated", False):
@@ -163,8 +142,8 @@ def puede_operar_dispositivo(user, dispositivo, capacidad):
         return False
     if puede_configurar_dispositivos(user) or _ve_todos(user, capacidad, programa):
         return True
-    # Una sola consulta (los dos orígenes como subconsultas): el alcance se pregunta por pantalla.
-    return _del_equipo_o_asignados(user, capacidad, programa).filter(pk=dispositivo.pk).exists()
+    # Una sola consulta: el alcance se pregunta por pantalla.
+    return _del_equipo(user, capacidad, programa).filter(pk=dispositivo.pk).exists()
 
 
 def dispositivos_visibles(user):
@@ -179,7 +158,7 @@ def dispositivos_en_alcance(user, capacidad):
     La misma regla que :func:`puede_operar_dispositivo`, en forma de queryset: la
     capacidad en el programa, y después todo (admin del programa, o ``ver_todos`` para
     leer) o solo los dispositivos donde integra el Equipo con un rol que tiene esa
-    capacidad (más la asignación de rol vieja, que se retira en un Cambio posterior).
+    capacidad.
     """
 
     from programas.models import Dispositivo
@@ -189,7 +168,7 @@ def dispositivos_en_alcance(user, capacidad):
         return Dispositivo.objects.none()
     if puede_configurar_dispositivos(user) or _ve_todos(user, capacidad, programa):
         return Dispositivo.objects.all()
-    return _del_equipo_o_asignados(user, capacidad, programa)
+    return _del_equipo(user, capacidad, programa)
 
 
 def dispositivos_operados(user, capacidad):
@@ -206,7 +185,7 @@ def dispositivos_operados(user, capacidad):
     programa = programa_dispositivos(user)
     if programa is None or not rbac.puede(user, capacidad, programa=programa):
         return Dispositivo.objects.none()
-    return _del_equipo_o_asignados(user, capacidad, programa)
+    return _del_equipo(user, capacidad, programa)
 
 
 def _registrar_traza(dispositivo, usuario, accion, estado_anterior, estado_nuevo, detalle=""):

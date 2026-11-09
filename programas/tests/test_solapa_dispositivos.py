@@ -26,10 +26,10 @@ from django.utils import timezone
 from core import rbac
 from legajos.models import Ciudadano
 from programas.models import (
-    AsignacionDispositivo,
     Dispositivo,
     Estadia,
     InscripcionPrograma,
+    MiembroEquipoDispositivo,
     MotivoEgreso,
     Plaza,
     Programa,
@@ -377,7 +377,9 @@ class EnlacesEstadiaTests(BaseSolapa):
             self.programa,
         )
         self.usuario = _usuario("operador-detalle", self.rol)
-        self.asignacion = AsignacionDispositivo.objects.create(dispositivo=self.cis, rol=self.rol)
+        self.asignacion = MiembroEquipoDispositivo.objects.create(
+            dispositivo=self.cis, usuario=self.usuario, rol=self.rol
+        )
 
     def _url(self, estadia):
         return reverse("dispositivos:estadia_detalle", args=[estadia.dispositivo_id, estadia.pk])
@@ -415,7 +417,7 @@ class EnlacesEstadiaTests(BaseSolapa):
         self.asignacion.delete()
         rol = _rol("Asignado sin ver", ["ciudadano.ver", "dispositivo.admitir"], self.programa)
         self.usuario.groups.add(rol)
-        AsignacionDispositivo.objects.create(dispositivo=self.cis, rol=rol)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.cis, usuario=self.usuario, rol=rol)
         self.assertFalse(any(f.get("url_estadia") for f in trayectoria_de(self.persona, usuario=self.usuario)["filas"]))
 
     def test_sin_ciudadano_ver_el_selector_no_ofrece_detalle(self):
