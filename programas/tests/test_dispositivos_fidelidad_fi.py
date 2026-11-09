@@ -21,11 +21,13 @@ from programas.models import Dispositivo, Edificio, InspeccionEdificio, TrazaDis
 from programas.services.alertas_dispositivos import relevamientos_vencidos
 from programas.services.detalle_dispositivo import infraestructura_del_dispositivo
 from programas.services.dispositivos import campos_para_validacion
+from programas.services.equipo_dispositivo import nombre_de_persona
 from programas.services.inspecciones import SEMAFOROS, SIN_RELEVAR, VENCIDO, semaforos_de_dispositivos
 from programas.tests.test_dispositivos_fidelidad_fd import AHORA
 from programas.tests.test_dispositivos_horarios_localidad import catalogo_chaco
 from programas.tests.test_dispositivos_infraestructura import BaseInfraestructura
 from programas.tests.test_dispositivos_legajo import area_de_prueba
+from users.models import Profile
 
 
 class FidelidadFITests(BaseInfraestructura):
@@ -36,6 +38,8 @@ class FidelidadFITests(BaseInfraestructura):
         super().setUp()
         catalogo_chaco()
         self.client.force_login(self.admin)
+        # El alta toma el teléfono del legajo del perfil del primer responsable (Cambio 450).
+        Profile.objects.update_or_create(user=self.admin, defaults={"telefono": "3624123456"})
         self.crear = reverse("dispositivos:crear")
         self.cis.estado = Dispositivo.Estado.BORRADOR
         self.cis.save()
@@ -95,7 +99,13 @@ class FidelidadFITests(BaseInfraestructura):
         for nombre in ("domicilio", "responsable_nombre", "contacto_telefono"):
             self.assertFalse(form.fields[nombre].required, nombre)
 
-        html = self.client.get(self.crear).content.decode()
+        # En el alta, responsable y teléfono salen del responsable elegido (Cambio 450): el
+        # asterisco de los nueve se ve en la edición, y el alta lo pone en «Responsables».
+        self.assertIn(
+            'Responsables del dispositivo <span class="text-fg-danger">*</span>',
+            self.client.get(self.crear).content.decode(),
+        )
+        html = self.client.get(self.editar).content.decode()
         for nombre in campos_para_validacion():
             etiqueta = form[nombre].label
             self.assertIn(
@@ -249,7 +259,8 @@ class FidelidadFITests(BaseInfraestructura):
                 )
                 dispositivo = Dispositivo.objects.get(codigo=codigo)
                 self.assertEqual(dispositivo.estado, Dispositivo.Estado.PENDIENTE_VALIDACION)
-                self.assertEqual(dispositivo.responsable_nombre, self.datos["responsable_nombre"])
+                esperado = nombre_de_persona(self.admin) if url == self.crear else self.datos["responsable_nombre"]
+                self.assertEqual(dispositivo.responsable_nombre, esperado)
                 self.assertTrue(
                     TrazaDispositivo.objects.filter(dispositivo=dispositivo, accion="ENVIADO_VALIDACION").exists()
                 )

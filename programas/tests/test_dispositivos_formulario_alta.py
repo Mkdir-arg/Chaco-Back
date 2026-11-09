@@ -39,6 +39,7 @@ from programas.tests.test_dispositivos_fidelidad_fd import AHORA
 from programas.tests.test_dispositivos_horarios_localidad import LUNES, _post_franjas, catalogo_chaco
 from programas.tests.test_dispositivos_inspecciones import TODAS_DE_DISPOSITIVOS, BaseInspecciones
 from programas.tests.test_dispositivos_legajo import area_de_prueba
+from users.models import Profile
 
 PDF = b"%PDF-1.4\n%prueba\n"
 
@@ -66,6 +67,8 @@ class _Base(BaseInspecciones):
         super().setUp()
         catalogo_chaco()
         self.admin = self._usuario("admin_formulario_alta", TODAS_DE_DISPOSITIVOS)
+        # El alta toma el teléfono del legajo del perfil del primer responsable (Cambio 450).
+        Profile.objects.update_or_create(user=self.admin, defaults={"telefono": "3624123456"})
         self.client.force_login(self.admin)
         self.crear = reverse("dispositivos:crear")
         self.seccion = reverse("dispositivos:formulario_tipo_seccion")
@@ -164,7 +167,7 @@ class SeccionTests(_Base):
         html = respuesta.content.decode()
         self.assertIn(f'name="formulario_tipo_diseno" value="{self.diseno.pk}"', html)
         # Tarjeta propia: Horario de atención cierra la de datos y el formulario del tipo va después.
-        self.assertLess(html.index("Responsable y contacto"), html.index("Horario de atención"))
+        self.assertLess(html.index("Responsables del dispositivo"), html.index("Horario de atención"))
         self.assertLess(html.index("Horario de atención"), html.index("Formulario de ingreso"))
         self.assertLess(html.index("Formulario de ingreso"), html.index("Datos del edificio"))
         self.assertIn(f"Lo pide el tipo «{self.tipo.nombre}»", html)
