@@ -92,6 +92,7 @@ class AltaContactoDelResponsableTests(BaseUI):
         self.assertContains(
             respuesta, "Nombre del responsable: cargalo en el perfil de <span data-nombre-responsable>30111222</span>"
         )
+        self.assertContains(respuesta, "30111222 · 3624111222")
 
     def test_un_post_con_los_campos_viejos_no_los_pisa(self):
         self._entrar(self.admin)

@@ -44,7 +44,7 @@
       <p class="mt-1 mb-4 text-xs text-body-subtle">{{ form.responsables.help_text }} Después se arma el resto del Equipo desde la solapa «Equipo» del detalle.</p>
       {{ form.responsables }}
       {% with contacto=form.contacto_de_alta %}
-      <p class="mt-2 text-xs text-body-subtle{% if not contacto %} hidden{% endif %}" data-contacto-responsable>Datos de contacto: <span class="text-body" data-contacto-texto>{% if contacto %}{{ form.persona_de_contacto }} ·{{ contacto.contacto_telefono|default:"sin teléfono en su perfil" }}{% endif %}</span></p>
+      <p class="mt-2 text-xs text-body-subtle{% if not contacto %} hidden{% endif %}" data-contacto-responsable>Datos de contacto: <span class="text-body" data-contacto-texto>{% if contacto %}{{ form.persona_de_contacto }} · {{ contacto.contacto_telefono|default:"sin teléfono en su perfil" }}{% endif %}</span></p>
       {% endwith %}
       <p class="mt-1 text-xs text-fg-danger{% if not form.responsables.errors %} hidden{% endif %}" data-error="responsables">{{ form.responsables.errors|join:" " }}</p>
     </div>
