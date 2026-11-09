@@ -64,6 +64,21 @@ class AltaContactoDelResponsableTests(BaseUI):
         self.assertEqual(nuevo.responsable_nombre, "Zapata")
         self.assertEqual((nuevo.responsable_documento, nuevo.contacto_telefono), ("", ""))
 
+    def test_el_perfil_pasa_por_las_reglas_del_legajo(self):
+        """Mutación: sin las reglas en `datos_de_contacto`, «no tiene» se copia y la edición se traba."""
+        self._entrar(self.admin)
+        url = reverse("dispositivos:crear")
+        Profile.objects.update_or_create(user=self.resp, defaults={"dni": "abc", "telefono": "no tiene"})
+        form = self.client.post(url, {"codigo": "X", "responsables": [self.par_resp]}).context["form"]
+        self.assertEqual(form.faltantes_responsable, ["telefono"])
+        self.client.post(url, self._datos(responsables=[self.par_resp]))
+        nuevo = Dispositivo.objects.get(codigo="NUEVO-448")
+        self.assertEqual((nuevo.responsable_documento, nuevo.contacto_telefono), ("", ""))
+        # Un teléfono válido con formato se guarda normalizado, como escrito a mano.
+        Profile.objects.filter(user=self.admin).update(telefono="(0362) 15-411-1222")
+        self.client.post(url, self._datos(codigo="NUEVO-448B", responsables=[self.par_admin]))
+        self.assertEqual(Dispositivo.objects.get(codigo="NUEVO-448B").contacto_telefono, "0362154111222")
+
     def test_un_post_con_los_campos_viejos_no_los_pisa(self):
         self._entrar(self.admin)
         self.client.post(

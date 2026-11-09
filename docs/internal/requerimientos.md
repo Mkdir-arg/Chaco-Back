@@ -53735,7 +53735,7 @@ En «Nueva institución», borrar «Responsable», «DNI/CUIT del responsable»,
 ## Decisiones tomadas
 
 1. **Primera persona = primera del listado**, que es el orden de las píldoras (apellido, nombre, usuario). `clean_responsables` devuelve los pares en ese orden, así que no depende del orden del POST.
-2. **Fuente:** `datos_de_contacto(usuario)` en `equipo_dispositivo.py`: `nombre_de_persona`, `profile.dni`, `profile.telefono`, `user.email`. Sin perfil, documento y teléfono quedan vacíos. `pares_persona_rol` trae el perfil con `select_related("user__profile")`.
+2. **Fuente:** `datos_de_contacto(usuario)` en `equipo_dispositivo.py`: `nombre_de_persona`, `profile.dni`, `profile.telefono`, `user.email`. Cada valor pasa por la regla del campo escrito a mano (`normalizar_telefono`, `normalizar_documento_responsable`, `validar_nombre_responsable`); el que no la cumple, o falta el perfil, queda vacío, así un teléfono inválido del perfil cuenta como «sin teléfono» y no traba la edición (hallazgo de la auditoría del PR #1073). `pares_persona_rol` trae el perfil con `select_related("user__profile")`.
 3. **Copia única al crear** (`DispositivoForm.save`). Los cuatro campos se sacan del form del alta, así que un POST que los mande no pisa lo copiado.
 4. **Requisitos de validación sin cambios** (siguen siendo 9). En el alta, «Responsable» y «Teléfono» se cubren con `faltantes_responsable` (`ninguno` / `telefono`), en el servidor y en el JS del alta.
 5. **Privacidad:** cada opción del buscador lleva solo `data-nombre` y `data-telefono`; DNI y email no viajan a la página.
@@ -53750,7 +53750,7 @@ Sin cambios.
 
 ## Validación
 
-- `test_dispositivos_alta_contacto_448`: el alta no tiene los cuatro campos y ofrece el buscador, DNI/email no aparecen en la página, se copia el contacto de la primera persona del listado aunque el POST venga en otro orden, sin perfil queda solo el nombre, un POST con los campos viejos no los pisa, el resumen pide responsable y después teléfono, y la edición sigue con los cuatro campos.
+- `test_dispositivos_alta_contacto_448`: el alta no tiene los cuatro campos y ofrece el buscador, DNI/email no aparecen en la página, se copia el contacto de la primera persona del listado aunque el POST venga en otro orden, sin perfil queda solo el nombre, un perfil con teléfono o DNI inválidos deja esos datos vacíos y pide el teléfono, un teléfono con formato se guarda normalizado, un POST con los campos viejos no los pisa, el resumen pide responsable y después teléfono, y la edición sigue con los cuatro campos.
 - Toda la suite de Dispositivos (`test_dispositivos*` + `test_validacion_contacto`) en verde; `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y `check_design_agent --changed` OK.
 
 ## Pendientes / a definir
@@ -53763,6 +53763,6 @@ Revertir el PR; los legajos creados mientras tanto conservan los datos copiados.
 
 ## Historial
 
-- **09/11/2026 — alta del cambio.**
+- **09/11/2026 — alta del cambio.** La auditoría del PR #1073 pidió normalizar los datos del perfil con las reglas del legajo; resuelto en el mismo PR.
 
 ---

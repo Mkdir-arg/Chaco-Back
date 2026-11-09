@@ -307,13 +307,30 @@ def datos_de_contacto(usuario):
 
     El alta ya no los pide a mano: salen del primer responsable elegido. Se copian una vez; la
     edición los sigue mostrando para corregirlos. Sin perfil, documento y teléfono quedan vacíos.
+    Cada valor pasa por la misma regla que el campo escrito a mano; el que no la cumple queda
+    vacío (un teléfono inválido del perfil cuenta como «sin teléfono» y no traba la edición).
     """
+
+    from programas.validacion_contacto import (
+        normalizar_documento_responsable,
+        normalizar_telefono,
+        validar_nombre_responsable,
+    )
+
+    def _con_regla(regla, valor):
+        valor = (valor or "").strip()
+        if not valor:
+            return ""
+        try:
+            return regla(valor)
+        except ValidationError:
+            return ""
 
     perfil = getattr(usuario, "profile", None)
     return {
-        "responsable_nombre": nombre_de_persona(usuario)[:200],
-        "responsable_documento": (getattr(perfil, "dni", None) or "").strip(),
-        "contacto_telefono": (getattr(perfil, "telefono", None) or "").strip(),
+        "responsable_nombre": _con_regla(validar_nombre_responsable, nombre_de_persona(usuario))[:200],
+        "responsable_documento": _con_regla(normalizar_documento_responsable, getattr(perfil, "dni", None)),
+        "contacto_telefono": _con_regla(normalizar_telefono, getattr(perfil, "telefono", None)),
         "contacto_email": (usuario.email or "").strip(),
     }
 

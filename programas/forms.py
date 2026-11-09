@@ -1183,12 +1183,9 @@ class DispositivoForm(forms.ModelForm):
         return [] if contacto["contacto_telefono"] else ["telefono"]
 
     def save(self, commit=True):
-        if "responsables" in self.fields and self.cleaned_data.get("responsables"):
-            from programas.services.equipo_dispositivo import datos_de_contacto
-
-            usuario = self.cleaned_data["responsables"][0][0]
-            for campo, valor in datos_de_contacto(usuario).items():
-                setattr(self.instance, campo, valor)
+        # Lo mismo que muestra el resumen: una sola definición de «la primera persona elegida».
+        for campo, valor in (self.contacto_de_alta or {}).items():
+            setattr(self.instance, campo, valor)
         return super().save(commit)
 
     def clean_codigo(self):
