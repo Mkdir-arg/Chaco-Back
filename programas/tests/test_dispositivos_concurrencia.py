@@ -60,13 +60,13 @@ from core import rbac
 from core.tests.test_motor_real import MotorRealMixin
 from legajos.models import Ciudadano
 from programas.models import (
-    AsignacionDispositivo,
     Dispositivo,
     Edificio,
     EntradaBitacora,
     Estadia,
     FotoInspeccion,
     InspeccionEdificio,
+    MiembroEquipoDispositivo,
     MotivoEgreso,
     Plaza,
     Programa,
@@ -313,11 +313,11 @@ class _BaseCarrera(MotorRealMixin, TransactionTestCase):
         rol = Group.objects.create(name=f"Rol {nombre}")
         RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True)
         rol.permissions.add(*[_permiso(codigo) for codigo in capacidades])
-        for dispositivo in dispositivos:
-            AsignacionDispositivo.objects.create(dispositivo=dispositivo, rol=rol, activo=True)
         # Se llaman servicios, sin login HTTP: no hace falta calcular un hash por fixture.
         usuario = User.objects.create_user(username=nombre)
         usuario.groups.add(rol)
+        for dispositivo in dispositivos:
+            MiembroEquipoDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, rol=rol)
         return User.objects.get(pk=usuario.pk)
 
     def _fresco(self, usuario):

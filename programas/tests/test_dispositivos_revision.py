@@ -15,7 +15,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from core.tests.candados import candados_tomados
-from programas.models import InspeccionEdificio, TrazaInspeccion
+from programas.models import InspeccionEdificio, MiembroEquipoDispositivo, TrazaInspeccion
 from programas.selectors.inspecciones import relevamiento_para_revision
 from programas.services import inspecciones as servicio
 from programas.tests.test_dispositivos_inspecciones import TODAS_DE_DISPOSITIVOS, BaseInspecciones
@@ -172,6 +172,8 @@ class RevisionTests(BaseRevision):
         fuera = self._usuario("coord_cis", ("inspeccion.asignar",), [self.cis])
         lector = self._usuario("lector_predio", ("dispositivo.ver",), [self.parador])
         fuera.groups.add(*lector.groups.all())
+        # El alcance es por persona (Equipo): `fuera` también integra el Equipo del parador con ese rol.
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.parador, usuario=fuera, rol=lector.groups.get())
         for usuario in (lector, fuera, self.agente):
             with self.subTest(usuario=usuario.username):
                 respuesta = self._cliente(usuario).get(url)

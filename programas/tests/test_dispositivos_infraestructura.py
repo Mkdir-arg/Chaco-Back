@@ -27,7 +27,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core import rbac
-from programas.models import AsignacionDispositivo, Edificio, FotoInspeccion, InspeccionEdificio
+from programas.models import Edificio, FotoInspeccion, InspeccionEdificio, MiembroEquipoDispositivo
 from programas.services.detalle_dispositivo import infraestructura_del_dispositivo
 from programas.services.inspecciones import (
     SEMAFOROS,
@@ -497,16 +497,16 @@ class PresupuestosTests(BaseInfraestructura):
         self.assertLessEqual(len(tabla), self._techo("dispositivos_infraestructura") - 3)
 
 
-class RolSinAsignacionTests(BaseInfraestructura):
-    """`dispositivo.ver` en un rol sin asignación más otro rol asignado sin `ver` no suman alcance."""
+class RolSinMembresiaTests(BaseInfraestructura):
+    """`dispositivo.ver` en un rol sin membresía más otro rol con membresía sin `ver` no suman alcance."""
 
-    def test_capacidad_y_asignacion_tienen_que_venir_del_mismo_rol(self):
+    def test_capacidad_y_membresia_tienen_que_venir_del_mismo_rol(self):
         usuario = self._usuario("mixto", ("dispositivo.ver",))
         rol = Group.objects.create(name="Rol mixto asignado")
         RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True)
         rol.permissions.add(_permiso("dispositivo.admitir"))
-        AsignacionDispositivo.objects.create(dispositivo=self.geriatrico, rol=rol, activo=True)
         usuario.groups.add(rol)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.geriatrico, usuario=usuario, rol=rol)
 
         self.assertEqual(self._detalle(usuario, self.geriatrico).status_code, 404)
 

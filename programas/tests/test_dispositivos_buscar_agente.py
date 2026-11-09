@@ -18,7 +18,7 @@ from django.test import Client
 from django.urls import reverse
 
 from core import rbac
-from programas.models import AsignacionDispositivo, InspeccionEdificio
+from programas.models import InspeccionEdificio, MiembroEquipoDispositivo
 from programas.services.buscador_agentes import (
     MOTIVO_AGENTE_ES_PERSONAL,
     MOTIVO_AGENTE_INACTIVO,
@@ -134,7 +134,7 @@ class AsignabilidadTests(BaseBuscarAgente):
             grupo=rol_institucion, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True
         )
         propio.groups.add(rol_institucion)
-        AsignacionDispositivo.objects.create(dispositivo=self.parador, rol=rol_institucion, activo=True)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.parador, usuario=propio, rol=rol_institucion)
 
         fila = self._fila(propio)
 
@@ -151,7 +151,7 @@ class AsignabilidadTests(BaseBuscarAgente):
             grupo=rol_institucion, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True
         )
         propio.groups.add(rol_institucion)
-        AsignacionDispositivo.objects.create(dispositivo=self.cis, rol=rol_institucion, activo=True)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.cis, usuario=propio, rol=rol_institucion)
         usuario = self._usuario(
             "creador_total",
             ("inspeccion.asignar", "inspeccion.agente.crear", "dispositivo.ver"),

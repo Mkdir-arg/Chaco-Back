@@ -102,10 +102,10 @@ class AutorizacionTests(BaseDetalle):
             return registrar_entrada(dispositivo=self.parador, usuario=usuario, tipo="GENERAL", texto="Ajena.")
 
     def _asignar(self, usuario, dispositivo):
-        from programas.models import AsignacionDispositivo
+        from programas.models import MiembroEquipoDispositivo
 
         rol = usuario.groups.get()
-        AsignacionDispositivo.objects.create(dispositivo=dispositivo, rol=rol, activo=True)
+        MiembroEquipoDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, rol=rol)
 
 
 class ContenidoTests(BaseDetalle):

@@ -13,13 +13,13 @@ from openpyxl import load_workbook
 from core import rbac
 from legajos.models import Ciudadano
 from programas.models import (
-    AsignacionDispositivo,
     Convocatoria,
     Dispositivo,
     EntregaMercaderia,
     Formulario,
     ListaEspera,
     Merendero,
+    MiembroEquipoDispositivo,
     Programa,
     Relevamiento,
     Segmento,
@@ -289,7 +289,7 @@ class ReportesExportablesTests(TestCase):
         )
         rol.permissions.add(permiso("dispositivo.ver"))
         consulta.groups.add(rol)
-        AsignacionDispositivo.objects.create(dispositivo=self.dispositivo, rol=rol)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.dispositivo, usuario=consulta, rol=rol)
         cache.clear()
         self.client.force_login(consulta)
 
@@ -318,7 +318,7 @@ class ReportesExportablesTests(TestCase):
         )
         rol.permissions.add(permiso("dispositivo.ver"))
         usuario.groups.add(rol)
-        AsignacionDispositivo.objects.create(dispositivo=self.dispositivo, rol=rol)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.dispositivo, usuario=usuario, rol=rol)
         cache.clear()
         self.client.force_login(usuario)
 
