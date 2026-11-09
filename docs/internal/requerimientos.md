@@ -569,6 +569,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 443 | Tablas en notebooks, PR 4 de 4 (cierre): `nodo-col-acciones` en el resto de las listas (Configuración, Legajos, Notificaciones, Equipo de Dispositivos), hover de un solo tono en Becas y la celda fija durante el arrastre | Configuración · Legajos · Notificaciones · Dispositivos (Equipo) · Becas · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 444 | Dispositivos: siete ajustes de Infraestructura posteriores al Cambio 439 (el badge del registro es siempre la criticidad, tope de 6 chips, sin chevron vacío, foco de marca, una consulta menos, `_RESPUESTA_BASE` pasa a ser `_respuesta_base()` (una base nueva por llamada, sin listas compartidas), URL de solapa al servicio) | Dispositivos · Infraestructura (P4/P19) | `#ui` | PM — decisión sobre la etiqueta del registro plegable y MINOR de los PR #1054 y #1055 | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 445 | Becas: «Opciones del catálogo» y «Depende de» en los modales de Requisitos generales (alta y edición), y el alta con catálogo nace inactiva | Becas · Requisitos generales | `#requisitos` `#ui` | PM — hueco del Cambio 418 | 08/11/2026 | 🟡 **En curso** | No requiere |
+| 446 | El módulo endurecido rearma el `LOGGING` con `debug=False`: `DJANGO_DEBUG=True` mal puesto dejaba los logs en DEBUG y hacía Dispositivos ~15 veces más lento en testing | Transversal · configuración (Dispositivos) | `#performance` `#infra` | PM — «anda medio lento todo Dispositivos en test» | 09/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -53576,5 +53577,58 @@ Revertir el PR; no hay datos que deshacer.
 ## Historial
 
 - **08/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 446 — El módulo endurecido rearma el LOGGING sin DEBUG
+
+🟡 **EN CURSO — 09/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · configuración (Dispositivos) |
+| **Etiquetas** | `#performance` `#infra` |
+| **Solicitante** | PM — «anda medio lento todo Dispositivos en test» |
+| **Fecha del pedido** | 09/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | `config/settings_production.py`, `core/tests/test_settings_entorno_y_timeouts.py` |
+| **Migración** | No |
+
+## Pedido original
+
+El PM reportó que todo el programa Dispositivos anda lento en testing de ECOM. En el pod `web-*` de testing: `APP_RUNTIME=daphne`, `ENVIRONMENT=prd`, `DJANGO_DEBUG=True`, y el módulo cargado es `config.settings_production` con `DEBUG=False`.
+
+## Alcance acordado
+
+**Entra:** `settings_production` vuelve a armar el `LOGGING` con `construir_logging(..., debug=False)`. `settings.py` lo había armado con el `DEBUG` de la variable, antes de que el módulo endurecido lo pusiera en `False`, así que el root y `django.template` quedaban en DEBUG y cada `VariableDoesNotExist` se registraba con su traceback. Medido en local con el detalle de un dispositivo grande: 0,27 s → 3,7 s; sectores y plazas: 0,25 s → 4,7 s. **Queda afuera:** las mejoras de código del diagnóstico de Dispositivos (alcance `puede_operar_dispositivo` repetido 7 veces por request, el detalle que calcula todas las solapas): van en cambios propios.
+
+## Decisiones tomadas
+
+1. Se corrige en el código y además se le pide a ECOM `DJANGO_DEBUG=False` en testing (y revisar PRD): la variable mal puesta no debe volver a pesar.
+2. En desarrollo (`config.settings`) la variable sigue mandando sobre el logging.
+
+## Archivos
+
+Los de «Partes afectadas».
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+`core.tests.test_settings_entorno_y_timeouts` (18 OK, dos casos nuevos en subproceso); verificado por mutación: sin la línea, `test_el_modulo_endurecido_ignora_la_variable` falla. `ruff check` y `ruff format --check` limpios.
+
+## Pendientes / a definir
+
+- ECOM: `DJANGO_DEBUG=False` en el deployment de testing; revisar PRD.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **09/11/2026 — alta del cambio.**
 
 ---
