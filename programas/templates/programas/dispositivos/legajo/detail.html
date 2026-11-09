@@ -114,14 +114,14 @@
       <div class="flex gap-1 px-2 overflow-x-auto -mb-px" role="tablist" aria-label="Secciones del dispositivo">
         <button @click="tab='datos'" type="button" role="tab" id="tab-datos" aria-controls="panel-datos"
                 :aria-selected="tab==='datos'"
-                class="px-4 py-3 text-sm border-b-2 transition flex items-center gap-1.5 whitespace-nowrap"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='datos' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
           <i class="fas fa-id-card" aria-hidden="true"></i> Datos
         </button>
         {% if maneja_plazas %}
         <button @click="tab='sectores'" type="button" role="tab" id="tab-sectores" aria-controls="panel-sectores"
                 :aria-selected="tab==='sectores'"
-                class="px-4 py-3 text-sm border-b-2 transition flex items-center gap-1.5 whitespace-nowrap"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='sectores' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
           <i class="fas fa-bed" aria-hidden="true"></i> Sectores y plazas
           <span class="badge" :class="tab==='sectores' ? 'badge-info' : 'badge-gray'">{{ n_plazas }}</span>
@@ -129,28 +129,28 @@
         {% endif %}
         <button @click="tab='estadias'" type="button" role="tab" id="tab-estadias" aria-controls="panel-estadias"
                 :aria-selected="tab==='estadias'"
-                class="px-4 py-3 text-sm border-b-2 transition flex items-center gap-1.5 whitespace-nowrap"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='estadias' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
           <i class="fas fa-users" aria-hidden="true"></i> Estadías
           <span class="badge" :class="tab==='estadias' ? 'badge-info' : 'badge-gray'">{{ n_alojadas }}</span>
         </button>
         <button @click="tab='infraestructura'" type="button" role="tab" id="tab-infraestructura" aria-controls="panel-infraestructura"
                 :aria-selected="tab==='infraestructura'"
-                class="px-4 py-3 text-sm border-b-2 transition flex items-center gap-1.5 whitespace-nowrap"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='infraestructura' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
           <i class="fas fa-building" aria-hidden="true"></i> Infraestructura
           <span class="badge badge-dot badge-{{ infraestructura.semaforo.tono }}">{{ infraestructura.semaforo.texto }}</span>
         </button>
         <button @click="tab='equipo'" type="button" role="tab" id="tab-equipo" aria-controls="panel-equipo"
                 :aria-selected="tab==='equipo'"
-                class="px-4 py-3 text-sm border-b-2 transition flex items-center gap-1.5 whitespace-nowrap"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='equipo' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
           <i class="fas fa-people-group" aria-hidden="true"></i> Equipo
           <span class="badge" :class="tab==='equipo' ? 'badge-info' : 'badge-gray'">{{ n_equipo }}</span>
         </button>
         <button @click="tab='historial'" type="button" role="tab" id="tab-historial" aria-controls="panel-historial"
                 :aria-selected="tab==='historial'"
-                class="px-4 py-3 text-sm border-b-2 transition flex items-center gap-1.5 whitespace-nowrap"
+                class="px-3 py-3 text-sm border-b-2 transition flex items-center gap-1 shrink-0 whitespace-nowrap"
                 :class="tab==='historial' ? 'text-fg-brand border-brand font-bold' : 'text-body-subtle border-transparent hover:text-body font-medium'">
           <i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Historial
           <span class="badge" :class="tab==='historial' ? 'badge-info' : 'badge-gray'">{{ historial.paginator.count }}</span>
@@ -351,17 +351,25 @@
             <thead>
               <tr class="nodo-thead-row">
                 <th class="nodo-th">Persona</th>
-                <th class="nodo-th">Rol</th>
-                <th class="nodo-th">Responsable</th>
+                <th class="nodo-th hidden lg:table-cell">Rol</th>
+                <th class="nodo-th hidden lg:table-cell">Responsable</th>
                 {% if puede_gestionar_equipo %}<th class="nodo-th nodo-col-acciones text-right w-28"><span class="sr-only">Acciones</span></th>{% endif %}
               </tr>
             </thead>
             <tbody>
               {% for miembro in equipo %}
               <tr class="hover:bg-secondary transition">
-                <td class="nodo-td"><span class="font-medium text-heading">{{ miembro.persona }}</span></td>
-                <td class="nodo-td">{{ miembro.rol.name }}{% if not miembro.vigente %} <span class="badge badge-warning badge-sm">Rol no vigente</span>{% endif %}</td>
-                <td class="nodo-td">{% if miembro.es_responsable %}<span class="badge badge-dot badge-success">Responsable</span>{% else %}<span class="text-body-subtle">—</span>{% endif %}</td>
+                <td class="nodo-td">
+                  <span class="font-medium text-heading">{{ miembro.persona }}</span>
+                  {# En celular el Rol y el Responsable van bajo el nombre: la columna fija de acciones tapa el resto de la fila. #}
+                  <div class="lg:hidden mt-1 flex flex-col items-start gap-1 text-xs text-body-subtle">
+                    <span>{{ miembro.rol.name }}</span>
+                    {% if not miembro.vigente %}<span class="badge badge-warning badge-sm">Rol no vigente</span>{% endif %}
+                    {% if miembro.es_responsable %}<span class="badge badge-dot badge-success">Responsable</span>{% endif %}
+                  </div>
+                </td>
+                <td class="nodo-td hidden lg:table-cell">{{ miembro.rol.name }}{% if not miembro.vigente %} <span class="badge badge-warning badge-sm">Rol no vigente</span>{% endif %}</td>
+                <td class="nodo-td hidden lg:table-cell">{% if miembro.es_responsable %}<span class="badge badge-dot badge-success">Responsable</span>{% else %}<span class="text-body-subtle">—</span>{% endif %}</td>
                 {% if puede_gestionar_equipo %}
                 <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
                   {% url 'dispositivos:equipo_baja' dispositivo.pk miembro.pk as url_baja %}
