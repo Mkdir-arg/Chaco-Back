@@ -55,12 +55,12 @@ class FidelidadFFTests(BaseDetalle):
                     r'<div class="bg-white rounded-xl border border-base shadow-sm p-6">',
                 )
                 self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
-                # «Responsables» del alta (Cambio 411) es un buscador múltiple desde el 448: un solo select.
+                # «Responsables» del alta (Cambio 411) es un buscador múltiple desde el 450: un solo select.
                 for nombre in respuesta.context["form"].fields:
                     self.assertContains(respuesta, f'name="{nombre}"', count=1)
                 self.assertContains(respuesta, "Cancelar")
                 self.assertContains(respuesta, guardar)
-                # En el alta «Responsable y contacto» sale del responsable elegido (Cambio 448).
+                # En el alta «Responsable y contacto» sale del responsable elegido (Cambio 450).
                 alta = "responsables" in respuesta.context["form"].fields
                 secciones = ("Identidad y encuadre", "Ubicación") + (() if alta else ("Responsable y contacto",))
                 for seccion in secciones:

@@ -67,7 +67,7 @@ class _Base(BaseInspecciones):
         super().setUp()
         catalogo_chaco()
         self.admin = self._usuario("admin_formulario_alta", TODAS_DE_DISPOSITIVOS)
-        # El alta toma el teléfono del legajo del perfil del primer responsable (Cambio 448).
+        # El alta toma el teléfono del legajo del perfil del primer responsable (Cambio 450).
         Profile.objects.update_or_create(user=self.admin, defaults={"telefono": "3624123456"})
         self.client.force_login(self.admin)
         self.crear = reverse("dispositivos:crear")

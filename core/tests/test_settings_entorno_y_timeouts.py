@@ -22,6 +22,7 @@ una sola vez, al importarse, y lo que se verifica es justamente esa derivación.
 """
 
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -34,6 +35,7 @@ from core.checks import entorno_declarado
 
 GUION = """
 import json
+import logging
 
 import django
 
@@ -53,6 +55,8 @@ print(
             "conn_max_age": settings.DATABASES["default"].get("CONN_MAX_AGE"),
             "cache_location": settings.CACHES["default"]["LOCATION"],
             "sessions_location": settings.CACHES["sessions"]["LOCATION"],
+            "debug": settings.DEBUG,
+            "nivel_template": logging.getLogger("django.template").getEffectiveLevel(),
         }
     )
 )
@@ -95,6 +99,28 @@ def arrancar_django(**entorno):
     if corrida.returncode != 0:
         raise AssertionError(f"el arranque falló:\n{corrida.stdout}\n{corrida.stderr}")
     return json.loads(corrida.stdout.rsplit("<<<JSON>>>", 1)[1].strip())
+
+
+class LoggingDelModuloEndurecidoTests(SimpleTestCase):
+    """Cambio 450 · `DJANGO_DEBUG=True` mal puesto no deja el logging en DEBUG.
+
+    Testing de ECOM corría así: `DEBUG` quedaba en `False` pero el `LOGGING` ya se había
+    armado en DEBUG, y registrar cada variable de template faltante con traceback hacía
+    las pantallas de Dispositivos ~15 veces más lentas.
+    """
+
+    def test_el_modulo_endurecido_ignora_la_variable(self):
+        valores = arrancar_django(
+            ENVIRONMENT="prd", DJANGO_DEBUG="True", DJANGO_SETTINGS_MODULE="config.settings_production"
+        )
+
+        self.assertFalse(valores["debug"])
+        self.assertEqual(valores["nivel_template"], logging.INFO)
+
+    def test_en_desarrollo_la_variable_sigue_mandando(self):
+        valores = arrancar_django(ENVIRONMENT="dev", DJANGO_DEBUG="True")
+
+        self.assertEqual(valores["nivel_template"], logging.DEBUG)
 
 
 class TimeoutsDeLaConexionTests(SimpleTestCase):

@@ -571,7 +571,8 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 445 | Becas: «Opciones del catálogo» y «Depende de» en los modales de Requisitos generales (alta y edición), y el alta con catálogo nace inactiva | Becas · Requisitos generales | `#requisitos` `#ui` | PM — hueco del Cambio 418 | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 446 | Dispositivos: se retira la vía vieja de alcance (`AsignacionDispositivo`, «Alcance por dispositivo» del ABM de Roles); el alcance es solo el Equipo y el personal del edificio pasa a ser el Equipo | Dispositivos · Usuarios (ABM de Roles) | `#rbac` | PM — decisión del 09/11/2026 (Pendiente 2 de los Cambios 410 y 411) | 09/11/2026 | 🟡 **En curso** | No requiere |
 | 447 | Dispositivos: arreglos del recorrido de QA de noviembre (detalle en el celular con solapas en una fila, Equipo legible e indicadores sin tapar; «sectores activos» bien escrito; «Nuevo relevamiento» valida en español) | Dispositivos · detalle (P4) · Infraestructura · Relevamientos | `#ui` | PM — recorrido de QA en testing y local del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
-| 448 | Dispositivos: el alta toma el responsable y el contacto del legajo de la persona elegida; «Responsables del dispositivo» pasa a buscador múltiple | Dispositivos (alta de institución) | `#ui` | PM — pedido del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
+| 448 | El módulo endurecido rearma el `LOGGING` con `debug=False`: `DJANGO_DEBUG=True` mal puesto dejaba los logs en DEBUG y hacía Dispositivos ~15 veces más lento en testing | Transversal · configuración (Dispositivos) | `#performance` `#infra` | PM — «anda medio lento todo Dispositivos en test» | 09/11/2026 | 🟡 **En curso** | No requiere |
+| 450 | Dispositivos: el alta toma el responsable y el contacto del legajo de la persona elegida; «Responsables del dispositivo» pasa a buscador múltiple | Dispositivos (alta de institución) | `#ui` | PM — pedido del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -53710,7 +53711,60 @@ Revertir el PR; no hay datos que deshacer.
 
 ---
 
-# Cambio 448 — Dispositivos: el alta toma el contacto del responsable elegido
+# Cambio 448 — El módulo endurecido rearma el LOGGING sin DEBUG
+
+🟡 **EN CURSO — 09/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Transversal · configuración (Dispositivos) |
+| **Etiquetas** | `#performance` `#infra` |
+| **Solicitante** | PM — «anda medio lento todo Dispositivos en test» |
+| **Fecha del pedido** | 09/11/2026 |
+| **Issue / épica** | sin issue |
+| **Partes afectadas** | `config/settings_production.py`, `core/tests/test_settings_entorno_y_timeouts.py` |
+| **Migración** | No |
+
+## Pedido original
+
+El PM reportó que todo el programa Dispositivos anda lento en testing de ECOM. En el pod `web-*` de testing: `APP_RUNTIME=daphne`, `ENVIRONMENT=prd`, `DJANGO_DEBUG=True`, y el módulo cargado es `config.settings_production` con `DEBUG=False`.
+
+## Alcance acordado
+
+**Entra:** `settings_production` vuelve a armar el `LOGGING` con `construir_logging(..., debug=False)`. `settings.py` lo había armado con el `DEBUG` de la variable, antes de que el módulo endurecido lo pusiera en `False`, así que el root y `django.template` quedaban en DEBUG y cada `VariableDoesNotExist` se registraba con su traceback. Medido en local con el detalle de un dispositivo grande: 0,27 s → 3,7 s; sectores y plazas: 0,25 s → 4,7 s. **Queda afuera:** las mejoras de código del diagnóstico de Dispositivos (alcance `puede_operar_dispositivo` repetido 7 veces por request, el detalle que calcula todas las solapas): van en cambios propios.
+
+## Decisiones tomadas
+
+1. Se corrige en el código y además se le pide a ECOM `DJANGO_DEBUG=False` en testing (y revisar PRD): la variable mal puesta no debe volver a pesar.
+2. En desarrollo (`config.settings`) la variable sigue mandando sobre el logging.
+
+## Archivos
+
+Los de «Partes afectadas».
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+`core.tests.test_settings_entorno_y_timeouts` (18 OK, dos casos nuevos en subproceso); verificado por mutación: sin la línea, `test_el_modulo_endurecido_ignora_la_variable` falla. `ruff check` y `ruff format --check` limpios.
+
+## Pendientes / a definir
+
+- ECOM: `DJANGO_DEBUG=False` en el deployment de testing; revisar PRD.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **09/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 450 — Dispositivos: el alta toma el contacto del responsable elegido
 
 🟡 **EN CURSO — 09/11/2026**
 
@@ -53742,7 +53796,7 @@ En «Nueva institución», borrar «Responsable», «DNI/CUIT del responsable»,
 
 ## Archivos
 
-Los de «Partes afectadas», más los tests `programas/tests/test_dispositivos_alta_contacto_448.py` (nuevo), `test_dispositivos_fidelidad_fi.py`, `test_dispositivos_fidelidad_ff.py`, `test_dispositivos_formulario_alta.py` y `programas/tests/js/faltantes_fi.cjs`.
+Los de «Partes afectadas», más los tests `programas/tests/test_dispositivos_alta_contacto_450.py` (nuevo), `test_dispositivos_fidelidad_fi.py`, `test_dispositivos_fidelidad_ff.py`, `test_dispositivos_formulario_alta.py` y `programas/tests/js/faltantes_fi.cjs`.
 
 ## Base de datos
 
@@ -53750,7 +53804,7 @@ Sin cambios.
 
 ## Validación
 
-- `test_dispositivos_alta_contacto_448`: el alta no tiene los cuatro campos y ofrece el buscador, DNI/email no aparecen en la página, se copia el contacto de la primera persona del listado aunque el POST venga en otro orden, sin perfil queda solo el nombre, un perfil con teléfono o DNI inválidos deja esos datos vacíos y pide el teléfono, un teléfono con formato se guarda normalizado, un POST con los campos viejos no los pisa, el resumen pide responsable y después teléfono, y la edición sigue con los cuatro campos.
+- `test_dispositivos_alta_contacto_450`: el alta no tiene los cuatro campos y ofrece el buscador, DNI/email no aparecen en la página, se copia el contacto de la primera persona del listado aunque el POST venga en otro orden, sin perfil queda solo el nombre, un perfil con teléfono o DNI inválidos deja esos datos vacíos y pide el teléfono, un teléfono con formato se guarda normalizado, un POST con los campos viejos no los pisa, el resumen pide responsable y después teléfono, y la edición sigue con los cuatro campos.
 - Toda la suite de Dispositivos (`test_dispositivos*` + `test_validacion_contacto`) en verde; `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y `check_design_agent --changed` OK.
 
 ## Pendientes / a definir

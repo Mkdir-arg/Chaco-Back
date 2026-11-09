@@ -38,7 +38,7 @@ class FidelidadFITests(BaseInfraestructura):
         super().setUp()
         catalogo_chaco()
         self.client.force_login(self.admin)
-        # El alta toma el teléfono del legajo del perfil del primer responsable (Cambio 448).
+        # El alta toma el teléfono del legajo del perfil del primer responsable (Cambio 450).
         Profile.objects.update_or_create(user=self.admin, defaults={"telefono": "3624123456"})
         self.crear = reverse("dispositivos:crear")
         self.cis.estado = Dispositivo.Estado.BORRADOR
@@ -99,7 +99,7 @@ class FidelidadFITests(BaseInfraestructura):
         for nombre in ("domicilio", "responsable_nombre", "contacto_telefono"):
             self.assertFalse(form.fields[nombre].required, nombre)
 
-        # En el alta, responsable y teléfono salen del responsable elegido (Cambio 448): el
+        # En el alta, responsable y teléfono salen del responsable elegido (Cambio 450): el
         # asterisco de los nueve se ve en la edición, y el alta lo pone en «Responsables».
         self.assertIn(
             'Responsables del dispositivo <span class="text-fg-danger">*</span>',

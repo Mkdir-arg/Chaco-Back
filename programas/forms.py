@@ -995,7 +995,7 @@ def formulario_tipo_para(tipo_id, dispositivo=None, data=None, files=None):
     return formulario
 
 
-# Lo que el alta ya no pide a mano: sale del primer responsable elegido (Cambio 448).
+# Lo que el alta ya no pide a mano: sale del primer responsable elegido (Cambio 450).
 CAMPOS_CONTACTO_DEL_RESPONSABLE = ("responsable_nombre", "responsable_documento", "contacto_telefono", "contacto_email")
 
 
@@ -1120,7 +1120,7 @@ class DispositivoForm(forms.ModelForm):
         """Alta: los responsables del dispositivo (Cambio 411), pares «Persona — Rol», al menos uno.
 
         Solo el alta lo pide: la edición no exige responsables, se gestionan desde la solapa Equipo.
-        Desde el Cambio 448 es un buscador múltiple y reemplaza a «Responsable y contacto»: esos
+        Desde el Cambio 450 es un buscador múltiple y reemplaza a «Responsable y contacto»: esos
         cuatro datos salen del primer responsable elegido (``datos_de_contacto``).
         """
         from programas.services.equipo_dispositivo import datos_de_contacto, pares_persona_rol

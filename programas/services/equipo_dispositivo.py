@@ -303,7 +303,7 @@ def nombre_de_persona(usuario):
 
 
 def datos_de_contacto(usuario):
-    """Responsable y contacto del legajo tomados de la persona (alta, Cambio 448).
+    """Responsable y contacto del legajo tomados de la persona (alta, Cambio 450).
 
     El alta ya no los pide a mano: salen del primer responsable elegido. Se copian una vez; la
     edición los sigue mostrando para corregirlos. Sin perfil, documento y teléfono quedan vacíos.

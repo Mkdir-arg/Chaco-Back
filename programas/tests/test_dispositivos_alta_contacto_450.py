@@ -1,4 +1,4 @@
-"""Alta de dispositivo: el responsable y el contacto salen de la persona elegida (Cambio 448).
+"""Alta de dispositivo: el responsable y el contacto salen de la persona elegida (Cambio 450).
 
 «Responsable y contacto» ya no se pide a mano en el alta: «Responsables del dispositivo» es un
 buscador múltiple y el legajo copia nombre, documento, teléfono y email de la primera persona
@@ -28,7 +28,7 @@ class AltaContactoDelResponsableTests(BaseUI):
         self.par_resp = f"{self.resp.pk}:{self.rol_ver.pk}"
 
     def _datos(self, **extra):
-        return {"codigo": "NUEVO-448", "tipo": self.tipo.pk, "nombre": "Nuevo", **extra}
+        return {"codigo": "NUEVO-450", "tipo": self.tipo.pk, "nombre": "Nuevo", **extra}
 
     def test_el_alta_no_pide_responsable_y_contacto_y_ofrece_un_buscador(self):
         self._entrar(self.admin)
@@ -50,7 +50,7 @@ class AltaContactoDelResponsableTests(BaseUI):
             reverse("dispositivos:crear"), self._datos(responsables=[self.par_resp, self.par_admin])
         )
         self.assertEqual(respuesta.status_code, 302)
-        nuevo = Dispositivo.objects.get(codigo="NUEVO-448")
+        nuevo = Dispositivo.objects.get(codigo="NUEVO-450")
         self.assertEqual(nuevo.responsable_nombre, "Ana Alvarez")
         self.assertEqual(nuevo.responsable_documento, "30111222")
         self.assertEqual(nuevo.contacto_telefono, "3624111222")
@@ -60,7 +60,7 @@ class AltaContactoDelResponsableTests(BaseUI):
         self._entrar(self.admin)
         respuesta = self.client.post(reverse("dispositivos:crear"), self._datos(responsables=[self.par_resp]))
         self.assertEqual(respuesta.status_code, 302)
-        nuevo = Dispositivo.objects.get(codigo="NUEVO-448")
+        nuevo = Dispositivo.objects.get(codigo="NUEVO-450")
         self.assertEqual(nuevo.responsable_nombre, "Zapata")
         self.assertEqual((nuevo.responsable_documento, nuevo.contacto_telefono), ("", ""))
 
@@ -72,12 +72,12 @@ class AltaContactoDelResponsableTests(BaseUI):
         form = self.client.post(url, {"codigo": "X", "responsables": [self.par_resp]}).context["form"]
         self.assertEqual(form.faltantes_responsable, ["telefono"])
         self.client.post(url, self._datos(responsables=[self.par_resp]))
-        nuevo = Dispositivo.objects.get(codigo="NUEVO-448")
+        nuevo = Dispositivo.objects.get(codigo="NUEVO-450")
         self.assertEqual((nuevo.responsable_documento, nuevo.contacto_telefono), ("", ""))
         # Un teléfono válido con formato se guarda normalizado, como escrito a mano.
         Profile.objects.filter(user=self.admin).update(telefono="(0362) 15-411-1222")
-        self.client.post(url, self._datos(codigo="NUEVO-448B", responsables=[self.par_admin]))
-        self.assertEqual(Dispositivo.objects.get(codigo="NUEVO-448B").contacto_telefono, "0362154111222")
+        self.client.post(url, self._datos(codigo="NUEVO-450B", responsables=[self.par_admin]))
+        self.assertEqual(Dispositivo.objects.get(codigo="NUEVO-450B").contacto_telefono, "0362154111222")
 
     def test_un_post_con_los_campos_viejos_no_los_pisa(self):
         self._entrar(self.admin)
@@ -85,7 +85,7 @@ class AltaContactoDelResponsableTests(BaseUI):
             reverse("dispositivos:crear"),
             self._datos(responsables=[self.par_admin], responsable_nombre="Otro", contacto_telefono="111"),
         )
-        nuevo = Dispositivo.objects.get(codigo="NUEVO-448")
+        nuevo = Dispositivo.objects.get(codigo="NUEVO-450")
         self.assertEqual((nuevo.responsable_nombre, nuevo.contacto_telefono), ("Ana Alvarez", "3624111222"))
 
     def test_el_resumen_de_validacion_pide_responsable_y_despues_su_telefono(self):
