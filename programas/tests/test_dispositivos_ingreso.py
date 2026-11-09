@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from legajos.models import Ciudadano
-from programas.models import AsignacionDispositivo, Estadia, Plaza, ReservaPlaza
+from programas.models import Estadia, MiembroEquipoDispositivo, Plaza, ReservaPlaza
 from programas.services.bitacora import crear_turno
 from programas.services.estadias import ingresar_persona, reservar_plaza
 from programas.tests.test_dispositivos_estadias import CAPACIDADES_OPERATIVAS, BaseEstadias, _permiso
@@ -189,8 +189,8 @@ class FlujoDeIngresoTests(BaseIngreso):
 
     def test_confirmar_avisa_la_reserva_vigente_en_otro_dispositivo_con_su_nombre(self):
         self._reserva_en_el_parador()
-        AsignacionDispositivo.objects.create(
-            dispositivo=self.parador, rol=self.operador_cis.groups.first(), activo=True
+        MiembroEquipoDispositivo.objects.create(
+            dispositivo=self.parador, usuario=self.operador_cis, rol=self.operador_cis.groups.first()
         )
         self._hasta_la_plaza(self.persona, self.plaza)
 
@@ -631,7 +631,7 @@ class DosPestanasTests(BaseIngreso):
 
     def test_abrir_el_asistente_de_otro_dispositivo_no_borra_el_progreso(self):
         rol = self.operador_cis.groups.get()
-        AsignacionDispositivo.objects.create(dispositivo=self.parador, rol=rol, activo=True)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.parador, usuario=self.operador_cis, rol=rol)
         self._hasta_la_plaza(self.persona, self.plaza)
 
         url_persona_parador = reverse("dispositivos:ingreso_persona", args=[self.parador.pk])

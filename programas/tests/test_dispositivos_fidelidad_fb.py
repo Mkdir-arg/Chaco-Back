@@ -14,7 +14,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
-from programas.models import AsignacionDispositivo, Estadia, Plaza, ReservaPlaza
+from programas.models import Estadia, MiembroEquipoDispositivo, Plaza, ReservaPlaza
 from programas.selectors.capacidad_dispositivo import instituciones_del_predio
 from programas.services.dispositivos import dispositivos_visibles
 from programas.services.ocupacion import Conteo, tension_de_ocupacion
@@ -239,12 +239,12 @@ class FidelidadInfraestructuraTests(BaseInfraestructura):
         self.assertIn(reverse("dispositivos:detalle", args=[self.parador.pk]), admin)
         self.assertIn("Activo", admin)
 
-    def test_asignacion_en_rol_sin_ver_no_suma_alcance_para_identidad_del_predio(self):
+    def test_membresia_en_rol_sin_ver_no_suma_alcance_para_identidad_del_predio(self):
         rol = Group.objects.create(name="Asignado sin ver")
         RolMeta.objects.create(grupo=rol, categoria="Programa", programa=self.programa, activo=True)
         rol.permissions.add(_permiso("dispositivo.admitir"))
         self.operador_geriatrico.groups.add(rol)
-        AsignacionDispositivo.objects.create(rol=rol, dispositivo=self.parador)
+        MiembroEquipoDispositivo.objects.create(usuario=self.operador_geriatrico, rol=rol, dispositivo=self.parador)
         panel = _panel(self._detalle(self.operador_geriatrico, self.geriatrico).content.decode())
         self.assertNotIn(self.parador.nombre, panel)
 

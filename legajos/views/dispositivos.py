@@ -34,7 +34,7 @@ class CiudadanoDispositivosView(LoginRequiredMixin, TemplateView):
     * *Exigir la inscripción activa* (el `inscripcion_id` de la URL). La inscripción se
       cierra o se suspende, y la historia de la persona no se va con ella.
 
-    Tampoco filtra por el alcance fino del dispositivo (`AsignacionDispositivo`): decisión
+    Tampoco filtra por el alcance fino del dispositivo (el Equipo, `MiembroEquipoDispositivo`): decisión
     §4.11 de la propuesta v2. Lo que limita es la sensibilidad de cada sección, y la
     trayectoria no trae ninguna (ver `programas.selectors.trayectoria`).
     """

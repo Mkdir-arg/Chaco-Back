@@ -17,7 +17,7 @@ from django.contrib.auth.models import Group, User
 from django.urls import reverse
 
 from core import rbac
-from programas.models import AsignacionDispositivo
+from programas.models import MiembroEquipoDispositivo
 from programas.services.buscador_agentes import MOTIVO_SUMABLE, MOTIVO_SUMABLE_PERSONAL
 from programas.services.inspecciones import agentes_asignables
 from programas.tests.test_dispositivos_buscar_agente import BaseBuscarAgente
@@ -95,7 +95,7 @@ class BusquedaSumableTests(BaseSumarAgente):
             grupo=rol_institucion, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True
         )
         propio.groups.add(rol_institucion)
-        AsignacionDispositivo.objects.create(dispositivo=self.parador, rol=rol_institucion, activo=True)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.parador, usuario=propio, rol=rol_institucion)
         fila = self._filas("Personal")[propio.pk]
         self.assertTrue(fila["sumable"])
         self.assertEqual(fila["motivo"], MOTIVO_SUMABLE_PERSONAL)
@@ -168,7 +168,7 @@ class SumarTests(BaseSumarAgente):
             grupo=rol_institucion, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True
         )
         propio.groups.add(rol_institucion)
-        AsignacionDispositivo.objects.create(dispositivo=self.parador, rol=rol_institucion, activo=True)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.parador, usuario=propio, rol=rol_institucion)
 
         respuesta = self._sumar(propio.pk)
 

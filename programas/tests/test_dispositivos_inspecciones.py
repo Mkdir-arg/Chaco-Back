@@ -34,12 +34,14 @@ from programas.models import (
     Edificio,
     FotoInspeccion,
     InspeccionEdificio,
+    MiembroEquipoDispositivo,
     Programa,
     TipoDispositivo,
 )
 from programas.services import inspecciones as servicio
 from programas.services.inspecciones import (
     agentes_asignables,
+    agentes_asignables_para,
     agregar_foto,
     cancelar_inspeccion,
     crear_inspeccion,
@@ -125,10 +127,10 @@ class BaseInspecciones(TestCase):
         rol = Group.objects.create(name=f"Rol {nombre}")
         RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True)
         rol.permissions.add(*[_permiso(codigo) for codigo in capacidades])
-        for dispositivo in dispositivos:
-            AsignacionDispositivo.objects.create(dispositivo=dispositivo, rol=rol, activo=True)
         usuario = User.objects.create_user(username=nombre, password="x")
         usuario.groups.add(rol)
+        for dispositivo in dispositivos:
+            MiembroEquipoDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, rol=rol)
         return User.objects.get(pk=usuario.pk)
 
     def par_responsable(self, usuario=None):
@@ -277,6 +279,39 @@ class AsignacionTests(BaseInspecciones):
         self.assertIn(self.otro_agente, candidatos)
         # En otro edificio no es personal: ahí sí se lo puede asignar.
         self.assertIn(self.personal_parador, set(agentes_asignables(self.edificio_cis)))
+
+    def test_miembro_del_equipo_con_cualquier_rol_es_personal_del_edificio(self):
+        # Rol de relevar sin membresía + rol de solo consulta con membresía en el parador.
+        usuario = self._usuario("mixto_personal", ("inspeccion.relevar",))
+        rol_consulta = Group.objects.create(name="Rol consulta del parador")
+        RolMeta.objects.create(
+            grupo=rol_consulta, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True
+        )
+        rol_consulta.permissions.add(_permiso("dispositivo.ver"))
+        usuario.groups.add(rol_consulta)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.parador, usuario=usuario, rol=rol_consulta)
+
+        self.assertNotIn(usuario, set(agentes_asignables(self.predio)))
+        self.assertIn(usuario, set(agentes_asignables(self.edificio_cis)))
+        with self.assertRaises(ValidationError):
+            self._crear(agente=usuario)
+
+    def test_el_territorial_sin_equipo_es_asignable_en_cualquier_edificio(self):
+        self.assertIn(self.agente, set(agentes_asignables(self.predio)))
+        self.assertIn(self.agente, set(agentes_asignables(self.edificio_cis)))
+        self.assertIn(self.agente, set(agentes_asignables_para([self.predio, self.edificio_cis])))
+
+    def test_la_membresia_dada_de_baja_ya_no_es_personal(self):
+        MiembroEquipoDispositivo.objects.filter(usuario=self.personal_parador).update(activo=False)
+
+        self.assertIn(self.personal_parador, set(agentes_asignables(self.predio)))
+
+    def test_la_asignacion_de_rol_vieja_no_hace_personal_del_edificio(self):
+        rol = self.agente.groups.get()
+        AsignacionDispositivo.objects.create(dispositivo=self.parador, rol=rol, activo=True)
+
+        self.assertIn(self.agente, set(agentes_asignables(self.predio)))
+        self.assertEqual(self._crear(agente=self.agente).asignado_a, self.agente)
 
     def test_el_agente_externo_es_un_default_que_se_apaga(self):
         servicio.AGENTE_DEBE_SER_EXTERNO = False
@@ -537,14 +572,14 @@ class AlcanceDelCoordinadorTests(MediaDeFotosTests):
         self.assertEqual(self._get(coordinador_parador), 200)
 
     def test_el_alcance_lo_da_el_rol_que_tiene_la_capacidad(self):
-        """`asignar` en un rol sin asignación más `ver` en otro rol asignado no suman alcance."""
+        """`asignar` en un rol sin membresía más `ver` en otro rol con membresía no suman alcance."""
 
         mixto = self._usuario("mixto", ("inspeccion.asignar",))
         rol_ver = Group.objects.create(name="Rol mixto ver")
         RolMeta.objects.create(grupo=rol_ver, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True)
         rol_ver.permissions.add(_permiso("dispositivo.ver"))
-        AsignacionDispositivo.objects.create(dispositivo=self.cis, rol=rol_ver, activo=True)
         mixto.groups.add(rol_ver)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.cis, usuario=mixto, rol=rol_ver)
         mixto = self._fresco(mixto)
 
         self.assertFalse(edificios_en_alcance(mixto).exists())

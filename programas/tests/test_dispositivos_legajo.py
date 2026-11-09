@@ -13,7 +13,7 @@ from django.urls import reverse
 from core import rbac
 from core.models import Secretaria, Subsecretaria
 from programas.forms import DispositivoForm
-from programas.models import AsignacionDispositivo, Dispositivo, Programa, TipoDispositivo, TrazaDispositivo
+from programas.models import Dispositivo, MiembroEquipoDispositivo, Programa, TipoDispositivo, TrazaDispositivo
 from programas.services.dispositivos import (
     buscar_posibles_duplicados,
     enviar_a_validacion,
@@ -79,7 +79,7 @@ class AlcanceDispositivosTests(TestCase):
 
         self.operador = User.objects.create_user("operador-dispositivo", password="x")
         self.operador.groups.add(self.rol)
-        AsignacionDispositivo.objects.create(dispositivo=self.dispositivo_a, rol=self.rol)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.dispositivo_a, usuario=self.operador, rol=self.rol)
         cache.clear()
 
     def test_operador_solo_puede_operar_el_dispositivo_asignado(self):
@@ -96,7 +96,7 @@ class AlcanceDispositivosTests(TestCase):
         )
         rol_b.permissions.add(permiso("dispositivo.editar"))
         self.operador.groups.add(rol_b)
-        AsignacionDispositivo.objects.create(dispositivo=self.dispositivo_b, rol=rol_b)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.dispositivo_b, usuario=self.operador, rol=rol_b)
 
         self.assertTrue(puede_operar_dispositivo(self.operador, self.dispositivo_a, "dispositivo.editar"))
         self.assertTrue(puede_operar_dispositivo(self.operador, self.dispositivo_b, "dispositivo.editar"))
@@ -124,9 +124,9 @@ class AlcanceDispositivosTests(TestCase):
             activo=True,
         )
         rol_becas.permissions.add(permiso("dispositivo.editar"))
-        AsignacionDispositivo.objects.create(dispositivo=self.dispositivo_b, rol=rol_becas)
         usuario = User.objects.create_user("roles-cruzados", password="x")
         usuario.groups.add(rol_dispositivos, rol_becas)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.dispositivo_b, usuario=usuario, rol=rol_becas)
 
         self.assertFalse(puede_operar_dispositivo(usuario, self.dispositivo_b, "dispositivo.editar"))
 
@@ -302,7 +302,7 @@ class LegajoDispositivoViewsTests(TestCase):
         self.rol.permissions.add(permiso("dispositivo.ver"))
         self.consulta = User.objects.create_user("consulta-dispositivos", password="x")
         self.consulta.groups.add(self.rol)
-        AsignacionDispositivo.objects.create(dispositivo=self.dispositivo_a, rol=self.rol)
+        MiembroEquipoDispositivo.objects.create(dispositivo=self.dispositivo_a, usuario=self.consulta, rol=self.rol)
 
         self.operador_rol = Group.objects.create(name="Operador legajo")
         RolMeta.objects.create(
@@ -322,7 +322,9 @@ class LegajoDispositivoViewsTests(TestCase):
         )
         self.operador = User.objects.create_user("operador-legajo", password="x")
         self.operador.groups.add(self.operador_rol)
-        AsignacionDispositivo.objects.create(dispositivo=self.dispositivo_a, rol=self.operador_rol)
+        MiembroEquipoDispositivo.objects.create(
+            dispositivo=self.dispositivo_a, usuario=self.operador, rol=self.operador_rol
+        )
 
         self.supervisor_rol = Group.objects.create(name="Supervisor legajo")
         RolMeta.objects.create(
@@ -334,7 +336,9 @@ class LegajoDispositivoViewsTests(TestCase):
         self.supervisor_rol.permissions.add(permiso("dispositivo.ver"), permiso("dispositivo.validar"))
         self.supervisor = User.objects.create_user("supervisor-legajo", password="x")
         self.supervisor.groups.add(self.supervisor_rol)
-        AsignacionDispositivo.objects.create(dispositivo=self.dispositivo_a, rol=self.supervisor_rol)
+        MiembroEquipoDispositivo.objects.create(
+            dispositivo=self.dispositivo_a, usuario=self.supervisor, rol=self.supervisor_rol
+        )
         cache.clear()
 
     def test_listado_y_detalle_aplican_alcance_incluso_por_url_directa(self):
@@ -363,7 +367,7 @@ class LegajoDispositivoViewsTests(TestCase):
         self.assertNotContains(respuesta, "No hay dispositivos en tu alcance")
 
     def test_vacio_sin_asignacion_y_sin_filtros_explica_el_alcance(self):
-        AsignacionDispositivo.objects.filter(rol=self.rol).update(activo=False)
+        MiembroEquipoDispositivo.objects.filter(rol=self.rol).update(activo=False)
         self.client.force_login(self.consulta)
         respuesta = self.client.get(reverse("dispositivos:lista"))
 

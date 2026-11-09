@@ -32,11 +32,11 @@ from django.utils import timezone
 from core import rbac
 from legajos.models import Ciudadano
 from programas.models import (
-    AsignacionDispositivo,
     Dispositivo,
     Edificio,
     Estadia,
     InspeccionEdificio,
+    MiembroEquipoDispositivo,
     Plaza,
     Programa,
     Sector,
@@ -82,10 +82,10 @@ class BaseListado(TestCase):
         RolMeta.objects.create(grupo=rol, categoria=rbac.CATEGORIA_PROGRAMA, programa=self.programa, activo=True)
         for codigo in capacidades:
             rol.permissions.add(_permiso(codigo))
-        for dispositivo in alcance or []:
-            AsignacionDispositivo.objects.create(dispositivo=dispositivo, rol=rol)
         usuario = User.objects.create_user(nombre, password="x")
         usuario.groups.add(rol)
+        for dispositivo in alcance or []:
+            MiembroEquipoDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, rol=rol)
         cache.clear()
         return usuario
 
@@ -242,8 +242,9 @@ class AlcanceTests(BaseListado):
         """Un alcance que se aplicara antes de paginar dejaría filas ajenas en la página 2."""
 
         for n in range(30, 60):
-            AsignacionDispositivo.objects.create(
+            MiembroEquipoDispositivo.objects.create(
                 dispositivo=self._dispositivo(f"MIO-{n:03d}", f"Propio {n}", localidad="Resistencia"),
+                usuario=self.consultor,
                 rol=self.consultor.groups.first(),
             )
         cache.clear()

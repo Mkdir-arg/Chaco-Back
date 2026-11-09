@@ -648,7 +648,12 @@ class HorarioDispositivo(TimeStamped):
 
 
 class AsignacionDispositivo(TimeStamped):
-    """Alcance fino de un rol sobre un dispositivo concreto."""
+    """Alcance fino de un rol sobre un dispositivo concreto (vía vieja, retirada).
+
+    Ya no se lee ni se escribe desde esta release: el alcance lo da el Equipo
+    (``MiembroEquipoDispositivo``). El modelo y la tabla quedan hasta el DeleteModel de dos
+    releases después (expand/contract).
+    """
 
     dispositivo = models.ForeignKey(
         Dispositivo,

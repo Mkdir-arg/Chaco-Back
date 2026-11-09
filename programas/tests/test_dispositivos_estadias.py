@@ -30,9 +30,9 @@ from core import rbac
 from core.tests.candados import orden_de_candados
 from legajos.models import Ciudadano
 from programas.models import (
-    AsignacionDispositivo,
     Dispositivo,
     Estadia,
+    MiembroEquipoDispositivo,
     MotivoEgreso,
     Plaza,
     Programa,
@@ -107,9 +107,9 @@ class BaseEstadias(TestCase):
             activo=True,
         )
         rol.permissions.add(*[_permiso(codigo) for codigo in capacidades])
-        AsignacionDispositivo.objects.create(dispositivo=dispositivo, rol=rol, activo=True)
         usuario = User.objects.create_user(username=nombre.replace(" ", "_").lower(), password="x")
         usuario.groups.add(rol)
+        MiembroEquipoDispositivo.objects.create(dispositivo=dispositivo, usuario=usuario, rol=rol)
         return User.objects.get(pk=usuario.pk)
 
     def _usuario(self, pk):
