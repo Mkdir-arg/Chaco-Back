@@ -52,7 +52,7 @@ La pieza tiene **dos tamaños declarados**. No es decoración: cada uno tiene su
 | | Chica (por defecto) | Grande · `variante="tablero"` |
 |---|---|---|
 | Cuándo | listados, detalles y franjas dentro de un contenido | tableros y pantalla de inicio de programa: la franja de métricas que **encabeza** la pantalla. También la franja de indicadores operativos que encabeza un detalle de Dispositivos (decisión C-2 del PM: P1, P4, P12, P19, P21) |
-| Caja de ícono | `w-8 h-8 rounded-lg`, color por `tono` | 52 px, radio 12; con `tono`, `bg-{tono}-soft text-fg-{tono}`; sin tono, ícono blanco sobre `var(--gradient-brand)` |
+| Caja de ícono | `w-8 h-8 rounded-lg`, color por `tono` | 52 px, radio 12; con `tono`, `bg-{tono}-soft text-fg-{tono}`; sin tono, ícono blanco sobre `var(--gradient-brand)`. Bajo 480 px la caja pasa **encima** del rótulo (`column-reverse` en `nodo-stat-card.css`): en una grilla de 2 columnas, al lado le dejaba ~40 px al rótulo y lo tapaba |
 | Valor | `text-2xl font-bold` (24 px) | 32 px / peso 800 |
 | Sombra | ninguna | `shadow-sm` |
 | Reglas | utilidades de Tailwind | `static/custom/css/nodo-stat-card.css` (`.nodo-stat-tablero*`) |

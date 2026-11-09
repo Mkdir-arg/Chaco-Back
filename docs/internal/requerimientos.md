@@ -569,6 +569,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 443 | Tablas en notebooks, PR 4 de 4 (cierre): `nodo-col-acciones` en el resto de las listas (Configuración, Legajos, Notificaciones, Equipo de Dispositivos), hover de un solo tono en Becas y la celda fija durante el arrastre | Configuración · Legajos · Notificaciones · Dispositivos (Equipo) · Becas · sistema de diseño (tablas) | `#ui` | PM — plan «tablas en notebooks» (las acciones quedan fuera de pantalla) | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 444 | Dispositivos: siete ajustes de Infraestructura posteriores al Cambio 439 (el badge del registro es siempre la criticidad, tope de 6 chips, sin chevron vacío, foco de marca, una consulta menos, `_RESPUESTA_BASE` pasa a ser `_respuesta_base()` (una base nueva por llamada, sin listas compartidas), URL de solapa al servicio) | Dispositivos · Infraestructura (P4/P19) | `#ui` | PM — decisión sobre la etiqueta del registro plegable y MINOR de los PR #1054 y #1055 | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 445 | Becas: «Opciones del catálogo» y «Depende de» en los modales de Requisitos generales (alta y edición), y el alta con catálogo nace inactiva | Becas · Requisitos generales | `#requisitos` `#ui` | PM — hueco del Cambio 418 | 08/11/2026 | 🟡 **En curso** | No requiere |
+| 446 | Dispositivos: arreglos del recorrido de QA de noviembre (detalle en el celular con solapas en una fila, Equipo legible e indicadores sin tapar; «sectores activos» bien escrito; «Nuevo relevamiento» valida en español) | Dispositivos · detalle (P4) · Infraestructura · Relevamientos | `#ui` | PM — recorrido de QA en testing y local del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -53576,5 +53577,71 @@ Revertir el PR; no hay datos que deshacer.
 ## Historial
 
 - **08/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 446 — Arreglos del recorrido de QA de Dispositivos (noviembre)
+
+🟡 **EN CURSO — 09/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · detalle (P4), Infraestructura, Relevamientos |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — recorrido de QA de todos los roles en testing (`datanach.ecomdev.ar` y la app de campo) y en local, 09/11/2026 |
+| **Fecha del pedido** | 09/11/2026 |
+| **Issue / épica** | sin issue; sigue a las tasks de confirmación #1064–#1068 |
+| **Partes afectadas** | Backoffice: `programas/templates/programas/dispositivos/legajo/detail.html`, `static/custom/css/nodo-stat-card.css`, `static/custom/css/tailwind.css`, `programas/services/edificios.py`, `programas/templates/programas/dispositivos/relevamientos/list.html`, `.claude/design/componentes/{stat_card,tabla}.md`, `.claude/agents/chaco-design-system.md`; tests `test_dispositivos_detalle_movil.py` (nuevo), `test_dispositivos_sector_edificio.py`, `test_dispositivos_relevamientos_listado.py` |
+| **Migración** | No |
+
+## Pedido original
+
+«Arreglar todo en un solo PR», sobre los hallazgos de los dos recorridos de QA de Dispositivos (informe de testing: 3 Media y 7 Baja; informe local: 2 Media y 4 Baja). Se repartió en tres carriles en paralelo (T1 detalle en el celular, T2 mensajes y validaciones, T3 filtro y legajo).
+
+## Alcance acordado
+
+**Entra:** (1) las solapas del detalle a 390 px se superponían: ahora van en una fila con scroll; (2) el Equipo a 390 px cortaba el Rol y escondía el Responsable; (3) los rótulos de los indicadores operativos quedaban tapados por el ícono; (4) «sectores activoes» al desvincular un edificio; (5) «Nuevo relevamiento» sin edificio mostraba la validación del navegador en inglés.
+**Queda afuera:** la app de campo (Chaco-mobile: reasignar con la app abierta pierde lo cargado sin decir por qué, el falso «No tenés relevamientos asignados», `sw.js`), que va en su repo; la clave provisoria solo por correo (contradice los Cambios 37 y 181: decide el PM); la búsqueda por texto en Instituciones (no existe: funcionalidad nueva, propuesta al PM); y el aviso genérico «Revisá los datos del formulario» junto al error del campo (ver decisión 4).
+
+## Decisiones tomadas
+
+1. **Solapas:** los seis `role="tab"` del detalle no tenían `shrink-0`, que la ficha `tabs.md` ya exigía; el Cambio 431 dejó la fila con scroll pero las solapas se comprimían. Llevan `shrink-0 whitespace-nowrap`, y `px-3 gap-1` para que a 1366 px la barra siga entrando sin scroll (`gap-1.5` no estaba en el build).
+2. **Equipo bajo `lg`:** la tabla ya tenía `nodo-col-acciones`, pero mide ~810 px y la columna fija tapaba el resto. Rol (con «Rol no vigente») y el badge Responsable se apilan bajo el nombre (`lg:hidden`) y sus columnas pasan a `hidden lg:table-cell`. Desde `lg` no cambia nada.
+3. **Indicadores:** en `variante="tablero"`, bajo 480 px la caja del ícono va encima del rótulo (`column-reverse` en `nodo-stat-card.css`). `_stat_card.html` no cambia; a ≥480 px el render es idéntico. Alcanza también a las otras pantallas con `variante="tablero"`, solo bajo 480 px.
+4. **El aviso genérico se queda.** El QA marcó que «Revisá los datos del formulario» aparece junto al mensaje del campo (nombre de sector repetido, «No hay cambios para corregir», reservar con un DNI sin persona). Es lo que decidió el Cambio 96.11 («cada error va bajo su campo, más un único aviso de resumen») para `mostrarErrores` de `becas/_ajax_js.html`, que comparten 17 pantallas. El carril T2 lo había cambiado; el juez lo sacó del PR. Si el PM quiere un solo mensaje, el cambio está hecho en la rama `fix/qa-dispositivos-nov-t2` (commit `72faa71e`).
+5. **No eran defectos:** reservar o prestar con un DNI sin persona ya devuelve el mensaje específico bajo el campo (`forms_dispositivos.py`); reasignar un relevamiento sí deja el aviso, que se ve al cargar la página destino (la captura del QA era una página a medio cargar; se agregó un test que lo fija); el legajo sin `ciudadano.ver` redirige a Inicio **con** el toast «No tiene permisos…», que es la convención de `CapacidadRequeridaMixin` y `@requiere` (Cambio 122, ~60 vistas); y el enlace «Ver legajo» ya se oculta sin `ciudadano.ver` en todo Dispositivos.
+6. «sector(es) activo(s)» usaba un solo plural para las dos palabras: ahora cada una lleva el suyo.
+7. «Nuevo relevamiento» (el formulario GET del paso uno) lleva `novalidate` y valida con Alpine: «Elegí un edificio para continuar.» en un `role="alert"`.
+
+## Archivos
+
+Los de «Partes afectadas».
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `test_dispositivos_detalle_movil.py` (6 tests: `shrink-0` y `whitespace-nowrap` en las solapas, barra con `overflow-x-auto`, clases presentes en el build, Equipo apilado y columnas ocultas bajo `lg`, bloque CSS bajo 480 px) y tests nuevos de plural, `novalidate` del paso uno y aviso de reasignar.
+- Mutaciones (rojo y restauradas): sin `shrink-0`; sin `lg:hidden` en el apilado; `column-reverse` → `column`; plural único; sin `novalidate`.
+- Capturas antes y después a 390, 1366 y 1440 px del detalle (Datos y Equipo).
+- `manage.py check`, snapshots de Becas sin cambios, `design_audit --ratchet` 0 nuevos, `compile_templates --bloques` 0, `check_design_agent` OK, ruff OK.
+
+## Pendientes / a definir
+
+- PM: ¿un solo mensaje en los errores de formulario (decisión 4)?
+- PM: búsqueda por nombre o código en el listado de Instituciones.
+- PM: clave provisoria cuando el correo no es accesible.
+- La solapa activa del detalle no se desplaza sola hasta quedar a la vista en el celular cuando está a la derecha (por ejemplo, Equipo).
+- App de campo: PR aparte en Chaco-mobile.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **09/11/2026 — alta del cambio.**
 
 ---
