@@ -220,6 +220,66 @@ class FiltrosTests(BaseListado):
         self.assertNotIn("page", respuesta.context["exportar_qs"])
 
 
+class BusquedaPorTextoTests(BaseListado):
+    """B6 · `?q=` busca en lo que la fila muestra (nombre, código y localidad), dentro del alcance."""
+
+    def setUp(self):
+        super().setUp()
+        self.hogar = self._dispositivo("HOG-1", "Hogar San José", localidad="Barranqueras")
+        self.parador = self._dispositivo("PAR-1", "Parador Nocturno", tipo=self.tipo_parador, localidad="Resistencia")
+        self.ajeno = self._dispositivo("HOG-2", "Hogar San Roque", localidad="Resistencia")
+        self.admin = self._admin("admin-busqueda")
+        self.cliente = self._cliente(self.admin)
+
+    def test_busca_por_nombre_sin_distinguir_mayusculas(self):
+        respuesta = self.cliente.get(URL_LISTA, {"q": "  nocturno "})
+
+        self.assertEqual(self._filas(respuesta), ["PAR-1"])
+        self.assertEqual(respuesta.context["q_actual"], "nocturno")
+
+    def test_busca_por_codigo_y_por_localidad_que_la_fila_muestra(self):
+        self.assertEqual(self._filas(self.cliente.get(URL_LISTA, {"q": "hog-1"})), ["HOG-1"])
+        self.assertEqual(self._filas(self.cliente.get(URL_LISTA, {"q": "barranq"})), ["HOG-1"])
+
+    def test_sin_coincidencias_ofrece_limpiar_filtros(self):
+        respuesta = self.cliente.get(URL_LISTA, {"q": "zzz"})
+
+        self.assertEqual(self._filas(respuesta), [])
+        self.assertContains(respuesta, "Ningún dispositivo coincide con los filtros")
+        self.assertNotContains(respuesta, "No hay dispositivos en tu alcance")
+
+    def test_no_amplia_el_alcance(self):
+        limitado = self._usuario("ve-solo-hogar", ("dispositivo.ver",), [self.hogar])
+
+        respuesta = self._cliente(limitado).get(URL_LISTA, {"q": "Hogar"})
+
+        self.assertEqual(self._filas(respuesta), ["HOG-1"])
+
+    def test_convive_con_otro_filtro(self):
+        respuesta = self.cliente.get(URL_LISTA, {"q": "Hogar", "localidad": "Resistencia"})
+
+        self.assertEqual(self._filas(respuesta), ["HOG-2"])
+
+    def test_la_paginacion_y_la_exportacion_conservan_q(self):
+        for n in range(30):
+            self._dispositivo(f"CAS-{n:03d}", f"Casa {n}", localidad="Fontana")
+
+        pagina_1 = self.cliente.get(URL_LISTA, {"q": "Casa"})
+
+        self.assertContains(pagina_1, "page=2&amp;q=Casa")
+        pagina_2 = self.cliente.get(URL_LISTA, {"q": "Casa", "page": 2})
+        self.assertEqual(len(self._filas(pagina_2)), 5)
+        self.assertTrue(all(c.startswith("CAS-") for c in self._filas(pagina_2)))
+        self.assertEqual(pagina_1.context["exportar_qs"], "q=Casa")
+
+    def test_la_exportacion_filtra_por_q(self):
+        respuesta = self.cliente.get(reverse("dispositivos:exportar", args=["padron", "csv"]), {"q": "Nocturno"})
+
+        contenido = respuesta.content.decode("utf-8-sig")
+        self.assertIn("PAR-1", contenido)
+        self.assertNotIn("HOG-1", contenido)
+
+
 class AlcanceTests(BaseListado):
     """La regla de visibilidad no la cambia ni la paginación ni los filtros."""
 

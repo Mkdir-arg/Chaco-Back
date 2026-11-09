@@ -540,7 +540,7 @@ class StatCardTest(SimpleTestCase):
             html,
             "\n"
             '<div class="bg-white rounded-xl border border-base p-4 nodo-stat-tablero shadow-sm">\n'
-            '  <div class="flex items-center justify-between gap-2">\n'
+            '  <div class="flex items-center justify-between gap-2 nodo-stat-tablero-cab">\n'
             '    <p class="text-xs font-semibold text-body-subtle">Plazas</p>\n'
             '    <div class="nodo-stat-tablero-ico flex items-center justify-center flex-shrink-0">'
             '<i class="fas fa-bed" aria-hidden="true"></i></div>\n'

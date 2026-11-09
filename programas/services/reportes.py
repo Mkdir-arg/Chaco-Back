@@ -53,7 +53,7 @@ def _fecha(valor, nombre):
     return fecha
 
 
-def filtrar_dispositivos(dispositivos, *, tipo=None, estado=None, localidad=None):
+def filtrar_dispositivos(dispositivos, *, tipo=None, estado=None, localidad=None, q=None):
     """Filtros del padrón institucional.
 
     El filtro por **período** —dispositivos con un ingreso o un egreso dentro del
@@ -66,6 +66,9 @@ def filtrar_dispositivos(dispositivos, *, tipo=None, estado=None, localidad=None
         dispositivos = dispositivos.filter(estado=estado)
     if localidad:
         dispositivos = dispositivos.filter(localidad__icontains=localidad)
+    if q:
+        # Solo lo que la fila del listado muestra: nombre, código y localidad.
+        dispositivos = dispositivos.filter(Q(nombre__icontains=q) | Q(codigo__icontains=q) | Q(localidad__icontains=q))
     return dispositivos
 
 
