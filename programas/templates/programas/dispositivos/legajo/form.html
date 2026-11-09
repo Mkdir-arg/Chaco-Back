@@ -37,21 +37,23 @@
         {% for field in form %}{% if field.name == 'localidad' or field.name == 'domicilio' or field.name == 'latitud' or field.name == 'longitud' %}{% include "components/_field.html" with wrapper_class="" %}{% endif %}{% endfor %}
       </div>
     </div>
+    {% if form.responsables %}
+    {% comment %}Cambio 411: solo el alta. Quienes se eligen quedan en el Equipo del dispositivo como responsables, con ese rol; la edición no los pide (se gestionan en la solapa Equipo). Cambio 450: buscador múltiple (nodo-buscador) que reemplaza a «Responsable y contacto»: esos datos salen de la primera persona elegida.{% endcomment %}
+    <div class="border-t border-light mt-5 pt-4">
+      <h2 class="text-heading font-bold"><label for="{{ form.responsables.id_for_label }}">Responsables del dispositivo <span class="text-fg-danger">*</span></label></h2>
+      <p class="mt-1 mb-4 text-xs text-body-subtle">{{ form.responsables.help_text }} Después se arma el resto del Equipo desde la solapa «Equipo» del detalle.</p>
+      {{ form.responsables }}
+      {% with contacto=form.contacto_de_alta %}
+      <p class="mt-2 text-xs text-body-subtle{% if not contacto %} hidden{% endif %}" data-contacto-responsable>Datos de contacto: <span class="text-body" data-contacto-texto>{% if contacto %}{{ contacto.responsable_nombre }} · {{ contacto.contacto_telefono|default:"sin teléfono en su perfil" }}{% endif %}</span></p>
+      {% endwith %}
+      <p class="mt-1 text-xs text-fg-danger{% if not form.responsables.errors %} hidden{% endif %}" data-error="responsables">{{ form.responsables.errors|join:" " }}</p>
+    </div>
+    {% else %}
     <div class="border-t border-light mt-5 pt-4">
       <h2 class="text-heading font-bold mb-4">Responsable y contacto</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {% for field in form %}{% if field.name == 'responsable_nombre' or field.name == 'responsable_documento' or field.name == 'contacto_telefono' or field.name == 'contacto_email' %}{% include "components/_field.html" with wrapper_class="" %}{% endif %}{% endfor %}
       </div>
-    </div>
-    {% if form.responsables %}
-    {% comment %}Cambio 411: solo el alta. Quienes se tildan quedan en el Equipo del dispositivo como responsables, con ese rol; la edición no los pide (se gestionan en la solapa Equipo).{% endcomment %}
-    <div class="border-t border-light mt-5 pt-4">
-      <h2 id="titulo-responsables" class="text-heading font-bold">Responsables del dispositivo <span class="text-fg-danger">*</span></h2>
-      <p class="mt-1 mb-4 text-xs text-body-subtle">{{ form.responsables.help_text }} Después se arma el resto del Equipo desde la solapa «Equipo» del detalle.</p>
-      <div class="nodo-checks max-h-64 overflow-y-auto rounded-lg border border-base p-3" role="group" aria-labelledby="titulo-responsables">
-        {{ form.responsables }}
-      </div>
-      <p class="mt-1 text-xs text-fg-danger{% if not form.responsables.errors %} hidden{% endif %}" data-error="responsables">{{ form.responsables.errors|join:" " }}</p>
     </div>
     {% endif %}
     {% comment %}Horario de atención: un formset de franjas (día, desde, hasta). Las filas con datos van a la tabla, con sus valores en campos ocultos; las vacías son el bloque para agregar. Sin JS se completa una fila por franja y se quita marcando «Quitar»; con JS la primera fila vacía es el control de «Agregar» y «Quitar» saca la fila. Las reglas (superposición, desde < hasta, tope por día) las valida el servidor.{% endcomment %}
@@ -138,6 +140,10 @@
       <div class="p-5" aria-live="polite">
         <ul class="list-disc pl-5 text-sm text-body" data-faltantes-validacion>
           {% for field in form.requisitos_validacion %}<li data-requisito-campo="{{ field.id_for_label }}"{% if field not in form.faltantes_validacion %} class="hidden"{% endif %}>{{ field.label }}</li>{% endfor %}
+          {% if form.responsables %}
+          <li data-faltante-responsable="ninguno"{% if 'ninguno' not in form.faltantes_responsable %} class="hidden"{% endif %}>Responsables del dispositivo</li>
+          <li data-faltante-responsable="telefono"{% if 'telefono' not in form.faltantes_responsable %} class="hidden"{% endif %}>Teléfono del responsable: cargalo en el perfil de <span data-nombre-responsable>{{ form.contacto_de_alta.responsable_nombre }}</span></li>
+          {% endif %}
           {% for texto in form.faltantes_formulario_tipo %}<li data-faltante-formulario>{{ texto }}</li>{% endfor %}
         </ul>
         <p data-validacion-completa class="text-sm text-body-subtle{% if form.hay_faltantes %} hidden{% endif %}">Los datos requeridos están completos. Se verifican al enviar a validación.</p>
@@ -155,8 +161,10 @@
   const requisitos = Array.from(document.querySelectorAll('[data-requisito-campo]'));
   const enviar = document.querySelector('button[value="enviar_validacion"]');
   function actualizarFaltantes() {
-    // Los obligatorios del formulario del tipo los pone en la lista su propio script.
-    let faltantes = document.querySelectorAll('[data-faltante-formulario]').length;
+    // Los obligatorios del formulario del tipo y, en el alta, los del responsable los
+    // ponen en la lista sus propios scripts.
+    let faltantes = document.querySelectorAll('[data-faltante-formulario]').length
+      + document.querySelectorAll('[data-faltante-responsable]:not(.hidden)').length;
     requisitos.forEach(function (fila) {
       const campo = document.getElementById(fila.dataset.requisitoCampo);
       const falta = !campo.value.trim();
@@ -388,6 +396,33 @@
   });
 }());
 </script>
+{% if form.responsables %}
+<script>
+(function () {
+  // Alta (Cambio 450): el contacto del legajo sale de la primera persona elegida en el
+  // buscador. Se muestra debajo y, si no hay nadie o no tiene teléfono, va al resumen
+  // «Qué falta para validar». El servidor copia los mismos datos al guardar.
+  const select = document.getElementById('{{ form.responsables.id_for_label }}');
+  const contacto = document.querySelector('[data-contacto-responsable]');
+  const ninguno = document.querySelector('[data-faltante-responsable="ninguno"]');
+  const sinTelefono = document.querySelector('[data-faltante-responsable="telefono"]');
+  if (!select || !contacto || !ninguno || !sinTelefono) return;
+  function actualizar() {
+    const primera = Array.from(select.options).find(function (opcion) { return opcion.selected; });
+    const nombre = primera ? primera.dataset.nombre || '' : '';
+    const telefono = primera ? primera.dataset.telefono || '' : '';
+    contacto.classList.toggle('hidden', !primera);
+    contacto.querySelector('[data-contacto-texto]').textContent = primera ? nombre + ' · ' + (telefono || 'sin teléfono en su perfil') : '';
+    ninguno.classList.toggle('hidden', !!primera);
+    sinTelefono.classList.toggle('hidden', !primera || !!telefono);
+    sinTelefono.querySelector('[data-nombre-responsable]').textContent = nombre;
+    document.dispatchEvent(new CustomEvent('formulario-tipo:faltantes'));
+  }
+  select.addEventListener('change', actualizar);
+  actualizar();
+}());
+</script>
+{% endif %}
 {% if not form.instance.pk %}
 {% comment %}La confirmación del duplicado va por el ModernModal del shell y el aviso de error por window.toast, como P4 y P5: ni Swal.fire propio ni SweetAlert cargado acá.{% endcomment %}
 <script>

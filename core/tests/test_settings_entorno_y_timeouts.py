@@ -102,7 +102,7 @@ def arrancar_django(**entorno):
 
 
 class LoggingDelModuloEndurecidoTests(SimpleTestCase):
-    """Cambio 448 · `DJANGO_DEBUG=True` mal puesto no deja el logging en DEBUG.
+    """Cambio 450 · `DJANGO_DEBUG=True` mal puesto no deja el logging en DEBUG.
 
     Testing de ECOM corría así: `DEBUG` quedaba en `False` pero el `LOGGING` ya se había
     armado en DEBUG, y registrar cada variable de template faltante con traceback hacía
