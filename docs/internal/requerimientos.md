@@ -572,6 +572,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 446 | Dispositivos: se retira la vía vieja de alcance (`AsignacionDispositivo`, «Alcance por dispositivo» del ABM de Roles); el alcance es solo el Equipo y el personal del edificio pasa a ser el Equipo | Dispositivos · Usuarios (ABM de Roles) | `#rbac` | PM — decisión del 09/11/2026 (Pendiente 2 de los Cambios 410 y 411) | 09/11/2026 | 🟡 **En curso** | No requiere |
 | 447 | Dispositivos: arreglos del recorrido de QA de noviembre (detalle en el celular con solapas en una fila, Equipo legible e indicadores sin tapar; «sectores activos» bien escrito; «Nuevo relevamiento» valida en español) | Dispositivos · detalle (P4) · Infraestructura · Relevamientos | `#ui` | PM — recorrido de QA en testing y local del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
 | 448 | El módulo endurecido rearma el `LOGGING` con `debug=False`: `DJANGO_DEBUG=True` mal puesto dejaba los logs en DEBUG y hacía Dispositivos ~15 veces más lento en testing | Transversal · configuración (Dispositivos) | `#performance` `#infra` | PM — «anda medio lento todo Dispositivos en test» | 09/11/2026 | 🟡 **En curso** | No requiere |
+| 449 | Instituciones: búsqueda por texto en el listado, y en el celular la solapa activa del detalle queda a la vista (más la clase gancho del stat card) | Dispositivos · Instituciones | `#ui` | PM — pendientes del Cambio 447, definidos por el juez | 09/11
 
 **Notas del índice**
 
@@ -53752,6 +53753,77 @@ Sin cambios.
 ## Pendientes / a definir
 
 - ECOM: `DJANGO_DEBUG=False` en el deployment de testing; revisar PRD.
+
+## Reversión
+
+Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **09/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 449 — Instituciones: búsqueda por texto, y el detalle en el celular con la solapa activa a la vista
+
+🟡 **EN CURSO — 09/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · Instituciones (listado y detalle P4) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — «definí vos con la mejor definición que tengas y arrancá», sobre los pendientes del Cambio 447, 09/11/2026 |
+| **Fecha del pedido** | 09/11/2026 |
+| **Issue / épica** | sin issue; sigue al Cambio 447 |
+| **Partes afectadas** | Backoffice: `programas/services/reportes.py`, `programas/views/dispositivos_legajo.py`, `programas/views/reportes.py`, `programas/templates/programas/dispositivos/legajo/list.html`, `templates/components/_stat_card.html`, `static/custom/css/nodo-stat-card.css`, `static/custom/js/nodo-tabs.js`, `.claude/design/componentes/{stat_card,tabs}.md`; tests `test_dispositivos_listado.py`, `core/tests/test_nodo_tabs.py`, `core/tests/test_nodo_ui_piezas.py`, `test_dispositivos_detalle_movil.py` |
+| **Migración** | No |
+
+## Pedido original
+
+Resolver los pendientes que el Cambio 447 dejó al PM. El PM delegó las definiciones al juez. Quedan en este cambio la búsqueda en Instituciones y los dos ajustes menores que pidió la auditoría del #1072.
+
+## Alcance acordado
+
+**Entra:**
+1. Búsqueda por texto (`?q=`) en el listado de Instituciones.
+2. Clase gancho de la cabecera del stat card en la variante `tablero`.
+3. La solapa activa del detalle queda a la vista en el celular.
+
+**Queda afuera:** la app de campo (PR aparte en Chaco-mobile). La reasignación con la app abierta (M2) ya está resuelta en la 1.2.9 de la app (PR #22 de Chaco-mobile) y espera el espejo a testing.
+
+## Decisiones tomadas
+
+1. **Búsqueda:**
+   - `q` busca en nombre, código y localidad, que son los tres datos que muestra la fila. No distingue mayúsculas.
+   - Filtra dentro del alcance del usuario (`dispositivos_visibles`), nunca lo amplía.
+   - Viaja en la paginación y en la exportación del padrón.
+   - El control es el `input[type=search]` con `aria-label` del contrato de filtros, y `dynamic_list_filters.js` lo muestra como la fila «Buscar · Contiene».
+2. **Clase gancho:** `_stat_card.html` suma la clase `nodo-stat-tablero-cab` a la cabecera, solo con `variante="tablero"`. El `@media` de 480 px la selecciona en lugar del posicional `> div:first-child`. El render no cambia.
+3. **Solapa activa:** `nodo-tabs.js`, que es global, mueve solo el `scrollLeft` de la barra cuando la barra desborda. No usa `scrollIntoView`, que también desplazaría la página. Corre al montar y en cada cambio de `aria-selected`, y sin desborde no hace nada.
+4. **Errores de formulario (decisión 4 del Cambio 447):** se mantiene el Cambio 96.11, cada error bajo su campo más un aviso de resumen. La rama `fix/qa-dispositivos-nov-t2` se descarta.
+5. **Clave provisoria con un correo no accesible:** se mantiene que llega solo por correo (Cambios 37 y 181). Quien da el alta corrige el correo.
+6. **Datos de prueba en testing** (usuario `qa-claude-admin` y registros `QA-CLAUDE`): se conservan hasta que se cierren las tasks de confirmación #1064–#1068 y después se borran juntos.
+
+## Archivos
+
+Los de «Partes afectadas».
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- **Tests nuevos:** 7 de búsqueda (nombre sin mayúsculas, código y localidad, vacío, alcance, combinación con localidad, paginación y exportación conservan `q`, la exportación filtra) y 3 de `nodo-tabs.js` (desborda, ya visible, sin desborde).
+- **Mutaciones**, que dieron rojo y se restauraron:
+  - Con el filtro `q` apagado, fallan 6 de los 7 tests de búsqueda.
+  - Sin la guarda de desborde, falla el test de sin desborde.
+- **Medidas a 390 px:** la solapa Equipo o Historial pasa de fuera de vista a visible. A 1440 px no se mueve nada. Las medidas de las tarjetas son idénticas antes y después.
+- **Gates:** `manage.py check` y 284 tests OK, `--tag performance` 46 OK, `design_audit --ratchet` 0 nuevos, `compile_templates --bloques` 0, `check_design_agent` OK, ruff OK.
+
+## Pendientes / a definir
+
+- App de campo: espejar la 1.2.9 a testing (`/pushGitLabecomMOBILETEST`, con confirmación del PM) y el PR de Chaco-mobile con el falso vacío al entrar, el aviso tras enviar y `sw.js`.
 
 ## Reversión
 
