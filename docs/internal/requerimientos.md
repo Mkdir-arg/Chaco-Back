@@ -572,7 +572,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 446 | Dispositivos: se retira la vía vieja de alcance (`AsignacionDispositivo`, «Alcance por dispositivo» del ABM de Roles); el alcance es solo el Equipo y el personal del edificio pasa a ser el Equipo | Dispositivos · Usuarios (ABM de Roles) | `#rbac` | PM — decisión del 09/11/2026 (Pendiente 2 de los Cambios 410 y 411) | 09/11/2026 | 🟡 **En curso** | No requiere |
 | 447 | Dispositivos: arreglos del recorrido de QA de noviembre (detalle en el celular con solapas en una fila, Equipo legible e indicadores sin tapar; «sectores activos» bien escrito; «Nuevo relevamiento» valida en español) | Dispositivos · detalle (P4) · Infraestructura · Relevamientos | `#ui` | PM — recorrido de QA en testing y local del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
 | 448 | El módulo endurecido rearma el `LOGGING` con `debug=False`: `DJANGO_DEBUG=True` mal puesto dejaba los logs en DEBUG y hacía Dispositivos ~15 veces más lento en testing | Transversal · configuración (Dispositivos) | `#performance` `#infra` | PM — «anda medio lento todo Dispositivos en test» | 09/11/2026 | 🟡 **En curso** | No requiere |
-| 449 | Instituciones: búsqueda por texto en el listado, y en el celular la solapa activa del detalle queda a la vista (más la clase gancho del stat card) | Dispositivos · Instituciones | `#ui` | PM — pendientes del Cambio 447, definidos por el juez | 09/11
+| 449 | Instituciones: búsqueda por texto en el listado, y en el celular la solapa activa del detalle queda a la vista (más la clase gancho del stat card) | Dispositivos · Instituciones | `#ui` | PM — pendientes del Cambio 447, definidos por el juez | 09/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
