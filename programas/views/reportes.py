@@ -42,6 +42,7 @@ class DispositivoExportView(DispositivoProgramaPermissionMixin, View):
             tipo=request.GET.get("tipo"),
             estado=request.GET.get("estado"),
             localidad=request.GET.get("localidad", "").strip(),
+            q=request.GET.get("q", "").strip(),
         )
         if reporte == "padron":
             return _respuesta(padron_dispositivos(dispositivos), formato, "padron_dispositivos")

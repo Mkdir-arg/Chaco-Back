@@ -70,5 +70,5 @@ class TarjetaTableroEnCelularTests(BaseUI):
         bloque = re.search(r"@media \(max-width: 479\.98px\)\s*\{(.*?)\n\}", css, re.S)
 
         self.assertIsNotNone(bloque)
-        self.assertIn(".nodo-stat-tablero > div:first-child", bloque.group(1))
+        self.assertIn(".nodo-stat-tablero .nodo-stat-tablero-cab", bloque.group(1))
         self.assertIn("flex-direction: column-reverse", bloque.group(1))

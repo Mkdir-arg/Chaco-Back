@@ -23,6 +23,7 @@
   dynamic_list_filters.js vacía el form y le pisa la clase, así que la tarjeta de filtros
   del mockup la dibuja el JS: acá solo viajan los controles.{% endcomment %}
   <form method="get" data-dynamic-list-filters>
+    <input type="search" name="q" value="{{ q_actual }}" aria-label="Buscar" class="nodo-field max-w-xs">
     <select name="tipo" aria-label="Tipo" class="nodo-field max-w-xs">
       <option value="">Todos</option>
       {% for tipo in tipos %}
@@ -83,7 +84,7 @@
     </div>
     {% include "components/_paginacion.html" with page_obj=page_obj entidad="institución" entidad_plural="instituciones" %}
     {% elif request.GET|hay_filtros %}
-      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún dispositivo coincide con los filtros" texto="Probá con otro tipo, estado o localidad." accion_url=url_sin_filtros %}
+      {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ningún dispositivo coincide con los filtros" texto="Probá con otra búsqueda, tipo, estado o localidad." accion_url=url_sin_filtros %}
     {% else %}
       {% include "components/_estado_vacio.html" with icono="fa-building" titulo="No hay dispositivos en tu alcance" texto="Vas a ver acá las instituciones que te asignen, o las que des de alta." accion_url=url_crear accion_texto="Nueva institución" accion_icono="fa-plus" %}
     {% endif %}

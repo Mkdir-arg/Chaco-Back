@@ -55,7 +55,7 @@ backoffice: ← → mueven el foco con vuelta circular, Home/End van a los extre
 `tabindex` itinerante deja tabulable solo la solapa activa (Tab entra y sale de la barra en
 un paso). Activa la solapa disparando su `click()`, así que no necesita saber nada del
 estado de la pantalla; lee `aria-selected` para repartir el `tabindex` y un
-`MutationObserver` lo recalcula cuando ese atributo cambia.
+`MutationObserver` lo recalcula cuando ese atributo cambia. Si la barra desborda en horizontal (celular), al montar y en cada cambio deja a la vista la solapa activa moviendo solo el `scrollLeft` de la barra; sin desborde no hace nada y nunca toca el scroll vertical.
 
 **Una pantalla no escribe su propio manejo de teclado.** Lo único que tiene que hacer es
 declarar el ARIA del contrato de arriba.

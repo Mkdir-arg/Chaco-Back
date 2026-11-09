@@ -33,7 +33,12 @@ function Element(tagName, attrs) {
   this.disabled = false;
   this.hijos = [];
   this.padre = null;
+  this.scrollWidth = 0;
+  this.clientWidth = 0;
+  this.scrollLeft = 0;
+  this.caja = {left: 0, right: 0};
 }
+Element.prototype.getBoundingClientRect = function () { return this.caja; };
 Element.prototype.getAttribute = function (n) { return n in this._attrs ? this._attrs[n] : null; };
 Element.prototype.setAttribute = function (n, v) { this._attrs[n] = String(v); };
 Element.prototype.hasAttribute = function (n) { return n in this._attrs; };
@@ -194,6 +199,40 @@ class TecladoDeSolapasTests(SimpleTestCase):
         log = _correr("var l = __barra(1, 0);\n__tecla(l.hijos[0], 'ArrowRight');\n")
 
         self.assertEqual(log["clicks"], [])
+
+    def test_la_barra_que_desborda_deja_a_la_vista_la_solapa_activa(self):
+        """Celular: 3 solapas de 100 px en una barra de 150; la activa (la 3.ª) queda fuera por la derecha."""
+        log = _correr(
+            "var l = __barra(3, 2);\n"
+            "l.scrollWidth = 300; l.clientWidth = 150; l.caja = {left: 0, right: 150};\n"
+            "l.hijos.forEach(function (t, i) {\n"
+            "  t.getBoundingClientRect = function () { return {left: i * 100 - l.scrollLeft, right: i * 100 + 100 - l.scrollLeft}; };\n"
+            "});\n"
+            "window.NodoTabs.montar();\n__log.scrollLeft = l.scrollLeft;\n"
+        )
+
+        self.assertEqual(log["scrollLeft"], 150)
+
+    def test_la_solapa_activa_que_ya_se_ve_no_mueve_nada(self):
+        log = _correr(
+            "var l = __barra(3, 0);\n"
+            "l.scrollWidth = 300; l.clientWidth = 150; l.caja = {left: 0, right: 150};\n"
+            "l.hijos[0].caja = {left: 0, right: 100};\n"
+            "window.NodoTabs.montar();\n__log.scrollLeft = l.scrollLeft;\n"
+        )
+
+        self.assertEqual(log["scrollLeft"], 0)
+
+    def test_sin_desborde_horizontal_no_se_desplaza_nada(self):
+        """Desktop: la barra entra entera; aunque la activa quedara «fuera», no hay a dónde moverla."""
+        log = _correr(
+            "var l = __barra(3, 2);\n"
+            "l.scrollWidth = 150; l.clientWidth = 150; l.caja = {left: 0, right: 150};\n"
+            "l.hijos[2].caja = {left: 200, right: 300};\n"
+            "window.NodoTabs.montar();\n__log.scrollLeft = l.scrollLeft;\n"
+        )
+
+        self.assertEqual(log["scrollLeft"], 0)
 
 
 class CargaEnElShellTests(SimpleTestCase):
