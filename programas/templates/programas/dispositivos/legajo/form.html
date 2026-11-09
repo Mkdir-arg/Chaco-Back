@@ -44,7 +44,7 @@
       <p class="mt-1 mb-4 text-xs text-body-subtle">{{ form.responsables.help_text }} Después se arma el resto del Equipo desde la solapa «Equipo» del detalle.</p>
       {{ form.responsables }}
       {% with contacto=form.contacto_de_alta %}
-      <p class="mt-2 text-xs text-body-subtle{% if not contacto %} hidden{% endif %}" data-contacto-responsable>Datos de contacto: <span class="text-body" data-contacto-texto>{% if contacto %}{{ contacto.responsable_nombre }} · {{ contacto.contacto_telefono|default:"sin teléfono en su perfil" }}{% endif %}</span></p>
+      <p class="mt-2 text-xs text-body-subtle{% if not contacto %} hidden{% endif %}" data-contacto-responsable>Datos de contacto: <span class="text-body" data-contacto-texto>{% if contacto %}{{ form.persona_de_contacto }} · {{ contacto.contacto_telefono|default:"sin teléfono en su perfil" }}{% endif %}</span></p>
       {% endwith %}
       <p class="mt-1 text-xs text-fg-danger{% if not form.responsables.errors %} hidden{% endif %}" data-error="responsables">{{ form.responsables.errors|join:" " }}</p>
     </div>
@@ -142,7 +142,8 @@
           {% for field in form.requisitos_validacion %}<li data-requisito-campo="{{ field.id_for_label }}"{% if field not in form.faltantes_validacion %} class="hidden"{% endif %}>{{ field.label }}</li>{% endfor %}
           {% if form.responsables %}
           <li data-faltante-responsable="ninguno"{% if 'ninguno' not in form.faltantes_responsable %} class="hidden"{% endif %}>Responsables del dispositivo</li>
-          <li data-faltante-responsable="telefono"{% if 'telefono' not in form.faltantes_responsable %} class="hidden"{% endif %}>Teléfono del responsable: cargalo en el perfil de <span data-nombre-responsable>{{ form.contacto_de_alta.responsable_nombre }}</span></li>
+          <li data-faltante-responsable="nombre"{% if 'nombre' not in form.faltantes_responsable %} class="hidden"{% endif %}>Nombre del responsable: cargalo en el perfil de <span data-nombre-responsable>{{ form.persona_de_contacto }}</span></li>
+          <li data-faltante-responsable="telefono"{% if 'telefono' not in form.faltantes_responsable %} class="hidden"{% endif %}>Teléfono del responsable: cargalo en el perfil de <span data-nombre-responsable>{{ form.persona_de_contacto }}</span></li>
           {% endif %}
           {% for texto in form.faltantes_formulario_tipo %}<li data-faltante-formulario>{{ texto }}</li>{% endfor %}
         </ul>
@@ -400,22 +401,26 @@
 <script>
 (function () {
   // Alta (Cambio 450): el contacto del legajo sale de la primera persona elegida en el
-  // buscador. Se muestra debajo y, si no hay nadie o no tiene teléfono, va al resumen
-  // «Qué falta para validar». El servidor copia los mismos datos al guardar.
+  // buscador. Se muestra debajo y, si no hay nadie o su perfil no trae un nombre o un
+  // teléfono válidos, va al resumen «Qué falta para validar». El servidor copia los mismos
+  // datos al guardar.
   const select = document.getElementById('{{ form.responsables.id_for_label }}');
   const contacto = document.querySelector('[data-contacto-responsable]');
   const ninguno = document.querySelector('[data-faltante-responsable="ninguno"]');
+  const sinNombre = document.querySelector('[data-faltante-responsable="nombre"]');
   const sinTelefono = document.querySelector('[data-faltante-responsable="telefono"]');
-  if (!select || !contacto || !ninguno || !sinTelefono) return;
+  if (!select || !contacto || !ninguno || !sinNombre || !sinTelefono) return;
   function actualizar() {
     const primera = Array.from(select.options).find(function (opcion) { return opcion.selected; });
+    const persona = primera ? primera.dataset.persona || '' : '';
     const nombre = primera ? primera.dataset.nombre || '' : '';
     const telefono = primera ? primera.dataset.telefono || '' : '';
     contacto.classList.toggle('hidden', !primera);
-    contacto.querySelector('[data-contacto-texto]').textContent = primera ? nombre + ' · ' + (telefono || 'sin teléfono en su perfil') : '';
+    contacto.querySelector('[data-contacto-texto]').textContent = primera ? persona + ' · ' + (telefono || 'sin teléfono en su perfil') : '';
     ninguno.classList.toggle('hidden', !!primera);
+    sinNombre.classList.toggle('hidden', !primera || !!nombre);
     sinTelefono.classList.toggle('hidden', !primera || !!telefono);
-    sinTelefono.querySelector('[data-nombre-responsable]').textContent = nombre;
+    [sinNombre, sinTelefono].forEach(function (fila) { fila.querySelector('[data-nombre-responsable]').textContent = persona; });
     document.dispatchEvent(new CustomEvent('formulario-tipo:faltantes'));
   }
   select.addEventListener('change', actualizar);
