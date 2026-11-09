@@ -302,6 +302,39 @@ def nombre_de_persona(usuario):
     return usuario.get_full_name().strip() or usuario.get_username()
 
 
+def datos_de_contacto(usuario):
+    """Responsable y contacto del legajo tomados de la persona (alta, Cambio 450).
+
+    El alta ya no los pide a mano: salen del primer responsable elegido. Se copian una vez; la
+    edición los sigue mostrando para corregirlos. Sin perfil, documento y teléfono quedan vacíos.
+    Cada valor pasa por la misma regla que el campo escrito a mano; el que no la cumple queda
+    vacío (un teléfono inválido del perfil cuenta como «sin teléfono» y no traba la edición).
+    """
+
+    from programas.validacion_contacto import (
+        normalizar_documento_responsable,
+        normalizar_telefono,
+        validar_nombre_responsable,
+    )
+
+    def _con_regla(regla, valor):
+        valor = (valor or "").strip()
+        if not valor:
+            return ""
+        try:
+            return regla(valor)
+        except ValidationError:
+            return ""
+
+    perfil = getattr(usuario, "profile", None)
+    return {
+        "responsable_nombre": _con_regla(validar_nombre_responsable, nombre_de_persona(usuario))[:200],
+        "responsable_documento": _con_regla(normalizar_documento_responsable, getattr(perfil, "dni", None)),
+        "contacto_telefono": _con_regla(normalizar_telefono, getattr(perfil, "telefono", None)),
+        "contacto_email": (usuario.email or "").strip(),
+    }
+
+
 def pares_persona_rol(dispositivo=None):
     """Las opciones «Persona — Rol» que se pueden sumar al Equipo.
 
@@ -322,7 +355,7 @@ def pares_persona_rol(dispositivo=None):
             group__meta__programa=programa,
         )
         .exclude(group__meta__clave=CLAVE_ROL_AGENTE)
-        .select_related("user", "group")
+        .select_related("user", "user__profile", "group")
         .order_by("user__last_name", "user__first_name", "user__username", "group__name")
     )
     ocupadas = set()
