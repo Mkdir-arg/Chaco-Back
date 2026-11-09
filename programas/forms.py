@@ -995,6 +995,30 @@ def formulario_tipo_para(tipo_id, dispositivo=None, data=None, files=None):
     return formulario
 
 
+# Lo que el alta ya no pide a mano: sale del primer responsable elegido (Cambio 448).
+CAMPOS_CONTACTO_DEL_RESPONSABLE = ("responsable_nombre", "responsable_documento", "contacto_telefono", "contacto_email")
+
+
+class ResponsablesSelectMultiple(forms.SelectMultiple):
+    """El buscador de responsables del alta: cada opción lleva el nombre y el teléfono de la persona.
+
+    El alta los muestra como «Datos de contacto» de la primera píldora y avisa si falta el teléfono,
+    que hace falta para enviar a validación. Documento y email no viajan a la página.
+    """
+
+    def __init__(self, contactos, attrs=None):
+        super().__init__(attrs)
+        self.contactos = contactos
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        opcion = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        contacto = self.contactos.get(str(value))
+        if contacto:
+            opcion["attrs"]["data-nombre"] = contacto["responsable_nombre"]
+            opcion["attrs"]["data-telefono"] = contacto["contacto_telefono"]
+        return opcion
+
+
 class DispositivoForm(forms.ModelForm):
     """Alta y edición del legajo institucional de un dispositivo."""
 
@@ -1089,23 +1113,38 @@ class DispositivoForm(forms.ModelForm):
         # marca el campo sin tocar `required`, así que la validación no cambia (lo exige
         # `enviar_a_validacion`, con la misma lista). Lo dibuja `components/_field.html`.
         for nombre in campos_para_validacion():
-            self.fields[nombre].marca_requerido = True
+            if nombre in self.fields:
+                self.fields[nombre].marca_requerido = True
 
     def _agregar_responsables(self):
         """Alta: los responsables del dispositivo (Cambio 411), pares «Persona — Rol», al menos uno.
 
         Solo el alta lo pide: la edición no exige responsables, se gestionan desde la solapa Equipo.
+        Desde el Cambio 448 es un buscador múltiple y reemplaza a «Responsable y contacto»: esos
+        cuatro datos salen del primer responsable elegido (``datos_de_contacto``).
         """
-        from programas.services.equipo_dispositivo import pares_persona_rol
+        from programas.services.equipo_dispositivo import datos_de_contacto, pares_persona_rol
 
         pares = pares_persona_rol()
         self._pares_responsables = {par["valor"]: (par["usuario"], par["rol"]) for par in pares}
+        for nombre in CAMPOS_CONTACTO_DEL_RESPONSABLE:
+            del self.fields[nombre]
         self.fields["responsables"] = forms.MultipleChoiceField(
             label="Responsables del dispositivo",
             required=True,
             choices=[(par["valor"], par["etiqueta"]) for par in pares],
-            widget=forms.CheckboxSelectMultiple,
-            help_text="Quienes arman el Equipo del dispositivo. Elegí al menos una persona con su rol.",
+            widget=ResponsablesSelectMultiple(
+                contactos={par["valor"]: datos_de_contacto(par["usuario"]) for par in pares},
+                attrs={
+                    "class": INPUT_CLASS,
+                    "data-buscador": "1",
+                    "data-buscador-placeholder": "Buscá por nombre o rol",
+                },
+            ),
+            help_text=(
+                "Quienes arman el Equipo del dispositivo. Buscá y elegí al menos una persona con su rol; "
+                "el responsable y el contacto del legajo se toman de la primera."
+            ),
             error_messages={
                 "required": "Indicá al menos un responsable del dispositivo.",
                 "invalid_choice": "Elegí personas y roles del listado.",
@@ -1113,7 +1152,44 @@ class DispositivoForm(forms.ModelForm):
         )
 
     def clean_responsables(self):
-        return [self._pares_responsables[valor] for valor in self.cleaned_data["responsables"]]
+        # En el orden del listado, que es el de las píldoras: la primera da el contacto del legajo.
+        elegidos = set(self.cleaned_data["responsables"])
+        return [par for valor, par in self._pares_responsables.items() if valor in elegidos]
+
+    @property
+    def responsable_de_contacto(self):
+        """La persona de la que sale el contacto del legajo en el alta: la primera elegida, o None."""
+        if "responsables" not in self.fields:
+            return None
+        elegidos = {str(valor) for valor in (self["responsables"].value() or [])}
+        return next((usuario for valor, (usuario, _rol) in self._pares_responsables.items() if valor in elegidos), None)
+
+    @property
+    def contacto_de_alta(self):
+        """Los datos que el alta copia al legajo (``datos_de_contacto`` de la primera persona), o None."""
+        from programas.services.equipo_dispositivo import datos_de_contacto
+
+        usuario = self.responsable_de_contacto
+        return datos_de_contacto(usuario) if usuario is not None else None
+
+    @property
+    def faltantes_responsable(self):
+        """Lo que el alta necesita de los responsables para enviar a validación: ``ninguno`` o ``telefono``."""
+        if "responsables" not in self.fields:
+            return []
+        contacto = self.contacto_de_alta
+        if contacto is None:
+            return ["ninguno"]
+        return [] if contacto["contacto_telefono"] else ["telefono"]
+
+    def save(self, commit=True):
+        if "responsables" in self.fields and self.cleaned_data.get("responsables"):
+            from programas.services.equipo_dispositivo import datos_de_contacto
+
+            usuario = self.cleaned_data["responsables"][0][0]
+            for campo, valor in datos_de_contacto(usuario).items():
+                setattr(self.instance, campo, valor)
+        return super().save(commit)
 
     def clean_codigo(self):
         codigo = normalizar_codigo_institucional(self.cleaned_data["codigo"])
@@ -1182,7 +1258,8 @@ class DispositivoForm(forms.ModelForm):
     def requisitos_validacion(self):
         from programas.services.dispositivos import campos_para_validacion
 
-        return [self[nombre] for nombre in campos_para_validacion()]
+        # En el alta el responsable y el teléfono no son campos: los cubre `faltantes_responsable`.
+        return [self[nombre] for nombre in campos_para_validacion() if nombre in self.fields]
 
     @property
     def faltantes_validacion(self):
@@ -1198,7 +1275,7 @@ class DispositivoForm(forms.ModelForm):
 
     @property
     def hay_faltantes(self):
-        return bool(self.faltantes_validacion or self.faltantes_formulario_tipo)
+        return bool(self.faltantes_validacion or self.faltantes_formulario_tipo or self.faltantes_responsable)
 
 
 class BusquedaCiudadanoDNIForm(forms.Form):

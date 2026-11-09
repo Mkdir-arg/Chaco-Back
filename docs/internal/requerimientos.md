@@ -571,6 +571,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 445 | Becas: «Opciones del catálogo» y «Depende de» en los modales de Requisitos generales (alta y edición), y el alta con catálogo nace inactiva | Becas · Requisitos generales | `#requisitos` `#ui` | PM — hueco del Cambio 418 | 08/11/2026 | 🟡 **En curso** | No requiere |
 | 446 | Dispositivos: se retira la vía vieja de alcance (`AsignacionDispositivo`, «Alcance por dispositivo» del ABM de Roles); el alcance es solo el Equipo y el personal del edificio pasa a ser el Equipo | Dispositivos · Usuarios (ABM de Roles) | `#rbac` | PM — decisión del 09/11/2026 (Pendiente 2 de los Cambios 410 y 411) | 09/11/2026 | 🟡 **En curso** | No requiere |
 | 447 | Dispositivos: arreglos del recorrido de QA de noviembre (detalle en el celular con solapas en una fila, Equipo legible e indicadores sin tapar; «sectores activos» bien escrito; «Nuevo relevamiento» valida en español) | Dispositivos · detalle (P4) · Infraestructura · Relevamientos | `#ui` | PM — recorrido de QA en testing y local del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
+| 448 | Dispositivos: el alta toma el responsable y el contacto del legajo de la persona elegida; «Responsables del dispositivo» pasa a buscador múltiple | Dispositivos (alta de institución) | `#ui` | PM — pedido del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
 
 **Notas del índice**
 
@@ -53702,6 +53703,63 @@ Sin cambios.
 ## Reversión
 
 Revertir el PR; no hay datos que deshacer.
+
+## Historial
+
+- **09/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 448 — Dispositivos: el alta toma el contacto del responsable elegido
+
+🟡 **EN CURSO — 09/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Dispositivos · alta de institución (`/dispositivos/nuevo/`) |
+| **Etiquetas** | `#ui` |
+| **Solicitante** | PM — pedido del 09/11/2026 |
+| **Fecha del pedido** | 09/11/2026 |
+| **Issue / épica** | sin issue; continúa el [Cambio 411](#cambio-411) |
+| **Partes afectadas** | Backoffice: `programas/forms.py` (`DispositivoForm`, `ResponsablesSelectMultiple`), `programas/services/equipo_dispositivo.py` (`datos_de_contacto`), `programas/templates/programas/dispositivos/legajo/form.html`, `.claude/design/arquetipos/formulario.md`; tests de alta de Dispositivos |
+| **Migración** | No |
+
+## Pedido original
+
+En «Nueva institución», borrar «Responsable», «DNI/CUIT del responsable», «Teléfono» y «Email», porque ya está «Responsables del dispositivo», y que ese campo sea un buscador con selección múltiple. Los datos se toman del usuario asignado en el buscador.
+
+## Alcance acordado
+
+**Entra:** (1) el alta deja de pedir los cuatro campos de «Responsable y contacto»; (2) «Responsables del dispositivo» pasa de casillas a buscador múltiple con píldoras (`nodo-buscador`); (3) al guardar, el legajo copia nombre, DNI, teléfono y email de la **primera** persona elegida; (4) debajo del buscador se ve «Datos de contacto: <nombre> · <teléfono>» y «Qué falta para validar» avisa si no hay responsable o si esa persona no tiene teléfono en su perfil. **Queda afuera:** la edición (sigue mostrando los cuatro campos para corregirlos) y sincronizar el legajo cuando cambia el Equipo o el perfil (unas 3 h; no se hace sin pedido).
+
+## Decisiones tomadas
+
+1. **Primera persona = primera del listado**, que es el orden de las píldoras (apellido, nombre, usuario). `clean_responsables` devuelve los pares en ese orden, así que no depende del orden del POST.
+2. **Fuente:** `datos_de_contacto(usuario)` en `equipo_dispositivo.py`: `nombre_de_persona`, `profile.dni`, `profile.telefono`, `user.email`. Sin perfil, documento y teléfono quedan vacíos. `pares_persona_rol` trae el perfil con `select_related("user__profile")`.
+3. **Copia única al crear** (`DispositivoForm.save`). Los cuatro campos se sacan del form del alta, así que un POST que los mande no pisa lo copiado.
+4. **Requisitos de validación sin cambios** (siguen siendo 9). En el alta, «Responsable» y «Teléfono» se cubren con `faltantes_responsable` (`ninguno` / `telefono`), en el servidor y en el JS del alta.
+5. **Privacidad:** cada opción del buscador lleva solo `data-nombre` y `data-telefono`; DNI y email no viajan a la página.
+
+## Archivos
+
+Los de «Partes afectadas», más los tests `programas/tests/test_dispositivos_alta_contacto_448.py` (nuevo), `test_dispositivos_fidelidad_fi.py`, `test_dispositivos_fidelidad_ff.py`, `test_dispositivos_formulario_alta.py` y `programas/tests/js/faltantes_fi.cjs`.
+
+## Base de datos
+
+Sin cambios.
+
+## Validación
+
+- `test_dispositivos_alta_contacto_448`: el alta no tiene los cuatro campos y ofrece el buscador, DNI/email no aparecen en la página, se copia el contacto de la primera persona del listado aunque el POST venga en otro orden, sin perfil queda solo el nombre, un POST con los campos viejos no los pisa, el resumen pide responsable y después teléfono, y la edición sigue con los cuatro campos.
+- Toda la suite de Dispositivos (`test_dispositivos*` + `test_validacion_contacto`) en verde; `manage.py check`, `design_audit --ratchet` (0 nuevos), `compile_templates --bloques` (0) y `check_design_agent --changed` OK.
+
+## Pendientes / a definir
+
+1. Sincronizar el contacto del legajo con el Equipo o con el perfil (hoy se copia una sola vez).
+
+## Reversión
+
+Revertir el PR; los legajos creados mientras tanto conservan los datos copiados.
 
 ## Historial
 

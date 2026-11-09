@@ -15,7 +15,8 @@ let faltantesFormulario = [];
 const oyentes = {};
 Object.values(inputs).forEach(campo => { campo.addEventListener = (_, callback) => { campo.actualizar = callback; }; });
 global.document = {
-  querySelectorAll: selector => selector === '[data-faltante-formulario]' ? faltantesFormulario : filas,
+  querySelectorAll: selector => selector === '[data-faltante-formulario]' ? faltantesFormulario
+    : selector.startsWith('[data-faltante-responsable]') ? [] : filas,
   getElementById: id => inputs[id],
   querySelector: selector => selector.startsWith('button') ? enviar : completo,
   addEventListener: (evento, callback) => { oyentes[evento] = callback; },

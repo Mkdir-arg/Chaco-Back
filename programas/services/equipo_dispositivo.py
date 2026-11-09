@@ -302,6 +302,22 @@ def nombre_de_persona(usuario):
     return usuario.get_full_name().strip() or usuario.get_username()
 
 
+def datos_de_contacto(usuario):
+    """Responsable y contacto del legajo tomados de la persona (alta, Cambio 448).
+
+    El alta ya no los pide a mano: salen del primer responsable elegido. Se copian una vez; la
+    edición los sigue mostrando para corregirlos. Sin perfil, documento y teléfono quedan vacíos.
+    """
+
+    perfil = getattr(usuario, "profile", None)
+    return {
+        "responsable_nombre": nombre_de_persona(usuario)[:200],
+        "responsable_documento": (getattr(perfil, "dni", None) or "").strip(),
+        "contacto_telefono": (getattr(perfil, "telefono", None) or "").strip(),
+        "contacto_email": (usuario.email or "").strip(),
+    }
+
+
 def pares_persona_rol(dispositivo=None):
     """Las opciones «Persona — Rol» que se pueden sumar al Equipo.
 
@@ -322,7 +338,7 @@ def pares_persona_rol(dispositivo=None):
             group__meta__programa=programa,
         )
         .exclude(group__meta__clave=CLAVE_ROL_AGENTE)
-        .select_related("user", "group")
+        .select_related("user", "user__profile", "group")
         .order_by("user__last_name", "user__first_name", "user__username", "group__name")
     )
     ocupadas = set()
