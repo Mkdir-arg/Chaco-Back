@@ -53818,5 +53818,6 @@ Revertir el PR; los legajos creados mientras tanto conservan los datos copiados.
 ## Historial
 
 - **09/11/2026 — alta del cambio.** La auditoría del PR #1073 pidió normalizar los datos del perfil con las reglas del legajo; resuelto en el mismo PR.
+- **09/11/2026 — MINOR de la auditoría del #1073 (PR siguiente):** el resumen también pide el **nombre** cuando el perfil del primer responsable no trae uno válido (p. ej. username = DNI sin nombre), nombrando a la persona por su etiqueta del listado (`data-persona`, `persona_de_contacto`); y vuelven a «Cambio 448» dos comentarios del #1071 que el merge había renumerado por error.
 
 ---
