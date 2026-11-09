@@ -151,6 +151,7 @@
   // y el foco va al primer campo que falló, no al `<body>`.
   function mostrarErrores(form, errores) {
     var sueltos = [];
+    var enLinea = false;
     Object.keys(errores).forEach(function (campo) {
       var texto = (errores[campo] || []).join(' ');
       var box = form.querySelector('[data-error="' + campo + '"]');
@@ -158,13 +159,15 @@
       box.textContent = texto;
       box.classList.remove('hidden');
       if (!texto) return;
+      enLinea = true;
       var controles = controlesDe(form, campo);
       var errorId = idDelError(box, controles);
       controles.forEach(function (control) { marcarInvalido(control, errorId); });
     });
-    aviso('error', sueltos.length
-      ? 'Revisá los datos del formulario: ' + sueltos.join(' ')
-      : 'Revisá los datos del formulario.');
+    // Un solo mensaje, el específico: lo inline ya está a la vista y lo suelto viaja solo en el
+    // aviso. El genérico queda únicamente para un 400 sin ningún texto que mostrar.
+    if (sueltos.length) aviso('error', sueltos.join(' '));
+    else if (!enLinea) aviso('error', 'Revisá los datos del formulario.');
     // El primero en orden del documento, que es el que la persona lee primero. El
     // error general (`__all__`) no tiene control: ahí no se mueve el foco y lo
     // anuncia su `role="alert"`.

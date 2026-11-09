@@ -226,10 +226,19 @@ class AjaxJsFeedbackTests(SimpleTestCase):
             __log.inline = __errores();
             """
         )
-        self.assertEqual(log["toasts"], [["error", "Revisá los datos del formulario."]])
+        self.assertEqual(log["toasts"], [])
         self.assertEqual(
             log["inline"], {"nombre": "Este campo es obligatorio.", "__all__": "El cupo supera lo disponible."}
         )
+
+    def test_400_sin_ningun_texto_mantiene_el_aviso_generico(self):
+        log = self._correr(
+            """
+            __respuestas.push({status: 400, data: {ok: false, errors: {nombre: []}}});
+            __enviar(__boton);
+            """
+        )
+        self.assertEqual(log["toasts"], [["error", "Revisá los datos del formulario."]])
 
     def test_400_sin_placeholder_all_lleva_el_error_general_en_el_unico_aviso(self):
         log = self._correr(
@@ -240,7 +249,7 @@ class AjaxJsFeedbackTests(SimpleTestCase):
             __enviar(__boton);
             """
         )
-        self.assertEqual(log["toasts"], [["error", "Revisá los datos del formulario: El cupo supera lo disponible."]])
+        self.assertEqual(log["toasts"], [["error", "El cupo supera lo disponible."]])
 
     def test_boton_guardando_con_aria_busy_mientras_dura_el_pedido(self):
         log = self._correr(

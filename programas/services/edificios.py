@@ -56,7 +56,7 @@ CAMPOS = (
 DISPOSITIVO_CERRADO = "El dispositivo está cerrado: no se puede cambiar su edificio."
 RELEVAMIENTO_EN_CURSO = "El edificio tiene un relevamiento en curso: no puede quedar sin dispositivos."
 SECTORES_ACTIVOS_EN_EL_EDIFICIO = (
-    "El edificio tiene {cuantos} sector{plural} activo{plural} de esta institución: "
+    "El edificio tiene {cuantos} sector{plural_sector} activo{plural_activo} de esta institución: "
     "asignales otro edificio o dalos de baja antes de desvincularlo."
 )
 
@@ -199,7 +199,9 @@ def desvincular_edificio(*, edificio, dispositivo, usuario):
         raise ValidationError(
             {
                 "__all__": SECTORES_ACTIVOS_EN_EL_EDIFICIO.format(
-                    cuantos=sectores_activos, plural="es" if sectores_activos > 1 else ""
+                    cuantos=sectores_activos,
+                    plural_sector="es" if sectores_activos > 1 else "",
+                    plural_activo="s" if sectores_activos > 1 else "",
                 )
             }
         )

@@ -327,6 +327,15 @@ class ListadoTests(BaseListado):
         )
         self.assertContains(respuesta, '<input type="hidden" name="tab" value="completados">', count=2)
 
+    def test_el_paso_uno_valida_con_su_propio_mensaje_y_no_con_el_del_navegador(self):
+        respuesta = self._cliente(self.coord).get(URL_LISTA, {"nuevo": "1"})
+        html = respuesta.content.decode()
+        # El mensaje nativo («Please select an item in the list.») sale en el idioma del navegador:
+        # el formulario apaga esa validación y dice lo suyo en castellano.
+        self.assertIn(f'action="{URL_LISTA}" novalidate', html)
+        self.assertContains(respuesta, 'id="elegir-edificio-error"')
+        self.assertContains(respuesta, "Elegí un edificio para continuar.")
+
     def test_las_notas_de_las_tarjetas_concuerdan_en_numero(self):
         self._crear()
         respuesta = self._cliente(self.coord).get(URL_LISTA)
@@ -549,6 +558,19 @@ class ReasignarYCancelarTests(BaseListado):
         self.assertTrue(respuesta.json()["ok"])
         self.inspeccion.refresh_from_db()
         self.assertEqual(self.inspeccion.asignado_a_id, self.otro_agente.pk)
+
+    def test_reasignar_deja_el_aviso_de_exito_en_la_pagina_a_la_que_vuelve(self):
+        cliente = self._cliente(self.coord)
+        url = self._url("relevamiento_reasignar", self.inspeccion.pk)
+        respuesta = cliente.post(url, {"asignado_a": self.otro_agente.pk, "volver": "tab=en_curso"}, **AJAX)
+        datos = respuesta.json()
+        self.assertTrue(datos["ok"])
+        self.assertIn("reasignado a otro_agente", datos["message"])
+
+        # El front navega sin mostrar el aviso: lo muestra la página destino desde `messages`.
+        destino = cliente.get(datos["redirect"])
+        self.assertEqual(destino.status_code, 200)
+        self.assertContains(destino, "reasignado a otro_agente")
 
     def test_reasignar_a_un_agente_sin_relevamientos_cambia_de_agente_y_deja_traza(self):
         url = self._url("relevamiento_reasignar", self.inspeccion.pk)
