@@ -213,8 +213,21 @@ class DesvincularConSectoresTests(BaseSectorEdificio):
         with self.assertRaises(ValidationError) as fallo:
             desvincular_edificio(edificio=self.edificio_a, dispositivo=self.cis, usuario=self.operador_cis)
 
-        self.assertIn("1 sector activo", fallo.exception.message_dict["__all__"][0])
+        mensaje = fallo.exception.message_dict["__all__"][0]
+        self.assertIn("1 sector activo de", mensaje)
+        self.assertNotIn("activoes", mensaje)
         self.assertTrue(self.edificio_a.dispositivos.filter(pk=self.cis.pk).exists())
+
+    def test_el_mensaje_concuerda_en_plural(self):
+        self._sector(self.edificio_a, "Pabellón 1")
+        self._sector(self.edificio_a, "Pabellón 2")
+
+        with self.assertRaises(ValidationError) as fallo:
+            desvincular_edificio(edificio=self.edificio_a, dispositivo=self.cis, usuario=self.operador_cis)
+
+        mensaje = fallo.exception.message_dict["__all__"][0]
+        self.assertIn("2 sectores activos de", mensaje)
+        self.assertNotIn("activoes", mensaje)
 
     def test_la_pantalla_dice_el_motivo(self):
         self._sector(self.edificio_a)
