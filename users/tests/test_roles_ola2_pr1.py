@@ -240,21 +240,23 @@ class OperadorDeVariosProgramasTests(Base):
         self.assertFalse({m for m in modulos if m.startswith("becas")}, modulos)
 
     def test_una_capacidad_de_su_otro_programa_no_se_descarta_en_silencio(self):
-        """Una capacidad que no es de ninguno de sus programas se rechaza con un error
-        en `capacidades`: antes se guardaba el rol sin ella."""
+        """`dispositivo.ver` es válida para el operador (administra Dispositivos) pero no
+        es de «Otro»: el rol de ese programa la rechaza con un error en `capacidades`
+        (rama `ajenas` de `RolForm.clean`); antes se guardaba el rol sin ella."""
         form = self._form(
             {
-                "name": "Operativo Dispositivos",
+                "name": "Operativo Otro",
                 "categoria": rbac.CATEGORIA_PROGRAMA,
-                "programa": str(self.dispositivos.pk),
-                "capacidades": ["dispositivo.ver", "becas.segmento.ver"],
+                "programa": str(self.otro.pk),
+                "capacidades": ["dispositivo.ver"],
             }
         )
 
         self.assertFalse(form.is_valid())
         self.assertIn("capacidades", form.errors)
-        self.assertIn("becas.segmento.ver", form.errors["capacidades"][0])
-        self.assertFalse(Group.objects.filter(name="Operativo Dispositivos").exists())
+        self.assertIn("no se pueden asignar a un rol de este programa", form.errors["capacidades"][0])
+        self.assertIn("dispositivo.ver", form.errors["capacidades"][0])
+        self.assertFalse(Group.objects.filter(name="Operativo Otro").exists())
 
     def test_y_la_pantalla_lo_dice(self):
         self.client.force_login(self.operador)
@@ -263,16 +265,19 @@ class OperadorDeVariosProgramasTests(Base):
             respuesta = self.client.post(
                 reverse("users:rol_crear"),
                 {
-                    "name": "Operativo Dispositivos 2",
+                    "name": "Operativo Otro 2",
                     "categoria": rbac.CATEGORIA_PROGRAMA,
-                    "programa": str(self.dispositivos.pk),
-                    "capacidades": ["dispositivo.ver", "becas.segmento.ver"],
+                    "programa": str(self.otro.pk),
+                    "capacidades": ["dispositivo.ver"],
                 },
             )
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertIn("capacidades", respuesta.context["form"].errors)
-        self.assertFalse(Group.objects.filter(name="Operativo Dispositivos 2").exists())
+        self.assertIn(
+            "no se pueden asignar a un rol de este programa",
+            respuesta.context["form"].errors["capacidades"][0],
+        )
+        self.assertFalse(Group.objects.filter(name="Operativo Otro 2").exists())
 
     def test_lo_que_sí_corresponde_se_guarda(self):
         form = self._form(

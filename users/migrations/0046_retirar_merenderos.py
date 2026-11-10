@@ -1,4 +1,4 @@
-"""Retira las cinco capacidades `merendero.*` (decisión del PM, 10-nov-2026; Cambio 446).
+"""Retira las cinco capacidades `merendero.*` (decisión del PM, 10-nov-2026; Cambio 452).
 
 El programa Merenderos se borra entero. La ida las saca de los roles que las tenían
 (registrando cada par rol/capacidad en `users_capacidadrevocada`) y borra las

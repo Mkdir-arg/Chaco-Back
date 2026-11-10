@@ -1,7 +1,7 @@
 """Lista blanca y techo de tamaño en los uploads del backoffice (SEC-15, SEC-31).
 
 Hasta aquel PR, la **documentación respaldatoria** de una solicitud (el programa Merenderos
-se borró, Cambio 446) era un `FileField` pelado: cualquier extensión, de cualquier peso. Un `.html` con
+se borró, Cambio 452) era un `FileField` pelado: cualquier extensión, de cualquier peso. Un `.html` con
 `<script>` quedaba en `media/` y se servía *same-origin* —en DEV por nginx, y en
 ECOM `django.views.static.serve` infiere `text/html` y no manda `attachment`—, así
 que el XSS corría en el origen del sitio. Requiere un usuario interno

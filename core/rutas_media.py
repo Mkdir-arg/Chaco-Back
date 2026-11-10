@@ -81,9 +81,9 @@ def ruta_foto_inspeccion(instance, filename):
 
 
 def ruta_solicitud_merendero(instance, filename):
-    """Solo para el historial: `programas.0011`/`0083` la nombran como `upload_to`.
+    """Solo para el historial: `programas.0083` la nombra como `upload_to`.
 
-    El programa Merenderos se borró (Cambio 446) y ya nada sube por acá.
+    El programa Merenderos se borró (Cambio 452) y ya nada sube por acá.
     """
     return f"merenderos/solicitudes/{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
 

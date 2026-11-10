@@ -485,11 +485,7 @@ pie del popup y la clase no hacía nada; (c) el envío confirmado va por **`form
 **Lo que no se hizo:** las tres acciones del listado de solicitudes siguen siendo texto subrayado dentro de la
 celda, no `btn-nodo`. Recibieron el `data-confirm-danger` —que es lo que arregla el color del diálogo—; pasar
 tres acciones de una celda a botones completos es rediseñar la tabla, y eso es FE-12.
-**Test permanente:** `programas.tests.test_confirmaciones_legacy.HandlerUnicoTests.test_una_accion_destructiva_confirma_en_rojo`
-(+ `test_una_accion_no_destructiva_confirma_en_color_de_marca`, `test_el_motivo_obligatorio_viaja_en_el_post`,
-`test_el_envio_dispara_el_evento_submit`, `test_no_intercepta_el_confirm_canonico_de_becas`,
-`PantallasSinHandlerPropioTests.test_ninguna_pantalla_conserva_su_copia_del_handler` y
-`users.tests.test_badges_confirmaciones_ola5.ConfirmacionSegunLaAccionTests.test_activar_usuario_no_confirma_en_rojo`).
+**Test permanente:** `users.tests.test_badges_confirmaciones_ola5.ConfirmacionSegunLaAccionTests.test_activar_usuario_no_confirma_en_rojo` (Cambio 452: el handler `_swal_confirm_js.html` y su suite `test_confirmaciones_legacy` se borraron con Merenderos, su único consumidor).
 **Playwright (1440 y 390 px):** el Swal de «Cerrar merendero» sale con
 `swal2-confirm btn-nodo btn-danger btn-base`, fondo `rgb(199,0,54)` y `padding-left: 16px`; el de «Suspender»,
 con `btn-nodo btn-brand btn-base` y sin rojo.

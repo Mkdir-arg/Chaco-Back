@@ -53965,5 +53965,6 @@ Datos que se pierden: todos los de Merenderos y los roles atados al programa. No
 ## Historial
 
 - **10/11/2026 — alta del cambio.**
+- **10/11/2026 — ronda de auditoría del PR #1076.** Los tests de SEC-06 ronda 2 (users) ahora llegan a la rama `ajenas` de `RolForm.clean` (rol de «Otro» con `dispositivo.ver`; antes pasaban por `invalid_choice`), verificados por mutación; se borra `_swal_confirm_js.html` (sin includes) y su test; la ficha FE-19 de la auditoría apunta a `test_badges_confirmaciones_ola5`; número del Cambio y docstring del shim corregidos.
 
 ---

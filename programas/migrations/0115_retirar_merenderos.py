@@ -1,4 +1,4 @@
-"""Borra el programa Merenderos entero (decisión del PM, 10-nov-2026; Cambio 446).
+"""Borra el programa Merenderos entero (decisión del PM, 10-nov-2026; Cambio 452).
 
 No hay ningún dato de Merenderos en ningún ambiente, así que se retiran en la misma
 release las tablas, los roles atados al programa y la fila `Programa(MERENDEROS)`.

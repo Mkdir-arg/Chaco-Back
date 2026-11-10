@@ -84,7 +84,7 @@ class ImportPadronCommandTests(TestCase):
             )
 
         self.assertFalse(Dispositivo.objects.filter(codigo="DIS-INVALIDO").exists())
-        # Merenderos se borró (Cambio 446): la entidad ya no se importa.
+        # Merenderos se borró (Cambio 452): la entidad ya no se importa.
         self.assertEqual(Dispositivo.objects.count(), 0)
 
     def test_importa_dispositivo_con_procedencia(self):
