@@ -1,7 +1,6 @@
 """Formularios del backoffice de Programas."""
 
 import unicodedata
-from calendar import monthrange
 from datetime import datetime, time
 
 from django import forms
@@ -16,26 +15,22 @@ from core.dni import MENSAJE_DNI_INVALIDO, dni_valido, normalizar_dni
 from core.edad import es_menor
 from core.models import Localidad, Municipio, Subsecretaria
 from core.selectors.geografia import localidades_operativas, municipios_operativos
-from core.validators import ACCEPT_ADJUNTO
 from core.widgets import ChipsSelectMultiple, SwitchInput
 from programas.models import (
     AsignacionCoordinador,
     CanalFormulario,
     Convocatoria,
     Dispositivo,
-    EntregaMercaderia,
     Formulario,
     GrupoRequisito,
     HorarioDispositivo,
     Plaza,
     PreguntaGlobal,
     PresentacionCampo,
-    PrestacionDiaria,
     ProgramaSiis,
     Relevamiento,
     RequisitoNativo,
     Segmento,
-    SolicitudMerendero,
     Subsegmento,
     TipoCampo,
     TipoDispositivo,
@@ -1315,132 +1310,6 @@ class BusquedaCiudadanoDNIForm(forms.Form):
         if not dni_valido(dni):
             raise forms.ValidationError(MENSAJE_DNI_INVALIDO)
         return dni
-
-
-class SolicitudMerenderoForm(forms.ModelForm):
-    class Meta:
-        model = SolicitudMerendero
-        fields = [
-            "codigo",
-            "nombre",
-            "domicilio",
-            "zona",
-            "barrio",
-            "dias_horarios",
-            "responsable_nombre",
-            "responsable_documento",
-            "responsable_email",
-            "telefono",
-            "documentacion",
-        ]
-        widgets = {
-            "codigo": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "domicilio": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "zona": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "barrio": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "dias_horarios": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "responsable_nombre": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "responsable_documento": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "responsable_email": forms.EmailInput(attrs={"class": INPUT_CLASS}),
-            "telefono": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "documentacion": forms.ClearableFileInput(attrs={"class": INPUT_CLASS, "accept": ACCEPT_ADJUNTO}),
-        }
-        help_texts = {"responsable_documento": AYUDA_DOCUMENTO_RESPONSABLE}
-
-    def clean_codigo(self):
-        return normalizar_codigo_institucional(self.cleaned_data["codigo"])
-
-    def clean_responsable_documento(self):
-        valor = self.cleaned_data.get("responsable_documento")
-        return normalizar_documento_responsable(valor) if valor and valor.strip() else valor
-
-    def clean_telefono(self):
-        valor = self.cleaned_data.get("telefono")
-        return normalizar_telefono(valor) if valor and valor.strip() else valor
-
-    def clean_responsable_nombre(self):
-        valor = self.cleaned_data.get("responsable_nombre")
-        return validar_nombre_responsable(valor) if valor and valor.strip() else valor
-
-    def __init__(self, *args, validar_completitud=True, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not validar_completitud:
-            for campo in self.fields.values():
-                campo.required = False
-            return
-        for campo in SolicitudMerendero.CAMPOS_INSTITUCIONALES_REQUERIDOS:
-            self.fields[campo].required = True
-
-
-class EntregaMercaderiaForm(forms.ModelForm):
-    class Meta:
-        model = EntregaMercaderia
-        fields = ["fecha", "cantidad_kits", "servicio", "responsable_receptor", "observaciones"]
-        widgets = {
-            "fecha": forms.DateInput(attrs={"class": INPUT_CLASS, "type": "date"}),
-            "cantidad_kits": forms.NumberInput(attrs={"class": INPUT_CLASS, "min": 1}),
-            "servicio": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "responsable_receptor": forms.TextInput(attrs={"class": INPUT_CLASS}),
-            "observaciones": _text_widget(),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["servicio"].required = True
-
-
-class PrestacionMensualForm(forms.Form):
-    """Valida la grilla dinámica de raciones de la planilla F-02."""
-
-    anio = forms.IntegerField(min_value=2000, max_value=2100)
-    mes = forms.IntegerField(min_value=1, max_value=12)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.dias = self._dias_del_periodo()
-        for dia in self.dias:
-            for servicio, _etiqueta in PrestacionDiaria.Servicio.choices:
-                self.fields[self._nombre_racion(dia, servicio)] = forms.IntegerField(min_value=0, required=False)
-            self.fields[self._nombre_observacion(dia)] = forms.CharField(required=False)
-
-    def _dias_del_periodo(self):
-        try:
-            anio = int(self.data.get("anio"))
-            mes = int(self.data.get("mes"))
-            if not 2000 <= anio <= 2100 or not 1 <= mes <= 12:
-                return ()
-            return range(1, monthrange(anio, mes)[1] + 1)
-        except (TypeError, ValueError):
-            return ()
-
-    @staticmethod
-    def _nombre_racion(dia, servicio):
-        return f"raciones-{dia}-{servicio}"
-
-    @staticmethod
-    def _nombre_observacion(dia):
-        return f"observacion-{dia}"
-
-    def clean(self):
-        cleaned_data = super().clean()
-        if not self.dias or self.errors:
-            return cleaned_data
-
-        raciones, observaciones = {}, {}
-        for dia in self.dias:
-            raciones[dia] = {}
-            for servicio, _etiqueta in PrestacionDiaria.Servicio.choices:
-                nombre_racion = self._nombre_racion(dia, servicio)
-                if nombre_racion not in self.data:
-                    self.add_error(nombre_racion, "La grilla de prestación debe enviarse completa.")
-                raciones[dia][servicio] = cleaned_data.get(nombre_racion) or 0
-            observaciones[dia] = cleaned_data[self._nombre_observacion(dia)]
-        if self.errors:
-            return cleaned_data
-        cleaned_data["raciones"] = raciones
-        cleaned_data["observaciones"] = observaciones
-        return cleaned_data
 
 
 class GrupoRequisitoForm(forms.ModelForm):

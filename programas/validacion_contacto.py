@@ -1,6 +1,6 @@
 """Validación de los datos de contacto del responsable (DNI/CUIT, teléfono, nombre).
 
-Los forms de la solicitud de merendero y del legajo de dispositivo guardaban lo que
+Los forms del legajo de dispositivo guardaban lo que
 llegara (`3e1312321` pasó como DNI/CUIT). Cada función recibe el texto crudo y
 devuelve el valor normalizado, o levanta `ValidationError`. Son puras: el form decide
 cuándo llamarlas (un campo vacío no se valida: si era requerido ya lo marcó Django y

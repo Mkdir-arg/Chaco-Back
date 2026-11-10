@@ -82,7 +82,6 @@ ARISTAS_CONOCIDAS = {
     ("configuracion", "dashboard_becas"),
     ("configuracion", "diseno"),
     ("reportes", "dispositivos_legajo"),
-    ("reportes", "merenderos"),
     ("revision", "cupo"),
 }
 

@@ -190,11 +190,9 @@ class UnSoloFieldTests(SimpleTestCase):
 
     def test_las_pantallas_de_la_ficha_dejaron_de_escribir_el_campo_a_mano(self):
         # Las cinco de admisiones y camas se fueron con sus modelos (MVP v2, release A);
-        # las tres que quedan son las mismas pantallas de la ficha que siguen vivas.
+        # la que queda es la pantalla de la ficha que sigue viva.
         pantallas = [
             "programas/templates/programas/dispositivos/legajo/form.html",
-            "programas/templates/programas/merenderos/entrega_form.html",
-            "programas/templates/programas/merenderos/solicitud_form.html",
         ]
         for ruta in pantallas:
             contenido = texto(ruta)

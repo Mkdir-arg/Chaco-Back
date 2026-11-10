@@ -15,10 +15,8 @@ from legajos.models import Ciudadano
 from programas.models import (
     Convocatoria,
     Dispositivo,
-    EntregaMercaderia,
     Formulario,
     ListaEspera,
-    Merendero,
     MiembroEquipoDispositivo,
     Programa,
     Relevamiento,
@@ -113,10 +111,6 @@ class ReportesExportablesTests(TestCase):
             codigo=Programa.TipoPrograma.DISPOSITIVOS,
             defaults={"nombre": "Dispositivos", "tipo": Programa.TipoPrograma.DISPOSITIVOS},
         )
-        self.merenderos_programa, _ = Programa.objects.get_or_create(
-            codigo=Programa.TipoPrograma.MERENDEROS,
-            defaults={"nombre": "Merenderos", "tipo": Programa.TipoPrograma.MERENDEROS},
-        )
         self.tipo_hogar = TipoDispositivo.objects.create(codigo="HOG", nombre="Hogar", maneja_camas=True)
         self.tipo_refugio = TipoDispositivo.objects.create(codigo="REF", nombre="Refugio", maneja_camas=True)
         self.dispositivo = Dispositivo.objects.create(
@@ -139,20 +133,6 @@ class ReportesExportablesTests(TestCase):
             tipo=self.tipo_hogar,
             localidad="Sáenz Peña",
             estado=Dispositivo.Estado.ACTIVO,
-        )
-        self.merendero = Merendero.objects.create(
-            codigo="MER-001",
-            nombre="Merendero Norte",
-            domicilio="Calle 1",
-            responsable_nombre="Ana",
-            estado=Merendero.Estado.ACTIVO,
-        )
-        Merendero.objects.create(
-            codigo="MER-002",
-            nombre="Merendero Sur",
-            domicilio="Calle 2",
-            responsable_nombre="Beto",
-            estado=Merendero.Estado.ACTIVO,
         )
         self.admin = get_user_model().objects.create_superuser(username="admin-reportes", password="test")
         self.client.force_login(self.admin)
@@ -187,63 +167,6 @@ class ReportesExportablesTests(TestCase):
             self._xlsx(xlsx_response), [tuple(self._csv(csv_response)[0]), tuple(self._csv(csv_response)[1])]
         )
 
-    def test_padron_merenderos_con_entregas_csv_y_excel_respeta_periodo_y_estado(self):
-        EntregaMercaderia.objects.create(
-            merendero=self.merendero,
-            fecha=date(2026, 7, 15),
-            cantidad_kits=5,
-            servicio="Merienda",
-        )
-        EntregaMercaderia.objects.create(
-            merendero=self.merendero,
-            fecha=date(2026, 8, 1),
-            cantidad_kits=9,
-            servicio="Merienda",
-        )
-        filtros = {
-            "estado": Merendero.Estado.ACTIVO,
-            "q": "Norte",
-            "desde": "2026-07-01",
-            "hasta": "2026-07-31",
-        }
-
-        csv_response = self.client.get(reverse("merenderos:exportar", args=["csv"]), filtros)
-        xlsx_response = self.client.get(reverse("merenderos:exportar", args=["xlsx"]), filtros)
-
-        self.assertEqual(self._csv(csv_response)[1][-3:], ["15/07/2026", "5", "Merienda"])
-        self.assertEqual(self._xlsx(xlsx_response)[1][-3:], ("15/07/2026", 5, "Merienda"))
-
-    def test_periodo_merenderos_muestra_y_exporta_el_mismo_conjunto_no_anulado(self):
-        EntregaMercaderia.objects.create(
-            merendero=self.merendero,
-            fecha=date(2026, 7, 1),
-            cantidad_kits=5,
-            servicio="Merienda",
-        )
-        merendero_anulado = Merendero.objects.create(
-            codigo="MER-003",
-            nombre="Merendero Anulado",
-            domicilio="Calle 3",
-            responsable_nombre="Cora",
-        )
-        EntregaMercaderia.objects.create(
-            merendero=merendero_anulado,
-            fecha=date(2026, 7, 31),
-            cantidad_kits=5,
-            servicio="Merienda",
-            anulada=True,
-        )
-        filtros = {"desde": "2026-07-01", "hasta": "2026-07-31"}
-
-        listado = self.client.get(reverse("merenderos:lista"), filtros)
-        csv_response = self.client.get(reverse("merenderos:exportar", args=["csv"]), filtros)
-        xlsx_response = self.client.get(reverse("merenderos:exportar", args=["xlsx"]), filtros)
-
-        visibles = {merendero.codigo for merendero in listado.context["merenderos"]}
-        self.assertEqual(visibles, {"MER-001"})
-        self.assertEqual({fila[0] for fila in self._csv(csv_response)[1:]}, visibles)
-        self.assertEqual({fila[0] for fila in self._xlsx(xlsx_response)[1:]}, visibles)
-
     def test_exportaciones_neutralizan_formulas_en_csv_y_excel(self):
         for espacio in ("", "\t"):
             for prefijo in ("=", "+", "-", "@"):
@@ -257,20 +180,6 @@ class ReportesExportablesTests(TestCase):
                 self.assertEqual(self._csv(csv_response)[1][1], f"'{valor}")
                 self.assertEqual(self._xlsx(xlsx_response)[1][1], f"'{valor}")
 
-    def test_periodo_invalido_devuelve_error_controlado_y_archivo_vacio_es_valido(self):
-        """El período quedó solo en Merenderos: el de Dispositivos acotaba por estadía."""
-        invalido = self.client.get(
-            reverse("merenderos:exportar", args=["csv"]),
-            {"desde": "2026-08-01", "hasta": "2026-07-01"},
-        )
-        vacio = self.client.get(
-            reverse("merenderos:exportar", args=["csv"]),
-            {"desde": "2025-01-01", "hasta": "2025-01-31"},
-        )
-
-        self.assertEqual(invalido.status_code, 400)
-        self.assertEqual(len(self._csv(vacio)), 1)
-
     def test_el_reporte_de_ocupacion_dejo_de_existir(self):
         """Lo repone el MVP v2 sobre `Plaza` y `Estadia`; hasta entonces no es un reporte."""
         for reporte in ("ocupacion", "movimientos"):
@@ -278,7 +187,7 @@ class ReportesExportablesTests(TestCase):
                 respuesta = self.client.get(reverse("dispositivos:exportar", args=[reporte, "csv"]))
                 self.assertEqual(respuesta.status_code, 400)
 
-    def test_consulta_solo_exporta_su_alcance_y_no_puede_acceder_a_merenderos(self):
+    def test_consulta_solo_exporta_su_alcance(self):
         consulta = get_user_model().objects.create_user(username="consulta-reportes", password="test")
         rol = Group.objects.create(name="Consulta Dispositivos Reportes")
         RolMeta.objects.create(
@@ -294,10 +203,8 @@ class ReportesExportablesTests(TestCase):
         self.client.force_login(consulta)
 
         dispositivos = self.client.get(reverse("dispositivos:exportar", args=["padron", "csv"]))
-        merenderos = self.client.get(reverse("merenderos:exportar", args=["csv"]))
 
         self.assertEqual(self._csv(dispositivos)[1:], [["DIS-001", "Hogar Norte", "Hogar", "Resistencia", "Activo"]])
-        self.assertEqual(merenderos.status_code, 403)
 
     def test_exportacion_bloquea_usuario_inactivo_y_rol_desactivado(self):
         usuario_inactivo = get_user_model().objects.create_user(

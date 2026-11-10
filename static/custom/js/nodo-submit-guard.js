@@ -2,7 +2,7 @@
  * NODO — guardia de doble envío para los formularios clásicos (FE-26).
  *
  * Se carga una sola vez desde `templates/includes/base.html`, así que cubre todo el
- * backoffice: Dispositivos, Merenderos, Admisiones, Configuración y Legajos mandan sus
+ * backoffice: Dispositivos, Admisiones, Configuración y Legajos mandan sus
  * formularios con un POST normal y, hasta ahora, un doble clic sobre «Confirmar egreso»
  * o «Registrar entrega» mandaba dos POST. Los formularios de Becas no lo necesitan:
  * van por `data-ajax` y `programas/becas/_ajax_js.html` ya deshabilita su botón.

@@ -37,8 +37,6 @@ PREFIJO_CONTACTO = "contactos/"
 PREFIJO_F00 = "admisiones/f00/"
 #: Fotos de un relevamiento edilicio (``programas.FotoInspeccion``, MVP v2 · etapa 4).
 PREFIJO_FOTO_INSPECCION = "dispositivos/inspecciones/"
-#: Documentación respaldatoria de una solicitud (``programas.SolicitudMerendero``).
-PREFIJO_SOLICITUD_MERENDERO = "merenderos/solicitudes/"
 #: Adjuntos de un caso de Becas (``programas.AdjuntoFormulario``).
 PREFIJO_ADJUNTO_BECAS = "becas/adjuntos/"
 #: Excel del padrón de habilitados (convocatoria y relevamiento).
@@ -83,8 +81,11 @@ def ruta_foto_inspeccion(instance, filename):
 
 
 def ruta_solicitud_merendero(instance, filename):
-    """Conserva el `%Y/%m` que ya tenía: son muchas solicitudes por año."""
-    return f"{PREFIJO_SOLICITUD_MERENDERO}{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
+    """Solo para el historial: `programas.0083` la nombra como `upload_to`.
+
+    El programa Merenderos se borró (Cambio 452) y ya nada sube por acá.
+    """
+    return f"merenderos/solicitudes/{timezone.now():%Y/%m}/{nombre_opaco(filename)}"
 
 
 def ruta_adjunto_bitacora(instance, filename):

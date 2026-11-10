@@ -7,7 +7,7 @@ backoffice. La firma de los primeros bytes sí es del archivo, y es barata.
 
 Los tres formatos que acepta el trámite son los que la gente saca con el
 teléfono o descarga de un organismo: JPG, PNG y PDF. SEC-15 (Ola 2) reusa esto
-para F-00 y la solicitud de merendero, que hoy tampoco miran el contenido.
+para F-00 y otros adjuntos, que hoy tampoco miran el contenido.
 """
 
 from pathlib import Path
@@ -16,8 +16,8 @@ from django.forms import ValidationError
 
 #: Lista blanca de los adjuntos del backoffice y de la app de campo. Nació en la
 #: API de campo (Cambio 46) y vive acá desde SEC-15 para que haya **una sola**:
-#: la usan el serializer de `/api/becas/`, el F-00 de Dispositivos y la solicitud
-#: de merendero. Lo que importa que quede afuera es el contenido interpretable
+#: la usan el serializer de `/api/becas/`, el F-00 de Dispositivos y otros
+#: adjuntos. Lo que importa que quede afuera es el contenido interpretable
 #: (`.html`, `.svg`, `.js`): `media/` se sirve same-origin.
 #:
 #: **Angostar esta tupla es un cambio con consecuencias en el teléfono:** ante un
@@ -107,7 +107,7 @@ def validar_adjunto(archivo, extensiones=ADJUNTO_EXTENSIONES, max_bytes=ADJUNTO_
 
     **Lo ya guardado no se revalida.** Un ``FieldFile`` que viene del storage
     llega con ``_committed = True``; ahí se sale sin mirar nada. Si no, guardar
-    cualquier otro campo de una fila vieja —una solicitud de merendero de 2025
+    cualquier otro campo de una fila vieja —un adjunto de 2025
     con un `.docx` adjunto— fallaría con un error sobre un archivo que el
     usuario no tocó, y encima ``.size`` iría al storage a preguntar. Los
     archivos legacy se siguen viendo y descargando; la lista blanca aplica a lo

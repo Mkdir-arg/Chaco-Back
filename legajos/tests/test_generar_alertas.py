@@ -448,7 +448,7 @@ class UniversoDeLaPasadaTests(BaseAlertasTestCase):
         # `unique_together = [ciudadano, programa]`: la segunda inscripción del mismo
         # legajo va contra otro programa, que además es el caso real (una persona
         # inscripta en dos programas comparte su legajo de atención).
-        self.otro_programa = Programa.objects.create(codigo=Programa.TipoPrograma.MERENDEROS, nombre="Segundo programa")
+        self.otro_programa = Programa.objects.create(codigo="OTRO", nombre="Segundo programa")
 
     def _segunda_inscripcion(self, ciudadano, legajo):
         """Con **otra** `fecha_inscripcion`: es la columna que el ordering mete en el

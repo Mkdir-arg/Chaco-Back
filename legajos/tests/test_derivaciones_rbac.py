@@ -47,7 +47,7 @@ def usuario_con(*codigos, username=None, is_staff=False):
 class DerivacionesRbacTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.programa = Programa.objects.create(codigo="MERENDEROS", nombre="Merenderos")
+        cls.programa = Programa.objects.create(codigo="OTRO", nombre="Otro programa")
         cls.ciudadano = Ciudadano.objects.create(dni="20999111", nombre="Delia", apellido="Escobar")
 
     def setUp(self):

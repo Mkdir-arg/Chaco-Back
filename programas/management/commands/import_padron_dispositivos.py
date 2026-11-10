@@ -1,4 +1,4 @@
-"""Importa un padrón normalizado de Dispositivos y Merenderos."""
+"""Importa un padrón normalizado de Dispositivos."""
 
 import csv
 from datetime import date
@@ -9,12 +9,12 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError, transaction
 from openpyxl import load_workbook
 
-from programas.models import Dispositivo, Merendero, TipoDispositivo
+from programas.models import Dispositivo, TipoDispositivo
 from programas.services.dispositivos import normalizar_codigo_institucional
 
 
 class Command(BaseCommand):
-    help = "Importa dispositivos y merenderos desde un CSV o XLSX normalizado."
+    help = "Importa dispositivos desde un CSV o XLSX normalizado."
 
     REQUIRED_COLUMNS = {"entidad", "codigo", "nombre", "domicilio", "responsable_nombre"}
 
@@ -42,7 +42,7 @@ class Command(BaseCommand):
 
         filas = self._leer_filas(archivo)
 
-        creados = {"dispositivos": 0, "merenderos": 0}
+        creados = {"dispositivos": 0}
         omitidos, errores = 0, []
         with transaction.atomic():
             for numero, fila in enumerate(filas, start=2):
@@ -58,8 +58,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Importación completada: {creados['dispositivos']} dispositivos, "
-                f"{creados['merenderos']} merenderos, {omitidos} omitidos por duplicado."
+                f"Importación completada: {creados['dispositivos']} dispositivos, {omitidos} omitidos por duplicado."
             )
         )
         for error in errores:
@@ -124,25 +123,7 @@ class Command(BaseCommand):
                 },
                 "dispositivos",
             )
-        if entidad == "MERENDERO":
-            return self._crear_si_no_existe(
-                Merendero,
-                codigo,
-                {
-                    "nombre": nombre,
-                    "domicilio": domicilio,
-                    "zona": self._texto(fila, "zona"),
-                    "barrio": self._texto(fila, "barrio"),
-                    "dias_horarios": self._texto(fila, "dias_horarios"),
-                    "telefono": self._texto(fila, "contacto_telefono"),
-                    "responsable_nombre": responsable_nombre,
-                    "responsable_documento": self._texto(fila, "responsable_documento"),
-                    "responsable_email": self._texto(fila, "contacto_email"),
-                    **metadata,
-                },
-                "merenderos",
-            )
-        raise ValueError("entidad debe ser DISPOSITIVO o MERENDERO")
+        raise ValueError("entidad debe ser DISPOSITIVO")
 
     @staticmethod
     def _crear_si_no_existe(modelo, codigo, defaults, resultado):
