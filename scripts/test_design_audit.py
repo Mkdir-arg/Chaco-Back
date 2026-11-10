@@ -49,16 +49,22 @@ class DecodificadorTests(unittest.TestCase):
         self.assertIn("h-[clamp(1rem,2rem)]", declaradas)
         self.assertIn("xl:grid-cols-[minmax(0,1fr)_auto]", declaradas)
 
+    def test_dos_comas_escapadas_con_calc_anidado(self) -> None:
+        """La forma de `h-[clamp(12rem,calc(100dvh-31rem),28rem)]` (Cambio 95)."""
+        css = r".h-\[clamp\(1rem\2c calc\(1dvh-1rem\)\2c 2rem\)\]{height:1rem}"
+
+        self.assertIn("h-[clamp(1rem,calc(1dvh-1rem),2rem)]", design_audit.clases_css(css))
+
     def test_escapes_literales(self) -> None:
         self.assertIn("xl:top-6", design_audit.clases_css(r".xl\:top-6{top:1.5rem}"))
         self.assertIn("w-1/2", design_audit.clases_css(r".w-1\/2{width:50%}"))
 
-    def test_los_dos_falsos_positivos_historicos_ya_no_aparecen(self) -> None:
-        """Las clases reales del repo que TWBUILD reportaba mal (Cambio 95).
+    def test_el_falso_positivo_historico_ya_no_aparece(self) -> None:
+        """La clase real del repo que TWBUILD reportaba mal y sigue en el build (Cambio 95).
 
-        Eran dos: `h-[clamp(12rem,calc(100dvh-31rem),28rem)]` se fue del build con las
-        pantallas de Merenderos (Cambio 452); su forma la sigue cubriendo el test sintético
-        de arriba.
+        La otra, `h-[clamp(12rem,calc(100dvh-31rem),28rem)]`, se fue del build con las
+        pantallas de Merenderos (Cambio 452); su forma la cubre
+        `test_dos_comas_escapadas_con_calc_anidado`.
         """
         declaradas = design_audit._clases_del_build()
         if declaradas is None:  # sin build committeado no hay nada que verificar

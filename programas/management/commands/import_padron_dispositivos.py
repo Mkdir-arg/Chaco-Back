@@ -42,24 +42,21 @@ class Command(BaseCommand):
 
         filas = self._leer_filas(archivo)
 
-        creados = {"dispositivos": 0}
-        omitidos, errores = 0, []
+        creados, omitidos, errores = 0, 0, []
         with transaction.atomic():
             for numero, fila in enumerate(filas, start=2):
                 try:
-                    resultado = self._importar_fila(fila, fuente=fuente, fecha=fecha, responsable=responsable)
+                    creado = self._importar_fila(fila, fuente=fuente, fecha=fecha, responsable=responsable)
                 except ValueError as error:
                     errores.append(f"Fila {numero}: {error}")
                     continue
-                if resultado is None:
-                    omitidos += 1
+                if creado:
+                    creados += 1
                 else:
-                    creados[resultado] += 1
+                    omitidos += 1
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Importación completada: {creados['dispositivos']} dispositivos, {omitidos} omitidos por duplicado."
-            )
+            self.style.SUCCESS(f"Importación completada: {creados} dispositivos, {omitidos} omitidos por duplicado.")
         )
         for error in errores:
             self.stderr.write(self.style.WARNING(error))
@@ -100,46 +97,45 @@ class Command(BaseCommand):
         if not nombre or not domicilio or not responsable_nombre:
             raise ValueError("nombre, domicilio y responsable_nombre son obligatorios")
 
-        metadata = {"fuente_padron": fuente, "fecha_padron": fecha, "responsable_padron": responsable}
-        if entidad == "DISPOSITIVO":
-            tipo_codigo = self._texto(fila, "tipo")
-            tipo = TipoDispositivo.objects.filter(codigo__iexact=tipo_codigo).first()
-            if tipo is None:
-                raise ValueError("el tipo de dispositivo es obligatorio y debe existir")
-            return self._crear_si_no_existe(
-                Dispositivo,
-                codigo,
-                {
-                    "nombre": nombre,
-                    "tipo": tipo,
-                    "domicilio": domicilio,
-                    "localidad": self._texto(fila, "localidad"),
-                    "responsable_nombre": responsable_nombre,
-                    "responsable_documento": self._texto(fila, "responsable_documento"),
-                    "contacto_telefono": self._texto(fila, "contacto_telefono"),
-                    "contacto_email": self._texto(fila, "contacto_email"),
-                    "horarios": self._texto(fila, "dias_horarios"),
-                    **metadata,
-                },
-                "dispositivos",
-            )
-        raise ValueError("entidad debe ser DISPOSITIVO")
+        if entidad != "DISPOSITIVO":
+            raise ValueError("entidad debe ser DISPOSITIVO")
+        tipo_codigo = self._texto(fila, "tipo")
+        tipo = TipoDispositivo.objects.filter(codigo__iexact=tipo_codigo).first()
+        if tipo is None:
+            raise ValueError("el tipo de dispositivo es obligatorio y debe existir")
+        return self._crear_si_no_existe(
+            codigo,
+            {
+                "nombre": nombre,
+                "tipo": tipo,
+                "domicilio": domicilio,
+                "localidad": self._texto(fila, "localidad"),
+                "responsable_nombre": responsable_nombre,
+                "responsable_documento": self._texto(fila, "responsable_documento"),
+                "contacto_telefono": self._texto(fila, "contacto_telefono"),
+                "contacto_email": self._texto(fila, "contacto_email"),
+                "horarios": self._texto(fila, "dias_horarios"),
+                "fuente_padron": fuente,
+                "fecha_padron": fecha,
+                "responsable_padron": responsable,
+            },
+        )
 
     @staticmethod
-    def _crear_si_no_existe(modelo, codigo, defaults, resultado):
+    def _crear_si_no_existe(codigo, defaults):
+        """Crea el dispositivo y devuelve True; False si el código ya existe."""
         if any(
             normalizar_codigo_institucional(codigo_existente) == codigo
-            for codigo_existente in modelo.objects.values_list("codigo", flat=True)
+            for codigo_existente in Dispositivo.objects.values_list("codigo", flat=True)
         ):
-            return None
+            return False
         try:
             with transaction.atomic():
-                objeto = modelo(codigo=codigo, **defaults)
+                objeto = Dispositivo(codigo=codigo, **defaults)
                 objeto.full_clean()
                 objeto.save(force_insert=True)
-                creado = True
         except ValidationError as error:
             raise ValueError("; ".join(error.messages)) from error
         except IntegrityError:
-            creado = False
-        return resultado if creado else None
+            return False
+        return True
