@@ -161,8 +161,8 @@ templates/   presentación
 ```
 
 En `programas` el dominio está partido por producto dentro de `services/` y
-`views/` (`becas.py`, `dispositivos.py`, `merenderos.py`, `cupo.py`, `siis.py`…).
-Los modelos de los tres productos conviven en `programas/models/__init__.py`.
+`views/` (`becas.py`, `dispositivos.py`, `cupo.py`, `siis.py`…).
+Los modelos de los dos productos conviven en `programas/models/__init__.py`.
 
 ### Autorización: capacidades, no grupos
 

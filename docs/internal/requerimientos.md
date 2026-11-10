@@ -53922,11 +53922,11 @@ Revertir el PR; no hay datos que deshacer.
 1. **Una sola release, sin expand/contract.** Es la excepción que el PM eligió: sin datos en ningún ambiente, escalonar el borrado en dos releases solo dejaba código muerto. El job `Migrate ida y vuelta` sigue siendo el gate.
 2. **`users.0046` retira las capacidades con el patrón de `0042`**: las saca de los roles que las tenían registrando cada par en `users_capacidadrevocada`, y borra las `Permission`. La reversa las recrea y las vuelve a tildar.
 3. **`programas.0115` borra primero los datos y después las tablas.** La parte de datos es idempotente: borra derivaciones e inscripciones del programa, los roles atados (`RolMeta` + `Group`, porque `RolMeta.programa` es `PROTECT`) y la fila. Después `DeleteModel` de las cinco tablas, hijas primero. Sin `RemoveField` previos: Django los genera por dependencia, pero en MariaDB el de `merendero` en `PrestacionMensual` falla con «Key column doesn't exist» porque la restricción única de `(merendero, anio, mes)` todavía la usa; con el `DeleteModel` solo, cae la tabla entera.
-4. **`ruta_solicitud_merendero` queda como shim en `core/rutas_media.py`**: `programas.0011` y `programas.0083` la nombran como `upload_to` y tienen que seguir cargando.
+4. **`ruta_solicitud_merendero` queda como shim en `core/rutas_media.py`**: `programas.0083` la nombra como `upload_to` y tiene que seguir cargando (`0011` usa un string, no la función).
 5. **Los tests de la migración `0012` y del estado histórico se quedan**: prueban esa migración vieja, que sigue creando la fila `MERENDEROS` en el historial.
 6. **`parsear_periodo` y el filtro por período se fueron con el export de Merenderos**: era lo único que los usaba (Dispositivos dejó el período en la v2).
 7. **Las fichas de la auditoría que nombraban tests de Merenderos** (SEC-34, FE-10, FE-18, RED-33) apuntan al equivalente vigente, con una nota; `core.tests.test_contrato_auditoria` lo exige.
-8. **`OperadorDeVariosProgramasTests`** (users) usaba Merenderos como «el otro programa» del operador; ahora es un programa sin módulos propios, y el caso de «capacidad ajena» usa `becas.segmento.ver`.
+8. **`OperadorDeVariosProgramasTests`** (users) usaba Merenderos como «el otro programa» del operador; ahora es un programa sin módulos propios. Los dos tests de SEC-06 ronda 2 postean un rol de ese programa con `dispositivo.ver`, así que entran a la rama `ajenas` de `RolForm.clean` y afirman «no se pueden asignar a un rol de este programa» (verificado por mutación).
 
 ## Implementación
 
@@ -53934,7 +53934,7 @@ El sistema ya no tiene el programa: `/merenderos/` no existe, el árbol de capac
 
 ## Archivos
 
-`programas/{views/merenderos.py, services/merenderos.py, merenderos_urls.py, templates/programas/merenderos/}` (borrados), `programas/{models/__init__.py, forms.py, views/reportes.py, services/reportes.py, management/commands/import_padron_dispositivos.py, management/commands/seed_aceptacion_reportes.py, migrations/0115_retirar_merenderos.py}`, `users/migrations/0046_retirar_merenderos.py`, `core/{rbac.py, rutas_media.py, views/media.py}`, `config/urls.py`, comentarios en `core/validators.py`, `programas/api/serializers.py`, `programas/validacion_contacto.py`, `static/custom/js/nodo-submit-guard.js` y los tests y fichas nombrados arriba.
+`programas/{views/merenderos.py, services/merenderos.py, merenderos_urls.py, templates/programas/merenderos/, templates/programas/_swal_confirm_js.html, tests/test_confirmaciones_legacy.py}` (borrados), `programas/{models/__init__.py, forms.py, views/reportes.py, services/reportes.py, management/commands/import_padron_dispositivos.py, management/commands/seed_aceptacion_reportes.py, migrations/0115_retirar_merenderos.py}`, `users/migrations/0046_retirar_merenderos.py`, `core/{rbac.py, rutas_media.py, views/media.py}`, `config/urls.py`, comentarios en `core/validators.py`, `programas/api/serializers.py`, `programas/validacion_contacto.py`, `static/custom/js/nodo-submit-guard.js`, `static/custom/css/tailwind.css` (recompilado: 9 reglas menos, todas de Merenderos), `scripts/test_design_audit.py`, el agente de diseño y sus fichas, y los tests y fichas nombrados arriba. En el PR siguiente: `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `.claude/commands/pm.md`, `.claude/skills/{impacto-de-cambio, auditoria/rubricas/codigo-limpio.md}` y `docs/internal/auditoria-2026-10/anexo-agente-diseno.md`.
 
 ## Base de datos
 
@@ -53949,8 +53949,7 @@ El sistema ya no tiene el programa: `/merenderos/` no existe, el árbol de capac
 
 ## Pendientes / a definir
 
-- Referencias a Merenderos en `.claude/` (inventario del agente de diseño, fichas de arquetipos y de dominio) y en `AGENTS.md`, `PM.md` y `CLAUDE.md`: se actualizan aparte. Mientras tanto `scripts/check_design_agent.py` pide quitar la evidencia `programas/templates/programas/merenderos/_estado_badge.html` de las filas «Mapa de estados por módulo», «Drag & drop SortableJS» y «Dominio Becas».
-- `programas/_swal_confirm_js.html` quedó sin pantallas que lo incluyan; sigue testeado y documentado como pieza legacy.
+- Ninguno. `PM.md` conserva «Merenderos» a propósito: clasifica issues históricos.
 
 ## Reversión
 
@@ -53966,5 +53965,8 @@ Datos que se pierden: todos los de Merenderos y los roles atados al programa. No
 
 - **10/11/2026 — alta del cambio.**
 - **10/11/2026 — ronda de auditoría del PR #1076.** Los tests de SEC-06 ronda 2 (users) ahora llegan a la rama `ajenas` de `RolForm.clean` (rol de «Otro» con `dispositivo.ver`; antes pasaban por `invalid_choice`), verificados por mutación; se borra `_swal_confirm_js.html` (sin includes) y su test; la ficha FE-19 de la auditoría apunta a `test_badges_confirmaciones_ola5`; número del Cambio y docstring del shim corregidos.
+- **10/11/2026 — CI del PR #1076.** `ruff format` en `reportes.py`; Tailwind recompilado; `test_design_audit` deja de exigir en el build la clase `h-[clamp(…)]`, que se fue con Merenderos.
+- **10/11/2026 — mergeado** a `development` (`08ce6d62`).
+- **11/11/2026 — limpieza posterior (MINOR de la auditoría).** Sin menciones de Merenderos como producto vivo en `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `.claude/commands/pm.md` y las skills `impacto-de-cambio` y `auditoria`; el anexo de diseño de la auditoría deja de listar pantallas de Merenderos; `import_padron_dispositivos` sin el despacho por entidad (mismos mensajes y salida); `test_design_audit` cubre con un caso sintético la forma de dos comas con `calc` anidado.
 
 ---

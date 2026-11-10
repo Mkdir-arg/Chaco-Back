@@ -26,7 +26,7 @@ instrucciones.
 Responder en orden, cada punto con su evidencia (`git grep`, archivo:línea, test):
 
 1. **Código.** Puntos de entrada, quién llama, quién consume. En `programas` el dominio
-   está partido por producto (`services/becas.py`, `dispositivos.py`, `merenderos.py`,
+   está partido por producto (`services/becas.py`, `dispositivos.py`,
    `cupo.py`, `siis.py`…): un servicio de Becas puede tener llamadores en Dispositivos.
 2. **Datos.** ¿Cambia un modelo, una migración, datos históricos, un JSON guardado, una
    clave de caché o de idempotencia? ¿Corre igual en MySQL y en MariaDB? (skill
