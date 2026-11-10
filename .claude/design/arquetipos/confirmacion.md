@@ -87,10 +87,8 @@ Alpine) y el `disabled` previo. Un segundo submit durante el envío se ignora.
 ## Prohibido
 
 - `confirm()` nativo.
-- `data-confirm` a secas: es el contrato **legacy condicionado** de Dispositivos (hoy sin ningún template que lo incluya), que
-  vive en `programas/templates/programas/_swal_confirm_js.html` y declara el tono con
-  `data-confirm-danger`. Compite con este contrato y no se copia a UI nueva; tampoco se reimplementa
-  el handler en la pantalla.
+- `data-confirm` a secas: el handler legacy que lo atendía ya no existe. No se copia a UI nueva ni
+  se reimplementa en la pantalla.
 - `Swal.fire` nuevo. SweetAlert queda **legacy condicionado** en las pantallas de Dispositivos y
   Legajos que ya lo usan; esas pantallas no se migran sin decisión aparte, y antes
   de llamarlo hay que verificar que la pantalla cargue SweetAlert2.
