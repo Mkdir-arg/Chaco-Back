@@ -17,7 +17,9 @@
  *   - ← y → mueven el foco a la solapa anterior/siguiente, con vuelta circular;
  *   - Home y End van a la primera y a la última;
  *   - `tabindex` itinerante: solo la solapa activa es tabulable, así que Tab entra y
- *     sale de la barra en un paso en lugar de recorrer una solapa por vez.
+ *     sale de la barra en un paso en lugar de recorrer una solapa por vez;
+ *   - si la barra desborda en horizontal (celular), la solapa activa queda a la vista al
+ *     cargar y cuando cambia, moviendo solo el `scrollLeft` de la barra.
  *
  * El `tabindex` se recalcula leyendo `aria-selected`, que es quien sabe cuál está
  * activa, y un `MutationObserver` lo vuelve a calcular cuando ese atributo cambia:
@@ -55,6 +57,24 @@
         solapas.forEach(function (tab, i) {
             tab.setAttribute('tabindex', i === seleccionada ? '0' : '-1');
         });
+    }
+
+    // Si la barra desborda en horizontal (celular), deja a la vista la solapa activa sin
+    // tocar el scroll vertical de la página: se mueve `scrollLeft` de la barra, no se
+    // llama a `scrollIntoView`, que también desplazaría el documento. Sin desborde no
+    // hace nada.
+    function mostrarActiva(lista) {
+        if (lista.scrollWidth <= lista.clientWidth) return;
+        var solapas = solapasDe(lista);
+        if (!solapas.length) return;
+        var tab = solapas[activa(solapas)];
+        var barra = lista.getBoundingClientRect();
+        var caja = tab.getBoundingClientRect();
+        if (caja.left < barra.left) {
+            lista.scrollLeft += caja.left - barra.left;
+        } else if (caja.right > barra.right) {
+            lista.scrollLeft += caja.right - barra.right;
+        }
     }
 
     function mover(lista, desde, delta) {
@@ -102,9 +122,11 @@
 
     function observar(lista) {
         repartirTabindex(lista);
+        mostrarActiva(lista);
         if (typeof MutationObserver !== 'function') return;
         new MutationObserver(function () {
             repartirTabindex(lista);
+            mostrarActiva(lista);
         }).observe(lista, { subtree: true, attributes: true, attributeFilter: ['aria-selected'] });
     }
 
@@ -119,5 +141,5 @@
     }
 
     // Para los tests: el comportamiento se ejerce desde afuera, sin tocar el DOM real.
-    window.NodoTabs = { repartirTabindex: repartirTabindex, montar: montar };
+    window.NodoTabs = { repartirTabindex: repartirTabindex, mostrarActiva: mostrarActiva, montar: montar };
 })();

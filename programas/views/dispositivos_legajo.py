@@ -165,6 +165,7 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
             "tipo": self.request.GET.get("tipo", ""),
             "estado": self.request.GET.get("estado", ""),
             "localidad": self.request.GET.get("localidad", "").strip(),
+            "q": self.request.GET.get("q", "").strip(),
         }
 
     def get_queryset(self):
@@ -182,6 +183,7 @@ class DispositivoListView(DispositivoProgramaPermissionMixin, ListView):
         context["tipos"] = TipoDispositivo.objects.filter(activo=True).order_by("nombre")
         context["tipo_actual"] = filtros["tipo"]
         context["localidad_actual"] = filtros["localidad"]
+        context["q_actual"] = filtros["q"]
         # El alta exige la capacidad **y** el alcance de admin del programa, igual que la
         # vista de alta (`DispositivoAltaPermissionMixin`): una institución nueva no tiene
         # asignaciones, así que quien no tiene alcance total guardaba el borrador y recibía
