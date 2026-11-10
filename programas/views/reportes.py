@@ -38,4 +38,3 @@ class DispositivoExportView(DispositivoProgramaPermissionMixin, View):
         if reporte == "padron":
             return _respuesta(padron_dispositivos(dispositivos), formato, "padron_dispositivos")
         return HttpResponseBadRequest("Reporte no válido.")
-
