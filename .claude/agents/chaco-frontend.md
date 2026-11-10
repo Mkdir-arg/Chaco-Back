@@ -38,7 +38,7 @@ del módulo destino solo se toma dominio.
 
    ```
    Tipo: B · Arquetipo: Listado · Golden: …/becas/revision/personas_list.html
-   Hermana (solo dominio): …/merenderos/list.html
+   Hermana (solo dominio): …/dispositivos/legajo/list.html
    Bloques: header · filtros · tabla · vacío x2 · paginación
    Vista: paginate_by, capacidades, choices, select_related
    Novedades: ninguna

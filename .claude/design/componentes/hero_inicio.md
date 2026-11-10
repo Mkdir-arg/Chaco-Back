@@ -13,7 +13,7 @@ y hoy usa `{% page_header %}`: volver a ponerlo es una decisión de producto, no
 El hero es **solo** de dos superficies:
 
 1. la pantalla de inicio (`/inicio/`), y
-2. los tableros de programa (la primera pantalla de un programa: Dispositivos, Merenderos, Becas).
+2. los tableros de programa (la primera pantalla de un programa: Dispositivos, Becas).
 
 En **ninguna otra pantalla**. Un listado, un detalle, un formulario, un modal, una pantalla de
 configuración o un reporte abren con `{% page_header %}`: sigue valiendo «no crear landing pages para
