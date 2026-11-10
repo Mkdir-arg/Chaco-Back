@@ -59,3 +59,48 @@ class ProgramasDispositivosDataMigrationTests(TestCase):
 
         with self.assertRaisesMessage(RuntimeError, 'Programa(codigo="DISPOSITIVOS")'):
             migration.crear_programas(apps, schema_editor=None)
+
+
+class RetirarMerenderosDataMigrationTests(TestCase):
+    """`0115`: la fila `Programa(MERENDEROS)` y los roles atados a ella se borran sin tocar el resto."""
+
+    migration_module = "programas.migrations.0115_retirar_merenderos"
+
+    def _rol(self, nombre, programa):
+        from django.contrib.auth.models import Group
+
+        from users.models import CATEGORIA_PROGRAMA, RolMeta
+
+        grupo = Group.objects.create(name=nombre)
+        RolMeta.objects.create(grupo=grupo, categoria=CATEGORIA_PROGRAMA, programa=programa)
+        return grupo
+
+    def test_borra_el_programa_sus_roles_y_su_inscripcion_sin_tocar_los_demas(self):
+        from django.contrib.auth.models import Group
+
+        merenderos = Programa.objects.create(codigo="MERENDEROS", nombre="Merenderos", tipo="MERENDEROS")
+        becas = Programa.objects.create(codigo="BECAS-X", nombre="Becas X")
+        rol_merenderos = self._rol("Rol Merenderos", merenderos)
+        rol_becas = self._rol("Rol Becas X", becas)
+        ciudadano = Ciudadano.objects.create(dni="30111222", nombre="Ana", apellido="Demo")
+        InscripcionPrograma.objects.create(ciudadano=ciudadano, programa=merenderos)
+        membresia = InscripcionPrograma.objects.create(ciudadano=ciudadano, programa=becas)
+
+        migration = import_module(self.migration_module)
+        migration.borrar_programa(apps, schema_editor=None)
+
+        self.assertFalse(Programa.objects.filter(codigo="MERENDEROS").exists())
+        self.assertFalse(Group.objects.filter(pk=rol_merenderos.pk).exists())
+        self.assertTrue(Group.objects.filter(pk=rol_becas.pk).exists())
+        self.assertTrue(Programa.objects.filter(pk=becas.pk).exists())
+        self.assertTrue(InscripcionPrograma.objects.filter(pk=membresia.pk).exists())
+
+    def test_es_idempotente_y_la_reversa_recrea_la_fila(self):
+        migration = import_module(self.migration_module)
+
+        migration.borrar_programa(apps, schema_editor=None)
+        migration.borrar_programa(apps, schema_editor=None)
+        migration.restituir_programa(apps, schema_editor=None)
+        migration.restituir_programa(apps, schema_editor=None)
+
+        self.assertEqual(Programa.objects.filter(codigo="MERENDEROS").count(), 1)

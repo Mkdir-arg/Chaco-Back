@@ -83,7 +83,7 @@ class RatchetTests(unittest.TestCase):
     # Un template real cuyos bytes UTF-8 incluyen 0x90, que en cp1252 **no existe**:
     # ahí es donde `git show` sin `encoding` explícito revienta. No alcanza con un
     # archivo "con tildes" (`á` es C3 A1 y cp1252 lo decodifica mal pero no falla).
-    TEMPLATE_NO_CP1252 = "programas/templates/programas/merenderos/detail.html"
+    TEMPLATE_NO_CP1252 = "programas/templates/programas/dispositivos/legajo/detail.html"
     BYTES_SIN_CP1252 = {0x81, 0x8D, 0x8F, 0x90, 0x9D}
 
     def _template_de_referencia(self) -> Path:

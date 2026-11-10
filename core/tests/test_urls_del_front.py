@@ -313,7 +313,7 @@ class UrlsDelFrontTests(SimpleTestCase):
     def test_los_prefijos_salen_del_urlconf_y_no_de_una_lista(self):
         prefijos = _prefijos_de_la_app()
 
-        self.assertLessEqual({"legajos", "becas", "dispositivos", "merenderos", "api"}, prefijos)
+        self.assertLessEqual({"legajos", "becas", "dispositivos", "api"}, prefijos)
         # Las de la raíz (`path("", include("core.urls"))`) también, o el filtro
         # dejaría ciego todo lo que cuelga del root.
         self.assertIn("performance-api", prefijos)

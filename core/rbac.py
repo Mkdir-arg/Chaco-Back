@@ -102,20 +102,6 @@ CATALOGO = [
         ],
     },
     {
-        "modulo": "merenderos",
-        "label": "Merenderos",
-        "tab": "dispositivos",
-        "alcance": "programa",
-        "programas": ("MERENDEROS",),
-        "capacidades": [
-            ("merendero.ver", "Ver merenderos"),
-            ("merendero.crear", "Crear merenderos"),
-            ("merendero.editar", "Editar merenderos"),
-            ("merendero.validar", "Validar merenderos"),
-            ("merendero.entregar", "Registrar entregas a merenderos"),
-        ],
-    },
-    {
         "modulo": "relevamientos",
         "label": "Relevamientos",
         "tab": "general",
@@ -604,7 +590,7 @@ def capacidades_fuera_del_programa(programa):
 
     Es el complemento de :func:`capacidades_de_programa_asignables` dentro de
     :func:`codigos_de_programa`: para un rol de DISPOSITIVOS son los trece módulos
-    ``becas_*`` y los de MERENDEROS. Con ``programa=None`` —un rol que no es de
+    ``becas_*``. Con ``programa=None`` —un rol que no es de
     programa— es el conjunto vacío: ahí no hay contra qué comparar y un rol global puede
     tener cualquier capacidad.
 

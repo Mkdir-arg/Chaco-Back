@@ -1,8 +1,8 @@
 """Contrato de `programas/models/__init__.py` (RED-46).
 
-Un solo archivo de 3.252 líneas con los modelos de los **tres** productos (Becas,
-Dispositivos, Merenderos) y 90 módulos que lo importan. `radon` le da índice de
-mantenibilidad 0.00. Partirlo en `becas.py` / `dispositivos.py` / `merenderos.py` es
+Un solo archivo de 3.252 líneas con los modelos de los productos (Becas,
+Dispositivos) y 90 módulos que lo importan. `radon` le da índice de
+mantenibilidad 0.00. Partirlo en `becas.py` / `dispositivos.py` es
 tentador y hoy no hay nada que lo cubra:
 
 - un nombre que el `__init__.py` de compatibilidad **no re-exporte** no falla al
@@ -64,7 +64,6 @@ TABLAS = {
     "Dispositivo": "programas_dispositivo",
     "Edificio": "programas_edificio",
     "EntradaBitacora": "programas_entradabitacora",
-    "EntregaMercaderia": "programas_entregamercaderia",
     "EnvioSIIS": "programas_enviosiis",
     "Estadia": "programas_estadia",
     "FotoInspeccion": "programas_fotoinspeccion",
@@ -76,14 +75,11 @@ TABLAS = {
     "ItemDiseno": "programas_itemdiseno",
     "ListaEspera": "programas_listaespera",
     "LocalidadSiis": "programas_localidadsiis",
-    "Merendero": "programas_merendero",
     "MotivoEgreso": "programas_motivoegreso",
     "MovimientoEstadia": "programas_movimientoestadia",
     "PadronHabilitado": "programas_padronhabilitado",
     "Plaza": "programas_plaza",
     "PreguntaGlobal": "programas_preguntaglobal",
-    "PrestacionDiaria": "programas_prestaciondiaria",
-    "PrestacionMensual": "programas_prestacionmensual",
     "Programa": "programas_programa",
     "ProgramaSiis": "programas_programasiis",
     "ProvinciaSiis": "programas_provinciasiis",
@@ -95,7 +91,6 @@ TABLAS = {
     "RespuestasRelevamiento": "programas_respuestasrelevamiento",
     "Sector": "programas_sector",
     "Segmento": "programas_segmento",
-    "SolicitudMerendero": "programas_solicitudmerendero",
     "Subsegmento": "programas_subsegmento",
     "TipoDispositivo": "programas_tipodispositivo",
     "TracaFormulario": "programas_tracaformulario",

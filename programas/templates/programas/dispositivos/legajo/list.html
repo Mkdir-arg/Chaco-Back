@@ -5,7 +5,7 @@
 {% block main-content %}
 <div class="space-y-6">
 
-  {% page_header eyebrow="Programa Dispositivos" titulo="Instituciones" bajada="Legajo institucional de cada dispositivo: identidad, encuadre, plazas y estado de validación. Los merenderos tienen su propio listado." %}
+  {% page_header eyebrow="Programa Dispositivos" titulo="Instituciones" bajada="Legajo institucional de cada dispositivo: identidad, encuadre, plazas y estado de validación." %}
     <a href="{% url 'dispositivos:exportar' 'padron' 'csv' %}{% if exportar_qs %}?{{ exportar_qs }}{% endif %}" class="btn-nodo btn-tertiary btn-base">
       <i class="fas fa-file-csv" aria-hidden="true"></i> Exportar CSV
     </a>

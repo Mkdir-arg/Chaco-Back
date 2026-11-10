@@ -1,4 +1,4 @@
-"""FE-19 · Un solo handler de confirmación para Dispositivos y Merenderos.
+"""FE-19 · Un solo handler de confirmación para Dispositivos.
 
 El mismo `[data-confirm]` estaba implementado tres veces, y las tres distintas: una sin
 `data-confirm-ok` ni motivo, otra sin `buttonsStyling:false` y la tercera pintando el
@@ -22,10 +22,6 @@ from core.tests.js_harness import correr_script, requiere_node, script_con
 REPO = Path(settings.BASE_DIR)
 
 INCLUDE = "programas/_swal_confirm_js.html"
-PANTALLAS = (
-    "programas/templates/programas/merenderos/detail.html",
-    "programas/templates/programas/merenderos/solicitudes.html",
-)
 
 #: Monta un `<form>` falso que registra qué se le colgó y cómo se envió, y dispara el
 #: click sobre un botón con el `dataset` pedido.
@@ -103,11 +99,11 @@ class HandlerUnicoTests(SimpleTestCase):
 
     def test_los_textos_salen_de_los_data_attributes(self):
         log = self.correr(
-            "__clickEn({confirm: '', confirmTitle: '¿Cerrar merendero?', "
+            "__clickEn({confirm: '', confirmTitle: '¿Cerrar la institución?', "
             "confirmText: 'Impide nuevas entregas.', confirmOk: 'Sí, cerrar'});"
         )
         opciones = log["swal"][0]
-        self.assertEqual(opciones["title"], "¿Cerrar merendero?")
+        self.assertEqual(opciones["title"], "¿Cerrar la institución?")
         self.assertEqual(opciones["text"], "Impide nuevas entregas.")
         self.assertEqual(opciones["confirmButtonText"], "Sí, cerrar")
 
@@ -148,43 +144,3 @@ class HandlerUnicoTests(SimpleTestCase):
         log = self.correr("__clickEn({confirmUrl: '/algo/'});")
         self.assertEqual(log["swal"], [])
         self.assertEqual(log["enviados"], [])
-
-
-class PantallasSinHandlerPropioTests(SimpleTestCase):
-    def test_las_pantallas_legacy_incluyen_la_pieza_unica(self):
-        for ruta in PANTALLAS:
-            with self.subTest(ruta=ruta):
-                texto = (REPO / ruta).read_text(encoding="utf-8")
-                self.assertTrue(INCLUDE in texto, f"{ruta} no incluye {INCLUDE}")
-
-    def test_ninguna_pantalla_conserva_su_copia_del_handler(self):
-        for ruta in PANTALLAS:
-            with self.subTest(ruta=ruta):
-                texto = (REPO / ruta).read_text(encoding="utf-8")
-                self.assertNotIn("Swal.fire", texto, f"{ruta}: el handler es el include")
-                self.assertNotIn("sweetalert2.all.min.js", texto, f"{ruta}: la carga la hace el include")
-
-    def test_rechazar_y_cerrar_declaran_que_son_destructivas(self):
-        esperado = {
-            "programas/templates/programas/merenderos/detail.html": ("Cerrar",),
-            "programas/templates/programas/merenderos/solicitudes.html": ("Rechazar",),
-        }
-        for ruta, etiquetas in esperado.items():
-            texto = (REPO / ruta).read_text(encoding="utf-8")
-            for linea in texto.splitlines():
-                if "data-confirm " not in linea and "data-confirm>" not in linea:
-                    continue
-                for etiqueta in etiquetas:
-                    if f">{etiqueta}</button>" in linea:
-                        with self.subTest(ruta=ruta, etiqueta=etiqueta):
-                            self.assertIn("data-confirm-danger", linea)
-
-    def test_las_acciones_constructivas_no_se_declaran_destructivas(self):
-        constructivas = ("Enviar a validación", "Validar", "Aprobar", "Suspender", "Observar", "Inactivar")
-        for ruta in PANTALLAS:
-            texto = (REPO / ruta).read_text(encoding="utf-8")
-            for linea in texto.splitlines():
-                for etiqueta in constructivas:
-                    if f">{etiqueta}</button>" in linea:
-                        with self.subTest(ruta=ruta, etiqueta=etiqueta):
-                            self.assertNotIn("data-confirm-danger", linea)

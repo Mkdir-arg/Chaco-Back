@@ -1,9 +1,8 @@
 {% load static %}
 {% comment %}
-Confirmación con SweetAlert2 de las pantallas **legacy condicionadas** (Dispositivos y
-Merenderos). Fuente única del handler que antes estaba copiado, con tres variantes
-distintas, en `dispositivos/legajo/detail.html`, `merenderos/detail.html` y
-`merenderos/solicitudes.html`.
+Confirmación con SweetAlert2 de las pantallas **legacy condicionadas** (Dispositivos).
+Fuente única del handler que antes estaba copiado, con variantes distintas,
+en varias pantallas.
 
 **No se usa en pantallas nuevas.** Ahí rige la confirmación canónica: `data-confirm-url`
 → `ModernModal` (`programas/becas/_confirm_js.html`) para el sí/no, y el arquetipo Modal

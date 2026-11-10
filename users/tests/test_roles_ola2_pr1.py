@@ -203,18 +203,18 @@ class OperadorDeVariosProgramasTests(Base):
 
     ``programa_fijo`` solo se setea con un único programa administrable, así que el
     árbol caía a ``capacidades_delegables(None)`` —el catálogo de programa entero— y le
-    ofrecía los trece módulos ``becas_*`` a un operador de Dispositivos y Merenderos. No
+    ofrecía los trece módulos ``becas_*`` a un operador de Dispositivos y de otro programa. No
     había escalada (el ``clean`` filtraba por el programa posteado), pero lo tildado
     desaparecía sin mensaje.
     """
 
     def setUp(self):
         super().setUp()
-        self.merenderos = Programa.objects.create(codigo="MERENDEROS", nombre="Merenderos")
+        self.otro = Programa.objects.create(codigo="OTRO", nombre="Otro programa")
         self.operador = _usuario(
             "adm-roles-disp-mere",
             _rol("RA Dispositivos", ["programa.rol.administrar"], self.dispositivos),
-            _rol("RA Merenderos", ["programa.rol.administrar"], self.merenderos),
+            _rol("RA Otro", ["programa.rol.administrar"], self.otro),
         )
 
     def _form(self, data=None, instance=None):
@@ -231,7 +231,6 @@ class OperadorDeVariosProgramasTests(Base):
         self.assertFalse({m for m in modulos if m.startswith("becas")}, modulos)
         self.assertNotIn("becas.programa.administrar", codigos)
         self.assertIn("dispositivo.ver", codigos)
-        self.assertIn("merendero.ver", codigos)
 
     def test_tampoco_en_el_arbol_por_tabs(self):
         form = self._form()
@@ -241,20 +240,20 @@ class OperadorDeVariosProgramasTests(Base):
         self.assertFalse({m for m in modulos if m.startswith("becas")}, modulos)
 
     def test_una_capacidad_de_su_otro_programa_no_se_descarta_en_silencio(self):
-        """Lo delegable de Merenderos **sí** está entre los choices (es suyo), pero no
-        corresponde a un rol de Dispositivos: antes se guardaba el rol sin ella."""
+        """Una capacidad que no es de ninguno de sus programas se rechaza con un error
+        en `capacidades`: antes se guardaba el rol sin ella."""
         form = self._form(
             {
                 "name": "Operativo Dispositivos",
                 "categoria": rbac.CATEGORIA_PROGRAMA,
                 "programa": str(self.dispositivos.pk),
-                "capacidades": ["dispositivo.ver", "merendero.ver"],
+                "capacidades": ["dispositivo.ver", "becas.segmento.ver"],
             }
         )
 
         self.assertFalse(form.is_valid())
         self.assertIn("capacidades", form.errors)
-        self.assertIn("merendero.ver", form.errors["capacidades"][0])
+        self.assertIn("becas.segmento.ver", form.errors["capacidades"][0])
         self.assertFalse(Group.objects.filter(name="Operativo Dispositivos").exists())
 
     def test_y_la_pantalla_lo_dice(self):
@@ -267,7 +266,7 @@ class OperadorDeVariosProgramasTests(Base):
                     "name": "Operativo Dispositivos 2",
                     "categoria": rbac.CATEGORIA_PROGRAMA,
                     "programa": str(self.dispositivos.pk),
-                    "capacidades": ["dispositivo.ver", "merendero.ver"],
+                    "capacidades": ["dispositivo.ver", "becas.segmento.ver"],
                 },
             )
 

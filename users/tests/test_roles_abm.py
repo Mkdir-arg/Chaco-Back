@@ -99,9 +99,9 @@ class SolapasDeCapacidadesTests(TestCase):
         ids = [t["id"] for t in rbac.arbol_por_tabs()]
         self.assertEqual(ids, ["general", "administracion", "becas", "dispositivos"])
 
-    def test_dispositivos_inspecciones_y_merenderos_comparten_solapa(self):
+    def test_dispositivos_e_inspecciones_comparten_solapa(self):
         modulos = self._por_id(rbac.arbol_por_tabs())
-        self.assertEqual(modulos["dispositivos"], {"dispositivos", "inspecciones", "merenderos"})
+        self.assertEqual(modulos["dispositivos"], {"dispositivos", "inspecciones"})
 
     def test_ambitos_generales_y_de_administracion(self):
         modulos = self._por_id(rbac.arbol_por_tabs())
@@ -469,7 +469,6 @@ class RolAlcanceTests(TestCase):
         codigos = {codigo for codigo, _ in form.fields["capacidades"].choices}
 
         self.assertIn("dispositivos", modulos)
-        self.assertNotIn("merenderos", modulos)
         self.assertIn("dispositivo.validar", codigos)
 
     def test_edicion_rol_dispositivos_ya_no_muestra_selector_de_alcance(self):

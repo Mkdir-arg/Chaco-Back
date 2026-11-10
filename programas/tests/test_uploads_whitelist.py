@@ -1,11 +1,11 @@
 """Lista blanca y techo de tamaño en los uploads del backoffice (SEC-15, SEC-31).
 
-Hasta aquel PR, la **documentación respaldatoria** de una solicitud de merendero
-era un `FileField` pelado: cualquier extensión, de cualquier peso. Un `.html` con
+Hasta aquel PR, la **documentación respaldatoria** de una solicitud (el programa Merenderos
+se borró, Cambio 446) era un `FileField` pelado: cualquier extensión, de cualquier peso. Un `.html` con
 `<script>` quedaba en `media/` y se servía *same-origin* —en DEV por nginx, y en
 ECOM `django.views.static.serve` infiere `text/html` y no manda `attachment`—, así
 que el XSS corría en el origen del sitio. Requiere un usuario interno
-(`merendero.crear`), por eso es MEDIA y no ALTA, pero el archivo lo mira después
+(un permiso de alta), por eso es MEDIA y no ALTA, pero el archivo lo mira después
 cualquiera.
 
 El campo ARCHIVO del **F-00** entraba por la misma puerta; se dio de baja con los
@@ -32,7 +32,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from core.validators import ADJUNTO_EXTENSIONES, ADJUNTO_MAX_BYTES
-from programas.forms import SolicitudMerenderoForm
 
 PDF = b"%PDF-1.4 contenido real"
 
@@ -59,49 +58,6 @@ class ListaBlancaCompartidaTests(TestCase):
 
         self.assertEqual(serializers.ADJUNTO_EXTENSIONES, ADJUNTO_EXTENSIONES)
         self.assertEqual(serializers.ADJUNTO_MAX_BYTES, ADJUNTO_MAX_BYTES)
-
-
-class SolicitudMerenderoUploadTests(TestCase):
-    """PoC invertida: `SolicitudMerenderoForm` aceptaba `x.html`."""
-
-    def _form(self, archivo):
-        return SolicitudMerenderoForm(
-            data={"codigo": "", "nombre": "M"},
-            files={"documentacion": archivo},
-            validar_completitud=False,
-        )
-
-    def test_merendero_rechaza_html(self):
-        form = self._form(subido("x.html", b"<script>alert(1)</script>", "text/html"))
-
-        self.assertFalse(form.is_valid())
-        self.assertIn("documentacion", form.errors)
-
-    def test_merendero_rechaza_svg(self):
-        form = self._form(subido("x.svg", b"<svg onload=alert(1)>", "image/svg+xml"))
-
-        self.assertIn("documentacion", self._errores(form))
-
-    def test_merendero_rechaza_un_pdf_que_no_es_pdf(self):
-        """La extensión la elige quien sube; la firma es del contenido."""
-        form = self._form(subido("trampa.pdf", b"<html><script>alert(1)</script>"))
-
-        self.assertIn("documentacion", self._errores(form))
-
-    def test_merendero_rechaza_el_archivo_mayor_al_tope(self):
-        form = self._form(subido("grande.pdf", PDF + b"\x00" * ADJUNTO_MAX_BYTES))
-
-        self.assertIn("documentacion", self._errores(form))
-
-    def test_merendero_acepta_el_pdf_de_siempre(self):
-        form = self._form(subido("acta.pdf"))
-
-        self.assertNotIn("documentacion", self._errores(form))
-
-    @staticmethod
-    def _errores(form):
-        form.is_valid()
-        return form.errors
 
 
 class HistorialContactoUploadTests(TestCase):
