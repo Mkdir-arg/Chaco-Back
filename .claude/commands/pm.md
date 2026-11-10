@@ -60,7 +60,6 @@ En coordinación, identificá el programa cuando aplique:
 - **Becas:** modelo de madurez y vara de calidad, no molde visual automático.
 - **Dispositivos:** operación institucional continua; no copiar postulaciones,
   cupos ni lista de espera de Becas.
-- **Merenderos:** solicitudes, entregas y prestación periódica.
 - **Transversal:** plataforma, usuarios, roles, legajos, portal, infraestructura
   y soporte.
 

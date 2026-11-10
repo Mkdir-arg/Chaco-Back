@@ -37,7 +37,7 @@ el código existente:
 | `templates/` | presentación |
 
 En `programas` los servicios y las vistas están partidos por producto (`becas.py`,
-`dispositivos.py`, `merenderos.py`, `cupo.py`, `siis.py`…); los modelos de los tres productos
+`dispositivos.py`, `cupo.py`, `siis.py`…); los modelos de los dos productos
 conviven en `programas/models/__init__.py`.
 
 **Helpers canónicos** (si el código hace lo mismo a mano, es duplicado):
@@ -116,7 +116,7 @@ auditoría completa.
 - Un archivo que cruza las 1000 líneas por el cambio.
 - Condiciones nuevas pegadas a caminos que no tienen que ver.
 - Booleanos de un solo uso, modos anulables o flags que complican el flujo existente.
-- Lógica de un producto (Becas, Dispositivos, Merenderos) filtrándose a módulos generales.
+- Lógica de un producto (Becas, Dispositivos) filtrándose a módulos generales.
 - Lógica copiada y pegada en vez de extraída.
 - Casos borde resueltos en el medio de una función que ya está cargada.
 - Ramas «temporales» que van a quedar para siempre.

@@ -63,15 +63,16 @@ Los labels tienen **dos ejes independientes** y todo issue lleva **uno de cada u
 | Label | Alcance |
 |-------|---------|
 | `becas` | Relevamiento territorial, convocatorias, segmentos y subsegmentos, cupos y lista de espera, nivel Programa (SIIS), app de campo, formulario público, reportes de Becas |
-| `dispositivos` | Legajo institucional, tipos de dispositivo y campos F-00, camas, admisiones y traslados, parte diario F-01, **merenderos** (solicitudes, entregas, prestación alimentaria F-02) |
+| `dispositivos` | Legajo institucional, tipos de dispositivo y campos F-00, camas, admisiones y traslados, parte diario F-01 |
 | `transversal` | Plataforma: RBAC, usuarios y roles, legajo ciudadano, portal, dashboard, performance y observabilidad, infraestructura, CI y design system |
 
 Reglas:
 
 - **Un programa por issue.** Si un trabajo toca dos, se parte, o se etiqueta por
   dónde vive el valor funcional — no por los módulos de código que toca.
-- **Merenderos va dentro de `dispositivos`**: la épica es "Dispositivos y
-  Merenderos" (#127) y el presupuesto de `/pm:horas` se lleva por Becas/Dispositivos.
+- **Merenderos se retiró del producto (Cambio 452).** Sus issues históricos quedan
+  con `dispositivos`: la épica era "Dispositivos y Merenderos" (#127). El presupuesto
+  de `/pm:horas` se lleva por Becas/Dispositivos.
 - **El programa no es el módulo.** El campo `Modulo` del Project guarda el módulo
   técnico (`programas`, `users`, `core`…) y no sirve para esto: hay trabajo
   `transversal` que vive en `programas` y trabajo de `becas` que vive en `users`.
