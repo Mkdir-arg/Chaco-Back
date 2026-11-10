@@ -54,12 +54,16 @@ class DecodificadorTests(unittest.TestCase):
         self.assertIn("w-1/2", design_audit.clases_css(r".w-1\/2{width:50%}"))
 
     def test_los_dos_falsos_positivos_historicos_ya_no_aparecen(self) -> None:
-        """Las dos clases reales del repo que TWBUILD reportaba mal (Cambio 95)."""
+        """Las clases reales del repo que TWBUILD reportaba mal (Cambio 95).
+
+        Eran dos: `h-[clamp(12rem,calc(100dvh-31rem),28rem)]` se fue del build con las
+        pantallas de Merenderos (Cambio 452); su forma la sigue cubriendo el test sintético
+        de arriba.
+        """
         declaradas = design_audit._clases_del_build()
         if declaradas is None:  # sin build committeado no hay nada que verificar
             self.skipTest("falta static/custom/css/tailwind.css")
-        for clase in ("h-[clamp(12rem,calc(100dvh-31rem),28rem)]", "xl:grid-cols-[minmax(0,1fr)_auto]"):
-            self.assertIn(clase, declaradas)
+        self.assertIn("xl:grid-cols-[minmax(0,1fr)_auto]", declaradas)
 
 
 class RatchetTests(unittest.TestCase):
