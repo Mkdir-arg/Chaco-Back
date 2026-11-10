@@ -64,9 +64,9 @@ sola vez— el protocolo de abajo no se aplica pantalla por pantalla sin antes h
 
    ```
    Tipo: B · Arquetipo: Listado · Golden: …/becas/revision/personas_list.html
-   Hermana (solo dominio): …/merenderos/list.html
-   Bloques: header=page_header(+Nuevo) · filtros=q,estado · tabla=5 col, fila→Ver · vacío x2 · paginación entidad=entrega
-   Vista: paginate_by=25, puede_crear, estados, select_related(merendero)
+   Hermana (solo dominio): …/dispositivos/legajo/list.html
+   Bloques: header=page_header(+Nuevo) · filtros=q,estado · tabla=5 col, fila→Ver · vacío x2 · paginación entidad=institución
+   Vista: paginate_by=25, puede_crear, estados, select_related(tipo)
    Novedades: ninguna
    ```
 
@@ -208,13 +208,13 @@ mismo módulo **nunca** es molde (de la hermana se toma solo dominio).
 | Guardado AJAX y confirmaciones de Becas | Canónico reutilizable | `programas/templates/programas/becas/_ajax_js.html` (forms `data-ajax`) y `programas/templates/programas/becas/_confirm_js.html` (`data-confirm-url`); **transversales**. Contrato JSON `{ok,target,html,message}` / `{ok:false,errors}` / `confirm_required`. Ficha: `.claude/design/arquetipos/confirmacion.md` |
 | Formulario con asistencia lateral | Canónico reutilizable | P3 `programas/templates/programas/dispositivos/legajo/form.html`: grilla `grid grid-cols-1 lg:grid-cols-3 gap-5`, form en `lg:col-span-2`, paneles de dominio en surfaces canónicas. Apilado móvil; estado y envío con la regla y capacidad existentes. Ficha: `.claude/design/arquetipos/formulario.md` |
 | Surface/card backoffice | Canónico reutilizable | Secciones y paneles con `bg-white rounded-xl border border-base shadow-sm overflow-hidden`; padding `p-5`/`p-6`, header interno `px-5 py-4 border-b border-light`, título interno `h2 text-heading font-bold`. Evidencia: `programas/templates/programas/becas/cupo/segmento_detail.html`. Sin cards anidadas salvo métricas o repetidos. |
-| Mapa de estados por módulo | Canónico reutilizable | El módulo entrega texto y `tono` para `badge badge-dot badge-{{ tono }}`. Parciales de Becas y Merenderos; Dispositivos comparte `TONOS_ESTADO`: header con `estado_de_dispositivo`, `_estado_badge.html` con filtro `tono_estado_dispositivo` y texto de modelo/dict. P14: `estado_de_tipo`. Estadía: `ESTADOS_VISIBLES`. Ficha: `.claude/design/dominio/becas.md` |
+| Mapa de estados por módulo | Canónico reutilizable | El módulo entrega texto y `tono` para `badge badge-dot badge-{{ tono }}`. Parciales de Becas; Dispositivos comparte `TONOS_ESTADO`: header con `estado_de_dispositivo`, `_estado_badge.html` con filtro `tono_estado_dispositivo` y texto de modelo/dict. P14: `estado_de_tipo`. Estadía: `ESTADOS_VISIBLES`. Ficha: `.claude/design/dominio/becas.md` |
 | Drag & drop SortableJS | Canónico reutilizable, condicionado | `static/vendor/sortablejs/Sortable.min.js` + `static/custom/css/nodo-constructor.css`; se arrastra solo desde la manija, con alternativa de teclado y anuncio en `aria-live`, y se omite sin permiso de edición. Ficha: `.claude/design/dominio/becas.md` |
 | Hero de inicio de programa | Canónico reutilizable, acotado | Tag `{% hero_inicio %}` (`core/templatetags/nodo_ui.py`) + `components/_hero_inicio.html` + `nodo-hero.css`: gradiente de marca, `h1` de 30 px, bajada y una acción. **Solo Inicio y tableros de programa**; reemplaza a `page_header` y no va en otra pantalla (`[R:HEROFUERA]` + `HeroInicioTest`). Ficha: `.claude/design/componentes/hero_inicio.md` |
 | Home del backoffice | Canónico reutilizable | `templates/inicio.html` (`core.views.public.inicio_view`): cada panel que pide datos a una API con capacidad se esconde con el mismo `puede` que exige esa API; un panel no se deja fallar en consola ni se muestra vacío como si no hubiera trabajo. Los accesos rápidos siguen la misma regla con la capacidad de su destino (filtro propio en `core/templatetags/rbac.py`, derivado de la constante que usa la vista): un acceso que va a rebotar no se ofrece. |
 | Dominio Becas (constructor, SIIS, identificadores, dashboard) | Canónico reutilizable | Contratos propios del dominio: constructor de formularios, panel e identificadores de SIIS, dashboard del programa. Se componen con piezas de este inventario y **no son molde** para otros módulos. Ficha: `.claude/design/dominio/becas.md` |
 | Formulario público por diseño (paso 2) | Canónico reutilizable | `portal/templates/portal/inscripcion/paso2.html` + `static/custom/js/nodo-formulario.js` sobre `static/custom/js/nodo-condiciones.js`; sin JS el formulario se muestra completo y el servidor vuelve a evaluar las condiciones. Ficha: `.claude/design/dominio/inscripcion.md` |
-| Confirmación SweetAlert2 | Canónico reutilizable, condicionado | `static/custom/css/nodo-swal.css`, `static/custom/js/nodo-swal-theme.js` y el handler único `programas/templates/programas/_swal_confirm_js.html` (`data-confirm` + `-title`/`-text`/`-ok`/`-danger`/`data-requires-motivo`); **legacy condicionado**: solo las pantallas de Dispositivos, Merenderos y Legajos que ya la usan, sin `Swal.fire` propio. Pantalla nueva: `ModernModal`. |
+| Confirmación SweetAlert2 | Canónico reutilizable, condicionado | `static/custom/css/nodo-swal.css`, `static/custom/js/nodo-swal-theme.js`; **legacy condicionado**: solo las pantallas que ya llaman a SweetAlert2; no se suma a pantallas nuevas. Pantalla nueva: `ModernModal`. |
 | Parciales del shell legacy | Legacy solo mantenimiento | `templates/components/alertas_eventos.html`: lo único que sobrevivió al wrapper heredado, que ya no existe. No se incluye en pantallas nuevas. Reemplazo: shell del backoffice y piezas canónicas. |
 | Bootstrap/AdminLTE y estilos de pantalla heredados | Legacy solo mantenimiento | `static/custom/css/main.css`, `static/custom/css/custom.css`, `static/custom/css/override.css`; mantener solo en la superficie que los consume. `override.css` define `[x-cloak]` global, así que ningún template necesita su propio `<style>` para eso. |
 | Puente `paleta-unificada.css` | Legacy solo mantenimiento | Alias de compatibilidad cargados desde `templates/includes/base.html`; no usar sus utilidades en UI nueva. Reemplazo: tokens semánticos y el componente canónico aplicable. |
@@ -267,8 +267,6 @@ El lenguaje visual es el mismo en todos los módulos; el vocabulario de dominio,
   (`docs/internal/dispositivos-v2/plan-mvp.md`). No copiar las pantallas dadas de baja.
   También es suyo el relevamiento edilicio (en código `InspeccionEdificio`; las capacidades
   `relevamiento.*` siguen siendo de Becas).
-- **Merenderos** habla de solicitudes, validación institucional, entregas de mercadería,
-  prestación mensual y documentación respaldatoria.
 - **Transversal** (shell, usuarios, roles, legajos, portal, configuración): verificar
   consumidores en todos los módulos afectados; Becas no es el único consumidor.
 - No se arman landing pages, heros, cards decorativas ni grillas de tarjetas para

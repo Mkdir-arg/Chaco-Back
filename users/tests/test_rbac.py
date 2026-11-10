@@ -356,7 +356,6 @@ class CatalogoProgramaTests(TestCase):
                 "dispositivos",
                 # Relevamiento edilicio de Dispositivos (MVP v2, etapa 4 · #700).
                 "inspecciones",
-                "merenderos",
                 "becas_admin",
                 "becas_segmentos",
                 "becas_subsegmentos",

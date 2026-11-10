@@ -65,7 +65,6 @@ REDUNDANTES_CONOCIDOS = {
     "programas.dispositivo: (nombre) dentro de (nombre, estado)",
     "programas.dispositivo: (nombre) dentro de (nombre, localidad)",
     "programas.inscripcionprograma: (estado) dentro de (estado, fecha_inscripcion)",
-    "programas.merendero: (nombre) dentro de (nombre, estado)",
     "programas.programa: (estado) dentro de (estado, orden)",
     "programas.relevamiento: (estado) dentro de (estado, fecha_asignada, fecha_hasta)",
 }

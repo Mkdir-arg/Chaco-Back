@@ -50,12 +50,12 @@ class CacheProgramaTests(TestCase):
     def test_un_programa_que_no_esta_no_se_cachea(self):
         """Cachear el ``None`` dejaría al sistema sin ese programa durante 300 s por una
         lectura hecha en el peor momento (un pod que arranca antes del bootstrap)."""
-        self.assertIsNone(programa_por_codigo("MERENDEROS"))
-        self.assertIsNone(cache.get("programas:merenderos"))
+        self.assertIsNone(programa_por_codigo("OTRO"))
+        self.assertIsNone(cache.get("programas:otro"))
 
-        Programa.objects.create(codigo="MERENDEROS", nombre="Merenderos")
+        Programa.objects.create(codigo="OTRO", nombre="Otro")
 
-        self.assertIsNotNone(programa_por_codigo("MERENDEROS"))
+        self.assertIsNotNone(programa_por_codigo("OTRO"))
 
     def test_el_memo_por_request_no_mezcla_programas(self):
         """El memo vive en el objeto ``user`` y antes eran dos atributos distintos; ahora
@@ -214,8 +214,8 @@ class SenalesDeProgramaTests(TestCase):
 
     def test_el_alta_no_envenena_la_clave(self):
         """Un ``Programa`` nuevo no tiene código anterior y nadie cachea el ``None``."""
-        self.assertIsNone(programa_por_codigo("MERENDEROS"))
+        self.assertIsNone(programa_por_codigo("OTRO"))
 
-        merenderos = Programa.objects.create(codigo="MERENDEROS", nombre="Merenderos")
+        otro = Programa.objects.create(codigo="OTRO", nombre="Otro")
 
-        self.assertEqual(programa_por_codigo("MERENDEROS"), merenderos)
+        self.assertEqual(programa_por_codigo("OTRO"), otro)

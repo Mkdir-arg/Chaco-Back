@@ -1,4 +1,4 @@
-"""Datos sintéticos e idempotentes para aceptar Dispositivos y Merenderos.
+"""Datos sintéticos e idempotentes para aceptar Dispositivos.
 
 De Dispositivos queda el **padrón**: el tipo y el legajo institucional. La parte de
 camas, admisión y parte diario se fue con los modelos que la sostenían (MVP v2,
@@ -9,12 +9,9 @@ import os
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
-from django.utils import timezone
 
 from programas.models import (
     Dispositivo,
-    EntregaMercaderia,
-    Merendero,
     Programa,
     TipoDispositivo,
 )
@@ -61,19 +58,5 @@ class Command(BaseCommand):
                 "responsable_nombre": "Equipo de aceptación",
                 "estado": Dispositivo.Estado.ACTIVO,
             },
-        )
-        merendero, _ = Merendero.objects.update_or_create(
-            codigo="ACEP-183-MER",
-            defaults={
-                "nombre": "Merendero sintético de aceptación",
-                "domicilio": "Calle de prueba 184",
-                "responsable_nombre": "Equipo de aceptación",
-                "estado": Merendero.Estado.ACTIVO,
-            },
-        )
-        EntregaMercaderia.objects.update_or_create(
-            merendero=merendero,
-            fecha=timezone.localdate(),
-            defaults={"cantidad_kits": 10, "servicio": "Merienda", "responsable_receptor": "Equipo de aceptación"},
         )
         self.stdout.write(self.style.SUCCESS("Datos sintéticos de aceptación para Plan 183 listos."))

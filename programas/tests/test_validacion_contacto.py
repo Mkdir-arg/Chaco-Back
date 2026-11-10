@@ -1,8 +1,7 @@
 """Validación de DNI/CUIT, teléfono y nombre del responsable (#628).
 
-QA cargó `3e1312321` como DNI/CUIT de una solicitud de merendero y se guardó. Cubre el
-helper puro y el form del legajo de dispositivo; el de la solicitud de merendero está
-en `test_merenderos.py`.
+QA cargó `3e1312321` como DNI/CUIT de una solicitud y se guardó. Cubre el
+helper puro y el form del legajo de dispositivo.
 """
 
 from unittest.mock import patch

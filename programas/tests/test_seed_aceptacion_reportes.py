@@ -5,7 +5,7 @@ from django.core.management import CommandError, call_command
 from django.test import TestCase
 
 from programas.management.commands.seed_aceptacion_reportes import _es_base_aceptacion
-from programas.models import Dispositivo, EntregaMercaderia, Merendero
+from programas.models import Dispositivo
 
 
 class SeedAceptacionReportesTests(TestCase):
@@ -35,5 +35,3 @@ class SeedAceptacionReportesTests(TestCase):
                 call_command("seed_aceptacion_reportes", stdout=salida)
 
         self.assertEqual(Dispositivo.objects.filter(codigo="ACEP-183-DIS").count(), 1)
-        self.assertEqual(Merendero.objects.filter(codigo="ACEP-183-MER").count(), 1)
-        self.assertEqual(EntregaMercaderia.objects.filter(merendero__codigo="ACEP-183-MER").count(), 1)

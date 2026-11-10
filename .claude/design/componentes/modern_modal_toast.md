@@ -34,8 +34,8 @@ formularios y las confirmaciones de cupo, caso y procesos masivos.
   ejemplo un aviso de error), el cierre diferido del primero no oculta al segundo.
 - Escape, la X y el clic afuera cierran **sin** llamar a `onCancel`.
 - **Para pedir un dato (motivo, fecha) no alcanza:** eso es el arquetipo Modal con form POST.
-- Convive con la confirmación SweetAlert2, **legacy condicionada**, que siguen usando Dispositivos,
-  Merenderos y Legajos; esas pantallas no se migran sin una decisión aparte. La copia del shell
+- Convive con la confirmación SweetAlert2, **legacy condicionada**, que siguen usando Dispositivos y
+  Legajos; esas pantallas no se migran sin una decisión aparte. La copia del shell
   del portal es aparte y no sigue este contrato.
 
 ## Toasts

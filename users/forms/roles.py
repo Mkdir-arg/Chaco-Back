@@ -167,8 +167,8 @@ class RolForm(forms.Form):
 
         Con **un** programa administrable es lo delegable de ese programa. Con dos o
         más, la **unión** de lo delegable de cada uno: ``capacidades_delegables(None)``
-        devolvía el catálogo de programa entero, así que a un operador de Dispositivos y
-        Merenderos el árbol le ofrecía igual los trece módulos ``becas_*`` y el POST los
+        devolvía el catálogo de programa entero, así que a un operador de Dispositivos
+        el árbol le ofrecía igual los trece módulos ``becas_*`` y el POST los
         descartaba sin decir nada (SEC-06 cerraba el agujero por el lado del `clean`,
         no por el del árbol). Cuál de sus programas se aplica lo decide ``clean`` con el
         programa posteado, que es el que manda.

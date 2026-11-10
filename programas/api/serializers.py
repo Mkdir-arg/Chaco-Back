@@ -425,7 +425,7 @@ class ConsultaPersonaRespuestaSerializer(serializers.Serializer):
 #
 # La lista nacio aca (Cambio 46) y desde SEC-15 vive en `core/validators.py`
 # (`ADJUNTO_EXTENSIONES`, `ADJUNTO_MAX_BYTES`, importadas arriba): la comparten el
-# F-00 de Dispositivos y la solicitud de merendero, que no la tenian. Los nombres
+# F-00 de Dispositivos y otros adjuntos, que no la tenian. Los nombres
 # siguen existiendo en este modulo porque son contrato de la app de campo.
 #
 # ANGOSTARLA ES UN BLOCKER: ante un 4xx la app instalada marca la operacion

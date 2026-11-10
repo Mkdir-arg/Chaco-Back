@@ -3,7 +3,7 @@
 La etapa 1 (#538) sacó `/media/` de nginx y lo dejó detrás de `login_required`.
 Eso cerró lo que podía mirar cualquiera desde internet, pero adentro quedaba
 todo abierto: con una sesión de backoffice —la de un territorial de Becas, la de
-un operador de Merenderos, la de una cuenta recién creada sin un solo rol— se
+un operador de Dispositivos, la de una cuenta recién creada sin un solo rol— se
 bajaba el Excel del padrón de cualquier convocatoria, el F-00 de cualquier
 dispositivo y la foto de DNI de cualquier ciudadano. `login_required` era todo
 el control.
@@ -140,37 +140,6 @@ def _foto_de_inspeccion(user, ruta):
     return inspecciones_visibles(user).filter(pk=foto.inspeccion_id).exists()
 
 
-def _documentacion_de_merendero(user, ruta):
-    """``ver`` y ``validar`` leen cualquier solicitud; ``crear``, solo las suyas.
-
-    El link lo rinde el widget del form de la solicitud (``merendero.crear``) y quien
-    tiene que leer la documentación **antes de aprobar** entra por la pantalla de
-    resolución (``merendero.validar``). Con solo ``merendero.ver`` la regla contestaba
-    403 a las dos. Ver la regla de :data:`REGLAS`.
-
-    Lo que faltaba (revisión de la ronda 2 del Cambio 193) es el **alcance por objeto**
-    de ``merendero.crear``: tomada sin alcance, la capacidad de dar de alta abría la
-    documentación de *cualquier* solicitud, que es acceso que se gana. Lo que esa
-    capacidad necesita ver es el adjunto que ella misma subió, así que se resuelve por
-    ``creado_por``. Una solicitud anterior a ese campo lo tiene en ``NULL`` y no la abre
-    nadie por esta vía: la leen ``merendero.ver`` y ``merendero.validar``, que es por
-    donde se la mira en el listado y en la resolución.
-    """
-    from programas.models import SolicitudMerendero
-    from programas.services.merenderos import puede_en_merenderos
-
-    solicitud = SolicitudMerendero.objects.filter(documentacion=ruta).only("pk", "creado_por").first()
-    if solicitud is None:
-        return None
-    if any(puede_en_merenderos(user, capacidad) for capacidad in ("merendero.ver", "merendero.validar")):
-        return True
-    return (
-        solicitud.creado_por_id is not None
-        and solicitud.creado_por_id == user.pk
-        and puede_en_merenderos(user, "merendero.crear")
-    )
-
-
 def _adjunto_de_becas(user, ruta):
     from programas.models import AdjuntoFormulario
     from programas.services.autorizacion import assert_alcance_formulario
@@ -294,7 +263,7 @@ def _archivo_de_formulario_dispositivo(user, ruta):
 #: la de «ver»** (seguimiento de #643). Un archivo se ve desde la pantalla que lo lista,
 #: pero también desde la que lo **sube** —el widget de un `FileField` con valor rinde
 #: «Actualmente: <a href="/media/…">»— y desde la que lo tiene que leer para **decidir**.
-#: Pedir solo el `*.ver` dejaba a un rol de alta de merenderos mirando un link que le
+#: Pedir solo el `*.ver` dejaba a un rol de alta de un módulo mirando un link que le
 #: contestaba 403, y a un admisor con 403 sobre el F-00 que él mismo cargó. Que los roles
 #: reales tuvieran igual el `*.ver` era una coincidencia, no una garantía.
 REGLAS = (
@@ -305,7 +274,6 @@ REGLAS = (
     (rutas.PREFIJO_CONTACTO, _archivo_de_contacto),
     (rutas.PREFIJO_F00, _archivo_de_f00),
     (rutas.PREFIJO_FOTO_INSPECCION, _foto_de_inspeccion),
-    (rutas.PREFIJO_SOLICITUD_MERENDERO, _documentacion_de_merendero),
     (rutas.PREFIJO_NOTIFICACIONES_IMAGENES, _imagen_de_campana),
     (rutas.PREFIJO_NOTIFICACIONES, _archivo_de_campana),
     (rutas.PREFIJO_ADJUNTO_BITACORA, _adjunto_de_bitacora),

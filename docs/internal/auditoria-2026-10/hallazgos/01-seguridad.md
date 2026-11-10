@@ -947,8 +947,8 @@ por su cuenta —lo nombra como «un segundo caso del molde de RED-73»—. `Ent
 resuelve el merendero en una `cached_property` que corre recién en `get_context_data`/`form_valid`, ya
 con la autorización hecha, así que la ruta contesta lo mismo exista o no el id. El PR 8 de la Ola 2 lo
 verificó y **no tocó código**: la ficha se cierra contra lo que ya está. **Test permanente:**
-`programas.tests.test_merenderos.EntregaCreateAutorizaAntesDeBuscarTests` (anónimo → login y sin
-capacidad → 403 exista o no el merendero; con capacidad, un id inexistente sigue dando 404).
+`core.tests.test_superficie_publica` (el barrido de superficie que encontró el caso; el test original, anónimo → login y sin
+capacidad → 403 exista o no el objeto, se fue con `EntregaMercaderiaCreateView` al borrarse Merenderos, Cambio 452).
 
 ### SEC-35 · Cookies seguras y HSTS dependen de `ENVIRONMENT=prd`; el timeout por inactividad es solo del cliente
 **Severidad:** BAJA · **Estado:** PLAUSIBLE (depende de las variables en ECOM) · **Origen:** A5-38 · **Ola:** 2 · **Esfuerzo:** S · **Decisión:** pregunta ECOM (variables)

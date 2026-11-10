@@ -574,6 +574,7 @@ Los campos que no apliquen se escriben como «No requiere» o «No aplica»; no 
 | 448 | El módulo endurecido rearma el `LOGGING` con `debug=False`: `DJANGO_DEBUG=True` mal puesto dejaba los logs en DEBUG y hacía Dispositivos ~15 veces más lento en testing | Transversal · configuración (Dispositivos) | `#performance` `#infra` | PM — «anda medio lento todo Dispositivos en test» | 09/11/2026 | 🟡 **En curso** | No requiere |
 | 450 | Dispositivos: el alta toma el responsable y el contacto del legajo de la persona elegida; «Responsables del dispositivo» pasa a buscador múltiple | Dispositivos (alta de institución) | `#ui` | PM — pedido del 09/11/2026 | 09/11/2026 | 🟡 **En curso** | No requiere |
 | 451 | Instituciones: búsqueda por texto en el listado, y en el celular la solapa activa del detalle queda a la vista (más la clase gancho del stat card) | Dispositivos · Instituciones | `#ui` | PM — pendientes del Cambio 447, definidos por el juez | 09/11/2026 | 🟡 **En curso** | No requiere |
+| 452 | Se borra el programa Merenderos entero (código, RBAC, tablas y fila del Programa), en una sola release | Merenderos · Dispositivos · Transversal | `#rbac` `#datos` `#ui` `#infra` | PM — decisión del 10/11/2026 (no hay datos en ningún ambiente; antecedente: Cambio 191) | 10/11/2026 | 🟡 **En curso** | `users.0046`, `programas.0115` |
 
 **Notas del índice**
 
@@ -53891,5 +53892,79 @@ Revertir el PR; no hay datos que deshacer.
 ## Historial
 
 - **09/11/2026 — alta del cambio.**
+
+---
+
+# Cambio 452 — Se borra el programa Merenderos entero
+
+🟡 **EN CURSO — 10/11/2026**
+
+| | |
+|---|---|
+| **Programa / módulo** | Merenderos · Dispositivos (reportes, padrón) · Transversal (RBAC, media protegida) |
+| **Etiquetas** | `#rbac` `#datos` `#ui` `#infra` |
+| **Solicitante** | PM — decisión del 10/11/2026: no hay ningún dato de Merenderos en PRD ni en ningún ambiente |
+| **Fecha del pedido** | 10/11/2026 |
+| **Issue / épica** | sin issue; concreta el «Merenderos los sacaría» del [Cambio 191](#cambio-191) (que los Cambios 313 y 392 habían conservado) |
+| **Partes afectadas** | Backoffice · Servidor/API · Infra/ECOM (migraciones) |
+| **Migración** | `users.0046`, `programas.0115` |
+
+## Pedido original
+
+«Eliminar entero el programa Merenderos en un solo PR: código, RBAC, tablas y la fila del Programa.» No hay datos en ningún ambiente, así que se borra todo junto en la misma release, a sabiendas de que rompe la regla expand/contract (lo eligió el PM).
+
+## Alcance acordado
+
+**Entra:** vistas, servicios, URLs (`/merenderos/`), templates, formularios y modelos (`Merendero`, `SolicitudMerendero`, `EntregaMercaderia`, `PrestacionMensual`, `PrestacionDiaria`); el módulo `merenderos` del `CATALOGO` y sus cinco capacidades `merendero.*`; el reporte `MerenderoExportView` y sus servicios; la regla de media protegida de `merenderos/solicitudes/`; la rama `MERENDERO` del importador de padrón y el merendero del seed de aceptación; la opción `MERENDEROS` de `Programa.TipoPrograma`; la fila `Programa(MERENDEROS)` con sus roles; y los tests que los nombraban. **Queda afuera:** las migraciones ya aplicadas (su SQL de ida no cambia), `docs/` histórico y `mkdocs.yml`.
+
+## Decisiones tomadas
+
+1. **Una sola release, sin expand/contract.** Es la excepción que el PM eligió: sin datos en ningún ambiente, escalonar el borrado en dos releases solo dejaba código muerto. El job `Migrate ida y vuelta` sigue siendo el gate.
+2. **`users.0046` retira las capacidades con el patrón de `0042`**: las saca de los roles que las tenían registrando cada par en `users_capacidadrevocada`, y borra las `Permission`. La reversa las recrea y las vuelve a tildar.
+3. **`programas.0115` borra primero los datos y después las tablas.** La parte de datos es idempotente: borra derivaciones e inscripciones del programa, los roles atados (`RolMeta` + `Group`, porque `RolMeta.programa` es `PROTECT`) y la fila. Después `DeleteModel` de las cinco tablas, hijas primero. Sin `RemoveField` previos: Django los genera por dependencia, pero en MariaDB el de `merendero` en `PrestacionMensual` falla con «Key column doesn't exist» porque la restricción única de `(merendero, anio, mes)` todavía la usa; con el `DeleteModel` solo, cae la tabla entera.
+4. **`ruta_solicitud_merendero` queda como shim en `core/rutas_media.py`**: `programas.0011` y `programas.0083` la nombran como `upload_to` y tienen que seguir cargando.
+5. **Los tests de la migración `0012` y del estado histórico se quedan**: prueban esa migración vieja, que sigue creando la fila `MERENDEROS` en el historial.
+6. **`parsear_periodo` y el filtro por período se fueron con el export de Merenderos**: era lo único que los usaba (Dispositivos dejó el período en la v2).
+7. **Las fichas de la auditoría que nombraban tests de Merenderos** (SEC-34, FE-10, FE-18, RED-33) apuntan al equivalente vigente, con una nota; `core.tests.test_contrato_auditoria` lo exige.
+8. **`OperadorDeVariosProgramasTests`** (users) usaba Merenderos como «el otro programa» del operador; ahora es un programa sin módulos propios, y el caso de «capacidad ajena» usa `becas.segmento.ver`.
+
+## Implementación
+
+El sistema ya no tiene el programa: `/merenderos/` no existe, el árbol de capacidades del ABM de Roles no lista el módulo, `Programa.TipoPrograma` no ofrece Merenderos, y el padrón importado solo admite `DISPOSITIVO`.
+
+## Archivos
+
+`programas/{views/merenderos.py, services/merenderos.py, merenderos_urls.py, templates/programas/merenderos/}` (borrados), `programas/{models/__init__.py, forms.py, views/reportes.py, services/reportes.py, management/commands/import_padron_dispositivos.py, management/commands/seed_aceptacion_reportes.py, migrations/0115_retirar_merenderos.py}`, `users/migrations/0046_retirar_merenderos.py`, `core/{rbac.py, rutas_media.py, views/media.py}`, `config/urls.py`, comentarios en `core/validators.py`, `programas/api/serializers.py`, `programas/validacion_contacto.py`, `static/custom/js/nodo-submit-guard.js` y los tests y fichas nombrados arriba.
+
+## Base de datos
+
+`users.0046` (datos: `Permission` y `CapacidadRevocada`) y `programas.0115` (datos y cinco `DeleteModel`: `programas_prestaciondiaria`, `_prestacionmensual`, `_entregamercaderia`, `_solicitudmerendero`, `_merendero`). Seguras sin datos; con datos las tablas se pierden por diseño.
+
+## Validación
+
+- `manage.py check` sin hallazgos; `makemigrations --check --dry-run` (con `DJANGO_SYNCDB_PROJECT_APPS` en falso) → «No changes»; `scripts/check_migraciones.py` en 0.
+- Roundtrip contra MariaDB 10.11 (`roundtrip_migraciones.py` y `check_sqlmigrate.py`): ida, vuelta e ida de nuevo OK. Con los `RemoveField` fallaba (decisión 3).
+- Suites `programas`, `core`, `users`, `notificaciones`, `legajos` y `scripts` con SQLite: sin fallos nuevos más allá de lo que pide actualizar la ficha del agente de diseño (ver Pendientes).
+- Tests nuevos: `RetirarMerenderosDataMigrationTests` (borra el programa, sus roles e inscripción sin tocar los demás; idempotente; la reversa recrea la fila) y el rechazo de la entidad `MERENDERO` en el importador.
+
+## Pendientes / a definir
+
+- Referencias a Merenderos en `.claude/` (inventario del agente de diseño, fichas de arquetipos y de dominio) y en `AGENTS.md`, `PM.md` y `CLAUDE.md`: se actualizan aparte. Mientras tanto `scripts/check_design_agent.py` pide quitar la evidencia `programas/templates/programas/merenderos/_estado_badge.html` de las filas «Mapa de estados por módulo», «Drag & drop SortableJS» y «Dominio Becas».
+- `programas/_swal_confirm_js.html` quedó sin pantallas que lo incluyan; sigue testeado y documentado como pieza legacy.
+
+## Reversión
+
+Pasos, en orden (runbook D.4 de `processes.md`):
+
+1. Desaplicar primero `programas.0115`: `manage.py migrate programas 0114` (recrea las cinco tablas vacías y la fila `Programa(MERENDEROS)`).
+2. Después `users.0046`: `manage.py migrate users 0045` (recrea las cinco `Permission` `merendero_*` y las vuelve a tildar en los roles que figuran en `CapacidadRevocada`).
+3. Revertir el PR y redesplegar el código.
+
+Datos que se pierden: todos los de Merenderos y los roles atados al programa. No existían en ningún ambiente (decisión del PM); si apareciera alguno antes del deploy, hay que respaldarlo antes de migrar.
+
+## Historial
+
+- **10/11/2026 — alta del cambio.**
+- **10/11/2026 — ronda de auditoría del PR #1076.** Los tests de SEC-06 ronda 2 (users) ahora llegan a la rama `ajenas` de `RolForm.clean` (rol de «Otro» con `dispositivo.ver`; antes pasaban por `invalid_choice`), verificados por mutación; se borra `_swal_confirm_js.html` (sin includes) y su test; la ficha FE-19 de la auditoría apunta a `test_badges_confirmaciones_ola5`; número del Cambio y docstring del shim corregidos.
 
 ---
