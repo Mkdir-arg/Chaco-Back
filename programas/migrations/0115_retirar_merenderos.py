@@ -61,49 +61,7 @@ class Migration(migrations.Migration):
         # REVERSA-NOOP: la reversa recrea la fila Programa(MERENDEROS) pero no los roles ni los datos
         # que tenía: no existían en ningún ambiente.
         migrations.RunPython(borrar_programa, restituir_programa),
-        # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
-        migrations.RemoveField(
-            model_name='merendero',
-            name='estado_actualizado_por',
-        ),
-        # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
-        migrations.RemoveField(
-            model_name='prestacionmensual',
-            name='merendero',
-        ),
-        # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
-        migrations.RemoveField(
-            model_name='solicitudmerendero',
-            name='merendero',
-        ),
-        # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
-        migrations.RemoveField(
-            model_name='prestaciondiaria',
-            name='firmado_por',
-        ),
-        # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
-        migrations.RemoveField(
-            model_name='prestaciondiaria',
-            name='prestacion',
-        ),
-        # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
-        migrations.RemoveField(
-            model_name='solicitudmerendero',
-            name='creado_por',
-        ),
-        # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
-        migrations.RemoveField(
-            model_name='solicitudmerendero',
-            name='validada_por',
-        ),
-        # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
-        migrations.DeleteModel(
-            name='EntregaMercaderia',
-        ),
-        # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
-        migrations.DeleteModel(
-            name='Merendero',
-        ),
+        # Hijas primero: cada DeleteModel baja la tabla entera con sus FKs e índices.
         # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
         migrations.DeleteModel(
             name='PrestacionDiaria',
@@ -114,6 +72,14 @@ class Migration(migrations.Migration):
         ),
         # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
         migrations.DeleteModel(
+            name='EntregaMercaderia',
+        ),
+        # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
+        migrations.DeleteModel(
             name='SolicitudMerendero',
+        ),
+        # CONTRACT: borrado en la misma release por decisión del PM (10-nov-2026), sin datos en ningún ambiente
+        migrations.DeleteModel(
+            name='Merendero',
         ),
     ]

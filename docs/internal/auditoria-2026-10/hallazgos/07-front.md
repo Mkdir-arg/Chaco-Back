@@ -266,7 +266,7 @@ de producto. El `href` armado hacia `/legajos/<id>/archivos/<n>/eliminar/` **se 
 `npm run build:tailwind` corrido y `static/custom/css/tailwind.css` committeado. La novedad (clase
 arbitraria) la autoriza esta misma ficha. Va **después de FE-01**, como pedía la precondición: con el swipe
 global, arrastrar la tabla abría el sidebar.
-**Test permanente:** `programas.tests.test_merenderos.PrestacionMensualEnCelularTests.test_el_contenedor_de_la_grilla_scrollea_en_horizontal`
+**Test permanente:** `core.tests.test_nodo_ui_piezas.TablaResponsiveTest` (la grilla de la prestación mensual se fue con Merenderos, Cambio 452: ese test cubre la regla de tablas en celular que quedó)
 (+ `test_la_tabla_tiene_ancho_minimo` y `test_el_ancho_minimo_existe_en_el_build`, que exige la clase en el
 CSS committeado: sin ella la tabla se vuelve a comprimir sin que falle nada).
 **Playwright (390 px):** la tabla mide 720 px, el contenedor scrollea en horizontal y el `<th>` de servicio
@@ -454,7 +454,7 @@ dispositivo, no a los cuatro que nombra la ficha: `programas/services/indicadore
 `semaforo == "SIN_DATOS"` en `actualizacion` y `completitud`; ocupación y disponibilidad siempre salen VERDE,
 AMARILLO o ROJO (`services/camas.py` y `_semaforo_disponibilidad`), así que ponerles la rama sería código
 muerto. Los dos parciales nuevos se registran en el inventario del agente (fila «Mapa de estados por módulo»).
-**Test permanente:** `programas.tests.test_estado_badges_merenderos.MerenderoEstadoBadgeTests.test_mapa_estado_a_tono`
+**Test permanente:** `programas.tests.test_estado_badges.RelevamientoEstadoBadgeTests.test_mapa_estado_a_tono` (los badges de Merenderos se fueron con el programa, Cambio 452; este cubre el mismo contrato de mapa estado→tono)
 (+ `SolicitudMerenderoEstadoBadgeTests.test_mapa_estado_a_tono`,
 `PantallasDeMerenderosUsanElParcialTests.test_ninguna_pantalla_vuelca_el_estado_como_texto_suelto`,
 `SemaforoSinDatosTests.test_la_rama_sin_datos_va_antes_del_else_que_pinta_de_rojo` y
