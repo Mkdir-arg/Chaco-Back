@@ -35,7 +35,7 @@ aditiva: no reemplaza ni modifica los informes existentes, en especial
 
 > **Eje de programa.** Todo issue lleva, además de su label de nivel (`epica`,
 > `analisis`, `task`), un label de **programa**: `becas`, `dispositivos` o
-> `transversal` (Merenderos va dentro de `dispositivos`). Es el eje con el que se
+> `transversal` (los issues históricos de Merenderos, retirado en el Cambio 452, quedan con `dispositivos`). Es el eje con el que se
 > filtra el tablero y se cruzan las horas. La definición y el alcance de cada uno
 > están en `AGENTS.md` → "Etiqueta de programa"; el PM Assistant los **lee**, no
 > los asigna: quien crea el issue lo etiqueta.
@@ -317,7 +317,7 @@ Preguntas internas mínimas:
 - ¿Hay issue, task, PR, rama, archivo o módulo concreto?
 - ¿Toca UI/templates/CSS/JS?
 - ¿Toca performance, permisos, seguridad pública, datos o migraciones?
-- ¿El programa es Becas, Dispositivos, Merenderos, Transversal o no aplica?
+- ¿El programa es Becas, Dispositivos, Transversal o no aplica?
 - ¿Hace falta escribir en GitHub, mover estados, publicar, mergear, deployar o
   espejar a ECOM?
 
@@ -332,7 +332,7 @@ Prohibiciones de bajo consumo:
 Salida breve del router:
 - **Ruta:** comando/agente/rol.
 - **Modo:** router rápido | ejecución profunda.
-- **Programa:** Becas / Dispositivos / Merenderos / Transversal / No aplica.
+- **Programa:** Becas / Dispositivos / Transversal / No aplica.
 - **Siguiente acción:** una acción concreta.
 - **Por qué no leo más todavía:** una línea, cuando aplique.
 
@@ -353,8 +353,6 @@ Proceso:
    - **Dispositivos** es operación institucional continua: legajo del dispositivo,
      camas, admisiones, egresos, traslados, parte diario y auditoría operativa.
      No se copia el flujo de postulaciones/cupo de Becas.
-   - **Merenderos** es gestión institucional y prestación periódica: solicitudes,
-     entregas, prestación mensual y documentación respaldatoria.
    - **Transversal** agrupa plataforma, usuarios, roles, legajos, portal,
      infraestructura, gestión y soporte.
 3. **Recomendar la ruta mínima**: un comando, agente o acción humana concreta.
@@ -376,7 +374,7 @@ El PM solo profundiza si la ruta lo exige:
 
 Salida:
 - **Ruta recomendada:** comando/agente/rol.
-- **Programa:** Becas / Dispositivos / Merenderos / Transversal / No aplica.
+- **Programa:** Becas / Dispositivos / Transversal / No aplica.
 - **Por qué:** 2-4 bullets.
 - **Cuidado especial:** diseño, performance, permisos, QA, horas, deploy o ECOM.
 

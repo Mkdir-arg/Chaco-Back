@@ -53949,7 +53949,7 @@ El sistema ya no tiene el programa: `/merenderos/` no existe, el árbol de capac
 
 ## Pendientes / a definir
 
-- Ninguno. `PM.md` conserva «Merenderos» a propósito: clasifica issues históricos.
+- Ninguno. `PM.md` y `AGENTS.md` nombran Merenderos solo para decir que sus issues históricos quedan con `dispositivos`.
 
 ## Reversión
 
@@ -53967,6 +53967,7 @@ Datos que se pierden: todos los de Merenderos y los roles atados al programa. No
 - **10/11/2026 — ronda de auditoría del PR #1076.** Los tests de SEC-06 ronda 2 (users) ahora llegan a la rama `ajenas` de `RolForm.clean` (rol de «Otro» con `dispositivo.ver`; antes pasaban por `invalid_choice`), verificados por mutación; se borra `_swal_confirm_js.html` (sin includes) y su test; la ficha FE-19 de la auditoría apunta a `test_badges_confirmaciones_ola5`; número del Cambio y docstring del shim corregidos.
 - **10/11/2026 — CI del PR #1076.** `ruff format` en `reportes.py`; Tailwind recompilado; `test_design_audit` deja de exigir en el build la clase `h-[clamp(…)]`, que se fue con Merenderos.
 - **10/11/2026 — mergeado** a `development` (`08ce6d62`).
-- **11/11/2026 — limpieza posterior (MINOR de la auditoría).** Sin menciones de Merenderos como producto vivo en `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `.claude/commands/pm.md` y las skills `impacto-de-cambio` y `auditoria`; el anexo de diseño de la auditoría deja de listar pantallas de Merenderos; `import_padron_dispositivos` sin el despacho por entidad (mismos mensajes y salida); `test_design_audit` cubre con un caso sintético la forma de dos comas con `calc` anidado.
+- **11/11/2026 — limpieza posterior (MINOR de la auditoría).** Sin menciones de Merenderos como producto vivo en `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `.claude/commands/pm.md` y las skills `impacto-de-cambio` y `auditoria`; el anexo de diseño de la auditoría deja de listar pantallas de Merenderos; `import_padron_dispositivos` sin el despacho por entidad (mismos mensajes y salida); `test_design_audit` cubre con un caso sintético la forma de dos comas con `calc` anidado. Mergeado en el PR #1077 (`a4789ea4`).
+- **11/11/2026 — `PM.md`.** El router del PM deja de ofrecer Merenderos como programa para pedidos nuevos (MINOR de la auditoría del #1077).
 
 ---
