@@ -43,6 +43,7 @@ from django.utils import timezone
 from core.services.vencimientos import ReglaVencimiento, registrar
 from programas.models import CasoEmergencia, Derivacion, TrazaCaso
 from programas.services import emergencia as servicio
+from programas.services.configuracion_emergencia import ProgramaEmergenciaInexistente
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,12 @@ def casos_sin_avance() -> QuerySet:
     está frío). Apagada (``sin_avance_min = 0``) es solo la del SLA y un queryset vacío.
     """
 
-    limite = servicio.limite_de_inactividad()
+    try:
+        limite = servicio.limite_de_inactividad()
+    except ProgramaEmergenciaInexistente:
+        # Sin programa no hay mesa ni casos. El cron corre igual —lo comparte con Becas— y
+        # esta regla no puede ponerlo en rojo por un módulo que esa base no tiene.
+        return CasoEmergencia.objects.none()
     if limite is None:
         return CasoEmergencia.objects.none()
     con_actividad = TrazaCaso.objects.filter(caso=OuterRef("pk"), creado_en__gte=limite)
