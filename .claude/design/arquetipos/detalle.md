@@ -131,6 +131,10 @@ solapa, las capacidades resueltas con `puede()` y las relaciones con `select_rel
   las secciones van apiladas a todo el ancho: `programas/templates/programas/emergencia/kits/detail.html`
   (la entrega, ítems con la tabla de conciliación, observaciones, remito con `_galeria_fotos.html`, reposiciones y traza). El reloj del SLA
   (`_semaforo_sla.html` `variante="reloj"`) va en el cuerpo del `page_header`, uno solo por pantalla.
+- Tablero de programa como Detalle apilado (`{# arquetipo: detalle + apilado #}`): `{% hero_inicio %}` ocupa el
+  lugar del `page_header` (solo en las pantallas de `HERO_PANTALLAS`, ficha `componentes/hero_inicio.md`), una franja
+  de `_stat_card` `variante="tablero"`, los avisos como lista de `_alerta.html` (ficha `componentes/alerta.md`) y
+  tablas canónicas en secciones con `h2`. Sin gráficos. Evidencia: `programas/templates/programas/emergencia/tablero.html` (E1).
 - Solapa con carga diferida: `@click="tab='x'; $dispatch('<evento>')"` y el JS escucha ese
   evento en `window` (molde: `config/programa_detail.html`, que dispara `becas-dashboard-abrir`).
 - Solapa condicionada por permiso: el `{% if %}` envuelve **el botón y el panel**.
