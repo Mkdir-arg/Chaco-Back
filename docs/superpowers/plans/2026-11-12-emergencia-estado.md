@@ -1,6 +1,6 @@
 # Módulo Emergencia — estado del desarrollo (bitácora viva)
 
-**Última actualización:** 2026-11-12, backend completo (PRs 0 a 11) integrado y verificado; PR 12 (documentación) en curso.
+**Última actualización:** 2026-11-12, backend completo y documentado (PRs 0 a 12). Falta rebasar sobre `development`, abrir los PRs y la PWA.
 
 Este archivo dice qué está hecho, dónde está, qué falta y cómo seguir desde un checkout local. Se
 actualiza cada vez que un PR cambia de estado. El plan completo está en
@@ -55,7 +55,7 @@ git checkout feat/emergencia-integracion-final  # todo el backend (PRs 0 a 11) j
 | 10 | Tablero E1 y avisos | ✅ Verificado y pusheado | `feat/emergencia-pr10-tablero` | `959aebe3` | integración ola 4 |
 | 11 | Marcas de la bandeja y la ficha (etapas 3 y 4) | ✅ Verificado y pusheado | `feat/emergencia-pr11-marcas` | `839b368c` | integración ola 4 |
 | — | **Integración final del backend (PRs 0 a 11)** | ✅ Suite completa: 8.986 tests | `feat/emergencia-integracion-final` | `4503041c` | PR 8 + merges de 10 y 11 |
-| 12 | Documentación del módulo y entradas de `requerimientos.md` | 🔄 En desarrollo | `feat/emergencia-pr12-docs` | — | integración final |
+| 12 | Manual del módulo y Cambios 457 a 469 en `requerimientos.md` | ✅ Verificado y pusheado | `feat/emergencia-pr12-docs` | `e96d1c4b` | integración final |
 | 13 | QA (casos por task, plan de pruebas) | ⏳ Pendiente | — | — | todos |
 | 5-P | PWA: módulo Emergencia y M1 | ⛔ Bloqueado (§6) | — | — | PR 5 |
 | 8-P | PWA: M2 | ⛔ Bloqueado (§6) | — | — | PR 8 |
@@ -270,9 +270,24 @@ El resto de las decisiones abiertas del README §10 sigue con los supuestos del 
 - Carreras con dos conexiones (`@tag("mysql")`) de los PRs 2, 4, 6, 7, 8 y 9.
 - Job «Migrate ida y vuelta» y `check_sqlmigrate` para las migraciones `0116` a `0120` y `users.0047`.
 
+### ⚠️ Antes de abrir los PRs: rebasar sobre `development`
+- `development` avanzó (hoy en `a1563b68`) y ya tiene `programas.0116_respuestas_ingreso_egreso_estadia`.
+  Choca con `programas.0116_emergencia_base`. Al rebasar hay que **renumerar las migraciones del módulo
+  (0116 a 0120)** y sus dependencias, y actualizar los números citados en los Cambios 457 a 469 y en el
+  manual.
+- Los Cambios 457 a 469 se numeraron después del 456 de `development`; al rebasar puede haber un conflicto
+  chico al final del índice de `requerimientos.md`.
+
+### Antes de operar una emergencia real
+- **Frecuencia del cron de vencimientos.** `procesar_vencimientos` corre una vez por día (03:10) y al
+  arrancar el contenedor. Con eso una derivación vencida puede quedar pendiente casi un día y la regla de
+  «minutos sin avance» no sirve. Hay que programar una corrida cada ~5 min con
+  `--solo emergencia.derivacion` y `--solo emergencia.caso_sin_avance`, en icore y en ECOM.
+
 ### Condiciones de cierre que todavía no se cumplieron
-- **Entradas en `docs/internal/requerimientos.md`** (etiqueta nueva `#emergencia`): ningún PR la escribió
-  todavía. Van en el PR 12, o una por PR al abrirlos.
+- Entradas en `docs/internal/requerimientos.md`: **hechas** en el PR 12 (Cambios 457 a 469, etiqueta
+  `#emergencia`; `requerimientos.py --check` da OK). El estado de cada entrada se pasa a «Hecho» al
+  mergear.
 - **`/auditoria pr <N>`** de cada PR antes de mergear.
 - Casos de QA por task.
 
@@ -286,7 +301,7 @@ MySQL deberían pasar; verificarlo en CI.
 
 ## 7. Qué sigue
 
-1. Terminar el PR 12 (documentación y entradas de `requerimientos.md`).
+1. Rebasar las ramas sobre `development` y renumerar las migraciones (ver §6).
 2. Revisar el diff de PR 7 y PR 9 (sus subagentes no dejaron reporte de decisiones).
 3. Abrir los PRs contra `development` en el orden de §2 y pasarlos por `/auditoria pr <N>`.
 4. Que el CI corra las carreras con motor real y la migración ida y vuelta.
@@ -305,5 +320,6 @@ MySQL deberían pasar; verificarlo en CI.
 | 2026-11-12 | Ola 1: PR 0 y PR 1. |
 | 2026-11-12 | Ola 2: PR 2. |
 | 2026-11-12 | Ola 3: PR 3, 4, 5 y 6. Integración de 0 a 6 con la suite completa. |
-| 2026-11-12 | Ola 5 (Opus): PR 8, PR 10 y PR 11. Integración final del backend con 8.986 tests. PR 12 lanzado. |
+| 2026-11-12 | PR 12: manual (`docs/internal/emergencia-manual.md`) y Cambios 457 a 469. Detectado el choque de la migración 0116 con `development`. |
+| 2026-11-12 | Ola 5 (Opus): PR 8, PR 10 y PR 11. Integración final del backend con 8.986 tests. |
 | 2026-11-12 | Ola 4: PR 7 y PR 9. Los subagentes se cortaron por límite de uso (Fable y después Opus); el orquestador verificó y pusheó lo commiteado. Integración de 0 a 9 con la suite completa. |
