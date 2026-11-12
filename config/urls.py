@@ -41,6 +41,7 @@ urlpatterns = [
     path("portal/", include("portal.urls")),
     path("becas/", include("programas.urls")),
     path("dispositivos/", include("programas.dispositivos_urls")),
+    path("emergencia/", include("programas.emergencia_urls")),
     path("notificaciones/", include("notificaciones.urls")),
     # Root paths last
     path("", include(("users.urls", "users"), namespace="users")),

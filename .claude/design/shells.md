@@ -34,7 +34,11 @@ El grupo de Becas conserva «Programas» y el enlace ciudadano conserva su texto
   `aria-current="page"` y lo pinta `.ds-snav`. Si su ruta cuelga del prefijo del grupo, el hermano que
   se marca por prefijo la excluye. Cada ítem se condiciona con la **misma capacidad** que exige su
   vista, y el grupo se muestra si alguno de sus ítems se muestra. Evidencia: «Relevamientos» en
-  Dispositivos (`inspeccion.asignar`).
+  Dispositivos (`inspeccion.asignar`) y «Emergencia» en el grupo «Programas»
+  (`emergencia.supervisar` con el filtro `|puede:`, como las de Becas; el alcance lo exige la vista): el grupo se abre
+  también con `emergencia` en la ruta, y colapsado tiene su propio link, como «Reportes». El ícono
+  es Font Awesome con `w-4 text-center` (`w-5` colapsado), sin `style=`. Hoy lleva a la
+  configuración (E7), que es la única pantalla del módulo.
 - Tailwind se sirve desde `static/custom/css/tailwind.css`, generado por `npm run build:tailwind`
   con `tailwind.config.js`. **No** se usa el CDN de Play.
 - La fuente de íconos se precarga con
