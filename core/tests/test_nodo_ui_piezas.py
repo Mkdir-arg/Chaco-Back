@@ -1640,9 +1640,9 @@ class MenuFilaTest(SimpleTestCase):
         self.assertIn(".nodo-menu-fila__menu[hidden]", css)
 
 
-# Pantallas autorizadas a usar el hero: SOLO la de inicio y los tableros de programa (C-3). Hoy
-# ninguna lo usa (el Inicio lo retiró FE-22); la primera en incorporarlo se agrega acá, y esa línea
-# es lo que un revisor tiene que ver: usarlo en otra pantalla es rechazable citando el agente.
+# Pantallas autorizadas a usar el hero: SOLO la de inicio y los tableros de programa (C-3). El
+# Inicio lo retiró FE-22; hoy lo usa el tablero de Emergencia (E1). Cada una se agrega en la lista
+# de abajo, y esa línea es lo que un revisor tiene que ver: usarlo en otra pantalla es rechazable.
 PANTALLAS_CON_HERO = frozenset()
 # Pantallas autorizadas a usar el hero: la lista vive en scripts/design_audit.py (HERO_PANTALLAS), que
 # la hace cumplir como regla P1 HEROFUERA. Esta prueba la contrasta contra los templates reales.
