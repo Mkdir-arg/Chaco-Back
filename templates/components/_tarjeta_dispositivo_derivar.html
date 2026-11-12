@@ -1,0 +1,52 @@
+{% comment %}
+Tarjeta de un dispositivo candidato en un panel de derivación: plazas, distancia y si alcanza para el caso.
+Una por dispositivo, en la lista que arma la pantalla.
+  {% include "components/_tarjeta_dispositivo_derivar.html" with dispositivo=dispositivo only %}
+Contexto:
+  dispositivo  dict armado por la VISTA o el selector (nunca un modelo ni un queryset):
+                 pk            obligatorio: arma los id de la tarjeta.
+                 nombre        obligatorio.
+                 localidad     opcional; vacía = «Sin localidad cargada».
+                 libres        plazas libres reales, ya contadas.
+                 reservadas    plazas reservadas, ya contadas.
+                 distancia_km  número (km desde el caso) o None = «distancia desconocida». Se muestra con un decimal.
+                 marca         ALCANZA | FALTAN | SIN_PLAZAS, ya resuelta. Va en texto además del color.
+                               Cualquier otro valor (o ninguno) no dibuja marca.
+                 faltan        con FALTAN: cuántas plazas faltan («Faltan 2 plazas»).
+                 accion_texto  opcional: texto del botón («Derivar a CIS N.º 3»). Sin él no hay acción.
+                 accion_url    destino del botón. Sin ella (y sin motivo) no hay acción.
+                 accion_motivo opcional: deshabilita el botón y lo explica («Sin plazas disponibles»).
+                               Gana sobre accion_url. Lo decide la vista: la tarjeta no lo infiere de la marca.
+El orden de la lista (alcanza primero, después por distancia) también es de la vista.
+{% endcomment %}
+<article class="rounded-xl border border-base bg-white shadow-sm flex flex-col overflow-hidden" aria-labelledby="dispositivo-derivar-{{ dispositivo.pk }}-titulo" data-tarjeta-dispositivo-derivar>
+  <div class="px-5 py-4 space-y-3 flex-1">
+    <div class="flex flex-wrap items-start justify-between gap-2">
+      <div class="min-w-0">
+        <h3 id="dispositivo-derivar-{{ dispositivo.pk }}-titulo" class="text-sm font-bold text-heading">{{ dispositivo.nombre }}</h3>
+        <p class="text-xs text-body-subtle"><i class="fas fa-location-dot" aria-hidden="true"></i> {{ dispositivo.localidad|default:"Sin localidad cargada" }} · {% if dispositivo.distancia_km is None %}distancia desconocida{% else %}a {{ dispositivo.distancia_km|floatformat:1 }} km{% endif %}</p>
+      </div>
+      {% if dispositivo.marca == 'ALCANZA' %}<span class="badge badge-dot badge-success">Alcanza</span>{% elif dispositivo.marca == 'FALTAN' %}<span class="badge badge-dot badge-warning">{% if dispositivo.faltan == 1 %}Falta 1 plaza{% elif dispositivo.faltan %}Faltan {{ dispositivo.faltan }} plazas{% else %}Faltan plazas{% endif %}</span>{% elif dispositivo.marca == 'SIN_PLAZAS' %}<span class="badge badge-dot badge-danger">Sin plazas</span>{% endif %}
+    </div>
+    <dl class="grid grid-cols-2 gap-3">
+      <div>
+        <dt class="text-xs font-semibold uppercase text-body-subtle">Plazas libres</dt>
+        <dd class="mt-1 text-sm font-semibold text-heading">{{ dispositivo.libres|default:0 }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-semibold uppercase text-body-subtle">Reservadas</dt>
+        <dd class="mt-1 text-sm font-semibold text-heading">{{ dispositivo.reservadas|default:0 }}</dd>
+      </div>
+    </dl>
+  </div>
+  {% if dispositivo.accion_texto and dispositivo.accion_motivo %}
+  <footer class="px-5 py-3 border-t border-light bg-secondary flex flex-wrap items-center justify-between gap-3">
+    <p id="dispositivo-derivar-{{ dispositivo.pk }}-motivo" class="text-xs text-body-subtle">{{ dispositivo.accion_motivo }}</p>
+    <button type="button" class="btn-nodo btn-brand btn-sm" disabled aria-describedby="dispositivo-derivar-{{ dispositivo.pk }}-motivo">{{ dispositivo.accion_texto }}</button>
+  </footer>
+  {% elif dispositivo.accion_texto and dispositivo.accion_url %}
+  <footer class="px-5 py-3 border-t border-light bg-secondary flex flex-wrap items-center justify-end gap-3">
+    <a href="{{ dispositivo.accion_url }}" class="btn-nodo btn-brand btn-sm">{{ dispositivo.accion_texto }}</a>
+  </footer>
+  {% endif %}
+</article>

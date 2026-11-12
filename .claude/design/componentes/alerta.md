@@ -51,6 +51,33 @@ contexto del include y conserva el autoescape.
 - El resultado de un proceso (por ejemplo, una carga de padrón) se muestra **fijo** con esta
   pieza dentro de su card, no solo como toast.
 
+## Lista de avisos con severidad
+
+Una lista de avisos (los de un detalle, los de un tablero) **no es otra pieza**: es esta alerta en bucle,
+dentro de una `section` con `space-y-3` y `aria-label`, con el `tono` de cada aviso según su severidad. La
+vista entrega la lista ya ordenada y acotada, cada aviso con `tono`, `icono`, `titulo`, `texto` y, si
+corresponde, el par de la acción; el template no decide la severidad ni cuenta.
+
+```django
+{% if avisos %}
+<section class="space-y-3" aria-label="Avisos de la mesa">
+  {% for aviso in avisos %}
+  {% include "components/_alerta.html" with tono=aviso.tono icono=aviso.icono titulo=aviso.titulo texto=aviso.texto accion_url=aviso.enlace accion_texto=aviso.accion role="status" %}
+  {% endfor %}
+</section>
+{% endif %}
+```
+
+- Cada include pasa **todos** los parámetros que usa la lista (o va con `only`): así no se cuela el `icono` o
+  la acción del aviso anterior.
+- `role="status"` en todos: una pila de `alert` se anuncia entera y a la vez al cargar la página.
+- La severidad va en el título y el ícono de cada aviso, además del color. Sin avisos no se dibuja el bloque:
+  no se rellena con una alerta `success`.
+
+Consumidores: las alertas del dispositivo en
+`programas/templates/programas/dispositivos/legajo/detail.html` (referencia) y los avisos del tablero de
+Emergencia. La composición no se extrae a un include propio.
+
 ## Deuda conocida
 
 El tono `info` no tiene par de tokens `bg`/`border` compilado: reusa la nota informativa canónica

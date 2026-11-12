@@ -1,0 +1,20 @@
+{% comment %}
+Contador de avance «N de N»: cuántas unidades están hechas sobre el total («3 de 7 confirmadas»).
+  {% include "components/_contador_avance.html" with hechos=caso.confirmadas total=caso.total_declarado etiqueta="confirmadas" only %}
+Contexto:
+  hechos    entero, ya contado por la vista o el selector. Sin él, 0.
+  total     entero, ya contado. Sin él, 0: la barra queda vacía y el texto dice «0 de 0», sin dividir.
+  etiqueta  qué se cuenta, en plural y concordado («confirmadas», «recibidos»). Va pegada al «N de N».
+  nombre    opcional, nombre accesible de la barra. Por defecto «Avance».
+La barra es role="progressbar" sobre unidades (aria-valuemax = total), no sobre porcentaje. El texto es el
+portador: la barra lo refuerza, y con todo hecho cambia a tono success con su ícono.
+El relleno reusa `nodo-ficha-medidor` (nodo-ficha.css, cargado por el shell): el ancho viaja como custom property.
+{% endcomment %}
+{% with n=hechos|default:0 de=total|default:0 %}{% widthratio n de 100 as porcentaje %}
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-heading" data-contador-avance>
+  <span class="inline-block w-20 h-2 rounded-full overflow-hidden flex-shrink-0 {% if de and n >= de %}bg-success-soft{% else %}bg-brand-soft{% endif %}" role="progressbar" aria-label="{{ nombre|default:'Avance' }}" aria-valuemin="0" aria-valuemax="{{ de }}" aria-valuenow="{{ n }}" aria-valuetext="{{ n }} de {{ de }}{% if etiqueta %} {{ etiqueta }}{% endif %}">
+    <span class="nodo-ficha-medidor block h-full {% if de and n >= de %}bg-success{% else %}bg-brand{% endif %}" style="--avance:{{ porcentaje }}%"></span>
+  </span>
+  {% if de and n >= de %}<i class="fas fa-circle-check text-fg-success" aria-hidden="true"></i> {% endif %}{{ n }} de {{ de }}{% if etiqueta %} {{ etiqueta }}{% endif %}
+</span>
+{% endwith %}
