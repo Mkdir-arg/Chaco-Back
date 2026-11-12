@@ -1384,6 +1384,20 @@ class ReservaPlaza(TimeStamped):
         related_name="reservas_de_plaza",
         verbose_name="Registró la reserva",
     )
+    # Reserva «de derivación» (Emergencia): una de las N camas que el dispositivo guardó para
+    # la familia de un caso al aceptar su derivación. Con valor, la reserva **no es de la
+    # persona** aunque `ciudadano` lleve al responsable del grupo: queda afuera de los caminos
+    # «de la persona» (una reserva por persona, la que el ingreso consume o libera) y solo la
+    # consume `estadias.consumir_reserva_de_derivacion`. Ver «Reservas de derivación» en
+    # `programas.services.estadias`. En `NULL` —todas las anteriores— es una reserva común.
+    derivacion = models.ForeignKey(
+        "Derivacion",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="reservas",
+        verbose_name="Derivación de Emergencia",
+    )
 
     objects = ReservaPlazaQuerySet.as_manager()
 
@@ -1405,6 +1419,9 @@ class ReservaPlaza(TimeStamped):
             # El que usa el servicio de ocupación para contar las reservadas por sector.
             models.Index(fields=["plaza", "estado"]),
             models.Index(fields=["ciudadano", "estado"]),
+            # Las camas que le quedan guardadas a una familia: lo que libera el cierre con
+            # diferencia y lo que cuenta la pantalla de alojar.
+            models.Index(fields=["derivacion", "estado"]),
         ]
 
     def __str__(self):
