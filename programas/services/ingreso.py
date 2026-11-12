@@ -324,6 +324,18 @@ def _alta_manual(datos):
     )
 
 
+def alta_minima_de_persona(datos):
+    """El alta mínima del legajo (DNI, nombre y apellido) para quien no es el asistente de ingreso.
+
+    Es :func:`_alta_manual` con nombre público: la usa Emergencia para dar de alta al
+    responsable de una familia (RN-1.5) con la misma regla, el mismo formulario y la misma
+    tolerancia a la carrera por el DNI. Si la persona ya existe, devuelve su legajo. Corre
+    dentro de la transacción de quien la llama.
+    """
+
+    return _alta_manual(datos)
+
+
 def _crear_legajo(dni, form, estado_renaper, mensaje_invalido):
     """El alta del legajo dentro de la transacción del ingreso, tolerante a la carrera por el DNI."""
 
