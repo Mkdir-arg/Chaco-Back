@@ -1,0 +1,141 @@
+{% extends "includes/base.html" %}
+{% load static nodo_ui %}
+{% block title %}Emergencia · Entregas de kits{% endblock %}
+
+{% block main-content %}
+{% comment %}E4 · Entregas de kits. Molde: golden de Listado (becas/revision/personas_list.html) con las solapas del
+lado del servidor (chips de enlace) y golden de Modal para «Marcar en camino» y «Cancelar», que piden datos:
+llegan abiertos por un parámetro GET que arma la vista (`?en_camino=<id>`, `?cancelar=<id>`) y el menú de la
+fila solo navega. Qué acción se ofrece lo decide la vista; el servicio lo vuelve a exigir en cada POST.{% endcomment %}
+<div x-data="{ modalEnCamino: {% if modal_en_camino %}true{% else %}false{% endif %}, modalCancelar: {% if modal_cancelar %}true{% else %}false{% endif %} }">
+
+  {# Los overlays fixed van FUERA del space-y-*: el margin-top los corre y el clic en esa franja no cierra #}
+  <div class="space-y-6">
+
+    {% page_header titulo="Entregas de kits" eyebrow="Programa Emergencia" bajada="Lo que la mesa envía a cada dispositivo y lo que el dispositivo confirma que llegó. No hay stock: una entrega, una recepción." %}
+      <a href="{{ url_nueva }}" class="btn-nodo btn-brand btn-base">
+        <i class="fas fa-plus" aria-hidden="true"></i> Nueva entrega
+      </a>
+    {% endpage_header %}
+
+    {# Solapas: recargan con la URL que armó la vista y conservan los filtros #}
+    {% include "components/_chips_enlace.html" with nombre="Entregas por estado" chips=solapas %}
+
+    {% comment %}Filtros: el <form> va sin class y cada control con aria-label (dynamic_list_filters.js vacía
+    el form al montar). El oculto `solapa` se conserva: filtrar no cambia de solapa.{% endcomment %}
+    <form method="get" data-dynamic-list-filters>
+      <input type="hidden" name="solapa" value="{{ solapa }}">
+      <select name="estado" class="nodo-field max-w-xs" aria-label="Estado">
+        <option value="">Todos</option>
+        {% for value, label in estados %}<option value="{{ value }}" {% if value == filtro.estado %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <select name="dispositivo" class="nodo-field max-w-xs" aria-label="Dispositivo">
+        <option value="">Todos</option>
+        {% for value, label in dispositivos %}<option value="{{ value }}" {% if value == filtro.dispositivo %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <select name="localidad" class="nodo-field max-w-xs" aria-label="Localidad">
+        <option value="">Todas</option>
+        {% for localidad in localidades %}<option value="{{ localidad }}" {% if localidad == filtro.localidad %}selected{% endif %}>{{ localidad }}</option>{% endfor %}
+      </select>
+      <input type="date" name="fecha" value="{{ filtro.fecha|date:'Y-m-d' }}" class="nodo-field max-w-xs" aria-label="Armada el">
+    </form>
+
+    <div class="bg-white rounded-xl border border-base shadow-sm overflow-hidden">
+      {% if filas %}
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="nodo-thead-row">
+              <th class="nodo-th">Entrega</th>
+              <th class="nodo-th">Dispositivo</th>
+              <th class="nodo-th">Estado</th>
+              <th class="nodo-th">Armada por</th>
+              <th class="nodo-th">Recibida por</th>
+              <th class="nodo-th nodo-col-acciones text-right"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in filas %}
+            <tr class="hover:bg-secondary">
+              <td class="nodo-td text-heading font-medium">
+                <a href="{{ fila.url }}" class="text-fg-brand hover:underline">{{ fila.entrega.numero }}</a>
+                <span class="block text-xs text-body-subtle">{{ fila.items }}</span>
+              </td>
+              <td class="nodo-td text-body">
+                {{ fila.entrega.dispositivo.nombre }}
+                {% if fila.entrega.dispositivo.localidad %}<span class="block text-xs text-body-subtle">{{ fila.entrega.dispositivo.localidad }}</span>{% endif %}
+              </td>
+              <td class="nodo-td"><span class="badge badge-dot badge-{{ fila.estado_tono }}">{{ fila.estado_texto }}</span></td>
+              <td class="nodo-td text-body">{{ fila.armada }}</td>
+              <td class="nodo-td text-body">{{ fila.recibida|default:"—" }}</td>
+              <td class="nodo-td nodo-col-acciones text-right whitespace-nowrap">
+                <div class="inline-flex items-center gap-1">
+                  <a href="{{ fila.url }}" class="nodo-icon-btn" aria-label="Abrir la entrega {{ fila.entrega.numero }}">
+                    <i class="fas fa-eye" aria-hidden="true"></i>
+                  </a>
+                  {% if fila.acciones %}
+                  {% menu_fila id=fila.entrega.pk etiqueta="Acciones de la entrega "|add:fila.entrega.numero %}
+                    {% for accion in fila.acciones %}{% include "components/_menu_fila_item.html" with texto=accion.texto icono=accion.icono url=accion.url peligro=accion.peligro only %}{% endfor %}
+                  {% endmenu_fila %}
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% include "components/_paginacion.html" with page_obj=page_obj entidad="entrega" %}
+      {% elif request.GET|hay_filtros:"page,solapa,en_camino,cancelar" %}
+        {% include "components/_estado_vacio.html" with con_filtros=True titulo="Ninguna entrega coincide con los filtros" texto="Probá con otros filtros o cambiá de solapa." accion_url=url_sin_filtros %}
+      {% elif hay_entregas %}
+        {% include "components/_estado_vacio.html" with icono="fa-inbox" titulo="No hay entregas en esta solapa" texto="Las entregas aparecen acá cuando pasan a este estado." %}
+      {% else %}
+        {% include "components/_estado_vacio.html" with icono="fa-box-open" titulo="Todavía no hay entregas" texto="Armá la primera: elegí el dispositivo, los ítems del catálogo y las cantidades." accion_url=url_nueva accion_texto="Nueva entrega" accion_icono="fa-plus" %}
+      {% endif %}
+    </div>
+  </div>
+
+  {% if modal_en_camino %}
+  {# Modal: Marcar en camino — transporte y hora de salida, opcionales (arquetipo Modal, abierto por parámetro GET) #}
+  <div x-show="modalEnCamino" x-cloak x-becas-modal="modalEnCamino" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalEnCamino=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-en-camino-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Marcar en camino · "|add:modal_en_camino.entrega.numero titulo_id="modal-en-camino-titulo" subtitulo=modal_en_camino.entrega.dispositivo.nombre icono="fa-truck" cerrar="modalEnCamino=false" %}
+      <form method="post" action="{{ modal_en_camino.url }}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <input type="hidden" name="volver" value="{{ volver_al_listado }}">
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for field in modal_en_camino.form %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          {% include "components/_alerta.html" with tono="info" texto="El dispositivo la ve como entrega en camino y puede confirmar la recepción." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalEnCamino=false" accion_texto="Marcar en camino" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if modal_cancelar %}
+  {# Modal: Cancelar entrega — confirmación con motivo (arquetipo Modal, abierto por parámetro GET) #}
+  <div x-show="modalCancelar" x-cloak x-becas-modal="modalCancelar" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modalCancelar=false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-[560px] max-h-[90vh] flex flex-col overflow-hidden" @click.stop
+         role="dialog" aria-modal="true" aria-labelledby="modal-cancelar-titulo">
+      {% include "programas/becas/_modal_header.html" with titulo="Cancelar entrega · "|add:modal_cancelar.entrega.numero titulo_id="modal-cancelar-titulo" subtitulo=modal_cancelar.entrega.dispositivo.nombre icono="fa-ban" tono="danger" cerrar="modalCancelar=false" %}
+      <form method="post" action="{{ modal_cancelar.url }}" class="flex flex-col flex-1 min-h-0">
+        {% csrf_token %}
+        <input type="hidden" name="volver" value="{{ volver_al_listado }}">
+        <div class="px-6 py-6 space-y-5 overflow-y-auto min-h-0">
+          {% for field in modal_cancelar.form %}{% include "components/_field.html" with wrapper_class="" %}{% endfor %}
+          {% include "components/_alerta.html" with tono="warning" texto="El dispositivo deja de verla entre sus entregas y ya no la puede recibir. Una entrega cancelada no se reabre: se arma otra." %}
+        </div>
+        {% include "programas/becas/_modal_footer.html" with cancelar="modalCancelar=false" cancelar_texto="Volver" accion_texto="Sí, cancelar la entrega" accion_tono="danger" %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block customJS %}<script src="{% static 'custom/js/becas-modal.js' %}"></script>{% endblock %}

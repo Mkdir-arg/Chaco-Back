@@ -110,6 +110,10 @@ UUID_INVALIDO = "El identificador del envío no es válido."
 UUID_EN_USO = "Ese identificador de envío ya se usó en otra recepción."
 FALTA_LA_OBSERVACION = "Escribí la observación."
 SIN_MARCA_DE_SALIDA = "Recibida sin marca de salida"
+YA_EN_CAMINO = "La entrega {numero} ya está en camino. Recargá la pantalla."
+TODAVIA_NO_RECIBIDA = (
+    "La entrega {numero} todavía no fue recibida: la observación de la mesa se carga después de la recepción."
+)
 
 
 class EstadoCambioEntrega(EstadoCambio):
@@ -163,7 +167,7 @@ def _bloquear_entrega(entrega):
     return EntregaKit.objects.select_for_update().get(pk=getattr(entrega, "pk", entrega))
 
 
-def _mensaje_de_estado(entrega):
+def mensaje_de_estado(entrega):
     """Qué le pasó a una entrega que ya no está abierta, y qué hacer (RU-20)."""
 
     if entrega.estado == Estado.CANCELADA:
@@ -176,16 +180,20 @@ def _mensaje_de_estado(entrega):
         quien = _nombre_de(entrega.recibida_por) if entrega.recibida_por_id else "otra persona"
         cuando = f" a las {_hora(entrega.recibida_en)}" if entrega.recibida_en else ""
         return f"La entrega {entrega.numero} ya la recibió {quien}{cuando}. Recargá la pantalla."
-    if entrega.estado == Estado.EN_CAMINO:
-        return f"La entrega {entrega.numero} ya está en camino. Recargá la pantalla."
-    return f"La entrega {entrega.numero} todavía no fue recibida. Recargá la pantalla."
+    return f"La entrega {entrega.numero} cambió de estado. Recargá la pantalla."
 
 
-def _exigir_estado(entrega, *estados):
-    """La entrega bloqueada tiene que estar en uno de ``estados``; si no, :class:`EstadoCambioEntrega`."""
+def _exigir_estado(entrega, *estados, si_sigue_abierta=""):
+    """La entrega bloqueada tiene que estar en uno de ``estados``; si no, :class:`EstadoCambioEntrega`.
 
-    if entrega.estado not in estados:
-        raise EstadoCambioEntrega(_mensaje_de_estado(entrega), entrega=entrega)
+    Recibida o cancelada, el mensaje es el de :func:`mensaje_de_estado`. ``si_sigue_abierta``
+    es lo que se dice cuando la acción no corresponde a una entrega que todavía está abierta.
+    """
+
+    if entrega.estado in estados:
+        return
+    mensaje = si_sigue_abierta if entrega.abierta and si_sigue_abierta else mensaje_de_estado(entrega)
+    raise EstadoCambioEntrega(mensaje, entrega=entrega)
 
 
 def _trazar(entrega, usuario, accion, *, estado_anterior, detalle=""):
@@ -359,7 +367,7 @@ def marcar_en_camino(entrega, usuario, transporte="", hora=None):
         raise ValidationError({"hora": HORA_FUTURA})
 
     bloqueada = _bloquear_entrega(entrega)
-    _exigir_estado(bloqueada, Estado.PREPARADA)
+    _exigir_estado(bloqueada, Estado.PREPARADA, si_sigue_abierta=YA_EN_CAMINO.format(numero=bloqueada.numero))
     bloqueada.estado = Estado.EN_CAMINO
     bloqueada.despachada_en = hora or ahora
     bloqueada.transporte = transporte
@@ -565,7 +573,9 @@ def observar_recepcion(entrega, usuario, texto):
         raise ValidationError({"texto": FALTA_LA_OBSERVACION})
 
     bloqueada = _bloquear_entrega(entrega)
-    _exigir_estado(bloqueada, *EntregaKit.ESTADOS_RECIBIDOS)
+    _exigir_estado(
+        bloqueada, *EntregaKit.ESTADOS_RECIBIDOS, si_sigue_abierta=TODAVIA_NO_RECIBIDA.format(numero=bloqueada.numero)
+    )
     bloqueada.observacion_mesa = texto
     bloqueada.save(update_fields=["observacion_mesa", "modificado"])
     _trazar(bloqueada, usuario, Accion.OBSERVADA, estado_anterior=bloqueada.estado, detalle=texto)

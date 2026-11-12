@@ -189,6 +189,34 @@ def traza_de(entrega):
     return eventos
 
 
+def diferencias_de(lineas):
+    """Las líneas que llegaron distinto de lo enviado: ``[{"item", "nombre", "enviada", "recibida"}]``.
+
+    Lo que muestra «Recibida · 2 ítems con diferencia» (M3-2 y el aviso de la recepción web).
+    Sin consultas: las líneas ya traen su ítem.
+    """
+
+    return [
+        {
+            "item": linea.item_id,
+            "nombre": linea.item.nombre,
+            "enviada": linea.cantidad_enviada,
+            "recibida": linea.cantidad_recibida,
+        }
+        for linea in lineas
+        if linea.cantidad_recibida is not None and linea.cantidad_recibida != linea.cantidad_enviada
+    ]
+
+
+def texto_de_recepcion(diferencias):
+    """«Recibida completa» o «Recibida · 2 ítems con diferencia» (M3-2)."""
+
+    if not diferencias:
+        return "Recibida completa"
+    cuantos = "1 ítem" if len(diferencias) == 1 else f"{len(diferencias)} ítems"
+    return f"Recibida · {cuantos} con diferencia"
+
+
 def reposiciones_de(entrega):
     """Las entregas que reponen a esta, de la más vieja a la más nueva. **1 consulta.**"""
 

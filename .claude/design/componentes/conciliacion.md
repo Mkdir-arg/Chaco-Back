@@ -4,8 +4,10 @@
 nueva**: es la tabla densa canónica (`tabla.md`) con una columna cuya celda dibuja esta pieza.
 **Evidencia:** `templates/components/_celda_diferencia.html`, el filtro `menos` de
 `core/templatetags/nodo_ui.py`, `core/tests/test_nodo_ui_emergencia.py` (`CeldaDiferenciaTest`).
-**Consumidor previsto:** el detalle de una entrega de kits de Emergencia (ítem · enviado · recibido ·
-diferencia).
+**Consumidor de referencia:** el detalle de una entrega de kits de Emergencia,
+`programas/templates/programas/emergencia/kits/detail.html` (ítem · enviado · recibido · diferencia; la unidad
+copiada de la línea va como metadato bajo el ítem). Las líneas llegan de `programas/selectors/kits.py`
+(`lineas_de`); el estado de la entrega lo decide `programas/services/kits.py`.
 
 ## Invocación
 
