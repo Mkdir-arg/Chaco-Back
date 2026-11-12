@@ -70,6 +70,14 @@ COLUMNAS_UUID_AMPLIADAS = (
         "programas.0093",
     ),
     ("programas.CasoEmergencia", "uuid_cliente", "programas_casoemergencia", "uuid_cliente", "programas.0119"),
+    # Módulo Emergencia, PR 9: el identificador de la recepción de una entrega de kits.
+    (
+        "programas.EntregaKit",
+        "uuid_cliente_recepcion",
+        "programas_entregakit",
+        "uuid_cliente_recepcion",
+        "programas.0120",
+    ),
     ("users.SolicitudCambioEmail", "token", "users_solicitudcambioemail", "token", "users.0023"),
     ("legajos.LegajoAtencion", "id", "legajos_legajoatencion", "id", "legajos.0007"),
     ("legajos.AlertaCiudadano", "legajo", "legajos_alertaciudadano", "legajo_id", "legajos.0007"),
