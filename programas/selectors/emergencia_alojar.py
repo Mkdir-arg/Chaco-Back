@@ -175,9 +175,10 @@ def plazas_para_caso(dispositivo, caso, usuario, *, puede_ver_personas=False, mo
     Una cama guardada para la familia de **otro** caso sale ``RESERVADA`` y nada más: ni de
     quién ni de qué caso (RU-9).
 
-    **Presupuesto: 4 consultas más las del alcance** (una si integra el Equipo; ninguna el
-    admin del programa): camas con su sector, las dos de ``estado_de_plazas`` y la derivación
-    vigente del caso. No depende de cuántas camas haya.
+    **Presupuesto: 4 consultas más las del alcance** (a lo sumo dos: las capacidades del
+    usuario, que ``rbac`` memoiza en el objeto, y si integra el Equipo): camas con su sector,
+    las dos de ``estado_de_plazas`` y la derivación vigente del caso. No depende de cuántas
+    camas haya.
     """
 
     _exigir_alcance(usuario, dispositivo)
