@@ -444,6 +444,8 @@ class EgresoConFormularioTests(_Base):
             "fecha_egreso": timezone.localtime().replace(second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M"),
             "motivo": self.motivo.pk,
             "destino": "Domicilio de familiar",
+            "formulario_tipo_diseno": self.egreso.pk,
+            "formulario_tipo_version": self.egreso.version,
             self._nombre("Cantidad de pertenencias", self.egreso): "2",
             self._nombre("Observaciones", self.egreso): "Se va con familiares",
             self._nombre("Constancia", self.egreso): _pdf(),
@@ -470,7 +472,7 @@ class EgresoConFormularioTests(_Base):
     def test_sin_formulario_vigente_el_egreso_es_el_de_siempre(self):
         self.egreso.dado_de_baja_en = timezone.now()
         self.egreso.save(update_fields=["dado_de_baja_en"])
-        datos = {k: v for k, v in self._datos().items() if not k.startswith("formulario-")}
+        datos = {k: v for k, v in self._datos().items() if not k.startswith("formulario")}
 
         respuesta = self._post(datos)
 
@@ -478,6 +480,17 @@ class EgresoConFormularioTests(_Base):
         self.estadia.refresh_from_db()
         self.assertEqual(self.estadia.estado, Estadia.Estado.EGRESADA)
         self.assertFalse(RespuestasEgresoEstadia.objects.exists())
+
+    def test_si_se_da_de_baja_con_el_modal_abierto_tambien_se_rechaza(self):
+        datos = self._datos()
+        self.egreso.dado_de_baja_en = timezone.now()
+        self.egreso.save(update_fields=["dado_de_baja_en"])
+
+        respuesta = self._post(datos)
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("__all__", respuesta.json()["errors"])
+        self._nada_escrito()
 
     def test_con_formulario_se_guarda_con_la_foto_la_version_y_el_adjunto(self):
         respuesta = self._post(self._datos())
@@ -503,6 +516,46 @@ class EgresoConFormularioTests(_Base):
         errores = respuesta.json()["errors"]
         self.assertEqual(errores[clave], ["Este dato es obligatorio."])
         self.assertNotIn("__all__", errores)
+        self._nada_escrito()
+
+    def test_se_publica_el_formulario_con_el_modal_abierto_da_400_y_no_se_escribe_nada(self):
+        datos = self._datos()  # lo que el modal dibujó: diseño y versión de antes
+        self._mutar(
+            self.egreso,
+            lambda: constructor.crear_propio(
+                self.egreso,
+                self.egreso.items.get(tipo=ItemDiseno.Tipo.GRUPO),
+                {
+                    "propio": {
+                        "texto": "Nuevo dato",
+                        "tipo": "STRING",
+                        "opciones": [],
+                        "presentacion": "LISTA",
+                        "obligatorio": False,
+                    },
+                    "canal": "ambos",
+                },
+            ),
+        )
+
+        respuesta = self._post(datos)
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(
+            respuesta.json()["errors"],
+            {"__all__": ["El formulario de egreso cambió mientras estaba abierto: recargá la página y completalo."]},
+        )
+        self._nada_escrito()
+
+    def test_los_errores_del_egreso_y_del_tipo_salen_juntos(self):
+        clave = self._item("Cantidad de pertenencias", self.egreso).clave
+
+        respuesta = self._post(self._datos(motivo="", **{self._nombre("Cantidad de pertenencias", self.egreso): ""}))
+
+        self.assertEqual(respuesta.status_code, 400)
+        errores = respuesta.json()["errors"]
+        self.assertIn("motivo", errores)
+        self.assertEqual(errores[clave], ["Este dato es obligatorio."])
         self._nada_escrito()
 
     def test_un_motivo_faltante_frena_aunque_el_formulario_este_completo(self):

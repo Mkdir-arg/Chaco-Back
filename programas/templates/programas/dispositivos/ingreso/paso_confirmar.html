@@ -4,6 +4,8 @@
 
 {% comment %}Paso final del arquetipo Wizard (ficha `.claude/design/arquetipos/wizard.md`): resumen y confirmación. La plaza se revalida y se toma al confirmar, no antes. Los ocultos `persona` y `plaza` dicen qué resumen mostraba esta pantalla: si otra pestaña lo cambió, la vista no escribe.{% endcomment %}
 
+{% block page_css %}{% if formulario_tipo %}<link rel="stylesheet" href="{% static 'custom/css/nodo-buscador.css' %}">{% endif %}{% endblock %}
+
 {% block main-content %}
 <div class="space-y-5">
   {% page_header titulo="Ingresar persona" eyebrow=eyebrow volver_url=urls.dispositivo volver_label=dispositivo.nombre %}

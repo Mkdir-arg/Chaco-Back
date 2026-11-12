@@ -1342,6 +1342,10 @@ def formulario_de_egreso(dispositivo, data=None, files=None):
     return formulario_de_momento_para(dispositivo.tipo_id, MomentoFormulario.EGRESO, data, files)
 
 
+#: El 400 de un egreso cuyo formulario del tipo cambió con el modal abierto.
+MENSAJE_FORMULARIO_CAMBIO = "El formulario de egreso cambió mientras estaba abierto: recargá la página y completalo."
+
+
 class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
     """Registra el egreso. Solo POST: un GET no muta nada ni muestra nada."""
 
@@ -1354,18 +1358,23 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
         volver = self._volver(request, dispositivo, estadia)
 
         form = EgresoForm(request.POST, estadia=estadia)
-        if not form.is_valid():
-            return self._rechazar(request, form.errors, volver)
-
-        # El formulario del tipo se valida ANTES de escribir: los obligatorios visibles bloquean el egreso.
+        form.is_valid()
         formulario = formulario_de_egreso(dispositivo, request.POST, request.FILES)
+        if self._formulario_cambio(request, formulario):
+            return self._rechazar(request, {"__all__": [MENSAJE_FORMULARIO_CAMBIO]}, volver)
+
+        # Los errores del egreso y los del formulario del tipo salen juntos, y antes de escribir: los
+        # obligatorios visibles bloquean el egreso. Las claves del tipo son las de `data-error` de cada campo
+        # (`pg-<pk>`, sin prefijo), que no chocan con las del egreso fijo.
+        errores = dict(form.errors)
         if formulario is not None:
             valido = formulario.is_valid()
             if valido and formulario.faltantes():
                 formulario.marcar_faltantes()
             if not valido or formulario.errors:
-                # Las claves son las de `data-error` de cada campo del formulario del tipo (sin prefijo).
-                return self._rechazar(request, {**form.errors, **formulario.errors}, volver)
+                errores.update(formulario.errors)
+        if errores:
+            return self._rechazar(request, errores, volver)
 
         datos = form.cleaned_data
         try:
@@ -1382,6 +1391,18 @@ class EstadiaEgresarView(DispositivoProgramaPermissionMixin, View):
             return ajax_redirect(request, volver, mensaje)
         messages.success(request, mensaje)
         return redirect(volver)
+
+    @staticmethod
+    def _formulario_cambio(request, formulario):
+        """``True`` si el formulario de egreso vigente no es el que el modal dibujó: se publicó, cambió o se
+        dio de baja con el modal abierto. Los ocultos `formulario_tipo_diseno` y `formulario_tipo_version`
+        dicen cuál era; sin formulario vigente el POST no los trae."""
+
+        diseno = str(request.POST.get("formulario_tipo_diseno") or "")
+        version = str(request.POST.get("formulario_tipo_version") or "")
+        if formulario is None:
+            return bool(diseno)
+        return diseno != str(formulario.diseno.pk) or version != str(formulario.diseno.version)
 
     @staticmethod
     @archivos_atomicos

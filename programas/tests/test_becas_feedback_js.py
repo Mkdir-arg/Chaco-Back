@@ -311,6 +311,24 @@ function __campo(nombre, describedby) {
   __form.appendChild(p);
   return c;
 }
+// Un formulario con prefijo (el del tipo en el modal de egreso): el control se llama
+// `<prefijo>-<clave>` y el error, con la clave sin prefijo, como lo escribe `_field.html`.
+function __campo_con_prefijo(prefijo, clave) {
+  var nombre = prefijo + '-' + clave;
+  var c = __nodo('input');
+  c.name = nombre;
+  c.attrs['name'] = nombre;
+  c.form = __form;
+  c.focus = function () { __log.focos.push(nombre); };
+  __form.appendChild(c);
+  __form.elements.push(c);
+  __form.elements[nombre] = c;
+  var p = __nodo('p');
+  p.attrs['data-error'] = clave;
+  p.id = 'id_' + nombre + '-error';
+  __form.appendChild(p);
+  return c;
+}
 function __aria(c) { return [c.getAttribute('aria-invalid'), c.getAttribute('aria-describedby')]; }
 function __disparar(tipo, control) {
   (__docHandlers[tipo] || []).forEach(function (fn) { fn({target: control}); });
@@ -385,6 +403,28 @@ class AjaxJsAccesibilidadDeErroresTests(SimpleTestCase):
         )
         self.assertEqual(log["inline"]["motivo"], "")
         self.assertEqual(log["aria"], [None, "id_motivo-ayuda"])
+
+    def test_el_campo_con_prefijo_recibe_aria_foco_y_se_limpia_al_corregir(self):
+        """El campo del formulario del tipo (`formulario-pg-12`, error `pg-12`) se comporta como un fijo."""
+        log = self._correr(
+            """
+            var __motivo = __campo('motivo');
+            var __tipo = __campo_con_prefijo('formulario', 'pg-12');
+            __respuestas.push({status: 400, data: {ok: false, errors: {'pg-12': ['Este dato es obligatorio.']}}});
+            __enviar(__boton);
+            __log.marcado = __aria(__tipo);
+            __log.fijo = __aria(__motivo);
+            __tipo.value = 'algo';
+            __disparar('input', __tipo);
+            __log.corregido = __aria(__tipo);
+            __log.inline = __errores();
+            """
+        )
+        self.assertEqual(log["marcado"], ["true", "id_formulario-pg-12-error"])
+        self.assertEqual(log["fijo"], [None, None])
+        self.assertEqual(log["focos"], ["formulario-pg-12"])
+        self.assertEqual(log["corregido"], [None, None])
+        self.assertEqual(log["inline"]["pg-12"], "")
 
     def test_el_reenvio_limpia_el_aria_del_intento_anterior(self):
         log = self._correr(

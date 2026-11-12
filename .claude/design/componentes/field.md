@@ -41,7 +41,11 @@ Render de cada campo:
 - «Corregir novedad» de la bitácora (`CorreccionForm`, `programas/forms_bitacora.py`, Cambio 426): suma `personas` (`ChipsSelectMultiple`) y `adjuntos` (`AdjuntosField`) con los mismos campos del alta, sin variante nueva; desde el Cambio 436 también `quitar_adjuntos` y `quitar_personas` (`_IdsField`, ids de las casillas «Quitar» de la novedad elegida, `.nodo-checks`; el servicio los valida contra los de esa novedad); el formulario lleva `auto_id="id_corr_%s"` porque convive con el modal de alta en la misma página.
 - **El `<p>` del error está siempre**, con `data-error="<campo>"` y oculto mientras no haya
   texto: es donde el guardado AJAX (`programas/templates/programas/becas/_ajax_js.html`) lo
-  escribe sin recargar.
+  escribe sin recargar. En un form con prefijo (el formulario del tipo dentro del modal de
+  egreso: control `formulario-pg-<pk>`, error `data-error="pg-<pk>"`), `_ajax_js.html` busca
+  primero el nombre exacto y, si no hay, el control que termina en `-<clave>`; al corregir, va
+  sacando el prefijo hasta dar con el `<p>`. Así el campo con prefijo recibe `aria-invalid`, foco
+  y limpieza igual que uno sin prefijo.
 - **ARIA:** `aria-describedby` apunta a la ayuda, y suma el error **solo cuando hay error**
   (si no, cada campo se leería con una descripción vacía); con errores el control lleva
   además `aria-invalid="true"`. Lo pone `{% campo_control field %}`, porque una plantilla no
