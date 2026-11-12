@@ -1689,6 +1689,20 @@ def _formulario1_en_el_dispositivo(datos_formulario1, dispositivo):
     return datos
 
 
+def _con_sus_reservas(caso):
+    """Le cuelga ``reservadas`` y ``faltantes`` a un caso que ya existía (el reenvío de un ingreso directo).
+
+    Son las camas que el ingreso reservó **al crearse** —vigentes, consumidas o liberadas
+    después— contra las que pidió: lo mismo que contestó el primer envío.
+    """
+
+    derivacion = Derivacion.objects.filter(caso_id=caso.pk).order_by("id").first()
+    pedidas = derivacion.plazas_pedidas if derivacion is not None else 0
+    reservadas = ReservaPlaza.objects.filter(derivacion=derivacion).count() if derivacion is not None else 0
+    caso.reservadas, caso.faltantes = reservadas, max(pedidas - reservadas, 0)
+    return caso
+
+
 @archivos_atomicos
 @transaction.atomic
 def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=None):
@@ -1717,7 +1731,7 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
     if uuid_cliente is not None:
         existente = _caso_de_ese_envio(uuid_cliente, usuario)
         if existente is not None:
-            return existente
+            return _con_sus_reservas(existente)
     if not dispositivo_elegible(dispositivo):
         raise ValidationError({"dispositivo": DISPOSITIVO_NO_ELEGIBLE})
     libres = camas_libres(dispositivo)
@@ -1731,7 +1745,7 @@ def ingreso_directo(*, dispositivo, usuario, datos_formulario1, uuid_cliente=Non
         uuid_cliente=uuid_cliente,
     )
     if caso.ya_existia:  # el mismo envío llegó dos veces a la vez: lo creó el otro
-        return caso
+        return _con_sus_reservas(caso)
     caso = _bloquear_caso(caso)
     grupo = caso.grupo
     momento = caso.creado

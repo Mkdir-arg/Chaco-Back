@@ -50,6 +50,7 @@ from programas.services.bitacora import (
 )
 from programas.services.bitacora_detalle import detalle_entrada
 from programas.services.bitacora_pantalla import pantalla_bitacora
+from programas.services.emergencia_alojar import al_egresar_estadia
 from programas.services.estadias import (
     PERSONA_CON_RESERVA,
     PLAZA_FUERA_DEL_DISPOSITIVO,
@@ -937,7 +938,10 @@ class SenalDeEgresoTests(BaseDerivacion):
         self.addCleanup(estadia_egresada.disconnect, dispatch_uid="test.receptor_de_egreso")
 
     def test_sin_receptores_el_egreso_es_el_de_siempre(self):
-        self.assertFalse(estadia_egresada.has_listeners(Estadia))
+        # Desde la etapa 3 de Emergencia escucha su receptor (`emergencia_alojar.al_egresar_estadia`),
+        # y solo él. Para una estadía que no es de Emergencia hace una consulta y no cambia nada.
+        escuchan, _asincronicos = estadia_egresada._live_receivers(Estadia)
+        self.assertEqual(escuchan, [al_egresar_estadia])
 
         egresada = self._egresar()
 
