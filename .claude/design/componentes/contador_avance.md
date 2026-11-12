@@ -5,7 +5,10 @@
 **Evidencia:** `templates/components/_contador_avance.html`, `core/tests/test_nodo_ui_emergencia.py`
 (`ContadorAvanceTest`). El relleno de la barra reusa `.nodo-ficha-medidor` de
 `static/custom/css/nodo-ficha.css`, que el shell del backoffice ya carga.
-**Consumidor previsto:** los integrantes de un caso de Emergencia en el ingreso al dispositivo.
+**Consumidores:** los integrantes de un caso de Emergencia. En E6, la cabecera de la surface «Integrantes»
+(`programas/templates/programas/emergencia/dispositivo/integrantes.html`) y la celda «Confirmadas» de los
+ingresos en curso (`dispositivo/llegadas.html`, con `nombre` propio por fila); en la ficha de la mesa, la
+cabecera de «Integrantes» de E3 (`programas/templates/programas/emergencia/casos/detail.html`).
 
 ## Por qué no es `_ficha_avance`
 

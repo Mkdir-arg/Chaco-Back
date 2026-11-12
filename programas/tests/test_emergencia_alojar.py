@@ -1829,8 +1829,8 @@ class PresupuestoDeConsultasDeAlojarTests(BaseAlojar):
 
     def test_plazas_para_caso_con_300_camas(self):
         caso, derivacion = self._derivado(dispositivo=self.grande)
-        servicio.aceptar_derivacion(derivacion=derivacion, usuario=self.guardia_grande)
         self._ocupar(self.grande, 120)
+        servicio.aceptar_derivacion(derivacion=derivacion, usuario=self.guardia_grande)
         usuario = User.objects.get(pk=self.guardia_grande.pk)
 
         with self.assertNumQueries(self.CONSULTAS_PLAZAS):
