@@ -1,6 +1,6 @@
 # Módulo Emergencia — estado del desarrollo (bitácora viva)
 
-**Última actualización:** 2026-11-12, cierre de la ola 4 (PR 7 y PR 9).
+**Última actualización:** 2026-11-12, backend completo (PRs 0 a 11) integrado y verificado; PR 12 (documentación) en curso.
 
 Este archivo dice qué está hecho, dónde está, qué falta y cómo seguir desde un checkout local. Se
 actualiza cada vez que un PR cambia de estado. El plan completo está en
@@ -14,7 +14,7 @@ actualiza cada vez que un PR cambia de estado. El plan completo está en
 ```powershell
 git fetch origin
 git checkout docs/emergencia-analisis      # plan, análisis y este archivo
-git checkout feat/emergencia-integracion-ola4   # PRs 0 a 9 juntos, lo más avanzado que está verificado
+git checkout feat/emergencia-integracion-final  # todo el backend (PRs 0 a 11) junto y verificado
 ```
 
 - **Nada está mergeado a `development` y no hay ningún PR abierto en GitHub.** Todo son ramas
@@ -51,10 +51,11 @@ git checkout feat/emergencia-integracion-ola4   # PRs 0 a 9 juntos, lo más avan
 | 7 | Alojar: servicios de la etapa 3 y backoffice E6 | ✅ Verificado y pusheado | `feat/emergencia-pr7-alojar` | `c9ada33d` | integración ola 3 |
 | 9 + 9-API | Kits: modelo, servicios, E4, E5, recepción web y API M3 | ✅ Verificado y pusheado | `feat/emergencia-pr9-kits` | `cb738b66` | integración ola 3 |
 | — | Integración de los PRs 0 a 9 | ✅ Suite completa corrida (8.870 tests) | `feat/emergencia-integracion-ola4` | `630f5c5f` | PR 7 + merge de PR 9 |
-| 8 | API M2 (llegada de familias) | ⏳ Pendiente | — | — | PR 7 + PR 5 |
-| 10 | Tablero E1 y avisos | ⏳ Pendiente | — | — | PR 3, 7 y 9 |
-| 11 | Marcas de la bandeja que dependen de las etapas 3 y 4 | ⏳ Pendiente | — | — | PR 7 |
-| 12 | Documentación del módulo y entradas de `requerimientos.md` | ⏳ Pendiente | — | — | todos |
+| 8 | API M2 (llegada de familias) | ✅ Verificado y pusheado | `feat/emergencia-pr8-api-m2` | `cca63bf7` | integración ola 4 |
+| 10 | Tablero E1 y avisos | ✅ Verificado y pusheado | `feat/emergencia-pr10-tablero` | `959aebe3` | integración ola 4 |
+| 11 | Marcas de la bandeja y la ficha (etapas 3 y 4) | ✅ Verificado y pusheado | `feat/emergencia-pr11-marcas` | `839b368c` | integración ola 4 |
+| — | **Integración final del backend (PRs 0 a 11)** | ✅ Suite completa: 8.986 tests | `feat/emergencia-integracion-final` | `4503041c` | PR 8 + merges de 10 y 11 |
+| 12 | Documentación del módulo y entradas de `requerimientos.md` | 🔄 En desarrollo | `feat/emergencia-pr12-docs` | — | integración final |
 | 13 | QA (casos por task, plan de pruebas) | ⏳ Pendiente | — | — | todos |
 | 5-P | PWA: módulo Emergencia y M1 | ⛔ Bloqueado (§6) | — | — | PR 5 |
 | 8-P | PWA: M2 | ⛔ Bloqueado (§6) | — | — | PR 8 |
@@ -71,6 +72,7 @@ y, en los PRs con UI, las auditorías de diseño.
 3. PR 3 (necesita 0 y 2), PR 4, PR 5 y PR 6 (cada uno sobre PR 2).
 4. PR 7 y PR 9 (sobre todo lo anterior).
 5. PR 8, PR 10, PR 11.
+6. PR 12 (documentación y `requerimientos.md`).
 
 Antes de abrir el PR 3 conviene hacer squash de su commit «wip» (`2587db2a`) con `deae7666`; lo mismo
 con el WIP del PR 4 (`a8f5590d`) y el del PR 7 (`c9ada33d`).
@@ -165,6 +167,38 @@ con el WIP del PR 4 (`a8f5590d`) y el del PR 7 (`c9ada33d`).
 - Cambió una aserción de `test_dispositivos_reservas_derivacion.py` (PR 6): afirmaba que la señal de
   egreso no tenía receptores, y el PR 7 es el que agrega el suyo.
 
+### PR 8 — API M2 (llegada de familias)
+- 12 rutas nuevas en `/api/emergencia/`: buscar por DNI, aceptar/rechazar derivación, integrantes (listar,
+  agregar, detalle, confirmar, completar ficha), plazas del dispositivo para el caso, alojar, cerrar con
+  diferencia, cancelar ingreso, ingreso directo y avisar a la mesa. `mis-dispositivos` suma
+  `plazas_libres` y `derivaciones_pendientes`.
+- Misma capa de servicios que la web (RU-2); sin alcance → 404; estado cambiado → 409 con `estado_actual`.
+- Contrato completo en `docs/internal/contrato-app-emergencia.md` §13 (incluye el esquema de la ficha).
+- `perfil.dispositivo` ahora es `false` para el admin de Dispositivos que no puede operar; se cambió
+  una aserción existente de los tests del PR 5 por eso.
+- Aceptar, rechazar, alojar y los cierres no son idempotentes por `uuid_cliente` (no hay dónde guardarlo
+  sin migración): un reintento da 409 y la app recarga.
+- Tests: `test_emergencia_api_m2.py` (51).
+
+### PR 10 — Tablero E1 y avisos
+- `programas/selectors/emergencia_tablero.py`, `programas/services/avisos_emergencia.py` (7 reglas de
+  aviso), vista y template `emergencia/tablero.html`, entrada «Tablero de Emergencia» en el sidebar
+  (solo supervisar).
+- Arquetipo Detalle con hero de programa y stat cards; sin gráficos; sin la solapa «Mapa de la emergencia».
+- Selectores y avisos en 10 consultas; vista completa en 16. Sin `CONVERT_TZ`.
+- Cambió `scripts/design_audit.py`: el tablero entra en `HERO_PANTALLAS` y la variante «detalle +
+  apilado» acepta el hero en lugar del `page_header`.
+- «Ingreso parcial sin revisar» se da por revisado con un contacto posterior al alojamiento (no hay
+  campo de observación de la mesa en el caso).
+- Tests: `test_emergencia_tablero.py` (45).
+
+### PR 11 — Marcas de la bandeja y la ficha
+- Marcas nuevas: «Rechazado por X: motivo», «Derivación vencida · volver a derivar», «Dispositivo
+  inactivo · volver a derivar», «Llegaron N sobre M declaradas», «En la puerta de X». Se van con la
+  siguiente acción sobre el caso.
+- Presupuestos de E2 (17) y E3 (18) sin cambios.
+- Tests: `test_emergencia_marcas.py` (19).
+
 ### PR 9 y 9-API — Kits
 - Modelos `EntregaKit`, `LineaEntrega`, `TrazaEntrega`. Migración `programas.0120_emergencia_kits`.
 - `programas/services/kits.py`: `crear_entrega`, `marcar_en_camino`, `cancelar_entrega`,
@@ -214,7 +248,10 @@ El resto de las decisiones abiertas del README §10 sigue con los supuestos del 
 - **Semáforo consultado dos veces** en la bandeja (una consulta de más, evitable tocando el selector).
 - **Sidebar sin alcance de programa**: un rol de otro programa con la capacidad tildada vería el link y
   recibiría 403 al entrar.
-- **Sin revisión visual en navegador** de E2, E3, E7, «Nuevo caso», E6, E4 ni E5.
+- **Sin revisión visual en navegador** de ninguna pantalla nueva (E1 a E7, «Nuevo caso», kits).
+- **«Plazas libres» cuenta todas las plazas, no solo camas**, en el panel Derivar y en el tablero.
+- **Validación antes que alcance** en `cerrar_con_diferencia` y `rechazar_derivacion`: con un id ajeno y
+  un motivo inválido dan 400 en vez de 404. No filtra datos; se puede reordenar en un PR chico.
 - **PR 7 y PR 9 sin reporte final del subagente.** Los dos se cortaron por límite de uso justo al
   terminar; el código está commiteado y pasa todas las verificaciones, pero las decisiones que tomaron
   no quedaron escritas. Revisarlas en el diff antes de abrir los PRs.
@@ -230,7 +267,7 @@ El resto de las decisiones abiertas del README §10 sigue con los supuestos del 
   (`{success, origen, data, datos_api}`), no con el de 01 §8.
 
 ### Pendiente de CI (no se puede correr sin MySQL/MariaDB)
-- Carreras con dos conexiones (`@tag("mysql")`) de los PRs 2, 4, 6, 7 y 9.
+- Carreras con dos conexiones (`@tag("mysql")`) de los PRs 2, 4, 6, 7, 8 y 9.
 - Job «Migrate ida y vuelta» y `check_sqlmigrate` para las migraciones `0116` a `0120` y `users.0047`.
 
 ### Condiciones de cierre que todavía no se cumplieron
@@ -249,9 +286,11 @@ MySQL deberían pasar; verificarlo en CI.
 
 ## 7. Qué sigue
 
-1. PR 8 (API M2) sobre PR 7, y PR 11 (marcas de bandeja).
-2. Revisar los reportes de decisiones de PR 7 y PR 9: el cierre de los dos lo hizo el orquestador
-   verificando (los subagentes se cortaron por límite de uso antes de reportar).
+1. Terminar el PR 12 (documentación y entradas de `requerimientos.md`).
+2. Revisar el diff de PR 7 y PR 9 (sus subagentes no dejaron reporte de decisiones).
+3. Abrir los PRs contra `development` en el orden de §2 y pasarlos por `/auditoria pr <N>`.
+4. Que el CI corra las carreras con motor real y la migración ida y vuelta.
+5. PWA, cuando se destrabe §6.
 3. PR 10 (tablero y avisos) cuando estén 7 y 9.
 4. PR 12 (documentación y entradas de requerimientos).
 5. PWA, cuando se destrabe §6.
@@ -266,4 +305,5 @@ MySQL deberían pasar; verificarlo en CI.
 | 2026-11-12 | Ola 1: PR 0 y PR 1. |
 | 2026-11-12 | Ola 2: PR 2. |
 | 2026-11-12 | Ola 3: PR 3, 4, 5 y 6. Integración de 0 a 6 con la suite completa. |
+| 2026-11-12 | Ola 5 (Opus): PR 8, PR 10 y PR 11. Integración final del backend con 8.986 tests. PR 12 lanzado. |
 | 2026-11-12 | Ola 4: PR 7 y PR 9. Los subagentes se cortaron por límite de uso (Fable y después Opus); el orquestador verificó y pusheó lo commiteado. Integración de 0 a 9 con la suite completa. |
